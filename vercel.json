@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "src/app/api/cron/poll-carriers/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cron/dispatch-scheduled/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}

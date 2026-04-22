@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "test-driven-development",
+  "owner": "vgeshel",
+  "repo": "local-skills",
+  "path": ".agents/skills/test-driven-development",
+  "branch": "main",
+  "sha": "e7f2197c88ea213a573debe3b6573edfc58f3768",
+  "source": "manual"
+}

@@ -1,0 +1,386 @@
+import { createClient } from "@/lib/supabase/server";
+import type { Role } from "@/types";
+
+export interface WarehouseSummaryInput {
+  role: Role;
+  actorMarketId: string | null;
+  marketId: string | "all" | null;
+}
+
+export interface KpiCount {
+  current: number;
+  previous: number;
+  delta: number;
+  deltaPct: number | null;
+}
+
+export interface WarehouseKpis {
+  pendingLabels: KpiCount;
+  toScanOut: KpiCount;
+  returnsInbox: KpiCount;
+  damagedThisWeek: KpiCount;
+}
+
+export interface WarehouseTrendPoint {
+  day: string;
+  scanned: number;
+  returned: number;
+  damaged: number;
+}
+
+export interface LowStockProduct {
+  id: string;
+  name: string;
+  current_stock: number;
+  low_stock_threshold: number;
+  market_id: string;
+}
+
+export interface WarehouseActivityEntry {
+  kind: "print" | "scan" | "return";
+  id: string;
+  order_id: string | null;
+  at: string;
+  detail: string;
+  is_damaged?: boolean;
+}
+
+export interface WarehouseMarketSummary {
+  id: string;
+  name: string;
+  code: string;
+  currency: string;
+}
+
+export interface WarehouseSummary {
+  kpis: WarehouseKpis;
+  trend: WarehouseTrendPoint[];
+  activity: WarehouseActivityEntry[];
+  lowStock: LowStockProduct[];
+  selectedMarket: WarehouseMarketSummary | null;
+  availableMarkets: WarehouseMarketSummary[];
+  scope: "all" | "single";
+}
+
+export interface WarehouseOrderRow {
+  id: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_city: string | null;
+  customer_address: string | null;
+  product_id: string | null;
+  product_name: string;
+  variant_label: string | null;
+  quantity: number;
+  total_price: number;
+  status: string;
+  created_at: string;
+  current_stock: number | null;
+  low_stock_threshold: number | null;
+}
+
+const DAY_MS = 86_400_000;
+
+export function snapshotKpi(current: number): KpiCount {
+  return { current, previous: current, delta: 0, deltaPct: null };
+}
+
+export function computeKpiDelta(current: number, previous: number): KpiCount {
+  const delta = current - previous;
+  const deltaPct =
+    previous === 0 ? null : Math.round((delta / previous) * 1000) / 10;
+  return { current, previous, delta, deltaPct };
+}
+
+function resolveScope(
+  input: WarehouseSummaryInput,
+): { scopedMarketId: string | null; scope: "all" | "single" } {
+  if (input.role === "super_admin") {
+    if (!input.marketId || input.marketId === "all") {
+      return { scopedMarketId: null, scope: "all" };
+    }
+    return { scopedMarketId: input.marketId, scope: "single" };
+  }
+  return { scopedMarketId: input.actorMarketId, scope: "single" };
+}
+
+export function buildWarehouseTrend(
+  rows: Array<{ reason: string; created_at: string; change: number }>,
+  fromDate: string,
+  toDate: string,
+): WarehouseTrendPoint[] {
+  const perDay = new Map<
+    string,
+    { scanned: number; returned: number; damaged: number }
+  >();
+  const fromMs = new Date(fromDate + "T00:00:00Z").getTime();
+  const toMs = new Date(toDate + "T00:00:00Z").getTime();
+  for (let t = fromMs; t <= toMs; t += DAY_MS) {
+    perDay.set(new Date(t).toISOString().slice(0, 10), {
+      scanned: 0,
+      returned: 0,
+      damaged: 0,
+    });
+  }
+  for (const r of rows) {
+    const day = r.created_at.slice(0, 10);
+    const bucket = perDay.get(day);
+    if (!bucket) continue;
+    const qty = Math.abs(Number(r.change) || 0);
+    if (r.reason === "scanned") bucket.scanned += qty;
+    else if (r.reason === "returned") bucket.returned += qty;
+    else if (r.reason === "damaged_writeoff") bucket.damaged += qty;
+  }
+  return Array.from(perDay.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([day, v]) => ({ day, ...v }));
+}
+
+export async function getWarehouseSummary(
+  input: WarehouseSummaryInput,
+): Promise<WarehouseSummary> {
+  const { scopedMarketId, scope } = resolveScope(input);
+
+  const supabase = await createClient();
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * DAY_MS);
+  const twoWeeksAgo = new Date(now.getTime() - 14 * DAY_MS);
+  const trendFromIso = twoWeeksAgo.toISOString().slice(0, 10);
+  const trendToIso = now.toISOString().slice(0, 10);
+
+  // --- Base queries (parallel) ---
+  const marketsPromise = supabase
+    .from("markets")
+    .select("id, name, code, currency")
+    .order("name", { ascending: true });
+
+  // Count confirmed orders (head: true = no row data transferred)
+  let confirmedQuery = supabase
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "confirmed");
+  if (scopedMarketId) confirmedQuery = confirmedQuery.eq("market_id", scopedMarketId);
+
+  // Count confirmed orders that already have a label_prints row (to-scan queue size)
+  let printedQuery = supabase
+    .from("label_prints")
+    .select("order_id, orders!inner(status)", { count: "exact", head: true })
+    .eq("orders.status", "confirmed");
+  if (scopedMarketId) printedQuery = printedQuery.eq("market_id", scopedMarketId);
+
+  let returnsQuery = supabase
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "to_be_returned");
+  if (scopedMarketId) returnsQuery = returnsQuery.eq("market_id", scopedMarketId);
+
+  let damagedThisWeekQuery = supabase
+    .from("inventory_log")
+    .select("id, products!inner(market_id)", { count: "exact", head: true })
+    .eq("reason", "damaged_writeoff")
+    .gte("created_at", weekAgo.toISOString());
+  if (scopedMarketId)
+    damagedThisWeekQuery = damagedThisWeekQuery.eq(
+      "products.market_id",
+      scopedMarketId,
+    );
+
+  let damagedPrevWeekQuery = supabase
+    .from("inventory_log")
+    .select("id, products!inner(market_id)", { count: "exact", head: true })
+    .eq("reason", "damaged_writeoff")
+    .gte("created_at", twoWeeksAgo.toISOString())
+    .lt("created_at", weekAgo.toISOString());
+  if (scopedMarketId)
+    damagedPrevWeekQuery = damagedPrevWeekQuery.eq(
+      "products.market_id",
+      scopedMarketId,
+    );
+
+  let trendQuery = supabase
+    .from("inventory_log")
+    .select("reason, created_at, change, products!inner(market_id)")
+    .in("reason", ["scanned", "returned", "damaged_writeoff"])
+    .gte("created_at", twoWeeksAgo.toISOString())
+    .limit(20000);
+  if (scopedMarketId)
+    trendQuery = trendQuery.eq("products.market_id", scopedMarketId);
+
+  let labelActivityQuery = supabase
+    .from("label_prints")
+    .select(
+      "id, order_id, created_at, is_reprint, orders(customer_name, customer_city)",
+    )
+    .order("created_at", { ascending: false })
+    .limit(10);
+  if (scopedMarketId)
+    labelActivityQuery = labelActivityQuery.eq("market_id", scopedMarketId);
+
+  let invActivityQuery = supabase
+    .from("inventory_log")
+    .select(
+      "id, order_id, reason, created_at, is_damaged, products!inner(market_id, name), orders(customer_name, customer_city)",
+    )
+    .in("reason", ["scanned", "returned", "damaged_writeoff"])
+    .order("created_at", { ascending: false })
+    .limit(10);
+  if (scopedMarketId)
+    invActivityQuery = invActivityQuery.eq(
+      "products.market_id",
+      scopedMarketId,
+    );
+
+  // Fetch a modest window; JS post-filter on current_stock < low_stock_threshold
+  // is needed because PostgREST can't do column-to-column comparisons.
+  // lte(current_stock, threshold-1) isn't safe without knowing threshold values,
+  // so we over-fetch a capped set ordered by current_stock asc to get the worst first.
+  let lowStockQuery = supabase
+    .from("products")
+    .select("id, name, current_stock, low_stock_threshold, market_id")
+    .eq("is_active", true)
+    .gt("low_stock_threshold", 0)
+    .order("current_stock", { ascending: true })
+    .limit(100);
+  if (scopedMarketId) lowStockQuery = lowStockQuery.eq("market_id", scopedMarketId);
+
+  const [
+    marketsResult,
+    confirmedResult,
+    printedResult,
+    returnsResult,
+    damagedWeekResult,
+    damagedPrevResult,
+    trendResult,
+    labelActivityResult,
+    invActivityResult,
+    lowStockResult,
+  ] = await Promise.all([
+    marketsPromise,
+    confirmedQuery,
+    printedQuery,
+    returnsQuery,
+    damagedThisWeekQuery,
+    damagedPrevWeekQuery,
+    trendQuery,
+    labelActivityQuery,
+    invActivityQuery,
+    lowStockQuery,
+  ]);
+
+  // --- Markets ---
+  const availableMarkets: WarehouseMarketSummary[] = (
+    marketsResult.data ?? []
+  ).map((m) => ({
+    id: m.id as string,
+    name: m.name as string,
+    code: m.code as string,
+    currency: (m.currency as string) ?? "TND",
+  }));
+  const selectedMarket =
+    scopedMarketId != null
+      ? availableMarkets.find((m) => m.id === scopedMarketId) ?? null
+      : null;
+
+  // --- Pending labels / to-scan split (counts only — no row transfer) ---
+  const totalConfirmed = confirmedResult.count ?? 0;
+  const toScanOut = printedResult.count ?? 0;
+  const pendingLabels = totalConfirmed - toScanOut;
+
+  // --- Trend ---
+  const trendRows = ((trendResult.data ?? []) as unknown) as Array<{
+    reason: string;
+    created_at: string;
+    change: number;
+  }>;
+  const trend = buildWarehouseTrend(trendRows, trendFromIso, trendToIso);
+
+  // --- Activity (merge label_prints + inventory_log, sort desc, take 10) ---
+  type LabelActivityRow = {
+    id: string;
+    order_id: string | null;
+    created_at: string;
+    is_reprint: boolean | null;
+    orders: { customer_name: string | null; customer_city: string | null } | null;
+  };
+  type InvActivityRow = {
+    id: string;
+    order_id: string | null;
+    reason: string;
+    created_at: string;
+    is_damaged: boolean | null;
+    products: { name: string | null } | null;
+    orders: { customer_name: string | null; customer_city: string | null } | null;
+  };
+
+  const labelActivity: WarehouseActivityEntry[] = (
+    (labelActivityResult.data ?? []) as unknown as LabelActivityRow[]
+  ).map((p) => ({
+    kind: "print" as const,
+    id: p.id,
+    order_id: p.order_id,
+    at: p.created_at,
+    detail:
+      [p.orders?.customer_name, p.orders?.customer_city]
+        .filter(Boolean)
+        .join(" · ") || "—",
+  }));
+
+  const invActivity: WarehouseActivityEntry[] = (
+    (invActivityResult.data ?? []) as unknown as InvActivityRow[]
+  ).map((s) => {
+    const isReturn =
+      s.reason === "returned" || s.reason === "damaged_writeoff";
+    return {
+      kind: isReturn ? ("return" as const) : ("scan" as const),
+      id: s.id,
+      order_id: s.order_id,
+      at: s.created_at,
+      detail:
+        [
+          s.products?.name,
+          s.orders?.customer_name,
+          s.orders?.customer_city,
+        ]
+          .filter(Boolean)
+          .join(" · ") || "—",
+      is_damaged: s.reason === "damaged_writeoff",
+    };
+  });
+
+  const activity = [...labelActivity, ...invActivity]
+    .sort((a, b) => +new Date(b.at) - +new Date(a.at))
+    .slice(0, 10);
+
+  // SQL already orders by current_stock asc; JS filter for the ratio condition.
+  const lowStock = (
+    (lowStockResult.data ?? []) as Array<{
+      id: string;
+      name: string;
+      current_stock: number;
+      low_stock_threshold: number;
+      market_id: string;
+    }>
+  )
+    .filter((p) => p.current_stock < p.low_stock_threshold)
+    .slice(0, 20);
+
+  // --- KPIs ---
+  const damagedCurrent = damagedWeekResult.count ?? 0;
+  const damagedPrev = damagedPrevResult.count ?? 0;
+  const kpis: WarehouseKpis = {
+    pendingLabels: snapshotKpi(pendingLabels),
+    toScanOut: snapshotKpi(toScanOut),
+    returnsInbox: snapshotKpi(returnsResult.count ?? 0),
+    damagedThisWeek: computeKpiDelta(damagedCurrent, damagedPrev),
+  };
+
+  return {
+    kpis,
+    trend,
+    activity,
+    lowStock,
+    selectedMarket,
+    availableMarkets,
+    scope,
+  };
+}

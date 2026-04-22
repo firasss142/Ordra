@@ -1,0 +1,8 @@
+node_modules/
+.next/
+dist/
+*.lock
+.git/
+supabase/.temp/
+*.log
+coverage/

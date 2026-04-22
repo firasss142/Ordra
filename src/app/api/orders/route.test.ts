@@ -1,0 +1,189 @@
+import { describe, test, expect, vi, beforeEach } from "vitest";
+
+// Mock Supabase server module
+const mockGetUser = vi.fn();
+const mockFrom = vi.fn();
+const mockRpc = vi.fn();
+
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn().mockResolvedValue({
+    auth: { getUser: () => mockGetUser() },
+    from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
+  }),
+}));
+
+import { GET, POST } from "./route";
+import { NextRequest } from "next/server";
+
+function createRequest(method: string, url: string, body?: unknown) {
+  const init: Record<string, unknown> = { method };
+  if (body) init.body = JSON.stringify(body);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return new NextRequest(new URL(url, "http://localhost:3000"), init as any);
+}
+
+// Generic chainable query mock
+function queryChain(resolveWith: { data: unknown; error: unknown; count?: number }) {
+  const chain: Record<string, unknown> = {};
+  chain.select = vi.fn().mockReturnValue(chain);
+  chain.eq = vi.fn().mockReturnValue(chain);
+  chain.gte = vi.fn().mockReturnValue(chain);
+  chain.lte = vi.fn().mockReturnValue(chain);
+  chain.order = vi.fn().mockReturnValue(chain);
+  chain.range = vi.fn().mockResolvedValue({ data: resolveWith.data, error: resolveWith.error, count: resolveWith.count });
+  chain.insert = vi.fn().mockReturnValue(chain);
+  chain.single = vi.fn().mockResolvedValue(resolveWith);
+  return chain;
+}
+
+function setupAuth(user: { id: string } | null, actor: { role: string; market_id: string | null } | null) {
+  mockGetUser.mockResolvedValue({ data: { user }, error: null });
+  if (actor) {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return queryChain({ data: actor, error: null });
+      }
+      if (table === "orders") {
+        return queryChain({ data: [], error: null, count: 0 });
+      }
+      return queryChain({ data: null, error: null });
+    });
+  }
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("GET /api/orders", () => {
+  test("returns 401 when not authenticated", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+    const req = createRequest("GET", "/api/orders");
+    const res = await GET(req);
+    expect(res.status).toBe(401);
+  });
+
+  test("returns 401 when actor not found in users table", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+    mockFrom.mockReturnValue(queryChain({ data: null, error: null }));
+    const req = createRequest("GET", "/api/orders");
+    const res = await GET(req);
+    expect(res.status).toBe(401);
+  });
+
+  test("returns 200 with orders for market_manager", async () => {
+    const orders = [{ id: "order-1", status: "new" }];
+    mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return queryChain({ data: { role: "market_manager", market_id: "market-a" }, error: null });
+      }
+      if (table === "orders") {
+        return queryChain({ data: orders, error: null, count: 1 });
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const req = createRequest("GET", "/api/orders");
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.data).toEqual(orders);
+  });
+
+  test("agent sees only own assigned orders", async () => {
+    const orders = [{ id: "order-1", status: "assigned", assigned_to: "agent-1" }];
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });
+
+    let orderChainRef: ReturnType<typeof queryChain>;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return queryChain({ data: { role: "agent", market_id: "market-a" }, error: null });
+      }
+      if (table === "orders") {
+        orderChainRef = queryChain({ data: orders, error: null, count: 1 });
+        return orderChainRef;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const req = createRequest("GET", "/api/orders");
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    // Verify eq was called with assigned_to filter for agent
+    const eqCalls = (orderChainRef!.eq as ReturnType<typeof vi.fn>).mock.calls;
+    const assignedToFilter = eqCalls.find((c: unknown[]) => c[0] === "assigned_to" && c[1] === "agent-1");
+    expect(assignedToFilter).toBeDefined();
+  });
+
+  test("applies city filter when provided", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+
+    let orderChainRef: ReturnType<typeof queryChain>;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return queryChain({ data: { role: "market_manager", market_id: "market-a" }, error: null });
+      }
+      if (table === "orders") {
+        orderChainRef = queryChain({ data: [], error: null, count: 0 });
+        return orderChainRef;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const req = createRequest("GET", "/api/orders?city=Tunis");
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const eqCalls = (orderChainRef!.eq as ReturnType<typeof vi.fn>).mock.calls;
+    const cityFilter = eqCalls.find((c: unknown[]) => c[0] === "customer_city" && c[1] === "Tunis");
+    expect(cityFilter).toBeDefined();
+  });
+
+  test("applies date_from and date_to filters when provided", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+
+    let orderChainRef: ReturnType<typeof queryChain>;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return queryChain({ data: { role: "market_manager", market_id: "market-a" }, error: null });
+      }
+      if (table === "orders") {
+        orderChainRef = queryChain({ data: [], error: null, count: 0 });
+        return orderChainRef;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const req = createRequest("GET", "/api/orders?date_from=2026-01-01&date_to=2026-12-31");
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const gteCalls = (orderChainRef!.gte as ReturnType<typeof vi.fn>).mock.calls;
+    const lteCalls = (orderChainRef!.lte as ReturnType<typeof vi.fn>).mock.calls;
+    expect(gteCalls.find((c: unknown[]) => c[0] === "created_at" && c[1] === "2026-01-01")).toBeDefined();
+    expect(lteCalls.find((c: unknown[]) => c[0] === "created_at" && c[1] === "2026-12-31")).toBeDefined();
+  });
+});
+
+describe("POST /api/orders", () => {
+  test("returns 401 when not authenticated", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
+    const req = createRequest("POST", "/api/orders", { customer_name: "Test" });
+    const res = await POST(req);
+    expect(res.status).toBe(401);
+  });
+
+  test("returns 400 when agent submits without required fields", async () => {
+    setupAuth({ id: "user-1" }, { role: "agent", market_id: "market-a" });
+    const req = createRequest("POST", "/api/orders", { market_id: "market-a", customer_name: "Test" });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+
+  test("returns 400 for missing required fields", async () => {
+    setupAuth({ id: "user-1" }, { role: "market_manager", market_id: "market-a" });
+    const req = createRequest("POST", "/api/orders", {});
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+});

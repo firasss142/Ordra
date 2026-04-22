@@ -1,0 +1,80 @@
+export type AssignmentAlgorithm =
+  | "manual"
+  | "round_robin"
+  | "workload"
+  | "product_based"
+  | "region_based";
+
+export const AssignmentAlgorithm = {
+  manual: "manual" as const,
+  round_robin: "round_robin" as const,
+  workload: "workload" as const,
+  product_based: "product_based" as const,
+  region_based: "region_based" as const,
+};
+
+export interface MarketSettings {
+  delivery_fee: number;
+  return_fee: number;
+  packing_cost: number;
+  max_call_attempts: number;
+  assignment_algorithm: AssignmentAlgorithm;
+  active_agents_only?: boolean;
+  agent_inactivity_minutes?: number;
+  attempt_retry_times?: string[];
+}
+
+export interface CarrierConfig {
+  id: string;
+  market_id: string;
+  name: string;
+  api_endpoint: string;
+  api_key_encrypted: string;
+  delivery_fee: number;
+  return_fee: number;
+  active: boolean;
+}
+
+const VALID_ALGORITHMS = new Set<string>([
+  "manual",
+  "round_robin",
+  "workload",
+  "product_based",
+  "region_based",
+]);
+
+export function isValidMarketSettings(obj: unknown): obj is MarketSettings {
+  if (obj === null || typeof obj !== "object") return false;
+  const s = obj as Record<string, unknown>;
+  if (typeof s.delivery_fee !== "number" || s.delivery_fee < 0) return false;
+  if (typeof s.return_fee !== "number" || s.return_fee < 0) return false;
+  if (typeof s.packing_cost !== "number" || s.packing_cost < 0) return false;
+  if (
+    typeof s.max_call_attempts !== "number" ||
+    s.max_call_attempts < 1 ||
+    s.max_call_attempts > 10
+  )
+    return false;
+  if (
+    typeof s.assignment_algorithm !== "string" ||
+    !VALID_ALGORITHMS.has(s.assignment_algorithm)
+  )
+    return false;
+  if (s.active_agents_only !== undefined && typeof s.active_agents_only !== "boolean") return false;
+  if (s.agent_inactivity_minutes !== undefined && (typeof s.agent_inactivity_minutes !== "number" || s.agent_inactivity_minutes < 1)) return false;
+  if (s.attempt_retry_times !== undefined) {
+    if (!Array.isArray(s.attempt_retry_times)) return false;
+    if (s.attempt_retry_times.length > 3) return false;
+    const timeRe = /^([0-1]\d|2[0-3]):([0-5]\d)$/;
+    let prevMinutes = -1;
+    for (const entry of s.attempt_retry_times) {
+      if (typeof entry !== "string") return false;
+      const match = timeRe.exec(entry);
+      if (!match) return false;
+      const mins = Number(match[1]) * 60 + Number(match[2]);
+      if (mins <= prevMinutes) return false;
+      prevMinutes = mins;
+    }
+  }
+  return true;
+}

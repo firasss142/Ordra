@@ -1,0 +1,162 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { canViewProfitability } from "@/lib/profitability-permissions";
+import { calculateProductProfitability } from "@/lib/calculations/product-profitability";
+import { getActor } from "@/lib/auth/actor";
+
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ productId: string }> }
+) {
+  const { productId } = await params;
+  const supabase = await createClient();
+
+    const actorResult = await getActor(req);
+  if ("response" in actorResult) return actorResult.response;
+  const { actor } = actorResult;
+  const role = actor.role;
+  if (!canViewProfitability(role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const today = todayISO();
+  const fromDate = req.nextUrl.searchParams.get("from_date") ?? today;
+  const toDate = req.nextUrl.searchParams.get("to_date") ?? today;
+
+  // --- Fetch product, verify market ownership ---
+  const { data: product } = await supabase
+    .from("products")
+    .select(
+      "id, name, unit_cogs, packing_cost, cpl, confirmation_processing_cost, market_id, current_stock, low_stock_threshold"
+    )
+    .eq("id", productId)
+    .single();
+
+  if (!product) {
+    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+  }
+
+  if (role === "market_manager" && product.market_id !== actor.market_id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // --- Fetch market currency ---
+  const { data: market } = await supabase
+    .from("markets")
+    .select("currency")
+    .eq("id", product.market_id)
+    .single();
+
+  const currency = (market as { currency?: string } | null)?.currency ?? "TND";
+
+  const unitCogs = Number(product.unit_cogs);
+  const packingCost = Number(product.packing_cost);
+  const cpl = Number(product.cpl);
+  const confirmationProcessingCost = Number(product.confirmation_processing_cost ?? 0);
+  const toDateEnd = toDate + "T23:59:59.999Z";
+
+  // --- Total leads ---
+  const { count: totalLeads } = await supabase
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("product_id", productId)
+    .gte("created_at", fromDate)
+    .lte("created_at", toDateEnd);
+
+  // --- Confirmed count (product-scoped) ---
+  const { count: confirmedCount } = await supabase
+    .from("order_history")
+    .select("id, orders!inner(product_id)", { count: "exact", head: true })
+    .eq("status_to", "confirmed")
+    .eq("orders.product_id", productId)
+    .gte("created_at", fromDate)
+    .lte("created_at", toDateEnd);
+
+  // --- Dispatched count (product-scoped) ---
+  const { count: dispatchedCount } = await supabase
+    .from("order_history")
+    .select("id, orders!inner(product_id)", { count: "exact", head: true })
+    .eq("status_to", "dispatched")
+    .eq("orders.product_id", productId)
+    .gte("created_at", fromDate)
+    .lte("created_at", toDateEnd);
+
+  // --- Delivered orders with carrier fee ---
+  const { data: deliveredHistory } = await supabase
+    .from("order_history")
+    .select(
+      "orders!inner(id, total_price, quantity, carrier_id, product_id, carriers(delivery_fee, return_fee))"
+    )
+    .eq("status_to", "delivered")
+    .eq("orders.product_id", productId)
+    .gte("created_at", fromDate)
+    .lte("created_at", toDateEnd);
+
+  type DeliveredRow = {
+    total_price: number;
+    quantity: number;
+    carrier_id: string | null;
+    carriers: { delivery_fee: number; return_fee: number } | null;
+  };
+
+  const deliveredOrders = (deliveredHistory ?? []).map((h) => {
+    const o = h.orders as unknown as DeliveredRow;
+    return {
+      total_price: Number(o.total_price),
+      quantity: Number(o.quantity),
+      carrier_delivery_fee: Number(o.carriers?.delivery_fee ?? 0),
+    };
+  });
+
+  // --- Returned orders with carrier fee ---
+  const { data: returnedHistory } = await supabase
+    .from("order_history")
+    .select(
+      "orders!inner(id, carrier_id, product_id, carriers(delivery_fee, return_fee))"
+    )
+    .eq("status_to", "returned")
+    .eq("orders.product_id", productId)
+    .gte("created_at", fromDate)
+    .lte("created_at", toDateEnd);
+
+  type ReturnedRow = {
+    carrier_id: string | null;
+    carriers: { delivery_fee: number; return_fee: number } | null;
+  };
+
+  const returnedOrders = (returnedHistory ?? []).map((h) => {
+    const o = h.orders as unknown as ReturnedRow;
+    return {
+      carrier_return_fee: Number(o.carriers?.return_fee ?? 0),
+    };
+  });
+
+  const result = calculateProductProfitability({
+    totalLeads: totalLeads ?? 0,
+    confirmedCount: confirmedCount ?? 0,
+    dispatchedCount: dispatchedCount ?? 0,
+    deliveredCount: deliveredOrders.length,
+    returnedCount: returnedOrders.length,
+    unitCogs,
+    packingCost,
+    cpl,
+    confirmationProcessingCost,
+    deliveredOrders,
+    returnedOrders,
+  });
+
+  return NextResponse.json({
+    data: {
+      product_name: product.name,
+      current_stock: product.current_stock,
+      low_stock_threshold: product.low_stock_threshold,
+      currency,
+      period: { from_date: fromDate, to_date: toDate },
+      ...result,
+    },
+  });
+}

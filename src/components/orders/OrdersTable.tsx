@@ -1,0 +1,230 @@
+"use client";
+
+import { useEffect, useMemo, useRef } from "react";
+import { useTranslations } from "next-intl";
+import type { OrdersListRow } from "@/hooks/useOrdersList";
+import { OrderRow } from "./OrderRow";
+
+interface Agent {
+  id: string;
+  full_name: string;
+}
+
+interface Props {
+  rows: OrdersListRow[];
+  locale: string;
+  currencyCode: string;
+  agents: Agent[];
+  selectedIds: Set<string>;
+  highlightedIds: Set<string>;
+  cancellingId: string | null;
+  hasMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
+  onOpen: (id: string) => void;
+  onToggleSelect: (id: string) => void;
+  onToggleSelectAll: (ids: string[]) => void;
+  onCancel: (id: string) => void;
+  isLoading: boolean;
+  isEmpty: boolean;
+}
+
+export function OrdersTable({
+  rows,
+  locale,
+  currencyCode,
+  agents,
+  selectedIds,
+  highlightedIds,
+  cancellingId,
+  hasMore,
+  loadingMore,
+  onLoadMore,
+  onOpen,
+  onToggleSelect,
+  onToggleSelectAll,
+  onCancel,
+  isLoading,
+  isEmpty,
+}: Props) {
+  const t = useTranslations("orders");
+  const tStatus = useTranslations("orders.statuses");
+
+  const agentNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of agents) m.set(a.id, a.full_name);
+    return m;
+  }, [agents]);
+
+  // Infinite-scroll sentinel
+  const sentinelRef = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    if (!hasMore || loadingMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) onLoadMore();
+        }
+      },
+      { rootMargin: "300px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, loadingMore, onLoadMore]);
+
+  const allSelected = rows.length > 0 && rows.every((r) => selectedIds.has(r.id));
+  const someSelected = rows.some((r) => selectedIds.has(r.id));
+
+  if (isLoading) {
+    return <TableSkeleton />;
+  }
+  if (isEmpty) {
+    return (
+      <div
+        style={{
+          background: "#FFFFFF",
+          border: "1px solid #E1E3E5",
+          borderRadius: 8,
+          padding: "48px 18px",
+          textAlign: "center",
+          color: "#6D7175",
+          fontSize: 14,
+        }}
+      >
+        {t("emptyState")}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        background: "#FFFFFF",
+        border: "1px solid #E1E3E5",
+        borderRadius: 8,
+        overflow: "hidden",
+      }}
+    >
+      <div style={{ overflowX: "auto" }}>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "separate",
+            borderSpacing: 0,
+            tableLayout: "auto",
+          }}
+        >
+          <thead>
+            <tr style={{ background: "#FFFFFF", position: "sticky", top: 0, zIndex: 1 }}>
+              <th style={{ ...headerStyle, width: 36 }}>
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = !allSelected && someSelected;
+                  }}
+                  onChange={() => onToggleSelectAll(rows.map((r) => r.id))}
+                  aria-label={t("columns.selectAll")}
+                  style={{ cursor: "pointer" }}
+                />
+              </th>
+              <th style={headerStyle}>{t("columns.order")}</th>
+              <th style={headerStyle}>{t("columns.customer")}</th>
+              <th style={headerStyle}>{t("columns.city")}</th>
+              <th style={headerStyle}>{t("columns.product")}</th>
+              <th style={{ ...headerStyle, textAlign: "end" }}>{t("columns.totalPrice")}</th>
+              <th style={headerStyle}>{t("columns.status")}</th>
+              <th style={headerStyle}>{t("columns.agent")}</th>
+              <th style={headerStyle}>{t("columns.date")}</th>
+              <th style={headerStyle} aria-label={t("columns.actions")} />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <OrderRow
+                key={r.id}
+                order={r}
+                locale={locale}
+                selected={selectedIds.has(r.id)}
+                highlighted={highlightedIds.has(r.id)}
+                currencyCode={currencyCode}
+                agentName={r.assigned_to ? agentNameById.get(r.assigned_to) ?? null : null}
+                labels={{
+                  status: tStatus(r.status),
+                  unassigned: t("unassigned"),
+                  cancel: t("actions.cancel"),
+                }}
+                onToggleSelect={onToggleSelect}
+                onOpen={onOpen}
+                onCancel={onCancel}
+                cancellingId={cancellingId}
+              />
+            ))}
+            {hasMore ? (
+              <tr ref={sentinelRef} aria-hidden>
+                <td colSpan={10} style={{ height: 1, padding: 0 }} />
+              </tr>
+            ) : null}
+            {loadingMore ? (
+              <tr>
+                <td
+                  colSpan={10}
+                  style={{
+                    padding: "16px",
+                    textAlign: "center",
+                    color: "#6D7175",
+                    fontSize: 13,
+                  }}
+                >
+                  {t("loadingMore")}
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function TableSkeleton() {
+  return (
+    <div
+      style={{
+        background: "#FFFFFF",
+        border: "1px solid #E1E3E5",
+        borderRadius: 8,
+        padding: 18,
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}
+    >
+      {Array.from({ length: 10 }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            height: 40,
+            background: "#F7F7F7",
+            borderRadius: 6,
+            animation: "pulse 1.5s ease-in-out infinite",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+const headerStyle: React.CSSProperties = {
+  textAlign: "start",
+  padding: "12px 16px",
+  fontSize: 13,
+  fontWeight: 500,
+  color: "#6D7175",
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+  borderBottom: "1px solid #E1E3E5",
+  background: "#FFFFFF",
+};
