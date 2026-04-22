@@ -72,19 +72,15 @@ export function FollowUpsPageClient({
   const isSuperAdmin = role === "super_admin";
   const isManager = role === "market_manager" || role === "super_admin";
 
-  // ---------- Filter state (local, not URL synced for v1) ----------
-  const [selectedMarketRaw, setSelectedMarketRaw] = useState<string | "all" | null>(
+  const [selectedMarketId, setSelectedMarketId] = useState<string | "all">(
     isSuperAdmin ? "all" : userMarketId,
   );
-  const selectedMarketId = isSuperAdmin
-    ? selectedMarketRaw
-    : userMarketId;
   const effectiveMarketId =
-    isSuperAdmin
-      ? selectedMarketId === "all"
+    !isSuperAdmin || selectedMarketId === "all"
+      ? isSuperAdmin
         ? null
-        : (selectedMarketId as string | null)
-      : userMarketId;
+        : userMarketId
+      : selectedMarketId;
 
   const [statusFilter, setStatusFilter] = useState<FollowUpStatus | "all">("all");
   const [campaignId, setCampaignId] = useState<string | null>(null);
@@ -102,11 +98,11 @@ export function FollowUpsPageClient({
   );
   const markets = marketsData?.data ?? [];
 
-  // ---------- Lazy campaigns load (open panel or chip) ----------
+  // Campaigns are lazy-loaded — fetch only when the user opens the chip or panel.
   const [campaignsRequested, setCampaignsRequested] = useState(false);
   const { campaigns, mutate: mutateCampaigns } = useFollowUpCampaigns(
     effectiveMarketId ?? userMarketId,
-    { enabled: campaignsRequested },
+    campaignsRequested,
   );
 
   // ---------- Summary ----------
@@ -117,41 +113,36 @@ export function FollowUpsPageClient({
     fallback: initialSummary,
   });
 
-  // ---------- Column data ----------
-  const isFallbackValid =
-    // Initial prefetch was scoped to the user's default market for managers,
-    // or to the super_admin's initial (all markets). Once filters change
-    // client-side, SWR fetches fresh data with the correct key — the fallback
-    // is still served for the *initial* key only.
-    true;
-
+  // One hook per status — React requires a fixed number of hook calls per
+  // render, so we spell them out rather than looping. The `columnData` map
+  // is the stable structure downstream code walks.
   const openCol = useFollowUpsColumn({
     status: "open",
     marketId: effectiveMarketId,
     agentId: null,
     campaignId,
-    fallbackFirstPage: isFallbackValid ? initialColumnPages.open : undefined,
+    fallbackFirstPage: initialColumnPages.open,
   });
   const inProgressCol = useFollowUpsColumn({
     status: "in_progress",
     marketId: effectiveMarketId,
     agentId: null,
     campaignId,
-    fallbackFirstPage: isFallbackValid ? initialColumnPages.in_progress : undefined,
+    fallbackFirstPage: initialColumnPages.in_progress,
   });
   const resolvedCol = useFollowUpsColumn({
     status: "resolved",
     marketId: effectiveMarketId,
     agentId: null,
     campaignId,
-    fallbackFirstPage: isFallbackValid ? initialColumnPages.resolved : undefined,
+    fallbackFirstPage: initialColumnPages.resolved,
   });
   const escalatedCol = useFollowUpsColumn({
     status: "escalated",
     marketId: effectiveMarketId,
     agentId: null,
     campaignId,
-    fallbackFirstPage: isFallbackValid ? initialColumnPages.escalated : undefined,
+    fallbackFirstPage: initialColumnPages.escalated,
   });
 
   const columnData = {
@@ -161,27 +152,16 @@ export function FollowUpsPageClient({
     escalated: escalatedCol,
   } as const;
 
-  // ---------- Realtime ----------
-  const mutators = useMemo(
-    () => ({
+  const { newCount, reveal, dismiss } = useFollowUpsRealtime({
+    marketId: effectiveMarketId,
+    columnMutators: {
       open: openCol.mutate,
       in_progress: inProgressCol.mutate,
       resolved: resolvedCol.mutate,
       escalated: escalatedCol.mutate,
-    }),
-    [openCol.mutate, inProgressCol.mutate, resolvedCol.mutate, escalatedCol.mutate],
-  );
-
-  const { newCount, reveal, dismiss } = useFollowUpsRealtime({
-    marketId: effectiveMarketId,
-    columnMutators: mutators,
+    },
     mutateSummary,
   });
-
-  // ---------- Handlers ----------
-  const handleMarketChange = useCallback((id: string | "all") => {
-    setSelectedMarketRaw(id);
-  }, []);
 
   const handleOpenAddFor = useCallback((status: FollowUpStatus) => {
     setPendingStatus(status);
@@ -304,7 +284,7 @@ export function FollowUpsPageClient({
       <FollowUpsFilterBar
         markets={markets}
         selectedMarketId={selectedMarketId}
-        onMarketChange={handleMarketChange}
+        onMarketChange={setSelectedMarketId}
         lockMarket={!isSuperAdmin}
         lockedMarketLabel={userMarketLabel}
         statusFilter={statusFilter}
@@ -372,14 +352,11 @@ export function FollowUpsPageClient({
           }}
           onCreated={() => {
             setCreateOpen(false);
+            // New follow-ups always land in "open"; if an initial_status
+            // override transitioned it, realtime picks up the UPDATE.
+            const targetCol = pendingStatus ? columnData[pendingStatus] : openCol;
             setPendingStatus(undefined);
-            void Promise.all([
-              openCol.mutate(),
-              inProgressCol.mutate(),
-              resolvedCol.mutate(),
-              escalatedCol.mutate(),
-              mutateSummary(),
-            ]);
+            void Promise.all([targetCol.mutate(), mutateSummary()]);
           }}
           marketId={userMarketId}
           marketCode={marketCode}
@@ -419,13 +396,9 @@ export function FollowUpsPageClient({
             setCampaignWizardOpen(false);
             void mutateCampaigns();
             setCampaignId(createdCampaignId);
-            void Promise.all([
-              openCol.mutate(),
-              inProgressCol.mutate(),
-              resolvedCol.mutate(),
-              escalatedCol.mutate(),
-              mutateSummary(),
-            ]);
+            // Bulk-created follow-ups all start "open"; realtime will patch
+            // any immediate transitions.
+            void Promise.all([openCol.mutate(), mutateSummary()]);
           }}
         />
       )}

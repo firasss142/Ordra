@@ -1,13 +1,12 @@
 "use client";
 
 import useSWR from "swr";
+import { fetcher } from "@/lib/swr-config";
 import type { FollowUpsSummary } from "@/lib/follow-ups/summary";
 
-const fetcher = async (url: string): Promise<FollowUpsSummary> => {
-  const res = await fetch(url, { credentials: "same-origin" });
-  if (!res.ok) throw new Error(`follow-ups summary ${res.status}`);
-  const json = await res.json();
-  return json.data as FollowUpsSummary;
+const summaryFetcher = async (url: string): Promise<FollowUpsSummary> => {
+  const json = (await fetcher(url)) as { data: FollowUpsSummary };
+  return json.data;
 };
 
 export interface UseFollowUpsSummaryOptions {
@@ -26,9 +25,8 @@ export function useFollowUpsSummary(opts: UseFollowUpsSummaryOptions) {
   const query = params.toString();
   const key = query ? `/api/follow-ups/summary?${query}` : "/api/follow-ups/summary";
 
-  const { data, error, isLoading, mutate } = useSWR<FollowUpsSummary>(key, fetcher, {
+  const { data, error, isLoading, mutate } = useSWR<FollowUpsSummary>(key, summaryFetcher, {
     revalidateOnFocus: false,
-    refreshInterval: 60_000,
     fallbackData: opts.fallback,
     keepPreviousData: true,
   });

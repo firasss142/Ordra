@@ -97,26 +97,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "order_id is required" }, { status: 400 });
   }
 
-  const { data: order, error: orderErr } = await supabase
-    .from("orders")
-    .select("id, market_id, status")
-    .eq("id", orderId)
-    .single();
+  const [orderResult, confirmResult] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("id, market_id, status")
+      .eq("id", orderId)
+      .single(),
+    supabase
+      .from("order_history")
+      .select("actor_id")
+      .eq("order_id", orderId)
+      .eq("status_to", "confirmed")
+      .eq("actor_type", "agent")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const { data: order, error: orderErr } = orderResult;
   if (orderErr || !order) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
-
-  // Resolve confirming agent from order_history for the permission check
-  const { data: confirmRow } = await supabase
-    .from("order_history")
-    .select("actor_id")
-    .eq("order_id", orderId)
-    .eq("status_to", "confirmed")
-    .eq("actor_type", "agent")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const confirmingAgentId = (confirmRow?.actor_id as string | null) ?? null;
+  const confirmingAgentId = (confirmResult.data?.actor_id as string | null) ?? null;
 
   if (
     !canCreateFollowUp(role, order, confirmingAgentId, actor.id, actorMarketId)

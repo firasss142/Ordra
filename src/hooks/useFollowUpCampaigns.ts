@@ -9,9 +9,8 @@ const fetcher = (url: string) =>
 
 export function useFollowUpCampaigns(
   marketId?: string | null,
-  options: { enabled?: boolean } = {},
+  enabled: boolean = true,
 ) {
-  const { enabled = true } = options;
   const key = enabled
     ? marketId
       ? `/api/follow-up-campaigns?market_id=${marketId}`

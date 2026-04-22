@@ -2,14 +2,9 @@
 
 import { useCallback, useMemo } from "react";
 import useSWRInfinite from "swr/infinite";
+import { fetcher } from "@/lib/swr-config";
 import type { FollowUpsListPage } from "@/lib/follow-ups/list";
 import type { FollowUpStatus } from "@/types/follow-up";
-
-const fetcher = async (url: string): Promise<FollowUpsListPage> => {
-  const res = await fetch(url, { credentials: "same-origin" });
-  if (!res.ok) throw new Error(`follow-ups list ${res.status}`);
-  return res.json();
-};
 
 const COLUMN_LIMIT = 25;
 
@@ -56,7 +51,6 @@ export function useFollowUpsColumn(opts: UseFollowUpsColumnOptions) {
   } = useSWRInfinite<FollowUpsListPage>(getKey, fetcher, {
     revalidateFirstPage: false,
     revalidateOnFocus: false,
-    refreshInterval: 120_000,
     fallbackData: fallbackFirstPage ? [fallbackFirstPage] : undefined,
     keepPreviousData: true,
   });

@@ -6,10 +6,11 @@ import type { KeyedMutator } from "swr";
 import { createClient } from "@/lib/supabase/client";
 import type { FollowUpsListPage } from "@/lib/follow-ups/list";
 import type { FollowUpsSummary } from "@/lib/follow-ups/summary";
-import type {
-  FollowUpStatus,
-  OrderFollowUp,
-  OrderFollowUpWithOrder,
+import {
+  FOLLOW_UP_STATUSES,
+  type FollowUpStatus,
+  type OrderFollowUp,
+  type OrderFollowUpWithOrder,
 } from "@/types/follow-up";
 
 /**
@@ -56,6 +57,7 @@ export function useFollowUpsRealtime({
   const mutateSummaryRef = useRef(mutateSummary);
   const onInsertRef = useRef(onInsert);
   const summaryDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const summaryMaxWaitRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     mutatorsRef.current = columnMutators;
@@ -67,11 +69,27 @@ export function useFollowUpsRealtime({
     onInsertRef.current = onInsert;
   }, [onInsert]);
 
+  // Trailing debounce (500ms idle) plus a 3s max-wait — during bulk-create
+  // bursts from NewCampaignWizard, summary still refreshes at least every 3s.
   const scheduleSummaryRefresh = () => {
     if (summaryDebounceRef.current) clearTimeout(summaryDebounceRef.current);
     summaryDebounceRef.current = setTimeout(() => {
+      if (summaryMaxWaitRef.current) {
+        clearTimeout(summaryMaxWaitRef.current);
+        summaryMaxWaitRef.current = null;
+      }
       mutateSummaryRef.current();
     }, 500);
+    if (!summaryMaxWaitRef.current) {
+      summaryMaxWaitRef.current = setTimeout(() => {
+        if (summaryDebounceRef.current) {
+          clearTimeout(summaryDebounceRef.current);
+          summaryDebounceRef.current = null;
+        }
+        summaryMaxWaitRef.current = null;
+        mutateSummaryRef.current();
+      }, 3000);
+    }
   };
 
   useEffect(() => {
@@ -153,9 +171,9 @@ export function useFollowUpsRealtime({
 
           if (eventType === "DELETE") {
             const oldRow = payload.old as { id: string; status?: FollowUpStatus };
-            const statuses: FollowUpStatus[] = oldRow.status
+            const statuses: readonly FollowUpStatus[] = oldRow.status
               ? [oldRow.status]
-              : (["open", "in_progress", "resolved", "escalated"] as FollowUpStatus[]);
+              : FOLLOW_UP_STATUSES;
 
             for (const s of statuses) {
               mutatorsRef.current[s](
@@ -178,6 +196,7 @@ export function useFollowUpsRealtime({
 
     return () => {
       if (summaryDebounceRef.current) clearTimeout(summaryDebounceRef.current);
+      if (summaryMaxWaitRef.current) clearTimeout(summaryMaxWaitRef.current);
       supabase.removeChannel(channel);
     };
   }, [marketId]);

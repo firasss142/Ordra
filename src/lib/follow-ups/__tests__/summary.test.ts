@@ -104,7 +104,7 @@ describe("getFollowUpsSummary", () => {
     });
   });
 
-  test("throws when the RPC returns an error", async () => {
+  test("throws when the RPC returns a non-missing error", async () => {
     const supabase = mockSupabase({
       data: null,
       error: { message: "permission denied" },
@@ -117,6 +117,55 @@ describe("getFollowUpsSummary", () => {
         campaignId: null,
       }),
     ).rejects.toThrow(/permission denied/);
+  });
+
+  test("falls back to in-memory grouping when the RPC is missing", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: {
+        message:
+          "Could not find the function public.follow_ups_status_counts(p_agent_id, p_campaign_id, p_market_id) in the schema cache",
+      },
+    });
+
+    const eqMock = vi.fn().mockReturnThis();
+    const fromBuilder = {
+      select: vi.fn().mockReturnValue({
+        eq: eqMock,
+        then: (resolve: (v: unknown) => unknown) =>
+          resolve({
+            data: [
+              { status: "open" },
+              { status: "open" },
+              { status: "resolved" },
+              { status: "escalated" },
+            ],
+            error: null,
+          }),
+      }),
+    };
+    // eq returns the same object so filters can chain.
+    eqMock.mockReturnValue(fromBuilder.select());
+
+    const supabase = {
+      rpc,
+      from: vi.fn().mockReturnValue(fromBuilder),
+    } as unknown as Parameters<typeof getFollowUpsSummary>[0];
+
+    const result = await getFollowUpsSummary(supabase, {
+      marketId: "m-tn",
+      agentId: null,
+      campaignId: null,
+    });
+
+    expect(rpc).toHaveBeenCalledOnce();
+    expect(result).toEqual({
+      total: 4,
+      open: 2,
+      in_progress: 0,
+      resolved: 1,
+      escalated: 1,
+    });
   });
 
   test("coerces string counts (bigint-as-string) into numbers", async () => {

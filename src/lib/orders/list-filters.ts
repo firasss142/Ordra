@@ -183,25 +183,18 @@ export type ListQuery = z.infer<typeof listQuerySchema>;
 
 // ---------- Keyset cursor helpers ----------
 
+import { encodeKeysetCursor, decodeKeysetCursor } from "@/lib/cursor";
+
 export interface Cursor {
   createdAt: string; // ISO
   id: string;
 }
 
 export function encodeCursor(c: Cursor): string {
-  return Buffer.from(`${c.createdAt}|${c.id}`, "utf8").toString("base64url");
+  return encodeKeysetCursor({ timestamp: c.createdAt, id: c.id });
 }
 
 export function decodeCursor(raw: string): Cursor | null {
-  try {
-    const decoded = Buffer.from(raw, "base64url").toString("utf8");
-    const idx = decoded.indexOf("|");
-    if (idx <= 0) return null;
-    const createdAt = decoded.slice(0, idx);
-    const id = decoded.slice(idx + 1);
-    if (!/^\d{4}-\d{2}-\d{2}T/.test(createdAt) || !id) return null;
-    return { createdAt, id };
-  } catch {
-    return null;
-  }
+  const decoded = decodeKeysetCursor(raw);
+  return decoded ? { createdAt: decoded.timestamp, id: decoded.id } : null;
 }

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { FollowUpStatus, OrderFollowUpWithOrder } from "@/types/follow-up";
 import { FOLLOW_UP_STATUSES } from "@/types/follow-up";
+import { decodeKeysetCursor, encodeKeysetCursor } from "@/lib/cursor";
 
 export const FOLLOW_UPS_LIST_SELECT = `
   id, market_id, order_id, status, campaign_id, delivery_man_phone, description,
@@ -12,11 +13,6 @@ export const FOLLOW_UPS_LIST_SELECT = `
     id, name
   )
 `;
-
-export interface FollowUpsCursor {
-  updatedAt: string;
-  id: string;
-}
 
 export interface FollowUpsListFilters {
   /** null = all markets (super_admin). */
@@ -45,24 +41,6 @@ export interface FollowUpsKanbanInitial {
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
 
-export function encodeFollowUpCursor(c: FollowUpsCursor): string {
-  return Buffer.from(`${c.updatedAt}|${c.id}`, "utf8").toString("base64url");
-}
-
-export function decodeFollowUpCursor(raw: string): FollowUpsCursor | null {
-  try {
-    const decoded = Buffer.from(raw, "base64url").toString("utf8");
-    const idx = decoded.indexOf("|");
-    if (idx <= 0) return null;
-    const updatedAt = decoded.slice(0, idx);
-    const id = decoded.slice(idx + 1);
-    if (!/^\d{4}-\d{2}-\d{2}T/.test(updatedAt) || !id) return null;
-    return { updatedAt, id };
-  } catch {
-    return null;
-  }
-}
-
 export async function getFollowUpsPage(
   supabase: SupabaseClient,
   filters: FollowUpsListFilters,
@@ -82,10 +60,10 @@ export async function getFollowUpsPage(
   if (filters.campaignId) query = query.eq("campaign_id", filters.campaignId);
 
   if (filters.cursor) {
-    const cur = decodeFollowUpCursor(filters.cursor);
+    const cur = decodeKeysetCursor(filters.cursor);
     if (!cur) throw new Error("Invalid cursor");
     query = query.or(
-      `updated_at.lt.${cur.updatedAt},and(updated_at.eq.${cur.updatedAt},id.lt.${cur.id})`,
+      `updated_at.lt.${cur.timestamp},and(updated_at.eq.${cur.timestamp},id.lt.${cur.id})`,
     );
   }
 
@@ -98,7 +76,7 @@ export async function getFollowUpsPage(
   const last = page[page.length - 1];
   const nextCursor =
     hasMore && last
-      ? encodeFollowUpCursor({ updatedAt: last.updated_at, id: last.id })
+      ? encodeKeysetCursor({ timestamp: last.updated_at, id: last.id })
       : null;
 
   return { rows: page, nextCursor };
