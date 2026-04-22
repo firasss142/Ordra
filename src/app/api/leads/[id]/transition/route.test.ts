@@ -111,8 +111,8 @@ describe("POST /api/leads/[id]/transition", () => {
     const res = await POST(req({ new_status: "qualified" }), params);
     expect(res.status).toBe(200);
     expect(mockRpc).toHaveBeenCalledWith(
-      "transition_lead_status",
-      expect.objectContaining({ p_new_status: "qualified" })
+      "rpc_transition_lead_status",
+      expect.objectContaining({ p_new_status_key: "qualified" })
     );
   });
 });

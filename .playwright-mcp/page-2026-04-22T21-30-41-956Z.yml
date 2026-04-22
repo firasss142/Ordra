@@ -1,0 +1,15 @@
+- generic [active] [ref=e1]:
+  - link "Aller au contenu principal" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e4]:
+    - heading "Se connecter" [level=1] [ref=e5]
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - generic [ref=e8]: Nom d'utilisateur
+        - textbox "Nom d'utilisateur" [ref=e9]:
+          - /placeholder: "ex: ahmed ben ali"
+      - generic [ref=e10]:
+        - generic [ref=e11]: Mot de passe
+        - textbox "Mot de passe" [ref=e12]:
+          - /placeholder: ••••••••
+      - button "Se connecter" [ref=e13] [cursor=pointer]

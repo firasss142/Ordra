@@ -1,0 +1,289 @@
+- generic [active] [ref=e1]:
+  - link "Aller au contenu principal" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - navigation [ref=e4]:
+      - generic [ref=e5]:
+        - text: Ordra
+        - 'generic "Marché actuel : Tunisie" [ref=e6]': · Tunisie
+      - generic [ref=e7]:
+        - generic [ref=e8]:
+          - text: Opérations
+          - list [ref=e9]:
+            - listitem [ref=e10]:
+              - link "Tableau de bord" [ref=e11] [cursor=pointer]:
+                - /url: /fr/dashboard
+                - img [ref=e12]
+                - generic [ref=e17]: Tableau de bord
+            - listitem [ref=e18]:
+              - link "Commandes 89" [ref=e120] [cursor=pointer]:
+                - /url: /fr/orders
+                - img [ref=e20]
+                - generic [ref=e23]: Commandes
+                - generic [ref=e121]: "89"
+            - listitem [ref=e24]:
+              - link "Entrepôt" [ref=e25] [cursor=pointer]:
+                - /url: /fr/warehouse
+                - img [ref=e26]
+                - generic [ref=e29]: Entrepôt
+        - generic [ref=e30]:
+          - text: CRM
+          - list [ref=e31]:
+            - listitem [ref=e32]:
+              - link "Prospects" [ref=e33] [cursor=pointer]:
+                - /url: /fr/leads
+                - img [ref=e34]
+                - generic [ref=e39]: Prospects
+            - listitem [ref=e40]:
+              - link "Suivi de commande" [ref=e41] [cursor=pointer]:
+                - /url: /fr/follow-ups
+                - img [ref=e42]
+                - generic [ref=e45]: Suivi de commande
+        - generic [ref=e46]:
+          - text: Catalogue
+          - list [ref=e47]:
+            - listitem [ref=e48]:
+              - link "Produits" [ref=e49] [cursor=pointer]:
+                - /url: /fr/products
+                - img [ref=e50]
+                - generic [ref=e54]: Produits
+        - generic [ref=e55]:
+          - text: Administration
+          - list [ref=e56]:
+            - listitem [ref=e57]:
+              - link "Performance" [ref=e58] [cursor=pointer]:
+                - /url: /fr/team
+                - img [ref=e59]
+                - generic [ref=e61]: Performance
+            - listitem [ref=e62]:
+              - link "Utilisateurs" [ref=e63] [cursor=pointer]:
+                - /url: /fr/users
+                - img [ref=e64]
+                - generic [ref=e67]: Utilisateurs
+            - listitem [ref=e68]:
+              - link "Paramètres" [ref=e69] [cursor=pointer]:
+                - /url: /fr/settings
+                - img [ref=e70]
+                - generic [ref=e73]: Paramètres
+      - button "Manager TN Market manager" [ref=e75] [cursor=pointer]:
+        - generic [ref=e76]: MT
+        - generic [ref=e77]:
+          - generic [ref=e78]: Manager TN
+          - generic [ref=e79]: Market manager
+        - img [ref=e80]
+    - main [ref=e83]:
+      - generic [ref=e84]:
+        - generic [ref=e85]:
+          - heading "Prospects" [level=1] [ref=e86]
+          - generic [ref=e87]: Appels entrants et demandes avant commande
+        - generic [ref=e89]:
+          - generic [ref=e122]: Indicateurs CRM
+          - generic [ref=e123]:
+            - generic [ref=e124]:
+              - generic [ref=e125]: Prospects totaux
+              - generic [ref=e126]: "6"
+            - generic [ref=e127]:
+              - generic [ref=e128]: Gagnés
+              - generic [ref=e129]: "2"
+            - generic [ref=e130]:
+              - generic [ref=e131]: Perdus
+              - generic [ref=e132]: "0"
+            - generic [ref=e133]:
+              - generic [ref=e134]: Taux de conversion
+              - generic [ref=e135]: 100%
+          - generic [ref=e136]:
+            - generic [ref=e137]:
+              - generic [ref=e138]: Par agent
+              - table [ref=e139]:
+                - rowgroup [ref=e140]:
+                  - row "Agent Total Gagnés Taux de conversion" [ref=e141]:
+                    - columnheader "Agent" [ref=e142]
+                    - columnheader "Total" [ref=e143]
+                    - columnheader "Gagnés" [ref=e144]
+                    - columnheader "Taux de conversion" [ref=e145]
+                - rowgroup [ref=e146]:
+                  - row "Agent TN 1 4 2 100%" [ref=e147]:
+                    - cell "Agent TN 1" [ref=e148]
+                    - cell "4" [ref=e149]
+                    - cell "2" [ref=e150]
+                    - cell "100%" [ref=e151]
+                  - row "asma 1 0 0%" [ref=e152]:
+                    - cell "asma" [ref=e153]
+                    - cell "1" [ref=e154]
+                    - cell "0" [ref=e155]
+                    - cell "0%" [ref=e156]
+            - generic [ref=e157]:
+              - generic [ref=e158]: Par source
+              - table [ref=e159]:
+                - rowgroup [ref=e160]:
+                  - row "Par source Total Gagnés Taux de conversion" [ref=e161]:
+                    - columnheader "Par source" [ref=e162]
+                    - columnheader "Total" [ref=e163]
+                    - columnheader "Gagnés" [ref=e164]
+                    - columnheader "Taux de conversion" [ref=e165]
+                - rowgroup [ref=e166]:
+                  - row "Appel 5 2 100%" [ref=e167]:
+                    - cell "Appel" [ref=e168]
+                    - cell "5" [ref=e169]
+                    - cell "2" [ref=e170]
+                    - cell "100%" [ref=e171]
+                  - row "Commentaire Facebook 1 0 0%" [ref=e172]:
+                    - cell "Commentaire Facebook" [ref=e173]
+                    - cell "1" [ref=e174]
+                    - cell "0" [ref=e175]
+                    - cell "0%" [ref=e176]
+          - generic [ref=e177]:
+            - generic [ref=e178]: Raisons de perte
+            - generic [ref=e179]: Aucune donnée
+        - generic [ref=e90]:
+          - generic [ref=e91]:
+            - combobox [ref=e92]:
+              - option "Tous les statuts" [selected]
+              - option "Nouveau"
+              - option "Assigné"
+              - option "Tentative 1"
+              - option "Tentative 2"
+              - option "Tentative 3"
+              - option "Rappel prévu"
+              - option "Qualifié"
+              - option "Gagné"
+              - option "Perdu"
+              - option "Archivé"
+            - combobox [ref=e93]:
+              - option "Toutes les sources" [selected]
+              - option "Appel"
+              - option "Commentaire Facebook"
+              - option "Message Facebook"
+              - option "Message Instagram"
+              - option "WhatsApp"
+              - option "Commentaire TikTok"
+              - option "Autre"
+            - button "Réinitialiser" [ref=e94] [cursor=pointer]
+            - generic [ref=e95]:
+              - group "Densité" [ref=e250]:
+                - button "Confort" [pressed] [ref=e251] [cursor=pointer]
+                - button "Compact" [ref=e252] [cursor=pointer]
+              - tablist "view" [ref=e96]:
+                - tab "Liste" [ref=e97] [cursor=pointer]
+                - tab "Kanban" [selected] [ref=e98] [cursor=pointer]
+              - button "Campagnes" [ref=e99] [cursor=pointer]
+              - button "↑ CSV" [ref=e100] [cursor=pointer]
+              - button "+ Nouveau prospect" [ref=e101] [cursor=pointer]
+          - generic [ref=e253]:
+            - generic [ref=e254]:
+              - generic [ref=e256]:
+                - generic [ref=e257]: Nouveau
+                - generic [ref=e258]:
+                  - generic [ref=e259]: "1"
+                  - button "Ajouter dans Nouveau" [ref=e260] [cursor=pointer]: +
+              - link "hamida Appel 222 Nouveau" [ref=e263] [cursor=pointer]:
+                - /url: /fr/leads/7902a69d-0df0-481d-b821-215578718f7c
+                - generic [ref=e264]:
+                  - strong [ref=e265]: hamida
+                  - generic [ref=e266]: Appel
+                - generic [ref=e267]: "222"
+                - generic [ref=e269]:
+                  - img [ref=e270]
+                  - text: Nouveau
+            - generic [ref=e272]:
+              - generic [ref=e274]:
+                - generic [ref=e275]: Assigné
+                - generic [ref=e276]:
+                  - generic [ref=e277]: "0"
+                  - button "Ajouter dans Assigné" [ref=e278] [cursor=pointer]: +
+              - generic [ref=e280]: Aucun prospect
+            - generic [ref=e281]:
+              - generic [ref=e283]:
+                - generic [ref=e284]: Tentative 1
+                - generic [ref=e285]:
+                  - generic [ref=e286]: "0"
+                  - button "Ajouter dans Tentative 1" [ref=e287] [cursor=pointer]: +
+              - generic [ref=e289]: Aucun prospect
+            - generic [ref=e290]:
+              - generic [ref=e292]:
+                - generic [ref=e293]: Tentative 2
+                - generic [ref=e294]:
+                  - generic [ref=e295]: "0"
+                  - button "Ajouter dans Tentative 2" [ref=e296] [cursor=pointer]: +
+              - generic [ref=e298]: Aucun prospect
+            - generic [ref=e299]:
+              - generic [ref=e301]:
+                - generic [ref=e302]: Tentative 3
+                - generic [ref=e303]:
+                  - generic [ref=e304]: "0"
+                  - button "Ajouter dans Tentative 3" [ref=e305] [cursor=pointer]: +
+              - generic [ref=e307]: Aucun prospect
+            - generic [ref=e308]:
+              - generic [ref=e310]:
+                - generic [ref=e311]: Rappel programmé
+                - generic [ref=e312]:
+                  - generic [ref=e313]: "1"
+                  - button "Ajouter dans Rappel programmé" [ref=e314] [cursor=pointer]: +
+              - link "yassine Appel 29449842 · jcp Rappel prévu" [ref=e317] [cursor=pointer]:
+                - /url: /fr/leads/b9b1132f-2b84-4acd-bf41-788b9c335b0b
+                - generic [ref=e318]:
+                  - strong [ref=e319]: yassine
+                  - generic [ref=e320]: Appel
+                - generic [ref=e321]: 29449842 · jcp
+                - generic [ref=e323]:
+                  - img [ref=e324]
+                  - text: Rappel prévu
+            - generic [ref=e326]:
+              - generic [ref=e328]:
+                - generic [ref=e329]: Qualifié
+                - generic [ref=e330]:
+                  - generic [ref=e331]: "2"
+                  - button "Ajouter dans Qualifié" [ref=e332] [cursor=pointer]: +
+              - generic [ref=e333]:
+                - link "rami Commentaire Facebook 229494 Qualifié" [ref=e335] [cursor=pointer]:
+                  - /url: /fr/leads/fb2ca7d3-f063-44d9-becf-efbcbf3e686f
+                  - generic [ref=e336]:
+                    - strong [ref=e337]: rami
+                    - generic [ref=e338]: Commentaire Facebook
+                  - generic [ref=e339]: "229494"
+                  - generic [ref=e341]:
+                    - img [ref=e342]
+                    - text: Qualifié
+                - link "FIRAS Appel WEDW Qualifié" [ref=e345] [cursor=pointer]:
+                  - /url: /fr/leads/3ac6b574-d64f-457b-b393-b6b59e9ee186
+                  - generic [ref=e346]:
+                    - strong [ref=e347]: FIRAS
+                    - generic [ref=e348]: Appel
+                  - generic [ref=e349]: WEDW
+                  - generic [ref=e351]:
+                    - img [ref=e352]
+                    - text: Qualifié
+            - generic [ref=e354]:
+              - generic [ref=e356]:
+                - generic [ref=e357]: Gagné
+                - generic [ref=e359]: "2"
+              - generic [ref=e360]:
+                - link "firas Appel 29449681 · city Gagné" [ref=e362] [cursor=pointer]:
+                  - /url: /fr/leads/4c5108d2-2278-4534-96e5-ad5485f4b52d
+                  - generic [ref=e363]:
+                    - strong [ref=e364]: firas
+                    - generic [ref=e365]: Appel
+                  - generic [ref=e366]: 29449681 · city
+                  - generic [ref=e368]:
+                    - img [ref=e369]
+                    - text: Gagné
+                - link "firas Appel 24944249 · city Gagné" [ref=e372] [cursor=pointer]:
+                  - /url: /fr/leads/ca7f7ac6-c4ac-44e8-a588-29173acdee75
+                  - generic [ref=e373]:
+                    - strong [ref=e374]: firas
+                    - generic [ref=e375]: Appel
+                  - generic [ref=e376]: 24944249 · city
+                  - generic [ref=e378]:
+                    - img [ref=e379]
+                    - text: Gagné
+            - generic [ref=e381]:
+              - generic [ref=e383]:
+                - generic [ref=e384]: Perdu
+                - generic [ref=e386]: "0"
+              - generic [ref=e388]: Aucun prospect
+            - generic [ref=e389]:
+              - generic [ref=e391]:
+                - generic [ref=e392]: Archivé
+                - generic [ref=e394]: "0"
+              - generic [ref=e396]: Aucun prospect
+  - alert [ref=e249]

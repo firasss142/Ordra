@@ -26,9 +26,9 @@ describe("transitionFollowUpStatus", () => {
       note: "Reached the delivery man",
     });
 
-    expect(supabase.rpc).toHaveBeenCalledWith("transition_follow_up_status", {
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_transition_follow_up_status", {
       p_follow_up_id: "fu-1",
-      p_new_status: "in_progress",
+      p_new_status_key: "in_progress",
       p_actor_id: "agent-1",
       p_actor_type: "agent",
       p_note: "Reached the delivery man",

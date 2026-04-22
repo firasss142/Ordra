@@ -1,0 +1,266 @@
+- generic [ref=e1]:
+  - link "Aller au contenu principal" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - navigation [ref=e4]:
+      - generic [ref=e5]:
+        - text: Ordra
+        - 'generic "Marché actuel : Tunisie" [ref=e6]': · Tunisie
+      - generic [ref=e7]:
+        - generic [ref=e8]:
+          - text: Opérations
+          - list [ref=e9]:
+            - listitem [ref=e10]:
+              - link "Tableau de bord" [ref=e11] [cursor=pointer]:
+                - /url: /fr/dashboard
+                - img [ref=e12]
+                - generic [ref=e17]: Tableau de bord
+            - listitem [ref=e18]:
+              - link "Commandes 89" [ref=e94] [cursor=pointer]:
+                - /url: /fr/orders
+                - img [ref=e20]
+                - generic [ref=e23]: Commandes
+                - generic [ref=e95]: "89"
+            - listitem [ref=e24]:
+              - link "Entrepôt" [ref=e25] [cursor=pointer]:
+                - /url: /fr/warehouse
+                - img [ref=e26]
+                - generic [ref=e29]: Entrepôt
+        - generic [ref=e30]:
+          - text: CRM
+          - list [ref=e31]:
+            - listitem [ref=e32]:
+              - link "Prospects" [active] [ref=e33] [cursor=pointer]:
+                - /url: /fr/leads
+                - img [ref=e34]
+                - generic [ref=e39]: Prospects
+            - listitem [ref=e40]:
+              - link "Suivi de commande" [ref=e41] [cursor=pointer]:
+                - /url: /fr/follow-ups
+                - img [ref=e42]
+                - generic [ref=e45]: Suivi de commande
+        - generic [ref=e46]:
+          - text: Catalogue
+          - list [ref=e47]:
+            - listitem [ref=e48]:
+              - link "Produits" [ref=e49] [cursor=pointer]:
+                - /url: /fr/products
+                - img [ref=e50]
+                - generic [ref=e54]: Produits
+        - generic [ref=e55]:
+          - text: Administration
+          - list [ref=e56]:
+            - listitem [ref=e57]:
+              - link "Performance" [ref=e58] [cursor=pointer]:
+                - /url: /fr/team
+                - img [ref=e59]
+                - generic [ref=e61]: Performance
+            - listitem [ref=e62]:
+              - link "Utilisateurs" [ref=e63] [cursor=pointer]:
+                - /url: /fr/users
+                - img [ref=e64]
+                - generic [ref=e67]: Utilisateurs
+            - listitem [ref=e68]:
+              - link "Paramètres" [ref=e69] [cursor=pointer]:
+                - /url: /fr/settings
+                - img [ref=e70]
+                - generic [ref=e73]: Paramètres
+      - button "Manager TN Market manager" [ref=e75] [cursor=pointer]:
+        - generic [ref=e76]: MT
+        - generic [ref=e77]:
+          - generic [ref=e78]: Manager TN
+          - generic [ref=e79]: Market manager
+        - img [ref=e80]
+    - main [ref=e83]:
+      - generic [ref=e96]:
+        - generic [ref=e97]:
+          - heading "Prospects" [level=1] [ref=e98]
+          - generic [ref=e99]: Appels entrants et demandes avant commande
+        - generic [ref=e101]:
+          - generic [ref=e102]: Indicateurs CRM
+          - generic [ref=e103]:
+            - generic [ref=e104]:
+              - generic [ref=e105]: Prospects totaux
+              - generic [ref=e106]: "6"
+            - generic [ref=e107]:
+              - generic [ref=e108]: Gagnés
+              - generic [ref=e109]: "2"
+            - generic [ref=e110]:
+              - generic [ref=e111]: Perdus
+              - generic [ref=e112]: "0"
+            - generic [ref=e113]:
+              - generic [ref=e114]: Taux de conversion
+              - generic [ref=e115]: 100%
+          - generic [ref=e116]:
+            - generic [ref=e117]:
+              - generic [ref=e118]: Par agent
+              - table [ref=e119]:
+                - rowgroup [ref=e120]:
+                  - row "Agent Total Gagnés Taux de conversion" [ref=e121]:
+                    - columnheader "Agent" [ref=e122]
+                    - columnheader "Total" [ref=e123]
+                    - columnheader "Gagnés" [ref=e124]
+                    - columnheader "Taux de conversion" [ref=e125]
+                - rowgroup [ref=e126]:
+                  - row "Agent TN 1 4 2 100%" [ref=e127]:
+                    - cell "Agent TN 1" [ref=e128]
+                    - cell "4" [ref=e129]
+                    - cell "2" [ref=e130]
+                    - cell "100%" [ref=e131]
+                  - row "asma 1 0 0%" [ref=e132]:
+                    - cell "asma" [ref=e133]
+                    - cell "1" [ref=e134]
+                    - cell "0" [ref=e135]
+                    - cell "0%" [ref=e136]
+            - generic [ref=e137]:
+              - generic [ref=e138]: Par source
+              - table [ref=e139]:
+                - rowgroup [ref=e140]:
+                  - row "Par source Total Gagnés Taux de conversion" [ref=e141]:
+                    - columnheader "Par source" [ref=e142]
+                    - columnheader "Total" [ref=e143]
+                    - columnheader "Gagnés" [ref=e144]
+                    - columnheader "Taux de conversion" [ref=e145]
+                - rowgroup [ref=e146]:
+                  - row "Appel 5 2 100%" [ref=e147]:
+                    - cell "Appel" [ref=e148]
+                    - cell "5" [ref=e149]
+                    - cell "2" [ref=e150]
+                    - cell "100%" [ref=e151]
+                  - row "Commentaire Facebook 1 0 0%" [ref=e152]:
+                    - cell "Commentaire Facebook" [ref=e153]
+                    - cell "1" [ref=e154]
+                    - cell "0" [ref=e155]
+                    - cell "0%" [ref=e156]
+          - generic [ref=e157]:
+            - generic [ref=e158]: Raisons de perte
+            - generic [ref=e159]: Aucune donnée
+        - generic [ref=e160]:
+          - generic [ref=e161]:
+            - combobox [ref=e162]:
+              - option "Tous les statuts" [selected]
+              - option "Nouveau"
+              - option "Assigné"
+              - option "Tentative 1"
+              - option "Tentative 2"
+              - option "Tentative 3"
+              - option "Rappel prévu"
+              - option "Qualifié"
+              - option "Gagné"
+              - option "Perdu"
+              - option "Archivé"
+            - combobox [ref=e163]:
+              - option "Toutes les sources" [selected]
+              - option "Appel"
+              - option "Commentaire Facebook"
+              - option "Message Facebook"
+              - option "Message Instagram"
+              - option "WhatsApp"
+              - option "Commentaire TikTok"
+              - option "Autre"
+            - button "Réinitialiser" [ref=e164] [cursor=pointer]
+            - generic [ref=e165]:
+              - tablist "view" [ref=e166]:
+                - tab "Liste" [selected] [ref=e167] [cursor=pointer]
+                - tab "Kanban" [ref=e168] [cursor=pointer]
+              - button "Campagnes" [ref=e169] [cursor=pointer]
+              - button "↑ CSV" [ref=e170] [cursor=pointer]
+              - button "+ Nouveau prospect" [ref=e171] [cursor=pointer]
+          - table [ref=e173]:
+            - rowgroup [ref=e174]:
+              - row "Client Téléphone Source Statut Date" [ref=e175]:
+                - columnheader "Client" [ref=e176]
+                - columnheader "Téléphone" [ref=e177]
+                - columnheader "Source" [ref=e178]
+                - columnheader "Statut" [ref=e179]
+                - columnheader "Date" [ref=e180]
+            - rowgroup [ref=e181]:
+              - row "rami 229494 Commentaire Facebook Qualifié 21/04/2026 08:45 PM" [ref=e182] [cursor=pointer]:
+                - cell "rami" [ref=e183]:
+                  - link "rami" [ref=e184]:
+                    - /url: /fr/leads/fb2ca7d3-f063-44d9-becf-efbcbf3e686f
+                - cell "229494" [ref=e185]:
+                  - link "229494" [ref=e186]:
+                    - /url: tel:229494
+                - cell "Commentaire Facebook" [ref=e187]
+                - cell "Qualifié" [ref=e188]:
+                  - generic [ref=e189]:
+                    - img [ref=e190]
+                    - text: Qualifié
+                - cell "21/04/2026 08:45 PM" [ref=e192]
+              - row "hamida 222 Appel Nouveau 20/04/2026 07:57 PM" [ref=e193] [cursor=pointer]:
+                - cell "hamida" [ref=e194]:
+                  - link "hamida" [ref=e195]:
+                    - /url: /fr/leads/7902a69d-0df0-481d-b821-215578718f7c
+                - cell "222" [ref=e196]:
+                  - link "222" [ref=e197]:
+                    - /url: tel:222
+                - cell "Appel" [ref=e198]
+                - cell "Nouveau" [ref=e199]:
+                  - generic [ref=e200]:
+                    - img [ref=e201]
+                    - text: Nouveau
+                - cell "20/04/2026 07:57 PM" [ref=e203]
+              - row "yassine jcp 29449842 Appel Rappel prévu 20/04/2026 01:31 AM" [ref=e204] [cursor=pointer]:
+                - cell "yassine jcp" [ref=e205]:
+                  - link "yassine" [ref=e206]:
+                    - /url: /fr/leads/b9b1132f-2b84-4acd-bf41-788b9c335b0b
+                  - generic [ref=e207]: jcp
+                - cell "29449842" [ref=e208]:
+                  - link "29449842" [ref=e209]:
+                    - /url: tel:29449842
+                - cell "Appel" [ref=e210]
+                - cell "Rappel prévu" [ref=e211]:
+                  - generic [ref=e212]:
+                    - img [ref=e213]
+                    - text: Rappel prévu
+                - cell "20/04/2026 01:31 AM" [ref=e215]
+              - row "FIRAS WEDW Appel Qualifié 18/04/2026 10:20 PM" [ref=e216] [cursor=pointer]:
+                - cell "FIRAS" [ref=e217]:
+                  - link "FIRAS" [ref=e218]:
+                    - /url: /fr/leads/3ac6b574-d64f-457b-b393-b6b59e9ee186
+                - cell "WEDW" [ref=e219]:
+                  - link "WEDW" [ref=e220]:
+                    - /url: tel:WEDW
+                - cell "Appel" [ref=e221]
+                - cell "Qualifié" [ref=e222]:
+                  - generic [ref=e223]:
+                    - img [ref=e224]
+                    - text: Qualifié
+                - cell "18/04/2026 10:20 PM" [ref=e226]
+              - row "firas city 29449681 Appel Gagné 18/04/2026 01:19 PM" [ref=e227] [cursor=pointer]:
+                - cell "firas city" [ref=e228]:
+                  - link "firas" [ref=e229]:
+                    - /url: /fr/leads/4c5108d2-2278-4534-96e5-ad5485f4b52d
+                  - generic [ref=e230]: city
+                - cell "29449681" [ref=e231]:
+                  - link "29449681" [ref=e232]:
+                    - /url: tel:29449681
+                - cell "Appel" [ref=e233]
+                - cell "Gagné" [ref=e234]:
+                  - generic [ref=e235]:
+                    - img [ref=e236]
+                    - text: Gagné
+                - cell "18/04/2026 01:19 PM" [ref=e238]
+              - row "firas city 24944249 Appel Gagné 18/04/2026 05:27 AM" [ref=e239] [cursor=pointer]:
+                - cell "firas city" [ref=e240]:
+                  - link "firas" [ref=e241]:
+                    - /url: /fr/leads/ca7f7ac6-c4ac-44e8-a588-29173acdee75
+                  - generic [ref=e242]: city
+                - cell "24944249" [ref=e243]:
+                  - link "24944249" [ref=e244]:
+                    - /url: tel:24944249
+                - cell "Appel" [ref=e245]
+                - cell "Gagné" [ref=e246]:
+                  - generic [ref=e247]:
+                    - img [ref=e248]
+                    - text: Gagné
+                - cell "18/04/2026 05:27 AM" [ref=e250]
+          - generic [ref=e251]:
+            - generic [ref=e252]: 6 prospect(s)
+            - generic [ref=e253]:
+              - button "Précédent" [disabled] [ref=e254]
+              - generic [ref=e255]: Page 1 sur 1
+              - button "Suivant" [disabled] [ref=e256]
+  - alert [ref=e93]
+  - generic [ref=e257]: 0%

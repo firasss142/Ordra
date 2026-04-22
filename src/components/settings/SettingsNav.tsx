@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "next-intl";
 import type { Role } from "@/types";
 
 type Section = {
@@ -9,6 +10,7 @@ type Section = {
 
 const SUPER_ADMIN_SECTIONS: Section[] = [
   { key: "general", label: "Paramètres généraux" },
+  { key: "statuses", label: "Statuts (Pipelines)" },
   { key: "carriers", label: "Transporteurs" },
   { key: "storefronts", label: "Storefronts" },
   { key: "markets", label: "Marchés" },
@@ -16,6 +18,7 @@ const SUPER_ADMIN_SECTIONS: Section[] = [
 
 const MARKET_MANAGER_SECTIONS: Section[] = [
   { key: "general", label: "Paramètres généraux" },
+  { key: "statuses", label: "Statuts (Pipelines)" },
 ];
 
 interface SettingsNavProps {
@@ -25,6 +28,8 @@ interface SettingsNavProps {
 }
 
 export function SettingsNav({ role, activeSection, isRtl = false }: SettingsNavProps) {
+  const locale = useLocale();
+
   if (role === "agent") return null;
 
   const sections =
@@ -34,10 +39,14 @@ export function SettingsNav({ role, activeSection, isRtl = false }: SettingsNavP
     <nav style={{ width: 200, flexShrink: 0 }}>
       {sections.map((section) => {
         const isActive = section.key === activeSection;
+        const href =
+          section.key === "statuses"
+            ? `/${locale}/settings/statuses`
+            : `/${locale}/settings?section=${section.key}`;
         return (
           <a
             key={section.key}
-            href={`?section=${section.key}`}
+            href={href}
             aria-current={isActive ? "page" : undefined}
             style={{
               display: "block",

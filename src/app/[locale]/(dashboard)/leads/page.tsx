@@ -1,48 +1,60 @@
-"use client";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { getLeadsMetrics } from "@/lib/leads/metrics";
+import { LeadsPageClient } from "./LeadsPageClient";
+import type { Locale } from "@/types";
 
-import { useAuth } from "@/context/auth";
-import { useTranslations } from "next-intl";
-import { LeadList } from "@/components/crm/LeadList";
-import { CrmKpiCards } from "@/components/crm/CrmKpiCards";
+export const dynamic = "force-dynamic";
 
-export default function LeadsPage() {
-  const { user } = useAuth();
-  const t = useTranslations("crm.leads");
-  if (!user) return null;
+export default async function LeadsPage({
+  params,
+}: {
+  params: { locale: string };
+}) {
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
 
-  // Agents render via AgentTabsContainer in the dashboard layout — skip to avoid double-mount.
-  if (user.role === "agent") {
-    return null;
+  if (!authUser) redirect(`/${params.locale}/login`);
+
+  const { data: profile } = await supabase
+    .from("users")
+    .select("role, market_id")
+    .eq("id", authUser.id)
+    .single();
+
+  if (!profile) redirect(`/${params.locale}/login`);
+
+  // Agents render the board via AgentTabsContainer in the dashboard layout —
+  // return null here to avoid double-mount.
+  if (profile.role === "agent") return null;
+  if (profile.role === "warehouse_agent") redirect(`/${params.locale}/warehouse`);
+
+  let userMarketLabel = "";
+  if (profile.market_id) {
+    const { data: market } = await supabase
+      .from("markets")
+      .select("name")
+      .eq("id", profile.market_id)
+      .single();
+    if (market) userMarketLabel = market.name;
   }
 
+  const scopedMarketId =
+    profile.role === "super_admin" ? null : (profile.market_id ?? null);
+
+  const initialMetrics = await getLeadsMetrics(supabase, {
+    marketId: scopedMarketId,
+  });
+
   return (
-    <div style={{ padding: 24, backgroundColor: "#F6F6F7", minHeight: "100vh" }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1
-          style={{
-            fontSize: 24,
-            fontWeight: 700,
-            color: "#1A1A1A",
-            margin: "0 0 4px 0",
-          }}
-        >
-          {t("title")}
-        </h1>
-        <div style={{ fontSize: 13, color: "#6D7175" }}>{t("subtitle")}</div>
-      </div>
-
-      <div style={{ marginBottom: 24 }}>
-        <CrmKpiCards
-          marketId={user.market_id}
-          isSuperAdmin={user.role === "super_admin"}
-        />
-      </div>
-
-      <LeadList
-        role={user.role}
-        marketId={user.market_id}
-        locale={user.locale}
-      />
-    </div>
+    <LeadsPageClient
+      role={profile.role}
+      userMarketId={profile.market_id ?? ""}
+      userMarketLabel={userMarketLabel}
+      locale={params.locale as Locale}
+      initialMetrics={initialMetrics}
+    />
   );
 }

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useTranslations } from "next-intl";
-import { FOLLOW_UP_STATUSES, type FollowUpStatus, type FollowUpCampaign } from "@/types/follow-up";
+import { FOLLOW_UP_STATUSES, type FollowUpStatus } from "@/types/follow-up";
 
 interface Market {
   id: string;
@@ -20,13 +20,6 @@ interface Props {
 
   statusFilter: StatusFilter;
   onStatusChange: (s: StatusFilter) => void;
-
-  campaignId: string | null;
-  campaigns: FollowUpCampaign[];
-  /** Called the first time the campaign chip opens — used to trigger lazy load. */
-  onCampaignsOpen?: () => void;
-  onCampaignChange: (id: string | null) => void;
-  onOpenCampaignPanel?: () => void;
 
   onReset: () => void;
   onNewFollowUp: () => void;
@@ -47,18 +40,12 @@ export function FollowUpsFilterBar({
   lockedMarketLabel,
   statusFilter,
   onStatusChange,
-  campaignId,
-  campaigns,
-  onCampaignsOpen,
-  onCampaignChange,
-  onOpenCampaignPanel,
   onReset,
   onNewFollowUp,
   hasActiveFilters,
 }: Props) {
   const t = useTranslations("crm.followUps");
   const tStatuses = useTranslations("crm.followUps.statuses");
-  const tCampaigns = useTranslations("crm.followUps.campaigns");
 
   const statusOptions: { key: StatusFilter; label: string }[] = [
     { key: "all", label: t("allStatuses") },
@@ -89,16 +76,6 @@ export function FollowUpsFilterBar({
           options={statusOptions}
           active={statusFilter}
           onSelect={onStatusChange}
-        />
-
-        <CampaignChip
-          campaignId={campaignId}
-          campaigns={campaigns}
-          onOpen={onCampaignsOpen}
-          onChange={onCampaignChange}
-          onOpenPanel={onOpenCampaignPanel}
-          allLabel={tCampaigns("allCampaigns")}
-          placeholder={tCampaigns("allCampaigns")}
         />
 
         {hasActiveFilters ? (
@@ -301,135 +278,6 @@ function MarketChip({
   );
 }
 
-function CampaignChip({
-  campaignId,
-  campaigns,
-  onOpen,
-  onChange,
-  onOpenPanel,
-  allLabel,
-  placeholder,
-}: {
-  campaignId: string | null;
-  campaigns: FollowUpCampaign[];
-  onOpen?: () => void;
-  onChange: (id: string | null) => void;
-  onOpenPanel?: () => void;
-  allLabel: string;
-  placeholder: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const active = campaignId !== null;
-  const label = active
-    ? campaigns.find((c) => c.id === campaignId)?.name ?? placeholder
-    : allLabel;
-
-  const handleToggle = () => {
-    setOpen((o) => {
-      const next = !o;
-      if (next && onOpen) onOpen();
-      return next;
-    });
-  };
-
-  return (
-    <div style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={handleToggle}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "6px 12px",
-          borderRadius: 9999,
-          border: `1px solid ${active ? TEXT : BORDER}`,
-          background: SOFT_BG,
-          color: TEXT,
-          fontSize: 13,
-          fontWeight: active ? 600 : 500,
-          cursor: "pointer",
-          maxWidth: 220,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {label}
-        <span aria-hidden style={{ fontSize: 10 }}>▾</span>
-      </button>
-      {open ? (
-        <div
-          role="listbox"
-          onMouseLeave={() => setOpen(false)}
-          style={{
-            position: "absolute",
-            insetInlineStart: 0,
-            top: "calc(100% + 6px)",
-            background: SOFT_BG,
-            border: `1px solid ${BORDER}`,
-            borderRadius: 8,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            minWidth: 220,
-            maxHeight: 320,
-            overflowY: "auto",
-            zIndex: 10,
-            padding: 4,
-          }}
-        >
-          <Option
-            label={allLabel}
-            selected={campaignId === null}
-            onClick={() => {
-              onChange(null);
-              setOpen(false);
-            }}
-          />
-          {campaigns.map((c) => (
-            <Option
-              key={c.id}
-              label={c.name}
-              selected={campaignId === c.id}
-              onClick={() => {
-                onChange(c.id);
-                setOpen(false);
-              }}
-            />
-          ))}
-          {onOpenPanel ? (
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                onOpenPanel();
-              }}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "start",
-                padding: "8px 10px",
-                border: "none",
-                borderTop: `1px solid ${BORDER}`,
-                borderRadius: 0,
-                background: "transparent",
-                color: TEXT,
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: "pointer",
-                marginTop: 4,
-              }}
-            >
-              · · ·
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function Option({
   label,
   selected,
@@ -466,3 +314,4 @@ function Option({
     </button>
   );
 }
+

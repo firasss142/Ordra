@@ -148,9 +148,9 @@ export async function POST(req: NextRequest) {
     });
 
     if (validOverride) {
-      await supabase.rpc("transition_follow_up_status", {
+      await supabase.rpc("rpc_transition_follow_up_status", {
         p_follow_up_id: result.followUpId,
-        p_new_status: requestedStatus,
+        p_new_status_key: requestedStatus,
         p_actor_id: actor.id,
         p_actor_type: actorType,
         p_note: `Created directly in status: ${requestedStatus}`,

@@ -28,9 +28,9 @@ describe("transitionLeadStatus", () => {
 
     const result = await transitionLeadStatus(supabase, params);
 
-    expect(supabase.rpc).toHaveBeenCalledWith("transition_lead_status", {
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_transition_lead_status", {
       p_lead_id: "lead-1",
-      p_new_status: "qualified",
+      p_new_status_key: "qualified",
       p_actor_id: "agent-1",
       p_actor_type: "agent",
       p_note: "Customer wants to order",
@@ -65,9 +65,9 @@ describe("transitionLeadStatus", () => {
       lostReason: "price",
     });
 
-    expect(supabase.rpc).toHaveBeenCalledWith("transition_lead_status", {
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_transition_lead_status", {
       p_lead_id: "lead-1",
-      p_new_status: "lost",
+      p_new_status_key: "lost",
       p_actor_id: "agent-1",
       p_actor_type: "agent",
       p_note: null,
@@ -157,7 +157,7 @@ describe("transitionLeadStatus", () => {
     });
 
     expect(supabase.rpc).toHaveBeenCalledWith(
-      "transition_lead_status",
+      "rpc_transition_lead_status",
       expect.objectContaining({
         p_lead_id: "lead-1",
         p_actor_id: null,

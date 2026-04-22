@@ -18,9 +18,9 @@ export async function transitionFollowUpStatus(
   supabase: SupabaseClient,
   params: TransitionFollowUpParams
 ): Promise<TransitionFollowUpResult> {
-  const { data, error } = await supabase.rpc("transition_follow_up_status", {
+  const { data, error } = await supabase.rpc("rpc_transition_follow_up_status", {
     p_follow_up_id: params.followUpId,
-    p_new_status: params.newStatus,
+    p_new_status_key: params.newStatus,
     p_actor_id: params.actorId,
     p_actor_type: params.actorType,
     p_note: params.note ?? null,
@@ -35,7 +35,7 @@ export async function transitionFollowUpStatus(
   return {
     followUp: {
       id: row.follow_up_id,
-      status: row.status,
+      status: (row.status_key ?? row.status) as FollowUpStatus,
       updated_at: row.updated_at,
     },
     entry: { id: row.entry_id },

@@ -720,6 +720,26 @@
           "timeRequired": "التاريخ مطلوب.",
           "timeFuture": "يجب أن يكون التاريخ في المستقبل."
         }
+      },
+      "campaigns": "الحملات",
+      "csvImport": "استيراد CSV",
+      "footerCount": "{count} عميل محتمل",
+      "allMarkets": "كل الأسواق",
+      "allSourcesLabel": "كل المصادر",
+      "buckets": {
+        "all": "الكل",
+        "new": "جديد",
+        "active": "قيد المعالجة",
+        "qualified": "مؤهلون",
+        "closed": "منتهية"
+      },
+      "metrics": {
+        "activePipeline": "القمع النشط",
+        "callbacksToday": "معاودة الاتصال اليوم",
+        "qualified": "مؤهلون",
+        "won": "مربوحة",
+        "conversionRate": "معدل التحويل",
+        "empty": "—"
       }
     },
     "queue": {
@@ -907,6 +927,27 @@
           "preview": "سيتم التوزيع على {count} وكلاء نشطين"
         }
       }
+    },
+    "prospectCampaigns": {
+      "title": "حملات إعادة التفاعل",
+      "subtitle": "قم بتصفية الطلبات السابقة لإنشاء عملاء محتملين جدد.",
+      "new": "حملة جديدة",
+      "run": "تنفيذ",
+      "close": "إغلاق",
+      "empty": "لا توجد حملات حتى الآن.",
+      "runSummary": "تم إنشاء {inserted} عميل محتمل، و{skipped} موجود بالفعل.",
+      "wizardTitle": "حملة جديدة",
+      "wizardSubtitle": "أعد تفاعل العملاء الحاليين مع منتجات جديدة.",
+      "name": "اسم الحملة",
+      "namePlaceholder": "مثال: عرض الربع الثاني - منتج X",
+      "orderStatuses": "حالات الطلبات المستهدفة",
+      "dateFrom": "من",
+      "dateTo": "إلى",
+      "preview": "معاينة",
+      "previewIdle": "انقر على معاينة لحساب الطلبات المؤهلة.",
+      "previewResult": "{count} طلب مؤهل.",
+      "cancel": "إلغاء",
+      "create": "إنشاء"
     }
   },
   "warehouse": {
@@ -1087,6 +1128,44 @@
       "role": "الدور",
       "market": "السوق",
       "status": "الحالة"
+    }
+  },
+  "settings": {
+    "statuses": {
+      "title": "الحالات القابلة للتهيئة",
+      "subtitle": "قم بتهيئة أعمدة كانبان للعملاء المحتملين ومتابعة الطلبات لكل سوق.",
+      "market": "السوق",
+      "pickMarket": "اختر سوقًا للبدء.",
+      "scope": {
+        "prospect": "العملاء المحتملون",
+        "follow_up": "متابعة الطلبات"
+      },
+      "col": {
+        "key": "المفتاح",
+        "labelFr": "تسمية (FR)",
+        "labelAr": "تسمية (AR)",
+        "color": "اللون",
+        "initial": "ابتدائي",
+        "terminal": "نهائي",
+        "actions": "إجراءات"
+      },
+      "addNew": "إضافة حالة",
+      "empty": "لا توجد حالات مهيأة.",
+      "moveUp": "لأعلى",
+      "moveDown": "لأسفل",
+      "save": "حفظ",
+      "cancel": "إلغاء",
+      "delete": "حذف",
+      "create": "إنشاء",
+      "editTransitions": "الانتقالات المسموح بها",
+      "transitionsTitle": "انتقالات من \"{key}\"",
+      "transitionsHelp": "اختر الحالات التي يمكن أن تنتقل إليها هذه الحالة.",
+      "deleteTitle": "حذف الحالة",
+      "deleteBody": "تأكيد حذف الحالة \"{key}\"؟ يتم حظر الحذف إذا كانت هناك صفوف تستخدمها.",
+      "addTitle": "حالة جديدة",
+      "keyHint": "أحرف صغيرة وأرقام وشرطة سفلية. مثال: blocked_customs",
+      "keyInvalid": "صيغة غير صالحة — استخدم فقط الأحرف الصغيرة والأرقام والشرطة السفلية.",
+      "keyConflict": "هذا المفتاح موجود بالفعل لهذا السوق وهذا النطاق."
     }
   }
 }

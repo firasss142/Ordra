@@ -11,7 +11,8 @@ import { NewFollowUpsBanner } from "@/components/follow-ups/NewFollowUpsBanner";
 import { useFollowUpsColumn } from "@/hooks/useFollowUpsColumn";
 import { useFollowUpsSummary } from "@/hooks/useFollowUpsSummary";
 import { useFollowUpsRealtime } from "@/hooks/useFollowUpsRealtime";
-import { useFollowUpCampaigns } from "@/hooks/useFollowUpCampaigns";
+import { useStatusConfigs } from "@/hooks/useStatusConfigs";
+import { getStatusLabel } from "@/lib/statuses/label";
 import { fetcher } from "@/lib/swr-config";
 import type { FollowUpsKanbanInitial } from "@/lib/follow-ups/list";
 import type { FollowUpsSummary } from "@/lib/follow-ups/summary";
@@ -25,15 +26,6 @@ const NewFollowUpModal = dynamic(
   () => import("@/components/follow-ups/NewFollowUpModal").then((m) => m.NewFollowUpModal),
   { ssr: false },
 );
-const NewCampaignWizard = dynamic(
-  () => import("@/components/follow-ups/NewCampaignWizard").then((m) => m.NewCampaignWizard),
-  { ssr: false },
-);
-const CampaignPanel = dynamic(
-  () => import("@/components/follow-ups/CampaignPanel").then((m) => m.CampaignPanel),
-  { ssr: false },
-);
-
 interface Market {
   id: string;
   name: string;
@@ -83,13 +75,10 @@ export function FollowUpsPageClient({
       : selectedMarketId;
 
   const [statusFilter, setStatusFilter] = useState<FollowUpStatus | "all">("all");
-  const [campaignId, setCampaignId] = useState<string | null>(null);
 
   // ---------- Modals ----------
   const [createOpen, setCreateOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<FollowUpStatus | undefined>(undefined);
-  const [campaignPanelOpen, setCampaignPanelOpen] = useState(false);
-  const [campaignWizardOpen, setCampaignWizardOpen] = useState(false);
 
   // ---------- Lazy markets load (super_admin only) ----------
   const { data: marketsData } = useSWR<{ data: Market[] }>(
@@ -98,18 +87,11 @@ export function FollowUpsPageClient({
   );
   const markets = marketsData?.data ?? [];
 
-  // Campaigns are lazy-loaded — fetch only when the user opens the chip or panel.
-  const [campaignsRequested, setCampaignsRequested] = useState(false);
-  const { campaigns, mutate: mutateCampaigns } = useFollowUpCampaigns(
-    effectiveMarketId ?? userMarketId,
-    campaignsRequested,
-  );
-
   // ---------- Summary ----------
   const { summary, mutate: mutateSummary } = useFollowUpsSummary({
     marketId: effectiveMarketId,
     agentId: null,
-    campaignId,
+    campaignId: null,
     fallback: initialSummary,
   });
 
@@ -120,28 +102,28 @@ export function FollowUpsPageClient({
     status: "open",
     marketId: effectiveMarketId,
     agentId: null,
-    campaignId,
+    campaignId: null,
     fallbackFirstPage: initialColumnPages.open,
   });
   const inProgressCol = useFollowUpsColumn({
     status: "in_progress",
     marketId: effectiveMarketId,
     agentId: null,
-    campaignId,
+    campaignId: null,
     fallbackFirstPage: initialColumnPages.in_progress,
   });
   const resolvedCol = useFollowUpsColumn({
     status: "resolved",
     marketId: effectiveMarketId,
     agentId: null,
-    campaignId,
+    campaignId: null,
     fallbackFirstPage: initialColumnPages.resolved,
   });
   const escalatedCol = useFollowUpsColumn({
     status: "escalated",
     marketId: effectiveMarketId,
     agentId: null,
-    campaignId,
+    campaignId: null,
     fallbackFirstPage: initialColumnPages.escalated,
   });
 
@@ -233,13 +215,25 @@ export function FollowUpsPageClient({
   const visibleStatuses: FollowUpStatus[] =
     statusFilter === "all" ? STATUS_ORDER : [statusFilter];
 
-  const kanbanColumns: FollowUpsKanbanColumn[] = visibleStatuses.map((s) => ({
-    status: s,
-    label: tStatuses(s),
-    data: columnData[s],
-    count: summary[s],
-    ...(s !== "resolved" ? { onAdd: () => handleOpenAddFor(s) } : {}),
-  }));
+  const { configs: statusConfigs } = useStatusConfigs({
+    marketId: effectiveMarketId ?? userMarketId,
+    scope: "follow_up",
+  });
+  const configByKey = useMemo(
+    () => Object.fromEntries(statusConfigs.map((c) => [c.key, c])),
+    [statusConfigs],
+  );
+
+  const kanbanColumns: FollowUpsKanbanColumn[] = visibleStatuses.map((s) => {
+    const cfg = configByKey[s];
+    return {
+      status: s,
+      label: cfg ? getStatusLabel(cfg, locale) : tStatuses(s),
+      data: columnData[s],
+      count: summary[s],
+      ...(s !== "resolved" ? { onAdd: () => handleOpenAddFor(s) } : {}),
+    };
+  });
 
   const totalRows =
     openCol.rows.length +
@@ -253,12 +247,10 @@ export function FollowUpsPageClient({
     return markets.find((m) => m.id === selectedMarketId)?.name ?? "—";
   }, [isSuperAdmin, selectedMarketId, markets, userMarketLabel, t]);
 
-  const hasFilters =
-    statusFilter !== "all" || campaignId !== null;
+  const hasFilters = statusFilter !== "all";
 
   const handleReset = useCallback(() => {
     setStatusFilter("all");
-    setCampaignId(null);
   }, []);
 
   return (
@@ -289,20 +281,6 @@ export function FollowUpsPageClient({
         lockedMarketLabel={userMarketLabel}
         statusFilter={statusFilter}
         onStatusChange={setStatusFilter}
-        campaignId={campaignId}
-        campaigns={campaigns}
-        onCampaignsOpen={() => {
-          if (!campaignsRequested) setCampaignsRequested(true);
-        }}
-        onCampaignChange={setCampaignId}
-        onOpenCampaignPanel={
-          isManager
-            ? () => {
-                if (!campaignsRequested) setCampaignsRequested(true);
-                setCampaignPanelOpen(true);
-              }
-            : undefined
-        }
         onReset={handleReset}
         onNewFollowUp={() => setCreateOpen(true)}
         hasActiveFilters={hasFilters}
@@ -364,44 +342,6 @@ export function FollowUpsPageClient({
         />
       )}
 
-      {campaignPanelOpen && (
-        <CampaignPanel
-          open={campaignPanelOpen}
-          onClose={() => setCampaignPanelOpen(false)}
-          campaigns={campaigns}
-          activeCampaignId={campaignId ?? ""}
-          onSelect={(id: string) => {
-            setCampaignId(id || null);
-            setCampaignPanelOpen(false);
-          }}
-          onNew={
-            isManager
-              ? () => {
-                  setCampaignPanelOpen(false);
-                  setCampaignWizardOpen(true);
-                }
-              : undefined
-          }
-          onMutate={isManager ? mutateCampaigns : undefined}
-          readOnly={!isManager}
-        />
-      )}
-
-      {isManager && campaignWizardOpen && (
-        <NewCampaignWizard
-          open={campaignWizardOpen}
-          onClose={() => setCampaignWizardOpen(false)}
-          marketId={userMarketId}
-          onCreated={(createdCampaignId: string) => {
-            setCampaignWizardOpen(false);
-            void mutateCampaigns();
-            setCampaignId(createdCampaignId);
-            // Bulk-created follow-ups all start "open"; realtime will patch
-            // any immediate transitions.
-            void Promise.all([openCol.mutate(), mutateSummary()]);
-          }}
-        />
-      )}
     </div>
   );
 }

@@ -1,0 +1,540 @@
+[     695ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[    1163ms] [LOG] [Fast Refresh] done in 468ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[    2009ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  131184ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  132748ms] [LOG] [Fast Refresh] done in 1564ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  135343ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  135758ms] [LOG] [Fast Refresh] done in 414ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  136145ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses:0
+[  136485ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  318211ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  319088ms] [ERROR] ./src/components/follow-ups/CampaignPanel.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/CampaignPanel.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/CampaignPanel.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  319089ms] [ERROR] ./src/components/follow-ups/NewCampaignWizard.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/NewCampaignWizard.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/NewCampaignWizard.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  320102ms] [ERROR] ./src/components/follow-ups/CampaignPanel.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/CampaignPanel.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/CampaignPanel.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  320102ms] [ERROR] ./src/components/follow-ups/NewCampaignWizard.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/NewCampaignWizard.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/NewCampaignWizard.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  320102ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  320135ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  320587ms] [ERROR] ./src/components/follow-ups/CampaignPanel.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/CampaignPanel.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/CampaignPanel.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  320587ms] [ERROR] ./src/components/follow-ups/NewCampaignWizard.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/NewCampaignWizard.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/NewCampaignWizard.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  320587ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  320592ms] [ERROR] ./src/components/follow-ups/CampaignPanel.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/CampaignPanel.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/CampaignPanel.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  320593ms] [ERROR] ./src/components/follow-ups/NewCampaignWizard.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/NewCampaignWizard.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/NewCampaignWizard.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  320593ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  320775ms] [ERROR] ./src/components/follow-ups/CampaignPanel.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/CampaignPanel.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/CampaignPanel.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  320776ms] [ERROR] ./src/components/follow-ups/NewCampaignWizard.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/NewCampaignWizard.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/NewCampaignWizard.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  320776ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  320933ms] [ERROR] ./src/components/follow-ups/CampaignPanel.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/CampaignPanel.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/CampaignPanel.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  320933ms] [ERROR] ./src/components/follow-ups/NewCampaignWizard.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/NewCampaignWizard.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/NewCampaignWizard.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  320933ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  321737ms] [ERROR] ./src/components/follow-ups/CampaignPanel.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/CampaignPanel.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/CampaignPanel.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  321737ms] [ERROR] ./src/components/follow-ups/NewCampaignWizard.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/NewCampaignWizard.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/NewCampaignWizard.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  321737ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  322671ms] [ERROR] ./src/components/follow-ups/CampaignPanel.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/CampaignPanel.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/CampaignPanel.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  322671ms] [ERROR] ./src/components/follow-ups/NewCampaignWizard.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/NewCampaignWizard.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/NewCampaignWizard.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  322671ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  322919ms] [ERROR] ./src/components/follow-ups/CampaignPanel.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/CampaignPanel.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/CampaignPanel.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  322919ms] [ERROR] ./src/components/follow-ups/NewCampaignWizard.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/NewCampaignWizard.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/NewCampaignWizard.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  322920ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  323065ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  323216ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  323340ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  323448ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  323554ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  323679ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  323971ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/fr/statuses:0
+[  324695ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///./node_modules/react-dom/cjs/react-dom.development.js:29889
+[  324779ms] ModuleBuildError: Module build failed (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js):
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/CampaignPanel.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+    at processResult (file:///Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/compiled/webpack/bundle5.js:28:400590)
+    at <unknown> (file:///Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/compiled/webpack/bundle5.js:28:402302)
+    at <unknown> (file:///Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:8645)
+    at <unknown> (file:///Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:5019)
+    at r.callback (file:///Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:4039)
+[  324775ms] [LOG] [HMR] connected @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:38
+[  324778ms] [ERROR] ./src/components/follow-ups/CampaignPanel.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/CampaignPanel.tsx
+
+Caused by:
+    No such file or directory (os error 2) @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  324778ms] [ERROR] ./src/components/follow-ups/NewCampaignWizard.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/NewCampaignWizard.tsx
+
+Caused by:
+    No such file or directory (os error 2) @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  324778ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2) @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  378203ms] [ERROR] ./src/components/follow-ups/CampaignPanel.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/CampaignPanel.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/CampaignPanel.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  378203ms] [ERROR] ./src/components/follow-ups/NewCampaignWizard.tsx
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/NewCampaignWizard.tsx
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/components/follow-ups/NewCampaignWizard.tsx
+./src/components/follow-ups/FollowUpsBoard.tsx
+./src/components/layout/AgentTabsContainer.tsx
+./src/components/layout/AgentDashboardShell.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  378203ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  378809ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  379245ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  382092ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  382092ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/hot-reloader-client.js:221
+[  382502ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  386828ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  387034ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  387209ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  391127ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  391298ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  391455ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  409837ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  410160ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  410374ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  431679ms] [ERROR] ./src/hooks/useFollowUpCampaigns.ts
+Error: Failed to read source code from /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/hooks/useFollowUpCampaigns.ts
+
+Caused by:
+    No such file or directory (os error 2)
+
+Import trace for requested module:
+./src/hooks/useFollowUpCampaigns.ts
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  432406ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/hot-reloader-client.js:221
+[  433685ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/_next/static/webpack/1c9cf7dc738df5ec.webpack.hot-update.json:0
+[  433685ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/hot-reloader-client.js:349
+[  433991ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses:0
+[  434295ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  436330ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  436563ms] [LOG] [Fast Refresh] done in 233ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  436892ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  437121ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses:0
+[  437477ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  470672ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  471218ms] [LOG] [Fast Refresh] done in 546ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  471679ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  471899ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses:0
+[  472256ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  474276ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  474698ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses:0
+[  475249ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  476360ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  476731ms] [LOG] [Fast Refresh] done in 371ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  477088ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  477294ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses:0
+[  477651ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  516859ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  517298ms] [LOG] [Fast Refresh] done in 439ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  517888ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  518102ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses:0
+[  518400ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  519903ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  520363ms] [LOG] [Fast Refresh] done in 461ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  520491ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  520673ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses:0
+[  520962ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  523441ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  523826ms] [LOG] [Fast Refresh] done in 386ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  524192ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  524382ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses:0
+[  524668ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  525913ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  526116ms] [LOG] [Fast Refresh] done in 204ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  526388ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  526573ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses:0
+[  526884ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  559522ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  559933ms] [LOG] [Fast Refresh] done in 412ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  560401ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  560600ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses:0
+[  560900ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  582366ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  583011ms] [LOG] [Fast Refresh] done in 646ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  583576ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  583875ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses:0
+[  584216ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  654368ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  657316ms] [LOG] [Fast Refresh] done in 2963ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  658563ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  658917ms] [LOG] [Fast Refresh] done in 353ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  659405ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  659796ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses:0
+[  660395ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  732737ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  733379ms] [LOG] [Fast Refresh] done in 643ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  733768ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  733894ms] [LOG] [Fast Refresh] done in 125ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  734099ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses?_rsc=bvsg7:0
+[  734329ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/fr/statuses:0
+[  734617ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559

@@ -80,8 +80,8 @@ describe("POST /api/leads/[id]/callback", () => {
     const res = await POST(req({ callback_time: future }), params);
     expect(res.status).toBe(200);
     expect(mockRpc).toHaveBeenCalledWith(
-      "transition_lead_status",
-      expect.objectContaining({ p_new_status: "callback_scheduled" })
+      "rpc_transition_lead_status",
+      expect.objectContaining({ p_new_status_key: "callback_scheduled" })
     );
   });
 

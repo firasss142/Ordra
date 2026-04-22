@@ -104,8 +104,8 @@ describe("POST /api/leads/[id]/attempt", () => {
     const json = await res.json();
     expect(json.data.new_status).toBe("attempt_1");
     expect(mockRpc).toHaveBeenCalledWith(
-      "transition_lead_status",
-      expect.objectContaining({ p_new_status: "attempt_1" })
+      "rpc_transition_lead_status",
+      expect.objectContaining({ p_new_status_key: "attempt_1" })
     );
   });
 
@@ -126,9 +126,9 @@ describe("POST /api/leads/[id]/attempt", () => {
     const json = await res.json();
     expect(json.data.auto_lost).toBe(true);
     expect(mockRpc).toHaveBeenCalledWith(
-      "transition_lead_status",
+      "rpc_transition_lead_status",
       expect.objectContaining({
-        p_new_status: "lost",
+        p_new_status_key: "lost",
         p_lost_reason: "unreachable",
       })
     );
@@ -149,8 +149,8 @@ describe("POST /api/leads/[id]/attempt", () => {
     const res = await POST(req({ callback_time: "2026-04-20T10:00:00Z" }), params);
     expect(res.status).toBe(200);
     expect(mockRpc).toHaveBeenCalledWith(
-      "transition_lead_status",
-      expect.objectContaining({ p_new_status: "callback_scheduled" })
+      "rpc_transition_lead_status",
+      expect.objectContaining({ p_new_status_key: "callback_scheduled" })
     );
   });
 });

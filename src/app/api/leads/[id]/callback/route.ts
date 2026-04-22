@@ -56,9 +56,9 @@ export async function POST(
     return NextResponse.json({ error: "Lead not found" }, { status: 404 });
   }
 
-  const { error: rpcError } = await supabase.rpc("transition_lead_status", {
+  const { error: rpcError } = await supabase.rpc("rpc_transition_lead_status", {
     p_lead_id: id,
-    p_new_status: "callback_scheduled",
+    p_new_status_key: "callback_scheduled",
     p_actor_id: actor.id,
     p_actor_type: role === "agent" ? "agent" : "manager",
     p_note: body.note ?? `Rappel prévu pour ${body.callback_time}`,

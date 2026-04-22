@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 
-// Phase 2: prospect campaigns still physically live in the follow_up_campaigns
-// table. Phase 3 renames it to prospect_campaigns in a follow-up migration.
-const CAMPAIGNS_TABLE = "follow_up_campaigns";
+const CAMPAIGNS_TABLE = "prospect_campaigns";
 
 export async function GET(req: NextRequest) {
   const actorResult = await getActor(req);

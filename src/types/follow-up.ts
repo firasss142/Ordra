@@ -29,28 +29,11 @@ export function isValidFollowUpTransition(
 
 export type FollowUpActorType = "system" | "agent" | "manager" | "super_admin";
 
-export interface CampaignFilterJson {
-  statuses?: string[];
-  date_from?: string;
-  date_to?: string;
-  city?: string;
-  product_id?: string;
-}
-
-export interface CampaignPreviewSample {
-  order_id: string;
-  customer_name: string;
-  phone: string;
-  city: string | null;
-  product_name: string | null;
-  created_at: string;
-}
-
 export interface FollowUpCampaign {
   id: string;
   market_id: string;
   name: string;
-  filter_json: CampaignFilterJson;
+  filter_json: Record<string, unknown>;
   created_by: string | null;
   created_at: string;
 }

@@ -9,7 +9,7 @@ export const FOLLOW_UPS_LIST_SELECT = `
   order:orders!inner (
     id, customer_name, customer_phone, customer_city, total_price, status, assigned_to
   ),
-  campaign:follow_up_campaigns (
+  campaign:prospect_campaigns (
     id, name
   )
 `;

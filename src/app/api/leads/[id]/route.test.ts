@@ -301,10 +301,10 @@ describe("DELETE /api/leads/[id]", () => {
     const res = await DELETE(req("DELETE", "/api/leads/lead-1"), params);
     expect(res.status).toBe(200);
     expect(mockRpc).toHaveBeenCalledWith(
-      "transition_lead_status",
+      "rpc_transition_lead_status",
       expect.objectContaining({
         p_lead_id: "lead-1",
-        p_new_status: "archived",
+        p_new_status_key: "archived",
       })
     );
   });

@@ -720,6 +720,26 @@
           "timeRequired": "La date est obligatoire.",
           "timeFuture": "La date doit être future."
         }
+      },
+      "campaigns": "Campagnes",
+      "csvImport": "Importer CSV",
+      "footerCount": "{count} prospect(s)",
+      "allMarkets": "Tous les marchés",
+      "allSourcesLabel": "Toutes les sources",
+      "buckets": {
+        "all": "Tous",
+        "new": "Nouveaux",
+        "active": "En cours",
+        "qualified": "Qualifiés",
+        "closed": "Terminés"
+      },
+      "metrics": {
+        "activePipeline": "Pipeline actif",
+        "callbacksToday": "À rappeler aujourd'hui",
+        "qualified": "Qualifiés",
+        "won": "Gagnés",
+        "conversionRate": "Taux de conversion",
+        "empty": "—"
       }
     },
     "queue": {
@@ -907,6 +927,27 @@
           "preview": "Sera distribué entre {count} agents actifs"
         }
       }
+    },
+    "prospectCampaigns": {
+      "title": "Campagnes de réengagement",
+      "subtitle": "Filtrez les commandes passées pour générer de nouveaux prospects.",
+      "new": "Nouvelle campagne",
+      "run": "Exécuter",
+      "close": "Fermer",
+      "empty": "Aucune campagne pour le moment.",
+      "runSummary": "{inserted} prospect(s) créé(s), {skipped} déjà existant(s).",
+      "wizardTitle": "Nouvelle campagne",
+      "wizardSubtitle": "Réengagez les clients existants vers de nouveaux produits.",
+      "name": "Nom de la campagne",
+      "namePlaceholder": "Ex: Upsell Q2 - produit X",
+      "orderStatuses": "Statuts de commande ciblés",
+      "dateFrom": "Depuis le",
+      "dateTo": "Jusqu au",
+      "preview": "Prévisualiser",
+      "previewIdle": "Cliquez sur Prévisualiser pour compter les commandes éligibles.",
+      "previewResult": "{count} commande(s) éligible(s).",
+      "cancel": "Annuler",
+      "create": "Créer"
     }
   },
   "warehouse": {
@@ -1087,6 +1128,44 @@
       "role": "Rôle",
       "market": "Marché",
       "status": "Statut"
+    }
+  },
+  "settings": {
+    "statuses": {
+      "title": "Statuts configurables",
+      "subtitle": "Configurez les colonnes des kanbans Prospects et Suivi de commande par marché.",
+      "market": "Marché",
+      "pickMarket": "Sélectionnez un marché pour commencer.",
+      "scope": {
+        "prospect": "Prospects",
+        "follow_up": "Suivi de commande"
+      },
+      "col": {
+        "key": "Clé",
+        "labelFr": "Label FR",
+        "labelAr": "Label AR",
+        "color": "Couleur",
+        "initial": "Initial",
+        "terminal": "Terminal",
+        "actions": "Actions"
+      },
+      "addNew": "Ajouter un statut",
+      "empty": "Aucun statut configuré.",
+      "moveUp": "Monter",
+      "moveDown": "Descendre",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "create": "Créer",
+      "editTransitions": "Transitions autorisées",
+      "transitionsTitle": "Transitions depuis \"{key}\"",
+      "transitionsHelp": "Sélectionnez les statuts vers lesquels ce statut peut transiter.",
+      "deleteTitle": "Supprimer le statut",
+      "deleteBody": "Confirmer la suppression du statut \"{key}\" ? La suppression est bloquée si des lignes l utilisent.",
+      "addTitle": "Nouveau statut",
+      "keyHint": "Minuscules, chiffres et underscores. Exemple: blocked_customs",
+      "keyInvalid": "Format invalide — utilisez minuscules/chiffres/underscores uniquement.",
+      "keyConflict": "Cette clé existe déjà pour ce marché et cette portée."
     }
   }
 }

@@ -56,9 +56,9 @@ export async function POST(
 
   // Already at max → auto-lost (unreachable)
   if (isMaxLeadAttemptsReached(lead.status, maxAttempts)) {
-    const { error: lostErr } = await supabase.rpc("transition_lead_status", {
+    const { error: lostErr } = await supabase.rpc("rpc_transition_lead_status", {
       p_lead_id: id,
-      p_new_status: "lost",
+      p_new_status_key: "lost",
       p_actor_id: actor.id,
       p_actor_type: "system",
       p_note: `Auto-lost: max attempts reached (tentative ${extractLeadAttemptNumber(lead.status)})`,
@@ -83,9 +83,9 @@ export async function POST(
 
   // Would next attempt hit max? auto-lost
   if (isMaxLeadAttemptsReached(nextStatus, maxAttempts)) {
-    const { error: lostErr } = await supabase.rpc("transition_lead_status", {
+    const { error: lostErr } = await supabase.rpc("rpc_transition_lead_status", {
       p_lead_id: id,
-      p_new_status: "lost",
+      p_new_status_key: "lost",
       p_actor_id: actor.id,
       p_actor_type: "system",
       p_note: `Auto-lost: max attempts reached (tentative ${extractLeadAttemptNumber(nextStatus)})`,
@@ -104,9 +104,9 @@ export async function POST(
   if (body.callback_time) {
     // Transition to callback_scheduled; we also need to set callback_scheduled_at.
     // The RPC doesn't yet take a callback param for leads — update the column directly.
-    const { error: cbErr } = await supabase.rpc("transition_lead_status", {
+    const { error: cbErr } = await supabase.rpc("rpc_transition_lead_status", {
       p_lead_id: id,
-      p_new_status: "callback_scheduled",
+      p_new_status_key: "callback_scheduled",
       p_actor_id: actor.id,
       p_actor_type: "agent",
       p_note: `Pas de réponse — rappel prévu pour ${body.callback_time}`,
@@ -126,9 +126,9 @@ export async function POST(
     });
   }
 
-  const { error: attemptError } = await supabase.rpc("transition_lead_status", {
+  const { error: attemptError } = await supabase.rpc("rpc_transition_lead_status", {
     p_lead_id: id,
-    p_new_status: nextStatus,
+    p_new_status_key: nextStatus,
     p_actor_id: actor.id,
     p_actor_type: "agent",
     p_note: `Pas de réponse — tentative ${extractLeadAttemptNumber(nextStatus)}`,

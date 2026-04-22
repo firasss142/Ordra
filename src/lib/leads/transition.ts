@@ -37,9 +37,9 @@ export async function transitionLeadStatus(
     throw new Error("lost_note is required when lost_reason is 'autre'");
   }
 
-  const { data, error } = await supabase.rpc("transition_lead_status", {
+  const { data, error } = await supabase.rpc("rpc_transition_lead_status", {
     p_lead_id: params.leadId,
-    p_new_status: params.newStatus,
+    p_new_status_key: params.newStatus,
     p_actor_id: params.actorId,
     p_actor_type: params.actorType,
     p_note: params.note ?? null,
@@ -56,7 +56,7 @@ export async function transitionLeadStatus(
   return {
     lead: {
       id: row.lead_id,
-      status: row.status,
+      status: (row.status_key ?? row.status) as LeadStatus,
       updated_at: row.updated_at,
     },
     historyEntry: { id: row.history_id },

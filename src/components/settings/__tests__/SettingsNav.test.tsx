@@ -1,9 +1,25 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { SettingsNav } from "../SettingsNav";
 import type { Role } from "@/types";
 
+vi.mock("next-intl", () => ({
+  useLocale: () => "fr",
+}));
+
 describe("SettingsNav", () => {
+  it("uses absolute locale-prefixed href for statuses", () => {
+    render(<SettingsNav role="super_admin" activeSection="general" />);
+    const link = screen.getByText("Statuts (Pipelines)").closest("a");
+    expect(link?.getAttribute("href")).toBe("/fr/settings/statuses");
+  });
+
+  it("uses absolute locale-prefixed href for section links", () => {
+    render(<SettingsNav role="super_admin" activeSection="general" />);
+    const link = screen.getByText("Transporteurs").closest("a");
+    expect(link?.getAttribute("href")).toBe("/fr/settings?section=carriers");
+  });
+
   it("renders 4 section links for super_admin", () => {
     render(<SettingsNav role="super_admin" activeSection="general" />);
     expect(screen.getByText("Paramètres généraux")).toBeInTheDocument();

@@ -1,0 +1,562 @@
+- generic [active] [ref=e1]:
+  - link "Aller au contenu principal" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - navigation [ref=e4]:
+      - generic [ref=e5]:
+        - text: Ordra
+        - 'generic "Marché actuel : Tunisie" [ref=e6]': · Tunisie
+      - generic [ref=e7]:
+        - generic [ref=e8]:
+          - text: Opérations
+          - list [ref=e9]:
+            - listitem [ref=e10]:
+              - link "Tableau de bord" [ref=e11] [cursor=pointer]:
+                - /url: /fr/dashboard
+                - img [ref=e12]
+                - generic [ref=e17]: Tableau de bord
+            - listitem [ref=e18]:
+              - link "Commandes" [ref=e19] [cursor=pointer]:
+                - /url: /fr/orders
+                - img [ref=e20]
+                - generic [ref=e23]: Commandes
+            - listitem [ref=e24]:
+              - link "Entrepôt" [ref=e25] [cursor=pointer]:
+                - /url: /fr/warehouse
+                - img [ref=e26]
+                - generic [ref=e29]: Entrepôt
+        - generic [ref=e30]:
+          - text: CRM
+          - list [ref=e31]:
+            - listitem [ref=e32]:
+              - link "Prospects" [ref=e33] [cursor=pointer]:
+                - /url: /fr/leads
+                - img [ref=e34]
+                - generic [ref=e39]: Prospects
+            - listitem [ref=e40]:
+              - link "Suivi de commande" [ref=e41] [cursor=pointer]:
+                - /url: /fr/follow-ups
+                - img [ref=e42]
+                - generic [ref=e45]: Suivi de commande
+        - generic [ref=e46]:
+          - text: Catalogue
+          - list [ref=e47]:
+            - listitem [ref=e48]:
+              - link "Produits" [ref=e49] [cursor=pointer]:
+                - /url: /fr/products
+                - img [ref=e50]
+                - generic [ref=e54]: Produits
+        - generic [ref=e55]:
+          - text: Administration
+          - list [ref=e56]:
+            - listitem [ref=e57]:
+              - link "Performance" [ref=e58] [cursor=pointer]:
+                - /url: /fr/team
+                - img [ref=e59]
+                - generic [ref=e61]: Performance
+            - listitem [ref=e62]:
+              - link "Utilisateurs" [ref=e63] [cursor=pointer]:
+                - /url: /fr/users
+                - img [ref=e64]
+                - generic [ref=e67]: Utilisateurs
+            - listitem [ref=e68]:
+              - link "Paramètres" [ref=e69] [cursor=pointer]:
+                - /url: /fr/settings
+                - img [ref=e70]
+                - generic [ref=e73]: Paramètres
+      - button "Manager TN Market manager" [ref=e75] [cursor=pointer]:
+        - generic [ref=e76]: MT
+        - generic [ref=e77]:
+          - generic [ref=e78]: Manager TN
+          - generic [ref=e79]: Market manager
+        - img [ref=e80]
+    - main [ref=e83]:
+      - generic [ref=e84]:
+        - generic [ref=e85]:
+          - heading "Suivi de commande" [level=1] [ref=e86]
+          - paragraph [ref=e87]: Coordination des livraisons en cash-on-delivery · Tunisia
+        - generic [ref=e88]:
+          - generic [ref=e89]:
+            - generic [ref=e90]: Tunisia
+            - tablist [ref=e91]:
+              - tab "Tous les statuts" [selected] [ref=e92] [cursor=pointer]
+              - tab "Ouvert" [ref=e93] [cursor=pointer]
+              - tab "En cours" [ref=e94] [cursor=pointer]
+              - tab "Résolu" [ref=e95] [cursor=pointer]
+              - tab "Escaladé" [ref=e96] [cursor=pointer]
+          - button "+ Nouveau suivi" [ref=e97] [cursor=pointer]
+        - generic [ref=e98]:
+          - generic [ref=e99]:
+            - generic [ref=e100]: Suivis totaux
+            - generic [ref=e101]: "665"
+          - generic [ref=e102]:
+            - generic [ref=e103]: Ouverts
+            - generic [ref=e104]: "651"
+          - generic [ref=e105]:
+            - generic [ref=e106]: En cours
+            - generic [ref=e107]: "10"
+          - generic [ref=e108]:
+            - generic [ref=e109]: Résolus
+            - generic [ref=e110]: "4"
+          - generic [ref=e111]:
+            - generic [ref=e112]: Escaladés
+            - generic [ref=e113]: "0"
+        - generic [ref=e114]:
+          - generic [ref=e115]:
+            - generic [ref=e117]:
+              - generic [ref=e118]: Ouvert
+              - generic [ref=e119]:
+                - generic [ref=e120]: "651"
+                - button "+" [ref=e121] [cursor=pointer]
+            - generic [ref=e122]:
+              - link "Client Test 701 81,000 DT +21698000701 · Sfax delivered Ouvert" [ref=e124] [cursor=pointer]:
+                - /url: /fr/follow-ups/ffe38cf0-7e28-4f23-94e6-affa17108ea4
+                - generic [ref=e125]:
+                  - strong [ref=e126]: Client Test 701
+                  - generic [ref=e127]: 81,000 DT
+                - generic [ref=e128]: +21698000701 · Sfax
+                - generic [ref=e129]:
+                  - generic [ref=e130]: delivered
+                  - generic [ref=e131]:
+                    - img [ref=e132]
+                    - text: Ouvert
+              - link "Client Test 925 65,000 DT +21698000925 · Tunis assigned Ouvert" [ref=e135] [cursor=pointer]:
+                - /url: /fr/follow-ups/fed72205-3f98-4fc2-9085-f3d4747ad1d5
+                - generic [ref=e136]:
+                  - strong [ref=e137]: Client Test 925
+                  - generic [ref=e138]: 65,000 DT
+                - generic [ref=e139]: +21698000925 · Tunis
+                - generic [ref=e140]:
+                  - generic [ref=e141]: assigned
+                  - generic [ref=e142]:
+                    - img [ref=e143]
+                    - text: Ouvert
+              - link "Client Test 989 49,000 DT +21698000989 · Monastir rejected Ouvert" [ref=e146] [cursor=pointer]:
+                - /url: /fr/follow-ups/fe856194-e60b-4f57-9a03-808d768af252
+                - generic [ref=e147]:
+                  - strong [ref=e148]: Client Test 989
+                  - generic [ref=e149]: 49,000 DT
+                - generic [ref=e150]: +21698000989 · Monastir
+                - generic [ref=e151]:
+                  - generic [ref=e152]: rejected
+                  - generic [ref=e153]:
+                    - img [ref=e154]
+                    - text: Ouvert
+              - link "Client Test 572 32,000 DT +21698000572 · Sousse new Ouvert" [ref=e157] [cursor=pointer]:
+                - /url: /fr/follow-ups/fe14eb5c-ed5b-43d7-98e8-c5dc1f16cc05
+                - generic [ref=e158]:
+                  - strong [ref=e159]: Client Test 572
+                  - generic [ref=e160]: 32,000 DT
+                - generic [ref=e161]: +21698000572 · Sousse
+                - generic [ref=e162]:
+                  - generic [ref=e163]: new
+                  - generic [ref=e164]:
+                    - img [ref=e165]
+                    - text: Ouvert
+              - link "Client Test 460 80,000 DT +21698000460 · Tunis returned Ouvert" [ref=e168] [cursor=pointer]:
+                - /url: /fr/follow-ups/fdec1bb9-6e86-4997-938b-4fd71953805f
+                - generic [ref=e169]:
+                  - strong [ref=e170]: Client Test 460
+                  - generic [ref=e171]: 80,000 DT
+                - generic [ref=e172]: +21698000460 · Tunis
+                - generic [ref=e173]:
+                  - generic [ref=e174]: returned
+                  - generic [ref=e175]:
+                    - img [ref=e176]
+                    - text: Ouvert
+              - link "Client Test 458 78,000 DT +21698000458 · Bizerte dispatched Ouvert" [ref=e179] [cursor=pointer]:
+                - /url: /fr/follow-ups/fda87523-d583-484f-8dc0-cf8a9de3eb42
+                - generic [ref=e180]:
+                  - strong [ref=e181]: Client Test 458
+                  - generic [ref=e182]: 78,000 DT
+                - generic [ref=e183]: +21698000458 · Bizerte
+                - generic [ref=e184]:
+                  - generic [ref=e185]: dispatched
+                  - generic [ref=e186]:
+                    - img [ref=e187]
+                    - text: Ouvert
+              - link "Client Test 707 87,000 DT +21698000707 · Sousse attempt_2 Ouvert" [ref=e190] [cursor=pointer]:
+                - /url: /fr/follow-ups/fcdb716c-d039-4210-adf1-48457b51d1e8
+                - generic [ref=e191]:
+                  - strong [ref=e192]: Client Test 707
+                  - generic [ref=e193]: 87,000 DT
+                - generic [ref=e194]: +21698000707 · Sousse
+                - generic [ref=e195]:
+                  - generic [ref=e196]: attempt_2
+                  - generic [ref=e197]:
+                    - img [ref=e198]
+                    - text: Ouvert
+              - link "Client Test 793 93,000 DT +21698000793 · Bizerte assigned Ouvert" [ref=e201] [cursor=pointer]:
+                - /url: /fr/follow-ups/fcd21622-8a21-4a74-97ba-3c55b8d0d0f4
+                - generic [ref=e202]:
+                  - strong [ref=e203]: Client Test 793
+                  - generic [ref=e204]: 93,000 DT
+                - generic [ref=e205]: +21698000793 · Bizerte
+                - generic [ref=e206]:
+                  - generic [ref=e207]: assigned
+                  - generic [ref=e208]:
+                    - img [ref=e209]
+                    - text: Ouvert
+              - link "Client Test 545 85,000 DT +21698000545 · Tunis confirmed Ouvert" [ref=e212] [cursor=pointer]:
+                - /url: /fr/follow-ups/fcc77cf9-fb3e-4e59-80eb-cf456f676514
+                - generic [ref=e213]:
+                  - strong [ref=e214]: Client Test 545
+                  - generic [ref=e215]: 85,000 DT
+                - generic [ref=e216]: +21698000545 · Tunis
+                - generic [ref=e217]:
+                  - generic [ref=e218]: confirmed
+                  - generic [ref=e219]:
+                    - img [ref=e220]
+                    - text: Ouvert
+              - link "Client Test 472 92,000 DT +21698000472 · Sousse rejected Ouvert" [ref=e223] [cursor=pointer]:
+                - /url: /fr/follow-ups/fc5c1726-6594-4032-8563-b10d24ba7b06
+                - generic [ref=e224]:
+                  - strong [ref=e225]: Client Test 472
+                  - generic [ref=e226]: 92,000 DT
+                - generic [ref=e227]: +21698000472 · Sousse
+                - generic [ref=e228]:
+                  - generic [ref=e229]: rejected
+                  - generic [ref=e230]:
+                    - img [ref=e231]
+                    - text: Ouvert
+              - link "Client Test 784 84,000 DT +21698000784 · Monastir attempt_2 Ouvert" [ref=e234] [cursor=pointer]:
+                - /url: /fr/follow-ups/fb93f3d6-2e00-4dfd-aaec-85a2b854ee55
+                - generic [ref=e235]:
+                  - strong [ref=e236]: Client Test 784
+                  - generic [ref=e237]: 84,000 DT
+                - generic [ref=e238]: +21698000784 · Monastir
+                - generic [ref=e239]:
+                  - generic [ref=e240]: attempt_2
+                  - generic [ref=e241]:
+                    - img [ref=e242]
+                    - text: Ouvert
+              - link "Client Test 585 45,000 DT +21698000585 · Tunis attempt_1 Ouvert" [ref=e245] [cursor=pointer]:
+                - /url: /fr/follow-ups/fb0f988f-f0b4-4515-991d-9130d6324903
+                - generic [ref=e246]:
+                  - strong [ref=e247]: Client Test 585
+                  - generic [ref=e248]: 45,000 DT
+                - generic [ref=e249]: +21698000585 · Tunis
+                - generic [ref=e250]:
+                  - generic [ref=e251]: attempt_1
+                  - generic [ref=e252]:
+                    - img [ref=e253]
+                    - text: Ouvert
+              - link "Client Test 381 81,000 DT +21698000381 · Sfax dispatched Ouvert" [ref=e256] [cursor=pointer]:
+                - /url: /fr/follow-ups/fa989483-69fd-4c6a-86de-34284917c60a
+                - generic [ref=e257]:
+                  - strong [ref=e258]: Client Test 381
+                  - generic [ref=e259]: 81,000 DT
+                - generic [ref=e260]: +21698000381 · Sfax
+                - generic [ref=e261]:
+                  - generic [ref=e262]: dispatched
+                  - generic [ref=e263]:
+                    - img [ref=e264]
+                    - text: Ouvert
+              - link "Client Test 554 94,000 DT +21698000554 · Monastir attempt_3 Ouvert" [ref=e267] [cursor=pointer]:
+                - /url: /fr/follow-ups/fa7a4733-13c0-438e-ac11-26c30106d716
+                - generic [ref=e268]:
+                  - strong [ref=e269]: Client Test 554
+                  - generic [ref=e270]: 94,000 DT
+                - generic [ref=e271]: +21698000554 · Monastir
+                - generic [ref=e272]:
+                  - generic [ref=e273]: attempt_3
+                  - generic [ref=e274]:
+                    - img [ref=e275]
+                    - text: Ouvert
+              - link "Client Test 865 85,000 DT +21698000865 · Tunis dispatched Ouvert" [ref=e278] [cursor=pointer]:
+                - /url: /fr/follow-ups/fa3cd7ad-d16b-4c1d-815d-ac1ef762b5c3
+                - generic [ref=e279]:
+                  - strong [ref=e280]: Client Test 865
+                  - generic [ref=e281]: 85,000 DT
+                - generic [ref=e282]: +21698000865 · Tunis
+                - generic [ref=e283]:
+                  - generic [ref=e284]: dispatched
+                  - generic [ref=e285]:
+                    - img [ref=e286]
+                    - text: Ouvert
+              - link "Client Test 890 30,000 DT +21698000890 · Tunis rejected Ouvert" [ref=e289] [cursor=pointer]:
+                - /url: /fr/follow-ups/f9a46e8a-07c8-4107-96b4-b791c1a7f01d
+                - generic [ref=e290]:
+                  - strong [ref=e291]: Client Test 890
+                  - generic [ref=e292]: 30,000 DT
+                - generic [ref=e293]: +21698000890 · Tunis
+                - generic [ref=e294]:
+                  - generic [ref=e295]: rejected
+                  - generic [ref=e296]:
+                    - img [ref=e297]
+                    - text: Ouvert
+              - link "Client Test 651 31,000 DT +21698000651 · Sfax attempt_1 Ouvert" [ref=e300] [cursor=pointer]:
+                - /url: /fr/follow-ups/f9344438-5e07-4666-8e81-58610fbd2643
+                - generic [ref=e301]:
+                  - strong [ref=e302]: Client Test 651
+                  - generic [ref=e303]: 31,000 DT
+                - generic [ref=e304]: +21698000651 · Sfax
+                - generic [ref=e305]:
+                  - generic [ref=e306]: attempt_1
+                  - generic [ref=e307]:
+                    - img [ref=e308]
+                    - text: Ouvert
+              - link "Client Test 428 48,000 DT +21698000428 · Bizerte rejected Ouvert" [ref=e311] [cursor=pointer]:
+                - /url: /fr/follow-ups/f880a6cf-9d4d-4151-98b7-bac04a4b3fab
+                - generic [ref=e312]:
+                  - strong [ref=e313]: Client Test 428
+                  - generic [ref=e314]: 48,000 DT
+                - generic [ref=e315]: +21698000428 · Bizerte
+                - generic [ref=e316]:
+                  - generic [ref=e317]: rejected
+                  - generic [ref=e318]:
+                    - img [ref=e319]
+                    - text: Ouvert
+              - link "Client Test 733 33,000 DT +21698000733 · Bizerte dispatched Ouvert" [ref=e322] [cursor=pointer]:
+                - /url: /fr/follow-ups/f6f78763-e5ff-47e3-bbdb-4a7fb3555122
+                - generic [ref=e323]:
+                  - strong [ref=e324]: Client Test 733
+                  - generic [ref=e325]: 33,000 DT
+                - generic [ref=e326]: +21698000733 · Bizerte
+                - generic [ref=e327]:
+                  - generic [ref=e328]: dispatched
+                  - generic [ref=e329]:
+                    - img [ref=e330]
+                    - text: Ouvert
+              - link "Client Test 578 38,000 DT +21698000578 · Bizerte confirmed Ouvert" [ref=e333] [cursor=pointer]:
+                - /url: /fr/follow-ups/f68c84dc-e3db-4db1-ae61-639447ce0c9a
+                - generic [ref=e334]:
+                  - strong [ref=e335]: Client Test 578
+                  - generic [ref=e336]: 38,000 DT
+                - generic [ref=e337]: +21698000578 · Bizerte
+                - generic [ref=e338]:
+                  - generic [ref=e339]: confirmed
+                  - generic [ref=e340]:
+                    - img [ref=e341]
+                    - text: Ouvert
+              - link "Client Test 346 46,000 DT +21698000346 · Sfax callback_scheduled Ouvert" [ref=e344] [cursor=pointer]:
+                - /url: /fr/follow-ups/f6286aae-76d2-40f4-a21c-20da56d3b8f0
+                - generic [ref=e345]:
+                  - strong [ref=e346]: Client Test 346
+                  - generic [ref=e347]: 46,000 DT
+                - generic [ref=e348]: +21698000346 · Sfax
+                - generic [ref=e349]:
+                  - generic [ref=e350]: callback_scheduled
+                  - generic [ref=e351]:
+                    - img [ref=e352]
+                    - text: Ouvert
+              - link "Client Test 638 98,000 DT +21698000638 · Bizerte new Ouvert" [ref=e355] [cursor=pointer]:
+                - /url: /fr/follow-ups/f5f151fe-17ed-4eae-a7f4-de9e825e3e34
+                - generic [ref=e356]:
+                  - strong [ref=e357]: Client Test 638
+                  - generic [ref=e358]: 98,000 DT
+                - generic [ref=e359]: +21698000638 · Bizerte
+                - generic [ref=e360]:
+                  - generic [ref=e361]: new
+                  - generic [ref=e362]:
+                    - img [ref=e363]
+                    - text: Ouvert
+              - link "Client Test 774 74,000 DT +21698000774 · Monastir attempt_3 Ouvert" [ref=e366] [cursor=pointer]:
+                - /url: /fr/follow-ups/f5a4fdf6-ee1b-4f7c-b20e-6cbac0cfd874
+                - generic [ref=e367]:
+                  - strong [ref=e368]: Client Test 774
+                  - generic [ref=e369]: 74,000 DT
+                - generic [ref=e370]: +21698000774 · Monastir
+                - generic [ref=e371]:
+                  - generic [ref=e372]: attempt_3
+                  - generic [ref=e373]:
+                    - img [ref=e374]
+                    - text: Ouvert
+              - link "Client Test 608 68,000 DT +21698000608 · Bizerte attempt_2 Ouvert" [ref=e377] [cursor=pointer]:
+                - /url: /fr/follow-ups/f3cd2b58-3f64-4bce-81fc-9724ebc5ed00
+                - generic [ref=e378]:
+                  - strong [ref=e379]: Client Test 608
+                  - generic [ref=e380]: 68,000 DT
+                - generic [ref=e381]: +21698000608 · Bizerte
+                - generic [ref=e382]:
+                  - generic [ref=e383]: attempt_2
+                  - generic [ref=e384]:
+                    - img [ref=e385]
+                    - text: Ouvert
+              - link "Client Test 433 53,000 DT +21698000433 · Bizerte attempt_3 Ouvert" [ref=e388] [cursor=pointer]:
+                - /url: /fr/follow-ups/f3abbb34-b6bf-4333-9871-497b9b794672
+                - generic [ref=e389]:
+                  - strong [ref=e390]: Client Test 433
+                  - generic [ref=e391]: 53,000 DT
+                - generic [ref=e392]: +21698000433 · Bizerte
+                - generic [ref=e393]:
+                  - generic [ref=e394]: attempt_3
+                  - generic [ref=e395]:
+                    - img [ref=e396]
+                    - text: Ouvert
+              - button "Afficher plus" [ref=e398] [cursor=pointer]
+          - generic [ref=e399]:
+            - generic [ref=e401]:
+              - generic [ref=e402]: En cours
+              - generic [ref=e403]:
+                - generic [ref=e404]: "10"
+                - button "+" [ref=e405] [cursor=pointer]
+            - generic [ref=e406]:
+              - link "Client Test 342 42,000 DT +21698000342 · Sousse assigned En cours" [ref=e408] [cursor=pointer]:
+                - /url: /fr/follow-ups/bcfa31e4-2ab8-4475-be2e-6c83472de65d
+                - generic [ref=e409]:
+                  - strong [ref=e410]: Client Test 342
+                  - generic [ref=e411]: 42,000 DT
+                - generic [ref=e412]: +21698000342 · Sousse
+                - generic [ref=e413]:
+                  - generic [ref=e414]: assigned
+                  - generic [ref=e415]:
+                    - img [ref=e416]
+                    - text: En cours
+              - link "Client Test 357 57,000 DT +21698000357 · Sousse callback_scheduled En cours" [ref=e419] [cursor=pointer]:
+                - /url: /fr/follow-ups/b5132ede-c957-44ab-8eff-2d47c4ebe158
+                - generic [ref=e420]:
+                  - strong [ref=e421]: Client Test 357
+                  - generic [ref=e422]: 57,000 DT
+                - generic [ref=e423]: +21698000357 · Sousse
+                - generic [ref=e424]:
+                  - generic [ref=e425]: callback_scheduled
+                  - generic [ref=e426]:
+                    - img [ref=e427]
+                    - text: En cours
+              - link "Client Test 432 52,000 DT +21698000432 · Sousse attempt_2 En cours" [ref=e430] [cursor=pointer]:
+                - /url: /fr/follow-ups/914e6b8c-7d40-4377-84ab-b439cc2ac04e
+                - generic [ref=e431]:
+                  - strong [ref=e432]: Client Test 432
+                  - generic [ref=e433]: 52,000 DT
+                - generic [ref=e434]: +21698000432 · Sousse
+                - generic [ref=e435]:
+                  - generic [ref=e436]: attempt_2
+                  - generic [ref=e437]:
+                    - img [ref=e438]
+                    - text: En cours
+              - link "Client Test 387 87,000 DT +21698000387 · Sousse attempt_1 En cours" [ref=e441] [cursor=pointer]:
+                - /url: /fr/follow-ups/80a29a54-8db7-400d-a089-b9d834cf6484
+                - generic [ref=e442]:
+                  - strong [ref=e443]: Client Test 387
+                  - generic [ref=e444]: 87,000 DT
+                - generic [ref=e445]: +21698000387 · Sousse
+                - generic [ref=e446]:
+                  - generic [ref=e447]: attempt_1
+                  - generic [ref=e448]:
+                    - img [ref=e449]
+                    - text: En cours
+              - link "Client Test 422 42,000 DT +21698000422 · Sousse attempt_3 En cours" [ref=e452] [cursor=pointer]:
+                - /url: /fr/follow-ups/6e4f9957-6263-46f4-b02b-39c6f3132e91
+                - generic [ref=e453]:
+                  - strong [ref=e454]: Client Test 422
+                  - generic [ref=e455]: 42,000 DT
+                - generic [ref=e456]: +21698000422 · Sousse
+                - generic [ref=e457]:
+                  - generic [ref=e458]: attempt_3
+                  - generic [ref=e459]:
+                    - img [ref=e460]
+                    - text: En cours
+              - link "Client Test 402 22,000 DT +21698000402 · Sousse confirmed En cours" [ref=e463] [cursor=pointer]:
+                - /url: /fr/follow-ups/64a0833d-0811-446a-9b46-ed6746f2693c
+                - generic [ref=e464]:
+                  - strong [ref=e465]: Client Test 402
+                  - generic [ref=e466]: 22,000 DT
+                - generic [ref=e467]: +21698000402 · Sousse
+                - generic [ref=e468]:
+                  - generic [ref=e469]: confirmed
+                  - generic [ref=e470]:
+                    - img [ref=e471]
+                    - text: En cours
+              - link "Client Test 467 87,000 DT +21698000467 · Sousse callback_scheduled En cours" [ref=e474] [cursor=pointer]:
+                - /url: /fr/follow-ups/3d74540d-2c70-4f73-a188-cf2b2b580ed4
+                - generic [ref=e475]:
+                  - strong [ref=e476]: Client Test 467
+                  - generic [ref=e477]: 87,000 DT
+                - generic [ref=e478]: +21698000467 · Sousse
+                - generic [ref=e479]:
+                  - generic [ref=e480]: callback_scheduled
+                  - generic [ref=e481]:
+                    - img [ref=e482]
+                    - text: En cours
+              - link "Client Test 452 72,000 DT +21698000452 · Sousse assigned En cours" [ref=e485] [cursor=pointer]:
+                - /url: /fr/follow-ups/2564abdc-a13c-4f99-a4c9-0fdc9999ed12
+                - generic [ref=e486]:
+                  - strong [ref=e487]: Client Test 452
+                  - generic [ref=e488]: 72,000 DT
+                - generic [ref=e489]: +21698000452 · Sousse
+                - generic [ref=e490]:
+                  - generic [ref=e491]: assigned
+                  - generic [ref=e492]:
+                    - img [ref=e493]
+                    - text: En cours
+              - link "Client Test 538 78,000 DT +21698000538 · Bizerte rejected En cours" [ref=e496] [cursor=pointer]:
+                - /url: /fr/follow-ups/1085149a-4846-46ce-b701-db2e7d5bb12e
+                - generic [ref=e497]:
+                  - strong [ref=e498]: Client Test 538
+                  - generic [ref=e499]: 78,000 DT
+                - generic [ref=e500]: +21698000538 · Bizerte
+                - generic [ref=e501]:
+                  - generic [ref=e502]: rejected
+                  - generic [ref=e503]:
+                    - img [ref=e504]
+                    - text: En cours
+              - link "Client Test 633 93,000 DT +21698000633 · Bizerte confirmed En cours" [ref=e507] [cursor=pointer]:
+                - /url: /fr/follow-ups/07c08100-73b6-462a-ac2c-bf57a6724ab8
+                - generic [ref=e508]:
+                  - strong [ref=e509]: Client Test 633
+                  - generic [ref=e510]: 93,000 DT
+                - generic [ref=e511]: +21698000633 · Bizerte
+                - generic [ref=e512]:
+                  - generic [ref=e513]: confirmed
+                  - generic [ref=e514]:
+                    - img [ref=e515]
+                    - text: En cours
+          - generic [ref=e517]:
+            - generic [ref=e519]:
+              - generic [ref=e520]: Résolu
+              - generic [ref=e522]: "4"
+            - generic [ref=e523]:
+              - link "Client Test 983 215,000 DT ded · Bizerte attempt_3 Résolu" [ref=e525] [cursor=pointer]:
+                - /url: /fr/follow-ups/f8bc7c39-4e70-4cae-8809-cbc70e1ab2bf
+                - generic [ref=e526]:
+                  - strong [ref=e527]: Client Test 983
+                  - generic [ref=e528]: 215,000 DT
+                - generic [ref=e529]: ded · Bizerte
+                - generic [ref=e530]:
+                  - generic [ref=e531]: attempt_3
+                  - generic [ref=e532]:
+                    - img [ref=e533]
+                    - text: Résolu
+              - link "Client Test 695 75,000 DT +21698000695 · Tunis attempt_1 Résolu" [ref=e536] [cursor=pointer]:
+                - /url: /fr/follow-ups/8f723cd4-837c-4bd1-b76f-df0329c9efd5
+                - generic [ref=e537]:
+                  - strong [ref=e538]: Client Test 695
+                  - generic [ref=e539]: 75,000 DT
+                - generic [ref=e540]: +21698000695 · Tunis
+                - generic [ref=e541]:
+                  - generic [ref=e542]: attempt_1
+                  - generic [ref=e543]:
+                    - img [ref=e544]
+                    - text: Résolu
+              - link "Client Test 604 64,000 DT +21698000604 · Monastir rejected Résolu" [ref=e547] [cursor=pointer]:
+                - /url: /fr/follow-ups/8daf3395-28b4-416d-806b-205e292f2195
+                - generic [ref=e548]:
+                  - strong [ref=e549]: Client Test 604
+                  - generic [ref=e550]: 64,000 DT
+                - generic [ref=e551]: +21698000604 · Monastir
+                - generic [ref=e552]:
+                  - generic [ref=e553]: rejected
+                  - generic [ref=e554]:
+                    - img [ref=e555]
+                    - text: Résolu
+              - link "Client Test 563 23,000 DT +21698000563 · Bizerte attempt_1 Résolu" [ref=e558] [cursor=pointer]:
+                - /url: /fr/follow-ups/3a8901bc-fa6c-40a3-bc24-c9adda8b44ef
+                - generic [ref=e559]:
+                  - strong [ref=e560]: Client Test 563
+                  - generic [ref=e561]: 23,000 DT
+                - generic [ref=e562]: +21698000563 · Bizerte
+                - generic [ref=e563]:
+                  - generic [ref=e564]: attempt_1
+                  - generic [ref=e565]:
+                    - img [ref=e566]
+                    - text: Résolu
+          - generic [ref=e568]:
+            - generic [ref=e570]:
+              - generic [ref=e571]: Escaladé
+              - generic [ref=e572]:
+                - generic [ref=e573]: "0"
+                - button "+" [ref=e574] [cursor=pointer]
+            - generic [ref=e576]: —
+        - generic [ref=e577]: 39 suivi(s)
+  - alert [ref=e578]

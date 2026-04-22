@@ -13,16 +13,7 @@ const NewFollowUpModal = dynamic(
   () => import("./NewFollowUpModal").then((m) => m.NewFollowUpModal),
   { ssr: false },
 );
-const NewCampaignWizard = dynamic(
-  () => import("./NewCampaignWizard").then((m) => m.NewCampaignWizard),
-  { ssr: false },
-);
-const CampaignPanel = dynamic(
-  () => import("./CampaignPanel").then((m) => m.CampaignPanel),
-  { ssr: false },
-);
 import { useFollowUps } from "@/hooks/useFollowUps";
-import { useFollowUpCampaigns } from "@/hooks/useFollowUpCampaigns";
 import {
   FOLLOW_UP_STATUSES,
   type FollowUpStatus,
@@ -55,13 +46,10 @@ export function FollowUpsBoard({ user, marketCode }: Props) {
   const tStatuses = useTranslations("crm.followUps.statuses");
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [campaignWizardOpen, setCampaignWizardOpen] = useState(false);
-  const [campaignPanelOpen, setCampaignPanelOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<FollowUpStatus | undefined>(undefined);
   const [view, setView] = useState<FollowUpsView>("list");
   const [density, setDensity] = useState<KanbanDensity>("comfortable");
   const [filterStatus, setFilterStatus] = useState<string>("");
-  const [filterCampaignId, setFilterCampaignId] = useState<string>("");
   const [page, setPage] = useState(1);
 
   React.useEffect(() => {
@@ -89,23 +77,16 @@ export function FollowUpsBoard({ user, marketCode }: Props) {
   };
 
   const marketId = user.role === "super_admin" ? null : user.market_id;
-  const isManager = user.role === "market_manager" || user.role === "super_admin";
-
-  const { campaigns, mutate: mutateCampaigns } = useFollowUpCampaigns(
-    marketId ?? user.market_id
-  );
 
   // List view: paginated with status filter. Kanban view: large limit, no filter.
   const listQuery = useFollowUps({
     marketId: marketId ?? undefined,
     status: view === "list" && filterStatus ? filterStatus : undefined,
-    campaignId: filterCampaignId || undefined,
     page: view === "list" ? page : 1,
     limit: view === "list" ? 50 : 200,
   });
 
   const tKanban = useTranslations("kanban");
-  const tCampaigns = useTranslations("crm.followUps.campaigns");
 
   const STATUS_ACCENT: Record<FollowUpStatus, "neutral" | "action" | "success" | "critical"> = {
     open: "neutral",
@@ -233,31 +214,6 @@ export function FollowUpsBoard({ user, marketCode }: Props) {
           </>
         )}
 
-        {/* Campaign selector — visible to agents, managers, and super_admin */}
-        {(isManager || campaigns.length > 0) && (
-          <button
-            type="button"
-            onClick={() => setCampaignPanelOpen(true)}
-            style={{
-              ...inputStyle,
-              padding: "0 12px",
-              cursor: "pointer",
-              fontWeight: filterCampaignId ? 500 : 400,
-              borderColor: filterCampaignId ? "#1A1A1A" : "#D1D5DB",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            <span>
-              {filterCampaignId
-                ? campaigns.find((c) => c.id === filterCampaignId)?.name ?? tCampaigns("allCampaigns")
-                : tCampaigns("allCampaigns")}
-            </span>
-            <span style={{ fontSize: 10, color: "#6D7175" }}>▾</span>
-          </button>
-        )}
-
         <div style={{ marginInlineStart: "auto", display: "flex", gap: 8 }}>
           {view === "kanban" && (
             <DensityToggle value={density} onChange={switchDensity} />
@@ -379,33 +335,6 @@ export function FollowUpsBoard({ user, marketCode }: Props) {
         />
       )}
 
-      {campaignPanelOpen && (
-        <CampaignPanel
-          open={campaignPanelOpen}
-          onClose={() => setCampaignPanelOpen(false)}
-          campaigns={campaigns}
-          activeCampaignId={filterCampaignId}
-          onSelect={(id) => { setFilterCampaignId(id); setPage(1); setCampaignPanelOpen(false); }}
-          onNew={isManager ? () => { setCampaignPanelOpen(false); setCampaignWizardOpen(true); } : undefined}
-          onMutate={isManager ? mutateCampaigns : undefined}
-          readOnly={!isManager}
-        />
-      )}
-
-      {isManager && campaignWizardOpen && (
-        <NewCampaignWizard
-          open={campaignWizardOpen}
-          onClose={() => setCampaignWizardOpen(false)}
-          marketId={user.market_id}
-          onCreated={(campaignId, _count) => {
-            setCampaignWizardOpen(false);
-            mutateCampaigns();
-            listQuery.mutate();
-            // Auto-select the newly created campaign in the filter pill
-            setFilterCampaignId(campaignId);
-          }}
-        />
-      )}
     </div>
   );
 }
