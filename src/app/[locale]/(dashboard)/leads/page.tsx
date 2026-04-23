@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
 import { getLeadsMetrics } from "@/lib/leads/metrics";
 import { LeadsPageClient } from "./LeadsPageClient";
 import type { Locale } from "@/types";
@@ -41,8 +42,15 @@ export default async function LeadsPage({
     if (market) userMarketLabel = market.name;
   }
 
+  let superAdminInitialMarketId = "";
+  if (profile.role === "super_admin") {
+    superAdminInitialMarketId = getDefaultMarketId(await getAllActiveMarkets());
+  }
+
   const scopedMarketId =
-    profile.role === "super_admin" ? null : (profile.market_id ?? null);
+    profile.role === "super_admin"
+      ? (superAdminInitialMarketId || null)
+      : (profile.market_id ?? null);
 
   const initialMetrics = await getLeadsMetrics(supabase, {
     marketId: scopedMarketId,
@@ -55,6 +63,7 @@ export default async function LeadsPage({
       userMarketLabel={userMarketLabel}
       locale={params.locale as Locale}
       initialMetrics={initialMetrics}
+      initialMarketId={superAdminInitialMarketId}
     />
   );
 }

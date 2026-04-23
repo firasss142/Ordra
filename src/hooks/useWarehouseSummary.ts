@@ -43,7 +43,7 @@ export function useWarehouseSummary({
           ? { data: initialSummary }
           : undefined,
       refreshInterval: 60_000,
-      revalidateOnFocus: true,
+      revalidateOnFocus: false,
       keepPreviousData: true,
     },
   );

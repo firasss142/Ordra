@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { DashboardClient } from "./DashboardClient";
 import { getServerUser } from "@/lib/auth/server-user";
 import { getDashboardSummary } from "@/lib/dashboard/summary";
+import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
 
 export default async function DashboardPage({
   params,
@@ -18,12 +19,17 @@ export default async function DashboardPage({
   const today = new Date().toISOString().slice(0, 10);
   const initialPeriod = { from_date: today, to_date: today };
 
-  // Server-fetch the initial summary so the first paint has data.
-  // Market-manager = locked to their market; super_admin = all markets by default.
+  const markets = user.role === "super_admin" ? await getAllActiveMarkets() : [];
+  const defaultMarketId = getDefaultMarketId(markets);
+  const initialMarketId =
+    user.role === "super_admin" ? (defaultMarketId || "all") : (user.market_id ?? "");
+
+  // Server-fetch Tunisia-scoped summary for super_admin (single-market = N× faster
+  // than "all") and pass as fallbackData so the client paints with zero network call.
   const initialSummary = await getDashboardSummary({
     fromDate: today,
     toDate: today,
-    marketId: user.role === "super_admin" ? "all" : null,
+    marketId: user.role === "super_admin" ? (defaultMarketId || "all") : null,
     role: user.role,
     actorMarketId: user.market_id,
   });
@@ -41,6 +47,7 @@ export default async function DashboardPage({
       user={user}
       initialPeriod={initialPeriod}
       initialSummary={initialSummary}
+      initialMarketId={initialMarketId}
     />
   );
 }

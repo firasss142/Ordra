@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { Upload } from "lucide-react";
 import {
   LEAD_SOURCES,
   type LeadSource,
   type LeadStatus,
 } from "@/types/lead";
+import type { ProspectCampaign } from "@/hooks/useProspectCampaigns";
 
 interface Market {
   id: string;
@@ -35,7 +37,13 @@ interface Props {
   source: LeadSource | null;
   onSourceChange: (s: LeadSource | null) => void;
 
-  onReset: () => void;
+  campaigns: ProspectCampaign[];
+  selectedCampaignId: string | null;
+  onCampaignChange: (id: string | null) => void;
+
+  filtersOpen: boolean;
+  onFiltersOpenChange: (open: boolean) => void;
+
   hasActiveFilters: boolean;
 
   onOpenCampaigns: () => void;
@@ -60,8 +68,11 @@ export function LeadsFilterBar({
   onBucketChange,
   source,
   onSourceChange,
-  onReset,
-  hasActiveFilters,
+  campaigns,
+  selectedCampaignId,
+  onCampaignChange,
+  filtersOpen,
+  onFiltersOpenChange,
   onOpenCampaigns,
   onOpenCsvImport,
   onNewLead,
@@ -71,6 +82,8 @@ export function LeadsFilterBar({
   const tSources = useTranslations("crm.leads.sources");
 
   const bucketOptions = BUCKETS.map((b) => ({ key: b, label: tBuckets(b) }));
+  const activeFilterCount =
+    (source !== null ? 1 : 0) + (selectedCampaignId !== null ? 1 : 0);
 
   return (
     <div
@@ -98,49 +111,44 @@ export function LeadsFilterBar({
           onSelect={onBucketChange}
         />
 
-        <SourceChip
-          selected={source}
-          onChange={onSourceChange}
-          allLabel={t("allSourcesLabel")}
-          labelFor={(s) => tSources(s)}
+        <FiltersPopover
+          open={filtersOpen}
+          onOpenChange={onFiltersOpenChange}
+          activeCount={activeFilterCount}
+          source={source}
+          onSourceChange={onSourceChange}
+          campaigns={campaigns}
+          selectedCampaignId={selectedCampaignId}
+          onCampaignChange={onCampaignChange}
+          onOpenCampaigns={onOpenCampaigns}
+          t={t}
+          tSources={tSources}
         />
-
-        {hasActiveFilters ? (
-          <button
-            type="button"
-            onClick={onReset}
-            style={{
-              padding: "6px 12px",
-              borderRadius: 9999,
-              border: `1px solid ${BORDER}`,
-              background: "#FFFFFF",
-              color: MUTED,
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
-          >
-            {t("reset")}
-          </button>
-        ) : null}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <button
-          type="button"
-          onClick={onOpenCampaigns}
-          style={secondaryPill}
-        >
-          {t("campaigns")}
-        </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <button
           type="button"
           onClick={onOpenCsvImport}
-          style={secondaryPill}
+          title={t("csvImport")}
           aria-label={t("csvImport")}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 34,
+            height: 34,
+            borderRadius: 9999,
+            border: `1px solid ${BORDER}`,
+            background: SOFT_BG,
+            color: TEXT,
+            cursor: "pointer",
+            flexShrink: 0,
+          }}
         >
-          {t("csvImport")}
+          <Upload size={16} strokeWidth={1.75} />
         </button>
+
         <button
           type="button"
           onClick={onNewLead}
@@ -163,16 +171,199 @@ export function LeadsFilterBar({
   );
 }
 
-const secondaryPill: React.CSSProperties = {
-  height: 34,
-  padding: "0 14px",
-  fontSize: 13,
-  fontWeight: 500,
+function FiltersPopover({
+  open,
+  onOpenChange,
+  activeCount,
+  source,
+  onSourceChange,
+  campaigns,
+  selectedCampaignId,
+  onCampaignChange,
+  onOpenCampaigns,
+  t,
+  tSources,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  activeCount: number;
+  source: LeadSource | null;
+  onSourceChange: (s: LeadSource | null) => void;
+  campaigns: ProspectCampaign[];
+  selectedCampaignId: string | null;
+  onCampaignChange: (id: string | null) => void;
+  onOpenCampaigns: () => void;
+  t: ReturnType<typeof useTranslations>;
+  tSources: ReturnType<typeof useTranslations>;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onOpenChange(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open, onOpenChange]);
+
+  const label =
+    activeCount > 0
+      ? `${t("filters")} · ${activeCount}`
+      : t("filters");
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "6px 12px",
+          borderRadius: 9999,
+          border: activeCount > 0 ? `1px solid ${TEXT}` : `1px solid ${BORDER}`,
+          background: activeCount > 0 ? TEXT : SOFT_BG,
+          color: activeCount > 0 ? "#FFFFFF" : TEXT,
+          fontSize: 13,
+          fontWeight: 500,
+          cursor: "pointer",
+        }}
+      >
+        {label}
+        <span aria-hidden style={{ fontSize: 10 }}>▾</span>
+      </button>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label={t("filters")}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onOpenChange(false);
+          }}
+          style={{
+            position: "absolute",
+            insetInlineStart: 0,
+            top: "calc(100% + 6px)",
+            background: SOFT_BG,
+            border: `1px solid ${BORDER}`,
+            borderRadius: 8,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+            minWidth: 240,
+            zIndex: 20,
+            padding: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}
+        >
+          {/* Source row */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 12, fontWeight: 500, color: MUTED }}>
+              {t("sourceLabel")}
+            </label>
+            <select
+              value={source ?? ""}
+              onChange={(e) =>
+                onSourceChange((e.target.value as LeadSource) || null)
+              }
+              style={selectStyle}
+            >
+              <option value="">{t("allSourcesLabel")}</option>
+              {LEAD_SOURCES.map((s) => (
+                <option key={s} value={s}>
+                  {tSources(s)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Campaign row */}
+          {campaigns.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <label style={{ fontSize: 12, fontWeight: 500, color: MUTED }}>
+                {t("campaignLabel")}
+              </label>
+              <select
+                value={selectedCampaignId ?? ""}
+                onChange={(e) => onCampaignChange(e.target.value || null)}
+                style={selectStyle}
+              >
+                <option value="">{t("allCampaigns")}</option>
+                {campaigns.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div
+            style={{
+              borderTop: `1px solid ${BORDER}`,
+              paddingTop: 8,
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                onOpenCampaigns();
+                onOpenChange(false);
+              }}
+              style={linkBtn}
+            >
+              {t("manageCampaigns")} →
+            </button>
+
+            {activeCount > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  onSourceChange(null);
+                  onCampaignChange(null);
+                  onOpenChange(false);
+                }}
+                style={linkBtn}
+              >
+                {t("clearAllFilters")}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const selectStyle: React.CSSProperties = {
   border: `1px solid ${BORDER}`,
-  borderRadius: 9999,
-  background: "#FFFFFF",
+  borderRadius: 6,
+  fontSize: 13,
+  background: SOFT_BG,
   color: TEXT,
+  padding: "4px 8px",
+  width: "100%",
   cursor: "pointer",
+};
+
+const linkBtn: React.CSSProperties = {
+  background: "none",
+  border: "none",
+  padding: "4px 0",
+  fontSize: 13,
+  color: MUTED,
+  cursor: "pointer",
+  textAlign: "start",
+  fontWeight: 500,
 };
 
 function BucketSegmented({
@@ -222,86 +413,6 @@ function BucketSegmented({
           </button>
         );
       })}
-    </div>
-  );
-}
-
-function SourceChip({
-  selected,
-  onChange,
-  allLabel,
-  labelFor,
-}: {
-  selected: LeadSource | null;
-  onChange: (s: LeadSource | null) => void;
-  allLabel: string;
-  labelFor: (s: LeadSource) => string;
-}) {
-  const [open, setOpen] = useState(false);
-  const selectedLabel = selected ? labelFor(selected) : allLabel;
-
-  return (
-    <div style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "6px 12px",
-          borderRadius: 9999,
-          border: `1px solid ${BORDER}`,
-          background: SOFT_BG,
-          color: TEXT,
-          fontSize: 13,
-          fontWeight: 500,
-          cursor: "pointer",
-        }}
-      >
-        {selectedLabel}
-        <span aria-hidden style={{ fontSize: 10 }}>▾</span>
-      </button>
-      {open ? (
-        <div
-          role="listbox"
-          onMouseLeave={() => setOpen(false)}
-          style={{
-            position: "absolute",
-            insetInlineStart: 0,
-            top: "calc(100% + 6px)",
-            background: SOFT_BG,
-            border: `1px solid ${BORDER}`,
-            borderRadius: 8,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            minWidth: 200,
-            zIndex: 10,
-            padding: 4,
-          }}
-        >
-          <Option
-            label={allLabel}
-            selected={selected === null}
-            onClick={() => {
-              onChange(null);
-              setOpen(false);
-            }}
-          />
-          {LEAD_SOURCES.map((s) => (
-            <Option
-              key={s}
-              label={labelFor(s)}
-              selected={selected === s}
-              onClick={() => {
-                onChange(s);
-                setOpen(false);
-              }}
-            />
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }

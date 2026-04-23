@@ -397,6 +397,15 @@ export async function getDashboardSummary(
   const trendFromIso = trendFrom.toISOString().slice(0, 10);
   const trendToIso = trendTo.toISOString().slice(0, 10);
 
+  // Fire before round 1 — no inter-query dependency; overlap with the 7-query batch.
+  const prevCountsPromise = fetchNonFinancialCounts(supabase, scopedMarketId, prev.from, prev.to);
+  let currFinPromise: ReturnType<typeof fetchFinancials> | null = null;
+  let prevFinPromise: ReturnType<typeof fetchFinancials> | null = null;
+  if (isSuperAdmin && scope === "single" && scopedMarketId) {
+    currFinPromise = fetchFinancials(supabase, scopedMarketId, fromDate, toDate);
+    prevFinPromise = fetchFinancials(supabase, scopedMarketId, prev.from, prev.to);
+  }
+
   const marketsPromise = supabase
     .from("markets")
     .select("id, name, code, currency")
@@ -475,6 +484,16 @@ export async function getDashboardSummary(
     scopedMarketId != null
       ? allMarkets.find((m) => m.id === scopedMarketId) ?? null
       : null;
+
+  // Fire after round 1 — allMarkets now known; these overlap with round 2 (agent presence).
+  let perMarketCountsPromises: ReturnType<typeof fetchNonFinancialCounts>[] | null = null;
+  let perMarketCurrFinPromises: ReturnType<typeof fetchFinancials>[] | null = null;
+  let perMarketPrevFinPromises: ReturnType<typeof fetchFinancials>[] | null = null;
+  if (isSuperAdmin && scope === "all") {
+    perMarketCurrFinPromises = allMarkets.map((m) => fetchFinancials(supabase, m.id, fromDate, toDate));
+    perMarketPrevFinPromises = allMarkets.map((m) => fetchFinancials(supabase, m.id, prev.from, prev.to));
+    perMarketCountsPromises = allMarkets.map((m) => fetchNonFinancialCounts(supabase, m.id, fromDate, toDate));
+  }
 
   const periodHistoryRaw = (periodHistoryResult.data ?? []) as unknown as Array<{
     status_to: string;
@@ -602,20 +621,15 @@ export async function getDashboardSummary(
   let totalAdSpend: number | null = null;
   let perMarketFinCache: Awaited<ReturnType<typeof fetchFinancials>>[] | null = null;
 
-  const prevCountsPromise = fetchNonFinancialCounts(supabase, scopedMarketId, prev.from, prev.to);
-
-  if (isSuperAdmin && scope === "single" && scopedMarketId) {
-    const [curr, prevFin] = await Promise.all([
-      fetchFinancials(supabase, scopedMarketId, fromDate, toDate),
-      fetchFinancials(supabase, scopedMarketId, prev.from, prev.to),
-    ]);
+  if (isSuperAdmin && scope === "single" && scopedMarketId && currFinPromise && prevFinPromise) {
+    const [curr, prevFin] = await Promise.all([currFinPromise, prevFinPromise]);
     revenue = computeDelta(curr.revenue, prevFin.revenue);
     netProfit = computeDelta(curr.netProfit, prevFin.netProfit);
     totalAdSpend = curr.totalAdSpend;
-  } else if (isSuperAdmin && scope === "all") {
+  } else if (isSuperAdmin && scope === "all" && perMarketCurrFinPromises && perMarketPrevFinPromises) {
     const [perMarket, prevPerMarket] = await Promise.all([
-      Promise.all(allMarkets.map((m) => fetchFinancials(supabase, m.id, fromDate, toDate))),
-      Promise.all(allMarkets.map((m) => fetchFinancials(supabase, m.id, prev.from, prev.to))),
+      Promise.all(perMarketCurrFinPromises),
+      Promise.all(perMarketPrevFinPromises),
     ]);
     const sumRevenue = perMarket.reduce((s, x) => s + x.revenue, 0);
     const sumProfit = perMarket.reduce((s, x) => s + x.netProfit, 0);
@@ -651,7 +665,7 @@ export async function getDashboardSummary(
         const marketAgents = presence.filter((a) => a.market_id === m.id);
         const [fin, counts] = await Promise.all([
           perMarketFinCache ? Promise.resolve(perMarketFinCache[i]) : fetchFinancials(supabase, m.id, fromDate, toDate),
-          fetchNonFinancialCounts(supabase, m.id, fromDate, toDate),
+          perMarketCountsPromises ? perMarketCountsPromises[i] : fetchNonFinancialCounts(supabase, m.id, fromDate, toDate),
         ]);
         return {
           market_id: m.id,

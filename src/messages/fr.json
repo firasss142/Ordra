@@ -137,6 +137,7 @@
     "reset": "Réinitialiser",
     "previous": "Précédent",
     "next": "Suivant",
+    "page": "Page {page}",
     "pageOf": "Page {page} sur {total}",
     "totalCount": "{count} commande(s)",
     "subtitle": "{count} commande(s) · {market}",
@@ -320,7 +321,12 @@
       "scheduledDispatchBanner": "Livraison planifiée",
       "scheduledDispatchAutoBanner": "Livraison planifiée (auto-expédition)",
       "scheduledDispatchCancel": "Annuler",
-      "scheduledDispatchCanceling": "Annulation…"
+      "scheduledDispatchCanceling": "Annulation…",
+      "fieldPhone2": "Téléphone 2",
+      "fieldDeliveryFee": "Frais de livraison",
+      "addProduct": "+ Ajouter un produit",
+      "removeItem": "Supprimer",
+      "grandTotal": "Total"
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",
@@ -485,6 +491,8 @@
     "loading": "Chargement...",
     "loadingRetry": "Erreur de chargement. Nouvelle tentative...",
     "loadingCarriers": "Chargement des transporteurs…",
+    "bulkCallEnded": "Raccrocher ({count})",
+    "deselectAll": "Désélectionner tout",
     "shortcuts": {
       "title": "Raccourcis clavier",
       "navigate": "Naviguer entre les cartes",
@@ -726,6 +734,12 @@
       "footerCount": "{count} prospect(s)",
       "allMarkets": "Tous les marchés",
       "allSourcesLabel": "Toutes les sources",
+      "allCampaigns": "Toutes les campagnes",
+      "filters": "Filtres",
+      "sourceLabel": "Source",
+      "campaignLabel": "Campagne",
+      "manageCampaigns": "Gérer les campagnes",
+      "clearAllFilters": "Tout effacer",
       "buckets": {
         "all": "Tous",
         "new": "Nouveaux",
@@ -1003,7 +1017,11 @@
       "recentEmpty": "Aucun scan pour le moment",
       "queueTitle": "File d'attente ({count})",
       "queueEmpty": "Aucune commande à scanner",
-      "stockAfter": "Stock : {stock}"
+      "stockAfter": "Stock : {stock}",
+      "colCity": "Destination",
+      "colCustomer": "Client",
+      "colProduct": "Produit",
+      "colId": "ID"
     },
     "returns": {
       "title": "Retours à traiter ({count})",
@@ -1093,6 +1111,12 @@
       "badge": "Stock bas",
       "critical": "Rupture",
       "tooltip": "Stock : {current} / seuil {threshold}"
+    },
+    "pagination": {
+      "prev": "Précédent",
+      "next": "Suivant",
+      "pageInfo": "Page {page} sur {total} · {items} entrées",
+      "pageInfoUnknown": "Page {page}"
     }
   },
   "users": {

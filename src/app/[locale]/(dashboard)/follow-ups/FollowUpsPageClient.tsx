@@ -40,6 +40,7 @@ interface Props {
   marketCode: "TN" | "LY";
   initialSummary: FollowUpsSummary;
   initialColumnPages: FollowUpsKanbanInitial;
+  initialMarketId: string;
 }
 
 const STATUS_ORDER: FollowUpStatus[] = [
@@ -57,6 +58,7 @@ export function FollowUpsPageClient({
   marketCode,
   initialSummary,
   initialColumnPages,
+  initialMarketId,
 }: Props) {
   const t = useTranslations("crm.followUps");
   const tStatuses = useTranslations("crm.followUps.statuses");
@@ -65,7 +67,7 @@ export function FollowUpsPageClient({
   const isManager = role === "market_manager" || role === "super_admin";
 
   const [selectedMarketId, setSelectedMarketId] = useState<string | "all">(
-    isSuperAdmin ? "all" : userMarketId,
+    isSuperAdmin ? (initialMarketId || "all") : userMarketId,
   );
   const effectiveMarketId =
     !isSuperAdmin || selectedMarketId === "all"

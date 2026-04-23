@@ -66,6 +66,8 @@ interface Props {
   userMarketCurrency: string;
   locale: Locale;
   fallbackFirstPage: OrdersListPage;
+  initialMarketId: string;
+  fallbackAgents: Agent[];
 }
 
 export function OrdersPageClient({
@@ -75,6 +77,8 @@ export function OrdersPageClient({
   userMarketCurrency,
   locale,
   fallbackFirstPage,
+  initialMarketId,
+  fallbackAgents,
 }: Props) {
   const t = useTranslations("orders");
 
@@ -83,11 +87,14 @@ export function OrdersPageClient({
   // ---------- Filter state (URL synced) ----------
   const { filters: rawFilters, setFilters, update } = useOrdersFiltersUrl();
 
-  // For non-super_admin, force marketId to own market regardless of URL
+  // For non-super_admin, force marketId to own market regardless of URL.
+  // For super_admin, default to Tunisia when URL has no market set (no URL pollution).
   const filters: OrderListFilters = useMemo(() => {
-    if (isSuperAdmin) return rawFilters;
+    if (isSuperAdmin) {
+      return rawFilters.marketId ? rawFilters : { ...rawFilters, marketId: initialMarketId };
+    }
     return { ...rawFilters, marketId: userMarketId };
-  }, [rawFilters, isSuperAdmin, userMarketId]);
+  }, [rawFilters, isSuperAdmin, userMarketId, initialMarketId]);
 
   const effectiveMarketId = filters.marketId ?? (isSuperAdmin ? null : userMarketId);
 
@@ -101,6 +108,7 @@ export function OrdersPageClient({
   const { data: agentsData } = useSWR<{ data: Agent[] }>(
     effectiveMarketId ? `/api/agents?market_id=${effectiveMarketId}` : null,
     fetcher,
+    { fallbackData: fallbackAgents.length ? { data: fallbackAgents } : undefined },
   );
   const agents = agentsData?.data ?? [];
 
@@ -130,15 +138,20 @@ export function OrdersPageClient({
     rows,
     isLoading,
     hasMore,
-    loadingMore,
-    loadMore,
+    hasNext,
+    hasPrev,
+    nextPage,
+    prevPage,
+    currentPage,
     mutate,
     isValidating,
   } = useOrdersList({
     filters,
-    // Only hydrate fallback when the URL is the "default" starting point for this user.
+    // Hydrate fallback for default starting point: manager (no filter) or super_admin on Tunisia default.
     fallbackFirstPage:
-      !hasActiveFilters(filters) && !filters.marketId && !isSuperAdmin
+      !hasActiveFilters(filters) &&
+      ((!isSuperAdmin && !filters.marketId) ||
+        (isSuperAdmin && filters.marketId === initialMarketId))
         ? fallbackFirstPage
         : undefined,
   });
@@ -441,9 +454,11 @@ export function OrdersPageClient({
         selectedIds={selectedIds}
         highlightedIds={highlightedIds}
         cancellingId={cancellingId}
-        hasMore={hasMore}
-        loadingMore={loadingMore}
-        onLoadMore={loadMore}
+        hasNext={hasNext}
+        hasPrev={hasPrev}
+        currentPage={currentPage}
+        onNextPage={nextPage}
+        onPrevPage={prevPage}
         onOpen={(id) => {
           setOpenOrderId(id);
           flashRow(id);
@@ -457,7 +472,7 @@ export function OrdersPageClient({
 
       <div style={{ fontSize: 13, color: "#6D7175", textAlign: "end" }}>
         {t("footerCount", { count: rows.length })}
-        {hasMore ? ` · ${t("footerMore")}` : ""}
+        {hasNext ? ` · ${t("footerMore")}` : ""}
         {` · ${t("footerLive")}`}
       </div>
 

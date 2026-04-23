@@ -22,7 +22,11 @@ const baseProps = {
   onBucketChange: vi.fn(),
   source: null,
   onSourceChange: vi.fn(),
-  onReset: vi.fn(),
+  campaigns: [],
+  selectedCampaignId: null,
+  onCampaignChange: vi.fn(),
+  filtersOpen: false,
+  onFiltersOpenChange: vi.fn(),
   hasActiveFilters: false,
   onOpenCampaigns: vi.fn(),
   onOpenCsvImport: vi.fn(),
@@ -52,14 +56,42 @@ describe("LeadsFilterBar", () => {
     expect(onBucketChange).toHaveBeenCalledWith("qualified");
   });
 
-  it("hides Reset when no filters active", () => {
-    render(<LeadsFilterBar {...baseProps} hasActiveFilters={false} />);
+  it("renders Filters button instead of Reset, Source chip, or Campaign chip", () => {
+    render(<LeadsFilterBar {...baseProps} />);
+    expect(screen.getByRole("button", { name: /Filtres/i })).toBeDefined();
     expect(screen.queryByRole("button", { name: "Réinitialiser" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Campagnes" })).toBeNull();
   });
 
-  it("shows Reset when filters are active", () => {
-    render(<LeadsFilterBar {...baseProps} hasActiveFilters={true} />);
-    expect(screen.getByRole("button", { name: "Réinitialiser" })).toBeDefined();
+  it("shows active count in Filters button label when source is set", () => {
+    render(<LeadsFilterBar {...baseProps} source="whatsapp" />);
+    expect(screen.getByRole("button", { name: /Filtres · 1/i })).toBeDefined();
+  });
+
+  it("shows active count 2 when both source and campaign are set", () => {
+    render(
+      <LeadsFilterBar
+        {...baseProps}
+        source="whatsapp"
+        selectedCampaignId="c1"
+        campaigns={[{ id: "c1", market_id: "m1", name: "Camp A", filter_json: {}, created_by: null, created_at: "" }]}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Filtres · 2/i })).toBeDefined();
+  });
+
+  it("calls onFiltersOpenChange(true) when Filters button clicked", () => {
+    const onFiltersOpenChange = vi.fn();
+    render(<LeadsFilterBar {...baseProps} onFiltersOpenChange={onFiltersOpenChange} />);
+    fireEvent.click(screen.getByRole("button", { name: /Filtres/i }));
+    expect(onFiltersOpenChange).toHaveBeenCalledWith(true);
+  });
+
+  it("calls onOpenCsvImport when upload icon button clicked", () => {
+    const onOpenCsvImport = vi.fn();
+    render(<LeadsFilterBar {...baseProps} onOpenCsvImport={onOpenCsvImport} />);
+    fireEvent.click(screen.getByRole("button", { name: "Importer CSV" }));
+    expect(onOpenCsvImport).toHaveBeenCalledTimes(1);
   });
 
   it("locks the market to a label for non-super_admin roles", () => {

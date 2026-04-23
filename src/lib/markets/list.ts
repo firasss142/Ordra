@@ -29,3 +29,8 @@ export async function listMarketsFor(
   if (role === "super_admin" || !marketId) return all;
   return all.filter((m) => m.id === marketId);
 }
+
+/** Tunisia is the primary market; fall back to the first active market. */
+export function getDefaultMarketId(markets: MarketRow[]): string {
+  return (markets.find((m) => m.code === "tn") ?? markets[0])?.id ?? "";
+}

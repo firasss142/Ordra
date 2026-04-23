@@ -58,6 +58,7 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     scheduled_dispatch_at: (raw.scheduled_dispatch_at as string | null) ?? null,
     scheduled_dispatch_auto: Boolean(raw.scheduled_dispatch_auto),
     customer_note: (raw.customer_note as string | null) ?? null,
+    customer_phone_2: (raw.customer_phone_2 as string | null) ?? null,
     created_at: raw.created_at as string,
     assigned_at: (raw.assigned_at as string) ?? (raw.created_at as string),
   };
@@ -195,6 +196,8 @@ export function QueuePage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [focusedOrderId, setFocusedOrderId] = useState<string | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+  const [bulkQueue, setBulkQueue] = useState<string[]>([]);
 
   // Track latest state for keyboard handler without re-binding on every keystroke
   const stateRef = useRef({
@@ -339,6 +342,25 @@ export function QueuePage() {
 
   const handleRefresh = useCallback(() => mutate(), [mutate]);
 
+  const handleToggleSelect = useCallback((id: string) => {
+    setSelectedOrderIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleDeselectAll = useCallback(() => setSelectedOrderIds(new Set()), []);
+
+  const handleBulkCallEnded = useCallback(() => {
+    const ids = [...selectedOrderIds];
+    if (ids.length === 0) return;
+    const [first, ...rest] = ids;
+    setBulkQueue(rest);
+    setSelectedOrderIds(new Set());
+    handleCallTerminated(first);
+  }, [selectedOrderIds, handleCallTerminated]);
+
   // ── loading skeleton ─────────────────────────────────────
   if (!rawOrders.length && !error && !statsData) {
     return (
@@ -443,6 +465,8 @@ export function QueuePage() {
         onRefresh={handleRefresh}
         stats={stats}
         focusedOrderId={focusedOrderId}
+        selectedOrderIds={selectedOrderIds}
+        onToggleSelect={handleToggleSelect}
       />
 
       <OrderDetailPanel
@@ -485,8 +509,64 @@ export function QueuePage() {
             setCallTerminatedOrderId(null);
             setInitialFlow(undefined);
             if (result.autoRejected) setAutoRejectedBanner(true);
+            // Continue bulk queue
+            if (bulkQueue.length > 0) {
+              const [next, ...rest] = bulkQueue;
+              setBulkQueue(rest);
+              handleCallTerminated(next);
+            }
           }}
         />
+      )}
+
+      {/* Bulk selection floating action bar */}
+      {selectedOrderIds.size > 0 && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            backgroundColor: "#1A1A1A",
+            color: "#FFFFFF",
+            borderRadius: 8,
+            padding: "12px 20px",
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+            zIndex: 30,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+          }}
+        >
+          <button
+            onClick={handleBulkCallEnded}
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#FFFFFF",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            {t("bulkCallEnded", { count: String(selectedOrderIds.size) })}
+          </button>
+          <button
+            onClick={handleDeselectAll}
+            style={{
+              fontSize: 13,
+              color: "#FFFFFF",
+              background: "none",
+              border: "1px solid #555",
+              borderRadius: 4,
+              padding: "4px 10px",
+              cursor: "pointer",
+            }}
+          >
+            {t("deselectAll")}
+          </button>
+        </div>
       )}
 
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />

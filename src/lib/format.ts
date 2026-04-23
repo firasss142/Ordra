@@ -64,3 +64,20 @@ export function formatDateTime(date: string | Date, locale: string): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return getDateTimeFormatter(locale).format(d);
 }
+
+export function formatExactTime(date: string | Date, _locale: string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const now = new Date();
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  if (sameDay) return `${hh}:${mm}`;
+
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}/${mo} ${hh}:${mm}`;
+}

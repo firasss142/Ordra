@@ -148,7 +148,7 @@ export async function GET(req: NextRequest) {
     },
     {
       // Tiny edge cache to absorb double-fires during filter changes
-      headers: { "Cache-Control": "private, max-age=2" },
+      headers: { "Cache-Control": "private, max-age=2, stale-while-revalidate=30" },
     },
   );
 }

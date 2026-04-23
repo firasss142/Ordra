@@ -137,6 +137,7 @@
     "reset": "إعادة تعيين",
     "previous": "السابق",
     "next": "التالي",
+    "page": "صفحة {page}",
     "pageOf": "صفحة {page} من {total}",
     "totalCount": "{count} طلب",
     "subtitle": "{count} طلب · {market}",
@@ -320,7 +321,12 @@
       "scheduledDispatchBanner": "توصيل مجدول",
       "scheduledDispatchAutoBanner": "توصيل مجدول (إرسال تلقائي)",
       "scheduledDispatchCancel": "إلغاء",
-      "scheduledDispatchCanceling": "جارٍ الإلغاء…"
+      "scheduledDispatchCanceling": "جارٍ الإلغاء…",
+      "fieldPhone2": "هاتف 2",
+      "fieldDeliveryFee": "رسوم التوصيل",
+      "addProduct": "+ إضافة منتج",
+      "removeItem": "حذف",
+      "grandTotal": "المجموع الكلي"
     },
     "scheduleDispatch": {
       "title": "جدولة التوصيل",
@@ -485,6 +491,8 @@
     "loading": "جارٍ التحميل...",
     "loadingRetry": "خطأ في التحميل. إعادة المحاولة...",
     "loadingCarriers": "جارٍ تحميل شركات الشحن…",
+    "bulkCallEnded": "إنهاء المكالمة ({count})",
+    "deselectAll": "إلغاء تحديد الكل",
     "shortcuts": {
       "title": "اختصارات لوحة المفاتيح",
       "navigate": "التنقل بين البطاقات",
@@ -726,6 +734,12 @@
       "footerCount": "{count} عميل محتمل",
       "allMarkets": "كل الأسواق",
       "allSourcesLabel": "كل المصادر",
+      "allCampaigns": "كل الحملات",
+      "filters": "الفلاتر",
+      "sourceLabel": "المصدر",
+      "campaignLabel": "الحملة",
+      "manageCampaigns": "إدارة الحملات",
+      "clearAllFilters": "مسح الكل",
       "buckets": {
         "all": "الكل",
         "new": "جديد",
@@ -1003,7 +1017,11 @@
       "recentEmpty": "لا توجد عمليات مسح بعد",
       "queueTitle": "قائمة الانتظار ({count})",
       "queueEmpty": "لا توجد طلبات للمسح",
-      "stockAfter": "المخزون: {stock}"
+      "stockAfter": "المخزون: {stock}",
+      "colCity": "الوجهة",
+      "colCustomer": "العميل",
+      "colProduct": "المنتج",
+      "colId": "المعرف"
     },
     "returns": {
       "title": "المرتجعات المعلقة ({count})",
@@ -1093,6 +1111,12 @@
       "badge": "مخزون منخفض",
       "critical": "نفد",
       "tooltip": "المخزون: {current} / الحد {threshold}"
+    },
+    "pagination": {
+      "prev": "السابق",
+      "next": "التالي",
+      "pageInfo": "صفحة {page} من {total} · {items} سجل",
+      "pageInfoUnknown": "صفحة {page}"
     }
   },
   "users": {

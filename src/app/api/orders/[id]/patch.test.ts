@@ -28,6 +28,8 @@ function queryChain(resolveWith: { data: unknown; error: unknown }) {
   chain.update = vi.fn().mockReturnValue(chain);
   chain.insert = vi.fn().mockReturnValue(chain);
   chain.single = vi.fn().mockResolvedValue(resolveWith);
+  chain.order = vi.fn().mockResolvedValue(resolveWith);
+  chain.then = (resolve: (v: unknown) => void) => resolve(resolveWith);
   return chain;
 }
 
@@ -168,7 +170,7 @@ describe("PATCH /api/orders/[id]", () => {
         return chain;
       }
       if (table === "order_history") {
-        const chain: Record<string, unknown> = {};
+        const chain = queryChain({ data: [{ id: "h-1" }], error: null });
         chain.insert = vi.fn().mockReturnValue(insertChain);
         return chain;
       }
@@ -206,7 +208,7 @@ describe("PATCH /api/orders/[id]", () => {
         return chain;
       }
       if (table === "order_history") {
-        const chain: Record<string, unknown> = {};
+        const chain = queryChain({ data: [{ id: "h-1" }], error: null });
         chain.insert = vi.fn().mockReturnValue(insertChain);
         return chain;
       }
@@ -241,7 +243,7 @@ describe("PATCH /api/orders/[id]", () => {
         return chain;
       }
       if (table === "order_history") {
-        const chain: Record<string, unknown> = {};
+        const chain = queryChain({ data: [{ id: "h-1" }], error: null });
         chain.insert = vi.fn().mockReturnValue(insertChain);
         return chain;
       }
@@ -288,7 +290,7 @@ describe("PATCH /api/orders/[id]", () => {
         return chain;
       }
       if (table === "order_history") {
-        const chain: Record<string, unknown> = {};
+        const chain = queryChain({ data: [{ id: "h-1" }], error: null });
         chain.insert = vi.fn().mockReturnValue(insertChain);
         return chain;
       }

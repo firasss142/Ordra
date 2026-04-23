@@ -39,7 +39,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  return NextResponse.json({ data });
+  return NextResponse.json(
+    { data },
+    { headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=300" } },
+  );
 }
 
 export async function POST(req: NextRequest) {

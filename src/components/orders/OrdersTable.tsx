@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import type { OrdersListRow } from "@/hooks/useOrdersList";
 import { OrderRow } from "./OrderRow";
@@ -18,9 +18,11 @@ interface Props {
   selectedIds: Set<string>;
   highlightedIds: Set<string>;
   cancellingId: string | null;
-  hasMore: boolean;
-  loadingMore: boolean;
-  onLoadMore: () => void;
+  hasNext: boolean;
+  hasPrev: boolean;
+  currentPage: number;
+  onNextPage: () => void;
+  onPrevPage: () => void;
   onOpen: (id: string) => void;
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: (ids: string[]) => void;
@@ -37,9 +39,11 @@ export function OrdersTable({
   selectedIds,
   highlightedIds,
   cancellingId,
-  hasMore,
-  loadingMore,
-  onLoadMore,
+  hasNext,
+  hasPrev,
+  currentPage,
+  onNextPage,
+  onPrevPage,
   onOpen,
   onToggleSelect,
   onToggleSelectAll,
@@ -55,24 +59,6 @@ export function OrdersTable({
     for (const a of agents) m.set(a.id, a.full_name);
     return m;
   }, [agents]);
-
-  // Infinite-scroll sentinel
-  const sentinelRef = useRef<HTMLTableRowElement>(null);
-  useEffect(() => {
-    if (!hasMore || loadingMore) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) onLoadMore();
-        }
-      },
-      { rootMargin: "300px" },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [hasMore, loadingMore, onLoadMore]);
 
   const allSelected = rows.length > 0 && rows.every((r) => selectedIds.has(r.id));
   const someSelected = rows.some((r) => selectedIds.has(r.id));
@@ -162,28 +148,50 @@ export function OrdersTable({
                 cancellingId={cancellingId}
               />
             ))}
-            {hasMore ? (
-              <tr ref={sentinelRef} aria-hidden>
-                <td colSpan={10} style={{ height: 1, padding: 0 }} />
-              </tr>
-            ) : null}
-            {loadingMore ? (
-              <tr>
-                <td
-                  colSpan={10}
-                  style={{
-                    padding: "16px",
-                    textAlign: "center",
-                    color: "#6D7175",
-                    fontSize: 13,
-                  }}
-                >
-                  {t("loadingMore")}
-                </td>
-              </tr>
-            ) : null}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination controls */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "12px 16px",
+          borderTop: "1px solid #E1E3E5",
+          background: "#FAFAFA",
+        }}
+      >
+        <button
+          type="button"
+          onClick={onPrevPage}
+          disabled={!hasPrev}
+          style={{
+            ...paginationBtnStyle,
+            opacity: hasPrev ? 1 : 0.35,
+            cursor: hasPrev ? "pointer" : "default",
+          }}
+        >
+          {t("previous")}
+        </button>
+
+        <span style={{ fontSize: 13, color: "#6D7175" }}>
+          {t("page", { page: currentPage })}
+        </span>
+
+        <button
+          type="button"
+          onClick={onNextPage}
+          disabled={!hasNext}
+          style={{
+            ...paginationBtnStyle,
+            opacity: hasNext ? 1 : 0.35,
+            cursor: hasNext ? "pointer" : "default",
+          }}
+        >
+          {t("next")}
+        </button>
       </div>
     </div>
   );
@@ -227,4 +235,14 @@ const headerStyle: React.CSSProperties = {
   letterSpacing: "0.05em",
   borderBottom: "1px solid #E1E3E5",
   background: "#FFFFFF",
+};
+
+const paginationBtnStyle: React.CSSProperties = {
+  padding: "6px 14px",
+  fontSize: 13,
+  fontWeight: 500,
+  color: "#1A1A1A",
+  background: "#FFFFFF",
+  border: "1px solid #D1D5DB",
+  borderRadius: 6,
 };

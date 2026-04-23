@@ -17,6 +17,8 @@ interface QueueListProps {
   onRefresh?: () => void;
   stats?: QueueStats;
   focusedOrderId?: string | null;
+  selectedOrderIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }
 
 export function QueueList({
@@ -26,6 +28,8 @@ export function QueueList({
   onRefresh,
   stats,
   focusedOrderId,
+  selectedOrderIds,
+  onToggleSelect,
 }: QueueListProps) {
   const t = useTranslations("queue");
 
@@ -130,6 +134,8 @@ export function QueueList({
           onOpenDetail={onOpenDetail}
           onCallTerminated={onCallTerminated}
           focused={focusedOrderId === order.id}
+          isSelected={selectedOrderIds?.has(order.id) ?? false}
+          onToggleSelect={onToggleSelect}
         />
       ))}
     </div>

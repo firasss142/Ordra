@@ -68,18 +68,15 @@ describe("GET /api/orders/[id]", () => {
 
   test("returns 200 with order and history for market_manager", async () => {
     const order = { id: "order-1", market_id: "m-1", status: "new", assigned_to: null };
-    const history = [{ id: "h-1", status_to: "new" }];
+    const rawHistory = [{ id: "h-1", status_from: null, status_to: "new", note: null, actor_id: "u-1", actor_type: "manager", created_at: "2024-01-01T00:00:00Z" }];
+    const expectedHistory = [{ id: "h-1", from_status: null, to_status: "new", note: null, actor_id: "u-1", actor_type: "manager", created_at: "2024-01-01T00:00:00Z" }];
     mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
     mockFrom.mockImplementation((table: string) => {
       if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
       if (table === "orders") return queryChain({ data: order, error: null });
       if (table === "order_history") {
-        const chain = queryChain({ data: history, error: null });
-        // order method returns chain, then the result is resolved without .single()
-        // Override: the route calls .order() which returns chain, but doesn't call .single()
-        // Actually the route does: select().eq().order() which resolves to data
-        // Let's make the chain resolve at order() level
-        chain.order = vi.fn().mockResolvedValue({ data: history, error: null });
+        const chain = queryChain({ data: rawHistory, error: null });
+        chain.order = vi.fn().mockResolvedValue({ data: rawHistory, error: null });
         return chain;
       }
       return queryChain({ data: null, error: null });
@@ -90,7 +87,7 @@ describe("GET /api/orders/[id]", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.data.id).toBe("order-1");
-    expect(json.data.history).toEqual(history);
+    expect(json.data.history).toEqual(expectedHistory);
   });
 
   test("agent can view order assigned to them", async () => {

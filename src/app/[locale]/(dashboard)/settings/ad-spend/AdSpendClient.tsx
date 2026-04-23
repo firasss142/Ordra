@@ -25,17 +25,16 @@ interface OverviewResponse {
 interface AdSpendClientProps {
   user: AuthUser;
   markets: Market[];
+  initialMarketId: string;
 }
 
-export function AdSpendClient({ user, markets }: AdSpendClientProps) {
+export function AdSpendClient({ user, markets, initialMarketId }: AdSpendClientProps) {
   const t = useTranslations("adSpend");
   const [period, setPeriod] = useState<Period>({
     from_date: todayISO(),
     to_date: todayISO(),
   });
-  const [selectedMarketId, setSelectedMarketId] = useState<string>(
-    user.role === "super_admin" ? markets[0]?.id ?? "" : user.market_id ?? "",
-  );
+  const [selectedMarketId, setSelectedMarketId] = useState<string>(initialMarketId);
 
   const overviewUrl =
     selectedMarketId && period.from_date && period.to_date

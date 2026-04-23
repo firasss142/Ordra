@@ -3,7 +3,8 @@
 import { memo, useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { extractAttemptNumber } from "@/lib/attempt-logic";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatExactTime } from "@/lib/format";
+import { getProductAvatarColor, getProductInitial } from "@/lib/product-avatar";
 import { AttemptEtiquette } from "./AttemptEtiquette";
 import { StatusGlyph } from "@/components/shared/StatusGlyph";
 import type { QueueOrder } from "@/types/queue";
@@ -14,6 +15,8 @@ interface OrderCardProps {
   onCallTerminated: (orderId: string) => void;
   maxAttempts?: number;
   focused?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
 function isAttemptOrCallback(status: string): boolean {
@@ -26,12 +29,13 @@ function isAttemptOrCallback(status: string): boolean {
   );
 }
 
-export const OrderCard = memo(function OrderCard({ order, onOpenDetail, onCallTerminated, maxAttempts = 3, focused = false }: OrderCardProps) {
+export const OrderCard = memo(function OrderCard({ order, onOpenDetail, onCallTerminated, maxAttempts = 3, focused = false, isSelected = false, onToggleSelect }: OrderCardProps) {
   const t = useTranslations("queue");
   const ts = useTranslations("orders.statuses");
   const locale = useLocale();
 
   const [now, setNow] = useState<Date | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
   useEffect(() => { setNow(new Date()); }, []);
 
   const callbackDate = order.callback_time ? new Date(order.callback_time) : null;
@@ -75,13 +79,19 @@ export const OrderCard = memo(function OrderCard({ order, onOpenDetail, onCallTe
       data-order-id={order.id}
       data-focused={focused || undefined}
       style={{
-        backgroundColor: focused ? "#F6F6F7" : "#FFFFFF",
+        backgroundColor: focused ? "#F6F6F7" : isHovered ? "#F9FAFB" : "#FFFFFF",
         borderBottom: "1px solid #E1E3E5",
-        padding: "16px 24px",
+        borderInlineStart: `2px solid ${isHovered && !focused ? "#1A1A1A" : "transparent"}`,
+        paddingBlock: "16px",
+        paddingInlineStart: "22px",
+        paddingInlineEnd: "24px",
         cursor: "pointer",
         outline: focused ? "2px solid #1A1A1A" : "none",
         outlineOffset: focused ? "-2px" : undefined,
+        transition: "background-color 0.12s ease, border-inline-start-color 0.08s ease",
       }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       onClick={() => onOpenDetail(order.id)}
     >
       {/* Row 1 */}
@@ -94,6 +104,43 @@ export const OrderCard = memo(function OrderCard({ order, onOpenDetail, onCallTe
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Checkbox — only when selection is enabled */}
+          {onToggleSelect && (
+            <div
+              data-checkbox
+              onClick={(e) => { e.stopPropagation(); onToggleSelect(order.id); }}
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                border: `2px solid ${isSelected ? "#1A1A1A" : "#D1D5DB"}`,
+                backgroundColor: isSelected ? "#1A1A1A" : "transparent",
+                opacity: isSelected || isHovered ? 1 : 0.3,
+                transition: "opacity 0.12s ease",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            />
+          )}
+          {/* Product letter avatar */}
+          <div
+            aria-hidden
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              backgroundColor: getProductAvatarColor(order.product_name),
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#1A1A1A",
+              flexShrink: 0,
+            }}
+          >
+            {getProductInitial(order.product_name)}
+          </div>
           <span style={{ fontSize: 14, fontWeight: 600, color: "#1A1A1A" }}>
             {order.customer_name}
           </span>
@@ -125,9 +172,13 @@ export const OrderCard = memo(function OrderCard({ order, onOpenDetail, onCallTe
             </span>
           )}
         </div>
-        <span style={{ fontSize: 13, color: "#6B7280" }}>
-          {elapsedLabel(order.assigned_at)}
-        </span>
+        {/* Two-line date: elapsed + exact time */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+          <span style={{ fontSize: 13, color: "#6B7280" }}>{elapsedLabel(order.assigned_at)}</span>
+          <span style={{ fontSize: 11, color: "#9CA3AF", fontVariantNumeric: "tabular-nums" }}>
+            {now ? formatExactTime(order.assigned_at, locale) : ""}
+          </span>
+        </div>
       </div>
 
       {/* Row 2 — scan grid: [phone] [city-pill] [product] [price] */}

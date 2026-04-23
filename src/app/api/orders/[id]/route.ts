@@ -37,8 +37,8 @@ export async function GET(
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  // Fetch history + product stock in parallel (eliminates 2 sequential round trips)
-  const [historyRes, productRes] = await Promise.all([
+  // Fetch history + product stock + order_items in parallel
+  const [historyRes, productRes, itemsRes] = await Promise.all([
     supabase
       .from("order_history")
       .select("id, status_from, status_to, note, actor_id, actor_type, created_at")
@@ -51,6 +51,11 @@ export async function GET(
           .eq("id", order.product_id)
           .single()
       : Promise.resolve({ data: null }),
+    supabase
+      .from("order_items")
+      .select("*")
+      .eq("order_id", id)
+      .order("created_at", { ascending: true }),
   ]);
 
   const history = (historyRes.data ?? []).map((h) => ({
@@ -64,14 +69,15 @@ export async function GET(
   }));
 
   const product_current_stock = productRes.data?.current_stock ?? null;
+  const order_items = itemsRes.data ?? [];
 
   // Exclude raw_payload (large webhook JSON blob, not needed in the panel)
   const { raw_payload: _, ...orderFields } = order as typeof order & { raw_payload?: unknown };
 
-  return NextResponse.json({ data: { ...orderFields, history, product_current_stock } });
+  return NextResponse.json({ data: { ...orderFields, history, product_current_stock, order_items } });
 }
 
-const SIMPLE_PATCHABLE_FIELDS = ["customer_name", "customer_phone", "customer_address", "customer_city", "quantity"] as const;
+const SIMPLE_PATCHABLE_FIELDS = ["customer_name", "customer_phone", "customer_phone_2", "customer_address", "customer_city", "quantity"] as const;
 
 export async function PATCH(
   req: NextRequest,
@@ -123,6 +129,24 @@ export async function PATCH(
     if (field in body && body[field] !== undefined) {
       updates[field] = body[field];
     }
+  }
+
+  // customer_phone_2: normalize empty string → null
+  if ("customer_phone_2" in body) {
+    updates.customer_phone_2 = body.customer_phone_2 === "" ? null : (body.customer_phone_2 ?? null);
+  }
+
+  // delivery_fee: validate ≥ 0, recompute total_price from order_items subtotal
+  if ("delivery_fee" in body && body.delivery_fee !== undefined) {
+    const fee = typeof body.delivery_fee === "string" ? parseFloat(body.delivery_fee) : body.delivery_fee as number;
+    if (typeof fee !== "number" || isNaN(fee) || fee < 0) {
+      return NextResponse.json({ error: "delivery_fee must be >= 0" }, { status: 400 });
+    }
+    updates.delivery_fee = fee;
+    // Recompute total from current items + new fee
+    const { data: items } = await supabase.from("order_items").select("line_total").eq("order_id", id);
+    const subtotal = (items ?? []).reduce((sum: number, item: { line_total: number }) => sum + Number(item.line_total), 0);
+    updates.total_price = Math.round((subtotal + fee) * 1000) / 1000;
   }
 
   // Quantity → recalculate total_price from current unit_price
@@ -244,13 +268,14 @@ export async function PATCH(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  const [{ data: updatedOrder }, { data: historyRows }] = await Promise.all([
+  const [{ data: updatedOrder }, { data: historyRows }, { data: patchedItems }] = await Promise.all([
     supabase.from("orders").select("*").eq("id", id).single(),
     supabase
       .from("order_history")
       .select("id, status_from, status_to, note, actor_id, actor_type, created_at")
       .eq("order_id", id)
       .order("created_at", { ascending: true }),
+    supabase.from("order_items").select("*").eq("order_id", id).order("created_at", { ascending: true }),
   ]);
 
   const patchHistory = (historyRows ?? []).map((h) => ({
@@ -272,7 +297,7 @@ export async function PATCH(
     updatedOrder as Record<string, unknown>;
 
   return NextResponse.json(
-    { data: { ...orderFields, history: patchHistory } },
+    { data: { ...orderFields, history: patchHistory, order_items: patchedItems ?? [] } },
     { status: 200 },
   );
 }

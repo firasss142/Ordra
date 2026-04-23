@@ -13,6 +13,7 @@ export interface QueueOrder {
   scheduled_dispatch_at: string | null;
   scheduled_dispatch_auto: boolean;
   customer_note: string | null;
+  customer_phone_2: string | null;
   created_at: string;
   assigned_at: string;
 }

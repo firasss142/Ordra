@@ -29,10 +29,25 @@ interface HistoryEntry {
   created_at: string;
 }
 
+interface OrderItem {
+  id: string;
+  order_id: string;
+  product_id: string | null;
+  product_name: string;
+  variant_id: string | null;
+  variant_label: string | null;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  created_at: string;
+  updated_at: string;
+}
+
 interface OrderDetail {
   id: string;
   customer_name: string;
   customer_phone: string;
+  customer_phone_2: string | null;
   customer_city: string | null;
   customer_address: string | null;
   customer_note: string | null;
@@ -44,6 +59,7 @@ interface OrderDetail {
   quantity: number;
   unit_price: number;
   total_price: number;
+  delivery_fee: number;
   currency: string;
   status: string;
   assigned_to: string | null;
@@ -55,6 +71,7 @@ interface OrderDetail {
   scheduled_dispatch_auto: boolean | null;
   scheduled_dispatch_carrier_id: string | null;
   history: HistoryEntry[];
+  order_items: OrderItem[];
 }
 
 interface ProductSearchResult {
@@ -664,6 +681,29 @@ export function OrderDetailPanel({
                 </div>
               </div>
 
+              {/* Phone 2 */}
+              <div style={{ marginBottom: 8 }}>
+                <FieldLabel>{t("fieldPhone2")}</FieldLabel>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <InlineField
+                      value={order.customer_phone_2 ?? ""}
+                      onCommit={(v) => runCommit({ customer_phone_2: v || null })}
+                      type="tel"
+                      readOnly={!canEdit}
+                    />
+                  </div>
+                  {order.customer_phone_2 && (
+                    <a
+                      href={`tel:${order.customer_phone_2}`}
+                      style={{ fontSize: 12, color: "#6B7280", textDecoration: "none" }}
+                    >
+                      ☎
+                    </a>
+                  )}
+                </div>
+              </div>
+
               <div style={{ marginBottom: 8 }}>
                 <FieldLabel>{t("fieldCity")}</FieldLabel>
                 <Combobox
@@ -706,62 +746,194 @@ export function OrderDetailPanel({
 
               <SectionLabel>{t("order")}</SectionLabel>
 
-              <div style={{ marginBottom: 8 }}>
-                <FieldLabel>{t("product")}</FieldLabel>
-                <Combobox
-                  value={order.product_name}
-                  options={[]}
-                  loadOptions={loadProducts}
-                  onCommit={(id) => runCommit({ product_id: id })}
-                  placeholder={t("pickProduct")}
-                  readOnly={!canEdit}
-                />
-              </div>
+              {/* Multi-item order section */}
+              {(() => {
+                const items: OrderItem[] = order.order_items?.length
+                  ? order.order_items
+                  : [{
+                      id: "legacy",
+                      order_id: order.id,
+                      product_id: order.product_id,
+                      product_name: order.product_name,
+                      variant_id: order.variant_id,
+                      variant_label: order.variant_label,
+                      quantity: order.quantity,
+                      unit_price: order.unit_price,
+                      line_total: order.total_price - (order.delivery_fee ?? 0),
+                      created_at: order.updated_at,
+                      updated_at: order.updated_at,
+                    }];
 
-              {variantOptions.length > 0 && (
-                <div style={{ marginBottom: 8 }}>
-                  <FieldLabel>{t("variant")}</FieldLabel>
-                  <select
-                    value={order.variant_id ?? ""}
-                    disabled={!canEdit}
-                    onChange={(e) => runCommit({ variant_id: e.target.value })}
-                    style={{
-                      width: "100%",
-                      padding: "6px 8px",
-                      fontSize: 13,
-                      border: "1px solid #E1E3E5",
-                      borderRadius: 4,
-                      color: "#1A1A1A",
-                      backgroundColor: "#FFFFFF",
-                    }}
-                  >
-                    <option value="">—</option>
-                    {variantOptions.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.label}
-                      </option>
+                return (
+                  <div>
+                    {items.map((item, idx) => (
+                      <div
+                        key={item.id}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr auto auto auto",
+                          gap: 8,
+                          alignItems: "center",
+                          marginBottom: 6,
+                        }}
+                      >
+                        <Combobox
+                          value={item.product_name}
+                          options={[]}
+                          loadOptions={loadProducts}
+                          onCommit={async (productId) => {
+                            if (item.id === "legacy") {
+                              runCommit({ product_id: productId });
+                            } else {
+                              await fetch(`/api/orders/${order.id}/items/${item.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ product_id: productId }),
+                              });
+                              mutate();
+                            }
+                          }}
+                          placeholder={t("pickProduct")}
+                          readOnly={!canEdit}
+                        />
+                        <StepperField
+                          value={item.quantity}
+                          onCommit={async (qty) => {
+                            if (item.id === "legacy") {
+                              runCommit({ quantity: qty });
+                            } else {
+                              await fetch(`/api/orders/${order.id}/items/${item.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ quantity: qty }),
+                              });
+                              mutate();
+                            }
+                          }}
+                          min={1}
+                          readOnly={!canEdit}
+                        />
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#1A1A1A", whiteSpace: "nowrap" }}>
+                          {item.line_total} {order.currency}
+                        </span>
+                        {canEdit && items.length > 1 && item.id !== "legacy" && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await fetch(`/api/orders/${order.id}/items/${item.id}`, { method: "DELETE" });
+                              mutate();
+                            }}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "#9CA3AF",
+                              fontSize: 16,
+                              cursor: "pointer",
+                              padding: "0 4px",
+                            }}
+                            title={t("removeItem")}
+                          >
+                            ×
+                          </button>
+                        )}
+                        {(idx === 0 || item.id === "legacy") && variantOptions.length > 0 && (
+                          <div
+                            style={{ gridColumn: "1 / -1" }}
+                          >
+                            <select
+                              value={item.variant_id ?? ""}
+                              disabled={!canEdit}
+                              onChange={(e) => {
+                                if (item.id === "legacy") {
+                                  runCommit({ variant_id: e.target.value });
+                                }
+                              }}
+                              style={{
+                                width: "100%",
+                                padding: "6px 8px",
+                                fontSize: 13,
+                                border: "1px solid #E1E3E5",
+                                borderRadius: 4,
+                                color: "#1A1A1A",
+                                backgroundColor: "#FFFFFF",
+                              }}
+                            >
+                              <option value="">—</option>
+                              {variantOptions.map((v) => (
+                                <option key={v.id} value={v.id}>{v.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
                     ))}
-                  </select>
-                </div>
-              )}
 
-              <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 16 }}>
-                <div>
-                  <FieldLabel>{t("fieldQuantity")}</FieldLabel>
-                  <StepperField
-                    value={order.quantity}
-                    onCommit={(v) => runCommit({ quantity: v })}
-                    min={1}
-                    readOnly={!canEdit}
-                  />
-                </div>
-                <div>
-                  <FieldLabel>{t("order")}</FieldLabel>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#1A1A1A" }}>
-                    {order.total_price} {order.currency}
+                    {canEdit && (() => {
+                      const firstItem = items[0];
+                      // We need a valid product_id to POST — use the first item's product
+                      const addProductId = firstItem?.product_id ?? order.product_id;
+                      const addUnitPrice = firstItem?.unit_price ?? order.unit_price;
+                      if (!addProductId) return null;
+                      return (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const res = await fetch(`/api/orders/${order.id}/items`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                product_id: addProductId,
+                                quantity: 1,
+                                unit_price: addUnitPrice,
+                              }),
+                            });
+                            if (res.ok) {
+                              mutate();
+                            } else {
+                              const body = await res.json().catch(() => ({}));
+                              alert(body.error ?? "Failed to add product");
+                            }
+                          }}
+                          style={{
+                            fontSize: 13,
+                            color: "#6B7280",
+                            background: "none",
+                            border: "1px dashed #D1D5DB",
+                            borderRadius: 4,
+                            padding: "4px 10px",
+                            cursor: "pointer",
+                            marginBottom: 8,
+                            width: "100%",
+                          }}
+                        >
+                          {t("addProduct")}
+                        </button>
+                      );
+                    })()}
+
+                    {/* Delivery fee */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4, marginBottom: 4 }}>
+                      <FieldLabel>{t("fieldDeliveryFee")}</FieldLabel>
+                      <div style={{ width: 100 }}>
+                        <InlineField
+                          value={String(order.delivery_fee ?? 0)}
+                          onCommit={(v) => runCommit({ delivery_fee: parseFloat(v) || 0 })}
+                          type="number"
+                          readOnly={!canEdit}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Grand total */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, marginBottom: 8, paddingTop: 8, borderTop: "1px solid #E1E3E5" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#1A1A1A" }}>{t("grandTotal")}</span>
+                      <span style={{ fontSize: 15, fontWeight: 700, color: "#1A1A1A" }}>
+                        {order.total_price} {order.currency}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {saveError && (
                 <div style={{ fontSize: 12, color: "#DC2626", marginTop: 4 }}>{saveError}</div>

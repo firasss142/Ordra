@@ -6,14 +6,9 @@ import {
   warehouseHistoryFiltersToSearchParams,
   type WarehouseHistoryFilters,
 } from "@/lib/warehouse/list-filters";
-import type { WarehouseHistoryRow } from "@/app/api/warehouse/history/route";
+import type { WarehouseHistoryRow, WarehouseHistoryPage } from "@/lib/warehouse/history-fetch";
 
-export type { WarehouseHistoryRow };
-
-export interface WarehouseHistoryPage {
-  rows: WarehouseHistoryRow[];
-  nextCursor: string | null;
-}
+export type { WarehouseHistoryRow, WarehouseHistoryPage };
 
 const fetcher = async (url: string): Promise<WarehouseHistoryPage> => {
   const res = await fetch(url, { credentials: "same-origin" });

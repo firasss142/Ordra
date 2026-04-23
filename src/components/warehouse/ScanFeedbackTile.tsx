@@ -7,12 +7,27 @@ export type FeedbackState =
   | { kind: "success"; title: string; subtitle?: string; meta?: string }
   | { kind: "error"; title: string; subtitle?: string };
 
+interface ColorOverride {
+  bg: string;
+  border: string;
+  accent: string;
+}
+
 interface Props {
   state: FeedbackState;
   idleLabel: string;
+  successColors?: ColorOverride;
+  errorColors?: ColorOverride;
+  idleStyle?: React.CSSProperties;
 }
 
-export function ScanFeedbackTile({ state, idleLabel }: Props) {
+export function ScanFeedbackTile({
+  state,
+  idleLabel,
+  successColors,
+  errorColors,
+  idleStyle,
+}: Props) {
   if (state.kind === "idle") {
     return (
       <div
@@ -28,6 +43,7 @@ export function ScanFeedbackTile({ state, idleLabel }: Props) {
           color: "var(--text-secondary)",
           fontSize: 16,
           minHeight: 120,
+          ...idleStyle,
         }}
         aria-live="polite"
       >
@@ -38,9 +54,10 @@ export function ScanFeedbackTile({ state, idleLabel }: Props) {
   }
 
   const isSuccess = state.kind === "success";
-  const bg = isSuccess ? "#ECFDF5" : "#FEF2F2";
-  const border = isSuccess ? "#A7F3D0" : "#FECACA";
-  const accent = isSuccess ? "#059669" : "#DC2626";
+  const colors = isSuccess
+    ? (successColors ?? { bg: "#ECFDF5", border: "#A7F3D0", accent: "#059669" })
+    : (errorColors ?? { bg: "#FEF2F2", border: "#FECACA", accent: "#DC2626" });
+
   const Icon = isSuccess ? CheckCircle2 : XCircle;
 
   return (
@@ -53,18 +70,18 @@ export function ScanFeedbackTile({ state, idleLabel }: Props) {
         gap: 16,
         padding: "20px 24px",
         borderRadius: 8,
-        backgroundColor: bg,
-        border: `1px solid ${border}`,
+        backgroundColor: colors.bg,
+        border: `1px solid ${colors.border}`,
         minHeight: 120,
       }}
     >
-      <Icon size={40} strokeWidth={1.75} color={accent} aria-hidden="true" />
+      <Icon size={40} strokeWidth={1.75} color={colors.accent} aria-hidden="true" />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
             fontSize: 22,
             fontWeight: 700,
-            color: accent,
+            color: colors.accent,
             lineHeight: 1.2,
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -93,8 +110,8 @@ export function ScanFeedbackTile({ state, idleLabel }: Props) {
           style={{
             fontSize: 13,
             fontWeight: 600,
-            color: accent,
-            backgroundColor: "rgba(255,255,255,0.6)",
+            color: colors.accent,
+            backgroundColor: "rgba(255,255,255,0.15)",
             padding: "6px 10px",
             borderRadius: 999,
             flexShrink: 0,

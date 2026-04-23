@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import { Printer, CheckSquare, Square } from "lucide-react";
@@ -8,22 +8,48 @@ import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import { jsonFetcher } from "@/lib/fetchers";
 import { WarehouseInboxBanner } from "./WarehouseInboxBanner";
 import { useWarehouseRealtime } from "@/hooks/useWarehouseRealtime";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { WarehousePagination } from "./WarehousePagination";
+import {
+  PrintActivityDashboard,
+  type PrintSession,
+} from "./PrintActivityDashboard";
+
+const D = {
+  pageBg: "#F6F6F7",
+  cardBg: "#FFFFFF",
+  sectionBg: "#F6F6F7",
+  border: "#E1E3E5",
+  textPrimary: "#1A1A1A",
+  textSecondary: "#6D7175",
+  accent: "#008060",
+  danger: "#D72C0D",
+  warning: "#B98900",
+  cardShadow: "0 0 0 1px #E1E3E5",
+  inputBg: "#FFFFFF",
+  inputBorder: "#C9CCCF",
+};
 
 interface Props {
   marketId: string | null;
   fallbackRows: WarehouseOrderRow[];
+  locale: string;
 }
 
 interface ApiResponse {
   orders: WarehouseOrderRow[];
 }
 
-export function ToLabelQueue({ marketId, fallbackRows }: Props) {
+export function ToLabelQueue({ marketId, fallbackRows, locale }: Props) {
   const t = useTranslations("warehouse");
+  const isMobile = useIsMobile();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [printing, setPrinting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [arrivalCount, setArrivalCount] = useState(0);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [printSession, setPrintSession] = useState<PrintSession | null>(null);
 
   const { data, mutate } = useSWR<ApiResponse>(
     "/api/warehouse/to-label",
@@ -43,18 +69,34 @@ export function ToLabelQueue({ marketId, fallbackRows }: Props) {
     onNewArrival: () => setArrivalCount((c) => c + 1),
   });
 
-  const orders = useMemo(() => data?.orders ?? [], [data]);
+  const allOrders = useMemo(() => data?.orders ?? [], [data]);
 
+  useEffect(() => {
+    setPage(0);
+  }, [allOrders]);
+
+  const pageStart = page * pageSize;
+  const orders = useMemo(
+    () => allOrders.slice(pageStart, pageStart + pageSize),
+    [allOrders, pageStart, pageSize],
+  );
+
+  // allSelected: only checks current page
   const allSelected =
     orders.length > 0 && orders.every((o) => selected.has(o.id));
 
+  // toggleAll: adds/removes current page from selection (preserves other pages' selection)
   const toggleAll = useCallback(() => {
-    setSelected((prev) =>
-      prev.size === orders.length && orders.length > 0
-        ? new Set()
-        : new Set(orders.map((o) => o.id)),
-    );
-  }, [orders]);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allSelected) {
+        orders.forEach((o) => next.delete(o.id));
+      } else {
+        orders.forEach((o) => next.add(o.id));
+      }
+      return next;
+    });
+  }, [orders, allSelected]);
 
   const toggleOne = useCallback((id: string) => {
     setSelected((prev) => {
@@ -90,6 +132,25 @@ export function ToLabelQueue({ marketId, fallbackRows }: Props) {
         a.click();
       }
       setTimeout(() => URL.revokeObjectURL(url), 100);
+      // Capture session BEFORE clearing selection
+      const sessionOrderIds = Array.from(selected);
+      const sessionOrderMap = new Map(
+        allOrders
+          .filter((o) => selected.has(o.id))
+          .map((o) => [
+            o.id,
+            {
+              customer_name: o.customer_name,
+              customer_city: o.customer_city ?? null,
+              product_name: o.product_name,
+            },
+          ]),
+      );
+      setPrintSession({
+        order_ids: sessionOrderIds,
+        printed_at: Date.now(),
+        order_map: sessionOrderMap,
+      });
       setSelected(new Set());
       mutate();
     } catch {
@@ -102,8 +163,8 @@ export function ToLabelQueue({ marketId, fallbackRows }: Props) {
   return (
     <div
       style={{
-        padding: "24px 32px 64px",
-        background: "#F6F6F7",
+        padding: isMobile ? "16px 16px 80px" : "24px 32px 80px",
+        background: D.pageBg,
         minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
@@ -111,7 +172,15 @@ export function ToLabelQueue({ marketId, fallbackRows }: Props) {
       }}
     >
       <div>
-        <h1 style={{ fontSize: 20, fontWeight: 600, color: "#1A1A1A", margin: 0 }}>
+        <h1
+          style={{
+            fontSize: isMobile ? 18 : 22,
+            fontWeight: 600,
+            color: D.textPrimary,
+            margin: 0,
+            letterSpacing: "-0.01em",
+          }}
+        >
           {t("toLabel.title")}
         </h1>
       </div>
@@ -135,13 +204,13 @@ export function ToLabelQueue({ marketId, fallbackRows }: Props) {
           style={{
             position: "fixed",
             inset: 0,
-            backgroundColor: "rgba(246,246,247,0.88)",
+            backgroundColor: "rgba(26,26,26,0.8)",
             zIndex: 50,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: 12,
-            color: "#1A1A1A",
+            color: D.textPrimary,
             fontSize: 15,
             fontWeight: 500,
           }}
@@ -156,10 +225,10 @@ export function ToLabelQueue({ marketId, fallbackRows }: Props) {
           role="alert"
           style={{
             padding: "10px 12px",
-            background: "#FEF2F2",
-            border: "1px solid #FECACA",
+            background: "#FFF4F4",
+            border: `1px solid #FECACA`,
             borderRadius: 6,
-            color: "#DC2626",
+            color: D.danger,
             fontSize: 13,
           }}
         >
@@ -169,23 +238,26 @@ export function ToLabelQueue({ marketId, fallbackRows }: Props) {
 
       <div
         style={{
-          backgroundColor: "#FFFFFF",
-          border: "1px solid #E1E3E5",
-          borderRadius: 8,
+          backgroundColor: D.cardBg,
+          border: `1px solid ${D.border}`,
+          borderRadius: 10,
           overflow: "hidden",
+          boxShadow: D.cardShadow,
         }}
       >
+        {/* Sticky header */}
         <div
           style={{
             position: "sticky",
             top: 0,
             display: "flex",
             alignItems: "center",
-            gap: 16,
-            padding: "14px 16px",
-            borderBottom: "1px solid #E1E3E5",
-            backgroundColor: "#FFFFFF",
-            zIndex: 1,
+            flexWrap: "wrap",
+            gap: 12,
+            padding: "12px 16px",
+            borderBottom: `1px solid ${D.border}`,
+            backgroundColor: D.sectionBg,
+            zIndex: 2,
           }}
         >
           <button
@@ -199,25 +271,34 @@ export function ToLabelQueue({ marketId, fallbackRows }: Props) {
               alignItems: "center",
               gap: 8,
               cursor: orders.length === 0 ? "not-allowed" : "pointer",
-              color: "#1A1A1A",
+              color: D.textPrimary,
               fontSize: 13,
               fontWeight: 600,
-              opacity: orders.length === 0 ? 0.5 : 1,
+              opacity: orders.length === 0 ? 0.4 : 1,
+              minHeight: 44,
             }}
           >
             {allSelected ? (
-              <CheckSquare size={16} strokeWidth={1.5} aria-hidden="true" />
+              <CheckSquare size={16} strokeWidth={1.5} color="#2C6ECB" aria-hidden="true" />
             ) : (
               <Square size={16} strokeWidth={1.5} aria-hidden="true" />
             )}
             {t("toLabel.selectAll")}
           </button>
-          <span style={{ fontSize: 12, color: "#6D7175" }}>
+
+          <span
+            style={{
+              fontSize: 12,
+              color: D.textSecondary,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
             {t("toLabel.selectedCount", {
               count: selected.size,
-              total: orders.length,
+              total: allOrders.length,
             })}
           </span>
+
           <button
             type="button"
             onClick={handlePrint}
@@ -227,55 +308,59 @@ export function ToLabelQueue({ marketId, fallbackRows }: Props) {
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
-              padding: "9px 16px",
-              backgroundColor: "#1A1A1A",
-              opacity: selected.size === 0 || printing ? 0.4 : 1,
-              color: "#FFFFFF",
+              padding: "10px 20px",
+              minHeight: 44,
+              backgroundColor: selected.size === 0 || printing ? "#F6F6F7" : "#1A1A1A",
+              opacity: selected.size === 0 || printing ? 0.5 : 1,
+              color: selected.size === 0 || printing ? D.textSecondary : "#FFFFFF",
               border: "none",
-              borderRadius: 6,
+              borderRadius: 9999,
               fontSize: 13,
-              fontWeight: 600,
-              cursor:
-                selected.size === 0 || printing ? "not-allowed" : "pointer",
-              transition: "background-color 120ms ease",
+              fontWeight: 700,
+              cursor: selected.size === 0 || printing ? "not-allowed" : "pointer",
+              transition: "background-color 150ms ease, opacity 150ms ease",
+              fontFamily: "inherit",
             }}
           >
-            <Printer size={14} strokeWidth={1.5} aria-hidden="true" />
+            <Printer size={14} strokeWidth={1.75} aria-hidden="true" />
             {printing
               ? t("toLabel.printing")
               : t("toLabel.printBtn", { count: selected.size })}
           </button>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "40px 140px 1.3fr 1.5fr 1fr 0.8fr",
-            gap: 12,
-            padding: "10px 16px",
-            borderBottom: "1px solid #E1E3E5",
-            backgroundColor: "#F7F7F7",
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: "0.05em",
-            textTransform: "uppercase",
-            color: "#6D7175",
-          }}
-        >
-          <span aria-hidden="true" />
-          <span>{t("toLabel.colCity")}</span>
-          <span>{t("toLabel.colCustomer")}</span>
-          <span>{t("toLabel.colProduct")}</span>
-          <span>{t("toLabel.colPhone")}</span>
-          <span>{t("toLabel.colId")}</span>
-        </div>
+        {/* Column headers (desktop only) */}
+        {!isMobile && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "40px 140px 1.3fr 1.5fr 1fr 0.8fr",
+              gap: 12,
+              padding: "8px 16px",
+              borderBottom: `1px solid ${D.border}`,
+              backgroundColor: D.sectionBg,
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+              color: D.textSecondary,
+            }}
+          >
+            <span aria-hidden="true" />
+            <span>{t("toLabel.colCity")}</span>
+            <span>{t("toLabel.colCustomer")}</span>
+            <span>{t("toLabel.colProduct")}</span>
+            <span>{t("toLabel.colPhone")}</span>
+            <span>{t("toLabel.colId")}</span>
+          </div>
+        )}
 
         {orders.length === 0 ? (
           <div
             style={{
               padding: 48,
               textAlign: "center",
-              color: "#6D7175",
+              color: D.textSecondary,
               fontSize: 14,
             }}
           >
@@ -290,10 +375,47 @@ export function ToLabelQueue({ marketId, fallbackRows }: Props) {
               onToggle={toggleOne}
               lowStockBadge={t("lowStock.badge")}
               criticalBadge={t("lowStock.critical")}
+              isMobile={isMobile}
             />
           ))
         )}
+
+        {allOrders.length > 0 && (
+          <WarehousePagination
+            page={page}
+            pageSize={pageSize}
+            totalItems={allOrders.length}
+            hasNextPage={pageStart + pageSize < allOrders.length}
+            hasPrevPage={page > 0}
+            onNext={() => setPage((p) => p + 1)}
+            onPrev={() => setPage((p) => Math.max(0, p - 1))}
+            onPageSizeChange={(s) => {
+              setPageSize(s);
+              setPage(0);
+            }}
+            labelPrev={t("pagination.prev")}
+            labelNext={t("pagination.next")}
+            labelPage={
+              allOrders.length > 0
+                ? t("pagination.pageInfo", {
+                    page: page + 1,
+                    total: Math.max(1, Math.ceil(allOrders.length / pageSize)),
+                    items: allOrders.length,
+                  })
+                : undefined
+            }
+          />
+        )}
       </div>
+
+      {printSession && (
+        <PrintActivityDashboard
+          session={printSession}
+          liveOrders={allOrders}
+          onDismiss={() => setPrintSession(null)}
+          locale={locale}
+        />
+      )}
     </div>
   );
 }
@@ -304,19 +426,116 @@ const ToLabelRow = memo(function ToLabelRow({
   onToggle,
   lowStockBadge,
   criticalBadge,
+  isMobile,
 }: {
   order: WarehouseOrderRow;
   selected: boolean;
   onToggle: (id: string) => void;
   lowStockBadge: string;
   criticalBadge: string;
+  isMobile: boolean;
 }) {
   const showLow =
     order.low_stock_threshold != null &&
     order.current_stock != null &&
     order.current_stock < order.low_stock_threshold;
   const isOut = order.current_stock != null && order.current_stock <= 0;
-  const accent = isOut ? "#D72C0D" : "#B98900";
+  const stockAccent = isOut ? D.danger : D.warning;
+
+  const StockBadge = showLow ? (
+    <span
+      style={{
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+        padding: "2px 7px",
+        borderRadius: 999,
+        background: isOut ? "#FFF4F4" : "#FFF8E6",
+        color: stockAccent,
+        border: `1px solid ${isOut ? "#FECACA" : "#FFD585"}`,
+        flexShrink: 0,
+        whiteSpace: "nowrap",
+      }}
+      title={`${order.current_stock} / ${order.low_stock_threshold}`}
+    >
+      {isOut ? criticalBadge : lowStockBadge}
+    </span>
+  ) : null;
+
+  if (isMobile) {
+    return (
+      <label
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          padding: "14px 16px",
+          borderBottom: `1px solid ${D.border}`,
+          backgroundColor: selected ? "#F2F2F2" : "transparent",
+          cursor: "pointer",
+          minHeight: 44,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggle(order.id)}
+            style={{ width: 18, height: 18, cursor: "pointer", accentColor: "#2C6ECB" }}
+          />
+          <span style={{ fontWeight: 700, color: D.textPrimary, flex: 1, fontSize: 14 }}>
+            {order.customer_city ?? "—"}
+          </span>
+          <code
+            style={{
+              fontSize: 11,
+              color: D.textSecondary,
+              fontFamily: "ui-monospace, SFMono-Regular, monospace",
+            }}
+          >
+            #{order.id.slice(0, 8)}
+          </code>
+        </div>
+        <div style={{ paddingInlineStart: 28, fontSize: 14, color: D.textPrimary }}>
+          {order.customer_name}
+        </div>
+        <div
+          style={{
+            paddingInlineStart: 28,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            minWidth: 0,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 13,
+              color: D.textSecondary,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              flex: 1,
+            }}
+          >
+            {order.product_name}
+          </span>
+          {StockBadge}
+        </div>
+        <div
+          style={{
+            paddingInlineStart: 28,
+            fontSize: 13,
+            color: D.textSecondary,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {order.customer_phone ?? "—"}
+        </div>
+      </label>
+    );
+  }
 
   return (
     <label
@@ -325,28 +544,27 @@ const ToLabelRow = memo(function ToLabelRow({
         gridTemplateColumns: "40px 140px 1.3fr 1.5fr 1fr 0.8fr",
         gap: 12,
         padding: "12px 16px",
-        borderBottom: "1px solid #E1E3E5",
+        borderBottom: `1px solid ${D.border}`,
         alignItems: "center",
         fontSize: 13,
         cursor: "pointer",
-        backgroundColor: selected ? "#F7F7F7" : "transparent",
+        backgroundColor: selected ? "#F2F2F2" : "transparent",
         transition: "background-color 120ms ease",
+        minHeight: 44,
       }}
     >
       <input
         type="checkbox"
         checked={selected}
         onChange={() => onToggle(order.id)}
-        style={{ cursor: "pointer" }}
+        style={{ cursor: "pointer", accentColor: "#2C6ECB" }}
       />
-      <div style={{ fontWeight: 600, color: "#1A1A1A" }}>
+      <div style={{ fontWeight: 700, color: D.textPrimary }}>
         {order.customer_city ?? "—"}
       </div>
-      <div style={{ color: "#1A1A1A" }}>{order.customer_name}</div>
+      <div style={{ color: D.textPrimary }}>{order.customer_name}</div>
       <div
         style={{
-          color: "#6D7175",
-          overflow: "hidden",
           display: "flex",
           alignItems: "center",
           gap: 8,
@@ -355,42 +573,24 @@ const ToLabelRow = memo(function ToLabelRow({
       >
         <span
           style={{
+            color: D.textSecondary,
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
+            flex: 1,
           }}
         >
           {order.product_name}
         </span>
-        {showLow ? (
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
-              padding: "2px 6px",
-              borderRadius: 999,
-              background: isOut ? "#FFF4F4" : "#FFF8E6",
-              color: accent,
-              border: `1px solid ${isOut ? "#FECACA" : "#FDE68A"}`,
-              flexShrink: 0,
-            }}
-            title={`${order.current_stock} / ${order.low_stock_threshold}`}
-          >
-            {isOut ? criticalBadge : lowStockBadge}
-          </span>
-        ) : null}
+        {StockBadge}
       </div>
-      <div
-        style={{ color: "#6D7175", fontVariantNumeric: "tabular-nums" }}
-      >
+      <div style={{ color: D.textSecondary, fontVariantNumeric: "tabular-nums" }}>
         {order.customer_phone ?? "—"}
       </div>
       <code
         style={{
           fontSize: 11,
-          color: "#6D7175",
+          color: D.textSecondary,
           fontFamily: "ui-monospace, SFMono-Regular, monospace",
         }}
       >

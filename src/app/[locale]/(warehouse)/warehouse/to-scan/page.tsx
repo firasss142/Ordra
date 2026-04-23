@@ -11,45 +11,11 @@ async function prefetchToScan(
   marketScope: string | null,
 ): Promise<WarehouseOrderRow[]> {
   const supabase = await createClient();
-  let query = supabase
-    .from("orders")
-    .select(
-      "id, customer_name, customer_phone, customer_city, customer_address, product_id, product_name, variant_label, quantity, total_price, status, created_at, products(current_stock, low_stock_threshold)",
-    )
-    .eq("status", "confirmed")
-    .order("created_at", { ascending: true })
-    .limit(200);
-  if (marketScope) query = query.eq("market_id", marketScope);
-
-  const { data: confirmed } = await query;
-  const ids = (confirmed ?? []).map((o) => o.id);
-  if (ids.length === 0) return [];
-
-  const { data: printed } = await supabase
-    .from("label_prints")
-    .select("order_id")
-    .in("order_id", ids);
-  const printedSet = new Set((printed ?? []).map((p) => p.order_id));
-
-  return (confirmed ?? [])
-    .filter((o) => printedSet.has(o.id))
-    .map((o) => {
-      const raw = o as Record<string, unknown>;
-      const productRaw = raw.products as
-        | { current_stock: number | null; low_stock_threshold: number | null }
-        | Array<{ current_stock: number | null; low_stock_threshold: number | null }>
-        | null;
-      const product = Array.isArray(productRaw) ? productRaw[0] ?? null : productRaw;
-      const { products: _p, ...rest } = raw;
-      return {
-        ...(rest as unknown as Omit<
-          WarehouseOrderRow,
-          "current_stock" | "low_stock_threshold"
-        >),
-        current_stock: product?.current_stock ?? null,
-        low_stock_threshold: product?.low_stock_threshold ?? null,
-      };
-    });
+  const { data } = await supabase.rpc("get_to_scan_orders", {
+    p_market_id: marketScope,
+    p_limit: 200,
+  });
+  return (data ?? []) as unknown as WarehouseOrderRow[];
 }
 
 export default async function Page({

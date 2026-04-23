@@ -105,31 +105,23 @@ function resolveScope(
 }
 
 export function buildWarehouseTrend(
-  rows: Array<{ reason: string; created_at: string; change: number }>,
+  rows: Array<{ day: string; scanned: number | string; returned: number | string; damaged: number | string }>,
   fromDate: string,
   toDate: string,
 ): WarehouseTrendPoint[] {
-  const perDay = new Map<
-    string,
-    { scanned: number; returned: number; damaged: number }
-  >();
+  const perDay = new Map<string, { scanned: number; returned: number; damaged: number }>();
   const fromMs = new Date(fromDate + "T00:00:00Z").getTime();
-  const toMs = new Date(toDate + "T00:00:00Z").getTime();
+  const toMs   = new Date(toDate   + "T00:00:00Z").getTime();
   for (let t = fromMs; t <= toMs; t += DAY_MS) {
-    perDay.set(new Date(t).toISOString().slice(0, 10), {
-      scanned: 0,
-      returned: 0,
-      damaged: 0,
-    });
+    perDay.set(new Date(t).toISOString().slice(0, 10), { scanned: 0, returned: 0, damaged: 0 });
   }
   for (const r of rows) {
-    const day = r.created_at.slice(0, 10);
+    const day = String(r.day).slice(0, 10);
     const bucket = perDay.get(day);
     if (!bucket) continue;
-    const qty = Math.abs(Number(r.change) || 0);
-    if (r.reason === "scanned") bucket.scanned += qty;
-    else if (r.reason === "returned") bucket.returned += qty;
-    else if (r.reason === "damaged_writeoff") bucket.damaged += qty;
+    bucket.scanned  = Number(r.scanned)  || 0;
+    bucket.returned = Number(r.returned) || 0;
+    bucket.damaged  = Number(r.damaged)  || 0;
   }
   return Array.from(perDay.entries())
     .sort(([a], [b]) => a.localeCompare(b))
@@ -197,14 +189,11 @@ export async function getWarehouseSummary(
       scopedMarketId,
     );
 
-  let trendQuery = supabase
-    .from("inventory_log")
-    .select("reason, created_at, change, products!inner(market_id)")
-    .in("reason", ["scanned", "returned", "damaged_writeoff"])
-    .gte("created_at", twoWeeksAgo.toISOString())
-    .limit(20000);
-  if (scopedMarketId)
-    trendQuery = trendQuery.eq("products.market_id", scopedMarketId);
+  const trendQuery = supabase.rpc("get_warehouse_trend", {
+    p_market_id: scopedMarketId ?? null,
+    p_from_date: twoWeeksAgo.toISOString(),
+    p_to_date:   now.toISOString(),
+  });
 
   let labelActivityQuery = supabase
     .from("label_prints")
@@ -230,18 +219,10 @@ export async function getWarehouseSummary(
       scopedMarketId,
     );
 
-  // Fetch a modest window; JS post-filter on current_stock < low_stock_threshold
-  // is needed because PostgREST can't do column-to-column comparisons.
-  // lte(current_stock, threshold-1) isn't safe without knowing threshold values,
-  // so we over-fetch a capped set ordered by current_stock asc to get the worst first.
-  let lowStockQuery = supabase
-    .from("products")
-    .select("id, name, current_stock, low_stock_threshold, market_id")
-    .eq("is_active", true)
-    .gt("low_stock_threshold", 0)
-    .order("current_stock", { ascending: true })
-    .limit(100);
-  if (scopedMarketId) lowStockQuery = lowStockQuery.eq("market_id", scopedMarketId);
+  const lowStockQuery = supabase.rpc("get_low_stock_products", {
+    p_market_id: scopedMarketId ?? null,
+    p_limit: 20,
+  });
 
   const [
     marketsResult,
@@ -288,9 +269,10 @@ export async function getWarehouseSummary(
 
   // --- Trend ---
   const trendRows = ((trendResult.data ?? []) as unknown) as Array<{
-    reason: string;
-    created_at: string;
-    change: number;
+    day: string;
+    scanned: number;
+    returned: number;
+    damaged: number;
   }>;
   const trend = buildWarehouseTrend(trendRows, trendFromIso, trendToIso);
 
@@ -351,18 +333,13 @@ export async function getWarehouseSummary(
     .sort((a, b) => +new Date(b.at) - +new Date(a.at))
     .slice(0, 10);
 
-  // SQL already orders by current_stock asc; JS filter for the ratio condition.
-  const lowStock = (
-    (lowStockResult.data ?? []) as Array<{
-      id: string;
-      name: string;
-      current_stock: number;
-      low_stock_threshold: number;
-      market_id: string;
-    }>
-  )
-    .filter((p) => p.current_stock < p.low_stock_threshold)
-    .slice(0, 20);
+  const lowStock = ((lowStockResult.data ?? []) as Array<{
+    id: string;
+    name: string;
+    current_stock: number;
+    low_stock_threshold: number;
+    market_id: string;
+  }>);
 
   // --- KPIs ---
   const damagedCurrent = damagedWeekResult.count ?? 0;

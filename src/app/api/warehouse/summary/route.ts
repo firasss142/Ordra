@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     { data: summary },
     {
       headers: {
-        "Cache-Control": "private, max-age=2",
+        "Cache-Control": "private, max-age=2, stale-while-revalidate=30",
       },
     },
   );

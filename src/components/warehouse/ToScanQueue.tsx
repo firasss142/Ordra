@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
@@ -14,11 +14,28 @@ import {
 } from "./ScanFeedbackTile";
 import { WarehouseInboxBanner } from "./WarehouseInboxBanner";
 import { useWarehouseRealtime } from "@/hooks/useWarehouseRealtime";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { WarehousePagination } from "./WarehousePagination";
 
 const QrScanner = dynamic(
   () => import("./QrScanner").then((m) => m.QrScanner),
   { ssr: false },
 );
+
+const D = {
+  pageBg: "#F6F6F7",
+  cardBg: "#FFFFFF",
+  sectionBg: "#F6F6F7",
+  border: "#E1E3E5",
+  textPrimary: "#1A1A1A",
+  textSecondary: "#6D7175",
+  accent: "#008060",
+  danger: "#D72C0D",
+  warning: "#B98900",
+  cardShadow: "0 0 0 1px #E1E3E5",
+  inputBg: "#FFFFFF",
+  inputBorder: "#C9CCCF",
+};
 
 interface Props {
   marketId: string | null;
@@ -39,12 +56,15 @@ interface ApiResponse {
 
 export function ToScanQueue({ marketId, fallbackRows }: Props) {
   const t = useTranslations("warehouse");
+  const isMobile = useIsMobile();
   const [value, setValue] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState>({ kind: "idle" });
   const [recent, setRecent] = useState<RecentScan[]>([]);
   const [arrivalCount, setArrivalCount] = useState(0);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { data, mutate } = useSWR<ApiResponse>(
@@ -65,7 +85,17 @@ export function ToScanQueue({ marketId, fallbackRows }: Props) {
     onNewArrival: () => setArrivalCount((c) => c + 1),
   });
 
-  const orders = data?.orders ?? [];
+  const allOrders = useMemo(() => data?.orders ?? [], [data]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [allOrders]);
+
+  const pageStart = page * pageSize;
+  const orders = useMemo(
+    () => allOrders.slice(pageStart, pageStart + pageSize),
+    [allOrders, pageStart, pageSize],
+  );
 
   useEffect(() => {
     if (!submitting && !cameraOpen) inputRef.current?.focus();
@@ -137,8 +167,8 @@ export function ToScanQueue({ marketId, fallbackRows }: Props) {
   return (
     <div
       style={{
-        padding: "24px 32px 64px",
-        background: "#F6F6F7",
+        padding: isMobile ? "16px 16px 80px" : "24px 32px 80px",
+        background: D.pageBg,
         minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
@@ -147,11 +177,17 @@ export function ToScanQueue({ marketId, fallbackRows }: Props) {
     >
       <div>
         <h1
-          style={{ fontSize: 20, fontWeight: 600, color: "#1A1A1A", margin: 0 }}
+          style={{
+            fontSize: isMobile ? 18 : 22,
+            fontWeight: 600,
+            color: D.textPrimary,
+            margin: 0,
+            letterSpacing: "-0.01em",
+          }}
         >
-          {t("toScan.title", { count: orders.length })}
+          {t("toScan.title", { count: allOrders.length })}
         </h1>
-        <p style={{ fontSize: 13, color: "#6D7175", margin: "4px 0 0" }}>
+        <p style={{ fontSize: 13, color: D.textSecondary, margin: "4px 0 0" }}>
           {t("toScan.hint")}
         </p>
       </div>
@@ -169,99 +205,100 @@ export function ToScanQueue({ marketId, fallbackRows }: Props) {
         }}
       />
 
+      {/* Scan input card */}
       <div
         style={{
-          backgroundColor: "#FFFFFF",
-          border: "1px solid #E1E3E5",
-          borderRadius: 8,
+          backgroundColor: D.cardBg,
+          border: `1px solid ${D.border}`,
+          borderRadius: 10,
           padding: 20,
+          boxShadow: D.cardShadow,
+          display: "flex",
+          gap: 12,
+          alignItems: "stretch",
+          flexWrap: "wrap",
         }}
       >
         <div
           style={{
+            flex: 1,
+            minWidth: 220,
             display: "flex",
-            gap: 12,
-            alignItems: "stretch",
-            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 10,
+            paddingInline: 14,
+            border: `1px solid ${D.inputBorder}`,
+            borderRadius: 8,
+            backgroundColor: D.inputBg,
           }}
         >
-          <div
+          <Keyboard size={18} strokeWidth={1.5} color={D.textSecondary} aria-hidden="true" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={submitting}
+            placeholder={t("toScan.inputPlaceholder")}
+            aria-label={t("toScan.inputPlaceholder")}
             style={{
               flex: 1,
-              minWidth: 260,
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              paddingInline: 14,
-              border: "1px solid #E1E3E5",
-              borderRadius: 8,
-              backgroundColor: "#F7F7F7",
+              padding: "16px 0",
+              fontSize: 18,
+              fontFamily: "ui-monospace, SFMono-Regular, monospace",
+              border: "none",
+              outline: "none",
+              backgroundColor: "transparent",
+              color: D.textPrimary,
             }}
-          >
-            <Keyboard
+          />
+          {submitting ? (
+            <Loader2
               size={18}
               strokeWidth={1.5}
-              color="#6D7175"
+              color={D.textSecondary}
               aria-hidden="true"
+              className="animate-spin"
             />
-            <input
-              ref={inputRef}
-              type="text"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={submitting}
-              placeholder={t("toScan.inputPlaceholder")}
-              aria-label={t("toScan.inputPlaceholder")}
-              style={{
-                flex: 1,
-                padding: "16px 0",
-                fontSize: 18,
-                fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                border: "none",
-                outline: "none",
-                backgroundColor: "transparent",
-                color: "#1A1A1A",
-              }}
-            />
-            {submitting ? (
-              <Loader2
-                size={18}
-                strokeWidth={1.5}
-                color="#6D7175"
-                aria-hidden="true"
-                className="animate-spin"
-              />
-            ) : null}
-          </div>
-          <button
-            type="button"
-            onClick={() => setCameraOpen(true)}
-            disabled={submitting}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "0 20px",
-              backgroundColor: "#1A1A1A",
-              color: "#FFFFFF",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: submitting ? "not-allowed" : "pointer",
-              opacity: submitting ? 0.5 : 1,
-              minWidth: 160,
-              justifyContent: "center",
-            }}
-          >
-            <Camera size={18} strokeWidth={1.5} aria-hidden="true" />
-            {t("scanner.openCamera")}
-          </button>
+          ) : null}
         </div>
+        <button
+          type="button"
+          onClick={() => setCameraOpen(true)}
+          disabled={submitting}
+          aria-label={t("scanner.openCamera")}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            padding: "0 20px",
+            minHeight: 52,
+            minWidth: isMobile ? "100%" : 160,
+            backgroundColor: "#1A1A1A",
+            color: "#FFFFFF",
+            border: "none",
+            borderRadius: 9999,
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: submitting ? "not-allowed" : "pointer",
+            opacity: submitting ? 0.5 : 1,
+            fontFamily: "inherit",
+            transition: "opacity 150ms ease",
+          }}
+        >
+          <Camera size={18} strokeWidth={1.75} aria-hidden="true" />
+          {t("scanner.openCamera")}
+        </button>
       </div>
 
-      <ScanFeedbackTile state={feedback} idleLabel={t("toScan.feedbackIdle")} />
+      <ScanFeedbackTile
+        state={feedback}
+        idleLabel={t("toScan.feedbackIdle")}
+        successColors={{ bg: "#F1F8F5", border: "#A7F3D0", accent: D.accent }}
+        errorColors={{ bg: "#FFF4F4", border: "#FECACA", accent: D.danger }}
+      />
 
       {recent.length > 0 ? (
         <div>
@@ -269,7 +306,7 @@ export function ToScanQueue({ marketId, fallbackRows }: Props) {
             style={{
               fontSize: 11,
               fontWeight: 600,
-              color: "#6D7175",
+              color: D.textSecondary,
               margin: "0 0 8px 0",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
@@ -282,10 +319,11 @@ export function ToScanQueue({ marketId, fallbackRows }: Props) {
               listStyle: "none",
               margin: 0,
               padding: 0,
-              backgroundColor: "#FFFFFF",
-              border: "1px solid #E1E3E5",
-              borderRadius: 8,
+              backgroundColor: D.cardBg,
+              border: `1px solid ${D.border}`,
+              borderRadius: 10,
               overflow: "hidden",
+              boxShadow: D.cardShadow,
             }}
           >
             {recent.map((r) => (
@@ -294,17 +332,18 @@ export function ToScanQueue({ marketId, fallbackRows }: Props) {
                 style={{
                   display: "flex",
                   gap: 12,
-                  padding: "10px 14px",
-                  borderBottom: "1px solid #F2F2F2",
+                  padding: "12px 16px",
+                  borderBottom: `1px solid ${D.border}`,
                   fontSize: 13,
-                  color: "#1A1A1A",
+                  color: D.textPrimary,
                   alignItems: "center",
+                  minHeight: 44,
                 }}
               >
-                <span style={{ color: "#008060", fontWeight: 700 }}>✓</span>
+                <span style={{ color: D.accent, fontWeight: 700, fontSize: 16, fontFamily: "inherit" }}>✓</span>
                 <code
                   style={{
-                    color: "#6D7175",
+                    color: D.textSecondary,
                     fontSize: 12,
                     minWidth: 90,
                     fontFamily: "ui-monospace, SFMono-Regular, monospace",
@@ -315,9 +354,10 @@ export function ToScanQueue({ marketId, fallbackRows }: Props) {
                 <span style={{ flex: 1 }}>{r.customer_name}</span>
                 <span
                   style={{
-                    color: "#6D7175",
+                    color: D.accent,
                     fontSize: 12,
                     fontVariantNumeric: "tabular-nums",
+                    fontWeight: 600,
                   }}
                 >
                   {t("toScan.stockAfter", { stock: r.stock_after })}
@@ -328,33 +368,59 @@ export function ToScanQueue({ marketId, fallbackRows }: Props) {
         </div>
       ) : null}
 
+      {/* Queue section */}
       <div>
         <h2
           style={{
             fontSize: 11,
             fontWeight: 600,
-            color: "#6D7175",
+            color: D.textSecondary,
             margin: "0 0 8px 0",
             textTransform: "uppercase",
             letterSpacing: "0.05em",
           }}
         >
-          {t("toScan.queueTitle", { count: orders.length })}
+          {t("toScan.queueTitle", { count: allOrders.length })}
         </h2>
         <div
           style={{
-            backgroundColor: "#FFFFFF",
-            border: "1px solid #E1E3E5",
-            borderRadius: 8,
+            backgroundColor: D.cardBg,
+            border: `1px solid ${D.border}`,
+            borderRadius: 10,
             overflow: "hidden",
+            boxShadow: D.cardShadow,
           }}
         >
+          {/* Column headers (desktop only) */}
+          {!isMobile && allOrders.length > 0 && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "140px 1fr 1fr 120px",
+                gap: 12,
+                padding: "8px 16px",
+                borderBottom: `1px solid ${D.border}`,
+                backgroundColor: D.sectionBg,
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
+                color: D.textSecondary,
+              }}
+            >
+              <span>{t("toScan.colCity")}</span>
+              <span>{t("toScan.colCustomer")}</span>
+              <span>{t("toScan.colProduct")}</span>
+              <span style={{ textAlign: "end" }}>{t("toScan.colId")}</span>
+            </div>
+          )}
+
           {orders.length === 0 ? (
             <div
               style={{
                 padding: 40,
                 textAlign: "center",
-                color: "#6D7175",
+                color: D.textSecondary,
                 fontSize: 14,
               }}
             >
@@ -367,8 +433,36 @@ export function ToScanQueue({ marketId, fallbackRows }: Props) {
                 order={o}
                 lowBadge={t("lowStock.badge")}
                 criticalBadge={t("lowStock.critical")}
+                isMobile={isMobile}
               />
             ))
+          )}
+
+          {allOrders.length > 0 && (
+            <WarehousePagination
+              page={page}
+              pageSize={pageSize}
+              totalItems={allOrders.length}
+              hasNextPage={pageStart + pageSize < allOrders.length}
+              hasPrevPage={page > 0}
+              onNext={() => setPage((p) => p + 1)}
+              onPrev={() => setPage((p) => Math.max(0, p - 1))}
+              onPageSizeChange={(s) => {
+                setPageSize(s);
+                setPage(0);
+              }}
+              labelPrev={t("pagination.prev")}
+              labelNext={t("pagination.next")}
+              labelPage={
+                allOrders.length > 0
+                  ? t("pagination.pageInfo", {
+                      page: page + 1,
+                      total: Math.max(1, Math.ceil(allOrders.length / pageSize)),
+                      items: allOrders.length,
+                    })
+                  : undefined
+              }
+            />
           )}
         </div>
       </div>
@@ -391,17 +485,86 @@ const ToScanRow = memo(function ToScanRow({
   order,
   lowBadge,
   criticalBadge,
+  isMobile,
 }: {
   order: WarehouseOrderRow;
   lowBadge: string;
   criticalBadge: string;
+  isMobile: boolean;
 }) {
   const showLow =
     order.low_stock_threshold != null &&
     order.current_stock != null &&
     order.current_stock < order.low_stock_threshold;
   const isOut = order.current_stock != null && order.current_stock <= 0;
-  const accent = isOut ? "#D72C0D" : "#B98900";
+  const stockAccent = isOut ? D.danger : D.warning;
+
+  const StockBadge = showLow ? (
+    <span
+      style={{
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+        padding: "2px 7px",
+        borderRadius: 999,
+        background: isOut ? "#FFF4F4" : "#FFF8E6",
+        color: stockAccent,
+        border: `1px solid ${isOut ? "#FECACA" : "#FFD585"}`,
+        flexShrink: 0,
+        whiteSpace: "nowrap",
+      }}
+      title={`${order.current_stock} / ${order.low_stock_threshold}`}
+    >
+      {isOut ? criticalBadge : lowBadge}
+    </span>
+  ) : null;
+
+  if (isMobile) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          padding: "14px 16px",
+          borderBottom: `1px solid ${D.border}`,
+          fontSize: 13,
+          minHeight: 44,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontWeight: 700, color: D.textPrimary, fontSize: 14 }}>
+            {order.customer_city ?? "—"}
+          </span>
+          <code
+            style={{
+              fontSize: 11,
+              color: D.textSecondary,
+              fontFamily: "ui-monospace, SFMono-Regular, monospace",
+            }}
+          >
+            #{order.id.slice(0, 8)}
+          </code>
+        </div>
+        <span style={{ color: D.textPrimary }}>{order.customer_name}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <span
+            style={{
+              color: D.textSecondary,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              flex: 1,
+            }}
+          >
+            {order.product_name}
+          </span>
+          {StockBadge}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -409,19 +572,19 @@ const ToScanRow = memo(function ToScanRow({
         display: "grid",
         gridTemplateColumns: "140px 1fr 1fr 120px",
         gap: 12,
-        padding: "12px 14px",
-        borderBottom: "1px solid #F2F2F2",
+        padding: "12px 16px",
+        borderBottom: `1px solid ${D.border}`,
         fontSize: 13,
         alignItems: "center",
+        minHeight: 44,
       }}
     >
-      <div style={{ fontWeight: 600, color: "#1A1A1A" }}>
+      <div style={{ fontWeight: 700, color: D.textPrimary }}>
         {order.customer_city ?? "—"}
       </div>
-      <div style={{ color: "#1A1A1A" }}>{order.customer_name}</div>
+      <div style={{ color: D.textPrimary }}>{order.customer_name}</div>
       <div
         style={{
-          color: "#6D7175",
           display: "flex",
           alignItems: "center",
           gap: 8,
@@ -430,37 +593,21 @@ const ToScanRow = memo(function ToScanRow({
       >
         <span
           style={{
+            color: D.textSecondary,
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
+            flex: 1,
           }}
         >
           {order.product_name}
         </span>
-        {showLow ? (
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
-              padding: "2px 6px",
-              borderRadius: 999,
-              background: isOut ? "#FFF4F4" : "#FFF8E6",
-              color: accent,
-              border: `1px solid ${isOut ? "#FECACA" : "#FDE68A"}`,
-              flexShrink: 0,
-            }}
-            title={`${order.current_stock} / ${order.low_stock_threshold}`}
-          >
-            {isOut ? criticalBadge : lowBadge}
-          </span>
-        ) : null}
+        {StockBadge}
       </div>
       <code
         style={{
           fontSize: 11,
-          color: "#6D7175",
+          color: D.textSecondary,
           fontFamily: "ui-monospace, SFMono-Regular, monospace",
           textAlign: "end",
         }}

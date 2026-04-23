@@ -31,5 +31,8 @@ export async function GET(req: NextRequest) {
     summary.markets = [];
   }
 
-  return NextResponse.json({ data: summary });
+  return NextResponse.json(
+    { data: summary },
+    { headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=55" } },
+  );
 }

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
 import { getFollowUpsSummary } from "@/lib/follow-ups/summary";
 import { getFollowUpsKanbanInitial } from "@/lib/follow-ups/list";
 import { FollowUpsPageClient } from "./FollowUpsPageClient";
@@ -44,8 +45,15 @@ export default async function FollowUpsPage({
 
   const marketCode: "TN" | "LY" = params.locale === "ar" ? "LY" : "TN";
 
+  let superAdminInitialMarketId = "";
+  if (profile.role === "super_admin") {
+    superAdminInitialMarketId = getDefaultMarketId(await getAllActiveMarkets());
+  }
+
   const scopedMarketId =
-    profile.role === "super_admin" ? null : (profile.market_id ?? null);
+    profile.role === "super_admin"
+      ? (superAdminInitialMarketId || null)
+      : (profile.market_id ?? null);
 
   // Parallel prefetch: KPI summary + four Kanban columns (4×25 rows) in a
   // single round-trip batch. The client receives fully populated SWR caches
@@ -72,6 +80,7 @@ export default async function FollowUpsPage({
       marketCode={marketCode}
       initialSummary={initialSummary}
       initialColumnPages={initialColumnPages}
+      initialMarketId={superAdminInitialMarketId}
     />
   );
 }

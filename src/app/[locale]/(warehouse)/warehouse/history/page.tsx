@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth/server-user";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { WarehouseHistoryClient } from "@/components/warehouse/WarehouseHistoryClient";
+import { getWarehouseHistoryPage } from "@/lib/warehouse/history-fetch";
 import type { WarehouseHistoryPage } from "@/hooks/useWarehouseList";
 
 export const dynamic = "force-dynamic";
@@ -16,11 +18,17 @@ export default async function Page({
   if (!user) redirect(`/${locale}/login`);
   if (!canScanWarehouse(user.role)) redirect(`/${locale}/queue`);
 
-  // The history payload requires keyset merge logic that lives in the API
-  // route. Rather than duplicate, we hydrate the client with an empty first
-  // page and let SWR fetch /api/warehouse/history on mount. Request is
-  // already under the 2s Cache-Control budget.
-  const fallbackFirstPage: WarehouseHistoryPage = { rows: [], nextCursor: null };
+  const supabase = await createClient();
+  const scopeMarket = user.role !== "super_admin" ? user.market_id : null;
+
+  // Server-prefetch the first page so WarehouseHistoryClient renders immediately
+  // without a client-side loading flash. getWarehouseHistoryPage contains the
+  // same merge+sort logic as the API route, avoiding any duplication.
+  const fallbackFirstPage: WarehouseHistoryPage = await getWarehouseHistoryPage(
+    supabase,
+    { limit: 50, kind: "all" },
+    scopeMarket,
+  );
 
   return (
     <WarehouseHistoryClient

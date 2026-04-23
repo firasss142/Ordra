@@ -50,6 +50,9 @@ export async function GET(req: NextRequest) {
   const dateTo = req.nextUrl.searchParams.get("date_to");
   if (dateTo) query = query.lte("created_at", dateTo);
 
+  const campaignId = req.nextUrl.searchParams.get("campaign_id");
+  if (campaignId) query = query.eq("campaign_id", campaignId);
+
   const { data, error, count } = await query
     .order("created_at", { ascending: false })
     .range(from, to);

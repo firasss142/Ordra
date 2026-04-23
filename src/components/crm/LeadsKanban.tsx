@@ -15,6 +15,7 @@ interface Props {
   marketId: string | null;
   locale: string;
   sourceFilter?: string;
+  campaignId?: string | null;
   agentId?: string | null;
   density?: "comfortable" | "compact";
   isSuperAdmin?: boolean;
@@ -29,6 +30,7 @@ export function LeadsKanban({
   marketId,
   locale,
   sourceFilter,
+  campaignId,
   agentId,
   density = "comfortable",
   isSuperAdmin,
@@ -40,6 +42,7 @@ export function LeadsKanban({
   const { leads, isLoading, mutate } = useLeads({
     marketId: marketId ?? undefined,
     source: sourceFilter || undefined,
+    campaignId: campaignId ?? undefined,
     agentId: agentId ?? undefined,
     limit: 200,
   });

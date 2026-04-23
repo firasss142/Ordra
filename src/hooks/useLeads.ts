@@ -14,6 +14,7 @@ export interface LeadsQuery {
   agentId?: string | null;
   dateFrom?: string | null;
   dateTo?: string | null;
+  campaignId?: string | null;
   page?: number;
   limit?: number;
 }
@@ -26,6 +27,7 @@ function buildLeadsKey(q: LeadsQuery): string {
   if (q.agentId) params.set("agent_id", q.agentId);
   if (q.dateFrom) params.set("date_from", q.dateFrom);
   if (q.dateTo) params.set("date_to", q.dateTo);
+  if (q.campaignId) params.set("campaign_id", q.campaignId);
   if (q.page) params.set("page", String(q.page));
   if (q.limit) params.set("limit", String(q.limit));
   const qs = params.toString();

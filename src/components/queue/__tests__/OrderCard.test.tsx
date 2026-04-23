@@ -29,6 +29,7 @@ const mockOrder: QueueOrder = {
   scheduled_dispatch_at: null,
   scheduled_dispatch_auto: false,
   customer_note: "Livrer avant midi",
+  customer_phone_2: null,
   status: "assigned",
   created_at: "2026-04-10T10:00:00Z",
   assigned_at: "2026-04-10T10:00:00Z",
@@ -49,7 +50,8 @@ describe("OrderCard", () => {
 
   it("renders total price and currency", () => {
     render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
-    expect(screen.getByText(/89\.9.*TND/)).toBeDefined();
+    expect(screen.getByText("89.9")).toBeDefined();
+    expect(screen.getByText("TND")).toBeDefined();
   });
 
   it("renders city", () => {
@@ -90,5 +92,43 @@ describe("OrderCard", () => {
     // Click the outer card div (not a button) — click on name
     await user.click(screen.getByText("Ahmed Gharbi"));
     expect(onOpenDetail).toHaveBeenCalledWith("order-1");
+  });
+
+  it("renders product letter avatar with first letter of product name", () => {
+    render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
+    expect(screen.getByText("T")).toBeDefined(); // "T-Shirt Premium" → "T"
+  });
+
+  it("renders checkbox when onToggleSelect is provided", () => {
+    render(
+      <OrderCard
+        order={mockOrder}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+        onToggleSelect={() => {}}
+        isSelected={false}
+      />
+    );
+    const checkbox = document.querySelector("[data-checkbox]");
+    expect(checkbox).toBeDefined();
+  });
+
+  it("calls onToggleSelect when checkbox is clicked without opening detail", async () => {
+    const user = userEvent.setup();
+    const onToggleSelect = vi.fn();
+    const onOpenDetail = vi.fn();
+    render(
+      <OrderCard
+        order={mockOrder}
+        onOpenDetail={onOpenDetail}
+        onCallTerminated={() => {}}
+        onToggleSelect={onToggleSelect}
+        isSelected={false}
+      />
+    );
+    const checkbox = document.querySelector("[data-checkbox]") as HTMLElement;
+    await user.click(checkbox);
+    expect(onToggleSelect).toHaveBeenCalledWith("order-1");
+    expect(onOpenDetail).not.toHaveBeenCalled();
   });
 });

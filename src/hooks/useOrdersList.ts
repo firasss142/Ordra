@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWRInfinite from "swr/infinite";
 import type { OrderListFilters } from "@/lib/orders/list-filters";
 import { filtersToSearchParams } from "@/lib/orders/list-filters";
@@ -37,7 +37,7 @@ const fetcher = async (url: string): Promise<OrdersListPage> => {
   return res.json();
 };
 
-const PAGE_LIMIT = 10;
+export const PAGE_LIMIT = 10;
 
 export interface UseOrdersListOptions {
   filters: OrderListFilters;
@@ -51,6 +51,13 @@ export function useOrdersList({ filters, fallbackFirstPage }: UseOrdersListOptio
     params.set("limit", String(PAGE_LIMIT));
     return params;
   }, [filters]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [baseQuery]);
 
   const getKey = useCallback(
     (pageIndex: number, previousPage: OrdersListPage | null) => {
@@ -73,34 +80,55 @@ export function useOrdersList({ filters, fallbackFirstPage }: UseOrdersListOptio
   } = useSWRInfinite<OrdersListPage>(getKey, fetcher, {
     revalidateFirstPage: false,
     revalidateOnFocus: false,
-    // Realtime covers INSERT/UPDATE/DELETE; keep a 2-min healing poll in case the
-    // channel drops.
     refreshInterval: 120_000,
     fallbackData: fallbackFirstPage ? [fallbackFirstPage] : undefined,
     keepPreviousData: true,
   });
 
-  const rows = useMemo(
-    () => (data ? data.flatMap((p) => p.rows) : []),
-    [data],
-  );
-  const hasMore = data ? Boolean(data[data.length - 1]?.nextCursor) : false;
-  const loadingMore =
-    isValidating && data != null && size > data.length;
+  // Ensure SWR has fetched up to currentPage when navigating forward
+  useEffect(() => {
+    if (currentPage > size) {
+      setSize(currentPage);
+    }
+  }, [currentPage, size, setSize]);
 
-  const loadMore = useCallback(() => {
-    if (hasMore && !loadingMore) setSize(size + 1);
-  }, [hasMore, loadingMore, setSize, size]);
+  const rows = useMemo(
+    () => data?.[currentPage - 1]?.rows ?? [],
+    [data, currentPage],
+  );
+
+  const hasNext = Boolean(data?.[currentPage - 1]?.nextCursor);
+  const hasPrev = currentPage > 1;
+
+  // True while the target page hasn't arrived yet
+  const loadingPage =
+    isValidating && (data == null || data.length < currentPage);
+
+  const nextPage = useCallback(() => {
+    if (!hasNext) return;
+    setCurrentPage((p) => p + 1);
+  }, [hasNext]);
+
+  const prevPage = useCallback(() => {
+    if (!hasPrev) return;
+    setCurrentPage((p) => p - 1);
+  }, [hasPrev]);
 
   return {
     rows,
     pages: data ?? [],
     error,
-    isLoading: isLoading && !data,
+    isLoading: (isLoading && !data) || loadingPage,
     isValidating,
-    hasMore,
-    loadingMore,
-    loadMore,
+    // Kept for realtime banner compat
+    hasMore: hasNext,
+    hasNext,
+    hasPrev,
+    loadingMore: false,
+    loadMore: () => {},
+    nextPage,
+    prevPage,
+    currentPage,
     mutate,
     size,
     setSize,

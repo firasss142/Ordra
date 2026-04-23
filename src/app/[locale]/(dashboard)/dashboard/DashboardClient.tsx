@@ -25,6 +25,7 @@ interface DashboardClientProps {
   user: AuthUser;
   initialPeriod: Period;
   initialSummary: DashboardSummary;
+  initialMarketId: string;
 }
 
 function ChartSkeleton({ height }: { height: number }) {
@@ -40,7 +41,7 @@ function ChartSkeleton({ height }: { height: number }) {
   );
 }
 
-export function DashboardClient({ user, initialPeriod, initialSummary }: DashboardClientProps) {
+export function DashboardClient({ user, initialPeriod, initialSummary, initialMarketId }: DashboardClientProps) {
   const t = useTranslations("dashboard");
   const tRej = useTranslations("dashboard.rejectionReasons");
   const tPipe = useTranslations("dashboard.pipeline");
@@ -52,7 +53,7 @@ export function DashboardClient({ user, initialPeriod, initialSummary }: Dashboa
   const [period, setPeriod] = useState<Period>(initialPeriod);
   const [preset, setPreset] = useState<PeriodPreset>("today");
   const [selectedMarketId, setSelectedMarketId] = useState<string | "all">(
-    isSuperAdmin ? "all" : user.market_id ?? "",
+    isSuperAdmin ? initialMarketId : (user.market_id ?? ""),
   );
 
   const summaryKey = useMemo(() => {
@@ -64,11 +65,11 @@ export function DashboardClient({ user, initialPeriod, initialSummary }: Dashboa
     return `/api/dashboard/summary?from_date=${period.from_date}&to_date=${period.to_date}&market_id=${marketParam}`;
   }, [isSuperAdmin, selectedMarketId, user.market_id, period.from_date, period.to_date]);
 
-  // Use server-fetched initialSummary as fallbackData for the first key so first paint has data.
+  // initialKey must match the server-prefetched key so fallbackData activates on first render.
   const initialKey = useMemo(() => {
-    const mid = isSuperAdmin ? "all" : user.market_id ?? "";
+    const mid = isSuperAdmin ? initialMarketId : (user.market_id ?? "");
     return `/api/dashboard/summary?from_date=${initialPeriod.from_date}&to_date=${initialPeriod.to_date}&market_id=${mid}`;
-  }, [isSuperAdmin, user.market_id, initialPeriod.from_date, initialPeriod.to_date]);
+  }, [isSuperAdmin, initialMarketId, user.market_id, initialPeriod.from_date, initialPeriod.to_date]);
 
   const { data, isLoading } = useSWR<{ data: DashboardSummary }>(
     summaryKey,

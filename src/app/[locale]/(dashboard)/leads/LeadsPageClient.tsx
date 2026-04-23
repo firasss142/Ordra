@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import { LeadsFilterBar, BUCKET_STATUSES, type LeadBucket } from "@/components/crm/LeadsFilterBar";
 import { LeadsKpiStrip } from "@/components/crm/LeadsKpiStrip";
 import { LeadsKanban } from "@/components/crm/LeadsKanban";
+import { useProspectCampaigns, type ProspectCampaign } from "@/hooks/useProspectCampaigns";
 import { fetcher } from "@/lib/swr-config";
 import type { LeadsMetrics } from "@/lib/leads/metrics";
 import type { LeadSource, LeadStatus } from "@/types/lead";
@@ -37,6 +38,7 @@ interface Props {
   userMarketLabel: string;
   locale: Locale;
   initialMetrics: LeadsMetrics;
+  initialMarketId: string;
 }
 
 export function LeadsPageClient({
@@ -45,14 +47,20 @@ export function LeadsPageClient({
   userMarketLabel,
   locale,
   initialMetrics,
+  initialMarketId,
 }: Props) {
   const t = useTranslations("crm.leads");
+  const tSources = useTranslations("crm.leads.sources");
 
   const isSuperAdmin = role === "super_admin";
 
   const [selectedMarketId, setSelectedMarketId] = useState<string | "all">(
-    isSuperAdmin ? "all" : userMarketId,
+    isSuperAdmin ? (initialMarketId || "all") : userMarketId,
   );
+  const handleMarketChange = useCallback((id: string | "all") => {
+    setSelectedMarketId(id);
+    setSelectedCampaignId(null);
+  }, []);
   const effectiveMarketId =
     !isSuperAdmin
       ? userMarketId
@@ -66,6 +74,25 @@ export function LeadsPageClient({
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [csvOpen, setCsvOpen] = useState(false);
   const [campaignOpen, setCampaignOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+
+  const { campaigns, mutate: mutateCampaigns } = useProspectCampaigns({
+    marketId: effectiveMarketId,
+    enabled: true,
+  });
+
+  // Default to most recently created campaign on load / market change
+  useEffect(() => {
+    if (campaigns.length > 0) {
+      const latest = campaigns.reduce((a, b) =>
+        new Date(a.created_at) > new Date(b.created_at) ? a : b
+      );
+      setSelectedCampaignId(latest.id);
+    } else {
+      setSelectedCampaignId(null);
+    }
+  }, [campaigns]);
 
   const { data: marketsData } = useSWR<{ data: Market[] }>(
     isSuperAdmin ? "/api/markets" : null,
@@ -99,12 +126,7 @@ export function LeadsPageClient({
     return markets.find((m) => m.id === selectedMarketId)?.name ?? "—";
   }, [isSuperAdmin, selectedMarketId, markets, userMarketLabel, t]);
 
-  const hasActiveFilters = bucket !== "all" || source !== null;
-
-  const handleReset = useCallback(() => {
-    setBucket("all");
-    setSource(null);
-  }, []);
+  const hasActiveFilters = bucket !== "all" || source !== null || selectedCampaignId !== null;
 
   const footerCount = visibleStatuses
     ? visibleStatuses.reduce((sum, s) => sum + (metrics.byStatus[s] ?? 0), 0)
@@ -137,18 +159,38 @@ export function LeadsPageClient({
       <LeadsFilterBar
         markets={markets}
         selectedMarketId={selectedMarketId}
-        onMarketChange={setSelectedMarketId}
+        onMarketChange={handleMarketChange}
         lockMarket={!isSuperAdmin}
         lockedMarketLabel={userMarketLabel}
         bucket={bucket}
         onBucketChange={setBucket}
         source={source}
         onSourceChange={setSource}
-        onReset={handleReset}
+        campaigns={campaigns}
+        selectedCampaignId={selectedCampaignId}
+        onCampaignChange={(id) => {
+          setSelectedCampaignId(id);
+          setFiltersOpen(false);
+        }}
+        filtersOpen={filtersOpen}
+        onFiltersOpenChange={setFiltersOpen}
         hasActiveFilters={hasActiveFilters}
-        onOpenCampaigns={() => setCampaignOpen(true)}
+        onOpenCampaigns={() => {
+          setCampaignOpen(true);
+          setFiltersOpen(false);
+        }}
         onOpenCsvImport={() => setCsvOpen(true)}
         onNewLead={() => setNewLeadOpen(true)}
+      />
+
+      <ActiveFilterTags
+        source={source}
+        onSourceChange={setSource}
+        selectedCampaignId={selectedCampaignId}
+        campaigns={campaigns}
+        onCampaignChange={setSelectedCampaignId}
+        t={t}
+        tSources={tSources}
       />
 
       <LeadsKpiStrip metrics={metrics} />
@@ -157,6 +199,7 @@ export function LeadsPageClient({
         marketId={effectiveMarketId}
         locale={locale}
         sourceFilter={source ?? undefined}
+        campaignId={selectedCampaignId}
         visibleStatuses={visibleStatuses}
         isSuperAdmin={isSuperAdmin}
       />
@@ -193,9 +236,90 @@ export function LeadsPageClient({
           open={campaignOpen}
           onClose={() => setCampaignOpen(false)}
           marketId={effectiveMarketId}
-          onSpawn={() => onAfterMutate()}
+          onSpawn={(campaignId) => {
+            setSelectedCampaignId(campaignId);
+            void mutateCampaigns();
+            onAfterMutate();
+          }}
         />
       )}
     </div>
+  );
+}
+
+function ActiveFilterTags({
+  source,
+  onSourceChange,
+  selectedCampaignId,
+  campaigns,
+  onCampaignChange,
+  t,
+  tSources,
+}: {
+  source: LeadSource | null;
+  onSourceChange: (s: LeadSource | null) => void;
+  selectedCampaignId: string | null;
+  campaigns: ProspectCampaign[];
+  onCampaignChange: (id: string | null) => void;
+  t: ReturnType<typeof useTranslations>;
+  tSources: ReturnType<typeof useTranslations>;
+}) {
+  if (!source && !selectedCampaignId) return null;
+  const campaignName = campaigns.find((c) => c.id === selectedCampaignId)?.name;
+
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: -4 }}>
+      {source && (
+        <FilterTag
+          label={`${t("sourceLabel")}: ${tSources(source)}`}
+          onDismiss={() => onSourceChange(null)}
+        />
+      )}
+      {selectedCampaignId && campaignName && (
+        <FilterTag
+          label={`${t("campaignLabel")}: ${campaignName}`}
+          onDismiss={() => onCampaignChange(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function FilterTag({ label, onDismiss }: { label: string; onDismiss: () => void }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "3px 8px",
+        borderRadius: 9999,
+        background: "#F2F2F2",
+        border: "1px solid #E1E3E5",
+        fontSize: 12,
+        fontWeight: 500,
+        color: "#6D7175",
+      }}
+    >
+      {label}
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label={`Remove filter: ${label}`}
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: "#6D7175",
+          padding: 0,
+          lineHeight: 1,
+          fontSize: 14,
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        ×
+      </button>
+    </span>
   );
 }
