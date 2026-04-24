@@ -5,5 +5,5 @@ export default function UnassignedPage({
 }: {
   params: { locale: string };
 }) {
-  redirect(`/${params.locale}/orders?view=unassigned`);
+  redirect(`/${params.locale}/orders?preset=unassigned`);
 }

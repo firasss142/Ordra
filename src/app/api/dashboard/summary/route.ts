@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
     summary.kpis.netProfit = null;
     summary.footer.adSpend = null;
     summary.markets = [];
+    summary.topProducts = summary.topProducts.map((p) => ({ ...p, revenue: null }));
   }
 
   return NextResponse.json(

@@ -1,16 +1,10 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
-import {
-  Camera,
-  Keyboard,
-  Loader2,
-  PackageCheck,
-  PackageX,
-} from "lucide-react";
+import { Camera, Keyboard, Loader2, X } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import { jsonFetcher } from "@/lib/fetchers";
 import {
@@ -20,6 +14,11 @@ import {
 } from "./ScanFeedbackTile";
 import { WarehouseInboxBanner } from "./WarehouseInboxBanner";
 import { useWarehouseRealtime } from "@/hooks/useWarehouseRealtime";
+import {
+  ReturnsDecisionCard,
+  type DecisionPayload,
+  type ReturnRate,
+} from "./ReturnsDecisionCard";
 
 const QrScanner = dynamic(
   () => import("./QrScanner").then((m) => m.QrScanner),
@@ -31,27 +30,29 @@ interface Props {
   fallbackRows: WarehouseOrderRow[];
 }
 
-interface RecentReturn {
-  id: string;
-  order_id: string;
-  customer_name: string;
-  is_damaged: boolean;
-  balance_after: number;
-  at: number;
-}
-
 interface ApiResponse {
   orders: WarehouseOrderRow[];
 }
 
+interface BatchResult {
+  order_id: string;
+  ok: boolean;
+  error?: string;
+  balance_after?: number;
+  is_damaged?: boolean;
+}
+
 export function ReturnsQueue({ marketId, fallbackRows }: Props) {
-  const t = useTranslations("warehouse");
+  const t = useTranslations("warehouse.returns");
+  const tBatch = useTranslations("warehouse.returns.batch");
+  const tCommon = useTranslations("warehouse");
   const [value, setValue] = useState("");
-  const [isDamaged, setIsDamaged] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState>({ kind: "idle" });
-  const [recent, setRecent] = useState<RecentReturn[]>([]);
+  const [selected, setSelected] = useState<WarehouseOrderRow | null>(null);
+  const [rate, setRate] = useState<ReturnRate | null>(null);
+  const [batch, setBatch] = useState<DecisionPayload[]>([]);
+  const [submitting, setSubmitting] = useState(false);
   const [arrivalCount, setArrivalCount] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -74,10 +75,15 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
   });
 
   const orders = data?.orders ?? [];
+  const batchedIds = useMemo(
+    () => new Set(batch.map((b) => b.order_id)),
+    [batch],
+  );
+  const rateCache = useRef(new Map<string, ReturnRate>());
 
   useEffect(() => {
-    if (!submitting && !cameraOpen) inputRef.current?.focus();
-  }, [submitting, cameraOpen]);
+    if (!submitting && !cameraOpen && !selected) inputRef.current?.focus();
+  }, [submitting, cameraOpen, selected]);
 
   useEffect(() => {
     if (feedback.kind !== "success") return;
@@ -85,73 +91,206 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
     return () => window.clearTimeout(id);
   }, [feedback]);
 
-  const submit = async (raw: string) => {
-    const orderId = raw.trim();
-    if (!orderId || submitting) return;
-    setSubmitting(true);
+  const fetchRate = useCallback(async (productId: string | null) => {
+    if (!productId) {
+      setRate(null);
+      return;
+    }
+    const cached = rateCache.current.get(productId);
+    if (cached) {
+      setRate(cached);
+      return;
+    }
     try {
-      const res = await fetch("/api/warehouse/scan-return", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order_id: orderId, is_damaged: isDamaged }),
-      });
-      const json = await res.json().catch(() => ({}));
+      const res = await fetch(
+        `/api/warehouse/returns/rate?product_id=${encodeURIComponent(productId)}`,
+      );
       if (!res.ok) {
-        setFeedback({
-          kind: "error",
-          title: json.error ?? t("errors.scanFailed"),
-          subtitle: `#${orderId.slice(0, 8)}`,
-        });
-        playBeep("error");
+        setRate(null);
         return;
       }
-      const name = json.customer_name ?? orderId.slice(0, 8);
+      const json = await res.json();
+      const first = (json.rates ?? [])[0];
+      const computed: ReturnRate = first
+        ? {
+            returned: first.returned ?? 0,
+            damaged: first.damaged ?? 0,
+            total: first.total ?? 0,
+            return_rate_percent: first.return_rate_percent ?? 0,
+          }
+        : { returned: 0, damaged: 0, total: 0, return_rate_percent: 0 };
+      rateCache.current.set(productId, computed);
+      setRate(computed);
+    } catch {
+      setRate(null);
+    }
+  }, []);
+
+  const openOrder = useCallback(
+    (order: WarehouseOrderRow) => {
+      setSelected(order);
+      fetchRate(order.product_id);
+    },
+    [fetchRate],
+  );
+
+  const resolveById = (rawId: string): WarehouseOrderRow | null => {
+    const id = rawId.trim();
+    if (!id) return null;
+    return orders.find((o) => o.id === id || o.id.startsWith(id)) ?? null;
+  };
+
+  const handleScan = (raw: string) => {
+    const found = resolveById(raw);
+    if (!found) {
+      setFeedback({
+        kind: "error",
+        title: tCommon("errors.scanFailed"),
+        subtitle: `#${raw.slice(0, 8)}`,
+      });
+      playBeep("error");
+      return;
+    }
+    setValue("");
+    openOrder(found);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleScan(value);
+    }
+  };
+
+  const postSingle = async (p: DecisionPayload) => {
+    const res = await fetch("/api/warehouse/scan-return", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        order_id: p.order_id,
+        is_damaged: p.is_damaged,
+        return_reason: p.return_reason,
+        return_reason_note: p.return_reason_note,
+        return_photo_url: p.return_photo_url,
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error ?? "scan failed");
+    return json as { balance_after: number; is_damaged: boolean };
+  };
+
+  const commitSingle = async (payload: DecisionPayload) => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const json = await postSingle(payload);
       setFeedback({
         kind: "success",
-        title: name,
-        subtitle: isDamaged
-          ? `${t("returns.damagedBadge")} · #${orderId.slice(0, 8)}`
-          : `#${orderId.slice(0, 8)}`,
-        meta: isDamaged
-          ? t("returns.damagedCount", { count: json.balance_after ?? 0 })
-          : t("returns.stockAfter", { stock: json.balance_after ?? 0 }),
+        title: payload.customer_name ?? payload.order_id.slice(0, 8),
+        subtitle: payload.is_damaged
+          ? `${t("damagedBadge")} · #${payload.order_id.slice(0, 8)}`
+          : `#${payload.order_id.slice(0, 8)}`,
+        meta: payload.is_damaged
+          ? t("damagedCount", { count: json.balance_after ?? 0 })
+          : t("stockAfter", { stock: json.balance_after ?? 0 }),
       });
       playBeep("success");
-      setRecent((prev) =>
-        [
-          {
-            id: crypto.randomUUID(),
-            order_id: orderId,
-            customer_name: name,
-            is_damaged: isDamaged,
-            balance_after: json.balance_after ?? 0,
-            at: Date.now(),
-          },
-          ...prev,
-        ].slice(0, 8),
-      );
-      setValue("");
-      setIsDamaged(false);
+      setSelected(null);
+      setRate(null);
       mutate();
-    } catch {
-      setFeedback({ kind: "error", title: t("errors.network") });
+    } catch (err) {
+      setFeedback({
+        kind: "error",
+        title: err instanceof Error ? err.message : tCommon("errors.scanFailed"),
+        subtitle: `#${payload.order_id.slice(0, 8)}`,
+      });
       playBeep("error");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      submit(value);
+  const addToBatch = (payload: DecisionPayload) => {
+    setBatch((prev) => {
+      const without = prev.filter((p) => p.order_id !== payload.order_id);
+      return [...without, payload];
+    });
+    setSelected(null);
+    setRate(null);
+  };
+
+  const removeFromBatch = (orderId: string) => {
+    setBatch((prev) => prev.filter((p) => p.order_id !== orderId));
+  };
+
+  const clearBatch = () => setBatch([]);
+
+  const commitBatch = async () => {
+    if (submitting || batch.length === 0) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/warehouse/scan-return/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: batch.map((p) => ({
+            order_id: p.order_id,
+            is_damaged: p.is_damaged,
+            return_reason: p.return_reason,
+            return_reason_note: p.return_reason_note,
+            return_photo_url: p.return_photo_url,
+          })),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setFeedback({
+          kind: "error",
+          title: json.error ?? tCommon("errors.scanFailed"),
+        });
+        playBeep("error");
+        return;
+      }
+      const results: BatchResult[] = json.results ?? [];
+      const succeeded = results.filter((r) => r.ok).length;
+      const failed = results.length - succeeded;
+      setFeedback({
+        kind: failed > 0 ? "error" : "success",
+        title: tBatch("summarySuccess", { count: succeeded }),
+        subtitle:
+          failed > 0 ? tBatch("summaryFailed", { count: failed }) : undefined,
+      });
+      playBeep(failed > 0 ? "error" : "success");
+      setBatch((prev) =>
+        prev.filter((p) => {
+          const outcome = results.find((r) => r.order_id === p.order_id);
+          return outcome ? !outcome.ok : true;
+        }),
+      );
+      mutate();
+    } catch {
+      setFeedback({ kind: "error", title: tCommon("errors.scanFailed") });
+      playBeep("error");
+    } finally {
+      setSubmitting(false);
     }
   };
+
+  const selectedAsOrder = selected
+    ? {
+        id: selected.id,
+        customer_name: selected.customer_name,
+        customer_city: selected.customer_city ?? null,
+        product_id: selected.product_id,
+        product_name: selected.product_name,
+        quantity: selected.quantity ?? 1,
+      }
+    : null;
 
   return (
     <div
       style={{
-        padding: "24px 32px 64px",
+        padding: "24px 32px 120px",
         background: "#F6F6F7",
         minHeight: "100vh",
         display: "flex",
@@ -160,14 +299,10 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
       }}
     >
       <div>
-        <h1
-          style={{ fontSize: 20, fontWeight: 600, color: "#1A1A1A", margin: 0 }}
-        >
-          {t("returns.title", { count: orders.length })}
+        <h1 style={{ fontSize: 20, fontWeight: 600, color: "#1A1A1A", margin: 0 }}>
+          {t("title", { count: orders.length })}
         </h1>
-        <p style={{ fontSize: 13, color: "#6D7175", margin: "4px 0 0" }}>
-          {t("returns.hint")}
-        </p>
+        <p style={{ fontSize: 13, color: "#6D7175", margin: "4px 0 0" }}>{t("hint")}</p>
       </div>
 
       <WarehouseInboxBanner
@@ -178,96 +313,10 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
         }}
         onDismiss={() => setArrivalCount(0)}
         labels={{
-          reveal: t("banner.newReveal"),
-          dismiss: t("banner.dismiss"),
+          reveal: tCommon("banner.newReveal"),
+          dismiss: tCommon("banner.dismiss"),
         }}
       />
-
-      <div
-        role="radiogroup"
-        aria-label={t("returns.damagedLabel")}
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 10,
-          padding: 4,
-          border: "1px solid #E1E3E5",
-          borderRadius: 10,
-          backgroundColor: "#F7F7F7",
-        }}
-      >
-        {[
-          {
-            damaged: false,
-            Icon: PackageCheck,
-            label: t("returns.conditionOk"),
-            hint: t("returns.conditionOkHint"),
-            accent: "#008060",
-          },
-          {
-            damaged: true,
-            Icon: PackageX,
-            label: t("returns.conditionDamaged"),
-            hint: t("returns.conditionDamagedHint"),
-            accent: "#D72C0D",
-          },
-        ].map(({ damaged, Icon, label, hint, accent }) => {
-          const active = damaged === isDamaged;
-          return (
-            <button
-              key={String(damaged)}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              onClick={() => setIsDamaged(damaged)}
-              style={{
-                all: "unset",
-                cursor: "pointer",
-                padding: "14px 16px",
-                borderRadius: 8,
-                backgroundColor: active ? "#FFFFFF" : "transparent",
-                border: active
-                  ? `1px solid ${accent}`
-                  : "1px solid transparent",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                transition:
-                  "background-color 120ms ease, border-color 120ms ease",
-              }}
-            >
-              <Icon
-                size={22}
-                strokeWidth={1.5}
-                color={active ? accent : "#6D7175"}
-                aria-hidden="true"
-              />
-              <span style={{ flex: 1 }}>
-                <span
-                  style={{
-                    display: "block",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: active ? accent : "#1A1A1A",
-                  }}
-                >
-                  {label}
-                </span>
-                <span
-                  style={{
-                    display: "block",
-                    fontSize: 12,
-                    color: "#6D7175",
-                    marginTop: 2,
-                  }}
-                >
-                  {hint}
-                </span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
 
       <div
         style={{
@@ -277,14 +326,7 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
           padding: 20,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            alignItems: "stretch",
-            flexWrap: "wrap",
-          }}
-        >
+        <div style={{ display: "flex", gap: 12, alignItems: "stretch", flexWrap: "wrap" }}>
           <div
             style={{
               flex: 1,
@@ -298,21 +340,16 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
               backgroundColor: "#F7F7F7",
             }}
           >
-            <Keyboard
-              size={18}
-              strokeWidth={1.5}
-              color="#6D7175"
-              aria-hidden="true"
-            />
+            <Keyboard size={18} strokeWidth={1.5} color="#6D7175" aria-hidden="true" />
             <input
               ref={inputRef}
               type="text"
               value={value}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              disabled={submitting}
-              placeholder={t("returns.inputPlaceholder")}
-              aria-label={t("returns.inputPlaceholder")}
+              disabled={submitting || Boolean(selected)}
+              placeholder={t("inputPlaceholder")}
+              aria-label={t("inputPlaceholder")}
               style={{
                 flex: 1,
                 padding: "16px 0",
@@ -325,13 +362,7 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
               }}
             />
             {submitting ? (
-              <Loader2
-                size={18}
-                strokeWidth={1.5}
-                color="#6D7175"
-                aria-hidden="true"
-                className="animate-spin"
-              />
+              <Loader2 size={18} strokeWidth={1.5} color="#6D7175" className="animate-spin" aria-hidden="true" />
             ) : null}
           </div>
           <button
@@ -356,86 +387,26 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
             }}
           >
             <Camera size={18} strokeWidth={1.5} aria-hidden="true" />
-            {t("scanner.openCamera")}
+            {tCommon("scanner.openCamera")}
           </button>
         </div>
       </div>
 
-      <ScanFeedbackTile state={feedback} idleLabel={t("returns.feedbackIdle")} />
-
-      {recent.length > 0 ? (
-        <div>
-          <h2
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "#6D7175",
-              margin: "0 0 8px 0",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}
-          >
-            {t("returns.recentTitle")}
-          </h2>
-          <ul
-            style={{
-              listStyle: "none",
-              margin: 0,
-              padding: 0,
-              backgroundColor: "#FFFFFF",
-              border: "1px solid #E1E3E5",
-              borderRadius: 8,
-              overflow: "hidden",
-            }}
-          >
-            {recent.map((r) => (
-              <li
-                key={r.id}
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  padding: "10px 14px",
-                  borderBottom: "1px solid #F2F2F2",
-                  fontSize: 13,
-                  color: "#1A1A1A",
-                  alignItems: "center",
-                }}
-              >
-                <span
-                  style={{
-                    color: r.is_damaged ? "#D72C0D" : "#008060",
-                    fontWeight: 700,
-                  }}
-                >
-                  {r.is_damaged ? "✗" : "✓"}
-                </span>
-                <code
-                  style={{
-                    color: "#6D7175",
-                    fontSize: 12,
-                    minWidth: 90,
-                    fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                  }}
-                >
-                  #{r.order_id.slice(0, 8)}
-                </code>
-                <span style={{ flex: 1 }}>{r.customer_name}</span>
-                <span
-                  style={{
-                    color: r.is_damaged ? "#D72C0D" : "#6D7175",
-                    fontSize: 12,
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {r.is_damaged
-                    ? t("returns.damagedBadge")
-                    : t("returns.stockAfter", { stock: r.balance_after })}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      {selectedAsOrder ? (
+        <ReturnsDecisionCard
+          order={selectedAsOrder}
+          rate={rate}
+          onAddToBatch={addToBatch}
+          onCommitNow={commitSingle}
+          onCancel={() => {
+            setSelected(null);
+            setRate(null);
+          }}
+          submitting={submitting}
+        />
+      ) : (
+        <ScanFeedbackTile state={feedback} idleLabel={t("feedbackIdle")} />
+      )}
 
       <div>
         <h2
@@ -448,7 +419,7 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
             letterSpacing: "0.05em",
           }}
         >
-          {t("returns.queueTitle", { count: orders.length })}
+          {t("queueTitle", { count: orders.length })}
         </h2>
         <div
           style={{
@@ -459,18 +430,18 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
           }}
         >
           {orders.length === 0 ? (
-            <div
-              style={{
-                padding: 40,
-                textAlign: "center",
-                color: "#6D7175",
-                fontSize: 14,
-              }}
-            >
-              {t("returns.queueEmpty")}
+            <div style={{ padding: 40, textAlign: "center", color: "#6D7175", fontSize: 14 }}>
+              {t("queueEmpty")}
             </div>
           ) : (
-            orders.map((o) => <ReturnsRow key={o.id} order={o} />)
+            orders.map((o) => (
+              <ReturnsRow
+                key={o.id}
+                order={o}
+                batched={batchedIds.has(o.id)}
+                onOpen={() => openOrder(o)}
+              />
+            ))
           )}
         </div>
       </div>
@@ -480,9 +451,19 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
           active={cameraOpen}
           onScan={(text) => {
             setCameraOpen(false);
-            submit(text);
+            handleScan(text);
           }}
           onClose={() => setCameraOpen(false)}
+        />
+      ) : null}
+
+      {batch.length > 0 ? (
+        <BatchTray
+          items={batch}
+          submitting={submitting}
+          onRemove={removeFromBatch}
+          onClear={clearBatch}
+          onCommit={commitBatch}
         />
       ) : null}
     </div>
@@ -491,19 +472,31 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
 
 const ReturnsRow = memo(function ReturnsRow({
   order,
+  batched,
+  onOpen,
 }: {
   order: WarehouseOrderRow;
+  batched: boolean;
+  onOpen: () => void;
 }) {
+  const t = useTranslations("warehouse.returns");
   return (
-    <div
+    <button
+      type="button"
+      onClick={onOpen}
       style={{
+        all: "unset",
+        cursor: "pointer",
         display: "grid",
-        gridTemplateColumns: "140px 1fr 1fr 120px",
+        gridTemplateColumns: "140px 1fr 1fr 100px 120px",
         gap: 12,
         padding: "12px 14px",
         borderBottom: "1px solid #F2F2F2",
         fontSize: 13,
         alignItems: "center",
+        width: "100%",
+        boxSizing: "border-box",
+        backgroundColor: batched ? "#F2F2F2" : "transparent",
       }}
     >
       <div style={{ fontWeight: 600, color: "#1A1A1A" }}>
@@ -520,6 +513,9 @@ const ReturnsRow = memo(function ReturnsRow({
       >
         {order.product_name}
       </div>
+      <div style={{ fontSize: 11, color: "#6D7175", fontWeight: 600, textTransform: "uppercase" }}>
+        {batched ? t("inBatchLabel") : ""}
+      </div>
       <code
         style={{
           fontSize: 11,
@@ -530,6 +526,142 @@ const ReturnsRow = memo(function ReturnsRow({
       >
         #{order.id.slice(0, 8)}
       </code>
-    </div>
+    </button>
   );
 });
+
+function BatchTray({
+  items,
+  submitting,
+  onRemove,
+  onClear,
+  onCommit,
+}: {
+  items: DecisionPayload[];
+  submitting: boolean;
+  onRemove: (orderId: string) => void;
+  onClear: () => void;
+  onCommit: () => void;
+}) {
+  const t = useTranslations("warehouse.returns.batch");
+  return (
+    <div
+      style={{
+        position: "sticky",
+        bottom: 16,
+        alignSelf: "stretch",
+        backgroundColor: "#FFFFFF",
+        border: "1px solid #1A1A1A",
+        borderRadius: 8,
+        padding: 16,
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#1A1A1A" }}>
+            {t("trayTitle", { count: items.length })}
+          </div>
+          <div style={{ fontSize: 12, color: "#6D7175", marginTop: 2 }}>{t("trayHint")}</div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            onClick={onClear}
+            disabled={submitting}
+            style={{
+              all: "unset",
+              cursor: submitting ? "not-allowed" : "pointer",
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#1A1A1A",
+              borderRadius: 8,
+              border: "1px solid #E1E3E5",
+            }}
+          >
+            {t("clear")}
+          </button>
+          <button
+            type="button"
+            onClick={onCommit}
+            disabled={submitting}
+            style={{
+              all: "unset",
+              cursor: submitting ? "not-allowed" : "pointer",
+              padding: "8px 18px",
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#FFFFFF",
+              backgroundColor: "#1A1A1A",
+              borderRadius: 8,
+              opacity: submitting ? 0.6 : 1,
+            }}
+          >
+            {submitting ? t("committing") : t("commit", { count: items.length })}
+          </button>
+        </div>
+      </div>
+
+      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+        {items.map((it) => (
+          <li
+            key={it.order_id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "8px 10px",
+              backgroundColor: "#F7F7F7",
+              borderRadius: 6,
+              fontSize: 13,
+            }}
+          >
+            <span
+              style={{
+                display: "inline-block",
+                width: 8,
+                height: 8,
+                borderRadius: 999,
+                backgroundColor: it.is_damaged ? "#D72C0D" : "#008060",
+              }}
+              aria-hidden="true"
+            />
+            <code
+              style={{
+                fontSize: 11,
+                color: "#6D7175",
+                fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                minWidth: 90,
+              }}
+            >
+              #{it.order_id.slice(0, 8)}
+            </code>
+            <span style={{ flex: 1, color: "#1A1A1A" }}>
+              {it.customer_name ?? it.order_id.slice(0, 8)}
+            </span>
+            <span style={{ color: "#6D7175", fontSize: 12 }}>
+              {it.is_damaged ? it.return_reason : "restock"}
+            </span>
+            <button
+              type="button"
+              aria-label={t("remove")}
+              onClick={() => onRemove(it.order_id)}
+              disabled={submitting}
+              style={{
+                all: "unset",
+                cursor: submitting ? "not-allowed" : "pointer",
+                padding: 4,
+                color: "#6D7175",
+              }}
+            >
+              <X size={14} aria-hidden="true" />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

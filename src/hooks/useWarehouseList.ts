@@ -6,9 +6,9 @@ import {
   warehouseHistoryFiltersToSearchParams,
   type WarehouseHistoryFilters,
 } from "@/lib/warehouse/list-filters";
-import type { WarehouseHistoryRow, WarehouseHistoryPage } from "@/lib/warehouse/history-fetch";
+import type { WarehouseHistoryRow, WarehouseHistoryPage, WarehouseAnomalyTag, WarehouseActor } from "@/lib/warehouse/history-fetch";
 
-export type { WarehouseHistoryRow, WarehouseHistoryPage };
+export type { WarehouseHistoryRow, WarehouseHistoryPage, WarehouseAnomalyTag, WarehouseActor };
 
 const fetcher = async (url: string): Promise<WarehouseHistoryPage> => {
   const res = await fetch(url, { credentials: "same-origin" });

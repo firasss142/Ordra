@@ -12,6 +12,13 @@ interface WebhookInput {
   headers: Headers;
   adminClient: SupabaseClient;
   decryptFn: (ciphertext: string) => string;
+  /**
+   * super_admin replay: skip signature validation (payload is trusted from our own
+   * log) and skip the (storefront_id, external_id) pre-check. Downstream order
+   * insert/update idempotency still applies — a replayed payload whose order
+   * already exists is logged as `ignored` (duplicate), not re-processed.
+   */
+  allowReplay?: boolean;
 }
 
 interface WebhookResult {
@@ -55,7 +62,7 @@ const PRE_DISPATCH_STATUSES = new Set([
 ]);
 
 export async function handleWebhook(input: WebhookInput): Promise<WebhookResult> {
-  const { storefrontId, rawBody, headers, adminClient, decryptFn } = input;
+  const { storefrontId, rawBody, headers, adminClient, decryptFn, allowReplay } = input;
 
   // 1. Look up storefront
   const { data: storefront, error: sfError } = await adminClient
@@ -68,12 +75,13 @@ export async function handleWebhook(input: WebhookInput): Promise<WebhookResult>
     return { status: 200, body: { error: "Storefront not found or inactive" } };
   }
 
-  // 2. Decrypt secret and validate webhook
-  const secret = decryptFn(storefront.webhook_secret);
+  // 2. Decrypt secret and validate webhook (skipped on trusted replay)
   const adapter = getAdapter(storefront.platform);
-
-  if (!adapter.validateWebhook(headers, rawBody, secret)) {
-    return { status: 200, body: { error: "Invalid webhook signature" } };
+  if (!allowReplay) {
+    const secret = decryptFn(storefront.webhook_secret);
+    if (!adapter.validateWebhook(headers, rawBody, secret)) {
+      return { status: 200, body: { error: "Invalid webhook signature" } };
+    }
   }
 
   // 3. Parse JSON
@@ -105,7 +113,8 @@ export async function handleWebhook(input: WebhookInput): Promise<WebhookResult>
   }
 
   // 5. Idempotency pre-check: if this (storefront_id, external_id, event) was already processed, short-circuit
-  if (externalId) {
+  // Replay explicitly bypasses this — downstream order-level idempotency still protects against duplicate writes.
+  if (externalId && !allowReplay) {
     const { data: priorLog } = await adminClient
       .from("webhook_delivery_log")
       .select("id, status, order_id")

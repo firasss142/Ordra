@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, within, cleanup } from "@testing-library/react";
 import { Sidebar } from "@/components/layout/Sidebar";
 
 const replaceMock = vi.fn();
 let pathnameMock = "/fr/dashboard";
+let searchParamsMock = new URLSearchParams("");
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     replace: replaceMock,
@@ -11,6 +12,7 @@ vi.mock("next/navigation", () => ({
     prefetch: vi.fn(),
   }),
   usePathname: () => pathnameMock,
+  useSearchParams: () => searchParamsMock,
 }));
 
 vi.mock("next-intl", async () => {
@@ -27,7 +29,15 @@ vi.mock("next-intl", async () => {
 
 beforeEach(() => {
   replaceMock.mockReset();
-  global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }) as unknown as typeof fetch;
+  pathnameMock = "/fr/dashboard";
+  searchParamsMock = new URLSearchParams("");
+  global.fetch = vi
+    .fn()
+    .mockResolvedValue({ ok: true, json: async () => ({}) }) as unknown as typeof fetch;
+});
+
+afterEach(() => {
+  cleanup();
 });
 
 const managerUser = {
@@ -61,30 +71,191 @@ const agentUser = {
   direction: "ltr" as const,
 };
 
-describe("Sidebar — market_manager", () => {
-  it("renders Tableau de bord nav item", () => {
+describe("Sidebar — sections", () => {
+  it("renders all 6 non-admin sections for market_manager", () => {
     render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.getByText("Tableau de bord")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Accueil/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Commandes/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Logistique/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Finances/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Clients/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Équipe/ })).toBeInTheDocument();
   });
 
-  it("renders Commandes nav item", () => {
+  it("hides SYSTÈME section from market_manager", () => {
     render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.getByText("Commandes")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Système/ })).not.toBeInTheDocument();
   });
 
-  it("renders Produits nav item", () => {
-    render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.getByText("Produits")).toBeInTheDocument();
+  it("shows SYSTÈME section for super_admin", () => {
+    render(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
+    expect(screen.getByRole("button", { name: /Système/ })).toBeInTheDocument();
   });
 
-  it("renders Performance nav item", () => {
-    render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.getByText("Performance")).toBeInTheDocument();
+  it("expanding SYSTÈME reveals all 4 sub-tabs for super_admin", () => {
+    render(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
+    fireEvent.click(screen.getByRole("button", { name: /Système/ }));
+    expect(screen.getByRole("link", { name: /Marchés & storefronts/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Transporteurs/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Paramètres$/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Journaux/ })).toBeInTheDocument();
   });
 
-  it("renders Paramètres nav item", () => {
+  it("activates Transporteurs on /fr/settings?section=carriers (super_admin)", () => {
+    pathnameMock = "/fr/settings";
+    searchParamsMock = new URLSearchParams("section=carriers");
+    render(<Sidebar user={superAdminAllMarkets} currentPath="/fr/settings" unassignedCount={0} />);
+    const link = screen.getByRole("link", { name: /Transporteurs/ });
+    expect(link).toHaveAttribute("aria-current", "page");
+  });
+
+  it("activates Marchés & storefronts on /fr/settings?section=markets", () => {
+    pathnameMock = "/fr/settings";
+    searchParamsMock = new URLSearchParams("section=markets");
+    render(<Sidebar user={superAdminAllMarkets} currentPath="/fr/settings" unassignedCount={0} />);
+    const link = screen.getByRole("link", { name: /Marchés & storefronts/ });
+    expect(link).toHaveAttribute("aria-current", "page");
+  });
+
+  it("activates Journaux on /fr/admin/logs", async () => {
+    pathnameMock = "/fr/admin/logs";
+    searchParamsMock = new URLSearchParams("");
+    render(<Sidebar user={superAdminAllMarkets} currentPath="/fr/admin/logs" unassignedCount={0} />);
+    const link = await screen.findByRole("link", { name: /Journaux/ });
+    expect(link).toHaveAttribute("aria-current", "page");
+  });
+});
+
+describe("Sidebar — default expanded sections", () => {
+  it("expands ACCUEIL by default (shows Pulse sub-tab)", () => {
     render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.getByText("Paramètres")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Pulse/ })).toBeInTheDocument();
+  });
+
+  it("expands FINANCES by default (shows P&L global sub-tab)", () => {
+    render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
+    expect(screen.getByRole("link", { name: /P&L global/ })).toBeInTheDocument();
+  });
+
+  it("expands ÉQUIPE by default (shows Performance sub-tab)", () => {
+    render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
+    expect(screen.getByRole("link", { name: /^Performance$/ })).toBeInTheDocument();
+  });
+
+  it("keeps COMMANDES collapsed by default (no À assigner sub-tab visible)", () => {
+    render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
+    expect(screen.queryByRole("link", { name: /À assigner/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("Sidebar — accordion toggle", () => {
+  it("expands COMMANDES when its header is clicked", () => {
+    render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
+    expect(screen.queryByRole("link", { name: /À assigner/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Commandes/ }));
+    expect(screen.getByRole("link", { name: /À assigner/ })).toBeInTheDocument();
+  });
+
+  it("collapses ACCUEIL when its header is clicked (while on a non-accueil route)", () => {
+    pathnameMock = "/fr/orders";
+    searchParamsMock = new URLSearchParams("");
+    render(<Sidebar user={managerUser} currentPath="/fr/orders" unassignedCount={0} />);
+    const accueilHeader = screen.getByRole("button", { name: /Accueil/ });
+    // ACCUEIL is expanded by default; Pulse sub-tab is visible
+    expect(accueilHeader).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("link", { name: /Pulse/ })).toBeInTheDocument();
+    fireEvent.click(accueilHeader);
+    expect(accueilHeader).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("link", { name: /Pulse/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("Sidebar — active route auto-expand", () => {
+  it("auto-expands LOGISTIQUE when on /fr/warehouse/to-label", () => {
+    pathnameMock = "/fr/warehouse/to-label";
+    searchParamsMock = new URLSearchParams("");
+    render(<Sidebar user={managerUser} currentPath="/fr/warehouse/to-label" unassignedCount={0} />);
+    expect(screen.getByRole("link", { name: /Préparation/ })).toBeInTheDocument();
+  });
+
+  it("marks Préparation active on /fr/warehouse/to-label", () => {
+    pathnameMock = "/fr/warehouse/to-label";
+    searchParamsMock = new URLSearchParams("");
+    render(<Sidebar user={managerUser} currentPath="/fr/warehouse/to-label" unassignedCount={0} />);
+    const link = screen.getByRole("link", { name: /Préparation/ });
+    expect(link).toHaveAttribute("aria-current", "page");
+  });
+
+  it("marks Retours active on /fr/warehouse/returns", () => {
+    pathnameMock = "/fr/warehouse/returns";
+    searchParamsMock = new URLSearchParams("");
+    render(<Sidebar user={managerUser} currentPath="/fr/warehouse/returns" unassignedCount={0} />);
+    const link = screen.getByRole("link", { name: /Retours/ });
+    expect(link).toHaveAttribute("aria-current", "page");
+  });
+
+  it("marks Journal entrepôt active on /fr/warehouse/history", () => {
+    pathnameMock = "/fr/warehouse/history";
+    searchParamsMock = new URLSearchParams("");
+    render(<Sidebar user={managerUser} currentPath="/fr/warehouse/history" unassignedCount={0} />);
+    const link = screen.getByRole("link", { name: /Journal entrepôt/ });
+    expect(link).toHaveAttribute("aria-current", "page");
+  });
+
+  it("activates FINANCES (not ACCUEIL) on /fr/dashboard/pnl", () => {
+    pathnameMock = "/fr/dashboard/pnl";
+    searchParamsMock = new URLSearchParams("");
+    render(<Sidebar user={managerUser} currentPath="/fr/dashboard/pnl" unassignedCount={0} />);
+    const pnlLink = screen.getByRole("link", { name: /P&L global/ });
+    expect(pnlLink).toHaveAttribute("aria-current", "page");
+    const pulseLink = screen.getByRole("link", { name: /Pulse/ });
+    expect(pulseLink).not.toHaveAttribute("aria-current", "page");
+  });
+
+  it("auto-expands COMMANDES when on /fr/orders?preset=unassigned", () => {
+    pathnameMock = "/fr/orders";
+    searchParamsMock = new URLSearchParams("preset=unassigned");
+    render(<Sidebar user={managerUser} currentPath="/fr/orders" unassignedCount={0} />);
+    expect(screen.getByRole("link", { name: /À assigner/ })).toBeInTheDocument();
+  });
+
+  it("auto-expands COMMANDES when on /fr/orders with no filter", () => {
+    pathnameMock = "/fr/orders";
+    searchParamsMock = new URLSearchParams("");
+    render(<Sidebar user={managerUser} currentPath="/fr/orders" unassignedCount={0} />);
+    // Section expanded via path-prefix match — sub-items are rendered
+    expect(screen.getByRole("link", { name: /À assigner/ })).toBeInTheDocument();
+  });
+
+  it("keeps À assigner active when extra filters are added to the URL", () => {
+    pathnameMock = "/fr/orders";
+    searchParamsMock = new URLSearchParams("preset=unassigned&q=abc");
+    render(<Sidebar user={managerUser} currentPath="/fr/orders" unassignedCount={0} />);
+    const link = screen.getByRole("link", { name: /À assigner/ });
+    expect(link).toHaveAttribute("aria-current", "page");
+  });
+
+  it("does not mark À assigner active on bare /fr/orders", () => {
+    pathnameMock = "/fr/orders";
+    searchParamsMock = new URLSearchParams("");
+    render(<Sidebar user={managerUser} currentPath="/fr/orders" unassignedCount={0} />);
+    const link = screen.getByRole("link", { name: /À assigner/ });
+    expect(link).not.toHaveAttribute("aria-current", "page");
+  });
+});
+
+describe("Sidebar — badge on unassigned", () => {
+  it("shows the badge count on À assigner sub-tab when COMMANDES is expanded", () => {
+    render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={12} />);
+    fireEvent.click(screen.getByRole("button", { name: /Commandes/ }));
+    const link = screen.getByRole("link", { name: /À assigner/ });
+    expect(within(link).getByText("12")).toBeInTheDocument();
+  });
+
+  it("shows the badge on the COMMANDES section header when collapsed", () => {
+    render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={7} />);
+    const header = screen.getByRole("button", { name: /Commandes/ });
+    expect(within(header).getByText("7")).toBeInTheDocument();
   });
 });
 
@@ -97,15 +268,29 @@ describe("Sidebar — agent role", () => {
   });
 });
 
-describe("Sidebar — unassigned badge", () => {
-  it("shows unassigned count badge on Commandes item", () => {
-    render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={12} />);
-    expect(screen.getByText("12")).toBeInTheDocument();
+describe("Sidebar — active sub-tab", () => {
+  it("marks Pulse as active when currentPath is /fr/dashboard with no query", () => {
+    pathnameMock = "/fr/dashboard";
+    searchParamsMock = new URLSearchParams("");
+    render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
+    const link = screen.getByRole("link", { name: /Pulse/ });
+    expect(link).toHaveAttribute("aria-current", "page");
   });
 
-  it("shows zero count badge when unassignedCount is 0", () => {
-    render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.getByText("0")).toBeInTheDocument();
+  it("does not mark Pulse as active when on /fr/dashboard/alerts", () => {
+    pathnameMock = "/fr/dashboard/alerts";
+    searchParamsMock = new URLSearchParams("");
+    render(<Sidebar user={managerUser} currentPath="/fr/dashboard/alerts" unassignedCount={0} />);
+    const link = screen.getByRole("link", { name: /Pulse/ });
+    expect(link).not.toHaveAttribute("aria-current", "page");
+  });
+
+  it("marks Alertes as active when on /fr/dashboard/alerts", () => {
+    pathnameMock = "/fr/dashboard/alerts";
+    searchParamsMock = new URLSearchParams("");
+    render(<Sidebar user={managerUser} currentPath="/fr/dashboard/alerts" unassignedCount={0} />);
+    const link = screen.getByRole("link", { name: /Alertes/ });
+    expect(link).toHaveAttribute("aria-current", "page");
   });
 });
 
@@ -138,26 +323,6 @@ describe("Sidebar — user menu and logout", () => {
   });
 });
 
-describe("Sidebar — active nav item", () => {
-  it("marks Commandes as active when currentPath is /fr/orders", () => {
-    render(<Sidebar user={managerUser} currentPath="/fr/orders" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /Commandes/ });
-    expect(link).toHaveAttribute("aria-current", "page");
-  });
-
-  it("marks Tableau de bord as active when currentPath is /fr/dashboard", () => {
-    render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: "Tableau de bord" });
-    expect(link).toHaveAttribute("aria-current", "page");
-  });
-
-  it("does not mark Commandes as active when currentPath is /fr/dashboard", () => {
-    render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /Commandes/ });
-    expect(link).not.toHaveAttribute("aria-current", "page");
-  });
-});
-
 describe("Sidebar — brand area", () => {
   it("shows Tunisie market pill for tn manager", () => {
     render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
@@ -167,12 +332,5 @@ describe("Sidebar — brand area", () => {
   it("shows 'Tous les marchés' for super_admin with null market_id", () => {
     render(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
     expect(screen.getByText(/Tous les marchés/)).toBeInTheDocument();
-  });
-});
-
-describe("Sidebar — section headings", () => {
-  it("renders the Opérations section heading", () => {
-    render(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.getByText(/Opérations/i)).toBeInTheDocument();
   });
 });

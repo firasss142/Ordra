@@ -30,6 +30,7 @@ function baseSummary(): DashboardSummary {
       confirmationRate: { current: 70, previous: 65, delta: 5, deltaPct: 7.7 },
       rejectionRate: { current: 10, previous: 12, delta: -2, deltaPct: -16.7 },
       ordersProcessed: { current: 40, previous: 30, delta: 10, deltaPct: 33.3 },
+      deliveryRate: { current: 80, previous: 75, delta: 5, deltaPct: 6.7 },
       agentsOnline: 3,
       agentsTotal: 5,
       agentsIdle: 1,
@@ -38,6 +39,7 @@ function baseSummary(): DashboardSummary {
     pipeline: [],
     rejectionBreakdown: [],
     presence: [],
+    topProducts: [],
     markets: [
       {
         market_id: "m-tn",

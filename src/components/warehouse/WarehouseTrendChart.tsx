@@ -15,6 +15,7 @@ import type { WarehouseTrendPoint } from "@/lib/warehouse/summary";
 interface WarehouseTrendChartProps {
   data: WarehouseTrendPoint[];
   labels: { scanned: string; returned: string; damaged: string };
+  colorScheme?: "light" | "dark";
 }
 
 function formatDay(day: string) {
@@ -29,35 +30,60 @@ function formatDay(day: string) {
   }
 }
 
-export function WarehouseTrendChart({ data, labels }: WarehouseTrendChartProps) {
+const SCHEME = {
+  light: {
+    colors:            { scanned: "#1A1A1A", returned: "#008060", damaged: "#D72C0D" },
+    gridStroke:        "#F2F2F2",
+    tickFill:          "#6D7175",
+    axisStroke:        "#E1E3E5",
+    tooltipBg:         "#FFFFFF",
+    tooltipBorder:     "1px solid #E1E3E5",
+    tooltipLabelColor: "#1A1A1A",
+    legendColor:       "#6D7175",
+  },
+  dark: {
+    colors:            { scanned: "#7FB8F5", returned: "#36F4A4", damaged: "#F47272" },
+    gridStroke:        "#1E2C31",
+    tickFill:          "#71717A",
+    axisStroke:        "#1E2C31",
+    tooltipBg:         "#02090A",
+    tooltipBorder:     "1px solid #1E2C31",
+    tooltipLabelColor: "#FFFFFF",
+    legendColor:       "#A1A1AA",
+  },
+} as const;
+
+export function WarehouseTrendChart({ data, labels, colorScheme = "light" }: WarehouseTrendChartProps) {
+  const { colors, gridStroke, tickFill, axisStroke, tooltipBg, tooltipBorder, tooltipLabelColor, legendColor } = SCHEME[colorScheme];
+
   return (
     <ResponsiveContainer width="100%" height={240}>
       <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
         <defs>
           <linearGradient id="scanFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#1A1A1A" stopOpacity={0.14} />
-            <stop offset="100%" stopColor="#1A1A1A" stopOpacity={0} />
+            <stop offset="0%" stopColor={colors.scanned} stopOpacity={0.18} />
+            <stop offset="100%" stopColor={colors.scanned} stopOpacity={0} />
           </linearGradient>
           <linearGradient id="retFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#008060" stopOpacity={0.14} />
-            <stop offset="100%" stopColor="#008060" stopOpacity={0} />
+            <stop offset="0%" stopColor={colors.returned} stopOpacity={0.18} />
+            <stop offset="100%" stopColor={colors.returned} stopOpacity={0} />
           </linearGradient>
           <linearGradient id="dmgFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#D72C0D" stopOpacity={0.14} />
-            <stop offset="100%" stopColor="#D72C0D" stopOpacity={0} />
+            <stop offset="0%" stopColor={colors.damaged} stopOpacity={0.18} />
+            <stop offset="100%" stopColor={colors.damaged} stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid stroke="#F2F2F2" vertical={false} />
+        <CartesianGrid stroke={gridStroke} vertical={false} />
         <XAxis
           dataKey="day"
           tickFormatter={formatDay}
-          tick={{ fontSize: 11, fill: "#6D7175" }}
+          tick={{ fontSize: 11, fill: tickFill }}
           tickLine={false}
-          axisLine={{ stroke: "#E1E3E5" }}
+          axisLine={{ stroke: axisStroke }}
           minTickGap={24}
         />
         <YAxis
-          tick={{ fontSize: 11, fill: "#6D7175" }}
+          tick={{ fontSize: 11, fill: tickFill }}
           tickLine={false}
           axisLine={false}
           allowDecimals={false}
@@ -65,13 +91,13 @@ export function WarehouseTrendChart({ data, labels }: WarehouseTrendChartProps) 
         />
         <Tooltip
           contentStyle={{
-            background: "#FFFFFF",
-            border: "1px solid #E1E3E5",
+            background: tooltipBg,
+            border: tooltipBorder,
             borderRadius: 6,
             fontSize: 12,
             padding: "8px 10px",
           }}
-          labelStyle={{ fontWeight: 600, color: "#1A1A1A" }}
+          labelStyle={{ fontWeight: 600, color: tooltipLabelColor }}
           labelFormatter={(l) => formatDay(String(l))}
         />
         <Legend
@@ -79,13 +105,13 @@ export function WarehouseTrendChart({ data, labels }: WarehouseTrendChartProps) 
           align="right"
           iconType="circle"
           iconSize={8}
-          wrapperStyle={{ fontSize: 12, color: "#6D7175" }}
+          wrapperStyle={{ fontSize: 12, color: legendColor }}
         />
         <Area
           type="monotone"
           dataKey="scanned"
           name={labels.scanned}
-          stroke="#1A1A1A"
+          stroke={colors.scanned}
           strokeWidth={2}
           fill="url(#scanFill)"
           isAnimationActive={false}
@@ -94,7 +120,7 @@ export function WarehouseTrendChart({ data, labels }: WarehouseTrendChartProps) 
           type="monotone"
           dataKey="returned"
           name={labels.returned}
-          stroke="#008060"
+          stroke={colors.returned}
           strokeWidth={2}
           fill="url(#retFill)"
           isAnimationActive={false}
@@ -103,7 +129,7 @@ export function WarehouseTrendChart({ data, labels }: WarehouseTrendChartProps) 
           type="monotone"
           dataKey="damaged"
           name={labels.damaged}
-          stroke="#D72C0D"
+          stroke={colors.damaged}
           strokeWidth={2}
           fill="url(#dmgFill)"
           isAnimationActive={false}

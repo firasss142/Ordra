@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Printer, CheckSquare, Square } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import { jsonFetcher } from "@/lib/fetchers";
+import { openPdfBlob } from "@/lib/pdf-utils";
 import { WarehouseInboxBanner } from "./WarehouseInboxBanner";
 import { useWarehouseRealtime } from "@/hooks/useWarehouseRealtime";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -122,16 +123,7 @@ export function ToLabelQueue({ marketId, fallbackRows, locale }: Props) {
         setError(json.error ?? t("errors.printFailed"));
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const win = window.open(url, "_blank");
-      if (!win) {
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `labels-${Date.now()}.pdf`;
-        a.click();
-      }
-      setTimeout(() => URL.revokeObjectURL(url), 100);
+      openPdfBlob(await res.blob(), `labels-${Date.now()}.pdf`);
       // Capture session BEFORE clearing selection
       const sessionOrderIds = Array.from(selected);
       const sessionOrderMap = new Map(

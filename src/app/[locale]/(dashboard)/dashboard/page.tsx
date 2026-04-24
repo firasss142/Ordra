@@ -40,6 +40,7 @@ export default async function DashboardPage({
     initialSummary.kpis.netProfit = null;
     initialSummary.footer.adSpend = null;
     initialSummary.markets = [];
+    initialSummary.topProducts = initialSummary.topProducts.map((p) => ({ ...p, revenue: null }));
   }
 
   return (

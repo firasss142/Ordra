@@ -17,21 +17,45 @@
   },
   "nav": {
     "brand": "Ordra",
-    "dashboard": "Tableau de bord",
-    "orders": "Commandes",
-    "leads": "Prospects",
-    "followUps": "Suivi de commande",
-    "products": "Produits",
-    "carriers": "Transporteurs",
-    "settings": "Paramètres",
     "logout": "Déconnexion",
-    "performance": "Performance",
-    "users": "Utilisateurs",
+    "adminOnly": "Admin",
     "sections": {
-      "operations": "Opérations",
-      "crm": "CRM",
-      "catalogue": "Catalogue",
-      "admin": "Administration"
+      "accueil": "Accueil",
+      "commandes": "Commandes",
+      "logistique": "Logistique",
+      "finances": "Finances",
+      "clients": "Clients",
+      "equipe": "Équipe",
+      "systeme": "Système"
+    },
+    "items": {
+      "pulse": "Pulse",
+      "alertes": "Alertes",
+      "toAssign": "À assigner",
+      "inConfirmation": "En confirmation",
+      "toShip": "À expédier",
+      "inDelivery": "En livraison",
+      "archived": "Archivées",
+      "preparation": "Préparation",
+      "returns": "Retours",
+      "carrierTracking": "Suivi transporteur",
+      "warehouseJournal": "Journal entrepôt",
+      "pnl": "P&L global",
+      "productsMargins": "Produits & marges",
+      "stockInventory": "Stock & inventaire",
+      "adSpend": "Dépenses pub",
+      "activeProspects": "Prospects",
+      "followUps": "Relances",
+      "performanceLive": "Performance",
+      "access": "Accès",
+      "marketsConfig": "Marchés & storefronts",
+      "carriersConfig": "Transporteurs",
+      "generalSettings": "Paramètres",
+      "logs": "Journaux"
+    },
+    "a11y": {
+      "expandSection": "Déplier la section {section}",
+      "collapseSection": "Replier la section {section}"
     },
     "markets": {
       "label": "Marchés",
@@ -40,12 +64,262 @@
       "all": "Tous les marchés",
       "ariaLabel": "Marché actuel : {market}"
     },
-    "warehouse": "Entrepôt",
     "roles": {
       "super_admin": "Super admin",
       "market_manager": "Market manager",
       "agent": "Agent",
       "warehouse_agent": "Agent entrepôt"
+    }
+  },
+  "carrierTracking": {
+    "title": "Suivi transporteur",
+    "subtitle": "Commandes en livraison, agrégées par transporteur.",
+    "loading": "Chargement du suivi…",
+    "loadError": "Impossible de charger le suivi transporteur.",
+    "noCarriers": "Aucun transporteur actif pour ce marché.",
+    "unnamedCarrier": "Transporteur sans nom",
+    "unknownCustomer": "Client inconnu",
+    "unassignedWarning": "{count, plural, one {# commande dispatchée sans transporteur assigné} other {# commandes dispatchées sans transporteur assigné}}",
+    "inFlight": "{count, plural, one {# commande en circulation} other {# commandes en circulation}}",
+    "stuck": "{count, plural, one {# bloquée} other {# bloquées}}",
+    "status": {
+      "dispatched": "Dispatché",
+      "deposit": "Dépôt",
+      "in_transit": "En transit",
+      "to_be_returned": "À retourner"
+    },
+    "story": "{inFlight} en circulation · médiane {median} j · {rate}% livrés 30 j",
+    "trends": {
+      "degrading": "Dégradation",
+      "degradationTitle": "Performance transporteur en baisse",
+      "degradationBody": "Taux de livraison en recul sur 30 j pour : {names}. Envisager d'ajuster la répartition."
+    },
+    "rates": {
+      "title": "Taux de livraison (livrés / livrés + retournés)",
+      "d7": "7 jours",
+      "d30": "30 jours",
+      "d90": "90 jours"
+    },
+    "cost": {
+      "title": "Coût transport (30 j)",
+      "periodSpend": "Coût total 30 j",
+      "perDelivered": "Coût par livrée",
+      "delivered": "Livrées 30 j"
+    },
+    "stuckOrders": {
+      "title": "Commandes bloquées",
+      "empty": "Aucune commande bloquée chez ce transporteur.",
+      "cols": {
+        "customer": "Client",
+        "city": "Ville",
+        "status": "Statut",
+        "lastUpdate": "Dernière MAJ",
+        "age": "Âge"
+      },
+      "ageHours": "{hours}h"
+    },
+    "transitions": {
+      "title": "Transitions récentes",
+      "empty": "Aucune transition récente."
+    }
+  },
+  "inventory": {
+    "title": "Stock & inventaire",
+    "subtitle": "Valeur du stock, couverture et mouvements — dernières 30 jours.",
+    "loading": "Chargement du stock…",
+    "loadError": "Impossible de charger l'inventaire.",
+    "totals": {
+      "stockValue": "Valeur du stock",
+      "productsTracked": "{count, plural, one {# produit suivi} other {# produits suivis}}",
+      "lowStock": "Stock bas",
+      "outOfStock": "Rupture de stock",
+      "damaged": "Retours endommagés",
+      "scannedOut30d": "{count} unités scannées sur 30 jours"
+    },
+    "healthBreakdown": {
+      "healthy": "Sain",
+      "healthy_hint": "≥ 14 j de couverture",
+      "reorder": "À recommander",
+      "reorder_hint": "Rupture prévue < 14 j",
+      "low": "Stock bas",
+      "low_hint": "Sous le seuil ou < 14 j",
+      "out": "En rupture",
+      "out_hint": "Stock à zéro",
+      "overstocked": "Sur-stocké",
+      "overstocked_hint": "> 90 j de couverture"
+    },
+    "healthPill": {
+      "healthy": "Sain",
+      "low": "Bas",
+      "out": "Rupture",
+      "overstocked": "Sur-stocké"
+    },
+    "reorder": {
+      "title": "À recommander (14 prochains jours)",
+      "empty": "Tous les produits ont une couverture suffisante.",
+      "stockOut": "Rupture prévue dans {days} j · {rate}/j",
+      "daysShort": "{days} j"
+    },
+    "products": {
+      "title": "Produits",
+      "empty": "Aucun produit actif dans ce marché.",
+      "thresholdShort": "/{threshold}",
+      "daysShort": "{days} j",
+      "cols": {
+        "name": "Produit",
+        "health": "État",
+        "stock": "Stock",
+        "daysOfSupply": "Couverture",
+        "turnover": "Rotation 30 j",
+        "value": "Valeur",
+        "damaged": "Endommagés"
+      }
+    },
+    "movementsTimeline": {
+      "title": "Mouvements par jour (14 j)",
+      "empty": "Aucun mouvement sur les 14 derniers jours.",
+      "countShort": "{count} mvt"
+    },
+    "movements": {
+      "title": "Mouvements récents",
+      "empty": "Aucun mouvement récent.",
+      "balanceShort": "→ {balance}",
+      "hasOrder": "Voir la commande",
+      "reasons": {
+        "deposit": "Sortie (dépôt)",
+        "returned": "Retour",
+        "damaged_return": "Retour endommagé",
+        "manual_adjustment": "Ajustement manuel",
+        "damaged_writeoff": "Démarque",
+        "manual_restock": "Réappro manuel",
+        "initial_stock": "Stock initial"
+      }
+    },
+    "adjust": {
+      "button": "Ajuster",
+      "openLabel": "Ajuster le stock de {name}",
+      "title": "Ajuster le stock · {name}",
+      "close": "Fermer",
+      "currentStock": "Stock actuel : {value}",
+      "reasonLabel": "Motif",
+      "reasons": {
+        "manual_adjustment": "Ajustement manuel",
+        "damaged_writeoff": "Démarque (endommagé)"
+      },
+      "changeLabel": "Variation",
+      "changeHint": "Entier non nul. Ex. +5 pour réappro, -2 pour correction.",
+      "changeHintDamaged": "Doit être négatif (démarque).",
+      "noteLabel": "Note (obligatoire)",
+      "noteHint": "Raison de l'ajustement — tracée dans le journal.",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "cancel": "Annuler",
+      "errorGeneric": "Ajustement impossible. Réessayez."
+    }
+  },
+  "pnl": {
+    "title": "P&L global",
+    "subtitle": "Revenu, coûts et profit net par période.",
+    "loading": "Chargement des chiffres…",
+    "loadError": "Impossible de charger les données financières.",
+    "noData": "Aucune donnée pour la période sélectionnée.",
+    "kpi": {
+      "revenue": "Chiffre d'affaires",
+      "netProfit": "Profit net",
+      "margin": "Marge",
+      "adSpend": "Dépenses publicitaires",
+      "deliveredCount": "{count, plural, one {# livrée} other {# livrées}}"
+    },
+    "breakdown": {
+      "title": "Décomposition des coûts",
+      "rows": {
+        "revenue": "Chiffre d'affaires",
+        "cogs": "COGS (coût des produits)",
+        "delivery": "Frais de livraison",
+        "returns": "Frais de retour",
+        "packing": "Coût d'emballage",
+        "ads": "Dépenses publicitaires",
+        "netProfit": "Profit net"
+      }
+    }
+  },
+  "alerts": {
+    "title": "Alertes",
+    "subtitleZero": "Rien ne nécessite votre attention. Tout va bien.",
+    "subtitleCount": "{count, plural, one {# alerte active} other {# alertes actives}}",
+    "loading": "Chargement…",
+    "loadError": "Impossible de charger les alertes. Réessayez dans un instant.",
+    "actionError": "Action impossible. Réessayez dans un instant.",
+    "refresh": "Actualiser",
+    "historyButton": "Historique",
+    "listTitle": "File prioritaire",
+    "listTitleFiltered": "File prioritaire · {count} sur {total}",
+    "selectAll": "Tout sélectionner",
+    "deselectAll": "Tout désélectionner",
+    "selectedCount": "{count, plural, one {# sélectionnée} other {# sélectionnées}}",
+    "clearSelection": "Effacer la sélection",
+    "selectAlert": "Sélectionner : {title}",
+    "pickAgent": "Choisir un agent",
+    "noAgents": "Aucun agent disponible",
+    "close": "Fermer",
+    "filterAllTypes": "Tous les types",
+    "allClearTitle": "Tout est sous contrôle",
+    "allClearSubtitle": "Aucune alerte active. Les nouvelles alertes apparaîtront ici en temps réel.",
+    "noneMatchFilter": "Aucune alerte pour ces filtres",
+    "adjustFilters": "Ajustez les filtres pour voir plus d'éléments.",
+    "historyTitle": "Historique · 7 derniers jours",
+    "historyEmpty": "Aucune action sur les 7 derniers jours.",
+    "acknowledgedAt": "acquittée le {when}",
+    "snoozedUntil": "reportée jusqu'au {when}",
+    "minutesShort": "{count} min",
+    "hoursShort": "{count} h",
+    "severity": {
+      "critical": "Critique",
+      "high": "Élevée",
+      "medium": "Moyenne",
+      "low": "Basse"
+    },
+    "actions": {
+      "acknowledge": "Acquitter",
+      "snooze1h": "Reporter 1 h",
+      "snooze1d": "Reporter 24 h",
+      "reassign": "Réassigner"
+    },
+    "meta": {
+      "overdueBy": "en retard de {value}",
+      "ageSuffix": "attend depuis {value}",
+      "stuckHours": "bloquée {hours} h",
+      "stuckDays": "bloquée {days} j",
+      "pendingReturns": "{count} retours en attente",
+      "remaining": "{count} restant",
+      "depleted": "rupture",
+      "inactiveFor": "inactif depuis {value}"
+    },
+    "types": {
+      "dispatch_failure": {
+        "label": "Dispatch bloqué"
+      },
+      "carrier_webhook_stale": {
+        "label": "Webhook transporteur silencieux"
+      },
+      "overdue_callback": {
+        "label": "Rappel en retard"
+      },
+      "unassigned_overflow": {
+        "label": "Non assignée"
+      },
+      "return_bottleneck": {
+        "label": "Retours à traiter"
+      },
+      "low_stock": {
+        "label": "Stock bas"
+      },
+      "stock_depleted": {
+        "label": "Rupture de stock"
+      },
+      "agent_inactive": {
+        "label": "Agent inactif"
+      }
     }
   },
   "dashboard": {
@@ -68,7 +342,9 @@
       "agents": "Agents",
       "idleSuffix": "inactifs",
       "offlineSuffix": "hors ligne",
-      "vsPreviousPeriod": "vs période précédente"
+      "vsPreviousPeriod": "vs période précédente",
+      "deliveryRate": "Taux de livraison",
+      "openOrders": "Commandes ouvertes"
     },
     "filters": {
       "today": "Aujourd'hui",
@@ -77,14 +353,20 @@
       "custom": "Personnalisé",
       "allMarkets": "Tous les marchés",
       "marketPlaceholder": "Choisir un marché",
-      "lastUpdated": "MAJ il y a"
+      "lastUpdated": "MAJ il y a",
+      "vsYesterday": "vs hier",
+      "vsLastWeek": "vs sem. dernière",
+      "vsLastMonth": "vs mois dernier",
+      "vsPrevious": "vs période préc."
     },
     "sections": {
       "trend": "Confirmation & rejet — 30 derniers jours",
       "pipeline": "Pipeline en cours",
       "presence": "Équipe en direct",
       "rejections": "Motifs de rejet",
-      "markets": "Marchés"
+      "markets": "Marchés",
+      "topPerformers": "Top performeurs aujourd'hui",
+      "topProducts": "Produits les plus performants"
     },
     "presence": {
       "online": "en ligne",
@@ -118,11 +400,108 @@
       "followUps": "Suivis ouverts",
       "campaigns": "Campagnes actives",
       "adSpend": "Dépenses pub"
+    },
+    "attention": {
+      "overdueCallbacks": "{count, plural, one {# rappel en retard} other {# rappels en retard}}",
+      "unassignedOverflow": "{count, plural, one {# commande non assignée > 2 h} other {# commandes non assignées > 2 h}}",
+      "lowStock": "{count, plural, one {# produit en stock bas} other {# produits en stock bas}}",
+      "viewAll": "Voir tout",
+      "allClear": "Tout va bien"
+    },
+    "insights": {
+      "confAboveAvg": "Confirmation +{diff} pp vs moyenne 7 j",
+      "confBelowAvg": "Confirmation \u2212{diff} pp vs moyenne 7 j",
+      "topProduct": "Produit top : {name} ({count} livrées)",
+      "leadingAgent": "Leader : {name} ({rate} %)"
+    },
+    "topPerformers": {
+      "confirmed": "confirmées",
+      "onlineCount": "{online}/{total} agents en ligne",
+      "viewAll": "Voir l'équipe",
+      "empty": "Aucun agent actif aujourd'hui"
+    },
+    "topProducts": {
+      "delivered": "livrées",
+      "revenue": "CA réalisé",
+      "empty": "Aucune livraison sur la période"
     }
   },
   "adSpend": {
-    "title": "Dépenses publicitaires",
-    "subtitle": "Gérer les entrées de dépenses publicitaires par marché et par période."
+    "title": "Dépenses pub",
+    "subtitle": "Gérez vos investissements publicitaires et visualisez leurs résultats réels.",
+    "addEntry": "Nouvelle dépense",
+    "importCsv": "Importer CSV",
+    "timelineTitle": "Évolution sur 12 semaines",
+    "campaignsTitle": "Campagnes",
+    "empty": "Aucune dépense pour cette période",
+    "refreshing": "Actualisation…",
+    "cancel": "Annuler",
+    "deleteTitle": "Supprimer cette dépense ?",
+    "deleteDescription": "Dépense de {amount} TND — cette action est irréversible.",
+    "deleteConfirm": "Supprimer",
+    "rollups": {
+      "thisWeek": "Cette semaine",
+      "thisMonth": "Ce mois",
+      "ytd": "Depuis janvier",
+      "avgCostPerConf": "Coût / confirmation",
+      "conf": "conf"
+    },
+    "card": {
+      "marketWide": "Marché entier",
+      "locked": "Fermé",
+      "lockedTooltip": "Période clôturée — modification super_admin uniquement",
+      "confirmations": "Confirmations",
+      "conf": "conf",
+      "none": "Aucune",
+      "roas": "ROAS",
+      "revenue": "CA",
+      "noRevenue": "Pas encore de CA",
+      "edit": "Modifier",
+      "delete": "Supprimer"
+    },
+    "modal": {
+      "titleNew": "Nouvelle dépense",
+      "titleEdit": "Modifier la dépense",
+      "fieldStart": "Début de période",
+      "fieldEnd": "Fin de période",
+      "fieldAmount": "Montant",
+      "fieldProduct": "Produit",
+      "productMarketWide": "Marché entier (sans produit)",
+      "fieldNote": "Note",
+      "notePlaceholder": "Optionnel",
+      "lockedWarning": "Période clôturée",
+      "lockedConfirm": "Je confirme la modification d'une période clôturée",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "errorAmount": "Le montant doit être supérieur à 0",
+      "errorPeriod": "Les dates de début et fin sont requises",
+      "errorPeriodOrder": "La date de début doit être avant la date de fin",
+      "errorGeneric": "Une erreur est survenue"
+    },
+    "import": {
+      "title": "Importer depuis CSV",
+      "description": "Collez ou importez un export Meta Ads ou TikTok Ads. Les colonnes sont détectées automatiquement.",
+      "chooseFile": "Choisir un fichier",
+      "orPaste": "ou coller directement",
+      "pastePlaceholder": "Collez ici l'export CSV (Meta ou TikTok)…",
+      "parse": "Analyser",
+      "cancel": "Annuler",
+      "back": "Retour",
+      "import": "Importer {count} ligne(s)",
+      "previewDescription": "{count} ligne(s) détectée(s) — associez chaque campagne à un produit ou laissez « Marché entier ».",
+      "marketWide": "Marché entier",
+      "colCampaign": "Campagne",
+      "colStart": "Début",
+      "colEnd": "Fin",
+      "colAmount": "Montant",
+      "colProduct": "Produit",
+      "successTitle": "{count} dépense(s) importée(s)",
+      "successRejected": "{count} ligne(s) ignorée(s) (invalides)",
+      "close": "Fermer",
+      "errorEmpty": "Aucun contenu à analyser",
+      "errorUnknownFormat": "Format non reconnu. Utilisez un export Meta ou TikTok.",
+      "errorNoRows": "Aucune ligne valide trouvée"
+    }
   },
   "orders": {
     "title": "Commandes",
@@ -967,10 +1346,50 @@
   "warehouse": {
     "loading": "Chargement…",
     "nav": {
+      "preparation": "Préparation",
       "toLabel": "À étiqueter",
       "toScan": "À scanner",
       "returns": "Retours",
       "history": "Historique"
+    },
+    "preparation": {
+      "trayTitle": "Plateau de travail",
+      "scannerTitle": "Scan sortie",
+      "stats": {
+        "labelsPrinted": "Étiquettes imprimées",
+        "ordersScanned": "Commandes scannées",
+        "avgCycle": "Temps moyen",
+        "traySize": "Plateau"
+      },
+      "tray": {
+        "empty": "Ajoutez des commandes depuis la liste ci-dessous",
+        "printBtn": "Imprimer {count} étiquette(s)",
+        "printing": "Génération du PDF…",
+        "selectAll": "Tout sélectionner",
+        "progress": "{scanned} / {total} scannée(s)",
+        "traySizeWarning": "Limite de 100 commandes atteinte"
+      },
+      "scanner": {
+        "inputPlaceholder": "Scanner ou saisir l'ID de commande…",
+        "feedbackIdle": "En attente d'un scan…",
+        "recentTitle": "Scans récents",
+        "recentEmpty": "Aucun scan pour le moment",
+        "stockAfter": "Stock : {stock}"
+      },
+      "backlog": {
+        "title": "Commandes à préparer",
+        "empty": "Aucune commande en attente d'étiquetage",
+        "colCity": "Destination",
+        "colCustomer": "Client",
+        "colProduct": "Produit",
+        "colId": "ID",
+        "addToTray": "Ajouter",
+        "inTray": "Dans le plateau",
+        "newReveal": "Nouvelles commandes — actualiser",
+        "dismiss": "Ignorer",
+        "lowStock": "Stock bas",
+        "criticalStock": "Rupture"
+      }
     },
     "overview": {
       "title": "Entrepôt",
@@ -1025,7 +1444,7 @@
     },
     "returns": {
       "title": "Retours à traiter ({count})",
-      "hint": "Choisissez l'état du colis, puis scannez le QR code du retour.",
+      "hint": "Scannez ou sélectionnez un retour, puis tranchez : remettre en stock ou écart perte.",
       "damagedLabel": "État du colis",
       "conditionOk": "OK",
       "conditionOkHint": "Retour en bon état — stock +1",
@@ -1037,17 +1456,67 @@
       "recentEmpty": "Aucun retour pour le moment",
       "queueTitle": "File d'attente ({count})",
       "queueEmpty": "Aucun retour en attente",
+      "inBatchLabel": "· en lot",
       "damagedBadge": "Endommagé",
       "stockAfter": "Stock : {stock}",
-      "damagedCount": "Endommagés : {count}"
+      "damagedCount": "Endommagés : {count}",
+      "decision": {
+        "heading": "Décidez ce retour",
+        "restock": "Remettre en stock",
+        "restockHint": "Produit revendable — stock +{qty}",
+        "damage": "Marquer endommagé",
+        "damageHint": "Écart perte — compteur dégâts +{qty}",
+        "reasonTitle": "Raison",
+        "reasonPackaging": "Emballage",
+        "reasonProductDefect": "Défaut produit",
+        "reasonCustomerDamage": "Dégât client",
+        "reasonCarrierDamage": "Dégât transporteur",
+        "reasonOther": "Autre",
+        "reasonNotePlaceholder": "Préciser la raison (obligatoire)",
+        "photoTitle": "Photo (optionnelle)",
+        "photoHint": "Preuve pour réclamation transporteur",
+        "photoAdd": "Ajouter une photo",
+        "photoReplace": "Remplacer",
+        "photoRemove": "Retirer",
+        "photoUploading": "Téléversement…",
+        "addToBatch": "Ajouter au lot",
+        "commitNow": "Valider maintenant",
+        "cancel": "Annuler",
+        "returnRate": "{percent}% de retours ({returned}/{total})",
+        "returnRateZero": "Pas encore d'historique",
+        "returnRateHigh": "Taux élevé — à signaler"
+      },
+      "batch": {
+        "trayTitle": "{count, plural, one {# retour prêt} other {# retours prêts}}",
+        "trayHint": "Valider le lot finalisera chaque retour individuellement.",
+        "commit": "Valider le lot ({count})",
+        "clear": "Vider",
+        "remove": "Retirer",
+        "committing": "Validation en cours…",
+        "summarySuccess": "{count} retour(s) validé(s)",
+        "summaryFailed": "{count} échec(s)",
+        "emptyHint": "Aucun retour dans le lot. Prenez une décision ci-dessus."
+      },
+      "errors": {
+        "reasonRequired": "Choisissez une raison avant de valider.",
+        "noteRequired": "Saisissez la précision pour « Autre ».",
+        "photoUploadFailed": "Téléversement de la photo échoué.",
+        "photoTooLarge": "Photo trop volumineuse (max 4 Mo).",
+        "photoType": "Format accepté : JPEG, PNG, WebP."
+      }
     },
     "history": {
-      "title": "Historique entrepôt",
-      "empty": "Aucune entrée pour ce filtre",
+      "title": "Journal entrepôt",
+      "empty": {
+        "noFilters": "Le journal est vide. Dès qu'un scan, une impression ou un ajustement a lieu, il apparaîtra ici.",
+        "filtered": "Aucun événement ne correspond à ces filtres."
+      },
       "kind": {
         "print": "Impression",
         "scan": "Scan sortie",
-        "return": "Retour"
+        "return": "Retour",
+        "adjust": "Ajustement",
+        "writeoff": "Dépréciation"
       },
       "filter": {
         "ariaLabel": "Filtrer par type",
@@ -1055,7 +1524,14 @@
         "print": "Impressions",
         "scan": "Scans",
         "return": "Retours",
-        "searchPlaceholder": "Rechercher (client, ID…)"
+        "adjust": "Ajustements",
+        "writeoff": "Dépréciations",
+        "searchPlaceholder": "Rechercher (client, produit, note…)",
+        "anomaliesOnly": "Anomalies",
+        "view": {
+          "timeline": "Timeline",
+          "flat": "Liste"
+        }
       },
       "col": {
         "kind": "Type",
@@ -1071,8 +1547,29 @@
         "kind": "Type",
         "date": "Date",
         "search": "Recherche",
+        "actor": "Opérateur",
+        "product": "Produit",
+        "anomalies": "Anomalies",
         "remove": "Retirer",
         "clearAll": "Tout effacer"
+      },
+      "session": {
+        "system": "Système",
+        "scans": "{count, plural, one {# scan} other {# scans}}",
+        "returns": "{count, plural, one {# retour} other {# retours}}",
+        "prints": "{count, plural, one {# impression} other {# impressions}}",
+        "adjusts": "{count, plural, one {# ajustement} other {# ajustements}}"
+      },
+      "row": {
+        "stockChange": "stock {qty} → {after}"
+      },
+      "anomaly": {
+        "volume_outlier": "Volume inhabituel pour cet opérateur",
+        "damage_concentration": "Concentration de dégâts sur ce produit",
+        "post_scan_adjustment": "Ajustement négatif peu après un scan"
+      },
+      "export": {
+        "csv": "Exporter CSV"
       },
       "loadingMore": "Chargement…",
       "footerCount": "{count} entrée(s)"
@@ -1190,6 +1687,75 @@
       "keyHint": "Minuscules, chiffres et underscores. Exemple: blocked_customs",
       "keyInvalid": "Format invalide — utilisez minuscules/chiffres/underscores uniquement.",
       "keyConflict": "Cette clé existe déjà pour ce marché et cette portée."
+    }
+  },
+  "logs": {
+    "title": "Journaux système",
+    "subtitle": "Audit technique des webhooks entrants et des événements transporteur. Super admin uniquement.",
+    "tabs": {
+      "webhooks": "Webhooks",
+      "carrier": "Transporteurs"
+    },
+    "failuresOnly": "Échecs uniquement",
+    "searchPlaceholder": "ID externe, tracking, message d'erreur…",
+    "searchAria": "Rechercher dans les journaux",
+    "refresh": "Actualiser",
+    "loading": "Chargement…",
+    "empty": "Aucune entrée trouvée.",
+    "prev": "Page précédente",
+    "next": "Page suivante",
+    "paginationLabel": "{total, plural, one {# entrée} other {# entrées}} — page {page} / {totalPages}",
+    "retentionNote": "Les entrées de plus de 90 jours sont archivées en stockage froid.",
+    "cols": {
+      "date": "Date",
+      "source": "Source",
+      "event": "Événement",
+      "externalId": "ID externe",
+      "status": "Statut",
+      "order": "Commande",
+      "message": "Message",
+      "carrier": "Transporteur",
+      "carrierSource": "Canal",
+      "tracking": "Tracking",
+      "rawStatus": "Statut brut",
+      "outcome": "Résultat",
+      "reason": "Détail"
+    },
+    "outcome": {
+      "processed": "Traité",
+      "ignored": "Ignoré",
+      "error": "Erreur",
+      "unknown": "—"
+    },
+    "stats": {
+      "webhookRate": "Webhooks",
+      "carrierRate": "Transporteurs",
+      "window60": "60 dernières minutes"
+    },
+    "inspector": {
+      "title": "Inspecteur de charge utile",
+      "webhookTitle": "Livraison webhook",
+      "carrierTitle": "Événement transporteur",
+      "close": "Fermer",
+      "date": "Date",
+      "errorMessage": "Erreur",
+      "reason": "Raison",
+      "searchPayload": "Filtrer dans la charge utile…",
+      "copy": "Copier",
+      "copied": "Copié",
+      "noPayload": "Aucune charge utile enregistrée.",
+      "noSearchMatch": "Aucune ligne correspondante."
+    },
+    "replay": {
+      "action": "Rejouer",
+      "inProgress": "Rejeu en cours…",
+      "help": "Relance le traitement du webhook. Les contraintes d'unicité sur les commandes protègent contre les doublons.",
+      "success": "Rejeu réussi — commande créée.",
+      "duplicate": "Rejeu OK — la commande existait déjà, aucune écriture supplémentaire.",
+      "error": "Échec du rejeu : {message}",
+      "ambiguous": "Rejeu terminé sans confirmation claire : {message}",
+      "noDetail": "aucun détail",
+      "networkError": "Erreur réseau pendant le rejeu."
     }
   }
 }

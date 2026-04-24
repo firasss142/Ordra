@@ -5,6 +5,9 @@ import {
   buildDailyTrend,
   computeDelta,
   previousPeriod,
+  computeDeliveryRate,
+  aggregateDeliveryCounts,
+  aggregateTopProducts,
   type HistoryRow,
 } from "./summary";
 
@@ -132,5 +135,83 @@ describe("previousPeriod", () => {
   it("handles a single-day period", () => {
     const prev = previousPeriod("2026-04-10", "2026-04-10");
     expect(prev).toEqual({ from: "2026-04-09", to: "2026-04-09" });
+  });
+});
+
+describe("computeDeliveryRate", () => {
+  it("returns 0 when no delivered or returned orders", () => {
+    expect(computeDeliveryRate(0, 0)).toBe(0);
+  });
+
+  it("returns 100 when all delivered, none returned", () => {
+    expect(computeDeliveryRate(10, 0)).toBe(100);
+  });
+
+  it("returns correct percentage rounded to 1dp", () => {
+    expect(computeDeliveryRate(7, 3)).toBe(70.0);
+    expect(computeDeliveryRate(1, 2)).toBe(33.3);
+  });
+});
+
+describe("aggregateDeliveryCounts", () => {
+  it("counts delivered and returned rows", () => {
+    const rows = [
+      { status_to: "delivered" },
+      { status_to: "delivered" },
+      { status_to: "returned" },
+      { status_to: "confirmed" }, // ignored
+    ];
+    expect(aggregateDeliveryCounts(rows)).toEqual({ delivered: 2, returned: 1 });
+  });
+
+  it("returns zeros on empty input", () => {
+    expect(aggregateDeliveryCounts([])).toEqual({ delivered: 0, returned: 0 });
+  });
+});
+
+describe("aggregateTopProducts", () => {
+  function pRow(productId: string, name: string, price: number) {
+    return {
+      orders: {
+        product_id: productId,
+        total_price: price,
+        products: { name },
+      },
+    };
+  }
+
+  it("groups by product_id and sorts by delivered_count desc", () => {
+    const rows = [
+      pRow("p1", "iPhone 14", 500),
+      pRow("p2", "Samsung A54", 300),
+      pRow("p1", "iPhone 14", 500),
+      pRow("p2", "Samsung A54", 300),
+      pRow("p2", "Samsung A54", 300),
+    ];
+    const result = aggregateTopProducts(rows);
+    expect(result[0].product_id).toBe("p2");
+    expect(result[0].delivered_count).toBe(3);
+    expect(result[1].product_id).toBe("p1");
+    expect(result[1].delivered_count).toBe(2);
+  });
+
+  it("sums revenue correctly", () => {
+    const rows = [pRow("p1", "A", 100), pRow("p1", "A", 200)];
+    const result = aggregateTopProducts(rows);
+    expect(result[0].revenue).toBe(300);
+  });
+
+  it("returns at most 5 products", () => {
+    const rows = Array.from({ length: 10 }, (_, i) => pRow(`p${i}`, `Prod ${i}`, 100));
+    expect(aggregateTopProducts(rows)).toHaveLength(5);
+  });
+
+  it("returns empty array on empty input", () => {
+    expect(aggregateTopProducts([])).toEqual([]);
+  });
+
+  it("skips rows where product_id is null", () => {
+    const rows = [{ orders: { product_id: null, total_price: 100, products: null } }];
+    expect(aggregateTopProducts(rows)).toEqual([]);
   });
 });

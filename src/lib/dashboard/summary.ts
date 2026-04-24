@@ -28,9 +28,17 @@ export interface DashboardKpis {
   confirmationRate: KpiValue;
   rejectionRate: KpiValue;
   ordersProcessed: KpiValue;
+  deliveryRate: KpiValue;
   agentsOnline: number;
   agentsTotal: number;
   agentsIdle: number;
+}
+
+export interface TopProductStat {
+  product_id: string;
+  product_name: string;
+  delivered_count: number;
+  revenue: number | null;
 }
 
 export interface TrendPoint {
@@ -92,6 +100,7 @@ export interface DashboardSummary {
   rejectionBreakdown: RejectionRow[];
   presence: PresenceAgent[];
   markets: MarketSnapshot[];
+  topProducts: TopProductStat[];
   footer: FooterMetrics;
   selectedMarket: { id: string; name: string; currency: string } | null;
   availableMarkets: { id: string; name: string; code: string; currency: string }[];
@@ -363,6 +372,60 @@ async function fetchNonFinancialCounts(
   };
 }
 
+export function computeDeliveryRate(delivered: number, returned: number): number {
+  const total = delivered + returned;
+  return total === 0 ? 0 : Math.round((delivered / total) * 1000) / 10;
+}
+
+type DeliveryRow = { status_to: string };
+
+export function aggregateDeliveryCounts(rows: DeliveryRow[]): { delivered: number; returned: number } {
+  let delivered = 0;
+  let returned = 0;
+  for (const r of rows) {
+    if (r.status_to === "delivered") delivered++;
+    else if (r.status_to === "returned") returned++;
+  }
+  return { delivered, returned };
+}
+
+type ProductRow = {
+  orders: {
+    product_id: string | null;
+    total_price: number | string;
+    products: { name: string } | null;
+  } | null;
+};
+
+export function aggregateTopProducts(rows: ProductRow[]): TopProductStat[] {
+  const map = new Map<string, { name: string; count: number; revenue: number }>();
+  for (const r of rows) {
+    const o = r.orders;
+    if (!o?.product_id) continue;
+    const existing = map.get(o.product_id);
+    const price = Number(o.total_price ?? 0);
+    if (existing) {
+      existing.count++;
+      existing.revenue += price;
+    } else {
+      map.set(o.product_id, {
+        name: o.products?.name ?? o.product_id,
+        count: 1,
+        revenue: price,
+      });
+    }
+  }
+  return Array.from(map.entries())
+    .map(([id, v]) => ({
+      product_id: id,
+      product_name: v.name,
+      delivered_count: v.count,
+      revenue: v.revenue,
+    }))
+    .sort((a, b) => b.delivered_count - a.delivered_count)
+    .slice(0, 5);
+}
+
 export async function getDashboardSummary(
   input: DashboardSummaryInput,
 ): Promise<DashboardSummary> {
@@ -443,6 +506,33 @@ export async function getDashboardSummary(
     .limit(1000);
   if (scopedMarketId) agentsQuery = agentsQuery.eq("market_id", scopedMarketId);
 
+  let deliveryHistoryQuery = supabase
+    .from("order_history")
+    .select("status_to, orders!inner(market_id)")
+    .in("status_to", ["delivered", "returned"])
+    .gte("created_at", fromDate)
+    .lte("created_at", dateLte)
+    .limit(50000);
+  if (scopedMarketId) deliveryHistoryQuery = deliveryHistoryQuery.eq("orders.market_id", scopedMarketId);
+
+  let prevDeliveryHistoryQuery = supabase
+    .from("order_history")
+    .select("status_to, orders!inner(market_id)")
+    .in("status_to", ["delivered", "returned"])
+    .gte("created_at", prev.from)
+    .lte("created_at", prevLte)
+    .limit(50000);
+  if (scopedMarketId) prevDeliveryHistoryQuery = prevDeliveryHistoryQuery.eq("orders.market_id", scopedMarketId);
+
+  let topProductsQuery = supabase
+    .from("order_history")
+    .select("orders!inner(market_id, total_price, product_id, products!inner(name))")
+    .eq("status_to", "delivered")
+    .gte("created_at", fromDate)
+    .lte("created_at", dateLte)
+    .limit(50000);
+  if (scopedMarketId) topProductsQuery = topProductsQuery.eq("orders.market_id", scopedMarketId);
+
   const followUpsPromise = isSuperAdmin
     ? supabase
         .from("follow_ups")
@@ -462,6 +552,9 @@ export async function getDashboardSummary(
     periodHistoryResult,
     trendHistoryResult,
     agentsResult,
+    deliveryHistoryResult,
+    prevDeliveryHistoryResult,
+    topProductsResult,
     followUpsResult,
     campaignsResult,
   ] = await Promise.all([
@@ -470,6 +563,9 @@ export async function getDashboardSummary(
     periodHistoryQuery,
     trendHistoryQuery,
     agentsQuery,
+    deliveryHistoryQuery,
+    prevDeliveryHistoryQuery,
+    topProductsQuery,
     followUpsPromise,
     campaignsPromise,
   ]);
@@ -647,12 +743,20 @@ export async function getDashboardSummary(
       ? Math.round((periodCounts.rejected / periodCounts.actioned) * 1000) / 10
       : 0;
 
+  const currDelivery = aggregateDeliveryCounts((deliveryHistoryResult.data ?? []) as DeliveryRow[]);
+  const prevDelivery = aggregateDeliveryCounts((prevDeliveryHistoryResult.data ?? []) as DeliveryRow[]);
+  const currentDeliveryRate = computeDeliveryRate(currDelivery.delivered, currDelivery.returned);
+  const prevDeliveryRate = computeDeliveryRate(prevDelivery.delivered, prevDelivery.returned);
+
+  const topProducts = aggregateTopProducts((topProductsResult.data ?? []) as unknown as ProductRow[]);
+
   const kpis: DashboardKpis = {
     revenue,
     netProfit,
     confirmationRate: computeDelta(currentConfRate, prevCountsResult.confirmationRate),
     rejectionRate: computeDelta(currentRejRate, prevCountsResult.rejectionRate),
     ordersProcessed: computeDelta(periodCounts.actioned, prevCountsResult.ordersProcessed),
+    deliveryRate: computeDelta(currentDeliveryRate, prevDeliveryRate),
     agentsOnline,
     agentsTotal,
     agentsIdle,
@@ -698,6 +802,7 @@ export async function getDashboardSummary(
     rejectionBreakdown,
     presence,
     markets,
+    topProducts,
     footer,
     selectedMarket,
     availableMarkets: allMarkets,

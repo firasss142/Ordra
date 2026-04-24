@@ -1,25 +1,25 @@
 "use client";
 
 import { useMemo, useState, useCallback } from "react";
-import dynamic from "next/dynamic";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import { HeroKpiStrip } from "@/components/dashboard/HeroKpiStrip";
-import { PresencePanel } from "@/components/dashboard/PresencePanel";
 import { MarketsStrip } from "@/components/dashboard/MarketsStrip";
 import { FilterBar, type Period, type PeriodPreset } from "@/components/dashboard/FilterBar";
 import { FooterLinks } from "@/components/dashboard/FooterLinks";
 import { HorizontalBars } from "@/components/dashboard/charts/HorizontalBars";
-import { Panel, EmptyState } from "@/components/dashboard/Panel";
+import { Panel } from "@/components/dashboard/Panel";
+import { AlertAttentionBar } from "@/components/dashboard/AlertAttentionBar";
+import { InsightsBand } from "@/components/dashboard/InsightsBand";
+import { TopPerformers } from "@/components/dashboard/TopPerformers";
+import { SecondaryKpiStrip } from "@/components/dashboard/SecondaryKpiStrip";
+import { TopPerformingProducts } from "@/components/dashboard/TopPerformingProducts";
+import { useAlerts } from "@/hooks/useAlerts";
+import { computeInsights } from "@/lib/dashboard/insights";
 import { canViewProfitability } from "@/lib/role-permissions";
 import type { DashboardSummary } from "@/lib/dashboard/summary";
 import type { AuthUser } from "@/types";
-
-const TrendChart = dynamic(
-  () => import("@/components/dashboard/charts/TrendChart").then((m) => m.TrendChart),
-  { ssr: false, loading: () => <ChartSkeleton height={240} /> },
-);
 
 interface DashboardClientProps {
   user: AuthUser;
@@ -28,27 +28,17 @@ interface DashboardClientProps {
   initialMarketId: string;
 }
 
-function ChartSkeleton({ height }: { height: number }) {
-  return (
-    <div
-      style={{
-        height,
-        background: "#F7F7F7",
-        borderRadius: 6,
-        animation: "pulse 1.5s ease-in-out infinite",
-      }}
-    />
-  );
+function buildSummaryKey(period: Period, marketId: string): string {
+  return `/api/dashboard/summary?from_date=${period.from_date}&to_date=${period.to_date}&market_id=${marketId}`;
 }
 
 export function DashboardClient({ user, initialPeriod, initialSummary, initialMarketId }: DashboardClientProps) {
   const t = useTranslations("dashboard");
-  const tRej = useTranslations("dashboard.rejectionReasons");
   const tPipe = useTranslations("dashboard.pipeline");
-  const router = useRouter();
   const pathname = usePathname();
   const locale = pathname.split("/")[1] ?? "fr";
   const isSuperAdmin = canViewProfitability(user.role);
+  const role: "super_admin" | "market_manager" = isSuperAdmin ? "super_admin" : "market_manager";
 
   const [period, setPeriod] = useState<Period>(initialPeriod);
   const [preset, setPreset] = useState<PeriodPreset>("today");
@@ -56,20 +46,21 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
     isSuperAdmin ? initialMarketId : (user.market_id ?? ""),
   );
 
-  const summaryKey = useMemo(() => {
-    const marketParam = isSuperAdmin
-      ? selectedMarketId === "all" || !selectedMarketId
-        ? "all"
-        : selectedMarketId
-      : user.market_id ?? "";
-    return `/api/dashboard/summary?from_date=${period.from_date}&to_date=${period.to_date}&market_id=${marketParam}`;
-  }, [isSuperAdmin, selectedMarketId, user.market_id, period.from_date, period.to_date]);
+  const effectiveMarketId = useMemo(() => {
+    if (!isSuperAdmin) return user.market_id ?? "";
+    if (selectedMarketId === "all" || !selectedMarketId) return "all";
+    return selectedMarketId;
+  }, [isSuperAdmin, selectedMarketId, user.market_id]);
 
-  // initialKey must match the server-prefetched key so fallbackData activates on first render.
+  const summaryKey = useMemo(
+    () => buildSummaryKey(period, effectiveMarketId),
+    [period, effectiveMarketId],
+  );
+
   const initialKey = useMemo(() => {
-    const mid = isSuperAdmin ? initialMarketId : (user.market_id ?? "");
-    return `/api/dashboard/summary?from_date=${initialPeriod.from_date}&to_date=${initialPeriod.to_date}&market_id=${mid}`;
-  }, [isSuperAdmin, initialMarketId, user.market_id, initialPeriod.from_date, initialPeriod.to_date]);
+    const mid = isSuperAdmin ? initialMarketId : user.market_id ?? "";
+    return buildSummaryKey(initialPeriod, mid);
+  }, [isSuperAdmin, initialMarketId, user.market_id, initialPeriod]);
 
   const { data, isLoading } = useSWR<{ data: DashboardSummary }>(
     summaryKey,
@@ -85,6 +76,32 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
 
   const agentsOffline = summary.kpis.agentsTotal - summary.kpis.agentsOnline - summary.kpis.agentsIdle;
 
+  const periodLabel = useMemo(() => {
+    if (preset === "today") return t("filters.vsYesterday");
+    if (preset === "week") return t("filters.vsLastWeek");
+    if (preset === "month") return t("filters.vsLastMonth");
+    return t("filters.vsPrevious");
+  }, [preset, t]);
+
+  const alertMarketId = effectiveMarketId === "all" ? undefined : effectiveMarketId || undefined;
+  const { byType, totalCount } = useAlerts({ marketId: alertMarketId });
+
+  const openOrdersCount = useMemo(
+    () => summary.pipeline.reduce((sum, p) => sum + p.count, 0),
+    [summary.pipeline],
+  );
+
+  const insights = useMemo(
+    () =>
+      computeInsights(summary, {
+        confAboveAvg: t("insights.confAboveAvg"),
+        confBelowAvg: t("insights.confBelowAvg"),
+        topProduct: t("insights.topProduct"),
+        leadingAgent: t("insights.leadingAgent"),
+      }),
+    [summary, t],
+  );
+
   const handlePeriodChange = useCallback((p: Period, newPreset: PeriodPreset) => {
     setPeriod(p);
     setPreset(newPreset);
@@ -94,42 +111,41 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
     setSelectedMarketId(marketId);
   }, []);
 
-  const pipelineRows = summary.pipeline.map((p) => ({
-    key: p.bucket,
-    label: tPipe(p.bucket),
-    value: p.count,
-  }));
+  const pipelineRows = useMemo(
+    () =>
+      summary.pipeline.map((p) => ({
+        key: p.bucket,
+        label: tPipe(p.bucket),
+        value: p.count,
+      })),
+    [summary.pipeline, tPipe],
+  );
 
-  const rejectionRows = summary.rejectionBreakdown.map((r) => ({
-    key: r.reason,
-    label: tRej(r.reason),
-    value: r.count,
-    display: `${r.pct.toFixed(1)}%`,
-  }));
-
-  const footerItems: Array<{ key: string; label: string; value: string; href?: string }> = [];
-  if (isSuperAdmin) {
-    footerItems.push({
+  const footerItems = useMemo(() => {
+    const items: Array<{ key: string; label: string; value: string; href?: string }> = [];
+    if (!isSuperAdmin) return items;
+    items.push({
       key: "followups",
       label: t("footer.followUps"),
       value: String(summary.footer.followUpsOpen),
       href: `/${locale}/follow-ups`,
     });
-    footerItems.push({
+    items.push({
       key: "campaigns",
       label: t("footer.campaigns"),
       value: String(summary.footer.campaignsActive),
       href: `/${locale}/follow-ups`,
     });
     if (summary.footer.adSpend != null) {
-      footerItems.push({
+      items.push({
         key: "adSpend",
         label: t("footer.adSpend"),
         value: `${Math.round(summary.footer.adSpend).toLocaleString()} ${currency}`,
         href: `/${locale}/settings/ad-spend`,
       });
     }
-  }
+    return items;
+  }, [isSuperAdmin, summary.footer, t, locale, currency]);
 
   return (
     <div
@@ -174,78 +190,102 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
         lastUpdatedAt={new Date()}
       />
 
+      <AlertAttentionBar
+        byType={byType}
+        totalCount={totalCount}
+        role={role}
+        locale={locale}
+        labels={{
+          overdueCallbacks: t("attention.overdueCallbacks", { count: byType?.overdue_callback ?? 0 }),
+          unassignedOverflow: t("attention.unassignedOverflow", { count: byType?.unassigned_overflow ?? 0 }),
+          lowStock: t("attention.lowStock", {
+            count: (byType?.low_stock ?? 0) + (byType?.stock_depleted ?? 0),
+          }),
+          viewAll: t("attention.viewAll"),
+          allClear: t("attention.allClear"),
+        }}
+      />
+
       <HeroKpiStrip
+        role={role}
         kpis={summary.kpis}
         trend={summary.trend}
         currencySymbol={currency}
-        showFinancials={isSuperAdmin}
-        agentsIdle={summary.kpis.agentsIdle}
-        agentsOffline={agentsOffline}
+        periodLabel={periodLabel}
         labels={{
           revenue: t("kpi.revenue"),
           netProfit: t("kpi.netProfit"),
           confirmationRate: t("kpi.confirmationRate"),
           rejectionRate: t("kpi.rejectionRate"),
           ordersProcessed: t("kpi.ordersProcessed"),
-          agentsOnline: t("kpi.agentsOnline"),
-          idleSuffix: t("kpi.idleSuffix"),
-          offlineSuffix: t("kpi.offlineSuffix"),
-          vsPreviousPeriod: t("kpi.vsPreviousPeriod"),
+          deliveryRate: t("kpi.deliveryRate"),
         }}
       />
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)", gap: 16 }}>
-        <Panel title={t("sections.trend")}>
-          <TrendChart
-            data={summary.trend}
-            confLabel={t("kpi.confirmationRate")}
-            rejLabel={t("kpi.rejectionRate")}
-          />
-        </Panel>
+      <InsightsBand insights={insights} />
+
+      <SecondaryKpiStrip
+        role={role}
+        kpis={summary.kpis}
+        openOrdersCount={openOrdersCount}
+        agentsIdle={summary.kpis.agentsIdle}
+        agentsOffline={agentsOffline}
+        periodLabel={periodLabel}
+        labels={{
+          ordersProcessed: t("kpi.ordersProcessed"),
+          rejectionRate: t("kpi.rejectionRate"),
+          agentsOnline: t("kpi.agentsOnline"),
+          openOrders: t("kpi.openOrders"),
+          idleSuffix: t("kpi.idleSuffix"),
+          offlineSuffix: t("kpi.offlineSuffix"),
+        }}
+      />
+
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16 }}>
         <Panel title={t("sections.pipeline")}>
           <HorizontalBars rows={pipelineRows} color="#2C6ECB" compact />
         </Panel>
+        <TopPerformers
+          agents={summary.presence}
+          title={t("sections.topPerformers")}
+          confirmedLabel={t("topPerformers.confirmed")}
+          onlineCountTemplate={(online, total) =>
+            t("topPerformers.onlineCount", { online, total })
+          }
+          viewAllHref={`/${locale}/team`}
+          viewAllLabel={t("topPerformers.viewAll")}
+          emptyLabel={t("topPerformers.empty")}
+        />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16 }}>
-        <PresencePanel
-          agents={summary.presence}
-          title={t("sections.presence")}
-          onlineLabel={t("presence.online")}
-          idleLabel={t("presence.idle")}
-          offlineLabel={t("presence.offline")}
-          queueLabel={t("presence.queueSuffix")}
-          emptyLabel={t("presence.empty")}
-          viewAllLabel={t("presence.viewAll")}
-          viewAllHref={`/${locale}/team`}
+        <TopPerformingProducts
+          products={summary.topProducts}
+          title={t("sections.topProducts")}
+          deliveredLabel={t("topProducts.delivered")}
+          revenueLabel={t("topProducts.revenue")}
+          currencySymbol={currency}
+          showRevenue={isSuperAdmin}
+          emptyLabel={t("topProducts.empty")}
         />
-        <Panel title={t("sections.rejections")}>
-          {rejectionRows.length > 0 && summary.rejectionBreakdown.some((r) => r.count > 0) ? (
-            <HorizontalBars rows={rejectionRows} color="#D72C0D" max={100} />
-          ) : (
-            <EmptyState label={t("rejectionEmpty")} />
-          )}
-        </Panel>
+        {isSuperAdmin && summary.markets.length > 1 ? (
+          <MarketsStrip
+            markets={summary.markets}
+            title={t("sections.markets")}
+            drillLabel={t("markets.drill")}
+            revenueLabel={t("kpi.revenue")}
+            profitLabel={t("kpi.netProfit")}
+            ordersLabel={t("kpi.ordersProcessed")}
+            agentsLabel={t("kpi.agents")}
+            confirmationLabel={t("kpi.confirmationRate")}
+            rejectionLabel={t("kpi.rejectionRate")}
+            onlineSuffix={t("presence.online")}
+            onDrill={handleDrillMarket}
+          />
+        ) : null}
       </div>
-
-      {isSuperAdmin && summary.markets.length > 1 ? (
-        <MarketsStrip
-          markets={summary.markets}
-          title={t("sections.markets")}
-          drillLabel={t("markets.drill")}
-          revenueLabel={t("kpi.revenue")}
-          profitLabel={t("kpi.netProfit")}
-          ordersLabel={t("kpi.ordersProcessed")}
-          agentsLabel={t("kpi.agents")}
-          confirmationLabel={t("kpi.confirmationRate")}
-          rejectionLabel={t("kpi.rejectionRate")}
-          onlineSuffix={t("presence.online")}
-          onDrill={handleDrillMarket}
-        />
-      ) : null}
 
       {footerItems.length > 0 ? <FooterLinks items={footerItems} /> : null}
     </div>
   );
 }
-

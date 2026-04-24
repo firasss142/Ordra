@@ -1,8 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-
-type Tone = "neutral" | "success" | "critical";
+import { TONE_COLOR, type Tone } from "./kpiDelta";
 
 interface KpiCardProps {
   label: string;
@@ -26,12 +25,6 @@ interface KpiCardProps {
    */
   muted?: boolean;
 }
-
-const TONE_COLOR: Record<Tone, string> = {
-  neutral: "#6D7175",
-  success: "#008060",
-  critical: "#D72C0D",
-};
 
 export function KpiCard({
   label,

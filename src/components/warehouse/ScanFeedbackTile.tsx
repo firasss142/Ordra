@@ -125,7 +125,7 @@ export function ScanFeedbackTile({
   );
 }
 
-export function playBeep(kind: "success" | "error"): void {
+export function playBeep(kind: "success" | "error" | "neutral"): void {
   if (typeof window === "undefined") return;
   try {
     const W = window as Window & {
@@ -139,15 +139,15 @@ export function playBeep(kind: "success" | "error"): void {
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
-    osc.frequency.value = kind === "success" ? 880 : 220;
+    osc.frequency.value = kind === "success" ? 880 : kind === "neutral" ? 660 : 220;
     gain.gain.value = 0.1;
     osc.start();
-    osc.stop(ctx.currentTime + (kind === "success" ? 0.08 : 0.18));
+    osc.stop(ctx.currentTime + (kind === "error" ? 0.18 : 0.08));
     osc.onended = () => ctx.close();
   } catch {
     // audio unavailable — silent failure
   }
   if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-    navigator.vibrate?.(kind === "success" ? 40 : [60, 40, 60]);
+    navigator.vibrate?.(kind === "success" ? 40 : kind === "neutral" ? 20 : [60, 40, 60]);
   }
 }

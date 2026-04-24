@@ -96,22 +96,54 @@ describe("POST /api/warehouse/scan-out — success", () => {
   });
 });
 
-describe("POST /api/warehouse/scan-out — RPC errors", () => {
-  test("returns 422 when RPC rejects (e.g. no label printed)", async () => {
+describe("POST /api/warehouse/scan-out — structured RPC errors", () => {
+  test("NO_LABEL_PRINTED → 409 with error_code", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
     mockFrom.mockReturnValue(singleChain({ role: "warehouse_agent", market_id: "m-1" }));
-    mockRpc.mockResolvedValue({ data: null, error: { message: "No printed label found for this order" } });
+    mockRpc.mockResolvedValue({ data: null, error: { message: "Order has no printed label — print label before scanning" } });
     const res = await POST(req({ order_id: "order-1" }));
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(409);
     const json = await res.json();
-    expect(json.error).toMatch(/label/i);
+    expect(json.error_code).toBe("NO_LABEL_PRINTED");
   });
 
-  test("returns 422 when order belongs to a different market", async () => {
+  test("MARKET_MISMATCH → 409 with error_code", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
     mockFrom.mockReturnValue(singleChain({ role: "warehouse_agent", market_id: "m-tn" }));
-    mockRpc.mockResolvedValue({ data: null, error: { message: "Order does not belong to your market" } });
+    mockRpc.mockResolvedValue({ data: null, error: { message: "Order belongs to a different market" } });
     const res = await POST(req({ order_id: "ly-order-1" }));
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(409);
+    const json = await res.json();
+    expect(json.error_code).toBe("MARKET_MISMATCH");
+  });
+
+  test("INVALID_STATUS → 409 with error_code", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    mockFrom.mockReturnValue(singleChain({ role: "warehouse_agent", market_id: "m-1" }));
+    mockRpc.mockResolvedValue({ data: null, error: { message: "Order is not in confirmed status (current: scanned)" } });
+    const res = await POST(req({ order_id: "order-1" }));
+    expect(res.status).toBe(409);
+    const json = await res.json();
+    expect(json.error_code).toBe("INVALID_STATUS");
+  });
+
+  test("STOCK_UNDERFLOW → 409 with error_code", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    mockFrom.mockReturnValue(singleChain({ role: "warehouse_agent", market_id: "m-1" }));
+    mockRpc.mockResolvedValue({ data: null, error: { message: "stock cannot go below zero" } });
+    const res = await POST(req({ order_id: "order-1" }));
+    expect(res.status).toBe(409);
+    const json = await res.json();
+    expect(json.error_code).toBe("STOCK_UNDERFLOW");
+  });
+
+  test("ORDER_NOT_FOUND → 409 with error_code", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    mockFrom.mockReturnValue(singleChain({ role: "warehouse_agent", market_id: "m-1" }));
+    mockRpc.mockResolvedValue({ data: null, error: { message: "Order not found: abc-123" } });
+    const res = await POST(req({ order_id: "abc-123" }));
+    expect(res.status).toBe(409);
+    const json = await res.json();
+    expect(json.error_code).toBe("ORDER_NOT_FOUND");
   });
 });

@@ -65,6 +65,42 @@ export function formatDateTime(date: string | Date, locale: string): string {
   return getDateTimeFormatter(locale).format(d);
 }
 
+const dayHeaderFormatters = new Map<string, Intl.DateTimeFormat>();
+function getDayHeaderFormatter(locale: string): Intl.DateTimeFormat {
+  let fmt = dayHeaderFormatters.get(locale);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat(locale === "ar" ? "ar-LY" : "fr-TN", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+    dayHeaderFormatters.set(locale, fmt);
+  }
+  return fmt;
+}
+
+export function formatDayHeader(date: string | Date, locale: string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const now = new Date();
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  if (sameDay) return locale === "ar" ? "اليوم" : "Aujourd'hui";
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday =
+    d.getFullYear() === yesterday.getFullYear() &&
+    d.getMonth() === yesterday.getMonth() &&
+    d.getDate() === yesterday.getDate();
+  if (isYesterday) return locale === "ar" ? "أمس" : "Hier";
+  return getDayHeaderFormatter(locale).format(d);
+}
+
+export function minutesBetween(fromIso: string, toMs: number): number {
+  return Math.max(0, Math.floor((toMs - new Date(fromIso).getTime()) / 60000));
+}
+
 export function formatExactTime(date: string | Date, _locale: string): string {
   const d = typeof date === "string" ? new Date(date) : date;
   const now = new Date();

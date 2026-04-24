@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewProfitability } from "@/lib/profitability-permissions";
+import { isPeriodLocked } from "@/lib/ad-spend/period-lock";
 
 async function resolveActorAndEntry(req: NextRequest, id: string) {
   const supabase = await createClient();
@@ -16,7 +17,7 @@ async function resolveActorAndEntry(req: NextRequest, id: string) {
 
   const { data: entry } = await supabase
     .from("ad_spend")
-    .select("id, market_id")
+    .select("id, market_id, period_end")
     .eq("id", id)
     .single();
 
@@ -26,7 +27,32 @@ async function resolveActorAndEntry(req: NextRequest, id: string) {
     return { err: NextResponse.json({ error: "Forbidden" }, { status: 403 }) } as const;
   }
 
-  return { supabase, role: actor.role } as const;
+  return { supabase, role: actor.role, entry } as const;
+}
+
+function enforcePeriodLock(
+  periodEnd: string,
+  role: string,
+  req: NextRequest,
+): NextResponse | null {
+  if (!isPeriodLocked(periodEnd)) return null;
+  if (role !== "super_admin") {
+    return NextResponse.json(
+      { error: "period_locked", message: "This period is closed. Only super_admin can edit." },
+      { status: 403 },
+    );
+  }
+  const confirm = req.headers.get("x-confirm-locked-period");
+  if (confirm !== "true") {
+    return NextResponse.json(
+      {
+        error: "period_locked_confirmation_required",
+        message: "Closed-period edits require x-confirm-locked-period: true header.",
+      },
+      { status: 409 },
+    );
+  }
+  return null;
 }
 
 // PUT: legacy soft-delete (kept for existing UI compatibility)
@@ -37,7 +63,10 @@ export async function PUT(
   const { id } = await params;
   const resolved = await resolveActorAndEntry(req, id);
   if ("err" in resolved) return resolved.err;
-  const { supabase } = resolved;
+  const { supabase, role, entry } = resolved;
+
+  const lockErr = enforcePeriodLock(entry.period_end, role, req);
+  if (lockErr) return lockErr;
 
   const body = await req.json();
 
@@ -63,7 +92,10 @@ export async function PATCH(
   const { id } = await params;
   const resolved = await resolveActorAndEntry(req, id);
   if ("err" in resolved) return resolved.err;
-  const { supabase } = resolved;
+  const { supabase, role, entry } = resolved;
+
+  const lockErr = enforcePeriodLock(entry.period_end, role, req);
+  if (lockErr) return lockErr;
 
   const body = await req.json();
   const { amount, note, period_start, period_end } = body;
@@ -111,7 +143,10 @@ export async function DELETE(
   const { id } = await params;
   const resolved = await resolveActorAndEntry(req, id);
   if ("err" in resolved) return resolved.err;
-  const { supabase } = resolved;
+  const { supabase, role, entry } = resolved;
+
+  const lockErr = enforcePeriodLock(entry.period_end, role, req);
+  if (lockErr) return lockErr;
 
   const { data, error } = await supabase
     .from("ad_spend")

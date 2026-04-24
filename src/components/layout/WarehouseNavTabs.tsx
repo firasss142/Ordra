@@ -6,8 +6,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { preload } from "swr";
 import {
-  Printer,
-  ScanLine,
+  Package,
   PackageOpen,
   History,
   type LucideIcon,
@@ -87,16 +86,10 @@ function WarehouseNavTabsInner({ user }: Props) {
 
   const tabs: TabDef[] = [
     {
-      href: `/${user.locale}/warehouse/to-label`,
-      label: t("nav.toLabel"),
-      icon: Printer,
+      href: `/${user.locale}/warehouse/preparation`,
+      label: t("nav.preparation"),
+      icon: Package,
       prefetchKey: "/api/warehouse/to-label",
-    },
-    {
-      href: `/${user.locale}/warehouse/to-scan`,
-      label: t("nav.toScan"),
-      icon: ScanLine,
-      prefetchKey: "/api/warehouse/to-scan",
     },
     {
       href: `/${user.locale}/warehouse/returns`,
