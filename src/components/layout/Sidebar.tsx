@@ -9,7 +9,6 @@ import {
   BarChart3,
   Bell,
   Boxes,
-  ChevronDown,
   ChevronRight,
   ChevronsUpDown,
   ClipboardList,
@@ -41,6 +40,7 @@ import {
 } from "lucide-react";
 import { prefetchForRoute } from "./prefetch";
 import { Avatar } from "@/components/ui/Avatar";
+import { getPermissionsForRole } from "@/lib/user-permissions";
 import type { AuthUser } from "@/types";
 
 interface SidebarProps {
@@ -58,6 +58,8 @@ type NavSectionId =
   | "clients"
   | "equipe"
   | "systeme";
+
+type BadgeTone = "neutral" | "warning" | "critical";
 
 interface NavItemDef {
   /** i18n key under `nav.items.*` */
@@ -80,6 +82,8 @@ interface NavSection {
   superAdminOnly?: boolean;
   /** Expanded by default on first mount */
   defaultExpanded?: boolean;
+  /** Permission key from user-permissions; section hidden when role lacks it */
+  requiresPermission?: "canViewFinances";
 }
 
 const NAV_SECTIONS: readonly NavSection[] = [
@@ -96,28 +100,28 @@ const NAV_SECTIONS: readonly NavSection[] = [
     id: "commandes",
     icon: ShoppingBag,
     items: [
-      { key: "toAssign", href: "orders?preset=unassigned", icon: Inbox, prefetchRoute: "orders", showBadge: true },
+      { key: "toAssign", href: "assign", icon: Inbox, prefetchRoute: "assign", showBadge: true },
       {
         key: "inConfirmation",
-        href: "orders?status=assigned,attempt_1,attempt_2,attempt_3,callback_scheduled",
+        href: "confirmation-flow",
         icon: PhoneCall,
-        prefetchRoute: "orders",
+        prefetchRoute: "confirmation-flow",
       },
       {
         key: "toShip",
-        href: "orders?status=confirmed,dispatch_scheduled,scanned",
+        href: "to-ship",
         icon: PackageCheck,
-        prefetchRoute: "orders",
+        prefetchRoute: "to-ship",
       },
       {
         key: "inDelivery",
-        href: "orders?status=dispatching,dispatched,deposit,in_transit,to_be_returned",
+        href: "orders?preset=in_delivery",
         icon: Send,
         prefetchRoute: "orders",
       },
       {
         key: "archived",
-        href: "orders?status=delivered,returned,rejected,cancelled",
+        href: "orders/archive",
         icon: FileClock,
         prefetchRoute: "orders",
       },
@@ -130,6 +134,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
       { key: "preparation", href: "warehouse/to-label", icon: PackageSearch, prefetchRoute: "warehouse" },
       { key: "returns", href: "warehouse/returns", icon: PackageOpen, prefetchRoute: "warehouse" },
       { key: "carrierTracking", href: "warehouse/carrier-tracking", icon: Truck, prefetchRoute: "warehouse" },
+      { key: "inDeliveryBoard", href: "in-delivery", icon: Gauge, prefetchRoute: "in-delivery" },
       { key: "warehouseJournal", href: "warehouse/history", icon: FileClock, prefetchRoute: "warehouse" },
     ],
   },
@@ -137,6 +142,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
     id: "finances",
     icon: LineChart,
     defaultExpanded: true,
+    requiresPermission: "canViewFinances",
     items: [
       { key: "pnl", href: "dashboard/pnl", icon: DollarSign, prefetchRoute: "dashboard" },
       { key: "productsMargins", href: "products", icon: Percent, prefetchRoute: "products" },
@@ -166,9 +172,10 @@ const NAV_SECTIONS: readonly NavSection[] = [
     icon: Server,
     superAdminOnly: true,
     items: [
-      { key: "marketsConfig", href: "settings?section=markets", icon: Store, prefetchRoute: "settings" },
-      { key: "carriersConfig", href: "settings?section=carriers", icon: Truck, prefetchRoute: "settings" },
-      { key: "generalSettings", href: "settings?section=general", icon: Settings, prefetchRoute: "settings" },
+      { key: "marketsConfig", href: "markets", icon: Store, prefetchRoute: "markets" },
+      { key: "storefrontsConfig", href: "settings/storefronts", icon: ShoppingBag, prefetchRoute: "settings" },
+      { key: "carriersConfig", href: "settings/carriers", icon: Truck, prefetchRoute: "settings" },
+      { key: "generalSettings", href: "settings/general", icon: Settings, prefetchRoute: "settings" },
       { key: "logs", href: "admin/logs", icon: Key, prefetchRoute: "admin" },
     ],
   },
@@ -180,6 +187,12 @@ function resolveMarketKey(marketId: string | null): "tn" | "ly" | "all" {
   if (marketId === LY_MARKET_ID) return "ly";
   if (marketId) return "tn";
   return "all";
+}
+
+function marketDotColor(key: "tn" | "ly" | "all"): string {
+  if (key === "tn") return "var(--brand-primary)";
+  if (key === "ly") return "#F59E0B";
+  return "var(--sidebar-text-secondary)";
 }
 
 function splitHref(href: string): { path: string; search: string } {
@@ -258,10 +271,14 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
   const [signingOut, setSigningOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const visibleSections = useMemo(
-    () => NAV_SECTIONS.filter((s) => !s.superAdminOnly || user.role === "super_admin"),
-    [user.role],
-  );
+  const visibleSections = useMemo(() => {
+    const perms = new Map(getPermissionsForRole(user.role).map((p) => [p.key, p.allowed]));
+    return NAV_SECTIONS.filter((s) => {
+      if (s.superAdminOnly && user.role !== "super_admin") return false;
+      if (s.requiresPermission && !perms.get(s.requiresPermission)) return false;
+      return true;
+    });
+  }, [user.role]);
 
   const activeSectionId = useMemo(
     () => findActiveSectionId(visibleSections, activePath, activeSearch, user.locale),
@@ -273,12 +290,10 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
     for (const section of NAV_SECTIONS) {
       if (section.defaultExpanded) initial.add(section.id);
     }
-    // Eagerly expand the section containing the current URL on first render.
     if (activeSectionId) initial.add(activeSectionId);
     return initial;
   });
 
-  // Keep the active section expanded when navigating (SPA transitions)
   useEffect(() => {
     if (!activeSectionId) return;
     setExpandedSections((prev) => {
@@ -356,9 +371,10 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
 
   return (
     <nav
+      className="sidebar-scroll"
       style={{
-        width: "240px",
-        minWidth: "240px",
+        width: "248px",
+        minWidth: "248px",
         height: "100vh",
         backgroundColor: "var(--sidebar-bg)",
         display: "flex",
@@ -368,48 +384,69 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
         ...(isRtl ? { right: 0 } : { left: 0 }),
         overflowY: "auto",
         direction: isRtl ? "rtl" : "ltr",
+        borderInlineEnd: "1px solid var(--sidebar-border)",
+        fontFamily:
+          "var(--font-sans), var(--font-sans-arabic), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       }}
     >
       {/* Brand area */}
       <div
         style={{
-          height: "56px",
+          height: "60px",
           display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          paddingInline: "16px",
-          borderBlockEnd: "1px solid var(--sidebar-hover)",
+          alignItems: "center",
+          gap: "10px",
+          paddingInline: "14px",
+          borderBlockEnd: "1px solid var(--sidebar-border-strong)",
           flexShrink: 0,
         }}
       >
-        <div
+        <span
           role="presentation"
           style={{
             fontSize: "16px",
             fontWeight: 600,
-            color: "#FFFFFF",
-            letterSpacing: "0.02em",
+            color: "var(--sidebar-text-strong)",
+            letterSpacing: "-0.01em",
             lineHeight: "20px",
           }}
         >
           {t("brand")}
-        </div>
+        </span>
         <span
           aria-label={t("markets.ariaLabel", { market: marketName })}
           style={{
-            fontSize: "11px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            fontSize: "12px",
             fontWeight: 500,
-            color: "var(--sidebar-text-muted)",
-            letterSpacing: "0.04em",
-            marginBlockStart: "2px",
+            color: "var(--sidebar-text-secondary)",
+            paddingBlock: "2px",
+            paddingInline: "8px",
+            borderRadius: "9999px",
+            border: "1px solid var(--sidebar-border-strong)",
+            backgroundColor: "var(--sidebar-bg-elevated)",
+            lineHeight: 1,
+            whiteSpace: "nowrap",
           }}
         >
-          · {marketName}
+          <span
+            aria-hidden="true"
+            style={{
+              width: "6px",
+              height: "6px",
+              borderRadius: "9999px",
+              backgroundColor: marketDotColor(marketKey),
+              flexShrink: 0,
+            }}
+          />
+          {marketName}
         </span>
       </div>
 
       {/* Nav sections */}
-      <div style={{ flex: 1, paddingBlock: "8px" }}>
+      <div style={{ flex: 1, paddingBlock: "10px", paddingInline: "8px" }}>
         {visibleSections.map((section, idx) => {
           const expanded = expandedSections.has(section.id);
           const active = activeSectionId === section.id;
@@ -422,10 +459,11 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
             section.items.some((i) => i.showAlertsBadge) && alertsSummaryData?.total !== undefined
               ? alertsSummaryData.total
               : 0;
-          const sectionBadge =
-            sectionUnassignedBadge + sectionAlertsBadge > 0
-              ? sectionUnassignedBadge + sectionAlertsBadge
-              : undefined;
+          const sectionBadgeCount = sectionUnassignedBadge + sectionAlertsBadge;
+          const sectionBadge = sectionBadgeCount > 0 ? sectionBadgeCount : undefined;
+          // Tone: critical if any alerts, else warning if unassigned, else neutral
+          const sectionBadgeTone: BadgeTone =
+            sectionAlertsBadge > 0 ? "critical" : sectionUnassignedBadge > 0 ? "warning" : "neutral";
 
           return (
             <div key={section.id}>
@@ -434,8 +472,9 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
                   aria-hidden="true"
                   style={{
                     height: "1px",
-                    backgroundColor: "var(--sidebar-hover)",
-                    margin: "8px 16px",
+                    backgroundColor: "var(--sidebar-border-strong)",
+                    marginBlock: "12px",
+                    marginInline: "6px",
                   }}
                 />
               )}
@@ -446,6 +485,7 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
                 active={active}
                 isRtl={isRtl}
                 badge={sectionBadge}
+                badgeTone={sectionBadgeTone}
                 adminLabel={section.superAdminOnly ? t("adminOnly") : undefined}
                 ariaLabel={
                   expanded
@@ -461,11 +501,22 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
                     listStyle: "none",
                     margin: 0,
                     padding: 0,
-                    paddingBlockEnd: "4px",
+                    paddingBlockStart: "2px",
+                    paddingBlockEnd: "8px",
                   }}
                 >
                   {section.items.map((item) => {
                     const fullHref = `/${user.locale}/${item.href}`;
+                    const itemBadgeCount = item.showBadge
+                      ? liveCount
+                      : item.showAlertsBadge
+                        ? alertsSummaryData?.total
+                        : undefined;
+                    const itemBadgeTone: BadgeTone = item.showAlertsBadge
+                      ? "critical"
+                      : item.showBadge
+                        ? "warning"
+                        : "neutral";
                     return (
                       <li key={item.key}>
                         <SubNavItem
@@ -473,13 +524,8 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
                           label={t(`items.${item.key}`)}
                           icon={item.icon}
                           isActive={isItemActive(fullHref, activePath, activeSearch)}
-                          badge={
-                            item.showBadge
-                              ? liveCount
-                              : item.showAlertsBadge
-                                ? alertsSummaryData?.total
-                                : undefined
-                          }
+                          badge={itemBadgeCount}
+                          badgeTone={itemBadgeTone}
                           onPrefetch={() =>
                             item.prefetchRoute
                               ? prefetchForRoute(item.prefetchRoute, user)
@@ -500,8 +546,8 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
       <div
         ref={menuRef}
         style={{
-          padding: "12px 16px",
-          borderBlockStart: "1px solid var(--sidebar-hover)",
+          padding: "10px 12px",
+          borderBlockStart: "1px solid var(--sidebar-border-strong)",
           position: "relative",
           flexShrink: 0,
         }}
@@ -511,6 +557,8 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
           onClick={() => setMenuOpen((v) => !v)}
           onMouseEnter={() => setUserHovered(true)}
           onMouseLeave={() => setUserHovered(false)}
+          onFocus={() => setUserHovered(true)}
+          onBlur={() => setUserHovered(false)}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           style={{
@@ -519,73 +567,82 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
             alignItems: "center",
             gap: "10px",
             width: "100%",
-            padding: "4px",
-            borderRadius: "6px",
+            padding: "8px 10px",
+            borderRadius: "8px",
             cursor: "pointer",
             textAlign: isRtl ? "right" : "left",
-            backgroundColor: userHovered ? "var(--sidebar-hover)" : "transparent",
-            transition: "background-color 120ms ease",
+            backgroundColor: userHovered || menuOpen ? "var(--sidebar-hover)" : "transparent",
+            transition: "background-color 160ms ease",
             boxSizing: "border-box",
           }}
         >
-          <Avatar user={user} size={32} />
+          <Avatar user={user} size={34} />
           <span style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
             <span
               style={{
-                fontSize: "13px",
+                fontSize: "14px",
                 fontWeight: 500,
                 color: "var(--sidebar-text)",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
+                lineHeight: "18px",
               }}
             >
               {user.full_name}
             </span>
             <span
               style={{
-                fontSize: "10px",
+                fontSize: "12px",
                 fontWeight: 500,
-                color: "var(--sidebar-text-muted)",
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-                marginBlockStart: "1px",
+                color: "var(--sidebar-text-secondary)",
+                letterSpacing: "0.02em",
+                textTransform: "capitalize",
+                marginBlockStart: "2px",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
+                lineHeight: "15px",
               }}
             >
               {roleLabel}
             </span>
           </span>
           <ChevronsUpDown
-            size={14}
-            strokeWidth={1.5}
+            size={15}
+            strokeWidth={1.75}
             aria-hidden="true"
-            style={{ color: "var(--sidebar-text-muted)", flexShrink: 0 }}
+            style={{
+              color: "var(--sidebar-text-muted)",
+              flexShrink: 0,
+              opacity: userHovered || menuOpen ? 1 : 0,
+              transition: "opacity 160ms ease",
+            }}
           />
         </button>
 
         {menuOpen && (
           <div
             role="menu"
+            className="sidebar-menu-enter"
             style={{
               position: "absolute",
-              bottom: "calc(100% + 4px)",
-              left: "16px",
-              right: "16px",
-              backgroundColor: "var(--sidebar-hover)",
-              border: "1px solid var(--sidebar-active)",
-              borderRadius: "6px",
-              padding: "8px 0",
+              bottom: "calc(100% + 6px)",
+              insetInlineStart: "12px",
+              insetInlineEnd: "12px",
+              backgroundColor: "var(--sidebar-bg-elevated)",
+              border: "1px solid var(--sidebar-border-strong)",
+              borderRadius: "8px",
+              padding: "6px 0",
               zIndex: 10,
+              boxShadow: "0 6px 24px rgba(0, 0, 0, 0.4)",
             }}
           >
             <div
               style={{
-                padding: "4px 12px 8px",
+                padding: "6px 12px 8px",
                 color: "var(--sidebar-text-muted)",
-                fontSize: "12px",
+                fontSize: "13px",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -597,8 +654,8 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
               aria-hidden="true"
               style={{
                 height: "1px",
-                backgroundColor: "var(--sidebar-active)",
-                margin: "4px 0",
+                backgroundColor: "var(--sidebar-border-strong)",
+                margin: "2px 0",
               }}
             />
             <button
@@ -615,11 +672,12 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
                 padding: "8px 12px",
                 cursor: signingOut ? "not-allowed" : "pointer",
                 color: "var(--sidebar-text)",
-                fontSize: "13px",
+                fontSize: "14px",
+                fontWeight: 500,
                 boxSizing: "border-box",
                 textAlign: isRtl ? "right" : "left",
-                backgroundColor: logoutHovered ? "var(--sidebar-active)" : "transparent",
-                transition: "background-color 120ms ease",
+                backgroundColor: logoutHovered ? "var(--sidebar-hover-strong)" : "transparent",
+                transition: "background-color 160ms ease",
               }}
             >
               {t("logout")}
@@ -631,19 +689,28 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
   );
 }
 
-function BadgePill({ count }: { count: number }) {
+function badgeColors(tone: BadgeTone): { bg: string; fg: string } {
+  if (tone === "critical") return { bg: "var(--badge-critical-bg)", fg: "var(--badge-critical-fg)" };
+  if (tone === "warning") return { bg: "var(--badge-warning-bg)", fg: "var(--badge-warning-fg)" };
+  return { bg: "var(--badge-neutral-bg)", fg: "var(--badge-neutral-fg)" };
+}
+
+function BadgePill({ count, tone = "neutral" }: { count: number; tone?: BadgeTone }) {
+  const { bg, fg } = badgeColors(tone);
   return (
     <span
       style={{
-        backgroundColor: "var(--neutral-bg)",
-        color: "var(--neutral)",
-        fontSize: "0.7rem",
+        backgroundColor: bg,
+        color: fg,
+        fontSize: "12px",
         fontWeight: 500,
         padding: "1px 7px",
         borderRadius: "9999px",
-        minWidth: "18px",
+        minWidth: "20px",
         textAlign: "center",
         flexShrink: 0,
+        fontVariantNumeric: "tabular-nums",
+        lineHeight: "18px",
       }}
     >
       {count}
@@ -658,6 +725,7 @@ interface SectionHeaderProps {
   active: boolean;
   isRtl: boolean;
   badge?: number;
+  badgeTone?: BadgeTone;
   adminLabel?: string;
   ariaLabel: string;
   onToggle: () => void;
@@ -668,22 +736,25 @@ function SectionHeader({
   label,
   expanded,
   active,
-  isRtl,
   badge,
+  badgeTone,
   adminLabel,
   ariaLabel,
   onToggle,
 }: SectionHeaderProps) {
   const [hovered, setHovered] = useState(false);
   const Icon = section.icon;
-  const Chevron = expanded ? ChevronDown : ChevronRight;
-  const textColor = active ? "#FFFFFF" : "var(--sidebar-text)";
+  const textColor =
+    active || hovered ? "var(--sidebar-text-strong)" : "var(--sidebar-text)";
   const iconColor = active
-    ? "#FFFFFF"
+    ? "var(--sidebar-active-icon)"
     : hovered
       ? "var(--sidebar-text)"
       : "var(--sidebar-text-muted)";
-  const background = hovered ? "var(--sidebar-hover)" : "transparent";
+  const chevronColor = hovered
+    ? "var(--sidebar-text)"
+    : "var(--sidebar-text-muted)";
+  const background = hovered ? "var(--sidebar-hover-strong)" : "transparent";
 
   return (
     <button
@@ -701,25 +772,25 @@ function SectionHeader({
         alignItems: "center",
         gap: "10px",
         width: "100%",
-        height: "32px",
-        paddingInlineStart: "14px",
-        paddingInlineEnd: "12px",
-        fontSize: "11px",
+        height: "36px",
+        paddingInlineStart: "10px",
+        paddingInlineEnd: "10px",
+        fontSize: "12px",
         fontWeight: 600,
         letterSpacing: "0.06em",
         textTransform: "uppercase",
         color: textColor,
         backgroundColor: background,
         cursor: "pointer",
-        transition: "background-color 120ms ease",
-        textAlign: isRtl ? "right" : "left",
+        borderRadius: "6px",
+        transition: "background-color 160ms ease, color 160ms ease",
       }}
     >
       <Icon
-        size={14}
-        strokeWidth={1.5}
+        size={17}
+        strokeWidth={1.75}
         aria-hidden="true"
-        style={{ color: iconColor, flexShrink: 0 }}
+        style={{ color: iconColor, flexShrink: 0, transition: "color 160ms ease" }}
       />
       <span
         style={{
@@ -735,28 +806,27 @@ function SectionHeader({
       {adminLabel && (
         <span
           style={{
-            fontSize: "9px",
+            fontSize: "10px",
             fontWeight: 500,
             letterSpacing: "0.08em",
-            color: "var(--sidebar-text-muted)",
+            color: "var(--sidebar-text-secondary)",
             padding: "1px 6px",
-            border: "1px solid var(--sidebar-hover)",
+            border: "1px solid var(--sidebar-border-strong)",
             borderRadius: "4px",
+            backgroundColor: "var(--sidebar-bg-elevated)",
           }}
         >
           {adminLabel}
         </span>
       )}
-      {!expanded && badge !== undefined && <BadgePill count={badge} />}
-      <Chevron
-        size={14}
-        strokeWidth={1.5}
+      {!expanded && badge !== undefined && <BadgePill count={badge} tone={badgeTone} />}
+      <ChevronRight
+        size={15}
+        strokeWidth={2}
         aria-hidden="true"
-        style={{
-          color: "var(--sidebar-text-muted)",
-          flexShrink: 0,
-          transform: expanded ? "none" : isRtl ? "rotate(180deg)" : "none",
-        }}
+        className="sidebar-chevron"
+        data-expanded={expanded ? "true" : "false"}
+        style={{ color: chevronColor, flexShrink: 0 }}
       />
     </button>
   );
@@ -768,10 +838,19 @@ interface SubNavItemProps {
   icon: LucideIcon;
   isActive: boolean;
   badge?: number;
+  badgeTone?: BadgeTone;
   onPrefetch?: () => void;
 }
 
-function SubNavItem({ href, label, icon: Icon, isActive, badge, onPrefetch }: SubNavItemProps) {
+function SubNavItem({
+  href,
+  label,
+  icon: Icon,
+  isActive,
+  badge,
+  badgeTone,
+  onPrefetch,
+}: SubNavItemProps) {
   const [hovered, setHovered] = useState(false);
   const router = useRouter();
   const prefetchedRef = useRef(false);
@@ -786,15 +865,18 @@ function SubNavItem({ href, label, icon: Icon, isActive, badge, onPrefetch }: Su
   };
 
   const iconColor = isActive
-    ? "#FFFFFF"
+    ? "var(--sidebar-active-icon)"
     : hovered
-      ? "var(--sidebar-text)"
+      ? "var(--sidebar-active-icon)"
       : "var(--sidebar-text-muted)";
   const background = isActive
-    ? "var(--sidebar-active)"
+    ? "var(--sidebar-active-bg)"
     : hovered
       ? "var(--sidebar-hover)"
       : "transparent";
+  const textColor = isActive
+    ? "var(--sidebar-active-text)"
+    : "var(--sidebar-text)";
 
   return (
     <Link
@@ -803,27 +885,35 @@ function SubNavItem({ href, label, icon: Icon, isActive, badge, onPrefetch }: Su
       onMouseEnter={handleMouseEnter}
       onMouseLeave={() => setHovered(false)}
       onFocus={handleMouseEnter}
+      className="sidebar-subitem"
       style={{
         display: "flex",
         alignItems: "center",
         gap: "10px",
-        height: "32px",
-        paddingInlineStart: "32px",
-        paddingInlineEnd: "16px",
-        fontSize: "0.8125rem",
+        height: "34px",
+        paddingInlineStart: "30px",
+        paddingInlineEnd: "12px",
+        marginInline: "2px",
+        marginBlock: "1px",
+        fontSize: "14px",
         fontWeight: isActive ? 500 : 400,
-        color: "var(--sidebar-text)",
+        color: textColor,
         textDecoration: "none",
         backgroundColor: background,
-        borderInlineStart: isActive ? "2px solid #FFFFFF" : "2px solid transparent",
-        transition: "background-color 120ms ease, color 120ms ease",
+        borderRadius: "6px",
+        borderInlineStart: isActive
+          ? "2px solid var(--sidebar-active-bar)"
+          : "2px solid transparent",
+        transition:
+          "background-color 160ms ease, color 160ms ease, border-color 160ms ease",
       }}
     >
       <Icon
-        size={14}
-        strokeWidth={1.5}
+        size={15}
+        strokeWidth={1.75}
         aria-hidden="true"
-        style={{ color: iconColor, flexShrink: 0, transition: "color 120ms ease" }}
+        className="sidebar-subitem-icon"
+        style={{ color: iconColor, flexShrink: 0 }}
       />
       <span
         style={{
@@ -836,7 +926,7 @@ function SubNavItem({ href, label, icon: Icon, isActive, badge, onPrefetch }: Su
       >
         {label}
       </span>
-      {badge !== undefined && <BadgePill count={badge} />}
+      {badge !== undefined && <BadgePill count={badge} tone={badgeTone} />}
     </Link>
   );
 }

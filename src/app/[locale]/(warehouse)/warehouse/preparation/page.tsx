@@ -37,8 +37,11 @@ export default async function Page({
       marketId={user.role === "super_admin" ? null : user.market_id}
       fallbackRows={fallbackRows}
       labels={{
-        trayTitle: t("preparation.trayTitle"),
-        scannerTitle: t("preparation.scannerTitle"),
+        pageTitle: t("preparation.title"),
+        pageSubtitle: t("preparation.subtitle"),
+        stageBacklog: t("preparation.stageBacklog"),
+        stageTray: t("preparation.stageTray"),
+        stageScanner: t("preparation.stageScanner"),
         stats: {
           labelsPrinted: t("preparation.stats.labelsPrinted"),
           ordersScanned: t("preparation.stats.ordersScanned"),

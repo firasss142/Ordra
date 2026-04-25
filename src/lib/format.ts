@@ -117,3 +117,29 @@ export function formatExactTime(date: string | Date, _locale: string): string {
   const mo = String(d.getMonth() + 1).padStart(2, "0");
   return `${dd}/${mo} ${hh}:${mm}`;
 }
+
+export function classifyDueTime(
+  dueAt: string | null,
+  nowMs: number,
+  locale: string
+): { key: "overdue" | "dueToday" | "due" | "noSchedule"; params?: Record<string, string> } {
+  if (!dueAt) return { key: "noSchedule" };
+
+  const due = new Date(dueAt).getTime();
+  const time = formatExactTime(dueAt, locale);
+
+  if (due < nowMs) {
+    const mins = minutesBetween(dueAt, nowMs);
+    const hours = Math.floor(mins / 60);
+    const relStr = hours >= 1 ? `${hours}h` : `${mins}min`;
+    return { key: "overdue", params: { time: `${relStr} · ${time}` } };
+  }
+
+  const midnight = new Date(nowMs);
+  midnight.setHours(24, 0, 0, 0);
+  if (due <= midnight.getTime()) {
+    return { key: "dueToday", params: { time } };
+  }
+
+  return { key: "due", params: { time } };
+}

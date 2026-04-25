@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AssignmentAlgorithm } from "@/types/settings";
-import type { AssignableOrder, AvailableAgent } from "./auto-assignment-types";
+import type { AssignableOrder } from "./auto-assignment-types";
 import { selectAgent } from "./auto-assignment";
+import { fetchAgentCapacity } from "./agent-capacity";
 
 export async function tryAutoAssign(
   adminClient: SupabaseClient,
@@ -39,7 +40,7 @@ export async function tryAutoAssign(
       (activeOnlyRow?.value as { value?: boolean } | undefined)?.value === true;
 
     // 4. Fetch active agents
-    let agents = await fetchActiveAgents(adminClient, order.market_id);
+    let agents = await fetchAgentCapacity(adminClient, order.market_id);
 
     if (activeAgentsOnly) {
       // Filter to agents who have acted today; fall back to all active agents if none found
@@ -94,55 +95,4 @@ export async function tryAutoAssign(
   } catch {
     // Best-effort: order stays 'new' for manual assignment
   }
-}
-
-async function fetchActiveAgents(
-  adminClient: SupabaseClient,
-  marketId: string
-): Promise<AvailableAgent[]> {
-  const { data: agentRows } = await adminClient
-    .from("users")
-    .select("id")
-    .eq("role", "agent")
-    .eq("market_id", marketId)
-    .eq("is_active", true)
-    .order("id");
-
-  if (!agentRows || agentRows.length === 0) return [];
-
-  const agentIds = agentRows.map((r: { id: string }) => r.id);
-
-  // Compute queue_size: non-terminal orders assigned to each agent
-  const { data: queueRows } = await adminClient
-    .from("orders")
-    .select("assigned_to")
-    .in("assigned_to", agentIds)
-    .not("status", "in", "(delivered,returned,rejected,cancelled)");
-
-  const queueSizeByAgent: Record<string, number> = {};
-  (queueRows ?? []).forEach((row: { assigned_to: string | null }) => {
-    if (row.assigned_to) {
-      queueSizeByAgent[row.assigned_to] = (queueSizeByAgent[row.assigned_to] ?? 0) + 1;
-    }
-  });
-
-  // Compute last_action_at: most recent order_history entry per agent
-  const { data: lastActionRows } = await adminClient
-    .from("order_history")
-    .select("actor_id, created_at")
-    .in("actor_id", agentIds)
-    .order("created_at", { ascending: false });
-
-  const lastActionByAgent: Record<string, string> = {};
-  (lastActionRows ?? []).forEach((row: { actor_id: string | null; created_at: string }) => {
-    if (row.actor_id && !lastActionByAgent[row.actor_id]) {
-      lastActionByAgent[row.actor_id] = row.created_at;
-    }
-  });
-
-  return agentRows.map((row: { id: string }) => ({
-    id: row.id,
-    queue_size: queueSizeByAgent[row.id] ?? 0,
-    last_action_at: lastActionByAgent[row.id] ?? null,
-  }));
 }

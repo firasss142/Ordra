@@ -364,15 +364,9 @@ export function QueuePage() {
   // ── loading skeleton ─────────────────────────────────────
   if (!rawOrders.length && !error && !statsData) {
     return (
-      <div style={{ backgroundColor: "#F6F6F7", minHeight: "100vh" }}>
-        <div
-          style={{
-            padding: "16px 24px",
-            borderBottom: "1px solid #E1E3E5",
-            backgroundColor: "#FFFFFF",
-          }}
-        >
-          <div style={{ fontSize: 14, color: "#6B7280" }}>{t("loading")}</div>
+      <div className="bg-surface-page min-h-screen">
+        <div className="bg-surface-card border-b border-line-subtle px-6 py-4">
+          <div className="text-[14px] text-ink-secondary">{t("loading")}</div>
         </div>
       </div>
     );
@@ -381,17 +375,7 @@ export function QueuePage() {
   // ── error state ───────────────────────────────────────────
   if (error) {
     return (
-      <div
-        style={{
-          backgroundColor: "#F6F6F7",
-          minHeight: "100vh",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          fontSize: 14,
-          color: "#6B7280",
-        }}
-      >
+      <div className="bg-surface-page min-h-screen flex items-center justify-center text-[14px] text-ink-secondary">
         {t("loadingRetry")}
       </div>
     );
@@ -402,7 +386,7 @@ export function QueuePage() {
     : null;
 
   return (
-    <div style={{ backgroundColor: "#F6F6F7", minHeight: "100vh" }}>
+    <div className="bg-surface-page min-h-screen">
       <QueueHeader
         agentName={user?.full_name ?? ""}
         stats={stats}
@@ -426,32 +410,13 @@ export function QueuePage() {
 
       {/* Auto-rejected banner */}
       {autoRejectedBanner && (
-        <div
-          style={{
-            backgroundColor: "#FEF2F2",
-            border: "1px solid #FECACA",
-            color: "#DC2626",
-            fontSize: 14,
-            padding: "10px 24px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <span>
-            Une commande a été rejetée automatiquement (injoignable).
-          </span>
+        <div className="bg-status-criticalBg border-y border-status-critical/20 text-status-critical text-[14px] px-6 py-2.5 flex items-center justify-between">
+          <span>Une commande a été rejetée automatiquement (injoignable).</span>
           <button
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: 16,
-              color: "#DC2626",
-              cursor: "pointer",
-              lineHeight: 1,
-              padding: "0 0 0 12px",
-            }}
+            type="button"
             onClick={() => setAutoRejectedBanner(false)}
+            className="ms-3 text-[16px] leading-none text-status-critical hover:opacity-70 transition-opacity duration-fast"
+            aria-label="Dismiss"
           >
             ×
           </button>
@@ -522,47 +487,21 @@ export function QueuePage() {
       {/* Bulk selection floating action bar */}
       {selectedOrderIds.size > 0 && (
         <div
-          style={{
-            position: "fixed",
-            bottom: 24,
-            left: "50%",
-            transform: "translateX(-50%)",
-            backgroundColor: "#1A1A1A",
-            color: "#FFFFFF",
-            borderRadius: 8,
-            padding: "12px 20px",
-            display: "flex",
-            gap: 12,
-            alignItems: "center",
-            zIndex: 30,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-          }}
+          role="region"
+          aria-label="Bulk actions"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2.5 bg-ink-primary text-white rounded-card px-5 py-2.5 shadow-floating"
         >
           <button
+            type="button"
             onClick={handleBulkCallEnded}
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: "#FFFFFF",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-            }}
+            className="text-[13px] font-semibold text-white hover:opacity-90 transition-opacity duration-fast"
           >
             {t("bulkCallEnded", { count: String(selectedOrderIds.size) })}
           </button>
           <button
+            type="button"
             onClick={handleDeselectAll}
-            style={{
-              fontSize: 13,
-              color: "#FFFFFF",
-              background: "none",
-              border: "1px solid #555",
-              borderRadius: 4,
-              padding: "4px 10px",
-              cursor: "pointer",
-            }}
+            className="text-[13px] text-white border border-white/20 rounded-md px-2.5 py-1 hover:bg-white/10 transition-colors duration-fast"
           >
             {t("deselectAll")}
           </button>

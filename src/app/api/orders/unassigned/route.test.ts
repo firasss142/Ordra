@@ -144,6 +144,20 @@ describe("GET /api/orders/unassigned", () => {
     expect(ordersChain.eq).toHaveBeenCalledWith("market_id", "m-99");
   });
 
+  test("includes storefront columns in SELECT (external_platform, storefront_id)", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
+    const ordersChain = queryChain({ data: SAMPLE_ORDERS, error: null, count: 2 });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChain({ data: MANAGER_ACTOR, error: null });
+      return ordersChain;
+    });
+
+    await GET(createRequest());
+    const selectCall = (ordersChain.select as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    expect(selectCall).toContain("external_platform");
+    expect(selectCall).toContain("storefront_id");
+  });
+
   test("returns 500 on database error", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
     mockFrom.mockImplementation((table: string) => {

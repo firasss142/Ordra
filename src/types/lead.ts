@@ -89,9 +89,12 @@ export interface Lead {
   lost_reason: LeadLostReason | null;
   lost_note: string | null;
   converted_order_id: string | null;
+  campaign_id: string | null;
   raw_payload: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
+  is_hot: boolean;
+  has_duplicate: boolean;
 }
 
 export interface LeadHistoryEntry {

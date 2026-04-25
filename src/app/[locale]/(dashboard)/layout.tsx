@@ -18,7 +18,7 @@ export default async function DashboardLayout({
   const isRtl = user.direction === "rtl";
 
   if (user.role === "agent") {
-    return <AgentDashboardShell user={user} />;
+    return <AgentDashboardShell user={user}>{children}</AgentDashboardShell>;
   }
 
   return (

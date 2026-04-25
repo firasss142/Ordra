@@ -51,9 +51,10 @@ describe("Topbar", () => {
     expect(screen.getByText("Tunisia")).toBeInTheDocument();
   });
 
-  it("renders the user role", () => {
+  it("renders the localized user role label", () => {
     render(<Topbar user={managerUser} marketName="Tunisia" />);
-    expect(screen.getByText("market_manager")).toBeInTheDocument();
+    // managerUser locale is fr → market_manager → "Manager"
+    expect(screen.getByText("Manager")).toBeInTheDocument();
   });
 
   it("shows no session-expiry banner initially", () => {

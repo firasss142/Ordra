@@ -48,99 +48,11 @@ type Flow =
   | "reject_flow"
   | "callback_expanded";
 
-// ── styles ──────────────────────────────────────────────────────────
-const overlayStyle: React.CSSProperties = {
-  position: "fixed",
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  backgroundColor: "rgba(26,26,26,0.5)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 40,
-};
+const optionButtonClasses =
+  "block w-full p-4 rounded-md border border-line-strong bg-surface-card text-start text-[14px] font-medium text-ink-primary transition-colors duration-fast hover:bg-surface-hover disabled:bg-[#F3F4F6] disabled:text-ink-muted disabled:cursor-not-allowed";
 
-const panelStyle: React.CSSProperties = {
-  background: "#FFFFFF",
-  borderRadius: "0.5rem",
-  width: 480,
-  maxWidth: "90vw",
-  maxHeight: "85vh",
-  overflowY: "auto",
-  zIndex: 50,
-  position: "relative",
-};
-
-const headerStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  padding: "16px 20px",
-  borderBottom: "1px solid #E5E7EB",
-};
-
-const bodyStyle: React.CSSProperties = {
-  padding: "20px",
-};
-
-const optionButtonBase: React.CSSProperties = {
-  width: "100%",
-  padding: "16px",
-  border: "1px solid #D1D5DB",
-  borderRadius: "0.25rem",
-  cursor: "pointer",
-  backgroundColor: "#FFFFFF",
-  color: "#1A1A1A",
-  textAlign: "start",
-  fontSize: 14,
-  fontWeight: 500,
-};
-
-const optionButtonDisabled: React.CSSProperties = {
-  ...optionButtonBase,
-  backgroundColor: "#F3F4F6",
-  color: "#9CA3AF",
-  cursor: "not-allowed",
-  borderColor: "#E5E7EB",
-};
-
-const backButtonStyle: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  fontSize: 14,
-  color: "#6B7280",
-  cursor: "pointer",
-  padding: "0 0 12px 0",
-  textAlign: "start",
-};
-
-const submitButtonBase: React.CSSProperties = {
-  width: "100%",
-  padding: "12px 16px",
-  backgroundColor: "#1A1A1A",
-  color: "#FFFFFF",
-  border: "none",
-  borderRadius: "0.25rem",
-  fontSize: 14,
-  fontWeight: 500,
-  cursor: "pointer",
-};
-
-const submitButtonDisabled: React.CSSProperties = {
-  ...submitButtonBase,
-  opacity: 0.5,
-  cursor: "not-allowed",
-};
-
-const accordionWrapStyle: React.CSSProperties = {
-  marginTop: 8,
-  padding: 12,
-  border: "1px solid #E5E7EB",
-  borderRadius: "0.25rem",
-  backgroundColor: "#F9FAFB",
-};
+const submitButtonClasses =
+  "inline-flex items-center justify-center w-full py-2.5 px-4 rounded-md bg-ink-primary text-white text-[14px] font-medium transition-colors duration-fast hover:bg-[#2A2A2A] disabled:opacity-50 disabled:cursor-not-allowed";
 
 function getDefaultCallbackTime(): Date {
   const d = new Date();
@@ -329,244 +241,223 @@ export function PostCallActionSheet({
     }
   }
 
-  // Attempt counter label — always visible so agent knows where they stand
-  const attemptCounterColor = atMax ? "#DC2626" : "#6B7280";
-  const showAttemptCounter = true;
-
   return (
-    <div style={overlayStyle} onClick={onClose}>
-      <FocusTrap focusTrapOptions={{ allowOutsideClick: true, fallbackFocus: () => panelRef.current ?? document.body }}>
-      <div ref={panelRef} tabIndex={-1} style={panelStyle} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div style={headerStyle}>
-          <div>
-            <span style={{ fontSize: 16, fontWeight: 600, color: "#1A1A1A" }}>
-              {t("callResult")}
-            </span>
-            {showAttemptCounter && (
-              <span
-                style={{
-                  display: "block",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: attemptCounterColor,
-                  marginTop: 2,
-                }}
-              >
-                {t("attemptCounter", { current: currentAttemptNumber, max: maxAttempts })}
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-ink-primary/50"
+      onClick={onClose}
+    >
+      <FocusTrap
+        focusTrapOptions={{
+          allowOutsideClick: true,
+          fallbackFocus: () => panelRef.current ?? document.body,
+        }}
+      >
+        <div
+          ref={panelRef}
+          tabIndex={-1}
+          onClick={(e) => e.stopPropagation()}
+          className="relative z-50 bg-surface-card rounded-card w-[480px] max-w-[90vw] max-h-[85vh] overflow-y-auto shadow-floating"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-line-subtle">
+            <div>
+              <span className="text-[16px] font-semibold text-ink-primary">
+                {t("callResult")}
               </span>
-            )}
+              <span
+                className={[
+                  "block text-[14px] font-semibold mt-0.5",
+                  atMax ? "text-status-critical" : "text-ink-secondary",
+                ].join(" ")}
+              >
+                {t("attemptCounter", {
+                  current: currentAttemptNumber,
+                  max: maxAttempts,
+                })}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-[14px] text-ink-secondary hover:text-ink-primary transition-colors duration-fast"
+            >
+              {t("cancel")}
+            </button>
           </div>
-          <button
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: 14,
-              color: "#6B7280",
-              cursor: "pointer",
-            }}
-            onClick={onClose}
-          >
-            {t("cancel")}
-          </button>
-        </div>
 
-        {/* Body */}
-        <div style={bodyStyle}>
-          {/* Error banner */}
-          {error && (
-            <div
-              style={{
-                padding: "8px 12px",
-                marginBottom: 12,
-                background: "#FEF2F2",
-                border: "1px solid #FECACA",
-                borderRadius: "0.25rem",
-                fontSize: 13,
-                color: "#DC2626",
-              }}
-            >
-              {error}
-            </div>
-          )}
+          {/* Body */}
+          <div className="p-5">
+            {error && (
+              <div className="px-3 py-2 mb-3 bg-status-criticalBg border border-status-critical/30 rounded-md text-[13px] text-status-critical">
+                {error}
+              </div>
+            )}
 
-          {/* Auto-reject inline message */}
-          {autoRejectMessage && (
-            <div
-              style={{
-                padding: "10px 12px",
-                marginBottom: 12,
-                background: "#FEF2F2",
-                border: "1px solid #FECACA",
-                borderRadius: "0.25rem",
-                fontSize: 14,
-                color: "#DC2626",
-              }}
-            >
-              {t("autoRejectedMessage")}
-            </div>
-          )}
+            {autoRejectMessage && (
+              <div className="px-3 py-2.5 mb-3 bg-status-criticalBg border border-status-critical/30 rounded-md text-[14px] text-status-critical">
+                {t("autoRejectedMessage")}
+              </div>
+            )}
 
-          {/* OPTION_SELECT / NOANSWER_EXPANDED / CALLBACK_EXPANDED */}
-          {(flow === "option_select" || flow === "callback_expanded") && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {atMax && (
-                <div style={{ padding: "8px 12px", background: "#FEF3C7", border: "1px solid #FCD34D", borderRadius: "0.25rem", fontSize: 13, color: "#92400E" }}>
-                  {t("noResponseHintMax")}
-                </div>
-              )}
-              {/* Pas de réponse — hidden at max attempts. Direct action; server computes next retry slot from manager-configured preset times. */}
-              {!atMax && (
+            {(flow === "option_select" || flow === "callback_expanded") && (
+              <div className="flex flex-col gap-3">
+                {atMax && (
+                  <div className="px-3 py-2 bg-status-warningBg border border-status-warning/30 rounded-md text-[13px] text-[#92400E]">
+                    {t("noResponseHintMax")}
+                  </div>
+                )}
+                {!atMax && (
+                  <button
+                    type="button"
+                    className={optionButtonClasses}
+                    style={{ opacity: loading ? 0.6 : 1 }}
+                    disabled={loading}
+                    onClick={submitNoAnswer}
+                  >
+                    <div>{t("noResponse")}</div>
+                    <div className="text-[13px] font-normal text-ink-secondary mt-0.5">
+                      {loading ? t("saving") : t("noResponseHint")}
+                    </div>
+                  </button>
+                )}
+
                 <button
-                  style={{
-                    ...optionButtonBase,
-                    opacity: loading ? 0.6 : 1,
-                    cursor: loading ? "not-allowed" : "pointer",
-                  }}
-                  disabled={loading}
-                  onClick={submitNoAnswer}
+                  type="button"
+                  className={optionButtonClasses}
+                  onClick={() => setFlow("confirm_flow")}
                 >
-                  <div>{t("noResponse")}</div>
-                  <div style={{ fontSize: 13, fontWeight: 400, color: "#6B7280", marginTop: 2 }}>
-                    {loading ? t("saving") : t("noResponseHint")}
+                  <div>{t("confirmed")}</div>
+                  <div className="text-[13px] font-normal text-ink-secondary mt-0.5">
+                    {t("confirmedHint")}
                   </div>
                 </button>
-              )}
 
-              {/* Confirmé */}
-              <button
-                style={optionButtonBase}
-                onClick={() => setFlow("confirm_flow")}
-              >
-                <div>{t("confirmed")}</div>
-                <div style={{ fontSize: 13, fontWeight: 400, color: "#6B7280", marginTop: 2 }}>
-                  {t("confirmedHint")}
-                </div>
-              </button>
+                <button
+                  type="button"
+                  className={optionButtonClasses}
+                  onClick={() => {
+                    setFlow("reject_flow");
+                    if (atMax) setRejectionReason("injoignable");
+                  }}
+                >
+                  <div>{t("rejected")}</div>
+                  <div className="text-[13px] font-normal text-ink-secondary mt-0.5">
+                    {atMax ? t("rejectedHintMax") : t("rejectedHint")}
+                  </div>
+                </button>
 
-              {/* Rejeté */}
-              <button
-                style={optionButtonBase}
-                onClick={() => {
-                  setFlow("reject_flow");
-                  if (atMax) setRejectionReason("injoignable");
-                }}
-              >
-                <div>{t("rejected")}</div>
-                <div style={{ fontSize: 13, fontWeight: 400, color: "#6B7280", marginTop: 2 }}>
-                  {atMax ? t("rejectedHintMax") : t("rejectedHint")}
-                </div>
-              </button>
+                {!atMax && (
+                  <div>
+                    <button
+                      type="button"
+                      className={optionButtonClasses}
+                      onClick={() =>
+                        setFlow(
+                          flow === "callback_expanded"
+                            ? "option_select"
+                            : "callback_expanded",
+                        )
+                      }
+                    >
+                      <div>{t("callbackRequested")}</div>
+                      <div className="text-[13px] font-normal text-ink-secondary mt-0.5">
+                        {t("callbackHint")}
+                      </div>
+                    </button>
 
-              {/* Rappel demandé — hidden at max attempts */}
-              {!atMax && (
-                <div>
-                  <button
-                    style={optionButtonBase}
-                    onClick={() =>
-                      setFlow(
-                        flow === "callback_expanded" ? "option_select" : "callback_expanded"
-                      )
-                    }
-                  >
-                    <div>{t("callbackRequested")}</div>
-                    <div style={{ fontSize: 13, fontWeight: 400, color: "#6B7280", marginTop: 2 }}>
-                      {t("callbackHint")}
-                    </div>
-                  </button>
+                    {flow === "callback_expanded" && (
+                      <div className="mt-2 p-3 border border-line-subtle rounded-md bg-[#F9FAFB]">
+                        <CallbackPicker
+                          defaultValue={getDefaultCallbackTime()}
+                          onSelect={(d) => setCallbackTime(d)}
+                        />
+                        <button
+                          type="button"
+                          className={`${submitButtonClasses} mt-3`}
+                          disabled={!callbackTime || loading}
+                          onClick={submitCallback}
+                        >
+                          {loading ? t("saving") : t("scheduleCallback")}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
-                  {flow === "callback_expanded" && (
-                    <div style={accordionWrapStyle}>
-                      <CallbackPicker
-                        defaultValue={getDefaultCallbackTime()}
-                        onSelect={(d) => setCallbackTime(d)}
-                      />
-                      <button
-                        style={{
-                          ...submitButtonBase,
-                          marginTop: 12,
-                          opacity: !callbackTime || loading ? 0.5 : 1,
-                          cursor: !callbackTime || loading ? "not-allowed" : "pointer",
-                        }}
-                        disabled={!callbackTime || loading}
-                        onClick={submitCallback}
-                      >
-                        {loading ? t("saving") : t("scheduleCallback")}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+            {flow === "confirm_flow" && (
+              <div>
+                <button
+                  type="button"
+                  className="bg-transparent border-0 text-[14px] text-ink-secondary p-0 pb-3 text-start hover:text-ink-primary transition-colors duration-fast"
+                  onClick={() => {
+                    setFlow("option_select");
+                    setConfirmSuccess(false);
+                  }}
+                >
+                  {t("back")}
+                </button>
 
-          {/* CONFIRM_FLOW */}
-          {flow === "confirm_flow" && (
-            <div>
-              <button style={backButtonStyle} onClick={() => { setFlow("option_select"); setConfirmSuccess(false); }}>
-                {t("back")}
-              </button>
+                {confirmSuccess ? (
+                  <div className="text-[14px] text-status-success py-2">
+                    {t("confirmedSuccess")}
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-[14px] text-ink-secondary mb-4">
+                      {t("confirmedHint")}
+                    </p>
+                    <button
+                      type="button"
+                      className={`${submitButtonClasses} mt-2`}
+                      disabled={loading}
+                      onClick={submitConfirm}
+                    >
+                      {loading ? t("saving") : t("confirmed")}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
 
-              {confirmSuccess ? (
-                <div style={{ fontSize: 14, color: "#16A34A", padding: "8px 0" }}>
-                  {t("confirmedSuccess")}
-                </div>
-              ) : (
-                <>
-                  <p style={{ fontSize: 14, color: "#6B7280", marginBottom: 16 }}>
-                    {t("confirmedHint")}
-                  </p>
-                  <button
-                    style={{
-                      ...submitButtonBase,
-                      marginTop: 8,
-                      opacity: loading ? 0.5 : 1,
-                      cursor: loading ? "not-allowed" : "pointer",
-                    }}
-                    disabled={loading}
-                    onClick={submitConfirm}
-                  >
-                    {loading ? t("saving") : t("confirmed")}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
+            {flow === "reject_flow" && (
+              <div>
+                <button
+                  type="button"
+                  className="bg-transparent border-0 text-[14px] text-ink-secondary p-0 pb-3 text-start hover:text-ink-primary transition-colors duration-fast"
+                  onClick={() => {
+                    setFlow("option_select");
+                    setRejectionReason(atMax ? "injoignable" : null);
+                  }}
+                >
+                  {t("back")}
+                </button>
 
-          {/* REJECT_FLOW */}
-          {flow === "reject_flow" && (
-            <div>
-              <button style={backButtonStyle} onClick={() => { setFlow("option_select"); setRejectionReason(atMax ? "injoignable" : null); }}>
-                {t("back")}
-              </button>
+                <RejectionReasonSelect
+                  defaultReason={atMax ? "injoignable" : undefined}
+                  onSelect={(reason, note) => {
+                    setRejectionReason(reason);
+                    setRejectionNote(note);
+                  }}
+                />
 
-              <RejectionReasonSelect
-                defaultReason={atMax ? "injoignable" : undefined}
-                onSelect={(reason, note) => {
-                  setRejectionReason(reason);
-                  setRejectionNote(note);
-                }}
-              />
-
-              <button
-                style={{
-                  ...(rejectionReason ? submitButtonBase : submitButtonDisabled),
-                  marginTop: 16,
-                }}
-                disabled={
-                  !rejectionReason ||
-                  (rejectionReason === "autre" && !rejectionNote) ||
-                  loading
-                }
-                onClick={submitReject}
-              >
-                {loading ? t("saving") : t("confirmReject")}
-              </button>
-            </div>
-          )}
-
+                <button
+                  type="button"
+                  className={`${submitButtonClasses} mt-4`}
+                  disabled={
+                    !rejectionReason ||
+                    (rejectionReason === "autre" && !rejectionNote) ||
+                    loading
+                  }
+                  onClick={submitReject}
+                >
+                  {loading ? t("saving") : t("confirmReject")}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
       </FocusTrap>
     </div>
   );

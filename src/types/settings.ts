@@ -13,6 +13,13 @@ export const AssignmentAlgorithm = {
   region_based: "region_based" as const,
 };
 
+export interface ShiftConfig {
+  start: string; // "HH:MM"
+  end: string;   // "HH:MM"
+  days: number[]; // 0=Sun..6=Sat
+  timezone: string;
+}
+
 export interface MarketSettings {
   delivery_fee: number;
   return_fee: number;
@@ -22,7 +29,26 @@ export interface MarketSettings {
   active_agents_only?: boolean;
   agent_inactivity_minutes?: number;
   attempt_retry_times?: string[];
+  shift_config?: ShiftConfig;
 }
+
+export const DEFAULT_SHIFT_CONFIG: ShiftConfig = {
+  start: "08:00",
+  end: "18:00",
+  days: [1, 2, 3, 4, 5],
+  timezone: "Africa/Tunis",
+};
+
+export const DEFAULT_MARKET_SETTINGS: MarketSettings = {
+  delivery_fee: 0,
+  return_fee: 0,
+  packing_cost: 0,
+  max_call_attempts: 3,
+  assignment_algorithm: "manual",
+  active_agents_only: false,
+  attempt_retry_times: [],
+  shift_config: DEFAULT_SHIFT_CONFIG,
+};
 
 export interface CarrierConfig {
   id: string;
@@ -76,5 +102,25 @@ export function isValidMarketSettings(obj: unknown): obj is MarketSettings {
       prevMinutes = mins;
     }
   }
+  if (s.shift_config !== undefined) {
+    if (!isValidShiftConfig(s.shift_config)) return false;
+  }
+  return true;
+}
+
+export function isValidShiftConfig(obj: unknown): obj is ShiftConfig {
+  if (obj === null || typeof obj !== "object") return false;
+  const s = obj as Record<string, unknown>;
+  const timeRe = /^([0-1]\d|2[0-3]):([0-5]\d)$/;
+  if (typeof s.start !== "string" || !timeRe.test(s.start)) return false;
+  if (typeof s.end !== "string" || !timeRe.test(s.end)) return false;
+  const [sh, sm] = s.start.split(":").map(Number);
+  const [eh, em] = s.end.split(":").map(Number);
+  if (sh * 60 + sm >= eh * 60 + em) return false;
+  if (!Array.isArray(s.days)) return false;
+  for (const d of s.days) {
+    if (typeof d !== "number" || !Number.isInteger(d) || d < 0 || d > 6) return false;
+  }
+  if (typeof s.timezone !== "string" || s.timezone.length === 0) return false;
   return true;
 }

@@ -257,7 +257,7 @@ export async function GET(req: NextRequest) {
     current_stock: r.currentStock,
     avg_daily_sales: r.avgDailySales,
     days_of_supply: r.daysOfSupplyVal ?? 0,
-    unit_cost: r.unit_cost,
+    unit_cost: r.unit_cost ?? 0,
   }));
 
   const movements_by_day = bucketMovementsByDay(bucketRows);

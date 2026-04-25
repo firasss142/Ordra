@@ -15,6 +15,8 @@ export interface LeadsQuery {
   dateFrom?: string | null;
   dateTo?: string | null;
   campaignId?: string | null;
+  hotOnly?: boolean;
+  hasDuplicate?: boolean;
   page?: number;
   limit?: number;
 }
@@ -28,6 +30,8 @@ function buildLeadsKey(q: LeadsQuery): string {
   if (q.dateFrom) params.set("date_from", q.dateFrom);
   if (q.dateTo) params.set("date_to", q.dateTo);
   if (q.campaignId) params.set("campaign_id", q.campaignId);
+  if (q.hotOnly) params.set("hot_only", "true");
+  if (q.hasDuplicate) params.set("has_duplicate", "true");
   if (q.page) params.set("page", String(q.page));
   if (q.limit) params.set("limit", String(q.limit));
   const qs = params.toString();

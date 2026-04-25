@@ -6,10 +6,17 @@ import { useTranslations } from "next-intl";
 import { useFollowUpDetail } from "@/hooks/useFollowUpDetail";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { FollowUpStatusBadge } from "./FollowUpStatusBadge";
+import { DueUrgencyBadge } from "./DueUrgencyBadge";
+import { ScheduleSuggestionChip } from "./ScheduleSuggestionChip";
+import { ResolutionOutcomeModal } from "./ResolutionOutcomeModal";
 import {
   FOLLOW_UP_STATUSES,
+  CONTACT_OUTCOMES,
   isValidFollowUpTransition,
   type FollowUpStatus,
+  type ContactOutcome,
+  type ResolutionOutcome,
+  type LostReason,
 } from "@/types/follow-up";
 
 interface Props {
@@ -36,17 +43,24 @@ export function FollowUpDetail({ id, marketCode, locale }: Props) {
   const t = useTranslations("crm.followUps");
   const { followUp, isLoading, mutate } = useFollowUpDetail(id);
   const [newNote, setNewNote] = useState("");
+  const [selectedOutcome, setSelectedOutcome] = useState<ContactOutcome | null>(null);
   const [submittingNote, setSubmittingNote] = useState(false);
+  const [lastEntryOutcome, setLastEntryOutcome] = useState<ContactOutcome | null>(null);
   const [deliveryManPhone, setDeliveryManPhone] = useState("");
   const [description, setDescription] = useState("");
   const [editing, setEditing] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [dueAt, setDueAt] = useState<string>("");
+  const [savingDue, setSavingDue] = useState(false);
+  const [resolutionModalOpen, setResolutionModalOpen] = useState(false);
+  const [pendingTransitionTo, setPendingTransitionTo] = useState<FollowUpStatus | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (followUp) {
       setDeliveryManPhone(followUp.delivery_man_phone ?? "");
       setDescription(followUp.description ?? "");
+      setDueAt(followUp.due_at ? toDatetimeLocal(followUp.due_at) : "");
     }
   }, [followUp]);
 
@@ -80,13 +94,20 @@ export function FollowUpDetail({ id, marketCode, locale }: Props) {
       const res = await fetch(`/api/follow-ups/${followUp.id}/entries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ note: newNote.trim() }),
+        body: JSON.stringify({
+          note: newNote.trim(),
+          ...(selectedOutcome ? { outcome: selectedOutcome } : {}),
+        }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         throw new Error(j?.error ?? "error");
       }
+      const json = await res.json();
+      const entryOutcome = json?.data?.outcome as ContactOutcome | null;
       setNewNote("");
+      setLastEntryOutcome(entryOutcome ?? selectedOutcome);
+      setSelectedOutcome(null);
       await mutate();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -120,6 +141,27 @@ export function FollowUpDetail({ id, marketCode, locale }: Props) {
     }
   };
 
+  const saveDueAt = async (isoValue: string | null) => {
+    setSavingDue(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/follow-ups/${followUp.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ due_at: isoValue }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error ?? "error");
+      }
+      await mutate();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSavingDue(false);
+    }
+  };
+
   const transition = async (to: FollowUpStatus) => {
     setErr(null);
     try {
@@ -138,8 +180,46 @@ export function FollowUpDetail({ id, marketCode, locale }: Props) {
     }
   };
 
+  const handleTransitionClick = (to: FollowUpStatus) => {
+    if (to === "resolved") {
+      setPendingTransitionTo(to);
+      setResolutionModalOpen(true);
+    } else {
+      void transition(to);
+    }
+  };
+
+  const handleResolved = async (
+    outcome: ResolutionOutcome,
+    lostReason?: LostReason,
+    lostNote?: string,
+  ) => {
+    setResolutionModalOpen(false);
+    setPendingTransitionTo(null);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/follow-ups/${followUp.id}/transition`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          new_status: "resolved",
+          resolution_outcome: outcome,
+          ...(lostReason ? { lost_reason: lostReason } : {}),
+          ...(lostNote ? { lost_note: lostNote } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error ?? "error");
+      }
+      await mutate();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const availableTransitions = FOLLOW_UP_STATUSES.filter((s) =>
-    isValidFollowUpTransition(followUp.status, s)
+    isValidFollowUpTransition(followUp.status, s),
   );
 
   return (
@@ -171,7 +251,10 @@ export function FollowUpDetail({ id, marketCode, locale }: Props) {
         <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1A1A1A", margin: 0 }}>
           {followUp.order.customer_name}
         </h1>
-        <FollowUpStatusBadge status={followUp.status} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <DueUrgencyBadge dueAt={followUp.due_at} locale={locale} />
+          <FollowUpStatusBadge status={followUp.status} />
+        </div>
       </div>
 
       {err && (
@@ -198,6 +281,53 @@ export function FollowUpDetail({ id, marketCode, locale }: Props) {
         <div style={{ fontSize: 14, color: "#1A1A1A", marginTop: 4 }}>
           {formatCurrency(followUp.order.total_price, marketCode)} ·{" "}
           <span style={{ color: "#6B7280" }}>{followUp.order.status}</span>
+        </div>
+      </div>
+
+      {/* Due date edit */}
+      <div style={cardStyle}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <label style={{ ...labelStyle, marginBottom: 0 }}>{t("scheduleNextContact")}</label>
+          <input
+            type="datetime-local"
+            value={dueAt}
+            onChange={(e) => setDueAt(e.target.value)}
+            onBlur={() => {
+              const iso = dueAt ? new Date(dueAt).toISOString() : null;
+              void saveDueAt(iso);
+            }}
+            disabled={savingDue}
+            style={{
+              height: 32,
+              padding: "0 8px",
+              fontSize: 13,
+              border: "1px solid #D1D5DB",
+              borderRadius: 6,
+              background: "white",
+              color: "#1A1A1A",
+              outline: "none",
+            }}
+          />
+          {followUp.due_at && (
+            <button
+              type="button"
+              onClick={() => {
+                setDueAt("");
+                void saveDueAt(null);
+              }}
+              disabled={savingDue}
+              style={{
+                fontSize: 12,
+                color: "#6D7175",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              {t("cancel")}
+            </button>
+          )}
         </div>
       </div>
 
@@ -325,7 +455,7 @@ export function FollowUpDetail({ id, marketCode, locale }: Props) {
               <button
                 key={s}
                 type="button"
-                onClick={() => transition(s)}
+                onClick={() => handleTransitionClick(s)}
                 style={{
                   height: 32,
                   padding: "0 10px",
@@ -353,8 +483,8 @@ export function FollowUpDetail({ id, marketCode, locale }: Props) {
             <div
               key={e.id}
               style={{
-                borderLeft: "3px solid #E1E3E5",
-                paddingLeft: 10,
+                borderInlineStart: "3px solid #E1E3E5",
+                paddingInlineStart: 10,
               }}
             >
               <div style={{ fontSize: 12, color: "#6B7280" }}>
@@ -365,6 +495,7 @@ export function FollowUpDetail({ id, marketCode, locale }: Props) {
                     {e.status_from ?? "∅"} → {e.status_to ?? "∅"}
                   </>
                 ) : null}
+                {e.outcome ? ` · ${e.outcome}` : null}
               </div>
               {e.note && (
                 <div style={{ fontSize: 14, color: "#1A1A1A", marginTop: 2 }}>
@@ -378,7 +509,33 @@ export function FollowUpDetail({ id, marketCode, locale }: Props) {
           )}
         </div>
 
+        {/* Outcome selector */}
         <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 12, color: "#6D7175", marginBottom: 6 }}>
+            {t("selectOutcome")}
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+            {CONTACT_OUTCOMES.map((o) => (
+              <button
+                key={o}
+                type="button"
+                onClick={() => setSelectedOutcome(selectedOutcome === o ? null : o)}
+                style={{
+                  height: 28,
+                  padding: "0 10px",
+                  borderRadius: 6,
+                  border: `1px solid ${selectedOutcome === o ? "#1A1A1A" : "#D1D5DB"}`,
+                  background: selectedOutcome === o ? "#1A1A1A" : "white",
+                  color: selectedOutcome === o ? "white" : "#1A1A1A",
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                {t(`outcomes.${o}`)}
+              </button>
+            ))}
+          </div>
+
           <textarea
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
@@ -406,19 +563,50 @@ export function FollowUpDetail({ id, marketCode, locale }: Props) {
                 padding: "0 12px",
                 borderRadius: 6,
                 border: "none",
-                background:
-                  submittingNote || !newNote.trim() ? "#9CA3AF" : "#1A1A1A",
+                background: submittingNote || !newNote.trim() ? "#9CA3AF" : "#1A1A1A",
                 color: "white",
                 fontSize: 13,
-                cursor:
-                  submittingNote || !newNote.trim() ? "not-allowed" : "pointer",
+                cursor: submittingNote || !newNote.trim() ? "not-allowed" : "pointer",
               }}
             >
               {submittingNote ? t("adding") : t("addNote")}
             </button>
           </div>
         </div>
+
+        {lastEntryOutcome && (
+          <div style={{ marginTop: 12 }}>
+            <ScheduleSuggestionChip
+              outcome={lastEntryOutcome}
+              onAccept={async (date) => {
+                setLastEntryOutcome(null);
+                await saveDueAt(date.toISOString());
+              }}
+              onSkip={() => setLastEntryOutcome(null)}
+            />
+          </div>
+        )}
       </div>
+
+      {resolutionModalOpen && pendingTransitionTo === "resolved" && (
+        <ResolutionOutcomeModal
+          open={resolutionModalOpen}
+          followUp={followUp}
+          marketCode={marketCode}
+          locale={locale}
+          onClose={() => {
+            setResolutionModalOpen(false);
+            setPendingTransitionTo(null);
+          }}
+          onResolved={handleResolved}
+        />
+      )}
     </div>
   );
+}
+
+function toDatetimeLocal(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }

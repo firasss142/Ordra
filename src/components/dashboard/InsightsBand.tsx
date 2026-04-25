@@ -1,11 +1,18 @@
 "use client";
 
+import { Sparkles, TrendingDown, TrendingUp, type LucideIcon } from "lucide-react";
 import type { Insight, InsightTone } from "@/lib/dashboard/insights";
 
-const TONE_STYLES: Record<InsightTone, { bg: string; fg: string; dot: string }> = {
-  positive: { bg: "#E6F4EE", fg: "#0A6A4E", dot: "#008060" },
-  negative: { bg: "#FDEDEA", fg: "#A11A06", dot: "#D72C0D" },
-  neutral: { bg: "#F1F2F3", fg: "#3D4043", dot: "#6D7175" },
+const TONE_STYLES: Record<InsightTone, { bg: string; fg: string; icon: string }> = {
+  positive: { bg: "#E6F4EE", fg: "#0A6A4E", icon: "#008060" },
+  negative: { bg: "#FDEDEA", fg: "#A11A06", icon: "#D72C0D" },
+  neutral: { bg: "#F1F2F3", fg: "#3D4043", icon: "#6D7175" },
+};
+
+const TONE_ICONS: Record<InsightTone, LucideIcon> = {
+  positive: TrendingUp,
+  negative: TrendingDown,
+  neutral: Sparkles,
 };
 
 export function InsightsBand({ insights }: { insights: Insight[] }) {
@@ -21,6 +28,7 @@ export function InsightsBand({ insights }: { insights: Insight[] }) {
     >
       {insights.map((insight) => {
         const tone = TONE_STYLES[insight.tone];
+        const Icon = TONE_ICONS[insight.tone];
         return (
           <div
             key={insight.key}
@@ -35,17 +43,10 @@ export function InsightsBand({ insights }: { insights: Insight[] }) {
               borderRadius: 999,
               fontSize: 13,
               fontWeight: 500,
+              lineHeight: 1.2,
             }}
           >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: tone.dot,
-                flexShrink: 0,
-              }}
-            />
+            <Icon size={14} color={tone.icon} strokeWidth={2.25} />
             {insight.text}
           </div>
         );

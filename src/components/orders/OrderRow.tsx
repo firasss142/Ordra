@@ -63,7 +63,7 @@ function Row({
     <tr
       style={{
         cursor: "pointer",
-        background: selected ? "#F0F4FF" : highlighted ? "#FFFBEA" : "#FFFFFF",
+        background: selected ? "#F2F6FC" : highlighted ? "#FFFBEA" : "#FFFFFF",
         transition: "background-color 120ms ease",
       }}
       onClick={() => onOpen(order.id)}

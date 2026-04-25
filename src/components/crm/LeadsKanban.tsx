@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { KanbanBoard } from "@/components/shared/KanbanBoard";
 import { LeadCard, leadCardAccent } from "./LeadCard";
@@ -11,6 +12,25 @@ import { accentForStatus, getStatusLabel } from "@/lib/statuses/label";
 import type { Lead, LeadStatus } from "@/types/lead";
 import type { Locale } from "@/types";
 
+const MarkLostModal = dynamic(
+  () => import("./MarkLostModal").then((m) => m.MarkLostModal),
+  { ssr: false },
+);
+const ScheduleCallbackModal = dynamic(
+  () => import("./ScheduleCallbackModal").then((m) => m.ScheduleCallbackModal),
+  { ssr: false },
+);
+const ConvertLeadModal = dynamic(
+  () => import("./ConvertLeadModal").then((m) => m.ConvertLeadModal),
+  { ssr: false },
+);
+const ReassignLeadModal = dynamic(
+  () => import("./ReassignLeadModal").then((m) => m.ReassignLeadModal),
+  { ssr: false },
+);
+
+type ActiveModal = "callback" | "convert" | "lost" | "reassign" | null;
+
 interface Props {
   marketId: string | null;
   locale: string;
@@ -19,10 +39,7 @@ interface Props {
   agentId?: string | null;
   density?: "comfortable" | "compact";
   isSuperAdmin?: boolean;
-  /**
-   * When provided, only columns for these statuses render. Used by the
-   * LeadsPageClient bucket filter to narrow the board without re-querying.
-   */
+  hotOnly?: boolean;
   visibleStatuses?: LeadStatus[];
 }
 
@@ -34,6 +51,7 @@ export function LeadsKanban({
   agentId,
   density = "comfortable",
   isSuperAdmin,
+  hotOnly,
   visibleStatuses,
 }: Props) {
   const tLeads = useTranslations("crm.leads");
@@ -44,6 +62,7 @@ export function LeadsKanban({
     source: sourceFilter || undefined,
     campaignId: campaignId ?? undefined,
     agentId: agentId ?? undefined,
+    hotOnly,
     limit: 200,
   });
 
@@ -54,10 +73,21 @@ export function LeadsKanban({
 
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<LeadStatus | undefined>(undefined);
+  const [activeLead, setActiveLead] = useState<Lead | null>(null);
+  const [activeModal, setActiveModal] = useState<ActiveModal>(null);
 
   const openAdd = (status: string) => {
     setPendingStatus(status as LeadStatus);
     setModalOpen(true);
+  };
+
+  const openModal = (modal: ActiveModal, lead: Lead) => {
+    setActiveLead(lead);
+    setActiveModal(modal);
+  };
+  const closeModal = () => {
+    setActiveLead(null);
+    setActiveModal(null);
   };
 
   const sortedConfigs = useMemo(() => {
@@ -84,6 +114,17 @@ export function LeadsKanban({
     [sortedConfigs]
   );
 
+  // Hot leads sort first within each column
+  const sortedLeads = useMemo(
+    () => [...leads].sort((a, b) => {
+      if (a.status !== b.status) return 0;
+      if (a.is_hot && !b.is_hot) return -1;
+      if (!a.is_hot && b.is_hot) return 1;
+      return 0;
+    }),
+    [leads]
+  );
+
   const handleMove = async (item: Lead, fromKey: string, toKey: string) => {
     if (fromKey === toKey) return;
     const fromConfig = configByKey[fromKey];
@@ -91,7 +132,6 @@ export function LeadsKanban({
     if (!fromConfig.allowed_transitions.includes(toKey)) {
       throw new Error(`Invalid transition ${fromKey} → ${toKey}`);
     }
-    // Block transitions to special-handling statuses — UI must use dedicated modals.
     if (toKey === "lost") {
       throw new Error("Use the lost-reason modal to mark a lead lost");
     }
@@ -118,7 +158,7 @@ export function LeadsKanban({
       ) : (
         <KanbanBoard<Lead>
           columns={columns}
-          items={leads}
+          items={sortedLeads}
           getItemId={(l) => l.id}
           groupBy={(l) => l.status as string}
           onMove={handleMove}
@@ -126,7 +166,15 @@ export function LeadsKanban({
           density={density}
           emptyLabel={tLeads("emptyState")}
           renderCard={(l) => (
-            <LeadCard lead={l} locale={locale} density={density} />
+            <LeadCard
+              lead={l}
+              locale={locale}
+              density={density}
+              onCallback={() => openModal("callback", l)}
+              onConvert={() => openModal("convert", l)}
+              onMarkLost={() => openModal("lost", l)}
+              onReassign={() => openModal("reassign", l)}
+            />
           )}
         />
       )}
@@ -143,6 +191,43 @@ export function LeadsKanban({
         locale={locale}
         initialStatus={pendingStatus}
       />
+
+      {activeModal === "callback" && activeLead && (
+        <ScheduleCallbackModal
+          open
+          leadId={activeLead.id}
+          locale={locale}
+          onClose={closeModal}
+          onDone={() => { closeModal(); mutate(); }}
+        />
+      )}
+      {activeModal === "convert" && activeLead && (
+        <ConvertLeadModal
+          open
+          lead={activeLead}
+          locale={locale}
+          onClose={closeModal}
+          onConverted={() => { closeModal(); mutate(); }}
+        />
+      )}
+      {activeModal === "lost" && activeLead && (
+        <MarkLostModal
+          open
+          leadId={activeLead.id}
+          locale={locale}
+          onClose={closeModal}
+          onDone={() => { closeModal(); mutate(); }}
+        />
+      )}
+      {activeModal === "reassign" && activeLead && marketId && (
+        <ReassignLeadModal
+          open
+          lead={activeLead}
+          marketId={marketId}
+          onClose={closeModal}
+          onDone={() => { closeModal(); mutate(); }}
+        />
+      )}
     </>
   );
 }

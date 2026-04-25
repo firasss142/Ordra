@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
 import { getFollowUpsSummary } from "@/lib/follow-ups/summary";
-import { getFollowUpsKanbanInitial } from "@/lib/follow-ups/list";
+import { getFollowUpsKanbanInitial, getFollowUpsPage } from "@/lib/follow-ups/list";
 import { FollowUpsPageClient } from "./FollowUpsPageClient";
 import type { Locale } from "@/types";
 
@@ -28,9 +28,6 @@ export default async function FollowUpsPage({
 
   if (!profile) redirect(`/${params.locale}/login`);
 
-  // Agents render via AgentTabsContainer at layout level; the page itself is
-  // a no-op so we don't double-mount FollowUpsBoard.
-  if (profile.role === "agent") return null;
   if (profile.role === "warehouse_agent") redirect(`/${params.locale}/warehouse`);
 
   let userMarketLabel = "";
@@ -55,19 +52,35 @@ export default async function FollowUpsPage({
       ? (superAdminInitialMarketId || null)
       : (profile.market_id ?? null);
 
-  // Parallel prefetch: KPI summary + four Kanban columns (4×25 rows) in a
-  // single round-trip batch. The client receives fully populated SWR caches
-  // for the initial key and paints with zero loading state.
-  const [initialSummary, initialColumnPages] = await Promise.all([
-    getFollowUpsSummary(supabase, {
+  const isAgent = profile.role === "agent";
+
+  // Agents only get the timeline view (own queue). Managers/super_admin get both.
+  const [initialSummary, initialColumnPages, initialTimelinePage] = await Promise.all([
+    isAgent
+      ? Promise.resolve({ open: 0, in_progress: 0, resolved: 0, escalated: 0, total: 0 })
+      : getFollowUpsSummary(supabase, {
+          marketId: scopedMarketId,
+          agentId: null,
+          campaignId: null,
+        }),
+    isAgent
+      ? Promise.resolve({
+          open: { rows: [], nextCursor: null },
+          in_progress: { rows: [], nextCursor: null },
+          resolved: { rows: [], nextCursor: null },
+          escalated: { rows: [], nextCursor: null },
+        })
+      : getFollowUpsKanbanInitial(supabase, {
+          marketId: scopedMarketId,
+          agentId: null,
+          campaignId: null,
+        }),
+    getFollowUpsPage(supabase, {
       marketId: scopedMarketId,
-      agentId: null,
+      agentId: isAgent ? authUser.id : null,
       campaignId: null,
-    }),
-    getFollowUpsKanbanInitial(supabase, {
-      marketId: scopedMarketId,
-      agentId: null,
-      campaignId: null,
+      sortByDue: true,
+      limit: 25,
     }),
   ]);
 
@@ -81,6 +94,8 @@ export default async function FollowUpsPage({
       initialSummary={initialSummary}
       initialColumnPages={initialColumnPages}
       initialMarketId={superAdminInitialMarketId}
+      initialTimelinePage={initialTimelinePage}
+      initialAgentId={isAgent ? authUser.id : null}
     />
   );
 }

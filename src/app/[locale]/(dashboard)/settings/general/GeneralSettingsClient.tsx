@@ -1,0 +1,112 @@
+"use client";
+
+import { useState } from "react";
+import useSWR from "swr";
+import { GeneralSettingsGroups } from "@/components/settings/GeneralSettingsGroups";
+import { SettingsPageHeader } from "@/components/settings/SettingsPageHeader";
+import type { AuthUser } from "@/types";
+import type { MarketSettings } from "@/types/settings";
+
+interface Market {
+  id: string;
+  name: string;
+  code: string;
+}
+
+interface Props {
+  user: AuthUser;
+  initialMarkets: Market[];
+  initialMarketId: string;
+}
+
+export function GeneralSettingsClient({
+  user,
+  initialMarkets,
+  initialMarketId,
+}: Props) {
+  const isRtl = user.direction === "rtl";
+
+  const [selectedMarketId, setSelectedMarketId] =
+    useState<string>(initialMarketId);
+
+  const { data: marketsData } = useSWR<{ data: Market[] }>(
+    user.role === "super_admin" ? "/api/markets" : null,
+    { fallbackData: { data: initialMarkets } },
+  );
+  const markets = marketsData?.data ?? initialMarkets;
+
+  const marketId = selectedMarketId || user.market_id || "";
+  const { data } = useSWR<{
+    data: { key: string; value: { value: unknown } }[];
+  }>(marketId ? `/api/settings/${marketId}` : null);
+
+  const settingsMap = Object.fromEntries(
+    (data?.data ?? []).map((row) => [row.key, row.value?.value ?? row.value]),
+  );
+
+  const initialValues: MarketSettings = {
+    delivery_fee:
+      typeof settingsMap.delivery_fee === "number"
+        ? settingsMap.delivery_fee
+        : 0,
+    return_fee:
+      typeof settingsMap.return_fee === "number" ? settingsMap.return_fee : 0,
+    packing_cost:
+      typeof settingsMap.packing_cost === "number"
+        ? settingsMap.packing_cost
+        : 0,
+    max_call_attempts:
+      typeof settingsMap.max_call_attempts === "number"
+        ? settingsMap.max_call_attempts
+        : 3,
+    assignment_algorithm:
+      typeof settingsMap.assignment_algorithm === "string"
+        ? (settingsMap.assignment_algorithm as MarketSettings["assignment_algorithm"])
+        : "manual",
+    active_agents_only: settingsMap.active_agents_only === true,
+    attempt_retry_times: Array.isArray(settingsMap.attempt_retry_times)
+      ? (settingsMap.attempt_retry_times as string[]).filter(
+          (v) => typeof v === "string",
+        )
+      : [],
+    agent_inactivity_minutes:
+      typeof settingsMap.agent_inactivity_minutes === "number"
+        ? settingsMap.agent_inactivity_minutes
+        : undefined,
+    shift_config:
+      settingsMap.shift_config && typeof settingsMap.shift_config === "object"
+        ? (settingsMap.shift_config as MarketSettings["shift_config"])
+        : undefined,
+  };
+
+  return (
+    <div
+      style={{
+        padding: 24,
+        backgroundColor: "#F6F6F7",
+        minHeight: "100vh",
+        direction: isRtl ? "rtl" : "ltr",
+      }}
+    >
+      <SettingsPageHeader
+        title="Paramètres généraux"
+        markets={markets}
+        selectedMarketId={selectedMarketId}
+        onChange={setSelectedMarketId}
+        showMarketSelector={user.role === "super_admin"}
+        isRtl={isRtl}
+      />
+
+      {data ? (
+        <GeneralSettingsGroups
+          key={`${marketId}:${data?.data?.length ?? 0}`}
+          initialValues={initialValues}
+          marketId={marketId}
+          role={user.role}
+        />
+      ) : (
+        <div style={{ fontSize: 13, color: "#6D7175" }}>Chargement…</div>
+      )}
+    </div>
+  );
+}

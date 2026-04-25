@@ -3,6 +3,15 @@
 import React from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import {
+  Phone,
+  CalendarClock,
+  RefreshCw,
+  ShoppingCart,
+  XCircle,
+  Flame,
+  AlertCircle,
+} from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import { LeadStatusBadge } from "./LeadStatusBadge";
 import type { Lead, LeadStatus } from "@/types/lead";
@@ -11,6 +20,10 @@ interface Props {
   lead: Lead;
   locale: string;
   density?: "comfortable" | "compact";
+  onCallback: () => void;
+  onConvert: () => void;
+  onMarkLost: () => void;
+  onReassign: () => void;
 }
 
 function attemptsUsed(status: LeadStatus): number {
@@ -20,8 +33,11 @@ function attemptsUsed(status: LeadStatus): number {
   return 0;
 }
 
-export function LeadCard({ lead, locale, density = "comfortable" }: Props) {
+export function LeadCard({ lead, locale, density = "comfortable", onCallback, onConvert, onMarkLost, onReassign }: Props) {
   const tSources = useTranslations("crm.leads.sources");
+  const tActions = useTranslations("crm.leads.actions");
+  const tHot = useTranslations("crm.leads.hotLeads");
+  const tDup = useTranslations("crm.leads.duplicates");
   const compact = density === "compact";
   const padding = compact ? 10 : 12;
   const status = lead.status as LeadStatus;
@@ -32,135 +48,275 @@ export function LeadCard({ lead, locale, density = "comfortable" }: Props) {
       : null;
 
   return (
-    <Link
-      href={`/${locale}/leads/${lead.id}`}
-      style={{
-        display: "block",
-        textDecoration: "none",
-        color: "inherit",
-        background: "white",
-        border: "1px solid #E1E3E5",
-        borderRadius: 8,
-        padding,
-      }}
-    >
-      {/* Line 1: name + source pill */}
-      <div
+    <div style={{ position: "relative" }}>
+      <Link
+        href={`/${locale}/leads/${lead.id}`}
         style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 8,
-          marginBottom: 4,
+          display: "block",
+          textDecoration: "none",
+          color: "inherit",
+          background: "white",
+          border: "1px solid #E1E3E5",
+          borderRadius: 10,
+          padding,
         }}
       >
-        <strong
+        {/* Line 1: name + source pill */}
+        <div
           style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: "#1A1A1A",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            minWidth: 0,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 8,
+            marginBottom: 4,
           }}
         >
-          {lead.customer_name}
-        </strong>
-        <span
+          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+            {lead.is_hot && (
+              <span
+                style={{
+                  flexShrink: 0,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 3,
+                  padding: "1px 6px",
+                  borderRadius: 999,
+                  color: "#D72C0D",
+                  background: "#FFF4F4",
+                  border: "1px solid #F0B6B4",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <Flame size={10} strokeWidth={2} />
+                {tHot("badge")}
+              </span>
+            )}
+            {lead.has_duplicate && (
+              <span
+                style={{
+                  flexShrink: 0,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 3,
+                  padding: "1px 6px",
+                  borderRadius: 999,
+                  color: "#B98900",
+                  background: "#FFF8E6",
+                  border: "1px solid #F0C060",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <AlertCircle size={10} strokeWidth={2} />
+                {tDup("badge")}
+              </span>
+            )}
+            <strong
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#1A1A1A",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                minWidth: 0,
+              }}
+            >
+              {lead.customer_name}
+            </strong>
+          </div>
+          <span
+            style={{
+              flexShrink: 0,
+              fontSize: 11,
+              fontWeight: 500,
+              color: "#6D7175",
+              background: "#F6F6F7",
+              border: "1px solid #E1E3E5",
+              borderRadius: 999,
+              padding: "1px 8px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {tSources(lead.source)}
+          </span>
+        </div>
+
+        {/* Line 2: phone · city */}
+        <div
           style={{
-            flexShrink: 0,
-            fontSize: 11,
-            fontWeight: 500,
+            fontSize: 13,
             color: "#6D7175",
-            background: "#F6F6F7",
-            border: "1px solid #E1E3E5",
-            borderRadius: 4,
-            padding: "1px 6px",
-            whiteSpace: "nowrap",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            fontVariantNumeric: "tabular-nums",
           }}
         >
-          {tSources(lead.source)}
-        </span>
-      </div>
+          <Phone size={11} strokeWidth={1.75} style={{ opacity: 0.7 }} />
+          {lead.customer_phone}
+          {lead.customer_city ? ` · ${lead.customer_city}` : ""}
+        </div>
 
-      {/* Line 2: phone · city */}
-      <div style={{ fontSize: 13, color: "#6D7175" }}>
-        {lead.customer_phone}
-        {lead.customer_city ? ` · ${lead.customer_city}` : ""}
-      </div>
+        {/* Line 3: callback datetime */}
+        {callbackAt && (
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 12,
+              color: "#1A1A1A",
+              marginTop: compact ? 4 : 6,
+              fontVariantNumeric: "tabular-nums",
+              background: "#FFF8E6",
+              border: "1px solid #F0C060",
+              borderRadius: 999,
+              padding: "2px 8px",
+            }}
+          >
+            <CalendarClock size={11} strokeWidth={1.75} />
+            {formatDateTime(callbackAt, locale)}
+          </div>
+        )}
 
-      {/* Line 3: callback datetime (only for callback_scheduled) */}
-      {callbackAt && (
+        {/* Line 4: status badge + attempt dots */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 6,
-            fontSize: 12,
-            color: "#1A1A1A",
-            marginTop: compact ? 4 : 6,
-            fontVariantNumeric: "tabular-nums",
+            justifyContent: "space-between",
+            gap: 8,
+            marginTop: compact ? 6 : 8,
           }}
         >
-          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-            <circle
-              cx="5"
-              cy="5"
-              r="4"
-              fill="none"
-              stroke="#1A1A1A"
-              strokeWidth="1"
-            />
-            <path d="M5 2.5 V5 L6.5 6" stroke="#1A1A1A" strokeWidth="1" fill="none" strokeLinecap="round" />
-          </svg>
-          {formatDateTime(callbackAt, locale)}
+          <LeadStatusBadge status={status} />
+          {used > 0 && (
+            <div
+              aria-label={`attempts ${used}/3`}
+              style={{ display: "inline-flex", alignItems: "center", gap: 3 }}
+            >
+              {[1, 2, 3].map((n) => (
+                <span
+                  key={n}
+                  aria-hidden="true"
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: n <= used ? "#1A1A1A" : "#E1E3E5",
+                    display: "inline-block",
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Line 4: status badge + attempt dots */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
-          marginTop: compact ? 6 : 8,
-        }}
-      >
-        <LeadStatusBadge status={status} />
-        {used > 0 && (
-          <div
-            aria-label={`attempts ${used}/3`}
-            style={{ display: "inline-flex", alignItems: "center", gap: 3 }}
+        {/* Action strip */}
+        <div
+          style={{
+            display: "flex",
+            gap: 2,
+            alignItems: "center",
+            marginTop: compact ? 6 : 8,
+            borderTop: "1px solid #F2F2F2",
+            paddingTop: compact ? 6 : 8,
+          }}
+          onClick={(e) => e.preventDefault()}
+        >
+          <a
+            href={`tel:${lead.customer_phone}`}
+            style={actionLinkStyle}
+            title={tActions("callNow")}
+            aria-label={tActions("callNow")}
+            onClick={(e) => e.stopPropagation()}
           >
-            {[1, 2, 3].map((n) => (
-              <span
-                key={n}
-                aria-hidden="true"
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: n <= used ? "#1A1A1A" : "#E1E3E5",
-                  display: "inline-block",
-                }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </Link>
+            <Phone size={11} strokeWidth={1.75} />
+            {tActions("callNow")}
+          </a>
+          <button
+            type="button"
+            style={actionBtnStyle}
+            title={tActions("scheduleCallback")}
+            aria-label={tActions("scheduleCallback")}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onCallback(); }}
+          >
+            <CalendarClock size={11} strokeWidth={1.75} />
+            {tActions("scheduleCallback")}
+          </button>
+          {status === "qualified" && (
+            <button
+              type="button"
+              style={actionBtnStyle}
+              title={tActions("convertToOrder")}
+              aria-label={tActions("convertToOrder")}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onConvert(); }}
+            >
+              <ShoppingCart size={11} strokeWidth={1.75} />
+              {tActions("convertToOrder")}
+            </button>
+          )}
+          <button
+            type="button"
+            style={{ ...actionBtnStyle, color: "#D72C0D" }}
+            title={tActions("markLostAction")}
+            aria-label={tActions("markLostAction")}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMarkLost(); }}
+          >
+            <XCircle size={11} strokeWidth={1.75} />
+            {tActions("markLostAction")}
+          </button>
+          <button
+            type="button"
+            style={actionBtnStyle}
+            title={tActions("reassignLead")}
+            aria-label={tActions("reassignLead")}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReassign(); }}
+          >
+            <RefreshCw size={11} strokeWidth={1.75} />
+          </button>
+        </div>
+      </Link>
+    </div>
   );
 }
+
+const actionBtnStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  fontSize: 11,
+  fontWeight: 500,
+  color: "#1A1A1A",
+  padding: "4px 6px",
+  borderRadius: 6,
+  fontFamily: "inherit",
+};
+
+const actionLinkStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  fontSize: 11,
+  fontWeight: 500,
+  color: "#2C6ECB",
+  textDecoration: "none",
+  padding: "4px 6px",
+  borderRadius: 6,
+};
 
 /**
  * Returns a functional accent for a card:
  *  - "warning" when a callback is overdue
  *  - "critical" on attempt_3 (last chance)
  *  - "neutral" otherwise
- *
- * Exported so both LeadsKanban and future agent-queue Kanban use the same rule.
  */
 export function leadCardAccent(lead: Lead): "neutral" | "warning" | "critical" {
   const status = lead.status as LeadStatus;

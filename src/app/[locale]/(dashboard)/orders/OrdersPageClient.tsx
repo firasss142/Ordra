@@ -176,6 +176,10 @@ export function OrdersPageClient({
       if (filters.preset === "callbacks") {
         return row.status === "callback_scheduled";
       }
+      if (filters.preset === "in_delivery") {
+        const deliveryStatuses = ["dispatching", "dispatched", "deposit", "in_transit", "to_be_returned"];
+        return deliveryStatuses.includes(row.status);
+      }
       // Other filters: include the row and let server revalidation prune if needed
       if (filters.statuses.length > 0 && !filters.statuses.includes(row.status as never)) return false;
       if (filters.agentId === "unassigned" && row.assigned_to !== null) return false;
@@ -324,17 +328,6 @@ export function OrdersPageClient({
   );
   const handleClearAll = useCallback(() => setFilters(resetFiltersFn(filters)), [filters, setFilters]);
 
-  // ---------- Refresh ----------
-  const [refreshing, setRefreshing] = useState(false);
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await mutate();
-    } finally {
-      // Give the icon rotation a visible beat
-      setTimeout(() => setRefreshing(false), 600);
-    }
-  }, [mutate]);
 
   // ---------- Create modal ----------
   const [createOpen, setCreateOpen] = useState(false);
@@ -365,10 +358,27 @@ export function OrdersPageClient({
     return markets.find((m) => m.id === filters.marketId)?.name ?? "—";
   }, [isSuperAdmin, filters.marketId, markets, userMarketLabel, t]);
 
+  // Quick inline stats derived from loaded rows
+  const unassignedCount = rows.filter((r) => r.status === "new" && r.assigned_to === null).length;
+  const callbackCount = rows.filter((r) => r.status === "callback_scheduled").length;
+
+  const hasActiveFilterChips =
+    filters.q.length > 0 ||
+    filters.statuses.length > 0 ||
+    filters.agentId !== null ||
+    filters.dateFrom !== null ||
+    filters.dateTo !== null ||
+    filters.productId !== null ||
+    filters.city.length > 0 ||
+    filters.totalMin !== null ||
+    filters.totalMax !== null ||
+    filters.rejectionReason !== null ||
+    filters.carrierId !== null;
+
   return (
     <div
       style={{
-        padding: "32px 32px 64px",
+        padding: "24px 24px 80px",
         background: "#F6F6F7",
         minHeight: "100vh",
         display: "flex",
@@ -376,46 +386,68 @@ export function OrdersPageClient({
         gap: 16,
       }}
     >
-      <div>
-        <h1 style={{ fontSize: 20, fontWeight: 600, color: "#1A1A1A", margin: 0 }}>
-          {t("title")}
-        </h1>
-        <p style={{ fontSize: 13, color: "#6D7175", margin: "4px 0 0" }}>
-          {t("subtitle", { count: rows.length, market: activeMarketLabel })}
-          {isValidating ? ` · ${t("refreshing")}` : ""}
-        </p>
-      </div>
-
-      <OrdersFilterBar
-        filters={filters}
-        onChange={update}
-        onOpenAdvanced={() => {
-          setDrawerMounted(true);
-          setDrawerOpen(true);
+      {/* ── Header ── */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 16,
+          flexWrap: "wrap",
         }}
-        onNewOrder={() => setCreateOpen(true)}
-        onExport={handleExport}
-        onRefresh={handleRefresh}
-        isRefreshing={refreshing}
-        isSuperAdmin={isSuperAdmin}
-        markets={markets}
-        agents={agents}
-        lockedMarketLabel={userMarketLabel}
-      />
-
-      <OrdersFilterChips
-        filters={filters}
-        onClearField={handleClearField}
-        onClearAll={handleClearAll}
-        agentNameLookup={(id) => agents.find((a) => a.id === id)?.full_name ?? null}
-        productNameLookup={(id) => productsData?.data.find((p) => p.id === id)?.name ?? null}
-      />
-
-      <div>
+      >
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 600, color: "#1A1A1A", margin: 0 }}>
+            {t("title")}
+          </h1>
+          <p style={{ fontSize: 13, color: "#6D7175", margin: "4px 0 0" }}>
+            {t("totalCount", { count: rows.length })}
+            {unassignedCount > 0 ? ` · ${unassignedCount} ${t("unassigned").toLowerCase()}` : ""}
+            {callbackCount > 0 ? ` · ${callbackCount} ${t("presets.callbacks").toLowerCase()}` : ""}
+            {` · ${activeMarketLabel}`}
+            {isValidating ? ` · ${t("refreshing")}` : ""}
+          </p>
+        </div>
         <OrdersPresetPills
           active={filters.preset}
           onChange={(next) => update({ preset: next })}
         />
+      </div>
+
+      {/* ── Filter card ── */}
+      <div
+        style={{
+          background: "#FFFFFF",
+          border: "1px solid #E1E3E5",
+          borderRadius: 8,
+          padding: "14px 16px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}
+      >
+        <OrdersFilterBar
+          filters={filters}
+          onChange={update}
+          onOpenAdvanced={() => {
+            setDrawerMounted(true);
+            setDrawerOpen(true);
+          }}
+          onNewOrder={() => setCreateOpen(true)}
+          onExport={handleExport}
+          isSuperAdmin={isSuperAdmin}
+          markets={markets}
+          lockedMarketLabel={userMarketLabel}
+        />
+        {hasActiveFilterChips ? (
+          <OrdersFilterChips
+            filters={filters}
+            onClearField={handleClearField}
+            onClearAll={handleClearAll}
+            agentNameLookup={(id) => agents.find((a) => a.id === id)?.full_name ?? null}
+            productNameLookup={(id) => productsData?.data.find((p) => p.id === id)?.name ?? null}
+          />
+        ) : null}
       </div>
 
       <NewOrdersBanner count={newCount} onReveal={revealNew} onDismiss={dismissNew} />
@@ -436,6 +468,47 @@ export function OrdersPageClient({
         </div>
       ) : null}
 
+      {/* ── Orders table wrapped in card ── */}
+      <div
+        style={{
+          background: "#FFFFFF",
+          border: "1px solid #E1E3E5",
+          borderRadius: 8,
+          overflow: "hidden",
+        }}
+      >
+        <OrdersTable
+          rows={rows}
+          locale={locale}
+          currencyCode={currencyCode}
+          agents={agents}
+          selectedIds={selectedIds}
+          highlightedIds={highlightedIds}
+          cancellingId={cancellingId}
+          hasNext={hasNext}
+          hasPrev={hasPrev}
+          currentPage={currentPage}
+          onNextPage={nextPage}
+          onPrevPage={prevPage}
+          onOpen={(id) => {
+            setOpenOrderId(id);
+            flashRow(id);
+          }}
+          onToggleSelect={toggleSelect}
+          onToggleSelectAll={toggleSelectAll}
+          onCancel={handleCancel}
+          isLoading={isLoading}
+          isEmpty={!isLoading && rows.length === 0}
+        />
+      </div>
+
+      <div style={{ fontSize: 13, color: "#6D7175", textAlign: "end" }}>
+        {t("footerCount", { count: rows.length })}
+        {hasNext ? ` · ${t("footerMore")}` : ""}
+        {` · ${t("footerLive")}`}
+      </div>
+
+      {/* ── Bulk action bar (fixed bottom, rendered via portal-like position:fixed) ── */}
       <OrdersBulkBar
         selectedIds={Array.from(selectedIds)}
         agents={agents.filter((a) => a.is_active)}
@@ -445,36 +518,6 @@ export function OrdersPageClient({
         canAssign={canAssign}
         canCancel={canAssign}
       />
-
-      <OrdersTable
-        rows={rows}
-        locale={locale}
-        currencyCode={currencyCode}
-        agents={agents}
-        selectedIds={selectedIds}
-        highlightedIds={highlightedIds}
-        cancellingId={cancellingId}
-        hasNext={hasNext}
-        hasPrev={hasPrev}
-        currentPage={currentPage}
-        onNextPage={nextPage}
-        onPrevPage={prevPage}
-        onOpen={(id) => {
-          setOpenOrderId(id);
-          flashRow(id);
-        }}
-        onToggleSelect={toggleSelect}
-        onToggleSelectAll={toggleSelectAll}
-        onCancel={handleCancel}
-        isLoading={isLoading}
-        isEmpty={!isLoading && rows.length === 0}
-      />
-
-      <div style={{ fontSize: 13, color: "#6D7175", textAlign: "end" }}>
-        {t("footerCount", { count: rows.length })}
-        {hasNext ? ` · ${t("footerMore")}` : ""}
-        {` · ${t("footerLive")}`}
-      </div>
 
       <CreateOrderModal
         isOpen={createOpen}
@@ -495,6 +538,7 @@ export function OrdersPageClient({
           onApply={(patch) => update(patch)}
           products={productsData?.data ?? []}
           carriers={carriersData?.data ?? []}
+          agents={agents}
         />
       ) : null}
 

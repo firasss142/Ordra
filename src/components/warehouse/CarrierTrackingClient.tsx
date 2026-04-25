@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { AlertTriangle, ChevronDown, ChevronRight, Truck, TrendingDown, Clock } from "lucide-react";
 import { Panel, EmptyState } from "@/components/dashboard/Panel";
+import { LogisticsPageHeader } from "./shared/LogisticsPageHeader";
 import { useCarrierTracking } from "@/hooks/useCarrierTracking";
 import { formatCurrency, formatExactTime } from "@/lib/format";
 import type { AuthUser } from "@/types";
@@ -52,13 +53,8 @@ export function CarrierTrackingClient({ user }: { user: AuthUser }) {
   const marketCode = user.locale === "ar" ? "LY" : "TN";
 
   return (
-    <div style={{ backgroundColor: "#F6F6F7", minHeight: "100vh", padding: "32px 32px 64px" }}>
-      <header style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 600, color: "#1A1A1A", margin: 0 }}>
-          {t("title")}
-        </h1>
-        <p style={{ fontSize: 13, color: "#6D7175", margin: "4px 0 0" }}>{t("subtitle")}</p>
-      </header>
+    <div style={{ backgroundColor: "#F6F6F7", minHeight: "100vh", padding: "24px 32px 64px" }}>
+      <LogisticsPageHeader title={t("title")} subtitle={t("subtitle")} />
 
       {error && (
         <div
@@ -100,27 +96,29 @@ export function CarrierTrackingClient({ user }: { user: AuthUser }) {
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-        {!tracking && isLoading ? (
-          <EmptyState label={t("loading")} />
-        ) : !tracking || tracking.carriers.length === 0 ? (
-          <EmptyState label={t("noCarriers")} />
-        ) : (
-          tracking.carriers.map((carrier) => (
-            <CarrierCard
-              key={carrier.id}
-              carrier={carrier}
-              locale={user.locale}
-              marketCode={marketCode}
-              expanded={expandedId === carrier.id}
-              onToggle={() =>
-                setExpandedId((prev) => (prev === carrier.id ? null : carrier.id))
-              }
-              t={t}
-            />
-          ))
-        )}
-      </div>
+      <Panel title={t("title")} minHeight={0}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {!tracking && isLoading ? (
+            <EmptyState label={t("loading")} />
+          ) : !tracking || tracking.carriers.length === 0 ? (
+            <EmptyState label={t("noCarriers")} />
+          ) : (
+            tracking.carriers.map((carrier) => (
+              <CarrierCard
+                key={carrier.id}
+                carrier={carrier}
+                locale={user.locale}
+                marketCode={marketCode}
+                expanded={expandedId === carrier.id}
+                onToggle={() =>
+                  setExpandedId((prev) => (prev === carrier.id ? null : carrier.id))
+                }
+                t={t}
+              />
+            ))
+          )}
+        </div>
+      </Panel>
 
       <Panel title={t("transitions.title")} minHeight={240}>
         {!tracking && isLoading ? (

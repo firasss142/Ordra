@@ -4,8 +4,24 @@ import { memo, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/ui/Avatar";
+import { Badge } from "@/components/ui/Badge";
 import { decodeAvatarFile, avatarErrorMessage } from "@/lib/client/image";
 import type { AuthUser } from "@/types";
+
+const ROLE_LABEL: Record<"fr" | "ar", Record<string, string>> = {
+  fr: {
+    super_admin: "Super admin",
+    market_manager: "Manager",
+    agent: "Agent",
+    warehouse_agent: "Entrepôt",
+  },
+  ar: {
+    super_admin: "مدير عام",
+    market_manager: "مدير سوق",
+    agent: "وكيل",
+    warehouse_agent: "مخزن",
+  },
+};
 
 interface TopbarProps {
   user: AuthUser;
@@ -150,16 +166,9 @@ function TopbarInner({ user, marketName, actions }: TopbarProps) {
           }}
         >
           {actions}
-          <span
-            style={{
-              fontSize: "0.75rem",
-              color: "var(--text-secondary)",
-              textTransform: "uppercase",
-              letterSpacing: "0.04em",
-            }}
-          >
-            {user.role}
-          </span>
+          <Badge tone="neutral">
+            {ROLE_LABEL[user.locale]?.[user.role] ?? user.role}
+          </Badge>
           <button
             type="button"
             onClick={() => setMenuOpen((v) => !v)}

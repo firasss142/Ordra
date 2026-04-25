@@ -34,6 +34,8 @@ function formatHM(date: Date, locale: string): string {
   }
 }
 
+const BASE = "inline-flex items-center gap-1.5 text-[12px] font-medium";
+
 export function AttemptEtiquette({
   status,
   attemptsCount,
@@ -69,18 +71,7 @@ export function AttemptEtiquette({
   if (isOverdueCallback) {
     const label = t("callbackOverdue");
     return (
-      <span
-        role="note"
-        aria-label={label}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          fontSize: 12,
-          fontWeight: 500,
-          color: "var(--critical)",
-        }}
-      >
+      <span role="note" aria-label={label} className={`${BASE} text-status-critical`}>
         <StatusGlyph shape="solid" />
         <span>{label}</span>
       </span>
@@ -91,18 +82,7 @@ export function AttemptEtiquette({
     const time = formatHM(callbackDate, locale);
     const label = t("callbackAt", { time });
     return (
-      <span
-        role="note"
-        aria-label={label}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          fontSize: 12,
-          fontWeight: 500,
-          color: "var(--text-secondary)",
-        }}
-      >
+      <span role="note" aria-label={label} className={`${BASE} text-ink-secondary`}>
         <StatusGlyph shape="ring" />
         <span>{label}</span>
       </span>
@@ -112,18 +92,7 @@ export function AttemptEtiquette({
   if (isOverdueDispatch) {
     const label = t("dispatchOverdue");
     return (
-      <span
-        role="note"
-        aria-label={label}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          fontSize: 12,
-          fontWeight: 500,
-          color: "var(--critical)",
-        }}
-      >
+      <span role="note" aria-label={label} className={`${BASE} text-status-critical`}>
         <StatusGlyph shape="solid" />
         <span>{label}</span>
       </span>
@@ -136,18 +105,7 @@ export function AttemptEtiquette({
       ? t("dispatchAtAuto", { time })
       : t("dispatchAt", { time });
     return (
-      <span
-        role="note"
-        aria-label={label}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          fontSize: 12,
-          fontWeight: 500,
-          color: "var(--text-secondary)",
-        }}
-      >
+      <span role="note" aria-label={label} className={`${BASE} text-ink-secondary`}>
         <StatusGlyph shape="ring" />
         <span>{label}</span>
       </span>
@@ -158,24 +116,11 @@ export function AttemptEtiquette({
   if (n !== null) {
     const label = t("attempt", { n });
     return (
-      <span
-        role="note"
-        aria-label={label}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          fontSize: 12,
-          fontWeight: 500,
-          color: "var(--text-primary)",
-        }}
-      >
+      <span role="note" aria-label={label} className={`${BASE} text-ink-primary`}>
         <StatusGlyph shape="solid" />
         <span>{label}</span>
         {n === 3 && (
-          <span style={{ color: "var(--text-secondary)", fontWeight: 400 }}>
-            {t("attemptFinal")}
-          </span>
+          <span className="text-ink-secondary font-normal">{t("attemptFinal")}</span>
         )}
       </span>
     );

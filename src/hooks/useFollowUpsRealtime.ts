@@ -33,6 +33,8 @@ interface UseFollowUpsRealtimeOptions {
   mutateSummary: KeyedMutator<FollowUpsSummary>;
   /** Fires when new inserts arrive so the banner can surface them. */
   onInsert?: (row: BufferedInsert) => void;
+  /** Optional timeline (time-first view) mutator — revalidated on any change. */
+  timelineMutator?: SWRInfiniteKeyedMutator<FollowUpsListPage[]>;
 }
 
 /**
@@ -51,11 +53,13 @@ export function useFollowUpsRealtime({
   columnMutators,
   mutateSummary,
   onInsert,
+  timelineMutator,
 }: UseFollowUpsRealtimeOptions) {
   const [buffer, setBuffer] = useState<RealtimeRow[]>([]);
   const mutatorsRef = useRef(columnMutators);
   const mutateSummaryRef = useRef(mutateSummary);
   const onInsertRef = useRef(onInsert);
+  const timelineMutatorRef = useRef(timelineMutator);
   const summaryDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const summaryMaxWaitRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -68,6 +72,9 @@ export function useFollowUpsRealtime({
   useEffect(() => {
     onInsertRef.current = onInsert;
   }, [onInsert]);
+  useEffect(() => {
+    timelineMutatorRef.current = timelineMutator;
+  }, [timelineMutator]);
 
   // Trailing debounce (500ms idle) plus a 3s max-wait — during bulk-create
   // bursts from NewCampaignWizard, summary still refreshes at least every 3s.
@@ -113,6 +120,7 @@ export function useFollowUpsRealtime({
             const row = payload.new as RealtimeRow;
             setBuffer((b) => (b.some((r) => r.id === row.id) ? b : [row, ...b]));
             onInsertRef.current?.({ id: row.id, status: row.status });
+            timelineMutatorRef.current?.();
             scheduleSummaryRefresh();
             return;
           }
@@ -165,6 +173,7 @@ export function useFollowUpsRealtime({
             }
 
             setBuffer((b) => b.map((r) => (r.id === row.id ? row : r)));
+            timelineMutatorRef.current?.();
             scheduleSummaryRefresh();
             return;
           }
@@ -188,6 +197,7 @@ export function useFollowUpsRealtime({
               );
             }
             setBuffer((b) => b.filter((r) => r.id !== oldRow.id));
+            timelineMutatorRef.current?.();
             scheduleSummaryRefresh();
           }
         },

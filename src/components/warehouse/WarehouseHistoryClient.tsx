@@ -11,6 +11,8 @@ import { formatDateTime, formatDayHeader } from "@/lib/format";
 import { initialsOf } from "@/lib/user";
 import { WarehouseInboxBanner } from "./WarehouseInboxBanner";
 import { WarehousePagination } from "./WarehousePagination";
+import { LogisticsPageHeader } from "./shared/LogisticsPageHeader";
+import { LogisticsFilterBar } from "./shared/LogisticsFilterBar";
 import {
   WAREHOUSE_HISTORY_KINDS,
   hasActiveWarehouseHistoryFilters,
@@ -32,7 +34,6 @@ const D = {
   danger: "#D72C0D",
   warning: "#B98900",
   action: "#2C6ECB",
-  cardShadow: "0 0 0 1px #E1E3E5",
   inputBg: "#FFFFFF",
   inputBorder: "#C9CCCF",
 };
@@ -135,24 +136,21 @@ export function WarehouseHistoryClient({ locale, marketId, fallbackFirstPage }: 
   return (
     <div style={{ padding: isMobile ? "16px 16px 80px" : "24px 32px 80px", background: D.pageBg, minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
 
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 600, color: D.textPrimary, margin: 0, letterSpacing: "-0.01em" }}>
-          {t("history.title")}
-        </h1>
-        {!isMobile && (
-          <div style={{ display: "flex", gap: 8 }}>
+      <LogisticsPageHeader
+        title={t("history.title")}
+        actions={
+          !isMobile ? (
             <a
               href={buildExportUrl("csv")}
               download
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", border: `1px solid ${D.border}`, borderRadius: 8, background: D.cardBg, color: D.textPrimary, fontSize: 13, fontWeight: 500, textDecoration: "none", cursor: "pointer" }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", border: `1px solid ${D.border}`, borderRadius: 8, background: D.cardBg, color: D.textPrimary, fontSize: 13, fontWeight: 500, textDecoration: "none" }}
             >
               <Download size={13} strokeWidth={1.5} />
               {t("history.export.csv")}
             </a>
-          </div>
-        )}
-      </div>
+          ) : undefined
+        }
+      />
 
       <WarehouseInboxBanner
         count={arrivalCount}
@@ -161,75 +159,76 @@ export function WarehouseHistoryClient({ locale, marketId, fallbackFirstPage }: 
         labels={{ reveal: t("banner.newReveal"), dismiss: t("banner.dismiss") }}
       />
 
-      {/* Filter bar */}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-        {/* Kind tabs */}
-        <div role="tablist" aria-label={t("history.filter.ariaLabel")} style={{ display: "inline-flex", border: `1px solid ${D.border}`, borderRadius: 9999, background: D.cardBg, padding: 3, gap: 2 }}>
-          {WAREHOUSE_HISTORY_KINDS.map((k) => {
-            const active = filters.kind === k;
-            return (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => update({ kind: k as WarehouseHistoryKind })}
-                style={{ padding: "6px 14px", border: "none", borderRadius: 9999, background: active ? "#1A1A1A" : "transparent", color: active ? "#FFFFFF" : D.textSecondary, fontSize: 13, fontWeight: active ? 700 : 400, cursor: "pointer", transition: "background-color 120ms ease, color 120ms ease", fontFamily: "inherit", minHeight: 36, whiteSpace: "nowrap" }}
-              >
-                {t(`history.filter.${k}`)}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Search */}
-        <div style={{ flex: 1, minWidth: 200, display: "flex", alignItems: "center", gap: 8, paddingInline: 12, border: `1px solid ${D.inputBorder}`, borderRadius: 8, background: D.inputBg, minHeight: 40 }}>
-          <Search size={14} strokeWidth={1.5} color={D.textSecondary} aria-hidden="true" />
-          <input
-            type="search"
-            value={searchLocal}
-            onChange={(e) => setSearchLocal(e.target.value)}
-            placeholder={t("history.filter.searchPlaceholder")}
-            aria-label={t("history.filter.searchPlaceholder")}
-            style={{ flex: 1, padding: "8px 0", fontSize: 13, border: "none", outline: "none", background: "transparent", color: D.textPrimary }}
-          />
-        </div>
-
-        {/* Anomaly toggle */}
-        <button
-          type="button"
-          onClick={() => update({ onlyAnomalies: !filters.onlyAnomalies })}
-          title={t("history.filter.anomaliesOnly")}
-          style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", border: `1px solid ${filters.onlyAnomalies ? D.danger : D.border}`, borderRadius: 8, background: filters.onlyAnomalies ? "#FFF4F4" : D.cardBg, color: filters.onlyAnomalies ? D.danger : D.textSecondary, fontSize: 13, fontWeight: filters.onlyAnomalies ? 600 : 400, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", minHeight: 40 }}
-        >
-          <AlertTriangle size={13} strokeWidth={1.5} />
-          {!isMobile && t("history.filter.anomaliesOnly")}
-        </button>
-
-        {/* View toggle */}
-        {!isMobile && (
-          <div role="group" style={{ display: "inline-flex", border: `1px solid ${D.border}`, borderRadius: 8, overflow: "hidden" }}>
-            {(["timeline", "flat"] as WarehouseHistoryView[]).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => update({ view: v })}
-                style={{ padding: "7px 14px", border: "none", background: effectiveView === v ? "#1A1A1A" : D.cardBg, color: effectiveView === v ? "#FFFFFF" : D.textSecondary, fontSize: 13, fontWeight: effectiveView === v ? 600 : 400, cursor: "pointer", fontFamily: "inherit", minHeight: 36 }}
-              >
-                {t(`history.filter.view.${v}`)}
-              </button>
-            ))}
+      <LogisticsFilterBar
+        searchSlot={
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Search size={14} strokeWidth={1.5} color={D.textSecondary} aria-hidden="true" />
+            <input
+              type="search"
+              value={searchLocal}
+              onChange={(e) => setSearchLocal(e.target.value)}
+              placeholder={t("history.filter.searchPlaceholder")}
+              aria-label={t("history.filter.searchPlaceholder")}
+              style={{ flex: 1, padding: "8px 0", fontSize: 13, border: "none", outline: "none", background: "transparent", color: D.textPrimary, width: "100%" }}
+            />
           </div>
-        )}
-      </div>
+        }
+        filtersSlot={
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            {/* Kind tabs */}
+            <div role="tablist" aria-label={t("history.filter.ariaLabel")} style={{ display: "inline-flex", border: `1px solid ${D.border}`, borderRadius: 9999, background: D.cardBg, padding: 3, gap: 2 }}>
+              {WAREHOUSE_HISTORY_KINDS.map((k) => {
+                const active = filters.kind === k;
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => update({ kind: k as WarehouseHistoryKind })}
+                    style={{ padding: "6px 14px", border: "none", borderRadius: 9999, background: active ? "#1A1A1A" : "transparent", color: active ? "#FFFFFF" : D.textSecondary, fontSize: 13, fontWeight: active ? 700 : 400, cursor: "pointer", transition: "background-color 120ms ease, color 120ms ease", fontFamily: "inherit", minHeight: 36, whiteSpace: "nowrap" }}
+                  >
+                    {t(`history.filter.${k}`)}
+                  </button>
+                );
+              })}
+            </div>
 
-      {/* Date range */}
-      <div style={{ display: "flex", gap: isMobile ? 8 : 12, alignItems: "center", flexWrap: "wrap" }}>
-        <span style={{ fontSize: isMobile ? 12 : 13, color: D.textSecondary }}>{t("history.filters.from")}</span>
-        <input type="date" value={filters.dateFrom ?? ""} onChange={(e) => update({ dateFrom: e.target.value || null })} style={{ padding: "6px 8px", border: `1px solid ${D.inputBorder}`, borderRadius: 6, fontSize: 13, color: D.textPrimary, backgroundColor: D.inputBg, fontFamily: "inherit" }} />
-        <span style={{ fontSize: isMobile ? 12 : 13, color: D.textSecondary }}>{t("history.filters.to")}</span>
-        <input type="date" value={filters.dateTo ?? ""} onChange={(e) => update({ dateTo: e.target.value || null })} style={{ padding: "6px 8px", border: `1px solid ${D.inputBorder}`, borderRadius: 6, fontSize: 13, color: D.textPrimary, backgroundColor: D.inputBg, fontFamily: "inherit" }} />
-      </div>
+            {/* Date range */}
+            <span style={{ fontSize: 13, color: D.textSecondary }}>{t("history.filters.from")}</span>
+            <input type="date" value={filters.dateFrom ?? ""} onChange={(e) => update({ dateFrom: e.target.value || null })} style={{ padding: "6px 8px", border: `1px solid ${D.inputBorder}`, borderRadius: 6, fontSize: 13, color: D.textPrimary, backgroundColor: D.inputBg, fontFamily: "inherit" }} />
+            <span style={{ fontSize: 13, color: D.textSecondary }}>{t("history.filters.to")}</span>
+            <input type="date" value={filters.dateTo ?? ""} onChange={(e) => update({ dateTo: e.target.value || null })} style={{ padding: "6px 8px", border: `1px solid ${D.inputBorder}`, borderRadius: 6, fontSize: 13, color: D.textPrimary, backgroundColor: D.inputBg, fontFamily: "inherit" }} />
+
+            {/* Anomaly toggle */}
+            <button
+              type="button"
+              onClick={() => update({ onlyAnomalies: !filters.onlyAnomalies })}
+              title={t("history.filter.anomaliesOnly")}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", border: `1px solid ${filters.onlyAnomalies ? D.danger : D.border}`, borderRadius: 8, background: filters.onlyAnomalies ? "#FFF4F4" : D.cardBg, color: filters.onlyAnomalies ? D.danger : D.textSecondary, fontSize: 13, fontWeight: filters.onlyAnomalies ? 600 : 400, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", minHeight: 36 }}
+            >
+              <AlertTriangle size={13} strokeWidth={1.5} />
+              {!isMobile && t("history.filter.anomaliesOnly")}
+            </button>
+
+            {/* View toggle */}
+            {!isMobile && (
+              <div role="group" style={{ display: "inline-flex", border: `1px solid ${D.border}`, borderRadius: 8, overflow: "hidden" }}>
+                {(["timeline", "flat"] as WarehouseHistoryView[]).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => update({ view: v })}
+                    style={{ padding: "7px 14px", border: "none", background: effectiveView === v ? "#1A1A1A" : D.cardBg, color: effectiveView === v ? "#FFFFFF" : D.textSecondary, fontSize: 13, fontWeight: effectiveView === v ? 600 : 400, cursor: "pointer", fontFamily: "inherit", minHeight: 36 }}
+                  >
+                    {t(`history.filter.view.${v}`)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        }
+      />
 
       {/* Active filter chips */}
       {hasFilters && (
@@ -262,7 +261,7 @@ export function WarehouseHistoryClient({ locale, marketId, fallbackFirstPage }: 
       {displayRows.length === 0 && !isLoading && !isPageLoading ? (
         <EmptyState hasFilters={hasFilters} label={hasFilters ? t("history.empty.filtered") : t("history.empty.noFilters")} onClear={hasFilters ? () => update({ kind: "all", dateFrom: null, dateTo: null, q: "", actorId: null, productId: null, onlyAnomalies: false }) : undefined} clearLabel={t("history.chips.clearAll")} />
       ) : (
-        <div style={{ backgroundColor: D.cardBg, border: `1px solid ${D.border}`, borderRadius: 10, overflow: "hidden", boxShadow: D.cardShadow }}>
+        <div style={{ backgroundColor: D.cardBg, border: `1px solid ${D.border}`, borderRadius: 8, overflow: "hidden" }}>
           {isPageLoading ? (
             <div style={{ padding: 40, textAlign: "center", color: D.textSecondary, fontSize: 13 }}>{t("history.loadingMore")}</div>
           ) : effectiveView === "timeline" && sessions ? (

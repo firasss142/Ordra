@@ -1,0 +1,588 @@
+- generic [active] [ref=e1]:
+  - link "Aller au contenu principal" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - button "Notifications" [ref=e7] [cursor=pointer]:
+          - img [ref=e8]
+        - generic [ref=e12]: Agent
+        - button "Agent TN 1" [ref=e13] [cursor=pointer]:
+          - generic [ref=e14]: AT
+          - generic [ref=e15]: Agent TN 1
+          - generic [ref=e16]: ▾
+    - navigation [ref=e17]:
+      - link "Commandes" [ref=e18] [cursor=pointer]:
+        - /url: /fr/queue
+        - img [ref=e19]
+        - generic [ref=e22]: Commandes
+      - link "CRM" [ref=e23] [cursor=pointer]:
+        - /url: /fr/leads
+        - img [ref=e24]
+        - generic [ref=e29]: CRM
+      - link "Suivi de commande" [ref=e30] [cursor=pointer]:
+        - /url: /fr/follow-ups
+        - img [ref=e31]
+        - generic [ref=e34]: Suivi de commande
+    - main [ref=e35]:
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - generic [ref=e39]:
+            - generic [ref=e40]: Agent TN 1
+            - generic [ref=e41]:
+              - generic [ref=e42]:
+                - generic [ref=e43]:
+                  - generic [ref=e44]: Assignées
+                  - generic [ref=e45]: "113"
+                - generic [ref=e46]: ·
+                - generic [ref=e47]:
+                  - generic [ref=e48]: Traitées
+                  - generic [ref=e49]: "0"
+                - generic [ref=e50]: ·
+                - generic [ref=e51]:
+                  - generic [ref=e52]: Taux de confirmation
+                  - generic [ref=e53]: 0.0%
+              - button "Nouvelle commande" [ref=e54] [cursor=pointer]
+          - tablist "Ma file d'attente" [ref=e55]:
+            - tab "Nouveau 20" [selected] [ref=e56] [cursor=pointer]:
+              - img [ref=e57]
+              - generic [ref=e60]: Nouveau
+              - generic [ref=e61]: "20"
+            - tab "À rappeler 54" [ref=e62] [cursor=pointer]:
+              - img [ref=e63]
+              - generic [ref=e65]: À rappeler
+              - generic [ref=e66]: "54"
+            - tab "Planifié 17" [ref=e67] [cursor=pointer]:
+              - img [ref=e68]
+              - generic [ref=e70]: Planifié
+              - generic [ref=e71]: "17"
+            - tab "Confirmé 20" [ref=e72] [cursor=pointer]:
+              - img [ref=e73]
+              - generic [ref=e76]: Confirmé
+              - generic [ref=e77]: "20"
+            - tab "Fermées 57" [ref=e78] [cursor=pointer]:
+              - img [ref=e79]
+              - generic [ref=e82]: Fermées
+              - generic [ref=e83]: "57"
+        - generic [ref=e97]:
+          - generic [ref=e2007] [cursor=pointer]:
+            - generic [ref=e2008]:
+              - generic [ref=e2009]:
+                - button "Sélectionner cette commande" [ref=e2010]:
+                  - img [ref=e2011]
+                - generic [ref=e2013]: P
+                - generic [ref=e2014]: Client Test 991
+                - generic [ref=e2015]:
+                  - img [ref=e2016]
+                  - generic [ref=e2018]: Assigné
+              - generic [ref=e2019]:
+                - generic [ref=e2020]: Il y a 45j
+                - generic [ref=e2021]: 10/03 17:02
+            - generic [ref=e2022]:
+              - link "Appeler +21698000991" [ref=e2023]:
+                - /url: tel:+21698000991
+                - img [ref=e2024]
+                - generic [ref=e2026]: "+21698000991"
+              - generic "Sfax" [ref=e2027]:
+                - img [ref=e2028]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2031]:
+                - img [ref=e2032]
+                - generic [ref=e2036]: Produit Test 2
+              - generic [ref=e2037]: 51TND
+            - button "Appel terminé" [ref=e2039]
+          - generic [ref=e2040] [cursor=pointer]:
+            - generic [ref=e2041]:
+              - generic [ref=e2042]:
+                - button "Sélectionner cette commande" [ref=e2043]:
+                  - img [ref=e2044]
+                - generic [ref=e2046]: P
+                - generic [ref=e2047]: Client Test 936
+                - generic [ref=e2048]:
+                  - img [ref=e2049]
+                  - generic [ref=e2051]: Assigné
+              - generic [ref=e2052]:
+                - generic [ref=e2053]: Il y a 43j
+                - generic [ref=e2054]: 13/03 00:02
+            - generic [ref=e2055]:
+              - link "Appeler +21698000936" [ref=e2056]:
+                - /url: tel:+21698000936
+                - img [ref=e2057]
+                - generic [ref=e2059]: "+21698000936"
+              - generic "Sfax" [ref=e2060]:
+                - img [ref=e2061]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2064]:
+                - img [ref=e2065]
+                - generic [ref=e2069]: Produit Test 2
+              - generic [ref=e2070]: 76TND
+            - button "Appel terminé" [ref=e2072]
+          - generic [ref=e2073] [cursor=pointer]:
+            - generic [ref=e2074]:
+              - generic [ref=e2075]:
+                - button "Sélectionner cette commande" [ref=e2076]:
+                  - img [ref=e2077]
+                - generic [ref=e2079]: P
+                - generic [ref=e2080]: Client Test 902
+                - generic [ref=e2081]:
+                  - img [ref=e2082]
+                  - generic [ref=e2084]: Assigné
+              - generic [ref=e2085]:
+                - generic [ref=e2086]: Il y a 41j
+                - generic [ref=e2087]: 14/03 10:02
+            - generic [ref=e2088]:
+              - link "Appeler +21698000902" [ref=e2089]:
+                - /url: tel:+21698000902
+                - img [ref=e2090]
+                - generic [ref=e2092]: "+21698000902"
+              - generic "Sousse" [ref=e2093]:
+                - img [ref=e2094]
+                - text: Sousse
+              - generic "Produit Test 3" [ref=e2097]:
+                - img [ref=e2098]
+                - generic [ref=e2102]: Produit Test 3
+              - generic [ref=e2103]: 42TND
+            - button "Appel terminé" [ref=e2105]
+          - generic [ref=e2106] [cursor=pointer]:
+            - generic [ref=e2107]:
+              - generic [ref=e2108]:
+                - button "Sélectionner cette commande" [ref=e2109]:
+                  - img [ref=e2110]
+                - generic [ref=e2112]: P
+                - generic [ref=e2113]: Client Test 881
+                - generic [ref=e2114]:
+                  - img [ref=e2115]
+                  - generic [ref=e2117]: Assigné
+              - generic [ref=e2118]:
+                - generic [ref=e2119]: Il y a 40j
+                - generic [ref=e2120]: 15/03 07:02
+            - generic [ref=e2121]:
+              - link "Appeler +21698000881" [ref=e2122]:
+                - /url: tel:+21698000881
+                - img [ref=e2123]
+                - generic [ref=e2125]: "+21698000881"
+              - generic "Sfax" [ref=e2126]:
+                - img [ref=e2127]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2130]:
+                - img [ref=e2131]
+                - generic [ref=e2135]: Produit Test 2
+              - generic [ref=e2136]: 21TND
+            - button "Appel terminé" [ref=e2138]
+          - generic [ref=e2139] [cursor=pointer]:
+            - generic [ref=e2140]:
+              - generic [ref=e2141]:
+                - button "Sélectionner cette commande" [ref=e2142]:
+                  - img [ref=e2143]
+                - generic [ref=e2145]: P
+                - generic [ref=e2146]: Client Test 858
+                - generic [ref=e2147]:
+                  - img [ref=e2148]
+                  - generic [ref=e2150]: Assigné
+              - generic [ref=e2151]:
+                - generic [ref=e2152]: Il y a 39j
+                - generic [ref=e2153]: 16/03 06:02
+            - generic [ref=e2154]:
+              - link "Appeler +21698000858" [ref=e2155]:
+                - /url: tel:+21698000858
+                - img [ref=e2156]
+                - generic [ref=e2158]: "+21698000858"
+              - generic "Bizerte" [ref=e2159]:
+                - img [ref=e2160]
+                - text: Bizerte
+              - generic "Produit Test 4" [ref=e2163]:
+                - img [ref=e2164]
+                - generic [ref=e2168]: Produit Test 4
+              - generic [ref=e2169]: 78TND
+            - button "Appel terminé" [ref=e2171]
+          - generic [ref=e2172] [cursor=pointer]:
+            - generic [ref=e2173]:
+              - generic [ref=e2174]:
+                - button "Sélectionner cette commande" [ref=e2175]:
+                  - img [ref=e2176]
+                - generic [ref=e2178]: P
+                - generic [ref=e2179]: Client Test 826
+                - generic [ref=e2180]:
+                  - img [ref=e2181]
+                  - generic [ref=e2183]: Assigné
+              - generic [ref=e2184]:
+                - generic [ref=e2185]: Il y a 38j
+                - generic [ref=e2186]: 17/03 14:02
+            - generic [ref=e2187]:
+              - link "Appeler +21698000826" [ref=e2188]:
+                - /url: tel:+21698000826
+                - img [ref=e2189]
+                - generic [ref=e2191]: "+21698000826"
+              - generic "Sfax" [ref=e2192]:
+                - img [ref=e2193]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2196]:
+                - img [ref=e2197]
+                - generic [ref=e2201]: Produit Test 2
+              - generic [ref=e2202]: 46TND
+            - button "Appel terminé" [ref=e2204]
+          - generic [ref=e2205] [cursor=pointer]:
+            - generic [ref=e2206]:
+              - generic [ref=e2207]:
+                - button "Sélectionner cette commande" [ref=e2208]:
+                  - img [ref=e2209]
+                - generic [ref=e2211]: P
+                - generic [ref=e2212]: Client Test 771
+                - generic [ref=e2213]:
+                  - img [ref=e2214]
+                  - generic [ref=e2216]: Assigné
+              - generic [ref=e2217]:
+                - generic [ref=e2218]: Il y a 36j
+                - generic [ref=e2219]: 19/03 21:02
+            - generic [ref=e2220]:
+              - link "Appeler +21698000771" [ref=e2221]:
+                - /url: tel:+21698000771
+                - img [ref=e2222]
+                - generic [ref=e2224]: "+21698000771"
+              - generic "Sfax" [ref=e2225]:
+                - img [ref=e2226]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2229]:
+                - img [ref=e2230]
+                - generic [ref=e2234]: Produit Test 2
+              - generic [ref=e2235]: 71TND
+            - button "Appel terminé" [ref=e2237]
+          - generic [ref=e2238] [cursor=pointer]:
+            - generic [ref=e2239]:
+              - generic [ref=e2240]:
+                - button "Sélectionner cette commande" [ref=e2241]:
+                  - img [ref=e2242]
+                - generic [ref=e2244]: P
+                - generic [ref=e2245]: Client Test 716
+                - generic [ref=e2246]:
+                  - img [ref=e2247]
+                  - generic [ref=e2249]: Assigné
+              - generic [ref=e2250]:
+                - generic [ref=e2251]: Il y a 33j
+                - generic [ref=e2252]: 22/03 04:02
+            - generic [ref=e2253]:
+              - link "Appeler +21698000716" [ref=e2254]:
+                - /url: tel:+21698000716
+                - img [ref=e2255]
+                - generic [ref=e2257]: "+21698000716"
+              - generic "Sfax" [ref=e2258]:
+                - img [ref=e2259]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2262]:
+                - img [ref=e2263]
+                - generic [ref=e2267]: Produit Test 2
+              - generic [ref=e2268]: 96TND
+            - button "Appel terminé" [ref=e2270]
+          - generic [ref=e2271] [cursor=pointer]:
+            - generic [ref=e2272]:
+              - generic [ref=e2273]:
+                - button "Sélectionner cette commande" [ref=e2274]:
+                  - img [ref=e2275]
+                - generic [ref=e2277]: P
+                - generic [ref=e2278]: Client Test 661
+                - generic [ref=e2279]:
+                  - img [ref=e2280]
+                  - generic [ref=e2282]: Assigné
+              - generic [ref=e2283]:
+                - generic [ref=e2284]: Il y a 31j
+                - generic [ref=e2285]: 24/03 11:02
+            - generic [ref=e2286]:
+              - link "Appeler +21698000661" [ref=e2287]:
+                - /url: tel:+21698000661
+                - img [ref=e2288]
+                - generic [ref=e2290]: "+21698000661"
+              - generic "Sfax" [ref=e2291]:
+                - img [ref=e2292]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2295]:
+                - img [ref=e2296]
+                - generic [ref=e2300]: Produit Test 2
+              - generic [ref=e2301]: 41TND
+            - button "Appel terminé" [ref=e2303]
+          - generic [ref=e2304] [cursor=pointer]:
+            - generic [ref=e2305]:
+              - generic [ref=e2306]:
+                - button "Sélectionner cette commande" [ref=e2307]:
+                  - img [ref=e2308]
+                - generic [ref=e2310]: P
+                - generic [ref=e2311]: Client Test 606
+                - generic [ref=e2312]:
+                  - img [ref=e2313]
+                  - generic [ref=e2315]: Assigné
+              - generic [ref=e2316]:
+                - generic [ref=e2317]: Il y a 29j
+                - generic [ref=e2318]: 26/03 18:02
+            - generic [ref=e2319]:
+              - link "Appeler +21698000606" [ref=e2320]:
+                - /url: tel:+21698000606
+                - img [ref=e2321]
+                - generic [ref=e2323]: "+21698000606"
+              - generic "Sfax" [ref=e2324]:
+                - img [ref=e2325]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2328]:
+                - img [ref=e2329]
+                - generic [ref=e2333]: Produit Test 2
+              - generic [ref=e2334]: 66TND
+            - button "Appel terminé" [ref=e2336]
+          - generic [ref=e2337] [cursor=pointer]:
+            - generic [ref=e2338]:
+              - generic [ref=e2339]:
+                - button "Sélectionner cette commande" [ref=e2340]:
+                  - img [ref=e2341]
+                - generic [ref=e2343]: P
+                - generic [ref=e2344]: Client Test 551
+                - generic [ref=e2345]:
+                  - img [ref=e2346]
+                  - generic [ref=e2348]: Assigné
+              - generic [ref=e2349]:
+                - generic [ref=e2350]: Il y a 27j
+                - generic [ref=e2351]: 29/03 01:02
+            - generic [ref=e2352]:
+              - link "Appeler +21698000551" [ref=e2353]:
+                - /url: tel:+21698000551
+                - img [ref=e2354]
+                - generic [ref=e2356]: "+21698000551"
+              - generic "Sfax" [ref=e2357]:
+                - img [ref=e2358]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2361]:
+                - img [ref=e2362]
+                - generic [ref=e2366]: Produit Test 2
+              - generic [ref=e2367]: 91TND
+            - button "Appel terminé" [ref=e2369]
+          - generic [ref=e2370] [cursor=pointer]:
+            - generic [ref=e2371]:
+              - generic [ref=e2372]:
+                - button "Sélectionner cette commande" [ref=e2373]:
+                  - img [ref=e2374]
+                - generic [ref=e2376]: P
+                - generic [ref=e2377]: Client Test 496
+                - generic [ref=e2378]:
+                  - img [ref=e2379]
+                  - generic [ref=e2381]: Assigné
+              - generic [ref=e2382]:
+                - generic [ref=e2383]: Il y a 24j
+                - generic [ref=e2384]: 31/03 08:02
+            - generic [ref=e2385]:
+              - link "Appeler +21698000496" [ref=e2386]:
+                - /url: tel:+21698000496
+                - img [ref=e2387]
+                - generic [ref=e2389]: "+21698000496"
+              - generic "Sfax" [ref=e2390]:
+                - img [ref=e2391]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2394]:
+                - img [ref=e2395]
+                - generic [ref=e2399]: Produit Test 2
+              - generic [ref=e2400]: 36TND
+            - button "Appel terminé" [ref=e2402]
+          - generic [ref=e2403] [cursor=pointer]:
+            - generic [ref=e2404]:
+              - generic [ref=e2405]:
+                - button "Sélectionner cette commande" [ref=e2406]:
+                  - img [ref=e2407]
+                - generic [ref=e2409]: P
+                - generic [ref=e2410]: Client Test 441
+                - generic [ref=e2411]:
+                  - img [ref=e2412]
+                  - generic [ref=e2414]: Assigné
+              - generic [ref=e2415]:
+                - generic [ref=e2416]: Il y a 22j
+                - generic [ref=e2417]: 02/04 15:02
+            - generic [ref=e2418]:
+              - link "Appeler +21698000441" [ref=e2419]:
+                - /url: tel:+21698000441
+                - img [ref=e2420]
+                - generic [ref=e2422]: "+21698000441"
+              - generic "Sfax" [ref=e2423]:
+                - img [ref=e2424]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2427]:
+                - img [ref=e2428]
+                - generic [ref=e2432]: Produit Test 2
+              - generic [ref=e2433]: 61TND
+            - button "Appel terminé" [ref=e2435]
+          - generic [ref=e2436] [cursor=pointer]:
+            - generic [ref=e2437]:
+              - generic [ref=e2438]:
+                - button "Sélectionner cette commande" [ref=e2439]:
+                  - img [ref=e2440]
+                - generic [ref=e2442]: P
+                - generic [ref=e2443]: Client Test 386
+                - generic [ref=e2444]:
+                  - img [ref=e2445]
+                  - generic [ref=e2447]: Assigné
+              - generic [ref=e2448]:
+                - generic [ref=e2449]: Il y a 20j
+                - generic [ref=e2450]: 04/04 22:02
+            - generic [ref=e2451]:
+              - link "Appeler +21698000386" [ref=e2452]:
+                - /url: tel:+21698000386
+                - img [ref=e2453]
+                - generic [ref=e2455]: "+21698000386"
+              - generic "Sfax" [ref=e2456]:
+                - img [ref=e2457]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2460]:
+                - img [ref=e2461]
+                - generic [ref=e2465]: Produit Test 2
+              - generic [ref=e2466]: 86TND
+            - button "Appel terminé" [ref=e2468]
+          - generic [ref=e2469] [cursor=pointer]:
+            - generic [ref=e2470]:
+              - generic [ref=e2471]:
+                - button "Sélectionner cette commande" [ref=e2472]:
+                  - img [ref=e2473]
+                - generic [ref=e2475]: P
+                - generic [ref=e2476]: Client Test 331
+                - generic [ref=e2477]:
+                  - img [ref=e2478]
+                  - generic [ref=e2480]: Assigné
+              - generic [ref=e2481]:
+                - generic [ref=e2482]: Il y a 17j
+                - generic [ref=e2483]: 07/04 05:02
+            - generic [ref=e2484]:
+              - link "Appeler +21698000331" [ref=e2485]:
+                - /url: tel:+21698000331
+                - img [ref=e2486]
+                - generic [ref=e2488]: "+21698000331"
+              - generic "Sfax" [ref=e2489]:
+                - img [ref=e2490]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2493]:
+                - img [ref=e2494]
+                - generic [ref=e2498]: Produit Test 2
+              - generic [ref=e2499]: 31TND
+            - button "Appel terminé" [ref=e2501]
+          - generic [ref=e2502] [cursor=pointer]:
+            - generic [ref=e2503]:
+              - generic [ref=e2504]:
+                - button "Sélectionner cette commande" [ref=e2505]:
+                  - img [ref=e2506]
+                - generic [ref=e2508]: P
+                - generic [ref=e2509]: Client Test 276
+                - generic [ref=e2510]:
+                  - img [ref=e2511]
+                  - generic [ref=e2513]: Assigné
+              - generic [ref=e2514]:
+                - generic [ref=e2515]: Il y a 15j
+                - generic [ref=e2516]: 09/04 12:02
+            - generic [ref=e2517]:
+              - link "Appeler +21698000276" [ref=e2518]:
+                - /url: tel:+21698000276
+                - img [ref=e2519]
+                - generic [ref=e2521]: "+21698000276"
+              - generic "Sfax" [ref=e2522]:
+                - img [ref=e2523]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2526]:
+                - img [ref=e2527]
+                - generic [ref=e2531]: Produit Test 2
+              - generic [ref=e2532]: 56TND
+            - button "Appel terminé" [ref=e2534]
+          - generic [ref=e2535] [cursor=pointer]:
+            - generic [ref=e2536]:
+              - generic [ref=e2537]:
+                - button "Sélectionner cette commande" [ref=e2538]:
+                  - img [ref=e2539]
+                - generic [ref=e2541]: P
+                - generic [ref=e2542]: Client Test 221
+                - generic [ref=e2543]:
+                  - img [ref=e2544]
+                  - generic [ref=e2546]: Assigné
+              - generic [ref=e2547]:
+                - generic [ref=e2548]: Il y a 13j
+                - generic [ref=e2549]: 11/04 19:02
+            - generic [ref=e2550]:
+              - link "Appeler +21698000221" [ref=e2551]:
+                - /url: tel:+21698000221
+                - img [ref=e2552]
+                - generic [ref=e2554]: "+21698000221"
+              - generic "Sfax" [ref=e2555]:
+                - img [ref=e2556]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2559]:
+                - img [ref=e2560]
+                - generic [ref=e2564]: Produit Test 2
+              - generic [ref=e2565]: 81TND
+            - button "Appel terminé" [ref=e2567]
+          - generic [ref=e2568] [cursor=pointer]:
+            - generic [ref=e2569]:
+              - generic [ref=e2570]:
+                - button "Sélectionner cette commande" [ref=e2571]:
+                  - img [ref=e2572]
+                - generic [ref=e2574]: P
+                - generic [ref=e2575]: Client Test 166
+                - generic [ref=e2576]:
+                  - img [ref=e2577]
+                  - generic [ref=e2579]: Assigné
+              - generic [ref=e2580]:
+                - generic [ref=e2581]: Il y a 11j
+                - generic [ref=e2582]: 14/04 02:02
+            - generic [ref=e2583]:
+              - link "Appeler +21698000166" [ref=e2584]:
+                - /url: tel:+21698000166
+                - img [ref=e2585]
+                - generic [ref=e2587]: "+21698000166"
+              - generic "Sfax" [ref=e2588]:
+                - img [ref=e2589]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2592]:
+                - img [ref=e2593]
+                - generic [ref=e2597]: Produit Test 2
+              - generic [ref=e2598]: 26TND
+            - button "Appel terminé" [ref=e2600]
+          - generic [ref=e2601] [cursor=pointer]:
+            - generic [ref=e2602]:
+              - generic [ref=e2603]:
+                - button "Sélectionner cette commande" [ref=e2604]:
+                  - img [ref=e2605]
+                - generic [ref=e2607]: P
+                - generic [ref=e2608]: Client Test 111
+                - generic [ref=e2609]:
+                  - img [ref=e2610]
+                  - generic [ref=e2612]: Assigné
+              - generic [ref=e2613]:
+                - generic [ref=e2614]: Il y a 8j
+                - generic [ref=e2615]: 16/04 09:02
+            - generic [ref=e2616]:
+              - link "Appeler +21698000111" [ref=e2617]:
+                - /url: tel:+21698000111
+                - img [ref=e2618]
+                - generic [ref=e2620]: "+21698000111"
+              - generic "Sfax" [ref=e2621]:
+                - img [ref=e2622]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2625]:
+                - img [ref=e2626]
+                - generic [ref=e2630]: Produit Test 2
+              - generic [ref=e2631]: 51TND
+            - button "Appel terminé" [ref=e2633]
+          - generic [ref=e2634] [cursor=pointer]:
+            - generic [ref=e2635]:
+              - generic [ref=e2636]:
+                - button "Sélectionner cette commande" [ref=e2637]:
+                  - img [ref=e2638]
+                - generic [ref=e2640]: P
+                - generic [ref=e2641]: Client Test 56
+                - generic [ref=e2642]:
+                  - img [ref=e2643]
+                  - generic [ref=e2645]: Assigné
+              - generic [ref=e2646]:
+                - generic [ref=e2647]: Il y a 6j
+                - generic [ref=e2648]: 18/04 16:02
+            - generic [ref=e2649]:
+              - link "Appeler +21698000056" [ref=e2650]:
+                - /url: tel:+21698000056
+                - img [ref=e2651]
+                - generic [ref=e2653]: "+21698000056"
+              - generic "Sfax" [ref=e2654]:
+                - img [ref=e2655]
+                - text: Sfax
+              - generic "Produit Test 2" [ref=e2658]:
+                - img [ref=e2659]
+                - generic [ref=e2663]: Produit Test 2
+              - generic [ref=e2664]: 76TND
+            - button "Appel terminé" [ref=e2666]
+  - alert [ref=e2006]

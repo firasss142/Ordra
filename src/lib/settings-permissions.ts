@@ -28,6 +28,16 @@ export function canManageStorefronts(role: Role): boolean {
   return role === "super_admin";
 }
 
+export function canReadStorefrontHealth(
+  role: Role,
+  targetMarketId: string,
+  actorMarketId: string,
+): boolean {
+  if (role === "super_admin") return true;
+  if (role === "market_manager") return targetMarketId === actorMarketId;
+  return false;
+}
+
 export function canManageAgents(
   role: Role,
   targetMarketId: string,

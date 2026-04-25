@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { OrderListFilters } from "@/lib/orders/list-filters";
-import { REJECTION_REASONS, type RejectionReason } from "@/types/order-status";
+import { ORDER_STATUSES, REJECTION_REASONS, type OrderStatus, type RejectionReason } from "@/types/order-status";
 
 interface Product {
   id: string;
@@ -13,6 +13,10 @@ interface Carrier {
   id: string;
   name: string;
 }
+interface Agent {
+  id: string;
+  full_name: string;
+}
 
 interface Props {
   open: boolean;
@@ -21,6 +25,7 @@ interface Props {
   onApply: (patch: Partial<OrderListFilters>) => void;
   products: Product[];
   carriers: Carrier[];
+  agents: Agent[];
 }
 
 export function OrdersAdvancedDrawer({
@@ -30,8 +35,10 @@ export function OrdersAdvancedDrawer({
   onApply,
   products,
   carriers,
+  agents,
 }: Props) {
   const t = useTranslations("orders.advanced");
+  const tStatus = useTranslations("orders.statuses");
   const tReason = useTranslations("orders.rejectionReasons");
 
   const [local, setLocal] = useState<OrderListFilters>(filters);
@@ -122,6 +129,67 @@ export function OrdersAdvancedDrawer({
             gap: 16,
           }}
         >
+          {/* Status multi-select */}
+          <Field label={t("status")}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {(ORDER_STATUSES as readonly OrderStatus[]).map((s) => {
+                const checked = local.statuses.includes(s);
+                return (
+                  <label
+                    key={s}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "5px 8px",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      fontSize: 13,
+                      color: "#1A1A1A",
+                      background: checked ? "#F2F2F2" : "transparent",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        const next = checked
+                          ? local.statuses.filter((x) => x !== s)
+                          : [...local.statuses, s];
+                        setLocal({ ...local, statuses: next });
+                      }}
+                      style={{ cursor: "pointer" }}
+                    />
+                    {tStatus(s)}
+                  </label>
+                );
+              })}
+            </div>
+          </Field>
+
+          {/* Agent */}
+          <Field label={t("agent")}>
+            <select
+              value={local.agentId ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                setLocal({
+                  ...local,
+                  agentId: v === "" ? null : (v as string | "unassigned"),
+                });
+              }}
+              style={select}
+            >
+              <option value="">{t("allAgents")}</option>
+              <option value="unassigned">{t("unassigned")}</option>
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.full_name}
+                </option>
+              ))}
+            </select>
+          </Field>
+
           <Field label={t("product")}>
             <select
               value={local.productId ?? ""}
@@ -219,7 +287,19 @@ export function OrdersAdvancedDrawer({
         >
           <button
             type="button"
-            onClick={() => setLocal({ ...local, productId: null, city: "", totalMin: null, totalMax: null, rejectionReason: null, carrierId: null })}
+            onClick={() =>
+              setLocal({
+                ...local,
+                statuses: [],
+                agentId: null,
+                productId: null,
+                city: "",
+                totalMin: null,
+                totalMax: null,
+                rejectionReason: null,
+                carrierId: null,
+              })
+            }
             style={secondaryBtn}
           >
             {t("reset")}
@@ -228,6 +308,8 @@ export function OrdersAdvancedDrawer({
             type="button"
             onClick={() => {
               onApply({
+                statuses: local.statuses,
+                agentId: local.agentId,
                 productId: local.productId,
                 city: local.city,
                 totalMin: local.totalMin,

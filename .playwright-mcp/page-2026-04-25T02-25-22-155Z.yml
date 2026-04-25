@@ -1,0 +1,28 @@
+- generic [active] [ref=e1]:
+  - link "Aller au contenu principal" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - button "Notifications" [ref=e7] [cursor=pointer]:
+          - img [ref=e8]
+        - generic [ref=e11]: agent
+        - button "asma" [ref=e12] [cursor=pointer]:
+          - generic [ref=e14]: asma
+          - generic [ref=e15]: ▾
+    - navigation [ref=e16]:
+      - link "nav.orders" [ref=e17] [cursor=pointer]:
+        - /url: /fr/queue
+        - img [ref=e18]
+        - generic [ref=e21]: nav.orders
+      - link "CRM" [ref=e22] [cursor=pointer]:
+        - /url: /fr/leads
+        - img [ref=e23]
+        - generic [ref=e28]: CRM
+      - link "Suivi de commande" [ref=e29] [cursor=pointer]:
+        - /url: /fr/follow-ups
+        - img [ref=e30]
+        - generic [ref=e33]: Suivi de commande
+    - main [ref=e34]:
+      - generic [ref=e38]: Chargement...
+  - alert [ref=e39]

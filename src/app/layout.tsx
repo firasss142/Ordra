@@ -1,5 +1,20 @@
 import type { Metadata } from "next";
+import { Inter, Noto_Sans_Arabic } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-sans",
+  adjustFontFallback: true,
+});
+
+const notoArabic = Noto_Sans_Arabic({
+  subsets: ["arabic"],
+  display: "swap",
+  variable: "--font-sans-arabic",
+  weight: ["400", "500", "600"],
+});
 
 export const metadata: Metadata = {
   title: "Ordra",
@@ -17,7 +32,7 @@ export default function RootLayout({
   const dir = locale === "ar" ? "rtl" : "ltr";
 
   return (
-    <html lang={locale} dir={dir}>
+    <html lang={locale} dir={dir} className={`${inter.variable} ${notoArabic.variable}`}>
       <body>{children}</body>
     </html>
   );

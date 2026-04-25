@@ -1,9 +1,18 @@
 import { redirect } from "next/navigation";
+import { MarketsClient } from "./MarketsClient";
+import { getServerUser } from "@/lib/auth/server-user";
 
-export default function MarketsPage({
+export default async function MarketsPage({
   params,
 }: {
   params: { locale: string };
 }) {
-  redirect(`/${params.locale}/settings?section=markets`);
+  const user = await getServerUser();
+  if (!user) redirect(`/${params.locale}/login`);
+
+  if (user.role !== "super_admin") {
+    redirect(`/${params.locale}/dashboard`);
+  }
+
+  return <MarketsClient user={user} />;
 }

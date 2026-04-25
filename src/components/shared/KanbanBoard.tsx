@@ -195,33 +195,22 @@ export function KanbanBoard<T>({
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, col.key)}
             style={{
-              flex: "0 0 304px",
+              flex: "0 0 308px",
               minHeight: 480,
               background: "white",
               border: `1px solid ${isOver ? "#1A1A1A" : "#E1E3E5"}`,
-              borderRadius: 8,
+              borderRadius: 10,
               display: "flex",
               flexDirection: "column",
-              transition: "border-color 120ms ease",
+              transition: "border-color 120ms ease, box-shadow 120ms ease",
               overflow: "hidden",
+              boxShadow: isOver ? "0 0 0 3px rgba(26,26,26,0.08)" : "none",
             }}
           >
-            {/* Top functional accent — only rendered when column.accent is set */}
-            {col.accent && (
-              <div
-                data-kanban-accent={col.accent}
-                style={{
-                  height: 2,
-                  background: ACCENT_COLOR[col.accent],
-                  width: "100%",
-                }}
-              />
-            )}
-
             {/* Column header — uppercase tracked label, monochrome */}
             <div
               style={{
-                padding: isCompact ? "8px 12px" : "10px 12px",
+                padding: isCompact ? "10px 12px" : "12px 14px",
                 borderBottom: "1px solid #E1E3E5",
                 display: "flex",
                 alignItems: "center",
@@ -229,25 +218,47 @@ export function KanbanBoard<T>({
                 gap: 8,
                 position: "sticky",
                 top: 0,
-                background: "white",
+                background: "#FFFFFF",
                 zIndex: 1,
               }}
             >
-              <span
+              <div
                 style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "#6D7175",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
                   minWidth: 0,
                 }}
               >
-                {col.label}
-              </span>
+                {col.accent && (
+                  <span
+                    data-kanban-accent={col.accent}
+                    aria-hidden="true"
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background: ACCENT_COLOR[col.accent],
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#1A1A1A",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    minWidth: 0,
+                  }}
+                >
+                  {col.label}
+                </span>
+              </div>
               <div
                 style={{
                   display: "flex",
@@ -271,14 +282,14 @@ export function KanbanBoard<T>({
                 <span
                   style={{
                     fontSize: 12,
-                    fontWeight: 500,
+                    fontWeight: 600,
                     color: "#1A1A1A",
                     background: "#F6F6F7",
                     border: "1px solid #E1E3E5",
-                    borderRadius: 10,
-                    padding: "1px 8px",
+                    borderRadius: 9999,
+                    padding: "2px 9px",
                     fontVariantNumeric: "tabular-nums",
-                    minWidth: 20,
+                    minWidth: 22,
                     textAlign: "center",
                   }}
                 >
@@ -293,13 +304,13 @@ export function KanbanBoard<T>({
                       col.onAdd!();
                     }}
                     style={{
-                      width: 24,
-                      height: 24,
+                      width: 26,
+                      height: 26,
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
                       border: "1px solid #E1E3E5",
-                      borderRadius: 6,
+                      borderRadius: 8,
                       background: "white",
                       color: "#1A1A1A",
                       fontSize: 16,
@@ -309,11 +320,13 @@ export function KanbanBoard<T>({
                       transition: "border-color 120ms ease, background-color 120ms ease",
                     }}
                     onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.background = "#F6F6F7";
-                      (e.currentTarget as HTMLButtonElement).style.borderColor = "#C9CCCF";
+                      (e.currentTarget as HTMLButtonElement).style.background = "#1A1A1A";
+                      (e.currentTarget as HTMLButtonElement).style.color = "#FFFFFF";
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = "#1A1A1A";
                     }}
                     onMouseLeave={(e) => {
                       (e.currentTarget as HTMLButtonElement).style.background = "white";
+                      (e.currentTarget as HTMLButtonElement).style.color = "#1A1A1A";
                       (e.currentTarget as HTMLButtonElement).style.borderColor = "#E1E3E5";
                     }}
                   >
@@ -381,12 +394,16 @@ export function KanbanBoard<T>({
                         position: "relative",
                         cursor: onMove ? "grab" : "default",
                         opacity: isDragging ? 0.5 : 1,
-                        borderRadius: 8,
-                        background: isHovered ? "#FAFBFB" : "transparent",
+                        borderRadius: 10,
+                        background: "transparent",
                         outline: isFocused ? "2px solid #1A1A1A" : "none",
                         outlineOffset: 2,
+                        boxShadow: isHovered
+                          ? "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06)"
+                          : "none",
+                        transform: isHovered ? "translateY(-1px)" : "translateY(0)",
                         transition:
-                          "opacity 120ms ease, background-color 120ms ease",
+                          "opacity 120ms ease, box-shadow 160ms ease, transform 160ms ease",
                       }}
                     >
                       {showAccentStrip ? (
@@ -400,9 +417,10 @@ export function KanbanBoard<T>({
                             bottom: 0,
                             width: 3,
                             background: ACCENT_COLOR[accent],
-                            borderStartStartRadius: 8,
-                            borderEndStartRadius: 8,
+                            borderStartStartRadius: 10,
+                            borderEndStartRadius: 10,
                             pointerEvents: "none",
+                            zIndex: 1,
                           }}
                         />
                       ) : (

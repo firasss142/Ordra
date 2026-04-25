@@ -1,0 +1,364 @@
+- generic [active] [ref=e1]:
+  - link "Aller au contenu principal" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - button "Notifications" [ref=e7] [cursor=pointer]:
+          - img [ref=e8]
+        - generic [ref=e12]: Agent
+        - button "asma" [ref=e13] [cursor=pointer]:
+          - generic [ref=e15]: asma
+          - generic [ref=e16]: ▾
+    - navigation [ref=e17]:
+      - link "Commandes" [ref=e18] [cursor=pointer]:
+        - /url: /fr/queue
+        - img [ref=e19]
+        - generic [ref=e22]: Commandes
+      - link "CRM" [ref=e23] [cursor=pointer]:
+        - /url: /fr/leads
+        - img [ref=e24]
+        - generic [ref=e29]: CRM
+      - link "Suivi de commande" [ref=e30] [cursor=pointer]:
+        - /url: /fr/follow-ups
+        - img [ref=e31]
+        - generic [ref=e34]: Suivi de commande
+    - main [ref=e35]:
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - heading "Mes relances du jour" [level=1] [ref=e38]
+          - paragraph [ref=e39]: Coordination des livraisons en cash-on-delivery · Tunisia
+        - generic [ref=e40]:
+          - generic [ref=e42]: Tunisia
+          - button "+ Nouveau suivi" [ref=e43] [cursor=pointer]
+        - generic [ref=e44]:
+          - generic [ref=e45]:
+            - heading "Non planifiés25" [level=2] [ref=e46]
+            - generic [ref=e47]:
+              - generic [ref=e48]:
+                - link "Client Test 643 23,000 DT +21698000643 · Bizerte callback_scheduled Ouvert" [ref=e50] [cursor=pointer]:
+                  - /url: /fr/follow-ups/0617d3f4-8d62-4791-9063-936e174ce93a
+                  - generic [ref=e51]:
+                    - strong [ref=e52]: Client Test 643
+                    - generic [ref=e53]: 23,000 DT
+                  - generic [ref=e54]: +21698000643 · Bizerte
+                  - generic [ref=e55]:
+                    - generic [ref=e56]: callback_scheduled
+                    - generic [ref=e57]:
+                      - img [ref=e58]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e60] [cursor=pointer]
+              - generic [ref=e61]:
+                - link "Client Test 633 93,000 DT +21698000633 · Bizerte confirmed En cours" [ref=e63] [cursor=pointer]:
+                  - /url: /fr/follow-ups/07c08100-73b6-462a-ac2c-bf57a6724ab8
+                  - generic [ref=e64]:
+                    - strong [ref=e65]: Client Test 633
+                    - generic [ref=e66]: 93,000 DT
+                  - generic [ref=e67]: +21698000633 · Bizerte
+                  - generic [ref=e68]:
+                    - generic [ref=e69]: confirmed
+                    - generic [ref=e70]:
+                      - img [ref=e71]
+                      - text: En cours
+                - button "Enregistrer tentative" [ref=e73] [cursor=pointer]
+              - generic [ref=e74]:
+                - link "Client Test 538 78,000 DT +21698000538 · Bizerte rejected En cours" [ref=e76] [cursor=pointer]:
+                  - /url: /fr/follow-ups/1085149a-4846-46ce-b701-db2e7d5bb12e
+                  - generic [ref=e77]:
+                    - strong [ref=e78]: Client Test 538
+                    - generic [ref=e79]: 78,000 DT
+                  - generic [ref=e80]: +21698000538 · Bizerte
+                  - generic [ref=e81]:
+                    - generic [ref=e82]: rejected
+                    - generic [ref=e83]:
+                      - img [ref=e84]
+                      - text: En cours
+                - button "Enregistrer tentative" [ref=e86] [cursor=pointer]
+              - generic [ref=e87]:
+                - link "Client Test 518 58,000 DT +21698000518 · Bizerte assigned Ouvert" [ref=e89] [cursor=pointer]:
+                  - /url: /fr/follow-ups/1d4a11a8-5bb3-4794-b274-0e9dfb34b46a
+                  - generic [ref=e90]:
+                    - strong [ref=e91]: Client Test 518
+                    - generic [ref=e92]: 58,000 DT
+                  - generic [ref=e93]: +21698000518 · Bizerte
+                  - generic [ref=e94]:
+                    - generic [ref=e95]: assigned
+                    - generic [ref=e96]:
+                      - img [ref=e97]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e99] [cursor=pointer]
+              - generic [ref=e100]:
+                - link "Client Test 628 88,000 DT +21698000628 · Bizerte assigned Ouvert" [ref=e102] [cursor=pointer]:
+                  - /url: /fr/follow-ups/22c0700c-46c8-4fe1-92f5-ce54984c7f42
+                  - generic [ref=e103]:
+                    - strong [ref=e104]: Client Test 628
+                    - generic [ref=e105]: 88,000 DT
+                  - generic [ref=e106]: +21698000628 · Bizerte
+                  - generic [ref=e107]:
+                    - generic [ref=e108]: assigned
+                    - generic [ref=e109]:
+                      - img [ref=e110]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e112] [cursor=pointer]
+              - generic [ref=e113]:
+                - link "Client Test 653 33,000 DT +21698000653 · Bizerte attempt_3 Ouvert" [ref=e115] [cursor=pointer]:
+                  - /url: /fr/follow-ups/2b6a549c-5a98-4846-a7ad-f463ac616038
+                  - generic [ref=e116]:
+                    - strong [ref=e117]: Client Test 653
+                    - generic [ref=e118]: 33,000 DT
+                  - generic [ref=e119]: +21698000653 · Bizerte
+                  - generic [ref=e120]:
+                    - generic [ref=e121]: attempt_3
+                    - generic [ref=e122]:
+                      - img [ref=e123]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e125] [cursor=pointer]
+              - generic [ref=e126]:
+                - link "Client Test 558 98,000 DT +21698000558 · Bizerte delivered Ouvert" [ref=e128] [cursor=pointer]:
+                  - /url: /fr/follow-ups/2b6d5170-eb6d-4235-9fbe-0dceb12d8af3
+                  - generic [ref=e129]:
+                    - strong [ref=e130]: Client Test 558
+                    - generic [ref=e131]: 98,000 DT
+                  - generic [ref=e132]: +21698000558 · Bizerte
+                  - generic [ref=e133]:
+                    - generic [ref=e134]: delivered
+                    - generic [ref=e135]:
+                      - img [ref=e136]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e138] [cursor=pointer]
+              - generic [ref=e139]:
+                - link "Client Test 563 23,000 DT +21698000563 · Bizerte attempt_1 Résolu" [ref=e141] [cursor=pointer]:
+                  - /url: /fr/follow-ups/3a8901bc-fa6c-40a3-bc24-c9adda8b44ef
+                  - generic [ref=e142]:
+                    - strong [ref=e143]: Client Test 563
+                    - generic [ref=e144]: 23,000 DT
+                  - generic [ref=e145]: +21698000563 · Bizerte
+                  - generic [ref=e146]:
+                    - generic [ref=e147]: attempt_1
+                    - generic [ref=e148]:
+                      - img [ref=e149]
+                      - text: Résolu
+                - button "Enregistrer tentative" [ref=e151] [cursor=pointer]
+              - generic [ref=e152]:
+                - link "Client Test 508 48,000 DT +21698000508 · Bizerte attempt_1 Ouvert" [ref=e154] [cursor=pointer]:
+                  - /url: /fr/follow-ups/49f9d17a-580d-409c-8ebe-4bb73194e1a3
+                  - generic [ref=e155]:
+                    - strong [ref=e156]: Client Test 508
+                    - generic [ref=e157]: 48,000 DT
+                  - generic [ref=e158]: +21698000508 · Bizerte
+                  - generic [ref=e159]:
+                    - generic [ref=e160]: attempt_1
+                    - generic [ref=e161]:
+                      - img [ref=e162]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e164] [cursor=pointer]
+              - generic [ref=e165]:
+                - link "Client Test 523 63,000 DT +21698000523 · Bizerte confirmed Ouvert" [ref=e167] [cursor=pointer]:
+                  - /url: /fr/follow-ups/507b7976-275d-40ba-96db-843d4b158c49
+                  - generic [ref=e168]:
+                    - strong [ref=e169]: Client Test 523
+                    - generic [ref=e170]: 63,000 DT
+                  - generic [ref=e171]: +21698000523 · Bizerte
+                  - generic [ref=e172]:
+                    - generic [ref=e173]: confirmed
+                    - generic [ref=e174]:
+                      - img [ref=e175]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e177] [cursor=pointer]
+              - generic [ref=e178]:
+                - link "Client Test 663 43,000 DT +21698000663 · Bizerte attempt_2 Ouvert" [ref=e180] [cursor=pointer]:
+                  - /url: /fr/follow-ups/54209398-3415-4a74-bbef-167507a5d186
+                  - generic [ref=e181]:
+                    - strong [ref=e182]: Client Test 663
+                    - generic [ref=e183]: 43,000 DT
+                  - generic [ref=e184]: +21698000663 · Bizerte
+                  - generic [ref=e185]:
+                    - generic [ref=e186]: attempt_2
+                    - generic [ref=e187]:
+                      - img [ref=e188]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e190] [cursor=pointer]
+              - generic [ref=e191]:
+                - link "Client Test 658 38,000 DT +21698000658 · Bizerte returned Ouvert" [ref=e193] [cursor=pointer]:
+                  - /url: /fr/follow-ups/5f93c222-1c0a-4868-9919-4b5687df1a6d
+                  - generic [ref=e194]:
+                    - strong [ref=e195]: Client Test 658
+                    - generic [ref=e196]: 38,000 DT
+                  - generic [ref=e197]: +21698000658 · Bizerte
+                  - generic [ref=e198]:
+                    - generic [ref=e199]: returned
+                    - generic [ref=e200]:
+                      - img [ref=e201]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e203] [cursor=pointer]
+              - generic [ref=e204]:
+                - link "Client Test 588 48,000 DT +21698000588 · Bizerte callback_scheduled Ouvert" [ref=e206] [cursor=pointer]:
+                  - /url: /fr/follow-ups/5fed3340-05e3-43a4-a4b8-d57312f98097
+                  - generic [ref=e207]:
+                    - strong [ref=e208]: Client Test 588
+                    - generic [ref=e209]: 48,000 DT
+                  - generic [ref=e210]: +21698000588 · Bizerte
+                  - generic [ref=e211]:
+                    - generic [ref=e212]: callback_scheduled
+                    - generic [ref=e213]:
+                      - img [ref=e214]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e216] [cursor=pointer]
+              - generic [ref=e217]:
+                - link "Client Test 573 33,000 DT +21698000573 · Bizerte assigned Ouvert" [ref=e219] [cursor=pointer]:
+                  - /url: /fr/follow-ups/65a067bd-1d00-4380-9815-ca4306039d8c
+                  - generic [ref=e220]:
+                    - strong [ref=e221]: Client Test 573
+                    - generic [ref=e222]: 33,000 DT
+                  - generic [ref=e223]: +21698000573 · Bizerte
+                  - generic [ref=e224]:
+                    - generic [ref=e225]: assigned
+                    - generic [ref=e226]:
+                      - img [ref=e227]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e229] [cursor=pointer]
+              - generic [ref=e230]:
+                - link "Client Test 603 63,000 DT +21698000603 · Bizerte returned Ouvert" [ref=e232] [cursor=pointer]:
+                  - /url: /fr/follow-ups/69af8433-0b5c-4073-ac58-38f22754735b
+                  - generic [ref=e233]:
+                    - strong [ref=e234]: Client Test 603
+                    - generic [ref=e235]: 63,000 DT
+                  - generic [ref=e236]: +21698000603 · Bizerte
+                  - generic [ref=e237]:
+                    - generic [ref=e238]: returned
+                    - generic [ref=e239]:
+                      - img [ref=e240]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e242] [cursor=pointer]
+              - generic [ref=e243]:
+                - link "Client Test 593 53,000 DT +21698000593 · Bizerte rejected Ouvert" [ref=e245] [cursor=pointer]:
+                  - /url: /fr/follow-ups/6bce0ac1-38a8-4fa4-b374-3a6585a8503b
+                  - generic [ref=e246]:
+                    - strong [ref=e247]: Client Test 593
+                    - generic [ref=e248]: 53,000 DT
+                  - generic [ref=e249]: +21698000593 · Bizerte
+                  - generic [ref=e250]:
+                    - generic [ref=e251]: rejected
+                    - generic [ref=e252]:
+                      - img [ref=e253]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e255] [cursor=pointer]
+              - generic [ref=e256]:
+                - link "Client Test 990 50,000 DT +21698000990 · Tunis callback_scheduled Ouvert" [ref=e258] [cursor=pointer]:
+                  - /url: /fr/follow-ups/6d5ab2bf-6220-4e61-bda4-28fce6f83da8
+                  - generic [ref=e259]:
+                    - strong [ref=e260]: Client Test 990
+                    - generic [ref=e261]: 50,000 DT
+                  - generic [ref=e262]: +21698000990 · Tunis
+                  - generic [ref=e263]:
+                    - generic [ref=e264]: callback_scheduled
+                    - generic [ref=e265]:
+                      - img [ref=e266]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e268] [cursor=pointer]
+              - generic [ref=e269]:
+                - link "2 58,000 DT efe · Bizerte attempt_1 Ouvert" [ref=e271] [cursor=pointer]:
+                  - /url: /fr/follow-ups/6d61558c-d52c-4349-9056-da5db68766ce
+                  - generic [ref=e272]:
+                    - strong [ref=e273]: "2"
+                    - generic [ref=e274]: 58,000 DT
+                  - generic [ref=e275]: efe · Bizerte
+                  - generic [ref=e276]:
+                    - generic [ref=e277]: attempt_1
+                    - generic [ref=e278]:
+                      - img [ref=e279]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e281] [cursor=pointer]
+              - generic [ref=e282]:
+                - link "Client Test 623 83,000 DT +21698000623 · Bizerte dispatched Ouvert" [ref=e284] [cursor=pointer]:
+                  - /url: /fr/follow-ups/73ab6bfb-1aa8-4761-bc67-3619c699c8cb
+                  - generic [ref=e285]:
+                    - strong [ref=e286]: Client Test 623
+                    - generic [ref=e287]: 83,000 DT
+                  - generic [ref=e288]: +21698000623 · Bizerte
+                  - generic [ref=e289]:
+                    - generic [ref=e290]: dispatched
+                    - generic [ref=e291]:
+                      - img [ref=e292]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e294] [cursor=pointer]
+              - generic [ref=e295]:
+                - link "Client Test 513 53,000 DT +21698000513 · Bizerte dispatched Ouvert" [ref=e297] [cursor=pointer]:
+                  - /url: /fr/follow-ups/7dd09d8c-22c3-4425-bbd7-e93a6fc5e151
+                  - generic [ref=e298]:
+                    - strong [ref=e299]: Client Test 513
+                    - generic [ref=e300]: 53,000 DT
+                  - generic [ref=e301]: +21698000513 · Bizerte
+                  - generic [ref=e302]:
+                    - generic [ref=e303]: dispatched
+                    - generic [ref=e304]:
+                      - img [ref=e305]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e307] [cursor=pointer]
+              - generic [ref=e308]:
+                - link "Client Test 568 28,000 DT +21698000568 · Bizerte dispatched Ouvert" [ref=e310] [cursor=pointer]:
+                  - /url: /fr/follow-ups/7eeebc49-f3e8-4a03-8a56-eab018216a09
+                  - generic [ref=e311]:
+                    - strong [ref=e312]: Client Test 568
+                    - generic [ref=e313]: 28,000 DT
+                  - generic [ref=e314]: +21698000568 · Bizerte
+                  - generic [ref=e315]:
+                    - generic [ref=e316]: dispatched
+                    - generic [ref=e317]:
+                      - img [ref=e318]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e320] [cursor=pointer]
+              - generic [ref=e321]:
+                - link "Client Test 648 28,000 DT +21698000648 · Bizerte rejected Ouvert" [ref=e323] [cursor=pointer]:
+                  - /url: /fr/follow-ups/897ffd4a-6c1a-4e99-bd68-e3d85e47d1ab
+                  - generic [ref=e324]:
+                    - strong [ref=e325]: Client Test 648
+                    - generic [ref=e326]: 28,000 DT
+                  - generic [ref=e327]: +21698000648 · Bizerte
+                  - generic [ref=e328]:
+                    - generic [ref=e329]: rejected
+                    - generic [ref=e330]:
+                      - img [ref=e331]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e333] [cursor=pointer]
+              - generic [ref=e334]:
+                - link "Client Test 598 58,000 DT +21698000598 · Bizerte attempt_3 Ouvert" [ref=e336] [cursor=pointer]:
+                  - /url: /fr/follow-ups/91fa859e-574d-4c2f-9f19-7925b0d60fb2
+                  - generic [ref=e337]:
+                    - strong [ref=e338]: Client Test 598
+                    - generic [ref=e339]: 58,000 DT
+                  - generic [ref=e340]: +21698000598 · Bizerte
+                  - generic [ref=e341]:
+                    - generic [ref=e342]: attempt_3
+                    - generic [ref=e343]:
+                      - img [ref=e344]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e346] [cursor=pointer]
+              - generic [ref=e347]:
+                - link "Client Test 678 58,000 DT +21698000678 · Bizerte dispatched Ouvert" [ref=e349] [cursor=pointer]:
+                  - /url: /fr/follow-ups/971a5393-bdd9-4385-aae4-bc1dc44129eb
+                  - generic [ref=e350]:
+                    - strong [ref=e351]: Client Test 678
+                    - generic [ref=e352]: 58,000 DT
+                  - generic [ref=e353]: +21698000678 · Bizerte
+                  - generic [ref=e354]:
+                    - generic [ref=e355]: dispatched
+                    - generic [ref=e356]:
+                      - img [ref=e357]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e359] [cursor=pointer]
+              - generic [ref=e360]:
+                - link "Client Test 533 73,000 DT +21698000533 · Bizerte callback_scheduled Ouvert" [ref=e362] [cursor=pointer]:
+                  - /url: /fr/follow-ups/9c0616ae-c7af-48ab-91c7-beb65c891295
+                  - generic [ref=e363]:
+                    - strong [ref=e364]: Client Test 533
+                    - generic [ref=e365]: 73,000 DT
+                  - generic [ref=e366]: +21698000533 · Bizerte
+                  - generic [ref=e367]:
+                    - generic [ref=e368]: callback_scheduled
+                    - generic [ref=e369]:
+                      - img [ref=e370]
+                      - text: Ouvert
+                - button "Enregistrer tentative" [ref=e372] [cursor=pointer]
+          - button "Afficher plus" [ref=e374] [cursor=pointer]
+  - alert [ref=e375]

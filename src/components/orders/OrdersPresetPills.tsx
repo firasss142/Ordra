@@ -10,11 +10,6 @@ interface Props {
   counts?: Partial<Record<OrdersPreset, number>>;
 }
 
-/**
- * Segmented pill control for the four primary order views.
- * Mirrors PresetSegmented in [src/components/dashboard/FilterBar.tsx] so the
- * orders page feels visually continuous with the dashboard.
- */
 export function OrdersPresetPills({ active, onChange, counts }: Props) {
   const t = useTranslations("orders.presets");
 
@@ -24,11 +19,7 @@ export function OrdersPresetPills({ active, onChange, counts }: Props) {
       aria-label={t("label")}
       style={{
         display: "inline-flex",
-        border: "1px solid #E1E3E5",
-        borderRadius: 9999,
-        background: "#FFFFFF",
-        padding: 2,
-        gap: 2,
+        gap: 4,
       }}
     >
       {ORDERS_PRESETS.map((key) => {
@@ -45,15 +36,16 @@ export function OrdersPresetPills({ active, onChange, counts }: Props) {
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
-              padding: "6px 14px",
-              border: "none",
-              borderRadius: 9999,
-              background: isActive ? "#1A1A1A" : "transparent",
+              padding: "6px 12px",
+              border: isActive ? "none" : "1px solid #E1E3E5",
+              borderRadius: 6,
+              background: isActive ? "#1A1A1A" : "#FFFFFF",
               color: isActive ? "#FFFFFF" : "#1A1A1A",
               fontSize: 13,
               fontWeight: 500,
               cursor: "pointer",
               transition: "background-color 120ms ease, color 120ms ease",
+              whiteSpace: "nowrap",
             }}
           >
             {t(key)}
@@ -64,7 +56,7 @@ export function OrdersPresetPills({ active, onChange, counts }: Props) {
                   fontWeight: 500,
                   padding: "1px 6px",
                   borderRadius: 9999,
-                  background: isActive ? "rgba(255,255,255,0.15)" : "#F2F2F2",
+                  background: isActive ? "rgba(255,255,255,0.2)" : "#F2F2F2",
                   color: isActive ? "#FFFFFF" : "#6D7175",
                   fontVariantNumeric: "tabular-nums",
                 }}

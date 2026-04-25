@@ -6,8 +6,9 @@ import { usePreparationTray } from "@/hooks/usePreparationTray";
 import { useOperatorStats } from "@/hooks/useOperatorStats";
 import { summarizeCycleTimes } from "@/lib/preparation/cycle-time";
 import { openPdfBlob } from "@/lib/pdf-utils";
-import { PreparationStatsStrip } from "./PreparationStatsStrip";
 import { PreparationTray } from "./PreparationTray";
+import { LogisticsPageHeader } from "../shared/LogisticsPageHeader";
+import { LogisticsKpiStrip, type KpiTileDef } from "../shared/LogisticsKpiStrip";
 import { PreparationScannerPanel } from "./PreparationScannerPanel";
 import { PreparationBacklog } from "./PreparationBacklog";
 import type { ScanResult } from "./PreparationScannerPanel";
@@ -15,14 +16,29 @@ import type { ScanErrorCode } from "@/lib/preparation/tray-state";
 
 const D = {
   pageBg: "#F6F6F7",
+  cardBg: "#FFFFFF",
   border: "#E1E3E5",
   textPrimary: "#1A1A1A",
+  textSecondary: "#6D7175",
 } as const;
+
+function formatCycle(secs: number): string {
+  if (secs === 0) return "—";
+  if (secs < 60) return `${secs}s`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return s === 0 ? `${m}min` : `${m}min ${s}s`;
+}
 
 interface Props {
   marketId: string | null;
   fallbackRows: WarehouseOrderRow[];
   labels: {
+    pageTitle: string;
+    pageSubtitle: string;
+    stageBacklog: string;
+    stageTray: string;
+    stageScanner: string;
     stats: {
       labelsPrinted: string;
       ordersScanned: string;
@@ -58,13 +74,66 @@ interface Props {
       lowStock: string;
       criticalStock: string;
     };
-    trayTitle: string;
-    scannerTitle: string;
   };
 }
 
+interface StageHeaderProps {
+  index: number;
+  label: string;
+  hint?: string;
+}
+
+function StageHeader({ index, label, hint }: StageHeaderProps) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "12px 16px",
+        borderBottom: `1px solid ${D.border}`,
+        backgroundColor: "#FAFAFA",
+        flexShrink: 0,
+      }}
+    >
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 22,
+          height: 22,
+          borderRadius: 999,
+          backgroundColor: D.textPrimary,
+          color: "#FFFFFF",
+          fontSize: 12,
+          fontWeight: 700,
+          flexShrink: 0,
+        }}
+        aria-hidden="true"
+      >
+        {index}
+      </span>
+      <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <h2
+          style={{
+            margin: 0,
+            fontSize: 14,
+            fontWeight: 600,
+            color: D.textPrimary,
+          }}
+        >
+          {label}
+        </h2>
+        {hint ? (
+          <span style={{ fontSize: 11, color: D.textSecondary }}>{hint}</span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function PreparationClient({ marketId, fallbackRows, labels }: Props) {
-  // Destructure stable callbacks so useCallback deps don't blow up on every render
   const {
     rows,
     selectedIds,
@@ -189,116 +258,103 @@ export function PreparationClient({ marketId, fallbackRows, labels }: Props) {
     [onRetry, markAllPrinted, refreshStats],
   );
 
+  const cycleSeconds =
+    cycleSummary.count > 0 ? cycleSummary.avgSeconds : stats.avg_cycle_seconds;
+
+  const kpiTiles: KpiTileDef[] = [
+    { label: labels.stats.labelsPrinted, value: String(stats.labels_printed_today) },
+    { label: labels.stats.ordersScanned, value: String(stats.orders_scanned_today) },
+    { label: labels.stats.avgCycle, value: formatCycle(cycleSeconds) },
+    { label: labels.stats.traySize, value: String(rows.length) },
+  ];
+
+  const cardChrome = {
+    backgroundColor: D.cardBg,
+    border: `1px solid ${D.border}`,
+    borderRadius: 8,
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column",
+  } as const;
+
   return (
     <div
       style={{
         minHeight: "100vh",
         backgroundColor: D.pageBg,
+        padding: "24px 32px 24px",
         display: "flex",
         flexDirection: "column",
+        gap: 16,
       }}
     >
-      <PreparationStatsStrip
-        labelsPrintedToday={stats.labels_printed_today}
-        ordersScannedToday={stats.orders_scanned_today}
-        avgCycleSeconds={cycleSummary.count > 0 ? cycleSummary.avgSeconds : stats.avg_cycle_seconds}
-        traySize={rows.length}
-        labels={labels.stats}
+      <LogisticsPageHeader
+        title={labels.pageTitle}
+        subtitle={labels.pageSubtitle}
       />
+      <LogisticsKpiStrip tiles={kpiTiles} />
 
+      {/* 3-stage horizontal workbench */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 380px",
-          gap: 0,
-          flex: 1,
-          overflow: "hidden",
+          gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1.3fr) minmax(320px, 380px)",
+          gap: 16,
+          alignItems: "stretch",
         }}
       >
-        <div
+        {/* STAGE 1 — Backlog */}
+        <section style={cardChrome}>
+          <StageHeader index={1} label={labels.stageBacklog} />
+          <div style={{ padding: 16, overflow: "auto", maxHeight: 720 }}>
+            <PreparationBacklog
+              marketId={marketId}
+              fallbackRows={fallbackRows}
+              trayIds={trayIds}
+              onAddToTray={handleAddToTray}
+              labels={labels.backlog}
+            />
+          </div>
+        </section>
+
+        {/* STAGE 2 — Tray (print) */}
+        <section style={cardChrome}>
+          <StageHeader index={2} label={labels.stageTray} />
+          <div style={{ flex: 1, overflowY: "auto", maxHeight: 720 }}>
+            <PreparationTray
+              rows={rows}
+              selectedIds={selectedIds}
+              onToggle={toggleSelect}
+              onToggleAll={toggleSelectAll}
+              onRemove={remove}
+              onRetry={onRetry}
+              onReprint={handleReprint}
+              onPrint={handlePrint}
+              printing={printing}
+              flashId={flashId}
+              labels={labels.tray}
+            />
+          </div>
+        </section>
+
+        {/* STAGE 3 — Scanner */}
+        <aside
           style={{
-            display: "flex",
-            flexDirection: "column",
-            borderInlineEnd: `1px solid ${D.border}`,
-            overflow: "hidden",
+            ...cardChrome,
+            position: "sticky",
+            top: 16,
+            alignSelf: "start",
+            maxHeight: "calc(100vh - 32px)",
           }}
         >
-          <div
-            style={{
-              padding: "14px 16px 10px",
-              borderBottom: `1px solid ${D.border}`,
-              backgroundColor: "#FAFAFA",
-              flexShrink: 0,
-            }}
-          >
-            <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: D.textPrimary, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              {labels.trayTitle}
-            </h2>
-          </div>
-
-          <div style={{ flex: 1, overflowY: "auto", backgroundColor: D.pageBg }}>
-            <div style={{ height: "100%" }}>
-              <PreparationTray
-                rows={rows}
-                selectedIds={selectedIds}
-                onToggle={toggleSelect}
-                onToggleAll={toggleSelectAll}
-                onRemove={remove}
-                onRetry={onRetry}
-                onReprint={handleReprint}
-                onPrint={handlePrint}
-                printing={printing}
-                flashId={flashId}
-                labels={labels.tray}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            backgroundColor: D.pageBg,
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              padding: "14px 16px 10px",
-              borderBottom: `1px solid ${D.border}`,
-              backgroundColor: "#FAFAFA",
-              flexShrink: 0,
-            }}
-          >
-            <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: D.textPrimary, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              {labels.scannerTitle}
-            </h2>
-          </div>
-
+          <StageHeader index={3} label={labels.stageScanner} />
           <div style={{ flex: 1, overflowY: "auto" }}>
             <PreparationScannerPanel
               onScan={handleScan}
               labels={labels.scanner}
             />
           </div>
-        </div>
-      </div>
-
-      <div
-        style={{
-          padding: "24px 24px 80px",
-          borderTop: `1px solid ${D.border}`,
-          backgroundColor: D.pageBg,
-        }}
-      >
-        <PreparationBacklog
-          marketId={marketId}
-          fallbackRows={fallbackRows}
-          trayIds={trayIds}
-          onAddToTray={handleAddToTray}
-          labels={labels.backlog}
-        />
+        </aside>
       </div>
     </div>
   );

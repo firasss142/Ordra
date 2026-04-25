@@ -7,7 +7,13 @@ import { AgentTabsContainer } from "./AgentTabsContainer";
 import { NotificationBell } from "./NotificationBell";
 import type { AuthUser } from "@/types";
 
-export function AgentDashboardShell({ user }: { user: AuthUser }) {
+export function AgentDashboardShell({
+  user,
+  children,
+}: {
+  user: AuthUser;
+  children?: React.ReactNode;
+}) {
   const isRtl = user.direction === "rtl";
   const actions = useMemo(
     () => <NotificationBell agentId={user.id} />,
@@ -24,7 +30,7 @@ export function AgentDashboardShell({ user }: { user: AuthUser }) {
     >
       <Topbar user={user} marketName="" actions={actions} />
       <AgentNavTabs user={user} />
-      <AgentTabsContainer user={user} />
+      <AgentTabsContainer user={user}>{children}</AgentTabsContainer>
     </div>
   );
 }

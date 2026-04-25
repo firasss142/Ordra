@@ -2,7 +2,7 @@ type Role = "super_admin" | "market_manager" | "agent" | "warehouse_agent";
 
 const PERMISSIONS: Record<Role, string[]> = {
   super_admin: ["/orders", "/unassigned", "/products", "/team", "/users", "/carriers", "/settings", "/queue", "/leads", "/warehouse"],
-  market_manager: ["/orders", "/unassigned", "/products", "/team", "/carriers", "/settings", "/leads", "/warehouse"],
+  market_manager: ["/orders", "/unassigned", "/products", "/team", "/users", "/carriers", "/settings", "/leads", "/warehouse"],
   agent: ["/queue", "/leads"],
   warehouse_agent: ["/warehouse"],
 };

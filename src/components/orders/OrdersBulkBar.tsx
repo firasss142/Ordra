@@ -45,15 +45,22 @@ export function OrdersBulkBar({
   return (
     <div
       style={{
+        position: "fixed",
+        bottom: 24,
+        insetInlineStart: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 30,
         display: "flex",
         alignItems: "center",
         gap: 12,
-        padding: "10px 14px",
+        padding: "12px 20px",
         background: "#1A1A1A",
         color: "#FFFFFF",
-        borderRadius: 8,
+        borderRadius: 10,
         fontSize: 13,
         fontWeight: 500,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.28)",
+        whiteSpace: "nowrap",
       }}
     >
       <span style={{ fontVariantNumeric: "tabular-nums" }}>

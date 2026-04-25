@@ -1,3 +1,15 @@
+import type { DeactivationReason } from "@/types";
+
+export const DEACTIVATION_REASONS: DeactivationReason[] = [
+  "off-boarded",
+  "on-leave",
+  "terminated",
+];
+
+export function isValidDeactivationReason(s: string): s is DeactivationReason {
+  return (DEACTIVATION_REASONS as string[]).includes(s);
+}
+
 export interface DeactivationResult {
   agentId: string;
   ordersToReturn: number;

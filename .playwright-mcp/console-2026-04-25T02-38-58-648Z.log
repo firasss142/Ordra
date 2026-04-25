@@ -1,0 +1,121 @@
+[    4572ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[    4898ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/favicon.ico:0
+[   10896ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[   11597ms] [LOG] [Fast Refresh] done in 701ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[   12131ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[   17723ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[   17963ms] [LOG] [Fast Refresh] done in 240ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[   19510ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[   19741ms] [LOG] [Fast Refresh] done in 231ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[   53277ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[   53504ms] [LOG] [Fast Refresh] done in 227ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[   57948ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[   58154ms] [LOG] [Fast Refresh] done in 206ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[   64423ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[   64536ms] [ERROR] ./src/components/follow-ups/FollowUpsFilterBar.tsx
+Error: 
+  x Unexpected token `div`. Expected jsx identifier
+    ,-[/Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/FollowUpsFilterBar.tsx:63:1]
+ 63 |   ];
+ 64 | 
+ 65 |   return (
+ 66 |     <div
+    :      ^^^
+ 67 |       style={{
+ 68 |         display: "flex",
+ 69 |         flexWrap: "wrap",
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/follow-ups/FollowUpsFilterBar.tsx
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[   72232ms] [ERROR] ./src/components/follow-ups/FollowUpsFilterBar.tsx
+Error: 
+  x Unexpected token `div`. Expected jsx identifier
+    ,-[/Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/FollowUpsFilterBar.tsx:63:1]
+ 63 |   ];
+ 64 | 
+ 65 |   return (
+ 66 |     <div
+    :      ^^^
+ 67 |       style={{
+ 68 |         display: "flex",
+ 69 |         flexWrap: "wrap",
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/follow-ups/FollowUpsFilterBar.tsx
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[   72521ms] [ERROR] ./src/components/follow-ups/FollowUpsFilterBar.tsx
+Error: 
+  x Unexpected token `div`. Expected jsx identifier
+    ,-[/Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/FollowUpsFilterBar.tsx:63:1]
+ 63 |   ];
+ 64 | 
+ 65 |   return (
+ 66 |     <div
+    :      ^^^
+ 67 |       style={{
+ 68 |         display: "flex",
+ 69 |         flexWrap: "wrap",
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/follow-ups/FollowUpsFilterBar.tsx
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[   72643ms] [ERROR] ./src/components/follow-ups/FollowUpsFilterBar.tsx
+Error: 
+  x Unexpected token `div`. Expected jsx identifier
+    ,-[/Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/FollowUpsFilterBar.tsx:63:1]
+ 63 |   ];
+ 64 | 
+ 65 |   return (
+ 66 |     <div
+    :      ^^^
+ 67 |       style={{
+ 68 |         display: "flex",
+ 69 |         flexWrap: "wrap",
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/follow-ups/FollowUpsFilterBar.tsx
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[   72833ms] [ERROR] ./src/components/follow-ups/FollowUpsFilterBar.tsx
+Error: 
+  x Unexpected token `div`. Expected jsx identifier
+    ,-[/Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/components/follow-ups/FollowUpsFilterBar.tsx:63:1]
+ 63 |   ];
+ 64 | 
+ 65 |   return (
+ 66 |     <div
+    :      ^^^
+ 67 |       style={{
+ 68 |         display: "flex",
+ 69 |         flexWrap: "wrap",
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/follow-ups/FollowUpsFilterBar.tsx
+./src/app/[locale]/(dashboard)/follow-ups/FollowUpsPageClient.tsx @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[   72834ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[   74196ms] [LOG] [Fast Refresh] done in 1361ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[   74575ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/api/presence/heartbeat:0
+[   79122ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[   79412ms] [LOG] [Fast Refresh] done in 290ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[   79904ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/fr/follow-ups?_rsc=4z9pf:0
+[   80666ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559

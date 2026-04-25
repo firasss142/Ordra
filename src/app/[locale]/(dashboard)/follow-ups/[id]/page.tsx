@@ -1,15 +1,14 @@
 "use client";
 
-import { use } from "react";
 import { useAuth } from "@/context/auth";
 import { FollowUpDetail } from "@/components/follow-ups/FollowUpDetail";
 
 export default function FollowUpDetailPage({
   params,
 }: {
-  params: Promise<{ id: string; locale: string }>;
+  params: { id: string; locale: string };
 }) {
-  const { id, locale } = use(params);
+  const { id, locale } = params;
   const { user } = useAuth();
   if (!user) return null;
 

@@ -3,7 +3,15 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import useSWR from "swr";
 import FocusTrap from "focus-trap-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { canManageStorefronts } from "@/lib/settings-permissions";
+import {
+  HealthBadge,
+  computeHealthState,
+  formatRelative,
+} from "./storefronts/HealthBadge";
+import { ConnectionWizard } from "./storefronts/ConnectionWizard";
 import type { Role } from "@/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -16,6 +24,10 @@ interface Storefront {
   config: Record<string, unknown>;
   webhook_secret: string;
   is_active: boolean;
+  last_webhook_received_at: string | null;
+  last_webhook_status: "processed" | "ignored" | "error" | null;
+  last_webhook_error: string | null;
+  webhook_failure_count: number;
 }
 
 interface StorefrontsSectionProps {
@@ -25,80 +37,43 @@ interface StorefrontsSectionProps {
 
 const MASK = "••••••••";
 
-const PLATFORMS = [
-  { value: "easy_orders", label: "Easy Orders" },
-  { value: "shopify", label: "Shopify" },
-  { value: "woocommerce", label: "WooCommerce" },
-];
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 13,
-  fontWeight: 500,
-  color: "#374151",
-  marginBottom: 6,
-};
-
-const inputStyle: React.CSSProperties = {
-  display: "block",
-  width: "100%",
-  height: 36,
-  padding: "0 12px",
-  fontSize: 14,
-  border: "1px solid #E1E3E5",
-  borderRadius: "0.5rem",
-  background: "white",
-  outline: "none",
-  boxSizing: "border-box",
-};
-
-const thStyle: React.CSSProperties = {
-  padding: "12px 16px",
-  textAlign: "start",
-  fontSize: 13,
-  fontWeight: 500,
-  color: "#6D7175",
-  textTransform: "uppercase",
-  letterSpacing: "0.05em",
-  borderBottom: "1px solid #E1E3E5",
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "12px 16px",
-  fontSize: 14,
-  color: "#1A1A1A",
-  borderBottom: "1px solid #E1E3E5",
-};
-
 function getPlatformLabel(value: string): string {
-  return PLATFORMS.find((p) => p.value === value)?.label ?? value;
+  const PLATFORMS: Record<string, string> = {
+    easy_orders: "Easy Orders",
+    shopify: "Shopify",
+    woocommerce: "WooCommerce",
+  };
+  return PLATFORMS[value] ?? value;
+}
+
+interface TestResult {
+  success: boolean;
+  stage: string;
+  message: string;
 }
 
 export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) {
+  const params = useParams<{ locale: string }>();
   const { data, mutate } = useSWR<{ data: Storefront[] }>(
     marketId ? `/api/storefronts?market_id=${marketId}` : null,
-    fetcher
+    fetcher,
+    { refreshInterval: 30_000 },
   );
 
   const storefronts = data?.data ?? [];
+  const canManage = canManageStorefronts(role);
 
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [createdInfo, setCreatedInfo] = useState<
+    { webhookUrl: string; secret: string } | null
+  >(null);
   const [editStorefront, setEditStorefront] = useState<Storefront | null>(null);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [createdSecret, setCreatedSecret] = useState<string | null>(null);
-  const [createdWebhookUrl, setCreatedWebhookUrl] = useState<string | null>(null);
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
   const panelRef = useRef<HTMLDivElement>(null);
   const secretsRef = useRef<HTMLDivElement>(null);
-
-  if (!canManageStorefronts(role)) return null;
-
-  function httpError(status: number): string {
-    if (status === 401) return "Session expirée — veuillez vous reconnecter";
-    if (status === 403) return "Action non autorisée";
-    if (status === 409) return "Conflit — rechargez la page";
-    return "Erreur";
-  }
 
   const [form, setForm] = useState({
     name: "",
@@ -106,13 +81,6 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
     webhook_url: "",
     webhook_secret: "",
   });
-
-  function openAdd() {
-    setEditStorefront(null);
-    setForm({ name: "", platform: "easy_orders", webhook_url: "", webhook_secret: "" });
-    setErrorMsg("");
-    setPanelOpen(true);
-  }
 
   function openEdit(s: Storefront) {
     setEditStorefront(s);
@@ -123,29 +91,30 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
       webhook_secret: MASK,
     });
     setErrorMsg("");
-    setPanelOpen(true);
   }
 
-  const closePanel = useCallback(() => {
-    setPanelOpen(false);
+  const closeEdit = useCallback(() => {
     setEditStorefront(null);
   }, []);
 
   useEffect(() => {
-    if (!panelOpen) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") closePanel(); };
+    if (!editStorefront) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeEdit();
+    };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [panelOpen, closePanel]);
+  }, [editStorefront, closeEdit]);
 
   async function handleToggleActive(s: Storefront) {
+    if (!canManage) return;
     await mutate(
       (prev) => ({
         data: (prev?.data ?? []).map((x) =>
-          x.id === s.id ? { ...x, is_active: !s.is_active } : x
+          x.id === s.id ? { ...x, is_active: !s.is_active } : x,
         ),
       }),
-      false
+      false,
     );
     await fetch(`/api/storefronts/${s.id}`, {
       method: "PATCH",
@@ -155,59 +124,53 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
     mutate();
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleTestWebhook(s: Storefront) {
+    setTestingId(s.id);
+    setTestResults((prev) => ({ ...prev, [s.id]: { ...prev[s.id] } as TestResult }));
+    try {
+      const res = await fetch(`/api/storefronts/${s.id}/test`, { method: "POST" });
+      const body = (await res.json()) as TestResult;
+      setTestResults((prev) => ({ ...prev, [s.id]: body }));
+    } catch {
+      setTestResults((prev) => ({
+        ...prev,
+        [s.id]: {
+          success: false,
+          stage: "network",
+          message: "Erreur réseau",
+        },
+      }));
+    } finally {
+      setTestingId(null);
+    }
+  }
+
+  async function handleEditSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!editStorefront) return;
     setSaving(true);
     setErrorMsg("");
-
     try {
-      if (editStorefront) {
-        const body: Record<string, unknown> = {
-          name: form.name,
-          platform: form.platform,
-          config: { webhook_url: form.webhook_url },
-        };
-        if (form.webhook_secret !== MASK) {
-          body.webhook_secret = form.webhook_secret;
-        }
-        const res = await fetch(`/api/storefronts/${editStorefront.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const b = await res.json().catch(() => ({}));
-          setErrorMsg((b as { error?: string }).error ?? httpError(res.status));
-          return;
-        }
-      } else {
-        const res = await fetch("/api/storefronts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            market_id: marketId,
-            platform: form.platform,
-            name: form.name,
-            config: { webhook_url: form.webhook_url },
-            webhook_secret: form.webhook_secret,
-          }),
-        });
-        if (!res.ok) {
-          const b = await res.json().catch(() => ({}));
-          setErrorMsg((b as { error?: string }).error ?? httpError(res.status));
-          return;
-        }
-        const created = await res.json().catch(() => ({}));
-        const sf = (created as { data?: { id?: string } }).data;
-        if (sf?.id) {
-          const webhookUrl = `${window.location.origin}/api/webhooks/${sf.id}`;
-          setCreatedWebhookUrl(webhookUrl);
-          setCreatedSecret(form.webhook_secret || null);
-        }
+      const body: Record<string, unknown> = {
+        name: form.name,
+        platform: form.platform,
+        config: { webhook_url: form.webhook_url },
+      };
+      if (form.webhook_secret !== MASK) {
+        body.webhook_secret = form.webhook_secret;
       }
-
+      const res = await fetch(`/api/storefronts/${editStorefront.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}));
+        setErrorMsg((b as { error?: string }).error ?? "Erreur");
+        return;
+      }
       mutate();
-      closePanel();
+      closeEdit();
     } finally {
       setSaving(false);
     }
@@ -215,137 +178,332 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
 
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: "#1A1A1A", margin: 0 }}>
-          Storefronts
-        </h2>
-        <button
-          onClick={openAdd}
-          style={{
-            backgroundColor: "#1A1A1A",
-            color: "white",
-            border: "none",
-            borderRadius: "0.5rem",
-            padding: "8px 16px",
-            fontSize: 14,
-            fontWeight: 500,
-            cursor: "pointer",
-          }}
-        >
-          Ajouter
-        </button>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 16,
+        }}
+      >
+        <div>
+          <h2
+            style={{
+              fontSize: 16,
+              fontWeight: 600,
+              color: "#1A1A1A",
+              margin: 0,
+            }}
+          >
+            Storefronts
+          </h2>
+          <p style={{ fontSize: 13, color: "#6D7175", margin: "4px 0 0 0" }}>
+            {canManage
+              ? "Connectez vos boutiques et surveillez l'état des webhooks."
+              : "Vue lecture seule — supervision des webhooks."}
+          </p>
+        </div>
+        {canManage && (
+          <button
+            onClick={() => setWizardOpen(true)}
+            style={{
+              backgroundColor: "#1A1A1A",
+              color: "white",
+              border: "none",
+              borderRadius: "0.5rem",
+              padding: "8px 16px",
+              fontSize: 14,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            Connecter un storefront
+          </button>
+        )}
       </div>
 
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th style={thStyle}>Nom</th>
-              <th style={thStyle}>Plateforme</th>
-              <th style={thStyle}>Webhook URL</th>
-              <th style={thStyle}>Secret</th>
-              <th style={thStyle}>Actif</th>
-              <th style={thStyle}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {storefronts.map((s) => (
-              <tr
-                key={s.id}
-                style={{ background: "white" }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLTableRowElement).style.background = "#F7F7F7";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLTableRowElement).style.background = "white";
+      {/* Storefront cards with health dashboard */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {storefronts.map((s) => {
+          const state = computeHealthState({
+            is_active: s.is_active,
+            last_webhook_received_at: s.last_webhook_received_at,
+            last_webhook_status: s.last_webhook_status,
+            webhook_failure_count: s.webhook_failure_count,
+          });
+          const webhookUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/api/webhooks/${s.id}`;
+          const test = testResults[s.id];
+          return (
+            <div
+              key={s.id}
+              style={{
+                border: "1px solid #E1E3E5",
+                borderRadius: "0.5rem",
+                background: "white",
+                padding: 16,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: 16,
                 }}
               >
-                <td style={tdStyle}>{s.name}</td>
-                <td style={tdStyle}>
-                  <span
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div
                     style={{
-                      backgroundColor: "#1A1A1A",
-                      color: "white",
-                      borderRadius: 9999,
-                      padding: "2px 8px",
-                      fontSize: 12,
-                      fontWeight: 500,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      flexWrap: "wrap",
                     }}
                   >
-                    {getPlatformLabel(s.platform)}
-                  </span>
-                </td>
-                <td style={{ ...tdStyle, color: "#6D7175", fontFamily: "monospace", fontSize: 13 }}>
-                  {(s.config?.webhook_url as string) ?? "—"}
-                </td>
-                <td style={tdStyle}>
-                  <span style={{ fontFamily: "monospace", fontSize: 13, color: "#6D7175", marginRight: 8 }}>
-                    {MASK}
-                  </span>
-                  <button
-                    onClick={() => {
-                      const url = `${window.location.origin}/api/webhooks/${s.id}`;
-                      navigator.clipboard.writeText(url);
-                    }}
+                    <span style={{ fontSize: 15, fontWeight: 600, color: "#1A1A1A" }}>
+                      {s.name}
+                    </span>
+                    <span
+                      style={{
+                        backgroundColor: "#1A1A1A",
+                        color: "white",
+                        borderRadius: 9999,
+                        padding: "2px 8px",
+                        fontSize: 11,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {getPlatformLabel(s.platform)}
+                    </span>
+                    <HealthBadge state={state} />
+                  </div>
+
+                  <div
                     style={{
-                      background: "none",
-                      border: "none",
-                      color: "#2C6ECB",
-                      fontSize: 12,
-                      cursor: "pointer",
-                      padding: 0,
-                    }}
-                    title="Copier l'URL webhook"
-                  >
-                    Copier l&apos;URL
-                  </button>
-                </td>
-                <td style={tdStyle}>
-                  <span style={{ color: s.is_active ? "#008060" : "#6D7175", fontSize: 16 }}>●</span>
-                </td>
-                <td style={tdStyle}>
-                  <button
-                    onClick={() => openEdit(s)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: "#2C6ECB",
-                      fontSize: 14,
-                      cursor: "pointer",
-                      padding: 0,
-                      marginRight: 12,
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                      gap: 12,
+                      marginTop: 12,
                     }}
                   >
-                    Modifier
-                  </button>
-                  <label style={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      role="switch"
-                      checked={s.is_active}
-                      onChange={() => handleToggleActive(s)}
-                      style={{ width: 32, height: 18, cursor: "pointer", accentColor: "#1A1A1A" }}
+                    <HealthStat
+                      label="Dernier webhook"
+                      value={formatRelative(s.last_webhook_received_at)}
                     />
-                  </label>
-                </td>
-              </tr>
-            ))}
-            {storefronts.length === 0 && (
-              <tr>
-                <td colSpan={6} style={{ ...tdStyle, color: "#6D7175", textAlign: "center", padding: 32 }}>
-                  Aucun storefront configuré
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                    <HealthStat
+                      label="Échecs consécutifs"
+                      value={String(s.webhook_failure_count)}
+                      valueColor={
+                        s.webhook_failure_count > 0 ? "#D72C0D" : "#1A1A1A"
+                      }
+                    />
+                    <HealthStat
+                      label="Statut"
+                      value={
+                        s.last_webhook_status === "error"
+                          ? "Erreur"
+                          : s.last_webhook_status === "processed"
+                            ? "Traité"
+                            : s.last_webhook_status === "ignored"
+                              ? "Ignoré"
+                              : "—"
+                      }
+                    />
+                  </div>
+
+                  {s.last_webhook_error && (
+                    <div
+                      style={{
+                        marginTop: 10,
+                        padding: "8px 12px",
+                        background: "#FDEDEA",
+                        borderRadius: "0.375rem",
+                        fontSize: 12,
+                        color: "#D72C0D",
+                      }}
+                    >
+                      <strong>Dernière erreur :</strong> {s.last_webhook_error}
+                    </div>
+                  )}
+
+                  {test && (
+                    <div
+                      role="status"
+                      style={{
+                        marginTop: 10,
+                        padding: "8px 12px",
+                        background: test.success ? "#E3F2E8" : "#FDEDEA",
+                        color: test.success ? "#008060" : "#D72C0D",
+                        borderRadius: "0.375rem",
+                        fontSize: 12,
+                      }}
+                    >
+                      {test.success ? "✓ " : "✗ "}
+                      {test.message}
+                    </div>
+                  )}
+
+                  <div
+                    style={{
+                      marginTop: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <code
+                      style={{
+                        fontSize: 11,
+                        color: "#6D7175",
+                        fontFamily: "monospace",
+                        background: "#F6F6F7",
+                        padding: "4px 8px",
+                        borderRadius: 4,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        maxWidth: 320,
+                      }}
+                      title={webhookUrl}
+                    >
+                      {webhookUrl}
+                    </code>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(webhookUrl)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#2C6ECB",
+                        fontSize: 12,
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                    >
+                      Copier
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 6,
+                    alignItems: "flex-end",
+                  }}
+                >
+                  {canManage && (
+                    <>
+                      <button
+                        onClick={() => handleTestWebhook(s)}
+                        disabled={testingId === s.id}
+                        style={{
+                          background: "white",
+                          border: "1px solid #E1E3E5",
+                          borderRadius: "0.375rem",
+                          padding: "6px 12px",
+                          fontSize: 12,
+                          cursor: testingId === s.id ? "not-allowed" : "pointer",
+                          color: "#1A1A1A",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {testingId === s.id ? "Test…" : "Tester"}
+                      </button>
+                      <button
+                        onClick={() => openEdit(s)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#2C6ECB",
+                          fontSize: 12,
+                          cursor: "pointer",
+                          padding: 0,
+                        }}
+                      >
+                        Modifier
+                      </button>
+                      <label
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          cursor: "pointer",
+                          fontSize: 12,
+                          color: "#6D7175",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          role="switch"
+                          checked={s.is_active}
+                          onChange={() => handleToggleActive(s)}
+                          aria-label={`${s.name} actif`}
+                          style={{
+                            width: 28,
+                            height: 16,
+                            cursor: "pointer",
+                            accentColor: "#1A1A1A",
+                          }}
+                        />
+                        {s.is_active ? "Actif" : "Inactif"}
+                      </label>
+                    </>
+                  )}
+                  {state === "failing" && (
+                    <Link
+                      href={`/${params.locale}/dashboard/alerts`}
+                      style={{
+                        fontSize: 12,
+                        color: "#D72C0D",
+                        textDecoration: "none",
+                      }}
+                    >
+                      Voir alertes →
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {storefronts.length === 0 && (
+          <div
+            style={{
+              padding: 32,
+              textAlign: "center",
+              color: "#6D7175",
+              border: "1px dashed #E1E3E5",
+              borderRadius: "0.5rem",
+              fontSize: 13,
+            }}
+          >
+            Aucun storefront configuré pour ce marché.
+          </div>
+        )}
       </div>
 
-      {/* Slide-in panel */}
-      {panelOpen && (
+      {/* Connection wizard */}
+      {wizardOpen && canManage && (
+        <ConnectionWizard
+          marketId={marketId}
+          marketName=""
+          onCancel={() => setWizardOpen(false)}
+          onComplete={(r) => {
+            setWizardOpen(false);
+            setCreatedInfo({ webhookUrl: r.webhook_url, secret: r.secret });
+            mutate();
+          }}
+        />
+      )}
+
+      {/* Edit panel (simpler than wizard for existing records) */}
+      {editStorefront && canManage && (
         <>
           <div
-            onClick={closePanel}
+            onClick={closeEdit}
             style={{
               position: "fixed",
               inset: 0,
@@ -353,130 +511,146 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
               zIndex: 40,
             }}
           />
-          <FocusTrap focusTrapOptions={{ allowOutsideClick: true, fallbackFocus: () => panelRef.current ?? document.body }}>
-          <div
-            ref={panelRef}
-            tabIndex={-1}
-            style={{
-              position: "fixed",
-              top: 0,
-              right: 0,
-              bottom: 0,
-              width: 420,
-              backgroundColor: "white",
-              borderLeft: "1px solid #E1E3E5",
-              zIndex: 50,
-              display: "flex",
-              flexDirection: "column",
+          <FocusTrap
+            focusTrapOptions={{
+              allowOutsideClick: true,
+              fallbackFocus: () => panelRef.current ?? document.body,
             }}
           >
-            <div style={{ padding: "20px 24px", borderBottom: "1px solid #E1E3E5" }}>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#1A1A1A" }}>
-                {editStorefront ? "Modifier le storefront" : "Ajouter un storefront"}
-              </h3>
-            </div>
-
-            <form
-              onSubmit={handleSubmit}
-              style={{ flex: 1, overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 16 }}
+            <div
+              ref={panelRef}
+              tabIndex={-1}
+              role="dialog"
+              aria-label="Modifier storefront"
+              style={{
+                position: "fixed",
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: 420,
+                backgroundColor: "white",
+                borderLeft: "1px solid #E1E3E5",
+                zIndex: 50,
+                display: "flex",
+                flexDirection: "column",
+              }}
             >
-              <div>
-                <label style={labelStyle}>Nom</label>
-                <input
-                  type="text"
-                  required
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  style={inputStyle}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Plateforme</label>
-                <select
-                  value={form.platform}
-                  onChange={(e) => setForm((f) => ({ ...f, platform: e.target.value }))}
-                  style={{ ...inputStyle, cursor: "pointer" }}
-                >
-                  {PLATFORMS.map((p) => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={labelStyle}>Webhook URL</label>
-                <input
-                  type="url"
-                  value={form.webhook_url}
-                  onChange={(e) => setForm((f) => ({ ...f, webhook_url: e.target.value }))}
-                  style={inputStyle}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Webhook Secret</label>
-                <input
-                  type="password"
-                  value={form.webhook_secret}
-                  onChange={(e) => setForm((f) => ({ ...f, webhook_secret: e.target.value }))}
-                  style={inputStyle}
-                  placeholder={editStorefront ? "Laisser tel quel pour ne pas modifier" : ""}
-                />
-              </div>
-
-              {errorMsg && (
-                <p style={{ fontSize: 13, color: "#D72C0D", margin: 0 }}>{errorMsg}</p>
-              )}
-
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <button
-                  type="submit"
-                  disabled={saving}
+              <div
+                style={{ padding: "20px 24px", borderBottom: "1px solid #E1E3E5" }}
+              >
+                <h3
                   style={{
-                    backgroundColor: "#1A1A1A",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "0.5rem",
-                    padding: "8px 16px",
-                    fontSize: 14,
-                    fontWeight: 500,
-                    cursor: saving ? "not-allowed" : "pointer",
-                    opacity: saving ? 0.7 : 1,
-                  }}
-                >
-                  {saving ? "Enregistrement…" : "Enregistrer"}
-                </button>
-                <button
-                  type="button"
-                  onClick={closePanel}
-                  style={{
-                    backgroundColor: "white",
+                    margin: 0,
+                    fontSize: 16,
+                    fontWeight: 600,
                     color: "#1A1A1A",
-                    border: "1px solid #E1E3E5",
-                    borderRadius: "0.5rem",
-                    padding: "8px 16px",
-                    fontSize: 14,
-                    fontWeight: 500,
-                    cursor: "pointer",
                   }}
                 >
-                  Annuler
-                </button>
+                  Modifier le storefront
+                </h3>
               </div>
-            </form>
-          </div>
+              <form
+                onSubmit={handleEditSubmit}
+                style={{
+                  flex: 1,
+                  overflowY: "auto",
+                  padding: 24,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 16,
+                }}
+              >
+                <Field label="Nom">
+                  <input
+                    type="text"
+                    required
+                    value={form.name}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, name: e.target.value }))
+                    }
+                    style={inputStyle}
+                  />
+                </Field>
+                <Field label="Webhook URL">
+                  <input
+                    type="url"
+                    value={form.webhook_url}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, webhook_url: e.target.value }))
+                    }
+                    style={inputStyle}
+                  />
+                </Field>
+                <Field label="Webhook Secret">
+                  <input
+                    type="password"
+                    value={form.webhook_secret}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, webhook_secret: e.target.value }))
+                    }
+                    style={inputStyle}
+                    placeholder="Laisser tel quel pour ne pas modifier"
+                  />
+                </Field>
+                {errorMsg && (
+                  <p role="alert" style={{ fontSize: 13, color: "#D72C0D", margin: 0 }}>
+                    {errorMsg}
+                  </p>
+                )}
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    style={{
+                      backgroundColor: "#1A1A1A",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "0.5rem",
+                      padding: "8px 16px",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      cursor: saving ? "not-allowed" : "pointer",
+                      opacity: saving ? 0.7 : 1,
+                    }}
+                  >
+                    {saving ? "Enregistrement…" : "Enregistrer"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeEdit}
+                    style={{
+                      backgroundColor: "white",
+                      color: "#1A1A1A",
+                      border: "1px solid #E1E3E5",
+                      borderRadius: "0.5rem",
+                      padding: "8px 16px",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </form>
+            </div>
           </FocusTrap>
         </>
       )}
 
-      {/* Secret-revealed-once modal */}
-      {(createdSecret !== null || createdWebhookUrl !== null) && (
-        <>
-          <FocusTrap focusTrapOptions={{ allowOutsideClick: false, fallbackFocus: () => secretsRef.current ?? document.body }}>
+      {/* Created-storefront secret modal */}
+      {createdInfo && (
+        <FocusTrap
+          focusTrapOptions={{
+            allowOutsideClick: false,
+            fallbackFocus: () => secretsRef.current ?? document.body,
+          }}
+        >
           <div
             ref={secretsRef}
             tabIndex={-1}
+            role="dialog"
+            aria-label="Informations créées"
             style={{
               position: "fixed",
               inset: 0,
@@ -497,50 +671,27 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                 border: "1px solid #E1E3E5",
               }}
             >
-              <h3 style={{ fontSize: 16, fontWeight: 600, color: "#1A1A1A", marginTop: 0 }}>
-                Storefront créé — sauvegardez ces informations
+              <h3
+                style={{
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "#1A1A1A",
+                  marginTop: 0,
+                }}
+              >
+                Storefront créé
               </h3>
               <p style={{ fontSize: 13, color: "#D72C0D", marginBottom: 20 }}>
-                Ces informations ne seront plus affichées. Copiez-les maintenant.
+                Copiez ces informations — elles ne seront plus affichées.
               </p>
-              {createdWebhookUrl && (
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#6D7175", marginBottom: 4, textTransform: "uppercase" }}>
-                    URL Webhook
-                  </label>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <code style={{ flex: 1, fontSize: 12, backgroundColor: "#F6F6F7", padding: "8px 12px", borderRadius: "0.375rem", wordBreak: "break-all", color: "#1A1A1A" }}>
-                      {createdWebhookUrl}
-                    </code>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(createdWebhookUrl)}
-                      style={{ background: "none", border: "none", color: "#2C6ECB", fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
-                    >
-                      Copier
-                    </button>
-                  </div>
-                </div>
-              )}
-              {createdSecret && (
-                <div style={{ marginBottom: 24 }}>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#6D7175", marginBottom: 4, textTransform: "uppercase" }}>
-                    Secret Webhook
-                  </label>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <code style={{ flex: 1, fontSize: 12, backgroundColor: "#FFF3CD", padding: "8px 12px", borderRadius: "0.375rem", wordBreak: "break-all", color: "#1A1A1A" }}>
-                      {createdSecret}
-                    </code>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(createdSecret)}
-                      style={{ background: "none", border: "none", color: "#2C6ECB", fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
-                    >
-                      Copier
-                    </button>
-                  </div>
-                </div>
-              )}
+              <CopyBlock label="URL Webhook (OMS)" value={createdInfo.webhookUrl} />
+              <CopyBlock
+                label="Secret Webhook"
+                value={createdInfo.secret}
+                highlight
+              />
               <button
-                onClick={() => { setCreatedSecret(null); setCreatedWebhookUrl(null); }}
+                onClick={() => setCreatedInfo(null)}
                 style={{
                   backgroundColor: "#1A1A1A",
                   color: "white",
@@ -550,15 +701,139 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                   fontSize: 14,
                   fontWeight: 500,
                   cursor: "pointer",
+                  marginTop: 16,
                 }}
               >
                 J&apos;ai sauvegardé ces informations
               </button>
             </div>
           </div>
-          </FocusTrap>
-        </>
+        </FocusTrap>
       )}
     </>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  display: "block",
+  width: "100%",
+  height: 36,
+  padding: "0 12px",
+  fontSize: 14,
+  border: "1px solid #E1E3E5",
+  borderRadius: "0.5rem",
+  background: "white",
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label
+        style={{
+          display: "block",
+          fontSize: 13,
+          fontWeight: 500,
+          color: "#374151",
+          marginBottom: 6,
+        }}
+      >
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function HealthStat({
+  label,
+  value,
+  valueColor = "#1A1A1A",
+}: {
+  label: string;
+  value: string;
+  valueColor?: string;
+}) {
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 11,
+          color: "#6D7175",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 14,
+          fontWeight: 500,
+          color: valueColor,
+          marginTop: 2,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function CopyBlock({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <label
+        style={{
+          display: "block",
+          fontSize: 11,
+          fontWeight: 500,
+          color: "#6D7175",
+          marginBottom: 4,
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+        }}
+      >
+        {label}
+      </label>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <code
+          style={{
+            flex: 1,
+            fontSize: 12,
+            backgroundColor: highlight ? "#FFF3CD" : "#F6F6F7",
+            padding: "8px 12px",
+            borderRadius: "0.375rem",
+            wordBreak: "break-all",
+            color: "#1A1A1A",
+          }}
+        >
+          {value}
+        </code>
+        <button
+          onClick={() => navigator.clipboard.writeText(value)}
+          style={{
+            background: "none",
+            border: "none",
+            color: "#2C6ECB",
+            fontSize: 13,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Copier
+        </button>
+      </div>
+    </div>
   );
 }

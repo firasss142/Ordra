@@ -1,10 +1,4 @@
-// Internal helper: avoid float drift by working in integer cents
-function toCents(n: number): number {
-  return Math.round(n * 100);
-}
-function fromCents(n: number): number {
-  return n / 100;
-}
+import { toCents, fromCents } from "./math";
 
 // --- Market-level profitability ---
 

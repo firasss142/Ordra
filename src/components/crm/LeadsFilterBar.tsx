@@ -2,7 +2,19 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Upload } from "lucide-react";
+import {
+  Upload,
+  Plus,
+  Flame,
+  Filter,
+  Globe,
+  Megaphone,
+  X,
+  ChevronDown,
+  LayoutGrid,
+  Rows3,
+  MapPin,
+} from "lucide-react";
 import {
   LEAD_SOURCES,
   type LeadSource,
@@ -41,20 +53,29 @@ interface Props {
   selectedCampaignId: string | null;
   onCampaignChange: (id: string | null) => void;
 
-  filtersOpen: boolean;
-  onFiltersOpenChange: (open: boolean) => void;
+  filtersOpen?: boolean;
+  onFiltersOpenChange?: (open: boolean) => void;
 
-  hasActiveFilters: boolean;
+  hasActiveFilters?: boolean;
+
+  view?: "kanban" | "table";
+  onViewChange?: (v: "kanban" | "table") => void;
+  hotOnly?: boolean;
+  onHotOnlyChange?: (v: boolean) => void;
 
   onOpenCampaigns: () => void;
   onOpenCsvImport: () => void;
   onNewLead: () => void;
 }
 
+const CARD_BG = "#FFFFFF";
 const SOFT_BG = "#FFFFFF";
 const BORDER = "#E1E3E5";
+const SUBTLE_BG = "#F6F6F7";
 const TEXT = "#1A1A1A";
 const MUTED = "#6D7175";
+const HOT = "#D72C0D";
+const HOT_BG = "#FFF4F4";
 
 const BUCKETS: LeadBucket[] = ["all", "new", "active", "qualified", "closed"];
 
@@ -71,8 +92,10 @@ export function LeadsFilterBar({
   campaigns,
   selectedCampaignId,
   onCampaignChange,
-  filtersOpen,
-  onFiltersOpenChange,
+  view,
+  onViewChange,
+  hotOnly,
+  onHotOnlyChange,
   onOpenCampaigns,
   onOpenCsvImport,
   onNewLead,
@@ -80,291 +103,445 @@ export function LeadsFilterBar({
   const t = useTranslations("crm.leads");
   const tBuckets = useTranslations("crm.leads.buckets");
   const tSources = useTranslations("crm.leads.sources");
+  const tViews = useTranslations("crm.leads.views");
 
   const bucketOptions = BUCKETS.map((b) => ({ key: b, label: tBuckets(b) }));
-  const activeFilterCount =
-    (source !== null ? 1 : 0) + (selectedCampaignId !== null ? 1 : 0);
+
+  const selectedCampaign = campaigns.find((c) => c.id === selectedCampaignId) ?? null;
 
   return (
     <div
       style={{
+        background: CARD_BG,
+        border: `1px solid ${BORDER}`,
+        borderRadius: 10,
+        padding: "10px 12px",
         display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        gap: 12,
-        justifyContent: "space-between",
+        flexDirection: "column",
+        gap: 8,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <MarketChip
-          markets={markets}
-          selected={selectedMarketId}
-          onChange={onMarketChange}
-          locked={lockMarket}
-          lockedLabel={lockedMarketLabel}
-          allLabel={t("allMarkets")}
-        />
+      {/* Top row: market + bucket segmented + view + actions */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 10,
+          justifyContent: "space-between",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <MarketChip
+            markets={markets}
+            selected={selectedMarketId}
+            onChange={onMarketChange}
+            locked={lockMarket}
+            lockedLabel={lockedMarketLabel}
+            allLabel={t("allMarkets")}
+          />
 
-        <BucketSegmented
-          options={bucketOptions}
-          active={bucket}
-          onSelect={onBucketChange}
-        />
+          <Divider />
 
-        <FiltersPopover
-          open={filtersOpen}
-          onOpenChange={onFiltersOpenChange}
-          activeCount={activeFilterCount}
-          source={source}
-          onSourceChange={onSourceChange}
-          campaigns={campaigns}
-          selectedCampaignId={selectedCampaignId}
-          onCampaignChange={onCampaignChange}
-          onOpenCampaigns={onOpenCampaigns}
-          t={t}
-          tSources={tSources}
-        />
+          <BucketSegmented
+            options={bucketOptions}
+            active={bucket}
+            onSelect={onBucketChange}
+          />
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {view !== undefined && onViewChange && (
+            <ViewToggle
+              view={view}
+              onViewChange={onViewChange}
+              kanbanLabel={tViews("kanban")}
+              tableLabel={tViews("table")}
+              mapLabel={tViews("map")}
+            />
+          )}
+          <IconButton
+            onClick={onOpenCsvImport}
+            label={t("csvImport")}
+            icon={<Upload size={15} strokeWidth={1.75} />}
+          />
+          <button
+            type="button"
+            onClick={onNewLead}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              height: 34,
+              padding: "0 14px",
+              fontSize: 13,
+              fontWeight: 500,
+              border: `1px solid ${TEXT}`,
+              borderRadius: 8,
+              background: TEXT,
+              color: "#FFFFFF",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            <Plus size={14} strokeWidth={2} />
+            {t("newLead")}
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <button
-          type="button"
-          onClick={onOpenCsvImport}
-          title={t("csvImport")}
-          aria-label={t("csvImport")}
+      {/* Second row: inline filter chips */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+          paddingTop: 8,
+          borderTop: `1px solid ${BORDER}`,
+        }}
+      >
+        <span
           style={{
             display: "inline-flex",
             alignItems: "center",
-            justifyContent: "center",
-            width: 34,
-            height: 34,
-            borderRadius: 9999,
-            border: `1px solid ${BORDER}`,
-            background: SOFT_BG,
-            color: TEXT,
-            cursor: "pointer",
-            flexShrink: 0,
+            gap: 6,
+            fontSize: 12,
+            fontWeight: 500,
+            color: MUTED,
+            paddingInlineEnd: 4,
           }}
         >
-          <Upload size={16} strokeWidth={1.75} />
-        </button>
+          <Filter size={13} strokeWidth={1.75} />
+          {t("filters")}
+        </span>
+
+        <SelectChip
+          icon={<Globe size={13} strokeWidth={1.75} />}
+          label={t("sourceLabel")}
+          value={source}
+          valueLabel={source ? tSources(source) : null}
+          options={[
+            { value: "", label: t("allSourcesLabel") },
+            ...LEAD_SOURCES.map((s) => ({ value: s, label: tSources(s) })),
+          ]}
+          onChange={(v) => onSourceChange((v as LeadSource) || null)}
+          onClear={() => onSourceChange(null)}
+        />
+
+        {campaigns.length > 0 && (
+          <SelectChip
+            icon={<Megaphone size={13} strokeWidth={1.75} />}
+            label={t("campaignLabel")}
+            value={selectedCampaignId}
+            valueLabel={selectedCampaign?.name ?? null}
+            options={[
+              { value: "", label: t("allCampaigns") },
+              ...campaigns.map((c) => ({ value: c.id, label: c.name })),
+            ]}
+            onChange={(v) => onCampaignChange(v || null)}
+            onClear={() => onCampaignChange(null)}
+          />
+        )}
+
+        {onHotOnlyChange && (
+          <ToggleChip
+            icon={<Flame size={13} strokeWidth={1.75} />}
+            label={t("hotLeads.filterToggle")}
+            active={hotOnly ?? false}
+            onToggle={() => onHotOnlyChange(!(hotOnly ?? false))}
+            activeFg={HOT}
+            activeBg={HOT_BG}
+            activeBorder="#F0B6B4"
+          />
+        )}
 
         <button
           type="button"
-          onClick={onNewLead}
+          onClick={onOpenCampaigns}
+          title={t("manageCampaigns")}
           style={{
-            height: 34,
-            padding: "0 14px",
-            fontSize: 13,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            height: 28,
+            padding: "0 10px",
+            fontSize: 12,
             fontWeight: 500,
-            border: `1px solid ${TEXT}`,
-            borderRadius: 9999,
-            background: TEXT,
-            color: "#FFFFFF",
+            color: MUTED,
+            background: "transparent",
+            border: `1px dashed ${BORDER}`,
+            borderRadius: 6,
             cursor: "pointer",
+            fontFamily: "inherit",
           }}
         >
-          + {t("newLead")}
+          <Megaphone size={12} strokeWidth={1.75} />
+          {t("manageCampaigns")}
         </button>
+
+        {(source || selectedCampaignId || (hotOnly ?? false)) && (
+          <button
+            type="button"
+            onClick={() => {
+              onSourceChange(null);
+              onCampaignChange(null);
+              onHotOnlyChange?.(false);
+            }}
+            style={{
+              marginInlineStart: "auto",
+              height: 28,
+              padding: "0 10px",
+              fontSize: 12,
+              fontWeight: 500,
+              color: MUTED,
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              textDecoration: "underline",
+              textUnderlineOffset: 2,
+            }}
+          >
+            {t("clearAllFilters")}
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-function FiltersPopover({
-  open,
-  onOpenChange,
-  activeCount,
-  source,
-  onSourceChange,
-  campaigns,
-  selectedCampaignId,
-  onCampaignChange,
-  onOpenCampaigns,
-  t,
-  tSources,
+function IconButton({
+  onClick,
+  label,
+  icon,
 }: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  activeCount: number;
-  source: LeadSource | null;
-  onSourceChange: (s: LeadSource | null) => void;
-  campaigns: ProspectCampaign[];
-  selectedCampaignId: string | null;
-  onCampaignChange: (id: string | null) => void;
-  onOpenCampaigns: () => void;
-  t: ReturnType<typeof useTranslations>;
-  tSources: ReturnType<typeof useTranslations>;
+  onClick: () => void;
+  label: string;
+  icon: React.ReactNode;
 }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 34,
+        height: 34,
+        borderRadius: 8,
+        border: `1px solid ${BORDER}`,
+        background: SOFT_BG,
+        color: TEXT,
+        cursor: "pointer",
+        flexShrink: 0,
+      }}
+    >
+      {icon}
+    </button>
+  );
+}
+
+function Divider() {
+  return (
+    <span
+      aria-hidden
+      style={{
+        width: 1,
+        height: 20,
+        background: BORDER,
+        display: "inline-block",
+        margin: "0 2px",
+      }}
+    />
+  );
+}
+
+function SelectChip({
+  icon,
+  label,
+  value,
+  valueLabel,
+  options,
+  onChange,
+  onClear,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | null;
+  valueLabel: string | null;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+  onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
-        onOpenChange(false);
+        setOpen(false);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [open, onOpenChange]);
+  }, [open]);
 
-  const label =
-    activeCount > 0
-      ? `${t("filters")} · ${activeCount}`
-      : t("filters");
+  const isActive = value !== null && value !== "";
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => onOpenChange(!open)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
+      <div
         style={{
           display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "6px 12px",
-          borderRadius: 9999,
-          border: activeCount > 0 ? `1px solid ${TEXT}` : `1px solid ${BORDER}`,
-          background: activeCount > 0 ? TEXT : SOFT_BG,
-          color: activeCount > 0 ? "#FFFFFF" : TEXT,
-          fontSize: 13,
-          fontWeight: 500,
-          cursor: "pointer",
+          alignItems: "stretch",
+          height: 28,
+          borderRadius: 6,
+          border: `1px solid ${isActive ? TEXT : BORDER}`,
+          background: isActive ? TEXT : SOFT_BG,
+          color: isActive ? "#FFFFFF" : TEXT,
+          overflow: "hidden",
         }}
       >
-        {label}
-        <span aria-hidden style={{ fontSize: 10 }}>▾</span>
-      </button>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "0 10px",
+            border: "none",
+            background: "transparent",
+            color: "inherit",
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          {icon}
+          <span style={{ opacity: isActive ? 0.8 : 1 }}>{label}</span>
+          {isActive && valueLabel ? (
+            <>
+              <span aria-hidden style={{ opacity: 0.5 }}>·</span>
+              <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {valueLabel}
+              </span>
+            </>
+          ) : (
+            <ChevronDown size={11} strokeWidth={2} />
+          )}
+        </button>
+        {isActive && (
+          <button
+            type="button"
+            onClick={onClear}
+            aria-label={`Clear ${label}`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "0 6px",
+              border: "none",
+              borderInlineStart: `1px solid rgba(255,255,255,0.2)`,
+              background: "transparent",
+              color: "inherit",
+              cursor: "pointer",
+            }}
+          >
+            <X size={11} strokeWidth={2} />
+          </button>
+        )}
+      </div>
 
       {open && (
         <div
-          role="dialog"
-          aria-label={t("filters")}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") onOpenChange(false);
-          }}
+          role="listbox"
           style={{
             position: "absolute",
             insetInlineStart: 0,
-            top: "calc(100% + 6px)",
-            background: SOFT_BG,
+            top: "calc(100% + 4px)",
+            background: CARD_BG,
             border: `1px solid ${BORDER}`,
             borderRadius: 8,
             boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            minWidth: 240,
-            zIndex: 20,
-            padding: 12,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
+            minWidth: 200,
+            maxHeight: 280,
+            overflowY: "auto",
+            zIndex: 30,
+            padding: 4,
           }}
         >
-          {/* Source row */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={{ fontSize: 12, fontWeight: 500, color: MUTED }}>
-              {t("sourceLabel")}
-            </label>
-            <select
-              value={source ?? ""}
-              onChange={(e) =>
-                onSourceChange((e.target.value as LeadSource) || null)
-              }
-              style={selectStyle}
-            >
-              <option value="">{t("allSourcesLabel")}</option>
-              {LEAD_SOURCES.map((s) => (
-                <option key={s} value={s}>
-                  {tSources(s)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Campaign row */}
-          {campaigns.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 500, color: MUTED }}>
-                {t("campaignLabel")}
-              </label>
-              <select
-                value={selectedCampaignId ?? ""}
-                onChange={(e) => onCampaignChange(e.target.value || null)}
-                style={selectStyle}
-              >
-                <option value="">{t("allCampaigns")}</option>
-                {campaigns.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div
-            style={{
-              borderTop: `1px solid ${BORDER}`,
-              paddingTop: 8,
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                onOpenCampaigns();
-                onOpenChange(false);
-              }}
-              style={linkBtn}
-            >
-              {t("manageCampaigns")} →
-            </button>
-
-            {activeCount > 0 && (
-              <button
-                type="button"
+          {options.map((o) => {
+            const selected = (value ?? "") === o.value;
+            return (
+              <Option
+                key={o.value || "_none"}
+                label={o.label}
+                selected={selected}
                 onClick={() => {
-                  onSourceChange(null);
-                  onCampaignChange(null);
-                  onOpenChange(false);
+                  onChange(o.value);
+                  setOpen(false);
                 }}
-                style={linkBtn}
-              >
-                {t("clearAllFilters")}
-              </button>
-            )}
-          </div>
+              />
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
-const selectStyle: React.CSSProperties = {
-  border: `1px solid ${BORDER}`,
-  borderRadius: 6,
-  fontSize: 13,
-  background: SOFT_BG,
-  color: TEXT,
-  padding: "4px 8px",
-  width: "100%",
-  cursor: "pointer",
-};
-
-const linkBtn: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  padding: "4px 0",
-  fontSize: 13,
-  color: MUTED,
-  cursor: "pointer",
-  textAlign: "start",
-  fontWeight: 500,
-};
+function ToggleChip({
+  icon,
+  label,
+  active,
+  onToggle,
+  activeFg,
+  activeBg,
+  activeBorder,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  onToggle: () => void;
+  activeFg: string;
+  activeBg: string;
+  activeBorder: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={active}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        height: 28,
+        padding: "0 10px",
+        borderRadius: 6,
+        border: `1px solid ${active ? activeBorder : BORDER}`,
+        background: active ? activeBg : SOFT_BG,
+        color: active ? activeFg : TEXT,
+        fontSize: 12,
+        fontWeight: 500,
+        cursor: "pointer",
+        fontFamily: "inherit",
+      }}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
 
 function BucketSegmented({
   options,
@@ -381,9 +558,8 @@ function BucketSegmented({
       aria-label="status-bucket"
       style={{
         display: "inline-flex",
-        border: `1px solid ${BORDER}`,
-        borderRadius: 9999,
-        background: SOFT_BG,
+        background: SUBTLE_BG,
+        borderRadius: 8,
         padding: 2,
         gap: 2,
       }}
@@ -398,15 +574,17 @@ function BucketSegmented({
             aria-selected={isActive}
             onClick={() => onSelect(o.key)}
             style={{
-              padding: "6px 14px",
+              padding: "5px 14px",
               border: "none",
-              borderRadius: 9999,
-              background: isActive ? TEXT : "transparent",
-              color: isActive ? "#FFFFFF" : TEXT,
+              borderRadius: 6,
+              background: isActive ? "#FFFFFF" : "transparent",
+              color: TEXT,
               fontSize: 13,
-              fontWeight: 500,
+              fontWeight: isActive ? 600 : 500,
               cursor: "pointer",
               whiteSpace: "nowrap",
+              boxShadow: isActive ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+              fontFamily: "inherit",
             }}
           >
             {o.label}
@@ -433,6 +611,16 @@ function MarketChip({
   allLabel: string;
 }) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
 
   if (locked) {
     return (
@@ -441,15 +629,17 @@ function MarketChip({
           display: "inline-flex",
           alignItems: "center",
           gap: 6,
-          padding: "6px 12px",
-          borderRadius: 9999,
+          height: 30,
+          padding: "0 12px",
+          borderRadius: 8,
           border: `1px solid ${BORDER}`,
-          background: "#F2F2F2",
+          background: SUBTLE_BG,
           color: MUTED,
           fontSize: 13,
           fontWeight: 500,
         }}
       >
+        <Globe size={13} strokeWidth={1.75} />
         {lockedLabel}
       </span>
     );
@@ -461,7 +651,7 @@ function MarketChip({
       : markets.find((m) => m.id === selected)?.name ?? allLabel;
 
   return (
-    <div style={{ position: "relative" }}>
+    <div ref={ref} style={{ position: "relative" }}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -471,33 +661,35 @@ function MarketChip({
           display: "inline-flex",
           alignItems: "center",
           gap: 6,
-          padding: "6px 12px",
-          borderRadius: 9999,
+          height: 30,
+          padding: "0 12px",
+          borderRadius: 8,
           border: `1px solid ${BORDER}`,
           background: SOFT_BG,
           color: TEXT,
           fontSize: 13,
           fontWeight: 500,
           cursor: "pointer",
+          fontFamily: "inherit",
         }}
       >
+        <Globe size={13} strokeWidth={1.75} />
         {selectedLabel}
-        <span aria-hidden style={{ fontSize: 10 }}>▾</span>
+        <ChevronDown size={11} strokeWidth={2} />
       </button>
       {open ? (
         <div
           role="listbox"
-          onMouseLeave={() => setOpen(false)}
           style={{
             position: "absolute",
             insetInlineStart: 0,
-            top: "calc(100% + 6px)",
+            top: "calc(100% + 4px)",
             background: SOFT_BG,
             border: `1px solid ${BORDER}`,
             borderRadius: 8,
             boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            minWidth: 180,
-            zIndex: 10,
+            minWidth: 200,
+            zIndex: 20,
             padding: 4,
           }}
         >
@@ -522,6 +714,76 @@ function MarketChip({
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function ViewToggle({
+  view,
+  onViewChange,
+  kanbanLabel,
+  tableLabel,
+  mapLabel,
+}: {
+  view: "kanban" | "table";
+  onViewChange: (v: "kanban" | "table") => void;
+  kanbanLabel: string;
+  tableLabel: string;
+  mapLabel: string;
+}) {
+  const items: {
+    key: "kanban" | "table" | "map";
+    label: string;
+    icon: React.ReactNode;
+    disabled?: boolean;
+  }[] = [
+    { key: "kanban", label: kanbanLabel, icon: <LayoutGrid size={13} strokeWidth={1.75} /> },
+    { key: "table", label: tableLabel, icon: <Rows3 size={13} strokeWidth={1.75} /> },
+    { key: "map", label: mapLabel, icon: <MapPin size={13} strokeWidth={1.75} />, disabled: true },
+  ];
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        background: SUBTLE_BG,
+        borderRadius: 8,
+        padding: 2,
+        gap: 2,
+      }}
+    >
+      {items.map((it) => {
+        const isActive = view === it.key;
+        return (
+          <button
+            key={it.key}
+            type="button"
+            aria-selected={isActive}
+            disabled={it.disabled}
+            onClick={() => !it.disabled && onViewChange(it.key as "kanban" | "table")}
+            title={it.label}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "5px 10px",
+              border: "none",
+              borderRadius: 6,
+              background: isActive ? "#FFFFFF" : "transparent",
+              color: it.disabled ? MUTED : TEXT,
+              fontSize: 12,
+              fontWeight: isActive ? 600 : 500,
+              cursor: it.disabled ? "not-allowed" : "pointer",
+              whiteSpace: "nowrap",
+              boxShadow: isActive ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+              fontFamily: "inherit",
+              opacity: it.disabled ? 0.6 : 1,
+            }}
+          >
+            {it.icon}
+            {it.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -554,8 +816,9 @@ function Option({
         background: selected ? "#F2F2F2" : hover ? "#F7F7F7" : "transparent",
         color: TEXT,
         fontSize: 13,
-        fontWeight: 500,
+        fontWeight: selected ? 600 : 500,
         cursor: "pointer",
+        fontFamily: "inherit",
       }}
     >
       {label}

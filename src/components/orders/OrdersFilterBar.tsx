@@ -3,16 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { OrderListFilters } from "@/lib/orders/list-filters";
-import { ORDER_STATUSES, type OrderStatus } from "@/types/order-status";
 import { useDebounce } from "@/hooks/useDebounce";
 
 interface Market {
   id: string;
   name: string;
-}
-interface Agent {
-  id: string;
-  full_name: string;
 }
 
 interface Props {
@@ -21,11 +16,8 @@ interface Props {
   onOpenAdvanced: () => void;
   onNewOrder: () => void;
   onExport: () => void;
-  onRefresh: () => void;
-  isRefreshing: boolean;
   isSuperAdmin: boolean;
   markets: Market[];
-  agents: Agent[];
   lockedMarketLabel: string;
 }
 
@@ -35,11 +27,8 @@ export function OrdersFilterBar({
   onOpenAdvanced,
   onNewOrder,
   onExport,
-  onRefresh,
-  isRefreshing,
   isSuperAdmin,
   markets,
-  agents,
   lockedMarketLabel,
 }: Props) {
   const t = useTranslations("orders");
@@ -55,7 +44,7 @@ export function OrdersFilterBar({
     onChange({ q: debouncedQ });
   }, [debouncedQ, onChange]);
 
-  // When URL changes externally (back/forward), sync local
+  // Sync local search when URL changes externally (back/forward)
   useEffect(() => {
     if (filters.q !== lastSentQ.current) {
       setLocalQ(filters.q);
@@ -67,7 +56,11 @@ export function OrdersFilterBar({
   const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+      if (
+        e.key === "/" &&
+        document.activeElement?.tagName !== "INPUT" &&
+        document.activeElement?.tagName !== "TEXTAREA"
+      ) {
         e.preventDefault();
         searchRef.current?.focus();
       }
@@ -77,15 +70,8 @@ export function OrdersFilterBar({
   }, []);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        gap: 8,
-      }}
-    >
-      {/* Market: dropdown for super_admin, locked pill for managers */}
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      {/* Market scope: dropdown for super_admin, read-only pill for managers */}
       {isSuperAdmin ? (
         <MarketSelect
           markets={markets}
@@ -98,22 +84,22 @@ export function OrdersFilterBar({
           style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: 6,
-            padding: "6px 12px",
-            borderRadius: 9999,
+            padding: "6px 10px",
+            borderRadius: 6,
             border: "1px solid #E1E3E5",
-            background: "#F2F2F2",
+            background: "#F6F6F7",
             color: "#6D7175",
             fontSize: 13,
             fontWeight: 500,
+            whiteSpace: "nowrap",
           }}
         >
           {lockedMarketLabel}
         </span>
       )}
 
-      {/* Search */}
-      <div style={{ position: "relative", flex: "1 1 280px", minWidth: 200 }}>
+      {/* Search — grows to fill available space */}
+      <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160 }}>
         <span
           aria-hidden
           style={{
@@ -122,10 +108,11 @@ export function OrdersFilterBar({
             top: "50%",
             transform: "translateY(-50%)",
             fontSize: 13,
-            color: "#6D7175",
+            color: "#9CA3AF",
+            pointerEvents: "none",
           }}
         >
-          🔍
+          ⌕
         </span>
         <input
           ref={searchRef}
@@ -137,25 +124,19 @@ export function OrdersFilterBar({
           style={{
             height: 34,
             width: "100%",
-            paddingInlineStart: 32,
+            paddingInlineStart: 30,
             paddingInlineEnd: 10,
             fontSize: 13,
             border: "1px solid #E1E3E5",
             borderRadius: 6,
-            background: "#FFFFFF",
+            background: "#FAFAFA",
             color: "#1A1A1A",
+            outline: "none",
           }}
         />
       </div>
 
-      {/* Status multi-select */}
-      <StatusMultiSelect
-        value={filters.statuses}
-        onChange={(statuses) => onChange({ statuses })}
-        label={t("filters.status")}
-      />
-
-      {/* Date preset */}
+      {/* Date quick-select */}
       <DateQuickSelect
         from={filters.dateFrom}
         to={filters.dateTo}
@@ -163,37 +144,26 @@ export function OrdersFilterBar({
         label={t("filters.date")}
       />
 
-      {/* Agent */}
-      <AgentSelect
-        agents={agents}
-        value={filters.agentId}
-        onChange={(v) => onChange({ agentId: v })}
-        label={t("filters.agent")}
-        allLabel={t("allAgents")}
-        unassignedLabel={t("noAssigned")}
-      />
-
+      {/* Advanced filters drawer trigger */}
       <button
         type="button"
         onClick={onOpenAdvanced}
         style={secondaryBtn}
-        onMouseEnter={(e) => ((e.currentTarget.style.background = "#F7F7F7"))}
-        onMouseLeave={(e) => ((e.currentTarget.style.background = "#FFFFFF"))}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "#F7F7F7")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
       >
-        {t("filters.advanced")} ▾
+        {t("filters.advanced")}
       </button>
 
+      {/* Right-aligned actions */}
       <div style={{ marginInlineStart: "auto", display: "flex", gap: 8 }}>
         <button
           type="button"
-          onClick={onRefresh}
-          aria-label={t("filters.refresh")}
-          title={t("filters.refresh")}
-          style={{ ...secondaryBtn, padding: "0 12px" }}
+          onClick={onExport}
+          style={secondaryBtn}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#F7F7F7")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
         >
-          <span style={{ display: "inline-block", transform: isRefreshing ? "rotate(360deg)" : undefined, transition: "transform 600ms ease" }}>↻</span>
-        </button>
-        <button type="button" onClick={onExport} style={secondaryBtn}>
           {t("exportCsv")}
         </button>
         <button type="button" onClick={onNewOrder} style={primaryBtn}>
@@ -230,7 +200,7 @@ const secondaryBtn: React.CSSProperties = {
   transition: "background-color 120ms ease",
 };
 
-// ---------- Dropdown primitives ----------
+// ---------- Sub-components ----------
 
 function MarketSelect({
   markets,
@@ -269,51 +239,6 @@ function MarketSelect({
                 onChange(m.id);
                 setOpen(false);
               }}
-            />
-          ))}
-        </DropdownPanel>
-      ) : null}
-    </div>
-  );
-}
-
-function StatusMultiSelect({
-  value,
-  onChange,
-  label,
-}: {
-  value: OrderStatus[];
-  onChange: (next: OrderStatus[]) => void;
-  label: string;
-}) {
-  const tStatus = useTranslations("orders.statuses");
-  const [open, setOpen] = useState(false);
-  const summary = value.length === 0 ? label : value.length === 1 ? tStatus(value[0]) : `${label} (${value.length})`;
-  const toggle = (s: OrderStatus) => {
-    if (value.includes(s)) onChange(value.filter((x) => x !== s));
-    else onChange([...value, s]);
-  };
-  return (
-    <div style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        style={{
-          ...secondaryBtn,
-          ...(value.length > 0 ? { borderColor: "#1A1A1A" } : null),
-        }}
-      >
-        {summary} ▾
-      </button>
-      {open ? (
-        <DropdownPanel onClose={() => setOpen(false)} width={220}>
-          {(ORDER_STATUSES as readonly OrderStatus[]).map((s) => (
-            <DropdownOption
-              key={s}
-              label={tStatus(s)}
-              selected={value.includes(s)}
-              onClick={() => toggle(s)}
-              multi
             />
           ))}
         </DropdownPanel>
@@ -419,73 +344,6 @@ function DateQuickSelect({
               </button>
             </div>
           ) : null}
-        </DropdownPanel>
-      ) : null}
-    </div>
-  );
-}
-
-function AgentSelect({
-  agents,
-  value,
-  onChange,
-  label,
-  allLabel,
-  unassignedLabel,
-}: {
-  agents: Agent[];
-  value: string | "unassigned" | null;
-  onChange: (v: string | "unassigned" | null) => void;
-  label: string;
-  allLabel: string;
-  unassignedLabel: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const summary =
-    value === null
-      ? label
-      : value === "unassigned"
-      ? unassignedLabel
-      : agents.find((a) => a.id === value)?.full_name ?? label;
-  return (
-    <div style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        style={{ ...secondaryBtn, ...(value ? { borderColor: "#1A1A1A" } : null) }}
-      >
-        {summary} ▾
-      </button>
-      {open ? (
-        <DropdownPanel onClose={() => setOpen(false)} width={220}>
-          <DropdownOption
-            label={allLabel}
-            selected={value === null}
-            onClick={() => {
-              onChange(null);
-              setOpen(false);
-            }}
-          />
-          <DropdownOption
-            label={unassignedLabel}
-            selected={value === "unassigned"}
-            onClick={() => {
-              onChange("unassigned");
-              setOpen(false);
-            }}
-          />
-          <div style={{ borderTop: "1px solid #E1E3E5", margin: "4px 0" }} />
-          {agents.map((a) => (
-            <DropdownOption
-              key={a.id}
-              label={a.full_name}
-              selected={value === a.id}
-              onClick={() => {
-                onChange(a.id);
-                setOpen(false);
-              }}
-            />
-          ))}
         </DropdownPanel>
       ) : null}
     </div>

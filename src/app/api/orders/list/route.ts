@@ -69,6 +69,15 @@ export async function GET(req: NextRequest) {
       query = query.gte("created_at", start.toISOString());
       break;
     }
+    case "in_delivery":
+      query = query.in("status", [
+        "dispatching",
+        "dispatched",
+        "deposit",
+        "in_transit",
+        "to_be_returned",
+      ]);
+      break;
     case "all":
     default:
       break;
@@ -90,7 +99,7 @@ export async function GET(req: NextRequest) {
     const needle = q.q.trim().replace(/[%,]/g, "");
     if (needle) {
       query = query.or(
-        `customer_name.ilike.%${needle}%,customer_phone.ilike.%${needle}%,external_id.ilike.%${needle}%`,
+        `customer_name.ilike.%${needle}%,customer_phone.ilike.%${needle}%,external_id.ilike.%${needle}%,product_name.ilike.%${needle}%`,
       );
     }
   }

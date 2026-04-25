@@ -7,6 +7,56 @@
     },
     "addInColumn": "إضافة في {column}"
   },
+  "toShip": {
+    "title": "للشحن",
+    "subtitle": "{count} طلبات جاهزة للمستودع والناقل",
+    "empty": "لا توجد طلبات للشحن حالياً.",
+    "groupBy": {
+      "label": "التجميع حسب",
+      "city": "حسب المدينة",
+      "product": "حسب المنتج"
+    },
+    "groupMeta": "{count} طلب · {units} وحدة",
+    "selectGroup": "تحديد المجموعة {heading}",
+    "selectRow": "تحديد الطلب {id}",
+    "stockWarning": "المخزون منخفض بعد الشحن",
+    "cols": {
+      "id": "الرقم",
+      "customer": "العميل",
+      "product": "المنتج",
+      "qty": "الكمية",
+      "total": "الإجمالي",
+      "status": "الحالة"
+    },
+    "status": {
+      "confirmed": "مؤكد",
+      "scanned": "ممسوح",
+      "dispatch_scheduled": "مجدول"
+    },
+    "scheduled": {
+      "overdue": "متأخر: {count}",
+      "today": "اليوم: {count} ({auto} تلقائي)",
+      "tomorrow": "غداً: {count}",
+      "later": "لاحقاً: {count}"
+    },
+    "bulkBar": {
+      "label": "إجراءات جماعية",
+      "selected": "{count} محدد",
+      "carrierLabel": "الناقل",
+      "noCarriers": "لا يوجد ناقل",
+      "dispatch": "شحن",
+      "dispatching": "جارٍ الشحن…",
+      "printPicklist": "طباعة قائمة التحضير",
+      "printing": "جارٍ الطباعة…",
+      "clear": "مسح"
+    },
+    "bulkDispatch": {
+      "allSucceeded": "تم شحن {count} طلبات.",
+      "allFailed": "فشل شحن {count} طلبات.",
+      "partial": "تم شحن {ok}، فشل {bad}.",
+      "networkError": "خطأ في الشبكة أثناء الشحن."
+    }
+  },
   "auth": {
     "signIn": "تسجيل الدخول",
     "signingIn": "جارٍ الدخول…",
@@ -19,6 +69,7 @@
     "brand": "Ordra",
     "logout": "تسجيل خروج",
     "adminOnly": "مدير عام",
+    "orders": "الطلبات",
     "sections": {
       "accueil": "الرئيسية",
       "commandes": "الطلبات",
@@ -39,6 +90,7 @@
       "preparation": "التجهيز",
       "returns": "المرتجعات",
       "carrierTracking": "تتبع الناقل",
+      "inDeliveryBoard": "لوحة التسليم",
       "warehouseJournal": "سجل المستودع",
       "pnl": "الأرباح والخسائر",
       "productsMargins": "المنتجات والهوامش",
@@ -48,7 +100,8 @@
       "followUps": "المتابعات",
       "performanceLive": "الأداء",
       "access": "الوصول",
-      "marketsConfig": "الأسواق والمتاجر",
+      "marketsConfig": "الأسواق",
+      "storefrontsConfig": "المتاجر",
       "carriersConfig": "شركات الشحن",
       "generalSettings": "الإعدادات",
       "logs": "السجلات"
@@ -121,6 +174,102 @@
     "transitions": {
       "title": "التحولات الأخيرة",
       "empty": "لا توجد تحولات حديثة."
+    }
+  },
+  "inDelivery": {
+    "title": "لوحة التسليم",
+    "subtitle": "رؤية شاملة للطلبات قيد الشحن وأداء الناقلين والطلبات العالقة.",
+    "loadError": "تعذر تحميل لوحة التسليم.",
+    "unassignedWarning": "{count, plural, one {# طلب مُرسل بدون ناقل} other {# طلبات مُرسلة بدون ناقل}}",
+    "carriers": {
+      "sectionTitle": "أداء الناقلين",
+      "sectionSubtitle": "إجماليات 30 يوماً لكل ناقل فعّال.",
+      "empty": "لا يوجد ناقل فعّال.",
+      "unnamed": "ناقل بدون اسم",
+      "inFlight": "{count, plural, one {# قيد الشحن} other {# قيد الشحن}}",
+      "medianTransit": "الوسيط للعبور",
+      "deliveryRate30d": "التسليم 30ي",
+      "returnRate30d": "الإرجاع 30ي",
+      "daysValue": "{d} ي",
+      "status": {
+        "dispatched": "تم الإرسال",
+        "deposit": "إيداع",
+        "in_transit": "عبور",
+        "to_be_returned": "مرتجع"
+      }
+    },
+    "stuck": {
+      "sectionTitle": "تنبيهات الطلبات العالقة",
+      "sectionSubtitle": "طلبات لم تتحدث منذ أكثر من 3 أيام — يجب التواصل مع الناقل.",
+      "empty": "لا توجد طلبات عالقة.",
+      "anonymous": "عميل بدون اسم",
+      "escalate": "تصعيد",
+      "escalated": "تم التصعيد",
+      "ageValue": "{d} ي",
+      "col": {
+        "customer": "العميل",
+        "city": "المدينة",
+        "carrier": "الناقل",
+        "status": "الحالة",
+        "age": "المدة",
+        "action": "إجراء"
+      }
+    },
+    "inFlight": {
+      "sectionTitle": "طلبات قيد الشحن",
+      "sectionSubtitle": "آخر 100 — انقر لعرض المسار.",
+      "empty": "لا توجد طلبات قيد الشحن.",
+      "expand": "عرض المسار",
+      "collapse": "إخفاء المسار",
+      "escalatedTitle": "تم التصعيد للناقل",
+      "timelineLoading": "جارٍ تحميل المسار…",
+      "timelineError": "تعذر تحميل المسار.",
+      "justNow": "الآن",
+      "hoursAgo": "منذ {h} س",
+      "daysAgo": "منذ {d} ي",
+      "col": {
+        "customer": "العميل",
+        "city": "المدينة",
+        "carrier": "الناقل",
+        "status": "الحالة",
+        "updated": "آخر تحديث"
+      }
+    },
+    "timeline": {
+      "label": "مسار الطلب",
+      "pending": "قادم",
+      "under1h": "< 1 س",
+      "hours": "{h} س",
+      "days": "{d} ي"
+    },
+    "escalate": {
+      "title": "تصعيد للناقل",
+      "subtitle": "طلب {name} — أضف ملاحظة للمتابعة اليدوية.",
+      "noteLabel": "ملاحظة المتابعة",
+      "notePlaceholder": "مثال: اتصلنا بالناقل، وعد بالتسليم خلال 48 ساعة.",
+      "cancel": "إلغاء",
+      "submit": "تصعيد",
+      "submitting": "جارٍ الإرسال…",
+      "genericError": "تعذر حفظ التصعيد."
+    },
+    "detail": {
+      "back": "العودة إلى لوحة التسليم",
+      "loading": "جارٍ التحميل…",
+      "loadError": "تعذر تحميل هذا الطلب.",
+      "anonymous": "عميل بدون اسم",
+      "status": "الحالة",
+      "carrier": "الناقل",
+      "noCarrier": "لا يوجد ناقل",
+      "escalated": "تم التصعيد",
+      "escalateCta": "تصعيد",
+      "historyTitle": "السجل الكامل",
+      "historyEmpty": "لا يوجد سجل.",
+      "initial": "(إنشاء)",
+      "actor": {
+        "system": "نظام",
+        "agent": "وكيل",
+        "manager": "مدير"
+      }
     }
   },
   "inventory": {
@@ -227,8 +376,27 @@
       "revenue": "الإيرادات",
       "netProfit": "صافي الربح",
       "margin": "الهامش",
-      "adSpend": "مصاريف الإعلانات",
-      "deliveredCount": "{count, plural, one {# تم توصيله} other {# تم توصيلها}}"
+      "adSpend": "الإعلانات",
+      "cpa": "CPA",
+      "cpl": "CPL",
+      "deliveredCount": "{count, plural, one {# تم توصيله} other {# تم توصيلها}}",
+      "deltaVsPrev": "مقابل الفترة السابقة",
+      "noPrev": "—",
+      "prevShort": "سابقة",
+      "leadsShort": "عميل محتمل",
+      "confirmedShort": "مؤكدة"
+    },
+    "operational": {
+      "title": "العمليات",
+      "leads": "العملاء المحتملون",
+      "confirmed": "المؤكدة",
+      "delivered": "المُوصَّلة",
+      "returned": "المرتجعة",
+      "confirmationRate": "نسبة التأكيد",
+      "deliveryRate": "نسبة التوصيل",
+      "returnRate": "نسبة الإرجاع",
+      "aov": "متوسط قيمة الطلب",
+      "profitPerDelivered": "الربح / موصَّلة"
     },
     "breakdown": {
       "title": "تفصيل التكاليف",
@@ -409,8 +577,8 @@
       "allClear": "كل شيء على ما يرام"
     },
     "insights": {
-      "confAboveAvg": "التأكيد +{diff} نقطة مقارنة بمتوسط 7 أيام",
-      "confBelowAvg": "التأكيد \u2212{diff} نقطة مقارنة بمتوسط 7 أيام",
+      "confAboveAvg": "التأكيد مرتفع بنسبة {diff}%",
+      "confBelowAvg": "التأكيد منخفض بنسبة {diff}%",
       "topProduct": "المنتج الأفضل : {name} ({count} مُوصَّلة)",
       "leadingAgent": "القائد : {name} ({rate} %)"
     },
@@ -537,8 +705,9 @@
       "label": "العرض",
       "all": "الكل",
       "unassigned": "غير معيّنة",
+      "today": "اليوم",
       "callbacks": "معاودات الاتصال",
-      "today": "اليوم"
+      "in_delivery": "قيد التسليم"
     },
     "filters": {
       "status": "الحالة",
@@ -568,9 +737,38 @@
       "remove": "إزالة",
       "clearAll": "مسح الكل"
     },
+    "archive": {
+      "title": "الأرشيف",
+      "subtitle": "{count} طلب مكتمل · {market}",
+      "searchPlaceholder": "بحث: الهاتف · المعرف · المنتج · الاسم…",
+      "searchAria": "بحث في الأرشيف",
+      "dateFromAria": "من تاريخ",
+      "dateToAria": "إلى تاريخ",
+      "marketAria": "السوق",
+      "exportCsv": "تصدير CSV",
+      "outcomeDistribution": "توزيع النتائج",
+      "ofTotal": "من المجموع",
+      "rejectionBreakdown": "أسباب الرفض",
+      "noRejections": "لا رفض في هذه الفترة.",
+      "returnInvestigation": "تحليل المرتجعات",
+      "topReturnedProducts": "أكثر المنتجات إرجاعًا",
+      "topReturnCities": "المدن الأكثر إرجاعًا",
+      "topReturnCarriers": "الناقلون الأكثر إرجاعًا",
+      "noReturns": "لا مرتجعات.",
+      "cohortsWeekly": "الأفواج الأسبوعية",
+      "week": "الأسبوع",
+      "total": "المجموع",
+      "loading": "جارٍ التحميل…",
+      "noData": "لا توجد بيانات.",
+      "results": "{count} نتيجة"
+    },
     "advanced": {
       "title": "فلاتر متقدمة",
       "close": "إغلاق",
+      "status": "الحالة",
+      "agent": "الوكيل",
+      "allAgents": "جميع الوكلاء",
+      "unassigned": "بدون وكيل",
       "product": "المنتج",
       "allProducts": "جميع المنتجات",
       "city": "المدينة",
@@ -872,6 +1070,7 @@
     "loadingCarriers": "جارٍ تحميل شركات الشحن…",
     "bulkCallEnded": "إنهاء المكالمة ({count})",
     "deselectAll": "إلغاء تحديد الكل",
+    "selectOrder": "تحديد هذا الطلب",
     "shortcuts": {
       "title": "اختصارات لوحة المفاتيح",
       "navigate": "التنقل بين البطاقات",
@@ -971,6 +1170,65 @@
       "previous": "السابق",
       "next": "التالي",
       "pageOf": "الصفحة {page} من {total}"
+    },
+    "modes": {
+      "catalogue": "الكتالوج",
+      "performance": "الأداء"
+    },
+    "filters": {
+      "status": {
+        "all": "الكل",
+        "active": "نشط",
+        "lowStock": "مخزون منخفض",
+        "losingMoney": "خاسر"
+      },
+      "search": {
+        "placeholder": "البحث عن منتج…"
+      }
+    },
+    "bulk": {
+      "selectedCount": "{count} محدد",
+      "activate": "تفعيل",
+      "deactivate": "تعطيل",
+      "clear": "إلغاء التحديد",
+      "confirmTitle": "تأكيد الإجراء الجماعي"
+    },
+    "metrics": {
+      "confirmationRate": "تأكيد",
+      "deliveryRate": "توصيل",
+      "returnRate": "إرجاع",
+      "margin": "هامش",
+      "noData": "لا توجد بيانات"
+    },
+    "health": {
+      "green": "جيد",
+      "yellow": "يحتاج متابعة",
+      "red": "خاسر",
+      "grey": "لا توجد بيانات"
+    },
+    "create": {
+      "title": "منتج جديد",
+      "intro": "أدخل معلومات المنتج. تُستخدم التكاليف لحساب هامش الربح في الوقت الفعلي.",
+      "sections": {
+        "identity": "الهوية",
+        "costModel": "نموذج التكاليف",
+        "inventory": "المخزون"
+      },
+      "hints": {
+        "unitCogs": "تكلفة الشراء أو التصنيع لكل وحدة مسلّمة.",
+        "packingCost": "التغليف، الشريط، الحماية — لكل طلب مؤكد.",
+        "cpl": "تكلفة الاستفسار الإعلاني. تُستخدم لحساب إجمالي الإنفاق الإعلاني.",
+        "processingCost": "تكلفة معالجة التأكيد لكل طلب مؤكد.",
+        "threshold": "عندما يكون المخزون أقل من هذا الحد، يُشار إليه كمخزون منخفض."
+      },
+      "example": "مثال تقريبي: 100 استفسار · 60 مؤكد · 40 مسلّم بسعر {price} → هامش تقديري {margin}",
+      "submit": "إنشاء المنتج",
+      "cancel": "إلغاء"
+    },
+    "row": {
+      "editThreshold": "تعديل الحد",
+      "variants": "{count} نوع",
+      "moreVariants": "+{count} أخرى"
     }
   },
   "crm": {
@@ -1115,10 +1373,12 @@
       "allSourcesLabel": "كل المصادر",
       "allCampaigns": "كل الحملات",
       "filters": "الفلاتر",
+      "moreFilters": "فلاتر إضافية",
       "sourceLabel": "المصدر",
       "campaignLabel": "الحملة",
       "manageCampaigns": "إدارة الحملات",
       "clearAllFilters": "مسح الكل",
+      "filterBarHint": "تصفية القمع",
       "buckets": {
         "all": "الكل",
         "new": "جديد",
@@ -1133,6 +1393,39 @@
         "won": "مربوحة",
         "conversionRate": "معدل التحويل",
         "empty": "—"
+      },
+      "actions": {
+        "callNow": "اتصال",
+        "scheduleCallback": "معاودة الاتصال",
+        "convertToOrder": "تحويل",
+        "reassignLead": "إعادة التعيين",
+        "markLostAction": "خسارة"
+      },
+      "hotLeads": {
+        "label": "عملاء محتملون ساخنون",
+        "badge": "ساخن",
+        "filterToggle": "الساخنون فقط"
+      },
+      "duplicates": {
+        "badge": "مكرر",
+        "filterToggle": "المكررون فقط",
+        "importWarning": "{count} رقم (أرقام) موجودة مسبقاً",
+        "importWarningLine": "سطر {line}: {phone}"
+      },
+      "reassignModal": {
+        "title": "إعادة تعيين العميل المحتمل",
+        "agent": "الوكيل",
+        "selectAgent": "اختر وكيلاً",
+        "submit": "إعادة التعيين",
+        "errors": {
+          "agentRequired": "يرجى اختيار وكيل.",
+          "generic": "تعذّر إعادة التعيين."
+        }
+      },
+      "views": {
+        "kanban": "كانبان",
+        "table": "جدول",
+        "map": "خريطة (قريباً)"
       }
     },
     "queue": {
@@ -1319,28 +1612,102 @@
           "none": "ترك بدون توزيع",
           "preview": "سيتم التوزيع على {count} وكلاء نشطين"
         }
+      },
+      "due": "موعد: {time}",
+      "dueToday": "اليوم · {time}",
+      "overdue": "متأخر بـ {time}",
+      "noSchedule": "غير مجدول",
+      "scheduleSuggestion": "مراجعة خلال {duration} · {time}",
+      "acceptSchedule": "جدولة",
+      "skipSchedule": "تجاهل",
+      "overdueBucket": "متأخر",
+      "dueTodayBucket": "اليوم",
+      "dueFutureBucket": "قادم",
+      "noScheduleBucket": "غير مجدول",
+      "logAttempt": "تسجيل محاولة",
+      "selectOutcome": "نتيجة المكالمة",
+      "scheduleNextContact": "جدولة الاتصال التالي",
+      "myDueToday": "متابعاتي لليوم",
+      "viewTimeline": "متابعات",
+      "viewKanban": "كانبان",
+      "outcomes": {
+        "voicemail": "بريد صوتي",
+        "no_answer": "لا إجابة",
+        "busy": "مشغول",
+        "other": "أخرى",
+        "converted": "تحويل",
+        "lost": "خسارة"
+      },
+      "lostReasonLabel": "سبب الخسارة",
+      "lostReasons": {
+        "faux_numero": "رقم خاطئ",
+        "refus_prix": "رفض السعر",
+        "injoignable": "لا يمكن الاتصال",
+        "autre": "أخرى"
+      },
+      "managerView": {
+        "title": "التأخيرات حسب الوكيل",
+        "overdueCount": "{count} متأخر",
+        "agentColumn": "الوكيل"
       }
     },
     "prospectCampaigns": {
       "title": "حملات إعادة التفاعل",
-      "subtitle": "قم بتصفية الطلبات السابقة لإنشاء عملاء محتملين جدد.",
+      "subtitle": "أعد استهداف عملائك السابقين بعروض جديدة.",
       "new": "حملة جديدة",
-      "run": "تنفيذ",
+      "run": "تشغيل",
       "close": "إغلاق",
       "empty": "لا توجد حملات حتى الآن.",
+      "emptyHint": "أنشئ حملتك الأولى لإعادة تحويل عملائك الحاليين.",
       "runSummary": "تم إنشاء {inserted} عميل محتمل، و{skipped} موجود بالفعل.",
       "wizardTitle": "حملة جديدة",
-      "wizardSubtitle": "أعد تفاعل العملاء الحاليين مع منتجات جديدة.",
+      "wizardSubtitle": "حدد جمهورك في ثلاث خطوات.",
+      "step1": "سمِّ الحملة",
+      "step2": "اختر الجمهور",
+      "step3": "الفترة الزمنية",
       "name": "اسم الحملة",
-      "namePlaceholder": "مثال: عرض الربع الثاني - منتج X",
-      "orderStatuses": "حالات الطلبات المستهدفة",
+      "namePlaceholder": "مثال: حملة شتاء — منتج X",
+      "orderStatuses": "أي عملاء تريد استهدافهم؟",
+      "audiences": {
+        "delivered": "العملاء الذين تم التوصيل لهم",
+        "deliveredHint": "مشترون راضون — مثالي للمنتجات الجديدة.",
+        "returned": "الطلبات المرتجعة",
+        "returnedHint": "عملاء فقدتهم — حاول استعادة البيع."
+      },
       "dateFrom": "من",
       "dateTo": "إلى",
+      "datePresets": {
+        "label": "فترة سريعة",
+        "last30": "٣٠ يوم",
+        "last90": "٩٠ يوم",
+        "last180": "٦ أشهر",
+        "last365": "سنة"
+      },
       "preview": "معاينة",
-      "previewIdle": "انقر على معاينة لحساب الطلبات المؤهلة.",
-      "previewResult": "{count} طلب مؤهل.",
+      "previewing": "جارٍ الحساب…",
+      "previewIdle": "انقر على معاينة لتقدير الجمهور.",
+      "previewResult": "{count} عميل مطابق.",
+      "previewEmpty": "لا يوجد عميل مطابق — وسّع الفترة.",
       "cancel": "إلغاء",
-      "create": "إنشاء"
+      "create": "إنشاء الحملة",
+      "attribution": "الإسناد",
+      "campaigns": "الحملات",
+      "leadsCreated": "العملاء",
+      "leadsWon": "الفائزون",
+      "conversionRate": "المعدل",
+      "adSpend": "الإنفاق الإعلاني",
+      "costPerConversion": "تكلفة/تحويل",
+      "filterSummary": {
+        "delivered": "العملاء الذين تم التوصيل لهم",
+        "returned": "الطلبات المرتجعة",
+        "both": "تم التوصيل + مرتجعة",
+        "none": "لا جمهور",
+        "rangeDays": "آخر {days} يوم",
+        "rangeCustom": "{from} → {to}"
+      },
+      "lastRun": "آخر تشغيل",
+      "neverRun": "لم تُشغَّل بعد",
+      "createdOn": "أُنشئت في {date}"
     }
   },
   "warehouse": {
@@ -1353,8 +1720,13 @@
       "history": "السجل"
     },
     "preparation": {
+      "title": "التحضير",
+      "subtitle": "اطبع الملصقات وامسح الطلبات قبل الإرسال.",
       "trayTitle": "حاوية العمل",
       "scannerTitle": "مسح الخروج",
+      "stageBacklog": "تحديد الطلبات",
+      "stageTray": "طباعة الملصقات",
+      "stageScanner": "المسح والإرسال",
       "stats": {
         "labelsPrinted": "ملصقات مطبوعة",
         "ordersScanned": "طلبات ممسوحة",
@@ -1456,6 +1828,15 @@
       "recentEmpty": "لا توجد مرتجعات بعد",
       "queueTitle": "قائمة الانتظار ({count})",
       "queueEmpty": "لا توجد مرتجعات معلقة",
+      "noMatches": "لا توجد نتائج تطابق بحثك",
+      "filterPlaceholder": "تصفية حسب العميل، المدينة، المنتج…",
+      "scanStepLabel": "مسح مرتجع",
+      "kpi": {
+        "queued": "في الانتظار",
+        "scannedToday": "مُسح اليوم",
+        "damagedToday": "تالف اليوم",
+        "inBatch": "في الدُفعة"
+      },
       "inBatchLabel": "· في الدُفعة",
       "damagedBadge": "تالف",
       "stockAfter": "المخزون: {stock}",
@@ -1649,7 +2030,63 @@
       "role": "الدور",
       "market": "السوق",
       "status": "الحالة"
+    },
+    "inviteTitle": "دعوة مستخدم",
+    "inviteSubtitle": "سيتم إنشاء رابط الدعوة لمشاركته يدوياً.",
+    "invite": "دعوة",
+    "inviting": "جارٍ الدعوة…",
+    "inviteLinkLabel": "رابط الدعوة",
+    "inviteLinkCopy": "نسخ",
+    "inviteLinkCopied": "تم النسخ!",
+    "inviteSent": "تمت الدعوة.",
+    "invitePending": "في انتظار القبول",
+    "invitedAt": "مدعو في {date}",
+    "deactivateTitle": "تعطيل {name}",
+    "deactivateReasonLabel": "السبب",
+    "reasons": {
+      "off-boarded": "مغادرة الشركة",
+      "on-leave": "إجازة / غياب مؤقت",
+      "terminated": "إنهاء الخدمة"
+    },
+    "deactivateAffectedOrders": "سيتم إعادة {count} طلب(ات) إلى قائمة انتظار غير معيّنة.",
+    "deactivateConfirm": "تأكيد التعطيل",
+    "deactivatedWithCount": "تم التعطيل. أُعيد {count} طلب(ات).",
+    "sections": {
+      "market_manager": "مديرو السوق",
+      "agent": "وكلاء التأكيد",
+      "warehouse_agent": "وكلاء المستودع",
+      "super_admin": "المشرفون العاملون",
+      "active": "نشطون",
+      "invited": "مدعوون",
+      "disabled": "معطّلون"
+    },
+    "stats": {
+      "ordersActioned": "{count} إجراء",
+      "leadsConverted": "{count} تحويل"
+    },
+    "auditLog": {
+      "title": "سجل النشاط",
+      "empty": "لا توجد أحداث.",
+      "events": {
+        "user_created": "تم إنشاء الحساب",
+        "user_invited": "تم إرسال الدعوة",
+        "user_deactivated": "تم تعطيل الحساب",
+        "user_reactivated": "تم إعادة تفعيل الحساب",
+        "password_reset": "تمت إعادة تعيين كلمة المرور",
+        "avatar_updated": "تم تحديث الصورة"
+      }
     }
+  },
+  "permissions": {
+    "title": "الصلاحيات",
+    "canConfirmOrders": "تأكيد الطلبات",
+    "canViewAllOrders": "عرض جميع الطلبات",
+    "canManageAgents": "إدارة الوكلاء",
+    "canViewFinances": "عرض المالية",
+    "canAccessSettings": "الوصول إلى الإعدادات",
+    "canScanWarehouse": "الوصول إلى المستودع",
+    "canManageProducts": "إدارة المنتجات",
+    "canInviteUsers": "دعوة المستخدمين"
   },
   "settings": {
     "statuses": {
@@ -1756,6 +2193,169 @@
       "ambiguous": "اكتمل إعادة التشغيل دون تأكيد واضح: {message}",
       "noDetail": "لا تفاصيل",
       "networkError": "خطأ في الشبكة أثناء إعادة التشغيل."
+    }
+  },
+  "teamPerf": {
+    "title": "أداء الفريق",
+    "periods": {
+      "yesterday": "أمس",
+      "7d": "7 أيام",
+      "30d": "30 يوم",
+      "custom": "مخصص",
+      "from": "من",
+      "to": "إلى"
+    },
+    "kpis": {
+      "avgRate": "متوسط المعدل",
+      "totalCalls": "المكالمات",
+      "totalActioned": "المعالجة",
+      "avgFcr": "متوسط FCR",
+      "ttfcMedian": "وسيط TTFC",
+      "agentsOnline": "الوكلاء المتصلون"
+    },
+    "leaderboard": {
+      "title": "التصنيف",
+      "streak": "{n} أيام متتالية"
+    },
+    "table": {
+      "agent": "الوكيل",
+      "queue": "قائمة الانتظار",
+      "calls": "المكالمات",
+      "actioned": "المعالجة",
+      "confirmed": "مؤكد",
+      "rejected": "مرفوض",
+      "rate": "المعدل",
+      "fcr": "FCR",
+      "ttfc": "TTFC",
+      "attempts": "محاولات",
+      "trend": "الاتجاه",
+      "rejectRegions": "الرفض حسب المنطقة"
+    },
+    "drilldown": {
+      "tabQueue": "قائمة الانتظار",
+      "tabHistory": "السجل",
+      "tabNotes": "ملاحظات المدير",
+      "notesPlaceholder": "أضف ملاحظة حول هذا الوكيل...",
+      "percentile": "المئوية {rank}",
+      "historyEmpty": "لا يوجد نشاط خلال 30 يومًا"
+    },
+    "targets": {
+      "confirmationTarget": "هدف معدل التأكيد",
+      "save": "حفظ",
+      "saved": "تم الحفظ"
+    },
+    "empty": "لا يوجد وكلاء في هذا السوق",
+    "loading": "جار التحميل..."
+  },
+  "assign": {
+    "title": "للإسناد",
+    "subtitle": "سير عمل إسناد الطلبات الجديدة",
+    "forbidden": "ليس لديك صلاحية الوصول إلى هذه الصفحة.",
+    "empty": "لا توجد طلبات للإسناد",
+    "selection": "{count} محدد",
+    "selectAll": "تحديد الكل",
+    "selectBucket": "تحديد {bucket}",
+    "clearSelection": "إلغاء التحديد",
+    "selectOrder": "تحديد طلب {name}",
+    "source": "المصدر: {platform}",
+    "bucket": {
+      "fresh": "جديدة (أقل من 30 د)",
+      "warning": "قيد المعالجة (30 د – ساعتان)",
+      "urgent": "عاجلة (2 – 4 س)",
+      "critical": "حرجة (أكثر من 4 س)"
+    },
+    "presence": {
+      "online": "متصل",
+      "idle": "غير نشط",
+      "offline": "غير متصل"
+    },
+    "agents": {
+      "title": "من يستلم؟",
+      "help": "مرتبون حسب التوفر",
+      "empty": "لا يوجد وكلاء متاحون",
+      "loading": "جار التحميل…",
+      "queue": "قائمة الانتظار",
+      "queueShort": "{count} في القائمة",
+      "confirmationRate": "معدل التأكيد (7 أيام)",
+      "rateShort": "{pct}% تأكيد",
+      "assignButton": "إسناد ({count})"
+    },
+    "algorithm": {
+      "label": "الخوارزمية",
+      "active": "مفعل",
+      "manual": "يدوي",
+      "round_robin": "بالتناوب",
+      "workload": "حسب عبء العمل",
+      "product_based": "حسب المنتج",
+      "region_based": "حسب المنطقة",
+      "saved": "تم تحديث قاعدة الإسناد",
+      "saveFailed": "تعذر حفظ القاعدة"
+    },
+    "autoAssign": {
+      "button": "إسناد تلقائي",
+      "running": "جارٍ الإسناد…",
+      "busy": "الإسناد جارٍ",
+      "noSelection": "اختر طلباً واحداً على الأقل",
+      "pickAlgorithm": "اختر خوارزمية غير يدوية",
+      "activateFirst": "فعّل «مفعل» لتشغيل الإسناد التلقائي",
+      "success": "تم إسناد {assigned}، وتجاهل {skipped}",
+      "failed": "فشل الإسناد التلقائي"
+    },
+    "assignSuccess": "تم إسناد {count} طلب",
+    "assignFailed": "فشل الإسناد"
+  },
+  "confirmationFlow": {
+    "title": "تدفق التأكيد",
+    "subtitle": "ما يفعله الوكلاء الآن",
+    "loading": "جارٍ التحميل...",
+    "computedAt": "تم الحساب في",
+    "banner": {
+      "updates": "تحديث/تحديثات",
+      "refresh": "تحديث"
+    },
+    "stages": {
+      "assigned": "مُسنَد",
+      "attempt_1": "المحاولة 1",
+      "attempt_2": "المحاولة 2",
+      "attempt_3": "المحاولة 3",
+      "callback_scheduled": "معاودة مجدولة"
+    },
+    "funnel": {
+      "title": "قمع التأكيد",
+      "subtitle": "الطلبات الجارية في كل مرحلة",
+      "openNow": "مفتوحة",
+      "enteredWindow": "دخلت (الفترة)",
+      "avgTime": "متوسط الوقت",
+      "dropOff": "تراجع"
+    },
+    "table": {
+      "title": "الوكلاء بحاجة للمتابعة",
+      "empty": "لا يوجد وكلاء نشطون في هذه الفترة.",
+      "agent": "الوكيل",
+      "inAttempt3": "في المحاولة 3",
+      "overdueCallbacks": "معاودات متأخرة",
+      "ttfcP50": "TTFC p50",
+      "ttfcP90": "TTFC p90",
+      "actions": "إجراءات",
+      "reassign": "إعادة تعيين",
+      "escalate": "تصعيد",
+      "escalateTooltip": "التصعيد متاح في v2 — استخدم إعادة التعيين الآن"
+    },
+    "callbacks": {
+      "title": "معاودات وشيكة",
+      "loading": "جارٍ التحميل...",
+      "empty": "لا معاودات في الـ30 دقيقة القادمة.",
+      "unassigned": "غير مُسنَد",
+      "ping": "إشعار",
+      "pinged": "تم الإشعار ✓"
+    },
+    "ttfc": {
+      "title": "توزيع TTFC",
+      "subtitle": "وقت أول اتصال (إسناد → أول محاولة)",
+      "allAgents": "جميع الوكلاء",
+      "samples": "بيانات",
+      "orders": "طلبات",
+      "empty": "بيانات غير كافية لهذه الفترة."
     }
   }
 }

@@ -2,9 +2,11 @@
 
 import { memo, useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { Phone, MapPin, Package, Circle, CheckCircle2 } from "lucide-react";
 import { extractAttemptNumber } from "@/lib/attempt-logic";
 import { formatDateTime, formatExactTime } from "@/lib/format";
 import { getProductAvatarColor, getProductInitial } from "@/lib/product-avatar";
+import { Button } from "@/components/ui/Button";
 import { AttemptEtiquette } from "./AttemptEtiquette";
 import { StatusGlyph } from "@/components/shared/StatusGlyph";
 import type { QueueOrder } from "@/types/queue";
@@ -29,14 +31,23 @@ function isAttemptOrCallback(status: string): boolean {
   );
 }
 
-export const OrderCard = memo(function OrderCard({ order, onOpenDetail, onCallTerminated, maxAttempts = 3, focused = false, isSelected = false, onToggleSelect }: OrderCardProps) {
+export const OrderCard = memo(function OrderCard({
+  order,
+  onOpenDetail,
+  onCallTerminated,
+  maxAttempts = 3,
+  focused = false,
+  isSelected = false,
+  onToggleSelect,
+}: OrderCardProps) {
   const t = useTranslations("queue");
   const ts = useTranslations("orders.statuses");
   const locale = useLocale();
 
   const [now, setNow] = useState<Date | null>(null);
-  const [isHovered, setIsHovered] = useState(false);
-  useEffect(() => { setNow(new Date()); }, []);
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
 
   const callbackDate = order.callback_time ? new Date(order.callback_time) : null;
   const callbackOverdue = now !== null && callbackDate !== null && callbackDate <= now;
@@ -78,70 +89,65 @@ export const OrderCard = memo(function OrderCard({ order, onOpenDetail, onCallTe
     <div
       data-order-id={order.id}
       data-focused={focused || undefined}
-      style={{
-        backgroundColor: focused ? "#F6F6F7" : isHovered ? "#F9FAFB" : "#FFFFFF",
-        borderBottom: "1px solid #E1E3E5",
-        borderInlineStart: `2px solid ${isHovered && !focused ? "#1A1A1A" : "transparent"}`,
-        paddingBlock: "16px",
-        paddingInlineStart: "22px",
-        paddingInlineEnd: "24px",
-        cursor: "pointer",
-        outline: focused ? "2px solid #1A1A1A" : "none",
-        outlineOffset: focused ? "-2px" : undefined,
-        transition: "background-color 0.12s ease, border-inline-start-color 0.08s ease",
-      }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       onClick={() => onOpenDetail(order.id)}
+      className={[
+        "group relative cursor-pointer",
+        "border-b border-line-subtle",
+        "ps-6 pe-6 py-4",
+        "transition-[background-color,box-shadow] duration-fast",
+        focused
+          ? "bg-surface-selected"
+          : "bg-surface-card hover:bg-surface-hover hover:shadow-hover-row",
+      ].join(" ")}
     >
-      {/* Row 1 */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 6,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {/* Checkbox — only when selection is enabled */}
+      {/* Inline-start accent bar — accent green ONLY when focused, soft on hover */}
+      <span
+        aria-hidden="true"
+        className={[
+          "pointer-events-none absolute inset-y-0 start-0 w-[3px]",
+          "transition-colors duration-fast",
+          focused
+            ? "bg-accent"
+            : "bg-transparent group-hover:bg-line-strong",
+        ].join(" ")}
+      />
+
+      {/* Row 1 — identity + status + time */}
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2.5 min-w-0">
           {onToggleSelect && (
-            <div
+            <button
+              type="button"
               data-checkbox
-              onClick={(e) => { e.stopPropagation(); onToggleSelect(order.id); }}
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: "50%",
-                border: `2px solid ${isSelected ? "#1A1A1A" : "#D1D5DB"}`,
-                backgroundColor: isSelected ? "#1A1A1A" : "transparent",
-                opacity: isSelected || isHovered ? 1 : 0.3,
-                transition: "opacity 0.12s ease",
-                cursor: "pointer",
-                flexShrink: 0,
+              aria-pressed={isSelected}
+              aria-label={t("selectOrder")}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleSelect(order.id);
               }}
-            />
+              className={[
+                "shrink-0 inline-flex items-center justify-center",
+                "transition-opacity duration-fast",
+                isSelected
+                  ? "opacity-100"
+                  : "opacity-30 group-hover:opacity-100",
+              ].join(" ")}
+            >
+              {isSelected ? (
+                <CheckCircle2 size={18} className="text-ink-primary" strokeWidth={2} />
+              ) : (
+                <Circle size={18} className="text-line-strong" strokeWidth={2} />
+              )}
+            </button>
           )}
-          {/* Product letter avatar */}
           <div
-            aria-hidden
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: "50%",
-              backgroundColor: getProductAvatarColor(order.product_name),
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 11,
-              fontWeight: 700,
-              color: "#1A1A1A",
-              flexShrink: 0,
-            }}
+            aria-hidden="true"
+            className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full ring-1 ring-line-subtle text-[11px] font-bold text-ink-primary"
+            style={{ backgroundColor: getProductAvatarColor(order.product_name) }}
           >
             {getProductInitial(order.product_name)}
           </div>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "#1A1A1A" }}>
+          <span className="text-[15px] font-semibold text-ink-primary truncate">
             {order.customer_name}
           </span>
           {isAttemptOrCallback(order.status) ? (
@@ -154,16 +160,7 @@ export const OrderCard = memo(function OrderCard({ order, onOpenDetail, onCallTe
               now={now ?? undefined}
             />
           ) : (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 12,
-                fontWeight: 500,
-                color: "var(--text-secondary)",
-              }}
-            >
+            <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink-secondary">
               <StatusGlyph
                 shape={order.status === "confirmed" ? "check" : "ring"}
                 tone="muted"
@@ -172,210 +169,100 @@ export const OrderCard = memo(function OrderCard({ order, onOpenDetail, onCallTe
             </span>
           )}
         </div>
-        {/* Two-line date: elapsed + exact time */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-          <span style={{ fontSize: 13, color: "#6B7280" }}>{elapsedLabel(order.assigned_at)}</span>
-          <span style={{ fontSize: 11, color: "#9CA3AF", fontVariantNumeric: "tabular-nums" }}>
+        <div className="flex flex-col items-end shrink-0 ps-3">
+          <span className="text-[13px] text-ink-secondary">
+            {elapsedLabel(order.assigned_at)}
+          </span>
+          <span className="text-[11px] text-ink-muted tabular-nums">
             {now ? formatExactTime(order.assigned_at, locale) : ""}
           </span>
         </div>
       </div>
 
-      {/* Row 2 — scan grid: [phone] [city-pill] [product] [price] */}
+      {/* Row 2 — scan grid: phone | city | product | price */}
       <div
+        className="grid items-center gap-x-3.5"
         style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(140px, auto) minmax(0, auto) minmax(0, 1fr) auto",
-          alignItems: "center",
-          columnGap: 14,
+          gridTemplateColumns:
+            "minmax(140px, auto) minmax(0, auto) minmax(0, 1fr) auto",
           marginBottom: showRow3 ? 8 : 0,
         }}
       >
-        {/* Phone — hero scan element */}
         <a
           href={`tel:${order.customer_phone}`}
           onClick={(e) => e.stopPropagation()}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 15,
-            fontWeight: 600,
-            color: "#1A1A1A",
-            textDecoration: "none",
-            fontVariantNumeric: "tabular-nums",
-            letterSpacing: "0.01em",
-            whiteSpace: "nowrap",
-          }}
-          onMouseEnter={(e) => {
-            const el = e.currentTarget.querySelector("[data-phone-text]") as HTMLElement | null;
-            if (el) el.style.textDecoration = "underline";
-          }}
-          onMouseLeave={(e) => {
-            const el = e.currentTarget.querySelector("[data-phone-text]") as HTMLElement | null;
-            if (el) el.style.textDecoration = "none";
-          }}
           aria-label={t("phoneAria", { phone: order.customer_phone })}
+          className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-ink-primary tabular-nums tracking-[0.01em] whitespace-nowrap no-underline hover:[&_[data-phone-text]]:underline"
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#6B7280"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            style={{ flexShrink: 0 }}
-          >
-            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-          </svg>
+          <Phone size={14} strokeWidth={2} className="shrink-0 text-ink-secondary" aria-hidden="true" />
           <span data-phone-text>{order.customer_phone}</span>
         </a>
 
-        {/* City — subtle pill for instant location scan */}
         <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            fontSize: 12,
-            fontWeight: 500,
-            color: "#4B5563",
-            backgroundColor: "#F3F4F6",
-            padding: "3px 8px",
-            borderRadius: 999,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            maxWidth: 180,
-          }}
+          className="inline-flex items-center gap-1 max-w-[180px] overflow-hidden whitespace-nowrap text-ellipsis rounded-pill bg-[#F3F4F6] px-2 py-[3px] text-[12px] font-medium text-[#4B5563]"
           title={order.customer_city}
         >
-          <svg
-            width="11"
-            height="11"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            style={{ flexShrink: 0, opacity: 0.7 }}
-          >
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-            <circle cx="12" cy="10" r="3" />
-          </svg>
+          <MapPin size={11} strokeWidth={2} className="shrink-0 opacity-70" aria-hidden="true" />
           {order.customer_city}
         </span>
 
-        {/* Product — scan zone with subtle icon */}
         <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 13.5,
-            color: "#1A1A1A",
-            minWidth: 0,
-            justifySelf: "end",
-          }}
+          className="inline-flex items-center gap-1.5 min-w-0 justify-self-end text-[13.5px] text-ink-primary"
           title={`${order.product_name}${order.variant_label ? ` · ${order.variant_label}` : ""}`}
         >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#9CA3AF"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            style={{ flexShrink: 0 }}
-          >
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-            <line x1="12" y1="22.08" x2="12" y2="12" />
-          </svg>
-          <span
-            style={{
-              fontWeight: 500,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              minWidth: 0,
-            }}
-          >
+          <Package size={13} strokeWidth={2} className="shrink-0 text-ink-muted" aria-hidden="true" />
+          <span className="truncate font-medium">
             {order.product_name}
             {order.variant_label ? (
-              <span style={{ color: "#9CA3AF", fontWeight: 400 }}> · {order.variant_label}</span>
+              <span className="text-ink-muted font-normal"> · {order.variant_label}</span>
             ) : null}
           </span>
         </span>
 
-        {/* Price — bold terminal anchor */}
-        <span
-          style={{
-            fontSize: 15,
-            fontWeight: 700,
-            color: "#1A1A1A",
-            fontVariantNumeric: "tabular-nums",
-            whiteSpace: "nowrap",
-            letterSpacing: "-0.01em",
-          }}
-        >
+        <span className="text-[15px] font-bold text-ink-primary tabular-nums whitespace-nowrap tracking-[-0.01em]">
           {order.total_price}
-          <span style={{ fontSize: 12, fontWeight: 500, color: "#6B7280", marginInlineStart: 3 }}>
+          <span className="ms-1 text-[12px] font-medium text-ink-secondary">
             {order.currency}
           </span>
         </span>
       </div>
 
-      {/* Row 3 — conditional */}
+      {/* Row 3 — conditional supporting metadata + Call ended button */}
       {showRow3 && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 8,
-          }}
-        >
-          <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+        <div className="flex justify-between items-center mb-2">
+          <div className="flex gap-3 items-start">
             {isAttemptStatus && (
               <span
-                style={{
-                  fontSize: 13,
-                  color: isMaxAttempt ? "#DC2626" : "#F97316",
-                  fontWeight: isMaxAttempt ? 700 : 400,
-                }}
+                className={[
+                  "text-[13px]",
+                  isMaxAttempt ? "font-bold text-status-critical" : "text-[#F97316]",
+                ].join(" ")}
               >
                 {t("attempts", { count: `${attemptNumber}/${maxAttempts}` })}
               </span>
             )}
             {order.status === "callback_scheduled" && callbackFuture && callbackDate && (
-              <span style={{ fontSize: 13, color: "#6B7280" }}>
+              <span className="text-[13px] text-ink-secondary">
                 {t("callbackAt", { time: formatDateTime(order.callback_time!, locale) })}
               </span>
             )}
             {order.status === "callback_scheduled" && callbackOverdue && callbackDate && (
-              <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ fontSize: 13, color: "#DC2626", fontWeight: 700 }}>
+              <span className="flex flex-col gap-0.5">
+                <span className="text-[13px] font-bold text-status-critical">
                   {t("callbackAt", { time: "⚠" })}
                 </span>
-                <span style={{ fontSize: 13, color: "#DC2626" }}>
+                <span className="text-[13px] text-status-critical">
                   {formatDateTime(order.callback_time!, locale)}
                 </span>
               </span>
             )}
             {order.status === "callback_scheduled" && !callbackDate && (
-              <span style={{ fontSize: 13, color: "#6B7280" }}>{ts("callback_scheduled")}</span>
+              <span className="text-[13px] text-ink-secondary">
+                {ts("callback_scheduled")}
+              </span>
             )}
             {order.status === "dispatch_scheduled" && dispatchFuture && dispatchDate && (
-              <span style={{ fontSize: 13, color: "#6B7280" }}>
+              <span className="text-[13px] text-ink-secondary">
                 {order.scheduled_dispatch_auto
                   ? t("dispatchAtAuto", {
                       time: formatDateTime(order.scheduled_dispatch_at!, locale),
@@ -386,65 +273,54 @@ export const OrderCard = memo(function OrderCard({ order, onOpenDetail, onCallTe
               </span>
             )}
             {order.status === "dispatch_scheduled" && dispatchOverdue && dispatchDate && (
-              <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ fontSize: 13, color: "#DC2626", fontWeight: 700 }}>
+              <span className="flex flex-col gap-0.5">
+                <span className="text-[13px] font-bold text-status-critical">
                   {t("dispatchOverdue")}
                 </span>
-                <span style={{ fontSize: 13, color: "#DC2626" }}>
+                <span className="text-[13px] text-status-critical">
                   {formatDateTime(order.scheduled_dispatch_at!, locale)}
                 </span>
               </span>
             )}
             {order.status === "dispatch_scheduled" && !dispatchDate && (
-              <span style={{ fontSize: 13, color: "#6B7280" }}>
+              <span className="text-[13px] text-ink-secondary">
                 {ts("dispatch_scheduled")}
               </span>
             )}
             {truncatedNote && (
-              <span style={{ fontSize: 12, color: "#9CA3AF" }}>{truncatedNote}</span>
+              <span className="text-[12px] text-ink-muted">{truncatedNote}</span>
             )}
           </div>
-          {/* "Call ended" button — bottom-end (RTL-safe) */}
-          <button
-            style={{
-              fontSize: 13,
-              backgroundColor: "#1A1A1A",
-              color: "#FFFFFF",
-              border: "none",
-              borderRadius: "0.25rem",
-              padding: "6px 12px",
-              cursor: "pointer",
-            }}
+          <Button
+            size="sm"
             onClick={(e) => {
               e.stopPropagation();
               onCallTerminated(order.id);
             }}
           >
             {t("callEnded")}
-          </button>
+          </Button>
         </div>
       )}
 
-      {/* "Call ended" when no row 3 content */}
       {!showRow3 && (
-        <div style={{ display: "flex", justifyContent: "end", marginTop: 8 }}>
-          <button
-            style={{
-              fontSize: 13,
-              backgroundColor: "#1A1A1A",
-              color: "#FFFFFF",
-              border: "none",
-              borderRadius: "0.25rem",
-              padding: "6px 12px",
-              cursor: "pointer",
-            }}
+        <div
+          className={[
+            "flex justify-end mt-1.5 transition-opacity duration-fast",
+            focused
+              ? "opacity-100"
+              : "opacity-0 group-hover:opacity-100 focus-within:opacity-100",
+          ].join(" ")}
+        >
+          <Button
+            size="sm"
             onClick={(e) => {
               e.stopPropagation();
               onCallTerminated(order.id);
             }}
           >
             {t("callEnded")}
-          </button>
+          </Button>
         </div>
       )}
     </div>

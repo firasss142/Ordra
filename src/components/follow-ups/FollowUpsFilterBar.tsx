@@ -11,6 +11,8 @@ interface Market {
 
 type StatusFilter = "all" | FollowUpStatus;
 
+export type ViewMode = "timeline" | "kanban";
+
 interface Props {
   markets: Market[];
   selectedMarketId: string | "all" | null;
@@ -20,6 +22,11 @@ interface Props {
 
   statusFilter: StatusFilter;
   onStatusChange: (s: StatusFilter) => void;
+
+  viewMode: ViewMode;
+  onViewModeChange: (m: ViewMode) => void;
+  /** Hide the timeline/kanban toggle (e.g. for agents who only get timeline). */
+  hideViewToggle?: boolean;
 
   onReset: () => void;
   onNewFollowUp: () => void;
@@ -40,6 +47,9 @@ export function FollowUpsFilterBar({
   lockedMarketLabel,
   statusFilter,
   onStatusChange,
+  viewMode,
+  onViewModeChange,
+  hideViewToggle = false,
   onReset,
   onNewFollowUp,
   hasActiveFilters,
@@ -72,11 +82,55 @@ export function FollowUpsFilterBar({
           allLabel={t("allMarkets")}
         />
 
-        <StatusSegmented
-          options={statusOptions}
-          active={statusFilter}
-          onSelect={onStatusChange}
-        />
+        {/* View mode toggle */}
+        {!hideViewToggle && (
+        <div
+          role="tablist"
+          style={{
+            display: "inline-flex",
+            border: `1px solid ${BORDER}`,
+            borderRadius: 9999,
+            background: SOFT_BG,
+            padding: 2,
+            gap: 2,
+          }}
+        >
+          {(["timeline", "kanban"] as ViewMode[]).map((m) => {
+            const isActive = viewMode === m;
+            const label = m === "timeline" ? t("viewTimeline") : t("viewKanban");
+            return (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => onViewModeChange(m)}
+                style={{
+                  padding: "6px 14px",
+                  border: "none",
+                  borderRadius: 9999,
+                  background: isActive ? TEXT : "transparent",
+                  color: isActive ? "#FFFFFF" : TEXT,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        )}
+
+        {viewMode === "kanban" && (
+          <StatusSegmented
+            options={statusOptions}
+            active={statusFilter}
+            onSelect={onStatusChange}
+          />
+        )}
 
         {hasActiveFilters ? (
           <button

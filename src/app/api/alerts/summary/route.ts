@@ -35,7 +35,7 @@ export interface Alert {
   created_at: string;
   market_id: string | null;
   acknowledged_at: string | null;
-  acknowledged_by: string | null;
+  actor_id: string | null;
   snoozed_until: string | null;
 }
 
@@ -101,7 +101,7 @@ interface AckRow {
   entity_id: string;
   market_id: string | null;
   acknowledged_at: string | null;
-  acknowledged_by?: string | null;
+  actor_id?: string | null;
   snoozed_until: string | null;
 }
 
@@ -193,7 +193,7 @@ export async function GET(req: NextRequest) {
 
   let q8 = supabase
     .from("alert_acknowledgements")
-    .select("alert_key, alert_type, entity_id, market_id, acknowledged_at, acknowledged_by, snoozed_until");
+    .select("alert_key, alert_type, entity_id, market_id, acknowledged_at, actor_id, snoozed_until");
   if (marketId) q8 = q8.eq("market_id", marketId);
 
   const [
@@ -207,16 +207,19 @@ export async function GET(req: NextRequest) {
     acksRes,
   ] = await Promise.all([q1, q2, q3, q4, q5, q6, q7, q8]);
 
-  if (
-    overdueRes.error ||
-    unassignedRes.error ||
-    dispatchStuckRes.error ||
-    carrierStaleRes.error ||
-    returnBottleneckRes.error ||
-    lowStockRes.error ||
-    inactiveAgentsRes.error ||
-    acksRes.error
-  ) {
+  const queryErrors = {
+    overdue: overdueRes.error,
+    unassigned: unassignedRes.error,
+    dispatchStuck: dispatchStuckRes.error,
+    carrierStale: carrierStaleRes.error,
+    returnBottleneck: returnBottleneckRes.error,
+    lowStock: lowStockRes.error,
+    inactiveAgents: inactiveAgentsRes.error,
+    acks: acksRes.error,
+  };
+  const failed = Object.entries(queryErrors).filter(([, err]) => err);
+  if (failed.length > 0) {
+    console.error("[alerts/summary] query failures:", failed.map(([k, e]) => ({ query: k, error: e })));
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
@@ -228,7 +231,7 @@ export async function GET(req: NextRequest) {
 
   const alerts: Alert[] = [];
 
-  const pushAlert = (a: Omit<Alert, "severity" | "acknowledged_at" | "acknowledged_by" | "snoozed_until">) => {
+  const pushAlert = (a: Omit<Alert, "severity" | "acknowledged_at" | "actor_id" | "snoozed_until">) => {
     const key = a.id;
     const ack = ackByKey.get(key);
     if (ack?.acknowledged_at) return;
@@ -237,7 +240,7 @@ export async function GET(req: NextRequest) {
       ...a,
       severity: ALERT_TYPE_TO_SEVERITY[a.type],
       acknowledged_at: null,
-      acknowledged_by: null,
+      actor_id: null,
       snoozed_until: null,
     });
   };

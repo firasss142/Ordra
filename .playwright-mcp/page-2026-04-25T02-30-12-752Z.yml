@@ -1,0 +1,29 @@
+- generic [active] [ref=e1]:
+  - link "Aller au contenu principal" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - button "Notifications" [ref=e7] [cursor=pointer]:
+          - img [ref=e8]
+        - generic [ref=e12]: Agent
+        - button "Agent TN 1" [ref=e13] [cursor=pointer]:
+          - generic [ref=e14]: AT
+          - generic [ref=e15]: Agent TN 1
+          - generic [ref=e16]: ▾
+    - navigation [ref=e17]:
+      - link "Commandes" [ref=e18] [cursor=pointer]:
+        - /url: /fr/queue
+        - img [ref=e19]
+        - generic [ref=e22]: Commandes
+      - link "CRM" [ref=e23] [cursor=pointer]:
+        - /url: /fr/leads
+        - img [ref=e24]
+        - generic [ref=e29]: CRM
+      - link "Suivi de commande" [ref=e30] [cursor=pointer]:
+        - /url: /fr/follow-ups
+        - img [ref=e31]
+        - generic [ref=e34]: Suivi de commande
+    - main [ref=e35]:
+      - generic [ref=e39]: Chargement...
+  - alert [ref=e40]

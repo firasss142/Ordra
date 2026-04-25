@@ -3,6 +3,34 @@
 export type Role = "super_admin" | "market_manager" | "agent" | "warehouse_agent";
 export type Locale = "fr" | "ar";
 export type Direction = "ltr" | "rtl";
+export type DeactivationReason = "off-boarded" | "on-leave" | "terminated";
+
+export interface UserWithStats {
+  id: string;
+  email: string;
+  full_name: string;
+  avatar_url: string | null;
+  role: Role;
+  market_id: string | null;
+  is_active: boolean;
+  invitation_sent_at: string | null;
+  invitation_accepted_at: string | null;
+  deactivation_reason: DeactivationReason | null;
+  last_seen_at: string | null;
+  created_at: string;
+  orders_actioned?: number;
+  leads_converted?: number;
+}
+
+export interface UserAuditEvent {
+  id: string;
+  actor_id: string;
+  actor_name?: string;
+  target_id: string;
+  event_type: string;
+  meta: Record<string, unknown> | null;
+  created_at: string;
+}
 
 export interface AuthUser {
   id: string;

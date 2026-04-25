@@ -1,0 +1,146 @@
+[    1165ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[    4083ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/api/confirmation-flow/overview?market_id=00000000-0000-0000-0000-000000000001&from_date=2026-04-18&to_date=2026-04-25:0
+[  104336ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  105159ms] [LOG] [Fast Refresh] done in 824ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  112704ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  113116ms] [LOG] [Fast Refresh] done in 411ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  121312ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  122153ms] [LOG] [Fast Refresh] done in 841ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  129534ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  129960ms] [LOG] [Fast Refresh] done in 426ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  144469ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[  144989ms] [LOG] [Fast Refresh] done in 521ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  145384ms] [ERROR] ./src/app/api/confirmation-flow/overview/route.ts
+Error: 
+  × Expected a semicolon
+     ╭─[/Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/app/api/confirmation-flow/overview/route.ts:211:1]
+ 211 │     window: { from: fromISO, to: toISO },
+ 212 │     computed_at: new Date().toISOString(),
+ 213 │   });
+ 214 │ }
+     ·  ▲
+     ╰────
+
+  × Expected '}', got '<eof>'
+     ╭─[/Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/app/api/confirmation-flow/overview/route.ts:211:1]
+ 211 │     window: { from: fromISO, to: toISO },
+ 212 │     computed_at: new Date().toISOString(),
+ 213 │   });
+ 214 │ }
+     · ─
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/api/confirmation-flow/overview/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  148884ms] [LOG] [Fast Refresh] done in 4415ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[  149329ms] [ERROR] ./src/app/api/confirmation-flow/overview/route.ts
+Error: 
+  × Expected a semicolon
+     ╭─[/Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/app/api/confirmation-flow/overview/route.ts:211:1]
+ 211 │     window: { from: fromISO, to: toISO },
+ 212 │     computed_at: new Date().toISOString(),
+ 213 │   });
+ 214 │ }
+     ·  ▲
+     ╰────
+
+  × Expected '}', got '<eof>'
+     ╭─[/Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/app/api/confirmation-flow/overview/route.ts:211:1]
+ 211 │     window: { from: fromISO, to: toISO },
+ 212 │     computed_at: new Date().toISOString(),
+ 213 │   });
+ 214 │ }
+     · ─
+     ╰────
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/app/api/confirmation-flow/overview/route.ts @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  149608ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/api/confirmation-flow/callbacks-due?market_id=00000000-0000-0000-0000-000000000001&within_minutes=30:0
+[  149609ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/fr/confirmation-flow?_rsc=1ikze:0
+[  149977ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/fr/confirmation-flow?_rsc=1ikze:0
+[  150323ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/fr/confirmation-flow?_rsc=1ikze:0
+[  151011ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3002/fr/confirmation-flow:0
+[  151565ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///./node_modules/react-dom/cjs/react-dom.development.js:29889
+[  151765ms] ModuleBuildError: Module build failed (from ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js):
+Error: 
+  × Expected a semicolon
+     ╭─[/Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/app/api/confirmation-flow/overview/route.ts:211:1]
+ 211 │     window: { from: fromISO, to: toISO },
+ 212 │     computed_at: new Date().toISOString(),
+ 213 │   });
+ 214 │ }
+     ·  ▲
+     ╰────
+
+  × Expected '}', got '<eof>'
+     ╭─[/Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/app/api/confirmation-flow/overview/route.ts:211:1]
+ 211 │     window: { from: fromISO, to: toISO },
+ 212 │     computed_at: new Date().toISOString(),
+ 213 │   });
+ 214 │ }
+     · ─
+     ╰────
+
+
+Caused by:
+    Syntax Error
+    at processResult (file:///Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/compiled/webpack/bundle5.js:28:400590)
+    at <unknown> (file:///Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/compiled/webpack/bundle5.js:28:402302)
+    at <unknown> (file:///Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:8645)
+    at <unknown> (file:///Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:5019)
+    at r.callback (file:///Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:4039)
+[  151672ms] [LOG] [HMR] connected @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:38
+[  151693ms] [ERROR] ./src/app/api/confirmation-flow/overview/route.ts
+Error: 
+  × Expected a semicolon
+     ╭─[/Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/app/api/confirmation-flow/overview/route.ts:211:1]
+ 211 │     window: { from: fromISO, to: toISO },
+ 212 │     computed_at: new Date().toISOString(),
+ 213 │   });
+ 214 │ }
+     ·  ▲
+     ╰────
+
+  × Expected '}', got '<eof>'
+     ╭─[/Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/app/api/confirmation-flow/overview/route.ts:211:1]
+ 211 │     window: { from: fromISO, to: toISO },
+ 212 │     computed_at: new Date().toISOString(),
+ 213 │   });
+ 214 │ }
+     · ─
+     ╰────
+
+Caused by:
+    Syntax Error @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  151795ms] [ERROR] ./src/app/api/confirmation-flow/overview/route.ts
+Error: 
+  × Expected a semicolon
+     ╭─[/Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/app/api/confirmation-flow/overview/route.ts:211:1]
+ 211 │     window: { from: fromISO, to: toISO },
+ 212 │     computed_at: new Date().toISOString(),
+ 213 │   });
+ 214 │ }
+     ·  ▲
+     ╰────
+
+  × Expected '}', got '<eof>'
+     ╭─[/Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/src/app/api/confirmation-flow/overview/route.ts:211:1]
+ 211 │     window: { from: fromISO, to: toISO },
+ 212 │     computed_at: new Date().toISOString(),
+ 213 │   });
+ 214 │ }
+     · ─
+     ╰────
+
+Caused by:
+    Syntax Error @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info.js:62
+[  167775ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/hot-reloader-client.js:221
+[  170201ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3002/_next/static/webpack/1c9cf7dc738df5ec.webpack.hot-update.json:0
+[  170202ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/hot-reloader-client.js:349
+[  172331ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559

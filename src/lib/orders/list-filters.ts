@@ -1,9 +1,17 @@
 import { z } from "zod";
 import { ORDER_STATUSES, REJECTION_REASONS, type OrderStatus, type RejectionReason } from "@/types/order-status";
 
-export type OrdersPreset = "all" | "unassigned" | "callbacks" | "today";
+export type OrdersPreset = "all" | "unassigned" | "callbacks" | "today" | "in_delivery";
 
-export const ORDERS_PRESETS: OrdersPreset[] = ["all", "unassigned", "callbacks", "today"];
+export const ORDERS_PRESETS: OrdersPreset[] = ["all", "unassigned", "today", "callbacks", "in_delivery"];
+
+export const IN_DELIVERY_STATUSES = [
+  "dispatching",
+  "dispatched",
+  "deposit",
+  "in_transit",
+  "to_be_returned",
+] as const;
 
 export interface OrderListFilters {
   preset: OrdersPreset;
@@ -164,7 +172,7 @@ export function resetFilters(current: OrderListFilters): OrderListFilters {
 export const listQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
-  preset: z.enum(["all", "unassigned", "callbacks", "today"]).default("all"),
+  preset: z.enum(["all", "unassigned", "callbacks", "today", "in_delivery"]).default("all"),
   market_id: z.string().uuid().optional(),
   q: z.string().optional(),
   status: z.string().optional(), // csv

@@ -42,6 +42,27 @@ export function prefetchForRoute(route: string, user: AuthUser): void {
     return;
   }
 
+  if (route === "assign" && user.market_id) {
+    preload(`/api/orders/unassigned?market_id=${user.market_id}&limit=100`, fetcher);
+    preload(`/api/agents/capacity?market_id=${user.market_id}`, fetcher);
+    preload(`/api/assignment-rules?market_id=${user.market_id}`, fetcher);
+    return;
+  }
+
+  if (route === "confirmation-flow" && user.market_id) {
+    const today = new Date().toISOString().slice(0, 10);
+    const from = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    preload(
+      `/api/confirmation-flow/overview?market_id=${user.market_id}&from_date=${from}&to_date=${today}`,
+      fetcher
+    );
+    preload(
+      `/api/confirmation-flow/callbacks-due?market_id=${user.market_id}&within_minutes=30`,
+      fetcher
+    );
+    return;
+  }
+
   // orders, products, leads, warehouse: data keys depend on marketId + pagination
   // and vary by consumer — skip SWR preload to avoid 404s on guessed keys.
   // `router.prefetch(href)` in NavItem still warms the route chunk.

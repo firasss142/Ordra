@@ -454,30 +454,13 @@ export function OrderDetailPanel({
     <>
       {/* Overlay */}
       <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          backgroundColor: "rgba(26, 26, 26, 0.4)",
-          zIndex: 40,
-        }}
+        className="fixed inset-0 z-40 bg-ink-primary/40"
         onClick={onClose}
       />
 
       {/* Panel */}
       <div
-        style={{
-          position: "fixed",
-          top: 0,
-          insetInlineEnd: 0,
-          height: "100%",
-          width: 480,
-          backgroundColor: "#FFFFFF",
-          borderInlineStart: "1px solid #E1E3E5",
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
+        className="fixed top-0 end-0 h-full w-[480px] z-50 flex flex-col overflow-hidden bg-surface-card border-s border-line-subtle shadow-panel"
       >
         {/* Header */}
         <div

@@ -8,9 +8,9 @@
 
 Three rules govern every decision:
 
-1. **Restraint.** Every element earns its place. No shadow, gradient, or color unless it changes the user's understanding.
+1. **Restraint.** Every element earns its place. No gradient or decorative color. Resting surfaces are flat; **hover and floating surfaces use a calibrated elevation scale** (`shadow-hover-row`, `shadow-panel`, `shadow-floating`) — never as decoration, only to signal interactivity or layering.
 2. **Light content, dark sidebar.** The sidebar (`#1A1A1A`) is the only dark surface. Content areas are always light (`#F6F6F7`) with white cards.
-3. **Functional color only on status.** Color appears exclusively on status badges to signal order state. Everything else is black, white, or gray.
+3. **Functional color only on status — and one accent.** Status badges carry semantic color (success/warning/critical/action). A single brand accent (`#10B981`) appears in **exactly two places**: (a) the focused-row inline-start bar in agent lists, (b) the active-tab underline. Nowhere else. Everything else is black, white, or gray.
 
 ---
 
@@ -38,8 +38,26 @@ All tokens are CSS custom properties defined in `src/app/globals.css`.
 
 | Token | Hex | Role |
 |---|---|---|
-| `--border` | `#E1E3E5` | Standard border (cards, inputs, dividers) |
-| `--border-strong` | `#C9CCCF` | Emphasized dividers |
+| `--line-subtle` / `line-subtle` | `#ECEEF0` | Whisper-thin border for cards and list rows (default for new components) |
+| `--border` / `line.DEFAULT` | `#E1E3E5` | Standard border (legacy, inputs, dividers) |
+| `--border-strong` / `line-strong` | `#DADCE0` | Emphasized dividers, hover state on subtle borders |
+
+### Accent
+
+| Token | Hex | Role |
+|---|---|---|
+| `accent.DEFAULT` | `#10B981` | Brand accent — used **only** for focused-row bar and active-tab underline |
+| `accent.soft` | `rgba(16,185,129,0.10)` | Reserved for accent-soft fill if ever needed; do not use decoratively |
+
+### Elevation
+
+Resting cards remain flat. Three calibrated shadow tokens are available:
+
+| Token | Value | Use |
+|---|---|---|
+| `shadow-hover-row` | `0 1px 2px rgba(16,24,40,0.04)` | Interactive list rows on hover |
+| `shadow-panel` | `0 4px 16px rgba(16,24,40,0.06)` | Side drawers (e.g. OrderDetailPanel) |
+| `shadow-floating` | `0 8px 24px rgba(16,24,40,0.10)` | Modals, bulk-action bars, dropdowns |
 
 ### Sidebar (dark surface)
 
@@ -258,17 +276,22 @@ Set `direction: rtl` on the root element for Arabic locale. All layout flips aut
 
 ## 7. Styling Conventions
 
-### Inline Styles
+### Tailwind utility classes (default for new components)
 
-All component styles use React inline `style={}` objects — no CSS modules, no Tailwind utility classes inside components. CSS custom properties are referenced via `var(--token)`.
+New components use **Tailwind utility classes** referencing the semantic tokens defined in `tailwind.config.ts` (`bg-surface-card`, `border-line-subtle`, `text-ink-primary`, `rounded-card`, `shadow-hover-row`, etc.). Inline `style={}` is reserved for **dynamic computed values only** (avatar bg color, sparkline width, focused-bar accent toggle).
 
 ```tsx
-// correct
-<div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 6 }}>
+// correct — semantic tokens, not raw colors
+<div className="bg-surface-card border border-line-subtle rounded-card p-4 hover:shadow-hover-row transition-shadow duration-fast">
 
-// wrong — no Tailwind, no CSS modules in components
+// wrong — raw Tailwind colors bypass the design tokens
 <div className="bg-white border border-gray-200 rounded-md">
+
+// acceptable — inline style for a value that must be computed at runtime
+<div style={{ backgroundColor: getProductAvatarColor(name) }}>
 ```
+
+Legacy components (built before this convention) may still use inline `style={{ ... }}` with CSS custom properties — they should be migrated to Tailwind opportunistically when otherwise modified.
 
 ### Interaction States
 
@@ -302,23 +325,26 @@ No entrance animations, page transitions, or transforms.
 
 - Keep background of all content areas `#F6F6F7` (page) or `#FFFFFF` (cards)
 - Use `#1A1A1A` for all primary text — near-black, never pure black or gray
-- Use `var(--border)` (`#E1E3E5`) for all borders — never invent new border colors
+- Use `border-line-subtle` (`#ECEEF0`) for new cards and list rows; reserve `border-line` (`#E1E3E5`) for inputs and legacy surfaces
 - Apply status badge colors only to convey order status — never decoratively
-- Use logical CSS properties (`margin-inline-start`, `inset-inline-end`) for RTL safety
-- Use `font-variant-numeric: tabular-nums` for all numeric data
+- Use `shadow-hover-row` on interactive list items on hover; `shadow-floating` on bulk bars and modals
+- The accent green (`#10B981`) appears in exactly **two** places: the focused-row inline-start bar and the active-tab underline
+- Use logical CSS properties (`ps-`, `pe-`, `start-`, `end-`, `margin-inline-start`, `inset-inline-end`) for RTL safety
+- Use `font-variant-numeric: tabular-nums` (Tailwind: `tabular-nums`) for all numeric data
 - Keep the sidebar the **only** dark surface; never add dark backgrounds to content
 - Focus ring is automatic — never manually style `:focus`
 
 ### Don't
 
-- Don't add shadows to resting cards — flat surfaces only
+- Don't add shadows to resting cards — flat surfaces by default; elevation appears only on hover/floating
 - Don't use gradients anywhere
 - Don't add color for decoration — color only where it communicates status
+- Don't sprinkle the accent green (`#10B981`) anywhere except the focused-row bar and active-tab underline
 - Don't use physical CSS properties (`left`, `right`, `margin-left`) — use logical equivalents
 - Don't put Neon Green (`#36F4A4`) anywhere except the keyboard focus ring
 - Don't hardcode UI strings — all text through `useTranslations()`
-- Don't use CSS modules or Tailwind classes inside components
-- Don't animate more than background-color and border-color
+- Don't bypass the semantic Tailwind tokens — use `bg-surface-card`, not `bg-white`; `border-line-subtle`, not `border-gray-200`
+- Don't animate more than background-color, border-color, opacity, transform, and box-shadow
 
 ---
 

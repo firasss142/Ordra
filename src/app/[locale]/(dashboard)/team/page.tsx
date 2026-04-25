@@ -1,8 +1,11 @@
 import { getTranslations } from "next-intl/server";
-import { TeamTable } from "@/components/team/TeamTable";
+import { getServerUser } from "@/lib/auth/server-user";
+import { TeamWorkspace } from "@/components/team/TeamWorkspace";
 
 export default async function TeamPage() {
-  const t = await getTranslations("nav.items");
+  const t = await getTranslations("teamPerf");
+  const user = await getServerUser();
+
   return (
     <div style={{ backgroundColor: "#F6F6F7", minHeight: "100vh", padding: "32px 32px 64px" }}>
       <h1
@@ -13,11 +16,11 @@ export default async function TeamPage() {
           margin: "0 0 24px 0",
         }}
       >
-        {t("performanceLive")}
+        {t("title")}
       </h1>
-      <div style={{ backgroundColor: "white", border: "1px solid #E1E3E5", borderRadius: "0.5rem" }}>
-        <TeamTable />
-      </div>
+      {user && (
+        <TeamWorkspace role={user.role} marketId={user.market_id ?? null} />
+      )}
     </div>
   );
 }

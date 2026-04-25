@@ -60,27 +60,52 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid settings payload" }, { status: 400 });
   }
 
-  const updates = Object.entries(body as unknown as Record<string, unknown>).map(
-    ([key, value]) => {
-      const wrapped =
-        value !== null && typeof value === "object" && !Array.isArray(value)
-          ? value
-          : { value };
-      return {
-        market_id: marketId,
-        key,
-        value: wrapped,
-        updated_by: actor.id,
-        updated_at: new Date().toISOString(),
-      };
-    }
+  const incoming = body as unknown as Record<string, unknown>;
+  const keys = Object.keys(incoming);
+
+  const { data: existingRows } = await supabase
+    .from("settings")
+    .select("key, value")
+    .eq("market_id", marketId)
+    .in("key", keys);
+
+  const existingByKey = new Map<string, unknown>(
+    (existingRows ?? []).map((r: { key: string; value: unknown }) => [r.key, r.value]),
   );
+
+  const updates = Object.entries(incoming).map(([key, value]) => {
+    const wrapped =
+      value !== null && typeof value === "object" && !Array.isArray(value)
+        ? value
+        : { value };
+    return {
+      market_id: marketId,
+      key,
+      value: wrapped,
+      updated_by: actor.id,
+      updated_at: new Date().toISOString(),
+    };
+  });
 
   const { error } = await supabase.from("settings").upsert(updates, {
     onConflict: "market_id,key",
   });
 
   if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+
+  const historyRows = updates
+    .filter((u) => JSON.stringify(existingByKey.get(u.key)) !== JSON.stringify(u.value))
+    .map((u) => ({
+      market_id: marketId,
+      key: u.key,
+      old_value: existingByKey.get(u.key) ?? null,
+      new_value: u.value,
+      changed_by: actor.id,
+    }));
+
+  if (historyRows.length > 0) {
+    await supabase.from("settings_history").insert(historyRows);
+  }
 
   return NextResponse.json({ success: true });
 }

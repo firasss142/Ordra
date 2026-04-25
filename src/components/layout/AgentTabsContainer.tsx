@@ -4,7 +4,6 @@ import { memo } from "react";
 import { usePathname } from "next/navigation";
 import { QueuePage } from "@/components/queue/QueuePage";
 import { AgentLeadsQueue } from "@/components/crm/AgentLeadsQueue";
-import { FollowUpsBoard } from "@/components/follow-ups/FollowUpsBoard";
 import type { AuthUser } from "@/types";
 
 type Tab = "queue" | "leads" | "follow-ups";
@@ -15,10 +14,20 @@ function resolveActiveTab(pathname: string): Tab {
   return "queue";
 }
 
-function AgentTabsContainerInner({ user }: { user: AuthUser }) {
+function AgentTabsContainerInner({
+  user,
+  children,
+}: {
+  user: AuthUser;
+  children?: React.ReactNode;
+}) {
   const pathname = usePathname();
   const active = resolveActiveTab(pathname);
-  const marketCode: "TN" | "LY" = user.locale === "ar" ? "LY" : "TN";
+
+  // follow-ups renders via the dedicated /follow-ups page (FollowUpsPageClient)
+  if (active === "follow-ups") {
+    return <main id="main-content">{children}</main>;
+  }
 
   return (
     <main id="main-content">
@@ -33,12 +42,6 @@ function AgentTabsContainerInner({ user }: { user: AuthUser }) {
         aria-hidden={active !== "leads"}
       >
         <AgentLeadsQueue user={user} />
-      </div>
-      <div
-        style={{ display: active === "follow-ups" ? "block" : "none" }}
-        aria-hidden={active !== "follow-ups"}
-      >
-        <FollowUpsBoard user={user} marketCode={marketCode} />
       </div>
     </main>
   );

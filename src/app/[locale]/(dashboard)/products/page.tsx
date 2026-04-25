@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
-import { ProductList } from "@/components/products/ProductList";
+import { ProductsPageClient } from "./ProductsPageClient";
 
 export default async function ProductsPage({
   params,
@@ -27,21 +27,14 @@ export default async function ProductsPage({
 
   return (
     <div style={{ padding: 24, backgroundColor: "#F6F6F7", minHeight: "100vh" }}>
-      <h1
-        style={{ fontSize: 24, fontWeight: 700, color: "#1A1A1A", margin: "0 0 24px 0" }}
-      >
+      <h1 style={{ fontSize: 24, fontWeight: 700, color: "#1A1A1A", margin: "0 0 24px 0" }}>
         {t("title")}
       </h1>
-      <div
-        style={{
-          backgroundColor: "white",
-          borderRadius: "0.5rem",
-          border: "1px solid #E1E3E5",
-          padding: 24,
-        }}
-      >
-        <ProductList role={profile.role} marketId={profile.market_id ?? ""} />
-      </div>
+      <ProductsPageClient
+        role={profile.role}
+        marketId={profile.market_id ?? ""}
+        locale={params.locale}
+      />
     </div>
   );
 }

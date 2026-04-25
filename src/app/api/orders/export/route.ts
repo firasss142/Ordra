@@ -64,7 +64,27 @@ export async function GET(req: NextRequest) {
 
   // Filters (same as list route)
   const status = req.nextUrl.searchParams.get("status");
-  if (status) query = query.eq("status", status);
+  if (status) {
+    const list = status.split(",").map((s) => s.trim()).filter(Boolean);
+    if (list.length === 1) query = query.eq("status", list[0]);
+    else if (list.length > 1) query = query.in("status", list);
+  }
+
+  const q = req.nextUrl.searchParams.get("q");
+  if (q && q.trim().length > 0) {
+    const needle = q.trim().replace(/[%,]/g, "");
+    if (needle) {
+      query = query.or(
+        `customer_name.ilike.%${needle}%,customer_phone.ilike.%${needle}%,external_id.ilike.%${needle}%,product_name.ilike.%${needle}%`,
+      );
+    }
+  }
+
+  const rejectionReason = req.nextUrl.searchParams.get("rejection_reason");
+  if (rejectionReason) query = query.eq("rejection_reason", rejectionReason);
+
+  const carrierId = req.nextUrl.searchParams.get("carrier_id");
+  if (carrierId) query = query.eq("carrier_id", carrierId);
 
   const agentId = req.nextUrl.searchParams.get("agent_id");
   if (agentId) query = query.eq("assigned_to", agentId);

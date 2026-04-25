@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Inbox,
@@ -10,6 +9,7 @@ import {
   Archive,
   type LucideIcon,
 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import type { AgentQueueBuckets } from "@/hooks/useAgentQueue";
 
 export interface AgentStats {
@@ -67,51 +67,29 @@ function TabButton({
   active: boolean;
   onClick: () => void;
 }) {
-  const [hovered, setHovered] = useState(false);
   const Icon = tab.icon;
-
-  const color = active
-    ? "var(--text-primary)"
-    : hovered
-      ? "var(--text-primary)"
-      : "var(--text-secondary)";
-
   return (
     <button
       type="button"
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        appearance: "none",
-        background: "transparent",
-        border: "none",
-        padding: "10px 4px",
-        marginInlineEnd: 20,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-        fontSize: 13,
-        fontWeight: active ? 600 : 500,
-        color,
-        cursor: "pointer",
-        borderBlockEnd: active
-          ? "2px solid var(--text-primary)"
-          : "2px solid transparent",
-        transition: "color 120ms ease, border-color 120ms ease",
-      }}
+      className={[
+        "group inline-flex items-center gap-2 py-2.5 px-1 me-5",
+        "text-[13px] transition-colors duration-fast",
+        "border-b-2 -mb-px",
+        active
+          ? "font-semibold text-ink-primary border-accent"
+          : "font-medium text-ink-secondary border-transparent hover:text-ink-primary",
+      ].join(" ")}
     >
-      <Icon size={16} strokeWidth={1.5} aria-hidden="true" />
+      <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
       <span>{label}</span>
       <span
-        style={{
-          fontSize: 12,
-          fontWeight: 500,
-          color: active ? "var(--text-primary)" : "var(--text-secondary)",
-          fontVariantNumeric: "tabular-nums",
-        }}
+        className={[
+          "text-[12px] tabular-nums",
+          active ? "text-ink-primary" : "text-ink-muted",
+        ].join(" ")}
       >
         {count}
       </span>
@@ -132,16 +110,6 @@ function SubChip({
   children: React.ReactNode;
   srLabel: string;
 }) {
-  const [hovered, setHovered] = useState(false);
-
-  const background = active
-    ? "var(--text-primary)"
-    : hovered
-      ? "var(--bg-hover)"
-      : "transparent";
-  const color = active ? "#FFFFFF" : "var(--text-primary)";
-  const borderColor = active ? "var(--text-primary)" : "var(--border)";
-
   return (
     <button
       type="button"
@@ -149,30 +117,28 @@ function SubChip({
       aria-current={active ? "true" : undefined}
       aria-label={srLabel}
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        appearance: "none",
-        padding: "4px 10px",
-        borderRadius: 9999,
-        border: `1px solid ${borderColor}`,
-        background,
-        color,
-        fontSize: 12,
-        fontWeight: 500,
-        cursor: "pointer",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        transition:
-          "background-color 120ms ease, color 120ms ease, border-color 120ms ease",
-      }}
+      className={[
+        "inline-flex items-center gap-1.5 py-1 px-2.5 rounded-pill",
+        "text-[12px] font-medium transition-colors duration-fast border",
+        active
+          ? "bg-ink-primary text-white border-ink-primary"
+          : "bg-transparent text-ink-primary border-line hover:bg-surface-hover",
+      ].join(" ")}
     >
       <span>{children}</span>
-      <span style={{ fontVariantNumeric: "tabular-nums", opacity: 0.85 }}>
-        {count}
-      </span>
+      <span className="tabular-nums opacity-85">{count}</span>
     </button>
+  );
+}
+
+function StatPill({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="text-[13px] text-ink-secondary">{label}</span>
+      <span className="text-[13px] font-semibold tabular-nums text-ink-primary">
+        {value}
+      </span>
+    </span>
   );
 }
 
@@ -242,73 +208,28 @@ export function QueueHeader({
   ];
 
   return (
-    <div
-      style={{
-        backgroundColor: "var(--bg-card)",
-        borderBottom: "1px solid var(--border)",
-        padding: "16px 24px",
-      }}
-    >
-      {/* Top row */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <span style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>
+    <div className="bg-surface-card border-b border-line-subtle px-6 pt-3.5 pb-0">
+      {/* Top row — agent name + inline stats + new order */}
+      <div className="flex items-center justify-between min-h-[40px]">
+        <span className="text-[15px] font-semibold text-ink-primary tracking-tight">
           {agentName}
         </span>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 16,
-            fontSize: 14,
-            color: "var(--text-secondary)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <span>
-              {t("stats.assigned")}:{" "}
-              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-                {stats.assigned_count}
-              </span>
-            </span>
-            <span style={{ margin: "0 8px", color: "var(--border)" }}>|</span>
-            <span>
-              {t("stats.actioned")}:{" "}
-              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-                {stats.actioned_count}
-              </span>
-            </span>
-            <span style={{ margin: "0 8px", color: "var(--border)" }}>|</span>
-            <span>
-              {t("stats.confirmationRate")}:{" "}
-              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-                {stats.confirmation_rate.toFixed(1)}%
-              </span>
-            </span>
+        <div className="flex items-center gap-4">
+          <div className="hidden sm:flex items-center gap-3 text-[13px]">
+            <StatPill label={t("stats.assigned")} value={String(stats.assigned_count)} />
+            <span className="text-line" aria-hidden="true">·</span>
+            <StatPill label={t("stats.actioned")} value={String(stats.actioned_count)} />
+            <span className="text-line" aria-hidden="true">·</span>
+            <StatPill
+              label={t("stats.confirmationRate")}
+              value={`${stats.confirmation_rate.toFixed(1)}%`}
+            />
           </div>
           {onNewOrder && (
-            <button
-              onClick={onNewOrder}
-              style={{
-                height: 32,
-                padding: "0 16px",
-                fontSize: 13,
-                fontWeight: 500,
-                backgroundColor: "var(--text-primary)",
-                color: "white",
-                border: "none",
-                borderRadius: 6,
-                cursor: "pointer",
-              }}
-            >
+            <Button size="sm" onClick={onNewOrder}>
               {tOrders("newOrder")}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -317,14 +238,7 @@ export function QueueHeader({
       <div
         role="tablist"
         aria-label={t("title")}
-        style={{
-          display: "flex",
-          marginTop: 12,
-          flexWrap: "wrap",
-          borderBottom: "1px solid var(--border)",
-          marginInline: -24,
-          paddingInline: 24,
-        }}
+        className="flex flex-wrap mt-2 border-b border-line-subtle -mx-6 px-6"
       >
         {TABS.map((tab) => (
           <TabButton
@@ -340,14 +254,7 @@ export function QueueHeader({
 
       {/* Sub-filter chips — À rappeler */}
       {selectedBucket === "a_rappeler" && (
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            marginTop: 12,
-            flexWrap: "wrap",
-          }}
-        >
+        <div className="flex gap-1.5 mt-3 mb-3 flex-wrap">
           {attemptSubfilterDefs.map(({ key, label, count }) => (
             <SubChip
               key={String(key)}
@@ -364,14 +271,7 @@ export function QueueHeader({
 
       {/* Sub-filter chips — Planifié */}
       {selectedBucket === "planifie" && (
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            marginTop: 12,
-            flexWrap: "wrap",
-          }}
-        >
+        <div className="flex gap-1.5 mt-3 mb-3 flex-wrap">
           {planifieSubfilterDefs.map(({ key, label, count }) => (
             <SubChip
               key={key}

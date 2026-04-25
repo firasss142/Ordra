@@ -3,6 +3,32 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canManageAgents } from "@/lib/settings-permissions";
 import { uploadAvatarDataUrl } from "@/lib/avatars";
+import { returnToPool } from "@/lib/orders";
+import { isValidDeactivationReason } from "@/lib/agent-deactivation";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+const REASSIGN_STATUSES = [
+  "assigned",
+  "attempt_1",
+  "attempt_2",
+  "attempt_3",
+  "callback_scheduled",
+];
+
+async function writeAuditLog(
+  admin: SupabaseClient,
+  actorId: string,
+  targetId: string,
+  eventType: string,
+  meta?: Record<string, unknown>
+) {
+  await admin.from("user_audit_log").insert({
+    actor_id: actorId,
+    target_id: targetId,
+    event_type: eventType,
+    meta: meta ?? null,
+  });
+}
 
 export async function PATCH(
   req: NextRequest,
@@ -33,36 +59,64 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { action, new_password, avatar } = body as {
+  const { action, new_password, avatar, reason } = body as {
     action?: string;
     new_password?: string;
     avatar?: string | null;
+    reason?: string;
   };
+
+  const admin = createAdminClient();
 
   if (action === "reactivate") {
     const { error } = await supabase
       .from("users")
-      .update({ is_active: true })
+      .update({ is_active: true, deactivation_reason: null })
       .eq("id", id);
 
     if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+
+    await writeAuditLog(admin, actor.id, id, "user_reactivated");
 
     return NextResponse.json({ success: true });
   }
 
   if (action === "deactivate") {
+    if (!reason) {
+      return NextResponse.json({ error: "reason is required" }, { status: 400 });
+    }
+    if (!isValidDeactivationReason(reason)) {
+      return NextResponse.json({ error: "Invalid reason" }, { status: 400 });
+    }
+
+    const { data: openOrders } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("assigned_to", id)
+      .in("status", REASSIGN_STATUSES);
+
+    let returned = 0;
+    for (const order of openOrders ?? []) {
+      await returnToPool(supabase, order.id, actor.id);
+      returned++;
+    }
+
     const { error } = await supabase
       .from("users")
-      .update({ is_active: false })
+      .update({ is_active: false, deactivation_reason: reason })
       .eq("id", id);
 
     if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 
-    return NextResponse.json({ success: true, ordersReturned: 0 });
+    await writeAuditLog(admin, actor.id, id, "user_deactivated", {
+      reason,
+      orders_returned: returned,
+    });
+
+    return NextResponse.json({ success: true, ordersReturned: returned });
   }
 
   if (action === "update_avatar") {
-    const admin = createAdminClient();
     let avatarUrl: string | null = null;
 
     if (avatar) {
@@ -83,6 +137,8 @@ export async function PATCH(
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
+    await writeAuditLog(admin, actor.id, id, "avatar_updated");
+
     return NextResponse.json({ success: true, avatar_url: avatarUrl });
   }
 
@@ -91,12 +147,13 @@ export async function PATCH(
       return NextResponse.json({ error: "new_password is required" }, { status: 400 });
     }
 
-    const admin = createAdminClient();
     const { error } = await admin.auth.admin.updateUserById(id, {
       password: new_password,
     });
 
     if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+
+    await writeAuditLog(admin, actor.id, id, "password_reset");
 
     return NextResponse.json({ success: true });
   }

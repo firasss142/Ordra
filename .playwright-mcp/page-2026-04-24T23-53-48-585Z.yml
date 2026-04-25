@@ -1,0 +1,144 @@
+- generic [active] [ref=e1]:
+  - link "Aller au contenu principal" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - navigation [ref=e4]:
+      - generic [ref=e5]:
+        - text: Ordra
+        - 'generic "Marché actuel : Tous les marchés" [ref=e6]': Tous les marchés
+      - generic [ref=e8]:
+        - generic [ref=e9]:
+          - button "Replier la section Accueil" [expanded] [ref=e10] [cursor=pointer]:
+            - img [ref=e11]
+            - generic [ref=e14]: Accueil
+            - img [ref=e15]
+          - list [ref=e17]:
+            - listitem [ref=e18]:
+              - link "Pulse" [ref=e19] [cursor=pointer]:
+                - /url: /fr/dashboard
+                - img [ref=e20]
+                - generic [ref=e25]: Pulse
+            - listitem [ref=e26]:
+              - link "Alertes" [ref=e27] [cursor=pointer]:
+                - /url: /fr/dashboard/alerts
+                - img [ref=e28]
+                - generic [ref=e31]: Alertes
+        - generic [ref=e32]:
+          - button "Replier la section Commandes" [expanded] [ref=e33] [cursor=pointer]:
+            - img [ref=e34]
+            - generic [ref=e37]: Commandes
+            - img [ref=e38]
+          - list [ref=e40]:
+            - listitem [ref=e41]:
+              - link "À assigner" [ref=e42] [cursor=pointer]:
+                - /url: /fr/assign
+                - img [ref=e43]
+                - generic [ref=e46]: À assigner
+            - listitem [ref=e47]:
+              - link "En confirmation" [ref=e48] [cursor=pointer]:
+                - /url: /fr/confirmation-flow
+                - img [ref=e49]
+                - generic [ref=e53]: En confirmation
+            - listitem [ref=e54]:
+              - link "À expédier" [ref=e55] [cursor=pointer]:
+                - /url: /fr/to-ship
+                - img [ref=e56]
+                - generic [ref=e61]: À expédier
+            - listitem [ref=e62]:
+              - link "En livraison" [ref=e63] [cursor=pointer]:
+                - /url: /fr/orders?status=dispatching,dispatched,deposit,in_transit,to_be_returned
+                - img [ref=e64]
+                - generic [ref=e67]: En livraison
+            - listitem [ref=e68]:
+              - link "Archivées" [ref=e69] [cursor=pointer]:
+                - /url: /fr/orders/archive
+                - img [ref=e70]
+                - generic [ref=e75]: Archivées
+        - button "Déplier la section Logistique" [ref=e77] [cursor=pointer]:
+          - img [ref=e78]
+          - generic [ref=e81]: Logistique
+          - img [ref=e82]
+        - generic [ref=e84]:
+          - button "Replier la section Finances" [expanded] [ref=e85] [cursor=pointer]:
+            - img [ref=e86]
+            - generic [ref=e89]: Finances
+            - img [ref=e90]
+          - list [ref=e92]:
+            - listitem [ref=e93]:
+              - link "P&L global" [ref=e94] [cursor=pointer]:
+                - /url: /fr/dashboard/pnl
+                - img [ref=e95]
+                - generic [ref=e97]: P&L global
+            - listitem [ref=e98]:
+              - link "Produits & marges" [ref=e99] [cursor=pointer]:
+                - /url: /fr/products
+                - img [ref=e100]
+                - generic [ref=e104]: Produits & marges
+            - listitem [ref=e105]:
+              - link "Stock & inventaire" [ref=e106] [cursor=pointer]:
+                - /url: /fr/dashboard/stock
+                - img [ref=e107]
+                - generic [ref=e117]: Stock & inventaire
+            - listitem [ref=e118]:
+              - link "Dépenses pub" [ref=e119] [cursor=pointer]:
+                - /url: /fr/settings/ad-spend
+                - img [ref=e120]
+                - generic [ref=e123]: Dépenses pub
+        - button "Déplier la section Clients" [ref=e125] [cursor=pointer]:
+          - img [ref=e126]
+          - generic [ref=e131]: Clients
+          - img [ref=e132]
+        - generic [ref=e134]:
+          - button "Replier la section Équipe" [expanded] [ref=e135] [cursor=pointer]:
+            - img [ref=e136]
+            - generic [ref=e139]: Équipe
+            - img [ref=e140]
+          - list [ref=e142]:
+            - listitem [ref=e143]:
+              - link "Performance" [ref=e144] [cursor=pointer]:
+                - /url: /fr/team
+                - img [ref=e145]
+                - generic [ref=e147]: Performance
+            - listitem [ref=e148]:
+              - link "Accès" [ref=e149] [cursor=pointer]:
+                - /url: /fr/users
+                - img [ref=e150]
+                - generic [ref=e153]: Accès
+        - button "Déplier la section Système" [ref=e156] [cursor=pointer]:
+          - img [ref=e157]
+          - generic [ref=e160]: Système
+          - generic [ref=e161]: Admin
+          - img [ref=e162]
+      - button "Admin Super admin" [ref=e165] [cursor=pointer]:
+        - generic [ref=e166]: A
+        - generic [ref=e167]:
+          - generic [ref=e168]: Admin
+          - generic [ref=e169]: Super admin
+        - img [ref=e170]
+    - main [ref=e173]:
+      - generic [ref=e174]:
+        - generic [ref=e175]:
+          - heading "À assigner" [level=1] [ref=e176]
+          - paragraph [ref=e177]: Flux d'assignation des nouvelles commandes
+        - generic [ref=e178]:
+          - generic [ref=e179]: 0 sélectionnée(s)
+          - generic [ref=e180]:
+            - generic [ref=e181]: Algorithme
+            - combobox [ref=e182] [cursor=pointer]:
+              - option "Manuel" [selected]
+              - option "Tour de rôle"
+              - option "Charge de travail"
+              - option "Par produit"
+              - option "Par région"
+            - generic [ref=e183] [cursor=pointer]:
+              - checkbox "Actif" [ref=e184]
+              - text: Actif
+            - button "Auto-assigner" [disabled] [ref=e185]
+        - generic [ref=e186]:
+          - main [ref=e187]:
+            - generic [ref=e188]: Aucune commande à assigner
+          - complementary "Qui prendre ?" [ref=e189]:
+            - generic [ref=e190]:
+              - heading "Qui prendre ?" [level=2] [ref=e191]
+              - generic [ref=e192]: Triés par disponibilité
+            - generic [ref=e193]: Aucun agent disponible

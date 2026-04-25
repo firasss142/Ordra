@@ -2,6 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { canManageCarriers } from "@/lib/settings-permissions";
 import { getActor } from "@/lib/auth/actor";
+import {
+  hasCarrierAdapter,
+  getCarrierAdapter,
+} from "@/lib/carriers/adapter-registry";
+import type { CarrierOrderData, CarrierConfig } from "@/lib/carriers/types";
+
+interface TestResponse {
+  reachable: boolean;
+  status?: number;
+  error?: string;
+  adapter?: {
+    code: string;
+    known: boolean;
+    dryRun?: {
+      payloadPreview: Record<string, string>;
+    };
+  };
+}
+
+const SAMPLE_ORDER: CarrierOrderData = {
+  customer_name: "Test Client",
+  customer_phone: "+216 00 000 000",
+  customer_address: "Rue de Test 1",
+  customer_city: "Tunis",
+  product_name: "Test Product",
+  variant_label: null,
+  quantity: 1,
+  total_price: 0,
+};
 
 export async function POST(
   req: NextRequest,
@@ -21,7 +50,7 @@ export async function POST(
 
   const { data: carrier } = await supabase
     .from("carriers")
-    .select("id, market_id, api_endpoint")
+    .select("id, market_id, code, api_endpoint")
     .eq("id", id)
     .single();
 
@@ -31,6 +60,47 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const mode =
+    req.nextUrl.searchParams.get("mode") === "dry_run" ? "dry_run" : "reachability";
+
+  const known = hasCarrierAdapter(carrier.code);
+  const response: TestResponse = {
+    reachable: false,
+    adapter: { code: carrier.code, known },
+  };
+
+  if (mode === "dry_run") {
+    if (!known) {
+      return NextResponse.json(
+        {
+          ...response,
+          error: "Adapter inconnu — dry-run non disponible",
+        },
+        { status: 200 }
+      );
+    }
+    try {
+      const adapter = getCarrierAdapter(carrier.code);
+      const config: CarrierConfig = {
+        code: carrier.code,
+        apiEndpoint: carrier.api_endpoint ?? "",
+        apiCredentials: {},
+        deliveryFee: 0,
+        returnFee: 0,
+      };
+      const payloadPreview = adapter.formatPayload(SAMPLE_ORDER, config);
+      response.adapter!.dryRun = { payloadPreview };
+      response.reachable = true;
+      return NextResponse.json(response);
+    } catch (e) {
+      return NextResponse.json({
+        ...response,
+        error:
+          e instanceof Error ? e.message : "Formatage du payload a échoué",
+      });
+    }
+  }
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
@@ -38,8 +108,12 @@ export async function POST(
       method: "HEAD",
       signal: controller.signal,
     }).finally(() => clearTimeout(timeout));
-    return NextResponse.json({ reachable: res.ok || res.status < 500, status: res.status });
+    return NextResponse.json({
+      ...response,
+      reachable: res.ok || res.status < 500,
+      status: res.status,
+    });
   } catch {
-    return NextResponse.json({ reachable: false, error: "Connection failed" });
+    return NextResponse.json({ ...response, reachable: false, error: "Connection failed" });
   }
 }

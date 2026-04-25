@@ -4,7 +4,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
-import { Camera, Keyboard, Loader2, X } from "lucide-react";
+import { Camera, Inbox, Keyboard, Loader2, Package, X } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import { jsonFetcher } from "@/lib/fetchers";
 import {
@@ -14,6 +14,8 @@ import {
 } from "./ScanFeedbackTile";
 import { WarehouseInboxBanner } from "./WarehouseInboxBanner";
 import { useWarehouseRealtime } from "@/hooks/useWarehouseRealtime";
+import { LogisticsPageHeader } from "./shared/LogisticsPageHeader";
+import { LogisticsKpiStrip, type KpiTileDef } from "./shared/LogisticsKpiStrip";
 import {
   ReturnsDecisionCard,
   type DecisionPayload,
@@ -32,6 +34,11 @@ interface Props {
 
 interface ApiResponse {
   orders: WarehouseOrderRow[];
+}
+
+interface SummaryResponse {
+  scanned_today: number;
+  damaged_today: number;
 }
 
 interface BatchResult {
@@ -54,6 +61,7 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
   const [batch, setBatch] = useState<DecisionPayload[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [arrivalCount, setArrivalCount] = useState(0);
+  const [filter, setFilter] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { data, mutate } = useSWR<ApiResponse>(
@@ -67,6 +75,12 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
     },
   );
 
+  const { data: summary, mutate: mutateSummary } = useSWR<SummaryResponse>(
+    "/api/warehouse/returns/summary",
+    jsonFetcher,
+    { refreshInterval: 60_000, revalidateOnFocus: false },
+  );
+
   useWarehouseRealtime({
     marketId,
     page: "returns",
@@ -75,6 +89,17 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
   });
 
   const orders = data?.orders ?? [];
+  const filteredOrders = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return orders;
+    return orders.filter((o) =>
+      [o.customer_name, o.customer_city ?? "", o.product_name, o.id]
+        .join(" ")
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [orders, filter]);
+
   const batchedIds = useMemo(
     () => new Set(batch.map((b) => b.order_id)),
     [batch],
@@ -198,6 +223,7 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
       setSelected(null);
       setRate(null);
       mutate();
+      mutateSummary();
     } catch (err) {
       setFeedback({
         kind: "error",
@@ -268,6 +294,7 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
         }),
       );
       mutate();
+      mutateSummary();
     } catch {
       setFeedback({ kind: "error", title: tCommon("errors.scanFailed") });
       playBeep("error");
@@ -287,10 +314,21 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
       }
     : null;
 
+  const kpiTiles: KpiTileDef[] = [
+    { label: t("kpi.queued"), value: String(orders.length) },
+    { label: t("kpi.scannedToday"), value: String(summary?.scanned_today ?? 0) },
+    {
+      label: t("kpi.damagedToday"),
+      value: String(summary?.damaged_today ?? 0),
+      tone: summary?.damaged_today ? "warning" : "neutral",
+    },
+    { label: t("kpi.inBatch"), value: String(batch.length) },
+  ];
+
   return (
     <div
       style={{
-        padding: "24px 32px 120px",
+        padding: "24px 32px 24px",
         background: "#F6F6F7",
         minHeight: "100vh",
         display: "flex",
@@ -298,12 +336,12 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
         gap: 16,
       }}
     >
-      <div>
-        <h1 style={{ fontSize: 20, fontWeight: 600, color: "#1A1A1A", margin: 0 }}>
-          {t("title", { count: orders.length })}
-        </h1>
-        <p style={{ fontSize: 13, color: "#6D7175", margin: "4px 0 0" }}>{t("hint")}</p>
-      </div>
+      <LogisticsPageHeader
+        title={t("title", { count: orders.length })}
+        subtitle={t("hint")}
+      />
+
+      <LogisticsKpiStrip tiles={kpiTiles} />
 
       <WarehouseInboxBanner
         count={arrivalCount}
@@ -318,132 +356,276 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
         }}
       />
 
+      {/* Two-column workbench */}
       <div
         style={{
-          backgroundColor: "#FFFFFF",
-          border: "1px solid #E1E3E5",
-          borderRadius: 8,
-          padding: 20,
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) minmax(360px, 420px)",
+          gap: 16,
+          alignItems: "start",
         }}
       >
-        <div style={{ display: "flex", gap: 12, alignItems: "stretch", flexWrap: "wrap" }}>
-          <div
-            style={{
-              flex: 1,
-              minWidth: 260,
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              paddingInline: 14,
-              border: "1px solid #E1E3E5",
-              borderRadius: 8,
-              backgroundColor: "#F7F7F7",
-            }}
-          >
-            <Keyboard size={18} strokeWidth={1.5} color="#6D7175" aria-hidden="true" />
-            <input
-              ref={inputRef}
-              type="text"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={submitting || Boolean(selected)}
-              placeholder={t("inputPlaceholder")}
-              aria-label={t("inputPlaceholder")}
-              style={{
-                flex: 1,
-                padding: "16px 0",
-                fontSize: 18,
-                fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                border: "none",
-                outline: "none",
-                backgroundColor: "transparent",
-                color: "#1A1A1A",
-              }}
-            />
-            {submitting ? (
-              <Loader2 size={18} strokeWidth={1.5} color="#6D7175" className="animate-spin" aria-hidden="true" />
-            ) : null}
-          </div>
-          <button
-            type="button"
-            onClick={() => setCameraOpen(true)}
-            disabled={submitting}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "0 20px",
-              backgroundColor: "#1A1A1A",
-              color: "#FFFFFF",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: submitting ? "not-allowed" : "pointer",
-              opacity: submitting ? 0.5 : 1,
-              minWidth: 160,
-              justifyContent: "center",
-            }}
-          >
-            <Camera size={18} strokeWidth={1.5} aria-hidden="true" />
-            {tCommon("scanner.openCamera")}
-          </button>
-        </div>
-      </div>
-
-      {selectedAsOrder ? (
-        <ReturnsDecisionCard
-          order={selectedAsOrder}
-          rate={rate}
-          onAddToBatch={addToBatch}
-          onCommitNow={commitSingle}
-          onCancel={() => {
-            setSelected(null);
-            setRate(null);
-          }}
-          submitting={submitting}
-        />
-      ) : (
-        <ScanFeedbackTile state={feedback} idleLabel={t("feedbackIdle")} />
-      )}
-
-      <div>
-        <h2
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: "#6D7175",
-            margin: "0 0 8px 0",
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-          }}
-        >
-          {t("queueTitle", { count: orders.length })}
-        </h2>
-        <div
+        {/* LEFT — Queue */}
+        <section
           style={{
             backgroundColor: "#FFFFFF",
             border: "1px solid #E1E3E5",
             borderRadius: 8,
+            display: "flex",
+            flexDirection: "column",
             overflow: "hidden",
           }}
         >
-          {orders.length === 0 ? (
-            <div style={{ padding: 40, textAlign: "center", color: "#6D7175", fontSize: 14 }}>
-              {t("queueEmpty")}
+          <header
+            style={{
+              padding: "14px 16px",
+              borderBottom: "1px solid #E1E3E5",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#1A1A1A",
+              }}
+            >
+              {t("queueTitle", { count: filteredOrders.length })}
+            </h2>
+            <div
+              style={{
+                marginInlineStart: "auto",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flex: 1,
+                minWidth: 200,
+                maxWidth: 320,
+                paddingInline: 12,
+                border: "1px solid #E1E3E5",
+                borderRadius: 8,
+                backgroundColor: "#FAFAFA",
+              }}
+            >
+              <input
+                type="text"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder={t("filterPlaceholder")}
+                aria-label={t("filterPlaceholder")}
+                style={{
+                  flex: 1,
+                  padding: "8px 0",
+                  fontSize: 13,
+                  border: "none",
+                  outline: "none",
+                  backgroundColor: "transparent",
+                  color: "#1A1A1A",
+                }}
+              />
+              {filter ? (
+                <button
+                  type="button"
+                  onClick={() => setFilter("")}
+                  aria-label="clear"
+                  style={{
+                    all: "unset",
+                    cursor: "pointer",
+                    color: "#6D7175",
+                    display: "flex",
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              ) : null}
+            </div>
+          </header>
+
+          {filteredOrders.length === 0 ? (
+            <div
+              style={{
+                padding: "64px 24px",
+                textAlign: "center",
+                color: "#6D7175",
+                fontSize: 14,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <Inbox size={28} strokeWidth={1.2} aria-hidden="true" />
+              <span>{orders.length === 0 ? t("queueEmpty") : t("noMatches")}</span>
             </div>
           ) : (
-            orders.map((o) => (
-              <ReturnsRow
-                key={o.id}
-                order={o}
-                batched={batchedIds.has(o.id)}
-                onOpen={() => openOrder(o)}
-              />
-            ))
+            <ul
+              style={{
+                listStyle: "none",
+                margin: 0,
+                padding: 0,
+                maxHeight: 560,
+                overflowY: "auto",
+              }}
+            >
+              {filteredOrders.map((o) => (
+                <ReturnsRow
+                  key={o.id}
+                  order={o}
+                  active={selected?.id === o.id}
+                  batched={batchedIds.has(o.id)}
+                  onOpen={() => openOrder(o)}
+                />
+              ))}
+            </ul>
           )}
-        </div>
+        </section>
+
+        {/* RIGHT — Workspace (scanner + decision) */}
+        <aside
+          style={{
+            position: "sticky",
+            top: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+          }}
+        >
+          {/* Scanner card */}
+          <div
+            style={{
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #E1E3E5",
+              borderRadius: 8,
+              padding: 16,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.07em",
+                  textTransform: "uppercase",
+                  color: "#6D7175",
+                }}
+              >
+                {t("scanStepLabel")}
+              </span>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                paddingInline: 12,
+                border: "1px solid #E1E3E5",
+                borderRadius: 8,
+                backgroundColor: "#FAFAFA",
+              }}
+            >
+              <Keyboard
+                size={16}
+                strokeWidth={1.5}
+                color="#6D7175"
+                aria-hidden="true"
+              />
+              <input
+                ref={inputRef}
+                type="text"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={submitting || Boolean(selected)}
+                placeholder={t("inputPlaceholder")}
+                aria-label={t("inputPlaceholder")}
+                style={{
+                  flex: 1,
+                  padding: "12px 0",
+                  fontSize: 15,
+                  fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                  border: "none",
+                  outline: "none",
+                  backgroundColor: "transparent",
+                  color: "#1A1A1A",
+                }}
+              />
+              {submitting ? (
+                <Loader2
+                  size={16}
+                  strokeWidth={1.5}
+                  color="#6D7175"
+                  className="animate-spin"
+                  aria-hidden="true"
+                />
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => setCameraOpen(true)}
+              disabled={submitting}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                padding: "10px 16px",
+                backgroundColor: "#FFFFFF",
+                color: "#1A1A1A",
+                border: "1px solid #E1E3E5",
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: submitting ? "not-allowed" : "pointer",
+                opacity: submitting ? 0.5 : 1,
+              }}
+            >
+              <Camera size={16} strokeWidth={1.5} aria-hidden="true" />
+              {tCommon("scanner.openCamera")}
+            </button>
+          </div>
+
+          {/* Decision OR feedback */}
+          {selectedAsOrder ? (
+            <ReturnsDecisionCard
+              order={selectedAsOrder}
+              rate={rate}
+              onAddToBatch={addToBatch}
+              onCommitNow={commitSingle}
+              onCancel={() => {
+                setSelected(null);
+                setRate(null);
+              }}
+              submitting={submitting}
+            />
+          ) : (
+            <div
+              style={{
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E1E3E5",
+                borderRadius: 8,
+                padding: 16,
+              }}
+            >
+              <ScanFeedbackTile
+                state={feedback}
+                idleLabel={t("feedbackIdle")}
+              />
+            </div>
+          )}
+        </aside>
       </div>
 
       {cameraOpen ? (
@@ -472,61 +654,92 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
 
 const ReturnsRow = memo(function ReturnsRow({
   order,
+  active,
   batched,
   onOpen,
 }: {
   order: WarehouseOrderRow;
+  active: boolean;
   batched: boolean;
   onOpen: () => void;
 }) {
   const t = useTranslations("warehouse.returns");
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      style={{
-        all: "unset",
-        cursor: "pointer",
-        display: "grid",
-        gridTemplateColumns: "140px 1fr 1fr 100px 120px",
-        gap: 12,
-        padding: "12px 14px",
-        borderBottom: "1px solid #F2F2F2",
-        fontSize: 13,
-        alignItems: "center",
-        width: "100%",
-        boxSizing: "border-box",
-        backgroundColor: batched ? "#F2F2F2" : "transparent",
-      }}
-    >
-      <div style={{ fontWeight: 600, color: "#1A1A1A" }}>
-        {order.customer_city ?? "—"}
-      </div>
-      <div style={{ color: "#1A1A1A" }}>{order.customer_name}</div>
-      <div
+    <li>
+      <button
+        type="button"
+        onClick={onOpen}
         style={{
-          color: "#6D7175",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
+          all: "unset",
+          cursor: "pointer",
+          display: "grid",
+          gridTemplateColumns: "32px 140px 1fr 1fr 100px",
+          gap: 12,
+          padding: "12px 16px",
+          borderBottom: "1px solid #F2F2F2",
+          fontSize: 13,
+          alignItems: "center",
+          width: "100%",
+          boxSizing: "border-box",
+          backgroundColor: active ? "#F1F8FF" : "transparent",
+          borderInlineStart: active
+            ? "3px solid #1A1A1A"
+            : batched
+              ? "3px solid #008060"
+              : "3px solid transparent",
         }}
       >
-        {order.product_name}
-      </div>
-      <div style={{ fontSize: 11, color: "#6D7175", fontWeight: 600, textTransform: "uppercase" }}>
-        {batched ? t("inBatchLabel") : ""}
-      </div>
-      <code
-        style={{
-          fontSize: 11,
-          color: "#6D7175",
-          fontFamily: "ui-monospace, SFMono-Regular, monospace",
-          textAlign: "end",
-        }}
-      >
-        #{order.id.slice(0, 8)}
-      </code>
-    </button>
+        <Package size={16} strokeWidth={1.5} color="#6D7175" aria-hidden="true" />
+        <div style={{ fontWeight: 600, color: "#1A1A1A" }}>
+          {order.customer_city ?? "—"}
+        </div>
+        <div style={{ color: "#1A1A1A" }}>{order.customer_name}</div>
+        <div
+          style={{
+            color: "#6D7175",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {order.product_name}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            justifyContent: "flex-end",
+          }}
+        >
+          {batched ? (
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.07em",
+                textTransform: "uppercase",
+                color: "#008060",
+                backgroundColor: "#E3F1D9",
+                borderRadius: 4,
+                padding: "2px 6px",
+              }}
+            >
+              {t("inBatchLabel")}
+            </span>
+          ) : null}
+          <code
+            style={{
+              fontSize: 11,
+              color: "#6D7175",
+              fontFamily: "ui-monospace, SFMono-Regular, monospace",
+            }}
+          >
+            #{order.id.slice(0, 8)}
+          </code>
+        </div>
+      </button>
+    </li>
   );
 });
 
@@ -551,7 +764,8 @@ function BatchTray({
         bottom: 16,
         alignSelf: "stretch",
         backgroundColor: "#FFFFFF",
-        border: "1px solid #1A1A1A",
+        border: "1px solid #E1E3E5",
+        borderBlockStart: "2px solid #1A1A1A",
         borderRadius: 8,
         padding: 16,
         display: "flex",
@@ -559,12 +773,20 @@ function BatchTray({
         gap: 12,
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, color: "#1A1A1A" }}>
             {t("trayTitle", { count: items.length })}
           </div>
-          <div style={{ fontSize: 12, color: "#6D7175", marginTop: 2 }}>{t("trayHint")}</div>
+          <div style={{ fontSize: 12, color: "#6D7175", marginTop: 2 }}>
+            {t("trayHint")}
+          </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button
@@ -605,7 +827,16 @@ function BatchTray({
         </div>
       </div>
 
-      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+      <ul
+        style={{
+          listStyle: "none",
+          margin: 0,
+          padding: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
         {items.map((it) => (
           <li
             key={it.order_id}

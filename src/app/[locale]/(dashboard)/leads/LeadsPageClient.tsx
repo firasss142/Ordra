@@ -7,7 +7,12 @@ import { useTranslations } from "next-intl";
 import { LeadsFilterBar, BUCKET_STATUSES, type LeadBucket } from "@/components/crm/LeadsFilterBar";
 import { LeadsKpiStrip } from "@/components/crm/LeadsKpiStrip";
 import { LeadsKanban } from "@/components/crm/LeadsKanban";
-import { useProspectCampaigns, type ProspectCampaign } from "@/hooks/useProspectCampaigns";
+
+const LeadsTable = dynamic(
+  () => import("@/components/crm/LeadsTable").then((m) => m.LeadsTable),
+  { ssr: false },
+);
+import { useProspectCampaigns } from "@/hooks/useProspectCampaigns";
 import { fetcher } from "@/lib/swr-config";
 import type { LeadsMetrics } from "@/lib/leads/metrics";
 import type { LeadSource, LeadStatus } from "@/types/lead";
@@ -50,7 +55,6 @@ export function LeadsPageClient({
   initialMarketId,
 }: Props) {
   const t = useTranslations("crm.leads");
-  const tSources = useTranslations("crm.leads.sources");
 
   const isSuperAdmin = role === "super_admin";
 
@@ -70,6 +74,8 @@ export function LeadsPageClient({
 
   const [bucket, setBucket] = useState<LeadBucket>("all");
   const [source, setSource] = useState<LeadSource | null>(null);
+  const [view, setView] = useState<"kanban" | "table">("kanban");
+  const [hotOnly, setHotOnly] = useState(false);
 
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [csvOpen, setCsvOpen] = useState(false);
@@ -175,6 +181,10 @@ export function LeadsPageClient({
         filtersOpen={filtersOpen}
         onFiltersOpenChange={setFiltersOpen}
         hasActiveFilters={hasActiveFilters}
+        view={view}
+        onViewChange={setView}
+        hotOnly={hotOnly}
+        onHotOnlyChange={setHotOnly}
         onOpenCampaigns={() => {
           setCampaignOpen(true);
           setFiltersOpen(false);
@@ -183,26 +193,29 @@ export function LeadsPageClient({
         onNewLead={() => setNewLeadOpen(true)}
       />
 
-      <ActiveFilterTags
-        source={source}
-        onSourceChange={setSource}
-        selectedCampaignId={selectedCampaignId}
-        campaigns={campaigns}
-        onCampaignChange={setSelectedCampaignId}
-        t={t}
-        tSources={tSources}
-      />
-
       <LeadsKpiStrip metrics={metrics} />
 
-      <LeadsKanban
-        marketId={effectiveMarketId}
-        locale={locale}
-        sourceFilter={source ?? undefined}
-        campaignId={selectedCampaignId}
-        visibleStatuses={visibleStatuses}
-        isSuperAdmin={isSuperAdmin}
-      />
+      {view === "kanban" ? (
+        <LeadsKanban
+          marketId={effectiveMarketId}
+          locale={locale}
+          sourceFilter={source ?? undefined}
+          campaignId={selectedCampaignId}
+          visibleStatuses={visibleStatuses}
+          isSuperAdmin={isSuperAdmin}
+          hotOnly={hotOnly}
+        />
+      ) : (
+        <LeadsTable
+          marketId={effectiveMarketId}
+          locale={locale}
+          sourceFilter={source ?? undefined}
+          campaignId={selectedCampaignId}
+          visibleStatuses={visibleStatuses}
+          isSuperAdmin={isSuperAdmin}
+          hotOnly={hotOnly}
+        />
+      )}
 
       <div style={{ fontSize: 13, color: "#6D7175", textAlign: "end" }}>
         {t("footerCount", { count: footerCount })}
@@ -247,79 +260,3 @@ export function LeadsPageClient({
   );
 }
 
-function ActiveFilterTags({
-  source,
-  onSourceChange,
-  selectedCampaignId,
-  campaigns,
-  onCampaignChange,
-  t,
-  tSources,
-}: {
-  source: LeadSource | null;
-  onSourceChange: (s: LeadSource | null) => void;
-  selectedCampaignId: string | null;
-  campaigns: ProspectCampaign[];
-  onCampaignChange: (id: string | null) => void;
-  t: ReturnType<typeof useTranslations>;
-  tSources: ReturnType<typeof useTranslations>;
-}) {
-  if (!source && !selectedCampaignId) return null;
-  const campaignName = campaigns.find((c) => c.id === selectedCampaignId)?.name;
-
-  return (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: -4 }}>
-      {source && (
-        <FilterTag
-          label={`${t("sourceLabel")}: ${tSources(source)}`}
-          onDismiss={() => onSourceChange(null)}
-        />
-      )}
-      {selectedCampaignId && campaignName && (
-        <FilterTag
-          label={`${t("campaignLabel")}: ${campaignName}`}
-          onDismiss={() => onCampaignChange(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-function FilterTag({ label, onDismiss }: { label: string; onDismiss: () => void }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "3px 8px",
-        borderRadius: 9999,
-        background: "#F2F2F2",
-        border: "1px solid #E1E3E5",
-        fontSize: 12,
-        fontWeight: 500,
-        color: "#6D7175",
-      }}
-    >
-      {label}
-      <button
-        type="button"
-        onClick={onDismiss}
-        aria-label={`Remove filter: ${label}`}
-        style={{
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          color: "#6D7175",
-          padding: 0,
-          lineHeight: 1,
-          fontSize: 14,
-          display: "flex",
-          alignItems: "center",
-        }}
-      >
-        ×
-      </button>
-    </span>
-  );
-}

@@ -44,6 +44,7 @@ export function CsvImportModal({
   onImported,
 }: Props) {
   const t = useTranslations("crm.metrics.importCsv");
+  const tDup = useTranslations("crm.leads.duplicates");
 
   const [csv, setCsv] = useState("");
   const [busy, setBusy] = useState(false);
@@ -56,6 +57,8 @@ export function CsvImportModal({
     imported: number;
     skipped: number;
   } | null>(null);
+  const [duplicates, setDuplicates] = useState<Array<{ line: number; phone: string; existing_lead_id: string }>>([]);
+  const [dupExpanded, setDupExpanded] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -63,6 +66,8 @@ export function CsvImportModal({
       setErr(null);
       setPreview(null);
       setResult(null);
+      setDuplicates([]);
+      setDupExpanded(false);
       setBusy(false);
     }
   }, [open]);
@@ -110,6 +115,9 @@ export function CsvImportModal({
         imported: json.data.imported,
         skipped: json.data.skipped,
       });
+      if (Array.isArray(json.data.duplicates) && json.data.duplicates.length > 0) {
+        setDuplicates(json.data.duplicates);
+      }
       setBusy(false);
       onImported();
     } catch (e) {
@@ -217,6 +225,58 @@ export function CsvImportModal({
             {t("imported", { count: result.imported })}
             {" · "}
             {t("skipped", { count: result.skipped })}
+          </div>
+        )}
+
+        {duplicates.length > 0 && (
+          <div
+            style={{
+              border: "1px solid #F0B6B4",
+              borderRadius: 6,
+              background: "#FFF5F5",
+              fontSize: 13,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setDupExpanded((v) => !v)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                width: "100%",
+                padding: "8px 12px",
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                color: "#D72C0D",
+                fontWeight: 500,
+                fontSize: 13,
+                textAlign: "start",
+              }}
+            >
+              {tDup("importWarning", { count: duplicates.length })}
+              <span aria-hidden style={{ fontSize: 10 }}>{dupExpanded ? "▴" : "▾"}</span>
+            </button>
+            {dupExpanded && (
+              <ul
+                style={{
+                  margin: 0,
+                  padding: "0 12px 8px",
+                  listStyle: "none",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                  color: "#6D7175",
+                }}
+              >
+                {duplicates.map((d) => (
+                  <li key={d.line} style={{ fontSize: 12 }}>
+                    {tDup("importWarningLine", { line: d.line, phone: d.phone })}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 

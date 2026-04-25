@@ -5,6 +5,42 @@ export const FOLLOW_UP_STATUSES = [
   "escalated",
 ] as const;
 
+export const DUE_URGENCY = [
+  "overdue",
+  "due_today",
+  "due_future",
+  "no_schedule",
+] as const;
+export type DueUrgency = (typeof DUE_URGENCY)[number];
+
+export function getDueUrgency(dueAt: string | null, nowMs: number): DueUrgency {
+  if (!dueAt) return "no_schedule";
+  const due = new Date(dueAt).getTime();
+  if (due < nowMs) return "overdue";
+  const midnight = new Date(nowMs);
+  midnight.setHours(24, 0, 0, 0);
+  return due <= midnight.getTime() ? "due_today" : "due_future";
+}
+
+export const RESOLUTION_OUTCOMES = ["converted", "lost"] as const;
+export type ResolutionOutcome = (typeof RESOLUTION_OUTCOMES)[number];
+
+export const LOST_REASONS = [
+  "faux_numero",
+  "refus_prix",
+  "injoignable",
+  "autre",
+] as const;
+export type LostReason = (typeof LOST_REASONS)[number];
+
+export const CONTACT_OUTCOMES = [
+  "voicemail",
+  "no_answer",
+  "busy",
+  "other",
+] as const;
+export type ContactOutcome = (typeof CONTACT_OUTCOMES)[number];
+
 export type FollowUpStatus = (typeof FOLLOW_UP_STATUSES)[number];
 
 export const TERMINAL_FOLLOW_UP_STATUSES: FollowUpStatus[] = ["resolved"];
@@ -48,6 +84,8 @@ export interface OrderFollowUp {
   description: string | null;
   confirming_agent_id: string | null;
   resolved_at: string | null;
+  due_at: string | null;
+  resolution_outcome: ResolutionOutcome | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -59,6 +97,7 @@ export interface OrderFollowUpEntry {
   status_from: FollowUpStatus | null;
   status_to: FollowUpStatus | null;
   note: string | null;
+  outcome: ContactOutcome | null;
   actor_id: string | null;
   actor_type: FollowUpActorType;
   created_at: string;

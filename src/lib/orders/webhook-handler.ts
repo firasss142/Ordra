@@ -53,6 +53,43 @@ async function logWebhookDelivery(input: LogWebhookDeliveryInput): Promise<void>
   } catch {
     // Best-effort: log failures must never propagate
   }
+
+  if (input.storefrontId) {
+    await updateStorefrontHealth(
+      input.adminClient,
+      input.storefrontId,
+      input.status,
+      input.errorMessage ?? null,
+    );
+  }
+}
+
+async function updateStorefrontHealth(
+  adminClient: SupabaseClient,
+  storefrontId: string,
+  status: "processed" | "ignored" | "error",
+  errorMessage: string | null,
+): Promise<void> {
+  try {
+    const patch: Record<string, unknown> = {
+      last_webhook_received_at: new Date().toISOString(),
+      last_webhook_status: status,
+      last_webhook_error: status === "error" ? errorMessage : null,
+    };
+    if (status === "error") {
+      const { data: current } = await adminClient
+        .from("storefronts")
+        .select("webhook_failure_count")
+        .eq("id", storefrontId)
+        .single();
+      patch.webhook_failure_count = (current?.webhook_failure_count ?? 0) + 1;
+    } else {
+      patch.webhook_failure_count = 0;
+    }
+    await adminClient.from("storefronts").update(patch).eq("id", storefrontId);
+  } catch {
+    // Best-effort — health tracking must never block webhook delivery
+  }
 }
 
 // Pre-dispatch statuses where updates and cancellations are allowed

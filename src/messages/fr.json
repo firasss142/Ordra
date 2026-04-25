@@ -7,6 +7,56 @@
     },
     "addInColumn": "Ajouter dans {column}"
   },
+  "toShip": {
+    "title": "À expédier",
+    "subtitle": "{count} commandes prêtes pour l'entrepôt et le transporteur",
+    "empty": "Aucune commande à expédier pour le moment.",
+    "groupBy": {
+      "label": "Regrouper par",
+      "city": "Par ville",
+      "product": "Par produit"
+    },
+    "groupMeta": "{count} cmds · {units} unités",
+    "selectGroup": "Sélectionner le groupe {heading}",
+    "selectRow": "Sélectionner la commande {id}",
+    "stockWarning": "Stock faible après expédition",
+    "cols": {
+      "id": "Réf.",
+      "customer": "Client",
+      "product": "Produit",
+      "qty": "Qté",
+      "total": "Total",
+      "status": "Statut"
+    },
+    "status": {
+      "confirmed": "Confirmée",
+      "scanned": "Scannée",
+      "dispatch_scheduled": "Planifiée"
+    },
+    "scheduled": {
+      "overdue": "En retard : {count}",
+      "today": "Aujourd'hui : {count} ({auto} auto)",
+      "tomorrow": "Demain : {count}",
+      "later": "Plus tard : {count}"
+    },
+    "bulkBar": {
+      "label": "Actions groupées",
+      "selected": "{count} sélectionnées",
+      "carrierLabel": "Transporteur",
+      "noCarriers": "Aucun transporteur",
+      "dispatch": "Expédier",
+      "dispatching": "Expédition…",
+      "printPicklist": "Imprimer la picklist",
+      "printing": "Impression…",
+      "clear": "Effacer"
+    },
+    "bulkDispatch": {
+      "allSucceeded": "{count} commandes expédiées.",
+      "allFailed": "Échec pour {count} commandes.",
+      "partial": "{ok} expédiées, {bad} en échec.",
+      "networkError": "Erreur réseau pendant l'expédition."
+    }
+  },
   "auth": {
     "signIn": "Se connecter",
     "signingIn": "Connexion…",
@@ -19,6 +69,7 @@
     "brand": "Ordra",
     "logout": "Déconnexion",
     "adminOnly": "Admin",
+    "orders": "Commandes",
     "sections": {
       "accueil": "Accueil",
       "commandes": "Commandes",
@@ -39,6 +90,7 @@
       "preparation": "Préparation",
       "returns": "Retours",
       "carrierTracking": "Suivi transporteur",
+      "inDeliveryBoard": "Tableau livraison",
       "warehouseJournal": "Journal entrepôt",
       "pnl": "P&L global",
       "productsMargins": "Produits & marges",
@@ -48,7 +100,8 @@
       "followUps": "Relances",
       "performanceLive": "Performance",
       "access": "Accès",
-      "marketsConfig": "Marchés & storefronts",
+      "marketsConfig": "Marchés",
+      "storefrontsConfig": "Storefronts",
       "carriersConfig": "Transporteurs",
       "generalSettings": "Paramètres",
       "logs": "Journaux"
@@ -121,6 +174,102 @@
     "transitions": {
       "title": "Transitions récentes",
       "empty": "Aucune transition récente."
+    }
+  },
+  "inDelivery": {
+    "title": "Tableau de bord livraison",
+    "subtitle": "Visibilité sur les commandes en circulation, performances des transporteurs et commandes bloquées.",
+    "loadError": "Impossible de charger le tableau de livraison.",
+    "unassignedWarning": "{count, plural, one {# commande expédiée sans transporteur assigné} other {# commandes expédiées sans transporteur assigné}}",
+    "carriers": {
+      "sectionTitle": "Performance transporteurs",
+      "sectionSubtitle": "Agrégats 30 jours par transporteur actif.",
+      "empty": "Aucun transporteur actif.",
+      "unnamed": "Transporteur sans nom",
+      "inFlight": "{count, plural, one {# en circulation} other {# en circulation}}",
+      "medianTransit": "Transit médian",
+      "deliveryRate30d": "Livraison 30j",
+      "returnRate30d": "Retour 30j",
+      "daysValue": "{d} j",
+      "status": {
+        "dispatched": "Dispatché",
+        "deposit": "Dépôt",
+        "in_transit": "Transit",
+        "to_be_returned": "Retour"
+      }
+    },
+    "stuck": {
+      "sectionTitle": "Alertes bloquées",
+      "sectionSubtitle": "Commandes sans mise à jour depuis plus de 3 jours — à relancer auprès du transporteur.",
+      "empty": "Aucune commande bloquée.",
+      "anonymous": "Client sans nom",
+      "escalate": "Escalader",
+      "escalated": "Escaladée",
+      "ageValue": "{d} j",
+      "col": {
+        "customer": "Client",
+        "city": "Ville",
+        "carrier": "Transporteur",
+        "status": "Statut",
+        "age": "Âge",
+        "action": "Action"
+      }
+    },
+    "inFlight": {
+      "sectionTitle": "Commandes en circulation",
+      "sectionSubtitle": "100 plus récentes — cliquer pour voir le parcours.",
+      "empty": "Aucune commande en circulation.",
+      "expand": "Afficher le parcours",
+      "collapse": "Masquer le parcours",
+      "escalatedTitle": "Escaladée auprès du transporteur",
+      "timelineLoading": "Chargement du parcours…",
+      "timelineError": "Impossible de charger le parcours.",
+      "justNow": "à l'instant",
+      "hoursAgo": "il y a {h} h",
+      "daysAgo": "il y a {d} j",
+      "col": {
+        "customer": "Client",
+        "city": "Ville",
+        "carrier": "Transporteur",
+        "status": "Statut",
+        "updated": "Dernière MAJ"
+      }
+    },
+    "timeline": {
+      "label": "Parcours de la commande",
+      "pending": "À venir",
+      "under1h": "< 1 h",
+      "hours": "{h} h",
+      "days": "{d} j"
+    },
+    "escalate": {
+      "title": "Escalader auprès du transporteur",
+      "subtitle": "Commande {name} — ajouter une note pour suivi manuel.",
+      "noteLabel": "Note de suivi",
+      "notePlaceholder": "ex. Appelé le transporteur, promesse de livraison sous 48 h.",
+      "cancel": "Annuler",
+      "submit": "Escalader",
+      "submitting": "Envoi…",
+      "genericError": "Impossible d'enregistrer l'escalade."
+    },
+    "detail": {
+      "back": "Retour au tableau livraison",
+      "loading": "Chargement…",
+      "loadError": "Impossible de charger cette commande.",
+      "anonymous": "Client sans nom",
+      "status": "Statut",
+      "carrier": "Transporteur",
+      "noCarrier": "Aucun transporteur",
+      "escalated": "Escaladée",
+      "escalateCta": "Escalader",
+      "historyTitle": "Historique complet",
+      "historyEmpty": "Aucun historique.",
+      "initial": "(création)",
+      "actor": {
+        "system": "système",
+        "agent": "agent",
+        "manager": "manager"
+      }
     }
   },
   "inventory": {
@@ -224,11 +373,30 @@
     "loadError": "Impossible de charger les données financières.",
     "noData": "Aucune donnée pour la période sélectionnée.",
     "kpi": {
-      "revenue": "Chiffre d'affaires",
+      "revenue": "CA",
       "netProfit": "Profit net",
       "margin": "Marge",
-      "adSpend": "Dépenses publicitaires",
-      "deliveredCount": "{count, plural, one {# livrée} other {# livrées}}"
+      "adSpend": "Pub",
+      "cpa": "CPA",
+      "cpl": "CPL",
+      "deliveredCount": "{count, plural, one {# livrée} other {# livrées}}",
+      "deltaVsPrev": "vs période précédente",
+      "noPrev": "—",
+      "prevShort": "précéd.",
+      "leadsShort": "leads",
+      "confirmedShort": "conf."
+    },
+    "operational": {
+      "title": "Opérations",
+      "leads": "Leads reçus",
+      "confirmed": "Confirmées",
+      "delivered": "Livrées",
+      "returned": "Retournées",
+      "confirmationRate": "Taux confirmation",
+      "deliveryRate": "Taux livraison",
+      "returnRate": "Taux retour",
+      "aov": "Panier moyen",
+      "profitPerDelivered": "Profit / livrée"
     },
     "breakdown": {
       "title": "Décomposition des coûts",
@@ -409,8 +577,8 @@
       "allClear": "Tout va bien"
     },
     "insights": {
-      "confAboveAvg": "Confirmation +{diff} pp vs moyenne 7 j",
-      "confBelowAvg": "Confirmation \u2212{diff} pp vs moyenne 7 j",
+      "confAboveAvg": "Confirmation en hausse de {diff}%",
+      "confBelowAvg": "Confirmation en baisse de {diff}%",
       "topProduct": "Produit top : {name} ({count} livrées)",
       "leadingAgent": "Leader : {name} ({rate} %)"
     },
@@ -537,8 +705,9 @@
       "label": "Vue",
       "all": "Toutes",
       "unassigned": "Non assignées",
+      "today": "Aujourd'hui",
       "callbacks": "Rappels",
-      "today": "Aujourd'hui"
+      "in_delivery": "En livraison"
     },
     "filters": {
       "status": "Statut",
@@ -568,9 +737,38 @@
       "remove": "Retirer",
       "clearAll": "Tout effacer"
     },
+    "archive": {
+      "title": "Archivées",
+      "subtitle": "{count} commande(s) terminées · {market}",
+      "searchPlaceholder": "Rechercher : téléphone · ID · produit · nom…",
+      "searchAria": "Rechercher dans les archives",
+      "dateFromAria": "Date de début",
+      "dateToAria": "Date de fin",
+      "marketAria": "Marché",
+      "exportCsv": "Exporter CSV",
+      "outcomeDistribution": "Répartition des issues",
+      "ofTotal": "du total",
+      "rejectionBreakdown": "Raisons de rejet",
+      "noRejections": "Aucun rejet sur la période.",
+      "returnInvestigation": "Enquête sur les retours",
+      "topReturnedProducts": "Produits les plus retournés",
+      "topReturnCities": "Villes à plus de retours",
+      "topReturnCarriers": "Transporteurs à plus de retours",
+      "noReturns": "Aucun retour.",
+      "cohortsWeekly": "Cohortes hebdomadaires",
+      "week": "Semaine",
+      "total": "Total",
+      "loading": "Chargement…",
+      "noData": "Aucune donnée.",
+      "results": "{count} résultat(s)"
+    },
     "advanced": {
       "title": "Filtres avancés",
       "close": "Fermer",
+      "status": "Statut",
+      "agent": "Agent",
+      "allAgents": "Tous les agents",
+      "unassigned": "Sans agent",
       "product": "Produit",
       "allProducts": "Tous les produits",
       "city": "Ville",
@@ -872,6 +1070,7 @@
     "loadingCarriers": "Chargement des transporteurs…",
     "bulkCallEnded": "Raccrocher ({count})",
     "deselectAll": "Désélectionner tout",
+    "selectOrder": "Sélectionner cette commande",
     "shortcuts": {
       "title": "Raccourcis clavier",
       "navigate": "Naviguer entre les cartes",
@@ -971,6 +1170,65 @@
       "previous": "Précédent",
       "next": "Suivant",
       "pageOf": "Page {page} sur {total}"
+    },
+    "modes": {
+      "catalogue": "Catalogue",
+      "performance": "Performance"
+    },
+    "filters": {
+      "status": {
+        "all": "Tous",
+        "active": "Actifs",
+        "lowStock": "Stock bas",
+        "losingMoney": "Perdant de l'argent"
+      },
+      "search": {
+        "placeholder": "Rechercher un produit…"
+      }
+    },
+    "bulk": {
+      "selectedCount": "{count} sélectionné(s)",
+      "activate": "Activer",
+      "deactivate": "Désactiver",
+      "clear": "Effacer la sélection",
+      "confirmTitle": "Confirmer l'action groupée"
+    },
+    "metrics": {
+      "confirmationRate": "Conf.",
+      "deliveryRate": "Liv.",
+      "returnRate": "Ret.",
+      "margin": "Marge",
+      "noData": "Aucune donnée"
+    },
+    "health": {
+      "green": "Sain",
+      "yellow": "À surveiller",
+      "red": "Déficitaire",
+      "grey": "Pas de données"
+    },
+    "create": {
+      "title": "Nouveau produit",
+      "intro": "Renseignez les informations du produit. Les coûts servent à calculer la marge en temps réel.",
+      "sections": {
+        "identity": "Identité",
+        "costModel": "Modèle de coûts",
+        "inventory": "Inventaire"
+      },
+      "hints": {
+        "unitCogs": "Coût d'achat ou de fabrication par unité livrée.",
+        "packingCost": "Emballage, ruban, protections — par commande confirmée.",
+        "cpl": "Coût par lead publicitaire. Utilisé pour calculer la dépense pub totale.",
+        "processingCost": "Coût de traitement de confirmation par commande confirmée.",
+        "threshold": "En dessous de ce seuil, le produit est signalé en stock bas."
+      },
+      "example": "Exemple indicatif : 100 leads · 60 confirmés · 40 livrés à {price} → marge estimée {margin}",
+      "submit": "Créer le produit",
+      "cancel": "Annuler"
+    },
+    "row": {
+      "editThreshold": "Modifier le seuil",
+      "variants": "{count} variante(s)",
+      "moreVariants": "+{count} autres"
     }
   },
   "crm": {
@@ -1115,10 +1373,12 @@
       "allSourcesLabel": "Toutes les sources",
       "allCampaigns": "Toutes les campagnes",
       "filters": "Filtres",
+      "moreFilters": "Plus de filtres",
       "sourceLabel": "Source",
       "campaignLabel": "Campagne",
       "manageCampaigns": "Gérer les campagnes",
       "clearAllFilters": "Tout effacer",
+      "filterBarHint": "Filtrer le pipeline",
       "buckets": {
         "all": "Tous",
         "new": "Nouveaux",
@@ -1133,6 +1393,39 @@
         "won": "Gagnés",
         "conversionRate": "Taux de conversion",
         "empty": "—"
+      },
+      "actions": {
+        "callNow": "Appeler",
+        "scheduleCallback": "Rappel",
+        "convertToOrder": "Convertir",
+        "reassignLead": "Réassigner",
+        "markLostAction": "Perdu"
+      },
+      "hotLeads": {
+        "label": "Prospects chauds",
+        "badge": "Chaud",
+        "filterToggle": "Chauds seulement"
+      },
+      "duplicates": {
+        "badge": "Doublon",
+        "filterToggle": "Doublons seulement",
+        "importWarning": "{count} numéro(s) déjà existant(s)",
+        "importWarningLine": "Ligne {line}: {phone}"
+      },
+      "reassignModal": {
+        "title": "Réassigner le prospect",
+        "agent": "Agent",
+        "selectAgent": "Sélectionnez un agent",
+        "submit": "Réassigner",
+        "errors": {
+          "agentRequired": "Sélectionnez un agent.",
+          "generic": "Impossible de réassigner."
+        }
+      },
+      "views": {
+        "kanban": "Kanban",
+        "table": "Tableau",
+        "map": "Carte (bientôt)"
       }
     },
     "queue": {
@@ -1319,28 +1612,102 @@
           "none": "Laisser sans attribution",
           "preview": "Sera distribué entre {count} agents actifs"
         }
+      },
+      "due": "Prévu le {time}",
+      "dueToday": "Aujourd'hui · {time}",
+      "overdue": "En retard de {time}",
+      "noSchedule": "Non planifié",
+      "scheduleSuggestion": "Rappeler dans {duration} · {time}",
+      "acceptSchedule": "Planifier",
+      "skipSchedule": "Ignorer",
+      "overdueBucket": "En retard",
+      "dueTodayBucket": "Aujourd'hui",
+      "dueFutureBucket": "À venir",
+      "noScheduleBucket": "Non planifiés",
+      "logAttempt": "Enregistrer tentative",
+      "selectOutcome": "Résultat de l'appel",
+      "scheduleNextContact": "Planifier le prochain contact",
+      "myDueToday": "Mes relances du jour",
+      "viewTimeline": "Relances",
+      "viewKanban": "Kanban",
+      "outcomes": {
+        "voicemail": "Messagerie",
+        "no_answer": "Pas de réponse",
+        "busy": "Occupé",
+        "other": "Autre",
+        "converted": "Converti",
+        "lost": "Perdu"
+      },
+      "lostReasonLabel": "Raison de la perte",
+      "lostReasons": {
+        "faux_numero": "Faux numéro",
+        "refus_prix": "Refus du prix",
+        "injoignable": "Injoignable",
+        "autre": "Autre"
+      },
+      "managerView": {
+        "title": "Retards par agent",
+        "overdueCount": "{count} en retard",
+        "agentColumn": "Agent"
       }
     },
     "prospectCampaigns": {
       "title": "Campagnes de réengagement",
-      "subtitle": "Filtrez les commandes passées pour générer de nouveaux prospects.",
+      "subtitle": "Reciblez vos anciens clients avec de nouvelles offres.",
       "new": "Nouvelle campagne",
-      "run": "Exécuter",
+      "run": "Lancer",
       "close": "Fermer",
       "empty": "Aucune campagne pour le moment.",
+      "emptyHint": "Créez votre première campagne pour reconvertir vos clients existants.",
       "runSummary": "{inserted} prospect(s) créé(s), {skipped} déjà existant(s).",
       "wizardTitle": "Nouvelle campagne",
-      "wizardSubtitle": "Réengagez les clients existants vers de nouveaux produits.",
+      "wizardSubtitle": "Définissez votre cible en trois étapes.",
+      "step1": "Nommez la campagne",
+      "step2": "Choisissez votre cible",
+      "step3": "Période ciblée",
       "name": "Nom de la campagne",
-      "namePlaceholder": "Ex: Upsell Q2 - produit X",
-      "orderStatuses": "Statuts de commande ciblés",
-      "dateFrom": "Depuis le",
-      "dateTo": "Jusqu au",
+      "namePlaceholder": "Ex : Relance Hiver — Produit X",
+      "orderStatuses": "Quels clients voulez-vous recibler ?",
+      "audiences": {
+        "delivered": "Clients livrés",
+        "deliveredHint": "Acheteurs satisfaits — idéal pour de nouveaux produits.",
+        "returned": "Commandes retournées",
+        "returnedHint": "Clients perdus — tentez de récupérer la vente."
+      },
+      "dateFrom": "Depuis",
+      "dateTo": "Jusqu'à",
+      "datePresets": {
+        "label": "Période rapide",
+        "last30": "30 j",
+        "last90": "90 j",
+        "last180": "6 mois",
+        "last365": "1 an"
+      },
       "preview": "Prévisualiser",
-      "previewIdle": "Cliquez sur Prévisualiser pour compter les commandes éligibles.",
-      "previewResult": "{count} commande(s) éligible(s).",
+      "previewing": "Calcul…",
+      "previewIdle": "Cliquez sur Prévisualiser pour estimer la portée.",
+      "previewResult": "{count} client(s) correspondant(s).",
+      "previewEmpty": "Aucun client ne correspond — élargissez la période.",
       "cancel": "Annuler",
-      "create": "Créer"
+      "create": "Créer la campagne",
+      "attribution": "Attribution",
+      "campaigns": "Campagnes",
+      "leadsCreated": "Prospects",
+      "leadsWon": "Gagnés",
+      "conversionRate": "Taux",
+      "adSpend": "Dépense pub",
+      "costPerConversion": "Coût/conv.",
+      "filterSummary": {
+        "delivered": "Clients livrés",
+        "returned": "Commandes retournées",
+        "both": "Livrés + retournés",
+        "none": "Aucune cible",
+        "rangeDays": "Sur {days} derniers jours",
+        "rangeCustom": "{from} → {to}"
+      },
+      "lastRun": "Dernier lancement",
+      "neverRun": "Jamais lancée",
+      "createdOn": "Créée le {date}"
     }
   },
   "warehouse": {
@@ -1353,8 +1720,13 @@
       "history": "Historique"
     },
     "preparation": {
+      "title": "Préparation",
+      "subtitle": "Imprimez les étiquettes et scannez les commandes avant expédition.",
       "trayTitle": "Plateau de travail",
       "scannerTitle": "Scan sortie",
+      "stageBacklog": "Sélectionner les commandes",
+      "stageTray": "Imprimer les étiquettes",
+      "stageScanner": "Scanner et expédier",
       "stats": {
         "labelsPrinted": "Étiquettes imprimées",
         "ordersScanned": "Commandes scannées",
@@ -1456,6 +1828,15 @@
       "recentEmpty": "Aucun retour pour le moment",
       "queueTitle": "File d'attente ({count})",
       "queueEmpty": "Aucun retour en attente",
+      "noMatches": "Aucun résultat ne correspond à votre recherche",
+      "filterPlaceholder": "Filtrer par client, ville, produit…",
+      "scanStepLabel": "Scanner un retour",
+      "kpi": {
+        "queued": "En attente",
+        "scannedToday": "Scannés aujourd'hui",
+        "damagedToday": "Endommagés aujourd'hui",
+        "inBatch": "Dans le lot"
+      },
       "inBatchLabel": "· en lot",
       "damagedBadge": "Endommagé",
       "stockAfter": "Stock : {stock}",
@@ -1649,7 +2030,63 @@
       "role": "Rôle",
       "market": "Marché",
       "status": "Statut"
+    },
+    "inviteTitle": "Inviter un utilisateur",
+    "inviteSubtitle": "Le lien d'invitation sera généré pour être partagé manuellement.",
+    "invite": "Inviter",
+    "inviting": "Invitation…",
+    "inviteLinkLabel": "Lien d'invitation",
+    "inviteLinkCopy": "Copier",
+    "inviteLinkCopied": "Copié !",
+    "inviteSent": "Invitation créée.",
+    "invitePending": "En attente d'acceptation",
+    "invitedAt": "Invité le {date}",
+    "deactivateTitle": "Désactiver {name}",
+    "deactivateReasonLabel": "Motif",
+    "reasons": {
+      "off-boarded": "Départ de l'entreprise",
+      "on-leave": "Congé / absence",
+      "terminated": "Licenciement"
+    },
+    "deactivateAffectedOrders": "{count} commande(s) seront retournées à la file non assignée.",
+    "deactivateConfirm": "Confirmer la désactivation",
+    "deactivatedWithCount": "Désactivé. {count} commande(s) retournée(s).",
+    "sections": {
+      "market_manager": "Market managers",
+      "agent": "Agents de confirmation",
+      "warehouse_agent": "Agents entrepôt",
+      "super_admin": "Super admins",
+      "active": "Actifs",
+      "invited": "Invités",
+      "disabled": "Désactivés"
+    },
+    "stats": {
+      "ordersActioned": "{count} actions",
+      "leadsConverted": "{count} conv."
+    },
+    "auditLog": {
+      "title": "Journal d'activité",
+      "empty": "Aucun événement.",
+      "events": {
+        "user_created": "Compte créé",
+        "user_invited": "Invitation envoyée",
+        "user_deactivated": "Compte désactivé",
+        "user_reactivated": "Compte réactivé",
+        "password_reset": "Mot de passe réinitialisé",
+        "avatar_updated": "Photo mise à jour"
+      }
     }
+  },
+  "permissions": {
+    "title": "Permissions",
+    "canConfirmOrders": "Confirmer des commandes",
+    "canViewAllOrders": "Voir toutes les commandes",
+    "canManageAgents": "Gérer les agents",
+    "canViewFinances": "Voir les finances",
+    "canAccessSettings": "Accéder aux paramètres",
+    "canScanWarehouse": "Accès entrepôt",
+    "canManageProducts": "Gérer les produits",
+    "canInviteUsers": "Inviter des utilisateurs"
   },
   "settings": {
     "statuses": {
@@ -1756,6 +2193,169 @@
       "ambiguous": "Rejeu terminé sans confirmation claire : {message}",
       "noDetail": "aucun détail",
       "networkError": "Erreur réseau pendant le rejeu."
+    }
+  },
+  "teamPerf": {
+    "title": "Performance équipe",
+    "periods": {
+      "yesterday": "Hier",
+      "7d": "7 j",
+      "30d": "30 j",
+      "custom": "Personnalisé",
+      "from": "Du",
+      "to": "Au"
+    },
+    "kpis": {
+      "avgRate": "Taux moy.",
+      "totalCalls": "Appels",
+      "totalActioned": "Traitées",
+      "avgFcr": "FCR moy.",
+      "ttfcMedian": "TTFC médian",
+      "agentsOnline": "Agents en ligne"
+    },
+    "leaderboard": {
+      "title": "Classement",
+      "streak": "{n} j consécutifs"
+    },
+    "table": {
+      "agent": "Agent",
+      "queue": "File",
+      "calls": "Appels",
+      "actioned": "Traitées",
+      "confirmed": "Conf.",
+      "rejected": "Rej.",
+      "rate": "Taux",
+      "fcr": "FCR",
+      "ttfc": "TTFC",
+      "attempts": "Tent.",
+      "trend": "Tendance",
+      "rejectRegions": "Rejets par région"
+    },
+    "drilldown": {
+      "tabQueue": "File d'attente",
+      "tabHistory": "Historique",
+      "tabNotes": "Notes manager",
+      "notesPlaceholder": "Ajouter une note sur cet agent...",
+      "percentile": "{rank}e percentile",
+      "historyEmpty": "Aucune activité sur 30 jours"
+    },
+    "targets": {
+      "confirmationTarget": "Cible taux confirmation",
+      "save": "Enregistrer",
+      "saved": "Enregistré"
+    },
+    "empty": "Aucun agent dans ce marché",
+    "loading": "Chargement..."
+  },
+  "assign": {
+    "title": "À assigner",
+    "subtitle": "Flux d'assignation des nouvelles commandes",
+    "forbidden": "Vous n'avez pas accès à cette page.",
+    "empty": "Aucune commande à assigner",
+    "selection": "{count} sélectionnée(s)",
+    "selectAll": "Tout sélectionner",
+    "selectBucket": "Sélectionner {bucket}",
+    "clearSelection": "Tout décocher",
+    "selectOrder": "Sélectionner la commande de {name}",
+    "source": "Source : {platform}",
+    "bucket": {
+      "fresh": "Fraîches (< 30 min)",
+      "warning": "À traiter (30 min – 2 h)",
+      "urgent": "Urgentes (2 – 4 h)",
+      "critical": "Critiques (> 4 h)"
+    },
+    "presence": {
+      "online": "En ligne",
+      "idle": "Inactif",
+      "offline": "Hors ligne"
+    },
+    "agents": {
+      "title": "Qui prendre ?",
+      "help": "Triés par disponibilité",
+      "empty": "Aucun agent disponible",
+      "loading": "Chargement…",
+      "queue": "File d'attente",
+      "queueShort": "{count} en file",
+      "confirmationRate": "Taux de confirmation (7 j)",
+      "rateShort": "{pct}% confirm.",
+      "assignButton": "Assigner ({count})"
+    },
+    "algorithm": {
+      "label": "Algorithme",
+      "active": "Actif",
+      "manual": "Manuel",
+      "round_robin": "Tour de rôle",
+      "workload": "Charge de travail",
+      "product_based": "Par produit",
+      "region_based": "Par région",
+      "saved": "Règle d'assignation mise à jour",
+      "saveFailed": "Impossible de sauvegarder la règle"
+    },
+    "autoAssign": {
+      "button": "Auto-assigner",
+      "running": "Assignation…",
+      "busy": "Assignation en cours",
+      "noSelection": "Sélectionnez au moins une commande",
+      "pickAlgorithm": "Choisissez un algorithme autre que Manuel",
+      "activateFirst": "Cochez « Actif » pour activer l'auto-assignation",
+      "success": "{assigned} assignée(s), {skipped} ignorée(s)",
+      "failed": "Échec de l'auto-assignation"
+    },
+    "assignSuccess": "{count} commande(s) assignée(s)",
+    "assignFailed": "Échec de l'assignation"
+  },
+  "confirmationFlow": {
+    "title": "Flux Confirmation",
+    "subtitle": "Ce que font vos agents en ce moment",
+    "loading": "Chargement...",
+    "computedAt": "Calculé à",
+    "banner": {
+      "updates": "mise(s) à jour",
+      "refresh": "Actualiser"
+    },
+    "stages": {
+      "assigned": "Assigné",
+      "attempt_1": "Tentative 1",
+      "attempt_2": "Tentative 2",
+      "attempt_3": "Tentative 3",
+      "callback_scheduled": "Rappel planifié"
+    },
+    "funnel": {
+      "title": "Entonnoir Confirmation",
+      "subtitle": "Commandes actuellement en cours par étape",
+      "openNow": "Ouverts",
+      "enteredWindow": "Entrés (période)",
+      "avgTime": "Temps moyen",
+      "dropOff": "Abandon"
+    },
+    "table": {
+      "title": "Agents en difficulté",
+      "empty": "Aucun agent actif pour cette période.",
+      "agent": "Agent",
+      "inAttempt3": "En tentative 3",
+      "overdueCallbacks": "Rappels en retard",
+      "ttfcP50": "TTFC p50",
+      "ttfcP90": "TTFC p90",
+      "actions": "Actions",
+      "reassign": "Réassigner",
+      "escalate": "Escalader",
+      "escalateTooltip": "Escalade disponible en v2 — utilisez réassigner pour l'instant"
+    },
+    "callbacks": {
+      "title": "Rappels imminents",
+      "loading": "Chargement...",
+      "empty": "Aucun rappel dans les 30 prochaines minutes.",
+      "unassigned": "Non assigné",
+      "ping": "Notifier",
+      "pinged": "Notifié ✓"
+    },
+    "ttfc": {
+      "title": "Distribution TTFC",
+      "subtitle": "Temps de premier contact (assigner → 1ère tentative)",
+      "allAgents": "Tous les agents",
+      "samples": "données",
+      "orders": "commandes",
+      "empty": "Pas assez de données pour cette période."
     }
   }
 }
