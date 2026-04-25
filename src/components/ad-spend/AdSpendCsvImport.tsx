@@ -22,10 +22,10 @@ interface AdSpendCsvImportProps {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "8px 10px",
-  background: "#0D2224",
-  border: "1px solid #1E2C31",
+  background: "#FFFFFF",
+  border: "1px solid #E1E3E5",
   borderRadius: 6,
-  color: "#FFFFFF",
+  color: "#1A1A1A",
   fontSize: 12,
   boxSizing: "border-box",
 };
@@ -89,7 +89,7 @@ export function AdSpendCsvImport({ products, onClose, onImport }: AdSpendCsvImpo
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.7)",
+        background: "rgba(16,24,40,0.40)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -108,7 +108,7 @@ export function AdSpendCsvImport({ products, onClose, onImport }: AdSpendCsvImpo
           maxHeight: "90vh",
           display: "flex",
           flexDirection: "column",
-          boxShadow: "0 24px 48px rgba(0,0,0,0.5)",
+          boxShadow: "0 8px 24px rgba(16,24,40,0.10)",
         }}
       >
         {/* Header */}
@@ -175,10 +175,10 @@ export function AdSpendCsvImport({ products, onClose, onImport }: AdSpendCsvImpo
                   padding: "9px 24px",
                   fontSize: 13,
                   fontWeight: 600,
-                  background: D.white,
+                  background: "#1A1A1A",
                   border: "none",
                   borderRadius: 6,
-                  color: "#000",
+                  color: "#FFFFFF",
                   cursor: "pointer",
                 }}
               >
@@ -378,10 +378,10 @@ export function AdSpendCsvImport({ products, onClose, onImport }: AdSpendCsvImpo
                     padding: "9px 18px",
                     fontSize: 13,
                     fontWeight: 600,
-                    background: submitting ? "rgba(255,255,255,0.1)" : D.white,
+                    background: submitting ? "#E1E3E5" : "#1A1A1A",
                     border: "none",
                     borderRadius: 6,
-                    color: submitting ? D.tertiary : "#000",
+                    color: submitting ? D.tertiary : "#FFFFFF",
                     cursor: submitting ? "not-allowed" : "pointer",
                   }}
                 >

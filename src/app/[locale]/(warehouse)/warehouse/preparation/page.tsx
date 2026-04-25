@@ -61,7 +61,7 @@ export default async function Page({
           feedbackIdle: t("preparation.scanner.feedbackIdle"),
           recentTitle: t("preparation.scanner.recentTitle"),
           recentEmpty: t("preparation.scanner.recentEmpty"),
-          stockAfter: t("preparation.scanner.stockAfter"),
+          stockAfter: t.raw("preparation.scanner.stockAfter") as string,
         },
         backlog: {
           title: t("preparation.backlog.title"),

@@ -245,10 +245,10 @@ export function AdSpendClient({ user, markets, initialMarketId }: AdSpendClientP
               padding: "9px 16px",
               fontSize: 13,
               fontWeight: 600,
-              background: D.white,
+              background: "#1A1A1A",
               border: "none",
               borderRadius: 8,
-              color: "#000000",
+              color: "#FFFFFF",
               cursor: "pointer",
             }}
           >
@@ -360,7 +360,7 @@ export function AdSpendClient({ user, markets, initialMarketId }: AdSpendClientP
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.7)",
+            background: "rgba(16,24,40,0.40)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -380,7 +380,7 @@ export function AdSpendClient({ user, markets, initialMarketId }: AdSpendClientP
               display: "flex",
               flexDirection: "column",
               gap: 16,
-              boxShadow: "0 24px 48px rgba(0,0,0,0.5)",
+              boxShadow: "0 8px 24px rgba(16,24,40,0.10)",
             }}
           >
             <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: D.white }}>

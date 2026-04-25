@@ -80,12 +80,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const action = typeof body.action === "string" ? body.action : "create";
-
-  if (action === "invite") {
-    return handleInvite(body, actor, createAdminClient());
-  }
-
   return handleCreate(body, actor, createAdminClient());
 }
 
@@ -181,78 +175,3 @@ async function handleCreate(
   return NextResponse.json({ data }, { status: 201 });
 }
 
-async function handleInvite(
-  body: Record<string, unknown>,
-  actor: { id: string; role: Role; market_id: string | null },
-  admin: SupabaseClient
-) {
-  const username = typeof body.username === "string" ? body.username : "";
-  const role = body.role;
-  const requestedMarketId =
-    typeof body.market_id === "string" ? body.market_id : null;
-
-  if (!username) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-  }
-
-  if (!isCreatableRole(role)) {
-    return NextResponse.json({ error: "Invalid role" }, { status: 400 });
-  }
-
-  if (
-    actor.role === "market_manager" &&
-    role !== "agent" &&
-    role !== "warehouse_agent"
-  ) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const marketId =
-    actor.role === "market_manager" ? actor.market_id ?? null : requestedMarketId;
-
-  if (!marketId) {
-    return NextResponse.json({ error: "Un marché est requis" }, { status: 400 });
-  }
-
-  const email = `${username.trim().toLowerCase().replace(/\s+/g, ".")}@oms.local`;
-
-  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-    type: "invite",
-    email,
-  });
-
-  if (linkError || !linkData?.properties?.action_link) {
-    console.error("[POST /api/users] generateLink error:", linkError);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-
-  const inviteLink = linkData.properties.action_link;
-  const invitedAt = new Date().toISOString();
-
-  const { data, error: insertError } = await admin
-    .from("users")
-    .insert({
-      id: linkData.user?.id ?? crypto.randomUUID(),
-      email,
-      full_name: username.trim(),
-      avatar_url: null,
-      phone: null,
-      role,
-      market_id: marketId,
-      is_active: false,
-      invitation_sent_at: invitedAt,
-      last_seen_at: null,
-    })
-    .select(USER_COLS)
-    .single();
-
-  if (insertError) {
-    console.error("[POST /api/users] users.insert error:", insertError);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-
-  const userId = (data as Record<string, unknown>)?.id as string ?? "unknown";
-  await writeAuditLog(admin, actor.id, userId, "user_invited", { invite_link: inviteLink });
-
-  return NextResponse.json({ data, invite_link: inviteLink }, { status: 201 });
-}

@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import FocusTrap from "focus-trap-react";
-import { CarrierSelect } from "./CarrierSelect";
-import type { CarrierConfig } from "@/types/carrier";
+import { CarrierSelect, type CarrierOption } from "./CarrierSelect";
 
 interface ScheduleDispatchModalProps {
   orderId: string;
@@ -309,7 +308,7 @@ export function ScheduleDispatchModal({
                 </div>
                 <CarrierSelect
                   marketId={marketId}
-                  onSelect={(c: CarrierConfig) => setCarrierId(c.id)}
+                  onSelect={(c: CarrierOption) => setCarrierId(c.id)}
                 />
               </div>
             )}

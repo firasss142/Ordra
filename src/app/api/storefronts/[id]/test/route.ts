@@ -12,12 +12,20 @@ interface TestResult {
   details?: Record<string, unknown>;
 }
 
-function buildTestPayload(platform: string): Record<string, unknown> {
+interface TestRequest {
+  rawBody: string;
+  headers: Headers;
+}
+
+function buildTestRequest(platform: string, secret: string): TestRequest {
+  const ts = Date.now();
+  const externalId = `oms-test-${ts}`;
+
   if (platform === "easy_orders") {
-    return {
+    const payload = {
       event: "order.created",
       order: {
-        id: `test_${Date.now()}`,
+        id: externalId,
         customer: {
           name: "TEST — Do Not Process",
           phone: "+00000000000",
@@ -33,8 +41,150 @@ function buildTestPayload(platform: string): Record<string, unknown> {
         },
       },
     };
+    const rawBody = JSON.stringify(payload);
+    const sig = createHmac("sha256", secret).update(rawBody).digest("hex");
+    return {
+      rawBody,
+      headers: new Headers({ "X-Webhook-Signature": sig }),
+    };
   }
-  return { test: true, platform };
+
+  if (platform === "shopify") {
+    const payload = {
+      id: externalId,
+      note: "integration test payload",
+      total_price: "0.00",
+      customer: {
+        first_name: "TEST",
+        last_name: "Do Not Process",
+        phone: "+00000000000",
+      },
+      shipping_address: {
+        first_name: "TEST",
+        last_name: "Do Not Process",
+        name: "TEST Do Not Process",
+        phone: "+00000000000",
+        address1: "Test address",
+        city: "Test",
+      },
+      line_items: [
+        {
+          id: 1,
+          name: "__oms_test_product__",
+          sku: null,
+          variant_title: null,
+          quantity: 1,
+          price: "0.00",
+        },
+      ],
+    };
+    const rawBody = JSON.stringify(payload);
+    const sig = createHmac("sha256", secret)
+      .update(rawBody, "utf8")
+      .digest("base64");
+    return {
+      rawBody,
+      headers: new Headers({
+        "X-Shopify-Hmac-Sha256": sig,
+        "X-Shopify-Topic": "orders/create",
+      }),
+    };
+  }
+
+  if (platform === "woocommerce") {
+    const payload = {
+      id: externalId,
+      customer_note: "integration test payload",
+      total: "0.00",
+      billing: {
+        first_name: "TEST",
+        last_name: "Do Not Process",
+        phone: "+00000000000",
+        address_1: "Test address",
+        address_2: "",
+        city: "Test",
+        email: "test@example.com",
+      },
+      line_items: [
+        {
+          id: 1,
+          name: "__oms_test_product__",
+          sku: null,
+          variation_id: 0,
+          quantity: 1,
+          price: 0,
+        },
+      ],
+    };
+    const rawBody = JSON.stringify(payload);
+    const sig = createHmac("sha256", secret)
+      .update(rawBody, "utf8")
+      .digest("base64");
+    return {
+      rawBody,
+      headers: new Headers({
+        "X-WC-Webhook-Signature": sig,
+        "X-WC-Webhook-Topic": "order.created",
+      }),
+    };
+  }
+
+  if (platform === "lightfunnels") {
+    const payload = {
+      node: {
+        id: externalId,
+        _id: ts,
+        name: "TEST",
+        email: "test@example.com",
+        phone: "+00000000000",
+        total: 0,
+        currency: "USD",
+        customer: {
+          full_name: "TEST Do Not Process",
+          first_name: "TEST",
+          last_name: "Do Not Process",
+        },
+        billing_address: {
+          line1: "Test address",
+          city: "Test",
+          phone: "+00000000000",
+          first_name: "TEST",
+          last_name: "Do Not Process",
+        },
+        shipping_address: {
+          line1: "Test address",
+          city: "Test",
+          phone: "+00000000000",
+          first_name: "TEST",
+          last_name: "Do Not Process",
+        },
+        items: [
+          {
+            id: "test-item",
+            sku: "",
+            title: "__oms_test_product__",
+            price: 0,
+            quantity: 1,
+          },
+        ],
+      },
+    };
+    const rawBody = JSON.stringify(payload);
+    const sig = createHmac("sha256", secret)
+      .update(rawBody, "utf8")
+      .digest("base64");
+    return {
+      rawBody,
+      headers: new Headers({
+        "lightfunnels-hmac": sig,
+        "lightfunnels-topic": "order/created",
+      }),
+    };
+  }
+
+  // Fallback (unknown platform — won't reach adapter happy path)
+  const rawBody = JSON.stringify({ test: true, platform });
+  return { rawBody, headers: new Headers() };
 }
 
 export async function POST(
@@ -80,18 +230,13 @@ export async function POST(
     return NextResponse.json(result, { status: 200 });
   }
 
-  // Stage 2: build synthetic payload + signature
-  const payload = buildTestPayload(storefront.platform);
-  const rawBody = JSON.stringify(payload);
-  const signature = createHmac("sha256", secret).update(rawBody).digest("hex");
+  // Stage 2: build per-platform synthetic payload + signature + headers
+  const { rawBody, headers: testHeaders } = buildTestRequest(
+    storefront.platform,
+    secret,
+  );
 
-  // Stage 3: invoke handler with replay flag so we don't actually create an order
-  // The handler's signature validation path is exercised in allowReplay=false mode;
-  // we deliberately use allowReplay here because we don't want the test payload to
-  // persist. Instead, we validate the signature separately first.
-  const testHeaders = new Headers({ "X-Webhook-Signature": signature });
-
-  // Validate signature round-trip independently (proves secret integrity)
+  // Stage 3: resolve adapter
   const { getAdapter } = await import("@/lib/storefronts/adapter-registry");
   let adapter;
   try {
@@ -105,6 +250,7 @@ export async function POST(
     return NextResponse.json(result, { status: 200 });
   }
 
+  // Stage 4: validate signature round-trip (proves secret integrity end-to-end)
   const sigOk = adapter.validateWebhook(testHeaders, rawBody, secret);
   if (!sigOk) {
     const result: TestResult = {
@@ -115,10 +261,10 @@ export async function POST(
     return NextResponse.json(result, { status: 200 });
   }
 
-  // Stage 4: dry-run through handler. Mark storefront inactive temporarily? No —
-  // instead we rely on the adapter's parseEventType + mapToInternalOrder only.
+  // Stage 5: parse + map (dry-run, no DB writes)
   try {
-    const event = adapter.parseEventType(payload);
+    const payload = JSON.parse(rawBody);
+    const event = adapter.parseEventType(payload, testHeaders);
     const mapped = adapter.mapToInternalOrder(payload);
     const result: TestResult = {
       success: true,
@@ -140,4 +286,3 @@ export async function POST(
     return NextResponse.json(result, { status: 200 });
   }
 }
-

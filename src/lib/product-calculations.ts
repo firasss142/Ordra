@@ -20,3 +20,21 @@ export function calculateStockAfterMovement(
   if (result < 0) throw new Error("stock cannot go below zero");
   return result;
 }
+
+export type ProductHealth = "green" | "amber" | "red";
+
+export interface HealthInputs {
+  isActive: boolean;
+  currentStock: number;
+  lowStockThreshold: number;
+  marginPct: number | null;
+}
+
+export function getProductHealth(input: HealthInputs): ProductHealth {
+  if (!input.isActive) return "red";
+  if (input.currentStock <= 0) return "red";
+  if (input.marginPct != null && input.marginPct < 0) return "red";
+  if (isLowStock(input.currentStock, input.lowStockThreshold)) return "amber";
+  if (input.marginPct != null && input.marginPct < 5) return "amber";
+  return "green";
+}

@@ -14,8 +14,8 @@ import {
 } from "./ScanFeedbackTile";
 import { WarehouseInboxBanner } from "./WarehouseInboxBanner";
 import { useWarehouseRealtime } from "@/hooks/useWarehouseRealtime";
-import { LogisticsPageHeader } from "./shared/LogisticsPageHeader";
-import { LogisticsKpiStrip, type KpiTileDef } from "./shared/LogisticsKpiStrip";
+import { WarehouseShell } from "./shell/WarehouseShell";
+import { WarehouseKpiStrip, type KpiTile } from "./shell/WarehouseKpiStrip";
 import {
   ReturnsDecisionCard,
   type DecisionPayload,
@@ -314,7 +314,7 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
       }
     : null;
 
-  const kpiTiles: KpiTileDef[] = [
+  const kpiTiles: KpiTile[] = [
     { label: t("kpi.queued"), value: String(orders.length) },
     { label: t("kpi.scannedToday"), value: String(summary?.scanned_today ?? 0) },
     {
@@ -326,23 +326,11 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
   ];
 
   return (
-    <div
-      style={{
-        padding: "24px 32px 24px",
-        background: "#F6F6F7",
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        gap: 16,
-      }}
+    <WarehouseShell
+      title={t("title", { count: orders.length })}
+      subtitle={t("hint")}
+      kpiStrip={<WarehouseKpiStrip tiles={kpiTiles} />}
     >
-      <LogisticsPageHeader
-        title={t("title", { count: orders.length })}
-        subtitle={t("hint")}
-      />
-
-      <LogisticsKpiStrip tiles={kpiTiles} />
-
       <WarehouseInboxBanner
         count={arrivalCount}
         onReveal={() => {
@@ -356,88 +344,29 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
         }}
       />
 
-      {/* Two-column workbench */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) minmax(360px, 420px)",
-          gap: 16,
-          alignItems: "start",
-        }}
-      >
+      {/* 3-col workbench: queue | scanner+decision | batch rail */}
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(360px,420px)_minmax(280px,320px)] gap-4 items-start mt-3">
         {/* LEFT — Queue */}
-        <section
-          style={{
-            backgroundColor: "#FFFFFF",
-            border: "1px solid #E1E3E5",
-            borderRadius: 8,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          <header
-            style={{
-              padding: "14px 16px",
-              borderBottom: "1px solid #E1E3E5",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <h2
-              style={{
-                margin: 0,
-                fontSize: 14,
-                fontWeight: 600,
-                color: "#1A1A1A",
-              }}
-            >
+        <section className="bg-surface-card border border-line-subtle rounded-card flex flex-col overflow-hidden">
+          <header className="px-4 py-3 border-b border-line-subtle flex items-center gap-3 flex-wrap">
+            <h2 className="m-0 text-[14px] font-semibold text-ink-primary tabular-nums">
               {t("queueTitle", { count: filteredOrders.length })}
             </h2>
-            <div
-              style={{
-                marginInlineStart: "auto",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                flex: 1,
-                minWidth: 200,
-                maxWidth: 320,
-                paddingInline: 12,
-                border: "1px solid #E1E3E5",
-                borderRadius: 8,
-                backgroundColor: "#FAFAFA",
-              }}
-            >
+            <div className="ms-auto flex items-center gap-2 flex-1 min-w-[200px] max-w-[320px] px-3 border border-line-subtle rounded-md bg-surface-hover">
               <input
                 type="text"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 placeholder={t("filterPlaceholder")}
                 aria-label={t("filterPlaceholder")}
-                style={{
-                  flex: 1,
-                  padding: "8px 0",
-                  fontSize: 13,
-                  border: "none",
-                  outline: "none",
-                  backgroundColor: "transparent",
-                  color: "#1A1A1A",
-                }}
+                className="flex-1 py-2 text-[13px] bg-transparent text-ink-primary outline-none border-0"
               />
               {filter ? (
                 <button
                   type="button"
                   onClick={() => setFilter("")}
                   aria-label="clear"
-                  style={{
-                    all: "unset",
-                    cursor: "pointer",
-                    color: "#6D7175",
-                    display: "flex",
-                  }}
+                  className="text-ink-secondary hover:text-ink-primary inline-flex transition-colors duration-fast"
                 >
                   <X size={14} />
                 </button>
@@ -446,31 +375,12 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
           </header>
 
           {filteredOrders.length === 0 ? (
-            <div
-              style={{
-                padding: "64px 24px",
-                textAlign: "center",
-                color: "#6D7175",
-                fontSize: 14,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 12,
-              }}
-            >
+            <div className="px-6 py-16 text-center text-ink-secondary text-[14px] flex flex-col items-center gap-3">
               <Inbox size={28} strokeWidth={1.2} aria-hidden="true" />
               <span>{orders.length === 0 ? t("queueEmpty") : t("noMatches")}</span>
             </div>
           ) : (
-            <ul
-              style={{
-                listStyle: "none",
-                margin: 0,
-                padding: 0,
-                maxHeight: 560,
-                overflowY: "auto",
-              }}
-            >
+            <ul className="list-none m-0 p-0 max-h-[640px] overflow-y-auto">
               {filteredOrders.map((o) => (
                 <ReturnsRow
                   key={o.id}
@@ -484,63 +394,30 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
           )}
         </section>
 
-        {/* RIGHT — Workspace (scanner + decision) */}
-        <aside
-          style={{
-            position: "sticky",
-            top: 16,
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
-        >
+        {/* CENTER — Workspace (scanner + decision/feedback) */}
+        <aside className="sticky top-4 flex flex-col gap-3">
           {/* Scanner card */}
-          <div
-            style={{
-              backgroundColor: "#FFFFFF",
-              border: "1px solid #E1E3E5",
-              borderRadius: 8,
-              padding: 16,
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "0.07em",
-                  textTransform: "uppercase",
-                  color: "#6D7175",
-                }}
-              >
+          <div className="bg-surface-card border border-line-subtle rounded-card p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-bold tracking-[0.07em] uppercase text-ink-secondary">
                 {t("scanStepLabel")}
               </span>
+              <button
+                type="button"
+                onClick={() => setCameraOpen(true)}
+                disabled={submitting}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[12px] font-medium text-ink-primary border border-line-subtle rounded-md hover:bg-surface-hover transition-colors duration-fast disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Camera size={13} strokeWidth={1.5} aria-hidden="true" />
+                {tCommon("scanner.openCamera")}
+              </button>
             </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                paddingInline: 12,
-                border: "1px solid #E1E3E5",
-                borderRadius: 8,
-                backgroundColor: "#FAFAFA",
-              }}
-            >
+            <div className="flex items-center gap-2 px-3 border border-line-subtle rounded-md bg-surface-hover">
               <Keyboard
                 size={16}
                 strokeWidth={1.5}
-                color="#6D7175"
                 aria-hidden="true"
+                className="text-ink-secondary"
               />
               <input
                 ref={inputRef}
@@ -551,50 +428,17 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
                 disabled={submitting || Boolean(selected)}
                 placeholder={t("inputPlaceholder")}
                 aria-label={t("inputPlaceholder")}
-                style={{
-                  flex: 1,
-                  padding: "12px 0",
-                  fontSize: 15,
-                  fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                  border: "none",
-                  outline: "none",
-                  backgroundColor: "transparent",
-                  color: "#1A1A1A",
-                }}
+                className="flex-1 py-3 text-[15px] font-mono bg-transparent text-ink-primary outline-none border-0"
               />
               {submitting ? (
                 <Loader2
                   size={16}
                   strokeWidth={1.5}
-                  color="#6D7175"
-                  className="animate-spin"
+                  className="text-ink-secondary animate-spin"
                   aria-hidden="true"
                 />
               ) : null}
             </div>
-            <button
-              type="button"
-              onClick={() => setCameraOpen(true)}
-              disabled={submitting}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                padding: "10px 16px",
-                backgroundColor: "#FFFFFF",
-                color: "#1A1A1A",
-                border: "1px solid #E1E3E5",
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: submitting ? "not-allowed" : "pointer",
-                opacity: submitting ? 0.5 : 1,
-              }}
-            >
-              <Camera size={16} strokeWidth={1.5} aria-hidden="true" />
-              {tCommon("scanner.openCamera")}
-            </button>
           </div>
 
           {/* Decision OR feedback */}
@@ -611,20 +455,24 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
               submitting={submitting}
             />
           ) : (
-            <div
-              style={{
-                backgroundColor: "#FFFFFF",
-                border: "1px solid #E1E3E5",
-                borderRadius: 8,
-                padding: 16,
-              }}
-            >
+            <div className="bg-surface-card border border-line-subtle rounded-card p-4">
               <ScanFeedbackTile
                 state={feedback}
                 idleLabel={t("feedbackIdle")}
               />
             </div>
           )}
+        </aside>
+
+        {/* RIGHT — Batch rail (always visible) */}
+        <aside className="sticky top-4">
+          <BatchRail
+            items={batch}
+            submitting={submitting}
+            onRemove={removeFromBatch}
+            onClear={clearBatch}
+            onCommit={commitBatch}
+          />
         </aside>
       </div>
 
@@ -638,17 +486,7 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
           onClose={() => setCameraOpen(false)}
         />
       ) : null}
-
-      {batch.length > 0 ? (
-        <BatchTray
-          items={batch}
-          submitting={submitting}
-          onRemove={removeFromBatch}
-          onClear={clearBatch}
-          onCommit={commitBatch}
-        />
-      ) : null}
-    </div>
+    </WarehouseShell>
   );
 }
 
@@ -664,77 +502,33 @@ const ReturnsRow = memo(function ReturnsRow({
   onOpen: () => void;
 }) {
   const t = useTranslations("warehouse.returns");
+  const accent = active
+    ? "border-s-[3px] border-s-ink-primary bg-surface-hover"
+    : batched
+      ? "border-s-[3px] border-s-status-success"
+      : "border-s-[3px] border-s-transparent";
   return (
     <li>
       <button
         type="button"
         onClick={onOpen}
-        style={{
-          all: "unset",
-          cursor: "pointer",
-          display: "grid",
-          gridTemplateColumns: "32px 140px 1fr 1fr 100px",
-          gap: 12,
-          padding: "12px 16px",
-          borderBottom: "1px solid #F2F2F2",
-          fontSize: 13,
-          alignItems: "center",
-          width: "100%",
-          boxSizing: "border-box",
-          backgroundColor: active ? "#F1F8FF" : "transparent",
-          borderInlineStart: active
-            ? "3px solid #1A1A1A"
-            : batched
-              ? "3px solid #008060"
-              : "3px solid transparent",
-        }}
+        className={`grid grid-cols-[32px_140px_1fr_1fr_100px] gap-3 px-4 py-3 border-b border-line-subtle text-[13px] items-center w-full text-start hover:bg-surface-hover transition-colors duration-fast cursor-pointer ${accent}`}
       >
-        <Package size={16} strokeWidth={1.5} color="#6D7175" aria-hidden="true" />
-        <div style={{ fontWeight: 600, color: "#1A1A1A" }}>
+        <Package size={16} strokeWidth={1.5} aria-hidden="true" className="text-ink-secondary" />
+        <div className="font-semibold text-ink-primary">
           {order.customer_city ?? "—"}
         </div>
-        <div style={{ color: "#1A1A1A" }}>{order.customer_name}</div>
-        <div
-          style={{
-            color: "#6D7175",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
+        <div className="text-ink-primary">{order.customer_name}</div>
+        <div className="text-ink-secondary overflow-hidden text-ellipsis whitespace-nowrap">
           {order.product_name}
         </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            justifyContent: "flex-end",
-          }}
-        >
+        <div className="flex items-center gap-1.5 justify-end">
           {batched ? (
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.07em",
-                textTransform: "uppercase",
-                color: "#008060",
-                backgroundColor: "#E3F1D9",
-                borderRadius: 4,
-                padding: "2px 6px",
-              }}
-            >
+            <span className="text-[10px] font-bold tracking-[0.07em] uppercase text-status-success bg-status-successBg rounded px-1.5 py-0.5">
               {t("inBatchLabel")}
             </span>
           ) : null}
-          <code
-            style={{
-              fontSize: 11,
-              color: "#6D7175",
-              fontFamily: "ui-monospace, SFMono-Regular, monospace",
-            }}
-          >
+          <code className="text-[11px] text-ink-secondary font-mono tabular-nums">
             #{order.id.slice(0, 8)}
           </code>
         </div>
@@ -743,7 +537,7 @@ const ReturnsRow = memo(function ReturnsRow({
   );
 });
 
-function BatchTray({
+function BatchRail({
   items,
   submitting,
   onRemove,
@@ -757,142 +551,83 @@ function BatchTray({
   onCommit: () => void;
 }) {
   const t = useTranslations("warehouse.returns.batch");
+  const empty = items.length === 0;
   return (
     <div
-      style={{
-        position: "sticky",
-        bottom: 16,
-        alignSelf: "stretch",
-        backgroundColor: "#FFFFFF",
-        border: "1px solid #E1E3E5",
-        borderBlockStart: "2px solid #1A1A1A",
-        borderRadius: 8,
-        padding: 16,
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-      }}
+      className={[
+        "bg-surface-card border rounded-card p-4 flex flex-col gap-3",
+        empty ? "border-line-subtle" : "border-line-subtle shadow-panel",
+      ].join(" ")}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#1A1A1A" }}>
+      <div className="flex justify-between items-start gap-2">
+        <div className="min-w-0">
+          <div className="text-[14px] font-semibold text-ink-primary tabular-nums">
             {t("trayTitle", { count: items.length })}
           </div>
-          <div style={{ fontSize: 12, color: "#6D7175", marginTop: 2 }}>
+          <div className="text-[12px] text-ink-secondary mt-0.5">
             {t("trayHint")}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        {!empty && (
           <button
             type="button"
             onClick={onClear}
             disabled={submitting}
-            style={{
-              all: "unset",
-              cursor: submitting ? "not-allowed" : "pointer",
-              padding: "8px 14px",
-              fontSize: 13,
-              fontWeight: 500,
-              color: "#1A1A1A",
-              borderRadius: 8,
-              border: "1px solid #E1E3E5",
-            }}
+            className="px-2.5 py-1 text-[12px] font-medium text-ink-secondary hover:text-ink-primary hover:bg-surface-hover rounded-md transition-colors duration-fast disabled:cursor-not-allowed"
           >
             {t("clear")}
           </button>
-          <button
-            type="button"
-            onClick={onCommit}
-            disabled={submitting}
-            style={{
-              all: "unset",
-              cursor: submitting ? "not-allowed" : "pointer",
-              padding: "8px 18px",
-              fontSize: 13,
-              fontWeight: 600,
-              color: "#FFFFFF",
-              backgroundColor: "#1A1A1A",
-              borderRadius: 8,
-              opacity: submitting ? 0.6 : 1,
-            }}
-          >
-            {submitting ? t("committing") : t("commit", { count: items.length })}
-          </button>
-        </div>
+        )}
       </div>
 
-      <ul
-        style={{
-          listStyle: "none",
-          margin: 0,
-          padding: 0,
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-        }}
-      >
-        {items.map((it) => (
-          <li
-            key={it.order_id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "8px 10px",
-              backgroundColor: "#F7F7F7",
-              borderRadius: 6,
-              fontSize: 13,
-            }}
-          >
-            <span
-              style={{
-                display: "inline-block",
-                width: 8,
-                height: 8,
-                borderRadius: 999,
-                backgroundColor: it.is_damaged ? "#D72C0D" : "#008060",
-              }}
-              aria-hidden="true"
-            />
-            <code
-              style={{
-                fontSize: 11,
-                color: "#6D7175",
-                fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                minWidth: 90,
-              }}
+      {empty ? (
+        <div className="text-[12px] text-ink-secondary py-6 text-center">
+          —
+        </div>
+      ) : (
+        <ul className="list-none m-0 p-0 flex flex-col gap-1 max-h-[440px] overflow-y-auto">
+          {items.map((it) => (
+            <li
+              key={it.order_id}
+              className="flex items-center gap-2 px-2.5 py-2 bg-surface-page rounded-md text-[13px]"
             >
-              #{it.order_id.slice(0, 8)}
-            </code>
-            <span style={{ flex: 1, color: "#1A1A1A" }}>
-              {it.customer_name ?? it.order_id.slice(0, 8)}
-            </span>
-            <span style={{ color: "#6D7175", fontSize: 12 }}>
-              {it.is_damaged ? it.return_reason : "restock"}
-            </span>
-            <button
-              type="button"
-              aria-label={t("remove")}
-              onClick={() => onRemove(it.order_id)}
-              disabled={submitting}
-              style={{
-                all: "unset",
-                cursor: submitting ? "not-allowed" : "pointer",
-                padding: 4,
-                color: "#6D7175",
-              }}
-            >
-              <X size={14} aria-hidden="true" />
-            </button>
-          </li>
-        ))}
-      </ul>
+              <span
+                aria-hidden="true"
+                className={`inline-block w-2 h-2 rounded-full shrink-0 ${it.is_damaged ? "bg-status-critical" : "bg-status-success"}`}
+              />
+              <code className="text-[11px] text-ink-secondary font-mono tabular-nums min-w-[70px]">
+                #{it.order_id.slice(0, 8)}
+              </code>
+              <span className="flex-1 text-ink-primary truncate">
+                {it.customer_name ?? it.order_id.slice(0, 8)}
+              </span>
+              <span className="text-ink-secondary text-[12px] shrink-0">
+                {it.is_damaged ? it.return_reason : "restock"}
+              </span>
+              <button
+                type="button"
+                aria-label={t("remove")}
+                onClick={() => onRemove(it.order_id)}
+                disabled={submitting}
+                className="p-1 text-ink-secondary hover:text-status-critical transition-colors duration-fast disabled:cursor-not-allowed"
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!empty && (
+        <button
+          type="button"
+          onClick={onCommit}
+          disabled={submitting}
+          className="w-full px-4 py-2.5 text-[13px] font-semibold text-white bg-ink-primary hover:bg-[#2A2A2A] rounded-md disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-fast"
+        >
+          {submitting ? t("committing") : t("commit", { count: items.length })}
+        </button>
+      )}
     </div>
   );
 }

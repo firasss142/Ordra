@@ -140,72 +140,53 @@ export function ReturnsDecisionCard({
   };
 
   return (
-    <div
-      style={{
-        backgroundColor: "#FFFFFF",
-        border: "1px solid #E1E3E5",
-        borderRadius: 8,
-        padding: 20,
-        display: "flex",
-        flexDirection: "column",
-        gap: 16,
-      }}
-    >
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-        <div>
-          <h2 style={{ fontSize: 16, fontWeight: 600, color: "#1A1A1A", margin: 0 }}>
+    <div className="bg-surface-card border border-line-subtle rounded-card p-5 flex flex-col gap-4 shadow-panel">
+      <header className="flex justify-between items-start gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[16px] font-semibold text-ink-primary m-0">
             {t("heading")}
           </h2>
-          <p style={{ fontSize: 13, color: "#1A1A1A", margin: "6px 0 0" }}>
+          <p className="text-[13px] text-ink-primary mt-1.5 mb-0">
             <strong>{order.customer_name ?? "—"}</strong>
             {order.customer_city ? ` · ${order.customer_city}` : ""}
           </p>
-          <p style={{ fontSize: 12, color: "#6D7175", margin: "2px 0 0" }}>
+          <p className="text-[12px] text-ink-secondary mt-0.5 mb-0">
             {order.product_name ?? "—"} · ×{order.quantity} · #{order.id.slice(0, 8)}
           </p>
         </div>
         <div
-          style={{
-            textAlign: "end",
-            fontSize: 12,
-            fontWeight: 500,
-            color: rateHigh ? "#D72C0D" : "#6D7175",
-            fontVariantNumeric: "tabular-nums",
-          }}
+          className={`text-end text-[12px] font-medium tabular-nums ${rateHigh ? "text-status-critical" : "text-ink-secondary"}`}
         >
           {rateLabel}
           {rateHigh ? (
-            <div style={{ marginTop: 2, fontSize: 11 }}>{t("returnRateHigh")}</div>
+            <div className="mt-0.5 text-[11px]">{t("returnRateHigh")}</div>
           ) : null}
         </div>
       </header>
 
-      <div
-        role="radiogroup"
-        aria-label={t("heading")}
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 10,
-        }}
-      >
+      {/* Segmented Restock vs Damage */}
+      <div role="radiogroup" aria-label={t("heading")} className="grid grid-cols-2 gap-2.5">
         {[
           {
             damaged: false,
             Icon: PackageCheck,
             label: t("restock"),
             hint: t("restockHint", { qty: order.quantity }),
-            accent: "#008060",
+            tone: "success" as const,
           },
           {
             damaged: true,
             Icon: PackageX,
             label: t("damage"),
             hint: t("damageHint", { qty: order.quantity }),
-            accent: "#D72C0D",
+            tone: "critical" as const,
           },
-        ].map(({ damaged, Icon, label, hint, accent }) => {
+        ].map(({ damaged, Icon, label, hint, tone }) => {
           const active = damaged === isDamaged;
+          const activeBorder =
+            tone === "success" ? "border-status-success" : "border-status-critical";
+          const activeText =
+            tone === "success" ? "text-status-success" : "text-status-critical";
           return (
             <button
               key={String(damaged)}
@@ -220,24 +201,27 @@ export function ReturnsDecisionCard({
                   setPhotoPath(null);
                 }
               }}
-              style={{
-                all: "unset",
-                cursor: "pointer",
-                padding: "14px 16px",
-                borderRadius: 8,
-                backgroundColor: active ? "#F7F7F7" : "#FFFFFF",
-                border: `1px solid ${active ? accent : "#E1E3E5"}`,
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-              }}
+              className={[
+                "p-3.5 rounded-card flex items-center gap-3 text-start",
+                "border transition-colors duration-fast cursor-pointer",
+                active
+                  ? `bg-surface-hover ${activeBorder}`
+                  : "bg-surface-card border-line-subtle hover:bg-surface-hover",
+              ].join(" ")}
             >
-              <Icon size={22} strokeWidth={1.5} color={active ? accent : "#6D7175"} aria-hidden="true" />
-              <span style={{ flex: 1 }}>
-                <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: active ? accent : "#1A1A1A" }}>
+              <Icon
+                size={22}
+                strokeWidth={1.5}
+                aria-hidden="true"
+                className={active ? activeText : "text-ink-secondary"}
+              />
+              <span className="flex-1">
+                <span
+                  className={`block text-[14px] font-semibold ${active ? activeText : "text-ink-primary"}`}
+                >
                   {label}
                 </span>
-                <span style={{ display: "block", fontSize: 12, color: "#6D7175", marginTop: 2 }}>
+                <span className="block text-[12px] text-ink-secondary mt-0.5">
                   {hint}
                 </span>
               </span>
@@ -247,25 +231,12 @@ export function ReturnsDecisionCard({
       </div>
 
       {isDamaged ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="flex flex-col gap-3">
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: "#6D7175",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                marginBottom: 6,
-              }}
-            >
+            <div className="text-[11px] font-semibold text-ink-secondary uppercase tracking-[0.05em] mb-1.5">
               {t("reasonTitle")}
             </div>
-            <div
-              role="radiogroup"
-              aria-label={t("reasonTitle")}
-              style={{ display: "flex", flexWrap: "wrap", gap: 6 }}
-            >
+            <div role="radiogroup" aria-label={t("reasonTitle")} className="flex flex-wrap gap-1.5">
               {REASON_OPTIONS.map(({ key, labelKey }) => {
                 const active = reason === key;
                 return (
@@ -275,17 +246,12 @@ export function ReturnsDecisionCard({
                     role="radio"
                     aria-checked={active}
                     onClick={() => setReason(key)}
-                    style={{
-                      all: "unset",
-                      cursor: "pointer",
-                      padding: "6px 12px",
-                      borderRadius: 999,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      border: `1px solid ${active ? "#1A1A1A" : "#E1E3E5"}`,
-                      backgroundColor: active ? "#1A1A1A" : "#FFFFFF",
-                      color: active ? "#FFFFFF" : "#1A1A1A",
-                    }}
+                    className={[
+                      "px-3 py-1.5 rounded-pill text-[13px] font-medium border transition-colors duration-fast cursor-pointer",
+                      active
+                        ? "bg-ink-primary text-white border-ink-primary"
+                        : "bg-surface-card text-ink-primary border-line-subtle hover:bg-surface-hover",
+                    ].join(" ")}
                   >
                     {t(labelKey)}
                   </button>
@@ -300,86 +266,39 @@ export function ReturnsDecisionCard({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder={t("reasonNotePlaceholder")}
-              style={{
-                padding: "10px 12px",
-                fontSize: 14,
-                border: "1px solid #E1E3E5",
-                borderRadius: 8,
-                backgroundColor: "#FFFFFF",
-                color: "#1A1A1A",
-              }}
+              className="px-3 py-2.5 text-[14px] border border-line-subtle rounded-md bg-surface-card text-ink-primary"
             />
           ) : null}
 
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: "#6D7175",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                marginBottom: 6,
-              }}
-            >
+            <div className="text-[11px] font-semibold text-ink-secondary uppercase tracking-[0.05em] mb-1.5">
               {t("photoTitle")}
-              <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, marginInlineStart: 6 }}>
+              <span className="font-normal normal-case tracking-normal ms-1.5">
                 · {t("photoHint")}
               </span>
             </div>
             {photoPath ? (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "8px 12px",
-                  border: "1px solid #E1E3E5",
-                  borderRadius: 8,
-                }}
-              >
+              <div className="flex items-center gap-2.5 px-3 py-2 border border-line-subtle rounded-md">
                 <ImageIcon size={16} strokeWidth={1.5} aria-hidden="true" />
-                <span
-                  style={{
-                    flex: 1,
-                    fontSize: 12,
-                    color: "#6D7175",
-                    fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <span className="flex-1 text-[12px] text-ink-secondary font-mono overflow-hidden text-ellipsis whitespace-nowrap">
                   {photoPath}
                 </span>
                 <button
                   type="button"
                   onClick={() => setPhotoPath(null)}
                   aria-label={t("photoRemove")}
-                  style={{
-                    all: "unset",
-                    cursor: "pointer",
-                    padding: 4,
-                    color: "#6D7175",
-                  }}
+                  className="p-1 text-ink-secondary hover:text-ink-primary transition-colors duration-fast"
                 >
                   <X size={14} aria-hidden="true" />
                 </button>
               </div>
             ) : (
               <label
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "8px 14px",
-                  border: "1px dashed #C9CCCF",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  color: "#1A1A1A",
-                  cursor: uploading ? "wait" : "pointer",
-                  backgroundColor: uploading ? "#F7F7F7" : "#FFFFFF",
-                }}
+                className={[
+                  "inline-flex items-center gap-2 px-3.5 py-2 border border-dashed border-line-strong rounded-md text-[13px] text-ink-primary",
+                  uploading ? "cursor-wait bg-surface-hover" : "cursor-pointer bg-surface-card hover:bg-surface-hover",
+                  "transition-colors duration-fast",
+                ].join(" ")}
               >
                 <ImageIcon size={16} strokeWidth={1.5} aria-hidden="true" />
                 {uploading ? t("photoUploading") : t("photoAdd")}
@@ -390,18 +309,13 @@ export function ReturnsDecisionCard({
                   onChange={handlePhotoChange}
                   disabled={uploading}
                   aria-label={t("photoAdd")}
-                  style={{
-                    position: "absolute",
-                    width: 1,
-                    height: 1,
-                    overflow: "hidden",
-                    clipPath: "inset(50%)",
-                  }}
+                  className="absolute w-px h-px overflow-hidden"
+                  style={{ clipPath: "inset(50%)" }}
                 />
               </label>
             )}
             {uploadError ? (
-              <p style={{ margin: "6px 0 0", fontSize: 12, color: "#D72C0D" }}>
+              <p className="mt-1.5 mb-0 text-[12px] text-status-critical">
                 {uploadError}
               </p>
             ) : null}
@@ -409,21 +323,12 @@ export function ReturnsDecisionCard({
         </div>
       ) : null}
 
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+      <div className="flex gap-2 justify-end">
         <button
           type="button"
           onClick={onCancel}
           disabled={submitting}
-          style={{
-            all: "unset",
-            cursor: submitting ? "not-allowed" : "pointer",
-            padding: "10px 16px",
-            borderRadius: 8,
-            fontSize: 14,
-            fontWeight: 500,
-            color: "#1A1A1A",
-            border: "1px solid #E1E3E5",
-          }}
+          className="px-4 py-2.5 rounded-md text-[14px] font-medium text-ink-primary border border-line-subtle bg-surface-card hover:bg-surface-hover disabled:cursor-not-allowed transition-colors duration-fast"
         >
           {t("cancel")}
         </button>
@@ -431,17 +336,13 @@ export function ReturnsDecisionCard({
           type="button"
           disabled={!valid || submitting}
           onClick={() => onAddToBatch(payload())}
-          style={{
-            all: "unset",
-            cursor: !valid || submitting ? "not-allowed" : "pointer",
-            padding: "10px 16px",
-            borderRadius: 8,
-            fontSize: 14,
-            fontWeight: 600,
-            color: !valid ? "#6D7175" : "#1A1A1A",
-            border: `1px solid ${!valid ? "#E1E3E5" : "#1A1A1A"}`,
-            backgroundColor: "#FFFFFF",
-          }}
+          className={[
+            "px-4 py-2.5 rounded-md text-[14px] font-semibold border bg-surface-card",
+            "transition-colors duration-fast",
+            !valid || submitting
+              ? "text-ink-secondary border-line-subtle cursor-not-allowed"
+              : "text-ink-primary border-ink-primary hover:bg-surface-hover cursor-pointer",
+          ].join(" ")}
         >
           {t("addToBatch")}
         </button>
@@ -449,16 +350,13 @@ export function ReturnsDecisionCard({
           type="button"
           disabled={!valid || submitting}
           onClick={() => onCommitNow(payload())}
-          style={{
-            all: "unset",
-            cursor: !valid || submitting ? "not-allowed" : "pointer",
-            padding: "10px 18px",
-            borderRadius: 8,
-            fontSize: 14,
-            fontWeight: 600,
-            color: "#FFFFFF",
-            backgroundColor: !valid ? "#C9CCCF" : "#1A1A1A",
-          }}
+          className={[
+            "px-4.5 py-2.5 rounded-md text-[14px] font-semibold text-white",
+            "transition-colors duration-fast",
+            !valid || submitting
+              ? "bg-line-strong cursor-not-allowed"
+              : "bg-ink-primary hover:bg-[#2A2A2A] cursor-pointer",
+          ].join(" ")}
         >
           {t("commitNow")}
         </button>

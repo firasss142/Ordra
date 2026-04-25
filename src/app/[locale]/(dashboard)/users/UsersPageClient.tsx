@@ -6,7 +6,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/swr-config";
 import { useUsersWorkspace } from "@/hooks/useUsersWorkspace";
 import { UserRoleSection } from "@/components/admin/UserRoleSection";
-import { InviteUserPanel } from "@/components/admin/InviteUserPanel";
+import { CreateUserPanel } from "@/components/admin/CreateUserPanel";
 import { DeactivateUserFlow } from "@/components/admin/DeactivateUserFlow";
 import { UserAuditLog } from "@/components/admin/UserAuditLog";
 import type { AuthUser, DeactivationReason, Role, UserWithStats } from "@/types";
@@ -34,7 +34,7 @@ function groupUsersByRole(users: UserWithStats[]): Partial<Record<Role, UserWith
 
 export function UsersPageClient({ user }: Props) {
   const t = useTranslations("users");
-  const { users, isLoading, inviteUser, deactivateUser, reactivateUser } = useUsersWorkspace();
+  const { users, isLoading, createUser, deactivateUser, reactivateUser } = useUsersWorkspace();
   const { data: marketsData } = useSWR<{ data: Market[] }>(
     user.role === "super_admin" ? "/api/markets" : null,
     fetcher
@@ -48,7 +48,7 @@ export function UsersPageClient({ user }: Props) {
     return [];
   }, [marketsData, user.market_id]);
 
-  const [invitePanelOpen, setInvitePanelOpen] = useState(false);
+  const [createPanelOpen, setCreatePanelOpen] = useState(false);
   const [deactivatingUser, setDeactivatingUser] = useState<UserWithStats | null>(null);
   const [auditLogUserId, setAuditLogUserId] = useState<string | null>(null);
   const [resetPasswordUser, setResetPasswordUser] = useState<UserWithStats | null>(null);
@@ -83,7 +83,7 @@ export function UsersPageClient({ user }: Props) {
 
         {(user.role === "super_admin" || user.role === "market_manager") && (
           <button
-            onClick={() => setInvitePanelOpen(true)}
+            onClick={() => setCreatePanelOpen(true)}
             style={{
               display: "flex",
               alignItems: "center",
@@ -98,7 +98,7 @@ export function UsersPageClient({ user }: Props) {
               cursor: "pointer",
             }}
           >
-            {t("inviteTitle")}
+            {t("createTitle")}
           </button>
         )}
       </div>
@@ -122,6 +122,7 @@ export function UsersPageClient({ user }: Props) {
               users={roleUsers}
               markets={markets}
               actorRole={user.role}
+              actorId={user.id}
               onDeactivate={(u) => setDeactivatingUser(u)}
               onReactivate={async (id) => {
                 try {
@@ -137,16 +138,16 @@ export function UsersPageClient({ user }: Props) {
           );
         })}
 
-      {/* Invite panel */}
-      <InviteUserPanel
-        open={invitePanelOpen}
+      {/* Create panel */}
+      <CreateUserPanel
+        open={createPanelOpen}
         actorRole={user.role}
         actorMarketId={user.market_id}
         markets={markets}
-        onClose={() => setInvitePanelOpen(false)}
-        onInvite={async (payload) => {
-          const result = await inviteUser(payload);
-          return result;
+        onClose={() => setCreatePanelOpen(false)}
+        onCreate={async (payload) => {
+          await createUser(payload);
+          showToast(t("create") + " ✓");
         }}
       />
 
@@ -228,13 +229,13 @@ function ResetPasswordDialog({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const invalid = pw.length > 0 && pw.length < 8;
+  const invalid = false;
   const mismatch = pw2.length > 0 && pw !== pw2;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (pw !== pw2) { setError(t("passwordMismatch")); return; }
-    if (pw.length < 8) { setError(t("passwordTooShort")); return; }
+    if (pw.length < 1) { setError(t("passwordTooShort")); return; }
     setLoading(true);
     setError(null);
     try {

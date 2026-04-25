@@ -5,13 +5,16 @@ import useSWR from "swr";
 import FocusTrap from "focus-trap-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { canManageStorefronts } from "@/lib/settings-permissions";
+import { generateSecret } from "@/lib/storefronts/secret-gen";
 import {
   HealthBadge,
   computeHealthState,
   formatRelative,
 } from "./storefronts/HealthBadge";
 import { ConnectionWizard } from "./storefronts/ConnectionWizard";
+import { PlatformIcon } from "./storefronts/PlatformIcon";
 import type { Role } from "@/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -37,14 +40,12 @@ interface StorefrontsSectionProps {
 
 const MASK = "••••••••";
 
-function getPlatformLabel(value: string): string {
-  const PLATFORMS: Record<string, string> = {
-    easy_orders: "Easy Orders",
-    shopify: "Shopify",
-    woocommerce: "WooCommerce",
-  };
-  return PLATFORMS[value] ?? value;
-}
+const PLATFORM_LABEL_KEYS: Record<string, string> = {
+  easy_orders: "easyOrders",
+  shopify: "shopify",
+  woocommerce: "woocommerce",
+  lightfunnels: "lightfunnels",
+};
 
 interface TestResult {
   success: boolean;
@@ -53,8 +54,10 @@ interface TestResult {
 }
 
 export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) {
+  const t = useTranslations("settings.storefronts");
+  const tWizard = useTranslations("settings.storefronts.wizard");
   const params = useParams<{ locale: string }>();
-  const { data, mutate } = useSWR<{ data: Storefront[] }>(
+  const { data, mutate, isLoading } = useSWR<{ data: Storefront[] }>(
     marketId ? `/api/storefronts?market_id=${marketId}` : null,
     fetcher,
     { refreshInterval: 30_000 },
@@ -72,6 +75,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
   const [errorMsg, setErrorMsg] = useState("");
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const secretsRef = useRef<HTMLDivElement>(null);
 
@@ -81,6 +85,26 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
     webhook_url: "",
     webhook_secret: "",
   });
+
+  function platformLabel(p: string): string {
+    const key = PLATFORM_LABEL_KEYS[p];
+    return key ? tWizard(`platforms.${key}` as never) : p;
+  }
+
+  function copy(value: string, key: string) {
+    if (typeof navigator === "undefined" || !navigator.clipboard) return;
+    navigator.clipboard
+      .writeText(value)
+      .then(() => {
+        setCopiedKey(key);
+        setTimeout(() => {
+          setCopiedKey((c) => (c === key ? null : c));
+        }, 2000);
+      })
+      .catch(() => {
+        // Silent — fallback to selection if needed
+      });
+  }
 
   function openEdit(s: Storefront) {
     setEditStorefront(s);
@@ -137,7 +161,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
         [s.id]: {
           success: false,
           stage: "network",
-          message: "Erreur réseau",
+          message: t("errorMessages.networkError"),
         },
       }));
     } finally {
@@ -166,7 +190,9 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
       });
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));
-        setErrorMsg((b as { error?: string }).error ?? "Erreur");
+        setErrorMsg(
+          (b as { error?: string }).error ?? t("edit_panel.error"),
+        );
         return;
       }
       mutate();
@@ -195,12 +221,10 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
               margin: 0,
             }}
           >
-            Storefronts
+            {t("title")}
           </h2>
           <p style={{ fontSize: 13, color: "#6D7175", margin: "4px 0 0 0" }}>
-            {canManage
-              ? "Connectez vos boutiques et surveillez l'état des webhooks."
-              : "Vue lecture seule — supervision des webhooks."}
+            {canManage ? t("subtitle") : t("subtitleReadOnly")}
           </p>
         </div>
         {canManage && (
@@ -217,13 +241,20 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
               cursor: "pointer",
             }}
           >
-            Connecter un storefront
+            {t("connect")}
           </button>
         )}
       </div>
 
       {/* Storefront cards with health dashboard */}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {isLoading && storefronts.length === 0 && (
+          <>
+            <StorefrontCardSkeleton />
+            <StorefrontCardSkeleton />
+            <StorefrontCardSkeleton />
+          </>
+        )}
         {storefronts.map((s) => {
           const state = computeHealthState({
             is_active: s.is_active,
@@ -233,6 +264,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
           });
           const webhookUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/api/webhooks/${s.id}`;
           const test = testResults[s.id];
+          const copyKey = `wh-${s.id}`;
           return (
             <div
               key={s.id}
@@ -268,12 +300,21 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                         backgroundColor: "#1A1A1A",
                         color: "white",
                         borderRadius: 9999,
-                        padding: "2px 8px",
+                        padding: "2px 8px 2px 4px",
                         fontSize: 11,
                         fontWeight: 500,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
                       }}
                     >
-                      {getPlatformLabel(s.platform)}
+                      <PlatformIcon
+                        platform={s.platform}
+                        size={14}
+                        background="#1A1A1A"
+                        color="white"
+                      />
+                      {platformLabel(s.platform)}
                     </span>
                     <HealthBadge state={state} />
                   </div>
@@ -287,26 +328,26 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                     }}
                   >
                     <HealthStat
-                      label="Dernier webhook"
+                      label={t("lastWebhook")}
                       value={formatRelative(s.last_webhook_received_at)}
                     />
                     <HealthStat
-                      label="Échecs consécutifs"
+                      label={t("failureCount")}
                       value={String(s.webhook_failure_count)}
                       valueColor={
                         s.webhook_failure_count > 0 ? "#D72C0D" : "#1A1A1A"
                       }
                     />
                     <HealthStat
-                      label="Statut"
+                      label={t("status")}
                       value={
                         s.last_webhook_status === "error"
-                          ? "Erreur"
+                          ? t("statusError")
                           : s.last_webhook_status === "processed"
-                            ? "Traité"
+                            ? t("statusProcessed")
                             : s.last_webhook_status === "ignored"
-                              ? "Ignoré"
-                              : "—"
+                              ? t("statusIgnored")
+                              : t("statusNone")
                       }
                     />
                   </div>
@@ -322,7 +363,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                         color: "#D72C0D",
                       }}
                     >
-                      <strong>Dernière erreur :</strong> {s.last_webhook_error}
+                      <strong>{t("lastError")}</strong> {s.last_webhook_error}
                     </div>
                   )}
 
@@ -370,17 +411,21 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                       {webhookUrl}
                     </code>
                     <button
-                      onClick={() => navigator.clipboard.writeText(webhookUrl)}
+                      onClick={() => copy(webhookUrl, copyKey)}
                       style={{
                         background: "none",
                         border: "none",
-                        color: "#2C6ECB",
+                        color: copiedKey === copyKey ? "#008060" : "#2C6ECB",
                         fontSize: 12,
                         cursor: "pointer",
                         padding: 0,
+                        fontWeight: copiedKey === copyKey ? 600 : 400,
+                        minWidth: 60,
+                        textAlign: "start",
                       }}
+                      aria-live="polite"
                     >
-                      Copier
+                      {copiedKey === copyKey ? t("copied") : t("copy")}
                     </button>
                   </div>
                 </div>
@@ -409,7 +454,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {testingId === s.id ? "Test…" : "Tester"}
+                        {testingId === s.id ? t("testing") : t("test")}
                       </button>
                       <button
                         onClick={() => openEdit(s)}
@@ -422,7 +467,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                           padding: 0,
                         }}
                       >
-                        Modifier
+                        {t("edit")}
                       </button>
                       <label
                         style={{
@@ -439,7 +484,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                           role="switch"
                           checked={s.is_active}
                           onChange={() => handleToggleActive(s)}
-                          aria-label={`${s.name} actif`}
+                          aria-label={`${s.name} ${t("active").toLowerCase()}`}
                           style={{
                             width: 28,
                             height: 16,
@@ -447,7 +492,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                             accentColor: "#1A1A1A",
                           }}
                         />
-                        {s.is_active ? "Actif" : "Inactif"}
+                        {s.is_active ? t("active") : t("inactive")}
                       </label>
                     </>
                   )}
@@ -460,7 +505,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                         textDecoration: "none",
                       }}
                     >
-                      Voir alertes →
+                      {t("viewAlerts")}
                     </Link>
                   )}
                 </div>
@@ -469,7 +514,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
           );
         })}
 
-        {storefronts.length === 0 && (
+        {!isLoading && storefronts.length === 0 && (
           <div
             style={{
               padding: 32,
@@ -478,9 +523,15 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
               border: "1px dashed #E1E3E5",
               borderRadius: "0.5rem",
               fontSize: 13,
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
             }}
           >
-            Aucun storefront configuré pour ce marché.
+            <div style={{ color: "#1A1A1A", fontWeight: 500 }}>
+              {t("noStorefronts")}
+            </div>
+            <div style={{ fontSize: 12 }}>{t("emptyHint")}</div>
           </div>
         )}
       </div>
@@ -521,15 +572,15 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
               ref={panelRef}
               tabIndex={-1}
               role="dialog"
-              aria-label="Modifier storefront"
+              aria-label={t("edit_panel.title")}
               style={{
                 position: "fixed",
                 top: 0,
-                right: 0,
+                insetInlineEnd: 0,
                 bottom: 0,
                 width: 420,
                 backgroundColor: "white",
-                borderLeft: "1px solid #E1E3E5",
+                borderInlineStart: "1px solid #E1E3E5",
                 zIndex: 50,
                 display: "flex",
                 flexDirection: "column",
@@ -546,7 +597,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                     color: "#1A1A1A",
                   }}
                 >
-                  Modifier le storefront
+                  {t("edit_panel.title")}
                 </h3>
               </div>
               <form
@@ -560,7 +611,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                   gap: 16,
                 }}
               >
-                <Field label="Nom">
+                <Field label={t("edit_panel.name")}>
                   <input
                     type="text"
                     required
@@ -571,7 +622,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                     style={inputStyle}
                   />
                 </Field>
-                <Field label="Webhook URL">
+                <Field label={t("edit_panel.webhookUrl")}>
                   <input
                     type="url"
                     value={form.webhook_url}
@@ -581,16 +632,48 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                     style={inputStyle}
                   />
                 </Field>
-                <Field label="Webhook Secret">
-                  <input
-                    type="password"
-                    value={form.webhook_secret}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, webhook_secret: e.target.value }))
-                    }
-                    style={inputStyle}
-                    placeholder="Laisser tel quel pour ne pas modifier"
-                  />
+                <Field label={t("edit_panel.webhookSecret")}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "#8A6116",
+                      background: "#FFF8E1",
+                      padding: "6px 8px",
+                      borderRadius: "0.375rem",
+                      marginBottom: 6,
+                    }}
+                  >
+                    {t("regenerateWarning")}
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      type="text"
+                      value={form.webhook_secret}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, webhook_secret: e.target.value }))
+                      }
+                      style={{ ...inputStyle, fontFamily: "monospace", fontSize: 12 }}
+                      placeholder={t("edit_panel.secretPlaceholder")}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm((f) => ({ ...f, webhook_secret: generateSecret() }))
+                      }
+                      style={{
+                        background: "white",
+                        border: "1px solid #E1E3E5",
+                        borderRadius: "0.5rem",
+                        padding: "0 12px",
+                        fontSize: 13,
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                        color: "#1A1A1A",
+                      }}
+                    >
+                      {t("regenerateSecret")}
+                    </button>
+                  </div>
                 </Field>
                 {errorMsg && (
                   <p role="alert" style={{ fontSize: 13, color: "#D72C0D", margin: 0 }}>
@@ -613,7 +696,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                       opacity: saving ? 0.7 : 1,
                     }}
                   >
-                    {saving ? "Enregistrement…" : "Enregistrer"}
+                    {saving ? t("edit_panel.saving") : t("edit_panel.save")}
                   </button>
                   <button
                     type="button"
@@ -629,7 +712,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                       cursor: "pointer",
                     }}
                   >
-                    Annuler
+                    {t("edit_panel.cancel")}
                   </button>
                 </div>
               </form>
@@ -650,7 +733,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
             ref={secretsRef}
             tabIndex={-1}
             role="dialog"
-            aria-label="Informations créées"
+            aria-label={t("created_modal.title")}
             style={{
               position: "fixed",
               inset: 0,
@@ -679,16 +762,29 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                   marginTop: 0,
                 }}
               >
-                Storefront créé
+                {t("created_modal.title")}
               </h3>
               <p style={{ fontSize: 13, color: "#D72C0D", marginBottom: 20 }}>
-                Copiez ces informations — elles ne seront plus affichées.
+                {t("created_modal.warning")}
               </p>
-              <CopyBlock label="URL Webhook (OMS)" value={createdInfo.webhookUrl} />
               <CopyBlock
-                label="Secret Webhook"
+                label={t("created_modal.webhookUrlLabel")}
+                value={createdInfo.webhookUrl}
+                copyKey="created-url"
+                copy={copy}
+                copiedKey={copiedKey}
+                tCopy={t("copy")}
+                tCopied={t("copied")}
+              />
+              <CopyBlock
+                label={t("created_modal.secretLabel")}
                 value={createdInfo.secret}
                 highlight
+                copyKey="created-secret"
+                copy={copy}
+                copiedKey={copiedKey}
+                tCopy={t("copy")}
+                tCopied={t("copied")}
               />
               <button
                 onClick={() => setCreatedInfo(null)}
@@ -704,7 +800,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                   marginTop: 16,
                 }}
               >
-                J&apos;ai sauvegardé ces informations
+                {t("created_modal.ack")}
               </button>
             </div>
           </div>
@@ -786,11 +882,22 @@ function CopyBlock({
   label,
   value,
   highlight = false,
+  copyKey,
+  copy,
+  copiedKey,
+  tCopy,
+  tCopied,
 }: {
   label: string;
   value: string;
   highlight?: boolean;
+  copyKey: string;
+  copy: (v: string, key: string) => void;
+  copiedKey: string | null;
+  tCopy: string;
+  tCopied: string;
 }) {
+  const isCopied = copiedKey === copyKey;
   return (
     <div style={{ marginBottom: 12 }}>
       <label
@@ -821,18 +928,63 @@ function CopyBlock({
           {value}
         </code>
         <button
-          onClick={() => navigator.clipboard.writeText(value)}
+          onClick={() => copy(value, copyKey)}
           style={{
             background: "none",
             border: "none",
-            color: "#2C6ECB",
+            color: isCopied ? "#008060" : "#2C6ECB",
             fontSize: 13,
             cursor: "pointer",
             whiteSpace: "nowrap",
+            fontWeight: isCopied ? 600 : 400,
+            minWidth: 70,
+            textAlign: "start",
+          }}
+          aria-live="polite"
+        >
+          {isCopied ? tCopied : tCopy}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function StorefrontCardSkeleton() {
+  return (
+    <div
+      style={{
+        border: "1px solid #E1E3E5",
+        borderRadius: "0.5rem",
+        background: "white",
+        padding: 16,
+      }}
+      aria-hidden="true"
+    >
+      <style>{`@keyframes oms-sf-pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.55 } }`}</style>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          animation: "oms-sf-pulse 1.4s ease-in-out infinite",
+        }}
+      >
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ width: 140, height: 16, background: "#E1E3E5", borderRadius: 4 }} />
+          <div style={{ width: 80, height: 16, background: "#E1E3E5", borderRadius: 9999 }} />
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+            gap: 12,
           }}
         >
-          Copier
-        </button>
+          <div style={{ height: 36, background: "#F0F1F2", borderRadius: 4 }} />
+          <div style={{ height: 36, background: "#F0F1F2", borderRadius: 4 }} />
+          <div style={{ height: 36, background: "#F0F1F2", borderRadius: 4 }} />
+        </div>
+        <div style={{ width: 320, height: 24, background: "#F0F1F2", borderRadius: 4 }} />
       </div>
     </div>
   );

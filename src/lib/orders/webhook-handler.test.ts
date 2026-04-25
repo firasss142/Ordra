@@ -752,4 +752,40 @@ describe("handleWebhook", () => {
       })
     );
   });
+
+  test("returns 200 + logs error when storefront platform is unknown", async () => {
+    const admin = mockAdminClient({
+      storefrontData: {
+        id: STOREFRONT_ID,
+        market_id: MARKET_ID,
+        platform: "rogueplatform",
+        config: {},
+        webhook_secret: SECRET,
+        is_active: true,
+      },
+    });
+
+    const result = await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: "{}",
+      headers: new Headers(),
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.error).toBe("Unknown platform");
+
+    const wdlChain = admin.from("webhook_delivery_log") as unknown as {
+      insert: ReturnType<typeof vi.fn>;
+    };
+    expect(wdlChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "rogueplatform",
+        event: "unknown",
+        status: "error",
+        storefront_id: STOREFRONT_ID,
+      })
+    );
+  });
 });

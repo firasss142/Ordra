@@ -103,4 +103,42 @@ describe("POST /api/storefronts/[id]/test", () => {
     const sig = createHmac("sha256", "secret").update("{}").digest("hex");
     expect(sig).toMatch(/^[a-f0-9]{64}$/);
   });
+
+  test.each([
+    ["shopify"],
+    ["woocommerce"],
+    ["lightfunnels"],
+  ])("returns success for %s synthetic payload", async (platform) => {
+    mockGetActor.mockResolvedValue({
+      actor: { id: "sa", role: "super_admin", market_id: null },
+    });
+    mockFrom.mockImplementation(() =>
+      singleChain({ ...SF, platform }),
+    );
+    mockDecrypt.mockReturnValue("plaintext-secret");
+
+    const res = await POST(req(), { params: Promise.resolve({ id: "sf-1" }) });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.stage).toBe("ok");
+    expect(body.details?.platform).toBe(platform);
+    expect(body.details?.event).toBe("order.created");
+  });
+
+  test("returns adapter-failure result for unknown platform", async () => {
+    mockGetActor.mockResolvedValue({
+      actor: { id: "sa", role: "super_admin", market_id: null },
+    });
+    mockFrom.mockImplementation(() =>
+      singleChain({ ...SF, platform: "rogueplatform" }),
+    );
+    mockDecrypt.mockReturnValue("plaintext-secret");
+
+    const res = await POST(req(), { params: Promise.resolve({ id: "sf-1" }) });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(false);
+    expect(body.stage).toBe("adapter");
+  });
 });

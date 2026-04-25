@@ -379,12 +379,25 @@
       "adSpend": "Pub",
       "cpa": "CPA",
       "cpl": "CPL",
+      "aov": "Panier moyen",
       "deliveredCount": "{count, plural, one {# livrée} other {# livrées}}",
       "deltaVsPrev": "vs période précédente",
       "noPrev": "—",
       "prevShort": "précéd.",
       "leadsShort": "leads",
       "confirmedShort": "conf."
+    },
+    "composition": {
+      "title": "Composition du chiffre d'affaires",
+      "ofRevenue": "% du CA"
+    },
+    "funnel": {
+      "title": "Entonnoir",
+      "leads": "Leads",
+      "confirmed": "Confirmées",
+      "delivered": "Livrées",
+      "toConfirmed": "Confirmation",
+      "toDelivered": "Livraison"
     },
     "operational": {
       "title": "Opérations",
@@ -1176,6 +1189,7 @@
       "performance": "Performance"
     },
     "filters": {
+      "title": "Filtres",
       "status": {
         "all": "Tous",
         "active": "Actifs",
@@ -1198,6 +1212,7 @@
       "deliveryRate": "Liv.",
       "returnRate": "Ret.",
       "margin": "Marge",
+      "revenue": "CA",
       "noData": "Aucune donnée"
     },
     "health": {
@@ -1205,6 +1220,23 @@
       "yellow": "À surveiller",
       "red": "Déficitaire",
       "grey": "Pas de données"
+    },
+    "portfolio": {
+      "topEarner": "Top vendeur",
+      "worstMargin": "Pire marge",
+      "lowStock": "Stock faible",
+      "active": "Actifs",
+      "ofTotal": "sur {total}",
+      "ofActive": "sur {total} actifs",
+      "noData": "—"
+    },
+    "sort": {
+      "label": "Trier",
+      "default": "Par défaut",
+      "revenueDesc": "CA (plus élevé)",
+      "marginAsc": "Marge (plus faible)",
+      "stockAsc": "Stock (plus bas)",
+      "name": "Nom"
     },
     "create": {
       "title": "Nouveau produit",
@@ -1229,6 +1261,77 @@
       "editThreshold": "Modifier le seuil",
       "variants": "{count} variante(s)",
       "moreVariants": "+{count} autres"
+    }
+  },
+  "productPnl": {
+    "rentabilityTitle": "Rentabilité",
+    "loading": "Chargement…",
+    "empty": "Aucune donnée pour la période sélectionnée",
+    "backToProducts": "Produits",
+    "status": {
+      "active": "Actif",
+      "inactive": "Inactif"
+    },
+    "stock": {
+      "label": "Stock",
+      "low": "Stock bas",
+      "units": "{count} unités"
+    },
+    "costsReference": {
+      "title": "Coûts de référence",
+      "cogs": "Coût unitaire (COGS)",
+      "packing": "Emballage",
+      "cpl": "CPL",
+      "processing": "Traitement",
+      "variants": "Variantes",
+      "noVariants": "Aucune variante",
+      "variantPriceLine": "{label} · ×{quantity} · {price}"
+    },
+    "stockHistoryTitle": "Historique du stock",
+    "hero": {
+      "netProfit": "Profit net",
+      "revenue": "Chiffre d'affaires",
+      "profitPerDelivered": "Profit / livrée",
+      "marginLabel": "{value} de marge",
+      "deliveredLabel": "{count} livrées",
+      "vsCostLabel": "vs coût {value}",
+      "noDelivery": "Aucune livraison",
+      "vsPrev": "vs période précédente"
+    },
+    "funnel": {
+      "title": "Entonnoir de conversion",
+      "leads": "Leads",
+      "confirmed": "Confirmées",
+      "delivered": "Livrées",
+      "toConfirmed": "→ confirmation",
+      "toDelivered": "→ livraison"
+    },
+    "composition": {
+      "title": "Composition des coûts",
+      "cogs": "COGS",
+      "delivery": "Livraison",
+      "returns": "Retours",
+      "packing": "Emballage",
+      "ads": "Publicité",
+      "processing": "Traitement",
+      "netProfit": "Profit net",
+      "ofRevenue": "du CA"
+    },
+    "ops": {
+      "title": "Opérations",
+      "confirmationRate": "Taux de confirmation",
+      "deliveryRate": "Taux de livraison",
+      "returnRate": "Taux de retour",
+      "costPerDelivered": "Coût / livrée"
+    },
+    "pills": {
+      "high": "Élevé",
+      "watch": "À surveiller",
+      "low": "Bas",
+      "healthy": "Sain",
+      "lowStock": "Stock bas",
+      "adsPressure": "Pub élevée",
+      "negativeProfit": "Déficitaire"
     }
   },
   "crm": {
@@ -1630,6 +1733,8 @@
       "myDueToday": "Mes relances du jour",
       "viewTimeline": "Relances",
       "viewKanban": "Kanban",
+      "filters": "Filtres",
+      "statusLabel": "Statut",
       "outcomes": {
         "voicemail": "Messagerie",
         "no_answer": "Pas de réponse",
@@ -2124,6 +2229,96 @@
       "keyHint": "Minuscules, chiffres et underscores. Exemple: blocked_customs",
       "keyInvalid": "Format invalide — utilisez minuscules/chiffres/underscores uniquement.",
       "keyConflict": "Cette clé existe déjà pour ce marché et cette portée."
+    },
+    "storefronts": {
+      "title": "Storefronts",
+      "subtitle": "Connectez vos boutiques et surveillez l'état des webhooks.",
+      "subtitleReadOnly": "Vue lecture seule — supervision des webhooks.",
+      "connect": "Connecter un storefront",
+      "test": "Tester",
+      "testing": "Test…",
+      "edit": "Modifier",
+      "active": "Actif",
+      "inactive": "Inactif",
+      "lastWebhook": "Dernier webhook",
+      "failureCount": "Échecs consécutifs",
+      "status": "Statut",
+      "statusProcessed": "Traité",
+      "statusError": "Erreur",
+      "statusIgnored": "Ignoré",
+      "statusNone": "—",
+      "lastError": "Dernière erreur :",
+      "viewAlerts": "Voir alertes →",
+      "noStorefronts": "Aucun storefront configuré pour ce marché.",
+      "emptyHint": "Cliquez sur \"Connecter un storefront\" pour démarrer.",
+      "copy": "Copier",
+      "copied": "Copié ✓",
+      "regenerateSecret": "Régénérer le secret",
+      "regenerateWarning": "Régénérer invalidera la signature actuelle — mettez à jour le storefront immédiatement.",
+      "errorMessages": {
+        "copyFailed": "Impossible de copier dans le presse-papiers.",
+        "testFailed": "Test échoué.",
+        "networkError": "Erreur réseau"
+      },
+      "edit_panel": {
+        "title": "Modifier le storefront",
+        "name": "Nom",
+        "webhookUrl": "Webhook URL",
+        "webhookSecret": "Webhook Secret",
+        "secretPlaceholder": "Laisser tel quel pour ne pas modifier",
+        "save": "Enregistrer",
+        "saving": "Enregistrement…",
+        "cancel": "Annuler",
+        "error": "Erreur"
+      },
+      "created_modal": {
+        "title": "Storefront créé",
+        "warning": "Copiez ces informations — elles ne seront plus affichées.",
+        "webhookUrlLabel": "URL Webhook (OMS)",
+        "secretLabel": "Secret Webhook",
+        "ack": "J'ai sauvegardé ces informations"
+      },
+      "wizard": {
+        "title": "Nouveau storefront — {market}",
+        "stepsAria": "Étapes",
+        "steps": {
+          "name": "Nom",
+          "platform": "Plateforme",
+          "auth": "Authentification",
+          "webhook": "Webhook"
+        },
+        "nameLabel": "Nom du storefront",
+        "namePlaceholder": "ex : Boutique principale",
+        "nameHelp": "Un nom court, visible partout où ce storefront apparaît.",
+        "platformLabel": "Plateforme",
+        "secretLabel": "Secret webhook",
+        "secretRegenerate": "Régénérer",
+        "secretHelp": "Ce secret servira à signer les webhooks entrants. 16 caractères minimum.",
+        "webhookLabel": "URL webhook (côté storefront)",
+        "webhookHelp": "Optionnel — URL où le storefront envoie les webhooks (pour référence). L'URL d'écoute OMS sera affichée après création.",
+        "summary": "Récapitulatif",
+        "summaryName": "Nom : {name}",
+        "summaryPlatform": "Plateforme : {platform}",
+        "summaryMarket": "Marché : {market}",
+        "errorCreate": "Erreur lors de la création",
+        "cancel": "Annuler",
+        "previous": "Précédent",
+        "next": "Suivant",
+        "create": "Créer le storefront",
+        "creating": "Création…",
+        "platforms": {
+          "easyOrders": "Easy Orders",
+          "shopify": "Shopify",
+          "woocommerce": "WooCommerce",
+          "lightfunnels": "Lightfunnels"
+        },
+        "hints": {
+          "easyOrders": "X-Webhook-Signature (hex)",
+          "shopify": "X-Shopify-Hmac-Sha256 (base64)",
+          "woocommerce": "X-WC-Webhook-Signature (base64)",
+          "lightfunnels": "lightfunnels-hmac (base64)"
+        }
+      }
     }
   },
   "logs": {

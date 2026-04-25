@@ -16,7 +16,7 @@ export interface CarrierRow {
   return_fee: number;
 }
 
-function buildConfig(carrier: CarrierRow): CarrierConfig {
+export function buildConfig(carrier: CarrierRow): CarrierConfig {
   if (!carrier.api_credentials) {
     throw new CarrierConfigError("Carrier has no API credentials configured");
   }

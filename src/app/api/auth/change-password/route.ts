@@ -16,9 +16,9 @@ export async function POST(req: NextRequest) {
   }
 
   const newPassword = body.new_password;
-  if (typeof newPassword !== "string" || newPassword.length < 8) {
+  if (typeof newPassword !== "string" || newPassword.length < 1) {
     return NextResponse.json(
-      { error: "Le mot de passe doit contenir au moins 8 caractères" },
+      { error: "Le mot de passe est requis" },
       { status: 400 }
     );
   }

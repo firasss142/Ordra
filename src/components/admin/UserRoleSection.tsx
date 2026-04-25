@@ -15,6 +15,7 @@ interface Props {
   users: UserWithStats[];
   markets: Market[];
   actorRole: Role;
+  actorId: string;
   onDeactivate: (user: UserWithStats) => void;
   onReactivate: (id: string) => void;
   onResetPassword: (user: UserWithStats) => void;
@@ -44,6 +45,7 @@ export function UserRoleSection({
   users,
   markets,
   actorRole,
+  actorId,
   onDeactivate,
   onReactivate,
   onResetPassword,
@@ -77,6 +79,7 @@ export function UserRoleSection({
             user={u}
             markets={markets}
             actorRole={actorRole}
+            actorId={actorId}
             onDeactivate={() => onDeactivate(u)}
             onReactivate={() => onReactivate(u.id)}
             onResetPassword={() => onResetPassword(u)}

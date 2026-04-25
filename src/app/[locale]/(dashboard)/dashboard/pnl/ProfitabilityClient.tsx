@@ -12,6 +12,9 @@ import {
   calculatePeriodDelta,
   calculateMarginDelta,
 } from "@/lib/calculations/deltas";
+import { FinanceHeroCard } from "@/components/finance/FinanceHeroCard";
+import { CostCompositionBars } from "@/components/finance/CostCompositionBars";
+import { FinanceFunnel } from "@/components/finance/FinanceFunnel";
 import type { AuthUser } from "@/types";
 
 interface Market {
@@ -117,6 +120,8 @@ export function ProfitabilityClient({
   const deltas = useMemo(() => {
     if (!pnl?.previous) return null;
     const prev = pnl.previous;
+    const aov = pnl.delivered_count > 0 ? pnl.revenue / pnl.delivered_count : 0;
+    const prevAov = prev.delivered_count > 0 ? prev.revenue / prev.delivered_count : 0;
     return {
       revenue: calculatePeriodDelta(pnl.revenue, prev.revenue),
       netProfit: calculatePeriodDelta(pnl.net_profit, prev.net_profit),
@@ -124,8 +129,18 @@ export function ProfitabilityClient({
       adSpend: calculatePeriodDelta(pnl.ad_spend, prev.ad_spend),
       cpa: pnl.cpa != null && prev.cpa != null ? calculatePeriodDelta(pnl.cpa, prev.cpa) : null,
       cpl: pnl.cpl != null && prev.cpl != null ? calculatePeriodDelta(pnl.cpl, prev.cpl) : null,
+      aov: aov > 0 && prevAov > 0 ? calculatePeriodDelta(aov, prevAov) : null,
     };
   }, [pnl]);
+
+  const aov = pnl && pnl.delivered_count > 0 ? pnl.revenue / pnl.delivered_count : 0;
+  const profitPerDelivered =
+    pnl && pnl.delivered_count > 0 ? pnl.net_profit / pnl.delivered_count : 0;
+  const returnRate =
+    pnl && pnl.delivered_count + pnl.returned_count > 0
+      ? (pnl.returned_count / (pnl.delivered_count + pnl.returned_count)) * 100
+      : 0;
+  const returnsCostShare = pnl && pnl.revenue > 0 ? (pnl.return_cost / pnl.revenue) * 100 : 0;
 
   return (
     <div style={{ backgroundColor: "#F6F6F7", minHeight: "100vh", padding: "20px 24px 40px" }}>
@@ -138,7 +153,7 @@ export function ProfitabilityClient({
         </div>
       </header>
 
-      <div style={{ marginBottom: 10 }}>
+      <div style={{ marginBottom: 12 }}>
         <FilterBar
           period={period}
           activePreset={preset}
@@ -180,38 +195,35 @@ export function ProfitabilityClient({
         </div>
       )}
 
-      {/* Dense KPI strip — 6 columns on wide screens, wraps to 3×2 on medium */}
+      {/* Hero KPI row — Net Profit, Revenue, Margin */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
-          gap: 1,
-          background: "#E1E3E5",
-          border: "1px solid #E1E3E5",
-          borderRadius: 8,
-          overflow: "hidden",
-          marginBottom: 10,
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: 12,
+          marginBottom: 12,
         }}
       >
-        <KpiCell
-          label={t("kpi.revenue")}
-          value={formatCurrency(pnl?.revenue, isLoading, marketCode)}
-          subtitle={pnl ? t("kpi.deliveredCount", { count: pnl.delivered_count }) : null}
-          {...periodDeltaProps(deltas?.revenue ?? null)}
-        />
-        <KpiCell
+        <FinanceHeroCard
           label={t("kpi.netProfit")}
           value={formatCurrency(pnl?.net_profit, isLoading, marketCode)}
           subtitle={pnl ? `${pnl.margin.toFixed(1)}% ${t("kpi.margin").toLowerCase()}` : null}
-          emphatic={pnl != null}
-          valueTone={pnl != null && pnl.net_profit < 0 ? "critical" : "default"}
+          tone={pnl == null ? "neutral" : pnl.net_profit < 0 ? "negative" : "positive"}
           {...periodDeltaProps(deltas?.netProfit ?? null)}
         />
-        <KpiCell
+        <FinanceHeroCard
+          label={t("kpi.revenue")}
+          value={formatCurrency(pnl?.revenue, isLoading, marketCode)}
+          subtitle={pnl ? t("kpi.deliveredCount", { count: pnl.delivered_count }) : null}
+          tone="neutral"
+          {...periodDeltaProps(deltas?.revenue ?? null)}
+        />
+        <FinanceHeroCard
           label={t("kpi.margin")}
           value={pnl != null ? formatPct(pnl.margin) : "—"}
           subtitle={pnl?.previous ? `${pnl.previous.margin.toFixed(1)}% ${t("kpi.prevShort")}` : null}
-          deltaText={deltas?.marginPP != null ? formatPP(deltas.marginPP) : "—"}
+          tone="neutral"
+          deltaText={deltas?.marginPP != null ? formatPP(deltas.marginPP) : null}
           deltaTone={
             deltas?.marginPP == null
               ? "neutral"
@@ -222,19 +234,36 @@ export function ProfitabilityClient({
                   : "neutral"
           }
         />
-        <KpiCell
+      </div>
+
+      {/* Secondary KPI strip — AOV, Ad Spend, CPA, CPL */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+          gap: 12,
+          marginBottom: 12,
+        }}
+      >
+        <SecondaryKpi
+          label={t("kpi.aov")}
+          value={formatCurrency(pnl ? aov : undefined, isLoading, marketCode)}
+          subtitle={pnl ? `${pnl.delivered_count.toLocaleString()} ${t("operational.delivered").toLowerCase()}` : null}
+          {...periodDeltaProps(deltas?.aov ?? null)}
+        />
+        <SecondaryKpi
           label={t("kpi.adSpend")}
           value={formatCurrency(pnl?.ad_spend, isLoading, marketCode)}
           subtitle={pnl ? `${pnl.leads_count} ${t("kpi.leadsShort")}` : null}
           {...periodDeltaProps(deltas?.adSpend ?? null, { invert: true })}
         />
-        <KpiCell
+        <SecondaryKpi
           label={t("kpi.cpa")}
           value={formatCurrencyOrDash(pnl?.cpa, isLoading, marketCode)}
           subtitle={pnl ? `${pnl.confirmed_count} ${t("kpi.confirmedShort")}` : null}
           {...periodDeltaProps(deltas?.cpa ?? null, { invert: true })}
         />
-        <KpiCell
+        <SecondaryKpi
           label={t("kpi.cpl")}
           value={formatCurrencyOrDash(pnl?.cpl, isLoading, marketCode)}
           subtitle={pnl ? `${pnl.leads_count} ${t("kpi.leadsShort")}` : null}
@@ -242,98 +271,127 @@ export function ProfitabilityClient({
         />
       </div>
 
-      {/* Dense 2-column: breakdown table on left, operational counters on right */}
+      {/* Composition + Funnel/operational two-column grid */}
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
-          gap: 10,
+          gap: 12,
         }}
       >
-        <DenseCard title={t("breakdown.title")}>
+        <DenseCard title={t("composition.title")}>
           {pnl ? (
-            <CostBreakdownTable pnl={pnl} t={t} marketCode={marketCode} />
+            <CostCompositionBars
+              data={pnl}
+              formatCurrency={(n) => formatMarketCurrency(n, marketCode)}
+              labels={{
+                cogs: t("breakdown.rows.cogs"),
+                delivery: t("breakdown.rows.delivery"),
+                returns: t("breakdown.rows.returns"),
+                packing: t("breakdown.rows.packing"),
+                ads: t("breakdown.rows.ads"),
+                netProfit: t("breakdown.rows.netProfit"),
+                ofRevenue: t("composition.ofRevenue"),
+              }}
+            />
           ) : (
             <DenseEmpty label={isLoading ? t("loading") : t("noData")} />
           )}
         </DenseCard>
 
-        <DenseCard title={t("operational.title")}>
-          {pnl ? (
-            <OperationalStats pnl={pnl} t={t} marketCode={marketCode} />
-          ) : (
-            <DenseEmpty label={isLoading ? t("loading") : t("noData")} />
-          )}
-        </DenseCard>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <DenseCard title={t("funnel.title")}>
+            {pnl ? (
+              <FinanceFunnel
+                leads={pnl.leads_count}
+                confirmed={pnl.confirmed_count}
+                delivered={pnl.delivered_count}
+                labels={{
+                  leads: t("funnel.leads"),
+                  confirmed: t("funnel.confirmed"),
+                  delivered: t("funnel.delivered"),
+                  toConfirmed: t("funnel.toConfirmed"),
+                  toDelivered: t("funnel.toDelivered"),
+                }}
+              />
+            ) : (
+              <DenseEmpty label={isLoading ? t("loading") : t("noData")} />
+            )}
+          </DenseCard>
+
+          <DenseCard title={t("operational.title")}>
+            {pnl ? (
+              <OperationalCompactStats
+                returnedCount={pnl.returned_count}
+                returnRate={returnRate}
+                aov={aov}
+                profitPerDelivered={profitPerDelivered}
+                returnsCostShare={returnsCostShare}
+                marketCode={marketCode}
+                labels={{
+                  returned: t("operational.returned"),
+                  returnRate: t("operational.returnRate"),
+                  aov: t("operational.aov"),
+                  profitPerDelivered: t("operational.profitPerDelivered"),
+                  returnsCostShare: t("composition.ofRevenue"),
+                }}
+              />
+            ) : (
+              <DenseEmpty label={isLoading ? t("loading") : t("noData")} />
+            )}
+          </DenseCard>
+        </div>
       </div>
     </div>
   );
 }
 
-// ---------- Dense UI primitives ----------
+// ---------- Local primitives ----------
 
-function KpiCell({
+function SecondaryKpi({
   label,
   value,
   subtitle,
   deltaText,
   deltaTone = "neutral",
-  emphatic = false,
-  valueTone = "default",
 }: {
   label: string;
   value: string;
   subtitle?: string | null;
   deltaText?: string | null;
   deltaTone?: Tone;
-  emphatic?: boolean;
-  valueTone?: "default" | "critical";
 }) {
   return (
     <div
       style={{
         background: "#FFFFFF",
-        padding: "10px 12px",
+        border: "1px solid #E1E3E5",
+        borderRadius: 8,
+        padding: "12px 14px",
+        minHeight: 88,
         display: "flex",
         flexDirection: "column",
-        gap: 2,
-        minHeight: 74,
+        gap: 4,
       }}
     >
-      <div
-        style={{
-          fontSize: 10,
-          fontWeight: 600,
-          color: "#6D7175",
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-          lineHeight: 1.2,
-        }}
-      >
-        {label}
-      </div>
       <div
         style={{
           display: "flex",
           alignItems: "baseline",
           justifyContent: "space-between",
           gap: 8,
-          marginTop: 2,
         }}
       >
         <span
           style={{
-            fontSize: emphatic ? 18 : 16,
-            fontWeight: 700,
-            color: valueTone === "critical" ? "#D72C0D" : "#1A1A1A",
-            fontVariantNumeric: "tabular-nums",
-            lineHeight: 1.1,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
+            fontSize: 11,
+            fontWeight: 600,
+            color: "#6D7175",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
           }}
         >
-          {value}
+          {label}
         </span>
         {deltaText ? (
           <span
@@ -342,17 +400,30 @@ function KpiCell({
               fontWeight: 600,
               color: TONE_COLOR[deltaTone],
               fontVariantNumeric: "tabular-nums",
-              whiteSpace: "nowrap",
             }}
           >
             {deltaText}
           </span>
         ) : null}
       </div>
+      <span
+        style={{
+          fontSize: 18,
+          fontWeight: 700,
+          color: "#1A1A1A",
+          fontVariantNumeric: "tabular-nums",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          marginTop: 2,
+        }}
+      >
+        {value}
+      </span>
       {subtitle ? (
         <div
           style={{
-            fontSize: 11,
+            fontSize: 12,
             color: "#6D7175",
             fontVariantNumeric: "tabular-nums",
             whiteSpace: "nowrap",
@@ -374,7 +445,7 @@ function DenseCard({ title, children }: { title: string; children: React.ReactNo
         background: "#FFFFFF",
         border: "1px solid #E1E3E5",
         borderRadius: 8,
-        padding: "10px 12px 12px",
+        padding: "12px 14px 14px",
       }}
     >
       <div
@@ -384,7 +455,7 @@ function DenseCard({ title, children }: { title: string; children: React.ReactNo
           color: "#6D7175",
           textTransform: "uppercase",
           letterSpacing: "0.05em",
-          marginBottom: 8,
+          marginBottom: 10,
         }}
       >
         {title}
@@ -402,118 +473,46 @@ function DenseEmpty({ label }: { label: string }) {
   );
 }
 
-// ---------- Content ----------
-
-type PnLTranslator = ReturnType<typeof useTranslations<"pnl">>;
-
-function CostBreakdownTable({
-  pnl,
-  t,
+function OperationalCompactStats({
+  returnedCount,
+  returnRate,
+  aov,
+  profitPerDelivered,
+  returnsCostShare,
   marketCode,
+  labels,
 }: {
-  pnl: ProfitabilityData;
-  t: PnLTranslator;
+  returnedCount: number;
+  returnRate: number;
+  aov: number;
+  profitPerDelivered: number;
+  returnsCostShare: number;
   marketCode: string;
+  labels: {
+    returned: string;
+    returnRate: string;
+    aov: string;
+    profitPerDelivered: string;
+    returnsCostShare: string;
+  };
 }) {
-  const rows: { key: string; value: number; tone: "add" | "sub" | "net"; pctOfRev: number }[] = [
-    { key: "revenue", value: pnl.revenue, tone: "add", pctOfRev: 100 },
-    { key: "cogs", value: -pnl.cogs, tone: "sub", pctOfRev: pct(pnl.cogs, pnl.revenue) },
-    { key: "delivery", value: -pnl.delivery_cost, tone: "sub", pctOfRev: pct(pnl.delivery_cost, pnl.revenue) },
-    { key: "returns", value: -pnl.return_cost, tone: "sub", pctOfRev: pct(pnl.return_cost, pnl.revenue) },
-    { key: "packing", value: -pnl.packing_cost, tone: "sub", pctOfRev: pct(pnl.packing_cost, pnl.revenue) },
-    { key: "ads", value: -pnl.ad_spend, tone: "sub", pctOfRev: pct(pnl.ad_spend, pnl.revenue) },
-    { key: "netProfit", value: pnl.net_profit, tone: "net", pctOfRev: pct(pnl.net_profit, pnl.revenue) },
-  ];
-
-  return (
-    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
-      <tbody>
-        {rows.map((row, idx) => {
-          const isNet = row.tone === "net";
-          const isNegativeNet = isNet && row.value < 0;
-          return (
-            <tr
-              key={row.key}
-              style={{
-                borderTop: isNet ? "2px solid #1A1A1A" : idx === 0 ? "none" : "1px solid #F1F2F4",
-              }}
-            >
-              <td
-                style={{
-                  padding: "6px 0",
-                  fontWeight: isNet ? 600 : 400,
-                  color: "#1A1A1A",
-                  width: "auto",
-                }}
-              >
-                {t(`breakdown.rows.${row.key}` as "breakdown.rows.revenue")}
-              </td>
-              <td
-                style={{
-                  padding: "6px 8px",
-                  textAlign: "right",
-                  color: "#6D7175",
-                  fontSize: 11,
-                  width: 60,
-                }}
-              >
-                {row.pctOfRev != null ? `${row.pctOfRev.toFixed(1)}%` : ""}
-              </td>
-              <td
-                style={{
-                  padding: "6px 0",
-                  textAlign: "right",
-                  fontWeight: isNet ? 700 : 500,
-                  color:
-                    row.tone === "sub"
-                      ? "#6D7175"
-                      : isNegativeNet
-                        ? "#D72C0D"
-                        : "#1A1A1A",
-                  width: 140,
-                }}
-              >
-                {formatMarketCurrency(row.value, marketCode)}
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-}
-
-function OperationalStats({
-  pnl,
-  t,
-  marketCode,
-}: {
-  pnl: ProfitabilityData;
-  t: PnLTranslator;
-  marketCode: string;
-}) {
-  const deliveryRate = pnl.confirmed_count > 0
-    ? (pnl.delivered_count / pnl.confirmed_count) * 100
-    : 0;
-  const returnRate = pnl.delivered_count + pnl.returned_count > 0
-    ? (pnl.returned_count / (pnl.delivered_count + pnl.returned_count)) * 100
-    : 0;
-  const confirmationRate = pnl.leads_count > 0
-    ? (pnl.confirmed_count / pnl.leads_count) * 100
-    : 0;
-  const aov = pnl.delivered_count > 0 ? pnl.revenue / pnl.delivered_count : 0;
-  const profitPerDelivered = pnl.delivered_count > 0 ? pnl.net_profit / pnl.delivered_count : 0;
-
   const rows: { label: string; value: string; tone?: "critical" }[] = [
-    { label: t("operational.leads"), value: pnl.leads_count.toLocaleString() },
-    { label: t("operational.confirmed"), value: pnl.confirmed_count.toLocaleString() },
-    { label: t("operational.delivered"), value: pnl.delivered_count.toLocaleString() },
-    { label: t("operational.returned"), value: pnl.returned_count.toLocaleString() },
-    { label: t("operational.confirmationRate"), value: `${confirmationRate.toFixed(1)}%` },
-    { label: t("operational.deliveryRate"), value: `${deliveryRate.toFixed(1)}%` },
-    { label: t("operational.returnRate"), value: `${returnRate.toFixed(1)}%`, tone: returnRate > 15 ? "critical" : undefined },
-    { label: t("operational.aov"), value: formatMarketCurrency(aov, marketCode) },
-    { label: t("operational.profitPerDelivered"), value: formatMarketCurrency(profitPerDelivered, marketCode), tone: profitPerDelivered < 0 ? "critical" : undefined },
+    { label: labels.returned, value: returnedCount.toLocaleString() },
+    {
+      label: labels.returnRate,
+      value: `${returnRate.toFixed(1)}%`,
+      tone: returnRate > 15 ? "critical" : undefined,
+    },
+    { label: labels.aov, value: formatMarketCurrency(aov, marketCode) },
+    {
+      label: labels.profitPerDelivered,
+      value: formatMarketCurrency(profitPerDelivered, marketCode),
+      tone: profitPerDelivered < 0 ? "critical" : undefined,
+    },
+    {
+      label: `${labels.returnsCostShare} · ${labels.returnRate.toLowerCase()}`,
+      value: `${returnsCostShare.toFixed(1)}%`,
+    },
   ];
 
   return (
@@ -526,7 +525,7 @@ function OperationalStats({
             alignItems: "baseline",
             justifyContent: "space-between",
             gap: 8,
-            padding: "4px 0",
+            padding: "5px 0",
             borderBottom: "1px solid #F6F6F7",
             fontSize: 12,
           }}
@@ -567,9 +566,4 @@ function formatCurrencyOrDash(
 function formatPP(pp: number): string {
   const sign = pp > 0 ? "+" : "";
   return `${sign}${pp.toFixed(1)} pp`;
-}
-
-function pct(part: number, total: number): number {
-  if (total === 0) return 0;
-  return Math.round((part / total) * 1000) / 10;
 }

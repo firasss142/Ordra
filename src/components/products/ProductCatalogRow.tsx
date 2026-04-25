@@ -3,10 +3,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { classifyProductHealth } from "@/lib/calculations/product-metrics-health";
-import { isLowStock } from "@/lib/product-calculations";
+import { getProductHealth, isLowStock, type ProductHealth } from "@/lib/product-calculations";
 import type { BulkProductMetrics } from "@/app/api/products/profitability-bulk/route";
 import type { ProductFilterMode } from "./ProductsFilterBar";
+import { HealthDot } from "./HealthDot";
+import { MarginBar } from "./MarginBar";
 
 interface ProductRow {
   id: string;
@@ -38,40 +39,15 @@ interface ProductCatalogRowProps {
   canToggleActive: boolean;
 }
 
-const HEALTH_COLORS = {
-  green: "#008060",
-  yellow: "#B45309",
-  red: "#D72C0D",
-  grey: "#9CA3AF",
-};
-
 const TEXT = "#1A1A1A";
 const MUTED = "#6D7175";
 const BORDER = "#E1E3E5";
 
-function HealthDot({
-  health,
-  label,
-}: {
-  health: "green" | "yellow" | "red" | "grey";
-  label: string;
-}) {
-  return (
-    <span
-      role="img"
-      aria-label={label}
-      style={{
-        display: "inline-block",
-        width: 10,
-        height: 10,
-        borderRadius: "50%",
-        background: HEALTH_COLORS[health],
-        flexShrink: 0,
-        color: HEALTH_COLORS[health],
-      }}
-    />
-  );
-}
+const HEALTH_TO_LABEL_KEY: Record<ProductHealth, "green" | "yellow" | "red"> = {
+  green: "green",
+  amber: "yellow",
+  red: "red",
+};
 
 function RowActionsMenu({
   productId,
@@ -205,16 +181,14 @@ export function ProductCatalogRow({
   const [menuOpen] = useState(false);
   void menuOpen;
 
-  const health = metrics
-    ? classifyProductHealth({
-        totalLeads: metrics.total_leads,
-        marginPct: metrics.margin_pct,
-        deliveryRate: metrics.delivery_rate,
-        returnRate: metrics.return_rate,
-      })
-    : "grey";
+  const health = getProductHealth({
+    isActive: product.is_active,
+    currentStock: product.current_stock,
+    lowStockThreshold: product.low_stock_threshold,
+    marginPct: metrics && metrics.total_leads > 0 ? metrics.margin_pct : null,
+  });
 
-  const healthLabel = t(`health.${health}`);
+  const healthLabel = t(`health.${HEALTH_TO_LABEL_KEY[health]}`);
   const lowStock = isLowStock(product.current_stock, product.low_stock_threshold);
 
   const fmtNum = (n: number) =>
@@ -332,11 +306,9 @@ export function ProductCatalogRow({
               <span style={{ fontSize: 12, color: MUTED }}>
                 {t("metrics.returnRate")} <strong style={{ color: TEXT }}>{metrics.return_rate}%</strong>
               </span>
-              <span style={{ fontSize: 12, color: MUTED }}>
-                {t("metrics.margin")}{" "}
-                <strong style={{ color: metrics.margin_pct < 0 ? "#D72C0D" : metrics.margin_pct < 10 ? "#B45309" : "#008060" }}>
-                  {metrics.margin_pct > 0 ? "+" : ""}{metrics.margin_pct}%
-                </strong>
+              <span style={{ fontSize: 12, color: MUTED, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                {t("metrics.margin")}
+                <MarginBar marginPct={metrics.margin_pct} />
               </span>
             </>
           ) : mode === "performance" ? (

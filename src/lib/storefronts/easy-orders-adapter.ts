@@ -1,33 +1,19 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import type { StorefrontAdapter, InternalOrderData, WebhookEventType } from "./types";
 import { PayloadMappingError } from "./errors";
+import {
+  isRecord,
+  getString,
+  getNumber,
+  getRecord,
+  parseDecimal,
+} from "./payload-guards";
 
 const VALID_EVENTS: Set<string> = new Set([
   "order.created",
   "order.updated",
   "order.cancelled",
 ]);
-
-interface EasyOrdersPayload {
-  event?: string;
-  order: {
-    id: string;
-    customer: {
-      name: string;
-      phone: string;
-      address?: string;
-      city?: string;
-      note?: string;
-    };
-    product: {
-      name: string;
-      variant?: string;
-      quantity?: number;
-      unit_price?: number;
-      total_price: number;
-    };
-  };
-}
 
 export class EasyOrdersAdapter implements StorefrontAdapter {
   validateWebhook(
@@ -52,9 +38,12 @@ export class EasyOrdersAdapter implements StorefrontAdapter {
     }
   }
 
-  parseEventType(payload: unknown): WebhookEventType {
-    const p = payload as Record<string, unknown>;
-    const event = p.event;
+  parseEventType(payload: unknown, _headers?: Headers): WebhookEventType {
+    void _headers;
+    if (!isRecord(payload)) {
+      return "order.created";
+    }
+    const event = payload.event;
 
     if (event === undefined || event === null) {
       return "order.created";
@@ -68,45 +57,56 @@ export class EasyOrdersAdapter implements StorefrontAdapter {
   }
 
   mapToInternalOrder(payload: unknown): InternalOrderData {
-    const p = payload as { order?: EasyOrdersPayload["order"] };
-
-    if (!p.order) {
+    if (!isRecord(payload)) {
+      throw new PayloadMappingError("Invalid payload root");
+    }
+    const order = getRecord(payload, "order");
+    if (!order) {
       throw new PayloadMappingError("Missing order object in payload");
     }
 
-    const { order } = p as { order: EasyOrdersPayload["order"] & { product: EasyOrdersPayload["order"]["product"] & { sku?: string } } };
-
-    if (!order.id) {
+    const id = order.id;
+    if (id === undefined || id === null || id === "") {
       throw new PayloadMappingError("Missing order.id");
     }
-    if (!order.customer?.name) {
+
+    const customer = getRecord(order, "customer");
+    const customerName = customer ? getString(customer, "name") : undefined;
+    if (!customerName) {
       throw new PayloadMappingError("Missing customer name");
     }
-    if (!order.customer?.phone) {
+    const customerPhone = customer ? getString(customer, "phone") : undefined;
+    if (!customerPhone) {
       throw new PayloadMappingError("Missing customer phone");
     }
-    if (!order.product?.name) {
+
+    const product = getRecord(order, "product");
+    const productName = product ? getString(product, "name") : undefined;
+    if (!productName) {
       throw new PayloadMappingError("Missing product name");
     }
-    if (order.product?.total_price === undefined || order.product?.total_price === null) {
+
+    const totalPrice = product ? parseDecimal(product.total_price) : undefined;
+    if (totalPrice === undefined) {
       throw new PayloadMappingError("Missing total_price");
     }
 
-    const totalPrice = order.product.total_price;
+    const quantity = (product && getNumber(product, "quantity")) ?? 1;
+    const unitPrice = (product && getNumber(product, "unit_price")) ?? totalPrice;
 
     return {
-      external_id: String(order.id),
+      external_id: String(id),
       external_platform: "easy_orders",
-      customer_name: order.customer.name,
-      customer_phone: order.customer.phone,
-      customer_address: order.customer.address ?? null,
-      customer_city: order.customer.city ?? null,
-      customer_note: order.customer.note ?? null,
-      product_name: order.product.name,
-      sku: order.product.sku ?? null,
-      variant_label: order.product.variant ?? null,
-      quantity: order.product.quantity ?? 1,
-      unit_price: order.product.unit_price ?? totalPrice,
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      customer_address: (customer && getString(customer, "address")) ?? null,
+      customer_city: (customer && getString(customer, "city")) ?? null,
+      customer_note: (customer && getString(customer, "note")) ?? null,
+      product_name: productName,
+      sku: (product && getString(product, "sku")) ?? null,
+      variant_label: (product && getString(product, "variant")) ?? null,
+      quantity,
+      unit_price: unitPrice,
       total_price: totalPrice,
     };
   }

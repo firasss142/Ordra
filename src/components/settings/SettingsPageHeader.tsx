@@ -27,49 +27,25 @@ export function SettingsPageHeader({
 }: SettingsPageHeaderProps) {
   return (
     <div
-      style={{
-        direction: isRtl ? "rtl" : "ltr",
-        marginBottom: 24,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 16,
-        flexWrap: "wrap",
-      }}
+      style={{ direction: isRtl ? "rtl" : "ltr" }}
+      className="mb-6 flex flex-wrap items-center justify-between gap-4"
     >
-      <div>
-        <h1
-          style={{
-            fontSize: 20,
-            fontWeight: 600,
-            color: "#1A1A1A",
-            margin: 0,
-          }}
-        >
+      <div className="min-w-0">
+        <h1 className="m-0 text-[20px] font-semibold text-ink-primary">
           {title}
         </h1>
         {description && (
-          <p
-            style={{
-              fontSize: 13,
-              color: "#6D7175",
-              margin: "4px 0 0 0",
-            }}
-          >
+          <p className="mt-1 m-0 text-[13px] text-ink-secondary">
             {description}
           </p>
         )}
       </div>
 
       {showMarketSelector && markets.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="flex items-center gap-2">
           <label
             htmlFor="settings-market-selector"
-            style={{
-              fontSize: 13,
-              fontWeight: 500,
-              color: "#374151",
-            }}
+            className="text-[13px] font-medium text-ink-secondary"
           >
             Marché
           </label>
@@ -77,15 +53,7 @@ export function SettingsPageHeader({
             id="settings-market-selector"
             value={selectedMarketId}
             onChange={(e) => onChange(e.target.value)}
-            style={{
-              height: 32,
-              padding: "0 8px",
-              fontSize: 13,
-              border: "1px solid #E1E3E5",
-              borderRadius: "0.5rem",
-              background: "white",
-              cursor: "pointer",
-            }}
+            className="h-8 cursor-pointer rounded-md border border-line bg-surface-card px-2 text-[13px] text-ink-primary"
           >
             {markets.map((m) => (
               <option key={m.id} value={m.id}>

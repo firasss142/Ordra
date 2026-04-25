@@ -81,15 +81,12 @@ export function GeneralSettingsClient({
 
   return (
     <div
-      style={{
-        padding: 24,
-        backgroundColor: "#F6F6F7",
-        minHeight: "100vh",
-        direction: isRtl ? "rtl" : "ltr",
-      }}
+      dir={isRtl ? "rtl" : "ltr"}
+      className="min-h-screen bg-surface-page p-6"
     >
       <SettingsPageHeader
         title="Paramètres généraux"
+        description="Configurez les paramètres opérationnels, financiers et d'équipe de ce marché."
         markets={markets}
         selectedMarketId={selectedMarketId}
         onChange={setSelectedMarketId}
@@ -105,7 +102,16 @@ export function GeneralSettingsClient({
           role={user.role}
         />
       ) : (
-        <div style={{ fontSize: 13, color: "#6D7175" }}>Chargement…</div>
+        <div
+          className="flex flex-col gap-4"
+          aria-busy="true"
+          aria-live="polite"
+        >
+          <div className="h-9 w-64 animate-pulse rounded-md bg-surface-selected" />
+          <div className="h-48 animate-pulse rounded-card border border-line-subtle bg-surface-card" />
+          <div className="h-64 animate-pulse rounded-card border border-line-subtle bg-surface-card" />
+          <span className="sr-only">Chargement…</span>
+        </div>
       )}
     </div>
   );

@@ -25,6 +25,6 @@ export interface StorefrontAdapter {
     rawBody: string,
     webhookSecret: string
   ): boolean;
-  parseEventType(payload: unknown): WebhookEventType;
+  parseEventType(payload: unknown, headers?: Headers): WebhookEventType;
   mapToInternalOrder(payload: unknown): InternalOrderData;
 }

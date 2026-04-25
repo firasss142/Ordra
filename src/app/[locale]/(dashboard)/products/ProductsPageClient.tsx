@@ -11,9 +11,12 @@ import { isLowStock } from "@/lib/product-calculations";
 import { ProductsFilterBar, type ProductFilterMode, type ProductFilterStatus } from "@/components/products/ProductsFilterBar";
 import { ProductCatalogRow } from "@/components/products/ProductCatalogRow";
 import { StockAdjustModal, type StockAdjustState } from "@/components/products/StockAdjustModal";
+import { PortfolioStrip } from "@/components/products/PortfolioStrip";
 import { PeriodSelector } from "@/components/dashboard/MetricsTable";
 import type { Period } from "@/components/dashboard/MetricsTable";
 import type { BulkProductMetrics } from "@/app/api/products/profitability-bulk/route";
+import { sortProducts, type ProductSortKey } from "@/lib/product-sort";
+import { formatCurrency } from "@/lib/format";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -70,6 +73,7 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [stockModal, setStockModal] = useState<StockAdjustState | null>(null);
+  const [sortKey, setSortKey] = useState<ProductSortKey>("default");
 
   // Markets list (super_admin only)
   const { data: marketsData } = useSWR<{ data: Market[] }>(
@@ -117,7 +121,7 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
     return m;
   }, [profData]);
 
-  // Client-side filter
+  // Client-side filter + sort
   const filteredProducts = useMemo(() => {
     let list = products;
     if (search.trim()) {
@@ -134,8 +138,8 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
         return m !== undefined && m.margin_pct < 0;
       });
     }
-    return list;
-  }, [products, search, status, metricsMap]);
+    return sortProducts(list, metricsMap, sortKey);
+  }, [products, search, status, metricsMap, sortKey]);
 
   const handleToggleActive = useCallback(
     async (productId: string) => {
@@ -277,11 +281,44 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
           canManage={canManage}
           canViewPerformance={canViewPerf}
           locale={locale}
+          sortKey={sortKey}
+          onSortChange={setSortKey}
         />
 
         {/* Period selector — only in performance mode */}
         {mode === "performance" && canViewPerf && (
           <PeriodSelector period={period} onChange={setPeriod} />
+        )}
+
+        {/* Portfolio strip — only in performance mode with permission */}
+        {mode === "performance" && canViewPerf && products.length > 0 && (
+          <PortfolioStrip
+            products={products.map((p) => ({
+              id: p.id,
+              name: p.name,
+              current_stock: p.current_stock,
+              low_stock_threshold: p.low_stock_threshold,
+              is_active: p.is_active,
+            }))}
+            metricsMap={
+              new Map(
+                Array.from(metricsMap.entries()).map(([id, m]) => [
+                  id,
+                  { revenue: m.revenue, margin_pct: m.margin_pct },
+                ]),
+              )
+            }
+            formatRevenue={(n) => formatCurrency(n, currency.toUpperCase() === "LYD" ? "LY" : "TN")}
+            labels={{
+              topEarner: t("portfolio.topEarner"),
+              worstMargin: t("portfolio.worstMargin"),
+              lowStock: t("portfolio.lowStock"),
+              active: t("portfolio.active"),
+              ofTotal: (total) => t("portfolio.ofTotal", { total }),
+              ofActive: (total) => t("portfolio.ofActive", { total }),
+              noData: t("portfolio.noData"),
+            }}
+          />
         )}
 
         {/* Product list */}

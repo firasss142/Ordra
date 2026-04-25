@@ -1,0 +1,23 @@
+[     177ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/_next/static/css/052b26c6692408a7.css:0
+[     182ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/_next/static/chunks/5402-3844b0eb5b7a0ccc.js:0
+[     184ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/_next/static/chunks/app/%5Blocale%5D/(dashboard)/layout-0fdc38d358f993f0.js:0
+[     187ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/_next/static/chunks/app/%5Blocale%5D/(dashboard)/settings/general/page-87ac92d72d02c37a.js:0
+[     197ms] [ERROR] ChunkLoadError: Loading chunk 5402 failed.
+(error: http://localhost:3000/_next/static/chunks/5402-3844b0eb5b7a0ccc.js)
+    at l.f.j (http://localhost:3000/_next/static/chunks/webpack-832493494c001b06.js:1:3847)
+    at http://localhost:3000/_next/static/chunks/webpack-832493494c001b06.js:1:1400
+    at Array.reduce (<anonymous>)
+    at l.e (http://localhost:3000/_next/static/chunks/webpack-832493494c001b06.js:1:1366)
+    at http://localhost:3000/_next/static/chunks/2117-6aee18dc8abde825.js:2:18884
+    at http://localhost:3000/_next/static/chunks/2117-6aee18dc8abde825.js:2:19086
+    at t (http://localhost:3000/_next/static/chunks/2117-6aee18dc8abde825.js:2:19289) @ http://localhost:3000/_next/static/chunks/2117-6aee18dc8abde825.js:0
+[     198ms] Error: Minified React error #423; visit https://react.dev/errors/423 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at iZ (http://localhost:3000/_next/static/chunks/fd9d1056-b1f7da6b30254a67.js:1:118352)
+    at ia (http://localhost:3000/_next/static/chunks/fd9d1056-b1f7da6b30254a67.js:1:95165)
+    at http://localhost:3000/_next/static/chunks/fd9d1056-b1f7da6b30254a67.js:1:94987
+    at il (http://localhost:3000/_next/static/chunks/fd9d1056-b1f7da6b30254a67.js:1:94994)
+    at oJ (http://localhost:3000/_next/static/chunks/fd9d1056-b1f7da6b30254a67.js:1:92350)
+    at oZ (http://localhost:3000/_next/static/chunks/fd9d1056-b1f7da6b30254a67.js:1:91769)
+    at MessagePort.T (http://localhost:3000/_next/static/chunks/2117-6aee18dc8abde825.js:1:84275)
+[    3199ms] [WARNING] The resource http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://localhost:3000/fr/settings/general:0
+[    3199ms] [WARNING] The resource http://localhost:3000/_next/static/media/b261c59b2d76913d-s.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://localhost:3000/fr/settings/general:0

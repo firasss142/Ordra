@@ -2,17 +2,17 @@
 
 import { memo, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Search, X, Download, AlertTriangle } from "lucide-react";
+import { Search, X, Download, AlertTriangle, SlidersHorizontal } from "lucide-react";
 import { useWarehouseList } from "@/hooks/useWarehouseList";
 import { useWarehouseHistoryFiltersUrl } from "@/hooks/useWarehouseHistoryFiltersUrl";
 import { useWarehouseRealtime } from "@/hooks/useWarehouseRealtime";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { formatDateTime, formatDayHeader } from "@/lib/format";
 import { initialsOf } from "@/lib/user";
+import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { WarehouseShell } from "./shell/WarehouseShell";
 import { WarehouseInboxBanner } from "./WarehouseInboxBanner";
 import { WarehousePagination } from "./WarehousePagination";
-import { LogisticsPageHeader } from "./shared/LogisticsPageHeader";
-import { LogisticsFilterBar } from "./shared/LogisticsFilterBar";
 import {
   WAREHOUSE_HISTORY_KINDS,
   hasActiveWarehouseHistoryFilters,
@@ -22,21 +22,6 @@ import {
 } from "@/lib/warehouse/list-filters";
 import { groupRowsIntoSessions, rowDay } from "@/lib/warehouse/group-by-session";
 import type { WarehouseHistoryPage, WarehouseHistoryRow } from "@/hooks/useWarehouseList";
-
-const D = {
-  pageBg: "#F6F6F7",
-  cardBg: "#FFFFFF",
-  sectionBg: "#F6F6F7",
-  border: "#E1E3E5",
-  textPrimary: "#1A1A1A",
-  textSecondary: "#6D7175",
-  accent: "#008060",
-  danger: "#D72C0D",
-  warning: "#B98900",
-  action: "#2C6ECB",
-  inputBg: "#FFFFFF",
-  inputBorder: "#C9CCCF",
-};
 
 const ROLE_RING: Record<string, string> = {
   super_admin: "#1A1A1A",
@@ -53,12 +38,12 @@ function formatRoleName(role: string): string {
   return role.replace(/_/g, " ");
 }
 
-const KIND_COLORS: Record<WarehouseHistoryRow["kind"], { color: string; bg: string; border: string }> = {
-  scan: { color: "#008060", bg: "#F1F8F5", border: "#A7F3D0" },
-  return: { color: "#008060", bg: "#F1F8F5", border: "#A7F3D0" },
-  print: { color: "#6D7175", bg: "#F6F6F7", border: "#E1E3E5" },
-  adjust: { color: "#B98900", bg: "#FFF8E6", border: "#FFD970" },
-  writeoff: { color: "#D72C0D", bg: "#FFF4F4", border: "#FECACA" },
+const KIND_TONE: Record<WarehouseHistoryRow["kind"], BadgeTone> = {
+  scan: "success",
+  return: "success",
+  print: "neutral",
+  adjust: "warning",
+  writeoff: "critical",
 };
 
 interface Props {
@@ -74,6 +59,7 @@ export function WarehouseHistoryClient({ locale, marketId, fallbackFirstPage }: 
   const [arrivalCount, setArrivalCount] = useState(0);
   const [searchLocal, setSearchLocal] = useState(filters.q);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
 
   useEffect(() => { setSearchLocal(filters.q); }, [filters.q]);
 
@@ -112,7 +98,7 @@ export function WarehouseHistoryClient({ locale, marketId, fallbackFirstPage }: 
 
   const hasFilters = hasActiveWarehouseHistoryFilters(filters);
 
-  // Timeline view requires no active search/product/anomaly filter
+  // Default to flat unless explicitly timeline AND no search/product/anomaly filter
   const effectiveView: WarehouseHistoryView =
     filters.q || filters.productId || filters.onlyAnomalies ? "flat" : filters.view;
 
@@ -133,25 +119,25 @@ export function WarehouseHistoryClient({ locale, marketId, fallbackFirstPage }: 
     return `/api/warehouse/history/export.${format}?${params.toString()}`;
   };
 
+  const clearAllFilters = () =>
+    update({ kind: "all", dateFrom: null, dateTo: null, q: "", actorId: null, productId: null, onlyAnomalies: false });
+
   return (
-    <div style={{ padding: isMobile ? "16px 16px 80px" : "24px 32px 80px", background: D.pageBg, minHeight: "100vh", display: "flex", flexDirection: "column", gap: 16 }}>
-
-      <LogisticsPageHeader
-        title={t("history.title")}
-        actions={
-          !isMobile ? (
-            <a
-              href={buildExportUrl("csv")}
-              download
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", border: `1px solid ${D.border}`, borderRadius: 8, background: D.cardBg, color: D.textPrimary, fontSize: 13, fontWeight: 500, textDecoration: "none" }}
-            >
-              <Download size={13} strokeWidth={1.5} />
-              {t("history.export.csv")}
-            </a>
-          ) : undefined
-        }
-      />
-
+    <WarehouseShell
+      title={t("history.title")}
+      actions={
+        !isMobile ? (
+          <a
+            href={buildExportUrl("csv")}
+            download
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-ink-primary bg-surface-card border border-line-subtle rounded-md hover:bg-surface-hover transition-colors duration-fast no-underline"
+          >
+            <Download size={13} strokeWidth={1.5} />
+            {t("history.export.csv")}
+          </a>
+        ) : undefined
+      }
+    >
       <WarehouseInboxBanner
         count={arrivalCount}
         onReveal={() => { setArrivalCount(0); mutate(); }}
@@ -159,149 +145,235 @@ export function WarehouseHistoryClient({ locale, marketId, fallbackFirstPage }: 
         labels={{ reveal: t("banner.newReveal"), dismiss: t("banner.dismiss") }}
       />
 
-      <LogisticsFilterBar
-        searchSlot={
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Search size={14} strokeWidth={1.5} color={D.textSecondary} aria-hidden="true" />
+      {/* Command-bar search */}
+      <div className="bg-surface-card border border-line-subtle rounded-card p-3 flex flex-col gap-3">
+        <div className="relative">
+          <Search
+            size={16}
+            strokeWidth={1.75}
+            aria-hidden="true"
+            className="absolute start-3 top-1/2 -translate-y-1/2 text-ink-secondary pointer-events-none"
+          />
+          <input
+            type="search"
+            value={searchLocal}
+            onChange={(e) => setSearchLocal(e.target.value)}
+            placeholder={t("history.filter.searchPlaceholder")}
+            aria-label={t("history.filter.searchPlaceholder")}
+            className="w-full h-10 ps-10 pe-3 text-[14px] bg-surface-page border border-line-subtle rounded-md text-ink-primary placeholder:text-ink-secondary"
+          />
+        </div>
+
+        {/* Kind segmented + view toggle + more filters */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div
+            role="tablist"
+            aria-label={t("history.filter.ariaLabel")}
+            className="inline-flex border border-line-subtle rounded-pill bg-surface-page p-0.5 gap-0.5"
+          >
+            {WAREHOUSE_HISTORY_KINDS.map((k) => {
+              const active = filters.kind === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => update({ kind: k as WarehouseHistoryKind })}
+                  className={[
+                    "px-3.5 py-1 text-[13px] rounded-pill transition-colors duration-fast whitespace-nowrap min-h-[28px]",
+                    active
+                      ? "bg-ink-primary text-white font-bold"
+                      : "text-ink-secondary hover:text-ink-primary hover:bg-surface-card",
+                  ].join(" ")}
+                >
+                  {t(`history.filter.${k}`)}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => update({ onlyAnomalies: !filters.onlyAnomalies })}
+            title={t("history.filter.anomaliesOnly")}
+            className={[
+              "inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] rounded-md border transition-colors duration-fast whitespace-nowrap min-h-[32px]",
+              filters.onlyAnomalies
+                ? "border-status-critical bg-status-criticalBg text-status-critical font-semibold"
+                : "border-line-subtle bg-surface-card text-ink-secondary hover:text-ink-primary hover:bg-surface-hover",
+            ].join(" ")}
+          >
+            <AlertTriangle size={13} strokeWidth={1.5} />
+            {!isMobile && t("history.filter.anomaliesOnly")}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMoreFiltersOpen((v) => !v)}
+            aria-expanded={moreFiltersOpen}
+            className={[
+              "inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] rounded-md border transition-colors duration-fast min-h-[32px]",
+              moreFiltersOpen || filters.dateFrom || filters.dateTo
+                ? "border-ink-primary bg-surface-card text-ink-primary font-semibold"
+                : "border-line-subtle bg-surface-card text-ink-secondary hover:text-ink-primary hover:bg-surface-hover",
+            ].join(" ")}
+          >
+            <SlidersHorizontal size={13} strokeWidth={1.75} />
+            {t("history.filters.from")} / {t("history.filters.to")}
+          </button>
+
+          {!isMobile && (
+            <div role="group" className="inline-flex border border-line-subtle rounded-md overflow-hidden ms-auto">
+              {(["timeline", "flat"] as WarehouseHistoryView[]).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => update({ view: v })}
+                  className={[
+                    "px-3.5 py-1.5 text-[13px] transition-colors duration-fast min-h-[32px]",
+                    effectiveView === v
+                      ? "bg-ink-primary text-white font-semibold"
+                      : "bg-surface-card text-ink-secondary hover:text-ink-primary hover:bg-surface-hover",
+                  ].join(" ")}
+                >
+                  {t(`history.filter.view.${v}`)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Expanded date range row */}
+        {moreFiltersOpen && (
+          <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-line-subtle">
+            <span className="text-[13px] text-ink-secondary">{t("history.filters.from")}</span>
             <input
-              type="search"
-              value={searchLocal}
-              onChange={(e) => setSearchLocal(e.target.value)}
-              placeholder={t("history.filter.searchPlaceholder")}
-              aria-label={t("history.filter.searchPlaceholder")}
-              style={{ flex: 1, padding: "8px 0", fontSize: 13, border: "none", outline: "none", background: "transparent", color: D.textPrimary, width: "100%" }}
+              type="date"
+              value={filters.dateFrom ?? ""}
+              onChange={(e) => update({ dateFrom: e.target.value || null })}
+              className="px-2 py-1.5 border border-line-subtle rounded-md text-[13px] text-ink-primary bg-surface-card"
+            />
+            <span className="text-[13px] text-ink-secondary">{t("history.filters.to")}</span>
+            <input
+              type="date"
+              value={filters.dateTo ?? ""}
+              onChange={(e) => update({ dateTo: e.target.value || null })}
+              className="px-2 py-1.5 border border-line-subtle rounded-md text-[13px] text-ink-primary bg-surface-card"
             />
           </div>
-        }
-        filtersSlot={
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-            {/* Kind tabs */}
-            <div role="tablist" aria-label={t("history.filter.ariaLabel")} style={{ display: "inline-flex", border: `1px solid ${D.border}`, borderRadius: 9999, background: D.cardBg, padding: 3, gap: 2 }}>
-              {WAREHOUSE_HISTORY_KINDS.map((k) => {
-                const active = filters.kind === k;
-                return (
-                  <button
-                    key={k}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    onClick={() => update({ kind: k as WarehouseHistoryKind })}
-                    style={{ padding: "6px 14px", border: "none", borderRadius: 9999, background: active ? "#1A1A1A" : "transparent", color: active ? "#FFFFFF" : D.textSecondary, fontSize: 13, fontWeight: active ? 700 : 400, cursor: "pointer", transition: "background-color 120ms ease, color 120ms ease", fontFamily: "inherit", minHeight: 36, whiteSpace: "nowrap" }}
-                  >
-                    {t(`history.filter.${k}`)}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Date range */}
-            <span style={{ fontSize: 13, color: D.textSecondary }}>{t("history.filters.from")}</span>
-            <input type="date" value={filters.dateFrom ?? ""} onChange={(e) => update({ dateFrom: e.target.value || null })} style={{ padding: "6px 8px", border: `1px solid ${D.inputBorder}`, borderRadius: 6, fontSize: 13, color: D.textPrimary, backgroundColor: D.inputBg, fontFamily: "inherit" }} />
-            <span style={{ fontSize: 13, color: D.textSecondary }}>{t("history.filters.to")}</span>
-            <input type="date" value={filters.dateTo ?? ""} onChange={(e) => update({ dateTo: e.target.value || null })} style={{ padding: "6px 8px", border: `1px solid ${D.inputBorder}`, borderRadius: 6, fontSize: 13, color: D.textPrimary, backgroundColor: D.inputBg, fontFamily: "inherit" }} />
-
-            {/* Anomaly toggle */}
-            <button
-              type="button"
-              onClick={() => update({ onlyAnomalies: !filters.onlyAnomalies })}
-              title={t("history.filter.anomaliesOnly")}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", border: `1px solid ${filters.onlyAnomalies ? D.danger : D.border}`, borderRadius: 8, background: filters.onlyAnomalies ? "#FFF4F4" : D.cardBg, color: filters.onlyAnomalies ? D.danger : D.textSecondary, fontSize: 13, fontWeight: filters.onlyAnomalies ? 600 : 400, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", minHeight: 36 }}
-            >
-              <AlertTriangle size={13} strokeWidth={1.5} />
-              {!isMobile && t("history.filter.anomaliesOnly")}
-            </button>
-
-            {/* View toggle */}
-            {!isMobile && (
-              <div role="group" style={{ display: "inline-flex", border: `1px solid ${D.border}`, borderRadius: 8, overflow: "hidden" }}>
-                {(["timeline", "flat"] as WarehouseHistoryView[]).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => update({ view: v })}
-                    style={{ padding: "7px 14px", border: "none", background: effectiveView === v ? "#1A1A1A" : D.cardBg, color: effectiveView === v ? "#FFFFFF" : D.textSecondary, fontSize: 13, fontWeight: effectiveView === v ? 600 : 400, cursor: "pointer", fontFamily: "inherit", minHeight: 36 }}
-                  >
-                    {t(`history.filter.view.${v}`)}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        }
-      />
+        )}
+      </div>
 
       {/* Active filter chips */}
       {hasFilters && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+        <div className="flex flex-wrap gap-1.5 items-center mt-3">
           {filters.kind !== "all" && (
-            <FilterChip label={`${t("history.chips.kind")}: ${t(`history.filter.${filters.kind}`)}`} onRemove={() => update(clearWarehouseHistoryField(filters, "kind"))} removeLabel={t("history.chips.remove")} />
+            <FilterChip
+              label={`${t("history.chips.kind")}: ${t(`history.filter.${filters.kind}`)}`}
+              onRemove={() => update(clearWarehouseHistoryField(filters, "kind"))}
+              removeLabel={t("history.chips.remove")}
+            />
           )}
           {(filters.dateFrom || filters.dateTo) && (
-            <FilterChip label={`${t("history.chips.date")}: ${filters.dateFrom ?? "…"} — ${filters.dateTo ?? "…"}`} onRemove={() => update(clearWarehouseHistoryField(filters, "date"))} removeLabel={t("history.chips.remove")} />
+            <FilterChip
+              label={`${t("history.chips.date")}: ${filters.dateFrom ?? "…"} — ${filters.dateTo ?? "…"}`}
+              onRemove={() => update(clearWarehouseHistoryField(filters, "date"))}
+              removeLabel={t("history.chips.remove")}
+            />
           )}
           {filters.q && (
-            <FilterChip label={`${t("history.chips.search")}: ${filters.q}`} onRemove={() => update(clearWarehouseHistoryField(filters, "q"))} removeLabel={t("history.chips.remove")} />
+            <FilterChip
+              label={`${t("history.chips.search")}: ${filters.q}`}
+              onRemove={() => update(clearWarehouseHistoryField(filters, "q"))}
+              removeLabel={t("history.chips.remove")}
+            />
           )}
           {filters.actorId && (
-            <FilterChip label={t("history.chips.actor")} onRemove={() => update(clearWarehouseHistoryField(filters, "actor"))} removeLabel={t("history.chips.remove")} />
+            <FilterChip
+              label={t("history.chips.actor")}
+              onRemove={() => update(clearWarehouseHistoryField(filters, "actor"))}
+              removeLabel={t("history.chips.remove")}
+            />
           )}
           {filters.productId && (
-            <FilterChip label={t("history.chips.product")} onRemove={() => update(clearWarehouseHistoryField(filters, "product"))} removeLabel={t("history.chips.remove")} />
+            <FilterChip
+              label={t("history.chips.product")}
+              onRemove={() => update(clearWarehouseHistoryField(filters, "product"))}
+              removeLabel={t("history.chips.remove")}
+            />
           )}
           {filters.onlyAnomalies && (
-            <FilterChip label={t("history.chips.anomalies")} onRemove={() => update(clearWarehouseHistoryField(filters, "anomalies"))} removeLabel={t("history.chips.remove")} />
+            <FilterChip
+              label={t("history.chips.anomalies")}
+              onRemove={() => update(clearWarehouseHistoryField(filters, "anomalies"))}
+              removeLabel={t("history.chips.remove")}
+            />
           )}
-          <button type="button" onClick={() => update({ kind: "all", dateFrom: null, dateTo: null, q: "", actorId: null, productId: null, onlyAnomalies: false })} style={{ marginInlineStart: 4, background: "none", border: "none", color: "#2C6ECB", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+          <button
+            type="button"
+            onClick={clearAllFilters}
+            className="ms-1 text-[12px] font-semibold text-status-action hover:underline"
+          >
             {t("history.chips.clearAll")}
           </button>
         </div>
       )}
 
       {/* Content */}
-      {displayRows.length === 0 && !isLoading && !isPageLoading ? (
-        <EmptyState hasFilters={hasFilters} label={hasFilters ? t("history.empty.filtered") : t("history.empty.noFilters")} onClear={hasFilters ? () => update({ kind: "all", dateFrom: null, dateTo: null, q: "", actorId: null, productId: null, onlyAnomalies: false }) : undefined} clearLabel={t("history.chips.clearAll")} />
-      ) : (
-        <div style={{ backgroundColor: D.cardBg, border: `1px solid ${D.border}`, borderRadius: 8, overflow: "hidden" }}>
-          {isPageLoading ? (
-            <div style={{ padding: 40, textAlign: "center", color: D.textSecondary, fontSize: 13 }}>{t("history.loadingMore")}</div>
-          ) : effectiveView === "timeline" && sessions ? (
-            <TimelineView
-              sessions={sessions}
-              locale={locale}
-              isMobile={isMobile}
-              onActorClick={(actorId) => update({ actorId, view: "flat" })}
-              onProductClick={(productId) => update({ productId, view: "flat" })}
-              t={t}
-            />
-          ) : (
-            <FlatView
-              rows={displayRows}
-              locale={locale}
-              isMobile={isMobile}
-              onActorClick={(actorId) => update({ actorId, view: "flat" })}
-              onProductClick={(productId) => update({ productId, view: "flat" })}
-              t={t}
-            />
-          )}
-
-          <WarehousePagination
-            page={currentPageIndex}
-            pageSize={50}
-            totalItems={-1}
-            hasNextPage={!loadingMore && hasNextPage}
-            hasPrevPage={currentPageIndex > 0}
-            onNext={handleNextPage}
-            onPrev={handlePrevPage}
-            onPageSizeChange={() => {}}
-            pageSizeOptions={[]}
-            loadingMore={loadingMore && !isPageLoading}
-            labelPrev={t("pagination.prev")}
-            labelNext={t("pagination.next")}
-            labelPage={t("pagination.pageInfoUnknown", { page: currentPageIndex + 1 })}
+      <div className="mt-3">
+        {displayRows.length === 0 && !isLoading && !isPageLoading ? (
+          <EmptyState
+            hasFilters={hasFilters}
+            label={hasFilters ? t("history.empty.filtered") : t("history.empty.noFilters")}
+            onClear={hasFilters ? clearAllFilters : undefined}
+            clearLabel={t("history.chips.clearAll")}
           />
-        </div>
-      )}
-    </div>
+        ) : (
+          <div className="bg-surface-card border border-line-subtle rounded-card overflow-hidden">
+            {isPageLoading ? (
+              <div className="p-10 text-center text-ink-secondary text-[13px]">
+                {t("history.loadingMore")}
+              </div>
+            ) : effectiveView === "timeline" && sessions ? (
+              <TimelineView
+                sessions={sessions}
+                locale={locale}
+                isMobile={isMobile}
+                onActorClick={(actorId) => update({ actorId, view: "flat" })}
+                onProductClick={(productId) => update({ productId, view: "flat" })}
+                t={t}
+              />
+            ) : (
+              <FlatView
+                rows={displayRows}
+                locale={locale}
+                isMobile={isMobile}
+                onActorClick={(actorId) => update({ actorId, view: "flat" })}
+                onProductClick={(productId) => update({ productId, view: "flat" })}
+                t={t}
+              />
+            )}
+
+            <WarehousePagination
+              page={currentPageIndex}
+              pageSize={50}
+              totalItems={-1}
+              hasNextPage={!loadingMore && hasNextPage}
+              hasPrevPage={currentPageIndex > 0}
+              onNext={handleNextPage}
+              onPrev={handlePrevPage}
+              onPageSizeChange={() => {}}
+              pageSizeOptions={[]}
+              loadingMore={loadingMore && !isPageLoading}
+              labelPrev={t("pagination.prev")}
+              labelNext={t("pagination.next")}
+              labelPage={t("pagination.pageInfoUnknown", { page: currentPageIndex + 1 })}
+            />
+          </div>
+        )}
+      </div>
+    </WarehouseShell>
   );
 }
 
@@ -323,7 +395,6 @@ function TimelineView({
   t: ReturnType<typeof useTranslations<"warehouse">>;
 }) {
   let lastDay: string | null = null;
-
   return (
     <>
       {sessions.map((session) => {
@@ -346,24 +417,23 @@ function TimelineView({
           <div key={session.sessionKey}>
             {showDaySep && <DaySeparator date={session.startAt} locale={locale} />}
 
-            {/* Session header */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 16px", background: "#F9F9F9", borderBottom: `1px solid ${D.border}`, fontSize: 12, color: D.textSecondary }}>
+            <div className="flex items-center gap-2.5 px-4 py-2 bg-surface-hover border-b border-line-subtle text-[12px] text-ink-secondary">
               <ActorAvatar
                 name={session.actorName}
                 role={session.actorRole}
                 size={22}
                 onClick={session.actorId ? () => onActorClick(session.actorId!) : undefined}
               />
-              <span style={{ fontWeight: 600, color: D.textPrimary, fontSize: 13 }}>
+              <span className="font-semibold text-ink-primary text-[13px]">
                 {session.actorName ?? t("history.session.system")}
               </span>
               {session.actorRole && (
-                <span style={{ fontSize: 11, color: D.textSecondary, background: D.sectionBg, border: `1px solid ${D.border}`, borderRadius: 4, padding: "1px 6px" }}>
+                <span className="text-[11px] text-ink-secondary bg-surface-page border border-line-subtle rounded px-1.5 py-px">
                   {formatRoleName(session.actorRole)}
                 </span>
               )}
-              <span style={{ marginInlineStart: "auto", fontVariantNumeric: "tabular-nums" }}>{timeRange}</span>
-              <span style={{ color: D.textSecondary }}>·</span>
+              <span className="ms-auto tabular-nums">{timeRange}</span>
+              <span className="text-ink-secondary">·</span>
               <span>{summaryParts.join(", ")}</span>
             </div>
 
@@ -413,7 +483,15 @@ function FlatView({
         return (
           <div key={`${row.kind}-${row.id}`}>
             {showDaySep && <DaySeparator date={row.at} locale={locale} />}
-            <JournalRow row={row} locale={locale} isMobile={isMobile} compact={false} onActorClick={onActorClick} onProductClick={onProductClick} t={t} />
+            <JournalRow
+              row={row}
+              locale={locale}
+              isMobile={isMobile}
+              compact={false}
+              onActorClick={onActorClick}
+              onProductClick={onProductClick}
+              t={t}
+            />
           </div>
         );
       })}
@@ -441,44 +519,23 @@ const JournalRow = memo(function JournalRow({
   t: ReturnType<typeof useTranslations<"warehouse">>;
 }) {
   const hasAnomaly = row.anomalies.length > 0;
-  const kindColors = KIND_COLORS[row.kind];
+  const tone = KIND_TONE[row.kind];
 
-  const kindLabel = (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 9999, color: kindColors.color, backgroundColor: kindColors.bg, border: `1px solid ${kindColors.border}`, whiteSpace: "nowrap" }}>
-      {t(`history.kind.${row.kind}`)}
-      {row.is_reprint && <span style={{ fontSize: 9 }}>↺</span>}
-    </span>
-  );
-
-  // Action sentence: e.g. "Scanned out #A1B2 · Printemps Rose · Anis M."
   const stockLine = row.qty_change !== null && row.balance_after !== null
-    ? t("history.row.stockChange", { qty: row.qty_change > 0 ? `+${row.qty_change}` : String(row.qty_change), after: row.balance_after })
+    ? t("history.row.stockChange", {
+        qty: row.qty_change > 0 ? `+${row.qty_change}` : String(row.qty_change),
+        after: row.balance_after,
+      })
     : null;
 
-  const anomalyBadge = hasAnomaly ? (
-    <span
-      aria-label={row.anomalies.map((a) => t(`history.anomaly.${a}`)).join(", ")}
-      title={row.anomalies.map((a) => t(`history.anomaly.${a}`)).join(", ")}
-      style={{ fontSize: 10, color: D.danger, fontWeight: 700, marginInlineStart: 6 }}
-    >
-      ◤
-    </span>
-  ) : null;
+  const accentBar = hasAnomaly
+    ? "border-s-[3px] border-s-status-critical"
+    : "border-s-[3px] border-s-transparent";
 
   return (
     <div
-      style={{
-        position: "relative",
-        display: "flex",
-        alignItems: "flex-start",
-        gap: isMobile ? 10 : 14,
-        padding: compact ? "10px 16px" : "12px 16px",
-        borderBottom: `1px solid ${D.border}`,
-        borderInlineStart: hasAnomaly ? `3px solid ${D.danger}` : "3px solid transparent",
-        minHeight: 48,
-      }}
+      className={`relative flex items-start ${isMobile ? "gap-2.5" : "gap-3.5"} px-4 ${compact ? "py-2.5" : "py-3"} border-b border-line-subtle min-h-[48px] hover:bg-surface-hover transition-colors duration-fast ${accentBar}`}
     >
-      {/* Avatar */}
       {!compact && (
         <ActorAvatar
           name={row.actor?.full_name ?? null}
@@ -488,48 +545,58 @@ const JournalRow = memo(function JournalRow({
         />
       )}
 
-      {/* Main content */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Line 1: actor name + kind pill + anomaly */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 3 }}>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap mb-0.5">
           {!compact && (
-            <span style={{ fontWeight: 600, fontSize: 13, color: D.textPrimary }}>
+            <span className="font-semibold text-[13px] text-ink-primary">
               {row.actor?.full_name ?? t("history.session.system")}
             </span>
           )}
           {!compact && row.actor?.role && (
-            <span style={{ fontSize: 11, color: D.textSecondary }}>{formatRoleName(row.actor.role)}</span>
+            <span className="text-[11px] text-ink-secondary">
+              {formatRoleName(row.actor.role)}
+            </span>
           )}
-          {kindLabel}
-          {anomalyBadge}
+          <Badge tone={tone}>
+            {t(`history.kind.${row.kind}`)}
+            {row.is_reprint ? " ↺" : ""}
+          </Badge>
+          {hasAnomaly && (
+            <span
+              aria-label={row.anomalies.map((a) => t(`history.anomaly.${a}`)).join(", ")}
+              title={row.anomalies.map((a) => t(`history.anomaly.${a}`)).join(", ")}
+              className="text-[10px] text-status-critical font-bold ms-1.5"
+            >
+              ◤
+            </span>
+          )}
         </div>
 
-        {/* Line 2: detail sentence */}
-        <div style={{ fontSize: 13, color: D.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "normal" : "nowrap" }}>
-          {row.order_number && <span style={{ fontVariantNumeric: "tabular-nums" }}>#{row.order_number} · </span>}
+        <div className={`text-[13px] text-ink-primary overflow-hidden text-ellipsis ${isMobile ? "" : "whitespace-nowrap"}`}>
+          {row.order_number && (
+            <span className="tabular-nums">#{row.order_number} · </span>
+          )}
           {row.product_name ? (
             <button
               type="button"
               onClick={row.product_id ? () => onProductClick(row.product_id!) : undefined}
-              style={{ background: "none", border: "none", padding: 0, color: D.action, fontSize: 13, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textDecorationStyle: "dotted" }}
+              className="bg-transparent border-0 p-0 text-status-action text-[13px] cursor-pointer underline decoration-dotted"
             >
               {row.product_name}
             </button>
           ) : row.detail !== "—" ? row.detail : null}
         </div>
 
-        {/* Line 3: stock change + note */}
         {(stockLine || row.note) && (
-          <div style={{ fontSize: 12, color: D.textSecondary, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>
+          <div className="text-[12px] text-ink-secondary mt-0.5 tabular-nums">
             {stockLine}
             {stockLine && row.note && " · "}
-            {row.note && <span style={{ fontStyle: "italic" }}>{row.note}</span>}
+            {row.note && <span className="italic">{row.note}</span>}
           </div>
         )}
       </div>
 
-      {/* Trailing: timestamp */}
-      <span style={{ fontSize: 12, color: D.textSecondary, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", marginTop: 1 }}>
+      <span className="text-[12px] text-ink-secondary tabular-nums whitespace-nowrap mt-0.5">
         {formatDateTime(row.at, locale)}
       </span>
     </div>
@@ -540,12 +607,12 @@ const JournalRow = memo(function JournalRow({
 
 function DaySeparator({ date, locale }: { date: string; locale: string }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 16px", borderBottom: `1px solid ${D.border}` }}>
-      <div style={{ flex: 1, height: 1, background: D.border }} />
-      <span style={{ fontSize: 11, fontWeight: 600, color: D.textSecondary, letterSpacing: "0.04em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
+    <div className="flex items-center gap-2.5 px-4 py-2 border-b border-line-subtle bg-surface-card">
+      <div className="flex-1 h-px bg-line-subtle" />
+      <span className="text-[11px] font-semibold text-ink-secondary tracking-[0.04em] uppercase whitespace-nowrap">
         {formatDayHeader(date, locale)}
       </span>
-      <div style={{ flex: 1, height: 1, background: D.border }} />
+      <div className="flex-1 h-px bg-line-subtle" />
     </div>
   );
 }
@@ -570,30 +637,41 @@ function ActorAvatar({
   const inner = isSystem ? (
     <span style={{ fontSize: Math.floor(size * 0.45), color: "#C9CCCF" }}>⏱</span>
   ) : (
-    <span style={{ fontSize: Math.floor(size * 0.38), fontWeight: 700, color: "#FFFFFF", letterSpacing: "0.02em" }}>{initials}</span>
+    <span style={{ fontSize: Math.floor(size * 0.38) }} className="font-bold text-white tracking-[0.02em]">
+      {initials}
+    </span>
   );
 
   const style: React.CSSProperties = {
     width: size,
     height: size,
-    borderRadius: "50%",
     background: isSystem ? "#F6F6F7" : ringColor,
-    border: isSystem ? `2px dashed #C9CCCF` : `2px solid ${ringColor}`,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-    cursor: onClick ? "pointer" : "default",
+    border: isSystem ? "2px dashed #C9CCCF" : `2px solid ${ringColor}`,
   };
 
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} style={{ ...style, padding: 0, fontFamily: "inherit" }} aria-label={name ?? "System"}>
+      <button
+        type="button"
+        onClick={onClick}
+        style={style}
+        className="rounded-full flex items-center justify-center shrink-0 cursor-pointer p-0"
+        aria-label={name ?? "System"}
+      >
         {inner}
       </button>
     );
   }
-  return <div style={style} role="img" aria-label={name ?? "System"}>{inner}</div>;
+  return (
+    <div
+      style={style}
+      role="img"
+      aria-label={name ?? "System"}
+      className="rounded-full flex items-center justify-center shrink-0"
+    >
+      {inner}
+    </div>
+  );
 }
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
@@ -610,10 +688,14 @@ function EmptyState({
   clearLabel: string;
 }) {
   return (
-    <div style={{ padding: 48, textAlign: "center", color: D.textSecondary, fontSize: 14, border: `1px dashed ${D.border}`, borderRadius: 10, backgroundColor: D.cardBg }}>
+    <div className="px-12 py-12 text-center text-ink-secondary text-[14px] border border-dashed border-line-subtle rounded-card bg-surface-card">
       <div>{label}</div>
       {hasFilters && onClear && (
-        <button type="button" onClick={onClear} style={{ marginTop: 12, background: "none", border: "none", color: "#2C6ECB", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+        <button
+          type="button"
+          onClick={onClear}
+          className="mt-3 bg-transparent border-0 text-status-action text-[13px] font-semibold cursor-pointer hover:underline"
+        >
           {clearLabel}
         </button>
       )}
@@ -623,14 +705,26 @@ function EmptyState({
 
 // ─── Filter Chip ──────────────────────────────────────────────────────────────
 
-function FilterChip({ label, onRemove, removeLabel }: { label: string; onRemove: () => void; removeLabel: string }) {
+function FilterChip({
+  label,
+  onRemove,
+  removeLabel,
+}: {
+  label: string;
+  onRemove: () => void;
+  removeLabel: string;
+}) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 8px 4px 10px", background: D.sectionBg, border: `1px solid ${D.border}`, borderRadius: 9999, fontSize: 12, color: D.textPrimary }}>
+    <span className="inline-flex items-center gap-1.5 ps-2.5 pe-1 py-1 bg-surface-card border border-line-subtle rounded-pill text-[12px] text-ink-primary">
       {label}
-      <button type="button" onClick={onRemove} aria-label={removeLabel} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, border: "none", background: "transparent", color: D.textSecondary, cursor: "pointer", borderRadius: 4, fontFamily: "inherit" }}>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={removeLabel}
+        className="inline-flex items-center justify-center w-5 h-5 rounded-full text-ink-secondary hover:bg-surface-hover hover:text-ink-primary transition-colors duration-fast"
+      >
         <X size={12} strokeWidth={2} aria-hidden="true" />
       </button>
     </span>
   );
 }
-

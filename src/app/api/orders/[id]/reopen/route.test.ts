@@ -12,15 +12,23 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-vi.mock("@/lib/carriers/adapter", () => ({
+vi.mock("@/lib/carriers", () => ({
   getCarrierAdapter: vi.fn().mockReturnValue({
     voidDispatch: vi.fn().mockResolvedValue({ success: true, supported: true }),
   }),
+  buildConfig: vi.fn().mockReturnValue({
+    code: "navex",
+    apiEndpoint: "https://app.navex.tn/api",
+    apiCredentials: { token: "decrypted-token" },
+    deliveryFee: 7,
+    returnFee: 5,
+  }),
 }));
+
 
 import { POST } from "./route";
 import { NextRequest } from "next/server";
-import { getCarrierAdapter } from "@/lib/carriers/adapter";
+import { getCarrierAdapter } from "@/lib/carriers";
 
 function createRequest(url = "http://localhost:3000/api/orders/o-1/reopen") {
   return new NextRequest(new URL(url), { method: "POST" });
@@ -151,7 +159,17 @@ describe("POST /api/orders/[id]/reopen", () => {
         return queryChainSingle({ data: { role: "agent", market_id: "m-1" }, error: null });
       }
       if (table === "carriers") {
-        return queryChainSingle({ data: { id: "c-1", carrier_type: "navex", api_key_encrypted: "enc:k" }, error: null });
+        return queryChainSingle({
+          data: {
+            id: "c-1",
+            code: "navex",
+            api_endpoint: "https://app.navex.tn/api",
+            api_credentials: "encrypted-blob",
+            delivery_fee: 7,
+            return_fee: 5,
+          },
+          error: null,
+        });
       }
       return queryChainSingle({
         data: { id: "o-1", status: "dispatched", assigned_to: "agent-1", updated_at: withinWindow, tracking_number: "TN123", carrier_id: "c-1" },
@@ -180,7 +198,17 @@ describe("POST /api/orders/[id]/reopen", () => {
         return queryChainSingle({ data: { role: "agent", market_id: "m-1" }, error: null });
       }
       if (table === "carriers") {
-        return queryChainSingle({ data: { id: "c-1", carrier_type: "navex", api_key_encrypted: "enc:k" }, error: null });
+        return queryChainSingle({
+          data: {
+            id: "c-1",
+            code: "navex",
+            api_endpoint: "https://app.navex.tn/api",
+            api_credentials: "encrypted-blob",
+            delivery_fee: 7,
+            return_fee: 5,
+          },
+          error: null,
+        });
       }
       return queryChainSingle({
         data: { id: "o-1", status: "dispatched", assigned_to: "agent-1", updated_at: withinWindow, tracking_number: "TN123", carrier_id: "c-1" },
@@ -210,7 +238,17 @@ describe("POST /api/orders/[id]/reopen", () => {
         return queryChainSingle({ data: { role: "agent", market_id: "m-1" }, error: null });
       }
       if (table === "carriers") {
-        return queryChainSingle({ data: { id: "c-1", carrier_type: "dexpress", api_key_encrypted: "enc:k" }, error: null });
+        return queryChainSingle({
+          data: {
+            id: "c-1",
+            code: "dexpress",
+            api_endpoint: "https://api.dexpress.ly",
+            api_credentials: "encrypted-blob",
+            delivery_fee: 8,
+            return_fee: 6,
+          },
+          error: null,
+        });
       }
       return queryChainSingle({
         data: { id: "o-1", status: "dispatched", assigned_to: "agent-1", updated_at: withinWindow, tracking_number: "DX999", carrier_id: "c-1" },

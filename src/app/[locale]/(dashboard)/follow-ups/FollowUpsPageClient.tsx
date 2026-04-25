@@ -265,7 +265,7 @@ export function FollowUpsPageClient({
     setStatusFilter("all");
   }, []);
 
-  const effectiveViewMode: ViewMode = isAgent ? "timeline" : viewMode;
+  const effectiveViewMode: ViewMode = viewMode;
 
   return (
     <div
@@ -296,8 +296,7 @@ export function FollowUpsPageClient({
         statusFilter={statusFilter}
         onStatusChange={setStatusFilter}
         viewMode={effectiveViewMode}
-        onViewModeChange={isAgent ? () => {} : setViewMode}
-        hideViewToggle={isAgent}
+        onViewModeChange={setViewMode}
         onReset={handleReset}
         onNewFollowUp={() => setCreateOpen(true)}
         hasActiveFilters={hasFilters}

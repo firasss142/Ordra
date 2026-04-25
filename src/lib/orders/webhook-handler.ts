@@ -112,8 +112,26 @@ export async function handleWebhook(input: WebhookInput): Promise<WebhookResult>
     return { status: 200, body: { error: "Storefront not found or inactive" } };
   }
 
-  // 2. Decrypt secret and validate webhook (skipped on trusted replay)
-  const adapter = getAdapter(storefront.platform);
+  // 2. Resolve adapter (unknown platform → log + 200, never crash the route)
+  let adapter;
+  try {
+    adapter = getAdapter(storefront.platform);
+  } catch (err) {
+    await logWebhookDelivery({
+      adminClient,
+      source: storefront.platform,
+      event: "unknown",
+      payload: null,
+      status: "error",
+      orderId: null,
+      storefrontId,
+      externalId: null,
+      errorMessage: err instanceof Error ? err.message : String(err),
+    });
+    return { status: 200, body: { error: "Unknown platform" } };
+  }
+
+  // Decrypt secret and validate webhook (skipped on trusted replay)
   if (!allowReplay) {
     const secret = decryptFn(storefront.webhook_secret);
     if (!adapter.validateWebhook(headers, rawBody, secret)) {
@@ -132,7 +150,7 @@ export async function handleWebhook(input: WebhookInput): Promise<WebhookResult>
   // 4. Parse event type and map to internal order
   let eventType: WebhookEventType;
   try {
-    eventType = adapter.parseEventType(payload);
+    eventType = adapter.parseEventType(payload, headers);
   } catch (err) {
     if (err instanceof PayloadMappingError) {
       return { status: 200, body: { error: err.message } };

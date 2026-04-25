@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, Globe, CalendarRange } from "lucide-react";
 import { todayISO, startOfWeekISO, startOfMonthISO } from "@/lib/date";
 
 export interface Period {
@@ -41,6 +42,12 @@ interface FilterBarProps {
   lastUpdatedAt?: Date | null;
 }
 
+const CARD_BG = "#FFFFFF";
+const SOFT_BG = "#FFFFFF";
+const BORDER = "#E1E3E5";
+const SUBTLE_BG = "#F6F6F7";
+const TEXT = "#1A1A1A";
+const MUTED = "#6D7175";
 
 export function FilterBar({
   period,
@@ -82,42 +89,53 @@ export function FilterBar({
   return (
     <div
       style={{
+        background: CARD_BG,
+        border: `1px solid ${BORDER}`,
+        borderRadius: 10,
+        padding: "10px 12px",
         display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-        marginBottom: 24,
+        flexDirection: "column",
+        gap: 8,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <MarketChip
-          markets={markets}
-          selected={selectedMarketId}
-          onChange={onMarketChange}
-          allowAll={allowAllMarkets}
-          locked={lockMarket}
-          lockedLabel={lockedMarketLabel}
-          allLabel={labels.allMarkets}
-          placeholder={labels.marketPlaceholder}
-        />
-        {lastUpdatedText ? (
-          <span style={{ fontSize: 12, color: "#6D7175" }}>· {lastUpdatedText}</span>
-        ) : null}
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <PresetSegmented
-          presets={presets}
-          active={activePreset}
-          onSelect={handlePreset}
-        />
-        {activePreset === "custom" ? (
-          <CustomRange
-            period={period}
-            onChange={(p) => onPeriodChange(p, "custom")}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 10,
+          justifyContent: "space-between",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <MarketChip
+            markets={markets}
+            selected={selectedMarketId}
+            onChange={onMarketChange}
+            allowAll={allowAllMarkets}
+            locked={lockMarket}
+            lockedLabel={lockedMarketLabel}
+            allLabel={labels.allMarkets}
+            placeholder={labels.marketPlaceholder}
           />
-        ) : null}
+          {lastUpdatedText ? (
+            <span style={{ fontSize: 12, color: MUTED }}>· {lastUpdatedText}</span>
+          ) : null}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <PresetSegmented
+            presets={presets}
+            active={activePreset}
+            onSelect={handlePreset}
+          />
+          {activePreset === "custom" ? (
+            <CustomRange
+              period={period}
+              onChange={(p) => onPeriodChange(p, "custom")}
+            />
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -137,9 +155,8 @@ function PresetSegmented({
       role="tablist"
       style={{
         display: "inline-flex",
-        border: "1px solid #E1E3E5",
-        borderRadius: 9999,
-        background: "#FFFFFF",
+        background: SUBTLE_BG,
+        borderRadius: 8,
         padding: 2,
         gap: 2,
       }}
@@ -154,15 +171,16 @@ function PresetSegmented({
             aria-selected={isActive}
             onClick={() => onSelect(p.key)}
             style={{
-              padding: "6px 14px",
+              padding: "5px 14px",
               border: "none",
-              borderRadius: 9999,
-              background: isActive ? "#1A1A1A" : "transparent",
-              color: isActive ? "#FFFFFF" : "#1A1A1A",
+              borderRadius: 6,
+              background: isActive ? "#FFFFFF" : "transparent",
+              color: TEXT,
               fontSize: 13,
-              fontWeight: 500,
+              fontWeight: isActive ? 600 : 500,
               cursor: "pointer",
-              transition: "background-color 120ms ease, color 120ms ease",
+              boxShadow: isActive ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+              fontFamily: "inherit",
             }}
           >
             {p.label}
@@ -193,6 +211,16 @@ function MarketChip({
   placeholder: string;
 }) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
 
   if (locked) {
     return (
@@ -201,15 +229,17 @@ function MarketChip({
           display: "inline-flex",
           alignItems: "center",
           gap: 6,
-          padding: "6px 12px",
-          borderRadius: 9999,
-          border: "1px solid #E1E3E5",
-          background: "#F2F2F2",
-          color: "#6D7175",
+          height: 30,
+          padding: "0 12px",
+          borderRadius: 8,
+          border: `1px solid ${BORDER}`,
+          background: SUBTLE_BG,
+          color: MUTED,
           fontSize: 13,
           fontWeight: 500,
         }}
       >
+        <Globe size={13} strokeWidth={1.75} />
         {lockedLabel}
       </span>
     );
@@ -221,7 +251,7 @@ function MarketChip({
       : markets.find((m) => m.id === selected)?.name ?? placeholder;
 
   return (
-    <div style={{ position: "relative" }}>
+    <div ref={ref} style={{ position: "relative" }}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -229,20 +259,23 @@ function MarketChip({
           display: "inline-flex",
           alignItems: "center",
           gap: 6,
-          padding: "6px 12px",
-          borderRadius: 9999,
-          border: "1px solid #E1E3E5",
-          background: "#FFFFFF",
-          color: "#1A1A1A",
+          height: 30,
+          padding: "0 12px",
+          borderRadius: 8,
+          border: `1px solid ${BORDER}`,
+          background: SOFT_BG,
+          color: TEXT,
           fontSize: 13,
           fontWeight: 500,
           cursor: "pointer",
+          fontFamily: "inherit",
         }}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
+        <Globe size={13} strokeWidth={1.75} />
         {selectedLabel}
-        <span aria-hidden style={{ fontSize: 10 }}>▾</span>
+        <ChevronDown size={11} strokeWidth={2} />
       </button>
       {open ? (
         <div
@@ -250,16 +283,15 @@ function MarketChip({
           style={{
             position: "absolute",
             insetInlineStart: 0,
-            top: "calc(100% + 6px)",
-            background: "#FFFFFF",
-            border: "1px solid #E1E3E5",
+            top: "calc(100% + 4px)",
+            background: SOFT_BG,
+            border: `1px solid ${BORDER}`,
             borderRadius: 8,
             boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            minWidth: 180,
+            minWidth: 200,
             zIndex: 10,
             padding: 4,
           }}
-          onMouseLeave={() => setOpen(false)}
         >
           {allowAll ? (
             <MarketOption
@@ -314,10 +346,11 @@ function MarketOption({
         border: "none",
         borderRadius: 6,
         background: selected ? "#F2F2F2" : hover ? "#F7F7F7" : "transparent",
-        color: "#1A1A1A",
+        color: TEXT,
         fontSize: 13,
-        fontWeight: 500,
+        fontWeight: selected ? 600 : 500,
         cursor: "pointer",
+        fontFamily: "inherit",
       }}
     >
       {label}
@@ -333,30 +366,48 @@ function CustomRange({
   onChange: (p: Period) => void;
 }) {
   return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        height: 30,
+        padding: "0 8px",
+        borderRadius: 8,
+        border: `1px solid ${BORDER}`,
+        background: SOFT_BG,
+      }}
+    >
+      <CalendarRange size={13} strokeWidth={1.75} aria-hidden style={{ color: MUTED }} />
       <input
         type="date"
         value={period.from_date}
         onChange={(e) => onChange({ ...period, from_date: e.target.value })}
         style={{
-          padding: "4px 8px",
-          border: "1px solid #D1D5DB",
-          borderRadius: 6,
+          height: 24,
+          padding: "0 4px",
+          border: "none",
+          background: "transparent",
           fontSize: 13,
-          color: "#1A1A1A",
+          color: TEXT,
+          outline: "none",
+          fontFamily: "inherit",
         }}
       />
-      <span style={{ color: "#6D7175", fontSize: 13 }}>→</span>
+      <span aria-hidden style={{ color: MUTED, fontSize: 13 }}>→</span>
       <input
         type="date"
         value={period.to_date}
         onChange={(e) => onChange({ ...period, to_date: e.target.value })}
         style={{
-          padding: "4px 8px",
-          border: "1px solid #D1D5DB",
-          borderRadius: 6,
+          height: 24,
+          padding: "0 4px",
+          border: "none",
+          background: "transparent",
           fontSize: 13,
-          color: "#1A1A1A",
+          color: TEXT,
+          outline: "none",
+          fontFamily: "inherit",
         }}
       />
     </div>

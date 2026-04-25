@@ -10,33 +10,16 @@ export function useUsersWorkspace() {
     fetcher
   );
 
-  async function inviteUser(payload: {
-    username: string;
-    role: string;
-    market_id?: string;
-  }): Promise<{ inviteLink: string }> {
-    const res = await fetch("/api/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "invite", ...payload }),
-    });
-    const body = await res.json();
-    if (!res.ok) throw new Error(body.error ?? "Erreur lors de l'invitation");
-    await mutate();
-    return { inviteLink: body.invite_link };
-  }
-
   async function createUser(payload: {
     username: string;
     password: string;
     role: string;
     market_id?: string;
-    avatar?: string;
   }): Promise<void> {
     const res = await fetch("/api/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "create", ...payload }),
+      body: JSON.stringify(payload),
     });
     const body = await res.json();
     if (!res.ok) throw new Error(body.error ?? "Erreur lors de la création");
@@ -96,7 +79,6 @@ export function useUsersWorkspace() {
     users: data?.data ?? [],
     isLoading,
     mutate,
-    inviteUser,
     createUser,
     deactivateUser,
     reactivateUser,

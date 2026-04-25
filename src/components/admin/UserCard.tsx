@@ -17,6 +17,7 @@ interface Props {
   user: UserWithStats;
   markets: Market[];
   actorRole: Role;
+  actorId: string;
   onDeactivate: () => void;
   onReactivate: () => void;
   onResetPassword: () => void;
@@ -45,6 +46,7 @@ export function UserCard({
   user,
   markets,
   actorRole,
+  actorId,
   onDeactivate,
   onReactivate,
   onResetPassword,
@@ -56,6 +58,13 @@ export function UserCard({
   const menuRef = useRef<HTMLDivElement>(null);
   const presence = getPresence(user.last_seen_at);
   const presenceColor = PRESENCE_COLOR[presence];
+  const isSelf = user.id === actorId;
+  const managerCanSeePresence =
+    user.role === "agent" || user.role === "warehouse_agent";
+  const showPresenceDot =
+    !isSelf &&
+    (actorRole === "super_admin" ||
+      (actorRole === "market_manager" && managerCanSeePresence));
   const marketName = markets.find((m) => m.id === user.market_id)?.name ?? "—";
   const badge = ROLE_BADGE[user.role];
   const isPending = !!user.invitation_sent_at && !user.invitation_accepted_at;
@@ -76,18 +85,20 @@ export function UserCard({
       {/* Avatar + presence dot */}
       <div style={{ position: "relative", flexShrink: 0 }}>
         <Avatar user={user} size={36} />
-        <span
-          style={{
-            position: "absolute",
-            bottom: 0,
-            right: 0,
-            width: 10,
-            height: 10,
-            borderRadius: "50%",
-            background: presenceColor,
-            border: "2px solid white",
-          }}
-        />
+        {showPresenceDot && (
+          <span
+            style={{
+              position: "absolute",
+              bottom: 0,
+              right: 0,
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
+              background: presenceColor,
+              border: "2px solid white",
+            }}
+          />
+        )}
       </div>
 
       {/* Name + email + badges */}

@@ -1,62 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { canViewProfitability } from "@/lib/profitability-permissions";
-import { calculateProductProfitability } from "@/lib/calculations/product-profitability";
+import {
+  calculateProductProfitability,
+  type ProductProfitabilityResult,
+} from "@/lib/calculations/product-profitability";
 import { getActor } from "@/lib/auth/actor";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ productId: string }> }
-) {
-  const { productId } = await params;
-  const supabase = await createClient();
+interface PeriodCounts {
+  totalLeads: number;
+  confirmedCount: number;
+  dispatchedCount: number;
+  deliveredCount: number;
+  returnedCount: number;
+}
 
-    const actorResult = await getActor(req);
-  if ("response" in actorResult) return actorResult.response;
-  const { actor } = actorResult;
-  const role = actor.role;
-  if (!canViewProfitability(role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
-  const today = todayISO();
-  const fromDate = req.nextUrl.searchParams.get("from_date") ?? today;
-  const toDate = req.nextUrl.searchParams.get("to_date") ?? today;
+interface ProductCostInputs {
+  unitCogs: number;
+  packingCost: number;
+  cpl: number;
+  confirmationProcessingCost: number;
+}
 
-  // --- Fetch product, verify market ownership ---
-  const { data: product } = await supabase
-    .from("products")
-    .select(
-      "id, name, unit_cogs, packing_cost, cpl, confirmation_processing_cost, market_id, current_stock, low_stock_threshold"
-    )
-    .eq("id", productId)
-    .single();
-
-  if (!product) {
-    return NextResponse.json({ error: "Product not found" }, { status: 404 });
-  }
-
-  if (role === "market_manager" && product.market_id !== actor.market_id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  // --- Fetch market currency ---
-  const { data: market } = await supabase
-    .from("markets")
-    .select("currency")
-    .eq("id", product.market_id)
-    .single();
-
-  const currency = (market as { currency?: string } | null)?.currency ?? "TND";
-
-  const unitCogs = Number(product.unit_cogs);
-  const packingCost = Number(product.packing_cost);
-  const cpl = Number(product.cpl);
-  const confirmationProcessingCost = Number(product.confirmation_processing_cost ?? 0);
+async function computeForPeriod(
+  supabase: SupabaseClient,
+  productId: string,
+  fromDate: string,
+  toDate: string,
+  costs: ProductCostInputs
+): Promise<ProductProfitabilityResult & PeriodCounts & { period: { from_date: string; to_date: string } }> {
   const toDateEnd = toDate + "T23:59:59.999Z";
 
   // --- Total leads ---
@@ -141,13 +119,96 @@ export async function GET(
     dispatchedCount: dispatchedCount ?? 0,
     deliveredCount: deliveredOrders.length,
     returnedCount: returnedOrders.length,
-    unitCogs,
-    packingCost,
-    cpl,
-    confirmationProcessingCost,
+    unitCogs: costs.unitCogs,
+    packingCost: costs.packingCost,
+    cpl: costs.cpl,
+    confirmationProcessingCost: costs.confirmationProcessingCost,
     deliveredOrders,
     returnedOrders,
   });
+
+  return {
+    ...result,
+    confirmedCount: confirmedCount ?? 0,
+    dispatchedCount: dispatchedCount ?? 0,
+    deliveredCount: deliveredOrders.length,
+    returnedCount: returnedOrders.length,
+    period: { from_date: fromDate, to_date: toDate },
+  };
+}
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ productId: string }> }
+) {
+  const { productId } = await params;
+  const supabase = await createClient();
+
+  const actorResult = await getActor(req);
+  if ("response" in actorResult) return actorResult.response;
+  const { actor } = actorResult;
+  const role = actor.role;
+  if (!canViewProfitability(role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const today = todayISO();
+  const fromDate = req.nextUrl.searchParams.get("from_date") ?? today;
+  const toDate = req.nextUrl.searchParams.get("to_date") ?? today;
+  const previousFromDate = req.nextUrl.searchParams.get("previous_from_date");
+  const previousToDate = req.nextUrl.searchParams.get("previous_to_date");
+
+  // --- Fetch product, verify market ownership ---
+  const { data: product } = await supabase
+    .from("products")
+    .select(
+      "id, name, unit_cogs, packing_cost, cpl, confirmation_processing_cost, market_id, current_stock, low_stock_threshold"
+    )
+    .eq("id", productId)
+    .single();
+
+  if (!product) {
+    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+  }
+
+  if (role === "market_manager" && product.market_id !== actor.market_id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // --- Fetch market currency ---
+  const { data: market } = await supabase
+    .from("markets")
+    .select("currency")
+    .eq("id", product.market_id)
+    .single();
+
+  const currency = (market as { currency?: string } | null)?.currency ?? "TND";
+
+  const costs: ProductCostInputs = {
+    unitCogs: Number(product.unit_cogs),
+    packingCost: Number(product.packing_cost),
+    cpl: Number(product.cpl),
+    confirmationProcessingCost: Number(product.confirmation_processing_cost ?? 0),
+  };
+
+  const current = await computeForPeriod(
+    supabase,
+    productId,
+    fromDate,
+    toDate,
+    costs
+  );
+
+  const previous =
+    previousFromDate && previousToDate
+      ? await computeForPeriod(
+          supabase,
+          productId,
+          previousFromDate,
+          previousToDate,
+          costs
+        )
+      : null;
 
   return NextResponse.json({
     data: {
@@ -155,8 +216,8 @@ export async function GET(
       current_stock: product.current_stock,
       low_stock_threshold: product.low_stock_threshold,
       currency,
-      period: { from_date: fromDate, to_date: toDate },
-      ...result,
+      ...current,
+      previous,
     },
   });
 }

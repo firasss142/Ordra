@@ -1,9 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
+import {
+  ChevronDown,
+  Globe,
+  Search as SearchIcon,
+  CalendarRange,
+  Download,
+} from "lucide-react";
 import type { Locale, Role } from "@/types";
 import { fetcher } from "@/lib/swr-config";
 import { useOrdersList } from "@/hooks/useOrdersList";
@@ -187,77 +194,175 @@ export function ArchivePageClient({
         </p>
       </div>
 
-      {/* Search bar — primary archive entry point */}
-      <div style={{
-        background: "#FFFFFF",
-        border: "1px solid #E1E3E5",
-        borderRadius: 8,
-        padding: 16,
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-      }}>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <input
-            type="search"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder={t("searchPlaceholder")}
-            aria-label={t("searchAria")}
+      {/* Filter bar — leads-pattern card */}
+      <div
+        style={{
+          background: "#FFFFFF",
+          border: "1px solid #E1E3E5",
+          borderRadius: 10,
+          padding: "10px 12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 10,
+            justifyContent: "space-between",
+          }}
+        >
+          <div
             style={{
-              flex: "1 1 320px",
-              minWidth: 240,
-              padding: "10px 14px",
-              borderRadius: 8,
-              border: "1px solid #E1E3E5",
-              background: "#FAFAFA",
-              fontSize: 14,
-              color: "#1A1A1A",
-              outline: "none",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+              flex: "1 1 auto",
             }}
-          />
+          >
+            {isSuperAdmin ? (
+              <ArchiveMarketChip
+                markets={markets}
+                selected={marketId}
+                onChange={setMarketId}
+                ariaLabel={t("marketAria")}
+              />
+            ) : (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  height: 30,
+                  padding: "0 12px",
+                  borderRadius: 8,
+                  border: "1px solid #E1E3E5",
+                  background: "#F6F6F7",
+                  color: "#6D7175",
+                  fontSize: 13,
+                  fontWeight: 500,
+                }}
+              >
+                <Globe size={13} strokeWidth={1.75} />
+                {userMarketLabel}
+              </span>
+            )}
+
+            <span
+              aria-hidden
+              style={{
+                width: 1,
+                height: 20,
+                background: "#E1E3E5",
+                display: "inline-block",
+                margin: "0 2px",
+              }}
+            />
+
+            <div style={{ position: "relative", flex: "1 1 240px", minWidth: 200 }}>
+              <SearchIcon
+                size={13}
+                strokeWidth={1.75}
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  insetInlineStart: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "#6D7175",
+                  pointerEvents: "none",
+                }}
+              />
+              <input
+                type="search"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder={t("searchPlaceholder")}
+                aria-label={t("searchAria")}
+                style={{
+                  height: 30,
+                  width: "100%",
+                  paddingInlineStart: 28,
+                  paddingInlineEnd: 10,
+                  fontSize: 13,
+                  border: "1px solid #E1E3E5",
+                  borderRadius: 8,
+                  background: "#FFFFFF",
+                  color: "#1A1A1A",
+                  outline: "none",
+                  fontFamily: "inherit",
+                }}
+              />
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleExport}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              height: 34,
+              padding: "0 14px",
+              fontSize: 13,
+              fontWeight: 500,
+              border: "1px solid #1A1A1A",
+              borderRadius: 8,
+              background: "#1A1A1A",
+              color: "#FFFFFF",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            <Download size={14} strokeWidth={2} />
+            {t("exportCsv")}
+          </button>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            paddingTop: 8,
+            borderTop: "1px solid #E1E3E5",
+          }}
+        >
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 12,
+              fontWeight: 500,
+              color: "#6D7175",
+              paddingInlineEnd: 4,
+            }}
+          >
+            <CalendarRange size={13} strokeWidth={1.75} />
+            {t("dateFromAria")}
+          </span>
           <input
             type="date"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
             aria-label={t("dateFromAria")}
-            style={dateInputStyle}
+            style={chipInputStyle}
           />
+          <span aria-hidden style={{ color: "#6D7175", fontSize: 13 }}>→</span>
           <input
             type="date"
             value={toDate}
             onChange={(e) => setToDate(e.target.value)}
             aria-label={t("dateToAria")}
-            style={dateInputStyle}
+            style={chipInputStyle}
           />
-          {isSuperAdmin ? (
-            <select
-              value={marketId}
-              onChange={(e) => setMarketId(e.target.value)}
-              aria-label={t("marketAria")}
-              style={dateInputStyle}
-            >
-              {markets.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
-          ) : null}
-          <button
-            type="button"
-            onClick={handleExport}
-            style={{
-              padding: "10px 16px",
-              borderRadius: 8,
-              border: "1px solid #1A1A1A",
-              background: "#1A1A1A",
-              color: "#FFFFFF",
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
-          >
-            {t("exportCsv")}
-          </button>
         </div>
       </div>
 
@@ -526,15 +631,123 @@ const sectionTitleStyle: React.CSSProperties = {
   margin: 0,
 };
 
-const dateInputStyle: React.CSSProperties = {
-  padding: "10px 12px",
-  borderRadius: 8,
+const chipInputStyle: React.CSSProperties = {
+  height: 28,
+  padding: "0 8px",
+  fontSize: 12,
   border: "1px solid #E1E3E5",
-  background: "#FAFAFA",
-  fontSize: 13,
+  borderRadius: 6,
+  background: "#FFFFFF",
   color: "#1A1A1A",
   outline: "none",
+  fontFamily: "inherit",
 };
+
+function ArchiveMarketChip({
+  markets,
+  selected,
+  onChange,
+  ariaLabel,
+}: {
+  markets: Market[];
+  selected: string;
+  onChange: (id: string) => void;
+  ariaLabel: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const selectedLabel = markets.find((m) => m.id === selected)?.name ?? "—";
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          height: 30,
+          padding: "0 12px",
+          borderRadius: 8,
+          border: "1px solid #E1E3E5",
+          background: "#FFFFFF",
+          color: "#1A1A1A",
+          fontSize: 13,
+          fontWeight: 500,
+          cursor: "pointer",
+          fontFamily: "inherit",
+        }}
+      >
+        <Globe size={13} strokeWidth={1.75} />
+        {selectedLabel}
+        <ChevronDown size={11} strokeWidth={2} />
+      </button>
+      {open ? (
+        <div
+          role="listbox"
+          style={{
+            position: "absolute",
+            insetInlineStart: 0,
+            top: "calc(100% + 4px)",
+            background: "#FFFFFF",
+            border: "1px solid #E1E3E5",
+            borderRadius: 8,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+            minWidth: 200,
+            zIndex: 20,
+            padding: 4,
+          }}
+        >
+          {markets.map((m) => {
+            const isSelected = m.id === selected;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                onClick={() => {
+                  onChange(m.id);
+                  setOpen(false);
+                }}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "start",
+                  padding: "8px 10px",
+                  border: "none",
+                  borderRadius: 6,
+                  background: isSelected ? "#F2F2F2" : "transparent",
+                  color: "#1A1A1A",
+                  fontSize: 13,
+                  fontWeight: isSelected ? 600 : 500,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                {m.name}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 const emptyTextStyle: React.CSSProperties = {
   margin: 0,

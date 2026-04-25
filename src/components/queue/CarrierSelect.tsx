@@ -3,11 +3,18 @@
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
-import type { CarrierConfig } from "@/types/carrier";
+
+export interface CarrierOption {
+  id: string;
+  name: string;
+  code: string;
+  market_id: string;
+  is_active: boolean;
+}
 
 interface CarrierSelectProps {
   marketId: string;
-  onSelect: (carrier: CarrierConfig) => void;
+  onSelect: (carrier: CarrierOption) => void;
   onCarriersLoaded?: (count: number) => void;
 }
 
@@ -48,8 +55,8 @@ export function CarrierSelect({ marketId, onSelect, onCarriersLoaded }: CarrierS
     { revalidateOnFocus: false, dedupingInterval: 60000 }
   );
 
-  const carriers: CarrierConfig[] = (data?.data ?? []).filter(
-    (c: CarrierConfig) => c.is_active
+  const carriers: CarrierOption[] = (data?.data ?? []).filter(
+    (c: CarrierOption) => c.is_active
   );
 
   useEffect(() => {
@@ -72,7 +79,6 @@ export function CarrierSelect({ marketId, onSelect, onCarriersLoaded }: CarrierS
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {carriers.map((carrier) => {
-        const label = carrier.sender_name ?? carrier.carrier_type;
         const isSelected = selectedId === carrier.id;
         return (
           <div
@@ -83,9 +89,9 @@ export function CarrierSelect({ marketId, onSelect, onCarriersLoaded }: CarrierS
               onSelect(carrier);
             }}
           >
-            <span>{label}</span>
+            <span>{carrier.name}</span>
             <span style={{ fontSize: 12, color: "#6B7280", fontWeight: 400 }}>
-              ({carrier.carrier_type})
+              ({carrier.code})
             </span>
           </div>
         );

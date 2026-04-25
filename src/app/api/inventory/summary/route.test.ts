@@ -89,7 +89,7 @@ describe("GET /api/inventory/summary", () => {
         name: "Alpha",
         current_stock: 30,
         low_stock_threshold: 5,
-        unit_cost: 4,
+        unit_cogs: 4,
         damaged_return_count: 3,
       },
       {
@@ -97,7 +97,7 @@ describe("GET /api/inventory/summary", () => {
         name: "Beta",
         current_stock: 2,
         low_stock_threshold: 5,
-        unit_cost: 10,
+        unit_cogs: 10,
         damaged_return_count: 0,
       },
       {
@@ -105,7 +105,7 @@ describe("GET /api/inventory/summary", () => {
         name: "Gamma",
         current_stock: 200,
         low_stock_threshold: 10,
-        unit_cost: 1,
+        unit_cogs: 1,
         damaged_return_count: 0,
       },
     ];

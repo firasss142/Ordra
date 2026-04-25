@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
   /* ─────────────── Products ─────────────── */
   let productsQuery = supabase
     .from("products")
-    .select("id, name, current_stock, low_stock_threshold, unit_cost, damaged_return_count")
+    .select("id, name, current_stock, low_stock_threshold, unit_cogs, damaged_return_count")
     .eq("is_active", true)
     .order("current_stock", { ascending: true })
     .limit(PRODUCTS_LIMIT);
@@ -120,7 +120,7 @@ export async function GET(req: NextRequest) {
     name: string;
     current_stock: number;
     low_stock_threshold: number;
-    unit_cost: number;
+    unit_cogs: number;
     damaged_return_count: number;
   }>;
 
@@ -193,7 +193,7 @@ export async function GET(req: NextRequest) {
 
   // Build enriched products
   const products: InventoryProductRow[] = rawProducts.map((p) => {
-    const unitCost = Number(p.unit_cost) || 0;
+    const unitCost = Number(p.unit_cogs) || 0;
     const scanOutQty = scanOutQtyByProduct.get(p.id) ?? 0;
     const returnsQty = returnsQtyByProduct.get(p.id) ?? 0;
     const intel = computeProductIntelligence({

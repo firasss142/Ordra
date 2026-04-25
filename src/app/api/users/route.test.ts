@@ -5,7 +5,6 @@ const mockFrom = vi.fn();
 const mockAdminFrom = vi.fn();
 const mockAdminCreateUser = vi.fn();
 const mockAdminDeleteUser = vi.fn();
-const mockAdminGenerateLink = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
@@ -17,7 +16,6 @@ vi.mock("@/lib/supabase/server", () => ({
       admin: {
         createUser: (...args: unknown[]) => mockAdminCreateUser(...args),
         deleteUser: (...args: unknown[]) => mockAdminDeleteUser(...args),
-        generateLink: (...args: unknown[]) => mockAdminGenerateLink(...args),
       },
     },
     from: (...args: unknown[]) => mockAdminFrom(...args),
@@ -244,79 +242,3 @@ describe("POST /api/users action=create — RBAC", () => {
   });
 });
 
-// ─── POST action=invite ──────────────────────────────────────────────────────
-
-describe("POST /api/users action=invite", () => {
-  test("super_admin can invite market_manager", async () => {
-    mockFrom.mockReturnValue(actorChain("super_admin"));
-    mockAdminGenerateLink.mockResolvedValue({
-      data: { properties: { action_link: "https://supabase.io/invite?token=abc" } },
-      error: null,
-    });
-    const auditChain = auditInsertChain();
-    let callCount = 0;
-    mockAdminFrom.mockImplementation(() => {
-      callCount++;
-      if (callCount === 1) return insertChain({ id: "new-u", email: "u@oms.local", full_name: "u", role: "market_manager", market_id: "market-tn", is_active: false, invitation_sent_at: new Date().toISOString(), invitation_accepted_at: null, avatar_url: null, last_seen_at: null, created_at: "" });
-      return auditChain;
-    });
-    const res = await POST(makePostRequest({ action: "invite", username: "u", role: "market_manager", market_id: "market-tn" }));
-    expect(res.status).toBe(201);
-    const body = await res.json();
-    expect(body.invite_link).toBe("https://supabase.io/invite?token=abc");
-  });
-
-  test("market_manager cannot invite market_manager", async () => {
-    mockFrom.mockReturnValue(actorChain("market_manager", "market-tn"));
-    const res = await POST(makePostRequest({ action: "invite", username: "u", role: "market_manager", market_id: "market-tn" }));
-    expect(res.status).toBe(403);
-  });
-
-  test("invited user row has invitation_sent_at set and is_active=false", async () => {
-    mockFrom.mockReturnValue(actorChain("super_admin"));
-    mockAdminGenerateLink.mockResolvedValue({
-      data: { properties: { action_link: "https://link" } },
-      error: null,
-    });
-    const userInsertChain = insertChain({ id: "new-u", email: "u@oms.local", full_name: "u", role: "agent", market_id: "market-tn", is_active: false, invitation_sent_at: new Date().toISOString(), invitation_accepted_at: null, avatar_url: null, last_seen_at: null, created_at: "" });
-    const auditChain = auditInsertChain();
-    let callCount = 0;
-    mockAdminFrom.mockImplementation(() => {
-      callCount++;
-      if (callCount === 1) return userInsertChain;
-      return auditChain;
-    });
-    await POST(makePostRequest({ action: "invite", username: "u", role: "agent", market_id: "market-tn" }));
-    expect(userInsertChain.insert).toHaveBeenCalledWith(
-      expect.objectContaining({ is_active: false, invitation_sent_at: expect.any(String) })
-    );
-  });
-
-  test("audit log row has event_type user_invited with meta.invite_link", async () => {
-    mockFrom.mockReturnValue(actorChain("super_admin"));
-    mockAdminGenerateLink.mockResolvedValue({
-      data: { properties: { action_link: "https://link" } },
-      error: null,
-    });
-    const auditChain = auditInsertChain();
-    let callCount = 0;
-    mockAdminFrom.mockImplementation(() => {
-      callCount++;
-      if (callCount === 1) return insertChain({ id: "new-u", email: "u@oms.local", full_name: "u", role: "agent", market_id: "market-tn", is_active: false, invitation_sent_at: new Date().toISOString(), invitation_accepted_at: null, avatar_url: null, last_seen_at: null, created_at: "" });
-      return auditChain;
-    });
-    await POST(makePostRequest({ action: "invite", username: "u", role: "agent", market_id: "market-tn" }));
-    expect(auditChain.insert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        event_type: "user_invited",
-        meta: expect.objectContaining({ invite_link: "https://link" }),
-      })
-    );
-  });
-
-  test("returns 400 when role is missing for invite", async () => {
-    mockFrom.mockReturnValue(actorChain("super_admin"));
-    const res = await POST(makePostRequest({ action: "invite", username: "u", market_id: "market-tn" }));
-    expect(res.status).toBe(400);
-  });
-});

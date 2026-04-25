@@ -2,20 +2,22 @@ import type { CarrierAdapter } from "./types";
 import { NavexAdapter } from "./navex-adapter";
 import { DexpressAdapter } from "./dexpress-adapter";
 
-const adapters: Record<string, () => CarrierAdapter> = {
+export type CarrierCode = "navex" | "dexpress";
+
+const adapters: Record<CarrierCode, () => CarrierAdapter> = {
   navex: () => new NavexAdapter(),
   dexpress: () => new DexpressAdapter(),
 };
 
 export function getCarrierAdapter(carrierCode: string): CarrierAdapter {
-  const factory = adapters[carrierCode];
+  const factory = adapters[carrierCode as CarrierCode];
   if (!factory) {
     throw new Error(`Unknown carrier code: ${carrierCode}`);
   }
   return factory();
 }
 
-export function hasCarrierAdapter(carrierCode: string): boolean {
+export function hasCarrierAdapter(carrierCode: string): carrierCode is CarrierCode {
   return Object.prototype.hasOwnProperty.call(adapters, carrierCode);
 }
 

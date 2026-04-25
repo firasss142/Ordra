@@ -22,23 +22,17 @@ import useSWR from "swr";
 const mockCarriers = [
   {
     id: "c1",
-    carrier_type: "navex",
-    sender_name: "Navex Tunisie",
-    is_active: true,
+    name: "Navex Tunisie",
+    code: "navex",
     market_id: "m1",
-    api_key_encrypted: "",
-    api_base_url: null,
-    sender_location: null,
+    is_active: true,
   },
   {
     id: "c2",
-    carrier_type: "dexpress",
-    sender_name: null,
-    is_active: true,
+    name: "DExpress Libya",
+    code: "dexpress",
     market_id: "m1",
-    api_key_encrypted: "",
-    api_base_url: null,
-    sender_location: null,
+    is_active: true,
   },
 ];
 
@@ -73,7 +67,7 @@ describe("CarrierSelect", () => {
     expect(onCarriersLoaded).toHaveBeenCalledWith(0);
   });
 
-  it("renders carrier rows with sender_name when available", () => {
+  it("renders carrier rows with name as primary label", () => {
     vi.mocked(useSWR).mockReturnValue({
       data: { data: mockCarriers },
       error: undefined,
@@ -82,9 +76,10 @@ describe("CarrierSelect", () => {
 
     render(<CarrierSelect marketId="m1" onSelect={vi.fn()} />);
     expect(screen.getByText("Navex Tunisie")).toBeDefined();
+    expect(screen.getByText("DExpress Libya")).toBeDefined();
   });
 
-  it("renders carrier_type as label when sender_name is null", () => {
+  it("shows code as secondary chip for each carrier", () => {
     vi.mocked(useSWR).mockReturnValue({
       data: { data: mockCarriers },
       error: undefined,
@@ -92,20 +87,8 @@ describe("CarrierSelect", () => {
     } as ReturnType<typeof useSWR>);
 
     render(<CarrierSelect marketId="m1" onSelect={vi.fn()} />);
-    expect(screen.getByText("dexpress")).toBeDefined();
-  });
-
-  it("shows carrier_type badge for each carrier", () => {
-    vi.mocked(useSWR).mockReturnValue({
-      data: { data: mockCarriers },
-      error: undefined,
-      isLoading: false,
-    } as ReturnType<typeof useSWR>);
-
-    render(<CarrierSelect marketId="m1" onSelect={vi.fn()} />);
-    // Both should have their type shown
-    const badges = screen.getAllByText(/navex|dexpress/);
-    expect(badges.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("(navex)")).toBeDefined();
+    expect(screen.getByText("(dexpress)")).toBeDefined();
   });
 
   it("calls onSelect with carrier when row is clicked", () => {

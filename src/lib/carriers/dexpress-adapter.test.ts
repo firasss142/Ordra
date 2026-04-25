@@ -7,6 +7,7 @@ const mockOrder: CarrierOrderData = {
   customer_phone: "55123456",
   customer_address: "45 Avenue Habib Bourguiba",
   customer_city: "Sousse",
+  customer_note: null,
   product_name: "Robe Elegante",
   variant_label: "M / Noir",
   quantity: 1,
@@ -214,6 +215,13 @@ describe("DexpressAdapter", () => {
         errorMessage: "Carrier configuration error",
         retryable: false,
       });
+    });
+  });
+
+  describe("voidDispatch", () => {
+    test("returns unsupported (Dexpress has no cancel endpoint)", async () => {
+      const result = await adapter.voidDispatch("DEX-12345", mockConfig);
+      expect(result).toEqual({ success: false, supported: false });
     });
   });
 });

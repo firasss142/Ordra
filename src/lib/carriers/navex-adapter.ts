@@ -4,6 +4,7 @@ import type {
   CarrierConfig,
   CarrierRawResponse,
   CarrierDispatchResult,
+  CarrierVoidResult,
 } from "./types";
 import { resolveGovernorate } from "./governorates";
 import { CarrierDispatchError } from "./errors";
@@ -15,13 +16,22 @@ export class NavexAdapter implements CarrierAdapter {
     _extra?: Record<string, unknown>
   ): Record<string, string> {
     return {
+      prix: String(order.total_price),
       nom: order.customer_name,
-      tel: order.customer_phone,
-      adresse: order.customer_address ?? "",
       gouvernerat: resolveGovernorate(order.customer_city) ?? "",
-      cod: String(order.total_price),
-      produit: order.product_name,
-      nb_piece: String(order.quantity),
+      ville: order.customer_city ?? "",
+      adresse: order.customer_address ?? "",
+      tel: order.customer_phone,
+      tel2: "",
+      designation: order.variant_label
+        ? `${order.product_name} - ${order.variant_label}`
+        : order.product_name,
+      nb_article: String(order.quantity),
+      msg: order.customer_note ?? "",
+      echange: "0",
+      article: "",
+      nb_echange: "0",
+      ouvrir: "Non",
       sender_name: config.apiCredentials.sender_name ?? "",
       sender_location: config.apiCredentials.sender_location ?? "",
     };
@@ -94,5 +104,37 @@ export class NavexAdapter implements CarrierAdapter {
       errorMessage: "Carrier temporarily unavailable",
       retryable: true,
     };
+  }
+
+  async voidDispatch(
+    trackingNumber: string,
+    config: CarrierConfig
+  ): Promise<CarrierVoidResult> {
+    const token = config.apiCredentials.token;
+    const url = `${config.apiEndpoint}/${token}/v1/cancel.php`;
+    const body = `colis=${encodeURIComponent(trackingNumber)}`;
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+        signal: AbortSignal.timeout(4000),
+      });
+      if (response.ok) {
+        return { success: true, supported: true };
+      }
+      return {
+        success: false,
+        supported: true,
+        reason: `HTTP ${response.status}`,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        supported: true,
+        reason: err instanceof Error ? err.message : String(err),
+      };
+    }
   }
 }

@@ -33,12 +33,19 @@ const baseProduct = {
   packing_cost: 2.5,
   cpl: 1.5,
   low_stock_threshold: 10,
-  current_stock: 5,
-  system_inventory: 5,
-  real_inventory: 3,
+  current_stock: 50,
+  system_inventory: 50,
+  real_inventory: 50,
   is_active: true,
   variant_count: 2,
   market_id: "m-1",
+};
+
+const lowStockProduct = {
+  ...baseProduct,
+  current_stock: 5,
+  system_inventory: 5,
+  real_inventory: 3,
 };
 
 const greenMetrics: BulkProductMetrics = {
@@ -97,24 +104,29 @@ describe("ProductCatalogRow", () => {
     expect(screen.getByText("Crème Hydratante")).toBeInTheDocument();
   });
 
-  it("shows green health dot when margin > 10 and rates are healthy", () => {
+  it("shows green health dot when active, stocked, and margin >= 5", () => {
     renderRow({ metrics: greenMetrics });
     const dot = screen.getByRole("img", { name: /sain/i });
     expect(dot).toBeInTheDocument();
-    expect(dot).toHaveStyle({ color: "#008060" });
+    expect(dot).toHaveStyle({ backgroundColor: "#008060" });
   });
 
   it("shows red health dot when margin_pct < 0", () => {
     renderRow({ metrics: losingMetrics });
     const dot = screen.getByRole("img", { name: /déficitaire/i });
     expect(dot).toBeInTheDocument();
-    expect(dot).toHaveStyle({ color: "#D72C0D" });
+    expect(dot).toHaveStyle({ backgroundColor: "#D72C0D" });
   });
 
-  it("shows grey health dot with no-data label when total_leads is 0", () => {
+  it("shows amber health dot when product is low stock", () => {
+    renderRow({ product: lowStockProduct, metrics: greenMetrics });
+    expect(screen.getByRole("img", { name: /surveiller/i })).toBeInTheDocument();
+  });
+
+  it("shows green health dot when no metrics data is available (catalogue mode)", () => {
     renderRow({ metrics: noDataMetrics });
-    expect(screen.getByRole("img", { name: /pas de données/i })).toBeInTheDocument();
-    expect(screen.queryByRole("img", { name: /déficitaire/i })).not.toBeInTheDocument();
+    // No leads = no margin signal; stocked + active = green
+    expect(screen.getByRole("img", { name: /sain/i })).toBeInTheDocument();
   });
 
   it("shows metrics in performance mode", () => {

@@ -70,7 +70,7 @@ export function AdSpendRollups({
                 width: 32,
                 height: 32,
                 borderRadius: 8,
-                background: "rgba(255,255,255,0.05)",
+                background: "#F6F6F7",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",

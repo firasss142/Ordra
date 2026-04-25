@@ -30,6 +30,7 @@ type OrderRow = {
   customer_phone: string;
   customer_address: string | null;
   customer_city: string | null;
+  customer_note: string | null;
   product_name: string;
   variant_label: string | null;
   quantity: number;
@@ -46,7 +47,7 @@ type CarrierRow = {
 };
 
 const ORDER_COLUMNS =
-  "id, status, customer_name, customer_phone, customer_address, customer_city, product_name, variant_label, quantity, total_price";
+  "id, status, customer_name, customer_phone, customer_address, customer_city, customer_note, product_name, variant_label, quantity, total_price";
 
 const CARRIER_COLUMNS =
   "id, code, api_endpoint, api_credentials, delivery_fee, return_fee";
@@ -84,6 +85,7 @@ export async function performDispatch({
     customer_phone: order.customer_phone,
     customer_address: order.customer_address,
     customer_city: order.customer_city,
+    customer_note: order.customer_note,
     product_name: order.product_name,
     variant_label: order.variant_label,
     quantity: order.quantity,

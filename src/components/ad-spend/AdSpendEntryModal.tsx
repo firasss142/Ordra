@@ -39,10 +39,10 @@ interface AdSpendEntryModalProps {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "8px 10px",
-  background: "#0D2224",
-  border: "1px solid #1E2C31",
+  background: "#FFFFFF",
+  border: "1px solid #E1E3E5",
   borderRadius: 6,
-  color: "#FFFFFF",
+  color: "#1A1A1A",
   fontSize: 13,
   boxSizing: "border-box",
 };
@@ -50,7 +50,7 @@ const inputStyle: React.CSSProperties = {
 const labelStyle: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 600,
-  color: "#A1A1AA",
+  color: "#6D7175",
   display: "block",
   marginBottom: 6,
   textTransform: "uppercase",
@@ -135,7 +135,7 @@ export function AdSpendEntryModal({
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.7)",
+        background: "rgba(16,24,40,0.40)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -151,7 +151,7 @@ export function AdSpendEntryModal({
           borderRadius: 12,
           width: 480,
           maxWidth: "100%",
-          boxShadow: "0 24px 48px rgba(0,0,0,0.5)",
+          boxShadow: "0 8px 24px rgba(16,24,40,0.10)",
           display: "flex",
           flexDirection: "column",
         }}
@@ -325,10 +325,10 @@ export function AdSpendEntryModal({
                 padding: "9px 18px",
                 fontSize: 13,
                 fontWeight: 600,
-                background: submitDisabled ? "rgba(255,255,255,0.1)" : D.white,
+                background: submitDisabled ? "#E1E3E5" : "#1A1A1A",
                 border: "none",
                 borderRadius: 6,
-                color: submitDisabled ? D.tertiary : "#000000",
+                color: submitDisabled ? D.tertiary : "#FFFFFF",
                 cursor: submitDisabled ? "not-allowed" : "pointer",
               }}
             >

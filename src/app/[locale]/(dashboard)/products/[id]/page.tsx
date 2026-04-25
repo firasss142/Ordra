@@ -3,9 +3,11 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/context/auth";
-import { ProductProfitability } from "@/components/products/ProductProfitability";
-import { ProductPerformanceCard } from "@/components/products/ProductPerformanceCard";
+import { ProductDetailHeader } from "@/components/products/ProductDetailHeader";
+import { ProductCostsReferenceCard } from "@/components/products/ProductCostsReferenceCard";
+import { ProductRentabilityClient } from "@/components/products/ProductRentabilityClient";
 import { StockHistoryPanel } from "@/components/products/StockHistoryPanel";
 import { PeriodSelector } from "@/components/dashboard/MetricsTable";
 import type { Period } from "@/components/dashboard/MetricsTable";
@@ -27,24 +29,15 @@ interface ProductData {
   current_stock: number;
   low_stock_threshold: number;
   is_active: boolean;
-  variants: { id: string; label: string; quantity: number; display_price: number; is_active: boolean }[];
+  variants: {
+    id: string;
+    label: string;
+    quantity: number;
+    display_price: number;
+    is_active: boolean;
+  }[];
   is_low_stock: boolean;
 }
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 500,
-  color: "#6D7175",
-  textTransform: "uppercase",
-  letterSpacing: "0.05em",
-};
-
-const valueStyle: React.CSSProperties = {
-  fontSize: 14,
-  fontWeight: 500,
-  color: "#1A1A1A",
-  marginTop: 2,
-};
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -53,6 +46,7 @@ export default function ProductDetailPage() {
   const locale = (params.locale as string) ?? "fr";
   const { user } = useAuth();
   const [period, setPeriod] = useState<Period>(todayPeriod);
+  const t = useTranslations("productPnl");
 
   const canView =
     user?.role === "super_admin" ||
@@ -65,167 +59,73 @@ export default function ProductDetailPage() {
     }
   }, [user, canView, locale, router]);
 
-  if (user && !canView) return null;
-
-  const { data: productRes, isLoading: productLoading } = useSWR<{ data: ProductData }>(
-    `/api/products/${productId}`,
-    fetcher
-  );
+  const { data: productRes, isLoading: productLoading } = useSWR<{
+    data: ProductData;
+  }>(`/api/products/${productId}`, fetcher);
 
   const product = productRes?.data;
 
   const canViewProfitability =
     user?.role === "market_manager" || user?.role === "super_admin";
 
+  if (user && !canView) return null;
+
   if (productLoading) {
     return (
-      <div style={{ padding: "64px 32px", textAlign: "center", fontSize: 14, color: "#6D7175" }}>
-        Chargement…
+      <div className="min-h-screen bg-surface-page p-8">
+        <div className="py-16 text-center text-[14px] text-ink-secondary">
+          {t("loading")}
+        </div>
       </div>
     );
   }
 
   if (!product) {
     return (
-      <div style={{ padding: "64px 32px", textAlign: "center", fontSize: 14, color: "#6D7175" }}>
-        Produit introuvable
+      <div className="min-h-screen bg-surface-page p-8">
+        <div className="py-16 text-center text-[14px] text-ink-secondary">
+          {t("empty")}
+        </div>
       </div>
     );
   }
 
   return (
-    <div
-      style={{
-        padding: "32px 32px 64px",
-        backgroundColor: "#F6F6F7",
-        minHeight: "100vh",
-      }}
-    >
-      {/* Header */}
-      <h1
-        style={{
-          fontSize: 20,
-          fontWeight: 600,
-          color: "#1A1A1A",
-          margin: "0 0 24px 0",
-        }}
-      >
-        {product.name}
-      </h1>
+    <div className="min-h-screen bg-surface-page px-8 pb-16 pt-8">
+      <ProductDetailHeader
+        locale={locale}
+        name={product.name}
+        isActive={product.is_active}
+        currentStock={product.current_stock}
+        isLowStock={product.is_low_stock}
+      />
 
-      {/* Product info card */}
-      <div
-        style={{
-          backgroundColor: "white",
-          border: "1px solid #D1D5DB",
-          borderRadius: "0.5rem",
-          padding: 20,
-          marginBottom: 24,
-        }}
-      >
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 32 }}>
-          <div>
-            <div style={labelStyle}>Coût unitaire (COGS)</div>
-            <div style={valueStyle}>{Number(product.unit_cogs).toFixed(3)}</div>
+      {canViewProfitability ? (
+        <div className="mb-8">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-[16px] font-semibold text-ink-primary">
+              {t("rentabilityTitle")}
+            </h2>
+            <PeriodSelector period={period} onChange={setPeriod} />
           </div>
-          <div>
-            <div style={labelStyle}>Coût emballage</div>
-            <div style={valueStyle}>{Number(product.packing_cost).toFixed(3)}</div>
-          </div>
-          <div>
-            <div style={labelStyle}>CPL</div>
-            <div style={valueStyle}>{Number(product.cpl).toFixed(3)}</div>
-          </div>
-          <div>
-            <div style={labelStyle}>Coût traitement</div>
-            <div style={valueStyle}>{Number(product.confirmation_processing_cost ?? 0).toFixed(3)}</div>
-          </div>
-          <div>
-            <div style={labelStyle}>Stock</div>
-            <div
-              style={{
-                ...valueStyle,
-                color: product.is_low_stock ? "#DC2626" : "#1A1A1A",
-              }}
-            >
-              {product.current_stock}
-              {product.is_low_stock && " (bas)"}
-            </div>
-          </div>
-          <div>
-            <div style={labelStyle}>Statut</div>
-            <div style={valueStyle}>{product.is_active ? "Actif" : "Inactif"}</div>
-          </div>
+
+          <ProductRentabilityClient productId={productId} period={period} />
         </div>
+      ) : null}
 
-        {/* Variants */}
-        {product.variants.length > 0 && (
-          <div style={{ marginTop: 16 }}>
-            <div style={{ ...labelStyle, marginBottom: 8 }}>Variantes</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {product.variants
-                .filter((v) => v.is_active)
-                .map((v) => (
-                  <span
-                    key={v.id}
-                    style={{
-                      fontSize: 13,
-                      padding: "4px 10px",
-                      border: "1px solid #D1D5DB",
-                      borderRadius: "0.25rem",
-                      color: "#1A1A1A",
-                      background: "#F9FAFB",
-                    }}
-                  >
-                    {v.label} — ×{v.quantity} — {Number(v.display_price).toFixed(3)}
-                  </span>
-                ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Stock history — managers and super_admin only */}
-      {canViewProfitability && (
-        <div
-          style={{
-            backgroundColor: "white",
-            border: "1px solid #D1D5DB",
-            borderRadius: "0.5rem",
-            padding: 20,
-            marginBottom: 24,
-          }}
-        >
+      {canViewProfitability ? (
+        <section className="mb-6 rounded-card border border-line-subtle bg-surface-card p-5">
           <StockHistoryPanel productId={productId} />
-        </div>
-      )}
+        </section>
+      ) : null}
 
-      {/* Rentabilité section — managers and super_admin only */}
-      {canViewProfitability && (
-        <>
-          <h2
-            style={{
-              fontSize: 16,
-              fontWeight: 600,
-              color: "#1A1A1A",
-              margin: "0 0 16px 0",
-            }}
-          >
-            Rentabilité
-          </h2>
-
-          {/* Shared period selector — drives both cards */}
-          <PeriodSelector period={period} onChange={setPeriod} />
-
-          {/* Performance KPI card */}
-          <div style={{ marginBottom: 24 }}>
-            <ProductPerformanceCard productId={productId} period={period} />
-          </div>
-
-          {/* Full profitability breakdown */}
-          <ProductProfitability productId={productId} period={period} />
-        </>
-      )}
+      <ProductCostsReferenceCard
+        unitCogs={Number(product.unit_cogs)}
+        packingCost={Number(product.packing_cost)}
+        cpl={Number(product.cpl)}
+        processingCost={Number(product.confirmation_processing_cost ?? 0)}
+        variants={product.variants}
+      />
     </div>
   );
 }

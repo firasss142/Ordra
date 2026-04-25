@@ -1,6 +1,8 @@
 "use client";
 
+import React from "react";
 import { useTranslations } from "next-intl";
+import { Filter, Sparkles } from "lucide-react";
 import type { AssignmentAlgorithm } from "@/types/settings";
 import { AssignmentAlgorithm as ALGO } from "@/types/settings";
 
@@ -24,6 +26,13 @@ interface Props {
   onClearSelection: () => void;
   onSelectAll: () => void;
 }
+
+const CARD_BG = "#FFFFFF";
+const SOFT_BG = "#FFFFFF";
+const BORDER = "#E1E3E5";
+const SUBTLE_BG = "#F6F6F7";
+const TEXT = "#1A1A1A";
+const MUTED = "#6D7175";
 
 export function AutoAssignBar({
   selectedCount,
@@ -53,76 +62,160 @@ export function AutoAssignBar({
   return (
     <div
       style={{
+        background: CARD_BG,
+        border: `1px solid ${BORDER}`,
+        borderRadius: 10,
+        padding: "10px 12px",
         display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "10px 16px",
-        background: "#FFFFFF",
-        border: "1px solid #E1E3E5",
-        borderRadius: 8,
-        flexWrap: "wrap",
+        flexDirection: "column",
+        gap: 8,
       }}
     >
-      <label
+      {/* Top row: selection cluster + algorithm/auto-assign cluster */}
+      <div
         style={{
-          display: "inline-flex",
+          display: "flex",
+          flexWrap: "wrap",
           alignItems: "center",
-          gap: 6,
-          fontSize: 13,
-          color: "#1A1A1A",
-          fontWeight: 500,
-          cursor: totalCount === 0 ? "not-allowed" : "pointer",
+          gap: 10,
+          justifyContent: "space-between",
         }}
       >
-        <input
-          type="checkbox"
-          checked={allSelected}
-          ref={(el) => {
-            if (el) el.indeterminate = selectedCount > 0 && !allSelected;
-          }}
-          disabled={totalCount === 0}
-          onChange={(e) => (e.target.checked ? onSelectAll() : onClearSelection())}
-          aria-label={t("selectAll")}
-          style={{ cursor: totalCount === 0 ? "not-allowed" : "pointer" }}
-        />
-        {t("selectAll")}
-      </label>
-      <span style={{ fontSize: 13, color: "#1A1A1A", fontWeight: 500 }}>
-        {t("selection", { count: selectedCount })}
-      </span>
-      {selectedCount > 0 ? (
-        <button
-          type="button"
-          onClick={onClearSelection}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <label
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              height: 30,
+              padding: "0 12px",
+              borderRadius: 8,
+              border: `1px solid ${BORDER}`,
+              background: SUBTLE_BG,
+              fontSize: 13,
+              color: TEXT,
+              fontWeight: 500,
+              cursor: totalCount === 0 ? "not-allowed" : "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={allSelected}
+              ref={(el) => {
+                if (el) el.indeterminate = selectedCount > 0 && !allSelected;
+              }}
+              disabled={totalCount === 0}
+              onChange={(e) => (e.target.checked ? onSelectAll() : onClearSelection())}
+              aria-label={t("selectAll")}
+              style={{ cursor: totalCount === 0 ? "not-allowed" : "pointer" }}
+            />
+            {t("selectAll")}
+          </label>
+
+          <Divider />
+
+          <span
+            style={{
+              fontSize: 13,
+              color: TEXT,
+              fontWeight: 500,
+              fontFamily: "inherit",
+            }}
+          >
+            {t("selection", { count: selectedCount })}
+          </span>
+
+          {selectedCount > 0 ? (
+            <button
+              type="button"
+              onClick={onClearSelection}
+              style={{
+                height: 28,
+                padding: "0 10px",
+                fontSize: 12,
+                fontWeight: 500,
+                color: MUTED,
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                textDecoration: "underline",
+                textUnderlineOffset: 2,
+              }}
+            >
+              {t("clearSelection")}
+            </button>
+          ) : null}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={onAutoAssign}
+            disabled={autoDisabled}
+            title={autoDisabled ? disabledReason : undefined}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              height: 34,
+              padding: "0 14px",
+              fontSize: 13,
+              fontWeight: 500,
+              border: `1px solid ${autoDisabled ? BORDER : TEXT}`,
+              borderRadius: 8,
+              background: autoDisabled ? "#F2F2F2" : TEXT,
+              color: autoDisabled ? MUTED : "#FFFFFF",
+              cursor: autoDisabled ? "not-allowed" : "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            <Sparkles size={14} strokeWidth={2} />
+            {autoBusy ? t("autoAssign.running") : t("autoAssign.button")}
+          </button>
+        </div>
+      </div>
+
+      {/* Second row: algorithm config */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+          paddingTop: 8,
+          borderTop: `1px solid ${BORDER}`,
+        }}
+      >
+        <span
           style={{
-            padding: "4px 8px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
             fontSize: 12,
-            background: "transparent",
-            border: "1px solid #E1E3E5",
-            borderRadius: 6,
-            color: "#6D7175",
-            cursor: "pointer",
+            fontWeight: 500,
+            color: MUTED,
+            paddingInlineEnd: 4,
           }}
         >
-          {t("clearSelection")}
-        </button>
-      ) : null}
-
-      <div style={{ marginInlineStart: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-        <label style={{ fontSize: 12, color: "#6D7175" }}>
+          <Filter size={13} strokeWidth={1.75} />
           {t("algorithm.label")}
-        </label>
+        </span>
+
         <select
           value={algorithm}
           onChange={(e) => onAlgorithmChange(e.target.value as AssignmentAlgorithm)}
           style={{
-            padding: "6px 8px",
-            fontSize: 13,
-            border: "1px solid #E1E3E5",
+            height: 28,
+            padding: "0 8px",
+            fontSize: 12,
+            border: `1px solid ${BORDER}`,
             borderRadius: 6,
-            background: "#FFFFFF",
-            color: "#1A1A1A",
+            background: SOFT_BG,
+            color: TEXT,
             cursor: "pointer",
+            fontFamily: "inherit",
           }}
         >
           {ALGO_OPTIONS.map((a) => (
@@ -131,42 +224,48 @@ export function AutoAssignBar({
             </option>
           ))}
         </select>
+
         <label
           style={{
             display: "inline-flex",
             alignItems: "center",
             gap: 6,
+            height: 28,
+            padding: "0 10px",
+            borderRadius: 6,
+            border: `1px solid ${isActive ? TEXT : BORDER}`,
+            background: isActive ? TEXT : SOFT_BG,
+            color: isActive ? "#FFFFFF" : TEXT,
             fontSize: 12,
-            color: "#6D7175",
+            fontWeight: 500,
             cursor: "pointer",
+            fontFamily: "inherit",
           }}
         >
           <input
             type="checkbox"
             checked={isActive}
             onChange={(e) => onIsActiveChange(e.target.checked)}
+            style={{ accentColor: TEXT }}
           />
           {t("algorithm.active")}
         </label>
-        <button
-          type="button"
-          onClick={onAutoAssign}
-          disabled={autoDisabled}
-          title={autoDisabled ? disabledReason : undefined}
-          style={{
-            padding: "6px 12px",
-            border: "1px solid #1A1A1A",
-            borderRadius: 6,
-            background: autoDisabled ? "#F2F2F2" : "#1A1A1A",
-            color: autoDisabled ? "#6D7175" : "#FFFFFF",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: autoDisabled ? "not-allowed" : "pointer",
-          }}
-        >
-          {autoBusy ? t("autoAssign.running") : t("autoAssign.button")}
-        </button>
       </div>
     </div>
+  );
+}
+
+function Divider() {
+  return (
+    <span
+      aria-hidden
+      style={{
+        width: 1,
+        height: 20,
+        background: BORDER,
+        display: "inline-block",
+        margin: "0 2px",
+      }}
+    />
   );
 }

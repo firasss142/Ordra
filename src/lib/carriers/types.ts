@@ -3,6 +3,7 @@ export interface CarrierOrderData {
   customer_phone: string;
   customer_address: string | null;
   customer_city: string | null;
+  customer_note: string | null;
   product_name: string;
   variant_label: string | null;
   quantity: number;
@@ -31,6 +32,12 @@ export type CarrierDispatchResult =
       retryable: boolean;
     };
 
+export interface CarrierVoidResult {
+  success: boolean;
+  supported: boolean;
+  reason?: string;
+}
+
 export interface CarrierAdapter {
   formatPayload(
     order: CarrierOrderData,
@@ -44,4 +51,9 @@ export interface CarrierAdapter {
   ): Promise<CarrierRawResponse>;
 
   parseResponse(raw: CarrierRawResponse): CarrierDispatchResult;
+
+  voidDispatch(
+    trackingNumber: string,
+    config: CarrierConfig
+  ): Promise<CarrierVoidResult>;
 }

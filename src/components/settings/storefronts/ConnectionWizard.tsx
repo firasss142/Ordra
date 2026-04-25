@@ -2,6 +2,9 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import FocusTrap from "focus-trap-react";
+import { useTranslations } from "next-intl";
+import { generateSecret } from "@/lib/storefronts/secret-gen";
+import { PlatformIcon } from "./PlatformIcon";
 
 export interface WizardValues {
   name: string;
@@ -17,21 +20,23 @@ interface ConnectionWizardProps {
   onComplete: (result: { id: string; webhook_url: string; secret: string }) => void;
 }
 
-const PLATFORMS = [
-  { value: "easy_orders", label: "Easy Orders", hint: "Signature HMAC-SHA256" },
-  { value: "shopify", label: "Shopify", hint: "X-Shopify-Hmac-Sha256" },
-  { value: "woocommerce", label: "WooCommerce", hint: "X-WC-Webhook-Signature" },
-];
+const PLATFORM_VALUES = [
+  "easy_orders",
+  "shopify",
+  "woocommerce",
+  "lightfunnels",
+] as const;
+type PlatformValue = (typeof PLATFORM_VALUES)[number];
+
+const PLATFORM_LABEL_KEYS: Record<PlatformValue, string> = {
+  easy_orders: "easyOrders",
+  shopify: "shopify",
+  woocommerce: "woocommerce",
+  lightfunnels: "lightfunnels",
+};
 
 const STEPS = ["name", "platform", "auth", "webhook"] as const;
 type StepKey = (typeof STEPS)[number];
-
-const STEP_LABEL: Record<StepKey, string> = {
-  name: "Nom",
-  platform: "Plateforme",
-  auth: "Authentification",
-  webhook: "Webhook",
-};
 
 const labelStyle: React.CSSProperties = {
   display: "block",
@@ -54,18 +59,13 @@ const inputStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
-function generateSecret(): string {
-  const arr = new Uint8Array(24);
-  crypto.getRandomValues(arr);
-  return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
 export function ConnectionWizard({
   marketId,
   marketName,
   onCancel,
   onComplete,
 }: ConnectionWizardProps) {
+  const t = useTranslations("settings.storefronts.wizard");
   const [stepIdx, setStepIdx] = useState(0);
   const [values, setValues] = useState<WizardValues>({
     name: "",
@@ -121,7 +121,7 @@ export function ConnectionWizard({
       });
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));
-        setError((b as { error?: string }).error ?? "Erreur lors de la création");
+        setError((b as { error?: string }).error ?? t("errorCreate"));
         return;
       }
       const body = await res.json();
@@ -133,7 +133,16 @@ export function ConnectionWizard({
     } finally {
       setSaving(false);
     }
-  }, [marketId, values, onComplete]);
+  }, [marketId, values, onComplete, t]);
+
+  const platformLabel = (p: string) => {
+    const key = PLATFORM_LABEL_KEYS[p as PlatformValue];
+    return key ? t(`platforms.${key}` as never) : p;
+  };
+  const platformHint = (p: string) => {
+    const key = PLATFORM_LABEL_KEYS[p as PlatformValue];
+    return key ? t(`hints.${key}` as never) : "";
+  };
 
   return (
     <>
@@ -156,15 +165,15 @@ export function ConnectionWizard({
           ref={panelRef}
           tabIndex={-1}
           role="dialog"
-          aria-label="Assistant de connexion storefront"
+          aria-label={t("title", { market: marketName })}
           style={{
             position: "fixed",
             top: 0,
-            right: 0,
+            insetInlineEnd: 0,
             bottom: 0,
             width: 480,
             backgroundColor: "white",
-            borderLeft: "1px solid #E1E3E5",
+            borderInlineStart: "1px solid #E1E3E5",
             zIndex: 50,
             display: "flex",
             flexDirection: "column",
@@ -185,7 +194,7 @@ export function ConnectionWizard({
                 color: "#1A1A1A",
               }}
             >
-              Nouveau storefront — {marketName}
+              {t("title", { market: marketName })}
             </h3>
             <div
               style={{
@@ -194,7 +203,7 @@ export function ConnectionWizard({
                 marginTop: 16,
                 alignItems: "center",
               }}
-              aria-label="Étapes"
+              aria-label={t("stepsAria")}
             >
               {STEPS.map((s, i) => {
                 const done = i < stepIdx;
@@ -228,7 +237,7 @@ export function ConnectionWizard({
                         fontWeight: active ? 600 : 400,
                       }}
                     >
-                      {STEP_LABEL[s]}
+                      {t(`steps.${s}` as never)}
                     </span>
                   </div>
                 );
@@ -250,7 +259,7 @@ export function ConnectionWizard({
             {currentStep === "name" && (
               <div>
                 <label htmlFor="sf-name" style={labelStyle}>
-                  Nom du storefront
+                  {t("nameLabel")}
                 </label>
                 <input
                   id="sf-name"
@@ -261,26 +270,26 @@ export function ConnectionWizard({
                     setValues((v) => ({ ...v, name: e.target.value }))
                   }
                   style={inputStyle}
-                  placeholder="ex : Boutique principale"
+                  placeholder={t("namePlaceholder")}
                 />
                 <p style={{ fontSize: 12, color: "#6D7175", marginTop: 8 }}>
-                  Un nom court, visible partout où ce storefront apparaît.
+                  {t("nameHelp")}
                 </p>
               </div>
             )}
 
             {currentStep === "platform" && (
               <div>
-                <label style={labelStyle}>Plateforme</label>
+                <label style={labelStyle}>{t("platformLabel")}</label>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {PLATFORMS.map((p) => {
-                    const selected = values.platform === p.value;
+                  {PLATFORM_VALUES.map((p) => {
+                    const selected = values.platform === p;
                     return (
                       <button
                         type="button"
-                        key={p.value}
+                        key={p}
                         onClick={() =>
-                          setValues((v) => ({ ...v, platform: p.value }))
+                          setValues((v) => ({ ...v, platform: p }))
                         }
                         style={{
                           textAlign: "start",
@@ -294,16 +303,37 @@ export function ConnectionWizard({
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",
+                          gap: 12,
                         }}
                       >
-                        <div>
-                          <div
-                            style={{ fontSize: 14, fontWeight: 500, color: "#1A1A1A" }}
-                          >
-                            {p.label}
-                          </div>
-                          <div style={{ fontSize: 12, color: "#6D7175", marginTop: 2 }}>
-                            {p.hint}
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 12,
+                          }}
+                        >
+                          <PlatformIcon platform={p} size={24} />
+                          <div>
+                            <div
+                              style={{
+                                fontSize: 14,
+                                fontWeight: 500,
+                                color: "#1A1A1A",
+                              }}
+                            >
+                              {platformLabel(p)}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 12,
+                                color: "#6D7175",
+                                marginTop: 2,
+                                fontFamily: "monospace",
+                              }}
+                            >
+                              {platformHint(p)}
+                            </div>
                           </div>
                         </div>
                         {selected && (
@@ -319,7 +349,7 @@ export function ConnectionWizard({
             {currentStep === "auth" && (
               <div>
                 <label htmlFor="sf-secret" style={labelStyle}>
-                  Secret webhook
+                  {t("secretLabel")}
                 </label>
                 <div style={{ display: "flex", gap: 8 }}>
                   <input
@@ -346,11 +376,11 @@ export function ConnectionWizard({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Regénérer
+                    {t("secretRegenerate")}
                   </button>
                 </div>
                 <p style={{ fontSize: 12, color: "#6D7175", marginTop: 8 }}>
-                  Ce secret servira à signer les webhooks entrants. 16 caractères minimum.
+                  {t("secretHelp")}
                 </p>
               </div>
             )}
@@ -358,7 +388,7 @@ export function ConnectionWizard({
             {currentStep === "webhook" && (
               <div>
                 <label htmlFor="sf-webhook-url" style={labelStyle}>
-                  URL webhook (côté storefront)
+                  {t("webhookLabel")}
                 </label>
                 <input
                   id="sf-webhook-url"
@@ -371,8 +401,7 @@ export function ConnectionWizard({
                   placeholder="https://..."
                 />
                 <p style={{ fontSize: 12, color: "#6D7175", marginTop: 8 }}>
-                  Optionnel — URL où le storefront envoie les webhooks (pour référence).
-                  L&apos;URL d&apos;écoute OMS sera affichée après création.
+                  {t("webhookHelp")}
                 </p>
 
                 <div
@@ -386,11 +415,13 @@ export function ConnectionWizard({
                   }}
                 >
                   <div style={{ fontWeight: 500, color: "#1A1A1A", marginBottom: 6 }}>
-                    Récapitulatif
+                    {t("summary")}
                   </div>
-                  <div>Nom : {values.name}</div>
-                  <div>Plateforme : {values.platform}</div>
-                  <div>Marché : {marketName}</div>
+                  <div>{t("summaryName", { name: values.name })}</div>
+                  <div>
+                    {t("summaryPlatform", { platform: platformLabel(values.platform) })}
+                  </div>
+                  <div>{t("summaryMarket", { market: marketName })}</div>
                 </div>
               </div>
             )}
@@ -428,7 +459,7 @@ export function ConnectionWizard({
                 cursor: "pointer",
               }}
             >
-              Annuler
+              {t("cancel")}
             </button>
             <div style={{ display: "flex", gap: 8 }}>
               {stepIdx > 0 && (
@@ -445,7 +476,7 @@ export function ConnectionWizard({
                     cursor: "pointer",
                   }}
                 >
-                  Précédent
+                  {t("previous")}
                 </button>
               )}
               {stepIdx < STEPS.length - 1 ? (
@@ -464,7 +495,7 @@ export function ConnectionWizard({
                     cursor: canProceed ? "pointer" : "not-allowed",
                   }}
                 >
-                  Suivant
+                  {t("next")}
                 </button>
               ) : (
                 <button
@@ -483,7 +514,7 @@ export function ConnectionWizard({
                     opacity: saving ? 0.7 : 1,
                   }}
                 >
-                  {saving ? "Création…" : "Créer le storefront"}
+                  {saving ? t("creating") : t("create")}
                 </button>
               )}
             </div>

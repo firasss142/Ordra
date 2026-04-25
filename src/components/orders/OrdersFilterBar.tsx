@@ -2,6 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import {
+  Plus,
+  Filter,
+  Globe,
+  ChevronDown,
+  Search,
+  Calendar,
+  SlidersHorizontal,
+  Download,
+} from "lucide-react";
 import type { OrderListFilters } from "@/lib/orders/list-filters";
 import { useDebounce } from "@/hooks/useDebounce";
 
@@ -21,6 +31,13 @@ interface Props {
   lockedMarketLabel: string;
 }
 
+const CARD_BG = "#FFFFFF";
+const SOFT_BG = "#FFFFFF";
+const BORDER = "#E1E3E5";
+const SUBTLE_BG = "#F6F6F7";
+const TEXT = "#1A1A1A";
+const MUTED = "#6D7175";
+
 export function OrdersFilterBar({
   filters,
   onChange,
@@ -33,7 +50,6 @@ export function OrdersFilterBar({
 }: Props) {
   const t = useTranslations("orders");
 
-  // Local search state + 250ms debounce → onChange patch
   const [localQ, setLocalQ] = useState(filters.q);
   const debouncedQ = useDebounce(localQ, 250);
   const lastSentQ = useRef(filters.q);
@@ -44,7 +60,6 @@ export function OrdersFilterBar({
     onChange({ q: debouncedQ });
   }, [debouncedQ, onChange]);
 
-  // Sync local search when URL changes externally (back/forward)
   useEffect(() => {
     if (filters.q !== lastSentQ.current) {
       setLocalQ(filters.q);
@@ -52,7 +67,6 @@ export function OrdersFilterBar({
     }
   }, [filters.q]);
 
-  // Keyboard shortcut: `/` focuses search
   const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -69,138 +83,240 @@ export function OrdersFilterBar({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const dateActive = !!(filters.dateFrom || filters.dateTo);
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-      {/* Market scope: dropdown for super_admin, read-only pill for managers */}
-      {isSuperAdmin ? (
-        <MarketSelect
-          markets={markets}
-          value={filters.marketId}
-          onChange={(id) => onChange({ marketId: id })}
-          allLabel={t("filters.allMarkets")}
-        />
-      ) : (
+    <div
+      style={{
+        background: CARD_BG,
+        border: `1px solid ${BORDER}`,
+        borderRadius: 10,
+        padding: "10px 12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      {/* Top row: market + search + actions */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 10,
+          justifyContent: "space-between",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", flex: "1 1 auto" }}>
+          {isSuperAdmin ? (
+            <MarketSelect
+              markets={markets}
+              value={filters.marketId}
+              onChange={(id) => onChange({ marketId: id })}
+              allLabel={t("filters.allMarkets")}
+            />
+          ) : (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                height: 30,
+                padding: "0 12px",
+                borderRadius: 8,
+                border: `1px solid ${BORDER}`,
+                background: SUBTLE_BG,
+                color: MUTED,
+                fontSize: 13,
+                fontWeight: 500,
+              }}
+            >
+              <Globe size={13} strokeWidth={1.75} />
+              {lockedMarketLabel}
+            </span>
+          )}
+
+          <Divider />
+
+          {/* Search — grows to fill available space */}
+          <div style={{ position: "relative", flex: "1 1 240px", minWidth: 200 }}>
+            <Search
+              size={13}
+              strokeWidth={1.75}
+              aria-hidden
+              style={{
+                position: "absolute",
+                insetInlineStart: 10,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: MUTED,
+                pointerEvents: "none",
+              }}
+            />
+            <input
+              ref={searchRef}
+              type="text"
+              value={localQ}
+              onChange={(e) => setLocalQ(e.target.value)}
+              placeholder={t("filters.searchPlaceholder")}
+              aria-label={t("filters.searchAria")}
+              style={{
+                height: 30,
+                width: "100%",
+                paddingInlineStart: 28,
+                paddingInlineEnd: 10,
+                fontSize: 13,
+                border: `1px solid ${BORDER}`,
+                borderRadius: 8,
+                background: SOFT_BG,
+                color: TEXT,
+                outline: "none",
+                fontFamily: "inherit",
+              }}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <IconButton
+            onClick={onExport}
+            label={t("exportCsv")}
+            icon={<Download size={15} strokeWidth={1.75} />}
+          />
+          <button
+            type="button"
+            onClick={onNewOrder}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              height: 34,
+              padding: "0 14px",
+              fontSize: 13,
+              fontWeight: 500,
+              border: `1px solid ${TEXT}`,
+              borderRadius: 8,
+              background: TEXT,
+              color: "#FFFFFF",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            <Plus size={14} strokeWidth={2} />
+            {t("create.newOrder")}
+          </button>
+        </div>
+      </div>
+
+      {/* Second row: filter chips */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+          paddingTop: 8,
+          borderTop: `1px solid ${BORDER}`,
+        }}
+      >
         <span
           style={{
             display: "inline-flex",
             alignItems: "center",
-            padding: "6px 10px",
-            borderRadius: 6,
-            border: "1px solid #E1E3E5",
-            background: "#F6F6F7",
-            color: "#6D7175",
-            fontSize: 13,
+            gap: 6,
+            fontSize: 12,
             fontWeight: 500,
-            whiteSpace: "nowrap",
+            color: MUTED,
+            paddingInlineEnd: 4,
           }}
         >
-          {lockedMarketLabel}
+          <Filter size={13} strokeWidth={1.75} />
+          {t("filters.advanced")}
         </span>
-      )}
 
-      {/* Search — grows to fill available space */}
-      <div style={{ position: "relative", flex: "1 1 220px", minWidth: 160 }}>
-        <span
-          aria-hidden
-          style={{
-            position: "absolute",
-            insetInlineStart: 10,
-            top: "50%",
-            transform: "translateY(-50%)",
-            fontSize: 13,
-            color: "#9CA3AF",
-            pointerEvents: "none",
-          }}
-        >
-          ⌕
-        </span>
-        <input
-          ref={searchRef}
-          type="text"
-          value={localQ}
-          onChange={(e) => setLocalQ(e.target.value)}
-          placeholder={t("filters.searchPlaceholder")}
-          aria-label={t("filters.searchAria")}
-          style={{
-            height: 34,
-            width: "100%",
-            paddingInlineStart: 30,
-            paddingInlineEnd: 10,
-            fontSize: 13,
-            border: "1px solid #E1E3E5",
-            borderRadius: 6,
-            background: "#FAFAFA",
-            color: "#1A1A1A",
-            outline: "none",
-          }}
+        <DateChip
+          from={filters.dateFrom}
+          to={filters.dateTo}
+          onChange={(dateFrom, dateTo) => onChange({ dateFrom, dateTo })}
+          label={t("filters.date")}
+          active={dateActive}
         />
-      </div>
 
-      {/* Date quick-select */}
-      <DateQuickSelect
-        from={filters.dateFrom}
-        to={filters.dateTo}
-        onChange={(dateFrom, dateTo) => onChange({ dateFrom, dateTo })}
-        label={t("filters.date")}
-      />
-
-      {/* Advanced filters drawer trigger */}
-      <button
-        type="button"
-        onClick={onOpenAdvanced}
-        style={secondaryBtn}
-        onMouseEnter={(e) => (e.currentTarget.style.background = "#F7F7F7")}
-        onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
-      >
-        {t("filters.advanced")}
-      </button>
-
-      {/* Right-aligned actions */}
-      <div style={{ marginInlineStart: "auto", display: "flex", gap: 8 }}>
         <button
           type="button"
-          onClick={onExport}
-          style={secondaryBtn}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#F7F7F7")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
+          onClick={onOpenAdvanced}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            height: 28,
+            padding: "0 10px",
+            fontSize: 12,
+            fontWeight: 500,
+            border: `1px dashed ${BORDER}`,
+            borderRadius: 6,
+            background: "transparent",
+            color: MUTED,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
         >
-          {t("exportCsv")}
-        </button>
-        <button type="button" onClick={onNewOrder} style={primaryBtn}>
-          {t("create.newOrder")}
+          <SlidersHorizontal size={12} strokeWidth={1.75} />
+          {t("filters.advanced")}
         </button>
       </div>
     </div>
   );
 }
 
-const primaryBtn: React.CSSProperties = {
-  height: 34,
-  padding: "0 14px",
-  fontSize: 13,
-  fontWeight: 500,
-  background: "#1A1A1A",
-  color: "#FFFFFF",
-  border: "none",
-  borderRadius: 6,
-  cursor: "pointer",
-  transition: "background-color 120ms ease",
-};
+function IconButton({
+  onClick,
+  label,
+  icon,
+}: {
+  onClick: () => void;
+  label: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 34,
+        height: 34,
+        borderRadius: 8,
+        border: `1px solid ${BORDER}`,
+        background: SOFT_BG,
+        color: TEXT,
+        cursor: "pointer",
+        flexShrink: 0,
+      }}
+    >
+      {icon}
+    </button>
+  );
+}
 
-const secondaryBtn: React.CSSProperties = {
-  height: 34,
-  padding: "0 12px",
-  fontSize: 13,
-  fontWeight: 500,
-  background: "#FFFFFF",
-  color: "#1A1A1A",
-  border: "1px solid #E1E3E5",
-  borderRadius: 6,
-  cursor: "pointer",
-  transition: "background-color 120ms ease",
-};
-
-// ---------- Sub-components ----------
+function Divider() {
+  return (
+    <span
+      aria-hidden
+      style={{
+        width: 1,
+        height: 20,
+        background: BORDER,
+        display: "inline-block",
+        margin: "0 2px",
+      }}
+    />
+  );
+}
 
 function MarketSelect({
   markets,
@@ -214,11 +330,44 @@ function MarketSelect({
   allLabel: string;
 }) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
   const label = value ? markets.find((m) => m.id === value)?.name ?? "—" : allLabel;
   return (
-    <div style={{ position: "relative" }}>
-      <button type="button" onClick={() => setOpen((o) => !o)} style={secondaryBtn}>
-        {label} ▾
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          height: 30,
+          padding: "0 12px",
+          borderRadius: 8,
+          border: `1px solid ${BORDER}`,
+          background: SOFT_BG,
+          color: TEXT,
+          fontSize: 13,
+          fontWeight: 500,
+          cursor: "pointer",
+          fontFamily: "inherit",
+        }}
+      >
+        <Globe size={13} strokeWidth={1.75} />
+        {label}
+        <ChevronDown size={11} strokeWidth={2} />
       </button>
       {open ? (
         <DropdownPanel onClose={() => setOpen(false)}>
@@ -247,19 +396,31 @@ function MarketSelect({
   );
 }
 
-function DateQuickSelect({
+function DateChip({
   from,
   to,
   onChange,
   label,
+  active,
 }: {
   from: string | null;
   to: string | null;
   onChange: (from: string | null, to: string | null) => void;
   label: string;
+  active: boolean;
 }) {
   const t = useTranslations("orders.filters");
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
 
   const today = () => new Date().toISOString().slice(0, 10);
   const daysAgo = (n: number) => {
@@ -268,17 +429,78 @@ function DateQuickSelect({
     return d.toISOString().slice(0, 10);
   };
 
-  const summary = !from && !to ? label : `${from ?? "…"} → ${to ?? "…"}`;
+  const summary = active ? `${from ?? "…"} → ${to ?? "…"}` : null;
 
   return (
-    <div style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        style={{ ...secondaryBtn, ...(from || to ? { borderColor: "#1A1A1A" } : null) }}
+    <div ref={ref} style={{ position: "relative" }}>
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "stretch",
+          height: 28,
+          borderRadius: 6,
+          border: `1px solid ${active ? TEXT : BORDER}`,
+          background: active ? TEXT : SOFT_BG,
+          color: active ? "#FFFFFF" : TEXT,
+          overflow: "hidden",
+        }}
       >
-        {summary} ▾
-      </button>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "0 10px",
+            border: "none",
+            background: "transparent",
+            color: "inherit",
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          <Calendar size={13} strokeWidth={1.75} />
+          <span style={{ opacity: active ? 0.8 : 1 }}>{label}</span>
+          {summary ? (
+            <>
+              <span aria-hidden style={{ opacity: 0.5 }}>·</span>
+              <span style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {summary}
+              </span>
+            </>
+          ) : (
+            <ChevronDown size={11} strokeWidth={2} />
+          )}
+        </button>
+        {active && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange(null, null);
+            }}
+            aria-label={t("clear")}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "0 6px",
+              border: "none",
+              borderInlineStart: `1px solid rgba(255,255,255,0.2)`,
+              background: "transparent",
+              color: "inherit",
+              cursor: "pointer",
+            }}
+          >
+            <span aria-hidden style={{ fontSize: 11, fontWeight: 600 }}>×</span>
+          </button>
+        )}
+      </div>
       {open ? (
         <DropdownPanel onClose={() => setOpen(false)} width={240}>
           <DropdownOption
@@ -305,16 +527,16 @@ function DateQuickSelect({
               setOpen(false);
             }}
           />
-          <div style={{ borderTop: "1px solid #E1E3E5", margin: "4px 0" }} />
+          <div style={{ borderTop: `1px solid ${BORDER}`, margin: "4px 0" }} />
           <div style={{ padding: "6px 10px", display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ fontSize: 12, color: "#6D7175" }}>{t("from")}</label>
+            <label style={{ fontSize: 12, color: MUTED }}>{t("from")}</label>
             <input
               type="date"
               value={from ?? ""}
               onChange={(e) => onChange(e.target.value || null, to)}
               style={dateInput}
             />
-            <label style={{ fontSize: 12, color: "#6D7175" }}>{t("to")}</label>
+            <label style={{ fontSize: 12, color: MUTED }}>{t("to")}</label>
             <input
               type="date"
               value={to ?? ""}
@@ -322,28 +544,6 @@ function DateQuickSelect({
               style={dateInput}
             />
           </div>
-          {from || to ? (
-            <div style={{ padding: "4px 10px 8px" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  onChange(null, null);
-                  setOpen(false);
-                }}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#6D7175",
-                  fontSize: 12,
-                  cursor: "pointer",
-                  padding: 0,
-                  textDecoration: "underline",
-                }}
-              >
-                {t("clear")}
-              </button>
-            </div>
-          ) : null}
         </DropdownPanel>
       ) : null}
     </div>
@@ -353,7 +553,7 @@ function DateQuickSelect({
 function DropdownPanel({
   children,
   onClose,
-  width = 180,
+  width = 200,
 }: {
   children: React.ReactNode;
   onClose: () => void;
@@ -361,7 +561,6 @@ function DropdownPanel({
 }) {
   return (
     <>
-      {/* click-outside scrim */}
       <div
         aria-hidden
         onClick={onClose}
@@ -372,15 +571,15 @@ function DropdownPanel({
         style={{
           position: "absolute",
           insetInlineStart: 0,
-          top: "calc(100% + 6px)",
-          background: "#FFFFFF",
-          border: "1px solid #E1E3E5",
+          top: "calc(100% + 4px)",
+          background: CARD_BG,
+          border: `1px solid ${BORDER}`,
           borderRadius: 8,
           boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
           minWidth: width,
           maxHeight: 320,
           overflowY: "auto",
-          zIndex: 10,
+          zIndex: 30,
           padding: 4,
         }}
       >
@@ -394,62 +593,36 @@ function DropdownOption({
   label,
   selected,
   onClick,
-  multi = false,
 }: {
   label: string;
   selected: boolean;
   onClick: () => void;
-  multi?: boolean;
 }) {
+  const [hover, setHover] = useState(false);
   return (
     <button
       type="button"
       role="option"
       aria-selected={selected}
       onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
+        display: "block",
         width: "100%",
         textAlign: "start",
         padding: "8px 10px",
         border: "none",
         borderRadius: 6,
-        background: selected && !multi ? "#F2F2F2" : "transparent",
-        color: "#1A1A1A",
+        background: selected ? "#F2F2F2" : hover ? "#F7F7F7" : "transparent",
+        color: TEXT,
         fontSize: 13,
-        fontWeight: 500,
+        fontWeight: selected ? 600 : 500,
         cursor: "pointer",
-      }}
-      onMouseEnter={(e) => {
-        if (!(selected && !multi)) e.currentTarget.style.background = "#F7F7F7";
-      }}
-      onMouseLeave={(e) => {
-        if (!(selected && !multi)) e.currentTarget.style.background = "transparent";
+        fontFamily: "inherit",
       }}
     >
-      {multi ? (
-        <span
-          aria-hidden
-          style={{
-            width: 14,
-            height: 14,
-            borderRadius: 3,
-            border: "1px solid #C9CCCF",
-            background: selected ? "#1A1A1A" : "#FFFFFF",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#FFFFFF",
-            fontSize: 10,
-            lineHeight: 1,
-          }}
-        >
-          {selected ? "✓" : ""}
-        </span>
-      ) : null}
-      <span style={{ flex: 1 }}>{label}</span>
+      {label}
     </button>
   );
 }
@@ -458,8 +631,9 @@ const dateInput: React.CSSProperties = {
   height: 30,
   padding: "0 8px",
   fontSize: 13,
-  border: "1px solid #E1E3E5",
+  border: `1px solid ${BORDER}`,
   borderRadius: 6,
-  background: "#FFFFFF",
-  color: "#1A1A1A",
+  background: SOFT_BG,
+  color: TEXT,
+  outline: "none",
 };

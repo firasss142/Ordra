@@ -7,20 +7,12 @@ import { useOperatorStats } from "@/hooks/useOperatorStats";
 import { summarizeCycleTimes } from "@/lib/preparation/cycle-time";
 import { openPdfBlob } from "@/lib/pdf-utils";
 import { PreparationTray } from "./PreparationTray";
-import { LogisticsPageHeader } from "../shared/LogisticsPageHeader";
-import { LogisticsKpiStrip, type KpiTileDef } from "../shared/LogisticsKpiStrip";
+import { WarehouseShell } from "@/components/warehouse/shell/WarehouseShell";
+import { WarehouseKpiStrip, type KpiTile } from "@/components/warehouse/shell/WarehouseKpiStrip";
 import { PreparationScannerPanel } from "./PreparationScannerPanel";
 import { PreparationBacklog } from "./PreparationBacklog";
 import type { ScanResult } from "./PreparationScannerPanel";
 import type { ScanErrorCode } from "@/lib/preparation/tray-state";
-
-const D = {
-  pageBg: "#F6F6F7",
-  cardBg: "#FFFFFF",
-  border: "#E1E3E5",
-  textPrimary: "#1A1A1A",
-  textSecondary: "#6D7175",
-} as const;
 
 function formatCycle(secs: number): string {
   if (secs === 0) return "—";
@@ -80,55 +72,18 @@ interface Props {
 interface StageHeaderProps {
   index: number;
   label: string;
-  hint?: string;
 }
 
-function StageHeader({ index, label, hint }: StageHeaderProps) {
+function StageHeader({ index, label }: StageHeaderProps) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "12px 16px",
-        borderBottom: `1px solid ${D.border}`,
-        backgroundColor: "#FAFAFA",
-        flexShrink: 0,
-      }}
-    >
+    <div className="flex items-center gap-2.5 px-4 py-3 border-b border-line-subtle bg-surface-hover shrink-0">
       <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 22,
-          height: 22,
-          borderRadius: 999,
-          backgroundColor: D.textPrimary,
-          color: "#FFFFFF",
-          fontSize: 12,
-          fontWeight: 700,
-          flexShrink: 0,
-        }}
+        className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-full bg-ink-primary text-white text-[12px] font-bold shrink-0 tabular-nums"
         aria-hidden="true"
       >
         {index}
       </span>
-      <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <h2
-          style={{
-            margin: 0,
-            fontSize: 14,
-            fontWeight: 600,
-            color: D.textPrimary,
-          }}
-        >
-          {label}
-        </h2>
-        {hint ? (
-          <span style={{ fontSize: 11, color: D.textSecondary }}>{hint}</span>
-        ) : null}
-      </div>
+      <h2 className="m-0 text-[14px] font-semibold text-ink-primary">{label}</h2>
     </div>
   );
 }
@@ -261,52 +216,29 @@ export function PreparationClient({ marketId, fallbackRows, labels }: Props) {
   const cycleSeconds =
     cycleSummary.count > 0 ? cycleSummary.avgSeconds : stats.avg_cycle_seconds;
 
-  const kpiTiles: KpiTileDef[] = [
+  const kpiTiles: KpiTile[] = [
     { label: labels.stats.labelsPrinted, value: String(stats.labels_printed_today) },
     { label: labels.stats.ordersScanned, value: String(stats.orders_scanned_today) },
     { label: labels.stats.avgCycle, value: formatCycle(cycleSeconds) },
-    { label: labels.stats.traySize, value: String(rows.length) },
+    {
+      label: labels.stats.traySize,
+      value: String(rows.length),
+      tone: rows.length >= 100 ? "warning" : "neutral",
+    },
   ];
 
-  const cardChrome = {
-    backgroundColor: D.cardBg,
-    border: `1px solid ${D.border}`,
-    borderRadius: 8,
-    overflow: "hidden",
-    display: "flex",
-    flexDirection: "column",
-  } as const;
-
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: D.pageBg,
-        padding: "24px 32px 24px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 16,
-      }}
+    <WarehouseShell
+      title={labels.pageTitle}
+      subtitle={labels.pageSubtitle}
+      kpiStrip={<WarehouseKpiStrip tiles={kpiTiles} />}
     >
-      <LogisticsPageHeader
-        title={labels.pageTitle}
-        subtitle={labels.pageSubtitle}
-      />
-      <LogisticsKpiStrip tiles={kpiTiles} />
-
       {/* 3-stage horizontal workbench */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1.3fr) minmax(320px, 380px)",
-          gap: 16,
-          alignItems: "stretch",
-        }}
-      >
+      <div className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(320px,380px)] gap-4 items-stretch">
         {/* STAGE 1 — Backlog */}
-        <section style={cardChrome}>
+        <section className="bg-surface-card border border-line-subtle rounded-card overflow-hidden flex flex-col">
           <StageHeader index={1} label={labels.stageBacklog} />
-          <div style={{ padding: 16, overflow: "auto", maxHeight: 720 }}>
+          <div className="p-4 overflow-auto max-h-[720px]">
             <PreparationBacklog
               marketId={marketId}
               fallbackRows={fallbackRows}
@@ -318,9 +250,9 @@ export function PreparationClient({ marketId, fallbackRows, labels }: Props) {
         </section>
 
         {/* STAGE 2 — Tray (print) */}
-        <section style={cardChrome}>
+        <section className="bg-surface-card border border-line-subtle rounded-card overflow-hidden flex flex-col">
           <StageHeader index={2} label={labels.stageTray} />
-          <div style={{ flex: 1, overflowY: "auto", maxHeight: 720 }}>
+          <div className="flex-1 overflow-y-auto max-h-[720px] relative">
             <PreparationTray
               rows={rows}
               selectedIds={selectedIds}
@@ -337,18 +269,10 @@ export function PreparationClient({ marketId, fallbackRows, labels }: Props) {
           </div>
         </section>
 
-        {/* STAGE 3 — Scanner */}
-        <aside
-          style={{
-            ...cardChrome,
-            position: "sticky",
-            top: 16,
-            alignSelf: "start",
-            maxHeight: "calc(100vh - 32px)",
-          }}
-        >
+        {/* STAGE 3 — Scanner (sticky, elevated) */}
+        <aside className="bg-surface-card border border-line-subtle rounded-card overflow-hidden flex flex-col sticky top-4 self-start max-h-[calc(100vh-32px)] shadow-panel">
           <StageHeader index={3} label={labels.stageScanner} />
-          <div style={{ flex: 1, overflowY: "auto" }}>
+          <div className="flex-1 overflow-y-auto">
             <PreparationScannerPanel
               onScan={handleScan}
               labels={labels.scanner}
@@ -356,6 +280,6 @@ export function PreparationClient({ marketId, fallbackRows, labels }: Props) {
           </div>
         </aside>
       </div>
-    </div>
+    </WarehouseShell>
   );
 }

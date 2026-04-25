@@ -223,38 +223,87 @@ interface HeaderProps {
 }
 
 function Header({ total, summary, grouping, onGroupingChange, t }: HeaderProps) {
+  const hasScheduled =
+    summary.overdue > 0 || summary.today > 0 || summary.tomorrow > 0 || summary.later > 0;
+
   return (
-    <div>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: D.textPrimary }}>
-            {t("title")}
-          </h1>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: D.textSecondary }}>
-            {t("subtitle", { count: total })}
-          </p>
-        </div>
-        <GroupingToggle grouping={grouping} onChange={onGroupingChange} t={t} />
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div>
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: D.textPrimary }}>
+          {t("title")}
+        </h1>
+        <p style={{ margin: "4px 0 0", fontSize: 13, color: D.textSecondary }}>
+          {t("subtitle", { count: total })}
+        </p>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-        {summary.overdue > 0 && (
-          <Pill tone="critical" label={t("scheduled.overdue", { count: summary.overdue })} />
-        )}
-        {summary.today > 0 && (
-          <Pill
-            tone="action"
-            label={t("scheduled.today", {
-              count: summary.today,
-              auto: summary.todayAuto,
-            })}
-          />
-        )}
-        {summary.tomorrow > 0 && (
-          <Pill tone="warning" label={t("scheduled.tomorrow", { count: summary.tomorrow })} />
-        )}
-        {summary.later > 0 && (
-          <Pill tone="neutral" label={t("scheduled.later", { count: summary.later })} />
+      <div
+        style={{
+          background: D.bgCard,
+          border: `1px solid ${D.border}`,
+          borderRadius: 10,
+          padding: "10px 12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+        }}
+      >
+        {/* Top row: grouping toggle */}
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 10,
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                color: D.textSecondary,
+                paddingInlineEnd: 4,
+              }}
+            >
+              {t("groupBy.label")}
+            </span>
+            <GroupingToggle grouping={grouping} onChange={onGroupingChange} t={t} />
+          </div>
+        </div>
+
+        {/* Second row: scheduled status pills */}
+        {hasScheduled && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+              paddingTop: 8,
+              borderTop: `1px solid ${D.border}`,
+            }}
+          >
+            {summary.overdue > 0 && (
+              <Pill tone="critical" label={t("scheduled.overdue", { count: summary.overdue })} />
+            )}
+            {summary.today > 0 && (
+              <Pill
+                tone="action"
+                label={t("scheduled.today", {
+                  count: summary.today,
+                  auto: summary.todayAuto,
+                })}
+              />
+            )}
+            {summary.tomorrow > 0 && (
+              <Pill tone="warning" label={t("scheduled.tomorrow", { count: summary.tomorrow })} />
+            )}
+            {summary.later > 0 && (
+              <Pill tone="neutral" label={t("scheduled.later", { count: summary.later })} />
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -270,35 +319,49 @@ function GroupingToggle({
   onChange: (g: Grouping) => void;
   t: ReturnType<typeof useTranslations>;
 }) {
-  const btn = (value: Grouping, label: string) => {
-    const active = grouping === value;
-    return (
-      <button
-        key={value}
-        type="button"
-        role="tab"
-        aria-selected={active}
-        onClick={() => onChange(value)}
-        style={{
-          all: "unset",
-          padding: "6px 12px",
-          fontSize: 13,
-          fontWeight: active ? 500 : 400,
-          color: active ? D.textPrimary : D.textSecondary,
-          backgroundColor: active ? D.bgCard : "transparent",
-          border: `1px solid ${active ? D.borderStrong : D.border}`,
-          borderRadius: 4,
-          cursor: "pointer",
-        }}
-      >
-        {label}
-      </button>
-    );
-  };
+  const items: { key: Grouping; label: string }[] = [
+    { key: "city", label: t("groupBy.city") },
+    { key: "product", label: t("groupBy.product") },
+  ];
   return (
-    <div role="tablist" aria-label={t("groupBy.label")} style={{ display: "flex", gap: 6 }}>
-      {btn("city", t("groupBy.city"))}
-      {btn("product", t("groupBy.product"))}
+    <div
+      role="tablist"
+      aria-label={t("groupBy.label")}
+      style={{
+        display: "inline-flex",
+        background: "#F6F6F7",
+        borderRadius: 8,
+        padding: 2,
+        gap: 2,
+      }}
+    >
+      {items.map((it) => {
+        const isActive = grouping === it.key;
+        return (
+          <button
+            key={it.key}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onChange(it.key)}
+            style={{
+              padding: "5px 14px",
+              border: "none",
+              borderRadius: 6,
+              background: isActive ? "#FFFFFF" : "transparent",
+              color: D.textPrimary,
+              fontSize: 13,
+              fontWeight: isActive ? 600 : 500,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              boxShadow: isActive ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+              fontFamily: "inherit",
+            }}
+          >
+            {it.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

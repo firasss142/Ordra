@@ -12,6 +12,7 @@ const mockOrder: CarrierOrderData = {
   customer_phone: "22123456",
   customer_address: "Rue 1",
   customer_city: "Tunis",
+  customer_note: null,
   product_name: "T-Shirt",
   variant_label: null,
   quantity: 1,

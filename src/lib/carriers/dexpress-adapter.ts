@@ -4,6 +4,7 @@ import type {
   CarrierConfig,
   CarrierRawResponse,
   CarrierDispatchResult,
+  CarrierVoidResult,
 } from "./types";
 import { CarrierDispatchError } from "./errors";
 
@@ -134,5 +135,12 @@ export class DexpressAdapter implements CarrierAdapter {
       errorMessage: String(body.message ?? "Unknown error"),
       retryable: false,
     };
+  }
+
+  async voidDispatch(
+    _trackingNumber: string,
+    _config: CarrierConfig
+  ): Promise<CarrierVoidResult> {
+    return { success: false, supported: false };
   }
 }

@@ -26,6 +26,7 @@ const SAMPLE_ORDER: CarrierOrderData = {
   customer_phone: "+216 00 000 000",
   customer_address: "Rue de Test 1",
   customer_city: "Tunis",
+  customer_note: null,
   product_name: "Test Product",
   variant_label: null,
   quantity: 1,

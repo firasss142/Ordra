@@ -379,12 +379,25 @@
       "adSpend": "الإعلانات",
       "cpa": "CPA",
       "cpl": "CPL",
+      "aov": "متوسط قيمة الطلب",
       "deliveredCount": "{count, plural, one {# تم توصيله} other {# تم توصيلها}}",
       "deltaVsPrev": "مقابل الفترة السابقة",
       "noPrev": "—",
       "prevShort": "سابقة",
       "leadsShort": "عميل محتمل",
       "confirmedShort": "مؤكدة"
+    },
+    "composition": {
+      "title": "تركيبة الإيرادات",
+      "ofRevenue": "% من الإيرادات"
+    },
+    "funnel": {
+      "title": "القمع",
+      "leads": "العملاء المحتملون",
+      "confirmed": "المؤكدة",
+      "delivered": "المُوصَّلة",
+      "toConfirmed": "تأكيد",
+      "toDelivered": "توصيل"
     },
     "operational": {
       "title": "العمليات",
@@ -1176,6 +1189,7 @@
       "performance": "الأداء"
     },
     "filters": {
+      "title": "الفلاتر",
       "status": {
         "all": "الكل",
         "active": "نشط",
@@ -1198,6 +1212,7 @@
       "deliveryRate": "توصيل",
       "returnRate": "إرجاع",
       "margin": "هامش",
+      "revenue": "الإيرادات",
       "noData": "لا توجد بيانات"
     },
     "health": {
@@ -1205,6 +1220,23 @@
       "yellow": "يحتاج متابعة",
       "red": "خاسر",
       "grey": "لا توجد بيانات"
+    },
+    "portfolio": {
+      "topEarner": "الأعلى مبيعًا",
+      "worstMargin": "أسوأ هامش",
+      "lowStock": "مخزون منخفض",
+      "active": "النشطة",
+      "ofTotal": "من أصل {total}",
+      "ofActive": "من أصل {total} نشطة",
+      "noData": "—"
+    },
+    "sort": {
+      "label": "ترتيب",
+      "default": "افتراضي",
+      "revenueDesc": "الإيرادات (الأعلى)",
+      "marginAsc": "الهامش (الأدنى)",
+      "stockAsc": "المخزون (الأدنى)",
+      "name": "الاسم"
     },
     "create": {
       "title": "منتج جديد",
@@ -1229,6 +1261,77 @@
       "editThreshold": "تعديل الحد",
       "variants": "{count} نوع",
       "moreVariants": "+{count} أخرى"
+    }
+  },
+  "productPnl": {
+    "rentabilityTitle": "الربحية",
+    "loading": "جارٍ التحميل…",
+    "empty": "لا توجد بيانات للفترة المحددة",
+    "backToProducts": "المنتجات",
+    "status": {
+      "active": "نشط",
+      "inactive": "غير نشط"
+    },
+    "stock": {
+      "label": "المخزون",
+      "low": "مخزون منخفض",
+      "units": "{count} وحدة"
+    },
+    "costsReference": {
+      "title": "التكاليف المرجعية",
+      "cogs": "التكلفة لكل وحدة",
+      "packing": "التغليف",
+      "cpl": "تكلفة العميل المحتمل",
+      "processing": "المعالجة",
+      "variants": "المتغيرات",
+      "noVariants": "لا توجد متغيرات",
+      "variantPriceLine": "{label} · ×{quantity} · {price}"
+    },
+    "stockHistoryTitle": "سجل المخزون",
+    "hero": {
+      "netProfit": "صافي الربح",
+      "revenue": "الإيرادات",
+      "profitPerDelivered": "الربح لكل توصيل",
+      "marginLabel": "هامش {value}",
+      "deliveredLabel": "{count} عملية توصيل",
+      "vsCostLabel": "مقابل التكلفة {value}",
+      "noDelivery": "لا توجد عمليات توصيل",
+      "vsPrev": "مقابل الفترة السابقة"
+    },
+    "funnel": {
+      "title": "قمع التحويل",
+      "leads": "العملاء المحتملون",
+      "confirmed": "مؤكَّدة",
+      "delivered": "مُسلَّمة",
+      "toConfirmed": "← التأكيد",
+      "toDelivered": "← التسليم"
+    },
+    "composition": {
+      "title": "تركيبة التكاليف",
+      "cogs": "تكلفة البضاعة",
+      "delivery": "التوصيل",
+      "returns": "الإرجاع",
+      "packing": "التغليف",
+      "ads": "الإعلانات",
+      "processing": "المعالجة",
+      "netProfit": "صافي الربح",
+      "ofRevenue": "من الإيرادات"
+    },
+    "ops": {
+      "title": "العمليات",
+      "confirmationRate": "نسبة التأكيد",
+      "deliveryRate": "نسبة التسليم",
+      "returnRate": "نسبة الإرجاع",
+      "costPerDelivered": "التكلفة لكل توصيل"
+    },
+    "pills": {
+      "high": "مرتفع",
+      "watch": "للمراقبة",
+      "low": "منخفض",
+      "healthy": "صحي",
+      "lowStock": "مخزون منخفض",
+      "adsPressure": "إعلانات مرتفعة",
+      "negativeProfit": "خسارة"
     }
   },
   "crm": {
@@ -1630,6 +1733,8 @@
       "myDueToday": "متابعاتي لليوم",
       "viewTimeline": "متابعات",
       "viewKanban": "كانبان",
+      "filters": "الفلاتر",
+      "statusLabel": "الحالة",
       "outcomes": {
         "voicemail": "بريد صوتي",
         "no_answer": "لا إجابة",
@@ -2124,6 +2229,96 @@
       "keyHint": "أحرف صغيرة وأرقام وشرطة سفلية. مثال: blocked_customs",
       "keyInvalid": "صيغة غير صالحة — استخدم فقط الأحرف الصغيرة والأرقام والشرطة السفلية.",
       "keyConflict": "هذا المفتاح موجود بالفعل لهذا السوق وهذا النطاق."
+    },
+    "storefronts": {
+      "title": "المتاجر",
+      "subtitle": "اربط متاجرك وراقب حالة الـ webhooks.",
+      "subtitleReadOnly": "عرض للقراءة فقط — مراقبة الـ webhooks.",
+      "connect": "ربط متجر جديد",
+      "test": "اختبار",
+      "testing": "جارٍ الاختبار…",
+      "edit": "تعديل",
+      "active": "نشط",
+      "inactive": "موقوف",
+      "lastWebhook": "آخر webhook",
+      "failureCount": "حالات الفشل المتتالية",
+      "status": "الحالة",
+      "statusProcessed": "تمت المعالجة",
+      "statusError": "خطأ",
+      "statusIgnored": "تم التجاهل",
+      "statusNone": "—",
+      "lastError": "آخر خطأ:",
+      "viewAlerts": "عرض التنبيهات ←",
+      "noStorefronts": "لا توجد متاجر مكونة لهذا السوق.",
+      "emptyHint": "انقر على \"ربط متجر جديد\" للبدء.",
+      "copy": "نسخ",
+      "copied": "تم النسخ ✓",
+      "regenerateSecret": "إعادة توليد السر",
+      "regenerateWarning": "إعادة التوليد ستُبطل التوقيع الحالي — حدّث المتجر فورًا.",
+      "errorMessages": {
+        "copyFailed": "تعذّر النسخ إلى الحافظة.",
+        "testFailed": "فشل الاختبار.",
+        "networkError": "خطأ في الشبكة"
+      },
+      "edit_panel": {
+        "title": "تعديل المتجر",
+        "name": "الاسم",
+        "webhookUrl": "رابط Webhook",
+        "webhookSecret": "سر Webhook",
+        "secretPlaceholder": "اتركه كما هو لعدم التغيير",
+        "save": "حفظ",
+        "saving": "جارٍ الحفظ…",
+        "cancel": "إلغاء",
+        "error": "خطأ"
+      },
+      "created_modal": {
+        "title": "تم إنشاء المتجر",
+        "warning": "انسخ هذه المعلومات — لن تُعرض مرة أخرى.",
+        "webhookUrlLabel": "رابط Webhook (OMS)",
+        "secretLabel": "سر Webhook",
+        "ack": "لقد حفظت هذه المعلومات"
+      },
+      "wizard": {
+        "title": "متجر جديد — {market}",
+        "stepsAria": "الخطوات",
+        "steps": {
+          "name": "الاسم",
+          "platform": "المنصة",
+          "auth": "المصادقة",
+          "webhook": "Webhook"
+        },
+        "nameLabel": "اسم المتجر",
+        "namePlaceholder": "مثال: المتجر الرئيسي",
+        "nameHelp": "اسم قصير، يظهر في كل مكان يَرِد فيه هذا المتجر.",
+        "platformLabel": "المنصة",
+        "secretLabel": "سر Webhook",
+        "secretRegenerate": "إعادة توليد",
+        "secretHelp": "يُستخدم هذا السر لتوقيع طلبات الـ webhook الواردة. 16 حرفًا على الأقل.",
+        "webhookLabel": "رابط Webhook (من جانب المتجر)",
+        "webhookHelp": "اختياري — الرابط الذي يُرسل المتجر إليه طلبات الـ webhook (للمرجع). سيُعرض رابط الاستقبال في OMS بعد الإنشاء.",
+        "summary": "ملخّص",
+        "summaryName": "الاسم: {name}",
+        "summaryPlatform": "المنصة: {platform}",
+        "summaryMarket": "السوق: {market}",
+        "errorCreate": "خطأ أثناء الإنشاء",
+        "cancel": "إلغاء",
+        "previous": "السابق",
+        "next": "التالي",
+        "create": "إنشاء المتجر",
+        "creating": "جارٍ الإنشاء…",
+        "platforms": {
+          "easyOrders": "Easy Orders",
+          "shopify": "Shopify",
+          "woocommerce": "WooCommerce",
+          "lightfunnels": "Lightfunnels"
+        },
+        "hints": {
+          "easyOrders": "X-Webhook-Signature (hex)",
+          "shopify": "X-Shopify-Hmac-Sha256 (base64)",
+          "woocommerce": "X-WC-Webhook-Signature (base64)",
+          "lightfunnels": "lightfunnels-hmac (base64)"
+        }
+      }
     }
   },
   "logs": {

@@ -1,5 +1,11 @@
 "use client";
 
+import Image from "next/image";
+
+const CARRIER_LOGOS: Record<string, string> = {
+  navex: "/navex-logo.png",
+};
+
 export type CarrierHealthState =
   | "connected"
   | "failing"
@@ -91,6 +97,7 @@ export function AdapterBadge({
   const label = known
     ? code.charAt(0).toUpperCase() + code.slice(1)
     : "Personnalisé";
+  const logoPath = known ? CARRIER_LOGOS[code] : undefined;
   const color = known ? "#1A1A1A" : "#6D7175";
   const bg = known ? "#F6F6F7" : "#F6F6F7";
   const border = known ? "1px solid #E1E3E5" : "1px dashed #C9CCCF";
@@ -99,6 +106,7 @@ export function AdapterBadge({
       style={{
         display: "inline-flex",
         alignItems: "center",
+        gap: 6,
         padding: "2px 8px",
         borderRadius: 6,
         fontSize: 12,
@@ -110,6 +118,15 @@ export function AdapterBadge({
         letterSpacing: "0.02em",
       }}
     >
+      {logoPath && (
+        <Image
+          src={logoPath}
+          alt={label}
+          width={14}
+          height={14}
+          style={{ objectFit: "contain" }}
+        />
+      )}
       {label}
     </span>
   );

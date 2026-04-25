@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { canReopenOrder } from "@/lib/order-permissions";
-import { getCarrierAdapter } from "@/lib/carriers/adapter";
-import type { CarrierConfig } from "@/types/carrier";
+import { getCarrierAdapter, buildConfig } from "@/lib/carriers";
 import { getActor } from "@/lib/auth/actor";
 
 export async function POST(
@@ -44,14 +43,18 @@ export async function POST(
   if (order.tracking_number && order.carrier_id) {
     const { data: carrierRow } = await supabase
       .from("carriers")
-      .select("id, carrier_type, api_key_encrypted, sender_name, sender_location, api_base_url, is_active, market_id")
+      .select("id, code, api_endpoint, api_credentials, delivery_fee, return_fee")
       .eq("id", order.carrier_id)
       .single();
 
     if (carrierRow) {
       try {
-        const adapter = getCarrierAdapter(carrierRow.carrier_type as "navex" | "dexpress");
-        const voidResult = await adapter.voidDispatch(order.tracking_number, carrierRow as CarrierConfig);
+        const config = buildConfig(carrierRow);
+        const adapter = getCarrierAdapter(carrierRow.code);
+        const voidResult = await adapter.voidDispatch(
+          order.tracking_number,
+          config,
+        );
         if (voidResult.success) {
           voidOutcome = "carrier_voided";
         } else {

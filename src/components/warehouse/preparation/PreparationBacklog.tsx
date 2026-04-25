@@ -7,17 +7,7 @@ import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import { jsonFetcher } from "@/lib/fetchers";
 import { useWarehouseRealtime } from "@/hooks/useWarehouseRealtime";
 import { WarehouseInboxBanner } from "@/components/warehouse/WarehouseInboxBanner";
-
-const D = {
-  pageBg: "#F6F6F7",
-  cardBg: "#FFFFFF",
-  border: "#E1E3E5",
-  textPrimary: "#1A1A1A",
-  textSecondary: "#6D7175",
-  accent: "#008060",
-  danger: "#D72C0D",
-  warning: "#B98900",
-} as const;
+import { Badge } from "@/components/ui/Badge";
 
 interface ApiResponse {
   orders: WarehouseOrderRow[];
@@ -44,20 +34,18 @@ interface Props {
   };
 }
 
-function StockBadge({ stock, labels }: { stock: number; labels: { lowStock: string; criticalStock: string } }) {
+function StockBadge({
+  stock,
+  labels,
+}: {
+  stock: number;
+  labels: { lowStock: string; criticalStock: string };
+}) {
   if (stock === 0) {
-    return (
-      <span style={{ fontSize: 10, fontWeight: 600, color: D.danger, backgroundColor: "#FFF4F2", borderRadius: 4, padding: "1px 6px" }}>
-        {labels.criticalStock}
-      </span>
-    );
+    return <Badge tone="critical">{labels.criticalStock}</Badge>;
   }
   if (stock <= 5) {
-    return (
-      <span style={{ fontSize: 10, fontWeight: 600, color: D.warning, backgroundColor: "#FFF8E5", borderRadius: 4, padding: "1px 6px" }}>
-        {labels.lowStock}
-      </span>
-    );
+    return <Badge tone="warning">{`${labels.lowStock} · ${stock}`}</Badge>;
   }
   return null;
 }
@@ -71,43 +59,30 @@ interface RowItemProps {
 
 const RowItem = memo(function RowItem({ order, inTray, onAdd, labels }: RowItemProps) {
   return (
-    <tr>
-      <td style={{ padding: "10px 16px", fontSize: 13, color: D.textPrimary }}>{order.customer_city ?? "—"}</td>
-      <td style={{ padding: "10px 16px", fontSize: 13, color: D.textPrimary, fontWeight: 500 }}>{order.customer_name}</td>
-      <td style={{ padding: "10px 16px", fontSize: 12, color: D.textSecondary }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <tr className="border-b border-line-subtle hover:bg-surface-hover transition-colors duration-fast">
+      <td className="px-4 py-2.5 text-[13px] text-ink-primary">{order.customer_city ?? "—"}</td>
+      <td className="px-4 py-2.5 text-[13px] text-ink-primary font-medium">{order.customer_name}</td>
+      <td className="px-4 py-2.5 text-[12px] text-ink-secondary">
+        <div className="flex items-center gap-1.5">
           {order.product_name}
           {order.current_stock != null && (
             <StockBadge stock={order.current_stock} labels={labels} />
           )}
         </div>
       </td>
-      <td style={{ padding: "10px 16px", fontSize: 11, color: D.textSecondary, fontFamily: "monospace" }}>
+      <td className="px-4 py-2.5 text-[11px] text-ink-secondary font-mono tabular-nums">
         {order.id.slice(0, 8).toUpperCase()}
       </td>
-      <td style={{ padding: "10px 16px" }}>
+      <td className="px-4 py-2.5">
         {inTray ? (
-          <span style={{ fontSize: 11, fontWeight: 600, color: D.accent }}>
+          <span className="text-[11px] font-semibold text-status-success">
             {labels.inTray}
           </span>
         ) : (
           <button
             onClick={() => onAdd(order)}
             title={labels.addToTray}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              fontSize: 12,
-              fontWeight: 600,
-              color: D.textPrimary,
-              backgroundColor: "#F6F6F7",
-              border: `1px solid ${D.border}`,
-              borderRadius: 5,
-              padding: "4px 8px",
-              cursor: "pointer",
-              transition: "background-color 120ms",
-            }}
+            className="inline-flex items-center gap-1 text-[12px] font-semibold text-ink-primary bg-surface-page border border-line-subtle rounded-md px-2 py-1 hover:bg-surface-hover transition-colors duration-fast"
           >
             <Plus size={12} />
             {labels.addToTray}
@@ -163,7 +138,7 @@ export function PreparationBacklog({
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="flex flex-col gap-3">
       <WarehouseInboxBanner
         count={arrivalCount}
         onReveal={() => { setArrivalCount(0); mutate(); }}
@@ -171,47 +146,25 @@ export function PreparationBacklog({
         labels={{ reveal: labels.newReveal, dismiss: labels.dismiss }}
       />
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 4px",
-        }}
-      >
-        <h2 style={{ fontSize: 14, fontWeight: 600, color: D.textPrimary, margin: 0 }}>
+      <div className="flex items-center justify-between px-1">
+        <h2 className="text-[14px] font-semibold text-ink-primary m-0 tabular-nums">
           {labels.title} ({allOrders.length})
         </h2>
       </div>
 
-      <div
-        style={{
-          backgroundColor: D.cardBg,
-          border: `1px solid ${D.border}`,
-          borderRadius: 8,
-          overflow: "hidden",
-        }}
-      >
+      <div className="bg-surface-card border border-line-subtle rounded-card overflow-hidden">
         {allOrders.length === 0 ? (
-          <div style={{ padding: "32px 16px", textAlign: "center", fontSize: 13, color: D.textSecondary }}>
+          <div className="px-4 py-8 text-center text-[13px] text-ink-secondary">
             {labels.empty}
           </div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <table className="w-full border-collapse">
             <thead>
-              <tr style={{ backgroundColor: "#FAFAFA", borderBottom: `1px solid ${D.border}` }}>
+              <tr className="bg-surface-hover border-b border-line-subtle">
                 {[labels.colCity, labels.colCustomer, labels.colProduct, labels.colId, ""].map((h, i) => (
                   <th
                     key={i}
-                    style={{
-                      padding: "8px 16px",
-                      textAlign: "left",
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: D.textSecondary,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.04em",
-                    }}
+                    className="px-4 py-2 text-start text-[11px] font-semibold text-ink-secondary uppercase tracking-[0.04em]"
                   >
                     {h}
                   </th>
@@ -234,39 +187,21 @@ export function PreparationBacklog({
       </div>
 
       {allOrders.length > pageSize && (
-        <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
+        <div className="flex justify-center gap-2 items-center">
           <button
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
-            style={{
-              padding: "6px 14px",
-              fontSize: 12,
-              border: `1px solid ${D.border}`,
-              borderRadius: 5,
-              backgroundColor: D.cardBg,
-              color: D.textPrimary,
-              cursor: page === 0 ? "default" : "pointer",
-              opacity: page === 0 ? 0.4 : 1,
-            }}
+            className="px-3.5 py-1.5 text-[12px] border border-line-subtle rounded-md bg-surface-card text-ink-primary disabled:opacity-40 disabled:cursor-default hover:bg-surface-hover transition-colors duration-fast"
           >
             ‹ Préc.
           </button>
-          <span style={{ fontSize: 12, color: D.textSecondary, lineHeight: "32px" }}>
+          <span className="text-[12px] text-ink-secondary tabular-nums">
             {page + 1} / {Math.ceil(allOrders.length / pageSize)}
           </span>
           <button
             onClick={() => setPage((p) => Math.min(Math.ceil(allOrders.length / pageSize) - 1, p + 1))}
             disabled={pageStart + pageSize >= allOrders.length}
-            style={{
-              padding: "6px 14px",
-              fontSize: 12,
-              border: `1px solid ${D.border}`,
-              borderRadius: 5,
-              backgroundColor: D.cardBg,
-              color: D.textPrimary,
-              cursor: pageStart + pageSize >= allOrders.length ? "default" : "pointer",
-              opacity: pageStart + pageSize >= allOrders.length ? 0.4 : 1,
-            }}
+            className="px-3.5 py-1.5 text-[12px] border border-line-subtle rounded-md bg-surface-card text-ink-primary disabled:opacity-40 disabled:cursor-default hover:bg-surface-hover transition-colors duration-fast"
           >
             Suiv. ›
           </button>
