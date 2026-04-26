@@ -3,6 +3,7 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FollowUpCard, followUpCardAccent } from "./FollowUpCard";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import type { UseFollowUpsColumnReturn } from "@/hooks/useFollowUpsColumn";
 import type { FollowUpStatus, OrderFollowUpWithOrder } from "@/types/follow-up";
 import type { KanbanDensity } from "@/components/shared/KanbanBoard";
@@ -55,6 +56,7 @@ export function FollowUpsKanban({
   const [dragOver, setDragOver] = useState<FollowUpStatus | null>(null);
   const [overlay, setOverlay] = useState<Record<string, FollowUpStatus>>({});
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const isMobile = useIsMobile();
 
   const isCompact = density === "compact";
   const bodyPadding = isCompact ? 6 : 8;
@@ -144,10 +146,11 @@ export function FollowUpsKanban({
     <div
       style={{
         display: "flex",
+        flexDirection: isMobile ? "column" : "row",
         gap: columnGap,
-        overflowX: "auto",
+        overflowX: isMobile ? "visible" : "auto",
         paddingBottom: 8,
-        alignItems: "flex-start",
+        alignItems: "stretch",
       }}
     >
       {columns.map((col) => {
@@ -161,9 +164,10 @@ export function FollowUpsKanban({
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, col.status)}
             style={{
-              flex: "0 0 304px",
-              minHeight: 480,
-              maxHeight: "calc(100vh - 260px)",
+              flex: isMobile ? "0 0 auto" : "0 0 304px",
+              width: isMobile ? "100%" : undefined,
+              minHeight: isMobile ? 240 : 480,
+              maxHeight: isMobile ? "none" : "min(calc(100dvh - 200px), 720px)",
               background: "#FFFFFF",
               border: `1px solid ${isOver ? "#1A1A1A" : "#E1E3E5"}`,
               borderRadius: 8,
@@ -171,6 +175,7 @@ export function FollowUpsKanban({
               flexDirection: "column",
               transition: "border-color 120ms ease",
               overflow: "hidden",
+              isolation: "isolate",
             }}
           >
             <div
@@ -268,7 +273,8 @@ function ColumnHeader({
         position: "sticky",
         top: 0,
         background: "#FFFFFF",
-        zIndex: 1,
+        zIndex: 10,
+        boxShadow: "0 1px 0 #E1E3E5",
       }}
     >
       <span

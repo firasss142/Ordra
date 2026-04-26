@@ -97,6 +97,7 @@ export function OrdersTable({
         <table
           style={{
             width: "100%",
+            minWidth: 960,
             borderCollapse: "separate",
             borderSpacing: 0,
             tableLayout: "auto",

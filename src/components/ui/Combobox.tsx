@@ -15,7 +15,15 @@ interface ComboboxProps {
   onCommit: (id: string, label: string) => Promise<void> | void;
   loadOptions?: (query: string) => Promise<ComboboxOption[]>;
   placeholder?: string;
+  /** Legacy: still works. Renders value as unstyled text, no edit. */
   readOnly?: boolean;
+  /**
+   * Display-mode: renders value as clean styled text.
+   * Click activates the dropdown. Pass readOnly to prevent editing.
+   */
+  displayMode?: boolean;
+  /** Extra classes applied to the display-mode text span. */
+  displayClassName?: string;
   className?: string;
 }
 
@@ -26,6 +34,8 @@ export function Combobox({
   loadOptions,
   placeholder = "Rechercher…",
   readOnly,
+  displayMode,
+  displayClassName = "",
   className = "",
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
@@ -36,7 +46,7 @@ export function Combobox({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const visibleOptions = (asyncOptions ?? options).filter((o) =>
-    o.label.toLowerCase().includes(query.toLowerCase())
+    o.label.toLowerCase().includes(query.toLowerCase()),
   );
 
   useEffect(() => {
@@ -55,7 +65,9 @@ export function Combobox({
     loadOptions(debouncedQuery).then((opts) => {
       if (!cancelled) setAsyncOptions(opts);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [debouncedQuery, open, loadOptions]);
 
   useEffect(() => {
@@ -90,7 +102,8 @@ export function Combobox({
     }
   }
 
-  if (readOnly) {
+  // Pure read-only (no edit at all)
+  if (readOnly && !displayMode) {
     return (
       <span className={className} style={{ fontSize: 14, color: "#1A1A1A" }}>
         {value}
@@ -98,6 +111,116 @@ export function Combobox({
     );
   }
 
+  const dropdown = open && (
+    <div
+      style={{
+        position: "absolute",
+        zIndex: 50,
+        insetInlineStart: 0,
+        marginTop: 4,
+        width: "100%",
+        minWidth: 180,
+        backgroundColor: "#FFFFFF",
+        border: "1px solid #E1E3E5",
+        borderRadius: 8,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+      }}
+    >
+      <input
+        ref={inputRef}
+        role="combobox"
+        aria-expanded="true"
+        value={query}
+        placeholder={placeholder}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={handleKeyDown}
+        style={{
+          width: "100%",
+          padding: "8px 10px",
+          fontSize: 14,
+          color: "#1A1A1A",
+          backgroundColor: "#FFFFFF",
+          border: "none",
+          borderBottom: "1px solid #E1E3E5",
+          outline: "none",
+          boxSizing: "border-box",
+        }}
+      />
+      <ul
+        style={{
+          maxHeight: 192,
+          overflowY: "auto",
+          padding: "4px 0",
+          margin: 0,
+          listStyle: "none",
+        }}
+      >
+        {visibleOptions.length === 0 ? (
+          <li style={{ padding: "8px 12px", fontSize: 14, color: "#6D7175" }}>—</li>
+        ) : (
+          visibleOptions.map((opt, i) => (
+            <li
+              key={opt.id}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => select(opt)}
+              style={{
+                cursor: "pointer",
+                padding: "6px 12px",
+                fontSize: 14,
+                color: "#1A1A1A",
+                backgroundColor: i === highlighted ? "#F2F2F2" : "transparent",
+              }}
+              onMouseEnter={(e) =>
+                ((e.currentTarget as HTMLLIElement).style.backgroundColor =
+                  i === highlighted ? "#F2F2F2" : "#F7F7F7")
+              }
+              onMouseLeave={(e) =>
+                ((e.currentTarget as HTMLLIElement).style.backgroundColor =
+                  i === highlighted ? "#F2F2F2" : "transparent")
+              }
+            >
+              {opt.label}
+              {opt.hint && (
+                <span style={{ marginInlineStart: 8, fontSize: 12, color: "#6D7175" }}>
+                  {opt.hint}
+                </span>
+              )}
+            </li>
+          ))
+        )}
+      </ul>
+    </div>
+  );
+
+  // Display mode: styled text, click opens dropdown
+  if (displayMode) {
+    return (
+      <div ref={containerRef} className={className} style={{ position: "relative" }}>
+        <span
+          role={readOnly ? undefined : "button"}
+          tabIndex={readOnly ? undefined : 0}
+          onClick={() => { if (!readOnly) setOpen((o) => !o); }}
+          onKeyDown={(e) => {
+            if (!readOnly && (e.key === "Enter" || e.key === " ")) setOpen((o) => !o);
+            if (e.key === "Escape") close();
+          }}
+          className={[
+            "block text-[14px] text-ink-primary leading-snug",
+            !readOnly
+              ? "cursor-pointer rounded px-1 -mx-1 hover:bg-surface-selected transition-colors duration-fast"
+              : "",
+            !value ? "text-ink-muted italic" : "",
+            displayClassName,
+          ].join(" ")}
+        >
+          {value || placeholder}
+        </span>
+        {dropdown}
+      </div>
+    );
+  }
+
+  // Standard editable trigger button
   const triggerStyle: React.CSSProperties = {
     width: "100%",
     height: 32,
@@ -114,101 +237,11 @@ export function Combobox({
   };
 
   return (
-    <div
-      ref={containerRef}
-      className={className}
-      style={{ position: "relative" }}
-    >
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        style={triggerStyle}
-      >
+    <div ref={containerRef} className={className} style={{ position: "relative" }}>
+      <button type="button" onClick={() => setOpen((o) => !o)} style={triggerStyle}>
         {value || placeholder}
       </button>
-
-      {open && (
-        <div
-          style={{
-            position: "absolute",
-            zIndex: 50,
-            insetInlineStart: 0,
-            marginTop: 4,
-            width: "100%",
-            minWidth: 180,
-            backgroundColor: "#FFFFFF",
-            border: "1px solid #E1E3E5",
-            borderRadius: 6,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-          }}
-        >
-          <input
-            ref={inputRef}
-            role="combobox"
-            aria-expanded="true"
-            value={query}
-            placeholder={placeholder}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            style={{
-              width: "100%",
-              padding: "8px 10px",
-              fontSize: 14,
-              color: "#1A1A1A",
-              backgroundColor: "#FFFFFF",
-              border: "none",
-              borderBottom: "1px solid #E1E3E5",
-              outline: "none",
-              boxSizing: "border-box",
-            }}
-          />
-          <ul
-            style={{
-              maxHeight: 192,
-              overflowY: "auto",
-              padding: "4px 0",
-              margin: 0,
-              listStyle: "none",
-            }}
-          >
-            {visibleOptions.length === 0 ? (
-              <li style={{ padding: "8px 12px", fontSize: 14, color: "#6D7175" }}>—</li>
-            ) : (
-              visibleOptions.map((opt, i) => (
-                <li
-                  key={opt.id}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => select(opt)}
-                  style={{
-                    cursor: "pointer",
-                    padding: "6px 12px",
-                    fontSize: 14,
-                    color: "#1A1A1A",
-                    backgroundColor: i === highlighted ? "#F2F2F2" : "transparent",
-                  }}
-                  onMouseEnter={(e) =>
-                    ((e.currentTarget as HTMLLIElement).style.backgroundColor =
-                      i === highlighted ? "#F2F2F2" : "#F7F7F7")
-                  }
-                  onMouseLeave={(e) =>
-                    ((e.currentTarget as HTMLLIElement).style.backgroundColor =
-                      i === highlighted ? "#F2F2F2" : "transparent")
-                  }
-                >
-                  {opt.label}
-                  {opt.hint && (
-                    <span
-                      style={{ marginInlineStart: 8, fontSize: 12, color: "#6D7175" }}
-                    >
-                      {opt.hint}
-                    </span>
-                  )}
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
-      )}
+      {dropdown}
     </div>
   );
 }

@@ -18,7 +18,8 @@ export function OrdersPresetPills({ active, onChange, counts }: Props) {
       role="tablist"
       aria-label={t("label")}
       style={{
-        display: "inline-flex",
+        display: "flex",
+        flexWrap: "wrap",
         gap: 4,
       }}
     >

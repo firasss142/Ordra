@@ -2,13 +2,15 @@
 
 import { memo, useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { Phone, MapPin, Package, Circle, CheckCircle2 } from "lucide-react";
+import { Phone, MapPin, Package, Check } from "lucide-react";
 import { extractAttemptNumber } from "@/lib/attempt-logic";
 import { formatDateTime, formatExactTime } from "@/lib/format";
 import { getProductAvatarColor, getProductInitial } from "@/lib/product-avatar";
 import { Button } from "@/components/ui/Button";
 import { AttemptEtiquette } from "./AttemptEtiquette";
 import { StatusGlyph } from "@/components/shared/StatusGlyph";
+import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
+import { AddressChangeNote } from "./AddressChangeNote";
 import type { QueueOrder } from "@/types/queue";
 
 interface OrderCardProps {
@@ -90,25 +92,30 @@ export const OrderCard = memo(function OrderCard({
       data-order-id={order.id}
       data-focused={focused || undefined}
       onClick={() => onOpenDetail(order.id)}
+      data-selected={isSelected || undefined}
       className={[
         "group relative cursor-pointer",
         "border-b border-line-subtle",
         "ps-6 pe-6 py-4",
         "transition-[background-color,box-shadow] duration-fast",
-        focused
-          ? "bg-surface-selected"
-          : "bg-surface-card hover:bg-surface-hover hover:shadow-hover-row",
+        isSelected
+          ? "bg-[#F0F7F4] hover:bg-[#E8F3EE]"
+          : focused
+            ? "bg-surface-selected"
+            : "bg-surface-card hover:bg-surface-hover hover:shadow-hover-row",
       ].join(" ")}
     >
-      {/* Inline-start accent bar — accent green ONLY when focused, soft on hover */}
+      {/* Inline-start accent bar — accent green when focused or selected */}
       <span
         aria-hidden="true"
         className={[
           "pointer-events-none absolute inset-y-0 start-0 w-[3px]",
           "transition-colors duration-fast",
-          focused
+          isSelected
             ? "bg-accent"
-            : "bg-transparent group-hover:bg-line-strong",
+            : focused
+              ? "bg-accent"
+              : "bg-transparent group-hover:bg-line-strong",
         ].join(" ")}
       />
 
@@ -118,8 +125,9 @@ export const OrderCard = memo(function OrderCard({
           {onToggleSelect && (
             <button
               type="button"
+              role="checkbox"
               data-checkbox
-              aria-pressed={isSelected}
+              aria-checked={isSelected}
               aria-label={t("selectOrder")}
               onClick={(e) => {
                 e.stopPropagation();
@@ -127,16 +135,16 @@ export const OrderCard = memo(function OrderCard({
               }}
               className={[
                 "shrink-0 inline-flex items-center justify-center",
-                "transition-opacity duration-fast",
+                "h-[18px] w-[18px] rounded-[4px] border",
+                "transition-all duration-fast",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-1",
                 isSelected
-                  ? "opacity-100"
-                  : "opacity-30 group-hover:opacity-100",
+                  ? "bg-accent border-accent opacity-100"
+                  : "bg-surface-card border-line-strong opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:border-ink-primary [[data-has-selection]_&]:opacity-100",
               ].join(" ")}
             >
-              {isSelected ? (
-                <CheckCircle2 size={18} className="text-ink-primary" strokeWidth={2} />
-              ) : (
-                <Circle size={18} className="text-line-strong" strokeWidth={2} />
+              {isSelected && (
+                <Check size={12} strokeWidth={3} className="text-white" aria-hidden="true" />
               )}
             </button>
           )}
@@ -150,6 +158,17 @@ export const OrderCard = memo(function OrderCard({
           <span className="text-[15px] font-semibold text-ink-primary truncate">
             {order.customer_name}
           </span>
+          {order.repeat_kind !== "none" && (
+            <RepeatBuyerBadge
+              source="order"
+              sourceId={order.id}
+              repeatKind={order.repeat_kind}
+              priorOrderCount={order.prior_order_count}
+              priorLeadCount={order.prior_lead_count}
+              priorRejectedCount={order.prior_rejected_count}
+              customerPhone={order.customer_phone}
+            />
+          )}
           {isAttemptOrCallback(order.status) ? (
             <AttemptEtiquette
               status={order.status}
@@ -185,7 +204,7 @@ export const OrderCard = memo(function OrderCard({
         style={{
           gridTemplateColumns:
             "minmax(140px, auto) minmax(0, auto) minmax(0, 1fr) auto",
-          marginBottom: showRow3 ? 8 : 0,
+          marginBottom: 0,
         }}
       >
         <a
@@ -226,6 +245,15 @@ export const OrderCard = memo(function OrderCard({
           </span>
         </span>
       </div>
+
+      {order.last_known_address && (
+        <div className={showRow3 ? "mt-1 mb-2" : "mt-1"}>
+          <AddressChangeNote
+            currentAddress={order.customer_address}
+            lastKnownAddress={order.last_known_address}
+          />
+        </div>
+      )}
 
       {/* Row 3 — conditional supporting metadata + Call ended button */}
       {showRow3 && (

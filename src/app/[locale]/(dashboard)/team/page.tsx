@@ -2,8 +2,12 @@ import { getTranslations } from "next-intl/server";
 import { getServerUser } from "@/lib/auth/server-user";
 import { TeamWorkspace } from "@/components/team/TeamWorkspace";
 
-export default async function TeamPage() {
-  const t = await getTranslations("teamPerf");
+export default async function TeamPage({
+  params,
+}: {
+  params: { locale: string };
+}) {
+  const t = await getTranslations({ locale: params.locale, namespace: "teamPerf" });
   const user = await getServerUser();
 
   return (

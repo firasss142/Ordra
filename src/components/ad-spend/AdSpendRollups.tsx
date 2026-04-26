@@ -46,7 +46,7 @@ export function AdSpendRollups({
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+        gridTemplateColumns: "repeat(auto-fill, minmax(min(160px, 100%), 1fr))",
         gap: 16,
       }}
     >
@@ -94,7 +94,7 @@ export function AdSpendRollups({
           <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
             <span
               style={{
-                fontSize: 32,
+                fontSize: "clamp(22px, 5vw, 32px)",
                 fontWeight: 700,
                 color: D.white,
                 fontVariantNumeric: "tabular-nums",

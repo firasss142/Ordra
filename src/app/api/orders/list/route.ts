@@ -7,9 +7,11 @@ import {
   encodeCursor,
   listQuerySchema,
 } from "@/lib/orders/list-filters";
+import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 
 const LIST_SELECT =
-  "id, external_id, market_id, customer_name, customer_phone, customer_city, " +
+  "id, external_id, market_id, customer_name, customer_phone, customer_phone_2, " +
+  "customer_address, customer_city, " +
   "product_id, product_name, variant_label, quantity, total_price, status, " +
   "assigned_to, carrier_id, rejection_reason, callback_scheduled_at, " +
   "created_at, updated_at";
@@ -150,9 +152,33 @@ export async function GET(req: NextRequest) {
       ? encodeCursor({ createdAt: last.created_at, id: last.id })
       : null;
 
+  // Enrich with repeat-buyer signals. Group rows by market so the batch RPC
+  // can scope per-market (super_admin lists may span multiple markets).
+  const byMarket = new Map<string, typeof page>();
+  for (const row of page) {
+    const mid = row.market_id as string;
+    if (!byMarket.has(mid)) byMarket.set(mid, []);
+    byMarket.get(mid)!.push(row);
+  }
+  const enrichedById = new Map<string, Record<string, unknown>>();
+  await Promise.all(
+    Array.from(byMarket.entries()).map(async ([mid, group]) => {
+      const enriched = await enrichRowsWithCustomerHistory(
+        supabase,
+        mid,
+        "order",
+        group as unknown as Array<{ id: string } & Record<string, unknown>>,
+      );
+      for (const r of enriched) enrichedById.set(r.id, r);
+    }),
+  );
+  const enrichedPage = page.map(
+    (r) => enrichedById.get(r.id) ?? r,
+  );
+
   return NextResponse.json(
     {
-      rows: page,
+      rows: enrichedPage,
       nextCursor,
     },
     {

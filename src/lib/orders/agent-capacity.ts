@@ -9,15 +9,17 @@ import type { AvailableAgent } from "./auto-assignment-types";
  */
 export async function fetchAgentCapacity(
   adminClient: SupabaseClient,
-  marketId: string
+  marketId: string | null
 ): Promise<AvailableAgent[]> {
-  const { data: agentRows } = await adminClient
+  let q = adminClient
     .from("users")
     .select("id")
     .eq("role", "agent")
-    .eq("market_id", marketId)
-    .eq("is_active", true)
-    .order("id");
+    .eq("is_active", true);
+  if (marketId) {
+    q = q.eq("market_id", marketId);
+  }
+  const { data: agentRows } = await q.order("id");
 
   if (!agentRows || agentRows.length === 0) return [];
 

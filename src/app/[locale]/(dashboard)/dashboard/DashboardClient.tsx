@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import { HeroKpiStrip } from "@/components/dashboard/HeroKpiStrip";
@@ -37,6 +38,7 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
   const tPipe = useTranslations("dashboard.pipeline");
   const pathname = usePathname();
   const locale = pathname.split("/")[1] ?? "fr";
+  const isMobile = useIsMobile();
   const isSuperAdmin = canViewProfitability(user.role);
   const role: "super_admin" | "market_manager" = isSuperAdmin ? "super_admin" : "market_manager";
 
@@ -150,12 +152,12 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
   return (
     <div
       style={{
-        padding: "32px 32px 64px",
+        padding: isMobile ? "64px 16px 48px" : "32px 32px 64px",
         background: "#F6F6F7",
         minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
-        gap: 24,
+        gap: isMobile ? 16 : 24,
       }}
     >
       <div>
@@ -241,7 +243,7 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
         }}
       />
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(0, 1fr)", gap: 16 }}>
         <Panel title={t("sections.pipeline")}>
           <HorizontalBars rows={pipelineRows} color="#2C6ECB" compact />
         </Panel>
@@ -258,7 +260,7 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
         />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(0, 1fr)", gap: 16 }}>
         <TopPerformingProducts
           products={summary.topProducts}
           title={t("sections.topProducts")}

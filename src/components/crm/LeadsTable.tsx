@@ -105,10 +105,10 @@ export function LeadsTable({
           background: "#fff",
           border: "1px solid #E1E3E5",
           borderRadius: 8,
-          overflow: "hidden",
+          overflowX: "auto",
         }}
       >
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
           <thead>
             <tr>
               <th style={thStyle}>{t("columns.customer") || "Client"}</th>

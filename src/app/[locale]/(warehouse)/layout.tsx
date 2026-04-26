@@ -1,8 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { Package, PackageOpen, History } from "lucide-react";
+import { Package, PackageOpen, History, Menu } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { WarehouseTabBar, type WarehouseTab } from "@/components/warehouse/shell/WarehouseTabBar";
@@ -41,7 +42,7 @@ function WarehouseTabsBand({
 }) {
   const tabs = useWarehouseTabs(locale);
   return (
-    <div className="border-b border-line-subtle bg-surface-card px-8">
+    <div className="border-b border-line-subtle bg-surface-card px-4 sm:px-6 lg:px-8">
       <WarehouseTabBar tabs={tabs} direction={direction} />
     </div>
   );
@@ -63,6 +64,7 @@ export default function WarehouseLayout({
   const isAgent = user.role === "warehouse_agent";
 
   if (isAgent) {
+    // Warehouse agents use Topbar without a sidebar drawer (no nav menu).
     return (
       <div className="min-h-screen bg-surface-page" style={{ direction }}>
         <Topbar user={user} marketName="" />
@@ -73,10 +75,63 @@ export default function WarehouseLayout({
   }
 
   return (
+    <WarehouseManagerShell user={user} pathname={pathname} direction={direction}>
+      <WarehouseTabsBand locale={user.locale} direction={direction} />
+      {children}
+    </WarehouseManagerShell>
+  );
+}
+
+function WarehouseManagerShell({
+  user,
+  pathname,
+  direction,
+  children,
+}: {
+  user: ReturnType<typeof useAuth>["user"];
+  pathname: string;
+  direction: "ltr" | "rtl";
+  children: React.ReactNode;
+}) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const handleClose = useCallback(() => setMobileOpen(false), []);
+  const handleOpen = useCallback(() => setMobileOpen(true), []);
+  if (!user) return null;
+  return (
     <div className="flex min-h-screen bg-surface-page" style={{ direction }}>
-      <Sidebar user={user} currentPath={pathname} />
-      <main id="main-content" className="flex-1 ms-[240px] min-h-screen bg-surface-page">
-        <WarehouseTabsBand locale={user.locale} direction={direction} />
+      <Sidebar
+        user={user}
+        currentPath={pathname}
+        mobileOpen={mobileOpen}
+        onMobileClose={handleClose}
+      />
+      <button
+        type="button"
+        onClick={handleOpen}
+        aria-label="Menu"
+        className="inline-flex md:!hidden items-center justify-center"
+        style={{
+          position: "fixed",
+          top: 12,
+          insetInlineStart: 12,
+          zIndex: 40,
+          width: 40,
+          height: 40,
+          borderRadius: 8,
+          border: "1px solid var(--border)",
+          background: "var(--bg-card)",
+          color: "var(--text-primary)",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+          cursor: "pointer",
+        }}
+      >
+        <Menu size={20} aria-hidden="true" />
+      </button>
+      <main
+        id="main-content"
+        className="flex-1 md:ms-[240px] min-h-screen bg-surface-page pt-14 md:pt-0"
+        style={{ minWidth: 0 }}
+      >
         {children}
       </main>
     </div>

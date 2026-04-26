@@ -1,20 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import dynamic from "next/dynamic";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useTranslations } from "next-intl";
 import type { TtfcDistribution as TtfcDistributionData } from "@/lib/confirmation-flow/aggregations";
 import type { AgentMetrics } from "@/lib/confirmation-flow/aggregations";
-
-const BarChart = dynamic(() => import("recharts").then((m) => m.BarChart), { ssr: false });
-const Bar = dynamic(() => import("recharts").then((m) => m.Bar), { ssr: false });
-const XAxis = dynamic(() => import("recharts").then((m) => m.XAxis), { ssr: false });
-const YAxis = dynamic(() => import("recharts").then((m) => m.YAxis), { ssr: false });
-const Tooltip = dynamic(() => import("recharts").then((m) => m.Tooltip), { ssr: false });
-const ResponsiveContainer = dynamic(
-  () => import("recharts").then((m) => m.ResponsiveContainer),
-  { ssr: false }
-);
 
 interface TtfcDistributionProps {
   distribution: TtfcDistributionData;

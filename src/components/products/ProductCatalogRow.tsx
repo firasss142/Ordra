@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { MoreHorizontal } from "lucide-react";
 import { getProductHealth, isLowStock, type ProductHealth } from "@/lib/product-calculations";
 import type { BulkProductMetrics } from "@/app/api/products/profitability-bulk/route";
 import type { ProductFilterMode } from "./ProductsFilterBar";
@@ -39,14 +40,16 @@ interface ProductCatalogRowProps {
   canToggleActive: boolean;
 }
 
-const TEXT = "#1A1A1A";
-const MUTED = "#6D7175";
-const BORDER = "#E1E3E5";
-
 const HEALTH_TO_LABEL_KEY: Record<ProductHealth, "green" | "yellow" | "red"> = {
   green: "green",
   amber: "yellow",
   red: "red",
+};
+
+const HEALTH_STRIP_BG: Record<ProductHealth, string> = {
+  green: "#008060",
+  amber: "#B98900",
+  red: "#D72C0D",
 };
 
 function RowActionsMenu({
@@ -76,37 +79,18 @@ function RowActionsMenu({
   }, [open]);
 
   return (
-    <div ref={ref} style={{ position: "relative" }}>
+    <div ref={ref} className="relative">
       <button
         type="button"
         aria-label="Actions"
         onClick={() => setOpen((o) => !o)}
-        style={{
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          fontSize: 18,
-          color: MUTED,
-          padding: "4px 8px",
-          borderRadius: 4,
-        }}
+        className="flex h-8 w-8 items-center justify-center rounded-md text-ink-secondary transition-colors duration-fast hover:bg-surface-selected hover:text-ink-primary"
       >
-        ⋯
+        <MoreHorizontal size={16} strokeWidth={2} />
       </button>
       {open && (
         <div
-          style={{
-            position: "absolute",
-            insetInlineEnd: 0,
-            top: "calc(100% + 4px)",
-            background: "#FFFFFF",
-            border: `1px solid ${BORDER}`,
-            borderRadius: 8,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            minWidth: 160,
-            zIndex: 20,
-            padding: 4,
-          }}
+          className="absolute end-0 top-[calc(100%+4px)] z-20 min-w-[180px] rounded-card border border-line bg-surface-card p-1 shadow-floating"
         >
           <MenuOption
             label={t("edit")}
@@ -116,7 +100,10 @@ function RowActionsMenu({
           {canManage && (
             <MenuOption
               label={t("adjustStock")}
-              onClick={() => { onAdjustStock(productId, productName); setOpen(false); }}
+              onClick={() => {
+                onAdjustStock(productId, productName);
+                setOpen(false);
+              }}
             />
           )}
         </div>
@@ -134,29 +121,17 @@ function MenuOption({
   href?: string;
   onClick: () => void;
 }) {
-  const style: React.CSSProperties = {
-    display: "block",
-    width: "100%",
-    textAlign: "start",
-    padding: "8px 10px",
-    border: "none",
-    borderRadius: 6,
-    background: "transparent",
-    color: TEXT,
-    fontSize: 13,
-    fontWeight: 500,
-    cursor: "pointer",
-    textDecoration: "none",
-  };
+  const className =
+    "block w-full rounded-md px-3 py-2 text-start text-[13px] font-medium text-ink-primary no-underline hover:bg-surface-hover";
   if (href) {
     return (
-      <Link href={href} onClick={onClick} style={style}>
+      <Link href={href} onClick={onClick} className={className}>
         {label}
       </Link>
     );
   }
   return (
-    <button type="button" onClick={onClick} style={style}>
+    <button type="button" onClick={onClick} className={className}>
       {label}
     </button>
   );
@@ -178,8 +153,6 @@ export function ProductCatalogRow({
 }: ProductCatalogRowProps) {
   const t = useTranslations("products");
   const [thresholdEdit, setThresholdEdit] = useState(String(product.low_stock_threshold));
-  const [menuOpen] = useState(false);
-  void menuOpen;
 
   const health = getProductHealth({
     isActive: product.is_active,
@@ -194,149 +167,194 @@ export function ProductCatalogRow({
   const fmtNum = (n: number) =>
     new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
+  const hasMetrics = mode === "performance" && metrics && metrics.total_leads > 0;
+
   return (
     <div
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 12,
-        padding: "12px 16px",
-        borderBottom: `1px solid ${BORDER}`,
-        background: "#FFFFFF",
-      }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = "#F7F7F7"; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = "#FFFFFF"; }}
+      className={`group relative flex min-h-[68px] items-stretch border-b border-line-subtle transition-colors duration-fast ${
+        isSelected ? "bg-surface-selected" : "bg-surface-card hover:bg-surface-hover"
+      }`}
     >
-      {/* Checkbox */}
-      <input
-        type="checkbox"
-        aria-label="Sélectionner"
-        checked={isSelected}
-        onChange={() => onSelect(product.id)}
-        style={{ marginTop: 3, cursor: "pointer", flexShrink: 0 }}
+      {/* Health accent strip */}
+      <span
+        aria-hidden
+        className="w-[3px] flex-shrink-0"
+        style={{ backgroundColor: HEALTH_STRIP_BG[health] }}
       />
 
-      {/* Health dot */}
-      <div style={{ marginTop: 3, flexShrink: 0 }}>
-        <HealthDot health={health} label={healthLabel} />
+      {/* Checkbox */}
+      <div className="flex w-12 flex-shrink-0 items-center justify-center">
+        <input
+          type="checkbox"
+          aria-label="Sélectionner"
+          checked={isSelected}
+          onChange={() => onSelect(product.id)}
+          className="h-4 w-4 cursor-pointer accent-ink-primary"
+        />
       </div>
 
-      {/* Main content */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Row 1: name + stock indicators */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+      {/* Product name + chips */}
+      <div className="flex min-w-0 flex-[2] flex-col justify-center gap-1 py-3 pe-4">
+        <div className="flex items-center gap-2">
+          <HealthDot health={health} label={healthLabel} />
           <Link
             href={`/${locale}/products/${product.id}`}
-            style={{ fontSize: 14, fontWeight: 600, color: TEXT, textDecoration: "none" }}
+            className="truncate text-[14px] font-semibold text-ink-primary no-underline hover:underline"
           >
             {product.name}
           </Link>
-
-          {/* Stock */}
-          <span style={{ fontSize: 13, color: lowStock ? "#D72C0D" : MUTED }}>
-            {product.current_stock}
+        </div>
+        {(product.variant_count > 0 || lowStock) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {product.variant_count > 0 && (
+              <Link
+                href={`/${locale}/products/${product.id}`}
+                className="inline-flex items-center rounded-md border border-line-subtle bg-surface-page px-1.5 py-0.5 text-[11px] font-medium text-ink-secondary no-underline transition-colors duration-fast hover:border-line-strong"
+              >
+                {t("row.variants", { count: product.variant_count })}
+              </Link>
+            )}
             {lowStock && (
-              <span aria-label={t("lowStock")} style={{ marginInlineStart: 4, fontSize: 11, fontWeight: 600, color: "#D72C0D" }}>
+              <span
+                aria-label={t("lowStock")}
+                className="inline-flex items-center rounded-pill bg-status-criticalBg px-2 py-0.5 text-[11px] font-medium text-status-critical"
+              >
                 {t("lowStock")}
               </span>
             )}
-            {" / "}
-            {mode === "catalogue" && canManage ? (
-              <input
-                type="number"
-                aria-label={t("row.editThreshold")}
-                value={thresholdEdit}
-                onChange={(e) => setThresholdEdit(e.target.value)}
-                onBlur={() => {
-                  const v = parseInt(thresholdEdit, 10);
-                  if (!isNaN(v) && v >= 0) onThresholdSave(product.id, v);
-                }}
-                style={{
-                  width: 48,
-                  fontSize: 13,
-                  border: `1px solid ${BORDER}`,
-                  borderRadius: 4,
-                  padding: "1px 4px",
-                  color: TEXT,
-                }}
-              />
-            ) : (
-              <span style={{ color: MUTED }}>{product.low_stock_threshold}</span>
-            )}
+          </div>
+        )}
+      </div>
+
+      {/* Stock cell */}
+      <div className="flex w-[160px] flex-shrink-0 flex-col justify-center gap-0.5 py-3 pe-4">
+        <div className="flex items-baseline gap-1 tabular-nums">
+          <span className={`text-[15px] font-semibold ${lowStock ? "text-status-critical" : "text-ink-primary"}`}>
+            {product.current_stock}
           </span>
-
-          {/* Variants badge */}
-          {product.variant_count > 0 && (
-            <Link
-              href={`/${locale}/products/${product.id}`}
-              style={{ fontSize: 12, color: MUTED, textDecoration: "none", border: `1px solid ${BORDER}`, borderRadius: 4, padding: "2px 6px" }}
-            >
-              {t("row.variants", { count: product.variant_count })}
-            </Link>
+          <span className="text-[12px] text-ink-secondary">/</span>
+          {mode === "catalogue" && canManage ? (
+            <input
+              type="number"
+              aria-label={t("row.editThreshold")}
+              value={thresholdEdit}
+              onChange={(e) => setThresholdEdit(e.target.value)}
+              onBlur={() => {
+                const v = parseInt(thresholdEdit, 10);
+                if (!isNaN(v) && v >= 0) onThresholdSave(product.id, v);
+              }}
+              className="w-12 rounded-md border border-line bg-surface-card px-1.5 py-0.5 text-[12px] tabular-nums text-ink-primary"
+            />
+          ) : (
+            <span className="text-[12px] tabular-nums text-ink-secondary">{product.low_stock_threshold}</span>
           )}
+        </div>
+        <span className="text-[11px] uppercase tracking-[0.04em] text-ink-secondary">{t("table.stock")}</span>
+      </div>
 
-          {/* Active toggle */}
-          {canToggleActive && (
-            <label style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+      {/* Metrics or cost cell */}
+      <div className="flex flex-[3] flex-col justify-center gap-1 py-3 pe-4">
+        {hasMetrics && metrics ? (
+          <>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className="text-[12px] text-ink-secondary">
+                {t("metrics.confirmationRate")}{" "}
+                <strong className="tabular-nums text-ink-primary">{metrics.confirmation_rate}%</strong>
+              </span>
+              <span className="text-[12px] text-ink-secondary">
+                {t("metrics.deliveryRate")}{" "}
+                <strong className="tabular-nums text-ink-primary">{metrics.delivery_rate}%</strong>
+              </span>
+              <span className="text-[12px] text-ink-secondary">
+                {t("metrics.returnRate")}{" "}
+                <strong className="tabular-nums text-ink-primary">{metrics.return_rate}%</strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-[12px] text-ink-secondary">
+              <span>{t("metrics.margin")}</span>
+              <MarginBar marginPct={metrics.margin_pct} />
+            </div>
+          </>
+        ) : mode === "performance" ? (
+          <span className="text-[12px] italic text-ink-secondary">{t("metrics.noData")}</span>
+        ) : (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span className="text-[12px] text-ink-secondary">
+              COGS{" "}
+              <strong className="tabular-nums text-ink-primary">
+                {fmtNum(product.unit_cogs)} {currency}
+              </strong>
+            </span>
+            <span className="text-[12px] text-ink-secondary">
+              Emb.{" "}
+              <strong className="tabular-nums text-ink-primary">
+                {fmtNum(product.packing_cost)} {currency}
+              </strong>
+            </span>
+            <span className="text-[12px] text-ink-secondary">
+              CPL{" "}
+              <strong className="tabular-nums text-ink-primary">
+                {fmtNum(product.cpl)} {currency}
+              </strong>
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Status toggle */}
+      <div className="flex w-[112px] flex-shrink-0 items-center justify-start py-3 pe-4">
+        {canToggleActive ? (
+          <label className="inline-flex cursor-pointer items-center gap-2">
+            <span
+              className={`relative inline-block h-[18px] w-[30px] rounded-pill transition-colors duration-fast ${
+                product.is_active ? "bg-status-success" : "bg-line-strong"
+              }`}
+            >
               <input
                 type="checkbox"
                 role="checkbox"
                 aria-label="Statut actif"
                 checked={product.is_active}
                 onChange={() => onToggleActive(product.id)}
-                style={{ cursor: "pointer" }}
+                className="sr-only"
               />
-              <span style={{ fontSize: 12, color: product.is_active ? "#008060" : MUTED }}>
-                {product.is_active ? t("activate") : t("deactivate")}
-              </span>
-            </label>
-          )}
-        </div>
-
-        {/* Row 2: metrics or cost info */}
-        <div style={{ marginTop: 4, display: "flex", gap: 16, flexWrap: "wrap" }}>
-          {mode === "performance" && metrics && metrics.total_leads > 0 ? (
-            <>
-              <span style={{ fontSize: 12, color: MUTED }}>
-                {t("metrics.confirmationRate")} <strong style={{ color: TEXT }}>{metrics.confirmation_rate}%</strong>
-              </span>
-              <span style={{ fontSize: 12, color: MUTED }}>
-                {t("metrics.deliveryRate")} <strong style={{ color: TEXT }}>{metrics.delivery_rate}%</strong>
-              </span>
-              <span style={{ fontSize: 12, color: MUTED }}>
-                {t("metrics.returnRate")} <strong style={{ color: TEXT }}>{metrics.return_rate}%</strong>
-              </span>
-              <span style={{ fontSize: 12, color: MUTED, display: "inline-flex", alignItems: "center", gap: 6 }}>
-                {t("metrics.margin")}
-                <MarginBar marginPct={metrics.margin_pct} />
-              </span>
-            </>
-          ) : mode === "performance" ? (
-            <span style={{ fontSize: 12, color: MUTED }}>{t("metrics.noData")}</span>
-          ) : (
-            <>
-              <span style={{ fontSize: 12, color: MUTED }}>
-                COGS <strong style={{ color: TEXT }}>{fmtNum(product.unit_cogs)} {currency}</strong>
-              </span>
-              <span style={{ fontSize: 12, color: MUTED }}>
-                Emb. <strong style={{ color: TEXT }}>{fmtNum(product.packing_cost)} {currency}</strong>
-              </span>
-              <span style={{ fontSize: 12, color: MUTED }}>
-                CPL <strong style={{ color: TEXT }}>{fmtNum(product.cpl)} {currency}</strong>
-              </span>
-            </>
-          )}
-        </div>
+              <span
+                className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow-sm transition-all duration-fast ${
+                  product.is_active ? "start-[14px]" : "start-[2px]"
+                }`}
+              />
+            </span>
+            <span
+              className={`text-[12px] font-medium ${
+                product.is_active ? "text-status-success" : "text-ink-secondary"
+              }`}
+            >
+              {product.is_active ? t("activate") : t("deactivate")}
+            </span>
+          </label>
+        ) : (
+          <span
+            className={`inline-flex items-center rounded-pill px-2 py-0.5 text-[11px] font-medium ${
+              product.is_active
+                ? "bg-status-successBg text-status-success"
+                : "bg-status-neutralBg text-ink-secondary"
+            }`}
+          >
+            {product.is_active ? t("activate") : t("deactivate")}
+          </span>
+        )}
       </div>
 
-      {/* Row actions menu */}
-      <RowActionsMenu
-        productId={product.id}
-        productName={product.name}
-        locale={locale}
-        canManage={canManage}
-        onAdjustStock={onAdjustStock}
-      />
+      {/* Actions */}
+      <div className="flex w-12 flex-shrink-0 items-center justify-center pe-2">
+        <RowActionsMenu
+          productId={product.id}
+          productName={product.name}
+          locale={locale}
+          canManage={canManage}
+          onAdjustStock={onAdjustStock}
+        />
+      </div>
     </div>
   );
 }

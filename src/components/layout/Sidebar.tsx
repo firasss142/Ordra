@@ -48,6 +48,10 @@ interface SidebarProps {
   /** Optional override; normally resolved from usePathname() */
   currentPath?: string;
   unassignedCount?: number;
+  /** When true on mobile (<768px), the drawer is open; otherwise it slides off-canvas. Desktop ignores this. */
+  mobileOpen?: boolean;
+  /** Called when user dismisses the drawer (backdrop click, Escape, or nav click on mobile). */
+  onMobileClose?: () => void;
 }
 
 type NavSectionId =
@@ -257,7 +261,7 @@ function findActiveSectionId(
   return bestId;
 }
 
-export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
+export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false, onMobileClose }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const rawSearchParams = useSearchParams();
@@ -322,6 +326,15 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
     };
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (!mobileOpen || !onMobileClose) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onMobileClose();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [mobileOpen, onMobileClose]);
+
   const isRtl = user.direction === "rtl";
   const marketParam = user.market_id ? `?market_id=${user.market_id}` : "";
 
@@ -370,8 +383,17 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
   };
 
   return (
-    <nav
-      className="sidebar-scroll"
+    <>
+      {mobileOpen && (
+        <div
+          className="sidebar-mobile-backdrop"
+          aria-hidden="true"
+          onClick={onMobileClose}
+        />
+      )}
+      <nav
+      className="sidebar-scroll sidebar-mobile-drawer"
+      data-mobile-open={mobileOpen ? "true" : "false"}
       style={{
         width: "248px",
         minWidth: "248px",
@@ -686,6 +708,7 @@ export function Sidebar({ user, currentPath, unassignedCount }: SidebarProps) {
         )}
       </div>
     </nav>
+    </>
   );
 }
 

@@ -124,7 +124,7 @@ export function ProductsFilterBar({
           <Divider />
 
           {/* Search */}
-          <div style={{ position: "relative", flex: "1 1 220px", minWidth: 180, maxWidth: 320 }}>
+          <div style={{ position: "relative", flex: "1 1 200px", minWidth: 140, maxWidth: 320 }}>
             <Search
               size={13}
               strokeWidth={1.75}
@@ -364,6 +364,7 @@ function ModeSegmented({
         borderRadius: 8,
         padding: 2,
         gap: 2,
+        border: `1px solid ${BORDER}`,
       }}
     >
       {modes.map((m) => {

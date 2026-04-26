@@ -121,36 +121,26 @@ export function LeadsFilterBar({
         gap: 8,
       }}
     >
-      {/* Top row: market + bucket segmented + view + actions */}
+      {/* Top row: market + actions (always on one line) */}
       <div
         style={{
           display: "flex",
-          flexWrap: "wrap",
           alignItems: "center",
-          gap: 10,
+          gap: 8,
           justifyContent: "space-between",
+          flexWrap: "wrap",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <MarketChip
-            markets={markets}
-            selected={selectedMarketId}
-            onChange={onMarketChange}
-            locked={lockMarket}
-            lockedLabel={lockedMarketLabel}
-            allLabel={t("allMarkets")}
-          />
+        <MarketChip
+          markets={markets}
+          selected={selectedMarketId}
+          onChange={onMarketChange}
+          locked={lockMarket}
+          lockedLabel={lockedMarketLabel}
+          allLabel={t("allMarkets")}
+        />
 
-          <Divider />
-
-          <BucketSegmented
-            options={bucketOptions}
-            active={bucket}
-            onSelect={onBucketChange}
-          />
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginInlineStart: "auto" }}>
           {view !== undefined && onViewChange && (
             <ViewToggle
               view={view}
@@ -182,12 +172,22 @@ export function LeadsFilterBar({
               color: "#FFFFFF",
               cursor: "pointer",
               fontFamily: "inherit",
+              whiteSpace: "nowrap",
             }}
           >
             <Plus size={14} strokeWidth={2} />
             {t("newLead")}
           </button>
         </div>
+      </div>
+
+      {/* Bucket tabs row — scrollable on small screens */}
+      <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+        <BucketSegmented
+          options={bucketOptions}
+          active={bucket}
+          onSelect={onBucketChange}
+        />
       </div>
 
       {/* Second row: inline filter chips */}
@@ -562,6 +562,7 @@ function BucketSegmented({
         borderRadius: 8,
         padding: 2,
         gap: 2,
+        border: `1px solid ${BORDER}`,
       }}
     >
       {options.map((o) => {
@@ -749,6 +750,7 @@ function ViewToggle({
         borderRadius: 8,
         padding: 2,
         gap: 2,
+        border: `1px solid ${BORDER}`,
       }}
     >
       {items.map((it) => {

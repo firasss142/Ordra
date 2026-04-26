@@ -375,7 +375,7 @@ export function CarriersSection({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(min(340px, 100%), 1fr))",
             gap: 16,
           }}
         >
@@ -598,11 +598,11 @@ export function CarriersSection({
               style={{
                 position: "fixed",
                 top: 0,
-                right: 0,
+                insetInlineEnd: 0,
                 bottom: 0,
-                width: 460,
+                width: "min(460px, 100vw)",
                 backgroundColor: "white",
-                borderLeft: "1px solid #E1E3E5",
+                borderInlineStart: "1px solid #E1E3E5",
                 zIndex: 50,
                 display: "flex",
                 flexDirection: "column",
@@ -850,11 +850,11 @@ function OnboardingPanel({
         style={{
           position: "fixed",
           top: 0,
-          right: 0,
+          insetInlineEnd: 0,
           bottom: 0,
-          width: 460,
+          width: "min(460px, 100vw)",
           backgroundColor: "white",
-          borderLeft: "1px solid #E1E3E5",
+          borderInlineStart: "1px solid #E1E3E5",
           zIndex: 50,
           display: "flex",
           flexDirection: "column",

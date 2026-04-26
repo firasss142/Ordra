@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import {
@@ -56,6 +57,7 @@ interface Agent {
 
 export function AlertsClient({ user }: { user: AuthUser }) {
   const t = useTranslations("alerts");
+  const isMobile = useIsMobile();
   const marketId = user.role === "super_admin" ? undefined : user.market_id ?? undefined;
 
   const { alerts, summary, totalCount, bySeverity, byType, isLoading, error, mutate } = useAlerts({
@@ -195,7 +197,7 @@ export function AlertsClient({ user }: { user: AuthUser }) {
       style={{
         backgroundColor: "#F6F6F7",
         minHeight: "100vh",
-        padding: "32px 32px 64px",
+        padding: isMobile ? "64px 16px 48px" : "32px 32px 64px",
       }}
     >
       {/* Header */}
@@ -243,58 +245,76 @@ export function AlertsClient({ user }: { user: AuthUser }) {
         </div>
       </header>
 
-      {/* Severity summary strip */}
+      {/* Filter bar — matches dashboard FilterBar design */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 12,
+          background: "#FFFFFF",
+          border: "1px solid #E1E3E5",
+          borderRadius: 10,
+          padding: "10px 12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
           marginBottom: 16,
         }}
       >
-        {SEVERITY_ORDER.map((sev) => (
-          <SeverityTile
-            key={sev}
-            severity={sev}
-            count={bySeverity?.[sev] ?? 0}
-            active={severityFilter === sev}
-            onClick={() =>
-              setSeverityFilter((prev) => (prev === sev ? "all" : sev))
-            }
-            label={t(`severity.${sev}`)}
-          />
-        ))}
-      </div>
-
-      {/* Type chips */}
-      {byType && (
+        {/* Severity summary strip */}
         <div
           style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 6,
-            marginBottom: 16,
+            display: "grid",
+            gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
+            gap: isMobile ? 6 : 8,
           }}
         >
-          <Chip
-            label={t("filterAllTypes")}
-            active={typeFilter === "all"}
-            onClick={() => setTypeFilter("all")}
-          />
-          {(Object.keys(byType) as AlertType[])
-            .filter((t0) => (byType[t0] ?? 0) > 0)
-            .map((t0) => (
-              <Chip
-                key={t0}
-                label={`${t(`types.${t0}.label`)} · ${byType[t0]}`}
-                active={typeFilter === t0}
-                onClick={() =>
-                  setTypeFilter((prev) => (prev === t0 ? "all" : t0))
-                }
-              />
-            ))}
+          {SEVERITY_ORDER.map((sev) => (
+            <SeverityTile
+              key={sev}
+              severity={sev}
+              count={bySeverity?.[sev] ?? 0}
+              active={severityFilter === sev}
+              onClick={() =>
+                setSeverityFilter((prev) => (prev === sev ? "all" : sev))
+              }
+              label={t(`severity.${sev}`)}
+              compact={isMobile}
+            />
+          ))}
         </div>
-      )}
+
+        {/* Type chips */}
+        {byType && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 2,
+              background: "#F6F6F7",
+              borderRadius: 8,
+              padding: 2,
+              border: "1px solid #E1E3E5",
+              alignSelf: "flex-start",
+            }}
+          >
+            <Chip
+              label={t("filterAllTypes")}
+              active={typeFilter === "all"}
+              onClick={() => setTypeFilter("all")}
+            />
+            {(Object.keys(byType) as AlertType[])
+              .filter((t0) => (byType[t0] ?? 0) > 0)
+              .map((t0) => (
+                <Chip
+                  key={t0}
+                  label={`${t(`types.${t0}.label`)} · ${byType[t0]}`}
+                  active={typeFilter === t0}
+                  onClick={() =>
+                    setTypeFilter((prev) => (prev === t0 ? "all" : t0))
+                  }
+                />
+              ))}
+          </div>
+        )}
+      </div>
 
       {/* Error banner */}
       {(error || actionError) && (
@@ -402,12 +422,14 @@ function SeverityTile({
   active,
   onClick,
   label,
+  compact,
 }: {
   severity: AlertSeverity;
   count: number;
   active: boolean;
   onClick: () => void;
   label: string;
+  compact?: boolean;
 }) {
   const colors = SEVERITY_COLORS[severity];
   return (
@@ -415,20 +437,20 @@ function SeverityTile({
       type="button"
       onClick={onClick}
       style={{
-        background: "#FFFFFF",
+        background: active ? "#F6F6F7" : "#F6F6F7",
         border: active ? `1px solid ${colors.dot}` : "1px solid #E1E3E5",
         borderRadius: 8,
-        padding: "14px 16px",
+        padding: compact ? "8px 10px" : "10px 12px",
         textAlign: "start",
         cursor: "pointer",
         display: "flex",
         flexDirection: "column",
-        gap: 6,
+        gap: compact ? 3 : 4,
         transition: "border-color 120ms ease",
       }}
       aria-pressed={active}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: compact ? 6 : 8 }}>
         <span
           aria-hidden="true"
           style={{
@@ -441,11 +463,14 @@ function SeverityTile({
         />
         <span
           style={{
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: 500,
             color: "#6D7175",
             textTransform: "uppercase",
             letterSpacing: "0.04em",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
           {label}
@@ -453,7 +478,7 @@ function SeverityTile({
       </div>
       <span
         style={{
-          fontSize: 24,
+          fontSize: compact ? 20 : 24,
           fontWeight: 700,
           color: count > 0 ? "#1A1A1A" : "#6D7175",
           fontVariantNumeric: "tabular-nums",
@@ -480,14 +505,17 @@ function Chip({
       type="button"
       onClick={onClick}
       style={{
-        border: active ? "1px solid #1A1A1A" : "1px solid #E1E3E5",
-        background: active ? "#1A1A1A" : "#FFFFFF",
-        color: active ? "#FFFFFF" : "#1A1A1A",
+        border: "none",
+        background: active ? "#FFFFFF" : "transparent",
+        color: "#1A1A1A",
         fontSize: 12,
-        fontWeight: 500,
-        padding: "5px 10px",
-        borderRadius: 9999,
+        fontWeight: active ? 600 : 500,
+        padding: "5px 12px",
+        borderRadius: 6,
         cursor: "pointer",
+        boxShadow: active ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+        fontFamily: "inherit",
+        whiteSpace: "nowrap",
       }}
     >
       {label}

@@ -144,8 +144,8 @@ export function LeadsPageClient({
 
   return (
     <div
+      className="px-4 pt-16 pb-16 md:px-8 md:pt-8"
       style={{
-        padding: "32px 32px 64px",
         background: "#F6F6F7",
         minHeight: "100vh",
         display: "flex",

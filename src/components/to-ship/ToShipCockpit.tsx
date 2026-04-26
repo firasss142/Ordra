@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { groupRowsByCity, groupRowsByProduct, summarizeScheduled } from "@/lib/to-ship/group";
 import { flagStockWarnings } from "@/lib/to-ship/stock-warning";
 import type { Grouping, ToShipRow } from "@/lib/to-ship/types";
@@ -43,6 +44,7 @@ type FeedbackKind = "success" | "error" | null;
 
 export function ToShipCockpit({ rows, carriers, currency }: Props) {
   const t = useTranslations("toShip");
+  const isMobile = useIsMobile();
   const [grouping, setGrouping] = useState<Grouping>("city");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [carrierId, setCarrierId] = useState<string>(carriers[0]?.id ?? "");
@@ -148,7 +150,7 @@ export function ToShipCockpit({ rows, carriers, currency }: Props) {
   }, [grouping, printing, selected]);
 
   return (
-    <div style={{ padding: 24, backgroundColor: D.bgPage, minHeight: "100vh" }}>
+    <div style={{ padding: isMobile ? "64px 16px 80px" : 24, backgroundColor: D.bgPage, minHeight: "100vh" }}>
       <Header
         total={shippableRows.length}
         summary={scheduledSummary}
@@ -190,6 +192,7 @@ export function ToShipCockpit({ rows, carriers, currency }: Props) {
               currency={currency}
               onToggle={toggleSelect}
               onToggleGroup={() => toggleGroup(g.rows)}
+              isMobile={isMobile}
               t={t}
             />
           ))
@@ -207,6 +210,7 @@ export function ToShipCockpit({ rows, carriers, currency }: Props) {
           onClear={clearSelection}
           dispatching={dispatching}
           printing={printing}
+          isMobile={isMobile}
           t={t}
         />
       )}
@@ -405,6 +409,7 @@ interface GroupCardProps {
   currency: string;
   onToggle: (id: string) => void;
   onToggleGroup: () => void;
+  isMobile?: boolean;
   t: ReturnType<typeof useTranslations>;
 }
 
@@ -418,6 +423,7 @@ function GroupCard({
   currency,
   onToggle,
   onToggleGroup,
+  isMobile = false,
   t,
 }: GroupCardProps) {
   const allSelected = rows.every((r) => selected.has(r.id));
@@ -458,78 +464,129 @@ function GroupCard({
         </span>
       </div>
 
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th style={thStyle} aria-hidden="true" />
-            <th style={thStyle}>{t("cols.id")}</th>
-            <th style={thStyle}>{t("cols.customer")}</th>
-            <th style={thStyle}>{t("cols.product")}</th>
-            <th style={{ ...thStyle, textAlign: "end" }}>{t("cols.qty")}</th>
-            <th style={{ ...thStyle, textAlign: "end" }}>{t("cols.total")}</th>
-            <th style={thStyle}>{t("cols.status")}</th>
-          </tr>
-        </thead>
-        <tbody>
+      {isMobile ? (
+        <div style={{ display: "flex", flexDirection: "column" }}>
           {rows.map((r) => {
             const isSelected = selected.has(r.id);
             const warn = stockFlags.get(r.id) === true;
             return (
-              <tr
+              <label
                 key={r.id}
                 style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  padding: "12px 14px",
+                  borderBottom: `1px solid ${D.border}`,
                   backgroundColor: isSelected ? "#F2F6FC" : D.bgCard,
+                  cursor: "pointer",
                 }}
               >
-                <td style={tdStyle}>
-                  <input
-                    type="checkbox"
-                    aria-label={t("selectRow", { id: r.id.slice(0, 8) })}
-                    checked={isSelected}
-                    onChange={() => onToggle(r.id)}
-                  />
-                </td>
-                <td style={{ ...tdStyle, fontFamily: "monospace" }}>
-                  {r.id.slice(0, 8).toUpperCase()}
-                </td>
-                <td style={tdStyle}>
-                  <div>{r.customer_name}</div>
-                  <div style={{ fontSize: 12, color: D.textSecondary }}>
-                    {r.customer_city ?? "—"}
+                <input
+                  type="checkbox"
+                  aria-label={t("selectRow", { id: r.id.slice(0, 8) })}
+                  checked={isSelected}
+                  onChange={() => onToggle(r.id)}
+                  style={{ marginTop: 2, flexShrink: 0 }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontFamily: "monospace", fontSize: 13, fontWeight: 600, color: D.textPrimary }}>
+                      {r.id.slice(0, 8).toUpperCase()}
+                    </span>
+                    <StatusCell row={r} warn={warn} t={t} />
                   </div>
-                </td>
-                <td style={tdStyle}>
-                  <div>{r.product_name}</div>
-                  {r.variant_label && (
-                    <div style={{ fontSize: 12, color: D.textSecondary }}>{r.variant_label}</div>
-                  )}
-                </td>
-                <td
-                  style={{
-                    ...tdStyle,
-                    textAlign: "end",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {r.quantity}
-                </td>
-                <td
-                  style={{
-                    ...tdStyle,
-                    textAlign: "end",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {r.total_price.toFixed(2)} {currency}
-                </td>
-                <td style={tdStyle}>
-                  <StatusCell row={r} warn={warn} t={t} />
-                </td>
-              </tr>
+                  <div style={{ marginTop: 4, fontSize: 13, color: D.textPrimary, fontWeight: 500 }}>
+                    {r.customer_name}
+                    {r.customer_city ? <span style={{ color: D.textSecondary, fontWeight: 400 }}> · {r.customer_city}</span> : null}
+                  </div>
+                  <div style={{ marginTop: 2, fontSize: 12, color: D.textSecondary }}>
+                    {r.product_name}
+                    {r.variant_label ? ` · ${r.variant_label}` : ""}
+                  </div>
+                  <div style={{ marginTop: 4, display: "flex", gap: 12, fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
+                    <span style={{ color: D.textSecondary }}>{t("cols.qty")}: <span style={{ color: D.textPrimary, fontWeight: 500 }}>{r.quantity}</span></span>
+                    <span style={{ color: D.textSecondary }}>{t("cols.total")}: <span style={{ color: D.textPrimary, fontWeight: 500 }}>{r.total_price.toFixed(2)} {currency}</span></span>
+                  </div>
+                </div>
+              </label>
             );
           })}
-        </tbody>
-      </table>
+        </div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th style={thStyle} aria-hidden="true" />
+              <th style={thStyle}>{t("cols.id")}</th>
+              <th style={thStyle}>{t("cols.customer")}</th>
+              <th style={thStyle}>{t("cols.product")}</th>
+              <th style={{ ...thStyle, textAlign: "end" }}>{t("cols.qty")}</th>
+              <th style={{ ...thStyle, textAlign: "end" }}>{t("cols.total")}</th>
+              <th style={thStyle}>{t("cols.status")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const isSelected = selected.has(r.id);
+              const warn = stockFlags.get(r.id) === true;
+              return (
+                <tr
+                  key={r.id}
+                  style={{
+                    backgroundColor: isSelected ? "#F2F6FC" : D.bgCard,
+                  }}
+                >
+                  <td style={tdStyle}>
+                    <input
+                      type="checkbox"
+                      aria-label={t("selectRow", { id: r.id.slice(0, 8) })}
+                      checked={isSelected}
+                      onChange={() => onToggle(r.id)}
+                    />
+                  </td>
+                  <td style={{ ...tdStyle, fontFamily: "monospace" }}>
+                    {r.id.slice(0, 8).toUpperCase()}
+                  </td>
+                  <td style={tdStyle}>
+                    <div>{r.customer_name}</div>
+                    <div style={{ fontSize: 12, color: D.textSecondary }}>
+                      {r.customer_city ?? "—"}
+                    </div>
+                  </td>
+                  <td style={tdStyle}>
+                    <div>{r.product_name}</div>
+                    {r.variant_label && (
+                      <div style={{ fontSize: 12, color: D.textSecondary }}>{r.variant_label}</div>
+                    )}
+                  </td>
+                  <td
+                    style={{
+                      ...tdStyle,
+                      textAlign: "end",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {r.quantity}
+                  </td>
+                  <td
+                    style={{
+                      ...tdStyle,
+                      textAlign: "end",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {r.total_price.toFixed(2)} {currency}
+                  </td>
+                  <td style={tdStyle}>
+                    <StatusCell row={r} warn={warn} t={t} />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
@@ -599,6 +656,7 @@ interface BulkBarProps {
   onClear: () => void;
   dispatching: boolean;
   printing: boolean;
+  isMobile?: boolean;
   t: ReturnType<typeof useTranslations>;
 }
 
@@ -612,6 +670,7 @@ function BulkBar({
   onClear,
   dispatching,
   printing,
+  isMobile = false,
   t,
 }: BulkBarProps) {
   return (
@@ -620,90 +679,118 @@ function BulkBar({
       aria-label={t("bulkBar.label")}
       style={{
         position: "fixed",
-        insetInlineStart: 240,
+        insetInlineStart: isMobile ? 0 : 240,
         insetInlineEnd: 0,
         bottom: 0,
         backgroundColor: D.textPrimary,
         color: "#FFFFFF",
-        padding: "12px 24px",
+        padding: isMobile ? "10px 16px" : "12px 24px",
         display: "flex",
-        alignItems: "center",
-        gap: 12,
+        flexDirection: isMobile ? "column" : "row",
+        alignItems: isMobile ? "stretch" : "center",
+        gap: isMobile ? 8 : 12,
         zIndex: 20,
       }}
     >
-      <span style={{ fontSize: 13, fontWeight: 500 }}>
-        {t("bulkBar.selected", { count })}
-      </span>
-      <select
-        aria-label={t("bulkBar.carrierLabel")}
-        value={carrierId}
-        onChange={(e) => onCarrierChange(e.target.value)}
-        style={{
-          padding: "6px 8px",
-          borderRadius: 4,
-          border: "1px solid #444",
-          backgroundColor: "#2A2A2A",
-          color: "#FFFFFF",
-          fontSize: 13,
-        }}
-      >
-        {carriers.length === 0 && <option value="">{t("bulkBar.noCarriers")}</option>}
-        {carriers.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.label}
-          </option>
-        ))}
-      </select>
-      <button
-        type="button"
-        onClick={onDispatch}
-        disabled={!carrierId || dispatching}
-        style={{
-          all: "unset",
-          padding: "8px 14px",
-          backgroundColor: dispatching || !carrierId ? "#444" : "#FFFFFF",
-          color: dispatching || !carrierId ? "#9CA3AF" : D.textPrimary,
-          fontSize: 13,
-          fontWeight: 500,
-          borderRadius: 4,
-          cursor: dispatching || !carrierId ? "not-allowed" : "pointer",
-        }}
-      >
-        {dispatching ? t("bulkBar.dispatching") : t("bulkBar.dispatch")}
-      </button>
-      <button
-        type="button"
-        onClick={onPrint}
-        disabled={printing}
-        style={{
-          all: "unset",
-          padding: "8px 14px",
-          backgroundColor: "transparent",
-          color: "#FFFFFF",
-          fontSize: 13,
-          fontWeight: 500,
-          border: "1px solid #444",
-          borderRadius: 4,
-          cursor: printing ? "not-allowed" : "pointer",
-        }}
-      >
-        {printing ? t("bulkBar.printing") : t("bulkBar.printPicklist")}
-      </button>
-      <div style={{ flex: 1 }} />
-      <button
-        type="button"
-        onClick={onClear}
-        style={{
-          all: "unset",
-          padding: "8px 12px",
-          fontSize: 13,
-          color: "#8C9196",
-          cursor: "pointer",
-        }}
-      >
-        {t("bulkBar.clear")}
-      </button>
+      {/* Count + clear row on mobile */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 13, fontWeight: 500 }}>
+          {t("bulkBar.selected", { count })}
+        </span>
+        <button
+          type="button"
+          onClick={onClear}
+          style={{
+            all: "unset",
+            padding: "4px 8px",
+            fontSize: 13,
+            color: "#8C9196",
+            cursor: "pointer",
+          }}
+        >
+          {t("bulkBar.clear")}
+        </button>
+      </div>
+
+      {/* Carrier + actions row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <select
+          aria-label={t("bulkBar.carrierLabel")}
+          value={carrierId}
+          onChange={(e) => onCarrierChange(e.target.value)}
+          style={{
+            flex: isMobile ? 1 : undefined,
+            padding: "6px 8px",
+            borderRadius: 4,
+            border: "1px solid #444",
+            backgroundColor: "#2A2A2A",
+            color: "#FFFFFF",
+            fontSize: 13,
+          }}
+        >
+          {carriers.length === 0 && <option value="">{t("bulkBar.noCarriers")}</option>}
+          {carriers.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={onDispatch}
+          disabled={!carrierId || dispatching}
+          style={{
+            all: "unset",
+            flex: isMobile ? 1 : undefined,
+            textAlign: "center",
+            padding: "8px 14px",
+            backgroundColor: dispatching || !carrierId ? "#444" : "#FFFFFF",
+            color: dispatching || !carrierId ? "#9CA3AF" : D.textPrimary,
+            fontSize: 13,
+            fontWeight: 500,
+            borderRadius: 4,
+            cursor: dispatching || !carrierId ? "not-allowed" : "pointer",
+          }}
+        >
+          {dispatching ? t("bulkBar.dispatching") : t("bulkBar.dispatch")}
+        </button>
+        <button
+          type="button"
+          onClick={onPrint}
+          disabled={printing}
+          style={{
+            all: "unset",
+            flex: isMobile ? 1 : undefined,
+            textAlign: "center",
+            padding: "8px 14px",
+            backgroundColor: "transparent",
+            color: "#FFFFFF",
+            fontSize: 13,
+            fontWeight: 500,
+            border: "1px solid #444",
+            borderRadius: 4,
+            cursor: printing ? "not-allowed" : "pointer",
+          }}
+        >
+          {printing ? t("bulkBar.printing") : t("bulkBar.printPicklist")}
+        </button>
+        {!isMobile && <div style={{ flex: 1 }} />}
+        {!isMobile && (
+          <button
+            type="button"
+            onClick={onClear}
+            style={{
+              all: "unset",
+              padding: "8px 12px",
+              fontSize: 13,
+              color: "#8C9196",
+              cursor: "pointer",
+            }}
+          >
+            {t("bulkBar.clear")}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

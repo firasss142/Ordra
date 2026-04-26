@@ -143,9 +143,9 @@ export function ProfitabilityClient({
   const returnsCostShare = pnl && pnl.revenue > 0 ? (pnl.return_cost / pnl.revenue) * 100 : 0;
 
   return (
-    <div style={{ backgroundColor: "#F6F6F7", minHeight: "100vh", padding: "20px 24px 40px" }}>
-      <header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16, marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+    <div style={{ backgroundColor: "#F6F6F7", minHeight: "100vh" }} className="px-4 sm:px-6 pt-5 pb-10">
+      <header className="flex items-baseline justify-between gap-4 mb-3">
+        <div className="flex items-baseline gap-3 flex-wrap">
           <h1 style={{ fontSize: 18, fontWeight: 600, color: "#1A1A1A", margin: 0, letterSpacing: "-0.01em" }}>
             {t("title")}
           </h1>
@@ -196,14 +196,7 @@ export function ProfitabilityClient({
       )}
 
       {/* Hero KPI row — Net Profit, Revenue, Margin */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: 12,
-          marginBottom: 12,
-        }}
-      >
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
         <FinanceHeroCard
           label={t("kpi.netProfit")}
           value={formatCurrency(pnl?.net_profit, isLoading, marketCode)}
@@ -237,14 +230,7 @@ export function ProfitabilityClient({
       </div>
 
       {/* Secondary KPI strip — AOV, Ad Spend, CPA, CPL */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-          gap: 12,
-          marginBottom: 12,
-        }}
-      >
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
         <SecondaryKpi
           label={t("kpi.aov")}
           value={formatCurrency(pnl ? aov : undefined, isLoading, marketCode)}
@@ -272,13 +258,7 @@ export function ProfitabilityClient({
       </div>
 
       {/* Composition + Funnel/operational two-column grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
-          gap: 12,
-        }}
-      >
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
         <DenseCard title={t("composition.title")}>
           {pnl ? (
             <CostCompositionBars
@@ -377,9 +357,10 @@ function SecondaryKpi({
       <div
         style={{
           display: "flex",
-          alignItems: "baseline",
+          alignItems: "flex-start",
           justifyContent: "space-between",
-          gap: 8,
+          gap: 4,
+          flexWrap: "wrap",
         }}
       >
         <span
@@ -400,6 +381,7 @@ function SecondaryKpi({
               fontWeight: 600,
               color: TONE_COLOR[deltaTone],
               fontVariantNumeric: "tabular-nums",
+              flexShrink: 0,
             }}
           >
             {deltaText}
@@ -408,13 +390,11 @@ function SecondaryKpi({
       </div>
       <span
         style={{
-          fontSize: 18,
+          fontSize: "clamp(14px, 1.5vw, 18px)",
           fontWeight: 700,
           color: "#1A1A1A",
           fontVariantNumeric: "tabular-nums",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
+          wordBreak: "break-word",
           marginTop: 2,
         }}
       >

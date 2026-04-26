@@ -44,15 +44,20 @@ function AgentTabInner({
       onFocus={onHover}
       onTouchStart={onHover}
       className={[
-        "inline-flex items-center gap-2 py-3 px-1 me-6",
-        "text-[13px] no-underline transition-colors duration-fast",
+        "inline-flex items-center gap-2 py-3.5 px-1 me-7",
+        "text-[13.5px] no-underline transition-colors duration-fast",
         "border-b-2 -mb-px",
         active
           ? "font-semibold text-ink-primary border-accent"
-          : "font-medium text-ink-secondary border-transparent hover:text-ink-primary",
+          : "font-normal text-ink-secondary border-transparent hover:text-ink-primary",
       ].join(" ")}
     >
-      <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
+      <Icon
+        size={15}
+        strokeWidth={1.75}
+        aria-hidden="true"
+        className={active ? "text-ink-primary" : "text-ink-muted"}
+      />
       <span>{tab.label}</span>
     </Link>
   );
@@ -93,7 +98,7 @@ function AgentNavTabsInner({ user }: Props) {
 
   return (
     <nav
-      className="flex bg-surface-card border-b border-line-subtle px-6"
+      className="flex bg-surface-page border-b border-line px-6"
       style={{ direction: user.direction === "rtl" ? "rtl" : "ltr" }}
     >
       {tabs.map((tab) => {

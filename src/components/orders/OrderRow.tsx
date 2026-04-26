@@ -2,6 +2,7 @@
 
 import React from "react";
 import { formatDateTime } from "@/lib/format";
+import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
 import type { OrdersListRow } from "@/hooks/useOrdersList";
 
 const STATUS_DOT_COLORS: Record<string, string> = {
@@ -88,7 +89,22 @@ function Row({
       <td style={{ ...cellStyle, fontFamily: "ui-monospace, monospace", fontSize: 13, color: "#6D7175" }}>
         {order.external_id ?? order.id.slice(0, 8)}
       </td>
-      <td style={cellStyle}>{order.customer_name}</td>
+      <td style={cellStyle}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          {order.customer_name}
+          {order.repeat_kind && order.repeat_kind !== "none" && (
+            <RepeatBuyerBadge
+              source="order"
+              sourceId={order.id}
+              repeatKind={order.repeat_kind}
+              priorOrderCount={order.prior_order_count ?? 0}
+              priorLeadCount={order.prior_lead_count ?? 0}
+              priorRejectedCount={order.prior_rejected_count ?? 0}
+              customerPhone={order.customer_phone}
+            />
+          )}
+        </span>
+      </td>
       <td style={{ ...cellStyle, color: "#6D7175" }}>{order.customer_city ?? "—"}</td>
       <td style={cellStyle}>
         {order.product_name}

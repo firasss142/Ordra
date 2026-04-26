@@ -2,9 +2,9 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Menu } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/ui/Avatar";
-import { Badge } from "@/components/ui/Badge";
 import { decodeAvatarFile, avatarErrorMessage } from "@/lib/client/image";
 import type { AuthUser } from "@/types";
 
@@ -27,6 +27,8 @@ interface TopbarProps {
   user: AuthUser;
   marketName: string;
   actions?: React.ReactNode;
+  /** When provided, renders a hamburger button on mobile that calls this. */
+  onMenuClick?: () => void;
 }
 
 const SESSION_EXPIRY_MSG: Record<"fr" | "ar", string> = {
@@ -44,7 +46,7 @@ const CHANGE_AVATAR_LABEL: Record<"fr" | "ar", string> = {
   ar: "تغيير الصورة",
 };
 
-function TopbarInner({ user, marketName, actions }: TopbarProps) {
+function TopbarInner({ user, marketName, actions, onMenuClick }: TopbarProps) {
   const router = useRouter();
   const [sessionExpired, setSessionExpired] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -136,39 +138,79 @@ function TopbarInner({ user, marketName, actions }: TopbarProps) {
         </div>
       )}
       <header
+        className="px-4 md:px-6"
         style={{
-          height: "56px",
+          height: "48px",
           backgroundColor: "var(--bg-card)",
           borderBottom: "1px solid var(--border)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 24px",
+          gap: 12,
           direction: isRtl ? "rtl" : "ltr",
         }}
       >
-        <span
-          style={{
-            fontSize: "0.8125rem",
-            color: "var(--text-secondary)",
-          }}
-        >
-          {marketName}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          {onMenuClick && (
+            <button
+              type="button"
+              onClick={onMenuClick}
+              aria-label="Menu"
+              className="md:hidden"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 32,
+                height: 32,
+                borderRadius: 6,
+                border: "1px solid var(--border)",
+                background: "var(--bg-card)",
+                color: "var(--text-primary)",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              <Menu size={16} aria-hidden="true" />
+            </button>
+          )}
+          {marketName && (
+            <span
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--text-secondary)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {marketName}
+            </span>
+          )}
+        </div>
 
         <div
           ref={menuRef}
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "12px",
+            gap: "8px",
             position: "relative",
           }}
         >
           {actions}
-          <Badge tone="neutral">
-            {ROLE_LABEL[user.locale]?.[user.role] ?? user.role}
-          </Badge>
+
+          {/* Divider */}
+          <span
+            aria-hidden="true"
+            style={{
+              width: 1,
+              height: 16,
+              backgroundColor: "var(--border)",
+              flexShrink: 0,
+            }}
+          />
+
           <button
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
@@ -181,18 +223,51 @@ function TopbarInner({ user, marketName, actions }: TopbarProps) {
               alignItems: "center",
               gap: "8px",
               cursor: "pointer",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              color: "var(--text-primary)",
-              padding: "4px 8px 4px 4px",
-              borderRadius: "6px",
+              padding: "4px 10px 4px 4px",
+              borderRadius: "8px",
+              border: "1px solid transparent",
+              transition: "border-color 120ms ease, background 120ms ease",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)";
+              (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-hover)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "transparent";
+              (e.currentTarget as HTMLButtonElement).style.background = "transparent";
             }}
           >
-            <Avatar user={user} size={28} />
-            <span>{user.full_name}</span>
+            <Avatar user={user} size={30} />
+            <span
+              style={{
+                fontSize: "0.875rem",
+                fontWeight: 500,
+                color: "var(--text-primary)",
+              }}
+            >
+              {user.full_name}
+            </span>
+            {/* Role pill */}
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                fontSize: "0.75rem",
+                fontWeight: 500,
+                color: "var(--text-secondary)",
+                backgroundColor: "var(--bg-selected, #F2F2F2)",
+                border: "1px solid var(--border)",
+                borderRadius: 9999,
+                padding: "2px 9px",
+                lineHeight: 1.6,
+                flexShrink: 0,
+              }}
+            >
+              {ROLE_LABEL[user.locale]?.[user.role] ?? user.role}
+            </span>
             <span
               aria-hidden="true"
-              style={{ fontSize: "0.625rem", color: "var(--text-secondary)" }}
+              style={{ fontSize: "0.625rem", color: "var(--text-secondary)", marginInlineStart: 1 }}
             >
               ▾
             </span>
@@ -208,9 +283,9 @@ function TopbarInner({ user, marketName, actions }: TopbarProps) {
                 minWidth: "180px",
                 backgroundColor: "var(--bg-card)",
                 border: "1px solid var(--border)",
-                borderRadius: "6px",
+                borderRadius: "8px",
                 padding: "4px 0",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
                 zIndex: 20,
               }}
             >
@@ -237,7 +312,7 @@ function TopbarInner({ user, marketName, actions }: TopbarProps) {
                   padding: "8px 12px",
                   cursor: uploadingAvatar ? "not-allowed" : "pointer",
                   color: "var(--text-primary)",
-                  fontSize: "0.875rem",
+                  fontSize: "0.8125rem",
                   boxSizing: "border-box",
                   textAlign: isRtl ? "right" : "left",
                 }}
@@ -263,7 +338,7 @@ function TopbarInner({ user, marketName, actions }: TopbarProps) {
                   padding: "8px 12px",
                   cursor: signingOut ? "not-allowed" : "pointer",
                   color: "var(--text-primary)",
-                  fontSize: "0.875rem",
+                  fontSize: "0.8125rem",
                   boxSizing: "border-box",
                   textAlign: isRtl ? "right" : "left",
                 }}

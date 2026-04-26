@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import type { Locale, Role } from "@/types";
 import type { AssignmentAlgorithm } from "@/types/settings";
 import { useUnassignedOrders } from "@/hooks/useUnassignedOrders";
@@ -22,12 +23,13 @@ interface Props {
 
 export function AssignPageClient({ role: _role, marketId, marketCode }: Props) {
   const t = useTranslations("assign");
+  const isMobile = useIsMobile();
   const specificMarketId = (!marketId || marketId === "all") ? null : marketId;
   const { orders, isLoading: ordersLoading, mutate: mutateOrders } = useUnassignedOrders(
     marketId || null
   );
   const { agents, isLoading: agentsLoading, mutate: mutateAgents } = useAgentCapacity(
-    specificMarketId
+    marketId || null
   );
   const { rule, update: updateRule } = useAssignmentRule(specificMarketId);
 
@@ -168,7 +170,7 @@ export function AssignPageClient({ role: _role, marketId, marketCode }: Props) {
   return (
     <div
       style={{
-        padding: 24,
+        padding: isMobile ? "64px 16px 48px" : 24,
         display: "flex",
         flexDirection: "column",
         gap: 16,
@@ -195,8 +197,8 @@ export function AssignPageClient({ role: _role, marketId, marketCode }: Props) {
         onSelectAll={selectAll}
       />
 
-      <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-        <main style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 16, alignItems: "flex-start" }}>
+        <main style={{ flex: 1, minWidth: 0, width: "100%" }}>
           {ordersLoading ? (
             <div style={{ color: "#6D7175", fontSize: 13, padding: 16 }}>
               {t("agents.loading")}
@@ -249,6 +251,7 @@ export function AssignPageClient({ role: _role, marketId, marketCode }: Props) {
           onAssign={assignSelectedTo}
           busyAgentId={busyAgentId}
           loading={agentsLoading}
+          fullWidth={isMobile}
         />
       </div>
 

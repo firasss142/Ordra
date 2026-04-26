@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 export type KanbanAccent =
   | "neutral"
@@ -79,6 +80,7 @@ export function KanbanBoard<T>({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const isMobile = useIsMobile();
 
   const isCompact = density === "compact";
   const bodyPadding = isCompact ? 6 : 8;
@@ -179,10 +181,11 @@ export function KanbanBoard<T>({
       data-kanban-density={density}
       style={{
         display: "flex",
+        flexDirection: isMobile ? "column" : "row",
         gap: columnGap,
-        overflowX: "auto",
+        overflowX: isMobile ? "visible" : "auto",
         paddingBottom: 8,
-        alignItems: "flex-start",
+        alignItems: "stretch",
       }}
     >
       {columns.map((col) => {
@@ -195,8 +198,10 @@ export function KanbanBoard<T>({
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, col.key)}
             style={{
-              flex: "0 0 308px",
-              minHeight: 480,
+              flex: isMobile ? "0 0 auto" : "0 0 308px",
+              width: isMobile ? "100%" : undefined,
+              minHeight: isMobile ? 240 : 480,
+              maxHeight: isMobile ? "none" : "min(calc(100dvh - 200px), 720px)",
               background: "white",
               border: `1px solid ${isOver ? "#1A1A1A" : "#E1E3E5"}`,
               borderRadius: 10,
@@ -204,6 +209,7 @@ export function KanbanBoard<T>({
               flexDirection: "column",
               transition: "border-color 120ms ease, box-shadow 120ms ease",
               overflow: "hidden",
+              isolation: "isolate",
               boxShadow: isOver ? "0 0 0 3px rgba(26,26,26,0.08)" : "none",
             }}
           >
@@ -219,7 +225,8 @@ export function KanbanBoard<T>({
                 position: "sticky",
                 top: 0,
                 background: "#FFFFFF",
-                zIndex: 1,
+                zIndex: 10,
+                boxShadow: "0 1px 0 #E1E3E5",
               }}
             >
               <div

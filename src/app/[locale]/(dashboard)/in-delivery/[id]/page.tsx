@@ -30,7 +30,7 @@ export default async function OrderDetailPage({
     redirect(`/${params.locale}/in-delivery`);
   }
 
-  const t = await getTranslations("inDelivery.detail");
+  const t = await getTranslations({ locale: params.locale, namespace: "inDelivery.detail" });
 
   return (
     <div

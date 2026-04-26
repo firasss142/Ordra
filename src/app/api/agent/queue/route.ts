@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sortAgentQueue } from "@/lib/orders/queue-sort";
 import { getActor } from "@/lib/auth/actor";
+import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 
 const ACTIVE_QUEUE_STATUSES = [
   "assigned",
@@ -120,10 +121,26 @@ export async function GET(_req: NextRequest) {
   const sortedIds = new Set(sorted.map((o) => o.id));
   const allSorted = [...sorted, ...allOrders.filter((o) => !sortedIds.has(o.id))];
 
-  return NextResponse.json({
-    orders: sorted,
-    allOrders: allSorted,
+  // Enrich with repeat-buyer signals across the visible queue + closed list.
+  const enrichedActive = await enrichRowsWithCustomerHistory(
+    supabase,
+    actor.market_id ?? null,
+    "order",
+    allSorted,
+  );
+  const enrichedClosed = await enrichRowsWithCustomerHistory(
+    supabase,
+    actor.market_id ?? null,
+    "order",
     closedOrders,
+  );
+
+  const enrichedSorted = enrichedActive.filter((o) => sortedIds.has(o.id));
+
+  return NextResponse.json({
+    orders: enrichedSorted,
+    allOrders: enrichedActive,
+    closedOrders: enrichedClosed,
     buckets,
   });
 }

@@ -87,8 +87,10 @@ function TabButton({
       <span>{label}</span>
       <span
         className={[
-          "text-[12px] tabular-nums",
-          active ? "text-ink-primary" : "text-ink-muted",
+          "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-pill tabular-nums text-[11px] font-medium",
+          active
+            ? "bg-ink-primary text-white"
+            : "bg-surface-page border border-line-subtle text-ink-secondary",
         ].join(" ")}
       >
         {count}
@@ -122,19 +124,19 @@ function SubChip({
         "text-[12px] font-medium transition-colors duration-fast border",
         active
           ? "bg-ink-primary text-white border-ink-primary"
-          : "bg-transparent text-ink-primary border-line hover:bg-surface-hover",
+          : "bg-surface-page text-ink-secondary border-line-subtle hover:bg-surface-hover hover:text-ink-primary",
       ].join(" ")}
     >
       <span>{children}</span>
-      <span className="tabular-nums opacity-85">{count}</span>
+      <span className="tabular-nums">{count}</span>
     </button>
   );
 }
 
 function StatPill({ label, value }: { label: string; value: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="text-[13px] text-ink-secondary">{label}</span>
+    <span className="inline-flex items-center gap-1 bg-surface-page border border-line-subtle rounded-pill py-0.5 px-2.5">
+      <span className="text-[12px] text-ink-secondary">{label}</span>
       <span className="text-[13px] font-semibold tabular-nums text-ink-primary">
         {value}
       </span>
@@ -208,19 +210,17 @@ export function QueueHeader({
   ];
 
   return (
-    <div className="bg-surface-card border-b border-line-subtle px-6 pt-3.5 pb-0">
+    <div className="bg-surface-card border-b border-line-subtle px-6 pt-4 pb-0">
       {/* Top row — agent name + inline stats + new order */}
       <div className="flex items-center justify-between min-h-[40px]">
-        <span className="text-[15px] font-semibold text-ink-primary tracking-tight">
+        <span className="text-[17px] font-semibold text-ink-primary tracking-tight">
           {agentName}
         </span>
 
         <div className="flex items-center gap-4">
-          <div className="hidden sm:flex items-center gap-3 text-[13px]">
+          <div className="hidden sm:flex items-center gap-2">
             <StatPill label={t("stats.assigned")} value={String(stats.assigned_count)} />
-            <span className="text-line" aria-hidden="true">·</span>
             <StatPill label={t("stats.actioned")} value={String(stats.actioned_count)} />
-            <span className="text-line" aria-hidden="true">·</span>
             <StatPill
               label={t("stats.confirmationRate")}
               value={`${stats.confirmation_rate.toFixed(1)}%`}
@@ -238,7 +238,7 @@ export function QueueHeader({
       <div
         role="tablist"
         aria-label={t("title")}
-        className="flex flex-wrap mt-2 border-b border-line-subtle -mx-6 px-6"
+        className="flex flex-wrap mt-1.5 border-b border-line-subtle -mx-6 px-6"
       >
         {TABS.map((tab) => (
           <TabButton
@@ -254,7 +254,7 @@ export function QueueHeader({
 
       {/* Sub-filter chips — À rappeler */}
       {selectedBucket === "a_rappeler" && (
-        <div className="flex gap-1.5 mt-3 mb-3 flex-wrap">
+        <div className="flex gap-1.5 mt-2.5 mb-3 flex-wrap">
           {attemptSubfilterDefs.map(({ key, label, count }) => (
             <SubChip
               key={String(key)}
@@ -271,7 +271,7 @@ export function QueueHeader({
 
       {/* Sub-filter chips — Planifié */}
       {selectedBucket === "planifie" && (
-        <div className="flex gap-1.5 mt-3 mb-3 flex-wrap">
+        <div className="flex gap-1.5 mt-2.5 mb-3 flex-wrap">
           {planifieSubfilterDefs.map(({ key, label, count }) => (
             <SubChip
               key={key}

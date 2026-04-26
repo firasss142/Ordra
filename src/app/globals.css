@@ -144,6 +144,33 @@
   transform: translateX(-2px);
 }
 
+/* Mobile sidebar drawer — slide off-canvas below md (768px). Desktop ignores these rules. */
+@media (max-width: 767px) {
+  .sidebar-mobile-drawer {
+    transform: translateX(-100%);
+    transition: transform 200ms ease;
+    z-index: 50;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+  }
+  [dir="rtl"] .sidebar-mobile-drawer {
+    transform: translateX(100%);
+  }
+  .sidebar-mobile-drawer[data-mobile-open="true"] {
+    transform: translateX(0);
+  }
+  .sidebar-mobile-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 49;
+    animation: sidebar-backdrop-enter 160ms ease both;
+  }
+}
+@keyframes sidebar-backdrop-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* User-menu popup entrance */
 @keyframes sidebar-menu-enter {
   from {
@@ -157,4 +184,41 @@
 }
 .sidebar-menu-enter {
   animation: sidebar-menu-enter 160ms ease both;
+}
+
+/* Drawer slide-in from inline-end edge (LTR: right, RTL: left) */
+@keyframes slideInEnd {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+[dir="rtl"] [class*="slideInEnd"] {
+  animation-name: slideInStart;
+}
+@keyframes slideInStart {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Bulk-action floating bar entrance */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

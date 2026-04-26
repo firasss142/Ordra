@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
+import { Check, X, Power } from "lucide-react";
 
 interface BulkActionBarProps {
   selectedCount: number;
@@ -10,10 +11,6 @@ interface BulkActionBarProps {
   onDeactivate: () => void;
   onClear: () => void;
 }
-
-const TEXT = "#1A1A1A";
-const BORDER = "#E1E3E5";
-const MUTED = "#6D7175";
 
 export function BulkActionBar({
   selectedCount,
@@ -28,67 +25,52 @@ export function BulkActionBar({
 
   return (
     <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "10px 16px",
-        background: "#F0F0F0",
-        border: `1px solid ${BORDER}`,
-        borderRadius: 8,
-        marginBottom: 8,
-      }}
+      role="toolbar"
+      aria-label={t("bulk.confirmTitle")}
+      className="pointer-events-none fixed inset-x-0 bottom-6 z-40 flex justify-center px-4"
     >
-      <span style={{ fontSize: 13, fontWeight: 500, color: TEXT }}>
-        {t("bulk.selectedCount", { count: selectedCount })}
-      </span>
-      <button
-        type="button"
-        onClick={onActivate}
-        disabled={loading}
-        style={actionBtn(loading)}
-      >
-        {t("bulk.activate")}
-      </button>
-      <button
-        type="button"
-        onClick={onDeactivate}
-        disabled={loading}
-        style={actionBtn(loading)}
-      >
-        {t("bulk.deactivate")}
-      </button>
-      <button
-        type="button"
-        onClick={onClear}
-        disabled={loading}
-        style={{
-          padding: "5px 12px",
-          fontSize: 13,
-          fontWeight: 500,
-          border: `1px solid ${BORDER}`,
-          borderRadius: 9999,
-          background: "#FFFFFF",
-          color: MUTED,
-          cursor: loading ? "not-allowed" : "pointer",
-        }}
-      >
-        {t("bulk.clear")}
-      </button>
+      <div className="pointer-events-auto flex items-center gap-2 rounded-pill border border-line bg-surface-card px-3 py-2 shadow-floating">
+        <span className="inline-flex items-center gap-2 ps-2 pe-3 text-[13px] font-medium text-ink-primary">
+          <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-pill bg-ink-primary px-1.5 text-[11px] font-semibold text-white tabular-nums">
+            {selectedCount}
+          </span>
+          {t("bulk.selectedCount", { count: selectedCount })}
+        </span>
+
+        <span aria-hidden className="h-5 w-px bg-line" />
+
+        <button
+          type="button"
+          onClick={onActivate}
+          disabled={loading}
+          className="inline-flex items-center gap-1.5 rounded-pill bg-ink-primary px-3 py-1.5 text-[13px] font-medium text-white transition-opacity duration-fast hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Check size={14} strokeWidth={2.25} />
+          {t("bulk.activate")}
+        </button>
+
+        <button
+          type="button"
+          onClick={onDeactivate}
+          disabled={loading}
+          className="inline-flex items-center gap-1.5 rounded-pill border border-line bg-surface-card px-3 py-1.5 text-[13px] font-medium text-ink-primary transition-colors duration-fast hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Power size={14} strokeWidth={2} />
+          {t("bulk.deactivate")}
+        </button>
+
+        <span aria-hidden className="h-5 w-px bg-line" />
+
+        <button
+          type="button"
+          onClick={onClear}
+          disabled={loading}
+          aria-label={t("bulk.clear")}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-pill text-ink-secondary transition-colors duration-fast hover:bg-surface-hover hover:text-ink-primary disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <X size={16} strokeWidth={2} />
+        </button>
+      </div>
     </div>
   );
-}
-
-function actionBtn(loading: boolean): React.CSSProperties {
-  return {
-    padding: "5px 12px",
-    fontSize: 13,
-    fontWeight: 500,
-    border: `1px solid ${TEXT}`,
-    borderRadius: 9999,
-    background: TEXT,
-    color: "#FFFFFF",
-    cursor: loading ? "not-allowed" : "pointer",
-    opacity: loading ? 0.6 : 1,
-  };
 }

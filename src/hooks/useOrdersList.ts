@@ -24,6 +24,10 @@ export interface OrdersListRow {
   callback_scheduled_at: string | null;
   created_at: string;
   updated_at: string;
+  repeat_kind?: import("@/lib/customer-history/classify").RepeatKind;
+  prior_order_count?: number;
+  prior_lead_count?: number;
+  prior_rejected_count?: number;
 }
 
 export interface OrdersListPage {

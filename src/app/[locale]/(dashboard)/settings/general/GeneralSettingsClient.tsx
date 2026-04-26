@@ -82,7 +82,7 @@ export function GeneralSettingsClient({
   return (
     <div
       dir={isRtl ? "rtl" : "ltr"}
-      className="min-h-screen bg-surface-page p-6"
+      className="min-h-screen bg-surface-page p-4 sm:p-6"
     >
       <SettingsPageHeader
         title="Paramètres généraux"

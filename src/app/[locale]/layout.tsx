@@ -1,9 +1,35 @@
-import { AuthProvider } from "@/context/auth";
+import type { Metadata } from "next";
+import { Inter, Noto_Sans_Arabic } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages } from "next-intl/server";
+import { getMessages, unstable_setRequestLocale as setRequestLocale } from "next-intl/server";
+import { notFound } from "next/navigation";
+import "../globals.css";
+
+import { AuthProvider } from "@/context/auth";
 import { PresenceTracker } from "@/components/layout/PresenceTracker";
 import { SWRProvider } from "@/components/providers/SWRProvider";
 import { getServerUser } from "@/lib/auth/server-user";
+import { routing } from "@/i18n/routing";
+import { getDirectionForLocale } from "@/lib/locale-routing";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-sans",
+  adjustFontFallback: true,
+});
+
+const notoArabic = Noto_Sans_Arabic({
+  subsets: ["arabic"],
+  display: "swap",
+  variable: "--font-sans-arabic",
+  weight: ["400", "500", "600"],
+});
+
+export const metadata: Metadata = {
+  title: "Ordra",
+  description: "Manage your orders efficiently",
+};
 
 export default async function LocaleLayout({
   children,
@@ -13,22 +39,40 @@ export default async function LocaleLayout({
   params: { locale: string };
 }) {
   const { locale } = params;
+  if (!routing.locales.includes(locale as (typeof routing.locales)[number])) {
+    notFound();
+  }
+
+  setRequestLocale(locale as (typeof routing.locales)[number]);
+
+  const dir = getDirectionForLocale(locale as "fr" | "ar");
+  const skipLinkLabel =
+    locale === "ar" ? "تخطي إلى المحتوى الرئيسي" : "Aller au contenu principal";
+
   const [messages, initialUser] = await Promise.all([
-    getMessages(),
+    getMessages({ locale }),
     getServerUser(),
   ]);
 
   return (
-    <NextIntlClientProvider locale={locale} messages={messages}>
-      <SWRProvider>
-        <AuthProvider initialUser={initialUser}>
-          <a href="#main-content" className="skip-link">
-            Aller au contenu principal
-          </a>
-          <PresenceTracker />
-          {children}
-        </AuthProvider>
-      </SWRProvider>
-    </NextIntlClientProvider>
+    <html
+      lang={locale}
+      dir={dir}
+      className={`${inter.variable} ${notoArabic.variable}`}
+    >
+      <body>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <SWRProvider>
+            <AuthProvider initialUser={initialUser}>
+              <a href="#main-content" className="skip-link">
+                {skipLinkLabel}
+              </a>
+              <PresenceTracker />
+              {children}
+            </AuthProvider>
+          </SWRProvider>
+        </NextIntlClientProvider>
+      </body>
+    </html>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   Plus,
   Filter,
@@ -49,6 +50,7 @@ export function OrdersFilterBar({
   lockedMarketLabel,
 }: Props) {
   const t = useTranslations("orders");
+  const isMobile = useIsMobile();
 
   const [localQ, setLocalQ] = useState(filters.q);
   const debouncedQ = useDebounce(localQ, 250);
@@ -98,16 +100,9 @@ export function OrdersFilterBar({
       }}
     >
       {/* Top row: market + search + actions */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          gap: 10,
-          justifyContent: "space-between",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", flex: "1 1 auto" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Row 1: market chip + search */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           {isSuperAdmin ? (
             <MarketSelect
               markets={markets}
@@ -129,6 +124,7 @@ export function OrdersFilterBar({
                 color: MUTED,
                 fontSize: 13,
                 fontWeight: 500,
+                flexShrink: 0,
               }}
             >
               <Globe size={13} strokeWidth={1.75} />
@@ -136,10 +132,10 @@ export function OrdersFilterBar({
             </span>
           )}
 
-          <Divider />
+          {!isMobile && <Divider />}
 
           {/* Search — grows to fill available space */}
-          <div style={{ position: "relative", flex: "1 1 240px", minWidth: 200 }}>
+          <div style={{ position: "relative", flex: "1 1 140px", minWidth: 100 }}>
             <Search
               size={13}
               strokeWidth={1.75}
@@ -177,6 +173,7 @@ export function OrdersFilterBar({
           </div>
         </div>
 
+        {/* Row 2: export + new order (full-width on mobile) */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <IconButton
             onClick={onExport}
@@ -189,7 +186,9 @@ export function OrdersFilterBar({
             style={{
               display: "inline-flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: 6,
+              flex: isMobile ? 1 : undefined,
               height: 34,
               padding: "0 14px",
               fontSize: 13,

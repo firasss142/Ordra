@@ -16,7 +16,11 @@ export interface AgentCapacityRow {
 }
 
 export function useAgentCapacity(marketId: string | null) {
-  const key = marketId ? `/api/agents/capacity?market_id=${marketId}` : null;
+  const key = marketId
+    ? marketId === "all"
+      ? `/api/agents/capacity`
+      : `/api/agents/capacity?market_id=${marketId}`
+    : null;
   const { data, error, isLoading, mutate } = useSWR<{ data: AgentCapacityRow[] }>(
     key,
     fetcher,

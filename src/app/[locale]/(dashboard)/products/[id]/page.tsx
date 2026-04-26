@@ -72,7 +72,7 @@ export default function ProductDetailPage() {
 
   if (productLoading) {
     return (
-      <div className="min-h-screen bg-surface-page p-8">
+      <div className="min-h-screen bg-surface-page p-4 sm:p-6 lg:p-8">
         <div className="py-16 text-center text-[14px] text-ink-secondary">
           {t("loading")}
         </div>
@@ -82,7 +82,7 @@ export default function ProductDetailPage() {
 
   if (!product) {
     return (
-      <div className="min-h-screen bg-surface-page p-8">
+      <div className="min-h-screen bg-surface-page p-4 sm:p-6 lg:p-8">
         <div className="py-16 text-center text-[14px] text-ink-secondary">
           {t("empty")}
         </div>
@@ -91,7 +91,7 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-page px-8 pb-16 pt-8">
+    <div className="min-h-screen bg-surface-page px-4 pb-16 pt-8 sm:px-6 lg:px-8">
       <ProductDetailHeader
         locale={locale}
         name={product.name}

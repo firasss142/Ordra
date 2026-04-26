@@ -953,6 +953,10 @@
     "create": {
       "newOrder": "Nouvelle commande",
       "modalTitle": "Créer une commande",
+      "modalSubtitle": "Saisir les informations client et la commande",
+      "sectionCustomer": "Client",
+      "sectionOrder": "Commande",
+      "sectionContext": "Contexte",
       "submit": "Créer la commande",
       "submitting": "Enregistrement…",
       "cancel": "Annuler",
@@ -1084,6 +1088,11 @@
     "bulkCallEnded": "Raccrocher ({count})",
     "deselectAll": "Désélectionner tout",
     "selectOrder": "Sélectionner cette commande",
+    "bulkSelectedCount": "{count} sélectionnée",
+    "bulkSelectedCountPlural": "{count} sélectionnées",
+    "bulkStartCalls": "Démarrer les appels",
+    "bulkClear": "Effacer",
+    "bulkEscHint": "Échap pour annuler",
     "shortcuts": {
       "title": "Raccourcis clavier",
       "navigate": "Naviguer entre les cartes",
@@ -2552,5 +2561,24 @@
       "orders": "commandes",
       "empty": "Pas assez de données pour cette période."
     }
+  },
+  "customerHistory": {
+    "badge": {
+      "repeat": "Récurrent · {count}",
+      "likely": "Probablement récurrent · {count}",
+      "risk": "Risque · {count} rejetés"
+    },
+    "popover": {
+      "loading": "Chargement…",
+      "error": "Impossible de charger l'historique.",
+      "headlineRepeat": "{count} commandes précédentes · {delivered} livrées",
+      "headlineRisk": "{rejected} sur {total} commandes rejetées",
+      "lifetimeValue": "Valeur cumulée : {amount} {currency}",
+      "lastOrder": "Dernière commande : {date} · {status}",
+      "lastAddress": "Dernière adresse : {address}",
+      "plusLeads": "+ {count} prospects",
+      "seeAll": "Voir toutes les commandes"
+    },
+    "addressChange": "↳ nouvelle adresse (avant : {previous})"
   }
 }

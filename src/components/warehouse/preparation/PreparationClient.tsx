@@ -234,7 +234,7 @@ export function PreparationClient({ marketId, fallbackRows, labels }: Props) {
       kpiStrip={<WarehouseKpiStrip tiles={kpiTiles} />}
     >
       {/* 3-stage horizontal workbench */}
-      <div className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(320px,380px)] gap-4 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(320px,380px)] gap-4 items-stretch">
         {/* STAGE 1 — Backlog */}
         <section className="bg-surface-card border border-line-subtle rounded-card overflow-hidden flex flex-col">
           <StageHeader index={1} label={labels.stageBacklog} />

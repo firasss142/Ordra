@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import type { Locale, Role } from "@/types";
@@ -81,6 +82,7 @@ export function OrdersPageClient({
   fallbackAgents,
 }: Props) {
   const t = useTranslations("orders");
+  const isMobile = useIsMobile();
 
   const isSuperAdmin = role === "super_admin";
 
@@ -378,7 +380,7 @@ export function OrdersPageClient({
   return (
     <div
       style={{
-        padding: "24px 24px 80px",
+        padding: isMobile ? "64px 16px 80px" : "24px 24px 80px",
         background: "#F6F6F7",
         minHeight: "100vh",
         display: "flex",
@@ -390,10 +392,8 @@ export function OrdersPageClient({
       <div
         style={{
           display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 16,
-          flexWrap: "wrap",
+          flexDirection: "column",
+          gap: 8,
         }}
       >
         <div>

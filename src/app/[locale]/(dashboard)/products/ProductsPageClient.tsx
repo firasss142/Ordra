@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import type { Role } from "@/types";
@@ -8,8 +8,13 @@ import { canManageProducts } from "@/lib/product-permissions";
 import { canViewProfitability } from "@/lib/profitability-permissions";
 import { canToggleProductActive } from "@/lib/product-permissions";
 import { isLowStock } from "@/lib/product-calculations";
-import { ProductsFilterBar, type ProductFilterMode, type ProductFilterStatus } from "@/components/products/ProductsFilterBar";
+import {
+  ProductsFilterBar,
+  type ProductFilterMode,
+  type ProductFilterStatus,
+} from "@/components/products/ProductsFilterBar";
 import { ProductCatalogRow } from "@/components/products/ProductCatalogRow";
+import { BulkActionBar } from "@/components/products/BulkActionBar";
 import { StockAdjustModal, type StockAdjustState } from "@/components/products/StockAdjustModal";
 import { PortfolioStrip } from "@/components/products/PortfolioStrip";
 import { PeriodSelector } from "@/components/dashboard/MetricsTable";
@@ -82,6 +87,15 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
   );
   const markets = marketsData?.data ?? [];
 
+  // Default super_admin to Tunisia (code === "tn") once markets resolve.
+  useEffect(() => {
+    if (role !== "super_admin") return;
+    if (selectedMarketId) return;
+    if (markets.length === 0) return;
+    const tn = markets.find((m) => m.code === "tn");
+    setSelectedMarketId(tn?.id ?? markets[0].id);
+  }, [role, markets, selectedMarketId]);
+
   // If role is not super_admin, build a locked market list from the initial marketId
   const effectiveMarkets: Market[] =
     role === "super_admin" ? markets : [{ id: marketId, name: "", code: "" }];
@@ -121,7 +135,6 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
     return m;
   }, [profData]);
 
-  // Client-side filter + sort
   const filteredProducts = useMemo(() => {
     let list = products;
     if (search.trim()) {
@@ -250,6 +263,16 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
 
   if (role === "agent") return null;
 
+  const allSelected =
+    filteredProducts.length > 0 && filteredProducts.every((p) => selectedIds.has(p.id));
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredProducts.map((p) => p.id)));
+    }
+  };
+
   return (
     <>
       {stockModal && (
@@ -261,20 +284,26 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
         />
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {/* Filter bar */}
+      <div className="flex flex-col gap-4">
+        {/* Filter bar — bulk actions intentionally suppressed (handled by floating bar) */}
         <ProductsFilterBar
           role={role}
           markets={effectiveMarkets.length > 0 && markets.length > 0 ? markets : effectiveMarkets}
           selectedMarketId={selectedMarketId}
-          onMarketChange={(id) => { setSelectedMarketId(id); setPage(1); }}
+          onMarketChange={(id) => {
+            setSelectedMarketId(id);
+            setPage(1);
+          }}
           mode={mode}
           onModeChange={setMode}
           status={status}
-          onStatusChange={(s) => { setStatus(s); setPage(1); }}
+          onStatusChange={(s) => {
+            setStatus(s);
+            setPage(1);
+          }}
           search={search}
           onSearchChange={setSearch}
-          selectedCount={selectedIds.size}
+          selectedCount={0}
           onBulkActivate={handleBulkActivate}
           onBulkDeactivate={handleBulkDeactivate}
           onBulkClear={handleBulkClear}
@@ -285,12 +314,10 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
           onSortChange={setSortKey}
         />
 
-        {/* Period selector — only in performance mode */}
         {mode === "performance" && canViewPerf && (
           <PeriodSelector period={period} onChange={setPeriod} />
         )}
 
-        {/* Portfolio strip — only in performance mode with permission */}
         {mode === "performance" && canViewPerf && products.length > 0 && (
           <PortfolioStrip
             products={products.map((p) => ({
@@ -321,21 +348,37 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
           />
         )}
 
-        {/* Product list */}
-        <div
-          style={{
-            backgroundColor: "white",
-            border: "1px solid #E1E3E5",
-            borderRadius: "0.5rem",
-            overflow: "hidden",
-          }}
-        >
+        {/* Product list card */}
+        <div className="overflow-hidden rounded-card border border-line-subtle bg-surface-card">
           {filteredProducts.length === 0 ? (
-            <div style={{ textAlign: "center", padding: 48, color: "#6D7175", fontSize: 14 }}>
+            <div className="px-6 py-12 text-center text-[14px] text-ink-secondary">
               {t("emptyState")}
             </div>
           ) : (
             <>
+              {/* Column header */}
+              <div className="flex items-center border-b border-line bg-surface-page text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-secondary">
+                <span aria-hidden className="w-[3px] flex-shrink-0" />
+                <div className="flex w-12 flex-shrink-0 items-center justify-center py-2">
+                  <input
+                    type="checkbox"
+                    aria-label={allSelected ? t("bulk.clear") : "Sélectionner tout"}
+                    checked={allSelected}
+                    onChange={toggleAll}
+                    className="h-4 w-4 cursor-pointer accent-ink-primary"
+                  />
+                </div>
+                <div className="flex-[2] py-2 pe-4">{t("table.product")}</div>
+                <div className="w-[160px] flex-shrink-0 py-2 pe-4">{t("table.stock")}</div>
+                <div className="flex-[3] py-2 pe-4">
+                  {mode === "performance" ? t("metrics.margin") : t("table.unitCogs")}
+                </div>
+                <div className="w-[112px] flex-shrink-0 py-2 pe-4">{t("table.status")}</div>
+                <div className="w-12 flex-shrink-0 py-2 pe-2 text-end">
+                  {t("table.actions")}
+                </div>
+              </div>
+
               {filteredProducts.map((product) => (
                 <ProductCatalogRow
                   key={product.id}
@@ -355,46 +398,21 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
               ))}
 
               {totalPages > 1 && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "flex-end",
-                    gap: 12,
-                    padding: "12px 16px",
-                    fontSize: 13,
-                    color: "#6D7175",
-                    borderTop: "1px solid #E1E3E5",
-                  }}
-                >
+                <div className="flex items-center justify-end gap-3 border-t border-line-subtle bg-surface-card px-4 py-3 text-[13px] text-ink-secondary">
                   <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
-                    style={{
-                      padding: "4px 12px",
-                      fontSize: 13,
-                      backgroundColor: page <= 1 ? "#9CA3AF" : "#1A1A1A",
-                      color: "#FFFFFF",
-                      border: "none",
-                      borderRadius: "0.375rem",
-                      cursor: page <= 1 ? "not-allowed" : "pointer",
-                    }}
+                    className="rounded-md bg-ink-primary px-3 py-1 text-[13px] text-white transition-opacity duration-fast disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {t("pagination.previous")}
                   </button>
-                  <span>{t("pagination.pageOf", { page, total: totalPages })}</span>
+                  <span className="tabular-nums">
+                    {t("pagination.pageOf", { page, total: totalPages })}
+                  </span>
                   <button
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages}
-                    style={{
-                      padding: "4px 12px",
-                      fontSize: 13,
-                      backgroundColor: page >= totalPages ? "#9CA3AF" : "#1A1A1A",
-                      color: "#FFFFFF",
-                      border: "none",
-                      borderRadius: "0.375rem",
-                      cursor: page >= totalPages ? "not-allowed" : "pointer",
-                    }}
+                    className="rounded-md bg-ink-primary px-3 py-1 text-[13px] text-white transition-opacity duration-fast disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {t("pagination.next")}
                   </button>
@@ -404,6 +422,15 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
           )}
         </div>
       </div>
+
+      {/* Floating bulk action bar */}
+      <BulkActionBar
+        selectedCount={selectedIds.size}
+        loading={bulkLoading}
+        onActivate={handleBulkActivate}
+        onDeactivate={handleBulkDeactivate}
+        onClear={handleBulkClear}
+      />
     </>
   );
 }

@@ -345,7 +345,7 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
       />
 
       {/* 3-col workbench: queue | scanner+decision | batch rail */}
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(360px,420px)_minmax(280px,320px)] gap-4 items-start mt-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)_minmax(280px,320px)] gap-4 items-start mt-3">
         {/* LEFT — Queue */}
         <section className="bg-surface-card border border-line-subtle rounded-card flex flex-col overflow-hidden">
           <header className="px-4 py-3 border-b border-line-subtle flex items-center gap-3 flex-wrap">

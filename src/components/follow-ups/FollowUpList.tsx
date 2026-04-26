@@ -70,7 +70,8 @@ export function FollowUpList({
           overflow: "hidden",
         }}
       >
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", minWidth: 880, borderCollapse: "collapse" }}>
           <thead>
             <tr>
               <th style={thStyle}>{t("columns.customer")}</th>
@@ -163,6 +164,7 @@ export function FollowUpList({
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Globe, CalendarRange } from "lucide-react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { todayISO, startOfWeekISO, startOfMonthISO } from "@/lib/date";
 
 export interface Period {
@@ -62,6 +63,7 @@ export function FilterBar({
   labels,
   lastUpdatedAt,
 }: FilterBarProps) {
+  const isMobile = useIsMobile();
   const presets: { key: PeriodPreset; label: string }[] = [
     { key: "today", label: labels.today },
     { key: "week", label: labels.week },
@@ -101,10 +103,11 @@ export function FilterBar({
       <div
         style={{
           display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          gap: 10,
-          justifyContent: "space-between",
+          flexDirection: isMobile ? "column" : "row",
+          flexWrap: isMobile ? undefined : "wrap",
+          alignItems: isMobile ? "stretch" : "center",
+          gap: isMobile ? 8 : 10,
+          justifyContent: isMobile ? undefined : "space-between",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -128,11 +131,13 @@ export function FilterBar({
             presets={presets}
             active={activePreset}
             onSelect={handlePreset}
+            compact={isMobile}
           />
           {activePreset === "custom" ? (
             <CustomRange
               period={period}
               onChange={(p) => onPeriodChange(p, "custom")}
+              compact={isMobile}
             />
           ) : null}
         </div>
@@ -145,20 +150,25 @@ function PresetSegmented({
   presets,
   active,
   onSelect,
+  compact,
 }: {
   presets: { key: PeriodPreset; label: string }[];
   active: PeriodPreset;
   onSelect: (k: PeriodPreset) => void;
+  compact?: boolean;
 }) {
   return (
     <div
       role="tablist"
       style={{
-        display: "inline-flex",
+        display: compact ? "grid" : "inline-flex",
+        gridTemplateColumns: compact ? "repeat(4, 1fr)" : undefined,
+        width: compact ? "100%" : undefined,
         background: SUBTLE_BG,
         borderRadius: 8,
         padding: 2,
         gap: 2,
+        border: `1px solid ${BORDER}`,
       }}
     >
       {presets.map((p) => {
@@ -171,16 +181,18 @@ function PresetSegmented({
             aria-selected={isActive}
             onClick={() => onSelect(p.key)}
             style={{
-              padding: "5px 14px",
+              padding: compact ? "6px 4px" : "5px 14px",
               border: "none",
               borderRadius: 6,
               background: isActive ? "#FFFFFF" : "transparent",
               color: TEXT,
-              fontSize: 13,
+              fontSize: compact ? 12 : 13,
               fontWeight: isActive ? 600 : 500,
               cursor: "pointer",
               boxShadow: isActive ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
               fontFamily: "inherit",
+              textAlign: "center",
+              whiteSpace: "nowrap",
             }}
           >
             {p.label}
@@ -288,7 +300,7 @@ function MarketChip({
             border: `1px solid ${BORDER}`,
             borderRadius: 8,
             boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            minWidth: 200,
+            minWidth: "min(200px, calc(100vw - 24px))",
             zIndex: 10,
             padding: 4,
           }}
@@ -361,21 +373,25 @@ function MarketOption({
 function CustomRange({
   period,
   onChange,
+  compact,
 }: {
   period: Period;
   onChange: (p: Period) => void;
+  compact?: boolean;
 }) {
   return (
     <div
       style={{
-        display: "inline-flex",
+        display: "flex",
+        flexWrap: compact ? "wrap" : undefined,
         alignItems: "center",
         gap: 6,
-        height: 30,
-        padding: "0 8px",
+        minHeight: 30,
+        padding: "4px 8px",
         borderRadius: 8,
         border: `1px solid ${BORDER}`,
         background: SOFT_BG,
+        width: compact ? "100%" : undefined,
       }}
     >
       <CalendarRange size={13} strokeWidth={1.75} aria-hidden style={{ color: MUTED }} />
@@ -384,6 +400,7 @@ function CustomRange({
         value={period.from_date}
         onChange={(e) => onChange({ ...period, from_date: e.target.value })}
         style={{
+          flex: compact ? 1 : undefined,
           height: 24,
           padding: "0 4px",
           border: "none",
@@ -392,6 +409,7 @@ function CustomRange({
           color: TEXT,
           outline: "none",
           fontFamily: "inherit",
+          minWidth: 0,
         }}
       />
       <span aria-hidden style={{ color: MUTED, fontSize: 13 }}>→</span>
@@ -400,6 +418,7 @@ function CustomRange({
         value={period.to_date}
         onChange={(e) => onChange({ ...period, to_date: e.target.value })}
         style={{
+          flex: compact ? 1 : undefined,
           height: 24,
           padding: "0 4px",
           border: "none",
@@ -408,6 +427,7 @@ function CustomRange({
           color: TEXT,
           outline: "none",
           fontFamily: "inherit",
+          minWidth: 0,
         }}
       />
     </div>

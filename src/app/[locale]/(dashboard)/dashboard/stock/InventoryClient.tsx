@@ -40,7 +40,7 @@ export function InventoryClient({ user }: { user: AuthUser }) {
   const market = user.locale === "ar" ? "LY" : "TN";
 
   return (
-    <div style={{ backgroundColor: "#F6F6F7", minHeight: "100vh", padding: "32px 32px 64px" }}>
+    <div style={{ backgroundColor: "#F6F6F7", minHeight: "100vh" }} className="px-4 py-6 pb-16 sm:px-6 md:px-8">
       <header style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 20, fontWeight: 600, color: "#1A1A1A", margin: 0 }}>
           {t("title")}
@@ -66,14 +66,7 @@ export function InventoryClient({ user }: { user: AuthUser }) {
 
       <HeroStrip totals={totals} loading={isLoading} market={market} t={t} />
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
-          gap: 16,
-          marginBlockStart: 16,
-        }}
-      >
+      <div className="grid grid-cols-1 gap-4 mt-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <Panel title={t("reorder.title")} minHeight={240}>
           {!inventory && isLoading ? (
             <EmptyState label={t("loading")} />
@@ -153,13 +146,7 @@ function HeroStrip({
   t: I18n;
 }) {
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 2.6fr)",
-        gap: 12,
-      }}
-    >
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,2.6fr)]">
       <StockValueCard totals={totals} loading={loading} market={market} t={t} />
       <HealthBreakdown totals={totals} t={t} />
     </div>
@@ -239,13 +226,7 @@ function HealthBreakdown({
   ];
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-        gap: 12,
-      }}
-    >
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {items.map(({ icon: Icon, key, value, tone }) => {
         const palette = HEALTH_PALETTE[tone];
         return (
@@ -381,14 +362,8 @@ function MovementsDailyList({ rows, locale, t }: { rows: DayBucket[]; locale: st
         return (
           <li
             key={r.day}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "100px 1fr 80px 60px",
-              alignItems: "center",
-              gap: 10,
-              padding: "6px 4px",
-              fontSize: 13,
-            }}
+            className="grid items-center gap-2 px-1 py-1.5 text-[13px]"
+            style={{ gridTemplateColumns: "minmax(64px,90px) 1fr minmax(40px,56px) minmax(32px,48px)" }}
           >
             <div style={{ color: "#6D7175", fontVariantNumeric: "tabular-nums" }}>
               {formatDate(r.day, locale)}
@@ -687,6 +662,7 @@ function AdjustStockModal({
         alignItems: "center",
         justifyContent: "center",
         zIndex: 50,
+        padding: "16px",
       }}
     >
       <form
@@ -695,8 +671,8 @@ function AdjustStockModal({
         style={{
           background: "#FFFFFF",
           borderRadius: 8,
-          width: 480,
-          maxWidth: "90vw",
+          width: "100%",
+          maxWidth: 480,
           boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
           display: "flex",
           flexDirection: "column",

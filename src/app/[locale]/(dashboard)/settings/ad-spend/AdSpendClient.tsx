@@ -155,7 +155,7 @@ export function AdSpendClient({ user, markets, initialMarketId }: AdSpendClientP
   return (
     <div
       style={{
-        padding: "32px 32px 64px",
+        padding: "clamp(16px, 4vw, 32px) clamp(12px, 4vw, 32px) 64px",
         background: D.pageBg,
         minHeight: "100vh",
         display: "flex",
@@ -177,7 +177,7 @@ export function AdSpendClient({ user, markets, initialMarketId }: AdSpendClientP
           <h1
             style={{
               margin: 0,
-              fontSize: 28,
+              fontSize: "clamp(20px, 5vw, 28px)",
               fontWeight: 700,
               color: D.white,
               letterSpacing: "-0.02em",

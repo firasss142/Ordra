@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface Agent {
   id: string;
@@ -28,6 +29,7 @@ export function OrdersBulkBar({
   canCancel,
 }: Props) {
   const t = useTranslations("orders.bulk");
+  const isMobile = useIsMobile();
   const [assignOpen, setAssignOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -46,21 +48,22 @@ export function OrdersBulkBar({
     <div
       style={{
         position: "fixed",
-        bottom: 24,
-        insetInlineStart: "50%",
-        transform: "translateX(-50%)",
+        bottom: isMobile ? 0 : 24,
+        insetInlineStart: isMobile ? 0 : "50%",
+        insetInlineEnd: isMobile ? 0 : undefined,
+        transform: isMobile ? undefined : "translateX(-50%)",
         zIndex: 30,
         display: "flex",
         alignItems: "center",
         gap: 12,
-        padding: "12px 20px",
+        padding: isMobile ? "12px 16px" : "12px 20px",
         background: "#1A1A1A",
         color: "#FFFFFF",
-        borderRadius: 10,
+        borderRadius: isMobile ? 0 : 10,
         fontSize: 13,
         fontWeight: 500,
         boxShadow: "0 8px 32px rgba(0,0,0,0.28)",
-        whiteSpace: "nowrap",
+        flexWrap: "wrap",
       }}
     >
       <span style={{ fontVariantNumeric: "tabular-nums" }}>

@@ -30,7 +30,7 @@ export default async function Page({
   const scope = user.role !== "super_admin" ? user.market_id : null;
   const fallbackRows = await prefetchToLabel(scope);
 
-  const t = await getTranslations("warehouse");
+  const t = await getTranslations({ locale, namespace: "warehouse" });
 
   return (
     <PreparationClient

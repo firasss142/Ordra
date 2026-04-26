@@ -8,8 +8,9 @@ import {
   Phone,
   BadgeCheck,
   Archive,
-  List,
-  Columns,
+  LayoutGrid,
+  Rows3,
+  Plus,
   type LucideIcon,
 } from "lucide-react";
 import { useAgentLeadQueue, tentativeTotal } from "@/hooks/useAgentLeadQueue";
@@ -18,6 +19,7 @@ import { LeadStatusBadge } from "./LeadStatusBadge";
 import { LeadsKanban } from "./LeadsKanban";
 import { NewLeadModal } from "./NewLeadModal";
 import { AttemptEtiquette } from "@/components/queue/AttemptEtiquette";
+import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
 import type { LeadStatus } from "@/types/lead";
 import type { AuthUser } from "@/types";
 
@@ -43,6 +45,13 @@ const TABS: TabDef[] = [
   { key: "qualifie", icon: BadgeCheck, labelKey: "qualifie" },
   { key: "fermees", icon: Archive, labelKey: "fermees" },
 ];
+
+const CARD_BG = "#FFFFFF";
+const SOFT_BG = "#FFFFFF";
+const BORDER = "#E1E3E5";
+const SUBTLE_BG = "#F6F6F7";
+const TEXT = "#1A1A1A";
+const MUTED = "#6D7175";
 
 function bucketForLeadStatus(status: string): BucketKey | null {
   if (status === "assigned" || status === "new") return "nouveau";
@@ -78,6 +87,7 @@ export function AgentLeadsQueue({ user }: Props) {
   const tBuckets = useTranslations("crm.queue.buckets");
   const tSub = useTranslations("crm.queue.buckets.subfilter");
   const tLeads = useTranslations("crm.leads");
+  const tViews = useTranslations("crm.leads.views");
   const tSources = useTranslations("crm.leads.sources");
 
   const { allLeads, closedLeads, buckets, isLoading, mutate } =
@@ -130,235 +140,175 @@ export function AgentLeadsQueue({ user }: Props) {
     { key: "scheduled", label: tSub("scheduled"), count: buckets?.rappel_prevu ?? 0 },
   ];
 
-  return (
-    <div style={{ padding: 24, minHeight: "calc(100vh - 64px)" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 16,
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              fontSize: 22,
-              fontWeight: 700,
-              color: "var(--text-primary)",
-              margin: "0 0 4px 0",
-            }}
-          >
-            {t("title")}
-          </h1>
-          <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-            {t("subtitle")}
-          </div>
-        </div>
+  const footerCount = display.length;
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div
-            role="tablist"
-            aria-label={tLeads("view.list")}
-            style={{
-              display: "inline-flex",
-              border: "1px solid var(--border)",
-              borderRadius: 6,
-              overflow: "hidden",
-              height: 36,
-            }}
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={view === "list"}
-              onClick={() => switchView("list")}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "0 12px",
-                fontSize: 12,
-                fontWeight: 500,
-                border: "none",
-                cursor: "pointer",
-                background:
-                  view === "list" ? "var(--text-primary)" : "var(--bg-card)",
-                color: view === "list" ? "#FFFFFF" : "var(--text-primary)",
-                transition: "background-color 120ms ease, color 120ms ease",
-              }}
-            >
-              <List size={14} strokeWidth={1.5} aria-hidden="true" />
-              <span>{tLeads("view.list")}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={view === "kanban"}
-              onClick={() => switchView("kanban")}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "0 12px",
-                fontSize: 12,
-                fontWeight: 500,
-                border: "none",
-                cursor: "pointer",
-                background:
-                  view === "kanban" ? "var(--text-primary)" : "var(--bg-card)",
-                color: view === "kanban" ? "#FFFFFF" : "var(--text-primary)",
-                transition: "background-color 120ms ease, color 120ms ease",
-              }}
-            >
-              <Columns size={14} strokeWidth={1.5} aria-hidden="true" />
-              <span>{tLeads("view.kanban")}</span>
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            style={{
-              height: 36,
-              padding: "0 14px",
-              fontSize: 13,
-              fontWeight: 500,
-              border: "1px solid var(--text-primary)",
-              borderRadius: 6,
-              background: "var(--text-primary)",
-              color: "white",
-              cursor: "pointer",
-            }}
-          >
-            + {tLeads("newLead")}
-          </button>
-        </div>
+  return (
+    <div
+      className="px-4 pt-16 pb-16 md:px-8 md:pt-8"
+      style={{
+        background: SUBTLE_BG,
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+      }}
+    >
+      <div>
+        <h1 style={{ fontSize: 20, fontWeight: 600, color: TEXT, margin: 0 }}>
+          {t("title")}
+        </h1>
+        <p style={{ fontSize: 13, color: MUTED, margin: "4px 0 0" }}>
+          {t("subtitle")}
+        </p>
       </div>
 
+      {/* Filter card — mirrors manager LeadsFilterBar */}
+      <div
+        style={{
+          background: CARD_BG,
+          border: `1px solid ${BORDER}`,
+          borderRadius: 10,
+          padding: "10px 12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}
+      >
+        {/* Top row: bucket tabs (left) + view toggle + new lead (right) */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+          }}
+        >
+          <div
+            style={{
+              minWidth: 0,
+              flex: "1 1 auto",
+              overflowX: "auto",
+              WebkitOverflowScrolling: "touch",
+            }}
+          >
+            <BucketSegmented
+              tabs={TABS}
+              active={bucket}
+              counts={bucketCount}
+              onSelect={(k) => {
+                setBucket(k);
+                if (k !== "a_rappeler") setSub("all");
+              }}
+              labelFor={(key) => tBuckets(key)}
+            />
+          </div>
+
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              flexShrink: 0,
+            }}
+          >
+            <ViewToggle
+              view={view}
+              onViewChange={switchView}
+              kanbanLabel={tViews("kanban")}
+              listLabel={tLeads("view.list")}
+            />
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                height: 34,
+                padding: "0 14px",
+                fontSize: 13,
+                fontWeight: 500,
+                border: `1px solid ${TEXT}`,
+                borderRadius: 8,
+                background: TEXT,
+                color: "#FFFFFF",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <Plus size={14} strokeWidth={2} />
+              {tLeads("newLead")}
+            </button>
+          </div>
+        </div>
+
+        {/* Sub-filter chips — only on À rappeler */}
+        {bucket === "a_rappeler" && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              flexWrap: "wrap",
+            }}
+          >
+            {subDefs.map(({ key, label, count }) => {
+              const active = sub === key;
+              return (
+                <button
+                  key={String(key)}
+                  type="button"
+                  aria-pressed={active}
+                  aria-label={label}
+                  onClick={() => setSub(key)}
+                  style={{
+                    appearance: "none",
+                    height: 28,
+                    padding: "0 10px",
+                    borderRadius: 6,
+                    border: `1px solid ${active ? TEXT : BORDER}`,
+                    background: active ? TEXT : SOFT_BG,
+                    color: active ? "#FFFFFF" : TEXT,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontFamily: "inherit",
+                    transition:
+                      "background-color 120ms ease, color 120ms ease, border-color 120ms ease",
+                  }}
+                >
+                  <span>{label}</span>
+                  <span
+                    style={{
+                      fontVariantNumeric: "tabular-nums",
+                      opacity: 0.85,
+                    }}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Body */}
       {view === "kanban" ? (
         <LeadsKanban
           marketId={user.market_id}
           locale={user.locale}
           agentId={user.id}
         />
-      ) : (
-      <>
-      {/* Bucket tabs */}
-      <div
-        role="tablist"
-        aria-label={t("title")}
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          borderBottom: "1px solid var(--border)",
-          marginBottom: 12,
-        }}
-      >
-        {TABS.map((tab) => {
-          const active = bucket === tab.key;
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => {
-                setBucket(tab.key);
-                if (tab.key !== "a_rappeler") setSub("all");
-              }}
-              style={{
-                appearance: "none",
-                background: "transparent",
-                border: "none",
-                padding: "10px 4px",
-                marginInlineEnd: 20,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                fontSize: 13,
-                fontWeight: active ? 600 : 500,
-                color: active ? "var(--text-primary)" : "var(--text-secondary)",
-                cursor: "pointer",
-                borderBlockEnd: active
-                  ? "2px solid var(--text-primary)"
-                  : "2px solid transparent",
-                transition: "color 120ms ease, border-color 120ms ease",
-              }}
-            >
-              <Icon size={16} strokeWidth={1.5} aria-hidden="true" />
-              <span>{tBuckets(tab.labelKey)}</span>
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "var(--text-secondary)",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {bucketCount[tab.key]}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Sub-filter chips — visible only in À rappeler */}
-      {bucket === "a_rappeler" && (
+      ) : isLoading && display.length === 0 ? (
         <div
           style={{
-            display: "flex",
-            gap: 6,
-            flexWrap: "wrap",
-            marginBottom: 16,
-          }}
-        >
-          {subDefs.map(({ key, label, count }) => {
-            const active = sub === key;
-            return (
-              <button
-                key={String(key)}
-                type="button"
-                aria-pressed={active}
-                aria-current={active ? "true" : undefined}
-                aria-label={label}
-                onClick={() => setSub(key)}
-                style={{
-                  appearance: "none",
-                  padding: "4px 10px",
-                  borderRadius: 9999,
-                  border: `1px solid ${
-                    active ? "var(--text-primary)" : "var(--border)"
-                  }`,
-                  background: active ? "var(--text-primary)" : "transparent",
-                  color: active ? "#FFFFFF" : "var(--text-primary)",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  transition:
-                    "background-color 120ms ease, color 120ms ease, border-color 120ms ease",
-                }}
-              >
-                <span>{label}</span>
-                <span
-                  style={{ fontVariantNumeric: "tabular-nums", opacity: 0.85 }}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* List */}
-      {isLoading && display.length === 0 ? (
-        <div
-          style={{
-            color: "var(--text-secondary)",
+            color: MUTED,
             padding: 24,
             textAlign: "center",
           }}
@@ -368,11 +318,11 @@ export function AgentLeadsQueue({ user }: Props) {
       ) : display.length === 0 ? (
         <div
           style={{
-            color: "var(--text-secondary)",
+            color: MUTED,
             padding: 48,
             textAlign: "center",
-            background: "var(--bg-card)",
-            border: "1px solid var(--border)",
+            background: CARD_BG,
+            border: `1px solid ${BORDER}`,
             borderRadius: 8,
           }}
         >
@@ -391,11 +341,11 @@ export function AgentLeadsQueue({ user }: Props) {
                 style={{
                   display: "block",
                   padding: 16,
-                  background: "var(--bg-card)",
-                  border: "1px solid var(--border)",
+                  background: CARD_BG,
+                  border: `1px solid ${BORDER}`,
                   borderRadius: 8,
                   textDecoration: "none",
-                  color: "var(--text-primary)",
+                  color: TEXT,
                 }}
               >
                 <div
@@ -418,6 +368,17 @@ export function AgentLeadsQueue({ user }: Props) {
                     <div style={{ fontSize: 14, fontWeight: 600 }}>
                       {l.customer_name}
                     </div>
+                    {l.repeat_kind && l.repeat_kind !== "none" && (
+                      <RepeatBuyerBadge
+                        source="lead"
+                        sourceId={l.id}
+                        repeatKind={l.repeat_kind}
+                        priorOrderCount={l.prior_order_count ?? 0}
+                        priorLeadCount={l.prior_lead_count ?? 0}
+                        priorRejectedCount={l.prior_rejected_count ?? 0}
+                        customerPhone={l.customer_phone}
+                      />
+                    )}
                     {isAttemptOrCallback && (
                       <AttemptEtiquette
                         status={l.status}
@@ -428,7 +389,7 @@ export function AgentLeadsQueue({ user }: Props) {
                   </div>
                   <LeadStatusBadge status={l.status as LeadStatus} />
                 </div>
-                <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                <div style={{ fontSize: 13, color: MUTED }}>
                   {l.customer_phone}
                   {l.customer_city && ` · ${l.customer_city}`}
                   {" · "}
@@ -438,7 +399,7 @@ export function AgentLeadsQueue({ user }: Props) {
                   <div
                     style={{
                       fontSize: 13,
-                      color: "var(--text-primary)",
+                      color: TEXT,
                       marginTop: 4,
                     }}
                   >
@@ -448,7 +409,7 @@ export function AgentLeadsQueue({ user }: Props) {
                 <div
                   style={{
                     fontSize: 12,
-                    color: "var(--text-secondary)",
+                    color: MUTED,
                     marginTop: 4,
                   }}
                 >
@@ -461,7 +422,11 @@ export function AgentLeadsQueue({ user }: Props) {
           })}
         </div>
       )}
-      </>
+
+      {view !== "kanban" && footerCount > 0 && (
+        <div style={{ fontSize: 13, color: MUTED, textAlign: "end" }}>
+          {tLeads("footerCount", { count: footerCount })}
+        </div>
       )}
 
       <NewLeadModal
@@ -472,6 +437,155 @@ export function AgentLeadsQueue({ user }: Props) {
         isSuperAdmin={false}
         locale={user.locale}
       />
+    </div>
+  );
+}
+
+function BucketSegmented({
+  tabs,
+  active,
+  counts,
+  onSelect,
+  labelFor,
+}: {
+  tabs: TabDef[];
+  active: BucketKey;
+  counts: Record<BucketKey, number>;
+  onSelect: (k: BucketKey) => void;
+  labelFor: (
+    key: "nouveau" | "toCallBack" | "qualifie" | "fermees",
+  ) => string;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="lead-bucket"
+      style={{
+        display: "inline-flex",
+        background: SUBTLE_BG,
+        borderRadius: 8,
+        padding: 2,
+        gap: 2,
+        border: `1px solid ${BORDER}`,
+      }}
+    >
+      {tabs.map((tab) => {
+        const isActive = active === tab.key;
+        const Icon = tab.icon;
+        return (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onSelect(tab.key)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "5px 12px",
+              border: "none",
+              borderRadius: 6,
+              background: isActive ? "#FFFFFF" : "transparent",
+              color: isActive ? TEXT : MUTED,
+              fontSize: 13,
+              fontWeight: isActive ? 600 : 500,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              boxShadow: isActive ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+              fontFamily: "inherit",
+              transition: "color 120ms ease, background-color 120ms ease",
+            }}
+          >
+            <Icon size={14} strokeWidth={1.75} aria-hidden="true" />
+            <span>{labelFor(tab.labelKey)}</span>
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: isActive ? 600 : 500,
+                color: "inherit",
+                opacity: isActive ? 1 : 0.7,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {counts[tab.key]}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ViewToggle({
+  view,
+  onViewChange,
+  kanbanLabel,
+  listLabel,
+}: {
+  view: ViewMode;
+  onViewChange: (v: ViewMode) => void;
+  kanbanLabel: string;
+  listLabel: string;
+}) {
+  const items: {
+    key: ViewMode;
+    label: string;
+    icon: React.ReactNode;
+  }[] = [
+    {
+      key: "list",
+      label: listLabel,
+      icon: <Rows3 size={13} strokeWidth={1.75} />,
+    },
+    {
+      key: "kanban",
+      label: kanbanLabel,
+      icon: <LayoutGrid size={13} strokeWidth={1.75} />,
+    },
+  ];
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        background: SUBTLE_BG,
+        borderRadius: 8,
+        padding: 2,
+        gap: 2,
+        border: `1px solid ${BORDER}`,
+      }}
+    >
+      {items.map((it) => {
+        const isActive = view === it.key;
+        return (
+          <button
+            key={it.key}
+            type="button"
+            aria-selected={isActive}
+            onClick={() => onViewChange(it.key)}
+            title={it.label}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "5px 10px",
+              border: "none",
+              borderRadius: 6,
+              background: isActive ? "#FFFFFF" : "transparent",
+              color: TEXT,
+              fontSize: 12,
+              fontWeight: isActive ? 600 : 500,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              boxShadow: isActive ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+              fontFamily: "inherit",
+            }}
+          >
+            {it.icon}
+            {it.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

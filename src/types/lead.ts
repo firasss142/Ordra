@@ -95,6 +95,11 @@ export interface Lead {
   updated_at: string;
   is_hot: boolean;
   has_duplicate: boolean;
+  repeat_kind?: import("@/lib/customer-history/classify").RepeatKind;
+  prior_order_count?: number;
+  prior_lead_count?: number;
+  prior_rejected_count?: number;
+  last_known_address?: string | null;
 }
 
 export interface LeadHistoryEntry {

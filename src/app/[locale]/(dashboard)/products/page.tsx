@@ -23,7 +23,7 @@ export default async function ProductsPage({
 
   if (!profile) redirect(`/${params.locale}/login`);
 
-  const t = await getTranslations("products");
+  const t = await getTranslations({ locale: params.locale, namespace: "products" });
 
   return (
     <div style={{ padding: 24, backgroundColor: "#F6F6F7", minHeight: "100vh" }}>

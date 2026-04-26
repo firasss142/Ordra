@@ -81,14 +81,12 @@ export function FinanceHeroCard({
       </div>
       <div
         style={{
-          fontSize: 32,
+          fontSize: "clamp(22px, 2.5vw, 32px)",
           fontWeight: 700,
           color: VALUE_COLOR[tone],
           fontVariantNumeric: "tabular-nums",
           lineHeight: 1.1,
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
+          wordBreak: "break-word",
           marginTop: 4,
         }}
       >

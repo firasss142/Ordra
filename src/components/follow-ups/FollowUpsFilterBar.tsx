@@ -249,6 +249,7 @@ function ViewToggle({
         borderRadius: 8,
         padding: 2,
         gap: 2,
+        border: `1px solid ${BORDER}`,
       }}
     >
       {items.map((it) => {
@@ -398,7 +399,7 @@ function SelectChip({
             border: `1px solid ${BORDER}`,
             borderRadius: 8,
             boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            minWidth: 200,
+            minWidth: "min(200px, calc(100vw - 24px))",
             maxHeight: 280,
             overflowY: "auto",
             zIndex: 30,
@@ -518,7 +519,7 @@ function MarketChip({
             border: `1px solid ${BORDER}`,
             borderRadius: 8,
             boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            minWidth: 200,
+            minWidth: "min(200px, calc(100vw - 24px))",
             zIndex: 20,
             padding: 4,
           }}

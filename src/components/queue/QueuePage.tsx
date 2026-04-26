@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { Phone, X } from "lucide-react";
 import { useAuth } from "@/context/auth";
 import {
   QueueHeader,
@@ -48,6 +49,7 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     status: raw.status as string,
     customer_name: (raw.customer_name as string) ?? "",
     customer_phone: (raw.customer_phone as string) ?? "",
+    customer_address: (raw.customer_address as string | null) ?? null,
     customer_city: (raw.customer_city as string) ?? "",
     product_name: (raw.product_name as string) ?? "",
     variant_label: (raw.variant_label as string) ?? "",
@@ -61,6 +63,11 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     customer_phone_2: (raw.customer_phone_2 as string | null) ?? null,
     created_at: raw.created_at as string,
     assigned_at: (raw.assigned_at as string) ?? (raw.created_at as string),
+    repeat_kind: (raw.repeat_kind as QueueOrder["repeat_kind"]) ?? "none",
+    prior_order_count: (raw.prior_order_count as number) ?? 0,
+    prior_lead_count: (raw.prior_lead_count as number) ?? 0,
+    prior_rejected_count: (raw.prior_rejected_count as number) ?? 0,
+    last_known_address: (raw.last_known_address as string | null) ?? null,
   };
 }
 
@@ -294,6 +301,11 @@ export function QueuePage() {
       return;
     }
 
+    // Esc clears bulk selection (only when no panel/sheet is open)
+    if (e.key === "Escape" && !s.selectedOrderId && !s.callTerminatedOrderId) {
+      setSelectedOrderIds((prev) => (prev.size > 0 ? new Set() : prev));
+    }
+
     // If a detail panel is open, let its Escape key handling apply
     if (s.selectedOrderId) return;
 
@@ -484,27 +496,53 @@ export function QueuePage() {
         />
       )}
 
-      {/* Bulk selection floating action bar */}
+      {/* Bulk selection floating action bar — Shopify-style light surface */}
       {selectedOrderIds.size > 0 && (
         <div
           role="region"
           aria-label="Bulk actions"
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2.5 bg-ink-primary text-white rounded-card px-5 py-2.5 shadow-floating"
+          className="fixed bottom-6 inset-x-0 z-30 flex justify-center px-4 pointer-events-none animate-[fadeInUp_120ms_ease-out]"
         >
-          <button
-            type="button"
-            onClick={handleBulkCallEnded}
-            className="text-[13px] font-semibold text-white hover:opacity-90 transition-opacity duration-fast"
+          <div
+            className="pointer-events-auto inline-flex items-stretch overflow-hidden bg-surface-card border border-line-subtle rounded-card shadow-floating"
           >
-            {t("bulkCallEnded", { count: String(selectedOrderIds.size) })}
-          </button>
-          <button
-            type="button"
-            onClick={handleDeselectAll}
-            className="text-[13px] text-white border border-white/20 rounded-md px-2.5 py-1 hover:bg-white/10 transition-colors duration-fast"
-          >
-            {t("deselectAll")}
-          </button>
+            {/* Selection count chip with accent rail */}
+            <div className="flex items-center gap-2.5 ps-4 pe-3 py-2.5 border-e border-line-subtle relative">
+              <span aria-hidden="true" className="absolute inset-y-2 start-0 w-[3px] rounded-full bg-accent" />
+              <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-pill bg-accent/10 text-accent text-[12px] font-bold tabular-nums">
+                {selectedOrderIds.size}
+              </span>
+              <span className="text-[13px] font-medium text-ink-primary whitespace-nowrap">
+                {t(selectedOrderIds.size > 1 ? "bulkSelectedCountPlural" : "bulkSelectedCount", { count: String(selectedOrderIds.size) })}
+              </span>
+            </div>
+
+            {/* Primary action */}
+            <button
+              type="button"
+              onClick={handleBulkCallEnded}
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-surface-hover transition-colors duration-fast border-e border-line-subtle"
+            >
+              <Phone size={14} strokeWidth={2.25} aria-hidden="true" />
+              <span>{t("bulkStartCalls")}</span>
+            </button>
+
+            {/* Esc hint */}
+            <div className="hidden md:flex items-center gap-1.5 px-3 text-[11px] text-ink-muted border-e border-line-subtle">
+              <kbd className="inline-flex items-center justify-center min-w-[24px] h-[18px] px-1 rounded border border-line-subtle bg-surface-page text-[10px] font-medium text-ink-secondary">Esc</kbd>
+              <span>{t("bulkEscHint")}</span>
+            </div>
+
+            {/* Clear */}
+            <button
+              type="button"
+              onClick={handleDeselectAll}
+              aria-label={t("deselectAll")}
+              className="inline-flex items-center justify-center px-3 py-2.5 text-ink-secondary hover:text-ink-primary hover:bg-surface-hover transition-colors duration-fast"
+            >
+              <X size={16} strokeWidth={2} aria-hidden="true" />
+            </button>
+          </div>
         </div>
       )}
 

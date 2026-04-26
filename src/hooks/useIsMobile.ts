@@ -7,6 +7,9 @@ export function useIsMobile(): boolean {
     typeof window !== "undefined" ? window.innerWidth < 640 : false,
   );
   useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return;
+    }
     const mq = window.matchMedia("(max-width: 639px)");
     const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     mq.addEventListener("change", handler);

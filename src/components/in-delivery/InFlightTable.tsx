@@ -43,10 +43,10 @@ export function InFlightTable({
         backgroundColor: "#FFFFFF",
         border: "1px solid #E1E3E5",
         borderRadius: 6,
-        overflow: "hidden",
+        overflowX: "auto",
       }}
     >
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
         <thead>
           <tr style={{ backgroundColor: "#F6F6F7" }}>
             <Th style={{ width: 32 }} />

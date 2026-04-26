@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { sortAgentLeadQueue } from "@/lib/leads/queue-sort";
 import { TERMINAL_LEAD_STATUSES } from "@/types/lead";
 import { getActor } from "@/lib/auth/actor";
+import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 
 const ACTIVE_QUEUE_STATUSES = [
   "assigned",
@@ -102,10 +103,25 @@ export async function GET(_req: NextRequest) {
     ...allLeads.filter((l) => !sortedIds.has(l.id)),
   ];
 
-  return NextResponse.json({
-    leads: sorted,
-    allLeads: allSorted,
+  const enrichedAll = await enrichRowsWithCustomerHistory(
+    supabase,
+    actor.market_id ?? null,
+    "lead",
+    allSorted,
+  );
+  const enrichedClosed = await enrichRowsWithCustomerHistory(
+    supabase,
+    actor.market_id ?? null,
+    "lead",
     closedLeads,
+  );
+  const enrichedSortedSet = new Set(sorted.map((l) => l.id));
+  const enrichedSorted = enrichedAll.filter((l) => enrichedSortedSet.has(l.id));
+
+  return NextResponse.json({
+    leads: enrichedSorted,
+    allLeads: enrichedAll,
+    closedLeads: enrichedClosed,
     buckets,
   });
 }

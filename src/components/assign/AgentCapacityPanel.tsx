@@ -12,6 +12,7 @@ interface Props {
   onAssign: (agentId: string) => void;
   busyAgentId?: string | null;
   loading?: boolean;
+  fullWidth?: boolean;
 }
 
 export function AgentCapacityPanel({
@@ -20,6 +21,7 @@ export function AgentCapacityPanel({
   onAssign,
   busyAgentId,
   loading = false,
+  fullWidth = false,
 }: Props) {
   const t = useTranslations("assign.agents");
 
@@ -37,7 +39,7 @@ export function AgentCapacityPanel({
     <aside
       aria-label={t("title")}
       style={{
-        width: 320,
+        width: fullWidth ? "100%" : 320,
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",
@@ -61,15 +63,21 @@ export function AgentCapacityPanel({
       ) : sorted.length === 0 ? (
         <div style={{ fontSize: 13, color: "#6D7175", padding: 12 }}>{t("empty")}</div>
       ) : (
-        sorted.map((a) => (
-          <AgentCapacityCard
-            key={a.id}
-            agent={a}
-            selectedCount={selectedCount}
-            onAssign={onAssign}
-            busy={busyAgentId === a.id}
-          />
-        ))
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: fullWidth ? "repeat(auto-fill, minmax(260px, 1fr))" : "1fr",
+          gap: 8,
+        }}>
+          {sorted.map((a) => (
+            <AgentCapacityCard
+              key={a.id}
+              agent={a}
+              selectedCount={selectedCount}
+              onAssign={onAssign}
+              busy={busyAgentId === a.id}
+            />
+          ))}
+        </div>
       )}
     </aside>
   );

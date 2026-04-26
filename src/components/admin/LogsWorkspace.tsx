@@ -620,7 +620,7 @@ function WebhookTable({
 
   return (
     <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <table style={{ width: "100%", minWidth: 1024, borderCollapse: "collapse" }}>
         <thead style={{ backgroundColor: "#FAFBFB" }}>
           <tr>
             <th style={thStyle}>{t("cols.date")}</th>
@@ -733,7 +733,7 @@ function CarrierTable({
 
   return (
     <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <table style={{ width: "100%", minWidth: 1024, borderCollapse: "collapse" }}>
         <thead style={{ backgroundColor: "#FAFBFB" }}>
           <tr>
             <th style={thStyle}>{t("cols.date")}</th>

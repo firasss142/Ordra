@@ -19,6 +19,7 @@ const mockOrder: QueueOrder = {
   id: "order-1",
   customer_name: "Ahmed Gharbi",
   customer_phone: "22123456",
+  customer_address: null,
   customer_city: "Tunis",
   product_name: "T-Shirt Premium",
   variant_label: "L / Rouge",
@@ -33,6 +34,11 @@ const mockOrder: QueueOrder = {
   status: "assigned",
   created_at: "2026-04-10T10:00:00Z",
   assigned_at: "2026-04-10T10:00:00Z",
+  repeat_kind: "none",
+  prior_order_count: 0,
+  prior_lead_count: 0,
+  prior_rejected_count: 0,
+  last_known_address: null,
 };
 
 describe("OrderCard", () => {

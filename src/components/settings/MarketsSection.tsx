@@ -79,7 +79,7 @@ export function MarketsSection({ role }: MarketsSectionProps) {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(520px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fill, minmax(min(520px, 100%), 1fr))",
           gap: 20,
         }}
       >

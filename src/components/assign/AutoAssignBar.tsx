@@ -3,6 +3,7 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Filter, Sparkles } from "lucide-react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import type { AssignmentAlgorithm } from "@/types/settings";
 import { AssignmentAlgorithm as ALGO } from "@/types/settings";
 
@@ -47,6 +48,7 @@ export function AutoAssignBar({
   onSelectAll,
 }: Props) {
   const t = useTranslations("assign");
+  const isMobile = useIsMobile();
   const canAuto = algorithm !== "manual" && isActive;
   const autoDisabled = selectedCount === 0 || !canAuto || autoBusy;
   const allSelected = totalCount > 0 && selectedCount === totalCount;
@@ -75,10 +77,11 @@ export function AutoAssignBar({
       <div
         style={{
           display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
+          flexDirection: isMobile ? "column" : "row",
+          flexWrap: isMobile ? undefined : "wrap",
+          alignItems: isMobile ? "stretch" : "center",
           gap: 10,
-          justifyContent: "space-between",
+          justifyContent: isMobile ? undefined : "space-between",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -158,9 +161,11 @@ export function AutoAssignBar({
             style={{
               display: "inline-flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: 6,
               height: 34,
               padding: "0 14px",
+              width: isMobile ? "100%" : undefined,
               fontSize: 13,
               fontWeight: 500,
               border: `1px solid ${autoDisabled ? BORDER : TEXT}`,

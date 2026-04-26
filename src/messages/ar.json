@@ -953,6 +953,10 @@
     "create": {
       "newOrder": "طلب جديد",
       "modalTitle": "إنشاء طلب",
+      "modalSubtitle": "أدخل بيانات العميل والطلب",
+      "sectionCustomer": "العميل",
+      "sectionOrder": "الطلب",
+      "sectionContext": "السياق",
       "submit": "إنشاء الطلب",
       "submitting": "جارٍ الحفظ…",
       "cancel": "إلغاء",
@@ -1084,6 +1088,11 @@
     "bulkCallEnded": "إنهاء المكالمة ({count})",
     "deselectAll": "إلغاء تحديد الكل",
     "selectOrder": "تحديد هذا الطلب",
+    "bulkSelectedCount": "تم تحديد {count}",
+    "bulkSelectedCountPlural": "تم تحديد {count}",
+    "bulkStartCalls": "بدء المكالمات",
+    "bulkClear": "مسح",
+    "bulkEscHint": "Esc للإلغاء",
     "shortcuts": {
       "title": "اختصارات لوحة المفاتيح",
       "navigate": "التنقل بين البطاقات",
@@ -2552,5 +2561,24 @@
       "orders": "طلبات",
       "empty": "بيانات غير كافية لهذه الفترة."
     }
+  },
+  "customerHistory": {
+    "badge": {
+      "repeat": "متكرر · {count}",
+      "likely": "متكرر محتمل · {count}",
+      "risk": "خطر · {count} مرفوض"
+    },
+    "popover": {
+      "loading": "جارٍ التحميل…",
+      "error": "تعذّر تحميل السجل.",
+      "headlineRepeat": "{count} طلبات سابقة · {delivered} تم تسليمها",
+      "headlineRisk": "{rejected} من أصل {total} طلبات مرفوضة",
+      "lifetimeValue": "القيمة الإجمالية: {amount} {currency}",
+      "lastOrder": "آخر طلب: {date} · {status}",
+      "lastAddress": "آخر عنوان: {address}",
+      "plusLeads": "+ {count} عميل محتمل",
+      "seeAll": "عرض كل الطلبات"
+    },
+    "addressChange": "↳ عنوان جديد (سابقًا: {previous})"
   }
 }

@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
+import { X, AlertCircle } from "lucide-react";
 import type FocusTrapType from "focus-trap-react";
 import type { Role } from "@/types";
 import {
@@ -97,22 +98,33 @@ function emptyForm(marketId: string): FormState {
   };
 }
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  fontSize: 13,
-  border: "1px solid #E1E3E5",
-  borderRadius: 4,
-  boxSizing: "border-box",
-  background: "white",
-};
+const inputClass =
+  "w-full h-10 px-3 text-[13.5px] rounded-card border border-line-subtle bg-surface-card text-ink-primary placeholder:text-ink-muted focus:outline-none focus:border-ink-primary focus:ring-2 focus:ring-accent/20 disabled:bg-surface-page disabled:text-ink-muted disabled:cursor-not-allowed transition-colors duration-fast";
 
-const labelStyle: React.CSSProperties = {
-  fontSize: 13,
-  color: "#6D7175",
-  display: "block",
-  marginBottom: 4,
-};
+const textareaClass =
+  "w-full px-3 py-2 text-[13.5px] rounded-card border border-line-subtle bg-surface-card text-ink-primary placeholder:text-ink-muted focus:outline-none focus:border-ink-primary focus:ring-2 focus:ring-accent/20 resize-y transition-colors duration-fast";
+
+function FieldLabel({ children, required = false }: { children: React.ReactNode; required?: boolean }) {
+  return (
+    <label className="block text-[12px] font-medium text-ink-secondary mb-1">
+      {children}
+      {required && <span className="text-status-critical ms-0.5">*</span>}
+    </label>
+  );
+}
+
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="bg-surface-card border border-line-subtle rounded-card overflow-hidden">
+      <div className="px-4 pt-3.5 pb-2">
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-secondary">
+          {title}
+        </h3>
+      </div>
+      <div className="px-4 pb-4 pt-1 flex flex-col gap-3">{children}</div>
+    </section>
+  );
+}
 
 function formatPrice(value: number): string {
   return value.toFixed(3);
@@ -383,13 +395,9 @@ export function CreateOrderModal({
 
   return (
     <>
+      {/* Backdrop */}
       <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          backgroundColor: "rgba(26,26,26,0.4)",
-          zIndex: 40,
-        }}
+        className="fixed inset-0 z-40 bg-ink-primary/40 animate-[fadeInUp_120ms_ease-out]"
         onClick={() => !form.loading && onClose()}
       />
       <FocusTrap
@@ -401,262 +409,256 @@ export function CreateOrderModal({
         <div
           ref={modalRef}
           tabIndex={-1}
-          style={{
-            position: "fixed",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            backgroundColor: "#FFFFFF",
-            border: "1px solid #E1E3E5",
-            borderRadius: "0.5rem",
-            padding: 24,
-            zIndex: 50,
-            width: 520,
-            maxHeight: "90vh",
-            overflowY: "auto",
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-order-title"
+          className="fixed top-0 end-0 h-full w-full sm:w-[520px] lg:w-[560px] z-50 flex flex-col overflow-hidden bg-surface-page border-s border-line-subtle shadow-panel animate-[slideInEnd_180ms_ease-out]"
         >
-          <div style={{ fontSize: 16, fontWeight: 600, color: "#1A1A1A" }}>
-            {t("modalTitle")}
-          </div>
-
-          {isSuperAdmin && (
-            <div>
-              <label style={labelStyle}>{t("fields.market")} *</label>
-              <select
-                value={form.market_id}
-                onChange={(e) => update("market_id", e.target.value)}
-                style={inputStyle}
+          {/* Sticky Header */}
+          <div className="bg-surface-card border-b border-line-subtle flex-shrink-0">
+            <div className="flex items-center justify-between gap-3 px-5 py-3.5">
+              <div className="min-w-0">
+                <h2 id="create-order-title" className="text-[16px] font-semibold text-ink-primary leading-tight">
+                  {t("modalTitle")}
+                </h2>
+                <p className="text-[12px] text-ink-secondary mt-0.5">{t("modalSubtitle")}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !form.loading && onClose()}
+                disabled={form.loading}
+                aria-label={t("cancel")}
+                className="inline-flex items-center justify-center w-8 h-8 rounded-card text-ink-secondary hover:text-ink-primary hover:bg-surface-hover transition-colors duration-fast disabled:opacity-50 flex-shrink-0"
               >
-                <option value="">—</option>
-                {markets.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div>
-            <label style={labelStyle}>{t("fields.storefront")} *</label>
-            <select
-              value={form.storefront_id}
-              onChange={(e) => update("storefront_id", e.target.value)}
-              style={inputStyle}
-              disabled={!effectiveMarketId}
-            >
-              <option value="">—</option>
-              {storefronts.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.platform})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ display: "flex", gap: 8 }}>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>{t("fields.customerName")} *</label>
-              <input
-                type="text"
-                value={form.customer_name}
-                onChange={(e) => update("customer_name", e.target.value)}
-                style={inputStyle}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>{t("fields.customerPhone")} *</label>
-              <input
-                type="text"
-                value={form.customer_phone}
-                onChange={(e) => update("customer_phone", e.target.value)}
-                style={inputStyle}
-                inputMode="tel"
-                autoComplete="tel"
-              />
+                <X size={16} strokeWidth={2} aria-hidden="true" />
+              </button>
             </div>
           </div>
 
-          <div>
-            <label style={labelStyle}>{t("fields.customerCity")}</label>
-            {cityOptions.length > 0 ? (
-              <select
-                value={form.customer_city}
-                onChange={(e) => update("customer_city", e.target.value)}
-                style={inputStyle}
-              >
-                <option value="">—</option>
-                {cityOptions.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                value={form.customer_city}
-                onChange={(e) => update("customer_city", e.target.value)}
-                style={inputStyle}
-              />
-            )}
-          </div>
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4">
+            <FormSection title={t("sectionContext")}>
+              {isSuperAdmin && (
+                  <div>
+                    <FieldLabel required>{t("fields.market")}</FieldLabel>
+                    <select
+                      value={form.market_id}
+                      onChange={(e) => update("market_id", e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">—</option>
+                      {markets.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              <div>
+                <FieldLabel required>{t("fields.storefront")}</FieldLabel>
+                <select
+                  value={form.storefront_id}
+                  onChange={(e) => update("storefront_id", e.target.value)}
+                  className={inputClass}
+                  disabled={!effectiveMarketId}
+                >
+                  <option value="">—</option>
+                  {storefronts.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.platform})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </FormSection>
 
-          <div>
-            <label style={labelStyle}>{t("fields.customerAddress")}</label>
-            <textarea
-              value={form.customer_address}
-              onChange={(e) => update("customer_address", e.target.value)}
-              rows={2}
-              style={{ ...inputStyle, resize: "vertical" }}
-            />
-          </div>
+            <FormSection title={t("sectionCustomer")}>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <FieldLabel required>{t("fields.customerName")}</FieldLabel>
+                  <input
+                    type="text"
+                    value={form.customer_name}
+                    onChange={(e) => update("customer_name", e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <FieldLabel required>{t("fields.customerPhone")}</FieldLabel>
+                  <input
+                    type="text"
+                    value={form.customer_phone}
+                    onChange={(e) => update("customer_phone", e.target.value)}
+                    className={inputClass}
+                    inputMode="tel"
+                    autoComplete="tel"
+                  />
+                </div>
+              </div>
 
-          <div>
-            <label style={labelStyle}>{t("fields.customerNote")}</label>
-            <textarea
-              value={form.customer_note}
-              onChange={(e) => update("customer_note", e.target.value)}
-              rows={2}
-              style={{ ...inputStyle, resize: "vertical" }}
-            />
-          </div>
+              <div>
+                <FieldLabel>{t("fields.customerCity")}</FieldLabel>
+                {cityOptions.length > 0 ? (
+                  <select
+                    value={form.customer_city}
+                    onChange={(e) => update("customer_city", e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">—</option>
+                    {cityOptions.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={form.customer_city}
+                    onChange={(e) => update("customer_city", e.target.value)}
+                    className={inputClass}
+                  />
+                )}
+              </div>
 
-          <div>
-            <label style={labelStyle}>{t("fields.product")} *</label>
-            <select
-              value={form.product_id}
-              onChange={(e) => handleProductChange(e.target.value)}
-              style={inputStyle}
-              disabled={!effectiveMarketId}
-            >
-              <option value="">—</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            {productsEmptyHint && (
-              <div
-                style={{ fontSize: 12, color: "#6D7175", marginTop: 4 }}
-              >
-                {productsEmptyHint}
+              <div>
+                <FieldLabel>{t("fields.customerAddress")}</FieldLabel>
+                <textarea
+                  value={form.customer_address}
+                  onChange={(e) => update("customer_address", e.target.value)}
+                  rows={2}
+                  className={textareaClass}
+                />
+              </div>
+
+              <div>
+                <FieldLabel>{t("fields.customerNote")}</FieldLabel>
+                <textarea
+                  value={form.customer_note}
+                  onChange={(e) => update("customer_note", e.target.value)}
+                  rows={2}
+                  className={textareaClass}
+                />
+              </div>
+            </FormSection>
+
+            <FormSection title={t("sectionOrder")}>
+              <div>
+                <FieldLabel required>{t("fields.product")}</FieldLabel>
+                <select
+                  value={form.product_id}
+                  onChange={(e) => handleProductChange(e.target.value)}
+                  className={inputClass}
+                  disabled={!effectiveMarketId}
+                >
+                  <option value="">—</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+                {productsEmptyHint && (
+                  <div className="text-[12px] text-ink-secondary mt-1.5">
+                    {productsEmptyHint}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <FieldLabel>{t("fields.variantLabel")}</FieldLabel>
+                {variants.length > 0 ? (
+                  <select
+                    value={form.variant_id}
+                    onChange={(e) => handleVariantChange(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">—</option>
+                    {variants.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.label} — {v.quantity}× · {formatPrice(v.display_price)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={form.variant_label}
+                    onChange={(e) => update("variant_label", e.target.value)}
+                    className={inputClass}
+                    disabled={!form.product_id}
+                    placeholder={form.product_id ? t("noVariants") : ""}
+                  />
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <FieldLabel required>{t("fields.quantity")}</FieldLabel>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.quantity}
+                    onChange={(e) => update("quantity", e.target.value)}
+                    className={`${inputClass} tabular-nums`}
+                  />
+                </div>
+                <div>
+                  <FieldLabel required>{t("fields.unitPrice")}</FieldLabel>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min={0}
+                    value={form.unit_price}
+                    onChange={(e) => update("unit_price", e.target.value)}
+                    className={`${inputClass} tabular-nums`}
+                  />
+                </div>
+                <div>
+                  <FieldLabel required>{t("fields.totalPrice")}</FieldLabel>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min={0}
+                    value={form.total_price}
+                    onChange={(e) =>
+                      setForm((s) => ({
+                        ...s,
+                        total_price: e.target.value,
+                        total_price_touched: true,
+                        error: null,
+                      }))
+                    }
+                    className={`${inputClass} tabular-nums font-semibold`}
+                  />
+                </div>
+              </div>
+            </FormSection>
+
+            {form.error && (
+              <div className="flex items-start gap-2 px-3 py-2.5 rounded-card bg-status-criticalBg border border-status-critical/30 text-[13px] text-status-critical">
+                <AlertCircle size={14} strokeWidth={2} className="flex-shrink-0 mt-0.5" aria-hidden="true" />
+                <span className="leading-snug">{form.error}</span>
               </div>
             )}
           </div>
 
-          <div>
-            <label style={labelStyle}>{t("fields.variantLabel")}</label>
-            {variants.length > 0 ? (
-              <select
-                value={form.variant_id}
-                onChange={(e) => handleVariantChange(e.target.value)}
-                style={inputStyle}
-              >
-                <option value="">—</option>
-                {variants.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.label} — {v.quantity}× · {formatPrice(v.display_price)}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                value={form.variant_label}
-                onChange={(e) => update("variant_label", e.target.value)}
-                style={inputStyle}
-                disabled={!form.product_id}
-                placeholder={form.product_id ? t("noVariants") : ""}
-              />
-            )}
-          </div>
-
-          <div style={{ display: "flex", gap: 8 }}>
-            <div style={{ width: 100 }}>
-              <label style={labelStyle}>{t("fields.quantity")} *</label>
-              <input
-                type="number"
-                min={1}
-                value={form.quantity}
-                onChange={(e) => update("quantity", e.target.value)}
-                style={inputStyle}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>{t("fields.unitPrice")} *</label>
-              <input
-                type="number"
-                step="0.001"
-                min={0}
-                value={form.unit_price}
-                onChange={(e) => update("unit_price", e.target.value)}
-                style={inputStyle}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>{t("fields.totalPrice")} *</label>
-              <input
-                type="number"
-                step="0.001"
-                min={0}
-                value={form.total_price}
-                onChange={(e) =>
-                  setForm((s) => ({
-                    ...s,
-                    total_price: e.target.value,
-                    total_price_touched: true,
-                    error: null,
-                  }))
-                }
-                style={inputStyle}
-              />
-            </div>
-          </div>
-
-          {form.error && (
-            <div style={{ fontSize: 12, color: "#DC2626" }}>{form.error}</div>
-          )}
-
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              justifyContent: "flex-end",
-              marginTop: 4,
-            }}
-          >
+          {/* Sticky footer */}
+          <div className="flex-shrink-0 bg-surface-card border-t border-line-subtle px-5 py-3 flex items-center justify-end gap-2">
             <button
+              type="button"
               onClick={onClose}
               disabled={form.loading}
-              style={{
-                padding: "8px 16px",
-                fontSize: 13,
-                border: "1px solid #E1E3E5",
-                borderRadius: 4,
-                background: "white",
-                cursor: form.loading ? "not-allowed" : "pointer",
-              }}
+              className="inline-flex items-center justify-center h-10 px-4 text-[13.5px] font-medium text-ink-primary border border-line-subtle rounded-card bg-surface-card hover:bg-surface-hover transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {t("cancel")}
             </button>
             <button
+              type="button"
               onClick={handleSubmit}
               disabled={form.loading}
-              style={{
-                padding: "8px 16px",
-                fontSize: 13,
-                border: "none",
-                borderRadius: 4,
-                background: "#1A1A1A",
-                color: "white",
-                cursor: form.loading ? "not-allowed" : "pointer",
-              }}
+              className="inline-flex items-center justify-center h-10 px-5 text-[13.5px] font-semibold text-white bg-ink-primary rounded-card hover:bg-[#2A2A2A] transition-colors duration-fast disabled:bg-line-strong disabled:text-ink-muted disabled:cursor-not-allowed"
             >
               {form.loading ? t("submitting") : t("submit")}
             </button>

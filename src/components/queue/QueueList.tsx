@@ -90,8 +90,10 @@ export function QueueList({
     );
   }
 
+  const hasSelection = (selectedOrderIds?.size ?? 0) > 0;
+
   return (
-    <div>
+    <div data-has-selection={hasSelection || undefined} className={hasSelection ? "pb-24" : "pb-6"}>
       {orders.map((order) => (
         <OrderCard
           key={order.id}
