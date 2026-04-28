@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import type { Role } from "@/types";
@@ -8,6 +8,7 @@ import { canManageProducts } from "@/lib/product-permissions";
 import { canViewProfitability } from "@/lib/profitability-permissions";
 import { canToggleProductActive } from "@/lib/product-permissions";
 import { isLowStock } from "@/lib/product-calculations";
+import { useMarketScope } from "@/context/market-scope";
 import {
   ProductsFilterBar,
   type ProductFilterMode,
@@ -62,14 +63,19 @@ const PAGE_SIZE = 50;
 export function ProductsPageClient({ role, marketId, locale }: ProductsPageClientProps) {
   const t = useTranslations("products");
 
-  const canManage = canManageProducts(role, marketId, marketId);
+  const { marketId: scopeMarketId } = useMarketScope();
+  // For super_admin, the selected market follows the global scope (TN/LY/All).
+  // For managers, marketId comes from the server as their pinned market.
+  const selectedMarketId =
+    role === "super_admin" ? (scopeMarketId ?? "") : marketId;
+
+  const canManage = canManageProducts(role, selectedMarketId, marketId);
   const canViewPerf = canViewProfitability(role);
   const canToggleActive = canToggleProductActive(role);
 
   const defaultMode: ProductFilterMode =
     role === "market_manager" ? "performance" : "catalogue";
 
-  const [selectedMarketId, setSelectedMarketId] = useState(marketId);
   const [mode, setMode] = useState<ProductFilterMode>(defaultMode);
   const [status, setStatus] = useState<ProductFilterStatus>("all");
   const [search, setSearch] = useState("");
@@ -80,29 +86,20 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
   const [stockModal, setStockModal] = useState<StockAdjustState | null>(null);
   const [sortKey, setSortKey] = useState<ProductSortKey>("default");
 
-  // Markets list (super_admin only)
   const { data: marketsData } = useSWR<{ data: Market[] }>(
     role === "super_admin" ? "/api/markets" : null,
     fetcher
   );
   const markets = marketsData?.data ?? [];
 
-  // Default super_admin to Tunisia (code === "tn") once markets resolve.
-  useEffect(() => {
-    if (role !== "super_admin") return;
-    if (selectedMarketId) return;
-    if (markets.length === 0) return;
-    const tn = markets.find((m) => m.code === "tn");
-    setSelectedMarketId(tn?.id ?? markets[0].id);
-  }, [role, markets, selectedMarketId]);
-
-  // If role is not super_admin, build a locked market list from the initial marketId
-  const effectiveMarkets: Market[] =
-    role === "super_admin" ? markets : [{ id: marketId, name: "", code: "" }];
-
-  // Currency from market
   const currentMarket = markets.find((m) => m.id === selectedMarketId);
   const currency = currentMarket?.code === "ly" ? "LYD" : "TND";
+  const marketLabel =
+    role === "super_admin"
+      ? selectedMarketId
+        ? currentMarket?.name ?? "—"
+        : t("filters.allMarkets")
+      : currentMarket?.name ?? "";
 
   const productKey = selectedMarketId
     ? `/api/products?market_id=${selectedMarketId}&page=${page}&limit=${PAGE_SIZE}`
@@ -287,13 +284,7 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
       <div className="flex flex-col gap-4">
         {/* Filter bar — bulk actions intentionally suppressed (handled by floating bar) */}
         <ProductsFilterBar
-          role={role}
-          markets={effectiveMarkets.length > 0 && markets.length > 0 ? markets : effectiveMarkets}
-          selectedMarketId={selectedMarketId}
-          onMarketChange={(id) => {
-            setSelectedMarketId(id);
-            setPage(1);
-          }}
+          marketLabel={marketLabel}
           mode={mode}
           onModeChange={setMode}
           status={status}

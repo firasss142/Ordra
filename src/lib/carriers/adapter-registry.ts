@@ -34,6 +34,7 @@ export interface AdapterDescriptor {
   description: string;
   defaultEndpoint?: string;
   credentialFields: CredentialField[];
+  markets: string[];
 }
 
 const ADAPTER_DESCRIPTORS: Record<string, AdapterDescriptor> = {
@@ -47,6 +48,7 @@ const ADAPTER_DESCRIPTORS: Record<string, AdapterDescriptor> = {
       { key: "sender_name", label: "Nom expéditeur", secret: false },
       { key: "sender_location", label: "Localité expéditeur", secret: false },
     ],
+    markets: ["tn"],
   },
   dexpress: {
     code: "dexpress",
@@ -57,17 +59,37 @@ const ADAPTER_DESCRIPTORS: Record<string, AdapterDescriptor> = {
       { key: "api_base_url", label: "URL de base API", secret: false },
       { key: "api_key", label: "Clé API", secret: true },
     ],
+    markets: ["ly"],
   },
 };
 
-export function listAdapterDescriptors(): AdapterDescriptor[] {
-  return Object.values(ADAPTER_DESCRIPTORS);
+export function listAdapterDescriptors(
+  marketCode?: string
+): AdapterDescriptor[] {
+  const all = Object.values(ADAPTER_DESCRIPTORS);
+  if (!marketCode) return all;
+  return all.filter((d) => supportsMarketCode(d, marketCode));
 }
 
 export function getAdapterDescriptor(
   code: string
 ): AdapterDescriptor | null {
   return ADAPTER_DESCRIPTORS[code] ?? null;
+}
+
+export function adapterSupportsMarket(
+  code: string,
+  marketCode: string
+): boolean {
+  const descriptor = ADAPTER_DESCRIPTORS[code];
+  return descriptor ? supportsMarketCode(descriptor, marketCode) : false;
+}
+
+function supportsMarketCode(
+  descriptor: AdapterDescriptor,
+  marketCode: string
+): boolean {
+  return descriptor.markets.includes(marketCode.toLowerCase());
 }
 
 export const CUSTOM_ADAPTER_LABEL = "Personnalisé";

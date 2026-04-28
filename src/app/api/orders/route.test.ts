@@ -73,7 +73,7 @@ describe("GET /api/orders", () => {
   });
 
   test("returns 200 with orders for market_manager", async () => {
-    const orders = [{ id: "order-1", status: "new" }];
+    const orders = [{ id: "order-1", status: "pending" }];
     mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
     mockFrom.mockImplementation((table: string) => {
       if (table === "users") {

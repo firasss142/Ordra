@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getServerUser } from "@/lib/auth/server-user";
+import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
 import { ToShipCockpit } from "@/components/to-ship/ToShipCockpit";
 import type { ToShipRow } from "@/lib/to-ship/types";
@@ -31,27 +33,18 @@ export default async function ToShipPage({
 }: {
   params: { locale: string };
 }) {
+  const user = await getServerUser();
+
+  if (!user) redirect(`/${params.locale}/login`);
+  if (user.role === "agent") redirect(`/${params.locale}/queue`);
+  if (user.role === "warehouse_agent") redirect(`/${params.locale}/warehouse`);
+
   const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-
-  if (!authUser) redirect(`/${params.locale}/login`);
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("role, market_id")
-    .eq("id", authUser.id)
-    .single();
-
-  if (!profile) redirect(`/${params.locale}/login`);
-  if (profile.role === "agent") redirect(`/${params.locale}/queue`);
-  if (profile.role === "warehouse_agent") redirect(`/${params.locale}/warehouse`);
-
+  const { marketId: scopedMarketId } = await getActiveMarketScope(user);
+  // to-ship requires a single market — fall back to the default when
+  // super_admin's scope is "all".
   const targetMarketId =
-    profile.role === "market_manager"
-      ? profile.market_id
-      : getDefaultMarketId(await getAllActiveMarkets());
+    scopedMarketId ?? getDefaultMarketId(await getAllActiveMarkets());
 
   if (!targetMarketId) {
     return (

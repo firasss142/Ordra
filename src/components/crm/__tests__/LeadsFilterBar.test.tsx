@@ -13,11 +13,7 @@ vi.mock("next-intl", async () => {
 });
 
 const baseProps = {
-  markets: [{ id: "m1", name: "Tunisie" }],
-  selectedMarketId: "all" as const,
-  onMarketChange: vi.fn(),
-  lockMarket: false,
-  lockedMarketLabel: "",
+  marketLabel: "Tous les marchés",
   bucket: "all" as const,
   onBucketChange: vi.fn(),
   source: null,
@@ -112,17 +108,11 @@ describe("LeadsFilterBar", () => {
     expect(onOpenCsvImport).toHaveBeenCalledTimes(1);
   });
 
-  it("locks the market to a label for non-super_admin roles", () => {
-    render(
-      <LeadsFilterBar
-        {...baseProps}
-        lockMarket={true}
-        lockedMarketLabel="Tunisie"
-      />,
-    );
+  it("renders the market label as a read-only chip (sidebar is the only writer)", () => {
+    render(<LeadsFilterBar {...baseProps} marketLabel="Tunisie" />);
     expect(screen.getByText("Tunisie")).toBeDefined();
     expect(
-      screen.queryByRole("button", { name: /Tous les marchés/ }),
+      screen.queryByRole("button", { name: /Tunisie/ }),
     ).toBeNull();
   });
 

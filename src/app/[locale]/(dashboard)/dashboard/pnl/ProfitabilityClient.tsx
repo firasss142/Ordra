@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import { FilterBar, type Period, type PeriodPreset } from "@/components/dashboard/FilterBar";
+import { useMarketScope } from "@/context/market-scope";
 import { periodDeltaProps } from "@/components/dashboard/PeriodDeltaBadge";
 import { todayISO, startOfMonthISO, computePreviousPeriod } from "@/lib/date";
 import { formatCurrency as formatMarketCurrency } from "@/lib/format";
@@ -72,11 +73,11 @@ export function ProfitabilityClient({
     to_date: todayISO(),
   });
   const [preset, setPreset] = useState<PeriodPreset>("month");
-  const [selectedMarketId, setSelectedMarketId] = useState<string>(
-    isSuperAdmin ? initialMarketId : user.market_id ?? "",
-  );
+  const { marketId: scopeMarketId } = useMarketScope();
 
-  const effectiveMarketId = isSuperAdmin ? selectedMarketId : user.market_id ?? "";
+  const effectiveMarketId = isSuperAdmin
+    ? (scopeMarketId ?? initialMarketId)
+    : user.market_id ?? "";
   const marketCode = useMemo(() => {
     const m = markets.find((x) => x.id === effectiveMarketId);
     return (m?.code ?? "tn").toUpperCase();
@@ -161,19 +162,11 @@ export function ProfitabilityClient({
             setPeriod(p);
             setPreset(preset);
           }}
-          markets={markets}
-          selectedMarketId={effectiveMarketId || null}
-          onMarketChange={(id) => setSelectedMarketId(id === "all" ? initialMarketId : id)}
-          allowAllMarkets={false}
-          lockMarket={!isSuperAdmin}
-          lockedMarketLabel={marketLabel}
           labels={{
             today: tNav("today"),
             week: tNav("week"),
             month: tNav("month"),
             custom: tNav("custom"),
-            allMarkets: tNav("allMarkets"),
-            marketPlaceholder: tNav("marketPlaceholder"),
             lastUpdated: tNav("lastUpdated"),
           }}
         />

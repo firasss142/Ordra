@@ -94,7 +94,7 @@ async function updateStorefrontHealth(
 
 // Pre-dispatch statuses where updates and cancellations are allowed
 const PRE_DISPATCH_STATUSES = new Set([
-  "new", "assigned", "attempt_1", "attempt_2", "attempt_3",
+  "pending", "assigned", "attempt_1", "attempt_2", "attempt_3",
   "callback_scheduled", "confirmed",
 ]);
 
@@ -303,7 +303,7 @@ async function handleOrderCreated(
       storefront_id: storefront.id,
       external_id: orderData.external_id,
       external_platform: orderData.external_platform,
-      status: "new",
+      status: "pending",
       customer_name: orderData.customer_name,
       customer_phone: orderData.customer_phone,
       customer_address: orderData.customer_address,
@@ -343,7 +343,7 @@ async function handleOrderCreated(
   await adminClient.from("order_history").insert({
     order_id: order.id,
     status_from: null,
-    status_to: "new",
+    status_to: "pending",
     actor_id: null,
     actor_type: "system",
     note: "Order received via webhook",
@@ -358,7 +358,7 @@ async function handleOrderCreated(
       customer_city: orderData.customer_city,
     });
   } catch {
-    // Order stays 'new' for manual assignment
+    // Order stays 'pending' for manual assignment
   }
 
   return {
@@ -450,7 +450,7 @@ async function handleOrderCancelled(
   try {
     await transitionOrderStatus(adminClient, {
       orderId: existing.id,
-      newStatus: "cancelled",
+      newStatus: "deleted",
       actorId: null,
       actorType: "system",
       note: "Cancelled via storefront webhook",

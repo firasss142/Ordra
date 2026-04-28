@@ -7,7 +7,7 @@ import { getActor } from "@/lib/auth/actor";
 
 // Statuses that can be cancelled — pre-dispatch only, excluding confirmed
 const CANCELLABLE_STATUSES = new Set<OrderStatus>([
-  "new",
+  "pending",
   "assigned",
   "attempt_1",
   "attempt_2",
@@ -62,7 +62,7 @@ export async function POST(
   try {
     const result = await transitionOrderStatus(supabase, {
       orderId: id,
-      newStatus: "cancelled",
+      newStatus: "deleted",
       actorId: actor.id,
       actorType: "manager",
       note: note ?? "Order cancelled",

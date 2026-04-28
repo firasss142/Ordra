@@ -52,11 +52,10 @@ describe("parseFiltersFromSearchParams", () => {
 });
 
 describe("filtersToSearchParams round-trip", () => {
-  it("survives encode → decode for a busy filter", () => {
+  it("survives encode → decode for a busy filter (marketId is not URL-serialized)", () => {
     const filters = {
       ...DEFAULT_FILTERS,
       preset: "unassigned" as const,
-      marketId: "11111111-2222-3333-4444-555555555555",
       q: "216 55",
       statuses: ["attempt_1" as const, "attempt_2" as const],
       agentId: "unassigned" as const,
@@ -70,6 +69,15 @@ describe("filtersToSearchParams round-trip", () => {
     const params = filtersToSearchParams(filters);
     const parsed = parseFiltersFromSearchParams(params);
     expect(parsed).toEqual(filters);
+  });
+
+  it("does not include market_id in the URL even if marketId is set", () => {
+    const params = filtersToSearchParams({
+      ...DEFAULT_FILTERS,
+      marketId: "11111111-2222-3333-4444-555555555555",
+    });
+    expect(params.has("market_id")).toBe(false);
+    expect(params.toString()).toBe("");
   });
 
   it("omits default keys to keep URL clean", () => {

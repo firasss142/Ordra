@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { jsonFetcher } from "@/lib/fetchers";
 
@@ -59,32 +60,51 @@ export interface LogsSummary {
   };
 }
 
+export type OutcomeFilter = "all" | "processed" | "ignored" | "error";
+
 export interface UseLogsArgs {
   tab: "webhooks" | "carrier" | "all";
   page: number;
   limit: number;
   failuresOnly: boolean;
+  outcome: OutcomeFilter;
   search: string;
   enabled: boolean;
+}
+
+function usePageVisible(): boolean {
+  const [visible, setVisible] = useState(() => {
+    if (typeof document === "undefined") return true;
+    return document.visibilityState !== "hidden";
+  });
+  useEffect(() => {
+    const onVis = () => setVisible(document.visibilityState !== "hidden");
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
+  return visible;
 }
 
 export function useWebhookLogs({
   page,
   limit,
   failuresOnly,
+  outcome,
   search,
   enabled,
 }: Omit<UseLogsArgs, "tab">) {
+  const visible = usePageVisible();
   const params = new URLSearchParams();
   params.set("page", String(page));
   params.set("limit", String(limit));
   if (failuresOnly) params.set("failures_only", "true");
+  else if (outcome && outcome !== "all") params.set("status", outcome);
   if (search) params.set("q", search);
 
   const { data, isLoading, mutate } = useSWR<WebhookListResponse>(
     enabled ? `/api/admin/webhook-logs?${params.toString()}` : null,
     jsonFetcher,
-    { refreshInterval: 15_000, revalidateOnFocus: false },
+    { refreshInterval: visible ? 15_000 : 0, revalidateOnFocus: false },
   );
 
   return {
@@ -99,19 +119,22 @@ export function useCarrierEvents({
   page,
   limit,
   failuresOnly,
+  outcome,
   search,
   enabled,
 }: Omit<UseLogsArgs, "tab">) {
+  const visible = usePageVisible();
   const params = new URLSearchParams();
   params.set("page", String(page));
   params.set("limit", String(limit));
   if (failuresOnly) params.set("failures_only", "true");
+  else if (outcome && outcome !== "all") params.set("outcome", outcome);
   if (search) params.set("q", search);
 
   const { data, isLoading, mutate } = useSWR<CarrierListResponse>(
     enabled ? `/api/admin/carrier-events?${params.toString()}` : null,
     jsonFetcher,
-    { refreshInterval: 15_000, revalidateOnFocus: false },
+    { refreshInterval: visible ? 15_000 : 0, revalidateOnFocus: false },
   );
 
   return {
@@ -123,10 +146,11 @@ export function useCarrierEvents({
 }
 
 export function useLogsSummary(windowMinutes = 60) {
+  const visible = usePageVisible();
   const { data, isLoading, mutate } = useSWR<LogsSummary>(
     `/api/admin/logs/summary?window=${windowMinutes}`,
     jsonFetcher,
-    { refreshInterval: 30_000, revalidateOnFocus: false },
+    { refreshInterval: visible ? 30_000 : 0, revalidateOnFocus: false },
   );
   return { summary: data, isLoading, refresh: mutate };
 }

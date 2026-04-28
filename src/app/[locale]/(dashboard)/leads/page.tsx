@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
+import { getServerUser } from "@/lib/auth/server-user";
+import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { getLeadsMetrics } from "@/lib/leads/metrics";
 import { LeadsPageClient } from "./LeadsPageClient";
 import type { Locale } from "@/types";
@@ -12,58 +13,36 @@ export default async function LeadsPage({
 }: {
   params: { locale: string };
 }) {
+  const user = await getServerUser();
+  if (!user) redirect(`/${params.locale}/login`);
+
+  if (user.role === "agent") return null;
+  if (user.role === "warehouse_agent") redirect(`/${params.locale}/warehouse`);
+
   const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-
-  if (!authUser) redirect(`/${params.locale}/login`);
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("role, market_id")
-    .eq("id", authUser.id)
-    .single();
-
-  if (!profile) redirect(`/${params.locale}/login`);
-
-  // Agents render the board via AgentTabsContainer in the dashboard layout —
-  // return null here to avoid double-mount.
-  if (profile.role === "agent") return null;
-  if (profile.role === "warehouse_agent") redirect(`/${params.locale}/warehouse`);
-
   let userMarketLabel = "";
-  if (profile.market_id) {
+  if (user.market_id) {
     const { data: market } = await supabase
       .from("markets")
       .select("name")
-      .eq("id", profile.market_id)
+      .eq("id", user.market_id)
       .single();
     if (market) userMarketLabel = market.name;
   }
 
-  let superAdminInitialMarketId = "";
-  if (profile.role === "super_admin") {
-    superAdminInitialMarketId = getDefaultMarketId(await getAllActiveMarkets());
-  }
-
-  const scopedMarketId =
-    profile.role === "super_admin"
-      ? (superAdminInitialMarketId || null)
-      : (profile.market_id ?? null);
-
+  const { marketId: activeMarketId } = await getActiveMarketScope(user);
+  // Leads metrics prefetch uses scope marketId directly (null = all markets for super_admin).
   const initialMetrics = await getLeadsMetrics(supabase, {
-    marketId: scopedMarketId,
+    marketId: activeMarketId,
   });
 
   return (
     <LeadsPageClient
-      role={profile.role}
-      userMarketId={profile.market_id ?? ""}
+      role={user.role}
+      userMarketId={user.market_id ?? ""}
       userMarketLabel={userMarketLabel}
       locale={params.locale as Locale}
       initialMetrics={initialMetrics}
-      initialMarketId={superAdminInitialMarketId}
     />
   );
 }

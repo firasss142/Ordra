@@ -58,32 +58,32 @@ function NotificationBellInner({ agentId, onOpenOrder }: NotificationBellProps) 
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            width: 32,
-            height: 32,
-            borderRadius: 6,
+            width: 44,
+            height: 44,
+            borderRadius: 8,
             backgroundColor: hovered ? "var(--sidebar-hover)" : "transparent",
             color: hovered ? "var(--sidebar-text)" : "var(--sidebar-text-muted)",
             transition: "background-color 120ms ease, color 120ms ease",
           }}
         >
-          <Bell size={16} strokeWidth={1.5} aria-hidden="true" />
+          <Bell size={22} strokeWidth={1.75} aria-hidden="true" />
           {unreadCount > 0 && (
             <span
               style={{
                 position: "absolute",
-                top: 3,
-                insetInlineEnd: 3,
+                top: 4,
+                insetInlineEnd: 4,
                 backgroundColor: "var(--text-primary)",
                 color: "#FFFFFF",
-                fontSize: 9,
+                fontSize: 10,
                 fontWeight: 600,
                 borderRadius: 9999,
-                minWidth: 14,
-                height: 14,
+                minWidth: 18,
+                height: 18,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: "0 3px",
+                padding: "0 4px",
                 lineHeight: 1,
               }}
             >

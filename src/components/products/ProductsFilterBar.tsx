@@ -1,32 +1,22 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
   Plus,
   Filter,
   Globe,
-  ChevronDown,
   Search,
   ArrowUpDown,
 } from "lucide-react";
-import type { Role } from "@/types";
 import type { ProductSortKey } from "@/lib/product-sort";
 
 export type ProductFilterMode = "catalogue" | "performance";
 export type ProductFilterStatus = "all" | "active" | "lowStock" | "losingMoney";
 
-interface Market {
-  id: string;
-  name: string;
-}
-
 interface ProductsFilterBarProps {
-  role: Role;
-  markets: Market[];
-  selectedMarketId: string;
-  onMarketChange: (id: string) => void;
+  marketLabel: string;
   mode: ProductFilterMode;
   onModeChange: (m: ProductFilterMode) => void;
   status: ProductFilterStatus;
@@ -54,10 +44,7 @@ const MUTED = "#6D7175";
 const STATUS_VALUES: ProductFilterStatus[] = ["all", "active", "lowStock", "losingMoney"];
 
 export function ProductsFilterBar({
-  role,
-  markets,
-  selectedMarketId,
-  onMarketChange,
+  marketLabel,
   mode,
   onModeChange,
   status,
@@ -75,8 +62,6 @@ export function ProductsFilterBar({
   onSortChange,
 }: ProductsFilterBarProps) {
   const t = useTranslations("products");
-  const lockedMarket = role !== "super_admin";
-  const selectedMarketName = markets.find((m) => m.id === selectedMarketId)?.name ?? "";
 
   return (
     <div
@@ -101,13 +86,24 @@ export function ProductsFilterBar({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", flex: "1 1 auto" }}>
-          <MarketChip
-            markets={markets}
-            selected={selectedMarketId}
-            locked={lockedMarket}
-            lockedLabel={selectedMarketName}
-            onChange={onMarketChange}
-          />
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              height: 30,
+              padding: "0 12px",
+              borderRadius: 8,
+              border: `1px solid ${BORDER}`,
+              background: SUBTLE_BG,
+              color: MUTED,
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+          >
+            <Globe size={13} strokeWidth={1.75} />
+            {marketLabel}
+          </span>
 
           {canViewPerformance && (
             <>
@@ -398,125 +394,3 @@ function ModeSegmented({
   );
 }
 
-function MarketChip({
-  markets,
-  selected,
-  locked,
-  lockedLabel,
-  onChange,
-}: {
-  markets: Market[];
-  selected: string;
-  locked: boolean;
-  lockedLabel: string;
-  onChange: (id: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const selectedLabel = markets.find((m) => m.id === selected)?.name ?? lockedLabel;
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  if (locked) {
-    return (
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          height: 30,
-          padding: "0 12px",
-          borderRadius: 8,
-          border: `1px solid ${BORDER}`,
-          background: SUBTLE_BG,
-          color: MUTED,
-          fontSize: 13,
-          fontWeight: 500,
-        }}
-      >
-        <Globe size={13} strokeWidth={1.75} />
-        {lockedLabel}
-      </span>
-    );
-  }
-
-  return (
-    <div ref={ref} style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          height: 30,
-          padding: "0 12px",
-          borderRadius: 8,
-          border: `1px solid ${BORDER}`,
-          background: SOFT_BG,
-          color: TEXT,
-          fontSize: 13,
-          fontWeight: 500,
-          cursor: "pointer",
-          fontFamily: "inherit",
-        }}
-      >
-        <Globe size={13} strokeWidth={1.75} />
-        {selectedLabel}
-        <ChevronDown size={11} strokeWidth={2} />
-      </button>
-      {open && (
-        <div
-          role="listbox"
-          style={{
-            position: "absolute",
-            insetInlineStart: 0,
-            top: "calc(100% + 4px)",
-            background: SOFT_BG,
-            border: `1px solid ${BORDER}`,
-            borderRadius: 8,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            minWidth: 200,
-            zIndex: 20,
-            padding: 4,
-          }}
-        >
-          {markets.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              role="option"
-              aria-selected={m.id === selected}
-              onClick={() => { onChange(m.id); setOpen(false); }}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "start",
-                padding: "8px 10px",
-                border: "none",
-                borderRadius: 6,
-                background: m.id === selected ? "#F2F2F2" : "transparent",
-                color: TEXT,
-                fontSize: 13,
-                fontWeight: m.id === selected ? 600 : 500,
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              {m.name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}

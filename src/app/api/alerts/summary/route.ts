@@ -142,7 +142,7 @@ export async function GET(req: NextRequest) {
   let q2 = supabase
     .from("orders")
     .select("id, market_id, customer_name, product_name, created_at")
-    .eq("status", "new")
+    .eq("status", "pending")
     .is("assigned_to", null)
     .lt("created_at", overflowCutoffIso)
     .order("created_at", { ascending: true })

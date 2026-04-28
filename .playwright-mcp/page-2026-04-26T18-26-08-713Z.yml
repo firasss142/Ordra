@@ -1,0 +1,295 @@
+- generic [ref=e1]:
+  - link "Aller au contenu principal" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - navigation [ref=e4]:
+      - generic [ref=e5]:
+        - text: Ordra
+        - button "Marchés" [ref=e7] [cursor=pointer]:
+          - generic [ref=e10]: Tunisie
+          - img [ref=e11]
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - button "Replier la section Accueil" [expanded] [ref=e15] [cursor=pointer]:
+            - img [ref=e16]
+            - generic [ref=e19]: Accueil
+            - img [ref=e20]
+          - list [ref=e22]:
+            - listitem [ref=e23]:
+              - link "Pulse" [ref=e24] [cursor=pointer]:
+                - /url: /fr/dashboard
+                - img [ref=e25]
+                - generic [ref=e30]: Pulse
+            - listitem [ref=e31]:
+              - link "Alertes 74" [ref=e153] [cursor=pointer]:
+                - /url: /fr/dashboard/alerts
+                - img [ref=e33]
+                - generic [ref=e36]: Alertes
+                - generic [ref=e154]: "74"
+        - button "Déplier la section Commandes" [ref=e38] [cursor=pointer]:
+          - img [ref=e39]
+          - generic [ref=e42]: Commandes
+          - generic [ref=e155]: "85"
+          - img [ref=e43]
+        - button "Déplier la section Logistique" [ref=e46] [cursor=pointer]:
+          - img [ref=e47]
+          - generic [ref=e50]: Logistique
+          - img [ref=e51]
+        - generic [ref=e53]:
+          - button "Replier la section Finances" [expanded] [ref=e54] [cursor=pointer]:
+            - img [ref=e55]
+            - generic [ref=e58]: Finances
+            - img [ref=e59]
+          - list [ref=e61]:
+            - listitem [ref=e62]:
+              - link "P&L global" [ref=e63] [cursor=pointer]:
+                - /url: /fr/dashboard/pnl
+                - img [ref=e64]
+                - generic [ref=e66]: P&L global
+            - listitem [ref=e67]:
+              - link "Produits & marges" [ref=e68] [cursor=pointer]:
+                - /url: /fr/products
+                - img [ref=e69]
+                - generic [ref=e73]: Produits & marges
+            - listitem [ref=e74]:
+              - link "Stock & inventaire" [ref=e75] [cursor=pointer]:
+                - /url: /fr/dashboard/stock
+                - img [ref=e76]
+                - generic [ref=e86]: Stock & inventaire
+            - listitem [ref=e87]:
+              - link "Dépenses pub" [ref=e88] [cursor=pointer]:
+                - /url: /fr/settings/ad-spend
+                - img [ref=e89]
+                - generic [ref=e92]: Dépenses pub
+        - button "Déplier la section Clients" [ref=e94] [cursor=pointer]:
+          - img [ref=e95]
+          - generic [ref=e100]: Clients
+          - img [ref=e101]
+        - generic [ref=e103]:
+          - button "Replier la section Équipe" [expanded] [ref=e104] [cursor=pointer]:
+            - img [ref=e105]
+            - generic [ref=e108]: Équipe
+            - img [ref=e109]
+          - list [ref=e111]:
+            - listitem [ref=e112]:
+              - link "Performance" [ref=e113] [cursor=pointer]:
+                - /url: /fr/team
+                - img [ref=e114]
+                - generic [ref=e116]: Performance
+            - listitem [ref=e117]:
+              - link "Accès" [ref=e118] [cursor=pointer]:
+                - /url: /fr/users
+                - img [ref=e119]
+                - generic [ref=e122]: Accès
+        - generic [ref=e123]:
+          - button "Replier la section Système" [expanded] [active] [ref=e356] [cursor=pointer]:
+            - img [ref=e126]
+            - generic [ref=e129]: Système
+            - generic [ref=e130]: Admin
+            - img [ref=e131]
+          - list [ref=e357]:
+            - listitem [ref=e358]:
+              - link "Marchés" [ref=e359] [cursor=pointer]:
+                - /url: /fr/markets
+                - img [ref=e360]
+                - generic [ref=e365]: Marchés
+            - listitem [ref=e366]:
+              - link "Storefronts" [ref=e367] [cursor=pointer]:
+                - /url: /fr/settings/storefronts
+                - img [ref=e368]
+                - generic [ref=e371]: Storefronts
+            - listitem [ref=e372]:
+              - link "Transporteurs" [ref=e373] [cursor=pointer]:
+                - /url: /fr/settings/carriers
+                - img [ref=e374]
+                - generic [ref=e379]: Transporteurs
+            - listitem [ref=e380]:
+              - link "Paramètres" [ref=e381] [cursor=pointer]:
+                - /url: /fr/settings/general
+                - img [ref=e382]
+                - generic [ref=e385]: Paramètres
+            - listitem [ref=e386]:
+              - link "Journaux" [ref=e387] [cursor=pointer]:
+                - /url: /fr/admin/logs
+                - img [ref=e388]
+                - generic [ref=e392]: Journaux
+      - button "Super Admin Super admin" [ref=e134] [cursor=pointer]:
+        - generic [ref=e135]: SA
+        - generic [ref=e136]:
+          - generic [ref=e137]: Super Admin
+          - generic [ref=e138]: Super admin
+        - img [ref=e139]
+    - main [ref=e142]:
+      - generic [ref=e156]:
+        - generic [ref=e157]:
+          - heading "Tableau de bord" [level=1] [ref=e158]
+          - paragraph [ref=e159]: Aperçu en direct — actualisé automatiquement
+        - generic [ref=e161]:
+          - generic [ref=e163]: MAJ il y a 0s
+          - tablist [ref=e165]:
+            - tab "Aujourd'hui" [selected] [ref=e166] [cursor=pointer]
+            - tab "7 jours" [ref=e167] [cursor=pointer]
+            - tab "30 jours" [ref=e168] [cursor=pointer]
+            - tab "Personnalisé" [ref=e169] [cursor=pointer]
+        - generic [ref=e170]:
+          - generic [ref=e171]: ⚠
+          - generic [ref=e172]: 7 rappels en retard
+          - generic [ref=e173]: 50 commandes non assignées > 2 h
+          - link "Voir tout" [ref=e174] [cursor=pointer]:
+            - /url: /fr/dashboard/alerts
+        - generic [ref=e175]:
+          - generic [ref=e176]:
+            - generic [ref=e177]: Chiffre d'affaires
+            - generic [ref=e178]: 0 TND
+            - application [ref=e182]
+            - generic [ref=e183]: —
+          - generic [ref=e184]:
+            - generic [ref=e185]: Profit net
+            - generic [ref=e186]: 0 TND
+            - generic [ref=e188]: —
+          - generic [ref=e189]:
+            - generic [ref=e190]: Taux de confirmation
+            - generic [ref=e191]: 0.0%
+            - application [ref=e195]
+            - generic [ref=e200]: 0.0 pp vs hier
+          - generic [ref=e201]:
+            - generic [ref=e202]: Taux de livraison
+            - generic [ref=e203]: 0.0%
+            - generic [ref=e205]: 0.0 pp vs hier
+        - generic [ref=e207]:
+          - img [ref=e208]
+          - text: dashboard.insights.confBelowAvg
+        - generic [ref=e211]:
+          - generic [ref=e212]:
+            - generic [ref=e213]: Commandes traitées
+            - generic [ref=e214]: "0"
+            - generic [ref=e215]: —
+          - generic [ref=e216]:
+            - generic [ref=e217]: Taux de rejet
+            - generic [ref=e218]: 0.0%
+            - generic [ref=e219]: 0.0 pp vs hier
+          - generic [ref=e220]:
+            - generic [ref=e221]: Agents actifs
+            - generic [ref=e222]: 0/6
+            - generic [ref=e223]: 0 inactifs · 6 hors ligne
+        - generic [ref=e224]:
+          - generic [ref=e225]:
+            - heading "Pipeline en cours" [level=2] [ref=e227]
+            - generic [ref=e229]:
+              - generic [ref=e230]:
+                - generic "Nouvelles" [ref=e231]
+                - generic [ref=e234]: "80"
+              - generic [ref=e235]:
+                - generic "Assignées" [ref=e236]
+                - generic [ref=e239]: "101"
+              - generic [ref=e240]:
+                - generic "En tentative" [ref=e241]
+                - generic [ref=e244]: "269"
+              - generic [ref=e245]:
+                - generic "Rappels" [ref=e246]
+                - generic [ref=e249]: "97"
+              - generic [ref=e250]:
+                - generic "Confirmées" [ref=e251]
+                - generic [ref=e254]: "92"
+              - generic [ref=e255]:
+                - generic "Expédiées" [ref=e256]
+                - generic [ref=e259]: "91"
+          - generic [ref=e260]:
+            - heading "Top performeurs aujourd'hui" [level=2] [ref=e262]
+            - generic [ref=e263]:
+              - generic [ref=e264]:
+                - generic [ref=e265]:
+                  - generic [ref=e266]: "1"
+                  - generic [ref=e267]: A2
+                  - generic [ref=e268]:
+                    - generic "Agent 2 TN" [ref=e269]
+                    - generic [ref=e270]: 0 confirmées
+                  - generic [ref=e271]: 0.0%
+                - generic [ref=e272]:
+                  - generic [ref=e273]: "2"
+                  - generic [ref=e274]: MT
+                  - generic [ref=e275]:
+                    - generic "Manager TN" [ref=e276]
+                    - generic [ref=e277]: 0 confirmées
+                  - generic [ref=e278]: 0.0%
+                - generic [ref=e279]:
+                  - generic [ref=e280]: "3"
+                  - generic [ref=e281]: TA
+                  - generic [ref=e282]:
+                    - generic "Test Agent 88" [ref=e283]
+                    - generic [ref=e284]: 0 confirmées
+                  - generic [ref=e285]: 0.0%
+              - generic [ref=e286]:
+                - generic [ref=e287]: 0/6 agents en ligne
+                - link "Voir l'équipe" [ref=e288] [cursor=pointer]:
+                  - /url: /fr/team
+                  - text: Voir l'équipe →
+        - generic [ref=e289]:
+          - generic [ref=e290]:
+            - heading "Produits les plus performants" [level=2] [ref=e292]
+            - generic [ref=e294]: Aucune livraison sur la période
+          - generic [ref=e295]:
+            - heading "Marchés" [level=2] [ref=e296]
+            - generic [ref=e297]:
+              - generic [ref=e298]:
+                - generic [ref=e299]:
+                  - generic [ref=e300]: Libya
+                  - generic [ref=e301]: LYD
+                - generic [ref=e302]:
+                  - generic [ref=e303]:
+                    - generic [ref=e304]: Chiffre d'affaires
+                    - generic [ref=e305]: 0 LYD
+                  - generic [ref=e306]:
+                    - generic [ref=e307]: Profit net
+                    - generic [ref=e308]: 0 LYD
+                  - generic [ref=e309]:
+                    - generic [ref=e310]: Taux de confirmation
+                    - generic [ref=e311]: 0.0%
+                  - generic [ref=e312]:
+                    - generic [ref=e313]: Taux de rejet
+                    - generic [ref=e314]: 0.0%
+                  - generic [ref=e315]:
+                    - generic [ref=e316]: Commandes traitées
+                    - generic [ref=e317]: "0"
+                  - generic [ref=e318]:
+                    - generic [ref=e319]: Agents
+                    - generic [ref=e320]: 0/0 en ligne
+                - button "Voir le marché →" [ref=e321] [cursor=pointer]
+              - generic [ref=e322]:
+                - generic [ref=e323]:
+                  - generic [ref=e324]: Tunisia
+                  - generic [ref=e325]: TND
+                - generic [ref=e326]:
+                  - generic [ref=e327]:
+                    - generic [ref=e328]: Chiffre d'affaires
+                    - generic [ref=e329]: 0 TND
+                  - generic [ref=e330]:
+                    - generic [ref=e331]: Profit net
+                    - generic [ref=e332]: 0 TND
+                  - generic [ref=e333]:
+                    - generic [ref=e334]: Taux de confirmation
+                    - generic [ref=e335]: 0.0%
+                  - generic [ref=e336]:
+                    - generic [ref=e337]: Taux de rejet
+                    - generic [ref=e338]: 0.0%
+                  - generic [ref=e339]:
+                    - generic [ref=e340]: Commandes traitées
+                    - generic [ref=e341]: "0"
+                  - generic [ref=e342]:
+                    - generic [ref=e343]: Agents
+                    - generic [ref=e344]: 0/6 en ligne
+                - button "Voir le marché →" [ref=e345] [cursor=pointer]
+        - generic [ref=e346]:
+          - link "Suivis ouverts 0" [ref=e347] [cursor=pointer]:
+            - /url: /fr/follow-ups
+            - generic [ref=e348]: Suivis ouverts
+            - generic [ref=e349]: "0"
+          - link "Campagnes actives 0" [ref=e350] [cursor=pointer]:
+            - /url: /fr/follow-ups
+            - generic [ref=e351]: Campagnes actives
+            - generic [ref=e352]: "0"
+          - link "Dépenses pub 0 TND" [ref=e353] [cursor=pointer]:
+            - /url: /fr/settings/ad-spend
+            - generic [ref=e354]: Dépenses pub
+            - generic [ref=e355]: 0 TND
+  - alert [ref=e152]

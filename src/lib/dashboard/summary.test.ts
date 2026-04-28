@@ -60,7 +60,7 @@ describe("aggregatePeriodCounts", () => {
       row({ status_to: "rejected" }),
       row({ status_to: "rejected" }),
       row({ status_to: "attempt_1" }),
-      row({ status_to: "new" }),
+      row({ status_to: "pending" }),
     ]);
     expect(counts.actioned).toBe(4);
     expect(counts.confirmed).toBe(2);

@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
   }
 
   const isAgent = role === "agent";
-  const initialStatus = isAgent ? "assigned" : "new";
+  const initialStatus = isAgent ? "assigned" : "pending";
 
   const { data: order, error } = await supabase
     .from("orders")

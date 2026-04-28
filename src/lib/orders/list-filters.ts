@@ -82,7 +82,7 @@ export function parseFiltersFromSearchParams(params: URLSearchParams): OrderList
 
   return {
     preset,
-    marketId: params.get("market_id") || null,
+    marketId: null,
     q: params.get("q") ?? "",
     statuses,
     agentId,
@@ -101,7 +101,6 @@ export function parseFiltersFromSearchParams(params: URLSearchParams): OrderList
 export function filtersToSearchParams(filters: OrderListFilters): URLSearchParams {
   const p = new URLSearchParams();
   if (filters.preset !== "all") p.set("preset", filters.preset);
-  if (filters.marketId) p.set("market_id", filters.marketId);
   if (filters.q) p.set("q", filters.q);
   if (filters.statuses.length > 0) p.set("status", filters.statuses.join(","));
   if (filters.agentId) p.set("agent_id", filters.agentId);

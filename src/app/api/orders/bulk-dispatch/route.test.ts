@@ -94,6 +94,31 @@ describe("POST /api/orders/bulk-dispatch", () => {
     expect(mockPerformDispatch).toHaveBeenCalledTimes(3);
   });
 
+  test("surfaces cross-market carrier mismatch in failed bucket without aborting batch", async () => {
+    mockPerformDispatch
+      .mockResolvedValueOnce({ ok: true, trackingNumber: "T-1" })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        error: "Carrier does not belong to the order's market",
+      });
+
+    const res = await POST(
+      req({ order_ids: ["o-1", "o-2"], carrier_id: "c-1" }),
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.succeeded).toEqual([
+      { order_id: "o-1", tracking_number: "T-1" },
+    ]);
+    expect(json.failed).toEqual([
+      {
+        order_id: "o-2",
+        error: "Carrier does not belong to the order's market",
+      },
+    ]);
+  });
+
   test("passes actor_id and carrier_id to performDispatch", async () => {
     mockPerformDispatch.mockResolvedValue({ ok: true, trackingNumber: "T" });
     await POST(req({ order_ids: ["o-1"], carrier_id: "c-9" }));

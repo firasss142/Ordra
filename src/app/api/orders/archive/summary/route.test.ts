@@ -74,7 +74,7 @@ describe("GET /api/orders/archive/summary", () => {
           { status: "returned", rejection_reason: null, product_id: "p2", product_name: "B", customer_city: "Tunis", carrier_id: "c1", created_at: "2026-04-15T10:00:00Z" },
           { status: "rejected", rejection_reason: "faux_numero", product_id: "p2", product_name: "B", customer_city: "Tunis", carrier_id: null, created_at: "2026-04-08T10:00:00Z" },
           { status: "rejected", rejection_reason: "prix", product_id: "p1", product_name: "A", customer_city: "Tunis", carrier_id: null, created_at: "2026-04-07T10:00:00Z" },
-          { status: "cancelled", rejection_reason: null, product_id: "p2", product_name: "B", customer_city: "Sfax", carrier_id: null, created_at: "2026-04-01T10:00:00Z" },
+          { status: "deleted", rejection_reason: null, product_id: "p2", product_name: "B", customer_city: "Sfax", carrier_id: null, created_at: "2026-04-01T10:00:00Z" },
         ];
         return ordersChain(rows);
       }
@@ -91,7 +91,7 @@ describe("GET /api/orders/archive/summary", () => {
     expect(body.data.outcomes.delivered).toBe(2);
     expect(body.data.outcomes.returned).toBe(2);
     expect(body.data.outcomes.rejected).toBe(2);
-    expect(body.data.outcomes.cancelled).toBe(1);
+    expect(body.data.outcomes.deleted).toBe(1);
 
     // rejection breakdown (only rejected rows considered)
     expect(body.data.rejectionReasons.faux_numero).toBe(1);

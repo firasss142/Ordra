@@ -22,11 +22,6 @@ import {
 } from "@/types/lead";
 import type { ProspectCampaign } from "@/hooks/useProspectCampaigns";
 
-interface Market {
-  id: string;
-  name: string;
-}
-
 export type LeadBucket = "all" | "new" | "active" | "qualified" | "closed";
 
 export const BUCKET_STATUSES: Record<Exclude<LeadBucket, "all">, LeadStatus[]> = {
@@ -37,11 +32,7 @@ export const BUCKET_STATUSES: Record<Exclude<LeadBucket, "all">, LeadStatus[]> =
 };
 
 interface Props {
-  markets: Market[];
-  selectedMarketId: string | "all" | null;
-  onMarketChange: (id: string | "all") => void;
-  lockMarket: boolean;
-  lockedMarketLabel: string;
+  marketLabel: string;
 
   bucket: LeadBucket;
   onBucketChange: (b: LeadBucket) => void;
@@ -80,11 +71,7 @@ const HOT_BG = "#FFF4F4";
 const BUCKETS: LeadBucket[] = ["all", "new", "active", "qualified", "closed"];
 
 export function LeadsFilterBar({
-  markets,
-  selectedMarketId,
-  onMarketChange,
-  lockMarket,
-  lockedMarketLabel,
+  marketLabel,
   bucket,
   onBucketChange,
   source,
@@ -131,14 +118,7 @@ export function LeadsFilterBar({
           flexWrap: "wrap",
         }}
       >
-        <MarketChip
-          markets={markets}
-          selected={selectedMarketId}
-          onChange={onMarketChange}
-          locked={lockMarket}
-          lockedLabel={lockedMarketLabel}
-          allLabel={t("allMarkets")}
-        />
+        <MarketChip label={marketLabel} />
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginInlineStart: "auto" }}>
           {view !== undefined && onViewChange && (
@@ -596,126 +576,26 @@ function BucketSegmented({
   );
 }
 
-function MarketChip({
-  markets,
-  selected,
-  onChange,
-  locked,
-  lockedLabel,
-  allLabel,
-}: {
-  markets: Market[];
-  selected: string | "all" | null;
-  onChange: (id: string | "all") => void;
-  locked: boolean;
-  lockedLabel: string;
-  allLabel: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  if (locked) {
-    return (
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          height: 30,
-          padding: "0 12px",
-          borderRadius: 8,
-          border: `1px solid ${BORDER}`,
-          background: SUBTLE_BG,
-          color: MUTED,
-          fontSize: 13,
-          fontWeight: 500,
-        }}
-      >
-        <Globe size={13} strokeWidth={1.75} />
-        {lockedLabel}
-      </span>
-    );
-  }
-
-  const selectedLabel =
-    selected === "all"
-      ? allLabel
-      : markets.find((m) => m.id === selected)?.name ?? allLabel;
-
+function MarketChip({ label }: { label: string }) {
   return (
-    <div ref={ref} style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          height: 30,
-          padding: "0 12px",
-          borderRadius: 8,
-          border: `1px solid ${BORDER}`,
-          background: SOFT_BG,
-          color: TEXT,
-          fontSize: 13,
-          fontWeight: 500,
-          cursor: "pointer",
-          fontFamily: "inherit",
-        }}
-      >
-        <Globe size={13} strokeWidth={1.75} />
-        {selectedLabel}
-        <ChevronDown size={11} strokeWidth={2} />
-      </button>
-      {open ? (
-        <div
-          role="listbox"
-          style={{
-            position: "absolute",
-            insetInlineStart: 0,
-            top: "calc(100% + 4px)",
-            background: SOFT_BG,
-            border: `1px solid ${BORDER}`,
-            borderRadius: 8,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            minWidth: 200,
-            zIndex: 20,
-            padding: 4,
-          }}
-        >
-          <Option
-            label={allLabel}
-            selected={selected === "all"}
-            onClick={() => {
-              onChange("all");
-              setOpen(false);
-            }}
-          />
-          {markets.map((m) => (
-            <Option
-              key={m.id}
-              label={m.name}
-              selected={selected === m.id}
-              onClick={() => {
-                onChange(m.id);
-                setOpen(false);
-              }}
-            />
-          ))}
-        </div>
-      ) : null}
-    </div>
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        height: 30,
+        padding: "0 12px",
+        borderRadius: 8,
+        border: `1px solid ${BORDER}`,
+        background: SUBTLE_BG,
+        color: MUTED,
+        fontSize: 13,
+        fontWeight: 500,
+      }}
+    >
+      <Globe size={13} strokeWidth={1.75} />
+      {label}
+    </span>
   );
 }
 

@@ -12,6 +12,7 @@ import {
   formatDeliveryRate,
   formatHours,
 } from "./carriers/CarrierHealthBadge";
+import { IntegrationGuidePanel } from "./carriers/IntegrationGuidePanel";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -38,6 +39,7 @@ interface AdapterDescriptor {
     placeholder?: string;
     secret: boolean;
   }>;
+  markets?: string[];
 }
 
 interface CarriersSectionProps {
@@ -144,7 +146,7 @@ export function CarriersSection({
     { refreshInterval: 60_000 }
   );
   const { data: adaptersData } = useSWR<{ data: AdapterDescriptor[] }>(
-    "/api/carriers/adapters",
+    marketId ? `/api/carriers/adapters?market_id=${marketId}` : null,
     fetcher
   );
 
@@ -569,9 +571,10 @@ export function CarriersSection({
       )}
 
       {onboardingOpen && (
-        <OnboardingPanel
+        <IntegrationGuidePanel
           adapters={adapters}
           onClose={() => setOnboardingOpen(false)}
+          onAddCarrier={openAdd}
         />
       )}
 
@@ -826,127 +829,3 @@ function Stat({
   );
 }
 
-function OnboardingPanel({
-  adapters,
-  onClose,
-}: {
-  adapters: AdapterDescriptor[];
-  onClose: () => void;
-}) {
-  return (
-    <>
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          backgroundColor: "rgba(26,26,26,0.4)",
-          zIndex: 40,
-        }}
-      />
-      <div
-        role="dialog"
-        aria-label="Guide d'intégration transporteur"
-        style={{
-          position: "fixed",
-          top: 0,
-          insetInlineEnd: 0,
-          bottom: 0,
-          width: "min(460px, 100vw)",
-          backgroundColor: "white",
-          borderInlineStart: "1px solid #E1E3E5",
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <div
-          style={{
-            padding: "20px 24px",
-            borderBottom: "1px solid #E1E3E5",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
-            Ajouter un nouveau transporteur
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fermer"
-            style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer" }}
-          >
-            ×
-          </button>
-        </div>
-        <div
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            padding: 24,
-            fontSize: 14,
-            color: "#1A1A1A",
-            lineHeight: 1.5,
-          }}
-        >
-          <h4 style={{ marginTop: 0 }}>Adaptateurs disponibles</h4>
-          <ul style={{ paddingInlineStart: 20, marginTop: 0 }}>
-            {adapters.map((a) => (
-              <li key={a.code} style={{ marginBottom: 6 }}>
-                <strong>{a.label}</strong> — <code>{a.code}</code>
-                <div style={{ color: "#6D7175", fontSize: 13 }}>{a.description}</div>
-              </li>
-            ))}
-          </ul>
-
-          <h4>Étapes pour un nouveau carrier</h4>
-          <ol style={{ paddingInlineStart: 20 }}>
-            <li>
-              Créer <code>src/lib/carriers/&lt;code&gt;-adapter.ts</code> qui implémente
-              l&apos;interface <code>CarrierAdapter</code> (<code>formatPayload</code>,{" "}
-              <code>dispatch</code>, <code>parseResponse</code>).
-            </li>
-            <li>
-              Enregistrer l&apos;adaptateur dans{" "}
-              <code>src/lib/carriers/adapter-registry.ts</code> et ajouter un descripteur
-              (libellé, champs d&apos;identifiants).
-            </li>
-            <li>
-              Écrire les tests unitaires : au minimum, formatage du payload et parsing de
-              la réponse (succès + erreurs).
-            </li>
-            <li>
-              Ajouter le transporteur depuis cet écran — l&apos;adaptateur apparaîtra
-              automatiquement dans le sélecteur.
-            </li>
-            <li>
-              Utiliser <em>Test dispatch</em> sur la carte pour vérifier le formatage,
-              puis <em>Ping</em> pour vérifier la joignabilité.
-            </li>
-          </ol>
-
-          <h4>Rotation des identifiants</h4>
-          <p style={{ marginTop: 0 }}>
-            Cliquer sur <em>Configurer</em> puis <em>Faire tourner</em> pour remplacer la
-            clé API. L&apos;ancienne valeur n&apos;est jamais affichée — seule une nouvelle
-            saisie est acceptée.
-          </p>
-
-          <h4>Performance</h4>
-          <p style={{ marginTop: 0 }}>
-            Les statistiques (taux de livraison 30j, transit médian) sont calculées depuis
-            l&apos;historique des commandes et recalculées chaque minute. Un taux inférieur
-            à 60&nbsp;% sur 10+ commandes fait passer l&apos;indicateur en rouge.
-          </p>
-        </div>
-        <div style={{ padding: 16, borderTop: "1px solid #E1E3E5", textAlign: "end" }}>
-          <button type="button" onClick={onClose} style={secondaryButton}>
-            Fermer
-          </button>
-        </div>
-      </div>
-    </>
-  );
-}

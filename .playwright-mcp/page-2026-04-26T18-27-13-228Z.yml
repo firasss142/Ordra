@@ -1,0 +1,390 @@
+- generic [active] [ref=e1]:
+  - link "Aller au contenu principal" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - navigation [ref=e4]:
+      - generic [ref=e5]:
+        - text: Ordra
+        - button "Marchés" [ref=e7] [cursor=pointer]:
+          - generic [ref=e10]: Tunisie
+          - img [ref=e11]
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - button "Replier la section Accueil" [expanded] [ref=e15] [cursor=pointer]:
+            - img [ref=e16]
+            - generic [ref=e19]: Accueil
+            - img [ref=e20]
+          - list [ref=e22]:
+            - listitem [ref=e23]:
+              - link "Pulse" [ref=e24] [cursor=pointer]:
+                - /url: /fr/dashboard
+                - img [ref=e25]
+                - generic [ref=e30]: Pulse
+            - listitem [ref=e31]:
+              - link "Alertes" [ref=e32] [cursor=pointer]:
+                - /url: /fr/dashboard/alerts
+                - img [ref=e33]
+                - generic [ref=e36]: Alertes
+        - generic [ref=e37]:
+          - button "Replier la section Commandes" [expanded] [ref=e38] [cursor=pointer]:
+            - img [ref=e39]
+            - generic [ref=e42]: Commandes
+            - img [ref=e43]
+          - list [ref=e45]:
+            - listitem [ref=e46]:
+              - link "À assigner" [ref=e47] [cursor=pointer]:
+                - /url: /fr/assign
+                - img [ref=e48]
+                - generic [ref=e51]: À assigner
+            - listitem [ref=e52]:
+              - link "En confirmation" [ref=e53] [cursor=pointer]:
+                - /url: /fr/confirmation-flow
+                - img [ref=e54]
+                - generic [ref=e58]: En confirmation
+            - listitem [ref=e59]:
+              - link "À expédier" [ref=e60] [cursor=pointer]:
+                - /url: /fr/to-ship
+                - img [ref=e61]
+                - generic [ref=e66]: À expédier
+            - listitem [ref=e67]:
+              - link "En livraison" [ref=e68] [cursor=pointer]:
+                - /url: /fr/orders?preset=in_delivery
+                - img [ref=e69]
+                - generic [ref=e72]: En livraison
+            - listitem [ref=e73]:
+              - link "Archivées" [ref=e74] [cursor=pointer]:
+                - /url: /fr/orders/archive
+                - img [ref=e75]
+                - generic [ref=e80]: Archivées
+        - button "Déplier la section Logistique" [ref=e82] [cursor=pointer]:
+          - img [ref=e83]
+          - generic [ref=e86]: Logistique
+          - img [ref=e87]
+        - generic [ref=e89]:
+          - button "Replier la section Finances" [expanded] [ref=e90] [cursor=pointer]:
+            - img [ref=e91]
+            - generic [ref=e94]: Finances
+            - img [ref=e95]
+          - list [ref=e97]:
+            - listitem [ref=e98]:
+              - link "P&L global" [ref=e99] [cursor=pointer]:
+                - /url: /fr/dashboard/pnl
+                - img [ref=e100]
+                - generic [ref=e102]: P&L global
+            - listitem [ref=e103]:
+              - link "Produits & marges" [ref=e104] [cursor=pointer]:
+                - /url: /fr/products
+                - img [ref=e105]
+                - generic [ref=e109]: Produits & marges
+            - listitem [ref=e110]:
+              - link "Stock & inventaire" [ref=e111] [cursor=pointer]:
+                - /url: /fr/dashboard/stock
+                - img [ref=e112]
+                - generic [ref=e122]: Stock & inventaire
+            - listitem [ref=e123]:
+              - link "Dépenses pub" [ref=e124] [cursor=pointer]:
+                - /url: /fr/settings/ad-spend
+                - img [ref=e125]
+                - generic [ref=e128]: Dépenses pub
+        - button "Déplier la section Clients" [ref=e130] [cursor=pointer]:
+          - img [ref=e131]
+          - generic [ref=e136]: Clients
+          - img [ref=e137]
+        - generic [ref=e139]:
+          - button "Replier la section Équipe" [expanded] [ref=e140] [cursor=pointer]:
+            - img [ref=e141]
+            - generic [ref=e144]: Équipe
+            - img [ref=e145]
+          - list [ref=e147]:
+            - listitem [ref=e148]:
+              - link "Performance" [ref=e149] [cursor=pointer]:
+                - /url: /fr/team
+                - img [ref=e150]
+                - generic [ref=e152]: Performance
+            - listitem [ref=e153]:
+              - link "Accès" [ref=e154] [cursor=pointer]:
+                - /url: /fr/users
+                - img [ref=e155]
+                - generic [ref=e158]: Accès
+        - button "Déplier la section Système" [ref=e161] [cursor=pointer]:
+          - img [ref=e162]
+          - generic [ref=e165]: Système
+          - generic [ref=e166]: Admin
+          - img [ref=e167]
+      - button "Super Admin Super admin" [ref=e170] [cursor=pointer]:
+        - generic [ref=e171]: SA
+        - generic [ref=e172]:
+          - generic [ref=e173]: Super Admin
+          - generic [ref=e174]: Super admin
+        - img [ref=e175]
+    - main [ref=e178]:
+      - generic [ref=e179]:
+        - generic [ref=e180]:
+          - generic [ref=e181]:
+            - heading "Commandes" [level=1] [ref=e182]
+            - paragraph [ref=e183]: 10 commande(s) · 3 non assigné · 1 rappels · — · Actualisation…
+          - tablist "Vue" [ref=e184]:
+            - tab "Toutes" [selected] [ref=e185] [cursor=pointer]
+            - tab "Non assignées" [ref=e186] [cursor=pointer]
+            - tab "Aujourd'hui" [ref=e187] [cursor=pointer]
+            - tab "Rappels" [ref=e188] [cursor=pointer]
+            - tab "En livraison" [ref=e189] [cursor=pointer]
+        - generic [ref=e191]:
+          - generic [ref=e192]:
+            - generic [ref=e193]:
+              - button "—" [ref=e195] [cursor=pointer]:
+                - img [ref=e196]
+                - text: —
+                - img [ref=e199]
+              - generic [ref=e202]:
+                - img
+                - textbox "Rechercher une commande" [ref=e203]:
+                  - /placeholder: Nom · téléphone · ID
+            - generic [ref=e204]:
+              - button "Exporter CSV" [ref=e205] [cursor=pointer]:
+                - img [ref=e206]
+              - button "Nouvelle commande" [ref=e209] [cursor=pointer]:
+                - img [ref=e210]
+                - text: Nouvelle commande
+          - generic [ref=e211]:
+            - generic [ref=e212]:
+              - img [ref=e213]
+              - text: Avancé
+            - button "Date" [ref=e217] [cursor=pointer]:
+              - img [ref=e218]
+              - generic [ref=e220]: Date
+              - img [ref=e221]
+            - button "Avancé" [ref=e223] [cursor=pointer]:
+              - img [ref=e224]
+              - text: Avancé
+        - generic [ref=e226]:
+          - table [ref=e228]:
+            - rowgroup [ref=e229]:
+              - row "Tout sélectionner Commande Produit Client Prix total Statut Agent Date Actions" [ref=e230]:
+                - columnheader "Tout sélectionner" [ref=e231]:
+                  - checkbox "Tout sélectionner" [ref=e232] [cursor=pointer]
+                - columnheader "Commande" [ref=e233]
+                - columnheader "Produit" [ref=e234]
+                - columnheader "Client" [ref=e235]
+                - columnheader "Prix total" [ref=e236]
+                - columnheader "Statut" [ref=e237]
+                - columnheader "Agent" [ref=e238]
+                - columnheader "Date" [ref=e239]
+                - columnheader "Actions" [ref=e240]
+            - rowgroup [ref=e241]:
+              - 'row "select PERF-TEST-1 #PERF-TEST-1 Produit Test 2 Client Test 1 Sfax 21.00 TND Nouveau — 20 Apr Annuler" [ref=e242] [cursor=pointer]':
+                - cell "select PERF-TEST-1" [ref=e243]:
+                  - checkbox "select PERF-TEST-1" [ref=e244]
+                - cell "#PERF-TEST-1" [ref=e245]
+                - cell "Produit Test 2" [ref=e246]:
+                  - generic [ref=e247]:
+                    - generic [ref=e248]: P
+                    - generic [ref=e250]: Produit Test 2
+                - cell "Client Test 1 Sfax" [ref=e251]:
+                  - generic [ref=e252]:
+                    - generic [ref=e253]: Client Test 1
+                    - generic [ref=e254]: Sfax
+                - cell "21.00 TND" [ref=e255]
+                - cell "Nouveau" [ref=e256]:
+                  - generic [ref=e258]: Nouveau
+                - cell "—" [ref=e259]
+                - cell "20 Apr" [ref=e260]
+                - cell "Annuler" [ref=e261]:
+                  - button "Annuler" [ref=e262]
+              - 'row "select PERF-TEST-2 #PERF-TEST-2 Produit Test 3 Client Test 2 Sousse 22.00 TND Nouveau — 20 Apr Annuler" [ref=e263] [cursor=pointer]':
+                - cell "select PERF-TEST-2" [ref=e264]:
+                  - checkbox "select PERF-TEST-2" [ref=e265]
+                - cell "#PERF-TEST-2" [ref=e266]
+                - cell "Produit Test 3" [ref=e267]:
+                  - generic [ref=e268]:
+                    - generic [ref=e269]: P
+                    - generic [ref=e271]: Produit Test 3
+                - cell "Client Test 2 Sousse" [ref=e272]:
+                  - generic [ref=e273]:
+                    - generic [ref=e274]: Client Test 2
+                    - generic [ref=e275]: Sousse
+                - cell "22.00 TND" [ref=e276]
+                - cell "Nouveau" [ref=e277]:
+                  - generic [ref=e279]: Nouveau
+                - cell "—" [ref=e280]
+                - cell "20 Apr" [ref=e281]
+                - cell "Annuler" [ref=e282]:
+                  - button "Annuler" [ref=e283]
+              - 'row "select PERF-TEST-3 #PERF-TEST-3 E2E Test Product ×2 Client Test 3 Bizerte 0.00 TND Nouveau — 20 Apr Annuler" [ref=e284] [cursor=pointer]':
+                - cell "select PERF-TEST-3" [ref=e285]:
+                  - checkbox "select PERF-TEST-3" [ref=e286]
+                - cell "#PERF-TEST-3" [ref=e287]
+                - cell "E2E Test Product ×2" [ref=e288]:
+                  - generic [ref=e289]:
+                    - generic [ref=e290]: E
+                    - generic [ref=e291]:
+                      - generic [ref=e292]: E2E Test Product
+                      - generic [ref=e294]: ×2
+                - cell "Client Test 3 Bizerte" [ref=e295]:
+                  - generic [ref=e296]:
+                    - generic [ref=e297]: Client Test 3
+                    - generic [ref=e298]: Bizerte
+                - cell "0.00 TND" [ref=e299]
+                - cell "Nouveau" [ref=e300]:
+                  - generic [ref=e302]: Nouveau
+                - cell "—" [ref=e303]
+                - cell "20 Apr" [ref=e304]
+                - cell "Annuler" [ref=e305]:
+                  - button "Annuler" [ref=e306]
+              - 'row "select PERF-TEST-4 #PERF-TEST-4 Produit Test 5 Client Test 4 Monastir 24.00 TND Tentative 3 AT Agent 20 Apr Annuler" [ref=e307] [cursor=pointer]':
+                - cell "select PERF-TEST-4" [ref=e308]:
+                  - checkbox "select PERF-TEST-4" [ref=e309]
+                - cell "#PERF-TEST-4" [ref=e310]
+                - cell "Produit Test 5" [ref=e311]:
+                  - generic [ref=e312]:
+                    - generic [ref=e313]: P
+                    - generic [ref=e315]: Produit Test 5
+                - cell "Client Test 4 Monastir" [ref=e316]:
+                  - generic [ref=e317]:
+                    - generic [ref=e318]: Client Test 4
+                    - generic [ref=e319]: Monastir
+                - cell "24.00 TND" [ref=e320]
+                - cell "Tentative 3" [ref=e321]:
+                  - generic [ref=e323]: Tentative 3
+                - cell "AT Agent" [ref=e324]:
+                  - generic [ref=e325]:
+                    - generic [ref=e326]: AT
+                    - generic [ref=e327]: Agent
+                - cell "20 Apr" [ref=e328]
+                - cell "Annuler" [ref=e329]:
+                  - button "Annuler" [ref=e330]
+              - 'row "select PERF-TEST-5 #PERF-TEST-5 Produit Test 1 Client Test 5 Tunis 25.00 TND Rappel prévu A2 Agent 20 Apr Annuler" [ref=e331] [cursor=pointer]':
+                - cell "select PERF-TEST-5" [ref=e332]:
+                  - checkbox "select PERF-TEST-5" [ref=e333]
+                - cell "#PERF-TEST-5" [ref=e334]
+                - cell "Produit Test 1" [ref=e335]:
+                  - generic [ref=e336]:
+                    - generic [ref=e337]: P
+                    - generic [ref=e339]: Produit Test 1
+                - cell "Client Test 5 Tunis" [ref=e340]:
+                  - generic [ref=e341]:
+                    - generic [ref=e342]: Client Test 5
+                    - generic [ref=e343]: Tunis
+                - cell "25.00 TND" [ref=e344]
+                - cell "Rappel prévu" [ref=e345]:
+                  - generic [ref=e347]: Rappel prévu
+                - cell "A2 Agent" [ref=e348]:
+                  - generic [ref=e349]:
+                    - generic [ref=e350]: A2
+                    - generic [ref=e351]: Agent
+                - cell "20 Apr" [ref=e352]
+                - cell "Annuler" [ref=e353]:
+                  - button "Annuler" [ref=e354]
+              - 'row "select PERF-TEST-6 #PERF-TEST-6 Produit Test 2 Client Test 6 Sfax 26.00 TND Confirmé AT Agent 20 Apr Annuler" [ref=e355] [cursor=pointer]':
+                - cell "select PERF-TEST-6" [ref=e356]:
+                  - checkbox "select PERF-TEST-6" [ref=e357]
+                - cell "#PERF-TEST-6" [ref=e358]
+                - cell "Produit Test 2" [ref=e359]:
+                  - generic [ref=e360]:
+                    - generic [ref=e361]: P
+                    - generic [ref=e363]: Produit Test 2
+                - cell "Client Test 6 Sfax" [ref=e364]:
+                  - generic [ref=e365]:
+                    - generic [ref=e366]: Client Test 6
+                    - generic [ref=e367]: Sfax
+                - cell "26.00 TND" [ref=e368]
+                - cell "Confirmé" [ref=e369]:
+                  - generic [ref=e371]: Confirmé
+                - cell "AT Agent" [ref=e372]:
+                  - generic [ref=e373]:
+                    - generic [ref=e374]: AT
+                    - generic [ref=e375]: Agent
+                - cell "20 Apr" [ref=e376]
+                - cell "Annuler" [ref=e377]:
+                  - button "Annuler" [ref=e378]
+              - 'row "select PERF-TEST-7 #PERF-TEST-7 Produit Test 3 Client Test 7 Sousse 27.00 TND Expédié TA Test 20 Apr Annuler" [ref=e379] [cursor=pointer]':
+                - cell "select PERF-TEST-7" [ref=e380]:
+                  - checkbox "select PERF-TEST-7" [ref=e381]
+                - cell "#PERF-TEST-7" [ref=e382]
+                - cell "Produit Test 3" [ref=e383]:
+                  - generic [ref=e384]:
+                    - generic [ref=e385]: P
+                    - generic [ref=e387]: Produit Test 3
+                - cell "Client Test 7 Sousse" [ref=e388]:
+                  - generic [ref=e389]:
+                    - generic [ref=e390]: Client Test 7
+                    - generic [ref=e391]: Sousse
+                - cell "27.00 TND" [ref=e392]
+                - cell "Expédié" [ref=e393]:
+                  - generic [ref=e395]: Expédié
+                - cell "TA Test" [ref=e396]:
+                  - generic [ref=e397]:
+                    - generic [ref=e398]: TA
+                    - generic [ref=e399]: Test
+                - cell "20 Apr" [ref=e400]
+                - cell "Annuler" [ref=e401]:
+                  - button "Annuler" [ref=e402]
+              - 'row "select PERF-TEST-8 #PERF-TEST-8 Produit Test 4 Client Test 8 Bizerte 28.00 TND Livré A asma 20 Apr" [ref=e403] [cursor=pointer]':
+                - cell "select PERF-TEST-8" [ref=e404]:
+                  - checkbox "select PERF-TEST-8" [ref=e405]
+                - cell "#PERF-TEST-8" [ref=e406]
+                - cell "Produit Test 4" [ref=e407]:
+                  - generic [ref=e408]:
+                    - generic [ref=e409]: P
+                    - generic [ref=e411]: Produit Test 4
+                - cell "Client Test 8 Bizerte" [ref=e412]:
+                  - generic [ref=e413]:
+                    - generic [ref=e414]: Client Test 8
+                    - generic [ref=e415]: Bizerte
+                - cell "28.00 TND" [ref=e416]
+                - cell "Livré" [ref=e417]:
+                  - generic [ref=e419]: Livré
+                - cell "A asma" [ref=e420]:
+                  - generic [ref=e421]:
+                    - generic [ref=e422]: A
+                    - generic [ref=e423]: asma
+                - cell "20 Apr" [ref=e424]
+                - cell [ref=e425]
+              - 'row "select PERF-TEST-9 #PERF-TEST-9 Produit Test 5 Client Test 9 Monastir 29.00 TND Retourné AT Agent 20 Apr" [ref=e426] [cursor=pointer]':
+                - cell "select PERF-TEST-9" [ref=e427]:
+                  - checkbox "select PERF-TEST-9" [ref=e428]
+                - cell "#PERF-TEST-9" [ref=e429]
+                - cell "Produit Test 5" [ref=e430]:
+                  - generic [ref=e431]:
+                    - generic [ref=e432]: P
+                    - generic [ref=e434]: Produit Test 5
+                - cell "Client Test 9 Monastir" [ref=e435]:
+                  - generic [ref=e436]:
+                    - generic [ref=e437]: Client Test 9
+                    - generic [ref=e438]: Monastir
+                - cell "29.00 TND" [ref=e439]
+                - cell "Retourné" [ref=e440]:
+                  - generic [ref=e442]: Retourné
+                - cell "AT Agent" [ref=e443]:
+                  - generic [ref=e444]:
+                    - generic [ref=e445]: AT
+                    - generic [ref=e446]: Agent
+                - cell "20 Apr" [ref=e447]
+                - cell [ref=e448]
+              - 'row "select PERF-TEST-10 #PERF-TEST-10 Biovera Client Test 10 Tunis 35.00 TND Rejeté A2 Agent 20 Apr" [ref=e449] [cursor=pointer]':
+                - cell "select PERF-TEST-10" [ref=e450]:
+                  - checkbox "select PERF-TEST-10" [ref=e451]
+                - cell "#PERF-TEST-10" [ref=e452]
+                - cell "Biovera" [ref=e453]:
+                  - generic [ref=e454]:
+                    - generic [ref=e455]: B
+                    - generic [ref=e457]: Biovera
+                - cell "Client Test 10 Tunis" [ref=e458]:
+                  - generic [ref=e459]:
+                    - generic [ref=e460]: Client Test 10
+                    - generic [ref=e461]: Tunis
+                - cell "35.00 TND" [ref=e462]
+                - cell "Rejeté" [ref=e463]:
+                  - generic [ref=e465]: Rejeté
+                - cell "A2 Agent" [ref=e466]:
+                  - generic [ref=e467]:
+                    - generic [ref=e468]: A2
+                    - generic [ref=e469]: Agent
+                - cell "20 Apr" [ref=e470]
+                - cell [ref=e471]
+          - generic [ref=e472]:
+            - button "Précédent" [disabled] [ref=e473]
+            - generic [ref=e474]: Page 1
+            - button "Suivant" [disabled] [ref=e475]
+        - generic [ref=e476]: 10 affichée(s) · temps réel
+  - alert [ref=e477]

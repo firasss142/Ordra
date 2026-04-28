@@ -80,7 +80,7 @@
       "systeme": "النظام"
     },
     "items": {
-      "pulse": "النبض",
+      "pulse": "لوحة القيادة",
       "alertes": "التنبيهات",
       "toAssign": "للتعيين",
       "inConfirmation": "قيد التأكيد",
@@ -534,7 +534,6 @@
       "custom": "مخصص",
       "allMarkets": "كل الأسواق",
       "marketPlaceholder": "اختر السوق",
-      "lastUpdated": "آخر تحديث قبل",
       "vsYesterday": "مقارنة بالأمس",
       "vsLastWeek": "مقارنة بالأسبوع الماضي",
       "vsLastMonth": "مقارنة بالشهر الماضي",
@@ -590,8 +589,8 @@
       "allClear": "كل شيء على ما يرام"
     },
     "insights": {
-      "confAboveAvg": "التأكيد مرتفع بنسبة {diff}%",
-      "confBelowAvg": "التأكيد منخفض بنسبة {diff}%",
+      "confAboveAvg": "{diff}% فوق متوسط الأسبوع",
+      "confBelowAvg": "{diff}% تحت متوسط الأسبوع",
       "topProduct": "المنتج الأفضل : {name} ({count} مُوصَّلة)",
       "leadingAgent": "القائد : {name} ({rate} %)"
     },
@@ -711,6 +710,8 @@
     "footerCount": "{count} معروض",
     "footerMore": "متاح المزيد",
     "footerLive": "مباشر",
+    "callbackOverdue": "متأخّر",
+    "priorRejected": "{count} رفض سابق",
     "actions": {
       "cancel": "إلغاء"
     },
@@ -820,7 +821,7 @@
       "actions": "إجراءات"
     },
     "statuses": {
-      "new": "جديد",
+      "pending": "قيد الانتظار",
       "assigned": "معيّن",
       "attempt_1": "محاولة 1",
       "attempt_2": "محاولة 2",
@@ -833,11 +834,14 @@
       "dispatched": "تم الإرسال",
       "deposit": "إيداع",
       "in_transit": "في الطريق",
+      "unverified": "بحاجة للتحقق",
       "delivered": "تم التسليم",
       "returned": "مرتجع",
       "to_be_returned": "للإرجاع",
+      "received": "تم استلامه",
       "rejected": "مرفوض",
-      "cancelled": "ملغى"
+      "cancelled": "ألغته شركة التوصيل",
+      "deleted": "محذوف"
     },
     "rejectionReasons": {
       "refus_client": "رفض العميل",
@@ -916,7 +920,10 @@
       "fieldDeliveryFee": "رسوم التوصيل",
       "addProduct": "+ إضافة منتج",
       "removeItem": "حذف",
-      "grandTotal": "المجموع الكلي"
+      "grandTotal": "المجموع الكلي",
+      "inStock": "متوفر",
+      "lowStock": "مخزون منخفض",
+      "stockLeft": "متبقي {count}"
     },
     "scheduleDispatch": {
       "title": "جدولة التوصيل",
@@ -1199,6 +1206,7 @@
     },
     "filters": {
       "title": "الفلاتر",
+      "allMarkets": "كل الأسواق",
       "status": {
         "all": "الكل",
         "active": "نشط",
@@ -1436,6 +1444,7 @@
         "customerName": "اسم العميل",
         "customerPhone": "الهاتف",
         "customerCity": "المدينة",
+        "cityPlaceholder": "البحث عن مدينة…",
         "customerAddress": "العنوان",
         "source": "المصدر",
         "productInterest": "المنتج المطلوب",
@@ -1874,7 +1883,9 @@
         "newReveal": "طلبات جديدة — تحديث",
         "dismiss": "تجاهل",
         "lowStock": "مخزون منخفض",
-        "criticalStock": "نفاد المخزون"
+        "criticalStock": "نفاد المخزون",
+        "loadMore": "عرض المزيد",
+        "loadingMore": "جارٍ التحميل…"
       }
     },
     "overview": {
@@ -1943,6 +1954,8 @@
       "queueTitle": "قائمة الانتظار ({count})",
       "queueEmpty": "لا توجد مرتجعات معلقة",
       "noMatches": "لا توجد نتائج تطابق بحثك",
+      "loadMore": "عرض المزيد",
+      "loadingMore": "جارٍ التحميل…",
       "filterPlaceholder": "تصفية حسب العميل، المدينة، المنتج…",
       "scanStepLabel": "مسح مرتجع",
       "kpi": {
@@ -2095,7 +2108,6 @@
       "week": "7 أيام",
       "month": "30 يوماً",
       "custom": "مخصص",
-      "lastUpdated": "آخر تحديث منذ",
       "allMarkets": "كل الأسواق",
       "marketPlaceholder": "اختر سوقاً"
     },
@@ -2368,6 +2380,9 @@
       "error": "خطأ",
       "unknown": "—"
     },
+    "filters": {
+      "all": "الكل"
+    },
     "stats": {
       "webhookRate": "ويب هوك",
       "carrierRate": "شركات التوصيل",
@@ -2513,6 +2528,7 @@
     "subtitle": "ما يفعله الوكلاء الآن",
     "loading": "جارٍ التحميل...",
     "computedAt": "تم الحساب في",
+    "noOrdersInPipeline": "لا توجد طلبات قيد التأكيد لهذا السوق.",
     "banner": {
       "updates": "تحديث/تحديثات",
       "refresh": "تحديث"

@@ -93,6 +93,6 @@ export async function tryAutoAssign(
         .eq("market_id", order.market_id);
     }
   } catch {
-    // Best-effort: order stays 'new' for manual assignment
+    // Best-effort: order stays 'pending' for manual assignment
   }
 }

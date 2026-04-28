@@ -1,20 +1,33 @@
 import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/auth/server-user";
+import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { createClient } from "@/lib/supabase/server";
 import { PreparationClient } from "@/components/warehouse/preparation/PreparationClient";
 import { getTranslations } from "next-intl/server";
+import { buildQueuePageMeta } from "@/lib/warehouse/queue-cursor";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
+import type { WarehouseQueuePage } from "@/hooks/useWarehouseQueue";
 
 export const dynamic = "force-dynamic";
 
-async function prefetchToLabel(marketScope: string | null): Promise<WarehouseOrderRow[]> {
+const PAGE_LIMIT = 50;
+
+async function prefetchToLabel(
+  marketScope: string | null,
+): Promise<WarehouseQueuePage> {
   const supabase = await createClient();
   const { data } = await supabase.rpc("get_to_label_orders", {
     p_market_id: marketScope,
-    p_limit: 200,
+    p_limit: PAGE_LIMIT + 1,
+    p_cursor_created_at: null,
+    p_cursor_id: null,
   });
-  return (data ?? []) as unknown as WarehouseOrderRow[];
+  const { rows, nextCursor } = buildQueuePageMeta(
+    (data ?? []) as unknown as WarehouseOrderRow[],
+    PAGE_LIMIT,
+  );
+  return { orders: rows, nextCursor };
 }
 
 export default async function Page({
@@ -27,15 +40,15 @@ export default async function Page({
   if (!user) redirect(`/${locale}/login`);
   if (!canScanWarehouse(user.role)) redirect(`/${locale}/queue`);
 
-  const scope = user.role !== "super_admin" ? user.market_id : null;
-  const fallbackRows = await prefetchToLabel(scope);
+  const { marketId: scope } = await getActiveMarketScope(user);
+  const fallbackPage = await prefetchToLabel(scope);
 
   const t = await getTranslations({ locale, namespace: "warehouse" });
 
   return (
     <PreparationClient
-      marketId={user.role === "super_admin" ? null : user.market_id}
-      fallbackRows={fallbackRows}
+      marketId={scope}
+      fallbackPage={fallbackPage}
       labels={{
         pageTitle: t("preparation.title"),
         pageSubtitle: t("preparation.subtitle"),
@@ -76,6 +89,8 @@ export default async function Page({
           dismiss: t("preparation.backlog.dismiss"),
           lowStock: t("preparation.backlog.lowStock"),
           criticalStock: t("preparation.backlog.criticalStock"),
+          loadMore: t("preparation.backlog.loadMore"),
+          loadingMore: t("preparation.backlog.loadingMore"),
         },
       }}
     />

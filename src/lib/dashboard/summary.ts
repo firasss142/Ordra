@@ -108,7 +108,7 @@ export interface DashboardSummary {
 }
 
 export const PIPELINE_BUCKETS: { bucket: string; statuses: string[] }[] = [
-  { bucket: "new", statuses: ["new"] },
+  { bucket: "new", statuses: ["pending"] },
   { bucket: "assigned", statuses: ["assigned"] },
   { bucket: "attempts", statuses: ["attempt_1", "attempt_2", "attempt_3"] },
   { bucket: "callback", statuses: ["callback_scheduled"] },

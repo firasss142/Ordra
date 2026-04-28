@@ -12,6 +12,7 @@ import { isEditableTarget } from "@/lib/dom";
 import { InlineField } from "@/components/ui/InlineField";
 import { Combobox, type ComboboxOption } from "@/components/ui/Combobox";
 import { StepperField } from "@/components/ui/StepperField";
+import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { useOrderMutation } from "@/hooks/useOrderMutation";
 import type { Role } from "@/types";
 
@@ -94,8 +95,33 @@ const TERMINAL_STATUSES = new Set([
   "delivered",
   "returned",
   "rejected",
+  "deleted",
   "cancelled",
 ]);
+
+const STATUS_TONE: Record<string, BadgeTone> = {
+  pending: "neutral",
+  assigned: "neutral",
+  attempt_1: "warning",
+  attempt_2: "warning",
+  attempt_3: "warning",
+  callback_scheduled: "warning",
+  confirmed: "action",
+  dispatch_scheduled: "action",
+  dispatching: "action",
+  scanned: "action",
+  dispatched: "action",
+  deposit: "action",
+  in_transit: "action",
+  unverified: "warning",
+  to_be_returned: "warning",
+  received: "action",
+  delivered: "success",
+  returned: "critical",
+  rejected: "critical",
+  cancelled: "critical",
+  deleted: "neutral",
+};
 
 const FULFILLMENT_STATUS_VALUES = [
   "deposit",
@@ -173,7 +199,7 @@ function translateHistoryNote(
     "Order received via webhook": th("createdFromWebhook"),
     "Assigned to agent": th("assignedToAgent"),
     "Reassigned to agent": th("reassignedToAgent"),
-    "Cancelled via storefront webhook": th("cancelled"),
+    "Cancelled via storefront webhook": th("deleted"),
   };
   return map[note] ?? note;
 }
@@ -475,19 +501,19 @@ export function OrderDetailPanel({
       <div className="fixed inset-0 z-40 bg-ink-primary/40" onClick={onClose} />
 
       {/* Panel */}
-      <div className="fixed top-0 end-0 h-full w-full sm:w-[480px] z-50 flex flex-col overflow-hidden bg-surface-page border-s border-line-subtle shadow-panel animate-[slideInEnd_180ms_ease-out]">
+      <div className="fixed top-0 end-0 h-full w-full sm:w-[460px] z-50 flex flex-col overflow-hidden bg-surface-page border-s border-line-subtle shadow-panel animate-[slideInEnd_180ms_ease-out]">
 
         {/* ── Sticky header ─────────────────────────────────────── */}
         <div className="flex-shrink-0 bg-surface-card border-b border-line-subtle">
-          <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center justify-between gap-3 px-4 h-[52px]">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="inline-flex items-center h-5 px-1.5 rounded bg-surface-page border border-line-subtle text-[10px] font-semibold tabular-nums text-ink-muted tracking-wide flex-shrink-0">
+              <span className="inline-flex items-center h-[22px] px-2 rounded-card bg-surface-page border border-line-subtle font-mono text-[11px] font-semibold tabular-nums text-ink-secondary flex-shrink-0">
                 #{(order?.id ?? orderId ?? "").slice(0, 8).toUpperCase()}
               </span>
               {order && (
-                <span className="text-[12px] text-ink-secondary truncate">
+                <Badge tone={STATUS_TONE[order.status] ?? "neutral"} dot>
                   {ts(order.status as Parameters<typeof ts>[0])}
-                </span>
+                </Badge>
               )}
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -525,50 +551,67 @@ export function OrderDetailPanel({
 
           {order && (
             <>
-              {/* ── Identity hero ── */}
-              <div className="px-5 pt-5 pb-4 bg-surface-card border-b border-line-subtle">
+              {/* ── Customer summary ── */}
+              <div className="px-4 pt-4 pb-4 bg-surface-card border-b border-line-subtle">
                 {/* Name */}
-                <div ref={nameFieldRef} className="mb-1">
+                <div ref={nameFieldRef}>
                   <InlineField
                     value={order.customer_name}
                     onCommit={(v) => runCommit({ customer_name: v })}
                     displayMode
                     readOnly={!canEdit}
-                    displayClassName="text-[20px] font-bold text-ink-primary leading-tight"
+                    displayClassName="text-[17px] font-semibold text-ink-primary leading-tight"
                   />
                 </div>
 
-                {/* City · status pills */}
-                <div className="flex items-center gap-2 mb-4 flex-wrap">
-                  {order.customer_city && (
-                    <span className="inline-flex items-center gap-1 text-[12px] text-ink-secondary">
-                      <MapPin size={11} strokeWidth={2} aria-hidden="true" />
-                      {order.customer_city}
-                    </span>
-                  )}
-                </div>
+                {/* City + maps link */}
+                {(order.customer_city || mapsHref) && (
+                  <div className="flex items-center gap-2 mt-1.5 mb-3 flex-wrap text-[12px]">
+                    {order.customer_city && (
+                      <span className="inline-flex items-center gap-1 text-ink-secondary">
+                        <MapPin size={11} strokeWidth={2} aria-hidden="true" />
+                        {order.customer_city}
+                      </span>
+                    )}
+                    {mapsHref && (
+                      <>
+                        {order.customer_city && (
+                          <span className="text-ink-muted" aria-hidden="true">·</span>
+                        )}
+                        <a
+                          href={mapsHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-medium text-status-action hover:underline"
+                        >
+                          {t("openMaps")}
+                        </a>
+                      </>
+                    )}
+                  </div>
+                )}
 
                 {/* Primary phone — the agent's main action target */}
                 <a
                   href={`tel:${order.customer_phone}`}
-                  className="flex items-center gap-3 w-full rounded-card bg-ink-primary text-white px-4 py-3 hover:bg-[#2A2A2A] transition-colors duration-fast group"
+                  className="flex items-center gap-3 w-full rounded-card bg-ink-primary text-white ps-3 pe-2 py-2.5 hover:bg-[#2A2A2A] transition-colors duration-fast"
                   aria-label={`Call ${order.customer_phone}`}
                 >
-                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/10 flex-shrink-0">
-                    <PhoneIcon size={16} strokeWidth={2} aria-hidden="true" />
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/10 flex-shrink-0">
+                    <PhoneIcon size={14} strokeWidth={2} aria-hidden="true" />
                   </span>
-                  <span className="text-[18px] font-bold tabular-nums tracking-wide flex-1">
+                  <span className="text-[16px] font-semibold tabular-nums tracking-wide flex-1">
                     {order.customer_phone}
                   </span>
                   <button
                     type="button"
                     onClick={(e) => { e.preventDefault(); handleCopyPhone(); }}
                     aria-label={t("copyPhone")}
-                    className="opacity-50 hover:opacity-100 transition-opacity duration-fast"
+                    className="inline-flex items-center justify-center w-7 h-7 rounded-card text-white/60 hover:text-white hover:bg-white/10 transition-colors duration-fast"
                   >
                     {phoneCopied
-                      ? <Check size={14} strokeWidth={2.5} aria-hidden="true" />
-                      : <Copy size={14} strokeWidth={2} aria-hidden="true" />}
+                      ? <Check size={13} strokeWidth={2.5} aria-hidden="true" />
+                      : <Copy size={13} strokeWidth={2} aria-hidden="true" />}
                   </button>
                 </a>
 
@@ -596,9 +639,9 @@ export function OrderDetailPanel({
                   </div>
                 )}
 
-                {/* Customer note */}
+                {/* Customer note — calm, non-dominant */}
                 {order.customer_note && (
-                  <div className="mt-3 px-3 py-2 rounded-card bg-status-warningBg border border-status-warning/20 text-[12px] text-status-warning leading-snug italic">
+                  <div className="mt-3 ps-2.5 border-s-2 border-line-strong text-[12px] text-ink-secondary leading-snug italic">
                     {order.customer_note}
                   </div>
                 )}
@@ -606,7 +649,7 @@ export function OrderDetailPanel({
 
               {/* ── Alert banners ── */}
               <div className="flex flex-col gap-0">
-                {!canEdit && (
+                {!canEdit && !canReopen && (
                   <div className="flex items-start gap-2 px-4 py-2.5 bg-surface-page border-b border-line-subtle text-[12px] text-ink-secondary">
                     <AlertTriangle size={13} strokeWidth={2} className="flex-shrink-0 mt-0.5 text-status-warning" aria-hidden="true" />
                     <span>{t("editBlockedStatus")}</span>
@@ -681,19 +724,6 @@ export function OrderDetailPanel({
                       displayClassName="text-[13px]"
                     />
                   </FieldRow>
-                  {mapsHref && (
-                    <div className="pt-1 pb-0.5">
-                      <a
-                        href={mapsHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-status-action hover:underline"
-                      >
-                        <MapPin size={12} strokeWidth={2} aria-hidden="true" />
-                        {t("openMaps")}
-                      </a>
-                    </div>
-                  )}
                 </SectionCard>
 
                 {/* Order / receipt card */}
@@ -718,10 +748,32 @@ export function OrderDetailPanel({
                     return (
                       <>
                         {/* Line items */}
-                        {items.map((item, idx) => (
-                          <div key={item.id} className="py-2.5 border-b border-line-subtle last:border-0">
-                            {/* Product name row */}
-                            <div className="flex items-start justify-between gap-3 mb-1">
+                        {items.map((item, idx) => {
+                          const itemProduct =
+                            productsData?.data?.find((p) => p.id === item.product_id) ?? null;
+                          const stock = itemProduct?.current_stock ?? null;
+                          let stockTone: BadgeTone = "success";
+                          let stockLabel: string = t("inStock");
+                          if (stock !== null) {
+                            if (stock <= 0) {
+                              stockTone = "critical";
+                              stockLabel = t("outOfStock");
+                            } else if (stock <= 5) {
+                              stockTone = "warning";
+                              stockLabel = t("stockLeft", { count: stock });
+                            } else {
+                              stockTone = "success";
+                              stockLabel = t("inStock");
+                            }
+                          }
+
+                          return (
+                          <div
+                            key={item.id}
+                            className="group -mx-2 px-2 py-3 rounded-card border-b border-line-subtle last:border-0 hover:bg-surface-hover transition-colors duration-fast"
+                          >
+                            {/* Header: product name + delete */}
+                            <div className="flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
                                 <Combobox
                                   value={item.product_name}
@@ -742,43 +794,9 @@ export function OrderDetailPanel({
                                   placeholder={t("pickProduct")}
                                   displayMode
                                   readOnly={!canEdit}
-                                  displayClassName="text-[14px] font-semibold"
+                                  displayClassName="text-[15px] font-semibold text-ink-primary leading-snug"
                                 />
-                                {item.variant_label && (
-                                  <span className="text-[12px] text-ink-secondary">{item.variant_label}</span>
-                                )}
                               </div>
-                              {/* Line total */}
-                              <span className="text-[15px] font-bold text-ink-primary tabular-nums whitespace-nowrap">
-                                {item.line_total}
-                                <span className="text-[11px] font-normal text-ink-secondary ms-1">{order.currency}</span>
-                              </span>
-                            </div>
-
-                            {/* Qty × price row */}
-                            <div className="flex items-center gap-3">
-                              <StepperField
-                                value={item.quantity}
-                                onCommit={async (qty) => {
-                                  if (item.id === "legacy") {
-                                    runCommit({ quantity: qty });
-                                  } else {
-                                    await fetch(`/api/orders/${order.id}/items/${item.id}`, {
-                                      method: "PATCH",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ quantity: qty }),
-                                    });
-                                    mutate();
-                                  }
-                                }}
-                                min={1}
-                                displayMode
-                                readOnly={!canEdit}
-                              />
-                              <span className="text-[12px] text-ink-secondary">×</span>
-                              <span className="text-[13px] text-ink-secondary tabular-nums">
-                                {item.unit_price} {order.currency}
-                              </span>
                               {canEdit && items.length > 1 && item.id !== "legacy" && (
                                 <button
                                   type="button"
@@ -788,11 +806,57 @@ export function OrderDetailPanel({
                                   }}
                                   title={t("removeItem")}
                                   aria-label={t("removeItem")}
-                                  className="ms-auto inline-flex items-center justify-center w-6 h-6 rounded text-ink-muted hover:text-status-critical hover:bg-status-criticalBg transition-colors duration-fast"
+                                  className="flex-shrink-0 inline-flex items-center justify-center w-6 h-6 rounded text-ink-muted opacity-0 group-hover:opacity-100 hover:text-status-critical hover:bg-status-criticalBg transition-all duration-fast"
                                 >
                                   <X size={13} strokeWidth={2} aria-hidden="true" />
                                 </button>
                               )}
+                            </div>
+
+                            {/* Badges row: variant + stock */}
+                            {(item.variant_label || stock !== null) && (
+                              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                {item.variant_label && (
+                                  <Badge tone="neutral">{item.variant_label}</Badge>
+                                )}
+                                {stock !== null && (
+                                  <Badge tone={stockTone} dot>
+                                    {stockLabel}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Footer: qty stepper · unit price · line total */}
+                            <div className="flex items-center justify-between gap-3 mt-2.5">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <StepperField
+                                  value={item.quantity}
+                                  onCommit={async (qty) => {
+                                    if (item.id === "legacy") {
+                                      runCommit({ quantity: qty });
+                                    } else {
+                                      await fetch(`/api/orders/${order.id}/items/${item.id}`, {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ quantity: qty }),
+                                      });
+                                      mutate();
+                                    }
+                                  }}
+                                  min={1}
+                                  displayMode
+                                  readOnly={!canEdit}
+                                />
+                                <span className="text-[12px] text-ink-muted">×</span>
+                                <span className="text-[12px] text-ink-secondary tabular-nums truncate">
+                                  {item.unit_price} {order.currency}
+                                </span>
+                              </div>
+                              <span className="text-[14px] font-semibold text-ink-primary tabular-nums whitespace-nowrap">
+                                {item.line_total}
+                                <span className="text-[11px] font-normal text-ink-muted ms-1">{order.currency}</span>
+                              </span>
                             </div>
 
                             {/* Variant selector (edit mode, first item only) */}
@@ -814,7 +878,8 @@ export function OrderDetailPanel({
                               </div>
                             )}
                           </div>
-                        ))}
+                          );
+                        })}
 
                         {/* Add product */}
                         {canEdit && (() => {
@@ -846,7 +911,7 @@ export function OrderDetailPanel({
                         })()}
 
                         {/* Receipt footer */}
-                        <div className="mt-2 pt-2 border-t border-line-subtle flex flex-col gap-1.5">
+                        <div className="mt-3 pt-3 border-t border-line-subtle flex flex-col gap-2">
                           {/* Delivery fee */}
                           <div className="flex items-center justify-between">
                             <span className="text-[12px] text-ink-secondary">{t("fieldDeliveryFee")}</span>
@@ -861,10 +926,10 @@ export function OrderDetailPanel({
                               />
                             </div>
                           </div>
-                          {/* Grand total */}
-                          <div className="flex items-center justify-between pt-1 mt-0.5 border-t border-line-subtle">
-                            <span className="text-[12px] font-semibold text-ink-primary uppercase tracking-wider">{t("grandTotal")}</span>
-                            <span className="text-[22px] font-black text-ink-primary tabular-nums tracking-tight">
+                          {/* Grand total — emphasised band */}
+                          <div className="-mx-2 mt-1 flex items-center justify-between rounded-card bg-surface-page px-3 py-2.5">
+                            <span className="text-[11px] font-semibold text-ink-secondary uppercase tracking-[0.08em]">{t("grandTotal")}</span>
+                            <span className="text-[20px] font-bold text-ink-primary tabular-nums tracking-tight leading-none">
                               {order.total_price}
                               <span className="text-[12px] font-semibold text-ink-secondary ms-1.5">{order.currency}</span>
                             </span>
@@ -879,45 +944,58 @@ export function OrderDetailPanel({
                   })()}
                 </SectionCard>
 
-                {/* History card — compact */}
+                {/* History timeline */}
                 <SectionCard title={t("history")}>
                   {order.history.length === 0 ? (
                     <div className="text-[12px] text-ink-muted py-1">{t("emptyHistory")}</div>
                   ) : (
-                    <ol className="flex flex-col gap-0">
-                      {order.history.map((entry, i) => (
-                        <li
-                          key={entry.id}
-                          className={[
-                            "flex items-start gap-3 py-2.5",
-                            i < order.history.length - 1 ? "border-b border-line-subtle" : "",
-                          ].join(" ")}
-                        >
-                          {/* Dot */}
-                          <span className="mt-1.5 flex-shrink-0 w-1.5 h-1.5 rounded-full bg-line-strong" aria-hidden="true" />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[13px] text-ink-primary leading-snug">
-                              {entry.from_status
-                                ? th("transition", {
-                                    from: getStatusLabel(entry.from_status, locale),
-                                    to: getStatusLabel(entry.to_status, locale),
-                                  })
-                                : getStatusLabel(entry.to_status, locale)}
-                            </div>
-                            {entry.note && (
-                              <div className="text-[11px] text-ink-secondary mt-0.5">
-                                {translateHistoryNote(entry.note, th)}
+                    <ol className="relative flex flex-col gap-0 pt-1">
+                      {/* Vertical connector */}
+                      <span
+                        aria-hidden="true"
+                        className="absolute top-2 bottom-2 w-px bg-line-subtle"
+                        style={{ insetInlineStart: 3 }}
+                      />
+                      {order.history.map((entry, i) => {
+                        const isLatest = i === 0;
+                        return (
+                          <li
+                            key={entry.id}
+                            className="relative flex items-start gap-3 py-2"
+                          >
+                            <span
+                              className={[
+                                "relative z-[1] mt-[5px] flex-shrink-0 w-[7px] h-[7px] rounded-full",
+                                isLatest ? "bg-ink-primary" : "bg-line-strong",
+                              ].join(" ")}
+                              aria-hidden="true"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-baseline justify-between gap-2">
+                                <div className="text-[13px] text-ink-primary leading-snug min-w-0">
+                                  {entry.from_status
+                                    ? th("transition", {
+                                        from: getStatusLabel(entry.from_status, locale),
+                                        to: getStatusLabel(entry.to_status, locale),
+                                      })
+                                    : getStatusLabel(entry.to_status, locale)}
+                                </div>
+                                <span className="flex-shrink-0 text-[11px] text-ink-muted tabular-nums">
+                                  {new Date(entry.created_at).toLocaleString(
+                                    locale === "ar" ? "ar-LY" : "fr-TN",
+                                    { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" },
+                                  )}
+                                </span>
                               </div>
-                            )}
-                          </div>
-                          <span className="flex-shrink-0 text-[11px] text-ink-muted tabular-nums mt-0.5">
-                            {new Date(entry.created_at).toLocaleString(
-                              locale === "ar" ? "ar-LY" : "fr-TN",
-                              { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" },
-                            )}
-                          </span>
-                        </li>
-                      ))}
+                              {entry.note && (
+                                <div className="text-[11px] text-ink-secondary mt-0.5 leading-snug">
+                                  {translateHistoryNote(entry.note, th)}
+                                </div>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ol>
                   )}
                 </SectionCard>
@@ -985,64 +1063,99 @@ export function OrderDetailPanel({
         )}
 
         {/* ── Action bar ─────────────────────────────────────────── */}
-        {order && (
-          <div className="flex-shrink-0 bg-surface-card border-t border-line-subtle">
-            {/* Secondary row */}
-            {(canReturnToPool || canReopen || canScheduleDispatch) && (
-              <div className="flex items-center gap-1.5 px-4 pt-2.5 pb-0">
-                {canReturnToPool && (
-                  <button
-                    type="button"
-                    disabled={returningToPool}
-                    onClick={handleReturnToPool}
-                    className="inline-flex items-center gap-1 h-8 px-2.5 text-[12px] font-medium text-status-critical hover:bg-status-criticalBg rounded-card transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <RotateCcw size={12} strokeWidth={2} aria-hidden="true" />
-                    {t("returnToPool")}
-                  </button>
-                )}
-                <div className="flex-1" />
-                {canReopen && (
-                  <button
-                    type="button"
-                    disabled={reopening}
-                    onClick={() => setReopenModalOpen(true)}
-                    className="inline-flex items-center gap-1 h-8 px-2.5 text-[12px] font-medium text-ink-primary border border-line-subtle rounded-card hover:bg-surface-hover transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {reopening ? t("reopening") : t("reopen")}
-                  </button>
-                )}
-                {canScheduleDispatch && (
-                  <button
-                    type="button"
-                    onClick={() => setScheduleDispatchOpen(true)}
-                    className="inline-flex items-center gap-1 h-8 px-2.5 text-[12px] font-medium text-ink-primary border border-line-subtle rounded-card hover:bg-surface-hover transition-colors duration-fast"
-                  >
-                    <Calendar size={12} strokeWidth={2} aria-hidden="true" />
-                    {t("scheduleDispatchAction")}
-                  </button>
-                )}
-              </div>
-            )}
-            {/* Primary CTA */}
-            <div className="px-4 py-3">
-              <button
-                type="button"
-                onClick={() => onCallTerminated(orderId!)}
-                className="inline-flex items-center justify-center gap-2 w-full h-12 rounded-card bg-ink-primary text-white text-[14px] font-semibold hover:bg-[#2A2A2A] active:scale-[0.99] transition-all duration-fast"
-              >
-                <PhoneIcon size={15} strokeWidth={2.25} aria-hidden="true" />
-                {t("callEnded")}
-              </button>
-              {canEdit && (
-                <div className="flex items-center justify-center gap-1.5 text-[10px] text-ink-muted mt-1.5">
-                  <Pencil size={9} strokeWidth={2} aria-hidden="true" />
-                  <span>{t("pressEToEdit")}</span>
+        {order && (() => {
+          // Context-aware primary CTA
+          // 1. Agent with active call → "Terminer l'appel"
+          // 2. Reopenable order      → "Réouvrir la commande"
+          // 3. Otherwise             → "Fermer"
+          const isAgentCall = role === undefined && !TERMINAL_STATUSES.has(order.status);
+          type PrimaryAction = {
+            label: string;
+            onClick: () => void;
+            icon: React.ReactNode;
+            tone: "dark" | "muted";
+          };
+          let primary: PrimaryAction;
+          if (isAgentCall) {
+            primary = {
+              label: t("callEnded"),
+              onClick: () => onCallTerminated(orderId!),
+              icon: <PhoneIcon size={15} strokeWidth={2.25} aria-hidden="true" />,
+              tone: "dark",
+            };
+          } else if (canReopen) {
+            primary = {
+              label: reopening ? t("reopening") : t("reopen"),
+              onClick: () => setReopenModalOpen(true),
+              icon: <RotateCcw size={15} strokeWidth={2.25} aria-hidden="true" />,
+              tone: "dark",
+            };
+          } else {
+            primary = {
+              label: t("close"),
+              onClick: onClose,
+              icon: null,
+              tone: "muted",
+            };
+          }
+
+          const hasSecondary = canReturnToPool || canScheduleDispatch;
+
+          return (
+            <div className="flex-shrink-0 bg-surface-card border-t border-line-subtle">
+              {/* Secondary row — return to pool + schedule dispatch */}
+              {hasSecondary && (
+                <div className="flex items-center gap-1.5 px-4 pt-2.5">
+                  {canReturnToPool && (
+                    <button
+                      type="button"
+                      disabled={returningToPool}
+                      onClick={handleReturnToPool}
+                      className="inline-flex items-center gap-1 h-8 px-2.5 text-[12px] font-medium text-status-critical hover:bg-status-criticalBg rounded-card transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <RotateCcw size={12} strokeWidth={2} aria-hidden="true" />
+                      {t("returnToPool")}
+                    </button>
+                  )}
+                  <div className="flex-1" />
+                  {canScheduleDispatch && (
+                    <button
+                      type="button"
+                      onClick={() => setScheduleDispatchOpen(true)}
+                      className="inline-flex items-center gap-1 h-8 px-2.5 text-[12px] font-medium text-ink-primary border border-line-subtle rounded-card hover:bg-surface-hover transition-colors duration-fast"
+                    >
+                      <Calendar size={12} strokeWidth={2} aria-hidden="true" />
+                      {t("scheduleDispatchAction")}
+                    </button>
+                  )}
                 </div>
               )}
+              {/* Primary CTA */}
+              <div className="px-4 py-3">
+                <button
+                  type="button"
+                  onClick={primary.onClick}
+                  disabled={reopening || returningToPool}
+                  className={[
+                    "inline-flex items-center justify-center gap-2 w-full h-11 rounded-card text-[14px] font-semibold transition-all duration-fast active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed",
+                    primary.tone === "dark"
+                      ? "bg-ink-primary text-white hover:bg-[#2A2A2A]"
+                      : "bg-surface-page text-ink-primary border border-line-subtle hover:bg-surface-hover",
+                  ].join(" ")}
+                >
+                  {primary.icon}
+                  {primary.label}
+                </button>
+                {canEdit && isAgentCall && (
+                  <div className="flex items-center justify-center gap-1.5 text-[10px] text-ink-muted mt-1.5">
+                    <Pencil size={9} strokeWidth={2} aria-hidden="true" />
+                    <span>{t("pressEToEdit")}</span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {scheduleDispatchOpen && order && (

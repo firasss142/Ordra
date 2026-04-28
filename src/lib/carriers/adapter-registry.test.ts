@@ -4,6 +4,7 @@ import {
   hasCarrierAdapter,
   listAdapterDescriptors,
   getAdapterDescriptor,
+  adapterSupportsMarket,
 } from "./adapter-registry";
 import { NavexAdapter } from "./navex-adapter";
 import { DexpressAdapter } from "./dexpress-adapter";
@@ -70,5 +71,64 @@ describe("adapter descriptors", () => {
     const keys = d!.credentialFields.map((f) => f.key);
     expect(keys).toContain("token");
     expect(keys).toContain("sender_name");
+  });
+
+  test("each descriptor declares its supported markets", () => {
+    for (const d of listAdapterDescriptors()) {
+      expect(Array.isArray(d.markets)).toBe(true);
+      expect(d.markets.length).toBeGreaterThan(0);
+    }
+  });
+
+  test("navex is scoped to Tunisia, dexpress to Libya", () => {
+    expect(getAdapterDescriptor("navex")!.markets).toEqual(["tn"]);
+    expect(getAdapterDescriptor("dexpress")!.markets).toEqual(["ly"]);
+  });
+});
+
+describe("listAdapterDescriptors with market filter", () => {
+  test("returns only navex when filtering by Tunisia (tn)", () => {
+    const list = listAdapterDescriptors("tn");
+    expect(list.map((d) => d.code)).toEqual(["navex"]);
+  });
+
+  test("returns only dexpress when filtering by Libya (ly)", () => {
+    const list = listAdapterDescriptors("ly");
+    expect(list.map((d) => d.code)).toEqual(["dexpress"]);
+  });
+
+  test("market filter is case-insensitive", () => {
+    expect(listAdapterDescriptors("TN").map((d) => d.code)).toEqual(["navex"]);
+    expect(listAdapterDescriptors("Ly").map((d) => d.code)).toEqual(["dexpress"]);
+  });
+
+  test("returns empty array for unknown market", () => {
+    expect(listAdapterDescriptors("xx")).toEqual([]);
+  });
+
+  test("returns all descriptors when no market filter is provided", () => {
+    const list = listAdapterDescriptors();
+    expect(list.map((d) => d.code).sort()).toEqual(["dexpress", "navex"]);
+  });
+});
+
+describe("adapterSupportsMarket", () => {
+  test("returns true for navex + tn, dexpress + ly", () => {
+    expect(adapterSupportsMarket("navex", "tn")).toBe(true);
+    expect(adapterSupportsMarket("dexpress", "ly")).toBe(true);
+  });
+
+  test("returns false for navex + ly, dexpress + tn", () => {
+    expect(adapterSupportsMarket("navex", "ly")).toBe(false);
+    expect(adapterSupportsMarket("dexpress", "tn")).toBe(false);
+  });
+
+  test("returns false for unknown adapter code", () => {
+    expect(adapterSupportsMarket("unknown", "tn")).toBe(false);
+  });
+
+  test("market code matching is case-insensitive", () => {
+    expect(adapterSupportsMarket("navex", "TN")).toBe(true);
+    expect(adapterSupportsMarket("dexpress", "LY")).toBe(true);
   });
 });

@@ -102,7 +102,7 @@ beforeEach(() => {
   // Default: audit chain
   mockAdminFrom.mockReturnValue(auditChain());
   // Default: rpc succeeds
-  mockRpc.mockResolvedValue({ data: { success: true, order_id: "o", status: "new", assigned_to: null, updated_at: "", history_id: "h" }, error: null });
+  mockRpc.mockResolvedValue({ data: { success: true, order_id: "o", status: "pending", assigned_to: null, updated_at: "", history_id: "h" }, error: null });
 });
 
 // ─── deactivate ──────────────────────────────────────────────────────────────

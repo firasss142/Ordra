@@ -7,6 +7,7 @@ import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import type { Locale, Role } from "@/types";
 import { useOrdersFiltersUrl } from "@/hooks/useOrdersFiltersUrl";
+import { useMarketScope } from "@/context/market-scope";
 import { fetcher } from "@/lib/swr-config";
 import { useOrdersList, type OrdersListPage, type OrdersListRow } from "@/hooks/useOrdersList";
 import { useOrdersRealtime } from "@/hooks/useOrdersRealtime";
@@ -88,15 +89,19 @@ export function OrdersPageClient({
 
   // ---------- Filter state (URL synced) ----------
   const { filters: rawFilters, setFilters, update } = useOrdersFiltersUrl();
+  const { scope, marketId: scopeMarketId } = useMarketScope();
 
-  // For non-super_admin, force marketId to own market regardless of URL.
-  // For super_admin, default to Tunisia when URL has no market set (no URL pollution).
+  // Sidebar MarketScopeSwitcher is the single source of truth for super_admin.
+  // scope === "all" → marketId is null → query returns all markets.
+  // Non-super_admin is locked to their own market.
   const filters: OrderListFilters = useMemo(() => {
-    if (isSuperAdmin) {
-      return rawFilters.marketId ? rawFilters : { ...rawFilters, marketId: initialMarketId };
-    }
-    return { ...rawFilters, marketId: userMarketId };
-  }, [rawFilters, isSuperAdmin, userMarketId, initialMarketId]);
+    const marketId = isSuperAdmin
+      ? scope === "all"
+        ? null
+        : scopeMarketId
+      : userMarketId;
+    return { ...rawFilters, marketId };
+  }, [rawFilters, isSuperAdmin, userMarketId, scope, scopeMarketId]);
 
   const effectiveMarketId = filters.marketId ?? (isSuperAdmin ? null : userMarketId);
 
@@ -164,7 +169,7 @@ export function OrdersPageClient({
       if (effectiveMarketId && row.market_id !== effectiveMarketId) return false;
       // Preset-level predicates that we can check client-side
       if (filters.preset === "unassigned") {
-        return row.status === "new" && row.assigned_to === null;
+        return row.status === "pending" && row.assigned_to === null;
       }
       if (filters.preset === "today") {
         const d = new Date(row.created_at);
@@ -361,7 +366,7 @@ export function OrdersPageClient({
   }, [isSuperAdmin, filters.marketId, markets, userMarketLabel, t]);
 
   // Quick inline stats derived from loaded rows
-  const unassignedCount = rows.filter((r) => r.status === "new" && r.assigned_to === null).length;
+  const unassignedCount = rows.filter((r) => r.status === "pending" && r.assigned_to === null).length;
   const callbackCount = rows.filter((r) => r.status === "callback_scheduled").length;
 
   const hasActiveFilterChips =
@@ -435,9 +440,7 @@ export function OrdersPageClient({
           }}
           onNewOrder={() => setCreateOpen(true)}
           onExport={handleExport}
-          isSuperAdmin={isSuperAdmin}
-          markets={markets}
-          lockedMarketLabel={userMarketLabel}
+          marketLabel={activeMarketLabel}
         />
         {hasActiveFilterChips ? (
           <OrdersFilterChips

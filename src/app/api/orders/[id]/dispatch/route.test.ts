@@ -131,6 +131,83 @@ describe("POST /api/orders/[id]/dispatch", () => {
     expect(res.status).toBe(400);
   });
 
+  test("returns 400 when carrier belongs to a different market than the order", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "agent-1" } },
+      error: null,
+    });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users")
+        return queryChain({
+          data: { role: "agent", market_id: "m-1" },
+          error: null,
+        });
+      if (table === "orders")
+        return queryChain({
+          data: {
+            id: "order-1",
+            status: "confirmed",
+            assigned_to: "agent-1",
+            market_id: "m-1",
+            customer_name: "Ahmed",
+            customer_phone: "22123456",
+            customer_address: "Rue 1",
+            customer_city: "Tunis",
+            product_name: "T-Shirt",
+            variant_label: null,
+            quantity: 1,
+            total_price: 50,
+          },
+          error: null,
+        });
+      return queryChain({ data: null, error: null });
+    });
+    mockAdminFrom.mockImplementation((table: string) => {
+      if (table === "orders")
+        return queryChain({
+          data: {
+            id: "order-1",
+            status: "confirmed",
+            market_id: "m-1",
+            customer_name: "Ahmed",
+            customer_phone: "22123456",
+            customer_address: "Rue 1",
+            customer_city: "Tunis",
+            customer_note: null,
+            product_name: "T-Shirt",
+            variant_label: null,
+            quantity: 1,
+            total_price: 50,
+          },
+          error: null,
+        });
+      if (table === "carriers")
+        return queryChain({
+          data: {
+            id: "c-2",
+            code: "dexpress",
+            api_endpoint: "https://api.dexpress.tn",
+            api_credentials: "encrypted",
+            delivery_fee: 7,
+            return_fee: 5,
+            market_id: "m-2",
+            is_active: true,
+          },
+          error: null,
+        });
+      return queryChain({ data: null, error: null });
+    });
+
+    const req = createRequest({ carrier_id: "c-2" });
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "order-1" }),
+    });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toMatch(/does not belong/i);
+    expect(dispatchToCarrier).not.toHaveBeenCalled();
+  });
+
   test("returns 200 with tracking number on successful dispatch", async () => {
     mockGetUser.mockResolvedValue({
       data: { user: { id: "agent-1" } },
@@ -148,6 +225,7 @@ describe("POST /api/orders/[id]/dispatch", () => {
             id: "order-1",
             status: "confirmed",
             assigned_to: "agent-1",
+            market_id: "m-1",
             customer_name: "Ahmed",
             customer_phone: "22123456",
             customer_address: "Rue 1",
@@ -170,6 +248,8 @@ describe("POST /api/orders/[id]/dispatch", () => {
           api_credentials: "encrypted",
           delivery_fee: 7,
           return_fee: 5,
+          market_id: "m-1",
+          is_active: true,
         },
         error: null,
       })
@@ -216,6 +296,7 @@ describe("POST /api/orders/[id]/dispatch", () => {
             id: "order-1",
             status: "confirmed",
             assigned_to: "agent-1",
+            market_id: "m-1",
             customer_name: "Ahmed",
             customer_phone: "22123456",
             customer_address: null,
@@ -238,6 +319,8 @@ describe("POST /api/orders/[id]/dispatch", () => {
           api_credentials: "encrypted",
           delivery_fee: 7,
           return_fee: 5,
+          market_id: "m-1",
+          is_active: true,
         },
         error: null,
       })

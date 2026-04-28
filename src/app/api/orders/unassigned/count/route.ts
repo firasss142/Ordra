@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from("orders")
     .select("*", { count: "exact", head: true })
-    .eq("status", "new")
+    .eq("status", "pending")
     .is("assigned_to", null);
 
   if (marketId) {

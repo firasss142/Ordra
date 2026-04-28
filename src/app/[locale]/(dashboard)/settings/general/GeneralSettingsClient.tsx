@@ -1,41 +1,21 @@
 "use client";
 
-import { useState } from "react";
 import useSWR from "swr";
 import { GeneralSettingsGroups } from "@/components/settings/GeneralSettingsGroups";
 import { SettingsPageHeader } from "@/components/settings/SettingsPageHeader";
+import { useMarketScope } from "@/context/market-scope";
 import type { AuthUser } from "@/types";
 import type { MarketSettings } from "@/types/settings";
 
-interface Market {
-  id: string;
-  name: string;
-  code: string;
-}
-
 interface Props {
   user: AuthUser;
-  initialMarkets: Market[];
-  initialMarketId: string;
 }
 
-export function GeneralSettingsClient({
-  user,
-  initialMarkets,
-  initialMarketId,
-}: Props) {
+export function GeneralSettingsClient({ user }: Props) {
   const isRtl = user.direction === "rtl";
+  const { marketId: scopeMarketId } = useMarketScope();
+  const marketId = scopeMarketId ?? user.market_id ?? "";
 
-  const [selectedMarketId, setSelectedMarketId] =
-    useState<string>(initialMarketId);
-
-  const { data: marketsData } = useSWR<{ data: Market[] }>(
-    user.role === "super_admin" ? "/api/markets" : null,
-    { fallbackData: { data: initialMarkets } },
-  );
-  const markets = marketsData?.data ?? initialMarkets;
-
-  const marketId = selectedMarketId || user.market_id || "";
   const { data } = useSWR<{
     data: { key: string; value: { value: unknown } }[];
   }>(marketId ? `/api/settings/${marketId}` : null);
@@ -87,10 +67,6 @@ export function GeneralSettingsClient({
       <SettingsPageHeader
         title="Paramètres généraux"
         description="Configurez les paramètres opérationnels, financiers et d'équipe de ce marché."
-        markets={markets}
-        selectedMarketId={selectedMarketId}
-        onChange={setSelectedMarketId}
-        showMarketSelector={user.role === "super_admin"}
         isRtl={isRtl}
       />
 

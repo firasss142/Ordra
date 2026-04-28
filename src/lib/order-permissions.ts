@@ -78,6 +78,7 @@ export const EDIT_BLOCKED_STATUSES: ReadonlySet<string> = new Set([
   "delivered",
   "returned",
   "cancelled",
+  "deleted",
 ]);
 
 const EDIT_WINDOWED_STATUSES = new Set<string>(["rejected", "confirmed"]);

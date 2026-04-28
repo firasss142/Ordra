@@ -47,7 +47,7 @@ export async function GET(
       : 3;
 
   const relevantStatuses = [
-    "new",
+    "pending",
     "assigned",
     "attempt_1",
     "attempt_2",

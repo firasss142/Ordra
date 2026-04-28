@@ -17,15 +17,15 @@ const NAVEX_MAP: Record<string, OrderStatus> = {
   "Retour recu": "returned",
   "Retour paye": "returned",
   "Retour Expediteur": "returned",
+  "A verifier": "unverified",
+  "Supprime": "cancelled",
 };
 
 const NAVEX_IGNORED = new Set([
   "En attente",
   "Echange",
   "A enlever",
-  "A verifier",
   "Non recu",
-  "Supprime",
 ]);
 
 export function mapNavexStatus(etat: string): CarrierStatusMapping | null {

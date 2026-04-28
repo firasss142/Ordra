@@ -106,7 +106,7 @@ function mockAdminClient(overrides: {
     from: vi.fn().mockImplementation((table: string) =>
       tableChains[table] ?? createQueryChain({ data: null, error: null })
     ),
-    rpc: vi.fn().mockResolvedValue({ data: { order_id: "order-uuid-1", status: "cancelled", updated_at: "2026-04-11", history_id: "hist-1" }, error: null }),
+    rpc: vi.fn().mockResolvedValue({ data: { order_id: "order-uuid-1", status: "deleted", updated_at: "2026-04-11", history_id: "hist-1" }, error: null }),
   };
 }
 

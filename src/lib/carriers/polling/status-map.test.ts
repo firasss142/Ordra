@@ -13,6 +13,8 @@ describe("mapNavexStatus", () => {
     ["Retour recu", "returned"],
     ["Retour paye", "returned"],
     ["Retour Expediteur", "returned"],
+    ["A verifier", "unverified"],
+    ["Supprime", "cancelled"],
   ])("maps %s → %s", (etat, expectedStatus) => {
     const result = mapNavexStatus(etat);
     expect(result).not.toBeNull();
@@ -25,9 +27,7 @@ describe("mapNavexStatus", () => {
     "En attente",
     "Echange",
     "A enlever",
-    "A verifier",
     "Non recu",
-    "Supprime",
   ])("ignores %s (returns null)", (etat) => {
     expect(mapNavexStatus(etat)).toBeNull();
   });

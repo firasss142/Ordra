@@ -143,7 +143,7 @@ describe("transitionOrderStatus", () => {
   test("handles null actorId for system actions", async () => {
     const rpcData = {
       order_id: "order-1",
-      status: "new",
+      status: "pending",
       updated_at: "2026-04-11T00:00:00Z",
       history_id: "hist-1",
     };
@@ -151,14 +151,14 @@ describe("transitionOrderStatus", () => {
 
     await transitionOrderStatus(supabase, {
       orderId: "order-1",
-      newStatus: "new",
+      newStatus: "pending",
       actorId: null,
       actorType: "system",
     });
 
     expect(supabase.rpc).toHaveBeenCalledWith("transition_order_status", {
       p_order_id: "order-1",
-      p_new_status: "new",
+      p_new_status: "pending",
       p_actor_id: null,
       p_actor_type: "system",
       p_note: null,

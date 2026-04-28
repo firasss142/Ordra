@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
+import {
+  buildQueuePageMeta,
+  clampQueueLimit,
+  decodeQueueCursor,
+} from "@/lib/warehouse/queue-cursor";
+import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
+
+export interface ReturnsQueuePage {
+  orders: WarehouseOrderRow[];
+  nextCursor: string | null;
+}
 
 export async function GET(req: NextRequest) {
   const actorResult = await getActor(req);
@@ -12,32 +23,37 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const limit = clampQueueLimit(req.nextUrl.searchParams.get("limit"));
+  const cursor = decodeQueueCursor(req.nextUrl.searchParams.get("cursor"));
+  const marketScope =
+    actor.role !== "super_admin" && actor.market_id ? actor.market_id : null;
+
   const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_to_be_returned_orders", {
+    p_market_id: marketScope,
+    p_limit: limit + 1,
+    p_cursor_created_at: cursor?.timestamp ?? null,
+    p_cursor_id: cursor?.id ?? null,
+  });
 
-  let query = supabase
-    .from("orders")
-    .select(
-      "id, customer_name, customer_phone, customer_city, customer_address, product_name, variant_label, quantity, total_price, status, created_at"
-    )
-    .eq("status", "to_be_returned")
-    .order("created_at", { ascending: true })
-    .limit(200);
-
-  if (actor.role !== "super_admin" && actor.market_id) {
-    query = query.eq("market_id", actor.market_id);
-  }
-
-  const { data, error } = await query;
   if (error) {
     return NextResponse.json({ error: "db_error" }, { status: 500 });
   }
 
-  return NextResponse.json(
-    { orders: data ?? [] },
-    {
-      headers: {
-        "Cache-Control": "private, max-age=2, stale-while-revalidate=30",
-      },
-    }
-  );
+  const raw = (data ?? []) as Array<
+    Omit<WarehouseOrderRow, "current_stock" | "low_stock_threshold">
+  >;
+  const { rows, nextCursor } = buildQueuePageMeta(raw, limit);
+  const orders: WarehouseOrderRow[] = rows.map((o) => ({
+    ...o,
+    current_stock: null,
+    low_stock_threshold: null,
+  }));
+
+  const body: ReturnsQueuePage = { orders, nextCursor };
+  return NextResponse.json(body, {
+    headers: {
+      "Cache-Control": "private, max-age=2, stale-while-revalidate=30",
+    },
+  });
 }

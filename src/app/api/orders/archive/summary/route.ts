@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
 
   const rows = (data ?? []) as TerminalRow[];
 
-  const outcomes = { delivered: 0, returned: 0, rejected: 0, cancelled: 0 };
+  const outcomes = { delivered: 0, returned: 0, rejected: 0, deleted: 0 };
   const rejectionReasons: Record<RejectionReason, number> = Object.fromEntries(
     REJECTION_REASONS.map((r) => [r, 0]),
   ) as Record<RejectionReason, number>;
@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
   const returnedCities = new Map<string, { city: string; count: number }>();
   const returnedCarriers = new Map<string, { carrier_id: string; count: number }>();
 
-  const cohortBuckets = new Map<string, { week: string; delivered: number; returned: number; rejected: number; cancelled: number }>();
+  const cohortBuckets = new Map<string, { week: string; delivered: number; returned: number; rejected: number; deleted: number }>();
 
   for (const r of rows) {
     if (r.status in outcomes) outcomes[r.status as keyof typeof outcomes]++;
@@ -141,7 +141,7 @@ export async function GET(req: NextRequest) {
     }
 
     const wk = isoWeekKey(r.created_at);
-    const bucket = cohortBuckets.get(wk) ?? { week: wk, delivered: 0, returned: 0, rejected: 0, cancelled: 0 };
+    const bucket = cohortBuckets.get(wk) ?? { week: wk, delivered: 0, returned: 0, rejected: 0, deleted: 0 };
     if (r.status in outcomes) bucket[r.status as keyof typeof outcomes]++;
     cohortBuckets.set(wk, bucket);
   }

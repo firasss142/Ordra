@@ -58,7 +58,7 @@ describe("POST /api/orders/[id]/transition", () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
     mockFrom.mockImplementation((table: string) => {
       if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
-      if (table === "orders") return queryChain({ data: { id: "order-1", status: "new", market_id: "m-1" }, error: null });
+      if (table === "orders") return queryChain({ data: { id: "order-1", status: "pending", market_id: "m-1" }, error: null });
       return queryChain({ data: null, error: null });
     });
     mockRpc.mockResolvedValue({

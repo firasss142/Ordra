@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   if (carrier) query = query.eq("carrier_code", carrier);
 
   if (failuresOnly) {
-    query = query.in("outcome", ["error", "ignored"]);
+    query = query.eq("outcome", "error");
   } else if (outcomeFilter && ["processed", "ignored", "error"].includes(outcomeFilter)) {
     query = query.eq("outcome", outcomeFilter);
   }

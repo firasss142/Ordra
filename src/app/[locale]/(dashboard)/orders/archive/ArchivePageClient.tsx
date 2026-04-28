@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import {
-  ChevronDown,
   Globe,
   Search as SearchIcon,
   CalendarRange,
@@ -13,6 +12,7 @@ import {
 } from "lucide-react";
 import type { Locale, Role } from "@/types";
 import { fetcher } from "@/lib/swr-config";
+import { useMarketScope } from "@/context/market-scope";
 import { useOrdersList } from "@/hooks/useOrdersList";
 import { DEFAULT_FILTERS, type OrderListFilters } from "@/lib/orders/list-filters";
 import { REJECTION_REASONS, TERMINAL_STATUSES, type OrderStatus, type RejectionReason } from "@/types/order-status";
@@ -35,8 +35,8 @@ interface Props {
   initialMarketId: string;
 }
 
-type OutcomeKey = "delivered" | "returned" | "rejected" | "cancelled";
-const OUTCOME_KEYS: OutcomeKey[] = ["delivered", "returned", "rejected", "cancelled"];
+type OutcomeKey = "delivered" | "returned" | "rejected" | "deleted";
+const OUTCOME_KEYS: OutcomeKey[] = ["delivered", "returned", "rejected", "deleted"];
 
 interface ArchiveSummary {
   total: number;
@@ -45,14 +45,14 @@ interface ArchiveSummary {
   topReturnedProducts: Array<{ product_id: string; product_name: string; count: number }>;
   topReturnCities: Array<{ city: string; count: number }>;
   topReturnCarriers: Array<{ carrier_id: string; count: number }>;
-  cohorts: Array<{ week: string; delivered: number; returned: number; rejected: number; cancelled: number }>;
+  cohorts: Array<{ week: string; delivered: number; returned: number; rejected: number; deleted: number }>;
 }
 
 const OUTCOME_COLORS: Record<OutcomeKey, { bg: string; fg: string }> = {
   delivered: { bg: "#E3F1DF", fg: "#116530" },
   returned:  { bg: "#FFF1E6", fg: "#8A4B00" },
   rejected:  { bg: "#FFF4F4", fg: "#D72C0D" },
-  cancelled: { bg: "#F1F1F1", fg: "#6D7175" },
+  deleted: { bg: "#F1F1F1", fg: "#6D7175" },
 };
 
 function pct(part: number, total: number): string {
@@ -83,9 +83,10 @@ export function ArchivePageClient({
   const initial = defaultDateRange();
   const [fromDate, setFromDate] = useState(initial.from);
   const [toDate, setToDate] = useState(initial.to);
-  const [marketId, setMarketId] = useState<string>(
-    isSuperAdmin ? initialMarketId : userMarketId,
-  );
+  const { marketId: scopeMarketId } = useMarketScope();
+  const marketId = isSuperAdmin
+    ? (scopeMarketId ?? initialMarketId)
+    : userMarketId;
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [outcomeFilter, setOutcomeFilter] = useState<OutcomeKey[]>([]);
@@ -224,33 +225,24 @@ export function ArchivePageClient({
               flex: "1 1 auto",
             }}
           >
-            {isSuperAdmin ? (
-              <ArchiveMarketChip
-                markets={markets}
-                selected={marketId}
-                onChange={setMarketId}
-                ariaLabel={t("marketAria")}
-              />
-            ) : (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  height: 30,
-                  padding: "0 12px",
-                  borderRadius: 8,
-                  border: "1px solid #E1E3E5",
-                  background: "#F6F6F7",
-                  color: "#6D7175",
-                  fontSize: 13,
-                  fontWeight: 500,
-                }}
-              >
-                <Globe size={13} strokeWidth={1.75} />
-                {userMarketLabel}
-              </span>
-            )}
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                height: 30,
+                padding: "0 12px",
+                borderRadius: 8,
+                border: "1px solid #E1E3E5",
+                background: "#F6F6F7",
+                color: "#6D7175",
+                fontSize: 13,
+                fontWeight: 500,
+              }}
+            >
+              <Globe size={13} strokeWidth={1.75} />
+              {activeMarketLabel}
+            </span>
 
             <span
               aria-hidden
@@ -514,20 +506,20 @@ export function ArchivePageClient({
                   <th style={thStyle}>{tStatus("delivered")}</th>
                   <th style={thStyle}>{tStatus("returned")}</th>
                   <th style={thStyle}>{tStatus("rejected")}</th>
-                  <th style={thStyle}>{tStatus("cancelled")}</th>
+                  <th style={thStyle}>{tStatus("deleted")}</th>
                   <th style={thStyle}>{t("total")}</th>
                 </tr>
               </thead>
               <tbody>
                 {summary.cohorts.map((c) => {
-                  const total = c.delivered + c.returned + c.rejected + c.cancelled;
+                  const total = c.delivered + c.returned + c.rejected + c.deleted;
                   return (
                     <tr key={c.week} style={{ borderTop: "1px solid #F1F1F1" }}>
                       <td style={tdStyle}>{c.week}</td>
                       <td style={tdStyle}>{c.delivered}</td>
                       <td style={tdStyle}>{c.returned}</td>
                       <td style={tdStyle}>{c.rejected}</td>
-                      <td style={tdStyle}>{c.cancelled}</td>
+                      <td style={tdStyle}>{c.deleted}</td>
                       <td style={{ ...tdStyle, fontWeight: 500 }}>{total}</td>
                     </tr>
                   );
@@ -642,112 +634,6 @@ const chipInputStyle: React.CSSProperties = {
   outline: "none",
   fontFamily: "inherit",
 };
-
-function ArchiveMarketChip({
-  markets,
-  selected,
-  onChange,
-  ariaLabel,
-}: {
-  markets: Market[];
-  selected: string;
-  onChange: (id: string) => void;
-  ariaLabel: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  const selectedLabel = markets.find((m) => m.id === selected)?.name ?? "—";
-
-  return (
-    <div ref={ref} style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={ariaLabel}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          height: 30,
-          padding: "0 12px",
-          borderRadius: 8,
-          border: "1px solid #E1E3E5",
-          background: "#FFFFFF",
-          color: "#1A1A1A",
-          fontSize: 13,
-          fontWeight: 500,
-          cursor: "pointer",
-          fontFamily: "inherit",
-        }}
-      >
-        <Globe size={13} strokeWidth={1.75} />
-        {selectedLabel}
-        <ChevronDown size={11} strokeWidth={2} />
-      </button>
-      {open ? (
-        <div
-          role="listbox"
-          style={{
-            position: "absolute",
-            insetInlineStart: 0,
-            top: "calc(100% + 4px)",
-            background: "#FFFFFF",
-            border: "1px solid #E1E3E5",
-            borderRadius: 8,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            minWidth: 200,
-            zIndex: 20,
-            padding: 4,
-          }}
-        >
-          {markets.map((m) => {
-            const isSelected = m.id === selected;
-            return (
-              <button
-                key={m.id}
-                type="button"
-                role="option"
-                aria-selected={isSelected}
-                onClick={() => {
-                  onChange(m.id);
-                  setOpen(false);
-                }}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "start",
-                  padding: "8px 10px",
-                  border: "none",
-                  borderRadius: 6,
-                  background: isSelected ? "#F2F2F2" : "transparent",
-                  color: "#1A1A1A",
-                  fontSize: 13,
-                  fontWeight: isSelected ? 600 : 500,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                {m.name}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-    </div>
-  );
-}
 
 const emptyTextStyle: React.CSSProperties = {
   margin: 0,

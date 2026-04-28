@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { StorefrontsClient } from "./StorefrontsClient";
 import { getServerUser } from "@/lib/auth/server-user";
-import { listMarketsFor, getDefaultMarketId } from "@/lib/markets/list";
 
 export default async function StorefrontsSettingsPage({
   params,
@@ -15,18 +14,5 @@ export default async function StorefrontsSettingsPage({
     redirect(`/${params.locale}/dashboard`);
   }
 
-  const initialMarkets =
-    user.role === "super_admin"
-      ? await listMarketsFor(user.role, user.market_id)
-      : [];
-  const initialMarketId =
-    user.market_id ?? getDefaultMarketId(initialMarkets);
-
-  return (
-    <StorefrontsClient
-      user={user}
-      initialMarkets={initialMarkets}
-      initialMarketId={initialMarketId}
-    />
-  );
+  return <StorefrontsClient user={user} />;
 }

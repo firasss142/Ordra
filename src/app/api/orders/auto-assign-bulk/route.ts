@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
     status: string;
     assigned_to: string | null;
   }>) {
-    if (order.status !== "new" || order.assigned_to !== null) {
+    if (order.status !== "pending" || order.assigned_to !== null) {
       skipped.push({ order_id: order.id, reason: "already_assigned" });
       continue;
     }

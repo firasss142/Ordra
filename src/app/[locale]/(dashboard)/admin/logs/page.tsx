@@ -1,22 +1,18 @@
-"use client";
-
-import { useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { useAuth } from "@/context/auth";
+import { redirect } from "next/navigation";
 import { LogsWorkspace } from "@/components/admin/LogsWorkspace";
+import { getServerUser } from "@/lib/auth/server-user";
 
-export default function LogsPage() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  const params = useParams<{ locale: string }>();
+export default async function LogsPage({
+  params,
+}: {
+  params: { locale: string };
+}) {
+  const user = await getServerUser();
+  if (!user) redirect(`/${params.locale}/login`);
 
-  useEffect(() => {
-    if (!loading && (!user || user.role !== "super_admin")) {
-      router.replace(`/${params.locale}/dashboard`);
-    }
-  }, [loading, user, router, params.locale]);
-
-  if (loading || !user || user.role !== "super_admin") return null;
+  if (user.role !== "super_admin") {
+    redirect(`/${params.locale}/dashboard`);
+  }
 
   return <LogsWorkspace user={user} />;
 }

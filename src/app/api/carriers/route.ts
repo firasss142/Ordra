@@ -6,6 +6,11 @@ import {
   canManageCarriers,
 } from "@/lib/settings-permissions";
 import { encrypt, maskCredential } from "@/lib/crypto";
+import {
+  hasCarrierAdapter,
+  adapterSupportsMarket,
+} from "@/lib/carriers/adapter-registry";
+import { getAllActiveMarkets } from "@/lib/markets/list";
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -70,6 +75,21 @@ export async function POST(req: NextRequest) {
 
   if (!market_id || !name || !code || !api_endpoint) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  const codeStr = String(code);
+  if (hasCarrierAdapter(codeStr)) {
+    const markets = await getAllActiveMarkets();
+    const market = markets.find((m) => m.id === market_id);
+    if (!market) {
+      return NextResponse.json({ error: "Market not found" }, { status: 400 });
+    }
+    if (!adapterSupportsMarket(codeStr, market.code)) {
+      return NextResponse.json(
+        { error: `Carrier "${codeStr}" is not available in this market` },
+        { status: 400 }
+      );
+    }
   }
 
   const api_credentials = api_key ? encrypt(String(api_key)) : null;

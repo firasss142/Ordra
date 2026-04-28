@@ -62,7 +62,7 @@ describe("GET /api/orders/export", () => {
         product_name: "Shampoo",
         variant_label: "Pack x2",
         total_price: 60,
-        status: "new",
+        status: "pending",
         assigned_to: null,
       },
     ];
@@ -102,12 +102,12 @@ describe("GET /api/orders/export", () => {
       return queryChain({ data: null, error: null });
     });
 
-    const req = createRequest("/api/orders/export?status=new&city=Tunis");
+    const req = createRequest("/api/orders/export?status=pending&city=Tunis");
     const res = await GET(req);
     expect(res.status).toBe(200);
 
     const eqCalls = (orderChainRef!.eq as ReturnType<typeof vi.fn>).mock.calls;
-    expect(eqCalls.find((c: unknown[]) => c[0] === "status" && c[1] === "new")).toBeDefined();
+    expect(eqCalls.find((c: unknown[]) => c[0] === "status" && c[1] === "pending")).toBeDefined();
     expect(eqCalls.find((c: unknown[]) => c[0] === "customer_city" && c[1] === "Tunis")).toBeDefined();
   });
 
@@ -123,14 +123,14 @@ describe("GET /api/orders/export", () => {
       return queryChain({ data: null, error: null });
     });
 
-    const req = createRequest("/api/orders/export?status=delivered,returned,rejected,cancelled");
+    const req = createRequest("/api/orders/export?status=delivered,returned,rejected,deleted");
     const res = await GET(req);
     expect(res.status).toBe(200);
 
     const inCalls = (orderChainRef!.in as ReturnType<typeof vi.fn>).mock.calls;
     const statusIn = inCalls.find((c: unknown[]) => c[0] === "status");
     expect(statusIn).toBeDefined();
-    expect(statusIn![1]).toEqual(["delivered", "returned", "rejected", "cancelled"]);
+    expect(statusIn![1]).toEqual(["delivered", "returned", "rejected", "deleted"]);
   });
 
   test("super_admin can export with market_id filter", async () => {

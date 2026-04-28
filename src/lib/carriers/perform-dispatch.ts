@@ -26,6 +26,7 @@ export type PerformDispatchResult =
 type OrderRow = {
   id: string;
   status: string;
+  market_id: string;
   customer_name: string;
   customer_phone: string;
   customer_address: string | null;
@@ -44,13 +45,15 @@ type CarrierRow = {
   api_credentials: string | null;
   delivery_fee: number;
   return_fee: number;
+  market_id: string;
+  is_active: boolean;
 };
 
 const ORDER_COLUMNS =
-  "id, status, customer_name, customer_phone, customer_address, customer_city, customer_note, product_name, variant_label, quantity, total_price";
+  "id, status, market_id, customer_name, customer_phone, customer_address, customer_city, customer_note, product_name, variant_label, quantity, total_price";
 
 const CARRIER_COLUMNS =
-  "id, code, api_endpoint, api_credentials, delivery_fee, return_fee";
+  "id, code, api_endpoint, api_credentials, delivery_fee, return_fee, market_id, is_active";
 
 export async function performDispatch({
   orderId,
@@ -78,6 +81,22 @@ export async function performDispatch({
 
   if (carrierError || !carrier) {
     return { ok: false, status: 404, error: "Carrier not found" };
+  }
+
+  if (carrier.market_id !== order.market_id) {
+    return {
+      ok: false,
+      status: 400,
+      error: "Carrier does not belong to the order's market",
+    };
+  }
+
+  if (!carrier.is_active) {
+    return {
+      ok: false,
+      status: 400,
+      error: "Carrier is not active",
+    };
   }
 
   const orderData: CarrierOrderData = {

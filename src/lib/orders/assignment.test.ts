@@ -215,7 +215,7 @@ describe("returnToPool", () => {
   test("calls return_order_to_pool RPC with correct parameters", async () => {
     const rpcData = {
       order_id: "order-1",
-      status: "new",
+      status: "pending",
       assigned_to: null,
       updated_at: "2026-04-13T00:00:00Z",
       history_id: "hist-pool-1",
@@ -230,7 +230,7 @@ describe("returnToPool", () => {
     });
 
     expect(result).toEqual({
-      order: { id: "order-1", status: "new", assigned_to: null, updated_at: "2026-04-13T00:00:00Z" },
+      order: { id: "order-1", status: "pending", assigned_to: null, updated_at: "2026-04-13T00:00:00Z" },
       historyEntry: { id: "hist-pool-1" },
     });
   });

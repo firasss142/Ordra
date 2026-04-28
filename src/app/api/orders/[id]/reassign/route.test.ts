@@ -93,7 +93,7 @@ describe("POST /api/orders/[id]/reassign", () => {
     mockRpc.mockResolvedValue({
       data: {
         order_id: "order-1",
-        status: "new",
+        status: "pending",
         assigned_to: null,
         updated_at: "2026-04-13T00:00:00Z",
         history_id: "hist-2",

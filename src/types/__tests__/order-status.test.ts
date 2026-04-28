@@ -4,17 +4,18 @@ import {
   REJECTION_REASONS,
   isTerminalStatus,
   canTransition,
+  isAutoCleared,
 } from "@/types/order-status";
 
 describe("ORDER_STATUSES", () => {
-  it("contains exactly 18 statuses (confirmation + dispatch_scheduled + dispatching transient + scanned + fulfillment phases)", () => {
-    expect(ORDER_STATUSES).toHaveLength(18);
+  it("contains exactly 21 statuses", () => {
+    expect(ORDER_STATUSES).toHaveLength(21);
   });
 
   it("contains all Phase 1 confirmation statuses", () => {
     expect(ORDER_STATUSES).toEqual(
       expect.arrayContaining([
-        "new",
+        "pending",
         "assigned",
         "attempt_1",
         "attempt_2",
@@ -32,94 +33,56 @@ describe("ORDER_STATUSES", () => {
         "dispatched",
         "deposit",
         "in_transit",
+        "unverified",
         "to_be_returned",
+        "received",
         "delivered",
         "returned",
       ])
     );
   });
 
-  it("contains terminal non-fulfillment statuses", () => {
+  it("contains all terminal non-fulfillment statuses", () => {
     expect(ORDER_STATUSES).toEqual(
-      expect.arrayContaining(["rejected", "cancelled"])
+      expect.arrayContaining(["rejected", "cancelled", "deleted"])
     );
   });
 });
 
 describe("isTerminalStatus", () => {
-  it("returns true for delivered", () => {
-    expect(isTerminalStatus("delivered")).toBe(true);
-  });
+  it.each(["delivered", "returned", "rejected", "cancelled", "deleted"] as const)(
+    "returns true for terminal status %s",
+    (status) => {
+      expect(isTerminalStatus(status)).toBe(true);
+    }
+  );
 
-  it("returns true for returned", () => {
-    expect(isTerminalStatus("returned")).toBe(true);
-  });
-
-  it("returns true for rejected", () => {
-    expect(isTerminalStatus("rejected")).toBe(true);
-  });
-
-  it("returns true for cancelled", () => {
-    expect(isTerminalStatus("cancelled")).toBe(true);
-  });
-
-  it("returns false for dispatched (not terminal — enters fulfillment)", () => {
-    expect(isTerminalStatus("dispatched")).toBe(false);
-  });
-
-  it("returns false for new", () => {
-    expect(isTerminalStatus("new")).toBe(false);
-  });
-
-  it("returns false for assigned", () => {
-    expect(isTerminalStatus("assigned")).toBe(false);
-  });
-
-  it("returns false for attempt_1", () => {
-    expect(isTerminalStatus("attempt_1")).toBe(false);
-  });
-
-  it("returns false for attempt_2", () => {
-    expect(isTerminalStatus("attempt_2")).toBe(false);
-  });
-
-  it("returns false for attempt_3", () => {
-    expect(isTerminalStatus("attempt_3")).toBe(false);
-  });
-
-  it("returns false for callback_scheduled", () => {
-    expect(isTerminalStatus("callback_scheduled")).toBe(false);
-  });
-
-  it("returns false for confirmed", () => {
-    expect(isTerminalStatus("confirmed")).toBe(false);
-  });
-
-  it("returns false for dispatching (transient, not terminal)", () => {
-    expect(isTerminalStatus("dispatching")).toBe(false);
-  });
-
-  it("returns false for scanned (warehouse scanned, not terminal)", () => {
-    expect(isTerminalStatus("scanned")).toBe(false);
-  });
-
-  it("returns false for deposit", () => {
-    expect(isTerminalStatus("deposit")).toBe(false);
-  });
-
-  it("returns false for in_transit", () => {
-    expect(isTerminalStatus("in_transit")).toBe(false);
-  });
-
-  it("returns false for to_be_returned", () => {
-    expect(isTerminalStatus("to_be_returned")).toBe(false);
+  it.each([
+    "pending",
+    "assigned",
+    "attempt_1",
+    "attempt_2",
+    "attempt_3",
+    "callback_scheduled",
+    "confirmed",
+    "dispatch_scheduled",
+    "dispatching",
+    "scanned",
+    "dispatched",
+    "deposit",
+    "in_transit",
+    "unverified",
+    "to_be_returned",
+    "received",
+  ] as const)("returns false for non-terminal status %s", (status) => {
+    expect(isTerminalStatus(status)).toBe(false);
   });
 });
 
 describe("canTransition", () => {
   // Phase 1: Confirmation transitions
-  it("allows new → assigned", () => {
-    expect(canTransition("new", "assigned")).toBe(true);
+  it("allows pending → assigned", () => {
+    expect(canTransition("pending", "assigned")).toBe(true);
   });
 
   it("allows assigned → attempt_1", () => {
@@ -158,8 +121,8 @@ describe("canTransition", () => {
     expect(canTransition("scanned", "dispatched")).toBe(true);
   });
 
-  it("allows scanned → cancelled", () => {
-    expect(canTransition("scanned", "cancelled")).toBe(true);
+  it("allows scanned → deleted (manual removal)", () => {
+    expect(canTransition("scanned", "deleted")).toBe(true);
   });
 
   it("blocks confirmed → dispatched (must go through scanned)", () => {
@@ -182,11 +145,15 @@ describe("canTransition", () => {
     expect(canTransition("assigned", "rejected")).toBe(true);
   });
 
-  it("allows confirmed → cancelled", () => {
-    expect(canTransition("confirmed", "cancelled")).toBe(true);
+  it("allows confirmed → deleted (manual removal)", () => {
+    expect(canTransition("confirmed", "deleted")).toBe(true);
   });
 
-  it("allows dispatched → cancelled", () => {
+  it("allows dispatched → deleted (manual removal)", () => {
+    expect(canTransition("dispatched", "deleted")).toBe(true);
+  });
+
+  it("allows dispatched → cancelled (carrier-cancelled)", () => {
     expect(canTransition("dispatched", "cancelled")).toBe(true);
   });
 
@@ -211,40 +178,70 @@ describe("canTransition", () => {
     expect(canTransition("to_be_returned", "returned")).toBe(true);
   });
 
+  it("allows to_be_returned → received (warehouse scan-back)", () => {
+    expect(canTransition("to_be_returned", "received")).toBe(true);
+  });
+
   it("blocks in_transit → returned (must go through to_be_returned)", () => {
     expect(canTransition("in_transit", "returned")).toBe(false);
   });
 
+  // Carrier event statuses
+  it("allows dispatched → unverified (carrier flagged a problem)", () => {
+    expect(canTransition("dispatched", "unverified")).toBe(true);
+  });
+
+  it("allows in_transit → unverified", () => {
+    expect(canTransition("in_transit", "unverified")).toBe(true);
+  });
+
+  it("allows unverified → in_transit (auto-clears on next carrier event)", () => {
+    expect(canTransition("unverified", "in_transit")).toBe(true);
+  });
+
+  it("allows unverified → delivered", () => {
+    expect(canTransition("unverified", "delivered")).toBe(true);
+  });
+
+  it("allows unverified → cancelled (carrier-cancelled after problem)", () => {
+    expect(canTransition("unverified", "cancelled")).toBe(true);
+  });
+
   // Terminal statuses block all transitions
   it("blocks delivered → anything", () => {
-    expect(canTransition("delivered", "new")).toBe(false);
+    expect(canTransition("delivered", "pending")).toBe(false);
     expect(canTransition("delivered", "returned")).toBe(false);
   });
 
   it("blocks returned → anything", () => {
-    expect(canTransition("returned", "new")).toBe(false);
+    expect(canTransition("returned", "pending")).toBe(false);
     expect(canTransition("returned", "delivered")).toBe(false);
   });
 
   it("blocks rejected → anything", () => {
-    expect(canTransition("rejected", "new")).toBe(false);
+    expect(canTransition("rejected", "pending")).toBe(false);
     expect(canTransition("rejected", "assigned")).toBe(false);
     expect(canTransition("rejected", "confirmed")).toBe(false);
   });
 
-  it("blocks cancelled → anything", () => {
-    expect(canTransition("cancelled", "new")).toBe(false);
+  it("blocks cancelled → anything (carrier-cancelled is terminal)", () => {
+    expect(canTransition("cancelled", "pending")).toBe(false);
     expect(canTransition("cancelled", "assigned")).toBe(false);
     expect(canTransition("cancelled", "confirmed")).toBe(false);
   });
 
-  // Invalid skip transitions
-  it("blocks new → dispatched (skipping steps)", () => {
-    expect(canTransition("new", "dispatched")).toBe(false);
+  it("blocks deleted → anything (manually deleted is terminal)", () => {
+    expect(canTransition("deleted", "pending")).toBe(false);
+    expect(canTransition("deleted", "assigned")).toBe(false);
   });
 
-  it("blocks new → confirmed (skipping steps)", () => {
-    expect(canTransition("new", "confirmed")).toBe(false);
+  // Invalid skip transitions
+  it("blocks pending → dispatched (skipping steps)", () => {
+    expect(canTransition("pending", "dispatched")).toBe(false);
+  });
+
+  it("blocks pending → confirmed (skipping steps)", () => {
+    expect(canTransition("pending", "confirmed")).toBe(false);
   });
 
   it("blocks attempt_1 → attempt_3 (skipping attempt_2)", () => {
@@ -257,6 +254,25 @@ describe("canTransition", () => {
 
   it("blocks deposit → delivered (must go through in_transit)", () => {
     expect(canTransition("deposit", "delivered")).toBe(false);
+  });
+});
+
+describe("isAutoCleared", () => {
+  it("returns true only for unverified", () => {
+    expect(isAutoCleared("unverified")).toBe(true);
+  });
+
+  it.each([
+    "pending",
+    "assigned",
+    "confirmed",
+    "dispatched",
+    "deposit",
+    "in_transit",
+    "delivered",
+    "received",
+  ] as const)("returns false for %s", (status) => {
+    expect(isAutoCleared(status)).toBe(false);
   });
 });
 

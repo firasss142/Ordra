@@ -111,11 +111,11 @@ describe("POST /api/orders/[id]/cancel", () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
     mockFrom.mockImplementation((table: string) => {
       if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
-      if (table === "orders") return queryChain({ data: { id: "order-1", status: "new", market_id: "m-1" }, error: null });
+      if (table === "orders") return queryChain({ data: { id: "order-1", status: "pending", market_id: "m-1" }, error: null });
       return queryChain({ data: null, error: null });
     });
     mockRpc.mockResolvedValue({
-      data: { order_id: "order-1", status: "cancelled", updated_at: "2026-04-11", history_id: "hist-1" },
+      data: { order_id: "order-1", status: "deleted", updated_at: "2026-04-11", history_id: "hist-1" },
       error: null,
     });
 
@@ -123,7 +123,7 @@ describe("POST /api/orders/[id]/cancel", () => {
     const res = await POST(req, { params: Promise.resolve({ id: "order-1" }) });
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.data.order.status).toBe("cancelled");
+    expect(json.data.order.status).toBe("deleted");
   });
 
   test("returns 200 when cancelling an assigned order", async () => {
@@ -134,7 +134,7 @@ describe("POST /api/orders/[id]/cancel", () => {
       return queryChain({ data: null, error: null });
     });
     mockRpc.mockResolvedValue({
-      data: { order_id: "order-1", status: "cancelled", updated_at: "2026-04-11", history_id: "hist-1" },
+      data: { order_id: "order-1", status: "deleted", updated_at: "2026-04-11", history_id: "hist-1" },
       error: null,
     });
 
@@ -147,7 +147,7 @@ describe("POST /api/orders/[id]/cancel", () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
     mockFrom.mockImplementation((table: string) => {
       if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
-      if (table === "orders") return queryChain({ data: { id: "order-1", status: "new", market_id: "m-2" }, error: null });
+      if (table === "orders") return queryChain({ data: { id: "order-1", status: "pending", market_id: "m-2" }, error: null });
       return queryChain({ data: null, error: null });
     });
 

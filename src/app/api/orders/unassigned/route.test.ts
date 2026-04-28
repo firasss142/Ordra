@@ -38,8 +38,8 @@ const AGENT_ACTOR = { role: "agent", market_id: "m-1" };
 const SUPER_ADMIN_ACTOR = { role: "super_admin", market_id: null };
 
 const SAMPLE_ORDERS = [
-  { id: "o-1", status: "new", assigned_to: null, customer_name: "Alice", customer_city: "Tunis", created_at: "2026-01-01" },
-  { id: "o-2", status: "new", assigned_to: null, customer_name: "Bob", customer_city: "Sfax", created_at: "2026-01-02" },
+  { id: "o-1", status: "pending", assigned_to: null, customer_name: "Alice", customer_city: "Tunis", created_at: "2026-01-01" },
+  { id: "o-2", status: "pending", assigned_to: null, customer_name: "Bob", customer_city: "Sfax", created_at: "2026-01-02" },
 ];
 
 beforeEach(() => {

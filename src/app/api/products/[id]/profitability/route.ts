@@ -138,7 +138,11 @@ export async function GET(
   }
   const carrierIds = Array.from(allCarrierIds);
   const { data: carriers } = carrierIds.length > 0
-    ? await supabase.from("carriers").select("id, delivery_fee, return_fee").in("id", carrierIds)
+    ? await supabase
+        .from("carriers")
+        .select("id, delivery_fee, return_fee")
+        .in("id", carrierIds)
+        .eq("market_id", product.market_id)
     : { data: [] };
 
   const carrierMap = new Map(

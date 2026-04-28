@@ -1,9 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import useSWR from "swr";
 import { LEAD_SOURCES, type LeadSource, type LeadStatus } from "@/types/lead";
+import { Combobox } from "@/components/ui/Combobox";
+import {
+  TUNISIAN_GOVERNORATES,
+  LIBYAN_GOVERNORATES,
+} from "@/lib/carriers/governorates";
 
 interface Market {
   id: string;
@@ -87,10 +92,31 @@ export function NewLeadModal({
   const needsCallback = initialStatus === "callback_scheduled";
 
   const { data: marketsData } = useSWR<{ data: Market[] }>(
-    isSuperAdmin && open ? "/api/markets" : null,
+    open ? "/api/markets" : null,
     fetcher
   );
   const markets = marketsData?.data ?? [];
+
+  const marketCode = useMemo(() => {
+    if (marketId) {
+      const found = markets.find((m) => m.id === marketId);
+      if (found) return found.code;
+    }
+    return locale === "ar" ? "ly" : "tn";
+  }, [marketId, markets, locale]);
+
+  const cityOptions = useMemo<Array<{ id: string; label: string }>>(() => {
+    if (marketCode === "tn") {
+      return TUNISIAN_GOVERNORATES.map((g) => ({ id: g, label: g }));
+    }
+    if (marketCode === "ly") {
+      return LIBYAN_GOVERNORATES.map((g) => ({
+        id: g.fr,
+        label: `${g.fr} — ${g.ar}`,
+      }));
+    }
+    return [];
+  }, [marketCode]);
 
   const productsKey =
     open && marketId ? `/api/products?market_id=${marketId}&is_active=true` : null;
@@ -252,11 +278,20 @@ export function NewLeadModal({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
             <label style={labelStyle}>{t("customerCity")}</label>
-            <input
-              value={customerCity}
-              onChange={(e) => setCustomerCity(e.target.value)}
-              style={inputStyle}
-            />
+            {cityOptions.length > 0 ? (
+              <Combobox
+                value={customerCity}
+                options={cityOptions}
+                onCommit={(id) => setCustomerCity(id)}
+                placeholder={t("cityPlaceholder")}
+              />
+            ) : (
+              <input
+                value={customerCity}
+                onChange={(e) => setCustomerCity(e.target.value)}
+                style={inputStyle}
+              />
+            )}
           </div>
           <div>
             <label style={labelStyle}>{t("source")}</label>

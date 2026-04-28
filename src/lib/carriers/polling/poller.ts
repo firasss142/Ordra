@@ -13,6 +13,7 @@ const OPEN_STATUSES: OrderStatus[] = [
   "dispatched",
   "deposit",
   "in_transit",
+  "unverified",
   "to_be_returned",
 ];
 

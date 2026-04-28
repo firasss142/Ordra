@@ -6,9 +6,11 @@ import { notFound } from "next/navigation";
 import "../globals.css";
 
 import { AuthProvider } from "@/context/auth";
+import { MarketScopeProvider } from "@/context/market-scope";
 import { PresenceTracker } from "@/components/layout/PresenceTracker";
 import { SWRProvider } from "@/components/providers/SWRProvider";
 import { getServerUser } from "@/lib/auth/server-user";
+import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { routing } from "@/i18n/routing";
 import { getDirectionForLocale } from "@/lib/locale-routing";
 
@@ -54,6 +56,10 @@ export default async function LocaleLayout({
     getServerUser(),
   ]);
 
+  const initialScope = initialUser
+    ? (await getActiveMarketScope(initialUser)).scope
+    : "tn";
+
   return (
     <html
       lang={locale}
@@ -64,11 +70,13 @@ export default async function LocaleLayout({
         <NextIntlClientProvider locale={locale} messages={messages}>
           <SWRProvider>
             <AuthProvider initialUser={initialUser}>
-              <a href="#main-content" className="skip-link">
-                {skipLinkLabel}
-              </a>
-              <PresenceTracker />
-              {children}
+              <MarketScopeProvider initialScope={initialScope}>
+                <a href="#main-content" className="skip-link">
+                  {skipLinkLabel}
+                </a>
+                <PresenceTracker />
+                {children}
+              </MarketScopeProvider>
             </AuthProvider>
           </SWRProvider>
         </NextIntlClientProvider>

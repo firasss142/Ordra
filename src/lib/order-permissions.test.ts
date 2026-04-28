@@ -117,7 +117,7 @@ describe("canTransitionOrder", () => {
   });
 
   test("agent cannot cancel orders", () => {
-    expect(canTransitionOrder("agent", "assigned", "cancelled")).toBe(false);
+    expect(canTransitionOrder("agent", "assigned", "deleted")).toBe(false);
   });
 
   test("agent cannot set fulfillment statuses", () => {
@@ -127,7 +127,7 @@ describe("canTransitionOrder", () => {
     expect(canTransitionOrder("agent", "in_transit", "to_be_returned")).toBe(false);
   });
 
-  // Market manager: all Phase 1 + cancelled + warehouse scan flow
+  // Market manager: all Phase 1 + deleted + warehouse scan flow
   test("market_manager can transition confirmed to scanned (warehouse scan-out)", () => {
     expect(canTransitionOrder("market_manager", "confirmed", "scanned")).toBe(true);
   });
@@ -141,8 +141,8 @@ describe("canTransitionOrder", () => {
   });
 
   test("market_manager can cancel pre-dispatch orders", () => {
-    expect(canTransitionOrder("market_manager", "assigned", "cancelled")).toBe(true);
-    expect(canTransitionOrder("market_manager", "confirmed", "cancelled")).toBe(true);
+    expect(canTransitionOrder("market_manager", "assigned", "deleted")).toBe(true);
+    expect(canTransitionOrder("market_manager", "confirmed", "deleted")).toBe(true);
   });
 
   test("market_manager can set fulfillment statuses", () => {
@@ -155,7 +155,7 @@ describe("canTransitionOrder", () => {
 
   // Super admin: all transitions
   test("super_admin can do all transitions", () => {
-    expect(canTransitionOrder("super_admin", "new", "assigned")).toBe(true);
+    expect(canTransitionOrder("super_admin", "pending", "assigned")).toBe(true);
     expect(canTransitionOrder("super_admin", "confirmed", "scanned")).toBe(true);
     expect(canTransitionOrder("super_admin", "scanned", "dispatched")).toBe(true);
     expect(canTransitionOrder("super_admin", "dispatching", "dispatched")).toBe(true);
@@ -164,8 +164,8 @@ describe("canTransitionOrder", () => {
 
   // Invalid graph transitions return false regardless of role
   test("returns false for invalid graph transitions even for super_admin", () => {
-    expect(canTransitionOrder("super_admin", "new", "confirmed")).toBe(false);
-    expect(canTransitionOrder("super_admin", "delivered", "new")).toBe(false);
+    expect(canTransitionOrder("super_admin", "pending", "confirmed")).toBe(false);
+    expect(canTransitionOrder("super_admin", "delivered", "pending")).toBe(false);
   });
 });
 

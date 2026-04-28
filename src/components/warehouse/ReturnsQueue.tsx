@@ -14,6 +14,10 @@ import {
 } from "./ScanFeedbackTile";
 import { WarehouseInboxBanner } from "./WarehouseInboxBanner";
 import { useWarehouseRealtime } from "@/hooks/useWarehouseRealtime";
+import {
+  useWarehouseQueue,
+  type WarehouseQueuePage,
+} from "@/hooks/useWarehouseQueue";
 import { WarehouseShell } from "./shell/WarehouseShell";
 import { WarehouseKpiStrip, type KpiTile } from "./shell/WarehouseKpiStrip";
 import {
@@ -29,11 +33,7 @@ const QrScanner = dynamic(
 
 interface Props {
   marketId: string | null;
-  fallbackRows: WarehouseOrderRow[];
-}
-
-interface ApiResponse {
-  orders: WarehouseOrderRow[];
+  fallbackPage: WarehouseQueuePage;
 }
 
 interface SummaryResponse {
@@ -49,7 +49,7 @@ interface BatchResult {
   is_damaged?: boolean;
 }
 
-export function ReturnsQueue({ marketId, fallbackRows }: Props) {
+export function ReturnsQueue({ marketId, fallbackPage }: Props) {
   const t = useTranslations("warehouse.returns");
   const tBatch = useTranslations("warehouse.returns.batch");
   const tCommon = useTranslations("warehouse");
@@ -64,16 +64,16 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
   const [filter, setFilter] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { data, mutate } = useSWR<ApiResponse>(
-    "/api/warehouse/returns",
-    jsonFetcher,
-    {
-      fallbackData: { orders: fallbackRows },
-      refreshInterval: 120_000,
-      revalidateOnFocus: false,
-      keepPreviousData: true,
-    },
-  );
+  const {
+    orders,
+    hasMore,
+    loadingMore,
+    loadMore,
+    mutate,
+  } = useWarehouseQueue({
+    endpoint: "/api/warehouse/returns",
+    fallbackFirstPage: fallbackPage,
+  });
 
   const { data: summary, mutate: mutateSummary } = useSWR<SummaryResponse>(
     "/api/warehouse/returns/summary",
@@ -87,8 +87,6 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
     onRefresh: mutate,
     onNewArrival: () => setArrivalCount((c) => c + 1),
   });
-
-  const orders = data?.orders ?? [];
   const filteredOrders = useMemo(() => {
     const q = filter.trim().toLowerCase();
     if (!q) return orders;
@@ -390,6 +388,18 @@ export function ReturnsQueue({ marketId, fallbackRows }: Props) {
                   onOpen={() => openOrder(o)}
                 />
               ))}
+              {hasMore && !filter ? (
+                <li className="px-4 py-3 border-t border-line-subtle flex justify-center">
+                  <button
+                    type="button"
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="px-3.5 py-1.5 text-[12px] font-medium border border-line-subtle rounded-md bg-surface-card text-ink-primary hover:bg-surface-hover transition-colors duration-fast disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {loadingMore ? t("loadingMore") : t("loadMore")}
+                  </button>
+                </li>
+              ) : null}
             </ul>
           )}
         </section>

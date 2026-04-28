@@ -18,6 +18,7 @@ import {
 import { Panel, EmptyState } from "@/components/dashboard/Panel";
 import { useInventorySummary } from "@/hooks/useInventorySummary";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
+import { useMarketScope } from "@/context/market-scope";
 import type { AuthUser } from "@/types";
 import type { InventorySummary } from "@/app/api/inventory/summary/route";
 import { LOW_DAYS_OF_SUPPLY, type HealthClass } from "@/lib/calculations/inventory-intelligence";
@@ -30,14 +31,15 @@ type I18n = ReturnType<typeof useTranslations<"inventory">>;
 
 export function InventoryClient({ user }: { user: AuthUser }) {
   const t = useTranslations("inventory");
+  const { marketId: activeMarketId, marketCode } = useMarketScope();
   const { inventory, isLoading, error, mutate } = useInventorySummary({
-    marketId: user.role === "super_admin" ? undefined : user.market_id ?? undefined,
+    marketId: activeMarketId ?? undefined,
   });
 
   const [adjustTarget, setAdjustTarget] = useState<Product | null>(null);
   const totals = inventory?.totals;
   const canAdjust = user.role === "super_admin";
-  const market = user.locale === "ar" ? "LY" : "TN";
+  const market = marketCode ? marketCode.toUpperCase() : user.locale === "ar" ? "LY" : "TN";
 
   return (
     <div style={{ backgroundColor: "#F6F6F7", minHeight: "100vh" }} className="px-4 py-6 pb-16 sm:px-6 md:px-8">

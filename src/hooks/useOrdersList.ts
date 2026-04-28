@@ -14,6 +14,7 @@ export interface OrdersListRow {
   customer_city: string | null;
   product_id: string | null;
   product_name: string;
+  product_image_url: string | null;
   variant_label: string | null;
   quantity: number;
   total_price: number;

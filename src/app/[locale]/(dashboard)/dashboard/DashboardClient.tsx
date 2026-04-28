@@ -17,8 +17,10 @@ import { TopPerformers } from "@/components/dashboard/TopPerformers";
 import { SecondaryKpiStrip } from "@/components/dashboard/SecondaryKpiStrip";
 import { TopPerformingProducts } from "@/components/dashboard/TopPerformingProducts";
 import { useAlerts } from "@/hooks/useAlerts";
+import { useMarketScope } from "@/context/market-scope";
 import { computeInsights } from "@/lib/dashboard/insights";
 import { canViewProfitability } from "@/lib/role-permissions";
+import { marketIdToCode } from "@/lib/markets";
 import type { DashboardSummary } from "@/lib/dashboard/summary";
 import type { AuthUser } from "@/types";
 
@@ -44,15 +46,13 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
 
   const [period, setPeriod] = useState<Period>(initialPeriod);
   const [preset, setPreset] = useState<PeriodPreset>("today");
-  const [selectedMarketId, setSelectedMarketId] = useState<string | "all">(
-    isSuperAdmin ? initialMarketId : (user.market_id ?? ""),
-  );
+  const { scope, marketId: scopeMarketId, setScope } = useMarketScope();
 
   const effectiveMarketId = useMemo(() => {
     if (!isSuperAdmin) return user.market_id ?? "";
-    if (selectedMarketId === "all" || !selectedMarketId) return "all";
-    return selectedMarketId;
-  }, [isSuperAdmin, selectedMarketId, user.market_id]);
+    if (scope === "all") return "all";
+    return scopeMarketId ?? "all";
+  }, [isSuperAdmin, scope, scopeMarketId, user.market_id]);
 
   const summaryKey = useMemo(
     () => buildSummaryKey(period, effectiveMarketId),
@@ -96,10 +96,10 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
   const insights = useMemo(
     () =>
       computeInsights(summary, {
-        confAboveAvg: t("insights.confAboveAvg"),
-        confBelowAvg: t("insights.confBelowAvg"),
-        topProduct: t("insights.topProduct"),
-        leadingAgent: t("insights.leadingAgent"),
+        confAboveAvg: t.raw("insights.confAboveAvg") as string,
+        confBelowAvg: t.raw("insights.confBelowAvg") as string,
+        topProduct: t.raw("insights.topProduct") as string,
+        leadingAgent: t.raw("insights.leadingAgent") as string,
       }),
     [summary, t],
   );
@@ -109,9 +109,13 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
     setPreset(newPreset);
   }, []);
 
-  const handleDrillMarket = useCallback((marketId: string) => {
-    setSelectedMarketId(marketId);
-  }, []);
+  const handleDrillMarket = useCallback(
+    (marketId: string) => {
+      const code = marketIdToCode(marketId);
+      if (code) setScope(code);
+    },
+    [setScope],
+  );
 
   const pipelineRows = useMemo(
     () =>
@@ -174,22 +178,12 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
         period={period}
         activePreset={preset}
         onPeriodChange={handlePeriodChange}
-        markets={summary.availableMarkets}
-        selectedMarketId={selectedMarketId}
-        onMarketChange={setSelectedMarketId}
-        allowAllMarkets={isSuperAdmin}
-        lockMarket={!isSuperAdmin}
-        lockedMarketLabel={summary.selectedMarket?.name ?? ""}
         labels={{
           today: t("filters.today"),
           week: t("filters.week"),
           month: t("filters.month"),
           custom: t("filters.custom"),
-          allMarkets: t("filters.allMarkets"),
-          marketPlaceholder: t("filters.marketPlaceholder"),
-          lastUpdated: t("filters.lastUpdated"),
         }}
-        lastUpdatedAt={new Date()}
       />
 
       <AlertAttentionBar

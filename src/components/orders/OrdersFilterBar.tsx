@@ -16,20 +16,13 @@ import {
 import type { OrderListFilters } from "@/lib/orders/list-filters";
 import { useDebounce } from "@/hooks/useDebounce";
 
-interface Market {
-  id: string;
-  name: string;
-}
-
 interface Props {
   filters: OrderListFilters;
   onChange: (patch: Partial<OrderListFilters>) => void;
   onOpenAdvanced: () => void;
   onNewOrder: () => void;
   onExport: () => void;
-  isSuperAdmin: boolean;
-  markets: Market[];
-  lockedMarketLabel: string;
+  marketLabel: string;
 }
 
 const CARD_BG = "#FFFFFF";
@@ -45,9 +38,7 @@ export function OrdersFilterBar({
   onOpenAdvanced,
   onNewOrder,
   onExport,
-  isSuperAdmin,
-  markets,
-  lockedMarketLabel,
+  marketLabel,
 }: Props) {
   const t = useTranslations("orders");
   const isMobile = useIsMobile();
@@ -103,34 +94,25 @@ export function OrdersFilterBar({
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {/* Row 1: market chip + search */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          {isSuperAdmin ? (
-            <MarketSelect
-              markets={markets}
-              value={filters.marketId}
-              onChange={(id) => onChange({ marketId: id })}
-              allLabel={t("filters.allMarkets")}
-            />
-          ) : (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                height: 30,
-                padding: "0 12px",
-                borderRadius: 8,
-                border: `1px solid ${BORDER}`,
-                background: SUBTLE_BG,
-                color: MUTED,
-                fontSize: 13,
-                fontWeight: 500,
-                flexShrink: 0,
-              }}
-            >
-              <Globe size={13} strokeWidth={1.75} />
-              {lockedMarketLabel}
-            </span>
-          )}
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              height: 30,
+              padding: "0 12px",
+              borderRadius: 8,
+              border: `1px solid ${BORDER}`,
+              background: SUBTLE_BG,
+              color: MUTED,
+              fontSize: 13,
+              fontWeight: 500,
+              flexShrink: 0,
+            }}
+          >
+            <Globe size={13} strokeWidth={1.75} />
+            {marketLabel}
+          </span>
 
           {!isMobile && <Divider />}
 
@@ -314,84 +296,6 @@ function Divider() {
         margin: "0 2px",
       }}
     />
-  );
-}
-
-function MarketSelect({
-  markets,
-  value,
-  onChange,
-  allLabel,
-}: {
-  markets: Market[];
-  value: string | null;
-  onChange: (id: string | null) => void;
-  allLabel: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  const label = value ? markets.find((m) => m.id === value)?.name ?? "—" : allLabel;
-  return (
-    <div ref={ref} style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          height: 30,
-          padding: "0 12px",
-          borderRadius: 8,
-          border: `1px solid ${BORDER}`,
-          background: SOFT_BG,
-          color: TEXT,
-          fontSize: 13,
-          fontWeight: 500,
-          cursor: "pointer",
-          fontFamily: "inherit",
-        }}
-      >
-        <Globe size={13} strokeWidth={1.75} />
-        {label}
-        <ChevronDown size={11} strokeWidth={2} />
-      </button>
-      {open ? (
-        <DropdownPanel onClose={() => setOpen(false)}>
-          <DropdownOption
-            label={allLabel}
-            selected={value === null}
-            onClick={() => {
-              onChange(null);
-              setOpen(false);
-            }}
-          />
-          {markets.map((m) => (
-            <DropdownOption
-              key={m.id}
-              label={m.name}
-              selected={value === m.id}
-              onClick={() => {
-                onChange(m.id);
-                setOpen(false);
-              }}
-            />
-          ))}
-        </DropdownPanel>
-      ) : null}
-    </div>
   );
 }
 

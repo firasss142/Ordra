@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { prefetchForRoute } from "./prefetch";
 import { Avatar } from "@/components/ui/Avatar";
+import { MarketScopeSwitcher } from "@/components/layout/MarketScopeSwitcher";
 import { getPermissionsForRole } from "@/lib/user-permissions";
 import type { AuthUser } from "@/types";
 
@@ -227,7 +228,7 @@ function isItemActive(itemHref: string, activePath: string, activeSearch: string
  * Identify the one section that should be considered "primarily active" for the
  * current URL. Prefer an exact item match (including query subset match); only
  * fall back to the longest-prefix item path when no section has a direct match.
- * This prevents /dashboard/pnl from auto-expanding ACCUEIL (whose Pulse item is
+ * This prevents /dashboard/pnl from auto-expanding ACCUEIL (whose Dashboard item is
  * /dashboard) when FINANCES has a more specific item at /dashboard/pnl.
  */
 function findActiveSectionId(
@@ -435,36 +436,40 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
         >
           {t("brand")}
         </span>
-        <span
-          aria-label={t("markets.ariaLabel", { market: marketName })}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "6px",
-            fontSize: "12px",
-            fontWeight: 500,
-            color: "var(--sidebar-text-secondary)",
-            paddingBlock: "2px",
-            paddingInline: "8px",
-            borderRadius: "9999px",
-            border: "1px solid var(--sidebar-border-strong)",
-            backgroundColor: "var(--sidebar-bg-elevated)",
-            lineHeight: 1,
-            whiteSpace: "nowrap",
-          }}
-        >
+        {user.role === "super_admin" ? (
+          <MarketScopeSwitcher user={user} />
+        ) : (
           <span
-            aria-hidden="true"
+            aria-label={t("markets.ariaLabel", { market: marketName })}
             style={{
-              width: "6px",
-              height: "6px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "12px",
+              fontWeight: 500,
+              color: "var(--sidebar-text-secondary)",
+              paddingBlock: "2px",
+              paddingInline: "8px",
               borderRadius: "9999px",
-              backgroundColor: marketDotColor(marketKey),
-              flexShrink: 0,
+              border: "1px solid var(--sidebar-border-strong)",
+              backgroundColor: "var(--sidebar-bg-elevated)",
+              lineHeight: 1,
+              whiteSpace: "nowrap",
             }}
-          />
-          {marketName}
-        </span>
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "9999px",
+                backgroundColor: marketDotColor(marketKey),
+                flexShrink: 0,
+              }}
+            />
+            {marketName}
+          </span>
+        )}
       </div>
 
       {/* Nav sections */}

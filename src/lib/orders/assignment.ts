@@ -47,7 +47,7 @@ export async function reassignOrder(
   newAgentId: string,
   actorId: string
 ): Promise<AssignResult> {
-  // Reassignment uses the same RPC — if status is not 'new', it just updates assigned_to
+  // Reassignment uses the same RPC — if status is not 'pending', it just updates assigned_to
   const { data, error } = await supabase.rpc("assign_order", {
     p_order_id: orderId,
     p_agent_id: newAgentId,

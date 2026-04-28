@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { LeadsFilterBar, BUCKET_STATUSES, type LeadBucket } from "@/components/crm/LeadsFilterBar";
 import { LeadsKpiStrip } from "@/components/crm/LeadsKpiStrip";
 import { LeadsKanban } from "@/components/crm/LeadsKanban";
+import { useMarketScope } from "@/context/market-scope";
 
 const LeadsTable = dynamic(
   () => import("@/components/crm/LeadsTable").then((m) => m.LeadsTable),
@@ -43,7 +44,6 @@ interface Props {
   userMarketLabel: string;
   locale: Locale;
   initialMetrics: LeadsMetrics;
-  initialMarketId: string;
 }
 
 export function LeadsPageClient({
@@ -52,25 +52,19 @@ export function LeadsPageClient({
   userMarketLabel,
   locale,
   initialMetrics,
-  initialMarketId,
 }: Props) {
   const t = useTranslations("crm.leads");
 
   const isSuperAdmin = role === "super_admin";
+  const { scope, marketId: scopeMarketId } = useMarketScope();
 
-  const [selectedMarketId, setSelectedMarketId] = useState<string | "all">(
-    isSuperAdmin ? (initialMarketId || "all") : userMarketId,
-  );
-  const handleMarketChange = useCallback((id: string | "all") => {
-    setSelectedMarketId(id);
-    setSelectedCampaignId(null);
-  }, []);
-  const effectiveMarketId =
-    !isSuperAdmin
-      ? userMarketId
-      : selectedMarketId === "all"
-        ? null
-        : selectedMarketId;
+  // Sidebar MarketScopeSwitcher is the single source of truth for super_admin.
+  // scope === "all" → null marketId → metrics across all markets.
+  const effectiveMarketId = isSuperAdmin
+    ? scope === "all"
+      ? null
+      : scopeMarketId
+    : userMarketId;
 
   const [bucket, setBucket] = useState<LeadBucket>("all");
   const [source, setSource] = useState<LeadSource | null>(null);
@@ -88,7 +82,8 @@ export function LeadsPageClient({
     enabled: true,
   });
 
-  // Default to most recently created campaign on load / market change
+  // Default to most recently created campaign on load / market change.
+  // Reuses the campaigns refetch (keyed by marketId) — no extra effect needed.
   useEffect(() => {
     if (campaigns.length > 0) {
       const latest = campaigns.reduce((a, b) =>
@@ -128,9 +123,9 @@ export function LeadsPageClient({
 
   const activeMarketLabel = useMemo(() => {
     if (!isSuperAdmin) return userMarketLabel;
-    if (selectedMarketId === "all") return t("allMarkets");
-    return markets.find((m) => m.id === selectedMarketId)?.name ?? "—";
-  }, [isSuperAdmin, selectedMarketId, markets, userMarketLabel, t]);
+    if (effectiveMarketId === null) return t("allMarkets");
+    return markets.find((m) => m.id === effectiveMarketId)?.name ?? "—";
+  }, [isSuperAdmin, effectiveMarketId, markets, userMarketLabel, t]);
 
   const hasActiveFilters = bucket !== "all" || source !== null || selectedCampaignId !== null;
 
@@ -163,11 +158,7 @@ export function LeadsPageClient({
       </div>
 
       <LeadsFilterBar
-        markets={markets}
-        selectedMarketId={selectedMarketId}
-        onMarketChange={handleMarketChange}
-        lockMarket={!isSuperAdmin}
-        lockedMarketLabel={userMarketLabel}
+        marketLabel={activeMarketLabel}
         bucket={bucket}
         onBucketChange={setBucket}
         source={source}

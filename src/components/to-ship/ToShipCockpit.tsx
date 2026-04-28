@@ -519,9 +519,8 @@ function GroupCard({
             <tr>
               <th style={thStyle} aria-hidden="true" />
               <th style={thStyle}>{t("cols.id")}</th>
-              <th style={thStyle}>{t("cols.customer")}</th>
               <th style={thStyle}>{t("cols.product")}</th>
-              <th style={{ ...thStyle, textAlign: "end" }}>{t("cols.qty")}</th>
+              <th style={thStyle}>{t("cols.customer")}</th>
               <th style={{ ...thStyle, textAlign: "end" }}>{t("cols.total")}</th>
               <th style={thStyle}>{t("cols.status")}</th>
             </tr>
@@ -530,6 +529,7 @@ function GroupCard({
             {rows.map((r) => {
               const isSelected = selected.has(r.id);
               const warn = stockFlags.get(r.id) === true;
+              const productInitial = r.product_name.trim()[0]?.toUpperCase() ?? "?";
               return (
                 <tr
                   key={r.id}
@@ -545,38 +545,114 @@ function GroupCard({
                       onChange={() => onToggle(r.id)}
                     />
                   </td>
-                  <td style={{ ...tdStyle, fontFamily: "monospace" }}>
-                    {r.id.slice(0, 8).toUpperCase()}
+                  <td
+                    style={{
+                      ...tdStyle,
+                      fontFamily: "ui-monospace, monospace",
+                      fontSize: 13,
+                      color: D.textSecondary,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    #{r.id.slice(0, 8).toUpperCase()}
                   </td>
                   <td style={tdStyle}>
-                    <div>{r.customer_name}</div>
-                    <div style={{ fontSize: 12, color: D.textSecondary }}>
-                      {r.customer_city ?? "—"}
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                      <span
+                        aria-hidden
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 6,
+                          background: "#F6F6F7",
+                          color: D.textPrimary,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                          marginTop: 1,
+                          border: "1px solid #E1E3E5",
+                        }}
+                      >
+                        {productInitial}
+                      </span>
+                      <div>
+                        <div
+                          style={{
+                            fontWeight: 500,
+                            fontSize: 14,
+                            color: D.textPrimary,
+                            lineHeight: "20px",
+                          }}
+                        >
+                          {r.product_name}
+                        </div>
+                        {(r.variant_label || r.quantity > 1) && (
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                              marginTop: 2,
+                            }}
+                          >
+                            {r.variant_label && (
+                              <span style={{ fontSize: 12, color: D.textSecondary }}>
+                                {r.variant_label}
+                              </span>
+                            )}
+                            {r.quantity > 1 && (
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 500,
+                                  color: D.textSecondary,
+                                  background: "#F6F6F7",
+                                  borderRadius: 4,
+                                  padding: "1px 5px",
+                                  border: "1px solid #E1E3E5",
+                                }}
+                              >
+                                ×{r.quantity}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td style={tdStyle}>
-                    <div>{r.product_name}</div>
-                    {r.variant_label && (
-                      <div style={{ fontSize: 12, color: D.textSecondary }}>{r.variant_label}</div>
+                    <div
+                      style={{
+                        fontWeight: 500,
+                        fontSize: 14,
+                        color: D.textPrimary,
+                        lineHeight: "20px",
+                      }}
+                    >
+                      {r.customer_name}
+                    </div>
+                    {r.customer_city && (
+                      <div style={{ fontSize: 12, color: D.textSecondary, marginTop: 2 }}>
+                        {r.customer_city}
+                      </div>
                     )}
                   </td>
                   <td
                     style={{
                       ...tdStyle,
                       textAlign: "end",
+                      fontWeight: 600,
                       fontVariantNumeric: "tabular-nums",
+                      whiteSpace: "nowrap",
                     }}
                   >
-                    {r.quantity}
-                  </td>
-                  <td
-                    style={{
-                      ...tdStyle,
-                      textAlign: "end",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {r.total_price.toFixed(2)} {currency}
+                    {r.total_price.toFixed(2)}{" "}
+                    <span style={{ fontSize: 12, color: D.textSecondary, fontWeight: 400 }}>
+                      {currency}
+                    </span>
                   </td>
                   <td style={tdStyle}>
                     <StatusCell row={r} warn={warn} t={t} />

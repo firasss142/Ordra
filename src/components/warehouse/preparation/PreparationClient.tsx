@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
+import type { WarehouseQueuePage } from "@/hooks/useWarehouseQueue";
 import { usePreparationTray } from "@/hooks/usePreparationTray";
 import { useOperatorStats } from "@/hooks/useOperatorStats";
 import { summarizeCycleTimes } from "@/lib/preparation/cycle-time";
@@ -24,7 +25,7 @@ function formatCycle(secs: number): string {
 
 interface Props {
   marketId: string | null;
-  fallbackRows: WarehouseOrderRow[];
+  fallbackPage: WarehouseQueuePage;
   labels: {
     pageTitle: string;
     pageSubtitle: string;
@@ -65,6 +66,8 @@ interface Props {
       dismiss: string;
       lowStock: string;
       criticalStock: string;
+      loadMore: string;
+      loadingMore: string;
     };
   };
 }
@@ -88,7 +91,7 @@ function StageHeader({ index, label }: StageHeaderProps) {
   );
 }
 
-export function PreparationClient({ marketId, fallbackRows, labels }: Props) {
+export function PreparationClient({ marketId, fallbackPage, labels }: Props) {
   const {
     rows,
     selectedIds,
@@ -241,7 +244,7 @@ export function PreparationClient({ marketId, fallbackRows, labels }: Props) {
           <div className="p-4 overflow-auto max-h-[720px]">
             <PreparationBacklog
               marketId={marketId}
-              fallbackRows={fallbackRows}
+              fallbackPage={fallbackPage}
               trayIds={trayIds}
               onAddToTray={handleAddToTray}
               labels={labels.backlog}

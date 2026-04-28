@@ -14,7 +14,7 @@ export interface MaxAttemptsPreview {
 }
 
 const ACTIVE_CONFIRMATION_STATUSES: ReadonlySet<OrderStatus> = new Set([
-  "new",
+  "pending",
   "assigned",
   "attempt_1",
   "attempt_2",

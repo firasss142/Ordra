@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AssignPageClient } from "./AssignPageClient";
 import { canAssignOrders } from "@/lib/order-permissions";
-import type { Locale, Role } from "@/types";
+import { getServerUser } from "@/lib/auth/server-user";
+import { getActiveMarketScope } from "@/lib/auth/market-scope";
+import type { Locale } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -11,41 +13,30 @@ export default async function AssignPage({
 }: {
   params: { locale: string };
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getServerUser();
   if (!user) redirect(`/${params.locale}/login`);
 
-  const { data: profile } = await supabase
-    .from("users")
-    .select("role, market_id")
-    .eq("id", user.id)
-    .single();
+  const { marketId: scopedMarketId } = await getActiveMarketScope(user);
+  const marketIdParam = scopedMarketId ?? "all";
+  const actorMarketId = user.market_id ?? "";
 
-  if (!profile) redirect(`/${params.locale}/login`);
-
-  const role = profile.role as Role;
-  const actorMarketId = profile.market_id ?? "";
-  const marketId = role === "super_admin" ? (actorMarketId || "all") : actorMarketId;
-
-  if (!canAssignOrders(role, marketId, actorMarketId)) {
-    if (role === "agent") redirect(`/${params.locale}/queue`);
-    if (role === "warehouse_agent") redirect(`/${params.locale}/warehouse`);
+  if (!canAssignOrders(user.role, marketIdParam, actorMarketId)) {
+    if (user.role === "agent") redirect(`/${params.locale}/queue`);
+    if (user.role === "warehouse_agent") redirect(`/${params.locale}/warehouse`);
     redirect(`/${params.locale}/login`);
   }
 
-  const { data: market } = marketId && marketId !== "all"
-    ? await supabase.from("markets").select("code, currency").eq("id", marketId).single()
+  const supabase = await createClient();
+  const { data: market } = scopedMarketId
+    ? await supabase.from("markets").select("code, currency").eq("id", scopedMarketId).single()
     : { data: null };
 
   const marketCode = market?.code ?? "TN";
 
   return (
     <AssignPageClient
-      role={role}
-      marketId={marketId}
+      role={user.role}
+      marketId={marketIdParam}
       marketCode={marketCode}
       locale={params.locale as Locale}
     />

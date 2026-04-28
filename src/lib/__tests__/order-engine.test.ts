@@ -7,8 +7,8 @@ import {
 
 describe("validateTransition", () => {
   // Valid Phase 1 transitions
-  it("allows new → assigned", () => {
-    expect(validateTransition("new", "assigned")).toEqual({ valid: true });
+  it("allows pending → assigned", () => {
+    expect(validateTransition("pending", "assigned")).toEqual({ valid: true });
   });
 
   it("allows assigned → attempt_1", () => {
@@ -63,7 +63,7 @@ describe("validateTransition", () => {
 
   // Terminal statuses block all transitions
   it("blocks delivered → anything (terminal)", () => {
-    const result = validateTransition("delivered", "new");
+    const result = validateTransition("delivered", "pending");
     expect(result.valid).toBe(false);
     expect(result).toHaveProperty("reason");
     expect(typeof (result as { valid: false; reason: string }).reason).toBe("string");
@@ -81,15 +81,15 @@ describe("validateTransition", () => {
     expect(result).toHaveProperty("reason");
   });
 
-  it("blocks cancelled → anything (terminal)", () => {
-    const result = validateTransition("cancelled", "new");
+  it("blocks deleted → anything (terminal)", () => {
+    const result = validateTransition("deleted", "pending");
     expect(result.valid).toBe(false);
     expect(result).toHaveProperty("reason");
   });
 
   // Invalid skip transitions
-  it("blocks new → dispatched (skips assigned)", () => {
-    const result = validateTransition("new", "dispatched");
+  it("blocks pending → dispatched (skips assigned)", () => {
+    const result = validateTransition("pending", "dispatched");
     expect(result.valid).toBe(false);
     expect(result).toHaveProperty("reason");
   });
@@ -103,10 +103,10 @@ describe("validateTransition", () => {
 
 describe("buildOrderHistoryEntry", () => {
   it("returns an entry with all required fields", () => {
-    const entry = buildOrderHistoryEntry("order-1", "new", "assigned", "actor-1");
+    const entry = buildOrderHistoryEntry("order-1", "pending", "assigned", "actor-1");
 
     expect(entry.order_id).toBe("order-1");
-    expect(entry.status_from).toBe("new");
+    expect(entry.status_from).toBe("pending");
     expect(entry.status_to).toBe("assigned");
     expect(entry.actor_id).toBe("actor-1");
     expect(typeof entry.created_at).toBe("string");
@@ -142,12 +142,12 @@ describe("buildOrderHistoryEntry", () => {
 
   it("throws when statusTo is not a valid ORDER_STATUS", () => {
     expect(() =>
-      buildOrderHistoryEntry("order-6", "new", "not_a_status" as never, "actor-6")
+      buildOrderHistoryEntry("order-6", "pending", "not_a_status" as never, "actor-6")
     ).toThrow();
   });
 
   it("actor_id can be null (for system actions)", () => {
-    const entry = buildOrderHistoryEntry("order-7", "new", "assigned", null);
+    const entry = buildOrderHistoryEntry("order-7", "pending", "assigned", null);
     expect(entry.actor_id).toBeNull();
   });
 });

@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canCancelOrder } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
 
-const TERMINAL = new Set(["delivered", "returned", "rejected", "cancelled"]);
+const TERMINAL = new Set(["delivered", "returned", "rejected", "deleted", "cancelled"]);
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();

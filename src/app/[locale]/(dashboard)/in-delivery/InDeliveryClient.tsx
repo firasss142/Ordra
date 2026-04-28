@@ -4,14 +4,16 @@ import { useTranslations } from "next-intl";
 import { AlertTriangle } from "lucide-react";
 import type { AuthUser } from "@/types";
 import { useInDeliverySummary } from "@/hooks/useInDeliverySummary";
+import { useMarketScope } from "@/context/market-scope";
 import { CarrierSplitCards } from "@/components/in-delivery/CarrierSplitCards";
 import { StuckAlertsList } from "@/components/in-delivery/StuckAlertsList";
 import { InFlightTable } from "@/components/in-delivery/InFlightTable";
 
 export function InDeliveryClient({ user }: { user: AuthUser }) {
   const t = useTranslations("inDelivery");
+  const { marketId } = useMarketScope();
   const { summary, isLoading, error, mutate } = useInDeliverySummary({
-    marketId: user.role === "super_admin" ? undefined : user.market_id ?? undefined,
+    marketId: marketId ?? undefined,
   });
 
   const unassigned = summary?.unassigned_carrier_count ?? 0;

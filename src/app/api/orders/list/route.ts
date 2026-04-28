@@ -14,7 +14,8 @@ const LIST_SELECT =
   "customer_address, customer_city, " +
   "product_id, product_name, variant_label, quantity, total_price, status, " +
   "assigned_to, carrier_id, rejection_reason, callback_scheduled_at, " +
-  "created_at, updated_at";
+  "created_at, updated_at, " +
+  "product:products(image_url)";
 
 export async function GET(req: NextRequest) {
   const actorResult = await getActor(req);
@@ -58,7 +59,7 @@ export async function GET(req: NextRequest) {
   // ---- Preset filters ----
   switch (q.preset) {
     case "unassigned":
-      query = query.eq("status", "new").is("assigned_to", null);
+      query = query.eq("status", "pending").is("assigned_to", null);
       break;
     case "callbacks":
       query = query
@@ -141,11 +142,19 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const rows = ((data ?? []) as unknown) as Array<
-    Record<string, unknown> & { id: string; created_at: string }
-  >;
+  type RawRow = Record<string, unknown> & {
+    id: string;
+    market_id: string;
+    created_at: string;
+    product?: { image_url: string | null } | null;
+  };
+  const rows = ((data ?? []) as unknown) as RawRow[];
   const hasMore = rows.length > q.limit;
-  const page = hasMore ? rows.slice(0, q.limit) : rows;
+  const page: Array<Record<string, unknown> & { id: string; market_id: string; created_at: string }> =
+    (hasMore ? rows.slice(0, q.limit) : rows).map((r) => {
+      const { product, ...rest } = r;
+      return { ...rest, product_image_url: product?.image_url ?? null };
+    });
   const last = page[page.length - 1];
   const nextCursor =
     hasMore && last

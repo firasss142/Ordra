@@ -68,8 +68,8 @@ describe("POST /api/orders/auto-assign-bulk", () => {
       if (table === "orders") {
         return resolvable({
           data: [
-            { id: "o1", market_id: "m-tn", product_id: "p1", customer_city: "Tunis", status: "new", assigned_to: null },
-            { id: "o2", market_id: "m-tn", product_id: "p1", customer_city: "Tunis", status: "new", assigned_to: null },
+            { id: "o1", market_id: "m-tn", product_id: "p1", customer_city: "Tunis", status: "pending", assigned_to: null },
+            { id: "o2", market_id: "m-tn", product_id: "p1", customer_city: "Tunis", status: "pending", assigned_to: null },
           ],
           error: null,
         });
@@ -111,7 +111,7 @@ describe("POST /api/orders/auto-assign-bulk", () => {
       if (table === "orders") {
         return resolvable({
           data: [
-            { id: "o1", market_id: "m-tn", product_id: "p1", customer_city: "Tunis", status: "new", assigned_to: null },
+            { id: "o1", market_id: "m-tn", product_id: "p1", customer_city: "Tunis", status: "pending", assigned_to: null },
           ],
           error: null,
         });

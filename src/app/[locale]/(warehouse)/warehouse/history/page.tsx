@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth/server-user";
+import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { WarehouseHistoryClient } from "@/components/warehouse/WarehouseHistoryClient";
 import { getWarehouseHistoryPage } from "@/lib/warehouse/history-fetch";
@@ -19,11 +20,8 @@ export default async function Page({
   if (!canScanWarehouse(user.role)) redirect(`/${locale}/queue`);
 
   const supabase = await createClient();
-  const scopeMarket = user.role !== "super_admin" ? user.market_id : null;
+  const { marketId: scopeMarket } = await getActiveMarketScope(user);
 
-  // Server-prefetch the first page so WarehouseHistoryClient renders immediately
-  // without a client-side loading flash. getWarehouseHistoryPage contains the
-  // same merge+sort logic as the API route, avoiding any duplication.
   const fallbackFirstPage: WarehouseHistoryPage = await getWarehouseHistoryPage(
     supabase,
     { limit: 50, kind: "all" },
@@ -33,7 +31,7 @@ export default async function Page({
   return (
     <WarehouseHistoryClient
       locale={locale}
-      marketId={user.role === "super_admin" ? null : user.market_id}
+      marketId={scopeMarket}
       fallbackFirstPage={fallbackFirstPage}
     />
   );

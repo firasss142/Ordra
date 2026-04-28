@@ -26,17 +26,9 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 import { ProductsFilterBar, type ProductFilterMode } from "./ProductsFilterBar";
 
-const markets = [
-  { id: "m-1", name: "Tunisie" },
-  { id: "m-2", name: "Libye" },
-];
-
 function renderBar(overrides: Partial<React.ComponentProps<typeof ProductsFilterBar>> = {}) {
   const defaults: React.ComponentProps<typeof ProductsFilterBar> = {
-    role: "super_admin",
-    markets,
-    selectedMarketId: "m-1",
-    onMarketChange: vi.fn(),
+    marketLabel: "Tunisie",
     mode: "catalogue" as ProductFilterMode,
     onModeChange: vi.fn(),
     status: "all",
@@ -128,18 +120,10 @@ describe("ProductsFilterBar", () => {
     expect(onBulkDeactivate).toHaveBeenCalled();
   });
 
-  it("market chip is locked (not interactive) for market_manager", () => {
-    renderBar({ role: "market_manager", selectedMarketId: "m-1" });
-    // The market chip for a locked manager should not be a button (not clickable)
-    const chip = screen.getByText("Tunisie");
+  it("renders the market label as a read-only chip (sidebar is the only writer)", () => {
+    renderBar({ marketLabel: "Libye" });
+    const chip = screen.getByText("Libye");
     expect(chip.closest("button")).toBeNull();
-  });
-
-  it("market chip is interactive for super_admin", () => {
-    renderBar({ role: "super_admin" });
-    // The market chip for super_admin should have a button (dropdown trigger)
-    const chipBtn = screen.getByRole("button", { name: /Tunisie/ });
-    expect(chipBtn).toBeInTheDocument();
   });
 
   it("hides add-product link when canManage is false", () => {

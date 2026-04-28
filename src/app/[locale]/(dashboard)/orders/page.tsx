@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getServerUser } from "@/lib/auth/server-user";
+import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
 import { OrdersPageClient } from "./OrdersPageClient";
 import type { Locale } from "@/types";
@@ -17,43 +19,29 @@ export default async function OrdersPage({
 }: {
   params: { locale: string };
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-
-  if (!authUser) redirect(`/${params.locale}/login`);
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("role, market_id")
-    .eq("id", authUser.id)
-    .single();
-
-  if (!profile) redirect(`/${params.locale}/login`);
+  const user = await getServerUser();
+  if (!user) redirect(`/${params.locale}/login`);
 
   // Agents and warehouse agents don't have access to the orders list view
-  if (profile.role === "agent") redirect(`/${params.locale}/queue`);
-  if (profile.role === "warehouse_agent") redirect(`/${params.locale}/warehouse`);
+  if (user.role === "agent") redirect(`/${params.locale}/queue`);
+  if (user.role === "warehouse_agent") redirect(`/${params.locale}/warehouse`);
 
-  // Determine prefetch target market (depends on role + cached markets list)
+  const supabase = await createClient();
+  const { marketId: scopedMarketId } = await getActiveMarketScope(user);
+  // Orders list needs a single market for prefetch — fall back to default when "all".
   const prefetchMarketId =
-    profile.role === "market_manager"
-      ? profile.market_id
-      : profile.role === "super_admin"
-        ? getDefaultMarketId(await getAllActiveMarkets())
-        : null;
+    scopedMarketId ?? (user.role === "super_admin" ? getDefaultMarketId(await getAllActiveMarkets()) : null);
 
   const superAdminInitialMarketId =
-    profile.role === "super_admin" ? prefetchMarketId ?? "" : "";
+    user.role === "super_admin" ? prefetchMarketId ?? "" : "";
 
   // Parallelize: market label + orders first page + agents — all independent after profile
   const [marketResult, ordersResult, agentsResult] = await Promise.all([
-    profile.market_id
+    user.market_id
       ? supabase
           .from("markets")
           .select("name, currency")
-          .eq("id", profile.market_id)
+          .eq("id", user.market_id)
           .single()
       : Promise.resolve({ data: null }),
 
@@ -85,8 +73,8 @@ export default async function OrdersPage({
 
   return (
     <OrdersPageClient
-      role={profile.role}
-      userMarketId={profile.market_id ?? superAdminInitialMarketId}
+      role={user.role}
+      userMarketId={user.market_id ?? superAdminInitialMarketId}
       userMarketLabel={userMarketLabel}
       userMarketCurrency={userMarketCurrency}
       locale={params.locale as Locale}

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { Panel, EmptyState } from "@/components/dashboard/Panel";
 import { useAlerts } from "@/hooks/useAlerts";
+import { useMarketScope } from "@/context/market-scope";
 import type { Alert, AlertSeverity, AlertType } from "@/app/api/alerts/summary/route";
 import type { AuthUser } from "@/types";
 
@@ -58,7 +59,8 @@ interface Agent {
 export function AlertsClient({ user }: { user: AuthUser }) {
   const t = useTranslations("alerts");
   const isMobile = useIsMobile();
-  const marketId = user.role === "super_admin" ? undefined : user.market_id ?? undefined;
+  const { marketId: scopeMarketId } = useMarketScope();
+  const marketId = scopeMarketId ?? undefined;
 
   const { alerts, summary, totalCount, bySeverity, byType, isLoading, error, mutate } = useAlerts({
     marketId,

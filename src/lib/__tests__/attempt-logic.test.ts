@@ -58,7 +58,7 @@ describe("extractAttemptNumber", () => {
 
   it("returns 0 for any non-attempt status", () => {
     expect(extractAttemptNumber("confirmed")).toBe(0);
-    expect(extractAttemptNumber("new")).toBe(0);
+    expect(extractAttemptNumber("pending")).toBe(0);
   });
 });
 

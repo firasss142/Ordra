@@ -210,7 +210,7 @@ describe("calculateBusinessProfitability", () => {
         {
           total_price: 0,
           quantity: 1,
-          status: "new",
+          status: "pending",
           carrier_delivery_fee: 0,
           carrier_return_fee: 0,
           product_unit_cogs: 0,

@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
 
   let carrierFailed = 0;
   const carrierRows = (carrierRes.data ?? []).map((r) => {
-    const isFailed = r.outcome === "error" || r.outcome === "ignored";
+    const isFailed = r.outcome === "error";
     if (isFailed) carrierFailed++;
     return { created_at: r.created_at as string, isFailed };
   });

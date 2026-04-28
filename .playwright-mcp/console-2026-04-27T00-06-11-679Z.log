@@ -1,0 +1,45 @@
+[     859ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[    1026ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[    6116ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[    7134ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3005/api/alerts/summary:0
+[    7134ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3005/api/confirmation-flow/overview?market_id=00000000-0000-0000-0000-000000000002&from_date=2026-04-20&to_date=2026-04-27:0
+[    7137ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3005/api/confirmation-flow/callbacks-due?market_id=00000000-0000-0000-0000-000000000002&within_minutes=30:0
+[    7138ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3005/api/presence/heartbeat:0
+[    7138ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3005/api/orders/unassigned/count:0
+[    7138ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3005/api/presence/heartbeat:0
+[    7184ms] [LOG] [Fast Refresh] done in 1068ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[    7210ms] [LOG] [Fast Refresh] done in 1095ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[    7796ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[    8269ms] [LOG] [Fast Refresh] done in 472ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[    8477ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3005/fr/assign?_rsc=1cvpo:0
+[    8882ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3005/fr/assign?_rsc=1p84j:0
+[    9238ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3005/fr/confirmation-flow:0
+[    9412ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///./node_modules/react-dom/cjs/react-dom.development.js:29889
+[    9436ms] Error: Cannot find module './vendor-chunks/@supabase.js'
+Require stack:
+- /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/.next/server/webpack-runtime.js
+- /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/.next/server/app/[locale]/(dashboard)/confirmation-flow/page.js
+- /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/server/require.js
+- /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/server/load-components.js
+- /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/build/utils.js
+- /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/server/dev/static-paths-worker.js
+- /Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/compiled/jest-worker/processChild.js
+    at Function.<anonymous> (node:internal/modules/cjs/loader:1401:15)
+    at <unknown> (file:///Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/server/require-hook.js:55:36)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+    at Function._load (node:internal/modules/cjs/loader:1211:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1487:12)
+    at mod.require (file:///Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16)
+[    9434ms] [LOG] [HMR] connected @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:38
+[   23088ms] [ERROR] WebSocket connection to 'ws://localhost:3005/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63
+[   24091ms] [ERROR] WebSocket connection to 'ws://localhost:3005/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63
+[   25095ms] [ERROR] WebSocket connection to 'ws://localhost:3005/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63
+[   26098ms] [ERROR] WebSocket connection to 'ws://localhost:3005/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63
+[   27102ms] [ERROR] WebSocket connection to 'ws://localhost:3005/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63
+[   32106ms] [ERROR] WebSocket connection to 'ws://localhost:3005/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63
+[   37110ms] [ERROR] WebSocket connection to 'ws://localhost:3005/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63
+[   42115ms] [ERROR] WebSocket connection to 'ws://localhost:3005/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///./node_modules/next/dist/client/components/react-dev-overlay/pages/websocket.js:63

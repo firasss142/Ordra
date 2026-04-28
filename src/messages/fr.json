@@ -80,7 +80,7 @@
       "systeme": "Système"
     },
     "items": {
-      "pulse": "Pulse",
+      "pulse": "Dashboard",
       "alertes": "Alertes",
       "toAssign": "À assigner",
       "inConfirmation": "En confirmation",
@@ -534,7 +534,6 @@
       "custom": "Personnalisé",
       "allMarkets": "Tous les marchés",
       "marketPlaceholder": "Choisir un marché",
-      "lastUpdated": "MAJ il y a",
       "vsYesterday": "vs hier",
       "vsLastWeek": "vs sem. dernière",
       "vsLastMonth": "vs mois dernier",
@@ -590,8 +589,8 @@
       "allClear": "Tout va bien"
     },
     "insights": {
-      "confAboveAvg": "Confirmation en hausse de {diff}%",
-      "confBelowAvg": "Confirmation en baisse de {diff}%",
+      "confAboveAvg": "{diff}% au-dessus de la moyenne de la semaine",
+      "confBelowAvg": "{diff}% sous la moyenne de la semaine",
       "topProduct": "Produit top : {name} ({count} livrées)",
       "leadingAgent": "Leader : {name} ({rate} %)"
     },
@@ -711,6 +710,8 @@
     "footerCount": "{count} affichée(s)",
     "footerMore": "plus disponibles",
     "footerLive": "temps réel",
+    "callbackOverdue": "en retard",
+    "priorRejected": "{count} rejet(s) précédent(s)",
     "actions": {
       "cancel": "Annuler"
     },
@@ -820,7 +821,7 @@
       "actions": "Actions"
     },
     "statuses": {
-      "new": "Nouveau",
+      "pending": "En attente",
       "assigned": "Assigné",
       "attempt_1": "Tentative 1",
       "attempt_2": "Tentative 2",
@@ -833,11 +834,14 @@
       "dispatched": "Expédié",
       "deposit": "Déposé",
       "in_transit": "En transit",
+      "unverified": "À vérifier",
       "delivered": "Livré",
       "returned": "Retourné",
       "to_be_returned": "À retourner",
+      "received": "Reçu en retour",
       "rejected": "Rejeté",
-      "cancelled": "Annulé"
+      "cancelled": "Annulé (transporteur)",
+      "deleted": "Supprimé"
     },
     "rejectionReasons": {
       "refus_client": "Refus client",
@@ -916,7 +920,10 @@
       "fieldDeliveryFee": "Frais de livraison",
       "addProduct": "+ Ajouter un produit",
       "removeItem": "Supprimer",
-      "grandTotal": "Total"
+      "grandTotal": "Total",
+      "inStock": "En stock",
+      "lowStock": "Stock faible",
+      "stockLeft": "{count} restant"
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",
@@ -1199,6 +1206,7 @@
     },
     "filters": {
       "title": "Filtres",
+      "allMarkets": "Tous les marchés",
       "status": {
         "all": "Tous",
         "active": "Actifs",
@@ -1436,6 +1444,7 @@
         "customerName": "Nom du client",
         "customerPhone": "Téléphone",
         "customerCity": "Ville",
+        "cityPlaceholder": "Chercher une ville…",
         "customerAddress": "Adresse",
         "source": "Source",
         "productInterest": "Produit d'intérêt",
@@ -1874,7 +1883,9 @@
         "newReveal": "Nouvelles commandes — actualiser",
         "dismiss": "Ignorer",
         "lowStock": "Stock bas",
-        "criticalStock": "Rupture"
+        "criticalStock": "Rupture",
+        "loadMore": "Afficher plus",
+        "loadingMore": "Chargement…"
       }
     },
     "overview": {
@@ -1943,6 +1954,8 @@
       "queueTitle": "File d'attente ({count})",
       "queueEmpty": "Aucun retour en attente",
       "noMatches": "Aucun résultat ne correspond à votre recherche",
+      "loadMore": "Afficher plus",
+      "loadingMore": "Chargement…",
       "filterPlaceholder": "Filtrer par client, ville, produit…",
       "scanStepLabel": "Scanner un retour",
       "kpi": {
@@ -2095,7 +2108,6 @@
       "week": "7 jours",
       "month": "30 jours",
       "custom": "Personnalisé",
-      "lastUpdated": "MAJ il y a",
       "allMarkets": "Tous les marchés",
       "marketPlaceholder": "Choisir un marché"
     },
@@ -2328,6 +2340,93 @@
           "lightfunnels": "lightfunnels-hmac (base64)"
         }
       }
+    },
+    "carriers": {
+      "onboarding": {
+        "dialogLabel": "Guide d'intégration transporteur",
+        "tocLabel": "Sections du guide",
+        "eyebrow": "Guide d'intégration",
+        "title": "Connecter un transporteur",
+        "subtitle": "Choisissez un adaptateur officiel ou implémentez le vôtre. Tout dispatch passe par cette couche.",
+        "close": "Fermer",
+        "addCarrier": "Ajouter un transporteur",
+        "copyPath": "Copier",
+        "copyEndpoint": "Copier",
+        "sections": {
+          "overview": {
+            "tab": "Aperçu",
+            "title": "Comment ça marche",
+            "body": "Chaque transporteur est connecté via un adaptateur — une classe TypeScript qui formate le payload, appelle l'API du transporteur et parse la réponse. Le dispatch est synchrone : l'agent voit immédiatement le succès ou l'échec.",
+            "stat1Label": "Adaptateurs",
+            "stat1Value": "{count} disponibles",
+            "stat2Label": "Dispatch",
+            "stat2Value": "Synchrone",
+            "stat3Label": "Test",
+            "stat3Value": "Ping + Dry-run"
+          },
+          "adapters": {
+            "tab": "Adaptateurs",
+            "title": "Adaptateurs officiels",
+            "body": "Ces adaptateurs sont prêts à l'emploi. Sélectionnez l'un d'eux à la création — l'endpoint et les champs d'identifiants sont préremplis.",
+            "empty": "Aucun adaptateur disponible pour ce marché. Ajoutez-en un dans src/lib/carriers/."
+          },
+          "newAdapter": {
+            "tab": "Nouvel adaptateur",
+            "title": "Implémenter un adaptateur",
+            "body": "Suivez ces étapes pour ajouter un nouveau transporteur. Les fichiers existants servent de référence.",
+            "step1Title": "Créer la classe d'adaptateur",
+            "step1Body": "Implémenter l'interface CarrierAdapter avec formatPayload, dispatch et parseResponse. Garder la logique pure et testable.",
+            "step2Title": "Enregistrer dans le registre",
+            "step2Body": "Ajouter une entrée à ADAPTER_DESCRIPTORS et la factory dans le mapping adapters. Préciser markets pour le filtrage par marché.",
+            "step3Title": "Écrire les tests",
+            "step3Body": "Au minimum : formatage du payload, parsing succès, parsing erreurs. Pas de mock du HTTP — utiliser le contrat de réponse.",
+            "step4Title": "Ajouter le transporteur",
+            "step4Body": "Cliquer sur \"Ajouter un transporteur\" — votre adaptateur apparaît automatiquement dans le sélecteur.",
+            "step5Title": "Vérifier l'intégration",
+            "step5Body": "Utiliser \"Ping\" pour vérifier la joignabilité, puis \"Test dispatch\" pour valider le formatage du payload."
+          },
+          "rotation": {
+            "tab": "Rotation",
+            "title": "Rotation des identifiants",
+            "body": "La clé API n'est jamais affichée après la création — seule une nouvelle saisie peut la remplacer. Pour faire tourner : Configurer → Faire tourner → entrer la nouvelle clé → Enregistrer.",
+            "tipTitle": "Conseil",
+            "tipBody": "Faites tourner la clé immédiatement si vous suspectez une fuite. L'ancienne reste active jusqu'à l'enregistrement de la nouvelle."
+          },
+          "performance": {
+            "tab": "Performance",
+            "title": "Indicateurs de santé",
+            "body": "Les stats (livraison 30j, transit médian) sont calculées depuis l'historique des commandes et recalculées chaque minute.",
+            "healthy": "Sain — taux de livraison ≥ 80% sur 10+ commandes.",
+            "degraded": "Dégradé — taux entre 60% et 80%, ou échantillon insuffisant.",
+            "critical": "Critique — taux < 60% sur 10+ commandes, ou injoignable."
+          },
+          "troubleshooting": {
+            "tab": "Dépannage",
+            "title": "Problèmes courants",
+            "ping": {
+              "title": "Ping échoue",
+              "body": "Vérifiez l'endpoint API (HTTPS ?), la résolution DNS et le pare-feu. Un 401 sur Ping est normal — Ping teste la joignabilité, pas l'auth."
+            },
+            "dryRun": {
+              "title": "Test dispatch échoue",
+              "body": "Lisez la réponse — elle indique le champ manquant ou invalide. Vérifiez que les identifiants stockés correspondent à ce que l'API attend."
+            },
+            "lowDelivery": {
+              "title": "Taux de livraison bas",
+              "body": "Comparez avec d'autres transporteurs sur le même marché. Si le problème persiste, contactez le transporteur ou désactivez-le temporairement."
+            },
+            "unknownAdapter": {
+              "title": "Adaptateur inconnu",
+              "body": "Le transporteur a été créé avec un code qui n'a plus d'adaptateur enregistré. Modifiez le code dans le registre ou recréez le transporteur."
+            }
+          }
+        },
+        "adapter": {
+          "endpoint": "Endpoint par défaut",
+          "credentials": "Champs d'identifiants",
+          "secret": "Secret"
+        }
+      }
     }
   },
   "logs": {
@@ -2367,6 +2466,9 @@
       "ignored": "Ignoré",
       "error": "Erreur",
       "unknown": "—"
+    },
+    "filters": {
+      "all": "Tous"
     },
     "stats": {
       "webhookRate": "Webhooks",
@@ -2513,6 +2615,7 @@
     "subtitle": "Ce que font vos agents en ce moment",
     "loading": "Chargement...",
     "computedAt": "Calculé à",
+    "noOrdersInPipeline": "Aucune commande en cours de confirmation pour ce marché.",
     "banner": {
       "updates": "mise(s) à jour",
       "refresh": "Actualiser"

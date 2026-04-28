@@ -97,15 +97,22 @@ export function OrdersTable({
         <table
           style={{
             width: "100%",
-            minWidth: 960,
+            minWidth: 720,
             borderCollapse: "separate",
             borderSpacing: 0,
-            tableLayout: "auto",
+            tableLayout: "fixed",
           }}
         >
+          <colgroup>
+            <col style={{ width: 44 }} />
+            <col />
+            <col style={{ width: 120 }} />
+            <col style={{ width: 180 }} />
+            <col style={{ width: 48 }} />
+          </colgroup>
           <thead>
             <tr style={{ background: "#FFFFFF", position: "sticky", top: 0, zIndex: 1 }}>
-              <th style={{ ...headerStyle, width: 36 }}>
+              <th style={headerStyle}>
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -118,13 +125,8 @@ export function OrdersTable({
                 />
               </th>
               <th style={headerStyle}>{t("columns.order")}</th>
-              <th style={headerStyle}>{t("columns.customer")}</th>
-              <th style={headerStyle}>{t("columns.city")}</th>
-              <th style={headerStyle}>{t("columns.product")}</th>
               <th style={{ ...headerStyle, textAlign: "end" }}>{t("columns.totalPrice")}</th>
               <th style={headerStyle}>{t("columns.status")}</th>
-              <th style={headerStyle}>{t("columns.agent")}</th>
-              <th style={headerStyle}>{t("columns.date")}</th>
               <th style={headerStyle} aria-label={t("columns.actions")} />
             </tr>
           </thead>
@@ -142,6 +144,11 @@ export function OrdersTable({
                   status: tStatus(r.status),
                   unassigned: t("unassigned"),
                   cancel: t("actions.cancel"),
+                  actions: t("columns.actions"),
+                  callbackOverdue: t("callbackOverdue"),
+                  priorRejected: t("priorRejected", {
+                    count: r.prior_rejected_count ?? 0,
+                  }),
                 }}
                 onToggleSelect={onToggleSelect}
                 onOpen={onOpen}

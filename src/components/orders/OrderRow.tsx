@@ -1,32 +1,38 @@
 "use client";
 
-import React from "react";
-import { formatDateTime } from "@/lib/format";
+import React, { useEffect, useRef, useState } from "react";
+import { MoreHorizontal } from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
+import type { BadgeTone } from "@/components/ui/Badge";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
+import { ProductAvatar } from "./ProductAvatar";
 import type { OrdersListRow } from "@/hooks/useOrdersList";
 
-const STATUS_DOT_COLORS: Record<string, string> = {
-  new: "#3B82F6",
-  assigned: "#F59E0B",
-  attempt_1: "#F97316",
-  attempt_2: "#F97316",
-  attempt_3: "#F97316",
-  callback_scheduled: "#8B5CF6",
-  confirmed: "#10B981",
-  dispatch_scheduled: "#22C55E",
-  dispatching: "#0EA5E9",
-  scanned: "#0891B2",
-  dispatched: "#059669",
-  deposit: "#0EA5E9",
-  in_transit: "#6366F1",
-  to_be_returned: "#F43F5E",
-  delivered: "#16A34A",
-  returned: "#DC2626",
-  rejected: "#EF4444",
-  cancelled: "#6B7280",
+const STATUS_TONE: Record<string, BadgeTone> = {
+  pending: "neutral",
+  assigned: "neutral",
+  attempt_1: "warning",
+  attempt_2: "warning",
+  attempt_3: "warning",
+  callback_scheduled: "warning",
+  confirmed: "action",
+  dispatch_scheduled: "action",
+  dispatching: "action",
+  scanned: "action",
+  dispatched: "action",
+  deposit: "action",
+  in_transit: "action",
+  unverified: "warning",
+  to_be_returned: "warning",
+  received: "action",
+  delivered: "success",
+  returned: "critical",
+  rejected: "critical",
+  cancelled: "critical",
+  deleted: "neutral",
 };
 
-const TERMINAL = new Set(["delivered", "returned", "rejected", "cancelled"]);
+const TERMINAL = new Set(["delivered", "returned", "rejected", "deleted", "cancelled"]);
 
 interface Props {
   order: OrdersListRow;
@@ -39,6 +45,9 @@ interface Props {
     status: string;
     unassigned: string;
     cancel: string;
+    actions: string;
+    callbackOverdue: string;
+    priorRejected: string;
   };
   onToggleSelect: (id: string) => void;
   onOpen: (id: string) => void;
@@ -46,12 +55,71 @@ interface Props {
   cancellingId: string | null;
 }
 
+function RowKebab({
+  orderId,
+  cancelLabel,
+  actionsLabel,
+  cancelling,
+  onCancel,
+}: {
+  orderId: string;
+  cancelLabel: string;
+  actionsLabel: string;
+  cancelling: boolean;
+  onCancel: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        aria-label={actionsLabel}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-7 w-7 items-center justify-center rounded-md text-ink-secondary opacity-0 transition-colors duration-fast hover:bg-surface-selected hover:text-ink-primary focus-visible:opacity-100 group-hover/row:opacity-100 data-[open=true]:opacity-100"
+        data-open={open}
+      >
+        <MoreHorizontal size={16} strokeWidth={2} />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute end-0 top-[calc(100%+4px)] z-20 min-w-[160px] rounded-card border border-line bg-surface-card p-1 shadow-floating"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            disabled={cancelling}
+            onClick={() => {
+              onCancel(orderId);
+              setOpen(false);
+            }}
+            className="block w-full rounded-md px-3 py-2 text-start text-[13px] font-medium text-status-critical hover:bg-surface-hover disabled:opacity-50"
+          >
+            {cancelling ? "…" : cancelLabel}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Row({
   order,
-  locale,
   selected,
   highlighted,
-  agentName,
   currencyCode,
   labels,
   onToggleSelect,
@@ -59,116 +127,161 @@ function Row({
   onCancel,
   cancellingId,
 }: Props) {
-  const statusLabel = labels.status;
+  const statusTone = STATUS_TONE[order.status] ?? "neutral";
+  const terminal = TERMINAL.has(order.status);
+  const callbackOverdue =
+    !!order.callback_scheduled_at &&
+    new Date(order.callback_scheduled_at).getTime() <= Date.now();
+  const hasPriorRejections = (order.prior_rejected_count ?? 0) > 0;
+
+  const rowBg = selected
+    ? "bg-[#F2F6FC]"
+    : highlighted
+      ? "bg-[#FFFBEA]"
+      : "bg-surface-card hover:bg-surface-hover";
+
   return (
     <tr
-      style={{
-        cursor: "pointer",
-        background: selected ? "#F2F6FC" : highlighted ? "#FFFBEA" : "#FFFFFF",
-        transition: "background-color 120ms ease",
-      }}
       onClick={() => onOpen(order.id)}
-      onMouseEnter={(e) => {
-        if (!selected && !highlighted)
-          (e.currentTarget as HTMLElement).style.background = "#F7F7F7";
-      }}
-      onMouseLeave={(e) => {
-        if (!selected && !highlighted)
-          (e.currentTarget as HTMLElement).style.background = "#FFFFFF";
-      }}
+      className={`group/row cursor-pointer border-b border-line-subtle transition-colors duration-fast ${rowBg} hover:shadow-hover-row`}
     >
-      <td style={cellStyle} onClick={(e) => e.stopPropagation()}>
+      {/* Checkbox + accent bar */}
+      <td
+        className="relative px-4 py-2 align-middle"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {highlighted && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 start-0 w-1 bg-accent"
+          />
+        )}
         <input
           type="checkbox"
           checked={selected}
           onChange={() => onToggleSelect(order.id)}
           aria-label={`select ${order.external_id ?? order.id}`}
-          style={{ cursor: "pointer" }}
+          className="h-4 w-4 cursor-pointer accent-ink-primary"
         />
       </td>
-      <td style={{ ...cellStyle, fontFamily: "ui-monospace, monospace", fontSize: 13, color: "#6D7175" }}>
-        {order.external_id ?? order.id.slice(0, 8)}
+
+      {/* Order cell — image + product + customer + city + #id */}
+      <td className="px-4 py-2 align-middle">
+        <div className="flex items-center gap-3">
+          <ProductAvatar
+            imageUrl={order.product_image_url ?? null}
+            productName={order.product_name}
+          />
+
+          {/* Product block */}
+          <div className="flex min-w-0 items-baseline gap-1.5">
+            <span className="truncate text-[14px] font-medium leading-5 text-ink-primary">
+              {order.product_name}
+            </span>
+            {order.variant_label && (
+              <span className="shrink-0 text-[12px] text-ink-secondary">
+                · {order.variant_label}
+              </span>
+            )}
+            {order.quantity > 1 && (
+              <span className="shrink-0 text-[12px] tabular-nums text-ink-secondary">
+                ×{order.quantity}
+              </span>
+            )}
+          </div>
+
+          {/* Divider */}
+          <span aria-hidden className="h-4 w-px shrink-0 bg-line-subtle" />
+
+          {/* Customer block */}
+          <div className="flex min-w-0 items-center gap-1.5">
+            {hasPriorRejections && (
+              <span
+                aria-hidden
+                title={labels.priorRejected.replace(
+                  "{count}",
+                  String(order.prior_rejected_count ?? 0),
+                )}
+                className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-status-critical"
+              />
+            )}
+            <span className="truncate text-[14px] font-medium leading-5 text-ink-primary">
+              {order.customer_name}
+            </span>
+            {order.customer_city && (
+              <span className="shrink-0 text-[12px] text-ink-secondary">
+                · {order.customer_city}
+              </span>
+            )}
+            {order.repeat_kind && order.repeat_kind !== "none" && (
+              <RepeatBuyerBadge
+                source="order"
+                sourceId={order.id}
+                repeatKind={order.repeat_kind}
+                priorOrderCount={order.prior_order_count ?? 0}
+                priorLeadCount={order.prior_lead_count ?? 0}
+                priorRejectedCount={order.prior_rejected_count ?? 0}
+                customerPhone={order.customer_phone}
+              />
+            )}
+          </div>
+
+          {/* Order ID — pushed to inline-end */}
+          <span className="ms-auto shrink-0 font-mono text-[12px] tabular-nums text-ink-secondary">
+            #{order.external_id ?? order.id.slice(0, 8)}
+          </span>
+        </div>
       </td>
-      <td style={cellStyle}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-          {order.customer_name}
-          {order.repeat_kind && order.repeat_kind !== "none" && (
-            <RepeatBuyerBadge
-              source="order"
-              sourceId={order.id}
-              repeatKind={order.repeat_kind}
-              priorOrderCount={order.prior_order_count ?? 0}
-              priorLeadCount={order.prior_lead_count ?? 0}
-              priorRejectedCount={order.prior_rejected_count ?? 0}
-              customerPhone={order.customer_phone}
-            />
+
+      {/* Price */}
+      <td className="whitespace-nowrap px-4 py-2 text-end align-middle">
+        <span className="text-[15px] font-semibold tabular-nums text-ink-primary">
+          {order.total_price.toFixed(2)}
+        </span>
+        <span className="ms-1 text-[11px] font-medium text-ink-secondary">
+          {currencyCode}
+        </span>
+      </td>
+
+      {/* Status + callback overdue flag */}
+      <td className="whitespace-nowrap px-4 py-2 align-middle">
+        <span className="inline-flex items-center">
+          <Badge tone={statusTone}>{labels.status}</Badge>
+          {callbackOverdue && (
+            <span className="ms-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-status-critical">
+              <span
+                aria-hidden
+                className="inline-block h-1.5 w-1.5 rounded-full bg-status-critical"
+              />
+              {labels.callbackOverdue}
+            </span>
           )}
         </span>
       </td>
-      <td style={{ ...cellStyle, color: "#6D7175" }}>{order.customer_city ?? "—"}</td>
-      <td style={cellStyle}>
-        {order.product_name}
-        {order.variant_label ? (
-          <span style={{ color: "#6D7175", fontSize: 13, marginInlineStart: 6 }}>
-            · {order.variant_label}
-          </span>
-        ) : null}
-      </td>
-      <td style={{ ...cellStyle, fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
-        {order.total_price.toFixed(2)} {currencyCode}
-      </td>
-      <td style={cellStyle}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <span
-            aria-hidden
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: STATUS_DOT_COLORS[order.status] ?? "#9CA3AF",
-              flexShrink: 0,
-            }}
+
+      {/* Actions — hover-revealed kebab */}
+      <td className="px-2 py-2 align-middle">
+        {!terminal && (
+          <RowKebab
+            orderId={order.id}
+            cancelLabel={labels.cancel}
+            actionsLabel={labels.actions}
+            cancelling={cancellingId === order.id}
+            onCancel={onCancel}
           />
-          <span>{statusLabel}</span>
-        </div>
-      </td>
-      <td style={{ ...cellStyle, color: agentName ? "#1A1A1A" : "#9CA3AF" }}>
-        {agentName ?? labels.unassigned}
-      </td>
-      <td style={{ ...cellStyle, color: "#6D7175", fontSize: 13, whiteSpace: "nowrap" }}>
-        {formatDateTime(order.created_at, locale)}
-      </td>
-      <td style={cellStyle} onClick={(e) => e.stopPropagation()}>
-        {!TERMINAL.has(order.status) ? (
-          <button
-            type="button"
-            onClick={() => onCancel(order.id)}
-            disabled={cancellingId === order.id}
-            style={{
-              background: "none",
-              border: "none",
-              color: cancellingId === order.id ? "#9CA3AF" : "#D72C0D",
-              fontSize: 13,
-              cursor: cancellingId === order.id ? "not-allowed" : "pointer",
-              padding: 0,
-            }}
-          >
-            {cancellingId === order.id ? "…" : labels.cancel}
-          </button>
-        ) : null}
+        )}
       </td>
     </tr>
   );
 }
 
-const cellStyle: React.CSSProperties = {
-  padding: "12px 16px",
-  fontSize: 14,
-  color: "#1A1A1A",
-  borderBottom: "1px solid #E1E3E5",
-};
-
 export const OrderRow = React.memo(Row, (prev, next) => {
+  const prevOverdue =
+    !!prev.order.callback_scheduled_at &&
+    new Date(prev.order.callback_scheduled_at).getTime() <= Date.now();
+  const nextOverdue =
+    !!next.order.callback_scheduled_at &&
+    new Date(next.order.callback_scheduled_at).getTime() <= Date.now();
   return (
     prev.order === next.order &&
     prev.selected === next.selected &&
@@ -176,6 +289,12 @@ export const OrderRow = React.memo(Row, (prev, next) => {
     prev.agentName === next.agentName &&
     prev.cancellingId === next.cancellingId &&
     prev.locale === next.locale &&
-    prev.labels.status === next.labels.status
+    prev.currencyCode === next.currencyCode &&
+    prev.labels.status === next.labels.status &&
+    prev.labels.cancel === next.labels.cancel &&
+    prev.labels.actions === next.labels.actions &&
+    prev.labels.callbackOverdue === next.labels.callbackOverdue &&
+    prev.labels.priorRejected === next.labels.priorRejected &&
+    prevOverdue === nextOverdue
   );
 });

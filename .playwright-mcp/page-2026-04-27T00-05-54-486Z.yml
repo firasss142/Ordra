@@ -1,0 +1,135 @@
+- generic [active] [ref=e1]:
+  - link "Aller au contenu principal" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - navigation [ref=e4]:
+      - generic [ref=e5]:
+        - text: Ordra
+        - button "Marchés" [ref=e7] [cursor=pointer]:
+          - generic [ref=e10]: Libye
+          - img [ref=e11]
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - button "Replier la section Accueil" [expanded] [ref=e15] [cursor=pointer]:
+            - img [ref=e16]
+            - generic [ref=e19]: Accueil
+            - img [ref=e20]
+          - list [ref=e22]:
+            - listitem [ref=e23]:
+              - link "Pulse" [ref=e24] [cursor=pointer]:
+                - /url: /fr/dashboard
+                - img [ref=e25]
+                - generic [ref=e30]: Pulse
+            - listitem [ref=e31]:
+              - link "Alertes" [ref=e32] [cursor=pointer]:
+                - /url: /fr/dashboard/alerts
+                - img [ref=e33]
+                - generic [ref=e36]: Alertes
+        - generic [ref=e37]:
+          - button "Replier la section Commandes" [expanded] [ref=e38] [cursor=pointer]:
+            - img [ref=e39]
+            - generic [ref=e42]: Commandes
+            - img [ref=e43]
+          - list [ref=e45]:
+            - listitem [ref=e46]:
+              - link "À assigner" [ref=e47] [cursor=pointer]:
+                - /url: /fr/assign
+                - img [ref=e48]
+                - generic [ref=e51]: À assigner
+            - listitem [ref=e52]:
+              - link "En confirmation" [ref=e53] [cursor=pointer]:
+                - /url: /fr/confirmation-flow
+                - img [ref=e54]
+                - generic [ref=e58]: En confirmation
+            - listitem [ref=e59]:
+              - link "À expédier" [ref=e60] [cursor=pointer]:
+                - /url: /fr/to-ship
+                - img [ref=e61]
+                - generic [ref=e66]: À expédier
+            - listitem [ref=e67]:
+              - link "En livraison" [ref=e68] [cursor=pointer]:
+                - /url: /fr/orders?preset=in_delivery
+                - img [ref=e69]
+                - generic [ref=e72]: En livraison
+            - listitem [ref=e73]:
+              - link "Archivées" [ref=e74] [cursor=pointer]:
+                - /url: /fr/orders/archive
+                - img [ref=e75]
+                - generic [ref=e80]: Archivées
+        - button "Déplier la section Logistique" [ref=e82] [cursor=pointer]:
+          - img [ref=e83]
+          - generic [ref=e86]: Logistique
+          - img [ref=e87]
+        - generic [ref=e89]:
+          - button "Replier la section Finances" [expanded] [ref=e90] [cursor=pointer]:
+            - img [ref=e91]
+            - generic [ref=e94]: Finances
+            - img [ref=e95]
+          - list [ref=e97]:
+            - listitem [ref=e98]:
+              - link "P&L global" [ref=e99] [cursor=pointer]:
+                - /url: /fr/dashboard/pnl
+                - img [ref=e100]
+                - generic [ref=e102]: P&L global
+            - listitem [ref=e103]:
+              - link "Produits & marges" [ref=e104] [cursor=pointer]:
+                - /url: /fr/products
+                - img [ref=e105]
+                - generic [ref=e109]: Produits & marges
+            - listitem [ref=e110]:
+              - link "Stock & inventaire" [ref=e111] [cursor=pointer]:
+                - /url: /fr/dashboard/stock
+                - img [ref=e112]
+                - generic [ref=e122]: Stock & inventaire
+            - listitem [ref=e123]:
+              - link "Dépenses pub" [ref=e124] [cursor=pointer]:
+                - /url: /fr/settings/ad-spend
+                - img [ref=e125]
+                - generic [ref=e128]: Dépenses pub
+        - button "Déplier la section Clients" [ref=e130] [cursor=pointer]:
+          - img [ref=e131]
+          - generic [ref=e136]: Clients
+          - img [ref=e137]
+        - generic [ref=e139]:
+          - button "Replier la section Équipe" [expanded] [ref=e140] [cursor=pointer]:
+            - img [ref=e141]
+            - generic [ref=e144]: Équipe
+            - img [ref=e145]
+          - list [ref=e147]:
+            - listitem [ref=e148]:
+              - link "Performance" [ref=e149] [cursor=pointer]:
+                - /url: /fr/team
+                - img [ref=e150]
+                - generic [ref=e152]: Performance
+            - listitem [ref=e153]:
+              - link "Accès" [ref=e154] [cursor=pointer]:
+                - /url: /fr/users
+                - img [ref=e155]
+                - generic [ref=e158]: Accès
+        - button "Déplier la section Système" [ref=e161] [cursor=pointer]:
+          - img [ref=e162]
+          - generic [ref=e165]: Système
+          - generic [ref=e166]: Admin
+          - img [ref=e167]
+      - button "Admin Super admin" [ref=e170] [cursor=pointer]:
+        - generic [ref=e171]: A
+        - generic [ref=e172]:
+          - generic [ref=e173]: Admin
+          - generic [ref=e174]: Super admin
+        - img [ref=e175]
+    - main [ref=e178]:
+      - generic [ref=e179]:
+        - generic [ref=e180]:
+          - generic [ref=e181]:
+            - heading "Flux Confirmation" [level=1] [ref=e182]
+            - paragraph [ref=e183]: Ce que font vos agents en ce moment
+          - generic [ref=e184]:
+            - button "Hier" [ref=e185] [cursor=pointer]
+            - button "7 j" [ref=e186] [cursor=pointer]
+            - button "30 j" [ref=e187] [cursor=pointer]
+            - button "Personnalisé" [ref=e188] [cursor=pointer]
+        - generic [ref=e189]: Chargement...
+        - generic [ref=e191]:
+          - generic [ref=e193]: Rappels imminents
+          - generic [ref=e194]: Chargement...
+  - alert [ref=e195]

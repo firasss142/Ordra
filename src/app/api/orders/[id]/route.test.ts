@@ -67,9 +67,9 @@ describe("GET /api/orders/[id]", () => {
   });
 
   test("returns 200 with order and history for market_manager", async () => {
-    const order = { id: "order-1", market_id: "m-1", status: "new", assigned_to: null };
-    const rawHistory = [{ id: "h-1", status_from: null, status_to: "new", note: null, actor_id: "u-1", actor_type: "manager", created_at: "2024-01-01T00:00:00Z" }];
-    const expectedHistory = [{ id: "h-1", from_status: null, to_status: "new", note: null, actor_id: "u-1", actor_type: "manager", created_at: "2024-01-01T00:00:00Z" }];
+    const order = { id: "order-1", market_id: "m-1", status: "pending", assigned_to: null };
+    const rawHistory = [{ id: "h-1", status_from: null, status_to: "pending", note: null, actor_id: "u-1", actor_type: "manager", created_at: "2024-01-01T00:00:00Z" }];
+    const expectedHistory = [{ id: "h-1", from_status: null, to_status: "pending", note: null, actor_id: "u-1", actor_type: "manager", created_at: "2024-01-01T00:00:00Z" }];
     mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
     mockFrom.mockImplementation((table: string) => {
       if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
@@ -124,7 +124,7 @@ describe("GET /api/orders/[id]", () => {
   });
 
   test("agent cannot view unassigned order", async () => {
-    const order = { id: "order-1", market_id: "m-1", status: "new", assigned_to: null };
+    const order = { id: "order-1", market_id: "m-1", status: "pending", assigned_to: null };
     mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });
     mockFrom.mockImplementation((table: string) => {
       if (table === "users") return queryChain({ data: { role: "agent", market_id: "m-1" }, error: null });

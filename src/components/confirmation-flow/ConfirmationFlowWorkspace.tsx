@@ -129,8 +129,23 @@ export function ConfirmationFlowWorkspace({ role, marketId }: ConfirmationFlowWo
           alignItems: "flex-start",
         }}
       >
-        {data.funnel.length > 0 && (
+        {data.funnel.some((f) => f.open_count > 0) ? (
           <FunnelChart funnel={data.funnel} marketId={marketId ?? ""} />
+        ) : !isLoading && (
+          <div
+            style={{
+              background: "#FFFFFF",
+              borderRadius: 8,
+              border: "1px solid #E1E3E5",
+              padding: "32px 24px",
+              flex: 1,
+              textAlign: "center",
+              color: "#6D7175",
+              fontSize: 13,
+            }}
+          >
+            {t("noOrdersInPipeline")}
+          </div>
         )}
         <CallbacksDueSoon rows={callbackRows} isLoading={callbacksLoading} />
       </div>

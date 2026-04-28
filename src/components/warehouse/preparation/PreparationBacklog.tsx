@@ -1,21 +1,19 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import useSWR from "swr";
 import { Plus } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
-import { jsonFetcher } from "@/lib/fetchers";
 import { useWarehouseRealtime } from "@/hooks/useWarehouseRealtime";
+import {
+  useWarehouseQueue,
+  type WarehouseQueuePage,
+} from "@/hooks/useWarehouseQueue";
 import { WarehouseInboxBanner } from "@/components/warehouse/WarehouseInboxBanner";
 import { Badge } from "@/components/ui/Badge";
 
-interface ApiResponse {
-  orders: WarehouseOrderRow[];
-}
-
 interface Props {
   marketId: string | null;
-  fallbackRows: WarehouseOrderRow[];
+  fallbackPage: WarehouseQueuePage;
   trayIds: Set<string>;
   onAddToTray: (row: WarehouseOrderRow) => void;
   labels: {
@@ -31,8 +29,12 @@ interface Props {
     dismiss: string;
     lowStock: string;
     criticalStock: string;
+    loadMore: string;
+    loadingMore: string;
   };
 }
+
+const PAGE_SIZE = 10;
 
 function StockBadge({
   stock,
@@ -95,25 +97,24 @@ const RowItem = memo(function RowItem({ order, inTray, onAdd, labels }: RowItemP
 
 export function PreparationBacklog({
   marketId,
-  fallbackRows,
+  fallbackPage,
   trayIds,
   onAddToTray,
   labels,
 }: Props) {
   const [page, setPage] = useState(0);
-  const [pageSize] = useState(10);
   const [arrivalCount, setArrivalCount] = useState(0);
 
-  const { data, mutate } = useSWR<ApiResponse>(
-    "/api/warehouse/to-label",
-    jsonFetcher,
-    {
-      fallbackData: { orders: fallbackRows },
-      refreshInterval: 120_000,
-      revalidateOnFocus: false,
-      keepPreviousData: true,
-    },
-  );
+  const {
+    orders: allOrders,
+    hasMore,
+    loadingMore,
+    loadMore,
+    mutate,
+  } = useWarehouseQueue({
+    endpoint: "/api/warehouse/to-label",
+    fallbackFirstPage: fallbackPage,
+  });
 
   useWarehouseRealtime({
     marketId,
@@ -122,20 +123,32 @@ export function PreparationBacklog({
     onNewArrival: () => setArrivalCount((c) => c + 1),
   });
 
-  const allOrders = useMemo(() => data?.orders ?? [], [data]);
+  useEffect(() => {
+    const visibleEnd = (page + 1) * PAGE_SIZE;
+    if (hasMore && !loadingMore && visibleEnd >= allOrders.length) {
+      loadMore();
+    }
+  }, [page, allOrders.length, hasMore, loadingMore, loadMore]);
 
-  useEffect(() => { setPage(0); }, [allOrders]);
-
-  const pageStart = page * pageSize;
+  const safePage =
+    allOrders.length > 0
+      ? Math.min(page, Math.ceil(allOrders.length / PAGE_SIZE) - 1)
+      : 0;
+  const pageStart = safePage * PAGE_SIZE;
   const pageOrders = useMemo(
-    () => allOrders.slice(pageStart, pageStart + pageSize),
-    [allOrders, pageStart, pageSize],
+    () => allOrders.slice(pageStart, pageStart + PAGE_SIZE),
+    [allOrders, pageStart],
   );
 
   const handleAdd = useCallback(
     (row: WarehouseOrderRow) => onAddToTray(row),
     [onAddToTray],
   );
+
+  const totalKnown = allOrders.length;
+  const totalPagesKnown = Math.max(1, Math.ceil(totalKnown / PAGE_SIZE));
+  const canGoNext = pageStart + PAGE_SIZE < totalKnown || hasMore;
+  const canGoPrev = safePage > 0;
 
   return (
     <div className="flex flex-col gap-3">
@@ -148,12 +161,12 @@ export function PreparationBacklog({
 
       <div className="flex items-center justify-between px-1">
         <h2 className="text-[14px] font-semibold text-ink-primary m-0 tabular-nums">
-          {labels.title} ({allOrders.length})
+          {labels.title} ({totalKnown}{hasMore ? "+" : ""})
         </h2>
       </div>
 
       <div className="bg-surface-card border border-line-subtle rounded-card overflow-hidden">
-        {allOrders.length === 0 ? (
+        {totalKnown === 0 ? (
           <div className="px-4 py-8 text-center text-[13px] text-ink-secondary">
             {labels.empty}
           </div>
@@ -186,27 +199,27 @@ export function PreparationBacklog({
         )}
       </div>
 
-      {allOrders.length > pageSize && (
+      {totalKnown > PAGE_SIZE || hasMore ? (
         <div className="flex justify-center gap-2 items-center">
           <button
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0}
+            onClick={() => setPage(Math.max(0, safePage - 1))}
+            disabled={!canGoPrev}
             className="px-3.5 py-1.5 text-[12px] border border-line-subtle rounded-md bg-surface-card text-ink-primary disabled:opacity-40 disabled:cursor-default hover:bg-surface-hover transition-colors duration-fast"
           >
             ‹ Préc.
           </button>
           <span className="text-[12px] text-ink-secondary tabular-nums">
-            {page + 1} / {Math.ceil(allOrders.length / pageSize)}
+            {safePage + 1} / {totalPagesKnown}{hasMore ? "+" : ""}
           </span>
           <button
-            onClick={() => setPage((p) => Math.min(Math.ceil(allOrders.length / pageSize) - 1, p + 1))}
-            disabled={pageStart + pageSize >= allOrders.length}
+            onClick={() => setPage(safePage + 1)}
+            disabled={!canGoNext || loadingMore}
             className="px-3.5 py-1.5 text-[12px] border border-line-subtle rounded-md bg-surface-card text-ink-primary disabled:opacity-40 disabled:cursor-default hover:bg-surface-hover transition-colors duration-fast"
           >
-            Suiv. ›
+            {loadingMore ? labels.loadingMore : "Suiv. ›"}
           </button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

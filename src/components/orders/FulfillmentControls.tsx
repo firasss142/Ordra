@@ -67,7 +67,7 @@ export function FulfillmentControls({
 
   if (!canUpdateFulfillment(role)) return null;
 
-  const TERMINAL = new Set(["delivered", "returned", "cancelled", "rejected"]);
+  const TERMINAL = new Set(["delivered", "returned", "deleted", "cancelled", "rejected"]);
   if (TERMINAL.has(status)) {
     return (
       <div style={{ marginTop: 16 }}>

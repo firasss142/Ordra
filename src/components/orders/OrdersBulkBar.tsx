@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { ChevronDown, X, UserPlus, XCircle } from "lucide-react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface Agent {
@@ -32,6 +33,31 @@ export function OrdersBulkBar({
   const isMobile = useIsMobile();
   const [assignOpen, setAssignOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const menuWrapRef = useRef<HTMLDivElement>(null);
+
+  // Close the assign menu on Escape or outside click
+  useEffect(() => {
+    if (!assignOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAssignOpen(false);
+    };
+    const onClick = (e: MouseEvent) => {
+      if (menuWrapRef.current && !menuWrapRef.current.contains(e.target as Node)) {
+        setAssignOpen(false);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onClick);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onClick);
+    };
+  }, [assignOpen]);
+
+  // Re-close menu after a bulk action runs
+  useEffect(() => {
+    if (busy) setAssignOpen(false);
+  }, [busy]);
 
   if (selectedIds.length === 0) return null;
 
@@ -44,153 +70,105 @@ export function OrdersBulkBar({
     }
   };
 
+  // Container positioning — bottom-fixed; full-width on mobile, centred pill on desktop.
+  // CRITICAL: dropdown opens UPWARD because the bar lives at viewport bottom — anchoring
+  // to `bottom: 100% + 6px` keeps the menu on-screen on both mobile and desktop.
+  const containerClass = isMobile
+    ? "fixed bottom-0 inset-x-0 z-30 flex flex-wrap items-center gap-2 px-4 py-3"
+    : "fixed bottom-6 start-1/2 -translate-x-1/2 z-30 inline-flex items-center gap-2 px-4 py-2.5 rounded-card";
+
   return (
     <div
-      style={{
-        position: "fixed",
-        bottom: isMobile ? 0 : 24,
-        insetInlineStart: isMobile ? 0 : "50%",
-        insetInlineEnd: isMobile ? 0 : undefined,
-        transform: isMobile ? undefined : "translateX(-50%)",
-        zIndex: 30,
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: isMobile ? "12px 16px" : "12px 20px",
-        background: "#1A1A1A",
-        color: "#FFFFFF",
-        borderRadius: isMobile ? 0 : 10,
-        fontSize: 13,
-        fontWeight: 500,
-        boxShadow: "0 8px 32px rgba(0,0,0,0.28)",
-        flexWrap: "wrap",
-      }}
+      role="toolbar"
+      aria-label={t("selected", { count: selectedIds.length })}
+      className={`${containerClass} bg-ink-primary text-white shadow-floating`}
     >
-      <span style={{ fontVariantNumeric: "tabular-nums" }}>
+      {/* Selection count */}
+      <span className="text-[13px] font-medium tabular-nums whitespace-nowrap">
         {t("selected", { count: selectedIds.length })}
       </span>
 
-      {canAssign ? (
-        <div style={{ position: "relative" }}>
+      {/* Divider */}
+      <span aria-hidden="true" className="h-5 w-px bg-white/15" />
+
+      {/* Assign menu */}
+      {canAssign && (
+        <div ref={menuWrapRef} className="relative">
           <button
             type="button"
             onClick={() => setAssignOpen((o) => !o)}
             disabled={busy}
-            style={{
-              height: 28,
-              padding: "0 12px",
-              background: "#2A2A2A",
-              color: "#FFFFFF",
-              border: "1px solid #3A3A3A",
-              borderRadius: 6,
-              fontSize: 13,
-              cursor: busy ? "not-allowed" : "pointer",
-            }}
+            aria-haspopup="listbox"
+            aria-expanded={assignOpen}
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-card bg-white/10 hover:bg-white/15 active:bg-white/20 text-[13px] font-medium transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {t("assign")} ▾
+            <UserPlus size={13} strokeWidth={2} aria-hidden="true" />
+            {t("assign")}
+            <ChevronDown
+              size={13}
+              strokeWidth={2}
+              aria-hidden="true"
+              className={`transition-transform duration-fast ${assignOpen ? "rotate-180" : ""}`}
+            />
           </button>
-          {assignOpen ? (
-            <>
-              <div
-                aria-hidden
-                onClick={() => setAssignOpen(false)}
-                style={{ position: "fixed", inset: 0, zIndex: 9 }}
-              />
-              <div
-                role="listbox"
-                style={{
-                  position: "absolute",
-                  insetInlineStart: 0,
-                  top: "calc(100% + 6px)",
-                  background: "#FFFFFF",
-                  border: "1px solid #E1E3E5",
-                  borderRadius: 8,
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
-                  minWidth: 220,
-                  maxHeight: 320,
-                  overflowY: "auto",
-                  zIndex: 10,
-                  padding: 4,
-                  color: "#1A1A1A",
-                }}
-              >
-                {agents.length === 0 ? (
-                  <div style={{ padding: 10, fontSize: 13, color: "#6D7175" }}>
-                    {t("noAgents")}
-                  </div>
-                ) : (
-                  agents.map((a) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      role="option"
-                      aria-selected={false}
-                      onClick={async () => {
-                        setAssignOpen(false);
-                        await run(() => onBulkAssign(a.id));
-                      }}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        textAlign: "start",
-                        padding: "8px 10px",
-                        border: "none",
-                        background: "transparent",
-                        color: "#1A1A1A",
-                        fontSize: 13,
-                        fontWeight: 500,
-                        cursor: "pointer",
-                        borderRadius: 6,
-                      }}
-                      onMouseEnter={(e) => ((e.currentTarget.style.background = "#F7F7F7"))}
-                      onMouseLeave={(e) => ((e.currentTarget.style.background = "transparent"))}
-                    >
-                      {a.full_name}
-                    </button>
-                  ))
-                )}
-              </div>
-            </>
-          ) : null}
-        </div>
-      ) : null}
 
-      {canCancel ? (
+          {assignOpen && (
+            <div
+              role="listbox"
+              className="absolute bottom-[calc(100%+8px)] start-0 min-w-[220px] max-h-80 overflow-y-auto rounded-card bg-surface-card border border-line-subtle shadow-floating p-1"
+            >
+              {agents.length === 0 ? (
+                <div className="px-3 py-2 text-[13px] text-ink-secondary">
+                  {t("noAgents")}
+                </div>
+              ) : (
+                agents.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    onClick={() => {
+                      setAssignOpen(false);
+                      void run(() => onBulkAssign(a.id));
+                    }}
+                    className="block w-full text-start rounded-md px-2.5 py-2 text-[13px] font-medium text-ink-primary hover:bg-surface-hover focus-visible:bg-surface-hover transition-colors duration-fast"
+                  >
+                    {a.full_name}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Cancel selected */}
+      {canCancel && (
         <button
           type="button"
-          onClick={() => run(onBulkCancel)}
+          onClick={() => void run(onBulkCancel)}
           disabled={busy}
-          style={{
-            height: 28,
-            padding: "0 12px",
-            background: "#D72C0D",
-            color: "#FFFFFF",
-            border: "none",
-            borderRadius: 6,
-            fontSize: 13,
-            cursor: busy ? "not-allowed" : "pointer",
-          }}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-card bg-status-critical hover:bg-[#B82408] active:bg-[#A11F07] text-[13px] font-medium text-white transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
         >
+          <XCircle size={13} strokeWidth={2} aria-hidden="true" />
           {t("cancel")}
         </button>
-      ) : null}
+      )}
 
+      {/* Spacer pushes Clear to the end on mobile (full-width); on desktop the natural gap is enough */}
+      {isMobile && <span className="flex-1" aria-hidden="true" />}
+
+      {/* Clear selection */}
       <button
         type="button"
         onClick={onClearSelection}
         disabled={busy}
         aria-label={t("clearSelection")}
-        style={{
-          marginInlineStart: "auto",
-          background: "none",
-          border: "none",
-          color: "#C9CCCF",
-          fontSize: 16,
-          cursor: "pointer",
-          padding: 0,
-        }}
+        title={t("clearSelection")}
+        className="inline-flex items-center justify-center w-8 h-8 rounded-card text-white/70 hover:text-white hover:bg-white/10 transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        ×
+        <X size={15} strokeWidth={2} aria-hidden="true" />
       </button>
     </div>
   );

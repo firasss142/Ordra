@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/auth/server-user";
+import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
 import { ConfirmationFlowWorkspace } from "@/components/confirmation-flow/ConfirmationFlowWorkspace";
 
@@ -15,10 +16,11 @@ export default async function ConfirmationFlowPage({
   if (!user) redirect(`/${params.locale}/login`);
   if (user.role === "agent") redirect(`/${params.locale}/queue`);
 
+  const { marketId: scopedMarketId } = await getActiveMarketScope(user);
+  // confirmation-flow requires a single market — when super_admin picks "all",
+  // fall back to the default active market so the page can render.
   const marketId =
-    user.role === "super_admin"
-      ? getDefaultMarketId(await getAllActiveMarkets())
-      : (user.market_id ?? null);
+    scopedMarketId ?? getDefaultMarketId(await getAllActiveMarkets());
 
   return (
     <ConfirmationFlowWorkspace

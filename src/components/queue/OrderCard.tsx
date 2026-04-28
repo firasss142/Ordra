@@ -226,15 +226,24 @@ export const OrderCard = memo(function OrderCard({
         </span>
 
         <span
-          className="inline-flex items-center gap-1.5 min-w-0 justify-self-end text-[13.5px] text-ink-primary"
+          className="flex items-center gap-2 min-w-0 justify-self-end"
           title={`${order.product_name}${order.variant_label ? ` · ${order.variant_label}` : ""}`}
         >
-          <Package size={13} strokeWidth={2} className="shrink-0 text-ink-muted" aria-hidden="true" />
-          <span className="truncate font-medium">
-            {order.product_name}
-            {order.variant_label ? (
-              <span className="text-ink-muted font-normal"> · {order.variant_label}</span>
-            ) : null}
+          <span
+            aria-hidden="true"
+            className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-card bg-surface-page border border-line-subtle text-ink-secondary group-hover:text-ink-primary group-hover:border-line-strong transition-colors duration-fast"
+          >
+            <Package size={13} strokeWidth={2} />
+          </span>
+          <span className="flex flex-col min-w-0 leading-tight">
+            <span className="truncate text-[13.5px] font-semibold text-ink-primary">
+              {order.product_name}
+            </span>
+            {order.variant_label && (
+              <span className="truncate text-[11px] font-medium text-ink-muted uppercase tracking-[0.04em]">
+                {order.variant_label}
+              </span>
+            )}
           </span>
         </span>
 
