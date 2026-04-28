@@ -1,0 +1,142 @@
+[     770ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[     878ms] [ERROR] IntlError: MISSING_MESSAGE: Could not resolve `dashboard.filters.lastUpdated` in messages for locale `fr`.
+    at getFallbackFromErrorAndNotify (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:159:19)
+    at translateBaseFn (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:184:14)
+    at translateFn (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:258:20)
+    at ProfitabilityClient (webpack-internal:///(app-pages-browser)/./src/app/[locale]/(dashboard)/dashboard/pnl/ProfitabilityClient.tsx:175:38)
+    at renderWithHooks (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:11121:18)
+    at updateFunctionComponent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:16290:20)
+    at mountLazyComponent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:16765:17)
+    at beginWork$1 (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:18464:16)
+    at beginWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:26927:14)
+    at performUnitOfWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25748:12)
+    at workLoopConcurrent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25734:5)
+    at renderRootConcurrent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25690:9)
+    at performConcurrentWorkOnRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:24504:38)
+    at workLoop (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js:256:34)
+    at flushWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js:225:14)
+    at MessagePort.performWorkUntilDeadline (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js:534:21) @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[     878ms] [ERROR] IntlError: MISSING_MESSAGE: Could not resolve `dashboard.filters.lastUpdated` in messages for locale `fr`.
+    at getFallbackFromErrorAndNotify (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:159:19)
+    at translateBaseFn (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:184:14)
+    at translateFn (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:258:20)
+    at ProfitabilityClient (webpack-internal:///(app-pages-browser)/./src/app/[locale]/(dashboard)/dashboard/pnl/ProfitabilityClient.tsx:175:38)
+    at renderWithHooksAgain (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:11272:16)
+    at renderWithHooks (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:11135:18)
+    at updateFunctionComponent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:16290:20)
+    at mountLazyComponent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:16765:17)
+    at beginWork$1 (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:18464:16)
+    at beginWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:26927:14)
+    at performUnitOfWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25748:12)
+    at workLoopConcurrent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25734:5)
+    at renderRootConcurrent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25690:9)
+    at performConcurrentWorkOnRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:24504:38)
+    at workLoop (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js:256:34)
+    at flushWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js:225:14)
+    at MessagePort.performWorkUntilDeadline (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js:534:21) @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[     880ms] [ERROR] IntlError: MISSING_MESSAGE: Could not resolve `dashboard.filters.lastUpdated` in messages for locale `fr`.
+    at getFallbackFromErrorAndNotify (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:159:19)
+    at translateBaseFn (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:184:14)
+    at translateFn (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:258:20)
+    at ProfitabilityClient (webpack-internal:///(app-pages-browser)/./src/app/[locale]/(dashboard)/dashboard/pnl/ProfitabilityClient.tsx:175:38)
+    at renderWithHooks (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:11121:18)
+    at updateFunctionComponent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:16290:20)
+    at mountLazyComponent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:16765:17)
+    at beginWork$1 (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:18464:16)
+    at beginWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:26927:14)
+    at performUnitOfWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25748:12)
+    at workLoopConcurrent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25734:5)
+    at renderRootConcurrent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25690:9)
+    at performConcurrentWorkOnRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:24504:38)
+    at workLoop (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js:256:34)
+    at flushWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js:225:14)
+    at MessagePort.performWorkUntilDeadline (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js:534:21) @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[     880ms] [ERROR] IntlError: MISSING_MESSAGE: Could not resolve `dashboard.filters.lastUpdated` in messages for locale `fr`.
+    at getFallbackFromErrorAndNotify (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:159:19)
+    at translateBaseFn (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:184:14)
+    at translateFn (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:258:20)
+    at ProfitabilityClient (webpack-internal:///(app-pages-browser)/./src/app/[locale]/(dashboard)/dashboard/pnl/ProfitabilityClient.tsx:175:38)
+    at renderWithHooksAgain (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:11272:16)
+    at renderWithHooks (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:11135:18)
+    at updateFunctionComponent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:16290:20)
+    at mountLazyComponent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:16765:17)
+    at beginWork$1 (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:18464:16)
+    at beginWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:26927:14)
+    at performUnitOfWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25748:12)
+    at workLoopConcurrent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25734:5)
+    at renderRootConcurrent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25690:9)
+    at performConcurrentWorkOnRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:24504:38)
+    at workLoop (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js:256:34)
+    at flushWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js:225:14)
+    at MessagePort.performWorkUntilDeadline (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js:534:21) @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[    5687ms] [ERROR] IntlError: MISSING_MESSAGE: Could not resolve `dashboard.filters.lastUpdated` in messages for locale `fr`.
+    at getFallbackFromErrorAndNotify (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:159:19)
+    at translateBaseFn (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:184:14)
+    at translateFn (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:258:20)
+    at ProfitabilityClient (webpack-internal:///(app-pages-browser)/./src/app/[locale]/(dashboard)/dashboard/pnl/ProfitabilityClient.tsx:175:38)
+    at renderWithHooks (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:11121:18)
+    at updateFunctionComponent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:16290:20)
+    at beginWork$1 (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:18472:16)
+    at beginWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:26927:14)
+    at performUnitOfWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25748:12)
+    at workLoopSync (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25464:5)
+    at renderRootSync (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25419:7)
+    at performSyncWorkOnRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:24887:20)
+    at flushSyncWorkAcrossRoots_impl (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:7758:13)
+    at flushSyncWorkOnAllRoots (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:7718:3)
+    at processRootScheduleInMicrotask (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:7863:3)
+    at eval (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:8034:7) @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[    5689ms] [ERROR] IntlError: MISSING_MESSAGE: Could not resolve `dashboard.filters.lastUpdated` in messages for locale `fr`.
+    at getFallbackFromErrorAndNotify (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:159:19)
+    at translateBaseFn (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:184:14)
+    at translateFn (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/createFormatter-QqAaZwGD.js:258:20)
+    at ProfitabilityClient (webpack-internal:///(app-pages-browser)/./src/app/[locale]/(dashboard)/dashboard/pnl/ProfitabilityClient.tsx:175:38)
+    at renderWithHooksAgain (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:11272:16)
+    at renderWithHooks (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:11135:18)
+    at updateFunctionComponent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:16290:20)
+    at beginWork$1 (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:18472:16)
+    at beginWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:26927:14)
+    at performUnitOfWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25748:12)
+    at workLoopSync (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25464:5)
+    at renderRootSync (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:25419:7)
+    at performSyncWorkOnRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:24887:20)
+    at flushSyncWorkAcrossRoots_impl (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:7758:13)
+    at flushSyncWorkOnAllRoots (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:7718:3)
+    at processRootScheduleInMicrotask (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:7863:3)
+    at eval (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:8034:7) @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[   45380ms] [WARNING] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width. @ webpack-internal:///(app-pages-browser)/./node_modules/recharts/es6/util/LogUtils.js:18
+[   45380ms] [WARNING] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width. @ webpack-internal:///(app-pages-browser)/./node_modules/recharts/es6/util/LogUtils.js:18
+[   45381ms] [WARNING] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width. @ webpack-internal:///(app-pages-browser)/./node_modules/recharts/es6/util/LogUtils.js:18
+[   45381ms] [WARNING] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width. @ webpack-internal:///(app-pages-browser)/./node_modules/recharts/es6/util/LogUtils.js:18
+[   53266ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[   55359ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:186
+[   56038ms] [LOG] [Fast Refresh] done in 679ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:43
+[   73341ms] [WARNING] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width. @ webpack-internal:///(app-pages-browser)/./node_modules/recharts/es6/util/LogUtils.js:18
+[   73341ms] [WARNING] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width. @ webpack-internal:///(app-pages-browser)/./node_modules/recharts/es6/util/LogUtils.js:18
+[   73342ms] [WARNING] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width. @ webpack-internal:///(app-pages-browser)/./node_modules/recharts/es6/util/LogUtils.js:18
+[   73342ms] [WARNING] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width. @ webpack-internal:///(app-pages-browser)/./node_modules/recharts/es6/util/LogUtils.js:18
+[   76011ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/favicon.ico:0

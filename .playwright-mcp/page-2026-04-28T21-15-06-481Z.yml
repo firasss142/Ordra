@@ -1,0 +1,148 @@
+- generic [active] [ref=e1]:
+  - link "Aller au contenu principal" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - navigation [ref=e4]:
+      - generic [ref=e5]:
+        - text: Ordra
+        - button "Marchés" [ref=e7] [cursor=pointer]:
+          - generic [ref=e10]: Tunisie
+          - img [ref=e11]
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - button "Replier la section Accueil" [expanded] [ref=e15] [cursor=pointer]:
+            - img [ref=e16]
+            - generic [ref=e19]: Accueil
+            - img [ref=e20]
+          - list [ref=e22]:
+            - listitem [ref=e23]:
+              - link "Dashboard" [ref=e24] [cursor=pointer]:
+                - /url: /fr/dashboard
+                - img [ref=e25]
+                - generic [ref=e30]: Dashboard
+            - listitem [ref=e31]:
+              - link "Alertes" [ref=e32] [cursor=pointer]:
+                - /url: /fr/dashboard/alerts
+                - img [ref=e33]
+                - generic [ref=e36]: Alertes
+        - button "Déplier la section Commandes" [ref=e38] [cursor=pointer]:
+          - img [ref=e39]
+          - generic [ref=e42]: Commandes
+          - img [ref=e43]
+        - button "Déplier la section Logistique" [ref=e46] [cursor=pointer]:
+          - img [ref=e47]
+          - generic [ref=e50]: Logistique
+          - img [ref=e51]
+        - generic [ref=e53]:
+          - button "Replier la section Finances" [expanded] [ref=e54] [cursor=pointer]:
+            - img [ref=e55]
+            - generic [ref=e58]: Finances
+            - img [ref=e59]
+          - list [ref=e61]:
+            - listitem [ref=e62]:
+              - link "P&L global" [ref=e63] [cursor=pointer]:
+                - /url: /fr/dashboard/pnl
+                - img [ref=e64]
+                - generic [ref=e66]: P&L global
+            - listitem [ref=e67]:
+              - link "Produits & marges" [ref=e68] [cursor=pointer]:
+                - /url: /fr/products
+                - img [ref=e69]
+                - generic [ref=e73]: Produits & marges
+            - listitem [ref=e74]:
+              - link "Stock & inventaire" [ref=e75] [cursor=pointer]:
+                - /url: /fr/dashboard/stock
+                - img [ref=e76]
+                - generic [ref=e86]: Stock & inventaire
+            - listitem [ref=e87]:
+              - link "Dépenses pub" [ref=e88] [cursor=pointer]:
+                - /url: /fr/settings/ad-spend
+                - img [ref=e89]
+                - generic [ref=e92]: Dépenses pub
+        - button "Déplier la section Clients" [ref=e94] [cursor=pointer]:
+          - img [ref=e95]
+          - generic [ref=e100]: Clients
+          - img [ref=e101]
+        - generic [ref=e103]:
+          - button "Replier la section Équipe" [expanded] [ref=e104] [cursor=pointer]:
+            - img [ref=e105]
+            - generic [ref=e108]: Équipe
+            - img [ref=e109]
+          - list [ref=e111]:
+            - listitem [ref=e112]:
+              - link "Performance" [ref=e113] [cursor=pointer]:
+                - /url: /fr/team
+                - img [ref=e114]
+                - generic [ref=e116]: Performance
+            - listitem [ref=e117]:
+              - link "Accès" [ref=e118] [cursor=pointer]:
+                - /url: /fr/users
+                - img [ref=e119]
+                - generic [ref=e122]: Accès
+        - button "Déplier la section Système" [ref=e125] [cursor=pointer]:
+          - img [ref=e126]
+          - generic [ref=e129]: Système
+          - generic [ref=e130]: Admin
+          - img [ref=e131]
+      - button "Admin Super admin" [ref=e134] [cursor=pointer]:
+        - generic [ref=e135]: A
+        - generic [ref=e136]:
+          - generic [ref=e137]: Admin
+          - generic [ref=e138]: Super admin
+        - img [ref=e139]
+    - main [ref=e142]:
+      - generic [ref=e143]:
+        - generic [ref=e145]:
+          - heading "P&L global" [level=1] [ref=e146]
+          - generic [ref=e147]: Revenu, coûts et profit net par période.
+        - tablist [ref=e152]:
+          - tab "Aujourd'hui" [ref=e153] [cursor=pointer]
+          - tab "7 jours" [ref=e154] [cursor=pointer]
+          - tab "30 jours" [selected] [ref=e155] [cursor=pointer]
+          - tab "Personnalisé" [ref=e156] [cursor=pointer]
+        - generic [ref=e157]:
+          - generic [ref=e158]:
+            - generic [ref=e159]:
+              - generic [ref=e160]: Profit net
+              - generic [ref=e161]: —
+            - generic [ref=e162]: —
+          - generic [ref=e163]:
+            - generic [ref=e164]:
+              - generic [ref=e165]: CA
+              - generic [ref=e166]: —
+            - generic [ref=e167]: —
+          - generic [ref=e168]:
+            - generic [ref=e170]: Marge
+            - generic [ref=e171]: —
+        - generic [ref=e172]:
+          - generic [ref=e173]:
+            - generic [ref=e174]:
+              - generic [ref=e175]: Panier moyen
+              - generic [ref=e176]: —
+            - generic [ref=e177]: —
+          - generic [ref=e178]:
+            - generic [ref=e179]:
+              - generic [ref=e180]: Pub
+              - generic [ref=e181]: —
+            - generic [ref=e182]: —
+          - generic [ref=e183]:
+            - generic [ref=e184]:
+              - generic [ref=e185]: CPA
+              - generic [ref=e186]: —
+            - generic [ref=e187]: —
+          - generic [ref=e188]:
+            - generic [ref=e189]:
+              - generic [ref=e190]: CPL
+              - generic [ref=e191]: —
+            - generic [ref=e192]: —
+        - generic [ref=e193]:
+          - generic [ref=e194]:
+            - generic [ref=e195]: Composition du chiffre d'affaires
+            - generic [ref=e196]: Chargement des chiffres…
+          - generic [ref=e197]:
+            - generic [ref=e198]:
+              - generic [ref=e199]: Entonnoir
+              - generic [ref=e200]: Chargement des chiffres…
+            - generic [ref=e201]:
+              - generic [ref=e202]: Opérations
+              - generic [ref=e203]: Chargement des chiffres…

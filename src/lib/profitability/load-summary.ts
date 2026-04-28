@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import {
   calculateRevenue,
   calculateCogs,
@@ -32,42 +33,52 @@ export async function loadProfitabilitySummary(
   fromDate: string,
   toDate: string,
 ): Promise<ProfitabilitySummary> {
+  type DeliveredHistoryRow = { orders: { id: string; total_price: number; quantity: number; product_id: string | null; carrier_id: string | null } };
+  type ReturnedHistoryRow = { orders: { id: string; carrier_id: string | null } };
+  type ConfirmedHistoryRow = { orders: { id: string; product_id: string | null } };
+
+  const dateLte = toDate + "T23:59:59.999Z";
+
   const [
-    deliveredResult,
-    returnedResult,
-    confirmedResult,
+    deliveredRows,
+    returnedRows,
+    confirmedRows,
     leadsResult,
     adSpendResult,
   ] = await Promise.all([
-    supabase
-      .from("order_history")
-      .select(
-        "order_id, orders!inner(id, total_price, quantity, product_id, carrier_id, market_id)",
-      )
-      .eq("status_to", "delivered")
-      .eq("orders.market_id", marketId)
-      .gte("created_at", fromDate)
-      .lte("created_at", toDate),
-    supabase
-      .from("order_history")
-      .select("order_id, orders!inner(id, carrier_id, market_id)")
-      .eq("status_to", "returned")
-      .eq("orders.market_id", marketId)
-      .gte("created_at", fromDate)
-      .lte("created_at", toDate),
-    supabase
-      .from("order_history")
-      .select("order_id, orders!inner(id, product_id, market_id)")
-      .eq("status_to", "confirmed")
-      .eq("orders.market_id", marketId)
-      .gte("created_at", fromDate)
-      .lte("created_at", toDate),
+    fetchAllRows<DeliveredHistoryRow>(
+      supabase
+        .from("order_history")
+        .select("order_id, orders!inner(id, total_price, quantity, product_id, carrier_id, market_id)")
+        .eq("status_to", "delivered")
+        .eq("orders.market_id", marketId)
+        .gte("created_at", fromDate)
+        .lte("created_at", dateLte)
+    ),
+    fetchAllRows<ReturnedHistoryRow>(
+      supabase
+        .from("order_history")
+        .select("order_id, orders!inner(id, carrier_id, market_id)")
+        .eq("status_to", "returned")
+        .eq("orders.market_id", marketId)
+        .gte("created_at", fromDate)
+        .lte("created_at", dateLte)
+    ),
+    fetchAllRows<ConfirmedHistoryRow>(
+      supabase
+        .from("order_history")
+        .select("order_id, orders!inner(id, product_id, market_id)")
+        .eq("status_to", "confirmed")
+        .eq("orders.market_id", marketId)
+        .gte("created_at", fromDate)
+        .lte("created_at", dateLte)
+    ),
     supabase
       .from("orders")
       .select("id", { count: "exact", head: true })
       .eq("market_id", marketId)
       .gte("created_at", fromDate)
-      .lte("created_at", toDate + "T23:59:59.999Z"),
+      .lte("created_at", dateLte),
     supabase
       .from("ad_spend")
       .select("amount")
@@ -78,27 +89,11 @@ export async function loadProfitabilitySummary(
       .gte("period_end", fromDate),
   ]);
 
-  const deliveredOrders = (deliveredResult.data ?? []).map((h) => {
-    const o = h.orders as unknown as {
-      id: string;
-      total_price: number;
-      quantity: number;
-      product_id: string | null;
-      carrier_id: string | null;
-    };
-    return o;
-  });
+  const deliveredOrders = deliveredRows.map((h) => h.orders);
+  const returnedOrders = returnedRows.map((h) => h.orders);
 
-  const returnedOrders = (returnedResult.data ?? []).map((h) => {
-    const o = h.orders as unknown as { id: string; carrier_id: string | null };
-    return o;
-  });
-
-  const confirmedOrderProductIds = (confirmedResult.data ?? [])
-    .map((h) => {
-      const o = h.orders as unknown as { id: string; product_id: string | null };
-      return o.product_id;
-    })
+  const confirmedOrderProductIds = confirmedRows
+    .map((h) => h.orders.product_id)
     .filter((pid): pid is string => pid !== null);
 
   const productIdSet = new Set<string>();

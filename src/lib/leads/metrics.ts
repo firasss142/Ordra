@@ -5,6 +5,7 @@ import {
   type LeadSource,
   type LeadLostReason,
 } from "@/types/lead";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
 export interface LeadsMetricsFilters {
   /** null = all markets (super_admin). */
@@ -66,19 +67,13 @@ export async function getLeadsMetrics(
 ): Promise<LeadsMetrics> {
   let query = supabase
     .from("leads")
-    .select("status, source, assigned_to, lost_reason, callback_scheduled_at")
-    .limit(50000);
+    .select("status, source, assigned_to, lost_reason, callback_scheduled_at");
 
   if (filters.marketId) query = query.eq("market_id", filters.marketId);
   if (filters.dateFrom) query = query.gte("created_at", filters.dateFrom);
   if (filters.dateTo) query = query.lte("created_at", filters.dateTo);
 
-  const { data: rows, error } = await query;
-  if (error) {
-    throw new Error((error as { message?: string }).message ?? "leads metrics query failed");
-  }
-
-  const leads = (rows ?? []) as MetricRow[];
+  const leads = await fetchAllRows<MetricRow>(query);
 
   // End-of-day boundary in server TZ. Market-specific TZ is future work —
   // both supported markets (TN/LY) sit on UTC+1, so the drift is bounded.

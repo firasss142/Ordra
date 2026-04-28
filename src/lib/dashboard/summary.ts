@@ -6,6 +6,7 @@ import { TERMINAL_STATUSES } from "@/types/order-status";
 import type { Role } from "@/types";
 import type { RejectionReason } from "@/types/order-status";
 import { REJECTION_REASONS } from "@/types/order-status";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
 export interface DashboardSummaryInput {
   fromDate: string;
@@ -215,30 +216,6 @@ export function previousPeriod(fromDate: string, toDate: string): { from: string
   };
 }
 
-// PostgREST enforces a server-side row cap (default 1000 in Supabase).
-// Client-side .limit(N) cannot exceed that cap. To pull all matching rows we
-// page through with .range(). Use only when full enumeration is needed.
-interface RangeableBuilder<Row> {
-  range: (
-    from: number,
-    to: number,
-  ) => PromiseLike<{ data: Row[] | null; error: { message: string } | null }>;
-}
-
-async function fetchAllRows<Row>(builder: RangeableBuilder<Row>): Promise<Row[]> {
-  const PAGE = 1000;
-  const out: Row[] = [];
-  for (let start = 0; ; start += PAGE) {
-    const { data, error } = await builder.range(start, start + PAGE - 1);
-    if (error) throw new Error(error.message);
-    const rows = data ?? [];
-    out.push(...rows);
-    if (rows.length < PAGE) break;
-    if (out.length >= 200_000) break; // safety bail
-  }
-  return out;
-}
-
 async function fetchFinancials(
   supabase: Awaited<ReturnType<typeof createClient>>,
   marketId: string,
@@ -388,13 +365,12 @@ async function fetchNonFinancialCounts(
     .select("status_to, orders!inner(market_id)")
     .in("status_to", ["confirmed", "dispatched", "rejected"])
     .gte("created_at", fromDate)
-    .lte("created_at", dateLte)
-    .limit(50000);
+    .lte("created_at", dateLte);
   if (marketId) q = q.eq("orders.market_id", marketId);
 
-  const { data } = await q;
+  const data = await fetchAllRows<{ status_to: string }>(q);
   const counts = aggregatePeriodCounts(
-    (data ?? []).map((r) => ({
+    data.map((r) => ({
       status_to: r.status_to as string,
       created_at: "",
       actor_id: null,
@@ -512,29 +488,41 @@ export async function getDashboardSummary(
     .select("id, name, code, currency")
     .order("name", { ascending: true });
 
-  let pipelineQuery = supabase
+  let pipelineBuilder = supabase
     .from("orders")
     .select("status, market_id")
-    .not("status", "in", `(${TERMINAL_STATUSES.join(",")})`)
-    .limit(50000);
-  if (scopedMarketId) pipelineQuery = pipelineQuery.eq("market_id", scopedMarketId);
+    .not("status", "in", `(${TERMINAL_STATUSES.join(",")})`);
+  if (scopedMarketId) pipelineBuilder = pipelineBuilder.eq("market_id", scopedMarketId);
+  const pipelinePromise = fetchAllRows<{ status: string; market_id: string }>(pipelineBuilder);
 
-  let periodHistoryQuery = supabase
+  let periodHistoryBuilder = supabase
     .from("order_history")
     .select("status_to, created_at, actor_id, order_id, orders!inner(market_id, rejection_reason)")
     .gte("created_at", fromDate)
-    .lte("created_at", dateLte)
-    .limit(50000);
-  if (scopedMarketId) periodHistoryQuery = periodHistoryQuery.eq("orders.market_id", scopedMarketId);
+    .lte("created_at", dateLte);
+  if (scopedMarketId) periodHistoryBuilder = periodHistoryBuilder.eq("orders.market_id", scopedMarketId);
+  type PeriodHistoryRow = {
+    status_to: string;
+    created_at: string;
+    actor_id: string | null;
+    order_id: string | null;
+    orders: { market_id: string | null; rejection_reason: string | null } | null;
+  };
+  const periodHistoryPromise = fetchAllRows<PeriodHistoryRow>(periodHistoryBuilder);
 
-  let trendHistoryQuery = supabase
+  let trendHistoryBuilder = supabase
     .from("order_history")
     .select("status_to, created_at, orders!inner(market_id)")
     .in("status_to", ["confirmed", "dispatched", "rejected"])
     .gte("created_at", trendFromIso)
-    .lte("created_at", trendToIso + "T23:59:59.999Z")
-    .limit(50000);
-  if (scopedMarketId) trendHistoryQuery = trendHistoryQuery.eq("orders.market_id", scopedMarketId);
+    .lte("created_at", trendToIso + "T23:59:59.999Z");
+  if (scopedMarketId) trendHistoryBuilder = trendHistoryBuilder.eq("orders.market_id", scopedMarketId);
+  type TrendHistoryRow = {
+    status_to: string;
+    created_at: string;
+    orders: { market_id: string | null } | null;
+  };
+  const trendHistoryPromise = fetchAllRows<TrendHistoryRow>(trendHistoryBuilder);
 
   let agentsQuery = supabase
     .from("users")
@@ -544,32 +532,41 @@ export async function getDashboardSummary(
     .limit(1000);
   if (scopedMarketId) agentsQuery = agentsQuery.eq("market_id", scopedMarketId);
 
-  let deliveryHistoryQuery = supabase
+  let deliveryHistoryBuilder = supabase
     .from("order_history")
     .select("status_to, orders!inner(market_id)")
     .in("status_to", ["delivered", "returned"])
     .gte("created_at", fromDate)
-    .lte("created_at", dateLte)
-    .limit(50000);
-  if (scopedMarketId) deliveryHistoryQuery = deliveryHistoryQuery.eq("orders.market_id", scopedMarketId);
+    .lte("created_at", dateLte);
+  if (scopedMarketId) deliveryHistoryBuilder = deliveryHistoryBuilder.eq("orders.market_id", scopedMarketId);
+  type DeliveryHistoryRow = { status_to: string; orders: { market_id: string | null } | null };
+  const deliveryHistoryPromise = fetchAllRows<DeliveryHistoryRow>(deliveryHistoryBuilder);
 
-  let prevDeliveryHistoryQuery = supabase
+  let prevDeliveryHistoryBuilder = supabase
     .from("order_history")
     .select("status_to, orders!inner(market_id)")
     .in("status_to", ["delivered", "returned"])
     .gte("created_at", prev.from)
-    .lte("created_at", prevLte)
-    .limit(50000);
-  if (scopedMarketId) prevDeliveryHistoryQuery = prevDeliveryHistoryQuery.eq("orders.market_id", scopedMarketId);
+    .lte("created_at", prevLte);
+  if (scopedMarketId) prevDeliveryHistoryBuilder = prevDeliveryHistoryBuilder.eq("orders.market_id", scopedMarketId);
+  const prevDeliveryHistoryPromise = fetchAllRows<DeliveryHistoryRow>(prevDeliveryHistoryBuilder);
 
-  let topProductsQuery = supabase
+  let topProductsBuilder = supabase
     .from("order_history")
     .select("orders!inner(market_id, total_price, product_id, products!inner(name))")
     .eq("status_to", "delivered")
     .gte("created_at", fromDate)
-    .lte("created_at", dateLte)
-    .limit(50000);
-  if (scopedMarketId) topProductsQuery = topProductsQuery.eq("orders.market_id", scopedMarketId);
+    .lte("created_at", dateLte);
+  if (scopedMarketId) topProductsBuilder = topProductsBuilder.eq("orders.market_id", scopedMarketId);
+  type TopProductRow = {
+    orders: {
+      market_id: string;
+      total_price: number | string;
+      product_id: string | null;
+      products: { name: string } | null;
+    } | null;
+  };
+  const topProductsPromise = fetchAllRows<TopProductRow>(topProductsBuilder);
 
   const followUpsPromise = isSuperAdmin
     ? supabase
@@ -586,24 +583,24 @@ export async function getDashboardSummary(
 
   const [
     marketsResult,
-    pipelineResult,
-    periodHistoryResult,
-    trendHistoryResult,
+    pipelineRowsAll,
+    periodHistoryRowsAll,
+    trendHistoryRowsAll,
     agentsResult,
-    deliveryHistoryResult,
-    prevDeliveryHistoryResult,
-    topProductsResult,
+    deliveryHistoryRowsAll,
+    prevDeliveryHistoryRowsAll,
+    topProductsRowsAll,
     followUpsResult,
     campaignsResult,
   ] = await Promise.all([
     marketsPromise,
-    pipelineQuery,
-    periodHistoryQuery,
-    trendHistoryQuery,
+    pipelinePromise,
+    periodHistoryPromise,
+    trendHistoryPromise,
     agentsQuery,
-    deliveryHistoryQuery,
-    prevDeliveryHistoryQuery,
-    topProductsQuery,
+    deliveryHistoryPromise,
+    prevDeliveryHistoryPromise,
+    topProductsPromise,
     followUpsPromise,
     campaignsPromise,
   ]);
@@ -629,14 +626,7 @@ export async function getDashboardSummary(
     perMarketCountsPromises = allMarkets.map((m) => fetchNonFinancialCounts(supabase, m.id, fromDate, toDate));
   }
 
-  const periodHistoryRaw = (periodHistoryResult.data ?? []) as unknown as Array<{
-    status_to: string;
-    created_at: string;
-    actor_id: string | null;
-    order_id: string | null;
-    orders: { market_id: string | null; rejection_reason: string | null } | null;
-  }>;
-  const periodHistory: HistoryRow[] = periodHistoryRaw.map((r) => ({
+  const periodHistory: HistoryRow[] = periodHistoryRowsAll.map((r) => ({
     status_to: r.status_to,
     created_at: r.created_at,
     actor_id: r.actor_id,
@@ -645,13 +635,7 @@ export async function getDashboardSummary(
     market_id: r.orders?.market_id ?? null,
   }));
 
-  const trendHistory: HistoryRow[] = (
-    (trendHistoryResult.data ?? []) as unknown as Array<{
-      status_to: string;
-      created_at: string;
-      orders: { market_id: string | null } | null;
-    }>
-  ).map((r) => ({
+  const trendHistory: HistoryRow[] = trendHistoryRowsAll.map((r) => ({
     status_to: r.status_to,
     created_at: r.created_at,
     actor_id: null,
@@ -665,7 +649,7 @@ export async function getDashboardSummary(
   const trend = buildDailyTrend(trendHistory, trendFromIso, trendToIso);
 
   // Pipeline: bucket the open orders.
-  const pipelineRows = (pipelineResult.data ?? []) as Array<{ status: string }>;
+  const pipelineRows = pipelineRowsAll;
   const pipelineCountByStatus = new Map<string, number>();
   for (const r of pipelineRows) {
     pipelineCountByStatus.set(r.status, (pipelineCountByStatus.get(r.status) ?? 0) + 1);
@@ -696,28 +680,27 @@ export async function getDashboardSummary(
     const todayEnd = new Date();
     todayEnd.setUTCHours(23, 59, 59, 999);
 
-    const [queueResult, historyResult] = await Promise.all([
-      supabase
-        .from("orders")
-        .select("assigned_to")
-        .in("assigned_to", agentIds)
-        .not("status", "in", `(${TERMINAL_STATUSES.join(",")})`)
-        .limit(50000),
-      supabase
-        .from("order_history")
-        .select("actor_id, status_to")
-        .in("actor_id", agentIds)
-        .gte("created_at", todayStart.toISOString())
-        .lte("created_at", todayEnd.toISOString())
-        .limit(50000),
+    const [queueRowsAll, historyRowsAll] = await Promise.all([
+      fetchAllRows<{ assigned_to: string | null }>(
+        supabase
+          .from("orders")
+          .select("assigned_to")
+          .in("assigned_to", agentIds)
+          .not("status", "in", `(${TERMINAL_STATUSES.join(",")})`),
+      ),
+      fetchAllRows<{ actor_id: string | null; status_to: string }>(
+        supabase
+          .from("order_history")
+          .select("actor_id, status_to")
+          .in("actor_id", agentIds)
+          .gte("created_at", todayStart.toISOString())
+          .lte("created_at", todayEnd.toISOString()),
+      ),
     ]);
-    for (const r of (queueResult.data ?? []) as Array<{ assigned_to: string | null }>) {
+    for (const r of queueRowsAll) {
       if (r.assigned_to) queueByAgent[r.assigned_to] = (queueByAgent[r.assigned_to] ?? 0) + 1;
     }
-    for (const r of (historyResult.data ?? []) as Array<{
-      actor_id: string | null;
-      status_to: string;
-    }>) {
+    for (const r of historyRowsAll) {
       if (!r.actor_id) continue;
       if (ACTIONED_STATUSES.has(r.status_to)) {
         actionedTodayByAgent[r.actor_id] = (actionedTodayByAgent[r.actor_id] ?? 0) + 1;
@@ -781,12 +764,12 @@ export async function getDashboardSummary(
       ? Math.round((periodCounts.rejected / periodCounts.actioned) * 1000) / 10
       : 0;
 
-  const currDelivery = aggregateDeliveryCounts((deliveryHistoryResult.data ?? []) as DeliveryRow[]);
-  const prevDelivery = aggregateDeliveryCounts((prevDeliveryHistoryResult.data ?? []) as DeliveryRow[]);
+  const currDelivery = aggregateDeliveryCounts(deliveryHistoryRowsAll as unknown as DeliveryRow[]);
+  const prevDelivery = aggregateDeliveryCounts(prevDeliveryHistoryRowsAll as unknown as DeliveryRow[]);
   const currentDeliveryRate = computeDeliveryRate(currDelivery.delivered, currDelivery.returned);
   const prevDeliveryRate = computeDeliveryRate(prevDelivery.delivered, prevDelivery.returned);
 
-  const topProducts = aggregateTopProducts((topProductsResult.data ?? []) as unknown as ProductRow[]);
+  const topProducts = aggregateTopProducts(topProductsRowsAll as unknown as ProductRow[]);
 
   const kpis: DashboardKpis = {
     revenue,

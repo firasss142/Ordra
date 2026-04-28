@@ -6,6 +6,7 @@ import {
   type ProductProfitabilityResult,
 } from "@/lib/calculations/product-profitability";
 import { getActor } from "@/lib/auth/actor";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -37,43 +38,6 @@ async function computeForPeriod(
 ): Promise<ProductProfitabilityResult & PeriodCounts & { period: { from_date: string; to_date: string } }> {
   const toDateEnd = toDate + "T23:59:59.999Z";
 
-  // --- Total leads ---
-  const { count: totalLeads } = await supabase
-    .from("orders")
-    .select("id", { count: "exact", head: true })
-    .eq("product_id", productId)
-    .gte("created_at", fromDate)
-    .lte("created_at", toDateEnd);
-
-  // --- Confirmed count (product-scoped) ---
-  const { count: confirmedCount } = await supabase
-    .from("order_history")
-    .select("id, orders!inner(product_id)", { count: "exact", head: true })
-    .eq("status_to", "confirmed")
-    .eq("orders.product_id", productId)
-    .gte("created_at", fromDate)
-    .lte("created_at", toDateEnd);
-
-  // --- Dispatched count (product-scoped) ---
-  const { count: dispatchedCount } = await supabase
-    .from("order_history")
-    .select("id, orders!inner(product_id)", { count: "exact", head: true })
-    .eq("status_to", "dispatched")
-    .eq("orders.product_id", productId)
-    .gte("created_at", fromDate)
-    .lte("created_at", toDateEnd);
-
-  // --- Delivered orders with carrier fee ---
-  const { data: deliveredHistory } = await supabase
-    .from("order_history")
-    .select(
-      "orders!inner(id, total_price, quantity, carrier_id, product_id, carriers!orders_carrier_id_fkey(delivery_fee, return_fee))"
-    )
-    .eq("status_to", "delivered")
-    .eq("orders.product_id", productId)
-    .gte("created_at", fromDate)
-    .lte("created_at", toDateEnd);
-
   type DeliveredRow = {
     total_price: number;
     quantity: number;
@@ -81,8 +45,68 @@ async function computeForPeriod(
     carriers: { delivery_fee: number; return_fee: number } | null;
   };
 
-  const deliveredOrders = (deliveredHistory ?? []).map((h) => {
-    const o = h.orders as unknown as DeliveredRow;
+  type ReturnedRow = {
+    carrier_id: string | null;
+    carriers: { delivery_fee: number; return_fee: number } | null;
+  };
+
+  const [
+    { count: totalLeads },
+    { count: confirmedCount },
+    { count: dispatchedCount },
+    deliveredHistory,
+    returnedHistory,
+  ] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("product_id", productId)
+      .gte("created_at", fromDate)
+      .lte("created_at", toDateEnd),
+
+    supabase
+      .from("order_history")
+      .select("id, orders!inner(product_id)", { count: "exact", head: true })
+      .eq("status_to", "confirmed")
+      .eq("orders.product_id", productId)
+      .gte("created_at", fromDate)
+      .lte("created_at", toDateEnd),
+
+    supabase
+      .from("order_history")
+      .select("id, orders!inner(product_id)", { count: "exact", head: true })
+      .eq("status_to", "dispatched")
+      .eq("orders.product_id", productId)
+      .gte("created_at", fromDate)
+      .lte("created_at", toDateEnd),
+
+    fetchAllRows<{ orders: DeliveredRow }>(
+      supabase
+        .from("order_history")
+        .select(
+          "orders!inner(id, total_price, quantity, carrier_id, product_id, carriers!orders_carrier_id_fkey(delivery_fee, return_fee))"
+        )
+        .eq("status_to", "delivered")
+        .eq("orders.product_id", productId)
+        .gte("created_at", fromDate)
+        .lte("created_at", toDateEnd)
+    ),
+
+    fetchAllRows<{ orders: ReturnedRow }>(
+      supabase
+        .from("order_history")
+        .select(
+          "orders!inner(id, carrier_id, product_id, carriers!orders_carrier_id_fkey(delivery_fee, return_fee))"
+        )
+        .eq("status_to", "returned")
+        .eq("orders.product_id", productId)
+        .gte("created_at", fromDate)
+        .lte("created_at", toDateEnd)
+    ),
+  ]);
+
+  const deliveredOrders = deliveredHistory.map((h) => {
+    const o = h.orders;
     return {
       total_price: Number(o.total_price),
       quantity: Number(o.quantity),
@@ -90,24 +114,8 @@ async function computeForPeriod(
     };
   });
 
-  // --- Returned orders with carrier fee ---
-  const { data: returnedHistory } = await supabase
-    .from("order_history")
-    .select(
-      "orders!inner(id, carrier_id, product_id, carriers!orders_carrier_id_fkey(delivery_fee, return_fee))"
-    )
-    .eq("status_to", "returned")
-    .eq("orders.product_id", productId)
-    .gte("created_at", fromDate)
-    .lte("created_at", toDateEnd);
-
-  type ReturnedRow = {
-    carrier_id: string | null;
-    carriers: { delivery_fee: number; return_fee: number } | null;
-  };
-
-  const returnedOrders = (returnedHistory ?? []).map((h) => {
-    const o = h.orders as unknown as ReturnedRow;
+  const returnedOrders = returnedHistory.map((h) => {
+    const o = h.orders;
     return {
       carrier_return_fee: Number(o.carriers?.return_fee ?? 0),
     };

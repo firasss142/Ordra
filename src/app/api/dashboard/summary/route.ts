@@ -12,8 +12,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const fromDate = req.nextUrl.searchParams.get("from_date") ?? todayISO();
-  const toDate = req.nextUrl.searchParams.get("to_date") ?? todayISO();
+  const today = todayISO();
+  const normalizeDate = (d: string | null) => (!d || d === "today" ? today : d);
+  const fromDate = normalizeDate(req.nextUrl.searchParams.get("from_date"));
+  const toDate = normalizeDate(req.nextUrl.searchParams.get("to_date"));
   const marketIdParam = req.nextUrl.searchParams.get("market_id");
 
   const summary = await getDashboardSummary({

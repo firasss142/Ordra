@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewProfitability } from "@/lib/profitability-permissions";
 import { calculateBusinessProfitability } from "@/lib/calculations/business-profitability";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -40,13 +41,28 @@ export async function GET(req: NextRequest) {
 
   const dateLte = toDate + "T23:59:59.999Z";
 
+  type DeliveredRow = {
+    total_price: number;
+    quantity: number;
+    products: { unit_cogs: number; packing_cost: number } | null;
+    carriers: { delivery_fee: number; return_fee: number } | null;
+  };
+
+  type ReturnedRow = {
+    carriers: { delivery_fee: number; return_fee: number } | null;
+  };
+
+  type ConfirmedRow = {
+    products: { packing_cost: number } | null;
+  };
+
   const [
     marketResult,
     totalOrdersResult,
     totalRejectedResult,
-    deliveredResult,
-    returnedResult,
-    confirmedResult,
+    deliveredRows,
+    returnedRows,
+    confirmedRows,
     adSpendResult,
   ] = await Promise.all([
     supabase.from("markets").select("currency").eq("id", marketId).single(),
@@ -66,35 +82,41 @@ export async function GET(req: NextRequest) {
       .gte("created_at", fromDate)
       .lte("created_at", dateLte),
 
-    supabase
-      .from("order_history")
-      .select(
-        "orders!inner(total_price, quantity, products(unit_cogs, packing_cost), carriers!orders_carrier_id_fkey(delivery_fee, return_fee))"
-      )
-      .eq("status_to", "delivered")
-      .eq("orders.market_id", marketId)
-      .gte("created_at", fromDate)
-      .lte("created_at", dateLte),
+    fetchAllRows<{ orders: DeliveredRow }>(
+      supabase
+        .from("order_history")
+        .select(
+          "orders!inner(total_price, quantity, products(unit_cogs, packing_cost), carriers!orders_carrier_id_fkey(delivery_fee, return_fee))"
+        )
+        .eq("status_to", "delivered")
+        .eq("orders.market_id", marketId)
+        .gte("created_at", fromDate)
+        .lte("created_at", dateLte)
+    ),
 
-    supabase
-      .from("order_history")
-      .select(
-        "orders!inner(carriers!orders_carrier_id_fkey(delivery_fee, return_fee))"
-      )
-      .eq("status_to", "returned")
-      .eq("orders.market_id", marketId)
-      .gte("created_at", fromDate)
-      .lte("created_at", dateLte),
+    fetchAllRows<{ orders: ReturnedRow }>(
+      supabase
+        .from("order_history")
+        .select(
+          "orders!inner(carriers!orders_carrier_id_fkey(delivery_fee, return_fee))"
+        )
+        .eq("status_to", "returned")
+        .eq("orders.market_id", marketId)
+        .gte("created_at", fromDate)
+        .lte("created_at", dateLte)
+    ),
 
-    supabase
-      .from("order_history")
-      .select(
-        "orders!inner(products(packing_cost))"
-      )
-      .eq("status_to", "confirmed")
-      .eq("orders.market_id", marketId)
-      .gte("created_at", fromDate)
-      .lte("created_at", dateLte),
+    fetchAllRows<{ orders: ConfirmedRow }>(
+      supabase
+        .from("order_history")
+        .select(
+          "orders!inner(products(packing_cost))"
+        )
+        .eq("status_to", "confirmed")
+        .eq("orders.market_id", marketId)
+        .gte("created_at", fromDate)
+        .lte("created_at", dateLte)
+    ),
 
     supabase
       .from("ad_spend")
@@ -112,23 +134,8 @@ export async function GET(req: NextRequest) {
   const adSpendEntries = adSpendResult.data ?? [];
   const totalAdSpend = adSpendEntries.reduce((sum, r) => sum + Number(r.amount), 0);
 
-  type DeliveredRow = {
-    total_price: number;
-    quantity: number;
-    products: { unit_cogs: number; packing_cost: number } | null;
-    carriers: { delivery_fee: number; return_fee: number } | null;
-  };
-
-  type ReturnedRow = {
-    carriers: { delivery_fee: number; return_fee: number } | null;
-  };
-
-  type ConfirmedRow = {
-    products: { packing_cost: number } | null;
-  };
-
-  const deliveredOrderShapes = (deliveredResult.data ?? []).map((h) => {
-    const o = h.orders as unknown as DeliveredRow;
+  const deliveredOrderShapes = deliveredRows.map((h) => {
+    const o = h.orders;
     return {
       total_price: Number(o.total_price),
       quantity: Number(o.quantity),
@@ -140,8 +147,8 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  const returnedOrderShapes = (returnedResult.data ?? []).map((h) => {
-    const o = h.orders as unknown as ReturnedRow;
+  const returnedOrderShapes = returnedRows.map((h) => {
+    const o = h.orders;
     return {
       total_price: 0,
       quantity: 1,
@@ -153,9 +160,8 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  const confirmedHistory = confirmedResult.data ?? [];
-  const confirmedOrderShapes = confirmedHistory.map((h) => {
-    const o = h.orders as unknown as ConfirmedRow;
+  const confirmedOrderShapes = confirmedRows.map((h) => {
+    const o = h.orders;
     return {
       total_price: 0,
       quantity: 1,
@@ -177,7 +183,7 @@ export async function GET(req: NextRequest) {
     orders: allOrders,
     totalAdSpend,
     totalOrdersReceived: totalOrdersResult.count ?? 0,
-    totalConfirmed: confirmedHistory.length,
+    totalConfirmed: confirmedRows.length,
     totalRejected: totalRejectedResult.count ?? 0,
   });
 

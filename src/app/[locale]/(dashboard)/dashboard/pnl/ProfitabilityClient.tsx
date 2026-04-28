@@ -167,7 +167,6 @@ export function ProfitabilityClient({
             week: tNav("week"),
             month: tNav("month"),
             custom: tNav("custom"),
-            lastUpdated: tNav("lastUpdated"),
           }}
         />
       </div>

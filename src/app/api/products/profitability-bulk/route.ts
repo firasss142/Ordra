@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewProfitability } from "@/lib/profitability-permissions";
 import { calculateProductProfitability } from "@/lib/calculations/product-profitability";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -69,76 +70,79 @@ export async function GET(req: NextRequest) {
 
   const productIds = products.map((p: { id: string }) => p.id);
 
-  // Total leads per product
-  const { data: leadsRows } = await supabase
-    .from("orders")
-    .select("product_id")
-    .in("product_id", productIds)
-    .gte("created_at", fromDate)
-    .lte("created_at", toDateEnd);
-
-  // Confirmed counts per product (via order_history → orders)
-  const { data: confirmedRows } = await supabase
-    .from("order_history")
-    .select("orders!inner(product_id)")
-    .eq("status_to", "confirmed")
-    .in("orders.product_id", productIds)
-    .gte("created_at", fromDate)
-    .lte("created_at", toDateEnd);
-
-  // Dispatched counts per product
-  const { data: dispatchedRows } = await supabase
-    .from("order_history")
-    .select("orders!inner(product_id)")
-    .eq("status_to", "dispatched")
-    .in("orders.product_id", productIds)
-    .gte("created_at", fromDate)
-    .lte("created_at", toDateEnd);
-
-  // Delivered rows with carrier fee + order details
-  const { data: deliveredRows } = await supabase
-    .from("order_history")
-    .select("orders!inner(product_id, total_price, quantity, carriers!orders_carrier_id_fkey(delivery_fee))")
-    .eq("status_to", "delivered")
-    .in("orders.product_id", productIds)
-    .gte("created_at", fromDate)
-    .lte("created_at", toDateEnd);
-
-  // Returned rows with carrier return fee
-  const { data: returnedRows } = await supabase
-    .from("order_history")
-    .select("orders!inner(product_id, carriers!orders_carrier_id_fkey(return_fee))")
-    .eq("status_to", "returned")
-    .in("orders.product_id", productIds)
-    .gte("created_at", fromDate)
-    .lte("created_at", toDateEnd);
-
-  // Build per-product aggregate maps
   type OrderRow = { product_id: string };
   type DeliveredOrder = { product_id: string; total_price: number; quantity: number; carriers: { delivery_fee: number } | null };
   type ReturnedOrder = { product_id: string; carriers: { return_fee: number } | null };
 
+  const [leadsRows, confirmedRows, dispatchedRows, deliveredRows, returnedRows] = await Promise.all([
+    fetchAllRows<OrderRow>(
+      supabase
+        .from("orders")
+        .select("product_id")
+        .in("product_id", productIds)
+        .gte("created_at", fromDate)
+        .lte("created_at", toDateEnd)
+    ),
+    fetchAllRows<{ orders: OrderRow }>(
+      supabase
+        .from("order_history")
+        .select("orders!inner(product_id)")
+        .eq("status_to", "confirmed")
+        .in("orders.product_id", productIds)
+        .gte("created_at", fromDate)
+        .lte("created_at", toDateEnd)
+    ),
+    fetchAllRows<{ orders: OrderRow }>(
+      supabase
+        .from("order_history")
+        .select("orders!inner(product_id)")
+        .eq("status_to", "dispatched")
+        .in("orders.product_id", productIds)
+        .gte("created_at", fromDate)
+        .lte("created_at", toDateEnd)
+    ),
+    fetchAllRows<{ orders: DeliveredOrder }>(
+      supabase
+        .from("order_history")
+        .select("orders!inner(product_id, total_price, quantity, carriers!orders_carrier_id_fkey(delivery_fee))")
+        .eq("status_to", "delivered")
+        .in("orders.product_id", productIds)
+        .gte("created_at", fromDate)
+        .lte("created_at", toDateEnd)
+    ),
+    fetchAllRows<{ orders: ReturnedOrder }>(
+      supabase
+        .from("order_history")
+        .select("orders!inner(product_id, carriers!orders_carrier_id_fkey(return_fee))")
+        .eq("status_to", "returned")
+        .in("orders.product_id", productIds)
+        .gte("created_at", fromDate)
+        .lte("created_at", toDateEnd)
+    ),
+  ]);
+
+  // Build per-product aggregate maps
   const leadCount = new Map<string, number>();
   const confirmedCount = new Map<string, number>();
   const dispatchedCount = new Map<string, number>();
   const deliveredByProduct = new Map<string, { total_price: number; quantity: number; carrier_delivery_fee: number }[]>();
   const returnedByProduct = new Map<string, { carrier_return_fee: number }[]>();
 
-  for (const row of (leadsRows ?? []) as OrderRow[]) {
+  for (const row of leadsRows) {
     leadCount.set(row.product_id, (leadCount.get(row.product_id) ?? 0) + 1);
   }
 
-  for (const row of (confirmedRows ?? []) as unknown as { orders: OrderRow }[]) {
+  for (const row of confirmedRows) {
     const pid = row.orders?.product_id;
     if (pid) confirmedCount.set(pid, (confirmedCount.get(pid) ?? 0) + 1);
   }
 
-  for (const row of (dispatchedRows ?? []) as unknown as { orders: OrderRow }[]) {
+  for (const row of dispatchedRows) {
     const pid = row.orders?.product_id;
     if (pid) dispatchedCount.set(pid, (dispatchedCount.get(pid) ?? 0) + 1);
   }
 
-  for (const row of (deliveredRows ?? []) as unknown as { orders: DeliveredOrder }[]) {
+  for (const row of deliveredRows) {
     const o = row.orders;
     if (!o?.product_id) continue;
     const arr = deliveredByProduct.get(o.product_id) ?? [];
@@ -150,7 +154,7 @@ export async function GET(req: NextRequest) {
     deliveredByProduct.set(o.product_id, arr);
   }
 
-  for (const row of (returnedRows ?? []) as unknown as { orders: ReturnedOrder }[]) {
+  for (const row of returnedRows) {
     const o = row.orders;
     if (!o?.product_id) continue;
     const arr = returnedByProduct.get(o.product_id) ?? [];

@@ -52,3 +52,524 @@
        please check the style of container, or the props width(100%) and height(100%),
        or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
        height and width. @ webpack-internal:///(app-pages-browser)/./node_modules/recharts/es6/util/LogUtils.js:18
+[  607290ms] Error: pipelineQuery is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:390:9)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  607292ms] Error: pipelineQuery is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:390:9)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  607292ms] Error: pipelineQuery is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:390:9)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  607292ms] Error: pipelineQuery is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:390:9)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  607293ms] Error: pipelineQuery is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:390:9)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  607293ms] Error: pipelineQuery is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:390:9)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  607293ms] Error: pipelineQuery is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:390:9)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  607300ms] Error: pipelineQuery is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:390:9)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  607303ms] Error: pipelineQuery is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:390:9)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  607303ms] Error: pipelineQuery is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:390:9)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  607303ms] Error: pipelineQuery is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:390:9)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  607304ms] Error: pipelineQuery is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:390:9)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  607304ms] Error: pipelineQuery is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:390:9)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  607304ms] Error: pipelineQuery is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:390:9)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  607304ms] Error: pipelineQuery is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:390:9)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  607304ms] Error: pipelineQuery is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:390:9)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  607311ms] [ERROR] The above error occurred in the <NotFoundErrorBoundary> component:
+
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:243:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:349:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:153:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:228:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:16:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:370:11)
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:243:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at Suspense
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:349:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:153:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:228:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:16:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:370:11)
+    at main
+    at div
+    at DashboardChrome (webpack-internal:///(app-pages-browser)/./src/components/layout/DashboardChrome.tsx:16:11)
+    at DashboardLayout (Server)
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:243:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:349:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:153:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:228:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:16:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:370:11)
+    at MarketScopeProvider (webpack-internal:///(app-pages-browser)/./src/context/market-scope.tsx:26:11)
+    at AuthProvider (webpack-internal:///(app-pages-browser)/./src/context/auth.tsx:21:11)
+    at SWRConfig (webpack-internal:///(app-pages-browser)/./node_modules/swr/dist/_internal/config-context-12s-CCVTDPOP.mjs:556:13)
+    at SWRProvider (webpack-internal:///(app-pages-browser)/./src/components/providers/SWRProvider.tsx:12:11)
+    at IntlProvider (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/_IntlProvider.js:16:5)
+    at r (webpack-internal:///(app-pages-browser)/./node_modules/next-intl/dist/esm/shared/NextIntlClientProvider.js:13:19)
+    at i (Server)
+    at body
+    at html
+    at LocaleLayout (Server)
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:243:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:76:9)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:349:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:153:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:228:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:16:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:370:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:76:9)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at DevRootNotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/dev-root-not-found-boundary.js:33:11)
+    at ReactDevOverlay (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/ReactDevOverlay.js:87:9)
+    at HotReload (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:321:11)
+    at Router (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/app-router.js:207:11)
+    at ErrorBoundaryHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:113:9)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at AppRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/app-router.js:585:13)
+    at ServerRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:112:27)
+    at Root (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:117:11)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ReactDevOverlay. @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  610517ms] [WARNING] The resource http://localhost:3000/_next/static/css/app/%5Blocale%5D/layout.css?v=1777341298711 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://localhost:3000/fr/dashboard:0
+[  618338ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  618801ms] Error: periodHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:416:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  618811ms] Error: periodHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:416:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  618811ms] Error: periodHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:416:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  618811ms] Error: periodHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:416:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  618813ms] Error: periodHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:416:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  618813ms] Error: periodHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:416:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  618813ms] Error: periodHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:416:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  618813ms] Error: periodHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:416:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  618812ms] [ERROR] The above error occurred in the <NotFoundErrorBoundary> component:
+
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:243:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:349:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:153:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:228:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:16:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:370:11)
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:243:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at Suspense
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:349:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:153:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:228:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:16:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:370:11)
+    at main
+    at div
+    at DashboardChrome (webpack-internal:///(app-pages-browser)/./src/components/layout/DashboardChrome.tsx:16:11)
+    at DashboardLayout (Server)
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:243:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:349:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:153:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:228:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:16:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:370:11)
+    at MarketScopeProvider (webpack-internal:///(app-pages-browser)/./src/context/market-scope.tsx:26:11)
+    at AuthProvider (webpack-internal:///(app-pages-browser)/./src/context/auth.tsx:21:11)
+    at SWRConfig (webpack-internal:///(app-pages-browser)/./node_modules/swr/dist/_internal/config-context-12s-CCVTDPOP.mjs:556:13)
+    at SWRProvider (webpack-internal:///(app-pages-browser)/./src/components/providers/SWRProvider.tsx:12:11)
+    at IntlProvider (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/_IntlProvider.js:16:5)
+    at r (webpack-internal:///(app-pages-browser)/./node_modules/next-intl/dist/esm/shared/NextIntlClientProvider.js:13:19)
+    at i (Server)
+    at body
+    at html
+    at LocaleLayout (Server)
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:243:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:76:9)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:349:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:153:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:228:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:16:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:370:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:76:9)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at DevRootNotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/dev-root-not-found-boundary.js:33:11)
+    at ReactDevOverlay (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/ReactDevOverlay.js:87:9)
+    at HotReload (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:321:11)
+    at Router (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/app-router.js:207:11)
+    at ErrorBoundaryHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:113:9)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at AppRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/app-router.js:585:13)
+    at ServerRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:112:27)
+    at Root (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:117:11)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ReactDevOverlay. @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  648159ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  648854ms] Error: deliveryHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:522:50)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  648858ms] Error: deliveryHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:522:50)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  648858ms] Error: deliveryHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:522:50)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  648859ms] Error: deliveryHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:522:50)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  648859ms] Error: deliveryHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:522:50)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  648859ms] Error: deliveryHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:522:50)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  648859ms] Error: deliveryHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:522:50)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  648859ms] Error: deliveryHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:522:50)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  648860ms] Error: deliveryHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:522:50)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  648860ms] Error: deliveryHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:522:50)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  648860ms] Error: deliveryHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:522:50)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  648860ms] Error: deliveryHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:522:50)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  648860ms] Error: deliveryHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:522:50)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  648860ms] Error: deliveryHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:522:50)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  648860ms] Error: deliveryHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:522:50)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  648861ms] Error: deliveryHistoryResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:522:50)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  648862ms] [ERROR] The above error occurred in the <NotFoundErrorBoundary> component:
+
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:243:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:349:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:153:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:228:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:16:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:370:11)
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:243:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at Suspense
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:349:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:153:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:228:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:16:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:370:11)
+    at main
+    at div
+    at DashboardChrome (webpack-internal:///(app-pages-browser)/./src/components/layout/DashboardChrome.tsx:16:11)
+    at DashboardLayout (Server)
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:243:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:349:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:153:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:228:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:16:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:370:11)
+    at MarketScopeProvider (webpack-internal:///(app-pages-browser)/./src/context/market-scope.tsx:26:11)
+    at AuthProvider (webpack-internal:///(app-pages-browser)/./src/context/auth.tsx:21:11)
+    at SWRConfig (webpack-internal:///(app-pages-browser)/./node_modules/swr/dist/_internal/config-context-12s-CCVTDPOP.mjs:556:13)
+    at SWRProvider (webpack-internal:///(app-pages-browser)/./src/components/providers/SWRProvider.tsx:12:11)
+    at IntlProvider (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/_IntlProvider.js:16:5)
+    at r (webpack-internal:///(app-pages-browser)/./node_modules/next-intl/dist/esm/shared/NextIntlClientProvider.js:13:19)
+    at i (Server)
+    at body
+    at html
+    at LocaleLayout (Server)
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:243:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:76:9)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:349:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:153:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:228:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:16:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:370:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:76:9)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at DevRootNotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/dev-root-not-found-boundary.js:33:11)
+    at ReactDevOverlay (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/ReactDevOverlay.js:87:9)
+    at HotReload (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:321:11)
+    at Router (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/app-router.js:207:11)
+    at ErrorBoundaryHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:113:9)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at AppRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/app-router.js:585:13)
+    at ServerRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:112:27)
+    at Root (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:117:11)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ReactDevOverlay. @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  658097ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  658293ms] Error: topProductsResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:526:46)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  658293ms] Error: topProductsResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:526:46)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  658293ms] Error: topProductsResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:526:46)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  658294ms] Error: topProductsResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:526:46)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  658294ms] Error: topProductsResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:526:46)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  658294ms] Error: topProductsResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:526:46)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  658294ms] Error: topProductsResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:526:46)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  658295ms] Error: topProductsResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:526:46)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  658295ms] Error: topProductsResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:526:46)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  658295ms] Error: topProductsResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:526:46)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  658295ms] Error: topProductsResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:526:46)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  658295ms] Error: topProductsResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:526:46)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  658296ms] Error: topProductsResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:526:46)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  658296ms] Error: topProductsResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:526:46)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  658296ms] Error: topProductsResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:526:46)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  658296ms] Error: topProductsResult is not defined
+    at getDashboardSummary (webpack-internal:///(rsc)/./src/lib/dashboard/summary.ts:526:46)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DashboardPage (webpack-internal:///(rsc)/./src/app/[locale]/(dashboard)/dashboard/page.tsx:34:28)
+[  658226ms] [ERROR] The above error occurred in the <NotFoundErrorBoundary> component:
+
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:243:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:349:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:153:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:228:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:16:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:370:11)
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:243:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at Suspense
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:349:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:153:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:228:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:16:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:370:11)
+    at main
+    at div
+    at DashboardChrome (webpack-internal:///(app-pages-browser)/./src/components/layout/DashboardChrome.tsx:16:11)
+    at DashboardLayout (Server)
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:243:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:349:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:153:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:228:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:16:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:370:11)
+    at MarketScopeProvider (webpack-internal:///(app-pages-browser)/./src/context/market-scope.tsx:26:11)
+    at AuthProvider (webpack-internal:///(app-pages-browser)/./src/context/auth.tsx:21:11)
+    at SWRConfig (webpack-internal:///(app-pages-browser)/./node_modules/swr/dist/_internal/config-context-12s-CCVTDPOP.mjs:556:13)
+    at SWRProvider (webpack-internal:///(app-pages-browser)/./src/components/providers/SWRProvider.tsx:12:11)
+    at IntlProvider (webpack-internal:///(app-pages-browser)/./node_modules/use-intl/dist/development/_IntlProvider.js:16:5)
+    at r (webpack-internal:///(app-pages-browser)/./node_modules/next-intl/dist/esm/shared/NextIntlClientProvider.js:13:19)
+    at i (Server)
+    at body
+    at html
+    at LocaleLayout (Server)
+    at InnerLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:243:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:76:9)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at LoadingBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:349:11)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at InnerScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:153:9)
+    at ScrollAndFocusHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:228:11)
+    at RenderFromTemplateContext (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/render-from-template-context.js:16:44)
+    at OuterLayoutRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/layout-router.js:370:11)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:74:9)
+    at RedirectBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/redirect-boundary.js:82:11)
+    at NotFoundErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:76:9)
+    at NotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/not-found-boundary.js:84:11)
+    at DevRootNotFoundBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/dev-root-not-found-boundary.js:33:11)
+    at ReactDevOverlay (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/ReactDevOverlay.js:87:9)
+    at HotReload (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:321:11)
+    at Router (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/app-router.js:207:11)
+    at ErrorBoundaryHandler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:113:9)
+    at ErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/error-boundary.js:160:11)
+    at AppRouter (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/app-router.js:585:13)
+    at ServerRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:112:27)
+    at Root (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:117:11)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ReactDevOverlay. @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[  680952ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom.development.js:38559
+[  683717ms] [WARNING] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width. @ webpack-internal:///(app-pages-browser)/./node_modules/recharts/es6/util/LogUtils.js:18
+[  683718ms] [WARNING] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width. @ webpack-internal:///(app-pages-browser)/./node_modules/recharts/es6/util/LogUtils.js:18
+[  683718ms] [WARNING] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width. @ webpack-internal:///(app-pages-browser)/./node_modules/recharts/es6/util/LogUtils.js:18
+[  683718ms] [WARNING] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width. @ webpack-internal:///(app-pages-browser)/./node_modules/recharts/es6/util/LogUtils.js:18
