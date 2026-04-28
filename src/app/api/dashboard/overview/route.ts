@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
     supabase
       .from("order_history")
       .select(
-        "orders!inner(total_price, quantity, products(unit_cogs, packing_cost), carriers(delivery_fee, return_fee))"
+        "orders!inner(total_price, quantity, products(unit_cogs, packing_cost), carriers!orders_carrier_id_fkey(delivery_fee, return_fee))"
       )
       .eq("status_to", "delivered")
       .eq("orders.market_id", marketId)
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
     supabase
       .from("order_history")
       .select(
-        "orders!inner(carriers(delivery_fee, return_fee))"
+        "orders!inner(carriers!orders_carrier_id_fkey(delivery_fee, return_fee))"
       )
       .eq("status_to", "returned")
       .eq("orders.market_id", marketId)

@@ -1,6 +1,8 @@
 export interface CarrierOrderData {
   customer_name: string;
   customer_phone: string;
+  customer_phone_2: string | null;
+  customer_whatsapp: string | null;
   customer_address: string | null;
   customer_city: string | null;
   customer_note: string | null;

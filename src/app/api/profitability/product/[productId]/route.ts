@@ -67,7 +67,7 @@ async function computeForPeriod(
   const { data: deliveredHistory } = await supabase
     .from("order_history")
     .select(
-      "orders!inner(id, total_price, quantity, carrier_id, product_id, carriers(delivery_fee, return_fee))"
+      "orders!inner(id, total_price, quantity, carrier_id, product_id, carriers!orders_carrier_id_fkey(delivery_fee, return_fee))"
     )
     .eq("status_to", "delivered")
     .eq("orders.product_id", productId)
@@ -94,7 +94,7 @@ async function computeForPeriod(
   const { data: returnedHistory } = await supabase
     .from("order_history")
     .select(
-      "orders!inner(id, carrier_id, product_id, carriers(delivery_fee, return_fee))"
+      "orders!inner(id, carrier_id, product_id, carriers!orders_carrier_id_fkey(delivery_fee, return_fee))"
     )
     .eq("status_to", "returned")
     .eq("orders.product_id", productId)

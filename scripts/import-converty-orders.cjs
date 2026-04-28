@@ -225,7 +225,7 @@ async function main() {
     const { data: insertedOrders, error: orderErr } = await supabase
       .from("orders")
       .insert(batch)
-      .select("id, external_id, status, product_id, product_name, quantity, unit_price, total_price");
+      .select("id, external_id, status, product_id, product_name, quantity, unit_price, total_price, updated_at");
 
     if (orderErr) {
       console.error("  batch", i / BATCH, "failed:", orderErr.message);
@@ -251,6 +251,10 @@ async function main() {
       actor_id: null,
       actor_type: "system",
       note: "Imported from Converty (historical bulk)",
+      // Anchor the history transition at the order's last Converty update so
+      // dashboard period filters (which key off order_history.created_at) bucket
+      // imported orders into the day they actually happened, not import day.
+      created_at: o.updated_at,
     }));
 
     const [itemsRes, histRes] = await Promise.all([

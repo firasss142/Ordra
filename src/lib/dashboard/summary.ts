@@ -215,6 +215,30 @@ export function previousPeriod(fromDate: string, toDate: string): { from: string
   };
 }
 
+// PostgREST enforces a server-side row cap (default 1000 in Supabase).
+// Client-side .limit(N) cannot exceed that cap. To pull all matching rows we
+// page through with .range(). Use only when full enumeration is needed.
+interface RangeableBuilder<Row> {
+  range: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: Row[] | null; error: { message: string } | null }>;
+}
+
+async function fetchAllRows<Row>(builder: RangeableBuilder<Row>): Promise<Row[]> {
+  const PAGE = 1000;
+  const out: Row[] = [];
+  for (let start = 0; ; start += PAGE) {
+    const { data, error } = await builder.range(start, start + PAGE - 1);
+    if (error) throw new Error(error.message);
+    const rows = data ?? [];
+    out.push(...rows);
+    if (rows.length < PAGE) break;
+    if (out.length >= 200_000) break; // safety bail
+  }
+  return out;
+}
+
 async function fetchFinancials(
   supabase: Awaited<ReturnType<typeof createClient>>,
   marketId: string,
@@ -223,7 +247,24 @@ async function fetchFinancials(
 ): Promise<{ revenue: number; netProfit: number; totalAdSpend: number }> {
   const dateLte = toDate + "T23:59:59.999Z";
 
-  const [totalOrders, rejectedCount, deliveredJoin, returnedJoin, confirmedJoin, adSpend] =
+  // Counts use head:true (no row transfer, not subject to row cap).
+  // Row-returning joins use fetchAllRows() to bypass PostgREST's 1000-row cap.
+  type DeliveredRow = {
+    orders: {
+      total_price: number;
+      quantity: number;
+      products: { unit_cogs: number; packing_cost: number } | null;
+      carriers: { delivery_fee: number; return_fee: number } | null;
+    };
+  };
+  type ReturnedRow = {
+    orders: { carriers: { delivery_fee: number; return_fee: number } | null };
+  };
+  type ConfirmedRow = {
+    orders: { products: { packing_cost: number } | null };
+  };
+
+  const [totalOrders, rejectedCount, deliveredRows, returnedRows, confirmedRows, adSpend] =
     await Promise.all([
       supabase
         .from("orders")
@@ -238,29 +279,35 @@ async function fetchFinancials(
         .eq("orders.market_id", marketId)
         .gte("created_at", fromDate)
         .lte("created_at", dateLte),
-      supabase
-        .from("order_history")
-        .select(
-          "orders!inner(total_price, quantity, products(unit_cogs, packing_cost), carriers(delivery_fee, return_fee), market_id)",
-        )
-        .eq("status_to", "delivered")
-        .eq("orders.market_id", marketId)
-        .gte("created_at", fromDate)
-        .lte("created_at", dateLte),
-      supabase
-        .from("order_history")
-        .select("orders!inner(carriers(delivery_fee, return_fee), market_id)")
-        .eq("status_to", "returned")
-        .eq("orders.market_id", marketId)
-        .gte("created_at", fromDate)
-        .lte("created_at", dateLte),
-      supabase
-        .from("order_history")
-        .select("orders!inner(products(packing_cost), market_id)")
-        .eq("status_to", "confirmed")
-        .eq("orders.market_id", marketId)
-        .gte("created_at", fromDate)
-        .lte("created_at", dateLte),
+      fetchAllRows<DeliveredRow>(
+        supabase
+          .from("order_history")
+          .select(
+            "orders!inner(total_price, quantity, products(unit_cogs, packing_cost), carriers!orders_carrier_id_fkey(delivery_fee, return_fee), market_id)",
+          )
+          .eq("status_to", "delivered")
+          .eq("orders.market_id", marketId)
+          .gte("created_at", fromDate)
+          .lte("created_at", dateLte),
+      ),
+      fetchAllRows<ReturnedRow>(
+        supabase
+          .from("order_history")
+          .select("orders!inner(carriers!orders_carrier_id_fkey(delivery_fee, return_fee), market_id)")
+          .eq("status_to", "returned")
+          .eq("orders.market_id", marketId)
+          .gte("created_at", fromDate)
+          .lte("created_at", dateLte),
+      ),
+      fetchAllRows<ConfirmedRow>(
+        supabase
+          .from("order_history")
+          .select("orders!inner(products(packing_cost), market_id)")
+          .eq("status_to", "confirmed")
+          .eq("orders.market_id", marketId)
+          .gte("created_at", fromDate)
+          .lte("created_at", dateLte),
+      ),
       supabase
         .from("ad_spend")
         .select("amount")
@@ -273,17 +320,8 @@ async function fetchFinancials(
 
   const totalAdSpend = (adSpend.data ?? []).reduce((sum, r) => sum + Number(r.amount), 0);
 
-  type Delivered = {
-    total_price: number;
-    quantity: number;
-    products: { unit_cogs: number; packing_cost: number } | null;
-    carriers: { delivery_fee: number; return_fee: number } | null;
-  };
-  type Returned = { carriers: { delivery_fee: number; return_fee: number } | null };
-  type Confirmed = { products: { packing_cost: number } | null };
-
-  const delivered = (deliveredJoin.data ?? []).map((h) => {
-    const o = h.orders as unknown as Delivered;
+  const delivered = deliveredRows.map((h) => {
+    const o = h.orders;
     return {
       total_price: Number(o.total_price),
       quantity: Number(o.quantity),
@@ -294,8 +332,8 @@ async function fetchFinancials(
       product_packing_cost: Number(o.products?.packing_cost ?? 0),
     };
   });
-  const returned = (returnedJoin.data ?? []).map((h) => {
-    const o = h.orders as unknown as Returned;
+  const returned = returnedRows.map((h) => {
+    const o = h.orders;
     return {
       total_price: 0,
       quantity: 1,
@@ -306,8 +344,8 @@ async function fetchFinancials(
       product_packing_cost: 0,
     };
   });
-  const confirmed = (confirmedJoin.data ?? []).map((h) => {
-    const o = h.orders as unknown as Confirmed;
+  const confirmed = confirmedRows.map((h) => {
+    const o = h.orders;
     return {
       total_price: 0,
       quantity: 1,

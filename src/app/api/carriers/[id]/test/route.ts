@@ -24,6 +24,8 @@ interface TestResponse {
 const SAMPLE_ORDER: CarrierOrderData = {
   customer_name: "Test Client",
   customer_phone: "+216 00 000 000",
+  customer_phone_2: null,
+  customer_whatsapp: null,
   customer_address: "Rue de Test 1",
   customer_city: "Tunis",
   customer_note: null,

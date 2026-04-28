@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
   // Delivered rows with carrier fee + order details
   const { data: deliveredRows } = await supabase
     .from("order_history")
-    .select("orders!inner(product_id, total_price, quantity, carriers(delivery_fee))")
+    .select("orders!inner(product_id, total_price, quantity, carriers!orders_carrier_id_fkey(delivery_fee))")
     .eq("status_to", "delivered")
     .in("orders.product_id", productIds)
     .gte("created_at", fromDate)
@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
   // Returned rows with carrier return fee
   const { data: returnedRows } = await supabase
     .from("order_history")
-    .select("orders!inner(product_id, carriers(return_fee))")
+    .select("orders!inner(product_id, carriers!orders_carrier_id_fkey(return_fee))")
     .eq("status_to", "returned")
     .in("orders.product_id", productIds)
     .gte("created_at", fromDate)

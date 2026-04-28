@@ -10,6 +10,8 @@ vi.mock("@/lib/crypto", () => ({
 const mockOrder: CarrierOrderData = {
   customer_name: "Ahmed",
   customer_phone: "22123456",
+  customer_phone_2: null,
+  customer_whatsapp: null,
   customer_address: "Rue 1",
   customer_city: "Tunis",
   customer_note: null,

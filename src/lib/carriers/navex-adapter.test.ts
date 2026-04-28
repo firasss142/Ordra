@@ -5,6 +5,8 @@ import type { CarrierOrderData, CarrierConfig } from "./types";
 const mockOrder: CarrierOrderData = {
   customer_name: "Ahmed Ben Ali",
   customer_phone: "22123456",
+  customer_phone_2: null,
+  customer_whatsapp: null,
   customer_address: "123 Rue de la Liberté",
   customer_city: "La Marsa",
   customer_note: "Sonner deux fois",

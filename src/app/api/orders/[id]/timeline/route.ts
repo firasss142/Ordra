@@ -55,7 +55,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const { data: orderRow, error: orderErr } = await supabase
     .from("orders")
     .select(
-      "id, external_id, status, market_id, carrier_id, created_at, updated_at, needs_carrier_followup, carriers(name)",
+      "id, external_id, status, market_id, carrier_id, created_at, updated_at, needs_carrier_followup, carriers!orders_carrier_id_fkey(name)",
     )
     .eq("id", params.id)
     .single();

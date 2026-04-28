@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { Dispatch, SetStateAction } from "react";
 import useSWR from "swr";
 
 interface DexpressState {
@@ -13,8 +14,16 @@ interface DexpressPlace {
   name: string;
 }
 
-interface DexpressLocationPickerProps {
-  onSelect: (stateId: number, placeId?: number) => void;
+export interface DexpressSelection {
+  stateId: number | null;
+  stateName: string;
+  placeId: number | null;
+  womenDelivery: boolean;
+}
+
+export interface DexpressLocationPickerProps {
+  value: DexpressSelection;
+  onChange: Dispatch<SetStateAction<DexpressSelection>>;
 }
 
 const fetcher = (url: string) =>
@@ -23,55 +32,11 @@ const fetcher = (url: string) =>
     return r.json();
   });
 
-const searchInputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 12px",
-  fontSize: 14,
-  border: "1px solid #D1D5DB",
-  borderRadius: "0.25rem",
-  outline: "none",
-  boxSizing: "border-box",
-  marginBottom: 6,
-};
-
-const listContainerStyle: React.CSSProperties = {
-  maxHeight: 160,
-  overflowY: "auto",
-  border: "1px solid #E5E7EB",
-  borderRadius: "0.25rem",
-};
-
-const rowBase: React.CSSProperties = {
-  padding: "8px 12px",
-  fontSize: 13,
-  cursor: "pointer",
-  color: "#1A1A1A",
-  borderBottom: "1px solid #F3F4F6",
-};
-
-const rowSelected: React.CSSProperties = {
-  ...rowBase,
-  border: "2px solid #1A1A1A",
-  borderBottom: "2px solid #1A1A1A",
-  backgroundColor: "#F9FAFB",
-  fontWeight: 500,
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 13,
-  fontWeight: 500,
-  color: "#6B7280",
-  marginBottom: 6,
-  display: "block",
-};
-
-export function DexpressLocationPicker({ onSelect }: DexpressLocationPickerProps) {
-  const [stateQuery, setStateQuery] = useState("");
-  const [selectedStateId, setSelectedStateId] = useState<number | null>(null);
-  const [selectedStateName, setSelectedStateName] = useState<string>("");
-
-  const [placeQuery, setPlaceQuery] = useState("");
-  const [selectedPlaceId, setSelectedPlaceId] = useState<number | undefined>(undefined);
+export function DexpressLocationPicker({
+  value,
+  onChange,
+}: DexpressLocationPickerProps) {
+  const t = useTranslations("dispatch.shippingEyes");
 
   const { data: statesData, isLoading: statesLoading } = useSWR(
     "/api/dexpress/states",
@@ -80,7 +45,7 @@ export function DexpressLocationPicker({ onSelect }: DexpressLocationPickerProps
   );
 
   const { data: placesData, isLoading: placesLoading } = useSWR(
-    selectedStateId != null ? `/api/dexpress/places/${selectedStateId}` : null,
+    value.stateId != null ? `/api/dexpress/places/${value.stateId}` : null,
     fetcher,
     { revalidateOnFocus: false }
   );
@@ -88,103 +53,103 @@ export function DexpressLocationPicker({ onSelect }: DexpressLocationPickerProps
   const allStates: DexpressState[] = statesData?.states ?? [];
   const allPlaces: DexpressPlace[] = placesData?.places ?? [];
 
-  const filteredStates = stateQuery
-    ? allStates.filter((s) =>
-        s.name.toLowerCase().includes(stateQuery.toLowerCase())
-      )
-    : allStates;
-
-  const filteredPlaces = placeQuery
-    ? allPlaces.filter((p) =>
-        p.name.toLowerCase().includes(placeQuery.toLowerCase())
-      )
-    : allPlaces;
-
   function handleStateSelect(state: DexpressState) {
-    setSelectedStateId(state.id);
-    setSelectedStateName(state.name);
-    setSelectedPlaceId(undefined);
-    setPlaceQuery("");
-    onSelect(state.id, undefined);
+    onChange((prev) => ({
+      ...prev,
+      stateId: state.id,
+      stateName: state.name,
+      placeId: null,
+    }));
   }
 
-  function handlePlaceSelect(placeId: number | undefined) {
-    setSelectedPlaceId(placeId);
-    if (selectedStateId != null) {
-      onSelect(selectedStateId, placeId);
-    }
+  function handlePlaceSelect(placeId: number | null) {
+    onChange((prev) => ({ ...prev, placeId }));
   }
 
   return (
-    <div>
-      {/* Step 1 — State picker */}
-      <div style={{ marginBottom: 16 }}>
-        <label style={labelStyle}>Rechercher une wilaya…</label>
-        <input
-          type="text"
-          placeholder="Rechercher une wilaya…"
-          value={stateQuery}
-          onChange={(e) => setStateQuery(e.target.value)}
-          style={searchInputStyle}
-        />
+    <div className="flex flex-col gap-4">
+      {/* State picker */}
+      <div>
+        <label className="mb-1.5 block text-[13px] font-medium text-ink-secondary">
+          {t("searchState")}
+        </label>
         {statesLoading ? (
-          <div style={{ fontSize: 13, color: "#6B7280", padding: "6px 0" }}>
-            Chargement…
-          </div>
+          <div className="py-2 text-[13px] text-ink-secondary">{t("loadingStates")}</div>
         ) : (
-          <div style={listContainerStyle}>
-            {filteredStates.map((state) => (
-              <div
+          <div className="max-h-40 overflow-y-auto rounded border border-line-subtle">
+            {allStates.map((state) => (
+              <button
                 key={state.id}
-                style={selectedStateId === state.id ? rowSelected : rowBase}
+                type="button"
                 onClick={() => handleStateSelect(state)}
+                className={[
+                  "w-full border-b border-line-subtle px-3 py-2 text-start text-[13px] last:border-b-0",
+                  value.stateId === state.id
+                    ? "bg-surface-hover font-medium text-ink-primary"
+                    : "text-ink-primary hover:bg-surface-hover",
+                ].join(" ")}
               >
                 {state.name}
-              </div>
+              </button>
             ))}
           </div>
         )}
       </div>
 
-      {/* Step 2 — Place picker (optional, loads after state selected) */}
-      {selectedStateId != null && (
+      {/* Place picker — optional, loads after state selected */}
+      {value.stateId != null && (
         <div>
-          <label style={labelStyle}>
-            Sélectionnez une zone (optionnel) — {selectedStateName}
+          <label className="mb-1.5 block text-[13px] font-medium text-ink-secondary">
+            {t("searchPlace")} — {value.stateName}
           </label>
-          <input
-            type="text"
-            placeholder="Rechercher une zone…"
-            value={placeQuery}
-            onChange={(e) => setPlaceQuery(e.target.value)}
-            style={searchInputStyle}
-          />
           {placesLoading ? (
-            <div style={{ fontSize: 13, color: "#6B7280", padding: "6px 0" }}>
-              Chargement des zones…
-            </div>
+            <div className="py-2 text-[13px] text-ink-secondary">{t("loadingPlaces")}</div>
           ) : (
-            <div style={listContainerStyle}>
-              {/* "No zone" option */}
-              <div
-                style={selectedPlaceId === undefined ? rowSelected : rowBase}
-                onClick={() => handlePlaceSelect(undefined)}
+            <div className="max-h-40 overflow-y-auto rounded border border-line-subtle">
+              <button
+                type="button"
+                onClick={() => handlePlaceSelect(null)}
+                className={[
+                  "w-full border-b border-line-subtle px-3 py-2 text-start text-[13px]",
+                  value.placeId == null
+                    ? "bg-surface-hover font-medium text-ink-primary"
+                    : "text-ink-secondary hover:bg-surface-hover",
+                ].join(" ")}
               >
-                Aucune zone
-              </div>
-              {filteredPlaces.map((place) => (
-                <div
+                {t("noPlace")}
+              </button>
+              {allPlaces.map((place) => (
+                <button
                   key={place.id}
-                  style={selectedPlaceId === place.id ? rowSelected : rowBase}
+                  type="button"
                   onClick={() => handlePlaceSelect(place.id)}
+                  className={[
+                    "w-full border-b border-line-subtle px-3 py-2 text-start text-[13px] last:border-b-0",
+                    value.placeId === place.id
+                      ? "bg-surface-hover font-medium text-ink-primary"
+                      : "text-ink-primary hover:bg-surface-hover",
+                  ].join(" ")}
                 >
                   {place.name}
-                </div>
+                </button>
               ))}
             </div>
           )}
         </div>
       )}
+
+      {/* Women delivery toggle */}
+      <label className="flex cursor-pointer items-center gap-2">
+        <input
+          type="checkbox"
+          checked={value.womenDelivery}
+          onChange={(e) =>
+            onChange((prev) => ({ ...prev, womenDelivery: e.target.checked }))
+          }
+          className="h-4 w-4 rounded border-line-subtle accent-ink-primary"
+        />
+        <span className="text-[13px] text-ink-primary">{t("womenDelivery")}</span>
+      </label>
     </div>
   );
 }
