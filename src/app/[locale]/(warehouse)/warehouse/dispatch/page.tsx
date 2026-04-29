@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth/server-user";
 import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
+import { canScanWarehouse } from "@/lib/role-permissions";
 import { ToShipCockpit } from "@/components/to-ship/ToShipCockpit";
 import type { ToShipRow } from "@/lib/to-ship/types";
 import type { OrderStatus } from "@/types/order-status";
@@ -28,28 +29,24 @@ interface OrderJoinRow {
   products: { current_stock: number; low_stock_threshold: number } | null;
 }
 
-export default async function ToShipPage({
+export default async function DispatchPage({
   params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
+  const { locale } = await params;
   const user = await getServerUser();
 
-  if (!user) redirect(`/${params.locale}/login`);
-  if (user.role === "agent") redirect(`/${params.locale}/queue`);
-  if (user.role === "warehouse_agent") redirect(`/${params.locale}/warehouse`);
+  if (!user) redirect(`/${locale}/login`);
+  if (!canScanWarehouse(user.role)) redirect(`/${locale}/queue`);
 
   const supabase = await createClient();
   const { marketId: scopedMarketId } = await getActiveMarketScope(user);
-  // to-ship requires a single market — fall back to the default when
-  // super_admin's scope is "all".
   const targetMarketId =
     scopedMarketId ?? getDefaultMarketId(await getAllActiveMarkets());
 
   if (!targetMarketId) {
-    return (
-      <ToShipCockpit rows={[]} carriers={[]} currency="TND" />
-    );
+    return <ToShipCockpit rows={[]} carriers={[]} currency="TND" />;
   }
 
   const [ordersResult, marketResult, carriersResult] = await Promise.all([

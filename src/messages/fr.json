@@ -73,7 +73,7 @@
     "sections": {
       "accueil": "Accueil",
       "commandes": "Commandes",
-      "logistique": "Logistique",
+      "logistique": "Entrepôt",
       "finances": "Finances",
       "clients": "Clients",
       "equipe": "Équipe",
@@ -84,10 +84,10 @@
       "alertes": "Alertes",
       "toAssign": "À assigner",
       "inConfirmation": "En confirmation",
-      "toShip": "À expédier",
       "inDelivery": "En livraison",
       "archived": "Archivées",
       "preparation": "Préparation",
+      "dispatch": "Expédition",
       "returns": "Retours",
       "carrierTracking": "Suivi transporteur",
       "inDeliveryBoard": "Tableau livraison",
@@ -1285,6 +1285,7 @@
     "loading": "Chargement…",
     "empty": "Aucune donnée pour la période sélectionnée",
     "backToProducts": "Produits",
+    "edit": "Modifier",
     "status": {
       "active": "Actif",
       "inactive": "Inactif"
@@ -1298,13 +1299,27 @@
       "title": "Coûts de référence",
       "cogs": "Coût unitaire (COGS)",
       "packing": "Emballage",
-      "cpl": "CPL",
       "processing": "Traitement",
       "variants": "Variantes",
       "noVariants": "Aucune variante",
       "variantPriceLine": "{label} · ×{quantity} · {price}"
     },
-    "stockHistoryTitle": "Historique du stock",
+    "header": {
+      "skuLabel": "SKU",
+      "variantsCount": "{count, plural, one {# variante} other {# variantes}}"
+    },
+    "stockHistory": {
+      "title": "Historique du stock",
+      "loading": "Chargement…",
+      "empty": "Aucun mouvement de stock",
+      "colDate": "Date",
+      "colMovement": "Mouvement",
+      "colReason": "Motif",
+      "colNote": "Note",
+      "prev": "Précédent",
+      "next": "Suivant",
+      "pageOf": "{page} / {total}"
+    },
     "hero": {
       "netProfit": "Profit net",
       "revenue": "Chiffre d'affaires",
@@ -1837,8 +1852,7 @@
     "loading": "Chargement…",
     "nav": {
       "preparation": "Préparation",
-      "toLabel": "À étiqueter",
-      "toScan": "À scanner",
+      "dispatch": "Expédition",
       "returns": "Retours",
       "history": "Historique"
     },
@@ -1894,8 +1908,8 @@
       "toScanOut": "À scanner",
       "returnsInbox": "Retours en attente",
       "damagedWeek": "Endommagés (7 j)",
-      "goToLabel": "Voir la file",
-      "goToScan": "Scanner",
+      "goToPreparation": "Préparation",
+      "goToDispatch": "Expédition",
       "goToReturns": "Traiter",
       "goToHistory": "Consulter",
       "recentPrints": "Impressions récentes",

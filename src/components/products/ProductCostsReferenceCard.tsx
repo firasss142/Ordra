@@ -13,7 +13,6 @@ interface Variant {
 interface ProductCostsReferenceCardProps {
   unitCogs: number;
   packingCost: number;
-  cpl: number;
   processingCost: number;
   variants: Variant[];
 }
@@ -25,7 +24,6 @@ function formatCost(value: number): string {
 export function ProductCostsReferenceCard({
   unitCogs,
   packingCost,
-  cpl,
   processingCost,
   variants,
 }: ProductCostsReferenceCardProps) {
@@ -34,18 +32,17 @@ export function ProductCostsReferenceCard({
   const stats = [
     { label: t("cogs"), value: formatCost(unitCogs) },
     { label: t("packing"), value: formatCost(packingCost) },
-    { label: t("cpl"), value: formatCost(cpl) },
     { label: t("processing"), value: formatCost(processingCost) },
   ];
 
   const activeVariants = variants.filter((v) => v.is_active);
 
   return (
-    <section className="mb-6 rounded-card border border-line-subtle bg-surface-card p-5">
+    <section className="rounded-card border border-line-subtle bg-surface-card p-5">
       <h2 className="mb-4 text-[13px] font-medium uppercase tracking-[0.05em] text-ink-secondary">
         {t("title")}
       </h2>
-      <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
         {stats.map((s) => (
           <div key={s.label}>
             <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-secondary">

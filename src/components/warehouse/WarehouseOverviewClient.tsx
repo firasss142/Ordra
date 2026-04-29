@@ -100,14 +100,14 @@ export function WarehouseOverviewClient({
 
   const quickActions = useMemo(() => [
     {
-      label: t("overview.goToLabel"),
+      label: t("overview.goToPreparation"),
       icon: <Printer size={16} strokeWidth={1.5} />,
-      href: `/${locale}/warehouse/to-label`,
+      href: `/${locale}/warehouse/preparation`,
     },
     {
-      label: t("overview.goToScan"),
+      label: t("overview.goToDispatch"),
       icon: <ScanLine size={16} strokeWidth={1.5} />,
-      href: `/${locale}/warehouse/to-scan`,
+      href: `/${locale}/warehouse/dispatch`,
     },
     {
       label: t("overview.goToReturns"),

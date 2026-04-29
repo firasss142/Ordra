@@ -184,7 +184,7 @@ export function ProductRentabilityClient({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Hero cards */}
+      {/* Hero cards — sit directly on page bg, equal-width 3-up */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <FinanceHeroCard
           label={t("hero.netProfit")}
@@ -222,105 +222,110 @@ export function ProductRentabilityClient({
         />
       </div>
 
-      {/* Funnel */}
-      <section className="rounded-card border border-line-subtle bg-surface-card p-5">
-        <h3 className="mb-4 text-[13px] font-medium uppercase tracking-[0.05em] text-ink-secondary">
-          {t("funnel.title")}
-        </h3>
-        <FinanceFunnel
-          leads={data.totalLeads}
-          confirmed={data.confirmedCount}
-          delivered={data.deliveredCount}
-          labels={{
-            leads: t("funnel.leads"),
-            confirmed: t("funnel.confirmed"),
-            delivered: t("funnel.delivered"),
-            toConfirmed: t("funnel.toConfirmed"),
-            toDelivered: t("funnel.toDelivered"),
-          }}
-        />
-      </section>
-
-      {/* Composition bars */}
-      <section className="rounded-card border border-line-subtle bg-surface-card p-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h3 className="text-[13px] font-medium uppercase tracking-[0.05em] text-ink-secondary">
-            {t("composition.title")}
-          </h3>
-          <div className="flex flex-wrap items-center gap-2">
-            {signals.adsPressure ? (
-              <Badge tone="warning" dot>
-                {t("pills.adsPressure")}
-              </Badge>
-            ) : null}
-            {signals.negativeProfit ? (
-              <Badge tone="critical" dot>
-                {t("pills.negativeProfit")}
-              </Badge>
-            ) : null}
-            {signals.healthyMargin ? (
-              <Badge tone="success" dot>
-                {t("pills.healthy")}
-              </Badge>
-            ) : null}
+      {/* Two-column grid: composition (wide) + funnel/ops stack (narrow) */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        {/* Composition bars */}
+        <section className="rounded-card border border-line-subtle bg-surface-card p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h3 className="text-[13px] font-medium uppercase tracking-[0.05em] text-ink-secondary">
+              {t("composition.title")}
+            </h3>
+            <div className="flex flex-wrap items-center gap-2">
+              {signals.adsPressure ? (
+                <Badge tone="warning" dot>
+                  {t("pills.adsPressure")}
+                </Badge>
+              ) : null}
+              {signals.negativeProfit ? (
+                <Badge tone="critical" dot>
+                  {t("pills.negativeProfit")}
+                </Badge>
+              ) : null}
+              {signals.healthyMargin ? (
+                <Badge tone="success" dot>
+                  {t("pills.healthy")}
+                </Badge>
+              ) : null}
+            </div>
           </div>
-        </div>
-        <CostCompositionBars
-          data={{
-            revenue: data.revenue,
-            cogs: data.totalCogs,
-            delivery_cost: data.totalDeliveryCost,
-            return_cost: data.totalReturnCost,
-            packing_cost: data.totalPackingCost,
-            ad_spend: data.totalAdSpend,
-            processing_cost: data.totalProcessingCost,
-            net_profit: data.simplifiedNetProfit,
-          }}
-          formatCurrency={(n) => formatCurrency(n, currency)}
-          labels={{
-            cogs: t("composition.cogs"),
-            delivery: t("composition.delivery"),
-            returns: t("composition.returns"),
-            packing: t("composition.packing"),
-            ads: t("composition.ads"),
-            processing: t("composition.processing"),
-            netProfit: t("composition.netProfit"),
-            ofRevenue: t("composition.ofRevenue"),
-          }}
-        />
-      </section>
+          <CostCompositionBars
+            data={{
+              revenue: data.revenue,
+              cogs: data.totalCogs,
+              delivery_cost: data.totalDeliveryCost,
+              return_cost: data.totalReturnCost,
+              packing_cost: data.totalPackingCost,
+              ad_spend: data.totalAdSpend,
+              processing_cost: data.totalProcessingCost,
+              net_profit: data.simplifiedNetProfit,
+            }}
+            formatCurrency={(n) => formatCurrency(n, currency)}
+            labels={{
+              cogs: t("composition.cogs"),
+              delivery: t("composition.delivery"),
+              returns: t("composition.returns"),
+              packing: t("composition.packing"),
+              ads: t("composition.ads"),
+              processing: t("composition.processing"),
+              netProfit: t("composition.netProfit"),
+              ofRevenue: t("composition.ofRevenue"),
+            }}
+          />
+        </section>
 
-      {/* Operations strip */}
-      <section className="rounded-card border border-line-subtle bg-surface-card p-5">
-        <h3 className="mb-4 text-[13px] font-medium uppercase tracking-[0.05em] text-ink-secondary">
-          {t("ops.title")}
-        </h3>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <OpsStat
-            label={t("ops.confirmationRate")}
-            value={formatPct(data.confirmationRate)}
-          />
-          <OpsStat
-            label={t("ops.deliveryRate")}
-            value={formatPct(data.deliveryRate)}
-          />
-          <OpsStat
-            label={t("ops.returnRate")}
-            value={formatPct(data.returnRate)}
-            pill={
-              signals.returnRate === "critical"
-                ? { tone: "critical", text: t("pills.high") }
-                : signals.returnRate === "warn"
-                ? { tone: "warning", text: t("pills.watch") }
-                : null
-            }
-          />
-          <OpsStat
-            label={t("ops.costPerDelivered")}
-            value={formatCurrency(data.costPerDelivered, currency)}
-          />
+        <div className="flex flex-col gap-4">
+          {/* Funnel */}
+          <section className="rounded-card border border-line-subtle bg-surface-card p-5">
+            <h3 className="mb-4 text-[13px] font-medium uppercase tracking-[0.05em] text-ink-secondary">
+              {t("funnel.title")}
+            </h3>
+            <FinanceFunnel
+              leads={data.totalLeads}
+              confirmed={data.confirmedCount}
+              delivered={data.deliveredCount}
+              labels={{
+                leads: t("funnel.leads"),
+                confirmed: t("funnel.confirmed"),
+                delivered: t("funnel.delivered"),
+                toConfirmed: t("funnel.toConfirmed"),
+                toDelivered: t("funnel.toDelivered"),
+              }}
+            />
+          </section>
+
+          {/* Operations strip */}
+          <section className="rounded-card border border-line-subtle bg-surface-card p-5">
+            <h3 className="mb-4 text-[13px] font-medium uppercase tracking-[0.05em] text-ink-secondary">
+              {t("ops.title")}
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <OpsStat
+                label={t("ops.confirmationRate")}
+                value={formatPct(data.confirmationRate)}
+              />
+              <OpsStat
+                label={t("ops.deliveryRate")}
+                value={formatPct(data.deliveryRate)}
+              />
+              <OpsStat
+                label={t("ops.returnRate")}
+                value={formatPct(data.returnRate)}
+                pill={
+                  signals.returnRate === "critical"
+                    ? { tone: "critical", text: t("pills.high") }
+                    : signals.returnRate === "warn"
+                    ? { tone: "warning", text: t("pills.watch") }
+                    : null
+                }
+              />
+              <OpsStat
+                label={t("ops.costPerDelivered")}
+                value={formatCurrency(data.costPerDelivered, currency)}
+              />
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
     </div>
   );
 }

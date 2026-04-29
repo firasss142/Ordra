@@ -21,7 +21,7 @@ export default async function WarehouseOverviewPage({
 
   // Warehouse agents don't see the overview — they jump straight to the queue.
   if (user.role === "warehouse_agent") {
-    redirect(`/${locale}/warehouse/to-label`);
+    redirect(`/${locale}/warehouse/preparation`);
   }
 
   const isSuperAdmin = user.role === "super_admin";

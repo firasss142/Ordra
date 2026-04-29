@@ -73,7 +73,7 @@
     "sections": {
       "accueil": "الرئيسية",
       "commandes": "الطلبات",
-      "logistique": "اللوجستيك",
+      "logistique": "المستودع",
       "finances": "المالية",
       "clients": "العملاء",
       "equipe": "الفريق",
@@ -84,10 +84,10 @@
       "alertes": "التنبيهات",
       "toAssign": "للتعيين",
       "inConfirmation": "قيد التأكيد",
-      "toShip": "للشحن",
       "inDelivery": "قيد التوصيل",
       "archived": "المؤرشفة",
       "preparation": "التجهيز",
+      "dispatch": "إرسال",
       "returns": "المرتجعات",
       "carrierTracking": "تتبع الناقل",
       "inDeliveryBoard": "لوحة التسليم",
@@ -1285,6 +1285,7 @@
     "loading": "جارٍ التحميل…",
     "empty": "لا توجد بيانات للفترة المحددة",
     "backToProducts": "المنتجات",
+    "edit": "تعديل",
     "status": {
       "active": "نشط",
       "inactive": "غير نشط"
@@ -1298,13 +1299,27 @@
       "title": "التكاليف المرجعية",
       "cogs": "التكلفة لكل وحدة",
       "packing": "التغليف",
-      "cpl": "تكلفة العميل المحتمل",
       "processing": "المعالجة",
       "variants": "المتغيرات",
       "noVariants": "لا توجد متغيرات",
       "variantPriceLine": "{label} · ×{quantity} · {price}"
     },
-    "stockHistoryTitle": "سجل المخزون",
+    "header": {
+      "skuLabel": "رمز المنتج",
+      "variantsCount": "{count, plural, one {# متغير} other {# متغيرات}}"
+    },
+    "stockHistory": {
+      "title": "سجل المخزون",
+      "loading": "جارٍ التحميل…",
+      "empty": "لا توجد حركات مخزون",
+      "colDate": "التاريخ",
+      "colMovement": "الحركة",
+      "colReason": "السبب",
+      "colNote": "ملاحظة",
+      "prev": "السابق",
+      "next": "التالي",
+      "pageOf": "{page} / {total}"
+    },
     "hero": {
       "netProfit": "صافي الربح",
       "revenue": "الإيرادات",
@@ -1837,8 +1852,7 @@
     "loading": "جارٍ التحميل…",
     "nav": {
       "preparation": "التحضير",
-      "toLabel": "للطباعة",
-      "toScan": "للمسح",
+      "dispatch": "إرسال",
       "returns": "المرتجعات",
       "history": "السجل"
     },
@@ -1894,8 +1908,8 @@
       "toScanOut": "للمسح",
       "returnsInbox": "مرتجعات معلقة",
       "damagedWeek": "تالف (7 أيام)",
-      "goToLabel": "عرض القائمة",
-      "goToScan": "مسح",
+      "goToPreparation": "التجهيز",
+      "goToDispatch": "إرسال",
       "goToReturns": "معالجة",
       "goToHistory": "عرض",
       "recentPrints": "الطباعات الأخيرة",

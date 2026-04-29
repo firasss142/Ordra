@@ -113,12 +113,6 @@ const NAV_SECTIONS: readonly NavSection[] = [
         prefetchRoute: "confirmation-flow",
       },
       {
-        key: "toShip",
-        href: "to-ship",
-        icon: PackageCheck,
-        prefetchRoute: "to-ship",
-      },
-      {
         key: "inDelivery",
         href: "orders?preset=in_delivery",
         icon: Send,
@@ -136,7 +130,8 @@ const NAV_SECTIONS: readonly NavSection[] = [
     id: "logistique",
     icon: Warehouse,
     items: [
-      { key: "preparation", href: "warehouse/to-label", icon: PackageSearch, prefetchRoute: "warehouse" },
+      { key: "preparation", href: "warehouse/preparation", icon: PackageSearch, prefetchRoute: "warehouse" },
+      { key: "dispatch", href: "warehouse/dispatch", icon: PackageCheck, prefetchRoute: "warehouse" },
       { key: "returns", href: "warehouse/returns", icon: PackageOpen, prefetchRoute: "warehouse" },
       { key: "carrierTracking", href: "warehouse/carrier-tracking", icon: Truck, prefetchRoute: "warehouse" },
       { key: "inDeliveryBoard", href: "in-delivery", icon: Gauge, prefetchRoute: "in-delivery" },

@@ -14,7 +14,7 @@ export default async function Page({
   const user = await getServerUser();
   if (!user) redirect(`/${locale}/login`);
   if (!canScanWarehouse(user.role)) redirect(`/${locale}/queue`);
-  if (user.role === "warehouse_agent") redirect(`/${locale}/warehouse/to-label`);
+  if (user.role === "warehouse_agent") redirect(`/${locale}/warehouse/preparation`);
 
   return <CarrierTrackingClient user={user} />;
 }
