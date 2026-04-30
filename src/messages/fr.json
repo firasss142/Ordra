@@ -14,7 +14,41 @@
     "groupBy": {
       "label": "Regrouper par",
       "city": "Par ville",
-      "product": "Par produit"
+      "product": "Par produit",
+      "carrier": "Par transporteur",
+      "schedule": "Par planning",
+      "status": "Par statut",
+      "none": "Aucun",
+      "thenBy": "puis par",
+      "subCity": "Ville",
+      "subNone": "Aucun",
+      "carrierUnassigned": "Transporteur non assigné",
+      "hints": {
+        "city": "Tournée transporteur",
+        "product": "Picking par étagère",
+        "carrier": "Lot par transporteur",
+        "schedule": "Urgence d'expédition",
+        "status": "Étape du flux",
+        "none": "Liste à plat"
+      },
+      "scheduleBuckets": {
+        "overdue": "En retard",
+        "today": "Aujourd'hui",
+        "tomorrow": "Demain",
+        "later": "Plus tard",
+        "unscheduled": "Non planifié"
+      }
+    },
+    "filters": {
+      "label": "Filtres",
+      "product": "Produit",
+      "city": "Ville",
+      "all": "Tous",
+      "clear": "Tout effacer",
+      "search": "Rechercher…",
+      "noResults": "Aucun résultat",
+      "active": "{count} actif(s)",
+      "emptyAfterFilter": "Aucune commande ne correspond aux filtres."
     },
     "groupMeta": "{count} cmds · {units} unités",
     "selectGroup": "Sélectionner le groupe {heading}",
@@ -84,7 +118,7 @@
       "alertes": "Alertes",
       "toAssign": "À assigner",
       "inConfirmation": "En confirmation",
-      "inDelivery": "En livraison",
+      "orders": "Commandes",
       "archived": "Archivées",
       "preparation": "Préparation",
       "dispatch": "Expédition",
@@ -1864,6 +1898,33 @@
       "stageBacklog": "Sélectionner les commandes",
       "stageTray": "Imprimer les étiquettes",
       "stageScanner": "Scanner et expédier",
+      "mode": {
+        "scan": "Mode scan",
+        "workbench": "Établi",
+        "ariaLabel": "Mode d'affichage"
+      },
+      "scanFirst": {
+        "inputPlaceholder": "Scannez l'étiquette ou saisissez l'ID…",
+        "idleHeadline": "Scanner sortie",
+        "idleHint": "Pointez la douchette ou tapez l'identifiant. La saisie clavier valide avec Entrée.",
+        "customerHeading": "Client expédié",
+        "recentTitle": "Historique des scans",
+        "recentEmpty": "Aucun scan pour le moment. Le prochain client apparaîtra ici.",
+        "stockAfterShort": "Stock {stock}",
+        "stockAfterLabel": "Stock restant",
+        "successBadge": "Expédié — stock −1",
+        "warningBadge": "Déjà traité",
+        "errorBadge": "Échec du scan",
+        "qty": "Qté",
+        "errors": {
+          "ORDER_NOT_FOUND": "Commande introuvable",
+          "MARKET_MISMATCH": "Marché incorrect",
+          "INVALID_STATUS": "Déjà scanné ailleurs",
+          "NO_LABEL_PRINTED": "Étiquette manquante — imprimez d'abord",
+          "STOCK_UNDERFLOW": "Stock insuffisant — contactez le superviseur",
+          "NETWORK_ERROR": "Erreur réseau — réessayez"
+        }
+      },
       "stats": {
         "labelsPrinted": "Étiquettes imprimées",
         "ordersScanned": "Commandes scannées",
@@ -1982,6 +2043,14 @@
       "damagedBadge": "Endommagé",
       "stockAfter": "Stock : {stock}",
       "damagedCount": "Endommagés : {count}",
+      "stockShort": "Stock {stock}",
+      "damageShort": "Dégâts {count}",
+      "customerHeading": "Client retourné",
+      "scanSuccessBadge": "Retour scanné — décidez",
+      "scanErrorBadge": "Échec du scan",
+      "modeScan": "Mode scan",
+      "modeWorkbench": "Établi",
+      "modeAriaLabel": "Mode d'affichage",
       "decision": {
         "heading": "Décidez ce retour",
         "restock": "Remettre en stock",

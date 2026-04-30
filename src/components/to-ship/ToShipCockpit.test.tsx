@@ -55,6 +55,7 @@ const carriers = [
 beforeEach(() => {
   vi.clearAllMocks();
   (global.fetch as unknown) = vi.fn();
+  if (typeof window !== "undefined") window.localStorage.clear();
 });
 
 describe("ToShipCockpit", () => {
@@ -70,27 +71,70 @@ describe("ToShipCockpit", () => {
       }),
     ];
     render(<ToShipCockpit rows={rows} carriers={carriers} currency="TND" />);
-    // Tunis and Sfax appear as group headings; Sousse (dispatch_scheduled) is excluded.
     expect(screen.getAllByText("Tunis").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Sfax").length).toBeGreaterThan(0);
     expect(screen.queryByText("Sousse")).toBeNull();
   });
 
-  it("switches grouping to product when the product tab is clicked", async () => {
+  it("switches grouping to product when selected from the group-by chip", async () => {
     const user = userEvent.setup();
     const rows = [
       row({ id: "a", product_name: "Tee", product_id: "p-1", customer_city: "Tunis" }),
       row({ id: "b", product_name: "Hoodie", product_id: "p-2", customer_city: "Sfax" }),
     ];
     render(<ToShipCockpit rows={rows} carriers={carriers} currency="TND" />);
-    await user.click(screen.getByRole("tab", { name: /par produit/i }));
-    expect(screen.getByRole("tab", { name: /par produit/i })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    // Each product name appears in its group header AND its row — both present is fine
+    await user.click(screen.getByRole("button", { name: /regrouper par/i }));
+    const listbox = await screen.findByRole("listbox");
+    await user.click(within(listbox).getByText(/par produit/i));
     expect(screen.getAllByText("Tee").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Hoodie").length).toBeGreaterThan(0);
+  });
+
+  it("shows the secondary 'then by' selector only when grouping by product or carrier", async () => {
+    const user = userEvent.setup();
+    const rows = [row({ id: "a" })];
+    render(<ToShipCockpit rows={rows} carriers={carriers} currency="TND" />);
+    expect(screen.queryByRole("button", { name: /puis par/i })).toBeNull();
+    await user.click(screen.getByRole("button", { name: /regrouper par/i }));
+    let listbox = await screen.findByRole("listbox");
+    await user.click(within(listbox).getByText(/par produit/i));
+    expect(screen.getByRole("button", { name: /puis par/i })).toBeDefined();
+    await user.click(screen.getByRole("button", { name: /regrouper par/i }));
+    listbox = await screen.findByRole("listbox");
+    await user.click(within(listbox).getByText(/par ville/i));
+    expect(screen.queryByRole("button", { name: /puis par/i })).toBeNull();
+  });
+
+  it("filters rows by product before grouping using the searchable filter chip", async () => {
+    const user = userEvent.setup();
+    const rows = [
+      row({ id: "a", product_id: "p-1", product_name: "Tee", customer_city: "Tunis" }),
+      row({ id: "b", product_id: "p-2", product_name: "Hoodie", customer_city: "Sfax" }),
+    ];
+    render(<ToShipCockpit rows={rows} carriers={carriers} currency="TND" />);
+    await user.click(screen.getByRole("button", { name: /^produit$/i }));
+    const listbox = await screen.findByRole("listbox");
+    await user.click(within(listbox).getByText("Tee"));
+    const cells = screen.queryAllByRole("cell", { name: /sfax/i });
+    expect(cells).toHaveLength(0);
+    expect(screen.getAllByText("Tee").length).toBeGreaterThan(0);
+  });
+
+  it("supports searching inside the city filter chip", async () => {
+    const user = userEvent.setup();
+    const rows = [
+      row({ id: "a", customer_city: "Tunis" }),
+      row({ id: "b", customer_city: "Sfax" }),
+      row({ id: "c", customer_city: "Sousse", status: "confirmed" }),
+    ];
+    render(<ToShipCockpit rows={rows} carriers={carriers} currency="TND" />);
+    await user.click(screen.getByRole("button", { name: /^ville$/i }));
+    const search = await screen.findByPlaceholderText(/rechercher/i);
+    await user.type(search, "Sou");
+    const listbox = screen.getByRole("listbox");
+    expect(within(listbox).getByText("Sousse")).toBeDefined();
+    expect(within(listbox).queryByText("Tunis")).toBeNull();
+    expect(within(listbox).queryByText("Sfax")).toBeNull();
   });
 
   it("shows the bulk bar when rows are selected and hides it when selection is cleared", async () => {
@@ -102,7 +146,7 @@ describe("ToShipCockpit", () => {
     await user.click(checkbox);
     const bar = screen.getByRole("region", { name: /actions groupées/i });
     expect(bar).toBeDefined();
-    await user.click(within(bar).getByText(/effacer/i));
+    await user.click(within(bar).getAllByText(/effacer/i)[0]);
     expect(screen.queryByRole("region", { name: /actions groupées/i })).toBeNull();
   });
 
@@ -117,7 +161,6 @@ describe("ToShipCockpit", () => {
       }),
     ];
     render(<ToShipCockpit rows={rows} carriers={carriers} currency="TND" />);
-    // 6 - 3 = 3 < threshold 5 → warning renders
     expect(screen.getByText(/stock faible après expédition/i)).toBeDefined();
   });
 
@@ -165,7 +208,6 @@ describe("ToShipCockpit", () => {
     await user.click(screen.getByRole("button", { name: /^expédier$/i }));
 
     await screen.findByText(/1 expédiées, 1 en échec/i);
-    // bulk bar should still be visible with 1 selected (the failed one)
     const bar = screen.getByRole("region", { name: /actions groupées/i });
     expect(within(bar).getByText(/1 sélectionnées/i)).toBeDefined();
   });

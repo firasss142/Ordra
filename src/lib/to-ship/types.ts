@@ -17,13 +17,20 @@ export interface ToShipRow {
   scheduled_carrier_id: string | null;
 }
 
-export type Grouping = "city" | "product";
+export type Grouping = "city" | "product" | "carrier" | "schedule" | "status" | "none";
+export type Subgrouping = "city" | "none";
+
+export interface ToShipFilters {
+  productId: string | null;
+  city: string | null;
+}
 
 export interface Group {
   key: string;
   label: string;
   rows: ToShipRow[];
   totalQuantity: number;
+  subgroups?: Group[];
 }
 
 export interface ScheduledSummary {

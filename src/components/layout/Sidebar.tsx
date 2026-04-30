@@ -113,8 +113,8 @@ const NAV_SECTIONS: readonly NavSection[] = [
         prefetchRoute: "confirmation-flow",
       },
       {
-        key: "inDelivery",
-        href: "orders?preset=in_delivery",
+        key: "orders",
+        href: "orders",
         icon: Send,
         prefetchRoute: "orders",
       },

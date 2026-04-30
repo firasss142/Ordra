@@ -1,12 +1,24 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { groupRowsByCity, groupRowsByProduct, summarizeScheduled } from "@/lib/to-ship/group";
+import {
+  applyFilters,
+  applySubgroup,
+  groupRowsByCarrier,
+  groupRowsByCity,
+  groupRowsByProduct,
+  groupRowsBySchedule,
+  groupRowsByStatus,
+  groupRowsFlat,
+  summarizeScheduled,
+} from "@/lib/to-ship/group";
 import { flagStockWarnings } from "@/lib/to-ship/stock-warning";
-import type { Grouping, ToShipRow } from "@/lib/to-ship/types";
+import type { Group, Grouping, Subgrouping, ToShipFilters, ToShipRow } from "@/lib/to-ship/types";
 import { openPdfBlob } from "@/lib/pdf-utils";
+import { ToShipFilterBar, type FilterOption } from "./ToShipFilterBar";
+import { ToShipGroupingControl } from "./ToShipGroupingControl";
 
 interface CarrierOption {
   id: string;
@@ -42,15 +54,74 @@ const D = {
 
 type FeedbackKind = "success" | "error" | null;
 
+const STORAGE_KEY = "toShip:groupingV2";
+
+interface PersistedState {
+  primary: Grouping;
+  secondary: Subgrouping;
+  filters: ToShipFilters;
+}
+
+const DEFAULT_STATE: PersistedState = {
+  primary: "city",
+  secondary: "none",
+  filters: { productId: null, city: null },
+};
+
+function loadPersisted(): PersistedState {
+  if (typeof window === "undefined") return DEFAULT_STATE;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_STATE;
+    const parsed = JSON.parse(raw) as Partial<PersistedState>;
+    return {
+      primary: parsed.primary ?? DEFAULT_STATE.primary,
+      secondary: parsed.secondary ?? DEFAULT_STATE.secondary,
+      filters: {
+        productId: parsed.filters?.productId ?? null,
+        city: parsed.filters?.city ?? null,
+      },
+    };
+  } catch {
+    return DEFAULT_STATE;
+  }
+}
+
 export function ToShipCockpit({ rows, carriers, currency }: Props) {
   const t = useTranslations("toShip");
   const isMobile = useIsMobile();
-  const [grouping, setGrouping] = useState<Grouping>("city");
+  const [grouping, setGrouping] = useState<Grouping>(DEFAULT_STATE.primary);
+  const [subgrouping, setSubgrouping] = useState<Subgrouping>(DEFAULT_STATE.secondary);
+  const [filters, setFilters] = useState<ToShipFilters>(DEFAULT_STATE.filters);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [carrierId, setCarrierId] = useState<string>(carriers[0]?.id ?? "");
   const [dispatching, setDispatching] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: FeedbackKind; message: string } | null>(null);
+
+  useEffect(() => {
+    const persisted = loadPersisted();
+    setGrouping(persisted.primary);
+    setSubgrouping(persisted.secondary);
+    setFilters(persisted.filters);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ primary: grouping, secondary: subgrouping, filters }),
+      );
+    } catch {
+      // ignore
+    }
+  }, [grouping, subgrouping, filters]);
+
+  const carrierMap = useMemo(
+    () => new Map(carriers.map((c) => [c.id, c.label])),
+    [carriers],
+  );
 
   const shippableRows = useMemo(
     () => rows.filter((r) => r.status === "confirmed" || r.status === "scanned"),
@@ -59,12 +130,75 @@ export function ToShipCockpit({ rows, carriers, currency }: Props) {
 
   const scheduledSummary = useMemo(() => summarizeScheduled(rows, new Date()), [rows]);
 
-  const stockFlags = useMemo(() => flagStockWarnings(shippableRows), [shippableRows]);
-
-  const groups = useMemo(
-    () => (grouping === "city" ? groupRowsByCity(shippableRows) : groupRowsByProduct(shippableRows)),
-    [grouping, shippableRows],
+  const groupableRows = useMemo(
+    () => (grouping === "schedule" ? rows : shippableRows),
+    [grouping, rows, shippableRows],
   );
+
+  const filteredRows = useMemo(
+    () => applyFilters(groupableRows, filters),
+    [groupableRows, filters],
+  );
+
+  const stockFlags = useMemo(() => flagStockWarnings(filteredRows), [filteredRows]);
+
+  const productFilterOptions = useMemo<FilterOption[]>(() => {
+    const seen = new Map<string, string>();
+    for (const r of shippableRows) {
+      if (r.product_id && !seen.has(r.product_id)) seen.set(r.product_id, r.product_name);
+    }
+    return [...seen.entries()]
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [shippableRows]);
+
+  const cityFilterOptions = useMemo<FilterOption[]>(() => {
+    const seen = new Set<string>();
+    for (const r of shippableRows) if (r.customer_city) seen.add(r.customer_city);
+    return [...seen].sort().map((c) => ({ id: c, label: c }));
+  }, [shippableRows]);
+
+  const groups = useMemo<Group[]>(() => {
+    const now = new Date();
+    let primary: Group[];
+    switch (grouping) {
+      case "city":
+        primary = groupRowsByCity(filteredRows);
+        break;
+      case "product":
+        primary = groupRowsByProduct(filteredRows);
+        break;
+      case "carrier":
+        primary = groupRowsByCarrier(filteredRows, carrierMap, t("groupBy.carrierUnassigned"));
+        break;
+      case "schedule":
+        primary = groupRowsBySchedule(filteredRows, now, {
+          overdue: t("groupBy.scheduleBuckets.overdue"),
+          today: t("groupBy.scheduleBuckets.today"),
+          tomorrow: t("groupBy.scheduleBuckets.tomorrow"),
+          later: t("groupBy.scheduleBuckets.later"),
+          unscheduled: t("groupBy.scheduleBuckets.unscheduled"),
+        });
+        break;
+      case "status":
+        primary = groupRowsByStatus(filteredRows, {
+          confirmed: t("status.confirmed"),
+          dispatch_scheduled: t("status.dispatch_scheduled"),
+          scanned: t("status.scanned"),
+        });
+        break;
+      case "none":
+      default:
+        primary = groupRowsFlat(filteredRows);
+        break;
+    }
+    const allowSecondary = grouping === "product" || grouping === "carrier";
+    return allowSecondary && subgrouping === "city"
+      ? applySubgroup(primary, "city")
+      : primary;
+  }, [filteredRows, grouping, subgrouping, carrierMap, t]);
+
+  const filtersActive = filters.productId !== null || filters.city !== null;
 
   const toggleSelect = useCallback((id: string) => {
     setSelected((prev) => {
@@ -139,7 +273,11 @@ export function ToShipCockpit({ rows, carriers, currency }: Props) {
       const res = await fetch("/api/to-ship/picklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order_ids: [...selected], grouping }),
+        body: JSON.stringify({
+          order_ids: [...selected],
+          grouping,
+          subgrouping: grouping === "product" || grouping === "carrier" ? subgrouping : "none",
+        }),
       });
       if (!res.ok) return;
       const blob = await res.blob();
@@ -147,7 +285,7 @@ export function ToShipCockpit({ rows, carriers, currency }: Props) {
     } finally {
       setPrinting(false);
     }
-  }, [grouping, printing, selected]);
+  }, [grouping, subgrouping, printing, selected]);
 
   return (
     <div style={{ padding: isMobile ? "64px 16px 80px" : 24, backgroundColor: D.bgPage, minHeight: "100vh" }}>
@@ -156,6 +294,12 @@ export function ToShipCockpit({ rows, carriers, currency }: Props) {
         summary={scheduledSummary}
         grouping={grouping}
         onGroupingChange={setGrouping}
+        subgrouping={subgrouping}
+        onSubgroupingChange={setSubgrouping}
+        filters={filters}
+        onFiltersChange={setFilters}
+        productOptions={productFilterOptions}
+        cityOptions={cityFilterOptions}
         t={t}
       />
 
@@ -178,24 +322,38 @@ export function ToShipCockpit({ rows, carriers, currency }: Props) {
 
       <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>
         {groups.length === 0 ? (
-          <EmptyState label={t("empty")} />
+          <EmptyState label={filtersActive ? t("filters.emptyAfterFilter") : t("empty")} />
         ) : (
-          groups.map((g) => (
-            <GroupCard
-              key={g.key}
-              heading={g.label}
-              count={g.rows.length}
-              totalQuantity={g.totalQuantity}
-              rows={g.rows}
-              selected={selected}
-              stockFlags={stockFlags}
-              currency={currency}
-              onToggle={toggleSelect}
-              onToggleGroup={() => toggleGroup(g.rows)}
-              isMobile={isMobile}
-              t={t}
-            />
-          ))
+          groups.map((g) =>
+            g.subgroups && g.subgroups.length > 0 ? (
+              <NestedGroupCard
+                key={g.key}
+                parent={g}
+                selected={selected}
+                stockFlags={stockFlags}
+                currency={currency}
+                onToggle={toggleSelect}
+                onToggleGroup={toggleGroup}
+                isMobile={isMobile}
+                t={t}
+              />
+            ) : (
+              <GroupCard
+                key={g.key}
+                heading={g.label}
+                count={g.rows.length}
+                totalQuantity={g.totalQuantity}
+                rows={g.rows}
+                selected={selected}
+                stockFlags={stockFlags}
+                currency={currency}
+                onToggle={toggleSelect}
+                onToggleGroup={() => toggleGroup(g.rows)}
+                isMobile={isMobile}
+                t={t}
+              />
+            ),
+          )
         )}
       </div>
 
@@ -223,149 +381,121 @@ interface HeaderProps {
   summary: ReturnType<typeof summarizeScheduled>;
   grouping: Grouping;
   onGroupingChange: (g: Grouping) => void;
+  subgrouping: Subgrouping;
+  onSubgroupingChange: (s: Subgrouping) => void;
+  filters: ToShipFilters;
+  onFiltersChange: (f: ToShipFilters) => void;
+  productOptions: FilterOption[];
+  cityOptions: FilterOption[];
   t: ReturnType<typeof useTranslations>;
 }
 
-function Header({ total, summary, grouping, onGroupingChange, t }: HeaderProps) {
+function Header({
+  total,
+  summary,
+  grouping,
+  onGroupingChange,
+  subgrouping,
+  onSubgroupingChange,
+  filters,
+  onFiltersChange,
+  productOptions,
+  cityOptions,
+  t,
+}: HeaderProps) {
   const hasScheduled =
     summary.overdue > 0 || summary.today > 0 || summary.tomorrow > 0 || summary.later > 0;
 
+  const filterLabels = useMemo(
+    () => ({
+      label: t("filters.label"),
+      product: t("filters.product"),
+      city: t("filters.city"),
+      all: t("filters.all"),
+      clear: t("filters.clear"),
+      searchPlaceholder: t("filters.search"),
+      noResults: t("filters.noResults"),
+      activeCount: (n: number) => t("filters.active", { count: n }),
+    }),
+    [t],
+  );
+
+  const groupingLabels = useMemo(
+    () => ({
+      groupBy: t("groupBy.label"),
+      thenBy: t("groupBy.thenBy"),
+      city: t("groupBy.city"),
+      product: t("groupBy.product"),
+      carrier: t("groupBy.carrier"),
+      schedule: t("groupBy.schedule"),
+      status: t("groupBy.status"),
+      none: t("groupBy.none"),
+      subCity: t("groupBy.subCity"),
+      subNone: t("groupBy.subNone"),
+      cityHint: t("groupBy.hints.city"),
+      productHint: t("groupBy.hints.product"),
+      carrierHint: t("groupBy.hints.carrier"),
+      scheduleHint: t("groupBy.hints.schedule"),
+      statusHint: t("groupBy.hints.status"),
+      noneHint: t("groupBy.hints.none"),
+    }),
+    [t],
+  );
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="flex flex-col gap-4">
       <div>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: D.textPrimary }}>
-          {t("title")}
-        </h1>
-        <p style={{ margin: "4px 0 0", fontSize: 13, color: D.textSecondary }}>
+        <h1 className="m-0 text-[20px] font-semibold text-ink-primary">{t("title")}</h1>
+        <p className="m-0 mt-1 text-[13px] text-ink-secondary">
           {t("subtitle", { count: total })}
         </p>
       </div>
 
-      <div
-        style={{
-          background: D.bgCard,
-          border: `1px solid ${D.border}`,
-          borderRadius: 10,
-          padding: "10px 12px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-        }}
-      >
-        {/* Top row: grouping toggle */}
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: 10,
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 500,
-                color: D.textSecondary,
-                paddingInlineEnd: 4,
-              }}
-            >
-              {t("groupBy.label")}
-            </span>
-            <GroupingToggle grouping={grouping} onChange={onGroupingChange} t={t} />
-          </div>
-        </div>
+      <div className="bg-surface-card border border-line rounded-card p-3 flex flex-col gap-3 shadow-panel">
+        <ToShipFilterBar
+          filters={filters}
+          onChange={onFiltersChange}
+          productOptions={productOptions}
+          cityOptions={cityOptions}
+          labels={filterLabels}
+        />
 
-        {/* Second row: scheduled status pills */}
+        <div className="h-px bg-line-subtle -mx-3" />
+
+        <ToShipGroupingControl
+          grouping={grouping}
+          onChange={onGroupingChange}
+          subgrouping={subgrouping}
+          onSubgroupingChange={onSubgroupingChange}
+          labels={groupingLabels}
+        />
+
         {hasScheduled && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap",
-              paddingTop: 8,
-              borderTop: `1px solid ${D.border}`,
-            }}
-          >
-            {summary.overdue > 0 && (
-              <Pill tone="critical" label={t("scheduled.overdue", { count: summary.overdue })} />
-            )}
-            {summary.today > 0 && (
-              <Pill
-                tone="action"
-                label={t("scheduled.today", {
-                  count: summary.today,
-                  auto: summary.todayAuto,
-                })}
-              />
-            )}
-            {summary.tomorrow > 0 && (
-              <Pill tone="warning" label={t("scheduled.tomorrow", { count: summary.tomorrow })} />
-            )}
-            {summary.later > 0 && (
-              <Pill tone="neutral" label={t("scheduled.later", { count: summary.later })} />
-            )}
-          </div>
+          <>
+            <div className="h-px bg-line-subtle -mx-3" />
+            <div className="flex items-center gap-2 flex-wrap">
+              {summary.overdue > 0 && (
+                <Pill tone="critical" label={t("scheduled.overdue", { count: summary.overdue })} />
+              )}
+              {summary.today > 0 && (
+                <Pill
+                  tone="action"
+                  label={t("scheduled.today", {
+                    count: summary.today,
+                    auto: summary.todayAuto,
+                  })}
+                />
+              )}
+              {summary.tomorrow > 0 && (
+                <Pill tone="warning" label={t("scheduled.tomorrow", { count: summary.tomorrow })} />
+              )}
+              {summary.later > 0 && (
+                <Pill tone="neutral" label={t("scheduled.later", { count: summary.later })} />
+              )}
+            </div>
+          </>
         )}
       </div>
-    </div>
-  );
-}
-
-function GroupingToggle({
-  grouping,
-  onChange,
-  t,
-}: {
-  grouping: Grouping;
-  onChange: (g: Grouping) => void;
-  t: ReturnType<typeof useTranslations>;
-}) {
-  const items: { key: Grouping; label: string }[] = [
-    { key: "city", label: t("groupBy.city") },
-    { key: "product", label: t("groupBy.product") },
-  ];
-  return (
-    <div
-      role="tablist"
-      aria-label={t("groupBy.label")}
-      style={{
-        display: "inline-flex",
-        background: "#F6F6F7",
-        borderRadius: 8,
-        padding: 2,
-        gap: 2,
-      }}
-    >
-      {items.map((it) => {
-        const isActive = grouping === it.key;
-        return (
-          <button
-            key={it.key}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            onClick={() => onChange(it.key)}
-            style={{
-              padding: "5px 14px",
-              border: "none",
-              borderRadius: 6,
-              background: isActive ? "#FFFFFF" : "transparent",
-              color: D.textPrimary,
-              fontSize: 13,
-              fontWeight: isActive ? 600 : 500,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              boxShadow: isActive ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
-              fontFamily: "inherit",
-            }}
-          >
-            {it.label}
-          </button>
-        );
-      })}
     </div>
   );
 }
@@ -663,6 +793,96 @@ function GroupCard({
           </tbody>
         </table>
       )}
+    </div>
+  );
+}
+
+interface NestedGroupCardProps {
+  parent: Group;
+  selected: Set<string>;
+  stockFlags: Map<string, boolean>;
+  currency: string;
+  onToggle: (id: string) => void;
+  onToggleGroup: (rows: ToShipRow[]) => void;
+  isMobile: boolean;
+  t: ReturnType<typeof useTranslations>;
+}
+
+function NestedGroupCard({
+  parent,
+  selected,
+  stockFlags,
+  currency,
+  onToggle,
+  onToggleGroup,
+  isMobile,
+  t,
+}: NestedGroupCardProps) {
+  const allSelected = parent.rows.every((r) => selected.has(r.id));
+  const someSelected = !allSelected && parent.rows.some((r) => selected.has(r.id));
+  return (
+    <div
+      style={{
+        backgroundColor: D.bgCard,
+        border: `1px solid ${D.border}`,
+        borderRadius: 6,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          padding: "12px 16px",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          borderBottom: `1px solid ${D.border}`,
+          backgroundColor: "#F4F6F8",
+        }}
+      >
+        <input
+          type="checkbox"
+          aria-label={t("selectGroup", { heading: parent.label })}
+          checked={allSelected}
+          ref={(el) => {
+            if (el) el.indeterminate = someSelected;
+          }}
+          onChange={() => onToggleGroup(parent.rows)}
+        />
+        <span style={{ fontSize: 14, fontWeight: 600, color: D.textPrimary, flex: 1 }}>
+          {parent.label}
+        </span>
+        <span style={{ fontSize: 12, color: D.textSecondary, fontVariantNumeric: "tabular-nums" }}>
+          {t("groupMeta", { count: parent.rows.length, units: parent.totalQuantity })}
+        </span>
+      </div>
+      <div
+        style={{
+          paddingInlineStart: 16,
+          paddingInlineEnd: 0,
+          paddingBlock: 12,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          backgroundColor: D.bgPage,
+        }}
+      >
+        {parent.subgroups!.map((sg) => (
+          <GroupCard
+            key={sg.key}
+            heading={sg.label}
+            count={sg.rows.length}
+            totalQuantity={sg.totalQuantity}
+            rows={sg.rows}
+            selected={selected}
+            stockFlags={stockFlags}
+            currency={currency}
+            onToggle={onToggle}
+            onToggleGroup={() => onToggleGroup(sg.rows)}
+            isMobile={isMobile}
+            t={t}
+          />
+        ))}
+      </div>
     </div>
   );
 }
