@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import type { WarehouseQueuePage } from "@/hooks/useWarehouseQueue";
 import { usePreparationTray } from "@/hooks/usePreparationTray";
@@ -14,6 +14,8 @@ import { PreparationScannerPanel } from "./PreparationScannerPanel";
 import { PreparationBacklog } from "./PreparationBacklog";
 import type { ScanResult } from "./PreparationScannerPanel";
 import type { ScanErrorCode } from "@/lib/preparation/tray-state";
+import { ScanFirstPreparationStage } from "./ScanFirstPreparationStage";
+import { ScanModeToggle, type ScanMode } from "@/components/warehouse/shared/ScanModeToggle";
 
 function formatCycle(secs: number): string {
   if (secs === 0) return "—";
@@ -32,6 +34,33 @@ interface Props {
     stageBacklog: string;
     stageTray: string;
     stageScanner: string;
+    mode: {
+      scan: string;
+      workbench: string;
+      ariaLabel: string;
+    };
+    scanFirst: {
+      inputPlaceholder: string;
+      idleHeadline: string;
+      idleHint: string;
+      customerHeading: string;
+      recentTitle: string;
+      recentEmpty: string;
+      stockAfterShort: string;
+      stockAfterLabel: string;
+      successBadge: string;
+      warningBadge: string;
+      errorBadge: string;
+      qty: string;
+      errors: {
+        ORDER_NOT_FOUND: string;
+        MARKET_MISMATCH: string;
+        INVALID_STATUS: string;
+        NO_LABEL_PRINTED: string;
+        STOCK_UNDERFLOW: string;
+        NETWORK_ERROR: string;
+      };
+    };
     stats: {
       labelsPrinted: string;
       ordersScanned: string;
@@ -110,6 +139,22 @@ export function PreparationClient({ marketId, fallbackPage, labels }: Props) {
   const [printing, setPrinting] = useState(false);
   const [flashId, setFlashId] = useState<string | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mode, setMode] = useState<ScanMode>("scan");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem("warehouse:preparation:mode");
+    if (saved === "workbench" || saved === "scan") setMode(saved);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem("warehouse:preparation:mode", mode);
+    } catch {
+      // ignore
+    }
+  }, [mode]);
 
   const cycleSummary = useMemo(() => summarizeCycleTimes(rows), [rows]);
   const trayIds = useMemo(() => new Set(rows.map((r) => r.id)), [rows]);
@@ -235,8 +280,19 @@ export function PreparationClient({ marketId, fallbackPage, labels }: Props) {
       title={labels.pageTitle}
       subtitle={labels.pageSubtitle}
       kpiStrip={<WarehouseKpiStrip tiles={kpiTiles} />}
+      actions={
+        <ScanModeToggle mode={mode} onChange={setMode} labels={labels.mode} />
+      }
     >
-      {/* 3-stage horizontal workbench */}
+      {mode === "scan" ? (
+        <div className="max-w-[960px] mx-auto w-full">
+          <ScanFirstPreparationStage
+            onScan={handleScan}
+            trayRows={rows}
+            labels={labels.scanFirst}
+          />
+        </div>
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(320px,380px)] gap-4 items-stretch">
         {/* STAGE 1 — Backlog */}
         <section className="bg-surface-card border border-line-subtle rounded-card overflow-hidden flex flex-col">
@@ -283,6 +339,7 @@ export function PreparationClient({ marketId, fallbackPage, labels }: Props) {
           </div>
         </aside>
       </div>
+      )}
     </WarehouseShell>
   );
 }

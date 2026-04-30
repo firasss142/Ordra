@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { Package, PackageOpen, History, Menu } from "lucide-react";
+import { Package, PackageCheck, PackageOpen, History, Menu } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { WarehouseTabBar, type WarehouseTab } from "@/components/warehouse/shell/WarehouseTabBar";
@@ -17,6 +17,11 @@ function useWarehouseTabs(locale: string): WarehouseTab[] {
       label: t("nav.preparation"),
       icon: Package,
       prefetchKey: "/api/warehouse/to-label",
+    },
+    {
+      href: `/${locale}/warehouse/dispatch`,
+      label: t("nav.dispatch"),
+      icon: PackageCheck,
     },
     {
       href: `/${locale}/warehouse/returns`,

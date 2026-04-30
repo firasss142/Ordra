@@ -1,0 +1,87 @@
+@import "react-day-picker/style.css";
+
+.oms-rdp {
+  --rdp-accent-color: #1a1a1a;
+  --rdp-accent-background-color: #f2f2f2;
+  --rdp-day-height: 36px;
+  --rdp-day-width: 36px;
+  --rdp-day_button-height: 32px;
+  --rdp-day_button-width: 32px;
+  --rdp-day_button-border-radius: 8px;
+  --rdp-day_button-border: 1px solid transparent;
+  --rdp-selected-border: 1px solid #1a1a1a;
+  --rdp-today-color: #1a1a1a;
+  --rdp-nav_button-height: 28px;
+  --rdp-nav_button-width: 28px;
+  --rdp-nav-height: 36px;
+  --rdp-months-gap: 1.25rem;
+  --rdp-weekday-padding: 0.25rem 0;
+  font-family: inherit;
+  font-size: 13px;
+  color: #1a1a1a;
+}
+
+.oms-rdp .rdp-month_caption {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.oms-rdp .rdp-weekday {
+  font-weight: 500;
+  color: #6d7175;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.oms-rdp .rdp-day_button {
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+}
+
+.oms-rdp .rdp-day_button:hover:not([disabled]) {
+  background: #f2f2f2;
+}
+
+.oms-rdp .rdp-day_button:focus-visible {
+  outline: 2px solid #1a1a1a;
+  outline-offset: 1px;
+}
+
+.oms-rdp .rdp-today .rdp-day_button {
+  font-weight: 700;
+}
+
+.oms-rdp .rdp-selected .rdp-day_button {
+  background: #1a1a1a;
+  color: #ffffff;
+  border: 1px solid #1a1a1a;
+}
+
+.oms-rdp .rdp-range_middle .rdp-day_button {
+  background: #f2f2f2;
+  color: #1a1a1a;
+  border-radius: 0;
+  border: none;
+}
+
+.oms-rdp .rdp-range_start .rdp-day_button,
+.oms-rdp .rdp-range_end .rdp-day_button {
+  background: #1a1a1a;
+  color: #ffffff;
+  border: 1px solid #1a1a1a;
+}
+
+.oms-rdp .rdp-button_previous,
+.oms-rdp .rdp-button_next {
+  border-radius: 6px;
+}
+
+.oms-rdp .rdp-button_previous:hover:not([disabled]),
+.oms-rdp .rdp-button_next:hover:not([disabled]) {
+  background: #f2f2f2;
+}
+
+.oms-rdp .rdp-disabled {
+  opacity: 0.4;
+}

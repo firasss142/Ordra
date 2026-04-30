@@ -93,11 +93,15 @@ describe("POST /api/to-ship/picklist", () => {
           id: "o-1",
           customer_name: "Ahmed",
           customer_city: "Tunis",
+          product_id: "p-1",
           product_name: "Tee",
           variant_label: null,
           quantity: 2,
           total_price: 50,
           status: "confirmed",
+          scheduled_at: null,
+          scheduled_auto: false,
+          scheduled_carrier_id: null,
         },
       ]),
     );
@@ -105,5 +109,116 @@ describe("POST /api/to-ship/picklist", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("application/pdf");
     expect(mockRenderToBuffer).toHaveBeenCalledTimes(1);
+  });
+
+  test("400 on invalid subgrouping", async () => {
+    const res = await POST(
+      req({ order_ids: ["o-1"], grouping: "product", subgrouping: "garbage" }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  test.each(["carrier", "schedule", "status", "none"])(
+    "200 for grouping=%s",
+    async (g) => {
+      const orders = ordersQuery([
+        {
+          id: "o-1",
+          customer_name: "Ahmed",
+          customer_city: "Tunis",
+          product_id: "p-1",
+          product_name: "Tee",
+          variant_label: null,
+          quantity: 2,
+          total_price: 50,
+          status: "confirmed",
+          scheduled_at: null,
+          scheduled_auto: false,
+          scheduled_carrier_id: "c-1",
+        },
+      ]);
+      const carriers = {
+        select: vi.fn().mockReturnThis(),
+        in: vi.fn().mockResolvedValue({ data: [{ id: "c-1", name: "Aramex" }], error: null }),
+      };
+      mockFrom.mockImplementation((table: string) =>
+        table === "carriers" ? carriers : orders,
+      );
+      const res = await POST(req({ order_ids: ["o-1"], grouping: g }));
+      expect(res.status).toBe(200);
+    },
+  );
+
+  test("filters narrow rows in memory before grouping", async () => {
+    mockFrom.mockReturnValue(
+      ordersQuery([
+        {
+          id: "o-1",
+          customer_name: "A",
+          customer_city: "Tunis",
+          product_id: "p-1",
+          product_name: "Tee",
+          variant_label: null,
+          quantity: 1,
+          total_price: 10,
+          status: "confirmed",
+          scheduled_at: null,
+          scheduled_auto: false,
+          scheduled_carrier_id: null,
+        },
+        {
+          id: "o-2",
+          customer_name: "B",
+          customer_city: "Sfax",
+          product_id: "p-2",
+          product_name: "Hoodie",
+          variant_label: null,
+          quantity: 1,
+          total_price: 10,
+          status: "confirmed",
+          scheduled_at: null,
+          scheduled_auto: false,
+          scheduled_carrier_id: null,
+        },
+      ]),
+    );
+    const res = await POST(
+      req({
+        order_ids: ["o-1", "o-2"],
+        grouping: "city",
+        filters: { productId: "p-1", city: null },
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(mockRenderToBuffer).toHaveBeenCalledTimes(1);
+  });
+
+  test("404 when filters narrow result to empty", async () => {
+    mockFrom.mockReturnValue(
+      ordersQuery([
+        {
+          id: "o-1",
+          customer_name: "A",
+          customer_city: "Tunis",
+          product_id: "p-1",
+          product_name: "Tee",
+          variant_label: null,
+          quantity: 1,
+          total_price: 10,
+          status: "confirmed",
+          scheduled_at: null,
+          scheduled_auto: false,
+          scheduled_carrier_id: null,
+        },
+      ]),
+    );
+    const res = await POST(
+      req({
+        order_ids: ["o-1"],
+        grouping: "city",
+        filters: { productId: "p-999", city: null },
+      }),
+    );
+    expect(res.status).toBe(404);
   });
 });

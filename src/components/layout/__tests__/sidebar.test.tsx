@@ -91,7 +91,7 @@ describe("Sidebar — sections", () => {
     renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
     expect(screen.getByRole("button", { name: /Accueil/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Commandes/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Logistique/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Entrepôt/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Clients/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Équipe/ })).toBeInTheDocument();
   });
@@ -196,17 +196,17 @@ describe("Sidebar — accordion toggle", () => {
 });
 
 describe("Sidebar — active route auto-expand", () => {
-  it("auto-expands LOGISTIQUE when on /fr/warehouse/to-label", () => {
-    pathnameMock = "/fr/warehouse/to-label";
+  it("auto-expands ENTREPÔT when on /fr/warehouse/preparation", () => {
+    pathnameMock = "/fr/warehouse/preparation";
     searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse/to-label" unassignedCount={0} />);
+    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse/preparation" unassignedCount={0} />);
     expect(screen.getByRole("link", { name: /Préparation/ })).toBeInTheDocument();
   });
 
-  it("marks Préparation active on /fr/warehouse/to-label", () => {
-    pathnameMock = "/fr/warehouse/to-label";
+  it("marks Préparation active on /fr/warehouse/preparation", () => {
+    pathnameMock = "/fr/warehouse/preparation";
     searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse/to-label" unassignedCount={0} />);
+    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse/preparation" unassignedCount={0} />);
     const link = screen.getByRole("link", { name: /Préparation/ });
     expect(link).toHaveAttribute("aria-current", "page");
   });

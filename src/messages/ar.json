@@ -14,7 +14,41 @@
     "groupBy": {
       "label": "التجميع حسب",
       "city": "حسب المدينة",
-      "product": "حسب المنتج"
+      "product": "حسب المنتج",
+      "carrier": "حسب الناقل",
+      "schedule": "حسب الجدولة",
+      "status": "حسب الحالة",
+      "none": "بدون",
+      "thenBy": "ثم حسب",
+      "subCity": "المدينة",
+      "subNone": "بدون",
+      "carrierUnassigned": "ناقل غير مخصّص",
+      "hints": {
+        "city": "تنظيم تحميل الناقل",
+        "product": "التقاط من الرف",
+        "carrier": "دفعة لكل ناقل",
+        "schedule": "أولوية الشحن",
+        "status": "مرحلة التدفق",
+        "none": "قائمة مسطحة"
+      },
+      "scheduleBuckets": {
+        "overdue": "متأخر",
+        "today": "اليوم",
+        "tomorrow": "غداً",
+        "later": "لاحقاً",
+        "unscheduled": "غير مجدول"
+      }
+    },
+    "filters": {
+      "label": "المرشحات",
+      "product": "المنتج",
+      "city": "المدينة",
+      "all": "الكل",
+      "clear": "مسح الكل",
+      "search": "بحث…",
+      "noResults": "لا توجد نتائج",
+      "active": "{count} نشط",
+      "emptyAfterFilter": "لا توجد طلبات تطابق المرشحات."
     },
     "groupMeta": "{count} طلب · {units} وحدة",
     "selectGroup": "تحديد المجموعة {heading}",
@@ -73,7 +107,7 @@
     "sections": {
       "accueil": "الرئيسية",
       "commandes": "الطلبات",
-      "logistique": "اللوجستيك",
+      "logistique": "المستودع",
       "finances": "المالية",
       "clients": "العملاء",
       "equipe": "الفريق",
@@ -84,10 +118,10 @@
       "alertes": "التنبيهات",
       "toAssign": "للتعيين",
       "inConfirmation": "قيد التأكيد",
-      "toShip": "للشحن",
-      "inDelivery": "قيد التوصيل",
+      "orders": "الطلبات",
       "archived": "المؤرشفة",
       "preparation": "التجهيز",
+      "dispatch": "إرسال",
       "returns": "المرتجعات",
       "carrierTracking": "تتبع الناقل",
       "inDeliveryBoard": "لوحة التسليم",
@@ -1285,6 +1319,7 @@
     "loading": "جارٍ التحميل…",
     "empty": "لا توجد بيانات للفترة المحددة",
     "backToProducts": "المنتجات",
+    "edit": "تعديل",
     "status": {
       "active": "نشط",
       "inactive": "غير نشط"
@@ -1298,13 +1333,27 @@
       "title": "التكاليف المرجعية",
       "cogs": "التكلفة لكل وحدة",
       "packing": "التغليف",
-      "cpl": "تكلفة العميل المحتمل",
       "processing": "المعالجة",
       "variants": "المتغيرات",
       "noVariants": "لا توجد متغيرات",
       "variantPriceLine": "{label} · ×{quantity} · {price}"
     },
-    "stockHistoryTitle": "سجل المخزون",
+    "header": {
+      "skuLabel": "رمز المنتج",
+      "variantsCount": "{count, plural, one {# متغير} other {# متغيرات}}"
+    },
+    "stockHistory": {
+      "title": "سجل المخزون",
+      "loading": "جارٍ التحميل…",
+      "empty": "لا توجد حركات مخزون",
+      "colDate": "التاريخ",
+      "colMovement": "الحركة",
+      "colReason": "السبب",
+      "colNote": "ملاحظة",
+      "prev": "السابق",
+      "next": "التالي",
+      "pageOf": "{page} / {total}"
+    },
     "hero": {
       "netProfit": "صافي الربح",
       "revenue": "الإيرادات",
@@ -1837,8 +1886,7 @@
     "loading": "جارٍ التحميل…",
     "nav": {
       "preparation": "التحضير",
-      "toLabel": "للطباعة",
-      "toScan": "للمسح",
+      "dispatch": "إرسال",
       "returns": "المرتجعات",
       "history": "السجل"
     },
@@ -1850,6 +1898,33 @@
       "stageBacklog": "تحديد الطلبات",
       "stageTray": "طباعة الملصقات",
       "stageScanner": "المسح والإرسال",
+      "mode": {
+        "scan": "وضع المسح",
+        "workbench": "محطة العمل",
+        "ariaLabel": "وضع العرض"
+      },
+      "scanFirst": {
+        "inputPlaceholder": "امسح الملصق أو أدخل الرقم…",
+        "idleHeadline": "مسح الخروج",
+        "idleHint": "وجّه الماسح أو اكتب المعرّف. اضغط Enter للتأكيد.",
+        "customerHeading": "العميل المُرسل",
+        "recentTitle": "سجل المسح",
+        "recentEmpty": "لا توجد عمليات مسح بعد. سيظهر العميل التالي هنا.",
+        "stockAfterShort": "المخزون {stock}",
+        "stockAfterLabel": "المخزون المتبقي",
+        "successBadge": "تم الإرسال — مخزون −1",
+        "warningBadge": "معالج مسبقاً",
+        "errorBadge": "فشل المسح",
+        "qty": "الكمية",
+        "errors": {
+          "ORDER_NOT_FOUND": "الطلب غير موجود",
+          "MARKET_MISMATCH": "السوق غير صحيح",
+          "INVALID_STATUS": "تم مسحه في مكان آخر",
+          "NO_LABEL_PRINTED": "الملصق غير موجود — اطبع أولاً",
+          "STOCK_UNDERFLOW": "المخزون غير كافٍ — راجع المشرف",
+          "NETWORK_ERROR": "خطأ في الشبكة — أعد المحاولة"
+        }
+      },
       "stats": {
         "labelsPrinted": "ملصقات مطبوعة",
         "ordersScanned": "طلبات ممسوحة",
@@ -1894,8 +1969,8 @@
       "toScanOut": "للمسح",
       "returnsInbox": "مرتجعات معلقة",
       "damagedWeek": "تالف (7 أيام)",
-      "goToLabel": "عرض القائمة",
-      "goToScan": "مسح",
+      "goToPreparation": "التجهيز",
+      "goToDispatch": "إرسال",
       "goToReturns": "معالجة",
       "goToHistory": "عرض",
       "recentPrints": "الطباعات الأخيرة",
@@ -1968,6 +2043,14 @@
       "damagedBadge": "تالف",
       "stockAfter": "المخزون: {stock}",
       "damagedCount": "التالف: {count}",
+      "stockShort": "المخزون {stock}",
+      "damageShort": "تالف {count}",
+      "customerHeading": "العميل المُرتجع",
+      "scanSuccessBadge": "تم مسح المرتجع — اتخذ القرار",
+      "scanErrorBadge": "فشل المسح",
+      "modeScan": "وضع المسح",
+      "modeWorkbench": "محطة العمل",
+      "modeAriaLabel": "وضع العرض",
       "decision": {
         "heading": "اتخذ القرار",
         "restock": "إعادة للمخزون",

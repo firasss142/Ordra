@@ -25,6 +25,11 @@ import {
   type DecisionPayload,
   type ReturnRate,
 } from "./ReturnsDecisionCard";
+import {
+  ScanFirstReturnsStage,
+  type RecentReturnEntry,
+} from "./returns/ScanFirstReturnsStage";
+import { ScanModeToggle, type ScanMode } from "./shared/ScanModeToggle";
 
 const QrScanner = dynamic(
   () => import("./QrScanner").then((m) => m.QrScanner),
@@ -63,6 +68,28 @@ export function ReturnsQueue({ marketId, fallbackPage }: Props) {
   const [arrivalCount, setArrivalCount] = useState(0);
   const [filter, setFilter] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const [mode, setMode] = useState<ScanMode>("scan");
+  const [recent, setRecent] = useState<RecentReturnEntry[]>([]);
+  const [scanError, setScanError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem("warehouse:returns:mode");
+    if (saved === "workbench" || saved === "scan") setMode(saved);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem("warehouse:returns:mode", mode);
+    } catch {
+      // ignore
+    }
+  }, [mode]);
+
+  const pushRecent = useCallback((entry: RecentReturnEntry) => {
+    setRecent((prev) => [entry, ...prev].slice(0, 12));
+  }, []);
 
   const {
     orders,
@@ -166,6 +193,7 @@ export function ReturnsQueue({ marketId, fallbackPage }: Props) {
   const handleScan = (raw: string) => {
     const found = resolveById(raw);
     if (!found) {
+      setScanError(raw.slice(0, 8).toUpperCase());
       setFeedback({
         kind: "error",
         title: tCommon("errors.scanFailed"),
@@ -174,6 +202,7 @@ export function ReturnsQueue({ marketId, fallbackPage }: Props) {
       playBeep("error");
       return;
     }
+    setScanError(null);
     setValue("");
     openOrder(found);
   };
@@ -205,6 +234,7 @@ export function ReturnsQueue({ marketId, fallbackPage }: Props) {
   const commitSingle = async (payload: DecisionPayload) => {
     if (submitting) return;
     setSubmitting(true);
+    const orderSnapshot = selected;
     try {
       const json = await postSingle(payload);
       setFeedback({
@@ -218,17 +248,50 @@ export function ReturnsQueue({ marketId, fallbackPage }: Props) {
           : t("stockAfter", { stock: json.balance_after ?? 0 }),
       });
       playBeep("success");
+      pushRecent({
+        id: crypto.randomUUID(),
+        orderId: payload.order_id,
+        shortId: payload.order_id.slice(0, 8).toUpperCase(),
+        customer: payload.customer_name ?? "—",
+        city: orderSnapshot?.customer_city ?? "—",
+        productLabel: orderSnapshot
+          ? `${orderSnapshot.product_name}${orderSnapshot.variant_label ? ` — ${orderSnapshot.variant_label}` : ""}`
+          : "—",
+        isDamaged: payload.is_damaged,
+        balanceAfter: json.balance_after ?? 0,
+        reason: payload.return_reason,
+        at: Date.now(),
+        kind: payload.is_damaged ? "damage" : "restock",
+      });
       setSelected(null);
       setRate(null);
+      setScanError(null);
       mutate();
       mutateSummary();
     } catch (err) {
+      const message =
+        err instanceof Error ? err.message : tCommon("errors.scanFailed");
       setFeedback({
         kind: "error",
-        title: err instanceof Error ? err.message : tCommon("errors.scanFailed"),
+        title: message,
         subtitle: `#${payload.order_id.slice(0, 8)}`,
       });
       playBeep("error");
+      pushRecent({
+        id: crypto.randomUUID(),
+        orderId: payload.order_id,
+        shortId: payload.order_id.slice(0, 8).toUpperCase(),
+        customer: payload.customer_name ?? "—",
+        city: orderSnapshot?.customer_city ?? "—",
+        productLabel: orderSnapshot
+          ? `${orderSnapshot.product_name}${orderSnapshot.variant_label ? ` — ${orderSnapshot.variant_label}` : ""}`
+          : "—",
+        isDamaged: payload.is_damaged,
+        balanceAfter: 0,
+        at: Date.now(),
+        kind: "error",
+        errorMessage: message,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -328,6 +391,17 @@ export function ReturnsQueue({ marketId, fallbackPage }: Props) {
       title={t("title", { count: orders.length })}
       subtitle={t("hint")}
       kpiStrip={<WarehouseKpiStrip tiles={kpiTiles} />}
+      actions={
+        <ScanModeToggle
+          mode={mode}
+          onChange={setMode}
+          labels={{
+            scan: t("modeScan"),
+            workbench: t("modeWorkbench"),
+            ariaLabel: t("modeAriaLabel"),
+          }}
+        />
+      }
     >
       <WarehouseInboxBanner
         count={arrivalCount}
@@ -342,7 +416,44 @@ export function ReturnsQueue({ marketId, fallbackPage }: Props) {
         }}
       />
 
-      {/* 3-col workbench: queue | scanner+decision | batch rail */}
+      {mode === "scan" ? (
+        <div className="max-w-[960px] mx-auto w-full mt-3">
+          <ScanFirstReturnsStage
+            selected={selected}
+            rate={rate}
+            recent={recent}
+            inputValue={value}
+            onInputChange={setValue}
+            onSubmit={handleScan}
+            onOpenCamera={() => setCameraOpen(true)}
+            onAddToBatch={addToBatch}
+            onCommitNow={commitSingle}
+            onCancel={() => {
+              setSelected(null);
+              setRate(null);
+            }}
+            submitting={submitting}
+            lastError={scanError}
+            labels={{
+              inputPlaceholder: t("inputPlaceholder"),
+              openCamera: tCommon("scanner.openCamera"),
+              idleHeadline: t("scanStepLabel"),
+              idleHint: t("hint"),
+              customerHeading: t("customerHeading"),
+              recentTitle: t("recentTitle"),
+              recentEmpty: t("recentEmpty"),
+              successBadge: t("scanSuccessBadge"),
+              damageBadge: t("damagedBadge"),
+              errorBadge: t("scanErrorBadge"),
+              stockAfter: t.raw("stockAfter") as string,
+              damagedAfter: t.raw("damagedCount") as string,
+              stockShort: t.raw("stockShort") as string,
+              damageShort: t.raw("damageShort") as string,
+              notFound: tCommon("errors.scanFailed"),
+            }}
+          />
+        </div>
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)_minmax(280px,320px)] gap-4 items-start mt-3">
         {/* LEFT — Queue */}
         <section className="bg-surface-card border border-line-subtle rounded-card flex flex-col overflow-hidden">
@@ -485,6 +596,7 @@ export function ReturnsQueue({ marketId, fallbackPage }: Props) {
           />
         </aside>
       </div>
+      )}
 
       {cameraOpen ? (
         <QrScanner
