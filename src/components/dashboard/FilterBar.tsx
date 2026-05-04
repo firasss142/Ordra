@@ -2,7 +2,7 @@
 
 import { CalendarRange } from "lucide-react";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { todayISO, startOfWeekISO, startOfMonthISO } from "@/lib/date";
+import { todayISO, lastNDaysPeriod } from "@/lib/date";
 
 export interface Period {
   from_date: string;
@@ -48,9 +48,9 @@ export function FilterBar({
   const handlePreset = (preset: PeriodPreset) => {
     if (preset === "today") onPeriodChange({ from_date: todayISO(), to_date: todayISO() }, "today");
     else if (preset === "week")
-      onPeriodChange({ from_date: startOfWeekISO(), to_date: todayISO() }, "week");
+      onPeriodChange(lastNDaysPeriod(7), "week");
     else if (preset === "month")
-      onPeriodChange({ from_date: startOfMonthISO(), to_date: todayISO() }, "month");
+      onPeriodChange(lastNDaysPeriod(30), "month");
     else onPeriodChange(period, "custom");
   };
 

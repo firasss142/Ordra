@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { FilterBar, type Period, type PeriodPreset } from "@/components/dashboard/FilterBar";
 import { useMarketScope } from "@/context/market-scope";
 import { periodDeltaProps } from "@/components/dashboard/PeriodDeltaBadge";
-import { todayISO, startOfMonthISO, computePreviousPeriod } from "@/lib/date";
+import { computePreviousPeriod, lastNDaysPeriod } from "@/lib/date";
 import { formatCurrency as formatMarketCurrency } from "@/lib/format";
 import { TONE_COLOR, formatPct, type Tone } from "@/components/dashboard/kpiDelta";
 import {
@@ -68,10 +68,7 @@ export function ProfitabilityClient({
   const tNav = useTranslations("dashboard.filters");
   const isSuperAdmin = user.role === "super_admin";
 
-  const [period, setPeriod] = useState<Period>({
-    from_date: startOfMonthISO(),
-    to_date: todayISO(),
-  });
+  const [period, setPeriod] = useState<Period>(() => lastNDaysPeriod(30));
   const [preset, setPreset] = useState<PeriodPreset>("month");
   const { marketId: scopeMarketId } = useMarketScope();
 
