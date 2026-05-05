@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import type { BadgeTone } from "@/components/ui/Badge";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
 import { ProductAvatar } from "./ProductAvatar";
+import { SourceLogo } from "@/components/shared/SourceLogo";
 import type { OrdersListRow } from "@/hooks/useOrdersList";
 
 const STATUS_TONE: Record<string, BadgeTone> = {
@@ -183,11 +184,9 @@ function Row({
                 · {order.variant_label}
               </span>
             )}
-            {order.quantity > 1 && (
-              <span className="shrink-0 text-[12px] tabular-nums text-ink-secondary">
-                ×{order.quantity}
-              </span>
-            )}
+            <span className="shrink-0 text-[13px] font-semibold tabular-nums text-ink-primary">
+              ×{order.quantity}
+            </span>
           </div>
 
           {/* Divider */}
@@ -257,6 +256,11 @@ function Row({
             </span>
           )}
         </span>
+      </td>
+
+      {/* Source platform — logo with tooltip */}
+      <td className="whitespace-nowrap px-4 py-2 align-middle">
+        <SourceLogo platform={order.external_platform} />
       </td>
 
       {/* Actions — hover-revealed kebab */}

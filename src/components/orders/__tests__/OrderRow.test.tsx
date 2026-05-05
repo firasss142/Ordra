@@ -22,6 +22,7 @@ vi.mock("@/components/shared/RepeatBuyerBadge", () => ({
 const mockOrder: OrdersListRow = {
   id: "order-abc-123",
   external_id: "3047",
+  external_platform: "shopify",
   market_id: "market-tn",
   customer_name: "Karim Gharbi",
   customer_phone: "22123456",
@@ -120,9 +121,9 @@ describe("OrderRow", () => {
     expect(screen.getByText("×2")).toBeDefined();
   });
 
-  it("does not render quantity marker when quantity is 1", () => {
+  it("renders ×1 when quantity is 1", () => {
     renderRow({ order: { ...mockOrder, quantity: 1 } });
-    expect(screen.queryByText("×1")).toBeNull();
+    expect(screen.getByText("×1")).toBeDefined();
   });
 
   it("renders customer name", () => {
@@ -233,6 +234,7 @@ describe("OrderRow", () => {
 
   it("does not render Date or Agent cells in the row (moved to drawer)", () => {
     const { container } = renderRow();
-    expect(container.querySelectorAll("td").length).toBe(5);
+    // 6 cells: checkbox, order, price, status, source, actions
+    expect(container.querySelectorAll("td").length).toBe(6);
   });
 });

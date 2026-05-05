@@ -115,7 +115,7 @@ export function OrderCard({ order, selected, onToggle, marketCode, now = new Dat
             <span>
               {order.product_name}
               {order.variant_label ? ` · ${order.variant_label}` : ""}
-              {order.quantity > 1 ? ` × ${order.quantity}` : ""}
+              {` × ${order.quantity}`}
             </span>
           ) : null}
           <span style={{ fontVariantNumeric: "tabular-nums", color: "#1A1A1A" }}>

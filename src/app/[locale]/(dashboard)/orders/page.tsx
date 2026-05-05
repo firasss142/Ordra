@@ -9,7 +9,7 @@ import type { Locale } from "@/types";
 export const dynamic = "force-dynamic";
 
 const LIST_COLS =
-  "id, external_id, market_id, customer_name, customer_phone, customer_city, " +
+  "id, external_id, external_platform, market_id, customer_name, customer_phone, customer_city, " +
   "product_id, product_name, variant_label, quantity, total_price, status, " +
   "assigned_to, carrier_id, rejection_reason, callback_scheduled_at, " +
   "created_at, updated_at";

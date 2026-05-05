@@ -10,7 +10,7 @@ import {
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 
 const LIST_SELECT =
-  "id, external_id, market_id, customer_name, customer_phone, customer_phone_2, " +
+  "id, external_id, external_platform, market_id, customer_name, customer_phone, customer_phone_2, " +
   "customer_address, customer_city, " +
   "product_id, product_name, variant_label, quantity, total_price, status, " +
   "assigned_to, carrier_id, rejection_reason, callback_scheduled_at, " +

@@ -8,6 +8,7 @@ import { filtersToSearchParams } from "@/lib/orders/list-filters";
 export interface OrdersListRow {
   id: string;
   external_id: string | null;
+  external_platform: string | null;
   market_id: string;
   customer_name: string;
   customer_phone: string | null;
