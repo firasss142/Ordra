@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { canViewLeads, canCreateLead } from "@/lib/lead-permissions";
-import { LEAD_SOURCES, LEAD_STATUSES, type LeadSource, type LeadStatus } from "@/types/lead";
+import { CREATABLE_LEAD_SOURCES, LEAD_STATUSES, type LeadSource, type LeadStatus } from "@/types/lead";
 import { getActor } from "@/lib/auth/actor";
 
 export async function GET(req: NextRequest) {
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!LEAD_SOURCES.includes(source as LeadSource)) {
+  if (!CREATABLE_LEAD_SOURCES.includes(source as Exclude<LeadSource, "campaign">)) {
     return NextResponse.json({ error: "Invalid source" }, { status: 400 });
   }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   Phone,
@@ -34,6 +34,7 @@ function attemptsUsed(status: LeadStatus): number {
 }
 
 export function LeadCard({ lead, locale, density = "comfortable", onCallback, onConvert, onMarkLost, onReassign }: Props) {
+  const router = useRouter();
   const tSources = useTranslations("crm.leads.sources");
   const tActions = useTranslations("crm.leads.actions");
   const tHot = useTranslations("crm.leads.hotLeads");
@@ -46,11 +47,21 @@ export function LeadCard({ lead, locale, density = "comfortable", onCallback, on
     status === "callback_scheduled" && lead.callback_scheduled_at
       ? lead.callback_scheduled_at
       : null;
+  const detailHref = `/${locale}/leads/${lead.id}`;
+  const openDetail = () => router.push(detailHref);
 
   return (
     <div style={{ position: "relative" }}>
-      <Link
-        href={`/${locale}/leads/${lead.id}`}
+      <div
+        role="link"
+        tabIndex={0}
+        onClick={openDetail}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            openDetail();
+          }
+        }}
         style={{
           display: "block",
           textDecoration: "none",
@@ -59,6 +70,7 @@ export function LeadCard({ lead, locale, density = "comfortable", onCallback, on
           border: "1px solid #E1E3E5",
           borderRadius: 10,
           padding,
+          cursor: "pointer",
         }}
       >
         {/* Line 1: name + source pill */}
@@ -226,10 +238,11 @@ export function LeadCard({ lead, locale, density = "comfortable", onCallback, on
             borderTop: "1px solid #F2F2F2",
             paddingTop: compact ? 6 : 8,
           }}
-          onClick={(e) => e.preventDefault()}
+          onClick={(e) => e.stopPropagation()}
         >
           <a
             href={`tel:${lead.customer_phone}`}
+            draggable={false}
             style={actionLinkStyle}
             title={tActions("callNow")}
             aria-label={tActions("callNow")}
@@ -280,7 +293,7 @@ export function LeadCard({ lead, locale, density = "comfortable", onCallback, on
             <RefreshCw size={11} strokeWidth={1.75} />
           </button>
         </div>
-      </Link>
+      </div>
     </div>
   );
 }

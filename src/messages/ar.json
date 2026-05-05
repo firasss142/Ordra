@@ -1465,7 +1465,14 @@
         "instagram_dm": "رسالة إنستغرام",
         "whatsapp": "واتساب",
         "tiktok_comment": "تعليق تيك توك",
+        "campaign": "حملة",
         "other": "آخر"
+      },
+      "moveErrors": {
+        "invalidTransition": "لا يمكن نقل هذا العميل من {from} إلى {to}.",
+        "lostRequiresModal": "استخدم إجراء الخسارة لاختيار السبب.",
+        "wonRequiresConversion": "استخدم التحويل لتحديد هذا العميل كرابح.",
+        "transitionFailed": "تعذر نقل هذا العميل."
       },
       "lostReasons": {
         "not_interested": "غير مهتم",

@@ -55,6 +55,13 @@ const AGENT_ALLOWED_TARGETS: Set<LeadStatus> = new Set([
   "lost",
 ]);
 
+export function canTargetLeadStatusForRole(role: Role, to: string): boolean {
+  if (to === "won") return false; // only via conversion RPC
+  if (role === "super_admin" || role === "market_manager") return true;
+  if (role === "agent") return AGENT_ALLOWED_TARGETS.has(to as LeadStatus);
+  return false;
+}
+
 export function canTransitionLead(
   role: Role,
   from: LeadStatus,
@@ -64,7 +71,5 @@ export function canTransitionLead(
   if (!isValidLeadTransition(from, to)) return false; // graph validity
   if (isTerminalLeadStatus(from)) return false;
 
-  if (role === "super_admin" || role === "market_manager") return true;
-  if (role === "agent") return AGENT_ALLOWED_TARGETS.has(to);
-  return false;
+  return canTargetLeadStatusForRole(role, to);
 }

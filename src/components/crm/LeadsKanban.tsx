@@ -75,6 +75,7 @@ export function LeadsKanban({
   const [pendingStatus, setPendingStatus] = useState<LeadStatus | undefined>(undefined);
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+  const [moveError, setMoveError] = useState<string | null>(null);
 
   const openAdd = (status: string) => {
     setPendingStatus(status as LeadStatus);
@@ -127,8 +128,21 @@ export function LeadsKanban({
 
   const handleMove = async (item: Lead, fromKey: string, toKey: string) => {
     if (fromKey === toKey) return;
+    setMoveError(null);
     const fromConfig = configByKey[fromKey];
-    if (!fromConfig) throw new Error(`Unknown source status: ${fromKey}`);
+    const toConfig = configByKey[toKey];
+    const fromLabel = fromConfig
+      ? getStatusLabel(fromConfig, locale as Locale)
+      : fromKey;
+    const toLabel = toConfig ? getStatusLabel(toConfig, locale as Locale) : toKey;
+    if (!fromConfig) {
+      const message = tLeads("moveErrors.invalidTransition", {
+        from: fromLabel,
+        to: toLabel,
+      });
+      setMoveError(message);
+      throw new Error(message);
+    }
     if (!fromConfig.allowed_transitions.includes(toKey)) {
       throw new Error(`Invalid transition ${fromKey} → ${toKey}`);
     }
@@ -149,6 +163,34 @@ export function LeadsKanban({
       throw new Error(j?.error ?? "Transition failed");
     }
     await mutate();
+    setMoveError(null);
+  };
+
+  const handleMoveWithFeedback = async (
+    item: Lead,
+    fromKey: string,
+    toKey: string,
+  ) => {
+    try {
+      await handleMove(item, fromKey, toKey);
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : "";
+      const fromConfig = configByKey[fromKey];
+      const toConfig = configByKey[toKey];
+      const fromLabel = fromConfig
+        ? getStatusLabel(fromConfig, locale as Locale)
+        : fromKey;
+      const toLabel = toConfig ? getStatusLabel(toConfig, locale as Locale) : toKey;
+      const message = raw.startsWith("Invalid transition")
+        ? tLeads("moveErrors.invalidTransition", { from: fromLabel, to: toLabel })
+        : raw.includes("lost-reason")
+          ? tLeads("moveErrors.lostRequiresModal")
+          : raw.includes("conversion flow")
+            ? tLeads("moveErrors.wonRequiresConversion")
+            : raw || tLeads("moveErrors.transitionFailed");
+      setMoveError(message);
+      throw error;
+    }
   };
 
   return (
@@ -156,12 +198,50 @@ export function LeadsKanban({
       {isLoading && leads.length === 0 ? (
         <div style={{ fontSize: 13, color: "#6B7280" }}>…</div>
       ) : (
+        <>
+          {moveError && (
+            <div
+              role="alert"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                padding: "10px 12px",
+                marginBottom: 10,
+                background: "#FFF4F4",
+                border: "1px solid #F0B6B4",
+                borderRadius: 8,
+                color: "#8E1F0B",
+                fontSize: 13,
+                fontWeight: 500,
+              }}
+            >
+              <span>{moveError}</span>
+              <button
+                type="button"
+                onClick={() => setMoveError(null)}
+                aria-label="Dismiss"
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: "inherit",
+                  cursor: "pointer",
+                  fontSize: 16,
+                  lineHeight: 1,
+                  padding: 0,
+                }}
+              >
+                x
+              </button>
+            </div>
+          )}
         <KanbanBoard<Lead>
           columns={columns}
           items={sortedLeads}
           getItemId={(l) => l.id}
           groupBy={(l) => l.status as string}
-          onMove={handleMove}
+          onMove={handleMoveWithFeedback}
           cardAccent={leadCardAccent}
           density={density}
           emptyLabel={tLeads("emptyState")}
@@ -177,6 +257,7 @@ export function LeadsKanban({
             />
           )}
         />
+        </>
       )}
 
       <NewLeadModal

@@ -19,6 +19,10 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 import { LeadCard } from "../LeadCard";
 import type { Lead } from "@/types/lead";
 
@@ -63,6 +67,13 @@ describe("LeadCard", () => {
   it("renders customer name", () => {
     render(<LeadCard lead={makeLead()} locale="fr" {...defaultCallbacks} />);
     expect(screen.getByText("Alice")).toBeDefined();
+  });
+
+  it("renders campaign lead source", () => {
+    render(
+      <LeadCard lead={makeLead({ source: "campaign" })} locale="fr" {...defaultCallbacks} />
+    );
+    expect(screen.getByText("Campagne")).toBeDefined();
   });
 
   it("renders duplicate badge when has_duplicate=true", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { KanbanBoard } from "../KanbanBoard";
 
 interface Task {
@@ -201,10 +201,7 @@ describe("KanbanBoard", () => {
     fireEvent.dragOver(doingColumn, { dataTransfer });
     fireEvent.drop(doingColumn, { dataTransfer });
 
-    // Wait a tick for the promise chain
-    await Promise.resolve();
-
-    expect(onMove).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onMove).toHaveBeenCalledTimes(1));
     expect(onMove.mock.calls[0][0]).toEqual(tasks[0]);
     expect(onMove.mock.calls[0][1]).toBe("todo");
     expect(onMove.mock.calls[0][2]).toBe("doing");

@@ -1465,7 +1465,14 @@
         "instagram_dm": "Message Instagram",
         "whatsapp": "WhatsApp",
         "tiktok_comment": "Commentaire TikTok",
+        "campaign": "Campagne",
         "other": "Autre"
+      },
+      "moveErrors": {
+        "invalidTransition": "Ce déplacement n'est pas autorisé : {from} vers {to}.",
+        "lostRequiresModal": "Utilisez l'action Perdu pour choisir une raison.",
+        "wonRequiresConversion": "Utilisez la conversion pour marquer ce prospect comme gagné.",
+        "transitionFailed": "Impossible de déplacer ce prospect."
       },
       "lostReasons": {
         "not_interested": "Pas intéressé",

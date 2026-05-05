@@ -153,6 +153,11 @@ export function KanbanBoard<T>({
     setOverlay((o) => ({ ...o, [id]: toKey }));
     try {
       await onMove(item, fromKey, toKey);
+      setOverlay((o) => {
+        const next = { ...o };
+        delete next[id];
+        return next;
+      });
     } catch {
       // Roll back overlay on error
       setOverlay((o) => {

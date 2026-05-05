@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  CREATABLE_LEAD_SOURCES,
   LEAD_STATUSES,
   LEAD_SOURCES,
   LEAD_LOST_REASONS,
@@ -44,9 +45,14 @@ describe("LEAD_SOURCES", () => {
         "instagram_dm",
         "whatsapp",
         "tiktok_comment",
+        "campaign",
         "other",
       ])
     );
+  });
+
+  it("does not allow campaign as a manually creatable source", () => {
+    expect(CREATABLE_LEAD_SOURCES).not.toContain("campaign");
   });
 });
 
