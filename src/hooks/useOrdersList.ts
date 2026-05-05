@@ -54,6 +54,7 @@ export interface UseOrdersListOptions {
 export function useOrdersList({ filters, fallbackFirstPage }: UseOrdersListOptions) {
   const baseQuery = useMemo(() => {
     const params = filtersToSearchParams(filters);
+    if (filters.marketId) params.set("market_id", filters.marketId);
     params.set("limit", String(PAGE_LIMIT));
     return params;
   }, [filters]);
