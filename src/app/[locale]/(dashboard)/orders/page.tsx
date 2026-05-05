@@ -74,6 +74,7 @@ export default async function OrdersPage({
   return (
     <OrdersPageClient
       role={user.role}
+      userId={user.id}
       userMarketId={user.market_id ?? superAdminInitialMarketId}
       userMarketLabel={userMarketLabel}
       userMarketCurrency={userMarketCurrency}

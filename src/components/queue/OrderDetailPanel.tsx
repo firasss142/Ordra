@@ -66,6 +66,7 @@ interface OrderDetail {
   status: string;
   assigned_to: string | null;
   market_id: string;
+  attempts_count?: number | null;
   updated_at: string;
   tracking_number: string | null;
   callback_scheduled_at: string | null;
@@ -131,10 +132,17 @@ const FULFILLMENT_STATUS_VALUES = [
   "returned",
 ] as const;
 
+export interface CallTerminatedContext {
+  orderId: string;
+  status: string;
+  marketId: string;
+  attemptsCount: number;
+}
+
 interface OrderDetailPanelProps {
   orderId: string | null;
   onClose: () => void;
-  onCallTerminated: (orderId: string) => void;
+  onCallTerminated: (orderId: string, ctx?: CallTerminatedContext) => void;
   onReturnToPool?: () => Promise<void>;
   role?: Role;
   userId?: string;
@@ -1068,7 +1076,22 @@ export function OrderDetailPanel({
           // 1. Agent with active call → "Terminer l'appel"
           // 2. Reopenable order      → "Réouvrir la commande"
           // 3. Otherwise             → "Fermer"
-          const isAgentCall = role === undefined && !TERMINAL_STATUSES.has(order.status);
+          // The "Appel terminé" CTA opens the post-call action sheet. Statuses
+          // where confirm/reject/callback/no-answer are valid: pre-confirm pool.
+          const CALL_ACTION_STATUSES = new Set([
+            "assigned",
+            "attempt_1",
+            "attempt_2",
+            "attempt_3",
+            "callback_scheduled",
+          ]);
+          const isCallActionable = CALL_ACTION_STATUSES.has(order.status);
+          // Agent-on-queue (no role prop) on a non-terminal order, OR
+          // manager/admin on a call-actionable order (take-over flow).
+          const isAgentCall =
+            (role === undefined && !TERMINAL_STATUSES.has(order.status)) ||
+            ((role === "market_manager" || role === "super_admin") &&
+              isCallActionable);
           type PrimaryAction = {
             label: string;
             onClick: () => void;
@@ -1079,7 +1102,13 @@ export function OrderDetailPanel({
           if (isAgentCall) {
             primary = {
               label: t("callEnded"),
-              onClick: () => onCallTerminated(orderId!),
+              onClick: () =>
+                onCallTerminated(orderId!, {
+                  orderId: orderId!,
+                  status: order.status,
+                  marketId: order.market_id,
+                  attemptsCount: order.attempts_count ?? 0,
+                }),
               icon: <PhoneIcon size={15} strokeWidth={2.25} aria-hidden="true" />,
               tone: "dark",
             };
@@ -1146,7 +1175,7 @@ export function OrderDetailPanel({
                   {primary.icon}
                   {primary.label}
                 </button>
-                {canEdit && isAgentCall && (
+                {canEdit && isAgentCall && role === undefined && (
                   <div className="flex items-center justify-center gap-1.5 text-[10px] text-ink-muted mt-1.5">
                     <Pencil size={9} strokeWidth={2} aria-hidden="true" />
                     <span>{t("pressEToEdit")}</span>

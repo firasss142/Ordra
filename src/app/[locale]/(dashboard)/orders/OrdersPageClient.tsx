@@ -39,6 +39,10 @@ const CreateOrderModal = dynamic(
   () => import("@/components/orders/CreateOrderModal").then((m) => m.CreateOrderModal),
   { ssr: false },
 );
+const PostCallActionSheet = dynamic(
+  () => import("@/components/queue/PostCallActionSheet").then((m) => m.PostCallActionSheet),
+  { ssr: false },
+);
 
 interface Market {
   id: string;
@@ -63,6 +67,7 @@ interface Carrier {
 
 interface Props {
   role: Role;
+  userId: string;
   userMarketId: string;
   userMarketLabel: string;
   userMarketCurrency: string;
@@ -74,6 +79,7 @@ interface Props {
 
 export function OrdersPageClient({
   role,
+  userId,
   userMarketId,
   userMarketLabel,
   userMarketCurrency,
@@ -339,6 +345,14 @@ export function OrdersPageClient({
   // ---------- Create modal ----------
   const [createOpen, setCreateOpen] = useState(false);
 
+  // ---------- Post-call sheet (manager/admin take-over) ----------
+  const [callSheet, setCallSheet] = useState<{
+    orderId: string;
+    status: string;
+    marketId: string;
+    attemptsCount: number;
+  } | null>(null);
+
   // ---------- CSV Export (preserves current filters) ----------
   const handleExport = useCallback(() => {
     const params = filtersToSearchParams(filters);
@@ -549,8 +563,13 @@ export function OrdersPageClient({
         key={openOrderId ?? "none"}
         orderId={openOrderId}
         fallbackOrder={fallbackOpenRow as unknown as Record<string, unknown> | null}
+        role={role}
+        userId={userId}
         onClose={() => setOpenOrderId(null)}
-        onCallTerminated={() => setOpenOrderId(null)}
+        onCallTerminated={(id, ctx) => {
+          setOpenOrderId(null);
+          if (ctx) setCallSheet(ctx);
+        }}
         onReturnToPool={
           openOrderId
             ? async () => {
@@ -565,6 +584,20 @@ export function OrdersPageClient({
             : undefined
         }
       />
+
+      {callSheet && (
+        <PostCallActionSheet
+          orderId={callSheet.orderId}
+          orderStatus={callSheet.status}
+          marketId={callSheet.marketId}
+          attemptsCount={callSheet.attemptsCount}
+          onClose={() => setCallSheet(null)}
+          onSuccess={() => {
+            setCallSheet(null);
+            void mutate();
+          }}
+        />
+      )}
     </div>
   );
 }
