@@ -125,18 +125,27 @@ export function StatusLabelWysiwyg({ marketId, scope }: Props) {
             <div
               key={c.id}
               style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(180px, 220px) 1fr 1fr 80px 80px",
+                display: "flex",
+                flexWrap: "wrap",
                 gap: 12,
-                alignItems: "center",
+                alignItems: "flex-end",
                 padding: "12px 16px",
                 borderBottom: "1px solid #F4F5F6",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  flex: "0 0 auto",
+                  minWidth: 140,
+                  paddingBottom: 6,
+                }}
+              >
                 <LiveBadge label={previewLabel} color={draft.color} />
               </div>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, flex: "1 1 180px", minWidth: 160 }}>
                 <span style={{ fontSize: 11, color: "#6D7175" }}>Étiquette (FR)</span>
                 <input
                   type="text"
@@ -145,7 +154,7 @@ export function StatusLabelWysiwyg({ marketId, scope }: Props) {
                   style={inlineInput}
                 />
               </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, flex: "1 1 180px", minWidth: 160 }}>
                 <span style={{ fontSize: 11, color: "#6D7175" }}>Étiquette (AR)</span>
                 <input
                   type="text"
@@ -155,13 +164,13 @@ export function StatusLabelWysiwyg({ marketId, scope }: Props) {
                   style={inlineInput}
                 />
               </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, flex: "0 0 auto" }}>
                 <span style={{ fontSize: 11, color: "#6D7175" }}>Couleur</span>
                 <input
                   type="color"
                   value={draft.color}
                   onChange={(e) => setDraftField(c.id, { color: e.target.value })}
-                  style={{ width: 48, height: 28, padding: 0, border: "1px solid #E1E3E5", borderRadius: 4 }}
+                  style={{ width: 48, height: 32, padding: 0, border: "1px solid #E1E3E5", borderRadius: 4 }}
                 />
               </label>
               <button
@@ -178,6 +187,8 @@ export function StatusLabelWysiwyg({ marketId, scope }: Props) {
                   backgroundColor: dirty ? "#1A1A1A" : "#FFFFFF",
                   color: dirty ? "#FFFFFF" : "#9CA3AF",
                   cursor: dirty ? "pointer" : "not-allowed",
+                  flex: "0 0 auto",
+                  alignSelf: "flex-end",
                 }}
               >
                 {saving === c.id ? "…" : "Enregistrer"}

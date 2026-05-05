@@ -15,7 +15,7 @@ export function LabelsSection({ marketId }: Props) {
       description="Nom affiché pour chaque statut. L'aperçu est identique à ce que verront agents et managers."
       hideFooter
     >
-      <div className="flex flex-col gap-3 md:flex-row md:gap-4">
+      <div className="flex flex-col gap-3">
         <LabelScopePanel
           marketId={marketId}
           scope="prospect"
