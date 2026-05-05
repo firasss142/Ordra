@@ -13,7 +13,7 @@ export default function SettingsPage({
     redirect(`/${params.locale}/markets`);
   }
 
-  const allowed = new Set(["general", "carriers", "storefronts"]);
+  const allowed = new Set(["general", "carriers", "storefronts", "statuses"]);
   const target = allowed.has(section) ? section : "general";
   redirect(`/${params.locale}/settings/${target}`);
 }

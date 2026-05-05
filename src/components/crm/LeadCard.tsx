@@ -7,7 +7,6 @@ import {
   Phone,
   CalendarClock,
   RefreshCw,
-  ShoppingCart,
   XCircle,
   Flame,
   AlertCircle,
@@ -21,7 +20,6 @@ interface Props {
   locale: string;
   density?: "comfortable" | "compact";
   onCallback: () => void;
-  onConvert: () => void;
   onMarkLost: () => void;
   onReassign: () => void;
 }
@@ -33,7 +31,7 @@ function attemptsUsed(status: LeadStatus): number {
   return 0;
 }
 
-export function LeadCard({ lead, locale, density = "comfortable", onCallback, onConvert, onMarkLost, onReassign }: Props) {
+export function LeadCard({ lead, locale, density = "comfortable", onCallback, onMarkLost, onReassign }: Props) {
   const router = useRouter();
   const tSources = useTranslations("crm.leads.sources");
   const tActions = useTranslations("crm.leads.actions");
@@ -261,18 +259,6 @@ export function LeadCard({ lead, locale, density = "comfortable", onCallback, on
             <CalendarClock size={11} strokeWidth={1.75} />
             {tActions("scheduleCallback")}
           </button>
-          {status === "qualified" && (
-            <button
-              type="button"
-              style={actionBtnStyle}
-              title={tActions("convertToOrder")}
-              aria-label={tActions("convertToOrder")}
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onConvert(); }}
-            >
-              <ShoppingCart size={11} strokeWidth={1.75} />
-              {tActions("convertToOrder")}
-            </button>
-          )}
           <button
             type="button"
             style={{ ...actionBtnStyle, color: "#D72C0D" }}

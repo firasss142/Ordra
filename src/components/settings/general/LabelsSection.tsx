@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { useLocale } from "next-intl";
 import { StatusLabelWysiwyg } from "../StatusLabelWysiwyg";
 import { SectionShell } from "./SectionShell";
 
@@ -9,6 +11,7 @@ interface Props {
 }
 
 export function LabelsSection({ marketId }: Props) {
+  const locale = useLocale();
   return (
     <SectionShell
       title="Libellés des statuts"
@@ -16,6 +19,17 @@ export function LabelsSection({ marketId }: Props) {
       hideFooter
     >
       <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="m-0 text-[13px] text-ink-secondary">
+            Pour ajouter, supprimer ou réordonner les statuts, ouvrez l&apos;éditeur complet.
+          </p>
+          <Link
+            href={`/${locale}/settings/statuses`}
+            className="inline-flex items-center gap-1 rounded-md border border-line bg-surface-card px-3 py-1.5 text-[13px] font-medium text-ink-primary no-underline hover:bg-surface-hover transition-colors duration-fast"
+          >
+            Gérer les statuts →
+          </Link>
+        </div>
         <LabelScopePanel
           marketId={marketId}
           scope="prospect"

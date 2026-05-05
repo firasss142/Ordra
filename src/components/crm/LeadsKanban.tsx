@@ -146,11 +146,15 @@ export function LeadsKanban({
     if (!fromConfig.allowed_transitions.includes(toKey)) {
       throw new Error(`Invalid transition ${fromKey} → ${toKey}`);
     }
+    if (toKey === "won") {
+      if (fromKey !== "qualified") {
+        throw new Error(`Invalid transition ${fromKey} → ${toKey}`);
+      }
+      openModal("convert", item);
+      return;
+    }
     if (toKey === "lost") {
       throw new Error("Use the lost-reason modal to mark a lead lost");
-    }
-    if (toKey === "won") {
-      throw new Error("Use the conversion flow to mark a lead won");
     }
 
     const res = await fetch(`/api/leads/${item.id}/transition`, {
@@ -251,7 +255,6 @@ export function LeadsKanban({
               locale={locale}
               density={density}
               onCallback={() => openModal("callback", l)}
-              onConvert={() => openModal("convert", l)}
               onMarkLost={() => openModal("lost", l)}
               onReassign={() => openModal("reassign", l)}
             />
