@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { canManageCarriers } from "@/lib/settings-permissions";
 import { encrypt, maskCredential } from "@/lib/crypto";
 import { getActor } from "@/lib/auth/actor";
@@ -119,14 +119,19 @@ export async function PATCH(
   if (body.is_active !== undefined) patch.is_active = body.is_active;
   if (body.api_key !== undefined) patch.api_credentials = encrypt(String(body.api_key));
 
-  const { data, error } = await supabase
+  // Admin client: api_endpoint and api_credentials are REVOKE'd from authenticated role.
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from("carriers")
     .update(patch)
     .eq("id", id)
     .select("id, market_id, name, code, api_endpoint, delivery_fee, return_fee, is_active, updated_at")
     .single();
 
-  if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  if (error) {
+    console.error("[PATCH /api/carriers/[id]] update failed", { code: error.code, message: error.message, details: error.details });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 
   return NextResponse.json({
     data: { ...data, api_credentials: maskCredential("") },

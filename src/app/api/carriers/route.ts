@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import {
   canReadSettings,
@@ -13,8 +13,6 @@ import {
 import { getAllActiveMarkets } from "@/lib/markets/list";
 
 export async function GET(req: NextRequest) {
-  const supabase = await createClient();
-
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -36,7 +34,10 @@ export async function GET(req: NextRequest) {
     .select("id, market_id, name, code, api_endpoint, api_credentials, delivery_fee, return_fee, is_active, created_at, updated_at")
     .eq("market_id", marketId);
 
-  if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  if (error) {
+    console.error("[GET /api/carriers] select failed", { code: error.code, message: error.message, details: error.details });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 
   const masked = (data ?? []).map((c) => ({
     ...c,
@@ -47,8 +48,6 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
@@ -94,7 +93,10 @@ export async function POST(req: NextRequest) {
 
   const api_credentials = api_key ? encrypt(String(api_key)) : null;
 
-  const { data, error } = await supabase
+  // Admin client: api_endpoint and api_credentials are REVOKE'd from authenticated role,
+  // so a user-bound client cannot SELECT them back after insert.
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from("carriers")
     .insert({
       market_id,
@@ -109,7 +111,10 @@ export async function POST(req: NextRequest) {
     .select("id, market_id, name, code, api_endpoint, delivery_fee, return_fee, is_active")
     .single();
 
-  if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  if (error) {
+    console.error("[POST /api/carriers] insert failed", { code: error.code, message: error.message, details: error.details });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 
   return NextResponse.json({ data }, { status: 201 });
 }

@@ -8,6 +8,9 @@ vi.mock("@/lib/supabase/server", () => ({
     auth: { getUser: () => mockGetUser() },
     from: (...args: unknown[]) => mockFrom(...args),
   }),
+  createAdminClient: vi.fn(() => ({
+    from: (...args: unknown[]) => mockFrom(...args),
+  })),
 }));
 
 vi.mock("@/lib/crypto", () => ({
