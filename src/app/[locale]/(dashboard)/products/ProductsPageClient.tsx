@@ -32,7 +32,6 @@ interface ProductRow {
   name: string;
   unit_cogs: number;
   packing_cost: number;
-  cpl: number;
   low_stock_threshold: number;
   current_stock: number;
   system_inventory?: number;

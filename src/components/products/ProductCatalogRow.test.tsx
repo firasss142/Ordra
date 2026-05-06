@@ -31,7 +31,6 @@ const baseProduct = {
   name: "Crème Hydratante",
   unit_cogs: 12,
   packing_cost: 2.5,
-  cpl: 1.5,
   low_stock_threshold: 10,
   current_stock: 50,
   system_inventory: 50,

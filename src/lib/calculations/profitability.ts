@@ -62,13 +62,6 @@ export function calculateMargin(netProfit: number, revenue: number): number {
 
 // --- Product-level profitability ---
 
-export function calculateProductAdSpend(
-  cpl: number,
-  totalLeads: number
-): number {
-  return fromCents(toCents(cpl) * totalLeads);
-}
-
 export function calculateProcessingCost(
   confirmationProcessingCost: number,
   confirmedCount: number

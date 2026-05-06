@@ -38,7 +38,6 @@ export function ProductCreateForm({ markets, defaultMarketId, locale, lockedMark
   const [marketId, setMarketId] = useState(lockedMarketId ?? defaultMarketId);
   const [unitCogs, setUnitCogs] = useState("");
   const [packingCost, setPackingCost] = useState("");
-  const [cpl, setCpl] = useState("");
   const [processingCost, setProcessingCost] = useState("");
   const [initialStock, setInitialStock] = useState("0");
   const [threshold, setThreshold] = useState("5");
@@ -50,7 +49,6 @@ export function ProductCreateForm({ markets, defaultMarketId, locale, lockedMark
   const example = useMemo(() => {
     const uCogs = parseFloat(unitCogs) || 0;
     const pCost = parseFloat(packingCost) || 0;
-    const cplNum = parseFloat(cpl) || 0;
     const procCost = parseFloat(processingCost) || 0;
     const price = parseFloat(defaultPrice) || 120;
     const result = calculateProductProfitability({
@@ -61,14 +59,14 @@ export function ProductCreateForm({ markets, defaultMarketId, locale, lockedMark
       returnedCount: 5,
       unitCogs: uCogs,
       packingCost: pCost,
-      cpl: cplNum,
       confirmationProcessingCost: procCost,
       deliveredOrders: Array(40).fill({ total_price: price, quantity: 1, carrier_delivery_fee: 7 }),
       returnedOrders: Array(5).fill({ carrier_return_fee: 4 }),
+      adSpend: 0,
     });
     const marginPct = result.revenue === 0 ? 0 : Math.round((result.simplifiedNetProfit / result.revenue) * 1000) / 10;
     return { margin: marginPct, price };
-  }, [unitCogs, packingCost, cpl, processingCost, defaultPrice]);
+  }, [unitCogs, packingCost, processingCost, defaultPrice]);
 
   async function handleSubmit() {
     setError(null);
@@ -81,7 +79,6 @@ export function ProductCreateForm({ markets, defaultMarketId, locale, lockedMark
       name: name.trim(),
       unit_cogs: unitCogsNum,
       packing_cost: parseFloat(packingCost) || 0,
-      cpl: parseFloat(cpl) || 0,
       confirmation_processing_cost: parseFloat(processingCost) || 0,
       low_stock_threshold: parseInt(threshold, 10) || 5,
       initial_stock: parseInt(initialStock, 10) || 0,
@@ -214,21 +211,6 @@ export function ProductCreateForm({ markets, defaultMarketId, locale, lockedMark
               style={inputStyle}
             />
             <p style={hintStyle}>{t("create.hints.packingCost")}</p>
-          </div>
-
-          <div>
-            <label htmlFor="cpl" style={labelStyle}>CPL</label>
-            <input
-              id="cpl"
-              type="number"
-              min="0"
-              step="0.001"
-              value={cpl}
-              onChange={(e) => setCpl(e.target.value)}
-              placeholder="0.000"
-              style={inputStyle}
-            />
-            <p style={hintStyle}>{t("create.hints.cpl")}</p>
           </div>
 
           <div>

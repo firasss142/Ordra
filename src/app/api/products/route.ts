@@ -145,7 +145,6 @@ export async function POST(req: NextRequest) {
     unit_cogs: body.unit_cogs,
     packing_cost: body.packing_cost,
     market_id: marketId,
-    cpl: typeof body.cpl === "number" ? body.cpl : 0,
     confirmation_processing_cost:
       typeof body.confirmation_processing_cost === "number"
         ? body.confirmation_processing_cost

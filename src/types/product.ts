@@ -20,7 +20,6 @@ export interface Product {
   sku?: string | null;
   unit_cogs: number;
   packing_cost: number;
-  cpl: number;
   confirmation_processing_cost?: number;
   default_price?: number | null;
   low_stock_threshold: number;

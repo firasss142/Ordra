@@ -33,7 +33,7 @@ describe("calculateProductProfitability", () => {
       returnedCount: 4,
       unitCogs: 8,
       packingCost: 2,
-      cpl: 1.5,
+      adSpend: 30,
       confirmationProcessingCost: 0.5,
       deliveredOrders,
       returnedOrders,
@@ -47,7 +47,7 @@ describe("calculateProductProfitability", () => {
     expect(result.totalDeliveryCost).toBe(70); // 10 × 7
     expect(result.totalReturnCost).toBe(16); // 4 × 4
     expect(result.totalPackingCost).toBe(30); // 15 × 2
-    expect(result.totalAdSpend).toBe(30); // 1.5 × 20
+    expect(result.totalAdSpend).toBe(30); // ad_spend rows summed = 30
     expect(result.totalProcessingCost).toBe(7.5); // 0.5 × 15
     expect(result.simplifiedNetProfit).toBe(216.5); // 450 - 80 - 70 - 16 - 30 - 30 - 7.5
     expect(result.costPerDelivered).toBe(23.35); // (80+70+16+30+30+7.5)/10
@@ -63,7 +63,7 @@ describe("calculateProductProfitability", () => {
       returnedCount: 0,
       unitCogs: 10,
       packingCost: 3,
-      cpl: 2,
+      adSpend: 0,
       confirmationProcessingCost: 1,
       deliveredOrders: [],
       returnedOrders: [],
@@ -92,7 +92,7 @@ describe("calculateProductProfitability", () => {
       returnedCount: 0,
       unitCogs: 5,
       packingCost: 1,
-      cpl: 1,
+      adSpend: 5,
       confirmationProcessingCost: 0,
       deliveredOrders: [],
       returnedOrders: [],

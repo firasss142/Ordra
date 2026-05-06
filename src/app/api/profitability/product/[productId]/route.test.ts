@@ -16,7 +16,6 @@ interface ProductRow {
   name: string;
   unit_cogs: number;
   packing_cost: number;
-  cpl: number;
   confirmation_processing_cost: number;
   market_id: string;
   current_stock: number;
@@ -28,7 +27,6 @@ const PRODUCT: ProductRow = {
   name: "Test Product",
   unit_cogs: 10,
   packing_cost: 1,
-  cpl: 0.5,
   confirmation_processing_cost: 0.25,
   market_id: "m-tn",
   current_stock: 50,
@@ -52,10 +50,15 @@ function buildChain(handler: (table: string, callIndex: number) => QueryOutcome)
     const chain: Record<string, unknown> = {};
     chain.select = vi.fn().mockReturnValue(chain);
     chain.eq = vi.fn().mockReturnValue(chain);
+    chain.in = vi.fn().mockReturnValue(chain);
     chain.gte = vi.fn().mockReturnValue(chain);
     chain.lte = vi.fn().mockReturnValue(chain);
     chain.single = vi.fn().mockResolvedValue({
       data: outcome.data ?? null,
+      error: outcome.error ?? null,
+    });
+    chain.range = vi.fn().mockResolvedValue({
+      data: outcome.data ?? [],
       error: outcome.error ?? null,
     });
     chain.then = (resolve: (v: unknown) => unknown) =>
@@ -68,6 +71,13 @@ function buildChain(handler: (table: string, callIndex: number) => QueryOutcome)
       );
     return chain;
   };
+}
+
+function historyRows(count: number, prefix: string) {
+  return Array.from({ length: count }, (_, idx) => ({
+    order_id: `${prefix}-${idx}`,
+    orders: { product_id: "prod-1" },
+  }));
 }
 
 function createRequest(
@@ -164,7 +174,9 @@ describe("GET /api/profitability/product/[productId]", () => {
           // alternate counts: current period higher than previous
           orderHistoryCalls += 1;
           // first 4 calls = current period (confirmed, uploaded, delivered, returned)
-          // next 4 = previous
+          // next 4 = previous. Confirmed rows are fetched, not head-counted.
+          if (orderHistoryCalls === 1) return { data: historyRows(80, "current-confirmed"), count: 80 };
+          if (orderHistoryCalls === 5) return { data: historyRows(60, "previous-confirmed"), count: 60 };
           if (orderHistoryCalls <= 4) return { data: [], count: 80 };
           return { data: [], count: 60 };
         }
@@ -191,6 +203,37 @@ describe("GET /api/profitability/product/[productId]", () => {
     // current vs previous should differ (different stub counts)
     expect(body.data.confirmedCount).toBe(80);
     expect(body.data.previous.confirmedCount).toBe(60);
+  });
+
+  test("counts confirmed and uploaded history as distinct confirmed orders", async () => {
+    mockFrom.mockImplementation(
+      buildChain((table, idx) => {
+        if (table === "products") return { data: PRODUCT };
+        if (table === "markets") return { data: MARKET };
+        if (table === "orders") return { data: [], count: 3 };
+        if (table === "order_history" && idx === 0) {
+          return {
+            data: [
+              { order_id: "o-1", orders: { product_id: "prod-1" } },
+              { order_id: "o-1", orders: { product_id: "prod-1" } },
+              { order_id: "o-2", orders: { product_id: "prod-1" } },
+            ],
+            count: 3,
+          };
+        }
+        return { data: [], count: 0 };
+      })
+    );
+
+    const res = await GET(
+      createRequest({ from_date: "2026-04-01", to_date: "2026-04-13" }),
+      { params }
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.confirmedCount).toBe(2);
+    expect(body.data.confirmationRate).toBe(66.7);
   });
 
   test("super_admin can view any market", async () => {

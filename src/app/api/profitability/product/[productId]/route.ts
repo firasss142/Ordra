@@ -12,6 +12,8 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+const CONFIRMED_STATUSES = ["confirmed", "uploaded"] as const;
+
 interface PeriodCounts {
   totalLeads: number;
   confirmedCount: number;
@@ -25,7 +27,6 @@ type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 interface ProductCostInputs {
   unitCogs: number;
   packingCost: number;
-  cpl: number;
   confirmationProcessingCost: number;
 }
 
@@ -50,12 +51,17 @@ async function computeForPeriod(
     carriers: { delivery_fee: number; return_fee: number } | null;
   };
 
+  type ConfirmedRow = {
+    order_id: string;
+  };
+
   const [
     { count: totalLeads },
-    { count: confirmedCount },
+    confirmedHistory,
     { count: dispatchedCount },
     deliveredHistory,
     returnedHistory,
+    adSpendRes,
   ] = await Promise.all([
     supabase
       .from("orders")
@@ -64,13 +70,15 @@ async function computeForPeriod(
       .gte("created_at", fromDate)
       .lte("created_at", toDateEnd),
 
-    supabase
-      .from("order_history")
-      .select("id, orders!inner(product_id)", { count: "exact", head: true })
-      .eq("status_to", "confirmed")
-      .eq("orders.product_id", productId)
-      .gte("created_at", fromDate)
-      .lte("created_at", toDateEnd),
+    fetchAllRows<ConfirmedRow>(
+      supabase
+        .from("order_history")
+        .select("order_id, orders!inner(product_id)")
+        .in("status_to", CONFIRMED_STATUSES)
+        .eq("orders.product_id", productId)
+        .gte("created_at", fromDate)
+        .lte("created_at", toDateEnd)
+    ),
 
     supabase
       .from("order_history")
@@ -103,7 +111,24 @@ async function computeForPeriod(
         .gte("created_at", fromDate)
         .lte("created_at", toDateEnd)
     ),
+
+    supabase
+      .from("ad_spend")
+      .select("amount")
+      .eq("product_id", productId)
+      .eq("is_active", true)
+      .lte("period_start", toDate)
+      .gte("period_end", fromDate),
   ]);
+
+  const adSpend = (adSpendRes.data ?? []).reduce(
+    (sum: number, r: { amount: number | string }) => sum + Number(r.amount),
+    0
+  );
+
+  const confirmedCount = new Set(
+    confirmedHistory.map((row) => row.order_id).filter(Boolean)
+  ).size;
 
   const deliveredOrders = deliveredHistory.map((h) => {
     const o = h.orders;
@@ -123,13 +148,13 @@ async function computeForPeriod(
 
   const result = calculateProductProfitability({
     totalLeads: totalLeads ?? 0,
-    confirmedCount: confirmedCount ?? 0,
+    confirmedCount,
     dispatchedCount: dispatchedCount ?? 0,
     deliveredCount: deliveredOrders.length,
     returnedCount: returnedOrders.length,
     unitCogs: costs.unitCogs,
     packingCost: costs.packingCost,
-    cpl: costs.cpl,
+    adSpend,
     confirmationProcessingCost: costs.confirmationProcessingCost,
     deliveredOrders,
     returnedOrders,
@@ -137,7 +162,7 @@ async function computeForPeriod(
 
   return {
     ...result,
-    confirmedCount: confirmedCount ?? 0,
+    confirmedCount,
     dispatchedCount: dispatchedCount ?? 0,
     deliveredCount: deliveredOrders.length,
     returnedCount: returnedOrders.length,
@@ -170,7 +195,7 @@ export async function GET(
   const { data: product } = await supabase
     .from("products")
     .select(
-      "id, name, unit_cogs, packing_cost, cpl, confirmation_processing_cost, market_id, current_stock, low_stock_threshold"
+      "id, name, unit_cogs, packing_cost, confirmation_processing_cost, market_id, current_stock, low_stock_threshold"
     )
     .eq("id", productId)
     .single();
@@ -195,7 +220,6 @@ export async function GET(
   const costs: ProductCostInputs = {
     unitCogs: Number(product.unit_cogs),
     packingCost: Number(product.packing_cost),
-    cpl: Number(product.cpl),
     confirmationProcessingCost: Number(product.confirmation_processing_cost ?? 0),
   };
 

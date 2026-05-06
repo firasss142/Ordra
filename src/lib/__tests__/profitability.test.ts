@@ -7,7 +7,6 @@ import {
   calculatePackingCost,
   calculateNetProfit,
   calculateMargin,
-  calculateProductAdSpend,
   calculateProcessingCost,
   calculateCostPerDelivered,
   calculateDeliveryRate,
@@ -160,20 +159,6 @@ describe("calculateMargin", () => {
 });
 
 // --- Product-level profitability ---
-
-describe("calculateProductAdSpend", () => {
-  it("multiplies CPL by total leads", () => {
-    expect(calculateProductAdSpend(2.5, 100)).toBe(250);
-  });
-
-  it("returns 0 when CPL is 0", () => {
-    expect(calculateProductAdSpend(0, 50)).toBe(0);
-  });
-
-  it("returns 0 when leads is 0", () => {
-    expect(calculateProductAdSpend(3, 0)).toBe(0);
-  });
-});
 
 describe("calculateProcessingCost", () => {
   it("multiplies processing cost by confirmed count", () => {

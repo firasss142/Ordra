@@ -91,7 +91,6 @@ export async function PATCH(
     "image_url",
     "unit_cogs",
     "packing_cost",
-    "cpl",
     "confirmation_processing_cost",
     "default_price",
     "low_stock_threshold",
