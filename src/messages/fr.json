@@ -1109,6 +1109,8 @@
     "saving": "Enregistrement…",
     "confirmedHint": "Confirmez la commande — l'entrepôt se chargera de l'expédition.",
     "confirmedSuccess": "Commande confirmée avec succès.",
+    "confirmOnly": "Confirmer",
+    "confirmAndSchedule": "Confirmer + planifier livraison",
     "rejectedHint": "Sélectionnez la raison du rejet.",
     "rejectedHintMax": "Injoignable pré-sélectionné.",
     "callbackHint": "Choisissez une date et heure de rappel.",

@@ -1109,6 +1109,8 @@
     "saving": "جارٍ الحفظ…",
     "confirmedHint": "أكّد الطلب — المستودع سيتولى الشحن.",
     "confirmedSuccess": "تم تأكيد الطلب بنجاح.",
+    "confirmOnly": "تأكيد",
+    "confirmAndSchedule": "تأكيد + جدولة التوصيل",
     "rejectedHint": "اختر سبب الرفض.",
     "rejectedHintMax": "لا يمكن الوصول تم التحديد مسبقاً.",
     "callbackHint": "اختر تاريخ ووقت المعاودة.",
