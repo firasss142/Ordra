@@ -1159,8 +1159,7 @@
       "attempt": "محاولة",
       "attempts": "المحاولات",
       "callback": "معاودة",
-      "toCallBack": "إعادة الاتصال",
-      "scheduled": "مجدول",
+      "inProgress": "قيد التنفيذ",
       "confirmed": "مؤكد",
       "closed": "المغلقة (7 أيام)",
       "attemptSubfilter": {
@@ -1175,10 +1174,11 @@
         "t2": "محاولة 2",
         "t3": "محاولة 3"
       },
-      "planifieSubfilter": {
+      "enCoursSubfilter": {
         "all": "الكل",
         "rappel": "اتصال",
-        "livraison": "توصيل"
+        "tentative": "محاولة",
+        "livraison": "توصيل مجدول"
       }
     },
     "etiquette": {

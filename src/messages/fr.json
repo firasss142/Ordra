@@ -1159,8 +1159,7 @@
       "attempt": "Tentative",
       "attempts": "Tentatives",
       "callback": "Rappel",
-      "toCallBack": "À rappeler",
-      "scheduled": "Planifié",
+      "inProgress": "En cours",
       "confirmed": "Confirmé",
       "closed": "Fermées",
       "attemptSubfilter": {
@@ -1175,10 +1174,11 @@
         "t2": "Tentative 2",
         "t3": "Tentative 3"
       },
-      "planifieSubfilter": {
+      "enCoursSubfilter": {
         "all": "Tous",
         "rappel": "Rappel",
-        "livraison": "Livraison"
+        "tentative": "Tentative",
+        "livraison": "Livraison planifiée"
       }
     },
     "etiquette": {

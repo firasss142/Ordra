@@ -10,8 +10,8 @@ import { useAuth } from "@/context/auth";
 import {
   QueueHeader,
   type BucketKey,
-  type AttemptSubfilter,
-  type PlanifieSubfilter,
+  type EnCoursSubfilter,
+  type TentativeSubfilter,
 } from "./QueueHeader";
 import { QueueList } from "./QueueList";
 import { useAgentQueue } from "@/hooks/useAgentQueue";
@@ -73,22 +73,25 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
 
 const VALID_BUCKETS: BucketKey[] = [
   "nouveau",
-  "a_rappeler",
-  "planifie",
+  "en_cours",
   "confirme",
   "fermees",
 ];
 
+// Old deep-links (?bucket=a_rappeler, ?bucket=planifie, ?bucket=tentative, ?bucket=rappel_prevu)
+// land on the merged en_cours tab so existing bookmarks still work.
 const LEGACY_BUCKET_MAP: Record<string, BucketKey> = {
-  all: "a_rappeler",
-  tentative: "a_rappeler",
-  rappel_prevu: "planifie",
+  a_rappeler: "en_cours",
+  planifie: "en_cours",
+  all: "en_cours",
+  tentative: "en_cours",
+  rappel_prevu: "en_cours",
 };
 
 function resolveBucketParam(raw: string | null): BucketKey {
-  if (!raw) return "a_rappeler";
+  if (!raw) return "en_cours";
   if ((VALID_BUCKETS as string[]).includes(raw)) return raw as BucketKey;
-  return LEGACY_BUCKET_MAP[raw] ?? "a_rappeler";
+  return LEGACY_BUCKET_MAP[raw] ?? "en_cours";
 }
 
 function bucketForStatus(status: string): BucketKey | null {
@@ -96,44 +99,40 @@ function bucketForStatus(status: string): BucketKey | null {
   if (
     status === "attempt_1" ||
     status === "attempt_2" ||
-    status === "attempt_3"
+    status === "attempt_3" ||
+    status === "callback_scheduled" ||
+    status === "dispatch_scheduled"
   ) {
-    return "a_rappeler";
-  }
-  if (status === "callback_scheduled" || status === "dispatch_scheduled") {
-    return "planifie";
+    return "en_cours";
   }
   if (status === "confirmed") return "confirme";
   return null;
 }
 
-function attemptNumberForStatus(status: string, attemptsCount: number): 1 | 2 | 3 | null {
+function attemptNumberForStatus(status: string): 1 | 2 | 3 | null {
   if (status === "attempt_1") return 1;
   if (status === "attempt_2") return 2;
   if (status === "attempt_3") return 3;
-  if (status === "callback_scheduled" && attemptsCount > 0) {
-    return (Math.min(attemptsCount, 3) as 1 | 2 | 3);
-  }
   return null;
 }
 
-function matchesSubfilter(
+function matchesEnCoursSubfilter(
   status: string,
-  attemptsCount: number,
-  sub: AttemptSubfilter,
-): boolean {
-  if (sub === "all") return true;
-  return attemptNumberForStatus(status, attemptsCount) === sub;
-}
-
-function matchesPlanifieSubfilter(
-  status: string,
-  sub: PlanifieSubfilter,
+  sub: EnCoursSubfilter,
 ): boolean {
   if (sub === "all") return true;
   if (sub === "rappel") return status === "callback_scheduled";
   if (sub === "livraison") return status === "dispatch_scheduled";
+  if (sub === "tentative") return attemptNumberForStatus(status) !== null;
   return false;
+}
+
+function matchesTentativeSubfilter(
+  status: string,
+  sub: TentativeSubfilter,
+): boolean {
+  if (sub === "all") return true;
+  return attemptNumberForStatus(status) === sub;
 }
 
 export function QueuePage() {
@@ -165,27 +164,32 @@ export function QueuePage() {
   const [selectedBucket, setSelectedBucket] = useState<BucketKey>(() =>
     resolveBucketParam(searchParams.get("bucket")),
   );
-  const [attemptSubfilter, setAttemptSubfilterUrl] = useState<AttemptSubfilter>(() => {
+  const [enCoursSubfilter, setEnCoursSubfilter] = useState<EnCoursSubfilter>(() => {
+    const s = searchParams.get("sub");
+    if (s === "rappel") return "rappel";
+    if (s === "livraison") return "livraison";
+    if (s === "tentative" || s === "t1" || s === "t2" || s === "t3") return "tentative";
+    return "all";
+  });
+  const [tentativeSubfilter, setTentativeSubfilter] = useState<TentativeSubfilter>(() => {
     const s = searchParams.get("sub");
     if (s === "t1") return 1;
     if (s === "t2") return 2;
     if (s === "t3") return 3;
     return "all";
   });
-  const [planifieSubfilter, setPlanifieSubfilter] = useState<PlanifieSubfilter>(
-    () => {
-      const s = searchParams.get("sub");
-      if (s === "rappel") return "rappel";
-      if (s === "livraison") return "livraison";
-      return "all";
-    },
-  );
 
   // When user switches bucket, reset subfilters.
   const handleBucketChange = useCallback((bucket: BucketKey) => {
     setSelectedBucket(bucket);
-    setAttemptSubfilterUrl("all");
-    setPlanifieSubfilter("all");
+    setEnCoursSubfilter("all");
+    setTentativeSubfilter("all");
+  }, []);
+
+  // Picking a non-Tentative top-level chip clears the popover narrowing.
+  const handleEnCoursSubfilterChange = useCallback((sub: EnCoursSubfilter) => {
+    setEnCoursSubfilter(sub);
+    if (sub !== "tentative") setTentativeSubfilter("all");
   }, []);
 
   const { data: statsData } = useSWR("/api/agent/stats", jsonFetcher, {
@@ -235,19 +239,17 @@ export function QueuePage() {
         const bucket = bucketForStatus(o.status as string);
         return bucket === selectedBucket;
       });
-      if (selectedBucket === "a_rappeler" && attemptSubfilter !== "all") {
-        filtered = filtered.filter((o) =>
-          matchesSubfilter(
-            o.status as string,
-            (o.attempts_count as number) ?? 0,
-            attemptSubfilter,
-          ),
-        );
-      }
-      if (selectedBucket === "planifie" && planifieSubfilter !== "all") {
-        filtered = filtered.filter((o) =>
-          matchesPlanifieSubfilter(o.status as string, planifieSubfilter),
-        );
+      if (selectedBucket === "en_cours") {
+        if (enCoursSubfilter !== "all") {
+          filtered = filtered.filter((o) =>
+            matchesEnCoursSubfilter(o.status as string, enCoursSubfilter),
+          );
+        }
+        if (enCoursSubfilter === "tentative" && tentativeSubfilter !== "all") {
+          filtered = filtered.filter((o) =>
+            matchesTentativeSubfilter(o.status as string, tentativeSubfilter),
+          );
+        }
       }
       next = filtered.map(toQueueOrder);
     }
@@ -256,7 +258,7 @@ export function QueuePage() {
     if (next.length === prev.length && next[0]?.id === prev[0]?.id && next[next.length - 1]?.id === prev[prev.length - 1]?.id) return prev;
     stableOrdersRef.current = next;
     return next;
-  }, [selectedBucket, attemptSubfilter, planifieSubfilter, rawAllOrders, rawClosedOrders]);
+  }, [selectedBucket, enCoursSubfilter, tentativeSubfilter, rawAllOrders, rawClosedOrders]);
 
   // Auto-focus first order if no focus set
   useEffect(() => {
@@ -405,10 +407,10 @@ export function QueuePage() {
         buckets={buckets}
         selectedBucket={selectedBucket}
         onBucketChange={handleBucketChange}
-        attemptSubfilter={attemptSubfilter}
-        onAttemptSubfilterChange={setAttemptSubfilterUrl}
-        planifieSubfilter={planifieSubfilter}
-        onPlanifieSubfilterChange={setPlanifieSubfilter}
+        enCoursSubfilter={enCoursSubfilter}
+        onEnCoursSubfilterChange={handleEnCoursSubfilterChange}
+        tentativeSubfilter={tentativeSubfilter}
+        onTentativeSubfilterChange={setTentativeSubfilter}
         onNewOrder={() => setCreateOpen(true)}
       />
 

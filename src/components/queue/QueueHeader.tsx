@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Inbox,
@@ -7,6 +8,8 @@ import {
   Calendar,
   CheckCircle,
   Archive,
+  ListTodo,
+  ChevronDown,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -20,12 +23,12 @@ export interface AgentStats {
 
 export type BucketKey =
   | "nouveau"
-  | "a_rappeler"
-  | "planifie"
+  | "en_cours"
   | "confirme"
   | "fermees";
-export type AttemptSubfilter = "all" | 1 | 2 | 3;
-export type PlanifieSubfilter = "all" | "rappel" | "livraison";
+
+export type EnCoursSubfilter = "all" | "rappel" | "tentative" | "livraison";
+export type TentativeSubfilter = "all" | 1 | 2 | 3;
 
 interface QueueHeaderProps {
   agentName: string;
@@ -33,23 +36,22 @@ interface QueueHeaderProps {
   buckets: AgentQueueBuckets | null;
   selectedBucket: BucketKey;
   onBucketChange: (bucket: BucketKey) => void;
-  attemptSubfilter: AttemptSubfilter;
-  onAttemptSubfilterChange: (sub: AttemptSubfilter) => void;
-  planifieSubfilter: PlanifieSubfilter;
-  onPlanifieSubfilterChange: (sub: PlanifieSubfilter) => void;
+  enCoursSubfilter: EnCoursSubfilter;
+  onEnCoursSubfilterChange: (sub: EnCoursSubfilter) => void;
+  tentativeSubfilter: TentativeSubfilter;
+  onTentativeSubfilterChange: (sub: TentativeSubfilter) => void;
   onNewOrder?: () => void;
 }
 
 interface TabDef {
   key: BucketKey;
   icon: LucideIcon;
-  labelKey: "new" | "toCallBack" | "scheduled" | "confirmed" | "closed";
+  labelKey: "new" | "inProgress" | "confirmed" | "closed";
 }
 
 const TABS: TabDef[] = [
   { key: "nouveau", icon: Inbox, labelKey: "new" },
-  { key: "a_rappeler", icon: Phone, labelKey: "toCallBack" },
-  { key: "planifie", icon: Calendar, labelKey: "scheduled" },
+  { key: "en_cours", icon: ListTodo, labelKey: "inProgress" },
   { key: "confirme", icon: CheckCircle, labelKey: "confirmed" },
   { key: "fermees", icon: Archive, labelKey: "closed" },
 ];
@@ -105,19 +107,30 @@ function SubChip({
   onClick,
   children,
   srLabel,
+  trailing,
+  buttonRef,
+  ariaHaspopup,
+  ariaExpanded,
 }: {
   active: boolean;
   count: number;
   onClick: () => void;
   children: React.ReactNode;
   srLabel: string;
+  trailing?: React.ReactNode;
+  buttonRef?: React.Ref<HTMLButtonElement>;
+  ariaHaspopup?: boolean;
+  ariaExpanded?: boolean;
 }) {
   return (
     <button
       type="button"
+      ref={buttonRef}
       aria-pressed={active}
       aria-current={active ? "true" : undefined}
       aria-label={srLabel}
+      aria-haspopup={ariaHaspopup ? "menu" : undefined}
+      aria-expanded={ariaHaspopup ? ariaExpanded : undefined}
       onClick={onClick}
       className={[
         "inline-flex items-center gap-1.5 py-1 px-2.5 rounded-pill",
@@ -129,6 +142,7 @@ function SubChip({
     >
       <span>{children}</span>
       <span className="tabular-nums">{count}</span>
+      {trailing}
     </button>
   );
 }
@@ -150,16 +164,49 @@ export function QueueHeader({
   buckets,
   selectedBucket,
   onBucketChange,
-  attemptSubfilter,
-  onAttemptSubfilterChange,
-  planifieSubfilter,
-  onPlanifieSubfilterChange,
+  enCoursSubfilter,
+  onEnCoursSubfilterChange,
+  tentativeSubfilter,
+  onTentativeSubfilterChange,
   onNewOrder,
 }: QueueHeaderProps) {
   const t = useTranslations("queue");
-  const tSub = useTranslations("queue.buckets.subfilter");
-  const tPlan = useTranslations("queue.buckets.planifieSubfilter");
+  const tEnCours = useTranslations("queue.buckets.enCoursSubfilter");
+  const tAttempt = useTranslations("queue.buckets.subfilter");
   const tOrders = useTranslations("orders.create");
+
+  const [tentativePopoverOpen, setTentativePopoverOpen] = useState(false);
+  const tentativeAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+
+  // Close popover on outside click / Escape
+  useEffect(() => {
+    if (!tentativePopoverOpen) return;
+    function onPointerDown(e: MouseEvent) {
+      const target = e.target as Node;
+      if (
+        tentativeAnchorRef.current?.contains(target) ||
+        popoverRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setTentativePopoverOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setTentativePopoverOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [tentativePopoverOpen]);
+
+  // Close popover when leaving the en_cours bucket
+  useEffect(() => {
+    if (selectedBucket !== "en_cours") setTentativePopoverOpen(false);
+  }, [selectedBucket]);
 
   const counts = buckets ?? {
     nouveau: 0,
@@ -174,40 +221,34 @@ export function QueueHeader({
     fermees: 0,
   };
 
-  const planifieTotal = counts.rappel_prevu + counts.livraison_planifiee;
+  const enCoursTotal =
+    counts.tentative_total + counts.rappel_prevu + counts.livraison_planifiee;
 
   const bucketCount: Record<BucketKey, number> = {
     nouveau: counts.nouveau,
-    a_rappeler: counts.tentative_total,
-    planifie: planifieTotal,
+    en_cours: enCoursTotal,
     confirme: counts.confirme,
     fermees: counts.fermees,
   };
 
-  const attemptSubfilterDefs: Array<{
-    key: AttemptSubfilter;
-    label: string;
-    count: number;
-  }> = [
-    { key: "all", label: tSub("all"), count: counts.tentative_total },
-    { key: 1, label: tSub("t1"), count: counts.tentative_1 },
-    { key: 2, label: tSub("t2"), count: counts.tentative_2 },
-    { key: 3, label: tSub("t3"), count: counts.tentative_3 },
-  ];
+  const tentativeChipActive =
+    enCoursSubfilter === "tentative" || tentativePopoverOpen;
 
-  const planifieSubfilterDefs: Array<{
-    key: PlanifieSubfilter;
-    label: string;
-    count: number;
-  }> = [
-    { key: "all", label: tPlan("all"), count: planifieTotal },
-    { key: "rappel", label: tPlan("rappel"), count: counts.rappel_prevu },
-    {
-      key: "livraison",
-      label: tPlan("livraison"),
-      count: counts.livraison_planifiee,
-    },
-  ];
+  function handleTentativeChipClick() {
+    // Open: filter to all attempts and reveal T1/T2/T3.
+    // Click again while open: just close — the chip stays as the active filter.
+    if (tentativePopoverOpen) {
+      setTentativePopoverOpen(false);
+      return;
+    }
+    if (enCoursSubfilter !== "tentative") onEnCoursSubfilterChange("tentative");
+    setTentativePopoverOpen(true);
+  }
+
+  function handleTentativeOptionClick(value: TentativeSubfilter) {
+    onTentativeSubfilterChange(value);
+    setTentativePopoverOpen(false);
+  }
 
   return (
     <div className="bg-surface-card border-b border-line-subtle px-6 pt-4 pb-0">
@@ -252,39 +293,143 @@ export function QueueHeader({
         ))}
       </div>
 
-      {/* Sub-filter chips — À rappeler */}
-      {selectedBucket === "a_rappeler" && (
+      {/* Sub-filter chips — En cours */}
+      {selectedBucket === "en_cours" && (
         <div className="flex gap-1.5 mt-2.5 mb-3 flex-wrap">
-          {attemptSubfilterDefs.map(({ key, label, count }) => (
-            <SubChip
-              key={String(key)}
-              active={attemptSubfilter === key}
-              count={count}
-              srLabel={label}
-              onClick={() => onAttemptSubfilterChange(key)}
-            >
-              {label}
-            </SubChip>
-          ))}
-        </div>
-      )}
+          <SubChip
+            active={enCoursSubfilter === "all"}
+            count={enCoursTotal}
+            srLabel={tEnCours("all")}
+            onClick={() => onEnCoursSubfilterChange("all")}
+          >
+            {tEnCours("all")}
+          </SubChip>
 
-      {/* Sub-filter chips — Planifié */}
-      {selectedBucket === "planifie" && (
-        <div className="flex gap-1.5 mt-2.5 mb-3 flex-wrap">
-          {planifieSubfilterDefs.map(({ key, label, count }) => (
+          <SubChip
+            active={enCoursSubfilter === "rappel"}
+            count={counts.rappel_prevu}
+            srLabel={tEnCours("rappel")}
+            onClick={() => onEnCoursSubfilterChange("rappel")}
+          >
+            <Phone size={12} strokeWidth={2} aria-hidden="true" className="me-1 inline" />
+            {tEnCours("rappel")}
+          </SubChip>
+
+          {/* Tentative chip + popover */}
+          <div className="relative inline-block">
             <SubChip
-              key={key}
-              active={planifieSubfilter === key}
-              count={count}
-              srLabel={label}
-              onClick={() => onPlanifieSubfilterChange(key)}
+              buttonRef={tentativeAnchorRef}
+              active={tentativeChipActive}
+              count={
+                tentativeSubfilter === 1
+                  ? counts.tentative_1
+                  : tentativeSubfilter === 2
+                    ? counts.tentative_2
+                    : tentativeSubfilter === 3
+                      ? counts.tentative_3
+                      : counts.tentative_total
+              }
+              srLabel={tEnCours("tentative")}
+              ariaHaspopup
+              ariaExpanded={tentativePopoverOpen}
+              onClick={handleTentativeChipClick}
+              trailing={
+                <ChevronDown
+                  size={12}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                  className={[
+                    "ms-0.5 transition-transform duration-fast",
+                    tentativePopoverOpen ? "rotate-180" : "",
+                  ].join(" ")}
+                />
+              }
             >
-              {label}
+              {tEnCours("tentative")}
+              {tentativeSubfilter !== "all" && (
+                <span className="ms-1 text-[11px] opacity-80">
+                  · {tentativeSubfilter}
+                </span>
+              )}
             </SubChip>
-          ))}
+
+            {tentativePopoverOpen && (
+              <div
+                ref={popoverRef}
+                role="menu"
+                aria-label={tEnCours("tentative")}
+                className="absolute z-20 mt-1 start-0 min-w-[160px] bg-surface-card border border-line-subtle rounded-card shadow-floating py-1"
+              >
+                <TentativePopoverItem
+                  active={tentativeSubfilter === "all"}
+                  count={counts.tentative_total}
+                  label={tAttempt("all")}
+                  onClick={() => handleTentativeOptionClick("all")}
+                />
+                <TentativePopoverItem
+                  active={tentativeSubfilter === 1}
+                  count={counts.tentative_1}
+                  label={tAttempt("t1")}
+                  onClick={() => handleTentativeOptionClick(1)}
+                />
+                <TentativePopoverItem
+                  active={tentativeSubfilter === 2}
+                  count={counts.tentative_2}
+                  label={tAttempt("t2")}
+                  onClick={() => handleTentativeOptionClick(2)}
+                />
+                <TentativePopoverItem
+                  active={tentativeSubfilter === 3}
+                  count={counts.tentative_3}
+                  label={tAttempt("t3")}
+                  onClick={() => handleTentativeOptionClick(3)}
+                />
+              </div>
+            )}
+          </div>
+
+          <SubChip
+            active={enCoursSubfilter === "livraison"}
+            count={counts.livraison_planifiee}
+            srLabel={tEnCours("livraison")}
+            onClick={() => onEnCoursSubfilterChange("livraison")}
+          >
+            <Calendar size={12} strokeWidth={2} aria-hidden="true" className="me-1 inline" />
+            {tEnCours("livraison")}
+          </SubChip>
         </div>
       )}
     </div>
+  );
+}
+
+function TentativePopoverItem({
+  active,
+  count,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  count: number;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      aria-label={label}
+      onClick={onClick}
+      className={[
+        "w-full flex items-center justify-between gap-3 px-3 py-1.5",
+        "text-[12px] font-medium text-start transition-colors duration-fast",
+        active
+          ? "bg-surface-hover text-ink-primary"
+          : "text-ink-secondary hover:bg-surface-hover hover:text-ink-primary",
+      ].join(" ")}
+    >
+      <span>{label}</span>
+      <span className="tabular-nums text-[11px] text-ink-muted">{count}</span>
+    </button>
   );
 }
