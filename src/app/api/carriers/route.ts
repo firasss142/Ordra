@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
-import {
-  canReadSettings,
-  canManageCarriers,
-} from "@/lib/settings-permissions";
+import { canManageCarriers } from "@/lib/settings-permissions";
 import { encrypt, maskCredential } from "@/lib/crypto";
 import {
   hasCarrierAdapter,
@@ -56,11 +53,13 @@ export async function GET(req: NextRequest) {
   const role = actor.role;
 
   const marketId =
-    actor.role === "market_manager"
-      ? actor.market_id ?? ""
-      : req.nextUrl.searchParams.get("market_id") ?? actor.market_id ?? "";
+    actor.role === "super_admin"
+      ? req.nextUrl.searchParams.get("market_id") ?? actor.market_id ?? ""
+      : actor.market_id ?? "";
 
-  if (!canReadSettings(role, marketId, actor.market_id ?? "")) {
+  // super_admin: any market. Everyone else: their own market only.
+  // Agents need this for the carrier picker on the upload-to-carrier action.
+  if (role !== "super_admin" && marketId !== actor.market_id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

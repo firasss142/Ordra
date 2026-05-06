@@ -496,7 +496,15 @@ export function OrderDetailPanel({
   const canUploadToCarrier =
     order !== null &&
     (order.status === "confirmed" || order.status === "dispatch_scheduled") &&
-    (role === "super_admin" || role === "market_manager" || role === "warehouse_agent");
+    (role === "super_admin" ||
+      role === "market_manager" ||
+      role === "warehouse_agent" ||
+      // Agent (or agent queue, where role prop is undefined) can upload
+      // their own assigned orders. The dispatch API enforces the same
+      // ownership check server-side.
+      ((role === "agent" || role === undefined) &&
+        userId !== undefined &&
+        order.assigned_to === userId));
 
   const { data: uploadCarriersData } = useSWR<{
     data: Array<{ id: string; name: string; code: string; is_active: boolean }>;
