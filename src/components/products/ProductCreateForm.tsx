@@ -16,6 +16,7 @@ interface ProductCreateFormProps {
   markets: Market[];
   defaultMarketId: string;
   locale: string;
+  lockedMarketId?: string | null;
 }
 
 const TEXT = "#1A1A1A";
@@ -28,12 +29,13 @@ const hintStyle: React.CSSProperties = { fontSize: 12, color: MUTED, marginTop: 
 const sectionStyle: React.CSSProperties = { borderBottom: `1px solid ${BORDER}`, paddingBottom: 20, marginBottom: 20 };
 const sectionTitleStyle: React.CSSProperties = { fontSize: 14, fontWeight: 600, color: TEXT, marginBottom: 14 };
 
-export function ProductCreateForm({ markets, defaultMarketId, locale }: ProductCreateFormProps) {
+export function ProductCreateForm({ markets, defaultMarketId, locale, lockedMarketId }: ProductCreateFormProps) {
   const t = useTranslations("products");
   const router = useRouter();
 
   const [name, setName] = useState("");
-  const [marketId, setMarketId] = useState(defaultMarketId);
+  const [sku, setSku] = useState("");
+  const [marketId, setMarketId] = useState(lockedMarketId ?? defaultMarketId);
   const [unitCogs, setUnitCogs] = useState("");
   const [packingCost, setPackingCost] = useState("");
   const [cpl, setCpl] = useState("");
@@ -85,6 +87,8 @@ export function ProductCreateForm({ markets, defaultMarketId, locale }: ProductC
       initial_stock: parseInt(initialStock, 10) || 0,
       market_id: marketId,
     };
+    const trimmedSku = sku.trim();
+    if (trimmedSku !== "") body.sku = trimmedSku;
     if (defaultPrice.trim() !== "") {
       const dp = parseFloat(defaultPrice);
       if (!isNaN(dp) && dp >= 0) body.default_price = dp;
@@ -98,7 +102,8 @@ export function ProductCreateForm({ markets, defaultMarketId, locale }: ProductC
 
     if (!res.ok) {
       const json = await res.json().catch(() => ({}));
-      setError(json.error ?? `Erreur ${res.status}`);
+      const msg = res.status === 409 ? t("create.errors.skuConflict") : (json.error ?? `Erreur ${res.status}`);
+      setError(msg);
       setLoading(false);
       return;
     }
@@ -140,7 +145,23 @@ export function ProductCreateForm({ markets, defaultMarketId, locale }: ProductC
             />
           </div>
 
-          {markets.length > 1 && (
+          <div>
+            <label htmlFor="product-sku" style={labelStyle}>
+              {t("create.fields.sku")}
+            </label>
+            <input
+              id="product-sku"
+              aria-label={t("create.fields.sku")}
+              type="text"
+              value={sku}
+              onChange={(e) => setSku(e.target.value)}
+              placeholder="bv-01"
+              style={inputStyle}
+            />
+            <p style={hintStyle}>{t("create.hints.sku")}</p>
+          </div>
+
+          {markets.length > 1 && !lockedMarketId && (
             <div>
               <label htmlFor="market-select" style={labelStyle}>Marché</label>
               <select

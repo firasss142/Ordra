@@ -1298,16 +1298,54 @@
         "costModel": "Modèle de coûts",
         "inventory": "Inventaire"
       },
+      "fields": {
+        "sku": "SKU"
+      },
       "hints": {
         "unitCogs": "Coût d'achat ou de fabrication par unité livrée.",
         "packingCost": "Emballage, ruban, protections — par commande confirmée.",
         "cpl": "Coût par lead publicitaire. Utilisé pour calculer la dépense pub totale.",
         "processingCost": "Coût de traitement de confirmation par commande confirmée.",
-        "threshold": "En dessous de ce seuil, le produit est signalé en stock bas."
+        "threshold": "En dessous de ce seuil, le produit est signalé en stock bas.",
+        "sku": "Identifiant unique pour la correspondance webhook (optionnel)."
+      },
+      "errors": {
+        "skuConflict": "Ce SKU est déjà utilisé pour un autre produit de ce marché."
       },
       "example": "Exemple indicatif : 100 leads · 60 confirmés · 40 livrés à {price} → marge estimée {margin}",
       "submit": "Créer le produit",
       "cancel": "Annuler"
+    },
+    "editForm": {
+      "title": "Modifier le produit",
+      "intro": "Mettez à jour les informations du produit.",
+      "sections": {
+        "inventoryAndStatus": "Inventaire et statut"
+      },
+      "fields": {
+        "name": "Nom du produit",
+        "sku": "SKU",
+        "description": "Description",
+        "imageUrl": "URL de l'image",
+        "unitCogs": "COGS unitaire",
+        "packingCost": "Coût d'emballage",
+        "cpl": "CPL",
+        "processingCost": "Coût de traitement",
+        "threshold": "Seuil stock bas",
+        "defaultPrice": "Prix de vente (optionnel)",
+        "isActive": "Produit actif"
+      },
+      "hints": {
+        "sku": "Identifiant unique pour la correspondance webhook (optionnel)."
+      },
+      "errors": {
+        "nameRequired": "Le nom est obligatoire.",
+        "unitCogsInvalid": "COGS unitaire invalide.",
+        "thresholdInvalid": "Seuil stock bas invalide.",
+        "skuConflict": "Ce SKU est déjà utilisé pour un autre produit de ce marché."
+      },
+      "submit": "Enregistrer",
+      "saving": "Enregistrement…"
     },
     "row": {
       "editThreshold": "Modifier le seuil",

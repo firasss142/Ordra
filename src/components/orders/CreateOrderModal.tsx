@@ -188,6 +188,7 @@ export function CreateOrderModal({
   const effectiveMarketId = form.market_id;
   const currentMarket = markets.find((m) => m.id === effectiveMarketId);
   const marketCode = currentMarket?.code;
+  const marketSelectLocked = Boolean(form.market_id);
 
   const { data: storefrontsData } = useSWR<{ data: Storefront[] }>(
     isOpen && effectiveMarketId
@@ -456,6 +457,7 @@ export function CreateOrderModal({
                       value={form.market_id}
                       onChange={(e) => update("market_id", e.target.value)}
                       className={inputClass}
+                      disabled={marketSelectLocked}
                     >
                       <option value="">—</option>
                       {markets.map((m) => (

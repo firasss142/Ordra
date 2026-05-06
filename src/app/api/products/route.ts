@@ -134,8 +134,14 @@ export async function POST(req: NextRequest) {
       ? body.default_price
       : null;
 
+  const sku =
+    typeof body.sku === "string" && body.sku.trim() !== ""
+      ? body.sku.trim()
+      : null;
+
   const productRow = {
     name: body.name,
+    sku,
     unit_cogs: body.unit_cogs,
     packing_cost: body.packing_cost,
     market_id: marketId,
@@ -162,7 +168,12 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (insertError) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  if (insertError) {
+    if ((insertError as { code?: string }).code === "23505") {
+      return NextResponse.json({ error: "SKU already in use" }, { status: 409 });
+    }
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 
   // If initial_stock > 0, create inventory log entry
   if (initialStock > 0) {

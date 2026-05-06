@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { ProductCreateForm } from "@/components/products/ProductCreateForm";
+import { getActiveMarketScope } from "@/lib/auth/market-scope";
 
 interface Market {
   id: string;
@@ -37,7 +38,13 @@ export default async function NewProductPage({
     .order("name", { ascending: true });
 
   const markets: Market[] = (marketsData ?? []) as Market[];
-  const defaultMarketId = markets[0]?.id ?? "";
+
+  const activeScope = await getActiveMarketScope({
+    role: profile.role,
+    market_id: profile.market_id,
+  } as Parameters<typeof getActiveMarketScope>[0]);
+  const lockedMarketId = activeScope.marketId;
+  const defaultMarketId = lockedMarketId ?? markets[0]?.id ?? "";
 
   return (
     <div style={{ padding: 24, backgroundColor: "#F6F6F7", minHeight: "100vh" }}>
@@ -54,6 +61,7 @@ export default async function NewProductPage({
           role={profile.role}
           markets={markets}
           defaultMarketId={defaultMarketId}
+          lockedMarketId={lockedMarketId}
           locale={params.locale}
         />
       </div>
