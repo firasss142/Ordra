@@ -9,8 +9,45 @@ import { encrypt, maskCredential } from "@/lib/crypto";
 import {
   hasCarrierAdapter,
   adapterSupportsMarket,
+  getAdapterDescriptor,
 } from "@/lib/carriers/adapter-registry";
 import { getAllActiveMarkets } from "@/lib/markets/list";
+
+/**
+ * Build the encrypted credentials JSON for a carrier row.
+ * Accepts either a structured `credentials` object (preferred) or a legacy
+ * `api_key` string. The legacy string is mapped onto the adapter's first
+ * declared secret field so older form payloads keep working.
+ */
+function encodeCredentials(
+  carrierCode: string,
+  body: Record<string, unknown>
+): string | null | { error: string } {
+  const credsObj = body.credentials;
+  if (credsObj && typeof credsObj === "object" && !Array.isArray(credsObj)) {
+    const flat: Record<string, string> = {};
+    for (const [k, v] of Object.entries(credsObj as Record<string, unknown>)) {
+      if (v !== undefined && v !== null && String(v).length > 0) {
+        flat[k] = String(v);
+      }
+    }
+    if (Object.keys(flat).length === 0) return null;
+    return encrypt(JSON.stringify(flat));
+  }
+
+  const apiKey = body.api_key;
+  if (apiKey === undefined || apiKey === null || String(apiKey).length === 0) {
+    return null;
+  }
+
+  const descriptor = getAdapterDescriptor(carrierCode);
+  const secretKey = descriptor?.credentialFields.find((f) => f.secret)?.key;
+  if (!secretKey) {
+    // Custom (no-adapter) carrier — keep legacy plain-string form.
+    return encrypt(String(apiKey));
+  }
+  return encrypt(JSON.stringify({ [secretKey]: String(apiKey) }));
+}
 
 export async function GET(req: NextRequest) {
   const actorResult = await getActor(req);
@@ -64,7 +101,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { market_id: body_market_id, name, code, api_endpoint, api_key, delivery_fee, return_fee } = body as Record<string, string | number>;
+  const { market_id: body_market_id, name, code, api_endpoint, delivery_fee, return_fee } = body as Record<string, string | number>;
 
   // super_admin supplies market_id in body; never use body value for market_manager
   const market_id =
@@ -91,7 +128,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const api_credentials = api_key ? encrypt(String(api_key)) : null;
+  const encoded = encodeCredentials(codeStr, body);
+  if (encoded && typeof encoded === "object") {
+    return NextResponse.json({ error: encoded.error }, { status: 400 });
+  }
+  const api_credentials = encoded;
 
   // Admin client: api_endpoint and api_credentials are REVOKE'd from authenticated role,
   // so a user-bound client cannot SELECT them back after insert.
@@ -113,6 +154,12 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     console.error("[POST /api/carriers] insert failed", { code: error.code, message: error.message, details: error.details });
+    if (error.code === "23505") {
+      return NextResponse.json(
+        { error: `Un transporteur avec le code "${codeStr}" existe déjà pour ce marché.` },
+        { status: 409 }
+      );
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 

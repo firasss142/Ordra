@@ -72,7 +72,16 @@ export async function performDispatch({
     .single<OrderRow>();
 
   if (orderError || !order) {
-    return { ok: false, status: 404, error: "Order not found" };
+    console.error("[performDispatch] order lookup failed", {
+      orderId,
+      code: orderError?.code,
+      message: orderError?.message,
+    });
+    return {
+      ok: false,
+      status: 404,
+      error: `Order not found (${orderError?.code ?? "no_row"}: ${orderError?.message ?? "no rows returned"})`,
+    };
   }
 
   const { data: carrier, error: carrierError } = await admin
@@ -82,7 +91,16 @@ export async function performDispatch({
     .single<CarrierRow>();
 
   if (carrierError || !carrier) {
-    return { ok: false, status: 404, error: "Carrier not found" };
+    console.error("[performDispatch] carrier lookup failed", {
+      carrierId,
+      code: carrierError?.code,
+      message: carrierError?.message,
+    });
+    return {
+      ok: false,
+      status: 404,
+      error: `Carrier not found (${carrierError?.code ?? "no_row"}: ${carrierError?.message ?? "no rows returned"})`,
+    };
   }
 
   if (carrier.market_id !== order.market_id) {

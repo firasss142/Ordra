@@ -3,6 +3,35 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { canManageCarriers } from "@/lib/settings-permissions";
 import { encrypt, maskCredential } from "@/lib/crypto";
 import { getActor } from "@/lib/auth/actor";
+import { getAdapterDescriptor } from "@/lib/carriers/adapter-registry";
+
+function encodeCredentials(
+  carrierCode: string,
+  body: Record<string, unknown>
+): string | null | undefined {
+  // undefined → caller didn't try to set credentials; leave field untouched.
+  // null      → caller cleared credentials.
+  // string    → encrypted JSON to store.
+  const credsObj = body.credentials;
+  if (credsObj && typeof credsObj === "object" && !Array.isArray(credsObj)) {
+    const flat: Record<string, string> = {};
+    for (const [k, v] of Object.entries(credsObj as Record<string, unknown>)) {
+      if (v !== undefined && v !== null && String(v).length > 0) {
+        flat[k] = String(v);
+      }
+    }
+    return Object.keys(flat).length === 0 ? null : encrypt(JSON.stringify(flat));
+  }
+
+  if (body.api_key === undefined) return undefined;
+  const apiKey = body.api_key;
+  if (apiKey === null || String(apiKey).length === 0) return null;
+
+  const descriptor = getAdapterDescriptor(carrierCode);
+  const secretKey = descriptor?.credentialFields.find((f) => f.secret)?.key;
+  if (!secretKey) return encrypt(String(apiKey));
+  return encrypt(JSON.stringify({ [secretKey]: String(apiKey) }));
+}
 
 export async function GET(
   req: NextRequest,
@@ -93,7 +122,7 @@ export async function PATCH(
   // Verify market ownership before mutating
   const { data: existing } = await supabase
     .from("carriers")
-    .select("id, market_id")
+    .select("id, market_id, code")
     .eq("id", id)
     .single();
 
@@ -114,10 +143,15 @@ export async function PATCH(
 
   const patch: Record<string, unknown> = {};
   if (body.name !== undefined) patch.name = body.name;
+  if (body.api_endpoint !== undefined) patch.api_endpoint = body.api_endpoint;
   if (body.delivery_fee !== undefined) patch.delivery_fee = body.delivery_fee;
   if (body.return_fee !== undefined) patch.return_fee = body.return_fee;
   if (body.is_active !== undefined) patch.is_active = body.is_active;
-  if (body.api_key !== undefined) patch.api_credentials = encrypt(String(body.api_key));
+
+  const credentialsUpdate = encodeCredentials(String(existing.code), body);
+  if (credentialsUpdate !== undefined) {
+    patch.api_credentials = credentialsUpdate;
+  }
 
   // Admin client: api_endpoint and api_credentials are REVOKE'd from authenticated role.
   const admin = createAdminClient();

@@ -269,6 +269,14 @@ export function OrderDetailPanel({
   const [scheduleDispatchOpen, setScheduleDispatchOpen] = useState(false);
   const [cancelingSchedule, setCancelingSchedule] = useState(false);
 
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadingCarrierId, setUploadingCarrierId] = useState<string | null>(null);
+  const [uploadFeedback, setUploadFeedback] = useState<
+    | { kind: "success"; tracking: string }
+    | { kind: "error"; message: string }
+    | null
+  >(null);
+
   const nameFieldRef = useRef<HTMLDivElement>(null);
 
   const { commit } = useOrderMutation(orderId ?? "__none__");
@@ -484,6 +492,62 @@ export function OrderDetailPanel({
     role === undefined && order !== null && order.status === "confirmed";
   const isDispatchScheduled =
     order !== null && order.status === "dispatch_scheduled";
+
+  const canUploadToCarrier =
+    order !== null &&
+    (order.status === "confirmed" || order.status === "dispatch_scheduled") &&
+    (role === "super_admin" || role === "market_manager" || role === "warehouse_agent");
+
+  const { data: uploadCarriersData } = useSWR<{
+    data: Array<{ id: string; name: string; code: string; is_active: boolean }>;
+  }>(
+    canUploadToCarrier && uploadOpen && order
+      ? `/api/carriers?market_id=${order.market_id}`
+      : null,
+    fetcher,
+  );
+  const activeCarriers = (uploadCarriersData?.data ?? []).filter((c) => c.is_active);
+
+  async function handleUploadToCarrier(carrierId: string) {
+    if (!orderId) return;
+    setUploadingCarrierId(carrierId);
+    setUploadFeedback(null);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/dispatch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ carrier_id: carrierId }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        data?: { tracking_number?: string | null };
+        error?: string;
+        debug?: Record<string, unknown>;
+      };
+      if (!res.ok) {
+        const detail = json.debug
+          ? ` (${Object.entries(json.debug).map(([k, v]) => `${k}=${v}`).join(", ")})`
+          : "";
+        setUploadFeedback({
+          kind: "error",
+          message: `${json.error ?? `HTTP ${res.status}`}${detail}`,
+        });
+        return;
+      }
+      setUploadFeedback({
+        kind: "success",
+        tracking: json.data?.tracking_number ?? "—",
+      });
+      setUploadOpen(false);
+      await mutate();
+    } catch (err) {
+      setUploadFeedback({
+        kind: "error",
+        message: err instanceof Error ? err.message : "Network error",
+      });
+    } finally {
+      setUploadingCarrierId(null);
+    }
+  }
 
   async function handleCancelSchedule() {
     if (!orderId) return;
@@ -1129,11 +1193,11 @@ export function OrderDetailPanel({
             };
           }
 
-          const hasSecondary = canReturnToPool || canScheduleDispatch;
+          const hasSecondary = canReturnToPool || canScheduleDispatch || canUploadToCarrier;
 
           return (
             <div className="flex-shrink-0 bg-surface-card border-t border-line-subtle">
-              {/* Secondary row — return to pool + schedule dispatch */}
+              {/* Secondary row — return to pool + schedule dispatch + upload to carrier */}
               {hasSecondary && (
                 <div className="flex items-center gap-1.5 px-4 pt-2.5">
                   {canReturnToPool && (
@@ -1158,6 +1222,33 @@ export function OrderDetailPanel({
                       {t("scheduleDispatchAction")}
                     </button>
                   )}
+                  {canUploadToCarrier && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUploadFeedback(null);
+                        setUploadOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1 h-8 px-2.5 text-[12px] font-medium text-white bg-ink-primary rounded-card hover:bg-[#2A2A2A] transition-colors duration-fast"
+                    >
+                      {t("uploadToCarrier")}
+                    </button>
+                  )}
+                </div>
+              )}
+              {uploadFeedback && (
+                <div
+                  role="status"
+                  className={[
+                    "mx-4 mt-2 rounded-card px-3 py-2 text-[12px] border",
+                    uploadFeedback.kind === "success"
+                      ? "bg-status-successBg border-status-success/30 text-status-success"
+                      : "bg-status-criticalBg border-status-critical/30 text-status-critical",
+                  ].join(" ")}
+                >
+                  {uploadFeedback.kind === "success"
+                    ? t("uploadCarrierSuccess", { tracking: uploadFeedback.tracking })
+                    : t("uploadCarrierError", { error: uploadFeedback.message })}
                 </div>
               )}
               {/* Primary CTA */}
@@ -1198,6 +1289,69 @@ export function OrderDetailPanel({
             await mutate();
           }}
         />
+      )}
+
+      {uploadOpen && order && (
+        <>
+          <div
+            className="fixed inset-0 z-[60] bg-ink-primary/50"
+            onClick={() => uploadingCarrierId === null && setUploadOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed top-1/2 start-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] w-[min(420px,95vw)] bg-surface-card border border-line-subtle rounded-card shadow-floating overflow-hidden"
+          >
+            <div className="px-5 pt-5 pb-3">
+              <h2 className="text-[15px] font-semibold text-ink-primary mb-1">
+                {t("uploadCarrierPickTitle")}
+              </h2>
+              <p className="text-[12px] text-ink-secondary leading-relaxed">
+                {t("uploadCarrierPickHint")}
+              </p>
+            </div>
+            {uploadFeedback?.kind === "error" && (
+              <div
+                role="alert"
+                className="mx-5 mb-2 rounded-card border border-status-critical/30 bg-status-criticalBg px-3 py-2 text-[12px] text-status-critical"
+              >
+                {t("uploadCarrierError", { error: uploadFeedback.message })}
+              </div>
+            )}
+            <div className="px-5 pb-3 flex flex-col gap-1.5">
+              {activeCarriers.length === 0 ? (
+                <p className="text-[13px] text-ink-secondary py-2">
+                  {t("uploadCarrierNoActive")}
+                </p>
+              ) : (
+                activeCarriers.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    disabled={uploadingCarrierId !== null}
+                    onClick={() => handleUploadToCarrier(c.id)}
+                    className="flex items-center justify-between h-10 px-3 text-[13px] text-ink-primary border border-line-subtle rounded-card hover:bg-surface-hover transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="font-medium">{c.name}</span>
+                    <span className="text-[11px] text-ink-secondary uppercase tracking-wide">
+                      {uploadingCarrierId === c.id ? t("uploadingToCarrier") : c.code}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-3 bg-surface-page border-t border-line-subtle">
+              <button
+                type="button"
+                disabled={uploadingCarrierId !== null}
+                onClick={() => setUploadOpen(false)}
+                className="inline-flex items-center justify-center h-9 px-4 text-[13px] font-medium text-ink-primary border border-line-subtle rounded-card bg-surface-card hover:bg-surface-hover transition-colors duration-fast disabled:opacity-50"
+              >
+                {t("uploadCarrierCancel")}
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Reopen confirmation modal */}

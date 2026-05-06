@@ -36,11 +36,43 @@ export async function POST(
     .single();
 
   if (orderError || !order) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    console.error("[POST /api/orders/[id]/dispatch] order lookup failed", {
+      id,
+      actor_role: actor.role,
+      actor_id: actor.id,
+      code: orderError?.code,
+      message: orderError?.message,
+    });
+    return NextResponse.json(
+      {
+        error: "Order not found",
+        debug: {
+          reason: "lookup_failed",
+          actor_role: actor.role,
+          db_code: orderError?.code ?? null,
+          db_message: orderError?.message ?? null,
+        },
+      },
+      { status: 404 },
+    );
   }
 
   if (actor.role === "agent" && order.assigned_to !== actor.id) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    console.error("[POST /api/orders/[id]/dispatch] agent does not own order", {
+      id,
+      actor_id: actor.id,
+      assigned_to: order.assigned_to,
+    });
+    return NextResponse.json(
+      {
+        error: "Order not found",
+        debug: {
+          reason: "not_assigned_to_agent",
+          actor_role: actor.role,
+        },
+      },
+      { status: 404 },
+    );
   }
 
   if (order.status !== "confirmed" && order.status !== "dispatch_scheduled") {
