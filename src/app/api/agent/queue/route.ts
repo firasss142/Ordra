@@ -5,6 +5,7 @@ import { getActor } from "@/lib/auth/actor";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 
 const ACTIVE_QUEUE_STATUSES = [
+  "pending",
   "assigned",
   "attempt_1",
   "attempt_2",
@@ -91,7 +92,7 @@ export async function GET(_req: NextRequest) {
 
   for (const o of allOrders) {
     const s = o.status as string;
-    if (s === "assigned") buckets.nouveau++;
+    if (s === "pending" || s === "assigned") buckets.nouveau++;
     else if (s === "attempt_1") {
       buckets.tentative_1++;
       buckets.tentative_total++;

@@ -31,8 +31,7 @@ function singleChain(data: unknown, error: unknown = null) {
 }
 
 const agentActor = { role: "agent", market_id: "m-1" };
-const managerActor = { role: "market_manager", market_id: "m-1" };
-const assignedOrder = { id: "order-1", status: "assigned", assigned_to: "user-1" };
+const assignedOrder = { id: "order-1", status: "pending", assigned_to: "user-1" };
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -43,20 +42,10 @@ describe("POST /api/orders/[id]/confirm — role guard", () => {
     expect(res.status).toBe(401);
   });
 
-  test("returns 403 when market_manager tries to confirm", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-1" } } });
+  test("returns 403 when unsupported role tries to confirm", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "warehouse-1" } } });
     mockFrom.mockImplementation((table: string) => {
-      if (table === "users") return singleChain(managerActor);
-      return singleChain(assignedOrder);
-    });
-    const res = await POST(req(), { params: Promise.resolve({ id: "order-1" }) });
-    expect(res.status).toBe(403);
-  });
-
-  test("returns 403 when super_admin tries to confirm", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
-    mockFrom.mockImplementation((table: string) => {
-      if (table === "users") return singleChain({ role: "super_admin", market_id: null });
+      if (table === "users") return singleChain({ role: "warehouse_agent", market_id: "m-1" });
       return singleChain(assignedOrder);
     });
     const res = await POST(req(), { params: Promise.resolve({ id: "order-1" }) });

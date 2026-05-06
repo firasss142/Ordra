@@ -1079,6 +1079,7 @@ export function OrderDetailPanel({
           // The "Appel terminé" CTA opens the post-call action sheet. Statuses
           // where confirm/reject/callback/no-answer are valid: pre-confirm pool.
           const CALL_ACTION_STATUSES = new Set([
+            "pending",
             "assigned",
             "attempt_1",
             "attempt_2",

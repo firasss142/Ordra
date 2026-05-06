@@ -31,10 +31,11 @@ describe("computeFunnelOpenCounts", () => {
 
   it("counts open orders per stage", () => {
     const rows: OpenOrderRow[] = [
-      { id: "o1", status: "assigned", assigned_to: "a1" },
+      { id: "o1", status: "pending", assigned_to: "a1" },
       { id: "o2", status: "attempt_1", assigned_to: "a1" },
       { id: "o3", status: "attempt_1", assigned_to: "a2" },
       { id: "o4", status: "attempt_3", assigned_to: "a1" },
+      { id: "o5", status: "pending", assigned_to: null },
     ];
     const counts = computeFunnelOpenCounts(rows);
     expect(counts.assigned).toBe(1);

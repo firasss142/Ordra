@@ -121,6 +121,7 @@ function Row({
   order,
   selected,
   highlighted,
+  agentName,
   currencyCode,
   labels,
   onToggleSelect,
@@ -255,6 +256,17 @@ function Row({
               {labels.callbackOverdue}
             </span>
           )}
+        </span>
+      </td>
+
+      {/* Assignee */}
+      <td className="whitespace-nowrap px-4 py-2 align-middle">
+        <span
+          className={`block truncate text-[13px] font-medium ${
+            agentName ? "text-ink-primary" : "text-ink-secondary"
+          }`}
+        >
+          {agentName ?? labels.unassigned}
         </span>
       </td>
 

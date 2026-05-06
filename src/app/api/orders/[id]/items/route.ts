@@ -78,6 +78,9 @@ export async function POST(
   if (!product.is_active) {
     return NextResponse.json({ error: "Product is not active" }, { status: 409 });
   }
+  if (Number(product.current_stock ?? 0) < quantity) {
+    return NextResponse.json({ error: "Product is out of stock" }, { status: 409 });
+  }
 
   let variantLabel: string | null = null;
   if (variant_id) {

@@ -1,7 +1,6 @@
 export const ORDER_STATUSES = [
   // Phase 1: Confirmation (agent workflow)
   "pending",
-  "assigned",
   "attempt_1",
   "attempt_2",
   "attempt_3",
@@ -35,7 +34,18 @@ export const ORDER_STATUSES = [
   "deleted",
 ] as const;
 
-export type OrderStatus = (typeof ORDER_STATUSES)[number];
+export const LEGACY_ORDER_STATUSES = [
+  // Historical value only. New assignment is represented by
+  // status="pending" plus assigned_to.
+  "assigned",
+] as const;
+
+export const ALL_ORDER_STATUSES = [
+  ...ORDER_STATUSES,
+  ...LEGACY_ORDER_STATUSES,
+] as const;
+
+export type OrderStatus = (typeof ALL_ORDER_STATUSES)[number];
 
 export const REJECTION_REASONS = [
   "refus_client",
@@ -63,7 +73,7 @@ export function isTerminalStatus(status: OrderStatus): boolean {
 
 const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   // Phase 1: Confirmation
-  pending: ["assigned"],
+  pending: ["attempt_1", "callback_scheduled", "confirmed", "rejected", "deleted"],
   assigned: ["attempt_1", "callback_scheduled", "confirmed", "rejected", "deleted"],
   attempt_1: ["attempt_2", "callback_scheduled", "confirmed", "rejected", "deleted"],
   attempt_2: ["attempt_3", "callback_scheduled", "confirmed", "rejected", "deleted"],

@@ -18,7 +18,7 @@ export function sortAgentQueue<T extends QueueOrder>(orders: T[]): T[] {
     if (order.status === "attempt_1" || order.status === "attempt_2" || order.status === "attempt_3") {
       return 1;
     }
-    if (order.status === "assigned") {
+    if (order.status === "pending" || order.status === "assigned") {
       return 2;
     }
     return 3;

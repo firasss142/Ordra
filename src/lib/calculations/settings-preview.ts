@@ -15,6 +15,7 @@ export interface MaxAttemptsPreview {
 
 const ACTIVE_CONFIRMATION_STATUSES: ReadonlySet<OrderStatus> = new Set([
   "pending",
+  // Legacy rows only; new assignment remains pending with assigned_to set.
   "assigned",
   "attempt_1",
   "attempt_2",

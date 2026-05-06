@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import type { OrderStatus } from "@/types/order-status";
 
 const NEXT_ATTEMPT: Record<string, OrderStatus> = {
+  pending: "attempt_1",
   assigned: "attempt_1",
   attempt_1: "attempt_2",
   attempt_2: "attempt_3",

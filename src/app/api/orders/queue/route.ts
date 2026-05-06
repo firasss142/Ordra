@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 
 const QUEUE_STATUSES = [
+  "pending",
   "assigned",
   "attempt_1",
   "attempt_2",
@@ -25,7 +26,7 @@ function getQueuePriority(
   if (status === "attempt_1" || status === "attempt_2" || status === "attempt_3") {
     return 1;
   }
-  if (status === "assigned") {
+  if (status === "pending" || status === "assigned") {
     return 2;
   }
   if (status === "callback_scheduled") {
@@ -82,7 +83,7 @@ export async function GET(req: NextRequest) {
       .select("order_id, status_to")
       .eq("actor_id", actor.id)
       .gte("created_at", todayISO)
-      .in("status_to", ["assigned", "confirmed", "dispatched", "rejected"]),
+      .in("status_to", ["confirmed", "dispatched", "rejected"]),
   ]);
 
   if (ordersResult.error) {
@@ -102,9 +103,6 @@ export async function GET(req: NextRequest) {
 
   // Compute stats
   const historyRows = statsResult.data ?? [];
-  const assignedOrderIds = new Set(
-    historyRows.filter((r) => r.status_to === "assigned").map((r) => r.order_id)
-  );
   const actionedOrderIds = new Set(
     historyRows
       .filter((r) => r.status_to === "confirmed" || r.status_to === "dispatched" || r.status_to === "rejected")
@@ -116,7 +114,7 @@ export async function GET(req: NextRequest) {
       .map((r) => r.order_id)
   );
 
-  const assigned_today = assignedOrderIds.size;
+  const assigned_today = (ordersResult.data ?? []).length;
   const actioned_today = actionedOrderIds.size;
   const confirmed_today = confirmedOrderIds.size;
   const confirmation_rate =

@@ -490,10 +490,14 @@ export async function getDashboardSummary(
 
   let pipelineBuilder = supabase
     .from("orders")
-    .select("status, market_id")
+    .select("status, market_id, assigned_to")
     .not("status", "in", `(${TERMINAL_STATUSES.join(",")})`);
   if (scopedMarketId) pipelineBuilder = pipelineBuilder.eq("market_id", scopedMarketId);
-  const pipelinePromise = fetchAllRows<{ status: string; market_id: string }>(pipelineBuilder);
+  const pipelinePromise = fetchAllRows<{
+    status: string;
+    market_id: string;
+    assigned_to: string | null;
+  }>(pipelineBuilder);
 
   let periodHistoryBuilder = supabase
     .from("order_history")
@@ -656,7 +660,16 @@ export async function getDashboardSummary(
   }
   const pipeline: PipelineCount[] = PIPELINE_BUCKETS.map(({ bucket, statuses }) => ({
     bucket,
-    count: statuses.reduce((sum, s) => sum + (pipelineCountByStatus.get(s) ?? 0), 0),
+    count:
+      bucket === "new"
+        ? pipelineRows.filter((r) => r.status === "pending" && !r.assigned_to).length
+        : bucket === "assigned"
+          ? pipelineRows.filter(
+              (r) =>
+                r.status === "assigned" ||
+                (r.status === "pending" && r.assigned_to !== null),
+            ).length
+          : statuses.reduce((sum, s) => sum + (pipelineCountByStatus.get(s) ?? 0), 0),
   }));
 
   // Agents + presence.

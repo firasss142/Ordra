@@ -144,8 +144,8 @@ describe("POST /api/orders/bulk-assign", () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
       if (table === "orders") {
-        const chain = queryChain({ data: [{ id: "o-1", market_id: "m-1", status: "pending" }, { id: "o-2", market_id: "m-1", status: "assigned" }], error: null });
-        chain.in = vi.fn().mockResolvedValue({ data: [{ id: "o-1", market_id: "m-1", status: "pending" }, { id: "o-2", market_id: "m-1", status: "assigned" }], error: null });
+        const chain = queryChain({ data: [{ id: "o-1", market_id: "m-1", status: "pending" }, { id: "o-2", market_id: "m-1", status: "pending" }], error: null });
+        chain.in = vi.fn().mockResolvedValue({ data: [{ id: "o-1", market_id: "m-1", status: "pending" }, { id: "o-2", market_id: "m-1", status: "pending" }], error: null });
         return chain;
       }
       return queryChain({ data: null, error: null });

@@ -26,7 +26,7 @@ export async function POST(
   }
 
   const newStatus = body.status as string;
-  if (!newStatus || !ORDER_STATUSES.includes(newStatus as OrderStatus)) {
+  if (!newStatus || !(ORDER_STATUSES as readonly string[]).includes(newStatus)) {
     return NextResponse.json({ error: "Missing or invalid status" }, { status: 400 });
   }
 

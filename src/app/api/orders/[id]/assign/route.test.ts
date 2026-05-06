@@ -63,7 +63,7 @@ describe("POST /api/orders/[id]/assign", () => {
       return queryChain({ data: null, error: null });
     });
     mockRpc.mockResolvedValue({
-      data: { order_id: "order-1", status: "assigned", assigned_to: "agent-1", updated_at: "2026-04-11", history_id: "hist-1" },
+      data: { order_id: "order-1", status: "pending", assigned_to: "agent-1", updated_at: "2026-04-11", history_id: "hist-1" },
       error: null,
     });
 
@@ -127,7 +127,7 @@ describe("POST /api/orders/[id]/assign", () => {
       return queryChain({ data: null, error: null });
     });
     mockRpc.mockResolvedValue({
-      data: { order_id: "order-1", status: "attempt_1", assigned_to: null, updated_at: "2026-04-11", history_id: "hist-2" },
+      data: { order_id: "order-1", status: "pending", assigned_to: null, updated_at: "2026-04-11", history_id: "hist-2" },
       error: null,
     });
 
@@ -166,7 +166,7 @@ describe("DELETE /api/orders/[id]/assign", () => {
       return queryChain({ data: null, error: null });
     });
     mockRpc.mockResolvedValue({
-      data: { order_id: "order-1", status: "assigned", assigned_to: null, updated_at: "2026-04-11", history_id: "hist-3" },
+      data: { order_id: "order-1", status: "pending", assigned_to: null, updated_at: "2026-04-11", history_id: "hist-3" },
       error: null,
     });
 

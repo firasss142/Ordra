@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 
 const QUEUE_STATUSES = [
+  "pending",
   "assigned",
   "attempt_1",
   "attempt_2",

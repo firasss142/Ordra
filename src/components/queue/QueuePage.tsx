@@ -92,7 +92,7 @@ function resolveBucketParam(raw: string | null): BucketKey {
 }
 
 function bucketForStatus(status: string): BucketKey | null {
-  if (status === "assigned") return "nouveau";
+  if (status === "pending" || status === "assigned") return "nouveau";
   if (
     status === "attempt_1" ||
     status === "attempt_2" ||

@@ -14,7 +14,7 @@ describe("assignOrder", () => {
   test("calls assign_order RPC with correct parameters", async () => {
     const rpcData = {
       order_id: "order-1",
-      status: "assigned",
+      status: "pending",
       assigned_to: "agent-1",
       updated_at: "2026-04-11T00:00:00Z",
       history_id: "hist-1",
@@ -31,7 +31,7 @@ describe("assignOrder", () => {
     });
 
     expect(result).toEqual({
-      order: { id: "order-1", status: "assigned", assigned_to: "agent-1", updated_at: "2026-04-11T00:00:00Z" },
+      order: { id: "order-1", status: "pending", assigned_to: "agent-1", updated_at: "2026-04-11T00:00:00Z" },
       historyEntry: { id: "hist-1" },
     });
   });
@@ -59,7 +59,7 @@ describe("assignOrder", () => {
   test("passes actor_type parameter to RPC when provided", async () => {
     const rpcData = {
       order_id: "order-1",
-      status: "assigned",
+      status: "pending",
       assigned_to: "agent-1",
       updated_at: "2026-04-13T00:00:00Z",
       history_id: "hist-1",
@@ -79,7 +79,7 @@ describe("assignOrder", () => {
   test("defaults actor_type to manager when not provided", async () => {
     const rpcData = {
       order_id: "order-1",
-      status: "assigned",
+      status: "pending",
       assigned_to: "agent-1",
       updated_at: "2026-04-13T00:00:00Z",
       history_id: "hist-1",
@@ -125,7 +125,7 @@ describe("unassignOrder", () => {
   test("calls unassign_order RPC with correct parameters", async () => {
     const rpcData = {
       order_id: "order-1",
-      status: "attempt_1",
+      status: "pending",
       assigned_to: null,
       updated_at: "2026-04-11T00:00:00Z",
       history_id: "hist-3",
@@ -140,7 +140,7 @@ describe("unassignOrder", () => {
     });
 
     expect(result).toEqual({
-      order: { id: "order-1", status: "attempt_1", assigned_to: null, updated_at: "2026-04-11T00:00:00Z" },
+      order: { id: "order-1", status: "pending", assigned_to: null, updated_at: "2026-04-11T00:00:00Z" },
       historyEntry: { id: "hist-3" },
     });
   });
@@ -158,7 +158,7 @@ describe("bulkAssign", () => {
   test("assigns multiple orders and returns results", async () => {
     const makeRpcData = (orderId: string) => ({
       order_id: orderId,
-      status: "assigned",
+      status: "pending",
       assigned_to: "agent-1",
       updated_at: "2026-04-11T00:00:00Z",
       history_id: `hist-${orderId}`,
@@ -193,7 +193,7 @@ describe("bulkAssign", () => {
       return Promise.resolve({
         data: {
           order_id: `order-${callCount}`,
-          status: "assigned",
+          status: "pending",
           assigned_to: "agent-1",
           updated_at: "2026-04-11T00:00:00Z",
           history_id: `hist-${callCount}`,

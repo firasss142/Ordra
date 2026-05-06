@@ -8,15 +8,14 @@ import {
 } from "@/types/order-status";
 
 describe("ORDER_STATUSES", () => {
-  it("contains exactly 21 statuses", () => {
-    expect(ORDER_STATUSES).toHaveLength(21);
+  it("contains exactly 20 active statuses", () => {
+    expect(ORDER_STATUSES).toHaveLength(20);
   });
 
   it("contains all Phase 1 confirmation statuses", () => {
     expect(ORDER_STATUSES).toEqual(
       expect.arrayContaining([
         "pending",
-        "assigned",
         "attempt_1",
         "attempt_2",
         "attempt_3",
@@ -81,8 +80,12 @@ describe("isTerminalStatus", () => {
 
 describe("canTransition", () => {
   // Phase 1: Confirmation transitions
-  it("allows pending → assigned", () => {
-    expect(canTransition("pending", "assigned")).toBe(true);
+  it("allows pending → attempt_1", () => {
+    expect(canTransition("pending", "attempt_1")).toBe(true);
+  });
+
+  it("allows pending to be confirmed once owned by an actor", () => {
+    expect(canTransition("pending", "confirmed")).toBe(true);
   });
 
   it("allows assigned → attempt_1", () => {
@@ -240,8 +243,8 @@ describe("canTransition", () => {
     expect(canTransition("pending", "dispatched")).toBe(false);
   });
 
-  it("blocks pending → confirmed (skipping steps)", () => {
-    expect(canTransition("pending", "confirmed")).toBe(false);
+  it("blocks pending → assigned because assignment is not a lifecycle status", () => {
+    expect(canTransition("pending", "assigned")).toBe(false);
   });
 
   it("blocks attempt_1 → attempt_3 (skipping attempt_2)", () => {

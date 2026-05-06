@@ -8,6 +8,7 @@ import { isValidDeactivationReason } from "@/lib/agent-deactivation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const REASSIGN_STATUSES = [
+  "pending",
   "assigned",
   "attempt_1",
   "attempt_2",

@@ -15,6 +15,7 @@ import {
 } from "@/lib/confirmation-flow/aggregations";
 
 const CONFIRMATION_STATUSES = [
+  "pending",
   ...FUNNEL_STAGES,
   "confirmed",
   "dispatched",
@@ -80,7 +81,7 @@ export async function GET(req: NextRequest) {
     .from("orders")
     .select("id, status, assigned_to")
     .eq("market_id", marketId)
-    .in("status", [...FUNNEL_STAGES])
+    .in("status", ["pending", ...FUNNEL_STAGES])
     .limit(10000);
 
   if (openErr) {

@@ -73,7 +73,7 @@ describe("GET /api/orders/queue", () => {
     });
 
     const orders = [
-      { id: "o-1", status: "assigned", created_at: "2026-04-10T00:00:00Z" },
+      { id: "o-1", status: "pending", created_at: "2026-04-10T00:00:00Z" },
       { id: "o-2", status: "attempt_1", created_at: "2026-04-09T00:00:00Z" },
     ];
 
@@ -98,8 +98,7 @@ describe("GET /api/orders/queue", () => {
     const json = await res.json();
     expect(json.data).toHaveLength(2);
     expect(json.stats).toBeDefined();
-    // assigned_today comes from order_history (no assignment rows mocked → 0)
-    expect(json.stats.assigned_today).toBe(0);
+    expect(json.stats.assigned_today).toBe(2);
     expect(json.stats.actioned_today).toBe(0);
     expect(json.stats.confirmation_rate).toBe(0);
   });
@@ -131,20 +130,17 @@ describe("GET /api/orders/queue", () => {
     expect(ids.indexOf("o-past")).toBeLessThan(ids.indexOf("o-null"));
   });
 
-  test("assigned_today counts orders assigned to agent today from order_history", async () => {
+  test("assigned_today reflects current queue size while actioned_today comes from history", async () => {
     mockGetUser.mockResolvedValue({
       data: { user: { id: "agent-1" } },
       error: null,
     });
 
     const orders = [
-      { id: "o-1", status: "assigned", created_at: "2026-04-17T00:00:00Z" },
+      { id: "o-1", status: "pending", created_at: "2026-04-17T00:00:00Z" },
     ];
 
-    // Simulate 2 orders assigned today in order_history
     const historyRows = [
-      { order_id: "o-1", status_to: "assigned" },
-      { order_id: "o-2", status_to: "assigned" },
       { order_id: "o-3", status_to: "confirmed" },
     ];
 
@@ -157,7 +153,7 @@ describe("GET /api/orders/queue", () => {
 
     const res = await GET(createRequest());
     const json = await res.json();
-    expect(json.stats.assigned_today).toBe(2);
+    expect(json.stats.assigned_today).toBe(1);
     expect(json.stats.actioned_today).toBe(1); // only o-3 with confirmed
     expect(json.stats.confirmation_rate).toBe(100);
   });

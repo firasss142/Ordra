@@ -51,7 +51,7 @@ const defaultProps = {
   locale: "fr",
   selected: false,
   highlighted: false,
-  agentName: "Karim Gharbi",
+  agentName: "Agent One",
   currencyCode: "TND",
   labels: {
     status: "Confirmé",
@@ -139,6 +139,11 @@ describe("OrderRow", () => {
   it("renders status as a badge", () => {
     renderRow();
     expect(screen.getByText("Confirmé")).toBeDefined();
+  });
+
+  it("renders assignee name", () => {
+    renderRow();
+    expect(screen.getByText("Agent One")).toBeDefined();
   });
 
   it("does not render an inline cancel button (action lives in the kebab menu)", () => {
@@ -232,9 +237,9 @@ describe("OrderRow", () => {
     expect(screen.queryByText("en retard")).toBeNull();
   });
 
-  it("does not render Date or Agent cells in the row (moved to drawer)", () => {
+  it("does not render a Date cell in the row", () => {
     const { container } = renderRow();
-    // 6 cells: checkbox, order, price, status, source, actions
-    expect(container.querySelectorAll("td").length).toBe(6);
+    // 7 cells: checkbox, order, price, status, assignee, source, actions
+    expect(container.querySelectorAll("td").length).toBe(7);
   });
 });
