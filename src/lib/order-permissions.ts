@@ -58,6 +58,7 @@ const AGENT_ALLOWED_TARGETS: Set<OrderStatus> = new Set([
   "callback_scheduled",
   "confirmed",
   "dispatch_scheduled",
+  "uploaded",
   "rejected",
 ]);
 
@@ -66,10 +67,10 @@ export function canUpdateFulfillment(role: Role): boolean {
 }
 
 const AGENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-const REOPENABLE_STATUSES = new Set<string>(["rejected", "confirmed", "dispatched"]);
+const REOPENABLE_STATUSES = new Set<string>(["rejected", "uploaded", "dispatched"]);
 
 export const EDIT_BLOCKED_STATUSES: ReadonlySet<string> = new Set([
-  "dispatching",
+  "uploaded",
   "scanned",
   "dispatched",
   "deposit",

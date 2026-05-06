@@ -75,7 +75,7 @@ async function computeForPeriod(
     supabase
       .from("order_history")
       .select("id, orders!inner(product_id)", { count: "exact", head: true })
-      .eq("status_to", "dispatched")
+      .eq("status_to", "uploaded")
       .eq("orders.product_id", productId)
       .gte("created_at", fromDate)
       .lte("created_at", toDateEnd),

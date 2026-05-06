@@ -99,7 +99,7 @@ describe("GET /api/agent/stats", () => {
     const json = await res.json();
     // 3 distinct order_ids actioned
     expect(json.actioned_today).toBe(3);
-    // o-1 and o-3 confirmed/dispatched → 2 confirmed
+    // o-1 and o-3 confirmed → 2 confirmed (uploaded would also count, but rows here are all confirmed)
     // confirmation_rate = round(2/3 * 100) = 67
     expect(json.confirmation_rate).toBe(67);
   });

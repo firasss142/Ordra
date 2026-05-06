@@ -45,31 +45,10 @@ export async function POST(req: NextRequest) {
   }> = [];
 
   for (const row of ready) {
-    // Step 1: dispatch_scheduled → confirmed (clears scheduled_dispatch_* cols)
-    const { error: promoteError } = await admin.rpc("transition_order_status", {
-      p_order_id: row.order_id,
-      p_new_status: "confirmed",
-      p_actor_id: null,
-      p_actor_type: "system",
-      p_note: "Promu depuis dispatch_scheduled pour auto-expédition",
-      p_rejection_reason: null,
-      p_rejection_note: null,
-      p_callback_at: null,
-      p_scheduled_at: null,
-      p_scheduled_auto: null,
-      p_scheduled_carrier_id: null,
-    });
-
-    if (promoteError) {
-      results.push({
-        order_id: row.order_id,
-        ok: false,
-        error: `promote failed: ${promoteError.message}`,
-      });
-      continue;
-    }
-
-    // Step 2: confirmed → dispatched via the normal dispatch flow
+    // dispatch_scheduled → uploaded directly. dispatch_order accepts
+    // dispatch_scheduled as a source and clears scheduled_dispatch_* on
+    // success. On failure the row stays dispatch_scheduled and the next
+    // cron run retries it.
     const result = await performDispatch({
       orderId: row.order_id,
       carrierId: row.carrier_id,
@@ -82,7 +61,7 @@ export async function POST(req: NextRequest) {
       results.push({
         order_id: row.order_id,
         ok: false,
-        error: `dispatch failed: ${result.error}`,
+        error: `upload failed: ${result.error}`,
       });
     }
   }

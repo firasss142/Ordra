@@ -34,7 +34,7 @@ export async function GET(_req: NextRequest) {
       .select("order_id, status_to")
       .eq("actor_id", actor.id)
       .gte("created_at", todayISO)
-      .in("status_to", ["confirmed", "dispatched", "rejected"]),
+      .in("status_to", ["confirmed", "uploaded", "rejected"]),
 
     supabase
       .from("orders")
@@ -54,7 +54,7 @@ export async function GET(_req: NextRequest) {
   const actionedOrderIds = new Set(historyRows.map((r) => r.order_id));
   const confirmedOrderIds = new Set(
     historyRows
-      .filter((r) => r.status_to === "confirmed" || r.status_to === "dispatched")
+      .filter((r) => r.status_to === "confirmed" || r.status_to === "uploaded")
       .map((r) => r.order_id)
   );
 

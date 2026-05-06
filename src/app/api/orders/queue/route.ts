@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
       .select("order_id, status_to")
       .eq("actor_id", actor.id)
       .gte("created_at", todayISO)
-      .in("status_to", ["confirmed", "dispatched", "rejected"]),
+      .in("status_to", ["confirmed", "uploaded", "rejected"]),
   ]);
 
   if (ordersResult.error) {
@@ -105,12 +105,12 @@ export async function GET(req: NextRequest) {
   const historyRows = statsResult.data ?? [];
   const actionedOrderIds = new Set(
     historyRows
-      .filter((r) => r.status_to === "confirmed" || r.status_to === "dispatched" || r.status_to === "rejected")
+      .filter((r) => r.status_to === "confirmed" || r.status_to === "uploaded" || r.status_to === "rejected")
       .map((r) => r.order_id)
   );
   const confirmedOrderIds = new Set(
     historyRows
-      .filter((r) => r.status_to === "confirmed" || r.status_to === "dispatched")
+      .filter((r) => r.status_to === "confirmed" || r.status_to === "uploaded")
       .map((r) => r.order_id)
   );
 

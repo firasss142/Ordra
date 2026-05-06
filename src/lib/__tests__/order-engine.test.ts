@@ -23,20 +23,24 @@ describe("validateTransition", () => {
     expect(validateTransition("assigned", "confirmed")).toEqual({ valid: true });
   });
 
-  it("blocks confirmed → dispatching (carrier auto-dispatch removed)", () => {
-    expect(validateTransition("confirmed", "dispatching")).toMatchObject({ valid: false });
+  it("allows confirmed → uploaded (push to carrier API)", () => {
+    expect(validateTransition("confirmed", "uploaded")).toEqual({ valid: true });
   });
 
-  it("allows dispatching → dispatched (carrier succeeded)", () => {
-    expect(validateTransition("dispatching", "dispatched")).toEqual({ valid: true });
+  it("allows uploaded → scanned (warehouse scan-out)", () => {
+    expect(validateTransition("uploaded", "scanned")).toEqual({ valid: true });
   });
 
-  it("allows dispatching → confirmed (carrier failed — rollback)", () => {
-    expect(validateTransition("dispatching", "confirmed")).toEqual({ valid: true });
+  it("allows scanned → dispatched (carrier acknowledged receipt)", () => {
+    expect(validateTransition("scanned", "dispatched")).toEqual({ valid: true });
   });
 
-  it("blocks confirmed → dispatched (must go through scanned first)", () => {
+  it("blocks confirmed → dispatched (must go through uploaded → scanned)", () => {
     expect(validateTransition("confirmed", "dispatched")).toMatchObject({ valid: false });
+  });
+
+  it("blocks confirmed → scanned (must pass through uploaded)", () => {
+    expect(validateTransition("confirmed", "scanned")).toMatchObject({ valid: false });
   });
 
   // Valid Phase 2 transitions

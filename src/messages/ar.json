@@ -79,7 +79,7 @@
       "carrierLabel": "الناقل",
       "noCarriers": "لا يوجد ناقل",
       "dispatch": "شحن",
-      "dispatching": "جارٍ الشحن…",
+      "uploading": "جارٍ الرفع…",
       "printPicklist": "طباعة قائمة التحضير",
       "printing": "جارٍ الطباعة…",
       "clear": "مسح"
@@ -599,7 +599,7 @@
       "attempts": "قيد المحاولة",
       "callback": "مكالمات لاحقة",
       "confirmed": "مؤكدة",
-      "dispatched": "مُرسَلة"
+      "uploaded": "مُرسَلة"
     },
     "rejectionReasons": {
       "refus_client": "رفض العميل",
@@ -864,7 +864,7 @@
       "callback_scheduled": "مكالمة مجدولة",
       "confirmed": "مؤكد",
       "dispatch_scheduled": "توصيل مجدول",
-      "dispatching": "جارٍ الإرسال",
+      "uploaded": "تم الإرسال إلى الناقل",
       "scanned": "تم المسح",
       "dispatched": "تم الإرسال",
       "deposit": "إيداع",
@@ -1079,7 +1079,7 @@
     "callbackRequested": "طلب معاودة الاتصال",
     "selectCarrier": "اختر شركة شحن",
     "dispatch": "إرسال",
-    "dispatching": "جارٍ الإرسال…",
+    "uploading": "جارٍ الرفع…",
     "dispatchSuccess": "تم إرسال الطلب بنجاح",
     "dispatchFailed": "فشل الإرسال",
     "retry": "إعادة المحاولة",

@@ -18,7 +18,7 @@ const STATUS_TONE: Record<string, BadgeTone> = {
   callback_scheduled: "warning",
   confirmed: "action",
   dispatch_scheduled: "action",
-  dispatching: "action",
+  uploaded: "action",
   scanned: "action",
   dispatched: "action",
   deposit: "action",

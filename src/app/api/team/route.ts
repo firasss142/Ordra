@@ -10,7 +10,7 @@ import { computeTTFCMinutes, medianMinutes } from "@/lib/team/ttfc";
 import type { Role } from "@/types";
 
 const ATTEMPT_STATUSES = ["attempt_1", "attempt_2", "attempt_3"];
-const ACTIONED_STATUSES = ["confirmed", "dispatched", "rejected"];
+const ACTIONED_STATUSES = ["confirmed", "uploaded", "rejected"];
 
 interface HistoryRow {
   actor_id: string | null;
@@ -86,7 +86,7 @@ function aggregate(history: HistoryRow[]): AggregatedMetrics {
     if (ACTIONED_STATUSES.includes(row.status_to)) {
       actioned[actor] = (actioned[actor] ?? 0) + 1;
     }
-    if (row.status_to === "confirmed" || row.status_to === "dispatched") {
+    if (row.status_to === "confirmed" || row.status_to === "uploaded") {
       confirmed[actor] = (confirmed[actor] ?? 0) + 1;
       if (!confirmedOrdersByAgent[actor]) confirmedOrdersByAgent[actor] = [];
       confirmedOrdersByAgent[actor].push(row.order_id);

@@ -190,7 +190,7 @@ export function OrdersPageClient({
         return row.status === "callback_scheduled";
       }
       if (filters.preset === "in_delivery") {
-        const deliveryStatuses = ["dispatching", "dispatched", "deposit", "in_transit", "to_be_returned"];
+        const deliveryStatuses = ["uploaded", "dispatched", "deposit", "in_transit", "to_be_returned"];
         return deliveryStatuses.includes(row.status);
       }
       // Other filters: include the row and let server revalidation prune if needed

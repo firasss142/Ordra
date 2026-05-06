@@ -111,8 +111,17 @@ describe("canTransitionOrder", () => {
     expect(canTransitionOrder("agent", "assigned", "rejected")).toBe(true);
   });
 
-  // Agent CANNOT set: dispatched, deposit, in_transit, delivered, returned, cancelled
-  test("agent cannot transition confirmed to dispatched directly (must go through scanned)", () => {
+  // Agent CAN set uploaded (the upload-to-carrier action is most often agent-driven)
+  test("agent can transition confirmed to uploaded", () => {
+    expect(canTransitionOrder("agent", "confirmed", "uploaded")).toBe(true);
+  });
+
+  // Agent CANNOT set: scanned, dispatched, deposit, in_transit, delivered, returned, cancelled
+  test("agent cannot transition uploaded to scanned directly (warehouse-only)", () => {
+    expect(canTransitionOrder("agent", "uploaded", "scanned")).toBe(false);
+  });
+
+  test("agent cannot transition confirmed to dispatched directly (must go through uploaded → scanned)", () => {
     expect(canTransitionOrder("agent", "confirmed", "dispatched")).toBe(false);
   });
 
@@ -128,16 +137,20 @@ describe("canTransitionOrder", () => {
   });
 
   // Market manager: all Phase 1 + deleted + warehouse scan flow
-  test("market_manager can transition confirmed to scanned (warehouse scan-out)", () => {
-    expect(canTransitionOrder("market_manager", "confirmed", "scanned")).toBe(true);
+  test("market_manager can transition confirmed to uploaded", () => {
+    expect(canTransitionOrder("market_manager", "confirmed", "uploaded")).toBe(true);
+  });
+
+  test("market_manager can transition uploaded to scanned (warehouse scan-out)", () => {
+    expect(canTransitionOrder("market_manager", "uploaded", "scanned")).toBe(true);
   });
 
   test("market_manager can transition scanned to dispatched", () => {
     expect(canTransitionOrder("market_manager", "scanned", "dispatched")).toBe(true);
   });
 
-  test("market_manager cannot transition confirmed to dispatching (auto-dispatch removed)", () => {
-    expect(canTransitionOrder("market_manager", "confirmed", "dispatching")).toBe(false);
+  test("market_manager cannot transition confirmed to scanned (must pass through uploaded)", () => {
+    expect(canTransitionOrder("market_manager", "confirmed", "scanned")).toBe(false);
   });
 
   test("market_manager can cancel pre-dispatch orders", () => {
@@ -155,16 +168,16 @@ describe("canTransitionOrder", () => {
 
   // Super admin: all transitions
   test("super_admin can do all transitions", () => {
-    expect(canTransitionOrder("super_admin", "pending", "assigned")).toBe(true);
-    expect(canTransitionOrder("super_admin", "confirmed", "scanned")).toBe(true);
+    expect(canTransitionOrder("super_admin", "pending", "attempt_1")).toBe(true);
+    expect(canTransitionOrder("super_admin", "confirmed", "uploaded")).toBe(true);
+    expect(canTransitionOrder("super_admin", "uploaded", "scanned")).toBe(true);
     expect(canTransitionOrder("super_admin", "scanned", "dispatched")).toBe(true);
-    expect(canTransitionOrder("super_admin", "dispatching", "dispatched")).toBe(true);
     expect(canTransitionOrder("super_admin", "in_transit", "delivered")).toBe(true);
   });
 
   // Invalid graph transitions return false regardless of role
   test("returns false for invalid graph transitions even for super_admin", () => {
-    expect(canTransitionOrder("super_admin", "pending", "confirmed")).toBe(false);
+    expect(canTransitionOrder("super_admin", "pending", "dispatched")).toBe(false);
     expect(canTransitionOrder("super_admin", "delivered", "pending")).toBe(false);
   });
 });
@@ -195,10 +208,16 @@ describe("canReopenOrder", () => {
     }, now)).toBe(true);
   });
 
-  test("agent can reopen own confirmed order within 7-day window", () => {
+  test("agent can reopen own uploaded order within 7-day window", () => {
+    expect(canReopenOrder("agent", AGENT_ID, {
+      status: "uploaded", assigned_to: AGENT_ID, updated_at: withinWindow,
+    }, now)).toBe(true);
+  });
+
+  test("agent cannot reopen plain confirmed order (no carrier work to undo)", () => {
     expect(canReopenOrder("agent", AGENT_ID, {
       status: "confirmed", assigned_to: AGENT_ID, updated_at: withinWindow,
-    }, now)).toBe(true);
+    }, now)).toBe(false);
   });
 
   test("agent can reopen own dispatched order within 7-day window", () => {

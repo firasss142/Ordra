@@ -18,7 +18,7 @@ const CONFIRMATION_STATUSES = [
   "pending",
   ...FUNNEL_STAGES,
   "confirmed",
-  "dispatched",
+  "uploaded",
   "rejected",
 ] as const;
 

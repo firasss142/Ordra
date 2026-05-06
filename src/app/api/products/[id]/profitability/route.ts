@@ -109,11 +109,11 @@ export async function GET(
 
   const rejectedCount = (rejectedHistory ?? []).length;
 
-  // --- Dispatched orders for this product in period ---
+  // --- Uploaded (= pushed to carrier) orders for this product in period ---
   const { data: dispatchedHistory } = await supabase
     .from("order_history")
     .select("order_id, orders!inner(id, product_id)")
-    .eq("status_to", "dispatched")
+    .eq("status_to", "uploaded")
     .eq("orders.product_id", productId)
     .gte("created_at", fromDate)
     .lte("created_at", toDate);

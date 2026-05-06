@@ -6,7 +6,7 @@ export type OrdersPreset = "all" | "unassigned" | "callbacks" | "today" | "in_de
 export const ORDERS_PRESETS: OrdersPreset[] = ["all", "unassigned", "today", "callbacks", "in_delivery"];
 
 export const IN_DELIVERY_STATUSES = [
-  "dispatching",
+  "uploaded",
   "dispatched",
   "deposit",
   "in_transit",

@@ -43,9 +43,9 @@ export async function POST(
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  if (order.status !== "confirmed") {
+  if (order.status !== "confirmed" && order.status !== "dispatch_scheduled") {
     return NextResponse.json(
-      { error: "Order must be in confirmed status to dispatch" },
+      { error: "Order must be confirmed (or dispatch_scheduled) to upload to carrier" },
       { status: 400 }
     );
   }
@@ -73,7 +73,7 @@ export async function POST(
   return NextResponse.json({
     data: {
       order_id: id,
-      status: "dispatched",
+      status: "uploaded",
       tracking_number: result.trackingNumber,
       ...(typeof result.dispatchData === "object" && result.dispatchData !== null
         ? result.dispatchData

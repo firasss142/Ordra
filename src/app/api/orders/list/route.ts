@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
     }
     case "in_delivery":
       query = query.in("status", [
-        "dispatching",
+        "uploaded",
         "dispatched",
         "deposit",
         "in_transit",

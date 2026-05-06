@@ -51,7 +51,7 @@ export async function tryAutoAssign(
         .from("order_history")
         .select("actor_id")
         .in("actor_id", agents.map((a) => a.id))
-        .in("status_to", ["confirmed", "dispatched", "rejected"])
+        .in("status_to", ["confirmed", "uploaded", "rejected"])
         .gte("created_at", todayStart.toISOString());
 
       const actedTodayIds = new Set((actedRows ?? []).map((r: { actor_id: string }) => r.actor_id));

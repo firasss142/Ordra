@@ -163,7 +163,7 @@ describe("GET /api/profitability/product/[productId]", () => {
         if (table === "order_history") {
           // alternate counts: current period higher than previous
           orderHistoryCalls += 1;
-          // first 4 calls = current period (confirmed, dispatched, delivered, returned)
+          // first 4 calls = current period (confirmed, uploaded, delivered, returned)
           // next 4 = previous
           if (orderHistoryCalls <= 4) return { data: [], count: 80 };
           return { data: [], count: 60 };

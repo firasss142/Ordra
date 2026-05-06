@@ -101,7 +101,7 @@ export function canDeleteFollowUp(role: Role): boolean {
  */
 export const FOLLOW_UP_ELIGIBLE_ORDER_STATUSES = [
   "confirmed",
-  "dispatching",
+  "uploaded",
   "dispatched",
   "deposit",
   "in_transit",

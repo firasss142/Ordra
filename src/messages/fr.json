@@ -79,7 +79,7 @@
       "carrierLabel": "Transporteur",
       "noCarriers": "Aucun transporteur",
       "dispatch": "Expédier",
-      "dispatching": "Expédition…",
+      "uploading": "Téléchargement…",
       "printPicklist": "Imprimer la picklist",
       "printing": "Impression…",
       "clear": "Effacer"
@@ -599,7 +599,7 @@
       "attempts": "En tentative",
       "callback": "Rappels",
       "confirmed": "Confirmées",
-      "dispatched": "Expédiées"
+      "uploaded": "Expédiées"
     },
     "rejectionReasons": {
       "refus_client": "Refus client",
@@ -864,7 +864,7 @@
       "callback_scheduled": "Rappel prévu",
       "confirmed": "Confirmé",
       "dispatch_scheduled": "Livraison planifiée",
-      "dispatching": "Expédition en cours",
+      "uploaded": "Téléchargé chez transporteur",
       "scanned": "Scanné",
       "dispatched": "Expédié",
       "deposit": "Déposé",
@@ -1079,7 +1079,7 @@
     "callbackRequested": "Rappel demandé",
     "selectCarrier": "Sélectionner un transporteur",
     "dispatch": "Expédier",
-    "dispatching": "Expédition en cours…",
+    "uploading": "Téléchargement en cours…",
     "dispatchSuccess": "Commande expédiée avec succès",
     "dispatchFailed": "Échec de l'expédition",
     "retry": "Réessayer",

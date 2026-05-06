@@ -263,7 +263,7 @@ describe("POST /api/orders/[id]/dispatch", () => {
     mockAdminRpc.mockResolvedValue({
       data: {
         order_id: "order-1",
-        status: "dispatched",
+        status: "uploaded",
         tracking_number: "NAV-001",
       },
       error: null,

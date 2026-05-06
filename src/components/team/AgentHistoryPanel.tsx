@@ -20,7 +20,7 @@ interface HistoryRow {
 
 const STATUS_COLOR: Record<string, string> = {
   confirmed: "#008060",
-  dispatched: "#008060",
+  uploaded: "#008060",
   rejected: "#D72C0D",
   attempt_1: "#D97706",
   attempt_2: "#D97706",

@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
       supabase
         .from("order_history")
         .select("orders!inner(product_id)")
-        .eq("status_to", "dispatched")
+        .eq("status_to", "uploaded")
         .in("orders.product_id", productIds)
         .gte("created_at", fromDate)
         .lte("created_at", toDateEnd)
