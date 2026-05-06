@@ -6,14 +6,13 @@ import {
 } from "@/types/product";
 
 describe("Product type", () => {
-  it("has exactly 13 keys", () => {
+  it("has exactly 12 keys", () => {
     const product: Product = {
       id: "prod-1",
       market_id: "market-tn",
       name: "Test Product",
       unit_cogs: 10,
       packing_cost: 1.5,
-      cpl: 2,
       confirmation_processing_cost: 0.5,
       low_stock_threshold: 10,
       current_stock: 50,
@@ -23,7 +22,7 @@ describe("Product type", () => {
       updated_at: "2026-04-01T00:00:00Z",
     };
     const keys = Object.keys(product);
-    expect(keys).toHaveLength(13);
+    expect(keys).toHaveLength(12);
     expect(keys).toEqual(
       expect.arrayContaining([
         "id",
@@ -31,7 +30,6 @@ describe("Product type", () => {
         "name",
         "unit_cogs",
         "packing_cost",
-        "cpl",
         "confirmation_processing_cost",
         "low_stock_threshold",
         "current_stock",
@@ -50,7 +48,6 @@ describe("Product type", () => {
       name: "Test",
       unit_cogs: 0,
       packing_cost: 0,
-      cpl: 0,
       confirmation_processing_cost: 0,
       low_stock_threshold: 0,
       current_stock: 0,
@@ -70,7 +67,6 @@ describe("Product type", () => {
       name: "Test",
       unit_cogs: 0,
       packing_cost: 3.5,
-      cpl: 0,
       confirmation_processing_cost: 0,
       low_stock_threshold: 0,
       current_stock: 0,
@@ -83,26 +79,6 @@ describe("Product type", () => {
     expect(product.packing_cost).toBeGreaterThanOrEqual(0);
   });
 
-  it("cpl is number >= 0", () => {
-    const product: Product = {
-      id: "prod-1",
-      market_id: "market-tn",
-      name: "Test",
-      unit_cogs: 0,
-      packing_cost: 0,
-      cpl: 5,
-      confirmation_processing_cost: 0,
-      low_stock_threshold: 0,
-      current_stock: 0,
-      damaged_return_count: 0,
-      is_active: true,
-      created_at: "2026-04-01T00:00:00Z",
-      updated_at: "2026-04-01T00:00:00Z",
-    };
-    expect(typeof product.cpl).toBe("number");
-    expect(product.cpl).toBeGreaterThanOrEqual(0);
-  });
-
   it("confirmation_processing_cost is optional and defaults to 0", () => {
     const product: Product = {
       id: "prod-1",
@@ -110,7 +86,6 @@ describe("Product type", () => {
       name: "Test",
       unit_cogs: 0,
       packing_cost: 0,
-      cpl: 0,
       low_stock_threshold: 0,
       current_stock: 0,
       damaged_return_count: 0,
@@ -128,7 +103,6 @@ describe("Product type", () => {
       name: "Test",
       unit_cogs: 0,
       packing_cost: 0,
-      cpl: 0,
       confirmation_processing_cost: 0,
       low_stock_threshold: 5,
       current_stock: 0,
@@ -148,7 +122,6 @@ describe("Product type", () => {
       name: "Test",
       unit_cogs: 0,
       packing_cost: 0,
-      cpl: 0,
       confirmation_processing_cost: 0,
       low_stock_threshold: 0,
       current_stock: 100,
@@ -168,7 +141,6 @@ describe("Product type", () => {
       name: "Test",
       unit_cogs: 0,
       packing_cost: 0,
-      cpl: 0,
       confirmation_processing_cost: 0,
       low_stock_threshold: 0,
       current_stock: 0,
@@ -188,7 +160,6 @@ describe("Product type", () => {
       name: "Test",
       unit_cogs: 0,
       packing_cost: 0,
-      cpl: 0,
       confirmation_processing_cost: 0,
       low_stock_threshold: 0,
       current_stock: 0,
@@ -482,7 +453,6 @@ describe("isValidProduct", () => {
     name: "Test Product",
     unit_cogs: 10,
     packing_cost: 1.5,
-    cpl: 2,
     confirmation_processing_cost: 0.5,
     low_stock_threshold: 10,
     current_stock: 50,

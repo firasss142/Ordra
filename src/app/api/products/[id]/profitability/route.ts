@@ -9,13 +9,14 @@ import {
   calculatePackingCost,
   calculateNetProfit,
   calculateMargin,
-  calculateProductAdSpend,
   calculateProcessingCost,
   calculateCostPerDelivered,
   calculateDeliveryRate,
   calculateReturnRate,
 } from "@/lib/calculations/profitability";
 import { calculateConfirmationRate } from "@/lib/metrics";
+
+const CONFIRMED_STATUSES = ["confirmed", "uploaded"] as const;
 
 export async function GET(
   req: NextRequest,
@@ -44,7 +45,7 @@ export async function GET(
   // Fetch product info
   const { data: product } = await supabase
     .from("products")
-    .select("id, name, unit_cogs, packing_cost, cpl, confirmation_processing_cost, market_id")
+    .select("id, name, unit_cogs, packing_cost, confirmation_processing_cost, market_id")
     .eq("id", productId)
     .single();
 
@@ -54,8 +55,21 @@ export async function GET(
 
   const unitCogs = Number(product.unit_cogs);
   const packingCostPerOrder = Number(product.packing_cost);
-  const cpl = Number(product.cpl);
   const processingCostPerOrder = Number(product.confirmation_processing_cost ?? 0);
+
+  // --- Ad spend rows scoped to this product, overlapping the period ---
+  const { data: adSpendRows } = await supabase
+    .from("ad_spend")
+    .select("amount")
+    .eq("product_id", productId)
+    .eq("is_active", true)
+    .lte("period_start", toDate)
+    .gte("period_end", fromDate);
+
+  const adSpend = (adSpendRows ?? []).reduce(
+    (sum, r) => sum + Number((r as { amount: number | string }).amount),
+    0
+  );
 
   // --- Delivered orders for this product in period ---
   const { data: deliveredHistory } = await supabase
@@ -91,12 +105,14 @@ export async function GET(
   const { data: confirmedHistory } = await supabase
     .from("order_history")
     .select("order_id, orders!inner(id, product_id)")
-    .eq("status_to", "confirmed")
+    .in("status_to", CONFIRMED_STATUSES)
     .eq("orders.product_id", productId)
     .gte("created_at", fromDate)
     .lte("created_at", toDate);
 
-  const confirmedCount = (confirmedHistory ?? []).length;
+  const confirmedCount = new Set(
+    (confirmedHistory ?? []).map((row) => row.order_id).filter(Boolean)
+  ).size;
 
   // --- Rejected orders for this product in period ---
   const { data: rejectedHistory } = await supabase
@@ -109,11 +125,11 @@ export async function GET(
 
   const rejectedCount = (rejectedHistory ?? []).length;
 
-  // --- Dispatched orders for this product in period ---
+  // --- Uploaded (= pushed to carrier) orders for this product in period ---
   const { data: dispatchedHistory } = await supabase
     .from("order_history")
     .select("order_id, orders!inner(id, product_id)")
-    .eq("status_to", "dispatched")
+    .eq("status_to", "uploaded")
     .eq("orders.product_id", productId)
     .gte("created_at", fromDate)
     .lte("created_at", toDate);
@@ -190,7 +206,6 @@ export async function GET(
     Array.from({ length: confirmedCount }, () => ({ packing_cost: packingCostPerOrder }))
   );
 
-  const adSpend = calculateProductAdSpend(cpl, totalLeads ?? 0);
   const processingCost = calculateProcessingCost(processingCostPerOrder, confirmedCount);
 
   const totalCosts = cogs + deliveryCost + returnCost + packingCost + adSpend + processingCost;

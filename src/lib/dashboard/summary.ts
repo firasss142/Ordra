@@ -114,11 +114,11 @@ export const PIPELINE_BUCKETS: { bucket: string; statuses: string[] }[] = [
   { bucket: "attempts", statuses: ["attempt_1", "attempt_2", "attempt_3"] },
   { bucket: "callback", statuses: ["callback_scheduled"] },
   { bucket: "confirmed", statuses: ["confirmed", "dispatch_scheduled", "scanned"] },
-  { bucket: "dispatched", statuses: ["dispatched", "deposit", "in_transit"] },
+  { bucket: "uploaded", statuses: ["uploaded", "dispatched", "deposit", "in_transit"] },
 ];
 
-const ACTIONED_STATUSES = new Set(["confirmed", "dispatched", "rejected"]);
-const CONFIRMED_STATUSES = new Set(["confirmed", "dispatched"]);
+const ACTIONED_STATUSES = new Set(["confirmed", "uploaded", "rejected"]);
+const CONFIRMED_STATUSES = new Set(["confirmed", "uploaded"]);
 
 
 export interface HistoryRow {
@@ -363,7 +363,7 @@ async function fetchNonFinancialCounts(
   let q = supabase
     .from("order_history")
     .select("status_to, orders!inner(market_id)")
-    .in("status_to", ["confirmed", "dispatched", "rejected"])
+    .in("status_to", ["confirmed", "uploaded", "rejected"])
     .gte("created_at", fromDate)
     .lte("created_at", dateLte);
   if (marketId) q = q.eq("orders.market_id", marketId);
@@ -490,10 +490,14 @@ export async function getDashboardSummary(
 
   let pipelineBuilder = supabase
     .from("orders")
-    .select("status, market_id")
+    .select("status, market_id, assigned_to")
     .not("status", "in", `(${TERMINAL_STATUSES.join(",")})`);
   if (scopedMarketId) pipelineBuilder = pipelineBuilder.eq("market_id", scopedMarketId);
-  const pipelinePromise = fetchAllRows<{ status: string; market_id: string }>(pipelineBuilder);
+  const pipelinePromise = fetchAllRows<{
+    status: string;
+    market_id: string;
+    assigned_to: string | null;
+  }>(pipelineBuilder);
 
   let periodHistoryBuilder = supabase
     .from("order_history")
@@ -513,7 +517,7 @@ export async function getDashboardSummary(
   let trendHistoryBuilder = supabase
     .from("order_history")
     .select("status_to, created_at, orders!inner(market_id)")
-    .in("status_to", ["confirmed", "dispatched", "rejected"])
+    .in("status_to", ["confirmed", "uploaded", "rejected"])
     .gte("created_at", trendFromIso)
     .lte("created_at", trendToIso + "T23:59:59.999Z");
   if (scopedMarketId) trendHistoryBuilder = trendHistoryBuilder.eq("orders.market_id", scopedMarketId);
@@ -656,7 +660,16 @@ export async function getDashboardSummary(
   }
   const pipeline: PipelineCount[] = PIPELINE_BUCKETS.map(({ bucket, statuses }) => ({
     bucket,
-    count: statuses.reduce((sum, s) => sum + (pipelineCountByStatus.get(s) ?? 0), 0),
+    count:
+      bucket === "new"
+        ? pipelineRows.filter((r) => r.status === "pending" && !r.assigned_to).length
+        : bucket === "assigned"
+          ? pipelineRows.filter(
+              (r) =>
+                r.status === "assigned" ||
+                (r.status === "pending" && r.assigned_to !== null),
+            ).length
+          : statuses.reduce((sum, s) => sum + (pipelineCountByStatus.get(s) ?? 0), 0),
   }));
 
   // Agents + presence.

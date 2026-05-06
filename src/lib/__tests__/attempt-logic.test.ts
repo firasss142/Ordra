@@ -6,6 +6,10 @@ import {
 } from "../attempt-logic";
 
 describe("getNextAttemptStatus", () => {
+  it("returns attempt_1 for pending", () => {
+    expect(getNextAttemptStatus("pending")).toBe("attempt_1");
+  });
+
   it("returns attempt_1 for assigned", () => {
     expect(getNextAttemptStatus("assigned")).toBe("attempt_1");
   });

@@ -11,6 +11,7 @@ import {
   TUNISIAN_GOVERNORATES,
   LIBYAN_GOVERNORATES,
 } from "@/lib/carriers/governorates";
+import { useMarketScope } from "@/context/market-scope";
 
 const FocusTrap = dynamic(
   () => import("focus-trap-react"),
@@ -115,7 +116,7 @@ function FieldLabel({ children, required = false }: { children: React.ReactNode;
 
 function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="bg-surface-card border border-line-subtle rounded-card overflow-hidden">
+    <section className="bg-surface-card border border-line-subtle rounded-card">
       <div className="px-4 pt-3.5 pb-2">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-secondary">
           {title}
@@ -139,6 +140,7 @@ export function CreateOrderModal({
 }: CreateOrderModalProps) {
   const t = useTranslations("orders.create");
   const modalRef = useRef<HTMLDivElement>(null);
+  const { scope, marketId: scopedMarketId } = useMarketScope();
   const [form, setForm] = useState<FormState>(() => emptyForm(userMarketId));
 
   const isSuperAdmin = role === "super_admin";
@@ -151,13 +153,17 @@ export function CreateOrderModal({
   );
   const markets = marketsData?.data ?? [];
 
-  // Auto-seed market for super_admin once markets are loaded
+  // Seed super_admin market from the active sidebar scope. When scope === "all"
+  // we leave it blank and require an explicit pick — "all" is a viewing scope,
+  // not a creation scope.
   useEffect(() => {
     if (!isOpen) return;
-    if (isSuperAdmin && !form.market_id && markets.length > 0) {
-      setForm((s) => ({ ...s, market_id: markets[0].id }));
+    if (!isSuperAdmin) return;
+    const desired = scope === "all" ? "" : scopedMarketId ?? "";
+    if (form.market_id !== desired) {
+      setForm((s) => ({ ...s, market_id: desired }));
     }
-  }, [isOpen, isSuperAdmin, form.market_id, markets]);
+  }, [isOpen, isSuperAdmin, scope, scopedMarketId, form.market_id]);
 
   // For non-super-admin roles, keep the market_id locked to the user's market
   useEffect(() => {
@@ -170,13 +176,19 @@ export function CreateOrderModal({
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      setForm(emptyForm(isSuperAdmin ? "" : userMarketId));
+      const seed = isSuperAdmin
+        ? scope === "all"
+          ? ""
+          : scopedMarketId ?? ""
+        : userMarketId;
+      setForm(emptyForm(seed));
     }
-  }, [isOpen, isSuperAdmin, userMarketId]);
+  }, [isOpen, isSuperAdmin, userMarketId, scope, scopedMarketId]);
 
   const effectiveMarketId = form.market_id;
   const currentMarket = markets.find((m) => m.id === effectiveMarketId);
   const marketCode = currentMarket?.code;
+  const marketSelectLocked = Boolean(form.market_id);
 
   const { data: storefrontsData } = useSWR<{ data: Storefront[] }>(
     isOpen && effectiveMarketId
@@ -445,6 +457,7 @@ export function CreateOrderModal({
                       value={form.market_id}
                       onChange={(e) => update("market_id", e.target.value)}
                       className={inputClass}
+                      disabled={marketSelectLocked}
                     >
                       <option value="">—</option>
                       {markets.map((m) => (
@@ -593,7 +606,7 @@ export function CreateOrderModal({
                 )}
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="flex flex-col gap-3">
                 <div>
                   <FieldLabel required>{t("fields.quantity")}</FieldLabel>
                   <input

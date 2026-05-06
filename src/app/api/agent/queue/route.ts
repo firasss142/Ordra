@@ -5,6 +5,7 @@ import { getActor } from "@/lib/auth/actor";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 
 const ACTIVE_QUEUE_STATUSES = [
+  "pending",
   "assigned",
   "attempt_1",
   "attempt_2",
@@ -16,7 +17,7 @@ const ACTIVE_QUEUE_STATUSES = [
 
 const CLOSED_STATUSES = [
   "rejected",
-  "confirmed",
+  "uploaded",
   "dispatched",
 ];
 
@@ -60,14 +61,16 @@ export async function GET(_req: NextRequest) {
   const closedOrders = closedRes.data ?? [];
 
   const activeOrders = allOrders.filter((o) => {
-    if (o.status === "confirmed") return false;
+    // confirmed (without carrier) stays in the active queue so the agent
+    // can finish the upload step. Once uploaded, the order leaves the
+    // active queue and shows in the closed bucket.
     if (o.status === "callback_scheduled") {
       return o.callback_scheduled_at && new Date(o.callback_scheduled_at) <= now;
     }
     if (o.status === "dispatch_scheduled") {
-      // Auto-dispatch rows never surface in the agent's queue —
-      // the cron promotes them. Manual rows re-surface only when the
-      // scheduled time has arrived.
+      // Auto-upload rows never surface in the agent's queue — the cron
+      // pushes them. Manual rows re-surface only when the scheduled
+      // time has arrived.
       if (o.scheduled_dispatch_auto) return false;
       return o.scheduled_dispatch_at && new Date(o.scheduled_dispatch_at) <= now;
     }
@@ -91,7 +94,7 @@ export async function GET(_req: NextRequest) {
 
   for (const o of allOrders) {
     const s = o.status as string;
-    if (s === "assigned") buckets.nouveau++;
+    if (s === "pending" || s === "assigned") buckets.nouveau++;
     else if (s === "attempt_1") {
       buckets.tentative_1++;
       buckets.tentative_total++;

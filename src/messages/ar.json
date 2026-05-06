@@ -79,7 +79,7 @@
       "carrierLabel": "الناقل",
       "noCarriers": "لا يوجد ناقل",
       "dispatch": "شحن",
-      "dispatching": "جارٍ الشحن…",
+      "uploading": "جارٍ الرفع…",
       "printPicklist": "طباعة قائمة التحضير",
       "printing": "جارٍ الطباعة…",
       "clear": "مسح"
@@ -599,7 +599,7 @@
       "attempts": "قيد المحاولة",
       "callback": "مكالمات لاحقة",
       "confirmed": "مؤكدة",
-      "dispatched": "مُرسَلة"
+      "uploaded": "مُرسَلة"
     },
     "rejectionReasons": {
       "refus_client": "رفض العميل",
@@ -849,6 +849,7 @@
       "product": "المنتج",
       "totalPrice": "السعر الإجمالي",
       "status": "الحالة",
+      "source": "المصدر",
       "agent": "الوكيل",
       "date": "التاريخ",
       "selectAll": "تحديد الكل",
@@ -863,7 +864,7 @@
       "callback_scheduled": "مكالمة مجدولة",
       "confirmed": "مؤكد",
       "dispatch_scheduled": "توصيل مجدول",
-      "dispatching": "جارٍ الإرسال",
+      "uploaded": "تم الإرسال إلى الناقل",
       "scanned": "تم المسح",
       "dispatched": "تم الإرسال",
       "deposit": "إيداع",
@@ -950,6 +951,15 @@
       "scheduledDispatchAutoBanner": "توصيل مجدول (إرسال تلقائي)",
       "scheduledDispatchCancel": "إلغاء",
       "scheduledDispatchCanceling": "جارٍ الإلغاء…",
+      "uploadToCarrier": "إرسال إلى الناقل",
+      "uploadingToCarrier": "جارٍ الإرسال…",
+      "uploadCarrierPickTitle": "اختر الناقل",
+      "uploadCarrierPickHint": "الإرسال فوري ولا يمكن التراجع عنه إلا من بطاقة الطلب.",
+      "uploadCarrierConfirm": "إرسال",
+      "uploadCarrierCancel": "إلغاء",
+      "uploadCarrierNoActive": "لا يوجد ناقل نشط لهذا السوق.",
+      "uploadCarrierSuccess": "تم الإرسال — التتبع {tracking}",
+      "uploadCarrierError": "فشل الإرسال: {error}",
       "fieldPhone2": "هاتف 2",
       "fieldDeliveryFee": "رسوم التوصيل",
       "addProduct": "+ إضافة منتج",
@@ -984,6 +994,7 @@
       "dispatched": "تم الإرسال",
       "rejected": "تم الرفض",
       "cancelled": "تم الإلغاء",
+      "deleted": "تم الحذف",
       "deposit": "تم الإيداع",
       "inTransit": "في الطريق",
       "delivered": "تم التسليم",
@@ -1078,7 +1089,7 @@
     "callbackRequested": "طلب معاودة الاتصال",
     "selectCarrier": "اختر شركة شحن",
     "dispatch": "إرسال",
-    "dispatching": "جارٍ الإرسال…",
+    "uploading": "جارٍ الرفع…",
     "dispatchSuccess": "تم إرسال الطلب بنجاح",
     "dispatchFailed": "فشل الإرسال",
     "retry": "إعادة المحاولة",
@@ -1108,6 +1119,8 @@
     "saving": "جارٍ الحفظ…",
     "confirmedHint": "أكّد الطلب — المستودع سيتولى الشحن.",
     "confirmedSuccess": "تم تأكيد الطلب بنجاح.",
+    "confirmOnly": "تأكيد",
+    "confirmAndSchedule": "تأكيد + جدولة التوصيل",
     "rejectedHint": "اختر سبب الرفض.",
     "rejectedHintMax": "لا يمكن الوصول تم التحديد مسبقاً.",
     "callbackHint": "اختر تاريخ ووقت المعاودة.",
@@ -1158,8 +1171,7 @@
       "attempt": "محاولة",
       "attempts": "المحاولات",
       "callback": "معاودة",
-      "toCallBack": "إعادة الاتصال",
-      "scheduled": "مجدول",
+      "inProgress": "قيد التنفيذ",
       "confirmed": "مؤكد",
       "closed": "المغلقة (7 أيام)",
       "attemptSubfilter": {
@@ -1174,10 +1186,11 @@
         "t2": "محاولة 2",
         "t3": "محاولة 3"
       },
-      "planifieSubfilter": {
+      "enCoursSubfilter": {
         "all": "الكل",
         "rappel": "اتصال",
-        "livraison": "توصيل"
+        "tentative": "محاولة",
+        "livraison": "توصيل مجدول"
       }
     },
     "etiquette": {
@@ -1297,16 +1310,52 @@
         "costModel": "نموذج التكاليف",
         "inventory": "المخزون"
       },
+      "fields": {
+        "sku": "SKU"
+      },
       "hints": {
         "unitCogs": "تكلفة الشراء أو التصنيع لكل وحدة مسلّمة.",
         "packingCost": "التغليف، الشريط، الحماية — لكل طلب مؤكد.",
-        "cpl": "تكلفة الاستفسار الإعلاني. تُستخدم لحساب إجمالي الإنفاق الإعلاني.",
         "processingCost": "تكلفة معالجة التأكيد لكل طلب مؤكد.",
-        "threshold": "عندما يكون المخزون أقل من هذا الحد، يُشار إليه كمخزون منخفض."
+        "threshold": "عندما يكون المخزون أقل من هذا الحد، يُشار إليه كمخزون منخفض.",
+        "sku": "معرّف فريد لمطابقة الـ webhook (اختياري)."
+      },
+      "errors": {
+        "skuConflict": "هذا الـ SKU مستخدم بالفعل لمنتج آخر في هذا السوق."
       },
       "example": "مثال تقريبي: 100 استفسار · 60 مؤكد · 40 مسلّم بسعر {price} → هامش تقديري {margin}",
       "submit": "إنشاء المنتج",
       "cancel": "إلغاء"
+    },
+    "editForm": {
+      "title": "تعديل المنتج",
+      "intro": "حدّث معلومات المنتج.",
+      "sections": {
+        "inventoryAndStatus": "المخزون والحالة"
+      },
+      "fields": {
+        "name": "اسم المنتج",
+        "sku": "SKU",
+        "description": "الوصف",
+        "imageUrl": "رابط الصورة",
+        "unitCogs": "تكلفة الوحدة",
+        "packingCost": "تكلفة التغليف",
+        "processingCost": "تكلفة المعالجة",
+        "threshold": "حد المخزون المنخفض",
+        "defaultPrice": "سعر البيع (اختياري)",
+        "isActive": "منتج نشط"
+      },
+      "hints": {
+        "sku": "معرّف فريد لمطابقة الـ webhook (اختياري)."
+      },
+      "errors": {
+        "nameRequired": "الاسم مطلوب.",
+        "unitCogsInvalid": "تكلفة الوحدة غير صالحة.",
+        "thresholdInvalid": "حد المخزون المنخفض غير صالح.",
+        "skuConflict": "هذا الـ SKU مستخدم بالفعل لمنتج آخر في هذا السوق."
+      },
+      "submit": "حفظ",
+      "saving": "جاري الحفظ…"
     },
     "row": {
       "editThreshold": "تعديل الحد",
@@ -1464,7 +1513,14 @@
         "instagram_dm": "رسالة إنستغرام",
         "whatsapp": "واتساب",
         "tiktok_comment": "تعليق تيك توك",
+        "campaign": "حملة",
         "other": "آخر"
+      },
+      "moveErrors": {
+        "invalidTransition": "لا يمكن نقل هذا العميل من {from} إلى {to}.",
+        "lostRequiresModal": "استخدم إجراء الخسارة لاختيار السبب.",
+        "wonRequiresConversion": "استخدم التحويل لتحديد هذا العميل كرابح.",
+        "transitionFailed": "تعذر نقل هذا العميل."
       },
       "lostReasons": {
         "not_interested": "غير مهتم",

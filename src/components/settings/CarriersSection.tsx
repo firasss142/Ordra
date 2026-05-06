@@ -176,7 +176,7 @@ export function CarriersSection({
     name: "",
     code: "",
     api_endpoint: "",
-    api_key: "",
+    credentials: {} as Record<string, string>,
     delivery_fee: "",
     return_fee: "",
     rotatingKey: false,
@@ -198,7 +198,7 @@ export function CarriersSection({
       name: "",
       code: "",
       api_endpoint: adapters[0]?.defaultEndpoint ?? "",
-      api_key: "",
+      credentials: {},
       delivery_fee: "",
       return_fee: "",
       rotatingKey: false,
@@ -214,7 +214,7 @@ export function CarriersSection({
       name: c.name,
       code: c.code,
       api_endpoint: c.api_endpoint,
-      api_key: MASK,
+      credentials: {},
       delivery_fee: String(c.delivery_fee),
       return_fee: String(c.return_fee),
       rotatingKey: false,
@@ -278,14 +278,20 @@ export function CarriersSection({
           ? (form.code || slugify(form.name))
           : form.adapter_code;
 
+      const filledCreds: Record<string, string> = {};
+      for (const [k, v] of Object.entries(form.credentials)) {
+        if (v && v.length > 0) filledCreds[k] = v;
+      }
+
       if (editCarrier) {
         const body: Record<string, unknown> = {
           name: form.name,
+          api_endpoint: form.api_endpoint,
           delivery_fee: parseFloat(form.delivery_fee) || 0,
           return_fee: parseFloat(form.return_fee) || 0,
         };
-        if (form.rotatingKey && form.api_key !== MASK && form.api_key.length > 0) {
-          body.api_key = form.api_key;
+        if (Object.keys(filledCreds).length > 0) {
+          body.credentials = filledCreds;
         }
         const res = await fetch(`/api/carriers/${editCarrier.id}`, {
           method: "PATCH",
@@ -306,7 +312,7 @@ export function CarriersSection({
             name: form.name,
             code: finalCode,
             api_endpoint: form.api_endpoint,
-            api_key: form.api_key,
+            credentials: filledCreds,
             delivery_fee: parseFloat(form.delivery_fee) || 0,
             return_fee: parseFloat(form.return_fee) || 0,
           }),
@@ -702,50 +708,121 @@ export function CarriersSection({
                   />
                 </div>
 
-                <div>
-                  <label style={labelStyle}>
-                    Clé API{" "}
-                    {editCarrier && !form.rotatingKey && (
-                      <span style={{ color: "#6D7175", fontWeight: 400 }}>
-                        (masquée)
-                      </span>
+                {selectedDescriptor && selectedDescriptor.credentialFields.length > 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {selectedDescriptor.credentialFields.map((field) => {
+                      const isSecret = field.secret;
+                      const editingSecretMasked =
+                        editCarrier && isSecret && !form.rotatingKey;
+
+                      return (
+                        <div key={field.key}>
+                          <label style={labelStyle}>
+                            {field.label}
+                            {editingSecretMasked && (
+                              <span
+                                style={{ color: "#6D7175", fontWeight: 400, marginLeft: 6 }}
+                              >
+                                (masquée)
+                              </span>
+                            )}
+                          </label>
+                          {editingSecretMasked ? (
+                            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                              <input
+                                type="text"
+                                disabled
+                                value={MASK}
+                                style={{ ...inputStyle, color: "#6D7175" }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setForm((f) => ({
+                                    ...f,
+                                    rotatingKey: true,
+                                    credentials: { ...f.credentials, [field.key]: "" },
+                                  }))
+                                }
+                                style={secondaryButton}
+                              >
+                                Faire tourner
+                              </button>
+                            </div>
+                          ) : (
+                            <input
+                              type={isSecret ? "password" : "text"}
+                              value={form.credentials[field.key] ?? ""}
+                              onChange={(e) =>
+                                setForm((f) => ({
+                                  ...f,
+                                  credentials: {
+                                    ...f.credentials,
+                                    [field.key]: e.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder={field.placeholder}
+                              style={inputStyle}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                    {editCarrier && form.rotatingKey && (
+                      <p style={{ margin: 0, fontSize: 12, color: "#6D7175" }}>
+                        Les valeurs précédentes seront remplacées à l&apos;enregistrement.
+                      </p>
                     )}
-                  </label>
-                  {editCarrier && !form.rotatingKey ? (
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  </div>
+                ) : (
+                  <div>
+                    <label style={labelStyle}>
+                      Clé API{" "}
+                      {editCarrier && !form.rotatingKey && (
+                        <span style={{ color: "#6D7175", fontWeight: 400 }}>
+                          (masquée)
+                        </span>
+                      )}
+                    </label>
+                    {editCarrier && !form.rotatingKey ? (
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <input
+                          type="text"
+                          disabled
+                          value={MASK}
+                          style={{ ...inputStyle, color: "#6D7175" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((f) => ({
+                              ...f,
+                              rotatingKey: true,
+                              credentials: { api_key: "" },
+                            }))
+                          }
+                          style={secondaryButton}
+                        >
+                          Faire tourner
+                        </button>
+                      </div>
+                    ) : (
                       <input
-                        type="text"
-                        disabled
-                        value={MASK}
-                        style={{ ...inputStyle, color: "#6D7175" }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setForm((f) => ({ ...f, rotatingKey: true, api_key: "" }))
+                        type="password"
+                        value={form.credentials.api_key ?? ""}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            credentials: { ...f.credentials, api_key: e.target.value },
+                          }))
                         }
-                        style={secondaryButton}
-                      >
-                        Faire tourner
-                      </button>
-                    </div>
-                  ) : (
-                    <input
-                      type="password"
-                      value={form.api_key}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, api_key: e.target.value }))
-                      }
-                      style={inputStyle}
-                      placeholder={editCarrier ? "Nouvelle clé" : ""}
-                    />
-                  )}
-                  {editCarrier && form.rotatingKey && (
-                    <p style={{ margin: "6px 0 0 0", fontSize: 12, color: "#6D7175" }}>
-                      L&apos;ancienne clé sera remplacée à l&apos;enregistrement.
-                    </p>
-                  )}
-                </div>
+                        style={inputStyle}
+                        placeholder={editCarrier ? "Nouvelle clé" : ""}
+                      />
+                    )}
+                  </div>
+                )}
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>

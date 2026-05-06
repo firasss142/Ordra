@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
+import { lastNDaysPeriod } from "@/lib/date";
 
 interface AgentMetric {
   agent_id: string;
@@ -116,7 +117,7 @@ export function PeriodSelector({
   period: Period;
   onChange: (p: Period) => void;
 }) {
-  type TabKey = "today" | "week" | "month" | "custom";
+  type TabKey = "today" | "week" | "month" | "last7" | "last30" | "custom";
   const [activeTab, setActiveTab] = useState<TabKey>("today");
 
   function getToday(): Period {
@@ -149,18 +150,22 @@ export function PeriodSelector({
     if (tab === "today") onChange(getToday());
     else if (tab === "week") onChange(getThisWeek());
     else if (tab === "month") onChange(getThisMonth());
+    else if (tab === "last7") onChange(lastNDaysPeriod(7));
+    else if (tab === "last30") onChange(lastNDaysPeriod(30));
   }
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: "today", label: "Aujourd'hui" },
     { key: "week", label: "Cette semaine" },
     { key: "month", label: "Ce mois" },
+    { key: "last7", label: "7 derniers jours" },
+    { key: "last30", label: "30 derniers jours" },
     { key: "custom", label: "Personnalisé" },
   ];
 
   return (
     <div style={{ marginBottom: 16 }}>
-      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #D1D5DB" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 0, borderBottom: "1px solid #D1D5DB" }}>
         {tabs.map((tab) => (
           <button
             key={tab.key}

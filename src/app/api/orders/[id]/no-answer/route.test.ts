@@ -58,10 +58,10 @@ describe("POST /api/orders/[id]/no-answer", () => {
     expect(res.status).toBe(401);
   });
 
-  test("returns 403 when user is not an agent", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-1" } }, error: null });
+  test("returns 403 when role cannot log no-answer", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "warehouse-1" } }, error: null });
     mockFrom.mockReturnValue(
-      queryChainSingle({ data: { role: "market_manager", market_id: "m-1" }, error: null })
+      queryChainSingle({ data: { role: "warehouse_agent", market_id: "m-1" }, error: null })
     );
     const res = await POST(createRequest(), PARAMS);
     expect(res.status).toBe(403);
@@ -86,7 +86,7 @@ describe("POST /api/orders/[id]/no-answer", () => {
         return queryChainSingle({ data: { role: "agent", market_id: "m-1" }, error: null });
       }
       return queryChainSingle({
-        data: { id: "o-1", status: "assigned", assigned_to: "agent-OTHER" },
+        data: { id: "o-1", status: "pending", assigned_to: "agent-OTHER" },
         error: null,
       });
     });
@@ -130,7 +130,7 @@ describe("POST /api/orders/[id]/no-answer", () => {
         return settingsChainEmpty();
       }
       return queryChainSingle({
-        data: { id: "o-1", status: "assigned", assigned_to: "agent-1", market_id: "m-1" },
+        data: { id: "o-1", status: "pending", assigned_to: "agent-1", market_id: "m-1" },
         error: null,
       });
     });
@@ -191,7 +191,7 @@ describe("POST /api/orders/[id]/no-answer", () => {
         return chain;
       }
       return queryChainSingle({
-        data: { id: "o-1", status: "assigned", assigned_to: "agent-1", market_id: "m-1" },
+        data: { id: "o-1", status: "pending", assigned_to: "agent-1", market_id: "m-1" },
         error: null,
       });
     });
@@ -220,7 +220,7 @@ describe("POST /api/orders/[id]/no-answer", () => {
         return settingsChainEmpty();
       }
       return queryChainSingle({
-        data: { id: "o-1", status: "assigned", assigned_to: "agent-1", market_id: "m-1" },
+        data: { id: "o-1", status: "pending", assigned_to: "agent-1", market_id: "m-1" },
         error: null,
       });
     });
@@ -249,7 +249,7 @@ describe("POST /api/orders/[id]/no-answer", () => {
         return settingsChainEmpty();
       }
       return queryChainSingle({
-        data: { id: "o-1", status: "assigned", assigned_to: "agent-1", market_id: "m-1" },
+        data: { id: "o-1", status: "pending", assigned_to: "agent-1", market_id: "m-1" },
         error: null,
       });
     });

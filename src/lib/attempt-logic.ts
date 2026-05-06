@@ -1,6 +1,7 @@
 import type { OrderStatus } from "@/types/order-status";
 
 const NEXT_ATTEMPT: Partial<Record<OrderStatus, OrderStatus>> = {
+  pending: "attempt_1",
   assigned: "attempt_1",
   attempt_1: "attempt_2",
   attempt_2: "attempt_3",

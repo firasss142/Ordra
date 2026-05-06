@@ -1,5 +1,25 @@
+const MS_PER_DAY = 86_400_000;
+
 export function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+export function daysAgoISO(daysAgo: number): string {
+  const now = new Date();
+  const todayMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return toISODate(todayMs - daysAgo * MS_PER_DAY);
+}
+
+export function lastNDaysPeriod(days: number): { from_date: string; to_date: string } {
+  if (!Number.isInteger(days) || days < 1) {
+    throw new RangeError("days must be a positive integer");
+  }
+  const now = new Date();
+  const todayMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return {
+    from_date: toISODate(todayMs - (days - 1) * MS_PER_DAY),
+    to_date: toISODate(todayMs),
+  };
 }
 
 export function startOfWeekISO(): string {
@@ -23,8 +43,6 @@ export function startOfQuarterISO(): string {
     .toISOString()
     .slice(0, 10);
 }
-
-const MS_PER_DAY = 86_400_000;
 
 function parseISODate(iso: string): number {
   const [y, m, d] = iso.split("-").map(Number);

@@ -200,7 +200,7 @@ export function DexpressDispatchModal({
               onClick={handleSubmit}
               className="mt-5 w-full rounded bg-ink-primary px-4 py-2.5 text-[14px] font-medium text-surface-card disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {submitting ? t("dispatching") : t("confirmDispatch")}
+              {submitting ? t("uploading") : t("confirmDispatch")}
             </button>
           </div>
         </div>

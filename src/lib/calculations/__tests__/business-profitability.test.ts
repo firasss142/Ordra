@@ -164,9 +164,11 @@ describe("calculateBusinessProfitability", () => {
   });
 
   it("counts packing for all confirmed-phase statuses", () => {
-    // Statuses that went through confirmation (confirmed, dispatched, deposit, in_transit, delivered, returned)
+    // Statuses that went through confirmation (confirmed, uploaded, scanned, dispatched, deposit, in_transit, delivered, returned)
     const confirmedStatuses = [
       "confirmed",
+      "uploaded",
+      "scanned",
       "dispatched",
       "deposit",
       "in_transit",
@@ -187,12 +189,12 @@ describe("calculateBusinessProfitability", () => {
     const result = calculateBusinessProfitability({
       orders,
       totalAdSpend: 0,
-      totalOrdersReceived: 6,
-      totalConfirmed: 6,
+      totalOrdersReceived: confirmedStatuses.length,
+      totalConfirmed: confirmedStatuses.length,
       totalRejected: 0,
     });
 
-    expect(result.totalPackingCost).toBe(30); // 6 orders × 5
+    expect(result.totalPackingCost).toBe(confirmedStatuses.length * 5);
   });
 
   it("does not count packing for non-confirmed statuses", () => {

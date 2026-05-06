@@ -12,7 +12,7 @@ describe("transitionOrderStatus", () => {
   test("calls RPC with correct parameters and returns result", async () => {
     const rpcData = {
       order_id: "order-1",
-      status: "assigned",
+      status: "attempt_1",
       updated_at: "2026-04-11T00:00:00Z",
       history_id: "hist-1",
     };
@@ -20,20 +20,20 @@ describe("transitionOrderStatus", () => {
 
     const params: TransitionParams = {
       orderId: "order-1",
-      newStatus: "assigned",
+      newStatus: "attempt_1",
       actorId: "actor-1",
       actorType: "manager",
-      note: "Assigned to agent",
+      note: "First call attempt",
     };
 
     const result = await transitionOrderStatus(supabase, params);
 
     expect(supabase.rpc).toHaveBeenCalledWith("transition_order_status", {
       p_order_id: "order-1",
-      p_new_status: "assigned",
+      p_new_status: "attempt_1",
       p_actor_id: "actor-1",
       p_actor_type: "manager",
-      p_note: "Assigned to agent",
+      p_note: "First call attempt",
       p_rejection_reason: null,
       p_rejection_note: null,
     });
@@ -41,7 +41,7 @@ describe("transitionOrderStatus", () => {
     expect(result).toEqual({
       order: {
         id: "order-1",
-        status: "assigned",
+        status: "attempt_1",
         updated_at: "2026-04-11T00:00:00Z",
       },
       historyEntry: { id: "hist-1" },
@@ -117,7 +117,7 @@ describe("transitionOrderStatus", () => {
     await expect(
       transitionOrderStatus(supabase, {
         orderId: "order-1",
-        newStatus: "assigned",
+        newStatus: "attempt_1",
         actorId: "actor-1",
         actorType: "manager",
       })
@@ -133,7 +133,7 @@ describe("transitionOrderStatus", () => {
     await expect(
       transitionOrderStatus(supabase, {
         orderId: "nonexistent",
-        newStatus: "assigned",
+        newStatus: "attempt_1",
         actorId: "actor-1",
         actorType: "manager",
       })

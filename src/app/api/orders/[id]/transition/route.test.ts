@@ -62,11 +62,11 @@ describe("POST /api/orders/[id]/transition", () => {
       return queryChain({ data: null, error: null });
     });
     mockRpc.mockResolvedValue({
-      data: { order_id: "order-1", status: "assigned", updated_at: "2026-04-11T00:00:00Z", history_id: "hist-1" },
+      data: { order_id: "order-1", status: "attempt_1", updated_at: "2026-04-11T00:00:00Z", history_id: "hist-1" },
       error: null,
     });
 
-    const req = createRequest({ status: "assigned" });
+    const req = createRequest({ status: "attempt_1" });
     const res = await POST(req, { params: Promise.resolve({ id: "order-1" }) });
     expect(res.status).toBe(200);
   });

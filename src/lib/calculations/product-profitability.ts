@@ -40,7 +40,7 @@ export function calculateProductProfitability(params: {
   returnedCount: number;
   unitCogs: number;
   packingCost: number;
-  cpl: number;
+  adSpend: number;
   confirmationProcessingCost: number;
   deliveredOrders: ProductDeliveredOrder[];
   returnedOrders: ProductReturnedOrder[];
@@ -53,7 +53,7 @@ export function calculateProductProfitability(params: {
     returnedCount,
     unitCogs,
     packingCost,
-    cpl,
+    adSpend,
     confirmationProcessingCost,
     deliveredOrders,
     returnedOrders,
@@ -88,7 +88,7 @@ export function calculateProductProfitability(params: {
     0
   );
   const totalPackingCost = confirmedCount * packingCost;
-  const totalAdSpend = cpl * totalLeads;
+  const totalAdSpend = adSpend;
   const totalProcessingCost = confirmedCount * confirmationProcessingCost;
 
   const simplifiedNetProfit =

@@ -1,7 +1,7 @@
-import { ORDER_STATUSES, canTransition, isTerminalStatus } from "@/types/order-status";
+import { ALL_ORDER_STATUSES, canTransition, isTerminalStatus } from "@/types/order-status";
 import type { OrderStatus } from "@/types/order-status";
 
-const VALID_STATUSES = new Set<string>(ORDER_STATUSES);
+const VALID_STATUSES = new Set<string>(ALL_ORDER_STATUSES);
 
 export interface OrderHistoryEntry {
   order_id: string;
@@ -61,8 +61,8 @@ export function buildAssignmentHistoryEntry(
   };
   return {
     order_id: orderId,
-    status_from: "assigned",
-    status_to: "assigned",
+    status_from: "pending",
+    status_to: "pending",
     actor_id: actorId,
     note: noteMap[action],
     created_at: new Date().toISOString(),

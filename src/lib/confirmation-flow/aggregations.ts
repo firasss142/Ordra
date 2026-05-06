@@ -2,6 +2,8 @@ import { percentileMinutes } from "@/lib/team/ttfc";
 import { computeTTFCMinutes } from "@/lib/team/ttfc";
 
 export const FUNNEL_STAGES = [
+  // Display stage for orders owned by an agent but not called yet.
+  // New rows use status="pending" plus assigned_to; status="assigned" is legacy.
   "assigned",
   "attempt_1",
   "attempt_2",
@@ -78,6 +80,10 @@ export function computeFunnelOpenCounts(
     number
   >;
   for (const row of rows) {
+    if ((row.status === "pending" || row.status === "assigned") && row.assigned_to) {
+      counts.assigned++;
+      continue;
+    }
     if ((FUNNEL_STAGES as readonly string[]).includes(row.status)) {
       counts[row.status as FunnelStage]++;
     }

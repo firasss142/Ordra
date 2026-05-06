@@ -1,5 +1,9 @@
-import { describe, it, expect } from "vitest";
-import { computePreviousPeriod, periodLengthDays } from "../date";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { computePreviousPeriod, lastNDaysPeriod, periodLengthDays } from "../date";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("computePreviousPeriod", () => {
   it("returns same-length period ending the day before from_date", () => {
@@ -56,5 +60,47 @@ describe("periodLengthDays", () => {
 
   it("returns 30 for april", () => {
     expect(periodLengthDays("2026-04-01", "2026-04-30")).toBe(30);
+  });
+});
+
+describe("lastNDaysPeriod", () => {
+  it("returns a rolling 7-day period including today", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-04T12:00:00Z"));
+
+    expect(lastNDaysPeriod(7)).toEqual({
+      from_date: "2026-04-28",
+      to_date: "2026-05-04",
+    });
+  });
+
+  it("returns a rolling 30-day period including today", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-04T12:00:00Z"));
+
+    expect(lastNDaysPeriod(30)).toEqual({
+      from_date: "2026-04-05",
+      to_date: "2026-05-04",
+    });
+  });
+
+  it("handles month boundaries", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-01T12:00:00Z"));
+
+    expect(lastNDaysPeriod(7)).toEqual({
+      from_date: "2026-02-23",
+      to_date: "2026-03-01",
+    });
+  });
+
+  it("handles year boundaries", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-02T12:00:00Z"));
+
+    expect(lastNDaysPeriod(7)).toEqual({
+      from_date: "2025-12-27",
+      to_date: "2026-01-02",
+    });
   });
 });

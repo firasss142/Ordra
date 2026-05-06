@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import FocusTrap from "focus-trap-react";
 import { CallbackPicker } from "./CallbackPicker";
 import { RejectionReasonSelect } from "./RejectionReasonSelect";
+import { ScheduleDispatchModal } from "./ScheduleDispatchModal";
 
 // Kept for backwards compat — no longer used by QueuePage
 export interface PostCallOrder {
@@ -81,6 +82,7 @@ export function PostCallActionSheet({
 
   // CONFIRM
   const [confirmSuccess, setConfirmSuccess] = useState(false);
+  const [scheduleDispatchOpen, setScheduleDispatchOpen] = useState(false);
 
   // REJECT
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
@@ -165,7 +167,7 @@ export function PostCallActionSheet({
   }
 
   // ── CONFIRM submit ───────────────────────────────────────────────
-  async function submitConfirm() {
+  async function submitConfirm(andSchedule: boolean = false) {
     setLoading(true);
     setError(null);
     try {
@@ -178,6 +180,14 @@ export function PostCallActionSheet({
 
       if (!res.ok || json.success === false) {
         setError(json.error ?? httpErrorMessage(res.status));
+        return;
+      }
+
+      // "+ planifier livraison" branch: hand off to the schedule modal.
+      // Order is already confirmed at this point — modal cancel just finalises
+      // as confirmed; modal success finalises as dispatch_scheduled.
+      if (andSchedule) {
+        setScheduleDispatchOpen(true);
         return;
       }
 
@@ -242,6 +252,7 @@ export function PostCallActionSheet({
   }
 
   return (
+    <>
     <div
       className="fixed inset-0 z-40 flex items-center justify-center bg-ink-primary/50"
       onClick={onClose}
@@ -408,14 +419,24 @@ export function PostCallActionSheet({
                     <p className="text-[14px] text-ink-secondary mb-4">
                       {t("confirmedHint")}
                     </p>
-                    <button
-                      type="button"
-                      className={`${submitButtonClasses} mt-2`}
-                      disabled={loading}
-                      onClick={submitConfirm}
-                    >
-                      {loading ? t("saving") : t("confirmed")}
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                      <button
+                        type="button"
+                        className={`${submitButtonClasses} flex-1`}
+                        disabled={loading}
+                        onClick={() => submitConfirm(false)}
+                      >
+                        {loading ? t("saving") : t("confirmOnly")}
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center flex-1 py-2.5 px-4 rounded-md border border-line-strong bg-surface-card text-[14px] font-medium text-ink-primary transition-colors duration-fast hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={loading}
+                        onClick={() => submitConfirm(true)}
+                      >
+                        {loading ? t("saving") : t("confirmAndSchedule")}
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
@@ -460,5 +481,21 @@ export function PostCallActionSheet({
         </div>
       </FocusTrap>
     </div>
+    {scheduleDispatchOpen && (
+      <ScheduleDispatchModal
+        orderId={orderId}
+        marketId={marketId}
+        onClose={() => {
+          // Order is already confirmed at this point — finalise as confirmed.
+          setScheduleDispatchOpen(false);
+          onSuccess({ action: "confirmed", newStatus: "confirmed" });
+        }}
+        onSuccess={() => {
+          setScheduleDispatchOpen(false);
+          onSuccess({ action: "confirmed", newStatus: "dispatch_scheduled" });
+        }}
+      />
+    )}
+    </>
   );
 }

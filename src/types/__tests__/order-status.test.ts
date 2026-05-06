@@ -8,20 +8,20 @@ import {
 } from "@/types/order-status";
 
 describe("ORDER_STATUSES", () => {
-  it("contains exactly 21 statuses", () => {
-    expect(ORDER_STATUSES).toHaveLength(21);
+  it("contains exactly 20 active statuses", () => {
+    expect(ORDER_STATUSES).toHaveLength(20);
   });
 
   it("contains all Phase 1 confirmation statuses", () => {
     expect(ORDER_STATUSES).toEqual(
       expect.arrayContaining([
         "pending",
-        "assigned",
         "attempt_1",
         "attempt_2",
         "attempt_3",
         "callback_scheduled",
         "confirmed",
+        "uploaded",
       ])
     );
   });
@@ -47,6 +47,10 @@ describe("ORDER_STATUSES", () => {
       expect.arrayContaining(["rejected", "cancelled", "deleted"])
     );
   });
+
+  it("does not contain the removed dispatching status", () => {
+    expect(ORDER_STATUSES).not.toContain("dispatching");
+  });
 });
 
 describe("isTerminalStatus", () => {
@@ -66,7 +70,7 @@ describe("isTerminalStatus", () => {
     "callback_scheduled",
     "confirmed",
     "dispatch_scheduled",
-    "dispatching",
+    "uploaded",
     "scanned",
     "dispatched",
     "deposit",
@@ -81,8 +85,12 @@ describe("isTerminalStatus", () => {
 
 describe("canTransition", () => {
   // Phase 1: Confirmation transitions
-  it("allows pending → assigned", () => {
-    expect(canTransition("pending", "assigned")).toBe(true);
+  it("allows pending → attempt_1", () => {
+    expect(canTransition("pending", "attempt_1")).toBe(true);
+  });
+
+  it("allows pending to be confirmed once owned by an actor", () => {
+    expect(canTransition("pending", "confirmed")).toBe(true);
   });
 
   it("allows assigned → attempt_1", () => {
@@ -101,20 +109,28 @@ describe("canTransition", () => {
     expect(canTransition("assigned", "confirmed")).toBe(true);
   });
 
-  it("blocks confirmed → dispatching (carrier auto-dispatch removed)", () => {
-    expect(canTransition("confirmed", "dispatching")).toBe(false);
+  it("allows confirmed → uploaded (carrier API push)", () => {
+    expect(canTransition("confirmed", "uploaded")).toBe(true);
   });
 
-  it("allows dispatching → dispatched (carrier succeeded)", () => {
-    expect(canTransition("dispatching", "dispatched")).toBe(true);
+  it("allows confirmed → dispatch_scheduled (defer to a future date)", () => {
+    expect(canTransition("confirmed", "dispatch_scheduled")).toBe(true);
   });
 
-  it("allows dispatching → confirmed (carrier failed — agent retries)", () => {
-    expect(canTransition("dispatching", "confirmed")).toBe(true);
+  it("allows dispatch_scheduled → uploaded (cron auto-uploads at scheduled time)", () => {
+    expect(canTransition("dispatch_scheduled", "uploaded")).toBe(true);
   });
 
-  it("allows confirmed → scanned (warehouse picks up order)", () => {
-    expect(canTransition("confirmed", "scanned")).toBe(true);
+  it("blocks dispatch_scheduled → confirmed (scheduled orders never revert to plain confirmed)", () => {
+    expect(canTransition("dispatch_scheduled", "confirmed")).toBe(false);
+  });
+
+  it("allows uploaded → scanned (warehouse picks up uploaded order)", () => {
+    expect(canTransition("uploaded", "scanned")).toBe(true);
+  });
+
+  it("blocks confirmed → scanned (must pass through uploaded)", () => {
+    expect(canTransition("confirmed", "scanned")).toBe(false);
   });
 
   it("allows scanned → dispatched (warehouse dispatches after scan)", () => {
@@ -125,7 +141,7 @@ describe("canTransition", () => {
     expect(canTransition("scanned", "deleted")).toBe(true);
   });
 
-  it("blocks confirmed → dispatched (must go through scanned)", () => {
+  it("blocks confirmed → dispatched (must go through uploaded → scanned)", () => {
     expect(canTransition("confirmed", "dispatched")).toBe(false);
   });
 
@@ -147,6 +163,10 @@ describe("canTransition", () => {
 
   it("allows confirmed → deleted (manual removal)", () => {
     expect(canTransition("confirmed", "deleted")).toBe(true);
+  });
+
+  it("allows uploaded → deleted (manual removal)", () => {
+    expect(canTransition("uploaded", "deleted")).toBe(true);
   });
 
   it("allows dispatched → deleted (manual removal)", () => {
@@ -240,8 +260,8 @@ describe("canTransition", () => {
     expect(canTransition("pending", "dispatched")).toBe(false);
   });
 
-  it("blocks pending → confirmed (skipping steps)", () => {
-    expect(canTransition("pending", "confirmed")).toBe(false);
+  it("blocks pending → assigned because assignment is not a lifecycle status", () => {
+    expect(canTransition("pending", "assigned")).toBe(false);
   });
 
   it("blocks attempt_1 → attempt_3 (skipping attempt_2)", () => {
@@ -266,6 +286,7 @@ describe("isAutoCleared", () => {
     "pending",
     "assigned",
     "confirmed",
+    "uploaded",
     "dispatched",
     "deposit",
     "in_transit",

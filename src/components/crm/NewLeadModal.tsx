@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import useSWR from "swr";
-import { LEAD_SOURCES, type LeadSource, type LeadStatus } from "@/types/lead";
+import { CREATABLE_LEAD_SOURCES, type LeadSource, type LeadStatus } from "@/types/lead";
 import { Combobox } from "@/components/ui/Combobox";
 import {
   TUNISIAN_GOVERNORATES,
@@ -300,7 +300,7 @@ export function NewLeadModal({
               onChange={(e) => setSource(e.target.value as LeadSource)}
               style={inputStyle}
             >
-              {LEAD_SOURCES.map((s) => (
+              {CREATABLE_LEAD_SOURCES.map((s) => (
                 <option key={s} value={s}>
                   {tSources(s)}
                 </option>

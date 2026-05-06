@@ -15,7 +15,6 @@ interface ProductRow {
   name: string;
   unit_cogs: number;
   packing_cost: number;
-  cpl: number;
   low_stock_threshold: number;
   current_stock: number;
   system_inventory?: number;
@@ -289,12 +288,6 @@ export function ProductCatalogRow({
               Emb.{" "}
               <strong className="tabular-nums text-ink-primary">
                 {fmtNum(product.packing_cost)} {currency}
-              </strong>
-            </span>
-            <span className="text-[12px] text-ink-secondary">
-              CPL{" "}
-              <strong className="tabular-nums text-ink-primary">
-                {fmtNum(product.cpl)} {currency}
               </strong>
             </span>
           </div>

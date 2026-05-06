@@ -1048,7 +1048,7 @@ function BulkBar({
             cursor: dispatching || !carrierId ? "not-allowed" : "pointer",
           }}
         >
-          {dispatching ? t("bulkBar.dispatching") : t("bulkBar.dispatch")}
+          {dispatching ? t("bulkBar.uploading") : t("bulkBar.dispatch")}
         </button>
         <button
           type="button"

@@ -44,6 +44,23 @@ vi.mock("../RejectionReasonSelect", () => ({
   ),
 }));
 
+vi.mock("../ScheduleDispatchModal", () => ({
+  ScheduleDispatchModal: ({
+    onClose,
+    onSuccess,
+  }: {
+    orderId: string;
+    marketId: string;
+    onClose: () => void;
+    onSuccess: () => void;
+  }) => (
+    <div data-testid="schedule-dispatch-modal">
+      <button onClick={onSuccess}>Submit schedule</button>
+      <button onClick={onClose}>Cancel schedule</button>
+    </div>
+  ),
+}));
+
 // Mock fetch
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -233,6 +250,19 @@ describe("PostCallActionSheet", () => {
 
   describe("CONFIRM flow — direct confirm", () => {
 
+    it("renders both 'Confirmer' and 'Confirmer + planifier livraison' buttons", async () => {
+      render(<PostCallActionSheet {...defaultProps} />);
+      await act(async () => {
+        fireEvent.click(screen.getByText("Confirmé"));
+      });
+      expect(
+        screen.getByRole("button", { name: "Confirmer" }),
+      ).toBeDefined();
+      expect(
+        screen.getByRole("button", { name: "Confirmer + planifier livraison" }),
+      ).toBeDefined();
+    });
+
     it("submits confirm and calls onSuccess with new_status confirmed", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -248,7 +278,7 @@ describe("PostCallActionSheet", () => {
       });
       // Click the confirm submit button
       await act(async () => {
-        fireEvent.click(screen.getByText("Confirmé", { selector: "button" }));
+        fireEvent.click(screen.getByRole("button", { name: "Confirmer" }));
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
@@ -280,12 +310,129 @@ describe("PostCallActionSheet", () => {
         fireEvent.click(screen.getByText("Confirmé"));
       });
       await act(async () => {
-        fireEvent.click(screen.getByText("Confirmé", { selector: "button" }));
+        fireEvent.click(screen.getByRole("button", { name: "Confirmer" }));
       });
 
       await waitFor(() => {
         expect(screen.getByText("Transition not allowed")).toBeDefined();
       });
+      expect(defaultProps.onSuccess).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("CONFIRM + SCHEDULE flow", () => {
+    it("does not show the schedule-dispatch modal before any button click", async () => {
+      render(<PostCallActionSheet {...defaultProps} />);
+      await act(async () => {
+        fireEvent.click(screen.getByText("Confirmé"));
+      });
+      expect(screen.queryByTestId("schedule-dispatch-modal")).toBeNull();
+    });
+
+    it("clicking 'Confirmer + planifier livraison' calls /confirm then opens the schedule modal", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, new_status: "confirmed" }),
+      });
+
+      render(<PostCallActionSheet {...defaultProps} />);
+      await act(async () => {
+        fireEvent.click(screen.getByText("Confirmé"));
+      });
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole("button", { name: "Confirmer + planifier livraison" }),
+        );
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/orders/order-1/confirm",
+        expect.objectContaining({ method: "POST" }),
+      );
+      await waitFor(() => {
+        expect(screen.getByTestId("schedule-dispatch-modal")).toBeDefined();
+      });
+      // onSuccess is NOT called yet — we wait for the schedule step.
+      expect(defaultProps.onSuccess).not.toHaveBeenCalled();
+    });
+
+    it("schedule modal Submit calls onSuccess with newStatus=dispatch_scheduled", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, new_status: "confirmed" }),
+      });
+
+      render(<PostCallActionSheet {...defaultProps} />);
+      await act(async () => {
+        fireEvent.click(screen.getByText("Confirmé"));
+      });
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole("button", { name: "Confirmer + planifier livraison" }),
+        );
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId("schedule-dispatch-modal")).toBeDefined();
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByText("Submit schedule"));
+      });
+
+      expect(defaultProps.onSuccess).toHaveBeenCalledWith({
+        action: "confirmed",
+        newStatus: "dispatch_scheduled",
+      });
+    });
+
+    it("schedule modal Cancel still closes the sheet (order remains confirmed)", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, new_status: "confirmed" }),
+      });
+
+      render(<PostCallActionSheet {...defaultProps} />);
+      await act(async () => {
+        fireEvent.click(screen.getByText("Confirmé"));
+      });
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole("button", { name: "Confirmer + planifier livraison" }),
+        );
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId("schedule-dispatch-modal")).toBeDefined();
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByText("Cancel schedule"));
+      });
+
+      // Confirm already happened; cancel just finalises with newStatus=confirmed.
+      expect(defaultProps.onSuccess).toHaveBeenCalledWith({
+        action: "confirmed",
+        newStatus: "confirmed",
+      });
+    });
+
+    it("does NOT open the schedule modal when the /confirm call fails", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: "Transition not allowed" }),
+      });
+
+      render(<PostCallActionSheet {...defaultProps} />);
+      await act(async () => {
+        fireEvent.click(screen.getByText("Confirmé"));
+      });
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole("button", { name: "Confirmer + planifier livraison" }),
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("Transition not allowed")).toBeDefined();
+      });
+      expect(screen.queryByTestId("schedule-dispatch-modal")).toBeNull();
       expect(defaultProps.onSuccess).not.toHaveBeenCalled();
     });
   });

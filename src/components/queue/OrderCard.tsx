@@ -341,14 +341,7 @@ export const OrderCard = memo(function OrderCard({
       )}
 
       {!showRow3 && (
-        <div
-          className={[
-            "flex justify-end mt-1.5 transition-opacity duration-fast",
-            focused
-              ? "opacity-100"
-              : "opacity-0 group-hover:opacity-100 focus-within:opacity-100",
-          ].join(" ")}
-        >
+        <div className="flex justify-end mt-1.5">
           <Button
             size="sm"
             onClick={(e) => {

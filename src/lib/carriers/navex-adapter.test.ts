@@ -257,12 +257,13 @@ describe("NavexAdapter", () => {
         body: "Internal Server Error",
       });
 
-      expect(result).toEqual({
-        success: false,
-        errorCode: "NAVEX_TRANSIENT",
-        errorMessage: "Carrier temporarily unavailable",
-        retryable: true,
-      });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.errorCode).toBe("NAVEX_TRANSIENT");
+        expect(result.errorMessage).toContain("HTTP 500");
+        expect(result.errorMessage).toContain("Internal Server Error");
+        expect(result.retryable).toBe(true);
+      }
     });
 
     test("returns transient error on 503", () => {

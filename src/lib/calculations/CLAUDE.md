@@ -16,7 +16,7 @@ Revenue − COGS − delivery cost − return cost − packing − ad spend − 
 - Return fee: carriers table (per returned order)  
 - COGS: products.unit_cost × product_variants.quantity
 - Packing: products.packing_cost (per confirmed order)
-- CPL: products.cpl × total leads
+- Ad spend (product): SUM(ad_spend.amount WHERE product_id = X AND period overlaps)
 - Processing: products.confirmation_processing_cost (per confirmed order)
 - Ad spend: ad_spend table (manual entry per period)
 

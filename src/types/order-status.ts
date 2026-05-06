@@ -1,19 +1,20 @@
 export const ORDER_STATUSES = [
   // Phase 1: Confirmation (agent workflow)
   "pending",
-  "assigned",
   "attempt_1",
   "attempt_2",
   "attempt_3",
   "callback_scheduled",
   "confirmed",
   // Confirmed but held for a future dispatch date chosen by the agent.
-  // Auto-dispatched by cron if scheduled_dispatch_auto=true, else re-surfaces
+  // Auto-uploaded by cron if scheduled_dispatch_auto=true, else re-surfaces
   // in the agent's queue when the scheduled time arrives.
   "dispatch_scheduled",
-  // Transient: carrier dispatch in-flight (confirmed → dispatching → dispatched/confirmed)
-  "dispatching",
-  // Warehouse scan: confirmed → scanned (stock -1) → dispatched
+  // Successfully pushed to a carrier's API: tracking_number + carrier_id set.
+  // Ready for warehouse to print the label and scan it out. On any upload
+  // failure the order falls back to confirmed.
+  "uploaded",
+  // Warehouse scan: uploaded → scanned (stock -1) → dispatched
   "scanned",
   // Phase 2: Fulfillment (carrier lifecycle)
   "dispatched",
@@ -35,7 +36,18 @@ export const ORDER_STATUSES = [
   "deleted",
 ] as const;
 
-export type OrderStatus = (typeof ORDER_STATUSES)[number];
+export const LEGACY_ORDER_STATUSES = [
+  // Historical value only. New assignment is represented by
+  // status="pending" plus assigned_to.
+  "assigned",
+] as const;
+
+export const ALL_ORDER_STATUSES = [
+  ...ORDER_STATUSES,
+  ...LEGACY_ORDER_STATUSES,
+] as const;
+
+export type OrderStatus = (typeof ALL_ORDER_STATUSES)[number];
 
 export const REJECTION_REASONS = [
   "refus_client",
@@ -63,15 +75,15 @@ export function isTerminalStatus(status: OrderStatus): boolean {
 
 const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   // Phase 1: Confirmation
-  pending: ["assigned"],
+  pending: ["attempt_1", "callback_scheduled", "confirmed", "rejected", "deleted"],
   assigned: ["attempt_1", "callback_scheduled", "confirmed", "rejected", "deleted"],
   attempt_1: ["attempt_2", "callback_scheduled", "confirmed", "rejected", "deleted"],
   attempt_2: ["attempt_3", "callback_scheduled", "confirmed", "rejected", "deleted"],
   attempt_3: ["callback_scheduled", "confirmed", "rejected", "deleted"],
   callback_scheduled: ["attempt_1", "attempt_2", "attempt_3", "confirmed", "rejected", "deleted"],
-  confirmed: ["scanned", "deleted", "dispatch_scheduled"],
-  dispatch_scheduled: ["confirmed", "scanned", "deleted"],
-  dispatching: ["dispatched", "confirmed"],
+  confirmed: ["uploaded", "dispatch_scheduled", "deleted"],
+  dispatch_scheduled: ["uploaded", "deleted"],
+  uploaded: ["scanned", "deleted"],
   scanned: ["dispatched", "deleted"],
   // Phase 2: Fulfillment
   dispatched: ["deposit", "unverified", "cancelled", "deleted"],

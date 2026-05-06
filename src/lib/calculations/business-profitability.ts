@@ -1,6 +1,8 @@
 // Statuses that mean the order went through confirmation (packing cost applies)
 const CONFIRMED_PHASE_STATUSES = new Set([
   "confirmed",
+  "uploaded",
+  "scanned",
   "dispatched",
   "deposit",
   "in_transit",

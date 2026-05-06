@@ -30,7 +30,7 @@ export default async function EditProductPage({
   const { data: product, error } = await supabase
     .from("products")
     .select(
-      "id, market_id, name, sku, description, image_url, unit_cogs, packing_cost, cpl, confirmation_processing_cost, default_price, low_stock_threshold, is_active",
+      "id, market_id, name, sku, description, image_url, unit_cogs, packing_cost, confirmation_processing_cost, default_price, low_stock_threshold, is_active",
     )
     .eq("id", params.id)
     .single();
@@ -58,7 +58,6 @@ export default async function EditProductPage({
             image_url: product.image_url ?? null,
             unit_cogs: Number(product.unit_cogs),
             packing_cost: Number(product.packing_cost),
-            cpl: Number(product.cpl),
             confirmation_processing_cost:
               product.confirmation_processing_cost === null
                 ? null

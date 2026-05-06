@@ -67,15 +67,43 @@ export class NavexAdapter implements CarrierAdapter {
       parsedBody = await response.text();
     }
 
+    const isSuccess =
+      response.status === 201 ||
+      (response.status === 200 &&
+        typeof parsedBody === "object" &&
+        parsedBody !== null &&
+        ((parsedBody as Record<string, unknown>).status === 1 ||
+          (parsedBody as Record<string, unknown>).status === "1"));
+    if (!isSuccess) {
+      console.error("[NavexAdapter] non-success response", {
+        status: response.status,
+        url,
+        body: parsedBody,
+      });
+    }
+
     return { status: response.status, body: parsedBody };
   }
 
   parseResponse(raw: CarrierRawResponse): CarrierDispatchResult {
-    if (raw.status === 201) {
-      const body = raw.body as Record<string, unknown>;
+    // Navex documents 201 with `colis`, but in practice returns 200 with
+    // `{ status: 1, status_message: <tracking>, lien: <label URL> }`.
+    // Treat both shapes as success.
+    if (raw.status === 201 || raw.status === 200) {
+      const body = (raw.body ?? {}) as Record<string, unknown>;
+      const tracking = String(body.colis ?? body.status_message ?? "");
+      const successFlag =
+        body.status === 1 || body.status === "1" || raw.status === 201;
+      if (tracking && successFlag) {
+        return { success: true, trackingNumber: tracking };
+      }
+      // 200 without a positive status flag → treat as validation error
+      // and surface the carrier's message so the operator can react.
       return {
-        success: true,
-        trackingNumber: String(body.colis ?? ""),
+        success: false,
+        errorCode: "NAVEX_VALIDATION",
+        errorMessage: String(body.status_message ?? body.message ?? "Validation error"),
+        retryable: false,
       };
     }
 
@@ -98,10 +126,21 @@ export class NavexAdapter implements CarrierAdapter {
       };
     }
 
+    const body = raw.body;
+    let bodyExcerpt = "";
+    if (typeof body === "string") {
+      bodyExcerpt = body.slice(0, 200);
+    } else if (body && typeof body === "object") {
+      try {
+        bodyExcerpt = JSON.stringify(body).slice(0, 200);
+      } catch {
+        bodyExcerpt = "";
+      }
+    }
     return {
       success: false,
       errorCode: "NAVEX_TRANSIENT",
-      errorMessage: "Carrier temporarily unavailable",
+      errorMessage: `Carrier temporarily unavailable (HTTP ${raw.status}${bodyExcerpt ? `: ${bodyExcerpt}` : ""})`,
       retryable: true,
     };
   }

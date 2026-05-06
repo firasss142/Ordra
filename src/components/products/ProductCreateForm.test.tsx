@@ -128,4 +128,72 @@ describe("ProductCreateForm", () => {
     await userEvent.click(screen.getByRole("button", { name: "Annuler" }));
     expect(mockPush).toHaveBeenCalledWith("/fr/products");
   });
+
+  it("submits the SKU when the user types one", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: { id: "new-prod-id" } }),
+    });
+
+    renderForm();
+    await userEvent.type(screen.getByLabelText("Nom du produit"), "Mon produit");
+    const cogs = screen.getByLabelText("COGS unitaire");
+    await userEvent.clear(cogs);
+    await userEvent.type(cogs, "10");
+    await userEvent.type(screen.getByLabelText(/SKU/i), "BV-01");
+
+    await userEvent.click(screen.getByRole("button", { name: "Créer le produit" }));
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalled());
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.sku).toBe("BV-01");
+  });
+
+  it("hides the market select when lockedMarketId is set", () => {
+    renderForm({ lockedMarketId: "m-2" });
+    expect(screen.queryByLabelText("Marché")).not.toBeInTheDocument();
+  });
+
+  it("submits the locked market_id even when multiple markets are passed in", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: { id: "new-prod-id" } }),
+    });
+
+    renderForm({ lockedMarketId: "m-2" });
+
+    await userEvent.type(screen.getByLabelText("Nom du produit"), "Mon produit");
+    const cogs = screen.getByLabelText("COGS unitaire");
+    await userEvent.clear(cogs);
+    await userEvent.type(cogs, "10");
+    await userEvent.click(screen.getByRole("button", { name: "Créer le produit" }));
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalled());
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.market_id).toBe("m-2");
+  });
+
+  it("still shows the market select when lockedMarketId is null (scope=all)", () => {
+    renderForm({ lockedMarketId: null });
+    expect(screen.getByLabelText("Marché")).toBeInTheDocument();
+  });
+
+  it("omits sku from body when left blank", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: { id: "new-prod-id" } }),
+    });
+
+    renderForm();
+    await userEvent.type(screen.getByLabelText("Nom du produit"), "Mon produit");
+    const cogs = screen.getByLabelText("COGS unitaire");
+    await userEvent.clear(cogs);
+    await userEvent.type(cogs, "10");
+
+    await userEvent.click(screen.getByRole("button", { name: "Créer le produit" }));
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalled());
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.sku).toBeUndefined();
+  });
 });

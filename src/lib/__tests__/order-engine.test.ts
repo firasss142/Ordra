@@ -7,8 +7,12 @@ import {
 
 describe("validateTransition", () => {
   // Valid Phase 1 transitions
-  it("allows pending → assigned", () => {
-    expect(validateTransition("pending", "assigned")).toEqual({ valid: true });
+  it("allows pending → attempt_1", () => {
+    expect(validateTransition("pending", "attempt_1")).toEqual({ valid: true });
+  });
+
+  it("allows pending to be confirmed once owned by an actor", () => {
+    expect(validateTransition("pending", "confirmed")).toEqual({ valid: true });
   });
 
   it("allows assigned → attempt_1", () => {
@@ -19,20 +23,24 @@ describe("validateTransition", () => {
     expect(validateTransition("assigned", "confirmed")).toEqual({ valid: true });
   });
 
-  it("blocks confirmed → dispatching (carrier auto-dispatch removed)", () => {
-    expect(validateTransition("confirmed", "dispatching")).toMatchObject({ valid: false });
+  it("allows confirmed → uploaded (push to carrier API)", () => {
+    expect(validateTransition("confirmed", "uploaded")).toEqual({ valid: true });
   });
 
-  it("allows dispatching → dispatched (carrier succeeded)", () => {
-    expect(validateTransition("dispatching", "dispatched")).toEqual({ valid: true });
+  it("allows uploaded → scanned (warehouse scan-out)", () => {
+    expect(validateTransition("uploaded", "scanned")).toEqual({ valid: true });
   });
 
-  it("allows dispatching → confirmed (carrier failed — rollback)", () => {
-    expect(validateTransition("dispatching", "confirmed")).toEqual({ valid: true });
+  it("allows scanned → dispatched (carrier acknowledged receipt)", () => {
+    expect(validateTransition("scanned", "dispatched")).toEqual({ valid: true });
   });
 
-  it("blocks confirmed → dispatched (must go through scanned first)", () => {
+  it("blocks confirmed → dispatched (must go through uploaded → scanned)", () => {
     expect(validateTransition("confirmed", "dispatched")).toMatchObject({ valid: false });
+  });
+
+  it("blocks confirmed → scanned (must pass through uploaded)", () => {
+    expect(validateTransition("confirmed", "scanned")).toMatchObject({ valid: false });
   });
 
   // Valid Phase 2 transitions
@@ -88,7 +96,7 @@ describe("validateTransition", () => {
   });
 
   // Invalid skip transitions
-  it("blocks pending → dispatched (skips assigned)", () => {
+  it("blocks pending → dispatched (skips confirmation)", () => {
     const result = validateTransition("pending", "dispatched");
     expect(result.valid).toBe(false);
     expect(result).toHaveProperty("reason");
@@ -178,7 +186,7 @@ describe("buildAssignmentHistoryEntry", () => {
     expect(entry.note).toMatch(/unassigned/i);
   });
 
-  it("status_from and status_to are the same (assignment does not change status except new → assigned)", () => {
+  it("status_from and status_to are the same because assignment does not change lifecycle status", () => {
     const entry = buildAssignmentHistoryEntry("order-4", "agent-1", "manager-1", "reassigned");
     expect(entry.status_from).toBe(entry.status_to);
   });

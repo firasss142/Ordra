@@ -61,6 +61,7 @@ export function LeadsTable({
     campaignId: campaignId ?? undefined,
     agentId: agentId ?? undefined,
     hotOnly,
+    statuses: visibleStatuses,
     page,
     limit: 50,
   });

@@ -137,11 +137,13 @@ describe("GET /api/agent/queue", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
 
-    // Active queue: overdue callback first, then attempts, then assigned
+    // Active queue: overdue callback first, then attempts, then assigned,
+    // then confirmed (awaiting upload to carrier).
     expect(json.orders.map((o: { id: string }) => o.id)).toEqual([
       "o-cb-overdue",
       "o-attempt1",
       "o-assigned",
+      "o-confirmed",
     ]);
 
     // Buckets count ALL orders including future callback + confirmed

@@ -86,19 +86,32 @@ export async function PATCH(
   // Only allow specific fields
   const allowedFields = [
     "name",
+    "sku",
+    "description",
+    "image_url",
     "unit_cogs",
     "packing_cost",
-    "cpl",
     "confirmation_processing_cost",
     "default_price",
     "low_stock_threshold",
     "is_active",
   ];
 
+  // Empty strings on these fields mean "clear" — store null so the unique
+  // partial index on (market_id, sku) treats it as absent.
+  const nullableTextFields = new Set(["sku", "description", "image_url"]);
+
   const updates: Record<string, unknown> = {};
   for (const key of allowedFields) {
     if (key in body) {
-      updates[key] = body[key];
+      const v = body[key];
+      if (nullableTextFields.has(key) && typeof v === "string" && v.trim() === "") {
+        updates[key] = null;
+      } else if (nullableTextFields.has(key) && typeof v === "string") {
+        updates[key] = v.trim();
+      } else {
+        updates[key] = v;
+      }
     }
   }
 
@@ -119,7 +132,12 @@ export async function PATCH(
     .select()
     .single();
 
-  if (updateError) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  if (updateError) {
+    if ((updateError as { code?: string }).code === "23505") {
+      return NextResponse.json({ error: "SKU already in use" }, { status: 409 });
+    }
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 
   return NextResponse.json({ data: updated });
 }

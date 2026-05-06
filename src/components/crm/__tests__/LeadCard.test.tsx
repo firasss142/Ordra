@@ -19,6 +19,10 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 import { LeadCard } from "../LeadCard";
 import type { Lead } from "@/types/lead";
 
@@ -54,7 +58,6 @@ function makeLead(overrides: Partial<Lead> = {}): Lead {
 
 const defaultCallbacks = {
   onCallback: vi.fn(),
-  onConvert: vi.fn(),
   onMarkLost: vi.fn(),
   onReassign: vi.fn(),
 };
@@ -63,6 +66,13 @@ describe("LeadCard", () => {
   it("renders customer name", () => {
     render(<LeadCard lead={makeLead()} locale="fr" {...defaultCallbacks} />);
     expect(screen.getByText("Alice")).toBeDefined();
+  });
+
+  it("renders campaign lead source", () => {
+    render(
+      <LeadCard lead={makeLead({ source: "campaign" })} locale="fr" {...defaultCallbacks} />
+    );
+    expect(screen.getByText("Campagne")).toBeDefined();
   });
 
   it("renders duplicate badge when has_duplicate=true", () => {
@@ -111,16 +121,11 @@ describe("LeadCard", () => {
     expect(onCallback).toHaveBeenCalled();
   });
 
-  it("shows convert button only when status is qualified", () => {
-    const { rerender } = render(
-      <LeadCard lead={makeLead({ status: "new" })} locale="fr" {...defaultCallbacks} />
-    );
-    expect(screen.queryByRole("button", { name: /convertir/i })).toBeNull();
-
-    rerender(
+  it("does not render a convert button on qualified cards", () => {
+    render(
       <LeadCard lead={makeLead({ status: "qualified" })} locale="fr" {...defaultCallbacks} />
     );
-    expect(screen.getByRole("button", { name: /convertir/i })).toBeDefined();
+    expect(screen.queryByRole("button", { name: /convertir/i })).toBeNull();
   });
 
   it("has call-now link with tel: href", () => {

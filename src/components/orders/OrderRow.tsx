@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import type { BadgeTone } from "@/components/ui/Badge";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
 import { ProductAvatar } from "./ProductAvatar";
+import { SourceLogo } from "@/components/shared/SourceLogo";
 import type { OrdersListRow } from "@/hooks/useOrdersList";
 
 const STATUS_TONE: Record<string, BadgeTone> = {
@@ -17,7 +18,7 @@ const STATUS_TONE: Record<string, BadgeTone> = {
   callback_scheduled: "warning",
   confirmed: "action",
   dispatch_scheduled: "action",
-  dispatching: "action",
+  uploaded: "action",
   scanned: "action",
   dispatched: "action",
   deposit: "action",
@@ -120,6 +121,7 @@ function Row({
   order,
   selected,
   highlighted,
+  agentName,
   currencyCode,
   labels,
   onToggleSelect,
@@ -183,11 +185,9 @@ function Row({
                 · {order.variant_label}
               </span>
             )}
-            {order.quantity > 1 && (
-              <span className="shrink-0 text-[12px] tabular-nums text-ink-secondary">
-                ×{order.quantity}
-              </span>
-            )}
+            <span className="shrink-0 text-[13px] font-semibold tabular-nums text-ink-primary">
+              ×{order.quantity}
+            </span>
           </div>
 
           {/* Divider */}
@@ -257,6 +257,22 @@ function Row({
             </span>
           )}
         </span>
+      </td>
+
+      {/* Assignee */}
+      <td className="whitespace-nowrap px-4 py-2 align-middle">
+        <span
+          className={`block truncate text-[13px] font-medium ${
+            agentName ? "text-ink-primary" : "text-ink-secondary"
+          }`}
+        >
+          {agentName ?? labels.unassigned}
+        </span>
+      </td>
+
+      {/* Source platform — logo with tooltip */}
+      <td className="whitespace-nowrap px-4 py-2 align-middle">
+        <SourceLogo platform={order.external_platform} />
       </td>
 
       {/* Actions — hover-revealed kebab */}

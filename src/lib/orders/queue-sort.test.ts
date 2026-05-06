@@ -44,9 +44,9 @@ describe("sortAgentQueue", () => {
     expect(sorted.map((o) => o.id)).toEqual(["b", "c", "a"]);
   });
 
-  test("assigned orders come after attempts", () => {
+  test("pending assigned orders come after attempts", () => {
     const orders = [
-      { id: "a", status: "assigned", callback_scheduled_at: null, created_at: "2026-04-14T07:00:00Z" },
+      { id: "a", status: "pending", callback_scheduled_at: null, created_at: "2026-04-14T07:00:00Z" },
       { id: "b", status: "attempt_1", callback_scheduled_at: null, created_at: "2026-04-14T09:00:00Z" },
     ];
 

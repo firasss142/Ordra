@@ -9,6 +9,8 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+const CONFIRMED_STATUSES = ["confirmed", "uploaded"] as const;
+
 export interface BulkProductMetrics {
   product_id: string;
   total_leads: number;
@@ -61,7 +63,7 @@ export async function GET(req: NextRequest) {
   // Fetch all products for this market (cost inputs needed for calculation)
   const { data: products } = await supabase
     .from("products")
-    .select("id, unit_cogs, packing_cost, cpl, confirmation_processing_cost")
+    .select("id, unit_cogs, packing_cost, confirmation_processing_cost")
     .eq("market_id", marketId);
 
   if (!products || products.length === 0) {
@@ -71,10 +73,13 @@ export async function GET(req: NextRequest) {
   const productIds = products.map((p: { id: string }) => p.id);
 
   type OrderRow = { product_id: string };
+  type ConfirmedOrderRow = { order_id: string; orders: OrderRow };
   type DeliveredOrder = { product_id: string; total_price: number; quantity: number; carriers: { delivery_fee: number } | null };
   type ReturnedOrder = { product_id: string; carriers: { return_fee: number } | null };
 
-  const [leadsRows, confirmedRows, dispatchedRows, deliveredRows, returnedRows] = await Promise.all([
+  type AdSpendRow = { product_id: string; amount: number | string };
+
+  const [leadsRows, confirmedRows, dispatchedRows, deliveredRows, returnedRows, adSpendRows] = await Promise.all([
     fetchAllRows<OrderRow>(
       supabase
         .from("orders")
@@ -83,11 +88,11 @@ export async function GET(req: NextRequest) {
         .gte("created_at", fromDate)
         .lte("created_at", toDateEnd)
     ),
-    fetchAllRows<{ orders: OrderRow }>(
+    fetchAllRows<ConfirmedOrderRow>(
       supabase
         .from("order_history")
-        .select("orders!inner(product_id)")
-        .eq("status_to", "confirmed")
+        .select("order_id, orders!inner(product_id)")
+        .in("status_to", CONFIRMED_STATUSES)
         .in("orders.product_id", productIds)
         .gte("created_at", fromDate)
         .lte("created_at", toDateEnd)
@@ -96,7 +101,7 @@ export async function GET(req: NextRequest) {
       supabase
         .from("order_history")
         .select("orders!inner(product_id)")
-        .eq("status_to", "dispatched")
+        .eq("status_to", "uploaded")
         .in("orders.product_id", productIds)
         .gte("created_at", fromDate)
         .lte("created_at", toDateEnd)
@@ -119,11 +124,29 @@ export async function GET(req: NextRequest) {
         .gte("created_at", fromDate)
         .lte("created_at", toDateEnd)
     ),
+    fetchAllRows<AdSpendRow>(
+      supabase
+        .from("ad_spend")
+        .select("product_id, amount")
+        .in("product_id", productIds)
+        .eq("is_active", true)
+        .lte("period_start", toDate)
+        .gte("period_end", fromDate)
+    ),
   ]);
+
+  const adSpendByProduct = new Map<string, number>();
+  for (const row of adSpendRows) {
+    if (!row.product_id) continue;
+    adSpendByProduct.set(
+      row.product_id,
+      (adSpendByProduct.get(row.product_id) ?? 0) + Number(row.amount)
+    );
+  }
 
   // Build per-product aggregate maps
   const leadCount = new Map<string, number>();
-  const confirmedCount = new Map<string, number>();
+  const confirmedOrderIds = new Map<string, Set<string>>();
   const dispatchedCount = new Map<string, number>();
   const deliveredByProduct = new Map<string, { total_price: number; quantity: number; carrier_delivery_fee: number }[]>();
   const returnedByProduct = new Map<string, { carrier_return_fee: number }[]>();
@@ -134,7 +157,11 @@ export async function GET(req: NextRequest) {
 
   for (const row of confirmedRows) {
     const pid = row.orders?.product_id;
-    if (pid) confirmedCount.set(pid, (confirmedCount.get(pid) ?? 0) + 1);
+    if (pid && row.order_id) {
+      const ids = confirmedOrderIds.get(pid) ?? new Set<string>();
+      ids.add(row.order_id);
+      confirmedOrderIds.set(pid, ids);
+    }
   }
 
   for (const row of dispatchedRows) {
@@ -167,18 +194,17 @@ export async function GET(req: NextRequest) {
     id: string;
     unit_cogs: number;
     packing_cost: number;
-    cpl: number;
     confirmation_processing_cost: number | null;
   }) => {
     const result = calculateProductProfitability({
       totalLeads: leadCount.get(p.id) ?? 0,
-      confirmedCount: confirmedCount.get(p.id) ?? 0,
+      confirmedCount: confirmedOrderIds.get(p.id)?.size ?? 0,
       dispatchedCount: dispatchedCount.get(p.id) ?? 0,
       deliveredCount: (deliveredByProduct.get(p.id) ?? []).length,
       returnedCount: (returnedByProduct.get(p.id) ?? []).length,
       unitCogs: Number(p.unit_cogs),
       packingCost: Number(p.packing_cost),
-      cpl: Number(p.cpl),
+      adSpend: adSpendByProduct.get(p.id) ?? 0,
       confirmationProcessingCost: Number(p.confirmation_processing_cost ?? 0),
       deliveredOrders: deliveredByProduct.get(p.id) ?? [],
       returnedOrders: returnedByProduct.get(p.id) ?? [],

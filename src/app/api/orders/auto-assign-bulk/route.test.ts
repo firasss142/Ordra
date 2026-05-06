@@ -161,7 +161,7 @@ describe("POST /api/orders/auto-assign-bulk", () => {
       if (table === "orders") {
         return resolvable({
           data: [
-            { id: "o1", market_id: "m-tn", product_id: "p1", customer_city: "Tunis", status: "assigned", assigned_to: "ax" },
+            { id: "o1", market_id: "m-tn", product_id: "p1", customer_city: "Tunis", status: "pending", assigned_to: "ax" },
           ],
           error: null,
         });

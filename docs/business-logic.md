@@ -75,13 +75,18 @@ AND is_active = true AND market_id = X AND product_id IS NULL
 
 Same as market-level but scoped to `orders.product_id = X`, plus:
 
-### Ad Spend (Product-level via CPL)
+### Ad Spend (Product-level)
 
 ```
-products.cpl × total_leads_in_period
+SUM(ad_spend.amount)
+WHERE ad_spend.product_id = X
+AND period_start <= to_date AND period_end >= from_date
+AND is_active = true
 ```
 
-- total_leads = orders received (orders.created_at) in period for this product
+- Per-product ad spend is summed from ad_spend rows scoped to the product.
+- The displayed CPL in product views is derived: ad_spend ÷ total_leads_in_period.
+- A product with no ad_spend rows has 0 ad spend and undefined CPL.
 
 ### Processing Cost
 

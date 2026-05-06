@@ -53,10 +53,10 @@ describe("aggregateRejectionBreakdown", () => {
 });
 
 describe("aggregatePeriodCounts", () => {
-  it("counts confirmed, dispatched, rejected, and attempts separately", () => {
+  it("counts confirmed, uploaded, rejected, and attempts separately", () => {
     const counts = aggregatePeriodCounts([
       row({ status_to: "confirmed" }),
-      row({ status_to: "dispatched" }),
+      row({ status_to: "uploaded" }),
       row({ status_to: "rejected" }),
       row({ status_to: "rejected" }),
       row({ status_to: "attempt_1" }),

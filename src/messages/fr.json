@@ -79,7 +79,7 @@
       "carrierLabel": "Transporteur",
       "noCarriers": "Aucun transporteur",
       "dispatch": "Expédier",
-      "dispatching": "Expédition…",
+      "uploading": "Téléchargement…",
       "printPicklist": "Imprimer la picklist",
       "printing": "Impression…",
       "clear": "Effacer"
@@ -599,7 +599,7 @@
       "attempts": "En tentative",
       "callback": "Rappels",
       "confirmed": "Confirmées",
-      "dispatched": "Expédiées"
+      "uploaded": "Expédiées"
     },
     "rejectionReasons": {
       "refus_client": "Refus client",
@@ -849,6 +849,7 @@
       "product": "Produit",
       "totalPrice": "Prix total",
       "status": "Statut",
+      "source": "Source",
       "agent": "Agent",
       "date": "Date",
       "selectAll": "Tout sélectionner",
@@ -863,7 +864,7 @@
       "callback_scheduled": "Rappel prévu",
       "confirmed": "Confirmé",
       "dispatch_scheduled": "Livraison planifiée",
-      "dispatching": "Expédition en cours",
+      "uploaded": "Téléchargé chez transporteur",
       "scanned": "Scanné",
       "dispatched": "Expédié",
       "deposit": "Déposé",
@@ -950,6 +951,15 @@
       "scheduledDispatchAutoBanner": "Livraison planifiée (auto-expédition)",
       "scheduledDispatchCancel": "Annuler",
       "scheduledDispatchCanceling": "Annulation…",
+      "uploadToCarrier": "Envoyer au transporteur",
+      "uploadingToCarrier": "Envoi en cours…",
+      "uploadCarrierPickTitle": "Choisir le transporteur",
+      "uploadCarrierPickHint": "L'envoi est immédiat et ne peut être annulé que via la fiche.",
+      "uploadCarrierConfirm": "Envoyer",
+      "uploadCarrierCancel": "Annuler",
+      "uploadCarrierNoActive": "Aucun transporteur actif pour ce marché.",
+      "uploadCarrierSuccess": "Envoyé — suivi {tracking}",
+      "uploadCarrierError": "Échec de l'envoi : {error}",
       "fieldPhone2": "Téléphone 2",
       "fieldDeliveryFee": "Frais de livraison",
       "addProduct": "+ Ajouter un produit",
@@ -984,6 +994,7 @@
       "dispatched": "Expédiée",
       "rejected": "Rejetée",
       "cancelled": "Annulée",
+      "deleted": "Supprimée",
       "deposit": "Déposée",
       "inTransit": "En transit",
       "delivered": "Livrée",
@@ -1078,7 +1089,7 @@
     "callbackRequested": "Rappel demandé",
     "selectCarrier": "Sélectionner un transporteur",
     "dispatch": "Expédier",
-    "dispatching": "Expédition en cours…",
+    "uploading": "Téléchargement en cours…",
     "dispatchSuccess": "Commande expédiée avec succès",
     "dispatchFailed": "Échec de l'expédition",
     "retry": "Réessayer",
@@ -1108,6 +1119,8 @@
     "saving": "Enregistrement…",
     "confirmedHint": "Confirmez la commande — l'entrepôt se chargera de l'expédition.",
     "confirmedSuccess": "Commande confirmée avec succès.",
+    "confirmOnly": "Confirmer",
+    "confirmAndSchedule": "Confirmer + planifier livraison",
     "rejectedHint": "Sélectionnez la raison du rejet.",
     "rejectedHintMax": "Injoignable pré-sélectionné.",
     "callbackHint": "Choisissez une date et heure de rappel.",
@@ -1158,8 +1171,7 @@
       "attempt": "Tentative",
       "attempts": "Tentatives",
       "callback": "Rappel",
-      "toCallBack": "À rappeler",
-      "scheduled": "Planifié",
+      "inProgress": "En cours",
       "confirmed": "Confirmé",
       "closed": "Fermées",
       "attemptSubfilter": {
@@ -1174,10 +1186,11 @@
         "t2": "Tentative 2",
         "t3": "Tentative 3"
       },
-      "planifieSubfilter": {
+      "enCoursSubfilter": {
         "all": "Tous",
         "rappel": "Rappel",
-        "livraison": "Livraison"
+        "tentative": "Tentative",
+        "livraison": "Livraison planifiée"
       }
     },
     "etiquette": {
@@ -1297,16 +1310,52 @@
         "costModel": "Modèle de coûts",
         "inventory": "Inventaire"
       },
+      "fields": {
+        "sku": "SKU"
+      },
       "hints": {
         "unitCogs": "Coût d'achat ou de fabrication par unité livrée.",
         "packingCost": "Emballage, ruban, protections — par commande confirmée.",
-        "cpl": "Coût par lead publicitaire. Utilisé pour calculer la dépense pub totale.",
         "processingCost": "Coût de traitement de confirmation par commande confirmée.",
-        "threshold": "En dessous de ce seuil, le produit est signalé en stock bas."
+        "threshold": "En dessous de ce seuil, le produit est signalé en stock bas.",
+        "sku": "Identifiant unique pour la correspondance webhook (optionnel)."
+      },
+      "errors": {
+        "skuConflict": "Ce SKU est déjà utilisé pour un autre produit de ce marché."
       },
       "example": "Exemple indicatif : 100 leads · 60 confirmés · 40 livrés à {price} → marge estimée {margin}",
       "submit": "Créer le produit",
       "cancel": "Annuler"
+    },
+    "editForm": {
+      "title": "Modifier le produit",
+      "intro": "Mettez à jour les informations du produit.",
+      "sections": {
+        "inventoryAndStatus": "Inventaire et statut"
+      },
+      "fields": {
+        "name": "Nom du produit",
+        "sku": "SKU",
+        "description": "Description",
+        "imageUrl": "URL de l'image",
+        "unitCogs": "COGS unitaire",
+        "packingCost": "Coût d'emballage",
+        "processingCost": "Coût de traitement",
+        "threshold": "Seuil stock bas",
+        "defaultPrice": "Prix de vente (optionnel)",
+        "isActive": "Produit actif"
+      },
+      "hints": {
+        "sku": "Identifiant unique pour la correspondance webhook (optionnel)."
+      },
+      "errors": {
+        "nameRequired": "Le nom est obligatoire.",
+        "unitCogsInvalid": "COGS unitaire invalide.",
+        "thresholdInvalid": "Seuil stock bas invalide.",
+        "skuConflict": "Ce SKU est déjà utilisé pour un autre produit de ce marché."
+      },
+      "submit": "Enregistrer",
+      "saving": "Enregistrement…"
     },
     "row": {
       "editThreshold": "Modifier le seuil",
@@ -1464,7 +1513,14 @@
         "instagram_dm": "Message Instagram",
         "whatsapp": "WhatsApp",
         "tiktok_comment": "Commentaire TikTok",
+        "campaign": "Campagne",
         "other": "Autre"
+      },
+      "moveErrors": {
+        "invalidTransition": "Ce déplacement n'est pas autorisé : {from} vers {to}.",
+        "lostRequiresModal": "Utilisez l'action Perdu pour choisir une raison.",
+        "wonRequiresConversion": "Utilisez la conversion pour marquer ce prospect comme gagné.",
+        "transitionFailed": "Impossible de déplacer ce prospect."
       },
       "lostReasons": {
         "not_interested": "Pas intéressé",

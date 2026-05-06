@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { canManageCarriers } from "@/lib/settings-permissions";
 import { getActor } from "@/lib/auth/actor";
 import {
@@ -40,7 +40,6 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = await createClient();
 
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
@@ -51,7 +50,9 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { data: carrier } = await supabase
+  // Admin client: api_endpoint is REVOKE'd from authenticated role.
+  const admin = createAdminClient();
+  const { data: carrier } = await admin
     .from("carriers")
     .select("id, market_id, code, api_endpoint")
     .eq("id", id)
@@ -102,6 +103,14 @@ export async function POST(
           e instanceof Error ? e.message : "Formatage du payload a échoué",
       });
     }
+  }
+
+  if (!carrier.api_endpoint) {
+    return NextResponse.json({
+      ...response,
+      reachable: false,
+      error: "Endpoint API non configuré",
+    });
   }
 
   try {

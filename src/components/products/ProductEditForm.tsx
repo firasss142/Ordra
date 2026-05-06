@@ -12,7 +12,6 @@ interface EditableProduct {
   image_url: string | null;
   unit_cogs: number;
   packing_cost: number;
-  cpl: number;
   confirmation_processing_cost: number | null;
   default_price: number | null;
   low_stock_threshold: number;
@@ -49,7 +48,6 @@ export function ProductEditForm({ product, locale }: Props) {
   const [imageUrl, setImageUrl] = useState(product.image_url ?? "");
   const [unitCogs, setUnitCogs] = useState(numberOrEmpty(product.unit_cogs));
   const [packingCost, setPackingCost] = useState(numberOrEmpty(product.packing_cost));
-  const [cpl, setCpl] = useState(numberOrEmpty(product.cpl));
   const [processingCost, setProcessingCost] = useState(numberOrEmpty(product.confirmation_processing_cost));
   const [defaultPrice, setDefaultPrice] = useState(numberOrEmpty(product.default_price));
   const [threshold, setThreshold] = useState(numberOrEmpty(product.low_stock_threshold));
@@ -87,7 +85,6 @@ export function ProductEditForm({ product, locale }: Props) {
       image_url: imageUrl.trim(),
       unit_cogs: unitCogsNum,
       packing_cost: parseFloat(packingCost) || 0,
-      cpl: parseFloat(cpl) || 0,
       confirmation_processing_cost: parseFloat(processingCost) || 0,
       low_stock_threshold: thresholdNum,
       is_active: isActive,
@@ -191,11 +188,6 @@ export function ProductEditForm({ product, locale }: Props) {
             <label htmlFor="edit-packing-cost" style={labelStyle}>{t("editForm.fields.packingCost")}</label>
             <input id="edit-packing-cost" type="number" min="0" step="0.001" value={packingCost} onChange={(e) => setPackingCost(e.target.value)} style={inputStyle} />
             <p style={hintStyle}>{t("create.hints.packingCost")}</p>
-          </div>
-          <div>
-            <label htmlFor="edit-cpl" style={labelStyle}>{t("editForm.fields.cpl")}</label>
-            <input id="edit-cpl" type="number" min="0" step="0.001" value={cpl} onChange={(e) => setCpl(e.target.value)} style={inputStyle} />
-            <p style={hintStyle}>{t("create.hints.cpl")}</p>
           </div>
           <div>
             <label htmlFor="edit-processing-cost" style={labelStyle}>{t("editForm.fields.processingCost")}</label>

@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { calculateConfirmationRate, calculateAvgAttempts } from "@/lib/metrics";
 import { getActor } from "@/lib/auth/actor";
 
-const ACTIONED_STATUSES = ["confirmed", "dispatched", "rejected"];
+const ACTIONED_STATUSES = ["confirmed", "uploaded", "rejected"];
 const ATTEMPT_STATUSES = ["attempt_1", "attempt_2", "attempt_3"];
 
 export async function GET(req: NextRequest) {
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
 
     if (ACTIONED_STATUSES.includes(row.status_to)) {
       agg.actioned++;
-      if (row.status_to === "confirmed" || row.status_to === "dispatched") {
+      if (row.status_to === "confirmed" || row.status_to === "uploaded") {
         agg.confirmed++;
       } else if (row.status_to === "rejected") {
         agg.rejected++;

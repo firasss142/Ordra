@@ -24,6 +24,7 @@ function queryChain(resolveWith: { data: unknown; error: unknown; count?: number
   const chain: Record<string, unknown> = {};
   chain.select = vi.fn().mockReturnValue(chain);
   chain.eq = vi.fn().mockReturnValue(chain);
+  chain.in = vi.fn().mockReturnValue(chain);
   chain.gte = vi.fn().mockReturnValue(chain);
   chain.lte = vi.fn().mockReturnValue(chain);
   chain.order = vi.fn().mockReturnValue(chain);
@@ -98,6 +99,87 @@ describe("GET /api/leads", () => {
 
     await GET(req("GET", "/api/leads?market_id=mkt-ly"));
     expect(leadChain!.eq).toHaveBeenCalledWith("market_id", "mkt-ly");
+  });
+
+  test("filters by a list of statuses for bucketed views", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "mgr-1" } },
+      error: null,
+    });
+
+    let leadChain: ReturnType<typeof queryChain>;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return queryChain({
+          data: { role: "market_manager", market_id: "mkt-tn" },
+          error: null,
+        });
+      }
+      if (table === "leads") {
+        leadChain = queryChain({ data: [], error: null, count: 0 });
+        return leadChain;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const res = await GET(
+      req("GET", "/api/leads?statuses=attempt_1,attempt_2,callback_scheduled")
+    );
+
+    expect(res.status).toBe(200);
+    expect(leadChain!.in).toHaveBeenCalledWith("status", [
+      "attempt_1",
+      "attempt_2",
+      "callback_scheduled",
+    ]);
+  });
+
+  test("returns 400 for invalid status filters", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "mgr-1" } },
+      error: null,
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return queryChain({
+          data: { role: "market_manager", market_id: "mkt-tn" },
+          error: null,
+        });
+      }
+      return queryChain({ data: [], error: null, count: 0 });
+    });
+
+    const res = await GET(req("GET", "/api/leads?statuses=new,not_a_status"));
+
+    expect(res.status).toBe(400);
+  });
+
+  test("applies hot lead filter when requested", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "mgr-1" } },
+      error: null,
+    });
+
+    let leadChain: ReturnType<typeof queryChain>;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return queryChain({
+          data: { role: "market_manager", market_id: "mkt-tn" },
+          error: null,
+        });
+      }
+      if (table === "leads") {
+        leadChain = queryChain({ data: [], error: null, count: 0 });
+        return leadChain;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const res = await GET(req("GET", "/api/leads?hot_only=true"));
+
+    expect(res.status).toBe(200);
+    expect(leadChain!.eq).toHaveBeenCalledWith("is_hot", true);
   });
 });
 

@@ -1,0 +1,33 @@
+version: '3'
+
+tasks:
+  start:
+    desc: Start development server
+    cmds:
+      - npm run dev
+  
+  install:
+    desc: Install dependencies
+    cmds:
+      - npm install
+  
+  build:
+    desc: Build the project
+    cmds:
+      - npm run build
+
+  prod:
+    desc: Build and start production server
+    cmds:
+      - npm run build
+      - npm run start
+  
+  lint:
+    desc: Run linter
+    cmds:
+      - npm run lint
+
+  seed:
+    desc: Seed test users and demo data
+    cmds:
+      - npm run seed:test

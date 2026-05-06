@@ -78,6 +78,9 @@ export async function POST(
   if (!product.is_active) {
     return NextResponse.json({ error: "Product is not active" }, { status: 409 });
   }
+  if (Number(product.current_stock ?? 0) < quantity) {
+    return NextResponse.json({ error: "Product is out of stock" }, { status: 409 });
+  }
 
   let variantLabel: string | null = null;
   if (variant_id) {
@@ -120,21 +123,29 @@ export async function POST(
     return NextResponse.json({ error: "Failed to add item" }, { status: 500 });
   }
 
-  // Recompute total_price = SUM(line_total) + delivery_fee
+  // Recompute total_price = SUM(line_total) + delivery_fee, and quantity = SUM(quantity)
   const { data: allItems } = await supabase
     .from("order_items")
-    .select("line_total")
+    .select("line_total, quantity")
     .eq("order_id", id);
 
   const itemsSubtotal = (allItems ?? []).reduce(
     (sum: number, item: { line_total: number }) => sum + Number(item.line_total),
     0
   );
+  const newQuantity = (allItems ?? []).reduce(
+    (sum: number, item: { quantity: number }) => sum + Number(item.quantity),
+    0
+  );
   const newTotal = Math.round((itemsSubtotal + Number(order.delivery_fee ?? 0)) * 1000) / 1000;
 
   await supabase
     .from("orders")
-    .update({ total_price: newTotal, updated_at: new Date().toISOString() })
+    .update({
+      total_price: newTotal,
+      quantity: newQuantity,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", id);
 
   return NextResponse.json({ data: newItem }, { status: 201 });

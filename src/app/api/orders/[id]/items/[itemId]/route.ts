@@ -25,15 +25,26 @@ async function getOrderAndCheckAccess(supabase: Awaited<ReturnType<typeof import
 async function recomputeTotal(supabase: Awaited<ReturnType<typeof import("@/lib/supabase/server").createClient>>, orderId: string, deliveryFee: number) {
   const { data: allItems } = await supabase
     .from("order_items")
-    .select("line_total")
+    .select("line_total, quantity")
     .eq("order_id", orderId);
 
   const itemsSubtotal = (allItems ?? []).reduce(
     (sum: number, item: { line_total: number }) => sum + Number(item.line_total),
     0
   );
+  const newQuantity = (allItems ?? []).reduce(
+    (sum: number, item: { quantity: number }) => sum + Number(item.quantity),
+    0
+  );
   const newTotal = Math.round((itemsSubtotal + Number(deliveryFee ?? 0)) * 1000) / 1000;
-  await supabase.from("orders").update({ total_price: newTotal, updated_at: new Date().toISOString() }).eq("id", orderId);
+  await supabase
+    .from("orders")
+    .update({
+      total_price: newTotal,
+      quantity: newQuantity,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", orderId);
   return newTotal;
 }
 

@@ -56,8 +56,14 @@ describe("POST /api/leads/[id]/transition", () => {
         return chain({
           id: "lead-1",
           status: "attempt_1",
+          status_key: "attempt_1",
           assigned_to: "agent-1",
           market_id: "m1",
+        });
+      if (t === "status_configs")
+        return chain({
+          allowed_transitions: ["qualified"],
+          is_terminal: false,
         });
       return chain(null);
     });
@@ -93,8 +99,14 @@ describe("POST /api/leads/[id]/transition", () => {
         return chain({
           id: "lead-1",
           status: "attempt_1",
+          status_key: "attempt_1",
           assigned_to: "agent-1",
           market_id: "m1",
+        });
+      if (t === "status_configs")
+        return chain({
+          allowed_transitions: ["qualified"],
+          is_terminal: false,
         });
       return chain(null);
     });
@@ -114,5 +126,69 @@ describe("POST /api/leads/[id]/transition", () => {
       "rpc_transition_lead_status",
       expect.objectContaining({ p_new_status_key: "qualified" })
     );
+  });
+
+  test("200 follows status_configs transitions instead of the static graph", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mgr" } }, error: null });
+    mockFrom.mockImplementation((t: string) => {
+      if (t === "users")
+        return chain({ role: "market_manager", market_id: "m1" });
+      if (t === "leads")
+        return chain({
+          id: "lead-1",
+          status: "assigned",
+          status_key: "assigned",
+          assigned_to: null,
+          market_id: "m1",
+        });
+      if (t === "status_configs")
+        return chain({
+          allowed_transitions: ["attempt_2"],
+          is_terminal: false,
+        });
+      return chain(null);
+    });
+    mockRpc.mockResolvedValue({
+      data: {
+        lead_id: "lead-1",
+        status: "attempt_2",
+        updated_at: "x",
+        history_id: "h",
+      },
+      error: null,
+    });
+
+    const res = await POST(req({ new_status: "attempt_2" }), params);
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith(
+      "rpc_transition_lead_status",
+      expect.objectContaining({ p_new_status_key: "attempt_2" })
+    );
+  });
+
+  test("409 when status_configs disallow the transition", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mgr" } }, error: null });
+    mockFrom.mockImplementation((t: string) => {
+      if (t === "users")
+        return chain({ role: "market_manager", market_id: "m1" });
+      if (t === "leads")
+        return chain({
+          id: "lead-1",
+          status: "assigned",
+          status_key: "assigned",
+          assigned_to: null,
+          market_id: "m1",
+        });
+      if (t === "status_configs")
+        return chain({
+          allowed_transitions: ["attempt_1"],
+          is_terminal: false,
+        });
+      return chain(null);
+    });
+
+    const res = await POST(req({ new_status: "attempt_2" }), params);
+    expect(res.status).toBe(409);
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 });

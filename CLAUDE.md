@@ -1,4 +1,4 @@
-# OMS — Order Management System
+z# OMS — Order Management System
 
 ## WHY
 Internal OMS for multi-market COD e-commerce (Tunisia + Libya).
@@ -55,27 +55,36 @@ src/
 - Financial calculations → lib/calculations/ server-side only — never in client components
 - Order history (order_history table) is APPEND-ONLY — never update or delete rows
 - Inventory log (inventory_log table) is APPEND-ONLY — never update or delete rows
-- Carrier dispatch is synchronous — immediate success/failure feedback to agent
+- Confirm is atomic and never depends on the carrier API — confirm puts the order in `confirmed`, the carrier upload happens in a separate "upload" action that lands on `uploaded` (or stays `confirmed` on any failure)
+- Carrier upload is synchronous — immediate success/failure feedback to agent
 - Adapter pattern for storefronts and carriers — new integrations = new adapter, zero core changes
 - Supabase service role → server only (webhooks, admin user creation) — never in browser client
 
 ## OMS status model — two phases
 
+Assignment is ownership (`orders.assigned_to`), not a lifecycle status.
+A new order is `pending` whether assigned or not.
+
 ### Phase 1: Confirmation (agent workflow)
-new → assigned → attempt_1/2/3 → callback_scheduled → confirmed → dispatched (exits queue)
-                                                                 → rejected (TERMINAL)
+pending → attempt_1/2/3 → callback_scheduled → confirmed → uploaded → scanned (exits agent's hands)
+                                                         → rejected (TERMINAL)
+                                                         → dispatch_scheduled → uploaded (cron auto, never reverts to confirmed)
 cancelled (TERMINAL — manager/system, any pre-dispatch status)
 
-### Phase 2: Fulfillment (carrier lifecycle, post-dispatch)
-dispatched → deposit → in_transit → delivered (TERMINAL)
-                                  → returned (TERMINAL)
+### Phase 2: Fulfillment (carrier lifecycle, post-scan)
+scanned → dispatched → deposit → in_transit → delivered (TERMINAL)
+                                            → returned (TERMINAL)
 
 ## Key boundaries
-- dispatched = order exits agent queue, enters fulfillment tracking
-- scanned = STOCK BOUNDARY: warehouse scan-out deducts stock −qty (confirmed → scanned)
+- confirmed = phone confirmation outcome only; no carrier work yet (still in agent queue, awaiting upload)
+- uploaded = carrier API succeeded; `tracking_number` + `carrier_id` set; ready to print + scan
+- scanned = STOCK BOUNDARY: warehouse scan-out deducts stock −qty (uploaded → scanned)
+- dispatched = carrier acknowledged receipt; order enters in-flight tracking pool
 - deposit = COST BOUNDARY: carrier fees begin here (stock already deducted at scanned)
 - delivered = revenue realized
 - returned = stock +qty (unless damaged, which increments damaged_return_count)
+
+On upload failure (carrier API error, timeout, validation reject) the order stays `confirmed` (or `dispatch_scheduled` for cron-driven uploads). Never rolled back further. Retry is just a retry.
 
 ## Stock integrity model
 Stock (products.current_stock and damaged_return_count) changes via EXACTLY three paths — anything else is a bug:
@@ -84,15 +93,16 @@ Stock (products.current_stock and damaged_return_count) changes via EXACTLY thre
 3. warehouse_agent / market_manager / super_admin call scan_order_out (−qty) or scan_return_in (+qty or damaged)
 Market managers and agents NEVER mutate stock. Market managers and warehouse_agents CAN toggle products.is_active via toggle_product_active RPC — that is the ONLY product field they can change.
 
-## Terminal statuses: delivered, returned, rejected, cancelled
+## Terminal statuses: delivered, returned, rejected, cancelled, deleted
 ## Fulfillment statuses set by: system (carrier webhook/polling) or manager (manual update)
-## Agents NEVER set: dispatched, deposit, in_transit, delivered, returned
+## Agents NEVER set: scanned, dispatched, deposit, in_transit, delivered, returned
 
 ## Status transition rules
-- Agents set: attempt_*, callback_scheduled, confirmed, rejected
-- System sets: new, dispatched, deposit, in_transit, delivered, returned
-- Managers can force: cancelled (any pre-dispatch status)
-- Terminal = no further transitions: delivered, returned, rejected, cancelled
+- Agents set: attempt_*, callback_scheduled, confirmed, dispatch_scheduled, uploaded (via upload-to-carrier action), rejected
+- Warehouse sets: scanned (uploaded → scanned via scan_order_out)
+- System sets: pending (webhook intake), dispatched (warehouse marks once carrier picks up), deposit, in_transit, delivered, returned, unverified
+- Managers can force: cancelled, deleted (any pre-dispatch status)
+- Terminal = no further transitions: delivered, returned, rejected, cancelled, deleted
 - Max attempts: configurable per market via settings table (default 3)
 
 ## Rejection reasons (required when status = rejected)
@@ -101,7 +111,8 @@ refus_client | faux_numero | doublon | injoignable | prix | non_serieux | autre 
 ## Agent queue sort order
 1. callback_scheduled where callback_time ≤ now
 2. attempt_* sorted oldest created_at first
-3. assigned (new, untouched) sorted oldest created_at first
+3. pending (untouched, owned by agent) sorted oldest created_at first
+4. confirmed (awaiting upload to carrier) shows the "Upload" affordance until uploaded
 
 ## Design system
 - Shopify-inspired: dark sidebar (#1A1A1A), light content (#F6F6F7), white cards

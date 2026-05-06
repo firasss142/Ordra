@@ -116,7 +116,7 @@ describe("canDeleteFollowUp", () => {
 
 describe("isFollowUpEligibleOrderStatus", () => {
   test("accepts post-confirmation statuses", () => {
-    ["confirmed", "dispatching", "dispatched", "deposit", "in_transit", "to_be_returned"].forEach(
+    ["confirmed", "uploaded", "dispatched", "deposit", "in_transit", "to_be_returned"].forEach(
       (s) => expect(isFollowUpEligibleOrderStatus(s)).toBe(true)
     );
   });

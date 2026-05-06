@@ -20,10 +20,15 @@ export const LEAD_SOURCES = [
   "instagram_dm",
   "whatsapp",
   "tiktok_comment",
+  "campaign",
   "other",
 ] as const;
 
 export type LeadSource = (typeof LEAD_SOURCES)[number];
+
+export const CREATABLE_LEAD_SOURCES = LEAD_SOURCES.filter(
+  (source) => source !== "campaign",
+) as Exclude<LeadSource, "campaign">[];
 
 export const LEAD_LOST_REASONS = [
   "not_interested",
