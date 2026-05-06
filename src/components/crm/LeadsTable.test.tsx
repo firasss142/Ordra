@@ -54,6 +54,7 @@ function makeLead(overrides: Partial<Lead> = {}): Lead {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
   vi.mocked(useSWR).mockReturnValue({
     data: { data: [makeLead()], pagination: { page: 1, limit: 50, total: 1 } },
     error: undefined,
@@ -90,6 +91,13 @@ describe("LeadsTable", () => {
     renderTable();
     const link = screen.getByRole("link", { name: /appeler/i });
     expect(link.getAttribute("href")).toBe("tel:+216 22 333 444");
+  });
+
+  it("requests only visible statuses when bucket-filtered", () => {
+    renderTable({ visibleStatuses: ["qualified", "won"] });
+    const key = vi.mocked(useSWR).mock.calls[0]?.[0];
+    const url = new URL(String(key), "http://localhost:3000");
+    expect(url.searchParams.get("statuses")).toBe("qualified,won");
   });
 
   it("does NOT show convert button when status is not qualified", () => {

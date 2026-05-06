@@ -63,6 +63,7 @@ export function LeadsKanban({
     campaignId: campaignId ?? undefined,
     agentId: agentId ?? undefined,
     hotOnly,
+    statuses: visibleStatuses,
     limit: 200,
   });
 

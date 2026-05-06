@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import type { Lead } from "@/types/lead";
+import type { Lead, LeadStatus } from "@/types/lead";
 
 const fetcher = (url: string) =>
   fetch(url).then((res) => {
@@ -10,6 +10,7 @@ const fetcher = (url: string) =>
 export interface LeadsQuery {
   marketId?: string | null;
   status?: string | null;
+  statuses?: LeadStatus[] | null;
   source?: string | null;
   agentId?: string | null;
   dateFrom?: string | null;
@@ -25,6 +26,7 @@ function buildLeadsKey(q: LeadsQuery): string {
   const params = new URLSearchParams();
   if (q.marketId) params.set("market_id", q.marketId);
   if (q.status) params.set("status", q.status);
+  if (q.statuses?.length) params.set("statuses", q.statuses.join(","));
   if (q.source) params.set("source", q.source);
   if (q.agentId) params.set("agent_id", q.agentId);
   if (q.dateFrom) params.set("date_from", q.dateFrom);

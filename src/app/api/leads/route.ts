@@ -36,7 +36,24 @@ export async function GET(req: NextRequest) {
   if (role === "agent") query = query.eq("assigned_to", actor.id);
 
   const status = req.nextUrl.searchParams.get("status");
-  if (status) query = query.eq("status", status);
+  const statusesParam = req.nextUrl.searchParams.get("statuses");
+  const statuses = statusesParam
+    ? statusesParam
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+  const invalidStatus = [...statuses, ...(status ? [status] : [])].find(
+    (s) => !LEAD_STATUSES.includes(s as LeadStatus)
+  );
+  if (invalidStatus) {
+    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  }
+  if (statuses.length > 0) {
+    query = query.in("status", statuses as LeadStatus[]);
+  } else if (status) {
+    query = query.eq("status", status);
+  }
 
   const source = req.nextUrl.searchParams.get("source");
   if (source) query = query.eq("source", source);
@@ -52,6 +69,14 @@ export async function GET(req: NextRequest) {
 
   const campaignId = req.nextUrl.searchParams.get("campaign_id");
   if (campaignId) query = query.eq("campaign_id", campaignId);
+
+  if (req.nextUrl.searchParams.get("hot_only") === "true") {
+    query = query.eq("is_hot", true);
+  }
+
+  if (req.nextUrl.searchParams.get("has_duplicate") === "true") {
+    query = query.eq("has_duplicate", true);
+  }
 
   const { data, error, count } = await query
     .order("created_at", { ascending: false })
