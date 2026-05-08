@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { mapNavexStatus, mapDexpressStatus } from "./status-map";
+import { mapNavexStatus } from "./status-map";
 
 describe("mapNavexStatus", () => {
   test.each([
@@ -36,27 +36,4 @@ describe("mapNavexStatus", () => {
     expect(mapNavexStatus("Lorem ipsum")).toBeNull();
     expect(mapNavexStatus("")).toBeNull();
   });
-});
-
-describe("mapDexpressStatus", () => {
-  test("status_key 10 → delivered", () => {
-    const result = mapDexpressStatus(10, "تم التسليم");
-    expect(result).not.toBeNull();
-    expect(result?.statusTo).toBe("delivered");
-    expect(result?.isDamaged).toBe(false);
-  });
-
-  test("status_key 1 → in_transit", () => {
-    const result = mapDexpressStatus(1, "عند العميل");
-    expect(result).not.toBeNull();
-    expect(result?.statusTo).toBe("in_transit");
-    expect(result?.isDamaged).toBe(false);
-  });
-
-  test.each([0, 2, 3, 4, 5, 6, 7, 8, 9, 11, 99])(
-    "unknown status_key %i returns null",
-    (key) => {
-      expect(mapDexpressStatus(key, "مجهول")).toBeNull();
-    }
-  );
 });

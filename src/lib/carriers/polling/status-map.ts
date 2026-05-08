@@ -39,20 +39,4 @@ export function mapNavexStatus(etat: string): CarrierStatusMapping | null {
   };
 }
 
-const DEXPRESS_KEY_MAP: Record<number, OrderStatus> = {
-  1: "in_transit",
-  10: "delivered",
-};
-
-export function mapDexpressStatus(
-  statusKey: number,
-  nameStatus: string
-): CarrierStatusMapping | null {
-  const statusTo = DEXPRESS_KEY_MAP[statusKey];
-  if (!statusTo) return null;
-  return {
-    statusTo,
-    note: `Dexpress: ${nameStatus}`,
-    isDamaged: false,
-  };
-}
+// mapDexpressStatus removed: Dexpress has no status API.

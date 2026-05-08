@@ -1,6 +1,6 @@
 import type { CarrierAdapter } from "./types";
 import { NavexAdapter } from "./navex-adapter";
-import { DexpressAdapter } from "./dexpress-adapter";
+import { DexpressAdapter } from "./dexpress/adapter";
 
 export type CarrierCode = "navex" | "dexpress";
 
@@ -52,12 +52,15 @@ const ADAPTER_DESCRIPTORS: Record<string, AdapterDescriptor> = {
   },
   dexpress: {
     code: "dexpress",
-    label: "DExpress",
-    description: "Intégration DExpress (Libye). Bearer auth + create-order.",
-    defaultEndpoint: "https://api.dexpress.ly",
+    label: "Dexpress",
+    description:
+      "Intégration Dexpress (Libye). Authentification par compte marchand sur le portail.",
+    defaultEndpoint: "https://portal.dexpress.ly",
     credentialFields: [
-      { key: "api_base_url", label: "URL de base API", secret: false },
-      { key: "api_key", label: "Clé API", secret: true },
+      { key: "email", label: "Email du compte marchand", secret: false },
+      { key: "password", label: "Mot de passe", secret: true },
+      { key: "merchant_id", label: "ID marchand", placeholder: "807", secret: false },
+      { key: "from_state", label: "État d'origine (ID)", placeholder: "62", secret: false },
     ],
     markets: ["ly"],
   },

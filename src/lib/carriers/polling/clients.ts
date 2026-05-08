@@ -56,38 +56,5 @@ export async function fetchNavexStatus(
   }
 }
 
-export async function fetchDexpressBatch(
-  trackingNumbers: string[],
-  row: CarrierRowForPoll
-): Promise<unknown> {
-  if (trackingNumbers.length === 0) {
-    return { code: 4000, data: [] };
-  }
-
-  const creds = decodeCredentials(row);
-  const apiKey = creds.api_key;
-  if (!apiKey) throw new Error("Dexpress: api_key missing from credentials");
-
-  const base = creds.api_base_url || row.api_endpoint || "";
-  const url = `${base.replace(/\/$/, "")}/mutable-order-tracking`;
-
-  const body = new URLSearchParams({
-    orders_codes: trackingNumbers.join(","),
-  }).toString();
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: apiKey,
-    },
-    body,
-    signal: AbortSignal.timeout(20000),
-  });
-
-  try {
-    return await response.json();
-  } catch {
-    return await response.text();
-  }
-}
+// Dexpress polling removed: Dexpress has no status API. Fulfillment for
+// Dexpress orders is updated manually by managers.

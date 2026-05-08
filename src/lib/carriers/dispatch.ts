@@ -30,6 +30,7 @@ export function buildConfig(carrier: CarrierRow): CarrierConfig {
   }
 
   return {
+    id: carrier.id,
     code: carrier.code,
     apiEndpoint: carrier.api_endpoint ?? "",
     apiCredentials,

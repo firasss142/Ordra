@@ -136,7 +136,13 @@ export async function performDispatch({
   let result;
   try {
     result = await dispatchToCarrier(orderData, carrier, extra);
-  } catch {
+  } catch (err) {
+    console.error("[performDispatch] dispatchToCarrier threw", {
+      orderId,
+      carrierId,
+      carrierCode: carrier.code,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return { ok: false, status: 500, error: "Internal server error" };
   }
 

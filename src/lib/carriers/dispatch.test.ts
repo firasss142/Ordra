@@ -96,37 +96,8 @@ describe("dispatchToCarrier", () => {
     vi.unstubAllGlobals();
   });
 
-  test("passes extra through to adapter", async () => {
-    const mockFetch = vi.fn().mockResolvedValue({
-      status: 200,
-      json: () =>
-        Promise.resolve({ code: 4000, data: { tracking_code: "DEX-001" } }),
-    });
-    vi.stubGlobal("fetch", mockFetch);
-
-    const decryptedCreds = JSON.stringify({
-      api_key: "key-123",
-      api_base_url: "https://api.dexpress.tn",
-    });
-    vi.mocked(await import("@/lib/crypto")).decrypt = vi
-      .fn()
-      .mockReturnValue(decryptedCreds);
-
-    const result = await dispatchToCarrier(
-      mockOrder,
-      { ...mockCarrierRow, code: "dexpress", api_credentials: "encrypted" },
-      { state_id: 12, place_id: 1201 }
-    );
-
-    expect(result.success).toBe(true);
-
-    // Verify state_id was in the request body
-    const [, options] = mockFetch.mock.calls[0];
-    expect(options.body).toContain("state_id=12");
-    expect(options.body).toContain("place_id=1201");
-
-    vi.unstubAllGlobals();
-  });
+  // Dexpress-specific extra plumbing is covered in src/lib/carriers/dexpress/adapter.test.ts.
+  // The old test here targeted the fictional Dexpress JSON API which no longer exists.
 
   test("throws CarrierConfigError for invalid credentials JSON", async () => {
     vi.mocked(await import("@/lib/crypto")).decrypt = vi

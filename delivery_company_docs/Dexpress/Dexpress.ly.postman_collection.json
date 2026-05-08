@@ -1,0 +1,381 @@
+{
+  "info": {
+    "_postman_id": "80ad4f07-dbb6-4039-9247-37649230e24c",
+    "name": "Dexpress.ly",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "26207766"
+  },
+  "item": [
+    {
+      "name": "GET Login Page",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Extract the CSRF _token from the login page HTML and save it\r",
+              "const html = pm.response.text();\r",
+              "const match = html.match(/name=\"_token\"\\s+value=\"([^\"]+)\"/);\r",
+              "if (match) {\r",
+              "    pm.collectionVariables.set(\"csrf_token\", match[1]);\r",
+              "    console.log(\"Saved CSRF token:\", match[1].substring(0, 12) + \"...\");\r",
+              "} else {\r",
+              "    console.error(\"Could not find _token in login page!\");\r",
+              "}"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Referer",
+            "value": "{{base_url}}/login",
+            "type": "text"
+          },
+          {
+            "key": "Origin",
+            "value": "{{base_url}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "_token",
+              "value": "{{csrf_token}}",
+              "type": "text",
+              "uuid": "3d821f84-aa9d-4179-bcec-5fec734d5964"
+            },
+            {
+              "key": "email",
+              "value": "{{email}}",
+              "type": "text",
+              "uuid": "3bd64c88-8189-4189-ab16-c05d3d87b8c8"
+            },
+            {
+              "key": "password",
+              "value": "{{password}}",
+              "type": "text",
+              "uuid": "d5ecb670-0f52-4994-ac3e-570153a7b961"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET Add Orders Page",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const html = pm.response.text();\r",
+              "const match = html.match(/name=\"_token\"\\s+value=\"([^\"]+)\"/);\r",
+              "if (match) {\r",
+              "    pm.collectionVariables.set(\"csrf_token\", match[1]);\r",
+              "    console.log(\"Saved CSRF token:\", match[1].substring(0, 12) + \"...\");\r",
+              "} else {\r",
+              "    console.error(\"Could not find _token in form page!\");\r",
+              "}"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/merchant/add-orders",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "merchant",
+            "add-orders"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST Create Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Referer",
+            "value": "{{base_url}}/merchant/add-orders",
+            "type": "text"
+          },
+          {
+            "key": "Origin",
+            "value": "{{base_url}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "_token",
+              "value": "{{csrf_token}}",
+              "type": "text",
+              "uuid": "299c71f7-0128-4cc2-9946-a544ce2599ca"
+            },
+            {
+              "key": "has_places",
+              "value": "no",
+              "type": "text",
+              "uuid": "bbf80989-ae52-4144-ba7f-3b8c258da3d1"
+            },
+            {
+              "key": "phone",
+              "value": "9325099500",
+              "type": "text",
+              "uuid": "d9a51bbb-99df-438b-916a-41ae90968c38"
+            },
+            {
+              "key": "merchant_id",
+              "value": "807",
+              "type": "text",
+              "uuid": "7222cbaa-e676-43ee-a434-491a4f49834f"
+            },
+            {
+              "key": "from_state",
+              "value": "62",
+              "type": "text",
+              "uuid": "486d0d14-0868-4408-9b09-f8c8542a5f2a"
+            },
+            {
+              "key": "from_place",
+              "value": "0",
+              "type": "text",
+              "uuid": "22be6ef4-1b52-4ccd-9c41-ff7ec0c0cdb0"
+            },
+            {
+              "key": "route_id",
+              "value": "2",
+              "type": "text",
+              "uuid": "e54c19a1-343f-484c-9f6c-69795a6d5d49"
+            },
+            {
+              "key": "phone_2",
+              "value": "",
+              "type": "text",
+              "uuid": "88946cf8-9cb1-490b-b566-ce758c78213d"
+            },
+            {
+              "key": "to_state",
+              "value": "1",
+              "type": "text",
+              "uuid": "266d8824-eadd-437f-b4b9-656fa6717555"
+            },
+            {
+              "key": "to_place",
+              "value": "0",
+              "type": "text",
+              "uuid": "7c9c0c31-4156-4a1c-be28-74962c50f7c7"
+            },
+            {
+              "key": "name",
+              "value": "",
+              "type": "text",
+              "uuid": "f69c1667-0269-46cc-a205-ae2ba2e8a9e7"
+            },
+            {
+              "key": "address",
+              "value": "tripoli",
+              "type": "text",
+              "uuid": "1c164368-0d3c-4706-ab17-bac690ac706c"
+            },
+            {
+              "key": "info",
+              "value": "fragile",
+              "type": "text",
+              "uuid": "c196f74d-8672-4759-861d-39aa97d73bd3"
+            },
+            {
+              "key": "notes",
+              "value": "",
+              "type": "text",
+              "uuid": "41ed352a-25e7-4b92-a9f9-50243457a9c4"
+            },
+            {
+              "key": "sub_total",
+              "value": "50",
+              "type": "text",
+              "uuid": "e55e2e0f-74aa-49b5-91cf-18c7eea391fc"
+            },
+            {
+              "key": "cost_inclusive",
+              "value": "not_inclusive",
+              "type": "text",
+              "uuid": "d30c267f-a2e0-4af1-879d-3bcfeb04803b"
+            },
+            {
+              "key": "qty",
+              "value": "1",
+              "type": "text",
+              "uuid": "0546101c-3f00-4f27-a7ea-156278fe5873"
+            },
+            {
+              "key": "cost",
+              "value": "35",
+              "type": "text",
+              "uuid": "fe51a35e-cbf3-46f2-93f3-c2533e357d50"
+            },
+            {
+              "key": "dimensions[weight]",
+              "value": "",
+              "type": "text",
+              "uuid": "843f196d-049e-4167-a99b-23511b619186"
+            },
+            {
+              "key": "plus_weight_cost",
+              "value": "",
+              "type": "text",
+              "uuid": "38d7406a-7707-40f2-b02b-94d5e44a3922"
+            },
+            {
+              "key": "total",
+              "value": "85",
+              "type": "text",
+              "uuid": "990fed28-d22c-4ab9-ba70-f02bf68320af"
+            },
+            {
+              "key": "cost_type",
+              "value": "1",
+              "type": "text",
+              "uuid": "4f03ee3e-4af4-4df0-96d1-ea37eab0c722"
+            },
+            {
+              "key": "order_type",
+              "value": "2",
+              "type": "text",
+              "uuid": "259ad7a7-66af-4631-bee2-c0bbbb44b8c8"
+            },
+            {
+              "key": "breakable",
+              "value": "0",
+              "type": "text",
+              "uuid": "ad2cbe94-618d-4975-b63f-4578c2f57284"
+            },
+            {
+              "key": "packing",
+              "value": "0",
+              "type": "text",
+              "uuid": "d5da78bd-8fd8-4f00-a5b0-e0eb0019c1ca"
+            },
+            {
+              "key": "dimensions[length]",
+              "value": "",
+              "type": "text",
+              "uuid": "30048e9a-0ad7-4918-a622-6464570922ea"
+            },
+            {
+              "key": "dimensions[width]",
+              "value": "",
+              "type": "text",
+              "uuid": "1fb5919c-069a-4e06-a3d5-2473dfe9c63b"
+            },
+            {
+              "key": "dimensions[height]",
+              "value": "",
+              "type": "text",
+              "uuid": "9c3e0edb-a110-4d5b-bfaf-d9ab3073a681"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/merchant/add-orders",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "merchant",
+            "add-orders"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": ""
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "csrf_token",
+      "value": ""
+    }
+  ]
+}

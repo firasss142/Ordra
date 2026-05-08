@@ -7,7 +7,7 @@ import {
   adapterSupportsMarket,
 } from "./adapter-registry";
 import { NavexAdapter } from "./navex-adapter";
-import { DexpressAdapter } from "./dexpress-adapter";
+import { DexpressAdapter } from "./dexpress/adapter";
 
 describe("getCarrierAdapter", () => {
   test("returns NavexAdapter for 'navex'", () => {
@@ -71,6 +71,15 @@ describe("adapter descriptors", () => {
     const keys = d!.credentialFields.map((f) => f.key);
     expect(keys).toContain("token");
     expect(keys).toContain("sender_name");
+  });
+
+  test("getAdapterDescriptor exposes dexpress credential keys (portal auth shape)", () => {
+    const d = getAdapterDescriptor("dexpress");
+    expect(d).not.toBeNull();
+    const keys = d!.credentialFields.map((f) => f.key);
+    expect(keys).toEqual(["email", "password", "merchant_id", "from_state"]);
+    const passwordField = d!.credentialFields.find((f) => f.key === "password")!;
+    expect(passwordField.secret).toBe(true);
   });
 
   test("each descriptor declares its supported markets", () => {

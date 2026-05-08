@@ -230,7 +230,8 @@
         "deposit": "Dépôt",
         "in_transit": "Transit",
         "to_be_returned": "Retour"
-      }
+      },
+      "manualStatusNote": "Statut mis à jour manuellement — Dexpress n'expose pas de suivi automatique."
     },
     "stuck": {
       "sectionTitle": "Alertes bloquées",
@@ -2822,5 +2823,25 @@
       "seeAll": "Voir toutes les commandes"
     },
     "addressChange": "↳ nouvelle adresse (avant : {previous})"
+  },
+  "dispatch": {
+    "shippingEyes": {
+      "modalTitle": "Envoyer via Dexpress",
+      "modalSubtitle": "Sélectionner la destination, puis confirmer",
+      "close": "Fermer",
+      "searchState": "Destination",
+      "searchPlaceholder": "Rechercher une ville…",
+      "loadingStates": "Chargement des destinations…",
+      "loadingCarrier": "Chargement du transporteur…",
+      "noActiveCarrier": "Aucun transporteur Dexpress actif pour ce marché.",
+      "noResults": "Aucune destination trouvée.",
+      "goodsValue": "Marchandise",
+      "deliveryFee": "Frais de livraison",
+      "customerTotal": "Total dû à la livraison",
+      "uploading": "Envoi en cours…",
+      "confirmDispatch": "Confirmer l'envoi",
+      "dispatchFailed": "L'envoi a échoué. Réessayez.",
+      "missingAddress": "Cette commande n'a pas d'adresse de livraison. Modifiez la commande avant de l'envoyer à Dexpress."
+    }
   }
 }

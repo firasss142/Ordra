@@ -151,6 +151,23 @@ function CarrierCard({ carrier }: { carrier: InDeliveryCarrierRow }) {
         <StatusChip label={t("status.in_transit")} count={carrier.in_flight_by_status.in_transit} />
         <StatusChip label={t("status.to_be_returned")} count={carrier.in_flight_by_status.to_be_returned} />
       </div>
+
+      {carrier.code === "dexpress" && (
+        <div
+          role="note"
+          style={{
+            fontSize: 11,
+            color: "#6D7175",
+            backgroundColor: "#F6F6F7",
+            border: "1px solid #E1E3E5",
+            borderRadius: 4,
+            padding: "6px 8px",
+            lineHeight: 1.4,
+          }}
+        >
+          {t("manualStatusNote")}
+        </div>
+      )}
     </div>
   );
 }

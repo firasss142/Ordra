@@ -1,0 +1,697 @@
+[
+  {
+    "id": 1,
+    "name": "هون",
+    "routeId": 2,
+    "sampleAutoDeliveryDate": "2026-05-13"
+  },
+  {
+    "id": 2,
+    "name": "ودان",
+    "routeId": 2,
+    "sampleAutoDeliveryDate": "2026-05-13"
+  },
+  {
+    "id": 3,
+    "name": "سوكنة",
+    "routeId": 2,
+    "sampleAutoDeliveryDate": "2026-05-13"
+  },
+  {
+    "id": 4,
+    "name": "زلة",
+    "routeId": 2,
+    "sampleAutoDeliveryDate": "2026-05-13"
+  },
+  {
+    "id": 5,
+    "name": "الفقهاء",
+    "routeId": 2,
+    "sampleAutoDeliveryDate": "2026-05-13"
+  },
+  {
+    "id": 6,
+    "name": "مصراتة",
+    "routeId": 1,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 7,
+    "name": "زليتن",
+    "routeId": 1,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 8,
+    "name": "الخمس",
+    "routeId": 1
+  },
+  {
+    "id": 9,
+    "name": "قصر خيار",
+    "routeId": 1
+  },
+  {
+    "id": 10,
+    "name": "بنغازي",
+    "routeId": 15
+  },
+  {
+    "id": 11,
+    "name": "غوط الرمان",
+    "routeId": 1
+  },
+  {
+    "id": 12,
+    "name": "وادي كعام",
+    "routeId": 1
+  },
+  {
+    "id": 13,
+    "name": "الزاوية",
+    "routeId": 3
+  },
+  {
+    "id": 14,
+    "name": "صرمان",
+    "routeId": 3
+  },
+  {
+    "id": 15,
+    "name": "صبراتة",
+    "routeId": 3
+  },
+  {
+    "id": 16,
+    "name": "زلطن",
+    "routeId": 3
+  },
+  {
+    "id": 17,
+    "name": "الجميل",
+    "routeId": 3
+  },
+  {
+    "id": 18,
+    "name": "ابوكماش",
+    "routeId": 3
+  },
+  {
+    "id": 19,
+    "name": "رقدالين",
+    "routeId": 3
+  },
+  {
+    "id": 20,
+    "name": "زوارة",
+    "routeId": 3
+  },
+  {
+    "id": 21,
+    "name": "راس جدير",
+    "routeId": 3
+  },
+  {
+    "id": 22,
+    "name": "العجيلات",
+    "routeId": 3
+  },
+  {
+    "id": 23,
+    "name": "الزنتان",
+    "routeId": 5
+  },
+  {
+    "id": 24,
+    "name": "الرجبان",
+    "routeId": 5
+  },
+  {
+    "id": 25,
+    "name": "الرياينة",
+    "routeId": 5
+  },
+  {
+    "id": 26,
+    "name": "كاباو",
+    "routeId": 5
+  },
+  {
+    "id": 27,
+    "name": "نالوت",
+    "routeId": 5
+  },
+  {
+    "id": 28,
+    "name": "طمزين",
+    "routeId": 5
+  },
+  {
+    "id": 29,
+    "name": "جادو",
+    "routeId": 5
+  },
+  {
+    "id": 30,
+    "name": "العوينية",
+    "routeId": 5
+  },
+  {
+    "id": 31,
+    "name": "الرحيبات",
+    "routeId": 5
+  },
+  {
+    "id": 32,
+    "name": "غريان",
+    "routeId": 6
+  },
+  {
+    "id": 33,
+    "name": "الاصابعة",
+    "routeId": 6
+  },
+  {
+    "id": 34,
+    "name": "راس لانوف",
+    "routeId": 16
+  },
+  {
+    "id": 35,
+    "name": "البريقة",
+    "routeId": 16
+  },
+  {
+    "id": 36,
+    "name": "بن جواد",
+    "routeId": 11
+  },
+  {
+    "id": 37,
+    "name": "السدرة /راس لانوف",
+    "routeId": 16
+  },
+  {
+    "id": 38,
+    "name": "العقيلة",
+    "routeId": 11
+  },
+  {
+    "id": 39,
+    "name": "هراوة",
+    "routeId": 11
+  },
+  {
+    "id": 40,
+    "name": "سبها",
+    "routeId": 7
+  },
+  {
+    "id": 41,
+    "name": "براك الشاطيء",
+    "routeId": 7
+  },
+  {
+    "id": 42,
+    "name": "الشويرف",
+    "routeId": 7
+  },
+  {
+    "id": 43,
+    "name": "اوباري",
+    "routeId": 7
+  },
+  {
+    "id": 44,
+    "name": "مرزق",
+    "routeId": 7
+  },
+  {
+    "id": 45,
+    "name": "غات",
+    "routeId": 7
+  },
+  {
+    "id": 46,
+    "name": "القطرون",
+    "routeId": 7
+  },
+  {
+    "id": 47,
+    "name": "ام الارانب",
+    "routeId": 7
+  },
+  {
+    "id": 48,
+    "name": "الغريفة",
+    "routeId": 7
+  },
+  {
+    "id": 49,
+    "name": "ترهونة",
+    "routeId": 8
+  },
+  {
+    "id": 50,
+    "name": "مسلاتة",
+    "routeId": 1
+  },
+  {
+    "id": 51,
+    "name": "اجدابيا",
+    "routeId": 16
+  },
+  {
+    "id": 52,
+    "name": "البيضاء",
+    "routeId": 4
+  },
+  {
+    "id": 53,
+    "name": "طبرق",
+    "routeId": 4
+  },
+  {
+    "id": 54,
+    "name": "المرج",
+    "routeId": 4
+  },
+  {
+    "id": 55,
+    "name": "درنة",
+    "routeId": 4
+  },
+  {
+    "id": 56,
+    "name": "جالو",
+    "routeId": 17
+  },
+  {
+    "id": 57,
+    "name": "اوجلة",
+    "routeId": 17
+  },
+  {
+    "id": 58,
+    "name": "الكفرة",
+    "routeId": 17
+  },
+  {
+    "id": 59,
+    "name": "تازربو",
+    "routeId": 17
+  },
+  {
+    "id": 60,
+    "name": "الرجمة",
+    "routeId": 4
+  },
+  {
+    "id": 61,
+    "name": "البياضة",
+    "routeId": 4
+  },
+  {
+    "id": 62,
+    "name": "طرابلس",
+    "routeId": 12
+  },
+  {
+    "id": 63,
+    "name": "سلوق",
+    "routeId": 4
+  },
+  {
+    "id": 64,
+    "name": "قمينس",
+    "routeId": 16
+  },
+  {
+    "id": 65,
+    "name": "شحات",
+    "routeId": 4,
+    "sampleAutoDeliveryDate": "2026-05-13"
+  },
+  {
+    "id": 66,
+    "name": "الابرق",
+    "routeId": 4,
+    "sampleAutoDeliveryDate": "2026-05-13"
+  },
+  {
+    "id": 67,
+    "name": "سوسة",
+    "routeId": 4
+  },
+  {
+    "id": 68,
+    "name": "التميمي",
+    "routeId": 4
+  },
+  {
+    "id": 69,
+    "name": "اجخرة",
+    "routeId": 17
+  },
+  {
+    "id": 70,
+    "name": "توكرة",
+    "routeId": 4,
+    "sampleAutoDeliveryDate": "2026-05-13"
+  },
+  {
+    "id": 71,
+    "name": "قصر ليبيا",
+    "routeId": 4
+  },
+  {
+    "id": 72,
+    "name": "مسة",
+    "routeId": 4
+  },
+  {
+    "id": 73,
+    "name": "المقرون",
+    "routeId": 16
+  },
+  {
+    "id": 74,
+    "name": "دريانة",
+    "routeId": 4
+  },
+  {
+    "id": 75,
+    "name": "القبة",
+    "routeId": 4
+  },
+  {
+    "id": 76,
+    "name": "سوق الخميس امسيحل",
+    "routeId": 8,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 77,
+    "name": "اسبيعة",
+    "routeId": 8,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 78,
+    "name": "مزدة",
+    "routeId": 7
+  },
+  {
+    "id": 79,
+    "name": "نسمة",
+    "routeId": 7
+  },
+  {
+    "id": 80,
+    "name": "سرت",
+    "routeId": 10,
+    "sampleAutoDeliveryDate": "2026-05-11"
+  },
+  {
+    "id": 81,
+    "name": "الابيار",
+    "routeId": 4,
+    "sampleAutoDeliveryDate": "2026-05-13"
+  },
+  {
+    "id": 82,
+    "name": "بني وليد",
+    "routeId": 9,
+    "sampleAutoDeliveryDate": "2026-05-11"
+  },
+  {
+    "id": 83,
+    "name": "امساعد",
+    "routeId": 4
+  },
+  {
+    "id": 84,
+    "name": "العلوص",
+    "routeId": 1,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 85,
+    "name": "القربوللي",
+    "routeId": 1,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 86,
+    "name": "القويعة",
+    "routeId": 1,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 87,
+    "name": "قماطه",
+    "routeId": 1,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 88,
+    "name": "ابوعيسي",
+    "routeId": 3,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 89,
+    "name": "الماية",
+    "routeId": 3,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 90,
+    "name": "المطرد",
+    "routeId": 3,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 91,
+    "name": "تيجي",
+    "routeId": 5,
+    "sampleAutoDeliveryDate": "2026-05-12"
+  },
+  {
+    "id": 92,
+    "name": "جدائم",
+    "routeId": 3,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 93,
+    "name": "كوبري 27",
+    "routeId": 3,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 94,
+    "name": "الطويلة",
+    "routeId": 3,
+    "sampleAutoDeliveryDate": "2026-05-13"
+  },
+  {
+    "id": 95,
+    "name": "قصر بن غشير",
+    "routeId": 8,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 96,
+    "name": "السايح",
+    "routeId": 8,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 97,
+    "name": "سوق السبت",
+    "routeId": 8,
+    "sampleAutoDeliveryDate": "2026-05-11"
+  },
+  {
+    "id": 98,
+    "name": "ابوقرين",
+    "routeId": 10,
+    "sampleAutoDeliveryDate": "2026-05-12"
+  },
+  {
+    "id": 99,
+    "name": "الرابطة",
+    "routeId": 6
+  },
+  {
+    "id": 100,
+    "name": "يفرن",
+    "routeId": 5,
+    "sampleAutoDeliveryDate": "2026-05-12"
+  },
+  {
+    "id": 101,
+    "name": "الجوش",
+    "routeId": 5,
+    "sampleAutoDeliveryDate": "2026-05-12"
+  },
+  {
+    "id": 102,
+    "name": "بدر",
+    "routeId": 5
+  },
+  {
+    "id": 103,
+    "name": "القلعة",
+    "routeId": 5,
+    "sampleAutoDeliveryDate": "2026-05-12"
+  },
+  {
+    "id": 104,
+    "name": "الجبل الغربي",
+    "routeId": 5,
+    "sampleAutoDeliveryDate": "2026-05-12"
+  },
+  {
+    "id": 105,
+    "name": "السبعة",
+    "routeId": 12,
+    "sampleAutoDeliveryDate": "2026-05-09"
+  },
+  {
+    "id": 106,
+    "name": "الهضبة طول",
+    "routeId": 12,
+    "sampleAutoDeliveryDate": "2026-05-09"
+  },
+  {
+    "id": 107,
+    "name": "السراج",
+    "routeId": 12,
+    "sampleAutoDeliveryDate": "2026-05-09"
+  },
+  {
+    "id": 108,
+    "name": "الترسانة",
+    "routeId": 12,
+    "sampleAutoDeliveryDate": "2026-05-09"
+  },
+  {
+    "id": 109,
+    "name": "جنزور",
+    "routeId": 12,
+    "sampleAutoDeliveryDate": "2026-05-09"
+  },
+  {
+    "id": 110,
+    "name": "حي الاندلس",
+    "routeId": 12,
+    "sampleAutoDeliveryDate": "2026-05-09"
+  },
+  {
+    "id": 111,
+    "name": "تاجوراء",
+    "routeId": 12,
+    "sampleAutoDeliveryDate": "2026-05-09"
+  },
+  {
+    "id": 112,
+    "name": "الشقيقة",
+    "routeId": 7
+  },
+  {
+    "id": 113,
+    "name": "سبيعة",
+    "routeId": 8,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 114,
+    "name": "الناصرية",
+    "routeId": 13,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 115,
+    "name": "وازن",
+    "routeId": 5
+  },
+  {
+    "id": 116,
+    "name": "تراغن",
+    "routeId": 7
+  },
+  {
+    "id": 117,
+    "name": "ضواحي طرابلس (15)",
+    "routeId": 18,
+    "sampleAutoDeliveryDate": "2026-05-09"
+  },
+  {
+    "id": 118,
+    "name": "سيدي خليفة",
+    "routeId": 15,
+    "sampleAutoDeliveryDate": "2026-05-12"
+  },
+  {
+    "id": 119,
+    "name": "المنطقة الوسطي \\ تخفيض",
+    "routeId": 19,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 120,
+    "name": "بن.....",
+    "routeId": 4,
+    "sampleAutoDeliveryDate": "2026-05-11"
+  },
+  {
+    "id": 121,
+    "name": "من بنغازي الي طرابلس",
+    "routeId": 20,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 122,
+    "name": "ورشفانه",
+    "routeId": 13,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 123,
+    "name": "غدامس",
+    "routeId": 21,
+    "sampleAutoDeliveryDate": "2026-05-14"
+  },
+  {
+    "id": 124,
+    "name": "مكتب طرابلس",
+    "routeId": 22,
+    "sampleAutoDeliveryDate": "2026-05-09"
+  },
+  {
+    "id": 125,
+    "name": "مكتب سبها",
+    "routeId": 23,
+    "sampleAutoDeliveryDate": "2026-05-11"
+  },
+  {
+    "id": 126,
+    "name": "سيدي السايح",
+    "routeId": 24,
+    "sampleAutoDeliveryDate": "2026-05-10"
+  },
+  {
+    "id": 127,
+    "name": "بوستة",
+    "routeId": 12,
+    "sampleAutoDeliveryDate": "2026-05-09"
+  },
+  {
+    "id": 128,
+    "name": "الجفرة",
+    "routeId": 2,
+    "sampleAutoDeliveryDate": "2026-05-11"
+  }
+]

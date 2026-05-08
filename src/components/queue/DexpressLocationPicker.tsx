@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Dispatch, SetStateAction } from "react";
+import { Dispatch, SetStateAction, useMemo, useState } from "react";
 import useSWR from "swr";
 
 interface DexpressState {
@@ -9,16 +9,9 @@ interface DexpressState {
   name: string;
 }
 
-interface DexpressPlace {
-  id: number;
-  name: string;
-}
-
 export interface DexpressSelection {
   stateId: number | null;
   stateName: string;
-  placeId: number | null;
-  womenDelivery: boolean;
 }
 
 export interface DexpressLocationPickerProps {
@@ -37,6 +30,7 @@ export function DexpressLocationPicker({
   onChange,
 }: DexpressLocationPickerProps) {
   const t = useTranslations("dispatch.shippingEyes");
+  const [query, setQuery] = useState("");
 
   const { data: statesData, isLoading: statesLoading } = useSWR(
     "/api/dexpress/states",
@@ -44,112 +38,63 @@ export function DexpressLocationPicker({
     { revalidateOnFocus: false }
   );
 
-  const { data: placesData, isLoading: placesLoading } = useSWR(
-    value.stateId != null ? `/api/dexpress/places/${value.stateId}` : null,
-    fetcher,
-    { revalidateOnFocus: false }
-  );
-
   const allStates: DexpressState[] = statesData?.states ?? [];
-  const allPlaces: DexpressPlace[] = placesData?.places ?? [];
+
+  const filteredStates = useMemo(() => {
+    const q = query.trim();
+    if (!q) return allStates;
+    return allStates.filter((s) => s.name.includes(q));
+  }, [allStates, query]);
 
   function handleStateSelect(state: DexpressState) {
-    onChange((prev) => ({
-      ...prev,
-      stateId: state.id,
-      stateName: state.name,
-      placeId: null,
-    }));
-  }
-
-  function handlePlaceSelect(placeId: number | null) {
-    onChange((prev) => ({ ...prev, placeId }));
+    onChange({ stateId: state.id, stateName: state.name });
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* State picker */}
+    <div className="flex flex-col gap-3">
       <div>
         <label className="mb-1.5 block text-[13px] font-medium text-ink-secondary">
           {t("searchState")}
         </label>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t("searchPlaceholder")}
+          className="mb-2 w-full rounded border border-line-subtle px-3 py-2 text-[13px] text-ink-primary outline-none focus:border-ink-primary"
+          dir="auto"
+        />
         {statesLoading ? (
-          <div className="py-2 text-[13px] text-ink-secondary">{t("loadingStates")}</div>
-        ) : (
-          <div className="max-h-40 overflow-y-auto rounded border border-line-subtle">
-            {allStates.map((state) => (
-              <button
-                key={state.id}
-                type="button"
-                onClick={() => handleStateSelect(state)}
-                className={[
-                  "w-full border-b border-line-subtle px-3 py-2 text-start text-[13px] last:border-b-0",
-                  value.stateId === state.id
-                    ? "bg-surface-hover font-medium text-ink-primary"
-                    : "text-ink-primary hover:bg-surface-hover",
-                ].join(" ")}
-              >
-                {state.name}
-              </button>
-            ))}
+          <div className="py-2 text-[13px] text-ink-secondary">
+            {t("loadingStates")}
           </div>
-        )}
-      </div>
-
-      {/* Place picker — optional, loads after state selected */}
-      {value.stateId != null && (
-        <div>
-          <label className="mb-1.5 block text-[13px] font-medium text-ink-secondary">
-            {t("searchPlace")} — {value.stateName}
-          </label>
-          {placesLoading ? (
-            <div className="py-2 text-[13px] text-ink-secondary">{t("loadingPlaces")}</div>
-          ) : (
-            <div className="max-h-40 overflow-y-auto rounded border border-line-subtle">
-              <button
-                type="button"
-                onClick={() => handlePlaceSelect(null)}
-                className={[
-                  "w-full border-b border-line-subtle px-3 py-2 text-start text-[13px]",
-                  value.placeId == null
-                    ? "bg-surface-hover font-medium text-ink-primary"
-                    : "text-ink-secondary hover:bg-surface-hover",
-                ].join(" ")}
-              >
-                {t("noPlace")}
-              </button>
-              {allPlaces.map((place) => (
+        ) : (
+          <div className="max-h-48 overflow-y-auto rounded border border-line-subtle">
+            {filteredStates.length === 0 ? (
+              <div className="px-3 py-3 text-[13px] text-ink-secondary">
+                {t("noResults")}
+              </div>
+            ) : (
+              filteredStates.map((state) => (
                 <button
-                  key={place.id}
+                  key={state.id}
                   type="button"
-                  onClick={() => handlePlaceSelect(place.id)}
+                  onClick={() => handleStateSelect(state)}
                   className={[
                     "w-full border-b border-line-subtle px-3 py-2 text-start text-[13px] last:border-b-0",
-                    value.placeId === place.id
+                    value.stateId === state.id
                       ? "bg-surface-hover font-medium text-ink-primary"
                       : "text-ink-primary hover:bg-surface-hover",
                   ].join(" ")}
+                  dir="auto"
                 >
-                  {place.name}
+                  {state.name}
                 </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Women delivery toggle */}
-      <label className="flex cursor-pointer items-center gap-2">
-        <input
-          type="checkbox"
-          checked={value.womenDelivery}
-          onChange={(e) =>
-            onChange((prev) => ({ ...prev, womenDelivery: e.target.checked }))
-          }
-          className="h-4 w-4 rounded border-line-subtle accent-ink-primary"
-        />
-        <span className="text-[13px] text-ink-primary">{t("womenDelivery")}</span>
-      </label>
+              ))
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
