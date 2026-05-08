@@ -86,6 +86,7 @@ export async function POST(
     try {
       const adapter = getCarrierAdapter(carrier.code);
       const config: CarrierConfig = {
+        id: carrier.id,
         code: carrier.code,
         apiEndpoint: carrier.api_endpoint ?? "",
         apiCredentials: {},

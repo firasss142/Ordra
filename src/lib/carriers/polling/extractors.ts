@@ -4,13 +4,6 @@ export interface NavexPollResponse {
   rawBody: unknown;
 }
 
-export interface DexpressPollResult {
-  trackingNumber: string;
-  statusKey: number;
-  nameStatus: string;
-  rawBody: unknown;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -38,34 +31,4 @@ export function parseNavexResponse(
   return { trackingNumber, etat, rawBody: httpBody };
 }
 
-export function parseDexpressBatchResponse(
-  httpBody: unknown
-): DexpressPollResult[] {
-  if (!isRecord(httpBody)) return [];
-  if (httpBody.code !== 4000) return [];
-
-  const data = httpBody.data;
-  if (!Array.isArray(data)) return [];
-
-  const results: DexpressPollResult[] = [];
-  for (const entry of data) {
-    if (!isRecord(entry)) continue;
-    const snum = entry.order_snum;
-    const key = entry.status_key;
-    const name = entry.name_status;
-    if (
-      (typeof snum !== "number" && typeof snum !== "string") ||
-      typeof key !== "number" ||
-      typeof name !== "string"
-    ) {
-      continue;
-    }
-    results.push({
-      trackingNumber: String(snum),
-      statusKey: key,
-      nameStatus: name,
-      rawBody: entry,
-    });
-  }
-  return results;
-}
+// parseDexpressBatchResponse removed: Dexpress has no status API.

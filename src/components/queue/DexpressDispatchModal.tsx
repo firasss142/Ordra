@@ -9,16 +9,17 @@ import {
   DexpressLocationPicker,
   type DexpressSelection,
 } from "./DexpressLocationPicker";
-import { ShippingPricePreview } from "./ShippingPricePreview";
-import { useShippingEyesPrice } from "@/hooks/useShippingEyesPrice";
 import { fetcher } from "@/lib/swr-config";
+import { formatCurrency } from "@/lib/format";
 
 interface DexpressDispatchModalProps {
   orderId: string;
   marketId: string;
-  /** total_price from the OMS order — used to display the customer COD total */
+  /** total_price from the OMS order — goods-only, customer pays this + delivery_fee */
   orderTotal: number;
   market: "LY" | "TN";
+  /** Required by Dexpress. If empty/null, dispatch is blocked. */
+  customerAddress: string | null;
   onClose: () => void;
   onSuccess: (trackingNumber: string | null) => void;
 }
@@ -32,8 +33,6 @@ interface CarrierResolution {
 const initialSelection: DexpressSelection = {
   stateId: null,
   stateName: "",
-  placeId: null,
-  womenDelivery: false,
 };
 
 export function DexpressDispatchModal({
@@ -41,10 +40,12 @@ export function DexpressDispatchModal({
   marketId,
   orderTotal,
   market,
+  customerAddress,
   onClose,
   onSuccess,
 }: DexpressDispatchModalProps) {
   const t = useTranslations("dispatch.shippingEyes");
+  const hasAddress = Boolean(customerAddress && customerAddress.trim());
   const panelRef = useRef<HTMLDivElement>(null);
 
   const [selection, setSelection] = useState<DexpressSelection>(initialSelection);
@@ -57,16 +58,8 @@ export function DexpressDispatchModal({
     revalidateOnFocus: false,
   });
   const carrier = carrierData?.carrier ?? null;
-  const fallbackDeliveryFee = carrier?.delivery_fee ?? 0;
-
-  // Live shipping cost — passed to the adapter via shipping_cost_override
-  const { effectiveShippingCost, livePrice } = useShippingEyesPrice({
-    stateId: selection.stateId,
-    placeId: selection.placeId,
-    womenDelivery: selection.womenDelivery,
-    fallbackDeliveryFee,
-    enabled: carrier?.is_active === true,
-  });
+  const deliveryFee = carrier?.delivery_fee ?? 0;
+  const customerTotal = orderTotal + deliveryFee;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -77,7 +70,11 @@ export function DexpressDispatchModal({
   }, [onClose]);
 
   const canSubmit =
-    selection.stateId != null && !submitting && carrier !== null && carrier.is_active;
+    selection.stateId != null &&
+    !submitting &&
+    carrier !== null &&
+    carrier.is_active &&
+    hasAddress;
 
   async function handleSubmit() {
     if (!canSubmit || !carrier) return;
@@ -89,13 +86,7 @@ export function DexpressDispatchModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           carrier_id: carrier.id,
-          extra: {
-            state_id: selection.stateId,
-            place_id: selection.placeId,
-            women_delivery: selection.womenDelivery ? 1 : 0,
-            shipping_cost_override:
-              livePrice !== null ? livePrice : effectiveShippingCost,
-          },
+          extra: { state_id: selection.stateId },
         }),
       });
       const json = await res.json().catch(() => ({} as Record<string, unknown>));
@@ -116,8 +107,6 @@ export function DexpressDispatchModal({
       setSubmitting(false);
     }
   }
-
-  const destinationLabel = selection.stateName || "";
 
   return (
     <div
@@ -182,17 +171,45 @@ export function DexpressDispatchModal({
               </div>
             )}
 
+            {!hasAddress && (
+              <div
+                role="alert"
+                className="mb-3 rounded border border-status-critical/30 bg-status-criticalBg px-3 py-2 text-[13px] text-status-critical"
+              >
+                {t("missingAddress")}
+              </div>
+            )}
+
             <DexpressLocationPicker value={selection} onChange={setSelection} />
 
-            <ShippingPricePreview
-              stateId={selection.stateId}
-              placeId={selection.placeId}
-              womenDelivery={selection.womenDelivery}
-              fallbackDeliveryFee={fallbackDeliveryFee}
-              orderTotal={orderTotal}
-              market={market}
-              destinationLabel={destinationLabel || undefined}
-            />
+            {/* Static price summary — Dexpress has no live pricing. */}
+            <div className="mt-4 rounded-card border border-line-subtle bg-surface-card px-4 py-3">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[13px] text-ink-secondary">
+                  {t("goodsValue")}
+                </span>
+                <span className="text-[13px] text-ink-primary tabular-nums">
+                  {formatCurrency(orderTotal, market)}
+                </span>
+              </div>
+              <div className="mt-1.5 flex items-baseline justify-between gap-3">
+                <span className="text-[13px] text-ink-secondary">
+                  {t("deliveryFee")}
+                </span>
+                <span className="text-[13px] text-ink-primary tabular-nums">
+                  {formatCurrency(deliveryFee, market)}
+                </span>
+              </div>
+              <div className="my-3 h-px bg-line-subtle" />
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[13px] font-medium text-ink-secondary">
+                  {t("customerTotal")}
+                </span>
+                <span className="text-[16px] font-medium text-ink-primary tabular-nums">
+                  {formatCurrency(customerTotal, market)}
+                </span>
+              </div>
+            </div>
 
             <button
               type="button"

@@ -13,6 +13,7 @@ export interface CarrierOrderData {
 }
 
 export interface CarrierConfig {
+  id: string;
   code: string;
   apiEndpoint: string;
   apiCredentials: Record<string, string>;

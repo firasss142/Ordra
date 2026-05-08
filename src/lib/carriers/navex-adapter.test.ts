@@ -17,6 +17,7 @@ const mockOrder: CarrierOrderData = {
 };
 
 const mockConfig: CarrierConfig = {
+  id: "navex-carrier-id",
   code: "navex",
   apiEndpoint: "https://app.navex.tn/api",
   apiCredentials: {

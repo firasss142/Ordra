@@ -13,6 +13,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export interface InDeliveryCarrierRow {
   id: string;
   name: string;
+  code: string;
   in_flight_total: number;
   in_flight_by_status: Record<Phase2Status, number>;
   median_transit_hours: number | null;
@@ -94,7 +95,7 @@ export async function GET(req: NextRequest) {
     .limit(IN_FLIGHT_LIMIT);
   if (marketId) ordersQuery = ordersQuery.eq("market_id", marketId);
 
-  let carriersQuery = supabase.from("carriers").select("id, name").eq("is_active", true);
+  let carriersQuery = supabase.from("carriers").select("id, name, code").eq("is_active", true);
   if (marketId) carriersQuery = carriersQuery.eq("market_id", marketId);
 
   let fulfillmentQuery = supabase
@@ -114,7 +115,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  type CarrierMeta = { id: string; name: string };
+  type CarrierMeta = { id: string; name: string; code: string };
   const carriers = (carriersResult.data ?? []) as CarrierMeta[];
   const carriersMap = new Map<string, CarrierMeta>();
   for (const c of carriers) carriersMap.set(c.id, c);
@@ -144,6 +145,7 @@ export async function GET(req: NextRequest) {
       row = {
         id,
         name: meta?.name ?? "",
+        code: meta?.code ?? "",
         in_flight_total: 0,
         in_flight_by_status: emptyByStatus(),
         median_transit_hours: null,

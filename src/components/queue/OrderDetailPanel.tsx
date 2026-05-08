@@ -14,10 +14,16 @@ import { Combobox, type ComboboxOption } from "@/components/ui/Combobox";
 import { StepperField } from "@/components/ui/StepperField";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { useOrderMutation } from "@/hooks/useOrderMutation";
+import { LY_MARKET_ID } from "@/lib/markets";
 import type { Role } from "@/types";
 
 const ScheduleDispatchModal = dynamic(
   () => import("./ScheduleDispatchModal").then((m) => m.ScheduleDispatchModal),
+  { ssr: false },
+);
+
+const DexpressDispatchModal = dynamic(
+  () => import("./DexpressDispatchModal").then((m) => m.DexpressDispatchModal),
   { ssr: false },
 );
 
@@ -271,6 +277,7 @@ export function OrderDetailPanel({
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadingCarrierId, setUploadingCarrierId] = useState<string | null>(null);
+  const [dexpressModalOpen, setDexpressModalOpen] = useState(false);
   const [uploadFeedback, setUploadFeedback] = useState<
     | { kind: "success"; tracking: string }
     | { kind: "error"; message: string }
@@ -1337,7 +1344,14 @@ export function OrderDetailPanel({
                     key={c.id}
                     type="button"
                     disabled={uploadingCarrierId !== null}
-                    onClick={() => handleUploadToCarrier(c.id)}
+                    onClick={() => {
+                      if (c.code === "dexpress") {
+                        setUploadOpen(false);
+                        setDexpressModalOpen(true);
+                        return;
+                      }
+                      handleUploadToCarrier(c.id);
+                    }}
                     className="flex items-center justify-between h-10 px-3 text-[13px] text-ink-primary border border-line-subtle rounded-card hover:bg-surface-hover transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="font-medium">{c.name}</span>
@@ -1360,6 +1374,25 @@ export function OrderDetailPanel({
             </div>
           </div>
         </>
+      )}
+
+      {dexpressModalOpen && order && orderId && (
+        <DexpressDispatchModal
+          orderId={orderId}
+          marketId={order.market_id}
+          orderTotal={order.total_price}
+          market={order.market_id === LY_MARKET_ID ? "LY" : "TN"}
+          customerAddress={order.customer_address}
+          onClose={() => setDexpressModalOpen(false)}
+          onSuccess={(trackingNumber) => {
+            setDexpressModalOpen(false);
+            setUploadFeedback({
+              kind: "success",
+              tracking: trackingNumber ?? "—",
+            });
+            void mutate();
+          }}
+        />
       )}
 
       {/* Reopen confirmation modal */}
