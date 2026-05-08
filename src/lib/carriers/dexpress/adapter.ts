@@ -63,39 +63,14 @@ export class DexpressAdapter implements CarrierAdapter {
       const isRedirectBack = !!submission.redirectLocation?.match(
         /\/merchant\/add-orders(\?.*)?$/
       );
+      // Redirect back to /merchant/add-orders is the Laravel "redirect back
+      // with errors" pattern — flash data lives in the next GET of the form.
       if (isRedirectBack) {
         const flash = await client.getMerchantPage(ADD_ORDERS_PATH);
         const { errors } = parseFormErrors(flash.html);
-
-        // Dump the full HTML to disk for offline inspection. Dev-only.
-        if (errors.length === 0 && process.env.NODE_ENV !== "production") {
-          try {
-            const fs = await import("fs/promises");
-            const path = await import("path");
-            const outPath = path.resolve(
-              process.cwd(),
-              `dexpress-flash-${Date.now()}.html`
-            );
-            await fs.writeFile(outPath, flash.html, "utf8");
-            console.error("[DexpressAdapter] dumped flash HTML to", outPath);
-          } catch (e) {
-            console.error("[DexpressAdapter] could not dump flash HTML", e);
-          }
-        }
-
-        console.error("[DexpressAdapter] redirect-back with flash errors", {
-          redirectLocation: submission.redirectLocation,
-          errorCount: errors.length,
-          errors: errors.slice(0, 5),
-          htmlLength: flash.html.length,
-        });
         return { status: 200, body: { errors } };
       }
 
-      console.error("[DexpressAdapter] unexpected 3xx redirect", {
-        status: submission.status,
-        redirectLocation: submission.redirectLocation,
-      });
       return {
         status: submission.status,
         body: { redirectLocation: submission.redirectLocation },

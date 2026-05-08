@@ -142,7 +142,6 @@ export async function performDispatch({
       carrierId,
       carrierCode: carrier.code,
       error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : undefined,
     });
     return { ok: false, status: 500, error: "Internal server error" };
   }
