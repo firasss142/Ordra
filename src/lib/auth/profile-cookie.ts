@@ -15,7 +15,12 @@ export interface ProfilePayload {
 }
 
 async function keyFor(usage: "sign" | "verify"): Promise<CryptoKey> {
-  const secret = process.env.ENCRYPTION_KEY ?? "";
+  const secret = process.env.ENCRYPTION_KEY;
+  if (!secret) {
+    throw new Error(
+      "ENCRYPTION_KEY environment variable is not set — required to sign/verify the oms_profile cookie",
+    );
+  }
   const raw = new TextEncoder().encode(secret);
   return crypto.subtle.importKey(
     "raw",
