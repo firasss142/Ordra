@@ -4,6 +4,8 @@ import { getActor } from "@/lib/auth/actor";
 import { canViewProfitability } from "@/lib/profitability-permissions";
 import { isPeriodLocked } from "@/lib/ad-spend/period-lock";
 
+export const dynamic = "force-dynamic";
+
 async function resolveActorAndEntry(req: NextRequest, id: string) {
   const supabase = await createClient();
 

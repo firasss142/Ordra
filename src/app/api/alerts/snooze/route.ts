@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { parseAlertKey } from "@/app/api/alerts/alert-key";
 
+export const dynamic = "force-dynamic";
+
 const MAX_SNOOZE_MINUTES = 7 * 24 * 60;
 
 export async function POST(req: NextRequest) {

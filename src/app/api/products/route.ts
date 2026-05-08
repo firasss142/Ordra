@@ -4,6 +4,8 @@ import { canViewProducts, canManageProducts } from "@/lib/product-permissions";
 import { isValidProduct } from "@/types/product";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
 

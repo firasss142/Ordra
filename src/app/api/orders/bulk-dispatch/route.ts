@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getActor } from "@/lib/auth/actor";
 import { performDispatch } from "@/lib/carriers/perform-dispatch";
 
+export const dynamic = "force-dynamic";
+
 const MAX_BATCH = 200;
 
 export async function POST(req: NextRequest) {

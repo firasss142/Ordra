@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { canManageProducts } from "@/lib/product-permissions";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; variantId: string }> }

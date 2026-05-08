@@ -12,6 +12,8 @@ import type { OrderLabelData } from "@/lib/labels/OrderLabelPdf";
 import React from "react";
 import { randomUUID } from "crypto";
 
+export const dynamic = "force-dynamic";
+
 function generateBlNumber(): string {
   // 12-digit numeric BL number. Random — uniqueness enforced by DB index.
   let out = "";

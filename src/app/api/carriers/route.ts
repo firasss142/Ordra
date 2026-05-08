@@ -10,6 +10,8 @@ import {
 } from "@/lib/carriers/adapter-registry";
 import { getAllActiveMarkets } from "@/lib/markets/list";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Build the encrypted credentials JSON for a carrier row.
  * Accepts either a structured `credentials` object (preferred) or a legacy

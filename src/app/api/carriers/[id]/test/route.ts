@@ -8,6 +8,8 @@ import {
 } from "@/lib/carriers/adapter-registry";
 import type { CarrierOrderData, CarrierConfig } from "@/lib/carriers/types";
 
+export const dynamic = "force-dynamic";
+
 interface TestResponse {
   reachable: boolean;
   status?: number;

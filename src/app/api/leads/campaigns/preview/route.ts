@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
+export const dynamic = "force-dynamic";
+
 interface PreviewBody {
   market_id?: string;
   filter_json?: {

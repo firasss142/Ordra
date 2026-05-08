@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { decrypt } from "@/lib/crypto";
 import { handleWebhook } from "@/lib/orders/webhook-handler";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ storefrontId: string }> }

@@ -9,6 +9,8 @@ import {
   type ManagerActor,
 } from "@/lib/orders/manager-takeover";
 
+export const dynamic = "force-dynamic";
+
 async function readRetryTimes(
   supabase: Awaited<ReturnType<typeof createClient>>,
   marketId: string

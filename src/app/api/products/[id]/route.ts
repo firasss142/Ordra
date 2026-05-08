@@ -5,6 +5,8 @@ import { isValidProduct } from "@/types/product";
 import { isLowStock } from "@/lib/product-calculations";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 const MAX_WITHIN_MINUTES = 240;
 const DEFAULT_WITHIN_MINUTES = 30;
 // Look back 5 min so just-overdue callbacks are still surfaced

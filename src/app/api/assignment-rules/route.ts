@@ -4,6 +4,8 @@ import { canAssignOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
 import { AssignmentAlgorithm } from "@/types/settings";
 
+export const dynamic = "force-dynamic";
+
 const VALID_ALGORITHMS = new Set<string>(Object.values(AssignmentAlgorithm));
 
 function resolveMarketId(req: NextRequest, actorRole: string, actorMarketId: string): string {

@@ -9,6 +9,8 @@ import {
 } from "@/lib/orders/list-filters";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 
+export const dynamic = "force-dynamic";
+
 const LIST_SELECT =
   "id, external_id, external_platform, market_id, customer_name, customer_phone, customer_phone_2, " +
   "customer_address, customer_city, " +

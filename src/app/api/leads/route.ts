@@ -4,6 +4,8 @@ import { canViewLeads, canCreateLead } from "@/lib/lead-permissions";
 import { CREATABLE_LEAD_SOURCES, LEAD_STATUSES, type LeadSource, type LeadStatus } from "@/types/lead";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
 

@@ -6,6 +6,8 @@ import { warehouseHistoryQuerySchema } from "@/lib/warehouse/list-filters";
 import { getWarehouseHistoryPage } from "@/lib/warehouse/history-fetch";
 import type { WarehouseHistoryRow } from "@/lib/warehouse/history-fetch";
 
+export const dynamic = "force-dynamic";
+
 const EXPORT_LIMIT = 10_000;
 const PAGE_SIZE = 200;
 

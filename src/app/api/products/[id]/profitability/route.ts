@@ -16,6 +16,8 @@ import {
 } from "@/lib/calculations/profitability";
 import { calculateConfirmationRate } from "@/lib/metrics";
 
+export const dynamic = "force-dynamic";
+
 const CONFIRMED_STATUSES = ["confirmed", "uploaded"] as const;
 
 export async function GET(

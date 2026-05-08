@@ -3,6 +3,8 @@ import { getActor } from "@/lib/auth/actor";
 import { getDashboardSummary } from "@/lib/dashboard/summary";
 import { todayISO } from "@/lib/date";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;

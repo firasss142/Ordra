@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canReadStorefrontHealth } from "@/lib/settings-permissions";
 
+export const dynamic = "force-dynamic";
+
 interface DeliveryRow {
   id: string;
   event: string;

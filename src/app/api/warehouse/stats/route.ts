@@ -9,6 +9,9 @@ import { getWarehouseSummary } from "@/lib/warehouse/summary";
  * This endpoint is kept as a thin alias that exposes the legacy 4-count shape
  * for one release window; slated for deletion.
  */
+
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;

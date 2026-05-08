@@ -6,6 +6,8 @@ import type { OrderStatus, RejectionReason } from "@/types/order-status";
 import { ORDER_STATUSES } from "@/types/order-status";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

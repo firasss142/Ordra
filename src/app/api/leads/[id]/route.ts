@@ -6,6 +6,8 @@ import type { LeadStatus } from "@/types/lead";
 import { isTerminalLeadStatus } from "@/types/lead";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 const PATCHABLE_FIELDS = [
   "customer_name",
   "customer_phone",

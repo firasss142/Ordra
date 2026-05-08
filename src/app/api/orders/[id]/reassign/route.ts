@@ -4,6 +4,8 @@ import { canAssignOrders } from "@/lib/order-permissions";
 import { reassignOrder, returnToPool } from "@/lib/orders/assignment";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

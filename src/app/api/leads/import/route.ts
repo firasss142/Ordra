@@ -4,6 +4,8 @@ import { canCreateLead } from "@/lib/lead-permissions";
 import { parseLeadCsv, type ParsedCsvRow } from "@/lib/leads/csv";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
 

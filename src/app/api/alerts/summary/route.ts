@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { minutesBetween } from "@/lib/format";
 
+export const dynamic = "force-dynamic";
+
 const UNASSIGNED_OVERFLOW_MINUTES = 120;
 const DISPATCH_FAILURE_HOURS = 72;
 const CARRIER_STALE_DAYS = 7;

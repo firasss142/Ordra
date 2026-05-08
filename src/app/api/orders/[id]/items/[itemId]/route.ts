@@ -4,6 +4,8 @@ import { getActor } from "@/lib/auth/actor";
 import { canEditOrder, EDIT_BLOCKED_STATUSES } from "@/lib/order-permissions";
 import type { Role } from "@/types";
 
+export const dynamic = "force-dynamic";
+
 async function getOrderAndCheckAccess(supabase: Awaited<ReturnType<typeof import("@/lib/supabase/server").createClient>>, actor: { id: string; role: Role }, orderId: string) {
   const { data: order, error } = await supabase
     .from("orders")

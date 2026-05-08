@@ -5,6 +5,8 @@ import { canScanWarehouse } from "@/lib/role-permissions";
 import { warehouseHistoryQuerySchema } from "@/lib/warehouse/list-filters";
 import { getWarehouseHistoryPage } from "@/lib/warehouse/history-fetch";
 
+export const dynamic = "force-dynamic";
+
 export type { WarehouseHistoryRow } from "@/lib/warehouse/history-fetch";
 
 export async function GET(req: NextRequest) {

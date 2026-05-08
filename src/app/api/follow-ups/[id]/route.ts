@@ -7,6 +7,8 @@ import {
   canDeleteFollowUp,
 } from "@/lib/follow-up-permissions";
 
+export const dynamic = "force-dynamic";
+
 const PATCHABLE_FIELDS = ["delivery_man_phone", "description"] as const;
 
 export async function GET(

@@ -5,6 +5,8 @@ import { getActor } from "@/lib/auth/actor";
 import { overlayRealizedMetrics } from "@/lib/ad-spend/realized-metrics";
 import type { AdSpendEntryLite, RealizedMetric } from "@/lib/ad-spend/realized-metrics";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
 

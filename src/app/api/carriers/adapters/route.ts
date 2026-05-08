@@ -4,6 +4,8 @@ import { canManageCarriers } from "@/lib/settings-permissions";
 import { listAdapterDescriptors } from "@/lib/carriers/adapter-registry";
 import { getAllActiveMarkets } from "@/lib/markets/list";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;

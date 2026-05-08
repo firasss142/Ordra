@@ -5,6 +5,8 @@ import { canViewProfitability } from "@/lib/profitability-permissions";
 import { calculateBusinessProfitability } from "@/lib/calculations/business-profitability";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
+export const dynamic = "force-dynamic";
+
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
