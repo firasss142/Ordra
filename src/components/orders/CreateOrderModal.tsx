@@ -7,10 +7,7 @@ import { useTranslations } from "next-intl";
 import { X, AlertCircle } from "lucide-react";
 import type FocusTrapType from "focus-trap-react";
 import type { Role } from "@/types";
-import {
-  TUNISIAN_GOVERNORATES,
-  LIBYAN_GOVERNORATES,
-} from "@/lib/carriers/governorates";
+import { TUNISIAN_GOVERNORATES } from "@/lib/carriers/governorates";
 import { useMarketScope } from "@/context/market-scope";
 
 const FocusTrap = dynamic(
@@ -65,6 +62,8 @@ interface FormState {
   customer_name: string;
   customer_phone: string;
   customer_city: string;
+  /** Dexpress destination id for Libya orders. Null for Tunisia or unselected. */
+  dexpress_state_id: number | null;
   customer_address: string;
   customer_note: string;
   product_id: string;
@@ -85,6 +84,7 @@ function emptyForm(marketId: string): FormState {
     customer_name: "",
     customer_phone: "",
     customer_city: "",
+    dexpress_state_id: null,
     customer_address: "",
     customer_note: "",
     product_id: "",
@@ -245,19 +245,36 @@ export function CreateOrderModal({
     return () => document.removeEventListener("keydown", handler);
   }, [isOpen, onClose, form.loading]);
 
-  // City options from governorate list (market-specific)
-  const cityOptions = useMemo<Array<{ value: string; label: string }>>(() => {
-    if (marketCode === "tn") {
-      return TUNISIAN_GOVERNORATES.map((g) => ({ value: g, label: g }));
-    }
-    if (marketCode === "ly") {
-      return LIBYAN_GOVERNORATES.map((g) => ({
-        value: g.fr,
-        label: `${g.fr} — ${g.ar}`,
-      }));
-    }
-    return [];
+  // Tunisia: governorate list is canonical and short, render as <select>.
+  const tunisiaCityOptions = useMemo<Array<{ value: string; label: string }>>(() => {
+    if (marketCode !== "tn") return [];
+    return TUNISIAN_GOVERNORATES.map((g) => ({ value: g, label: g }));
   }, [marketCode]);
+
+  // Libya: cities come from the Dexpress carrier state list. Fetch only when
+  // the active market is Libya — saves a round-trip for Tunisia orders.
+  const { data: dexpressStatesData } = useSWR<{
+    states: Array<{ id: number; name: string }>;
+  }>(
+    isOpen && marketCode === "ly" ? "/api/dexpress/states" : null,
+    fetcher,
+  );
+  const dexpressStates = dexpressStatesData?.states ?? [];
+
+  const [libyaCityQuery, setLibyaCityQuery] = useState("");
+  const [libyaCityPickerOpen, setLibyaCityPickerOpen] = useState(false);
+  const filteredDexpressStates = useMemo(() => {
+    const q = libyaCityQuery.trim();
+    if (!q) return dexpressStates;
+    return dexpressStates.filter((s) => s.name.includes(q));
+  }, [dexpressStates, libyaCityQuery]);
+
+  // Reset Libya search state when the modal opens or the market switches.
+  // The picker starts closed; it opens automatically below if no city is chosen.
+  useEffect(() => {
+    setLibyaCityQuery("");
+    setLibyaCityPickerOpen(false);
+  }, [isOpen, marketCode]);
 
   if (!isOpen) return null;
 
@@ -333,6 +350,10 @@ export function CreateOrderModal({
       update("error", t("errors.customerPhoneRequired"));
       return;
     }
+    if (!form.customer_address.trim()) {
+      update("error", t("errors.customerAddressRequired"));
+      return;
+    }
     if (!form.product_id) {
       update("error", t("errors.productRequired"));
       return;
@@ -367,6 +388,7 @@ export function CreateOrderModal({
       customer_name: form.customer_name.trim(),
       customer_phone: form.customer_phone.trim(),
       customer_city: form.customer_city.trim() || null,
+      dexpress_state_id: form.dexpress_state_id,
       customer_address: form.customer_address.trim() || null,
       customer_note: form.customer_note.trim() || null,
       product_id: form.product_id,
@@ -512,19 +534,79 @@ export function CreateOrderModal({
 
               <div>
                 <FieldLabel>{t("fields.customerCity")}</FieldLabel>
-                {cityOptions.length > 0 ? (
+                {marketCode === "tn" ? (
                   <select
                     value={form.customer_city}
                     onChange={(e) => update("customer_city", e.target.value)}
                     className={inputClass}
                   >
                     <option value="">—</option>
-                    {cityOptions.map((c) => (
+                    {tunisiaCityOptions.map((c) => (
                       <option key={c.value} value={c.value}>
                         {c.label}
                       </option>
                     ))}
                   </select>
+                ) : marketCode === "ly" ? (
+                  form.dexpress_state_id != null && !libyaCityPickerOpen ? (
+                    <div className="flex items-center justify-between gap-3 rounded-card border border-line-subtle bg-surface-card px-3 py-2">
+                      <span
+                        className="truncate text-[13.5px] text-ink-primary"
+                        dir="auto"
+                      >
+                        {form.customer_city}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLibyaCityQuery("");
+                          setLibyaCityPickerOpen(true);
+                        }}
+                        className="flex-shrink-0 text-[12px] font-medium text-ink-secondary hover:text-ink-primary underline-offset-2 hover:underline"
+                      >
+                        {t("cityLibyaChange")}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <input
+                        type="text"
+                        value={libyaCityQuery}
+                        onChange={(e) => setLibyaCityQuery(e.target.value)}
+                        placeholder={t("cityLibyaSearchPlaceholder")}
+                        className={inputClass}
+                        dir="auto"
+                        autoFocus
+                      />
+                      <div className="max-h-40 overflow-y-auto rounded-card border border-line-subtle">
+                        {filteredDexpressStates.length === 0 ? (
+                          <div className="px-3 py-2 text-[12px] text-ink-secondary">
+                            {t("cityLibyaNoResults")}
+                          </div>
+                        ) : (
+                          filteredDexpressStates.map((state) => (
+                            <button
+                              key={state.id}
+                              type="button"
+                              onClick={() => {
+                                setForm((s) => ({
+                                  ...s,
+                                  dexpress_state_id: state.id,
+                                  customer_city: state.name,
+                                  error: null,
+                                }));
+                                setLibyaCityPickerOpen(false);
+                              }}
+                              className="w-full border-b border-line-subtle px-3 py-2 text-start text-[13px] last:border-b-0 text-ink-primary hover:bg-surface-hover"
+                              dir="auto"
+                            >
+                              {state.name}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )
                 ) : (
                   <input
                     type="text"
@@ -536,7 +618,7 @@ export function CreateOrderModal({
               </div>
 
               <div>
-                <FieldLabel>{t("fields.customerAddress")}</FieldLabel>
+                <FieldLabel required>{t("fields.customerAddress")}</FieldLabel>
                 <textarea
                   value={form.customer_address}
                   onChange={(e) => update("customer_address", e.target.value)}

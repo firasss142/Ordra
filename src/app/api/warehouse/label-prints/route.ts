@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
   const { data: orders, error: ordersError } = await supabase
     .from("orders")
     .select(
-      "id, customer_name, customer_phone, customer_city, customer_address, customer_note, product_name, variant_label, quantity, total_price, market_id, markets(code, currency, sender_name, sender_address, sender_phone)"
+      "id, customer_name, customer_phone, customer_city, customer_address, customer_note, product_name, variant_label, quantity, total_price, market_id, tracking_number, markets(code, currency, sender_name, sender_address, sender_phone)"
     )
     .in("id", orderIds)
     .eq("status", "confirmed");
@@ -124,9 +124,16 @@ export async function POST(req: NextRequest) {
   const labels: OrderLabelData[] = await Promise.all(
     orders.map(async (o) => {
       const bl = blByOrder.get(o.id)!;
-      const [qrDataUrl, barcodeDataUrl] = await Promise.all([
+      const trackingNumber: string | null =
+        typeof (o as { tracking_number?: string | null }).tracking_number === "string"
+          ? ((o as { tracking_number: string }).tracking_number)
+          : null;
+      const [qrDataUrl, barcodeDataUrl, trackingBarcodeDataUrl] = await Promise.all([
         QRCode.toDataURL(o.id, { width: 220, margin: 1, errorCorrectionLevel: "M" }),
         code128DataUrl(bl),
+        // Carrier tracking barcode rendered only after the order has been
+        // uploaded — pre-upload prints just skip it.
+        trackingNumber ? code128DataUrl(trackingNumber) : Promise.resolve<string | null>(null),
       ]);
 
       const market = Array.isArray(o.markets) ? o.markets[0] : o.markets;
@@ -164,6 +171,8 @@ export async function POST(req: NextRequest) {
         openPackage: "Non",
         qrDataUrl,
         barcodeDataUrl,
+        trackingNumber,
+        trackingBarcodeDataUrl,
       };
     })
   );

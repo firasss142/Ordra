@@ -138,6 +138,8 @@ export async function POST(req: NextRequest) {
       quantity: body.quantity ?? 1,
       unit_price: unit_price ?? total_price,
       total_price,
+      dexpress_state_id:
+        typeof body.dexpress_state_id === "number" ? body.dexpress_state_id : null,
       assigned_to: isAgent ? actor.id : null,
     })
     .select("id, status, created_at")

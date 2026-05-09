@@ -25,6 +25,7 @@
     "date-fns": "^4.1.0",
     "focus-trap-react": "^12.0.0",
     "html5-qrcode": "^2.3.8",
+    "jsbarcode": "^3.12.3",
     "lucide-react": "^0.474",
     "next": "14.2.29",
     "next-intl": "^3",

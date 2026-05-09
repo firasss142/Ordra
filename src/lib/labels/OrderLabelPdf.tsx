@@ -25,6 +25,10 @@ export interface OrderLabelData {
   openPackage: "Oui" | "Non";
   qrDataUrl: string;
   barcodeDataUrl: string;
+  /** Carrier-assigned reference. Null until the order is uploaded. */
+  trackingNumber: string | null;
+  /** Code-128 PNG of trackingNumber. Null when trackingNumber is null. */
+  trackingBarcodeDataUrl: string | null;
 }
 
 const BORDER = "1pt solid #1A1A1A";
@@ -68,6 +72,30 @@ const styles = StyleSheet.create({
     width: "80%",
     height: "14mm",
     objectFit: "contain",
+  },
+  trackingStrip: {
+    border: BORDER,
+    padding: "2mm 3mm",
+    marginBottom: "2mm",
+    alignItems: "center",
+  },
+  trackingLabel: {
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    textTransform: "uppercase",
+    letterSpacing: "0.5pt",
+    marginBottom: "1mm",
+  },
+  trackingBarcodeImg: {
+    width: "70%",
+    height: "12mm",
+    objectFit: "contain",
+  },
+  trackingNumberText: {
+    fontSize: 10,
+    fontFamily: "Helvetica-Bold",
+    marginTop: "1mm",
+    letterSpacing: "1pt",
   },
   senderBox: {
     border: BORDER,
@@ -191,6 +219,15 @@ const styles = StyleSheet.create({
 function Label({ data }: { data: OrderLabelData }) {
   return (
     <View style={styles.label} wrap={false}>
+      {data.trackingBarcodeDataUrl && data.trackingNumber && (
+        <View style={styles.trackingStrip}>
+          <Text style={styles.trackingLabel}>Référence transporteur</Text>
+          {/* eslint-disable-next-line jsx-a11y/alt-text */}
+          <Image src={data.trackingBarcodeDataUrl} style={styles.trackingBarcodeImg} />
+          <Text style={styles.trackingNumberText}>{data.trackingNumber}</Text>
+        </View>
+      )}
+
       <View style={styles.topBar}>
         <Text style={styles.topBarText}>Date : {data.blDateLabel}</Text>
         <Text style={styles.topBarText}>{data.destinationCity}</Text>
