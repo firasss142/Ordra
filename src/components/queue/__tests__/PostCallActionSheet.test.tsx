@@ -111,12 +111,19 @@ describe("PostCallActionSheet", () => {
     expect(screen.queryByTestId("callback-picker")).toBeNull();
   });
 
-  it("switches to confirm flow when Confirmé is clicked", () => {
+  it("clicking Confirmé fires /confirm immediately (no intermediate sub-screen)", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: true, new_status: "confirmed" }),
+    });
     render(<PostCallActionSheet {...defaultProps} />);
-    fireEvent.click(screen.getByText("Confirmé"));
-    expect(screen.getByText("← Retour")).toBeDefined();
-    // New simplified confirm: shows confirm button, no carrier select
-    expect(screen.queryByTestId("carrier-select")).toBeNull();
+    await act(async () => {
+      fireEvent.click(screen.getByText("Confirmé"));
+    });
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/orders/order-1/confirm",
+      expect.objectContaining({ method: "POST" }),
+    );
   });
 
   it("switches to reject flow when Rejeté is clicked", () => {
@@ -145,20 +152,6 @@ describe("PostCallActionSheet", () => {
     fireEvent.click(screen.getByText("Rappel demandé"));
     const btn = screen.getByText("Planifier le rappel") as HTMLButtonElement;
     expect(btn.disabled).toBe(false);
-  });
-
-  it("confirm flow shows confirmedHint text", () => {
-    render(<PostCallActionSheet {...defaultProps} />);
-    fireEvent.click(screen.getByText("Confirmé"));
-    // The hint text from queue.confirmedHint should be visible
-    expect(screen.getByText("← Retour")).toBeDefined();
-  });
-
-  it("returns to option_select when ← Retour is clicked from confirm flow", () => {
-    render(<PostCallActionSheet {...defaultProps} />);
-    fireEvent.click(screen.getByText("Confirmé"));
-    fireEvent.click(screen.getByText("← Retour"));
-    expect(screen.getByText("Pas de réponse")).toBeDefined();
   });
 
   it("returns to option_select when ← Retour is clicked from reject flow", () => {
@@ -249,87 +242,7 @@ describe("PostCallActionSheet", () => {
   });
 
   describe("CONFIRM flow — direct confirm", () => {
-
-    it("renders both 'Confirmer' and 'Confirmer + planifier livraison' buttons", async () => {
-      render(<PostCallActionSheet {...defaultProps} />);
-      await act(async () => {
-        fireEvent.click(screen.getByText("Confirmé"));
-      });
-      expect(
-        screen.getByRole("button", { name: "Confirmer" }),
-      ).toBeDefined();
-      expect(
-        screen.getByRole("button", { name: "Confirmer + planifier livraison" }),
-      ).toBeDefined();
-    });
-
-    it("submits confirm and calls onSuccess with new_status confirmed", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          new_status: "confirmed",
-        }),
-      });
-
-      render(<PostCallActionSheet {...defaultProps} />);
-      await act(async () => {
-        fireEvent.click(screen.getByText("Confirmé"));
-      });
-      // Click the confirm submit button
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: "Confirmer" }));
-      });
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        "/api/orders/order-1/confirm",
-        expect.objectContaining({ method: "POST" })
-      );
-
-      // Wait past the 1.2s delay before onSuccess is called
-      await new Promise((r) => setTimeout(r, 1300));
-
-      await waitFor(() => {
-        expect(defaultProps.onSuccess).toHaveBeenCalledWith({
-          action: "confirmed",
-          newStatus: "confirmed",
-        });
-      });
-    });
-
-    it("shows error and keeps modal open on confirm failure", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        json: async () => ({
-          error: "Transition not allowed",
-        }),
-      });
-
-      render(<PostCallActionSheet {...defaultProps} />);
-      await act(async () => {
-        fireEvent.click(screen.getByText("Confirmé"));
-      });
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: "Confirmer" }));
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText("Transition not allowed")).toBeDefined();
-      });
-      expect(defaultProps.onSuccess).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("CONFIRM + SCHEDULE flow", () => {
-    it("does not show the schedule-dispatch modal before any button click", async () => {
-      render(<PostCallActionSheet {...defaultProps} />);
-      await act(async () => {
-        fireEvent.click(screen.getByText("Confirmé"));
-      });
-      expect(screen.queryByTestId("schedule-dispatch-modal")).toBeNull();
-    });
-
-    it("clicking 'Confirmer + planifier livraison' calls /confirm then opens the schedule modal", async () => {
+    it("Confirmé fires /confirm and flips to the carrier picker without an intermediate screen", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ success: true, new_status: "confirmed" }),
@@ -339,81 +252,26 @@ describe("PostCallActionSheet", () => {
       await act(async () => {
         fireEvent.click(screen.getByText("Confirmé"));
       });
-      await act(async () => {
-        fireEvent.click(
-          screen.getByRole("button", { name: "Confirmer + planifier livraison" }),
-        );
-      });
+
+      // No more "Confirmer" sub-button or "Confirmer + planifier livraison".
+      expect(
+        screen.queryByRole("button", { name: "Confirmer + planifier livraison" }),
+      ).toBeNull();
 
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/orders/order-1/confirm",
         expect.objectContaining({ method: "POST" }),
       );
+
+      // Sheet flips to the carrier picker; onSuccess fires only after the
+      // agent picks an action there.
       await waitFor(() => {
-        expect(screen.getByTestId("schedule-dispatch-modal")).toBeDefined();
+        expect(screen.getByText("Choisir le transporteur")).toBeDefined();
       });
-      // onSuccess is NOT called yet — we wait for the schedule step.
       expect(defaultProps.onSuccess).not.toHaveBeenCalled();
     });
 
-    it("schedule modal Submit calls onSuccess with newStatus=dispatch_scheduled", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, new_status: "confirmed" }),
-      });
-
-      render(<PostCallActionSheet {...defaultProps} />);
-      await act(async () => {
-        fireEvent.click(screen.getByText("Confirmé"));
-      });
-      await act(async () => {
-        fireEvent.click(
-          screen.getByRole("button", { name: "Confirmer + planifier livraison" }),
-        );
-      });
-      await waitFor(() => {
-        expect(screen.getByTestId("schedule-dispatch-modal")).toBeDefined();
-      });
-      await act(async () => {
-        fireEvent.click(screen.getByText("Submit schedule"));
-      });
-
-      expect(defaultProps.onSuccess).toHaveBeenCalledWith({
-        action: "confirmed",
-        newStatus: "dispatch_scheduled",
-      });
-    });
-
-    it("schedule modal Cancel still closes the sheet (order remains confirmed)", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, new_status: "confirmed" }),
-      });
-
-      render(<PostCallActionSheet {...defaultProps} />);
-      await act(async () => {
-        fireEvent.click(screen.getByText("Confirmé"));
-      });
-      await act(async () => {
-        fireEvent.click(
-          screen.getByRole("button", { name: "Confirmer + planifier livraison" }),
-        );
-      });
-      await waitFor(() => {
-        expect(screen.getByTestId("schedule-dispatch-modal")).toBeDefined();
-      });
-      await act(async () => {
-        fireEvent.click(screen.getByText("Cancel schedule"));
-      });
-
-      // Confirm already happened; cancel just finalises with newStatus=confirmed.
-      expect(defaultProps.onSuccess).toHaveBeenCalledWith({
-        action: "confirmed",
-        newStatus: "confirmed",
-      });
-    });
-
-    it("does NOT open the schedule modal when the /confirm call fails", async () => {
+    it("shows error and keeps modal open on confirm failure", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         json: async () => ({ error: "Transition not allowed" }),
@@ -423,17 +281,39 @@ describe("PostCallActionSheet", () => {
       await act(async () => {
         fireEvent.click(screen.getByText("Confirmé"));
       });
-      await act(async () => {
-        fireEvent.click(
-          screen.getByRole("button", { name: "Confirmer + planifier livraison" }),
-        );
-      });
 
       await waitFor(() => {
         expect(screen.getByText("Transition not allowed")).toBeDefined();
       });
-      expect(screen.queryByTestId("schedule-dispatch-modal")).toBeNull();
       expect(defaultProps.onSuccess).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("UPLOAD AFTER CONFIRM flow", () => {
+    it("'Plus tard' closes the sheet with newStatus=confirmed (skip upload)", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, new_status: "confirmed" }),
+      });
+
+      render(<PostCallActionSheet {...defaultProps} />);
+      await act(async () => {
+        fireEvent.click(screen.getByText("Confirmé"));
+      });
+
+      // After /confirm fires, the carrier picker step shows "Plus tard".
+      await waitFor(() => {
+        expect(screen.getByText("Plus tard")).toBeDefined();
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByText("Plus tard"));
+      });
+
+      expect(defaultProps.onSuccess).toHaveBeenCalledWith({
+        action: "confirmed",
+        newStatus: "confirmed",
+      });
     });
   });
 

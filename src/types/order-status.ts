@@ -81,7 +81,19 @@ const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   attempt_2: ["attempt_3", "callback_scheduled", "confirmed", "rejected", "deleted"],
   attempt_3: ["callback_scheduled", "confirmed", "rejected", "deleted"],
   callback_scheduled: ["attempt_1", "attempt_2", "attempt_3", "confirmed", "rejected", "deleted"],
-  confirmed: ["uploaded", "dispatch_scheduled", "deleted"],
+  // Confirmed orders can be backtracked to attempts / callback / rejected
+  // (e.g. agent confirmed by mistake, customer recanted). Stays in lockstep
+  // with the DB function — see migration 20260620000002.
+  confirmed: [
+    "attempt_1",
+    "attempt_2",
+    "attempt_3",
+    "callback_scheduled",
+    "rejected",
+    "uploaded",
+    "dispatch_scheduled",
+    "deleted",
+  ],
   dispatch_scheduled: ["uploaded", "deleted"],
   uploaded: ["scanned", "deleted"],
   scanned: ["dispatched", "deleted"],

@@ -693,6 +693,27 @@ export function OrderDetailPanel({
                   {ts(order.status as Parameters<typeof ts>[0])}
                 </Badge>
               )}
+              {order?.status === "confirmed" &&
+                (role === "super_admin" ||
+                  role === "market_manager" ||
+                  ((role === "agent" || role === undefined) &&
+                    userId !== undefined &&
+                    order.assigned_to === userId)) && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onCallTerminated(orderId!, {
+                        orderId: orderId!,
+                        status: order.status,
+                        marketId: order.market_id,
+                        attemptsCount: order.attempts_count ?? 0,
+                      })
+                    }
+                    className="text-[11px] font-medium text-ink-secondary hover:text-ink-primary underline-offset-2 hover:underline"
+                  >
+                    {t("changeStatus")}
+                  </button>
+                )}
               {order?.carrier_barcode_deleted_at && !order.tracking_number && (
                 <span
                   className="inline-flex items-center gap-1 h-[22px] px-2 rounded-card border border-line-subtle bg-surface-page text-[11px] font-medium text-ink-secondary"
