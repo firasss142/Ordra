@@ -124,9 +124,21 @@ export class DexpressAdapter implements CarrierAdapter {
   }
 
   async voidDispatch(
-    _trackingNumber: string,
-    _config: CarrierConfig
+    trackingNumber: string,
+    config: CarrierConfig
   ): Promise<CarrierVoidResult> {
-    return { success: false, supported: false };
+    const client = new DexpressClient(config.id, config);
+    try {
+      const result = await client.deleteOrder(trackingNumber);
+      return result.ok
+        ? { success: true, supported: true }
+        : { success: false, supported: true, reason: result.reason };
+    } catch (err) {
+      return {
+        success: false,
+        supported: true,
+        reason: err instanceof Error ? err.message : "unknown",
+      };
+    }
   }
 }

@@ -217,7 +217,7 @@ export async function PATCH(
     updates.variant_label = variant.label;
   }
 
-  // City swap
+  // City swap (Tunisia path — cities table)
   if ("city_id" in body && body.city_id !== undefined) {
     const { data: city, error: cityError } = await supabase
       .from("cities")
@@ -236,6 +236,35 @@ export async function PATCH(
     updates.customer_city = city.name; // keep text snapshot for back-compat
   }
 
+  // Dexpress state swap (Libya path — dexpress_states table). Writes both the
+  // numeric reference (used by dispatch) and the name snapshot (used by UI).
+  // Clears city_id so the order doesn't carry both systems' values.
+  if ("dexpress_state_id" in body && body.dexpress_state_id !== undefined) {
+    const stateId = body.dexpress_state_id;
+    if (stateId === null) {
+      updates.dexpress_state_id = null;
+    } else if (typeof stateId !== "number" || !Number.isInteger(stateId)) {
+      return NextResponse.json(
+        { error: "dexpress_state_id must be an integer" },
+        { status: 400 },
+      );
+    } else {
+      const { data: state, error: stateError } = await supabase
+        .from("dexpress_states")
+        .select("id, name")
+        .eq("id", stateId)
+        .single();
+
+      if (stateError || !state) {
+        return NextResponse.json({ error: "Destination not found" }, { status: 404 });
+      }
+
+      updates.dexpress_state_id = state.id;
+      updates.customer_city = state.name;
+      updates.city_id = null;
+    }
+  }
+
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "No editable fields provided" }, { status: 400 });
   }
@@ -249,6 +278,7 @@ export async function PATCH(
       if (k === "product_id") acc["product"] = updates.product_name;
       else if (k === "variant_id") acc["variant"] = updates.variant_label;
       else if (k === "city_id") acc["city"] = updates.customer_city;
+      else if (k === "dexpress_state_id") acc["city"] = updates.customer_city;
       else acc[k] = updates[k];
       return acc;
     }, {}),

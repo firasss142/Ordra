@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import type { BadgeTone } from "@/components/ui/Badge";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
@@ -49,6 +49,7 @@ interface Props {
     actions: string;
     callbackOverdue: string;
     priorRejected: string;
+    carrierBarcodeDeleted: string;
   };
   onToggleSelect: (id: string) => void;
   onOpen: (id: string) => void;
@@ -247,6 +248,15 @@ function Row({
       <td className="whitespace-nowrap px-4 py-2 align-middle">
         <span className="inline-flex items-center">
           <Badge tone={statusTone}>{labels.status}</Badge>
+          {order.carrier_barcode_deleted_at && (
+            <span
+              className="ms-1.5 inline-flex items-center gap-1 h-[20px] px-1.5 rounded-card border border-line-subtle bg-surface-page text-[10.5px] font-medium text-ink-secondary"
+              title={labels.carrierBarcodeDeleted}
+            >
+              <RotateCcw size={9} strokeWidth={2} aria-hidden="true" />
+              {labels.carrierBarcodeDeleted}
+            </span>
+          )}
           {callbackOverdue && (
             <span className="ms-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-status-critical">
               <span

@@ -27,6 +27,11 @@ const DexpressDispatchModal = dynamic(
   { ssr: false },
 );
 
+const TrackingBarcode = dynamic(
+  () => import("@/components/orders/TrackingBarcode").then((m) => m.TrackingBarcode),
+  { ssr: false },
+);
+
 interface HistoryEntry {
   id: string;
   from_status: string | null;
@@ -64,6 +69,7 @@ interface OrderDetail {
   variant_id: string | null;
   variant_label: string | null;
   city_id: string | null;
+  dexpress_state_id: number | null;
   quantity: number;
   unit_price: number;
   total_price: number;
@@ -75,6 +81,9 @@ interface OrderDetail {
   attempts_count?: number | null;
   updated_at: string;
   tracking_number: string | null;
+  carrier_id: string | null;
+  carrier_barcode_deleted_at: string | null;
+  carrier_barcode_deleted_carrier_code: string | null;
   callback_scheduled_at: string | null;
   scheduled_dispatch_at: string | null;
   scheduled_dispatch_auto: boolean | null;
@@ -284,6 +293,15 @@ export function OrderDetailPanel({
     | null
   >(null);
 
+  // Feedback for carrier-barcode deletion (independent from uploadFeedback so
+  // a delete-success doesn't get confused with an upload-success toast).
+  const [deleteFeedback, setDeleteFeedback] = useState<
+    | { kind: "success" }
+    | { kind: "warning"; message: string }
+    | { kind: "error"; message: string }
+    | null
+  >(null);
+
   const nameFieldRef = useRef<HTMLDivElement>(null);
 
   const { commit } = useOrderMutation(orderId ?? "__none__");
@@ -347,6 +365,32 @@ export function OrderDetailPanel({
     },
     [cityOptions],
   );
+
+  // Libya orders use the carrier (Dexpress) state list — same one shown at
+  // dispatch time. Fetched only when editing a Libya order.
+  const isLibyaOrder = order?.market_id === LY_MARKET_ID;
+  const { data: dexpressStatesData } = useSWR<{
+    states: Array<{ id: number; name: string }>;
+  }>(
+    canEdit && isLibyaOrder ? "/api/dexpress/states" : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 5 * 60 * 1000 },
+  );
+  const dexpressStates = dexpressStatesData?.states ?? [];
+
+  const [libyaCityPickerOpen, setLibyaCityPickerOpen] = useState(false);
+  const [libyaCityQuery, setLibyaCityQuery] = useState("");
+  const filteredDexpressStates = useMemo(() => {
+    const q = libyaCityQuery.trim();
+    if (!q) return dexpressStates;
+    return dexpressStates.filter((s) => s.name.includes(q));
+  }, [dexpressStates, libyaCityQuery]);
+
+  // Reset Libya picker state when switching orders.
+  useEffect(() => {
+    setLibyaCityPickerOpen(false);
+    setLibyaCityQuery("");
+  }, [order?.id]);
 
   const runCommit = useCallback(
     async (updates: Record<string, unknown>) => {
@@ -564,6 +608,53 @@ export function OrderDetailPanel({
     }
   }
 
+  // Carrier-barcode deletion: trash icon on the TrackingBarcode component.
+  // Only available for uploaded orders with a tracking number, and only to
+  // the assigned agent / market manager / super_admin.
+  const canDeleteCarrierBarcode =
+    order !== null &&
+    order.status === "uploaded" &&
+    Boolean(order.tracking_number) &&
+    Boolean(order.carrier_id) &&
+    (role === "super_admin" ||
+      role === "market_manager" ||
+      ((role === "agent" || role === undefined) &&
+        userId !== undefined &&
+        order.assigned_to === userId));
+
+  async function handleDeleteCarrierBarcode(): Promise<void> {
+    if (!orderId) return;
+    setDeleteFeedback(null);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/carrier-delete`, {
+        method: "POST",
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        data?: { void_outcome?: string };
+        warning?: string;
+        error?: string;
+      };
+      if (!res.ok) {
+        setDeleteFeedback({
+          kind: "error",
+          message: json.error ?? `HTTP ${res.status}`,
+        });
+        return;
+      }
+      setDeleteFeedback(
+        json.warning
+          ? { kind: "warning", message: json.warning }
+          : { kind: "success" },
+      );
+      await mutate();
+    } catch (err) {
+      setDeleteFeedback({
+        kind: "error",
+        message: err instanceof Error ? err.message : "Network error",
+      });
+    }
+  }
+
   async function handleCancelSchedule() {
     if (!orderId) return;
     setCancelingSchedule(true);
@@ -602,6 +693,43 @@ export function OrderDetailPanel({
                   {ts(order.status as Parameters<typeof ts>[0])}
                 </Badge>
               )}
+              {order?.status === "confirmed" &&
+                (role === "super_admin" ||
+                  role === "market_manager" ||
+                  ((role === "agent" || role === undefined) &&
+                    userId !== undefined &&
+                    order.assigned_to === userId)) && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onCallTerminated(orderId!, {
+                        orderId: orderId!,
+                        status: order.status,
+                        marketId: order.market_id,
+                        attemptsCount: order.attempts_count ?? 0,
+                      })
+                    }
+                    className="text-[11px] font-medium text-ink-secondary hover:text-ink-primary underline-offset-2 hover:underline"
+                  >
+                    {t("changeStatus")}
+                  </button>
+                )}
+              {order?.carrier_barcode_deleted_at && !order.tracking_number && (
+                <span
+                  className="inline-flex items-center gap-1 h-[22px] px-2 rounded-card border border-line-subtle bg-surface-page text-[11px] font-medium text-ink-secondary"
+                  title={t("carrierBarcodeDeletedTooltip", {
+                    date: new Date(
+                      order.carrier_barcode_deleted_at,
+                    ).toLocaleDateString(locale === "ar" ? "ar" : "fr"),
+                  })}
+                >
+                  <RotateCcw size={10} strokeWidth={2} aria-hidden="true" />
+                  {t("carrierBarcodeDeletedBadge", {
+                    carrier:
+                      order.carrier_barcode_deleted_carrier_code ?? "carrier",
+                  })}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {saveFlash === "saved" && (
@@ -638,6 +766,33 @@ export function OrderDetailPanel({
 
           {order && (
             <>
+              {/* ── Tracking barcode (only after carrier upload) ── */}
+              {deleteFeedback && (
+                <div
+                  role={deleteFeedback.kind === "success" ? "status" : "alert"}
+                  className={[
+                    "px-4 py-2 text-[12px] border-b border-line-subtle",
+                    deleteFeedback.kind === "success"
+                      ? "bg-status-successBg text-status-success"
+                      : deleteFeedback.kind === "warning"
+                        ? "bg-status-warningBg text-status-warning"
+                        : "bg-status-criticalBg text-status-critical",
+                  ].join(" ")}
+                >
+                  {deleteFeedback.kind === "success"
+                    ? t("deleteBarcodeSuccess")
+                    : deleteFeedback.message}
+                </div>
+              )}
+              <TrackingBarcode
+                value={order.tracking_number}
+                onDelete={
+                  canDeleteCarrierBarcode
+                    ? handleDeleteCarrierBarcode
+                    : undefined
+                }
+              />
+
               {/* ── Customer summary ── */}
               <div className="px-4 pt-4 pb-4 bg-surface-card border-b border-line-subtle">
                 {/* Name */}
@@ -800,16 +955,77 @@ export function OrderDetailPanel({
                     />
                   </FieldRow>
                   <FieldRow label={t("fieldCity")}>
-                    <Combobox
-                      value={order.customer_city ?? ""}
-                      options={[]}
-                      loadOptions={loadCities}
-                      onCommit={(id) => runCommit({ city_id: id })}
-                      placeholder={t("pickCity")}
-                      displayMode
-                      readOnly={!canEdit}
-                      displayClassName="text-[13px]"
-                    />
+                    {isLibyaOrder ? (
+                      !canEdit ? (
+                        <span className="text-[13px] text-ink-primary" dir="auto">
+                          {order.customer_city ?? "—"}
+                        </span>
+                      ) : !libyaCityPickerOpen ? (
+                        <div className="flex items-center justify-between gap-2 w-full">
+                          <span
+                            className="truncate text-[13px] text-ink-primary"
+                            dir="auto"
+                          >
+                            {order.customer_city ?? "—"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLibyaCityQuery("");
+                              setLibyaCityPickerOpen(true);
+                            }}
+                            className="flex-shrink-0 text-[12px] font-medium text-ink-secondary hover:text-ink-primary underline-offset-2 hover:underline"
+                          >
+                            {t("cityChange")}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2 w-full">
+                          <input
+                            type="text"
+                            value={libyaCityQuery}
+                            onChange={(e) => setLibyaCityQuery(e.target.value)}
+                            placeholder={t("citySearch")}
+                            className="w-full h-9 px-3 text-[13px] rounded-card border border-line-subtle bg-surface-card text-ink-primary placeholder:text-ink-muted focus:outline-none focus:border-ink-primary"
+                            dir="auto"
+                            autoFocus
+                          />
+                          <div className="max-h-40 overflow-y-auto rounded-card border border-line-subtle">
+                            {filteredDexpressStates.length === 0 ? (
+                              <div className="px-3 py-2 text-[12px] text-ink-secondary">
+                                {t("cityNoResults")}
+                              </div>
+                            ) : (
+                              filteredDexpressStates.map((state) => (
+                                <button
+                                  key={state.id}
+                                  type="button"
+                                  onClick={() => {
+                                    runCommit({ dexpress_state_id: state.id });
+                                    setLibyaCityPickerOpen(false);
+                                  }}
+                                  className="w-full border-b border-line-subtle px-3 py-2 text-start text-[13px] last:border-b-0 text-ink-primary hover:bg-surface-hover"
+                                  dir="auto"
+                                >
+                                  {state.name}
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )
+                    ) : (
+                      <Combobox
+                        value={order.customer_city ?? ""}
+                        options={[]}
+                        loadOptions={loadCities}
+                        onCommit={(id) => runCommit({ city_id: id })}
+                        placeholder={t("pickCity")}
+                        displayMode
+                        readOnly={!canEdit}
+                        displayClassName="text-[13px]"
+                      />
+                    )}
                   </FieldRow>
                 </SectionCard>
 
@@ -1383,6 +1599,8 @@ export function OrderDetailPanel({
           orderTotal={order.total_price}
           market={order.market_id === LY_MARKET_ID ? "LY" : "TN"}
           customerAddress={order.customer_address}
+          presetStateId={order.dexpress_state_id}
+          presetStateName={order.customer_city}
           onClose={() => setDexpressModalOpen(false)}
           onSuccess={(trackingNumber) => {
             setDexpressModalOpen(false);

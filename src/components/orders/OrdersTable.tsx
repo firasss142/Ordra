@@ -153,6 +153,7 @@ export function OrdersTable({
                   priorRejected: t("priorRejected", {
                     count: r.prior_rejected_count ?? 0,
                   }),
+                  carrierBarcodeDeleted: t("carrierBarcodeDeleted"),
                 }}
                 onToggleSelect={onToggleSelect}
                 onOpen={onOpen}

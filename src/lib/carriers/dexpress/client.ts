@@ -69,6 +69,64 @@ export class DexpressClient {
     });
   }
 
+  /**
+   * Delete an order from the Dexpress merchant dashboard.
+   *
+   * The endpoint is silent — Dexpress returns 200 + empty body for any
+   * input (valid IDs, deleted IDs, non-existent IDs, or other merchants').
+   * The only real failure signal is a 302 → /login indicating an expired
+   * session. Therefore this method must only be called with tracking
+   * numbers we ourselves obtained from a successful dispatch and stored
+   * in our own DB.
+   *
+   * TODO: if Dexpress ever adds CSRF or moves from GET to POST, this
+   * method will silently return ok:true while doing nothing. The
+   * carrier_event_log row written by the caller is the canary.
+   */
+  async deleteOrder(
+    trackingNumber: string,
+  ): Promise<{ ok: boolean; reason?: string }> {
+    return this.requestWithRetry<{ ok: boolean; reason?: string }>(async (session) => {
+      const response = await this.fetchWithCookie(
+        `/merchant/delete-order/${encodeURIComponent(trackingNumber)}`,
+        session,
+        {
+          method: "GET",
+          headers: {
+            "X-Requested-With": "XMLHttpRequest",
+            Referer: `${this.config.apiEndpoint.replace(/\/$/, "")}/merchant/pending-orders`,
+            Accept: "*/*",
+          },
+        },
+      );
+
+      const location = response.headers.get("location");
+      if (
+        response.status >= 300 &&
+        response.status < 400 &&
+        isLogoutRedirect(location)
+      ) {
+        return { kind: "logout" };
+      }
+
+      if (response.status === 200) {
+        const body = (await response.text()).trim();
+        if (body === "") {
+          return { kind: "ok", result: { ok: true } };
+        }
+        return {
+          kind: "ok",
+          result: { ok: false, reason: "unexpected_200_body" },
+        };
+      }
+
+      return {
+        kind: "ok",
+        result: { ok: false, reason: `unexpected_status:${response.status}` },
+      };
+    });
+  }
+
   async submitMerchantForm(
     path: string,
     fields: Record<string, string>

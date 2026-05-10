@@ -20,6 +20,12 @@ interface DexpressDispatchModalProps {
   market: "LY" | "TN";
   /** Required by Dexpress. If empty/null, dispatch is blocked. */
   customerAddress: string | null;
+  /**
+   * Dexpress destination chosen at order-creation time. When set, the picker
+   * is skipped and the agent only confirms the price summary.
+   */
+  presetStateId?: number | null;
+  presetStateName?: string | null;
   onClose: () => void;
   onSuccess: (trackingNumber: string | null) => void;
 }
@@ -41,14 +47,21 @@ export function DexpressDispatchModal({
   orderTotal,
   market,
   customerAddress,
+  presetStateId,
+  presetStateName,
   onClose,
   onSuccess,
 }: DexpressDispatchModalProps) {
   const t = useTranslations("dispatch.shippingEyes");
   const hasAddress = Boolean(customerAddress && customerAddress.trim());
+  const hasPreset = typeof presetStateId === "number" && presetStateId > 0;
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const [selection, setSelection] = useState<DexpressSelection>(initialSelection);
+  const [selection, setSelection] = useState<DexpressSelection>(
+    hasPreset
+      ? { stateId: presetStateId ?? null, stateName: presetStateName ?? "" }
+      : initialSelection,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -180,7 +193,21 @@ export function DexpressDispatchModal({
               </div>
             )}
 
-            <DexpressLocationPicker value={selection} onChange={setSelection} />
+            {hasPreset ? (
+              <div className="rounded-card border border-line-subtle bg-surface-card px-4 py-3">
+                <div className="text-[12px] uppercase tracking-[0.06em] text-ink-secondary">
+                  {t("destinationLabel")}
+                </div>
+                <div
+                  className="mt-1 text-[14px] font-medium text-ink-primary"
+                  dir="auto"
+                >
+                  {presetStateName?.trim() || t("destinationFromOrder")}
+                </div>
+              </div>
+            ) : (
+              <DexpressLocationPicker value={selection} onChange={setSelection} />
+            )}
 
             {/* Static price summary — Dexpress has no live pricing. */}
             <div className="mt-4 rounded-card border border-line-subtle bg-surface-card px-4 py-3">

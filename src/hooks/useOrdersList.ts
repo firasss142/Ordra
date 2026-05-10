@@ -23,6 +23,8 @@ export interface OrdersListRow {
   assigned_to: string | null;
   carrier_id: string | null;
   rejection_reason: string | null;
+  carrier_barcode_deleted_at: string | null;
+  carrier_barcode_deleted_carrier_code: string | null;
   callback_scheduled_at: string | null;
   created_at: string;
   updated_at: string;

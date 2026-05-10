@@ -33,7 +33,6 @@ const CreateOrderModal = dynamic(() =>
 
 type Flow =
   | "option_select"
-  | "confirm_flow"
   | "reject_flow"
   | "callback_expanded";
 
@@ -297,7 +296,10 @@ export function QueuePage() {
     // Post-call sheet shortcuts (1/2/3/4)
     if (s.callTerminatedOrderId) {
       if (e.key === "1") { e.preventDefault(); setInitialFlow("option_select"); return; }
-      if (e.key === "2") { e.preventDefault(); setInitialFlow("confirm_flow"); return; }
+      // "2" used to land on a separate confirm sub-screen; that screen was
+      // collapsed into the main option_select when we made "Confirmé" fire
+      // /confirm directly. The shortcut now just opens the same screen.
+      if (e.key === "2") { e.preventDefault(); setInitialFlow("option_select"); return; }
       if (e.key === "3") { e.preventDefault(); setInitialFlow("reject_flow"); return; }
       if (e.key === "4") { e.preventDefault(); setInitialFlow("callback_expanded"); return; }
       return;
@@ -349,10 +351,30 @@ export function QueuePage() {
 
   const maxAttempts: number = (settingsData?.max_call_attempts as number) ?? 3;
 
-  const handleCallTerminated = useCallback((id: string) => {
-    setInitialFlow(undefined);
-    setCallTerminatedOrderId(id);
-  }, []);
+  // Snapshot of the order shown by the action sheet. We keep our own copy so
+  // the sheet keeps rendering even after the queue list updates and the
+  // order falls out of the visible bucket (e.g. after /confirm flips status
+  // pending → confirmed and the agent is on the "nouveau" tab).
+  const [activeOrderSnapshot, setActiveOrderSnapshot] =
+    useState<QueueOrder | null>(null);
+
+  const handleCallTerminated = useCallback(
+    (id: string) => {
+      setInitialFlow(undefined);
+      setCallTerminatedOrderId(id);
+      // Try to populate the snapshot from the live list. This runs in the
+      // same tick as setCallTerminatedOrderId, so by the time the sheet
+      // mounts, both pieces of state are set.
+      const fromAll =
+        rawAllOrders.find((o) => o.id === id) ??
+        rawClosedOrders.find((o) => o.id === id) ??
+        null;
+      if (fromAll) {
+        setActiveOrderSnapshot(toQueueOrder(fromAll));
+      }
+    },
+    [rawAllOrders, rawClosedOrders],
+  );
 
   const handleRefresh = useCallback(() => mutate(), [mutate]);
 
@@ -395,8 +417,17 @@ export function QueuePage() {
     );
   }
 
-  const activeOrder = callTerminatedOrderId
-    ? orders.find((o) => o.id === callTerminatedOrderId) ?? null
+  // Look up the live order in the unfiltered list first (so we always have
+  // the freshest data while the sheet is open), but fall back to the
+  // snapshot taken when the sheet opened — that way the sheet doesn't
+  // unmount mid-flow when the order's status flips out of the visible bucket.
+  const activeOrder: QueueOrder | null = callTerminatedOrderId
+    ? (() => {
+        const live =
+          rawAllOrders.find((o) => o.id === callTerminatedOrderId) ??
+          rawClosedOrders.find((o) => o.id === callTerminatedOrderId);
+        return live ? toQueueOrder(live) : activeOrderSnapshot;
+      })()
     : null;
 
   return (
@@ -481,11 +512,13 @@ export function QueuePage() {
           initialFlow={initialFlow}
           onClose={() => {
             setCallTerminatedOrderId(null);
+            setActiveOrderSnapshot(null);
             setInitialFlow(undefined);
           }}
           onSuccess={(result) => {
             mutate();
             setCallTerminatedOrderId(null);
+            setActiveOrderSnapshot(null);
             setInitialFlow(undefined);
             if (result.autoRejected) setAutoRejectedBanner(true);
             // Continue bulk queue

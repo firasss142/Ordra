@@ -16,6 +16,7 @@ const LIST_SELECT =
   "customer_address, customer_city, " +
   "product_id, product_name, variant_label, quantity, total_price, status, " +
   "assigned_to, carrier_id, rejection_reason, callback_scheduled_at, " +
+  "carrier_barcode_deleted_at, carrier_barcode_deleted_carrier_code, " +
   "created_at, updated_at, " +
   "product:products(image_url)";
 
