@@ -10,6 +10,7 @@ import {
   Archive,
   ListTodo,
   ChevronDown,
+  Plus,
   type LucideIcon,
 } from "lucide-react";
 import type { AgentQueueBuckets } from "@/hooks/useAgentQueue";
@@ -321,25 +322,39 @@ export function QueueHeader({
         </div>
       </div>
 
-      {/* Bucket segmented control — single rounded container,
-          each tab lights up in its lifecycle tone when selected. */}
-      <div className="overflow-x-auto -mx-1 px-1 custom-scrollbar">
-        <div
-          role="tablist"
-          aria-label={t("title")}
-          className="inline-flex items-center gap-1 p-1 bg-agent-surface rounded-2xl border border-agent-outline-variant shadow-[0_1px_2px_rgba(16,24,40,0.02)]"
-        >
-          {TABS.map((tab) => (
-            <TabButton
-              key={tab.key}
-              tab={tab}
-              label={t(`buckets.${tab.labelKey}`)}
-              count={bucketCount[tab.key]}
-              active={selectedBucket === tab.key}
-              onClick={() => onBucketChange(tab.key)}
-            />
-          ))}
+      {/* Bucket segmented control + primary "New Order" CTA on the row's
+          trailing edge (which is the left side in RTL Arabic, right in LTR).
+          Each tab lights up in its lifecycle tone when selected. */}
+      <div className="flex items-center gap-4">
+        <div className="overflow-x-auto min-w-0 -mx-1 px-1 custom-scrollbar">
+          <div
+            role="tablist"
+            aria-label={t("title")}
+            className="inline-flex items-center gap-1 p-1 bg-agent-surface rounded-2xl border border-agent-outline-variant shadow-[0_1px_2px_rgba(16,24,40,0.02)]"
+          >
+            {TABS.map((tab) => (
+              <TabButton
+                key={tab.key}
+                tab={tab}
+                label={t(`buckets.${tab.labelKey}`)}
+                count={bucketCount[tab.key]}
+                active={selectedBucket === tab.key}
+                onClick={() => onBucketChange(tab.key)}
+              />
+            ))}
+          </div>
         </div>
+
+        {onNewOrder && (
+          <button
+            type="button"
+            onClick={onNewOrder}
+            className="ms-auto shrink-0 inline-flex items-center gap-1.5 h-10 px-5 rounded-pill bg-agent-primary text-white text-[13.5px] font-bold hover:bg-agent-on-primary-container transition-colors duration-fast"
+          >
+            <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
+            <span>{tShell("newOrder")}</span>
+          </button>
+        )}
       </div>
 
       {/* Sub-filter chips — En cours. Visually subordinate to the segmented control above:
