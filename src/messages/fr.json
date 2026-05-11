@@ -1238,6 +1238,22 @@
       "dispatchAt": "Livraison {time}",
       "dispatchAtAuto": "Livraison auto {time}",
       "dispatchOverdue": "Livraison en retard"
+    },
+    "productsLabel": "Produits",
+    "agentShell": {
+      "liveQueueTitle": "File de commandes en direct",
+      "liveQueueSubtitle": "Mise à jour en temps réel à chaque action",
+      "liveQueueSubtitleWithName": "{name} — mise à jour en temps réel",
+      "onlineNow": "En ligne",
+      "primaryNav": "Navigation principale",
+      "navDashboard": "Tableau de bord",
+      "navQueue": "File d’attente",
+      "navInventory": "Inventaire",
+      "navReports": "Rapports",
+      "navSettings": "Paramètres",
+      "comingSoon": "Bientôt",
+      "signOut": "Déconnexion",
+      "filterLabel": "Filtrer"
     }
   },
   "products": {

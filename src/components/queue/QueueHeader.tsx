@@ -12,7 +12,6 @@ import {
   ChevronDown,
   type LucideIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 import type { AgentQueueBuckets } from "@/hooks/useAgentQueue";
 
 export interface AgentStats {
@@ -47,14 +46,56 @@ interface TabDef {
   key: BucketKey;
   icon: LucideIcon;
   labelKey: "new" | "inProgress" | "confirmed" | "closed";
+  /** Visual tone reflecting the lifecycle phase — active state colors */
+  tone: "neutral" | "warning" | "success" | "archive";
 }
 
 const TABS: TabDef[] = [
-  { key: "nouveau", icon: Inbox, labelKey: "new" },
-  { key: "en_cours", icon: ListTodo, labelKey: "inProgress" },
-  { key: "confirme", icon: CheckCircle, labelKey: "confirmed" },
-  { key: "fermees", icon: Archive, labelKey: "closed" },
+  { key: "nouveau", icon: Inbox, labelKey: "new", tone: "neutral" },
+  { key: "en_cours", icon: ListTodo, labelKey: "inProgress", tone: "warning" },
+  { key: "confirme", icon: CheckCircle, labelKey: "confirmed", tone: "success" },
+  { key: "fermees", icon: Archive, labelKey: "closed", tone: "archive" },
 ];
+
+// Active-state token sets per tone. Each tab "lights up" in its lifecycle color
+// only when selected — keeps the segmented control quiet until acted on.
+const TAB_TONE: Record<
+  TabDef["tone"],
+  { activeBg: string; activeText: string; activeBorder: string; chipBg: string; chipText: string; iconActive: string }
+> = {
+  neutral: {
+    activeBg: "bg-[#EEF2F7]",
+    activeText: "text-[#1E3A5F]",
+    activeBorder: "border-[#C7D2E0]",
+    chipBg: "bg-[#1E3A5F]",
+    chipText: "text-white",
+    iconActive: "text-[#1E3A5F]",
+  },
+  warning: {
+    activeBg: "bg-[#FEF4E2]",
+    activeText: "text-[#8A5A00]",
+    activeBorder: "border-[#F0C97D]",
+    chipBg: "bg-[#B07A00]",
+    chipText: "text-white",
+    iconActive: "text-[#8A5A00]",
+  },
+  success: {
+    activeBg: "bg-agent-primary/12",
+    activeText: "text-agent-on-primary-container",
+    activeBorder: "border-agent-primary/30",
+    chipBg: "bg-agent-primary",
+    chipText: "text-white",
+    iconActive: "text-agent-primary",
+  },
+  archive: {
+    activeBg: "bg-agent-surface-high",
+    activeText: "text-agent-on-surface",
+    activeBorder: "border-agent-outline",
+    chipBg: "bg-agent-on-surface-variant",
+    chipText: "text-white",
+    iconActive: "text-agent-on-surface",
+  },
+};
 
 function TabButton({
   tab,
@@ -70,6 +111,7 @@ function TabButton({
   onClick: () => void;
 }) {
   const Icon = tab.icon;
+  const tone = TAB_TONE[tab.tone];
   return (
     <button
       type="button"
@@ -77,22 +119,24 @@ function TabButton({
       aria-selected={active}
       onClick={onClick}
       className={[
-        "group inline-flex items-center gap-2 py-2.5 px-1 me-5",
-        "text-[13px] transition-colors duration-fast",
-        "border-b-2 -mb-px",
+        "group relative inline-flex items-center gap-2 py-2 px-4 rounded-xl",
+        "text-[13.5px] font-semibold transition-all duration-fast",
         active
-          ? "font-semibold text-ink-primary border-accent"
-          : "font-medium text-ink-secondary border-transparent hover:text-ink-primary",
+          ? `${tone.activeBg} ${tone.activeText} shadow-[0_1px_2px_rgba(16,24,40,0.04)] border ${tone.activeBorder}`
+          : "text-agent-on-surface-variant hover:text-agent-on-surface hover:bg-agent-surface-low/60 border border-transparent",
       ].join(" ")}
     >
-      <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
+      <Icon
+        size={15}
+        strokeWidth={active ? 2.5 : 2}
+        aria-hidden="true"
+        className={active ? tone.iconActive : "text-agent-on-surface-variant/70"}
+      />
       <span>{label}</span>
       <span
         className={[
-          "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-pill tabular-nums text-[11px] font-medium",
-          active
-            ? "bg-ink-primary text-white"
-            : "bg-surface-page border border-line-subtle text-ink-secondary",
+          "inline-flex items-center justify-center min-w-[20px] h-[18px] px-1.5 rounded-pill tabular-nums text-[11px] font-bold",
+          active ? `${tone.chipBg} ${tone.chipText}` : "bg-agent-surface-high text-agent-on-surface-variant/80",
         ].join(" ")}
       >
         {count}
@@ -134,10 +178,10 @@ function SubChip({
       onClick={onClick}
       className={[
         "inline-flex items-center gap-1.5 py-1 px-2.5 rounded-pill",
-        "text-[12px] font-medium transition-colors duration-fast border",
+        "text-[11.5px] font-semibold transition-colors duration-fast",
         active
-          ? "bg-ink-primary text-white border-ink-primary"
-          : "bg-surface-page text-ink-secondary border-line-subtle hover:bg-surface-hover hover:text-ink-primary",
+          ? "bg-agent-on-surface/90 text-white"
+          : "bg-transparent text-agent-on-surface-variant hover:bg-agent-surface-high/60 hover:text-agent-on-surface",
       ].join(" ")}
     >
       <span>{children}</span>
@@ -149,9 +193,9 @@ function SubChip({
 
 function StatPill({ label, value }: { label: string; value: string }) {
   return (
-    <span className="inline-flex items-center gap-1 bg-surface-page border border-line-subtle rounded-pill py-0.5 px-2.5">
-      <span className="text-[12px] text-ink-secondary">{label}</span>
-      <span className="text-[13px] font-semibold tabular-nums text-ink-primary">
+    <span className="inline-flex items-center gap-1.5 bg-agent-surface border border-agent-outline-variant rounded-pill py-1 px-3">
+      <span className="text-[12px] text-agent-on-surface-variant">{label}</span>
+      <span className="text-[13px] font-bold tabular-nums text-agent-on-surface">
         {value}
       </span>
     </span>
@@ -173,7 +217,6 @@ export function QueueHeader({
   const t = useTranslations("queue");
   const tEnCours = useTranslations("queue.buckets.enCoursSubfilter");
   const tAttempt = useTranslations("queue.buckets.subfilter");
-  const tOrders = useTranslations("orders.create");
 
   const [tentativePopoverOpen, setTentativePopoverOpen] = useState(false);
   const tentativeAnchorRef = useRef<HTMLButtonElement | null>(null);
@@ -250,52 +293,62 @@ export function QueueHeader({
     setTentativePopoverOpen(false);
   }
 
-  return (
-    <div className="bg-surface-card border-b border-line-subtle px-6 pt-4 pb-0">
-      {/* Top row — agent name + inline stats + new order */}
-      <div className="flex items-center justify-between min-h-[40px]">
-        <span className="text-[17px] font-semibold text-ink-primary tracking-tight">
-          {agentName}
-        </span>
+  const tShell = useTranslations("queue.agentShell");
 
-        <div className="flex items-center gap-4">
-          <div className="hidden sm:flex items-center gap-2">
-            <StatPill label={t("stats.assigned")} value={String(stats.assigned_count)} />
-            <StatPill label={t("stats.actioned")} value={String(stats.actioned_count)} />
-            <StatPill
-              label={t("stats.confirmationRate")}
-              value={`${stats.confirmation_rate.toFixed(1)}%`}
-            />
-          </div>
-          {onNewOrder && (
-            <Button size="sm" onClick={onNewOrder}>
-              {tOrders("newOrder")}
-            </Button>
-          )}
+  return (
+    <div className="bg-agent-bg px-8 pt-6 pb-2">
+      {/* Title row — live queue title + subtitle on lead edge,
+          stats + new order on trail edge */}
+      <div className="flex items-end justify-between gap-4 mb-5 flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-[24px] font-bold text-agent-on-surface leading-tight tracking-tight">
+            {tShell("liveQueueTitle")}
+          </h1>
+          <p className="text-[13px] text-agent-on-surface-variant mt-1">
+            {agentName
+              ? tShell("liveQueueSubtitleWithName", { name: agentName })
+              : tShell("liveQueueSubtitle")}
+          </p>
+        </div>
+
+        <div className="hidden md:flex items-center gap-2">
+          <StatPill label={t("stats.assigned")} value={String(stats.assigned_count)} />
+          <StatPill label={t("stats.actioned")} value={String(stats.actioned_count)} />
+          <StatPill
+            label={t("stats.confirmationRate")}
+            value={`${stats.confirmation_rate.toFixed(1)}%`}
+          />
         </div>
       </div>
 
-      {/* Bucket tabs */}
-      <div
-        role="tablist"
-        aria-label={t("title")}
-        className="flex flex-wrap mt-1.5 border-b border-line-subtle -mx-6 px-6"
-      >
-        {TABS.map((tab) => (
-          <TabButton
-            key={tab.key}
-            tab={tab}
-            label={t(`buckets.${tab.labelKey}`)}
-            count={bucketCount[tab.key]}
-            active={selectedBucket === tab.key}
-            onClick={() => onBucketChange(tab.key)}
-          />
-        ))}
+      {/* Bucket segmented control — single rounded container,
+          each tab lights up in its lifecycle tone when selected. */}
+      <div className="overflow-x-auto -mx-1 px-1 custom-scrollbar">
+        <div
+          role="tablist"
+          aria-label={t("title")}
+          className="inline-flex items-center gap-1 p-1 bg-agent-surface rounded-2xl border border-agent-outline-variant shadow-[0_1px_2px_rgba(16,24,40,0.02)]"
+        >
+          {TABS.map((tab) => (
+            <TabButton
+              key={tab.key}
+              tab={tab}
+              label={t(`buckets.${tab.labelKey}`)}
+              count={bucketCount[tab.key]}
+              active={selectedBucket === tab.key}
+              onClick={() => onBucketChange(tab.key)}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* Sub-filter chips — En cours */}
+      {/* Sub-filter chips — En cours. Visually subordinate to the segmented control above:
+          smaller, ghost-style, with a "Filter:" label so users see the relationship. */}
       {selectedBucket === "en_cours" && (
-        <div className="flex gap-1.5 mt-2.5 mb-3 flex-wrap">
+        <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+          <span className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-agent-on-surface-variant me-1">
+            {tShell("filterLabel")}
+          </span>
           <SubChip
             active={enCoursSubfilter === "all"}
             count={enCoursTotal}
@@ -358,7 +411,7 @@ export function QueueHeader({
                 ref={popoverRef}
                 role="menu"
                 aria-label={tEnCours("tentative")}
-                className="absolute z-20 mt-1 start-0 min-w-[160px] bg-surface-card border border-line-subtle rounded-card shadow-floating py-1"
+                className="absolute z-20 mt-1 start-0 min-w-[160px] bg-agent-surface border border-agent-outline-variant rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] py-1"
               >
                 <TentativePopoverItem
                   active={tentativeSubfilter === "all"}
@@ -421,11 +474,11 @@ function TentativePopoverItem({
       aria-label={label}
       onClick={onClick}
       className={[
-        "w-full flex items-center justify-between gap-3 px-3 py-1.5",
-        "text-[12px] font-medium text-start transition-colors duration-fast",
+        "w-full flex items-center justify-between gap-3 px-3 py-2",
+        "text-[12px] font-semibold text-start transition-colors duration-fast",
         active
-          ? "bg-surface-hover text-ink-primary"
-          : "text-ink-secondary hover:bg-surface-hover hover:text-ink-primary",
+          ? "bg-agent-primary/10 text-agent-on-primary-container"
+          : "text-agent-on-surface-variant hover:bg-agent-surface-low hover:text-agent-on-surface",
       ].join(" ")}
     >
       <span>{label}</span>

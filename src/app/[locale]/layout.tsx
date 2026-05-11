@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Noto_Sans_Arabic } from "next/font/google";
+import { Inter, Noto_Sans_Arabic, Cairo } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, unstable_setRequestLocale as setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -26,6 +26,13 @@ const notoArabic = Noto_Sans_Arabic({
   display: "swap",
   variable: "--font-sans-arabic",
   weight: ["400", "500", "600"],
+});
+
+const cairo = Cairo({
+  subsets: ["arabic", "latin"],
+  display: "swap",
+  variable: "--font-cairo",
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -64,7 +71,7 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       dir={dir}
-      className={`${inter.variable} ${notoArabic.variable}`}
+      className={`${inter.variable} ${notoArabic.variable} ${cairo.variable}`}
     >
       <body>
         <NextIntlClientProvider locale={locale} messages={messages}>

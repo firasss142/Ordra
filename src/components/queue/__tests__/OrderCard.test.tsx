@@ -100,9 +100,9 @@ describe("OrderCard", () => {
     expect(onOpenDetail).toHaveBeenCalledWith("order-1");
   });
 
-  it("renders product letter avatar with first letter of product name", () => {
+  it("renders customer initials avatar from first + last name", () => {
     render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
-    expect(screen.getByText("T")).toBeDefined(); // "T-Shirt Premium" → "T"
+    expect(screen.getByText("AG")).toBeDefined(); // "Ahmed Gharbi" → "AG"
   });
 
   it("renders checkbox when onToggleSelect is provided", () => {

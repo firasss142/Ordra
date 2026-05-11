@@ -1238,6 +1238,22 @@
       "dispatchAt": "توصيل {time}",
       "dispatchAtAuto": "توصيل تلقائي {time}",
       "dispatchOverdue": "توصيل متأخر"
+    },
+    "productsLabel": "المنتجات",
+    "agentShell": {
+      "liveQueueTitle": "قائمة الطلبات المباشرة",
+      "liveQueueSubtitle": "يتم تحديثها لحظياً مع كل عملية جديدة",
+      "liveQueueSubtitleWithName": "{name} — يتم تحديثها لحظياً",
+      "onlineNow": "متصل الآن",
+      "primaryNav": "القائمة الرئيسية",
+      "navDashboard": "لوحة التحكم",
+      "navQueue": "قائمة المهام",
+      "navInventory": "المخزون",
+      "navReports": "التقارير",
+      "navSettings": "الإعدادات",
+      "comingSoon": "قريباً",
+      "signOut": "تسجيل الخروج",
+      "filterLabel": "تصفية"
     }
   },
   "products": {

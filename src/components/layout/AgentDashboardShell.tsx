@@ -22,13 +22,14 @@ export function AgentDashboardShell({
 
   return (
     <div
+      className="agent-theme"
       style={{
         minHeight: "100vh",
-        backgroundColor: "var(--bg-page)",
+        backgroundColor: "var(--agent-bg)",
         direction: isRtl ? "rtl" : "ltr",
       }}
     >
-      <Topbar user={user} marketName="" actions={actions} />
+      <Topbar user={user} marketName="" actions={actions} variant="agent" />
       <AgentNavTabs user={user} />
       <AgentTabsContainer user={user}>{children}</AgentTabsContainer>
     </div>

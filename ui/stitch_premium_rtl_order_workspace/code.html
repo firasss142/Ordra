@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>نظام إدارة الطلبات | Premium Order Workspace</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f4fbf4;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid #F1F1F1;
+        }
+        .order-card-hover:hover {
+            box-shadow: 0 8px 30px rgba(0,0,0,0.04);
+            transform: translateY(-1px);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #bbcabf;
+            border-radius: 10px;
+        }
+    </style>
+<!-- Tailwind Config Verbatim -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline": "#6c7a71",
+                    "tertiary-fixed": "#ffdad7",
+                    "surface-tint": "#006c49",
+                    "surface-container-high": "#e3eae3",
+                    "surface-variant": "#dde4dd",
+                    "tertiary-container": "#fc7c78",
+                    "tertiary-fixed-dim": "#ffb3af",
+                    "tertiary": "#a43a3a",
+                    "on-primary": "#ffffff",
+                    "on-background": "#161d19",
+                    "on-secondary": "#ffffff",
+                    "secondary-fixed": "#e2e2e2",
+                    "primary-fixed": "#6ffbbe",
+                    "inverse-surface": "#2b322d",
+                    "surface-container-highest": "#dde4dd",
+                    "on-primary-container": "#00422b",
+                    "primary": "#006c49",
+                    "surface-bright": "#f4fbf4",
+                    "on-primary-fixed": "#002113",
+                    "surface": "#f4fbf4",
+                    "on-tertiary": "#ffffff",
+                    "on-surface-variant": "#3c4a42",
+                    "outline-variant": "#bbcabf",
+                    "on-tertiary-container": "#711419",
+                    "primary-container": "#10b981",
+                    "secondary-container": "#e2e2e2",
+                    "on-primary-fixed-variant": "#005236",
+                    "on-surface": "#161d19",
+                    "background": "#f4fbf4",
+                    "error-container": "#ffdad6",
+                    "on-secondary-fixed-variant": "#474747",
+                    "error": "#ba1a1a",
+                    "on-tertiary-fixed-variant": "#842225",
+                    "surface-container-low": "#eef6ee",
+                    "secondary": "#5e5e5e",
+                    "on-error": "#ffffff",
+                    "inverse-primary": "#4edea3",
+                    "surface-container": "#e8f0e9",
+                    "surface-container-lowest": "#ffffff",
+                    "on-secondary-fixed": "#1b1b1b",
+                    "secondary-fixed-dim": "#c6c6c6",
+                    "inverse-on-surface": "#ebf3eb",
+                    "on-secondary-container": "#646464",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-fixed": "#410005",
+                    "surface-dim": "#d4dcd5",
+                    "primary-fixed-dim": "#4edea3"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "unit": "4px",
+                    "internal-padding": "16px",
+                    "gutter": "24px",
+                    "section-gap": "48px",
+                    "container-margin": "32px"
+            },
+            "fontFamily": {
+                    "label-caps": ["Cairo"],
+                    "title-sm": ["Cairo"],
+                    "display-lg": ["Cairo"],
+                    "body-base": ["Cairo"],
+                    "headline-md": ["Cairo"],
+                    "body-sm": ["Cairo"],
+                    "headline-md-mobile": ["Cairo"]
+            },
+            "fontSize": {
+                    "label-caps": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "title-sm": ["18px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "display-lg": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-base": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                    "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "headline-md-mobile": ["20px", {"lineHeight": "1.3", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+</head>
+<body class="bg-background text-on-surface antialiased overflow-hidden h-screen flex">
+<!-- Predicted Component: SideNavBar -->
+<aside class="flex flex-col h-full p-internal-padding gap-unit bg-surface-container-low border-l border-outline-variant w-[280px] shrink-0 z-20">
+<div class="mb-gutter flex items-center gap-3 px-2">
+<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold">AL</div>
+<div>
+<h3 class="font-title-sm text-title-sm text-on-surface">الوكيل LY 1</h3>
+<p class="font-body-sm text-body-sm text-primary flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-primary-container"></span>
+                    متصل الآن
+                </p>
+</div>
+</div>
+<nav class="flex flex-col gap-unit">
+<a class="flex items-center gap-3 p-3 transition-all hover:bg-surface-variant text-on-surface-variant font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+                لوحة التحكم
+            </a>
+<a class="flex items-center gap-3 p-3 transition-all bg-primary-container text-on-primary-container rounded-xl font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined" data-icon="assignment_late">assignment_late</span>
+                قائمة المهام
+            </a>
+<a class="flex items-center gap-3 p-3 transition-all hover:bg-surface-variant text-on-surface-variant font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+                المخزون
+            </a>
+<a class="flex items-center gap-3 p-3 transition-all hover:bg-surface-variant text-on-surface-variant font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+                التقارير
+            </a>
+<a class="flex items-center gap-3 p-3 transition-all hover:bg-surface-variant text-on-surface-variant font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                الإعدادات
+            </a>
+</nav>
+<div class="mt-auto pt-gutter border-t border-outline-variant">
+<button class="w-full bg-primary text-on-primary py-3 rounded-xl font-headline-md text-body-base hover:opacity-90 transition-all flex items-center justify-center gap-2 mb-4">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+                طلب جديد
+            </button>
+<a class="flex items-center gap-3 p-3 transition-all hover:bg-surface-variant text-on-surface-variant font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+                تسجيل الخروج
+            </a>
+</div>
+</aside>
+<!-- Main Workspace Area -->
+<div class="flex-1 flex flex-col min-w-0">
+<!-- Predicted Component: TopNavBar -->
+<header class="flex flex-row-reverse justify-between items-center w-full px-container-margin h-16 bg-surface border-b border-outline-variant shrink-0">
+<div class="flex items-center gap-6">
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-primary border-b-2 border-primary font-bold pb-4 transition-colors font-body-base text-body-base" href="#">الطلبات</a>
+<a class="text-on-surface-variant pb-4 hover:text-primary transition-colors font-body-base text-body-base" href="#">إدارة العملاء</a>
+<a class="text-on-surface-variant pb-4 hover:text-primary transition-colors font-body-base text-body-base" href="#">متابعة الطلبات</a>
+</nav>
+</div>
+<div class="flex-1 max-w-xl px-12">
+<div class="relative">
+<input class="w-full bg-surface-container-low border-none rounded-full py-2 px-10 focus:ring-1 focus:ring-primary text-body-sm font-body-sm" placeholder="البحث عن رقم الطلب، العميل..." type="text"/>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant" data-icon="search">search</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary p-2" data-icon="support_agent">support_agent</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary p-2" data-icon="history">history</button>
+<div class="relative">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary p-2" data-icon="notifications">notifications</button>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</div>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant">
+<img alt="Agent Profile Picture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCO1KCnf3VIPxG8lm8WXb_0U18HgoUSgBuiXMLn4gQCU_Z2aob7EWwAzjjYktvSk05RqQokrVttAsx0GKljPuVsOdIYrm98Ryuk_FUmBSImxSv8JNPPZ248EFvRGgQo-6s-gXhzy1Wec3UVgCO2xndikxWOKYplBtsCmw71TugkyMECpqfDcsg3TiTFtgDNynKwIo2ahX4ZrsuzAYhm8VbZ0GPs2qXtGq-Hty6X0BNFMwHQbeGWfH2wBa_WFcunrmNiH2xpITnYHsdL"/>
+</div>
+</div>
+</header>
+<!-- Main Content (Split View) -->
+<main class="flex-1 flex overflow-hidden">
+<!-- Left Column: Order Queue -->
+<section class="flex-1 overflow-y-auto custom-scrollbar p-gutter flex flex-col gap-internal-padding">
+<div class="flex justify-between items-end mb-4">
+<div>
+<h1 class="font-headline-md text-headline-md text-on-surface">قائمة الطلبات المباشرة</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant">يتم تحديثها لحظياً مع كل عملية جديدة</p>
+</div>
+<div class="flex gap-2">
+<span class="px-4 py-1.5 rounded-full bg-surface-container-highest text-on-surface-variant font-label-caps text-label-caps border border-outline-variant">الكل 128</span>
+<span class="px-4 py-1.5 rounded-full bg-primary-container text-on-primary-container font-label-caps text-label-caps border border-primary/20">قيد التنفيذ 6</span>
+</div>
+</div>
+<!-- Order Cards -->
+<!-- Selected Card -->
+<div class="bg-surface border-2 border-primary rounded-xl p-internal-padding flex items-center justify-between order-card-hover transition-all cursor-pointer">
+<div class="flex items-center gap-4 flex-1">
+<div class="w-14 h-14 rounded-full bg-surface-container-high flex items-center justify-center font-bold text-primary text-title-sm border border-outline-variant">FA</div>
+<div>
+<div class="flex items-center gap-2">
+<h4 class="font-title-sm text-title-sm">فارس أحمد</h4>
+<span class="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">متكرر</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">0541234567 • الجزائر العاصمة</p>
+</div>
+</div>
+<div class="flex flex-col items-center px-gutter border-x border-outline-variant/30">
+<span class="font-label-caps text-label-caps text-on-surface-variant">المنتجات</span>
+<span class="font-bold text-on-surface">مصحف تهجد (عدد 2)</span>
+</div>
+<div class="flex flex-col items-end px-gutter">
+<span class="font-headline-md text-headline-md text-primary">85.00 <small class="text-sm">TND</small></span>
+<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="schedule">schedule</span>
+                            منذ 2 دقيقة
+                        </span>
+</div>
+<div class="pr-internal-padding">
+<span class="px-4 py-1 rounded-full bg-primary-container text-on-primary-container font-bold text-label-caps">مؤكد</span>
+</div>
+</div>
+<!-- Normal Card 1 -->
+<div class="bg-surface border border-outline-variant rounded-xl p-internal-padding flex items-center justify-between order-card-hover transition-all cursor-pointer">
+<div class="flex items-center gap-4 flex-1">
+<div class="w-14 h-14 rounded-full bg-surface-container flex items-center justify-center font-bold text-secondary text-title-sm border border-outline-variant">MY</div>
+<div>
+<h4 class="font-title-sm text-title-sm">مريم يوسف</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">0667889900 • وهران</p>
+</div>
+</div>
+<div class="flex flex-col items-center px-gutter border-x border-outline-variant/30">
+<span class="font-label-caps text-label-caps text-on-surface-variant">المنتجات</span>
+<span class="font-bold text-on-surface">طقم سجادة صلاة</span>
+</div>
+<div class="flex flex-col items-end px-gutter">
+<span class="font-headline-md text-headline-md text-on-surface">45.50 <small class="text-sm">TND</small></span>
+<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="schedule">schedule</span>
+                            منذ 15 دقيقة
+                        </span>
+</div>
+<div class="pr-internal-padding">
+<span class="px-4 py-1 rounded-full bg-surface-variant text-on-surface-variant font-bold text-label-caps">جديد</span>
+</div>
+</div>
+<!-- Normal Card 2 -->
+<div class="bg-surface border border-outline-variant rounded-xl p-internal-padding flex items-center justify-between order-card-hover transition-all cursor-pointer">
+<div class="flex items-center gap-4 flex-1">
+<div class="w-14 h-14 rounded-full bg-surface-container flex items-center justify-center font-bold text-secondary text-title-sm border border-outline-variant">KS</div>
+<div>
+<h4 class="font-title-sm text-title-sm">كمال سعدي</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">0771223344 • قسنطينة</p>
+</div>
+</div>
+<div class="flex flex-col items-center px-gutter border-x border-outline-variant/30">
+<span class="font-label-caps text-label-caps text-on-surface-variant">المنتجات</span>
+<span class="font-bold text-on-surface">مجموعة عطور (3 قطع)</span>
+</div>
+<div class="flex flex-col items-end px-gutter">
+<span class="font-headline-md text-headline-md text-on-surface">120.00 <small class="text-sm">TND</small></span>
+<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="schedule">schedule</span>
+                            منذ 40 دقيقة
+                        </span>
+</div>
+<div class="pr-internal-padding">
+<span class="px-4 py-1 rounded-full bg-surface-variant text-on-surface-variant font-bold text-label-caps">جديد</span>
+</div>
+</div>
+<!-- Visual Element: Bento Grid Stats -->
+<div class="grid grid-cols-3 gap-internal-padding mt-gutter">
+<div class="bg-white p-internal-padding rounded-xl border border-outline-variant">
+<p class="font-label-caps text-label-caps text-on-surface-variant mb-2">إجمالي الطلبات اليوم</p>
+<p class="font-display-lg text-display-lg text-on-surface">482</p>
+</div>
+<div class="bg-white p-internal-padding rounded-xl border border-outline-variant">
+<p class="font-label-caps text-label-caps text-on-surface-variant mb-2">معدل التحويل</p>
+<p class="font-display-lg text-display-lg text-primary">84%</p>
+</div>
+<div class="bg-primary text-on-primary p-internal-padding rounded-xl">
+<p class="font-label-caps text-label-caps opacity-80 mb-2">أسرع وقت تسليم</p>
+<p class="font-display-lg text-display-lg">24h</p>
+</div>
+</div>
+</section>
+<!-- Right Column: Order Details (Sticky/Fixed) -->
+<section class="w-[480px] border-r border-outline-variant bg-white flex flex-col z-10 shadow-lg">
+<div class="p-internal-padding border-b border-outline-variant flex justify-between items-center bg-surface-container-lowest">
+<h2 class="font-headline-md text-title-sm text-on-surface">تفاصيل الطلب #49281</h2>
+<div class="flex gap-2">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface" data-icon="print">print</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface" data-icon="close">close</button>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar p-internal-padding space-y-section-gap">
+<!-- Customer Section -->
+<div class="space-y-4">
+<div class="flex items-start justify-between">
+<div>
+<h3 class="font-title-sm text-title-sm text-on-surface">فارس أحمد</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">الجزائر، سيدي يحيى، حي 120 مسكن، عمارة ب</p>
+</div>
+<div class="p-3 bg-surface-container-low rounded-xl border border-outline-variant">
+<span class="material-symbols-outlined text-primary" data-icon="location_on">location_on</span>
+</div>
+</div>
+<div class="p-4 bg-surface-container-low rounded-xl border border-outline-variant">
+<h5 class="font-label-caps text-label-caps text-on-surface-variant mb-1">ملاحظات العميل</h5>
+<p class="font-body-sm text-body-sm italic">"يرجى التأكد من التغليف بشكل جيد لأنه هدية، والتوصيل بعد الساعة 4 مساءً"</p>
+</div>
+</div>
+<!-- Timeline Section -->
+<div>
+<h4 class="font-label-caps text-label-caps text-on-surface-variant mb-gutter uppercase tracking-widest">تتبع الحالة</h4>
+<div class="relative space-y-6 before:absolute before:right-[15px] before:top-2 before:bottom-2 before:w-[1px] before:bg-outline-variant">
+<div class="relative pr-10">
+<span class="absolute right-0 top-1.5 w-8 h-8 rounded-full bg-primary flex items-center justify-center border-4 border-white z-10">
+<span class="material-symbols-outlined text-white text-xs" data-icon="check">check</span>
+</span>
+<div>
+<p class="font-title-sm text-body-sm font-bold">تم استلام الطلب</p>
+<p class="font-body-sm text-[12px] text-on-surface-variant">اليوم، 10:45 ص</p>
+</div>
+</div>
+<div class="relative pr-10">
+<span class="absolute right-0 top-1.5 w-8 h-8 rounded-full bg-primary flex items-center justify-center border-4 border-white z-10">
+<span class="material-symbols-outlined text-white text-xs" data-icon="check">check</span>
+</span>
+<div>
+<p class="font-title-sm text-body-sm font-bold">المراجعة الأولية</p>
+<p class="font-body-sm text-[12px] text-on-surface-variant">اليوم، 11:15 ص</p>
+</div>
+</div>
+<div class="relative pr-10 opacity-50">
+<span class="absolute right-0 top-1.5 w-8 h-8 rounded-full bg-surface-container-high border-4 border-white z-10"></span>
+<div>
+<p class="font-title-sm text-body-sm font-bold text-on-surface-variant">قيد التجهيز</p>
+<p class="font-body-sm text-[12px] text-on-surface-variant">بانتظار التأكيد النهائي</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Product Section -->
+<div>
+<h4 class="font-label-caps text-label-caps text-on-surface-variant mb-gutter uppercase tracking-widest">محتويات السلة</h4>
+<div class="space-y-4">
+<div class="flex items-center gap-4 p-3 border border-outline-variant rounded-xl group hover:border-primary transition-colors">
+<div class="w-16 h-16 bg-surface-variant rounded-lg overflow-hidden shrink-0">
+<img alt="Holy Quran" data-alt="A close-up photograph of a luxury edition of the Holy Quran with intricate gold calligraphy on a deep emerald green velvet cover. The lighting is soft and warm, highlighting the texture of the fabric and the shimmer of the gold leaf. The background is a minimalist, white marble surface, creating a sense of sacredness and premium craftsmanship in a modern aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCu1bfobpzfqOSTizcv-ccsQCNRWIIo9vTf2w8ncAqX0XZXaJBc_yRFzg-5IoRvpTzFilFHG6Hvmui0Q8JjjW26lS9JS1pKtUe0zM4vfxsbSHMsDnkDbenf-zZRjd_71eOS3QTRreXyZAN2PsyVpkdT_jM3nG1dlwaVZq4h4t2e28WdF8gHsseQIbMMkPdtTYBMArLnsSYNg07p804B-KoiDVdbzy4F550motXm9V6wS8hIFUo8-WBqv8Pby4kaxynq7Req4zZmhr7j"/>
+</div>
+<div class="flex-1">
+<p class="font-title-sm text-body-sm font-bold">مصحف تهجد - طبعة فاخرة</p>
+<p class="font-body-sm text-[12px] text-on-surface-variant">اللون: أخضر ملكي</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="w-8 h-8 rounded-full border border-outline-variant flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors">-</button>
+<span class="font-bold">2</span>
+<button class="w-8 h-8 rounded-full border border-outline-variant flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors">+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Sticky Footer Actions -->
+<div class="p-internal-padding border-t border-outline-variant bg-surface-container-lowest grid grid-cols-3 gap-3">
+<button class="bg-primary text-on-primary py-3 rounded-xl font-bold text-body-sm hover:brightness-110 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-lg" data-icon="check_circle">check_circle</span>
+                        تأكيد الطلب
+                    </button>
+<button class="border border-on-surface text-on-surface py-3 rounded-xl font-bold text-body-sm hover:bg-surface-variant transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-lg" data-icon="call">call</span>
+                        اتصال
+                    </button>
+<button class="border border-outline-variant text-secondary py-3 rounded-xl font-bold text-body-sm hover:bg-error-container hover:text-error hover:border-error transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-lg" data-icon="cancel">cancel</span>
+                        إلغاء
+                    </button>
+</div>
+</section>
+</main>
+</div>
+<!-- Floating Live Agent Counter (Visual Polish) -->
+<div class="fixed bottom-container-margin right-container-margin z-50">
+<div class="glass-panel flex items-center gap-4 px-internal-padding py-3 rounded-full border border-primary shadow-2xl">
+<div class="flex -space-x-reverse -space-x-3">
+<img alt="Agent 1" class="w-8 h-8 rounded-full border-2 border-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDV2kbHOdFEdNFHTzid_KQ2wW0fwLP_48HvvkRG3vw3de_SodW3t4U91lDF10B0KJxF8rcTzu8TLSwt7s3qh30tE71UjqihSJvpCm91RmBrnGWuhfd2Sgk8MWe7jaeo0FyPoQIXQuuL8YguFii7TyT-3j6kK7bEVzXCNEsZrQM5-faXZSvoaeWyYzZygYsXvskyOpWdsoM10P6QWxawxl-bwOhr_3nRrJQzODbpY7veP_dWmGoJ3P33GWEMYnMmmmbc9CLjpoqVt0Ob"/>
+<img alt="Agent 2" class="w-8 h-8 rounded-full border-2 border-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6XAIRIkPIAso-ynQi0YdEMac1XRA2zNWtzsPV4iixFUMCM9hfALI0axFUc0S1eTZaO-b-hHAsXFx6SyWtiPUDGIIy1YUySM6nqpTmwNP0V6Ieu-CNDmFLt8knPFjhyIK5haresxgD1aUu5FCauV88N6UfJSvD6E_W_JXvDILQwH4Jc5pnjuEeA-L1pJvTLpE1U28nDtwqft0fhY_7Z9KPWhhswuF8BWBJ9N7je24vbwRP_vIiZ7D0z6kHggZh6mg5vytQrbXd_Py-"/>
+<div class="w-8 h-8 rounded-full border-2 border-white bg-primary-container text-[10px] flex items-center justify-center font-bold">+12</div>
+</div>
+<div class="text-right">
+<p class="text-[10px] font-bold text-primary uppercase">الوكلاء المتصلون</p>
+<p class="text-body-sm font-bold">14 عميلاً نشطاً</p>
+</div>
+</div>
+</div>
+</body></html>

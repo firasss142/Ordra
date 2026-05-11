@@ -679,7 +679,7 @@ export function OrderDetailPanel({
       <div className="fixed inset-0 z-40 bg-ink-primary/40" onClick={onClose} />
 
       {/* Panel */}
-      <div className="fixed top-0 end-0 h-full w-full sm:w-[460px] z-50 flex flex-col overflow-hidden bg-surface-page border-s border-line-subtle shadow-panel animate-[slideInEnd_180ms_ease-out]">
+      <div className="fixed top-0 end-0 h-full w-full sm:w-[480px] z-50 flex flex-col overflow-hidden bg-surface-card border-s border-line-subtle shadow-panel animate-[slideInEnd_180ms_ease-out]">
 
         {/* ── Sticky header ─────────────────────────────────────── */}
         <div className="flex-shrink-0 bg-surface-card border-b border-line-subtle">

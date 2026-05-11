@@ -93,7 +93,13 @@ export function QueueList({
   const hasSelection = (selectedOrderIds?.size ?? 0) > 0;
 
   return (
-    <div data-has-selection={hasSelection || undefined} className={hasSelection ? "pb-24" : "pb-6"}>
+    <div
+      data-has-selection={hasSelection || undefined}
+      className={[
+        "flex flex-col gap-3 px-8 pt-4",
+        hasSelection ? "pb-24" : "pb-8",
+      ].join(" ")}
+    >
       {orders.map((order) => (
         <OrderCard
           key={order.id}

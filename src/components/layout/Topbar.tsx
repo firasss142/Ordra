@@ -2,10 +2,11 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Menu } from "lucide-react";
+import { Menu, Plus, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/ui/Avatar";
 import { decodeAvatarFile, avatarErrorMessage } from "@/lib/client/image";
+import { AGENT_NEW_ORDER_EVENT } from "@/lib/agent-events";
 import type { AuthUser } from "@/types";
 
 const ROLE_LABEL: Record<"fr" | "ar", Record<string, string>> = {
@@ -29,6 +30,12 @@ interface TopbarProps {
   actions?: React.ReactNode;
   /** When provided, renders a hamburger button on mobile that calls this. */
   onMenuClick?: () => void;
+  /**
+   * "agent" enables the agent-only premium header: emerald New Order pill,
+   * inline online presence, larger avatar group, and Cairo typography.
+   * Manager/admin views use the default Shopify-style topbar.
+   */
+  variant?: "default" | "agent";
 }
 
 const SESSION_EXPIRY_MSG: Record<"fr" | "ar", string> = {
@@ -46,7 +53,17 @@ const CHANGE_AVATAR_LABEL: Record<"fr" | "ar", string> = {
   ar: "تغيير الصورة",
 };
 
-function TopbarInner({ user, marketName, actions, onMenuClick }: TopbarProps) {
+const NEW_ORDER_LABEL: Record<"fr" | "ar", string> = {
+  fr: "Nouvelle commande",
+  ar: "طلب جديد",
+};
+
+const ONLINE_NOW_LABEL: Record<"fr" | "ar", string> = {
+  fr: "En ligne",
+  ar: "متصل الآن",
+};
+
+function TopbarInner({ user, marketName, actions, onMenuClick, variant = "default" }: TopbarProps) {
   const router = useRouter();
   const [sessionExpired, setSessionExpired] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -118,6 +135,137 @@ function TopbarInner({ user, marketName, actions, onMenuClick }: TopbarProps) {
     router.replace(`/${user.locale}/login`);
   };
 
+  // ── Agent variant — premium emerald header ─────────────────
+  if (variant === "agent") {
+    return (
+      <>
+        {sessionExpired && (
+          <div
+            role="alert"
+            className="px-6 py-2 text-[13px] font-medium bg-agent-error-container text-agent-error border-b border-agent-error/20"
+            style={{
+              textAlign: isRtl ? "right" : "left",
+              direction: isRtl ? "rtl" : "ltr",
+            }}
+          >
+            {SESSION_EXPIRY_MSG[user.locale]}
+          </div>
+        )}
+        <header
+          className="flex items-center justify-between gap-4 px-8 bg-agent-surface border-b border-agent-outline-variant"
+          style={{
+            height: 64,
+            direction: isRtl ? "rtl" : "ltr",
+            fontFamily: "var(--font-cairo)",
+          }}
+        >
+          {/* Identity — large avatar + name + "online now" dot */}
+          <div className="flex items-center gap-3 min-w-0">
+            {onMenuClick && (
+              <button
+                type="button"
+                onClick={onMenuClick}
+                aria-label="Menu"
+                className="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-xl border border-agent-outline-variant text-agent-on-surface hover:bg-agent-surface-low transition-colors duration-fast"
+              >
+                <Menu size={16} aria-hidden="true" />
+              </button>
+            )}
+            <Avatar user={user} size={40} />
+            <div className="min-w-0 hidden sm:block">
+              <div className="text-[14px] font-bold text-agent-on-surface leading-tight truncate">
+                {user.full_name}
+              </div>
+              <div className="text-[11.5px] font-semibold text-agent-primary flex items-center gap-1.5 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-agent-primary-container inline-block" />
+                {ONLINE_NOW_LABEL[user.locale]}
+              </div>
+            </div>
+          </div>
+
+          {/* Trailing cluster — bell, New Order pill, avatar menu (logout) */}
+          <div ref={menuRef} className="flex items-center gap-2 relative">
+            {actions && (
+              <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-agent-on-surface-variant hover:bg-agent-surface-low hover:text-agent-on-surface transition-colors duration-fast">
+                {actions}
+              </div>
+            )}
+
+            {/* Sidebar-style emerald New Order CTA — pill, plus icon */}
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new Event(AGENT_NEW_ORDER_EVENT))}
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-agent-primary text-white text-[13px] font-bold hover:bg-agent-on-primary-container transition-colors duration-fast"
+            >
+              <Plus size={15} strokeWidth={2.5} aria-hidden="true" />
+              <span className="hidden md:inline">{NEW_ORDER_LABEL[user.locale]}</span>
+            </button>
+
+            {/* Divider */}
+            <span
+              aria-hidden="true"
+              className="hidden md:inline-block w-px h-6 bg-agent-outline-variant mx-1"
+            />
+
+            {/* Avatar menu trigger */}
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-label={user.full_name}
+              className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-agent-on-surface-variant hover:bg-agent-surface-low hover:text-agent-on-surface transition-colors duration-fast"
+            >
+              <Avatar user={user} size={28} />
+            </button>
+
+            {menuOpen && (
+              <div
+                role="menu"
+                className="absolute z-30 top-full mt-2 min-w-[200px] bg-agent-surface border border-agent-outline-variant rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] py-1 overflow-hidden"
+                style={isRtl ? { left: 0 } : { right: 0 }}
+              >
+                <div className="px-4 py-2.5 text-[11.5px] text-agent-on-surface-variant border-b border-agent-outline-variant break-all">
+                  {user.email}
+                </div>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="block w-full px-4 py-2.5 text-[13px] font-medium text-agent-on-surface text-start hover:bg-agent-surface-low transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ textAlign: isRtl ? "right" : "left" }}
+                >
+                  {uploadingAvatar ? "…" : CHANGE_AVATAR_LABEL[user.locale]}
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => handleSelfAvatar(e.target.files?.[0])}
+                />
+                {/* Sidebar-style logout row */}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleLogout}
+                  disabled={signingOut}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-[13px] font-semibold text-agent-on-surface-variant hover:bg-agent-surface-low hover:text-agent-on-surface transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ textAlign: isRtl ? "right" : "left" }}
+                >
+                  <LogOut size={15} strokeWidth={2} aria-hidden="true" />
+                  <span>{LOGOUT_LABEL[user.locale]}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
+      </>
+    );
+  }
+
+  // ── Default variant — manager / admin Shopify-style header ──
   return (
     <>
       {sessionExpired && (
