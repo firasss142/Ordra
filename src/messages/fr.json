@@ -1253,7 +1253,8 @@
       "navSettings": "Paramètres",
       "comingSoon": "Bientôt",
       "signOut": "Déconnexion",
-      "filterLabel": "Filtrer"
+      "filterLabel": "Filtrer",
+      "newOrder": "Nouvelle commande"
     }
   },
   "products": {

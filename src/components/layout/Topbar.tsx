@@ -2,11 +2,10 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Menu, Plus, LogOut } from "lucide-react";
+import { Menu, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/ui/Avatar";
 import { decodeAvatarFile, avatarErrorMessage } from "@/lib/client/image";
-import { AGENT_NEW_ORDER_EVENT } from "@/lib/agent-events";
 import type { AuthUser } from "@/types";
 
 const ROLE_LABEL: Record<"fr" | "ar", Record<string, string>> = {
@@ -51,11 +50,6 @@ const LOGOUT_LABEL: Record<"fr" | "ar", string> = {
 const CHANGE_AVATAR_LABEL: Record<"fr" | "ar", string> = {
   fr: "Changer la photo",
   ar: "تغيير الصورة",
-};
-
-const NEW_ORDER_LABEL: Record<"fr" | "ar", string> = {
-  fr: "Nouvelle commande",
-  ar: "طلب جديد",
 };
 
 const ONLINE_NOW_LABEL: Record<"fr" | "ar", string> = {
@@ -159,8 +153,9 @@ function TopbarInner({ user, marketName, actions, onMenuClick, variant = "defaul
             fontFamily: "var(--font-cairo)",
           }}
         >
-          {/* Identity — large avatar + name + "online now" dot */}
-          <div className="flex items-center gap-3 min-w-0">
+          {/* Identity block — the rich avatar IS the menu trigger.
+              Clicking it opens the dropdown (avatar / logout). */}
+          <div ref={menuRef} className="relative flex items-center gap-2 min-w-0">
             {onMenuClick && (
               <button
                 type="button"
@@ -171,59 +166,38 @@ function TopbarInner({ user, marketName, actions, onMenuClick, variant = "defaul
                 <Menu size={16} aria-hidden="true" />
               </button>
             )}
-            <Avatar user={user} size={40} />
-            <div className="min-w-0 hidden sm:block">
-              <div className="text-[14px] font-bold text-agent-on-surface leading-tight truncate">
-                {user.full_name}
-              </div>
-              <div className="text-[11.5px] font-semibold text-agent-primary flex items-center gap-1.5 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-agent-primary-container inline-block" />
-                {ONLINE_NOW_LABEL[user.locale]}
-              </div>
-            </div>
-          </div>
 
-          {/* Trailing cluster — bell, New Order pill, avatar menu (logout) */}
-          <div ref={menuRef} className="flex items-center gap-2 relative">
-            {actions && (
-              <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-agent-on-surface-variant hover:bg-agent-surface-low hover:text-agent-on-surface transition-colors duration-fast">
-                {actions}
-              </div>
-            )}
-
-            {/* Sidebar-style emerald New Order CTA — pill, plus icon */}
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new Event(AGENT_NEW_ORDER_EVENT))}
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-agent-primary text-white text-[13px] font-bold hover:bg-agent-on-primary-container transition-colors duration-fast"
-            >
-              <Plus size={15} strokeWidth={2.5} aria-hidden="true" />
-              <span className="hidden md:inline">{NEW_ORDER_LABEL[user.locale]}</span>
-            </button>
-
-            {/* Divider */}
-            <span
-              aria-hidden="true"
-              className="hidden md:inline-block w-px h-6 bg-agent-outline-variant mx-1"
-            />
-
-            {/* Avatar menu trigger */}
             <button
               type="button"
               onClick={() => setMenuOpen((v) => !v)}
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               aria-label={user.full_name}
-              className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-agent-on-surface-variant hover:bg-agent-surface-low hover:text-agent-on-surface transition-colors duration-fast"
+              className="inline-flex items-center gap-3 min-w-0 ps-1 pe-3 py-1 rounded-xl border border-transparent hover:border-agent-outline-variant hover:bg-agent-surface-low transition-colors duration-fast"
             >
-              <Avatar user={user} size={28} />
+              <Avatar user={user} size={40} />
+              <div className="min-w-0 hidden sm:block text-start">
+                <div className="text-[14px] font-bold text-agent-on-surface leading-tight truncate">
+                  {user.full_name}
+                </div>
+                <div className="text-[11.5px] font-semibold text-agent-primary flex items-center gap-1.5 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-agent-primary-container inline-block" />
+                  {ONLINE_NOW_LABEL[user.locale]}
+                </div>
+              </div>
+              <span
+                aria-hidden="true"
+                className="text-[10px] text-agent-on-surface-variant ms-1"
+              >
+                ▾
+              </span>
             </button>
 
             {menuOpen && (
               <div
                 role="menu"
-                className="absolute z-30 top-full mt-2 min-w-[200px] bg-agent-surface border border-agent-outline-variant rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] py-1 overflow-hidden"
-                style={isRtl ? { left: 0 } : { right: 0 }}
+                className="absolute z-30 top-full mt-2 min-w-[220px] bg-agent-surface border border-agent-outline-variant rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] py-1 overflow-hidden"
+                style={isRtl ? { right: 0 } : { left: 0 }}
               >
                 <div className="px-4 py-2.5 text-[11.5px] text-agent-on-surface-variant border-b border-agent-outline-variant break-all">
                   {user.email}
@@ -233,7 +207,7 @@ function TopbarInner({ user, marketName, actions, onMenuClick, variant = "defaul
                   role="menuitem"
                   onClick={() => avatarInputRef.current?.click()}
                   disabled={uploadingAvatar}
-                  className="block w-full px-4 py-2.5 text-[13px] font-medium text-agent-on-surface text-start hover:bg-agent-surface-low transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="block w-full px-4 py-2.5 text-[13px] font-medium text-agent-on-surface hover:bg-agent-surface-low transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ textAlign: isRtl ? "right" : "left" }}
                 >
                   {uploadingAvatar ? "…" : CHANGE_AVATAR_LABEL[user.locale]}
@@ -257,6 +231,15 @@ function TopbarInner({ user, marketName, actions, onMenuClick, variant = "defaul
                   <LogOut size={15} strokeWidth={2} aria-hidden="true" />
                   <span>{LOGOUT_LABEL[user.locale]}</span>
                 </button>
+              </div>
+            )}
+          </div>
+
+          {/* Trailing cluster — notification bell only */}
+          <div className="flex items-center gap-2">
+            {actions && (
+              <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-agent-on-surface-variant hover:bg-agent-surface-low hover:text-agent-on-surface transition-colors duration-fast">
+                {actions}
               </div>
             )}
           </div>
