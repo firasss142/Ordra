@@ -2,13 +2,11 @@
 
 import { memo, useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { Phone, MapPin, Package, Check } from "lucide-react";
+import { Phone, Clock, Check } from "lucide-react";
 import { extractAttemptNumber } from "@/lib/attempt-logic";
-import { formatDateTime, formatExactTime } from "@/lib/format";
-import { getProductAvatarColor, getProductInitial } from "@/lib/product-avatar";
+import { formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { AttemptEtiquette } from "./AttemptEtiquette";
-import { StatusGlyph } from "@/components/shared/StatusGlyph";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
 import { AddressChangeNote } from "./AddressChangeNote";
 import type { QueueOrder } from "@/types/queue";
@@ -53,15 +51,12 @@ export const OrderCard = memo(function OrderCard({
 
   const callbackDate = order.callback_time ? new Date(order.callback_time) : null;
   const callbackOverdue = now !== null && callbackDate !== null && callbackDate <= now;
-  const callbackFuture = now !== null && callbackDate !== null && callbackDate > now;
 
   const dispatchDate = order.scheduled_dispatch_at
     ? new Date(order.scheduled_dispatch_at)
     : null;
   const dispatchOverdue =
     now !== null && dispatchDate !== null && dispatchDate <= now;
-  const dispatchFuture =
-    now !== null && dispatchDate !== null && dispatchDate > now;
 
   const attemptNumber = extractAttemptNumber(order.status);
   const isAttemptStatus = attemptNumber > 0;
@@ -87,6 +82,35 @@ export const OrderCard = memo(function OrderCard({
     return t("elapsed", { time: `${Math.floor(diffHours / 24)}j` });
   }
 
+  function getCustomerInitials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "?";
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  }
+
+  // Status pill style — emerald for confirmed, neutral for new/pending,
+  // amber-tinted for attempts/callbacks (handled by AttemptEtiquette).
+  const statusPill = (() => {
+    if (order.status === "confirmed") {
+      return {
+        label: ts("confirmed"),
+        className:
+          "bg-agent-primary-container/15 text-agent-on-primary-container border border-agent-primary/20",
+      };
+    }
+    if (order.status === "pending" || order.status === "assigned") {
+      return {
+        label: ts(order.status as Parameters<typeof ts>[0]),
+        className:
+          "bg-agent-surface-high text-agent-on-surface-variant border border-agent-outline-variant",
+      };
+    }
+    return null;
+  })();
+
+  const selectedOrFocused = isSelected || focused;
+
   return (
     <div
       data-order-id={order.id}
@@ -94,81 +118,123 @@ export const OrderCard = memo(function OrderCard({
       onClick={() => onOpenDetail(order.id)}
       data-selected={isSelected || undefined}
       className={[
-        "group relative cursor-pointer",
-        "border-b border-line-subtle",
-        "ps-6 pe-6 py-4",
-        "transition-[background-color,box-shadow] duration-fast",
-        isSelected
-          ? "bg-[#F0F7F4] hover:bg-[#E8F3EE]"
-          : focused
-            ? "bg-surface-selected"
-            : "bg-surface-card hover:bg-surface-hover hover:shadow-hover-row",
+        "group relative cursor-pointer agent-card-hover",
+        "rounded-xl p-4",
+        "bg-agent-surface",
+        selectedOrFocused
+          ? "border-2 border-agent-primary"
+          : "border border-agent-outline-variant",
       ].join(" ")}
     >
-      {/* Inline-start accent bar — accent green when focused or selected */}
-      <span
-        aria-hidden="true"
-        className={[
-          "pointer-events-none absolute inset-y-0 start-0 w-[3px]",
-          "transition-colors duration-fast",
-          isSelected
-            ? "bg-accent"
-            : focused
-              ? "bg-accent"
-              : "bg-transparent group-hover:bg-line-strong",
-        ].join(" ")}
-      />
+      {/* Bulk-select checkbox — top-leading corner, fades in on hover */}
+      {onToggleSelect && (
+        <button
+          type="button"
+          role="checkbox"
+          data-checkbox
+          aria-checked={isSelected}
+          aria-label={t("selectOrder")}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelect(order.id);
+          }}
+          className={[
+            "absolute top-3 start-3 z-10",
+            "inline-flex items-center justify-center",
+            "h-[18px] w-[18px] rounded-[5px] border",
+            "transition-all duration-fast",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-agent-primary/40 focus-visible:ring-offset-1",
+            isSelected
+              ? "bg-agent-primary border-agent-primary opacity-100"
+              : "bg-agent-surface border-agent-outline opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:border-agent-on-surface [[data-has-selection]_&]:opacity-100",
+          ].join(" ")}
+        >
+          {isSelected && (
+            <Check size={12} strokeWidth={3} className="text-white" aria-hidden="true" />
+          )}
+        </button>
+      )}
 
-      {/* Row 1 — identity + status + time */}
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2.5 min-w-0">
-          {onToggleSelect && (
-            <button
-              type="button"
-              role="checkbox"
-              data-checkbox
-              aria-checked={isSelected}
-              aria-label={t("selectOrder")}
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleSelect(order.id);
-              }}
-              className={[
-                "shrink-0 inline-flex items-center justify-center",
-                "h-[18px] w-[18px] rounded-[4px] border",
-                "transition-all duration-fast",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-1",
-                isSelected
-                  ? "bg-accent border-accent opacity-100"
-                  : "bg-surface-card border-line-strong opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:border-ink-primary [[data-has-selection]_&]:opacity-100",
-              ].join(" ")}
-            >
-              {isSelected && (
-                <Check size={12} strokeWidth={3} className="text-white" aria-hidden="true" />
-              )}
-            </button>
-          )}
-          <div
-            aria-hidden="true"
-            className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full ring-1 ring-line-subtle text-[11px] font-bold text-ink-primary"
-            style={{ backgroundColor: getProductAvatarColor(order.product_name) }}
-          >
-            {getProductInitial(order.product_name)}
+      <div className="flex items-center gap-4">
+        {/* Customer avatar */}
+        <div
+          aria-hidden="true"
+          className="shrink-0 flex items-center justify-center w-12 h-12 rounded-full bg-agent-surface-high border border-agent-outline-variant text-agent-primary text-[15px] font-bold"
+        >
+          {getCustomerInitials(order.customer_name)}
+        </div>
+
+        {/* Customer + meta — name on top, phone · city below */}
+        <div className="flex flex-col min-w-0 flex-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[15px] font-bold text-agent-on-surface truncate">
+              {order.customer_name}
+            </span>
+            {order.repeat_kind !== "none" && (
+              <RepeatBuyerBadge
+                source="order"
+                sourceId={order.id}
+                repeatKind={order.repeat_kind}
+                priorOrderCount={order.prior_order_count}
+                priorLeadCount={order.prior_lead_count}
+                priorRejectedCount={order.prior_rejected_count}
+                customerPhone={order.customer_phone}
+              />
+            )}
           </div>
-          <span className="text-[15px] font-semibold text-ink-primary truncate">
-            {order.customer_name}
+          <div className="flex items-center gap-2 mt-0.5 text-[12.5px] text-agent-on-surface-variant">
+            <a
+              href={`tel:${order.customer_phone}`}
+              onClick={(e) => e.stopPropagation()}
+              aria-label={t("phoneAria", { phone: order.customer_phone })}
+              className="inline-flex items-center gap-1 tabular-nums hover:text-agent-on-surface hover:underline"
+            >
+              <Phone size={11} strokeWidth={2} aria-hidden="true" />
+              <span>{order.customer_phone}</span>
+            </a>
+            {order.customer_city && (
+              <>
+                <span aria-hidden="true" className="opacity-60">·</span>
+                <span className="truncate">{order.customer_city}</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Product column — divider on lead edge */}
+        <div className="hidden md:flex flex-col items-center px-5 border-x border-agent-outline-variant/40 shrink-0 max-w-[180px]">
+          <span className="text-[10px] font-bold text-agent-on-surface-variant uppercase tracking-[0.06em]">
+            {t("productsLabel")}
           </span>
-          {order.repeat_kind !== "none" && (
-            <RepeatBuyerBadge
-              source="order"
-              sourceId={order.id}
-              repeatKind={order.repeat_kind}
-              priorOrderCount={order.prior_order_count}
-              priorLeadCount={order.prior_lead_count}
-              priorRejectedCount={order.prior_rejected_count}
-              customerPhone={order.customer_phone}
-            />
+          <span
+            className="mt-0.5 text-[13px] font-semibold text-agent-on-surface truncate max-w-[160px]"
+            title={`${order.product_name}${order.variant_label ? ` · ${order.variant_label}` : ""}`}
+          >
+            {order.product_name}
+          </span>
+          {order.variant_label && (
+            <span className="text-[11px] text-agent-on-surface-variant truncate max-w-[160px]">
+              {order.variant_label}
+            </span>
           )}
+        </div>
+
+        {/* Price + elapsed */}
+        <div className="flex flex-col items-end px-2 shrink-0">
+          <span className="text-[18px] font-bold text-agent-primary tabular-nums leading-tight">
+            {order.total_price}
+            <span className="ms-1 text-[11px] font-semibold text-agent-on-surface-variant">
+              {order.currency}
+            </span>
+          </span>
+          <span className="mt-0.5 text-[11.5px] text-agent-on-surface-variant inline-flex items-center gap-1">
+            <Clock size={11} strokeWidth={2} aria-hidden="true" />
+            {elapsedLabel(order.assigned_at)}
+          </span>
+        </div>
+
+        {/* Status pill — far trailing edge */}
+        <div className="shrink-0 ps-2 hidden lg:flex items-center">
           {isAttemptOrCallback(order.status) ? (
             <AttemptEtiquette
               status={order.status}
@@ -178,170 +244,56 @@ export const OrderCard = memo(function OrderCard({
               scheduledDispatchAuto={order.scheduled_dispatch_auto}
               now={now ?? undefined}
             />
-          ) : (
-            <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink-secondary">
-              <StatusGlyph
-                shape={order.status === "confirmed" ? "check" : "ring"}
-                tone="muted"
-              />
-              <span>{ts(order.status as Parameters<typeof ts>[0])}</span>
+          ) : statusPill ? (
+            <span
+              className={[
+                "inline-flex items-center px-3.5 py-1 rounded-pill text-[11px] font-bold tracking-[0.04em]",
+                statusPill.className,
+              ].join(" ")}
+            >
+              {statusPill.label}
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Optional supporting row — address change, customer note, attempts overdue */}
+      {(order.last_known_address ||
+        truncatedNote ||
+        (isAttemptStatus && isMaxAttempt) ||
+        (order.status === "callback_scheduled" && callbackOverdue) ||
+        (order.status === "dispatch_scheduled" && dispatchOverdue)) && (
+        <div className="mt-3 ps-16 flex flex-col gap-1.5">
+          {order.last_known_address && (
+            <AddressChangeNote
+              currentAddress={order.customer_address}
+              lastKnownAddress={order.last_known_address}
+            />
+          )}
+          {isAttemptStatus && isMaxAttempt && (
+            <span className="text-[12px] font-bold text-agent-error">
+              {t("attempts", { count: `${attemptNumber}/${maxAttempts}` })}
             </span>
           )}
-        </div>
-        <div className="flex flex-col items-end shrink-0 ps-3">
-          <span className="text-[13px] text-ink-secondary">
-            {elapsedLabel(order.assigned_at)}
-          </span>
-          <span className="text-[11px] text-ink-muted tabular-nums">
-            {now ? formatExactTime(order.assigned_at, locale) : ""}
-          </span>
-        </div>
-      </div>
-
-      {/* Row 2 — scan grid: phone | city | product | price */}
-      <div
-        className="grid items-center gap-x-3.5"
-        style={{
-          gridTemplateColumns:
-            "minmax(140px, auto) minmax(0, auto) minmax(0, 1fr) auto",
-          marginBottom: 0,
-        }}
-      >
-        <a
-          href={`tel:${order.customer_phone}`}
-          onClick={(e) => e.stopPropagation()}
-          aria-label={t("phoneAria", { phone: order.customer_phone })}
-          className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-ink-primary tabular-nums tracking-[0.01em] whitespace-nowrap no-underline hover:[&_[data-phone-text]]:underline"
-        >
-          <Phone size={14} strokeWidth={2} className="shrink-0 text-ink-secondary" aria-hidden="true" />
-          <span data-phone-text>{order.customer_phone}</span>
-        </a>
-
-        <span
-          className="inline-flex items-center gap-1 max-w-[180px] overflow-hidden whitespace-nowrap text-ellipsis rounded-pill bg-[#F3F4F6] px-2 py-[3px] text-[12px] font-medium text-[#4B5563]"
-          title={order.customer_city}
-        >
-          <MapPin size={11} strokeWidth={2} className="shrink-0 opacity-70" aria-hidden="true" />
-          {order.customer_city}
-        </span>
-
-        <span
-          className="flex items-center gap-2 min-w-0 justify-self-end"
-          title={`${order.product_name}${order.variant_label ? ` · ${order.variant_label}` : ""}`}
-        >
-          <span
-            aria-hidden="true"
-            className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-card bg-surface-page border border-line-subtle text-ink-secondary group-hover:text-ink-primary group-hover:border-line-strong transition-colors duration-fast"
-          >
-            <Package size={13} strokeWidth={2} />
-          </span>
-          <span className="flex flex-col min-w-0 leading-tight">
-            <span className="truncate text-[13.5px] font-semibold text-ink-primary">
-              {order.product_name}
+          {order.status === "callback_scheduled" && callbackOverdue && callbackDate && (
+            <span className="text-[12px] font-semibold text-agent-error">
+              {t("callbackAt", { time: formatDateTime(order.callback_time!, locale) })}
             </span>
-            {order.variant_label && (
-              <span className="truncate text-[11px] font-medium text-ink-muted uppercase tracking-[0.04em]">
-                {order.variant_label}
-              </span>
-            )}
-          </span>
-        </span>
-
-        <span className="text-[15px] font-bold text-ink-primary tabular-nums whitespace-nowrap tracking-[-0.01em]">
-          {order.total_price}
-          <span className="ms-1 text-[12px] font-medium text-ink-secondary">
-            {order.currency}
-          </span>
-        </span>
-      </div>
-
-      {order.last_known_address && (
-        <div className={showRow3 ? "mt-1 mb-2" : "mt-1"}>
-          <AddressChangeNote
-            currentAddress={order.customer_address}
-            lastKnownAddress={order.last_known_address}
-          />
+          )}
+          {order.status === "dispatch_scheduled" && dispatchOverdue && dispatchDate && (
+            <span className="text-[12px] font-semibold text-agent-error">
+              {t("dispatchOverdue")} · {formatDateTime(order.scheduled_dispatch_at!, locale)}
+            </span>
+          )}
+          {truncatedNote && (
+            <span className="text-[12px] text-agent-on-surface-variant italic">{truncatedNote}</span>
+          )}
         </div>
       )}
 
-      {/* Row 3 — conditional supporting metadata + Call ended button */}
+      {/* Call-ended action — shown for any non-terminal status; trailing edge */}
       {showRow3 && (
-        <div className="flex justify-between items-center mb-2">
-          <div className="flex gap-3 items-start">
-            {isAttemptStatus && (
-              <span
-                className={[
-                  "text-[13px]",
-                  isMaxAttempt ? "font-bold text-status-critical" : "text-[#F97316]",
-                ].join(" ")}
-              >
-                {t("attempts", { count: `${attemptNumber}/${maxAttempts}` })}
-              </span>
-            )}
-            {order.status === "callback_scheduled" && callbackFuture && callbackDate && (
-              <span className="text-[13px] text-ink-secondary">
-                {t("callbackAt", { time: formatDateTime(order.callback_time!, locale) })}
-              </span>
-            )}
-            {order.status === "callback_scheduled" && callbackOverdue && callbackDate && (
-              <span className="flex flex-col gap-0.5">
-                <span className="text-[13px] font-bold text-status-critical">
-                  {t("callbackAt", { time: "⚠" })}
-                </span>
-                <span className="text-[13px] text-status-critical">
-                  {formatDateTime(order.callback_time!, locale)}
-                </span>
-              </span>
-            )}
-            {order.status === "callback_scheduled" && !callbackDate && (
-              <span className="text-[13px] text-ink-secondary">
-                {ts("callback_scheduled")}
-              </span>
-            )}
-            {order.status === "dispatch_scheduled" && dispatchFuture && dispatchDate && (
-              <span className="text-[13px] text-ink-secondary">
-                {order.scheduled_dispatch_auto
-                  ? t("dispatchAtAuto", {
-                      time: formatDateTime(order.scheduled_dispatch_at!, locale),
-                    })
-                  : t("dispatchAt", {
-                      time: formatDateTime(order.scheduled_dispatch_at!, locale),
-                    })}
-              </span>
-            )}
-            {order.status === "dispatch_scheduled" && dispatchOverdue && dispatchDate && (
-              <span className="flex flex-col gap-0.5">
-                <span className="text-[13px] font-bold text-status-critical">
-                  {t("dispatchOverdue")}
-                </span>
-                <span className="text-[13px] text-status-critical">
-                  {formatDateTime(order.scheduled_dispatch_at!, locale)}
-                </span>
-              </span>
-            )}
-            {order.status === "dispatch_scheduled" && !dispatchDate && (
-              <span className="text-[13px] text-ink-secondary">
-                {ts("dispatch_scheduled")}
-              </span>
-            )}
-            {truncatedNote && (
-              <span className="text-[12px] text-ink-muted">{truncatedNote}</span>
-            )}
-          </div>
-          <Button
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onCallTerminated(order.id);
-            }}
-          >
-            {t("callEnded")}
-          </Button>
-        </div>
-      )}
-
-      {!showRow3 && (
-        <div className="flex justify-end mt-1.5">
+        <div className="flex justify-end mt-3">
           <Button
             size="sm"
             onClick={(e) => {

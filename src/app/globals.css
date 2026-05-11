@@ -77,6 +77,120 @@
   outline-offset: 2px;
 }
 
+/* ─────────────────────────────────────────────────────────
+   Agent theme — Emerald Minimalist RTL
+   Scoped to .agent-theme wrapper (AgentDashboardShell only).
+   Manager/admin UI is unaffected.
+   ───────────────────────────────────────────────────────── */
+.agent-theme {
+  /* Material-style agent palette (source: ui/stitch_premium_rtl_order_workspace/DESIGN.md) */
+  --agent-bg: #f4fbf4;
+  --agent-surface: #ffffff;
+  --agent-surface-low: #eef6ee;
+  --agent-surface-high: #e3eae3;
+  --agent-surface-highest: #dde4dd;
+  --agent-surface-variant: #dde4dd;
+  --agent-primary: #006c49;
+  --agent-primary-container: #10b981;
+  --agent-on-primary: #ffffff;
+  --agent-on-primary-container: #00422b;
+  --agent-on-surface: #161d19;
+  --agent-on-surface-variant: #3c4a42;
+  --agent-outline: #6c7a71;
+  --agent-outline-variant: #bbcabf;
+  --agent-tertiary: #a43a3a;
+  --agent-tertiary-container: #fc7c78;
+  --agent-error: #ba1a1a;
+  --agent-error-container: #ffdad6;
+
+  /* Re-map the shared semantic tokens so existing components
+     (Button, OrderDetailPanel surfaces, modals) inherit emerald
+     without touching their JSX. */
+  --bg-page: var(--agent-bg);
+  --bg-card: var(--agent-surface);
+  --bg-hover: var(--agent-surface-low);
+  --bg-selected: var(--agent-surface-low);
+  --text-primary: var(--agent-on-surface);
+  --text-secondary: var(--agent-on-surface-variant);
+  --border: var(--agent-outline-variant);
+  --border-strong: var(--agent-outline);
+
+  /* Cairo font — Arabic-first, also good Latin coverage */
+  font-family: var(--font-cairo), var(--font-sans-arabic), var(--font-sans),
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Tailwind utility re-skin inside .agent-theme — these classes are used
+   widely across the queue/order components. Cascading the surface/ink/line
+   classes here means the existing markup picks up the emerald palette. */
+.agent-theme .bg-surface-page { background-color: var(--agent-bg); }
+.agent-theme .bg-surface-card { background-color: var(--agent-surface); }
+.agent-theme .bg-surface-hover { background-color: var(--agent-surface-low); }
+.agent-theme .bg-surface-selected { background-color: var(--agent-surface-low); }
+.agent-theme .hover\:bg-surface-hover:hover { background-color: var(--agent-surface-low); }
+
+.agent-theme .text-ink-primary { color: var(--agent-on-surface); }
+.agent-theme .text-ink-secondary { color: var(--agent-on-surface-variant); }
+.agent-theme .text-ink-muted { color: var(--agent-on-surface-variant); opacity: 0.7; }
+.agent-theme .hover\:text-ink-primary:hover { color: var(--agent-on-surface); }
+
+.agent-theme .bg-ink-primary { background-color: var(--agent-on-surface); }
+.agent-theme .hover\:bg-ink-primary:hover { background-color: var(--agent-on-surface); }
+
+.agent-theme .border-line { border-color: var(--agent-outline-variant); }
+.agent-theme .border-line-subtle { border-color: var(--agent-outline-variant); }
+.agent-theme .border-line-strong { border-color: var(--agent-outline); }
+.agent-theme .hover\:border-line-strong:hover { border-color: var(--agent-outline); }
+
+.agent-theme .bg-accent { background-color: var(--agent-primary); }
+.agent-theme .text-accent { color: var(--agent-primary); }
+.agent-theme .border-accent { border-color: var(--agent-primary); }
+
+/* Bump rounded-card (10px) to rounded-xl (12px) for softer, more premium feel
+   that matches the Stitch reference. */
+.agent-theme .rounded-card { border-radius: 12px; }
+
+/* Buttons + emphasis bands (variant=primary or dark surface) — emerald instead of black */
+.agent-theme [data-agent-cta="primary"],
+.agent-theme .bg-ink-primary {
+  background-color: var(--agent-primary) !important;
+  color: var(--agent-on-primary);
+}
+.agent-theme .bg-ink-primary:hover,
+.agent-theme .hover\:bg-ink-primary:hover {
+  background-color: var(--agent-on-primary-container) !important;
+}
+/* The legacy `hover:bg-[#2A2A2A]` hex hover that the panel uses on the
+   black phone band and primary CTA — re-map to emerald-dark on hover. */
+.agent-theme .hover\:bg-\[\#2A2A2A\]:hover {
+  background-color: var(--agent-on-primary-container) !important;
+}
+
+/* Status badge utility classes used in queue + detail panel */
+.agent-theme .bg-status-successBg { background-color: var(--agent-surface-low); }
+.agent-theme .text-status-success { color: var(--agent-primary); }
+.agent-theme .bg-status-criticalBg { background-color: var(--agent-error-container); }
+.agent-theme .text-status-critical { color: var(--agent-error); }
+
+/* Custom thin scrollbar — Stitch reference */
+.agent-theme .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+.agent-theme .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.agent-theme .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--agent-outline-variant);
+  border-radius: 9999px;
+}
+
+/* Hover-lift card animation — used by order cards */
+.agent-theme .agent-card-hover {
+  transition: box-shadow 180ms cubic-bezier(0.4, 0, 0.2, 1),
+              transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.agent-theme .agent-card-hover:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+  transform: translateY(-1px);
+}
+
 /* Skip-to-main-content link — hidden until focused */
 .skip-link {
   position: absolute;

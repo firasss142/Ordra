@@ -16,6 +16,7 @@ import {
 import { QueueList } from "./QueueList";
 import { useAgentQueue } from "@/hooks/useAgentQueue";
 import { isEditableTarget } from "@/lib/dom";
+import { AGENT_NEW_ORDER_EVENT } from "@/lib/agent-events";
 import type { QueueOrder } from "@/types/queue";
 
 const OrderDetailPanel = dynamic(() =>
@@ -342,6 +343,13 @@ export function QueuePage() {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
+
+  // Sidebar "New Order" button dispatches a window event we listen for.
+  useEffect(() => {
+    const open = () => setCreateOpen(true);
+    window.addEventListener(AGENT_NEW_ORDER_EVENT, open);
+    return () => window.removeEventListener(AGENT_NEW_ORDER_EVENT, open);
+  }, []);
 
   const stats = {
     assigned_count: (statsData?.assigned_today as number) ?? 0,

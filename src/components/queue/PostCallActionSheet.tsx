@@ -73,10 +73,10 @@ type Flow =
   | "schedule_after_confirm";
 
 const optionButtonClasses =
-  "block w-full p-4 rounded-md border border-line-strong bg-surface-card text-start text-[14px] font-medium text-ink-primary transition-colors duration-fast hover:bg-surface-hover disabled:bg-[#F3F4F6] disabled:text-ink-muted disabled:cursor-not-allowed";
+  "block w-full p-4 rounded-xl border border-line-strong bg-surface-card text-start text-[14px] font-semibold text-ink-primary transition-colors duration-fast hover:bg-surface-hover disabled:bg-[#F3F4F6] disabled:text-ink-muted disabled:cursor-not-allowed";
 
 const submitButtonClasses =
-  "inline-flex items-center justify-center w-full py-2.5 px-4 rounded-md bg-ink-primary text-white text-[14px] font-medium transition-colors duration-fast hover:bg-[#2A2A2A] disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center justify-center w-full py-2.5 px-4 rounded-xl bg-ink-primary text-white text-[14px] font-semibold transition-colors duration-fast hover:bg-[#2A2A2A] disabled:opacity-50 disabled:cursor-not-allowed";
 
 function getDefaultCallbackTime(): Date {
   const d = new Date();
