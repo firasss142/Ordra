@@ -26,6 +26,36 @@ interface WebhookResult {
   body: Record<string, unknown>;
 }
 
+function safeParseJson(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+// Per-source delivery identity (used as the primary dedupe key when present).
+// Currently only Shopify exposes a stable per-delivery ID. Other adapters
+// fall back to the legacy (storefront_id, external_id, event) heuristic.
+interface DeliveryHeaders {
+  deliveryId: string | null;
+  shopifyEventId: string | null;
+  shopifyTopic: string | null;
+  shopifyTriggeredAt: string | null;
+}
+
+function extractDeliveryHeaders(platform: string, headers: Headers): DeliveryHeaders {
+  if (platform === "shopify") {
+    return {
+      deliveryId: headers.get("X-Shopify-Webhook-Id"),
+      shopifyEventId: headers.get("X-Shopify-Event-Id"),
+      shopifyTopic: headers.get("X-Shopify-Topic"),
+      shopifyTriggeredAt: headers.get("X-Shopify-Triggered-At"),
+    };
+  }
+  return { deliveryId: null, shopifyEventId: null, shopifyTopic: null, shopifyTriggeredAt: null };
+}
+
 interface LogWebhookDeliveryInput {
   adminClient: SupabaseClient;
   source: string;
@@ -36,6 +66,7 @@ interface LogWebhookDeliveryInput {
   errorMessage?: string | null;
   storefrontId?: string | null;
   externalId?: string | null;
+  deliveryHeaders?: DeliveryHeaders;
 }
 
 async function logWebhookDelivery(input: LogWebhookDeliveryInput): Promise<void> {
@@ -49,6 +80,10 @@ async function logWebhookDelivery(input: LogWebhookDeliveryInput): Promise<void>
       error_message: input.errorMessage ?? null,
       storefront_id: input.storefrontId ?? null,
       external_id: input.externalId ?? null,
+      delivery_id: input.deliveryHeaders?.deliveryId ?? null,
+      shopify_event_id: input.deliveryHeaders?.shopifyEventId ?? null,
+      shopify_topic: input.deliveryHeaders?.shopifyTopic ?? null,
+      shopify_triggered_at: input.deliveryHeaders?.shopifyTriggeredAt ?? null,
     });
   } catch {
     // Best-effort: log failures must never propagate
@@ -92,6 +127,42 @@ async function updateStorefrontHealth(
   }
 }
 
+interface PriorLogRow {
+  id: string;
+  status: string;
+  order_id: string | null;
+}
+
+async function findPriorByDeliveryId(
+  adminClient: SupabaseClient,
+  storefrontId: string,
+  deliveryId: string,
+): Promise<PriorLogRow | null> {
+  const { data } = await adminClient
+    .from("webhook_delivery_log")
+    .select("id, status, order_id")
+    .eq("storefront_id", storefrontId)
+    .eq("delivery_id", deliveryId)
+    .maybeSingle();
+  return (data as PriorLogRow | null) ?? null;
+}
+
+async function findPriorByLegacyKey(
+  adminClient: SupabaseClient,
+  storefrontId: string,
+  externalId: string,
+  event: string,
+): Promise<PriorLogRow | null> {
+  const { data } = await adminClient
+    .from("webhook_delivery_log")
+    .select("id, status, order_id")
+    .eq("storefront_id", storefrontId)
+    .eq("external_id", externalId)
+    .eq("event", event)
+    .maybeSingle();
+  return (data as PriorLogRow | null) ?? null;
+}
+
 // Pre-dispatch statuses where updates and cancellations are allowed
 const PRE_DISPATCH_STATUSES = new Set([
   "pending", "assigned", "attempt_1", "attempt_2", "attempt_3",
@@ -108,9 +179,30 @@ export async function handleWebhook(input: WebhookInput): Promise<WebhookResult>
     .eq("id", storefrontId)
     .single();
 
-  if (sfError || !storefront || !storefront.is_active) {
+  if (sfError || !storefront) {
     return { status: 200, body: { error: "Storefront not found or inactive" } };
   }
+
+  // Inactive storefront: log the rejected delivery so operators can see merchants
+  // hammering a deactivated endpoint. Still 200 — Shopify must not retry.
+  if (!storefront.is_active) {
+    const inactiveDeliveryHeaders = extractDeliveryHeaders(storefront.platform, headers);
+    await logWebhookDelivery({
+      adminClient,
+      source: storefront.platform,
+      event: "unknown",
+      payload: safeParseJson(rawBody),
+      status: "ignored",
+      orderId: null,
+      storefrontId,
+      externalId: null,
+      errorMessage: "Storefront inactive",
+      deliveryHeaders: inactiveDeliveryHeaders,
+    });
+    return { status: 200, body: { error: "Storefront not found or inactive" } };
+  }
+
+  const deliveryHeaders = extractDeliveryHeaders(storefront.platform, headers);
 
   // 2. Resolve adapter (unknown platform → log + 200, never crash the route)
   let adapter;
@@ -127,15 +219,20 @@ export async function handleWebhook(input: WebhookInput): Promise<WebhookResult>
       storefrontId,
       externalId: null,
       errorMessage: err instanceof Error ? err.message : String(err),
+      deliveryHeaders,
     });
     return { status: 200, body: { error: "Unknown platform" } };
   }
 
-  // Decrypt secret and validate webhook (skipped on trusted replay)
+  // Decrypt secret and validate webhook (skipped on trusted replay).
+  // Shopify-only: return 401 so signature mismatches surface in Shopify's
+  // admin "Webhook events" panel as Failed — diagnoses wrong-secret fast.
+  // Other adapters keep 200 to avoid retry storms.
   if (!allowReplay) {
     const secret = decryptFn(storefront.webhook_secret);
     if (!adapter.validateWebhook(headers, rawBody, secret)) {
-      return { status: 200, body: { error: "Invalid webhook signature" } };
+      const sigFailStatus = storefront.platform === "shopify" ? 401 : 200;
+      return { status: sigFailStatus, body: { error: "Invalid webhook signature" } };
     }
   }
 
@@ -167,15 +264,25 @@ export async function handleWebhook(input: WebhookInput): Promise<WebhookResult>
     // Unparseable payload — idempotency check skipped, handler will surface the error
   }
 
-  // 5. Idempotency pre-check: if this (storefront_id, external_id, event) was already processed, short-circuit
-  // Replay explicitly bypasses this — downstream order-level idempotency still protects against duplicate writes.
-  if (externalId && !allowReplay) {
-    const { data: priorLog } = await adminClient
-      .from("webhook_delivery_log")
-      .select("id, status, order_id")
-      .eq("storefront_id", storefrontId)
-      .eq("external_id", externalId)
-      .maybeSingle();
+  // 5. Idempotency pre-check.
+  //
+  // Two layered dedupe keys:
+  //   (a) delivery_id  — the source's per-delivery identifier. Stable across
+  //       retries. Used when the source exposes one (Shopify: X-Shopify-Webhook-Id).
+  //       Discriminates *deliveries*, so legitimate later events (orders/updated
+  //       after orders/create) carry a different delivery_id and are NOT deduped.
+  //   (b) (external_id, event) — legacy fallback for sources without a
+  //       per-delivery ID. Coarser but still correct for the create/update/cancel
+  //       trichotomy because `event` is part of the key.
+  //
+  // Replay explicitly bypasses this — downstream order-level idempotency
+  // still protects against duplicate writes.
+  if (!allowReplay) {
+    const priorLog = deliveryHeaders.deliveryId
+      ? await findPriorByDeliveryId(adminClient, storefrontId, deliveryHeaders.deliveryId)
+      : externalId
+        ? await findPriorByLegacyKey(adminClient, storefrontId, externalId, eventType)
+        : null;
 
     if (priorLog) {
       await logWebhookDelivery({
@@ -187,6 +294,7 @@ export async function handleWebhook(input: WebhookInput): Promise<WebhookResult>
         orderId: priorLog.order_id ?? null,
         storefrontId,
         externalId,
+        deliveryHeaders,
       });
       return {
         status: 200,
@@ -226,6 +334,7 @@ export async function handleWebhook(input: WebhookInput): Promise<WebhookResult>
       storefrontId,
       externalId,
       errorMessage: err instanceof Error ? err.message : String(err),
+      deliveryHeaders,
     });
     return result;
   }
@@ -249,6 +358,7 @@ export async function handleWebhook(input: WebhookInput): Promise<WebhookResult>
     orderId: logOrderId,
     storefrontId,
     externalId,
+    deliveryHeaders,
   });
 
   return result;

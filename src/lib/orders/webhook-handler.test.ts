@@ -37,6 +37,15 @@ function makePayload(overrides: Record<string, unknown> = {}) {
   };
 }
 
+// Self-returning select chain for webhook_delivery_log dedupe lookups.
+// Accepts any number of .eq() filters and resolves .maybeSingle() to the given row.
+function makeWdlSelectChain(row: unknown): Record<string, unknown> {
+  const chain: Record<string, unknown> = {};
+  chain.eq = vi.fn().mockReturnValue(chain);
+  chain.maybeSingle = vi.fn().mockResolvedValue({ data: row, error: null });
+  return chain;
+}
+
 // Creates a chainable mock that supports any Supabase query method
 function createQueryChain(resolveWith: { data: unknown; error: unknown }): Record<string, unknown> {
   const chain: Record<string, unknown> = {};
@@ -80,14 +89,13 @@ function mockAdminClient(overrides: {
     existingDeliveryLog = null,
   } = overrides;
 
-  // webhook_delivery_log needs both SELECT (idempotency check) and INSERT
-  const wdlSelectChain = {
-    eq: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        maybeSingle: vi.fn().mockResolvedValue({ data: existingDeliveryLog, error: null }),
-      }),
-    }),
-  };
+  // webhook_delivery_log SELECT chain: returns self on .eq() so we accept any
+  // number of equality predicates (legacy 2-eq path and new 3-eq delivery_id path).
+  const wdlMaybeSingle = vi.fn().mockResolvedValue({ data: existingDeliveryLog, error: null });
+  const wdlSelectChain: Record<string, unknown> = {};
+  wdlSelectChain.eq = vi.fn().mockReturnValue(wdlSelectChain);
+  wdlSelectChain.maybeSingle = wdlMaybeSingle;
+
   const wdlInsertChain = createQueryChain({ data: { id: "log-uuid-1" }, error: logInsertError });
   const webhookDeliveryLogChain = {
     select: vi.fn().mockReturnValue(wdlSelectChain),
@@ -505,13 +513,7 @@ describe("handleWebhook", () => {
 
     // Capture the webhook_delivery_log chain from admin directly
     const wdlChain = {
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-          }),
-        }),
-      }),
+      select: vi.fn().mockReturnValue(makeWdlSelectChain(null)),
       insert: vi.fn().mockReturnValue(createQueryChain({ data: { id: "log-1" }, error: null })),
     };
     admin.from.mockImplementation((table: string) => {
@@ -543,13 +545,7 @@ describe("handleWebhook", () => {
     const ordersChain = createQueryChain({ data: existingOrder, error: null });
 
     const wdlChain = {
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-          }),
-        }),
-      }),
+      select: vi.fn().mockReturnValue(makeWdlSelectChain(null)),
       insert: vi.fn().mockReturnValue(createQueryChain({ data: { id: "log-1" }, error: null })),
     };
     admin.from.mockImplementation((table: string) => {
@@ -587,13 +583,7 @@ describe("handleWebhook", () => {
     throwingChain.insert = vi.fn().mockReturnValue(insertChain);
 
     const wdlChain = {
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-          }),
-        }),
-      }),
+      select: vi.fn().mockReturnValue(makeWdlSelectChain(null)),
       insert: vi.fn().mockReturnValue(createQueryChain({ data: { id: "log-1" }, error: null })),
     };
     admin.from.mockImplementation((table: string) => {
@@ -623,13 +613,7 @@ describe("handleWebhook", () => {
   test("logging failure does not affect handleWebhook return value", async () => {
     const admin = mockAdminClient({ logInsertError: new Error("log DB down") });
     const logChainFailing = {
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-          }),
-        }),
-      }),
+      select: vi.fn().mockReturnValue(makeWdlSelectChain(null)),
       insert: vi.fn().mockReturnValue({
         ...createQueryChain({ data: null, error: null }),
         single: vi.fn().mockRejectedValue(new Error("log DB down")),
@@ -787,5 +771,238 @@ describe("handleWebhook", () => {
         storefront_id: STOREFRONT_ID,
       })
     );
+  });
+
+  // --- Phase 1: per-delivery idempotency + Shopify-specific behavior ---
+
+  const SHOPIFY_STOREFRONT = {
+    id: STOREFRONT_ID,
+    market_id: MARKET_ID,
+    platform: "shopify",
+    config: {},
+    webhook_secret: SECRET,
+    is_active: true,
+  };
+
+  function shopifyPayload(idOverride?: string): Record<string, unknown> {
+    return {
+      id: idOverride ?? 5001,
+      total_price: "60.00",
+      note: null,
+      customer: { first_name: "Ahmed", last_name: "Ben", phone: "+21699999999" },
+      shipping_address: { address1: "Rue X", city: "Tunis", phone: "+21699999999" },
+      line_items: [
+        { name: "Shampoo", sku: "SH-001", variant_title: "Pack x2", quantity: 2, price: "30.00" },
+      ],
+    };
+  }
+
+  function shopifyHeaders(body: string, opts: {
+    topic?: string;
+    webhookId?: string;
+    eventId?: string;
+    triggeredAt?: string;
+    badSig?: boolean;
+  } = {}): Headers {
+    const sig = opts.badSig
+      ? "invalid=="
+      : createHmac("sha256", SECRET).update(body, "utf8").digest("base64");
+    const h = new Headers({
+      "X-Shopify-Hmac-Sha256": sig,
+      "X-Shopify-Topic": opts.topic ?? "orders/create",
+    });
+    if (opts.webhookId) h.set("X-Shopify-Webhook-Id", opts.webhookId);
+    if (opts.eventId) h.set("X-Shopify-Event-Id", opts.eventId);
+    if (opts.triggeredAt) h.set("X-Shopify-Triggered-At", opts.triggeredAt);
+    return h;
+  }
+
+  test("Shopify: invalid signature returns 401 (not 200)", async () => {
+    const admin = mockAdminClient({ storefrontData: SHOPIFY_STOREFRONT });
+    const body = JSON.stringify(shopifyPayload());
+    const headers = shopifyHeaders(body, { badSig: true });
+
+    const result = await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers,
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(result.status).toBe(401);
+  });
+
+  test("non-Shopify: invalid signature still returns 200 (no retry storm)", async () => {
+    const admin = mockAdminClient({});
+    const body = JSON.stringify(makePayload());
+    const headers = new Headers({ "X-Webhook-Signature": "bad-signature" });
+
+    const result = await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers,
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(result.status).toBe(200);
+  });
+
+  test("Shopify: stores delivery_id + topic + event_id + triggered_at on log row", async () => {
+    const admin = mockAdminClient({ storefrontData: SHOPIFY_STOREFRONT });
+    const body = JSON.stringify(shopifyPayload());
+    const headers = shopifyHeaders(body, {
+      webhookId: "wh-abc-123",
+      eventId: "evt-xyz-456",
+      triggeredAt: "2026-05-12T10:00:00Z",
+    });
+
+    await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers,
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    const wdlIdx = admin.from.mock.calls.findLastIndex((c: unknown[]) => c[0] === "webhook_delivery_log");
+    const wdlChain = admin.from.mock.results[wdlIdx].value;
+    expect(wdlChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        delivery_id: "wh-abc-123",
+        shopify_event_id: "evt-xyz-456",
+        shopify_topic: "orders/create",
+        shopify_triggered_at: "2026-05-12T10:00:00Z",
+      })
+    );
+  });
+
+  test("Shopify: duplicate X-Shopify-Webhook-Id short-circuits before processing", async () => {
+    const { tryAutoAssign } = await import("./auto-assignment-orchestrator");
+    vi.mocked(tryAutoAssign).mockClear();
+
+    const admin = mockAdminClient({
+      storefrontData: SHOPIFY_STOREFRONT,
+      existingDeliveryLog: {
+        id: "prior-log-id",
+        status: "processed",
+        order_id: "order-prior",
+      },
+    });
+    const body = JSON.stringify(shopifyPayload());
+    const headers = shopifyHeaders(body, { webhookId: "wh-dup" });
+
+    const result = await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers,
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.duplicate).toBe(true);
+    expect(tryAutoAssign).not.toHaveBeenCalled();
+  });
+
+  test("Shopify: two legitimate orders/updated with different webhook IDs are both processed", async () => {
+    // Build a stateful admin: first call has no prior log row, second call also has none.
+    // Both events must reach handleOrderUpdated rather than being deduped.
+    const orderRow = { id: "order-1", status: "pending" };
+    const ordersChain = createQueryChain({ data: orderRow, error: null });
+    const updateFn = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) });
+    ordersChain.update = updateFn;
+
+    const admin = mockAdminClient({ storefrontData: SHOPIFY_STOREFRONT });
+    admin.from.mockImplementation((table: string) => {
+      if (table === "orders") return ordersChain;
+      if (table === "webhook_delivery_log") {
+        return {
+          select: vi.fn().mockReturnValue(makeWdlSelectChain(null)),
+          insert: vi.fn().mockReturnValue(createQueryChain({ data: { id: "log-1" }, error: null })),
+        };
+      }
+      return mockAdminClient({ storefrontData: SHOPIFY_STOREFRONT }).from(table);
+    });
+
+    const body = JSON.stringify(shopifyPayload());
+
+    await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers: shopifyHeaders(body, { topic: "orders/updated", webhookId: "wh-A" }),
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers: shopifyHeaders(body, { topic: "orders/updated", webhookId: "wh-B" }),
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(updateFn).toHaveBeenCalledTimes(2);
+  });
+
+  test("logs delivery for inactive storefront (no silent drop)", async () => {
+    const admin = mockAdminClient({
+      storefrontData: {
+        id: STOREFRONT_ID, market_id: MARKET_ID, platform: "easy_orders",
+        config: {}, webhook_secret: SECRET, is_active: false,
+      },
+    });
+    const body = JSON.stringify(makePayload());
+
+    await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers: new Headers(),
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    const wdlIdx = admin.from.mock.calls.findLastIndex((c: unknown[]) => c[0] === "webhook_delivery_log");
+    expect(wdlIdx).toBeGreaterThanOrEqual(0);
+    const wdlChain = admin.from.mock.results[wdlIdx].value;
+    expect(wdlChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "ignored",
+        storefront_id: STOREFRONT_ID,
+        error_message: expect.stringContaining("inactive"),
+      })
+    );
+  });
+
+  test("non-Shopify sources without delivery_id still dedupe by (storefront_id, external_id, event)", async () => {
+    // Easy Orders path — no X-Shopify-Webhook-Id header. Legacy dedupe still applies.
+    const { tryAutoAssign } = await import("./auto-assignment-orchestrator");
+    vi.mocked(tryAutoAssign).mockClear();
+
+    const admin = mockAdminClient({
+      existingDeliveryLog: {
+        id: "prior-log-id",
+        status: "processed",
+        order_id: "order-prior",
+      },
+    });
+
+    const body = JSON.stringify(makePayload());
+    const signature = signPayload(body, SECRET);
+    const headers = new Headers({ "X-Webhook-Signature": signature });
+
+    const result = await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers,
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.duplicate).toBe(true);
+    expect(tryAutoAssign).not.toHaveBeenCalled();
   });
 });
