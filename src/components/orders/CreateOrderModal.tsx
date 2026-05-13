@@ -410,7 +410,7 @@ export function CreateOrderModal({
       setForm((s) => ({
         ...s,
         loading: false,
-        error: json.error ?? `Erreur ${res.status}`,
+        error: json.error ?? t("errors.requestFailed", { status: res.status }),
       }));
       return;
     }

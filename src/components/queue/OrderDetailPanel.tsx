@@ -223,6 +223,9 @@ function translateHistoryNote(
     "Assigned to agent": th("assignedToAgent"),
     "Reassigned to agent": th("reassignedToAgent"),
     "Cancelled via storefront webhook": th("deleted"),
+    "Scheduled dispatch cancelled": th("scheduledDispatchCancelled"),
+    // Legacy French note kept so historical rows still render translated.
+    "Livraison planifiée annulée": th("scheduledDispatchCancelled"),
   };
   return map[note] ?? note;
 }
@@ -588,7 +591,7 @@ export function OrderDetailPanel({
           : "";
         setUploadFeedback({
           kind: "error",
-          message: `${json.error ?? `HTTP ${res.status}`}${detail}`,
+          message: `${json.error ?? t("errors.uploadHttp", { status: res.status })}${detail}`,
         });
         return;
       }
@@ -601,7 +604,7 @@ export function OrderDetailPanel({
     } catch (err) {
       setUploadFeedback({
         kind: "error",
-        message: err instanceof Error ? err.message : "Network error",
+        message: err instanceof Error ? err.message : t("errors.uploadNetwork"),
       });
     } finally {
       setUploadingCarrierId(null);
@@ -637,7 +640,7 @@ export function OrderDetailPanel({
       if (!res.ok) {
         setDeleteFeedback({
           kind: "error",
-          message: json.error ?? `HTTP ${res.status}`,
+          message: json.error ?? t("errors.deleteHttp", { status: res.status }),
         });
         return;
       }
@@ -650,7 +653,7 @@ export function OrderDetailPanel({
     } catch (err) {
       setDeleteFeedback({
         kind: "error",
-        message: err instanceof Error ? err.message : "Network error",
+        message: err instanceof Error ? err.message : t("errors.deleteNetwork"),
       });
     }
   }
@@ -664,7 +667,7 @@ export function OrderDetailPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status: "confirmed",
-          note: "Livraison planifiée annulée",
+          note: "Scheduled dispatch cancelled",
         }),
       });
       if (res.ok) await mutate();
@@ -1202,7 +1205,7 @@ export function OrderDetailPanel({
                                 if (res.ok) mutate();
                                 else {
                                   const body = await res.json().catch(() => ({}));
-                                  alert(body.error ?? "Failed to add product");
+                                  alert(body.error ?? t("errors.addProductFailed"));
                                 }
                               }}
                               className="inline-flex items-center justify-center gap-1.5 w-full text-[12px] font-medium text-ink-secondary border border-dashed border-line-strong rounded-card py-1.5 hover:text-ink-primary hover:border-ink-primary hover:bg-surface-hover transition-colors duration-fast mt-1"

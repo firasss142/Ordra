@@ -8,6 +8,7 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { FollowUpsFilterBar, type ViewMode } from "@/components/follow-ups/FollowUpsFilterBar";
 import { FollowUpsKanban, type FollowUpsKanbanColumn } from "@/components/follow-ups/FollowUpsKanban";
 import { FollowUpsTimeline } from "@/components/follow-ups/FollowUpsTimeline";
+import { AgentFollowUpsView } from "@/components/follow-ups/AgentFollowUpsView";
 import { OverdueByAgentTable } from "@/components/follow-ups/OverdueByAgentTable";
 import { NewFollowUpsBanner } from "@/components/follow-ups/NewFollowUpsBanner";
 import { useFollowUpsColumn } from "@/hooks/useFollowUpsColumn";
@@ -74,6 +75,20 @@ export function FollowUpsPageClient({
   const isSuperAdmin = role === "super_admin";
   const isManager = role === "market_manager" || role === "super_admin";
   const isAgent = role === "agent";
+
+  // Agents get a dedicated emerald shell that matches the queue + leads tabs.
+  // The manager / super_admin path keeps the existing Shopify-style UI below.
+  if (isAgent && initialAgentId) {
+    return (
+      <AgentFollowUpsView
+        userMarketId={userMarketId}
+        marketCode={marketCode}
+        locale={locale}
+        agentId={initialAgentId}
+        initialTimelinePage={initialTimelinePage}
+      />
+    );
+  }
 
   const [selectedMarketId, setSelectedMarketId] = useState<string | "all">(
     isSuperAdmin ? (initialMarketId || "all") : userMarketId,
@@ -206,7 +221,7 @@ export function FollowUpsPageClient({
         });
         if (!res.ok) {
           const j = await res.json().catch(() => ({}));
-          throw new Error((j as { error?: string }).error ?? "Transition failed");
+          throw new Error((j as { error?: string }).error ?? t("errors.transitionFailed"));
         }
         await Promise.all([
           columnData[fromStatus].mutate(),
@@ -221,7 +236,7 @@ export function FollowUpsPageClient({
         throw err;
       }
     },
-    [columnData, mutateSummary],
+    [columnData, mutateSummary, t],
   );
 
   const visibleStatuses: FollowUpStatus[] =
@@ -419,11 +434,11 @@ function LogAttemptModal({
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error ?? "error");
+        throw new Error(j?.error ?? t("errors.addNoteFailed"));
       }
       onSubmitted();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+      setErr(e instanceof Error ? e.message : t("errors.addNoteFailed"));
     } finally {
       setSubmitting(false);
     }

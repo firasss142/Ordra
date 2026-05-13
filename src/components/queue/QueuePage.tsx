@@ -464,12 +464,12 @@ export function QueuePage() {
       {/* Auto-rejected banner */}
       {autoRejectedBanner && (
         <div className="bg-status-criticalBg border-y border-status-critical/20 text-status-critical text-[14px] px-6 py-2.5 flex items-center justify-between">
-          <span>Une commande a été rejetée automatiquement (injoignable).</span>
+          <span>{t("autoRejectedBanner")}</span>
           <button
             type="button"
             onClick={() => setAutoRejectedBanner(false)}
             className="ms-3 text-[16px] leading-none text-status-critical hover:opacity-70 transition-opacity duration-fast"
-            aria-label="Dismiss"
+            aria-label={t("dismiss")}
           >
             ×
           </button>

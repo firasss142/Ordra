@@ -37,6 +37,7 @@ export function LeadCard({ lead, locale, density = "comfortable", onCallback, on
   const tActions = useTranslations("crm.leads.actions");
   const tHot = useTranslations("crm.leads.hotLeads");
   const tDup = useTranslations("crm.leads.duplicates");
+  const tLeads = useTranslations("crm.leads");
   const compact = density === "compact";
   const padding = compact ? 10 : 12;
   const status = lead.status as LeadStatus;
@@ -206,7 +207,7 @@ export function LeadCard({ lead, locale, density = "comfortable", onCallback, on
           <LeadStatusBadge status={status} />
           {used > 0 && (
             <div
-              aria-label={`attempts ${used}/3`}
+              aria-label={tLeads("attemptsAria", { used, max: 3 })}
               style={{ display: "inline-flex", alignItems: "center", gap: 3 }}
             >
               {[1, 2, 3].map((n) => (

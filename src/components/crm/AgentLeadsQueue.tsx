@@ -11,6 +11,7 @@ import {
   LayoutGrid,
   Rows3,
   Plus,
+  Clock,
   type LucideIcon,
 } from "lucide-react";
 import { useAgentLeadQueue, tentativeTotal } from "@/hooks/useAgentLeadQueue";
@@ -37,21 +38,66 @@ interface TabDef {
   key: BucketKey;
   icon: LucideIcon;
   labelKey: "nouveau" | "toCallBack" | "qualifie" | "fermees";
+  /** Lifecycle phase for the active-state tone — matches queue tab pattern. */
+  tone: "neutral" | "warning" | "success" | "archive";
 }
 
+// Lifecycle parallel to the queue's bucket tabs:
+//   Nouveau    → slate (incoming, untouched)
+//   À rappeler → amber (in-flight, needs work)
+//   Qualifié   → emerald (success — the conversion goal)
+//   Fermées    → gray (archive)
 const TABS: TabDef[] = [
-  { key: "nouveau", icon: Inbox, labelKey: "nouveau" },
-  { key: "a_rappeler", icon: Phone, labelKey: "toCallBack" },
-  { key: "qualifie", icon: BadgeCheck, labelKey: "qualifie" },
-  { key: "fermees", icon: Archive, labelKey: "fermees" },
+  { key: "nouveau", icon: Inbox, labelKey: "nouveau", tone: "neutral" },
+  { key: "a_rappeler", icon: Phone, labelKey: "toCallBack", tone: "warning" },
+  { key: "qualifie", icon: BadgeCheck, labelKey: "qualifie", tone: "success" },
+  { key: "fermees", icon: Archive, labelKey: "fermees", tone: "archive" },
 ];
 
-const CARD_BG = "#FFFFFF";
-const SOFT_BG = "#FFFFFF";
-const BORDER = "#E1E3E5";
-const SUBTLE_BG = "#F6F6F7";
-const TEXT = "#1A1A1A";
-const MUTED = "#6D7175";
+const TAB_TONE: Record<
+  TabDef["tone"],
+  {
+    activeBg: string;
+    activeText: string;
+    activeBorder: string;
+    chipBg: string;
+    chipText: string;
+    iconActive: string;
+  }
+> = {
+  neutral: {
+    activeBg: "bg-[#EEF2F7]",
+    activeText: "text-[#1E3A5F]",
+    activeBorder: "border-[#C7D2E0]",
+    chipBg: "bg-[#1E3A5F]",
+    chipText: "text-white",
+    iconActive: "text-[#1E3A5F]",
+  },
+  warning: {
+    activeBg: "bg-[#FEF4E2]",
+    activeText: "text-[#8A5A00]",
+    activeBorder: "border-[#F0C97D]",
+    chipBg: "bg-[#B07A00]",
+    chipText: "text-white",
+    iconActive: "text-[#8A5A00]",
+  },
+  success: {
+    activeBg: "bg-[#DFF8EC]",
+    activeText: "text-[#004D35]",
+    activeBorder: "border-[#10B981]",
+    chipBg: "bg-[#007A52]",
+    chipText: "text-white",
+    iconActive: "text-[#008060]",
+  },
+  archive: {
+    activeBg: "bg-agent-surface-high",
+    activeText: "text-agent-on-surface",
+    activeBorder: "border-agent-outline",
+    chipBg: "bg-agent-on-surface-variant",
+    chipText: "text-white",
+    iconActive: "text-agent-on-surface",
+  },
+};
 
 function bucketForLeadStatus(status: string): BucketKey | null {
   if (status === "assigned" || status === "new") return "nouveau";
@@ -82,6 +128,13 @@ function matchesSub(
   return status === `attempt_${sub}`;
 }
 
+function getCustomerInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
 export function AgentLeadsQueue({ user }: Props) {
   const t = useTranslations("crm.queue");
   const tBuckets = useTranslations("crm.queue.buckets");
@@ -89,6 +142,7 @@ export function AgentLeadsQueue({ user }: Props) {
   const tLeads = useTranslations("crm.leads");
   const tViews = useTranslations("crm.leads.views");
   const tSources = useTranslations("crm.leads.sources");
+  const tShell = useTranslations("queue.agentShell");
 
   const { allLeads, closedLeads, buckets, isLoading, mutate } =
     useAgentLeadQueue();
@@ -144,159 +198,84 @@ export function AgentLeadsQueue({ user }: Props) {
 
   return (
     <div
-      className="px-4 pt-16 pb-16 md:px-8 md:pt-8"
-      style={{
-        background: SUBTLE_BG,
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        gap: 16,
-      }}
+      className="bg-agent-bg flex flex-col gap-5 px-8 pt-6 pb-16 min-h-screen"
+      style={{ fontFamily: "var(--font-cairo)" }}
     >
-      <div>
-        <h1 style={{ fontSize: 20, fontWeight: 600, color: TEXT, margin: 0 }}>
-          {t("title")}
-        </h1>
-        <p style={{ fontSize: 13, color: MUTED, margin: "4px 0 0" }}>
-          {t("subtitle")}
-        </p>
+      {/* Title row — mirrors the queue tab's live-feed header */}
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-[24px] font-bold text-agent-on-surface leading-tight tracking-tight">
+            {t("title")}
+          </h1>
+          <p className="text-[13px] text-agent-on-surface-variant mt-1">
+            {t("subtitle")}
+          </p>
+        </div>
       </div>
 
-      {/* Filter card — mirrors manager LeadsFilterBar */}
-      <div
-        style={{
-          background: CARD_BG,
-          border: `1px solid ${BORDER}`,
-          borderRadius: 10,
-          padding: "10px 12px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-        }}
-      >
-        {/* Top row: bucket tabs (left) + view toggle + new lead (right) */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-          }}
-        >
-          <div
-            style={{
-              minWidth: 0,
-              flex: "1 1 auto",
-              overflowX: "auto",
-              WebkitOverflowScrolling: "touch",
+      {/* Segmented status tabs + view toggle + New Lead CTA on the row's trailing edge */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="overflow-x-auto min-w-0 -mx-1 px-1 custom-scrollbar">
+          <BucketSegmented
+            tabs={TABS}
+            active={bucket}
+            counts={bucketCount}
+            onSelect={(k) => {
+              setBucket(k);
+              if (k !== "a_rappeler") setSub("all");
             }}
-          >
-            <BucketSegmented
-              tabs={TABS}
-              active={bucket}
-              counts={bucketCount}
-              onSelect={(k) => {
-                setBucket(k);
-                if (k !== "a_rappeler") setSub("all");
-              }}
-              labelFor={(key) => tBuckets(key)}
-            />
-          </div>
-
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              flexShrink: 0,
-            }}
-          >
-            <ViewToggle
-              view={view}
-              onViewChange={switchView}
-              kanbanLabel={tViews("kanban")}
-              listLabel={tLeads("view.list")}
-            />
-            <button
-              type="button"
-              onClick={() => setCreateOpen(true)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                height: 34,
-                padding: "0 14px",
-                fontSize: 13,
-                fontWeight: 500,
-                border: `1px solid ${TEXT}`,
-                borderRadius: 8,
-                background: TEXT,
-                color: "#FFFFFF",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <Plus size={14} strokeWidth={2} />
-              {tLeads("newLead")}
-            </button>
-          </div>
+            labelFor={(key) => tBuckets(key)}
+          />
         </div>
 
-        {/* Sub-filter chips — only on À rappeler */}
-        {bucket === "a_rappeler" && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              flexWrap: "wrap",
-            }}
+        <div className="ms-auto inline-flex items-center gap-2 shrink-0">
+          <ViewToggle
+            view={view}
+            onViewChange={switchView}
+            kanbanLabel={tViews("kanban")}
+            listLabel={tLeads("view.list")}
+          />
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="inline-flex items-center gap-1.5 h-10 px-5 rounded-pill bg-agent-primary text-white text-[13.5px] font-bold hover:bg-agent-on-primary-container transition-colors duration-fast"
           >
-            {subDefs.map(({ key, label, count }) => {
-              const active = sub === key;
-              return (
-                <button
-                  key={String(key)}
-                  type="button"
-                  aria-pressed={active}
-                  aria-label={label}
-                  onClick={() => setSub(key)}
-                  style={{
-                    appearance: "none",
-                    height: 28,
-                    padding: "0 10px",
-                    borderRadius: 6,
-                    border: `1px solid ${active ? TEXT : BORDER}`,
-                    background: active ? TEXT : SOFT_BG,
-                    color: active ? "#FFFFFF" : TEXT,
-                    fontSize: 12,
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    fontFamily: "inherit",
-                    transition:
-                      "background-color 120ms ease, color 120ms ease, border-color 120ms ease",
-                  }}
-                >
-                  <span>{label}</span>
-                  <span
-                    style={{
-                      fontVariantNumeric: "tabular-nums",
-                      opacity: 0.85,
-                    }}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
+            <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
+            <span>{tLeads("newLead")}</span>
+          </button>
+        </div>
       </div>
+
+      {/* Sub-filter chips — only on À rappeler. Visually subordinate to the segmented control. */}
+      {bucket === "a_rappeler" && (
+        <div className="flex items-center gap-1.5 flex-wrap -mt-1">
+          <span className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-agent-on-surface-variant me-1">
+            {tShell("filterLabel")}
+          </span>
+          {subDefs.map(({ key, label, count }) => {
+            const active = sub === key;
+            return (
+              <button
+                key={String(key)}
+                type="button"
+                aria-pressed={active}
+                aria-label={label}
+                onClick={() => setSub(key)}
+                className={[
+                  "inline-flex items-center gap-1.5 py-1 px-2.5 rounded-pill",
+                  "text-[11.5px] font-semibold transition-colors duration-fast",
+                  active
+                    ? "bg-agent-on-surface/90 text-white"
+                    : "bg-transparent text-agent-on-surface-variant hover:bg-agent-surface-high/60 hover:text-agent-on-surface",
+                ].join(" ")}
+              >
+                <span>{label}</span>
+                <span className="tabular-nums opacity-80">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Body */}
       {view === "kanban" ? (
@@ -306,30 +285,13 @@ export function AgentLeadsQueue({ user }: Props) {
           agentId={user.id}
         />
       ) : isLoading && display.length === 0 ? (
-        <div
-          style={{
-            color: MUTED,
-            padding: 24,
-            textAlign: "center",
-          }}
-        >
-          …
-        </div>
+        <div className="text-agent-on-surface-variant text-center py-6">…</div>
       ) : display.length === 0 ? (
-        <div
-          style={{
-            color: MUTED,
-            padding: 48,
-            textAlign: "center",
-            background: CARD_BG,
-            border: `1px solid ${BORDER}`,
-            borderRadius: 8,
-          }}
-        >
+        <div className="text-agent-on-surface-variant text-center py-12 px-6 bg-agent-surface border border-agent-outline-variant rounded-xl">
           {t("emptyQueue")}
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="flex flex-col gap-3">
           {display.map((l) => {
             const isAttemptOrCallback =
               l.status.startsWith("attempt_") ||
@@ -338,85 +300,85 @@ export function AgentLeadsQueue({ user }: Props) {
               <Link
                 key={l.id}
                 href={`/${user.locale}/leads/${l.id}`}
-                style={{
-                  display: "block",
-                  padding: 16,
-                  background: CARD_BG,
-                  border: `1px solid ${BORDER}`,
-                  borderRadius: 8,
-                  textDecoration: "none",
-                  color: TEXT,
-                }}
+                className="group block p-4 bg-agent-surface border border-agent-outline-variant rounded-xl no-underline agent-card-hover hover:border-agent-primary/30"
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 4,
-                    gap: 12,
-                  }}
-                >
+                <div className="flex items-center gap-4">
+                  {/* Customer avatar — emerald initials on muted surface */}
                   <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      minWidth: 0,
-                    }}
+                    aria-hidden="true"
+                    className="shrink-0 flex items-center justify-center w-12 h-12 rounded-full bg-agent-surface-high border border-agent-outline-variant text-agent-primary text-[15px] font-bold"
                   >
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>
-                      {l.customer_name}
-                    </div>
-                    {l.repeat_kind && l.repeat_kind !== "none" && (
-                      <RepeatBuyerBadge
-                        source="lead"
-                        sourceId={l.id}
-                        repeatKind={l.repeat_kind}
-                        priorOrderCount={l.prior_order_count ?? 0}
-                        priorLeadCount={l.prior_lead_count ?? 0}
-                        priorRejectedCount={l.prior_rejected_count ?? 0}
-                        customerPhone={l.customer_phone}
-                      />
-                    )}
-                    {isAttemptOrCallback && (
-                      <AttemptEtiquette
-                        status={l.status}
-                        attemptsCount={0}
-                        callbackAt={l.callback_scheduled_at ?? null}
-                      />
-                    )}
+                    {getCustomerInitials(l.customer_name)}
                   </div>
-                  <LeadStatusBadge status={l.status as LeadStatus} />
+
+                  <div className="flex flex-col min-w-0 flex-1">
+                    {/* Name + repeat badge + (attempt etiquette) */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[15px] font-bold text-agent-on-surface truncate">
+                        {l.customer_name}
+                      </span>
+                      {l.repeat_kind && l.repeat_kind !== "none" && (
+                        <RepeatBuyerBadge
+                          source="lead"
+                          sourceId={l.id}
+                          repeatKind={l.repeat_kind}
+                          priorOrderCount={l.prior_order_count ?? 0}
+                          priorLeadCount={l.prior_lead_count ?? 0}
+                          priorRejectedCount={l.prior_rejected_count ?? 0}
+                          customerPhone={l.customer_phone}
+                        />
+                      )}
+                      {isAttemptOrCallback && (
+                        <AttemptEtiquette
+                          status={l.status}
+                          attemptsCount={0}
+                          callbackAt={l.callback_scheduled_at ?? null}
+                        />
+                      )}
+                    </div>
+                    {/* Phone · city · source */}
+                    <div className="flex items-center gap-2 mt-0.5 text-[12.5px] text-agent-on-surface-variant flex-wrap">
+                      <span className="inline-flex items-center gap-1 tabular-nums">
+                        <Phone size={11} strokeWidth={2} aria-hidden="true" />
+                        {l.customer_phone}
+                      </span>
+                      {l.customer_city && (
+                        <>
+                          <span aria-hidden="true" className="opacity-60">·</span>
+                          <span className="truncate">{l.customer_city}</span>
+                        </>
+                      )}
+                      <span aria-hidden="true" className="opacity-60">·</span>
+                      <span className="truncate">{tSources(l.source)}</span>
+                    </div>
+                  </div>
+
+                  {/* Trailing: status badge + elapsed time */}
+                  <div className="flex flex-col items-end shrink-0 ps-2 gap-1.5">
+                    <LeadStatusBadge status={l.status as LeadStatus} />
+                    <span className="text-[11.5px] text-agent-on-surface-variant inline-flex items-center gap-1">
+                      <Clock size={11} strokeWidth={2} aria-hidden="true" />
+                      {formatDateTime(l.created_at, user.locale)}
+                    </span>
+                  </div>
                 </div>
-                <div style={{ fontSize: 13, color: MUTED }}>
-                  {l.customer_phone}
-                  {l.customer_city && ` · ${l.customer_city}`}
-                  {" · "}
-                  {tSources(l.source)}
-                </div>
-                {l.product_interest_note && (
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: TEXT,
-                      marginTop: 4,
-                    }}
-                  >
-                    {l.product_interest_note}
+
+                {/* Optional supporting row — product interest + callback time */}
+                {(l.product_interest_note || l.callback_scheduled_at) && (
+                  <div className="mt-3 ps-16 flex flex-col gap-1">
+                    {l.product_interest_note && (
+                      <span className="text-[12.5px] text-agent-on-surface">
+                        {l.product_interest_note}
+                      </span>
+                    )}
+                    {l.callback_scheduled_at && (
+                      <span className="text-[11.5px] text-agent-on-surface-variant inline-flex items-center gap-1">
+                        <Phone size={10} strokeWidth={2} aria-hidden="true" />
+                        {formatDateTime(l.callback_scheduled_at, user.locale)}
+                      </span>
+                    )}
                   </div>
                 )}
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: MUTED,
-                    marginTop: 4,
-                  }}
-                >
-                  {formatDateTime(l.created_at, user.locale)}
-                  {l.callback_scheduled_at &&
-                    ` · ${formatDateTime(l.callback_scheduled_at, user.locale)}`}
-                </div>
               </Link>
             );
           })}
@@ -424,7 +386,7 @@ export function AgentLeadsQueue({ user }: Props) {
       )}
 
       {view !== "kanban" && footerCount > 0 && (
-        <div style={{ fontSize: 13, color: MUTED, textAlign: "end" }}>
+        <div className="text-[13px] text-agent-on-surface-variant text-end">
           {tLeads("footerCount", { count: footerCount })}
         </div>
       )}
@@ -460,18 +422,12 @@ function BucketSegmented({
     <div
       role="tablist"
       aria-label="lead-bucket"
-      style={{
-        display: "inline-flex",
-        background: SUBTLE_BG,
-        borderRadius: 8,
-        padding: 2,
-        gap: 2,
-        border: `1px solid ${BORDER}`,
-      }}
+      className="inline-flex items-center gap-1 p-1 bg-agent-surface rounded-2xl border border-agent-outline-variant shadow-[0_1px_2px_rgba(16,24,40,0.02)]"
     >
       {tabs.map((tab) => {
         const isActive = active === tab.key;
         const Icon = tab.icon;
+        const tone = TAB_TONE[tab.tone];
         return (
           <button
             key={tab.key}
@@ -479,34 +435,26 @@ function BucketSegmented({
             role="tab"
             aria-selected={isActive}
             onClick={() => onSelect(tab.key)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "5px 12px",
-              border: "none",
-              borderRadius: 6,
-              background: isActive ? "#FFFFFF" : "transparent",
-              color: isActive ? TEXT : MUTED,
-              fontSize: 13,
-              fontWeight: isActive ? 600 : 500,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              boxShadow: isActive ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
-              fontFamily: "inherit",
-              transition: "color 120ms ease, background-color 120ms ease",
-            }}
+            className={[
+              "group relative inline-flex items-center gap-2 py-2 px-4 rounded-xl",
+              "text-[13.5px] font-semibold transition-all duration-fast whitespace-nowrap",
+              isActive
+                ? `${tone.activeBg} ${tone.activeText} shadow-[0_1px_2px_rgba(16,24,40,0.04)] border ${tone.activeBorder}`
+                : "text-agent-on-surface-variant hover:text-agent-on-surface hover:bg-agent-surface-low/60 border border-transparent",
+            ].join(" ")}
           >
-            <Icon size={14} strokeWidth={1.75} aria-hidden="true" />
+            <Icon
+              size={15}
+              strokeWidth={isActive ? 2.5 : 2}
+              aria-hidden="true"
+              className={isActive ? tone.iconActive : "text-agent-on-surface-variant/70"}
+            />
             <span>{labelFor(tab.labelKey)}</span>
             <span
-              style={{
-                fontSize: 12,
-                fontWeight: isActive ? 600 : 500,
-                color: "inherit",
-                opacity: isActive ? 1 : 0.7,
-                fontVariantNumeric: "tabular-nums",
-              }}
+              className={[
+                "inline-flex items-center justify-center min-w-[20px] h-[18px] px-1.5 rounded-pill tabular-nums text-[11px] font-bold",
+                isActive ? `${tone.chipBg} ${tone.chipText}` : "bg-agent-surface-high text-agent-on-surface-variant/80",
+              ].join(" ")}
             >
               {counts[tab.key]}
             </span>
@@ -536,24 +484,19 @@ function ViewToggle({
     {
       key: "list",
       label: listLabel,
-      icon: <Rows3 size={13} strokeWidth={1.75} />,
+      icon: <Rows3 size={13} strokeWidth={2} />,
     },
     {
       key: "kanban",
       label: kanbanLabel,
-      icon: <LayoutGrid size={13} strokeWidth={1.75} />,
+      icon: <LayoutGrid size={13} strokeWidth={2} />,
     },
   ];
   return (
     <div
-      style={{
-        display: "inline-flex",
-        background: SUBTLE_BG,
-        borderRadius: 8,
-        padding: 2,
-        gap: 2,
-        border: `1px solid ${BORDER}`,
-      }}
+      role="tablist"
+      aria-label="view-toggle"
+      className="inline-flex items-center gap-0.5 p-1 bg-agent-surface rounded-xl border border-agent-outline-variant"
     >
       {items.map((it) => {
         const isActive = view === it.key;
@@ -561,28 +504,20 @@ function ViewToggle({
           <button
             key={it.key}
             type="button"
+            role="tab"
             aria-selected={isActive}
             onClick={() => onViewChange(it.key)}
             title={it.label}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "5px 10px",
-              border: "none",
-              borderRadius: 6,
-              background: isActive ? "#FFFFFF" : "transparent",
-              color: TEXT,
-              fontSize: 12,
-              fontWeight: isActive ? 600 : 500,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              boxShadow: isActive ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
-              fontFamily: "inherit",
-            }}
+            className={[
+              "inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg",
+              "text-[12px] font-semibold transition-colors duration-fast whitespace-nowrap",
+              isActive
+                ? "bg-agent-surface-high text-agent-on-surface"
+                : "bg-transparent text-agent-on-surface-variant hover:text-agent-on-surface",
+            ].join(" ")}
           >
             {it.icon}
-            {it.label}
+            <span>{it.label}</span>
           </button>
         );
       })}

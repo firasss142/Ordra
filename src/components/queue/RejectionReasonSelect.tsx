@@ -1,17 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { REJECTION_REASONS } from "@/types/order-status";
-
-const LABELS: Record<string, string> = {
-  refus_client: "Refus client",
-  faux_numero: "Faux numéro",
-  doublon: "Doublon",
-  injoignable: "Injoignable",
-  prix: "Prix",
-  non_serieux: "Non sérieux",
-  autre: "Autre",
-};
 
 interface RejectionReasonSelectProps {
   onSelect: (reason: string, note?: string) => void;
@@ -37,6 +28,8 @@ const rowSelected: React.CSSProperties = {
 };
 
 export function RejectionReasonSelect({ onSelect, defaultReason }: RejectionReasonSelectProps) {
+  const tReasons = useTranslations("orders.rejectionReasons");
+  const tQueue = useTranslations("queue");
   const [selectedReason, setSelectedReason] = useState<string | null>(defaultReason ?? null);
   const [note, setNote] = useState("");
 
@@ -62,7 +55,7 @@ export function RejectionReasonSelect({ onSelect, defaultReason }: RejectionReas
             style={selectedReason === reason ? rowSelected : rowBase}
             onClick={() => handleReasonClick(reason)}
           >
-            {LABELS[reason] ?? reason}
+            {tReasons(reason)}
           </div>
         ))}
       </div>
@@ -71,7 +64,7 @@ export function RejectionReasonSelect({ onSelect, defaultReason }: RejectionReas
         <div style={{ marginTop: 12 }}>
           <input
             type="text"
-            placeholder="Précisez…"
+            placeholder={tQueue("rejectionNotePlaceholder")}
             value={note}
             onChange={(e) => handleNoteChange(e.target.value)}
             style={{

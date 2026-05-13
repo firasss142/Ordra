@@ -50,6 +50,7 @@ export function NewFollowUpModal({
   initialStatus,
 }: Props) {
   const t = useTranslations("crm.followUps");
+  const tOrderStatuses = useTranslations("orders.statuses");
   const [picked, setPicked] = useState<CustomerSearchResult | null>(null);
   const [deliveryManPhone, setDeliveryManPhone] = useState("");
   const [description, setDescription] = useState("");
@@ -85,13 +86,13 @@ export function NewFollowUpModal({
       });
       const json = await res.json();
       if (!res.ok) {
-        throw new Error(json?.error ?? "error");
+        throw new Error(json?.error ?? t("errors.generic"));
       }
       onCreated?.(json?.data?.followUpId ?? json?.data?.follow_up_id ?? "");
       reset();
       onClose();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+      setErr(e instanceof Error ? e.message : t("errors.generic"));
     } finally {
       setSubmitting(false);
     }
@@ -184,7 +185,7 @@ export function NewFollowUpModal({
                 {picked.customer_phone}
                 {picked.customer_city ? ` · ${picked.customer_city}` : ""}
                 {" · "}
-                {picked.status}
+                {tOrderStatuses(picked.status)}
               </div>
             </div>
           ) : (

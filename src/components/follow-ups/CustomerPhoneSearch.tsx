@@ -20,6 +20,7 @@ export function CustomerPhoneSearch({
   disabled,
 }: Props) {
   const t = useTranslations("crm.followUps");
+  const tOrderStatuses = useTranslations("orders.statuses");
   const [phone, setPhone] = useState("");
   const { results, isLoading, enabled } = useCustomerSearch(phone, marketId);
 
@@ -97,7 +98,7 @@ export function CustomerPhoneSearch({
                     {r.customer_phone}
                     {r.customer_city ? ` · ${r.customer_city}` : ""}
                     {" · "}
-                    <span>{r.status}</span>
+                    <span>{tOrderStatuses(r.status)}</span>
                   </div>
                   {alreadyHas && (
                     <div

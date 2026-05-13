@@ -58,8 +58,8 @@ const TABS: TabDef[] = [
   { key: "fermees", icon: Archive, labelKey: "closed", tone: "archive" },
 ];
 
-// Active-state token sets per tone. Each tab "lights up" in its lifecycle color
-// only when selected — keeps the segmented control quiet until acted on.
+// Active-state token sets per tone. Each tab lights up in its lifecycle color
+// only when selected, keeping the segmented control quiet at rest.
 const TAB_TONE: Record<
   TabDef["tone"],
   { activeBg: string; activeText: string; activeBorder: string; chipBg: string; chipText: string; iconActive: string }
@@ -81,12 +81,12 @@ const TAB_TONE: Record<
     iconActive: "text-[#8A5A00]",
   },
   success: {
-    activeBg: "bg-agent-primary/12",
-    activeText: "text-agent-on-primary-container",
-    activeBorder: "border-agent-primary/30",
-    chipBg: "bg-agent-primary",
+    activeBg: "bg-[#DFF8EC]",
+    activeText: "text-[#004D35]",
+    activeBorder: "border-[#10B981]",
+    chipBg: "bg-[#007A52]",
     chipText: "text-white",
-    iconActive: "text-agent-primary",
+    iconActive: "text-[#008060]",
   },
   archive: {
     activeBg: "bg-agent-surface-high",

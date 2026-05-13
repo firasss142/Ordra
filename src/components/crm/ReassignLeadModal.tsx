@@ -149,7 +149,7 @@ export function ReassignLeadModal({ open, lead, marketId, onClose, onDone }: Pro
                 color: "#1A1A1A",
               }}
             >
-              {t("errors.generic").includes("annuler") ? "Annuler" : "Annuler"}
+              {t("cancel")}
             </button>
             <button
               type="submit"
