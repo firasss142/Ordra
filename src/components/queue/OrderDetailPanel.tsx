@@ -964,24 +964,28 @@ export function OrderDetailPanel({
                           {order.customer_city ?? "—"}
                         </span>
                       ) : !libyaCityPickerOpen ? (
-                        <div className="flex items-center justify-between gap-2 w-full">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLibyaCityQuery("");
+                            setLibyaCityPickerOpen(true);
+                          }}
+                          className="group flex items-center justify-between gap-2 w-full text-start cursor-text rounded-card -mx-1 px-1 py-0.5 hover:bg-surface-hover transition-colors duration-fast"
+                          aria-label={t("cityChange")}
+                        >
                           <span
                             className="truncate text-[13px] text-ink-primary"
                             dir="auto"
                           >
                             {order.customer_city ?? "—"}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setLibyaCityQuery("");
-                              setLibyaCityPickerOpen(true);
-                            }}
-                            className="flex-shrink-0 text-[12px] font-medium text-ink-secondary hover:text-ink-primary underline-offset-2 hover:underline"
+                          <span
+                            aria-hidden="true"
+                            className="flex-shrink-0 text-[12px] font-medium text-ink-secondary group-hover:text-ink-primary underline-offset-2 group-hover:underline"
                           >
                             {t("cityChange")}
-                          </button>
-                        </div>
+                          </span>
+                        </button>
                       ) : (
                         <div className="flex flex-col gap-2 w-full">
                           <input

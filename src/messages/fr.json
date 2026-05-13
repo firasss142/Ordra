@@ -1137,6 +1137,11 @@
     "cancel": "Annuler",
     "confirm": "Confirmer",
     "elapsed": "Il y a {time}",
+    "elapsedUnits": {
+      "minutes": "{count}min",
+      "hours": "{count}h",
+      "days": "{count}j"
+    },
     "phoneAria": "Appeler {phone}",
     "attempts": "Tentative {count}",
     "callbackAt": "Rappel à {time}",
@@ -1243,6 +1248,12 @@
         "rappel": "Rappel",
         "tentative": "Tentative",
         "livraison": "Livraison planifiée"
+      },
+      "closedSubfilter": {
+        "all": "Tous",
+        "uploaded": "Téléchargé",
+        "rejected": "Rejeté",
+        "dispatched": "Expédié"
       }
     },
     "etiquette": {

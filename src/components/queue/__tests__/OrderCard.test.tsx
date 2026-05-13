@@ -1,18 +1,26 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { OrderCard } from "../OrderCard";
 import type { QueueOrder } from "@/types/queue";
 
+const intlMockState = vi.hoisted(() => ({ locale: "fr" }));
+
 vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
-  const messages = (await import("@/messages/fr.json")).default;
+  const frMessages = (await import("@/messages/fr.json")).default;
+  const arMessages = (await import("@/messages/ar.json")).default;
   return {
     useTranslations: (ns: string) => (key: string, params?: Record<string, unknown>) =>
-      resolveTranslation(messages, ns, key, params),
-    useLocale: () => "fr",
+      resolveTranslation(intlMockState.locale === "ar" ? arMessages : frMessages, ns, key, params),
+    useLocale: () => intlMockState.locale,
   };
+});
+
+afterEach(() => {
+  intlMockState.locale = "fr";
+  vi.restoreAllMocks();
 });
 
 const mockOrder: QueueOrder = {
@@ -119,6 +127,34 @@ describe("OrderCard", () => {
     expect(checkbox).toBeDefined();
   });
 
+  it("does not add the selected border when a card is only focused", () => {
+    render(
+      <OrderCard
+        order={mockOrder}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+        focused
+      />,
+    );
+    const card = document.querySelector("[data-order-id='order-1']") as HTMLElement;
+    expect(card.className).not.toContain("border-agent-primary");
+  });
+
+  it("uses a darker border for normal orders", () => {
+    render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
+    const card = document.querySelector("[data-order-id='order-1']") as HTMLElement;
+    expect(card.className).toContain("border-black/35");
+  });
+
+  it("localizes elapsed days in Arabic", () => {
+    intlMockState.locale = "ar";
+    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-05-02T10:00:00Z").getTime());
+    render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
+    expect(
+      screen.getByText((content) => content.includes("منذ") && content.includes("يوم")),
+    ).toBeDefined();
+  });
+
   it("calls onToggleSelect when checkbox is clicked without opening detail", async () => {
     const user = userEvent.setup();
     const onToggleSelect = vi.fn();
@@ -136,5 +172,134 @@ describe("OrderCard", () => {
     await user.click(checkbox);
     expect(onToggleSelect).toHaveBeenCalledWith("order-1");
     expect(onOpenDetail).not.toHaveBeenCalled();
+  });
+
+  it("renders uploaded status with action tone", () => {
+    render(
+      <OrderCard
+        order={{ ...mockOrder, status: "uploaded", customer_note: null }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    const pill = screen.getByText("Téléchargé chez transporteur");
+    expect(pill.className).toContain("text-status-action");
+  });
+
+  it("renders dispatched status with success tone", () => {
+    render(
+      <OrderCard
+        order={{ ...mockOrder, status: "dispatched", customer_note: null }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    const pill = screen.getByText("Expédié");
+    expect(pill.className).toContain("text-status-success");
+  });
+
+  it("renders rejected status with critical tone", () => {
+    render(
+      <OrderCard
+        order={{ ...mockOrder, status: "rejected", customer_note: null }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    const pill = screen.getByText("Rejeté");
+    expect(pill.className).toContain("text-status-critical");
+  });
+
+  describe("bucket-driven border tone", () => {
+    it("nouveau bucket → blue border", () => {
+      render(
+        <OrderCard
+          order={{ ...mockOrder, status: "pending", customer_note: null }}
+          onOpenDetail={() => {}}
+          onCallTerminated={() => {}}
+          selectedBucket="nouveau"
+        />,
+      );
+      const card = document.querySelector("[data-order-id='order-1']") as HTMLElement;
+      expect(card.className).toContain("border-[#1E3A5F]");
+    });
+
+    it("en_cours bucket → amber border", () => {
+      render(
+        <OrderCard
+          order={{ ...mockOrder, status: "attempt_1", customer_note: null }}
+          onOpenDetail={() => {}}
+          onCallTerminated={() => {}}
+          selectedBucket="en_cours"
+        />,
+      );
+      const card = document.querySelector("[data-order-id='order-1']") as HTMLElement;
+      expect(card.className).toContain("border-[#B07A00]");
+    });
+
+    it("confirme bucket → green border", () => {
+      render(
+        <OrderCard
+          order={{ ...mockOrder, status: "confirmed", customer_note: null }}
+          onOpenDetail={() => {}}
+          onCallTerminated={() => {}}
+          selectedBucket="confirme"
+        />,
+      );
+      const card = document.querySelector("[data-order-id='order-1']") as HTMLElement;
+      expect(card.className).toContain("border-[#10B981]");
+    });
+
+    it("fermees + rejected → red border", () => {
+      render(
+        <OrderCard
+          order={{ ...mockOrder, status: "rejected", customer_note: null }}
+          onOpenDetail={() => {}}
+          onCallTerminated={() => {}}
+          selectedBucket="fermees"
+        />,
+      );
+      const card = document.querySelector("[data-order-id='order-1']") as HTMLElement;
+      expect(card.className).toContain("border-[#DC2626]");
+    });
+
+    it("fermees + uploaded → purple border", () => {
+      render(
+        <OrderCard
+          order={{ ...mockOrder, status: "uploaded", customer_note: null }}
+          onOpenDetail={() => {}}
+          onCallTerminated={() => {}}
+          selectedBucket="fermees"
+        />,
+      );
+      const card = document.querySelector("[data-order-id='order-1']") as HTMLElement;
+      expect(card.className).toContain("border-[#7C3AED]");
+    });
+
+    it("fermees + delivered → gold border", () => {
+      render(
+        <OrderCard
+          order={{ ...mockOrder, status: "delivered", customer_note: null }}
+          onOpenDetail={() => {}}
+          onCallTerminated={() => {}}
+          selectedBucket="fermees"
+        />,
+      );
+      const card = document.querySelector("[data-order-id='order-1']") as HTMLElement;
+      expect(card.className).toContain("border-[#D97706]");
+    });
+
+    it("fermees + other status → neutral archive border", () => {
+      render(
+        <OrderCard
+          order={{ ...mockOrder, status: "dispatched", customer_note: null }}
+          onOpenDetail={() => {}}
+          onCallTerminated={() => {}}
+          selectedBucket="fermees"
+        />,
+      );
+      const card = document.querySelector("[data-order-id='order-1']") as HTMLElement;
+      expect(card.className).toContain("border-agent-outline");
+    });
   });
 });

@@ -1137,6 +1137,11 @@
     "cancel": "إلغاء",
     "confirm": "تأكيد",
     "elapsed": "منذ {time}",
+    "elapsedUnits": {
+      "minutes": "{count} دقيقة",
+      "hours": "{count} ساعة",
+      "days": "{count} يوم"
+    },
     "phoneAria": "اتصل بـ {phone}",
     "attempts": "محاولة {count}",
     "callbackAt": "معاودة في {time}",
@@ -1225,7 +1230,7 @@
       "callback": "معاودة",
       "inProgress": "قيد التنفيذ",
       "confirmed": "مؤكد",
-      "closed": "المغلقة (7 أيام)",
+      "closed": "المغلقة",
       "attemptSubfilter": {
         "all": "الكل",
         "one": "1",
@@ -1243,6 +1248,12 @@
         "rappel": "اتصال",
         "tentative": "محاولة",
         "livraison": "توصيل مجدول"
+      },
+      "closedSubfilter": {
+        "all": "الكل",
+        "uploaded": "تم الرفع",
+        "rejected": "مرفوض",
+        "dispatched": "تم التوصيل"
       }
     },
     "etiquette": {
