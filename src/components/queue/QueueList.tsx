@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { OrderCard } from "./OrderCard";
 import type { QueueOrder } from "@/types/queue";
+import type { BucketKey } from "./QueueHeader";
 
 interface QueueStats {
   assigned_count: number;
@@ -22,6 +23,7 @@ interface QueueListProps {
   focusedOrderId?: string | null;
   selectedOrderIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
+  selectedBucket: BucketKey;
 }
 
 function StatCell({ value, label }: { value: string; label: string }) {
@@ -46,6 +48,7 @@ export function QueueList({
   focusedOrderId,
   selectedOrderIds,
   onToggleSelect,
+  selectedBucket,
 }: QueueListProps) {
   const t = useTranslations("queue");
 
@@ -109,6 +112,7 @@ export function QueueList({
           focused={focusedOrderId === order.id}
           isSelected={selectedOrderIds?.has(order.id) ?? false}
           onToggleSelect={onToggleSelect}
+          selectedBucket={selectedBucket}
         />
       ))}
     </div>

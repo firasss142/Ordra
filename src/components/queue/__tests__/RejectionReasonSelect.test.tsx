@@ -2,6 +2,16 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { RejectionReasonSelect } from "../RejectionReasonSelect";
 
+vi.mock("next-intl", async () => {
+  const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
+  const messages = (await import("@/messages/fr.json")).default;
+  return {
+    useTranslations: (ns: string) => (key: string, params?: Record<string, unknown>) =>
+      resolveTranslation(messages, ns, key, params),
+    useLocale: () => "fr",
+  };
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
 });

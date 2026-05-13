@@ -10,6 +10,7 @@ import { useAuth } from "@/context/auth";
 import {
   QueueHeader,
   type BucketKey,
+  type ClosedSubfilter,
   type EnCoursSubfilter,
   type TentativeSubfilter,
 } from "./QueueHeader";
@@ -135,6 +136,14 @@ function matchesTentativeSubfilter(
   return attemptNumberForStatus(status) === sub;
 }
 
+function matchesClosedSubfilter(
+  status: string,
+  sub: ClosedSubfilter,
+): boolean {
+  if (sub === "all") return true;
+  return status === sub;
+}
+
 export function QueuePage() {
   const t = useTranslations("queue");
   const searchParams = useSearchParams();
@@ -178,12 +187,14 @@ export function QueuePage() {
     if (s === "t3") return 3;
     return "all";
   });
+  const [closedSubfilter, setClosedSubfilter] = useState<ClosedSubfilter>("all");
 
   // When user switches bucket, reset subfilters.
   const handleBucketChange = useCallback((bucket: BucketKey) => {
     setSelectedBucket(bucket);
     setEnCoursSubfilter("all");
     setTentativeSubfilter("all");
+    setClosedSubfilter("all");
   }, []);
 
   // Picking a non-Tentative top-level chip clears the popover narrowing.
@@ -230,10 +241,32 @@ export function QueuePage() {
 
   // Orders come pre-sorted from server — no client sort.
   const stableOrdersRef = useRef<QueueOrder[]>([]);
+  const closedCounts = useMemo<Record<ClosedSubfilter, number>>(() => {
+    const next: Record<ClosedSubfilter, number> = {
+      all: rawClosedOrders.length,
+      uploaded: 0,
+      rejected: 0,
+      dispatched: 0,
+    };
+    for (const order of rawClosedOrders) {
+      const status = order.status as string;
+      if (status === "uploaded" || status === "rejected" || status === "dispatched") {
+        next[status]++;
+      }
+    }
+    return next;
+  }, [rawClosedOrders]);
+
   const orders: QueueOrder[] = useMemo(() => {
     let next: QueueOrder[];
     if (selectedBucket === "fermees") {
-      next = rawClosedOrders.map(toQueueOrder);
+      const filtered =
+        closedSubfilter === "all"
+          ? rawClosedOrders
+          : rawClosedOrders.filter((o) =>
+              matchesClosedSubfilter(o.status as string, closedSubfilter),
+            );
+      next = filtered.map(toQueueOrder);
     } else {
       let filtered = rawAllOrders.filter((o) => {
         const bucket = bucketForStatus(o.status as string);
@@ -258,7 +291,7 @@ export function QueuePage() {
     if (next.length === prev.length && next[0]?.id === prev[0]?.id && next[next.length - 1]?.id === prev[prev.length - 1]?.id) return prev;
     stableOrdersRef.current = next;
     return next;
-  }, [selectedBucket, enCoursSubfilter, tentativeSubfilter, rawAllOrders, rawClosedOrders]);
+  }, [selectedBucket, enCoursSubfilter, tentativeSubfilter, closedSubfilter, rawAllOrders, rawClosedOrders]);
 
   // Auto-focus first order if no focus set
   useEffect(() => {
@@ -450,6 +483,9 @@ export function QueuePage() {
         onEnCoursSubfilterChange={handleEnCoursSubfilterChange}
         tentativeSubfilter={tentativeSubfilter}
         onTentativeSubfilterChange={setTentativeSubfilter}
+        closedSubfilter={closedSubfilter}
+        onClosedSubfilterChange={setClosedSubfilter}
+        closedCounts={closedCounts}
         onNewOrder={() => setCreateOpen(true)}
       />
 
@@ -464,12 +500,12 @@ export function QueuePage() {
       {/* Auto-rejected banner */}
       {autoRejectedBanner && (
         <div className="bg-status-criticalBg border-y border-status-critical/20 text-status-critical text-[14px] px-6 py-2.5 flex items-center justify-between">
-          <span>Une commande a été rejetée automatiquement (injoignable).</span>
+          <span>{t("autoRejectedBanner")}</span>
           <button
             type="button"
             onClick={() => setAutoRejectedBanner(false)}
             className="ms-3 text-[16px] leading-none text-status-critical hover:opacity-70 transition-opacity duration-fast"
-            aria-label="Dismiss"
+            aria-label={t("dismiss")}
           >
             ×
           </button>
@@ -485,6 +521,7 @@ export function QueuePage() {
         focusedOrderId={focusedOrderId}
         selectedOrderIds={selectedOrderIds}
         onToggleSelect={handleToggleSelect}
+        selectedBucket={selectedBucket}
       />
 
       <OrderDetailPanel

@@ -987,7 +987,14 @@
       "grandTotal": "Total",
       "inStock": "En stock",
       "lowStock": "Stock faible",
-      "stockLeft": "{count} restant"
+      "stockLeft": "{count} restant",
+      "errors": {
+        "uploadHttp": "Échec de l'envoi ({status})",
+        "uploadNetwork": "Erreur réseau",
+        "deleteHttp": "Échec de la suppression du code-barres ({status})",
+        "deleteNetwork": "Erreur réseau",
+        "addProductFailed": "Impossible d'ajouter le produit"
+      }
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",
@@ -1020,6 +1027,7 @@
       "delivered": "Livrée",
       "returned": "Retournée",
       "toBeReturned": "À retourner",
+      "scheduledDispatchCancelled": "Livraison planifiée annulée",
       "transition": "{from} → {to}"
     },
     "create": {
@@ -1060,7 +1068,8 @@
         "productRequired": "Le produit est obligatoire.",
         "quantityInvalid": "Quantité invalide.",
         "unitPriceInvalid": "Prix unitaire invalide.",
-        "totalPriceInvalid": "Prix total invalide."
+        "totalPriceInvalid": "Prix total invalide.",
+        "requestFailed": "Erreur {status}"
       }
     }
   },
@@ -1128,6 +1137,11 @@
     "cancel": "Annuler",
     "confirm": "Confirmer",
     "elapsed": "Il y a {time}",
+    "elapsedUnits": {
+      "minutes": "{count}min",
+      "hours": "{count}h",
+      "days": "{count}j"
+    },
     "phoneAria": "Appeler {phone}",
     "attempts": "Tentative {count}",
     "callbackAt": "Rappel à {time}",
@@ -1166,6 +1180,12 @@
     "confirmAndDispatch": "Confirmer et expédier",
     "confirmReject": "Confirmer le rejet",
     "autoRejectedMessage": "Commande rejetée automatiquement — tentatives maximum atteintes.",
+    "autoRejectedBanner": "Une commande a été rejetée automatiquement (injoignable).",
+    "dismiss": "Fermer",
+    "callbackTitle": "Programmer un rappel",
+    "callbackDateAria": "Date du rappel",
+    "callbackTimeAria": "Heure du rappel",
+    "rejectionNotePlaceholder": "Précisez…",
     "attemptCounter": "Tentative {current}/{max}",
     "noCarriersConfigured": "Aucun transporteur configuré — contactez votre manager",
     "stockDepleted": "Stock épuisé — impossible de confirmer",
@@ -1228,6 +1248,12 @@
         "rappel": "Rappel",
         "tentative": "Tentative",
         "livraison": "Livraison planifiée"
+      },
+      "closedSubfilter": {
+        "all": "Tous",
+        "uploaded": "Téléchargé",
+        "rejected": "Rejeté",
+        "dispatched": "Expédié"
       }
     },
     "etiquette": {
@@ -1526,7 +1552,8 @@
         "submit": "Confirmer",
         "errors": {
           "reasonRequired": "La raison est obligatoire.",
-          "noteRequired": "La note est obligatoire pour « Autre »."
+          "noteRequired": "La note est obligatoire pour « Autre ».",
+          "generic": "Une erreur est survenue."
         }
       },
       "scheduleCallback": "Planifier rappel",
@@ -1643,7 +1670,8 @@
         "submit": "Planifier",
         "errors": {
           "timeRequired": "La date est obligatoire.",
-          "timeFuture": "La date doit être future."
+          "timeFuture": "La date doit être future.",
+          "generic": "Une erreur est survenue."
         }
       },
       "campaigns": "Campagnes",
@@ -1697,10 +1725,18 @@
         "agent": "Agent",
         "selectAgent": "Sélectionnez un agent",
         "submit": "Réassigner",
+        "cancel": "Annuler",
         "errors": {
           "agentRequired": "Sélectionnez un agent.",
           "generic": "Impossible de réassigner."
         }
+      },
+      "kanban": {
+        "dismissError": "Fermer"
+      },
+      "attemptsAria": "Tentatives {used}/{max}",
+      "errors": {
+        "generic": "Une erreur est survenue."
       },
       "views": {
         "kanban": "Kanban",
@@ -1797,6 +1833,8 @@
       "loading": "Chargement…",
       "columnEmpty": "—",
       "emptyState": "Aucun suivi",
+      "emptyTimeline": "Aucun suivi dans votre file",
+      "tabAll": "Tous",
       "reset": "Réinitialiser",
       "previous": "Précédent",
       "next": "Suivant",
@@ -1843,7 +1881,10 @@
       "errors": {
         "noOrderSelected": "Veuillez sélectionner une commande",
         "alreadyExists": "Un suivi existe déjà pour cette commande",
-        "phoneTooShort": "Saisissez au moins 3 chiffres"
+        "phoneTooShort": "Saisissez au moins 3 chiffres",
+        "generic": "Une erreur est survenue.",
+        "transitionFailed": "Échec du changement de statut.",
+        "addNoteFailed": "Impossible d'ajouter la note."
       },
       "campaigns": {
         "title": "Nouvelle campagne de rappel",

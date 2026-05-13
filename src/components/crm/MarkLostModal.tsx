@@ -68,13 +68,13 @@ export function MarkLostModal({ open, leadId, locale, onClose, onDone }: Props) 
       });
       const json = await res.json();
       if (!res.ok) {
-        setErr(json.error || "Error");
+        setErr(json.error || t("errors.generic"));
         setBusy(false);
         return;
       }
       onDone();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Error");
+      setErr(e instanceof Error ? e.message : t("errors.generic"));
       setBusy(false);
     }
   }

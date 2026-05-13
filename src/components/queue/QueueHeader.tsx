@@ -11,6 +11,9 @@ import {
   ListTodo,
   ChevronDown,
   Plus,
+  UploadCloud,
+  Truck,
+  XCircle,
   type LucideIcon,
 } from "lucide-react";
 import type { AgentQueueBuckets } from "@/hooks/useAgentQueue";
@@ -29,6 +32,7 @@ export type BucketKey =
 
 export type EnCoursSubfilter = "all" | "rappel" | "tentative" | "livraison";
 export type TentativeSubfilter = "all" | 1 | 2 | 3;
+export type ClosedSubfilter = "all" | "uploaded" | "rejected" | "dispatched";
 
 interface QueueHeaderProps {
   agentName: string;
@@ -40,6 +44,9 @@ interface QueueHeaderProps {
   onEnCoursSubfilterChange: (sub: EnCoursSubfilter) => void;
   tentativeSubfilter: TentativeSubfilter;
   onTentativeSubfilterChange: (sub: TentativeSubfilter) => void;
+  closedSubfilter: ClosedSubfilter;
+  onClosedSubfilterChange: (sub: ClosedSubfilter) => void;
+  closedCounts: Record<ClosedSubfilter, number>;
   onNewOrder?: () => void;
 }
 
@@ -58,8 +65,17 @@ const TABS: TabDef[] = [
   { key: "fermees", icon: Archive, labelKey: "closed", tone: "archive" },
 ];
 
-// Active-state token sets per tone. Each tab "lights up" in its lifecycle color
-// only when selected — keeps the segmented control quiet until acted on.
+const CLOSED_STATUS_CHIPS: Array<{
+  key: Exclude<ClosedSubfilter, "all">;
+  icon: LucideIcon;
+}> = [
+  { key: "uploaded", icon: UploadCloud },
+  { key: "rejected", icon: XCircle },
+  { key: "dispatched", icon: Truck },
+];
+
+// Active-state token sets per tone. Each tab lights up in its lifecycle color
+// only when selected, keeping the segmented control quiet at rest.
 const TAB_TONE: Record<
   TabDef["tone"],
   { activeBg: string; activeText: string; activeBorder: string; chipBg: string; chipText: string; iconActive: string }
@@ -81,12 +97,12 @@ const TAB_TONE: Record<
     iconActive: "text-[#8A5A00]",
   },
   success: {
-    activeBg: "bg-agent-primary/12",
-    activeText: "text-agent-on-primary-container",
-    activeBorder: "border-agent-primary/30",
-    chipBg: "bg-agent-primary",
+    activeBg: "bg-[#DFF8EC]",
+    activeText: "text-[#004D35]",
+    activeBorder: "border-[#10B981]",
+    chipBg: "bg-[#007A52]",
     chipText: "text-white",
-    iconActive: "text-agent-primary",
+    iconActive: "text-[#008060]",
   },
   archive: {
     activeBg: "bg-agent-surface-high",
@@ -213,11 +229,15 @@ export function QueueHeader({
   onEnCoursSubfilterChange,
   tentativeSubfilter,
   onTentativeSubfilterChange,
+  closedSubfilter,
+  onClosedSubfilterChange,
+  closedCounts,
   onNewOrder,
 }: QueueHeaderProps) {
   const t = useTranslations("queue");
   const tEnCours = useTranslations("queue.buckets.enCoursSubfilter");
   const tAttempt = useTranslations("queue.buckets.subfilter");
+  const tClosed = useTranslations("queue.buckets.closedSubfilter");
 
   const [tentativePopoverOpen, setTentativePopoverOpen] = useState(false);
   const tentativeAnchorRef = useRef<HTMLButtonElement | null>(null);
@@ -465,6 +485,32 @@ export function QueueHeader({
             <Calendar size={12} strokeWidth={2} aria-hidden="true" className="me-1 inline" />
             {tEnCours("livraison")}
           </SubChip>
+        </div>
+      )}
+
+      {selectedBucket === "fermees" && (
+        <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+          <SubChip
+            active={closedSubfilter === "all"}
+            count={closedCounts.all}
+            srLabel={tClosed("all")}
+            onClick={() => onClosedSubfilterChange("all")}
+          >
+            {tClosed("all")}
+          </SubChip>
+
+          {CLOSED_STATUS_CHIPS.map(({ key, icon: Icon }) => (
+            <SubChip
+              key={key}
+              active={closedSubfilter === key}
+              count={closedCounts[key]}
+              srLabel={tClosed(key)}
+              onClick={() => onClosedSubfilterChange(key)}
+            >
+              <Icon size={12} strokeWidth={2} aria-hidden="true" className="me-1 inline" />
+              {tClosed(key)}
+            </SubChip>
+          ))}
         </div>
       )}
     </div>

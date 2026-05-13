@@ -987,7 +987,14 @@
       "grandTotal": "المجموع الكلي",
       "inStock": "متوفر",
       "lowStock": "مخزون منخفض",
-      "stockLeft": "متبقي {count}"
+      "stockLeft": "متبقي {count}",
+      "errors": {
+        "uploadHttp": "فشل الإرسال ({status})",
+        "uploadNetwork": "خطأ في الشبكة",
+        "deleteHttp": "فشل حذف الباركود ({status})",
+        "deleteNetwork": "خطأ في الشبكة",
+        "addProductFailed": "تعذرت إضافة المنتج"
+      }
     },
     "scheduleDispatch": {
       "title": "جدولة التوصيل",
@@ -1020,6 +1027,7 @@
       "delivered": "تم التسليم",
       "returned": "تم الإرجاع",
       "toBeReturned": "للإرجاع",
+      "scheduledDispatchCancelled": "تم إلغاء التوصيل المجدول",
       "transition": "{from} ← {to}"
     },
     "create": {
@@ -1060,7 +1068,8 @@
         "productRequired": "المنتج مطلوب.",
         "quantityInvalid": "الكمية غير صالحة.",
         "unitPriceInvalid": "سعر الوحدة غير صالح.",
-        "totalPriceInvalid": "السعر الإجمالي غير صالح."
+        "totalPriceInvalid": "السعر الإجمالي غير صالح.",
+        "requestFailed": "فشل الطلب ({status})"
       }
     }
   },
@@ -1128,6 +1137,11 @@
     "cancel": "إلغاء",
     "confirm": "تأكيد",
     "elapsed": "منذ {time}",
+    "elapsedUnits": {
+      "minutes": "{count} دقيقة",
+      "hours": "{count} ساعة",
+      "days": "{count} يوم"
+    },
     "phoneAria": "اتصل بـ {phone}",
     "attempts": "محاولة {count}",
     "callbackAt": "معاودة في {time}",
@@ -1166,6 +1180,12 @@
     "confirmAndDispatch": "تأكيد وإرسال",
     "confirmReject": "تأكيد الرفض",
     "autoRejectedMessage": "تم رفض الطلب تلقائياً — تم بلوغ الحد الأقصى للمحاولات.",
+    "autoRejectedBanner": "تم رفض طلب تلقائياً (لا يمكن الوصول).",
+    "dismiss": "إخفاء",
+    "callbackTitle": "جدولة معاودة",
+    "callbackDateAria": "تاريخ المعاودة",
+    "callbackTimeAria": "وقت المعاودة",
+    "rejectionNotePlaceholder": "حدّد…",
     "attemptCounter": "محاولة {current}/{max}",
     "noCarriersConfigured": "لا توجد شركة شحن مُعدّة — تواصل مع مديرك",
     "stockDepleted": "المخزون منتهٍ — لا يمكن التأكيد",
@@ -1210,7 +1230,7 @@
       "callback": "معاودة",
       "inProgress": "قيد التنفيذ",
       "confirmed": "مؤكد",
-      "closed": "المغلقة (7 أيام)",
+      "closed": "المغلقة",
       "attemptSubfilter": {
         "all": "الكل",
         "one": "1",
@@ -1228,6 +1248,12 @@
         "rappel": "اتصال",
         "tentative": "محاولة",
         "livraison": "توصيل مجدول"
+      },
+      "closedSubfilter": {
+        "all": "الكل",
+        "uploaded": "تم الرفع",
+        "rejected": "مرفوض",
+        "dispatched": "تم التوصيل"
       }
     },
     "etiquette": {
@@ -1526,7 +1552,8 @@
         "submit": "تأكيد",
         "errors": {
           "reasonRequired": "السبب مطلوب.",
-          "noteRequired": "الملاحظة مطلوبة لـ « آخر »."
+          "noteRequired": "الملاحظة مطلوبة لـ « آخر ».",
+          "generic": "حدث خطأ."
         }
       },
       "scheduleCallback": "جدولة معاودة اتصال",
@@ -1643,7 +1670,8 @@
         "submit": "جدولة",
         "errors": {
           "timeRequired": "التاريخ مطلوب.",
-          "timeFuture": "يجب أن يكون التاريخ في المستقبل."
+          "timeFuture": "يجب أن يكون التاريخ في المستقبل.",
+          "generic": "حدث خطأ."
         }
       },
       "campaigns": "الحملات",
@@ -1697,10 +1725,18 @@
         "agent": "الوكيل",
         "selectAgent": "اختر وكيلاً",
         "submit": "إعادة التعيين",
+        "cancel": "إلغاء",
         "errors": {
           "agentRequired": "يرجى اختيار وكيل.",
           "generic": "تعذّر إعادة التعيين."
         }
+      },
+      "kanban": {
+        "dismissError": "إخفاء"
+      },
+      "attemptsAria": "محاولات {used}/{max}",
+      "errors": {
+        "generic": "حدث خطأ."
       },
       "views": {
         "kanban": "كانبان",
@@ -1797,6 +1833,8 @@
       "loading": "جاري التحميل…",
       "columnEmpty": "—",
       "emptyState": "لا توجد متابعات",
+      "emptyTimeline": "لا توجد متابعات في قائمتك",
+      "tabAll": "الكل",
       "reset": "إعادة ضبط",
       "previous": "السابق",
       "next": "التالي",
@@ -1843,7 +1881,10 @@
       "errors": {
         "noOrderSelected": "يرجى اختيار طلب",
         "alreadyExists": "هناك متابعة موجودة بالفعل لهذا الطلب",
-        "phoneTooShort": "أدخل 3 أرقام على الأقل"
+        "phoneTooShort": "أدخل 3 أرقام على الأقل",
+        "generic": "حدث خطأ.",
+        "transitionFailed": "تعذّر تغيير الحالة.",
+        "addNoteFailed": "تعذّرت إضافة الملاحظة."
       },
       "campaigns": {
         "title": "حملة اتصال جديدة",

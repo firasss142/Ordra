@@ -10,6 +10,7 @@ import { AttemptEtiquette } from "./AttemptEtiquette";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
 import { AddressChangeNote } from "./AddressChangeNote";
 import type { QueueOrder } from "@/types/queue";
+import type { BucketKey } from "./QueueHeader";
 
 interface OrderCardProps {
   order: QueueOrder;
@@ -19,6 +20,26 @@ interface OrderCardProps {
   focused?: boolean;
   isSelected?: boolean;
   onToggleSelect?: (id: string) => void;
+  /** Bucket the card is currently rendered under — drives border tone. */
+  selectedBucket?: BucketKey;
+}
+
+// Per-bucket border tone. Fermées is per-status (rejected/uploaded/delivered
+// get their own accent; everything else falls back to a neutral archive gray).
+function bucketBorderClass(
+  bucket: BucketKey | undefined,
+  status: string,
+): string {
+  if (bucket === "fermees") {
+    if (status === "rejected") return "border border-[#DC2626]";
+    if (status === "uploaded") return "border border-[#7C3AED]";
+    if (status === "delivered") return "border border-[#D97706]";
+    return "border border-agent-outline";
+  }
+  if (bucket === "nouveau") return "border border-[#1E3A5F]";
+  if (bucket === "en_cours") return "border border-[#B07A00]";
+  if (bucket === "confirme") return "border border-[#10B981]";
+  return "border border-black/35";
 }
 
 function isAttemptOrCallback(status: string): boolean {
@@ -39,6 +60,7 @@ export const OrderCard = memo(function OrderCard({
   focused = false,
   isSelected = false,
   onToggleSelect,
+  selectedBucket,
 }: OrderCardProps) {
   const t = useTranslations("queue");
   const ts = useTranslations("orders.statuses");
@@ -76,10 +98,21 @@ export const OrderCard = memo(function OrderCard({
   function elapsedLabel(assignedAt: string): string {
     const diffMs = Date.now() - new Date(assignedAt).getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 60) return t("elapsed", { time: `${diffMins}min` });
+    const formatCount = (value: number) => new Intl.NumberFormat(locale).format(value);
+    if (diffMins < 60) {
+      return t("elapsed", {
+        time: t("elapsedUnits.minutes", { count: formatCount(diffMins) }),
+      });
+    }
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return t("elapsed", { time: `${diffHours}h` });
-    return t("elapsed", { time: `${Math.floor(diffHours / 24)}j` });
+    if (diffHours < 24) {
+      return t("elapsed", {
+        time: t("elapsedUnits.hours", { count: formatCount(diffHours) }),
+      });
+    }
+    return t("elapsed", {
+      time: t("elapsedUnits.days", { count: formatCount(Math.floor(diffHours / 24)) }),
+    });
   }
 
   function getCustomerInitials(name: string): string {
@@ -89,14 +122,34 @@ export const OrderCard = memo(function OrderCard({
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
   }
 
-  // Status pill style — emerald for confirmed, neutral for new/pending,
-  // amber-tinted for attempts/callbacks (handled by AttemptEtiquette).
+  // Status pill style: attempts/callbacks are handled by AttemptEtiquette.
   const statusPill = (() => {
     if (order.status === "confirmed") {
       return {
         label: ts("confirmed"),
         className:
           "bg-agent-primary-container/15 text-agent-on-primary-container border border-agent-primary/20",
+      };
+    }
+    if (order.status === "uploaded") {
+      return {
+        label: ts("uploaded"),
+        className:
+          "bg-[#EAF2FB] text-status-action border border-status-action/20",
+      };
+    }
+    if (order.status === "dispatched") {
+      return {
+        label: ts("dispatched"),
+        className:
+          "bg-status-successBg text-status-success border border-status-success/25",
+      };
+    }
+    if (order.status === "rejected") {
+      return {
+        label: ts("rejected"),
+        className:
+          "bg-status-criticalBg text-status-critical border border-status-critical/25",
       };
     }
     if (order.status === "pending" || order.status === "assigned") {
@@ -109,7 +162,7 @@ export const OrderCard = memo(function OrderCard({
     return null;
   })();
 
-  const selectedOrFocused = isSelected || focused;
+  const cardBorderClass = bucketBorderClass(selectedBucket, order.status);
 
   return (
     <div
@@ -121,9 +174,8 @@ export const OrderCard = memo(function OrderCard({
         "group relative cursor-pointer agent-card-hover",
         "rounded-xl p-4",
         "bg-agent-surface",
-        selectedOrFocused
-          ? "border-2 border-agent-primary"
-          : "border border-agent-outline-variant",
+        cardBorderClass,
+        isSelected ? "ring-2 ring-black/20" : "",
       ].join(" ")}
     >
       {/* Bulk-select checkbox — top-leading corner, fades in on hover */}

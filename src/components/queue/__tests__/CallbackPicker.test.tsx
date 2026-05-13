@@ -2,6 +2,16 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { CallbackPicker } from "../CallbackPicker";
 
+vi.mock("next-intl", async () => {
+  const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
+  const messages = (await import("@/messages/fr.json")).default;
+  return {
+    useTranslations: (ns: string) => (key: string, params?: Record<string, unknown>) =>
+      resolveTranslation(messages, ns, key, params),
+    useLocale: () => "fr",
+  };
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -9,13 +19,13 @@ beforeEach(() => {
 describe("CallbackPicker", () => {
   it("renders date and time inputs", () => {
     render(<CallbackPicker onSelect={vi.fn()} />);
-    const dateInput = screen.getByLabelText(/date/i) ?? document.querySelector('input[type="date"]');
-    const timeInput = screen.getByLabelText(/heure/i) ?? document.querySelector('input[type="time"]');
-    expect(dateInput ?? screen.getAllByRole("textbox")[0]).toBeDefined();
-    expect(timeInput ?? screen.getAllByRole("textbox")[1]).toBeDefined();
+    const dateInput = document.querySelector('input[type="date"]');
+    const timeInput = document.querySelector('input[type="time"]');
+    expect(dateInput).not.toBeNull();
+    expect(timeInput).not.toBeNull();
   });
 
-  it("renders title 'Programmer un rappel' and Date/Heure labels", () => {
+  it("renders the localized title and Date/Heure labels", () => {
     render(<CallbackPicker onSelect={vi.fn()} />);
     expect(screen.getByText("Programmer un rappel")).toBeDefined();
     expect(screen.getByText("Date")).toBeDefined();
@@ -51,7 +61,12 @@ describe("CallbackPicker", () => {
     const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
     const timeInput = document.querySelector('input[type="time"]') as HTMLInputElement;
 
-    fireEvent.change(dateInput, { target: { value: "2026-04-20" } });
+    // Use a date 30 days in the future so it passes the must-be-future validation.
+    const future = new Date();
+    future.setDate(future.getDate() + 30);
+    const futureDate = future.toISOString().slice(0, 10);
+
+    fireEvent.change(dateInput, { target: { value: futureDate } });
     fireEvent.change(timeInput, { target: { value: "14:30" } });
 
     expect(onSelect).toHaveBeenCalledTimes(1);

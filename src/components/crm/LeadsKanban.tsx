@@ -226,7 +226,7 @@ export function LeadsKanban({
               <button
                 type="button"
                 onClick={() => setMoveError(null)}
-                aria-label="Dismiss"
+                aria-label={tLeads("kanban.dismissError")}
                 style={{
                   border: "none",
                   background: "transparent",

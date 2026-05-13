@@ -112,11 +112,11 @@ export function NewLeadModal({
     if (marketCode === "ly") {
       return LIBYAN_GOVERNORATES.map((g) => ({
         id: g.fr,
-        label: `${g.fr} — ${g.ar}`,
+        label: locale === "ar" ? g.ar : `${g.fr} — ${g.ar}`,
       }));
     }
     return [];
-  }, [marketCode]);
+  }, [marketCode, locale]);
 
   const productsKey =
     open && marketId ? `/api/products?market_id=${marketId}&is_active=true` : null;

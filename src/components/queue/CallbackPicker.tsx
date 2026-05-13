@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useTranslations } from "next-intl";
 
 interface CallbackPickerProps {
   defaultValue?: Date;
@@ -52,6 +53,7 @@ function FocusableInput(
 }
 
 export function CallbackPicker({ defaultValue, onSelect }: CallbackPickerProps) {
+  const t = useTranslations("queue");
   const [dateVal, setDateVal] = useState(
     defaultValue ? toLocalDateString(defaultValue) : ""
   );
@@ -70,14 +72,14 @@ export function CallbackPicker({ defaultValue, onSelect }: CallbackPickerProps) 
       const combined = new Date(`${newDate}T${newTime}:00`);
       if (!isNaN(combined.getTime())) {
         if (combined <= new Date()) {
-          setValidationError("L'heure doit être dans le futur");
+          setValidationError(t("scheduleMustBeFuture"));
         } else {
           setValidationError(null);
           onSelect(combined);
         }
       }
     }
-  }, [onSelect]);
+  }, [onSelect, t]);
 
   function applyPreset() {
     const d = new Date();
@@ -94,7 +96,7 @@ export function CallbackPicker({ defaultValue, onSelect }: CallbackPickerProps) 
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: "#1A1A1A" }}>
-          Programmer un rappel
+          {t("callbackTitle")}
         </div>
         <button
           type="button"
@@ -115,11 +117,11 @@ export function CallbackPicker({ defaultValue, onSelect }: CallbackPickerProps) 
       <div style={{ display: "flex", gap: 8 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 12, fontWeight: 500, color: "#6B7280", marginBottom: 4 }}>
-            Date
+            {t("scheduleDate")}
           </div>
           <FocusableInput
             type="date"
-            aria-label="Date du rappel"
+            aria-label={t("callbackDateAria")}
             min={today}
             value={dateVal}
             onChange={(e) => {
@@ -130,11 +132,11 @@ export function CallbackPicker({ defaultValue, onSelect }: CallbackPickerProps) 
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 12, fontWeight: 500, color: "#6B7280", marginBottom: 4 }}>
-            Heure
+            {t("scheduleTime")}
           </div>
           <FocusableInput
             type="time"
-            aria-label="Heure du rappel"
+            aria-label={t("callbackTimeAria")}
             value={timeVal}
             onChange={(e) => {
               setTimeVal(e.target.value);

@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import {
   QueueHeader,
   type BucketKey,
+  type ClosedSubfilter,
   type EnCoursSubfilter,
   type TentativeSubfilter,
 } from "../QueueHeader";
@@ -33,17 +34,27 @@ const baseBuckets: AgentQueueBuckets = {
   fermees: 7,
 };
 
+const baseClosedCounts: Record<ClosedSubfilter, number> = {
+  all: 7,
+  uploaded: 2,
+  rejected: 3,
+  dispatched: 2,
+};
+
 function renderHeader(overrides: {
   selectedBucket?: BucketKey;
   enCoursSubfilter?: EnCoursSubfilter;
   tentativeSubfilter?: TentativeSubfilter;
+  closedSubfilter?: ClosedSubfilter;
   onBucketChange?: (b: BucketKey) => void;
   onEnCoursSubfilterChange?: (s: EnCoursSubfilter) => void;
   onTentativeSubfilterChange?: (s: TentativeSubfilter) => void;
+  onClosedSubfilterChange?: (s: ClosedSubfilter) => void;
 } = {}) {
   const onBucketChange = overrides.onBucketChange ?? vi.fn();
   const onEnCoursSubfilterChange = overrides.onEnCoursSubfilterChange ?? vi.fn();
   const onTentativeSubfilterChange = overrides.onTentativeSubfilterChange ?? vi.fn();
+  const onClosedSubfilterChange = overrides.onClosedSubfilterChange ?? vi.fn();
   render(
     <QueueHeader
       agentName="Ali Trabelsi"
@@ -55,12 +66,16 @@ function renderHeader(overrides: {
       onEnCoursSubfilterChange={onEnCoursSubfilterChange}
       tentativeSubfilter={overrides.tentativeSubfilter ?? "all"}
       onTentativeSubfilterChange={onTentativeSubfilterChange}
+      closedSubfilter={overrides.closedSubfilter ?? "all"}
+      onClosedSubfilterChange={onClosedSubfilterChange}
+      closedCounts={baseClosedCounts}
     />,
   );
   return {
     onBucketChange,
     onEnCoursSubfilterChange,
     onTentativeSubfilterChange,
+    onClosedSubfilterChange,
   };
 }
 
@@ -164,6 +179,40 @@ describe("QueueHeader — En cours sub-chips", () => {
     renderHeader({ selectedBucket: "en_cours" });
     const chip = screen.getByRole("button", { name: /^Livraison/ });
     expect(chip).toHaveTextContent("2");
+  });
+});
+
+describe("QueueHeader - Fermées sub-chips", () => {
+  it("renders Tous, Téléchargé, Rejeté, Expédié chips inside Fermées", () => {
+    renderHeader({ selectedBucket: "fermees" });
+    expect(screen.getByRole("button", { name: /^Tous/ })).toHaveTextContent("7");
+    expect(screen.getByRole("button", { name: /^Téléchargé/ })).toHaveTextContent("2");
+    expect(screen.getByRole("button", { name: /^Rejeté/ })).toHaveTextContent("3");
+    expect(screen.getByRole("button", { name: /^Expédié/ })).toHaveTextContent("2");
+  });
+
+  it("does not render Fermées chips outside the Fermées bucket", () => {
+    renderHeader({ selectedBucket: "confirme" });
+    expect(screen.queryByRole("button", { name: /^Téléchargé/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Rejeté/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Expédié/ })).not.toBeInTheDocument();
+  });
+
+  it("active Fermées sub-chip gets aria-pressed='true'", () => {
+    renderHeader({ selectedBucket: "fermees", closedSubfilter: "rejected" });
+    const chip = screen.getByRole("button", { name: /^Rejeté/ });
+    expect(chip).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("calls onClosedSubfilterChange when closed status chips are clicked", () => {
+    const onClosedSubfilterChange = vi.fn();
+    renderHeader({ selectedBucket: "fermees", onClosedSubfilterChange });
+    fireEvent.click(screen.getByRole("button", { name: /^Téléchargé/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Rejeté/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Expédié/ }));
+    expect(onClosedSubfilterChange).toHaveBeenNthCalledWith(1, "uploaded");
+    expect(onClosedSubfilterChange).toHaveBeenNthCalledWith(2, "rejected");
+    expect(onClosedSubfilterChange).toHaveBeenNthCalledWith(3, "dispatched");
   });
 });
 

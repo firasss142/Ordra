@@ -21,6 +21,7 @@ function FollowUpCardImpl({
   density = "comfortable",
 }: Props) {
   const t = useTranslations("crm.followUps");
+  const tOrderStatuses = useTranslations("orders.statuses");
   const { order } = followUp;
   const compact = density === "compact";
   const padding = compact ? 10 : 12;
@@ -109,7 +110,7 @@ function FollowUpCardImpl({
             padding: "1px 6px",
           }}
         >
-          {order.status}
+          {tOrderStatuses(order.status)}
         </span>
         <FollowUpStatusBadge status={followUp.status} />
       </div>
