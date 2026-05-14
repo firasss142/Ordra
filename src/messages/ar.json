@@ -2844,6 +2844,7 @@
       "noResults": "لم يتم العثور على وجهة.",
       "goodsValue": "قيمة البضاعة",
       "deliveryFee": "رسوم التوصيل",
+      "deliveryFeeSellerCovered": "على عاتق البائع",
       "customerTotal": "المبلغ الإجمالي عند الاستلام",
       "uploading": "جاري الإرسال…",
       "confirmDispatch": "تأكيد الإرسال",

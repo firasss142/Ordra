@@ -135,7 +135,7 @@ export const OrderCard = memo(function OrderCard({
       return {
         label: ts("uploaded"),
         className:
-          "bg-[#EAF2FB] text-status-action border border-status-action/20",
+          "bg-[#F3E8FF] text-[#7C3AED] border border-[#7C3AED]/25",
       };
     }
     if (order.status === "dispatched") {
