@@ -244,7 +244,9 @@ describe("CarriersSection — add/edit flow", () => {
         expect.objectContaining({ method: "PATCH" })
       );
     });
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    // openEdit also fires a GET to prefill credentials — target the PATCH.
+    const patchCall = mockFetch.mock.calls.find((c) => c[1]?.method === "PATCH")!;
+    const body = JSON.parse(patchCall[1].body);
     expect(body.api_key).toBe("new-secret-key");
   });
 
@@ -257,9 +259,13 @@ describe("CarriersSection — add/edit flow", () => {
     fireEvent.change(nameInputs[0], { target: { value: "Navex v2" } });
     await user.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalled();
+      expect(
+        mockFetch.mock.calls.some((c) => c[1]?.method === "PATCH")
+      ).toBe(true);
     });
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    // openEdit also fires a GET to prefill credentials — target the PATCH.
+    const patchCall = mockFetch.mock.calls.find((c) => c[1]?.method === "PATCH")!;
+    const body = JSON.parse(patchCall[1].body);
     expect(body.api_key).toBeUndefined();
     expect(body.name).toBe("Navex v2");
   });

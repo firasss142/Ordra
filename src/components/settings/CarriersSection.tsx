@@ -38,6 +38,7 @@ interface AdapterDescriptor {
     label: string;
     placeholder?: string;
     secret: boolean;
+    type?: "text" | "switch";
   }>;
   markets?: string[];
 }
@@ -161,6 +162,9 @@ export function CarriersSection({
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [editCarrier, setEditCarrier] = useState<Carrier | null>(null);
+  // Mirror of editCarrier.id for use inside async callbacks without stale
+  // closures (guards the credential prefill fetch in openEdit).
+  const editCarrierIdRef = useRef<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
@@ -169,6 +173,11 @@ export function CarriersSection({
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
 
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+
+  // True while openEdit is fetching the carrier's non-secret credential
+  // values to prefill the form. Guards against a stale fetch from a previous
+  // open overwriting a newer one (compared against editCarrier.id).
+  const [loadingCredentials, setLoadingCredentials] = useState(false);
 
   // form
   const [form, setForm] = useState({
@@ -193,6 +202,7 @@ export function CarriersSection({
 
   function openAdd() {
     setEditCarrier(null);
+    editCarrierIdRef.current = null;
     setForm({
       adapter_code: adapters[0]?.code ?? CUSTOM_CODE,
       name: "",
@@ -207,8 +217,9 @@ export function CarriersSection({
     setPanelOpen(true);
   }
 
-  function openEdit(c: Carrier) {
+  async function openEdit(c: Carrier) {
     setEditCarrier(c);
+    editCarrierIdRef.current = c.id;
     setForm({
       adapter_code: c.code && adapters.some((a) => a.code === c.code) ? c.code : CUSTOM_CODE,
       name: c.name,
@@ -221,11 +232,36 @@ export function CarriersSection({
     });
     setErrorMsg("");
     setPanelOpen(true);
+
+    // Prefill non-secret credential fields (email, merchant_id, from_state,
+    // cost_type toggle, …) so editing isn't blind. Secrets are never returned
+    // by the API — they stay masked / rotate-only.
+    setLoadingCredentials(true);
+    try {
+      const res = await fetch(`/api/carriers/${c.id}`);
+      if (res.ok) {
+        const body = (await res.json()) as {
+          data?: { credentials?: Record<string, string> };
+        };
+        const creds = body.data?.credentials ?? {};
+        // Ignore if the user already moved to a different carrier.
+        setForm((f) =>
+          editCarrierIdRef.current === c.id
+            ? { ...f, credentials: { ...creds, ...f.credentials } }
+            : f
+        );
+      }
+    } catch {
+      // Non-fatal: form just stays blank, server-side merge still protects data.
+    } finally {
+      setLoadingCredentials(false);
+    }
   }
 
   const closePanel = useCallback(() => {
     setPanelOpen(false);
     setEditCarrier(null);
+    editCarrierIdRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -714,6 +750,51 @@ export function CarriersSection({
                       const isSecret = field.secret;
                       const editingSecretMasked =
                         editCarrier && isSecret && !form.rotatingKey;
+
+                      if (field.type === "switch") {
+                        // Empty value defaults to "1" (on) — matches the
+                        // payload builder's `?? "1"` fallback. While the
+                        // saved value is still loading, disable the switch so
+                        // it can't show or save a stale state.
+                        const checked = (form.credentials[field.key] ?? "1") !== "0";
+                        return (
+                          <label
+                            key={field.key}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              cursor: loadingCredentials ? "default" : "pointer",
+                              gap: 12,
+                              opacity: loadingCredentials ? 0.5 : 1,
+                            }}
+                          >
+                            <span style={labelStyle}>{field.label}</span>
+                            <input
+                              type="checkbox"
+                              role="switch"
+                              aria-label={field.label}
+                              checked={checked}
+                              disabled={loadingCredentials}
+                              onChange={(e) =>
+                                setForm((f) => ({
+                                  ...f,
+                                  credentials: {
+                                    ...f.credentials,
+                                    [field.key]: e.target.checked ? "1" : "0",
+                                  },
+                                }))
+                              }
+                              style={{
+                                width: 32,
+                                height: 18,
+                                cursor: loadingCredentials ? "default" : "pointer",
+                                accentColor: "#1A1A1A",
+                              }}
+                            />
+                          </label>
+                        );
+                      }
 
                       return (
                         <div key={field.key}>
