@@ -136,6 +136,7 @@
       "access": "Accès",
       "marketsConfig": "Marchés",
       "storefrontsConfig": "Storefronts",
+      "mappings": "Correspondances",
       "carriersConfig": "Transporteurs",
       "generalSettings": "Paramètres",
       "logs": "Journaux"
@@ -1441,6 +1442,50 @@
       "editThreshold": "Modifier le seuil",
       "variants": "{count} variante(s)",
       "moreVariants": "+{count} autres"
+    }
+  },
+  "mappings": {
+    "title": "Correspondances",
+    "subtitle": "Associer les produits et villes des storefronts aux entités OMS",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "loading": "Chargement…",
+    "loadError": "Échec du chargement. Réessayez.",
+    "tabs": {
+      "products": "Produits",
+      "cities": "Villes"
+    },
+    "status": {
+      "needs_review": "À vérifier",
+      "unmatched": "Non associé"
+    },
+    "products": {
+      "reviewHeading": "Commandes sans produit associé",
+      "reviewEmpty": "Aucune commande en attente d'association produit",
+      "mappingsHeading": "Correspondances produit existantes",
+      "mappingsEmpty": "Aucune correspondance produit configurée",
+      "variantId": "ID variante",
+      "bind": "Associer",
+      "bindTitle": "Associer un produit",
+      "bindDescription": "Associer la variante {variant} (« {name} ») à un produit OMS. Les commandes ouvertes portant cette variante seront mises à jour.",
+      "colStorefront": "Storefront",
+      "colVariantId": "ID variante",
+      "colProduct": "Produit OMS",
+      "selectProduct": "Sélectionner un produit"
+    },
+    "cities": {
+      "reviewHeading": "Commandes sans ville associée",
+      "reviewEmpty": "Aucune commande en attente d'association ville",
+      "mappingsHeading": "Correspondances ville existantes",
+      "mappingsEmpty": "Aucune correspondance ville configurée",
+      "cityId": "ID ville",
+      "bind": "Associer",
+      "bindTitle": "Associer une ville",
+      "bindDescription": "Associer la ville {cityId} (« {name} ») à une ville OMS. Les commandes ouvertes portant cet ID seront mises à jour.",
+      "colPlatform": "Plateforme",
+      "colCityId": "ID ville",
+      "colCity": "Ville OMS",
+      "selectCity": "Sélectionner une ville"
     }
   },
   "productPnl": {

@@ -6,6 +6,7 @@ import {
   getRecord,
   getArray,
   parseDecimal,
+  getExternalId,
 } from "./payload-guards";
 
 describe("payload-guards", () => {
@@ -99,6 +100,41 @@ describe("payload-guards", () => {
       expect(parseDecimal(null)).toBeUndefined();
       expect(parseDecimal(undefined)).toBeUndefined();
       expect(parseDecimal({})).toBeUndefined();
+    });
+  });
+
+  describe("getExternalId", () => {
+    test("returns string ids as-is, trimmed", () => {
+      expect(getExternalId({ id: "9262459551959" }, "id")).toBe("9262459551959");
+      expect(getExternalId({ id: "  abc  " }, "id")).toBe("abc");
+    });
+    test("coerces integer ids to their string form (no exponent, no decimals)", () => {
+      // Buybox sends variant_id / city_id / route_id as JSON numbers.
+      expect(getExternalId({ variant_id: 48611571007703 }, "variant_id")).toBe(
+        "48611571007703",
+      );
+      expect(getExternalId({ city_id: 3 }, "city_id")).toBe("3");
+      expect(getExternalId({ route_id: 0 }, "route_id")).toBe("0");
+    });
+    test("returns undefined for empty string", () => {
+      expect(getExternalId({ id: "" }, "id")).toBeUndefined();
+      expect(getExternalId({ id: "   " }, "id")).toBeUndefined();
+    });
+    test("returns undefined when missing or null", () => {
+      expect(getExternalId({}, "id")).toBeUndefined();
+      expect(getExternalId({ id: null }, "id")).toBeUndefined();
+      expect(getExternalId({ id: undefined }, "id")).toBeUndefined();
+    });
+    test("returns undefined for non-finite or non-integer numbers", () => {
+      // External ids are integers; a float or NaN is malformed, not an id.
+      expect(getExternalId({ id: 1.5 }, "id")).toBeUndefined();
+      expect(getExternalId({ id: NaN }, "id")).toBeUndefined();
+      expect(getExternalId({ id: Infinity }, "id")).toBeUndefined();
+    });
+    test("returns undefined for other types", () => {
+      expect(getExternalId({ id: {} }, "id")).toBeUndefined();
+      expect(getExternalId({ id: [] }, "id")).toBeUndefined();
+      expect(getExternalId({ id: true }, "id")).toBeUndefined();
     });
   });
 });

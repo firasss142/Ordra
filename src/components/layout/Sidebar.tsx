@@ -20,6 +20,7 @@ import {
   Key,
   LayoutDashboard,
   LineChart,
+  Link2,
   Megaphone,
   PackageCheck,
   PackageOpen,
@@ -174,6 +175,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
     items: [
       { key: "marketsConfig", href: "markets", icon: Store, prefetchRoute: "markets" },
       { key: "storefrontsConfig", href: "settings/storefronts", icon: ShoppingBag, prefetchRoute: "settings" },
+      { key: "mappings", href: "mappings", icon: Link2, prefetchRoute: "mappings" },
       { key: "carriersConfig", href: "settings/carriers", icon: Truck, prefetchRoute: "settings" },
       { key: "generalSettings", href: "settings/general", icon: Settings, prefetchRoute: "settings" },
       { key: "logs", href: "admin/logs", icon: Key, prefetchRoute: "admin" },
