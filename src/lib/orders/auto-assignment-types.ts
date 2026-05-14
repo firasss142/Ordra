@@ -6,6 +6,12 @@ export interface AssignableOrder {
   market_id: string;
   product_id: string | null;
   customer_city: string | null;
+  /**
+   * Resolved OMS city id, when the webhook payload mapped to one. Region-based
+   * assignment still matches on `customer_city` (string) today; this is carried
+   * so a future migration of region_rules to city ids has the data available.
+   */
+  city_id?: string | null;
 }
 
 /** Minimal agent data needed by the assignment engine */

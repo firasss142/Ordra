@@ -1156,3 +1156,260 @@ describe("handleWebhook — uuid_only auth", () => {
     expect(result.body.error).toBe("Invalid webhook signature");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Storefront -> OMS mapping resolution (product / city / mapping_status)
+// ---------------------------------------------------------------------------
+describe("handleWebhook — storefront -> OMS mapping resolution", () => {
+  const BUYBOX_STOREFRONT = {
+    id: STOREFRONT_ID,
+    market_id: MARKET_ID,
+    platform: "buybox",
+    config: {},
+    webhook_secret: SECRET,
+    is_active: true,
+    auth_mode: "uuid_only",
+  };
+
+  // Real-shaped buybox payload (matches the live raw_payload).
+  function buyboxPayload(overrides: {
+    customer?: Record<string, unknown>;
+    product?: Record<string, unknown>;
+  } = {}) {
+    return {
+      source: "quraan-buybox",
+      idempotency_key: "bc8b4a5f-mapping-test",
+      order_id: "bc8b4a5f-mapping-test",
+      customer: {
+        name: "ayaaaa",
+        phone: "0913456789",
+        city: "مصراتة",
+        city_id: 3,
+        city_name: "مصراتة",
+        route_id: 2,
+        address: "شارع الاختبار",
+        ...overrides.customer,
+      },
+      product: {
+        id: "9262459551959",
+        title: "Quran",
+        variant_id: 48611571007703,
+        bundle_label: "نسخة واحدة",
+        quantity: 1,
+        unit_price: 7,
+        total_price: 7,
+        currency: "TND",
+        ...overrides.product,
+      },
+      upsells: [],
+    };
+  }
+
+  // Mock admin client with independently controllable resolver tables.
+  // Captures the orders.insert payload for assertions.
+  function mappingMockClient(opts: {
+    productMappingRow?: unknown; // storefront_product_mappings
+    skuProductRow?: unknown; // products via sku
+    nameProductRow?: unknown; // products via name ILIKE
+    cityMappingRow?: unknown; // external_city_mappings (joined to cities)
+    cityRows?: unknown[]; // cities name fallback
+  }) {
+    const captured: { orderInsert?: Record<string, unknown>; historyInserts: unknown[] } = {
+      historyInserts: [],
+    };
+
+    const from = vi.fn((table: string) => {
+      const chain: Record<string, unknown> = {};
+      chain.select = vi.fn(() => chain);
+      chain.ilike = vi.fn(() => {
+        (chain as { __usedIlike?: boolean }).__usedIlike = true;
+        return chain;
+      });
+      chain.limit = vi.fn(() => chain);
+      chain.eq = vi.fn(() => chain);
+
+      if (table === "storefronts") {
+        chain.maybeSingle = vi.fn(async () => ({ data: BUYBOX_STOREFRONT, error: null }));
+        chain.single = chain.maybeSingle;
+        return chain;
+      }
+      if (table === "webhook_delivery_log") {
+        chain.maybeSingle = vi.fn(async () => ({ data: null, error: null }));
+        chain.insert = vi.fn(() => ({
+          select: vi.fn(() => ({ single: vi.fn(async () => ({ data: { id: "log-1" }, error: null })) })),
+        }));
+        return chain;
+      }
+      if (table === "storefront_product_mappings") {
+        chain.maybeSingle = vi.fn(async () => ({ data: opts.productMappingRow ?? null, error: null }));
+        return chain;
+      }
+      if (table === "products") {
+        chain.maybeSingle = vi.fn(async () => {
+          const usedIlike = (chain as { __usedIlike?: boolean }).__usedIlike === true;
+          return { data: usedIlike ? opts.nameProductRow ?? null : opts.skuProductRow ?? null, error: null };
+        });
+        return chain;
+      }
+      if (table === "external_city_mappings") {
+        chain.maybeSingle = vi.fn(async () => ({ data: opts.cityMappingRow ?? null, error: null }));
+        return chain;
+      }
+      if (table === "cities") {
+        // resolver awaits .select().eq() directly (returns a list)
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(async () => ({ data: opts.cityRows ?? [], error: null })),
+          })),
+        };
+      }
+      if (table === "orders") {
+        chain.insert = vi.fn((payload: Record<string, unknown>) => {
+          captured.orderInsert = payload;
+          return {
+            select: vi.fn(() => ({
+              single: vi.fn(async () => ({ data: { id: "order-mapping-1" }, error: null })),
+            })),
+          };
+        });
+        chain.maybeSingle = vi.fn(async () => ({ data: null, error: null }));
+        chain.single = vi.fn(async () => ({ data: { id: "order-mapping-1" }, error: null }));
+        return chain;
+      }
+      if (table === "order_history") {
+        chain.insert = vi.fn(async (payload: unknown) => {
+          captured.historyInserts.push(payload);
+          return { data: { id: "hist-x" }, error: null };
+        });
+        return chain;
+      }
+      // unknown table
+      chain.maybeSingle = vi.fn(async () => ({ data: null, error: null }));
+      return chain;
+    });
+
+    return {
+      client: { from, rpc: vi.fn(async () => ({ data: null, error: null })) },
+      captured,
+    };
+  }
+
+  async function run(client: unknown, payload: unknown) {
+    return handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: JSON.stringify(payload),
+      headers: new Headers(),
+      adminClient: client as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+  }
+
+  test("persists external_* identifiers and currency on the order", async () => {
+    const { client, captured } = mappingMockClient({});
+    const result = await run(client, buyboxPayload());
+
+    expect(result.status).toBe(200);
+    expect(result.body.success).toBe(true);
+    expect(captured.orderInsert).toMatchObject({
+      external_product_id: "9262459551959",
+      external_variant_id: "48611571007703",
+      external_city_id: "3",
+      external_route_id: "2",
+      currency: "TND",
+    });
+  });
+
+  test("mapping_status = 'mapped' when both product mapping and city mapping resolve", async () => {
+    const { client, captured } = mappingMockClient({
+      productMappingRow: { product_id: "prod-quran", product_variant_id: "var-1" },
+      cityMappingRow: {
+        city_id: "city-misrata",
+        dexpress_state_id: 12,
+        cities: { id: "city-misrata", market_id: MARKET_ID },
+      },
+    });
+    await run(client, buyboxPayload());
+
+    expect(captured.orderInsert).toMatchObject({
+      product_id: "prod-quran",
+      product_variant_id: "var-1",
+      city_id: "city-misrata",
+      dexpress_state_id: 12,
+      mapping_status: "mapped",
+    });
+  });
+
+  test("mapping_status = 'unmatched' when neither product nor city resolves", async () => {
+    const { client, captured } = mappingMockClient({}); // all tables empty
+    await run(client, buyboxPayload());
+
+    expect(captured.orderInsert).toMatchObject({
+      product_id: null,
+      city_id: null,
+      mapping_status: "unmatched",
+    });
+  });
+
+  test("mapping_status = 'needs_review' when product resolves but city only matches by name", async () => {
+    const { client, captured } = mappingMockClient({
+      productMappingRow: { product_id: "prod-quran", product_variant_id: null },
+      cityRows: [
+        { id: "city-misrata", market_id: MARKET_ID, name: "Misrata", name_ar: "مصراتة" },
+      ],
+    });
+    await run(client, buyboxPayload());
+
+    // product is 'mapped', city is 'name' (needs_review) -> worst wins
+    expect(captured.orderInsert).toMatchObject({
+      product_id: "prod-quran",
+      city_id: "city-misrata",
+      mapping_status: "needs_review",
+    });
+  });
+
+  test("city in a DIFFERENT market is rejected — city_id stays null, status needs_review", async () => {
+    const { client, captured } = mappingMockClient({
+      productMappingRow: { product_id: "prod-quran", product_variant_id: null },
+      cityMappingRow: {
+        city_id: "city-tunis",
+        dexpress_state_id: null,
+        cities: { id: "city-tunis", market_id: "some-other-market" },
+      },
+    });
+    await run(client, buyboxPayload());
+
+    expect(captured.orderInsert).toMatchObject({
+      city_id: null,
+      mapping_status: "needs_review",
+    });
+  });
+
+  test("appends an order_history note when mapping_status is not 'mapped'", async () => {
+    const { client, captured } = mappingMockClient({}); // unmatched
+    await run(client, buyboxPayload());
+
+    // first history row is the standard 'pending' intake row; there should
+    // additionally be a system note flagging the unresolved mapping.
+    const notes = captured.historyInserts
+      .map((h) => (h as { note?: string }).note ?? "")
+      .join(" | ");
+    expect(notes.toLowerCase()).toContain("mapping");
+  });
+
+  test("does NOT append a mapping note when fully mapped", async () => {
+    const { client, captured } = mappingMockClient({
+      productMappingRow: { product_id: "prod-quran", product_variant_id: "var-1" },
+      cityMappingRow: {
+        city_id: "city-misrata",
+        dexpress_state_id: 12,
+        cities: { id: "city-misrata", market_id: MARKET_ID },
+      },
+    });
+    await run(client, buyboxPayload());
+
+    const mappingNotes = captured.historyInserts.filter((h) =>
+      ((h as { note?: string }).note ?? "").toLowerCase().includes("mapping"),
+    );
+    expect(mappingNotes).toHaveLength(0);
+  });
+});
