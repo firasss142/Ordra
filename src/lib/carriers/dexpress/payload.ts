@@ -50,7 +50,7 @@ export function buildOrderPayload(
     total: String(total),
     cost_inclusive: "not_inclusive",
     qty: String(order.quantity),
-    cost_type: "1",
+    cost_type: "0",
     order_type: "2",
     breakable: "0",
     packing: "0",

@@ -373,7 +373,16 @@ export async function handleWebhook(input: WebhookInput): Promise<WebhookResult>
     return result;
   }
 
-  if (result.body.duplicate === true || result.body.skipped === true) {
+  // Classify the log row. Sub-handlers signal outcome via the response body
+  // shape: a `success` field plus optional `duplicate`/`skipped` flags, OR an
+  // `error` string when mapping/validation rejected the payload. Without this
+  // branch, any `{ error: "..." }` result was silently logged as `processed` —
+  // which hid every "Missing customer phone" failure from operators.
+  let logErrorMessage: string | null = null;
+  if (typeof result.body.error === "string") {
+    logStatus = "error";
+    logErrorMessage = result.body.error;
+  } else if (result.body.duplicate === true || result.body.skipped === true) {
     logStatus = "ignored";
   } else {
     logStatus = "processed";
@@ -392,6 +401,7 @@ export async function handleWebhook(input: WebhookInput): Promise<WebhookResult>
     orderId: logOrderId,
     storefrontId,
     externalId,
+    errorMessage: logErrorMessage,
     deliveryHeaders,
   });
 
