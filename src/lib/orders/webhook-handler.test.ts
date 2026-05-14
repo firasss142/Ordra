@@ -1005,4 +1005,39 @@ describe("handleWebhook", () => {
     expect(result.body.duplicate).toBe(true);
     expect(tryAutoAssign).not.toHaveBeenCalled();
   });
+
+  test("logs 'error' with message when adapter mapping rejects payload", async () => {
+    // Regression: a Shopify order without a phone number used to log as 'processed'
+    // with order_id=null, silently hiding the failure. The mapping error must
+    // surface as status='error' with the message preserved so operators can see it.
+    const admin = mockAdminClient({ storefrontData: SHOPIFY_STOREFRONT });
+    const payload = shopifyPayload();
+    // Strip both phone fields — adapter will throw "Missing customer phone"
+    (payload.customer as Record<string, unknown>).phone = null;
+    (payload.shipping_address as Record<string, unknown>).phone = null;
+
+    const body = JSON.stringify(payload);
+    const headers = shopifyHeaders(body, { webhookId: "wh-no-phone" });
+
+    const result = await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers,
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.error).toBe("Missing customer phone");
+
+    const wdlIdx = admin.from.mock.calls.findLastIndex((c: unknown[]) => c[0] === "webhook_delivery_log");
+    const wdlChain = admin.from.mock.results[wdlIdx].value;
+    expect(wdlChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "error",
+        error_message: "Missing customer phone",
+        order_id: null,
+      })
+    );
+  });
 });
