@@ -1006,3 +1006,118 @@ describe("handleWebhook", () => {
     expect(tryAutoAssign).not.toHaveBeenCalled();
   });
 });
+
+describe("handleWebhook — uuid_only auth", () => {
+  const UUID_ONLY_STOREFRONT = {
+    id: STOREFRONT_ID,
+    market_id: MARKET_ID,
+    platform: "easy_orders",
+    config: {},
+    webhook_secret: SECRET,
+    is_active: true,
+    auth_mode: "uuid_only",
+  };
+
+  function uuidOnlyPayload(overrides: Record<string, unknown> = {}) {
+    // Combined shape: top-level customer/product for the uuid_only validator,
+    // plus order.customer/order.product so the adapter (easy_orders) can still
+    // map the payload into the internal order model.
+    return {
+      customer: {
+        name: "Ahmed",
+        phone: "+21699999999",
+        city: "Tunis",
+        address: "12 Rue X",
+      },
+      product: { variant_id: 42, quantity: 2 },
+      ...makePayload(),
+      ...overrides,
+    };
+  }
+
+  test("accepts request without HMAC signature when auth_mode = 'uuid_only'", async () => {
+    const admin = mockAdminClient({ storefrontData: UUID_ONLY_STOREFRONT });
+    const body = JSON.stringify(uuidOnlyPayload());
+
+    const result = await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers: new Headers(), // no signature header
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.success).toBe(true);
+    expect(result.body.order_id).toBeDefined();
+  });
+
+  test("returns 400 + CORS-readable error on invalid payload", async () => {
+    const admin = mockAdminClient({ storefrontData: UUID_ONLY_STOREFRONT });
+    const body = JSON.stringify({ ...uuidOnlyPayload(), customer: { name: "", phone: "x", city: "y", address: "z" } });
+
+    const result = await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers: new Headers(),
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(result.status).toBe(400);
+    expect(result.body.error).toBe("customer.name must be a non-empty string");
+  });
+
+  test("returns 400 on malformed JSON", async () => {
+    const admin = mockAdminClient({ storefrontData: UUID_ONLY_STOREFRONT });
+
+    const result = await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: "not-json{",
+      headers: new Headers(),
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(result.status).toBe(400);
+    expect(result.body.error).toBeDefined();
+  });
+
+  test("returns 400 when product.variant_id is not a number", async () => {
+    const admin = mockAdminClient({ storefrontData: UUID_ONLY_STOREFRONT });
+    const body = JSON.stringify({
+      ...uuidOnlyPayload(),
+      product: { variant_id: "42", quantity: 1 },
+    });
+
+    const result = await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers: new Headers(),
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(result.status).toBe(400);
+    expect(result.body.error).toBe("product.variant_id must be a number");
+  });
+
+  test("hmac storefront still rejects missing signature (regression guard)", async () => {
+    // Same storefront fixture but explicit auth_mode = 'hmac' (the default).
+    const admin = mockAdminClient({
+      storefrontData: { ...UUID_ONLY_STOREFRONT, auth_mode: "hmac" },
+    });
+    const body = JSON.stringify(uuidOnlyPayload());
+
+    const result = await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers: new Headers(), // no signature
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.error).toBe("Invalid webhook signature");
+  });
+});
