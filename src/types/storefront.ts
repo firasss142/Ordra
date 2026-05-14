@@ -3,6 +3,7 @@ export const STOREFRONT_PLATFORMS = [
   "shopify",
   "woocommerce",
   "lightfunnels",
+  "buybox",
 ] as const;
 
 export type Storefront = (typeof STOREFRONT_PLATFORMS)[number];

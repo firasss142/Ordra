@@ -3,12 +3,14 @@ import { EasyOrdersAdapter } from "./easy-orders-adapter";
 import { ShopifyAdapter } from "./shopify-adapter";
 import { WooCommerceAdapter } from "./woocommerce-adapter";
 import { LightfunnelsAdapter } from "./lightfunnels-adapter";
+import { BuyboxAdapter } from "./buybox-adapter";
 
 const adapters: Record<string, () => StorefrontAdapter> = {
   easy_orders: () => new EasyOrdersAdapter(),
   shopify: () => new ShopifyAdapter(),
   woocommerce: () => new WooCommerceAdapter(),
   lightfunnels: () => new LightfunnelsAdapter(),
+  buybox: () => new BuyboxAdapter(),
 };
 
 export function getAdapter(platform: string): StorefrontAdapter {

@@ -22,7 +22,15 @@ export async function POST(
     decryptFn: decrypt,
   });
 
-  return withCorsHeaders(NextResponse.json(result.body, { status: result.status }));
+  // Additive `ok: true` on success so browser-originated storefront callers get
+  // a stable { ok, order_id } contract. Existing keys (success, duplicate,
+  // order_id) are left untouched for server-to-server consumers.
+  const body =
+    result.body.success === true
+      ? { ok: true, ...result.body }
+      : result.body;
+
+  return withCorsHeaders(NextResponse.json(body, { status: result.status }));
 }
 
 export async function OPTIONS() {

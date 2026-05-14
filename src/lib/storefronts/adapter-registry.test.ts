@@ -4,6 +4,7 @@ import { EasyOrdersAdapter } from "./easy-orders-adapter";
 import { ShopifyAdapter } from "./shopify-adapter";
 import { WooCommerceAdapter } from "./woocommerce-adapter";
 import { LightfunnelsAdapter } from "./lightfunnels-adapter";
+import { BuyboxAdapter } from "./buybox-adapter";
 
 describe("getAdapter", () => {
   test("returns EasyOrdersAdapter for easy_orders platform", () => {
@@ -20,6 +21,10 @@ describe("getAdapter", () => {
 
   test("returns LightfunnelsAdapter for lightfunnels platform", () => {
     expect(getAdapter("lightfunnels")).toBeInstanceOf(LightfunnelsAdapter);
+  });
+
+  test("returns BuyboxAdapter for buybox platform", () => {
+    expect(getAdapter("buybox")).toBeInstanceOf(BuyboxAdapter);
   });
 
   test("throws for unknown platform", () => {

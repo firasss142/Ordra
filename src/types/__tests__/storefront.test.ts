@@ -10,14 +10,16 @@ import {
 } from "@/types/storefront";
 
 describe("STOREFRONT_PLATFORMS", () => {
-  it("is a readonly tuple containing easy_orders, shopify, woocommerce", () => {
+  it("is a readonly tuple containing the supported platforms", () => {
     expect(STOREFRONT_PLATFORMS).toContain("easy_orders");
     expect(STOREFRONT_PLATFORMS).toContain("shopify");
     expect(STOREFRONT_PLATFORMS).toContain("woocommerce");
+    expect(STOREFRONT_PLATFORMS).toContain("lightfunnels");
+    expect(STOREFRONT_PLATFORMS).toContain("buybox");
   });
 
-  it("has exactly 3 platforms", () => {
-    expect(STOREFRONT_PLATFORMS).toHaveLength(3);
+  it("has exactly 5 platforms", () => {
+    expect(STOREFRONT_PLATFORMS).toHaveLength(5);
   });
 });
 
