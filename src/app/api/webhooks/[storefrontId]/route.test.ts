@@ -41,7 +41,7 @@ describe("webhook route — storefront CORS", () => {
     expect(res.headers.get("Access-Control-Max-Age")).toBe("86400");
   });
 
-  test("POST success response carries CORS headers and handler body", async () => {
+  test("POST success response carries CORS headers and adds ok:true alongside handler body", async () => {
     mockHandleWebhook.mockResolvedValueOnce({
       status: 200,
       body: { success: true, order_id: "ord-1" },
@@ -51,7 +51,11 @@ describe("webhook route — storefront CORS", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
-    await expect(res.json()).resolves.toEqual({ success: true, order_id: "ord-1" });
+    await expect(res.json()).resolves.toEqual({
+      ok: true,
+      success: true,
+      order_id: "ord-1",
+    });
   });
 
   test("POST error response (handler returns 200 with error body) still carries CORS headers", async () => {
