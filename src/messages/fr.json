@@ -1490,14 +1490,9 @@
     "cities": {
       "reviewHeading": "Commandes sans ville associée",
       "reviewEmpty": "Aucune commande en attente d'association ville",
-      "mappingsHeading": "Correspondances ville existantes",
-      "mappingsEmpty": "Aucune correspondance ville configurée",
-      "cityId": "ID ville",
       "bind": "Associer",
       "bindTitle": "Associer une ville",
-      "bindDescription": "Associer la ville {cityId} (« {name} ») à une ville OMS. Les commandes ouvertes portant cet ID seront mises à jour.",
-      "colPlatform": "Plateforme",
-      "colCityId": "ID ville",
+      "bindDescription": "La ville « {name} » de la commande ne correspond à aucune destination. Choisissez la bonne destination ci-dessous.",
       "colCity": "Ville OMS",
       "selectCity": "Sélectionner une ville"
     }

@@ -32,9 +32,9 @@ interface UnmatchedOrder {
   external_variant_id: string | null;
   product_id: string | null;
   customer_city: string | null;
-  external_city_id: string | null;
   external_route_id: string | null;
   city_id: string | null;
+  dexpress_state_id: number | null;
 }
 
 interface ProductMappingRow {
@@ -48,22 +48,10 @@ interface ProductMappingRow {
   product_variants: { label: string } | null;
 }
 
-interface CityMappingRow {
-  id: string;
-  platform: string;
-  external_city_id: string;
-  external_city_name: string | null;
-  // Tunisia mappings carry city_id (+ cities embed); Libya mappings carry
-  // dexpress_state_id (+ dexpress_states embed). Exactly one side is set.
-  city_id: string | null;
-  dexpress_state_id: number | null;
-  external_route_id: string | null;
-  cities: { name: string; name_ar: string | null } | null;
-  // dexpress_states has a single `name` column (Arabic) — no name_ar.
-  dexpress_states: { name: string } | null;
-}
-
-/** A bind-target option — a cities row (TN) or a dexpress_states row (LY). */
+/**
+ * A city bind-target option — a cities row (TN) or a dexpress_states row (LY),
+ * as returned by GET /api/mappings/cities. dexpress_states has no name_ar.
+ */
 interface CityBindOption {
   id: string | number;
   name: string;
@@ -386,42 +374,20 @@ function CityTab({ marketId }: { marketId: string }) {
     `/api/mappings/unmatched?type=cities${marketQuery}`,
     fetcher,
   );
-  const {
-    data: mappingsData,
-    error: mappingsError,
-    isLoading: mappingsLoading,
-    mutate: mutateMappings,
-  } = useSWR<{ data: CityMappingRow[] }>(
+  // The destination catalogue for this market — the bind-target options.
+  // GET /api/mappings/cities returns cities (TN) or dexpress_states (LY).
+  const { data: optionsData } = useSWR<{ data: CityBindOption[] }>(
     marketId ? `/api/mappings/cities?market_id=${marketId}` : `/api/mappings/cities`,
     fetcher,
   );
-  // Bind options: Dexpress states for Libya, OMS cities for Tunisia.
-  const { data: citiesData } = useSWR<{
-    data: { id: string; name: string; name_ar: string | null }[];
-  }>(!isDexpress && marketId ? `/api/cities?market_id=${marketId}` : null, fetcher);
-  const { data: dexpressData } = useSWR<{
-    states: { id: number; name: string }[];
-  }>(isDexpress ? `/api/dexpress/states` : null, fetcher);
 
   const orders = ordersData?.data ?? [];
-  const mappings = mappingsData?.data ?? [];
-  const bindOptions: CityBindOption[] = isDexpress
-    ? (dexpressData?.states ?? []).map((s) => ({
-        id: s.id,
-        name: s.name,
-        name_ar: null,
-      }))
-    : (citiesData?.data ?? []).map((c) => ({
-        id: c.id,
-        name: c.name,
-        name_ar: c.name_ar,
-      }));
+  const bindOptions = optionsData?.data ?? [];
 
   const onSaved = useCallback(() => {
     setBinding(null);
     mutateOrders();
-    mutateMappings();
-  }, [mutateOrders, mutateMappings]);
+  }, [mutateOrders]);
 
   return (
     <>
@@ -446,7 +412,7 @@ function CityTab({ marketId }: { marketId: string }) {
                     {o.customer_city ?? "—"}
                   </span>
                   <span className="text-[12px] text-ink-muted">
-                    {o.external_platform} · {t("cities.cityId")}: {o.external_city_id ?? "—"}
+                    {o.external_platform}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -463,50 +429,9 @@ function CityTab({ marketId }: { marketId: string }) {
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-ink-secondary">
-          {t("cities.mappingsHeading")}
-        </h2>
-        <div className="overflow-hidden rounded-card border border-line-subtle bg-surface-card">
-          <ListState
-            isLoading={mappingsLoading}
-            error={mappingsError}
-            isEmpty={mappings.length === 0}
-            emptyText={t("cities.mappingsEmpty")}
-          >
-            <div className="flex items-center border-b border-line bg-surface-page px-4 py-2 text-[11px] font-semibold uppercase text-ink-secondary">
-              <div className="flex-1">{t("cities.colPlatform")}</div>
-              <div className="flex-1">{t("cities.colCityId")}</div>
-              <div className="flex-1">{t("cities.colCity")}</div>
-            </div>
-            {mappings.map((m) => {
-              // Tunisia rows resolve through `cities` (which has name_ar),
-              // Libya rows through `dexpress_states` (single Arabic `name`).
-              const destLabel = m.dexpress_states
-                ? m.dexpress_states.name
-                : m.cities
-                  ? m.cities.name +
-                    (m.cities.name_ar ? ` · ${m.cities.name_ar}` : "")
-                  : "—";
-              return (
-                <div
-                  key={m.id}
-                  className="flex items-center border-b border-line-subtle px-4 py-3 text-[14px] text-ink-primary last:border-b-0"
-                >
-                  <div className="flex-1">{m.platform}</div>
-                  <div className="flex-1 tabular-nums">{m.external_city_id}</div>
-                  <div className="flex-1">{destLabel}</div>
-                </div>
-              );
-            })}
-          </ListState>
-        </div>
-      </section>
-
       {binding && (
         <BindCityModal
           order={binding}
-          marketId={marketId}
           isDexpress={isDexpress}
           options={bindOptions}
           onClose={() => setBinding(null)}
@@ -519,14 +444,12 @@ function CityTab({ marketId }: { marketId: string }) {
 
 function BindCityModal({
   order,
-  marketId,
   isDexpress,
   options,
   onClose,
   onSaved,
 }: {
   order: UnmatchedOrder;
-  marketId: string;
   isDexpress: boolean;
   options: CityBindOption[];
   onClose: () => void;
@@ -545,22 +468,16 @@ function BindCityModal({
     }
     setSaving(true);
     setError(null);
-    // Libya → dexpress_state_id (number); Tunisia → city_id (uuid string).
-    // market_id is always sent so the super_admin POST path can branch.
+    // The bind is per-order: Libya → dexpress_state_id (number); Tunisia →
+    // city_id (uuid string). The order itself carries the market, so no
+    // market_id is needed.
     const destination = isDexpress
       ? { dexpress_state_id: Number(selectedId) }
       : { city_id: selectedId };
     const res = await fetch("/api/mappings/cities", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        platform: order.external_platform,
-        external_city_id: order.external_city_id,
-        external_city_name: order.customer_city,
-        external_route_id: order.external_route_id,
-        market_id: marketId,
-        ...destination,
-      }),
+      body: JSON.stringify({ order_id: order.id, ...destination }),
     });
     setSaving(false);
     if (!res.ok) {
@@ -569,15 +486,12 @@ function BindCityModal({
       return;
     }
     onSaved();
-  }, [selectedId, isDexpress, marketId, order, onSaved, t]);
+  }, [selectedId, isDexpress, order, onSaved, t]);
 
   return (
     <ModalShell title={t("cities.bindTitle")} onClose={onClose}>
       <p className="mb-4 text-[13px] text-ink-secondary">
-        {t("cities.bindDescription", {
-          cityId: order.external_city_id ?? "—",
-          name: order.customer_city ?? "—",
-        })}
+        {t("cities.bindDescription", { name: order.customer_city ?? "—" })}
       </p>
       <label className="mb-2 block text-[13px] font-medium text-ink-secondary">
         {t("cities.colCity")}

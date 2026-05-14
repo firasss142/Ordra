@@ -3,4 +3,9 @@ node_modules
 .env
 .env.local
 .env.*.local
+.env.local.bak
 dexpress-flash-*.html
+.DS_Store
+.playwright-mcp/
+tsconfig.tsbuildinfo
+mappings-initial.png
