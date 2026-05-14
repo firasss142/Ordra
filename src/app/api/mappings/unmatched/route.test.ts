@@ -164,4 +164,28 @@ describe("GET /api/mappings/unmatched", () => {
     // only users + orders queries ran — no mapping-table lookup
     expect(mockFrom).toHaveBeenCalledTimes(2);
   });
+
+  test("cities: a Libya order drops off once a mapping row exists — even though that row's city_id is null", async () => {
+    // Regression guard: Libya city mappings resolve to dexpress_state_id and
+    // leave city_id null. The unmatched filter keys on (platform,
+    // external_city_id) and must NEVER depend on city_id — otherwise a
+    // correctly-bound Libya order would keep showing up forever.
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-ly" } } });
+    const orders = [
+      { id: "o-bound", external_platform: "buybox", external_city_id: "51" },
+      { id: "o-open", external_platform: "buybox", external_city_id: "52" },
+    ];
+    mockFrom
+      .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: "m-ly" } }))
+      .mockReturnValueOnce(chain({ data: orders }))
+      // external_city_mappings row for city 51 — Libya-style: city_id null,
+      // but the row still exists, so o-bound must drop off.
+      .mockReturnValueOnce(
+        chain({ data: [{ platform: "buybox", external_city_id: "51" }] }),
+      );
+
+    const res = await GET(getReq("?type=cities"));
+    const json = await res.json();
+    expect(json.data.map((o: { id: string }) => o.id)).toEqual(["o-open"]);
+  });
 });

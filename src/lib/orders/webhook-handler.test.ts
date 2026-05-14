@@ -1,6 +1,7 @@
 import { describe, test, expect, vi } from "vitest";
 import { createHmac } from "crypto";
 import { handleWebhook } from "./webhook-handler";
+import { LY_MARKET_ID } from "@/lib/markets";
 
 vi.mock("./auto-assignment-orchestrator", () => ({
   tryAutoAssign: vi.fn().mockResolvedValue(undefined),
@@ -1161,9 +1162,11 @@ describe("handleWebhook — uuid_only auth", () => {
 // Storefront -> OMS mapping resolution (product / city / mapping_status)
 // ---------------------------------------------------------------------------
 describe("handleWebhook — storefront -> OMS mapping resolution", () => {
+  // Buybox is a Libya storefront — the city resolver routes Libya orders
+  // through dexpress_states, not the cities table.
   const BUYBOX_STOREFRONT = {
     id: STOREFRONT_ID,
-    market_id: MARKET_ID,
+    market_id: LY_MARKET_ID,
     platform: "buybox",
     config: {},
     webhook_secret: SECRET,
@@ -1211,8 +1214,9 @@ describe("handleWebhook — storefront -> OMS mapping resolution", () => {
     productMappingRow?: unknown; // storefront_product_mappings
     skuProductRow?: unknown; // products via sku
     nameProductRow?: unknown; // products via name ILIKE
-    cityMappingRow?: unknown; // external_city_mappings (joined to cities)
-    cityRows?: unknown[]; // cities name fallback
+    cityMappingRow?: unknown; // external_city_mappings row
+    cityRows?: unknown[]; // cities name fallback (Tunisia)
+    dexpressStateRows?: unknown[]; // dexpress_states name fallback (Libya)
   }) {
     const captured: { orderInsert?: Record<string, unknown>; historyInserts: unknown[] } = {
       historyInserts: [],
@@ -1256,10 +1260,18 @@ describe("handleWebhook — storefront -> OMS mapping resolution", () => {
         return chain;
       }
       if (table === "cities") {
-        // resolver awaits .select().eq() directly (returns a list)
+        // resolver awaits .select().eq() directly (returns a list) — Tunisia path
         return {
           select: vi.fn(() => ({
             eq: vi.fn(async () => ({ data: opts.cityRows ?? [], error: null })),
+          })),
+        };
+      }
+      if (table === "dexpress_states") {
+        // resolver awaits .select().eq("status", 1) directly — Libya path
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(async () => ({ data: opts.dexpressStateRows ?? [], error: null })),
           })),
         };
       }
@@ -1320,12 +1332,14 @@ describe("handleWebhook — storefront -> OMS mapping resolution", () => {
   });
 
   test("mapping_status = 'mapped' when both product mapping and city mapping resolve", async () => {
+    // Libya storefront: a complete city mapping carries a dexpress_state_id;
+    // city_id stays null (Libya destinations live in dexpress_states).
     const { client, captured } = mappingMockClient({
       productMappingRow: { product_id: "prod-quran", product_variant_id: "var-1" },
       cityMappingRow: {
-        city_id: "city-misrata",
+        city_id: null,
         dexpress_state_id: 12,
-        cities: { id: "city-misrata", market_id: MARKET_ID },
+        cities: null,
       },
     });
     await run(client, buyboxPayload());
@@ -1333,7 +1347,7 @@ describe("handleWebhook — storefront -> OMS mapping resolution", () => {
     expect(captured.orderInsert).toMatchObject({
       product_id: "prod-quran",
       product_variant_id: "var-1",
-      city_id: "city-misrata",
+      city_id: null,
       dexpress_state_id: 12,
       mapping_status: "mapped",
     });
@@ -1351,10 +1365,13 @@ describe("handleWebhook — storefront -> OMS mapping resolution", () => {
   });
 
   test("mapping_status = 'needs_review' when product resolves but city only matches by name", async () => {
+    // Libya: the city falls back to a dexpress_states name match.
+    // dexpress_states.name holds the Arabic name; buyboxPayload's city is "مصراتة".
     const { client, captured } = mappingMockClient({
       productMappingRow: { product_id: "prod-quran", product_variant_id: null },
-      cityRows: [
-        { id: "city-misrata", market_id: MARKET_ID, name: "Misrata", name_ar: "مصراتة" },
+      dexpressStateRows: [
+        { id: 6, name: "مصراتة" },
+        { id: 62, name: "طرابلس" },
       ],
     });
     await run(client, buyboxPayload());
@@ -1362,24 +1379,31 @@ describe("handleWebhook — storefront -> OMS mapping resolution", () => {
     // product is 'mapped', city is 'name' (needs_review) -> worst wins
     expect(captured.orderInsert).toMatchObject({
       product_id: "prod-quran",
-      city_id: "city-misrata",
+      dexpress_state_id: 6,
+      city_id: null,
       mapping_status: "needs_review",
     });
   });
 
-  test("city in a DIFFERENT market is rejected — city_id stays null, status needs_review", async () => {
+  test("an INCOMPLETE city mapping (no dexpress_state_id) is not applied — status needs_review", async () => {
+    // This is the #AC3FDD16 bug: a Libya city mapping row exists but carries
+    // no dexpress_state_id. It must NOT resolve the order; it falls through to
+    // the name match instead.
     const { client, captured } = mappingMockClient({
       productMappingRow: { product_id: "prod-quran", product_variant_id: null },
       cityMappingRow: {
-        city_id: "city-tunis",
+        city_id: "stale-city-uuid",
         dexpress_state_id: null,
-        cities: { id: "city-tunis", market_id: "some-other-market" },
+        cities: { id: "stale-city-uuid", market_id: LY_MARKET_ID },
       },
+      dexpressStateRows: [{ id: 6, name: "مصراتة" }],
     });
     await run(client, buyboxPayload());
 
     expect(captured.orderInsert).toMatchObject({
+      product_id: "prod-quran",
       city_id: null,
+      dexpress_state_id: 6, // resolved by name fallback, not the empty mapping
       mapping_status: "needs_review",
     });
   });
@@ -1400,9 +1424,9 @@ describe("handleWebhook — storefront -> OMS mapping resolution", () => {
     const { client, captured } = mappingMockClient({
       productMappingRow: { product_id: "prod-quran", product_variant_id: "var-1" },
       cityMappingRow: {
-        city_id: "city-misrata",
+        city_id: null,
         dexpress_state_id: 12,
-        cities: { id: "city-misrata", market_id: MARKET_ID },
+        cities: null,
       },
     });
     await run(client, buyboxPayload());
