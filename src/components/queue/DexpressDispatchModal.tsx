@@ -34,6 +34,12 @@ interface CarrierResolution {
   id: string;
   delivery_fee: number;
   is_active: boolean;
+  /**
+   * "1" → customer pays delivery (added to the amount due on delivery).
+   * "0" → seller covers delivery (customer pays goods value only).
+   * Defaults to "1" when the API doesn't supply it.
+   */
+  cost_type?: string;
 }
 
 const initialSelection: DexpressSelection = {
@@ -72,7 +78,12 @@ export function DexpressDispatchModal({
   });
   const carrier = carrierData?.carrier ?? null;
   const deliveryFee = carrier?.delivery_fee ?? 0;
-  const customerTotal = orderTotal + deliveryFee;
+  // cost_type "0" = seller covers delivery, so the customer pays goods only.
+  // Anything else (incl. unset) = customer pays goods + delivery.
+  const sellerCoversDelivery = carrier?.cost_type === "0";
+  const customerTotal = sellerCoversDelivery
+    ? orderTotal
+    : orderTotal + deliveryFee;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -223,9 +234,15 @@ export function DexpressDispatchModal({
                 <span className="text-[13px] text-ink-secondary">
                   {t("deliveryFee")}
                 </span>
-                <span className="text-[13px] text-ink-primary tabular-nums">
-                  {formatCurrency(deliveryFee, market)}
-                </span>
+                {sellerCoversDelivery ? (
+                  <span className="text-[13px] text-ink-secondary">
+                    {t("deliveryFeeSellerCovered")}
+                  </span>
+                ) : (
+                  <span className="text-[13px] text-ink-primary tabular-nums">
+                    {formatCurrency(deliveryFee, market)}
+                  </span>
+                )}
               </div>
               <div className="my-3 h-px bg-line-subtle" />
               <div className="flex items-baseline justify-between gap-3">

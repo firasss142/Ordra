@@ -76,12 +76,39 @@ describe("buildOrderPayload", () => {
     expect(payload.cost_inclusive).toBe("not_inclusive");
   });
 
+  test("cost_type defaults to '1' (customer pays delivery) when not in credentials", () => {
+    const payload = buildOrderPayload(ORDER, CONFIG, { state_id: 62 });
+    expect(payload.cost_type).toBe("1");
+    expect(payload.total).toBe("85");
+  });
+
+  test("cost_type='0' (seller covers delivery): total still sub_total + cost", () => {
+    const config = {
+      ...CONFIG,
+      apiCredentials: { ...CONFIG.apiCredentials, cost_type: "0" },
+    };
+    const payload = buildOrderPayload(ORDER, config, { state_id: 62 });
+    expect(payload.cost_type).toBe("0");
+    expect(payload.sub_total).toBe("50");
+    expect(payload.cost).toBe("35");
+    expect(payload.total).toBe("85");
+  });
+
+  test("cost_type='1' explicit in credentials: total includes delivery fee", () => {
+    const config = {
+      ...CONFIG,
+      apiCredentials: { ...CONFIG.apiCredentials, cost_type: "1" },
+    };
+    const payload = buildOrderPayload(ORDER, config, { state_id: 62 });
+    expect(payload.cost_type).toBe("1");
+    expect(payload.total).toBe("85");
+  });
+
   test("hardcoded constants are present", () => {
     const payload = buildOrderPayload(ORDER, CONFIG, { state_id: 62 });
     expect(payload.has_places).toBe("no");
     expect(payload.from_place).toBe("0");
     expect(payload.to_place).toBe("0");
-    expect(payload.cost_type).toBe("1");
     expect(payload.order_type).toBe("2");
     expect(payload.breakable).toBe("0");
     expect(payload.packing).toBe("0");

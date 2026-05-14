@@ -26,6 +26,11 @@ export interface CredentialField {
   label: string;
   placeholder?: string;
   secret: boolean;
+  /**
+   * Input rendering hint. "text" (default) renders a text/password input.
+   * "switch" renders an on/off toggle storing "1" (on) / "0" (off).
+   */
+  type?: "text" | "switch";
 }
 
 export interface AdapterDescriptor {
@@ -61,6 +66,12 @@ const ADAPTER_DESCRIPTORS: Record<string, AdapterDescriptor> = {
       { key: "password", label: "Mot de passe", secret: true },
       { key: "merchant_id", label: "ID marchand", placeholder: "807", secret: false },
       { key: "from_state", label: "État d'origine (ID)", placeholder: "62", secret: false },
+      {
+        key: "cost_type",
+        label: "Frais de livraison à la charge du client",
+        secret: false,
+        type: "switch",
+      },
     ],
     markets: ["ly"],
   },

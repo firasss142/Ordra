@@ -21,6 +21,14 @@ export function buildOrderPayload(
 
   const { to_state, route_id } = resolveDestination(extra.state_id);
 
+  // cost_type tells Dexpress who pays delivery. Per-carrier setting in
+  // credentials, defaults to "1" (customer pays) to preserve existing behaviour.
+  //   "1" → customer pays delivery
+  //   "0" → seller covers delivery
+  // total is ALWAYS sub_total + cost regardless of cost_type — Dexpress
+  // applies cost_type internally to decide what the customer is charged.
+  const costType = config.apiCredentials.cost_type ?? "1";
+
   // total_price is goods-only (confirmed with Firas).
   const subTotal = order.total_price;
   const deliveryFee = config.deliveryFee;
@@ -50,7 +58,7 @@ export function buildOrderPayload(
     total: String(total),
     cost_inclusive: "not_inclusive",
     qty: String(order.quantity),
-    cost_type: "0",
+    cost_type: costType,
     order_type: "2",
     breakable: "0",
     packing: "0",

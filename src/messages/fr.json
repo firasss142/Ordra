@@ -2931,6 +2931,7 @@
       "noResults": "Aucune destination trouvée.",
       "goodsValue": "Marchandise",
       "deliveryFee": "Frais de livraison",
+      "deliveryFeeSellerCovered": "À la charge du vendeur",
       "customerTotal": "Total dû à la livraison",
       "uploading": "Envoi en cours…",
       "confirmDispatch": "Confirmer l'envoi",

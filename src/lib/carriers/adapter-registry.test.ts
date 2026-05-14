@@ -77,7 +77,13 @@ describe("adapter descriptors", () => {
     const d = getAdapterDescriptor("dexpress");
     expect(d).not.toBeNull();
     const keys = d!.credentialFields.map((f) => f.key);
-    expect(keys).toEqual(["email", "password", "merchant_id", "from_state"]);
+    expect(keys).toEqual([
+      "email",
+      "password",
+      "merchant_id",
+      "from_state",
+      "cost_type",
+    ]);
     const passwordField = d!.credentialFields.find((f) => f.key === "password")!;
     expect(passwordField.secret).toBe(true);
   });

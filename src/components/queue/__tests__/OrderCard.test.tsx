@@ -174,7 +174,7 @@ describe("OrderCard", () => {
     expect(onOpenDetail).not.toHaveBeenCalled();
   });
 
-  it("renders uploaded status with action tone", () => {
+  it("renders uploaded status with purple tone", () => {
     render(
       <OrderCard
         order={{ ...mockOrder, status: "uploaded", customer_note: null }}
@@ -183,7 +183,8 @@ describe("OrderCard", () => {
       />,
     );
     const pill = screen.getByText("Téléchargé chez transporteur");
-    expect(pill.className).toContain("text-status-action");
+    expect(pill.className).toContain("text-[#7C3AED]");
+    expect(pill.className).toContain("border-[#7C3AED]/25");
   });
 
   it("renders dispatched status with success tone", () => {
