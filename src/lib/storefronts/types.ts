@@ -5,6 +5,13 @@ export interface InternalOrderData {
   customer_phone: string;
   customer_address: string | null;
   customer_city: string | null;
+  /**
+   * Dexpress destination state ID, when the storefront resolved one at
+   * order-creation time (currently only the buybox storefront does this).
+   * null for every other adapter — those orders pick the destination at
+   * dispatch time via the manual location picker.
+   */
+  dexpress_state_id: number | null;
   customer_note: string | null;
   product_name: string;
   sku: string | null;

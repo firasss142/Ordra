@@ -145,5 +145,78 @@ describe("BuyboxAdapter", () => {
       delete (p.product as Record<string, unknown>).total_price;
       expect(() => adapter.mapToInternalOrder(p)).toThrow("Missing product total_price");
     });
+
+    test("maps customer.city_id to dexpress_state_id", () => {
+      const result = adapter.mapToInternalOrder(
+        makePayload({
+          customer: {
+            name: "firas",
+            phone: "0913456789",
+            city: "سرت",
+            city_id: 80,
+            city_name: "سرت",
+            route_id: 10,
+            address: "شارع جمال عبد الناصر",
+          },
+        }),
+      );
+      expect(result.dexpress_state_id).toBe(80);
+      // free-text city is still carried for display / backward-compat
+      expect(result.customer_city).toBe("سرت");
+    });
+
+    test("dexpress_state_id is null when city_id is absent", () => {
+      // legacy payload shape — no city_id field at all
+      const result = adapter.mapToInternalOrder(makePayload());
+      expect(result.dexpress_state_id).toBeNull();
+    });
+
+    test("dexpress_state_id is null when city_id is explicitly null", () => {
+      // storefront sends city_id: null when city selection failed
+      const result = adapter.mapToInternalOrder(
+        makePayload({
+          customer: {
+            name: "firas",
+            phone: "0913456789",
+            city: "سرت",
+            city_id: null,
+            address: "شارع جمال عبد الناصر",
+          },
+        }),
+      );
+      expect(result.dexpress_state_id).toBeNull();
+    });
+
+    test("coerces a numeric-string city_id (consistent with other numeric fields)", () => {
+      // parseDecimal coerces "80" → 80; a malformed-but-parseable id still
+      // resolves to a valid Dexpress state, so coercing is safer than dropping it.
+      const result = adapter.mapToInternalOrder(
+        makePayload({
+          customer: {
+            name: "firas",
+            phone: "0913456789",
+            city: "سرت",
+            city_id: "80",
+            address: "شارع جمال عبد الناصر",
+          },
+        }),
+      );
+      expect(result.dexpress_state_id).toBe(80);
+    });
+
+    test("dexpress_state_id is null when city_id is non-numeric garbage", () => {
+      const result = adapter.mapToInternalOrder(
+        makePayload({
+          customer: {
+            name: "firas",
+            phone: "0913456789",
+            city: "سرت",
+            city_id: "not-a-number",
+            address: "شارع جمال عبد الناصر",
+          },
+        }),
+      );
+      expect(result.dexpress_state_id).toBeNull();
+    });
   });
 });

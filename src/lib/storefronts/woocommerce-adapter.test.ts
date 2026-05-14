@@ -106,6 +106,7 @@ describe("WooCommerceAdapter", () => {
         customer_phone: "555-1234",
         customer_address: "Hello street 1",
         customer_city: "Beverly Hills",
+        dexpress_state_id: null,
         customer_note: "leave at door",
         product_name: "Beanie",
         sku: "woo-beanie",

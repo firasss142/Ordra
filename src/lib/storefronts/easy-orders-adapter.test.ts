@@ -113,6 +113,7 @@ describe("EasyOrdersAdapter", () => {
         customer_phone: "+21612345678",
         customer_address: "123 Rue de Tunis",
         customer_city: "Tunis",
+        dexpress_state_id: null,
         customer_note: "Ring doorbell twice",
         product_name: "Anti-chute Shampoo",
         variant_label: "Pack x3",

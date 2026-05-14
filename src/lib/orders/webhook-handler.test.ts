@@ -211,6 +211,77 @@ describe("handleWebhook", () => {
     expect(ordersFrom).toBeDefined();
   });
 
+  test("buybox order.created persists dexpress_state_id from customer.city_id", async () => {
+    const buyboxStorefront = {
+      id: STOREFRONT_ID,
+      market_id: MARKET_ID,
+      platform: "buybox",
+      config: {},
+      webhook_secret: SECRET,
+      is_active: true,
+      auth_mode: "uuid_only",
+    };
+    const admin = mockAdminClient({ storefrontData: buyboxStorefront });
+
+    const insertFn = vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({ data: { id: "order-uuid-1" }, error: null }),
+      }),
+    });
+    const ordersChain = createQueryChain({ data: { id: "order-uuid-1" }, error: null });
+    ordersChain.insert = insertFn;
+    // Keep the buybox storefront and the order-insert spy; delegate every other
+    // table (products, webhook_delivery_log, order_history) to a fresh default mock.
+    const storefrontsChain = createQueryChain({ data: buyboxStorefront, error: null });
+    admin.from.mockImplementation((table: string) => {
+      if (table === "orders") return ordersChain;
+      if (table === "storefronts") return storefrontsChain;
+      return mockAdminClient({}).from(table);
+    });
+
+    const body = JSON.stringify({
+      source: "quraan-buybox",
+      idempotency_key: "qb-dexpress-1",
+      order_id: "qb-dexpress-1",
+      customer: {
+        name: "firas",
+        phone: "0913456789",
+        city: "سرت",
+        city_id: 80,
+        city_name: "سرت",
+        route_id: 10,
+        address: "شارع جمال عبد الناصر",
+      },
+      product: {
+        id: "8123456789",
+        title: "Quran",
+        variant_id: 47259433337054,
+        quantity: 2,
+        unit_price: 35000,
+        total_price: 70000,
+      },
+      upsells: [],
+    });
+
+    // uuid_only storefronts skip signature verification — no header needed.
+    await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers: new Headers(),
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(insertFn).toHaveBeenCalled();
+    const insertPayload = insertFn.mock.calls[0][0];
+    expect(insertPayload).toMatchObject({
+      external_id: "qb-dexpress-1",
+      external_platform: "buybox",
+      customer_city: "سرت",
+      dexpress_state_id: 80,
+    });
+  });
+
   test("returns 200 idempotently when duplicate external_id", async () => {
     const admin = mockAdminClient({
       insertError: { code: "23505", message: "duplicate key" },

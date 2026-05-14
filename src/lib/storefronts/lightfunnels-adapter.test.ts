@@ -136,6 +136,7 @@ describe("LightfunnelsAdapter", () => {
         customer_phone: "+447700900123",
         customer_address: "random address",
         customer_city: "random city",
+        dexpress_state_id: null,
         customer_note: null,
         product_name: "Updated Product",
         sku: null,

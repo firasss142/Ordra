@@ -101,6 +101,8 @@ export class EasyOrdersAdapter implements StorefrontAdapter {
       customer_phone: customerPhone,
       customer_address: (customer && getString(customer, "address")) ?? null,
       customer_city: (customer && getString(customer, "city")) ?? null,
+      // Easy Orders has no Dexpress state mapping — destination picked at dispatch time.
+      dexpress_state_id: null,
       customer_note: (customer && getString(customer, "note")) ?? null,
       product_name: productName,
       sku: (product && getString(product, "sku")) ?? null,
