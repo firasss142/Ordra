@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { canViewOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 const STATUS_LABELS: Record<string, string> = {
   new: "Nouveau",
   assigned: "Assigné",

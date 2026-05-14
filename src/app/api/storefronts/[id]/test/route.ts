@@ -5,6 +5,8 @@ import { getActor } from "@/lib/auth/actor";
 import { canManageStorefronts } from "@/lib/settings-permissions";
 import { decrypt } from "@/lib/crypto";
 
+export const dynamic = "force-dynamic";
+
 interface TestResult {
   success: boolean;
   stage: "decrypt" | "signature" | "adapter" | "handler" | "ok";

@@ -15,6 +15,9 @@ import { NextRequest, NextResponse } from "next/server";
  *           → idempotency check against (source_platform, source_external_id)
  *           → INSERT lead + history → tryAutoAssignLead()
  */
+
+export const dynamic = "force-dynamic";
+
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ sourceId: string }> }

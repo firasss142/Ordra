@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { uploadAvatarDataUrl } from "@/lib/avatars";
 
+export const dynamic = "force-dynamic";
+
 export async function PUT(req: NextRequest) {
   const supabase = await createClient();
   const {

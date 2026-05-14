@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { PicklistPdf } from "@/lib/to-ship/PicklistPdf";
 import type { PicklistGroup, PicklistLine } from "@/lib/to-ship/PicklistPdf";
 
+export const dynamic = "force-dynamic";
+
 const MAX_ORDERS = 200;
 const GROUPINGS = ["city", "product", "carrier", "schedule", "status", "none"] as const;
 type Grouping = (typeof GROUPINGS)[number];

@@ -7,6 +7,8 @@ import {
   type ScanReturnInput,
 } from "@/lib/warehouse/returns-validation";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;

@@ -7,6 +7,8 @@ import {
   EDIT_BLOCKED_STATUSES,
 } from "@/lib/order-permissions";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

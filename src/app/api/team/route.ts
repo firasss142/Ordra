@@ -9,6 +9,8 @@ import { computeFCR } from "@/lib/team/fcr";
 import { computeTTFCMinutes, medianMinutes } from "@/lib/team/ttfc";
 import type { Role } from "@/types";
 
+export const dynamic = "force-dynamic";
+
 const ATTEMPT_STATUSES = ["attempt_1", "attempt_2", "attempt_3"];
 const ACTIONED_STATUSES = ["confirmed", "uploaded", "rejected"];
 

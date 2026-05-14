@@ -4,6 +4,8 @@ import { canAssignLeads } from "@/lib/lead-permissions";
 import { assignLead, unassignLead } from "@/lib/leads/assignment";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

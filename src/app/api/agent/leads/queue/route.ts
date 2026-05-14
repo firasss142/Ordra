@@ -5,6 +5,8 @@ import { TERMINAL_LEAD_STATUSES } from "@/types/lead";
 import { getActor } from "@/lib/auth/actor";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 
+export const dynamic = "force-dynamic";
+
 const ACTIVE_QUEUE_STATUSES = [
   "assigned",
   "attempt_1",

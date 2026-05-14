@@ -5,6 +5,8 @@ import { encrypt, maskCredential } from "@/lib/crypto";
 import { getActor } from "@/lib/auth/actor";
 import { getAdapterDescriptor } from "@/lib/carriers/adapter-registry";
 
+export const dynamic = "force-dynamic";
+
 function encodeCredentials(
   carrierCode: string,
   body: Record<string, unknown>

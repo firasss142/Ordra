@@ -4,6 +4,8 @@ import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import type { ScanErrorCode } from "@/lib/preparation/tray-state";
 
+export const dynamic = "force-dynamic";
+
 function classifyRpcError(message: string): { code: ScanErrorCode; status: number } {
   const m = message.toLowerCase();
   if (m.includes("not found") && m.includes("order")) {

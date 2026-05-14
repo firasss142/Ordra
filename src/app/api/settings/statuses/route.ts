@@ -7,6 +7,8 @@ import {
   type StatusScope,
 } from "@/types/status-config";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;

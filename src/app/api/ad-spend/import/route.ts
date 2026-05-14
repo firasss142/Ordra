@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { canViewProfitability } from "@/lib/profitability-permissions";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 interface ImportRowInput {
   period_start: string;
   period_end: string;

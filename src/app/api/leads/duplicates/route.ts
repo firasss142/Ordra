@@ -4,6 +4,8 @@ import { canViewLeads } from "@/lib/lead-permissions";
 import { getActor } from "@/lib/auth/actor";
 import { findPhoneDuplicates } from "@/lib/leads/duplicates";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
 

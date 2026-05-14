@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAdapter } from "@/lib/storefronts/adapter-registry";
 import type { WebhookEventType } from "@/lib/storefronts/types";
 import { PayloadMappingError } from "@/lib/storefronts/errors";
+import { validateUuidOnlyPayload } from "@/lib/storefronts/uuid-only-payload";
 import { transitionOrderStatus } from "./transition";
 import { isTerminalStatus } from "@/types/order-status";
 import { tryAutoAssign } from "./auto-assignment-orchestrator";
@@ -175,7 +176,7 @@ export async function handleWebhook(input: WebhookInput): Promise<WebhookResult>
   // 1. Look up storefront
   const { data: storefront, error: sfError } = await adminClient
     .from("storefronts")
-    .select("id, market_id, platform, config, webhook_secret, is_active")
+    .select("id, market_id, platform, config, webhook_secret, is_active, auth_mode")
     .eq("id", storefrontId)
     .single();
 
@@ -224,11 +225,18 @@ export async function handleWebhook(input: WebhookInput): Promise<WebhookResult>
     return { status: 200, body: { error: "Unknown platform" } };
   }
 
-  // Decrypt secret and validate webhook (skipped on trusted replay).
-  // Shopify-only: return 401 so signature mismatches surface in Shopify's
-  // admin "Webhook events" panel as Failed — diagnoses wrong-secret fast.
-  // Other adapters keep 200 to avoid retry storms.
-  if (!allowReplay) {
+  // Auth mode:
+  //  - 'hmac' (default): server-to-server senders. Decrypt the stored secret
+  //    and let the adapter validate the signature header. Failure replies with
+  //    200 (avoid retry storms) except Shopify, which gets 401 so wrong-secret
+  //    mistakes surface in Shopify's admin "Webhook events" panel.
+  //  - 'uuid_only': browser-originated submissions where the UUID in the URL
+  //    is the only secret. Signature check is skipped; in exchange we enforce
+  //    a normalized payload shape and reply 400 on mismatch so the browser
+  //    caller learns about its mistake immediately.
+  const authMode: string = (storefront as { auth_mode?: string }).auth_mode ?? "hmac";
+
+  if (!allowReplay && authMode !== "uuid_only") {
     const secret = decryptFn(storefront.webhook_secret);
     if (!adapter.validateWebhook(headers, rawBody, secret)) {
       const sigFailStatus = storefront.platform === "shopify" ? 401 : 200;
@@ -241,7 +249,33 @@ export async function handleWebhook(input: WebhookInput): Promise<WebhookResult>
   try {
     payload = JSON.parse(rawBody);
   } catch {
+    if (authMode === "uuid_only") {
+      return { status: 400, body: { error: "Invalid JSON body" } };
+    }
     return { status: 200, body: { error: "Invalid JSON body" } };
+  }
+
+  // For uuid_only submissions, enforce the normalized payload shape before
+  // anything downstream sees it. HMAC senders keep their adapter-specific
+  // validation path so existing Shopify/EasyOrders/WooCommerce/Lightfunnels
+  // server-to-server flows remain untouched.
+  if (authMode === "uuid_only") {
+    const validation = validateUuidOnlyPayload(payload);
+    if (!validation.ok) {
+      await logWebhookDelivery({
+        adminClient,
+        source: storefront.platform,
+        event: "unknown",
+        payload,
+        status: "error",
+        orderId: null,
+        storefrontId,
+        externalId: null,
+        errorMessage: validation.error,
+        deliveryHeaders,
+      });
+      return { status: 400, body: { error: validation.error } };
+    }
   }
 
   // 4. Parse event type and map to internal order

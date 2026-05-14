@@ -8,6 +8,8 @@ import {
 import { getActor } from "@/lib/auth/actor";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
+export const dynamic = "force-dynamic";
+
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }

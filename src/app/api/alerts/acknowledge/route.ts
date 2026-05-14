@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { parseAlertKey } from "@/app/api/alerts/alert-key";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
 

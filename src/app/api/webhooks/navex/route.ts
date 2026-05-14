@@ -8,6 +8,8 @@ import {
 } from "@/lib/navex-webhook-handler";
 import type { OrderStatus } from "@/types/order-status";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   const expectedToken = process.env.NAVEX_WEBHOOK_SECRET ?? "";
   const token = request.nextUrl.searchParams.get("token");

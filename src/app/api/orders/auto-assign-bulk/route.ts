@@ -7,6 +7,8 @@ import { selectAgent } from "@/lib/orders/auto-assignment";
 import type { AssignmentAlgorithm } from "@/types/settings";
 import type { AssignmentConfig } from "@/lib/orders/auto-assignment-types";
 
+export const dynamic = "force-dynamic";
+
 interface AssignedEntry {
   order_id: string;
   agent_id: string;

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 const CAMPAIGNS_TABLE = "prospect_campaigns";
 
 export async function POST(

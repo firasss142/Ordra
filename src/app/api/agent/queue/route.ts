@@ -4,6 +4,8 @@ import { sortAgentQueue } from "@/lib/orders/queue-sort";
 import { getActor } from "@/lib/auth/actor";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 
+export const dynamic = "force-dynamic";
+
 const ACTIVE_QUEUE_STATUSES = [
   "pending",
   "assigned",

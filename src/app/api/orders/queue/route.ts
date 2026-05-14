@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 const QUEUE_STATUSES = [
   "pending",
   "assigned",

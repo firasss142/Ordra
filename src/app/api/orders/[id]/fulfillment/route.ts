@@ -5,6 +5,8 @@ import { applyFulfillmentTransition } from "@/lib/orders/fulfillment";
 import type { OrderStatus } from "@/types/order-status";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 const FULFILLMENT_STATUSES = new Set<string>([
   "deposit",
   "in_transit",

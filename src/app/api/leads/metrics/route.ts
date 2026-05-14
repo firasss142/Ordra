@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { getLeadsMetrics, type LeadsMetrics } from "@/lib/leads/metrics";
 
+export const dynamic = "force-dynamic";
+
 export type CrmMetricsResponse = LeadsMetrics;
 
 export async function GET(req: NextRequest) {

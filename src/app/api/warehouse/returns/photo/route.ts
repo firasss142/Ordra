@@ -3,6 +3,8 @@ import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { uploadImageDataUrl } from "@/lib/upload-image";
 
+export const dynamic = "force-dynamic";
+
 const BUCKET = "return-photos";
 const MAX_BYTES = 4 * 1024 * 1024;
 const SIGNED_URL_TTL = 60 * 60 * 24 * 7;

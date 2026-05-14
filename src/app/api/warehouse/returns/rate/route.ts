@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
 
+export const dynamic = "force-dynamic";
+
 interface RateRow {
   product_id: string;
   market_id: string | null;

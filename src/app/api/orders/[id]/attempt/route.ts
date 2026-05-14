@@ -9,6 +9,8 @@ import {
 } from "@/lib/attempt-logic";
 import { getMarketSetting } from "@/lib/settings/getMarketSetting";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

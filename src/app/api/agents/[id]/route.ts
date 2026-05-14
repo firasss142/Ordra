@@ -7,6 +7,8 @@ import { returnToPool } from "@/lib/orders";
 import { isValidDeactivationReason } from "@/lib/agent-deactivation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+export const dynamic = "force-dynamic";
+
 const REASSIGN_STATUSES = [
   "pending",
   "assigned",

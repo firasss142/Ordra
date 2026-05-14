@@ -7,6 +7,8 @@ import {
   type ScanReturnInput,
 } from "@/lib/warehouse/returns-validation";
 
+export const dynamic = "force-dynamic";
+
 const MAX_BATCH_SIZE = 50;
 
 interface BatchBody {

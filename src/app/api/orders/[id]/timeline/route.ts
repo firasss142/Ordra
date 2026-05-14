@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import type { OrderStatus } from "@/types/order-status";
 
+export const dynamic = "force-dynamic";
+
 const PHASE_2_STATUSES: OrderStatus[] = ["dispatched", "deposit", "in_transit", "to_be_returned"];
 const TERMINAL_PHASE_2: OrderStatus[] = ["delivered", "returned"];
 

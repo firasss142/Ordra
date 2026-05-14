@@ -17,6 +17,9 @@ import { handleWebhook } from "@/lib/orders/webhook-handler";
  *  - Calling replay N times on the same failed log is safe: at most one order is
  *    created; subsequent calls either succeed-as-duplicate or fail identically.
  */
+
+export const dynamic = "force-dynamic";
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },

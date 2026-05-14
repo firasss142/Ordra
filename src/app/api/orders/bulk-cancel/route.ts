@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { canCancelOrder } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 const TERMINAL = new Set(["delivered", "returned", "rejected", "deleted", "cancelled"]);
 
 export async function POST(req: NextRequest) {

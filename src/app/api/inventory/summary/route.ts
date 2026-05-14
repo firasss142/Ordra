@@ -11,6 +11,8 @@ import {
   MOVEMENT_WINDOW_DAYS,
 } from "@/lib/calculations/inventory-intelligence";
 
+export const dynamic = "force-dynamic";
+
 const MOVEMENTS_LIMIT = 30;
 const PRODUCTS_LIMIT = 200;
 const REORDER_HORIZON_DAYS = 14;

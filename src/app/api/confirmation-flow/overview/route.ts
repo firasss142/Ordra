@@ -14,6 +14,8 @@ import {
   type OverdueCallbackRow,
 } from "@/lib/confirmation-flow/aggregations";
 
+export const dynamic = "force-dynamic";
+
 const CONFIRMATION_STATUSES = [
   "pending",
   ...FUNNEL_STAGES,

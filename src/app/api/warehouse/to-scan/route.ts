@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
 
+export const dynamic = "force-dynamic";
+
 const cacheHeaders = {
   "Cache-Control": "private, max-age=2, stale-while-revalidate=30",
 };

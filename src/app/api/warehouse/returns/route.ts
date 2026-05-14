@@ -9,6 +9,8 @@ import {
 } from "@/lib/warehouse/queue-cursor";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 
+export const dynamic = "force-dynamic";
+
 export interface ReturnsQueuePage {
   orders: WarehouseOrderRow[];
   nextCursor: string | null;

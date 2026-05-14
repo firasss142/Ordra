@@ -7,6 +7,8 @@ import {
   type PreviewOrder,
 } from "@/lib/calculations/settings-preview";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ marketId: string }> },

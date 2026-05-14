@@ -4,6 +4,8 @@ import { sortAgentQueue } from "@/lib/orders/queue-sort";
 import { TERMINAL_STATUSES } from "@/types/order-status";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ agentId: string }> }

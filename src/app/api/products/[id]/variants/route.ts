@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { canViewProducts, canManageProducts } from "@/lib/product-permissions";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { getFollowUpsSummary } from "@/lib/follow-ups/summary";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;

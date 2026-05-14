@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { calculateConfirmationRate, calculateAvgAttempts } from "@/lib/metrics";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 const ACTIONED_STATUSES = ["confirmed", "uploaded", "rejected"];
 const ATTEMPT_STATUSES = ["attempt_1", "attempt_2", "attempt_3"];
 

@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import type { OrderStatus } from "@/types/order-status";
 
+export const dynamic = "force-dynamic";
+
 const NEXT_ATTEMPT: Record<string, OrderStatus> = {
   pending: "attempt_1",
   assigned: "attempt_1",

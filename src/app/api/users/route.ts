@@ -5,6 +5,8 @@ import { uploadAvatarDataUrl } from "@/lib/avatars";
 import type { Role } from "@/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+export const dynamic = "force-dynamic";
+
 const USER_COLS =
   "id, email, full_name, avatar_url, phone, role, market_id, is_active, last_seen_at, created_at, invitation_sent_at, invitation_accepted_at, deactivation_reason";
 

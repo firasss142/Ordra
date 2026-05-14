@@ -4,6 +4,8 @@ import { getActor } from "@/lib/auth/actor";
 import { canViewOrders } from "@/lib/order-permissions";
 import { TERMINAL_STATUSES, REJECTION_REASONS, type OrderStatus, type RejectionReason } from "@/types/order-status";
 
+export const dynamic = "force-dynamic";
+
 const MAX_ROWS = 20_000;
 
 type TerminalRow = {

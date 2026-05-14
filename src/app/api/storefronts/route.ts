@@ -7,6 +7,8 @@ import {
 } from "@/lib/settings-permissions";
 import { encrypt, maskCredential } from "@/lib/crypto";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
 

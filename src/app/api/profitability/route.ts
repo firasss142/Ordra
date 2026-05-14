@@ -6,6 +6,8 @@ import { loadProfitabilitySummary } from "@/lib/profitability/load-summary";
 import { calculateCPA, calculateCPL } from "@/lib/calculations/acquisition";
 import { computePreviousPeriod } from "@/lib/date";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
 

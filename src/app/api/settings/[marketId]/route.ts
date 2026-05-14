@@ -7,6 +7,8 @@ import {
 } from "@/lib/settings-permissions";
 import { isValidMarketSettings } from "@/types/settings";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ marketId: string }> }

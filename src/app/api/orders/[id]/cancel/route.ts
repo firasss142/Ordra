@@ -6,6 +6,9 @@ import type { OrderStatus } from "@/types/order-status";
 import { getActor } from "@/lib/auth/actor";
 
 // Statuses that can be cancelled — pre-dispatch only, excluding confirmed
+
+export const dynamic = "force-dynamic";
+
 const CANCELLABLE_STATUSES = new Set<OrderStatus>([
   "pending",
   "assigned",

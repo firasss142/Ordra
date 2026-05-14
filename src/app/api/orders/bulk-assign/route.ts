@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { canAssignOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
 

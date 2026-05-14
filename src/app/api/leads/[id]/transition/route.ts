@@ -5,6 +5,8 @@ import { transitionLeadStatus } from "@/lib/leads/transition";
 import type { LeadStatus, LeadLostReason, LeadActorType } from "@/types/lead";
 import { getActor } from "@/lib/auth/actor";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -4,6 +4,8 @@ import { canAssignOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
 import { fetchAgentCapacity } from "@/lib/orders/agent-capacity";
 
+export const dynamic = "force-dynamic";
+
 const USER_COLS = "id, full_name, avatar_url, is_active, last_seen_at, market_id";
 
 export async function GET(req: NextRequest) {
