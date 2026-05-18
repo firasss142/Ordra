@@ -1106,11 +1106,23 @@
   },
   "notifications": {
     "bell": "Notifications",
-    "empty": "Aucune notification",
+    "empty": "Aucune notification non lue",
+    "emptyAll": "Aucune notification",
     "markAllRead": "Tout marquer comme lu",
+    "showAll": "Voir tout",
+    "showUnreadOnly": "Voir seulement non lues",
     "callback_due": "Rappel en attente",
     "attempt_due": "Tentative en attente",
-    "viewOrder": "Voir la commande"
+    "viewOrder": "Voir la commande",
+    "unknownCustomer": "Client inconnu",
+    "noProduct": "Produit non renseigné",
+    "dueNow": "à l'instant",
+    "dueInMinutes": "dans {minutes} min",
+    "dueInHours": "dans {hours} h",
+    "overdueMinutes": "dû il y a {minutes} min",
+    "overdueHours": "dû il y a {hours} h",
+    "overdueDays": "dû il y a {days} j",
+    "newToast": "Nouvelle notification"
   },
   "queue": {
     "title": "Ma file d'attente",

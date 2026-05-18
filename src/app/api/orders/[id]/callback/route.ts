@@ -81,6 +81,23 @@ export async function POST(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
+    // Already in callback_scheduled — reschedule the time without going through
+    // the transition engine (which forbids same-status moves).
+    if (orderRow.status === "callback_scheduled") {
+      const { error: rescheduleError } = await supabase.rpc("reschedule_callback", {
+        p_order_id: id,
+        p_callback_at: body.callback_time,
+        p_actor_id: actor.id,
+        p_actor_type: actorTypeFor(role),
+      });
+      if (rescheduleError) {
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      }
+      return NextResponse.json({
+        data: { new_status: "callback_scheduled", callback_time: body.callback_time },
+      });
+    }
+
     const validation = validateTransition(
       orderRow.status as OrderStatus,
       "callback_scheduled",
@@ -117,7 +134,7 @@ export async function POST(
     });
   }
 
-  // Agent path (unchanged)
+  // Agent path
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .select("id, status, assigned_to")
@@ -130,6 +147,23 @@ export async function POST(
 
   if (order.assigned_to !== actor.id) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+
+  // Already in callback_scheduled — reschedule the time without going through
+  // the transition engine (which forbids same-status moves).
+  if (order.status === "callback_scheduled") {
+    const { error: rescheduleError } = await supabase.rpc("reschedule_callback", {
+      p_order_id: id,
+      p_callback_at: body.callback_time,
+      p_actor_id: actor.id,
+      p_actor_type: "agent",
+    });
+    if (rescheduleError) {
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+    return NextResponse.json({
+      data: { new_status: "callback_scheduled", callback_time: body.callback_time },
+    });
   }
 
   const validation = validateTransition(

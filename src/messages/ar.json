@@ -1106,11 +1106,23 @@
   },
   "notifications": {
     "bell": "الإشعارات",
-    "empty": "لا توجد إشعارات",
+    "empty": "لا توجد إشعارات غير مقروءة",
+    "emptyAll": "لا توجد إشعارات",
     "markAllRead": "تحديد الكل كمقروء",
+    "showAll": "عرض الكل",
+    "showUnreadOnly": "عرض غير المقروءة فقط",
     "callback_due": "موعد الاتصال",
     "attempt_due": "موعد المحاولة",
-    "viewOrder": "عرض الطلب"
+    "viewOrder": "عرض الطلب",
+    "unknownCustomer": "عميل غير معروف",
+    "noProduct": "بدون منتج",
+    "dueNow": "الآن",
+    "dueInMinutes": "خلال {minutes} د",
+    "dueInHours": "خلال {hours} س",
+    "overdueMinutes": "متأخر منذ {minutes} د",
+    "overdueHours": "متأخر منذ {hours} س",
+    "overdueDays": "متأخر منذ {days} ي",
+    "newToast": "إشعار جديد"
   },
   "queue": {
     "title": "قائمة الانتظار",

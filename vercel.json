@@ -5,6 +5,15 @@
     },
     "src/app/api/cron/dispatch-scheduled/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/cron/notifications-check/route.ts": {
+      "maxDuration": 30
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/notifications-check",
+      "schedule": "* * * * *"
+    }
+  ]
 }
