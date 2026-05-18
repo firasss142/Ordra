@@ -94,7 +94,7 @@ describe("POST /api/orders/[id]/no-answer", () => {
     expect(res.status).toBe(404);
   });
 
-  test("allows attempt_3 → auto-reject when RPC reports max attempts reached", async () => {
+  test("allows stale attempt_3 → auto-reject when RPC reports max attempts exceeded", async () => {
     // The route no longer guards on status. The RPC handles max-attempts auto-reject,
     // so an attempt from attempt_3 is a valid call; the RPC returns auto_rejected:true.
     mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });
@@ -111,7 +111,7 @@ describe("POST /api/orders/[id]/no-answer", () => {
       });
     });
     mockRpc.mockResolvedValue({
-      data: { new_status: "rejected", auto_rejected: true, attempts_count: 3 },
+      data: { new_status: "rejected", auto_rejected: true, attempts_count: 4 },
       error: null,
     });
     const res = await POST(createRequest(), PARAMS);
@@ -146,7 +146,7 @@ describe("POST /api/orders/[id]/no-answer", () => {
     expect(json.data.auto_rejected).toBe(false);
   });
 
-  test("returns 200 with auto_rejected true when max attempts reached", async () => {
+  test("returns 200 with attempt_3 on the third no-answer", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });
     mockFrom.mockImplementation((table: string) => {
       if (table === "users") {
@@ -161,15 +161,16 @@ describe("POST /api/orders/[id]/no-answer", () => {
       });
     });
     mockRpc.mockResolvedValue({
-      data: { new_status: "rejected", auto_rejected: true, attempts_count: 3 },
+      data: { new_status: "attempt_3", auto_rejected: false, attempts_count: 3 },
       error: null,
     });
 
     const res = await POST(createRequest(), PARAMS);
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.data.auto_rejected).toBe(true);
-    expect(json.data.new_status).toBe("rejected");
+    expect(json.data.auto_rejected).toBe(false);
+    expect(json.data.new_status).toBe("attempt_3");
+    expect(json.data.attempts_count).toBe(3);
   });
 
   test("passes no callback time so no-answer records an attempt status", async () => {

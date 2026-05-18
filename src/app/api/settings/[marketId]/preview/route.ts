@@ -43,10 +43,13 @@ export async function GET(
     .eq("key", "max_call_attempts")
     .maybeSingle();
 
+  const currentValue = currentRow?.value;
   const current =
-    typeof (currentRow?.value as { value?: unknown })?.value === "number"
-      ? ((currentRow?.value as { value: number }).value)
-      : 3;
+    typeof (currentValue as { value?: unknown })?.value === "number"
+      ? (currentValue as { value: number }).value
+      : typeof currentValue === "number"
+        ? currentValue
+        : 3;
 
   const relevantStatuses = [
     "pending",
@@ -60,7 +63,7 @@ export async function GET(
 
   const { data: orders, error } = await supabase
     .from("orders")
-    .select("id, status, attempt_count")
+    .select("id, status, attempts_count")
     .eq("market_id", marketId)
     .in("status", relevantStatuses)
     .limit(5000);
@@ -72,7 +75,11 @@ export async function GET(
   const preview = previewMaxAttemptsChange({
     current,
     next,
-    orders: (orders ?? []) as PreviewOrder[],
+    orders: (orders ?? []).map((order) => ({
+      id: order.id,
+      status: order.status,
+      attempt_count: order.attempts_count ?? 0,
+    })) as PreviewOrder[],
   });
 
   return NextResponse.json({ current, next, ...preview });

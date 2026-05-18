@@ -24,6 +24,7 @@ interface QueueListProps {
   selectedOrderIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
   selectedBucket: BucketKey;
+  maxAttempts?: number;
 }
 
 function StatCell({ value, label }: { value: string; label: string }) {
@@ -49,6 +50,7 @@ export function QueueList({
   selectedOrderIds,
   onToggleSelect,
   selectedBucket,
+  maxAttempts = 3,
 }: QueueListProps) {
   const t = useTranslations("queue");
 
@@ -113,6 +115,7 @@ export function QueueList({
           isSelected={selectedOrderIds?.has(order.id) ?? false}
           onToggleSelect={onToggleSelect}
           selectedBucket={selectedBucket}
+          maxAttempts={maxAttempts}
         />
       ))}
     </div>

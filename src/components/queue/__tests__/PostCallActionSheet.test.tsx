@@ -98,6 +98,19 @@ describe("PostCallActionSheet", () => {
     expect(screen.getByText("Rappel demandé")).toBeDefined();
   });
 
+  it("keeps Pas de réponse available past attempt 3 when maxAttempts is higher", () => {
+    render(
+      <PostCallActionSheet
+        {...defaultProps}
+        orderStatus="attempt_3"
+        attemptsCount={3}
+        maxAttempts={5}
+      />,
+    );
+    expect(screen.getByText("Tentative 3/5")).toBeDefined();
+    expect(screen.getByText("Pas de réponse")).toBeDefined();
+  });
+
   it("Pas de réponse is a direct action — no date picker is shown to the agent", async () => {
     render(<PostCallActionSheet {...defaultProps} />);
     // No-answer records an attempt directly; it does not open the callback picker.

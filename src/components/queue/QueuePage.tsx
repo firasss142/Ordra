@@ -522,6 +522,7 @@ export function QueuePage() {
         selectedOrderIds={selectedOrderIds}
         onToggleSelect={handleToggleSelect}
         selectedBucket={selectedBucket}
+        maxAttempts={maxAttempts}
       />
 
       <OrderDetailPanel
