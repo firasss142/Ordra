@@ -112,9 +112,12 @@ export class EasyOrdersAdapter implements StorefrontAdapter {
       external_platform: "easy_orders",
       customer_name: customerName,
       customer_phone: customerPhone,
-      customer_address: (customer && getString(customer, "address")) ?? null,
-      customer_city: (customer && getString(customer, "city")) ?? null,
-      customer_note: (customer && getString(customer, "note")) ?? null,
+      customer_address: getString(payload, "address") ?? null,
+      // EasyOrders ships the destination as `government` (governorate/region).
+      customer_city: getString(payload, "government") ?? null,
+      customer_note:
+        getString(payload, "note") ?? getString(payload, "notes") ?? null,
+      dexpress_state_id: null,
       product_name: productName,
       sku: (product && getString(product, "sku")) ?? null,
       variant_label: variantLabel,

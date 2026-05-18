@@ -466,7 +466,6 @@ async function handleOrderCreated(
       customer_phone: orderData.customer_phone,
       customer_address: orderData.customer_address,
       customer_city: orderData.customer_city,
-      dexpress_state_id: orderData.dexpress_state_id,
       customer_note: orderData.customer_note,
       product_id: productResolution.product_id,
       product_variant_id: productResolution.product_variant_id,
