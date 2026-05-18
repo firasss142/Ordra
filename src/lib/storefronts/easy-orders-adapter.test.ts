@@ -118,6 +118,7 @@ describe("EasyOrdersAdapter", () => {
         customer_address: "Est est sunt in ven",
         customer_city: "طرابلس",
         customer_note: null,
+        dexpress_state_id: null,
         product_name: "ترينج شبابي أندر ارمر",
         sku: "EG010102RO5G06",
         variant_label: "color: #808080 / size: L",
