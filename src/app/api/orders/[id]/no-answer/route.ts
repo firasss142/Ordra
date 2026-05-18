@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { computeNextRetrySlot } from "@/lib/orders/next-retry-slot";
 import { getActor } from "@/lib/auth/actor";
 import {
   actorTypeFor,
@@ -10,21 +9,6 @@ import {
 } from "@/lib/orders/manager-takeover";
 
 export const dynamic = "force-dynamic";
-
-async function readRetryTimes(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  marketId: string
-): Promise<string[]> {
-  const { data } = await supabase
-    .from("settings")
-    .select("value")
-    .eq("market_id", marketId)
-    .eq("key", "attempt_retry_times")
-    .maybeSingle();
-  const value = (data?.value as { value?: unknown } | null)?.value;
-  if (!Array.isArray(value)) return [];
-  return value.filter((v): v is string => typeof v === "string");
-}
 
 export async function POST(
   req: NextRequest,
@@ -43,7 +27,6 @@ export async function POST(
   }
 
   const isManager = role !== "agent";
-  let orderMarketId: string;
 
   if (isManager) {
     const ctx = await loadTakeOverContext(
@@ -80,8 +63,6 @@ export async function POST(
       originalAgentId: ctx.originalAgentId,
       originalAgentName: ctx.originalAgentName,
     });
-
-    orderMarketId = ctx.orderMarketId;
   } else {
     // Agent path: pin to assigned_to
     const { data: order, error: orderError } = await supabase
@@ -97,22 +78,12 @@ export async function POST(
     if (order.assigned_to !== actor.id) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
-
-    orderMarketId = order.market_id;
-  }
-
-  const retryTimes = await readRetryTimes(supabase, orderMarketId);
-  let callbackAt: string;
-  try {
-    callbackAt = computeNextRetrySlot(new Date(), retryTimes).toISOString();
-  } catch {
-    callbackAt = computeNextRetrySlot(new Date(), []).toISOString();
   }
 
   const { data, error: rpcError } = await supabase.rpc("no_response_with_auto_reject", {
     p_order_id: id,
     p_next_attempt: "attempt_1",
-    p_callback_at: callbackAt,
+    p_callback_at: null,
     p_actor_id: actor.id,
     p_actor_type: actorTypeFor(role),
   });
@@ -126,7 +97,6 @@ export async function POST(
   return NextResponse.json({
     data: {
       ...row,
-      callback_at: callbackAt,
     },
   });
 }

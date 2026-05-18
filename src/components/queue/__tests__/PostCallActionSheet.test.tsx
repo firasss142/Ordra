@@ -98,15 +98,16 @@ describe("PostCallActionSheet", () => {
     expect(screen.getByText("Rappel demandé")).toBeDefined();
   });
 
-  it("Pas de réponse is a direct action — no date picker is shown to the agent", () => {
+  it("Pas de réponse is a direct action — no date picker is shown to the agent", async () => {
     render(<PostCallActionSheet {...defaultProps} />);
-    // Server computes next retry slot from manager-configured preset times;
-    // clicking should submit, not open an inline picker.
+    // No-answer records an attempt directly; it does not open the callback picker.
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ data: { auto_rejected: false, new_status: "callback_scheduled", attempts_count: 1, callback_at: "2026-04-18T14:00:00.000Z" } }),
+      json: async () => ({ data: { auto_rejected: false, new_status: "attempt_1", attempts_count: 1 } }),
     });
-    fireEvent.click(screen.getByText("Pas de réponse"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("Pas de réponse"));
+    });
     // The callback-picker testid must NOT appear from the no-answer path.
     expect(screen.queryByTestId("callback-picker")).toBeNull();
   });
@@ -177,9 +178,8 @@ describe("PostCallActionSheet", () => {
         json: async () => ({
           data: {
             auto_rejected: false,
-            new_status: "callback_scheduled",
+            new_status: "attempt_2",
             attempts_count: 2,
-            callback_at: "2026-04-18T14:00:00.000Z",
           },
         }),
       });
@@ -196,7 +196,7 @@ describe("PostCallActionSheet", () => {
       expect(defaultProps.onSuccess).toHaveBeenCalledWith(
         expect.objectContaining({
           action: "attempt",
-          newStatus: "callback_scheduled",
+          newStatus: "attempt_2",
           autoRejected: false,
           attemptsCount: 2,
         })
