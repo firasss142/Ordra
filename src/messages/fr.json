@@ -1107,11 +1107,23 @@
   },
   "notifications": {
     "bell": "Notifications",
-    "empty": "Aucune notification",
+    "empty": "Aucune notification non lue",
+    "emptyAll": "Aucune notification",
     "markAllRead": "Tout marquer comme lu",
+    "showAll": "Voir tout",
+    "showUnreadOnly": "Voir seulement non lues",
     "callback_due": "Rappel en attente",
     "attempt_due": "Tentative en attente",
-    "viewOrder": "Voir la commande"
+    "viewOrder": "Voir la commande",
+    "unknownCustomer": "Client inconnu",
+    "noProduct": "Produit non renseigné",
+    "dueNow": "à l'instant",
+    "dueInMinutes": "dans {minutes} min",
+    "dueInHours": "dans {hours} h",
+    "overdueMinutes": "dû il y a {minutes} min",
+    "overdueHours": "dû il y a {hours} h",
+    "overdueDays": "dû il y a {days} j",
+    "newToast": "Nouvelle notification"
   },
   "queue": {
     "title": "Ma file d'attente",
@@ -1152,9 +1164,9 @@
     "actionForbidden": "Action non autorisée",
     "statusChanged": "Statut déjà modifié — rechargez la page",
     "carrierRetry": "Échec carrier — veuillez réessayer",
-    "noResponseHint": "Incrémente la tentative et programme le prochain rappel.",
+    "noResponseHint": "Incrémente la tentative.",
     "noResponseHintMax": "Tentatives max atteintes — veuillez confirmer ou rejeter",
-    "saveAttempt": "Enregistrer tentative + programmer rappel",
+    "saveAttempt": "Enregistrer tentative",
     "saving": "Enregistrement…",
     "confirmedHint": "Confirmez la commande — l'entrepôt se chargera de l'expédition.",
     "confirmedSuccess": "Commande confirmée avec succès.",
@@ -1242,7 +1254,8 @@
         "all": "Tous",
         "t1": "Tentative 1",
         "t2": "Tentative 2",
-        "t3": "Tentative 3"
+        "t3": "Tentative 3",
+        "t3Plus": "Tentative 3+"
       },
       "enCoursSubfilter": {
         "all": "Tous",

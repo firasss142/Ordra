@@ -44,6 +44,9 @@ function insertChain(data: unknown) {
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.CRON_SECRET = VALID_SECRET;
+  // Default: resolve_stale_notifications returns 0 stale rows. Individual tests
+  // override mockRpc when they need different behavior.
+  mockRpc.mockResolvedValue({ data: 0, error: null });
 });
 
 describe("POST /api/cron/notifications-check", () => {

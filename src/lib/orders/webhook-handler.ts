@@ -466,6 +466,7 @@ async function handleOrderCreated(
       customer_phone: orderData.customer_phone,
       customer_address: orderData.customer_address,
       customer_city: orderData.customer_city,
+      dexpress_state_id: orderData.dexpress_state_id,
       customer_note: orderData.customer_note,
       product_id: productResolution.product_id,
       product_variant_id: productResolution.product_variant_id,
@@ -602,16 +603,20 @@ async function handleOrderUpdated(
   }
 
   // Only update customer fields — NEVER update product, financial, or raw_payload fields
-  await adminClient
-    .from("orders")
-    .update({
-      customer_name: orderData.customer_name,
-      customer_phone: orderData.customer_phone,
-      customer_address: orderData.customer_address,
-      customer_city: orderData.customer_city,
-      customer_note: orderData.customer_note,
-    })
-    .eq("id", existing.id);
+  const customerUpdate: Record<string, unknown> = {
+    customer_name: orderData.customer_name,
+    customer_phone: orderData.customer_phone,
+    customer_address: orderData.customer_address,
+    customer_city: orderData.customer_city,
+    customer_note: orderData.customer_note,
+  };
+  // Only touch dexpress_state_id when the payload actually resolved one. A null
+  // from the adapter means "no opinion" — overwriting would wipe a value an
+  // agent set manually via the order detail panel.
+  if (orderData.dexpress_state_id != null) {
+    customerUpdate.dexpress_state_id = orderData.dexpress_state_id;
+  }
+  await adminClient.from("orders").update(customerUpdate).eq("id", existing.id);
 
   return { status: 200, body: { success: true, order_id: existing.id } };
 }

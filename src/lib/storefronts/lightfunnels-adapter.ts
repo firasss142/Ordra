@@ -148,6 +148,8 @@ export class LightfunnelsAdapter implements StorefrontAdapter {
         (shipping && getString(shipping, "city")) ??
         (billing && getString(billing, "city")) ??
         null,
+      // Lightfunnels has no Dexpress state mapping — destination picked at dispatch time.
+      dexpress_state_id: null,
       customer_note: getString(node, "note") ?? null,
       product_name: productName,
       sku: sku && sku.length > 0 ? sku : null,

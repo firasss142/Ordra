@@ -117,6 +117,7 @@ describe("ShopifyAdapter", () => {
         customer_phone: "+15551234567",
         customer_address: "123 Amoebobacterieae St Apt 4B",
         customer_city: "Ottawa",
+        dexpress_state_id: null,
         customer_note: "Customer prefers afternoon delivery",
         product_name: "IPod Nano - 8gb",
         sku: "IPOD2008GREEN",

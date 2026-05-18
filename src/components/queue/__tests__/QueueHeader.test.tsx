@@ -46,6 +46,7 @@ function renderHeader(overrides: {
   enCoursSubfilter?: EnCoursSubfilter;
   tentativeSubfilter?: TentativeSubfilter;
   closedSubfilter?: ClosedSubfilter;
+  maxAttempts?: number;
   onBucketChange?: (b: BucketKey) => void;
   onEnCoursSubfilterChange?: (s: EnCoursSubfilter) => void;
   onTentativeSubfilterChange?: (s: TentativeSubfilter) => void;
@@ -69,6 +70,7 @@ function renderHeader(overrides: {
       closedSubfilter={overrides.closedSubfilter ?? "all"}
       onClosedSubfilterChange={onClosedSubfilterChange}
       closedCounts={baseClosedCounts}
+      maxAttempts={overrides.maxAttempts ?? 3}
     />,
   );
   return {
@@ -247,5 +249,34 @@ describe("QueueHeader — Tentative popover", () => {
     expect(screen.getByRole("menuitem", { name: /Tentative 2/ })).toBeInTheDocument();
     fireEvent.click(chip);
     expect(screen.queryByRole("menuitem", { name: /Tentative 2/ })).not.toBeInTheDocument();
+  });
+
+  it("when maxAttempts > 3, the third popover item is labeled 'Tentative 3+' (covers attempts 3..max)", () => {
+    renderHeader({ selectedBucket: "en_cours", maxAttempts: 5 });
+    fireEvent.click(screen.getByRole("button", { name: /^Tentative/ }));
+    expect(screen.getByRole("menuitem", { name: /Tentative 3\+/ })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: /^Tentative 3$/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("when maxAttempts <= 3, the third popover item stays as plain 'Tentative 3'", () => {
+    renderHeader({ selectedBucket: "en_cours", maxAttempts: 3 });
+    fireEvent.click(screen.getByRole("button", { name: /^Tentative/ }));
+    expect(screen.getByRole("menuitem", { name: /^Tentative 3$/ })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: /Tentative 3\+/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("active Tentative=3 chip shows '· 3+' badge when maxAttempts > 3", () => {
+    renderHeader({
+      selectedBucket: "en_cours",
+      enCoursSubfilter: "tentative",
+      tentativeSubfilter: 3,
+      maxAttempts: 5,
+    });
+    const chip = screen.getByRole("button", { name: /^Tentative/ });
+    expect(chip).toHaveTextContent("3+");
   });
 });

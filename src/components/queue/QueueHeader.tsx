@@ -48,6 +48,12 @@ interface QueueHeaderProps {
   onClosedSubfilterChange: (sub: ClosedSubfilter) => void;
   closedCounts: Record<ClosedSubfilter, number>;
   onNewOrder?: () => void;
+  /**
+   * From settings.max_call_attempts. When > 3, the third popover item is
+   * relabeled "Tentative 3+" because the status enum tops out at attempt_3
+   * and that bucket actually covers attempts 3..max.
+   */
+  maxAttempts?: number;
 }
 
 interface TabDef {
@@ -233,6 +239,7 @@ export function QueueHeader({
   onClosedSubfilterChange,
   closedCounts,
   onNewOrder,
+  maxAttempts = 3,
 }: QueueHeaderProps) {
   const t = useTranslations("queue");
   const tEnCours = useTranslations("queue.buckets.enCoursSubfilter");
@@ -315,6 +322,13 @@ export function QueueHeader({
   }
 
   const tShell = useTranslations("queue.agentShell");
+
+  // Status enum caps at attempt_3, so the T3 bucket actually holds attempts
+  // 3..max. Relabel as "3+" when max > 3 so agents see the bucket is collective.
+  const t3Plus = maxAttempts > 3;
+  const t3Label = t3Plus ? tAttempt("t3Plus") : tAttempt("t3");
+  const tentativeBadge: string =
+    tentativeSubfilter === "all" ? "" : tentativeSubfilter === 3 && t3Plus ? "3+" : String(tentativeSubfilter);
 
   return (
     <div className="bg-agent-bg px-8 pt-6 pb-2">
@@ -436,7 +450,7 @@ export function QueueHeader({
               {tEnCours("tentative")}
               {tentativeSubfilter !== "all" && (
                 <span className="ms-1 text-[11px] opacity-80">
-                  · {tentativeSubfilter}
+                  · {tentativeBadge}
                 </span>
               )}
             </SubChip>
@@ -469,7 +483,7 @@ export function QueueHeader({
                 <TentativePopoverItem
                   active={tentativeSubfilter === 3}
                   count={counts.tentative_3}
-                  label={tAttempt("t3")}
+                  label={t3Label}
                   onClick={() => handleTentativeOptionClick(3)}
                 />
               </div>

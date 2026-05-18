@@ -1107,11 +1107,23 @@
   },
   "notifications": {
     "bell": "الإشعارات",
-    "empty": "لا توجد إشعارات",
+    "empty": "لا توجد إشعارات غير مقروءة",
+    "emptyAll": "لا توجد إشعارات",
     "markAllRead": "تحديد الكل كمقروء",
+    "showAll": "عرض الكل",
+    "showUnreadOnly": "عرض غير المقروءة فقط",
     "callback_due": "موعد الاتصال",
     "attempt_due": "موعد المحاولة",
-    "viewOrder": "عرض الطلب"
+    "viewOrder": "عرض الطلب",
+    "unknownCustomer": "عميل غير معروف",
+    "noProduct": "بدون منتج",
+    "dueNow": "الآن",
+    "dueInMinutes": "خلال {minutes} د",
+    "dueInHours": "خلال {hours} س",
+    "overdueMinutes": "متأخر منذ {minutes} د",
+    "overdueHours": "متأخر منذ {hours} س",
+    "overdueDays": "متأخر منذ {days} ي",
+    "newToast": "إشعار جديد"
   },
   "queue": {
     "title": "قائمة الانتظار",
@@ -1152,9 +1164,9 @@
     "actionForbidden": "الإجراء غير مصرح به",
     "statusChanged": "تم تغيير الحالة — أعد تحميل الصفحة",
     "carrierRetry": "فشل شركة الشحن — أعد المحاولة",
-    "noResponseHint": "يزيد عداد المحاولة ويجدول المعاودة التالية.",
+    "noResponseHint": "يزيد عداد المحاولة.",
     "noResponseHintMax": "تم بلوغ الحد الأقصى — يرجى التأكيد أو الرفض",
-    "saveAttempt": "حفظ المحاولة + جدولة المعاودة",
+    "saveAttempt": "حفظ المحاولة",
     "saving": "جارٍ الحفظ…",
     "confirmedHint": "أكّد الطلب — المستودع سيتولى الشحن.",
     "confirmedSuccess": "تم تأكيد الطلب بنجاح.",
@@ -1242,7 +1254,8 @@
         "all": "الكل",
         "t1": "محاولة 1",
         "t2": "محاولة 2",
-        "t3": "محاولة 3"
+        "t3": "محاولة 3",
+        "t3Plus": "محاولة 3+"
       },
       "enCoursSubfilter": {
         "all": "الكل",
