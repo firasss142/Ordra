@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "crypto";
+import { timingSafeEqual } from "crypto";
 import type { StorefrontAdapter, InternalOrderData, WebhookEventType } from "./types";
 import { PayloadMappingError } from "./errors";
 import {
@@ -6,33 +6,42 @@ import {
   getString,
   getNumber,
   getRecord,
+  getArray,
+  getExternalId,
   parseDecimal,
 } from "./payload-guards";
 
-const VALID_EVENTS: Set<string> = new Set([
-  "order.created",
-  "order.updated",
-  "order.cancelled",
-]);
-
+/**
+ * EasyOrders webhook adapter.
+ *
+ * Contract (https://public-api-docs.easy-orders.net/docs/webhooks):
+ *  - Auth: a plain shared secret in the `secret` HTTP header. EasyOrders does
+ *    NOT sign the request body, so there is no HMAC to recompute — we compare
+ *    the header against the storefront's stored secret directly.
+ *  - "Order Created" deliveries POST the bare order object (no envelope):
+ *    top-level id / full_name / phone / government / address plus a
+ *    `cart_items[]` array. There is no `event` field.
+ *  - "Order Status Change" deliveries carry `event_type: "order-status-update"`
+ *    with only order_id / old_status / new_status — no customer or product
+ *    data. The OMS owns the order lifecycle after intake, so these are not
+ *    processed.
+ */
 export class EasyOrdersAdapter implements StorefrontAdapter {
   validateWebhook(
     headers: Headers,
-    rawBody: string,
+    _rawBody: string,
     webhookSecret: string
   ): boolean {
-    const signature = headers.get("X-Webhook-Signature");
-    if (!signature) return false;
+    void _rawBody;
+    const provided = headers.get("secret");
+    if (!provided) return false;
 
-    const expected = createHmac("sha256", webhookSecret)
-      .update(rawBody)
-      .digest("hex");
+    const a = Buffer.from(provided, "utf8");
+    const b = Buffer.from(webhookSecret, "utf8");
+    if (a.length !== b.length) return false;
 
     try {
-      return timingSafeEqual(
-        Buffer.from(signature, "hex"),
-        Buffer.from(expected, "hex")
-      );
+      return timingSafeEqual(a, b);
     } catch {
       return false;
     }
@@ -40,59 +49,63 @@ export class EasyOrdersAdapter implements StorefrontAdapter {
 
   parseEventType(payload: unknown, _headers?: Headers): WebhookEventType {
     void _headers;
-    if (!isRecord(payload)) {
-      return "order.created";
+    if (isRecord(payload) && payload.event_type === "order-status-update") {
+      throw new PayloadMappingError(
+        "EasyOrders order-status-update events are not processed (OMS owns the order lifecycle after intake)"
+      );
     }
-    const event = payload.event;
-
-    if (event === undefined || event === null) {
-      return "order.created";
-    }
-
-    if (typeof event !== "string" || !VALID_EVENTS.has(event)) {
-      throw new PayloadMappingError(`Unknown event type: ${event}`);
-    }
-
-    return event as WebhookEventType;
+    // A bare order object — the only other delivery EasyOrders sends.
+    return "order.created";
   }
 
   mapToInternalOrder(payload: unknown): InternalOrderData {
     if (!isRecord(payload)) {
       throw new PayloadMappingError("Invalid payload root");
     }
-    const order = getRecord(payload, "order");
-    if (!order) {
-      throw new PayloadMappingError("Missing order object in payload");
-    }
 
-    const id = order.id;
+    const id = payload.id;
     if (id === undefined || id === null || id === "") {
-      throw new PayloadMappingError("Missing order.id");
+      throw new PayloadMappingError("Missing order id");
     }
 
-    const customer = getRecord(order, "customer");
-    const customerName = customer ? getString(customer, "name") : undefined;
+    const customerName = getString(payload, "full_name");
     if (!customerName) {
       throw new PayloadMappingError("Missing customer name");
     }
-    const customerPhone = customer ? getString(customer, "phone") : undefined;
+
+    const customerPhone = getString(payload, "phone");
     if (!customerPhone) {
       throw new PayloadMappingError("Missing customer phone");
     }
 
-    const product = getRecord(order, "product");
+    // EasyOrders pays out per the order total the customer is charged
+    // (`total_cost`, items + shipping). `cost` is the items-only subtotal and
+    // is the fallback when older payloads omit `total_cost`.
+    const totalPrice =
+      parseDecimal(payload.total_cost) ?? parseDecimal(payload.cost);
+    if (totalPrice === undefined) {
+      throw new PayloadMappingError("Missing total_cost");
+    }
+
+    const cartItems = getArray(payload, "cart_items") ?? [];
+    const item = cartItems[0];
+    if (!isRecord(item)) {
+      throw new PayloadMappingError("Missing cart_items");
+    }
+
+    const product = getRecord(item, "product");
     const productName = product ? getString(product, "name") : undefined;
     if (!productName) {
       throw new PayloadMappingError("Missing product name");
     }
 
-    const totalPrice = product ? parseDecimal(product.total_price) : undefined;
-    if (totalPrice === undefined) {
-      throw new PayloadMappingError("Missing total_price");
-    }
+    const quantity = getNumber(item, "quantity") ?? 1;
+    const unitPrice =
+      getNumber(item, "price") ??
+      (quantity > 0 ? totalPrice / quantity : totalPrice);
 
-    const quantity = (product && getNumber(product, "quantity")) ?? 1;
-    const unitPrice = (product && getNumber(product, "unit_price")) ?? totalPrice;
+    const variant = getRecord(item, "variant");
+    const variantLabel = variant ? buildVariantLabel(variant) : null;
 
     return {
       external_id: String(id),
@@ -101,15 +114,43 @@ export class EasyOrdersAdapter implements StorefrontAdapter {
       customer_phone: customerPhone,
       customer_address: (customer && getString(customer, "address")) ?? null,
       customer_city: (customer && getString(customer, "city")) ?? null,
-      // Easy Orders has no Dexpress state mapping — destination picked at dispatch time.
-      dexpress_state_id: null,
       customer_note: (customer && getString(customer, "note")) ?? null,
       product_name: productName,
       sku: (product && getString(product, "sku")) ?? null,
-      variant_label: (product && getString(product, "variant")) ?? null,
+      variant_label: variantLabel,
       quantity,
       unit_price: unitPrice,
       total_price: totalPrice,
+      external_product_id:
+        getExternalId(item, "product_id") ??
+        (product ? getExternalId(product, "id") : undefined) ??
+        null,
+      external_variant_id:
+        getExternalId(item, "variant_id") ??
+        (variant ? getExternalId(variant, "id") : undefined) ??
+        null,
     };
   }
+}
+
+/**
+ * Flattens an EasyOrders variant's `variation_props` into a readable label,
+ * e.g. `[{variation:"color",variation_prop:"#808080"},{variation:"size",
+ * variation_prop:"L"}]` -> "color: #808080 / size: L". Returns null when the
+ * variant carries no usable props.
+ */
+function buildVariantLabel(variant: Record<string, unknown>): string | null {
+  const props = getArray(variant, "variation_props") ?? [];
+  const parts: string[] = [];
+  for (const prop of props) {
+    if (!isRecord(prop)) continue;
+    const name = getString(prop, "variation");
+    const value = getString(prop, "variation_prop");
+    if (name && value) {
+      parts.push(`${name}: ${value}`);
+    } else if (value) {
+      parts.push(value);
+    }
+  }
+  return parts.length > 0 ? parts.join(" / ") : null;
 }

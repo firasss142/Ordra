@@ -3,6 +3,13 @@ import { getAdapter } from "@/lib/storefronts/adapter-registry";
 import type { WebhookEventType } from "@/lib/storefronts/types";
 import { PayloadMappingError } from "@/lib/storefronts/errors";
 import { validateUuidOnlyPayload } from "@/lib/storefronts/uuid-only-payload";
+import { resolveProduct } from "@/lib/storefronts/product-resolver";
+import { resolveCity } from "@/lib/storefronts/city-resolver";
+import {
+  productMatchStatus,
+  cityMatchStatus,
+  worstMappingStatus,
+} from "@/lib/storefronts/resolver-types";
 import { transitionOrderStatus } from "./transition";
 import { isTerminalStatus } from "@/types/order-status";
 import { tryAutoAssign } from "./auto-assignment-orchestrator";
@@ -425,30 +432,27 @@ async function handleOrderCreated(
     throw err;
   }
 
-  // Resolve product_id: try SKU first (exact match), then name (case-insensitive)
-  let product: { id: string } | null = null;
-
-  if (orderData.sku) {
-    const { data: skuMatch } = await adminClient
-      .from("products")
-      .select("id")
-      .eq("market_id", storefront.market_id)
-      .eq("sku", orderData.sku)
-      .limit(1)
-      .maybeSingle();
-    product = skuMatch;
-  }
-
-  if (!product) {
-    const { data: nameMatch } = await adminClient
-      .from("products")
-      .select("id")
-      .eq("market_id", storefront.market_id)
-      .ilike("name", orderData.product_name)
-      .limit(1)
-      .maybeSingle();
-    product = nameMatch;
-  }
+  // Resolve the webhook payload to OMS entities. Each resolver runs its own
+  // strongest-first fallback chain (explicit mapping -> id/sku -> name). The
+  // order's mapping_status is the worst of the two outcomes — it drives the
+  // /mappings review surface, NOT the order lifecycle (status stays 'pending').
+  const productResolution = await resolveProduct(adminClient, {
+    storefront_id: storefront.id,
+    market_id: storefront.market_id,
+    external_variant_id: orderData.external_variant_id ?? null,
+    sku: orderData.sku,
+    product_name: orderData.product_name,
+  });
+  const cityResolution = await resolveCity(adminClient, {
+    platform: orderData.external_platform,
+    market_id: storefront.market_id,
+    external_city_id: orderData.external_city_id ?? null,
+    customer_city: orderData.customer_city,
+  });
+  const mappingStatus = worstMappingStatus(
+    productMatchStatus(productResolution.match_method),
+    cityMatchStatus(cityResolution.match_method),
+  );
 
   const { data: order, error: insertError } = await adminClient
     .from("orders")
@@ -464,12 +468,21 @@ async function handleOrderCreated(
       customer_city: orderData.customer_city,
       dexpress_state_id: orderData.dexpress_state_id,
       customer_note: orderData.customer_note,
-      product_id: product?.id ?? null,
+      product_id: productResolution.product_id,
+      product_variant_id: productResolution.product_variant_id,
       product_name: orderData.product_name,
       variant_label: orderData.variant_label,
       quantity: orderData.quantity,
       unit_price: orderData.unit_price,
       total_price: orderData.total_price,
+      city_id: cityResolution.city_id,
+      dexpress_state_id: cityResolution.dexpress_state_id,
+      mapping_status: mappingStatus,
+      external_product_id: orderData.external_product_id ?? null,
+      external_variant_id: orderData.external_variant_id ?? null,
+      external_city_id: orderData.external_city_id ?? null,
+      external_route_id: orderData.external_route_id ?? null,
+      currency: orderData.currency ?? null,
       raw_payload: JSON.parse(rawBody),
     })
     .select("id")
@@ -494,7 +507,7 @@ async function handleOrderCreated(
     return { status: 200, body: { error: "Failed to create order" } };
   }
 
-  // Insert initial order_history
+  // Insert initial order_history (append-only — standard intake row).
   await adminClient.from("order_history").insert({
     order_id: order.id,
     status_from: null,
@@ -504,13 +517,46 @@ async function handleOrderCreated(
     note: "Order received via webhook",
   });
 
+  // When the storefront payload did not fully resolve to OMS entities, append
+  // a second system note so the unresolved mapping is visible in the order's
+  // history (the /mappings review surface uses orders.mapping_status; this is
+  // the human-readable trail). Append-only — never updates the intake row.
+  if (mappingStatus !== "mapped") {
+    const parts: string[] = [];
+    if (productMatchStatus(productResolution.match_method) !== "mapped") {
+      parts.push(
+        productResolution.product_id
+          ? `product matched by name only (variant ${orderData.external_variant_id ?? "n/a"})`
+          : `product unmatched (variant ${orderData.external_variant_id ?? "n/a"})`,
+      );
+    }
+    if (cityMatchStatus(cityResolution.match_method) !== "mapped") {
+      parts.push(
+        cityResolution.match_method === "market_mismatch"
+          ? `city mapping points to another market (city_id ${orderData.external_city_id ?? "n/a"})`
+          : cityResolution.city_id
+            ? `city matched by name only`
+            : `city unmatched (city_id ${orderData.external_city_id ?? "n/a"})`,
+      );
+    }
+    await adminClient.from("order_history").insert({
+      order_id: order.id,
+      status_from: "pending",
+      status_to: "pending",
+      actor_id: null,
+      actor_type: "system",
+      note: `Mapping needs review: ${parts.join("; ")}`,
+    });
+  }
+
   // Auto-assignment (best-effort — never blocks webhook response)
   try {
     await tryAutoAssign(adminClient, {
       id: order.id,
       market_id: storefront.market_id,
-      product_id: product?.id ?? null,
+      product_id: productResolution.product_id,
       customer_city: orderData.customer_city,
+      city_id: cityResolution.city_id,
     });
   } catch {
     // Order stays 'pending' for manual assignment

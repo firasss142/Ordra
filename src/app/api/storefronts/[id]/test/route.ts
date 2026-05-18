@@ -24,30 +24,30 @@ function buildTestRequest(platform: string, secret: string): TestRequest {
   const externalId = `oms-test-${ts}`;
 
   if (platform === "easy_orders") {
+    // EasyOrders posts the bare order object and authenticates with a plain
+    // `secret` header — no HMAC. See lib/storefronts/easy-orders-adapter.ts.
     const payload = {
-      event: "order.created",
-      order: {
-        id: externalId,
-        customer: {
-          name: "TEST — Do Not Process",
-          phone: "+00000000000",
-          address: "Test address",
-          city: "Test",
-          note: "integration test payload",
-        },
-        product: {
-          name: "__oms_test_product__",
+      id: externalId,
+      full_name: "TEST — Do Not Process",
+      phone: "+00000000000",
+      address: "Test address",
+      government: "Test",
+      note: "integration test payload",
+      cost: 0,
+      total_cost: 0,
+      cart_items: [
+        {
+          product_id: "__oms_test__",
+          price: 0,
           quantity: 1,
-          unit_price: 0,
-          total_price: 0,
+          product: { id: "__oms_test__", name: "__oms_test_product__" },
         },
-      },
+      ],
     };
     const rawBody = JSON.stringify(payload);
-    const sig = createHmac("sha256", secret).update(rawBody).digest("hex");
     return {
       rawBody,
-      headers: new Headers({ "X-Webhook-Signature": sig }),
+      headers: new Headers({ secret }),
     };
   }
 

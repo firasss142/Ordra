@@ -6,6 +6,7 @@ import {
   getNumber,
   getRecord,
   getArray,
+  getExternalId,
   parseDecimal,
 } from "./payload-guards";
 
@@ -81,8 +82,10 @@ export class BuyboxAdapter implements StorefrontAdapter {
       parseDecimal(product.unit_price) ??
       (quantity > 0 ? totalPrice / quantity : totalPrice);
 
-    // Single-line-item order model. Upsells and the bundle label have no column
-    // of their own, so they are folded into the customer note for visibility.
+    // Single-line-item order model. Upsells are folded into the customer note
+    // for visibility (no column of their own). The bundle label IS still noted
+    // here for the agent, but is also exposed structurally as bundle_label so
+    // the product resolver can match it to a product_variant.
     const noteParts: string[] = [];
     const bundleLabel = getString(product, "bundle_label");
     if (bundleLabel) {
@@ -113,11 +116,25 @@ export class BuyboxAdapter implements StorefrontAdapter {
       dexpress_state_id: (customer && getNumber(customer, "city_id")) ?? null,
       customer_note: customerNote,
       product_name: productName,
-      sku: getString(product, "id") ?? null,
+      // Buybox has no SKU concept. The storefront product id lives in
+      // external_product_id, not sku — sku is reserved for adapters whose
+      // platform genuinely sends one.
+      sku: null,
       variant_label: bundleLabel ?? null,
       quantity,
       unit_price: unitPrice,
       total_price: totalPrice,
+      // Storefront mapping identifiers — resolved to OMS entities downstream.
+      external_product_id: getExternalId(product, "id") ?? null,
+      external_variant_id: getExternalId(product, "variant_id") ?? null,
+      external_city_id: customer
+        ? getExternalId(customer, "city_id") ?? null
+        : null,
+      external_route_id: customer
+        ? getExternalId(customer, "route_id") ?? null
+        : null,
+      bundle_label: bundleLabel ?? null,
+      currency: getString(product, "currency") ?? null,
     };
   }
 }

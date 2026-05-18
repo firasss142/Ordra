@@ -12,17 +12,20 @@ function makePayload(overrides: Record<string, unknown> = {}) {
       name: "Test User",
       phone: "0913456789",
       city: "بنغازي",
+      city_id: 3,
+      city_name: "بنغازي",
+      route_id: 2,
       address: "شارع الاختبار، عمارة 4",
     },
     product: {
-      id: "1",
+      id: "9262459551959",
       title: "Quran",
-      variant_id: 1,
+      variant_id: 48611571007703,
       bundle_label: "نسخة واحدة",
       quantity: 1,
-      unit_price: 70000,
-      total_price: 70000,
-      compare_at_total: 70000,
+      unit_price: 7,
+      total_price: 7,
+      compare_at_total: 7,
       currency: "TND",
     },
     upsells: [],
@@ -60,12 +63,44 @@ describe("BuyboxAdapter", () => {
         customer_city: "بنغازي",
         customer_address: "شارع الاختبار، عمارة 4",
         product_name: "Quran",
-        sku: "1",
         variant_label: "نسخة واحدة",
         quantity: 1,
-        unit_price: 70000,
-        total_price: 70000,
+        unit_price: 7,
+        total_price: 7,
       });
+    });
+
+    test("emits storefront mapping identifiers (product id, variant id, city id, route id)", () => {
+      const result = adapter.mapToInternalOrder(makePayload());
+      // Numeric platform ids are normalized to their string form.
+      expect(result.external_product_id).toBe("9262459551959");
+      expect(result.external_variant_id).toBe("48611571007703");
+      expect(result.external_city_id).toBe("3");
+      expect(result.external_route_id).toBe("2");
+      expect(result.bundle_label).toBe("نسخة واحدة");
+      expect(result.currency).toBe("TND");
+    });
+
+    test("does NOT overload sku with the storefront product id — buybox has no SKU", () => {
+      const result = adapter.mapToInternalOrder(makePayload());
+      expect(result.sku).toBeNull();
+      // product.id belongs in external_product_id, not sku.
+      expect(result.external_product_id).toBe("9262459551959");
+    });
+
+    test("leaves mapping identifiers null when the payload omits them", () => {
+      const p = makePayload();
+      delete (p.product as Record<string, unknown>).id;
+      delete (p.product as Record<string, unknown>).variant_id;
+      delete (p.product as Record<string, unknown>).currency;
+      delete (p.customer as Record<string, unknown>).city_id;
+      delete (p.customer as Record<string, unknown>).route_id;
+      const result = adapter.mapToInternalOrder(p);
+      expect(result.external_product_id).toBeNull();
+      expect(result.external_variant_id).toBeNull();
+      expect(result.external_city_id).toBeNull();
+      expect(result.external_route_id).toBeNull();
+      expect(result.currency).toBeNull();
     });
 
     test("uses idempotency_key as external_id, NOT order_id", () => {
@@ -94,9 +129,9 @@ describe("BuyboxAdapter", () => {
       const p = makePayload();
       delete (p.product as Record<string, unknown>).unit_price;
       (p.product as Record<string, unknown>).quantity = 2;
-      (p.product as Record<string, unknown>).total_price = 140000;
+      (p.product as Record<string, unknown>).total_price = 14;
       const result = adapter.mapToInternalOrder(p);
-      expect(result.unit_price).toBe(70000);
+      expect(result.unit_price).toBe(7);
       expect(result.quantity).toBe(2);
     });
 

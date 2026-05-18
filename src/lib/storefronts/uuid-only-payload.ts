@@ -14,6 +14,22 @@ function isPositiveInteger(v: unknown): v is number {
   return typeof v === "number" && Number.isInteger(v) && v > 0;
 }
 
+/**
+ * An optional external identifier (city_id, route_id) is valid when it is
+ * absent/null, an integer, or a string that parses to an integer. Anything
+ * else (float, boolean, object, non-numeric string) is malformed and should
+ * be rejected at the door rather than reaching the resolver.
+ */
+function isOptionalIntegerId(v: unknown): boolean {
+  if (v === undefined || v === null) return true;
+  if (typeof v === "number") return Number.isInteger(v);
+  if (typeof v === "string") {
+    const trimmed = v.trim();
+    return trimmed.length > 0 && Number.isInteger(Number(trimmed));
+  }
+  return false;
+}
+
 export function validateUuidOnlyPayload(payload: unknown): UuidOnlyPayloadValidation {
   if (!isRecord(payload)) {
     return { ok: false, error: "Payload must be a JSON object" };
@@ -26,6 +42,17 @@ export function validateUuidOnlyPayload(payload: unknown): UuidOnlyPayloadValida
   for (const field of ["name", "phone", "city", "address"] as const) {
     if (!isNonEmptyString(customer[field])) {
       return { ok: false, error: `customer.${field} must be a non-empty string` };
+    }
+  }
+  // city_id / route_id are optional carrier-routing hints. When present they
+  // must be integer-like; the city resolver still falls back to the city
+  // string when they are absent.
+  for (const field of ["city_id", "route_id"] as const) {
+    if (!isOptionalIntegerId(customer[field])) {
+      return {
+        ok: false,
+        error: `customer.${field} must be an integer or numeric string when present`,
+      };
     }
   }
 

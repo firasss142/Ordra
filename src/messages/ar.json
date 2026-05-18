@@ -136,6 +136,7 @@
       "access": "الوصول",
       "marketsConfig": "الأسواق",
       "storefrontsConfig": "المتاجر",
+      "mappings": "الربط",
       "carriersConfig": "شركات الشحن",
       "generalSettings": "الإعدادات",
       "logs": "السجلات"
@@ -1454,6 +1455,50 @@
       "editThreshold": "تعديل الحد",
       "variants": "{count} نوع",
       "moreVariants": "+{count} أخرى"
+    }
+  },
+  "mappings": {
+    "title": "الربط",
+    "subtitle": "ربط منتجات ومدن المتاجر بكيانات نظام إدارة الطلبات",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "loading": "جارٍ التحميل…",
+    "loadError": "فشل التحميل. أعد المحاولة.",
+    "tabs": {
+      "products": "المنتجات",
+      "cities": "المدن"
+    },
+    "status": {
+      "needs_review": "بحاجة لمراجعة",
+      "unmatched": "غير مربوط"
+    },
+    "products": {
+      "reviewHeading": "طلبات بدون منتج مربوط",
+      "reviewEmpty": "لا توجد طلبات بانتظار ربط المنتج",
+      "mappingsHeading": "روابط المنتجات الحالية",
+      "mappingsEmpty": "لا توجد روابط منتجات مُعدّة",
+      "variantId": "معرّف النسخة",
+      "bind": "ربط",
+      "bindTitle": "ربط منتج",
+      "bindDescription": "ربط النسخة {variant} (« {name} ») بمنتج في النظام. سيتم تحديث الطلبات المفتوحة التي تحمل هذه النسخة.",
+      "colStorefront": "المتجر",
+      "colVariantId": "معرّف النسخة",
+      "colProduct": "منتج النظام",
+      "selectProduct": "اختر منتجاً"
+    },
+    "cities": {
+      "reviewHeading": "طلبات بدون مدينة مربوطة",
+      "reviewEmpty": "لا توجد طلبات بانتظار ربط المدينة",
+      "mappingsHeading": "روابط المدن الحالية",
+      "mappingsEmpty": "لا توجد روابط مدن مُعدّة",
+      "cityId": "معرّف المدينة",
+      "bind": "ربط",
+      "bindTitle": "ربط مدينة",
+      "bindDescription": "ربط المدينة {cityId} (« {name} ») بمدينة في النظام. سيتم تحديث الطلبات المفتوحة التي تحمل هذا المعرّف.",
+      "colPlatform": "المنصة",
+      "colCityId": "معرّف المدينة",
+      "colCity": "مدينة النظام",
+      "selectCity": "اختر مدينة"
     }
   },
   "productPnl": {

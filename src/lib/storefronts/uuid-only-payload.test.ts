@@ -72,4 +72,44 @@ describe("validateUuidOnlyPayload", () => {
       });
     },
   );
+
+  describe("optional mapping identifiers (city_id, route_id)", () => {
+    test("accepts a payload carrying numeric city_id and route_id", () => {
+      const p = {
+        ...valid,
+        customer: { ...valid.customer, city_id: 3, route_id: 2 },
+      };
+      expect(validateUuidOnlyPayload(p)).toEqual({ ok: true });
+    });
+
+    test("accepts numeric-string city_id and route_id", () => {
+      const p = {
+        ...valid,
+        customer: { ...valid.customer, city_id: "3", route_id: "2" },
+      };
+      expect(validateUuidOnlyPayload(p)).toEqual({ ok: true });
+    });
+
+    test("accepts a payload that omits city_id and route_id entirely", () => {
+      // They are optional — the city resolver falls back to the city string.
+      expect(validateUuidOnlyPayload(valid)).toEqual({ ok: true });
+    });
+
+    test.each([
+      ["city_id", 1.5],
+      ["city_id", "abc"],
+      ["city_id", {}],
+      ["route_id", true],
+      ["route_id", "x"],
+    ] as const)("rejects malformed customer.%s (%s)", (field, value) => {
+      const p = {
+        ...valid,
+        customer: { ...valid.customer, [field]: value },
+      };
+      expect(validateUuidOnlyPayload(p)).toEqual({
+        ok: false,
+        error: `customer.${field} must be an integer or numeric string when present`,
+      });
+    });
+  });
 });

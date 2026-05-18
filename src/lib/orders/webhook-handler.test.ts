@@ -1,38 +1,37 @@
 import { describe, test, expect, vi } from "vitest";
 import { createHmac } from "crypto";
 import { handleWebhook } from "./webhook-handler";
+import { LY_MARKET_ID } from "@/lib/markets";
 
 vi.mock("./auto-assignment-orchestrator", () => ({
   tryAutoAssign: vi.fn().mockResolvedValue(undefined),
 }));
 
-function signPayload(body: string, secret: string): string {
-  return createHmac("sha256", secret).update(body).digest("hex");
-}
-
 const STOREFRONT_ID = "sf-123";
 const MARKET_ID = "market-tn";
 const SECRET = "test-secret";
 
+// EasyOrders posts the bare order object (no envelope) and authenticates with
+// a plain shared-secret `secret` header — see easy-orders-adapter.ts.
 function makePayload(overrides: Record<string, unknown> = {}) {
   return {
-    event: "order.created",
-    order: {
-      id: "EO-99",
-      customer: {
-        name: "Ahmed",
-        phone: "+21699999999",
-        address: "Tunis",
-        city: "Tunis",
-      },
-      product: {
-        name: "Shampoo",
-        variant: "Pack x2",
+    id: "EO-99",
+    full_name: "Ahmed",
+    phone: "+21699999999",
+    address: "Tunis",
+    government: "Tunis",
+    note: "Ring twice",
+    cost: 60,
+    total_cost: 60,
+    cart_items: [
+      {
+        product_id: "prod-1",
+        variant_id: "var-1",
+        price: 30,
         quantity: 2,
-        unit_price: 30,
-        total_price: 60,
+        product: { id: "prod-1", name: "Shampoo", sku: "SH-001" },
       },
-    },
+    ],
     ...overrides,
   };
 }
@@ -158,7 +157,7 @@ describe("handleWebhook", () => {
   test("returns 200 with error when signature is invalid", async () => {
     const admin = mockAdminClient({});
     const body = JSON.stringify(makePayload());
-    const headers = new Headers({ "X-Webhook-Signature": "bad-signature" });
+    const headers = new Headers({ secret: "bad-secret" });
 
     const result = await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -175,8 +174,7 @@ describe("handleWebhook", () => {
   test("returns 200 with order_id for valid order.created", async () => {
     const admin = mockAdminClient({});
     const body = JSON.stringify(makePayload());
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const headers = new Headers({ secret: SECRET });
 
     const result = await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -194,8 +192,7 @@ describe("handleWebhook", () => {
   test("inserts order with correct fields from payload", async () => {
     const admin = mockAdminClient({});
     const body = JSON.stringify(makePayload());
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const headers = new Headers({ secret: SECRET });
 
     await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -299,8 +296,7 @@ describe("handleWebhook", () => {
     });
 
     const body = JSON.stringify(makePayload());
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const headers = new Headers({ secret: SECRET });
 
     const result = await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -317,8 +313,7 @@ describe("handleWebhook", () => {
   test("returns 200 with error for malformed JSON", async () => {
     const admin = mockAdminClient({});
     const body = "not-json{";
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const headers = new Headers({ secret: SECRET });
 
     const result = await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -333,8 +328,9 @@ describe("handleWebhook", () => {
   });
 
   test("order.updated only updates customer fields, not product or financial fields", async () => {
-    // Setup: existing order found with pre-dispatch status
-    const admin = mockAdminClient({});
+    // Setup: existing order found with pre-dispatch status. EasyOrders has no
+    // customer-bearing update event, so order.updated is exercised via Shopify.
+    const admin = mockAdminClient({ storefrontData: SHOPIFY_STOREFRONT });
     const existingOrder = { id: "existing-order-1", status: "assigned" };
 
     // Override orders chain to:
@@ -349,13 +345,11 @@ describe("handleWebhook", () => {
 
     admin.from.mockImplementation((table: string) => {
       if (table === "orders") return ordersChain;
-      return mockAdminClient({}).from(table);
+      return mockAdminClient({ storefrontData: SHOPIFY_STOREFRONT }).from(table);
     });
 
-    const payload = makePayload({ event: "order.updated" });
-    const body = JSON.stringify(payload);
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const body = JSON.stringify(shopifyPayload());
+    const headers = shopifyHeaders(body, { topic: "orders/updated" });
 
     await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -404,7 +398,7 @@ describe("handleWebhook", () => {
   test("returns 200 for invalid signature — never 401", async () => {
     const admin = mockAdminClient({});
     const body = JSON.stringify(makePayload());
-    const headers = new Headers({ "X-Webhook-Signature": "bad-signature" });
+    const headers = new Headers({ secret: "bad-secret" });
 
     const result = await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -421,8 +415,7 @@ describe("handleWebhook", () => {
   test("returns 200 for malformed JSON — never 400", async () => {
     const admin = mockAdminClient({});
     const body = "not-json{";
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const headers = new Headers({ secret: SECRET });
 
     const result = await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -442,8 +435,7 @@ describe("handleWebhook", () => {
 
     const admin = mockAdminClient({});
     const body = JSON.stringify(makePayload());
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const headers = new Headers({ secret: SECRET });
 
     await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -469,8 +461,7 @@ describe("handleWebhook", () => {
 
     const admin = mockAdminClient({});
     const body = JSON.stringify(makePayload());
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const headers = new Headers({ secret: SECRET });
 
     const result = await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -499,8 +490,7 @@ describe("handleWebhook", () => {
     });
 
     const body = JSON.stringify(makePayload());
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const headers = new Headers({ secret: SECRET });
 
     await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -524,8 +514,7 @@ describe("handleWebhook", () => {
     const decryptFn = vi.fn().mockImplementation((s: string) => s.replace("encrypted:", ""));
 
     const body = JSON.stringify(makePayload());
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const headers = new Headers({ secret: SECRET });
 
     const result = await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -544,8 +533,7 @@ describe("handleWebhook", () => {
   test("logs 'processed' after successful order.created", async () => {
     const admin = mockAdminClient({});
     const body = JSON.stringify(makePayload());
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const headers = new Headers({ secret: SECRET });
 
     await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -594,8 +582,7 @@ describe("handleWebhook", () => {
     });
 
     const body = JSON.stringify(makePayload());
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const headers = new Headers({ secret: SECRET });
 
     await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -611,7 +598,8 @@ describe("handleWebhook", () => {
   });
 
   test("logs 'ignored' for order.updated with post-dispatch status", async () => {
-    const admin = mockAdminClient({});
+    // Exercised via Shopify: EasyOrders has no customer-bearing update event.
+    const admin = mockAdminClient({ storefrontData: SHOPIFY_STOREFRONT });
     const existingOrder = { id: "existing-order-1", status: "delivered" };
     const ordersChain = createQueryChain({ data: existingOrder, error: null });
 
@@ -622,13 +610,11 @@ describe("handleWebhook", () => {
     admin.from.mockImplementation((table: string) => {
       if (table === "orders") return ordersChain;
       if (table === "webhook_delivery_log") return wdlChain;
-      return mockAdminClient({}).from(table);
+      return mockAdminClient({ storefrontData: SHOPIFY_STOREFRONT }).from(table);
     });
 
-    const payload = makePayload({ event: "order.updated" });
-    const body = JSON.stringify(payload);
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const body = JSON.stringify(shopifyPayload());
+    const headers = shopifyHeaders(body, { topic: "orders/updated" });
 
     await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -664,8 +650,7 @@ describe("handleWebhook", () => {
     });
 
     const body = JSON.stringify(makePayload());
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const headers = new Headers({ secret: SECRET });
 
     const result = await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -697,8 +682,7 @@ describe("handleWebhook", () => {
     });
 
     const body = JSON.stringify(makePayload());
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const headers = new Headers({ secret: SECRET });
 
     const result = await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -731,7 +715,7 @@ describe("handleWebhook", () => {
   test("does NOT log when signature invalid", async () => {
     const admin = mockAdminClient({});
     const body = JSON.stringify(makePayload());
-    const headers = new Headers({ "X-Webhook-Signature": "bad-signature" });
+    const headers = new Headers({ secret: "bad-secret" });
 
     await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -760,8 +744,7 @@ describe("handleWebhook", () => {
     });
 
     const body = JSON.stringify(makePayload());
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const headers = new Headers({ secret: SECRET });
 
     const result = await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -787,8 +770,7 @@ describe("handleWebhook", () => {
   test("stores storefront_id and external_id in log on successful order.created", async () => {
     const admin = mockAdminClient({});
     const body = JSON.stringify(makePayload());
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const headers = new Headers({ secret: SECRET });
 
     await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -907,7 +889,7 @@ describe("handleWebhook", () => {
   test("non-Shopify: invalid signature still returns 200 (no retry storm)", async () => {
     const admin = mockAdminClient({});
     const body = JSON.stringify(makePayload());
-    const headers = new Headers({ "X-Webhook-Signature": "bad-signature" });
+    const headers = new Headers({ secret: "bad-secret" });
 
     const result = await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -1061,8 +1043,7 @@ describe("handleWebhook", () => {
     });
 
     const body = JSON.stringify(makePayload());
-    const signature = signPayload(body, SECRET);
-    const headers = new Headers({ "X-Webhook-Signature": signature });
+    const headers = new Headers({ secret: SECRET });
 
     const result = await handleWebhook({
       storefrontId: STOREFRONT_ID,
@@ -1225,5 +1206,269 @@ describe("handleWebhook — uuid_only auth", () => {
 
     expect(result.status).toBe(200);
     expect(result.body.error).toBe("Invalid webhook signature");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Storefront -> OMS mapping resolution (product / city / mapping_status)
+// ---------------------------------------------------------------------------
+describe("handleWebhook — storefront -> OMS mapping resolution", () => {
+  // Buybox is a Libya storefront — the city resolver routes Libya orders
+  // through dexpress_states, not the cities table.
+  const BUYBOX_STOREFRONT = {
+    id: STOREFRONT_ID,
+    market_id: LY_MARKET_ID,
+    platform: "buybox",
+    config: {},
+    webhook_secret: SECRET,
+    is_active: true,
+    auth_mode: "uuid_only",
+  };
+
+  // Real-shaped buybox payload (matches the live raw_payload).
+  function buyboxPayload(overrides: {
+    customer?: Record<string, unknown>;
+    product?: Record<string, unknown>;
+  } = {}) {
+    return {
+      source: "quraan-buybox",
+      idempotency_key: "bc8b4a5f-mapping-test",
+      order_id: "bc8b4a5f-mapping-test",
+      customer: {
+        name: "ayaaaa",
+        phone: "0913456789",
+        city: "مصراتة",
+        city_id: 3,
+        city_name: "مصراتة",
+        route_id: 2,
+        address: "شارع الاختبار",
+        ...overrides.customer,
+      },
+      product: {
+        id: "9262459551959",
+        title: "Quran",
+        variant_id: 48611571007703,
+        bundle_label: "نسخة واحدة",
+        quantity: 1,
+        unit_price: 7,
+        total_price: 7,
+        currency: "TND",
+        ...overrides.product,
+      },
+      upsells: [],
+    };
+  }
+
+  // Mock admin client with independently controllable resolver tables.
+  // Captures the orders.insert payload for assertions.
+  //
+  // City resolution is name-only: the city resolver matches customer_city
+  // against the market's destination table (dexpress_states for Libya, cities
+  // for Tunisia). There is no external_city_mappings lookup.
+  function mappingMockClient(opts: {
+    productMappingRow?: unknown; // storefront_product_mappings
+    skuProductRow?: unknown; // products via sku
+    nameProductRow?: unknown; // products via name ILIKE
+    cityRows?: unknown[]; // cities name match (Tunisia)
+    dexpressStateRows?: unknown[]; // dexpress_states name match (Libya)
+  }) {
+    const captured: { orderInsert?: Record<string, unknown>; historyInserts: unknown[] } = {
+      historyInserts: [],
+    };
+
+    const from = vi.fn((table: string) => {
+      const chain: Record<string, unknown> = {};
+      chain.select = vi.fn(() => chain);
+      chain.ilike = vi.fn(() => {
+        (chain as { __usedIlike?: boolean }).__usedIlike = true;
+        return chain;
+      });
+      chain.limit = vi.fn(() => chain);
+      chain.eq = vi.fn(() => chain);
+
+      if (table === "storefronts") {
+        chain.maybeSingle = vi.fn(async () => ({ data: BUYBOX_STOREFRONT, error: null }));
+        chain.single = chain.maybeSingle;
+        return chain;
+      }
+      if (table === "webhook_delivery_log") {
+        chain.maybeSingle = vi.fn(async () => ({ data: null, error: null }));
+        chain.insert = vi.fn(() => ({
+          select: vi.fn(() => ({ single: vi.fn(async () => ({ data: { id: "log-1" }, error: null })) })),
+        }));
+        return chain;
+      }
+      if (table === "storefront_product_mappings") {
+        chain.maybeSingle = vi.fn(async () => ({ data: opts.productMappingRow ?? null, error: null }));
+        return chain;
+      }
+      if (table === "products") {
+        chain.maybeSingle = vi.fn(async () => {
+          const usedIlike = (chain as { __usedIlike?: boolean }).__usedIlike === true;
+          return { data: usedIlike ? opts.nameProductRow ?? null : opts.skuProductRow ?? null, error: null };
+        });
+        return chain;
+      }
+      if (table === "cities") {
+        // resolver awaits .select().eq() directly (returns a list) — Tunisia path
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(async () => ({ data: opts.cityRows ?? [], error: null })),
+          })),
+        };
+      }
+      if (table === "dexpress_states") {
+        // resolver awaits .select().eq("status", 1) directly — Libya path
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(async () => ({ data: opts.dexpressStateRows ?? [], error: null })),
+          })),
+        };
+      }
+      if (table === "orders") {
+        chain.insert = vi.fn((payload: Record<string, unknown>) => {
+          captured.orderInsert = payload;
+          return {
+            select: vi.fn(() => ({
+              single: vi.fn(async () => ({ data: { id: "order-mapping-1" }, error: null })),
+            })),
+          };
+        });
+        chain.maybeSingle = vi.fn(async () => ({ data: null, error: null }));
+        chain.single = vi.fn(async () => ({ data: { id: "order-mapping-1" }, error: null }));
+        return chain;
+      }
+      if (table === "order_history") {
+        chain.insert = vi.fn(async (payload: unknown) => {
+          captured.historyInserts.push(payload);
+          return { data: { id: "hist-x" }, error: null };
+        });
+        return chain;
+      }
+      // unknown table
+      chain.maybeSingle = vi.fn(async () => ({ data: null, error: null }));
+      return chain;
+    });
+
+    return {
+      client: { from, rpc: vi.fn(async () => ({ data: null, error: null })) },
+      captured,
+    };
+  }
+
+  async function run(client: unknown, payload: unknown) {
+    return handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: JSON.stringify(payload),
+      headers: new Headers(),
+      adminClient: client as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+  }
+
+  test("persists external_* identifiers and currency on the order", async () => {
+    const { client, captured } = mappingMockClient({});
+    const result = await run(client, buyboxPayload());
+
+    expect(result.status).toBe(200);
+    expect(result.body.success).toBe(true);
+    expect(captured.orderInsert).toMatchObject({
+      external_product_id: "9262459551959",
+      external_variant_id: "48611571007703",
+      external_route_id: "2",
+      currency: "TND",
+    });
+    // external_city_id is no longer persisted — city is name-only resolution.
+    expect(captured.orderInsert).not.toHaveProperty("external_city_id");
+  });
+
+  test("mapping_status = 'mapped' when the product mapping resolves and the city name matches", async () => {
+    // Libya storefront: the city resolves by name against dexpress_states
+    // (the customer picked it from a constrained dropdown, so a name match is
+    // authoritative -> 'mapped'). city_id stays null.
+    const { client, captured } = mappingMockClient({
+      productMappingRow: { product_id: "prod-quran", product_variant_id: "var-1" },
+      dexpressStateRows: [
+        { id: 12, name: "مصراتة" },
+        { id: 62, name: "طرابلس" },
+      ],
+    });
+    await run(client, buyboxPayload());
+
+    expect(captured.orderInsert).toMatchObject({
+      product_id: "prod-quran",
+      product_variant_id: "var-1",
+      city_id: null,
+      dexpress_state_id: 12,
+      mapping_status: "mapped",
+    });
+  });
+
+  test("mapping_status = 'unmatched' when neither product nor city resolves", async () => {
+    const { client, captured } = mappingMockClient({}); // all tables empty
+    await run(client, buyboxPayload());
+
+    expect(captured.orderInsert).toMatchObject({
+      product_id: null,
+      city_id: null,
+      dexpress_state_id: null,
+      mapping_status: "unmatched",
+    });
+  });
+
+  test("mapping_status = 'unmatched' when the product resolves but the city name is not in the destination table", async () => {
+    // The city dropdown value didn't match any dexpress_states row — it must
+    // be flagged. product is 'mapped', city is 'none' (unmatched) -> worst wins.
+    const { client, captured } = mappingMockClient({
+      productMappingRow: { product_id: "prod-quran", product_variant_id: null },
+      dexpressStateRows: [{ id: 62, name: "طرابلس" }], // no "مصراتة"
+    });
+    await run(client, buyboxPayload());
+
+    expect(captured.orderInsert).toMatchObject({
+      product_id: "prod-quran",
+      dexpress_state_id: null,
+      city_id: null,
+      mapping_status: "unmatched",
+    });
+  });
+
+  test("appends an order_history note when mapping_status is not 'mapped'", async () => {
+    const { client, captured } = mappingMockClient({}); // unmatched
+    await run(client, buyboxPayload());
+
+    // first history row is the standard 'pending' intake row; there should
+    // additionally be a system note flagging the unresolved mapping.
+    const notes = captured.historyInserts
+      .map((h) => (h as { note?: string }).note ?? "")
+      .join(" | ");
+    expect(notes.toLowerCase()).toContain("mapping");
+  });
+
+  test("the mapping note names the unmatched city by its dropdown value", async () => {
+    const { client, captured } = mappingMockClient({
+      productMappingRow: { product_id: "prod-quran", product_variant_id: "var-1" },
+      dexpressStateRows: [{ id: 62, name: "طرابلس" }], // city "مصراتة" misses
+    });
+    await run(client, buyboxPayload());
+
+    const notes = captured.historyInserts
+      .map((h) => (h as { note?: string }).note ?? "")
+      .join(" | ");
+    expect(notes).toContain("مصراتة");
+    expect(notes.toLowerCase()).toContain("city unmatched");
+  });
+
+  test("does NOT append a mapping note when fully mapped", async () => {
+    const { client, captured } = mappingMockClient({
+      productMappingRow: { product_id: "prod-quran", product_variant_id: "var-1" },
+      dexpressStateRows: [{ id: 12, name: "مصراتة" }],
+    });
+    await run(client, buyboxPayload());
+
+    const mappingNotes = captured.historyInserts.filter((h) =>
+      ((h as { note?: string }).note ?? "").toLowerCase().includes("mapping"),
+    );
+    expect(mappingNotes).toHaveLength(0);
   });
 });
