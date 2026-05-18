@@ -29,12 +29,32 @@ function chain(data: unknown, error: unknown = null) {
   const c: Record<string, unknown> = {};
   c.select = vi.fn().mockReturnValue(c);
   c.eq = vi.fn().mockReturnValue(c);
+  c.in = vi.fn().mockReturnValue(c);
   c.update = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
   c.single = vi.fn().mockResolvedValue({ data, error });
   return c;
 }
 
-function setupAgent(leadStatus: string, maxAttempts = "3") {
+/**
+ * Returns a chain whose terminal call resolves to a Supabase count response
+ * ({ count, error }). The route uses `.select("*", { count: "exact", head: true })`
+ * to read the count without rows; that returns the awaited chain itself.
+ */
+function countChain(count: number) {
+  const c: Record<string, unknown> = {};
+  c.select = vi.fn().mockReturnValue(c);
+  c.eq = vi.fn().mockReturnValue(c);
+  c.in = vi.fn().mockReturnValue(c);
+  c.then = (resolve: (v: { count: number; error: null }) => unknown) =>
+    Promise.resolve({ count, error: null }).then(resolve);
+  return c;
+}
+
+function setupAgent(
+  leadStatus: string,
+  maxAttempts = "3",
+  historyAttemptCount = 0,
+) {
   mockGetUser.mockResolvedValue({
     data: { user: { id: "agent-1" } },
     error: null,
@@ -50,6 +70,7 @@ function setupAgent(leadStatus: string, maxAttempts = "3") {
         market_id: "mkt-tn",
       });
     if (table === "settings") return chain({ value: maxAttempts });
+    if (table === "lead_history") return countChain(historyAttemptCount);
     return chain(null);
   });
 }
@@ -109,8 +130,9 @@ describe("POST /api/leads/[id]/attempt", () => {
     );
   });
 
-  test("auto-lost when next attempt would exceed max (attempt_3 with max=3)", async () => {
-    setupAgent("attempt_3", "3");
+  test("auto-lost when this click would push attempts past max (max=3, 3 attempts already in history)", async () => {
+    // 3 attempts logged + this click = 4 > max(3) → auto-lost
+    setupAgent("attempt_3", "3", 3);
     mockRpc.mockResolvedValue({
       data: {
         lead_id: "lead-1",
@@ -131,6 +153,50 @@ describe("POST /api/leads/[id]/attempt", () => {
         p_new_status_key: "lost",
         p_lost_reason: "unreachable",
       })
+    );
+  });
+
+  test("advances from attempt_3 when max > 3 (status caps at attempt_3, counter is in lead_history)", async () => {
+    // Configured max=5, this lead already logged 3 attempts. The status string
+    // is wedged at attempt_3 (only 3 attempt enum values exist), but the agent
+    // should still be able to click "pas de réponse" — the route now relies on
+    // a history-based counter, not the status string.
+    setupAgent("attempt_3", "5", 3);
+    mockRpc.mockResolvedValue({
+      data: {
+        lead_id: "lead-1",
+        status: "attempt_3",
+        updated_at: "x",
+        history_id: "h",
+      },
+      error: null,
+    });
+
+    const res = await POST(req(), params);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.data.auto_lost).toBe(false);
+    expect(json.data.new_status).toBe("attempt_3");
+    expect(mockRpc).toHaveBeenCalledWith(
+      "rpc_transition_lead_status",
+      expect.objectContaining({ p_new_status_key: "attempt_3" }),
+    );
+  });
+
+  test("auto-lost on the click that exceeds max=5 (5 attempts in history)", async () => {
+    setupAgent("attempt_3", "5", 5);
+    mockRpc.mockResolvedValue({
+      data: { lead_id: "lead-1", status: "lost", updated_at: "x", history_id: "h" },
+      error: null,
+    });
+
+    const res = await POST(req(), params);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.data.auto_lost).toBe(true);
+    expect(mockRpc).toHaveBeenCalledWith(
+      "rpc_transition_lead_status",
+      expect.objectContaining({ p_new_status_key: "lost" }),
     );
   });
 

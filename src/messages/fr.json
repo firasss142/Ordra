@@ -1241,7 +1241,8 @@
         "all": "Tous",
         "t1": "Tentative 1",
         "t2": "Tentative 2",
-        "t3": "Tentative 3"
+        "t3": "Tentative 3",
+        "t3Plus": "Tentative 3+"
       },
       "enCoursSubfilter": {
         "all": "Tous",

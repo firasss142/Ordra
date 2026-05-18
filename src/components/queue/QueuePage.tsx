@@ -487,6 +487,7 @@ export function QueuePage() {
         onClosedSubfilterChange={setClosedSubfilter}
         closedCounts={closedCounts}
         onNewOrder={() => setCreateOpen(true)}
+        maxAttempts={maxAttempts}
       />
 
       <CreateOrderModal
