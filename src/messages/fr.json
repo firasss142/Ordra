@@ -1158,6 +1158,7 @@
     "phoneAria": "Appeler {phone}",
     "attempts": "Tentative {count}",
     "callbackAt": "Rappel à {time}",
+    "dispatchOverdue": "Livraison en retard",
     "callResult": "Résultat de l'appel",
     "networkError": "Erreur réseau. Réessayez.",
     "sessionExpired": "Session expirée — veuillez vous reconnecter",

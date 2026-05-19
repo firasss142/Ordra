@@ -45,6 +45,53 @@ export async function POST(req: NextRequest) {
   }> = [];
 
   for (const row of ready) {
+    // Pull the carrier code + order-side extras the adapter needs. Dexpress
+    // requires extra.state_id; without it the adapter throws and the order
+    // would otherwise loop here forever.
+    const [{ data: orderRow }, { data: carrierRow }] = await Promise.all([
+      admin
+        .from("orders")
+        .select("dexpress_state_id")
+        .eq("id", row.order_id)
+        .single(),
+      admin
+        .from("carriers")
+        .select("code")
+        .eq("id", row.carrier_id)
+        .single(),
+    ]);
+
+    const carrierCode = carrierRow?.code ?? "";
+    const dexpressStateId = orderRow?.dexpress_state_id ?? null;
+
+    if (carrierCode === "dexpress" && dexpressStateId === null) {
+      // Permanently broken under auto-dispatch — revert to confirmed so the
+      // agent can set a state and upload manually. Without this branch the
+      // row stays in dispatch_scheduled and every cron run fails on it.
+      const { error: revertError } = await admin.rpc("transition_order_status", {
+        p_order_id: row.order_id,
+        p_new_status: "confirmed",
+        p_actor_id: null,
+        p_actor_type: "system",
+        p_note:
+          "Auto-dispatch annulé: dexpress_state_id manquant — l'agent doit saisir la wilaya avant l'upload",
+      });
+
+      results.push({
+        order_id: row.order_id,
+        ok: false,
+        error: revertError
+          ? `reverted-to-confirmed failed: ${revertError.message}`
+          : "reverted to confirmed: dexpress_state_id missing",
+      });
+      continue;
+    }
+
+    const extra =
+      carrierCode === "dexpress" && dexpressStateId !== null
+        ? { state_id: dexpressStateId }
+        : undefined;
+
     // dispatch_scheduled → uploaded directly. dispatch_order accepts
     // dispatch_scheduled as a source and clears scheduled_dispatch_* on
     // success. On failure the row stays dispatch_scheduled and the next
@@ -53,6 +100,7 @@ export async function POST(req: NextRequest) {
       orderId: row.order_id,
       carrierId: row.carrier_id,
       actorId: null,
+      extra,
     });
 
     if (result.ok) {

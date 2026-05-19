@@ -1158,6 +1158,7 @@
     "phoneAria": "اتصل بـ {phone}",
     "attempts": "محاولة {count}",
     "callbackAt": "معاودة في {time}",
+    "dispatchOverdue": "توصيل متأخر",
     "callResult": "نتيجة المكالمة",
     "networkError": "خطأ في الشبكة. أعد المحاولة.",
     "sessionExpired": "انتهت الجلسة — يرجى تسجيل الدخول مجدداً",
