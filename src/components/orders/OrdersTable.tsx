@@ -99,7 +99,7 @@ export function OrdersTable({
         <table
           style={{
             width: "100%",
-            minWidth: 860,
+            minWidth: 900,
             borderCollapse: "separate",
             borderSpacing: 0,
             tableLayout: "fixed",
@@ -109,8 +109,9 @@ export function OrdersTable({
             <col style={{ width: 44 }} />
             <col />
             <col style={{ width: 120 }} />
-            <col style={{ width: 180 }} />
-            <col style={{ width: 140 }} />
+            <col style={{ width: 120 }} />
+            <col style={{ width: 130 }} />
+            <col style={{ width: 110 }} />
             <col style={{ width: 64 }} />
             <col style={{ width: 48 }} />
           </colgroup>
@@ -131,6 +132,7 @@ export function OrdersTable({
               <th style={headerStyle}>{t("columns.order")}</th>
               <th style={{ ...headerStyle, textAlign: "end" }}>{t("columns.totalPrice")}</th>
               <th style={headerStyle}>{t("columns.status")}</th>
+              <th style={headerStyle}>{t("columns.date")}</th>
               <th style={headerStyle}>{t("columns.agent")}</th>
               <th style={headerStyle}>{t("columns.source")}</th>
               <th style={headerStyle} aria-label={t("columns.actions")} />

@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 import { OrderRow } from "../OrderRow";
 import type { OrdersListRow } from "@/hooks/useOrdersList";
+import { formatDateTime } from "@/lib/format";
 
 vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
@@ -40,7 +41,7 @@ const mockOrder: OrdersListRow = {
   carrier_barcode_deleted_at: null,
   carrier_barcode_deleted_carrier_code: null,
   callback_scheduled_at: null,
-  created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+  created_at: "2026-05-20T14:32:00",
   updated_at: new Date().toISOString(),
   repeat_kind: "none",
   prior_order_count: 0,
@@ -240,9 +241,14 @@ describe("OrderRow", () => {
     expect(screen.queryByText("en retard")).toBeNull();
   });
 
-  it("does not render a Date cell in the row", () => {
+  it("renders the formatted creation date/time", () => {
+    renderRow();
+    expect(screen.getByText(formatDateTime(mockOrder.created_at, "fr"))).toBeDefined();
+  });
+
+  it("renders a Date cell in the row", () => {
     const { container } = renderRow();
-    // 7 cells: checkbox, order, price, status, assignee, source, actions
-    expect(container.querySelectorAll("td").length).toBe(7);
+    // 8 cells: checkbox, order, price, status, date, assignee, source, actions
+    expect(container.querySelectorAll("td").length).toBe(8);
   });
 });

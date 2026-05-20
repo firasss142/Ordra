@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 import { OrderCard } from "../OrderCard";
 import type { QueueOrder } from "@/types/queue";
+import { formatDateTime } from "@/lib/format";
 
 const intlMockState = vi.hoisted(() => ({ locale: "fr" }));
 
@@ -71,6 +72,11 @@ describe("OrderCard", () => {
   it("renders city", () => {
     render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
     expect(screen.getByText("Tunis")).toBeDefined();
+  });
+
+  it("renders the formatted creation date/time", () => {
+    render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
+    expect(screen.getByText(formatDateTime(mockOrder.created_at, "fr"))).toBeDefined();
   });
 
   it("calls onCallTerminated when Appel terminé is clicked", async () => {
@@ -182,7 +188,7 @@ describe("OrderCard", () => {
         onCallTerminated={() => {}}
       />,
     );
-    const pill = screen.getByText("Téléchargé chez transporteur");
+    const pill = screen.getByText("Téléchargé");
     expect(pill.className).toContain("text-[#7C3AED]");
     expect(pill.className).toContain("border-[#7C3AED]/25");
   });
