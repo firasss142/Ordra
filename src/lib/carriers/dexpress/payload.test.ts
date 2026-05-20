@@ -162,6 +162,37 @@ describe("buildOrderPayload", () => {
     expect(payload.phone_2).toBe("");
   });
 
+  test("normalizes a 9-digit Libyan number to 10-digit local form", () => {
+    // Storefront delivered "924751325" (missing leading 0); Dexpress requires 09XXXXXXXX.
+    const order = { ...ORDER, customer_phone: "924751325" };
+    const payload = buildOrderPayload(order, CONFIG, { state_id: 62 });
+    expect(payload.phone).toBe("0924751325");
+  });
+
+  test("normalizes a +218-prefixed number", () => {
+    const order = { ...ORDER, customer_phone: "+218924751325" };
+    const payload = buildOrderPayload(order, CONFIG, { state_id: 62 });
+    expect(payload.phone).toBe("0924751325");
+  });
+
+  test("normalizes phone_2 the same way", () => {
+    const order = { ...ORDER, customer_phone_2: "0021892 475 1325" };
+    const payload = buildOrderPayload(order, CONFIG, { state_id: 62 });
+    expect(payload.phone_2).toBe("0924751325");
+  });
+
+  test("passes an already-valid local number through unchanged", () => {
+    const order = { ...ORDER, customer_phone: "0924751325" };
+    const payload = buildOrderPayload(order, CONFIG, { state_id: 62 });
+    expect(payload.phone).toBe("0924751325");
+  });
+
+  test("passes an unnormalizable number through unchanged (carrier validates it)", () => {
+    const order = { ...ORDER, customer_phone: "123" };
+    const payload = buildOrderPayload(order, CONFIG, { state_id: 62 });
+    expect(payload.phone).toBe("123");
+  });
+
   test("address falls back to empty string when null", () => {
     const order = { ...ORDER, customer_address: null };
     const payload = buildOrderPayload(order, CONFIG, { state_id: 62 });

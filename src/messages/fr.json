@@ -959,6 +959,7 @@
       "editBlockedStatus": "Réouvrez la commande pour modifier ses détails.",
       "fieldName": "Nom",
       "fieldPhone": "Téléphone",
+      "invalidPhone": "Numéro invalide (format 09XXXXXXXX attendu)",
       "fieldCity": "Ville",
       "fieldAddress": "Adresse",
       "fieldQuantity": "Quantité",
