@@ -8,6 +8,7 @@ import { formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { AttemptEtiquette } from "./AttemptEtiquette";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
+import { RejectionReasonHover } from "./RejectionReasonHover";
 import { AddressChangeNote } from "./AddressChangeNote";
 import type { QueueOrder } from "@/types/queue";
 import type { BucketKey } from "./QueueHeader";
@@ -308,14 +309,30 @@ export const OrderCard = memo(function OrderCard({
               now={now ?? undefined}
             />
           ) : statusPill ? (
-            <span
-              className={[
-                "inline-flex items-center px-3.5 py-1 rounded-pill text-[11px] font-bold tracking-[0.04em]",
-                statusPill.className,
-              ].join(" ")}
-            >
-              {statusPill.label}
-            </span>
+            order.status === "rejected" ? (
+              <RejectionReasonHover
+                reason={order.rejection_reason}
+                note={order.rejection_note}
+              >
+                <span
+                  className={[
+                    "inline-flex items-center px-3.5 py-1 rounded-pill text-[11px] font-bold tracking-[0.04em]",
+                    statusPill.className,
+                  ].join(" ")}
+                >
+                  {statusPill.label}
+                </span>
+              </RejectionReasonHover>
+            ) : (
+              <span
+                className={[
+                  "inline-flex items-center px-3.5 py-1 rounded-pill text-[11px] font-bold tracking-[0.04em]",
+                  statusPill.className,
+                ].join(" ")}
+              >
+                {statusPill.label}
+              </span>
+            )
           ) : null}
         </div>
       </div>

@@ -48,6 +48,8 @@ const mockOrder: QueueOrder = {
   prior_lead_count: 0,
   prior_rejected_count: 0,
   last_known_address: null,
+  rejection_reason: null,
+  rejection_note: null,
 };
 
 describe("OrderCard", () => {
@@ -215,6 +217,47 @@ describe("OrderCard", () => {
     );
     const pill = screen.getByText("Rejeté");
     expect(pill.className).toContain("text-status-critical");
+  });
+
+  it("reveals the rejection reason on hover over a rejected pill", async () => {
+    const user = userEvent.setup();
+    render(
+      <OrderCard
+        order={{
+          ...mockOrder,
+          status: "rejected",
+          customer_note: null,
+          rejection_reason: "refus_client",
+        }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    // Reason is not shown until hover
+    expect(screen.queryByText("Refus client")).not.toBeInTheDocument();
+    await user.hover(screen.getByText("Rejeté"));
+    expect(await screen.findByText("Refus client")).toBeInTheDocument();
+  });
+
+  it("appends the free-text note for the 'autre' rejection reason on hover", async () => {
+    const user = userEvent.setup();
+    render(
+      <OrderCard
+        order={{
+          ...mockOrder,
+          status: "rejected",
+          customer_note: null,
+          rejection_reason: "autre",
+          rejection_note: "Client injoignable depuis 3 jours",
+        }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    await user.hover(screen.getByText("Rejeté"));
+    expect(
+      await screen.findByText(/Client injoignable depuis 3 jours/),
+    ).toBeInTheDocument();
   });
 
   it("uses attempt_count when max attempts is configured above 3", () => {

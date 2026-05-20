@@ -69,6 +69,8 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     prior_lead_count: (raw.prior_lead_count as number) ?? 0,
     prior_rejected_count: (raw.prior_rejected_count as number) ?? 0,
     last_known_address: (raw.last_known_address as string | null) ?? null,
+    rejection_reason: (raw.rejection_reason as string | null) ?? null,
+    rejection_note: (raw.rejection_note as string | null) ?? null,
   };
 }
 
