@@ -995,6 +995,8 @@
       "uploadCarrierError": "فشل الإرسال: {error}",
       "fieldPhone2": "هاتف 2",
       "fieldDeliveryFee": "رسوم التوصيل",
+      "fieldNote": "ملاحظة",
+      "fieldNotePlaceholder": "إضافة ملاحظة…",
       "addProduct": "+ إضافة منتج",
       "removeItem": "حذف",
       "grandTotal": "المجموع الكلي",

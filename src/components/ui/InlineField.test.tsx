@@ -68,4 +68,52 @@ describe("InlineField", () => {
     const input = screen.getByRole("textbox");
     expect(input.getAttribute("type")).toBe("tel");
   });
+
+  describe("multiline (textarea)", () => {
+    it("renders a textarea when multiline and not in display mode", () => {
+      render(<InlineField value="Note" onCommit={vi.fn()} multiline />);
+      const field = screen.getByRole("textbox");
+      expect(field.tagName).toBe("TEXTAREA");
+      expect((field as HTMLTextAreaElement).value).toBe("Note");
+    });
+
+    it("commits on blur with the edited multiline value", async () => {
+      const onCommit = vi.fn().mockResolvedValue(undefined);
+      render(<InlineField value="Note" onCommit={onCommit} multiline />);
+      const field = screen.getByRole("textbox");
+      fireEvent.change(field, { target: { value: "Line 1\nLine 2" } });
+      fireEvent.blur(field);
+      await waitFor(() => expect(onCommit).toHaveBeenCalledWith("Line 1\nLine 2"));
+    });
+
+    it("Enter does NOT commit in multiline mode (newline is allowed)", () => {
+      const onCommit = vi.fn();
+      render(<InlineField value="Note" onCommit={onCommit} multiline />);
+      const field = screen.getByRole("textbox");
+      fireEvent.change(field, { target: { value: "Changed" } });
+      fireEvent.keyDown(field, { key: "Enter" });
+      expect(onCommit).not.toHaveBeenCalled();
+    });
+
+    it("Escape reverts the multiline value without committing", () => {
+      const onCommit = vi.fn();
+      render(<InlineField value="Note" onCommit={onCommit} multiline />);
+      const field = screen.getByRole("textbox") as HTMLTextAreaElement;
+      fireEvent.change(field, { target: { value: "Changed" } });
+      fireEvent.keyDown(field, { key: "Escape" });
+      expect(field.value).toBe("Note");
+      expect(onCommit).not.toHaveBeenCalled();
+    });
+
+    it("display-mode multiline: clicking the text activates a textarea", () => {
+      render(
+        <InlineField value="Existing note" onCommit={vi.fn()} multiline displayMode />,
+      );
+      // No textbox until activated
+      expect(screen.queryByRole("textbox")).toBeNull();
+      fireEvent.click(screen.getByText("Existing note"));
+      const field = screen.getByRole("textbox");
+      expect(field.tagName).toBe("TEXTAREA");
+    });
+  });
 });

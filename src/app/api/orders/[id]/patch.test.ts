@@ -223,6 +223,84 @@ describe("PATCH /api/orders/[id]", () => {
     expect(capturedUpdate?.quantity).toBe(3);
   });
 
+  test("patches customer_note and persists it on the order", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
+
+    let capturedUpdate: Record<string, unknown> = {};
+
+    const updateChain: Record<string, unknown> = {};
+    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    const insertChain: Record<string, unknown> = {};
+    insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChain({ data: { role: "agent", market_id: "m-1" }, error: null });
+      if (table === "orders") {
+        const chain: Record<string, unknown> = {};
+        chain.select = vi.fn().mockReturnValue(chain);
+        chain.eq = vi.fn().mockReturnValue(chain);
+        chain.update = vi.fn().mockImplementation((data: Record<string, unknown>) => {
+          capturedUpdate = data;
+          return updateChain;
+        });
+        chain.single = vi.fn().mockResolvedValue({ data: assignedOrder, error: null });
+        return chain;
+      }
+      if (table === "order_history") {
+        const chain = queryChain({ data: [{ id: "h-1" }], error: null });
+        chain.insert = vi.fn().mockReturnValue(insertChain);
+        return chain;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const res = await PATCH(makeRequest({ customer_note: "Livrer avant midi" }), {
+      params: Promise.resolve({ id: "order-1" }),
+    });
+    expect(res.status).toBe(200);
+    expect(capturedUpdate?.customer_note).toBe("Livrer avant midi");
+  });
+
+  test("normalizes an empty customer_note to null", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
+
+    let capturedUpdate: Record<string, unknown> = {};
+
+    const updateChain: Record<string, unknown> = {};
+    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    const insertChain: Record<string, unknown> = {};
+    insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChain({ data: { role: "agent", market_id: "m-1" }, error: null });
+      if (table === "orders") {
+        const chain: Record<string, unknown> = {};
+        chain.select = vi.fn().mockReturnValue(chain);
+        chain.eq = vi.fn().mockReturnValue(chain);
+        chain.update = vi.fn().mockImplementation((data: Record<string, unknown>) => {
+          capturedUpdate = data;
+          return updateChain;
+        });
+        chain.single = vi.fn().mockResolvedValue({ data: assignedOrder, error: null });
+        return chain;
+      }
+      if (table === "order_history") {
+        const chain = queryChain({ data: [{ id: "h-1" }], error: null });
+        chain.insert = vi.fn().mockReturnValue(insertChain);
+        return chain;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const res = await PATCH(makeRequest({ customer_note: "" }), {
+      params: Promise.resolve({ id: "order-1" }),
+    });
+    expect(res.status).toBe(200);
+    expect(capturedUpdate?.customer_note).toBeNull();
+  });
+
   test("manager can edit any order in their market", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "manager-1" } } });
 
