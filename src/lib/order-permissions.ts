@@ -50,6 +50,23 @@ export function canCancelOrder(
   return false;
 }
 
+export const MANUAL_DELETE_ORDER_STATUSES: ReadonlySet<OrderStatus> = new Set([
+  "pending",
+  "assigned",
+  "attempt_1",
+  "attempt_2",
+  "attempt_3",
+  "callback_scheduled",
+  "confirmed",
+  "dispatch_scheduled",
+  "uploaded",
+  "scanned",
+]);
+
+export function canManuallyDeleteOrderStatus(status: string): status is OrderStatus {
+  return MANUAL_DELETE_ORDER_STATUSES.has(status as OrderStatus);
+}
+
 // Statuses that agents are allowed to transition TO
 const AGENT_ALLOWED_TARGETS: Set<OrderStatus> = new Set([
   "attempt_1",

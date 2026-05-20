@@ -795,7 +795,8 @@
       "last30d": "آخر 30 يومًا",
       "from": "من",
       "to": "إلى",
-      "clear": "مسح"
+      "clear": "مسح",
+      "showDeleted": "إظهار المحذوفة"
     },
     "chips": {
       "search": "بحث",
@@ -859,6 +860,7 @@
       "selected": "{count} محدد",
       "assign": "تعيين",
       "cancel": "إلغاء",
+      "cancelIneligible": "بعض الطلبات المحددة لا يمكن حذفها.",
       "clearSelection": "إلغاء التحديد",
       "noAgents": "لا يوجد وكلاء متاحون"
     },

@@ -245,6 +245,38 @@ export function OrdersFilterBar({
           <SlidersHorizontal size={12} strokeWidth={1.75} />
           {t("filters.advanced")}
         </button>
+
+        <label
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            height: 28,
+            padding: "0 8px",
+            fontSize: 12,
+            fontWeight: 500,
+            border: `1px solid ${filters.includeDeleted ? TEXT : BORDER}`,
+            borderRadius: 6,
+            background: filters.includeDeleted ? "#F2F2F2" : SOFT_BG,
+            color: TEXT,
+            cursor: "pointer",
+            userSelect: "none",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={filters.includeDeleted}
+            onChange={(e) => onChange({ includeDeleted: e.target.checked })}
+            style={{
+              width: 13,
+              height: 13,
+              margin: 0,
+              accentColor: TEXT,
+              cursor: "pointer",
+            }}
+          />
+          {t("filters.showDeleted")}
+        </label>
       </div>
     </div>
   );

@@ -26,6 +26,7 @@ describe("parseFiltersFromSearchParams", () => {
       total_min: "10",
       total_max: "500",
       rejection_reason: "prix",
+      include_deleted: "1",
     });
     const f = parseFiltersFromSearchParams(p);
     expect(f.preset).toBe("callbacks");
@@ -36,6 +37,7 @@ describe("parseFiltersFromSearchParams", () => {
     expect(f.totalMin).toBe(10);
     expect(f.totalMax).toBe(500);
     expect(f.rejectionReason).toBe("prix");
+    expect(f.includeDeleted).toBe(true);
   });
 
   it("drops invalid preset, invalid status, malformed date", () => {
@@ -84,6 +86,13 @@ describe("filtersToSearchParams round-trip", () => {
     const params = filtersToSearchParams(DEFAULT_FILTERS);
     expect(params.toString()).toBe("");
   });
+
+  it("round-trips include_deleted=1 and omits it when false", () => {
+    const params = filtersToSearchParams({ ...DEFAULT_FILTERS, includeDeleted: true });
+    expect(params.get("include_deleted")).toBe("1");
+    expect(parseFiltersFromSearchParams(params).includeDeleted).toBe(true);
+    expect(filtersToSearchParams({ ...DEFAULT_FILTERS, includeDeleted: false }).has("include_deleted")).toBe(false);
+  });
 });
 
 describe("hasActiveFilters", () => {
@@ -95,6 +104,9 @@ describe("hasActiveFilters", () => {
   });
   it("true when any filter is set", () => {
     expect(hasActiveFilters({ ...DEFAULT_FILTERS, city: "Tunis" })).toBe(true);
+  });
+  it("true when deleted orders are included", () => {
+    expect(hasActiveFilters({ ...DEFAULT_FILTERS, includeDeleted: true })).toBe(true);
   });
 });
 
@@ -123,6 +135,7 @@ describe("resetFilters", () => {
     expect(reset.preset).toBe("all");
     expect(reset.q).toBe("");
     expect(reset.statuses).toEqual([]);
+    expect(reset.includeDeleted).toBe(false);
   });
 });
 

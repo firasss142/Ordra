@@ -28,6 +28,7 @@ import { OrdersBulkBar } from "@/components/orders/OrdersBulkBar";
 import { NewOrdersBanner } from "@/components/orders/NewOrdersBanner";
 import { OrdersStatusStrip } from "@/components/orders/OrdersStatusStrip";
 import { PAGE_LIMIT } from "@/hooks/useOrdersList";
+import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
 
 const OrdersAdvancedDrawer = dynamic(
   () => import("@/components/orders/OrdersAdvancedDrawer").then((m) => m.OrdersAdvancedDrawer),
@@ -175,6 +176,7 @@ export function OrdersPageClient({
   const matchFilter = useCallback(
     (row: OrdersListRow) => {
       if (effectiveMarketId && row.market_id !== effectiveMarketId) return false;
+      if (!filters.includeDeleted && row.status === "deleted") return false;
       // Preset-level predicates that we can check client-side
       if (filters.preset === "unassigned") {
         return row.status === "pending" && row.assigned_to === null;
@@ -201,7 +203,7 @@ export function OrdersPageClient({
       if (filters.agentId && filters.agentId !== "unassigned" && row.assigned_to !== filters.agentId) return false;
       return true;
     },
-    [effectiveMarketId, filters.preset, filters.statuses, filters.agentId],
+    [effectiveMarketId, filters.includeDeleted, filters.preset, filters.statuses, filters.agentId],
   );
   const { newCount, reveal: revealNew, dismiss: dismissNew } = useOrdersRealtime({
     marketId: effectiveMarketId,
@@ -331,7 +333,8 @@ export function OrdersPageClient({
       clearSelection();
       await mutate();
     } else {
-      setErrorBanner(t("bulkCancelError"));
+      const json = await res.json().catch(() => ({}));
+      setErrorBanner((json as { error?: string }).error ?? t("bulkCancelError"));
       setTimeout(() => setErrorBanner(null), 4000);
     }
   }, [selectedIds, clearSelection, mutate, t]);
@@ -374,6 +377,13 @@ export function OrdersPageClient({
   );
 
   const canAssign = isSuperAdmin || role === "market_manager";
+  const selectedRows = useMemo(
+    () => rows.filter((row) => selectedIds.has(row.id)),
+    [rows, selectedIds],
+  );
+  const hasBulkDeleteIneligible = selectedRows.some(
+    (row) => !canManuallyDeleteOrderStatus(row.status),
+  );
 
   const activeMarketLabel = useMemo(() => {
     if (!isSuperAdmin) return userMarketLabel;
@@ -537,6 +547,8 @@ export function OrdersPageClient({
         onBulkCancel={handleBulkCancel}
         canAssign={canAssign}
         canCancel={canAssign}
+        cancelDisabled={hasBulkDeleteIneligible}
+        cancelDisabledReason={t("bulk.cancelIneligible")}
       />
 
       <CreateOrderModal

@@ -3,12 +3,16 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
 const mockRpc = vi.fn();
+const mockAdminFrom = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
     auth: { getUser: () => mockGetUser() },
     from: (...args: unknown[]) => mockFrom(...args),
     rpc: (...args: unknown[]) => mockRpc(...args),
+  }),
+  createAdminClient: vi.fn().mockReturnValue({
+    from: (...args: unknown[]) => mockAdminFrom(...args),
   }),
 }));
 
@@ -68,17 +72,26 @@ describe("POST /api/orders/[id]/cancel", () => {
     expect(res.status).toBe(404);
   });
 
-  test("returns 400 when order is in confirmed status", async () => {
+  test("returns 200 when deleting a confirmed order", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
     mockFrom.mockImplementation((table: string) => {
       if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
       if (table === "orders") return queryChain({ data: { id: "order-1", status: "confirmed", market_id: "m-1" }, error: null });
       return queryChain({ data: null, error: null });
     });
+    mockRpc.mockResolvedValue({
+      data: { deleted: 1, stock_restored: 0 },
+      error: null,
+    });
 
     const req = createRequest();
     const res = await POST(req, { params: Promise.resolve({ id: "order-1" }) });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("manual_delete_orders", {
+      p_order_ids: ["order-1"],
+      p_actor_id: "mgr-1",
+      p_note: "Order manually deleted",
+    });
   });
 
   test("returns 400 when order is dispatched", async () => {
@@ -115,7 +128,7 @@ describe("POST /api/orders/[id]/cancel", () => {
       return queryChain({ data: null, error: null });
     });
     mockRpc.mockResolvedValue({
-      data: { order_id: "order-1", status: "deleted", updated_at: "2026-04-11", history_id: "hist-1" },
+      data: { deleted: 1, stock_restored: 0 },
       error: null,
     });
 
@@ -134,7 +147,7 @@ describe("POST /api/orders/[id]/cancel", () => {
       return queryChain({ data: null, error: null });
     });
     mockRpc.mockResolvedValue({
-      data: { order_id: "order-1", status: "deleted", updated_at: "2026-04-11", history_id: "hist-1" },
+      data: { deleted: 1, stock_restored: 0 },
       error: null,
     });
 

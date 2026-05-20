@@ -21,6 +21,7 @@ function queryChain(resolveWith: { data: unknown; error: unknown }) {
   const chain: Record<string, unknown> = {};
   chain.select = vi.fn().mockReturnValue(chain);
   chain.eq = vi.fn().mockReturnValue(chain);
+  chain.neq = vi.fn().mockReturnValue(chain);
   chain.in = vi.fn().mockReturnValue(chain);
   chain.or = vi.fn().mockReturnValue(chain);
   chain.gte = vi.fn().mockReturnValue(chain);
@@ -109,6 +110,7 @@ describe("GET /api/orders/export", () => {
     const eqCalls = (orderChainRef!.eq as ReturnType<typeof vi.fn>).mock.calls;
     expect(eqCalls.find((c: unknown[]) => c[0] === "status" && c[1] === "pending")).toBeDefined();
     expect(eqCalls.find((c: unknown[]) => c[0] === "customer_city" && c[1] === "Tunis")).toBeDefined();
+    expect(orderChainRef!.neq).toHaveBeenCalledWith("status", "deleted");
   });
 
   test("applies comma-separated status via .in()", async () => {
@@ -131,6 +133,25 @@ describe("GET /api/orders/export", () => {
     const statusIn = inCalls.find((c: unknown[]) => c[0] === "status");
     expect(statusIn).toBeDefined();
     expect(statusIn![1]).toEqual(["delivered", "returned", "rejected", "deleted"]);
+    expect(orderChainRef!.neq).toHaveBeenCalledWith("status", "deleted");
+  });
+
+  test("include_deleted=1 skips deleted exclusion", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
+    let orderChainRef: ReturnType<typeof queryChain>;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
+      if (table === "orders") {
+        orderChainRef = queryChain({ data: [], error: null });
+        return orderChainRef;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const req = createRequest("/api/orders/export?include_deleted=1");
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    expect(orderChainRef!.neq).not.toHaveBeenCalledWith("status", "deleted");
   });
 
   test("super_admin can export with market_id filter", async () => {

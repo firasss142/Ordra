@@ -165,6 +165,11 @@ describe("OrderRow", () => {
     expect(screen.queryByRole("button", { name: /actions/i })).toBeNull();
   });
 
+  it("hides the kebab button for non-terminal statuses that cannot be manually deleted", () => {
+    renderRow({ order: { ...mockOrder, status: "dispatched" } });
+    expect(screen.queryByRole("button", { name: /actions/i })).toBeNull();
+  });
+
   it("opens the kebab menu and exposes a cancel item", async () => {
     const user = userEvent.setup();
     renderRow();

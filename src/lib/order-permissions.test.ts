@@ -7,6 +7,7 @@ import {
   canTransitionOrder,
   canUpdateFulfillment,
   canReopenOrder,
+  canManuallyDeleteOrderStatus,
 } from "./order-permissions";
 
 const MARKET_A = "market-a";
@@ -90,6 +91,18 @@ describe("canCancelOrder", () => {
 
   test("agent cannot cancel orders", () => {
     expect(canCancelOrder("agent")).toBe(false);
+  });
+});
+
+describe("canManuallyDeleteOrderStatus", () => {
+  test("allows only the manual Annuler status set", () => {
+    expect(canManuallyDeleteOrderStatus("pending")).toBe(true);
+    expect(canManuallyDeleteOrderStatus("confirmed")).toBe(true);
+    expect(canManuallyDeleteOrderStatus("uploaded")).toBe(true);
+    expect(canManuallyDeleteOrderStatus("scanned")).toBe(true);
+    expect(canManuallyDeleteOrderStatus("dispatched")).toBe(false);
+    expect(canManuallyDeleteOrderStatus("delivered")).toBe(false);
+    expect(canManuallyDeleteOrderStatus("deleted")).toBe(false);
   });
 });
 

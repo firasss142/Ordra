@@ -18,6 +18,8 @@ interface Props {
   onBulkCancel: () => Promise<void> | void;
   canAssign: boolean;
   canCancel: boolean;
+  cancelDisabled?: boolean;
+  cancelDisabledReason?: string;
 }
 
 export function OrdersBulkBar({
@@ -28,6 +30,8 @@ export function OrdersBulkBar({
   onBulkCancel,
   canAssign,
   canCancel,
+  cancelDisabled = false,
+  cancelDisabledReason,
 }: Props) {
   const t = useTranslations("orders.bulk");
   const isMobile = useIsMobile();
@@ -148,7 +152,8 @@ export function OrdersBulkBar({
         <button
           type="button"
           onClick={() => void run(onBulkCancel)}
-          disabled={busy}
+          disabled={busy || cancelDisabled}
+          title={cancelDisabled ? cancelDisabledReason : undefined}
           className="inline-flex items-center gap-1.5 h-8 px-3 rounded-card bg-status-critical hover:bg-[#B82408] active:bg-[#A11F07] text-[13px] font-medium text-white transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <XCircle size={13} strokeWidth={2} aria-hidden="true" />

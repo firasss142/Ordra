@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useId } from "react";
+import { useState, useRef, useId, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
 import { Star, AlertTriangle, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
@@ -43,6 +44,7 @@ export function RepeatBuyerBadge(props: RepeatBuyerBadgeProps) {
 
   const [open, setOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerRef = useRef<HTMLSpanElement | null>(null);
 
   const { detail, isLoading, error } = useCustomerHistory(source, sourceId, open);
 
@@ -73,6 +75,7 @@ export function RepeatBuyerBadge(props: RepeatBuyerBadgeProps) {
 
   return (
     <span
+      ref={triggerRef}
       className="relative inline-flex"
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
@@ -96,6 +99,9 @@ export function RepeatBuyerBadge(props: RepeatBuyerBadgeProps) {
       {open && (
         <PopoverPanel
           id={popoverId}
+          anchorRef={triggerRef}
+          onMouseEnter={handleEnter}
+          onMouseLeave={handleLeave}
           repeatKind={repeatKind}
           priorOrderCount={priorOrderCount}
           priorLeadCount={priorLeadCount}
@@ -113,6 +119,9 @@ export function RepeatBuyerBadge(props: RepeatBuyerBadgeProps) {
 
 interface PopoverPanelProps {
   id: string;
+  anchorRef: React.RefObject<HTMLElement | null>;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
   repeatKind: Exclude<RepeatKind, "none">;
   priorOrderCount: number;
   priorLeadCount: number;
@@ -124,8 +133,14 @@ interface PopoverPanelProps {
   customerPhone: string | null;
 }
 
+const POPOVER_WIDTH = 320;
+const VIEWPORT_GUTTER = 8;
+
 function PopoverPanel({
   id,
+  anchorRef,
+  onMouseEnter,
+  onMouseLeave,
   repeatKind,
   priorOrderCount,
   priorLeadCount,
@@ -137,6 +152,37 @@ function PopoverPanel({
   customerPhone,
 }: PopoverPanelProps) {
   const t = useTranslations("customerHistory.popover");
+  const isRtl = locale === "ar";
+
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(
+    null,
+  );
+
+  useLayoutEffect(() => {
+    function reposition() {
+      const el = anchorRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const width = Math.min(POPOVER_WIDTH, window.innerWidth - VIEWPORT_GUTTER * 2);
+      // Align the popover's inline-start edge with the trigger's inline-start
+      // edge, then clamp so it never overflows the viewport horizontally.
+      let left = isRtl ? rect.right - width : rect.left;
+      left = Math.max(
+        VIEWPORT_GUTTER,
+        Math.min(left, window.innerWidth - width - VIEWPORT_GUTTER),
+      );
+      setCoords({ top: rect.bottom + 4, left });
+    }
+    reposition();
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [anchorRef, isRtl]);
+
+  if (typeof document === "undefined" || coords === null) return null;
 
   const stats = detail?.stats;
   const orders = detail?.orders ?? [];
@@ -157,13 +203,21 @@ function PopoverPanel({
     ? `/${locale}/orders?q=${encodeURIComponent(customerPhone)}`
     : null;
 
-  return (
+  return createPortal(
     <div
       id={id}
       role="dialog"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        position: "fixed",
+        top: coords.top,
+        left: coords.left,
+        width: Math.min(POPOVER_WIDTH, window.innerWidth - VIEWPORT_GUTTER * 2),
+      }}
       className={[
-        "absolute z-30 top-full mt-1 start-0",
-        "w-[320px] max-w-[95vw]",
+        "z-[1000]",
         "rounded-lg border border-line-subtle bg-surface-card",
         "shadow-[0_8px_24px_rgba(0,0,0,0.10)] p-3",
         "text-[13px] text-ink-primary",
@@ -262,7 +316,8 @@ function PopoverPanel({
           )}
         </>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
 

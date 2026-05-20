@@ -9,6 +9,7 @@ import { ProductAvatar } from "./ProductAvatar";
 import { SourceLogo } from "@/components/shared/SourceLogo";
 import { formatDateTime } from "@/lib/format";
 import type { OrdersListRow } from "@/hooks/useOrdersList";
+import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
 
 const STATUS_TONE: Record<string, BadgeTone> = {
   pending: "neutral",
@@ -33,8 +34,6 @@ const STATUS_TONE: Record<string, BadgeTone> = {
   cancelled: "critical",
   deleted: "neutral",
 };
-
-const TERMINAL = new Set(["delivered", "returned", "rejected", "deleted", "cancelled"]);
 
 interface Props {
   order: OrdersListRow;
@@ -133,7 +132,7 @@ function Row({
   cancellingId,
 }: Props) {
   const statusTone = STATUS_TONE[order.status] ?? "neutral";
-  const terminal = TERMINAL.has(order.status);
+  const canDelete = canManuallyDeleteOrderStatus(order.status);
   const callbackOverdue =
     !!order.callback_scheduled_at &&
     new Date(order.callback_scheduled_at).getTime() <= Date.now();
@@ -296,7 +295,7 @@ function Row({
 
       {/* Actions — hover-revealed kebab */}
       <td className="px-2 py-2 align-middle">
-        {!terminal && (
+        {canDelete && (
           <RowKebab
             orderId={order.id}
             cancelLabel={labels.cancel}

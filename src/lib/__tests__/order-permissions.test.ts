@@ -3,6 +3,7 @@ import {
   canViewOrders,
   canAssignOrders,
   canCancelOrder,
+  canManuallyDeleteOrderStatus,
 } from "@/lib/order-permissions";
 
 describe("canViewOrders", () => {
@@ -98,6 +99,18 @@ describe("canCancelOrder", () => {
     it("cannot cancel orders in any market", () => {
       expect(canCancelOrder("agent", "market-ly", "market-tn")).toBe(false);
     });
+  });
+});
+
+describe("canManuallyDeleteOrderStatus", () => {
+  it("allows pre-dispatch manual delete statuses and blocks fulfillment/terminal statuses", () => {
+    expect(canManuallyDeleteOrderStatus("pending")).toBe(true);
+    expect(canManuallyDeleteOrderStatus("dispatch_scheduled")).toBe(true);
+    expect(canManuallyDeleteOrderStatus("uploaded")).toBe(true);
+    expect(canManuallyDeleteOrderStatus("scanned")).toBe(true);
+    expect(canManuallyDeleteOrderStatus("in_transit")).toBe(false);
+    expect(canManuallyDeleteOrderStatus("received")).toBe(false);
+    expect(canManuallyDeleteOrderStatus("cancelled")).toBe(false);
   });
 });
 
