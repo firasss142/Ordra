@@ -110,6 +110,10 @@ export class BuyboxAdapter implements StorefrontAdapter {
       customer_phone: customerPhone,
       customer_address: (customer && getString(customer, "address")) ?? null,
       customer_city: (customer && getString(customer, "city")) ?? null,
+      // city_id is the Dexpress state ID, resolved storefront-side from the
+      // city dropdown. null when city selection failed — the order then falls
+      // back to the manual destination picker at dispatch time.
+      dexpress_state_id: (customer && getNumber(customer, "city_id")) ?? null,
       customer_note: customerNote,
       product_name: productName,
       // Buybox has no SKU concept. The storefront product id lives in

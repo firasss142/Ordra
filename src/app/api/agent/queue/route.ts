@@ -107,15 +107,21 @@ export async function GET(_req: NextRequest) {
       buckets.tentative_3++;
       buckets.tentative_total++;
     } else if (s === "callback_scheduled") {
+      // Count callbacks that are past-due — these are the ones that show up
+      // in the agent's active list (see activeOrders filter above). Future
+      // callbacks are filtered out of the list and out of the chip count
+      // alike, so the en_cours chip total always matches list length.
       const cbAt = o.callback_scheduled_at as string | null;
-      if (!cbAt || new Date(cbAt) > now) buckets.rappel_prevu++;
+      if (cbAt && new Date(cbAt) <= now) buckets.rappel_prevu++;
     } else if (s === "dispatch_scheduled") {
-      // Count every dispatch_scheduled row (auto + manual, future only)
-      // in the Livraison sub-chip. Once past the scheduled time, manual
-      // rows move into the normal active list; auto rows disappear the
-      // moment the cron promotes them to dispatched.
+      // Same shape as callback_scheduled: only past-due manual dispatches
+      // surface in the active list, so only those count toward the chip.
+      // Auto-uploads never appear in the agent's queue at all (the cron
+      // promotes them directly), so they're excluded regardless of time.
       const dAt = o.scheduled_dispatch_at as string | null;
-      if (!dAt || new Date(dAt) > now) buckets.livraison_planifiee++;
+      if (!o.scheduled_dispatch_auto && dAt && new Date(dAt) <= now) {
+        buckets.livraison_planifiee++;
+      }
     } else if (s === "confirmed") buckets.confirme++;
   }
 

@@ -12,5 +12,11 @@ export async function getMarketSetting(
     .eq("market_id", marketId)
     .eq("key", key)
     .single();
-  return data?.value ?? defaultValue;
+  const value = data?.value;
+  if (value === null || value === undefined) return defaultValue;
+  if (typeof value === "object" && !Array.isArray(value) && "value" in value) {
+    const wrapped = (value as { value?: unknown }).value;
+    return wrapped === null || wrapped === undefined ? defaultValue : String(wrapped);
+  }
+  return String(value);
 }

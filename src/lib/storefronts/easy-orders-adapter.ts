@@ -117,6 +117,7 @@ export class EasyOrdersAdapter implements StorefrontAdapter {
       customer_city: getString(payload, "government") ?? null,
       customer_note:
         getString(payload, "note") ?? getString(payload, "notes") ?? null,
+      dexpress_state_id: null,
       product_name: productName,
       sku: (product && getString(product, "sku")) ?? null,
       variant_label: variantLabel,

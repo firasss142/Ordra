@@ -4,6 +4,12 @@ import { useEffect, useCallback } from "react";
 import useSWR from "swr";
 import { createClient } from "@/lib/supabase/client";
 
+export interface AgentNotificationOrder {
+  customer_name: string | null;
+  product_name: string | null;
+  variant_label: string | null;
+}
+
 export interface AgentNotification {
   id: string;
   order_id: string;
@@ -11,9 +17,13 @@ export interface AgentNotification {
   due_at: string;
   read_at: string | null;
   created_at: string;
+  order: AgentNotificationOrder | null;
 }
 
 export function useAgentNotifications(agentId: string | undefined) {
+  // Always fetches unread only. The badge + shake + toast are all driven by
+  // unread state; the dropdown's "Show all" toggle pulls history via a separate
+  // SWR call so it doesn't churn the badge.
   const { data, mutate } = useSWR(
     agentId ? "/api/notifications" : null,
     { revalidateOnFocus: false, dedupingInterval: 5000 },

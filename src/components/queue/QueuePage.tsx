@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import useSWR from "swr";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Phone, X } from "lucide-react";
 import { useAuth } from "@/context/auth";
@@ -147,6 +147,8 @@ function matchesClosedSubfilter(
 export function QueuePage() {
   const t = useTranslations("queue");
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
   const { user } = useAuth();
   const { orders: rawOrders, allOrders: rawAllOrders, closedOrders: rawClosedOrders, buckets, error, mutate } = useAgentQueue();
 
@@ -213,6 +215,20 @@ export function QueuePage() {
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [callTerminatedOrderId, setCallTerminatedOrderId] = useState<string | null>(null);
+
+  // Deep-link: ?openOrderId=<uuid> opens the detail panel for that order
+  // and strips the param so refresh doesn't re-open it. Used by the
+  // NotificationBell's "Voir la commande" action.
+  const openOrderIdParam = searchParams.get("openOrderId");
+  useEffect(() => {
+    if (!openOrderIdParam) return;
+    setSelectedOrderId(openOrderIdParam);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("openOrderId");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [openOrderIdParam, pathname, router, searchParams]);
+
   const [initialFlow, setInitialFlow] = useState<Flow | undefined>(undefined);
   const [autoRejectedBanner, setAutoRejectedBanner] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -487,6 +503,7 @@ export function QueuePage() {
         onClosedSubfilterChange={setClosedSubfilter}
         closedCounts={closedCounts}
         onNewOrder={() => setCreateOpen(true)}
+        maxAttempts={maxAttempts}
       />
 
       <CreateOrderModal
@@ -522,6 +539,7 @@ export function QueuePage() {
         selectedOrderIds={selectedOrderIds}
         onToggleSelect={handleToggleSelect}
         selectedBucket={selectedBucket}
+        maxAttempts={maxAttempts}
       />
 
       <OrderDetailPanel

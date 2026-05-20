@@ -37,6 +37,19 @@ describe("AttemptEtiquette", () => {
     expect(screen.getByText(/final/)).toBeInTheDocument();
   });
 
+  it("uses attemptsCount for configured attempt ceilings above 3", () => {
+    render(
+      <AttemptEtiquette
+        status="attempt_3"
+        attemptsCount={4}
+        maxAttempts={5}
+        callbackAt={null}
+      />,
+    );
+    expect(screen.getByRole("note", { name: /Tentative 4/ })).toBeInTheDocument();
+    expect(screen.queryByText(/final/)).not.toBeInTheDocument();
+  });
+
   it("renders a scheduled callback with time for a future callback", () => {
     const future = new Date(Date.now() + 3600_000).toISOString();
     render(

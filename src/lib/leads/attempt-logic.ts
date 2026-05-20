@@ -4,6 +4,10 @@ const NEXT_ATTEMPT: Partial<Record<LeadStatus, LeadStatus>> = {
   assigned: "attempt_1",
   attempt_1: "attempt_2",
   attempt_2: "attempt_3",
+  // The lead_status enum tops out at attempt_3. When max_lead_attempts > 3 the
+  // status sticks at attempt_3 while lead_history accumulates one row per
+  // click — the route uses that history count for the cap, not the status.
+  attempt_3: "attempt_3",
   callback_scheduled: "attempt_1",
 };
 

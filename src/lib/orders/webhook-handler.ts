@@ -432,10 +432,12 @@ async function handleOrderCreated(
     throw err;
   }
 
-  // Resolve the webhook payload to OMS entities. Each resolver runs its own
-  // strongest-first fallback chain (explicit mapping -> id/sku -> name). The
-  // order's mapping_status is the worst of the two outcomes — it drives the
-  // /mappings review surface, NOT the order lifecycle (status stays 'pending').
+  // Resolve the webhook payload to OMS entities. Product still runs its
+  // strongest-first fallback chain (explicit mapping -> sku -> name); city is
+  // a single-stage name match (the storefront city is a constrained dropdown
+  // value that mirrors our destination table). The order's mapping_status is
+  // the worst of the two outcomes — it drives the /mappings review surface,
+  // NOT the order lifecycle (status stays 'pending').
   const productResolution = await resolveProduct(adminClient, {
     storefront_id: storefront.id,
     market_id: storefront.market_id,
@@ -446,7 +448,6 @@ async function handleOrderCreated(
   const cityResolution = await resolveCity(adminClient, {
     platform: orderData.external_platform,
     market_id: storefront.market_id,
-    external_city_id: orderData.external_city_id ?? null,
     customer_city: orderData.customer_city,
   });
   const mappingStatus = worstMappingStatus(
@@ -479,7 +480,6 @@ async function handleOrderCreated(
       mapping_status: mappingStatus,
       external_product_id: orderData.external_product_id ?? null,
       external_variant_id: orderData.external_variant_id ?? null,
-      external_city_id: orderData.external_city_id ?? null,
       external_route_id: orderData.external_route_id ?? null,
       currency: orderData.currency ?? null,
       raw_payload: JSON.parse(rawBody),
@@ -530,13 +530,9 @@ async function handleOrderCreated(
       );
     }
     if (cityMatchStatus(cityResolution.match_method) !== "mapped") {
-      parts.push(
-        cityResolution.match_method === "market_mismatch"
-          ? `city mapping points to another market (city_id ${orderData.external_city_id ?? "n/a"})`
-          : cityResolution.city_id
-            ? `city matched by name only`
-            : `city unmatched (city_id ${orderData.external_city_id ?? "n/a"})`,
-      );
+      // City is name-only resolution: an unmatched city means the storefront
+      // dropdown value isn't in our destination table.
+      parts.push(`city unmatched ("${orderData.customer_city ?? "n/a"}")`);
     }
     await adminClient.from("order_history").insert({
       order_id: order.id,
@@ -602,16 +598,20 @@ async function handleOrderUpdated(
   }
 
   // Only update customer fields — NEVER update product, financial, or raw_payload fields
-  await adminClient
-    .from("orders")
-    .update({
-      customer_name: orderData.customer_name,
-      customer_phone: orderData.customer_phone,
-      customer_address: orderData.customer_address,
-      customer_city: orderData.customer_city,
-      customer_note: orderData.customer_note,
-    })
-    .eq("id", existing.id);
+  const customerUpdate: Record<string, unknown> = {
+    customer_name: orderData.customer_name,
+    customer_phone: orderData.customer_phone,
+    customer_address: orderData.customer_address,
+    customer_city: orderData.customer_city,
+    customer_note: orderData.customer_note,
+  };
+  // Only touch dexpress_state_id when the payload actually resolved one. A null
+  // from the adapter means "no opinion" — overwriting would wipe a value an
+  // agent set manually via the order detail panel.
+  if (orderData.dexpress_state_id != null) {
+    customerUpdate.dexpress_state_id = orderData.dexpress_state_id;
+  }
+  await adminClient.from("orders").update(customerUpdate).eq("id", existing.id);
 
   return { status: 200, body: { success: true, order_id: existing.id } };
 }

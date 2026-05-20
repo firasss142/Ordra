@@ -7,18 +7,19 @@ import { formatDateTime } from "@/lib/format";
 interface Props {
   status: string;
   attemptsCount: number;
+  maxAttempts?: number;
   callbackAt: string | null;
   scheduledDispatchAt?: string | null;
   scheduledDispatchAuto?: boolean;
   now?: Date;
 }
 
-function attemptNumberFor(status: string, attemptsCount: number): 1 | 2 | 3 | null {
-  if (status === "attempt_1") return 1;
-  if (status === "attempt_2") return 2;
-  if (status === "attempt_3") return 3;
+function attemptNumberFor(status: string, attemptsCount: number): number | null {
+  if (status === "attempt_1") return attemptsCount > 0 ? attemptsCount : 1;
+  if (status === "attempt_2") return attemptsCount > 0 ? attemptsCount : 2;
+  if (status === "attempt_3") return attemptsCount > 0 ? attemptsCount : 3;
   if (status === "callback_scheduled" && attemptsCount > 0) {
-    return Math.min(attemptsCount, 3) as 1 | 2 | 3;
+    return attemptsCount;
   }
   return null;
 }
@@ -39,6 +40,7 @@ const BASE = "inline-flex items-center gap-1.5 text-[12px] font-medium";
 export function AttemptEtiquette({
   status,
   attemptsCount,
+  maxAttempts = 3,
   callbackAt,
   scheduledDispatchAt,
   scheduledDispatchAuto,
@@ -119,7 +121,7 @@ export function AttemptEtiquette({
       <span role="note" aria-label={label} className={`${BASE} text-ink-primary`}>
         <StatusGlyph shape="solid" />
         <span>{label}</span>
-        {n === 3 && (
+        {n >= maxAttempts && (
           <span className="text-ink-secondary font-normal">{t("attemptFinal")}</span>
         )}
       </span>

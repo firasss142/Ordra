@@ -26,6 +26,8 @@ import { OrdersPresetPills } from "@/components/orders/OrdersPresetPills";
 import { OrdersTable } from "@/components/orders/OrdersTable";
 import { OrdersBulkBar } from "@/components/orders/OrdersBulkBar";
 import { NewOrdersBanner } from "@/components/orders/NewOrdersBanner";
+import { OrdersStatusStrip } from "@/components/orders/OrdersStatusStrip";
+import { PAGE_LIMIT } from "@/hooks/useOrdersList";
 
 const OrdersAdvancedDrawer = dynamic(
   () => import("@/components/orders/OrdersAdvancedDrawer").then((m) => m.OrdersAdvancedDrawer),
@@ -412,21 +414,23 @@ export function OrdersPageClient({
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: 8,
+          gap: 12,
         }}
       >
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, color: "#1A1A1A", margin: 0 }}>
-            {t("title")}
-          </h1>
-          <p style={{ fontSize: 13, color: "#6D7175", margin: "4px 0 0" }}>
-            {t("totalCount", { count: rows.length })}
-            {unassignedCount > 0 ? ` · ${unassignedCount} ${t("unassigned").toLowerCase()}` : ""}
-            {callbackCount > 0 ? ` · ${callbackCount} ${t("presets.callbacks").toLowerCase()}` : ""}
-            {` · ${activeMarketLabel}`}
-            {isValidating ? ` · ${t("refreshing")}` : ""}
-          </p>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+          <div>
+            <h1 style={{ fontSize: 20, fontWeight: 600, color: "#1A1A1A", margin: 0 }}>
+              {t("title")}
+            </h1>
+            <p style={{ fontSize: 13, color: "#6D7175", margin: "4px 0 0" }}>
+              {activeMarketLabel}
+              {isValidating ? ` · ${t("refreshing")}` : ""}
+            </p>
+          </div>
         </div>
+
+        <OrdersStatusStrip marketId={effectiveMarketId} />
+
         <OrdersPresetPills
           active={filters.preset}
           onChange={(next) => update({ preset: next })}
@@ -505,6 +509,7 @@ export function OrdersPageClient({
           hasNext={hasNext}
           hasPrev={hasPrev}
           currentPage={currentPage}
+          pageLimit={PAGE_LIMIT}
           onNextPage={nextPage}
           onPrevPage={prevPage}
           onOpen={(id) => {
@@ -519,10 +524,8 @@ export function OrdersPageClient({
         />
       </div>
 
-      <div style={{ fontSize: 13, color: "#6D7175", textAlign: "end" }}>
-        {t("footerCount", { count: rows.length })}
-        {hasNext ? ` · ${t("footerMore")}` : ""}
-        {` · ${t("footerLive")}`}
+      <div style={{ fontSize: 12, color: "#9CA3AF", textAlign: "end" }}>
+        {t("footerLive")}
       </div>
 
       {/* ── Bulk action bar (fixed bottom, rendered via portal-like position:fixed) ── */}

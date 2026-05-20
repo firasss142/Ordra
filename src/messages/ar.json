@@ -758,6 +758,16 @@
     "footerCount": "{count} معروض",
     "footerMore": "متاح المزيد",
     "footerLive": "مباشر",
+    "pageRange": "{from}–{to}",
+    "moreAvailable": "يوجد المزيد",
+    "statusStrip": {
+      "pending": "معلّق",
+      "confirmed": "مؤكّد",
+      "uploaded": "مُرسَل",
+      "rejected": "مرفوض",
+      "cancelled": "ملغى",
+      "total": "{count} إجمالاً"
+    },
     "callbackOverdue": "متأخّر",
     "priorRejected": "{count} رفض سابق",
     "actions": {
@@ -1107,11 +1117,23 @@
   },
   "notifications": {
     "bell": "الإشعارات",
-    "empty": "لا توجد إشعارات",
+    "empty": "لا توجد إشعارات غير مقروءة",
+    "emptyAll": "لا توجد إشعارات",
     "markAllRead": "تحديد الكل كمقروء",
+    "showAll": "عرض الكل",
+    "showUnreadOnly": "عرض غير المقروءة فقط",
     "callback_due": "موعد الاتصال",
     "attempt_due": "موعد المحاولة",
-    "viewOrder": "عرض الطلب"
+    "viewOrder": "عرض الطلب",
+    "unknownCustomer": "عميل غير معروف",
+    "noProduct": "بدون منتج",
+    "dueNow": "الآن",
+    "dueInMinutes": "خلال {minutes} د",
+    "dueInHours": "خلال {hours} س",
+    "overdueMinutes": "متأخر منذ {minutes} د",
+    "overdueHours": "متأخر منذ {hours} س",
+    "overdueDays": "متأخر منذ {days} ي",
+    "newToast": "إشعار جديد"
   },
   "queue": {
     "title": "قائمة الانتظار",
@@ -1146,15 +1168,16 @@
     "phoneAria": "اتصل بـ {phone}",
     "attempts": "محاولة {count}",
     "callbackAt": "معاودة في {time}",
+    "dispatchOverdue": "توصيل متأخر",
     "callResult": "نتيجة المكالمة",
     "networkError": "خطأ في الشبكة. أعد المحاولة.",
     "sessionExpired": "انتهت الجلسة — يرجى تسجيل الدخول مجدداً",
     "actionForbidden": "الإجراء غير مصرح به",
     "statusChanged": "تم تغيير الحالة — أعد تحميل الصفحة",
     "carrierRetry": "فشل شركة الشحن — أعد المحاولة",
-    "noResponseHint": "يزيد عداد المحاولة ويجدول المعاودة التالية.",
+    "noResponseHint": "يزيد عداد المحاولة.",
     "noResponseHintMax": "تم بلوغ الحد الأقصى — يرجى التأكيد أو الرفض",
-    "saveAttempt": "حفظ المحاولة + جدولة المعاودة",
+    "saveAttempt": "حفظ المحاولة",
     "saving": "جارٍ الحفظ…",
     "confirmedHint": "أكّد الطلب — المستودع سيتولى الشحن.",
     "confirmedSuccess": "تم تأكيد الطلب بنجاح.",
@@ -1223,6 +1246,12 @@
       "actioned": "تمت معالجتها",
       "confirmationRate": "معدل التأكيد"
     },
+    "statusSummary": {
+      "pending": "معلّق",
+      "confirmed": "مؤكّد",
+      "uploaded": "مُرسَل",
+      "rejected": "مرفوض"
+    },
     "buckets": {
       "all": "الكل",
       "new": "جديد",
@@ -1242,7 +1271,8 @@
         "all": "الكل",
         "t1": "محاولة 1",
         "t2": "محاولة 2",
-        "t3": "محاولة 3"
+        "t3": "محاولة 3",
+        "t3Plus": "محاولة 3+"
       },
       "enCoursSubfilter": {
         "all": "الكل",
@@ -1476,14 +1506,9 @@
     "cities": {
       "reviewHeading": "طلبات بدون مدينة مربوطة",
       "reviewEmpty": "لا توجد طلبات بانتظار ربط المدينة",
-      "mappingsHeading": "روابط المدن الحالية",
-      "mappingsEmpty": "لا توجد روابط مدن مُعدّة",
-      "cityId": "معرّف المدينة",
       "bind": "ربط",
       "bindTitle": "ربط مدينة",
-      "bindDescription": "ربط المدينة {cityId} (« {name} ») بمدينة في النظام. سيتم تحديث الطلبات المفتوحة التي تحمل هذا المعرّف.",
-      "colPlatform": "المنصة",
-      "colCityId": "معرّف المدينة",
+      "bindDescription": "مدينة الطلب « {name} » لا تطابق أي وجهة. اختر الوجهة الصحيحة أدناه.",
       "colCity": "مدينة النظام",
       "selectCity": "اختر مدينة"
     }
@@ -2617,6 +2642,37 @@
           "shopify": "X-Shopify-Hmac-Sha256 (base64)",
           "woocommerce": "X-WC-Webhook-Signature (base64)",
           "lightfunnels": "lightfunnels-hmac (base64)"
+        }
+      }
+    },
+    "googleSheets": {
+      "title": "جداول Google",
+      "syncNow": "مزامنة الآن",
+      "syncing": "جارٍ المزامنة…",
+      "rowsSynced": "{count} صف متزامن",
+      "neverSynced": "لم تتم المزامنة بعد",
+      "error": "خطأ في المزامنة",
+      "config": {
+        "title": "مصادر جداول Google",
+        "subtitle": "استيراد الطلبات من جداول Google (للقراءة فقط).",
+        "addSource": "إضافة مصدر",
+        "spreadsheetId": "معرّف الجدول",
+        "spreadsheetIdPlaceholder": "مثال: 1RT7e_Tmmz3kr…",
+        "sheetName": "اسم الورقة",
+        "platform": "المنصة المصدر",
+        "save": "حفظ",
+        "saving": "جارٍ الحفظ…",
+        "cancel": "إلغاء",
+        "active": "نشط",
+        "inactive": "غير نشط",
+        "disable": "تعطيل",
+        "enable": "تفعيل",
+        "remove": "حذف",
+        "removeAriaLabel": "حذف هذا المصدر",
+        "noSources": "لا توجد مصادر Google Sheets مُعدَّة.",
+        "validation": {
+          "required": "معرّف الجدول واسم الورقة مطلوبان.",
+          "saveFailed": "فشل الحفظ. حاول مجدداً."
         }
       }
     }

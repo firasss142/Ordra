@@ -130,26 +130,38 @@ describe("GET /api/mappings/unmatched", () => {
     expect(json.data.map((o: { id: string }) => o.id)).toEqual(["o-open"]);
   });
 
-  test("cities: drops an order once a mapping row exists for its (platform, external_city_id)", async () => {
+  test("cities: candidate query is the 'city did not resolve' signal — has customer_city, no destination columns", async () => {
+    // City resolution is name-only and deterministic at intake, so the cities
+    // tab is exactly the orders whose city did not resolve: a customer_city is
+    // present but neither city_id nor dexpress_state_id is set. No second query.
     mockGetUser.mockResolvedValue({ data: { user: { id: "mm-1" } } });
-    const orders = [
-      { id: "o-bound", external_platform: "buybox", external_city_id: "10" },
-      { id: "o-open", external_platform: "buybox", external_city_id: "11" },
-    ];
-    const ordersChain = chain({ data: orders });
+    const ordersChain = chain({
+      data: [
+        {
+          id: "o-1",
+          customer_city: "Sfax",
+          city_id: null,
+          dexpress_state_id: null,
+        },
+      ],
+    });
     mockFrom
       .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: "m-tn" } }))
-      .mockReturnValueOnce(ordersChain)
-      .mockReturnValueOnce(
-        chain({ data: [{ platform: "buybox", external_city_id: "10" }] }),
-      );
+      .mockReturnValueOnce(ordersChain);
 
     const res = await GET(getReq("?type=cities"));
     const json = await res.json();
-    expect(json.data.map((o: { id: string }) => o.id)).toEqual(["o-open"]);
+    expect(res.status).toBe(200);
+    expect(json.data.map((o: { id: string }) => o.id)).toEqual(["o-1"]);
 
     const calls = ordersChain.__calls as Array<{ method: string; args: unknown[] }>;
-    expect(calls).toContainEqual({ method: "not", args: ["external_city_id", "is", null] });
+    expect(calls).toContainEqual({ method: "neq", args: ["mapping_status", "mapped"] });
+    expect(calls).toContainEqual({ method: "not", args: ["customer_city", "is", null] });
+    expect(calls).toContainEqual({ method: "is", args: ["city_id", null] });
+    expect(calls).toContainEqual({ method: "is", args: ["dexpress_state_id", null] });
+    // no external_city_mappings second pass — only users + orders queries ran
+    expect(mockFrom).toHaveBeenCalledTimes(2);
+    expect(mockFrom.mock.calls.map((c) => c[0])).not.toContain("external_city_mappings");
   });
 
   test("returns an empty list (no second query) when there are no candidate orders", async () => {
@@ -165,27 +177,34 @@ describe("GET /api/mappings/unmatched", () => {
     expect(mockFrom).toHaveBeenCalledTimes(2);
   });
 
-  test("cities: a Libya order drops off once a mapping row exists — even though that row's city_id is null", async () => {
-    // Regression guard: Libya city mappings resolve to dexpress_state_id and
-    // leave city_id null. The unmatched filter keys on (platform,
-    // external_city_id) and must NEVER depend on city_id — otherwise a
-    // correctly-bound Libya order would keep showing up forever.
+  test("cities: a Libya order whose dexpress_state_id is set never surfaces", async () => {
+    // Libya orders resolve to dexpress_state_id (city_id stays null). The
+    // cities-tab query excludes any order with EITHER destination column set,
+    // so a bound Libya order is filtered out by the query itself — there is no
+    // second pass that could miss it.
     mockGetUser.mockResolvedValue({ data: { user: { id: "mm-ly" } } });
-    const orders = [
-      { id: "o-bound", external_platform: "buybox", external_city_id: "51" },
-      { id: "o-open", external_platform: "buybox", external_city_id: "52" },
-    ];
+    // The query already excludes bound orders, so the DB returns only the
+    // still-unresolved one.
+    const ordersChain = chain({
+      data: [
+        {
+          id: "o-open",
+          customer_city: "مدينة غير معروفة",
+          city_id: null,
+          dexpress_state_id: null,
+        },
+      ],
+    });
     mockFrom
       .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: "m-ly" } }))
-      .mockReturnValueOnce(chain({ data: orders }))
-      // external_city_mappings row for city 51 — Libya-style: city_id null,
-      // but the row still exists, so o-bound must drop off.
-      .mockReturnValueOnce(
-        chain({ data: [{ platform: "buybox", external_city_id: "51" }] }),
-      );
+      .mockReturnValueOnce(ordersChain);
 
     const res = await GET(getReq("?type=cities"));
     const json = await res.json();
     expect(json.data.map((o: { id: string }) => o.id)).toEqual(["o-open"]);
+
+    const calls = ordersChain.__calls as Array<{ method: string; args: unknown[] }>;
+    expect(calls).toContainEqual({ method: "is", args: ["dexpress_state_id", null] });
+    expect(mockFrom).toHaveBeenCalledTimes(2);
   });
 });

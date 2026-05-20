@@ -21,12 +21,18 @@ export type ProductMatchMethod =
   | "name" // products.name ILIKE — fragile, needs review
   | "none"; // no match
 
-/** How a city was resolved — drives the MappingStatus. */
+/**
+ * How a city was resolved — drives the MappingStatus.
+ *
+ * The storefront city is always a value the customer picked from a constrained
+ * dropdown whose options mirror our destination tables (cities for Tunisia,
+ * dexpress_states for Libya), so an exact normalized name match is
+ * authoritative. There is no fuzzy/typo middle ground — a name either is a
+ * member of the destination table or it isn't.
+ */
 export type CityMatchMethod =
-  | "external_id" // external_city_mappings hit (strongest)
-  | "name" // cities.name / name_ar normalized match
-  | "market_mismatch" // mapping found but resolved city is in another market
-  | "none"; // no match
+  | "name" // exact normalized match against the market's destination table
+  | "none"; // no match — the dropdown value isn't in our destination table
 
 export interface ProductResolution {
   product_id: string | null;
@@ -72,17 +78,18 @@ export function productMatchStatus(method: ProductMatchMethod): MappingStatus {
   }
 }
 
-/** Maps a city match method to its contributed MappingStatus. */
+/**
+ * Maps a city match method to its contributed MappingStatus.
+ *
+ * A name match is authoritative (the customer picked the value from a
+ * constrained dropdown), so it resolves to `mapped`. No match means the
+ * dropdown value isn't in our destination table — `unmatched`, flagged for a
+ * human to bind the order to an existing destination.
+ */
 export function cityMatchStatus(method: CityMatchMethod): MappingStatus {
   switch (method) {
-    case "external_id":
-      return "mapped";
     case "name":
-      return "needs_review";
-    case "market_mismatch":
-      // A mapping exists but points at the wrong market — never silently
-      // accept it; surface it for a human.
-      return "needs_review";
+      return "mapped";
     case "none":
       return "unmatched";
   }

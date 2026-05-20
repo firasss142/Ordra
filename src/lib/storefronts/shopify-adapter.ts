@@ -122,6 +122,8 @@ export class ShopifyAdapter implements StorefrontAdapter {
       customer_phone: customerPhone,
       customer_address: customerAddress,
       customer_city: (shipping && getString(shipping, "city")) ?? null,
+      // Shopify has no Dexpress state mapping — destination picked at dispatch time.
+      dexpress_state_id: null,
       customer_note: getString(payload, "note") ?? null,
       product_name: productName,
       sku: getString(item, "sku") ?? null,

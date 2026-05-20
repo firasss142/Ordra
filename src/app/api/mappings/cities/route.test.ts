@@ -49,6 +49,10 @@ beforeEach(() => {
   mockFrom.mockReset();
 });
 
+// ---------------------------------------------------------------------------
+// GET — returns the destination list for the target market (the dropdown
+// options the bind UI offers): cities for Tunisia, dexpress_states for Libya.
+// ---------------------------------------------------------------------------
 describe("GET /api/mappings/cities", () => {
   test("agent is forbidden", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "a-1" } } });
@@ -64,149 +68,175 @@ describe("GET /api/mappings/cities", () => {
     expect(res.status).toBe(403);
   });
 
-  test("Tunisia: scopes mappings through the market's cities", async () => {
+  test("Tunisia: returns the market's cities", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mm-1" } } });
-    const mappingsChain = chain({ data: [{ id: "map-1", city_id: "city-tunis" }] });
-    mockFrom
-      .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: TN_MARKET_ID } }))
-      .mockReturnValueOnce(chain({ data: [{ id: "city-tunis", market_id: TN_MARKET_ID }] }))
-      .mockReturnValueOnce(mappingsChain);
-    const res = await GET(getReq());
-    expect(res.status).toBe(200);
-    expect((await res.json()).data).toHaveLength(1);
-    // the mappings query is scoped by city_id
-    const calls = mappingsChain.__calls as Array<{ method: string; args: unknown[] }>;
-    expect(calls.some((c) => c.method === "in" && c.args[0] === "city_id")).toBe(true);
-  });
-
-  test("Libya: lists Dexpress-bound mappings (dexpress_state_id not null), no cities scoping", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-ly" } } });
-    const mappingsChain = chain({
-      data: [{ id: "map-ly", dexpress_state_id: 16, city_id: null }],
+    const citiesChain = chain({
+      data: [{ id: "city-tunis", name: "Tunis", name_ar: "تونس" }],
     });
     mockFrom
-      .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: LY_MARKET_ID } }))
-      .mockReturnValueOnce(mappingsChain);
+      .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: TN_MARKET_ID } }))
+      .mockReturnValueOnce(citiesChain);
     const res = await GET(getReq());
     expect(res.status).toBe(200);
     expect((await res.json()).data).toHaveLength(1);
-    // it filters on dexpress_state_id IS NOT NULL, and never queries cities
-    const calls = mappingsChain.__calls as Array<{ method: string; args: unknown[] }>;
-    expect(calls).toContainEqual({ method: "not", args: ["dexpress_state_id", "is", null] });
+    // scoped to the target market, never touches dexpress_states
+    const calls = citiesChain.__calls as Array<{ method: string; args: unknown[] }>;
+    expect(calls).toContainEqual({ method: "eq", args: ["market_id", TN_MARKET_ID] });
+    expect(mockFrom.mock.calls.map((c) => c[0])).not.toContain("dexpress_states");
+  });
+
+  test("Libya: returns active Dexpress states", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-ly" } } });
+    const statesChain = chain({ data: [{ id: 16, name: "اجدابيا" }] });
+    mockFrom
+      .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: LY_MARKET_ID } }))
+      .mockReturnValueOnce(statesChain);
+    const res = await GET(getReq());
+    expect(res.status).toBe(200);
+    expect((await res.json()).data).toHaveLength(1);
+    expect(mockFrom.mock.calls.map((c) => c[0])).toContain("dexpress_states");
     expect(mockFrom.mock.calls.map((c) => c[0])).not.toContain("cities");
   });
 });
 
+// ---------------------------------------------------------------------------
+// POST — binds one order directly to an existing destination. No alias table.
+// ---------------------------------------------------------------------------
 describe("POST /api/mappings/cities", () => {
   test("agent is forbidden", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "a-1" } } });
     mockFrom.mockReturnValueOnce(chain({ data: { role: "agent", market_id: TN_MARKET_ID } }));
-    const res = await POST(
-      postReq({ platform: "shopify", external_city_id: "3", city_id: "c-1" }),
-    );
+    const res = await POST(postReq({ order_id: "o-1", city_id: "c-1" }));
     expect(res.status).toBe(403);
   });
 
-  test("rejects missing platform / external_city_id", async () => {
+  test("rejects missing order_id", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mm-1" } } });
     mockFrom.mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: TN_MARKET_ID } }));
-    const res = await POST(postReq({ platform: "shopify" }));
+    const res = await POST(postReq({ city_id: "c-1" }));
     expect(res.status).toBe(400);
+  });
+
+  test("rejects when neither city_id nor dexpress_state_id is given", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-1" } } });
+    mockFrom.mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: TN_MARKET_ID } }));
+    const res = await POST(postReq({ order_id: "o-1" }));
+    expect(res.status).toBe(400);
+  });
+
+  test("404 when the order does not exist", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-1" } } });
+    mockFrom
+      .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: TN_MARKET_ID } }))
+      .mockReturnValueOnce(chain({ data: null })); // order lookup miss
+    const res = await POST(postReq({ order_id: "o-x", city_id: "c-1" }));
+    expect(res.status).toBe(404);
+  });
+
+  test("forbids binding an order in another market", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-1" } } });
+    mockFrom
+      .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: TN_MARKET_ID } }))
+      .mockReturnValueOnce(
+        chain({ data: { id: "o-1", market_id: LY_MARKET_ID, product_id: "p-1", status: "pending" } }),
+      );
+    const res = await POST(postReq({ order_id: "o-1", city_id: "c-1" }));
+    expect(res.status).toBe(403);
+  });
+
+  test("rejects binding an order that is already confirmed", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-1" } } });
+    mockFrom
+      .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: TN_MARKET_ID } }))
+      .mockReturnValueOnce(
+        chain({ data: { id: "o-1", market_id: TN_MARKET_ID, product_id: "p-1", status: "confirmed" } }),
+      );
+    const res = await POST(postReq({ order_id: "o-1", city_id: "c-1" }));
+    expect(res.status).toBe(409);
   });
 
   // --- Tunisia path --------------------------------------------------------
 
-  test("Tunisia: requires city_id", async () => {
+  test("Tunisia: binds order.city_id and recomputes mapping_status (product set -> mapped)", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mm-1" } } });
-    mockFrom.mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: TN_MARKET_ID } }));
-    const res = await POST(postReq({ platform: "shopify", external_city_id: "3" }));
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toMatch(/city_id is required/i);
-  });
-
-  test("Tunisia: creates a city mapping and back-fills orders.city_id", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-1" } } });
+    const updateChain = chain({ data: null });
     mockFrom
       .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: TN_MARKET_ID } }))
+      .mockReturnValueOnce(
+        chain({ data: { id: "o-1", market_id: TN_MARKET_ID, product_id: "p-1", status: "pending" } }),
+      ) // order lookup
       .mockReturnValueOnce(chain({ data: { id: "c-1", market_id: TN_MARKET_ID } })) // city lookup
-      .mockReturnValueOnce(chain({ data: { id: "map-1" } })) // insert mapping
-      .mockReturnValueOnce(chain({ data: [{ id: "o-1", product_id: "p-1" }] })) // open orders
-      .mockReturnValueOnce(chain({ data: null })); // update o-1
+      .mockReturnValueOnce(updateChain); // update order
 
-    const res = await POST(
-      postReq({ platform: "shopify", external_city_id: "3", city_id: "c-1" }),
-    );
-    expect(res.status).toBe(201);
-    expect((await res.json()).backfilled).toBe(1);
-
-    // the mapping row carries city_id, dexpress_state_id null
-    const insertChain = mockFrom.mock.results[2].value;
-    expect(insertChain.insert).toHaveBeenCalledWith(
-      expect.objectContaining({ city_id: "c-1", dexpress_state_id: null }),
-    );
-    // the order was back-filled with city_id (product already set -> mapped)
-    const updateChain = mockFrom.mock.results[4].value;
+    const res = await POST(postReq({ order_id: "o-1", city_id: "c-1" }));
+    expect(res.status).toBe(200);
     expect(updateChain.update).toHaveBeenCalledWith(
-      expect.objectContaining({ city_id: "c-1", dexpress_state_id: null, mapping_status: "mapped" }),
+      expect.objectContaining({
+        city_id: "c-1",
+        dexpress_state_id: null,
+        mapping_status: "mapped",
+      }),
     );
   });
 
-  test("Tunisia: rejects a city that is not in the target market", async () => {
+  test("Tunisia: product still unresolved -> mapping_status needs_review", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-1" } } });
+    const updateChain = chain({ data: null });
+    mockFrom
+      .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: TN_MARKET_ID } }))
+      .mockReturnValueOnce(
+        chain({ data: { id: "o-1", market_id: TN_MARKET_ID, product_id: null, status: "pending" } }),
+      )
+      .mockReturnValueOnce(chain({ data: { id: "c-1", market_id: TN_MARKET_ID } }))
+      .mockReturnValueOnce(updateChain);
+
+    const res = await POST(postReq({ order_id: "o-1", city_id: "c-1" }));
+    expect(res.status).toBe(200);
+    expect(updateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ mapping_status: "needs_review" }),
+    );
+  });
+
+  test("Tunisia: 404 when the city does not exist", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mm-1" } } });
     mockFrom
       .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: TN_MARKET_ID } }))
+      .mockReturnValueOnce(
+        chain({ data: { id: "o-1", market_id: TN_MARKET_ID, product_id: "p-1", status: "pending" } }),
+      )
+      .mockReturnValueOnce(chain({ data: null })); // city miss
+    const res = await POST(postReq({ order_id: "o-1", city_id: "c-x" }));
+    expect(res.status).toBe(404);
+  });
+
+  test("Tunisia: rejects a city in another market", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-1" } } });
+    mockFrom
+      .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: TN_MARKET_ID } }))
+      .mockReturnValueOnce(
+        chain({ data: { id: "o-1", market_id: TN_MARKET_ID, product_id: "p-1", status: "pending" } }),
+      )
       .mockReturnValueOnce(chain({ data: { id: "c-ly", market_id: LY_MARKET_ID } }));
-    const res = await POST(
-      postReq({ platform: "shopify", external_city_id: "3", city_id: "c-ly" }),
-    );
+    const res = await POST(postReq({ order_id: "o-1", city_id: "c-ly" }));
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/not in the target market/i);
   });
 
   // --- Libya path ----------------------------------------------------------
 
-  test("Libya: requires dexpress_state_id", async () => {
+  test("Libya: binds order.dexpress_state_id, clears city_id", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mm-ly" } } });
-    mockFrom.mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: LY_MARKET_ID } }));
-    const res = await POST(
-      postReq({ platform: "buybox", external_city_id: "51", city_id: "should-be-ignored" }),
-    );
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toMatch(/dexpress_state_id is required/i);
-  });
-
-  test("Libya: bad dexpress_state_id -> 404", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-ly" } } });
+    const updateChain = chain({ data: null });
     mockFrom
       .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: LY_MARKET_ID } }))
-      .mockReturnValueOnce(chain({ data: null })); // dexpress_states lookup miss
-    const res = await POST(
-      postReq({ platform: "buybox", external_city_id: "51", dexpress_state_id: 99999 }),
-    );
-    expect(res.status).toBe(404);
-  });
+      .mockReturnValueOnce(
+        chain({ data: { id: "o-ly", market_id: LY_MARKET_ID, product_id: null, status: "pending" } }),
+      )
+      .mockReturnValueOnce(chain({ data: { id: 16 } })) // dexpress_states lookup
+      .mockReturnValueOnce(updateChain);
 
-  test("Libya: creates a Dexpress mapping and back-fills orders.dexpress_state_id, city_id stays null", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-ly" } } });
-    mockFrom
-      .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: LY_MARKET_ID } }))
-      .mockReturnValueOnce(chain({ data: { id: 16 } })) // dexpress_states lookup hit
-      .mockReturnValueOnce(chain({ data: { id: "map-ly" } })) // insert mapping
-      .mockReturnValueOnce(chain({ data: [{ id: "o-ly", product_id: null }] })) // open orders
-      .mockReturnValueOnce(chain({ data: null })); // update o-ly
-
-    const res = await POST(
-      postReq({ platform: "buybox", external_city_id: "51", dexpress_state_id: 16 }),
-    );
-    expect(res.status).toBe(201);
-
-    // the mapping row carries dexpress_state_id, city_id null
-    const insertChain = mockFrom.mock.results[2].value;
-    expect(insertChain.insert).toHaveBeenCalledWith(
-      expect.objectContaining({ dexpress_state_id: 16, city_id: null }),
-    );
-    // the order back-fill sets dexpress_state_id, clears city_id; product null -> needs_review
-    const updateChain = mockFrom.mock.results[4].value;
+    const res = await POST(postReq({ order_id: "o-ly", dexpress_state_id: 16 }));
+    expect(res.status).toBe(200);
     expect(updateChain.update).toHaveBeenCalledWith(
       expect.objectContaining({
         dexpress_state_id: 16,
@@ -216,25 +246,44 @@ describe("POST /api/mappings/cities", () => {
     );
   });
 
-  test("super_admin must pass market_id in the body", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
-    mockFrom.mockReturnValueOnce(chain({ data: { role: "super_admin", market_id: null } }));
-    const res = await POST(
-      postReq({ platform: "buybox", external_city_id: "51", dexpress_state_id: 16 }),
-    );
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toMatch(/market_id is required/i);
-  });
-
-  test("returns 409 on a duplicate mapping", async () => {
+  test("Libya: 404 when the Dexpress state does not exist", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mm-ly" } } });
     mockFrom
       .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: LY_MARKET_ID } }))
+      .mockReturnValueOnce(
+        chain({ data: { id: "o-ly", market_id: LY_MARKET_ID, product_id: null, status: "pending" } }),
+      )
+      .mockReturnValueOnce(chain({ data: null })); // dexpress miss
+    const res = await POST(postReq({ order_id: "o-ly", dexpress_state_id: 99999 }));
+    expect(res.status).toBe(404);
+  });
+
+  test("Libya: rejects a city_id for a Dexpress-market order (wrong destination kind)", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-ly" } } });
+    mockFrom
+      .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: LY_MARKET_ID } }))
+      .mockReturnValueOnce(
+        chain({ data: { id: "o-ly", market_id: LY_MARKET_ID, product_id: null, status: "pending" } }),
+      );
+    const res = await POST(postReq({ order_id: "o-ly", city_id: "c-1" }));
+    expect(res.status).toBe(400);
+  });
+
+  test("super_admin can bind an order in any market", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    const updateChain = chain({ data: null });
+    mockFrom
+      .mockReturnValueOnce(chain({ data: { role: "super_admin", market_id: null } }))
+      .mockReturnValueOnce(
+        chain({ data: { id: "o-ly", market_id: LY_MARKET_ID, product_id: "p-1", status: "pending" } }),
+      )
       .mockReturnValueOnce(chain({ data: { id: 16 } }))
-      .mockReturnValueOnce(chain({ data: null, error: { code: "23505" } }));
-    const res = await POST(
-      postReq({ platform: "buybox", external_city_id: "51", dexpress_state_id: 16 }),
+      .mockReturnValueOnce(updateChain);
+
+    const res = await POST(postReq({ order_id: "o-ly", dexpress_state_id: 16 }));
+    expect(res.status).toBe(200);
+    expect(updateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ dexpress_state_id: 16, mapping_status: "mapped" }),
     );
-    expect(res.status).toBe(409);
   });
 });

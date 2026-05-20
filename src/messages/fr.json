@@ -758,6 +758,16 @@
     "footerCount": "{count} affichée(s)",
     "footerMore": "plus disponibles",
     "footerLive": "temps réel",
+    "pageRange": "{from}–{to}",
+    "moreAvailable": "suite disponible",
+    "statusStrip": {
+      "pending": "En attente",
+      "confirmed": "Confirmées",
+      "uploaded": "Expédiées",
+      "rejected": "Rejetées",
+      "cancelled": "Annulées",
+      "total": "{count} au total"
+    },
     "callbackOverdue": "en retard",
     "priorRejected": "{count} rejet(s) précédent(s)",
     "actions": {
@@ -1107,11 +1117,23 @@
   },
   "notifications": {
     "bell": "Notifications",
-    "empty": "Aucune notification",
+    "empty": "Aucune notification non lue",
+    "emptyAll": "Aucune notification",
     "markAllRead": "Tout marquer comme lu",
+    "showAll": "Voir tout",
+    "showUnreadOnly": "Voir seulement non lues",
     "callback_due": "Rappel en attente",
     "attempt_due": "Tentative en attente",
-    "viewOrder": "Voir la commande"
+    "viewOrder": "Voir la commande",
+    "unknownCustomer": "Client inconnu",
+    "noProduct": "Produit non renseigné",
+    "dueNow": "à l'instant",
+    "dueInMinutes": "dans {minutes} min",
+    "dueInHours": "dans {hours} h",
+    "overdueMinutes": "dû il y a {minutes} min",
+    "overdueHours": "dû il y a {hours} h",
+    "overdueDays": "dû il y a {days} j",
+    "newToast": "Nouvelle notification"
   },
   "queue": {
     "title": "Ma file d'attente",
@@ -1146,15 +1168,16 @@
     "phoneAria": "Appeler {phone}",
     "attempts": "Tentative {count}",
     "callbackAt": "Rappel à {time}",
+    "dispatchOverdue": "Livraison en retard",
     "callResult": "Résultat de l'appel",
     "networkError": "Erreur réseau. Réessayez.",
     "sessionExpired": "Session expirée — veuillez vous reconnecter",
     "actionForbidden": "Action non autorisée",
     "statusChanged": "Statut déjà modifié — rechargez la page",
     "carrierRetry": "Échec carrier — veuillez réessayer",
-    "noResponseHint": "Incrémente la tentative et programme le prochain rappel.",
+    "noResponseHint": "Incrémente la tentative.",
     "noResponseHintMax": "Tentatives max atteintes — veuillez confirmer ou rejeter",
-    "saveAttempt": "Enregistrer tentative + programmer rappel",
+    "saveAttempt": "Enregistrer tentative",
     "saving": "Enregistrement…",
     "confirmedHint": "Confirmez la commande — l'entrepôt se chargera de l'expédition.",
     "confirmedSuccess": "Commande confirmée avec succès.",
@@ -1223,6 +1246,12 @@
       "actioned": "Traitées",
       "confirmationRate": "Taux de confirmation"
     },
+    "statusSummary": {
+      "pending": "En attente",
+      "confirmed": "Confirmées",
+      "uploaded": "Expédiées",
+      "rejected": "Rejetées"
+    },
     "buckets": {
       "all": "Tous",
       "new": "Nouveau",
@@ -1242,7 +1271,8 @@
         "all": "Tous",
         "t1": "Tentative 1",
         "t2": "Tentative 2",
-        "t3": "Tentative 3"
+        "t3": "Tentative 3",
+        "t3Plus": "Tentative 3+"
       },
       "enCoursSubfilter": {
         "all": "Tous",
@@ -1476,14 +1506,9 @@
     "cities": {
       "reviewHeading": "Commandes sans ville associée",
       "reviewEmpty": "Aucune commande en attente d'association ville",
-      "mappingsHeading": "Correspondances ville existantes",
-      "mappingsEmpty": "Aucune correspondance ville configurée",
-      "cityId": "ID ville",
       "bind": "Associer",
       "bindTitle": "Associer une ville",
-      "bindDescription": "Associer la ville {cityId} (« {name} ») à une ville OMS. Les commandes ouvertes portant cet ID seront mises à jour.",
-      "colPlatform": "Plateforme",
-      "colCityId": "ID ville",
+      "bindDescription": "La ville « {name} » de la commande ne correspond à aucune destination. Choisissez la bonne destination ci-dessous.",
       "colCity": "Ville OMS",
       "selectCity": "Sélectionner une ville"
     }
@@ -2704,6 +2729,37 @@
           "endpoint": "Endpoint par défaut",
           "credentials": "Champs d'identifiants",
           "secret": "Secret"
+        }
+      }
+    },
+    "googleSheets": {
+      "title": "Google Sheets",
+      "syncNow": "Synchroniser",
+      "syncing": "Synchronisation…",
+      "rowsSynced": "{count} lignes synchronisées",
+      "neverSynced": "Jamais synchronisé",
+      "error": "Erreur de synchronisation",
+      "config": {
+        "title": "Sources Google Sheets",
+        "subtitle": "Importez des commandes depuis Google Sheets en lecture seule.",
+        "addSource": "Ajouter une source",
+        "spreadsheetId": "ID du classeur",
+        "spreadsheetIdPlaceholder": "Ex : 1RT7e_Tmmz3kr…",
+        "sheetName": "Nom de l’onglet",
+        "platform": "Plateforme source",
+        "save": "Enregistrer",
+        "saving": "Enregistrement…",
+        "cancel": "Annuler",
+        "active": "Actif",
+        "inactive": "Inactif",
+        "disable": "Désactiver",
+        "enable": "Activer",
+        "remove": "Supprimer",
+        "removeAriaLabel": "Supprimer cette source",
+        "noSources": "Aucune source Google Sheets configurée.",
+        "validation": {
+          "required": "ID du classeur et nom de l’onglet sont requis.",
+          "saveFailed": "Échec de l’enregistrement. Réessayez."
         }
       }
     }

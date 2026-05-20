@@ -6,27 +6,24 @@ import { canViewMappings } from "@/lib/mapping-permissions";
 export const dynamic = "force-dynamic";
 
 /**
- * Review surface: open orders that need an explicit storefront -> OMS mapping
- * AND that an admin can actually bind through this UI.
+ * Review surface: open orders that need an admin to resolve a storefront -> OMS
+ * mapping through this UI.
  *
- * "Needs a mapping" is NOT the same as "has no product/city". An order whose
- * product resolved only by name (products.name ILIKE) DOES have a product_id,
- * but it resolved via the fragile fallback path — no explicit mapping row
- * exists, so the next order with the same variant id will name-match again
- * (or fail). Those orders must surface here so an admin can pin an explicit
- * mapping. The precise, correct signal is therefore:
+ * Products and cities surface on different signals:
  *
- *   the order carries an external id  AND  no mapping row exists for it yet
+ *   - Products: "needs a mapping" is NOT the same as "has no product". An order
+ *     whose product resolved only by name (products.name ILIKE) DOES have a
+ *     product_id, but no explicit mapping row exists, so the next order with
+ *     the same variant id will name-match again (or fail). The signal is:
+ *       the order carries an external_variant_id AND no mapping row exists yet.
  *
- * That single rule covers BOTH cases the resolver produces without a mapping:
- *   - unmatched      (no product_id / city_id at all)
- *   - name-matched   (product_id / city_id set, but mapping_status='needs_review')
- * Once an admin binds it, a mapping row exists and the order drops off.
- *
- * "Can actually bind" — the bind flow keys a mapping on the external id
- * (external_variant_id for products, external_city_id for cities). Orders that
- * predate the resolver carry neither and are intentionally invisible here;
- * they are handled by the normal order-edit flow.
+ *   - Cities: city resolution is name-only and deterministic at intake — the
+ *     storefront city is a constrained dropdown value that either exact-matches
+ *     our destination table (cities / dexpress_states) or it doesn't. An
+ *     unmatched city has no city_id and no dexpress_state_id. The signal is:
+ *       the order has a customer_city AND neither destination column is set.
+ *     The admin binds it directly to an existing destination (per-order); there
+ *     is no city alias table.
  *
  * Only pre-confirmation orders are listed — once an order is confirmed its
  * product/city are locked and a mapping fix no longer back-fills it.
@@ -46,9 +43,9 @@ interface CandidateOrder {
   external_variant_id: string | null;
   product_id: string | null;
   customer_city: string | null;
-  external_city_id: string | null;
   external_route_id: string | null;
   city_id: string | null;
+  dexpress_state_id: number | null;
 }
 
 export async function GET(req: NextRequest) {
@@ -80,14 +77,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // 1. Candidate orders: not fully mapped, pre-confirmation, carrying the
-  //    external id this tab binds on.
+  // 1. Candidate orders: not fully mapped, pre-confirmation. Each tab adds its
+  //    own filter — products on the external variant id, cities on whether the
+  //    destination resolved.
   let query = supabase
     .from("orders")
     .select(
       "id, created_at, mapping_status, external_platform, storefront_id, " +
         "product_name, external_product_id, external_variant_id, product_id, " +
-        "customer_city, external_city_id, external_route_id, city_id",
+        "customer_city, external_route_id, city_id, dexpress_state_id",
     )
     .neq("mapping_status", "mapped")
     .in("status", ["pending", "unverified"])
@@ -101,7 +99,12 @@ export async function GET(req: NextRequest) {
   if (type === "products") {
     query = query.not("external_variant_id", "is", null);
   } else {
-    query = query.not("external_city_id", "is", null);
+    // City is name-only: an unmatched city resolved to neither destination
+    // column. Only orders with a customer_city can be bound.
+    query = query
+      .not("customer_city", "is", null)
+      .is("city_id", null)
+      .is("dexpress_state_id", null);
   }
 
   const { data: orders, error } = await query;
@@ -113,8 +116,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ data: [] });
   }
 
-  // 2. Fetch the mapping keys that already exist, scoped to just the ids the
-  //    candidates reference, and drop any candidate that already has one.
+  // 2. Products: drop candidates that already have an explicit mapping row.
+  //    Cities need no second pass — the query above is already the exact
+  //    "city did not resolve" signal.
   if (type === "products") {
     // A product mapping is keyed on (storefront_id, external_variant_id).
     const storefrontIds = [...new Set(candidates.map((o) => o.storefront_id))];
@@ -144,30 +148,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ data });
   }
 
-  // A city mapping is keyed on (platform, external_city_id).
-  const platforms = [...new Set(candidates.map((o) => o.external_platform))];
-  const cityIds = [
-    ...new Set(
-      candidates
-        .map((o) => o.external_city_id)
-        .filter((v): v is string => v != null),
-    ),
-  ];
-  const { data: cityMappingRows, error: cityMapErr } = await supabase
-    .from("external_city_mappings")
-    .select("platform, external_city_id")
-    .in("platform", platforms)
-    .in("external_city_id", cityIds);
-  if (cityMapErr) {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-  const mappedCities = new Set(
-    ((cityMappingRows ?? []) as { platform: string; external_city_id: string }[]).map(
-      (m) => `${m.platform}::${m.external_city_id}`,
-    ),
-  );
-  const data = candidates.filter(
-    (o) => !mappedCities.has(`${o.external_platform}::${o.external_city_id}`),
-  );
-  return NextResponse.json({ data });
+  // Cities: the query already selected exactly the orders whose city did not
+  // resolve, so the candidate list is the answer.
+  return NextResponse.json({ data: candidates });
 }

@@ -82,7 +82,9 @@ export const OrderCard = memo(function OrderCard({
 
   const attemptNumber = extractAttemptNumber(order.status);
   const isAttemptStatus = attemptNumber > 0;
-  const isMaxAttempt = attemptNumber >= maxAttempts;
+  const currentAttemptCount =
+    isAttemptStatus ? Math.max(order.attempt_count ?? 0, attemptNumber) : 0;
+  const isMaxAttempt = currentAttemptCount >= maxAttempts;
 
   const showRow3 =
     isAttemptStatus ||
@@ -291,6 +293,7 @@ export const OrderCard = memo(function OrderCard({
             <AttemptEtiquette
               status={order.status}
               attemptsCount={order.attempt_count ?? 0}
+              maxAttempts={maxAttempts}
               callbackAt={order.callback_time}
               scheduledDispatchAt={order.scheduled_dispatch_at}
               scheduledDispatchAuto={order.scheduled_dispatch_auto}
@@ -324,7 +327,7 @@ export const OrderCard = memo(function OrderCard({
           )}
           {isAttemptStatus && isMaxAttempt && (
             <span className="text-[12px] font-bold text-agent-error">
-              {t("attempts", { count: `${attemptNumber}/${maxAttempts}` })}
+              {t("attempts", { count: `${currentAttemptCount}/${maxAttempts}` })}
             </span>
           )}
           {order.status === "callback_scheduled" && callbackOverdue && callbackDate && (

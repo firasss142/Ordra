@@ -211,6 +211,24 @@ describe("OrderCard", () => {
     expect(pill.className).toContain("text-status-critical");
   });
 
+  it("uses attempt_count when max attempts is configured above 3", () => {
+    render(
+      <OrderCard
+        order={{
+          ...mockOrder,
+          status: "attempt_3",
+          attempt_count: 4,
+          customer_note: null,
+        }}
+        maxAttempts={5}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    expect(screen.getByRole("note", { name: /Tentative 4/ })).toBeInTheDocument();
+    expect(screen.queryByText(/final/)).not.toBeInTheDocument();
+  });
+
   describe("bucket-driven border tone", () => {
     it("nouveau bucket → blue border", () => {
       render(
