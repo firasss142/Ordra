@@ -877,8 +877,8 @@
       "attempt_3": "Tentative 3",
       "callback_scheduled": "Rappel prévu",
       "confirmed": "Confirmé",
-      "dispatch_scheduled": "Livraison planifiée",
-      "uploaded": "Téléchargé chez transporteur",
+      "dispatch_scheduled": "Planifiée",
+      "uploaded": "Téléchargé",
       "scanned": "Scanné",
       "dispatched": "Expédié",
       "deposit": "Déposé",
@@ -1156,6 +1156,7 @@
       "days": "{count}j"
     },
     "phoneAria": "Appeler {phone}",
+    "createdAt": "Créée le {date}",
     "attempts": "Tentative {count}",
     "callbackAt": "Rappel à {time}",
     "dispatchOverdue": "Livraison en retard",

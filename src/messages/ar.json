@@ -877,8 +877,8 @@
       "attempt_3": "محاولة 3",
       "callback_scheduled": "مكالمة مجدولة",
       "confirmed": "مؤكد",
-      "dispatch_scheduled": "توصيل مجدول",
-      "uploaded": "تم الإرسال إلى الناقل",
+      "dispatch_scheduled": "مجدول",
+      "uploaded": "تم الرفع",
       "scanned": "تم المسح",
       "dispatched": "تم الإرسال",
       "deposit": "إيداع",
@@ -1156,6 +1156,7 @@
       "days": "{count} يوم"
     },
     "phoneAria": "اتصل بـ {phone}",
+    "createdAt": "أُنشئت في {date}",
     "attempts": "محاولة {count}",
     "callbackAt": "معاودة في {time}",
     "dispatchOverdue": "توصيل متأخر",

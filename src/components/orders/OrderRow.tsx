@@ -7,6 +7,7 @@ import type { BadgeTone } from "@/components/ui/Badge";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
 import { ProductAvatar } from "./ProductAvatar";
 import { SourceLogo } from "@/components/shared/SourceLogo";
+import { formatDateTime } from "@/lib/format";
 import type { OrdersListRow } from "@/hooks/useOrdersList";
 
 const STATUS_TONE: Record<string, BadgeTone> = {
@@ -120,6 +121,7 @@ function RowKebab({
 
 function Row({
   order,
+  locale,
   selected,
   highlighted,
   agentName,
@@ -266,6 +268,13 @@ function Row({
               {labels.callbackOverdue}
             </span>
           )}
+        </span>
+      </td>
+
+      {/* Created date */}
+      <td className="whitespace-nowrap px-4 py-2 text-start align-middle">
+        <span className="text-[13px] tabular-nums text-ink-secondary">
+          {formatDateTime(order.created_at, locale)}
         </span>
       </td>
 

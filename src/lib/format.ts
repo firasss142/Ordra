@@ -54,6 +54,7 @@ function getDateTimeFormatter(locale: string): Intl.DateTimeFormat {
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false,
     });
     dateTimeFormatters.set(locale, fmt);
   }

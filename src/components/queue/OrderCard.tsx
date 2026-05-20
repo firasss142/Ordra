@@ -2,7 +2,7 @@
 
 import { memo, useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { Phone, Clock, Check } from "lucide-react";
+import { Phone, Clock, Check, CalendarDays } from "lucide-react";
 import { extractAttemptNumber } from "@/lib/attempt-logic";
 import { formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
@@ -252,6 +252,14 @@ export const OrderCard = memo(function OrderCard({
                 <span className="truncate">{order.customer_city}</span>
               </>
             )}
+            <span aria-hidden="true" className="opacity-60">·</span>
+            <span
+              className="inline-flex items-center gap-1 tabular-nums shrink-0"
+              aria-label={t("createdAt", { date: formatDateTime(order.created_at, locale) })}
+            >
+              <CalendarDays size={11} strokeWidth={2} aria-hidden="true" />
+              {formatDateTime(order.created_at, locale)}
+            </span>
           </div>
         </div>
 
