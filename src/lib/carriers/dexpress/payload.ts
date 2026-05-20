@@ -1,6 +1,24 @@
 import type { CarrierOrderData, CarrierConfig } from "../types";
 import { CarrierConfigError } from "../errors";
 import { resolveDestination } from "./states";
+import { normalizeLibyanPhone } from "../phone";
+
+/**
+ * Dexpress expects Libyan numbers in 10-digit local form (09XXXXXXXX).
+ * Storefront webhooks often deliver them without the leading 0 (e.g.
+ * "924751325") or with a +218 prefix, which Dexpress rejects with a silent
+ * redirect-back. Normalize to the form the portal accepts; if a number is too
+ * malformed to normalize, pass it through unchanged so the carrier returns its
+ * own validation error rather than us guessing.
+ */
+function toCarrierPhone(raw: string | null | undefined): string {
+  if (!raw) return "";
+  try {
+    return normalizeLibyanPhone(raw);
+  } catch {
+    return raw;
+  }
+}
 
 export interface DexpressExtra {
   state_id: number;
@@ -47,8 +65,8 @@ export function buildOrderPayload(
     route_id: String(route_id),
     to_state: String(to_state),
     to_place: "0",
-    phone: order.customer_phone,
-    phone_2: order.customer_phone_2 ?? "",
+    phone: toCarrierPhone(order.customer_phone),
+    phone_2: toCarrierPhone(order.customer_phone_2),
     name: order.customer_name ?? "",
     address: order.customer_address ?? "",
     info,

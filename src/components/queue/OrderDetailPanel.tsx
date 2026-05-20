@@ -15,6 +15,7 @@ import { StepperField } from "@/components/ui/StepperField";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { useOrderMutation } from "@/hooks/useOrderMutation";
 import { LY_MARKET_ID } from "@/lib/markets";
+import { isValidLibyanPhone } from "@/lib/carriers/phone";
 import type { Role } from "@/types";
 
 const ScheduleDispatchModal = dynamic(
@@ -859,6 +860,32 @@ export function OrderDetailPanel({
                       : <Copy size={13} strokeWidth={2} aria-hidden="true" />}
                   </button>
                 </a>
+
+                {/* Edit the primary phone in-place — the call pill above stays
+                    read-only so it never gets edited by a mis-tap. Dexpress
+                    rejects malformed Libyan numbers, so let the agent correct a
+                    wrong number without leaving the panel. Only shown while the
+                    order is still editable. */}
+                {canEdit && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <Pencil size={12} strokeWidth={2} aria-hidden="true" className="text-ink-muted flex-shrink-0" />
+                    <InlineField
+                      value={order.customer_phone}
+                      onCommit={(v) => runCommit({ customer_phone: v.trim() })}
+                      validate={(v) => {
+                        const trimmed = v.trim();
+                        if (trimmed === "") return t("invalidPhone");
+                        if (isLibyaOrder && !isValidLibyanPhone(trimmed))
+                          return t("invalidPhone");
+                        return null;
+                      }}
+                      type="tel"
+                      displayMode
+                      placeholder={t("fieldPhone")}
+                      displayClassName="text-[13px] text-ink-secondary tabular-nums"
+                    />
+                  </div>
+                )}
 
                 {/* Phone 2 — only if present */}
                 {(order.customer_phone_2 || canEdit) && (

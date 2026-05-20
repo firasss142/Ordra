@@ -959,6 +959,7 @@
       "editBlockedStatus": "أعد فتح الطلب لتعديل تفاصيله.",
       "fieldName": "الاسم",
       "fieldPhone": "الهاتف",
+      "invalidPhone": "رقم غير صالح (الصيغة المتوقعة 09XXXXXXXX)",
       "fieldCity": "المدينة",
       "fieldAddress": "العنوان",
       "fieldQuantity": "الكمية",
