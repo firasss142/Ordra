@@ -795,7 +795,8 @@
       "last30d": "30 derniers jours",
       "from": "Du",
       "to": "Au",
-      "clear": "Effacer"
+      "clear": "Effacer",
+      "showDeleted": "Afficher supprimées"
     },
     "chips": {
       "search": "Recherche",
@@ -859,6 +860,7 @@
       "selected": "{count} sélectionnée(s)",
       "assign": "Assigner",
       "cancel": "Annuler",
+      "cancelIneligible": "Certaines commandes sélectionnées ne peuvent pas être supprimées.",
       "clearSelection": "Désélectionner",
       "noAgents": "Aucun agent disponible"
     },
@@ -887,8 +889,8 @@
       "attempt_3": "Tentative 3",
       "callback_scheduled": "Rappel prévu",
       "confirmed": "Confirmé",
-      "dispatch_scheduled": "Livraison planifiée",
-      "uploaded": "Téléchargé chez transporteur",
+      "dispatch_scheduled": "Planifiée",
+      "uploaded": "Téléchargé",
       "scanned": "Scanné",
       "dispatched": "Expédié",
       "deposit": "Déposé",
@@ -993,6 +995,8 @@
       "uploadCarrierError": "Échec de l'envoi : {error}",
       "fieldPhone2": "Téléphone 2",
       "fieldDeliveryFee": "Frais de livraison",
+      "fieldNote": "Note",
+      "fieldNotePlaceholder": "Ajouter une note…",
       "addProduct": "+ Ajouter un produit",
       "removeItem": "Supprimer",
       "grandTotal": "Total",
@@ -1166,6 +1170,7 @@
       "days": "{count}j"
     },
     "phoneAria": "Appeler {phone}",
+    "createdAt": "Créée le {date}",
     "attempts": "Tentative {count}",
     "callbackAt": "Rappel à {time}",
     "dispatchOverdue": "Livraison en retard",

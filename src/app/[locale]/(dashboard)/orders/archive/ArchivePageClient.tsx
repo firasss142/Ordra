@@ -110,6 +110,7 @@ export function ArchivePageClient({
       dateFrom: fromDate,
       dateTo: toDate,
       rejectionReason: reasonFilter || null,
+      includeDeleted: true,
     }),
     [marketId, effectiveStatuses, search, fromDate, toDate, reasonFilter],
   );
@@ -158,6 +159,9 @@ export function ArchivePageClient({
     const params = new URLSearchParams();
     params.set("market_id", marketId);
     params.set("status", (outcomeFilter.length ? outcomeFilter : OUTCOME_KEYS).join(","));
+    if ((outcomeFilter.length ? outcomeFilter : OUTCOME_KEYS).includes("deleted")) {
+      params.set("include_deleted", "1");
+    }
     if (search) params.set("q", search);
     if (fromDate) params.set("date_from", fromDate);
     if (toDate) params.set("date_to", toDate);

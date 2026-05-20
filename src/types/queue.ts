@@ -24,4 +24,6 @@ export interface QueueOrder {
   prior_lead_count: number;
   prior_rejected_count: number;
   last_known_address: string | null;
+  rejection_reason: string | null;
+  rejection_note: string | null;
 }

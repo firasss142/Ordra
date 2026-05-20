@@ -7,6 +7,11 @@ interface InlineFieldProps {
   onCommit: (value: string) => Promise<void> | void;
   validate?: (value: string) => string | null;
   type?: "text" | "tel" | "number";
+  /**
+   * Render a multi-line textarea instead of a single-line input. Enter inserts
+   * a newline (does not commit); commit happens on blur. Escape still reverts.
+   */
+  multiline?: boolean;
   placeholder?: string;
   /** Legacy: still works. Renders value as unstyled text, no edit. */
   readOnly?: boolean;
@@ -26,6 +31,7 @@ export function InlineField({
   onCommit,
   validate,
   type = "text",
+  multiline,
   placeholder,
   readOnly,
   displayMode,
@@ -35,7 +41,7 @@ export function InlineField({
   const [draft, setDraft] = useState(String(value));
   const [hasError, setHasError] = useState(false);
   const [editing, setEditing] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const original = useRef(String(value));
 
   const prevValue = useRef(String(value));
@@ -61,16 +67,20 @@ export function InlineField({
     [onCommit, validate],
   );
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    // In multiline mode Enter inserts a newline rather than committing — the
+    // commit happens on blur. Single-line fields commit on Enter as before.
+    if (e.key === "Enter" && !multiline) {
       e.preventDefault();
-      (e.currentTarget as HTMLInputElement).blur();
+      e.currentTarget.blur();
       tryCommit(draft);
     } else if (e.key === "Escape") {
       setDraft(original.current);
       setHasError(false);
       if (displayMode) setEditing(false);
-      (e.currentTarget as HTMLInputElement).blur();
+      e.currentTarget.blur();
     }
   };
 
@@ -86,9 +96,41 @@ export function InlineField({
   // Display mode: styled text, click activates input
   if (displayMode) {
     if (editing && !readOnly) {
+      const sharedStyle = {
+        width: "100%",
+        padding: multiline ? "8px 10px" : "0 10px",
+        fontSize: 14,
+        lineHeight: 1.45,
+        color: "#1A1A1A",
+        backgroundColor: "#FFFFFF",
+        border: `1px solid ${hasError ? "#D72C0D" : "#10B981"}`,
+        borderRadius: 6,
+        outline: "none",
+        transition: "border-color 120ms ease",
+        boxSizing: "border-box" as const,
+      };
+      if (multiline) {
+        return (
+          <textarea
+            ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+            value={draft}
+            placeholder={placeholder}
+            autoFocus
+            rows={2}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={() => {
+              tryCommit(draft);
+              setEditing(false);
+            }}
+            onKeyDown={handleKeyDown}
+            className={`${hasError ? "border-status-critical " : ""}${className}`}
+            style={{ ...sharedStyle, resize: "vertical", minHeight: 56 }}
+          />
+        );
+      }
       return (
         <input
-          ref={inputRef}
+          ref={inputRef as React.RefObject<HTMLInputElement>}
           type={type}
           value={draft}
           placeholder={placeholder}
@@ -100,19 +142,7 @@ export function InlineField({
           }}
           onKeyDown={handleKeyDown}
           className={`${hasError ? "border-status-critical " : ""}${className}`}
-          style={{
-            width: "100%",
-            height: 34,
-            padding: "0 10px",
-            fontSize: 14,
-            color: "#1A1A1A",
-            backgroundColor: "#FFFFFF",
-            border: `1px solid ${hasError ? "#D72C0D" : "#10B981"}`,
-            borderRadius: 6,
-            outline: "none",
-            transition: "border-color 120ms ease",
-            boxSizing: "border-box",
-          }}
+          style={{ ...sharedStyle, height: 34 }}
         />
       );
     }
@@ -139,6 +169,33 @@ export function InlineField({
   }
 
   // Standard editable input
+  const standardStyle = {
+    width: "100%",
+    padding: multiline ? "8px 10px" : "0 10px",
+    fontSize: 14,
+    lineHeight: 1.45,
+    color: "#1A1A1A",
+    backgroundColor: "#FFFFFF",
+    border: `1px solid ${hasError ? "#D72C0D" : "#D1D5DB"}`,
+    borderRadius: 6,
+    outline: "none",
+    transition: "border-color 120ms ease",
+    boxSizing: "border-box" as const,
+  };
+  if (multiline) {
+    return (
+      <textarea
+        value={draft}
+        placeholder={placeholder}
+        rows={2}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => tryCommit(draft)}
+        onKeyDown={handleKeyDown}
+        className={`${hasError ? "border-red-600 " : ""}${className}`}
+        style={{ ...standardStyle, resize: "vertical", minHeight: 56 }}
+      />
+    );
+  }
   return (
     <input
       type={type}
@@ -148,19 +205,7 @@ export function InlineField({
       onBlur={() => tryCommit(draft)}
       onKeyDown={handleKeyDown}
       className={`${hasError ? "border-red-600 " : ""}${className}`}
-      style={{
-        width: "100%",
-        height: 32,
-        padding: "0 10px",
-        fontSize: 14,
-        color: "#1A1A1A",
-        backgroundColor: "#FFFFFF",
-        border: `1px solid ${hasError ? "#D72C0D" : "#D1D5DB"}`,
-        borderRadius: 6,
-        outline: "none",
-        transition: "border-color 120ms ease",
-        boxSizing: "border-box",
-      }}
+      style={{ ...standardStyle, height: 32 }}
     />
   );
 }

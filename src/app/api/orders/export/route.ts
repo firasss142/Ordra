@@ -8,18 +8,26 @@ export const dynamic = "force-dynamic";
 const STATUS_LABELS: Record<string, string> = {
   new: "Nouveau",
   assigned: "Assigné",
+  pending: "En attente",
   attempt_1: "Tentative 1",
   attempt_2: "Tentative 2",
   attempt_3: "Tentative 3",
   callback_scheduled: "Rappel planifié",
   confirmed: "Confirmé",
+  dispatch_scheduled: "Planifiée",
+  uploaded: "Téléchargé",
+  scanned: "Scanné",
   dispatched: "Expédié",
   deposit: "Déposé",
   in_transit: "En transit",
+  unverified: "À vérifier",
+  to_be_returned: "À retourner",
+  received: "Reçu en retour",
   delivered: "Livré",
   returned: "Retourné",
   rejected: "Rejeté",
   cancelled: "Annulé",
+  deleted: "Supprimé",
 };
 
 const MAX_EXPORT_ROWS = 10_000;
@@ -36,13 +44,12 @@ function escapeCsv(value: string | null | undefined): string {
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
 
-    const actorResult = await getActor(req);
+  const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
   const role = actor.role;
   const actorMarketId = actor.market_id ?? "";
 
-  // Agents cannot export
   if (role === "agent") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -64,7 +71,13 @@ export async function GET(req: NextRequest) {
     query = query.eq("market_id", marketId);
   }
 
-  // Filters (same as list route)
+  const includeDeleted =
+    req.nextUrl.searchParams.get("include_deleted") === "1" ||
+    req.nextUrl.searchParams.get("include_deleted") === "true";
+  if (!includeDeleted) {
+    query = query.neq("status", "deleted");
+  }
+
   const status = req.nextUrl.searchParams.get("status");
   if (status) {
     const list = status.split(",").map((s) => s.trim()).filter(Boolean);
@@ -110,8 +123,6 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 
   const rows = data ?? [];
-
-  // Build CSV
   const headers = ["ID", "Date", "Client", "Téléphone", "Ville", "Produit", "Variante", "Prix total", "Statut", "Agent", "Créé le"];
   const csvLines = [headers.join(",")];
 

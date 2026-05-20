@@ -27,6 +27,7 @@ export interface OrderListFilters {
   totalMax: number | null;
   rejectionReason: RejectionReason | null;
   carrierId: string | null;
+  includeDeleted: boolean;
 }
 
 export const DEFAULT_FILTERS: OrderListFilters = {
@@ -43,6 +44,7 @@ export const DEFAULT_FILTERS: OrderListFilters = {
   totalMax: null,
   rejectionReason: null,
   carrierId: null,
+  includeDeleted: false,
 };
 
 const isPreset = (v: string): v is OrdersPreset => (ORDERS_PRESETS as string[]).includes(v);
@@ -94,6 +96,7 @@ export function parseFiltersFromSearchParams(params: URLSearchParams): OrderList
     totalMax: num(params.get("total_max")),
     rejectionReason,
     carrierId: params.get("carrier_id") || null,
+    includeDeleted: params.get("include_deleted") === "1" || params.get("include_deleted") === "true",
   };
 }
 
@@ -112,6 +115,7 @@ export function filtersToSearchParams(filters: OrderListFilters): URLSearchParam
   if (filters.totalMax != null) p.set("total_max", String(filters.totalMax));
   if (filters.rejectionReason) p.set("rejection_reason", filters.rejectionReason);
   if (filters.carrierId) p.set("carrier_id", filters.carrierId);
+  if (filters.includeDeleted) p.set("include_deleted", "1");
   return p;
 }
 
@@ -129,7 +133,8 @@ export function hasActiveFilters(filters: OrderListFilters): boolean {
     filters.totalMin !== null ||
     filters.totalMax !== null ||
     filters.rejectionReason !== null ||
-    filters.carrierId !== null
+    filters.carrierId !== null ||
+    filters.includeDeleted
   );
 }
 
@@ -184,6 +189,10 @@ export const listQuerySchema = z.object({
   total_max: z.coerce.number().optional(),
   rejection_reason: z.enum(REJECTION_REASONS).optional(),
   carrier_id: z.string().uuid().optional(),
+  include_deleted: z.preprocess(
+    (v) => v === "1" || v === "true" || v === true,
+    z.boolean(),
+  ).default(false),
 });
 
 export type ListQuery = z.infer<typeof listQuerySchema>;

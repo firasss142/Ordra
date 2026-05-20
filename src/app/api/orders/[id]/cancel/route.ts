@@ -1,40 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { canCancelOrder } from "@/lib/order-permissions";
-import { transitionOrderStatus } from "@/lib/orders/transition";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
+import {
+  canCancelOrder,
+  canManuallyDeleteOrderStatus,
+} from "@/lib/order-permissions";
 import type { OrderStatus } from "@/types/order-status";
 import { getActor } from "@/lib/auth/actor";
-
-// Statuses that can be cancelled — pre-dispatch only, excluding confirmed
+import {
+  manualDeleteOrders,
+  ManualDeleteCarrierVoidError,
+  type ManualDeleteOrderRow,
+} from "@/lib/orders/manual-delete";
 
 export const dynamic = "force-dynamic";
 
-const CANCELLABLE_STATUSES = new Set<OrderStatus>([
-  "pending",
-  "assigned",
-  "attempt_1",
-  "attempt_2",
-  "attempt_3",
-  "callback_scheduled",
-]);
-
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const supabase = await createClient();
 
-    const actorResult = await getActor(req);
+  const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
   const role = actor.role;
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("id, status, market_id")
+    .select("id, status, market_id, tracking_number, carrier_id")
     .eq("id", id)
-    .single();
+    .single<ManualDeleteOrderRow>();
 
   if (orderError || !order) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
@@ -46,33 +42,41 @@ export async function POST(
   }
 
   const currentStatus = order.status as OrderStatus;
-  if (!CANCELLABLE_STATUSES.has(currentStatus)) {
+  if (!canManuallyDeleteOrderStatus(currentStatus)) {
     return NextResponse.json(
       { error: `Cannot cancel order with status '${currentStatus}'` },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
-  // Parse optional note from body
   let note: string | undefined;
   try {
     const body = await req.json();
     note = body.note as string | undefined;
   } catch {
-    // No body or invalid JSON — note is optional
+    // Note is optional.
   }
 
   try {
-    const result = await transitionOrderStatus(supabase, {
-      orderId: id,
-      newStatus: "deleted",
+    const result = await manualDeleteOrders(supabase, createAdminClient(), {
+      orders: [order],
       actorId: actor.id,
-      actorType: "manager",
-      note: note ?? "Order cancelled",
+      note: note?.trim() || "Order manually deleted",
     });
 
-    return NextResponse.json({ data: result });
-  } catch {
+    return NextResponse.json({
+      data: {
+        order: { id, status: "deleted" },
+        result,
+      },
+    });
+  } catch (err) {
+    if (err instanceof ManualDeleteCarrierVoidError) {
+      return NextResponse.json(
+        { error: err.message, order_id: err.orderId, reason: err.reason },
+        { status: err.status },
+      );
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

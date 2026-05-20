@@ -50,6 +50,7 @@ export default async function OrdersPage({
           .from("orders")
           .select(LIST_COLS)
           .eq("market_id", prefetchMarketId)
+          .neq("status", "deleted")
           .order("created_at", { ascending: false })
           .order("id", { ascending: false })
           .limit(10)

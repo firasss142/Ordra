@@ -138,6 +138,14 @@ export async function PATCH(
     updates.customer_phone_2 = body.customer_phone_2 === "" ? null : (body.customer_phone_2 ?? null);
   }
 
+  // customer_note: free-text note, settable at creation — keep it editable here
+  // too. Normalize empty/whitespace-only → null so clearing the field removes it.
+  if ("customer_note" in body) {
+    const raw = body.customer_note;
+    const trimmed = typeof raw === "string" ? raw.trim() : raw;
+    updates.customer_note = trimmed === "" || trimmed == null ? null : trimmed;
+  }
+
   // delivery_fee: validate ≥ 0, recompute total_price from order_items subtotal
   if ("delivery_fee" in body && body.delivery_fee !== undefined) {
     const fee = typeof body.delivery_fee === "string" ? parseFloat(body.delivery_fee) : body.delivery_fee as number;

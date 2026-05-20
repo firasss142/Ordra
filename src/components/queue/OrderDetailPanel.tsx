@@ -884,10 +884,20 @@ export function OrderDetailPanel({
                   </div>
                 )}
 
-                {/* Customer note — calm, non-dominant */}
-                {order.customer_note && (
-                  <div className="mt-3 ps-2.5 border-s-2 border-line-strong text-[12px] text-ink-secondary leading-snug italic">
-                    {order.customer_note}
+                {/* Customer note — calm, non-dominant. Editable when the order
+                    is still editable; otherwise a read-only italic note. Shown
+                    even when empty (in edit mode) so an agent can add one. */}
+                {(order.customer_note || canEdit) && (
+                  <div className="mt-3 ps-2.5 border-s-2 border-line-strong">
+                    <InlineField
+                      value={order.customer_note ?? ""}
+                      onCommit={(v) => runCommit({ customer_note: v.trim() || null })}
+                      multiline
+                      displayMode
+                      readOnly={!canEdit}
+                      placeholder={canEdit ? t("fieldNotePlaceholder") : ""}
+                      displayClassName="text-[12px] text-ink-secondary leading-snug italic"
+                    />
                   </div>
                 )}
               </div>
