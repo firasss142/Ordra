@@ -3,8 +3,12 @@ import type { CityResolution } from "./resolver-types";
 import { marketIdToCode } from "@/lib/markets";
 
 /**
- * Resolves a webhook order's destination — market-aware, because the two
- * markets have different carrier models:
+ * Resolves a webhook order's destination — name-only, market-aware.
+ *
+ * The storefront city is always a value the customer picked from a constrained
+ * dropdown whose options mirror our destination tables. So resolution is a
+ * single stage: normalize `customer_city` and exact-match it against the
+ * market's destination table.
  *
  *   - Tunisia: the destination is an OMS city (cities.id → orders.city_id).
  *   - Libya:   the carrier is Dexpress, whose state list IS the destination
@@ -14,17 +18,12 @@ import { marketIdToCode } from "@/lib/markets";
  * The two are mutually exclusive on an order, matching the orders PATCH
  * contract (setting one clears the other).
  *
- * Resolution order, strongest first (per market):
- *   1. External-id mapping — external_city_mappings on (platform,
- *      external_city_id). For Tunisia the resolved city's market must equal
- *      the storefront's market (mismatch is flagged, never silently applied).
- *      For Libya the mapping must carry a dexpress_state_id; a mapping row
- *      with a null dexpress_state_id is treated as INCOMPLETE and falls
- *      through (this is exactly the #AC3FDD16 bug — a city was bound but no
- *      Dexpress state, so the order was never truly resolved for upload).
- *   2. Name normalization — case/space-insensitive match against the
- *      market's destination table (cities for TN, dexpress_states for LY).
- *   3. Unmatched.
+ * An exact normalized match → `name` (authoritative — the value came from a
+ * constrained dropdown). No match → `none` (flagged: the dropdown drifted from
+ * our destination table; a human binds the order to an existing destination).
+ *
+ * `customer_address` is free text and is never matched here — it is courier
+ * instructions, stored raw on the order.
  *
  * Split like auto-assignment: `decideCityResolution` is the pure decision
  * core, `resolveCity` is the thin IO wrapper. `normalizeCityName` is exported
@@ -50,20 +49,6 @@ export type CityNameMatch =
 export interface CityResolverInput {
   /** True when the storefront's market uses Dexpress as its destination catalogue (Libya). */
   isDexpressMarket: boolean;
-  /**
-   * external_city_mappings row, or null.
-   * - Tunisia: `city_id` + `city_market_id` are set (the resolved city and
-   *   its market, for the cross-market guard); `dexpress_state_id` is null.
-   * - Libya: `dexpress_state_id` is the resolved destination; `city_id` /
-   *   `city_market_id` may be a stale legacy value and are ignored.
-   */
-  mappingRow: {
-    city_id: string | null;
-    city_market_id: string | null;
-    dexpress_state_id: number | null;
-  } | null;
-  /** The storefront's market — the authority on which market this order is in. */
-  storefrontMarketId: string;
   /** The destination matched by normalized-name lookup, or null. */
   nameMatch: CityNameMatch | null;
 }
@@ -72,15 +57,6 @@ export interface CityResolverInput {
 export function decideCityResolution(input: CityResolverInput): CityResolution {
   if (input.isDexpressMarket) {
     // --- Libya: destination is a dexpress_states id ---
-    if (input.mappingRow && input.mappingRow.dexpress_state_id != null) {
-      return {
-        city_id: null,
-        dexpress_state_id: input.mappingRow.dexpress_state_id,
-        match_method: "external_id",
-      };
-    }
-    // A mapping row with no dexpress_state_id is INCOMPLETE — do not apply it;
-    // fall through to the name match (and then to unmatched).
     if (input.nameMatch && input.nameMatch.kind === "dexpress") {
       return {
         city_id: null,
@@ -92,21 +68,6 @@ export function decideCityResolution(input: CityResolverInput): CityResolution {
   }
 
   // --- Tunisia: destination is a cities id ---
-  if (input.mappingRow && input.mappingRow.city_id != null) {
-    if (input.mappingRow.city_market_id === input.storefrontMarketId) {
-      return {
-        city_id: input.mappingRow.city_id,
-        dexpress_state_id: null,
-        match_method: "external_id",
-      };
-    }
-    // Mapping points at a city in another market — surface it, never apply.
-    return {
-      city_id: null,
-      dexpress_state_id: null,
-      match_method: "market_mismatch",
-    };
-  }
   if (input.nameMatch && input.nameMatch.kind === "city") {
     return {
       city_id: input.nameMatch.id,
@@ -120,14 +81,12 @@ export function decideCityResolution(input: CityResolverInput): CityResolution {
 export interface ResolveCityParams {
   platform: string;
   market_id: string;
-  external_city_id: string | null;
   customer_city: string | null;
 }
 
 /**
- * IO wrapper: looks up the external-id mapping, then — if that misses or is
- * incomplete — does a market-scoped name match against the right destination
- * table, then defers to the pure core.
+ * IO wrapper: does a market-scoped normalized-name match against the right
+ * destination table, then defers to the pure core.
  */
 export async function resolveCity(
   adminClient: SupabaseClient,
@@ -135,53 +94,6 @@ export async function resolveCity(
 ): Promise<CityResolution> {
   const isDexpressMarket = marketIdToCode(params.market_id) === "ly";
 
-  // 1. External-id mapping — only when the payload carried an external city id.
-  //    One query shape serves both markets: the embedded `cities` relation
-  //    simply comes back null for Libya-bound mapping rows.
-  let mappingRow: CityResolverInput["mappingRow"] = null;
-  if (params.external_city_id) {
-    const { data } = await adminClient
-      .from("external_city_mappings")
-      .select("city_id, dexpress_state_id, cities(id, market_id)")
-      .eq("platform", params.platform)
-      .eq("external_city_id", params.external_city_id)
-      .maybeSingle();
-    if (data) {
-      // Supabase types an embedded relation as an array; at runtime a
-      // to-one join is a single object. Accept either shape.
-      const row = data as unknown as {
-        city_id: string | null;
-        dexpress_state_id: number | null;
-        cities:
-          | { id: string; market_id: string }
-          | { id: string; market_id: string }[]
-          | null;
-      };
-      const city = Array.isArray(row.cities) ? row.cities[0] : row.cities;
-      mappingRow = {
-        city_id: row.city_id,
-        city_market_id: city?.market_id ?? null,
-        dexpress_state_id: row.dexpress_state_id,
-      };
-    }
-  }
-
-  // Short-circuit only when the mapping is COMPLETE for this market. An
-  // incomplete Libya mapping (no dexpress_state_id) must fall through to the
-  // name match, so we let the pure core decide rather than returning early.
-  const mappingIsComplete = isDexpressMarket
-    ? mappingRow?.dexpress_state_id != null
-    : mappingRow?.city_id != null;
-  if (mappingRow && mappingIsComplete) {
-    return decideCityResolution({
-      isDexpressMarket,
-      mappingRow,
-      storefrontMarketId: params.market_id,
-      nameMatch: null,
-    });
-  }
-
-  // 2. Name normalization against the market's destination table.
   let nameMatch: CityNameMatch | null = null;
   const target = normalizeCityName(params.customer_city);
   if (target) {
@@ -220,10 +132,5 @@ export async function resolveCity(
     }
   }
 
-  return decideCityResolution({
-    isDexpressMarket,
-    mappingRow,
-    storefrontMarketId: params.market_id,
-    nameMatch,
-  });
+  return decideCityResolution({ isDexpressMarket, nameMatch });
 }

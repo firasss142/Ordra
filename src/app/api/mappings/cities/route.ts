@@ -7,21 +7,22 @@ import { marketIdToCode } from "@/lib/markets";
 export const dynamic = "force-dynamic";
 
 /**
- * Storefront-platform city -> OMS destination mappings — market-aware.
+ * City review surface — per-order destination binding. Market-aware.
  *
- *   - Tunisia: the destination is an OMS city. The mapping carries `city_id`
- *     and back-fill sets `orders.city_id`.
- *   - Libya: the carrier is Dexpress; the destination is a dexpress_states
- *     row. The mapping carries `dexpress_state_id` and back-fill sets
- *     `orders.dexpress_state_id`. `city_id` stays null. This is what the
- *     Dexpress upload flow in the agent UI actually reads.
+ * City resolution at webhook intake is name-only: the storefront city is a
+ * value the customer picked from a constrained dropdown that mirrors our
+ * destination table, so it either exact-matches or it doesn't. There is no
+ * city alias table — an unmatched order is bound directly to an existing
+ * destination, one order at a time.
  *
- * external_city_mappings is keyed by (platform, external_city_id) because a
- * platform's city catalogue is platform-wide, not per-storefront.
+ *   - Tunisia: the destination is an OMS city  -> sets orders.city_id.
+ *   - Libya:   the carrier is Dexpress; the destination is a dexpress_states
+ *              row -> sets orders.dexpress_state_id, orders.city_id stays null.
  *
- * GET  — list mappings for the target market.
- * POST — create a mapping + back-fill still-open orders carrying that
- *        external city id.
+ * GET  — list the destination options for the target market (the dropdown the
+ *        bind UI offers): cities for Tunisia, active dexpress_states for Libya.
+ * POST — bind one order ({ order_id, city_id | dexpress_state_id }) to an
+ *        existing destination and recompute that order's mapping_status.
  */
 
 export async function GET(req: NextRequest) {
@@ -47,18 +48,13 @@ export async function GET(req: NextRequest) {
   const isDexpressMarket = marketIdToCode(targetMarketId) === "ly";
 
   if (isDexpressMarket) {
-    // Libya — mappings carry a dexpress_state_id (city_id is null). There is
-    // no per-market scoping column on the mapping itself, but a Dexpress-bound
-    // mapping is by definition Libya's; list all of them.
+    // Libya — the destination catalogue is active Dexpress states.
     // dexpress_states has a single `name` column (Arabic) — no name_ar.
     const { data, error } = await supabase
-      .from("external_city_mappings")
-      .select(
-        "id, platform, external_city_id, external_city_name, city_id, dexpress_state_id, external_route_id, created_at, " +
-          "dexpress_states(name)",
-      )
-      .not("dexpress_state_id", "is", null)
-      .order("created_at", { ascending: false });
+      .from("dexpress_states")
+      .select("id, name")
+      .eq("status", 1)
+      .order("name", { ascending: true });
 
     if (error) {
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -66,34 +62,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ data: data ?? [] });
   }
 
-  // Tunisia (or super_admin with no market) — mappings are scoped through the
-  // cities in the target market.
-  let cityQuery = supabase.from("cities").select("id, market_id");
+  // Tunisia (or super_admin with no market) — the destination catalogue is the
+  // market's cities.
+  let cityQuery = supabase
+    .from("cities")
+    .select("id, name, name_ar")
+    .order("name", { ascending: true });
   if (targetMarketId) {
     cityQuery = cityQuery.eq("market_id", targetMarketId);
   }
-  const { data: cities, error: cityError } = await cityQuery;
-  if (cityError) {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-  const cityIds = (cities ?? []).map((c) => c.id);
-  if (cityIds.length === 0) {
-    return NextResponse.json({ data: [] });
-  }
-
-  const { data, error } = await supabase
-    .from("external_city_mappings")
-    .select(
-      "id, platform, external_city_id, external_city_name, city_id, dexpress_state_id, external_route_id, created_at, " +
-        "cities(name, name_ar)",
-    )
-    .in("city_id", cityIds)
-    .order("created_at", { ascending: false });
-
+  const { data, error } = await cityQuery;
   if (error) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
   return NextResponse.json({ data: data ?? [] });
 }
 
@@ -115,50 +96,54 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const platform = typeof body.platform === "string" ? body.platform.trim() : "";
-  const externalCityId =
-    typeof body.external_city_id === "string" ? body.external_city_id.trim() : "";
-  const cityId = typeof body.city_id === "string" ? body.city_id : "";
-  const externalCityName =
-    typeof body.external_city_name === "string" && body.external_city_name.trim() !== ""
-      ? body.external_city_name.trim()
-      : null;
-  const externalRouteId =
-    typeof body.external_route_id === "string" && body.external_route_id.trim() !== ""
-      ? body.external_route_id.trim()
-      : null;
+  const orderId = typeof body.order_id === "string" ? body.order_id.trim() : "";
+  const cityId = typeof body.city_id === "string" ? body.city_id.trim() : "";
   const dexpressStateId =
     typeof body.dexpress_state_id === "number" ? body.dexpress_state_id : null;
 
-  if (!platform || !externalCityId) {
+  if (!orderId) {
+    return NextResponse.json({ error: "order_id is required" }, { status: 400 });
+  }
+  if (!cityId && dexpressStateId === null) {
     return NextResponse.json(
-      { error: "platform and external_city_id are required" },
+      { error: "city_id or dexpress_state_id is required" },
       { status: 400 },
     );
   }
 
-  // Determine the target market: market_manager uses their own; super_admin
-  // must pass market_id in the body (the bind modal sends it).
-  const targetMarketId =
-    actor.role === "super_admin"
-      ? typeof body.market_id === "string"
-        ? body.market_id
-        : null
-      : actor.market_id;
-  if (!targetMarketId) {
+  // 1. Load the order — it carries its own market (the authority) and product
+  //    state (needed to recompute mapping_status).
+  const { data: order } = await supabase
+    .from("orders")
+    .select("id, market_id, product_id, status")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!order) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+
+  // Market isolation: a market_manager may only bind orders in their market.
+  if (actor.role !== "super_admin" && order.market_id !== actor.market_id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Only pre-confirmation orders can be bound — once confirmed, the order's
+  // destination is locked.
+  if (order.status !== "pending" && order.status !== "unverified") {
     return NextResponse.json(
-      { error: "market_id is required" },
-      { status: 400 },
+      { error: "Order is past confirmation — its destination is locked" },
+      { status: 409 },
     );
   }
-  const isDexpressMarket = marketIdToCode(targetMarketId) === "ly";
 
-  // --- per-market validation + the destination columns to persist ---------
-  let mappingCityId: string | null = null;
-  let mappingDexpressStateId: number | null = null;
+  const isDexpressMarket = marketIdToCode(order.market_id) === "ly";
+
+  // 2. Validate the destination against the order's market, and decide the two
+  //    mutually-exclusive destination columns to write.
+  let bindCityId: string | null = null;
+  let bindDexpressStateId: number | null = null;
 
   if (isDexpressMarket) {
-    // Libya — the destination is a Dexpress state.
     if (dexpressStateId === null) {
       return NextResponse.json(
         { error: "dexpress_state_id is required for this market" },
@@ -173,10 +158,9 @@ export async function POST(req: NextRequest) {
     if (!state) {
       return NextResponse.json({ error: "Dexpress state not found" }, { status: 404 });
     }
-    mappingDexpressStateId = dexpressStateId;
-    mappingCityId = null;
+    bindDexpressStateId = dexpressStateId;
+    bindCityId = null;
   } else {
-    // Tunisia — the destination is an OMS city.
     if (!cityId) {
       return NextResponse.json(
         { error: "city_id is required for this market" },
@@ -191,67 +175,40 @@ export async function POST(req: NextRequest) {
     if (!city) {
       return NextResponse.json({ error: "City not found" }, { status: 404 });
     }
-    if (city.market_id !== targetMarketId) {
+    if (city.market_id !== order.market_id) {
       return NextResponse.json(
         { error: "City is not in the target market" },
         { status: 400 },
       );
     }
-    mappingCityId = cityId;
-    mappingDexpressStateId = null;
+    bindCityId = cityId;
+    bindDexpressStateId = null;
   }
 
-  const { data: mapping, error: insertError } = await supabase
-    .from("external_city_mappings")
-    .insert({
-      platform,
-      external_city_id: externalCityId,
-      external_city_name: externalCityName,
-      city_id: mappingCityId,
-      dexpress_state_id: mappingDexpressStateId,
-      external_route_id: externalRouteId,
+  // 3. Bind the order. The city side is now resolved, so an order whose product
+  //    is also resolved becomes 'mapped'; one whose product is still null stays
+  //    'needs_review'. Writes the market-appropriate destination column and
+  //    clears the other, so the mutual-exclusion invariant on orders holds.
+  const nextStatus = order.product_id ? "mapped" : "needs_review";
+  const { error: updateError } = await supabase
+    .from("orders")
+    .update({
+      city_id: bindCityId,
+      dexpress_state_id: bindDexpressStateId,
+      mapping_status: nextStatus,
     })
-    .select("id")
-    .single();
+    .eq("id", order.id);
 
-  if (insertError) {
-    if ((insertError as { code?: string }).code === "23505") {
-      return NextResponse.json(
-        { error: "A mapping for this platform city already exists" },
-        { status: 409 },
-      );
-    }
+  if (updateError) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  // Back-fill still-open orders carrying this external city id. Per order:
-  // the city side is now resolved, so an order whose product is also resolved
-  // becomes 'mapped'; one whose product is still null stays 'needs_review'.
-  // Sets the market-appropriate destination column (and clears the other, so
-  // the mutual-exclusion invariant on orders holds).
-  const { data: openOrders } = await supabase
-    .from("orders")
-    .select("id, product_id")
-    .eq("external_platform", platform)
-    .eq("external_city_id", externalCityId)
-    .in("status", ["pending", "unverified"]);
-
-  let backfilledCount = 0;
-  for (const o of openOrders ?? []) {
-    const nextStatus = o.product_id ? "mapped" : "needs_review";
-    await supabase
-      .from("orders")
-      .update({
-        city_id: mappingCityId,
-        dexpress_state_id: mappingDexpressStateId,
-        mapping_status: nextStatus,
-      })
-      .eq("id", o.id);
-    backfilledCount += 1;
-  }
-
-  return NextResponse.json(
-    { data: { id: mapping.id }, backfilled: backfilledCount },
-    { status: 201 },
-  );
+  return NextResponse.json({
+    data: {
+      order_id: order.id,
+      city_id: bindCityId,
+      dexpress_state_id: bindDexpressStateId,
+      mapping_status: nextStatus,
+    },
+  });
 }
