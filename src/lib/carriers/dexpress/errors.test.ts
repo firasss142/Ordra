@@ -86,6 +86,74 @@ describe("parseFormErrors", () => {
     const html = `<form><input name="phone"></form>`;
     expect(parseFormErrors(html).errors).toEqual([]);
   });
+
+  // The live Dexpress portal runs Bootstrap 3, which flags invalid fields by
+  // adding `has-error` to the wrapping .form-group rather than rendering an
+  // `invalid-feedback` div. Without this, a rejected phone surfaces only as the
+  // opaque "Validation error" fallback.
+  test("detects a Bootstrap-3 has-error form-group and names the field", () => {
+    const html = `
+      <div class="form-group has-error col-md-6">
+        <label><b> رقم الهاتف <span class="required">*</span></b></label>
+        <input type="number" name="phone" value="924751325" required>
+      </div>
+    `;
+    const { errors } = parseFormErrors(html);
+    expect(errors).toEqual([{ field: "phone", message: "رقم الهاتف *" }]);
+  });
+
+  test("does not flag a form-group without has-error", () => {
+    const html = `
+      <div class="form-group col-md-6">
+        <label> رقم الهاتف </label>
+        <input name="phone" value="0924751325">
+      </div>
+    `;
+    expect(parseFormErrors(html).errors).toEqual([]);
+  });
+
+  test("reports multiple has-error fields", () => {
+    const html = `
+      <div class="form-group has-error">
+        <label>رقم الهاتف</label>
+        <input name="phone">
+      </div>
+      <div class="form-group has-error">
+        <label>العنوان</label>
+        <input name="address">
+      </div>
+    `;
+    const { errors } = parseFormErrors(html);
+    expect(errors).toEqual([
+      { field: "phone", message: "رقم الهاتف" },
+      { field: "address", message: "العنوان" },
+    ]);
+  });
+
+  test("handles the real Dexpress markup (input nested in an input-group div)", () => {
+    // Mirrors the live portal: label, then the input wrapped in input-group.
+    const html = `
+      <div class="form-group has-error col-md-6">
+        <label><b> رقم الهاتف <span class="required" aria-required="true"> * </span> </b></label>
+        <div class="input-group">
+          <span class="input-group-addon"><i class="fa fa-phone"></i></span>
+          <input type="number" name="phone" value="924751325" required class="form-control">
+        </div>
+      </div>
+    `;
+    const { errors } = parseFormErrors(html);
+    expect(errors).toEqual([{ field: "phone", message: "رقم الهاتف *" }]);
+  });
+
+  test("invalid-feedback still works alongside has-error parsing", () => {
+    const html = `
+      <input name="phone">
+      <div class="invalid-feedback">numéro requis</div>
+    `;
+    expect(parseFormErrors(html).errors).toEqual([
+      { field: "phone", message: "numéro requis" },
+    ]);
+  });
 });
 
 describe("isLogoutRedirect", () => {
