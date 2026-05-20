@@ -225,6 +225,18 @@ function StatPill({ label, value }: { label: string; value: string }) {
   );
 }
 
+function StatusCount({ dot, label, count }: { dot: string; label: string; count: number }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 bg-agent-surface border border-agent-outline-variant rounded-md py-[5px] px-2.5">
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
+      <span className="text-[11.5px] text-agent-on-surface-variant">{label}</span>
+      <span className="text-[12px] font-bold tabular-nums text-agent-on-surface ms-0.5">
+        {count}
+      </span>
+    </span>
+  );
+}
+
 export function QueueHeader({
   agentName,
   stats,
@@ -330,11 +342,13 @@ export function QueueHeader({
   const tentativeBadge: string =
     tentativeSubfilter === "all" ? "" : tentativeSubfilter === 3 && t3Plus ? "3+" : String(tentativeSubfilter);
 
+  const totalPending = counts.nouveau + enCoursTotal;
+
   return (
     <div className="bg-agent-bg px-8 pt-6 pb-2">
       {/* Title row — live queue title + subtitle on lead edge,
           stats + new order on trail edge */}
-      <div className="flex items-end justify-between gap-4 mb-5 flex-wrap">
+      <div className="flex items-end justify-between gap-4 mb-4 flex-wrap">
         <div className="min-w-0">
           <h1 className="text-[24px] font-bold text-agent-on-surface leading-tight tracking-tight">
             {tShell("liveQueueTitle")}
@@ -354,6 +368,14 @@ export function QueueHeader({
             value={`${stats.confirmation_rate.toFixed(1)}%`}
           />
         </div>
+      </div>
+
+      {/* Status summary strip */}
+      <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+        <StatusCount dot="bg-amber-400" label={t("statusSummary.pending")} count={totalPending} />
+        <StatusCount dot="bg-blue-500" label={t("statusSummary.confirmed")} count={counts.confirme} />
+        <StatusCount dot="bg-violet-500" label={t("statusSummary.uploaded")} count={closedCounts.uploaded} />
+        <StatusCount dot="bg-red-400" label={t("statusSummary.rejected")} count={counts.rejete} />
       </div>
 
       {/* Bucket segmented control + primary "New Order" CTA on the row's

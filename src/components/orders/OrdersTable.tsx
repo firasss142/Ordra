@@ -21,6 +21,7 @@ interface Props {
   hasNext: boolean;
   hasPrev: boolean;
   currentPage: number;
+  pageLimit?: number;
   onNextPage: () => void;
   onPrevPage: () => void;
   onOpen: (id: string) => void;
@@ -42,6 +43,7 @@ export function OrdersTable({
   hasNext,
   hasPrev,
   currentPage,
+  pageLimit = 10,
   onNextPage,
   onPrevPage,
   onOpen,
@@ -171,9 +173,10 @@ export function OrdersTable({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "12px 16px",
+          padding: "10px 16px",
           borderTop: "1px solid #E1E3E5",
           background: "#FAFAFA",
+          gap: 8,
         }}
       >
         <button
@@ -189,9 +192,28 @@ export function OrdersTable({
           {t("previous")}
         </button>
 
-        <span style={{ fontSize: 13, color: "#6D7175" }}>
-          {t("page", { page: currentPage })}
-        </span>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 2,
+            flex: 1,
+          }}
+        >
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#1A1A1A", fontVariantNumeric: "tabular-nums" }}>
+            {t("page", { page: currentPage })}
+          </span>
+          <span style={{ fontSize: 11, color: "#9CA3AF", fontVariantNumeric: "tabular-nums" }}>
+            {rows.length > 0
+              ? t("pageRange", {
+                  from: (currentPage - 1) * pageLimit + 1,
+                  to: (currentPage - 1) * pageLimit + rows.length,
+                })
+              : "—"}
+            {hasNext ? ` · ${t("moreAvailable")}` : ""}
+          </span>
+        </div>
 
         <button
           type="button"

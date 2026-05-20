@@ -758,6 +758,16 @@
     "footerCount": "{count} affichée(s)",
     "footerMore": "plus disponibles",
     "footerLive": "temps réel",
+    "pageRange": "{from}–{to}",
+    "moreAvailable": "suite disponible",
+    "statusStrip": {
+      "pending": "En attente",
+      "confirmed": "Confirmées",
+      "uploaded": "Expédiées",
+      "rejected": "Rejetées",
+      "cancelled": "Annulées",
+      "total": "{count} au total"
+    },
     "callbackOverdue": "en retard",
     "priorRejected": "{count} rejet(s) précédent(s)",
     "actions": {
@@ -1235,6 +1245,12 @@
       "assigned": "Assignées",
       "actioned": "Traitées",
       "confirmationRate": "Taux de confirmation"
+    },
+    "statusSummary": {
+      "pending": "En attente",
+      "confirmed": "Confirmées",
+      "uploaded": "Expédiées",
+      "rejected": "Rejetées"
     },
     "buckets": {
       "all": "Tous",
@@ -2713,6 +2729,37 @@
           "endpoint": "Endpoint par défaut",
           "credentials": "Champs d'identifiants",
           "secret": "Secret"
+        }
+      }
+    },
+    "googleSheets": {
+      "title": "Google Sheets",
+      "syncNow": "Synchroniser",
+      "syncing": "Synchronisation…",
+      "rowsSynced": "{count} lignes synchronisées",
+      "neverSynced": "Jamais synchronisé",
+      "error": "Erreur de synchronisation",
+      "config": {
+        "title": "Sources Google Sheets",
+        "subtitle": "Importez des commandes depuis Google Sheets en lecture seule.",
+        "addSource": "Ajouter une source",
+        "spreadsheetId": "ID du classeur",
+        "spreadsheetIdPlaceholder": "Ex : 1RT7e_Tmmz3kr…",
+        "sheetName": "Nom de l’onglet",
+        "platform": "Plateforme source",
+        "save": "Enregistrer",
+        "saving": "Enregistrement…",
+        "cancel": "Annuler",
+        "active": "Actif",
+        "inactive": "Inactif",
+        "disable": "Désactiver",
+        "enable": "Activer",
+        "remove": "Supprimer",
+        "removeAriaLabel": "Supprimer cette source",
+        "noSources": "Aucune source Google Sheets configurée.",
+        "validation": {
+          "required": "ID du classeur et nom de l’onglet sont requis.",
+          "saveFailed": "Échec de l’enregistrement. Réessayez."
         }
       }
     }
