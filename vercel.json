@@ -15,5 +15,11 @@
     "src/app/api/google-sheets/sync/route.ts": {
       "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/google-sheets-sync",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }
