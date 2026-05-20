@@ -9,3 +9,12 @@ dexpress-flash-*.html
 .playwright-mcp/
 tsconfig.tsbuildinfo
 mappings-initial.png
+
+# Google service-account credentials — never commit
+oms-sheets-sync-*.json
+*-service-account*.json
+
+# Scratch screenshots
+agent-queue.png
+orders-header.png
+orders-page-full.png
