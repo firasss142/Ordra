@@ -184,11 +184,11 @@ const SECTION_ACCENT: Record<
   { body: string; border: string; title: string; dot: string }
 > = {
   neutral: { body: "bg-surface-page", border: "border-line-subtle", title: "text-ink-muted", dot: "bg-ink-muted" },
-  client: { body: "bg-[#F7FAFD]", border: "border-[#D8E5F2]", title: "text-[#2C6ECB]", dot: "bg-[#2C6ECB]" },
-  order: { body: "bg-[#F6FBF8]", border: "border-[#D4E9DD]", title: "text-[#008060]", dot: "bg-[#008060]" },
+  client: { body: "bg-[#F3F7FC]", border: "border-[#D8E5F2]", title: "text-[#2C6ECB]", dot: "bg-[#2C6ECB]" },
+  order: { body: "bg-[#F1F9F4]", border: "border-[#D4E9DD]", title: "text-[#008060]", dot: "bg-[#008060]" },
   note: { body: "bg-[#FFFCF2]", border: "border-[#F0E4C2]", title: "text-[#B98900]", dot: "bg-[#B98900]" },
   history: { body: "bg-surface-page", border: "border-line-subtle", title: "text-ink-muted", dot: "bg-ink-muted" },
-  fulfillment: { body: "bg-[#FAF8FD]", border: "border-[#E0D7F0]", title: "text-[#6A4FB3]", dot: "bg-[#6A4FB3]" },
+  fulfillment: { body: "bg-[#F0EBFA]", border: "border-[#D8CBF0]", title: "text-[#6A4FB3]", dot: "bg-[#6A4FB3]" },
 };
 
 function SectionCard({
@@ -840,7 +840,7 @@ export function OrderDetailPanel({
                     field reads as distinct from the rest of the header. */}
                 <div
                   ref={nameFieldRef}
-                  className="rounded-card bg-[#F7FAFD] border border-[#D8E5F2] px-3.5 py-3"
+                  className="rounded-card bg-[#F3F7FC] border border-[#D8E5F2] px-3.5 py-3"
                 >
                   <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-[#2C6ECB] mb-1">
                     {t("fieldName")}
@@ -1079,7 +1079,16 @@ export function OrderDetailPanel({
                     add one. */}
                 {(order.customer_note || canEdit) && (
                   <SectionCard title={t("fieldNote")} accent="note">
-                    <div className="py-1.5">
+                    <div
+                      className={[
+                        "py-1.5",
+                        // White, bordered field so it reads as a typeable
+                        // input against the cream note card.
+                        canEdit
+                          ? "rounded-card bg-surface-card border border-[#F0E4C2] px-3 py-1.5 min-h-[36px]"
+                          : "",
+                      ].join(" ")}
+                    >
                       <InlineField
                         value={order.customer_note ?? ""}
                         onCommit={(v) => runCommit({ customer_note: v.trim() || null })}
@@ -1392,7 +1401,7 @@ export function OrderDetailPanel({
                             </label>
                           )}
                           {/* Grand total — emphasised band */}
-                          <div className="-mx-2 mt-1 flex items-center justify-between rounded-card bg-[#F1F8F5] border border-status-success/15 px-3 py-2.5">
+                          <div className="-mx-2 mt-1 flex items-center justify-between rounded-card bg-surface-card border border-[#D4E9DD] px-3 py-2.5">
                             <span className="text-[11px] font-semibold text-status-success uppercase tracking-[0.08em]">{t("grandTotal")}</span>
                             <span className="text-[18px] font-bold text-ink-primary tabular-nums tracking-tight leading-none">
                               {order.total_price}

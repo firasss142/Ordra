@@ -31,6 +31,7 @@ function queryChain(resolveWith: { data: unknown; error: unknown; count?: number
   chain.gte = vi.fn().mockReturnValue(chain);
   chain.lte = vi.fn().mockReturnValue(chain);
   chain.order = vi.fn().mockReturnValue(chain);
+  chain.limit = vi.fn().mockReturnValue(chain);
   chain.range = vi.fn().mockResolvedValue({ data: resolveWith.data, error: resolveWith.error, count: resolveWith.count });
   chain.insert = vi.fn().mockReturnValue(chain);
   chain.single = vi.fn().mockResolvedValue(resolveWith);
@@ -185,5 +186,62 @@ describe("POST /api/orders", () => {
     const req = createRequest("POST", "/api/orders", {});
     const res = await POST(req);
     expect(res.status).toBe(400);
+  });
+
+  test("creates manual order without storefront picker and derives price from product", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });
+
+    let capturedOrderInsert: Record<string, unknown> | undefined;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return queryChain({ data: { role: "agent", market_id: "market-a" }, error: null });
+      }
+      if (table === "storefronts") {
+        return queryChain({ data: { id: "storefront-a" }, error: null });
+      }
+      if (table === "products") {
+        return queryChain({
+          data: {
+            id: "product-a",
+            market_id: "market-a",
+            name: "Product A",
+            default_price: 49,
+            is_active: true,
+          },
+          error: null,
+        });
+      }
+      if (table === "orders") {
+        const chain = queryChain({ data: { id: "order-1", status: "pending", created_at: "now" }, error: null });
+        chain.insert = vi.fn((payload: Record<string, unknown>) => {
+          capturedOrderInsert = payload;
+          return chain;
+        });
+        return chain;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const req = createRequest("POST", "/api/orders", {
+      market_id: "market-a",
+      customer_name: "Customer",
+      customer_phone: "123",
+      product_id: "product-a",
+      quantity: 2,
+      unit_price: 1,
+      total_price: 2,
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    expect(capturedOrderInsert).toMatchObject({
+      storefront_id: "storefront-a",
+      product_id: "product-a",
+      product_name: "Product A",
+      quantity: 2,
+      unit_price: 49,
+      total_price: 98,
+      assigned_to: "agent-1",
+    });
   });
 });
