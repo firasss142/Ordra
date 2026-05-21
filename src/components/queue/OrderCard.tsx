@@ -8,6 +8,7 @@ import { formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { AttemptEtiquette } from "./AttemptEtiquette";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
+import { DuplicateOrderBadge } from "@/components/shared/DuplicateOrderBadge";
 import { RejectionReasonHover } from "./RejectionReasonHover";
 import { AddressChangeNote } from "./AddressChangeNote";
 import type { QueueOrder } from "@/types/queue";
@@ -234,6 +235,13 @@ export const OrderCard = memo(function OrderCard({
                 priorLeadCount={order.prior_lead_count}
                 priorRejectedCount={order.prior_rejected_count}
                 customerPhone={order.customer_phone}
+              />
+            )}
+            {order.is_potential_duplicate && (
+              <DuplicateOrderBadge
+                count={order.duplicate_count}
+                siblings={order.duplicate_siblings}
+                hasUploadedSibling={order.has_uploaded_sibling}
               />
             )}
           </div>

@@ -50,6 +50,10 @@ const mockOrder: QueueOrder = {
   last_known_address: null,
   rejection_reason: null,
   rejection_note: null,
+  is_potential_duplicate: false,
+  duplicate_count: 0,
+  duplicate_siblings: [],
+  has_uploaded_sibling: false,
 };
 
 describe("OrderCard", () => {

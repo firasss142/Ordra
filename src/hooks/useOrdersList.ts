@@ -32,6 +32,10 @@ export interface OrdersListRow {
   prior_order_count?: number;
   prior_lead_count?: number;
   prior_rejected_count?: number;
+  is_potential_duplicate?: boolean;
+  duplicate_count?: number;
+  duplicate_siblings?: import("@/lib/duplicate-orders/detect").SiblingOrder[];
+  has_uploaded_sibling?: boolean;
 }
 
 export interface OrdersListPage {

@@ -71,6 +71,11 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     last_known_address: (raw.last_known_address as string | null) ?? null,
     rejection_reason: (raw.rejection_reason as string | null) ?? null,
     rejection_note: (raw.rejection_note as string | null) ?? null,
+    is_potential_duplicate: Boolean(raw.is_potential_duplicate),
+    duplicate_count: (raw.duplicate_count as number) ?? 0,
+    duplicate_siblings:
+      (raw.duplicate_siblings as QueueOrder["duplicate_siblings"]) ?? [],
+    has_uploaded_sibling: Boolean(raw.has_uploaded_sibling),
   };
 }
 

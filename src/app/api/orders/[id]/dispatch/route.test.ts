@@ -43,6 +43,10 @@ function queryChain(resolveWith: { data: unknown; error: unknown }) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: no duplicate siblings. Individual tests override to simulate a
+  // shipped sibling. clearAllMocks() resets call history but not the resolved
+  // value, so we re-establish the safe default each test.
+  mockRpc.mockResolvedValue({ data: [], error: null });
 });
 
 describe("POST /api/orders/[id]/dispatch", () => {
@@ -277,6 +281,151 @@ describe("POST /api/orders/[id]/dispatch", () => {
 
     const json = await res.json();
     expect(json.data.tracking_number).toBe("NAV-001");
+  });
+
+  test("returns 409 needsConfirmation when a sibling is already shipped and confirm not set", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "agent-1" } },
+      error: null,
+    });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users")
+        return queryChain({
+          data: { role: "agent", market_id: "m-1" },
+          error: null,
+        });
+      if (table === "orders")
+        return queryChain({
+          data: {
+            id: "order-1",
+            status: "confirmed",
+            assigned_to: "agent-1",
+            market_id: "m-1",
+            customer_phone: "22123456",
+            customer_phone_2: null,
+            product_id: "p-1",
+            product_name: "T-Shirt",
+            quantity: 1,
+            created_at: "2026-05-21T10:00:00Z",
+          },
+          error: null,
+        });
+      return queryChain({ data: null, error: null });
+    });
+    // Duplicate-detection RPC reports an already-shipped sibling.
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          source_id: "order-1",
+          duplicate_count: 1,
+          siblings: [
+            {
+              id: "order-2",
+              external_id: "EXT-2",
+              status: "uploaded",
+              created_at: "2026-05-21T09:30:00Z",
+              product_name: "T-Shirt",
+              quantity: 1,
+              already_shipped: true,
+            },
+          ],
+        },
+      ],
+      error: null,
+    });
+
+    const req = createRequest({ carrier_id: "c-1" });
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "order-1" }),
+    });
+    expect(res.status).toBe(409);
+    const json = await res.json();
+    expect(json.needsConfirmation).toBe(true);
+    expect(json.duplicate.external_id).toBe("EXT-2");
+    expect(dispatchToCarrier).not.toHaveBeenCalled();
+  });
+
+  test("proceeds to dispatch when confirm_duplicate is set despite a shipped sibling", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "agent-1" } },
+      error: null,
+    });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users")
+        return queryChain({
+          data: { role: "agent", market_id: "m-1" },
+          error: null,
+        });
+      if (table === "orders")
+        return queryChain({
+          data: {
+            id: "order-1",
+            status: "confirmed",
+            assigned_to: "agent-1",
+            market_id: "m-1",
+            customer_phone: "22123456",
+            customer_phone_2: null,
+            product_id: "p-1",
+            product_name: "T-Shirt",
+            quantity: 1,
+            created_at: "2026-05-21T10:00:00Z",
+          },
+          error: null,
+        });
+      return queryChain({ data: null, error: null });
+    });
+    // RPC would report a shipped sibling, but confirm_duplicate bypasses the guard.
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          source_id: "order-1",
+          duplicate_count: 1,
+          siblings: [
+            {
+              id: "order-2",
+              external_id: "EXT-2",
+              status: "uploaded",
+              created_at: "2026-05-21T09:30:00Z",
+              product_name: "T-Shirt",
+              quantity: 1,
+              already_shipped: true,
+            },
+          ],
+        },
+      ],
+      error: null,
+    });
+    mockAdminFrom.mockReturnValue(
+      queryChain({
+        data: {
+          id: "c-1",
+          code: "navex",
+          api_endpoint: "https://app.navex.tn/api",
+          api_credentials: "encrypted",
+          delivery_fee: 7,
+          return_fee: 5,
+          market_id: "m-1",
+          is_active: true,
+        },
+        error: null,
+      }),
+    );
+    vi.mocked(dispatchToCarrier).mockResolvedValue({
+      success: true,
+      trackingNumber: "NAV-009",
+    });
+    mockAdminRpc.mockResolvedValue({
+      data: { order_id: "order-1", status: "uploaded", tracking_number: "NAV-009" },
+      error: null,
+    });
+
+    const req = createRequest({ carrier_id: "c-1", confirm_duplicate: true });
+    const res = await POST(req, {
+      params: Promise.resolve({ id: "order-1" }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.data.tracking_number).toBe("NAV-009");
   });
 
   test("returns 422 when carrier rejects dispatch", async () => {

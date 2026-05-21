@@ -4,7 +4,9 @@ import useSWR from "swr";
 import { useAuth } from "@/context/auth";
 import { STATUS_LABELS } from "@/lib/status-labels";
 import { FulfillmentControls } from "./FulfillmentControls";
+import { DuplicateOrderBadge } from "@/components/shared/DuplicateOrderBadge";
 import type { OrderStatus } from "@/types/order-status";
+import type { SiblingOrder } from "@/lib/duplicate-orders/detect";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -32,6 +34,10 @@ interface OrderDetailData {
   currency: string;
   status: OrderStatus;
   history: HistoryEntry[];
+  is_potential_duplicate?: boolean;
+  duplicate_count?: number;
+  duplicate_siblings?: SiblingOrder[];
+  has_uploaded_sibling?: boolean;
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -119,8 +125,25 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
 
       {/* Client */}
       <SectionLabel>Client</SectionLabel>
-      <div style={{ fontSize: 14, fontWeight: 500, color: "#1A1A1A", marginBottom: 4 }}>
-        {order.customer_name}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 4,
+          flexWrap: "wrap",
+        }}
+      >
+        <span style={{ fontSize: 14, fontWeight: 500, color: "#1A1A1A" }}>
+          {order.customer_name}
+        </span>
+        {order.is_potential_duplicate && (
+          <DuplicateOrderBadge
+            count={order.duplicate_count ?? 0}
+            siblings={order.duplicate_siblings ?? []}
+            hasUploadedSibling={order.has_uploaded_sibling ?? false}
+          />
+        )}
       </div>
       <div style={{ marginBottom: 4 }}>
         <a

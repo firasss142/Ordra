@@ -8,6 +8,7 @@ import {
   listQuerySchema,
 } from "@/lib/orders/list-filters";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
+import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
 
 export const dynamic = "force-dynamic";
 
@@ -165,8 +166,10 @@ export async function GET(req: NextRequest) {
       ? encodeCursor({ createdAt: last.created_at, id: last.id })
       : null;
 
-  // Enrich with repeat-buyer signals. Group rows by market so the batch RPC
-  // can scope per-market (super_admin lists may span multiple markets).
+  // Enrich with repeat-buyer signals + duplicate-order detection. Group rows by
+  // market so the batch RPCs can scope per-market (super_admin lists may span
+  // multiple markets). The two signals are distinct: repeat-buyer is the same
+  // customer over time; duplicate is the same order placed twice.
   const byMarket = new Map<string, typeof page>();
   for (const row of page) {
     const mid = row.market_id as string;
@@ -176,12 +179,13 @@ export async function GET(req: NextRequest) {
   const enrichedById = new Map<string, Record<string, unknown>>();
   await Promise.all(
     Array.from(byMarket.entries()).map(async ([mid, group]) => {
-      const enriched = await enrichRowsWithCustomerHistory(
+      const withHistory = await enrichRowsWithCustomerHistory(
         supabase,
         mid,
         "order",
         group as unknown as Array<{ id: string } & Record<string, unknown>>,
       );
+      const enriched = await enrichRowsWithDuplicates(supabase, mid, withHistory);
       for (const r of enriched) enrichedById.set(r.id, r);
     }),
   );
