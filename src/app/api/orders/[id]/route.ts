@@ -284,11 +284,15 @@ export async function PATCH(
   }
 
   // Standalone card_payment toggle (no other total-affecting field changed):
-  // recompute total_price from current items + current delivery_fee so the +10%
-  // is applied/removed immediately.
+  // recompute total_price from the product subtotal + current delivery_fee so the
+  // +10% is applied/removed immediately. Legacy single-item orders have no
+  // order_items rows — fall back to unit_price * quantity for the subtotal.
   if ("card_payment" in updates && !("total_price" in updates)) {
     const { data: items } = await supabase.from("order_items").select("line_total").eq("order_id", id);
-    const subtotal = (items ?? []).reduce((sum: number, item: { line_total: number }) => sum + Number(item.line_total), 0);
+    const itemsSubtotal = (items ?? []).reduce((sum: number, item: { line_total: number }) => sum + Number(item.line_total), 0);
+    const subtotal = (items?.length ?? 0) > 0
+      ? itemsSubtotal
+      : Number(order.unit_price ?? 0) * Number(order.quantity ?? 0);
     updates.total_price = computeOrderTotal(subtotal, Number(order.delivery_fee ?? 0), cardPayment);
   }
 
