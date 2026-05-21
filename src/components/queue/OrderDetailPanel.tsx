@@ -172,15 +172,37 @@ interface OrderDetailPanelProps {
   fallbackOrder?: Record<string, unknown> | null;
 }
 
+/**
+ * Subtle per-section color so cards are easy to tell apart at a glance.
+ * Intentionally faint (tinted header strip + matching title), never bold —
+ * the content surface stays white per the design system.
+ */
+type SectionAccent = "neutral" | "client" | "order" | "note" | "history" | "fulfillment";
+
+const SECTION_ACCENT: Record<
+  SectionAccent,
+  { header: string; title: string; dot: string }
+> = {
+  neutral: { header: "bg-surface-page", title: "text-ink-muted", dot: "bg-ink-muted" },
+  client: { header: "bg-[#F1F6FB]", title: "text-[#2C6ECB]", dot: "bg-[#2C6ECB]" },
+  order: { header: "bg-[#F1F8F5]", title: "text-[#008060]", dot: "bg-[#008060]" },
+  note: { header: "bg-[#FFF8E6]", title: "text-[#B98900]", dot: "bg-[#B98900]" },
+  history: { header: "bg-surface-page", title: "text-ink-muted", dot: "bg-ink-muted" },
+  fulfillment: { header: "bg-[#F4F1FB]", title: "text-[#6A4FB3]", dot: "bg-[#6A4FB3]" },
+};
+
 function SectionCard({
   title,
   children,
   className = "",
+  accent = "neutral",
 }: {
   title: string;
   children: React.ReactNode;
   className?: string;
+  accent?: SectionAccent;
 }) {
+  const tone = SECTION_ACCENT[accent];
   return (
     <section
       className={[
@@ -188,12 +210,26 @@ function SectionCard({
         className,
       ].join(" ")}
     >
-      <div className="px-4 pt-3.5 pb-0">
-        <h3 className="text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
+      <div
+        className={[
+          "flex items-center gap-2 px-5 py-2.5 border-b border-line-subtle",
+          tone.header,
+        ].join(" ")}
+      >
+        <span
+          aria-hidden="true"
+          className={["w-1.5 h-1.5 rounded-full flex-shrink-0", tone.dot].join(" ")}
+        />
+        <h3
+          className={[
+            "text-[10px] font-semibold uppercase tracking-[0.1em]",
+            tone.title,
+          ].join(" ")}
+        >
           {title}
         </h3>
       </div>
-      <div className="px-4 pb-4 pt-3 flex flex-col gap-0.5">{children}</div>
+      <div className="px-5 pb-2 pt-1 flex flex-col">{children}</div>
     </section>
   );
 }
@@ -207,8 +243,8 @@ function FieldRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-3.5 py-3 border-b border-line-subtle last:border-0">
-      <span className="w-[96px] flex-shrink-0 pt-0.5 text-[12px] text-ink-secondary leading-[1.4]">
+    <div className="flex items-baseline gap-4 py-3.5 border-b border-line-subtle last:border-0">
+      <span className="w-[88px] flex-shrink-0 text-[12px] font-medium text-ink-muted leading-[1.4]">
         {label}
       </span>
       <div className="flex-1 min-w-0">{children}</div>
@@ -800,21 +836,24 @@ export function OrderDetailPanel({
               />
 
               {/* ── Customer summary ── */}
-              <div className="px-4 pt-5 pb-5 bg-surface-card border-b border-line-subtle">
-                {/* Name */}
+              <div className="px-5 pt-4 pb-4 bg-surface-card border-b border-line-subtle">
+                {/* Name — labeled so the lead field is unambiguous */}
                 <div ref={nameFieldRef}>
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-muted mb-1">
+                    {t("fieldName")}
+                  </span>
                   <InlineField
                     value={order.customer_name}
                     onCommit={(v) => runCommit({ customer_name: v })}
                     displayMode
                     readOnly={!canEdit}
-                    displayClassName="text-[17px] font-semibold text-ink-primary leading-tight"
+                    displayClassName="text-[18px] font-semibold text-ink-primary leading-tight"
                   />
                 </div>
 
                 {/* City */}
                 {order.customer_city && (
-                  <div className="flex items-center gap-2 mt-2 mb-4 flex-wrap text-[12px]">
+                  <div className="flex items-center gap-2 mt-1.5 mb-3.5 flex-wrap text-[12px]">
                     <span className="inline-flex items-center gap-1 text-ink-secondary">
                       <MapPin size={11} strokeWidth={2} aria-hidden="true" />
                       {order.customer_city}
@@ -823,13 +862,13 @@ export function OrderDetailPanel({
                 )}
 
                 {/* Primary phone: call, edit, and copy from the same action strip. */}
-                <div className="flex items-center gap-3 w-full rounded-card bg-ink-primary text-white ps-3 pe-2 py-2.5 transition-colors duration-fast">
+                <div className="flex items-center gap-3 w-full rounded-card bg-ink-primary text-white ps-3 pe-2 py-3 transition-colors duration-fast">
                   <a
                     href={`tel:${order.customer_phone}`}
                     aria-label={`Call ${order.customer_phone}`}
-                    className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors duration-fast flex-shrink-0"
+                    className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors duration-fast flex-shrink-0"
                   >
-                    <PhoneIcon size={14} strokeWidth={2} aria-hidden="true" />
+                    <PhoneIcon size={15} strokeWidth={2} aria-hidden="true" />
                   </a>
                   <div className="flex-1 min-w-0">
                     <InlineField
@@ -847,7 +886,7 @@ export function OrderDetailPanel({
                       readOnly={!canEdit}
                       placeholder={t("fieldPhone")}
                       className="text-[16px] font-semibold tabular-nums tracking-wide"
-                      displayClassName="text-[16px] font-semibold tabular-nums tracking-wide text-white hover:bg-white/10 focus:bg-white/10"
+                      displayClassName="text-[16px] font-semibold tabular-nums tracking-wide !text-white hover:bg-white/10 focus:bg-white/10"
                     />
                   </div>
                   <button
@@ -883,23 +922,6 @@ export function OrderDetailPanel({
                         <PhoneIcon size={12} strokeWidth={2} aria-hidden="true" />
                       </a>
                     )}
-                  </div>
-                )}
-
-                {/* Customer note — calm, non-dominant. Editable when the order
-                    is still editable; otherwise a read-only italic note. Shown
-                    even when empty (in edit mode) so an agent can add one. */}
-                {(order.customer_note || canEdit) && (
-                  <div className="mt-4 ps-2.5 border-s-2 border-line-strong">
-                    <InlineField
-                      value={order.customer_note ?? ""}
-                      onCommit={(v) => runCommit({ customer_note: v.trim() || null })}
-                      multiline
-                      displayMode
-                      readOnly={!canEdit}
-                      placeholder={canEdit ? t("fieldNotePlaceholder") : ""}
-                      displayClassName="text-[12px] text-ink-secondary leading-snug italic"
-                    />
                   </div>
                 )}
               </div>
@@ -955,10 +977,10 @@ export function OrderDetailPanel({
               </div>
 
               {/* ── Body sections ── */}
-              <div className="flex flex-col gap-4 px-4 py-5 pb-10">
+              <div className="flex flex-col gap-3 px-4 py-4 pb-10">
 
                 {/* Client details card */}
-                <SectionCard title={t("client")}>
+                <SectionCard title={t("client")} accent="client">
                   <FieldRow label={t("fieldAddress")}>
                     <InlineField
                       value={order.customer_address ?? ""}
@@ -1048,8 +1070,28 @@ export function OrderDetailPanel({
                   </FieldRow>
                 </SectionCard>
 
+                {/* Notes — placed right after the client address. Editable
+                    while the order is still editable; otherwise a read-only
+                    note. Shown even when empty (in edit mode) so an agent can
+                    add one. */}
+                {(order.customer_note || canEdit) && (
+                  <SectionCard title={t("fieldNote")} accent="note">
+                    <div className="py-1.5">
+                      <InlineField
+                        value={order.customer_note ?? ""}
+                        onCommit={(v) => runCommit({ customer_note: v.trim() || null })}
+                        multiline
+                        displayMode
+                        readOnly={!canEdit}
+                        placeholder={canEdit ? t("fieldNotePlaceholder") : "—"}
+                        displayClassName="text-[13px] text-ink-secondary leading-relaxed"
+                      />
+                    </div>
+                  </SectionCard>
+                )}
+
                 {/* Order / receipt card */}
-                <SectionCard title={t("order")}>
+                <SectionCard title={t("order")} accent="order">
                   {(() => {
                     const items: OrderItem[] = order.order_items?.length
                       ? order.order_items
@@ -1092,7 +1134,7 @@ export function OrderDetailPanel({
                           return (
                           <div
                             key={item.id}
-                            className="group -mx-2 px-2 py-3.5 rounded-card border-b border-line-subtle last:border-0 hover:bg-surface-hover transition-colors duration-fast"
+                            className="group -mx-2 px-2 py-2.5 rounded-card border-b border-line-subtle last:border-0 hover:bg-surface-hover transition-colors duration-fast"
                           >
                             {/* Header: product name + delete */}
                             <div className="flex items-start justify-between gap-3">
@@ -1116,7 +1158,7 @@ export function OrderDetailPanel({
                                   placeholder={t("pickProduct")}
                                   displayMode
                                   readOnly={!canEdit}
-                                  displayClassName="text-[15px] font-semibold text-ink-primary leading-snug"
+                                  displayClassName="text-[14px] font-semibold text-ink-primary leading-snug"
                                 />
                               </div>
                               {canEdit && items.length > 1 && item.id !== "legacy" && (
@@ -1150,7 +1192,7 @@ export function OrderDetailPanel({
                             )}
 
                             {/* Footer: qty stepper · unit price · line total */}
-                            <div className="flex items-center justify-between gap-3 mt-3">
+                            <div className="flex items-center justify-between gap-3 mt-2">
                               <div className="flex items-center gap-2 min-w-0">
                                 <StepperField
                                   value={item.quantity}
@@ -1233,7 +1275,7 @@ export function OrderDetailPanel({
                         })()}
 
                         {/* Receipt footer */}
-                        <div className="mt-4 pt-4 border-t border-line-subtle flex flex-col gap-2.5">
+                        <div className="mt-2.5 pt-2.5 border-t border-line-subtle flex flex-col gap-2">
                           {/* Delivery fee */}
                           <div className="flex items-center justify-between">
                             <span className="text-[12px] text-ink-secondary">{t("fieldDeliveryFee")}</span>
@@ -1267,9 +1309,9 @@ export function OrderDetailPanel({
                             </label>
                           )}
                           {/* Grand total — emphasised band */}
-                          <div className="-mx-2 mt-1.5 flex items-center justify-between rounded-card bg-surface-page px-3 py-3">
-                            <span className="text-[11px] font-semibold text-ink-secondary uppercase tracking-[0.08em]">{t("grandTotal")}</span>
-                            <span className="text-[20px] font-bold text-ink-primary tabular-nums tracking-tight leading-none">
+                          <div className="-mx-2 mt-1 flex items-center justify-between rounded-card bg-[#F1F8F5] border border-status-success/15 px-3 py-2.5">
+                            <span className="text-[11px] font-semibold text-status-success uppercase tracking-[0.08em]">{t("grandTotal")}</span>
+                            <span className="text-[18px] font-bold text-ink-primary tabular-nums tracking-tight leading-none">
                               {order.total_price}
                               <span className="text-[12px] font-semibold text-ink-secondary ms-1.5">{displayCurrency}</span>
                             </span>
@@ -1295,10 +1337,11 @@ export function OrderDetailPanel({
                     onClick={() => setHistoryOpen((open) => !open)}
                     aria-expanded={historyOpen}
                     data-testid="order-history-toggle"
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-start hover:bg-surface-hover transition-colors duration-fast"
+                    className="flex w-full items-center justify-between gap-3 px-5 py-2.5 text-start bg-surface-page hover:bg-surface-hover transition-colors duration-fast"
                   >
                     <span className="flex items-center gap-2 min-w-0">
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
+                      <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-ink-muted flex-shrink-0" />
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
                         {historyTitle}
                       </span>
                       <span className="rounded-pill bg-surface-page px-2 py-0.5 text-[11px] font-semibold tabular-nums text-ink-secondary">
@@ -1370,7 +1413,7 @@ export function OrderDetailPanel({
 
                 {/* Fulfillment override — managers only */}
                 {canFulfillmentOverride && (
-                  <SectionCard title={t("fulfillmentTitle")}>
+                  <SectionCard title={t("fulfillmentTitle")} accent="fulfillment">
                     <div className="flex flex-col gap-2.5 pt-1">
                       <select
                         value={fulfillmentStatus}

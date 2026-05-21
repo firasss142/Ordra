@@ -153,13 +153,16 @@ export function InlineField({
         onClick={() => { if (!readOnly) setEditing(true); }}
         onKeyDown={(e) => { if (!readOnly && (e.key === "Enter" || e.key === " ")) setEditing(true); }}
         className={[
-          "block text-[14px] text-ink-primary leading-snug",
+          // Base layout/typography only. Color is intentionally LAST via
+          // displayClassName so callers (e.g. white-on-dark phone strip) can
+          // override the default ink color without class-order ambiguity.
+          "block text-[14px] leading-snug",
           !readOnly
             ? "cursor-text rounded px-1 -mx-1 hover:bg-surface-selected transition-colors duration-fast"
             : "",
           !value || String(value) === ""
             ? "text-ink-muted italic"
-            : "",
+            : "text-ink-primary",
           displayClassName,
         ].join(" ")}
       >
