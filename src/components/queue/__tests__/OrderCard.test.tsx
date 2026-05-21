@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 import { OrderCard } from "../OrderCard";
 import type { QueueOrder } from "@/types/queue";
-import { formatDateTime } from "@/lib/format";
+import { formatLongDate, formatTime } from "@/lib/format";
 
 const intlMockState = vi.hoisted(() => ({ locale: "fr" }));
 
@@ -32,8 +32,10 @@ const mockOrder: QueueOrder = {
   customer_city: "Tunis",
   product_name: "T-Shirt Premium",
   variant_label: "L / Rouge",
+  product_image_url: null,
   total_price: 89.9,
   currency: "TND",
+  market_id: "00000000-0000-0000-0000-000000000001",
   attempt_count: 0,
   callback_time: null,
   scheduled_dispatch_at: null,
@@ -59,15 +61,42 @@ const mockOrder: QueueOrder = {
 };
 
 describe("OrderCard", () => {
-  it("renders customer name and phone", () => {
+  it("renders the customer name", () => {
     render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
     expect(screen.getByText("Ahmed Gharbi")).toBeDefined();
-    expect(screen.getByText("22123456")).toBeDefined();
   });
 
-  it("renders product name and variant", () => {
+  it("does not render the customer phone number on the card", () => {
     render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
-    expect(screen.getByText(/T-Shirt Premium/)).toBeDefined();
+    expect(screen.queryByText("22123456")).toBeNull();
+    expect(document.querySelector('[data-phone-spot="true"]')).toBeNull();
+  });
+
+  it("renders the product image when the product has one", () => {
+    render(
+      <OrderCard
+        order={{ ...mockOrder, product_image_url: "https://cdn/p.png" }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    const img = screen.getByRole("img");
+    expect(img.getAttribute("src")).toBe("https://cdn/p.png");
+  });
+
+  it("falls back to customer initials when there is no product image", () => {
+    render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(screen.getByText("AG")).toBeDefined(); // Ahmed Gharbi → AG
+  });
+
+  it("does not render the product name on the card", () => {
+    render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
+    expect(screen.queryByText(/T-Shirt Premium/)).toBeNull();
+  });
+
+  it("renders the variant label", () => {
+    render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
     expect(screen.getByText(/L \/ Rouge/)).toBeDefined();
   });
 
@@ -77,14 +106,43 @@ describe("OrderCard", () => {
     expect(screen.getByText("TND")).toBeDefined();
   });
 
+  it("renders Libya orders with the LBY display currency", () => {
+    render(
+      <OrderCard
+        order={{
+          ...mockOrder,
+          currency: "TND",
+          market_id: "00000000-0000-0000-0000-000000000002",
+        }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    expect(screen.getByText("LBY")).toBeDefined();
+  });
+
   it("renders city", () => {
     render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
     expect(screen.getByText("Tunis")).toBeDefined();
   });
 
-  it("renders the formatted creation date/time", () => {
+  it("renders the creation date and time together, separated by a comma", () => {
     render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
-    expect(screen.getByText(formatDateTime(mockOrder.created_at, "fr"))).toBeDefined();
+    const longDate = formatLongDate(mockOrder.created_at, "fr");
+    const time = formatTime(mockOrder.created_at, "fr");
+    expect(
+      screen.getByText((content) => content.includes(longDate) && content.includes(`, ${time}`)),
+    ).toBeDefined();
+  });
+
+  it("renders the price after the status sign (trailing edge of the card)", () => {
+    render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
+    const price = screen.getByText("89.9");
+    const status = screen.getByText("Assigné");
+    // Price comes after status in DOM order → it's the last element on the row.
+    expect(
+      status.compareDocumentPosition(price) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("calls onCallTerminated when Appel terminé is clicked", async () => {
@@ -160,12 +218,22 @@ describe("OrderCard", () => {
     expect(card.className).toContain("border-black/35");
   });
 
-  it("localizes elapsed days in Arabic", () => {
+  it("shows a simplified elapsed value (no parentheses, no 'il y a' prefix)", () => {
+    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-05-02T10:00:00Z").getTime());
+    render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
+    // mockOrder.assigned_at is 2026-04-10 → ~22 days. Compact "22j", no prefix/parens.
+    const elapsed = screen.getByText("22j");
+    expect(elapsed).toBeDefined();
+    expect(screen.queryByText(/Il y a/)).toBeNull();
+    expect(screen.queryByText(/\(22j\)/)).toBeNull();
+  });
+
+  it("localizes the simplified elapsed days in Arabic", () => {
     intlMockState.locale = "ar";
     vi.spyOn(Date, "now").mockReturnValue(new Date("2026-05-02T10:00:00Z").getTime());
     render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
     expect(
-      screen.getByText((content) => content.includes("منذ") && content.includes("يوم")),
+      screen.getByText((content) => content.includes("يوم") && !content.includes("منذ")),
     ).toBeDefined();
   });
 
@@ -284,6 +352,25 @@ describe("OrderCard", () => {
     expect(screen.queryByText(/final/)).not.toBeInTheDocument();
   });
 
+  it("does not show a redundant X/Y attempts count at max attempts", () => {
+    render(
+      <OrderCard
+        order={{
+          ...mockOrder,
+          status: "attempt_3",
+          attempt_count: 3,
+          customer_note: null,
+        }}
+        maxAttempts={3}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    // The status pill already conveys the final attempt ("Tentative 3 (final)");
+    // the old supporting-row "Tentative 3/3" duplicate should be gone.
+    expect(screen.queryByText("Tentative 3/3")).not.toBeInTheDocument();
+  });
+
   describe("end-call affordance per status", () => {
     it("shows End call for a brand-new order with no note", () => {
       render(
@@ -362,14 +449,6 @@ describe("OrderCard", () => {
       expect(sign.closest(".lg\\:flex")).toBeNull();
     });
 
-    it("marks the phone number as the prominent spot field", () => {
-      render(
-        <OrderCard order={{ ...mockOrder, customer_note: null }} onOpenDetail={() => {}} onCallTerminated={() => {}} />,
-      );
-      const phoneLink = screen.getByRole("link", { name: /22123456/ });
-      expect(phoneLink).toHaveAttribute("href", "tel:22123456");
-      expect(phoneLink.getAttribute("data-phone-spot")).toBe("true");
-    });
   });
 
   describe("bucket-driven border tone", () => {

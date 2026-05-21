@@ -2,10 +2,10 @@
 
 import { memo, useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { Phone, Clock, Check, CalendarDays } from "lucide-react";
-import { extractAttemptNumber } from "@/lib/attempt-logic";
+import { Check, CalendarDays, MapPin, Clock } from "lucide-react";
 import { isReferenceDeletedUpload, isBulkCallEligible, EDIT_BLOCKED_STATUSES } from "@/lib/order-permissions";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatLongDate, formatTime } from "@/lib/format";
+import { formatDisplayCurrencyCode } from "@/lib/markets";
 import { Button } from "@/components/ui/Button";
 import { AttemptEtiquette } from "./AttemptEtiquette";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
@@ -148,12 +148,6 @@ export const OrderCard = memo(function OrderCard({
   const dispatchOverdue =
     now !== null && dispatchDate !== null && dispatchDate <= now;
 
-  const attemptNumber = extractAttemptNumber(order.status);
-  const isAttemptStatus = attemptNumber > 0;
-  const currentAttemptCount =
-    isAttemptStatus ? Math.max(order.attempt_count ?? 0, attemptNumber) : 0;
-  const isMaxAttempt = currentAttemptCount >= maxAttempts;
-
   // The "End call" affordance shows whenever the order is still in the agent's
   // hands: the call pool (new/assigned/attempts/callbacks), confirmed, or a
   // scheduled dispatch — plus uploads whose carrier reference was deleted
@@ -175,24 +169,20 @@ export const OrderCard = memo(function OrderCard({
       ? order.customer_note.slice(0, 60) + "…"
       : order.customer_note;
 
+  // A compact elapsed value (e.g. "22j", "3h", "15min") — no "il y a" prefix,
+  // shown in parentheses next to the date.
   function elapsedLabel(assignedAt: string): string {
     const diffMs = Date.now() - new Date(assignedAt).getTime();
     const diffMins = Math.floor(diffMs / 60000);
     const formatCount = (value: number) => new Intl.NumberFormat(locale).format(value);
     if (diffMins < 60) {
-      return t("elapsed", {
-        time: t("elapsedUnits.minutes", { count: formatCount(diffMins) }),
-      });
+      return t("elapsedUnits.minutes", { count: formatCount(diffMins) });
     }
     const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) {
-      return t("elapsed", {
-        time: t("elapsedUnits.hours", { count: formatCount(diffHours) }),
-      });
+      return t("elapsedUnits.hours", { count: formatCount(diffHours) });
     }
-    return t("elapsed", {
-      time: t("elapsedUnits.days", { count: formatCount(Math.floor(diffHours / 24)) }),
-    });
+    return t("elapsedUnits.days", { count: formatCount(Math.floor(diffHours / 24)) });
   }
 
   function getCustomerInitials(name: string): string {
@@ -261,6 +251,7 @@ export const OrderCard = memo(function OrderCard({
   })();
 
   const cardBorderClass = bucketBorderClass(selectedBucket, order.status);
+  const displayCurrency = formatDisplayCurrencyCode(order.currency, order.market_id);
 
   return (
     <div
@@ -270,7 +261,7 @@ export const OrderCard = memo(function OrderCard({
       data-selected={isSelected || undefined}
       className={[
         "group relative cursor-pointer agent-card-hover",
-        "rounded-xl p-4",
+        "rounded-xl px-3 py-1.5",
         "bg-agent-surface",
         cardBorderClass,
         isSelected ? "ring-2 ring-black/20" : "",
@@ -307,108 +298,95 @@ export const OrderCard = memo(function OrderCard({
         </button>
       )}
 
-      <div className="flex items-center gap-4">
-        {/* Customer avatar */}
-        <div
-          aria-hidden="true"
-          className="shrink-0 flex items-center justify-center w-12 h-12 rounded-full bg-agent-surface-high border border-agent-outline-variant text-agent-primary text-[15px] font-bold"
-        >
-          {getCustomerInitials(order.customer_name)}
-        </div>
-
-        {/* Customer + meta — name on top, phone · city below */}
-        <div className="flex flex-col min-w-0 flex-1">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-[15px] font-bold text-agent-on-surface truncate">
-              <Highlighted value={order.customer_name} field="name" query={highlightQuery} />
-            </span>
-            {order.repeat_kind !== "none" && (
-              <RepeatBuyerBadge
-                source="order"
-                sourceId={order.id}
-                repeatKind={order.repeat_kind}
-                priorOrderCount={order.prior_order_count}
-                priorLeadCount={order.prior_lead_count}
-                priorRejectedCount={order.prior_rejected_count}
-                customerPhone={order.customer_phone}
-              />
-            )}
-            {order.is_potential_duplicate && (
-              <DuplicateOrderBadge
-                count={order.duplicate_count}
-                siblings={order.duplicate_siblings}
-                hasUploadedSibling={order.has_uploaded_sibling}
-              />
-            )}
-          </div>
-          {/* Phone — the field the agent needs to spot. Promoted to a bold,
-              tappable chip that stands clear of the secondary meta below. */}
-          <a
-            href={`tel:${order.customer_phone}`}
-            data-phone-spot="true"
-            onClick={(e) => e.stopPropagation()}
-            aria-label={t("phoneAria", { phone: order.customer_phone })}
-            className="mt-1 inline-flex w-fit items-center gap-1.5 ps-1.5 pe-2.5 py-1 rounded-pill bg-agent-surface-high border border-agent-outline-variant text-[14px] font-bold tabular-nums text-agent-on-surface tracking-[0.01em] hover:border-agent-primary hover:text-agent-primary transition-colors duration-fast"
-          >
-            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-agent-primary/10 text-agent-primary">
-              <Phone size={12} strokeWidth={2.25} aria-hidden="true" />
-            </span>
-            <span>{order.customer_phone}</span>
-          </a>
-          <div className="flex items-center gap-2 mt-1 text-[12px] text-agent-on-surface-variant">
-            {order.customer_city && (
-              <>
-                <span className="truncate">
-                  <Highlighted value={order.customer_city} field="city" query={highlightQuery} />
-                </span>
-                <span aria-hidden="true" className="opacity-60">·</span>
-              </>
-            )}
-            <span
-              className="inline-flex items-center gap-1 tabular-nums shrink-0"
-              aria-label={t("createdAt", { date: formatDateTime(order.created_at, locale) })}
-            >
-              <CalendarDays size={11} strokeWidth={2} aria-hidden="true" />
-              {formatDateTime(order.created_at, locale)}
-            </span>
-          </div>
-        </div>
-
-        {/* Product column — divider on lead edge */}
-        <div className="hidden md:flex flex-col items-center px-5 border-x border-agent-outline-variant/40 shrink-0 max-w-[180px]">
-          <span className="text-[10px] font-bold text-agent-on-surface-variant uppercase tracking-[0.06em]">
-            {t("productsLabel")}
+      <div className="flex items-center gap-5">
+        {/* Leading visual — product image, falling back to customer initials */}
+        {order.product_image_url ? (
+          <span className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg overflow-hidden bg-agent-surface-high border border-agent-outline-variant">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={order.product_image_url}
+              alt={order.product_name}
+              width={36}
+              height={36}
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover"
+            />
           </span>
+        ) : (
           <span
-            className="mt-0.5 text-[13px] font-semibold text-agent-on-surface truncate max-w-[160px]"
-            title={`${order.product_name}${order.variant_label ? ` · ${order.variant_label}` : ""}`}
+            aria-hidden="true"
+            className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg bg-agent-surface-high border border-agent-outline-variant text-agent-primary text-[13px] font-bold"
           >
-            <Highlighted value={order.product_name} field="product" query={highlightQuery} />
+            {getCustomerInitials(order.customer_name)}
           </span>
-          {order.variant_label && (
-            <span className="text-[11px] text-agent-on-surface-variant truncate max-w-[160px]">
-              {order.variant_label}
-            </span>
+        )}
+
+        {/* Customer name + badges */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className="text-[14px] font-bold text-agent-on-surface truncate">
+            <Highlighted value={order.customer_name} field="name" query={highlightQuery} />
+          </span>
+          {order.repeat_kind !== "none" && (
+            <RepeatBuyerBadge
+              source="order"
+              sourceId={order.id}
+              repeatKind={order.repeat_kind}
+              priorOrderCount={order.prior_order_count}
+              priorLeadCount={order.prior_lead_count}
+              priorRejectedCount={order.prior_rejected_count}
+              customerPhone={order.customer_phone}
+            />
+          )}
+          {order.is_potential_duplicate && (
+            <DuplicateOrderBadge
+              count={order.duplicate_count}
+              siblings={order.duplicate_siblings}
+              hasUploadedSibling={order.has_uploaded_sibling}
+            />
           )}
         </div>
 
-        {/* Price + elapsed */}
-        <div className="flex flex-col items-end px-2 shrink-0">
-          <span className="text-[18px] font-bold text-agent-primary tabular-nums leading-tight">
-            {order.total_price}
-            <span className="ms-1 text-[11px] font-semibold text-agent-on-surface-variant">
-              {order.currency}
+        {/* Variant */}
+        {order.variant_label && (
+          <span
+            className="hidden sm:inline text-[12.5px] font-semibold text-agent-on-surface truncate max-w-[140px] shrink-0"
+            title={order.variant_label}
+          >
+            {order.variant_label}
+          </span>
+        )}
+
+        {/* City */}
+        {order.customer_city && (
+          <span className="hidden md:inline-flex items-center gap-1 text-[12.5px] text-agent-on-surface-variant max-w-[120px] shrink-0">
+            <MapPin size={12} strokeWidth={2} aria-hidden="true" className="shrink-0" />
+            <span className="truncate">
+              <Highlighted value={order.customer_city} field="city" query={highlightQuery} />
             </span>
           </span>
-          <span className="mt-0.5 text-[11.5px] text-agent-on-surface-variant inline-flex items-center gap-1">
-            <Clock size={11} strokeWidth={2} aria-hidden="true" />
+        )}
+
+        {/* Created date + time on top, elapsed below (e.g. "21 mai 2026, 14:30" / "22j") */}
+        <span
+          className="hidden md:flex flex-col leading-tight gap-0.5 text-[12px] text-agent-on-surface-variant shrink-0"
+          aria-label={t("createdAt", { date: formatLongDate(order.created_at, locale) })}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <CalendarDays size={11} strokeWidth={2} aria-hidden="true" className="shrink-0" />
+            <span className="tabular-nums">
+              {formatLongDate(order.created_at, locale)}, {formatTime(order.created_at, locale)}
+            </span>
+          </span>
+          <span className="ps-[18px] inline-flex items-center gap-1 text-[11px] opacity-70 tabular-nums">
+            <Clock size={11} strokeWidth={2} aria-hidden="true" className="shrink-0" />
             {elapsedLabel(order.assigned_at)}
           </span>
-        </div>
+        </span>
 
-        {/* Status sign — far trailing edge. Always visible so the agent can
-            read the order's state at a glance on any screen width. */}
-        <div className="shrink-0 ps-2 flex items-center">
+        {/* Status sign. Always visible so the agent can read the order's
+            state at a glance on any screen width. */}
+        <div className="shrink-0 flex items-center">
           {isAttemptOrCallback(order.status) ? (
             <AttemptEtiquette
               status={order.status}
@@ -432,25 +410,29 @@ export const OrderCard = memo(function OrderCard({
             )
           ) : null}
         </div>
+
+        {/* Price — trailing edge, the standout figure on the card */}
+        <div className="shrink-0 flex items-baseline gap-1 ps-3 ms-1 border-s border-agent-outline-variant/50">
+          <span className="text-[22px] font-extrabold text-agent-primary tabular-nums leading-none">
+            {order.total_price}
+          </span>
+          <span className="text-[12px] font-bold text-agent-on-surface-variant">
+            {displayCurrency}
+          </span>
+        </div>
       </div>
 
       {/* Optional supporting row — address change, customer note, attempts overdue */}
       {(order.last_known_address ||
         truncatedNote ||
-        (isAttemptStatus && isMaxAttempt) ||
         (order.status === "callback_scheduled" && callbackOverdue) ||
         (order.status === "dispatch_scheduled" && dispatchOverdue)) && (
-        <div className="mt-3 ps-16 flex flex-col gap-1.5">
+        <div className="mt-2 ps-[52px] flex flex-col gap-1.5">
           {order.last_known_address && (
             <AddressChangeNote
               currentAddress={order.customer_address}
               lastKnownAddress={order.last_known_address}
             />
-          )}
-          {isAttemptStatus && isMaxAttempt && (
-            <span className="text-[12px] font-bold text-agent-error">
-              {t("attempts", { count: `${currentAttemptCount}/${maxAttempts}` })}
-            </span>
           )}
           {order.status === "callback_scheduled" && callbackOverdue && callbackDate && (
             <span className="text-[12px] font-semibold text-agent-error">
@@ -470,7 +452,7 @@ export const OrderCard = memo(function OrderCard({
 
       {/* Call-ended action — shown while the order is still in the agent's hands */}
       {showEndCall && (
-        <div className="flex justify-end mt-3">
+        <div className="flex justify-end mt-2">
           <Button
             size="sm"
             onClick={(e) => {

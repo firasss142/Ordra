@@ -21,6 +21,11 @@ vi.mock("next-intl", () => ({
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mockPush }) }));
 
+const mockDecode = vi.fn();
+vi.mock("@/lib/client/image", () => ({
+  decodeImageFile: (...args: unknown[]) => mockDecode(...args),
+}));
+
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
@@ -176,6 +181,52 @@ describe("ProductCreateForm", () => {
   it("still shows the market select when lockedMarketId is null (scope=all)", () => {
     renderForm({ lockedMarketId: null });
     expect(screen.getByLabelText("Marché")).toBeInTheDocument();
+  });
+
+  it("renders the image picker in the identity section", () => {
+    renderForm();
+    expect(screen.getByText("Ajouter une image")).toBeInTheDocument();
+  });
+
+  it("uploads the picked image after the product is created", async () => {
+    mockDecode.mockResolvedValue({ ok: true, dataUrl: "data:image/png;base64,AAA" });
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: { id: "new-prod-id" } }) }) // POST
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ image_url: "https://cdn/p.png" }) }); // image PUT
+
+    renderForm();
+    await userEvent.type(screen.getByLabelText("Nom du produit"), "Mon produit");
+    const cogs = screen.getByLabelText("COGS unitaire");
+    await userEvent.clear(cogs);
+    await userEvent.type(cogs, "10");
+    await userEvent.upload(
+      screen.getByTestId("product-image-input"),
+      new File(["x"], "p.png", { type: "image/png" }),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Créer le produit" }));
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+    expect(mockFetch.mock.calls[0][0]).toBe("/api/products");
+    expect(mockFetch.mock.calls[1][0]).toBe("/api/products/new-prod-id/image");
+    const imageBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    expect(imageBody.data_url).toBe("data:image/png;base64,AAA");
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/fr/products/new-prod-id"));
+  });
+
+  it("does not call the image route when no image is picked", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ data: { id: "new-prod-id" } }) });
+
+    renderForm();
+    await userEvent.type(screen.getByLabelText("Nom du produit"), "Mon produit");
+    const cogs = screen.getByLabelText("COGS unitaire");
+    await userEvent.clear(cogs);
+    await userEvent.type(cogs, "10");
+    await userEvent.click(screen.getByRole("button", { name: "Créer le produit" }));
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
+    expect(mockFetch.mock.calls.some((c) => String(c[0]).endsWith("/image"))).toBe(false);
   });
 
   it("omits sku from body when left blank", async () => {

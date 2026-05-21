@@ -84,4 +84,30 @@ describe("AttemptEtiquette", () => {
     );
     expect(container.firstChild).toBeNull();
   });
+
+  it("renders the attempt label inside a contained pill (bg + border + rounded)", () => {
+    render(
+      <AttemptEtiquette status="attempt_1" attemptsCount={1} callbackAt={null} />,
+    );
+    const pill = screen.getByRole("note", { name: /Tentative 1/ });
+    expect(pill.className).toContain("rounded-pill");
+    expect(pill.className).toMatch(/border/);
+    expect(pill.className).toMatch(/bg-/);
+  });
+
+  it("does not animate a non-final attempt", () => {
+    render(
+      <AttemptEtiquette status="attempt_1" attemptsCount={1} maxAttempts={3} callbackAt={null} />,
+    );
+    const pill = screen.getByRole("note", { name: /Tentative 1/ });
+    expect(pill.className).not.toContain("animate-pulse");
+  });
+
+  it("pulses the final attempt so it stands out", () => {
+    render(
+      <AttemptEtiquette status="attempt_3" attemptsCount={3} maxAttempts={3} callbackAt={null} />,
+    );
+    const pill = screen.getByRole("note", { name: /Tentative 3/ });
+    expect(pill.className).toContain("animate-pulse");
+  });
 });

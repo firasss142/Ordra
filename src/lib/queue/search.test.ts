@@ -9,7 +9,7 @@ import {
 import type { QueueOrder } from "@/types/queue";
 
 function makeOrder(overrides: Partial<QueueOrder> = {}): QueueOrder {
-  return {
+  const order: QueueOrder = {
     id: "o1",
     status: "pending",
     customer_name: "",
@@ -18,8 +18,10 @@ function makeOrder(overrides: Partial<QueueOrder> = {}): QueueOrder {
     customer_city: "",
     product_name: "",
     variant_label: "",
+    product_image_url: null,
     total_price: 0,
     currency: "TND",
+    market_id: "00000000-0000-0000-0000-000000000001",
     attempt_count: 0,
     callback_time: null,
     scheduled_dispatch_at: null,
@@ -43,6 +45,8 @@ function makeOrder(overrides: Partial<QueueOrder> = {}): QueueOrder {
     carrier_barcode_deleted_at: null,
     ...overrides,
   };
+  order.product_image_url = overrides.product_image_url ?? order.product_image_url;
+  return order;
 }
 
 describe("normalize", () => {

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import { ProductImagePicker } from "./ProductImagePicker";
 
 interface EditableProduct {
   id: string;
@@ -45,7 +46,10 @@ export function ProductEditForm({ product, locale }: Props) {
   const [name, setName] = useState(product.name);
   const [sku, setSku] = useState(product.sku ?? "");
   const [description, setDescription] = useState(product.description ?? "");
-  const [imageUrl, setImageUrl] = useState(product.image_url ?? "");
+  // What the picker shows: the existing remote URL, a freshly-picked data URL, or null (cleared).
+  const [image, setImage] = useState<string | null>(product.image_url ?? null);
+  // Only set when the user picks a NEW file this session — drives the upload call.
+  const [newImageDataUrl, setNewImageDataUrl] = useState<string | null>(null);
   const [unitCogs, setUnitCogs] = useState(numberOrEmpty(product.unit_cogs));
   const [packingCost, setPackingCost] = useState(numberOrEmpty(product.packing_cost));
   const [processingCost, setProcessingCost] = useState(numberOrEmpty(product.confirmation_processing_cost));
@@ -82,13 +86,19 @@ export function ProductEditForm({ product, locale }: Props) {
       name: trimmedName,
       sku: sku.trim(),
       description: description.trim(),
-      image_url: imageUrl.trim(),
       unit_cogs: unitCogsNum,
       packing_cost: parseFloat(packingCost) || 0,
       confirmation_processing_cost: parseFloat(processingCost) || 0,
       low_stock_threshold: thresholdNum,
       is_active: isActive,
     };
+
+    // Image upload happens via a separate route after the PATCH. The only
+    // image_url change we send through PATCH is an explicit clear (picker
+    // emptied and no new file picked) — the upload route never clears.
+    if (image === null && newImageDataUrl === null) {
+      body.image_url = "";
+    }
 
     if (defaultPrice.trim() !== "") {
       const dp = parseFloat(defaultPrice);
@@ -109,6 +119,20 @@ export function ProductEditForm({ product, locale }: Props) {
       setError(msg);
       setLoading(false);
       return;
+    }
+
+    // Upload a freshly-picked image, if any.
+    if (newImageDataUrl) {
+      const imgRes = await fetch(`/api/products/${product.id}/image`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data_url: newImageDataUrl }),
+      });
+      if (!imgRes.ok) {
+        setError(t("image.uploadFailed"));
+        setLoading(false);
+        return;
+      }
     }
 
     router.push(`/${locale}/products/${product.id}`);
@@ -152,26 +176,13 @@ export function ProductEditForm({ product, locale }: Props) {
               style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }}
             />
           </div>
-          <div>
-            <label htmlFor="edit-image-url" style={labelStyle}>{t("editForm.fields.imageUrl")}</label>
-            <input
-              id="edit-image-url"
-              type="url"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://…"
-              style={inputStyle}
-            />
-            {imageUrl.trim() ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={imageUrl}
-                alt=""
-                style={{ marginTop: 8, maxHeight: 120, borderRadius: 4, border: `1px solid ${BORDER}` }}
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
-            ) : null}
-          </div>
+          <ProductImagePicker
+            value={image}
+            onChange={(dataUrl) => {
+              setImage(dataUrl);
+              setNewImageDataUrl(dataUrl);
+            }}
+          />
         </div>
       </div>
 

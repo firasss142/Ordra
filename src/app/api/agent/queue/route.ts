@@ -44,12 +44,12 @@ export async function GET(_req: NextRequest) {
   const [activeRes, closedRes] = await Promise.all([
     supabase
       .from("orders")
-      .select("*")
+      .select("*, product:products(image_url)")
       .eq("assigned_to", actor.id)
       .in("status", ACTIVE_QUEUE_STATUSES),
     supabase
       .from("orders")
-      .select("*")
+      .select("*, product:products(image_url)")
       .eq("assigned_to", actor.id)
       .in("status", CLOSED_STATUSES)
       .gte("updated_at", closedSince.toISOString())
@@ -60,8 +60,34 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  const allOrders = activeRes.data ?? [];
-  const closedOrders = closedRes.data ?? [];
+  // Flatten the joined product image onto each row as product_image_url, so the
+  // queue card can show a product thumbnail. Mirrors /api/orders/list.
+  type RawRow = Record<string, unknown> & {
+    id: string;
+    status: string;
+    callback_scheduled_at: string | null;
+    scheduled_dispatch_at: string | null;
+    scheduled_dispatch_auto: boolean | null;
+    created_at: string;
+    product?: { image_url: string | null } | { image_url: string | null }[] | null;
+  };
+  type FlatRow = Record<string, unknown> & {
+    id: string;
+    status: string;
+    callback_scheduled_at: string | null;
+    scheduled_dispatch_at: string | null;
+    scheduled_dispatch_auto: boolean | null;
+    created_at: string;
+    product_image_url: string | null;
+  };
+  const flattenImage = (rows: RawRow[]): FlatRow[] =>
+    rows.map(({ product, ...rest }) => ({
+      ...(rest as Omit<RawRow, "product">),
+      product_image_url: (Array.isArray(product) ? product[0] : product)?.image_url ?? null,
+    }) as FlatRow);
+
+  const allOrders = flattenImage((activeRes.data ?? []) as RawRow[]);
+  const closedOrders = flattenImage((closedRes.data ?? []) as RawRow[]);
 
   const activeOrders = allOrders.filter((o) => {
     // confirmed (without carrier) stays in the active queue so the agent

@@ -10,8 +10,11 @@ export interface QueueOrder {
   customer_city: string;
   product_name: string;
   variant_label: string;
+  /** Product thumbnail URL (joined from products.image_url), null when unset. */
+  product_image_url: string | null;
   total_price: number;
   currency: string;
+  market_id: string | null;
   attempt_count: number;
   callback_time: string | null;
   scheduled_dispatch_at: string | null;

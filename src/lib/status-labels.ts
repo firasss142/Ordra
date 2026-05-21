@@ -1,4 +1,5 @@
 export const STATUS_LABELS: Record<string, string> = {
+  pending: "En attente",
   new: "Nouveau",
   assigned: "Assigné",
   attempt_1: "Tentative 1",
@@ -12,14 +13,18 @@ export const STATUS_LABELS: Record<string, string> = {
   dispatched: "Expédié",
   deposit: "Dépôt",
   in_transit: "En transit",
+  unverified: "Non vérifié",
   to_be_returned: "À retourner",
+  received: "Reçu",
   delivered: "Livré",
   returned: "Retourné",
   rejected: "Rejeté",
   cancelled: "Annulé",
+  deleted: "Supprimé",
 };
 
 const STATUS_LABELS_AR: Record<string, string> = {
+  pending: "قيد الانتظار",
   new: "جديد",
   assigned: "معيّن",
   attempt_1: "محاولة 1",
@@ -33,11 +38,14 @@ const STATUS_LABELS_AR: Record<string, string> = {
   dispatched: "تم الإرسال",
   deposit: "إيداع",
   in_transit: "في الطريق",
+  unverified: "غير مؤكد",
   to_be_returned: "للإرجاع",
+  received: "تم الاستلام",
   delivered: "تم التسليم",
   returned: "مرتجع",
   rejected: "مرفوض",
   cancelled: "ملغى",
+  deleted: "محذوف",
 };
 
 export function getStatusLabel(status: string, locale: string): string {
