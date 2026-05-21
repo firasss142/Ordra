@@ -142,6 +142,13 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
             count={order.duplicate_count ?? 0}
             siblings={order.duplicate_siblings ?? []}
             hasUploadedSibling={order.has_uploaded_sibling ?? false}
+            anchorOrderId={order.id}
+            canDelete={
+              user?.role === "agent" ||
+              user?.role === "market_manager" ||
+              user?.role === "super_admin"
+            }
+            onChange={() => mutate()}
           />
         )}
       </div>

@@ -29,6 +29,8 @@ interface OrderCardProps {
   selectedBucket?: BucketKey;
   /** When set (search active), matching substrings are highlighted. */
   highlightQuery?: ParsedQuery;
+  /** Called after a duplicate sibling is deleted from the dialog, to revalidate the queue. */
+  onMutate?: () => void;
 }
 
 /**
@@ -129,6 +131,7 @@ export const OrderCard = memo(function OrderCard({
   onToggleSelect,
   selectedBucket,
   highlightQuery,
+  onMutate,
 }: OrderCardProps) {
   const t = useTranslations("queue");
   const ts = useTranslations("orders.statuses");
@@ -338,6 +341,9 @@ export const OrderCard = memo(function OrderCard({
                 count={order.duplicate_count}
                 siblings={order.duplicate_siblings}
                 hasUploadedSibling={order.has_uploaded_sibling}
+                anchorOrderId={order.id}
+                canDelete
+                onChange={onMutate}
               />
             )}
           </div>

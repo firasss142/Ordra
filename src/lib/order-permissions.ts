@@ -50,6 +50,25 @@ export function canCancelOrder(
   return false;
 }
 
+/**
+ * Whether a role may delete a DUPLICATE SIBLING order from the duplicate dialog.
+ * This is the market-scope HALF of the gate — agents are allowed here even
+ * though `canCancelOrder` excludes them, because this power is narrowly scoped:
+ * the server independently re-verifies (via the duplicate RPC) that the target
+ * really is a sibling before any delete. The genuine-sibling half is enforced
+ * in lib/orders/duplicate-delete.ts, never here.
+ */
+export function canDeleteDuplicateSibling(
+  role: Role,
+  targetMarketId: string,
+  actorMarketId: string
+): boolean {
+  if (role === "super_admin") return true;
+  if (role === "market_manager") return targetMarketId === actorMarketId;
+  if (role === "agent") return targetMarketId === actorMarketId;
+  return false;
+}
+
 export const MANUAL_DELETE_ORDER_STATUSES: ReadonlySet<OrderStatus> = new Set([
   "pending",
   "assigned",
