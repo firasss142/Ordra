@@ -36,6 +36,7 @@ export interface OrdersListRow {
   duplicate_count?: number;
   duplicate_siblings?: import("@/lib/duplicate-orders/detect").SiblingOrder[];
   has_uploaded_sibling?: boolean;
+  is_duplicate_anchor?: boolean;
 }
 
 export interface OrdersListPage {

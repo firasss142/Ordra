@@ -50,6 +50,25 @@ export function canCancelOrder(
   return false;
 }
 
+/**
+ * Whether a role may delete a DUPLICATE SIBLING order from the duplicate dialog.
+ * This is the market-scope HALF of the gate — agents are allowed here even
+ * though `canCancelOrder` excludes them, because this power is narrowly scoped:
+ * the server independently re-verifies (via the duplicate RPC) that the target
+ * really is a sibling before any delete. The genuine-sibling half is enforced
+ * in lib/orders/duplicate-delete.ts, never here.
+ */
+export function canDeleteDuplicateSibling(
+  role: Role,
+  targetMarketId: string,
+  actorMarketId: string
+): boolean {
+  if (role === "super_admin") return true;
+  if (role === "market_manager") return targetMarketId === actorMarketId;
+  if (role === "agent") return targetMarketId === actorMarketId;
+  return false;
+}
+
 export const MANUAL_DELETE_ORDER_STATUSES: ReadonlySet<OrderStatus> = new Set([
   "pending",
   "assigned",
@@ -65,6 +84,29 @@ export const MANUAL_DELETE_ORDER_STATUSES: ReadonlySet<OrderStatus> = new Set([
 
 export function canManuallyDeleteOrderStatus(status: string): status is OrderStatus {
   return MANUAL_DELETE_ORDER_STATUSES.has(status as OrderStatus);
+}
+
+/**
+ * Statuses the duplicate DIALOG is allowed to remove. NARROWER than
+ * MANUAL_DELETE_ORDER_STATUSES on purpose: it excludes `uploaded` (committed to
+ * the carrier) and `scanned` (stock deducted). Removing those would void the
+ * carrier shipment / restore stock — too destructive for the dialog. An
+ * `uploaded` order is pulled back via barcode deletion (carrier-delete route),
+ * not removed here. The manager's general cancel still uses the wider set.
+ */
+export const DUPLICATE_DIALOG_DELETE_STATUSES: ReadonlySet<OrderStatus> = new Set([
+  "pending",
+  "assigned",
+  "attempt_1",
+  "attempt_2",
+  "attempt_3",
+  "callback_scheduled",
+  "confirmed",
+  "dispatch_scheduled",
+]);
+
+export function canDeleteDuplicateSiblingStatus(status: string): status is OrderStatus {
+  return DUPLICATE_DIALOG_DELETE_STATUSES.has(status as OrderStatus);
 }
 
 // Statuses that agents are allowed to transition TO

@@ -83,6 +83,7 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     duplicate_siblings:
       (raw.duplicate_siblings as QueueOrder["duplicate_siblings"]) ?? [],
     has_uploaded_sibling: Boolean(raw.has_uploaded_sibling),
+    is_duplicate_anchor: Boolean(raw.is_duplicate_anchor),
     tracking_number: (raw.tracking_number as string | null) ?? null,
     carrier_barcode_deleted_at:
       (raw.carrier_barcode_deleted_at as string | null) ?? null,
@@ -135,12 +136,23 @@ function attemptNumberForStatus(status: string): 1 | 2 | 3 | null {
 }
 
 function matchesEnCoursSubfilter(
-  status: string,
+  o: Record<string, unknown>,
   sub: EnCoursSubfilter,
 ): boolean {
+  const status = o.status as string;
+  const now = new Date();
   if (sub === "all") return true;
-  if (sub === "rappel") return status === "callback_scheduled";
-  if (sub === "livraison") return status === "dispatch_scheduled";
+  if (sub === "rappel") {
+    if (status !== "callback_scheduled") return false;
+    const cbAt = o.callback_scheduled_at as string | null;
+    return !!cbAt && new Date(cbAt) <= now;
+  }
+  if (sub === "livraison") {
+    if (status !== "dispatch_scheduled") return false;
+    if (o.scheduled_dispatch_auto) return false;
+    const dAt = o.scheduled_dispatch_at as string | null;
+    return !!dAt && new Date(dAt) <= now;
+  }
   if (sub === "tentative") return attemptNumberForStatus(status) !== null;
   return false;
 }
@@ -327,7 +339,7 @@ export function QueuePage() {
       if (selectedBucket === "en_cours") {
         if (enCoursSubfilter !== "all") {
           filtered = filtered.filter((o) =>
-            matchesEnCoursSubfilter(o.status as string, enCoursSubfilter),
+            matchesEnCoursSubfilter(o, enCoursSubfilter),
           );
         }
         if (enCoursSubfilter === "tentative" && tentativeSubfilter !== "all") {

@@ -4,6 +4,8 @@ import {
   canCreateOrders,
   canAssignOrders,
   canCancelOrder,
+  canDeleteDuplicateSibling,
+  canDeleteDuplicateSiblingStatus,
   canTransitionOrder,
   canUpdateFulfillment,
   canReopenOrder,
@@ -94,6 +96,59 @@ describe("canCancelOrder", () => {
 
   test("agent cannot cancel orders", () => {
     expect(canCancelOrder("agent")).toBe(false);
+  });
+});
+
+describe("canDeleteDuplicateSibling", () => {
+  test("super_admin can delete a verified sibling in any market", () => {
+    expect(canDeleteDuplicateSibling("super_admin", MARKET_A, "")).toBe(true);
+    expect(canDeleteDuplicateSibling("super_admin", MARKET_B, MARKET_A)).toBe(true);
+  });
+
+  test("market_manager can delete a verified sibling in own market only", () => {
+    expect(canDeleteDuplicateSibling("market_manager", MARKET_A, MARKET_A)).toBe(true);
+    expect(canDeleteDuplicateSibling("market_manager", MARKET_B, MARKET_A)).toBe(false);
+  });
+
+  test("agent CAN delete a verified sibling in own market (scoped power)", () => {
+    expect(canDeleteDuplicateSibling("agent", MARKET_A, MARKET_A)).toBe(true);
+  });
+
+  test("agent cannot delete a sibling in another market", () => {
+    expect(canDeleteDuplicateSibling("agent", MARKET_B, MARKET_A)).toBe(false);
+  });
+
+  test("warehouse_agent cannot delete duplicate siblings", () => {
+    expect(canDeleteDuplicateSibling("warehouse_agent", MARKET_A, MARKET_A)).toBe(false);
+  });
+});
+
+describe("canDeleteDuplicateSiblingStatus", () => {
+  test("allows pre-commitment statuses", () => {
+    expect(canDeleteDuplicateSiblingStatus("pending")).toBe(true);
+    expect(canDeleteDuplicateSiblingStatus("assigned")).toBe(true);
+    expect(canDeleteDuplicateSiblingStatus("attempt_2")).toBe(true);
+    expect(canDeleteDuplicateSiblingStatus("callback_scheduled")).toBe(true);
+    expect(canDeleteDuplicateSiblingStatus("confirmed")).toBe(true);
+    expect(canDeleteDuplicateSiblingStatus("dispatch_scheduled")).toBe(true);
+  });
+
+  test("rejects carrier-committed and stock-deducted statuses", () => {
+    // uploaded = committed to carrier; scanned = stock deducted. Never order-deletable here.
+    expect(canDeleteDuplicateSiblingStatus("uploaded")).toBe(false);
+    expect(canDeleteDuplicateSiblingStatus("scanned")).toBe(false);
+  });
+
+  test("rejects fulfillment and terminal statuses", () => {
+    expect(canDeleteDuplicateSiblingStatus("dispatched")).toBe(false);
+    expect(canDeleteDuplicateSiblingStatus("delivered")).toBe(false);
+    expect(canDeleteDuplicateSiblingStatus("deleted")).toBe(false);
+    expect(canDeleteDuplicateSiblingStatus("rejected")).toBe(false);
+  });
+
+  test("is stricter than the general manual-delete set (which still allows uploaded/scanned)", () => {
+    expect(canManuallyDeleteOrderStatus("uploaded")).toBe(true);
+    expect(canDeleteDuplicateSiblingStatus("uploaded")).toBe(false);
   });
 });
 

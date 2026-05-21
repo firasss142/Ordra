@@ -31,6 +31,13 @@ export interface DuplicateEnrichment {
   duplicate_siblings: SiblingOrder[];
   /** True when any sibling is already shipped — gates the upload confirm step. */
   has_uploaded_sibling: boolean;
+  /**
+   * True when this row is the NEWEST order in its duplicate group (no sibling is
+   * strictly newer). Only the anchor carries the duplicate icon, so the marker
+   * lands on the likely accidental re-order rather than on every group member.
+   * False when not a duplicate, or when the row's own created_at is unknown.
+   */
+  is_duplicate_anchor: boolean;
 }
 
 interface EnrichableRow {
@@ -54,23 +61,36 @@ const EMPTY: DuplicateEnrichment = {
   duplicate_count: 0,
   duplicate_siblings: [],
   has_uploaded_sibling: false,
+  is_duplicate_anchor: false,
 };
 
 /**
  * Pure derivation of the enrichment from the raw sibling list. Kept separate
  * from the DB call so it can be unit-tested without Supabase.
+ *
+ * `ownCreatedAt` is the row's own created_at; when provided it decides
+ * `is_duplicate_anchor` — the row is the anchor (carries the icon) iff no
+ * sibling is strictly newer. Omitted/unparsable → not the anchor (conservative:
+ * we can't claim "newest" without knowing the row's own time).
  */
 export function deriveDuplicateEnrichment(
   siblings: RawSibling[],
+  ownCreatedAt?: string | null,
 ): DuplicateEnrichment {
   if (!siblings || siblings.length === 0) {
     return { ...EMPTY, duplicate_siblings: [] };
   }
+  const ownTime = ownCreatedAt ? Date.parse(ownCreatedAt) : NaN;
+  const hasNewerSibling = siblings.some((s) => {
+    const st = Date.parse(s.created_at);
+    return Number.isFinite(st) && Number.isFinite(ownTime) && st > ownTime;
+  });
   return {
     is_potential_duplicate: true,
     duplicate_count: siblings.length,
     duplicate_siblings: siblings,
     has_uploaded_sibling: siblings.some((s) => s.already_shipped),
+    is_duplicate_anchor: Number.isFinite(ownTime) && !hasNewerSibling,
   };
 }
 
@@ -125,6 +145,6 @@ export async function enrichRowsWithDuplicates<T extends EnrichableRow>(
   return rows.map((r) => {
     const b = byId.get(r.id);
     if (!b) return { ...r, ...EMPTY };
-    return { ...r, ...deriveDuplicateEnrichment(b.siblings ?? []) };
+    return { ...r, ...deriveDuplicateEnrichment(b.siblings ?? [], r.created_at) };
   });
 }

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import frMessages from "@/messages/fr.json";
 import { DuplicateOrderBadge } from "./DuplicateOrderBadge";
 import type { SiblingOrder } from "@/lib/duplicate-orders/detect";
@@ -28,65 +28,239 @@ function sibling(o: Partial<SiblingOrder> = {}): SiblingOrder {
   return {
     id: "sib-1",
     external_id: "EXT-9",
-    status: "uploaded",
+    status: "pending",
     created_at: "2026-05-21T10:00:00Z",
     product_name: "T-Shirt",
     quantity: 1,
-    already_shipped: true,
+    already_shipped: false,
     ...o,
   };
 }
 
+function openDialog(container: HTMLElement) {
+  const trigger = container.querySelector("[data-duplicate='true']") as HTMLElement;
+  fireEvent.click(trigger);
+}
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("DuplicateOrderBadge", () => {
   it("renders nothing when count is 0", () => {
     const { container } = render(
-      <DuplicateOrderBadge count={0} siblings={[]} hasUploadedSibling={false} />,
+      <DuplicateOrderBadge
+        count={0}
+        siblings={[]}
+        hasUploadedSibling={false}
+        anchorOrderId="anchor-1"
+      />,
     );
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders the duplicate label with the count", () => {
-    render(
+  it("renders an icon-only trigger with NO 'Doublon' text", () => {
+    const { container } = render(
       <DuplicateOrderBadge
         count={2}
         siblings={[sibling({ id: "a" }), sibling({ id: "b" })]}
-        hasUploadedSibling
+        hasUploadedSibling={false}
+        anchorOrderId="anchor-1"
       />,
     );
-    expect(screen.getByText(/Doublon/)).toBeDefined();
-    expect(screen.getByText(/2/)).toBeDefined();
-  });
-
-  it("sets a data-duplicate attribute on the badge", () => {
-    const { container } = render(
-      <DuplicateOrderBadge count={1} siblings={[sibling()]} hasUploadedSibling />,
-    );
     expect(container.querySelector("[data-duplicate='true']")).not.toBeNull();
+    expect(screen.queryByText(/Doublon ·/)).toBeNull();
   });
 
-  it("shows the 'already shipped' indicator on hover when a sibling is shipped", () => {
+  it("shows a count superscript when count > 1", () => {
+    render(
+      <DuplicateOrderBadge
+        count={3}
+        siblings={[sibling({ id: "a" })]}
+        hasUploadedSibling={false}
+        anchorOrderId="anchor-1"
+      />,
+    );
+    expect(screen.getByText("3")).toBeDefined();
+  });
+
+  it("opens a dialog listing siblings on click", () => {
     const { container } = render(
       <DuplicateOrderBadge
         count={1}
-        siblings={[sibling({ already_shipped: true })]}
-        hasUploadedSibling
+        siblings={[sibling({ external_id: "EXT-42" })]}
+        hasUploadedSibling={false}
+        anchorOrderId="anchor-1"
       />,
     );
-    const trigger = container.querySelector("[data-duplicate='true']")!;
-    fireEvent.mouseEnter(trigger.parentElement!);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    openDialog(container);
+    expect(screen.getByRole("dialog")).toBeDefined();
+    expect(screen.getByText(/EXT-42/)).toBeDefined();
+  });
+
+  it("renders the 'already shipped' chip for a shipped sibling", () => {
+    const { container } = render(
+      <DuplicateOrderBadge
+        count={1}
+        siblings={[sibling({ already_shipped: true, status: "uploaded" })]}
+        hasUploadedSibling
+        anchorOrderId="anchor-1"
+      />,
+    );
+    openDialog(container);
     expect(screen.getByText(/Déjà envoyé au transporteur/)).toBeDefined();
   });
 
-  it("does not show the 'already shipped' indicator when no sibling is shipped", () => {
+  it("shows a delete button when canDelete and status is deletable", () => {
     const { container } = render(
       <DuplicateOrderBadge
         count={1}
-        siblings={[sibling({ already_shipped: false, status: "pending" })]}
+        siblings={[sibling({ status: "pending" })]}
         hasUploadedSibling={false}
+        anchorOrderId="anchor-1"
+        canDelete
       />,
     );
-    const trigger = container.querySelector("[data-duplicate='true']")!;
-    fireEvent.mouseEnter(trigger.parentElement!);
-    expect(screen.queryByText(/Déjà envoyé au transporteur/)).toBeNull();
+    openDialog(container);
+    expect(screen.getByLabelText(/Supprimer la commande/)).toBeDefined();
+  });
+
+  it("hides the delete button when canDelete is false", () => {
+    const { container } = render(
+      <DuplicateOrderBadge
+        count={1}
+        siblings={[sibling({ status: "pending" })]}
+        hasUploadedSibling={false}
+        anchorOrderId="anchor-1"
+        canDelete={false}
+      />,
+    );
+    openDialog(container);
+    expect(screen.queryByLabelText(/Supprimer la commande/)).toBeNull();
+  });
+
+  it("hides the delete button for a non-deletable status", () => {
+    const { container } = render(
+      <DuplicateOrderBadge
+        count={1}
+        siblings={[sibling({ status: "dispatched" })]}
+        hasUploadedSibling={false}
+        anchorOrderId="anchor-1"
+        canDelete
+      />,
+    );
+    openDialog(container);
+    expect(screen.queryByLabelText(/Supprimer la commande/)).toBeNull();
+  });
+
+  it("hides the delete button for an UPLOADED sibling (committed to carrier)", () => {
+    const { container } = render(
+      <DuplicateOrderBadge
+        count={1}
+        siblings={[sibling({ status: "uploaded", already_shipped: true })]}
+        hasUploadedSibling
+        anchorOrderId="anchor-1"
+        canDelete
+      />,
+    );
+    openDialog(container);
+    expect(screen.queryByLabelText(/Supprimer la commande/)).toBeNull();
+  });
+
+  it("hides the delete button for a SCANNED sibling (stock deducted)", () => {
+    const { container } = render(
+      <DuplicateOrderBadge
+        count={1}
+        siblings={[sibling({ status: "scanned" })]}
+        hasUploadedSibling={false}
+        anchorOrderId="anchor-1"
+        canDelete
+      />,
+    );
+    openDialog(container);
+    expect(screen.queryByLabelText(/Supprimer la commande/)).toBeNull();
+  });
+
+  it("posts the delete, drops the sibling, and calls onChange on success", async () => {
+    const onChange = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { deleted_id: "sib-1" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("confirm", vi.fn().mockReturnValue(true));
+
+    const { container } = render(
+      <DuplicateOrderBadge
+        count={1}
+        siblings={[sibling({ id: "sib-1", external_id: "EXT-9", status: "pending" })]}
+        hasUploadedSibling={false}
+        anchorOrderId="anchor-1"
+        canDelete
+        onChange={onChange}
+      />,
+    );
+    openDialog(container);
+    fireEvent.click(screen.getByLabelText(/Supprimer la commande/));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/orders/anchor-1/delete-duplicate",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body).toEqual({ sibling_id: "sib-1" });
+
+    await waitFor(() => expect(onChange).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByText(/EXT-9/)).toBeNull());
+  });
+
+  it("does not call fetch when the confirm prompt is declined", () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("confirm", vi.fn().mockReturnValue(false));
+
+    const { container } = render(
+      <DuplicateOrderBadge
+        count={1}
+        siblings={[sibling({ status: "pending" })]}
+        hasUploadedSibling={false}
+        anchorOrderId="anchor-1"
+        canDelete
+      />,
+    );
+    openDialog(container);
+    fireEvent.click(screen.getByLabelText(/Supprimer la commande/));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("shows an error message when the delete fails", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: "boom" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("confirm", vi.fn().mockReturnValue(true));
+
+    const { container } = render(
+      <DuplicateOrderBadge
+        count={1}
+        siblings={[sibling({ status: "pending" })]}
+        hasUploadedSibling={false}
+        anchorOrderId="anchor-1"
+        canDelete
+      />,
+    );
+    openDialog(container);
+    fireEvent.click(screen.getByLabelText(/Supprimer la commande/));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Échec de la suppression/)).toBeDefined(),
+    );
   });
 });

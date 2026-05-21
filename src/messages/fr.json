@@ -3053,8 +3053,8 @@
     "addressChange": "↳ nouvelle adresse (avant : {previous})"
   },
   "duplicateOrder": {
-    "badge": {
-      "label": "Doublon · {count}"
+    "trigger": {
+      "aria": "{count} doublon(s) possible(s) — ouvrir"
     },
     "popover": {
       "headline": "Possible doublon — même client, produit et quantité",
@@ -3063,6 +3063,17 @@
       "shipped": "Déjà envoyé au transporteur",
       "qty": "Qté {quantity}",
       "seeOrder": "Voir la commande"
+    },
+    "dialog": {
+      "title": "Doublons possibles",
+      "subtitle": "Même client, produit et quantité. Vérifiez avant de supprimer.",
+      "close": "Fermer",
+      "delete": "Supprimer",
+      "deleteAria": "Supprimer la commande #{externalId}",
+      "confirm": "Supprimer définitivement cette commande en double ? Cette action est journalisée.",
+      "deleting": "Suppression…",
+      "empty": "Aucun doublon restant.",
+      "error": "Échec de la suppression. Réessayez."
     },
     "uploadGuard": {
       "title": "Doublon possible",

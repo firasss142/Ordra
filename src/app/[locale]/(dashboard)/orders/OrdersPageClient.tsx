@@ -529,6 +529,7 @@ export function OrdersPageClient({
           onToggleSelect={toggleSelect}
           onToggleSelectAll={toggleSelectAll}
           onCancel={handleCancel}
+          onDuplicateChange={() => void mutate()}
           isLoading={isLoading}
           isEmpty={!isLoading && rows.length === 0}
         />

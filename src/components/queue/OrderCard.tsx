@@ -3,7 +3,7 @@
 import { memo, useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Check, CalendarDays, MapPin, Clock } from "lucide-react";
-import { isReferenceDeletedUpload, isBulkCallEligible, EDIT_BLOCKED_STATUSES } from "@/lib/order-permissions";
+import { isReferenceDeletedUpload, isBulkCallEligible, EDIT_BLOCKED_STATUSES, canDeleteDuplicateSiblingStatus } from "@/lib/order-permissions";
 import { formatDateTime, formatLongDate, formatTime } from "@/lib/format";
 import { formatDisplayCurrencyCode } from "@/lib/markets";
 import { Button } from "@/components/ui/Button";
@@ -29,6 +29,8 @@ interface OrderCardProps {
   selectedBucket?: BucketKey;
   /** When set (search active), matching substrings are highlighted. */
   highlightQuery?: ParsedQuery;
+  /** Called after a duplicate sibling is deleted from the dialog, to revalidate the queue. */
+  onMutate?: () => void;
 }
 
 /**
@@ -129,6 +131,7 @@ export const OrderCard = memo(function OrderCard({
   onToggleSelect,
   selectedBucket,
   highlightQuery,
+  onMutate,
 }: OrderCardProps) {
   const t = useTranslations("queue");
   const ts = useTranslations("orders.statuses");
@@ -338,11 +341,17 @@ export const OrderCard = memo(function OrderCard({
               customerPhone={order.customer_phone}
             />
           )}
-          {order.is_potential_duplicate && (
+          {/* Duplicate marker — icon-only, shown on the anchor (newest) order.
+              Opens a dialog that lists siblings and lets a permitted role delete
+              a deletable sibling in place; onMutate revalidates the queue. */}
+          {order.is_potential_duplicate && order.is_duplicate_anchor && (
             <DuplicateOrderBadge
               count={order.duplicate_count}
               siblings={order.duplicate_siblings}
               hasUploadedSibling={order.has_uploaded_sibling}
+              anchorOrderId={order.id}
+              canDelete={canDeleteDuplicateSiblingStatus(order.status)}
+              onChange={onMutate}
             />
           )}
         </div>

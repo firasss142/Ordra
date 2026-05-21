@@ -21,6 +21,7 @@ describe("deriveDuplicateEnrichment", () => {
       duplicate_count: 0,
       duplicate_siblings: [],
       has_uploaded_sibling: false,
+      is_duplicate_anchor: false,
     });
   });
 
@@ -75,6 +76,35 @@ describe("deriveDuplicateEnrichment", () => {
       duplicate_count: 0,
       duplicate_siblings: [],
       has_uploaded_sibling: false,
+      is_duplicate_anchor: false,
+    });
+  });
+
+  describe("is_duplicate_anchor (newest-in-group carries the icon)", () => {
+    const OWN = "2026-05-21T10:05:00Z";
+
+    it("is false when there are no siblings", () => {
+      expect(deriveDuplicateEnrichment([], OWN).is_duplicate_anchor).toBe(false);
+    });
+
+    it("is true when this order is newer than all its siblings", () => {
+      const older = sibling({ created_at: "2026-05-21T10:00:00Z" });
+      expect(deriveDuplicateEnrichment([older], OWN).is_duplicate_anchor).toBe(true);
+    });
+
+    it("is false when any sibling is strictly newer than this order", () => {
+      const newer = sibling({ created_at: "2026-05-21T10:10:00Z" });
+      expect(deriveDuplicateEnrichment([newer], OWN).is_duplicate_anchor).toBe(false);
+    });
+
+    it("is true on an exact created_at tie", () => {
+      const tie = sibling({ created_at: OWN });
+      expect(deriveDuplicateEnrichment([tie], OWN).is_duplicate_anchor).toBe(true);
+    });
+
+    it("is false (conservative) when own created_at is unknown", () => {
+      const older = sibling({ created_at: "2026-05-21T10:00:00Z" });
+      expect(deriveDuplicateEnrichment([older]).is_duplicate_anchor).toBe(false);
     });
   });
 });

@@ -41,6 +41,7 @@ function makeOrder(overrides: Partial<QueueOrder> = {}): QueueOrder {
     duplicate_count: 0,
     duplicate_siblings: [],
     has_uploaded_sibling: false,
+    is_duplicate_anchor: false,
     tracking_number: null,
     carrier_barcode_deleted_at: null,
     ...overrides,
