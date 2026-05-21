@@ -148,7 +148,7 @@ function TopbarInner({ user, marketName, actions, searchSlot, onMenuClick, varia
           </div>
         )}
         <header
-          className="flex items-center justify-between gap-4 px-8 bg-agent-surface border-b border-agent-outline-variant"
+          className="flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-8 bg-agent-surface border-b border-agent-outline-variant"
           style={{
             height: 64,
             direction: isRtl ? "rtl" : "ltr",

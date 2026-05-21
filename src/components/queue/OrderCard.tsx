@@ -2,7 +2,7 @@
 
 import { memo, useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { Check, CalendarDays, MapPin, Clock } from "lucide-react";
+import { Check, CalendarDays, MapPin, Clock, Phone } from "lucide-react";
 import { isReferenceDeletedUpload, isBulkCallEligible, EDIT_BLOCKED_STATUSES, canDeleteDuplicateSiblingStatus } from "@/lib/order-permissions";
 import { formatDateTime, formatLongDate, formatTime } from "@/lib/format";
 import { formatDisplayCurrencyCode } from "@/lib/markets";
@@ -301,7 +301,7 @@ export const OrderCard = memo(function OrderCard({
         </button>
       )}
 
-      <div className="flex items-center gap-5">
+      <div className="flex items-center gap-3 sm:gap-5">
         {/* Leading visual — product image, falling back to customer initials */}
         {order.product_image_url ? (
           <span className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg overflow-hidden bg-agent-surface-high border border-agent-outline-variant">
@@ -325,35 +325,71 @@ export const OrderCard = memo(function OrderCard({
           </span>
         )}
 
-        {/* Customer name + badges */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className="text-[14px] font-bold text-agent-on-surface truncate">
-            <Highlighted value={order.customer_name} field="name" query={highlightQuery} />
-          </span>
-          {order.repeat_kind !== "none" && (
-            <RepeatBuyerBadge
-              source="order"
-              sourceId={order.id}
-              repeatKind={order.repeat_kind}
-              priorOrderCount={order.prior_order_count}
-              priorLeadCount={order.prior_lead_count}
-              priorRejectedCount={order.prior_rejected_count}
-              customerPhone={order.customer_phone}
-            />
-          )}
-          {/* Duplicate marker — icon-only, shown on the anchor (newest) order.
-              Opens a dialog that lists siblings and lets a permitted role delete
-              a deletable sibling in place; onMutate revalidates the queue. */}
-          {order.is_potential_duplicate && order.is_duplicate_anchor && (
-            <DuplicateOrderBadge
-              count={order.duplicate_count}
-              siblings={order.duplicate_siblings}
-              hasUploadedSibling={order.has_uploaded_sibling}
-              anchorOrderId={order.id}
-              canDelete={canDeleteDuplicateSiblingStatus(order.status)}
-              onChange={onMutate}
-            />
-          )}
+        {/* Customer name + badges. On mobile this is a column: the name takes
+            the full width on its own line, and a compact status + date row sits
+            underneath it. On desktop it stays a single inline row and the
+            status/date render as separate trailing columns (below). */}
+        <div className="flex flex-col gap-1 min-w-0 flex-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[14px] font-bold text-agent-on-surface truncate">
+              <Highlighted value={order.customer_name} field="name" query={highlightQuery} />
+            </span>
+            {order.repeat_kind !== "none" && (
+              <RepeatBuyerBadge
+                source="order"
+                sourceId={order.id}
+                repeatKind={order.repeat_kind}
+                priorOrderCount={order.prior_order_count}
+                priorLeadCount={order.prior_lead_count}
+                priorRejectedCount={order.prior_rejected_count}
+                customerPhone={order.customer_phone}
+              />
+            )}
+            {/* Duplicate marker — icon-only, shown on the anchor (newest) order.
+                Opens a dialog that lists siblings and lets a permitted role delete
+                a deletable sibling in place; onMutate revalidates the queue. */}
+            {order.is_potential_duplicate && order.is_duplicate_anchor && (
+              <DuplicateOrderBadge
+                count={order.duplicate_count}
+                siblings={order.duplicate_siblings}
+                hasUploadedSibling={order.has_uploaded_sibling}
+                anchorOrderId={order.id}
+                canDelete={canDeleteDuplicateSiblingStatus(order.status)}
+                onChange={onMutate}
+              />
+            )}
+          </div>
+
+          {/* Mobile-only status + date sub-row (hidden from sm: up, where the
+              status/date render as their own trailing columns instead). */}
+          <div className="flex sm:hidden items-center gap-2 min-w-0">
+            {isAttemptOrCallback(order.status) ? (
+              <AttemptEtiquette
+                status={order.status}
+                attemptsCount={order.attempt_count ?? 0}
+                maxAttempts={maxAttempts}
+                callbackAt={order.callback_time}
+                scheduledDispatchAt={order.scheduled_dispatch_at}
+                scheduledDispatchAuto={order.scheduled_dispatch_auto}
+                now={now ?? undefined}
+                compact
+              />
+            ) : statusPill ? (
+              order.status === "rejected" ? (
+                <RejectionReasonHover
+                  reason={order.rejection_reason}
+                  note={order.rejection_note}
+                >
+                  <StatusSign label={statusPill.label} dot={statusPill.dot} className={`${statusPill.className} !text-[10px] !px-2 !py-0.5`} />
+                </RejectionReasonHover>
+              ) : (
+                <StatusSign label={statusPill.label} dot={statusPill.dot} className={`${statusPill.className} !text-[10px] !px-2 !py-0.5`} />
+              )
+            ) : null}
+            <span className="text-[10.5px] text-agent-on-surface-variant/80 tabular-nums truncate shrink-0">
+              {formatLongDate(order.created_at, locale)}
+            </span>
+          </div>
         </div>
 
         {/* Variant */}
@@ -393,9 +429,9 @@ export const OrderCard = memo(function OrderCard({
           </span>
         </span>
 
-        {/* Status sign. Always visible so the agent can read the order's
-            state at a glance on any screen width. */}
-        <div className="shrink-0 flex items-center">
+        {/* Status sign — desktop trailing column. On mobile the status renders
+            in the name's sub-row instead (see above), so hide it here below sm. */}
+        <div className="shrink-0 hidden sm:flex items-center">
           {isAttemptOrCallback(order.status) ? (
             <AttemptEtiquette
               status={order.status}
@@ -429,6 +465,23 @@ export const OrderCard = memo(function OrderCard({
             {displayCurrency}
           </span>
         </div>
+
+        {/* Mobile call-ended action — sits next to the price in the main row so
+            the card stays short (no extra bottom row). Desktop renders the
+            labelled button below instead. */}
+        {showEndCall && (
+          <Button
+            size="sm"
+            aria-label={t("callEnded")}
+            className="sm:hidden shrink-0 w-8 px-0 gap-0 ms-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCallTerminated(order.id);
+            }}
+          >
+            <Phone size={14} strokeWidth={2.25} aria-hidden="true" />
+          </Button>
+        )}
       </div>
 
       {/* Optional supporting row — address change, customer note, attempts overdue */}
@@ -459,9 +512,10 @@ export const OrderCard = memo(function OrderCard({
         </div>
       )}
 
-      {/* Call-ended action — shown while the order is still in the agent's hands */}
+      {/* Call-ended action — desktop labelled button on its own row. On mobile
+          the icon-only button lives in the main row next to the price instead. */}
       {showEndCall && (
-        <div className="flex justify-end mt-2">
+        <div className="hidden sm:flex justify-end mt-2">
           <Button
             size="sm"
             onClick={(e) => {

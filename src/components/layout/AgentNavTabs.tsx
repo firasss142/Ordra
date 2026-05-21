@@ -44,8 +44,12 @@ function AgentTabInner({
       onFocus={onHover}
       onTouchStart={onHover}
       className={[
-        "inline-flex items-center gap-2 py-4 px-1 me-8",
-        "text-[14px] no-underline transition-colors duration-fast",
+        // Mobile: each tab is an equal-width, centered column (no fixed
+        // right-margin) so the three tabs split the row cleanly without
+        // wrapping. Desktop keeps the inline auto-width tabs with me-8.
+        "flex-1 justify-center sm:flex-none sm:justify-start",
+        "inline-flex items-center gap-1.5 sm:gap-2 py-4 px-1 sm:me-8",
+        "text-[13px] sm:text-[14px] no-underline transition-colors duration-fast",
         "border-b-2 -mb-px",
         active
           ? "font-bold text-agent-primary border-agent-primary"
@@ -58,7 +62,7 @@ function AgentTabInner({
         aria-hidden="true"
         className={active ? "text-agent-primary" : "text-agent-on-surface-variant/70"}
       />
-      <span>{tab.label}</span>
+      <span className="whitespace-nowrap">{tab.label}</span>
     </Link>
   );
 }
@@ -98,7 +102,7 @@ function AgentNavTabsInner({ user }: Props) {
 
   return (
     <nav
-      className="flex bg-surface-card border-b border-line-subtle px-8"
+      className="flex bg-surface-card border-b border-line-subtle px-2 sm:px-8"
       style={{ direction: user.direction === "rtl" ? "rtl" : "ltr" }}
     >
       {tabs.map((tab) => {

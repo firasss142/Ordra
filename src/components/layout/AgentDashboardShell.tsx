@@ -37,13 +37,18 @@ export function AgentDashboardShell({
           direction: isRtl ? "rtl" : "ltr",
         }}
       >
-        <Topbar
-          user={user}
-          marketName=""
-          actions={actions}
-          variant="agent"
-          searchSlot={onQueueTab ? <QueueSearchBar variant="navbar" /> : null}
-        />
+        {/* On mobile only the topbar (search / avatar / bell) pins to the top
+            so it stays reachable while scrolling. The nav tabs scroll away with
+            the content. Desktop keeps its original static flow. */}
+        <div className="max-sm:sticky max-sm:top-0 max-sm:z-40 max-sm:bg-agent-surface">
+          <Topbar
+            user={user}
+            marketName=""
+            actions={actions}
+            variant="agent"
+            searchSlot={onQueueTab ? <QueueSearchBar variant="navbar" /> : null}
+          />
+        </div>
         <AgentNavTabs user={user} />
         <AgentTabsContainer user={user}>{children}</AgentTabsContainer>
       </div>
