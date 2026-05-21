@@ -6,7 +6,7 @@ import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { X, Phone as PhoneIcon, Copy, Check, MapPin, Plus, Calendar, RotateCcw, AlertTriangle, Pencil } from "lucide-react";
 import { getStatusLabel } from "@/lib/status-labels";
-import { canReopenOrder, EDIT_BLOCKED_STATUSES } from "@/lib/order-permissions";
+import { canReopenOrder, EDIT_BLOCKED_STATUSES, isReferenceDeletedUpload } from "@/lib/order-permissions";
 import { fetcher } from "@/lib/swr-config";
 import { isEditableTarget } from "@/lib/dom";
 import { InlineField } from "@/components/ui/InlineField";
@@ -311,7 +311,11 @@ export function OrderDetailPanel({
 
   const { commit } = useOrderMutation(orderId ?? "__none__");
 
-  const canEdit = order !== null && !EDIT_BLOCKED_STATUSES.has(order.status);
+  // An uploaded order whose carrier reference was deleted falls back into the
+  // editable pool (treated like confirmed); otherwise uploaded is edit-blocked.
+  const canEdit =
+    order !== null &&
+    (isReferenceDeletedUpload(order) || !EDIT_BLOCKED_STATUSES.has(order.status));
 
   // Single /api/products/search fetch provides both the picker list and current-product variants
   const { data: productsData, mutate: mutateProducts } = useSWR<{ data: ProductSearchResult[] }>(
@@ -1445,10 +1449,16 @@ export function OrderDetailPanel({
             "callback_scheduled",
           ]);
           const isCallActionable = CALL_ACTION_STATUSES.has(order.status);
-          // Agent-on-queue (no role prop) on a non-terminal order, OR
-          // manager/admin on a call-actionable order (take-over flow).
+          // Agent can end a call on any non-terminal order that is still in
+          // their hands — the call pool, confirmed, scheduled-dispatch — but
+          // NOT on a carrier-locked order (uploaded/scanned/dispatched/…),
+          // unless its reference was deleted, which pulls it back to editable.
+          const isAgentActionable =
+            !TERMINAL_STATUSES.has(order.status) &&
+            (isReferenceDeletedUpload(order) ||
+              !EDIT_BLOCKED_STATUSES.has(order.status));
           const isAgentCall =
-            (role === undefined && !TERMINAL_STATUSES.has(order.status)) ||
+            (role === undefined && isAgentActionable) ||
             ((role === "market_manager" || role === "super_admin") &&
               isCallActionable);
           type PrimaryAction = {

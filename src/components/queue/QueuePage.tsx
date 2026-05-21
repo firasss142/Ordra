@@ -22,6 +22,7 @@ import { useQueueSearch } from "@/context/queue-search";
 import { isEditableTarget } from "@/lib/dom";
 import { AGENT_NEW_ORDER_EVENT } from "@/lib/agent-events";
 import { parseQuery, searchOrders } from "@/lib/queue/search";
+import { isBulkCallEligible } from "@/lib/order-permissions";
 import type { QueueOrder } from "@/types/queue";
 
 const OrderDetailPanel = dynamic(() =>
@@ -80,6 +81,9 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     duplicate_siblings:
       (raw.duplicate_siblings as QueueOrder["duplicate_siblings"]) ?? [],
     has_uploaded_sibling: Boolean(raw.has_uploaded_sibling),
+    tracking_number: (raw.tracking_number as string | null) ?? null,
+    carrier_barcode_deleted_at:
+      (raw.carrier_barcode_deleted_at as string | null) ?? null,
   };
 }
 
@@ -101,9 +105,9 @@ const LEGACY_BUCKET_MAP: Record<string, BucketKey> = {
 };
 
 function resolveBucketParam(raw: string | null): BucketKey {
-  if (!raw) return "en_cours";
+  if (!raw) return "nouveau";
   if ((VALID_BUCKETS as string[]).includes(raw)) return raw as BucketKey;
-  return LEGACY_BUCKET_MAP[raw] ?? "en_cours";
+  return LEGACY_BUCKET_MAP[raw] ?? "nouveau";
 }
 
 function bucketForStatus(status: string): BucketKey | null {
@@ -510,13 +514,27 @@ export function QueuePage() {
   const handleDeselectAll = useCallback(() => setSelectedOrderIds(new Set()), []);
 
   const handleBulkCallEnded = useCallback(() => {
-    const ids = [...selectedOrderIds];
+    // Re-check eligibility against the live status so a stale selection (an
+    // order confirmed/uploaded in another flow while still ticked) can never
+    // open the call sheet on something the sheet can't act on.
+    const eligible = (id: string) => {
+      const raw = rawAllOrders.find((o) => o.id === id);
+      return raw
+        ? isBulkCallEligible({
+            status: raw.status as string,
+            tracking_number: (raw.tracking_number as string | null) ?? null,
+            carrier_barcode_deleted_at:
+              (raw.carrier_barcode_deleted_at as string | null) ?? null,
+          })
+        : false;
+    };
+    const ids = [...selectedOrderIds].filter(eligible);
+    setSelectedOrderIds(new Set());
     if (ids.length === 0) return;
     const [first, ...rest] = ids;
     setBulkQueue(rest);
-    setSelectedOrderIds(new Set());
     handleCallTerminated(first);
-  }, [selectedOrderIds, handleCallTerminated]);
+  }, [selectedOrderIds, rawAllOrders, handleCallTerminated]);
 
   // ── loading skeleton ─────────────────────────────────────
   if (!rawOrders.length && !error && !statsData) {
