@@ -974,6 +974,7 @@
       "cityNoResults": "لا توجد وجهة مطابقة.",
       "carrierBarcodeDeletedBadge": "{carrier} ملغى",
       "carrierBarcodeDeletedTooltip": "تم حذف الباركود في {date} — يمكن إعادة الرفع",
+      "statusReferenceDeleted": "بانتظار إعادة الرفع",
       "deleteBarcodeSuccess": "تم حذف الباركود",
       "changeStatus": "تغيير الحالة",
       "outOfStock": "نفد المخزون",

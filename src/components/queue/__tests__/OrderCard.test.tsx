@@ -54,6 +54,8 @@ const mockOrder: QueueOrder = {
   duplicate_count: 0,
   duplicate_siblings: [],
   has_uploaded_sibling: false,
+  tracking_number: null,
+  carrier_barcode_deleted_at: null,
 };
 
 describe("OrderCard", () => {
@@ -280,6 +282,94 @@ describe("OrderCard", () => {
     );
     expect(screen.getByRole("note", { name: /Tentative 4/ })).toBeInTheDocument();
     expect(screen.queryByText(/final/)).not.toBeInTheDocument();
+  });
+
+  describe("end-call affordance per status", () => {
+    it("shows End call for a brand-new order with no note", () => {
+      render(
+        <OrderCard
+          order={{ ...mockOrder, status: "pending", customer_note: null }}
+          onOpenDetail={() => {}}
+          onCallTerminated={() => {}}
+        />,
+      );
+      expect(screen.getByRole("button", { name: /appel terminé/i })).toBeInTheDocument();
+    });
+
+    it("shows End call for an assigned order with no note", () => {
+      render(
+        <OrderCard
+          order={{ ...mockOrder, status: "assigned", customer_note: null }}
+          onOpenDetail={() => {}}
+          onCallTerminated={() => {}}
+        />,
+      );
+      expect(screen.getByRole("button", { name: /appel terminé/i })).toBeInTheDocument();
+    });
+
+    it("does NOT show End call for a normal uploaded order (carrier-locked)", () => {
+      render(
+        <OrderCard
+          order={{ ...mockOrder, status: "uploaded", customer_note: null, tracking_number: "TRK-1" }}
+          onOpenDetail={() => {}}
+          onCallTerminated={() => {}}
+        />,
+      );
+      expect(screen.queryByRole("button", { name: /appel terminé/i })).not.toBeInTheDocument();
+    });
+
+    it("shows End call for an uploaded order whose reference was deleted", () => {
+      render(
+        <OrderCard
+          order={{
+            ...mockOrder,
+            status: "uploaded",
+            customer_note: null,
+            tracking_number: null,
+            carrier_barcode_deleted_at: "2026-05-20T10:00:00Z",
+          }}
+          onOpenDetail={() => {}}
+          onCallTerminated={() => {}}
+        />,
+      );
+      expect(screen.getByRole("button", { name: /appel terminé/i })).toBeInTheDocument();
+    });
+
+    it("does NOT show End call for a rejected order", () => {
+      render(
+        <OrderCard
+          order={{ ...mockOrder, status: "rejected", customer_note: null }}
+          onOpenDetail={() => {}}
+          onCallTerminated={() => {}}
+        />,
+      );
+      expect(screen.queryByRole("button", { name: /appel terminé/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("status sign + phone prominence", () => {
+    it("renders a visible status sign for a new order", () => {
+      render(
+        <OrderCard
+          order={{ ...mockOrder, status: "pending", customer_note: null }}
+          onOpenDetail={() => {}}
+          onCallTerminated={() => {}}
+        />,
+      );
+      // The status label is present and not hidden behind a lg-only breakpoint.
+      const sign = screen.getByText("En attente");
+      expect(sign).toBeInTheDocument();
+      expect(sign.closest(".lg\\:flex")).toBeNull();
+    });
+
+    it("marks the phone number as the prominent spot field", () => {
+      render(
+        <OrderCard order={{ ...mockOrder, customer_note: null }} onOpenDetail={() => {}} onCallTerminated={() => {}} />,
+      );
+      const phoneLink = screen.getByRole("link", { name: /22123456/ });
+      expect(phoneLink).toHaveAttribute("href", "tel:22123456");
+      expect(phoneLink.getAttribute("data-phone-spot")).toBe("true");
+    });
   });
 
   describe("bucket-driven border tone", () => {

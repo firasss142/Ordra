@@ -101,6 +101,25 @@ export const EDIT_BLOCKED_STATUSES: ReadonlySet<string> = new Set([
 
 const EDIT_WINDOWED_STATUSES = new Set<string>(["rejected", "confirmed"]);
 
+/**
+ * An `uploaded` order whose carrier reference (barcode) was deleted and that no
+ * longer carries a tracking number has effectively been pulled back from the
+ * carrier. It behaves like a `confirmed` order awaiting (re-)upload: the agent
+ * can edit it again and re-run the call flow. This is the ONLY way an uploaded
+ * order becomes editable for an agent.
+ */
+export function isReferenceDeletedUpload(order: {
+  status: string;
+  tracking_number?: string | null;
+  carrier_barcode_deleted_at?: string | null;
+}): boolean {
+  return (
+    order.status === "uploaded" &&
+    !order.tracking_number &&
+    Boolean(order.carrier_barcode_deleted_at)
+  );
+}
+
 export function canReopenOrder(
   role: Role,
   actorId: string,
@@ -114,15 +133,50 @@ export function canReopenOrder(
   return now.getTime() - updatedAt.getTime() <= AGENT_WINDOW_MS;
 }
 
+// Statuses where ending a call (no-answer / confirm / reject / callback) is a
+// meaningful action — the pre-confirm pool. A reference-deleted upload rejoins
+// this pool. Confirmed / scheduled-dispatch are intentionally excluded: their
+// next step is a single-order upload, not a batchable call.
+const CALL_POOL_STATUSES = new Set<string>([
+  "pending",
+  "assigned",
+  "attempt_1",
+  "attempt_2",
+  "attempt_3",
+  "callback_scheduled",
+]);
+
+/**
+ * Whether an order can take part in the agent's bulk "Start calls" batch.
+ * Drives which cards expose a selection checkbox so the bulk bar can never
+ * queue an order the post-call sheet can't act on.
+ */
+export function isBulkCallEligible(order: {
+  status: string;
+  tracking_number?: string | null;
+  carrier_barcode_deleted_at?: string | null;
+}): boolean {
+  return CALL_POOL_STATUSES.has(order.status) || isReferenceDeletedUpload(order);
+}
+
 export function canEditOrder(
   role: Role,
   actorId: string,
-  order: { status: string; assigned_to: string | null; updated_at: string },
+  order: {
+    status: string;
+    assigned_to: string | null;
+    updated_at: string;
+    tracking_number?: string | null;
+    carrier_barcode_deleted_at?: string | null;
+  },
   now: Date = new Date(),
 ): boolean {
   if (role === "super_admin" || role === "market_manager") return true;
   if (role !== "agent") return false;
   if (order.assigned_to !== actorId) return false;
+  // A reference-deleted upload is back in the agent's hands like a confirmed
+  // order — editable again — even though `uploaded` is otherwise edit-blocked.
+  if (isReferenceDeletedUpload(order)) return true;
   if (EDIT_BLOCKED_STATUSES.has(order.status)) return false;
   if (EDIT_WINDOWED_STATUSES.has(order.status)) {
     return now.getTime() - new Date(order.updated_at).getTime() <= AGENT_WINDOW_MS;

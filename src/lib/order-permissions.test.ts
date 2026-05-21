@@ -7,7 +7,10 @@ import {
   canTransitionOrder,
   canUpdateFulfillment,
   canReopenOrder,
+  canEditOrder,
   canManuallyDeleteOrderStatus,
+  isReferenceDeletedUpload,
+  isBulkCallEligible,
 } from "./order-permissions";
 
 const MARKET_A = "market-a";
@@ -281,5 +284,143 @@ describe("canReopenOrder", () => {
     expect(canReopenOrder("agent", AGENT_ID, {
       status: "rejected", assigned_to: AGENT_ID, updated_at: yesterday,
     })).toBe(true);
+  });
+});
+
+describe("isReferenceDeletedUpload", () => {
+  test("true for uploaded order whose barcode was deleted and has no tracking number", () => {
+    expect(
+      isReferenceDeletedUpload({
+        status: "uploaded",
+        tracking_number: null,
+        carrier_barcode_deleted_at: "2026-05-20T10:00:00Z",
+      }),
+    ).toBe(true);
+  });
+
+  test("false for uploaded order that still has a tracking number", () => {
+    expect(
+      isReferenceDeletedUpload({
+        status: "uploaded",
+        tracking_number: "TRK-123",
+        carrier_barcode_deleted_at: "2026-05-20T10:00:00Z",
+      }),
+    ).toBe(false);
+  });
+
+  test("false for uploaded order whose barcode was never deleted", () => {
+    expect(
+      isReferenceDeletedUpload({
+        status: "uploaded",
+        tracking_number: "TRK-123",
+        carrier_barcode_deleted_at: null,
+      }),
+    ).toBe(false);
+  });
+
+  test("false for a confirmed order (not an upload)", () => {
+    expect(
+      isReferenceDeletedUpload({
+        status: "confirmed",
+        tracking_number: null,
+        carrier_barcode_deleted_at: null,
+      }),
+    ).toBe(false);
+  });
+
+  test("tolerates missing optional fields", () => {
+    expect(isReferenceDeletedUpload({ status: "uploaded" })).toBe(false);
+  });
+});
+
+describe("isBulkCallEligible", () => {
+  test.each(["pending", "assigned", "attempt_1", "attempt_2", "attempt_3", "callback_scheduled"])(
+    "eligible for call-pool status %s",
+    (status) => {
+      expect(isBulkCallEligible({ status })).toBe(true);
+    },
+  );
+
+  test.each(["confirmed", "dispatch_scheduled", "dispatched", "scanned", "delivered", "returned", "rejected", "cancelled"])(
+    "not eligible for status %s",
+    (status) => {
+      expect(isBulkCallEligible({ status })).toBe(false);
+    },
+  );
+
+  test("not eligible for a normal uploaded order", () => {
+    expect(
+      isBulkCallEligible({ status: "uploaded", tracking_number: "TRK-1", carrier_barcode_deleted_at: null }),
+    ).toBe(false);
+  });
+
+  test("eligible for a reference-deleted upload", () => {
+    expect(
+      isBulkCallEligible({ status: "uploaded", tracking_number: null, carrier_barcode_deleted_at: "2026-05-20T10:00:00Z" }),
+    ).toBe(true);
+  });
+});
+
+describe("canEditOrder", () => {
+  const AGENT_ID = "agent-1";
+  const now = new Date("2026-05-21T12:00:00Z");
+  const recent = new Date("2026-05-20T12:00:00Z").toISOString();
+
+  test("agent cannot edit a normal uploaded order (locked)", () => {
+    expect(
+      canEditOrder("agent", AGENT_ID, {
+        status: "uploaded",
+        assigned_to: AGENT_ID,
+        updated_at: recent,
+        tracking_number: "TRK-1",
+        carrier_barcode_deleted_at: null,
+      }, now),
+    ).toBe(false);
+  });
+
+  test("agent CAN edit own uploaded order once the reference is deleted", () => {
+    expect(
+      canEditOrder("agent", AGENT_ID, {
+        status: "uploaded",
+        assigned_to: AGENT_ID,
+        updated_at: recent,
+        tracking_number: null,
+        carrier_barcode_deleted_at: recent,
+      }, now),
+    ).toBe(true);
+  });
+
+  test("agent cannot edit a reference-deleted upload assigned to someone else", () => {
+    expect(
+      canEditOrder("agent", AGENT_ID, {
+        status: "uploaded",
+        assigned_to: "agent-2",
+        updated_at: recent,
+        tracking_number: null,
+        carrier_barcode_deleted_at: recent,
+      }, now),
+    ).toBe(false);
+  });
+
+  test("agent can edit own pending order", () => {
+    expect(
+      canEditOrder("agent", AGENT_ID, {
+        status: "pending",
+        assigned_to: AGENT_ID,
+        updated_at: recent,
+      }, now),
+    ).toBe(true);
+  });
+
+  test("manager can edit any uploaded order regardless of reference state", () => {
+    expect(
+      canEditOrder("market_manager", AGENT_ID, {
+        status: "uploaded",
+        assigned_to: AGENT_ID,
+        updated_at: recent,
+        tracking_number: "TRK-1",
+        carrier_barcode_deleted_at: null,
+      }, now),
+    ).toBe(true);
   });
 });

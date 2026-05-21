@@ -4,6 +4,7 @@ import { memo, useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Phone, Clock, Check, CalendarDays } from "lucide-react";
 import { extractAttemptNumber } from "@/lib/attempt-logic";
+import { isReferenceDeletedUpload, isBulkCallEligible, EDIT_BLOCKED_STATUSES } from "@/lib/order-permissions";
 import { formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { AttemptEtiquette } from "./AttemptEtiquette";
@@ -58,6 +59,35 @@ function Highlighted({
         ),
       )}
     </>
+  );
+}
+
+/**
+ * A pill-shaped status sign: a small filled dot + label. The dot pairs the
+ * color with the text so the state reads at a glance and stays accessible
+ * (color is never the only signal).
+ */
+function StatusSign({
+  label,
+  dot,
+  className,
+}: {
+  label: string;
+  dot?: string;
+  className: string;
+}) {
+  return (
+    <span
+      className={[
+        "inline-flex items-center gap-1.5 px-3 py-1 rounded-pill text-[11px] font-bold tracking-[0.04em] whitespace-nowrap",
+        className,
+      ].join(" ")}
+    >
+      {dot && (
+        <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+      )}
+      {label}
+    </span>
   );
 }
 
@@ -124,11 +154,21 @@ export const OrderCard = memo(function OrderCard({
     isAttemptStatus ? Math.max(order.attempt_count ?? 0, attemptNumber) : 0;
   const isMaxAttempt = currentAttemptCount >= maxAttempts;
 
-  const showRow3 =
-    isAttemptStatus ||
-    order.status === "callback_scheduled" ||
-    order.status === "dispatch_scheduled" ||
-    order.customer_note !== null;
+  // The "End call" affordance shows whenever the order is still in the agent's
+  // hands: the call pool (new/assigned/attempts/callbacks), confirmed, or a
+  // scheduled dispatch — plus uploads whose carrier reference was deleted
+  // (treated like confirmed). It is hidden on terminal and carrier-locked
+  // statuses (rejected, normal uploaded, dispatched, …).
+  const TERMINAL = new Set([
+    "delivered",
+    "returned",
+    "rejected",
+    "deleted",
+    "cancelled",
+  ]);
+  const showEndCall =
+    !TERMINAL.has(order.status) &&
+    (isReferenceDeletedUpload(order) || !EDIT_BLOCKED_STATUSES.has(order.status));
 
   const truncatedNote =
     order.customer_note && order.customer_note.length > 60
@@ -163,12 +203,25 @@ export const OrderCard = memo(function OrderCard({
   }
 
   // Status pill style: attempts/callbacks are handled by AttemptEtiquette.
+  // Every other status gets a labelled pill with a leading status dot so the
+  // order's state is spottable at a glance, at any breakpoint.
   const statusPill = (() => {
+    // A reference-deleted upload is back in the agent's hands — surface it as
+    // "À réuploader" rather than the carrier-locked "Téléchargé".
+    if (isReferenceDeletedUpload(order)) {
+      return {
+        label: t("statusReferenceDeleted"),
+        className:
+          "bg-status-warningBg text-status-warning border border-status-warning/30",
+        dot: "bg-status-warning",
+      };
+    }
     if (order.status === "confirmed") {
       return {
         label: ts("confirmed"),
         className:
           "bg-agent-primary-container/15 text-agent-on-primary-container border border-agent-primary/20",
+        dot: "bg-agent-primary",
       };
     }
     if (order.status === "uploaded") {
@@ -176,6 +229,7 @@ export const OrderCard = memo(function OrderCard({
         label: ts("uploaded"),
         className:
           "bg-[#F3E8FF] text-[#7C3AED] border border-[#7C3AED]/25",
+        dot: "bg-[#7C3AED]",
       };
     }
     if (order.status === "dispatched") {
@@ -183,6 +237,7 @@ export const OrderCard = memo(function OrderCard({
         label: ts("dispatched"),
         className:
           "bg-status-successBg text-status-success border border-status-success/25",
+        dot: "bg-status-success",
       };
     }
     if (order.status === "rejected") {
@@ -190,13 +245,16 @@ export const OrderCard = memo(function OrderCard({
         label: ts("rejected"),
         className:
           "bg-status-criticalBg text-status-critical border border-status-critical/25",
+        dot: "bg-status-critical",
       };
     }
     if (order.status === "pending" || order.status === "assigned") {
       return {
         label: ts(order.status as Parameters<typeof ts>[0]),
+        // New orders read as "fresh" with the blue nouveau accent + a live dot.
         className:
-          "bg-agent-surface-high text-agent-on-surface-variant border border-agent-outline-variant",
+          "bg-[#1E3A5F]/10 text-[#1E3A5F] border border-[#1E3A5F]/25",
+        dot: "bg-[#1E3A5F]",
       };
     }
     return null;
@@ -218,8 +276,10 @@ export const OrderCard = memo(function OrderCard({
         isSelected ? "ring-2 ring-black/20" : "",
       ].join(" ")}
     >
-      {/* Bulk-select checkbox — top-leading corner, fades in on hover */}
-      {onToggleSelect && (
+      {/* Bulk-select checkbox — only on orders that can join a "Start calls"
+          batch, so the bulk bar never queues an order the call sheet can't act
+          on (confirmed / uploaded / dispatched / closed have no checkbox). */}
+      {onToggleSelect && isBulkCallEligible(order) && (
         <button
           type="button"
           role="checkbox"
@@ -281,25 +341,29 @@ export const OrderCard = memo(function OrderCard({
               />
             )}
           </div>
-          <div className="flex items-center gap-2 mt-0.5 text-[12.5px] text-agent-on-surface-variant">
-            <a
-              href={`tel:${order.customer_phone}`}
-              onClick={(e) => e.stopPropagation()}
-              aria-label={t("phoneAria", { phone: order.customer_phone })}
-              className="inline-flex items-center gap-1 tabular-nums hover:text-agent-on-surface hover:underline"
-            >
-              <Phone size={11} strokeWidth={2} aria-hidden="true" />
-              <span>{order.customer_phone}</span>
-            </a>
+          {/* Phone — the field the agent needs to spot. Promoted to a bold,
+              tappable chip that stands clear of the secondary meta below. */}
+          <a
+            href={`tel:${order.customer_phone}`}
+            data-phone-spot="true"
+            onClick={(e) => e.stopPropagation()}
+            aria-label={t("phoneAria", { phone: order.customer_phone })}
+            className="mt-1 inline-flex w-fit items-center gap-1.5 ps-1.5 pe-2.5 py-1 rounded-pill bg-agent-surface-high border border-agent-outline-variant text-[14px] font-bold tabular-nums text-agent-on-surface tracking-[0.01em] hover:border-agent-primary hover:text-agent-primary transition-colors duration-fast"
+          >
+            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-agent-primary/10 text-agent-primary">
+              <Phone size={12} strokeWidth={2.25} aria-hidden="true" />
+            </span>
+            <span>{order.customer_phone}</span>
+          </a>
+          <div className="flex items-center gap-2 mt-1 text-[12px] text-agent-on-surface-variant">
             {order.customer_city && (
               <>
-                <span aria-hidden="true" className="opacity-60">·</span>
                 <span className="truncate">
                   <Highlighted value={order.customer_city} field="city" query={highlightQuery} />
                 </span>
+                <span aria-hidden="true" className="opacity-60">·</span>
               </>
             )}
-            <span aria-hidden="true" className="opacity-60">·</span>
             <span
               className="inline-flex items-center gap-1 tabular-nums shrink-0"
               aria-label={t("createdAt", { date: formatDateTime(order.created_at, locale) })}
@@ -342,8 +406,9 @@ export const OrderCard = memo(function OrderCard({
           </span>
         </div>
 
-        {/* Status pill — far trailing edge */}
-        <div className="shrink-0 ps-2 hidden lg:flex items-center">
+        {/* Status sign — far trailing edge. Always visible so the agent can
+            read the order's state at a glance on any screen width. */}
+        <div className="shrink-0 ps-2 flex items-center">
           {isAttemptOrCallback(order.status) ? (
             <AttemptEtiquette
               status={order.status}
@@ -360,24 +425,10 @@ export const OrderCard = memo(function OrderCard({
                 reason={order.rejection_reason}
                 note={order.rejection_note}
               >
-                <span
-                  className={[
-                    "inline-flex items-center px-3.5 py-1 rounded-pill text-[11px] font-bold tracking-[0.04em]",
-                    statusPill.className,
-                  ].join(" ")}
-                >
-                  {statusPill.label}
-                </span>
+                <StatusSign label={statusPill.label} dot={statusPill.dot} className={statusPill.className} />
               </RejectionReasonHover>
             ) : (
-              <span
-                className={[
-                  "inline-flex items-center px-3.5 py-1 rounded-pill text-[11px] font-bold tracking-[0.04em]",
-                  statusPill.className,
-                ].join(" ")}
-              >
-                {statusPill.label}
-              </span>
+              <StatusSign label={statusPill.label} dot={statusPill.dot} className={statusPill.className} />
             )
           ) : null}
         </div>
@@ -417,8 +468,8 @@ export const OrderCard = memo(function OrderCard({
         </div>
       )}
 
-      {/* Call-ended action — shown for any non-terminal status; trailing edge */}
-      {showRow3 && (
+      {/* Call-ended action — shown while the order is still in the agent's hands */}
+      {showEndCall && (
         <div className="flex justify-end mt-3">
           <Button
             size="sm"

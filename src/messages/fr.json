@@ -974,6 +974,7 @@
       "cityNoResults": "Aucune destination trouvée.",
       "carrierBarcodeDeletedBadge": "{carrier} annulé",
       "carrierBarcodeDeletedTooltip": "Code-barres supprimé le {date} — peut être réuploadé",
+      "statusReferenceDeleted": "À réuploader",
       "deleteBarcodeSuccess": "Code-barres supprimé",
       "changeStatus": "Modifier statut",
       "outOfStock": "Rupture de stock",
