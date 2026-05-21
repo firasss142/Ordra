@@ -156,17 +156,26 @@ export async function PATCH(
     ? updates.card_payment
     : order.card_payment) as boolean;
 
-  // delivery_fee: validate ≥ 0, recompute total_price from order_items subtotal
+  // Product subtotal = SUM(order_items.line_total). Legacy single-item orders have
+  // no order_items rows, so fall back to unit_price * quantity (the value the
+  // quantity/product branches use). Without the fallback, recompute branches would
+  // see a 0 subtotal and zero out total_price on those orders.
+  const resolveSubtotal = async (): Promise<number> => {
+    const { data: items } = await supabase.from("order_items").select("line_total").eq("order_id", id);
+    if ((items?.length ?? 0) > 0) {
+      return items!.reduce((sum: number, item: { line_total: number }) => sum + Number(item.line_total), 0);
+    }
+    return Number(order.unit_price ?? 0) * Number(order.quantity ?? 0);
+  };
+
+  // delivery_fee: validate ≥ 0, recompute total_price from product subtotal + new fee
   if ("delivery_fee" in body && body.delivery_fee !== undefined) {
     const fee = typeof body.delivery_fee === "string" ? parseFloat(body.delivery_fee) : body.delivery_fee as number;
     if (typeof fee !== "number" || isNaN(fee) || fee < 0) {
       return NextResponse.json({ error: "delivery_fee must be >= 0" }, { status: 400 });
     }
     updates.delivery_fee = fee;
-    // Recompute total from current items + new fee (+10% on subtotal if card payment)
-    const { data: items } = await supabase.from("order_items").select("line_total").eq("order_id", id);
-    const subtotal = (items ?? []).reduce((sum: number, item: { line_total: number }) => sum + Number(item.line_total), 0);
-    updates.total_price = computeOrderTotal(subtotal, fee, cardPayment);
+    updates.total_price = computeOrderTotal(await resolveSubtotal(), fee, cardPayment);
   }
 
   // Quantity → recalculate total_price from current unit_price (+10% if card payment)
@@ -285,15 +294,9 @@ export async function PATCH(
 
   // Standalone card_payment toggle (no other total-affecting field changed):
   // recompute total_price from the product subtotal + current delivery_fee so the
-  // +10% is applied/removed immediately. Legacy single-item orders have no
-  // order_items rows — fall back to unit_price * quantity for the subtotal.
+  // +10% is applied/removed immediately.
   if ("card_payment" in updates && !("total_price" in updates)) {
-    const { data: items } = await supabase.from("order_items").select("line_total").eq("order_id", id);
-    const itemsSubtotal = (items ?? []).reduce((sum: number, item: { line_total: number }) => sum + Number(item.line_total), 0);
-    const subtotal = (items?.length ?? 0) > 0
-      ? itemsSubtotal
-      : Number(order.unit_price ?? 0) * Number(order.quantity ?? 0);
-    updates.total_price = computeOrderTotal(subtotal, Number(order.delivery_fee ?? 0), cardPayment);
+    updates.total_price = computeOrderTotal(await resolveSubtotal(), Number(order.delivery_fee ?? 0), cardPayment);
   }
 
   if (Object.keys(updates).length === 0) {
