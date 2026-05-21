@@ -95,6 +95,7 @@ export function PostCallActionSheet({
   onSuccess,
 }: PostCallActionSheetProps) {
   const t = useTranslations("queue");
+  const tDup = useTranslations("duplicateOrder.uploadGuard");
   const panelRef = useRef<HTMLDivElement>(null);
   const [flow, setFlow] = useState<Flow>(initialFlow ?? "option_select");
   const [loading, setLoading] = useState(false);
@@ -118,6 +119,11 @@ export function PostCallActionSheet({
   // UPLOAD_AFTER_CONFIRM
   const [selectedCarrierId, setSelectedCarrierId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  // Duplicate-upload guard: set when the server returns 409 needsConfirmation,
+  // holds the already-shipped sibling so the agent can confirm or cancel.
+  const [duplicateConfirm, setDuplicateConfirm] = useState<{
+    externalId: string | null;
+  } | null>(null);
   const [stateSelection, setStateSelection] = useState<DexpressSelection>({
     stateId: null,
     stateName: "",
@@ -293,7 +299,7 @@ export function PostCallActionSheet({
   }
 
   // ── UPLOAD now (post-confirm) ────────────────────────────────────
-  async function submitUploadNow() {
+  async function submitUploadNow(confirmDuplicate = false) {
     if (!selectedCarrier) return;
 
     // Dexpress requires a destination state_id. Use the order's saved value
@@ -320,9 +326,16 @@ export function PostCallActionSheet({
         body: JSON.stringify({
           carrier_id: selectedCarrier.id,
           extra,
+          ...(confirmDuplicate ? { confirm_duplicate: true } : {}),
         }),
       });
       const json = await res.json().catch(() => ({}));
+      // Duplicate-upload guard: a sibling order is already shipped to the
+      // carrier. Ask the agent to confirm rather than silently shipping twice.
+      if (res.status === 409 && json?.needsConfirmation) {
+        setDuplicateConfirm({ externalId: json?.duplicate?.external_id ?? null });
+        return;
+      }
       if (!res.ok) {
         setError(
           typeof json?.error === "string"
@@ -331,6 +344,7 @@ export function PostCallActionSheet({
         );
         return;
       }
+      setDuplicateConfirm(null);
       onSuccess({ action: "confirmed", newStatus: "uploaded" });
     } catch {
       setError(t("networkError"));
@@ -641,7 +655,7 @@ export function PostCallActionSheet({
                     type="button"
                     className={`${submitButtonClasses} flex-1`}
                     disabled={!selectedCarrier || uploading}
-                    onClick={submitUploadNow}
+                    onClick={() => submitUploadNow()}
                   >
                     {uploading ? t("uploadingNow") : t("uploadNow")}
                   </button>
@@ -689,7 +703,7 @@ export function PostCallActionSheet({
                   type="button"
                   className={`${submitButtonClasses} mt-4`}
                   disabled={stateSelection.stateId === null || uploading}
-                  onClick={submitUploadNow}
+                  onClick={() => submitUploadNow()}
                 >
                   {uploading ? t("uploadingNow") : t("uploadNow")}
                 </button>
@@ -794,6 +808,51 @@ export function PostCallActionSheet({
         </div>
       </FocusTrap>
     </div>
+
+    {/* Duplicate-upload confirm: a sibling order is already shipped to the
+        carrier. Warn but allow the agent to proceed. */}
+    {duplicateConfirm && (
+      <div
+        className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/40 p-4"
+        role="dialog"
+        aria-modal="true"
+        onClick={() => setDuplicateConfirm(null)}
+      >
+        <div
+          className="w-full max-w-sm rounded-lg border border-line-subtle bg-surface-card p-5 shadow-[0_8px_24px_rgba(0,0,0,0.18)]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2 className="mb-2 text-[15px] font-semibold text-status-warning">
+            {tDup("title")}
+          </h2>
+          <p className="mb-4 text-[13.5px] leading-relaxed text-ink-secondary">
+            {tDup("body", {
+              externalId: duplicateConfirm.externalId ?? "—",
+            })}
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="inline-flex flex-1 items-center justify-center rounded-md border border-line-strong bg-surface-card px-4 py-2.5 text-[14px] font-medium text-ink-primary transition-colors duration-fast hover:bg-surface-hover"
+              onClick={() => setDuplicateConfirm(null)}
+            >
+              {tDup("cancel")}
+            </button>
+            <button
+              type="button"
+              className={`${submitButtonClasses} flex-1`}
+              disabled={uploading}
+              onClick={() => {
+                setDuplicateConfirm(null);
+                submitUploadNow(true);
+              }}
+            >
+              {uploading ? t("uploadingNow") : tDup("confirm")}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 }

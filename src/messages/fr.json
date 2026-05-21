@@ -1142,6 +1142,19 @@
     "newToast": "Nouvelle notification"
   },
   "queue": {
+    "search": {
+      "placeholder": "Rechercher nom, téléphone, ville, produit…",
+      "aria": "Rechercher dans la file",
+      "clear": "Effacer la recherche",
+      "resultCount": "{count} résultat",
+      "resultCountPlural": "{count} résultats",
+      "noResultsTitle": "Aucun résultat",
+      "noResultsSubtitle": "Aucune commande ne correspond à « {query} ».",
+      "recentTitle": "Recherches récentes",
+      "recentClear": "Effacer l’historique",
+      "shortcutHint": "Appuyez sur / pour rechercher",
+      "fieldHints": "Astuce : phone:, city:, name:, product:"
+    },
     "title": "Ma file d'attente",
     "emptyState": "Aucune commande dans votre file d'attente",
     "callEnded": "Appel terminé",
@@ -3025,6 +3038,25 @@
       "seeAll": "Voir toutes les commandes"
     },
     "addressChange": "↳ nouvelle adresse (avant : {previous})"
+  },
+  "duplicateOrder": {
+    "badge": {
+      "label": "Doublon · {count}"
+    },
+    "popover": {
+      "headline": "Possible doublon — même client, produit et quantité",
+      "subheadline": "Vérifiez avant d'envoyer au transporteur",
+      "sibling": "#{externalId}",
+      "shipped": "Déjà envoyé au transporteur",
+      "qty": "Qté {quantity}",
+      "seeOrder": "Voir la commande"
+    },
+    "uploadGuard": {
+      "title": "Doublon possible",
+      "body": "Cette commande ressemble à un doublon de #{externalId} déjà envoyé au transporteur. Envoyer quand même ?",
+      "confirm": "Envoyer quand même",
+      "cancel": "Annuler"
+    }
   },
   "dispatch": {
     "shippingEyes": {

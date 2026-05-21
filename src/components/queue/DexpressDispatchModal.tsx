@@ -59,6 +59,7 @@ export function DexpressDispatchModal({
   onSuccess,
 }: DexpressDispatchModalProps) {
   const t = useTranslations("dispatch.shippingEyes");
+  const tDup = useTranslations("duplicateOrder.uploadGuard");
   const hasAddress = Boolean(customerAddress && customerAddress.trim());
   const hasPreset = typeof presetStateId === "number" && presetStateId > 0;
   const panelRef = useRef<HTMLDivElement>(null);
@@ -70,6 +71,10 @@ export function DexpressDispatchModal({
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Duplicate-upload guard: set when the server returns 409 needsConfirmation.
+  const [duplicateConfirm, setDuplicateConfirm] = useState<{
+    externalId: string | null;
+  } | null>(null);
 
   const { data: carrierData, isLoading: carrierLoading } = useSWR<{
     carrier: CarrierResolution | null;
@@ -100,8 +105,9 @@ export function DexpressDispatchModal({
     carrier.is_active &&
     hasAddress;
 
-  async function handleSubmit() {
-    if (!canSubmit || !carrier) return;
+  async function handleSubmit(confirmDuplicate = false) {
+    if (!carrier) return;
+    if (!confirmDuplicate && !canSubmit) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -111,9 +117,16 @@ export function DexpressDispatchModal({
         body: JSON.stringify({
           carrier_id: carrier.id,
           extra: { state_id: selection.stateId },
+          ...(confirmDuplicate ? { confirm_duplicate: true } : {}),
         }),
       });
       const json = await res.json().catch(() => ({} as Record<string, unknown>));
+      // Duplicate-upload guard: a sibling order is already shipped to the
+      // carrier. Ask the agent to confirm rather than silently shipping twice.
+      if (res.status === 409 && json?.needsConfirmation) {
+        setDuplicateConfirm({ externalId: json?.duplicate?.external_id ?? null });
+        return;
+      }
       if (!res.ok) {
         setError(
           typeof json?.error === "string" ? json.error : t("dispatchFailed")
@@ -124,6 +137,7 @@ export function DexpressDispatchModal({
         typeof json?.data?.tracking_number === "string"
           ? json.data.tracking_number
           : null;
+      setDuplicateConfirm(null);
       onSuccess(trackingNumber);
     } catch {
       setError(t("dispatchFailed"));
@@ -258,12 +272,58 @@ export function DexpressDispatchModal({
             <button
               type="button"
               disabled={!canSubmit}
-              onClick={handleSubmit}
+              onClick={() => handleSubmit()}
               className="mt-5 w-full rounded bg-ink-primary px-4 py-2.5 text-[14px] font-medium text-surface-card disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? t("uploading") : t("confirmDispatch")}
             </button>
           </div>
+
+          {/* Duplicate-upload confirm: a sibling order is already shipped to the
+              carrier. Warn but allow the agent to proceed. */}
+          {duplicateConfirm && (
+            <div
+              className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4"
+              role="dialog"
+              aria-modal="true"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDuplicateConfirm(null);
+              }}
+            >
+              <div
+                className="w-full max-w-sm rounded-lg border border-line-subtle bg-surface-card p-5 shadow-floating"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="mb-2 text-[15px] font-semibold text-status-warning">
+                  {tDup("title")}
+                </h2>
+                <p className="mb-4 text-[13.5px] leading-relaxed text-ink-secondary">
+                  {tDup("body", { externalId: duplicateConfirm.externalId ?? "—" })}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex flex-1 items-center justify-center rounded-md border border-line-strong bg-surface-card px-4 py-2.5 text-[14px] font-medium text-ink-primary transition-colors duration-fast hover:bg-surface-hover"
+                    onClick={() => setDuplicateConfirm(null)}
+                  >
+                    {tDup("cancel")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    className="inline-flex flex-1 items-center justify-center rounded-md bg-ink-primary px-4 py-2.5 text-[14px] font-medium text-surface-card disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => {
+                      setDuplicateConfirm(null);
+                      handleSubmit(true);
+                    }}
+                  >
+                    {submitting ? t("uploading") : tDup("confirm")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </FocusTrap>
     </div>

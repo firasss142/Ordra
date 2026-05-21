@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { performDispatch } from "@/lib/carriers/perform-dispatch";
+import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,9 @@ export async function POST(
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("id, status, assigned_to")
+    .select(
+      "id, status, assigned_to, market_id, customer_phone, customer_phone_2, product_id, product_name, quantity, created_at",
+    )
     .eq("id", id)
     .single();
 
@@ -82,6 +85,34 @@ export async function POST(
       { error: "Order must be confirmed (or dispatch_scheduled) to upload to carrier" },
       { status: 400 }
     );
+  }
+
+  // Duplicate-order guard (server-authoritative): if a sibling order (same
+  // customer + product + qty within 24h) is ALREADY shipped to the carrier,
+  // uploading this one risks shipping the same order twice. We warn rather than
+  // block — the agent re-POSTs with confirm_duplicate to proceed. The client's
+  // enrichment flag can be stale, so this re-checks at the moment of upload.
+  if (body.confirm_duplicate !== true) {
+    const [dup] = await enrichRowsWithDuplicates(
+      supabase,
+      (order.market_id as string) ?? null,
+      [order as { id: string } & Record<string, unknown>],
+    );
+    if (dup.has_uploaded_sibling) {
+      const shipped = dup.duplicate_siblings.find((s) => s.already_shipped)!;
+      return NextResponse.json(
+        {
+          error: "duplicate_confirmation_required",
+          needsConfirmation: true,
+          duplicate: {
+            id: shipped.id,
+            external_id: shipped.external_id,
+            status: shipped.status,
+          },
+        },
+        { status: 409 },
+      );
+    }
   }
 
   const extra = body.extra as Record<string, unknown> | undefined;

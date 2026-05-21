@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { sortAgentQueue } from "@/lib/orders/queue-sort";
 import { getActor } from "@/lib/auth/actor";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
+import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
 
 export const dynamic = "force-dynamic";
 
@@ -132,19 +133,18 @@ export async function GET(_req: NextRequest) {
   const sortedIds = new Set(sorted.map((o) => o.id));
   const allSorted = [...sorted, ...allOrders.filter((o) => !sortedIds.has(o.id))];
 
-  // Enrich with repeat-buyer signals across the visible queue + closed list.
-  const enrichedActive = await enrichRowsWithCustomerHistory(
-    supabase,
-    actor.market_id ?? null,
-    "order",
-    allSorted,
-  );
-  const enrichedClosed = await enrichRowsWithCustomerHistory(
-    supabase,
-    actor.market_id ?? null,
-    "order",
-    closedOrders,
-  );
+  // Enrich with repeat-buyer signals + duplicate-order detection across the
+  // visible queue + closed list. The two signals are distinct: repeat-buyer is
+  // the same customer over time; duplicate is the same order placed twice.
+  const marketId = actor.market_id ?? null;
+  const [enrichedActive, enrichedClosed] = await Promise.all([
+    enrichRowsWithCustomerHistory(supabase, marketId, "order", allSorted).then(
+      (rows) => enrichRowsWithDuplicates(supabase, marketId, rows),
+    ),
+    enrichRowsWithCustomerHistory(supabase, marketId, "order", closedOrders).then(
+      (rows) => enrichRowsWithDuplicates(supabase, marketId, rows),
+    ),
+  ]);
 
   const enrichedSorted = enrichedActive.filter((o) => sortedIds.has(o.id));
 

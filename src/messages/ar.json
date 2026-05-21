@@ -1142,6 +1142,19 @@
     "newToast": "إشعار جديد"
   },
   "queue": {
+    "search": {
+      "placeholder": "ابحث بالاسم أو الهاتف أو المدينة أو المنتج…",
+      "aria": "ابحث في قائمة الانتظار",
+      "clear": "مسح البحث",
+      "resultCount": "{count} نتيجة",
+      "resultCountPlural": "{count} نتيجة",
+      "noResultsTitle": "لا توجد نتائج",
+      "noResultsSubtitle": "لا يوجد طلب يطابق « {query} ».",
+      "recentTitle": "عمليات البحث الأخيرة",
+      "recentClear": "مسح السجل",
+      "shortcutHint": "اضغط / للبحث",
+      "fieldHints": "تلميح: phone:، city:، name:، product:"
+    },
     "title": "قائمة الانتظار",
     "emptyState": "لا توجد طلبات في قائمتك",
     "callEnded": "انتهت المكالمة",
@@ -2938,6 +2951,25 @@
       "seeAll": "عرض كل الطلبات"
     },
     "addressChange": "↳ عنوان جديد (سابقًا: {previous})"
+  },
+  "duplicateOrder": {
+    "badge": {
+      "label": "مكرر · {count}"
+    },
+    "popover": {
+      "headline": "احتمال تكرار — نفس العميل والمنتج والكمية",
+      "subheadline": "تحقق قبل الإرسال إلى شركة الشحن",
+      "sibling": "#{externalId}",
+      "shipped": "تم إرساله بالفعل إلى شركة الشحن",
+      "qty": "الكمية {quantity}",
+      "seeOrder": "عرض الطلب"
+    },
+    "uploadGuard": {
+      "title": "احتمال تكرار",
+      "body": "يبدو أن هذا الطلب مكرر للطلب رقم #{externalId} الذي تم إرساله بالفعل إلى شركة الشحن. هل تريد الإرسال على أي حال؟",
+      "confirm": "إرسال على أي حال",
+      "cancel": "إلغاء"
+    }
   },
   "dispatch": {
     "shippingEyes": {

@@ -7,6 +7,7 @@ import {
   EDIT_BLOCKED_STATUSES,
 } from "@/lib/order-permissions";
 import { computeOrderTotal } from "@/lib/calculations/order-total";
+import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
 
 export const dynamic = "force-dynamic";
 
@@ -77,7 +78,15 @@ export async function GET(
   // Exclude raw_payload (large webhook JSON blob, not needed in the panel)
   const { raw_payload: _, ...orderFields } = order as typeof order & { raw_payload?: unknown };
 
-  return NextResponse.json({ data: { ...orderFields, history, product_current_stock, order_items } });
+  // Attach duplicate-order detection so the detail panel can warn about a
+  // sibling order (same customer + product + qty within 24h).
+  const [enriched] = await enrichRowsWithDuplicates(
+    supabase,
+    (order.market_id as string) ?? null,
+    [orderFields as { id: string } & Record<string, unknown>],
+  );
+
+  return NextResponse.json({ data: { ...enriched, history, product_current_stock, order_items } });
 }
 
 const SIMPLE_PATCHABLE_FIELDS = ["customer_name", "customer_phone", "customer_phone_2", "customer_address", "customer_city", "quantity"] as const;

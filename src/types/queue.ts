@@ -1,4 +1,5 @@
 import type { RepeatKind } from "@/lib/customer-history/classify";
+import type { SiblingOrder } from "@/lib/duplicate-orders/detect";
 
 export interface QueueOrder {
   id: string;
@@ -26,4 +27,8 @@ export interface QueueOrder {
   last_known_address: string | null;
   rejection_reason: string | null;
   rejection_note: string | null;
+  is_potential_duplicate: boolean;
+  duplicate_count: number;
+  duplicate_siblings: SiblingOrder[];
+  has_uploaded_sibling: boolean;
 }

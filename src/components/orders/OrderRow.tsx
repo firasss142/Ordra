@@ -5,6 +5,7 @@ import { MoreHorizontal, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import type { BadgeTone } from "@/components/ui/Badge";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
+import { DuplicateOrderBadge } from "@/components/shared/DuplicateOrderBadge";
 import { ProductAvatar } from "./ProductAvatar";
 import { SourceLogo } from "@/components/shared/SourceLogo";
 import { formatDateTime } from "@/lib/format";
@@ -224,6 +225,13 @@ function Row({
                 priorLeadCount={order.prior_lead_count ?? 0}
                 priorRejectedCount={order.prior_rejected_count ?? 0}
                 customerPhone={order.customer_phone}
+              />
+            )}
+            {order.is_potential_duplicate && (
+              <DuplicateOrderBadge
+                count={order.duplicate_count ?? 0}
+                siblings={order.duplicate_siblings ?? []}
+                hasUploadedSibling={order.has_uploaded_sibling ?? false}
               />
             )}
           </div>
