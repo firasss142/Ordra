@@ -15,6 +15,9 @@ import {
 } from "./storefronts/HealthBadge";
 import { ConnectionWizard } from "./storefronts/ConnectionWizard";
 import { PlatformIcon } from "./storefronts/PlatformIcon";
+import { GoogleSheetsConfigPanel } from "./storefronts/GoogleSheetsConfigPanel";
+import { GoogleSheetsSyncWidget } from "./storefronts/GoogleSheetsSyncWidget";
+import { useGoogleSheetsSources } from "@/hooks/useGoogleSheetsSources";
 import type { Role } from "@/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -536,6 +539,11 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
         )}
       </div>
 
+      {/* Google Sheets sync */}
+      {marketId && (
+        <GoogleSheetsBlock role={role} marketId={marketId} />
+      )}
+
       {/* Connection wizard */}
       {wizardOpen && canManage && (
         <ConnectionWizard
@@ -807,6 +815,24 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
         </FocusTrap>
       )}
     </>
+  );
+}
+
+function GoogleSheetsBlock({ role, marketId }: { role: Role; marketId: string }) {
+  const { sources, saveSources } = useGoogleSheetsSources(marketId);
+  const canManage = canManageStorefronts(role);
+
+  return (
+    <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 12 }}>
+      <GoogleSheetsSyncWidget marketId={marketId} />
+      {canManage && (
+        <GoogleSheetsConfigPanel
+          marketId={marketId}
+          sources={sources}
+          onSave={saveSources}
+        />
+      )}
+    </div>
   );
 }
 
