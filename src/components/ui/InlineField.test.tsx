@@ -69,6 +69,32 @@ describe("InlineField", () => {
     expect(input.getAttribute("type")).toBe("tel");
   });
 
+  describe("display-mode text color", () => {
+    it("applies the default ink color when no caller color is given", () => {
+      render(<InlineField value="555-1234" onCommit={vi.fn()} displayMode readOnly />);
+      const span = screen.getByText("555-1234");
+      expect(span.className).toContain("text-ink-primary");
+    });
+
+    it("omits the default ink color when the caller supplies a text color", () => {
+      // Regression: phone number on the dark strip rendered black because both
+      // text-ink-primary and !text-white were emitted, letting stylesheet order
+      // decide the winner. The caller's color must be the only text color.
+      render(
+        <InlineField
+          value="555-1234"
+          onCommit={vi.fn()}
+          displayMode
+          readOnly
+          displayClassName="!text-white"
+        />,
+      );
+      const span = screen.getByText("555-1234");
+      expect(span.className).toContain("!text-white");
+      expect(span.className).not.toContain("text-ink-primary");
+    });
+  });
+
   describe("multiline (textarea)", () => {
     it("renders a textarea when multiline and not in display mode", () => {
       render(<InlineField value="Note" onCommit={vi.fn()} multiline />);

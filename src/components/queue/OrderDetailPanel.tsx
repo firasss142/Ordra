@@ -181,14 +181,14 @@ type SectionAccent = "neutral" | "client" | "order" | "note" | "history" | "fulf
 
 const SECTION_ACCENT: Record<
   SectionAccent,
-  { body: string; header: string; border: string; title: string; dot: string }
+  { body: string; border: string; title: string; dot: string }
 > = {
-  neutral: { body: "bg-surface-page", header: "bg-surface-page", border: "border-line-subtle", title: "text-ink-muted", dot: "bg-ink-muted" },
-  client: { body: "bg-[#F7FAFD]", header: "bg-[#EAF1F9]", border: "border-[#D8E5F2]", title: "text-[#2C6ECB]", dot: "bg-[#2C6ECB]" },
-  order: { body: "bg-[#F6FBF8]", header: "bg-[#E8F4EE]", border: "border-[#D4E9DD]", title: "text-[#008060]", dot: "bg-[#008060]" },
-  note: { body: "bg-[#FFFCF2]", header: "bg-[#FBF3DC]", border: "border-[#F0E4C2]", title: "text-[#B98900]", dot: "bg-[#B98900]" },
-  history: { body: "bg-surface-page", header: "bg-surface-page", border: "border-line-subtle", title: "text-ink-muted", dot: "bg-ink-muted" },
-  fulfillment: { body: "bg-[#FAF8FD]", header: "bg-[#EFEAF8]", border: "border-[#E0D7F0]", title: "text-[#6A4FB3]", dot: "bg-[#6A4FB3]" },
+  neutral: { body: "bg-surface-page", border: "border-line-subtle", title: "text-ink-muted", dot: "bg-ink-muted" },
+  client: { body: "bg-[#F7FAFD]", border: "border-[#D8E5F2]", title: "text-[#2C6ECB]", dot: "bg-[#2C6ECB]" },
+  order: { body: "bg-[#F6FBF8]", border: "border-[#D4E9DD]", title: "text-[#008060]", dot: "bg-[#008060]" },
+  note: { body: "bg-[#FFFCF2]", border: "border-[#F0E4C2]", title: "text-[#B98900]", dot: "bg-[#B98900]" },
+  history: { body: "bg-surface-page", border: "border-line-subtle", title: "text-ink-muted", dot: "bg-ink-muted" },
+  fulfillment: { body: "bg-[#FAF8FD]", border: "border-[#E0D7F0]", title: "text-[#6A4FB3]", dot: "bg-[#6A4FB3]" },
 };
 
 function SectionCard({
@@ -212,13 +212,7 @@ function SectionCard({
         className,
       ].join(" ")}
     >
-      <div
-        className={[
-          "flex items-center gap-2 px-5 py-2.5 border-b",
-          tone.header,
-          tone.border,
-        ].join(" ")}
-      >
+      <div className="flex items-center gap-2 px-5 pt-3 pb-1">
         <span
           aria-hidden="true"
           className={["w-1.5 h-1.5 rounded-full flex-shrink-0", tone.dot].join(" ")}
@@ -1136,11 +1130,7 @@ export function OrderDetailPanel({
                         onClick={() => setOrderOpen((open) => !open)}
                         aria-expanded={orderOpen}
                         data-testid="order-details-toggle"
-                        className={[
-                          "flex w-full items-center gap-2 px-5 py-2.5 text-start border-b transition-colors duration-fast hover:brightness-[0.98]",
-                          orderAccent.header,
-                          orderAccent.border,
-                        ].join(" ")}
+                        className="flex w-full items-center gap-2 px-5 pt-3 pb-1 text-start"
                       >
                         <span
                           aria-hidden="true"
@@ -1161,45 +1151,49 @@ export function OrderDetailPanel({
                         />
                       </button>
 
-                      {/* Compact summary — always visible */}
-                      <div className="flex items-center gap-3 px-5 py-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-baseline gap-2 min-w-0">
-                            <span className="truncate text-[14px] font-semibold text-ink-primary">
-                              {summaryItem?.product_name ?? "—"}
-                            </span>
-                            {extraItemCount > 0 && (
-                              <span className="flex-shrink-0 text-[11px] font-medium text-ink-muted tabular-nums">
-                                +{extraItemCount}
+                      {/* Compact summary — shown only when collapsed; the
+                          expanded view holds the full editable detail instead,
+                          so the same info is never displayed twice. */}
+                      {!orderOpen && (
+                        <div className="flex items-center gap-3 px-5 pt-1 pb-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline gap-2 min-w-0">
+                              <span className="truncate text-[14px] font-semibold text-ink-primary">
+                                {summaryItem?.product_name ?? "—"}
                               </span>
-                            )}
+                              {extraItemCount > 0 && (
+                                <span className="flex-shrink-0 text-[11px] font-medium text-ink-muted tabular-nums">
+                                  +{extraItemCount}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[12px] text-ink-secondary tabular-nums">
+                              {summaryItem?.quantity ?? 0}
+                              <span className="text-ink-muted"> × </span>
+                              {summaryItem?.unit_price ?? 0} {displayCurrency}
+                            </span>
                           </div>
-                          <span className="text-[12px] text-ink-secondary tabular-nums">
-                            {summaryItem?.quantity ?? 0}
-                            <span className="text-ink-muted"> × </span>
-                            {summaryItem?.unit_price ?? 0} {displayCurrency}
+                          {isLibyaOrder && (
+                            <label className={`flex items-center gap-1.5 flex-shrink-0 ${canEdit ? "cursor-pointer" : "cursor-default"}`}>
+                              <input
+                                type="checkbox"
+                                checked={order.card_payment}
+                                disabled={!canEdit}
+                                onChange={(e) => runCommit({ card_payment: e.target.checked })}
+                                className="h-4 w-4 rounded border-line-strong text-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-50"
+                              />
+                              <span className="text-[11px] text-ink-secondary whitespace-nowrap">{t("cardPayment")}</span>
+                            </label>
+                          )}
+                          <span className="flex-shrink-0 text-[16px] font-bold text-ink-primary tabular-nums tracking-tight whitespace-nowrap">
+                            {order.total_price}
+                            <span className="text-[11px] font-semibold text-ink-secondary ms-1">{displayCurrency}</span>
                           </span>
                         </div>
-                        {isLibyaOrder && (
-                          <label className={`flex items-center gap-1.5 flex-shrink-0 ${canEdit ? "cursor-pointer" : "cursor-default"}`}>
-                            <input
-                              type="checkbox"
-                              checked={order.card_payment}
-                              disabled={!canEdit}
-                              onChange={(e) => runCommit({ card_payment: e.target.checked })}
-                              className="h-4 w-4 rounded border-line-strong text-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-50"
-                            />
-                            <span className="text-[11px] text-ink-secondary whitespace-nowrap">{t("cardPayment")}</span>
-                          </label>
-                        )}
-                        <span className="flex-shrink-0 text-[16px] font-bold text-ink-primary tabular-nums tracking-tight whitespace-nowrap">
-                          {order.total_price}
-                          <span className="text-[11px] font-semibold text-ink-secondary ms-1">{displayCurrency}</span>
-                        </span>
-                      </div>
+                      )}
 
                       {orderOpen && (
-                      <div className="px-5 pb-2 pt-0 flex flex-col border-t border-dashed border-line-subtle">
+                      <div className="px-5 pb-2 pt-1 flex flex-col">
                         {/* Line items */}
                         {items.map((item, idx) => {
                           const itemProduct =
@@ -1379,13 +1373,23 @@ export function OrderDetailPanel({
                               />
                             </div>
                           </div>
-                          {/* Card payment surcharge note (+10%) — Libya only.
-                              The toggle itself lives in the compact summary. */}
-                          {isLibyaOrder && order.card_payment && (
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-[12px] text-ink-secondary">{t("cardPayment")}</span>
-                              <span className="text-[11px] font-semibold text-ink-muted tabular-nums">+10%</span>
-                            </div>
+                          {/* Card payment (+10% on product subtotal) — Libya only */}
+                          {isLibyaOrder && (
+                            <label className={`flex items-center justify-between gap-2 ${canEdit ? "cursor-pointer" : "cursor-default"}`}>
+                              <span className="flex items-center gap-1.5 text-[12px] text-ink-secondary">
+                                {t("cardPayment")}
+                                {order.card_payment && (
+                                  <span className="text-[11px] font-semibold text-ink-muted tabular-nums">+10%</span>
+                                )}
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={order.card_payment}
+                                disabled={!canEdit}
+                                onChange={(e) => runCommit({ card_payment: e.target.checked })}
+                                className="h-4 w-4 rounded border-line-strong text-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-50"
+                              />
+                            </label>
                           )}
                           {/* Grand total — emphasised band */}
                           <div className="-mx-2 mt-1 flex items-center justify-between rounded-card bg-[#F1F8F5] border border-status-success/15 px-3 py-2.5">
@@ -1417,14 +1421,14 @@ export function OrderDetailPanel({
                     onClick={() => setHistoryOpen((open) => !open)}
                     aria-expanded={historyOpen}
                     data-testid="order-history-toggle"
-                    className="flex w-full items-center justify-between gap-3 px-5 py-2.5 text-start bg-surface-page hover:bg-surface-hover transition-colors duration-fast"
+                    className="flex w-full items-center justify-between gap-3 px-5 py-3 text-start transition-colors duration-fast"
                   >
                     <span className="flex items-center gap-2 min-w-0">
                       <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-ink-muted flex-shrink-0" />
                       <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
                         {historyTitle}
                       </span>
-                      <span className="rounded-pill bg-surface-page px-2 py-0.5 text-[11px] font-semibold tabular-nums text-ink-secondary">
+                      <span className="rounded-pill bg-surface-card px-2 py-0.5 text-[11px] font-semibold tabular-nums text-ink-secondary">
                         {order.history.length}
                       </span>
                     </span>
