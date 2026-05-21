@@ -157,6 +157,34 @@ describe("DuplicateOrderBadge", () => {
     expect(screen.queryByLabelText(/Supprimer la commande/)).toBeNull();
   });
 
+  it("hides the delete button for an UPLOADED sibling (committed to carrier)", () => {
+    const { container } = render(
+      <DuplicateOrderBadge
+        count={1}
+        siblings={[sibling({ status: "uploaded", already_shipped: true })]}
+        hasUploadedSibling
+        anchorOrderId="anchor-1"
+        canDelete
+      />,
+    );
+    openDialog(container);
+    expect(screen.queryByLabelText(/Supprimer la commande/)).toBeNull();
+  });
+
+  it("hides the delete button for a SCANNED sibling (stock deducted)", () => {
+    const { container } = render(
+      <DuplicateOrderBadge
+        count={1}
+        siblings={[sibling({ status: "scanned" })]}
+        hasUploadedSibling={false}
+        anchorOrderId="anchor-1"
+        canDelete
+      />,
+    );
+    openDialog(container);
+    expect(screen.queryByLabelText(/Supprimer la commande/)).toBeNull();
+  });
+
   it("posts the delete, drops the sibling, and calls onChange on success", async () => {
     const onChange = vi.fn();
     const fetchMock = vi.fn().mockResolvedValue({

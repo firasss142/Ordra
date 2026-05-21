@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
 import { Layers, AlertTriangle, ExternalLink, Trash2, X } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
-import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
+import { canDeleteDuplicateSiblingStatus } from "@/lib/order-permissions";
 import type { SiblingOrder } from "@/lib/duplicate-orders/detect";
 
 export interface DuplicateOrderBadgeProps {
@@ -208,7 +208,7 @@ function DuplicateDialog({
               const href = s.external_id
                 ? `/${locale}/orders?q=${encodeURIComponent(s.external_id)}`
                 : `/${locale}/orders?q=${encodeURIComponent(s.id)}`;
-              const deletable = canDelete && canManuallyDeleteOrderStatus(s.status);
+              const deletable = canDelete && canDeleteDuplicateSiblingStatus(s.status);
               return (
                 <li
                   key={s.id}

@@ -31,6 +31,8 @@ export interface QueueOrder {
   duplicate_count: number;
   duplicate_siblings: SiblingOrder[];
   has_uploaded_sibling: boolean;
+  /** True only for the newest order in a duplicate group — the one that carries the icon. */
+  is_duplicate_anchor: boolean;
   /** Carrier tracking number — set once uploaded, cleared when the reference is deleted. */
   tracking_number: string | null;
   /** When set (with no tracking_number), an uploaded order's carrier reference was deleted. */

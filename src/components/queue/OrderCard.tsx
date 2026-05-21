@@ -336,7 +336,7 @@ export const OrderCard = memo(function OrderCard({
                 customerPhone={order.customer_phone}
               />
             )}
-            {order.is_potential_duplicate && (
+            {order.is_potential_duplicate && order.is_duplicate_anchor && (
               <DuplicateOrderBadge
                 count={order.duplicate_count}
                 siblings={order.duplicate_siblings}

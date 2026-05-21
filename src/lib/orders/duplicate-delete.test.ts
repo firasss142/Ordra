@@ -165,6 +165,46 @@ describe("verifyAndDeleteDuplicateSibling", () => {
     ).rejects.toMatchObject({ status: 400 });
   });
 
+  test("400 when the target is an UPLOADED sibling (committed to carrier — never order-deletable here)", async () => {
+    const supabase = makeSupabase({
+      orders: [
+        { data: makeAnchor(), error: null },
+        { data: makeTargetRow({ status: "uploaded", tracking_number: "TRK1" }), error: null },
+      ],
+    });
+    const deleteOrders = vi.fn();
+    await expect(
+      verifyAndDeleteDuplicateSibling(supabase, admin, {
+        anchorId: ANCHOR_ID,
+        targetId: TARGET_ID,
+        actor: agent,
+        enrich: enrichWith([sibling({ status: "uploaded", already_shipped: true })]),
+        deleteOrders,
+      }),
+    ).rejects.toMatchObject({ status: 400, reason: "status_not_deletable" });
+    expect(deleteOrders).not.toHaveBeenCalled();
+  });
+
+  test("400 when the target is a SCANNED sibling (stock deducted — never order-deletable here)", async () => {
+    const supabase = makeSupabase({
+      orders: [
+        { data: makeAnchor(), error: null },
+        { data: makeTargetRow({ status: "scanned" }), error: null },
+      ],
+    });
+    const deleteOrders = vi.fn();
+    await expect(
+      verifyAndDeleteDuplicateSibling(supabase, admin, {
+        anchorId: ANCHOR_ID,
+        targetId: TARGET_ID,
+        actor: agent,
+        enrich: enrichWith([sibling({ status: "scanned", already_shipped: true })]),
+        deleteOrders,
+      }),
+    ).rejects.toMatchObject({ status: 400, reason: "status_not_deletable" });
+    expect(deleteOrders).not.toHaveBeenCalled();
+  });
+
   test("happy path: agent deletes a verified sibling and gets the re-enriched anchor", async () => {
     const supabase = makeSupabase({
       orders: [

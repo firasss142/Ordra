@@ -38,6 +38,7 @@ interface OrderDetailData {
   duplicate_count?: number;
   duplicate_siblings?: SiblingOrder[];
   has_uploaded_sibling?: boolean;
+  is_duplicate_anchor?: boolean;
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -137,7 +138,7 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
         <span style={{ fontSize: 14, fontWeight: 500, color: "#1A1A1A" }}>
           {order.customer_name}
         </span>
-        {order.is_potential_duplicate && (
+        {order.is_potential_duplicate && order.is_duplicate_anchor && (
           <DuplicateOrderBadge
             count={order.duplicate_count ?? 0}
             siblings={order.duplicate_siblings ?? []}
