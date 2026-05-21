@@ -142,8 +142,11 @@ function TabButton({
       aria-selected={active}
       onClick={onClick}
       className={[
-        "group relative inline-flex items-center gap-2 py-2 px-4 rounded-xl",
-        "text-[13.5px] font-semibold transition-all duration-fast",
+        // Mobile: equal-width tabs that split the row so all four show without
+        // scrolling (icon hidden, tighter padding). Desktop keeps the original
+        // auto-width icon+label tab.
+        "group relative flex-1 sm:flex-none justify-center inline-flex items-center gap-1 sm:gap-2 py-2 px-1.5 sm:px-4 rounded-xl",
+        "text-[12px] sm:text-[13.5px] font-semibold transition-all duration-fast",
         active
           ? `${tone.activeBg} ${tone.activeText} shadow-[0_1px_2px_rgba(16,24,40,0.04)] border ${tone.activeBorder}`
           : "text-agent-on-surface-variant hover:text-agent-on-surface hover:bg-agent-surface-low/60 border border-transparent",
@@ -153,12 +156,15 @@ function TabButton({
         size={15}
         strokeWidth={active ? 2.5 : 2}
         aria-hidden="true"
-        className={active ? tone.iconActive : "text-agent-on-surface-variant/70"}
+        className={[
+          "hidden sm:inline",
+          active ? tone.iconActive : "text-agent-on-surface-variant/70",
+        ].join(" ")}
       />
-      <span>{label}</span>
+      <span className="truncate">{label}</span>
       <span
         className={[
-          "inline-flex items-center justify-center min-w-[20px] h-[18px] px-1.5 rounded-pill tabular-nums text-[11px] font-bold",
+          "inline-flex items-center justify-center min-w-[18px] sm:min-w-[20px] h-[18px] px-1 sm:px-1.5 rounded-pill tabular-nums text-[10.5px] sm:text-[11px] font-bold shrink-0",
           active ? `${tone.chipBg} ${tone.chipText}` : "bg-agent-surface-high text-agent-on-surface-variant/80",
         ].join(" ")}
       >
@@ -200,11 +206,13 @@ function SubChip({
       aria-expanded={ariaHaspopup ? ariaExpanded : undefined}
       onClick={onClick}
       className={[
-        "inline-flex items-center gap-1.5 py-1 px-2.5 rounded-pill",
-        "text-[11.5px] font-semibold transition-colors duration-fast",
+        // Larger tap target on mobile (~40px tall) so chips are easy to press;
+        // desktop keeps the original compact size.
+        "inline-flex items-center gap-1.5 shrink-0 py-2 px-3.5 sm:py-1 sm:px-2.5 rounded-pill",
+        "text-[12.5px] sm:text-[11.5px] font-semibold transition-colors duration-fast",
         active
           ? "bg-agent-on-surface/90 text-white"
-          : "bg-transparent text-agent-on-surface-variant hover:bg-agent-surface-high/60 hover:text-agent-on-surface",
+          : "bg-agent-surface sm:bg-transparent border border-agent-outline-variant sm:border-0 text-agent-on-surface-variant hover:bg-agent-surface-high/60 hover:text-agent-on-surface",
       ].join(" ")}
     >
       <span>{children}</span>
@@ -345,7 +353,7 @@ export function QueueHeader({
   const totalPending = counts.nouveau + enCoursTotal;
 
   return (
-    <div className="bg-agent-bg px-8 pt-6 pb-2">
+    <div className="bg-agent-bg px-4 sm:px-8 pt-4 sm:pt-6 pb-2">
       {/* Title row — live queue title + subtitle on lead edge,
           stats + new order on trail edge */}
       <div className="flex items-end justify-between gap-4 mb-4 flex-wrap">
@@ -380,13 +388,28 @@ export function QueueHeader({
 
       {/* Bucket segmented control + primary "New Order" CTA on the row's
           trailing edge (which is the left side in RTL Arabic, right in LTR).
-          Each tab lights up in its lifecycle tone when selected. */}
-      <div className="flex items-center gap-4">
-        <div className="overflow-x-auto min-w-0 -mx-1 px-1 custom-scrollbar">
+          Each tab lights up in its lifecycle tone when selected.
+          On mobile this stacks: a compact New Order button sits on its own row
+          above the four bucket tabs, which then split the full width so all
+          four are visible without horizontal scrolling. */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+        {onNewOrder && (
+          <button
+            type="button"
+            onClick={onNewOrder}
+            className="self-start sm:self-auto sm:order-2 sm:ms-auto shrink-0 inline-flex items-center gap-1 sm:gap-1.5 h-8 sm:h-10 px-3 sm:px-5 rounded-pill bg-agent-primary text-white text-[12.5px] sm:text-[13.5px] font-bold hover:bg-agent-on-primary-container transition-colors duration-fast"
+          >
+            <Plus size={14} strokeWidth={2.5} aria-hidden="true" className="sm:hidden" />
+            <Plus size={16} strokeWidth={2.5} aria-hidden="true" className="hidden sm:inline" />
+            <span>{tShell("newOrder")}</span>
+          </button>
+        )}
+
+        <div className="sm:order-1 sm:overflow-x-auto min-w-0 sm:-mx-1 sm:px-1 custom-scrollbar">
           <div
             role="tablist"
             aria-label={t("title")}
-            className="inline-flex items-center gap-1 p-1 bg-agent-surface rounded-2xl border border-agent-outline-variant shadow-[0_1px_2px_rgba(16,24,40,0.02)]"
+            className="flex sm:inline-flex items-center gap-1 p-1 bg-agent-surface rounded-2xl border border-agent-outline-variant shadow-[0_1px_2px_rgba(16,24,40,0.02)]"
           >
             {TABS.map((tab) => (
               <TabButton
@@ -400,24 +423,15 @@ export function QueueHeader({
             ))}
           </div>
         </div>
-
-        {onNewOrder && (
-          <button
-            type="button"
-            onClick={onNewOrder}
-            className="ms-auto shrink-0 inline-flex items-center gap-1.5 h-10 px-5 rounded-pill bg-agent-primary text-white text-[13.5px] font-bold hover:bg-agent-on-primary-container transition-colors duration-fast"
-          >
-            <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
-            <span>{tShell("newOrder")}</span>
-          </button>
-        )}
       </div>
 
       {/* Sub-filter chips — En cours. Visually subordinate to the segmented control above:
           smaller, ghost-style, with a "Filter:" label so users see the relationship. */}
       {selectedBucket === "en_cours" && (
-        <div className="flex items-center gap-1.5 mt-3 flex-wrap">
-          <span className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-agent-on-surface-variant me-1">
+        // Wraps on mobile (rather than horizontal-scroll) because the Tentative
+        // chip opens a downward popover — an overflow-x scroller would clip it.
+        <div className="flex items-center gap-2 sm:gap-1.5 mt-3 flex-wrap">
+          <span className="shrink-0 text-[10.5px] font-bold uppercase tracking-[0.08em] text-agent-on-surface-variant me-1">
             {tShell("filterLabel")}
           </span>
           <SubChip
@@ -525,7 +539,7 @@ export function QueueHeader({
       )}
 
       {selectedBucket === "fermees" && (
-        <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-1.5 mt-3 flex-nowrap overflow-x-auto sm:flex-wrap sm:overflow-visible custom-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
           <SubChip
             active={closedSubfilter === "all"}
             count={closedCounts.all}

@@ -27,6 +27,12 @@ interface Props {
   scheduledDispatchAt?: string | null;
   scheduledDispatchAuto?: boolean;
   now?: Date;
+  /**
+   * Compact mode (mobile order cards): shrinks padding/font and shortens the
+   * attempt wording to "n/max" with a dot marking the final attempt, so the
+   * badge fits under the customer name with room for the date beside it.
+   */
+  compact?: boolean;
 }
 
 function attemptNumberFor(status: string, attemptsCount: number): number | null {
@@ -54,6 +60,10 @@ function formatHM(date: Date, locale: string): string {
 // signs, so every queue card reads its state from a consistent chip.
 const BASE =
   "inline-flex items-center gap-1.5 px-3 py-1 rounded-pill text-[11px] font-bold tracking-[0.04em] whitespace-nowrap border";
+// Compact (mobile card) — tighter padding and smaller text so the badge
+// tucks under the name and leaves room for the date beside it.
+const BASE_COMPACT =
+  "inline-flex items-center gap-1 px-2 py-0.5 rounded-pill text-[10px] font-bold tracking-normal whitespace-nowrap border";
 
 // Tonal containers per state.
 const TONE_NEUTRAL =
@@ -75,9 +85,11 @@ export function AttemptEtiquette({
   scheduledDispatchAt,
   scheduledDispatchAuto,
   now,
+  compact = false,
 }: Props) {
   const t = useTranslations("queue.etiquette");
   const locale = useLocale();
+  const base = compact ? BASE_COMPACT : BASE;
 
   const referenceNow = now ?? new Date();
   const callbackDate = callbackAt ? new Date(callbackAt) : null;
@@ -103,7 +115,7 @@ export function AttemptEtiquette({
   if (isOverdueCallback) {
     const label = t("callbackOverdue");
     return (
-      <span role="note" aria-label={label} className={`${BASE} ${TONE_CRITICAL}`}>
+      <span role="note" aria-label={label} className={`${base} ${TONE_CRITICAL}`}>
         <Dot />
         <span>{label}</span>
       </span>
@@ -114,7 +126,7 @@ export function AttemptEtiquette({
     const time = formatHM(callbackDate, locale);
     const label = t("callbackAt", { time });
     return (
-      <span role="note" aria-label={label} className={`${BASE} ${TONE_NEUTRAL}`}>
+      <span role="note" aria-label={label} className={`${base} ${TONE_NEUTRAL}`}>
         <Dot filled={false} />
         <span>{label}</span>
       </span>
@@ -124,7 +136,7 @@ export function AttemptEtiquette({
   if (isOverdueDispatch) {
     const label = t("dispatchOverdue");
     return (
-      <span role="note" aria-label={label} className={`${BASE} ${TONE_CRITICAL}`}>
+      <span role="note" aria-label={label} className={`${base} ${TONE_CRITICAL}`}>
         <Dot />
         <span>{label}</span>
       </span>
@@ -137,7 +149,7 @@ export function AttemptEtiquette({
       ? t("dispatchAtAuto", { time })
       : t("dispatchAt", { time });
     return (
-      <span role="note" aria-label={label} className={`${BASE} ${TONE_NEUTRAL}`}>
+      <span role="note" aria-label={label} className={`${base} ${TONE_NEUTRAL}`}>
         <Dot filled={false} />
         <span>{label}</span>
       </span>
@@ -148,6 +160,24 @@ export function AttemptEtiquette({
   if (n !== null) {
     const isFinal = n >= maxAttempts;
     const label = t("attempt", { n });
+    // Compact: collapse "Tentative 5 (dernière)" to "5/max" + a dot for final,
+    // keeping the urgent amber/red tone so the signal survives the shortening.
+    if (compact) {
+      const shortLabel = `${n}/${maxAttempts}`;
+      return (
+        <span
+          role="note"
+          aria-label={isFinal ? `${label} ${t("attemptFinal")}` : label}
+          className={[
+            BASE_COMPACT,
+            isFinal ? `${TONE_FINAL} animate-pulse` : TONE_ATTEMPT,
+          ].join(" ")}
+        >
+          <Dot />
+          <span className="tabular-nums">{shortLabel}</span>
+        </span>
+      );
+    }
     return (
       <span
         role="note"
