@@ -13,6 +13,8 @@ import { RejectionReasonHover } from "./RejectionReasonHover";
 import { AddressChangeNote } from "./AddressChangeNote";
 import type { QueueOrder } from "@/types/queue";
 import type { BucketKey } from "./QueueHeader";
+import { highlightSegments, type HighlightSegment } from "@/lib/queue/highlight";
+import type { ParsedQuery, SearchField } from "@/lib/queue/search";
 
 interface OrderCardProps {
   order: QueueOrder;
@@ -24,6 +26,39 @@ interface OrderCardProps {
   onToggleSelect?: (id: string) => void;
   /** Bucket the card is currently rendered under — drives border tone. */
   selectedBucket?: BucketKey;
+  /** When set (search active), matching substrings are highlighted. */
+  highlightQuery?: ParsedQuery;
+}
+
+/**
+ * Renders `value`, wrapping the substrings that match the active search query in
+ * <mark>. Short-circuits to plain text when no query is supplied, so normal
+ * queue rendering is unaffected.
+ */
+function Highlighted({
+  value,
+  field,
+  query,
+}: {
+  value: string;
+  field: SearchField;
+  query?: ParsedQuery;
+}) {
+  if (!query) return <>{value}</>;
+  const segments: HighlightSegment[] = highlightSegments(value, query, field);
+  return (
+    <>
+      {segments.map((seg, i) =>
+        seg.match ? (
+          <mark key={i} className="bg-amber-200/70 text-inherit rounded-[2px]">
+            {seg.text}
+          </mark>
+        ) : (
+          <span key={i}>{seg.text}</span>
+        ),
+      )}
+    </>
+  );
 }
 
 // Per-bucket border tone. Fermées is per-status (rejected/uploaded/delivered
@@ -63,6 +98,7 @@ export const OrderCard = memo(function OrderCard({
   isSelected = false,
   onToggleSelect,
   selectedBucket,
+  highlightQuery,
 }: OrderCardProps) {
   const t = useTranslations("queue");
   const ts = useTranslations("orders.statuses");
@@ -224,7 +260,7 @@ export const OrderCard = memo(function OrderCard({
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-[15px] font-bold text-agent-on-surface truncate">
-              {order.customer_name}
+              <Highlighted value={order.customer_name} field="name" query={highlightQuery} />
             </span>
             {order.repeat_kind !== "none" && (
               <RepeatBuyerBadge
@@ -258,7 +294,9 @@ export const OrderCard = memo(function OrderCard({
             {order.customer_city && (
               <>
                 <span aria-hidden="true" className="opacity-60">·</span>
-                <span className="truncate">{order.customer_city}</span>
+                <span className="truncate">
+                  <Highlighted value={order.customer_city} field="city" query={highlightQuery} />
+                </span>
               </>
             )}
             <span aria-hidden="true" className="opacity-60">·</span>
@@ -281,7 +319,7 @@ export const OrderCard = memo(function OrderCard({
             className="mt-0.5 text-[13px] font-semibold text-agent-on-surface truncate max-w-[160px]"
             title={`${order.product_name}${order.variant_label ? ` · ${order.variant_label}` : ""}`}
           >
-            {order.product_name}
+            <Highlighted value={order.product_name} field="product" query={highlightQuery} />
           </span>
           {order.variant_label && (
             <span className="text-[11px] text-agent-on-surface-variant truncate max-w-[160px]">

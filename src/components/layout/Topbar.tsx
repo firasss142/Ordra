@@ -27,6 +27,8 @@ interface TopbarProps {
   user: AuthUser;
   marketName: string;
   actions?: React.ReactNode;
+  /** Centered slot in the agent navbar — used for the queue search bar. */
+  searchSlot?: React.ReactNode;
   /** When provided, renders a hamburger button on mobile that calls this. */
   onMenuClick?: () => void;
   /**
@@ -57,7 +59,7 @@ const ONLINE_NOW_LABEL: Record<"fr" | "ar", string> = {
   ar: "متصل الآن",
 };
 
-function TopbarInner({ user, marketName, actions, onMenuClick, variant = "default" }: TopbarProps) {
+function TopbarInner({ user, marketName, actions, searchSlot, onMenuClick, variant = "default" }: TopbarProps) {
   const router = useRouter();
   const [sessionExpired, setSessionExpired] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -234,6 +236,14 @@ function TopbarInner({ user, marketName, actions, onMenuClick, variant = "defaul
               </div>
             )}
           </div>
+
+          {/* Centered search slot — grows to fill the space between identity
+              and the trailing cluster. */}
+          {searchSlot && (
+            <div className="flex-1 min-w-0 flex justify-center px-2 md:px-6">
+              {searchSlot}
+            </div>
+          )}
 
           {/* Trailing cluster — notification bell only */}
           <div className="flex items-center gap-2">
