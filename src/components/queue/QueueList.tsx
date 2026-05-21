@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { OrderCard } from "./OrderCard";
 import type { QueueOrder } from "@/types/queue";
 import type { BucketKey } from "./QueueHeader";
+import type { ParsedQuery } from "@/lib/queue/search";
 
 interface QueueStats {
   assigned_count: number;
@@ -25,6 +26,12 @@ interface QueueListProps {
   onToggleSelect?: (id: string) => void;
   selectedBucket: BucketKey;
   maxAttempts?: number;
+  /** Active search query — drives highlighting and the search empty-state. */
+  highlightQuery?: ParsedQuery;
+  isSearching?: boolean;
+  /** Raw search text, for the "no results for «…»" message. */
+  searchText?: string;
+  onClearSearch?: () => void;
 }
 
 function StatCell({ value, label }: { value: string; label: string }) {
@@ -51,8 +58,37 @@ export function QueueList({
   onToggleSelect,
   selectedBucket,
   maxAttempts = 3,
+  highlightQuery,
+  isSearching = false,
+  searchText = "",
+  onClearSearch,
 }: QueueListProps) {
   const t = useTranslations("queue");
+  const tSearch = useTranslations("queue.search");
+
+  if (orders.length === 0 && isSearching) {
+    return (
+      <div role="status" className="flex flex-col items-center justify-center gap-3 px-6 py-20">
+        <div
+          aria-hidden="true"
+          className="flex items-center justify-center w-16 h-16 rounded-full bg-surface-selected text-ink-muted"
+        >
+          <Inbox size={28} strokeWidth={1.75} />
+        </div>
+        <div className="text-[16px] font-semibold text-ink-primary">
+          {tSearch("noResultsTitle")}
+        </div>
+        <div className="text-[13px] text-ink-secondary text-center max-w-[360px]">
+          {tSearch("noResultsSubtitle", { query: searchText })}
+        </div>
+        {onClearSearch && (
+          <Button size="sm" onClick={onClearSearch} className="mt-2">
+            {tSearch("clear")}
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   if (orders.length === 0) {
     return (
@@ -116,6 +152,7 @@ export function QueueList({
           onToggleSelect={onToggleSelect}
           selectedBucket={selectedBucket}
           maxAttempts={maxAttempts}
+          highlightQuery={highlightQuery}
         />
       ))}
     </div>

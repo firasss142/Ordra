@@ -15,9 +15,13 @@ import {
   type TentativeSubfilter,
 } from "./QueueHeader";
 import { QueueList } from "./QueueList";
+import { pushRecentSearch } from "./QueueSearchBar";
 import { useAgentQueue } from "@/hooks/useAgentQueue";
+import { useDebounce } from "@/hooks/useDebounce";
+import { useQueueSearch } from "@/context/queue-search";
 import { isEditableTarget } from "@/lib/dom";
 import { AGENT_NEW_ORDER_EVENT } from "@/lib/agent-events";
+import { parseQuery, searchOrders } from "@/lib/queue/search";
 import type { QueueOrder } from "@/types/queue";
 
 const OrderDetailPanel = dynamic(() =>
@@ -198,12 +202,30 @@ export function QueuePage() {
   });
   const [closedSubfilter, setClosedSubfilter] = useState<ClosedSubfilter>("all");
 
-  // When user switches bucket, reset subfilters.
+  // Global search across all buckets. The query lives in QueueSearchContext so
+  // the navbar search bar (rendered in the Topbar) and this page share it. The
+  // query is debounced so filtering only runs once the agent pauses typing.
+  const {
+    query: searchQuery,
+    setQuery: setSearchQuery,
+    setResultCount,
+    inputRef: searchInputRef,
+  } = useQueueSearch();
+  const debouncedSearch = useDebounce(searchQuery, 200);
+  const isSearching = debouncedSearch.trim().length > 0;
+
+  // Persist committed searches once typing settles (≥2 chars).
+  useEffect(() => {
+    if (debouncedSearch.trim().length >= 2) pushRecentSearch(debouncedSearch);
+  }, [debouncedSearch]);
+
+  // When user switches bucket, reset subfilters and clear any active search.
   const handleBucketChange = useCallback((bucket: BucketKey) => {
     setSelectedBucket(bucket);
     setEnCoursSubfilter("all");
     setTentativeSubfilter("all");
     setClosedSubfilter("all");
+    setSearchQuery("");
   }, []);
 
   // Picking a non-Tentative top-level chip clears the popover narrowing.
@@ -252,6 +274,7 @@ export function QueuePage() {
     callTerminatedOrderId: null as string | null,
     createOpen: false,
     shortcutsOpen: false,
+    searchActive: false,
   });
 
   // Auto-dismiss banner after 5s
@@ -316,24 +339,51 @@ export function QueuePage() {
     return next;
   }, [selectedBucket, enCoursSubfilter, tentativeSubfilter, closedSubfilter, rawAllOrders, rawClosedOrders]);
 
+  const parsedSearch = useMemo(() => parseQuery(debouncedSearch), [debouncedSearch]);
+
+  // When searching, scan the agent's ENTIRE order set (active + closed),
+  // deduped by id with active orders first. The result feeds the same `orders`
+  // pathway the keyboard navigation already operates on.
+  const searchResults = useMemo<QueueOrder[]>(() => {
+    if (!isSearching) return [];
+    const seen = new Set<string>();
+    const combined: QueueOrder[] = [];
+    for (const raw of [...rawAllOrders, ...rawClosedOrders]) {
+      const id = raw.id as string;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      combined.push(toQueueOrder(raw));
+    }
+    return searchOrders(combined, debouncedSearch);
+  }, [isSearching, debouncedSearch, rawAllOrders, rawClosedOrders]);
+
+  // What the list and keyboard nav actually see.
+  const displayedOrders = isSearching ? searchResults : orders;
+
+  // Publish the live result count so the navbar search bar can display it.
+  useEffect(() => {
+    setResultCount(isSearching ? searchResults.length : 0);
+  }, [isSearching, searchResults.length, setResultCount]);
+
   // Auto-focus first order if no focus set
   useEffect(() => {
-    if (orders.length > 0 && focusedOrderId === null) {
-      setFocusedOrderId(orders[0].id);
+    if (displayedOrders.length > 0 && focusedOrderId === null) {
+      setFocusedOrderId(displayedOrders[0].id);
     }
-    if (orders.length > 0 && focusedOrderId !== null && !orders.some((o) => o.id === focusedOrderId)) {
-      setFocusedOrderId(orders[0].id);
+    if (displayedOrders.length > 0 && focusedOrderId !== null && !displayedOrders.some((o) => o.id === focusedOrderId)) {
+      setFocusedOrderId(displayedOrders[0].id);
     }
-  }, [orders, focusedOrderId]);
+  }, [displayedOrders, focusedOrderId]);
 
   useEffect(() => {
     stateRef.current = {
-      orders,
+      orders: displayedOrders,
       focusedOrderId,
       selectedOrderId,
       callTerminatedOrderId,
       createOpen,
       shortcutsOpen,
+      searchActive: searchQuery.trim().length > 0,
     };
   });
 
@@ -349,6 +399,13 @@ export function QueuePage() {
       return;
     }
     if (s.shortcutsOpen) return;
+
+    // "/" focuses the search bar (matches the orders list shortcut).
+    if (e.key === "/") {
+      e.preventDefault();
+      searchInputRef.current?.focus();
+      return;
+    }
 
     // Post-call sheet shortcuts (1/2/3/4)
     if (s.callTerminatedOrderId) {
@@ -537,7 +594,7 @@ export function QueuePage() {
       )}
 
       <QueueList
-        orders={orders}
+        orders={displayedOrders}
         onOpenDetail={setSelectedOrderId}
         onCallTerminated={handleCallTerminated}
         onRefresh={handleRefresh}
@@ -547,6 +604,10 @@ export function QueuePage() {
         onToggleSelect={handleToggleSelect}
         selectedBucket={selectedBucket}
         maxAttempts={maxAttempts}
+        highlightQuery={isSearching ? parsedSearch : undefined}
+        isSearching={isSearching}
+        searchText={debouncedSearch.trim()}
+        onClearSearch={() => setSearchQuery("")}
       />
 
       <OrderDetailPanel
