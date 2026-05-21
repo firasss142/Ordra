@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canEditOrder, EDIT_BLOCKED_STATUSES } from "@/lib/order-permissions";
+import { computeOrderTotal } from "@/lib/calculations/order-total";
 import type { Role } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 async function getOrderAndCheckAccess(supabase: Awaited<ReturnType<typeof import("@/lib/supabase/server").createClient>>, actor: { id: string; role: Role }, orderId: string) {
   const { data: order, error } = await supabase
     .from("orders")
-    .select("id, status, assigned_to, market_id, delivery_fee, updated_at")
+    .select("id, status, assigned_to, market_id, delivery_fee, card_payment, updated_at")
     .eq("id", orderId)
     .single();
 
@@ -24,7 +25,7 @@ async function getOrderAndCheckAccess(supabase: Awaited<ReturnType<typeof import
   return { order };
 }
 
-async function recomputeTotal(supabase: Awaited<ReturnType<typeof import("@/lib/supabase/server").createClient>>, orderId: string, deliveryFee: number) {
+async function recomputeTotal(supabase: Awaited<ReturnType<typeof import("@/lib/supabase/server").createClient>>, orderId: string, deliveryFee: number, cardPayment: boolean) {
   const { data: allItems } = await supabase
     .from("order_items")
     .select("line_total, quantity")
@@ -38,7 +39,7 @@ async function recomputeTotal(supabase: Awaited<ReturnType<typeof import("@/lib/
     (sum: number, item: { quantity: number }) => sum + Number(item.quantity),
     0
   );
-  const newTotal = Math.round((itemsSubtotal + Number(deliveryFee ?? 0)) * 1000) / 1000;
+  const newTotal = computeOrderTotal(itemsSubtotal, Number(deliveryFee ?? 0), cardPayment);
   await supabase
     .from("orders")
     .update({
@@ -138,7 +139,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Failed to update item" }, { status: 500 });
   }
 
-  await recomputeTotal(supabase, id, order.delivery_fee as number);
+  await recomputeTotal(supabase, id, order.delivery_fee as number, Boolean(order.card_payment));
 
   return NextResponse.json({ data: updatedItem }, { status: 200 });
 }
@@ -182,7 +183,7 @@ export async function DELETE(
 
   await supabase.from("order_items").delete().eq("id", itemId);
 
-  await recomputeTotal(supabase, id, order.delivery_fee as number);
+  await recomputeTotal(supabase, id, order.delivery_fee as number, Boolean(order.card_payment));
 
   return new NextResponse(null, { status: 204 });
 }

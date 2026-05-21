@@ -75,6 +75,7 @@ interface OrderDetail {
   unit_price: number;
   total_price: number;
   delivery_fee: number;
+  card_payment: boolean;
   currency: string;
   status: string;
   assigned_to: string | null;
@@ -1273,6 +1274,24 @@ export function OrderDetailPanel({
                               />
                             </div>
                           </div>
+                          {/* Card payment (+10% on product subtotal) — Libya only */}
+                          {isLibyaOrder && (
+                            <label className={`flex items-center justify-between gap-2 ${canEdit ? "cursor-pointer" : "cursor-default"}`}>
+                              <span className="flex items-center gap-1.5 text-[12px] text-ink-secondary">
+                                {t("cardPayment")}
+                                {order.card_payment && (
+                                  <span className="text-[11px] font-semibold text-ink-muted tabular-nums">+10%</span>
+                                )}
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={order.card_payment}
+                                disabled={!canEdit}
+                                onChange={(e) => runCommit({ card_payment: e.target.checked })}
+                                className="h-4 w-4 rounded border-line-strong text-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-50"
+                              />
+                            </label>
+                          )}
                           {/* Grand total — emphasised band */}
                           <div className="-mx-2 mt-1 flex items-center justify-between rounded-card bg-surface-page px-3 py-2.5">
                             <span className="text-[11px] font-semibold text-ink-secondary uppercase tracking-[0.08em]">{t("grandTotal")}</span>

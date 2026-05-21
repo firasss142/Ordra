@@ -47,6 +47,8 @@ const assignedOrder = {
   customer_address: "Rue A",
   product_id: "prod-1",
   variant_label: null,
+  delivery_fee: 0,
+  card_payment: false,
   updated_at: new Date().toISOString(),
 };
 
@@ -379,5 +381,87 @@ describe("PATCH /api/orders/[id]", () => {
       params: Promise.resolve({ id: "order-1" }),
     });
     expect(res.status).toBe(200);
+  });
+
+  test("card_payment toggle recomputes total_price = subtotal * 1.10 (delivery fee excluded)", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
+
+    let capturedUpdate: Record<string, unknown> = {};
+
+    const updateChain: Record<string, unknown> = {};
+    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    const insertChain: Record<string, unknown> = {};
+    insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChain({ data: { role: "agent", market_id: "m-1" }, error: null });
+      if (table === "orders") {
+        const chain: Record<string, unknown> = {};
+        chain.select = vi.fn().mockReturnValue(chain);
+        chain.eq = vi.fn().mockReturnValue(chain);
+        chain.update = vi.fn().mockImplementation((data: Record<string, unknown>) => {
+          capturedUpdate = data;
+          return updateChain;
+        });
+        // delivery_fee 5 must NOT be surcharged; subtotal 100 -> 110 + 5 = 115
+        chain.single = vi.fn().mockResolvedValue({ data: { ...assignedOrder, delivery_fee: 5 }, error: null });
+        return chain;
+      }
+      if (table === "order_items") return queryChain({ data: [{ line_total: 100 }], error: null });
+      if (table === "order_history") {
+        const chain = queryChain({ data: [{ id: "h-1" }], error: null });
+        chain.insert = vi.fn().mockReturnValue(insertChain);
+        return chain;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const res = await PATCH(makeRequest({ card_payment: true }), {
+      params: Promise.resolve({ id: "order-1" }),
+    });
+    expect(res.status).toBe(200);
+    expect(capturedUpdate?.card_payment).toBe(true);
+    expect(capturedUpdate?.total_price).toBe(115); // 100*1.10 + 5
+  });
+
+  test("card_payment surcharge survives a later quantity edit", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
+
+    let capturedUpdate: Record<string, unknown> = {};
+
+    const updateChain: Record<string, unknown> = {};
+    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    const insertChain: Record<string, unknown> = {};
+    insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChain({ data: { role: "agent", market_id: "m-1" }, error: null });
+      if (table === "orders") {
+        const chain: Record<string, unknown> = {};
+        chain.select = vi.fn().mockReturnValue(chain);
+        chain.eq = vi.fn().mockReturnValue(chain);
+        chain.update = vi.fn().mockImplementation((data: Record<string, unknown>) => {
+          capturedUpdate = data;
+          return updateChain;
+        });
+        // Order already has card_payment on; quantity edit must keep the +10%
+        chain.single = vi.fn().mockResolvedValue({ data: { ...assignedOrder, unit_price: 50, card_payment: true }, error: null });
+        return chain;
+      }
+      if (table === "order_history") {
+        const chain = queryChain({ data: [{ id: "h-1" }], error: null });
+        chain.insert = vi.fn().mockReturnValue(insertChain);
+        return chain;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const res = await PATCH(makeRequest({ quantity: 3 }), {
+      params: Promise.resolve({ id: "order-1" }),
+    });
+    expect(res.status).toBe(200);
+    expect(capturedUpdate?.total_price).toBe(165); // 50*3 = 150, *1.10 = 165
   });
 });
