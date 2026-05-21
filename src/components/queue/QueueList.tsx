@@ -153,6 +153,7 @@ export function QueueList({
           selectedBucket={selectedBucket}
           maxAttempts={maxAttempts}
           highlightQuery={highlightQuery}
+          onMutate={onRefresh}
         />
       ))}
     </div>

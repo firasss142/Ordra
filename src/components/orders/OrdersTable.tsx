@@ -28,6 +28,7 @@ interface Props {
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: (ids: string[]) => void;
   onCancel: (id: string) => void;
+  onDuplicateChange?: () => void;
   isLoading: boolean;
   isEmpty: boolean;
 }
@@ -50,6 +51,7 @@ export function OrdersTable({
   onToggleSelect,
   onToggleSelectAll,
   onCancel,
+  onDuplicateChange,
   isLoading,
   isEmpty,
 }: Props) {
@@ -163,6 +165,7 @@ export function OrdersTable({
                 onOpen={onOpen}
                 onCancel={onCancel}
                 cancellingId={cancellingId}
+                onDuplicateChange={onDuplicateChange}
               />
             ))}
           </tbody>

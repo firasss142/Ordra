@@ -56,6 +56,8 @@ interface Props {
   onOpen: (id: string) => void;
   onCancel: (id: string) => void;
   cancellingId: string | null;
+  /** Called after a duplicate sibling is deleted from the dialog, to revalidate. */
+  onDuplicateChange?: () => void;
 }
 
 function RowKebab({
@@ -131,6 +133,7 @@ function Row({
   onOpen,
   onCancel,
   cancellingId,
+  onDuplicateChange,
 }: Props) {
   const statusTone = STATUS_TONE[order.status] ?? "neutral";
   const canDelete = canManuallyDeleteOrderStatus(order.status);
@@ -232,6 +235,9 @@ function Row({
                 count={order.duplicate_count ?? 0}
                 siblings={order.duplicate_siblings ?? []}
                 hasUploadedSibling={order.has_uploaded_sibling ?? false}
+                anchorOrderId={order.id}
+                canDelete
+                onChange={onDuplicateChange}
               />
             )}
           </div>

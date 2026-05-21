@@ -4,6 +4,7 @@ import {
   canCreateOrders,
   canAssignOrders,
   canCancelOrder,
+  canDeleteDuplicateSibling,
   canTransitionOrder,
   canUpdateFulfillment,
   canReopenOrder,
@@ -94,6 +95,30 @@ describe("canCancelOrder", () => {
 
   test("agent cannot cancel orders", () => {
     expect(canCancelOrder("agent")).toBe(false);
+  });
+});
+
+describe("canDeleteDuplicateSibling", () => {
+  test("super_admin can delete a verified sibling in any market", () => {
+    expect(canDeleteDuplicateSibling("super_admin", MARKET_A, "")).toBe(true);
+    expect(canDeleteDuplicateSibling("super_admin", MARKET_B, MARKET_A)).toBe(true);
+  });
+
+  test("market_manager can delete a verified sibling in own market only", () => {
+    expect(canDeleteDuplicateSibling("market_manager", MARKET_A, MARKET_A)).toBe(true);
+    expect(canDeleteDuplicateSibling("market_manager", MARKET_B, MARKET_A)).toBe(false);
+  });
+
+  test("agent CAN delete a verified sibling in own market (scoped power)", () => {
+    expect(canDeleteDuplicateSibling("agent", MARKET_A, MARKET_A)).toBe(true);
+  });
+
+  test("agent cannot delete a sibling in another market", () => {
+    expect(canDeleteDuplicateSibling("agent", MARKET_B, MARKET_A)).toBe(false);
+  });
+
+  test("warehouse_agent cannot delete duplicate siblings", () => {
+    expect(canDeleteDuplicateSibling("warehouse_agent", MARKET_A, MARKET_A)).toBe(false);
   });
 });
 
