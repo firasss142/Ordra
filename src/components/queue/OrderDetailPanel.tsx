@@ -181,14 +181,14 @@ type SectionAccent = "neutral" | "client" | "order" | "note" | "history" | "fulf
 
 const SECTION_ACCENT: Record<
   SectionAccent,
-  { header: string; title: string; dot: string }
+  { body: string; header: string; border: string; title: string; dot: string }
 > = {
-  neutral: { header: "bg-surface-page", title: "text-ink-muted", dot: "bg-ink-muted" },
-  client: { header: "bg-[#F1F6FB]", title: "text-[#2C6ECB]", dot: "bg-[#2C6ECB]" },
-  order: { header: "bg-[#F1F8F5]", title: "text-[#008060]", dot: "bg-[#008060]" },
-  note: { header: "bg-[#FFF8E6]", title: "text-[#B98900]", dot: "bg-[#B98900]" },
-  history: { header: "bg-surface-page", title: "text-ink-muted", dot: "bg-ink-muted" },
-  fulfillment: { header: "bg-[#F4F1FB]", title: "text-[#6A4FB3]", dot: "bg-[#6A4FB3]" },
+  neutral: { body: "bg-surface-page", header: "bg-surface-page", border: "border-line-subtle", title: "text-ink-muted", dot: "bg-ink-muted" },
+  client: { body: "bg-[#F7FAFD]", header: "bg-[#EAF1F9]", border: "border-[#D8E5F2]", title: "text-[#2C6ECB]", dot: "bg-[#2C6ECB]" },
+  order: { body: "bg-[#F6FBF8]", header: "bg-[#E8F4EE]", border: "border-[#D4E9DD]", title: "text-[#008060]", dot: "bg-[#008060]" },
+  note: { body: "bg-[#FFFCF2]", header: "bg-[#FBF3DC]", border: "border-[#F0E4C2]", title: "text-[#B98900]", dot: "bg-[#B98900]" },
+  history: { body: "bg-surface-page", header: "bg-surface-page", border: "border-line-subtle", title: "text-ink-muted", dot: "bg-ink-muted" },
+  fulfillment: { body: "bg-[#FAF8FD]", header: "bg-[#EFEAF8]", border: "border-[#E0D7F0]", title: "text-[#6A4FB3]", dot: "bg-[#6A4FB3]" },
 };
 
 function SectionCard({
@@ -206,14 +206,17 @@ function SectionCard({
   return (
     <section
       className={[
-        "bg-surface-card border border-line-subtle rounded-card overflow-hidden",
+        "border rounded-card overflow-hidden",
+        tone.body,
+        tone.border,
         className,
       ].join(" ")}
     >
       <div
         className={[
-          "flex items-center gap-2 px-5 py-2.5 border-b border-line-subtle",
+          "flex items-center gap-2 px-5 py-2.5 border-b",
           tone.header,
+          tone.border,
         ].join(" ")}
       >
         <span
@@ -243,7 +246,7 @@ function FieldRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-baseline gap-4 py-3.5 border-b border-line-subtle last:border-0">
+    <div className="flex items-baseline gap-4 py-2.5 border-b border-line-subtle last:border-0">
       <span className="w-[88px] flex-shrink-0 text-[12px] font-medium text-ink-muted leading-[1.4]">
         {label}
       </span>
@@ -309,6 +312,7 @@ export function OrderDetailPanel({
   const [scheduleDispatchOpen, setScheduleDispatchOpen] = useState(false);
   const [cancelingSchedule, setCancelingSchedule] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [orderOpen, setOrderOpen] = useState(false);
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadingCarrierId, setUploadingCarrierId] = useState<string | null>(null);
@@ -421,6 +425,7 @@ export function OrderDetailPanel({
     setLibyaCityPickerOpen(false);
     setLibyaCityQuery("");
     setHistoryOpen(false);
+    setOrderOpen(false);
   }, [order?.id]);
 
   const runCommit = useCallback(
@@ -837,9 +842,13 @@ export function OrderDetailPanel({
 
               {/* ── Customer summary ── */}
               <div className="px-5 pt-4 pb-4 bg-surface-card border-b border-line-subtle">
-                {/* Name — labeled so the lead field is unambiguous */}
-                <div ref={nameFieldRef}>
-                  <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-muted mb-1">
+                {/* Name — labeled, in a subtly tinted container so the lead
+                    field reads as distinct from the rest of the header. */}
+                <div
+                  ref={nameFieldRef}
+                  className="rounded-card bg-[#F7FAFD] border border-[#D8E5F2] px-3.5 py-3"
+                >
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-[#2C6ECB] mb-1">
                     {t("fieldName")}
                   </span>
                   <InlineField
@@ -853,7 +862,7 @@ export function OrderDetailPanel({
 
                 {/* City */}
                 {order.customer_city && (
-                  <div className="flex items-center gap-2 mt-1.5 mb-3.5 flex-wrap text-[12px]">
+                  <div className="flex items-center gap-2 mt-3.5 flex-wrap text-[12px]">
                     <span className="inline-flex items-center gap-1 text-ink-secondary">
                       <MapPin size={11} strokeWidth={2} aria-hidden="true" />
                       {order.customer_city}
@@ -862,13 +871,13 @@ export function OrderDetailPanel({
                 )}
 
                 {/* Primary phone: call, edit, and copy from the same action strip. */}
-                <div className="flex items-center gap-3 w-full rounded-card bg-ink-primary text-white ps-3 pe-2 py-3 transition-colors duration-fast">
+                <div className="flex items-center gap-3 w-full rounded-card bg-ink-primary text-white ps-3 pe-2 py-2.5 mt-3.5 transition-colors duration-fast">
                   <a
                     href={`tel:${order.customer_phone}`}
                     aria-label={`Call ${order.customer_phone}`}
-                    className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors duration-fast flex-shrink-0"
+                    className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors duration-fast flex-shrink-0"
                   >
-                    <PhoneIcon size={15} strokeWidth={2} aria-hidden="true" />
+                    <PhoneIcon size={14} strokeWidth={2} aria-hidden="true" />
                   </a>
                   <div className="flex-1 min-w-0">
                     <InlineField
@@ -885,8 +894,8 @@ export function OrderDetailPanel({
                       displayMode
                       readOnly={!canEdit}
                       placeholder={t("fieldPhone")}
-                      className="text-[16px] font-semibold tabular-nums tracking-wide"
-                      displayClassName="text-[16px] font-semibold tabular-nums tracking-wide !text-white hover:bg-white/10 focus:bg-white/10"
+                      className="text-[15px] font-semibold tabular-nums tracking-wide"
+                      displayClassName="text-[15px] font-semibold tabular-nums tracking-wide !text-white hover:bg-white/10 focus:bg-white/10"
                     />
                   </div>
                   <button
@@ -1090,27 +1099,107 @@ export function OrderDetailPanel({
                   </SectionCard>
                 )}
 
-                {/* Order / receipt card */}
-                <SectionCard title={t("order")} accent="order">
-                  {(() => {
-                    const items: OrderItem[] = order.order_items?.length
-                      ? order.order_items
-                      : [{
-                          id: "legacy",
-                          order_id: order.id,
-                          product_id: order.product_id,
-                          product_name: order.product_name,
-                          variant_id: order.variant_id,
-                          variant_label: order.variant_label,
-                          quantity: order.quantity,
-                          unit_price: order.unit_price,
-                          line_total: order.total_price - (order.delivery_fee ?? 0),
-                          created_at: order.updated_at,
-                          updated_at: order.updated_at,
-                        }];
+                {/* Order / receipt card — collapsible like the history.
+                    Collapsed: a compact horizontal summary (product · qty×price
+                    · card toggle · total). Expanded: full editable line items. */}
+                {(() => {
+                  const items: OrderItem[] = order.order_items?.length
+                    ? order.order_items
+                    : [{
+                        id: "legacy",
+                        order_id: order.id,
+                        product_id: order.product_id,
+                        product_name: order.product_name,
+                        variant_id: order.variant_id,
+                        variant_label: order.variant_label,
+                        quantity: order.quantity,
+                        unit_price: order.unit_price,
+                        line_total: order.total_price - (order.delivery_fee ?? 0),
+                        created_at: order.updated_at,
+                        updated_at: order.updated_at,
+                      }];
+                  const orderAccent = SECTION_ACCENT.order;
+                  const summaryItem = items[0];
+                  const extraItemCount = items.length - 1;
 
-                    return (
-                      <>
+                  return (
+                    <section
+                      className={[
+                        "border rounded-card overflow-hidden",
+                        orderAccent.body,
+                        orderAccent.border,
+                      ].join(" ")}
+                    >
+                      {/* Toggle header */}
+                      <button
+                        type="button"
+                        onClick={() => setOrderOpen((open) => !open)}
+                        aria-expanded={orderOpen}
+                        data-testid="order-details-toggle"
+                        className={[
+                          "flex w-full items-center gap-2 px-5 py-2.5 text-start border-b transition-colors duration-fast hover:brightness-[0.98]",
+                          orderAccent.header,
+                          orderAccent.border,
+                        ].join(" ")}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={["w-1.5 h-1.5 rounded-full flex-shrink-0", orderAccent.dot].join(" ")}
+                        />
+                        <h3 className={["text-[10px] font-semibold uppercase tracking-[0.1em]", orderAccent.title].join(" ")}>
+                          {t("order")}
+                        </h3>
+                        <ChevronDown
+                          size={15}
+                          strokeWidth={2.25}
+                          aria-hidden="true"
+                          className={[
+                            "ms-auto flex-shrink-0 transition-transform duration-fast",
+                            orderAccent.title,
+                            orderOpen ? "rotate-180" : "",
+                          ].join(" ")}
+                        />
+                      </button>
+
+                      {/* Compact summary — always visible */}
+                      <div className="flex items-center gap-3 px-5 py-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2 min-w-0">
+                            <span className="truncate text-[14px] font-semibold text-ink-primary">
+                              {summaryItem?.product_name ?? "—"}
+                            </span>
+                            {extraItemCount > 0 && (
+                              <span className="flex-shrink-0 text-[11px] font-medium text-ink-muted tabular-nums">
+                                +{extraItemCount}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[12px] text-ink-secondary tabular-nums">
+                            {summaryItem?.quantity ?? 0}
+                            <span className="text-ink-muted"> × </span>
+                            {summaryItem?.unit_price ?? 0} {displayCurrency}
+                          </span>
+                        </div>
+                        {isLibyaOrder && (
+                          <label className={`flex items-center gap-1.5 flex-shrink-0 ${canEdit ? "cursor-pointer" : "cursor-default"}`}>
+                            <input
+                              type="checkbox"
+                              checked={order.card_payment}
+                              disabled={!canEdit}
+                              onChange={(e) => runCommit({ card_payment: e.target.checked })}
+                              className="h-4 w-4 rounded border-line-strong text-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-50"
+                            />
+                            <span className="text-[11px] text-ink-secondary whitespace-nowrap">{t("cardPayment")}</span>
+                          </label>
+                        )}
+                        <span className="flex-shrink-0 text-[16px] font-bold text-ink-primary tabular-nums tracking-tight whitespace-nowrap">
+                          {order.total_price}
+                          <span className="text-[11px] font-semibold text-ink-secondary ms-1">{displayCurrency}</span>
+                        </span>
+                      </div>
+
+                      {orderOpen && (
+                      <div className="px-5 pb-2 pt-0 flex flex-col border-t border-dashed border-line-subtle">
                         {/* Line items */}
                         {items.map((item, idx) => {
                           const itemProduct =
@@ -1290,23 +1379,13 @@ export function OrderDetailPanel({
                               />
                             </div>
                           </div>
-                          {/* Card payment (+10% on product subtotal) — Libya only */}
-                          {isLibyaOrder && (
-                            <label className={`flex items-center justify-between gap-2 ${canEdit ? "cursor-pointer" : "cursor-default"}`}>
-                              <span className="flex items-center gap-1.5 text-[12px] text-ink-secondary">
-                                {t("cardPayment")}
-                                {order.card_payment && (
-                                  <span className="text-[11px] font-semibold text-ink-muted tabular-nums">+10%</span>
-                                )}
-                              </span>
-                              <input
-                                type="checkbox"
-                                checked={order.card_payment}
-                                disabled={!canEdit}
-                                onChange={(e) => runCommit({ card_payment: e.target.checked })}
-                                className="h-4 w-4 rounded border-line-strong text-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-50"
-                              />
-                            </label>
+                          {/* Card payment surcharge note (+10%) — Libya only.
+                              The toggle itself lives in the compact summary. */}
+                          {isLibyaOrder && order.card_payment && (
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[12px] text-ink-secondary">{t("cardPayment")}</span>
+                              <span className="text-[11px] font-semibold text-ink-muted tabular-nums">+10%</span>
+                            </div>
                           )}
                           {/* Grand total — emphasised band */}
                           <div className="-mx-2 mt-1 flex items-center justify-between rounded-card bg-[#F1F8F5] border border-status-success/15 px-3 py-2.5">
@@ -1321,10 +1400,11 @@ export function OrderDetailPanel({
                         {saveError && (
                           <div className="text-[12px] text-status-critical mt-1">{saveError}</div>
                         )}
-                      </>
-                    );
-                  })()}
-                </SectionCard>
+                      </div>
+                      )}
+                    </section>
+                  );
+                })()}
 
                 {/* History timeline */}
                 <section

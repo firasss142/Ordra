@@ -128,6 +128,31 @@ describe("OrderDetailPanel", () => {
     expect(phoneInput.value).toBe(order.customer_phone);
   });
 
+  it("shows a compact order summary and reveals line-item details on toggle", () => {
+    render(
+      <OrderDetailPanel
+        orderId="order-1"
+        onClose={() => {}}
+        onCallTerminated={() => {}}
+        userId="user-1"
+      />,
+    );
+
+    // Compact summary is always visible: product name + total.
+    expect(screen.getAllByText("Product").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("20").length).toBeGreaterThan(0);
+
+    // Detailed receipt (delivery fee row) is hidden until expanded.
+    const toggle = screen.getByTestId("order-details-toggle");
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("رسوم التوصيل")).toBeNull();
+
+    fireEvent.click(toggle);
+
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("رسوم التوصيل")).toBeTruthy();
+  });
+
   it("keeps history collapsed until the dropdown is opened", () => {
     currentOrder = {
       ...order,
