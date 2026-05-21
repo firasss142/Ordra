@@ -6,6 +6,7 @@ import {
   canEditOrder,
   EDIT_BLOCKED_STATUSES,
 } from "@/lib/order-permissions";
+import { computeOrderTotal } from "@/lib/calculations/order-total";
 
 export const dynamic = "force-dynamic";
 
@@ -95,7 +96,7 @@ export async function PATCH(
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("id, status, assigned_to, market_id, unit_price, quantity, updated_at, product_id")
+    .select("id, status, assigned_to, market_id, unit_price, quantity, updated_at, product_id, delivery_fee, card_payment")
     .eq("id", id)
     .single();
 
@@ -146,6 +147,15 @@ export async function PATCH(
     updates.customer_note = trimmed === "" || trimmed == null ? null : trimmed;
   }
 
+  // card_payment (Libya online card surcharge): the effective value drives every
+  // total_price recompute below so the +10% on the product subtotal survives any edit.
+  if ("card_payment" in body) {
+    updates.card_payment = Boolean(body.card_payment);
+  }
+  const cardPayment = ("card_payment" in updates
+    ? updates.card_payment
+    : order.card_payment) as boolean;
+
   // delivery_fee: validate ≥ 0, recompute total_price from order_items subtotal
   if ("delivery_fee" in body && body.delivery_fee !== undefined) {
     const fee = typeof body.delivery_fee === "string" ? parseFloat(body.delivery_fee) : body.delivery_fee as number;
@@ -153,19 +163,19 @@ export async function PATCH(
       return NextResponse.json({ error: "delivery_fee must be >= 0" }, { status: 400 });
     }
     updates.delivery_fee = fee;
-    // Recompute total from current items + new fee
+    // Recompute total from current items + new fee (+10% on subtotal if card payment)
     const { data: items } = await supabase.from("order_items").select("line_total").eq("order_id", id);
     const subtotal = (items ?? []).reduce((sum: number, item: { line_total: number }) => sum + Number(item.line_total), 0);
-    updates.total_price = Math.round((subtotal + fee) * 1000) / 1000;
+    updates.total_price = computeOrderTotal(subtotal, fee, cardPayment);
   }
 
-  // Quantity → recalculate total_price from current unit_price
+  // Quantity → recalculate total_price from current unit_price (+10% if card payment)
   if ("quantity" in updates) {
     const newQty = updates.quantity as number;
     if (typeof newQty !== "number" || newQty < 1 || !Number.isInteger(newQty)) {
       return NextResponse.json({ error: "quantity must be a positive integer" }, { status: 400 });
     }
-    updates.total_price = Math.round((order.unit_price as number) * newQty * 1000) / 1000;
+    updates.total_price = computeOrderTotal((order.unit_price as number) * newQty, 0, cardPayment);
   }
 
   // Product swap
@@ -194,7 +204,7 @@ export async function PATCH(
     updates.product_id = product.id;
     updates.product_name = product.name;
     updates.unit_price = productPrice;
-    updates.total_price = Math.round(productPrice * qty * 1000) / 1000;
+    updates.total_price = computeOrderTotal(productPrice * qty, 0, cardPayment);
     // Clear variant when product changes (unless variant_id is also being set)
     if (!("variant_id" in body)) {
       updates.variant_label = null;
@@ -271,6 +281,15 @@ export async function PATCH(
       updates.customer_city = state.name;
       updates.city_id = null;
     }
+  }
+
+  // Standalone card_payment toggle (no other total-affecting field changed):
+  // recompute total_price from current items + current delivery_fee so the +10%
+  // is applied/removed immediately.
+  if ("card_payment" in updates && !("total_price" in updates)) {
+    const { data: items } = await supabase.from("order_items").select("line_total").eq("order_id", id);
+    const subtotal = (items ?? []).reduce((sum: number, item: { line_total: number }) => sum + Number(item.line_total), 0);
+    updates.total_price = computeOrderTotal(subtotal, Number(order.delivery_fee ?? 0), cardPayment);
   }
 
   if (Object.keys(updates).length === 0) {

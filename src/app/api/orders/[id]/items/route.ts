@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canEditOrder, EDIT_BLOCKED_STATUSES } from "@/lib/order-permissions";
+import { computeOrderTotal } from "@/lib/calculations/order-total";
 import type { Role } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,7 @@ export async function POST(
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("id, status, assigned_to, market_id, delivery_fee, updated_at")
+    .select("id, status, assigned_to, market_id, delivery_fee, card_payment, updated_at")
     .eq("id", id)
     .single();
 
@@ -139,7 +140,7 @@ export async function POST(
     (sum: number, item: { quantity: number }) => sum + Number(item.quantity),
     0
   );
-  const newTotal = Math.round((itemsSubtotal + Number(order.delivery_fee ?? 0)) * 1000) / 1000;
+  const newTotal = computeOrderTotal(itemsSubtotal, Number(order.delivery_fee ?? 0), Boolean(order.card_payment));
 
   await supabase
     .from("orders")

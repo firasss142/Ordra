@@ -996,6 +996,7 @@
       "uploadCarrierError": "فشل الإرسال: {error}",
       "fieldPhone2": "هاتف 2",
       "fieldDeliveryFee": "رسوم التوصيل",
+      "cardPayment": "الدفع بالبطاقة",
       "fieldNote": "ملاحظة",
       "fieldNotePlaceholder": "إضافة ملاحظة…",
       "addProduct": "+ إضافة منتج",

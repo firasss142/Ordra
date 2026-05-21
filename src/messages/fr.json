@@ -996,6 +996,7 @@
       "uploadCarrierError": "Échec de l'envoi : {error}",
       "fieldPhone2": "Téléphone 2",
       "fieldDeliveryFee": "Frais de livraison",
+      "cardPayment": "Paiement par carte",
       "fieldNote": "Note",
       "fieldNotePlaceholder": "Ajouter une note…",
       "addProduct": "+ Ajouter un produit",
