@@ -81,6 +81,7 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     duplicate_siblings:
       (raw.duplicate_siblings as QueueOrder["duplicate_siblings"]) ?? [],
     has_uploaded_sibling: Boolean(raw.has_uploaded_sibling),
+    is_duplicate_anchor: Boolean(raw.is_duplicate_anchor),
     tracking_number: (raw.tracking_number as string | null) ?? null,
     carrier_barcode_deleted_at:
       (raw.carrier_barcode_deleted_at as string | null) ?? null,

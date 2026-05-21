@@ -230,7 +230,7 @@ function Row({
                 customerPhone={order.customer_phone}
               />
             )}
-            {order.is_potential_duplicate && (
+            {order.is_potential_duplicate && order.is_duplicate_anchor && (
               <DuplicateOrderBadge
                 count={order.duplicate_count ?? 0}
                 siblings={order.duplicate_siblings ?? []}

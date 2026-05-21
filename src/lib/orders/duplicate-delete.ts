@@ -3,7 +3,7 @@ import type { Actor } from "@/lib/auth/actor";
 import {
   canViewOrders,
   canDeleteDuplicateSibling,
-  canManuallyDeleteOrderStatus,
+  canDeleteDuplicateSiblingStatus,
 } from "@/lib/order-permissions";
 import {
   enrichRowsWithDuplicates,
@@ -143,7 +143,9 @@ export async function verifyAndDeleteDuplicateSibling(
     // Belt-and-suspenders: the RPC already scopes by market, but never trust it.
     throw new DuplicateSiblingError("Forbidden", 403, "cross_market_sibling");
   }
-  if (!canManuallyDeleteOrderStatus(target.status)) {
+  // Dialog scope: refuse carrier-committed (uploaded) and stock-deducted
+  // (scanned) orders — these are never removable from the duplicate dialog.
+  if (!canDeleteDuplicateSiblingStatus(target.status)) {
     throw new DuplicateSiblingError(
       `Cannot delete order with status '${target.status}'`,
       400,
@@ -179,6 +181,7 @@ export async function verifyAndDeleteDuplicateSibling(
       duplicate_count: reEnriched.duplicate_count,
       duplicate_siblings: reEnriched.duplicate_siblings,
       has_uploaded_sibling: reEnriched.has_uploaded_sibling,
+      is_duplicate_anchor: reEnriched.is_duplicate_anchor,
     },
   };
 }
