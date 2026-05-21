@@ -95,6 +95,12 @@ export function InlineField({
 
   // Display mode: styled text, click activates input
   if (displayMode) {
+    // If the caller already specifies a text color, don't emit our own —
+    // otherwise two `text-*` classes compete and stylesheet order decides.
+    const callerSetsColor =
+      /(?:^|\s)!?text-(?:white|black|ink-|status-|accent|agent-|\[(?:#|rgb))/.test(
+        displayClassName,
+      );
     if (editing && !readOnly) {
       const sharedStyle = {
         width: "100%",
@@ -153,13 +159,22 @@ export function InlineField({
         onClick={() => { if (!readOnly) setEditing(true); }}
         onKeyDown={(e) => { if (!readOnly && (e.key === "Enter" || e.key === " ")) setEditing(true); }}
         className={[
-          "block text-[14px] text-ink-primary leading-snug",
+          // Base layout/typography only. Color is intentionally LAST via
+          // displayClassName so callers (e.g. white-on-dark phone strip) can
+          // override the default ink color without class-order ambiguity.
+          "block text-[14px] leading-snug",
           !readOnly
             ? "cursor-text rounded px-1 -mx-1 hover:bg-surface-selected transition-colors duration-fast"
             : "",
-          !value || String(value) === ""
-            ? "text-ink-muted italic"
-            : "",
+          // Only apply a default ink color when the caller hasn't supplied its
+          // own text color. Emitting both (e.g. text-ink-primary + text-white)
+          // leaves the winner up to stylesheet order, which is why the phone
+          // number rendered black on the dark strip.
+          callerSetsColor
+            ? ""
+            : !value || String(value) === ""
+              ? "text-ink-muted italic"
+              : "text-ink-primary",
           displayClassName,
         ].join(" ")}
       >

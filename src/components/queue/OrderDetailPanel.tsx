@@ -172,28 +172,61 @@ interface OrderDetailPanelProps {
   fallbackOrder?: Record<string, unknown> | null;
 }
 
+/**
+ * Subtle per-section color so cards are easy to tell apart at a glance.
+ * Intentionally faint (tinted header strip + matching title), never bold —
+ * the content surface stays white per the design system.
+ */
+type SectionAccent = "neutral" | "client" | "order" | "note" | "history" | "fulfillment";
+
+const SECTION_ACCENT: Record<
+  SectionAccent,
+  { body: string; border: string; title: string; dot: string }
+> = {
+  neutral: { body: "bg-surface-page", border: "border-line-subtle", title: "text-ink-muted", dot: "bg-ink-muted" },
+  client: { body: "bg-[#F7FAFD]", border: "border-[#D8E5F2]", title: "text-[#2C6ECB]", dot: "bg-[#2C6ECB]" },
+  order: { body: "bg-[#F6FBF8]", border: "border-[#D4E9DD]", title: "text-[#008060]", dot: "bg-[#008060]" },
+  note: { body: "bg-[#FFFCF2]", border: "border-[#F0E4C2]", title: "text-[#B98900]", dot: "bg-[#B98900]" },
+  history: { body: "bg-surface-page", border: "border-line-subtle", title: "text-ink-muted", dot: "bg-ink-muted" },
+  fulfillment: { body: "bg-[#FAF8FD]", border: "border-[#E0D7F0]", title: "text-[#6A4FB3]", dot: "bg-[#6A4FB3]" },
+};
+
 function SectionCard({
   title,
   children,
   className = "",
+  accent = "neutral",
 }: {
   title: string;
   children: React.ReactNode;
   className?: string;
+  accent?: SectionAccent;
 }) {
+  const tone = SECTION_ACCENT[accent];
   return (
     <section
       className={[
-        "bg-surface-card border border-line-subtle rounded-card overflow-hidden",
+        "border rounded-card overflow-hidden",
+        tone.body,
+        tone.border,
         className,
       ].join(" ")}
     >
-      <div className="px-4 pt-3.5 pb-0">
-        <h3 className="text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
+      <div className="flex items-center gap-2 px-5 pt-3 pb-1">
+        <span
+          aria-hidden="true"
+          className={["w-1.5 h-1.5 rounded-full flex-shrink-0", tone.dot].join(" ")}
+        />
+        <h3
+          className={[
+            "text-[10px] font-semibold uppercase tracking-[0.1em]",
+            tone.title,
+          ].join(" ")}
+        >
           {title}
         </h3>
       </div>
-      <div className="px-4 pb-4 pt-3 flex flex-col gap-0.5">{children}</div>
+      <div className="px-5 pb-2 pt-1 flex flex-col">{children}</div>
     </section>
   );
 }
@@ -207,8 +240,8 @@ function FieldRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-3.5 py-3 border-b border-line-subtle last:border-0">
-      <span className="w-[96px] flex-shrink-0 pt-0.5 text-[12px] text-ink-secondary leading-[1.4]">
+    <div className="flex items-baseline gap-4 py-2.5 border-b border-line-subtle last:border-0">
+      <span className="w-[88px] flex-shrink-0 text-[12px] font-medium text-ink-muted leading-[1.4]">
         {label}
       </span>
       <div className="flex-1 min-w-0">{children}</div>
@@ -273,6 +306,7 @@ export function OrderDetailPanel({
   const [scheduleDispatchOpen, setScheduleDispatchOpen] = useState(false);
   const [cancelingSchedule, setCancelingSchedule] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [orderOpen, setOrderOpen] = useState(false);
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadingCarrierId, setUploadingCarrierId] = useState<string | null>(null);
@@ -385,6 +419,7 @@ export function OrderDetailPanel({
     setLibyaCityPickerOpen(false);
     setLibyaCityQuery("");
     setHistoryOpen(false);
+    setOrderOpen(false);
   }, [order?.id]);
 
   const runCommit = useCallback(
@@ -800,21 +835,28 @@ export function OrderDetailPanel({
               />
 
               {/* ── Customer summary ── */}
-              <div className="px-4 pt-5 pb-5 bg-surface-card border-b border-line-subtle">
-                {/* Name */}
-                <div ref={nameFieldRef}>
+              <div className="px-5 pt-4 pb-4 bg-surface-card border-b border-line-subtle">
+                {/* Name — labeled, in a subtly tinted container so the lead
+                    field reads as distinct from the rest of the header. */}
+                <div
+                  ref={nameFieldRef}
+                  className="rounded-card bg-[#F7FAFD] border border-[#D8E5F2] px-3.5 py-3"
+                >
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-[#2C6ECB] mb-1">
+                    {t("fieldName")}
+                  </span>
                   <InlineField
                     value={order.customer_name}
                     onCommit={(v) => runCommit({ customer_name: v })}
                     displayMode
                     readOnly={!canEdit}
-                    displayClassName="text-[17px] font-semibold text-ink-primary leading-tight"
+                    displayClassName="text-[18px] font-semibold text-ink-primary leading-tight"
                   />
                 </div>
 
                 {/* City */}
                 {order.customer_city && (
-                  <div className="flex items-center gap-2 mt-2 mb-4 flex-wrap text-[12px]">
+                  <div className="flex items-center gap-2 mt-3.5 flex-wrap text-[12px]">
                     <span className="inline-flex items-center gap-1 text-ink-secondary">
                       <MapPin size={11} strokeWidth={2} aria-hidden="true" />
                       {order.customer_city}
@@ -823,11 +865,11 @@ export function OrderDetailPanel({
                 )}
 
                 {/* Primary phone: call, edit, and copy from the same action strip. */}
-                <div className="flex items-center gap-3 w-full rounded-card bg-ink-primary text-white ps-3 pe-2 py-2.5 transition-colors duration-fast">
+                <div className="flex items-center gap-3 w-full rounded-card bg-ink-primary text-white ps-3 pe-2 py-2.5 mt-3.5 transition-colors duration-fast">
                   <a
                     href={`tel:${order.customer_phone}`}
                     aria-label={`Call ${order.customer_phone}`}
-                    className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors duration-fast flex-shrink-0"
+                    className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors duration-fast flex-shrink-0"
                   >
                     <PhoneIcon size={14} strokeWidth={2} aria-hidden="true" />
                   </a>
@@ -846,8 +888,8 @@ export function OrderDetailPanel({
                       displayMode
                       readOnly={!canEdit}
                       placeholder={t("fieldPhone")}
-                      className="text-[16px] font-semibold tabular-nums tracking-wide"
-                      displayClassName="text-[16px] font-semibold tabular-nums tracking-wide text-white hover:bg-white/10 focus:bg-white/10"
+                      className="text-[15px] font-semibold tabular-nums tracking-wide"
+                      displayClassName="text-[15px] font-semibold tabular-nums tracking-wide !text-white hover:bg-white/10 focus:bg-white/10"
                     />
                   </div>
                   <button
@@ -883,23 +925,6 @@ export function OrderDetailPanel({
                         <PhoneIcon size={12} strokeWidth={2} aria-hidden="true" />
                       </a>
                     )}
-                  </div>
-                )}
-
-                {/* Customer note — calm, non-dominant. Editable when the order
-                    is still editable; otherwise a read-only italic note. Shown
-                    even when empty (in edit mode) so an agent can add one. */}
-                {(order.customer_note || canEdit) && (
-                  <div className="mt-4 ps-2.5 border-s-2 border-line-strong">
-                    <InlineField
-                      value={order.customer_note ?? ""}
-                      onCommit={(v) => runCommit({ customer_note: v.trim() || null })}
-                      multiline
-                      displayMode
-                      readOnly={!canEdit}
-                      placeholder={canEdit ? t("fieldNotePlaceholder") : ""}
-                      displayClassName="text-[12px] text-ink-secondary leading-snug italic"
-                    />
                   </div>
                 )}
               </div>
@@ -955,10 +980,10 @@ export function OrderDetailPanel({
               </div>
 
               {/* ── Body sections ── */}
-              <div className="flex flex-col gap-4 px-4 py-5 pb-10">
+              <div className="flex flex-col gap-3 px-4 py-4 pb-10">
 
                 {/* Client details card */}
-                <SectionCard title={t("client")}>
+                <SectionCard title={t("client")} accent="client">
                   <FieldRow label={t("fieldAddress")}>
                     <InlineField
                       value={order.customer_address ?? ""}
@@ -1048,27 +1073,127 @@ export function OrderDetailPanel({
                   </FieldRow>
                 </SectionCard>
 
-                {/* Order / receipt card */}
-                <SectionCard title={t("order")}>
-                  {(() => {
-                    const items: OrderItem[] = order.order_items?.length
-                      ? order.order_items
-                      : [{
-                          id: "legacy",
-                          order_id: order.id,
-                          product_id: order.product_id,
-                          product_name: order.product_name,
-                          variant_id: order.variant_id,
-                          variant_label: order.variant_label,
-                          quantity: order.quantity,
-                          unit_price: order.unit_price,
-                          line_total: order.total_price - (order.delivery_fee ?? 0),
-                          created_at: order.updated_at,
-                          updated_at: order.updated_at,
-                        }];
+                {/* Notes — placed right after the client address. Editable
+                    while the order is still editable; otherwise a read-only
+                    note. Shown even when empty (in edit mode) so an agent can
+                    add one. */}
+                {(order.customer_note || canEdit) && (
+                  <SectionCard title={t("fieldNote")} accent="note">
+                    <div className="py-1.5">
+                      <InlineField
+                        value={order.customer_note ?? ""}
+                        onCommit={(v) => runCommit({ customer_note: v.trim() || null })}
+                        multiline
+                        displayMode
+                        readOnly={!canEdit}
+                        placeholder={canEdit ? t("fieldNotePlaceholder") : "—"}
+                        displayClassName="text-[13px] text-ink-secondary leading-relaxed"
+                      />
+                    </div>
+                  </SectionCard>
+                )}
 
-                    return (
-                      <>
+                {/* Order / receipt card — collapsible like the history.
+                    Collapsed: a compact horizontal summary (product · qty×price
+                    · card toggle · total). Expanded: full editable line items. */}
+                {(() => {
+                  const items: OrderItem[] = order.order_items?.length
+                    ? order.order_items
+                    : [{
+                        id: "legacy",
+                        order_id: order.id,
+                        product_id: order.product_id,
+                        product_name: order.product_name,
+                        variant_id: order.variant_id,
+                        variant_label: order.variant_label,
+                        quantity: order.quantity,
+                        unit_price: order.unit_price,
+                        line_total: order.total_price - (order.delivery_fee ?? 0),
+                        created_at: order.updated_at,
+                        updated_at: order.updated_at,
+                      }];
+                  const orderAccent = SECTION_ACCENT.order;
+                  const summaryItem = items[0];
+                  const extraItemCount = items.length - 1;
+
+                  return (
+                    <section
+                      className={[
+                        "border rounded-card overflow-hidden",
+                        orderAccent.body,
+                        orderAccent.border,
+                      ].join(" ")}
+                    >
+                      {/* Toggle header */}
+                      <button
+                        type="button"
+                        onClick={() => setOrderOpen((open) => !open)}
+                        aria-expanded={orderOpen}
+                        data-testid="order-details-toggle"
+                        className="flex w-full items-center gap-2 px-5 pt-3 pb-1 text-start"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={["w-1.5 h-1.5 rounded-full flex-shrink-0", orderAccent.dot].join(" ")}
+                        />
+                        <h3 className={["text-[10px] font-semibold uppercase tracking-[0.1em]", orderAccent.title].join(" ")}>
+                          {t("order")}
+                        </h3>
+                        <ChevronDown
+                          size={15}
+                          strokeWidth={2.25}
+                          aria-hidden="true"
+                          className={[
+                            "ms-auto flex-shrink-0 transition-transform duration-fast",
+                            orderAccent.title,
+                            orderOpen ? "rotate-180" : "",
+                          ].join(" ")}
+                        />
+                      </button>
+
+                      {/* Compact summary — shown only when collapsed; the
+                          expanded view holds the full editable detail instead,
+                          so the same info is never displayed twice. */}
+                      {!orderOpen && (
+                        <div className="flex items-center gap-3 px-5 pt-1 pb-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline gap-2 min-w-0">
+                              <span className="truncate text-[14px] font-semibold text-ink-primary">
+                                {summaryItem?.product_name ?? "—"}
+                              </span>
+                              {extraItemCount > 0 && (
+                                <span className="flex-shrink-0 text-[11px] font-medium text-ink-muted tabular-nums">
+                                  +{extraItemCount}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[12px] text-ink-secondary tabular-nums">
+                              {summaryItem?.quantity ?? 0}
+                              <span className="text-ink-muted"> × </span>
+                              {summaryItem?.unit_price ?? 0} {displayCurrency}
+                            </span>
+                          </div>
+                          {isLibyaOrder && (
+                            <label className={`flex items-center gap-1.5 flex-shrink-0 ${canEdit ? "cursor-pointer" : "cursor-default"}`}>
+                              <input
+                                type="checkbox"
+                                checked={order.card_payment}
+                                disabled={!canEdit}
+                                onChange={(e) => runCommit({ card_payment: e.target.checked })}
+                                className="h-4 w-4 rounded border-line-strong text-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-50"
+                              />
+                              <span className="text-[11px] text-ink-secondary whitespace-nowrap">{t("cardPayment")}</span>
+                            </label>
+                          )}
+                          <span className="flex-shrink-0 text-[16px] font-bold text-ink-primary tabular-nums tracking-tight whitespace-nowrap">
+                            {order.total_price}
+                            <span className="text-[11px] font-semibold text-ink-secondary ms-1">{displayCurrency}</span>
+                          </span>
+                        </div>
+                      )}
+
+                      {orderOpen && (
+                      <div className="px-5 pb-2 pt-1 flex flex-col">
                         {/* Line items */}
                         {items.map((item, idx) => {
                           const itemProduct =
@@ -1092,7 +1217,7 @@ export function OrderDetailPanel({
                           return (
                           <div
                             key={item.id}
-                            className="group -mx-2 px-2 py-3.5 rounded-card border-b border-line-subtle last:border-0 hover:bg-surface-hover transition-colors duration-fast"
+                            className="group -mx-2 px-2 py-2.5 rounded-card border-b border-line-subtle last:border-0 hover:bg-surface-hover transition-colors duration-fast"
                           >
                             {/* Header: product name + delete */}
                             <div className="flex items-start justify-between gap-3">
@@ -1116,7 +1241,7 @@ export function OrderDetailPanel({
                                   placeholder={t("pickProduct")}
                                   displayMode
                                   readOnly={!canEdit}
-                                  displayClassName="text-[15px] font-semibold text-ink-primary leading-snug"
+                                  displayClassName="text-[14px] font-semibold text-ink-primary leading-snug"
                                 />
                               </div>
                               {canEdit && items.length > 1 && item.id !== "legacy" && (
@@ -1150,7 +1275,7 @@ export function OrderDetailPanel({
                             )}
 
                             {/* Footer: qty stepper · unit price · line total */}
-                            <div className="flex items-center justify-between gap-3 mt-3">
+                            <div className="flex items-center justify-between gap-3 mt-2">
                               <div className="flex items-center gap-2 min-w-0">
                                 <StepperField
                                   value={item.quantity}
@@ -1233,7 +1358,7 @@ export function OrderDetailPanel({
                         })()}
 
                         {/* Receipt footer */}
-                        <div className="mt-4 pt-4 border-t border-line-subtle flex flex-col gap-2.5">
+                        <div className="mt-2.5 pt-2.5 border-t border-line-subtle flex flex-col gap-2">
                           {/* Delivery fee */}
                           <div className="flex items-center justify-between">
                             <span className="text-[12px] text-ink-secondary">{t("fieldDeliveryFee")}</span>
@@ -1267,9 +1392,9 @@ export function OrderDetailPanel({
                             </label>
                           )}
                           {/* Grand total — emphasised band */}
-                          <div className="-mx-2 mt-1.5 flex items-center justify-between rounded-card bg-surface-page px-3 py-3">
-                            <span className="text-[11px] font-semibold text-ink-secondary uppercase tracking-[0.08em]">{t("grandTotal")}</span>
-                            <span className="text-[20px] font-bold text-ink-primary tabular-nums tracking-tight leading-none">
+                          <div className="-mx-2 mt-1 flex items-center justify-between rounded-card bg-[#F1F8F5] border border-status-success/15 px-3 py-2.5">
+                            <span className="text-[11px] font-semibold text-status-success uppercase tracking-[0.08em]">{t("grandTotal")}</span>
+                            <span className="text-[18px] font-bold text-ink-primary tabular-nums tracking-tight leading-none">
                               {order.total_price}
                               <span className="text-[12px] font-semibold text-ink-secondary ms-1.5">{displayCurrency}</span>
                             </span>
@@ -1279,10 +1404,11 @@ export function OrderDetailPanel({
                         {saveError && (
                           <div className="text-[12px] text-status-critical mt-1">{saveError}</div>
                         )}
-                      </>
-                    );
-                  })()}
-                </SectionCard>
+                      </div>
+                      )}
+                    </section>
+                  );
+                })()}
 
                 {/* History timeline */}
                 <section
@@ -1295,13 +1421,14 @@ export function OrderDetailPanel({
                     onClick={() => setHistoryOpen((open) => !open)}
                     aria-expanded={historyOpen}
                     data-testid="order-history-toggle"
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-start hover:bg-surface-hover transition-colors duration-fast"
+                    className="flex w-full items-center justify-between gap-3 px-5 py-3 text-start transition-colors duration-fast"
                   >
                     <span className="flex items-center gap-2 min-w-0">
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
+                      <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-ink-muted flex-shrink-0" />
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
                         {historyTitle}
                       </span>
-                      <span className="rounded-pill bg-surface-page px-2 py-0.5 text-[11px] font-semibold tabular-nums text-ink-secondary">
+                      <span className="rounded-pill bg-surface-card px-2 py-0.5 text-[11px] font-semibold tabular-nums text-ink-secondary">
                         {order.history.length}
                       </span>
                     </span>
@@ -1370,7 +1497,7 @@ export function OrderDetailPanel({
 
                 {/* Fulfillment override — managers only */}
                 {canFulfillmentOverride && (
-                  <SectionCard title={t("fulfillmentTitle")}>
+                  <SectionCard title={t("fulfillmentTitle")} accent="fulfillment">
                     <div className="flex flex-col gap-2.5 pt-1">
                       <select
                         value={fulfillmentStatus}
