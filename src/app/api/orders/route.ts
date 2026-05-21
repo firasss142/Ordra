@@ -105,19 +105,98 @@ export async function POST(req: NextRequest) {
     external_platform,
     customer_name,
     customer_phone,
-    product_name,
-    unit_price,
-    total_price,
+    product_id,
+    variant_id,
   } = body;
 
-  if (!customer_name || !customer_phone || !product_name || total_price === undefined) {
+  if (!customer_name || !customer_phone || !product_id) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  if (!storefront_id) {
-    return NextResponse.json({ error: "storefront_id is required" }, { status: 400 });
+  let resolvedStorefrontId =
+    typeof storefront_id === "string" && storefront_id.trim() !== ""
+      ? storefront_id
+      : "";
+
+  if (!resolvedStorefrontId) {
+    const { data: storefront, error: storefrontError } = await supabase
+      .from("storefronts")
+      .select("id")
+      .eq("market_id", marketId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .single();
+
+    if (storefrontError || !storefront) {
+      return NextResponse.json(
+        { error: "No active storefront is configured for this market" },
+        { status: 400 },
+      );
+    }
+    resolvedStorefrontId = storefront.id;
   }
 
+  const { data: product, error: productError } = await supabase
+    .from("products")
+    .select("id, market_id, name, default_price, is_active")
+    .eq("id", product_id as string)
+    .eq("market_id", marketId)
+    .eq("is_active", true)
+    .single();
+
+  if (productError || !product) {
+    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+  }
+
+  const requestedQty = Number(body.quantity ?? 1);
+  if (!Number.isInteger(requestedQty) || requestedQty < 1) {
+    return NextResponse.json({ error: "quantity must be a positive integer" }, { status: 400 });
+  }
+
+  let quantity = requestedQty;
+  const rawProductPrice = product.default_price as unknown;
+  let unitPrice =
+    rawProductPrice !== null && rawProductPrice !== undefined
+      ? Number(rawProductPrice)
+      : NaN;
+  let variantLabel =
+    typeof body.variant_label === "string" && body.variant_label.trim() !== ""
+      ? body.variant_label.trim()
+      : null;
+  let productVariantId: string | null = null;
+
+  if (typeof variant_id === "string" && variant_id.trim() !== "") {
+    const { data: variant, error: variantError } = await supabase
+      .from("product_variants")
+      .select("id, product_id, label, quantity, display_price, is_active")
+      .eq("id", variant_id)
+      .eq("product_id", product.id)
+      .eq("is_active", true)
+      .single();
+
+    if (variantError || !variant) {
+      return NextResponse.json({ error: "Variant not found" }, { status: 404 });
+    }
+
+    productVariantId = variant.id;
+    variantLabel = variant.label;
+    quantity = variant.quantity;
+    const rawVariantPrice = variant.display_price as unknown;
+    unitPrice =
+      rawVariantPrice !== null && rawVariantPrice !== undefined
+        ? Number(rawVariantPrice)
+        : NaN;
+  }
+
+  if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+    return NextResponse.json(
+      { error: "Product price is not configured" },
+      { status: 400 },
+    );
+  }
+
+  const totalPrice = Math.round(quantity * unitPrice * 1000) / 1000;
   const isAgent = role === "agent";
   const initialStatus = "pending";
 
@@ -125,7 +204,7 @@ export async function POST(req: NextRequest) {
     .from("orders")
     .insert({
       market_id: marketId,
-      storefront_id,
+      storefront_id: resolvedStorefrontId,
       external_id: external_id ?? `manual-${Date.now()}`,
       external_platform: external_platform ?? "manual",
       status: initialStatus,
@@ -134,12 +213,13 @@ export async function POST(req: NextRequest) {
       customer_address: body.customer_address ?? null,
       customer_city: body.customer_city ?? null,
       customer_note: body.customer_note ?? null,
-      product_id: body.product_id ?? null,
-      product_name,
-      variant_label: body.variant_label ?? null,
-      quantity: body.quantity ?? 1,
-      unit_price: unit_price ?? total_price,
-      total_price,
+      product_id: product.id,
+      product_variant_id: productVariantId,
+      product_name: product.name,
+      variant_label: variantLabel,
+      quantity,
+      unit_price: unitPrice,
+      total_price: totalPrice,
       dexpress_state_id:
         typeof body.dexpress_state_id === "number" ? body.dexpress_state_id : null,
       assigned_to: isAgent ? actor.id : null,

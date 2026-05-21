@@ -23,20 +23,14 @@ interface Market {
   code: string;
 }
 
-interface Storefront {
-  id: string;
-  name: string;
-  platform: string;
-  is_active: boolean;
-}
-
 interface Product {
   id: string;
   name: string;
   market_id: string;
   is_active?: boolean;
   current_stock?: number;
-  default_price?: number | null;
+  default_price?: number | string | null;
+  unit_price?: number | string | null;
 }
 
 interface ProductVariant {
@@ -44,7 +38,7 @@ interface ProductVariant {
   product_id: string;
   label: string;
   quantity: number;
-  display_price: number;
+  display_price: number | string;
   is_active: boolean;
 }
 
@@ -58,7 +52,6 @@ interface CreateOrderModalProps {
 
 interface FormState {
   market_id: string;
-  storefront_id: string;
   customer_name: string;
   customer_phone: string;
   customer_city: string;
@@ -72,7 +65,6 @@ interface FormState {
   quantity: string;
   unit_price: string;
   total_price: string;
-  total_price_touched: boolean;
   loading: boolean;
   error: string | null;
 }
@@ -80,7 +72,6 @@ interface FormState {
 function emptyForm(marketId: string): FormState {
   return {
     market_id: marketId,
-    storefront_id: "",
     customer_name: "",
     customer_phone: "",
     customer_city: "",
@@ -93,7 +84,6 @@ function emptyForm(marketId: string): FormState {
     quantity: "1",
     unit_price: "",
     total_price: "",
-    total_price_touched: false,
     loading: false,
     error: null,
   };
@@ -129,6 +119,12 @@ function FormSection({ title, children }: { title: string; children: React.React
 
 function formatPrice(value: number): string {
   return value.toFixed(3);
+}
+
+function parsePriceValue(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
 export function CreateOrderModal({
@@ -190,19 +186,9 @@ export function CreateOrderModal({
   const marketCode = currentMarket?.code;
   const marketSelectLocked = Boolean(form.market_id);
 
-  const { data: storefrontsData } = useSWR<{ data: Storefront[] }>(
-    isOpen && effectiveMarketId
-      ? `/api/storefronts?market_id=${effectiveMarketId}`
-      : null,
-    fetcher,
-  );
-  const storefronts = (storefrontsData?.data ?? []).filter(
-    (s) => s.is_active !== false,
-  );
-
   const { data: productsData } = useSWR<{ data: Product[] }>(
     isOpen && effectiveMarketId
-      ? `/api/products?market_id=${effectiveMarketId}`
+      ? `/api/products/search?market_id=${effectiveMarketId}`
       : null,
     fetcher,
   );
@@ -222,9 +208,8 @@ export function CreateOrderModal({
     (v) => v.is_active !== false,
   );
 
-  // Auto-compute total unless user touched it
+  // Auto-compute total from the selected product/variant price.
   useEffect(() => {
-    if (form.total_price_touched) return;
     const q = parseFloat(form.quantity);
     const up = parseFloat(form.unit_price);
     if (!Number.isNaN(q) && !Number.isNaN(up)) {
@@ -233,7 +218,7 @@ export function CreateOrderModal({
         s.total_price === computed ? s : { ...s, total_price: computed },
       );
     }
-  }, [form.quantity, form.unit_price, form.total_price_touched]);
+  }, [form.quantity, form.unit_price]);
 
   // Escape to close
   useEffect(() => {
@@ -282,14 +267,15 @@ export function CreateOrderModal({
     setForm((s) => ({ ...s, [key]: value, error: null }));
   }
 
+  function getProductPrice(product: Product | undefined): number | null {
+    return parsePriceValue(product?.default_price ?? product?.unit_price);
+  }
+
   function handleProductChange(productId: string) {
     // Switching product → reset variant and seed prices from product.default_price
     // (variant selection overrides this downstream).
     const p = products.find((x) => x.id === productId);
-    const basePrice =
-      p && typeof p.default_price === "number" && p.default_price >= 0
-        ? p.default_price
-        : null;
+    const basePrice = getProductPrice(p);
     setForm((s) => {
       const qty = parseInt(s.quantity, 10);
       const unit = basePrice !== null ? formatPrice(basePrice) : "";
@@ -304,7 +290,6 @@ export function CreateOrderModal({
         variant_label: "",
         unit_price: unit,
         total_price: total,
-        total_price_touched: false,
         error: null,
       };
     });
@@ -326,9 +311,8 @@ export function CreateOrderModal({
       variant_id: v.id,
       variant_label: v.label,
       quantity: String(v.quantity),
-      unit_price: formatPrice(v.display_price),
-      total_price: formatPrice(v.quantity * v.display_price),
-      total_price_touched: false,
+      unit_price: formatPrice(parsePriceValue(v.display_price) ?? 0),
+      total_price: formatPrice(v.quantity * (parsePriceValue(v.display_price) ?? 0)),
       error: null,
     }));
   }
@@ -336,10 +320,6 @@ export function CreateOrderModal({
   async function handleSubmit() {
     if (!form.market_id) {
       update("error", t("errors.marketRequired"));
-      return;
-    }
-    if (!form.storefront_id) {
-      update("error", t("errors.storefrontRequired"));
       return;
     }
     if (!form.customer_name.trim()) {
@@ -384,7 +364,6 @@ export function CreateOrderModal({
 
     const body: Record<string, unknown> = {
       market_id: form.market_id,
-      storefront_id: form.storefront_id,
       customer_name: form.customer_name.trim(),
       customer_phone: form.customer_phone.trim(),
       customer_city: form.customer_city.trim() || null,
@@ -392,6 +371,7 @@ export function CreateOrderModal({
       customer_address: form.customer_address.trim() || null,
       customer_note: form.customer_note.trim() || null,
       product_id: form.product_id,
+      variant_id: form.variant_id || null,
       product_name: product.name,
       variant_label: form.variant_label.trim() || null,
       quantity: qty,
@@ -471,42 +451,26 @@ export function CreateOrderModal({
 
           {/* Scrollable body */}
           <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4">
-            <FormSection title={t("sectionContext")}>
-              {isSuperAdmin && (
-                  <div>
-                    <FieldLabel required>{t("fields.market")}</FieldLabel>
-                    <select
-                      value={form.market_id}
-                      onChange={(e) => update("market_id", e.target.value)}
-                      className={inputClass}
-                      disabled={marketSelectLocked}
-                    >
-                      <option value="">—</option>
-                      {markets.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              <div>
-                <FieldLabel required>{t("fields.storefront")}</FieldLabel>
-                <select
-                  value={form.storefront_id}
-                  onChange={(e) => update("storefront_id", e.target.value)}
-                  className={inputClass}
-                  disabled={!effectiveMarketId}
-                >
-                  <option value="">—</option>
-                  {storefronts.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.platform})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </FormSection>
+            {isSuperAdmin && (
+              <FormSection title={t("sectionContext")}>
+                <div>
+                  <FieldLabel required>{t("fields.market")}</FieldLabel>
+                  <select
+                    value={form.market_id}
+                    onChange={(e) => update("market_id", e.target.value)}
+                    className={inputClass}
+                    disabled={marketSelectLocked}
+                  >
+                    <option value="">—</option>
+                    {markets.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </FormSection>
+            )}
 
             <FormSection title={t("sectionCustomer")}>
               <div className="grid grid-cols-2 gap-3">
@@ -672,7 +636,7 @@ export function CreateOrderModal({
                     <option value="">—</option>
                     {variants.map((v) => (
                       <option key={v.id} value={v.id}>
-                        {v.label} — {v.quantity}× · {formatPrice(v.display_price)}
+                        {v.label} - {v.quantity}x - {formatPrice(parsePriceValue(v.display_price) ?? 0)}
                       </option>
                     ))}
                   </select>
@@ -706,7 +670,7 @@ export function CreateOrderModal({
                     step="0.001"
                     min={0}
                     value={form.unit_price}
-                    onChange={(e) => update("unit_price", e.target.value)}
+                    readOnly
                     className={`${inputClass} tabular-nums`}
                   />
                 </div>
@@ -717,14 +681,7 @@ export function CreateOrderModal({
                     step="0.001"
                     min={0}
                     value={form.total_price}
-                    onChange={(e) =>
-                      setForm((s) => ({
-                        ...s,
-                        total_price: e.target.value,
-                        total_price_touched: true,
-                        error: null,
-                      }))
-                    }
+                    readOnly
                     className={`${inputClass} tabular-nums font-semibold`}
                   />
                 </div>
