@@ -1,8 +1,23 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
-import { StatusGlyph } from "@/components/shared/StatusGlyph";
 import { formatDateTime } from "@/lib/format";
+
+/**
+ * A small status dot that inherits the pill's text color (currentColor), so it
+ * always pairs with its tone — the same dot language as the StatusSign pills.
+ */
+function Dot({ filled = true }: { filled?: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={[
+        "h-1.5 w-1.5 rounded-full",
+        filled ? "bg-current" : "border border-current",
+      ].join(" ")}
+    />
+  );
+}
 
 interface Props {
   status: string;
@@ -35,7 +50,22 @@ function formatHM(date: Date, locale: string): string {
   }
 }
 
-const BASE = "inline-flex items-center gap-1.5 text-[12px] font-medium";
+// A contained pill — same shape language as the Confirmé / Téléchargé status
+// signs, so every queue card reads its state from a consistent chip.
+const BASE =
+  "inline-flex items-center gap-1.5 px-3 py-1 rounded-pill text-[11px] font-bold tracking-[0.04em] whitespace-nowrap border";
+
+// Tonal containers per state.
+const TONE_NEUTRAL =
+  "bg-agent-surface-high text-agent-on-surface border-agent-outline-variant";
+const TONE_ATTEMPT =
+  "bg-status-warningBg text-status-warning border-status-warning/30";
+// Final attempt: same amber family as the other tentatives, just a darker,
+// denser fill so it reads as the most urgent without switching to red.
+const TONE_FINAL =
+  "bg-status-warning/20 text-status-warning border-status-warning/60";
+const TONE_CRITICAL =
+  "bg-status-criticalBg text-status-critical border-status-critical/40";
 
 export function AttemptEtiquette({
   status,
@@ -73,8 +103,8 @@ export function AttemptEtiquette({
   if (isOverdueCallback) {
     const label = t("callbackOverdue");
     return (
-      <span role="note" aria-label={label} className={`${BASE} text-status-critical`}>
-        <StatusGlyph shape="solid" />
+      <span role="note" aria-label={label} className={`${BASE} ${TONE_CRITICAL}`}>
+        <Dot />
         <span>{label}</span>
       </span>
     );
@@ -84,8 +114,8 @@ export function AttemptEtiquette({
     const time = formatHM(callbackDate, locale);
     const label = t("callbackAt", { time });
     return (
-      <span role="note" aria-label={label} className={`${BASE} text-ink-secondary`}>
-        <StatusGlyph shape="ring" />
+      <span role="note" aria-label={label} className={`${BASE} ${TONE_NEUTRAL}`}>
+        <Dot filled={false} />
         <span>{label}</span>
       </span>
     );
@@ -94,8 +124,8 @@ export function AttemptEtiquette({
   if (isOverdueDispatch) {
     const label = t("dispatchOverdue");
     return (
-      <span role="note" aria-label={label} className={`${BASE} text-status-critical`}>
-        <StatusGlyph shape="solid" />
+      <span role="note" aria-label={label} className={`${BASE} ${TONE_CRITICAL}`}>
+        <Dot />
         <span>{label}</span>
       </span>
     );
@@ -107,8 +137,8 @@ export function AttemptEtiquette({
       ? t("dispatchAtAuto", { time })
       : t("dispatchAt", { time });
     return (
-      <span role="note" aria-label={label} className={`${BASE} text-ink-secondary`}>
-        <StatusGlyph shape="ring" />
+      <span role="note" aria-label={label} className={`${BASE} ${TONE_NEUTRAL}`}>
+        <Dot filled={false} />
         <span>{label}</span>
       </span>
     );
@@ -116,14 +146,20 @@ export function AttemptEtiquette({
 
   const n = attemptNumberFor(status, attemptsCount);
   if (n !== null) {
+    const isFinal = n >= maxAttempts;
     const label = t("attempt", { n });
     return (
-      <span role="note" aria-label={label} className={`${BASE} text-ink-primary`}>
-        <StatusGlyph shape="solid" />
+      <span
+        role="note"
+        aria-label={label}
+        className={[
+          BASE,
+          isFinal ? `${TONE_FINAL} animate-pulse` : TONE_ATTEMPT,
+        ].join(" ")}
+      >
+        <Dot />
         <span>{label}</span>
-        {n >= maxAttempts && (
-          <span className="text-ink-secondary font-normal">{t("attemptFinal")}</span>
-        )}
+        {isFinal && <span className="font-bold">{t("attemptFinal")}</span>}
       </span>
     );
   }

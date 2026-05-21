@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { calculateProductProfitability } from "@/lib/calculations/product-profitability";
+import { ProductImagePicker } from "./ProductImagePicker";
 import type { Role } from "@/types";
 
 interface Market {
@@ -42,6 +43,7 @@ export function ProductCreateForm({ markets, defaultMarketId, locale, lockedMark
   const [initialStock, setInitialStock] = useState("0");
   const [threshold, setThreshold] = useState("5");
   const [defaultPrice, setDefaultPrice] = useState("");
+  const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -107,6 +109,23 @@ export function ProductCreateForm({ markets, defaultMarketId, locale, lockedMark
 
     const json = await res.json();
     const newId = json?.data?.id;
+
+    // Upload the picked image now that the product (and its ID) exists.
+    if (newId && image) {
+      const imgRes = await fetch(`/api/products/${newId}/image`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data_url: image }),
+      });
+      if (!imgRes.ok) {
+        // Product was created; only the image failed. Surface it but still
+        // land on the detail page so the user can retry from the edit form.
+        setError(t("image.uploadFailed"));
+        router.push(`/${locale}/products/${newId}`);
+        return;
+      }
+    }
+
     if (newId) {
       router.push(`/${locale}/products/${newId}`);
     } else {
@@ -157,6 +176,8 @@ export function ProductCreateForm({ markets, defaultMarketId, locale, lockedMark
             />
             <p style={hintStyle}>{t("create.hints.sku")}</p>
           </div>
+
+          <ProductImagePicker value={image} onChange={setImage} />
 
           {markets.length > 1 && !lockedMarketId && (
             <div>

@@ -1489,6 +1489,18 @@
       "submit": "Enregistrer",
       "saving": "Enregistrement…"
     },
+    "image": {
+      "label": "Image du produit",
+      "add": "Ajouter une image",
+      "change": "Changer l'image",
+      "remove": "Supprimer l'image",
+      "uploadFailed": "Échec du téléversement de l'image.",
+      "errors": {
+        "notImage": "Fichier image requis.",
+        "tooLarge": "Image trop volumineuse (max 5 Mo).",
+        "decodeFailed": "Impossible de lire l'image."
+      }
+    },
     "row": {
       "editThreshold": "Modifier le seuil",
       "variants": "{count} variante(s)",

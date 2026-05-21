@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
-import { X, Phone as PhoneIcon, Copy, Check, MapPin, Plus, Calendar, RotateCcw, AlertTriangle, Pencil } from "lucide-react";
+import { X, Phone as PhoneIcon, Copy, Check, MapPin, Plus, Calendar, RotateCcw, AlertTriangle, Pencil, ChevronDown } from "lucide-react";
 import { getStatusLabel } from "@/lib/status-labels";
 import { canReopenOrder, EDIT_BLOCKED_STATUSES, isReferenceDeletedUpload } from "@/lib/order-permissions";
 import { fetcher } from "@/lib/swr-config";
@@ -14,7 +14,8 @@ import { Combobox, type ComboboxOption } from "@/components/ui/Combobox";
 import { StepperField } from "@/components/ui/StepperField";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { useOrderMutation } from "@/hooks/useOrderMutation";
-import { LY_MARKET_ID } from "@/lib/markets";
+import { formatDisplayCurrencyCode, LY_MARKET_ID } from "@/lib/markets";
+import { formatOrderHistoryNote } from "@/lib/order-history-display";
 import { isValidLibyanPhone } from "@/lib/carriers/phone";
 import type { Role } from "@/types";
 
@@ -187,12 +188,12 @@ function SectionCard({
         className,
       ].join(" ")}
     >
-      <div className="px-4 pt-3 pb-0">
+      <div className="px-4 pt-3.5 pb-0">
         <h3 className="text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
           {title}
         </h3>
       </div>
-      <div className="px-4 pb-4 pt-2 flex flex-col gap-0">{children}</div>
+      <div className="px-4 pb-4 pt-3 flex flex-col gap-0.5">{children}</div>
     </section>
   );
 }
@@ -206,30 +207,13 @@ function FieldRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-baseline gap-3 py-2.5 border-b border-line-subtle last:border-0">
-      <span className="w-[88px] flex-shrink-0 text-[12px] text-ink-secondary leading-[1.4]">
+    <div className="flex items-start gap-3.5 py-3 border-b border-line-subtle last:border-0">
+      <span className="w-[96px] flex-shrink-0 pt-0.5 text-[12px] text-ink-secondary leading-[1.4]">
         {label}
       </span>
       <div className="flex-1 min-w-0">{children}</div>
     </div>
   );
-}
-
-function translateHistoryNote(
-  note: string | null,
-  th: (k: string) => string,
-): string | null {
-  if (!note) return null;
-  const map: Record<string, string> = {
-    "Order received via webhook": th("createdFromWebhook"),
-    "Assigned to agent": th("assignedToAgent"),
-    "Reassigned to agent": th("reassignedToAgent"),
-    "Cancelled via storefront webhook": th("deleted"),
-    "Scheduled dispatch cancelled": th("scheduledDispatchCancelled"),
-    // Legacy French note kept so historical rows still render translated.
-    "Livraison planifiée annulée": th("scheduledDispatchCancelled"),
-  };
-  return map[note] ?? note;
 }
 
 export function OrderDetailPanel({
@@ -288,6 +272,7 @@ export function OrderDetailPanel({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [scheduleDispatchOpen, setScheduleDispatchOpen] = useState(false);
   const [cancelingSchedule, setCancelingSchedule] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadingCarrierId, setUploadingCarrierId] = useState<string | null>(null);
@@ -399,6 +384,7 @@ export function OrderDetailPanel({
   useEffect(() => {
     setLibyaCityPickerOpen(false);
     setLibyaCityQuery("");
+    setHistoryOpen(false);
   }, [order?.id]);
 
   const runCommit = useCallback(
@@ -541,13 +527,6 @@ export function OrderDetailPanel({
     }
   }
 
-  const mapsHref =
-    order && (order.customer_address || order.customer_city)
-      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-          [order.customer_address, order.customer_city].filter(Boolean).join(", "),
-        )}`
-      : null;
-
   const canScheduleDispatch =
     role === undefined && order !== null && order.status === "confirmed";
   const isDispatchScheduled =
@@ -575,6 +554,24 @@ export function OrderDetailPanel({
     fetcher,
   );
   const activeCarriers = (uploadCarriersData?.data ?? []).filter((c) => c.is_active);
+  const displayCurrency = order
+    ? formatDisplayCurrencyCode(order.currency, order.market_id)
+    : "";
+  const historyLocale = isLibyaOrder ? "ar" : locale;
+  const historyTitle = isLibyaOrder ? "السجل" : t("history");
+  const emptyHistoryText = isLibyaOrder ? "لا يوجد سجل" : t("emptyHistory");
+  const formatHistoryStatus = useCallback(
+    (entry: HistoryEntry) => {
+      const to = getStatusLabel(entry.to_status, historyLocale);
+      if (!entry.from_status) return to;
+
+      const from = getStatusLabel(entry.from_status, historyLocale);
+      return historyLocale === "ar"
+        ? `${from} ← ${to}`
+        : th("transition", { from, to });
+    },
+    [historyLocale, th],
+  );
 
   async function handleUploadToCarrier(carrierId: string) {
     if (!orderId) return;
@@ -803,7 +800,7 @@ export function OrderDetailPanel({
               />
 
               {/* ── Customer summary ── */}
-              <div className="px-4 pt-4 pb-4 bg-surface-card border-b border-line-subtle">
+              <div className="px-4 pt-5 pb-5 bg-surface-card border-b border-line-subtle">
                 {/* Name */}
                 <div ref={nameFieldRef}>
                   <InlineField
@@ -815,65 +812,26 @@ export function OrderDetailPanel({
                   />
                 </div>
 
-                {/* City + maps link */}
-                {(order.customer_city || mapsHref) && (
-                  <div className="flex items-center gap-2 mt-1.5 mb-3 flex-wrap text-[12px]">
-                    {order.customer_city && (
-                      <span className="inline-flex items-center gap-1 text-ink-secondary">
-                        <MapPin size={11} strokeWidth={2} aria-hidden="true" />
-                        {order.customer_city}
-                      </span>
-                    )}
-                    {mapsHref && (
-                      <>
-                        {order.customer_city && (
-                          <span className="text-ink-muted" aria-hidden="true">·</span>
-                        )}
-                        <a
-                          href={mapsHref}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 font-medium text-status-action hover:underline"
-                        >
-                          {t("openMaps")}
-                        </a>
-                      </>
-                    )}
+                {/* City */}
+                {order.customer_city && (
+                  <div className="flex items-center gap-2 mt-2 mb-4 flex-wrap text-[12px]">
+                    <span className="inline-flex items-center gap-1 text-ink-secondary">
+                      <MapPin size={11} strokeWidth={2} aria-hidden="true" />
+                      {order.customer_city}
+                    </span>
                   </div>
                 )}
 
-                {/* Primary phone — the agent's main action target */}
-                <a
-                  href={`tel:${order.customer_phone}`}
-                  className="flex items-center gap-3 w-full rounded-card bg-ink-primary text-white ps-3 pe-2 py-2.5 hover:bg-[#2A2A2A] transition-colors duration-fast"
-                  aria-label={`Call ${order.customer_phone}`}
-                >
-                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/10 flex-shrink-0">
-                    <PhoneIcon size={14} strokeWidth={2} aria-hidden="true" />
-                  </span>
-                  <span className="text-[16px] font-semibold tabular-nums tracking-wide flex-1">
-                    {order.customer_phone}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); handleCopyPhone(); }}
-                    aria-label={t("copyPhone")}
-                    className="inline-flex items-center justify-center w-7 h-7 rounded-card text-white/60 hover:text-white hover:bg-white/10 transition-colors duration-fast"
+                {/* Primary phone: call, edit, and copy from the same action strip. */}
+                <div className="flex items-center gap-3 w-full rounded-card bg-ink-primary text-white ps-3 pe-2 py-2.5 transition-colors duration-fast">
+                  <a
+                    href={`tel:${order.customer_phone}`}
+                    aria-label={`Call ${order.customer_phone}`}
+                    className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors duration-fast flex-shrink-0"
                   >
-                    {phoneCopied
-                      ? <Check size={13} strokeWidth={2.5} aria-hidden="true" />
-                      : <Copy size={13} strokeWidth={2} aria-hidden="true" />}
-                  </button>
-                </a>
-
-                {/* Edit the primary phone in-place — the call pill above stays
-                    read-only so it never gets edited by a mis-tap. Dexpress
-                    rejects malformed Libyan numbers, so let the agent correct a
-                    wrong number without leaving the panel. Only shown while the
-                    order is still editable. */}
-                {canEdit && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <Pencil size={12} strokeWidth={2} aria-hidden="true" className="text-ink-muted flex-shrink-0" />
+                    <PhoneIcon size={14} strokeWidth={2} aria-hidden="true" />
+                  </a>
+                  <div className="flex-1 min-w-0">
                     <InlineField
                       value={order.customer_phone}
                       onCommit={(v) => runCommit({ customer_phone: v.trim() })}
@@ -886,15 +844,27 @@ export function OrderDetailPanel({
                       }}
                       type="tel"
                       displayMode
+                      readOnly={!canEdit}
                       placeholder={t("fieldPhone")}
-                      displayClassName="text-[13px] text-ink-secondary tabular-nums"
+                      className="text-[16px] font-semibold tabular-nums tracking-wide"
+                      displayClassName="text-[16px] font-semibold tabular-nums tracking-wide text-white hover:bg-white/10 focus:bg-white/10"
                     />
                   </div>
-                )}
+                  <button
+                    type="button"
+                    onClick={() => { void handleCopyPhone(); }}
+                    aria-label={t("copyPhone")}
+                    className="inline-flex items-center justify-center w-7 h-7 rounded-card text-white/60 hover:text-white hover:bg-white/10 transition-colors duration-fast flex-shrink-0"
+                  >
+                    {phoneCopied
+                      ? <Check size={13} strokeWidth={2.5} aria-hidden="true" />
+                      : <Copy size={13} strokeWidth={2} aria-hidden="true" />}
+                  </button>
+                </div>
 
                 {/* Phone 2 — only if present */}
                 {(order.customer_phone_2 || canEdit) && (
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center gap-2 mt-2.5">
                     <InlineField
                       value={order.customer_phone_2 ?? ""}
                       onCommit={(v) => runCommit({ customer_phone_2: v || null })}
@@ -920,7 +890,7 @@ export function OrderDetailPanel({
                     is still editable; otherwise a read-only italic note. Shown
                     even when empty (in edit mode) so an agent can add one. */}
                 {(order.customer_note || canEdit) && (
-                  <div className="mt-3 ps-2.5 border-s-2 border-line-strong">
+                  <div className="mt-4 ps-2.5 border-s-2 border-line-strong">
                     <InlineField
                       value={order.customer_note ?? ""}
                       onCommit={(v) => runCommit({ customer_note: v.trim() || null })}
@@ -985,7 +955,7 @@ export function OrderDetailPanel({
               </div>
 
               {/* ── Body sections ── */}
-              <div className="flex flex-col gap-3 px-4 py-4 pb-8">
+              <div className="flex flex-col gap-4 px-4 py-5 pb-10">
 
                 {/* Client details card */}
                 <SectionCard title={t("client")}>
@@ -1122,7 +1092,7 @@ export function OrderDetailPanel({
                           return (
                           <div
                             key={item.id}
-                            className="group -mx-2 px-2 py-3 rounded-card border-b border-line-subtle last:border-0 hover:bg-surface-hover transition-colors duration-fast"
+                            className="group -mx-2 px-2 py-3.5 rounded-card border-b border-line-subtle last:border-0 hover:bg-surface-hover transition-colors duration-fast"
                           >
                             {/* Header: product name + delete */}
                             <div className="flex items-start justify-between gap-3">
@@ -1180,7 +1150,7 @@ export function OrderDetailPanel({
                             )}
 
                             {/* Footer: qty stepper · unit price · line total */}
-                            <div className="flex items-center justify-between gap-3 mt-2.5">
+                            <div className="flex items-center justify-between gap-3 mt-3">
                               <div className="flex items-center gap-2 min-w-0">
                                 <StepperField
                                   value={item.quantity}
@@ -1202,12 +1172,12 @@ export function OrderDetailPanel({
                                 />
                                 <span className="text-[12px] text-ink-muted">×</span>
                                 <span className="text-[12px] text-ink-secondary tabular-nums truncate">
-                                  {item.unit_price} {order.currency}
+                                  {item.unit_price} {displayCurrency}
                                 </span>
                               </div>
                               <span className="text-[14px] font-semibold text-ink-primary tabular-nums whitespace-nowrap">
                                 {item.line_total}
-                                <span className="text-[11px] font-normal text-ink-muted ms-1">{order.currency}</span>
+                                <span className="text-[11px] font-normal text-ink-muted ms-1">{displayCurrency}</span>
                               </span>
                             </div>
 
@@ -1263,7 +1233,7 @@ export function OrderDetailPanel({
                         })()}
 
                         {/* Receipt footer */}
-                        <div className="mt-3 pt-3 border-t border-line-subtle flex flex-col gap-2">
+                        <div className="mt-4 pt-4 border-t border-line-subtle flex flex-col gap-2.5">
                           {/* Delivery fee */}
                           <div className="flex items-center justify-between">
                             <span className="text-[12px] text-ink-secondary">{t("fieldDeliveryFee")}</span>
@@ -1297,11 +1267,11 @@ export function OrderDetailPanel({
                             </label>
                           )}
                           {/* Grand total — emphasised band */}
-                          <div className="-mx-2 mt-1 flex items-center justify-between rounded-card bg-surface-page px-3 py-2.5">
+                          <div className="-mx-2 mt-1.5 flex items-center justify-between rounded-card bg-surface-page px-3 py-3">
                             <span className="text-[11px] font-semibold text-ink-secondary uppercase tracking-[0.08em]">{t("grandTotal")}</span>
                             <span className="text-[20px] font-bold text-ink-primary tabular-nums tracking-tight leading-none">
                               {order.total_price}
-                              <span className="text-[12px] font-semibold text-ink-secondary ms-1.5">{order.currency}</span>
+                              <span className="text-[12px] font-semibold text-ink-secondary ms-1.5">{displayCurrency}</span>
                             </span>
                           </div>
                         </div>
@@ -1315,60 +1285,88 @@ export function OrderDetailPanel({
                 </SectionCard>
 
                 {/* History timeline */}
-                <SectionCard title={t("history")}>
-                  {order.history.length === 0 ? (
-                    <div className="text-[12px] text-ink-muted py-1">{t("emptyHistory")}</div>
-                  ) : (
-                    <ol className="relative flex flex-col gap-0 pt-1">
-                      {/* Vertical connector */}
-                      <span
-                        aria-hidden="true"
-                        className="absolute top-2 bottom-2 w-px bg-line-subtle"
-                        style={{ insetInlineStart: 3 }}
-                      />
-                      {order.history.map((entry, i) => {
-                        const isLatest = i === 0;
-                        return (
-                          <li
-                            key={entry.id}
-                            className="relative flex items-start gap-3 py-2"
-                          >
-                            <span
-                              className={[
-                                "relative z-[1] mt-[5px] flex-shrink-0 w-[7px] h-[7px] rounded-full",
-                                isLatest ? "bg-ink-primary" : "bg-line-strong",
-                              ].join(" ")}
-                              aria-hidden="true"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-baseline justify-between gap-2">
-                                <div className="text-[13px] text-ink-primary leading-snug min-w-0">
-                                  {entry.from_status
-                                    ? th("transition", {
-                                        from: getStatusLabel(entry.from_status, locale),
-                                        to: getStatusLabel(entry.to_status, locale),
-                                      })
-                                    : getStatusLabel(entry.to_status, locale)}
-                                </div>
-                                <span className="flex-shrink-0 text-[11px] text-ink-muted tabular-nums">
-                                  {new Date(entry.created_at).toLocaleString(
-                                    locale === "ar" ? "ar-LY" : "fr-TN",
-                                    { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" },
+                <section
+                  className="bg-surface-card border border-line-subtle rounded-card overflow-hidden"
+                  lang={historyLocale === "ar" ? "ar" : undefined}
+                  dir={historyLocale === "ar" ? "rtl" : undefined}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setHistoryOpen((open) => !open)}
+                    aria-expanded={historyOpen}
+                    data-testid="order-history-toggle"
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-start hover:bg-surface-hover transition-colors duration-fast"
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
+                        {historyTitle}
+                      </span>
+                      <span className="rounded-pill bg-surface-page px-2 py-0.5 text-[11px] font-semibold tabular-nums text-ink-secondary">
+                        {order.history.length}
+                      </span>
+                    </span>
+                    <ChevronDown
+                      size={15}
+                      strokeWidth={2.25}
+                      aria-hidden="true"
+                      className={[
+                        "flex-shrink-0 text-ink-muted transition-transform duration-fast",
+                        historyOpen ? "rotate-180" : "",
+                      ].join(" ")}
+                    />
+                  </button>
+                  {historyOpen && (
+                    <div className="px-4 pb-4 pt-0">
+                      {order.history.length === 0 ? (
+                        <div className="text-[12px] text-ink-muted py-1">{emptyHistoryText}</div>
+                      ) : (
+                        <ol className="relative flex flex-col gap-0 pt-1">
+                          {/* Vertical connector */}
+                          <span
+                            aria-hidden="true"
+                            className="absolute top-2 bottom-2 w-px bg-line-subtle"
+                            style={{ insetInlineStart: 3 }}
+                          />
+                          {order.history.map((entry, i) => {
+                            const isLatest = i === 0;
+                            return (
+                              <li
+                                key={entry.id}
+                                className="relative flex items-start gap-3 py-2"
+                              >
+                                <span
+                                  className={[
+                                    "relative z-[1] mt-[5px] flex-shrink-0 w-[7px] h-[7px] rounded-full",
+                                    isLatest ? "bg-ink-primary" : "bg-line-strong",
+                                  ].join(" ")}
+                                  aria-hidden="true"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-baseline justify-between gap-2">
+                                    <div className="text-[13px] text-ink-primary leading-snug min-w-0">
+                                      {formatHistoryStatus(entry)}
+                                    </div>
+                                    <span className="flex-shrink-0 text-[11px] text-ink-muted tabular-nums">
+                                      {new Date(entry.created_at).toLocaleString(
+                                        historyLocale === "ar" ? "ar-LY" : "fr-TN",
+                                        { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" },
+                                      )}
+                                    </span>
+                                  </div>
+                                  {entry.note && (
+                                    <div className="text-[11px] text-ink-secondary mt-0.5 leading-snug">
+                                      {formatOrderHistoryNote(entry.note, historyLocale)}
+                                    </div>
                                   )}
-                                </span>
-                              </div>
-                              {entry.note && (
-                                <div className="text-[11px] text-ink-secondary mt-0.5 leading-snug">
-                                  {translateHistoryNote(entry.note, th)}
                                 </div>
-                              )}
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ol>
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      )}
+                    </div>
                   )}
-                </SectionCard>
+                </section>
 
                 {/* Fulfillment override — managers only */}
                 {canFulfillmentOverride && (

@@ -19,3 +19,14 @@ export function scopeToMarketId(scope: MarketScope): string | null {
 export function isValidScope(value: unknown): value is MarketScope {
   return value === "tn" || value === "ly" || value === "all";
 }
+
+export function formatDisplayCurrencyCode(
+  currency: string | null | undefined,
+  marketId?: string | null,
+): string {
+  const normalized = (currency ?? "TND").toUpperCase();
+  if (marketId === LY_MARKET_ID || normalized === "LYD" || normalized === "LBY") {
+    return "LBY";
+  }
+  return normalized;
+}

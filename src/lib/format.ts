@@ -66,6 +66,46 @@ export function formatDateTime(date: string | Date, locale: string): string {
   return getDateTimeFormatter(locale).format(d);
 }
 
+const longDateFormatters = new Map<string, Intl.DateTimeFormat>();
+function getLongDateFormatter(locale: string): Intl.DateTimeFormat {
+  let fmt = longDateFormatters.get(locale);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat(locale === "ar" ? "ar-LY" : "fr-TN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+    longDateFormatters.set(locale, fmt);
+  }
+  return fmt;
+}
+
+/** A readable, spelled-out date — e.g. "21 mai 2026" — for at-a-glance display. */
+export function formatLongDate(date: string | Date, locale: string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return getLongDateFormatter(locale).format(d);
+}
+
+const timeFormatters = new Map<string, Intl.DateTimeFormat>();
+function getTimeFormatter(locale: string): Intl.DateTimeFormat {
+  let fmt = timeFormatters.get(locale);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat(locale === "ar" ? "ar-LY" : "en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    timeFormatters.set(locale, fmt);
+  }
+  return fmt;
+}
+
+/** A bare HH:MM time — pairs with formatLongDate for "21 mai 2026, 14:30". */
+export function formatTime(date: string | Date, locale: string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return getTimeFormatter(locale).format(d);
+}
+
 const dayHeaderFormatters = new Map<string, Intl.DateTimeFormat>();
 function getDayHeaderFormatter(locale: string): Intl.DateTimeFormat {
   let fmt = dayHeaderFormatters.get(locale);

@@ -6,6 +6,12 @@ export type AvatarDecodeResult =
   | { ok: true; dataUrl: string }
   | { ok: false; error: AvatarDecodeError };
 
+/**
+ * Generic image decoder: validates type/size, downscales via canvas, and
+ * returns a base64 data URL. Used for avatars and product images alike.
+ */
+export const decodeImageFile = decodeAvatarFile;
+
 export async function decodeAvatarFile(
   file: File,
   maxSize = 512
