@@ -2,8 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import useSWR from "swr";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import FocusTrap from "focus-trap-react";
+import {
+  CheckCircle2,
+  XCircle,
+  CalendarClock,
+  PhoneOff,
+  ChevronRight,
+} from "lucide-react";
 import { CallbackPicker } from "./CallbackPicker";
 import { RejectionReasonSelect } from "./RejectionReasonSelect";
 import { DexpressLocationPicker, type DexpressSelection } from "./DexpressLocationPicker";
@@ -72,8 +79,35 @@ type Flow =
   // "Programmer" — show the date/time picker.
   | "schedule_after_confirm";
 
-const optionButtonClasses =
-  "block w-full p-4 rounded-xl border border-line-strong bg-surface-card text-start text-[14px] font-semibold text-ink-primary transition-colors duration-fast hover:bg-surface-hover disabled:bg-[#F3F4F6] disabled:text-ink-muted disabled:cursor-not-allowed";
+// Each call-result option carries the semantic color of the status it sets:
+// confirm→success, reject→critical, callback→warning, no-answer→neutral. The
+// color lives on the leading icon disc only — the card itself stays white so
+// the screen reads calm, per the design system's "color communicates status,
+// never decorates" rule. The disc also tints to its status background on hover.
+const optionCardClasses =
+  "group flex w-full items-center gap-3 p-3.5 rounded-xl border border-line-strong bg-surface-card text-start transition-colors duration-fast hover:bg-surface-hover disabled:bg-[#F3F4F6] disabled:text-ink-muted disabled:cursor-not-allowed";
+
+type OptionTone = "success" | "critical" | "warning" | "neutral";
+
+// disc = resting icon-circle fill + text; hover deepens the fill a touch.
+const OPTION_TONE: Record<OptionTone, { disc: string; icon: string }> = {
+  success: {
+    disc: "bg-status-successBg group-hover:bg-status-success/15",
+    icon: "text-status-success",
+  },
+  critical: {
+    disc: "bg-status-criticalBg group-hover:bg-status-critical/15",
+    icon: "text-status-critical",
+  },
+  warning: {
+    disc: "bg-status-warningBg group-hover:bg-status-warning/15",
+    icon: "text-status-warning",
+  },
+  neutral: {
+    disc: "bg-status-neutralBg group-hover:bg-ink-muted/15",
+    icon: "text-ink-secondary",
+  },
+};
 
 const submitButtonClasses =
   "inline-flex items-center justify-center w-full py-2.5 px-4 rounded-xl bg-ink-primary text-white text-[14px] font-semibold transition-colors duration-fast hover:bg-[#2A2A2A] disabled:opacity-50 disabled:cursor-not-allowed";
@@ -82,6 +116,71 @@ function getDefaultCallbackTime(): Date {
   const d = new Date();
   d.setHours(d.getHours() + 2);
   return d;
+}
+
+// A single call-result choice: colored icon disc, label, hint, and a trailing
+// chevron. Pending state fades the disc and swaps the hint for "Enregistrement…"
+// (handled by the caller via `hint`); `dimmed` keeps a non-pending button
+// visually idle while another request is in flight.
+function OptionCard({
+  tone,
+  icon,
+  label,
+  hint,
+  onClick,
+  disabled,
+  dimmed,
+}: {
+  tone: OptionTone;
+  icon: React.ReactNode;
+  label: string;
+  hint: string;
+  onClick: () => void;
+  disabled?: boolean;
+  dimmed?: boolean;
+}) {
+  const toneStyle = OPTION_TONE[tone];
+  const locale = useLocale();
+  const isRtl = locale === "ar";
+  return (
+    <button
+      type="button"
+      className={optionCardClasses}
+      disabled={disabled}
+      aria-disabled={dimmed}
+      onClick={onClick}
+    >
+      <span
+        className={[
+          "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-colors duration-fast group-disabled:opacity-50",
+          toneStyle.disc,
+          toneStyle.icon,
+        ].join(" ")}
+      >
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[14px] font-semibold text-ink-primary group-disabled:text-ink-muted">
+          {label}
+        </span>
+        <span className="mt-0.5 block text-[13px] font-normal text-ink-secondary group-disabled:text-ink-muted">
+          {hint}
+        </span>
+      </span>
+      <ChevronRight
+        size={16}
+        strokeWidth={2}
+        aria-hidden="true"
+        className={[
+          "flex-shrink-0 text-ink-muted transition-transform duration-fast",
+          // Chevron points "forward into the flow"; under RTL that's leftward.
+          isRtl
+            ? "-scale-x-100 group-hover:-translate-x-0.5"
+            : "group-hover:translate-x-0.5",
+        ].join(" ")}
+      />
+    </button>
+  );
 }
 
 export function PostCallActionSheet({
@@ -511,65 +610,54 @@ export function PostCallActionSheet({
                   </div>
                 )}
                 {!atMax && (
-                  <button
-                    type="button"
-                    className={optionButtonClasses}
-                    // Real disabled (with greyed styling) only on the pending
-                    // button. The other one stays visually idle but ignores
-                    // clicks while a request is in flight.
+                  // Real disabled (with greyed styling) only on the pending
+                  // button. The others stay visually idle but ignore clicks
+                  // while a request is in flight (handled via `dimmed`).
+                  <OptionCard
+                    tone="neutral"
+                    icon={<PhoneOff size={18} strokeWidth={2} aria-hidden="true" />}
+                    label={t("noResponse")}
+                    hint={pendingAction === "no_answer" ? t("saving") : t("noResponseHint")}
                     disabled={pendingAction === "no_answer"}
-                    aria-disabled={loading}
+                    dimmed={loading}
                     onClick={() => {
                       if (loading) return;
                       submitNoAnswer();
                     }}
-                  >
-                    <div>{t("noResponse")}</div>
-                    <div className="text-[13px] font-normal text-ink-secondary mt-0.5">
-                      {pendingAction === "no_answer"
-                        ? t("saving")
-                        : t("noResponseHint")}
-                    </div>
-                  </button>
+                  />
                 )}
 
-                <button
-                  type="button"
-                  className={optionButtonClasses}
+                <OptionCard
+                  tone="success"
+                  icon={<CheckCircle2 size={18} strokeWidth={2} aria-hidden="true" />}
+                  label={t("confirmed")}
+                  hint={pendingAction === "confirm" ? t("saving") : t("confirmedHint")}
                   disabled={pendingAction === "confirm"}
-                  aria-disabled={loading}
+                  dimmed={loading}
                   onClick={() => {
                     if (loading) return;
                     submitConfirm();
                   }}
-                >
-                  <div>{t("confirmed")}</div>
-                  <div className="text-[13px] font-normal text-ink-secondary mt-0.5">
-                    {pendingAction === "confirm"
-                      ? t("saving")
-                      : t("confirmedHint")}
-                  </div>
-                </button>
+                />
 
-                <button
-                  type="button"
-                  className={optionButtonClasses}
+                <OptionCard
+                  tone="critical"
+                  icon={<XCircle size={18} strokeWidth={2} aria-hidden="true" />}
+                  label={t("rejected")}
+                  hint={atMax ? t("rejectedHintMax") : t("rejectedHint")}
                   onClick={() => {
                     setFlow("reject_flow");
                     if (atMax) setRejectionReason("injoignable");
                   }}
-                >
-                  <div>{t("rejected")}</div>
-                  <div className="text-[13px] font-normal text-ink-secondary mt-0.5">
-                    {atMax ? t("rejectedHintMax") : t("rejectedHint")}
-                  </div>
-                </button>
+                />
 
                 {!atMax && (
                   <div>
-                    <button
-                      type="button"
-                      className={optionButtonClasses}
+                    <OptionCard
+                      tone="warning"
+                      icon={<CalendarClock size={18} strokeWidth={2} aria-hidden="true" />}
+                      label={t("callbackRequested")}
+                      hint={t("callbackHint")}
                       onClick={() =>
                         setFlow(
                           flow === "callback_expanded"
@@ -577,12 +665,7 @@ export function PostCallActionSheet({
                             : "callback_expanded",
                         )
                       }
-                    >
-                      <div>{t("callbackRequested")}</div>
-                      <div className="text-[13px] font-normal text-ink-secondary mt-0.5">
-                        {t("callbackHint")}
-                      </div>
-                    </button>
+                    />
 
                     {flow === "callback_expanded" && (
                       <div className="mt-2 p-3 border border-line-subtle rounded-md bg-[#F9FAFB]">
