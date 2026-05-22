@@ -44,12 +44,12 @@ export async function GET(_req: NextRequest) {
   const [activeRes, closedRes] = await Promise.all([
     supabase
       .from("orders")
-      .select("*, product:products(image_url)")
+      .select("*, product:products(image_url), carrier:carriers!orders_carrier_id_fkey(code,name)")
       .eq("assigned_to", actor.id)
       .in("status", ACTIVE_QUEUE_STATUSES),
     supabase
       .from("orders")
-      .select("*, product:products(image_url)")
+      .select("*, product:products(image_url), carrier:carriers!orders_carrier_id_fkey(code,name)")
       .eq("assigned_to", actor.id)
       .in("status", CLOSED_STATUSES)
       .gte("updated_at", closedSince.toISOString())
@@ -60,8 +60,10 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  // Flatten the joined product image onto each row as product_image_url, so the
-  // queue card can show a product thumbnail. Mirrors /api/orders/list.
+  // Flatten the joined product image + carrier onto each row, so the queue card
+  // can show a product thumbnail and the carrier's brand logo. Mirrors
+  // /api/orders/list.
+  type CarrierJoin = { code: string | null; name: string | null };
   type RawRow = Record<string, unknown> & {
     id: string;
     status: string;
@@ -70,6 +72,7 @@ export async function GET(_req: NextRequest) {
     scheduled_dispatch_auto: boolean | null;
     created_at: string;
     product?: { image_url: string | null } | { image_url: string | null }[] | null;
+    carrier?: CarrierJoin | CarrierJoin[] | null;
   };
   type FlatRow = Record<string, unknown> & {
     id: string;
@@ -79,15 +82,22 @@ export async function GET(_req: NextRequest) {
     scheduled_dispatch_auto: boolean | null;
     created_at: string;
     product_image_url: string | null;
+    carrier_code: string | null;
+    carrier_name: string | null;
   };
-  const flattenImage = (rows: RawRow[]): FlatRow[] =>
-    rows.map(({ product, ...rest }) => ({
-      ...(rest as Omit<RawRow, "product">),
-      product_image_url: (Array.isArray(product) ? product[0] : product)?.image_url ?? null,
-    }) as FlatRow);
+  const flattenJoins = (rows: RawRow[]): FlatRow[] =>
+    rows.map(({ product, carrier, ...rest }) => {
+      const c = Array.isArray(carrier) ? carrier[0] : carrier;
+      return {
+        ...(rest as Omit<RawRow, "product" | "carrier">),
+        product_image_url: (Array.isArray(product) ? product[0] : product)?.image_url ?? null,
+        carrier_code: c?.code ?? null,
+        carrier_name: c?.name ?? null,
+      } as FlatRow;
+    });
 
-  const allOrders = flattenImage((activeRes.data ?? []) as RawRow[]);
-  const closedOrders = flattenImage((closedRes.data ?? []) as RawRow[]);
+  const allOrders = flattenJoins((activeRes.data ?? []) as RawRow[]);
+  const closedOrders = flattenJoins((closedRes.data ?? []) as RawRow[]);
 
   const activeOrders = allOrders.filter((o) => {
     // confirmed (without carrier) stays in the active queue so the agent
