@@ -8,6 +8,7 @@ function sibling(o: Partial<RawSibling> = {}): RawSibling {
     status: "pending",
     created_at: "2026-05-21T10:00:00Z",
     product_name: "Widget",
+    product_image_url: null,
     quantity: 1,
     total_price: 129,
     already_shipped: false,

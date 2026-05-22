@@ -19,6 +19,8 @@ export interface DuplicateOrderBadgeProps {
   anchorStatus: string;
   anchorCreatedAt: string;
   anchorTotalPrice: number;
+  anchorProductName: string | null;
+  anchorProductImageUrl: string | null;
   /** Display currency code: "LBY" | "TND". */
   currencyCode: string;
   /** UX affordance for showing the per-sibling delete button (server is the real gate). */
@@ -45,6 +47,8 @@ export function DuplicateOrderBadge({
   anchorStatus,
   anchorCreatedAt,
   anchorTotalPrice,
+  anchorProductName,
+  anchorProductImageUrl,
   currencyCode,
   canDelete = false,
   onChange,
@@ -121,6 +125,8 @@ export function DuplicateOrderBadge({
           anchorStatus={anchorStatus}
           anchorCreatedAt={anchorCreatedAt}
           anchorTotalPrice={anchorTotalPrice}
+          anchorProductName={anchorProductName}
+          anchorProductImageUrl={anchorProductImageUrl}
           canDelete={canDelete}
           onChange={onChange}
         />
@@ -142,6 +148,8 @@ interface DuplicatePopoverProps {
   anchorStatus: string;
   anchorCreatedAt: string;
   anchorTotalPrice: number;
+  anchorProductName: string | null;
+  anchorProductImageUrl: string | null;
   canDelete: boolean;
   onChange?: () => void;
 }
@@ -162,6 +170,8 @@ function DuplicatePopover({
   anchorStatus,
   anchorCreatedAt,
   anchorTotalPrice,
+  anchorProductName,
+  anchorProductImageUrl,
   canDelete,
   onChange,
 }: DuplicatePopoverProps) {
@@ -276,6 +286,8 @@ function DuplicatePopover({
           totalPrice={anchorTotalPrice}
           currencyCode={currencyCode}
           locale={locale}
+          productName={anchorProductName}
+          productImageUrl={anchorProductImageUrl}
           isAnchor
           isDuplicate
           duplicateMarkLabel={tPop("duplicateMark")}
@@ -294,6 +306,8 @@ function DuplicatePopover({
               totalPrice={s.total_price}
               currencyCode={currencyCode}
               locale={locale}
+              productName={s.product_name}
+              productImageUrl={s.product_image_url}
               isDuplicate
               duplicateMarkLabel={tPop("duplicateMark")}
               alreadyShipped={s.already_shipped}

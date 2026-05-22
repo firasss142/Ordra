@@ -13,6 +13,8 @@ function renderCard(props: Partial<React.ComponentProps<typeof RelatedOrderCard>
       totalPrice={129}
       currencyCode="LBY"
       locale="fr"
+      productName="T-Shirt"
+      productImageUrl={null}
       {...props}
     />,
   );
@@ -45,11 +47,19 @@ describe("RelatedOrderCard", () => {
         totalPrice={129}
         currencyCode="LBY"
         locale="fr"
+        productName="T-Shirt"
+        productImageUrl={null}
         isDuplicate
         duplicateMarkLabel="Doublon"
       />,
     );
     expect(container.querySelector("[data-duplicate-mark]")).not.toBeNull();
+  });
+
+  it("renders the product image when a url is provided", () => {
+    renderCard({ productName: "T-Shirt", productImageUrl: "https://img/x.png" });
+    const img = screen.getByRole("img", { name: "T-Shirt" });
+    expect(img.getAttribute("src")).toBe("https://img/x.png");
   });
 
   it("applies the anchor highlight class when isAnchor is set", () => {

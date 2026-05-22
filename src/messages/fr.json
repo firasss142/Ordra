@@ -3048,7 +3048,8 @@
       "lastOrder": "Dernière commande : {date} · {status}",
       "lastAddress": "Dernière adresse : {address}",
       "plusLeads": "+ {count} prospects",
-      "seeAll": "Voir toutes les commandes"
+      "seeAll": "Voir toutes les commandes",
+      "totalOrders": "Total des commandes : {count}"
     },
     "addressChange": "↳ nouvelle adresse (avant : {previous})"
   },

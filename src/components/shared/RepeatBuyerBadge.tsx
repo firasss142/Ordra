@@ -7,7 +7,6 @@ import { Star, AlertTriangle, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { RelatedOrderCard } from "@/components/shared/RelatedOrderCard";
 import { useCustomerHistory } from "@/hooks/useCustomerHistory";
-import { formatDateTime } from "@/lib/format";
 import type { RepeatKind } from "@/lib/customer-history/classify";
 
 export interface RepeatBuyerBadgeProps {
@@ -237,44 +236,42 @@ function PopoverPanel({
       )}
       {!isLoading && !error && detail && (
         <>
-          <div
-            className={[
-              "font-semibold mb-2",
-              repeatKind === "risk" ? "text-status-critical" : "",
-            ].join(" ")}
-          >
-            {headline}
+          {/* Header: total orders (start) + "see all" link (end) */}
+          <div className="flex items-center justify-between gap-3 pb-2">
+            <span
+              className={[
+                "font-semibold",
+                repeatKind === "risk" ? "text-status-critical" : "text-ink-primary",
+              ].join(" ")}
+              title={headline}
+            >
+              {t("totalOrders", {
+                count: stats?.total_orders ?? priorOrderCount,
+              })}
+            </span>
+            {seeAllHref && (
+              <a
+                href={seeAllHref}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex shrink-0 items-center gap-1 text-status-action hover:underline text-[12px]"
+              >
+                {t("seeAll")}
+                <ExternalLink size={11} strokeWidth={2} aria-hidden="true" />
+              </a>
+            )}
           </div>
 
-          {stats && stats.lifetime_value > 0 && (
-            <div className="text-ink-secondary mb-1">
-              {t("lifetimeValue", {
-                amount: stats.lifetime_value.toFixed(2),
-                currency: "",
-              })}
-            </div>
-          )}
-
-          {orders[0] && (
-            <div className="text-ink-secondary mb-2">
-              {t("lastOrder", {
-                date: formatDateTime(orders[0].created_at, locale),
-                status: tStatuses(orders[0].status as Parameters<typeof tStatuses>[0]),
-              })}
-            </div>
-          )}
-
-          {orders[0]?.customer_address && (
-            <div
-              className="text-ink-muted mb-2 text-[12px] truncate"
-              title={orders[0].customer_address}
-            >
-              {t("lastAddress", { address: orders[0].customer_address })}
+          {/* Risk callout — kept for the rejection-warning case */}
+          {repeatKind === "risk" && (
+            <div className="mb-2 border-t border-line-subtle pt-2 text-[12px] font-medium text-status-critical">
+              {headline}
             </div>
           )}
 
           {orders.length > 0 && (
-            <div className="border-t border-line-subtle pt-2 mb-2 space-y-2 max-h-[260px] overflow-y-auto">
+            <div className="border-t border-line-subtle pt-2.5 space-y-2.5 max-h-[320px] overflow-y-auto">
               {orders.slice(0, 6).map((o) => (
                 <RelatedOrderCard
                   key={o.id}
@@ -286,28 +283,17 @@ function PopoverPanel({
                   totalPrice={Number(o.total_price)}
                   currencyCode={currencyCode}
                   locale={locale}
+                  productName={o.product_name}
+                  productImageUrl={o.product_image_url}
                 />
               ))}
             </div>
           )}
 
           {leads.length > 0 && (
-            <div className="text-ink-muted text-[12px] mb-2">
+            <div className="text-ink-muted text-[12px] mt-2">
               {t("plusLeads", { count: priorLeadCount || leads.length })}
             </div>
-          )}
-
-          {seeAllHref && (
-            <a
-              href={seeAllHref}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 text-status-action hover:underline text-[12px]"
-            >
-              {t("seeAll")}
-              <ExternalLink size={11} strokeWidth={2} aria-hidden="true" />
-            </a>
           )}
         </>
       )}

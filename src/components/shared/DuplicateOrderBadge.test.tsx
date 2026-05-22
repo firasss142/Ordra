@@ -31,6 +31,7 @@ function sibling(o: Partial<SiblingOrder> = {}): SiblingOrder {
     status: "pending",
     created_at: "2026-05-21T10:00:00Z",
     product_name: "T-Shirt",
+    product_image_url: null,
     quantity: 1,
     total_price: 129,
     already_shipped: false,
@@ -44,6 +45,8 @@ const ANCHOR_PROPS = {
   anchorStatus: "pending",
   anchorCreatedAt: "2026-05-22T10:00:00Z",
   anchorTotalPrice: 129,
+  anchorProductName: "T-Shirt",
+  anchorProductImageUrl: null,
   currencyCode: "LBY",
 } as const;
 

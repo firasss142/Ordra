@@ -12,6 +12,8 @@ export interface CustomerHistoryOrder {
   customer_address: string | null;
   customer_city: string | null;
   product_name: string | null;
+  product_image_url: string | null;
+  quantity: number | null;
   variant_label: string | null;
   phone_matched: boolean;
 }

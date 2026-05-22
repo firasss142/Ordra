@@ -241,6 +241,8 @@ function Row({
                 anchorStatus={order.status}
                 anchorCreatedAt={order.created_at}
                 anchorTotalPrice={order.total_price}
+                anchorProductName={order.product_name}
+                anchorProductImageUrl={order.product_image_url ?? null}
                 currencyCode={currencyCode}
                 canDelete
                 onChange={onDuplicateChange}

@@ -77,6 +77,7 @@ function sibling(over: Record<string, unknown> = {}) {
     status: "pending",
     created_at: "2026-05-21T09:00:00Z",
     product_name: "T-Shirt",
+    product_image_url: null,
     quantity: 1,
     total_price: 129,
     already_shipped: false,

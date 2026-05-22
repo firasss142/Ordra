@@ -151,6 +151,8 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
             anchorStatus={order.status}
             anchorCreatedAt={order.created_at}
             anchorTotalPrice={order.total_price}
+            anchorProductName={order.product_name}
+            anchorProductImageUrl={null}
             currencyCode={formatDisplayCurrencyCode(order.currency, order.market_id)}
             canDelete={
               user?.role === "agent" ||
