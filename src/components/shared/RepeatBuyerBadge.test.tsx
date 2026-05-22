@@ -34,6 +34,7 @@ describe("RepeatBuyerBadge", () => {
     priorOrderCount: 0,
     priorLeadCount: 0,
     priorRejectedCount: 0,
+    currencyCode: "LBY",
   };
 
   it("renders nothing for repeat_kind='none'", () => {

@@ -12,6 +12,7 @@ export interface OrdersListRow {
   market_id: string;
   customer_name: string;
   customer_phone: string | null;
+  customer_address: string | null;
   customer_city: string | null;
   product_id: string | null;
   product_name: string;

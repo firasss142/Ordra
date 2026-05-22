@@ -5,6 +5,7 @@ import { useAuth } from "@/context/auth";
 import { STATUS_LABELS } from "@/lib/status-labels";
 import { FulfillmentControls } from "./FulfillmentControls";
 import { DuplicateOrderBadge } from "@/components/shared/DuplicateOrderBadge";
+import { formatDisplayCurrencyCode } from "@/lib/markets";
 import type { OrderStatus } from "@/types/order-status";
 import type { SiblingOrder } from "@/lib/duplicate-orders/detect";
 
@@ -32,6 +33,8 @@ interface OrderDetailData {
   quantity: number;
   total_price: number;
   currency: string;
+  market_id: string | null;
+  created_at: string;
   status: OrderStatus;
   history: HistoryEntry[];
   is_potential_duplicate?: boolean;
@@ -144,6 +147,15 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
             siblings={order.duplicate_siblings ?? []}
             hasUploadedSibling={order.has_uploaded_sibling ?? false}
             anchorOrderId={order.id}
+            anchorStatus={order.status}
+            anchorCreatedAt={order.created_at}
+            anchorTotalPrice={order.total_price}
+            anchorProductName={order.product_name}
+            anchorProductImageUrl={null}
+            anchorCustomerName={order.customer_name}
+            anchorCustomerAddress={order.customer_address}
+            anchorCustomerCity={order.customer_city}
+            currencyCode={formatDisplayCurrencyCode(order.currency, order.market_id)}
             canDelete={
               user?.role === "agent" ||
               user?.role === "market_manager" ||

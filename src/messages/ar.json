@@ -2961,7 +2961,9 @@
       "lastOrder": "آخر طلب: {date} · {status}",
       "lastAddress": "آخر عنوان: {address}",
       "plusLeads": "+ {count} عميل محتمل",
-      "seeAll": "عرض كل الطلبات"
+      "seeAll": "عرض كل الطلبات",
+      "totalOrders": "إجمالي الطلبات: {count}",
+      "unknownCustomer": "عميل غير معروف"
     },
     "addressChange": "↳ عنوان جديد (سابقًا: {previous})"
   },
@@ -2975,7 +2977,9 @@
       "sibling": "#{externalId}",
       "shipped": "تم إرساله بالفعل إلى شركة الشحن",
       "qty": "الكمية {quantity}",
-      "seeOrder": "عرض الطلب"
+      "seeOrder": "عرض الطلب",
+      "duplicateMark": "مكرر",
+      "unknownCustomer": "عميل غير معروف"
     },
     "dialog": {
       "title": "تكرارات محتملة",

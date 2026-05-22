@@ -5,8 +5,8 @@ import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
 import { Star, AlertTriangle, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { RelatedOrderCard } from "@/components/shared/RelatedOrderCard";
 import { useCustomerHistory } from "@/hooks/useCustomerHistory";
-import { formatDateTime } from "@/lib/format";
 import type { RepeatKind } from "@/lib/customer-history/classify";
 
 export interface RepeatBuyerBadgeProps {
@@ -16,6 +16,8 @@ export interface RepeatBuyerBadgeProps {
   priorOrderCount: number;
   priorLeadCount: number;
   priorRejectedCount: number;
+  /** Display currency code: "LBY" | "TND" — rendered on each history card. */
+  currencyCode: string;
   /** Optional: if provided and the source is an order, "See all orders" deep-links to filtered orders. */
   customerPhone?: string | null;
   locale?: string;
@@ -110,6 +112,7 @@ export function RepeatBuyerBadge(props: RepeatBuyerBadgeProps) {
           detail={detail}
           locale={locale}
           tStatuses={tStatuses}
+          currencyCode={props.currencyCode}
           customerPhone={props.customerPhone ?? null}
         />
       )}
@@ -130,6 +133,7 @@ interface PopoverPanelProps {
   detail: ReturnType<typeof useCustomerHistory>["detail"];
   locale: string;
   tStatuses: ReturnType<typeof useTranslations>;
+  currencyCode: string;
   customerPhone: string | null;
 }
 
@@ -149,6 +153,7 @@ function PopoverPanel({
   detail,
   locale,
   tStatuses,
+  currencyCode,
   customerPhone,
 }: PopoverPanelProps) {
   const t = useTranslations("customerHistory.popover");
@@ -231,99 +236,71 @@ function PopoverPanel({
       )}
       {!isLoading && !error && detail && (
         <>
-          <div
-            className={[
-              "font-semibold mb-2",
-              repeatKind === "risk" ? "text-status-critical" : "",
-            ].join(" ")}
-          >
-            {headline}
+          {/* Header: total orders (start) + "see all" link (end) */}
+          <div className="flex items-center justify-between gap-3 pb-2">
+            <span
+              className={[
+                "font-semibold",
+                repeatKind === "risk" ? "text-status-critical" : "text-ink-primary",
+              ].join(" ")}
+              title={headline}
+            >
+              {t("totalOrders", {
+                count: stats?.total_orders ?? priorOrderCount,
+              })}
+            </span>
+            {seeAllHref && (
+              <a
+                href={seeAllHref}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex shrink-0 items-center gap-1 text-status-action hover:underline text-[12px]"
+              >
+                {t("seeAll")}
+                <ExternalLink size={11} strokeWidth={2} aria-hidden="true" />
+              </a>
+            )}
           </div>
 
-          {stats && stats.lifetime_value > 0 && (
-            <div className="text-ink-secondary mb-1">
-              {t("lifetimeValue", {
-                amount: stats.lifetime_value.toFixed(2),
-                currency: "",
-              })}
-            </div>
-          )}
-
-          {orders[0] && (
-            <div className="text-ink-secondary mb-2">
-              {t("lastOrder", {
-                date: formatDateTime(orders[0].created_at, locale),
-                status: tStatuses(orders[0].status as Parameters<typeof tStatuses>[0]),
-              })}
-            </div>
-          )}
-
-          {orders[0]?.customer_address && (
-            <div
-              className="text-ink-muted mb-2 text-[12px] truncate"
-              title={orders[0].customer_address}
-            >
-              {t("lastAddress", { address: orders[0].customer_address })}
+          {/* Risk callout — kept for the rejection-warning case */}
+          {repeatKind === "risk" && (
+            <div className="mb-2 border-t border-line-subtle pt-2 text-[12px] font-medium text-status-critical">
+              {headline}
             </div>
           )}
 
           {orders.length > 0 && (
-            <ul className="border-t border-line-subtle pt-2 mb-2 space-y-1.5 max-h-[180px] overflow-y-auto">
+            <div className="border-t border-line-subtle pt-2.5 space-y-2.5 max-h-[320px] overflow-y-auto">
               {orders.slice(0, 6).map((o) => (
-                <li
+                <RelatedOrderCard
                   key={o.id}
-                  className="flex items-center justify-between gap-2 text-[12px]"
-                >
-                  <span className="font-medium tabular-nums truncate">
-                    #{o.external_id ?? o.id.slice(0, 6)}
-                  </span>
-                  <span className="text-ink-muted shrink-0">
-                    {formatDateTime(o.created_at, locale)}
-                  </span>
-                  <span
-                    className={[
-                      "rounded-pill px-1.5 py-[1px] text-[11px] font-medium shrink-0",
-                      statusToneClass(o.status),
-                    ].join(" ")}
-                  >
-                    {tStatuses(o.status as Parameters<typeof tStatuses>[0])}
-                  </span>
-                  <span className="tabular-nums shrink-0">
-                    {Number(o.total_price).toFixed(0)}
-                  </span>
-                </li>
+                  id={o.id}
+                  status={o.status}
+                  statusLabel={tStatuses(o.status as Parameters<typeof tStatuses>[0])}
+                  createdAt={o.created_at}
+                  totalPrice={Number(o.total_price)}
+                  currencyCode={currencyCode}
+                  locale={locale}
+                  customerName={o.customer_name}
+                  customerAddress={o.customer_address}
+                  customerCity={o.customer_city}
+                  productName={o.product_name}
+                  productImageUrl={o.product_image_url}
+                  unknownCustomerLabel={t("unknownCustomer")}
+                />
               ))}
-            </ul>
-          )}
-
-          {leads.length > 0 && (
-            <div className="text-ink-muted text-[12px] mb-2">
-              {t("plusLeads", { count: priorLeadCount || leads.length })}
             </div>
           )}
 
-          {seeAllHref && (
-            <a
-              href={seeAllHref}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 text-status-action hover:underline text-[12px]"
-            >
-              {t("seeAll")}
-              <ExternalLink size={11} strokeWidth={2} aria-hidden="true" />
-            </a>
+          {leads.length > 0 && (
+            <div className="text-ink-muted text-[12px] mt-2">
+              {t("plusLeads", { count: priorLeadCount || leads.length })}
+            </div>
           )}
         </>
       )}
     </div>,
     document.body,
   );
-}
-
-function statusToneClass(status: string): string {
-  if (status === "delivered") return "bg-status-successBg text-status-success";
-  if (status === "rejected") return "bg-status-criticalBg text-status-critical";
-  if (status === "returned") return "bg-status-neutralBg text-ink-secondary";
-  return "bg-status-neutralBg text-ink-secondary";
 }
