@@ -144,14 +144,20 @@ function matchesEnCoursSubfilter(
   if (sub === "all") return true;
   if (sub === "rappel") {
     if (status !== "callback_scheduled") return false;
+    // Unscheduled (no time) or past-due callbacks belong in the queue; only an
+    // explicitly future time hides the order. Mirrors the server filter in
+    // /api/agent/queue.
     const cbAt = o.callback_scheduled_at as string | null;
-    return !!cbAt && new Date(cbAt) <= now;
+    return !cbAt || new Date(cbAt) <= now;
   }
   if (sub === "livraison") {
     if (status !== "dispatch_scheduled") return false;
-    if (o.scheduled_dispatch_auto) return false;
+    // Auto rows always show so the agent can upload them manually ahead of the
+    // cron. Manual rows show when unscheduled or past-due; an explicitly future
+    // manual time holds the order back. Mirrors /api/agent/queue.
+    if (o.scheduled_dispatch_auto) return true;
     const dAt = o.scheduled_dispatch_at as string | null;
-    return !!dAt && new Date(dAt) <= now;
+    return !dAt || new Date(dAt) <= now;
   }
   if (sub === "tentative") return attemptNumberForStatus(status) !== null;
   return false;

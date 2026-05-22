@@ -153,6 +153,107 @@ describe("GET /api/agent/queue", () => {
     expect(json.buckets.confirme).toBe(1);      // confirmed
   });
 
+  test("shows callback_scheduled orders with no scheduled time (unscheduled callbacks)", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });
+
+    const futureDate = "2099-01-01T00:00:00Z";
+
+    const rawOrders = [
+      {
+        id: "o-cb-untimed",
+        status: "callback_scheduled",
+        callback_scheduled_at: null,
+        scheduled_dispatch_at: null,
+        scheduled_dispatch_auto: null,
+        created_at: "2026-04-08T10:00:00Z",
+        updated_at: "2026-04-08T10:00:00Z",
+      },
+      {
+        id: "o-cb-future",
+        status: "callback_scheduled",
+        callback_scheduled_at: futureDate,
+        scheduled_dispatch_at: null,
+        scheduled_dispatch_auto: null,
+        created_at: "2026-04-07T10:00:00Z",
+        updated_at: "2026-04-07T10:00:00Z",
+      },
+    ];
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return queryChainSingle({ data: { role: "agent", market_id: "m-1" }, error: null });
+      }
+      return queryChainList({ data: rawOrders, error: null });
+    });
+
+    const res = await GET(createRequest());
+    const json = await res.json();
+
+    // Untimed callback surfaces in the active list; the explicitly-future one
+    // is held back until its time arrives.
+    expect(json.orders.map((o: { id: string }) => o.id)).toEqual(["o-cb-untimed"]);
+    // The chip count mirrors the visible list: only the untimed one counts,
+    // the explicitly-future one is excluded from both list and chip.
+    expect(json.buckets.rappel_prevu).toBe(1);
+  });
+
+  test("shows manual untimed + all auto dispatch_scheduled, hides only future manual", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });
+
+    const futureDate = "2099-01-01T00:00:00Z";
+
+    const rawOrders = [
+      {
+        id: "o-dsp-manual-untimed",
+        status: "dispatch_scheduled",
+        callback_scheduled_at: null,
+        scheduled_dispatch_at: null,
+        scheduled_dispatch_auto: false,
+        created_at: "2026-04-08T10:00:00Z",
+        updated_at: "2026-04-08T10:00:00Z",
+      },
+      {
+        id: "o-dsp-manual-future",
+        status: "dispatch_scheduled",
+        callback_scheduled_at: null,
+        scheduled_dispatch_at: futureDate,
+        scheduled_dispatch_auto: false,
+        created_at: "2026-04-07T10:00:00Z",
+        updated_at: "2026-04-07T10:00:00Z",
+      },
+      {
+        id: "o-dsp-auto-future",
+        status: "dispatch_scheduled",
+        callback_scheduled_at: null,
+        scheduled_dispatch_at: futureDate,
+        scheduled_dispatch_auto: true,
+        created_at: "2026-04-06T10:00:00Z",
+        updated_at: "2026-04-06T10:00:00Z",
+      },
+    ];
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return queryChainSingle({ data: { role: "agent", market_id: "m-1" }, error: null });
+      }
+      return queryChainList({ data: rawOrders, error: null });
+    });
+
+    const res = await GET(createRequest());
+    const json = await res.json();
+
+    // Auto rows always surface (so the agent can upload them manually ahead of
+    // the cron), regardless of their scheduled time. The untimed manual row
+    // surfaces too. Only the future MANUAL row is held back until its time.
+    expect(json.orders.map((o: { id: string }) => o.id).sort()).toEqual([
+      "o-dsp-auto-future",
+      "o-dsp-manual-untimed",
+    ]);
+    // Chip mirrors the visible list: the untimed manual + the future auto count;
+    // the future manual one does not.
+    expect(json.buckets.livraison_planifiee).toBe(2);
+  });
+
   test("returns 500 when DB query errors", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });
     mockFrom.mockImplementation((table: string) => {
