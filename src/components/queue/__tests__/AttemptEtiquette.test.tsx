@@ -85,13 +85,12 @@ describe("AttemptEtiquette", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders the attempt label inside a contained pill (bg + border + rounded)", () => {
+  it("renders the attempt label inside a soft tinted pill (bg + rounded, no border)", () => {
     render(
       <AttemptEtiquette status="attempt_1" attemptsCount={1} callbackAt={null} />,
     );
     const pill = screen.getByRole("note", { name: /Tentative 1/ });
-    expect(pill.className).toContain("rounded-pill");
-    expect(pill.className).toMatch(/border/);
+    expect(pill.className).toContain("rounded-full");
     expect(pill.className).toMatch(/bg-/);
   });
 

@@ -32,7 +32,10 @@ const mockOrder: QueueOrder = {
   customer_city: "Tunis",
   product_name: "T-Shirt Premium",
   variant_label: "L / Rouge",
+  quantity: 1,
   product_image_url: null,
+  carrier_code: null,
+  carrier_name: null,
   total_price: 89.9,
   currency: "TND",
   market_id: "00000000-0000-0000-0000-000000000001",
@@ -91,14 +94,60 @@ describe("OrderCard", () => {
     expect(screen.getByText("AG")).toBeDefined(); // Ahmed Gharbi → AG
   });
 
-  it("does not render the product name on the card", () => {
+  it("renders the product name as a secondary line", () => {
     render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
-    expect(screen.queryByText(/T-Shirt Premium/)).toBeNull();
+    expect(screen.getByText(/T-Shirt Premium/)).toBeDefined();
   });
 
-  it("renders the variant label", () => {
+  it("renders the variant label alongside the product name", () => {
     render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
     expect(screen.getByText(/L \/ Rouge/)).toBeDefined();
+  });
+
+  it("renders the quantity badge as ×N (including ×1)", () => {
+    render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
+    expect(screen.getByLabelText("×1")).toBeDefined();
+  });
+
+  it("renders the quantity badge for multi-unit orders", () => {
+    render(
+      <OrderCard
+        order={{ ...mockOrder, quantity: 3 }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    expect(screen.getByLabelText("×3")).toBeDefined();
+  });
+
+  it("renders the carrier logo when a carrier with a known asset is assigned", () => {
+    render(
+      <OrderCard
+        order={{ ...mockOrder, carrier_code: "navex", carrier_name: "Navex", status: "uploaded", customer_note: null }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    expect(screen.getByAltText("Navex")).toBeDefined();
+  });
+
+  it("renders a neutral fallback chip for a carrier without a logo asset", () => {
+    render(
+      <OrderCard
+        order={{ ...mockOrder, carrier_code: "cosmos", carrier_name: "Cosmos", status: "dispatched", customer_note: null }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    // No image for cosmos (no asset in the logo map) — the fallback chip exposes the name via aria-label.
+    expect(screen.queryByAltText("Cosmos")).toBeNull();
+    expect(screen.getByLabelText("Cosmos")).toBeDefined();
+  });
+
+  it("renders no carrier mark when no carrier is assigned", () => {
+    render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
+    // mockOrder has carrier_code null → only the qty badge image-less avatar, no carrier logo/chip.
+    expect(screen.queryByAltText(/navex/i)).toBeNull();
   });
 
   it("renders total price and currency", () => {
@@ -223,22 +272,15 @@ describe("OrderCard", () => {
     expect(card.className).toContain("border-black/35");
   });
 
-  it("shows a simplified elapsed value (no parentheses, no 'il y a' prefix)", () => {
+  it("shows the created date and time as a single line without an elapsed sub-line", () => {
     vi.spyOn(Date, "now").mockReturnValue(new Date("2026-05-02T10:00:00Z").getTime());
     render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
-    // mockOrder.assigned_at is 2026-04-10 → ~22 days. Compact "22j", no prefix/parens.
-    const elapsed = screen.getByText("22j");
-    expect(elapsed).toBeDefined();
-    expect(screen.queryByText(/Il y a/)).toBeNull();
-    expect(screen.queryByText(/\(22j\)/)).toBeNull();
-  });
-
-  it("localizes the simplified elapsed days in Arabic", () => {
-    intlMockState.locale = "ar";
-    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-05-02T10:00:00Z").getTime());
-    render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
+    // The standalone elapsed value ("22j") was removed for a calmer, date-only column.
+    expect(screen.queryByText("22j")).toBeNull();
+    const longDate = formatLongDate(mockOrder.created_at, "fr");
+    const time = formatTime(mockOrder.created_at, "fr");
     expect(
-      screen.getByText((content) => content.includes("يوم") && !content.includes("منذ")),
+      screen.getByText((content) => content.includes(longDate) && content.includes(`, ${time}`)),
     ).toBeDefined();
   });
 
@@ -271,7 +313,7 @@ describe("OrderCard", () => {
     );
     const pill = screen.getAllByText("Téléchargé").at(-1)!;
     expect(pill.className).toContain("text-[#7C3AED]");
-    expect(pill.className).toContain("border-[#7C3AED]/25");
+    expect(pill.className).toContain("bg-[#F3E8FF]");
   });
 
   it("renders dispatched status with success tone", () => {

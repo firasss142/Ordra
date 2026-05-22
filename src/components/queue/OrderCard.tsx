@@ -2,7 +2,7 @@
 
 import { memo, useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { Check, CalendarDays, MapPin, Clock, Phone } from "lucide-react";
+import { Check, MapPin, Phone } from "lucide-react";
 import { isReferenceDeletedUpload, isBulkCallEligible, EDIT_BLOCKED_STATUSES, canDeleteDuplicateSiblingStatus } from "@/lib/order-permissions";
 import { formatDateTime, formatLongDate, formatTime } from "@/lib/format";
 import { formatDisplayCurrencyCode } from "@/lib/markets";
@@ -12,6 +12,7 @@ import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
 import { DuplicateOrderBadge } from "@/components/shared/DuplicateOrderBadge";
 import { RejectionReasonHover } from "./RejectionReasonHover";
 import { AddressChangeNote } from "./AddressChangeNote";
+import { getCarrierLogo } from "@/lib/carriers/carrier-logos";
 import type { QueueOrder } from "@/types/queue";
 import type { BucketKey } from "./QueueHeader";
 import { highlightSegments, type HighlightSegment } from "@/lib/queue/highlight";
@@ -65,29 +66,24 @@ function Highlighted({
 }
 
 /**
- * A pill-shaped status sign: a small filled dot + label. The dot pairs the
- * color with the text so the state reads at a glance and stays accessible
- * (color is never the only signal).
+ * A soft, pill-shaped status sign: tinted label on a quiet fill, no dot. The
+ * tint+label carry the state at a glance; the contrast stays accessible without
+ * a separate marker, for a calmer, more minimal look.
  */
 function StatusSign({
   label,
-  dot,
   className,
 }: {
   label: string;
-  dot?: string;
   className: string;
 }) {
   return (
     <span
       className={[
-        "inline-flex items-center gap-1.5 px-3 py-1 rounded-pill text-[11px] font-bold tracking-[0.04em] whitespace-nowrap",
+        "inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-[0.01em] whitespace-nowrap",
         className,
       ].join(" ")}
     >
-      {dot && (
-        <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${dot}`} />
-      )}
       {label}
     </span>
   );
@@ -172,22 +168,6 @@ export const OrderCard = memo(function OrderCard({
       ? order.customer_note.slice(0, 60) + "…"
       : order.customer_note;
 
-  // A compact elapsed value (e.g. "22j", "3h", "15min") — no "il y a" prefix,
-  // shown in parentheses next to the date.
-  function elapsedLabel(assignedAt: string): string {
-    const diffMs = Date.now() - new Date(assignedAt).getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const formatCount = (value: number) => new Intl.NumberFormat(locale).format(value);
-    if (diffMins < 60) {
-      return t("elapsedUnits.minutes", { count: formatCount(diffMins) });
-    }
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) {
-      return t("elapsedUnits.hours", { count: formatCount(diffHours) });
-    }
-    return t("elapsedUnits.days", { count: formatCount(Math.floor(diffHours / 24)) });
-  }
-
   function getCustomerInitials(name: string): string {
     const parts = name.trim().split(/\s+/).filter(Boolean);
     if (parts.length === 0) return "?";
@@ -204,50 +184,38 @@ export const OrderCard = memo(function OrderCard({
     if (isReferenceDeletedUpload(order)) {
       return {
         label: t("statusReferenceDeleted"),
-        className:
-          "bg-status-warningBg text-status-warning border border-status-warning/30",
-        dot: "bg-status-warning",
+        className: "bg-status-warningBg text-status-warning",
       };
     }
     if (order.status === "confirmed") {
       return {
         label: ts("confirmed"),
-        className:
-          "bg-agent-primary-container/15 text-agent-on-primary-container border border-agent-primary/20",
-        dot: "bg-agent-primary",
+        className: "bg-agent-primary-container/20 text-agent-on-primary-container",
       };
     }
     if (order.status === "uploaded") {
       return {
         label: ts("uploaded"),
-        className:
-          "bg-[#F3E8FF] text-[#7C3AED] border border-[#7C3AED]/25",
-        dot: "bg-[#7C3AED]",
+        className: "bg-[#F3E8FF] text-[#7C3AED]",
       };
     }
     if (order.status === "dispatched") {
       return {
         label: ts("dispatched"),
-        className:
-          "bg-status-successBg text-status-success border border-status-success/25",
-        dot: "bg-status-success",
+        className: "bg-status-successBg text-status-success",
       };
     }
     if (order.status === "rejected") {
       return {
         label: ts("rejected"),
-        className:
-          "bg-status-criticalBg text-status-critical border border-status-critical/25",
-        dot: "bg-status-critical",
+        className: "bg-status-criticalBg text-status-critical",
       };
     }
     if (order.status === "pending" || order.status === "assigned") {
       return {
         label: ts(order.status as Parameters<typeof ts>[0]),
-        // New orders read as "fresh" with the blue nouveau accent + a live dot.
-        className:
-          "bg-[#1E3A5F]/10 text-[#1E3A5F] border border-[#1E3A5F]/25",
-        dot: "bg-[#1E3A5F]",
+        // New orders read as "fresh" with the soft blue nouveau accent.
+        className: "bg-[#1E3A5F]/10 text-[#1E3A5F]",
       };
     }
     return null;
@@ -302,28 +270,38 @@ export const OrderCard = memo(function OrderCard({
       )}
 
       <div className="flex items-center gap-3 sm:gap-5">
-        {/* Leading visual — product image, falling back to customer initials */}
-        {order.product_image_url ? (
-          <span className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg overflow-hidden bg-agent-surface-high border border-agent-outline-variant">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={order.product_image_url}
-              alt={order.product_name}
-              width={36}
-              height={36}
-              loading="lazy"
-              decoding="async"
-              className="h-full w-full object-cover"
-            />
-          </span>
-        ) : (
+        {/* Leading visual — product image, falling back to customer initials.
+            A small ×N quantity badge sits on the corner so multi-unit orders
+            read at a glance (always shown, incl. ×1). */}
+        <span className="relative shrink-0">
+          {order.product_image_url ? (
+            <span className="flex items-center justify-center w-9 h-9 rounded-lg overflow-hidden bg-agent-surface-high border border-agent-outline-variant">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={order.product_image_url}
+                alt={order.product_name}
+                width={36}
+                height={36}
+                loading="lazy"
+                decoding="async"
+                className="h-full w-full object-cover"
+              />
+            </span>
+          ) : (
+            <span
+              aria-hidden="true"
+              className="flex items-center justify-center w-9 h-9 rounded-lg bg-agent-surface-high border border-agent-outline-variant text-agent-primary text-[13px] font-bold"
+            >
+              {getCustomerInitials(order.customer_name)}
+            </span>
+          )}
           <span
-            aria-hidden="true"
-            className="shrink-0 flex items-center justify-center w-9 h-9 rounded-lg bg-agent-surface-high border border-agent-outline-variant text-agent-primary text-[13px] font-bold"
+            aria-label={`×${order.quantity}`}
+            className="absolute -bottom-1 -end-1 min-w-[16px] h-[16px] px-1 inline-flex items-center justify-center rounded-full bg-agent-on-surface text-agent-surface text-[10px] font-bold tabular-nums leading-none ring-1 ring-agent-surface"
           >
-            {getCustomerInitials(order.customer_name)}
+            ×{new Intl.NumberFormat(locale).format(order.quantity)}
           </span>
-        )}
+        </span>
 
         {/* Customer name + badges. On mobile this is a column: the name takes
             the full width on its own line, and a compact status + date row sits
@@ -371,6 +349,16 @@ export const OrderCard = memo(function OrderCard({
             )}
           </div>
 
+          {/* Product identity — muted secondary line under the customer name
+              (who → what). Variant folds in here, so there's no separate variant
+              column. */}
+          {order.product_name && (
+            <span className="text-[12px] text-agent-on-surface-variant truncate leading-tight">
+              {order.product_name}
+              {order.variant_label ? ` · ${order.variant_label}` : ""}
+            </span>
+          )}
+
           {/* Mobile-only status + date sub-row (hidden from sm: up, where the
               status/date render as their own trailing columns instead). */}
           <div className="flex sm:hidden items-center gap-2 min-w-0">
@@ -391,10 +379,10 @@ export const OrderCard = memo(function OrderCard({
                   reason={order.rejection_reason}
                   note={order.rejection_note}
                 >
-                  <StatusSign label={statusPill.label} dot={statusPill.dot} className={`${statusPill.className} !text-[10px] !px-2 !py-0.5`} />
+                  <StatusSign label={statusPill.label} className={`${statusPill.className} !text-[10px] !px-2 !py-0.5`} />
                 </RejectionReasonHover>
               ) : (
-                <StatusSign label={statusPill.label} dot={statusPill.dot} className={`${statusPill.className} !text-[10px] !px-2 !py-0.5`} />
+                <StatusSign label={statusPill.label} className={`${statusPill.className} !text-[10px] !px-2 !py-0.5`} />
               )
             ) : null}
             <span className="text-[10.5px] text-agent-on-surface-variant/80 tabular-nums truncate shrink-0">
@@ -402,16 +390,6 @@ export const OrderCard = memo(function OrderCard({
             </span>
           </div>
         </div>
-
-        {/* Variant */}
-        {order.variant_label && (
-          <span
-            className="hidden sm:inline text-[12.5px] font-semibold text-agent-on-surface truncate max-w-[140px] shrink-0"
-            title={order.variant_label}
-          >
-            {order.variant_label}
-          </span>
-        )}
 
         {/* City */}
         {order.customer_city && (
@@ -423,22 +401,46 @@ export const OrderCard = memo(function OrderCard({
           </span>
         )}
 
-        {/* Created date + time on top, elapsed below (e.g. "21 mai 2026, 14:30" / "22j") */}
+        {/* Created date + time — a single quiet line, icon-free, centered in its
+            own column (e.g. "21 mai 2026, 14:30"). Minimal by design: the
+            elapsed-since-assignment detail lives in the order panel, not here. */}
         <span
-          className="hidden md:flex flex-col leading-tight gap-0.5 text-[12px] text-agent-on-surface-variant shrink-0"
+          className="hidden md:block shrink-0 text-center text-[12px] text-agent-on-surface-variant tabular-nums whitespace-nowrap"
           aria-label={t("createdAt", { date: formatLongDate(order.created_at, locale) })}
         >
-          <span className="inline-flex items-center gap-1.5">
-            <CalendarDays size={11} strokeWidth={2} aria-hidden="true" className="shrink-0" />
-            <span className="tabular-nums">
-              {formatLongDate(order.created_at, locale)}, {formatTime(order.created_at, locale)}
-            </span>
-          </span>
-          <span className="ps-[18px] inline-flex items-center gap-1 text-[11px] opacity-70 tabular-nums">
-            <Clock size={11} strokeWidth={2} aria-hidden="true" className="shrink-0" />
-            {elapsedLabel(order.assigned_at)}
-          </span>
+          {formatLongDate(order.created_at, locale)}, {formatTime(order.created_at, locale)}
         </span>
+
+        {/* Carrier brand logo — shown once a carrier is assigned (uploaded
+            onward) so the agent sees which delivery company holds the order.
+            Logo-only; a neutral text chip stands in when the carrier has no
+            asset yet. */}
+        {order.carrier_code && (
+          <span
+            className="shrink-0 hidden sm:inline-flex items-center"
+            title={order.carrier_name ?? order.carrier_code}
+          >
+            {getCarrierLogo(order.carrier_code) ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={getCarrierLogo(order.carrier_code)!}
+                alt={order.carrier_name ?? order.carrier_code}
+                width={20}
+                height={20}
+                loading="lazy"
+                decoding="async"
+                className="h-5 w-auto object-contain"
+              />
+            ) : (
+              <span
+                aria-label={order.carrier_name ?? order.carrier_code}
+                className="inline-flex items-center justify-center h-5 px-1.5 rounded bg-agent-surface-high border border-agent-outline-variant text-[10px] font-bold uppercase text-agent-on-surface-variant"
+              >
+                {(order.carrier_name ?? order.carrier_code).slice(0, 3)}
+              </span>
+            )}
+          </span>
+        )}
 
         {/* Status sign — desktop trailing column. On mobile the status renders
             in the name's sub-row instead (see above), so hide it here below sm. */}
@@ -459,10 +461,10 @@ export const OrderCard = memo(function OrderCard({
                 reason={order.rejection_reason}
                 note={order.rejection_note}
               >
-                <StatusSign label={statusPill.label} dot={statusPill.dot} className={statusPill.className} />
+                <StatusSign label={statusPill.label} className={statusPill.className} />
               </RejectionReasonHover>
             ) : (
-              <StatusSign label={statusPill.label} dot={statusPill.dot} className={statusPill.className} />
+              <StatusSign label={statusPill.label} className={statusPill.className} />
             )
           ) : null}
         </div>

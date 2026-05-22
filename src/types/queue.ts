@@ -10,8 +10,13 @@ export interface QueueOrder {
   customer_city: string;
   product_name: string;
   variant_label: string;
+  quantity: number;
   /** Product thumbnail URL (joined from products.image_url), null when unset. */
   product_image_url: string | null;
+  /** Carrier code (joined from carriers.code), set once a carrier is assigned. Drives the brand logo. */
+  carrier_code: string | null;
+  /** Carrier display name (joined from carriers.name) — used for the logo's alt/title text. */
+  carrier_name: string | null;
   total_price: number;
   currency: string;
   market_id: string | null;
