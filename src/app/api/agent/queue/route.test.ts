@@ -197,14 +197,14 @@ describe("GET /api/agent/queue", () => {
     expect(json.buckets.rappel_prevu).toBe(1);
   });
 
-  test("shows manual dispatch_scheduled with no scheduled time, hides auto and future", async () => {
+  test("shows manual untimed + all auto dispatch_scheduled, hides only future manual", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });
 
     const futureDate = "2099-01-01T00:00:00Z";
 
     const rawOrders = [
       {
-        id: "o-dsp-untimed",
+        id: "o-dsp-manual-untimed",
         status: "dispatch_scheduled",
         callback_scheduled_at: null,
         scheduled_dispatch_at: null,
@@ -213,7 +213,7 @@ describe("GET /api/agent/queue", () => {
         updated_at: "2026-04-08T10:00:00Z",
       },
       {
-        id: "o-dsp-future",
+        id: "o-dsp-manual-future",
         status: "dispatch_scheduled",
         callback_scheduled_at: null,
         scheduled_dispatch_at: futureDate,
@@ -222,10 +222,10 @@ describe("GET /api/agent/queue", () => {
         updated_at: "2026-04-07T10:00:00Z",
       },
       {
-        id: "o-dsp-auto",
+        id: "o-dsp-auto-future",
         status: "dispatch_scheduled",
         callback_scheduled_at: null,
-        scheduled_dispatch_at: null,
+        scheduled_dispatch_at: futureDate,
         scheduled_dispatch_auto: true,
         created_at: "2026-04-06T10:00:00Z",
         updated_at: "2026-04-06T10:00:00Z",
@@ -242,12 +242,16 @@ describe("GET /api/agent/queue", () => {
     const res = await GET(createRequest());
     const json = await res.json();
 
-    // Untimed manual dispatch surfaces; future manual is held back; auto never
-    // appears in the agent queue (cron promotes it directly).
-    expect(json.orders.map((o: { id: string }) => o.id)).toEqual(["o-dsp-untimed"]);
-    // Chip mirrors the visible list: only the untimed manual row counts. The
-    // future manual row and the auto row are both excluded.
-    expect(json.buckets.livraison_planifiee).toBe(1);
+    // Auto rows always surface (so the agent can upload them manually ahead of
+    // the cron), regardless of their scheduled time. The untimed manual row
+    // surfaces too. Only the future MANUAL row is held back until its time.
+    expect(json.orders.map((o: { id: string }) => o.id).sort()).toEqual([
+      "o-dsp-auto-future",
+      "o-dsp-manual-untimed",
+    ]);
+    // Chip mirrors the visible list: the untimed manual + the future auto count;
+    // the future manual one does not.
+    expect(json.buckets.livraison_planifiee).toBe(2);
   });
 
   test("returns 500 when DB query errors", async () => {

@@ -152,7 +152,10 @@ function matchesEnCoursSubfilter(
   }
   if (sub === "livraison") {
     if (status !== "dispatch_scheduled") return false;
-    if (o.scheduled_dispatch_auto) return false;
+    // Auto rows always show so the agent can upload them manually ahead of the
+    // cron. Manual rows show when unscheduled or past-due; an explicitly future
+    // manual time holds the order back. Mirrors /api/agent/queue.
+    if (o.scheduled_dispatch_auto) return true;
     const dAt = o.scheduled_dispatch_at as string | null;
     return !dAt || new Date(dAt) <= now;
   }
