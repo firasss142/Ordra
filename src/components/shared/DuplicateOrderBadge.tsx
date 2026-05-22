@@ -72,7 +72,7 @@ export function DuplicateOrderBadge({
     setOpen(true);
   }
   function handleLeave() {
-    closeTimer.current = setTimeout(() => setOpen(false), 120);
+    closeTimer.current = setTimeout(() => setOpen(false), 250);
   }
 
   return (
@@ -211,7 +211,7 @@ function DuplicatePopover({
         VIEWPORT_GUTTER,
         Math.min(left, window.innerWidth - width - VIEWPORT_GUTTER),
       );
-      setCoords({ top: rect.bottom + 4, left });
+      setCoords({ top: rect.bottom, left });
     }
     reposition();
     window.addEventListener("scroll", reposition, true);
@@ -250,6 +250,10 @@ function DuplicatePopover({
   if (typeof document === "undefined" || coords === null) return null;
 
   return createPortal(
+    // Outer wrapper is a transparent hover "bridge": flush against the trigger
+    // (top: rect.bottom) with 4px top padding spanning the visual gap, so the
+    // cursor never crosses dead space en route to the card. Paired with the
+    // 250ms close delay, the popover stays open while you move into it.
     <div
       id={id}
       role="dialog"
@@ -263,8 +267,11 @@ function DuplicatePopover({
         left: coords.left,
         width: Math.min(POPOVER_WIDTH, window.innerWidth - VIEWPORT_GUTTER * 2),
       }}
+      className="z-[1000] pt-1"
+    >
+    <div
       className={[
-        "z-[1000] rounded-lg border border-line-subtle bg-surface-card",
+        "rounded-lg border border-line-subtle bg-surface-card",
         "shadow-floating text-[13px] text-ink-primary",
       ].join(" ")}
     >
@@ -352,6 +359,7 @@ function DuplicatePopover({
           );
         })}
       </div>
+    </div>
     </div>,
     document.body,
   );
