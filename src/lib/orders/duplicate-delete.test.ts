@@ -80,6 +80,9 @@ function sibling(over: Record<string, unknown> = {}) {
     product_image_url: null,
     quantity: 1,
     total_price: 129,
+    customer_name: "Ahmed",
+    customer_address: "12 Rue X",
+    customer_city: "Tripoli",
     already_shipped: false,
     ...over,
   };

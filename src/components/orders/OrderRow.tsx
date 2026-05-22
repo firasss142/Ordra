@@ -237,12 +237,14 @@ function Row({
                 siblings={order.duplicate_siblings ?? []}
                 hasUploadedSibling={order.has_uploaded_sibling ?? false}
                 anchorOrderId={order.id}
-                anchorExternalId={order.external_id}
                 anchorStatus={order.status}
                 anchorCreatedAt={order.created_at}
                 anchorTotalPrice={order.total_price}
                 anchorProductName={order.product_name}
                 anchorProductImageUrl={order.product_image_url ?? null}
+                anchorCustomerName={order.customer_name}
+                anchorCustomerAddress={order.customer_address}
+                anchorCustomerCity={order.customer_city}
                 currencyCode={currencyCode}
                 canDelete
                 onChange={onDuplicateChange}

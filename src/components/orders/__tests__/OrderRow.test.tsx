@@ -27,6 +27,7 @@ const mockOrder: OrdersListRow = {
   market_id: "market-tn",
   customer_name: "Karim Gharbi",
   customer_phone: "22123456",
+  customer_address: "10 Av. Habib Bourguiba",
   customer_city: "Tunis",
   product_id: "prod-1",
   product_name: "T-Shirt Premium",

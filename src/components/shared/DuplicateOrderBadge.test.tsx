@@ -34,6 +34,9 @@ function sibling(o: Partial<SiblingOrder> = {}): SiblingOrder {
     product_image_url: null,
     quantity: 1,
     total_price: 129,
+    customer_name: "Sibling Customer",
+    customer_address: "9 Sibling St",
+    customer_city: "Benghazi",
     already_shipped: false,
     ...o,
   };
@@ -41,12 +44,14 @@ function sibling(o: Partial<SiblingOrder> = {}): SiblingOrder {
 
 /** Shared anchor props every render needs now that the popover shows the group. */
 const ANCHOR_PROPS = {
-  anchorExternalId: "EXT-ANCHOR",
   anchorStatus: "pending",
   anchorCreatedAt: "2026-05-22T10:00:00Z",
   anchorTotalPrice: 129,
   anchorProductName: "T-Shirt",
   anchorProductImageUrl: null,
+  anchorCustomerName: "Anchor Customer",
+  anchorCustomerAddress: "1 Anchor Rd",
+  anchorCustomerCity: "Tripoli",
   currencyCode: "LBY",
 } as const;
 
@@ -108,7 +113,7 @@ describe("DuplicateOrderBadge", () => {
     const { container } = render(
       <DuplicateOrderBadge
         count={1}
-        siblings={[sibling({ external_id: "EXT-42" })]}
+        siblings={[sibling({ customer_name: "Mariam K" })]}
         hasUploadedSibling={false}
         anchorOrderId="anchor-1"
         {...ANCHOR_PROPS}
@@ -117,7 +122,8 @@ describe("DuplicateOrderBadge", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     openDialog(container);
     expect(screen.getByRole("dialog")).toBeDefined();
-    expect(screen.getByText(/EXT-42/)).toBeDefined();
+    // The card headline is now the customer name (not the order reference).
+    expect(screen.getByText("Mariam K")).toBeDefined();
   });
 
   it("renders the 'already shipped' chip for a shipped sibling", () => {
@@ -221,7 +227,7 @@ describe("DuplicateOrderBadge", () => {
     const { container } = render(
       <DuplicateOrderBadge
         count={1}
-        siblings={[sibling({ id: "sib-1", external_id: "EXT-9", status: "pending" })]}
+        siblings={[sibling({ id: "sib-1", customer_name: "Mariam K", status: "pending" })]}
         hasUploadedSibling={false}
         anchorOrderId="anchor-1"
         {...ANCHOR_PROPS}
@@ -242,7 +248,7 @@ describe("DuplicateOrderBadge", () => {
     expect(body).toEqual({ sibling_id: "sib-1" });
 
     await waitFor(() => expect(onChange).toHaveBeenCalled());
-    await waitFor(() => expect(screen.queryByText(/EXT-9/)).toBeNull());
+    await waitFor(() => expect(screen.queryByText("Mariam K")).toBeNull());
   });
 
   it("does not call fetch when the confirm prompt is declined", () => {

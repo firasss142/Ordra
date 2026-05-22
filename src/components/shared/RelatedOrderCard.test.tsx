@@ -6,13 +6,15 @@ function renderCard(props: Partial<React.ComponentProps<typeof RelatedOrderCard>
   return render(
     <RelatedOrderCard
       id="11111111-1111-1111-1111-111111111111"
-      externalId="1555"
       status="pending"
       statusLabel="En attente"
       createdAt="2026-05-22T14:00:00Z"
       totalPrice={129}
       currencyCode="LBY"
       locale="fr"
+      customerName="Ahmed Ali"
+      customerAddress="12 Rue X"
+      customerCity="Tripoli"
       productName="T-Shirt"
       productImageUrl={null}
       {...props}
@@ -21,17 +23,23 @@ function renderCard(props: Partial<React.ComponentProps<typeof RelatedOrderCard>
 }
 
 describe("RelatedOrderCard", () => {
-  it("shows the order number, status label, and price with currency", () => {
+  it("shows the customer name, address, status label, and price with currency", () => {
     renderCard();
-    expect(screen.getByText("#1555")).toBeDefined();
+    expect(screen.getByText("Ahmed Ali")).toBeDefined();
+    expect(screen.getByText("12 Rue X · Tripoli")).toBeDefined();
     expect(screen.getByText("En attente")).toBeDefined();
     expect(screen.getByText("129.00")).toBeDefined();
     expect(screen.getByText("LBY")).toBeDefined();
   });
 
-  it("falls back to a short id when external id is missing", () => {
-    renderCard({ externalId: null });
-    expect(screen.getByText("#111111")).toBeDefined();
+  it("shows a dash when address and city are both missing", () => {
+    renderCard({ customerAddress: null, customerCity: null });
+    expect(screen.getByText("—")).toBeDefined();
+  });
+
+  it("falls back to the unknown-customer label when the name is missing", () => {
+    renderCard({ customerName: null, unknownCustomerLabel: "Client inconnu" });
+    expect(screen.getByText("Client inconnu")).toBeDefined();
   });
 
   it("renders the duplicate marker only when isDuplicate is set", () => {
@@ -40,13 +48,15 @@ describe("RelatedOrderCard", () => {
     rerender(
       <RelatedOrderCard
         id="x"
-        externalId="1555"
         status="pending"
         statusLabel="En attente"
         createdAt="2026-05-22T14:00:00Z"
         totalPrice={129}
         currencyCode="LBY"
         locale="fr"
+        customerName="Ahmed Ali"
+        customerAddress="12 Rue X"
+        customerCity="Tripoli"
         productName="T-Shirt"
         productImageUrl={null}
         isDuplicate

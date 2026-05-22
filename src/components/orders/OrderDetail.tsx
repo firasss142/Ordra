@@ -147,12 +147,14 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
             siblings={order.duplicate_siblings ?? []}
             hasUploadedSibling={order.has_uploaded_sibling ?? false}
             anchorOrderId={order.id}
-            anchorExternalId={order.external_id}
             anchorStatus={order.status}
             anchorCreatedAt={order.created_at}
             anchorTotalPrice={order.total_price}
             anchorProductName={order.product_name}
             anchorProductImageUrl={null}
+            anchorCustomerName={order.customer_name}
+            anchorCustomerAddress={order.customer_address}
+            anchorCustomerCity={order.customer_city}
             currencyCode={formatDisplayCurrencyCode(order.currency, order.market_id)}
             canDelete={
               user?.role === "agent" ||

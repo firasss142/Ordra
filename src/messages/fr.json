@@ -3049,7 +3049,8 @@
       "lastAddress": "Dernière adresse : {address}",
       "plusLeads": "+ {count} prospects",
       "seeAll": "Voir toutes les commandes",
-      "totalOrders": "Total des commandes : {count}"
+      "totalOrders": "Total des commandes : {count}",
+      "unknownCustomer": "Client inconnu"
     },
     "addressChange": "↳ nouvelle adresse (avant : {previous})"
   },
@@ -3064,7 +3065,8 @@
       "shipped": "Déjà envoyé au transporteur",
       "qty": "Qté {quantity}",
       "seeOrder": "Voir la commande",
-      "duplicateMark": "Doublon"
+      "duplicateMark": "Doublon",
+      "unknownCustomer": "Client inconnu"
     },
     "dialog": {
       "title": "Doublons possibles",

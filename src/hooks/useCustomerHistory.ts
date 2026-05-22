@@ -9,6 +9,7 @@ export interface CustomerHistoryOrder {
   created_at: string;
   status: string;
   total_price: number;
+  customer_name: string | null;
   customer_address: string | null;
   customer_city: string | null;
   product_name: string | null;

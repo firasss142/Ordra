@@ -276,15 +276,18 @@ function PopoverPanel({
                 <RelatedOrderCard
                   key={o.id}
                   id={o.id}
-                  externalId={o.external_id}
                   status={o.status}
                   statusLabel={tStatuses(o.status as Parameters<typeof tStatuses>[0])}
                   createdAt={o.created_at}
                   totalPrice={Number(o.total_price)}
                   currencyCode={currencyCode}
                   locale={locale}
+                  customerName={o.customer_name}
+                  customerAddress={o.customer_address}
+                  customerCity={o.customer_city}
                   productName={o.product_name}
                   productImageUrl={o.product_image_url}
+                  unknownCustomerLabel={t("unknownCustomer")}
                 />
               ))}
             </div>

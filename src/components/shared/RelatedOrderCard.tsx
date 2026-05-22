@@ -1,13 +1,12 @@
 import type { ReactNode } from "react";
-import { Copy, AlertTriangle } from "lucide-react";
+import { Copy, AlertTriangle, MapPin } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import { statusToneClass } from "@/lib/order-status-tone";
 import { ProductAvatar } from "@/components/orders/ProductAvatar";
 
 export interface RelatedOrderCardProps {
-  /** Order UUID — used for the fallback "#abc123" label. */
+  /** Order UUID — kept for a stable React key upstream. */
   id: string;
-  externalId: string | null;
   status: string;
   /** Already-translated status label (caller passes tStatuses(status)). */
   statusLabel: string;
@@ -16,12 +15,16 @@ export interface RelatedOrderCardProps {
   /** Display currency code: "LBY" | "TND". */
   currencyCode: string;
   locale: string;
+  /** Customer identity — the card's headline (replaces the order reference). */
+  customerName: string | null;
+  customerAddress: string | null;
+  customerCity: string | null;
   /** Product name + thumbnail for the card's leading visual. */
   productName: string | null;
   productImageUrl: string | null;
   /** Highlights the current/anchor order with a stronger fill. */
   isAnchor?: boolean;
-  /** Shows the duplicate-indicator icon (two-papers) next to the order number. */
+  /** Shows the duplicate-indicator icon (two-papers) next to the name. */
   isDuplicate?: boolean;
   /** aria/title for the duplicate marker (required when isDuplicate). */
   duplicateMarkLabel?: string;
@@ -29,26 +32,36 @@ export interface RelatedOrderCardProps {
   alreadyShipped?: boolean;
   /** Already-translated "already shipped" label. */
   shippedLabel?: string;
+  /** Fallback shown when the customer name is missing. */
+  unknownCustomerLabel?: string;
   /** Trailing action (e.g. the delete button), pinned to the bottom row. */
   rightSlot?: ReactNode;
 }
 
+/** Joins address + city into a single line, or a dash when both are absent. */
+function formatAddress(address: string | null, city: string | null): string {
+  const parts = [address?.trim(), city?.trim()].filter(Boolean) as string[];
+  return parts.length > 0 ? parts.join(" · ") : "—";
+}
+
 /**
- * One related-order card in the duplicate / repeat-buyer popovers. The layout
- * mirrors the reference design: order number + muted date top-start with the
- * product thumbnail top-end, then the status pill (start) and price (end) on
- * the bottom row. Every card carries the dashed violet border; the anchor
- * (current) order gets a slightly stronger fill to stand out.
+ * One related-order card in the duplicate / repeat-buyer popovers. The headline
+ * is the customer's name (with the duplicate marker), then the muted order date,
+ * then the delivery address, with the product thumbnail top-end and the status
+ * pill (start) / price (end) on the bottom row. Every card carries the dashed
+ * violet border; the anchor (current) order gets a slightly stronger fill.
  */
 export function RelatedOrderCard({
   id,
-  externalId,
   status,
   statusLabel,
   createdAt,
   totalPrice,
   currencyCode,
   locale,
+  customerName,
+  customerAddress,
+  customerCity,
   productName,
   productImageUrl,
   isAnchor = false,
@@ -56,8 +69,12 @@ export function RelatedOrderCard({
   duplicateMarkLabel,
   alreadyShipped = false,
   shippedLabel,
+  unknownCustomerLabel,
   rightSlot,
 }: RelatedOrderCardProps) {
+  const address = formatAddress(customerAddress, customerCity);
+  void id;
+
   return (
     <div
       data-related-order
@@ -67,19 +84,19 @@ export function RelatedOrderCard({
         isAnchor ? "bg-[#F4F1FE]" : "bg-[#FAF9FE]",
       ].join(" ")}
     >
-      {/* Top row: order # + date (start), product image (end) */}
+      {/* Top row: name + date (start), product image (end) */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="truncate font-semibold tabular-nums text-ink-primary">
-              #{externalId ?? id.slice(0, 6)}
+            <span className="truncate font-semibold text-ink-primary">
+              {customerName?.trim() || unknownCustomerLabel || "—"}
             </span>
             {isDuplicate && (
               <span
                 data-duplicate-mark
                 aria-label={duplicateMarkLabel}
                 title={duplicateMarkLabel}
-                className="inline-flex items-center text-ink-muted"
+                className="inline-flex shrink-0 items-center text-ink-muted"
               >
                 <Copy size={12} strokeWidth={2.25} aria-hidden="true" />
               </span>
@@ -87,6 +104,14 @@ export function RelatedOrderCard({
           </div>
           <div className="mt-0.5 text-[12px] text-ink-secondary">
             {formatDateTime(createdAt, locale)}
+          </div>
+          {/* Address line */}
+          <div
+            className="mt-1 flex items-center gap-1 text-[12px] text-ink-muted"
+            title={address}
+          >
+            <MapPin size={11} strokeWidth={2} aria-hidden="true" className="shrink-0" />
+            <span className="truncate">{address}</span>
           </div>
         </div>
         <ProductAvatar

@@ -23,6 +23,10 @@ export interface RawSibling {
   quantity: number;
   /** Order total (revenue) — rendered in the duplicate popover card. */
   total_price: number;
+  /** Customer identity — shown on the popover card in place of the order ref. */
+  customer_name: string | null;
+  customer_address: string | null;
+  customer_city: string | null;
   /** True when the sibling is already shipped to the carrier (re-ship risk). */
   already_shipped: boolean;
 }

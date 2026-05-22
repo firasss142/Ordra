@@ -15,12 +15,14 @@ export interface DuplicateOrderBadgeProps {
   /** The order this popover is opened from — the server re-verifies siblings against it. */
   anchorOrderId: string;
   /** Anchor order's own details — rendered as the first (violet) card in the group. */
-  anchorExternalId: string | null;
   anchorStatus: string;
   anchorCreatedAt: string;
   anchorTotalPrice: number;
   anchorProductName: string | null;
   anchorProductImageUrl: string | null;
+  anchorCustomerName: string | null;
+  anchorCustomerAddress: string | null;
+  anchorCustomerCity: string | null;
   /** Display currency code: "LBY" | "TND". */
   currencyCode: string;
   /** UX affordance for showing the per-sibling delete button (server is the real gate). */
@@ -43,12 +45,14 @@ export function DuplicateOrderBadge({
   siblings,
   hasUploadedSibling,
   anchorOrderId,
-  anchorExternalId,
   anchorStatus,
   anchorCreatedAt,
   anchorTotalPrice,
   anchorProductName,
   anchorProductImageUrl,
+  anchorCustomerName,
+  anchorCustomerAddress,
+  anchorCustomerCity,
   currencyCode,
   canDelete = false,
   onChange,
@@ -121,12 +125,14 @@ export function DuplicateOrderBadge({
           locale={locale}
           currencyCode={currencyCode}
           anchorOrderId={anchorOrderId}
-          anchorExternalId={anchorExternalId}
           anchorStatus={anchorStatus}
           anchorCreatedAt={anchorCreatedAt}
           anchorTotalPrice={anchorTotalPrice}
           anchorProductName={anchorProductName}
           anchorProductImageUrl={anchorProductImageUrl}
+          anchorCustomerName={anchorCustomerName}
+          anchorCustomerAddress={anchorCustomerAddress}
+          anchorCustomerCity={anchorCustomerCity}
           canDelete={canDelete}
           onChange={onChange}
         />
@@ -144,12 +150,14 @@ interface DuplicatePopoverProps {
   locale: string;
   currencyCode: string;
   anchorOrderId: string;
-  anchorExternalId: string | null;
   anchorStatus: string;
   anchorCreatedAt: string;
   anchorTotalPrice: number;
   anchorProductName: string | null;
   anchorProductImageUrl: string | null;
+  anchorCustomerName: string | null;
+  anchorCustomerAddress: string | null;
+  anchorCustomerCity: string | null;
   canDelete: boolean;
   onChange?: () => void;
 }
@@ -166,12 +174,14 @@ function DuplicatePopover({
   locale,
   currencyCode,
   anchorOrderId,
-  anchorExternalId,
   anchorStatus,
   anchorCreatedAt,
   anchorTotalPrice,
   anchorProductName,
   anchorProductImageUrl,
+  anchorCustomerName,
+  anchorCustomerAddress,
+  anchorCustomerCity,
   canDelete,
   onChange,
 }: DuplicatePopoverProps) {
@@ -279,15 +289,18 @@ function DuplicatePopover({
         {/* Current order — the violet anchor card. */}
         <RelatedOrderCard
           id={anchorOrderId}
-          externalId={anchorExternalId}
           status={anchorStatus}
           statusLabel={tStatuses(anchorStatus as Parameters<typeof tStatuses>[0])}
           createdAt={anchorCreatedAt}
           totalPrice={anchorTotalPrice}
           currencyCode={currencyCode}
           locale={locale}
+          customerName={anchorCustomerName}
+          customerAddress={anchorCustomerAddress}
+          customerCity={anchorCustomerCity}
           productName={anchorProductName}
           productImageUrl={anchorProductImageUrl}
+          unknownCustomerLabel={tPop("unknownCustomer")}
           isAnchor
           isDuplicate
           duplicateMarkLabel={tPop("duplicateMark")}
@@ -299,15 +312,18 @@ function DuplicatePopover({
             <RelatedOrderCard
               key={s.id}
               id={s.id}
-              externalId={s.external_id}
               status={s.status}
               statusLabel={tStatuses(s.status as Parameters<typeof tStatuses>[0])}
               createdAt={s.created_at}
               totalPrice={s.total_price}
               currencyCode={currencyCode}
               locale={locale}
+              customerName={s.customer_name}
+              customerAddress={s.customer_address}
+              customerCity={s.customer_city}
               productName={s.product_name}
               productImageUrl={s.product_image_url}
+              unknownCustomerLabel={tPop("unknownCustomer")}
               isDuplicate
               duplicateMarkLabel={tPop("duplicateMark")}
               alreadyShipped={s.already_shipped}
