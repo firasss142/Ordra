@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
 import { Star, AlertTriangle, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { RelatedOrderCard } from "@/components/shared/RelatedOrderCard";
 import { useCustomerHistory } from "@/hooks/useCustomerHistory";
 import { formatDateTime } from "@/lib/format";
 import type { RepeatKind } from "@/lib/customer-history/classify";
@@ -16,6 +17,8 @@ export interface RepeatBuyerBadgeProps {
   priorOrderCount: number;
   priorLeadCount: number;
   priorRejectedCount: number;
+  /** Display currency code: "LBY" | "TND" — rendered on each history card. */
+  currencyCode: string;
   /** Optional: if provided and the source is an order, "See all orders" deep-links to filtered orders. */
   customerPhone?: string | null;
   locale?: string;
@@ -110,6 +113,7 @@ export function RepeatBuyerBadge(props: RepeatBuyerBadgeProps) {
           detail={detail}
           locale={locale}
           tStatuses={tStatuses}
+          currencyCode={props.currencyCode}
           customerPhone={props.customerPhone ?? null}
         />
       )}
@@ -130,6 +134,7 @@ interface PopoverPanelProps {
   detail: ReturnType<typeof useCustomerHistory>["detail"];
   locale: string;
   tStatuses: ReturnType<typeof useTranslations>;
+  currencyCode: string;
   customerPhone: string | null;
 }
 
@@ -149,6 +154,7 @@ function PopoverPanel({
   detail,
   locale,
   tStatuses,
+  currencyCode,
   customerPhone,
 }: PopoverPanelProps) {
   const t = useTranslations("customerHistory.popover");
@@ -268,32 +274,21 @@ function PopoverPanel({
           )}
 
           {orders.length > 0 && (
-            <ul className="border-t border-line-subtle pt-2 mb-2 space-y-1.5 max-h-[180px] overflow-y-auto">
+            <div className="border-t border-line-subtle pt-2 mb-2 space-y-2 max-h-[260px] overflow-y-auto">
               {orders.slice(0, 6).map((o) => (
-                <li
+                <RelatedOrderCard
                   key={o.id}
-                  className="flex items-center justify-between gap-2 text-[12px]"
-                >
-                  <span className="font-medium tabular-nums truncate">
-                    #{o.external_id ?? o.id.slice(0, 6)}
-                  </span>
-                  <span className="text-ink-muted shrink-0">
-                    {formatDateTime(o.created_at, locale)}
-                  </span>
-                  <span
-                    className={[
-                      "rounded-pill px-1.5 py-[1px] text-[11px] font-medium shrink-0",
-                      statusToneClass(o.status),
-                    ].join(" ")}
-                  >
-                    {tStatuses(o.status as Parameters<typeof tStatuses>[0])}
-                  </span>
-                  <span className="tabular-nums shrink-0">
-                    {Number(o.total_price).toFixed(0)}
-                  </span>
-                </li>
+                  id={o.id}
+                  externalId={o.external_id}
+                  status={o.status}
+                  statusLabel={tStatuses(o.status as Parameters<typeof tStatuses>[0])}
+                  createdAt={o.created_at}
+                  totalPrice={Number(o.total_price)}
+                  currencyCode={currencyCode}
+                  locale={locale}
+                />
               ))}
-            </ul>
+            </div>
           )}
 
           {leads.length > 0 && (
@@ -319,11 +314,4 @@ function PopoverPanel({
     </div>,
     document.body,
   );
-}
-
-function statusToneClass(status: string): string {
-  if (status === "delivered") return "bg-status-successBg text-status-success";
-  if (status === "rejected") return "bg-status-criticalBg text-status-critical";
-  if (status === "returned") return "bg-status-neutralBg text-ink-secondary";
-  return "bg-status-neutralBg text-ink-secondary";
 }

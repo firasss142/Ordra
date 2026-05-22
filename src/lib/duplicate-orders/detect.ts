@@ -19,6 +19,8 @@ export interface RawSibling {
   created_at: string;
   product_name: string | null;
   quantity: number;
+  /** Order total (revenue) — rendered in the duplicate popover card. */
+  total_price: number;
   /** True when the sibling is already shipped to the carrier (re-ship risk). */
   already_shipped: boolean;
 }

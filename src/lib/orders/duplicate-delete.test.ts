@@ -78,6 +78,7 @@ function sibling(over: Record<string, unknown> = {}) {
     created_at: "2026-05-21T09:00:00Z",
     product_name: "T-Shirt",
     quantity: 1,
+    total_price: 129,
     already_shipped: false,
     ...over,
   };

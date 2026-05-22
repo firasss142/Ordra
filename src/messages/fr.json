@@ -3062,7 +3062,8 @@
       "sibling": "#{externalId}",
       "shipped": "Déjà envoyé au transporteur",
       "qty": "Qté {quantity}",
-      "seeOrder": "Voir la commande"
+      "seeOrder": "Voir la commande",
+      "duplicateMark": "Doublon"
     },
     "dialog": {
       "title": "Doublons possibles",

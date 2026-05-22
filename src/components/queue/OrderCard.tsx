@@ -342,18 +342,25 @@ export const OrderCard = memo(function OrderCard({
                 priorOrderCount={order.prior_order_count}
                 priorLeadCount={order.prior_lead_count}
                 priorRejectedCount={order.prior_rejected_count}
+                currencyCode={displayCurrency}
                 customerPhone={order.customer_phone}
               />
             )}
             {/* Duplicate marker — icon-only, shown on the anchor (newest) order.
-                Opens a dialog that lists siblings and lets a permitted role delete
-                a deletable sibling in place; onMutate revalidates the queue. */}
+                Hover opens a popover showing the whole duplicate group as cards and
+                lets a permitted role delete a deletable sibling in place; onMutate
+                revalidates the queue. */}
             {order.is_potential_duplicate && order.is_duplicate_anchor && (
               <DuplicateOrderBadge
                 count={order.duplicate_count}
                 siblings={order.duplicate_siblings}
                 hasUploadedSibling={order.has_uploaded_sibling}
                 anchorOrderId={order.id}
+                anchorExternalId={null}
+                anchorStatus={order.status}
+                anchorCreatedAt={order.created_at}
+                anchorTotalPrice={order.total_price}
+                currencyCode={displayCurrency}
                 canDelete={canDeleteDuplicateSiblingStatus(order.status)}
                 onChange={onMutate}
               />

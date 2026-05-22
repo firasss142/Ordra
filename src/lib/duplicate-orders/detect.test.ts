@@ -9,6 +9,7 @@ function sibling(o: Partial<RawSibling> = {}): RawSibling {
     created_at: "2026-05-21T10:00:00Z",
     product_name: "Widget",
     quantity: 1,
+    total_price: 129,
     already_shipped: false,
     ...o,
   };
@@ -66,6 +67,15 @@ describe("deriveDuplicateEnrichment", () => {
     expect(result.duplicate_siblings.find((s) => s.id === "b")?.already_shipped).toBe(
       true,
     );
+  });
+
+  it("passes total_price through on each sibling", () => {
+    const result = deriveDuplicateEnrichment([
+      sibling({ id: "a", total_price: 129 }),
+      sibling({ id: "b", total_price: 258 }),
+    ]);
+    expect(result.duplicate_siblings.find((s) => s.id === "a")?.total_price).toBe(129);
+    expect(result.duplicate_siblings.find((s) => s.id === "b")?.total_price).toBe(258);
   });
 
   it("tolerates a null or missing siblings array", () => {

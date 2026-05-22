@@ -2975,7 +2975,8 @@
       "sibling": "#{externalId}",
       "shipped": "تم إرساله بالفعل إلى شركة الشحن",
       "qty": "الكمية {quantity}",
-      "seeOrder": "عرض الطلب"
+      "seeOrder": "عرض الطلب",
+      "duplicateMark": "مكرر"
     },
     "dialog": {
       "title": "تكرارات محتملة",

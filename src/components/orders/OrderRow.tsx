@@ -227,6 +227,7 @@ function Row({
                 priorOrderCount={order.prior_order_count ?? 0}
                 priorLeadCount={order.prior_lead_count ?? 0}
                 priorRejectedCount={order.prior_rejected_count ?? 0}
+                currencyCode={currencyCode}
                 customerPhone={order.customer_phone}
               />
             )}
@@ -236,6 +237,11 @@ function Row({
                 siblings={order.duplicate_siblings ?? []}
                 hasUploadedSibling={order.has_uploaded_sibling ?? false}
                 anchorOrderId={order.id}
+                anchorExternalId={order.external_id}
+                anchorStatus={order.status}
+                anchorCreatedAt={order.created_at}
+                anchorTotalPrice={order.total_price}
+                currencyCode={currencyCode}
                 canDelete
                 onChange={onDuplicateChange}
               />
