@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useId, useLayoutEffect } from "react";
+import { useState, useRef, useId, useLayoutEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
 import { Star, AlertTriangle, ExternalLink } from "lucide-react";
@@ -21,6 +21,20 @@ export interface RepeatBuyerBadgeProps {
   /** Optional: if provided and the source is an order, "See all orders" deep-links to filtered orders. */
   customerPhone?: string | null;
   locale?: string;
+  /**
+   * Hovered order/lead fields — rendered as a card in the popover so users see
+   * the row they're on alongside its history. For leads (no price), pass
+   * `anchorTotalPrice={null}` and `anchorProductName/Image={null}`.
+   */
+  anchorOrderId: string;
+  anchorStatus: string;
+  anchorCreatedAt: string;
+  anchorTotalPrice: number | null;
+  anchorProductName: string | null;
+  anchorProductImageUrl: string | null;
+  anchorCustomerName: string | null;
+  anchorCustomerAddress: string | null;
+  anchorCustomerCity: string | null;
 }
 
 const TONE_BY_KIND: Record<Exclude<RepeatKind, "none">, "action" | "neutral" | "critical"> = {
@@ -114,6 +128,15 @@ export function RepeatBuyerBadge(props: RepeatBuyerBadgeProps) {
           tStatuses={tStatuses}
           currencyCode={props.currencyCode}
           customerPhone={props.customerPhone ?? null}
+          anchorOrderId={props.anchorOrderId}
+          anchorStatus={props.anchorStatus}
+          anchorCreatedAt={props.anchorCreatedAt}
+          anchorTotalPrice={props.anchorTotalPrice}
+          anchorProductName={props.anchorProductName}
+          anchorProductImageUrl={props.anchorProductImageUrl}
+          anchorCustomerName={props.anchorCustomerName}
+          anchorCustomerAddress={props.anchorCustomerAddress}
+          anchorCustomerCity={props.anchorCustomerCity}
         />
       )}
     </span>
@@ -135,6 +158,15 @@ interface PopoverPanelProps {
   tStatuses: ReturnType<typeof useTranslations>;
   currencyCode: string;
   customerPhone: string | null;
+  anchorOrderId: string;
+  anchorStatus: string;
+  anchorCreatedAt: string;
+  anchorTotalPrice: number | null;
+  anchorProductName: string | null;
+  anchorProductImageUrl: string | null;
+  anchorCustomerName: string | null;
+  anchorCustomerAddress: string | null;
+  anchorCustomerCity: string | null;
 }
 
 const POPOVER_WIDTH = 320;
@@ -155,6 +187,15 @@ function PopoverPanel({
   tStatuses,
   currencyCode,
   customerPhone,
+  anchorOrderId,
+  anchorStatus,
+  anchorCreatedAt,
+  anchorTotalPrice,
+  anchorProductName,
+  anchorProductImageUrl,
+  anchorCustomerName,
+  anchorCustomerAddress,
+  anchorCustomerCity,
 }: PopoverPanelProps) {
   const t = useTranslations("customerHistory.popover");
   const isRtl = locale === "ar";
@@ -187,11 +228,28 @@ function PopoverPanel({
     };
   }, [anchorRef, isRtl]);
 
-  if (typeof document === "undefined" || coords === null) return null;
-
+  // Derive these BEFORE any conditional return so hook order stays stable.
   const stats = detail?.stats;
   const orders = detail?.orders ?? [];
   const leads = detail?.leads ?? [];
+
+  // Merge the hovered row (anchor) into the customer history and sort by date
+  // (newest first). The anchor renders with `isAnchor` so it stands out
+  // regardless of its date position. Sliced to the same 6-card cap as before.
+  type Entry =
+    | { kind: "anchor"; createdAt: string }
+    | { kind: "history"; createdAt: string; order: (typeof orders)[number] };
+  const mergedEntries = useMemo<Entry[]>(() => {
+    const entries: Entry[] = [
+      { kind: "anchor", createdAt: anchorCreatedAt },
+      ...orders.map((o) => ({ kind: "history" as const, createdAt: o.created_at, order: o })),
+    ];
+    return entries
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))
+      .slice(0, 6);
+  }, [anchorCreatedAt, orders]);
+
+  if (typeof document === "undefined" || coords === null) return null;
 
   const headline =
     repeatKind === "risk" && stats
@@ -207,6 +265,9 @@ function PopoverPanel({
   const seeAllHref = customerPhone
     ? `/${locale}/orders?q=${encodeURIComponent(customerPhone)}`
     : null;
+
+  // Header count includes the hovered order in the merged list (N+1).
+  const totalCount = (stats?.total_orders ?? priorOrderCount) + 1;
 
   return createPortal(
     // Outer wrapper is a transparent hover "bridge": it sits flush against the
@@ -251,9 +312,7 @@ function PopoverPanel({
               ].join(" ")}
               title={headline}
             >
-              {t("totalOrders", {
-                count: stats?.total_orders ?? priorOrderCount,
-              })}
+              {t("totalOrders", { count: totalCount })}
             </span>
             {seeAllHref && (
               <a
@@ -276,28 +335,46 @@ function PopoverPanel({
             </div>
           )}
 
-          {orders.length > 0 && (
-            <div className="border-t border-line-subtle pt-2.5 space-y-2.5 max-h-[320px] overflow-y-auto">
-              {orders.slice(0, 6).map((o) => (
+          <div className="border-t border-line-subtle pt-2.5 space-y-2.5 max-h-[320px] overflow-y-auto">
+            {mergedEntries.map((entry) =>
+              entry.kind === "anchor" ? (
                 <RelatedOrderCard
-                  key={o.id}
-                  id={o.id}
-                  status={o.status}
-                  statusLabel={tStatuses(o.status as Parameters<typeof tStatuses>[0])}
-                  createdAt={o.created_at}
-                  totalPrice={Number(o.total_price)}
+                  key={anchorOrderId}
+                  id={anchorOrderId}
+                  status={anchorStatus}
+                  statusLabel={tStatuses(anchorStatus as Parameters<typeof tStatuses>[0])}
+                  createdAt={anchorCreatedAt}
+                  totalPrice={anchorTotalPrice}
                   currencyCode={currencyCode}
                   locale={locale}
-                  customerName={o.customer_name}
-                  customerAddress={o.customer_address}
-                  customerCity={o.customer_city}
-                  productName={o.product_name}
-                  productImageUrl={o.product_image_url}
+                  customerName={anchorCustomerName}
+                  customerAddress={anchorCustomerAddress}
+                  customerCity={anchorCustomerCity}
+                  productName={anchorProductName}
+                  productImageUrl={anchorProductImageUrl}
+                  unknownCustomerLabel={t("unknownCustomer")}
+                  isAnchor
+                />
+              ) : (
+                <RelatedOrderCard
+                  key={entry.order.id}
+                  id={entry.order.id}
+                  status={entry.order.status}
+                  statusLabel={tStatuses(entry.order.status as Parameters<typeof tStatuses>[0])}
+                  createdAt={entry.order.created_at}
+                  totalPrice={Number(entry.order.total_price)}
+                  currencyCode={currencyCode}
+                  locale={locale}
+                  customerName={entry.order.customer_name}
+                  customerAddress={entry.order.customer_address}
+                  customerCity={entry.order.customer_city}
+                  productName={entry.order.product_name}
+                  productImageUrl={entry.order.product_image_url}
                   unknownCustomerLabel={t("unknownCustomer")}
                 />
-              ))}
-            </div>
-          )}
+              ),
+            )}
+          </div>
 
           {leads.length > 0 && (
             <div className="text-ink-muted text-[12px] mt-2">

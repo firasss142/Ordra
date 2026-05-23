@@ -329,6 +329,15 @@ export function AgentLeadsQueue({ user }: Props) {
                           priorRejectedCount={l.prior_rejected_count ?? 0}
                           currencyCode={displayCurrency}
                           customerPhone={l.customer_phone}
+                          anchorOrderId={l.id}
+                          anchorStatus={l.status}
+                          anchorCreatedAt={l.created_at}
+                          anchorTotalPrice={null}
+                          anchorProductName={null}
+                          anchorProductImageUrl={null}
+                          anchorCustomerName={l.customer_name}
+                          anchorCustomerAddress={l.customer_address}
+                          anchorCustomerCity={l.customer_city}
                         />
                       )}
                       {isAttemptOrCallback && (

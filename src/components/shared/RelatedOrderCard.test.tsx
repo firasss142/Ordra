@@ -78,6 +78,22 @@ describe("RelatedOrderCard", () => {
     expect(card.getAttribute("data-anchor")).toBe("true");
   });
 
+  it("renders a solid violet inline-start accent bar on the anchor card", () => {
+    const { container } = renderCard({ isAnchor: true });
+    const bar = container.querySelector("[data-anchor-accent]");
+    expect(bar).not.toBeNull();
+  });
+
+  it("does NOT render the accent bar on non-anchor cards", () => {
+    const { container } = renderCard({ isAnchor: false });
+    expect(container.querySelector("[data-anchor-accent]")).toBeNull();
+  });
+
+  it("hides the price block when totalPrice is null (lead-anchor case)", () => {
+    renderCard({ totalPrice: null });
+    expect(screen.queryByText("LBY")).toBeNull();
+  });
+
   it("renders the shipped chip when alreadyShipped is set", () => {
     renderCard({ alreadyShipped: true, shippedLabel: "Déjà envoyé au transporteur" });
     expect(screen.getByText("Déjà envoyé au transporteur")).toBeDefined();

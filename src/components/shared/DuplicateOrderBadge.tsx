@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useId, useLayoutEffect, useEffect } from "react";
+import { useState, useRef, useId, useLayoutEffect, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
 import { Layers, AlertTriangle, Trash2 } from "lucide-react";
@@ -200,6 +200,20 @@ function DuplicatePopover({
     setRows(siblings);
   }, [siblings]);
 
+  // Merge the anchor + siblings into one date-sorted list (newest first). The
+  // anchor stays in its natural date position and is flagged with isAnchor so
+  // the card renders with the violet accent regardless of position.
+  type Entry =
+    | { kind: "anchor"; createdAt: string }
+    | { kind: "sibling"; createdAt: string; sibling: SiblingOrder };
+  const mergedEntries = useMemo<Entry[]>(() => {
+    const entries: Entry[] = [
+      { kind: "anchor", createdAt: anchorCreatedAt },
+      ...rows.map((s) => ({ kind: "sibling" as const, createdAt: s.created_at, sibling: s })),
+    ];
+    return entries.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
+  }, [anchorCreatedAt, rows]);
+
   useLayoutEffect(() => {
     function reposition() {
       const el = anchorRef.current;
@@ -293,71 +307,76 @@ function DuplicatePopover({
       )}
 
       <div className="max-h-[320px] space-y-2 overflow-y-auto p-3">
-        {/* Current order — the violet anchor card. */}
-        <RelatedOrderCard
-          id={anchorOrderId}
-          status={anchorStatus}
-          statusLabel={tStatuses(anchorStatus as Parameters<typeof tStatuses>[0])}
-          createdAt={anchorCreatedAt}
-          totalPrice={anchorTotalPrice}
-          currencyCode={currencyCode}
-          locale={locale}
-          customerName={anchorCustomerName}
-          customerAddress={anchorCustomerAddress}
-          customerCity={anchorCustomerCity}
-          productName={anchorProductName}
-          productImageUrl={anchorProductImageUrl}
-          unknownCustomerLabel={tPop("unknownCustomer")}
-          isAnchor
-          isDuplicate
-          duplicateMarkLabel={tPop("duplicateMark")}
-        />
-
-        {rows.map((s) => {
-          const deletable = canDelete && canDeleteDuplicateSiblingStatus(s.status);
-          return (
+        {mergedEntries.map((entry) =>
+          entry.kind === "anchor" ? (
             <RelatedOrderCard
-              key={s.id}
-              id={s.id}
-              status={s.status}
-              statusLabel={tStatuses(s.status as Parameters<typeof tStatuses>[0])}
-              createdAt={s.created_at}
-              totalPrice={s.total_price}
+              key={anchorOrderId}
+              id={anchorOrderId}
+              status={anchorStatus}
+              statusLabel={tStatuses(anchorStatus as Parameters<typeof tStatuses>[0])}
+              createdAt={anchorCreatedAt}
+              totalPrice={anchorTotalPrice}
               currencyCode={currencyCode}
               locale={locale}
-              customerName={s.customer_name}
-              customerAddress={s.customer_address}
-              customerCity={s.customer_city}
-              productName={s.product_name}
-              productImageUrl={s.product_image_url}
+              customerName={anchorCustomerName}
+              customerAddress={anchorCustomerAddress}
+              customerCity={anchorCustomerCity}
+              productName={anchorProductName}
+              productImageUrl={anchorProductImageUrl}
               unknownCustomerLabel={tPop("unknownCustomer")}
+              isAnchor
               isDuplicate
               duplicateMarkLabel={tPop("duplicateMark")}
-              alreadyShipped={s.already_shipped}
-              shippedLabel={tPop("shipped")}
-              rightSlot={
-                deletable ? (
-                  <button
-                    type="button"
-                    disabled={busyId === s.id}
-                    aria-label={t("deleteAria", {
-                      externalId: s.external_id ?? s.id.slice(0, 6),
-                    })}
-                    onClick={() => handleDelete(s)}
-                    className={[
-                      "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium",
-                      "text-status-critical hover:bg-status-criticalBg",
-                      "disabled:cursor-not-allowed disabled:opacity-50",
-                    ].join(" ")}
-                  >
-                    <Trash2 size={11} strokeWidth={2.25} aria-hidden="true" />
-                    {busyId === s.id ? t("deleting") : t("delete")}
-                  </button>
-                ) : undefined
-              }
             />
-          );
-        })}
+          ) : (
+            (() => {
+              const s = entry.sibling;
+              const deletable = canDelete && canDeleteDuplicateSiblingStatus(s.status);
+              return (
+                <RelatedOrderCard
+                  key={s.id}
+                  id={s.id}
+                  status={s.status}
+                  statusLabel={tStatuses(s.status as Parameters<typeof tStatuses>[0])}
+                  createdAt={s.created_at}
+                  totalPrice={s.total_price}
+                  currencyCode={currencyCode}
+                  locale={locale}
+                  customerName={s.customer_name}
+                  customerAddress={s.customer_address}
+                  customerCity={s.customer_city}
+                  productName={s.product_name}
+                  productImageUrl={s.product_image_url}
+                  unknownCustomerLabel={tPop("unknownCustomer")}
+                  isDuplicate
+                  duplicateMarkLabel={tPop("duplicateMark")}
+                  alreadyShipped={s.already_shipped}
+                  shippedLabel={tPop("shipped")}
+                  rightSlot={
+                    deletable ? (
+                      <button
+                        type="button"
+                        disabled={busyId === s.id}
+                        aria-label={t("deleteAria", {
+                          externalId: s.external_id ?? s.id.slice(0, 6),
+                        })}
+                        onClick={() => handleDelete(s)}
+                        className={[
+                          "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium",
+                          "text-status-critical hover:bg-status-criticalBg",
+                          "disabled:cursor-not-allowed disabled:opacity-50",
+                        ].join(" ")}
+                      >
+                        <Trash2 size={11} strokeWidth={2.25} aria-hidden="true" />
+                        {busyId === s.id ? t("deleting") : t("delete")}
+                      </button>
+                    ) : undefined
+                  }
+                />
+              );
+            })()
+          ),
+        )}
       </div>
     </div>
     </div>,

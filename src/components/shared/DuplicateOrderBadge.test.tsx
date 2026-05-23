@@ -126,6 +126,31 @@ describe("DuplicateOrderBadge", () => {
     expect(screen.getByText("Mariam K")).toBeDefined();
   });
 
+  it("sorts the merged list by date — newest first, regardless of anchor position", () => {
+    // Anchor is created earlier than the sibling, so the sibling must come first.
+    const { container } = render(
+      <DuplicateOrderBadge
+        count={1}
+        siblings={[
+          sibling({
+            customer_name: "Newer Sibling",
+            created_at: "2026-05-23T10:00:00Z", // newer than anchor (2026-05-22)
+          }),
+        ]}
+        hasUploadedSibling={false}
+        anchorOrderId="anchor-1"
+        {...ANCHOR_PROPS}
+      />,
+    );
+    openDialog(container);
+    // Popover is portaled to document.body; query from there.
+    const cards = document.body.querySelectorAll("[data-related-order]");
+    expect(cards).toHaveLength(2);
+    // Newer sibling renders first; the anchor (older) is second and still shows the violet accent.
+    expect(cards[0].textContent).toContain("Newer Sibling");
+    expect(cards[1].getAttribute("data-anchor")).toBe("true");
+  });
+
   it("renders the 'already shipped' chip for a shipped sibling", () => {
     const { container } = render(
       <DuplicateOrderBadge

@@ -11,7 +11,8 @@ export interface RelatedOrderCardProps {
   /** Already-translated status label (caller passes tStatuses(status)). */
   statusLabel: string;
   createdAt: string;
-  totalPrice: number;
+  /** Order total — pass `null` to hide the price block (e.g. for a lead anchor). */
+  totalPrice: number | null;
   /** Display currency code: "LBY" | "TND". */
   currencyCode: string;
   locale: string;
@@ -80,10 +81,17 @@ export function RelatedOrderCard({
       data-related-order
       data-anchor={isAnchor ? "true" : undefined}
       className={[
-        "rounded-lg border border-dashed border-[#C9BCF5] p-3 transition-shadow hover:shadow-hover-row",
+        "relative overflow-hidden rounded-lg border border-dashed border-[#C9BCF5] p-3 transition-shadow hover:shadow-hover-row",
         isAnchor ? "bg-[#F4F1FE]" : "bg-[#FAF9FE]",
       ].join(" ")}
     >
+      {isAnchor && (
+        <span
+          aria-hidden="true"
+          data-anchor-accent
+          className="pointer-events-none absolute inset-y-0 start-0 w-1 bg-[#7C3AED]"
+        />
+      )}
       {/* Top row: name + date (start), product image (end) */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -142,14 +150,16 @@ export function RelatedOrderCard({
           </span>
           {rightSlot}
         </div>
-        <span className="shrink-0">
-          <span className="text-[15px] font-semibold tabular-nums text-ink-primary">
-            {totalPrice.toFixed(2)}
+        {totalPrice !== null && (
+          <span className="shrink-0">
+            <span className="text-[15px] font-semibold tabular-nums text-ink-primary">
+              {totalPrice.toFixed(2)}
+            </span>
+            <span className="ms-1 text-[11px] font-medium text-ink-secondary">
+              {currencyCode}
+            </span>
           </span>
-          <span className="ms-1 text-[11px] font-medium text-ink-secondary">
-            {currencyCode}
-          </span>
-        </span>
+        )}
       </div>
     </div>
   );
