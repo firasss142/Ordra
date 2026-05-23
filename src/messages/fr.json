@@ -1006,6 +1006,12 @@
       "inStock": "En stock",
       "lowStock": "Stock faible",
       "stockLeft": "{count} restant",
+      "pickProduct": "Choisir un produit",
+      "searchProducts": "Rechercher un produit…",
+      "noResults": "Aucun produit",
+      "alreadyAdded": "Déjà ajouté",
+      "kbdHints": "↑↓ naviguer · ⏎ ajouter · esc fermer",
+      "adding": "Ajout…",
       "errors": {
         "uploadHttp": "Échec de l'envoi ({status})",
         "uploadNetwork": "Erreur réseau",

@@ -11,16 +11,29 @@ export async function GET(req: NextRequest) {
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
 
-  const marketId =
-    actor.role === "super_admin"
-      ? (req.nextUrl.searchParams.get("market_id") ?? actor.market_id ?? "")
-      : (actor.market_id ?? "");
+  const requested = req.nextUrl.searchParams.get("market_id");
+
+  let marketId: string;
+  if (actor.role === "super_admin") {
+    marketId = requested ?? actor.market_id ?? "";
+  } else {
+    if (requested && requested !== actor.market_id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    marketId = actor.market_id ?? "";
+  }
+
+  if (!marketId) {
+    return NextResponse.json({ data: [] });
+  }
 
   const q = req.nextUrl.searchParams.get("q");
 
   let query = supabase
     .from("products")
-    .select("id, market_id, name, default_price, current_stock, is_active, product_variants(id, label, is_active)")
+    .select(
+      "id, market_id, name, default_price, current_stock, is_active, image_url, product_variants(id, label, is_active)",
+    )
     .eq("market_id", marketId)
     .eq("is_active", true);
 

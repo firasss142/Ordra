@@ -128,6 +128,17 @@ export function OrdersPageClient({
   );
   const agents = agentsData?.data ?? [];
 
+  // Warm the product-picker cache so opening an order's "+ Add product" picker
+  // is instant. Skipped for super_admin's cross-market scope ("all"): no single
+  // market_id to preload — the per-market entry is populated on first detail open.
+  useSWR<{ data: unknown[] }>(
+    effectiveMarketId
+      ? `/api/products/search?market_id=${effectiveMarketId}`
+      : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60 * 1000 },
+  );
+
   // Products/carriers lazy — only when Advanced drawer opens
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMounted, setDrawerMounted] = useState(false);

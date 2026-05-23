@@ -89,6 +89,92 @@ describe("useOrderMutation", () => {
     expect(typeof result.current.commit).toBe("function");
   });
 
+  it("addItemOptimistic POSTs to /api/orders/{id}/items with product_id, quantity, unit_price", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data: {
+            id: "item-new",
+            order_id: ORDER_ID,
+            product_id: "p-1",
+            product_name: "iPhone 15",
+            quantity: 1,
+            unit_price: 2200,
+            line_total: 2200,
+          },
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const { result } = renderHook(() => useOrderMutation(ORDER_ID), { wrapper });
+
+    await act(async () => {
+      await result.current.addItemOptimistic({
+        product_id: "p-1",
+        product_name: "iPhone 15",
+        quantity: 1,
+        unit_price: 2200,
+      });
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      `${KEY}/items`,
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ "Content-Type": "application/json" }),
+      })
+    );
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body).toEqual({ product_id: "p-1", quantity: 1, unit_price: 2200 });
+  });
+
+  it("addItemOptimistic forwards variant_id when provided", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: { id: "item-new" } }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const { result } = renderHook(() => useOrderMutation(ORDER_ID), { wrapper });
+
+    await act(async () => {
+      await result.current.addItemOptimistic({
+        product_id: "p-1",
+        product_name: "iPhone 15",
+        quantity: 2,
+        unit_price: 2200,
+        variant_id: "v-1",
+      });
+    });
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.variant_id).toBe("v-1");
+  });
+
+  it("addItemOptimistic throws on non-ok response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        json: () => Promise.resolve({ error: "Product is out of stock" }),
+      })
+    );
+
+    const { result } = renderHook(() => useOrderMutation(ORDER_ID), { wrapper });
+
+    await expect(
+      act(async () => {
+        await result.current.addItemOptimistic({
+          product_id: "p-1",
+          product_name: "iPhone 15",
+          quantity: 1,
+          unit_price: 2200,
+        });
+      })
+    ).rejects.toThrow("Product is out of stock");
+  });
+
   it("commit with multiple fields sends all fields in the body", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
