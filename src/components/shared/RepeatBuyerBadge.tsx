@@ -171,6 +171,7 @@ interface PopoverPanelProps {
 
 const POPOVER_WIDTH = 320;
 const VIEWPORT_GUTTER = 8;
+const MIN_SPACE_BELOW = 180;
 
 function PopoverPanel({
   id,
@@ -200,24 +201,26 @@ function PopoverPanel({
   const t = useTranslations("customerHistory.popover");
   const isRtl = locale === "ar";
 
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(
-    null,
-  );
+  const [coords, setCoords] = useState<{ top: number; left: number; maxHeight: number; openAbove: boolean } | null>(null);
 
   useLayoutEffect(() => {
     function reposition() {
       const el = anchorRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
+      const vh = window.innerHeight;
       const width = Math.min(POPOVER_WIDTH, window.innerWidth - VIEWPORT_GUTTER * 2);
-      // Align the popover's inline-start edge with the trigger's inline-start
-      // edge, then clamp so it never overflows the viewport horizontally.
       let left = isRtl ? rect.right - width : rect.left;
       left = Math.max(
         VIEWPORT_GUTTER,
         Math.min(left, window.innerWidth - width - VIEWPORT_GUTTER),
       );
-      setCoords({ top: rect.bottom, left });
+      const spaceBelow = vh - rect.bottom - VIEWPORT_GUTTER;
+      const spaceAbove = rect.top - VIEWPORT_GUTTER;
+      const openAbove = spaceBelow < MIN_SPACE_BELOW && spaceAbove > spaceBelow;
+      const maxHeight = Math.max(120, (openAbove ? spaceAbove : spaceBelow) - 8);
+      const top = openAbove ? rect.top : rect.bottom;
+      setCoords({ top, left, maxHeight, openAbove });
     }
     reposition();
     window.addEventListener("scroll", reposition, true);
@@ -282,7 +285,8 @@ function PopoverPanel({
       onClick={(e) => e.stopPropagation()}
       style={{
         position: "fixed",
-        top: coords.top,
+        top: coords.openAbove ? undefined : coords.top,
+        bottom: coords.openAbove ? window.innerHeight - coords.top : undefined,
         left: coords.left,
         width: Math.min(POPOVER_WIDTH, window.innerWidth - VIEWPORT_GUTTER * 2),
       }}
@@ -335,7 +339,7 @@ function PopoverPanel({
             </div>
           )}
 
-          <div className="border-t border-line-subtle pt-2.5 space-y-2.5 max-h-[320px] overflow-y-auto">
+          <div className="border-t border-line-subtle pt-2.5 space-y-2.5 overflow-y-auto" style={{ maxHeight: coords.maxHeight - 100 }}>
             {mergedEntries.map((entry) =>
               entry.kind === "anchor" ? (
                 <RelatedOrderCard

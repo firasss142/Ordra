@@ -164,6 +164,7 @@ interface DuplicatePopoverProps {
 
 const POPOVER_WIDTH = 340;
 const VIEWPORT_GUTTER = 8;
+const MIN_SPACE_BELOW = 180;
 
 function DuplicatePopover({
   id,
@@ -194,7 +195,7 @@ function DuplicatePopover({
   const [rows, setRows] = useState<SiblingOrder[]>(siblings);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number; maxHeight: number; openAbove: boolean } | null>(null);
 
   useEffect(() => {
     setRows(siblings);
@@ -219,13 +220,19 @@ function DuplicatePopover({
       const el = anchorRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
+      const vh = window.innerHeight;
       const width = Math.min(POPOVER_WIDTH, window.innerWidth - VIEWPORT_GUTTER * 2);
       let left = isRtl ? rect.right - width : rect.left;
       left = Math.max(
         VIEWPORT_GUTTER,
         Math.min(left, window.innerWidth - width - VIEWPORT_GUTTER),
       );
-      setCoords({ top: rect.bottom, left });
+      const spaceBelow = vh - rect.bottom - VIEWPORT_GUTTER;
+      const spaceAbove = rect.top - VIEWPORT_GUTTER;
+      const openAbove = spaceBelow < MIN_SPACE_BELOW && spaceAbove > spaceBelow;
+      const maxHeight = Math.max(120, (openAbove ? spaceAbove : spaceBelow) - 8);
+      const top = openAbove ? rect.top : rect.bottom;
+      setCoords({ top, left, maxHeight, openAbove });
     }
     reposition();
     window.addEventListener("scroll", reposition, true);
@@ -277,7 +284,8 @@ function DuplicatePopover({
       onClick={(e) => e.stopPropagation()}
       style={{
         position: "fixed",
-        top: coords.top,
+        top: coords.openAbove ? undefined : coords.top,
+        bottom: coords.openAbove ? window.innerHeight - coords.top : undefined,
         left: coords.left,
         width: Math.min(POPOVER_WIDTH, window.innerWidth - VIEWPORT_GUTTER * 2),
       }}
@@ -306,7 +314,7 @@ function DuplicatePopover({
         </div>
       )}
 
-      <div className="max-h-[320px] space-y-2 overflow-y-auto p-3">
+      <div className="space-y-2 overflow-y-auto p-3" style={{ maxHeight: coords.maxHeight - 72 }}>
         {mergedEntries.map((entry) =>
           entry.kind === "anchor" ? (
             <RelatedOrderCard

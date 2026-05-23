@@ -14,6 +14,7 @@ import type { OrderHistoryEntry } from "@/app/api/orders/[id]/history/route";
 
 const POPOVER_WIDTH = 320;
 const VIEWPORT_GUTTER = 8;
+const MIN_SPACE_BELOW = 180;
 
 /**
  * Left-edge accent bar colour, keyed to the same buckets statusToneClass uses.
@@ -147,20 +148,26 @@ function HistoryPopover({ id, orderId, sourcePlatform, anchorRef, onMouseEnter, 
   const isRtl = locale === "ar";
 
   const { detail, isLoading, error } = useOrderHistory(orderId, true);
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number; maxHeight: number; openAbove: boolean } | null>(null);
 
   useLayoutEffect(() => {
     function reposition() {
       const el = anchorRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
+      const vh = window.innerHeight;
       const width = Math.min(POPOVER_WIDTH, window.innerWidth - VIEWPORT_GUTTER * 2);
       let left = isRtl ? rect.right - width : rect.left;
       left = Math.max(
         VIEWPORT_GUTTER,
         Math.min(left, window.innerWidth - width - VIEWPORT_GUTTER),
       );
-      setCoords({ top: rect.bottom, left });
+      const spaceBelow = vh - rect.bottom - VIEWPORT_GUTTER;
+      const spaceAbove = rect.top - VIEWPORT_GUTTER;
+      const openAbove = spaceBelow < MIN_SPACE_BELOW && spaceAbove > spaceBelow;
+      const maxHeight = Math.max(120, (openAbove ? spaceAbove : spaceBelow) - 8);
+      const top = openAbove ? rect.top : rect.bottom;
+      setCoords({ top, left, maxHeight, openAbove });
     }
     reposition();
     window.addEventListener("scroll", reposition, true);
@@ -190,7 +197,8 @@ function HistoryPopover({ id, orderId, sourcePlatform, anchorRef, onMouseEnter, 
       onClick={(e) => e.stopPropagation()}
       style={{
         position: "fixed",
-        top: coords.top,
+        top: coords.openAbove ? undefined : coords.top,
+        bottom: coords.openAbove ? window.innerHeight - coords.top : undefined,
         left: coords.left,
         width: Math.min(POPOVER_WIDTH, window.innerWidth - VIEWPORT_GUTTER * 2),
       }}
@@ -216,7 +224,7 @@ function HistoryPopover({ id, orderId, sourcePlatform, anchorRef, onMouseEnter, 
           )}
         </div>
 
-        <div className="max-h-[340px] overflow-y-auto px-3 pb-3 pt-0.5">
+        <div className="overflow-y-auto px-3 pb-3 pt-0.5" style={{ maxHeight: coords.maxHeight - 72 }}>
           {isLoading && <div className="px-1 py-1 text-[12px] text-ink-muted">{t("loading")}</div>}
           {!isLoading && error && (
             <div className="px-1 py-1 text-[12px] text-status-critical">{t("error")}</div>
