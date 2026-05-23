@@ -1006,6 +1006,12 @@
       "inStock": "متوفر",
       "lowStock": "مخزون منخفض",
       "stockLeft": "متبقي {count}",
+      "pickProduct": "اختر منتجاً",
+      "searchProducts": "ابحث عن منتج…",
+      "noResults": "لا توجد منتجات",
+      "alreadyAdded": "تمت إضافته",
+      "kbdHints": "↑↓ للتنقل · ⏎ للإضافة · esc للإغلاق",
+      "adding": "جارٍ الإضافة…",
       "errors": {
         "uploadHttp": "فشل الإرسال ({status})",
         "uploadNetwork": "خطأ في الشبكة",

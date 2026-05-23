@@ -426,16 +426,16 @@ export function CreateOrderModal({
           role="dialog"
           aria-modal="true"
           aria-labelledby="create-order-title"
-          className="fixed top-0 end-0 h-full w-full sm:w-[520px] lg:w-[560px] z-50 flex flex-col overflow-hidden bg-surface-page border-s border-line-subtle shadow-panel animate-[slideInEnd_180ms_ease-out]"
+          className="fixed top-0 end-0 h-full w-full sm:w-[440px] md:w-[520px] lg:w-[600px] xl:w-[680px] max-w-[92vw] z-50 flex flex-col overflow-hidden bg-surface-page border-s border-line-subtle shadow-panel animate-[slideInEnd_180ms_ease-out]"
         >
           {/* Sticky Header */}
           <div className="bg-surface-card border-b border-line-subtle flex-shrink-0">
-            <div className="flex items-center justify-between gap-3 px-5 py-3.5">
-              <div className="min-w-0">
-                <h2 id="create-order-title" className="text-[16px] font-semibold text-ink-primary leading-tight">
+            <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5">
+              <div className="min-w-0 flex-1">
+                <h2 id="create-order-title" className="text-[16px] font-semibold text-ink-primary leading-tight truncate">
                   {t("modalTitle")}
                 </h2>
-                <p className="text-[12px] text-ink-secondary mt-0.5">{t("modalSubtitle")}</p>
+                <p className="text-[12px] text-ink-secondary mt-0.5 truncate">{t("modalSubtitle")}</p>
               </div>
               <button
                 type="button"
@@ -450,7 +450,7 @@ export function CreateOrderModal({
           </div>
 
           {/* Scrollable body */}
-          <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4">
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-5 py-4 sm:py-5 flex flex-col gap-4">
             {isSuperAdmin && (
               <FormSection title={t("sectionContext")}>
                 <div>
@@ -473,7 +473,7 @@ export function CreateOrderModal({
             )}
 
             <FormSection title={t("sectionCustomer")}>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <FieldLabel required>{t("fields.customerName")}</FieldLabel>
                   <input
@@ -652,7 +652,7 @@ export function CreateOrderModal({
                 )}
               </div>
 
-              <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <FieldLabel required>{t("fields.quantity")}</FieldLabel>
                   <input
@@ -674,7 +674,7 @@ export function CreateOrderModal({
                     className={`${inputClass} tabular-nums`}
                   />
                 </div>
-                <div>
+                <div className="sm:col-span-2">
                   <FieldLabel required>{t("fields.totalPrice")}</FieldLabel>
                   <input
                     type="number"
@@ -697,7 +697,10 @@ export function CreateOrderModal({
           </div>
 
           {/* Sticky footer */}
-          <div className="flex-shrink-0 bg-surface-card border-t border-line-subtle px-5 py-3 flex items-center justify-end gap-2">
+          <div
+            className="flex-shrink-0 bg-surface-card border-t border-line-subtle px-4 sm:px-5 py-3 flex items-center justify-end gap-2"
+            style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+          >
             <button
               type="button"
               onClick={onClose}
