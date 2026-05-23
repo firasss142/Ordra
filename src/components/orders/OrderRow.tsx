@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import type { BadgeTone } from "@/components/ui/Badge";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
 import { DuplicateOrderBadge } from "@/components/shared/DuplicateOrderBadge";
+import { StatusHistoryPopover } from "./StatusHistoryPopover";
 import { ProductAvatar } from "./ProductAvatar";
 import { SourceLogo } from "@/components/shared/SourceLogo";
 import { formatDateTime } from "@/lib/format";
@@ -272,7 +273,12 @@ function Row({
       {/* Status + callback overdue flag */}
       <td className="whitespace-nowrap px-4 py-2 align-middle">
         <span className="inline-flex items-center">
-          <Badge tone={statusTone}>{labels.status}</Badge>
+          <StatusHistoryPopover
+            orderId={order.id}
+            sourcePlatform={order.external_platform ?? null}
+          >
+            <Badge tone={statusTone}>{labels.status}</Badge>
+          </StatusHistoryPopover>
           {order.carrier_barcode_deleted_at && (
             <span
               className="ms-1.5 inline-flex items-center gap-1 h-[20px] px-1.5 rounded-card border border-line-subtle bg-surface-page text-[10.5px] font-medium text-ink-secondary"

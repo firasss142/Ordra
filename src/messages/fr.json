@@ -1048,6 +1048,15 @@
       "scheduledDispatchCancelled": "Livraison planifiée annulée",
       "transition": "{from} → {to}"
     },
+    "statusHistory": {
+      "title": "Historique du statut",
+      "by": "par {name}",
+      "systemActor": "Système",
+      "empty": "Aucun historique pour le moment.",
+      "loading": "Chargement…",
+      "error": "Impossible de charger l'historique.",
+      "triggerAria": "Voir l'historique du statut"
+    },
     "create": {
       "newOrder": "Nouvelle commande",
       "modalTitle": "Créer une commande",

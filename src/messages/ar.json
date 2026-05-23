@@ -1048,6 +1048,15 @@
       "scheduledDispatchCancelled": "تم إلغاء التوصيل المجدول",
       "transition": "{from} ← {to}"
     },
+    "statusHistory": {
+      "title": "سجل الحالة",
+      "by": "بواسطة {name}",
+      "systemActor": "النظام",
+      "empty": "لا يوجد سجل بعد.",
+      "loading": "جارٍ التحميل…",
+      "error": "تعذّر تحميل السجل.",
+      "triggerAria": "عرض سجل الحالة"
+    },
     "create": {
       "newOrder": "طلب جديد",
       "modalTitle": "إنشاء طلب",
