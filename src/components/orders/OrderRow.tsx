@@ -230,6 +230,15 @@ function Row({
                 priorRejectedCount={order.prior_rejected_count ?? 0}
                 currencyCode={currencyCode}
                 customerPhone={order.customer_phone}
+                anchorOrderId={order.id}
+                anchorStatus={order.status}
+                anchorCreatedAt={order.created_at}
+                anchorTotalPrice={order.total_price}
+                anchorProductName={order.product_name}
+                anchorProductImageUrl={order.product_image_url ?? null}
+                anchorCustomerName={order.customer_name}
+                anchorCustomerAddress={order.customer_address}
+                anchorCustomerCity={order.customer_city}
               />
             )}
             {order.is_potential_duplicate && order.is_duplicate_anchor && (

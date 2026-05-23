@@ -322,6 +322,15 @@ export const OrderCard = memo(function OrderCard({
                 priorRejectedCount={order.prior_rejected_count}
                 currencyCode={displayCurrency}
                 customerPhone={order.customer_phone}
+                anchorOrderId={order.id}
+                anchorStatus={order.status}
+                anchorCreatedAt={order.created_at}
+                anchorTotalPrice={order.total_price}
+                anchorProductName={order.product_name}
+                anchorProductImageUrl={order.product_image_url}
+                anchorCustomerName={order.customer_name}
+                anchorCustomerAddress={order.customer_address}
+                anchorCustomerCity={order.customer_city}
               />
             )}
             {/* Duplicate marker — icon-only, shown on the anchor (newest) order.
