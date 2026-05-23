@@ -3,8 +3,7 @@
 import { useState, useRef, useId, useLayoutEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
-import { Star, AlertTriangle, ExternalLink } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
+import { Repeat2, AlertTriangle, ExternalLink } from "lucide-react";
 import { RelatedOrderCard } from "@/components/shared/RelatedOrderCard";
 import { useCustomerHistory } from "@/hooks/useCustomerHistory";
 import type { RepeatKind } from "@/lib/customer-history/classify";
@@ -37,10 +36,10 @@ export interface RepeatBuyerBadgeProps {
   anchorCustomerCity: string | null;
 }
 
-const TONE_BY_KIND: Record<Exclude<RepeatKind, "none">, "action" | "neutral" | "critical"> = {
-  repeat: "action",
-  likely: "neutral",
-  risk: "critical",
+const CHIP_STYLE: Record<Exclude<RepeatKind, "none">, string> = {
+  repeat: "bg-accent/10 text-accent",
+  likely: "bg-[#F3F0FF] text-[#6E40C9]",
+  risk: "bg-status-criticalBg text-status-critical",
 };
 
 export function RepeatBuyerBadge(props: RepeatBuyerBadgeProps) {
@@ -66,17 +65,14 @@ export function RepeatBuyerBadge(props: RepeatBuyerBadgeProps) {
 
   if (repeatKind === "none") return null;
 
-  const tone = TONE_BY_KIND[repeatKind];
-  const label =
+  const chipStyle = CHIP_STYLE[repeatKind];
+  const count =
     repeatKind === "risk"
-      ? t("badge.risk", { count: priorRejectedCount })
+      ? priorRejectedCount
       : repeatKind === "likely"
-        ? t("badge.likely", {
-            count: Math.max(priorOrderCount, priorLeadCount),
-          })
-        : t("badge.repeat", { count: priorOrderCount });
-
-  const Icon = repeatKind === "risk" ? AlertTriangle : Star;
+        ? Math.max(priorOrderCount, priorLeadCount)
+        : priorOrderCount;
+  const Icon = repeatKind === "risk" ? AlertTriangle : Repeat2;
 
   function handleEnter() {
     if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -92,26 +88,33 @@ export function RepeatBuyerBadge(props: RepeatBuyerBadgeProps) {
   return (
     <span
       ref={triggerRef}
-      className="relative inline-flex"
+      className="relative inline-flex shrink-0"
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
       onFocus={handleEnter}
       onBlur={handleLeave}
       onClick={stop}
     >
-      <Badge
-        tone={tone}
+      <span
+        role="button"
+        tabIndex={0}
         data-repeat-kind={repeatKind}
         aria-describedby={open ? popoverId : undefined}
-        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleEnter();
+          }
+        }}
         className={[
-          "cursor-default select-none",
-          repeatKind === "likely" ? "border border-dashed border-line-strong" : "",
+          "inline-flex items-center gap-1 rounded-pill px-2 py-0.5",
+          "text-[12px] font-medium leading-tight cursor-default select-none transition-colors",
+          chipStyle,
         ].join(" ")}
       >
         <Icon size={11} strokeWidth={2.25} aria-hidden="true" />
-        {label}
-      </Badge>
+        {count > 0 && <span aria-hidden="true">{count}</span>}
+      </span>
       {open && (
         <PopoverPanel
           id={popoverId}

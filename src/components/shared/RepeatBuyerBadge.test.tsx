@@ -86,29 +86,30 @@ describe("RepeatBuyerBadge", () => {
   });
 
   it("renders the count for repeat_kind='repeat'", () => {
-    render(
+    const { container } = render(
       <RepeatBuyerBadge
         {...baseProps}
         repeatKind="repeat"
         priorOrderCount={3}
       />,
     );
-    expect(screen.getByText(/3/)).toBeDefined();
-    expect(screen.getByText(/Récurrent/)).toBeDefined();
+    expect(screen.getByText("3")).toBeDefined();
+    expect(container.querySelector("[data-repeat-kind='repeat']")).not.toBeNull();
   });
 
-  it("renders 'likely' label for repeat_kind='likely'", () => {
-    render(
+  it("renders the count for repeat_kind='likely'", () => {
+    const { container } = render(
       <RepeatBuyerBadge
         {...baseProps}
         repeatKind="likely"
         priorOrderCount={2}
       />,
     );
-    expect(screen.getByText(/Probablement/)).toBeDefined();
+    expect(screen.getByText("2")).toBeDefined();
+    expect(container.querySelector("[data-repeat-kind='likely']")).not.toBeNull();
   });
 
-  it("renders rejected count and critical tone for repeat_kind='risk'", () => {
+  it("renders rejected count for repeat_kind='risk'", () => {
     const { container } = render(
       <RepeatBuyerBadge
         {...baseProps}
@@ -119,8 +120,7 @@ describe("RepeatBuyerBadge", () => {
     );
     const badge = container.querySelector("[data-repeat-kind='risk']");
     expect(badge).not.toBeNull();
-    expect(screen.getByText(/Risque/)).toBeDefined();
-    expect(screen.getByText(/2/)).toBeDefined();
+    expect(screen.getByText("2")).toBeDefined();
   });
 
   it("includes a data-repeat-kind attribute matching the kind", () => {

@@ -309,52 +309,53 @@ export const OrderCard = memo(function OrderCard({
             status/date render as separate trailing columns (below). */}
         <div className="flex flex-col gap-1 min-w-0 flex-1">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-[14px] font-bold text-agent-on-surface truncate">
+            <span className="min-w-0 truncate text-[14px] font-bold text-agent-on-surface">
               <Highlighted value={order.customer_name} field="name" query={highlightQuery} />
             </span>
-            {order.repeat_kind !== "none" && (
-              <RepeatBuyerBadge
-                source="order"
-                sourceId={order.id}
-                repeatKind={order.repeat_kind}
-                priorOrderCount={order.prior_order_count}
-                priorLeadCount={order.prior_lead_count}
-                priorRejectedCount={order.prior_rejected_count}
-                currencyCode={displayCurrency}
-                customerPhone={order.customer_phone}
-                anchorOrderId={order.id}
-                anchorStatus={order.status}
-                anchorCreatedAt={order.created_at}
-                anchorTotalPrice={order.total_price}
-                anchorProductName={order.product_name}
-                anchorProductImageUrl={order.product_image_url}
-                anchorCustomerName={order.customer_name}
-                anchorCustomerAddress={order.customer_address}
-                anchorCustomerCity={order.customer_city}
-              />
-            )}
-            {/* Duplicate marker — icon-only, shown on the anchor (newest) order.
-                Hover opens a popover showing the whole duplicate group as cards and
-                lets a permitted role delete a deletable sibling in place; onMutate
-                revalidates the queue. */}
-            {order.is_potential_duplicate && order.is_duplicate_anchor && (
-              <DuplicateOrderBadge
-                count={order.duplicate_count}
-                siblings={order.duplicate_siblings}
-                hasUploadedSibling={order.has_uploaded_sibling}
-                anchorOrderId={order.id}
-                anchorStatus={order.status}
-                anchorCreatedAt={order.created_at}
-                anchorTotalPrice={order.total_price}
-                anchorProductName={order.product_name}
-                anchorProductImageUrl={order.product_image_url}
-                anchorCustomerName={order.customer_name}
-                anchorCustomerAddress={order.customer_address}
-                anchorCustomerCity={order.customer_city}
-                currencyCode={displayCurrency}
-                canDelete={canDeleteDuplicateSiblingStatus(order.status)}
-                onChange={onMutate}
-              />
+            {(order.repeat_kind !== "none" ||
+              (order.is_potential_duplicate && order.is_duplicate_anchor)) && (
+              <span className="inline-flex shrink-0 items-center gap-1">
+                {order.repeat_kind !== "none" && (
+                  <RepeatBuyerBadge
+                    source="order"
+                    sourceId={order.id}
+                    repeatKind={order.repeat_kind}
+                    priorOrderCount={order.prior_order_count}
+                    priorLeadCount={order.prior_lead_count}
+                    priorRejectedCount={order.prior_rejected_count}
+                    currencyCode={displayCurrency}
+                    customerPhone={order.customer_phone}
+                    anchorOrderId={order.id}
+                    anchorStatus={order.status}
+                    anchorCreatedAt={order.created_at}
+                    anchorTotalPrice={order.total_price}
+                    anchorProductName={order.product_name}
+                    anchorProductImageUrl={order.product_image_url}
+                    anchorCustomerName={order.customer_name}
+                    anchorCustomerAddress={order.customer_address}
+                    anchorCustomerCity={order.customer_city}
+                  />
+                )}
+                {order.is_potential_duplicate && order.is_duplicate_anchor && (
+                  <DuplicateOrderBadge
+                    count={order.duplicate_count}
+                    siblings={order.duplicate_siblings}
+                    hasUploadedSibling={order.has_uploaded_sibling}
+                    anchorOrderId={order.id}
+                    anchorStatus={order.status}
+                    anchorCreatedAt={order.created_at}
+                    anchorTotalPrice={order.total_price}
+                    anchorProductName={order.product_name}
+                    anchorProductImageUrl={order.product_image_url}
+                    anchorCustomerName={order.customer_name}
+                    anchorCustomerAddress={order.customer_address}
+                    anchorCustomerCity={order.customer_city}
+                    currencyCode={displayCurrency}
+                    canDelete={canDeleteDuplicateSiblingStatus(order.status)}
+                    onChange={onMutate}
+                  />
+                )}
+              </span>
             )}
           </div>
 

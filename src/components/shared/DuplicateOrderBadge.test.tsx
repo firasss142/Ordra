@@ -96,7 +96,7 @@ describe("DuplicateOrderBadge", () => {
     expect(screen.queryByText(/Doublon ·/)).toBeNull();
   });
 
-  it("shows a count superscript when count > 1", () => {
+  it("shows an inline count label when count > 1", () => {
     render(
       <DuplicateOrderBadge
         count={3}
@@ -106,7 +106,20 @@ describe("DuplicateOrderBadge", () => {
         {...ANCHOR_PROPS}
       />,
     );
-    expect(screen.getByText("3")).toBeDefined();
+    expect(screen.getByText("3×")).toBeDefined();
+  });
+
+  it("shows no count label when count is 1", () => {
+    render(
+      <DuplicateOrderBadge
+        count={1}
+        siblings={[sibling({ id: "a" })]}
+        hasUploadedSibling={false}
+        anchorOrderId="anchor-1"
+        {...ANCHOR_PROPS}
+      />,
+    );
+    expect(screen.queryByText(/×/)).toBeNull();
   });
 
   it("opens a popover listing siblings on hover", () => {

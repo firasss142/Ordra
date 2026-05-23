@@ -3,7 +3,7 @@
 import { useState, useRef, useId, useLayoutEffect, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
-import { Layers, AlertTriangle, Trash2 } from "lucide-react";
+import { Copy, AlertTriangle, Trash2 } from "lucide-react";
 import { canDeleteDuplicateSiblingStatus } from "@/lib/order-permissions";
 import { RelatedOrderCard } from "@/components/shared/RelatedOrderCard";
 import type { SiblingOrder } from "@/lib/duplicate-orders/detect";
@@ -78,43 +78,39 @@ export function DuplicateOrderBadge({
   return (
     <span
       ref={triggerRef}
-      className="relative inline-flex"
+      className="relative inline-flex shrink-0"
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
       onFocus={handleEnter}
       onBlur={handleLeave}
       onClick={(e) => e.stopPropagation()}
     >
-      <button
-        type="button"
+      <span
+        role="button"
+        tabIndex={0}
         data-duplicate="true"
         data-has-shipped={hasUploadedSibling ? "true" : undefined}
         aria-haspopup="dialog"
         aria-describedby={open ? popoverId : undefined}
         aria-label={t("trigger.aria", { count })}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleEnter();
+          }
+        }}
         className={[
-          "relative inline-flex items-center justify-center",
-          "h-5 w-5 rounded-md",
-          "text-status-warning hover:bg-status-warningBg",
-          "ring-1 transition-colors",
-          hasUploadedSibling ? "ring-status-critical/50" : "ring-status-warning/40",
+          "inline-flex items-center gap-1 rounded-pill px-2 py-0.5",
+          "text-[12px] font-medium leading-tight cursor-default select-none",
+          "transition-colors",
+          hasUploadedSibling
+            ? "bg-status-criticalBg text-status-critical"
+            : "bg-[#F0F4FF] text-[#3D5AFE]",
         ].join(" ")}
       >
-        <Layers size={12} strokeWidth={2.25} aria-hidden="true" />
-        {count > 1 && (
-          <span
-            aria-hidden="true"
-            className={[
-              "absolute -top-1.5 -inline-end-1.5 min-w-[14px] rounded-full px-1",
-              "text-[9px] font-bold leading-[14px] text-white",
-              hasUploadedSibling ? "bg-status-critical" : "bg-status-warning",
-            ].join(" ")}
-            style={{ insetInlineEnd: "-6px" }}
-          >
-            {count}
-          </span>
-        )}
-      </button>
+        <Copy size={11} strokeWidth={2.25} aria-hidden="true" />
+        {count > 1 && <span aria-hidden="true">{count}×</span>}
+      </span>
       {open && (
         <DuplicatePopover
           id={popoverId}
