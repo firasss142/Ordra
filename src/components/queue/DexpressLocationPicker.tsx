@@ -69,7 +69,7 @@ export function DexpressLocationPicker({
             {t("loadingStates")}
           </div>
         ) : (
-          <div className="max-h-48 overflow-y-auto rounded border border-line-subtle">
+          <div className="max-h-36 overflow-y-auto rounded border border-line-subtle sm:max-h-48">
             {filteredStates.length === 0 ? (
               <div className="px-3 py-3 text-[13px] text-ink-secondary">
                 {t("noResults")}

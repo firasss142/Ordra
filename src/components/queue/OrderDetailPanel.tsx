@@ -1735,10 +1735,11 @@ export function OrderDetailPanel({
             className="fixed inset-0 z-[60] bg-ink-primary/50"
             onClick={() => uploadingCarrierId === null && setUploadOpen(false)}
           />
+          <div className="fixed inset-0 z-[70] flex items-end justify-center p-4 sm:items-center">
           <div
             role="dialog"
             aria-modal="true"
-            className="fixed top-1/2 start-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] w-[min(420px,95vw)] bg-surface-card border border-line-subtle rounded-card shadow-floating overflow-hidden"
+            className="w-full max-w-[420px] bg-surface-card border border-line-subtle rounded-card shadow-floating overflow-hidden"
           >
             <div className="px-5 pt-5 pb-3">
               <h2 className="text-[15px] font-semibold text-ink-primary mb-1">
@@ -1795,6 +1796,7 @@ export function OrderDetailPanel({
                 {t("uploadCarrierCancel")}
               </button>
             </div>
+          </div>
           </div>
         </>
       )}

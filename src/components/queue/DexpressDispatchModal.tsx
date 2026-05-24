@@ -161,10 +161,10 @@ export function DexpressDispatchModal({
           ref={panelRef}
           tabIndex={-1}
           onClick={(e) => e.stopPropagation()}
-          className="max-h-[90vh] w-[520px] max-w-[92vw] overflow-y-auto rounded-card bg-surface-card shadow-floating"
+          className="flex max-h-[90dvh] w-[520px] max-w-[92vw] flex-col rounded-card bg-surface-card shadow-floating"
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-line-subtle px-5 py-4">
+          <div className="flex shrink-0 items-center justify-between border-b border-line-subtle px-5 py-4">
             <div>
               <div className="text-[16px] font-semibold text-ink-primary">
                 {t("modalTitle")}
@@ -184,7 +184,7 @@ export function DexpressDispatchModal({
           </div>
 
           {/* Body */}
-          <div className="px-5 py-4">
+          <div className="flex-1 overflow-y-auto px-5 py-4">
             {error && (
               <div
                 role="alert"
@@ -268,12 +268,15 @@ export function DexpressDispatchModal({
                 </span>
               </div>
             </div>
+          </div>
 
+          {/* Sticky footer — always visible regardless of body scroll */}
+          <div className="shrink-0 border-t border-line-subtle px-5 py-4">
             <button
               type="button"
               disabled={!canSubmit}
               onClick={() => handleSubmit()}
-              className="mt-5 w-full rounded bg-ink-primary px-4 py-2.5 text-[14px] font-medium text-surface-card disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded bg-ink-primary px-4 py-2.5 text-[14px] font-medium text-surface-card disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? t("uploading") : t("confirmDispatch")}
             </button>
