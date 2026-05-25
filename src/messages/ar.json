@@ -1006,6 +1006,12 @@
       "inStock": "متوفر",
       "lowStock": "مخزون منخفض",
       "stockLeft": "متبقي {count}",
+      "pickProduct": "اختر منتجاً",
+      "searchProducts": "ابحث عن منتج…",
+      "noResults": "لا توجد منتجات",
+      "alreadyAdded": "تمت إضافته",
+      "kbdHints": "↑↓ للتنقل · ⏎ للإضافة · esc للإغلاق",
+      "adding": "جارٍ الإضافة…",
       "errors": {
         "uploadHttp": "فشل الإرسال ({status})",
         "uploadNetwork": "خطأ في الشبكة",
@@ -1047,6 +1053,15 @@
       "toBeReturned": "للإرجاع",
       "scheduledDispatchCancelled": "تم إلغاء التوصيل المجدول",
       "transition": "{from} ← {to}"
+    },
+    "statusHistory": {
+      "title": "سجل الحالة",
+      "by": "بواسطة {name}",
+      "systemActor": "النظام",
+      "empty": "لا يوجد سجل بعد.",
+      "loading": "جارٍ التحميل…",
+      "error": "تعذّر تحميل السجل.",
+      "triggerAria": "عرض سجل الحالة"
     },
     "create": {
       "newOrder": "طلب جديد",
@@ -2961,7 +2976,9 @@
       "lastOrder": "آخر طلب: {date} · {status}",
       "lastAddress": "آخر عنوان: {address}",
       "plusLeads": "+ {count} عميل محتمل",
-      "seeAll": "عرض كل الطلبات"
+      "seeAll": "عرض كل الطلبات",
+      "totalOrders": "إجمالي الطلبات: {count}",
+      "unknownCustomer": "عميل غير معروف"
     },
     "addressChange": "↳ عنوان جديد (سابقًا: {previous})"
   },
@@ -2975,7 +2992,9 @@
       "sibling": "#{externalId}",
       "shipped": "تم إرساله بالفعل إلى شركة الشحن",
       "qty": "الكمية {quantity}",
-      "seeOrder": "عرض الطلب"
+      "seeOrder": "عرض الطلب",
+      "duplicateMark": "مكرر",
+      "unknownCustomer": "عميل غير معروف"
     },
     "dialog": {
       "title": "تكرارات محتملة",

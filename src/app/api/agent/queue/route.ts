@@ -44,12 +44,12 @@ export async function GET(_req: NextRequest) {
   const [activeRes, closedRes] = await Promise.all([
     supabase
       .from("orders")
-      .select("*, product:products(image_url)")
+      .select("*, product:products(image_url), carrier:carriers!orders_carrier_id_fkey(code,name)")
       .eq("assigned_to", actor.id)
       .in("status", ACTIVE_QUEUE_STATUSES),
     supabase
       .from("orders")
-      .select("*, product:products(image_url)")
+      .select("*, product:products(image_url), carrier:carriers!orders_carrier_id_fkey(code,name)")
       .eq("assigned_to", actor.id)
       .in("status", CLOSED_STATUSES)
       .gte("updated_at", closedSince.toISOString())
@@ -60,8 +60,10 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  // Flatten the joined product image onto each row as product_image_url, so the
-  // queue card can show a product thumbnail. Mirrors /api/orders/list.
+  // Flatten the joined product image + carrier onto each row, so the queue card
+  // can show a product thumbnail and the carrier's brand logo. Mirrors
+  // /api/orders/list.
+  type CarrierJoin = { code: string | null; name: string | null };
   type RawRow = Record<string, unknown> & {
     id: string;
     status: string;
@@ -70,6 +72,7 @@ export async function GET(_req: NextRequest) {
     scheduled_dispatch_auto: boolean | null;
     created_at: string;
     product?: { image_url: string | null } | { image_url: string | null }[] | null;
+    carrier?: CarrierJoin | CarrierJoin[] | null;
   };
   type FlatRow = Record<string, unknown> & {
     id: string;
@@ -79,29 +82,40 @@ export async function GET(_req: NextRequest) {
     scheduled_dispatch_auto: boolean | null;
     created_at: string;
     product_image_url: string | null;
+    carrier_code: string | null;
+    carrier_name: string | null;
   };
-  const flattenImage = (rows: RawRow[]): FlatRow[] =>
-    rows.map(({ product, ...rest }) => ({
-      ...(rest as Omit<RawRow, "product">),
-      product_image_url: (Array.isArray(product) ? product[0] : product)?.image_url ?? null,
-    }) as FlatRow);
+  const flattenJoins = (rows: RawRow[]): FlatRow[] =>
+    rows.map(({ product, carrier, ...rest }) => {
+      const c = Array.isArray(carrier) ? carrier[0] : carrier;
+      return {
+        ...(rest as Omit<RawRow, "product" | "carrier">),
+        product_image_url: (Array.isArray(product) ? product[0] : product)?.image_url ?? null,
+        carrier_code: c?.code ?? null,
+        carrier_name: c?.name ?? null,
+      } as FlatRow;
+    });
 
-  const allOrders = flattenImage((activeRes.data ?? []) as RawRow[]);
-  const closedOrders = flattenImage((closedRes.data ?? []) as RawRow[]);
+  const allOrders = flattenJoins((activeRes.data ?? []) as RawRow[]);
+  const closedOrders = flattenJoins((closedRes.data ?? []) as RawRow[]);
 
   const activeOrders = allOrders.filter((o) => {
     // confirmed (without carrier) stays in the active queue so the agent
     // can finish the upload step. Once uploaded, the order leaves the
     // active queue and shows in the closed bucket.
     if (o.status === "callback_scheduled") {
-      return o.callback_scheduled_at && new Date(o.callback_scheduled_at) <= now;
+      // A callback with no scheduled time is unscheduled pending work the
+      // agent still owns — surface it. Only an explicitly future time hides
+      // the order (until that time arrives).
+      return !o.callback_scheduled_at || new Date(o.callback_scheduled_at) <= now;
     }
     if (o.status === "dispatch_scheduled") {
-      // Auto-upload rows never surface in the agent's queue — the cron
-      // pushes them. Manual rows re-surface only when the scheduled
-      // time has arrived.
-      if (o.scheduled_dispatch_auto) return false;
-      return o.scheduled_dispatch_at && new Date(o.scheduled_dispatch_at) <= now;
+      // Auto-upload rows always surface so the agent can deliver them manually
+      // ahead of the cron, regardless of the scheduled time. Manual rows
+      // surface immediately unless an explicitly future time holds them back
+      // until then.
+      if (o.scheduled_dispatch_auto) return true;
+      return !o.scheduled_dispatch_at || new Date(o.scheduled_dispatch_at) <= now;
     }
     return true;
   });
@@ -134,19 +148,19 @@ export async function GET(_req: NextRequest) {
       buckets.tentative_3++;
       buckets.tentative_total++;
     } else if (s === "callback_scheduled") {
-      // Count callbacks that are past-due — these are the ones that show up
-      // in the agent's active list (see activeOrders filter above). Future
-      // callbacks are filtered out of the list and out of the chip count
-      // alike, so the en_cours chip total always matches list length.
+      // Count callbacks that show up in the agent's active list: unscheduled
+      // (no time) or past-due. Explicitly-future callbacks are filtered out of
+      // the list and out of the chip count alike, so the en_cours chip total
+      // always matches list length. Mirrors the activeOrders filter above.
       const cbAt = o.callback_scheduled_at as string | null;
-      if (cbAt && new Date(cbAt) <= now) buckets.rappel_prevu++;
+      if (!cbAt || new Date(cbAt) <= now) buckets.rappel_prevu++;
     } else if (s === "dispatch_scheduled") {
-      // Same shape as callback_scheduled: only past-due manual dispatches
-      // surface in the active list, so only those count toward the chip.
-      // Auto-uploads never appear in the agent's queue at all (the cron
-      // promotes them directly), so they're excluded regardless of time.
+      // Mirrors the activeOrders filter: auto rows always count (they always
+      // surface so the agent can pre-empt the cron); manual rows count only
+      // when unscheduled or past-due. The chip total stays equal to the visible
+      // list length.
       const dAt = o.scheduled_dispatch_at as string | null;
-      if (!o.scheduled_dispatch_auto && dAt && new Date(dAt) <= now) {
+      if (o.scheduled_dispatch_auto || !dAt || new Date(dAt) <= now) {
         buckets.livraison_planifiee++;
       }
     } else if (s === "confirmed") buckets.confirme++;

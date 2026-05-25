@@ -53,7 +53,6 @@ export function Combobox({
     if (open) {
       setQuery("");
       setHighlighted(0);
-      setAsyncOptions(null);
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [open]);

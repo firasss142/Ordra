@@ -34,6 +34,11 @@ const TrackingBarcode = dynamic(
   { ssr: false },
 );
 
+const AddProductPicker = dynamic(
+  () => import("./AddProductPicker").then((m) => m.AddProductPicker),
+  { ssr: false },
+);
+
 interface HistoryEntry {
   id: string;
   from_status: string | null;
@@ -101,6 +106,7 @@ interface ProductSearchResult {
   unit_price: number;
   current_stock: number;
   is_active: boolean;
+  image_url?: string | null;
   product_variants: { id: string; label: string; is_active: boolean }[];
 }
 
@@ -307,6 +313,7 @@ export function OrderDetailPanel({
   const [cancelingSchedule, setCancelingSchedule] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [orderOpen, setOrderOpen] = useState(false);
+  const [addProductOpen, setAddProductOpen] = useState(false);
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadingCarrierId, setUploadingCarrierId] = useState<string | null>(null);
@@ -336,9 +343,15 @@ export function OrderDetailPanel({
     order !== null &&
     (isReferenceDeletedUpload(order) || !EDIT_BLOCKED_STATUSES.has(order.status));
 
-  // Single /api/products/search fetch provides both the picker list and current-product variants
+  // Single /api/products/search fetch provides both the picker list and current-product variants.
+  // The key MUST include the order's market_id so super_admin gets the right market and
+  // switching between orders in different markets uses separate SWR cache entries.
+  const productsKey =
+    canEdit && order
+      ? `/api/products/search?market_id=${order.market_id}`
+      : null;
   const { data: productsData, mutate: mutateProducts } = useSWR<{ data: ProductSearchResult[] }>(
-    canEdit ? "/api/products/search" : null,
+    productsKey,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 60 * 1000 },
   );
@@ -420,6 +433,7 @@ export function OrderDetailPanel({
     setLibyaCityQuery("");
     setHistoryOpen(false);
     setOrderOpen(false);
+    setAddProductOpen(false);
   }, [order?.id]);
 
   const runCommit = useCallback(
@@ -1337,34 +1351,20 @@ export function OrderDetailPanel({
                           );
                         })}
 
-                        {/* Add product */}
-                        {canEdit && (() => {
-                          const firstItem = items[0];
-                          const addProductId = firstItem?.product_id ?? order.product_id;
-                          const addUnitPrice = firstItem?.unit_price ?? order.unit_price;
-                          if (!addProductId) return null;
-                          return (
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                const res = await fetch(`/api/orders/${order.id}/items`, {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ product_id: addProductId, quantity: 1, unit_price: addUnitPrice }),
-                                });
-                                if (res.ok) mutate();
-                                else {
-                                  const body = await res.json().catch(() => ({}));
-                                  alert(body.error ?? t("errors.addProductFailed"));
-                                }
-                              }}
-                              className="inline-flex items-center justify-center gap-1.5 w-full text-[12px] font-medium text-ink-secondary border border-dashed border-line-strong rounded-card py-1.5 hover:text-ink-primary hover:border-ink-primary hover:bg-surface-hover transition-colors duration-fast mt-1"
-                            >
-                              <Plus size={12} strokeWidth={2} aria-hidden="true" />
-                              {t("addProduct")}
-                            </button>
-                          );
-                        })()}
+                        {/* Add product — opens a polished picker scoped to the order's market.
+                            The picker portals to <body> so the receipt's overflow-hidden
+                            ancestor (the order card section) can't clip the dropdown. */}
+                        {canEdit && (
+                          <AddProductTrigger
+                            orderId={order.id}
+                            marketId={order.market_id}
+                            currentItemIds={items.map((it) => it.product_id)}
+                            open={addProductOpen}
+                            onOpenChange={setAddProductOpen}
+                            onAdded={() => mutate()}
+                            label={t("addProduct")}
+                          />
+                        )}
 
                         {/* Receipt footer */}
                         <div className="mt-2.5 pt-2.5 border-t border-line-subtle flex flex-col gap-2">
@@ -1735,10 +1735,11 @@ export function OrderDetailPanel({
             className="fixed inset-0 z-[60] bg-ink-primary/50"
             onClick={() => uploadingCarrierId === null && setUploadOpen(false)}
           />
+          <div className="fixed inset-0 z-[70] flex items-end justify-center p-4 sm:items-center">
           <div
             role="dialog"
             aria-modal="true"
-            className="fixed top-1/2 start-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] w-[min(420px,95vw)] bg-surface-card border border-line-subtle rounded-card shadow-floating overflow-hidden"
+            className="w-full max-w-[420px] bg-surface-card border border-line-subtle rounded-card shadow-floating overflow-hidden"
           >
             <div className="px-5 pt-5 pb-3">
               <h2 className="text-[15px] font-semibold text-ink-primary mb-1">
@@ -1795,6 +1796,7 @@ export function OrderDetailPanel({
                 {t("uploadCarrierCancel")}
               </button>
             </div>
+          </div>
           </div>
         </>
       )}
@@ -1860,6 +1862,57 @@ export function OrderDetailPanel({
             </div>
           </div>
         </>
+      )}
+    </>
+  );
+}
+
+/**
+ * The "+ Add product" button + portaled picker. Lives inside OrderDetailPanel
+ * so it shares the panel's translation namespace, but the picker itself is
+ * rendered in a portal anchored to this button so the receipt card's
+ * overflow-hidden can never clip the dropdown.
+ */
+function AddProductTrigger({
+  orderId,
+  marketId,
+  currentItemIds,
+  open,
+  onOpenChange,
+  onAdded,
+  label,
+}: {
+  orderId: string;
+  marketId: string;
+  currentItemIds: (string | null)[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAdded: () => void;
+  label: string;
+}) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className="inline-flex items-center justify-center gap-1.5 w-full text-[12px] font-medium text-ink-secondary border border-dashed border-line-strong rounded-card py-1.5 hover:text-ink-primary hover:border-ink-primary hover:bg-surface-hover transition-colors duration-fast mt-1"
+      >
+        <Plus size={12} strokeWidth={2} aria-hidden="true" />
+        {label}
+      </button>
+      {open && (
+        <AddProductPicker
+          orderId={orderId}
+          marketId={marketId}
+          currentItemIds={currentItemIds}
+          anchorRef={buttonRef}
+          onClose={() => onOpenChange(false)}
+          onAdded={onAdded}
+        />
       )}
     </>
   );

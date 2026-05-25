@@ -1006,6 +1006,12 @@
       "inStock": "En stock",
       "lowStock": "Stock faible",
       "stockLeft": "{count} restant",
+      "pickProduct": "Choisir un produit",
+      "searchProducts": "Rechercher un produit…",
+      "noResults": "Aucun produit",
+      "alreadyAdded": "Déjà ajouté",
+      "kbdHints": "↑↓ naviguer · ⏎ ajouter · esc fermer",
+      "adding": "Ajout…",
       "errors": {
         "uploadHttp": "Échec de l'envoi ({status})",
         "uploadNetwork": "Erreur réseau",
@@ -1047,6 +1053,15 @@
       "toBeReturned": "À retourner",
       "scheduledDispatchCancelled": "Livraison planifiée annulée",
       "transition": "{from} → {to}"
+    },
+    "statusHistory": {
+      "title": "Historique du statut",
+      "by": "par {name}",
+      "systemActor": "Système",
+      "empty": "Aucun historique pour le moment.",
+      "loading": "Chargement…",
+      "error": "Impossible de charger l'historique.",
+      "triggerAria": "Voir l'historique du statut"
     },
     "create": {
       "newOrder": "Nouvelle commande",
@@ -3048,7 +3063,9 @@
       "lastOrder": "Dernière commande : {date} · {status}",
       "lastAddress": "Dernière adresse : {address}",
       "plusLeads": "+ {count} prospects",
-      "seeAll": "Voir toutes les commandes"
+      "seeAll": "Voir toutes les commandes",
+      "totalOrders": "Total des commandes : {count}",
+      "unknownCustomer": "Client inconnu"
     },
     "addressChange": "↳ nouvelle adresse (avant : {previous})"
   },
@@ -3062,7 +3079,9 @@
       "sibling": "#{externalId}",
       "shipped": "Déjà envoyé au transporteur",
       "qty": "Qté {quantity}",
-      "seeOrder": "Voir la commande"
+      "seeOrder": "Voir la commande",
+      "duplicateMark": "Doublon",
+      "unknownCustomer": "Client inconnu"
     },
     "dialog": {
       "title": "Doublons possibles",

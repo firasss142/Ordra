@@ -18,7 +18,15 @@ export interface RawSibling {
   status: string;
   created_at: string;
   product_name: string | null;
+  /** Product thumbnail URL (joined from products.image_url), null when unset. */
+  product_image_url: string | null;
   quantity: number;
+  /** Order total (revenue) — rendered in the duplicate popover card. */
+  total_price: number;
+  /** Customer identity — shown on the popover card in place of the order ref. */
+  customer_name: string | null;
+  customer_address: string | null;
+  customer_city: string | null;
   /** True when the sibling is already shipped to the carrier (re-ship risk). */
   already_shipped: boolean;
 }

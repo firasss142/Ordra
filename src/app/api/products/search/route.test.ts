@@ -173,4 +173,101 @@ describe("GET /api/products/search", () => {
     const res = await GET(makeRequest());
     expect(res.status).toBe(500);
   });
+
+  test("non-super_admin: mismatching market_id query param returns 403", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "a-1" } } });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return singleChain(agentUser);
+      return listChain([]);
+    });
+
+    const res = await GET(makeRequest({ market_id: "m-ly" }));
+    expect(res.status).toBe(403);
+  });
+
+  test("non-super_admin: matching market_id query param is allowed", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "a-1" } } });
+
+    const eqCalls: unknown[][] = [];
+    const chain: Record<string, unknown> = {};
+    chain.select = vi.fn().mockReturnValue(chain);
+    chain.eq = vi.fn().mockImplementation((...args: unknown[]) => {
+      eqCalls.push(args);
+      return chain;
+    });
+    chain.ilike = vi.fn().mockReturnValue(chain);
+    chain.order = vi.fn().mockResolvedValue({ data: products, error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return singleChain(agentUser);
+      if (table === "products") return chain;
+      return listChain([]);
+    });
+
+    const res = await GET(makeRequest({ market_id: "m-tn" }));
+    expect(res.status).toBe(200);
+    const marketEq = eqCalls.find((c) => c[0] === "market_id" && c[1] === "m-tn");
+    expect(marketEq).toBeDefined();
+  });
+
+  test("super_admin: market_id query param scopes the query", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+
+    const eqCalls: unknown[][] = [];
+    const chain: Record<string, unknown> = {};
+    chain.select = vi.fn().mockReturnValue(chain);
+    chain.eq = vi.fn().mockImplementation((...args: unknown[]) => {
+      eqCalls.push(args);
+      return chain;
+    });
+    chain.ilike = vi.fn().mockReturnValue(chain);
+    chain.order = vi.fn().mockResolvedValue({ data: products, error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return singleChain(superAdmin);
+      if (table === "products") return chain;
+      return listChain([]);
+    });
+
+    const res = await GET(makeRequest({ market_id: "m-ly" }));
+    expect(res.status).toBe(200);
+    const marketEq = eqCalls.find((c) => c[0] === "market_id" && c[1] === "m-ly");
+    expect(marketEq).toBeDefined();
+  });
+
+  test("super_admin without market_id or home returns empty list", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return singleChain(superAdmin);
+      return listChain([]);
+    });
+
+    const res = await GET(makeRequest());
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.data).toEqual([]);
+  });
+
+  test("select includes image_url column", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "a-1" } } });
+
+    let selectArg = "";
+    const chain: Record<string, unknown> = {};
+    chain.select = vi.fn().mockImplementation((cols: string) => {
+      selectArg = cols;
+      return chain;
+    });
+    chain.eq = vi.fn().mockReturnValue(chain);
+    chain.ilike = vi.fn().mockReturnValue(chain);
+    chain.order = vi.fn().mockResolvedValue({ data: [], error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return singleChain(agentUser);
+      if (table === "products") return chain;
+      return listChain([]);
+    });
+
+    await GET(makeRequest());
+    expect(selectArg).toContain("image_url");
+  });
 });

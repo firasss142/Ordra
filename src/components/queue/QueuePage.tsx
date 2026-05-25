@@ -59,7 +59,10 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     customer_city: (raw.customer_city as string) ?? "",
     product_name: (raw.product_name as string) ?? "",
     variant_label: (raw.variant_label as string) ?? "",
+    quantity: (raw.quantity as number) ?? 1,
     product_image_url: (raw.product_image_url as string | null) ?? null,
+    carrier_code: (raw.carrier_code as string | null) ?? null,
+    carrier_name: (raw.carrier_name as string | null) ?? null,
     total_price: (raw.total_price as number) ?? 0,
     currency: (raw.currency as string) ?? "TND",
     market_id: (raw.market_id as string | null) ?? null,
@@ -144,14 +147,20 @@ function matchesEnCoursSubfilter(
   if (sub === "all") return true;
   if (sub === "rappel") {
     if (status !== "callback_scheduled") return false;
+    // Unscheduled (no time) or past-due callbacks belong in the queue; only an
+    // explicitly future time hides the order. Mirrors the server filter in
+    // /api/agent/queue.
     const cbAt = o.callback_scheduled_at as string | null;
-    return !!cbAt && new Date(cbAt) <= now;
+    return !cbAt || new Date(cbAt) <= now;
   }
   if (sub === "livraison") {
     if (status !== "dispatch_scheduled") return false;
-    if (o.scheduled_dispatch_auto) return false;
+    // Auto rows always show so the agent can upload them manually ahead of the
+    // cron. Manual rows show when unscheduled or past-due; an explicitly future
+    // manual time holds the order back. Mirrors /api/agent/queue.
+    if (o.scheduled_dispatch_auto) return true;
     const dAt = o.scheduled_dispatch_at as string | null;
-    return !!dAt && new Date(dAt) <= now;
+    return !dAt || new Date(dAt) <= now;
   }
   if (sub === "tentative") return attemptNumberForStatus(status) !== null;
   return false;

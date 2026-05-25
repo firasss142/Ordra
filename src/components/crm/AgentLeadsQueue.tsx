@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAgentLeadQueue, tentativeTotal } from "@/hooks/useAgentLeadQueue";
 import { formatDateTime } from "@/lib/format";
+import { formatDisplayCurrencyCode } from "@/lib/markets";
 import { LeadStatusBadge } from "./LeadStatusBadge";
 import { LeadsKanban } from "./LeadsKanban";
 import { NewLeadModal } from "./NewLeadModal";
@@ -136,6 +137,7 @@ function getCustomerInitials(name: string): string {
 }
 
 export function AgentLeadsQueue({ user }: Props) {
+  const displayCurrency = formatDisplayCurrencyCode(null, user.market_id);
   const t = useTranslations("crm.queue");
   const tBuckets = useTranslations("crm.queue.buckets");
   const tSub = useTranslations("crm.queue.buckets.subfilter");
@@ -325,7 +327,17 @@ export function AgentLeadsQueue({ user }: Props) {
                           priorOrderCount={l.prior_order_count ?? 0}
                           priorLeadCount={l.prior_lead_count ?? 0}
                           priorRejectedCount={l.prior_rejected_count ?? 0}
+                          currencyCode={displayCurrency}
                           customerPhone={l.customer_phone}
+                          anchorOrderId={l.id}
+                          anchorStatus={l.status}
+                          anchorCreatedAt={l.created_at}
+                          anchorTotalPrice={null}
+                          anchorProductName={null}
+                          anchorProductImageUrl={null}
+                          anchorCustomerName={l.customer_name}
+                          anchorCustomerAddress={l.customer_address}
+                          anchorCustomerCity={l.customer_city}
                         />
                       )}
                       {isAttemptOrCallback && (

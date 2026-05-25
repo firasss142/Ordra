@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import type { BadgeTone } from "@/components/ui/Badge";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
 import { DuplicateOrderBadge } from "@/components/shared/DuplicateOrderBadge";
+import { StatusHistoryPopover } from "./StatusHistoryPopover";
 import { ProductAvatar } from "./ProductAvatar";
 import { SourceLogo } from "@/components/shared/SourceLogo";
 import { formatDateTime } from "@/lib/format";
@@ -211,7 +212,7 @@ function Row({
                 className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-status-critical"
               />
             )}
-            <span className="truncate text-[14px] font-medium leading-5 text-ink-primary">
+            <span className="min-w-0 truncate text-[14px] font-medium leading-5 text-ink-primary">
               {order.customer_name}
             </span>
             {order.customer_city && (
@@ -219,27 +220,51 @@ function Row({
                 · {order.customer_city}
               </span>
             )}
-            {order.repeat_kind && order.repeat_kind !== "none" && (
-              <RepeatBuyerBadge
-                source="order"
-                sourceId={order.id}
-                repeatKind={order.repeat_kind}
-                priorOrderCount={order.prior_order_count ?? 0}
-                priorLeadCount={order.prior_lead_count ?? 0}
-                priorRejectedCount={order.prior_rejected_count ?? 0}
-                customerPhone={order.customer_phone}
-              />
-            )}
-            {order.is_potential_duplicate && order.is_duplicate_anchor && (
-              <DuplicateOrderBadge
-                count={order.duplicate_count ?? 0}
-                siblings={order.duplicate_siblings ?? []}
-                hasUploadedSibling={order.has_uploaded_sibling ?? false}
-                anchorOrderId={order.id}
-                canDelete
-                onChange={onDuplicateChange}
-              />
-            )}
+            {(order.repeat_kind && order.repeat_kind !== "none") ||
+            (order.is_potential_duplicate && order.is_duplicate_anchor) ? (
+              <span className="inline-flex shrink-0 items-center gap-1">
+                {order.repeat_kind && order.repeat_kind !== "none" && (
+                  <RepeatBuyerBadge
+                    source="order"
+                    sourceId={order.id}
+                    repeatKind={order.repeat_kind}
+                    priorOrderCount={order.prior_order_count ?? 0}
+                    priorLeadCount={order.prior_lead_count ?? 0}
+                    priorRejectedCount={order.prior_rejected_count ?? 0}
+                    currencyCode={currencyCode}
+                    customerPhone={order.customer_phone}
+                    anchorOrderId={order.id}
+                    anchorStatus={order.status}
+                    anchorCreatedAt={order.created_at}
+                    anchorTotalPrice={order.total_price}
+                    anchorProductName={order.product_name}
+                    anchorProductImageUrl={order.product_image_url ?? null}
+                    anchorCustomerName={order.customer_name}
+                    anchorCustomerAddress={order.customer_address}
+                    anchorCustomerCity={order.customer_city}
+                  />
+                )}
+                {order.is_potential_duplicate && order.is_duplicate_anchor && (
+                  <DuplicateOrderBadge
+                    count={order.duplicate_count ?? 0}
+                    siblings={order.duplicate_siblings ?? []}
+                    hasUploadedSibling={order.has_uploaded_sibling ?? false}
+                    anchorOrderId={order.id}
+                    anchorStatus={order.status}
+                    anchorCreatedAt={order.created_at}
+                    anchorTotalPrice={order.total_price}
+                    anchorProductName={order.product_name}
+                    anchorProductImageUrl={order.product_image_url ?? null}
+                    anchorCustomerName={order.customer_name}
+                    anchorCustomerAddress={order.customer_address}
+                    anchorCustomerCity={order.customer_city}
+                    currencyCode={currencyCode}
+                    canDelete
+                    onChange={onDuplicateChange}
+                  />
+                )}
+              </span>
+            ) : null}
           </div>
 
           {/* Order ID — pushed to inline-end */}
@@ -262,7 +287,12 @@ function Row({
       {/* Status + callback overdue flag */}
       <td className="whitespace-nowrap px-4 py-2 align-middle">
         <span className="inline-flex items-center">
-          <Badge tone={statusTone}>{labels.status}</Badge>
+          <StatusHistoryPopover
+            orderId={order.id}
+            sourcePlatform={order.external_platform ?? null}
+          >
+            <Badge tone={statusTone}>{labels.status}</Badge>
+          </StatusHistoryPopover>
           {order.carrier_barcode_deleted_at && (
             <span
               className="ms-1.5 inline-flex items-center gap-1 h-[20px] px-1.5 rounded-card border border-line-subtle bg-surface-page text-[10.5px] font-medium text-ink-secondary"
