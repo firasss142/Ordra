@@ -3123,5 +3123,13 @@
       "destinationLabel": "Destination",
       "destinationFromOrder": "Destination définie à la création"
     }
+  },
+  "dexpressStatus": {
+    "sectionTitle": "Statut transporteur",
+    "loading": "Chargement du statut Dexpress…",
+    "loadError": "Impossible de charger le statut Dexpress",
+    "retry": "Réessayer",
+    "unrecognized": "Statut non reconnu",
+    "notFound": "Numéro de suivi inconnu chez le transporteur"
   }
 }

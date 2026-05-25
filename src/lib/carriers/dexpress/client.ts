@@ -34,6 +34,11 @@ export interface MerchantSubmitResult {
   html: string;
 }
 
+export interface JsonEndpointResult {
+  status: number;
+  bodyText: string;
+}
+
 export class DexpressClient {
   constructor(
     private readonly carrierId: string,
@@ -65,6 +70,43 @@ export class DexpressClient {
           html,
           redirectedToLogin: false,
         },
+      };
+    });
+  }
+
+  /**
+   * GET an AJAX/JSON endpoint that the portal's own XHR calls hit.
+   *
+   * Differs from getMerchantPage:
+   *   - Sets X-Requested-With + JSON-leaning Accept so the server returns
+   *     the AJAX response shape rather than the full HTML page.
+   *   - Returns raw body text. Parsing belongs to the caller (e.g.
+   *     parseAjaxOrderCase) — Dexpress sets Content-Type: text/html even
+   *     for JSON bodies, so response.json() is unreliable.
+   *
+   * Same 302→/login retry semantics as the other methods via requestWithRetry.
+   */
+  async getJsonEndpoint(path: string): Promise<JsonEndpointResult> {
+    return this.requestWithRetry<JsonEndpointResult>(async (session) => {
+      const response = await this.fetchWithCookie(path, session, {
+        method: "GET",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          Accept: "application/json, text/plain, */*",
+        },
+      });
+      const location = response.headers.get("location");
+      if (
+        response.status >= 300 &&
+        response.status < 400 &&
+        isLogoutRedirect(location)
+      ) {
+        return { kind: "logout" };
+      }
+      const bodyText = await response.text();
+      return {
+        kind: "ok",
+        result: { status: response.status, bodyText },
       };
     });
   }

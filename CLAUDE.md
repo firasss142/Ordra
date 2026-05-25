@@ -49,7 +49,7 @@ src/
 ## Critical rules
 - **UI/UX & Design**: Follow design-system.md for all interface design, styling, and layout — Shopify-inspired dark sidebar, light content, zero decoration
 - Market isolation enforced via RLS at data layer — never rely on UI filtering alone
-- Save every Claude-created plan under `/Users/firaskarchoud/Documents/ORDER MANAGMENT SYSTEM/oms/plans`
+- Save every Claude-created plan under `/plans`
 - Revenue = orders.total_price ONLY — never other price fields
 - All cost variables from DB settings table — NEVER hardcode fees or rates
 - Financial calculations → lib/calculations/ server-side only — never in client components
