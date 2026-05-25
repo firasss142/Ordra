@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useDexpressStatus } from "@/hooks/useDexpressStatus";
 import { Button } from "@/components/ui/Button";
+import { DexpressStatusTimeline } from "./DexpressStatusTimeline";
 import type { Role } from "@/types";
 
 interface DexpressStatusSectionProps {
@@ -85,28 +86,40 @@ export function DexpressStatusSection({
 
     return (
       <div className="px-5 py-3 border-b border-line-subtle bg-surface-card">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-secondary mb-1.5">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-secondary mb-2">
           {t("sectionTitle")}
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {showsSlug && snapshot.slug && (
-            <span className="font-mono text-[12px] text-ink-secondary tabular-nums">
-              {snapshot.slug}
+
+        {/* Timeline: only when we have a recognized slug to position against
+            the lifecycle. Unknown labels fall back to the chip row below.
+            The timeline now renders the SLUG inline under the current node
+            for manager/admin viewers, so no separate slug row is needed. */}
+        {snapshot.slug && (
+          <DexpressStatusTimeline
+            currentSlug={snapshot.slug}
+            currentLabel={snapshot.rawLabel}
+            role={role}
+          />
+        )}
+
+        {/* Fallback row: only renders when there's no timeline to show.
+              - Unknown slug: raw Arabic + "Unrecognized" chip for managers. */}
+        {!snapshot.slug && (
+          <div className="flex items-center gap-2 flex-wrap mt-1">
+            <span
+              className="text-[14px] font-medium text-ink-primary"
+              dir="rtl"
+              lang="ar"
+            >
+              {snapshot.rawLabel}
             </span>
-          )}
-          <span
-            className="text-[14px] font-medium text-ink-primary"
-            dir="rtl"
-            lang="ar"
-          >
-            {snapshot.rawLabel}
-          </span>
-          {showsUnrecognizedChip && (
-            <span className="inline-flex items-center rounded-full bg-status-warningBg px-2 py-0.5 text-[11px] text-status-warning">
-              {t("unrecognized")}
-            </span>
-          )}
-        </div>
+            {showsUnrecognizedChip && (
+              <span className="inline-flex items-center rounded-full bg-status-warningBg px-2 py-0.5 text-[11px] text-status-warning">
+                {t("unrecognized")}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     );
   }

@@ -209,3 +209,11 @@ export function findStatusByLabel(rawLabel: string): DexpressStatusEntry | null 
   if (!normalized) return null;
   return BY_NORMALIZED_LABEL.get(normalized) ?? null;
 }
+
+const BY_SLUG = new Map<DexpressSlug, DexpressStatusEntry>(
+  DEXPRESS_STATUSES.map((e) => [e.slug, e]),
+);
+
+export function findStatusBySlug(slug: DexpressSlug): DexpressStatusEntry | null {
+  return BY_SLUG.get(slug) ?? null;
+}

@@ -3,6 +3,7 @@ import {
   DEXPRESS_STATUSES,
   findStatusById,
   findStatusByLabel,
+  findStatusBySlug,
   normalizeArabic,
   type DexpressStatusEntry,
 } from "./statuses";
@@ -108,6 +109,21 @@ describe("findStatusById — primary lookup path for ajax-order-case", () => {
 
   test("returns null for NaN", () => {
     expect(findStatusById(Number.NaN)).toBeNull();
+  });
+});
+
+describe("findStatusBySlug — symmetric lookup for UI label rendering", () => {
+  test("returns the full entry for a known slug", () => {
+    const entry = findStatusBySlug("IN_COMPANY");
+    expect(entry).not.toBeNull();
+    expect(entry!.id).toBe(3);
+    expect(entry!.timelineLabel).toBe("فى الشركة");
+  });
+
+  test("DELIVERED slug → entry with id 10 and 'تم التسليم'", () => {
+    const entry = findStatusBySlug("DELIVERED");
+    expect(entry!.id).toBe(10);
+    expect(entry!.timelineLabel).toBe("تم التسليم");
   });
 });
 
