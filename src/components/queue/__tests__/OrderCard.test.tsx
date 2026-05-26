@@ -62,6 +62,8 @@ const mockOrder: QueueOrder = {
   is_duplicate_anchor: false,
   tracking_number: null,
   carrier_barcode_deleted_at: null,
+  dexpress_status_slug: null,
+  dexpress_status_synced_at: null,
 };
 
 describe("OrderCard", () => {
@@ -316,7 +318,10 @@ describe("OrderCard", () => {
     expect(pill.className).toContain("bg-[#F3E8FF]");
   });
 
-  it("renders dispatched status with success tone", () => {
+  it("renders dispatched status as the 'En cours' (deposit) bucket pill", () => {
+    // The list pill now reflects the lifecycle bucket, not the raw OMS status.
+    // bucketFor() maps status='dispatched' → 'deposit' → cyan En cours pill.
+    // See plans/dexpress-list-status-bucket.md.
     render(
       <OrderCard
         order={{ ...mockOrder, status: "dispatched", customer_note: null }}
@@ -324,8 +329,8 @@ describe("OrderCard", () => {
         onCallTerminated={() => {}}
       />,
     );
-    const pill = screen.getAllByText("Expédié").at(-1)!;
-    expect(pill.className).toContain("text-status-success");
+    const pill = screen.getAllByText("En cours").at(-1)!;
+    expect(pill.className).toContain("text-[#0891B2]");
   });
 
   it("renders rejected status with critical tone", () => {
@@ -566,7 +571,8 @@ describe("OrderCard", () => {
       expect(card.className).toContain("border-[#7C3AED]");
     });
 
-    it("fermees + delivered → gold border", () => {
+    it("fermees + delivered → green border (matches Livré bucket pill)", () => {
+      // Border tone follows the lifecycle bucket so the pill + frame match.
       render(
         <OrderCard
           order={{ ...mockOrder, status: "delivered", customer_note: null }}
@@ -576,10 +582,11 @@ describe("OrderCard", () => {
         />,
       );
       const card = document.querySelector("[data-order-id='order-1']") as HTMLElement;
-      expect(card.className).toContain("border-[#D97706]");
+      expect(card.className).toContain("border-[#10B981]");
     });
 
-    it("fermees + other status → neutral archive border", () => {
+    it("fermees + dispatched → cyan border (En cours bucket)", () => {
+      // bucketFor() maps dispatched → 'deposit' → cyan, both on the pill and border.
       render(
         <OrderCard
           order={{ ...mockOrder, status: "dispatched", customer_note: null }}
@@ -589,7 +596,7 @@ describe("OrderCard", () => {
         />,
       );
       const card = document.querySelector("[data-order-id='order-1']") as HTMLElement;
-      expect(card.className).toContain("border-agent-outline");
+      expect(card.className).toContain("border-[#0891B2]");
     });
   });
 });

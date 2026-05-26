@@ -13,6 +13,7 @@ import { DuplicateOrderBadge } from "@/components/shared/DuplicateOrderBadge";
 import { RejectionReasonHover } from "./RejectionReasonHover";
 import { AddressChangeNote } from "./AddressChangeNote";
 import { getCarrierLogo } from "@/lib/carriers/carrier-logos";
+import { bucketFor, type Bucket } from "@/lib/carriers/dexpress/buckets";
 import type { QueueOrder } from "@/types/queue";
 import type { BucketKey } from "./QueueHeader";
 import { highlightSegments, type HighlightSegment } from "@/lib/queue/highlight";
@@ -89,13 +90,32 @@ function StatusSign({
   );
 }
 
+// Per-lifecycle-bucket pill colors. Anchored to the Dexpress timeline color
+// story (see src/lib/carriers/dexpress/pipeline.ts) so the panel and the list
+// speak the same visual language.
+const BUCKET_PILL_CLASS: Record<Bucket, string> = {
+  uploaded: "bg-[#F3E8FF] text-[#7C3AED]",     // purple — handed to carrier
+  deposit: "bg-[#E0F2FE] text-[#0891B2]",      // cyan — in motion
+  delivered: "bg-status-successBg text-status-success", // green — terminal success
+  returned: "bg-rose-50 text-rose-700",        // rose — coming back
+  rejected: "bg-status-criticalBg text-status-critical", // red — OMS-side rejection
+};
+
 // Per-bucket border tone. Fermées is per-status (rejected/uploaded/delivered
 // get their own accent; everything else falls back to a neutral archive gray).
 function bucketBorderClass(
   bucket: BucketKey | undefined,
   status: string,
+  lifecycleBucket: Bucket | null,
 ): string {
   if (bucket === "fermees") {
+    // Lifecycle bucket wins when present — keeps the border tone in sync with
+    // the pill color for Dexpress orders.
+    if (lifecycleBucket === "rejected") return "border border-[#DC2626]";
+    if (lifecycleBucket === "uploaded") return "border border-[#7C3AED]";
+    if (lifecycleBucket === "deposit") return "border border-[#0891B2]";
+    if (lifecycleBucket === "delivered") return "border border-[#10B981]";
+    if (lifecycleBucket === "returned") return "border border-rose-400";
     if (status === "rejected") return "border border-[#DC2626]";
     if (status === "uploaded") return "border border-[#7C3AED]";
     if (status === "delivered") return "border border-[#D97706]";
@@ -176,39 +196,40 @@ export const OrderCard = memo(function OrderCard({
   }
 
   // Status pill style: attempts/callbacks are handled by AttemptEtiquette.
-  // Every other status gets a labelled pill with a leading status dot so the
-  // order's state is spottable at a glance, at any breakpoint.
+  // Every other status gets a labelled pill.
+  //
+  // For closed orders we consult bucketFor() first — it maps the (OMS status,
+  // carrier, Dexpress slug) triple to one of 5 lifecycle buckets so the pill
+  // reflects what the carrier portal actually says about the order. Falls
+  // through to the legacy OMS-status pills for non-Dexpress carriers and for
+  // active-queue statuses (pending, confirmed, ...).
+  //
+  // Reference-deleted uploads stay on the "À réuploader" warning pill — that
+  // signals an action the AGENT must take, which overrides the carrier-side
+  // bucket view. Bucket spec: plans/dexpress-list-status-bucket.md.
+  const bucket: Bucket | null = bucketFor({
+    status: order.status,
+    carrierCode: order.carrier_code,
+    dexpressStatusSlug: order.dexpress_status_slug,
+  });
+
   const statusPill = (() => {
-    // A reference-deleted upload is back in the agent's hands — surface it as
-    // "À réuploader" rather than the carrier-locked "Téléchargé".
     if (isReferenceDeletedUpload(order)) {
       return {
         label: t("statusReferenceDeleted"),
         className: "bg-status-warningBg text-status-warning",
       };
     }
+    if (bucket) {
+      return {
+        label: ts(`bucket.${bucket}` as Parameters<typeof ts>[0]),
+        className: BUCKET_PILL_CLASS[bucket],
+      };
+    }
     if (order.status === "confirmed") {
       return {
         label: ts("confirmed"),
         className: "bg-agent-primary-container/20 text-agent-on-primary-container",
-      };
-    }
-    if (order.status === "uploaded") {
-      return {
-        label: ts("uploaded"),
-        className: "bg-[#F3E8FF] text-[#7C3AED]",
-      };
-    }
-    if (order.status === "dispatched") {
-      return {
-        label: ts("dispatched"),
-        className: "bg-status-successBg text-status-success",
-      };
-    }
-    if (order.status === "rejected") {
-      return {
-        label: ts("rejected"),
-        className: "bg-status-criticalBg text-status-critical",
       };
     }
     if (order.status === "pending" || order.status === "assigned") {
@@ -221,7 +242,7 @@ export const OrderCard = memo(function OrderCard({
     return null;
   })();
 
-  const cardBorderClass = bucketBorderClass(selectedBucket, order.status);
+  const cardBorderClass = bucketBorderClass(selectedBucket, order.status, bucket);
   const displayCurrency = formatDisplayCurrencyCode(order.currency, order.market_id);
 
   return (
