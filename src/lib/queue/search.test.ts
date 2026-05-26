@@ -47,6 +47,8 @@ function makeOrder(overrides: Partial<QueueOrder> = {}): QueueOrder {
     is_duplicate_anchor: false,
     tracking_number: null,
     carrier_barcode_deleted_at: null,
+    dexpress_status_slug: null,
+    dexpress_status_synced_at: null,
     ...overrides,
   };
   order.product_image_url = overrides.product_image_url ?? order.product_image_url;

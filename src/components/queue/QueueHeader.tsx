@@ -14,6 +14,8 @@ import {
   UploadCloud,
   Truck,
   XCircle,
+  RotateCcw,
+  RefreshCw,
   type LucideIcon,
 } from "lucide-react";
 import type { AgentQueueBuckets } from "@/hooks/useAgentQueue";
@@ -32,7 +34,13 @@ export type BucketKey =
 
 export type EnCoursSubfilter = "all" | "rappel" | "tentative" | "livraison";
 export type TentativeSubfilter = "all" | 1 | 2 | 3;
-export type ClosedSubfilter = "all" | "uploaded" | "rejected" | "dispatched";
+export type ClosedSubfilter =
+  | "all"
+  | "uploaded"
+  | "deposit"
+  | "delivered"
+  | "returned"
+  | "rejected";
 
 interface QueueHeaderProps {
   agentName: string;
@@ -47,6 +55,14 @@ interface QueueHeaderProps {
   closedSubfilter: ClosedSubfilter;
   onClosedSubfilterChange: (sub: ClosedSubfilter) => void;
   closedCounts: Record<ClosedSubfilter, number>;
+  /**
+   * Manual Dexpress refresh handler — invoked when the agent clicks the
+   * refresh button in the fermé chip row. Optional so non-Dexpress markets
+   * can simply omit the button.
+   */
+  onRefreshDexpress?: () => void;
+  /** True while a Dexpress refresh batch is in flight. Disables the button + animates the icon. */
+  refreshingDexpress?: boolean;
   onNewOrder?: () => void;
   /**
    * From settings.max_call_attempts. When > 3, the third popover item is
@@ -71,13 +87,18 @@ const TABS: TabDef[] = [
   { key: "fermees", icon: Archive, labelKey: "closed", tone: "archive" },
 ];
 
+// Five lifecycle buckets in fermé, in lifecycle order:
+//   uploaded → deposit → delivered → returned, then rejected on the far end.
+// Spec: plans/dexpress-list-status-bucket.md.
 const CLOSED_STATUS_CHIPS: Array<{
   key: Exclude<ClosedSubfilter, "all">;
   icon: LucideIcon;
 }> = [
   { key: "uploaded", icon: UploadCloud },
+  { key: "deposit", icon: Truck },
+  { key: "delivered", icon: CheckCircle },
+  { key: "returned", icon: RotateCcw },
   { key: "rejected", icon: XCircle },
-  { key: "dispatched", icon: Truck },
 ];
 
 // Active-state token sets per tone. Each tab lights up in its lifecycle color
@@ -258,6 +279,8 @@ export function QueueHeader({
   closedSubfilter,
   onClosedSubfilterChange,
   closedCounts,
+  onRefreshDexpress,
+  refreshingDexpress = false,
   onNewOrder,
   maxAttempts = 3,
 }: QueueHeaderProps) {
@@ -539,28 +562,61 @@ export function QueueHeader({
       )}
 
       {selectedBucket === "fermees" && (
-        <div className="flex items-center gap-2 sm:gap-1.5 mt-3 flex-nowrap overflow-x-auto sm:flex-wrap sm:overflow-visible custom-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
-          <SubChip
-            active={closedSubfilter === "all"}
-            count={closedCounts.all}
-            srLabel={tClosed("all")}
-            onClick={() => onClosedSubfilterChange("all")}
-          >
-            {tClosed("all")}
-          </SubChip>
-
-          {CLOSED_STATUS_CHIPS.map(({ key, icon: Icon }) => (
+        <div className="flex items-center gap-2 mt-3 flex-nowrap overflow-x-auto sm:overflow-visible custom-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex items-center gap-2 sm:gap-1.5 flex-nowrap sm:flex-wrap">
             <SubChip
-              key={key}
-              active={closedSubfilter === key}
-              count={closedCounts[key]}
-              srLabel={tClosed(key)}
-              onClick={() => onClosedSubfilterChange(key)}
+              active={closedSubfilter === "all"}
+              count={closedCounts.all}
+              srLabel={tClosed("all")}
+              onClick={() => onClosedSubfilterChange("all")}
             >
-              <Icon size={12} strokeWidth={2} aria-hidden="true" className="me-1 inline" />
-              {tClosed(key)}
+              {tClosed("all")}
             </SubChip>
-          ))}
+
+            {CLOSED_STATUS_CHIPS.map(({ key, icon: Icon }) => (
+              <SubChip
+                key={key}
+                active={closedSubfilter === key}
+                count={closedCounts[key]}
+                srLabel={tClosed(key)}
+                onClick={() => onClosedSubfilterChange(key)}
+              >
+                <Icon size={12} strokeWidth={2} aria-hidden="true" className="me-1 inline" />
+                {tClosed(key)}
+              </SubChip>
+            ))}
+          </div>
+
+          {onRefreshDexpress && (
+            <button
+              type="button"
+              onClick={onRefreshDexpress}
+              disabled={refreshingDexpress}
+              aria-label={t("fermeesRefresh.button")}
+              title={t("fermeesRefresh.button")}
+              className={[
+                "ms-auto shrink-0 inline-flex items-center gap-1.5",
+                "h-7 px-2.5 rounded-full text-[11.5px] font-semibold",
+                "border border-agent-outline-variant bg-agent-surface",
+                "text-agent-on-surface-variant",
+                "hover:bg-agent-surface-low hover:text-agent-on-surface",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+                "transition-colors duration-fast",
+              ].join(" ")}
+            >
+              <RefreshCw
+                size={12}
+                strokeWidth={2.25}
+                aria-hidden="true"
+                className={refreshingDexpress ? "animate-spin" : ""}
+              />
+              <span className="hidden sm:inline">
+                {refreshingDexpress
+                  ? t("fermeesRefresh.syncing")
+                  : t("fermeesRefresh.button")}
+              </span>
+            </button>
+          )}
         </div>
       )}
     </div>
