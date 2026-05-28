@@ -902,7 +902,14 @@
       "received": "Reçu en retour",
       "rejected": "Rejeté",
       "cancelled": "Annulé (transporteur)",
-      "deleted": "Supprimé"
+      "deleted": "Supprimé",
+      "bucket": {
+        "uploaded": "Téléchargé",
+        "deposit": "En cours",
+        "delivered": "Livré",
+        "returned": "Retourné",
+        "rejected": "Rejeté"
+      }
     },
     "rejectionReasons": {
       "refus_client": "Refus client",
@@ -1318,9 +1325,16 @@
       "closedSubfilter": {
         "all": "Tous",
         "uploaded": "Téléchargé",
+        "deposit": "En cours",
+        "delivered": "Livré",
+        "returned": "Retourné",
         "rejected": "Rejeté",
         "dispatched": "Expédié"
       }
+    },
+    "fermeesRefresh": {
+      "button": "Rafraîchir Dexpress",
+      "syncing": "Synchronisation…"
     },
     "etiquette": {
       "attempt": "Tentative {n}",
@@ -3129,5 +3143,13 @@
       "destinationLabel": "Destination",
       "destinationFromOrder": "Destination définie à la création"
     }
+  },
+  "dexpressStatus": {
+    "sectionTitle": "Statut transporteur",
+    "loading": "Chargement du statut Dexpress…",
+    "loadError": "Impossible de charger le statut Dexpress",
+    "retry": "Réessayer",
+    "unrecognized": "Statut non reconnu",
+    "notFound": "Numéro de suivi inconnu chez le transporteur"
   }
 }

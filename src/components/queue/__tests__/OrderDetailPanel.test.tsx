@@ -23,6 +23,16 @@ vi.mock("@/hooks/useOrderDetailRealtime", () => ({
   useOrderDetailRealtime: () => {},
 }));
 
+// Spy on DexpressStatusSection so we can assert its mount + props without
+// pulling in the SWR fetcher chain it owns.
+const dexpressSectionSpy = vi.fn();
+vi.mock("../DexpressStatusSection", () => ({
+  DexpressStatusSection: (props: unknown) => {
+    dexpressSectionSpy(props);
+    return null;
+  },
+}));
+
 vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
   const arMessages = (await import("@/messages/ar.json")).default;
@@ -71,10 +81,13 @@ const order = {
 };
 
 let currentOrder: Record<string, unknown> = order;
+let currentCarriers: Array<{ id: string; name: string; code: string; is_active: boolean }> = [];
 
 describe("OrderDetailPanel", () => {
   beforeEach(() => {
     currentOrder = order;
+    currentCarriers = [];
+    dexpressSectionSpy.mockClear();
     const swrBase = {
       error: undefined,
       isLoading: false,
@@ -87,6 +100,13 @@ describe("OrderDetailPanel", () => {
         return {
           ...swrBase,
           data: { data: currentOrder },
+        } as unknown as ReturnType<typeof useSWR>;
+      }
+
+      if (typeof key === "string" && key.startsWith("/api/carriers")) {
+        return {
+          ...swrBase,
+          data: { data: currentCarriers },
         } as unknown as ReturnType<typeof useSWR>;
       }
 
@@ -196,5 +216,90 @@ describe("OrderDetailPanel", () => {
     expect(screen.getAllByText("قيد الانتظار").length).toBeGreaterThan(0);
     expect(screen.getByText("تم استلام الطلب من تكامل المتجر")).toBeTruthy();
     expect(screen.queryByText("pending")).toBeNull();
+  });
+
+  describe("DexpressStatusSection eligibility gating", () => {
+    const DEXPRESS_CARRIER_ID = "dx-carrier-uuid";
+    const NAVEX_CARRIER_ID = "nx-carrier-uuid";
+
+    it("mounts DexpressStatusSection with enabled=true when carrier is Dexpress and tracking_number is set", () => {
+      currentOrder = {
+        ...order,
+        status: "uploaded",
+        tracking_number: "1343188",
+        carrier_id: DEXPRESS_CARRIER_ID,
+      };
+      currentCarriers = [
+        { id: DEXPRESS_CARRIER_ID, name: "Dexpress", code: "dexpress", is_active: true },
+      ];
+
+      render(
+        <OrderDetailPanel
+          orderId="order-1"
+          onClose={() => {}}
+          onCallTerminated={() => {}}
+          userId="user-1"
+        />,
+      );
+
+      expect(dexpressSectionSpy).toHaveBeenCalled();
+      const lastProps = dexpressSectionSpy.mock.calls[dexpressSectionSpy.mock.calls.length - 1][0];
+      expect(lastProps).toMatchObject({
+        orderId: "order-1",
+        enabled: true,
+      });
+    });
+
+    it("mounts DexpressStatusSection with enabled=false when carrier is not Dexpress", () => {
+      currentOrder = {
+        ...order,
+        status: "uploaded",
+        tracking_number: "TUN-99",
+        carrier_id: NAVEX_CARRIER_ID,
+      };
+      currentCarriers = [
+        { id: NAVEX_CARRIER_ID, name: "Navex", code: "navex", is_active: true },
+      ];
+
+      render(
+        <OrderDetailPanel
+          orderId="order-1"
+          onClose={() => {}}
+          onCallTerminated={() => {}}
+          userId="user-1"
+        />,
+      );
+
+      // Section mounts (cheap, returns null when enabled=false) — the gate
+      // is the `enabled` prop, not the JSX conditional.
+      expect(dexpressSectionSpy).toHaveBeenCalled();
+      const lastProps = dexpressSectionSpy.mock.calls[dexpressSectionSpy.mock.calls.length - 1][0];
+      expect(lastProps.enabled).toBe(false);
+    });
+
+    it("mounts DexpressStatusSection with enabled=false when tracking_number is null", () => {
+      currentOrder = {
+        ...order,
+        status: "pending",
+        tracking_number: null,
+        carrier_id: null,
+      };
+      currentCarriers = [
+        { id: DEXPRESS_CARRIER_ID, name: "Dexpress", code: "dexpress", is_active: true },
+      ];
+
+      render(
+        <OrderDetailPanel
+          orderId="order-1"
+          onClose={() => {}}
+          onCallTerminated={() => {}}
+          userId="user-1"
+        />,
+      );
+
+      expect(dexpressSectionSpy).toHaveBeenCalled();
+      const lastProps = dexpressSectionSpy.mock.calls[dexpressSectionSpy.mock.calls.length - 1][0];
+      expect(lastProps.enabled).toBe(false);
+    });
   });
 });

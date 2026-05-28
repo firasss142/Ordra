@@ -15,6 +15,8 @@ import { StepperField } from "@/components/ui/StepperField";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { useOrderMutation } from "@/hooks/useOrderMutation";
 import { useOrderDetailRealtime } from "@/hooks/useOrderDetailRealtime";
+import { useCarriers } from "@/hooks/useCarriers";
+import { DexpressStatusSection } from "./DexpressStatusSection";
 import { formatDisplayCurrencyCode, LY_MARKET_ID } from "@/lib/markets";
 import { formatOrderHistoryNote } from "@/lib/order-history-display";
 import { isValidLibyanPhone } from "@/lib/carriers/phone";
@@ -329,6 +331,18 @@ export function OrderDetailPanel({
       [onTerminatedByManager, onClose],
     ),
   });
+
+  // Dexpress status section: gated on (carrier === "dexpress" && tracking_number).
+  // We resolve the carrier code by looking up order.carrier_id in the cached
+  // /api/carriers list for the order's market — the hook already dedupes across
+  // panel + upload-picker callers.
+  const { carriers: carriersForOrderMarket } = useCarriers(order?.market_id ?? null);
+  const dexpressEligible = Boolean(
+    order?.tracking_number &&
+      order?.carrier_id &&
+      carriersForOrderMarket.find((c) => c.id === order.carrier_id)?.code ===
+        "dexpress",
+  );
 
   const [returningToPool, setReturningToPool] = useState(false);
   const [fulfillmentStatus, setFulfillmentStatus] = useState("");
@@ -880,6 +894,13 @@ export function OrderDetailPanel({
                     ? handleDeleteCarrierBarcode
                     : undefined
                 }
+              />
+
+              {/* ── Dexpress carrier-side status (Libya only, after upload) ── */}
+              <DexpressStatusSection
+                orderId={order.id}
+                enabled={dexpressEligible}
+                role={role}
               />
 
               {/* ── Customer summary ── */}

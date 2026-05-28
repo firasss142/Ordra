@@ -37,8 +37,10 @@ const baseBuckets: AgentQueueBuckets = {
 const baseClosedCounts: Record<ClosedSubfilter, number> = {
   all: 7,
   uploaded: 2,
+  deposit: 0,
+  delivered: 0,
+  returned: 0,
   rejected: 3,
-  dispatched: 2,
 };
 
 function renderHeader(overrides: {
@@ -185,19 +187,23 @@ describe("QueueHeader — En cours sub-chips", () => {
 });
 
 describe("QueueHeader - Fermées sub-chips", () => {
-  it("renders Tous, Téléchargé, Rejeté, Expédié chips inside Fermées", () => {
+  it("renders the 5 lifecycle bucket chips inside Fermées (uploaded / deposit / delivered / returned / rejected)", () => {
     renderHeader({ selectedBucket: "fermees" });
     expect(screen.getByRole("button", { name: /^Tous/ })).toHaveTextContent("7");
     expect(screen.getByRole("button", { name: /^Téléchargé/ })).toHaveTextContent("2");
+    expect(screen.getByRole("button", { name: /^En cours/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Livré/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Retourné/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Rejeté/ })).toHaveTextContent("3");
-    expect(screen.getByRole("button", { name: /^Expédié/ })).toHaveTextContent("2");
   });
 
   it("does not render Fermées chips outside the Fermées bucket", () => {
     renderHeader({ selectedBucket: "confirme" });
     expect(screen.queryByRole("button", { name: /^Téléchargé/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Rejeté/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Expédié/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^En cours/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Livré/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Retourné/ })).not.toBeInTheDocument();
   });
 
   it("active Fermées sub-chip gets aria-pressed='true'", () => {
@@ -206,15 +212,19 @@ describe("QueueHeader - Fermées sub-chips", () => {
     expect(chip).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("calls onClosedSubfilterChange when closed status chips are clicked", () => {
+  it("calls onClosedSubfilterChange when closed lifecycle chips are clicked", () => {
     const onClosedSubfilterChange = vi.fn();
     renderHeader({ selectedBucket: "fermees", onClosedSubfilterChange });
     fireEvent.click(screen.getByRole("button", { name: /^Téléchargé/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^En cours/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Livré/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Retourné/ }));
     fireEvent.click(screen.getByRole("button", { name: /^Rejeté/ }));
-    fireEvent.click(screen.getByRole("button", { name: /^Expédié/ }));
     expect(onClosedSubfilterChange).toHaveBeenNthCalledWith(1, "uploaded");
-    expect(onClosedSubfilterChange).toHaveBeenNthCalledWith(2, "rejected");
-    expect(onClosedSubfilterChange).toHaveBeenNthCalledWith(3, "dispatched");
+    expect(onClosedSubfilterChange).toHaveBeenNthCalledWith(2, "deposit");
+    expect(onClosedSubfilterChange).toHaveBeenNthCalledWith(3, "delivered");
+    expect(onClosedSubfilterChange).toHaveBeenNthCalledWith(4, "returned");
+    expect(onClosedSubfilterChange).toHaveBeenNthCalledWith(5, "rejected");
   });
 });
 

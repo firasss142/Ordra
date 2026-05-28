@@ -26,6 +26,7 @@ import { AGENT_NEW_ORDER_EVENT } from "@/lib/agent-events";
 import { parseQuery, searchOrders } from "@/lib/queue/search";
 import { isBulkCallEligible } from "@/lib/order-permissions";
 import type { QueueOrder } from "@/types/queue";
+import { bucketFor, type Bucket } from "@/lib/carriers/dexpress/buckets";
 
 const OrderDetailPanel = dynamic(() =>
   import("./OrderDetailPanel").then((m) => m.OrderDetailPanel), { ssr: false }
@@ -92,6 +93,9 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     tracking_number: (raw.tracking_number as string | null) ?? null,
     carrier_barcode_deleted_at:
       (raw.carrier_barcode_deleted_at as string | null) ?? null,
+    dexpress_status_slug: (raw.dexpress_status_slug as string | null) ?? null,
+    dexpress_status_synced_at:
+      (raw.dexpress_status_synced_at as string | null) ?? null,
   };
 }
 
@@ -182,12 +186,20 @@ function matchesTentativeSubfilter(
   return attemptNumberForStatus(status) === sub;
 }
 
+function bucketForClosed(o: Record<string, unknown>): Bucket | null {
+  return bucketFor({
+    status: o.status as string,
+    carrierCode: (o.carrier_code as string | null) ?? null,
+    dexpressStatusSlug: (o.dexpress_status_slug as string | null) ?? null,
+  });
+}
+
 function matchesClosedSubfilter(
-  status: string,
+  o: Record<string, unknown>,
   sub: ClosedSubfilter,
 ): boolean {
   if (sub === "all") return true;
-  return status === sub;
+  return bucketForClosed(o) === sub;
 }
 
 export function QueuePage() {
@@ -267,6 +279,7 @@ export function QueuePage() {
     return "all";
   });
   const [closedSubfilter, setClosedSubfilter] = useState<ClosedSubfilter>("all");
+  const [refreshingDexpress, setRefreshingDexpress] = useState(false);
 
   // Global search across all buckets. The query lives in QueueSearchContext so
   // the navbar search bar (rendered in the Topbar) and this page share it. The
@@ -375,14 +388,14 @@ export function QueuePage() {
     const next: Record<ClosedSubfilter, number> = {
       all: rawClosedOrders.length,
       uploaded: 0,
+      deposit: 0,
+      delivered: 0,
+      returned: 0,
       rejected: 0,
-      dispatched: 0,
     };
     for (const order of rawClosedOrders) {
-      const status = order.status as string;
-      if (status === "uploaded" || status === "rejected" || status === "dispatched") {
-        next[status]++;
-      }
+      const b = bucketForClosed(order);
+      if (b) next[b]++;
     }
     return next;
   }, [rawClosedOrders]);
@@ -394,7 +407,7 @@ export function QueuePage() {
         closedSubfilter === "all"
           ? rawClosedOrders
           : rawClosedOrders.filter((o) =>
-              matchesClosedSubfilter(o.status as string, closedSubfilter),
+              matchesClosedSubfilter(o, closedSubfilter),
             );
       next = filtered.map(toQueueOrder);
     } else {
@@ -422,6 +435,33 @@ export function QueuePage() {
     stableOrdersRef.current = next;
     return next;
   }, [selectedBucket, enCoursSubfilter, tentativeSubfilter, closedSubfilter, rawAllOrders, rawClosedOrders]);
+
+  // Manual Dexpress refresh — pulls the latest carrier-side status for every
+  // visible Dexpress fermé order, in chunks of 25 (matches the server limit),
+  // then revalidates SWR so the new slugs flow back into the bucket pills.
+  // Manual-only: there is NO auto-sync on launch or on tab open.
+  const handleRefreshDexpress = useCallback(async () => {
+    if (refreshingDexpress) return;
+    const ids = rawClosedOrders
+      .filter((o) => (o.carrier_code as string | null) === "dexpress")
+      .map((o) => o.id as string);
+    if (ids.length === 0) return;
+    setRefreshingDexpress(true);
+    try {
+      const CHUNK = 25;
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const slice = ids.slice(i, i + CHUNK);
+        await fetch("/api/dexpress/sync-batch", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ orderIds: slice }),
+        });
+      }
+      await mutate();
+    } finally {
+      setRefreshingDexpress(false);
+    }
+  }, [refreshingDexpress, rawClosedOrders, mutate]);
 
   const parsedSearch = useMemo(() => parseQuery(debouncedSearch), [debouncedSearch]);
 
@@ -664,6 +704,8 @@ export function QueuePage() {
         closedSubfilter={closedSubfilter}
         onClosedSubfilterChange={setClosedSubfilter}
         closedCounts={closedCounts}
+        onRefreshDexpress={handleRefreshDexpress}
+        refreshingDexpress={refreshingDexpress}
         onNewOrder={() => setCreateOpen(true)}
         maxAttempts={maxAttempts}
       />

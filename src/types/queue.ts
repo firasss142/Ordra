@@ -45,4 +45,8 @@ export interface QueueOrder {
   tracking_number: string | null;
   /** When set (with no tracking_number), an uploaded order's carrier reference was deleted. */
   carrier_barcode_deleted_at: string | null;
+  /** Cached Dexpress portal status slug. Drives the fermé bucket pill for Dexpress orders. */
+  dexpress_status_slug: string | null;
+  /** Last successful Dexpress sync timestamp; NULL means never synced. */
+  dexpress_status_synced_at: string | null;
 }

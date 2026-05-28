@@ -902,7 +902,14 @@
       "received": "تم استلامه",
       "rejected": "مرفوض",
       "cancelled": "ألغته شركة التوصيل",
-      "deleted": "محذوف"
+      "deleted": "محذوف",
+      "bucket": {
+        "uploaded": "تم الرفع",
+        "deposit": "قيد التوصيل",
+        "delivered": "تم التسليم",
+        "returned": "راجع",
+        "rejected": "مرفوض"
+      }
     },
     "rejectionReasons": {
       "refus_client": "رفض العميل",
@@ -1318,9 +1325,16 @@
       "closedSubfilter": {
         "all": "الكل",
         "uploaded": "تم الرفع",
+        "deposit": "قيد التوصيل",
+        "delivered": "تم التسليم",
+        "returned": "راجع",
         "rejected": "مرفوض",
         "dispatched": "تم التوصيل"
       }
+    },
+    "fermeesRefresh": {
+      "button": "تحديث Dexpress",
+      "syncing": "جارٍ التحديث…"
     },
     "etiquette": {
       "attempt": "محاولة {n}",
@@ -3042,5 +3056,13 @@
       "destinationLabel": "الوجهة",
       "destinationFromOrder": "الوجهة محددة منذ إنشاء الطلب"
     }
+  },
+  "dexpressStatus": {
+    "sectionTitle": "حالة الشحن",
+    "loading": "جارٍ تحميل حالة دكسبرس…",
+    "loadError": "تعذر تحميل حالة دكسبرس",
+    "retry": "إعادة المحاولة",
+    "unrecognized": "حالة غير معروفة",
+    "notFound": "رقم التتبع غير معروف لدى الشركة"
   }
 }

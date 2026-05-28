@@ -454,3 +454,175 @@ describe("DexpressClient.submitMerchantForm", () => {
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });
+
+describe("DexpressClient.getJsonEndpoint", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    sessionStoreMock.loadSession.mockReset();
+    sessionStoreMock.saveSession.mockReset();
+    sessionStoreMock.invalidateSession.mockReset();
+    sessionStoreMock.refreshExpiry.mockReset();
+  });
+
+  test("sends AJAX headers (X-Requested-With + Accept) and returns body verbatim", async () => {
+    sessionStoreMock.loadSession.mockResolvedValue({
+      laravelSession: "auth-cookie",
+      xsrfToken: null,
+      csrfToken: null,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    });
+    sessionStoreMock.refreshExpiry.mockResolvedValue(undefined);
+
+    // Real captured probe body for tracking #1343188 — keeps tests anchored to reality.
+    const probeBody =
+      '{"response_case":201,"order_status":"3","order_accept":"1","status_name":"فى الشركة"}';
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      mockResponse({
+        status: 200,
+        body: probeBody,
+        headers: { "content-type": "text/html; charset=UTF-8" }, // Dexpress quirk
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new DexpressClient(CARRIER_ID, CONFIG);
+    const result = await client.getJsonEndpoint(
+      "/merchant/ajax-order-case/1343188"
+    );
+
+    expect(result.status).toBe(200);
+    expect(result.bodyText).toBe(probeBody);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/merchant/ajax-order-case/1343188");
+    expect(init.headers["X-Requested-With"]).toBe("XMLHttpRequest");
+    expect(init.headers["Accept"]).toBe("application/json, text/plain, */*");
+    expect(init.headers["Cookie"]).toContain("laravel_session=auth-cookie");
+    expect(init.redirect).toBe("manual");
+  });
+
+  test("re-authenticates and retries when GET responds with 302 to /login", async () => {
+    sessionStoreMock.loadSession.mockResolvedValue({
+      laravelSession: "stale",
+      xsrfToken: null,
+      csrfToken: null,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    });
+    sessionStoreMock.invalidateSession.mockResolvedValue(undefined);
+    sessionStoreMock.saveSession.mockResolvedValue(undefined);
+
+    const fetchMock = vi
+      .fn()
+      // First AJAX GET → 302 /login
+      .mockResolvedValueOnce(
+        mockResponse({ status: 302, headers: { location: "/login" } })
+      )
+      // Re-login: GET /login
+      .mockResolvedValueOnce(
+        mockResponse({
+          status: 200,
+          body: `<input name="_token" value="t">`,
+          headers: { "set-cookie": "laravel_session=i; Path=/" },
+        })
+      )
+      // Re-login: POST /login
+      .mockResolvedValueOnce(
+        mockResponse({
+          status: 302,
+          headers: {
+            location: "/merchant",
+            "set-cookie": "laravel_session=fresh; Path=/",
+          },
+        })
+      )
+      // Retry AJAX GET → 200 with body
+      .mockResolvedValueOnce(
+        mockResponse({
+          status: 200,
+          body: '{"response_case":201,"order_status":"3","order_accept":"1","status_name":"فى الشركة"}',
+        })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new DexpressClient(CARRIER_ID, CONFIG);
+    const result = await client.getJsonEndpoint(
+      "/merchant/ajax-order-case/1343188"
+    );
+
+    expect(result.status).toBe(200);
+    expect(result.bodyText).toContain("response_case");
+    expect(sessionStoreMock.invalidateSession).toHaveBeenCalledWith(CARRIER_ID);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  test("throws when re-login also fails (two consecutive logout redirects)", async () => {
+    sessionStoreMock.loadSession.mockResolvedValue({
+      laravelSession: "stale",
+      xsrfToken: null,
+      csrfToken: null,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    });
+    sessionStoreMock.invalidateSession.mockResolvedValue(undefined);
+    sessionStoreMock.saveSession.mockResolvedValue(undefined);
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        mockResponse({ status: 302, headers: { location: "/login" } })
+      )
+      .mockResolvedValueOnce(
+        mockResponse({
+          status: 200,
+          body: `<input name="_token" value="t">`,
+          headers: { "set-cookie": "laravel_session=c; Path=/" },
+        })
+      )
+      .mockResolvedValueOnce(
+        mockResponse({
+          status: 302,
+          headers: {
+            location: "/merchant",
+            "set-cookie": "laravel_session=fresh; Path=/",
+          },
+        })
+      )
+      // Retry still 302 → /login
+      .mockResolvedValueOnce(
+        mockResponse({ status: 302, headers: { location: "/login" } })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new DexpressClient(CARRIER_ID, CONFIG);
+    await expect(
+      client.getJsonEndpoint("/merchant/ajax-order-case/1343188")
+    ).rejects.toThrow(/session/i);
+  });
+
+  test("returns body verbatim — does NOT parse JSON inside the client", async () => {
+    sessionStoreMock.loadSession.mockResolvedValue({
+      laravelSession: "c",
+      xsrfToken: null,
+      csrfToken: null,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    });
+    sessionStoreMock.refreshExpiry.mockResolvedValue(undefined);
+
+    // Empirically-confirmed not-found body from probe against 99999999.
+    // Body parsing belongs in tracking.ts (parseAjaxOrderCase), not the client.
+    const notFoundBody = '{"response_case":404}';
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      mockResponse({ status: 200, body: notFoundBody })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new DexpressClient(CARRIER_ID, CONFIG);
+    const result = await client.getJsonEndpoint(
+      "/merchant/ajax-order-case/99999999"
+    );
+
+    // Verbatim — no preprocessing, no JSON.parse, no shape validation.
+    expect(result.bodyText).toBe(notFoundBody);
+    expect(result.status).toBe(200);
+  });
+});
