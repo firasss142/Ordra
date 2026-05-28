@@ -14,6 +14,7 @@ import { Combobox, type ComboboxOption } from "@/components/ui/Combobox";
 import { StepperField } from "@/components/ui/StepperField";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { useOrderMutation } from "@/hooks/useOrderMutation";
+import { useOrderDetailRealtime } from "@/hooks/useOrderDetailRealtime";
 import { formatDisplayCurrencyCode, LY_MARKET_ID } from "@/lib/markets";
 import { formatOrderHistoryNote } from "@/lib/order-history-display";
 import { isValidLibyanPhone } from "@/lib/carriers/phone";
@@ -176,6 +177,17 @@ interface OrderDetailPanelProps {
    * instantly; SWR revalidates in the background and fills in history/stock.
    */
   fallbackOrder?: Record<string, unknown> | null;
+  /**
+   * Called when a Supabase Realtime event indicates the open order has been
+   * reassigned away from this agent. The panel closes and the host should
+   * surface a toast.
+   */
+  onReassignedAway?: () => void;
+  /**
+   * Called when a Realtime event indicates the open order has been
+   * cancelled or hard-deleted by a manager.
+   */
+  onTerminatedByManager?: (kind: "cancelled" | "deleted") => void;
 }
 
 /**
@@ -264,6 +276,8 @@ export function OrderDetailPanel({
   userId,
   onReopened,
   fallbackOrder,
+  onReassignedAway,
+  onTerminatedByManager,
 }: OrderDetailPanelProps) {
   const t = useTranslations("orders.detail");
   const th = useTranslations("orders.history");
@@ -295,6 +309,26 @@ export function OrderDetailPanel({
     { keepPreviousData: false, fallbackData: fallbackEnvelope },
   );
   const order = swrData?.data ?? null;
+
+  // Live-sync via Supabase Realtime. Only relevant for the agent role —
+  // managers and super_admins skip the reassign-away check because they
+  // don't own assignments. We still subscribe so field edits propagate.
+  useOrderDetailRealtime({
+    orderId,
+    swrKey,
+    agentId: role === "agent" ? userId ?? null : null,
+    onReassignedAway: useCallback(() => {
+      onReassignedAway?.();
+      onClose();
+    }, [onReassignedAway, onClose]),
+    onTerminated: useCallback(
+      ({ kind }: { kind: "cancelled" | "deleted" }) => {
+        onTerminatedByManager?.(kind);
+        onClose();
+      },
+      [onTerminatedByManager, onClose],
+    ),
+  });
 
   const [returningToPool, setReturningToPool] = useState(false);
   const [fulfillmentStatus, setFulfillmentStatus] = useState("");

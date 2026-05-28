@@ -17,6 +17,8 @@ import {
 import { QueueList } from "./QueueList";
 import { pushRecentSearch } from "./QueueSearchBar";
 import { useAgentQueue } from "@/hooks/useAgentQueue";
+import { useToast } from "@/components/ui/Toast";
+import { sortAgentQueue } from "@/lib/orders/queue-sort";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useQueueSearch } from "@/context/queue-search";
 import { isEditableTarget } from "@/lib/dom";
@@ -110,6 +112,12 @@ const LEGACY_BUCKET_MAP: Record<string, BucketKey> = {
   rappel_prevu: "en_cours",
 };
 
+const REASSIGNMENT_TOAST_KEY = {
+  reassigned: "reassignedAway",
+  cancelled: "cancelledByManager",
+  deleted: "deletedByManager",
+} as const;
+
 function resolveBucketParam(raw: string | null): BucketKey {
   if (!raw) return "nouveau";
   if ((VALID_BUCKETS as string[]).includes(raw)) return raw as BucketKey;
@@ -188,7 +196,38 @@ export function QueuePage() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
-  const { orders: rawOrders, allOrders: rawAllOrders, closedOrders: rawClosedOrders, buckets, error, mutate } = useAgentQueue();
+  const {
+    orders: rawOrders,
+    allOrders: rawAllOrdersUnsorted,
+    closedOrders: rawClosedOrders,
+    buckets,
+    error,
+    mutate,
+    reassignmentEvent,
+    acknowledgeReassignmentEvent,
+    tick,
+  } = useAgentQueue({
+    agentId: user?.id ?? null,
+    marketId: user?.market_id ?? null,
+  });
+
+  // Re-sort the active queue every 60s (or immediately when the tab becomes
+  // visible) so a callback whose time just passed jumps to the top without
+  // waiting for a server poll.
+  const rawAllOrders = useMemo(() => {
+    const sorted = sortAgentQueue(
+      rawAllOrdersUnsorted as Array<
+        Record<string, unknown> & {
+          status: string;
+          callback_scheduled_at: string | null;
+          created_at: string;
+        }
+      >,
+    );
+    return sorted as Record<string, unknown>[];
+    // tick intentionally included so this re-runs each 60s
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawAllOrdersUnsorted, tick]);
 
   // Warm the dropdown caches before the user opens a panel — the detail panel
   // reads these SWR keys; by the time it mounts, they're already resolved.
@@ -271,6 +310,24 @@ export function QueuePage() {
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [callTerminatedOrderId, setCallTerminatedOrderId] = useState<string | null>(null);
+
+  const toast = useToast();
+  const tToast = useTranslations("queue.realtime.toast");
+  useEffect(() => {
+    if (!reassignmentEvent) return;
+    const { orderId, kind } = reassignmentEvent;
+    if (selectedOrderId === orderId) setSelectedOrderId(null);
+    if (callTerminatedOrderId === orderId) setCallTerminatedOrderId(null);
+    toast.show({ tone: "warning", message: tToast(REASSIGNMENT_TOAST_KEY[kind]) });
+    acknowledgeReassignmentEvent();
+  }, [
+    reassignmentEvent,
+    selectedOrderId,
+    callTerminatedOrderId,
+    toast,
+    tToast,
+    acknowledgeReassignmentEvent,
+  ]);
 
   // Deep-link: ?openOrderId=<uuid> opens the detail panel for that order
   // and strips the param so refresh doesn't re-open it. Used by the
@@ -667,10 +724,20 @@ export function QueuePage() {
           setInitialFlow(undefined);
           setCallTerminatedOrderId(id);
         }}
+        role="agent"
         userId={user?.id ?? undefined}
         onReopened={() => {
           mutate();
           setSelectedOrderId(null);
+        }}
+        onReassignedAway={() => {
+          toast.show({ tone: "warning", message: tToast("reassignedAway") });
+        }}
+        onTerminatedByManager={(kind) => {
+          toast.show({
+            tone: "warning",
+            message: tToast(kind === "cancelled" ? "cancelledByManager" : "deletedByManager"),
+          });
         }}
       />
 

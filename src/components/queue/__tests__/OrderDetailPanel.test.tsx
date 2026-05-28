@@ -10,10 +10,17 @@ vi.mock("next/dynamic", () => ({
   },
 }));
 
-vi.mock("swr", () => ({ default: vi.fn() }));
+vi.mock("swr", () => ({
+  default: vi.fn(),
+  useSWRConfig: () => ({ mutate: vi.fn(), cache: new Map() }),
+}));
 
 vi.mock("@/hooks/useOrderMutation", () => ({
   useOrderMutation: () => ({ commit: vi.fn() }),
+}));
+
+vi.mock("@/hooks/useOrderDetailRealtime", () => ({
+  useOrderDetailRealtime: () => {},
 }));
 
 vi.mock("next-intl", async () => {

@@ -967,7 +967,7 @@
       "fieldTotalPrice": "Prix total",
       "inlineSaved": "Enregistré",
       "inlineSaveError": "Erreur d'enregistrement",
-      "pickProduct": "Choisir un produit…",
+      "pickProduct": "Choisir un produit",
       "pickCity": "Choisir une ville…",
       "cityChange": "Changer",
       "citySearch": "Rechercher une ville…",
@@ -1006,7 +1006,6 @@
       "inStock": "En stock",
       "lowStock": "Stock faible",
       "stockLeft": "{count} restant",
-      "pickProduct": "Choisir un produit",
       "searchProducts": "Rechercher un produit…",
       "noResults": "Aucun produit",
       "alreadyAdded": "Déjà ajouté",
@@ -1348,6 +1347,13 @@
       "signOut": "Déconnexion",
       "filterLabel": "Filtrer",
       "newOrder": "Nouvelle commande"
+    },
+    "realtime": {
+      "toast": {
+        "reassignedAway": "Cette commande a été réattribuée",
+        "cancelledByManager": "Cette commande a été annulée",
+        "deletedByManager": "Cette commande a été supprimée"
+      }
     }
   },
   "products": {
