@@ -8,6 +8,7 @@ import { AgentTabsContainer } from "./AgentTabsContainer";
 import { NotificationBell } from "./NotificationBell";
 import { QueueSearchBar } from "@/components/queue/QueueSearchBar";
 import { QueueSearchProvider } from "@/context/queue-search";
+import { ToastProvider } from "@/components/ui/Toast";
 import type { AuthUser } from "@/types";
 
 export function AgentDashboardShell({
@@ -28,6 +29,7 @@ export function AgentDashboardShell({
   );
 
   return (
+    <ToastProvider>
     <QueueSearchProvider>
       <div
         className="agent-theme"
@@ -53,5 +55,6 @@ export function AgentDashboardShell({
         <AgentTabsContainer user={user}>{children}</AgentTabsContainer>
       </div>
     </QueueSearchProvider>
+    </ToastProvider>
   );
 }

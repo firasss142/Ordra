@@ -967,7 +967,7 @@
       "fieldTotalPrice": "السعر الإجمالي",
       "inlineSaved": "تم الحفظ",
       "inlineSaveError": "خطأ في الحفظ",
-      "pickProduct": "اختر منتجاً…",
+      "pickProduct": "اختر منتجاً",
       "pickCity": "اختر مدينة…",
       "cityChange": "تغيير",
       "citySearch": "ابحث عن مدينة…",
@@ -1006,7 +1006,6 @@
       "inStock": "متوفر",
       "lowStock": "مخزون منخفض",
       "stockLeft": "متبقي {count}",
-      "pickProduct": "اختر منتجاً",
       "searchProducts": "ابحث عن منتج…",
       "noResults": "لا توجد منتجات",
       "alreadyAdded": "تمت إضافته",
@@ -1348,6 +1347,13 @@
       "signOut": "تسجيل الخروج",
       "filterLabel": "تصفية",
       "newOrder": "طلب جديد"
+    },
+    "realtime": {
+      "toast": {
+        "reassignedAway": "تمت إعادة تعيين هذا الطلب",
+        "cancelledByManager": "تم إلغاء هذا الطلب",
+        "deletedByManager": "تم حذف هذا الطلب"
+      }
     }
   },
   "products": {

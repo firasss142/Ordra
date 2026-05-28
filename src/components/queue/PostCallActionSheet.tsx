@@ -14,6 +14,7 @@ import {
 import { CallbackPicker } from "./CallbackPicker";
 import { RejectionReasonSelect } from "./RejectionReasonSelect";
 import { DexpressLocationPicker, type DexpressSelection } from "./DexpressLocationPicker";
+import { useOptimisticOrderAction } from "@/hooks/useOptimisticOrderAction";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -275,6 +276,11 @@ export function PostCallActionSheet({
   const currentAttemptNumber = attemptsCount;
   const atMax = attemptsCount >= maxAttempts;
 
+  // Optimistic action runner: patches the agent queue cache before the request
+  // resolves so the card jumps to its new bucket instantly, and rolls back if
+  // the server rejects.
+  const { run: runOptimistic } = useOptimisticOrderAction(orderId);
+
   // Carriers + order detail are needed once the agent reaches the post-confirm
   // upload step. Fetch them only when actually entering that flow.
   const isPostConfirm =
@@ -374,27 +380,34 @@ export function PostCallActionSheet({
     setLoading(true);
     setPendingAction("confirm");
     setError(null);
-    try {
-      const res = await fetch(`/api/orders/${orderId}/confirm`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const json = await res.json();
-
-      if (!res.ok || json.success === false) {
-        setError(json.error ?? httpErrorMessage(res.status));
-        return;
-      }
-
-      setConfirmSuccess(true);
-      setFlow("upload_after_confirm");
-    } catch {
-      setError(t("networkError"));
-    } finally {
-      setLoading(false);
-      setPendingAction(null);
+    let serverError: string | null = null;
+    const result = await runOptimistic({
+      optimisticPatch: () => ({ status: "confirmed" }),
+      request: async () => {
+        const res = await fetch(`/api/orders/${orderId}/confirm`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        if (!res.ok) {
+          try {
+            const j = (await res.json()) as { error?: unknown } | null;
+            if (j && typeof j.error === "string") serverError = j.error;
+          } catch {
+            // swallow body parse errors — fall back to httpErrorMessage
+          }
+        }
+        return res;
+      },
+    });
+    setLoading(false);
+    setPendingAction(null);
+    if (!result.ok) {
+      setError(serverError ?? httpErrorMessage(result.status || 500));
+      return;
     }
+    setConfirmSuccess(true);
+    setFlow("upload_after_confirm");
   }
 
   // ── UPLOAD now (post-confirm) ────────────────────────────────────
@@ -462,31 +475,42 @@ export function PostCallActionSheet({
     }
     setLoading(true);
     setError(null);
-    try {
-      const res = await fetch(`/api/orders/${orderId}/schedule-dispatch`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          scheduled_at: combined.toISOString(),
-          auto_dispatch: true,
-          carrier_id: selectedCarrier.id,
-        }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(
-          typeof json?.error === "string"
-            ? json.error
-            : httpErrorMessage(res.status),
-        );
-        return;
-      }
-      onSuccess({ action: "confirmed", newStatus: "dispatch_scheduled" });
-    } catch {
-      setError(t("networkError"));
-    } finally {
-      setLoading(false);
+    let serverError: string | null = null;
+    const scheduledIso = combined.toISOString();
+    const result = await runOptimistic({
+      optimisticPatch: () => ({
+        status: "dispatch_scheduled",
+        scheduled_dispatch_at: scheduledIso,
+        scheduled_dispatch_auto: true,
+        scheduled_dispatch_carrier_id: selectedCarrier.id,
+      }),
+      request: async () => {
+        const res = await fetch(`/api/orders/${orderId}/schedule-dispatch`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scheduled_at: scheduledIso,
+            auto_dispatch: true,
+            carrier_id: selectedCarrier.id,
+          }),
+        });
+        if (!res.ok) {
+          try {
+            const j = (await res.json()) as { error?: unknown } | null;
+            if (j && typeof j.error === "string") serverError = j.error;
+          } catch {
+            // swallow body parse errors — fall back to httpErrorMessage
+          }
+        }
+        return res;
+      },
+    });
+    setLoading(false);
+    if (!result.ok) {
+      setError(serverError ?? httpErrorMessage(result.status || 500));
+      return;
     }
+    onSuccess({ action: "confirmed", newStatus: "dispatch_scheduled" });
   }
 
   // "Plus tard" — close, leave order at status=confirmed.
@@ -499,25 +523,28 @@ export function PostCallActionSheet({
     if (!rejectionReason) return;
     setLoading(true);
     setError(null);
-    try {
-      const res = await fetch(`/api/orders/${orderId}/reject`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rejection_reason: rejectionReason,
-          rejection_note: rejectionNote,
+    const result = await runOptimistic({
+      optimisticPatch: () => ({
+        status: "rejected",
+        rejection_reason: rejectionReason,
+        rejection_note: rejectionNote ?? null,
+      }),
+      request: () =>
+        fetch(`/api/orders/${orderId}/reject`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rejection_reason: rejectionReason,
+            rejection_note: rejectionNote,
+          }),
         }),
-      });
-      if (!res.ok) {
-        setError(httpErrorMessage(res.status));
-        return;
-      }
-      onSuccess({ action: "rejected", newStatus: "rejected" });
-    } catch {
-      setError(t("networkError"));
-    } finally {
-      setLoading(false);
+    });
+    setLoading(false);
+    if (!result.ok) {
+      setError(httpErrorMessage(result.status || 500));
+      return;
     }
+    onSuccess({ action: "rejected", newStatus: "rejected" });
   }
 
   // ── CALLBACK submit ──────────────────────────────────────────────
@@ -525,22 +552,25 @@ export function PostCallActionSheet({
     if (!callbackTime) return;
     setLoading(true);
     setError(null);
-    try {
-      const res = await fetch(`/api/orders/${orderId}/callback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ callback_time: callbackTime.toISOString() }),
-      });
-      if (!res.ok) {
-        setError(httpErrorMessage(res.status));
-        return;
-      }
-      onSuccess({ action: "callback", newStatus: "callback_scheduled" });
-    } catch {
-      setError(t("networkError"));
-    } finally {
-      setLoading(false);
+    const isoTime = callbackTime.toISOString();
+    const result = await runOptimistic({
+      optimisticPatch: () => ({
+        status: "callback_scheduled",
+        callback_scheduled_at: isoTime,
+      }),
+      request: () =>
+        fetch(`/api/orders/${orderId}/callback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ callback_time: isoTime }),
+        }),
+    });
+    setLoading(false);
+    if (!result.ok) {
+      setError(httpErrorMessage(result.status || 500));
+      return;
     }
+    onSuccess({ action: "callback", newStatus: "callback_scheduled" });
   }
 
   return (
