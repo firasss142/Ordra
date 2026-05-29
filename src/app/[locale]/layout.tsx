@@ -9,6 +9,8 @@ import { AuthProvider } from "@/context/auth";
 import { MarketScopeProvider } from "@/context/market-scope";
 import { PresenceTracker } from "@/components/layout/PresenceTracker";
 import { SWRProvider } from "@/components/providers/SWRProvider";
+import { RealtimeProvider } from "@/components/providers/RealtimeProvider";
+import { ToastProvider } from "@/components/ui/Toast";
 import { getServerUser } from "@/lib/auth/server-user";
 import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { routing } from "@/i18n/routing";
@@ -78,11 +80,15 @@ export default async function LocaleLayout({
           <SWRProvider>
             <AuthProvider initialUser={initialUser}>
               <MarketScopeProvider initialScope={initialScope}>
-                <a href="#main-content" className="skip-link">
-                  {skipLinkLabel}
-                </a>
-                <PresenceTracker />
-                {children}
+                <ToastProvider>
+                  <RealtimeProvider>
+                    <a href="#main-content" className="skip-link">
+                      {skipLinkLabel}
+                    </a>
+                    <PresenceTracker />
+                    {children}
+                  </RealtimeProvider>
+                </ToastProvider>
               </MarketScopeProvider>
             </AuthProvider>
           </SWRProvider>

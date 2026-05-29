@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRealtimeSubscribe } from "@/components/providers/RealtimeProvider";
 
 const DEBOUNCE_MS_ACTIVE = 3_000;
 const DEBOUNCE_MS_HIDDEN = 10_000;
@@ -26,17 +26,12 @@ export function useConfirmationFlowRealtime({
   const mutateCallbacksRef = useRef(mutateCallbacks);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastComputeRef = useRef<number>(0);
-  // Tracks whether pending events touched callback_scheduled status
   const needsCallbacksMutateRef = useRef(false);
 
-  useEffect(() => {
-    mutateOverviewRef.current = mutateOverview;
-  }, [mutateOverview]);
-  useEffect(() => {
-    mutateCallbacksRef.current = mutateCallbacks;
-  }, [mutateCallbacks]);
+  mutateOverviewRef.current = mutateOverview;
+  mutateCallbacksRef.current = mutateCallbacks;
 
-  const fireRevalidation = () => {
+  const fireRevalidation = useCallback(() => {
     const now = Date.now();
     if (now - lastComputeRef.current < MIN_BETWEEN_RECOMPUTES_MS) return;
     lastComputeRef.current = now;
@@ -46,74 +41,65 @@ export function useConfirmationFlowRealtime({
       needsCallbacksMutateRef.current = false;
     }
     setUpdateCount(0);
-  };
+  }, []);
 
-  const scheduleRevalidation = (touchedCallbacks: boolean) => {
-    if (touchedCallbacks) needsCallbacksMutateRef.current = true;
-    setUpdateCount((c) => c + 1);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    const delay =
-      document.visibilityState === "hidden" ? DEBOUNCE_MS_HIDDEN : DEBOUNCE_MS_ACTIVE;
-    debounceRef.current = setTimeout(fireRevalidation, delay);
-  };
+  const scheduleRevalidation = useCallback(
+    (touchedCallbacks: boolean) => {
+      if (touchedCallbacks) needsCallbacksMutateRef.current = true;
+      setUpdateCount((c) => c + 1);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      const delay =
+        typeof document !== "undefined" && document.visibilityState === "hidden"
+          ? DEBOUNCE_MS_HIDDEN
+          : DEBOUNCE_MS_ACTIVE;
+      debounceRef.current = setTimeout(fireRevalidation, delay);
+    },
+    [fireRevalidation],
+  );
+
+  const ordersHandler = useCallback(
+    (payload: {
+      eventType: "INSERT" | "UPDATE" | "DELETE";
+      new?: Record<string, unknown>;
+      old?: Record<string, unknown>;
+    }) => {
+      const touchedCallbacks =
+        CALLBACK_STATUSES.has((payload.new?.status as string) ?? "") ||
+        CALLBACK_STATUSES.has((payload.old?.status as string) ?? "");
+      scheduleRevalidation(touchedCallbacks);
+    },
+    [scheduleRevalidation],
+  );
+
+  const historyHandler = useCallback(
+    (payload: { eventType: "INSERT" | "UPDATE" | "DELETE"; new?: Record<string, unknown> }) => {
+      const touchedCallbacks = CALLBACK_STATUSES.has(
+        (payload.new?.status_to as string) ?? "",
+      );
+      scheduleRevalidation(touchedCallbacks);
+    },
+    [scheduleRevalidation],
+  );
+
+  useRealtimeSubscribe(
+    marketId ? { table: "orders", marketId } : null,
+    ordersHandler,
+  );
+  useRealtimeSubscribe(
+    marketId ? { table: "order_history", marketId } : null,
+    historyHandler,
+  );
 
   useEffect(() => {
-    if (!marketId) return;
-
-    const supabase = createClient();
-
-    const ordersChannel = supabase
-      .channel(`cf-orders:market:${marketId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "orders",
-          filter: `market_id=eq.${marketId}`,
-        },
-        (payload) => {
-          const newRow = payload.new as Record<string, unknown> | null;
-          const oldRow = payload.old as Record<string, unknown> | null;
-          const touchedCallbacks =
-            CALLBACK_STATUSES.has((newRow?.status as string) ?? "") ||
-            CALLBACK_STATUSES.has((oldRow?.status as string) ?? "");
-          scheduleRevalidation(touchedCallbacks);
-        }
-      )
-      .subscribe();
-
-    const historyChannel = supabase
-      .channel(`cf-history:market:${marketId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "order_history",
-          filter: `market_id=eq.${marketId}`,
-        },
-        (payload) => {
-          const newRow = payload.new as Record<string, unknown> | null;
-          const touchedCallbacks = CALLBACK_STATUSES.has(
-            (newRow?.status_to as string) ?? ""
-          );
-          scheduleRevalidation(touchedCallbacks);
-        }
-      )
-      .subscribe();
-
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      supabase.removeChannel(ordersChannel);
-      supabase.removeChannel(historyChannel);
     };
-  }, [marketId]);
+  }, []);
 
-  const flush = () => {
+  const flush = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     fireRevalidation();
-  };
+  }, [fireRevalidation]);
 
   return { updateCount, flush };
 }

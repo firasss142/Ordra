@@ -3161,5 +3161,14 @@
     "entries": "{count, plural, one {# entrée} other {# entrées}}",
     "rowsPerPage": "Lignes par page",
     "perPage": "{n} par page"
+  },
+  "realtime": {
+    "toast": {
+      "cancelled": "Commande #{id} annulée",
+      "rejected": "Commande #{id} rejetée",
+      "delivered": "Commande #{id} livrée",
+      "returned": "Commande #{id} retournée",
+      "deleted": "Commande #{id} supprimée"
+    }
   }
 }

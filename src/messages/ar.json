@@ -3074,5 +3074,14 @@
     "entries": "{count, plural, zero {# سجل} one {# سجل} two {سجلان} few {# سجلات} many {# سجلًا} other {# سجل}}",
     "rowsPerPage": "صفوف لكل صفحة",
     "perPage": "{n} لكل صفحة"
+  },
+  "realtime": {
+    "toast": {
+      "cancelled": "تم إلغاء الطلب #{id}",
+      "rejected": "تم رفض الطلب #{id}",
+      "delivered": "تم تسليم الطلب #{id}",
+      "returned": "تم إرجاع الطلب #{id}",
+      "deleted": "تم حذف الطلب #{id}"
+    }
   }
 }

@@ -13,7 +13,8 @@ import {
 import type { Locale, Role } from "@/types";
 import { fetcher } from "@/lib/swr-config";
 import { useMarketScope } from "@/context/market-scope";
-import { useOrdersList } from "@/hooks/useOrdersList";
+import { useOrdersList, type OrdersListRow } from "@/hooks/useOrdersList";
+import { useOrdersRealtime } from "@/hooks/useOrdersRealtime";
 import {
   DEFAULT_FILTERS,
   DEFAULT_PAGE_SIZE,
@@ -158,7 +159,20 @@ export function ArchivePageClient({
     nextPage,
     prevPage,
     currentPage,
+    mutate: mutateList,
   } = useOrdersList({ filters });
+
+  // Realtime: terminal orders entering the archive show up live; rows that
+  // somehow exit terminal (manual reopen) disappear from the list immediately.
+  const archiveMatch = useCallback(
+    (row: OrdersListRow) => {
+      if (marketId && row.market_id !== marketId) return false;
+      const statuses = (outcomeFilter.length ? outcomeFilter : OUTCOME_KEYS) as readonly string[];
+      return statuses.includes(row.status);
+    },
+    [marketId, outcomeFilter],
+  );
+  useOrdersRealtime({ marketId: marketId || null, mutate: mutateList, matchFilter: archiveMatch });
 
   const [openOrderId, setOpenOrderId] = useState<string | null>(null);
 
