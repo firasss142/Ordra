@@ -14,7 +14,12 @@ import type { Locale, Role } from "@/types";
 import { fetcher } from "@/lib/swr-config";
 import { useMarketScope } from "@/context/market-scope";
 import { useOrdersList } from "@/hooks/useOrdersList";
-import { DEFAULT_FILTERS, type OrderListFilters } from "@/lib/orders/list-filters";
+import {
+  DEFAULT_FILTERS,
+  DEFAULT_PAGE_SIZE,
+  type OrderListFilters,
+  type PageSize,
+} from "@/lib/orders/list-filters";
 import { REJECTION_REASONS, TERMINAL_STATUSES, type OrderStatus, type RejectionReason } from "@/types/order-status";
 import { todayISO } from "@/lib/date";
 import { OrdersTable } from "@/components/orders/OrdersTable";
@@ -91,6 +96,7 @@ export function ArchivePageClient({
   const [searchInput, setSearchInput] = useState("");
   const [outcomeFilter, setOutcomeFilter] = useState<OutcomeKey[]>([]);
   const [reasonFilter, setReasonFilter] = useState<RejectionReason | "">("");
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
 
   // Debounce: searchInput updates on every keystroke; search (used in filters) updates 300ms later
   useEffect(() => {
@@ -111,8 +117,9 @@ export function ArchivePageClient({
       dateTo: toDate,
       rejectionReason: reasonFilter || null,
       includeDeleted: true,
+      pageSize,
     }),
-    [marketId, effectiveStatuses, search, fromDate, toDate, reasonFilter],
+    [marketId, effectiveStatuses, search, fromDate, toDate, reasonFilter, pageSize],
   );
 
   const { data: marketsData } = useSWR<{ data: Market[] }>(
@@ -552,8 +559,10 @@ export function ArchivePageClient({
           hasNext={hasNext}
           hasPrev={hasPrev}
           currentPage={currentPage}
+          pageSize={pageSize}
           onNextPage={nextPage}
           onPrevPage={prevPage}
+          onPageSizeChange={(n) => setPageSize(n as PageSize)}
           onOpen={(id) => setOpenOrderId(id)}
           onToggleSelect={() => {}}
           onToggleSelectAll={() => {}}

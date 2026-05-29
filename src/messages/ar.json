@@ -3064,5 +3064,15 @@
     "retry": "إعادة المحاولة",
     "unrecognized": "حالة غير معروفة",
     "notFound": "رقم التتبع غير معروف لدى الشركة"
+  },
+  "pagination": {
+    "previous": "السابق",
+    "next": "التالي",
+    "page": "صفحة {page}",
+    "pageOf": "صفحة {page} من {total}",
+    "pageRange": "{from}–{to}",
+    "entries": "{count, plural, zero {# سجل} one {# سجل} two {سجلان} few {# سجلات} many {# سجلًا} other {# سجل}}",
+    "rowsPerPage": "صفوف لكل صفحة",
+    "perPage": "{n} لكل صفحة"
   }
 }

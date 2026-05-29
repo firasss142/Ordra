@@ -12,13 +12,13 @@ import { fetcher } from "@/lib/swr-config";
 import { useOrdersList, type OrdersListPage, type OrdersListRow } from "@/hooks/useOrdersList";
 import { useOrdersRealtime } from "@/hooks/useOrdersRealtime";
 import {
-  DEFAULT_FILTERS,
   clearFilterField,
   filtersToSearchParams,
   hasActiveFilters,
   resetFilters as resetFiltersFn,
   type ClearableFilterKey,
   type OrderListFilters,
+  type PageSize,
 } from "@/lib/orders/list-filters";
 import { OrdersFilterBar } from "@/components/orders/OrdersFilterBar";
 import { OrdersFilterChips } from "@/components/orders/OrdersFilterChips";
@@ -27,7 +27,6 @@ import { OrdersTable } from "@/components/orders/OrdersTable";
 import { OrdersBulkBar } from "@/components/orders/OrdersBulkBar";
 import { NewOrdersBanner } from "@/components/orders/NewOrdersBanner";
 import { OrdersStatusStrip } from "@/components/orders/OrdersStatusStrip";
-import { PAGE_LIMIT } from "@/hooks/useOrdersList";
 import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
 
 const OrdersAdvancedDrawer = dynamic(
@@ -530,9 +529,10 @@ export function OrdersPageClient({
           hasNext={hasNext}
           hasPrev={hasPrev}
           currentPage={currentPage}
-          pageLimit={PAGE_LIMIT}
+          pageSize={filters.pageSize}
           onNextPage={nextPage}
           onPrevPage={prevPage}
+          onPageSizeChange={(n) => update({ pageSize: n as PageSize })}
           onOpen={(id) => {
             setOpenOrderId(id);
             flashRow(id);

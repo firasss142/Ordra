@@ -3151,5 +3151,15 @@
     "retry": "Réessayer",
     "unrecognized": "Statut non reconnu",
     "notFound": "Numéro de suivi inconnu chez le transporteur"
+  },
+  "pagination": {
+    "previous": "Précédent",
+    "next": "Suivant",
+    "page": "Page {page}",
+    "pageOf": "Page {page} sur {total}",
+    "pageRange": "{from}–{to}",
+    "entries": "{count, plural, one {# entrée} other {# entrées}}",
+    "rowsPerPage": "Lignes par page",
+    "perPage": "{n} par page"
   }
 }

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth/server-user";
 import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/orders/list-filters";
 import { OrdersPageClient } from "./OrdersPageClient";
 import type { Locale } from "@/types";
 
@@ -16,8 +17,10 @@ const LIST_COLS =
 
 export default async function OrdersPage({
   params,
+  searchParams,
 }: {
   params: { locale: string };
+  searchParams?: { limit?: string };
 }) {
   const user = await getServerUser();
   if (!user) redirect(`/${params.locale}/login`);
@@ -34,6 +37,14 @@ export default async function OrdersPage({
 
   const superAdminInitialMarketId =
     user.role === "super_admin" ? prefetchMarketId ?? "" : "";
+
+  // Honor `?limit=` from the URL for SSR prefetch so the first paint matches the
+  // user's chosen page size. Fall back to default if missing or not allowed.
+  const requestedLimit = Number(searchParams?.limit);
+  const prefetchLimit =
+    Number.isFinite(requestedLimit) && (PAGE_SIZE_OPTIONS as readonly number[]).includes(requestedLimit)
+      ? requestedLimit
+      : DEFAULT_PAGE_SIZE;
 
   // Parallelize: market label + orders first page + agents — all independent after profile
   const [marketResult, ordersResult, agentsResult] = await Promise.all([
@@ -53,7 +64,7 @@ export default async function OrdersPage({
           .neq("status", "deleted")
           .order("created_at", { ascending: false })
           .order("id", { ascending: false })
-          .limit(10)
+          .limit(prefetchLimit)
       : Promise.resolve({ data: null }),
 
     prefetchMarketId

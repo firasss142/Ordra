@@ -3,6 +3,8 @@
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import type { OrdersListRow } from "@/hooks/useOrdersList";
+import { Pagination } from "@/components/shared/Pagination";
+import { PAGE_SIZE_OPTIONS } from "@/lib/orders/list-filters";
 import { OrderRow } from "./OrderRow";
 
 interface Agent {
@@ -21,9 +23,10 @@ interface Props {
   hasNext: boolean;
   hasPrev: boolean;
   currentPage: number;
-  pageLimit?: number;
+  pageSize: number;
   onNextPage: () => void;
   onPrevPage: () => void;
+  onPageSizeChange: (size: number) => void;
   onOpen: (id: string) => void;
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: (ids: string[]) => void;
@@ -44,9 +47,10 @@ export function OrdersTable({
   hasNext,
   hasPrev,
   currentPage,
-  pageLimit = 10,
+  pageSize,
   onNextPage,
   onPrevPage,
+  onPageSizeChange,
   onOpen,
   onToggleSelect,
   onToggleSelectAll,
@@ -172,67 +176,18 @@ export function OrdersTable({
         </table>
       </div>
 
-      {/* Pagination controls */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "10px 16px",
-          borderTop: "1px solid #E1E3E5",
-          background: "#FAFAFA",
-          gap: 8,
-        }}
-      >
-        <button
-          type="button"
-          onClick={onPrevPage}
-          disabled={!hasPrev}
-          style={{
-            ...paginationBtnStyle,
-            opacity: hasPrev ? 1 : 0.35,
-            cursor: hasPrev ? "pointer" : "default",
-          }}
-        >
-          {t("previous")}
-        </button>
-
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 2,
-            flex: 1,
-          }}
-        >
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#1A1A1A", fontVariantNumeric: "tabular-nums" }}>
-            {t("page", { page: currentPage })}
-          </span>
-          <span style={{ fontSize: 11, color: "#9CA3AF", fontVariantNumeric: "tabular-nums" }}>
-            {rows.length > 0
-              ? t("pageRange", {
-                  from: (currentPage - 1) * pageLimit + 1,
-                  to: (currentPage - 1) * pageLimit + rows.length,
-                })
-              : "—"}
-            {hasNext ? ` · ${t("moreAvailable")}` : ""}
-          </span>
-        </div>
-
-        <button
-          type="button"
-          onClick={onNextPage}
-          disabled={!hasNext}
-          style={{
-            ...paginationBtnStyle,
-            opacity: hasNext ? 1 : 0.35,
-            cursor: hasNext ? "pointer" : "default",
-          }}
-        >
-          {t("next")}
-        </button>
-      </div>
+      <Pagination
+        currentPage={currentPage}
+        pageSize={pageSize}
+        pageSizeOptions={[...PAGE_SIZE_OPTIONS]}
+        hasNext={hasNext}
+        hasPrev={hasPrev}
+        rangeFrom={rows.length > 0 ? (currentPage - 1) * pageSize + 1 : undefined}
+        rangeTo={rows.length > 0 ? (currentPage - 1) * pageSize + rows.length : undefined}
+        onNext={onNextPage}
+        onPrev={onPrevPage}
+        onPageSizeChange={onPageSizeChange}
+      />
     </div>
   );
 }
@@ -275,14 +230,4 @@ const headerStyle: React.CSSProperties = {
   letterSpacing: "0.05em",
   borderBottom: "1px solid #E1E3E5",
   background: "#FFFFFF",
-};
-
-const paginationBtnStyle: React.CSSProperties = {
-  padding: "6px 14px",
-  fontSize: 13,
-  fontWeight: 500,
-  color: "#1A1A1A",
-  background: "#FFFFFF",
-  border: "1px solid #D1D5DB",
-  borderRadius: 6,
 };

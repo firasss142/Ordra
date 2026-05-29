@@ -5,6 +5,14 @@ export type OrdersPreset = "all" | "unassigned" | "callbacks" | "today" | "in_de
 
 export const ORDERS_PRESETS: OrdersPreset[] = ["all", "unassigned", "today", "callbacks", "in_delivery"];
 
+export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+export type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
+export const DEFAULT_PAGE_SIZE: PageSize = 25;
+
+function isPageSize(n: number): n is PageSize {
+  return (PAGE_SIZE_OPTIONS as readonly number[]).includes(n);
+}
+
 export const IN_DELIVERY_STATUSES = [
   "uploaded",
   "dispatched",
@@ -28,6 +36,7 @@ export interface OrderListFilters {
   rejectionReason: RejectionReason | null;
   carrierId: string | null;
   includeDeleted: boolean;
+  pageSize: PageSize;
 }
 
 export const DEFAULT_FILTERS: OrderListFilters = {
@@ -45,6 +54,7 @@ export const DEFAULT_FILTERS: OrderListFilters = {
   rejectionReason: null,
   carrierId: null,
   includeDeleted: false,
+  pageSize: DEFAULT_PAGE_SIZE,
 };
 
 const isPreset = (v: string): v is OrdersPreset => (ORDERS_PRESETS as string[]).includes(v);
@@ -82,6 +92,12 @@ export function parseFiltersFromSearchParams(params: URLSearchParams): OrderList
   const reasonRaw = params.get("rejection_reason");
   const rejectionReason = reasonRaw && isReason(reasonRaw) ? reasonRaw : null;
 
+  const limitRaw = params.get("limit");
+  const limitNum = limitRaw === null ? NaN : Number(limitRaw);
+  const pageSize: PageSize = Number.isFinite(limitNum) && isPageSize(limitNum)
+    ? limitNum
+    : DEFAULT_PAGE_SIZE;
+
   return {
     preset,
     marketId: null,
@@ -97,6 +113,7 @@ export function parseFiltersFromSearchParams(params: URLSearchParams): OrderList
     rejectionReason,
     carrierId: params.get("carrier_id") || null,
     includeDeleted: params.get("include_deleted") === "1" || params.get("include_deleted") === "true",
+    pageSize,
   };
 }
 
@@ -116,6 +133,7 @@ export function filtersToSearchParams(filters: OrderListFilters): URLSearchParam
   if (filters.rejectionReason) p.set("rejection_reason", filters.rejectionReason);
   if (filters.carrierId) p.set("carrier_id", filters.carrierId);
   if (filters.includeDeleted) p.set("include_deleted", "1");
+  if (filters.pageSize !== DEFAULT_PAGE_SIZE) p.set("limit", String(filters.pageSize));
   return p;
 }
 
@@ -166,9 +184,9 @@ export function clearFilterField(filters: OrderListFilters, key: ClearableFilter
   }
 }
 
-/** Reset all filters but preserve marketId (super_admin's current market pick). */
+/** Reset all filters but preserve marketId (super_admin's current market pick) and pageSize (view preference). */
 export function resetFilters(current: OrderListFilters): OrderListFilters {
-  return { ...DEFAULT_FILTERS, marketId: current.marketId };
+  return { ...DEFAULT_FILTERS, marketId: current.marketId, pageSize: current.pageSize };
 }
 
 // ---------- API-side Zod schema (used by /api/orders/list) ----------

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import type { Role } from "@/types";
@@ -23,6 +24,7 @@ import type { Period } from "@/components/dashboard/MetricsTable";
 import type { BulkProductMetrics } from "@/app/api/products/profitability-bulk/route";
 import { sortProducts, type ProductSortKey } from "@/lib/product-sort";
 import { formatCurrency } from "@/lib/format";
+import { Pagination } from "@/components/shared/Pagination";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -57,7 +59,19 @@ function todayPeriod(): Period {
   return { from_date: d, to_date: d };
 }
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+const DEFAULT_PRODUCTS_PAGE_SIZE = 25;
+
+function clampPage(n: number): number {
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.floor(n);
+}
+
+function pickPageSize(n: number): number {
+  return (PAGE_SIZE_OPTIONS as readonly number[]).includes(n)
+    ? n
+    : DEFAULT_PRODUCTS_PAGE_SIZE;
+}
 
 export function ProductsPageClient({ role, marketId, locale }: ProductsPageClientProps) {
   const t = useTranslations("products");
@@ -78,8 +92,31 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
   const [mode, setMode] = useState<ProductFilterMode>(defaultMode);
   const [status, setStatus] = useState<ProductFilterStatus>("all");
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
   const [period, setPeriod] = useState<Period>(todayPeriod);
+
+  // ---- URL-synced page + page size ----
+  const router = useRouter();
+  const pathname = usePathname();
+  const urlParams = useSearchParams();
+  const page = clampPage(Number(urlParams.get("page") ?? "1"));
+  const limit = pickPageSize(Number(urlParams.get("limit") ?? DEFAULT_PRODUCTS_PAGE_SIZE));
+
+  const setQuery = useCallback(
+    (patch: { page?: number; limit?: number }) => {
+      const next = new URLSearchParams(urlParams);
+      if (patch.page !== undefined) {
+        patch.page === 1 ? next.delete("page") : next.set("page", String(patch.page));
+      }
+      if (patch.limit !== undefined) {
+        patch.limit === DEFAULT_PRODUCTS_PAGE_SIZE
+          ? next.delete("limit")
+          : next.set("limit", String(patch.limit));
+      }
+      const qs = next.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, urlParams],
+  );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [stockModal, setStockModal] = useState<StockAdjustState | null>(null);
@@ -101,7 +138,7 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
       : currentMarket?.name ?? "";
 
   const productKey = selectedMarketId
-    ? `/api/products?market_id=${selectedMarketId}&page=${page}&limit=${PAGE_SIZE}`
+    ? `/api/products?market_id=${selectedMarketId}&page=${page}&limit=${limit}`
     : null;
 
   const { data: productsData, mutate: mutateProducts } = useSWR<{
@@ -289,7 +326,7 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
           status={status}
           onStatusChange={(s) => {
             setStatus(s);
-            setPage(1);
+            setQuery({ page: 1 });
           }}
           search={search}
           onSearchChange={setSearch}
@@ -387,27 +424,19 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
                 />
               ))}
 
-              {totalPages > 1 && (
-                <div className="flex items-center justify-end gap-3 border-t border-line-subtle bg-surface-card px-4 py-3 text-[13px] text-ink-secondary">
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page <= 1}
-                    className="rounded-md bg-ink-primary px-3 py-1 text-[13px] text-white transition-opacity duration-fast disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {t("pagination.previous")}
-                  </button>
-                  <span className="tabular-nums">
-                    {t("pagination.pageOf", { page, total: totalPages })}
-                  </span>
-                  <button
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page >= totalPages}
-                    className="rounded-md bg-ink-primary px-3 py-1 text-[13px] text-white transition-opacity duration-fast disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {t("pagination.next")}
-                  </button>
-                </div>
-              )}
+              <Pagination
+                currentPage={page}
+                pageSize={limit}
+                pageSizeOptions={[...PAGE_SIZE_OPTIONS]}
+                totalItems={productsData?.pagination?.total}
+                hasPrev={page > 1}
+                hasNext={page < totalPages}
+                rangeFrom={filteredProducts.length > 0 ? (page - 1) * limit + 1 : undefined}
+                rangeTo={filteredProducts.length > 0 ? (page - 1) * limit + filteredProducts.length : undefined}
+                onPrev={() => setQuery({ page: Math.max(1, page - 1) })}
+                onNext={() => setQuery({ page: Math.min(totalPages, page + 1) })}
+                onPageSizeChange={(n) => setQuery({ page: 1, limit: n })}
+              />
             </>
           )}
         </div>

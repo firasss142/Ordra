@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWRInfinite from "swr/infinite";
 import type { OrderListFilters } from "@/lib/orders/list-filters";
-import { filtersToSearchParams } from "@/lib/orders/list-filters";
+import { DEFAULT_PAGE_SIZE, filtersToSearchParams } from "@/lib/orders/list-filters";
 
 export interface OrdersListRow {
   id: string;
@@ -51,7 +51,9 @@ const fetcher = async (url: string): Promise<OrdersListPage> => {
   return res.json();
 };
 
-export const PAGE_LIMIT = 10;
+/** Default page size used when filters carry the default. Re-exported for callers
+ *  that need a fallback value (e.g. range computation). Prefer `filters.pageSize`. */
+export const PAGE_LIMIT = DEFAULT_PAGE_SIZE;
 
 export interface UseOrdersListOptions {
   filters: OrderListFilters;
@@ -63,7 +65,9 @@ export function useOrdersList({ filters, fallbackFirstPage }: UseOrdersListOptio
   const baseQuery = useMemo(() => {
     const params = filtersToSearchParams(filters);
     if (filters.marketId) params.set("market_id", filters.marketId);
-    params.set("limit", String(PAGE_LIMIT));
+    // filtersToSearchParams already serializes `limit` when non-default; force it
+    // to be present (and correct) for the API request regardless of default.
+    params.set("limit", String(filters.pageSize));
     return params;
   }, [filters]);
 

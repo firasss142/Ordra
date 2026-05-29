@@ -139,6 +139,40 @@ describe("resetFilters", () => {
   });
 });
 
+describe("pageSize", () => {
+  it("defaults to 25", () => {
+    const f = parseFiltersFromSearchParams(new URLSearchParams());
+    expect(f.pageSize).toBe(25);
+  });
+
+  it("parses an allowed limit from the URL", () => {
+    const f = parseFiltersFromSearchParams(new URLSearchParams({ limit: "100" }));
+    expect(f.pageSize).toBe(100);
+  });
+
+  it("falls back to default when limit is not in the allow-list", () => {
+    expect(parseFiltersFromSearchParams(new URLSearchParams({ limit: "37" })).pageSize).toBe(25);
+    expect(parseFiltersFromSearchParams(new URLSearchParams({ limit: "999" })).pageSize).toBe(25);
+    expect(parseFiltersFromSearchParams(new URLSearchParams({ limit: "abc" })).pageSize).toBe(25);
+  });
+
+  it("serializes a non-default pageSize and omits it when default", () => {
+    expect(filtersToSearchParams({ ...DEFAULT_FILTERS, pageSize: 50 as const }).get("limit")).toBe("50");
+    expect(filtersToSearchParams({ ...DEFAULT_FILTERS, pageSize: 25 as const }).has("limit")).toBe(false);
+  });
+
+  it("round-trips a non-default pageSize", () => {
+    const params = filtersToSearchParams({ ...DEFAULT_FILTERS, pageSize: 100 as const });
+    expect(parseFiltersFromSearchParams(params).pageSize).toBe(100);
+  });
+
+  it("is NOT treated as an active filter (resetFilters preserves it; hasActiveFilters ignores it)", () => {
+    const f = { ...DEFAULT_FILTERS, pageSize: 100 as const };
+    expect(hasActiveFilters(f)).toBe(false);
+    expect(resetFilters(f).pageSize).toBe(100);
+  });
+});
+
 describe("cursor", () => {
   it("round-trips a cursor", () => {
     const c = { createdAt: "2026-04-22T10:00:00.000Z", id: "abc-123" };
