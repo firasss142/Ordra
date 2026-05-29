@@ -64,6 +64,7 @@ const mockOrder: QueueOrder = {
   carrier_barcode_deleted_at: null,
   dexpress_status_slug: null,
   dexpress_status_synced_at: null,
+  dexpress_status_accepted: null,
 };
 
 describe("OrderCard", () => {
@@ -331,6 +332,29 @@ describe("OrderCard", () => {
     );
     const pill = screen.getAllByText("En cours").at(-1)!;
     expect(pill.className).toContain("text-[#0891B2]");
+  });
+
+  it("pending-acceptance Dexpress order shows 'Téléchargé' even with a Deposit-shaped slug", () => {
+    // Probe 2026-05-29 (tracking 1345233, 1345235): Dexpress reuses the
+    // AT_CUSTOMER slug for orders sitting in /merchant/pending-orders. The
+    // accepted=false flag overrides the bucket to 'uploaded' so the agent
+    // doesn't see "En cours" for orders Dexpress hasn't even acknowledged.
+    render(
+      <OrderCard
+        order={{
+          ...mockOrder,
+          status: "uploaded",
+          carrier_code: "dexpress",
+          dexpress_status_slug: "AT_CUSTOMER",
+          dexpress_status_accepted: false,
+          customer_note: null,
+        }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    const pill = screen.getAllByText("Téléchargé").at(-1)!;
+    expect(pill.className).toContain("text-[#7C3AED]");
   });
 
   it("renders rejected status with critical tone", () => {

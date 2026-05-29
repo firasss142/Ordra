@@ -186,11 +186,14 @@ export async function POST(req: NextRequest) {
       return;
     }
 
-    // kind === "ok"
+    // kind === "ok" — persist slug + isAccepted together. isAccepted is the
+    // bucket discriminator for orders sitting in /merchant/pending-orders
+    // where Dexpress reuses the AT_CUSTOMER id (probe 2026-05-29).
     await supabase
       .from("orders")
       .update({
         dexpress_status_slug: snapshot.slug,
+        dexpress_status_accepted: snapshot.isAccepted,
         dexpress_status_synced_at: syncedAt,
       })
       .eq("id", order.id);

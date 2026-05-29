@@ -94,6 +94,10 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     dexpress_status_slug: (raw.dexpress_status_slug as string | null) ?? null,
     dexpress_status_synced_at:
       (raw.dexpress_status_synced_at as string | null) ?? null,
+    dexpress_status_accepted:
+      typeof raw.dexpress_status_accepted === "boolean"
+        ? (raw.dexpress_status_accepted as boolean)
+        : null,
   };
 }
 
@@ -183,6 +187,10 @@ function bucketForClosed(o: Record<string, unknown>): Bucket | null {
     status: o.status as string,
     carrierCode: (o.carrier_code as string | null) ?? null,
     dexpressStatusSlug: (o.dexpress_status_slug as string | null) ?? null,
+    dexpressStatusAccepted:
+      typeof o.dexpress_status_accepted === "boolean"
+        ? (o.dexpress_status_accepted as boolean)
+        : null,
   });
 }
 

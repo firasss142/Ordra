@@ -198,7 +198,7 @@ describe("POST /api/dexpress/sync-batch — per-order outcomes", () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } } });
   });
 
-  test("happy path: writes slug + synced_at and returns ok:true", async () => {
+  test("happy path: writes slug + accepted + synced_at and returns ok:true", async () => {
     mockFrom.mockImplementation(
       makeFromRouter({
         orderRows: [
@@ -229,6 +229,45 @@ describe("POST /api/dexpress/sync-batch — per-order outcomes", () => {
     expect(updateCalls).toHaveLength(1);
     expect(updateCalls[0].id).toBe("o-1");
     expect(updateCalls[0].patch.dexpress_status_slug).toBe("IN_COMPANY");
+    expect(updateCalls[0].patch.dexpress_status_accepted).toBe(true);
+    expect(updateCalls[0].patch.dexpress_status_synced_at).toBeDefined();
+  });
+
+  test("pending acceptance: writes accepted=false alongside the slug (probe-verified Dexpress behavior)", async () => {
+    // Probe 2026-05-29 (tracking 1345233, 1345235) confirmed Dexpress returns
+    // {order_status:"1", order_accept:"0", status_name:"عند العميل"} for orders
+    // sitting in /merchant/pending-orders. The slug is AT_CUSTOMER but the
+    // order isn't really at a customer — Dexpress just hasn't accepted yet.
+    mockFrom.mockImplementation(
+      makeFromRouter({
+        orderRows: [
+          {
+            id: "o-1",
+            tracking_number: "1345233",
+            carrier_id: "dx-uuid",
+            carriers: { code: "dexpress" },
+          },
+        ],
+        carrierRows: [dexpressCarrier],
+      }),
+    );
+    mockFetchDexpressStatus.mockResolvedValue({
+      kind: "ok",
+      trackingNumber: "1345233",
+      slug: "AT_CUSTOMER",
+      statusId: 1,
+      rawLabel: "عند العميل",
+      isAccepted: false,
+    });
+
+    const res = await POST(req({ orderIds: ["o-1"] }));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.results["o-1"]).toEqual({ ok: true, slug: "AT_CUSTOMER" });
+
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0].patch.dexpress_status_slug).toBe("AT_CUSTOMER");
+    expect(updateCalls[0].patch.dexpress_status_accepted).toBe(false);
     expect(updateCalls[0].patch.dexpress_status_synced_at).toBeDefined();
   });
 
@@ -262,6 +301,7 @@ describe("POST /api/dexpress/sync-batch — per-order outcomes", () => {
 
     expect(updateCalls).toHaveLength(1);
     expect(updateCalls[0].patch.dexpress_status_slug).toBe(null);
+    expect(updateCalls[0].patch.dexpress_status_accepted).toBe(true);
     expect(updateCalls[0].patch.dexpress_status_synced_at).toBeDefined();
   });
 
