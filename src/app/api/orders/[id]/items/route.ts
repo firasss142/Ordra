@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canEditOrder, EDIT_BLOCKED_STATUSES } from "@/lib/order-permissions";
-import { computeOrderTotal } from "@/lib/calculations/order-total";
+import { computeOrderTotal, roundLineTotal } from "@/lib/calculations/order-total";
 import type { Role } from "@/types";
+import type { OrderItem } from "@/types/order-items";
+
+type OrderItemInsert = Omit<OrderItem, "id" | "created_at" | "updated_at">;
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +23,9 @@ export async function POST(
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("id, status, assigned_to, market_id, delivery_fee, card_payment, updated_at")
+    .select(
+      "id, status, assigned_to, market_id, delivery_fee, card_payment, updated_at, product_id, product_name, variant_label, quantity, unit_price"
+    )
     .eq("id", id)
     .single();
 
@@ -105,44 +110,77 @@ export async function POST(
     variantLabel = variant.label as string;
   }
 
-  const lineTotal = Math.round(unit_price * quantity * 1000) / 1000;
-
-  const { data: newItem, error: insertError } = await supabase
-    .from("order_items")
-    .insert({
-      order_id: id,
-      product_id,
-      product_name: product.name,
-      variant_id: variant_id ?? null,
-      variant_label: variantLabel,
-      quantity,
-      unit_price,
-      line_total: lineTotal,
-    })
-    .select()
-    .single();
-
-  if (insertError || !newItem) {
-    return NextResponse.json({ error: "Failed to add item" }, { status: 500 });
-  }
-
-  // Recompute total_price = SUM(line_total) + delivery_fee, and quantity = SUM(quantity)
-  const { data: allItems } = await supabase
+  // Fetch existing items once — we use this both to decide whether a legacy
+  // backfill is needed AND as the basis for the new total/quantity, so we
+  // never need a second SELECT after the inserts.
+  const { data: existingItems, error: existingItemsError } = await supabase
     .from("order_items")
     .select("line_total, quantity")
     .eq("order_id", id);
 
-  const itemsSubtotal = (allItems ?? []).reduce(
-    (sum: number, item: { line_total: number }) => sum + Number(item.line_total),
-    0
-  );
-  const newQuantity = (allItems ?? []).reduce(
-    (sum: number, item: { quantity: number }) => sum + Number(item.quantity),
-    0
-  );
-  const newTotal = computeOrderTotal(itemsSubtotal, Number(order.delivery_fee ?? 0), Boolean(order.card_payment));
+  if (existingItemsError) {
+    console.error("[items POST] failed to read existing order_items", existingItemsError);
+    return NextResponse.json({ error: "Failed to add item" }, { status: 500 });
+  }
 
-  await supabase
+  const rowsToInsert: OrderItemInsert[] = [];
+
+  // Webhook-created orders only populate orders.product_id/quantity/unit_price
+  // and skip order_items entirely. Without materializing that snapshot before
+  // appending a new item, the original product would disappear from the UI
+  // (which reads order_items when non-empty) and from the recomputed total.
+  if (!existingItems?.length && order.product_id && order.product_name) {
+    const legacyQty = Number(order.quantity) || 1;
+    const legacyUnitPrice = Number(order.unit_price ?? 0);
+    // orders has variant_label (a snapshot) but no variant_id — variants are
+    // a per-line concept that only the order_items table tracks. So when we
+    // materialize a legacy single-product order, variant_id is null.
+    rowsToInsert.push({
+      order_id: id,
+      product_id: order.product_id,
+      product_name: order.product_name,
+      variant_id: null,
+      variant_label: order.variant_label ?? null,
+      quantity: legacyQty,
+      unit_price: legacyUnitPrice,
+      line_total: roundLineTotal(legacyQty, legacyUnitPrice),
+    });
+  }
+
+  rowsToInsert.push({
+    order_id: id,
+    product_id,
+    product_name: product.name,
+    variant_id: variant_id ?? null,
+    variant_label: variantLabel,
+    quantity,
+    unit_price,
+    line_total: roundLineTotal(quantity, unit_price),
+  });
+
+  const { data: insertedRows, error: insertError } = await supabase
+    .from("order_items")
+    .insert(rowsToInsert)
+    .select();
+
+  if (insertError || !insertedRows?.length) {
+    console.error("[items POST] failed to insert order_items", insertError);
+    return NextResponse.json({ error: "Failed to add item" }, { status: 500 });
+  }
+
+  const sumBy = <T,>(rows: T[], key: keyof T) =>
+    rows.reduce((s, r) => s + Number(r[key]), 0);
+  const itemsSubtotal =
+    sumBy(existingItems ?? [], "line_total") + sumBy(rowsToInsert, "line_total");
+  const newQuantity =
+    sumBy(existingItems ?? [], "quantity") + sumBy(rowsToInsert, "quantity");
+  const newTotal = computeOrderTotal(
+    itemsSubtotal,
+    Number(order.delivery_fee ?? 0),
+    Boolean(order.card_payment),
+  );
+
+  const { error: updateError } = await supabase
     .from("orders")
     .update({
       total_price: newTotal,
@@ -151,5 +189,15 @@ export async function POST(
     })
     .eq("id", id);
 
+  if (updateError) {
+    // Items already landed; the order's denormalized totals are now stale.
+    // Surface this so an operator can re-sync rather than letting the drift
+    // silently propagate.
+    console.error("[items POST] failed to update orders totals after insert", updateError);
+  }
+
+  // Return the user-facing new item (always last in the insert array — the
+  // legacy backfill, when present, is the first row).
+  const newItem = insertedRows[insertedRows.length - 1];
   return NextResponse.json({ data: newItem }, { status: 201 });
 }

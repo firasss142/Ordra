@@ -15,3 +15,7 @@ export function computeOrderTotal(
   const adjustedSubtotal = cardPayment ? subtotal * 1.1 : subtotal;
   return Math.round((adjustedSubtotal + (deliveryFee ?? 0)) * 1000) / 1000;
 }
+
+export function roundLineTotal(quantity: number, unitPrice: number): number {
+  return Math.round(unitPrice * quantity * 1000) / 1000;
+}
