@@ -83,13 +83,12 @@ export function TeamWorkspace({ role, marketId }: TeamWorkspaceProps) {
     { refreshInterval: 60_000, revalidateOnFocus: false, keepPreviousData: true }
   );
 
-  // Realtime: order changes (status, assignment) and presence updates affect
-  // queue size + confirmation rate per agent. Debounced revalidation.
+  // Realtime: order changes (status, assignment) affect queue size +
+  // confirmation rate per agent. Debounced revalidation.
   const teamRealtimeHandler = useCallback(() => {
     void mutateTeam();
   }, [mutateTeam]);
   useRealtimeSubscribe({ table: "orders", marketId }, teamRealtimeHandler);
-  useRealtimeSubscribe({ table: "user_presence", marketId: null }, teamRealtimeHandler);
 
   const agents = useMemo(() => teamData?.data ?? [], [teamData]);
 

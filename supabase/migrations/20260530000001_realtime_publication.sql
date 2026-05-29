@@ -19,7 +19,6 @@ DECLARE
     'products',
     'inventory_log',
     'label_prints',
-    'user_presence',
     'alert_acknowledgements'
     -- agent_notifications already enrolled in 20260418_agent_notifications.sql
   ];
