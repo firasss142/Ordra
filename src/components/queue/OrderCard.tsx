@@ -334,8 +334,9 @@ export const OrderCard = memo(function OrderCard({
             <span className="min-w-0 truncate text-[14px] font-bold text-agent-on-surface">
               <Highlighted value={order.customer_name} field="name" query={highlightQuery} />
             </span>
-            {(order.repeat_kind !== "none" ||
-              (order.is_potential_duplicate && order.is_duplicate_anchor)) && (
+            {order.status !== "deleted" &&
+              (order.repeat_kind !== "none" ||
+                (order.is_potential_duplicate && order.is_duplicate_anchor)) && (
               <span className="inline-flex shrink-0 items-center gap-1">
                 {order.repeat_kind !== "none" && (
                   <RepeatBuyerBadge

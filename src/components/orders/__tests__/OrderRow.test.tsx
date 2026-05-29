@@ -257,4 +257,34 @@ describe("OrderRow", () => {
     // 8 cells: checkbox, order, price, status, date, assignee, source, actions
     expect(container.querySelectorAll("td").length).toBe(8);
   });
+
+  it("hides the duplicate badge when the anchor row is deleted", () => {
+    const { container } = renderRow({
+      order: {
+        ...mockOrder,
+        status: "deleted",
+        is_potential_duplicate: true,
+        is_duplicate_anchor: true,
+        duplicate_count: 2,
+        duplicate_siblings: [
+          {
+            id: "sibling-1",
+            external_id: "3048",
+            status: "confirmed",
+            created_at: "2026-05-20T15:00:00",
+            product_name: "T-Shirt Premium",
+            product_image_url: null,
+            quantity: 2,
+            total_price: 89.9,
+            customer_name: "Karim Gharbi",
+            customer_address: null,
+            customer_city: "Tunis",
+            already_shipped: false,
+          },
+        ],
+        has_uploaded_sibling: false,
+      } as OrdersListRow,
+    });
+    expect(container.querySelector('[data-duplicate="true"]')).toBeNull();
+  });
 });

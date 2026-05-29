@@ -141,7 +141,9 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
         <span style={{ fontSize: 14, fontWeight: 500, color: "#1A1A1A" }}>
           {order.customer_name}
         </span>
-        {order.is_potential_duplicate && order.is_duplicate_anchor && (
+        {order.status !== "deleted" &&
+          order.is_potential_duplicate &&
+          order.is_duplicate_anchor && (
           <DuplicateOrderBadge
             count={order.duplicate_count ?? 0}
             siblings={order.duplicate_siblings ?? []}

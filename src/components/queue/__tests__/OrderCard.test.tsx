@@ -623,4 +623,42 @@ describe("OrderCard", () => {
       expect(card.className).toContain("border-[#0891B2]");
     });
   });
+
+  describe("deleted-anchor badge guard", () => {
+    it("hides both the repeat-buyer and duplicate badges when the order is deleted", () => {
+      const { container } = render(
+        <OrderCard
+          order={{
+            ...mockOrder,
+            status: "deleted",
+            repeat_kind: "repeat",
+            prior_order_count: 3,
+            is_potential_duplicate: true,
+            is_duplicate_anchor: true,
+            duplicate_count: 1,
+            duplicate_siblings: [
+              {
+                id: "sibling-1",
+                external_id: "3048",
+                status: "confirmed",
+                created_at: "2026-04-10T11:00:00Z",
+                product_name: "T-Shirt Premium",
+                product_image_url: null,
+                quantity: 1,
+                total_price: 89.9,
+                customer_name: "Ahmed Gharbi",
+                customer_address: null,
+                customer_city: "Tunis",
+                already_shipped: false,
+              },
+            ],
+          }}
+          onOpenDetail={() => {}}
+          onCallTerminated={() => {}}
+        />,
+      );
+      expect(container.querySelector('[data-duplicate="true"]')).toBeNull();
+      expect(container.querySelector("[data-repeat-kind]")).toBeNull();
+    });
+  });
 });
