@@ -1,6 +1,13 @@
 -- Cursor-based keyset pagination for warehouse queues.
 -- Both queues order by (created_at ASC, id ASC); cursors return rows strictly AFTER the cursor pair.
 
+-- Drop prior signatures so CREATE OR REPLACE below can change the argument list
+-- (CREATE OR REPLACE can't change a function's signature in place).
+DROP FUNCTION IF EXISTS get_to_label_orders(uuid, integer);
+DROP FUNCTION IF EXISTS get_to_label_orders(uuid, int, timestamptz, uuid);
+DROP FUNCTION IF EXISTS get_to_be_returned_orders(uuid, integer);
+DROP FUNCTION IF EXISTS get_to_be_returned_orders(uuid, int, timestamptz, uuid);
+
 CREATE OR REPLACE FUNCTION get_to_label_orders(
   p_market_id          uuid,
   p_limit              int        DEFAULT 50,

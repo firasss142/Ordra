@@ -220,8 +220,9 @@ function Row({
                 · {order.customer_city}
               </span>
             )}
-            {(order.repeat_kind && order.repeat_kind !== "none") ||
-            (order.is_potential_duplicate && order.is_duplicate_anchor) ? (
+            {order.status !== "deleted" &&
+            ((order.repeat_kind && order.repeat_kind !== "none") ||
+              (order.is_potential_duplicate && order.is_duplicate_anchor)) ? (
               <span className="inline-flex shrink-0 items-center gap-1">
                 {order.repeat_kind && order.repeat_kind !== "none" && (
                   <RepeatBuyerBadge

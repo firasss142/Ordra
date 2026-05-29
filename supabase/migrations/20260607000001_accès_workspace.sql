@@ -1,5 +1,5 @@
 -- user_audit_log: append-only event log for user management actions
-CREATE TABLE user_audit_log (
+CREATE TABLE IF NOT EXISTS user_audit_log (
   id         uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   actor_id   uuid NOT NULL REFERENCES users(id),
   target_id  uuid NOT NULL REFERENCES users(id),
@@ -8,13 +8,14 @@ CREATE TABLE user_audit_log (
   created_at timestamptz DEFAULT now() NOT NULL
 );
 
-CREATE INDEX user_audit_log_target_idx  ON user_audit_log(target_id);
-CREATE INDEX user_audit_log_actor_idx   ON user_audit_log(actor_id);
-CREATE INDEX user_audit_log_created_idx ON user_audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS user_audit_log_target_idx  ON user_audit_log(target_id);
+CREATE INDEX IF NOT EXISTS user_audit_log_actor_idx   ON user_audit_log(actor_id);
+CREATE INDEX IF NOT EXISTS user_audit_log_created_idx ON user_audit_log(created_at DESC);
 
 ALTER TABLE user_audit_log ENABLE ROW LEVEL SECURITY;
 
 -- Route handler is the primary gate; RLS is defense-in-depth
+DROP POLICY IF EXISTS "audit_super_admin_read" ON user_audit_log;
 CREATE POLICY "audit_super_admin_read" ON user_audit_log FOR SELECT
   USING (auth.jwt() ->> 'role' = 'super_admin');
 
