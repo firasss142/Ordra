@@ -3,14 +3,25 @@ import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { SWRConfig } from "swr";
 import React from "react";
 import { useOrderMutation } from "./useOrderMutation";
+import { RealtimeProvider } from "@/components/providers/RealtimeProvider";
 
 const ORDER_ID = "order-abc";
 const KEY = `/api/orders/${ORDER_ID}`;
 
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({
+    channel: () => ({
+      on: () => ({ on: () => ({ subscribe: () => ({}) }), subscribe: () => ({}) }),
+      subscribe: () => ({}),
+    }),
+    removeChannel: () => {},
+  }),
+}));
+
 function wrapper({ children }: { children: React.ReactNode }) {
   return (
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-      {children}
+      <RealtimeProvider>{children}</RealtimeProvider>
     </SWRConfig>
   );
 }

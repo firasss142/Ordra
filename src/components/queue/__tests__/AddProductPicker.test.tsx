@@ -3,6 +3,17 @@ import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { SWRConfig } from "swr";
 import React from "react";
 import { AddProductPicker } from "../AddProductPicker";
+import { RealtimeProvider } from "@/components/providers/RealtimeProvider";
+
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({
+    channel: () => ({
+      on: () => ({ on: () => ({ subscribe: () => ({}) }), subscribe: () => ({}) }),
+      subscribe: () => ({}),
+    }),
+    removeChannel: () => {},
+  }),
+}));
 
 vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
@@ -51,7 +62,7 @@ const PRODUCTS = [
 function wrapper({ children }: { children: React.ReactNode }) {
   return (
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-      {children}
+      <RealtimeProvider>{children}</RealtimeProvider>
     </SWRConfig>
   );
 }

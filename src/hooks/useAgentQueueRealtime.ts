@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSWRConfig } from "swr";
-import { createClient } from "@/lib/supabase/client";
+import { useRealtimeSubscribe } from "@/components/providers/RealtimeProvider";
 import { applyRealtimeEvent, type AgentQueueCache } from "@/lib/agent-queue/cache-patch";
 import type { RawOrderRow } from "@/lib/agent-queue/buckets";
 
@@ -21,12 +21,14 @@ interface UseAgentQueueRealtimeOptions {
 }
 
 /**
- * Subscribes to `orders` postgres_changes for the current agent's market and
- * patches the `/api/agent/queue` SWR cache. The market filter scopes the
- * subscription to the agent's market (RLS already constrains rows, but
- * filtering at the publication keeps payload volume sane). The cache patcher
- * handles ownership checks (rows the agent doesn't own are a no-op) and
- * surfaces reassign-away / cancel / delete through `onReassignmentEvent`.
+ * Subscribes to `orders` realtime via the shared bus and patches the
+ * `/api/agent/queue` SWR cache. The cache patcher handles ownership checks
+ * (rows the agent doesn't own are a no-op) and surfaces reassign-away /
+ * cancel / delete through `onReassignmentEvent`.
+ *
+ * Connected state is approximated: once mounted with a non-null agentId we
+ * report connected (the bus subscribes synchronously; the underlying socket
+ * may take a tick to attach but consumers only use this as a coarse signal).
  */
 export function useAgentQueueRealtime({
   agentId,
@@ -36,19 +38,15 @@ export function useAgentQueueRealtime({
   const { mutate } = useSWRConfig();
   const [connected, setConnected] = useState(false);
   const onEventRef = useRef(onReassignmentEvent);
-  useEffect(() => {
-    onEventRef.current = onReassignmentEvent;
-  }, [onReassignmentEvent]);
+  onEventRef.current = onReassignmentEvent;
 
-  useEffect(() => {
-    if (!agentId) return;
-    const supabase = createClient();
-
-    const applyEvent = (
-      type: "INSERT" | "UPDATE" | "DELETE",
-      newRow: RawOrderRow | undefined,
-      oldRow: RawOrderRow | undefined,
-    ) => {
+  const handler = useCallback(
+    (payload: {
+      eventType: "INSERT" | "UPDATE" | "DELETE";
+      new?: RawOrderRow;
+      old?: Partial<RawOrderRow>;
+    }) => {
+      if (!agentId) return;
       mutate(
         QUEUE_KEY,
         (current: AgentQueueCache | undefined) => {
@@ -57,12 +55,16 @@ export function useAgentQueueRealtime({
             | { type: "INSERT"; agentId: string; new: RawOrderRow }
             | { type: "UPDATE"; agentId: string; old: RawOrderRow; new: RawOrderRow }
             | { type: "DELETE"; agentId: string; old: RawOrderRow };
-          if (type === "INSERT" && newRow) {
-            event = { type: "INSERT", agentId, new: newRow };
-          } else if (type === "UPDATE" && newRow && oldRow) {
-            event = { type: "UPDATE", agentId, old: oldRow, new: newRow };
-          } else if (type === "DELETE" && oldRow) {
-            event = { type: "DELETE", agentId, old: oldRow };
+          if (payload.eventType === "INSERT" && payload.new) {
+            event = { type: "INSERT", agentId, new: payload.new };
+          } else if (
+            payload.eventType === "UPDATE" &&
+            payload.new &&
+            payload.old?.id
+          ) {
+            event = { type: "UPDATE", agentId, old: payload.old as RawOrderRow, new: payload.new };
+          } else if (payload.eventType === "DELETE" && payload.old?.id) {
+            event = { type: "DELETE", agentId, old: payload.old as RawOrderRow };
           } else {
             return current;
           }
@@ -78,42 +80,18 @@ export function useAgentQueueRealtime({
         },
         { revalidate: false },
       );
-    };
+    },
+    [agentId, mutate],
+  );
 
-    const channelName = marketId
-      ? `agent-queue:${agentId}:${marketId}`
-      : `agent-queue:${agentId}`;
+  useRealtimeSubscribe<RawOrderRow>(
+    agentId ? { table: "orders", marketId: marketId ?? null } : null,
+    handler,
+  );
 
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "orders",
-          ...(marketId ? { filter: `market_id=eq.${marketId}` } : {}),
-        },
-        (payload) => {
-          const t = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
-          applyEvent(
-            t,
-            payload.new as RawOrderRow | undefined,
-            payload.old as RawOrderRow | undefined,
-          );
-        },
-      )
-      .subscribe((status: string) => {
-        if (status === "SUBSCRIBED") setConnected(true);
-        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-          setConnected(false);
-        }
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [agentId, marketId, mutate]);
+  useEffect(() => {
+    setConnected(Boolean(agentId));
+  }, [agentId]);
 
   return { connected };
 }

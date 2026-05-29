@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/swr-config";
-import { createClient } from "@/lib/supabase/client";
+import { useRealtimeSubscribe } from "@/components/providers/RealtimeProvider";
 
 export interface UnassignedOrder {
   id: string;
@@ -42,27 +42,15 @@ export function useUnassignedOrders(marketId: string | null) {
     dedupingInterval: 3000,
   });
 
-  // Realtime: when a new order is inserted, or an existing order gets assigned_to set, revalidate.
-  useEffect(() => {
-    if (!marketId) return;
-    const supabase = createClient();
-    const isAll = marketId === "all";
-    const channelConfig = isAll
-      ? { event: "INSERT" as const, schema: "public", table: "orders" }
-      : { event: "INSERT" as const, schema: "public", table: "orders", filter: `market_id=eq.${marketId}` };
-    const updateConfig = isAll
-      ? { event: "UPDATE" as const, schema: "public", table: "orders" }
-      : { event: "UPDATE" as const, schema: "public", table: "orders", filter: `market_id=eq.${marketId}` };
-    const channel = supabase
-      .channel(`unassigned-orders-${marketId}`)
-      .on("postgres_changes", channelConfig, () => mutate())
-      .on("postgres_changes", updateConfig, () => mutate())
-      .subscribe();
+  const handler = useCallback(() => {
+    void mutate();
+  }, [mutate]);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [marketId, mutate]);
+  const subscriptionMarket = marketId === "all" ? null : marketId;
+  useRealtimeSubscribe(
+    marketId ? { table: "orders", marketId: subscriptionMarket } : null,
+    handler,
+  );
 
   return {
     orders: data?.orders ?? [],

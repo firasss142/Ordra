@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback } from "react";
 import useSWR from "swr";
-import { createClient } from "@/lib/supabase/client";
+import { useRealtimeSubscribe } from "@/components/providers/RealtimeProvider";
 import { fetcher } from "@/lib/swr-config";
 import type { AlertsSummary } from "@/app/api/alerts/summary/route";
 
 export function useAlerts(options?: { marketId?: string; realtime?: boolean }) {
-  const marketId = options?.marketId;
+  const marketId = options?.marketId ?? null;
   const realtime = options?.realtime ?? true;
 
   const params = new URLSearchParams();
@@ -21,33 +21,22 @@ export function useAlerts(options?: { marketId?: string; realtime?: boolean }) {
     dedupingInterval: 15_000,
   });
 
-  useEffect(() => {
-    if (!realtime) return;
-    const supabase = createClient();
-    const filter = marketId ? `market_id=eq.${marketId}` : undefined;
-    const channel = supabase.channel(`alerts:${marketId ?? "all"}`);
+  const handler = useCallback(() => {
+    void mutate();
+  }, [mutate]);
 
-    const tables = ["orders", "products", "alert_acknowledgements"] as const;
-    for (const table of tables) {
-      channel.on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table,
-          ...(filter ? { filter } : {}),
-        },
-        () => {
-          mutate();
-        },
-      );
-    }
-    channel.subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [marketId, realtime, mutate]);
+  useRealtimeSubscribe(
+    realtime ? { table: "orders", marketId } : null,
+    handler,
+  );
+  useRealtimeSubscribe(
+    realtime ? { table: "products", marketId } : null,
+    handler,
+  );
+  useRealtimeSubscribe(
+    realtime ? { table: "alert_acknowledgements", marketId } : null,
+    handler,
+  );
 
   return {
     alerts: data?.alerts ?? null,

@@ -25,7 +25,6 @@ import { OrdersFilterChips } from "@/components/orders/OrdersFilterChips";
 import { OrdersPresetPills } from "@/components/orders/OrdersPresetPills";
 import { OrdersTable } from "@/components/orders/OrdersTable";
 import { OrdersBulkBar } from "@/components/orders/OrdersBulkBar";
-import { NewOrdersBanner } from "@/components/orders/NewOrdersBanner";
 import { OrdersStatusStrip } from "@/components/orders/OrdersStatusStrip";
 import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
 
@@ -215,7 +214,7 @@ export function OrdersPageClient({
     },
     [effectiveMarketId, filters.includeDeleted, filters.preset, filters.statuses, filters.agentId],
   );
-  const { newCount, reveal: revealNew, dismiss: dismissNew } = useOrdersRealtime({
+  useOrdersRealtime({
     marketId: effectiveMarketId,
     mutate,
     matchFilter,
@@ -490,8 +489,6 @@ export function OrdersPageClient({
           />
         ) : null}
       </div>
-
-      <NewOrdersBanner count={newCount} onReveal={revealNew} onDismiss={dismissNew} />
 
       {errorBanner ? (
         <div

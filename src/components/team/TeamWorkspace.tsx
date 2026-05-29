@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useCallback, useState, useMemo } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
+import { useRealtimeSubscribe } from "@/components/providers/RealtimeProvider";
 import { computeStreak } from "@/lib/team/streak";
 import { medianMinutes } from "@/lib/team/ttfc";
 import { TeamPeriodSelector, type TeamPeriodPreset } from "./TeamPeriodSelector";
@@ -81,6 +82,14 @@ export function TeamWorkspace({ role, marketId }: TeamWorkspaceProps) {
     jsonFetcher,
     { refreshInterval: 60_000, revalidateOnFocus: false, keepPreviousData: true }
   );
+
+  // Realtime: order changes (status, assignment) and presence updates affect
+  // queue size + confirmation rate per agent. Debounced revalidation.
+  const teamRealtimeHandler = useCallback(() => {
+    void mutateTeam();
+  }, [mutateTeam]);
+  useRealtimeSubscribe({ table: "orders", marketId }, teamRealtimeHandler);
+  useRealtimeSubscribe({ table: "user_presence", marketId: null }, teamRealtimeHandler);
 
   const agents = useMemo(() => teamData?.data ?? [], [teamData]);
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { SWRInfiniteKeyedMutator } from "swr/infinite";
 import type { KeyedMutator } from "swr";
-import { createClient } from "@/lib/supabase/client";
+import { useRealtimeSubscribe } from "@/components/providers/RealtimeProvider";
 import type { FollowUpsListPage } from "@/lib/follow-ups/list";
 import type { FollowUpsSummary } from "@/lib/follow-ups/summary";
 import {
@@ -13,11 +13,6 @@ import {
   type OrderFollowUpWithOrder,
 } from "@/types/follow-up";
 
-/**
- * Realtime row shape from postgres_changes — the bare order_follow_ups row,
- * WITHOUT the order/campaign joins the list API enriches with. We buffer
- * inserts but rely on the SWR revalidation for the final joined payload.
- */
 type RealtimeRow = OrderFollowUp;
 
 export interface BufferedInsert {
@@ -31,22 +26,26 @@ interface UseFollowUpsRealtimeOptions {
   columnMutators: Record<FollowUpStatus, SWRInfiniteKeyedMutator<FollowUpsListPage[]>>;
   /** Mutator for the summary SWR cache — refreshed on any change. */
   mutateSummary: KeyedMutator<FollowUpsSummary>;
-  /** Fires when new inserts arrive so the banner can surface them. */
+  /** Legacy callback retained for compatibility — fires on each INSERT. */
   onInsert?: (row: BufferedInsert) => void;
   /** Optional timeline (time-first view) mutator — revalidated on any change. */
   timelineMutator?: SWRInfiniteKeyedMutator<FollowUpsListPage[]>;
 }
 
 /**
- * Subscribe to `order_follow_ups` postgres_changes and reconcile the per-column
- * infinite SWR caches. Also triggers a debounced summary revalidation so the
- * KPI strip stays fresh without a request per event.
+ * Subscribe to `order_follow_ups` realtime via the shared bus and patch the
+ * per-status infinite SWR caches. Auto-inserts (no banner): incoming rows
+ * prepend immediately to the matching column.
  *
- * - INSERT → buffered; a banner picks it up via `onInsert` / the returned
- *   `buffer`. Revealing prepends to the matching column's cache.
- * - UPDATE → if status changed, removes from the old column and prepends to
- *   the new one; else patches in place.
- * - DELETE → removes from whichever column holds it.
+ * Behavior:
+ *  - INSERT → prepend to matching column; triggers SWR revalidation so the
+ *    enriched (order/campaign join) row replaces the stub.
+ *  - UPDATE → if status changed, remove from old column, prepend to new;
+ *    else patch in place preserving join fields.
+ *  - DELETE → remove from whichever column holds it.
+ *
+ * Summary KPI strip is refreshed with a 500ms trailing debounce + 3s max-wait
+ * to absorb bulk-create bursts from NewCampaignWizard.
  */
 export function useFollowUpsRealtime({
   marketId,
@@ -55,7 +54,6 @@ export function useFollowUpsRealtime({
   onInsert,
   timelineMutator,
 }: UseFollowUpsRealtimeOptions) {
-  const [buffer, setBuffer] = useState<RealtimeRow[]>([]);
   const mutatorsRef = useRef(columnMutators);
   const mutateSummaryRef = useRef(mutateSummary);
   const onInsertRef = useRef(onInsert);
@@ -63,22 +61,12 @@ export function useFollowUpsRealtime({
   const summaryDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const summaryMaxWaitRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    mutatorsRef.current = columnMutators;
-  }, [columnMutators]);
-  useEffect(() => {
-    mutateSummaryRef.current = mutateSummary;
-  }, [mutateSummary]);
-  useEffect(() => {
-    onInsertRef.current = onInsert;
-  }, [onInsert]);
-  useEffect(() => {
-    timelineMutatorRef.current = timelineMutator;
-  }, [timelineMutator]);
+  mutatorsRef.current = columnMutators;
+  mutateSummaryRef.current = mutateSummary;
+  onInsertRef.current = onInsert;
+  timelineMutatorRef.current = timelineMutator;
 
-  // Trailing debounce (500ms idle) plus a 3s max-wait — during bulk-create
-  // bursts from NewCampaignWizard, summary still refreshes at least every 3s.
-  const scheduleSummaryRefresh = () => {
+  const scheduleSummaryRefresh = useCallback(() => {
     if (summaryDebounceRef.current) clearTimeout(summaryDebounceRef.current);
     summaryDebounceRef.current = setTimeout(() => {
       if (summaryMaxWaitRef.current) {
@@ -97,150 +85,127 @@ export function useFollowUpsRealtime({
         mutateSummaryRef.current();
       }, 3000);
     }
-  };
+  }, []);
+
+  const handler = useCallback(
+    (payload: {
+      eventType: "INSERT" | "UPDATE" | "DELETE";
+      new?: RealtimeRow;
+      old?: Partial<RealtimeRow>;
+    }) => {
+      const eventType = payload.eventType;
+
+      if (eventType === "INSERT") {
+        const row = payload.new;
+        if (!row) return;
+        mutatorsRef.current[row.status](
+          (pages) => {
+            if (!pages || pages.length === 0) {
+              return [
+                { rows: [row as unknown as OrderFollowUpWithOrder], nextCursor: null },
+              ];
+            }
+            const [first, ...rest] = pages;
+            if (first.rows.some((r) => r.id === row.id)) return pages;
+            const stub = row as unknown as OrderFollowUpWithOrder;
+            return [{ ...first, rows: [stub, ...first.rows] }, ...rest];
+          },
+          { revalidate: true },
+        );
+        onInsertRef.current?.({ id: row.id, status: row.status });
+        timelineMutatorRef.current?.();
+        scheduleSummaryRefresh();
+        return;
+      }
+
+      if (eventType === "UPDATE") {
+        const row = payload.new;
+        if (!row) return;
+        const oldStatus = payload.old?.status;
+        const newStatus = row.status;
+
+        if (oldStatus && oldStatus !== newStatus) {
+          mutatorsRef.current[oldStatus](
+            (pages) => {
+              if (!pages) return pages;
+              return pages.map((p) => ({
+                ...p,
+                rows: p.rows.filter((r) => r.id !== row.id),
+              }));
+            },
+            { revalidate: false },
+          );
+          mutatorsRef.current[newStatus](
+            (pages) => {
+              if (!pages || pages.length === 0) return pages;
+              const [first, ...rest] = pages;
+              if (first.rows.some((r) => r.id === row.id)) return pages;
+              const stub = row as unknown as OrderFollowUpWithOrder;
+              return [{ ...first, rows: [stub, ...first.rows] }, ...rest];
+            },
+            { revalidate: true },
+          );
+        } else {
+          mutatorsRef.current[newStatus](
+            (pages) => {
+              if (!pages) return pages;
+              return pages.map((p) => ({
+                ...p,
+                rows: p.rows.map((r) =>
+                  r.id === row.id ? ({ ...r, ...row } as OrderFollowUpWithOrder) : r,
+                ),
+              }));
+            },
+            { revalidate: false },
+          );
+        }
+
+        timelineMutatorRef.current?.();
+        scheduleSummaryRefresh();
+        return;
+      }
+
+      if (eventType === "DELETE") {
+        const oldRow = payload.old as (Partial<RealtimeRow> & { id?: string }) | undefined;
+        if (!oldRow?.id) return;
+        const statuses: readonly FollowUpStatus[] = oldRow.status
+          ? [oldRow.status]
+          : FOLLOW_UP_STATUSES;
+        for (const s of statuses) {
+          mutatorsRef.current[s](
+            (pages) => {
+              if (!pages) return pages;
+              return pages.map((p) => ({
+                ...p,
+                rows: p.rows.filter((r) => r.id !== oldRow.id),
+              }));
+            },
+            { revalidate: false },
+          );
+        }
+        timelineMutatorRef.current?.();
+        scheduleSummaryRefresh();
+      }
+    },
+    [scheduleSummaryRefresh],
+  );
+
+  useRealtimeSubscribe<RealtimeRow>(
+    { table: "order_follow_ups", marketId },
+    handler,
+  );
 
   useEffect(() => {
-    const supabase = createClient();
-    const channelName = marketId ? `follow-ups:market:${marketId}` : `follow-ups:all`;
-
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "order_follow_ups",
-          ...(marketId ? { filter: `market_id=eq.${marketId}` } : {}),
-        },
-        (payload) => {
-          const eventType = payload.eventType;
-
-          if (eventType === "INSERT") {
-            const row = payload.new as RealtimeRow;
-            setBuffer((b) => (b.some((r) => r.id === row.id) ? b : [row, ...b]));
-            onInsertRef.current?.({ id: row.id, status: row.status });
-            timelineMutatorRef.current?.();
-            scheduleSummaryRefresh();
-            return;
-          }
-
-          if (eventType === "UPDATE") {
-            const row = payload.new as RealtimeRow;
-            const oldRow = payload.old as RealtimeRow;
-            const oldStatus = oldRow?.status;
-            const newStatus = row.status;
-
-            if (oldStatus && oldStatus !== newStatus) {
-              // Remove from old column.
-              mutatorsRef.current[oldStatus](
-                (pages) => {
-                  if (!pages) return pages;
-                  return pages.map((p) => ({
-                    ...p,
-                    rows: p.rows.filter((r) => r.id !== row.id),
-                  }));
-                },
-                { revalidate: false },
-              );
-              // Prepend skeleton to new column — SWR will revalidate and fetch
-              // the enriched join next cycle.
-              mutatorsRef.current[newStatus](
-                (pages) => {
-                  if (!pages || pages.length === 0) return pages;
-                  const [first, ...rest] = pages;
-                  if (first.rows.some((r) => r.id === row.id)) return pages;
-                  const stub = row as unknown as OrderFollowUpWithOrder;
-                  return [{ ...first, rows: [stub, ...first.rows] }, ...rest];
-                },
-                { revalidate: true },
-              );
-            } else {
-              // Same column — patch in place. Preserve the joined order/campaign
-              // fields that the realtime payload doesn't carry.
-              mutatorsRef.current[newStatus](
-                (pages) => {
-                  if (!pages) return pages;
-                  return pages.map((p) => ({
-                    ...p,
-                    rows: p.rows.map((r) =>
-                      r.id === row.id ? ({ ...r, ...row } as OrderFollowUpWithOrder) : r,
-                    ),
-                  }));
-                },
-                { revalidate: false },
-              );
-            }
-
-            setBuffer((b) => b.map((r) => (r.id === row.id ? row : r)));
-            timelineMutatorRef.current?.();
-            scheduleSummaryRefresh();
-            return;
-          }
-
-          if (eventType === "DELETE") {
-            const oldRow = payload.old as { id: string; status?: FollowUpStatus };
-            const statuses: readonly FollowUpStatus[] = oldRow.status
-              ? [oldRow.status]
-              : FOLLOW_UP_STATUSES;
-
-            for (const s of statuses) {
-              mutatorsRef.current[s](
-                (pages) => {
-                  if (!pages) return pages;
-                  return pages.map((p) => ({
-                    ...p,
-                    rows: p.rows.filter((r) => r.id !== oldRow.id),
-                  }));
-                },
-                { revalidate: false },
-              );
-            }
-            setBuffer((b) => b.filter((r) => r.id !== oldRow.id));
-            timelineMutatorRef.current?.();
-            scheduleSummaryRefresh();
-          }
-        },
-      )
-      .subscribe();
-
     return () => {
       if (summaryDebounceRef.current) clearTimeout(summaryDebounceRef.current);
       if (summaryMaxWaitRef.current) clearTimeout(summaryMaxWaitRef.current);
-      supabase.removeChannel(channel);
     };
-  }, [marketId]);
+  }, []);
 
-  const reveal = () => {
-    if (buffer.length === 0) return;
-    // Group buffered rows by status and prepend each to its column cache.
-    const byStatus = new Map<FollowUpStatus, RealtimeRow[]>();
-    for (const row of buffer) {
-      const arr = byStatus.get(row.status) ?? [];
-      arr.push(row);
-      byStatus.set(row.status, arr);
-    }
+  // Buffer-banner API kept for backward compatibility; counts always 0 since
+  // we auto-prepend on INSERT now.
+  const reveal = () => {};
+  const dismiss = () => {};
 
-    for (const [status, rows] of byStatus) {
-      mutatorsRef.current[status](
-        (pages) => {
-          if (!pages || pages.length === 0) {
-            return [{ rows: rows as unknown as OrderFollowUpWithOrder[], nextCursor: null }];
-          }
-          const [first, ...rest] = pages;
-          const existingIds = new Set(first.rows.map((r) => r.id));
-          const unique = (rows as unknown as OrderFollowUpWithOrder[]).filter(
-            (r) => !existingIds.has(r.id),
-          );
-          return [{ ...first, rows: [...unique, ...first.rows] }, ...rest];
-        },
-        { revalidate: true },
-      );
-    }
-    setBuffer([]);
-  };
-
-  const dismiss = () => setBuffer([]);
-
-  return { newCount: buffer.length, reveal, dismiss };
+  return { newCount: 0, reveal, dismiss };
 }

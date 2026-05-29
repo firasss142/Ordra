@@ -17,6 +17,7 @@ import { TopPerformers } from "@/components/dashboard/TopPerformers";
 import { SecondaryKpiStrip } from "@/components/dashboard/SecondaryKpiStrip";
 import { TopPerformingProducts } from "@/components/dashboard/TopPerformingProducts";
 import { useAlerts } from "@/hooks/useAlerts";
+import { useDashboardRealtime } from "@/hooks/useDashboardRealtime";
 import { useMarketScope } from "@/context/market-scope";
 import { computeInsights } from "@/lib/dashboard/insights";
 import { canViewProfitability } from "@/lib/role-permissions";
@@ -64,7 +65,7 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
     return buildSummaryKey(initialPeriod, mid);
   }, [isSuperAdmin, initialMarketId, user.market_id, initialPeriod]);
 
-  const { data, isLoading } = useSWR<{ data: DashboardSummary }>(
+  const { data, isLoading, mutate: mutateSummary } = useSWR<{ data: DashboardSummary }>(
     summaryKey,
     {
       fallbackData: summaryKey === initialKey ? { data: initialSummary } : undefined,
@@ -72,6 +73,12 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
       revalidateOnFocus: true,
     },
   );
+
+  // Realtime: any order or inventory change triggers a debounced summary refresh.
+  useDashboardRealtime({
+    marketId: effectiveMarketId === "all" ? null : effectiveMarketId || null,
+    mutate: () => void mutateSummary(),
+  });
 
   const summary = data?.data ?? initialSummary;
   const currency = summary.selectedMarket?.currency ?? summary.availableMarkets[0]?.currency ?? "TND";

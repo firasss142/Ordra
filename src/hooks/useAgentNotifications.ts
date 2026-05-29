@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useCallback } from "react";
 import useSWR from "swr";
-import { createClient } from "@/lib/supabase/client";
+import { useRealtimeSubscribe } from "@/components/providers/RealtimeProvider";
 
 export interface AgentNotificationOrder {
   customer_name: string | null;
@@ -32,29 +32,20 @@ export function useAgentNotifications(agentId: string | undefined) {
   const notifications: AgentNotification[] = data?.data ?? [];
   const unreadCount = notifications.filter((n) => !n.read_at).length;
 
-  useEffect(() => {
-    if (!agentId) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`agent-notifications:${agentId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "agent_notifications",
-          filter: `agent_id=eq.${agentId}`,
-        },
-        () => {
-          mutate();
-        },
-      )
-      .subscribe();
+  const handler = useCallback(() => {
+    void mutate();
+  }, [mutate]);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [agentId, mutate]);
+  useRealtimeSubscribe(
+    agentId
+      ? {
+          table: "agent_notifications",
+          marketId: null,
+          extraFilter: `agent_id=eq.${agentId}`,
+        }
+      : null,
+    handler,
+  );
 
   const markRead = useCallback(
     async (notifId: string) => {

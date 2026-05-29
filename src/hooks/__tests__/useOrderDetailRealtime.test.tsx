@@ -3,6 +3,7 @@ import { renderHook, act } from "@testing-library/react";
 import useSWR, { SWRConfig } from "swr";
 import React from "react";
 import { useOrderDetailRealtime } from "../useOrderDetailRealtime";
+import { RealtimeProvider } from "@/components/providers/RealtimeProvider";
 
 interface ChannelStub {
   name: string;
@@ -66,7 +67,7 @@ function makeWrapper() {
       <SWRConfig
         value={{ provider: () => new Map(), dedupingInterval: 0 }}
       >
-        {children}
+        <RealtimeProvider>{children}</RealtimeProvider>
       </SWRConfig>
     );
   };

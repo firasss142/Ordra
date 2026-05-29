@@ -1,4 +1,8 @@
+"use client";
+
+import { useCallback } from "react";
 import useSWR from "swr";
+import { useRealtimeSubscribe } from "@/components/providers/RealtimeProvider";
 import type { InDeliverySummary } from "@/app/api/in-delivery/summary/route";
 
 export function useInDeliverySummary(options?: { marketId?: string }) {
@@ -12,6 +16,15 @@ export function useInDeliverySummary(options?: { marketId?: string }) {
     refreshInterval: 60_000,
     dedupingInterval: 15_000,
   });
+
+  const handler = useCallback(() => {
+    void mutate();
+  }, [mutate]);
+
+  useRealtimeSubscribe(
+    { table: "orders", marketId: options?.marketId ?? null },
+    handler,
+  );
 
   return { summary: data ?? null, error, isLoading, mutate };
 }

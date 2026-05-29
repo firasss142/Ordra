@@ -3,6 +3,7 @@ import { renderHook, act } from "@testing-library/react";
 import useSWR, { SWRConfig } from "swr";
 import React from "react";
 import { useAgentQueueRealtime } from "../useAgentQueueRealtime";
+import { RealtimeProvider } from "@/components/providers/RealtimeProvider";
 import type { AgentQueueCache } from "@/lib/agent-queue/cache-patch";
 
 interface ChannelStub {
@@ -83,7 +84,7 @@ function makeWrapper() {
           dedupingInterval: 0,
         }}
       >
-        {children}
+        <RealtimeProvider>{children}</RealtimeProvider>
       </SWRConfig>
     );
   };
