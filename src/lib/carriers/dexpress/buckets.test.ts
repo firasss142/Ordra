@@ -20,6 +20,7 @@ function input(overrides: Partial<BucketInput>): BucketInput {
     status: "uploaded",
     carrierCode: "dexpress",
     dexpressStatusSlug: null,
+    dexpressStatusAccepted: null,
     ...overrides,
   };
 }
@@ -220,6 +221,114 @@ describe("bucketFor — Uploaded (the fallback bucket)", () => {
         }),
       ),
     ).toBe("uploaded");
+  });
+});
+
+describe("bucketFor — un-accepted (pending-orders) override", () => {
+  // When Dexpress hasn't accepted the order yet, the portal returns the same
+  // order_status as AT_CUSTOMER (id=1) but with order_accept=0. Probe evidence
+  // 2026-05-29: tracking 1345233 and 1345235 (both in /merchant/pending-orders)
+  // returned {order_status:"1", order_accept:"0", status_name:"عند العميل"}.
+  // The slug alone is ambiguous, so dexpressStatusAccepted=false forces the
+  // bucket to 'uploaded'.
+
+  test("slug=AT_CUSTOMER, accepted=false → 'uploaded' (pending acceptance, not real Deposit)", () => {
+    expect(
+      bucketFor(
+        input({
+          status: "uploaded",
+          carrierCode: "dexpress",
+          dexpressStatusSlug: "AT_CUSTOMER",
+          dexpressStatusAccepted: false,
+        }),
+      ),
+    ).toBe("uploaded");
+  });
+
+  test("slug=AT_CUSTOMER, accepted=true → 'deposit' (real at-customer delivery)", () => {
+    expect(
+      bucketFor(
+        input({
+          status: "uploaded",
+          carrierCode: "dexpress",
+          dexpressStatusSlug: "AT_CUSTOMER",
+          dexpressStatusAccepted: true,
+        }),
+      ),
+    ).toBe("deposit");
+  });
+
+  test("accepted=null (never synced or pre-migration row) → falls back to slug behavior", () => {
+    expect(
+      bucketFor(
+        input({
+          status: "uploaded",
+          carrierCode: "dexpress",
+          dexpressStatusSlug: "AT_CUSTOMER",
+          dexpressStatusAccepted: null,
+        }),
+      ),
+    ).toBe("deposit");
+  });
+
+  test("accepted=false overrides EVERY slug, not just AT_CUSTOMER (defensive — if Dexpress reuses other ids for pending state)", () => {
+    expect(
+      bucketFor(
+        input({
+          status: "uploaded",
+          carrierCode: "dexpress",
+          dexpressStatusSlug: "BEING_PREPARED",
+          dexpressStatusAccepted: false,
+        }),
+      ),
+    ).toBe("uploaded");
+    expect(
+      bucketFor(
+        input({
+          status: "uploaded",
+          carrierCode: "dexpress",
+          dexpressStatusSlug: "OUT_FOR_DELIVERY",
+          dexpressStatusAccepted: false,
+        }),
+      ),
+    ).toBe("uploaded");
+  });
+
+  test("accepted=false on a non-Dexpress carrier is ignored (model is Dexpress-scoped)", () => {
+    // Defensive: a leaked flag on a Navex order shouldn't change behavior.
+    expect(
+      bucketFor(
+        input({
+          status: "uploaded",
+          carrierCode: "navex",
+          dexpressStatusSlug: null,
+          dexpressStatusAccepted: false,
+        }),
+      ),
+    ).toBe("uploaded");
+  });
+
+  test("accepted=false does NOT override OMS terminal statuses (delivered/returned/rejected stay terminal)", () => {
+    expect(
+      bucketFor(
+        input({
+          status: "delivered",
+          carrierCode: "dexpress",
+          dexpressStatusSlug: "DELIVERED",
+          dexpressStatusAccepted: false,
+        }),
+      ),
+    ).toBe("delivered");
+    expect(
+      bucketFor(
+        input({
+          status: "rejected",
+          carrierCode: "dexpress",
+          dexpressStatusSlug: "AT_CUSTOMER",
+          dexpressStatusAccepted: false,
+        }),
+      ),
+    ).toBe("rejected");
   });
 });
 

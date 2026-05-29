@@ -31,6 +31,15 @@ export interface BucketInput {
   status: string;
   carrierCode: string | null;
   dexpressStatusSlug: DexpressSlug | string | null;
+  /**
+   * Mirrors Dexpress `order_accept`. FALSE means the order is sitting in
+   * `/merchant/pending-orders` awaiting Dexpress operator review — even
+   * though `order_status` may already reuse the AT_CUSTOMER id (1) in this
+   * state (probe evidence 2026-05-29: tracking 1345233, 1345235). When
+   * FALSE, bucketFor forces 'uploaded' regardless of the slug. NULL means
+   * never synced (or pre-migration row) and we fall back to slug behavior.
+   */
+  dexpressStatusAccepted: boolean | null;
 }
 
 // 12 Dexpress slugs that mean "in motion inside Dexpress's network".
@@ -67,7 +76,8 @@ const RETURNED_SLUGS: ReadonlySet<string> = new Set<DexpressSlug>([
 ]);
 
 export function bucketFor(input: BucketInput): Bucket | null {
-  const { status, carrierCode, dexpressStatusSlug } = input;
+  const { status, carrierCode, dexpressStatusSlug, dexpressStatusAccepted } =
+    input;
 
   // Rejected is OMS-side, carrier-irrelevant. It always wins.
   if (status === "rejected") return "rejected";
@@ -80,12 +90,20 @@ export function bucketFor(input: BucketInput): Bucket | null {
   // Dexpress projection: only consult the slug when the order is actually on
   // a Dexpress carrier. A slug that somehow leaked onto a non-Dexpress order
   // is ignored so the bucket model stays carrier-scoped (v1 = Dexpress only).
-  if (carrierCode === "dexpress" && dexpressStatusSlug) {
-    if (DEPOSIT_SLUGS.has(dexpressStatusSlug)) return "deposit";
-    if (DELIVERED_SLUGS.has(dexpressStatusSlug)) return "delivered";
-    if (RETURNED_SLUGS.has(dexpressStatusSlug)) return "returned";
-    // Unrecognized slug — graceful degradation. Fall through to the
-    // status-based logic below (uploaded order → 'uploaded').
+  if (carrierCode === "dexpress") {
+    // Pending acceptance: Dexpress reuses lifecycle ids (notably AT_CUSTOMER=1)
+    // for orders sitting in /merchant/pending-orders. The slug alone would
+    // misclassify these as Deposit. order_accept=0 forces the bucket back to
+    // 'uploaded' — handed to Dexpress but not yet acknowledged.
+    if (dexpressStatusAccepted === false) return "uploaded";
+
+    if (dexpressStatusSlug) {
+      if (DEPOSIT_SLUGS.has(dexpressStatusSlug)) return "deposit";
+      if (DELIVERED_SLUGS.has(dexpressStatusSlug)) return "delivered";
+      if (RETURNED_SLUGS.has(dexpressStatusSlug)) return "returned";
+      // Unrecognized slug — graceful degradation. Fall through to the
+      // status-based logic below (uploaded order → 'uploaded').
+    }
   }
 
   // No Dexpress signal. Use OMS status alone.

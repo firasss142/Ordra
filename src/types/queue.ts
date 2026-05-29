@@ -49,4 +49,11 @@ export interface QueueOrder {
   dexpress_status_slug: string | null;
   /** Last successful Dexpress sync timestamp; NULL means never synced. */
   dexpress_status_synced_at: string | null;
+  /**
+   * Mirrors Dexpress order_accept. FALSE = sitting in /merchant/pending-orders
+   * (Dexpress hasn't acknowledged yet); the bucket function then forces
+   * 'uploaded' even when the slug looks like a lifecycle state. NULL = never
+   * synced / pre-migration row.
+   */
+  dexpress_status_accepted: boolean | null;
 }

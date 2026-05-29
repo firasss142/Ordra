@@ -13,13 +13,17 @@
 
 ALTER TABLE orders
   ADD COLUMN IF NOT EXISTS dexpress_status_slug TEXT,
-  ADD COLUMN IF NOT EXISTS dexpress_status_synced_at TIMESTAMPTZ;
+  ADD COLUMN IF NOT EXISTS dexpress_status_synced_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS dexpress_status_accepted BOOLEAN;
 
 COMMENT ON COLUMN orders.dexpress_status_slug IS
   'Cached projection of the Dexpress portal status. NEVER drives stock/cost/revenue. See plans/dexpress-list-status-bucket.md';
 
 COMMENT ON COLUMN orders.dexpress_status_synced_at IS
   'Last successful Dexpress sync timestamp for this order. NULL means never synced.';
+
+COMMENT ON COLUMN orders.dexpress_status_accepted IS
+  'Mirrors Dexpress order_accept field. FALSE = sitting in /merchant/pending-orders awaiting Dexpress operator review (order_status reuses the AT_CUSTOMER id ''1'' in this state, so the slug alone is ambiguous). TRUE = accepted and on the lifecycle. The bucket function overrides slug-based bucket to ''uploaded'' whenever this is FALSE.';
 
 -- Partial index for the fermé bucket counts. Most orders won't have a slug,
 -- so the WHERE clause keeps the index small.

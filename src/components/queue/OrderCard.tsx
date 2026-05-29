@@ -211,6 +211,7 @@ export const OrderCard = memo(function OrderCard({
     status: order.status,
     carrierCode: order.carrier_code,
     dexpressStatusSlug: order.dexpress_status_slug,
+    dexpressStatusAccepted: order.dexpress_status_accepted,
   });
 
   const statusPill = (() => {
