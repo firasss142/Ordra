@@ -34,6 +34,7 @@ const config: Config = {
           card: "#FFFFFF",
           hover: "#FAFAFA",
           selected: "#F2F2F2",
+          elevated: "#FFFFFF",
         },
         ink: {
           primary: "#1A1A1A",
@@ -88,6 +89,7 @@ const config: Config = {
         "hover-row": "0 1px 2px rgba(16,24,40,0.04)",
         floating: "0 8px 24px rgba(16,24,40,0.10)",
         panel: "0 4px 16px rgba(16,24,40,0.06)",
+        "panel-elevated": "0 6px 20px rgba(16,24,40,0.08)",
       },
       transitionDuration: {
         fast: "120ms",

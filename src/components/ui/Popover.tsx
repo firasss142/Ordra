@@ -12,6 +12,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 
 interface PopoverProps {
   trigger: ReactElement;
@@ -49,18 +50,39 @@ export function Popover({
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    const panelWidth = panelRef.current?.offsetWidth ?? rect.width;
-    const left =
-      align === "end"
-        ? rect.right + window.scrollX - panelWidth
-        : rect.left + window.scrollX;
-    const top = rect.bottom + window.scrollY + 4;
-    const clampedLeft = Math.max(
-      8,
-      Math.min(left, window.scrollX + window.innerWidth - panelWidth - 8),
-    );
-    setPos({ top, left: clampedLeft, width: rect.width });
+    // Trigger rect is viewport-relative — panel uses `position: fixed` and
+    // is portaled to <body>, so we DO NOT add window.scrollX / scrollY here.
+    function place() {
+      if (!triggerRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      // Width / height come from the actual mounted panel when possible; on
+      // the first paint we fall back to conservative estimates so the initial
+      // position isn't clamped to a too-narrow trigger width.
+      const panelWidth = panelRef.current?.offsetWidth ?? 220;
+      const panelHeight = panelRef.current?.offsetHeight ?? 200;
+      const rawLeft =
+        align === "end" ? rect.right - panelWidth : rect.left;
+      // Default below the trigger. Flip above when there isn't enough room
+      // and the trigger has more space above (typical for footer-anchored
+      // overflow menus inside a fixed drawer).
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const flipUp = spaceBelow < panelHeight + 8 && spaceAbove > spaceBelow;
+      const top = flipUp ? rect.top - panelHeight - 4 : rect.bottom + 4;
+      const clampedLeft = Math.max(
+        8,
+        Math.min(rawLeft, window.innerWidth - panelWidth - 8),
+      );
+      const clampedTop = Math.max(
+        8,
+        Math.min(top, window.innerHeight - panelHeight - 8),
+      );
+      setPos({ top: clampedTop, left: clampedLeft, width: rect.width });
+    }
+    place();
+    // Re-measure after the panel mounts to honor its real width.
+    const raf = requestAnimationFrame(place);
+    return () => cancelAnimationFrame(raf);
   }, [open, align]);
 
   useEffect(() => {
@@ -110,20 +132,35 @@ export function Popover({
     },
   } as React.HTMLAttributes<HTMLElement> & { ref: React.Ref<HTMLElement> });
 
+  const panel =
+    open && pos && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            ref={panelRef}
+            id={panelId}
+            role="dialog"
+            // Stop pointer events from bubbling to the document — the panel is
+            // a body-portaled sibling, so any host-overlay onClick handlers
+            // (e.g. a fixed drawer that closes on outside click) would
+            // otherwise treat the popover click as "outside the drawer" and
+            // close everything. The Popover's own outside-click logic still
+            // works because it uses document.addEventListener on mousedown
+            // and checks containment against `panelRef`.
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 70 }}
+            className={`rounded-lg border border-line bg-surface-card shadow-floating ${panelClassName}`.trim()}
+          >
+            {typeof children === "function" ? children(close) : children}
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
     <>
       {enhancedTrigger}
-      {open && pos ? (
-        <div
-          ref={panelRef}
-          id={panelId}
-          role="dialog"
-          style={{ position: "absolute", top: pos.top, left: pos.left, zIndex: 50 }}
-          className={`rounded-lg border border-line bg-surface-card shadow-floating ${panelClassName}`.trim()}
-        >
-          {typeof children === "function" ? children(close) : children}
-        </div>
-      ) : null}
+      {panel}
     </>
   );
 }

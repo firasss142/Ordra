@@ -1024,6 +1024,23 @@
         "deleteHttp": "Échec de la suppression du code-barres ({status})",
         "deleteNetwork": "Erreur réseau",
         "addProductFailed": "Impossible d'ajouter le produit"
+      },
+      "actions": {
+        "endCall": "Appel terminé",
+        "returnToPool": "Retirer de l'agent",
+        "cancel": "Annuler la commande",
+        "rescheduleCallback": "Replanifier le rappel",
+        "changeStatus": "Modifier le statut",
+        "uploadToCarrier": "Envoyer au transporteur",
+        "uploadNow": "Envoyer maintenant",
+        "scheduleDispatch": "Planifier la livraison",
+        "cancelSchedule": "Annuler la planification",
+        "deleteCarrierBarcode": "Supprimer le code-barres",
+        "reopen": "Réouvrir la commande",
+        "fulfillmentOverride": "Mettre à jour le fulfillment",
+        "close": "Fermer",
+        "overflowMenu": "Plus d'actions",
+        "primaryDisabledNoCarrier": "Aucun transporteur actif disponible"
       }
     },
     "scheduleDispatch": {

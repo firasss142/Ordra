@@ -190,6 +190,29 @@ Badge colors come exclusively from the status token pairs — see §2 Status Col
 - Shadow: `0 8px 32px rgba(0,0,0,0.18)` — **only floating surfaces get shadow**
 - Focus trap required; `Escape` closes
 
+### 4.9 Panel variant — side-drawer composition
+
+For long-form right-edge panels (e.g. `OrderDetailPanel`), surfaces follow the same flat-white grammar as cards, but the **hero card** at the top of the panel uses a subtle elevation to anchor the customer's identity:
+
+- Drawer: `fixed top-0 end-0 h-full w-full sm:w-[480px] bg-surface-card border-s border-line-subtle shadow-panel`
+- Sticky header band: `h-[56px] bg-surface-card border-b border-line-subtle px-4`
+- Hero card: `mx-4 mt-3 rounded-card bg-surface-card border border-line-subtle px-4 py-4 shadow-panel-elevated`
+- Body: `flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3` — **12px gap** between cards, no internal dividers
+- Footer: `flex-shrink-0 bg-surface-card border-t border-line-subtle px-4 py-3`
+
+The `shadow-panel-elevated` token (`0 6px 20px rgba(16,24,40,0.08)`) is the **only** rest-state shadow allowed in the system, and it appears **only** on the panel hero card to telegraph identity. Body section cards remain flat (`shadow-none`).
+
+### 4.10 Section label + icon
+
+Section identity inside a panel is communicated through a tiny uppercase label paired with a single 12px lucide icon — **never** through tinted backgrounds. All section cards are pure white:
+
+- Card: `rounded-card bg-surface-card border border-line-subtle p-4`
+- Label row: `flex items-center gap-1.5 mb-3`
+- Icon: `<Icon size={12} strokeWidth={2} className="text-ink-muted" />`
+- Label: `text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-muted`
+
+Examples: Customer = `User`, Address = `MapPin`, Order = `ShoppingBag`, Note = `StickyNote`, History = `Clock`, Fulfillment = `Truck`. Never tint a section background to signal "kind of content" — the label + icon does that job.
+
 ---
 
 ## 5. Layout

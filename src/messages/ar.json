@@ -1024,6 +1024,23 @@
         "deleteHttp": "فشل حذف الباركود ({status})",
         "deleteNetwork": "خطأ في الشبكة",
         "addProductFailed": "تعذرت إضافة المنتج"
+      },
+      "actions": {
+        "endCall": "إنهاء المكالمة",
+        "returnToPool": "إرجاع إلى القائمة",
+        "cancel": "إلغاء الطلب",
+        "rescheduleCallback": "إعادة جدولة الاتصال",
+        "changeStatus": "تغيير الحالة",
+        "uploadToCarrier": "إرسال إلى الناقل",
+        "uploadNow": "إرسال الآن",
+        "scheduleDispatch": "جدولة التوصيل",
+        "cancelSchedule": "إلغاء الجدولة",
+        "deleteCarrierBarcode": "حذف الباركود",
+        "reopen": "إعادة فتح الطلب",
+        "fulfillmentOverride": "تحديث حالة التسليم",
+        "close": "إغلاق",
+        "overflowMenu": "خيارات إضافية",
+        "primaryDisabledNoCarrier": "لا يوجد ناقل نشط متاح"
       }
     },
     "scheduleDispatch": {
