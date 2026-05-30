@@ -63,6 +63,14 @@ export function useUsersWorkspace() {
     await mutate();
   }
 
+  async function deleteUser(id: string): Promise<{ ordersReturned: number }> {
+    const res = await fetch(`/api/agents/${id}`, { method: "DELETE" });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error ?? "Erreur lors de la suppression");
+    await mutate();
+    return { ordersReturned: body.ordersReturned ?? 0 };
+  }
+
   async function updateAvatar(id: string, dataUrl: string): Promise<string | null> {
     const res = await fetch(`/api/agents/${id}`, {
       method: "PATCH",
@@ -82,6 +90,7 @@ export function useUsersWorkspace() {
     createUser,
     deactivateUser,
     reactivateUser,
+    deleteUser,
     resetPassword,
     updateAvatar,
   };

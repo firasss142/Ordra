@@ -8,6 +8,7 @@ import { useUsersWorkspace } from "@/hooks/useUsersWorkspace";
 import { UserRoleSection } from "@/components/admin/UserRoleSection";
 import { CreateUserPanel } from "@/components/admin/CreateUserPanel";
 import { DeactivateUserFlow } from "@/components/admin/DeactivateUserFlow";
+import { DeleteUserFlow } from "@/components/admin/DeleteUserFlow";
 import { UserAuditLog } from "@/components/admin/UserAuditLog";
 import type { AuthUser, DeactivationReason, Role, UserWithStats } from "@/types";
 
@@ -34,7 +35,7 @@ function groupUsersByRole(users: UserWithStats[]): Partial<Record<Role, UserWith
 
 export function UsersPageClient({ user }: Props) {
   const t = useTranslations("users");
-  const { users, isLoading, createUser, deactivateUser, reactivateUser } = useUsersWorkspace();
+  const { users, isLoading, createUser, deactivateUser, reactivateUser, deleteUser } = useUsersWorkspace();
   const { data: marketsData } = useSWR<{ data: Market[] }>(
     user.role === "super_admin" ? "/api/markets" : null,
     fetcher
@@ -50,6 +51,7 @@ export function UsersPageClient({ user }: Props) {
 
   const [createPanelOpen, setCreatePanelOpen] = useState(false);
   const [deactivatingUser, setDeactivatingUser] = useState<UserWithStats | null>(null);
+  const [deletingUser, setDeletingUser] = useState<UserWithStats | null>(null);
   const [auditLogUserId, setAuditLogUserId] = useState<string | null>(null);
   const [resetPasswordUser, setResetPasswordUser] = useState<UserWithStats | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -134,6 +136,7 @@ export function UsersPageClient({ user }: Props) {
               }}
               onResetPassword={(u) => setResetPasswordUser(u)}
               onViewAuditLog={(id) => setAuditLogUserId(id)}
+              onDelete={(u) => setDeletingUser(u)}
             />
           );
         })}
@@ -164,6 +167,21 @@ export function UsersPageClient({ user }: Props) {
           onSuccess={(ordersReturned) => {
             setDeactivatingUser(null);
             showToast(t("deactivatedWithCount", { count: ordersReturned }));
+          }}
+        />
+      )}
+
+      {/* Delete flow (super_admin only — gating enforced in UserCard) */}
+      {deletingUser && (
+        <DeleteUserFlow
+          userId={deletingUser.id}
+          userName={deletingUser.full_name}
+          open={!!deletingUser}
+          onClose={() => setDeletingUser(null)}
+          onDelete={async (id) => deleteUser(id)}
+          onSuccess={(ordersReturned) => {
+            setDeletingUser(null);
+            showToast(t("deletedWithCount", { count: ordersReturned }));
           }}
         />
       )}

@@ -2549,6 +2549,12 @@
     "deactivateAffectedOrders": "{count} commande(s) seront retournées à la file non assignée.",
     "deactivateConfirm": "Confirmer la désactivation",
     "deactivatedWithCount": "Désactivé. {count} commande(s) retournée(s).",
+    "delete": "Supprimer l'utilisateur",
+    "deleteConfirmTitle": "Supprimer définitivement {name} ?",
+    "deleteConfirmBody": "Cette action est irréversible. L'utilisateur ne pourra plus se connecter et ses commandes en cours seront retournées à la file non assignée. L'historique et le journal d'audit sont conservés.",
+    "deleteConfirm": "Supprimer définitivement",
+    "deleting": "Suppression…",
+    "deletedWithCount": "Utilisateur supprimé. {count} commande(s) retournée(s).",
     "sections": {
       "market_manager": "Market managers",
       "agent": "Agents de confirmation",
@@ -2570,6 +2576,7 @@
         "user_invited": "Invitation envoyée",
         "user_deactivated": "Compte désactivé",
         "user_reactivated": "Compte réactivé",
+        "user_deleted": "Compte supprimé",
         "password_reset": "Mot de passe réinitialisé",
         "avatar_updated": "Photo mise à jour"
       }

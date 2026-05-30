@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
   let query = admin
     .from("users")
     .select(USER_COLS)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   if (actor.role === "market_manager") {

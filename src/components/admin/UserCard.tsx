@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { MoreHorizontal, History, KeyRound, UserX, UserCheck } from "lucide-react";
+import { MoreHorizontal, History, KeyRound, UserX, UserCheck, Trash2 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { getPresence, PRESENCE_COLOR } from "@/lib/presence";
 import type { Role, UserWithStats } from "@/types";
@@ -22,6 +22,7 @@ interface Props {
   onReactivate: () => void;
   onResetPassword: () => void;
   onViewAuditLog: () => void;
+  onDelete: () => void;
 }
 
 function relativeTime(iso: string | null): string {
@@ -51,6 +52,7 @@ export function UserCard({
   onReactivate,
   onResetPassword,
   onViewAuditLog,
+  onDelete,
 }: Props) {
   const t = useTranslations("users");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -263,6 +265,16 @@ export function UserCard({
               >
                 <History size={14} />
                 {t("auditLog.title")}
+              </button>
+            )}
+
+            {actorRole === "super_admin" && !isSelf && (
+              <button
+                onClick={() => { setMenuOpen(false); onDelete(); }}
+                style={{ ...menuItemStyle, color: "#B91C1C", borderTop: "1px solid #F4F4F4" }}
+              >
+                <Trash2 size={14} />
+                {t("delete")}
               </button>
             )}
           </div>

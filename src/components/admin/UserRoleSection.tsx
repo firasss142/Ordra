@@ -20,6 +20,7 @@ interface Props {
   onReactivate: (id: string) => void;
   onResetPassword: (user: UserWithStats) => void;
   onViewAuditLog: (id: string) => void;
+  onDelete: (user: UserWithStats) => void;
 }
 
 function groupByStatus(users: UserWithStats[]) {
@@ -50,6 +51,7 @@ export function UserRoleSection({
   onReactivate,
   onResetPassword,
   onViewAuditLog,
+  onDelete,
 }: Props) {
   const t = useTranslations("users");
   const { active, invited, disabled } = groupByStatus(users);
@@ -84,6 +86,7 @@ export function UserRoleSection({
             onReactivate={() => onReactivate(u.id)}
             onResetPassword={() => onResetPassword(u)}
             onViewAuditLog={() => onViewAuditLog(u.id)}
+            onDelete={() => onDelete(u)}
           />
         ))}
       </div>
