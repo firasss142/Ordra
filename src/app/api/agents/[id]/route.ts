@@ -163,3 +163,79 @@ export async function PATCH(
 
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });
 }
+
+// Soft-delete: removes the auth user (blocks login) and stamps users.deleted_at
+// so historical FKs (order_history, audit log, …) stay intact.
+// super_admin only.
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  const [actorResult, { data: target }] = await Promise.all([
+    getActor(req),
+    supabase.from("users").select("market_id, deleted_at").eq("id", id).single(),
+  ]);
+
+  if ("response" in actorResult) return actorResult.response;
+  const { actor } = actorResult;
+
+  if (actor.role !== "super_admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (!target) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (target.deleted_at) {
+    return NextResponse.json({ error: "Already deleted" }, { status: 409 });
+  }
+
+  const admin = createAdminClient();
+
+  const { data: openOrders } = await supabase
+    .from("orders")
+    .select("id")
+    .eq("assigned_to", id)
+    .in("status", REASSIGN_STATUSES);
+
+  let returned = 0;
+  for (const order of openOrders ?? []) {
+    await returnToPool(supabase, order.id, actor.id);
+    returned++;
+  }
+
+  // We CANNOT call auth.admin.deleteUser here: public.users has
+  // FK(id) → auth.users(id) ON DELETE CASCADE, which would cascade-delete
+  // the users row and then fail against the many NOT NULL FK references
+  // pointing at public.users (warehouse_print_log.printed_by,
+  // products.created_by, user_audit_log, …). Instead we ban the auth
+  // account so it cannot log in; the public row stays intact for
+  // historical joins.
+  const { error: authError } = await admin.auth.admin.updateUserById(id, {
+    ban_duration: "876000h",
+  });
+  if (authError) {
+    console.error("[DELETE /api/agents] auth.admin.updateUserById ban failed:", authError);
+    return NextResponse.json(
+      { error: `Auth ban failed: ${authError.message}` },
+      { status: 500 }
+    );
+  }
+
+  const { error } = await supabase
+    .from("users")
+    .update({ is_active: false, deleted_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) {
+    console.error("[DELETE /api/agents] users update failed:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+
+  await writeAuditLog(admin, actor.id, id, "user_deleted", {
+    orders_returned: returned,
+  });
+
+  return NextResponse.json({ success: true, ordersReturned: returned });
+}

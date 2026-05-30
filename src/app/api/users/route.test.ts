@@ -123,6 +123,7 @@ describe("GET /api/users", () => {
     const rows = [{ id: "u1", role: "agent" }];
     const adminChain: Record<string, unknown> = {};
     adminChain.select = vi.fn().mockReturnValue(adminChain);
+    adminChain.is = vi.fn().mockReturnValue(adminChain);
     adminChain.order = vi.fn().mockResolvedValue({ data: rows, error: null });
     mockAdminFrom.mockReturnValue(adminChain);
     const res = await GET(makeGetRequest());
@@ -136,6 +137,7 @@ describe("GET /api/users", () => {
     const rows = [{ id: "u2", role: "agent", market_id: "market-tn" }];
     const adminChain: Record<string, unknown> = {};
     adminChain.select = vi.fn().mockReturnValue(adminChain);
+    adminChain.is = vi.fn().mockReturnValue(adminChain);
     adminChain.order = vi.fn().mockReturnValue(adminChain);
     adminChain.eq = vi.fn().mockReturnValue(adminChain);
     adminChain.in = vi.fn().mockResolvedValue({ data: rows, error: null });

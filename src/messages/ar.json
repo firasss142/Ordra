@@ -2549,6 +2549,12 @@
     "deactivateAffectedOrders": "سيتم إعادة {count} طلب(ات) إلى قائمة انتظار غير معيّنة.",
     "deactivateConfirm": "تأكيد التعطيل",
     "deactivatedWithCount": "تم التعطيل. أُعيد {count} طلب(ات).",
+    "delete": "حذف المستخدم",
+    "deleteConfirmTitle": "حذف {name} نهائياً؟",
+    "deleteConfirmBody": "هذا الإجراء لا يمكن التراجع عنه. لن يتمكّن المستخدم من تسجيل الدخول وسيتم إعادة طلباته الجارية إلى قائمة الانتظار غير المعيّنة. يُحتفظ بسجل النشاط والتاريخ.",
+    "deleteConfirm": "حذف نهائي",
+    "deleting": "جارٍ الحذف…",
+    "deletedWithCount": "تم حذف المستخدم. أُعيد {count} طلب(ات).",
     "sections": {
       "market_manager": "مديرو السوق",
       "agent": "وكلاء التأكيد",
@@ -2570,6 +2576,7 @@
         "user_invited": "تم إرسال الدعوة",
         "user_deactivated": "تم تعطيل الحساب",
         "user_reactivated": "تم إعادة تفعيل الحساب",
+        "user_deleted": "تم حذف الحساب",
         "password_reset": "تمت إعادة تعيين كلمة المرور",
         "avatar_updated": "تم تحديث الصورة"
       }
