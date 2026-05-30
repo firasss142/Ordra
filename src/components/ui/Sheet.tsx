@@ -9,8 +9,10 @@ interface SheetProps {
   /**
    * "end" → slides in from the inline-end edge (right in LTR, left in RTL).
    * "center" → traditional modal anchored in the middle of the viewport.
+   * "bottom" → mobile bottom-sheet: slides up from the bottom edge with
+   * rounded top corners and a grab-handle affordance. Direction-agnostic.
    */
-  placement?: "end" | "center";
+  placement?: "end" | "center" | "bottom";
   /** Tailwind width class for end placement. Defaults to `sm:w-[480px]`. */
   width?: string;
   ariaLabel?: string;
@@ -57,19 +59,25 @@ export function Sheet({
 
   if (!open) return null;
 
-  const panelClass =
-    placement === "end"
-      ? [
-          "fixed top-0 end-0 h-full z-50 flex flex-col overflow-hidden",
-          "bg-surface-card border-s border-line-subtle shadow-panel",
-          "animate-[slideInEnd_180ms_ease-out]",
-          width,
-        ].join(" ")
-      : [
-          "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50",
-          "max-h-[90vh] w-[min(480px,90vw)] flex flex-col overflow-hidden",
-          "rounded-card bg-surface-card border border-line-subtle shadow-floating",
-        ].join(" ");
+  const panelClass = {
+    end: [
+      "fixed top-0 end-0 h-full z-50 flex flex-col overflow-hidden",
+      "bg-surface-card border-s border-line-subtle shadow-panel",
+      "animate-[slideInEnd_180ms_ease-out]",
+      width,
+    ].join(" "),
+    center: [
+      "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50",
+      "max-h-[90vh] w-[min(480px,90vw)] flex flex-col overflow-hidden",
+      "rounded-card bg-surface-card border border-line-subtle shadow-floating",
+    ].join(" "),
+    bottom: [
+      "fixed inset-x-0 bottom-0 z-50 flex flex-col overflow-hidden",
+      "max-h-[92vh] rounded-t-[20px]",
+      "bg-surface-card border-t border-line-subtle shadow-floating",
+      "animate-[slideInBottom_220ms_cubic-bezier(0.32,0.72,0,1)]",
+    ].join(" "),
+  }[placement];
 
   const body = (
     <>
@@ -86,6 +94,17 @@ export function Sheet({
         aria-labelledby={ariaLabelledBy}
         className={panelClass}
       >
+        {placement === "bottom" ? (
+          <div
+            className="flex-shrink-0 flex items-center justify-center pt-2.5 pb-1"
+            aria-hidden="true"
+          >
+            <span
+              data-testid="sheet-grab-handle"
+              className="block w-9 h-1 rounded-full bg-line-strong"
+            />
+          </div>
+        ) : null}
         {children}
       </div>
     </>

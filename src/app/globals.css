@@ -325,6 +325,17 @@
   }
 }
 
+/* Bottom-sheet slide-up (mobile order panel). Direction-agnostic — the sheet
+   anchors to the bottom edge in both LTR and RTL, so no [dir] override. */
+@keyframes slideInBottom {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
 /* Bulk-action floating bar entrance */
 @keyframes fadeInUp {
   from {

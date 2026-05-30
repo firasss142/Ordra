@@ -43,7 +43,7 @@ export function ActionFooter({ actions, primaryPending, onInvoke }: ActionFooter
   }));
 
   return (
-    <div className="flex-shrink-0 bg-surface-card border-t border-line-subtle px-4 py-3 flex items-center gap-2">
+    <div className="flex-shrink-0 bg-surface-card border-t border-line-subtle px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex items-center gap-2">
       <button
         type="button"
         onClick={() => onInvoke(primary.kind)}

@@ -56,6 +56,7 @@ import { type BadgeTone } from "@/components/ui/Badge";
 import { useOrderMutation } from "@/hooks/useOrderMutation";
 import { useOrderDetailRealtime } from "@/hooks/useOrderDetailRealtime";
 import { useCarriers } from "@/hooks/useCarriers";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { DexpressStatusSection } from "../DexpressStatusSection";
 import { formatDisplayCurrencyCode, LY_MARKET_ID } from "@/lib/markets";
 import { isValidLibyanPhone } from "@/lib/carriers/phone";
@@ -69,6 +70,7 @@ import { HistoryTimeline } from "./HistoryTimeline";
 import { FulfillmentCard, FULFILLMENT_STATUS_VALUES as FULFILLMENT_VALUES_FROM_CARD } from "./FulfillmentCard";
 import type { FulfillmentStatusValue } from "./FulfillmentCard";
 import { AlertBanners } from "./AlertBanners";
+import { AddressAlert } from "./AddressAlert";
 import { usePrimaryAction } from "./usePrimaryAction";
 import type { PanelActionKind } from "./types";
 
@@ -332,6 +334,11 @@ export function OrderDetailPanel({
   const t = useTranslations("orders.detail");
   const ts = useTranslations("orders.statuses");
   const locale = useLocale();
+
+  // Mobile-first form factor: below the `sm` breakpoint (640px) the panel
+  // becomes a bottom-sheet; on tablet/desktop it stays a docked end-side
+  // drawer. Drives the panel-wrapper classes + the mobile grab handle.
+  const isMobile = useIsMobile();
 
   const swrKey = orderId ? `/api/orders/${orderId}` : null;
 
@@ -849,8 +856,25 @@ export function OrderDetailPanel({
         }}
       />
 
-      {/* Panel */}
-      <div className="fixed top-0 end-0 h-full w-full sm:w-[480px] z-50 flex flex-col overflow-hidden bg-surface-card border-s border-line-subtle shadow-panel animate-[slideInEnd_180ms_ease-out]">
+      {/* Panel — bottom-sheet on mobile (<640px), docked end-drawer on
+          tablet/desktop. The two layouts share one DOM subtree so every
+          role + state gets the responsive treatment for free. */}
+      <div
+        className={
+          isMobile
+            ? "fixed inset-x-0 bottom-0 z-50 flex flex-col overflow-hidden max-h-[92vh] rounded-t-[20px] bg-surface-card border-t border-line-subtle shadow-floating animate-[slideInBottom_220ms_cubic-bezier(0.32,0.72,0,1)]"
+            : "fixed top-0 end-0 h-full w-full sm:w-[480px] z-50 flex flex-col overflow-hidden bg-surface-card border-s border-line-subtle shadow-panel animate-[slideInEnd_180ms_ease-out]"
+        }
+      >
+        {/* Grab handle — only meaningful for the bottom-sheet form factor. */}
+        {isMobile ? (
+          <div
+            className="flex-shrink-0 flex items-center justify-center pt-2.5 pb-1"
+            aria-hidden="true"
+          >
+            <span className="block w-9 h-1 rounded-full bg-line-strong" />
+          </div>
+        ) : null}
 
         {/* ── Sticky header ─────────────────────────────────────── */}
         <PanelHeader
@@ -964,6 +988,26 @@ export function OrderDetailPanel({
                 cancelingSchedule={cancelingSchedule}
                 onCancelSchedule={handleCancelSchedule}
               />
+
+              {/* ── Missing-address headline ──
+                  For a COD order a missing delivery address is a hard ship
+                  blocker, so we lead with it (amber alert + the customer's
+                  note + attempt count + inline resolve form) instead of
+                  letting it hide as a plain row in the customer card. Only
+                  for non-terminal orders that still have no address. */}
+              {!TERMINAL_STATUSES.has(order.status) && !order.customer_address && (
+                <AddressAlert
+                  note={order.customer_note}
+                  attemptsCount={order.attempts_count ?? 0}
+                  canEdit={canEdit}
+                  isLibyaOrder={isLibyaOrder}
+                  dexpressStates={dexpressStates}
+                  loadCities={loadCities}
+                  onCommitAddress={(v) => runCommit({ customer_address: v })}
+                  onCommitCity={(id) => runCommit({ city_id: id })}
+                  onCommitDexpressState={(id) => runCommit({ dexpress_state_id: id })}
+                />
+              )}
 
               {/* ── Body sections ── */}
               <div className="flex flex-col gap-3 px-4 py-4 pb-10">

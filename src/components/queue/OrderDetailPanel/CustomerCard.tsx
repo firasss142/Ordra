@@ -1,16 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { MapPin, StickyNote } from "lucide-react";
 import { InlineField } from "@/components/ui/InlineField";
-import { Combobox, type ComboboxOption } from "@/components/ui/Combobox";
+import { type ComboboxOption } from "@/components/ui/Combobox";
 import { SectionCard } from "./SectionCard";
-
-interface DexpressState {
-  id: number;
-  name: string;
-}
+import { CityPicker, type DexpressState } from "./CityPicker";
 
 export interface CustomerCardProps {
   address: string | null;
@@ -48,14 +43,6 @@ export function CustomerCard({
   onCommitNote,
 }: CustomerCardProps) {
   const t = useTranslations("orders.detail");
-  const [libyaPickerOpen, setLibyaPickerOpen] = useState(false);
-  const [libyaQuery, setLibyaQuery] = useState("");
-
-  const filteredDexpressStates = useMemo(() => {
-    const q = libyaQuery.trim();
-    if (!q) return dexpressStates;
-    return dexpressStates.filter((s) => s.name.includes(q));
-  }, [dexpressStates, libyaQuery]);
 
   return (
     <SectionCard title={t("client")} icon={MapPin}>
@@ -71,78 +58,15 @@ export function CustomerCard({
           />
         </FieldRow>
         <FieldRow label={t("fieldCity")}>
-          {isLibyaOrder ? (
-            !canEdit ? (
-              <span className="text-[13px] text-ink-primary" dir="auto">
-                {city ?? "—"}
-              </span>
-            ) : !libyaPickerOpen ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setLibyaQuery("");
-                  setLibyaPickerOpen(true);
-                }}
-                className="group flex items-center justify-between gap-2 w-full text-start cursor-text rounded-card -mx-1 px-1 py-0.5 hover:bg-surface-hover transition-colors duration-fast"
-                aria-label={t("cityChange")}
-              >
-                <span className="truncate text-[13px] text-ink-primary" dir="auto">
-                  {city ?? "—"}
-                </span>
-                <span
-                  aria-hidden="true"
-                  className="flex-shrink-0 text-[12px] font-medium text-ink-secondary group-hover:text-ink-primary underline-offset-2 group-hover:underline"
-                >
-                  {t("cityChange")}
-                </span>
-              </button>
-            ) : (
-              <div className="flex flex-col gap-2 w-full">
-                <input
-                  type="text"
-                  value={libyaQuery}
-                  onChange={(e) => setLibyaQuery(e.target.value)}
-                  placeholder={t("citySearch")}
-                  className="w-full h-9 px-3 text-[13px] rounded-card border border-line-subtle bg-surface-card text-ink-primary placeholder:text-ink-muted focus:outline-none focus:border-ink-primary"
-                  dir="auto"
-                  autoFocus
-                />
-                <div className="max-h-40 overflow-y-auto rounded-card border border-line-subtle">
-                  {filteredDexpressStates.length === 0 ? (
-                    <div className="px-3 py-2 text-[12px] text-ink-secondary">
-                      {t("cityNoResults")}
-                    </div>
-                  ) : (
-                    filteredDexpressStates.map((state) => (
-                      <button
-                        key={state.id}
-                        type="button"
-                        onClick={() => {
-                          onCommitDexpressState(state.id);
-                          setLibyaPickerOpen(false);
-                        }}
-                        className="w-full border-b border-line-subtle px-3 py-2 text-start text-[13px] last:border-b-0 text-ink-primary hover:bg-surface-hover"
-                        dir="auto"
-                      >
-                        {state.name}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            )
-          ) : (
-            <Combobox
-              value={city ?? ""}
-              options={[]}
-              loadOptions={loadCities}
-              onCommit={(id) => onCommitCity(id)}
-              placeholder={t("pickCity")}
-              displayMode
-              readOnly={!canEdit}
-              displayClassName="text-[13px]"
-            />
-          )}
+          <CityPicker
+            city={city}
+            canEdit={canEdit}
+            isLibyaOrder={isLibyaOrder}
+            dexpressStates={dexpressStates}
+            loadCities={loadCities}
+            onCommitCity={onCommitCity}
+            onCommitDexpressState={onCommitDexpressState}
+          />
         </FieldRow>
 
         {(note || canEdit) && (
