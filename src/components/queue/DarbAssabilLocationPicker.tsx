@@ -2,9 +2,10 @@
 
 import { Dispatch, SetStateAction, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { Check } from "lucide-react";
 import {
-  DARB_ASSABIL_AREAS,
-  type DarbAssabilArea,
+  DARB_ASSABIL_CITIES,
+  darbAreasFor,
 } from "@/lib/carriers/darb-assabil-areas";
 
 export interface DarbAssabilSelection {
@@ -12,22 +13,32 @@ export interface DarbAssabilSelection {
   area: string | null;
 }
 
+interface CityAreaPair {
+  city: string;
+  area: string;
+}
+
 export interface DarbAssabilLocationPickerProps {
   value: DarbAssabilSelection;
   onChange: Dispatch<SetStateAction<DarbAssabilSelection>>;
   /**
-   * When set, restrict the list to this city's areas (matched normalized).
-   * Used when the order's city is a known multi-area Darb city (طرابلس) so the
-   * agent picks the AREA, not a different city. Omit to show all destinations.
+   * When set, restrict the list to this city's areas. Used when the order's
+   * city is a known multi-area Darb city so the agent picks the AREA within it,
+   * not a different city. Omit to show every deliverable city/area combo.
    */
   restrictToCity?: string | null;
 }
 
+// Every deliverable city/area combo, flattened once at module load.
+const ALL_PAIRS: CityAreaPair[] = Object.entries(DARB_ASSABIL_CITIES).flatMap(
+  ([city, areas]) => areas.map((area) => ({ city, area }))
+);
+
 /**
  * Searchable destination picker for Darb Assabil. The carrier resolves the
- * destination branch from (city, area), so the agent must pick one of the
- * vendor's known pairs (bundled in `darb-assabil-areas`). Single-area cities
- * show just the city name; Tripoli's sub-areas show "city — area".
+ * branch from (city, area), so the agent picks a real deliverable pair. When
+ * scoped to a city, only that city's areas are shown (agent picks the area);
+ * otherwise the full city/area list is searchable.
  */
 export function DarbAssabilLocationPicker({
   value,
@@ -37,12 +48,14 @@ export function DarbAssabilLocationPicker({
   const t = useTranslations("dispatch.darbAssabil");
   const [query, setQuery] = useState("");
 
-  const scoped = useMemo(() => {
-    const r = (restrictToCity ?? "").trim().replace(/\s+/g, " ").toLowerCase();
-    if (!r) return DARB_ASSABIL_AREAS;
-    return DARB_ASSABIL_AREAS.filter(
-      (d) => d.city.trim().replace(/\s+/g, " ").toLowerCase() === r
-    );
+  const scoped = useMemo<CityAreaPair[]>(() => {
+    if (restrictToCity) {
+      return darbAreasFor(restrictToCity).map((area) => ({
+        city: restrictToCity,
+        area,
+      }));
+    }
+    return ALL_PAIRS;
   }, [restrictToCity]);
 
   const filtered = useMemo(() => {
@@ -51,7 +64,7 @@ export function DarbAssabilLocationPicker({
     return scoped.filter((d) => d.city.includes(q) || d.area.includes(q));
   }, [query, scoped]);
 
-  function label(d: DarbAssabilArea): string {
+  function label(d: CityAreaPair): string {
     return d.city === d.area ? d.city : `${d.city} — ${d.area}`;
   }
 
@@ -84,20 +97,51 @@ export function DarbAssabilLocationPicker({
                   aria-pressed={selected}
                   onClick={() => onChange({ city: d.city, area: d.area })}
                   className={[
-                    "w-full border-b border-line-subtle px-3 py-2 text-start text-[13px] last:border-b-0",
+                    "flex w-full items-center justify-between gap-2 border-b border-line-subtle px-3 py-2 text-start text-[13px] last:border-b-0",
+                    // Selected reads as chosen AT REST — accent tint + a leading
+                    // accent bar + bold text — so it never looks like a plain
+                    // hover. Non-selected rows keep the subtle gray hover only.
                     selected
-                      ? "bg-surface-hover font-medium text-ink-primary"
+                      ? "border-s-2 border-s-accent bg-accent-soft font-semibold text-ink-primary"
                       : "text-ink-primary hover:bg-surface-hover",
                   ].join(" ")}
                   dir="auto"
                 >
-                  {label(d)}
+                  <span className="min-w-0 truncate">{label(d)}</span>
+                  {selected && (
+                    <Check
+                      size={15}
+                      strokeWidth={2.5}
+                      className="shrink-0 text-accent"
+                      aria-hidden="true"
+                    />
+                  )}
                 </button>
               );
             })
           )}
         </div>
       </div>
+
+      {/* Persistent confirmation — the agent always sees the current choice,
+          even after scrolling the list or moving the mouse off it. */}
+      {value.city && value.area && (
+        <div
+          role="status"
+          className="flex items-center gap-2 rounded border border-accent/30 bg-accent-soft px-3 py-2 text-[13px] text-ink-primary"
+          dir="auto"
+        >
+          <Check size={15} strokeWidth={2.5} className="shrink-0 text-accent" aria-hidden="true" />
+          <span>
+            <span className="text-ink-secondary">{t("selectedLabel")}</span>{" "}
+            <span className="font-medium">
+              {value.city === value.area
+                ? value.city
+                : `${value.city} — ${value.area}`}
+            </span>
+          </span>
+        </div>
+      )}
     </div>
   );
 }

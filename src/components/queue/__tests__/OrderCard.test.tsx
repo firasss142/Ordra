@@ -65,6 +65,8 @@ const mockOrder: QueueOrder = {
   dexpress_status_slug: null,
   dexpress_status_synced_at: null,
   dexpress_status_accepted: null,
+  carrier_status_slug: null,
+  carrier_status_synced_at: null,
 };
 
 describe("OrderCard", () => {

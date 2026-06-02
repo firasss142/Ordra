@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   // Verify ownership and manual-delete eligibility before touching carriers or DB state.
   const { data: orders, error: fetchError } = await supabase
     .from("orders")
-    .select("id, market_id, status, tracking_number, carrier_id")
+    .select("id, market_id, status, tracking_number, carrier_id, carrier_extra")
     .in("id", orderIds);
 
   if (fetchError) return NextResponse.json({ error: "Internal server error" }, { status: 500 });

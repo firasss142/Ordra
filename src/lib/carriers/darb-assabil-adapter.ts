@@ -252,16 +252,75 @@ export class DarbAssabilAdapter implements CarrierAdapter {
     };
   }
 
+  /**
+   * Cancel a shipment via `DELETE /api/local/shipments/:id`. The `:id` is the
+   * internal ObjectId (`_id`) captured at dispatch into the order's
+   * `carrier_extra.darb_assabil_id` — NOT the human `SH…` tracking reference,
+   * which the vendor's delete endpoint does not accept.
+   *
+   * This is a hard delete with no recovery (the order_history / carrier_event_log
+   * the route writes is the only forensic trail). Every failure mode reports
+   * `supported: true` so the route surfaces "coordination manuelle requise" and
+   * still flips local state — identical to Dexpress. A missing `_id` (order
+   * dispatched before id capture, or malformed extra) short-circuits without an
+   * HTTP call, since we can't address the shipment.
+   */
   async voidDispatch(
     _trackingNumber: string,
-    _config: CarrierConfig
+    config: CarrierConfig,
+    extra?: Record<string, unknown>
   ): Promise<CarrierVoidResult> {
-    // Vendor cancellation is a hard delete; the integration does not support it.
-    return {
-      success: false,
-      supported: false,
-      reason: "Cancellation is not supported by the Darb Assabil integration.",
-    };
+    const internalId =
+      typeof extra?.darb_assabil_id === "string" ? extra.darb_assabil_id : "";
+    if (!internalId) {
+      return {
+        success: false,
+        supported: true,
+        reason:
+          "Darb Assabil: identifiant interne (darb_assabil_id) manquant — suppression impossible",
+      };
+    }
+
+    const base = (config.apiEndpoint || "https://v2.sabil.ly").replace(/\/$/, "");
+    const headers = buildHeaders(config);
+
+    let raw: { status: number; body: unknown };
+    try {
+      raw = await deleteJson(
+        `${base}/api/local/shipments/${encodeURIComponent(internalId)}`,
+        headers
+      );
+    } catch (err) {
+      return {
+        success: false,
+        supported: true,
+        reason: err instanceof Error ? err.message : "unknown",
+      };
+    }
+
+    const body = asRecord(raw.body);
+
+    // Structured rejection — e.g. already picked up by a courier. Surface the
+    // vendor message before the transient fallback so it isn't masked.
+    if (body.status === false) {
+      const messages = body.messages as Array<{ message?: string }> | undefined;
+      return {
+        success: false,
+        supported: true,
+        reason: messages?.[0]?.message ?? "Carrier rejected the cancellation",
+      };
+    }
+
+    // Transport-level failure (5xx, or a body we couldn't parse as an envelope).
+    if (raw.status >= 500 || body.status !== true) {
+      return {
+        success: false,
+        supported: true,
+        reason: `Carrier temporarily unavailable (HTTP ${raw.status})`,
+      };
+    }
+
+    return { success: true, supported: true };
   }
 }
 
@@ -306,6 +365,25 @@ async function postJson(
     method: "POST",
     headers,
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15000),
+  });
+  let parsed: unknown;
+  try {
+    parsed = await response.json();
+  } catch {
+    parsed = await response.text();
+  }
+  return { status: response.status, body: parsed };
+}
+
+/** DELETE with a 15s timeout; parse JSON body, falling back to raw text. */
+async function deleteJson(
+  url: string,
+  headers: Record<string, string>
+): Promise<{ status: number; body: unknown }> {
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers,
     signal: AbortSignal.timeout(15000),
   });
   let parsed: unknown;

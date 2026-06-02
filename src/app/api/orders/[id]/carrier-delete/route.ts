@@ -11,6 +11,7 @@ interface OrderRow {
   market_id: string;
   tracking_number: string | null;
   carrier_id: string | null;
+  carrier_extra: Record<string, unknown> | null;
 }
 
 function canDeleteCarrierBarcode(
@@ -38,7 +39,9 @@ export async function POST(
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("id, status, assigned_to, market_id, tracking_number, carrier_id")
+    .select(
+      "id, status, assigned_to, market_id, tracking_number, carrier_id, carrier_extra",
+    )
     .eq("id", orderId)
     .single<OrderRow>();
 
@@ -82,7 +85,11 @@ export async function POST(
   try {
     const config = buildConfig(carrierRow);
     const adapter = getCarrierAdapter(carrierRow.code);
-    const result = await adapter.voidDispatch(order.tracking_number, config);
+    const result = await adapter.voidDispatch(
+      order.tracking_number,
+      config,
+      order.carrier_extra ?? undefined,
+    );
     if (result.success) {
       voidOutcome = "carrier_voided";
     } else {

@@ -50,6 +50,8 @@ function makeOrder(overrides: Partial<QueueOrder> = {}): QueueOrder {
     dexpress_status_slug: null,
     dexpress_status_synced_at: null,
     dexpress_status_accepted: null,
+    carrier_status_slug: null,
+    carrier_status_synced_at: null,
     ...overrides,
   };
   order.product_image_url = overrides.product_image_url ?? order.product_image_url;

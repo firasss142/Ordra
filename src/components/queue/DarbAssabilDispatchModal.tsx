@@ -9,7 +9,10 @@ import {
   DarbAssabilLocationPicker,
   type DarbAssabilSelection,
 } from "./DarbAssabilLocationPicker";
-import { resolveDarbDestination } from "@/lib/carriers/darb-assabil-areas";
+import {
+  resolveDarbDestination,
+  resolveDispatchPair,
+} from "@/lib/carriers/darb-assabil-areas";
 import { fetcher } from "@/lib/swr-config";
 
 interface DarbAssabilDispatchModalProps {
@@ -53,12 +56,21 @@ export function DarbAssabilDispatchModal({
   const panelRef = useRef<HTMLDivElement>(null);
 
   const resolved = resolveDarbDestination(customerCity);
-  // Single-area known city → pre-select it. Multi-area → scope picker to it.
-  const scopeCity =
-    resolved && resolved.areas.length > 1 ? resolved.city : undefined;
-  const [selection, setSelection] = useState<DarbAssabilSelection>(
+  // Destination mode from the order's city:
+  //  - "resolved": single-area known city → fixed, NO picker (agent can't pick
+  //    a wrong city). This is the common case and the fix for the الجفرة bug.
+  //  - "scoped": multi-area known city (طرابلس) → picker limited to its areas.
+  //  - "full": unknown city → full picker.
+  const mode: "resolved" | "scoped" | "full" =
     resolved && resolved.areas.length === 1
-      ? { city: resolved.city, area: resolved.areas[0] }
+      ? "resolved"
+      : resolved && resolved.areas.length > 1
+        ? "scoped"
+        : "full";
+  const scopeCity = mode === "scoped" ? resolved!.city : undefined;
+  const [selection, setSelection] = useState<DarbAssabilSelection>(
+    mode === "resolved"
+      ? { city: resolved!.city, area: resolved!.areas[0] }
       : { city: null, area: null },
   );
   const [submitting, setSubmitting] = useState(false);
@@ -93,6 +105,13 @@ export function DarbAssabilDispatchModal({
   async function handleSubmit(confirmDuplicate = false) {
     if (!carrier) return;
     if (!confirmDuplicate && !canSubmit) return;
+    // Final guard: the order's city resolution wins over the raw selection, so
+    // a mismatched pair can never be dispatched (mirrors the popup path).
+    const decision = resolveDispatchPair(customerCity, selection);
+    if (decision.kind !== "dispatch") {
+      setError(t("noResults"));
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -101,7 +120,7 @@ export function DarbAssabilDispatchModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           carrier_id: carrier.id,
-          extra: { customer_area: selection.area, city: selection.city },
+          extra: { customer_area: decision.area, city: decision.city },
           ...(confirmDuplicate ? { confirm_duplicate: true } : {}),
         }),
       });
@@ -194,11 +213,32 @@ export function DarbAssabilDispatchModal({
               </div>
             )}
 
-            <DarbAssabilLocationPicker
-              value={selection}
-              onChange={setSelection}
-              restrictToCity={scopeCity}
-            />
+            {mode === "resolved" ? (
+              // Fixed destination — show it, no free choice of city.
+              <div className="rounded-card border border-line-subtle bg-surface-card px-4 py-3">
+                <div className="text-[12px] uppercase tracking-[0.06em] text-ink-secondary">
+                  {t("destinationLabel")}
+                </div>
+                <div
+                  className="mt-1 text-[14px] font-medium text-ink-primary"
+                  dir="auto"
+                >
+                  {selection.city}
+                  {selection.area && selection.area !== selection.city
+                    ? ` — ${selection.area}`
+                    : ""}
+                </div>
+                <p className="mt-1 text-[12px] text-ink-secondary">
+                  {t("resolvedFromCity")}
+                </p>
+              </div>
+            ) : (
+              <DarbAssabilLocationPicker
+                value={selection}
+                onChange={setSelection}
+                restrictToCity={scopeCity}
+              />
+            )}
           </div>
 
           <div className="shrink-0 border-t border-line-subtle px-5 py-4">

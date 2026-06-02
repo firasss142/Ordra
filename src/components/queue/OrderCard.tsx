@@ -13,7 +13,7 @@ import { DuplicateOrderBadge } from "@/components/shared/DuplicateOrderBadge";
 import { RejectionReasonHover } from "./RejectionReasonHover";
 import { AddressChangeNote } from "./AddressChangeNote";
 import { getCarrierLogo } from "@/lib/carriers/carrier-logos";
-import { bucketFor, type Bucket } from "@/lib/carriers/dexpress/buckets";
+import { bucketFor, type Bucket } from "@/lib/carriers/buckets";
 import type { QueueOrder } from "@/types/queue";
 import type { BucketKey } from "./QueueHeader";
 import { highlightSegments, type HighlightSegment } from "@/lib/queue/highlight";
@@ -98,6 +98,7 @@ const BUCKET_PILL_CLASS: Record<Bucket, string> = {
   deposit: "bg-[#E0F2FE] text-[#0891B2]",      // cyan — in motion
   delivered: "bg-status-successBg text-status-success", // green — terminal success
   returned: "bg-rose-50 text-rose-700",        // rose — coming back
+  cancelled: "bg-[#F1F5F9] text-[#475569]",    // slate — carrier-side cancellation
   rejected: "bg-status-criticalBg text-status-critical", // red — OMS-side rejection
 };
 
@@ -116,6 +117,7 @@ function bucketBorderClass(
     if (lifecycleBucket === "deposit") return "border border-[#0891B2]";
     if (lifecycleBucket === "delivered") return "border border-[#10B981]";
     if (lifecycleBucket === "returned") return "border border-rose-400";
+    if (lifecycleBucket === "cancelled") return "border border-[#94A3B8]";
     if (status === "rejected") return "border border-[#DC2626]";
     if (status === "uploaded") return "border border-[#7C3AED]";
     if (status === "delivered") return "border border-[#D97706]";
@@ -212,6 +214,7 @@ export const OrderCard = memo(function OrderCard({
     carrierCode: order.carrier_code,
     dexpressStatusSlug: order.dexpress_status_slug,
     dexpressStatusAccepted: order.dexpress_status_accepted,
+    carrierStatusSlug: order.carrier_status_slug,
   });
 
   const statusPill = (() => {

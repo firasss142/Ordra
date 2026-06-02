@@ -465,14 +465,107 @@ describe("DarbAssabilAdapter", () => {
   });
 
   describe("voidDispatch", () => {
-    test("reports cancellation is unsupported without any HTTP call", async () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    test("DELETEs the shipment by its internal _id from extra.darb_assabil_id", async () => {
+      const mockFetch = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ status: true, metrics: {} }), {
+          status: 200,
+        }),
+      );
+      vi.stubGlobal("fetch", mockFetch);
+
+      const result = await adapter.voidDispatch("SH1584689", mockConfig, {
+        darb_assabil_id: "69fd0af4889e7a3cd010f1a1",
+      });
+
+      expect(result).toEqual({ success: true, supported: true });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [url, init] = mockFetch.mock.calls[0];
+      // Cancel uses the internal _id, NOT the SH… tracking reference.
+      expect(url).toBe(
+        "https://v2.sabil.ly/api/local/shipments/69fd0af4889e7a3cd010f1a1",
+      );
+      expect(init.method).toBe("DELETE");
+      expect((init.headers as Record<string, string>).Authorization).toBe(
+        "apikey decrypted-api-key-123",
+      );
+    });
+
+    test("is supported but fails (no HTTP call) when the internal _id is missing", async () => {
       const mockFetch = vi.fn();
       vi.stubGlobal("fetch", mockFetch);
-      const result = await adapter.voidDispatch("SH123", mockConfig);
-      expect(result.supported).toBe(false);
+
+      // An order dispatched before _id capture, or a malformed carrier_extra.
+      const result = await adapter.voidDispatch("SH1584689", mockConfig, {});
+
       expect(result.success).toBe(false);
+      // Supported by the integration — the failure is missing data, which the
+      // route surfaces as "coordination manuelle requise", matching Dexpress.
+      expect(result.supported).toBe(true);
+      expect(result.reason).toBeTruthy();
       expect(mockFetch).not.toHaveBeenCalled();
-      vi.unstubAllGlobals();
+    });
+
+    test("fails (supported) when extra is omitted entirely", async () => {
+      const mockFetch = vi.fn();
+      vi.stubGlobal("fetch", mockFetch);
+
+      const result = await adapter.voidDispatch("SH1584689", mockConfig);
+
+      expect(result.success).toBe(false);
+      expect(result.supported).toBe(true);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    test("treats a vendor envelope { status:false } as a supported failure with its message", async () => {
+      const mockFetch = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: false,
+            messages: [{ message: "Shipment already picked up by courier" }],
+          }),
+          { status: 200 },
+        ),
+      );
+      vi.stubGlobal("fetch", mockFetch);
+
+      const result = await adapter.voidDispatch("SH1584689", mockConfig, {
+        darb_assabil_id: "69fd0af4889e7a3cd010f1a1",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.supported).toBe(true);
+      expect(result.reason).toBe("Shipment already picked up by courier");
+    });
+
+    test("treats a 5xx as a supported failure (carrier coordination required)", async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValue(new Response("upstream error", { status: 503 }));
+      vi.stubGlobal("fetch", mockFetch);
+
+      const result = await adapter.voidDispatch("SH1584689", mockConfig, {
+        darb_assabil_id: "69fd0af4889e7a3cd010f1a1",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.supported).toBe(true);
+    });
+
+    test("treats a network throw as a supported failure", async () => {
+      const mockFetch = vi.fn().mockRejectedValue(new Error("ECONNRESET"));
+      vi.stubGlobal("fetch", mockFetch);
+
+      const result = await adapter.voidDispatch("SH1584689", mockConfig, {
+        darb_assabil_id: "69fd0af4889e7a3cd010f1a1",
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.supported).toBe(true);
+      expect(result.reason).toBe("ECONNRESET");
     });
   });
 });

@@ -908,6 +908,7 @@
         "deposit": "En cours",
         "delivered": "Livré",
         "returned": "Retourné",
+        "cancelled": "Annulé",
         "rejected": "Rejeté"
       }
     },
@@ -1345,6 +1346,7 @@
         "deposit": "En cours",
         "delivered": "Livré",
         "returned": "Retourné",
+        "cancelled": "Annulé",
         "rejected": "Rejeté",
         "dispatched": "Expédié"
       }
@@ -3171,7 +3173,10 @@
       "searchDestination": "Destination (ville / zone)",
       "searchPlaceholder": "Rechercher une ville ou une zone…",
       "noResults": "Aucune destination trouvée.",
-      "pickDestination": "Choisir la destination pour Darb Assabil"
+      "pickDestination": "Choisir la destination pour Darb Assabil",
+      "destinationLabel": "Destination",
+      "resolvedFromCity": "Destination déterminée depuis la ville de la commande.",
+      "selectedLabel": "Destination sélectionnée :"
     },
     "coverage": {
       "badge": "Non desservi",
@@ -3186,6 +3191,15 @@
     "retry": "Réessayer",
     "unrecognized": "Statut non reconnu",
     "notFound": "Numéro de suivi inconnu chez le transporteur"
+  },
+  "darbStatus": {
+    "sectionTitle": "Suivi transporteur",
+    "loading": "Chargement du suivi Darb Assabil…",
+    "loadError": "Impossible de charger le suivi Darb Assabil",
+    "retry": "Réessayer",
+    "refresh": "Actualiser",
+    "noEvents": "Aucun événement de suivi pour le moment",
+    "eventFallback": "Mise à jour du statut"
   },
   "pagination": {
     "previous": "Précédent",

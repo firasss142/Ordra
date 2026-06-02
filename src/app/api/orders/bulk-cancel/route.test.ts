@@ -160,7 +160,7 @@ describe("POST /api/orders/bulk-cancel", () => {
 
     const res = await POST(createRequest({ order_ids: ["o-1"] }));
     expect(res.status).toBe(200);
-    expect(adapter.voidDispatch).toHaveBeenCalledWith("TN123", {});
+    expect(adapter.voidDispatch).toHaveBeenCalledWith("TN123", {}, undefined);
     expect(mockRpc).toHaveBeenCalledWith("manual_delete_orders", expect.objectContaining({
       p_order_ids: ["o-1"],
     }));

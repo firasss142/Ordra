@@ -908,6 +908,7 @@
         "deposit": "قيد التوصيل",
         "delivered": "تم التسليم",
         "returned": "راجع",
+        "cancelled": "ملغاة",
         "rejected": "مرفوض"
       }
     },
@@ -1345,6 +1346,7 @@
         "deposit": "قيد التوصيل",
         "delivered": "تم التسليم",
         "returned": "راجع",
+        "cancelled": "ملغاة",
         "rejected": "مرفوض",
         "dispatched": "تم التوصيل"
       }
@@ -3084,7 +3086,10 @@
       "searchDestination": "الوجهة (المدينة / المنطقة)",
       "searchPlaceholder": "ابحث عن مدينة أو منطقة…",
       "noResults": "لا توجد وجهة مطابقة.",
-      "pickDestination": "اختر الوجهة لدرب السبيل"
+      "pickDestination": "اختر الوجهة لدرب السبيل",
+      "destinationLabel": "الوجهة",
+      "resolvedFromCity": "تم تحديد الوجهة من مدينة الطلب.",
+      "selectedLabel": "الوجهة المختارة:"
     },
     "coverage": {
       "badge": "غير مغطّاة",
@@ -3099,6 +3104,15 @@
     "retry": "إعادة المحاولة",
     "unrecognized": "حالة غير معروفة",
     "notFound": "رقم التتبع غير معروف لدى الشركة"
+  },
+  "darbStatus": {
+    "sectionTitle": "تتبّع الشحنة",
+    "loading": "جارٍ تحميل تتبّع درب السبيل…",
+    "loadError": "تعذّر تحميل تتبّع درب السبيل",
+    "retry": "إعادة المحاولة",
+    "refresh": "تحديث",
+    "noEvents": "لا توجد أحداث تتبّع حتى الآن",
+    "eventFallback": "تحديث الحالة"
   },
   "pagination": {
     "previous": "السابق",

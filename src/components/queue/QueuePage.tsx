@@ -26,7 +26,7 @@ import { AGENT_NEW_ORDER_EVENT } from "@/lib/agent-events";
 import { parseQuery, searchOrders } from "@/lib/queue/search";
 import { isBulkCallEligible } from "@/lib/order-permissions";
 import type { QueueOrder } from "@/types/queue";
-import { bucketFor, type Bucket } from "@/lib/carriers/dexpress/buckets";
+import { bucketFor, type Bucket } from "@/lib/carriers/buckets";
 
 const OrderDetailPanel = dynamic(() =>
   import("./OrderDetailPanel").then((m) => m.OrderDetailPanel), { ssr: false }
@@ -100,6 +100,9 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
       typeof raw.dexpress_status_accepted === "boolean"
         ? (raw.dexpress_status_accepted as boolean)
         : null,
+    carrier_status_slug: (raw.carrier_status_slug as string | null) ?? null,
+    carrier_status_synced_at:
+      (raw.carrier_status_synced_at as string | null) ?? null,
   };
 }
 
@@ -199,6 +202,7 @@ function bucketForClosed(o: Record<string, unknown>): Bucket | null {
       typeof o.dexpress_status_accepted === "boolean"
         ? (o.dexpress_status_accepted as boolean)
         : null,
+    carrierStatusSlug: (o.carrier_status_slug as string | null) ?? null,
   });
 }
 
@@ -399,6 +403,7 @@ export function QueuePage() {
       deposit: 0,
       delivered: 0,
       returned: 0,
+      cancelled: 0,
       rejected: 0,
     };
     for (const order of rawClosedOrders) {
@@ -444,26 +449,42 @@ export function QueuePage() {
     return next;
   }, [selectedBucket, enCoursSubfilter, tentativeSubfilter, closedSubfilter, rawAllOrders, rawClosedOrders]);
 
-  // Manual Dexpress refresh — pulls the latest carrier-side status for every
-  // visible Dexpress fermé order, in chunks of 25 (matches the server limit),
-  // then revalidates SWR so the new slugs flow back into the bucket pills.
+  // Manual carrier-status refresh — pulls the latest carrier-side status for
+  // every visible fermé order whose carrier exposes a status API (Dexpress and
+  // Darb Assabil), in chunks of 25 (matches each server limit), then
+  // revalidates SWR so the new slugs flow back into the bucket pills.
   // Manual-only: there is NO auto-sync on launch or on tab open.
   const handleRefreshDexpress = useCallback(async () => {
     if (refreshingDexpress) return;
-    const ids = rawClosedOrders
-      .filter((o) => (o.carrier_code as string | null) === "dexpress")
-      .map((o) => o.id as string);
-    if (ids.length === 0) return;
+
+    const idsByEndpoint: Array<{ endpoint: string; ids: string[] }> = [
+      {
+        endpoint: "/api/dexpress/sync-batch",
+        ids: rawClosedOrders
+          .filter((o) => (o.carrier_code as string | null) === "dexpress")
+          .map((o) => o.id as string),
+      },
+      {
+        endpoint: "/api/darb-assabil/sync-batch",
+        ids: rawClosedOrders
+          .filter((o) => (o.carrier_code as string | null) === "darb_assabil")
+          .map((o) => o.id as string),
+      },
+    ];
+
+    if (idsByEndpoint.every(({ ids }) => ids.length === 0)) return;
     setRefreshingDexpress(true);
     try {
       const CHUNK = 25;
-      for (let i = 0; i < ids.length; i += CHUNK) {
-        const slice = ids.slice(i, i + CHUNK);
-        await fetch("/api/dexpress/sync-batch", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ orderIds: slice }),
-        });
+      for (const { endpoint, ids } of idsByEndpoint) {
+        for (let i = 0; i < ids.length; i += CHUNK) {
+          const slice = ids.slice(i, i + CHUNK);
+          await fetch(endpoint, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ orderIds: slice }),
+          });
+        }
       }
       await mutate();
     } finally {

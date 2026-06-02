@@ -28,7 +28,7 @@ export async function POST(
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("id, status, market_id, tracking_number, carrier_id")
+    .select("id, status, market_id, tracking_number, carrier_id, carrier_extra")
     .eq("id", id)
     .single<ManualDeleteOrderRow>();
 

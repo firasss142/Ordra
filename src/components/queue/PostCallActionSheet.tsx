@@ -19,7 +19,10 @@ import {
   type DarbAssabilSelection,
 } from "./DarbAssabilLocationPicker";
 import { coverageFor, type CoverageState } from "@/lib/carriers/coverage";
-import { resolveDarbDestination } from "@/lib/carriers/darb-assabil-areas";
+import {
+  resolveDarbDestination,
+  resolveDispatchPair,
+} from "@/lib/carriers/darb-assabil-areas";
 import { useOptimisticOrderAction } from "@/hooks/useOptimisticOrderAction";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -481,26 +484,30 @@ export function PostCallActionSheet({
       return;
     }
 
-    // Darb Assabil requires a destination (city, area) pair. Resolve from the
-    // order's stored city: single-area city → dispatch directly; multi-area
-    // (طرابلس) → scoped area picker; unknown city → full picker. An already-made
-    // areaSelection (agent returned from the picker) always wins.
+    // Darb Assabil requires a destination (city, area) pair. The order's own
+    // city resolution takes precedence over the picker selection, so a stale
+    // pick can't override a different order's real city.
     const isDarbAssabil = selectedCarrier.code === "darb_assabil";
     let darbPair: { city: string; area: string } | null = null;
     if (isDarbAssabil) {
-      if (areaSelection.city && areaSelection.area) {
-        darbPair = { city: areaSelection.city, area: areaSelection.area };
+      const decision = resolveDispatchPair(
+        orderForUpload?.data?.customer_city ?? null,
+        areaSelection,
+      );
+      if (decision.kind === "dispatch") {
+        darbPair = { city: decision.city, area: decision.area };
       } else {
-        const resolved = resolveDarbDestination(
-          orderForUpload?.data?.customer_city ?? null,
-        );
-        if (resolved && resolved.areas.length === 1) {
-          darbPair = { city: resolved.city, area: resolved.areas[0] };
-        } else {
-          // Multi-area (scoped) or unknown (full) — let the picker decide.
-          setFlow("upload_pick_area");
-          return;
+        // Opening the picker. Drop any selection that doesn't belong to the
+        // scoped city so the agent must pick a valid in-city area (and the
+        // Upload button stays disabled until they do).
+        if (
+          decision.scopeCity &&
+          areaSelection.city !== decision.scopeCity
+        ) {
+          setAreaSelection({ city: null, area: null });
         }
+        setFlow("upload_pick_area");
+        return;
       }
     }
 

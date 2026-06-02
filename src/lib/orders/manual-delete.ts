@@ -7,6 +7,7 @@ export interface ManualDeleteOrderRow {
   market_id: string;
   tracking_number: string | null;
   carrier_id: string | null;
+  carrier_extra: Record<string, unknown> | null;
 }
 
 export class ManualDeleteCarrierVoidError extends Error {
@@ -86,7 +87,11 @@ async function voidCarrierOrder(admin: SupabaseClient, order: ManualDeleteOrderR
   try {
     const config = buildConfig(carrierRow);
     const adapter = getCarrierAdapter(carrierRow.code);
-    const result = await adapter.voidDispatch(order.tracking_number, config);
+    const result = await adapter.voidDispatch(
+      order.tracking_number,
+      config,
+      order.carrier_extra ?? undefined,
+    );
 
     if (!result.success) {
       const reason =
