@@ -56,4 +56,12 @@ export interface QueueOrder {
    * synced / pre-migration row.
    */
   dexpress_status_accepted: boolean | null;
+  /**
+   * Generic cached carrier status slug (non-Dexpress carriers; currently Darb
+   * Assabil). Drives the fermé bucket pill via bucketFor's carrierStatusSlug.
+   * Projection only — NEVER drives orders.status / stock / cost / revenue.
+   */
+  carrier_status_slug: string | null;
+  /** Last successful carrier status sync; NULL means never synced. */
+  carrier_status_synced_at: string | null;
 }

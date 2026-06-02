@@ -57,6 +57,7 @@ import { useOrderMutation } from "@/hooks/useOrderMutation";
 import { useOrderDetailRealtime } from "@/hooks/useOrderDetailRealtime";
 import { useCarriers } from "@/hooks/useCarriers";
 import { DexpressStatusSection } from "../DexpressStatusSection";
+import { DarbStatusSection } from "../DarbStatusSection";
 import { formatDisplayCurrencyCode, LY_MARKET_ID } from "@/lib/markets";
 import { isValidLibyanPhone } from "@/lib/carriers/phone";
 import { coverageFor, type CoverageState } from "@/lib/carriers/coverage";
@@ -399,6 +400,12 @@ export function OrderDetailPanel({
       order?.carrier_id &&
       carriersForOrderMarket.find((c) => c.id === order.carrier_id)?.code ===
         "dexpress",
+  );
+  const darbEligible = Boolean(
+    order?.tracking_number &&
+      order?.carrier_id &&
+      carriersForOrderMarket.find((c) => c.id === order.carrier_id)?.code ===
+        "darb_assabil",
   );
 
   const [returningToPool, setReturningToPool] = useState(false);
@@ -949,6 +956,9 @@ export function OrderDetailPanel({
                 enabled={dexpressEligible}
                 role={role}
               />
+
+              {/* ── Darb Assabil carrier-side status (Libya only, after upload) ── */}
+              <DarbStatusSection orderId={order.id} enabled={darbEligible} />
 
               {/* ── Customer hero ── */}
               <div ref={nameFieldRef}>

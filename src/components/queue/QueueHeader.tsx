@@ -16,6 +16,7 @@ import {
   XCircle,
   RotateCcw,
   RefreshCw,
+  Ban,
   type LucideIcon,
 } from "lucide-react";
 import type { AgentQueueBuckets } from "@/hooks/useAgentQueue";
@@ -40,6 +41,7 @@ export type ClosedSubfilter =
   | "deposit"
   | "delivered"
   | "returned"
+  | "cancelled"
   | "rejected";
 
 interface QueueHeaderProps {
@@ -87,9 +89,10 @@ const TABS: TabDef[] = [
   { key: "fermees", icon: Archive, labelKey: "closed", tone: "archive" },
 ];
 
-// Five lifecycle buckets in fermé, in lifecycle order:
-//   uploaded → deposit → delivered → returned, then rejected on the far end.
-// Spec: plans/dexpress-list-status-bucket.md.
+// Six lifecycle buckets in fermé, in lifecycle order:
+//   uploaded → deposit → delivered → returned → cancelled, then rejected last.
+// 'cancelled' is a Darb Assabil carrier-side cancellation (Dexpress never sets it).
+// Spec: plans/dexpress-list-status-bucket.md + plans/darb-assabil-status-display.md.
 const CLOSED_STATUS_CHIPS: Array<{
   key: Exclude<ClosedSubfilter, "all">;
   icon: LucideIcon;
@@ -98,6 +101,7 @@ const CLOSED_STATUS_CHIPS: Array<{
   { key: "deposit", icon: Truck },
   { key: "delivered", icon: CheckCircle },
   { key: "returned", icon: RotateCcw },
+  { key: "cancelled", icon: Ban },
   { key: "rejected", icon: XCircle },
 ];
 

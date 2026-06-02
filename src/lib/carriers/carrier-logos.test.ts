@@ -6,6 +6,10 @@ describe("getCarrierLogo", () => {
     expect(getCarrierLogo("navex")).toBe(CARRIER_LOGOS.navex);
   });
 
+  test("maps the darb_assabil logo so the fermé card shows the brand, not a DAR chip", () => {
+    expect(getCarrierLogo("darb_assabil")).toBe("/darb-assabil-logo.png");
+  });
+
   test("returns null for an unknown carrier code", () => {
     expect(getCarrierLogo("unknown_carrier")).toBeNull();
   });

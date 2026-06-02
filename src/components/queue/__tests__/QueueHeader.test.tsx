@@ -40,6 +40,7 @@ const baseClosedCounts: Record<ClosedSubfilter, number> = {
   deposit: 0,
   delivered: 0,
   returned: 0,
+  cancelled: 0,
   rejected: 3,
 };
 

@@ -57,9 +57,56 @@ describe("DarbAssabilLocationPicker", () => {
     expect(screen.queryByText(/عين زارة/)).not.toBeInTheDocument();
   });
 
+  // Helper: the selected option button (the one with aria-pressed="true").
+  function selectedRow(): HTMLButtonElement {
+    return screen
+      .getAllByRole("button")
+      .find((b) => b.getAttribute("aria-pressed") === "true") as HTMLButtonElement;
+  }
+  function aNonSelectedRow(): HTMLButtonElement {
+    return screen
+      .getAllByRole("button")
+      .find(
+        (b) => b.getAttribute("aria-pressed") === "false",
+      ) as HTMLButtonElement;
+  }
+
   test("marks the currently selected pair", () => {
     setup({ city: "الجفرة", area: "سوكنة" }, "الجفرة");
-    const selected = screen.getByText("الجفرة — سوكنة").closest("button");
-    expect(selected).toHaveAttribute("aria-pressed", "true");
+    expect(selectedRow()).toHaveTextContent("الجفرة — سوكنة");
+    expect(selectedRow()).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("selected row is visually distinct from non-selected rows (accent, not just hover gray)", () => {
+    setup({ city: "طرابلس", area: "عين زارة" }, "طرابلس");
+    const selectedBtn = selectedRow();
+    const otherBtn = aNonSelectedRow();
+    expect(otherBtn).toBeDefined();
+    // The selected row must NOT share the exact class list of a normal row —
+    // it carries a distinct accent treatment so it reads as chosen at rest,
+    // independent of hover.
+    expect(selectedBtn.className).not.toEqual(otherBtn.className);
+    // And it carries the accent token (the green selected affordance).
+    expect(selectedBtn.className).toMatch(/accent/);
+  });
+
+  test("shows a persistent confirmation of the selected destination", () => {
+    setup({ city: "طرابلس", area: "عين زارة" }, "طرابلس");
+    // A dedicated status region echoes the choice so the agent sees it even
+    // after scrolling the list or moving the mouse.
+    const confirmation = screen.getByRole("status");
+    expect(confirmation).toHaveTextContent("طرابلس");
+    expect(confirmation).toHaveTextContent("عين زارة");
+  });
+
+  test("renders a checkmark on the selected row only", () => {
+    setup({ city: "طرابلس", area: "عين زارة" }, "طرابلس");
+    expect(selectedRow().querySelector("svg")).toBeInTheDocument();
+    expect(aNonSelectedRow().querySelector("svg")).toBeNull();
+  });
+
+  test("no confirmation region when nothing is selected", () => {
+    setup(EMPTY, "طرابلس");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });

@@ -2,6 +2,7 @@
 
 import { Dispatch, SetStateAction, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { Check } from "lucide-react";
 import {
   DARB_ASSABIL_CITIES,
   darbAreasFor,
@@ -96,20 +97,51 @@ export function DarbAssabilLocationPicker({
                   aria-pressed={selected}
                   onClick={() => onChange({ city: d.city, area: d.area })}
                   className={[
-                    "w-full border-b border-line-subtle px-3 py-2 text-start text-[13px] last:border-b-0",
+                    "flex w-full items-center justify-between gap-2 border-b border-line-subtle px-3 py-2 text-start text-[13px] last:border-b-0",
+                    // Selected reads as chosen AT REST — accent tint + a leading
+                    // accent bar + bold text — so it never looks like a plain
+                    // hover. Non-selected rows keep the subtle gray hover only.
                     selected
-                      ? "bg-surface-hover font-medium text-ink-primary"
+                      ? "border-s-2 border-s-accent bg-accent-soft font-semibold text-ink-primary"
                       : "text-ink-primary hover:bg-surface-hover",
                   ].join(" ")}
                   dir="auto"
                 >
-                  {label(d)}
+                  <span className="min-w-0 truncate">{label(d)}</span>
+                  {selected && (
+                    <Check
+                      size={15}
+                      strokeWidth={2.5}
+                      className="shrink-0 text-accent"
+                      aria-hidden="true"
+                    />
+                  )}
                 </button>
               );
             })
           )}
         </div>
       </div>
+
+      {/* Persistent confirmation — the agent always sees the current choice,
+          even after scrolling the list or moving the mouse off it. */}
+      {value.city && value.area && (
+        <div
+          role="status"
+          className="flex items-center gap-2 rounded border border-accent/30 bg-accent-soft px-3 py-2 text-[13px] text-ink-primary"
+          dir="auto"
+        >
+          <Check size={15} strokeWidth={2.5} className="shrink-0 text-accent" aria-hidden="true" />
+          <span>
+            <span className="text-ink-secondary">{t("selectedLabel")}</span>{" "}
+            <span className="font-medium">
+              {value.city === value.area
+                ? value.city
+                : `${value.city} — ${value.area}`}
+            </span>
+          </span>
+        </div>
+      )}
     </div>
   );
 }

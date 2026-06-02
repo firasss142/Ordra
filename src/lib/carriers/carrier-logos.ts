@@ -7,6 +7,7 @@
 export const CARRIER_LOGOS: Record<string, string> = {
   navex: "/navex-logo.png",
   dexpress: "/dexpress-logo.png",
+  darb_assabil: "/darb-assabil-logo.png",
 };
 
 export function getCarrierLogo(code: string | null | undefined): string | null {
