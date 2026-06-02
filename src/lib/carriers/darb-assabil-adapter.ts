@@ -11,20 +11,23 @@ import { CarrierDispatchError, CarrierConfigError } from "./errors";
 /**
  * Darb Assabil (v2.sabil.ly) — Libyan COD logistics platform.
  *
- * STEP 1 SCOPE — settings/configuration only.
- * `formatPayload` is fully implemented so the carrier-settings "Test dispatch"
- * dry-run validates input and previews the resolved fields. The network methods
- * (`dispatch`, `parseResponse`) are intentional stubs that throw — the real
- * two-call flow (contact upsert → shipment create) lands in a later step.
- *
- * Per the interface contract, `formatPayload` returns a flat Record<string,string>.
- * That is a *preview projection* of the validated order — NOT the eventual wire
- * body (which is a nested JSON object built inside `dispatch()` in Step 2).
+ * `formatPayload` validates the order + config and returns a flat
+ * Record<string,string> *preview projection* (also drives the carrier-settings
+ * dry-run). `dispatch` consumes that snapshot and performs the real two-call
+ * flow (contact upsert → shipment create), assembling the nested wire body.
  *
  * Vendor contract notes (see delivery_company_docs/Darb Assabil/INTEGRATION_GUIDE.md):
+ *  - HTTP 200 does NOT mean success — always check body.status === true.
+ *  - Authorization uses the literal "apikey " prefix (not "Bearer").
  *  - countryCode/currency are lowercase ("lby"/"lyd"); uppercase silently fails.
  *  - phone is E.164 with a leading "+218".
  *  - destination needs BOTH city and area, in Arabic UTF-8.
+ *  - tracking_number = the human reference ("SH<digits>"); the internal _id is
+ *    returned in result.extra.darb_assabil_id for later status polling.
+ *  - Cancellation is a hard delete; we do not support it (voidDispatch).
+ *  - paymentBy controls who bears the delivery fee: "sales" deducts it from the
+ *    COD settlement (fee included in the customer's price), "receiver" charges
+ *    it on top. Driven by the `payment_by` settings toggle (default: included).
  */
 export class DarbAssabilAdapter implements CarrierAdapter {
   formatPayload(
@@ -82,9 +85,15 @@ export class DarbAssabilAdapter implements CarrierAdapter {
       ? `${order.product_name} - ${order.variant_label}`
       : order.product_name;
 
+    // Shipping-fee-included toggle (settings switch, stored "1"/"0"; empty = on).
+    // On  → "sales": customer pays the product amount, the fee is deducted from
+    //        the COD settlement (fee effectively included in the price).
+    // Off  → "receiver": the fee is charged to the customer on top.
+    const paymentBy = creds.payment_by === "0" ? "receiver" : "sales";
+
     return {
       service_id: serviceId,
-      payment_by: "receiver",
+      payment_by: paymentBy,
       country_code: "lby",
       city,
       area,
@@ -101,19 +110,138 @@ export class DarbAssabilAdapter implements CarrierAdapter {
     };
   }
 
+  /**
+   * Two sequential calls (vendor has no single "create with new contact" call):
+   *   1. Upsert the receiver contact by phone (idempotent — safe every dispatch).
+   *   2. Create the shipment referencing that contact id.
+   * If the contact step fails we do NOT attempt the shipment. Each returned body
+   * is tagged with `_step` so `parseResponse` knows which call it is reading.
+   * Transport failures (network throw) surface as `status: 0`.
+   */
   async dispatch(
-    _payload: Record<string, string>,
-    _config: CarrierConfig
+    payload: unknown,
+    config: CarrierConfig
   ): Promise<CarrierRawResponse> {
-    throw new CarrierDispatchError(
-      "Darb Assabil dispatch not implemented yet (Step 1: settings only)"
-    );
+    const p = payload as DarbPayloadSnapshot;
+    const base = (config.apiEndpoint || "https://v2.sabil.ly").replace(/\/$/, "");
+    const headers = buildHeaders(config);
+
+    // ── 1. Contact upsert ────────────────────────────────────────────
+    let contactRaw: { status: number; body: unknown };
+    try {
+      contactRaw = await postJson(
+        `${base}/api/contacts/create/public/contact`,
+        headers,
+        {
+          account: config.apiCredentials.account_id,
+          name: p.name,
+          phone: p.phone,
+        }
+      );
+    } catch {
+      return { status: 0, body: { _step: "contact" } };
+    }
+
+    const contactBody = asRecord(contactRaw.body);
+    if (contactRaw.status >= 500 || contactBody.status !== true) {
+      return { status: contactRaw.status, body: { _step: "contact", ...contactBody } };
+    }
+    const contactId = (asRecord(contactBody.data)._id as string) ?? null;
+    if (!contactId) {
+      return { status: contactRaw.status, body: { _step: "contact", ...contactBody } };
+    }
+
+    // ── 2. Shipment create ───────────────────────────────────────────
+    let shipmentRaw: { status: number; body: unknown };
+    try {
+      shipmentRaw = await postJson(`${base}/api/local/shipments`, headers, {
+        service: p.service_id,
+        contacts: [contactId],
+        paymentBy: p.payment_by,
+        to: {
+          countryCode: p.country_code,
+          city: p.city,
+          area: p.area,
+          address: p.address,
+        },
+        products: [
+          {
+            title: p.product,
+            quantity: 1,
+            amount: Number(p.amount),
+            currency: p.currency,
+            isChargeable: true,
+          },
+        ],
+        notes: p.notes,
+      });
+    } catch {
+      return { status: 0, body: { _step: "shipment" } };
+    }
+
+    return {
+      status: shipmentRaw.status,
+      body: { _step: "shipment", ...asRecord(shipmentRaw.body) },
+    };
   }
 
-  parseResponse(_raw: CarrierRawResponse): CarrierDispatchResult {
-    throw new CarrierDispatchError(
-      "Darb Assabil parseResponse not implemented yet (Step 1: settings only)"
-    );
+  parseResponse(raw: CarrierRawResponse): CarrierDispatchResult {
+    const body = asRecord(raw.body);
+    const step = body._step as "contact" | "shipment" | undefined;
+
+    // A structured rejection is a validation error whose message must reach the
+    // agent — even when it arrives with HTTP 500. The carrier returns
+    // { status:false, messages } for un-serviceable destinations (e.g. an
+    // unknown branch: "Unable to fetch branch 'LBY-x,y'!"). Check this BEFORE
+    // the transient fallback so the real reason isn't masked as "unavailable".
+    if (body.status === false) {
+      const messages = body.messages as Array<{ message?: string }> | undefined;
+      const firstMessage = messages?.[0]?.message ?? "Carrier rejected the request";
+      return {
+        success: false,
+        errorCode: step === "contact" ? "DARB_CONTACT_FAILED" : "DARB_VALIDATION",
+        errorMessage: firstMessage,
+        retryable: false,
+      };
+    }
+
+    // Transport-level failure with no structured body (network throw → 0, or a
+    // 5xx whose body we couldn't parse as a vendor envelope) — retryable.
+    if (raw.status === 0 || raw.status >= 500) {
+      return {
+        success: false,
+        errorCode: "DARB_TRANSIENT",
+        errorMessage: `Carrier temporarily unavailable (HTTP ${raw.status})`,
+        retryable: true,
+      };
+    }
+
+    // Success must come from the shipment step with a reference + internal id.
+    if (body.status === true && step === "shipment") {
+      const data = asRecord(body.data);
+      const reference = typeof data.reference === "string" ? data.reference : null;
+      const internalId = typeof data._id === "string" ? data._id : null;
+      if (!reference || !internalId) {
+        return {
+          success: false,
+          errorCode: "DARB_MALFORMED",
+          errorMessage: "Carrier returned success but no reference/_id",
+          retryable: false,
+        };
+      }
+      return {
+        success: true,
+        trackingNumber: reference,
+        extra: { darb_assabil_id: internalId },
+      };
+    }
+
+    return {
+      success: false,
+      errorCode: "DARB_UNKNOWN",
+      errorMessage: "Unexpected response shape from carrier",
+      retryable: false,
+    };
   }
 
   async voidDispatch(
@@ -127,6 +255,64 @@ export class DarbAssabilAdapter implements CarrierAdapter {
       reason: "Cancellation is not supported by the Darb Assabil integration.",
     };
   }
+}
+
+/**
+ * The flat snapshot `formatPayload` returns and `dispatch` consumes. Kept as a
+ * string map (not the nested wire body) so the carrier-settings dry-run can
+ * preview it; `dispatch` assembles the real nested JSON from these fields.
+ */
+interface DarbPayloadSnapshot {
+  service_id: string;
+  payment_by: string;
+  country_code: string;
+  city: string;
+  area: string;
+  address: string;
+  phone: string;
+  name: string;
+  product: string;
+  amount: string;
+  quantity: string;
+  currency: string;
+  notes: string;
+}
+
+/** The three headers every Darb Assabil request needs (apikey literal prefix). */
+function buildHeaders(config: CarrierConfig): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    Authorization: `apikey ${config.apiCredentials.api_key}`,
+    "X-API-VERSION": "1.0.0",
+    "X-ACCOUNT-ID": config.apiCredentials.account_id,
+  };
+}
+
+/** POST JSON with a 15s timeout; parse JSON body, falling back to raw text. */
+async function postJson(
+  url: string,
+  headers: Record<string, string>,
+  body: unknown
+): Promise<{ status: number; body: unknown }> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15000),
+  });
+  let parsed: unknown;
+  try {
+    parsed = await response.json();
+  } catch {
+    parsed = await response.text();
+  }
+  return { status: response.status, body: parsed };
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 /**

@@ -14,6 +14,10 @@ import {
 import { CallbackPicker } from "./CallbackPicker";
 import { RejectionReasonSelect } from "./RejectionReasonSelect";
 import { DexpressLocationPicker, type DexpressSelection } from "./DexpressLocationPicker";
+import {
+  DarbAssabilLocationPicker,
+  type DarbAssabilSelection,
+} from "./DarbAssabilLocationPicker";
 import { useOptimisticOrderAction } from "@/hooks/useOptimisticOrderAction";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -76,6 +80,9 @@ type Flow =
   // Sub-flow of upload_after_confirm: agent chose Dexpress but the order
   // has no dexpress_state_id yet — pick one inline before uploading.
   | "upload_pick_state"
+  // Sub-flow of upload_after_confirm: agent chose Darb Assabil — pick the
+  // destination city/area inline before uploading (sent via extra).
+  | "upload_pick_area"
   // Sub-flow of upload_after_confirm: agent picked a carrier and clicked
   // "Programmer" — show the date/time picker.
   | "schedule_after_confirm";
@@ -196,6 +203,7 @@ export function PostCallActionSheet({
 }: PostCallActionSheetProps) {
   const t = useTranslations("queue");
   const tDup = useTranslations("duplicateOrder.uploadGuard");
+  const tDarb = useTranslations("dispatch.darbAssabil");
   const panelRef = useRef<HTMLDivElement>(null);
   const [flow, setFlow] = useState<Flow>(initialFlow ?? "option_select");
   const [loading, setLoading] = useState(false);
@@ -227,6 +235,10 @@ export function PostCallActionSheet({
   const [stateSelection, setStateSelection] = useState<DexpressSelection>({
     stateId: null,
     stateName: "",
+  });
+  const [areaSelection, setAreaSelection] = useState<DarbAssabilSelection>({
+    city: null,
+    area: null,
   });
 
   // SCHEDULE_AFTER_CONFIRM
@@ -286,6 +298,7 @@ export function PostCallActionSheet({
   const isPostConfirm =
     flow === "upload_after_confirm" ||
     flow === "upload_pick_state" ||
+    flow === "upload_pick_area" ||
     flow === "schedule_after_confirm";
 
   const { data: carriersData } = useSWR<{ data: CarrierOption[] }>(
@@ -424,12 +437,24 @@ export function PostCallActionSheet({
       return;
     }
 
+    // Darb Assabil requires a destination city + area. No saved value exists
+    // on the order yet — always route through the inline picker first.
+    const isDarbAssabil = selectedCarrier.code === "darb_assabil";
+    if (isDarbAssabil && (areaSelection.area === null || areaSelection.city === null)) {
+      setFlow("upload_pick_area");
+      return;
+    }
+
     setUploading(true);
     setError(null);
     try {
       const extra: Record<string, unknown> = {};
       if (isDexpress) {
         extra.state_id = savedStateId ?? stateSelection.stateId;
+      }
+      if (isDarbAssabil) {
+        extra.customer_area = areaSelection.area;
+        extra.city = areaSelection.city;
       }
 
       const res = await fetch(`/api/orders/${orderId}/dispatch`, {
@@ -816,6 +841,37 @@ export function PostCallActionSheet({
                   type="button"
                   className={`${submitButtonClasses} mt-4`}
                   disabled={stateSelection.stateId === null || uploading}
+                  onClick={() => submitUploadNow()}
+                >
+                  {uploading ? t("uploadingNow") : t("uploadNow")}
+                </button>
+              </div>
+            )}
+
+            {/* ── Darb Assabil: pick a destination city/area inline. ── */}
+            {flow === "upload_pick_area" && (
+              <div>
+                <button
+                  type="button"
+                  className="bg-transparent border-0 text-[14px] text-ink-secondary p-0 pb-3 text-start hover:text-ink-primary transition-colors duration-fast"
+                  onClick={() => setFlow("upload_after_confirm")}
+                >
+                  {t("back")}
+                </button>
+
+                <p className="text-[14px] text-ink-secondary mb-3">
+                  {tDarb("pickDestination")}
+                </p>
+
+                <DarbAssabilLocationPicker
+                  value={areaSelection}
+                  onChange={setAreaSelection}
+                />
+
+                <button
+                  type="button"
+                  className={`${submitButtonClasses} mt-4`}
+                  disabled={areaSelection.area === null || uploading}
                   onClick={() => submitUploadNow()}
                 >
                   {uploading ? t("uploadingNow") : t("uploadNow")}

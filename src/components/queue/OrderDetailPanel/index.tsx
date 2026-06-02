@@ -82,6 +82,14 @@ const DexpressDispatchModal = dynamic(
   { ssr: false },
 );
 
+const DarbAssabilDispatchModal = dynamic(
+  () =>
+    import("../DarbAssabilDispatchModal").then(
+      (m) => m.DarbAssabilDispatchModal,
+    ),
+  { ssr: false },
+);
+
 const TrackingBarcode = dynamic(
   () => import("@/components/orders/TrackingBarcode").then((m) => m.TrackingBarcode),
   { ssr: false },
@@ -406,6 +414,7 @@ export function OrderDetailPanel({
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadingCarrierId, setUploadingCarrierId] = useState<string | null>(null);
   const [dexpressModalOpen, setDexpressModalOpen] = useState(false);
+  const [darbAssabilModalOpen, setDarbAssabilModalOpen] = useState(false);
   const [uploadFeedback, setUploadFeedback] = useState<
     | { kind: "success"; tracking: string }
     | { kind: "error"; message: string }
@@ -1180,6 +1189,11 @@ export function OrderDetailPanel({
                     setDexpressModalOpen(true);
                     return;
                   }
+                  if (c.code === "darb_assabil") {
+                    setUploadOpen(false);
+                    setDarbAssabilModalOpen(true);
+                    return;
+                  }
                   handleUploadToCarrier(c.id);
                 }}
                 className="flex items-center justify-between h-10 px-3 text-[13px] text-ink-primary border border-line-subtle rounded-card hover:bg-surface-hover transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1216,6 +1230,23 @@ export function OrderDetailPanel({
           onClose={() => setDexpressModalOpen(false)}
           onSuccess={(trackingNumber) => {
             setDexpressModalOpen(false);
+            setUploadFeedback({
+              kind: "success",
+              tracking: trackingNumber ?? "—",
+            });
+            void mutate();
+          }}
+        />
+      )}
+
+      {darbAssabilModalOpen && order && orderId && (
+        <DarbAssabilDispatchModal
+          orderId={orderId}
+          marketId={order.market_id}
+          customerAddress={order.customer_address}
+          onClose={() => setDarbAssabilModalOpen(false)}
+          onSuccess={(trackingNumber) => {
+            setDarbAssabilModalOpen(false);
             setUploadFeedback({
               kind: "success",
               tracking: trackingNumber ?? "—",

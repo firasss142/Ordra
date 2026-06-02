@@ -27,7 +27,16 @@ export interface CarrierRawResponse {
 }
 
 export type CarrierDispatchResult =
-  | { success: true; trackingNumber: string }
+  | {
+      success: true;
+      trackingNumber: string;
+      /**
+       * Carrier-specific data to persist on the order's `carrier_extra` JSONB
+       * alongside the tracking number (e.g. Darb Assabil's internal `_id`,
+       * needed later for status polling). Merged by `performDispatch`.
+       */
+      extra?: Record<string, unknown>;
+    }
   | {
       success: false;
       errorCode: string;
@@ -49,7 +58,7 @@ export interface CarrierAdapter {
   ): Record<string, string>;
 
   dispatch(
-    payload: Record<string, string>,
+    payload: unknown,
     config: CarrierConfig
   ): Promise<CarrierRawResponse>;
 

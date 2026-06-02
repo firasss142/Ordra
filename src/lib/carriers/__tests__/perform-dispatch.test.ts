@@ -166,6 +166,48 @@ describe("performDispatch market isolation", () => {
     });
   });
 
+  test("merges result.extra (e.g. darb_assabil_id) into p_carrier_extra alongside caller extra", async () => {
+    dispatchToCarrierMock.mockResolvedValueOnce({
+      success: true,
+      trackingNumber: "SH1584689",
+      extra: { darb_assabil_id: "69fd0af4889e7a3cd010f1a1" },
+    });
+
+    const result = await performDispatch({
+      orderId: "o-1",
+      carrierId: "c-1",
+      actorId: "actor-1",
+      extra: { customer_area: "الرياضية", city: "طرابلس" },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(rpcMock).toHaveBeenCalledWith("dispatch_order", {
+      p_order_id: "o-1",
+      p_carrier_id: "c-1",
+      p_tracking_number: "SH1584689",
+      p_carrier_extra: {
+        customer_area: "الرياضية",
+        city: "طرابلس",
+        darb_assabil_id: "69fd0af4889e7a3cd010f1a1",
+      },
+      p_actor_id: "actor-1",
+    });
+  });
+
+  test("passes null p_carrier_extra when neither caller nor result supply extra", async () => {
+    dispatchToCarrierMock.mockResolvedValueOnce({
+      success: true,
+      trackingNumber: "TRK-2",
+    });
+
+    await performDispatch({ orderId: "o-1", carrierId: "c-1", actorId: "actor-1" });
+
+    expect(rpcMock).toHaveBeenCalledWith(
+      "dispatch_order",
+      expect.objectContaining({ p_carrier_extra: null })
+    );
+  });
+
   test("returns 422 when carrier adapter rejects (same market, active)", async () => {
     dispatchToCarrierMock.mockResolvedValueOnce({
       success: false,

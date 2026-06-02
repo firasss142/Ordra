@@ -3079,6 +3079,12 @@
       "missingAddress": "هذا الطلب لا يحتوي على عنوان توصيل. عدّل الطلب قبل إرساله إلى Dexpress.",
       "destinationLabel": "الوجهة",
       "destinationFromOrder": "الوجهة محددة منذ إنشاء الطلب"
+    },
+    "darbAssabil": {
+      "searchDestination": "الوجهة (المدينة / المنطقة)",
+      "searchPlaceholder": "ابحث عن مدينة أو منطقة…",
+      "noResults": "لا توجد وجهة مطابقة.",
+      "pickDestination": "اختر الوجهة لدرب السبيل"
     }
   },
   "dexpressStatus": {
