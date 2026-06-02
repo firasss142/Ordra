@@ -14,6 +14,12 @@ import {
 import { CallbackPicker } from "./CallbackPicker";
 import { RejectionReasonSelect } from "./RejectionReasonSelect";
 import { DexpressLocationPicker, type DexpressSelection } from "./DexpressLocationPicker";
+import {
+  DarbAssabilLocationPicker,
+  type DarbAssabilSelection,
+} from "./DarbAssabilLocationPicker";
+import { coverageFor, type CoverageState } from "@/lib/carriers/coverage";
+import { resolveDarbDestination } from "@/lib/carriers/darb-assabil-areas";
 import { useOptimisticOrderAction } from "@/hooks/useOptimisticOrderAction";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -27,6 +33,7 @@ interface CarrierOption {
 
 interface OrderForUpload {
   customer_address: string | null;
+  customer_city: string | null;
   dexpress_state_id: number | null;
 }
 
@@ -76,6 +83,9 @@ type Flow =
   // Sub-flow of upload_after_confirm: agent chose Dexpress but the order
   // has no dexpress_state_id yet — pick one inline before uploading.
   | "upload_pick_state"
+  // Sub-flow of upload_after_confirm: agent chose Darb Assabil — pick the
+  // destination city/area inline before uploading (sent via extra).
+  | "upload_pick_area"
   // Sub-flow of upload_after_confirm: agent picked a carrier and clicked
   // "Programmer" — show the date/time picker.
   | "schedule_after_confirm";
@@ -196,6 +206,8 @@ export function PostCallActionSheet({
 }: PostCallActionSheetProps) {
   const t = useTranslations("queue");
   const tDup = useTranslations("duplicateOrder.uploadGuard");
+  const tDarb = useTranslations("dispatch.darbAssabil");
+  const tCov = useTranslations("dispatch.coverage");
   const panelRef = useRef<HTMLDivElement>(null);
   const [flow, setFlow] = useState<Flow>(initialFlow ?? "option_select");
   const [loading, setLoading] = useState(false);
@@ -227,6 +239,10 @@ export function PostCallActionSheet({
   const [stateSelection, setStateSelection] = useState<DexpressSelection>({
     stateId: null,
     stateName: "",
+  });
+  const [areaSelection, setAreaSelection] = useState<DarbAssabilSelection>({
+    city: null,
+    area: null,
   });
 
   // SCHEDULE_AFTER_CONFIRM
@@ -286,6 +302,7 @@ export function PostCallActionSheet({
   const isPostConfirm =
     flow === "upload_after_confirm" ||
     flow === "upload_pick_state" ||
+    flow === "upload_pick_area" ||
     flow === "schedule_after_confirm";
 
   const { data: carriersData } = useSWR<{ data: CarrierOption[] }>(
@@ -308,13 +325,44 @@ export function PostCallActionSheet({
   // about to happen.
   useEffect(() => {
     if (!isPostConfirm) return;
-    if (carriers.length === 1 && selectedCarrierId === null) {
+    // Don't auto-select a carrier that clearly doesn't serve this city.
+    if (
+      carriers.length === 1 &&
+      selectedCarrierId === null &&
+      carrierCoverage(carriers[0].code) !== "uncovered"
+    ) {
       setSelectedCarrierId(carriers[0].id);
     }
-  }, [carriers, isPostConfirm, selectedCarrierId]);
+    // carrierCoverage is derived from the same deps (carriers + orderForUpload).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carriers, isPostConfirm, selectedCarrierId, orderForUpload]);
 
   const selectedCarrier =
     carriers.find((c) => c.id === selectedCarrierId) ?? null;
+
+  // Per-carrier destination coverage for this order's city. Computed once the
+  // order detail (city + resolved dexpress_state_id) has loaded. Carriers with
+  // no coverage model (anything other than dexpress/darb_assabil) are treated
+  // as "covered" so the check never blocks them.
+  const coverage = coverageFor(
+    orderForUpload?.data?.customer_city ?? null,
+    orderForUpload?.data?.dexpress_state_id ?? null,
+  );
+  function carrierCoverage(code: string): CoverageState {
+    if (code === "dexpress") return coverage.dexpress;
+    if (code === "darb_assabil") return coverage.darb_assabil;
+    return "covered";
+  }
+
+  // When the order's city is a known multi-area Darb city (طرابلس), scope the
+  // area picker to it so the agent picks an area within their city — not a
+  // different city. Single-area cities never reach the picker (auto-resolved);
+  // unknown cities get the full list (undefined scope).
+  const darbResolved = resolveDarbDestination(
+    orderForUpload?.data?.customer_city ?? null,
+  );
+  const darbScopeCity =
+    darbResolved && darbResolved.areas.length > 1 ? darbResolved.city : undefined;
 
   function httpErrorMessage(status: number): string {
     if (status === 401) return t("sessionExpired");
@@ -413,6 +461,15 @@ export function PostCallActionSheet({
   // ── UPLOAD now (post-confirm) ────────────────────────────────────
   async function submitUploadNow(confirmDuplicate = false) {
     if (!selectedCarrier) return;
+    // Hard stop if the city is confidently not served by this carrier.
+    if (carrierCoverage(selectedCarrier.code) === "uncovered") {
+      setError(
+        tCov("notCovered", {
+          city: orderForUpload?.data?.customer_city ?? "",
+        }),
+      );
+      return;
+    }
 
     // Dexpress requires a destination state_id. Use the order's saved value
     // when available; otherwise route the agent through the inline picker.
@@ -424,12 +481,39 @@ export function PostCallActionSheet({
       return;
     }
 
+    // Darb Assabil requires a destination (city, area) pair. Resolve from the
+    // order's stored city: single-area city → dispatch directly; multi-area
+    // (طرابلس) → scoped area picker; unknown city → full picker. An already-made
+    // areaSelection (agent returned from the picker) always wins.
+    const isDarbAssabil = selectedCarrier.code === "darb_assabil";
+    let darbPair: { city: string; area: string } | null = null;
+    if (isDarbAssabil) {
+      if (areaSelection.city && areaSelection.area) {
+        darbPair = { city: areaSelection.city, area: areaSelection.area };
+      } else {
+        const resolved = resolveDarbDestination(
+          orderForUpload?.data?.customer_city ?? null,
+        );
+        if (resolved && resolved.areas.length === 1) {
+          darbPair = { city: resolved.city, area: resolved.areas[0] };
+        } else {
+          // Multi-area (scoped) or unknown (full) — let the picker decide.
+          setFlow("upload_pick_area");
+          return;
+        }
+      }
+    }
+
     setUploading(true);
     setError(null);
     try {
       const extra: Record<string, unknown> = {};
       if (isDexpress) {
         extra.state_id = savedStateId ?? stateSelection.stateId;
+      }
+      if (isDarbAssabil && darbPair) {
+        extra.customer_area = darbPair.area;
+        extra.city = darbPair.city;
       }
 
       const res = await fetch(`/api/orders/${orderId}/dispatch`, {
@@ -741,23 +825,46 @@ export function PostCallActionSheet({
                   <div className="flex flex-col gap-2 mb-4">
                     {carriers.map((c) => {
                       const isSelected = selectedCarrierId === c.id;
+                      const cov = carrierCoverage(c.code);
+                      const blocked = cov === "uncovered";
+                      const city = orderForUpload?.data?.customer_city ?? "";
                       return (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => setSelectedCarrierId(c.id)}
-                          className={[
-                            "flex items-center justify-between w-full px-3 py-2.5 rounded-md text-[14px] text-start text-ink-primary border bg-surface-card",
-                            isSelected
-                              ? "border-2 border-ink-primary"
-                              : "border border-line-strong hover:bg-surface-hover",
-                          ].join(" ")}
-                        >
-                          <span className="font-medium">{c.name}</span>
-                          <span className="text-[12px] font-normal text-ink-secondary">
-                            ({c.code})
-                          </span>
-                        </button>
+                        <div key={c.id}>
+                          <button
+                            type="button"
+                            disabled={blocked}
+                            aria-disabled={blocked}
+                            onClick={() => !blocked && setSelectedCarrierId(c.id)}
+                            className={[
+                              "flex items-center justify-between w-full px-3 py-2.5 rounded-md text-[14px] text-start border",
+                              blocked
+                                ? "border-status-critical/40 bg-status-criticalBg text-ink-muted cursor-not-allowed"
+                                : isSelected
+                                  ? "border-2 border-ink-primary bg-surface-card text-ink-primary"
+                                  : "border border-line-strong bg-surface-card text-ink-primary hover:bg-surface-hover",
+                            ].join(" ")}
+                          >
+                            <span className="font-medium">{c.name}</span>
+                            <span
+                              className={[
+                                "text-[12px] font-normal",
+                                blocked ? "text-status-critical" : "text-ink-secondary",
+                              ].join(" ")}
+                            >
+                              {blocked ? tCov("badge") : `(${c.code})`}
+                            </span>
+                          </button>
+                          {blocked && (
+                            <p className="mt-1 px-1 text-[12px] text-status-critical">
+                              {tCov("notCovered", { city })}
+                            </p>
+                          )}
+                          {cov === "unknown" && isSelected && (
+                            <p className="mt-1 px-1 text-[12px] text-status-warning">
+                              {tCov("unknownCity")}
+                            </p>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
@@ -816,6 +923,38 @@ export function PostCallActionSheet({
                   type="button"
                   className={`${submitButtonClasses} mt-4`}
                   disabled={stateSelection.stateId === null || uploading}
+                  onClick={() => submitUploadNow()}
+                >
+                  {uploading ? t("uploadingNow") : t("uploadNow")}
+                </button>
+              </div>
+            )}
+
+            {/* ── Darb Assabil: pick a destination city/area inline. ── */}
+            {flow === "upload_pick_area" && (
+              <div>
+                <button
+                  type="button"
+                  className="bg-transparent border-0 text-[14px] text-ink-secondary p-0 pb-3 text-start hover:text-ink-primary transition-colors duration-fast"
+                  onClick={() => setFlow("upload_after_confirm")}
+                >
+                  {t("back")}
+                </button>
+
+                <p className="text-[14px] text-ink-secondary mb-3">
+                  {tDarb("pickDestination")}
+                </p>
+
+                <DarbAssabilLocationPicker
+                  value={areaSelection}
+                  onChange={setAreaSelection}
+                  restrictToCity={darbScopeCity}
+                />
+
+                <button
+                  type="button"
+                  className={`${submitButtonClasses} mt-4`}
+                  disabled={areaSelection.area === null || uploading}
                   onClick={() => submitUploadNow()}
                 >
                   {uploading ? t("uploadingNow") : t("uploadNow")}

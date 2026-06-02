@@ -4,6 +4,8 @@ import Image from "next/image";
 
 const CARRIER_LOGOS: Record<string, string> = {
   navex: "/navex-logo.png",
+  dexpress: "/dexpress-logo.png",
+  darb_assabil: "/darb-assabil-logo.png",
 };
 
 export type CarrierHealthState =

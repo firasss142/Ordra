@@ -1,12 +1,14 @@
 import type { CarrierAdapter } from "./types";
 import { NavexAdapter } from "./navex-adapter";
 import { DexpressAdapter } from "./dexpress/adapter";
+import { DarbAssabilAdapter } from "./darb-assabil-adapter";
 
-export type CarrierCode = "navex" | "dexpress";
+export type CarrierCode = "navex" | "dexpress" | "darb_assabil";
 
 const adapters: Record<CarrierCode, () => CarrierAdapter> = {
   navex: () => new NavexAdapter(),
   dexpress: () => new DexpressAdapter(),
+  darb_assabil: () => new DarbAssabilAdapter(),
 };
 
 export function getCarrierAdapter(carrierCode: string): CarrierAdapter {
@@ -69,6 +71,35 @@ const ADAPTER_DESCRIPTORS: Record<string, AdapterDescriptor> = {
       {
         key: "cost_type",
         label: "Frais de livraison à la charge du client",
+        secret: false,
+        type: "switch",
+      },
+    ],
+    markets: ["ly"],
+  },
+  darb_assabil: {
+    code: "darb_assabil",
+    label: "Darb Assabil",
+    description:
+      "Intégration Darb Assabil (Libye). Authentification par clé API + ID de compte.",
+    defaultEndpoint: "https://v2.sabil.ly",
+    credentialFields: [
+      { key: "api_key", label: "Clé API", secret: true },
+      {
+        key: "account_id",
+        label: "ID de compte (X-ACCOUNT-ID)",
+        placeholder: "692637b42f63874515cebd63",
+        secret: false,
+      },
+      {
+        key: "default_service_id",
+        label: "ID du service par défaut (livreur homme)",
+        placeholder: "6783c612dcf305c9e775c987",
+        secret: false,
+      },
+      {
+        key: "payment_by",
+        label: "Frais de livraison inclus dans le prix",
         secret: false,
         type: "switch",
       },

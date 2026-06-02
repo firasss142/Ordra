@@ -3166,6 +3166,17 @@
       "missingAddress": "Cette commande n'a pas d'adresse de livraison. Modifiez la commande avant de l'envoyer à Dexpress.",
       "destinationLabel": "Destination",
       "destinationFromOrder": "Destination définie à la création"
+    },
+    "darbAssabil": {
+      "searchDestination": "Destination (ville / zone)",
+      "searchPlaceholder": "Rechercher une ville ou une zone…",
+      "noResults": "Aucune destination trouvée.",
+      "pickDestination": "Choisir la destination pour Darb Assabil"
+    },
+    "coverage": {
+      "badge": "Non desservi",
+      "notCovered": "Ce transporteur ne dessert pas « {city} ».",
+      "unknownCity": "Couverture non vérifiée pour cette ville — vérifiez la destination à l'étape suivante."
     }
   },
   "dexpressStatus": {

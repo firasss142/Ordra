@@ -49,7 +49,7 @@ describe("adapter descriptors", () => {
   test("listAdapterDescriptors returns all registered adapters", () => {
     const list = listAdapterDescriptors();
     const codes = list.map((d) => d.code).sort();
-    expect(codes).toEqual(["dexpress", "navex"]);
+    expect(codes).toEqual(["darb_assabil", "dexpress", "navex"]);
   });
 
   test("each descriptor has label, credential fields, and marks secrets", () => {
@@ -107,14 +107,17 @@ describe("listAdapterDescriptors with market filter", () => {
     expect(list.map((d) => d.code)).toEqual(["navex"]);
   });
 
-  test("returns only dexpress when filtering by Libya (ly)", () => {
+  test("returns Libyan carriers when filtering by Libya (ly)", () => {
     const list = listAdapterDescriptors("ly");
-    expect(list.map((d) => d.code)).toEqual(["dexpress"]);
+    expect(list.map((d) => d.code).sort()).toEqual(["darb_assabil", "dexpress"]);
   });
 
   test("market filter is case-insensitive", () => {
     expect(listAdapterDescriptors("TN").map((d) => d.code)).toEqual(["navex"]);
-    expect(listAdapterDescriptors("Ly").map((d) => d.code)).toEqual(["dexpress"]);
+    expect(listAdapterDescriptors("Ly").map((d) => d.code).sort()).toEqual([
+      "darb_assabil",
+      "dexpress",
+    ]);
   });
 
   test("returns empty array for unknown market", () => {
@@ -123,7 +126,11 @@ describe("listAdapterDescriptors with market filter", () => {
 
   test("returns all descriptors when no market filter is provided", () => {
     const list = listAdapterDescriptors();
-    expect(list.map((d) => d.code).sort()).toEqual(["dexpress", "navex"]);
+    expect(list.map((d) => d.code).sort()).toEqual([
+      "darb_assabil",
+      "dexpress",
+      "navex",
+    ]);
   });
 });
 

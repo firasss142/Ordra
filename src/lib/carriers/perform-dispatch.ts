@@ -156,13 +156,19 @@ export async function performDispatch({
     };
   }
 
+  // Persist the caller's extra (e.g. dispatch-time picker values) plus any
+  // carrier-returned extra (e.g. Darb Assabil's internal _id) on carrier_extra.
+  const mergedExtra = { ...(extra ?? {}), ...(result.extra ?? {}) };
+  const carrierExtra =
+    Object.keys(mergedExtra).length > 0 ? mergedExtra : null;
+
   const { data: dispatchData, error: dispatchError } = await admin.rpc(
     "dispatch_order",
     {
       p_order_id: orderId,
       p_carrier_id: carrierId,
       p_tracking_number: result.trackingNumber,
-      p_carrier_extra: extra ?? null,
+      p_carrier_extra: carrierExtra,
       p_actor_id: actorId,
     }
   );
