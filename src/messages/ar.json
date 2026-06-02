@@ -3084,7 +3084,9 @@
       "searchDestination": "الوجهة (المدينة / المنطقة)",
       "searchPlaceholder": "ابحث عن مدينة أو منطقة…",
       "noResults": "لا توجد وجهة مطابقة.",
-      "pickDestination": "اختر الوجهة لدرب السبيل"
+      "pickDestination": "اختر الوجهة لدرب السبيل",
+      "destinationLabel": "الوجهة",
+      "resolvedFromCity": "تم تحديد الوجهة من مدينة الطلب."
     },
     "coverage": {
       "badge": "غير مغطّاة",

@@ -1,6 +1,6 @@
 import { normalizeCityName } from "@/lib/storefronts/city-resolver";
 import { DEXPRESS_STATES } from "./dexpress/states";
-import { DARB_ASSABIL_AREAS } from "./darb-assabil-areas";
+import { DARB_ASSABIL_CITIES } from "./darb-assabil-areas";
 
 /**
  * Per-carrier destination coverage for an order's city, computed client-side
@@ -28,7 +28,7 @@ const DEXPRESS_CITY_SET = new Set(
 );
 
 const DARB_CITY_SET = new Set(
-  DARB_ASSABIL_AREAS.map((a) => normalizeCityName(a.city))
+  Object.keys(DARB_ASSABIL_CITIES).map((city) => normalizeCityName(city))
 );
 
 /**

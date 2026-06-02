@@ -1,92 +1,118 @@
 /**
- * Darb Assabil destination city/area pairs (Libya).
+ * Darb Assabil deliverable destinations (Libya): city → ordered list of areas.
  *
- * Sourced from the vendor's `GET /api/local/branches/public` endpoint
- * (probed 2026-06-02 — see memory `darb-assabil-api-facts`). The carrier
- * auto-resolves the destination branch from (city, area), so a shipment must
- * send a pair that exists here — an unknown combo triggers an obscure
- * `Cannot read properties of undefined (reading 'name')` rather than a clean
- * validation error.
+ * Source of truth is `darb-assabil-areas-data.json`, generated from the vendor's
+ * `GET /api/local/branches/public` (city + every `areas[].area`) AND then
+ * validated combo-by-combo against `POST /api/local/shipments/calculate/shipping`
+ * — only city/area pairs the carrier actually accepts are kept. See memory
+ * `darb-assabil-api-facts`.
  *
- * Both fields are Arabic UTF-8 (the API rejects transliterated values).
+ * Why validation is required: the branches list contains pairs the carrier
+ * rejects (e.g. `تاجوراء/تاجوراء`, `طرابلس/طرابلس` → "Unable to fetch branch").
+ * `تاجوراء` is only a deliverable AREA (under طرابلس), not a standalone city.
  *
- * 29 distinct (city, area) pairs across 26 cities. Most cities have a single
- * area equal to the city name; only طرابلس (Tripoli) is subdivided (4 areas).
- * This list is static because the branch set rarely changes; re-probe and
- * regenerate if the carrier expands coverage.
+ * The dispatch sends `to: { countryCode: "lby", city, area, address }` where
+ * `area` MUST be one of the city's listed areas. All strings are Arabic UTF-8.
+ *
+ * Re-generate + re-validate (≈280 calls) if the carrier expands coverage.
  */
 import { normalizeCityName } from "@/lib/storefronts/city-resolver";
+import citiesData from "./darb-assabil-areas-data.json";
 
-export interface DarbAssabilArea {
-  /** Destination city (Arabic). */
-  city: string;
-  /** Destination area / neighbourhood within the city (Arabic). */
-  area: string;
-}
+/** city (Arabic) → ordered list of deliverable areas (Arabic). */
+export const DARB_ASSABIL_CITIES: Record<string, string[]> = citiesData;
 
-/** A destination city resolved from an order's stored city, with its area(s). */
+/** A destination city resolved from an order's stored city, with its areas. */
 export interface DarbDestination {
   city: string;
-  /** One area for most cities; طرابلس has 4. Order matches the master list. */
   areas: string[];
 }
 
-export const DARB_ASSABIL_AREAS: readonly DarbAssabilArea[] = [
-  // طرابلس (Tripoli) — the only multi-area city.
-  { city: "طرابلس", area: "الرياضية" },
-  { city: "طرابلس", area: "طرابلس" },
-  { city: "طرابلس", area: "زناتة" },
-  { city: "طرابلس", area: "حي الأندلس" },
-  // Single-area cities (area == city).
-  { city: "بنغازي", area: "بنغازي" },
-  { city: "تاجوراء", area: "تاجوراء" },
-  { city: "قصر خيار", area: "قصر خيار" },
-  { city: "صبراتة", area: "صبراتة" },
-  { city: "بني وليد", area: "بني وليد" },
-  { city: "البريقة", area: "البريقة" },
-  { city: "ترهونة", area: "ترهونة" },
-  { city: "القبة", area: "القبة" },
-  { city: "اجدابيا", area: "اجدابيا" },
-  { city: "رأس لانوف", area: "رأس لانوف" },
-  { city: "جالو اوجلة", area: "جالو اوجلة" },
-  { city: "الجفرة", area: "هون" },
-  { city: "سرت", area: "سرت" },
-  { city: "زوارة", area: "زوارة" },
-  { city: "العجيلات", area: "العجيلات" },
-  { city: "مصراتة", area: "مصراتة" },
-  { city: "الخمس", area: "الخمس" },
-  { city: "طبرق", area: "طبرق" },
-  { city: "درنة", area: "درنة" },
-  { city: "البيضاء", area: "البيضاء" },
-  { city: "المرج", area: "المرج" },
-  { city: "الزاوية", area: "الزاوية" },
-  { city: "غريان", area: "غريان" },
-  { city: "الكفرة", area: "الكفرة" },
-  { city: "سبها", area: "سبها" },
-];
+// Normalized-name → canonical city, for tolerant lookup.
+const NORM_TO_CITY = new Map<string, string>();
+for (const city of Object.keys(DARB_ASSABIL_CITIES)) {
+  NORM_TO_CITY.set(normalizeCityName(city), city);
+}
+
+/** The deliverable areas for a city string (normalized match), or [] if unknown. */
+export function darbAreasFor(city: string | null | undefined): string[] {
+  const canonical = NORM_TO_CITY.get(normalizeCityName(city));
+  return canonical ? DARB_ASSABIL_CITIES[canonical] : [];
+}
 
 /**
- * Resolve an order's stored city to the Darb Assabil destination it serves.
- * Returns the canonical city plus its area(s) (preserving master-list order),
- * or null when the city isn't one Darb serves.
- *
- *  - single-area city  → caller can dispatch directly (skip the picker)
- *  - multi-area city (طرابلس) → caller scopes the picker to these areas
- *  - null               → caller shows the full picker / treats as unknown
+ * Resolve an order's stored city to a Darb Assabil destination (canonical city
+ * + its full area list), or null when the carrier doesn't serve it as a city.
  */
 export function resolveDarbDestination(
   customerCity: string | null | undefined
 ): DarbDestination | null {
-  const norm = normalizeCityName(customerCity);
-  if (!norm) return null;
+  const canonical = NORM_TO_CITY.get(normalizeCityName(customerCity));
+  if (!canonical) return null;
+  return { city: canonical, areas: DARB_ASSABIL_CITIES[canonical] };
+}
 
-  let city: string | null = null;
-  const areas: string[] = [];
-  for (const pair of DARB_ASSABIL_AREAS) {
-    if (normalizeCityName(pair.city) === norm) {
-      city = pair.city;
-      areas.push(pair.area);
+/** The picker's current selection (a chosen city/area pair, or empty). */
+export interface DarbPickSelection {
+  city: string | null;
+  area: string | null;
+}
+
+export type DispatchPairDecision =
+  | { kind: "dispatch"; city: string; area: string }
+  | { kind: "pick"; scopeCity: string | null };
+
+/** Is (city, area) a real deliverable pair? */
+function isValidPair(city: string | null, area: string | null): boolean {
+  if (!city || !area) return false;
+  return darbAreasFor(city).some(
+    (a) => normalizeCityName(a) === normalizeCityName(area)
+  );
+}
+
+/**
+ * Decide what to dispatch for a Darb Assabil order. The order's own city
+ * resolution takes PRECEDENCE over the picker selection, so a stale or invalid
+ * pick can never override a different order's real city.
+ *
+ *  - dispatch → caller sends { city, area } immediately.
+ *  - pick     → caller opens the area picker; scopeCity restricts it to one
+ *               city's areas, or is null (unknown city → full list).
+ *
+ * Rules:
+ *  - Known single-area city → dispatch that pair (selection ignored).
+ *  - Known multi-area city  → dispatch the selection only if it's a valid area
+ *                             of THAT city; otherwise open the scoped picker.
+ *  - Unknown city           → dispatch the selection only if it's a valid pair
+ *                             (agent chose from the full picker); else full picker.
+ */
+export function resolveDispatchPair(
+  customerCity: string | null | undefined,
+  selection: DarbPickSelection
+): DispatchPairDecision {
+  const resolved = resolveDarbDestination(customerCity);
+
+  if (resolved) {
+    if (resolved.areas.length === 1) {
+      return { kind: "dispatch", city: resolved.city, area: resolved.areas[0] };
     }
+    // Multi-area: selection must belong to this city and be a valid area.
+    const inCity =
+      selection.city != null &&
+      normalizeCityName(selection.city) === normalizeCityName(resolved.city) &&
+      isValidPair(resolved.city, selection.area);
+    return inCity
+      ? { kind: "dispatch", city: resolved.city, area: selection.area as string }
+      : { kind: "pick", scopeCity: resolved.city };
   }
-  return city ? { city, areas } : null;
+
+  // Unknown city: only an explicit, valid selection dispatches.
+  if (isValidPair(selection.city, selection.area)) {
+    return {
+      kind: "dispatch",
+      city: selection.city as string,
+      area: selection.area as string,
+    };
+  }
+  return { kind: "pick", scopeCity: null };
 }

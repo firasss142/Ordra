@@ -2,8 +2,6 @@ import { describe, test, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 vi.mock("next-intl", () => ({
-  // Echo the key's last segment so the search input renders a textbox and
-  // labels are present; the test asserts on the Arabic destination data, not labels.
   useTranslations: () => (key: string) => key,
   useLocale: () => "fr",
 }));
@@ -13,44 +11,55 @@ import {
   type DarbAssabilSelection,
 } from "../DarbAssabilLocationPicker";
 
-function setup(value: DarbAssabilSelection, onChange = vi.fn()) {
-  render(<DarbAssabilLocationPicker value={value} onChange={onChange} />);
+function setup(
+  value: DarbAssabilSelection,
+  restrictToCity?: string,
+  onChange = vi.fn(),
+) {
+  render(
+    <DarbAssabilLocationPicker
+      value={value}
+      onChange={onChange}
+      restrictToCity={restrictToCity}
+    />,
+  );
   return { onChange };
 }
 
 const EMPTY: DarbAssabilSelection = { city: null, area: null };
 
 describe("DarbAssabilLocationPicker", () => {
-  test("renders the bundled destinations including Tripoli's sub-areas", () => {
-    setup(EMPTY);
-    // بنغازي (single-area city) and a Tripoli sub-area both appear.
-    expect(screen.getByText(/بنغازي/)).toBeInTheDocument();
-    expect(screen.getByText(/الرياضية/)).toBeInTheDocument();
+  test("scoped to a city, shows that city's areas and emits a valid pair", () => {
+    const { onChange } = setup(EMPTY, "الجفرة");
+    // الجفرة has area سوكنة; clicking it emits the city + that area.
+    fireEvent.click(screen.getByText("الجفرة — سوكنة"));
+    expect(onChange).toHaveBeenCalledWith({ city: "الجفرة", area: "سوكنة" });
   });
 
-  test("selecting a single-area city emits city + area", () => {
-    const { onChange } = setup(EMPTY);
-    fireEvent.click(screen.getByText(/مصراتة/));
-    expect(onChange).toHaveBeenCalledWith({ city: "مصراتة", area: "مصراتة" });
+  test("scoped picker excludes areas from other cities", () => {
+    setup(EMPTY, "الجفرة");
+    // عين زارة is a طرابلس area — must not appear when scoped to الجفرة.
+    expect(screen.queryByText(/عين زارة/)).not.toBeInTheDocument();
   });
 
-  test("selecting a Tripoli sub-area emits city=طرابلس with that area", () => {
-    const { onChange } = setup(EMPTY);
-    fireEvent.click(screen.getByText(/زناتة/));
-    expect(onChange).toHaveBeenCalledWith({ city: "طرابلس", area: "زناتة" });
+  test("scoped to طرابلس, lets the agent pick a real Tripoli sub-area", () => {
+    const { onChange } = setup(EMPTY, "طرابلس");
+    fireEvent.click(screen.getByText("طرابلس — عين زارة"));
+    expect(onChange).toHaveBeenCalledWith({ city: "طرابلس", area: "عين زارة" });
   });
 
-  test("filters the list by the search query", () => {
+  test("unscoped, filters the full list by query", () => {
     setup(EMPTY);
     const input = screen.getByRole("textbox");
-    fireEvent.change(input, { target: { value: "بنغازي" } });
-    expect(screen.getByText(/بنغازي/)).toBeInTheDocument();
-    expect(screen.queryByText(/مصراتة/)).not.toBeInTheDocument();
+    fireEvent.change(input, { target: { value: "سوكنة" } });
+    expect(screen.getByText("الجفرة — سوكنة")).toBeInTheDocument();
+    // An unrelated area is filtered out.
+    expect(screen.queryByText(/عين زارة/)).not.toBeInTheDocument();
   });
 
   test("marks the currently selected pair", () => {
-    setup({ city: "طرابلس", area: "زناتة" });
-    const selected = screen.getByText(/زناتة/).closest("button");
+    setup({ city: "الجفرة", area: "سوكنة" }, "الجفرة");
+    const selected = screen.getByText("الجفرة — سوكنة").closest("button");
     expect(selected).toHaveAttribute("aria-pressed", "true");
   });
 });

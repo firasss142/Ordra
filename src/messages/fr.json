@@ -3171,7 +3171,9 @@
       "searchDestination": "Destination (ville / zone)",
       "searchPlaceholder": "Rechercher une ville ou une zone…",
       "noResults": "Aucune destination trouvée.",
-      "pickDestination": "Choisir la destination pour Darb Assabil"
+      "pickDestination": "Choisir la destination pour Darb Assabil",
+      "destinationLabel": "Destination",
+      "resolvedFromCity": "Destination déterminée depuis la ville de la commande."
     },
     "coverage": {
       "badge": "Non desservi",
