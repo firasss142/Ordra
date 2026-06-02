@@ -66,6 +66,14 @@ export interface CarrierAdapter {
 
   voidDispatch(
     trackingNumber: string,
-    config: CarrierConfig
+    config: CarrierConfig,
+    /**
+     * The order's persisted `carrier_extra` JSONB. Some carriers cancel by a
+     * different identifier than the tracking number — e.g. Darb Assabil's
+     * `DELETE /api/local/shipments/:id` needs the internal `_id` stored in
+     * `extra.darb_assabil_id`, not the human `SH…` reference. Optional so
+     * carriers that void by tracking number (Dexpress, Navex) can ignore it.
+     */
+    extra?: Record<string, unknown>
   ): Promise<CarrierVoidResult>;
 }

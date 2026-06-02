@@ -132,7 +132,7 @@ export async function verifyAndDeleteDuplicateSibling(
   // 6. Load the full target row + check deletable status.
   const { data: target, error: targetErr } = await supabase
     .from("orders")
-    .select("id, status, market_id, tracking_number, carrier_id")
+    .select("id, status, market_id, tracking_number, carrier_id, carrier_extra")
     .eq("id", targetId)
     .single<ManualDeleteOrderRow>();
 
