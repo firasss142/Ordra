@@ -65,6 +65,31 @@ describe("DarbAssabilAdapter", () => {
       expect(payload.currency).toBe("lyd");
     });
 
+    describe("destination city/area must come from the SAME picked pair", () => {
+      // The agent picks a (city, area) pair in the dispatch picker; both arrive
+      // in `extra`. The wire payload's city MUST be the picked extra.city — NOT
+      // the order's stored customer_city — otherwise a mismatched pair like
+      // city=تاجوراء + area=طرابلس reaches the carrier and it 500s with
+      // "Unable to fetch branch 'LBY-تاجوراء,طرابلس'".
+      test("uses extra.city over order.customer_city when they differ", () => {
+        const order = { ...mockOrder, customer_city: "تاجوراء" };
+        const payload = adapter.formatPayload(order, mockConfig, {
+          city: "طرابلس",
+          customer_area: "الرياضية",
+        });
+        expect(payload.city).toBe("طرابلس");
+        expect(payload.area).toBe("الرياضية");
+      });
+
+      test("falls back to order.customer_city when extra.city is absent", () => {
+        const order = { ...mockOrder, customer_city: "مصراتة" };
+        const payload = adapter.formatPayload(order, mockConfig, {
+          customer_area: "مصراتة",
+        });
+        expect(payload.city).toBe("مصراتة");
+      });
+    });
+
     describe("payment_by (shipping-fee-included toggle)", () => {
       // The settings switch stores "1"/"0". On ("1", and the empty default) means
       // "shipping included in the price" → paymentBy "sales" (customer pays the

@@ -15,11 +15,20 @@
  * This list is static because the branch set rarely changes; re-probe and
  * regenerate if the carrier expands coverage.
  */
+import { normalizeCityName } from "@/lib/storefronts/city-resolver";
+
 export interface DarbAssabilArea {
   /** Destination city (Arabic). */
   city: string;
   /** Destination area / neighbourhood within the city (Arabic). */
   area: string;
+}
+
+/** A destination city resolved from an order's stored city, with its area(s). */
+export interface DarbDestination {
+  city: string;
+  /** One area for most cities; طرابلس has 4. Order matches the master list. */
+  areas: string[];
 }
 
 export const DARB_ASSABIL_AREAS: readonly DarbAssabilArea[] = [
@@ -55,3 +64,29 @@ export const DARB_ASSABIL_AREAS: readonly DarbAssabilArea[] = [
   { city: "الكفرة", area: "الكفرة" },
   { city: "سبها", area: "سبها" },
 ];
+
+/**
+ * Resolve an order's stored city to the Darb Assabil destination it serves.
+ * Returns the canonical city plus its area(s) (preserving master-list order),
+ * or null when the city isn't one Darb serves.
+ *
+ *  - single-area city  → caller can dispatch directly (skip the picker)
+ *  - multi-area city (طرابلس) → caller scopes the picker to these areas
+ *  - null               → caller shows the full picker / treats as unknown
+ */
+export function resolveDarbDestination(
+  customerCity: string | null | undefined
+): DarbDestination | null {
+  const norm = normalizeCityName(customerCity);
+  if (!norm) return null;
+
+  let city: string | null = null;
+  const areas: string[] = [];
+  for (const pair of DARB_ASSABIL_AREAS) {
+    if (normalizeCityName(pair.city) === norm) {
+      city = pair.city;
+      areas.push(pair.area);
+    }
+  }
+  return city ? { city, areas } : null;
+}

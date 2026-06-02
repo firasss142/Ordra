@@ -60,7 +60,15 @@ export class DarbAssabilAdapter implements CarrierAdapter {
     }
 
     // Destination + recipient — order data problems.
-    const city = (order.customer_city ?? "").trim();
+    // City and area MUST come from the same picked (city, area) pair, so prefer
+    // the picker's extra.city. Falling back to order.customer_city would risk a
+    // mismatched pair (e.g. order city تاجوراء + picked area طرابلس), which the
+    // carrier rejects with "Unable to fetch branch 'LBY-<city>,<area>'".
+    const city = (
+      typeof extra?.city === "string" && extra.city.trim()
+        ? extra.city
+        : order.customer_city ?? ""
+    ).trim();
     const area = (typeof extra?.customer_area === "string"
       ? extra.customer_area
       : ""

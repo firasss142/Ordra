@@ -15,6 +15,12 @@ export interface DarbAssabilSelection {
 export interface DarbAssabilLocationPickerProps {
   value: DarbAssabilSelection;
   onChange: Dispatch<SetStateAction<DarbAssabilSelection>>;
+  /**
+   * When set, restrict the list to this city's areas (matched normalized).
+   * Used when the order's city is a known multi-area Darb city (طرابلس) so the
+   * agent picks the AREA, not a different city. Omit to show all destinations.
+   */
+  restrictToCity?: string | null;
 }
 
 /**
@@ -26,17 +32,24 @@ export interface DarbAssabilLocationPickerProps {
 export function DarbAssabilLocationPicker({
   value,
   onChange,
+  restrictToCity,
 }: DarbAssabilLocationPickerProps) {
   const t = useTranslations("dispatch.darbAssabil");
   const [query, setQuery] = useState("");
 
+  const scoped = useMemo(() => {
+    const r = (restrictToCity ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+    if (!r) return DARB_ASSABIL_AREAS;
+    return DARB_ASSABIL_AREAS.filter(
+      (d) => d.city.trim().replace(/\s+/g, " ").toLowerCase() === r
+    );
+  }, [restrictToCity]);
+
   const filtered = useMemo(() => {
     const q = query.trim();
-    if (!q) return DARB_ASSABIL_AREAS;
-    return DARB_ASSABIL_AREAS.filter(
-      (d) => d.city.includes(q) || d.area.includes(q)
-    );
-  }, [query]);
+    if (!q) return scoped;
+    return scoped.filter((d) => d.city.includes(q) || d.area.includes(q));
+  }, [query, scoped]);
 
   function label(d: DarbAssabilArea): string {
     return d.city === d.area ? d.city : `${d.city} — ${d.area}`;

@@ -3172,6 +3172,11 @@
       "searchPlaceholder": "Rechercher une ville ou une zone…",
       "noResults": "Aucune destination trouvée.",
       "pickDestination": "Choisir la destination pour Darb Assabil"
+    },
+    "coverage": {
+      "badge": "Non desservi",
+      "notCovered": "Ce transporteur ne dessert pas « {city} ».",
+      "unknownCity": "Couverture non vérifiée pour cette ville — vérifiez la destination à l'étape suivante."
     }
   },
   "dexpressStatus": {

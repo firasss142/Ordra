@@ -59,6 +59,7 @@ import { useCarriers } from "@/hooks/useCarriers";
 import { DexpressStatusSection } from "../DexpressStatusSection";
 import { formatDisplayCurrencyCode, LY_MARKET_ID } from "@/lib/markets";
 import { isValidLibyanPhone } from "@/lib/carriers/phone";
+import { coverageFor, type CoverageState } from "@/lib/carriers/coverage";
 import type { Role } from "@/types";
 import { PanelHeader } from "./PanelHeader";
 import { CustomerHero } from "./CustomerHero";
@@ -339,6 +340,7 @@ export function OrderDetailPanel({
 }: OrderDetailPanelProps) {
   const t = useTranslations("orders.detail");
   const ts = useTranslations("orders.statuses");
+  const tCov = useTranslations("dispatch.coverage");
   const locale = useLocale();
 
   const swrKey = orderId ? `/api/orders/${orderId}` : null;
@@ -657,6 +659,18 @@ export function OrderDetailPanel({
     { revalidateOnFocus: false, dedupingInterval: 5 * 60 * 1000 },
   );
   const activeCarriers = (uploadCarriersData?.data ?? []).filter((c) => c.is_active);
+
+  // Per-carrier destination coverage for this order's city (see lib/carriers/coverage).
+  // Carriers with no coverage model are treated as "covered" (never blocked).
+  const carrierCoverage = coverageFor(
+    order?.customer_city ?? null,
+    order?.dexpress_state_id ?? null,
+  );
+  function coverageForCode(code: string): CoverageState {
+    if (code === "dexpress") return carrierCoverage.dexpress;
+    if (code === "darb_assabil") return carrierCoverage.darb_assabil;
+    return "covered";
+  }
   const displayCurrency = order
     ? formatDisplayCurrencyCode(order.currency, order.market_id)
     : "";
@@ -1178,32 +1192,59 @@ export function OrderDetailPanel({
               {t("uploadCarrierNoActive")}
             </p>
           ) : (
-            activeCarriers.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                disabled={uploadingCarrierId !== null}
-                onClick={() => {
-                  if (c.code === "dexpress") {
-                    setUploadOpen(false);
-                    setDexpressModalOpen(true);
-                    return;
-                  }
-                  if (c.code === "darb_assabil") {
-                    setUploadOpen(false);
-                    setDarbAssabilModalOpen(true);
-                    return;
-                  }
-                  handleUploadToCarrier(c.id);
-                }}
-                className="flex items-center justify-between h-10 px-3 text-[13px] text-ink-primary border border-line-subtle rounded-card hover:bg-surface-hover transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span className="font-medium">{c.name}</span>
-                <span className="text-[11px] text-ink-secondary uppercase tracking-wide">
-                  {uploadingCarrierId === c.id ? t("uploadingToCarrier") : c.code}
-                </span>
-              </button>
-            ))
+            activeCarriers.map((c) => {
+              const cov = coverageForCode(c.code);
+              const blocked = cov === "uncovered";
+              const city = order?.customer_city ?? "";
+              return (
+                <div key={c.id}>
+                  <button
+                    type="button"
+                    disabled={uploadingCarrierId !== null || blocked}
+                    aria-disabled={blocked}
+                    onClick={() => {
+                      if (blocked) return;
+                      if (c.code === "dexpress") {
+                        setUploadOpen(false);
+                        setDexpressModalOpen(true);
+                        return;
+                      }
+                      if (c.code === "darb_assabil") {
+                        setUploadOpen(false);
+                        setDarbAssabilModalOpen(true);
+                        return;
+                      }
+                      handleUploadToCarrier(c.id);
+                    }}
+                    className={[
+                      "flex w-full items-center justify-between h-10 px-3 text-[13px] border rounded-card transition-colors duration-fast disabled:cursor-not-allowed",
+                      blocked
+                        ? "border-status-critical/40 bg-status-criticalBg text-ink-muted"
+                        : "border-line-subtle text-ink-primary hover:bg-surface-hover disabled:opacity-50",
+                    ].join(" ")}
+                  >
+                    <span className="font-medium">{c.name}</span>
+                    <span
+                      className={[
+                        "text-[11px] uppercase tracking-wide",
+                        blocked ? "text-status-critical" : "text-ink-secondary",
+                      ].join(" ")}
+                    >
+                      {blocked
+                        ? tCov("badge")
+                        : uploadingCarrierId === c.id
+                          ? t("uploadingToCarrier")
+                          : c.code}
+                    </span>
+                  </button>
+                  {blocked && (
+                    <p className="mt-1 px-1 text-[11px] text-status-critical">
+                      {tCov("notCovered", { city })}
+                    </p>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
         <div className="flex justify-end gap-2 px-5 py-3 bg-surface-page border-t border-line-subtle">
@@ -1244,6 +1285,7 @@ export function OrderDetailPanel({
           orderId={orderId}
           marketId={order.market_id}
           customerAddress={order.customer_address}
+          customerCity={order.customer_city}
           onClose={() => setDarbAssabilModalOpen(false)}
           onSuccess={(trackingNumber) => {
             setDarbAssabilModalOpen(false);

@@ -9,6 +9,7 @@ import {
   DarbAssabilLocationPicker,
   type DarbAssabilSelection,
 } from "./DarbAssabilLocationPicker";
+import { resolveDarbDestination } from "@/lib/carriers/darb-assabil-areas";
 import { fetcher } from "@/lib/swr-config";
 
 interface DarbAssabilDispatchModalProps {
@@ -16,6 +17,8 @@ interface DarbAssabilDispatchModalProps {
   marketId: string;
   /** Required by Darb Assabil. If empty/null, dispatch is blocked. */
   customerAddress: string | null;
+  /** The order's stored city — used to pre-resolve / scope the destination. */
+  customerCity: string | null;
   onClose: () => void;
   onSuccess: (trackingNumber: string | null) => void;
 }
@@ -25,18 +28,21 @@ interface CarrierResolution {
   is_active: boolean;
 }
 
-const initialSelection: DarbAssabilSelection = { city: null, area: null };
-
 /**
  * OrderDetailPanel dispatch modal for Darb Assabil. Mirrors DexpressDispatchModal
  * but collects a destination city/area (sent via `extra.customer_area` + `extra.city`)
  * instead of a state id. No price summary — pricing is goods-only and the carrier
  * fee isn't surfaced here.
+ *
+ * Destination is resolved from the order's stored city: a single-area city is
+ * pre-selected (agent just confirms); a multi-area city (طرابلس) scopes the
+ * picker to its areas; an unknown city shows the full list.
  */
 export function DarbAssabilDispatchModal({
   orderId,
   marketId,
   customerAddress,
+  customerCity,
   onClose,
   onSuccess,
 }: DarbAssabilDispatchModalProps) {
@@ -46,7 +52,15 @@ export function DarbAssabilDispatchModal({
   const hasAddress = Boolean(customerAddress && customerAddress.trim());
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const [selection, setSelection] = useState<DarbAssabilSelection>(initialSelection);
+  const resolved = resolveDarbDestination(customerCity);
+  // Single-area known city → pre-select it. Multi-area → scope picker to it.
+  const scopeCity =
+    resolved && resolved.areas.length > 1 ? resolved.city : undefined;
+  const [selection, setSelection] = useState<DarbAssabilSelection>(
+    resolved && resolved.areas.length === 1
+      ? { city: resolved.city, area: resolved.areas[0] }
+      : { city: null, area: null },
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [duplicateConfirm, setDuplicateConfirm] = useState<{
@@ -180,7 +194,11 @@ export function DarbAssabilDispatchModal({
               </div>
             )}
 
-            <DarbAssabilLocationPicker value={selection} onChange={setSelection} />
+            <DarbAssabilLocationPicker
+              value={selection}
+              onChange={setSelection}
+              restrictToCity={scopeCity}
+            />
           </div>
 
           <div className="shrink-0 border-t border-line-subtle px-5 py-4">
