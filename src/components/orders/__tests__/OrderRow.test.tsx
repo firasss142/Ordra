@@ -61,6 +61,7 @@ const defaultProps = {
     status: "Confirmé",
     unassigned: "Non assigné",
     cancel: "Annuler",
+    recover: "Restaurer",
     actions: "Actions",
     callbackOverdue: "en retard",
     priorRejected: "0 rejet(s) précédent(s)",
@@ -70,6 +71,8 @@ const defaultProps = {
   onOpen: vi.fn(),
   onCancel: vi.fn(),
   cancellingId: null,
+  onRecover: undefined as ((id: string) => void) | undefined,
+  recoveringId: null as string | null,
 };
 
 function renderRow(props: Partial<typeof defaultProps> = {}) {
@@ -256,6 +259,32 @@ describe("OrderRow", () => {
     const { container } = renderRow();
     // 8 cells: checkbox, order, price, status, date, assignee, source, actions
     expect(container.querySelectorAll("td").length).toBe(8);
+  });
+
+  it("hides the kebab for deleted orders when no onRecover is provided", () => {
+    renderRow({ order: { ...mockOrder, status: "deleted" } });
+    expect(screen.queryByRole("button", { name: /actions/i })).toBeNull();
+  });
+
+  it("shows a Recover item for deleted orders when onRecover is provided", async () => {
+    const user = userEvent.setup();
+    renderRow({ order: { ...mockOrder, status: "deleted" }, onRecover: vi.fn() });
+    await user.click(screen.getByRole("button", { name: /actions/i }));
+    const menu = screen.getByRole("menu");
+    expect(within(menu).getByRole("menuitem", { name: /restaurer/i })).toBeDefined();
+    // Cancel must NOT appear for a deleted order.
+    expect(within(menu).queryByRole("menuitem", { name: /^annuler/i })).toBeNull();
+  });
+
+  it("calls onRecover when the recover menu item is clicked", async () => {
+    const user = userEvent.setup();
+    const onRecover = vi.fn();
+    renderRow({ order: { ...mockOrder, status: "deleted" }, onRecover });
+    await user.click(screen.getByRole("button", { name: /actions/i }));
+    await user.click(
+      within(screen.getByRole("menu")).getByRole("menuitem", { name: /restaurer/i }),
+    );
+    expect(onRecover).toHaveBeenCalledWith("order-abc-123");
   });
 
   it("hides the duplicate badge when the anchor row is deleted", () => {

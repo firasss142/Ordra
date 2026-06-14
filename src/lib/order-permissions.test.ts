@@ -4,6 +4,7 @@ import {
   canCreateOrders,
   canAssignOrders,
   canCancelOrder,
+  canRecoverDeletedOrder,
   canDeleteDuplicateSibling,
   canDeleteDuplicateSiblingStatus,
   canTransitionOrder,
@@ -96,6 +97,26 @@ describe("canCancelOrder", () => {
 
   test("agent cannot cancel orders", () => {
     expect(canCancelOrder("agent")).toBe(false);
+  });
+});
+
+describe("canRecoverDeletedOrder", () => {
+  test("super_admin can recover orders in any market", () => {
+    expect(canRecoverDeletedOrder("super_admin")).toBe(true);
+    expect(canRecoverDeletedOrder("super_admin", MARKET_B, MARKET_A)).toBe(true);
+  });
+
+  test("market_manager can recover only within their own market", () => {
+    expect(canRecoverDeletedOrder("market_manager", MARKET_A, MARKET_A)).toBe(true);
+    expect(canRecoverDeletedOrder("market_manager", MARKET_B, MARKET_A)).toBe(false);
+  });
+
+  test("agent cannot recover orders", () => {
+    expect(canRecoverDeletedOrder("agent", MARKET_A, MARKET_A)).toBe(false);
+  });
+
+  test("warehouse_agent cannot recover orders", () => {
+    expect(canRecoverDeletedOrder("warehouse_agent", MARKET_A, MARKET_A)).toBe(false);
   });
 });
 

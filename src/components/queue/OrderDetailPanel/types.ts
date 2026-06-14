@@ -74,6 +74,7 @@ export type PanelActionKind =
   | "cancelSchedule"
   | "deleteCarrierBarcode"
   | "reopen"
+  | "recover"
   | "fulfillmentOverride";
 
 export interface PanelAction {

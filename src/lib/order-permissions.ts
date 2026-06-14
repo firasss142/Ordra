@@ -51,6 +51,26 @@ export function canCancelOrder(
 }
 
 /**
+ * Whether a role may recover (un-delete) a soft-deleted order. Same scope as
+ * cancel/delete: super_admin anywhere, market_manager only within their own
+ * market, agents never. The recovery RPC re-checks this server-side.
+ */
+export function canRecoverDeletedOrder(
+  role: Role,
+  targetMarketId?: string,
+  actorMarketId?: string
+): boolean {
+  if (role === "super_admin") return true;
+  if (role === "market_manager") {
+    if (targetMarketId !== undefined && actorMarketId !== undefined) {
+      return targetMarketId === actorMarketId;
+    }
+    return true;
+  }
+  return false;
+}
+
+/**
  * Whether a role may delete a DUPLICATE SIBLING order from the duplicate dialog.
  * This is the market-scope HALF of the gate — agents are allowed here even
  * though `canCancelOrder` excludes them, because this power is narrowly scoped:

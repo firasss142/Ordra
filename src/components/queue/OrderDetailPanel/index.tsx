@@ -409,6 +409,8 @@ export function OrderDetailPanel({
   );
 
   const [returningToPool, setReturningToPool] = useState(false);
+  const [recovering, setRecovering] = useState(false);
+  const [recoverError, setRecoverError] = useState<string | null>(null);
   const [phoneCopied, setPhoneCopied] = useState(false);
   const [reopenModalOpen, setReopenModalOpen] = useState(false);
   const [reopening, setReopening] = useState(false);
@@ -603,6 +605,30 @@ export function OrderDetailPanel({
       setTimeout(() => setPhoneCopied(false), 1500);
     } catch {
       // clipboard unavailable — ignore
+    }
+  }
+
+  async function handleRecover() {
+    if (!orderId) return;
+    setRecoverError(null);
+    if (!window.confirm(t("recoverConfirm"))) return;
+    setRecovering(true);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/recover`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setRecoverError((json as { error?: string }).error ?? t("recoverError"));
+        return;
+      }
+      await mutate();
+      onReopened?.();
+    } catch {
+      setRecoverError(t("recoverError"));
+    } finally {
+      setRecovering(false);
     }
   }
 
@@ -834,6 +860,9 @@ export function OrderDetailPanel({
         case "reopen":
           setReopenModalOpen(true);
           return;
+        case "recover":
+          void handleRecover();
+          return;
         case "deleteCarrierBarcode":
           void handleDeleteCarrierBarcode();
           return;
@@ -863,6 +892,7 @@ export function OrderDetailPanel({
       handleCancelSchedule,
       handleReturnToPool,
       handleDeleteCarrierBarcode,
+      handleRecover,
       onClose,
     ],
   );
@@ -1152,11 +1182,21 @@ export function OrderDetailPanel({
           </div>
         )}
 
+        {/* ── Recover error strip ────────────────────────────────── */}
+        {recoverError && (
+          <div
+            role="alert"
+            className="flex-shrink-0 mx-4 mt-2 rounded-card px-3 py-2 text-[12px] border bg-status-criticalBg border-status-critical/30 text-status-critical"
+          >
+            {recoverError}
+          </div>
+        )}
+
         {/* ── Action footer ──────────────────────────────────────── */}
         {order && (
           <ActionFooter
             actions={panelActions}
-            primaryPending={reopening || returningToPool || cancelingSchedule}
+            primaryPending={reopening || returningToPool || cancelingSchedule || recovering}
             onInvoke={invokeAction}
           />
         )}

@@ -752,6 +752,8 @@
     "loadingMore": "Chargement…",
     "cancelPrompt": "Raison de l'annulation (optionnel) :",
     "cancelError": "Erreur lors de l'annulation",
+    "recoverConfirm": "Restaurer cette commande supprimée ? Elle reviendra en attente.",
+    "recoverError": "Erreur lors de la restauration",
     "bulkAssignError": "Erreur lors de l'assignation groupée",
     "bulkCancelConfirm": "Annuler {count} commande(s) ?",
     "bulkCancelError": "Erreur lors de l'annulation groupée",
@@ -771,7 +773,8 @@
     "callbackOverdue": "en retard",
     "priorRejected": "{count} rejet(s) précédent(s)",
     "actions": {
-      "cancel": "Annuler"
+      "cancel": "Annuler",
+      "recover": "Restaurer"
     },
     "presets": {
       "label": "Vue",
@@ -833,7 +836,9 @@
       "total": "Total",
       "loading": "Chargement…",
       "noData": "Aucune donnée.",
-      "results": "{count} résultat(s)"
+      "results": "{count} résultat(s)",
+      "recoverConfirm": "Restaurer cette commande supprimée ? Elle reviendra en attente.",
+      "recoverError": "Erreur lors de la restauration"
     },
     "advanced": {
       "title": "Filtres avancés",
@@ -947,6 +952,8 @@
       "reopenCancel": "Annuler",
       "reopening": "Réouverture…",
       "reopenWarning": "Annulation transporteur échouée — contactez-les manuellement avant la collecte.",
+      "recoverConfirm": "Restaurer cette commande supprimée ? Elle reviendra en attente.",
+      "recoverError": "Erreur lors de la restauration",
       "callEnded": "Appel terminé",
       "fulfillmentTitle": "Mise à jour fulfillment (manager)",
       "fulfillmentPlaceholder": "Sélectionner un statut…",
@@ -1038,6 +1045,7 @@
         "cancelSchedule": "Annuler la planification",
         "deleteCarrierBarcode": "Supprimer le code-barres",
         "reopen": "Réouvrir la commande",
+        "recover": "Restaurer la commande",
         "fulfillmentOverride": "Mettre à jour le fulfillment",
         "close": "Fermer",
         "overflowMenu": "Plus d'actions",

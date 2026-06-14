@@ -74,6 +74,30 @@ describe("resolvePanelActions — primary CTA", () => {
     }
   });
 
+  it("promotes recover to primary for deleted orders when the actor is a manager/admin", () => {
+    for (const role of ["market_manager", "super_admin"] as const) {
+      const { primary, overflow } = resolvePanelActions(
+        input({
+          role,
+          order: { status: "deleted", assigned_to: null, updated_at: RECENT, tracking_number: null, carrier_barcode_deleted_at: null },
+        }),
+      );
+      expect(primary.kind).toBe("recover");
+      expect(primary.labelKey).toBe("actions.recover");
+      expect(overflow).toEqual([]);
+    }
+  });
+
+  it("does NOT offer recover to agents on a deleted order (close-only)", () => {
+    const { primary } = resolvePanelActions(
+      input({
+        role: "agent",
+        order: { status: "deleted", assigned_to: "agent-1", updated_at: RECENT, tracking_number: null, carrier_barcode_deleted_at: null },
+      }),
+    );
+    expect(primary.kind).toBe("close");
+  });
+
   it("promotes reopen to primary for rejected within agent window; falls back to close when stale", () => {
     const fresh = resolvePanelActions(input({ order: { status: "rejected", assigned_to: "agent-1", updated_at: RECENT, tracking_number: null, carrier_barcode_deleted_at: null } }));
     expect(fresh.primary.kind).toBe("reopen");

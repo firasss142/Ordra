@@ -20,6 +20,7 @@ interface Props {
   selectedIds: Set<string>;
   highlightedIds: Set<string>;
   cancellingId: string | null;
+  recoveringId?: string | null;
   hasNext: boolean;
   hasPrev: boolean;
   currentPage: number;
@@ -31,6 +32,7 @@ interface Props {
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: (ids: string[]) => void;
   onCancel: (id: string) => void;
+  onRecover?: (id: string) => void;
   onDuplicateChange?: () => void;
   isLoading: boolean;
   isEmpty: boolean;
@@ -44,6 +46,7 @@ export function OrdersTable({
   selectedIds,
   highlightedIds,
   cancellingId,
+  recoveringId,
   hasNext,
   hasPrev,
   currentPage,
@@ -55,6 +58,7 @@ export function OrdersTable({
   onToggleSelect,
   onToggleSelectAll,
   onCancel,
+  onRecover,
   onDuplicateChange,
   isLoading,
   isEmpty,
@@ -158,6 +162,7 @@ export function OrdersTable({
                   status: tStatus(r.status),
                   unassigned: t("unassigned"),
                   cancel: t("actions.cancel"),
+                  recover: t("actions.recover"),
                   actions: t("columns.actions"),
                   callbackOverdue: t("callbackOverdue"),
                   priorRejected: t("priorRejected", {
@@ -169,6 +174,8 @@ export function OrdersTable({
                 onOpen={onOpen}
                 onCancel={onCancel}
                 cancellingId={cancellingId}
+                onRecover={onRecover}
+                recoveringId={recoveringId}
                 onDuplicateChange={onDuplicateChange}
               />
             ))}
