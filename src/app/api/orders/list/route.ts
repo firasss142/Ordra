@@ -59,7 +59,10 @@ export async function GET(req: NextRequest) {
     .limit(q.limit + 1); // peek one extra to know if there's a next page
 
   if (marketId) query = query.eq("market_id", marketId);
-  if (!q.include_deleted) query = query.neq("status", "deleted");
+  // "Afficher supprimées" toggle: when on, show ONLY soft-deleted orders;
+  // when off (default), hide deleted orders entirely.
+  if (q.include_deleted) query = query.eq("status", "deleted");
+  else query = query.neq("status", "deleted");
 
   // ---- Preset filters ----
   switch (q.preset) {

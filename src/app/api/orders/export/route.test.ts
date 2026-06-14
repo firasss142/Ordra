@@ -136,7 +136,7 @@ describe("GET /api/orders/export", () => {
     expect(orderChainRef!.neq).toHaveBeenCalledWith("status", "deleted");
   });
 
-  test("include_deleted=1 skips deleted exclusion", async () => {
+  test("include_deleted=1 exports ONLY deleted orders", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
     let orderChainRef: ReturnType<typeof queryChain>;
     mockFrom.mockImplementation((table: string) => {
@@ -151,6 +151,7 @@ describe("GET /api/orders/export", () => {
     const req = createRequest("/api/orders/export?include_deleted=1");
     const res = await GET(req);
     expect(res.status).toBe(200);
+    expect(orderChainRef!.eq).toHaveBeenCalledWith("status", "deleted");
     expect(orderChainRef!.neq).not.toHaveBeenCalledWith("status", "deleted");
   });
 
