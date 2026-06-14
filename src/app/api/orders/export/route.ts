@@ -74,7 +74,10 @@ export async function GET(req: NextRequest) {
   const includeDeleted =
     req.nextUrl.searchParams.get("include_deleted") === "1" ||
     req.nextUrl.searchParams.get("include_deleted") === "true";
-  if (!includeDeleted) {
+  // "Afficher supprimées": when on, export ONLY deleted orders; otherwise hide them.
+  if (includeDeleted) {
+    query = query.eq("status", "deleted");
+  } else {
     query = query.neq("status", "deleted");
   }
 
