@@ -180,6 +180,16 @@ export function resolvePanelActions(input: PrimaryActionInputs): PanelActions {
     };
   }
 
+  // A soft-deleted order can be recovered by a manager/admin. The recover
+  // handler (and the RPC) re-check permission + the scanned-deletion guard, so
+  // surfacing it here is safe even if the order turns out non-recoverable.
+  if (status === "deleted" && isManagerish(role)) {
+    return {
+      primary: { kind: "recover", labelKey: "actions.recover" },
+      overflow: [],
+    };
+  }
+
   if (TERMINAL_STATUSES.has(status)) {
     return {
       primary: { kind: "close", labelKey: "actions.close" },

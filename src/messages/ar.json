@@ -752,6 +752,8 @@
     "loadingMore": "جارٍ التحميل…",
     "cancelPrompt": "سبب الإلغاء (اختياري):",
     "cancelError": "خطأ أثناء الإلغاء",
+    "recoverConfirm": "استعادة هذا الطلب المحذوف؟ سيعود إلى قائمة الانتظار.",
+    "recoverError": "خطأ أثناء الاستعادة",
     "bulkAssignError": "خطأ أثناء التعيين الجماعي",
     "bulkCancelConfirm": "إلغاء {count} طلب؟",
     "bulkCancelError": "خطأ أثناء الإلغاء الجماعي",
@@ -771,7 +773,8 @@
     "callbackOverdue": "متأخّر",
     "priorRejected": "{count} رفض سابق",
     "actions": {
-      "cancel": "إلغاء"
+      "cancel": "إلغاء",
+      "recover": "استعادة"
     },
     "presets": {
       "label": "العرض",
@@ -833,7 +836,9 @@
       "total": "المجموع",
       "loading": "جارٍ التحميل…",
       "noData": "لا توجد بيانات.",
-      "results": "{count} نتيجة"
+      "results": "{count} نتيجة",
+      "recoverConfirm": "استعادة هذا الطلب المحذوف؟ سيعود إلى قائمة الانتظار.",
+      "recoverError": "خطأ أثناء الاستعادة"
     },
     "advanced": {
       "title": "فلاتر متقدمة",
@@ -947,6 +952,8 @@
       "reopenCancel": "إلغاء",
       "reopening": "جارٍ إعادة الفتح…",
       "reopenWarning": "فشل إلغاء رمز التتبع — تواصل مع شركة التوصيل يدوياً قبل الاستلام.",
+      "recoverConfirm": "استعادة هذا الطلب المحذوف؟ سيعود إلى قائمة الانتظار.",
+      "recoverError": "خطأ أثناء الاستعادة",
       "callEnded": "انتهت المكالمة",
       "fulfillmentTitle": "تحديث التوصيل (المدير)",
       "fulfillmentPlaceholder": "اختر حالة…",
@@ -1038,6 +1045,7 @@
         "cancelSchedule": "إلغاء الجدولة",
         "deleteCarrierBarcode": "حذف الباركود",
         "reopen": "إعادة فتح الطلب",
+        "recover": "استعادة الطلب",
         "fulfillmentOverride": "تحديث حالة التسليم",
         "close": "إغلاق",
         "overflowMenu": "خيارات إضافية",

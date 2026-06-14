@@ -282,6 +282,7 @@ export function OrdersPageClient({
 
   // ---------- Row cancel ----------
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [recoveringId, setRecoveringId] = useState<string | null>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const handleCancel = useCallback(
     async (id: string) => {
@@ -306,6 +307,32 @@ export function OrdersPageClient({
         setTimeout(() => setErrorBanner(null), 4000);
       } finally {
         setCancellingId(null);
+      }
+    },
+    [mutate, t],
+  );
+
+  const handleRecover = useCallback(
+    async (id: string) => {
+      if (!window.confirm(t("recoverConfirm"))) return;
+      setRecoveringId(id);
+      try {
+        const res = await fetch(`/api/orders/${id}/recover`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          setErrorBanner((json as { error?: string }).error ?? t("recoverError"));
+          setTimeout(() => setErrorBanner(null), 4000);
+        } else {
+          await mutate();
+        }
+      } catch {
+        setErrorBanner(t("recoverError"));
+        setTimeout(() => setErrorBanner(null), 4000);
+      } finally {
+        setRecoveringId(null);
       }
     },
     [mutate, t],
@@ -523,6 +550,7 @@ export function OrdersPageClient({
           selectedIds={selectedIds}
           highlightedIds={highlightedIds}
           cancellingId={cancellingId}
+          recoveringId={recoveringId}
           hasNext={hasNext}
           hasPrev={hasPrev}
           currentPage={currentPage}
@@ -537,6 +565,7 @@ export function OrdersPageClient({
           onToggleSelect={toggleSelect}
           onToggleSelectAll={toggleSelectAll}
           onCancel={handleCancel}
+          onRecover={canAssign ? handleRecover : undefined}
           onDuplicateChange={() => void mutate()}
           isLoading={isLoading}
           isEmpty={!isLoading && rows.length === 0}

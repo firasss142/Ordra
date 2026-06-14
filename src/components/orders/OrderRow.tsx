@@ -48,6 +48,7 @@ interface Props {
     status: string;
     unassigned: string;
     cancel: string;
+    recover: string;
     actions: string;
     callbackOverdue: string;
     priorRejected: string;
@@ -57,22 +58,32 @@ interface Props {
   onOpen: (id: string) => void;
   onCancel: (id: string) => void;
   cancellingId: string | null;
+  /** Recover (un-delete) a soft-deleted order. Optional: only managers/admins. */
+  onRecover?: (id: string) => void;
+  recoveringId?: string | null;
   /** Called after a duplicate sibling is deleted from the dialog, to revalidate. */
   onDuplicateChange?: () => void;
 }
 
 function RowKebab({
   orderId,
+  mode,
   cancelLabel,
+  recoverLabel,
   actionsLabel,
-  cancelling,
+  pending,
   onCancel,
+  onRecover,
 }: {
   orderId: string;
+  /** "cancel" for deletable orders, "recover" for soft-deleted ones. */
+  mode: "cancel" | "recover";
   cancelLabel: string;
+  recoverLabel: string;
   actionsLabel: string;
-  cancelling: boolean;
+  pending: boolean;
   onCancel: (id: string) => void;
+  onRecover?: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -104,18 +115,34 @@ function RowKebab({
           role="menu"
           className="absolute end-0 top-[calc(100%+4px)] z-20 min-w-[160px] rounded-card border border-line bg-surface-card p-1 shadow-floating"
         >
-          <button
-            type="button"
-            role="menuitem"
-            disabled={cancelling}
-            onClick={() => {
-              onCancel(orderId);
-              setOpen(false);
-            }}
-            className="block w-full rounded-md px-3 py-2 text-start text-[13px] font-medium text-status-critical hover:bg-surface-hover disabled:opacity-50"
-          >
-            {cancelling ? "…" : cancelLabel}
-          </button>
+          {mode === "recover" ? (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={pending}
+              onClick={() => {
+                onRecover?.(orderId);
+                setOpen(false);
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-start text-[13px] font-medium text-ink-primary hover:bg-surface-hover disabled:opacity-50"
+            >
+              <RotateCcw size={13} strokeWidth={2} aria-hidden="true" />
+              {pending ? "…" : recoverLabel}
+            </button>
+          ) : (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={pending}
+              onClick={() => {
+                onCancel(orderId);
+                setOpen(false);
+              }}
+              className="block w-full rounded-md px-3 py-2 text-start text-[13px] font-medium text-status-critical hover:bg-surface-hover disabled:opacity-50"
+            >
+              {pending ? "…" : cancelLabel}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -134,10 +161,14 @@ function Row({
   onOpen,
   onCancel,
   cancellingId,
+  onRecover,
+  recoveringId,
   onDuplicateChange,
 }: Props) {
   const statusTone = STATUS_TONE[order.status] ?? "neutral";
   const canDelete = canManuallyDeleteOrderStatus(order.status);
+  // A soft-deleted order can be recovered by a manager/admin (onRecover passed).
+  const canRecover = order.status === "deleted" && onRecover !== undefined;
   const callbackOverdue =
     !!order.callback_scheduled_at &&
     new Date(order.callback_scheduled_at).getTime() <= Date.now();
@@ -340,13 +371,20 @@ function Row({
 
       {/* Actions — hover-revealed kebab */}
       <td className="px-2 py-2 align-middle">
-        {canDelete && (
+        {(canDelete || canRecover) && (
           <RowKebab
             orderId={order.id}
+            mode={canRecover ? "recover" : "cancel"}
             cancelLabel={labels.cancel}
+            recoverLabel={labels.recover}
             actionsLabel={labels.actions}
-            cancelling={cancellingId === order.id}
+            pending={
+              canRecover
+                ? recoveringId === order.id
+                : cancellingId === order.id
+            }
             onCancel={onCancel}
+            onRecover={onRecover}
           />
         )}
       </td>
@@ -367,10 +405,13 @@ export const OrderRow = React.memo(Row, (prev, next) => {
     prev.highlighted === next.highlighted &&
     prev.agentName === next.agentName &&
     prev.cancellingId === next.cancellingId &&
+    prev.recoveringId === next.recoveringId &&
+    prev.onRecover === next.onRecover &&
     prev.locale === next.locale &&
     prev.currencyCode === next.currencyCode &&
     prev.labels.status === next.labels.status &&
     prev.labels.cancel === next.labels.cancel &&
+    prev.labels.recover === next.labels.recover &&
     prev.labels.actions === next.labels.actions &&
     prev.labels.callbackOverdue === next.labels.callbackOverdue &&
     prev.labels.priorRejected === next.labels.priorRejected &&

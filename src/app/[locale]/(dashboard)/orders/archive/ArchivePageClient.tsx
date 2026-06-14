@@ -175,6 +175,34 @@ export function ArchivePageClient({
   useOrdersRealtime({ marketId: marketId || null, mutate: mutateList, matchFilter: archiveMatch });
 
   const [openOrderId, setOpenOrderId] = useState<string | null>(null);
+  const [recoveringId, setRecoveringId] = useState<string | null>(null);
+
+  // Recovery is manager/admin-only and applies only to soft-deleted orders.
+  const canRecover = isSuperAdmin || role === "market_manager";
+
+  const handleRecover = useCallback(
+    async (id: string) => {
+      if (!window.confirm(t("recoverConfirm"))) return;
+      setRecoveringId(id);
+      try {
+        const res = await fetch(`/api/orders/${id}/recover`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          window.alert((json as { error?: string }).error ?? t("recoverError"));
+        } else {
+          await mutateList();
+        }
+      } catch {
+        window.alert(t("recoverError"));
+      } finally {
+        setRecoveringId(null);
+      }
+    },
+    [t, mutateList],
+  );
 
   const handleExport = useCallback(() => {
     const params = new URLSearchParams();
@@ -570,6 +598,7 @@ export function ArchivePageClient({
           selectedIds={new Set()}
           highlightedIds={new Set()}
           cancellingId={null}
+          recoveringId={recoveringId}
           hasNext={hasNext}
           hasPrev={hasPrev}
           currentPage={currentPage}
@@ -581,6 +610,7 @@ export function ArchivePageClient({
           onToggleSelect={() => {}}
           onToggleSelectAll={() => {}}
           onCancel={() => {}}
+          onRecover={canRecover ? handleRecover : undefined}
           isLoading={listLoading}
           isEmpty={!listLoading && rows.length === 0}
         />
@@ -589,10 +619,12 @@ export function ArchivePageClient({
       <OrderDetailPanel
         key={openOrderId ?? "none"}
         orderId={openOrderId}
+        role={role}
         fallbackOrder={null}
         onClose={() => setOpenOrderId(null)}
         onCallTerminated={() => setOpenOrderId(null)}
         onReturnToPool={undefined}
+        onReopened={() => void mutateList()}
       />
     </div>
   );
