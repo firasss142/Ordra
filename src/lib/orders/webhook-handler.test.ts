@@ -1391,15 +1391,15 @@ describe("handleWebhook — storefront -> OMS mapping resolution", () => {
     expect(captured.orderInsert).not.toHaveProperty("external_city_id");
   });
 
-  test("mapping_status = 'mapped' when the product mapping resolves and the city name matches", async () => {
-    // Libya storefront: the city resolves by name against dexpress_states
-    // (the customer picked it from a constrained dropdown, so a name match is
-    // authoritative -> 'mapped'). city_id stays null.
+  test("mapping_status = 'mapped' when the product mapping resolves and the city matches Darb", async () => {
+    // Libya storefront: مصراتة is a Darb city (multi-area), so it resolves to Darb
+    // first (authoritative name match -> 'mapped'). dexpress/city_id stay null;
+    // darb_destination_id is null for a multi-area city (area chosen at dispatch).
     const { client, captured } = mappingMockClient({
       productMappingRow: { product_id: "prod-quran", product_variant_id: "var-1" },
-      dexpressStateRows: [
-        { id: 12, name: "مصراتة" },
-        { id: 62, name: "طرابلس" },
+      darbRows: [
+        { id: 12, city: "مصراتة", area: "مصراتة" },
+        { id: 13, city: "مصراتة", area: "طمينة" },
       ],
     });
     await run(client, buyboxPayload());
@@ -1408,7 +1408,7 @@ describe("handleWebhook — storefront -> OMS mapping resolution", () => {
       product_id: "prod-quran",
       product_variant_id: "var-1",
       city_id: null,
-      dexpress_state_id: 12,
+      dexpress_state_id: null,
       mapping_status: "mapped",
     });
   });
@@ -1425,19 +1425,20 @@ describe("handleWebhook — storefront -> OMS mapping resolution", () => {
     });
   });
 
-  test("mapping_status = 'unmatched' when the product resolves but the city name is not in the destination table", async () => {
-    // The city dropdown value didn't match any dexpress_states row — it must
-    // be flagged. product is 'mapped', city is 'none' (unmatched) -> worst wins.
+  test("mapping_status = 'unmatched' when the product resolves but the city matches neither Darb nor Dexpress", async () => {
+    // "بلدة وهمية" is not a Darb city/area/alias and not in the dexpress rows, so
+    // it resolves to nothing. product is 'mapped', city is 'none' -> worst wins.
     const { client, captured } = mappingMockClient({
       productMappingRow: { product_id: "prod-quran", product_variant_id: null },
-      dexpressStateRows: [{ id: 62, name: "طرابلس" }], // no "مصراتة"
+      dexpressStateRows: [{ id: 62, name: "طرابلس" }], // no match for the city below
     });
-    await run(client, buyboxPayload());
+    await run(client, buyboxPayload({ customer: { city: "بلدة وهمية" } }));
 
     expect(captured.orderInsert).toMatchObject({
       product_id: "prod-quran",
       dexpress_state_id: null,
       city_id: null,
+      darb_destination_id: null,
       mapping_status: "unmatched",
     });
   });
@@ -1457,14 +1458,14 @@ describe("handleWebhook — storefront -> OMS mapping resolution", () => {
   test("the mapping note names the unmatched city by its dropdown value", async () => {
     const { client, captured } = mappingMockClient({
       productMappingRow: { product_id: "prod-quran", product_variant_id: "var-1" },
-      dexpressStateRows: [{ id: 62, name: "طرابلس" }], // city "مصراتة" misses
+      dexpressStateRows: [{ id: 62, name: "طرابلس" }], // the city below misses everywhere
     });
-    await run(client, buyboxPayload());
+    await run(client, buyboxPayload({ customer: { city: "بلدة وهمية" } }));
 
     const notes = captured.historyInserts
       .map((h) => (h as { note?: string }).note ?? "")
       .join(" | ");
-    expect(notes).toContain("مصراتة");
+    expect(notes).toContain("بلدة وهمية");
     expect(notes.toLowerCase()).toContain("city unmatched");
   });
 

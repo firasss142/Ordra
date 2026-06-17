@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CityResolution } from "./resolver-types";
 import { marketIdToCode } from "@/lib/markets";
+import { resolveDarbAny } from "@/lib/carriers/darb-assabil-areas";
+import { normalizeCityName } from "./normalize-city";
+
+// Re-export so existing importers of this module (and tests) keep working.
+export { normalizeCityName };
 
 /**
  * Resolves a webhook order's destination — name-only, market-aware.
@@ -33,11 +38,6 @@ import { marketIdToCode } from "@/lib/markets";
  * so the handler/UI can normalize consistently.
  */
 
-/** Normalizes a city name for comparison: trim, collapse whitespace, lowercase. */
-export function normalizeCityName(value: string | null | undefined): string {
-  if (!value) return "";
-  return value.trim().replace(/\s+/g, " ").toLowerCase();
-}
 
 /**
  * A normalized-name match — discriminated by market kind:
@@ -145,22 +145,31 @@ export async function resolveCity(
       const darbRows =
         (darbData as Array<{ id: number; city: string; area: string }> | null) ??
         [];
-      const darbForCity = darbRows.filter(
-        (d) => normalizeCityName(d.city) === target,
-      );
-      if (darbForCity.length > 0) {
-        const canonicalCity = darbForCity[0].city;
-        // Single-area city → resolve the exact (city, area) pair now. Multi-area
-        // city → snapshot the city only; the area is chosen at dispatch.
-        nameMatch =
-          darbForCity.length === 1
-            ? {
-                kind: "darb",
-                id: darbForCity[0].id,
-                city: canonicalCity,
-                area: darbForCity[0].area,
-              }
-            : { kind: "darb", id: null, city: canonicalCity, area: null };
+      // Resolve the storefront string against Darb by city → area → alias. This
+      // catches strings that are actually Darb AREA names (شحات, جنزور) or
+      // spelling variants/umbrella labels (ورشفانه, ضواحي طرابلس), not just exact
+      // city names. The canonical (city, area) is then mapped to its DB row id.
+      const darb = resolveDarbAny(params.customer_city);
+      if (darb) {
+        const wantCity = normalizeCityName(darb.city);
+        if (darb.area != null) {
+          // Exact pair (single-area city or a resolved area) → find its row id.
+          const wantArea = normalizeCityName(darb.area);
+          const row = darbRows.find(
+            (d) =>
+              normalizeCityName(d.city) === wantCity &&
+              normalizeCityName(d.area) === wantArea,
+          );
+          nameMatch = {
+            kind: "darb",
+            id: row ? row.id : null,
+            city: darb.city,
+            area: darb.area,
+          };
+        } else {
+          // Multi-area city, area undecided → snapshot the city only.
+          nameMatch = { kind: "darb", id: null, city: darb.city, area: null };
+        }
       } else {
         // Fallback — match against active Dexpress states. dexpress_states has a
         // single `name` column (Arabic); there is no name_ar.

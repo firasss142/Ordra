@@ -38,7 +38,7 @@ CREATE POLICY "darb_services_read"
 INSERT INTO darb_services (service_id, title, attribute, surcharge, currency, is_default, sort_order)
 VALUES
   ('6783c612dcf305c9e775c987', 'توصيل رجالي', 'male',    0,  'lyd', true,  1),
-  ('67c84fbc9ed6c0d5c5bb1d2b', 'توصيل نسائي', 'female',  0,  'lyd', false, 2),
+  ('67c84fbc9ed6c0d5c5bb1d2b', 'توصيل نسائي', 'female',  10, 'lyd', false, 2),
   ('67c84fea9ed6c0d5c5bb1d2c', 'توصيل فوري',  'express', 15, 'lyd', false, 3)
 ON CONFLICT (service_id) DO UPDATE SET
   title      = EXCLUDED.title,

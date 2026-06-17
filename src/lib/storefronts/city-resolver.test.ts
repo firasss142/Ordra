@@ -44,12 +44,37 @@ describe("normalizeCityName (pure)", () => {
   test("collapses internal whitespace", () => {
     expect(normalizeCityName("Ben  Arous")).toBe("ben arous");
   });
-  test("leaves Arabic text intact apart from trimming", () => {
-    expect(normalizeCityName("  مصراتة ")).toBe("مصراتة");
-  });
   test("returns empty string for nullish input", () => {
     expect(normalizeCityName(null)).toBe("");
     expect(normalizeCityName(undefined)).toBe("");
+  });
+
+  // Arabic folding — the storefront sends spelling variants of the same place.
+  // Normalisation collapses them so they match the carrier catalogue.
+  test("folds ta-marbuta ة → ه", () => {
+    // مصراتة and مصراته are the same city; both normalise the same way.
+    expect(normalizeCityName("مصراتة")).toBe(normalizeCityName("مصراته"));
+    expect(normalizeCityName("ورشفانة")).toBe(normalizeCityName("ورشفانه"));
+  });
+  test("folds hamza forms أ/إ/آ → ا", () => {
+    expect(normalizeCityName("الأبيار")).toBe(normalizeCityName("الابيار"));
+    expect(normalizeCityName("إجدابيا")).toBe(normalizeCityName("اجدابيا"));
+    expect(normalizeCityName("آمنة")).toBe(normalizeCityName("امنه"));
+  });
+  test("folds alef-maqsura ى → ي", () => {
+    expect(normalizeCityName("الوسطى")).toBe(normalizeCityName("الوسطي"));
+  });
+  test("drops a bare hamza ء", () => {
+    // براك الشاطيء (storefront) vs براك الشاطي (catalogue).
+    expect(normalizeCityName("براك الشاطيء")).toBe(normalizeCityName("براك الشاطي"));
+  });
+  test("strips tatweel ـ and diacritics", () => {
+    expect(normalizeCityName("طــرابلس")).toBe(normalizeCityName("طرابلس"));
+    expect(normalizeCityName("طَرَابُلُس")).toBe(normalizeCityName("طرابلس"));
+  });
+  test("strips a trailing parenthetical count like ' (15)'", () => {
+    expect(normalizeCityName("ضواحي طرابلس (15)")).toBe(normalizeCityName("ضواحي طرابلس"));
+    expect(normalizeCityName("بنغازي (3)")).toBe(normalizeCityName("بنغازي"));
   });
 });
 
@@ -267,22 +292,23 @@ describe("resolveCity (IO wrapper)", () => {
   // --- Libya / Darb-first, Dexpress fallback --------------------------------
 
   test("Libya: a single-area Darb city resolves to darb_destination_id + area (no dexpress lookup)", async () => {
+    // اجدابيا is single-area in the catalogue, so it resolves to its exact pair.
     const { client, fromCalls } = mockClient({
       darbRows: [
         { id: 11, city: "مصراتة", area: "مصراتة" },
         { id: 12, city: "اجدابيا", area: "اجدابيا" },
       ],
-      dexpressRows: [{ id: 6, name: "مصراتة" }],
+      dexpressRows: [{ id: 6, name: "اجدابيا" }],
     });
     const result = await resolveCity(client as never, {
       platform: "shopify",
       market_id: LY_MARKET_ID,
-      customer_city: "  مصراتة ",
+      customer_city: "  اجدابيا ",
     });
     expect(result.match_method).toBe("name");
-    expect(result.darb_destination_id).toBe(11);
-    expect(result.darb_city).toBe("مصراتة");
-    expect(result.darb_area).toBe("مصراتة");
+    expect(result.darb_destination_id).toBe(12);
+    expect(result.darb_city).toBe("اجدابيا");
+    expect(result.darb_area).toBe("اجدابيا");
     expect(result.dexpress_state_id).toBeNull();
     expect(result.city_id).toBeNull();
     expect(fromCalls).toContain("darb_destinations");
@@ -309,10 +335,15 @@ describe("resolveCity (IO wrapper)", () => {
     expect(result.dexpress_state_id).toBeNull();
   });
 
-  test("Libya: falls back to a dexpress_states match when Darb does not serve the city", async () => {
-    // تاجوراء is a Dexpress state but NOT a standalone Darb city — fallback path.
+  test("Libya: a Darb AREA name (تاجوراء) resolves to its parent city's exact pair, not Dexpress", async () => {
+    // تاجوراء is an AREA under طرابلس in Darb. The storefront sent it as the city;
+    // area-matching resolves it to the exact (طرابلس, تاجوراء) pair so it ships
+    // via Darb instead of falling back to Dexpress.
     const { client, fromCalls } = mockClient({
-      darbRows: [{ id: 20, city: "طرابلس", area: "تاجوراء" }],
+      darbRows: [
+        { id: 20, city: "طرابلس", area: "طرابلس" },
+        { id: 21, city: "طرابلس", area: "تاجوراء" },
+      ],
       dexpressRows: [{ id: 52, name: "تاجوراء" }],
     });
     const result = await resolveCity(client as never, {
@@ -321,10 +352,87 @@ describe("resolveCity (IO wrapper)", () => {
       customer_city: "تاجوراء",
     });
     expect(result.match_method).toBe("name");
-    expect(result.dexpress_state_id).toBe(52);
+    expect(result.darb_destination_id).toBe(21);
+    expect(result.darb_city).toBe("طرابلس");
+    expect(result.darb_area).toBe("تاجوراء");
+    expect(result.dexpress_state_id).toBeNull();
+    expect(fromCalls).toContain("darb_destinations");
+    expect(fromCalls).not.toContain("dexpress_states");
+  });
+
+  test("Libya: a Darb area sent as the city (شحات) resolves to البيضاء/شحات exact pair", async () => {
+    const { client, fromCalls } = mockClient({
+      darbRows: [
+        { id: 30, city: "البيضاء", area: "البيضاء" },
+        { id: 31, city: "البيضاء", area: "شحات" },
+      ],
+      dexpressRows: [{ id: 9, name: "شحات" }],
+    });
+    const result = await resolveCity(client as never, {
+      platform: "shopify",
+      market_id: LY_MARKET_ID,
+      customer_city: "شحات",
+    });
+    expect(result.darb_destination_id).toBe(31);
+    expect(result.darb_city).toBe("البيضاء");
+    expect(result.darb_area).toBe("شحات");
+    expect(result.dexpress_state_id).toBeNull();
+    expect(fromCalls).not.toContain("dexpress_states");
+  });
+
+  test("Libya: a spelling variant (ورشفانه) resolves to the canonical طرابلس/ورشفانة pair", async () => {
+    const { client } = mockClient({
+      darbRows: [
+        { id: 40, city: "طرابلس", area: "طرابلس" },
+        { id: 41, city: "طرابلس", area: "ورشفانة" },
+      ],
+    });
+    const result = await resolveCity(client as never, {
+      platform: "shopify",
+      market_id: LY_MARKET_ID,
+      customer_city: "ورشفانه", // storefront spelling (ه), catalogue is ورشفانة
+    });
+    expect(result.darb_destination_id).toBe(41);
+    expect(result.darb_city).toBe("طرابلس");
+    expect(result.darb_area).toBe("ورشفانة");
+  });
+
+  test("Libya: an alias label (ضواحي طرابلس (15)) resolves to طرابلس (multi-area → id null)", async () => {
+    const { client, fromCalls } = mockClient({
+      darbRows: [
+        { id: 50, city: "طرابلس", area: "طرابلس" },
+        { id: 51, city: "طرابلس", area: "عين زارة" },
+      ],
+      dexpressRows: [{ id: 15, name: "ضواحي طرابلس (15)" }],
+    });
+    const result = await resolveCity(client as never, {
+      platform: "shopify",
+      market_id: LY_MARKET_ID,
+      customer_city: "ضواحي طرابلس (15)",
+    });
+    expect(result.match_method).toBe("name");
+    expect(result.darb_city).toBe("طرابلس");
+    expect(result.darb_area).toBeNull();
+    expect(result.darb_destination_id).toBeNull();
+    expect(result.dexpress_state_id).toBeNull();
+    expect(fromCalls).not.toContain("dexpress_states");
+  });
+
+  test("Libya: a true non-Darb city still falls back to Dexpress", async () => {
+    // "اجخرة" is neither a Darb city nor area nor alias → Dexpress fallback.
+    const { client, fromCalls } = mockClient({
+      darbRows: [{ id: 11, city: "مصراتة", area: "مصراتة" }],
+      dexpressRows: [{ id: 77, name: "اجخرة" }],
+    });
+    const result = await resolveCity(client as never, {
+      platform: "shopify",
+      market_id: LY_MARKET_ID,
+      customer_city: "اجخرة",
+    });
+    expect(result.match_method).toBe("name");
+    expect(result.dexpress_state_id).toBe(77);
     expect(result.darb_destination_id).toBeNull();
     expect(result.darb_city).toBeNull();
-    expect(fromCalls).toContain("darb_destinations");
     expect(fromCalls).toContain("dexpress_states");
   });
 

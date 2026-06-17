@@ -1,10 +1,68 @@
 import { describe, test, expect } from "vitest";
 import {
   resolveDarbDestination,
+  resolveDarbByArea,
+  resolveDarbAny,
   resolveDispatchPair,
   DARB_ASSABIL_CITIES,
   darbAreasFor,
 } from "./darb-assabil-areas";
+
+describe("resolveDarbByArea (area string → parent city + canonical area)", () => {
+  test("شحات resolves to البيضاء / شحات", () => {
+    expect(resolveDarbByArea("شحات")).toEqual({ city: "البيضاء", area: "شحات" });
+  });
+
+  test("جنزور (an area) resolves to طرابلس / جنزور", () => {
+    expect(resolveDarbByArea("جنزور")).toEqual({ city: "طرابلس", area: "جنزور" });
+  });
+
+  test("زليتن resolves to الخمس / زليتن", () => {
+    expect(resolveDarbByArea("زليتن")).toEqual({ city: "الخمس", area: "زليتن" });
+  });
+
+  test("returns the CANONICAL area spelling for a variant input", () => {
+    // ورشفانه (storefront) → canonical ورشفانة under طرابلس via normalisation.
+    expect(resolveDarbByArea("ورشفانه")).toEqual({ city: "طرابلس", area: "ورشفانة" });
+  });
+
+  test("a city name is not an area → null (use resolveDarbDestination for cities)", () => {
+    expect(resolveDarbByArea("البيضاء")).toEqual({ city: "البيضاء", area: "البيضاء" });
+    // اجدابيا is both the city and its single area, so it resolves; طرابلس is a
+    // city but NOT one of its own areas → not found as an area.
+    expect(resolveDarbByArea("طرابلس")).toBeNull();
+  });
+
+  test("unknown / null → null", () => {
+    expect(resolveDarbByArea("nope")).toBeNull();
+    expect(resolveDarbByArea(null)).toBeNull();
+  });
+});
+
+describe("resolveDarbAny (city → area → alias, the shared entry point)", () => {
+  test("(a) exact single-area city → city + its one area", () => {
+    expect(resolveDarbAny("اجدابيا")).toEqual({ city: "اجدابيا", area: "اجدابيا" });
+  });
+
+  test("(a) multi-area city → city only, area null (picked at dispatch)", () => {
+    expect(resolveDarbAny("طرابلس")).toEqual({ city: "طرابلس", area: null });
+  });
+
+  test("(b) area name → its parent city + exact area", () => {
+    expect(resolveDarbAny("شحات")).toEqual({ city: "البيضاء", area: "شحات" });
+    expect(resolveDarbAny("جنزور")).toEqual({ city: "طرابلس", area: "جنزور" });
+  });
+
+  test("(c) alias label → canonical city (area null when the target is multi-area)", () => {
+    expect(resolveDarbAny("ضواحي طرابلس (15)")).toEqual({ city: "طرابلس", area: null });
+    expect(resolveDarbAny("الجبل الغربي")).toEqual({ city: "غريان", area: null });
+  });
+
+  test("genuinely unmappable junk → null (falls through to fallback)", () => {
+    expect(resolveDarbAny("المنطقة الوسطي \\ تخفيض")).toBeNull();
+    expect(resolveDarbAny(null)).toBeNull();
+  });
+});
 
 describe("DARB_ASSABIL_CITIES data", () => {
   test("is a non-empty city → areas map", () => {
@@ -93,8 +151,24 @@ describe("resolveDispatchPair (order city authoritative; area must be valid)", (
     expect(r).toEqual({ kind: "dispatch", city: "طرابلس", area: "عين زارة" });
   });
 
-  test("unknown city, no selection → full picker", () => {
-    expect(resolveDispatchPair("ضواحي طرابلس", NO_PICK)).toEqual({
+  test("an AREA name sent as the city (شحات) → dispatch its exact pair, no picker", () => {
+    expect(resolveDispatchPair("شحات", NO_PICK)).toEqual({
+      kind: "dispatch",
+      city: "البيضاء",
+      area: "شحات",
+    });
+  });
+
+  test("an alias label (ضواحي طرابلس (15)) → scoped picker on the resolved city (طرابلس)", () => {
+    // Alias → طرابلس (multi-area), so the agent picks the area, scoped to طرابلس.
+    expect(resolveDispatchPair("ضواحي طرابلس (15)", NO_PICK)).toEqual({
+      kind: "pick",
+      scopeCity: "طرابلس",
+    });
+  });
+
+  test("truly unknown city, no selection → full picker", () => {
+    expect(resolveDispatchPair("بلدة وهمية", NO_PICK)).toEqual({
       kind: "pick",
       scopeCity: null,
     });
@@ -102,12 +176,12 @@ describe("resolveDispatchPair (order city authoritative; area must be valid)", (
 
   test("unknown city + a selection that is a valid pair somewhere → dispatch it", () => {
     // Agent explicitly chose طرابلس/عين زارة from the full picker.
-    const r = resolveDispatchPair("ضواحي طرابلس", { city: "طرابلس", area: "عين زارة" });
+    const r = resolveDispatchPair("بلدة وهمية", { city: "طرابلس", area: "عين زارة" });
     expect(r).toEqual({ kind: "dispatch", city: "طرابلس", area: "عين زارة" });
   });
 
   test("unknown city + an INVALID selection → full picker (never dispatch a bad pair)", () => {
-    const r = resolveDispatchPair("ضواحي طرابلس", { city: "طرابلس", area: "طرابلس" });
+    const r = resolveDispatchPair("بلدة وهمية", { city: "طرابلس", area: "طرابلس" });
     expect(r).toEqual({ kind: "pick", scopeCity: null });
   });
 });
