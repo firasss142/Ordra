@@ -99,6 +99,45 @@ export class DarbAssabilAdapter implements CarrierAdapter {
     // Off  → "receiver": the fee is charged to the customer on top.
     const paymentBy = creds.payment_by === "0" ? "receiver" : "sales";
 
+    // Per-order option flags, chosen in the dispatch modal and threaded via extra.
+    const isFragile = extraFlag(extra, "is_fragile");
+    const allowInspection = extraFlag(extra, "allow_inspection");
+    const allowTesting = extraFlag(extra, "allow_testing");
+    const allowCardPayment = extraFlag(extra, "allow_card_payment");
+
+    // Build the itemized products[]. Real line items map 1:1 to Darb products with
+    // their own title/quantity/per-unit amount. When the order has no order_items
+    // (legacy single-product orders), fall back to ONE aggregated line (qty 1,
+    // amount = full goods price) — avoids float precision risk from
+    // total_price / quantity. The per-order flags apply to every line.
+    const items = order.order_items ?? [];
+    const products: DarbProduct[] =
+      items.length > 0
+        ? items.map((it) => ({
+            title: it.variant_label
+              ? `${it.product_name} - ${it.variant_label}`
+              : it.product_name,
+            quantity: it.quantity,
+            amount: it.unit_price,
+            currency: "lyd",
+            isChargeable: true,
+            isFragile,
+            allowInspection,
+            allowTesting,
+          }))
+        : [
+            {
+              title: product,
+              quantity: 1,
+              amount: order.total_price,
+              currency: "lyd",
+              isChargeable: true,
+              isFragile,
+              allowInspection,
+              allowTesting,
+            },
+          ];
+
     return {
       service_id: serviceId,
       payment_by: paymentBy,
@@ -109,11 +148,15 @@ export class DarbAssabilAdapter implements CarrierAdapter {
       phone: normalizeLibyanPhone(phoneRaw),
       name: order.customer_name,
       product,
-      // Single line item, qty 1, amount = full goods price — avoids float
-      // precision risk from total_price / quantity (decided for this carrier).
+      // Legacy preview fields (single-line view + dry-run); the real wire body
+      // is built from products_json below.
       amount: String(order.total_price),
       quantity: "1",
       currency: "lyd",
+      // Itemized products + the card-payment flag, serialized so the snapshot
+      // stays a flat Record<string,string> (the dry-run contract).
+      products_json: JSON.stringify(products),
+      allow_card_payment: allowCardPayment ? "1" : "0",
       notes: order.customer_note ?? "",
     };
   }
@@ -160,29 +203,36 @@ export class DarbAssabilAdapter implements CarrierAdapter {
     }
 
     // ── 2. Shipment create ───────────────────────────────────────────
+    // Prefer the itemized products[] serialized into the snapshot; fall back to a
+    // single aggregated line for snapshots built before products_json existed.
+    const products = parseProducts(p);
+    const shipmentBody: Record<string, unknown> = {
+      service: p.service_id,
+      contacts: [contactId],
+      paymentBy: p.payment_by,
+      to: {
+        countryCode: p.country_code,
+        city: p.city,
+        area: p.area,
+        address: p.address,
+      },
+      products,
+      notes: p.notes,
+    };
+    // Online card payment is native to Darb (no 10% surcharge on our side). When
+    // enabled, the card fee is borne by the receiver per the vendor default.
+    if (p.allow_card_payment === "1") {
+      shipmentBody.allowCardPayment = true;
+      shipmentBody.cardFeePaymentBy = "receiver";
+    }
+
     let shipmentRaw: { status: number; body: unknown };
     try {
-      shipmentRaw = await postJson(`${base}/api/local/shipments`, headers, {
-        service: p.service_id,
-        contacts: [contactId],
-        paymentBy: p.payment_by,
-        to: {
-          countryCode: p.country_code,
-          city: p.city,
-          area: p.area,
-          address: p.address,
-        },
-        products: [
-          {
-            title: p.product,
-            quantity: 1,
-            amount: Number(p.amount),
-            currency: p.currency,
-            isChargeable: true,
-          },
-        ],
-        notes: p.notes,
-      });
+      shipmentRaw = await postJson(
+        `${base}/api/local/shipments`,
+        headers,
+        shipmentBody,
+      );
     } catch {
       return { status: 0, body: { _step: "shipment" } };
     }
@@ -342,7 +392,60 @@ interface DarbPayloadSnapshot {
   amount: string;
   quantity: string;
   currency: string;
+  /** Itemized products[] serialized as JSON (see DarbProduct). */
+  products_json?: string;
+  /** Online card payment toggle, "1"/"0". */
+  allow_card_payment?: string;
   notes: string;
+}
+
+/** A single line in the Darb shipment's products[] wire array. */
+interface DarbProduct {
+  title: string;
+  quantity: number;
+  amount: number;
+  currency: string;
+  isChargeable: boolean;
+  isFragile: boolean;
+  allowInspection: boolean;
+  allowTesting: boolean;
+}
+
+/** Reads a boolean-ish flag from the dispatch `extra` (true only for true/"1"/1). */
+function extraFlag(
+  extra: Record<string, unknown> | undefined,
+  key: string
+): boolean {
+  const v = extra?.[key];
+  return v === true || v === "1" || v === 1;
+}
+
+/**
+ * Reconstruct the wire products[] from the snapshot. Uses the serialized
+ * products_json when present; otherwise falls back to a single aggregated line
+ * (back-compat with snapshots built before products_json existed).
+ */
+function parseProducts(p: DarbPayloadSnapshot): DarbProduct[] {
+  if (p.products_json) {
+    try {
+      const parsed = JSON.parse(p.products_json);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch {
+      // fall through to the single-line fallback
+    }
+  }
+  return [
+    {
+      title: p.product,
+      quantity: 1,
+      amount: Number(p.amount),
+      currency: p.currency,
+      isChargeable: true,
+      isFragile: false,
+      allowInspection: false,
+      allowTesting: false,
+    },
+  ];
 }
 
 /** The three headers every Darb Assabil request needs (apikey literal prefix). */

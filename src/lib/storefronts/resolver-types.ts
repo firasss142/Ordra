@@ -43,6 +43,17 @@ export interface ProductResolution {
 export interface CityResolution {
   city_id: string | null;
   dexpress_state_id: number | null;
+  /**
+   * Libya primary path (Darb Assabil). When the city resolves to a single-area
+   * Darb destination, this is that pair's row id. For a multi-area Darb city the
+   * area is chosen at dispatch, so the id stays null but `darb_city` is set —
+   * still a confident `name` match.
+   */
+  darb_destination_id: number | null;
+  /** Canonical Darb city (snapshot for the order's customer_city), or null. */
+  darb_city: string | null;
+  /** Resolved Darb area for a single-area city, or null when undecided. */
+  darb_area: string | null;
   match_method: CityMatchMethod;
 }
 

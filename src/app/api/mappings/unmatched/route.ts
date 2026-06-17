@@ -19,9 +19,10 @@ export const dynamic = "force-dynamic";
  *
  *   - Cities: city resolution is name-only and deterministic at intake — the
  *     storefront city is a constrained dropdown value that either exact-matches
- *     our destination table (cities / dexpress_states) or it doesn't. An
- *     unmatched city has no city_id and no dexpress_state_id. The signal is:
- *       the order has a customer_city AND neither destination column is set.
+ *     our destination table (darb_destinations / cities / dexpress_states) or it
+ *     doesn't. An unmatched city has no city_id, no darb_destination_id, and no
+ *     dexpress_state_id. The signal is:
+ *       the order has a customer_city AND none of the destination columns is set.
  *     The admin binds it directly to an existing destination (per-order); there
  *     is no city alias table.
  *
@@ -46,6 +47,7 @@ interface CandidateOrder {
   external_route_id: string | null;
   city_id: string | null;
   dexpress_state_id: number | null;
+  darb_destination_id: number | null;
 }
 
 export async function GET(req: NextRequest) {
@@ -85,7 +87,7 @@ export async function GET(req: NextRequest) {
     .select(
       "id, created_at, mapping_status, external_platform, storefront_id, " +
         "product_name, external_product_id, external_variant_id, product_id, " +
-        "customer_city, external_route_id, city_id, dexpress_state_id",
+        "customer_city, external_route_id, city_id, dexpress_state_id, darb_destination_id",
     )
     .neq("mapping_status", "mapped")
     .in("status", ["pending", "unverified"])
@@ -99,12 +101,14 @@ export async function GET(req: NextRequest) {
   if (type === "products") {
     query = query.not("external_variant_id", "is", null);
   } else {
-    // City is name-only: an unmatched city resolved to neither destination
-    // column. Only orders with a customer_city can be bound.
+    // City is name-only: an unmatched city resolved to NONE of the destination
+    // columns (Darb primary, Dexpress fallback, or Tunisia cities). Only orders
+    // with a customer_city can be bound.
     query = query
       .not("customer_city", "is", null)
       .is("city_id", null)
-      .is("dexpress_state_id", null);
+      .is("dexpress_state_id", null)
+      .is("darb_destination_id", null);
   }
 
   const { data: orders, error } = await query;

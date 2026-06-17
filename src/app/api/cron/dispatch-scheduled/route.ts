@@ -46,12 +46,12 @@ export async function POST(req: NextRequest) {
 
   for (const row of ready) {
     // Pull the carrier code + order-side extras the adapter needs. Dexpress
-    // requires extra.state_id; without it the adapter throws and the order
-    // would otherwise loop here forever.
+    // requires extra.state_id; Darb Assabil requires extra.city + customer_area.
+    // Without them the adapter throws and the order would otherwise loop here.
     const [{ data: orderRow }, { data: carrierRow }] = await Promise.all([
       admin
         .from("orders")
-        .select("dexpress_state_id")
+        .select("dexpress_state_id, darb_destination_id")
         .eq("id", row.order_id)
         .single(),
       admin
@@ -63,18 +63,39 @@ export async function POST(req: NextRequest) {
 
     const carrierCode = carrierRow?.code ?? "";
     const dexpressStateId = orderRow?.dexpress_state_id ?? null;
+    const darbDestinationId = orderRow?.darb_destination_id ?? null;
 
-    if (carrierCode === "dexpress" && dexpressStateId === null) {
+    // Resolve the Darb (city, area) pair from the stored destination id. A
+    // multi-area city resolves to no id at intake (the area is picked at
+    // dispatch), so an auto-dispatched Darb order without one can't proceed.
+    let darbExtra: { city: string; customer_area: string } | null = null;
+    if (carrierCode === "darb_assabil" && darbDestinationId !== null) {
+      const { data: dest } = await admin
+        .from("darb_destinations")
+        .select("city, area")
+        .eq("id", darbDestinationId)
+        .single();
+      if (dest) darbExtra = { city: dest.city, customer_area: dest.area };
+    }
+
+    const missingDestination =
+      (carrierCode === "dexpress" && dexpressStateId === null) ||
+      (carrierCode === "darb_assabil" && darbExtra === null);
+
+    if (missingDestination) {
       // Permanently broken under auto-dispatch — revert to confirmed so the
-      // agent can set a state and upload manually. Without this branch the
-      // row stays in dispatch_scheduled and every cron run fails on it.
+      // agent can pick the destination and upload manually. Without this branch
+      // the row stays in dispatch_scheduled and every cron run fails on it.
+      const note =
+        carrierCode === "dexpress"
+          ? "Auto-dispatch annulé: dexpress_state_id manquant — l'agent doit saisir la wilaya avant l'upload"
+          : "Auto-dispatch annulé: destination Darb Assabil manquante — l'agent doit choisir la zone avant l'upload";
       const { error: revertError } = await admin.rpc("transition_order_status", {
         p_order_id: row.order_id,
         p_new_status: "confirmed",
         p_actor_id: null,
         p_actor_type: "system",
-        p_note:
-          "Auto-dispatch annulé: dexpress_state_id manquant — l'agent doit saisir la wilaya avant l'upload",
+        p_note: note,
       });
 
       results.push({
@@ -82,7 +103,7 @@ export async function POST(req: NextRequest) {
         ok: false,
         error: revertError
           ? `reverted-to-confirmed failed: ${revertError.message}`
-          : "reverted to confirmed: dexpress_state_id missing",
+          : "reverted to confirmed: destination missing",
       });
       continue;
     }
@@ -90,7 +111,9 @@ export async function POST(req: NextRequest) {
     const extra =
       carrierCode === "dexpress" && dexpressStateId !== null
         ? { state_id: dexpressStateId }
-        : undefined;
+        : carrierCode === "darb_assabil" && darbExtra !== null
+          ? darbExtra
+          : undefined;
 
     // dispatch_scheduled → uploaded directly. dispatch_order accepts
     // dispatch_scheduled as a source and clears scheduled_dispatch_* on

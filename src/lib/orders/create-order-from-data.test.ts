@@ -15,8 +15,16 @@ vi.mock("@/lib/storefronts/city-resolver", () => ({
   resolveCity: vi.fn().mockResolvedValue({
     city_id: "city-uuid",
     dexpress_state_id: null,
+    darb_destination_id: null,
+    darb_city: null,
+    darb_area: null,
     match_method: "name",
   }),
+  // Real behaviour: snapshot the canonical Darb city when present, else the raw value.
+  resolvedCustomerCity: (
+    resolution: { darb_city: string | null },
+    rawCustomerCity: string | null,
+  ) => resolution.darb_city ?? rawCustomerCity,
 }));
 
 vi.mock("./auto-assignment-orchestrator", () => ({

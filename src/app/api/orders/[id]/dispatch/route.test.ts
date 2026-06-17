@@ -38,6 +38,9 @@ function queryChain(resolveWith: { data: unknown; error: unknown }) {
   chain.select = vi.fn().mockReturnValue(chain);
   chain.eq = vi.fn().mockReturnValue(chain);
   chain.single = vi.fn().mockResolvedValue(resolveWith);
+  // performDispatch reads order_items via .select("*").eq().order() (a list).
+  // Resolve to an empty list so the adapter falls back to its single-line path.
+  chain.order = vi.fn().mockResolvedValue({ data: [], error: null });
   return chain;
 }
 

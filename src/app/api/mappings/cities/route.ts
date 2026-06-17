@@ -16,8 +16,11 @@ export const dynamic = "force-dynamic";
  * destination, one order at a time.
  *
  *   - Tunisia: the destination is an OMS city  -> sets orders.city_id.
- *   - Libya:   the carrier is Dexpress; the destination is a dexpress_states
- *              row -> sets orders.dexpress_state_id, orders.city_id stays null.
+ *   - Libya:   Darb Assabil is the primary carrier and resolves most cities at
+ *              intake. An order that reaches THIS manual surface is one Darb did
+ *              not recognise, so the bind targets the Dexpress fallback (the
+ *              broader catalogue) -> sets orders.dexpress_state_id. The Darb and
+ *              city_id pointers are cleared (three-way exclusivity).
  *
  * GET  — list the destination options for the target market (the dropdown the
  *        bind UI offers): cities for Tunisia, active dexpress_states for Libya.
@@ -195,6 +198,10 @@ export async function POST(req: NextRequest) {
     .update({
       city_id: bindCityId,
       dexpress_state_id: bindDexpressStateId,
+      // This manual bind targets the Tunisia city or the Libya Dexpress fallback
+      // (the broader catalogue for a city Darb doesn't serve). Always clear the
+      // Darb pointer to preserve the three-way destination exclusivity.
+      darb_destination_id: null,
       mapping_status: nextStatus,
     })
     .eq("id", order.id);

@@ -24,4 +24,18 @@ describe("computeOrderTotal", () => {
   it("handles a zero subtotal", () => {
     expect(computeOrderTotal(0, 5, true)).toBe(5);
   });
+
+  it("suppresses the 10% surcharge when card surcharge is disabled (Darb online payment)", () => {
+    // Darb has native online payment with no 10% deduction, so card_payment must
+    // NOT inflate the subtotal: 100 + 7 = 107 (no ×1.1) even though cardPayment is true.
+    expect(computeOrderTotal(100, 7, true, false)).toBe(107);
+  });
+
+  it("still applies the 10% surcharge when card surcharge is explicitly enabled", () => {
+    expect(computeOrderTotal(100, 7, true, true)).toBe(117);
+  });
+
+  it("defaults to applying the surcharge when the flag is omitted (back-compat)", () => {
+    expect(computeOrderTotal(100, 7, true)).toBe(117);
+  });
 });
