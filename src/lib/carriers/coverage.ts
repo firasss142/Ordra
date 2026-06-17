@@ -1,6 +1,6 @@
-import { normalizeCityName } from "@/lib/storefronts/city-resolver";
+import { normalizeCityName } from "@/lib/storefronts/normalize-city";
 import { DEXPRESS_STATES } from "./dexpress/states";
-import { DARB_ASSABIL_CITIES } from "./darb-assabil-areas";
+import { resolveDarbAny } from "./darb-assabil-areas";
 
 /**
  * Per-carrier destination coverage for an order's city, computed client-side
@@ -27,10 +27,6 @@ const DEXPRESS_CITY_SET = new Set(
   DEXPRESS_STATES.map((s) => normalizeCityName(s.name))
 );
 
-const DARB_CITY_SET = new Set(
-  Object.keys(DARB_ASSABIL_CITIES).map((city) => normalizeCityName(city))
-);
-
 /**
  * @param customerCity     the order's stored city (free-ish Arabic string)
  * @param dexpressStateId  resolved Dexpress destination id, if the order has one
@@ -47,7 +43,9 @@ export function coverageFor(
   const dexpressHit =
     (dexpressStateId != null && Number.isFinite(dexpressStateId)) ||
     (norm.length > 0 && DEXPRESS_CITY_SET.has(norm));
-  const darbHit = norm.length > 0 && DARB_CITY_SET.has(norm);
+  // Darb recognises the string as a city, an AREA, or a curated alias — same
+  // resolution intake/dispatch use, so the badge matches what will actually ship.
+  const darbHit = resolveDarbAny(customerCity) != null;
 
   // The city is "real" if at least one carrier recognises it. That anchors a
   // confident "uncovered" for the other carrier.

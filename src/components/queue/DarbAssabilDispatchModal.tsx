@@ -10,7 +10,7 @@ import {
   type DarbAssabilSelection,
 } from "./DarbAssabilLocationPicker";
 import {
-  resolveDarbDestination,
+  resolveDarbAny,
   resolveDispatchPair,
 } from "@/lib/carriers/darb-assabil-areas";
 import { fetcher } from "@/lib/swr-config";
@@ -64,22 +64,25 @@ export function DarbAssabilDispatchModal({
   const hasAddress = Boolean(customerAddress && customerAddress.trim());
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const resolved = resolveDarbDestination(customerCity);
-  // Destination mode from the order's city:
-  //  - "resolved": single-area known city → fixed, NO picker (agent can't pick
-  //    a wrong city). This is the common case and the fix for the الجفرة bug.
-  //  - "scoped": multi-area known city (طرابلس) → picker limited to its areas.
-  //  - "full": unknown city → full picker.
+  // Resolve the order's city the same way intake/coverage do: exact city → area
+  // name → alias. So an area-named city (شحات) or umbrella label (ضواحي طرابلس)
+  // pre-resolves instead of dropping to the full picker.
+  const resolved = resolveDarbAny(customerCity);
+  // Destination mode from the resolved city:
+  //  - "resolved": an exact (city, area) pair — single-area city OR an area name
+  //    → fixed, NO picker (agent can't pick a wrong city).
+  //  - "scoped": multi-area city (طرابلس) → picker limited to its areas.
+  //  - "full": unresolved → full picker.
   const mode: "resolved" | "scoped" | "full" =
-    resolved && resolved.areas.length === 1
+    resolved && resolved.area != null
       ? "resolved"
-      : resolved && resolved.areas.length > 1
+      : resolved
         ? "scoped"
         : "full";
   const scopeCity = mode === "scoped" ? resolved!.city : undefined;
   const [selection, setSelection] = useState<DarbAssabilSelection>(
     mode === "resolved"
-      ? { city: resolved!.city, area: resolved!.areas[0] }
+      ? { city: resolved!.city, area: resolved!.area }
       : { city: null, area: null },
   );
   const [submitting, setSubmitting] = useState(false);

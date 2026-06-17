@@ -73,12 +73,29 @@ describe("DarbAssabilDispatchModal — destination resolution", () => {
     expect(screen.queryByText(/عين زارة/)).not.toBeInTheDocument();
   });
 
-  it("unknown city shows the full picker", () => {
-    render(<DarbAssabilDispatchModal {...BASE} customerCity="ضواحي طرابلس" />);
+  it("truly unknown city shows the full picker", () => {
+    // A fabricated label that is neither a Darb city, area, nor alias.
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="بلدة وهمية" />);
     expect(screen.getByRole("textbox")).toBeInTheDocument();
     // Full list → areas from multiple distinct cities available.
     expect(screen.getByText("الجفرة — سوكنة")).toBeInTheDocument();
     expect(screen.getByText("طرابلس — عين زارة")).toBeInTheDocument();
+  });
+
+  it("an area-named city (شحات) pre-resolves to a fixed destination (no picker)", () => {
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="شحات" />);
+    // شحات → البيضاء/شحات exact pair → fixed destination, no search box.
+    expect(screen.getByText(/شحات/)).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("an alias label (ضواحي طرابلس) scopes the picker to طرابلس", () => {
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="ضواحي طرابلس" />);
+    // Alias → طرابلس (multi-area): picker present, scoped to طرابلس's areas.
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
+    expect(screen.getByText("طرابلس — عين زارة")).toBeInTheDocument();
+    // A different city's area is excluded by the scope.
+    expect(screen.queryByText("الجفرة — سوكنة")).not.toBeInTheDocument();
   });
 });
 

@@ -3,10 +3,9 @@ import { coverageFor, type CoverageState } from "./coverage";
 
 // Sanity anchors verified against the bundled data:
 //  - بنغازي / طرابلس / مصراتة / الخمس are served by BOTH carriers.
-//  - شحات is a Dexpress state but NOT one of Darb's 26 cities.
-//  - "ضواحي طرابلس" ("Tripoli suburbs") matches NEITHER carrier's list.
-//    (Dexpress's 128-state list is broad — most plain city names match it, so a
-//    true "neither" example has to be a non-city label like this.)
+//  - شحات is a Darb AREA (under البيضاء) → Darb covers it via area-matching.
+//  - "ضواحي طرابلس" ("Tripoli suburbs") → Darb covers it via the alias map.
+//  - a fabricated label like "بلدة وهمية" matches NEITHER carrier.
 
 function cov(city: string | null, stateId: number | null) {
   return coverageFor(city, stateId);
@@ -30,16 +29,19 @@ describe("coverageFor", () => {
     expect(r.dexpress).toBe("covered");
   });
 
-  test("city that is a real Dexpress state but not in Darb's list → Darb uncovered (confident), Dexpress covered", () => {
-    // شحات resolves for Dexpress, anchoring the city as 'real', so Darb's
-    // non-match is a confident 'uncovered' rather than 'unknown'.
+  test("a Darb AREA name sent as the city (شحات) → Darb covered (via area-matching)", () => {
+    // شحات is an area under البيضاء; coverage recognises it through resolveDarbAny.
     const r = cov("شحات", null);
-    expect(r.dexpress).toBe("covered");
-    expect(r.darb_assabil).toBe("uncovered");
+    expect(r.darb_assabil).toBe("covered");
   });
 
-  test("label matching neither carrier → both unknown (never a false block)", () => {
+  test("an alias label (ضواحي طرابلس) → Darb covered (via the alias map)", () => {
     const r = cov("ضواحي طرابلس", null);
+    expect(r.darb_assabil).toBe("covered");
+  });
+
+  test("a fabricated label matching neither carrier → both unknown (never a false block)", () => {
+    const r = cov("بلدة وهمية", null);
     expect(r.dexpress).toBe("unknown");
     expect(r.darb_assabil).toBe("unknown");
   });

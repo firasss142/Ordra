@@ -16,7 +16,8 @@
  *
  * Re-generate + re-validate (≈280 calls) if the carrier expands coverage.
  */
-import { normalizeCityName } from "@/lib/storefronts/city-resolver";
+import { normalizeCityName } from "@/lib/storefronts/normalize-city";
+import { darbCityForAlias } from "./darb-assabil-aliases";
 import citiesData from "./darb-assabil-areas-data.json";
 
 /** city (Arabic) → ordered list of deliverable areas (Arabic). */
@@ -32,6 +33,58 @@ export interface DarbDestination {
 const NORM_TO_CITY = new Map<string, string>();
 for (const city of Object.keys(DARB_ASSABIL_CITIES)) {
   NORM_TO_CITY.set(normalizeCityName(city), city);
+}
+
+// Normalized AREA name → { canonical city, canonical area }. Areas are unique
+// across cities (verified against the live catalogue), so no collision handling.
+const NORM_AREA_TO_PAIR = new Map<string, { city: string; area: string }>();
+for (const [city, areas] of Object.entries(DARB_ASSABIL_CITIES)) {
+  for (const area of areas) {
+    NORM_AREA_TO_PAIR.set(normalizeCityName(area), { city, area });
+  }
+}
+
+/**
+ * Resolve a string that is a Darb AREA name (not a city) to its parent city and
+ * canonical area spelling, or null if it isn't a known area. Many storefronts
+ * send an area as the "city" (e.g. شحات → البيضاء/شحات, جنزور → طرابلس/جنزور).
+ */
+export function resolveDarbByArea(
+  name: string | null | undefined,
+): { city: string; area: string } | null {
+  return NORM_AREA_TO_PAIR.get(normalizeCityName(name)) ?? null;
+}
+
+/**
+ * The shared resolution entry point: map any storefront string to a Darb
+ * destination, trying in order — (a) exact city, (b) area name, (c) curated
+ * alias. Returns the canonical city and, when determined, the exact area
+ * (null for a multi-area city whose area is chosen at dispatch). null when Darb
+ * cannot serve it at all (caller falls back to Dexpress).
+ */
+export function resolveDarbAny(
+  name: string | null | undefined,
+): { city: string; area: string | null } | null {
+  // (a) exact city
+  const city = resolveDarbDestination(name);
+  if (city) {
+    return { city: city.city, area: city.areas.length === 1 ? city.areas[0] : null };
+  }
+  // (b) area name → exact pair
+  const byArea = resolveDarbByArea(name);
+  if (byArea) return { city: byArea.city, area: byArea.area };
+  // (c) curated alias → canonical city (resolve its area the same way)
+  const aliasCity = darbCityForAlias(name);
+  if (aliasCity) {
+    const resolved = resolveDarbDestination(aliasCity);
+    if (resolved) {
+      return {
+        city: resolved.city,
+        area: resolved.areas.length === 1 ? resolved.areas[0] : null,
+      };
+    }
+  }
+  return null;
 }
 
 /** The deliverable areas for a city string (normalized match), or [] if unknown. */
@@ -79,22 +132,28 @@ function isValidPair(city: string | null, area: string | null): boolean {
  *  - pick     → caller opens the area picker; scopeCity restricts it to one
  *               city's areas, or is null (unknown city → full list).
  *
+ * Resolution matches the intake path (city → area → alias via resolveDarbAny),
+ * so a customer_city that is an AREA name (شحات) or alias (ضواحي طرابلس) is
+ * handled, not just exact city names.
+ *
  * Rules:
- *  - Known single-area city → dispatch that pair (selection ignored).
- *  - Known multi-area city  → dispatch the selection only if it's a valid area
- *                             of THAT city; otherwise open the scoped picker.
- *  - Unknown city           → dispatch the selection only if it's a valid pair
- *                             (agent chose from the full picker); else full picker.
+ *  - Resolved to an exact (city, area) — single-area city OR an area-named string
+ *    → dispatch that pair (selection ignored).
+ *  - Resolved to a multi-area city (area undecided) → dispatch the selection only
+ *    if it's a valid area of THAT city; otherwise open the scoped picker.
+ *  - Unresolved city → dispatch the selection only if it's a valid pair (agent
+ *    chose from the full picker); else full picker.
  */
 export function resolveDispatchPair(
   customerCity: string | null | undefined,
   selection: DarbPickSelection
 ): DispatchPairDecision {
-  const resolved = resolveDarbDestination(customerCity);
+  const resolved = resolveDarbAny(customerCity);
 
   if (resolved) {
-    if (resolved.areas.length === 1) {
-      return { kind: "dispatch", city: resolved.city, area: resolved.areas[0] };
+    if (resolved.area != null) {
+      // Exact pair (single-area city or a resolved area name) → dispatch it.
+      return { kind: "dispatch", city: resolved.city, area: resolved.area };
     }
     // Multi-area: selection must belong to this city and be a valid area.
     const inCity =
@@ -106,7 +165,7 @@ export function resolveDispatchPair(
       : { kind: "pick", scopeCity: resolved.city };
   }
 
-  // Unknown city: only an explicit, valid selection dispatches.
+  // Unresolved city: only an explicit, valid selection dispatches.
   if (isValidPair(selection.city, selection.area)) {
     return {
       kind: "dispatch",
