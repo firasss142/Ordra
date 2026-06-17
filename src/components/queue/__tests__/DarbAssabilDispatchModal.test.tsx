@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { DarbAssabilDispatchModal } from "../DarbAssabilDispatchModal";
 
@@ -18,10 +18,27 @@ vi.mock("next-intl", async () => {
 
 import useSWR from "swr";
 
+// Default: active carrier, no services (services list empty → service_id omitted).
 function mockActiveCarrier() {
-  (useSWR as ReturnType<typeof vi.fn>).mockReturnValue({
-    data: { carrier: { id: "c-darb", is_active: true } },
-    isLoading: false,
+  (useSWR as ReturnType<typeof vi.fn>).mockImplementation((key: string) => {
+    if (typeof key === "string" && key.includes("/api/darb/services")) {
+      return { data: { services: [] }, isLoading: false };
+    }
+    return { data: { carrier: { id: "c-darb", is_active: true } }, isLoading: false };
+  });
+}
+
+const SERVICES = [
+  { service_id: "svc-male", title: "توصيل رجالي", attribute: "male", surcharge: 0, currency: "lyd", is_default: true },
+  { service_id: "svc-express", title: "توصيل فوري", attribute: "express", surcharge: 15, currency: "lyd", is_default: false },
+];
+
+function mockCarrierAndServices() {
+  (useSWR as ReturnType<typeof vi.fn>).mockImplementation((key: string) => {
+    if (typeof key === "string" && key.includes("/api/darb/services")) {
+      return { data: { services: SERVICES }, isLoading: false };
+    }
+    return { data: { carrier: { id: "c-darb", is_active: true } }, isLoading: false };
   });
 }
 
@@ -62,5 +79,57 @@ describe("DarbAssabilDispatchModal — destination resolution", () => {
     // Full list → areas from multiple distinct cities available.
     expect(screen.getByText("الجفرة — سوكنة")).toBeInTheDocument();
     expect(screen.getByText("طرابلس — عين زارة")).toBeInTheDocument();
+  });
+});
+
+describe("DarbAssabilDispatchModal — per-order options", () => {
+  it("sends the toggled options in the dispatch extra (defaults off, fragile on)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: () => Promise.resolve({ data: { tracking_number: "SH1" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Single-area city → fixed destination, confirm button enabled immediately.
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="اجدابيا" />);
+
+    fireEvent.click(screen.getByLabelText("Fragile"));
+    fireEvent.click(screen.getByRole("button", { name: /Confirmer l'envoi/ }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.extra).toMatchObject({
+      city: "اجدابيا",
+      customer_area: "اجدابيا",
+      is_fragile: true,
+      allow_inspection: false,
+      allow_card_payment: false,
+      allow_testing: false,
+    });
+
+    vi.unstubAllGlobals();
+  });
+
+  it("sends the chosen service_id (defaults to is_default, switches on pick)", async () => {
+    mockCarrierAndServices();
+    const fetchMock = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: () => Promise.resolve({ data: { tracking_number: "SH1" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="اجدابيا" />);
+
+    // Default service (men's) is preselected; pick express instead.
+    fireEvent.click(screen.getByRole("button", { name: /توصيل فوري/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Confirmer l'envoi/ }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.extra.service_id).toBe("svc-express");
+
+    vi.unstubAllGlobals();
   });
 });

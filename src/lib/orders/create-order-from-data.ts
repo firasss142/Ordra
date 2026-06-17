@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { InternalOrderData } from "@/lib/storefronts/types";
 import { resolveProduct } from "@/lib/storefronts/product-resolver";
-import { resolveCity } from "@/lib/storefronts/city-resolver";
+import { resolveCity, resolvedCustomerCity } from "@/lib/storefronts/city-resolver";
 import {
   productMatchStatus,
   cityMatchStatus,
@@ -62,7 +62,7 @@ export async function createOrderFromData(
       customer_name: orderData.customer_name,
       customer_phone: orderData.customer_phone,
       customer_address: orderData.customer_address,
-      customer_city: orderData.customer_city,
+      customer_city: resolvedCustomerCity(cityResolution, orderData.customer_city),
       customer_note: orderData.customer_note,
       product_id: productResolution.product_id,
       product_variant_id: productResolution.product_variant_id,
@@ -73,6 +73,7 @@ export async function createOrderFromData(
       total_price: orderData.total_price,
       city_id: cityResolution.city_id,
       dexpress_state_id: cityResolution.dexpress_state_id ?? orderData.dexpress_state_id,
+      darb_destination_id: cityResolution.darb_destination_id,
       mapping_status: mappingStatus,
       external_product_id: orderData.external_product_id ?? null,
       external_variant_id: orderData.external_variant_id ?? null,

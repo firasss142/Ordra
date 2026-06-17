@@ -40,7 +40,6 @@ export interface OrderItemsCardProps {
   onPatchItem: (itemId: string, body: Record<string, unknown>) => void;
   onDeleteItem: (itemId: string) => void;
   onCommitDeliveryFee: (v: number) => void;
-  onCommitCardPayment: (v: boolean) => void;
   /** Slot for the "+ add product" affordance — supplied by parent. */
   renderAddProduct?: () => ReactNode;
 }
@@ -69,7 +68,6 @@ export function OrderItemsCard({
   onPatchItem,
   onDeleteItem,
   onCommitDeliveryFee,
-  onCommitCardPayment,
   renderAddProduct,
 }: OrderItemsCardProps) {
   const t = useTranslations("orders.detail");
@@ -116,17 +114,14 @@ export function OrderItemsCard({
               {summaryItem.unit_price} {displayCurrency}
             </span>
           </div>
-          {isLibyaOrder && (
-            <label className={`flex items-center gap-1.5 flex-shrink-0 ${canEdit ? "cursor-pointer" : "cursor-default"}`}>
-              <input
-                type="checkbox"
-                checked={cardPayment}
-                disabled={!canEdit}
-                onChange={(e) => onCommitCardPayment(e.target.checked)}
-                className="h-4 w-4 rounded border-line-strong text-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-50"
-              />
-              <span className="text-[11px] text-ink-secondary whitespace-nowrap">{t("cardPayment")}</span>
-            </label>
+          {/* Card-payment is no longer set here (online payment is handled in the
+              Darb dispatch modal). Old orders that already carry it still show a
+              read-only marker so their higher total is explained. */}
+          {isLibyaOrder && cardPayment && (
+            <span className="flex items-center gap-1.5 flex-shrink-0 text-[11px] text-ink-secondary whitespace-nowrap">
+              {t("cardPayment")}
+              <span className="text-[10px] font-semibold text-ink-muted tabular-nums">+10%</span>
+            </span>
           )}
         </div>
       )}
@@ -261,22 +256,15 @@ export function OrderItemsCard({
                 />
               </div>
             </div>
-            {isLibyaOrder && (
-              <label className={`flex items-center justify-between gap-2 ${canEdit ? "cursor-pointer" : "cursor-default"}`}>
+            {/* Read-only card-payment marker for legacy orders that already have
+                it (no longer editable here — see the Darb dispatch modal). */}
+            {isLibyaOrder && cardPayment && (
+              <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-1.5 text-[12px] text-ink-secondary">
                   {t("cardPayment")}
-                  {cardPayment && (
-                    <span className="text-[11px] font-semibold text-ink-muted tabular-nums">+10%</span>
-                  )}
+                  <span className="text-[11px] font-semibold text-ink-muted tabular-nums">+10%</span>
                 </span>
-                <input
-                  type="checkbox"
-                  checked={cardPayment}
-                  disabled={!canEdit}
-                  onChange={(e) => onCommitCardPayment(e.target.checked)}
-                  className="h-4 w-4 rounded border-line-strong text-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-50"
-                />
-              </label>
+              </div>
             )}
             <div className="-mx-2 mt-1 flex items-center justify-between rounded-card bg-surface-page border border-line-subtle px-3 py-2.5">
               <span className="text-[11px] font-semibold text-ink-primary uppercase tracking-[0.08em]">

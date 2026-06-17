@@ -3184,7 +3184,15 @@
       "pickDestination": "Choisir la destination pour Darb Assabil",
       "destinationLabel": "Destination",
       "resolvedFromCity": "Destination déterminée depuis la ville de la commande.",
-      "selectedLabel": "Destination sélectionnée :"
+      "selectedLabel": "Destination sélectionnée :",
+      "optionsLabel": "Options du colis",
+      "optionInspection": "Ouvrir le colis (inspection)",
+      "optionFragile": "Fragile",
+      "optionCardPayment": "Paiement en ligne (carte)",
+      "optionTesting": "Autoriser l'essai",
+      "serviceLabel": "Service de livraison",
+      "serviceSurcharge": "+{amount} {currency}",
+      "loadingServices": "Chargement des services…"
     },
     "coverage": {
       "badge": "Non desservi",

@@ -3097,7 +3097,15 @@
       "pickDestination": "اختر الوجهة لدرب السبيل",
       "destinationLabel": "الوجهة",
       "resolvedFromCity": "تم تحديد الوجهة من مدينة الطلب.",
-      "selectedLabel": "الوجهة المختارة:"
+      "selectedLabel": "الوجهة المختارة:",
+      "optionsLabel": "خيارات الطرد",
+      "optionInspection": "فتح الطرد (المعاينة)",
+      "optionFragile": "قابل للكسر",
+      "optionCardPayment": "الدفع الإلكتروني (بطاقة)",
+      "optionTesting": "السماح بالتجربة",
+      "serviceLabel": "خدمة التوصيل",
+      "serviceSurcharge": "+{amount} {currency}",
+      "loadingServices": "جارٍ تحميل الخدمات…"
     },
     "coverage": {
       "badge": "غير مغطّاة",

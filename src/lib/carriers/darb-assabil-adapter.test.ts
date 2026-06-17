@@ -216,6 +216,74 @@ describe("DarbAssabilAdapter", () => {
     });
   });
 
+  describe("formatPayload — products + option flags", () => {
+    const item = (over: Partial<import("@/types/order-items").OrderItem> = {}) => ({
+      id: "i1",
+      order_id: "o1",
+      product_id: "p1",
+      product_name: "هاتف ذكي",
+      variant_id: null,
+      variant_label: null,
+      quantity: 1,
+      unit_price: 100,
+      line_total: 100,
+      created_at: "",
+      updated_at: "",
+      ...over,
+    });
+
+    test("serializes real line items from order_items (per-unit amount + quantity + title)", () => {
+      const order = {
+        ...mockOrder,
+        order_items: [
+          item({ product_name: "هاتف ذكي", variant_label: "أسود", quantity: 2, unit_price: 100 }),
+          item({ id: "i2", product_name: "سماعة", variant_label: null, quantity: 1, unit_price: 50 }),
+        ],
+      };
+      const payload = adapter.formatPayload(order, mockConfig, mockExtra);
+      const products = JSON.parse(payload.products_json);
+      expect(products).toEqual([
+        { title: "هاتف ذكي - أسود", quantity: 2, amount: 100, currency: "lyd", isChargeable: true,
+          isFragile: false, allowInspection: false, allowTesting: false },
+        { title: "سماعة", quantity: 1, amount: 50, currency: "lyd", isChargeable: true,
+          isFragile: false, allowInspection: false, allowTesting: false },
+      ]);
+    });
+
+    test("falls back to a single aggregated line (qty 1, full amount) when order_items is empty", () => {
+      const payload = adapter.formatPayload(mockOrder, mockConfig, mockExtra);
+      const products = JSON.parse(payload.products_json);
+      expect(products).toEqual([
+        { title: "هاتف ذكي - أسود / 128GB", quantity: 1, amount: 350, currency: "lyd",
+          isChargeable: true, isFragile: false, allowInspection: false, allowTesting: false },
+      ]);
+    });
+
+    test("applies per-order fragile/inspection/testing flags to every product line", () => {
+      const order = { ...mockOrder, order_items: [item({ quantity: 1, unit_price: 100 })] };
+      const payload = adapter.formatPayload(order, mockConfig, {
+        ...mockExtra,
+        is_fragile: true,
+        allow_inspection: true,
+        allow_testing: true,
+      });
+      const products = JSON.parse(payload.products_json);
+      expect(products[0]).toMatchObject({
+        isFragile: true,
+        allowInspection: true,
+        allowTesting: true,
+      });
+    });
+
+    test("snapshots allow_card_payment as '1'/'0' (default '0')", () => {
+      expect(adapter.formatPayload(mockOrder, mockConfig, mockExtra).allow_card_payment).toBe("0");
+      expect(
+        adapter.formatPayload(mockOrder, mockConfig, { ...mockExtra, allow_card_payment: true })
+          .allow_card_payment,
+      ).toBe("1");
+    });
+  });
+
   // The snapshot `formatPayload` produces — `dispatch` consumes this exact shape.
   const payload = {
     service_id: "6783c612dcf305c9e775c987",
@@ -299,6 +367,9 @@ describe("DarbAssabilAdapter", () => {
           amount: 350,
           currency: "lyd",
           isChargeable: true,
+          isFragile: false,
+          allowInspection: false,
+          allowTesting: false,
         },
       ]);
       expect(shipBody.notes).toBe("اتصل قبل التوصيل");
@@ -338,6 +409,54 @@ describe("DarbAssabilAdapter", () => {
 
       const raw = await adapter.dispatch(payload, mockConfig);
       expect(raw.status).toBe(0);
+    });
+
+    test("sends the multi-item products[] from products_json when present", async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse(200, CONTACT_OK))
+        .mockResolvedValueOnce(jsonResponse(200, SHIPMENT_OK));
+      vi.stubGlobal("fetch", mockFetch);
+
+      const products = [
+        { title: "هاتف ذكي - أسود", quantity: 2, amount: 100, currency: "lyd", isChargeable: true, isFragile: true, allowInspection: false, allowTesting: false },
+        { title: "سماعة", quantity: 1, amount: 50, currency: "lyd", isChargeable: true, isFragile: false, allowInspection: false, allowTesting: false },
+      ];
+      await adapter.dispatch(
+        { ...payload, products_json: JSON.stringify(products) },
+        mockConfig,
+      );
+
+      const shipBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+      expect(shipBody.products).toEqual(products);
+    });
+
+    test("sets allowCardPayment + cardFeePaymentBy on the shipment when allow_card_payment='1'", async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse(200, CONTACT_OK))
+        .mockResolvedValueOnce(jsonResponse(200, SHIPMENT_OK));
+      vi.stubGlobal("fetch", mockFetch);
+
+      await adapter.dispatch({ ...payload, allow_card_payment: "1" }, mockConfig);
+
+      const shipBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+      expect(shipBody.allowCardPayment).toBe(true);
+      expect(shipBody.cardFeePaymentBy).toBe("receiver");
+    });
+
+    test("omits allowCardPayment when allow_card_payment is '0'/absent", async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse(200, CONTACT_OK))
+        .mockResolvedValueOnce(jsonResponse(200, SHIPMENT_OK));
+      vi.stubGlobal("fetch", mockFetch);
+
+      await adapter.dispatch(payload, mockConfig);
+
+      const shipBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+      expect(shipBody.allowCardPayment).toBeUndefined();
+      expect(shipBody.cardFeePaymentBy).toBeUndefined();
     });
   });
 

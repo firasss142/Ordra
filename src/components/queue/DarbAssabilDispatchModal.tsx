@@ -31,6 +31,15 @@ interface CarrierResolution {
   is_active: boolean;
 }
 
+interface DarbService {
+  service_id: string;
+  title: string;
+  attribute: string;
+  surcharge: number;
+  currency: string;
+  is_default: boolean;
+}
+
 /**
  * OrderDetailPanel dispatch modal for Darb Assabil. Mirrors DexpressDispatchModal
  * but collects a destination city/area (sent via `extra.customer_area` + `extra.city`)
@@ -79,12 +88,39 @@ export function DarbAssabilDispatchModal({
     externalId: string | null;
   } | null>(null);
 
+  // Per-order Darb options, sent via extra on dispatch (default off). Online
+  // payment is native to Darb (no 10% surcharge on our side); the others map to
+  // per-product flags on the shipment.
+  const [options, setOptions] = useState({
+    allow_inspection: false,
+    is_fragile: false,
+    allow_card_payment: false,
+    allow_testing: false,
+  });
+
   const { data: carrierData, isLoading: carrierLoading } = useSWR<{
     carrier: CarrierResolution | null;
   }>(`/api/carriers/active?code=darb_assabil&market_id=${marketId}`, fetcher, {
     revalidateOnFocus: false,
   });
   const carrier = carrierData?.carrier ?? null;
+
+  // Darb service packages (توصيل رجالي / نسائي / فوري). The agent picks one per
+  // dispatch; the chosen service_id rides extra.service_id (the adapter forwards
+  // it as `service`). Default to the catalogue's is_default (men's courier).
+  const { data: servicesData } = useSWR<{ services: DarbService[] }>(
+    "/api/darb/services",
+    fetcher,
+    { revalidateOnFocus: false },
+  );
+  const services = servicesData?.services ?? [];
+  const [serviceId, setServiceId] = useState<string | null>(null);
+  // Seed the default once the list arrives (don't clobber a manual pick).
+  useEffect(() => {
+    if (serviceId == null && services.length > 0) {
+      setServiceId((services.find((s) => s.is_default) ?? services[0]).service_id);
+    }
+  }, [services, serviceId]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -120,7 +156,16 @@ export function DarbAssabilDispatchModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           carrier_id: carrier.id,
-          extra: { customer_area: decision.area, city: decision.city },
+          extra: {
+            customer_area: decision.area,
+            city: decision.city,
+            // Chosen service package; omitted → adapter uses default_service_id.
+            ...(serviceId ? { service_id: serviceId } : {}),
+            allow_inspection: options.allow_inspection,
+            is_fragile: options.is_fragile,
+            allow_card_payment: options.allow_card_payment,
+            allow_testing: options.allow_testing,
+          },
           ...(confirmDuplicate ? { confirm_duplicate: true } : {}),
         }),
       });
@@ -239,6 +284,81 @@ export function DarbAssabilDispatchModal({
                 restrictToCity={scopeCity}
               />
             )}
+
+            {/* Service package picker (توصيل رجالي / نسائي / فوري). */}
+            <fieldset className="mt-4 rounded-card border border-line-subtle px-4 py-3">
+              <legend className="px-1 text-[12px] uppercase tracking-[0.06em] text-ink-secondary">
+                {t("serviceLabel")}
+              </legend>
+              {services.length === 0 ? (
+                <div className="mt-1 text-[12px] text-ink-secondary">
+                  {t("loadingServices")}
+                </div>
+              ) : (
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {services.map((s) => {
+                    const active = s.service_id === serviceId;
+                    return (
+                      <button
+                        key={s.service_id}
+                        type="button"
+                        onClick={() => setServiceId(s.service_id)}
+                        aria-pressed={active}
+                        className={`flex flex-col items-start rounded-card border px-3 py-2 text-start transition-colors duration-fast ${
+                          active
+                            ? "border-ink-primary bg-surface-hover"
+                            : "border-line-subtle hover:bg-surface-hover"
+                        }`}
+                      >
+                        <span className="text-[13px] font-medium text-ink-primary" dir="auto">
+                          {s.title}
+                        </span>
+                        {s.surcharge > 0 && (
+                          <span className="text-[11px] font-semibold text-ink-muted tabular-nums">
+                            {t("serviceSurcharge", {
+                              amount: s.surcharge,
+                              currency: s.currency.toUpperCase(),
+                            })}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </fieldset>
+
+            {/* Per-order Darb options (inspection / fragile / online card / testing). */}
+            <fieldset className="mt-4 rounded-card border border-line-subtle px-4 py-3">
+              <legend className="px-1 text-[12px] uppercase tracking-[0.06em] text-ink-secondary">
+                {t("optionsLabel")}
+              </legend>
+              <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {(
+                  [
+                    ["allow_inspection", t("optionInspection")],
+                    ["is_fragile", t("optionFragile")],
+                    ["allow_card_payment", t("optionCardPayment")],
+                    ["allow_testing", t("optionTesting")],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label
+                    key={key}
+                    className="flex items-center gap-2 text-[13px] text-ink-primary"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={options[key]}
+                      onChange={(e) =>
+                        setOptions((prev) => ({ ...prev, [key]: e.target.checked }))
+                      }
+                      className="h-4 w-4 shrink-0 accent-ink-primary"
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
           </div>
 
           <div className="shrink-0 border-t border-line-subtle px-5 py-4">

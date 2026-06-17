@@ -1,3 +1,5 @@
+import type { OrderItem } from "@/types/order-items";
+
 export interface CarrierOrderData {
   customer_name: string;
   customer_phone: string;
@@ -10,6 +12,12 @@ export interface CarrierOrderData {
   variant_label: string | null;
   quantity: number;
   total_price: number;
+  /**
+   * Real per-line products for carriers that send an itemized products[] (Darb
+   * Assabil). When empty/absent, adapters fall back to the legacy single-line
+   * projection built from product_name/variant_label/quantity/total_price.
+   */
+  order_items?: OrderItem[];
 }
 
 export interface CarrierConfig {

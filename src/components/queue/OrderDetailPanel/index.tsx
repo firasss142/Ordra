@@ -1095,7 +1095,6 @@ export function OrderDetailPanel({
                         mutate();
                       }}
                       onCommitDeliveryFee={(v) => runCommit({ delivery_fee: v })}
-                      onCommitCardPayment={(v) => runCommit({ card_payment: v })}
                       renderAddProduct={() => (
                         <AddProductTrigger
                           orderId={order.id}

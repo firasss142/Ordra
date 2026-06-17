@@ -8,6 +8,7 @@ import {
 } from "@/lib/order-permissions";
 import { computeOrderTotal } from "@/lib/calculations/order-total";
 import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
+import { marketIdToCode } from "@/lib/markets";
 
 export const dynamic = "force-dynamic";
 
@@ -105,7 +106,7 @@ export async function PATCH(
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("id, status, assigned_to, market_id, unit_price, quantity, updated_at, product_id, delivery_fee, card_payment")
+    .select("id, status, assigned_to, market_id, unit_price, quantity, updated_at, product_id, delivery_fee, card_payment, dexpress_state_id, darb_destination_id")
     .eq("id", id)
     .single();
 
@@ -165,6 +166,32 @@ export async function PATCH(
     ? updates.card_payment
     : order.card_payment) as boolean;
 
+  // The +10% online-card surcharge is for the legacy COD cash flow (Dexpress).
+  // Darb Assabil has NATIVE online payment (no 10% cut on settlement), so the
+  // surcharge must NOT apply to Darb orders — there the card intent rides the
+  // dispatch payload (allowCardPayment), not the price. An order is Darb-bound
+  // when its market is Libya and it is NOT on the Dexpress fallback. Read the
+  // EFFECTIVE destination (this PATCH may be switching it) so binding to the
+  // Dexpress fallback re-enables the surcharge and vice-versa.
+  const applyCardSurcharge = (): boolean => {
+    if (marketIdToCode(order.market_id as string) !== "ly") return true; // Tunisia
+    // Effective Dexpress-fallback binding, honoring a destination switch in THIS
+    // request (read from body so it's correct regardless of field ordering).
+    let effectiveDexpressStateId = order.dexpress_state_id as number | null;
+    if ("dexpress_state_id" in body && body.dexpress_state_id !== undefined) {
+      effectiveDexpressStateId = body.dexpress_state_id as number | null;
+    } else if (
+      ("darb_destination_id" in body && body.darb_destination_id !== undefined) ||
+      ("city_id" in body && body.city_id !== undefined)
+    ) {
+      // Switching to Darb (or a TN city) clears the Dexpress fallback.
+      effectiveDexpressStateId = null;
+    }
+    // Libya + on the Dexpress fallback → keep the surcharge; otherwise (Darb
+    // primary) suppress it.
+    return effectiveDexpressStateId != null;
+  };
+
   // Product subtotal = SUM(order_items.line_total). Legacy single-item orders have
   // no order_items rows, so fall back to unit_price * quantity (the value the
   // quantity/product branches use). Without the fallback, recompute branches would
@@ -184,7 +211,7 @@ export async function PATCH(
       return NextResponse.json({ error: "delivery_fee must be >= 0" }, { status: 400 });
     }
     updates.delivery_fee = fee;
-    updates.total_price = computeOrderTotal(await resolveSubtotal(), fee, cardPayment);
+    updates.total_price = computeOrderTotal(await resolveSubtotal(), fee, cardPayment, applyCardSurcharge());
   }
 
   // Quantity → recalculate total_price from current unit_price (+10% if card payment)
@@ -193,7 +220,7 @@ export async function PATCH(
     if (typeof newQty !== "number" || newQty < 1 || !Number.isInteger(newQty)) {
       return NextResponse.json({ error: "quantity must be a positive integer" }, { status: 400 });
     }
-    updates.total_price = computeOrderTotal((order.unit_price as number) * newQty, 0, cardPayment);
+    updates.total_price = computeOrderTotal((order.unit_price as number) * newQty, 0, cardPayment, applyCardSurcharge());
   }
 
   // Product swap
@@ -222,7 +249,7 @@ export async function PATCH(
     updates.product_id = product.id;
     updates.product_name = product.name;
     updates.unit_price = productPrice;
-    updates.total_price = computeOrderTotal(productPrice * qty, 0, cardPayment);
+    updates.total_price = computeOrderTotal(productPrice * qty, 0, cardPayment, applyCardSurcharge());
     // Clear variant when product changes (unless variant_id is also being set)
     if (!("variant_id" in body)) {
       updates.variant_label = null;
@@ -253,6 +280,10 @@ export async function PATCH(
     updates.variant_label = variant.label;
   }
 
+  // Destination columns are three-way mutually exclusive: city_id (Tunisia) ⟂
+  // darb_destination_id (Libya primary) ⟂ dexpress_state_id (Libya fallback).
+  // Each swap below writes its own column and clears the other two.
+
   // City swap (Tunisia path — cities table)
   if ("city_id" in body && body.city_id !== undefined) {
     const { data: city, error: cityError } = await supabase
@@ -270,11 +301,43 @@ export async function PATCH(
 
     updates.city_id = city.id;
     updates.customer_city = city.name; // keep text snapshot for back-compat
+    updates.dexpress_state_id = null;
+    updates.darb_destination_id = null;
   }
 
-  // Dexpress state swap (Libya path — dexpress_states table). Writes both the
+  // Darb Assabil destination swap (Libya primary — darb_destinations table).
+  // Writes the pair id + the (city, area) snapshot the dispatch picker reuses,
+  // and clears the city_id / dexpress_state_id columns.
+  if ("darb_destination_id" in body && body.darb_destination_id !== undefined) {
+    const destId = body.darb_destination_id;
+    if (destId === null) {
+      updates.darb_destination_id = null;
+    } else if (typeof destId !== "number" || !Number.isInteger(destId)) {
+      return NextResponse.json(
+        { error: "darb_destination_id must be an integer" },
+        { status: 400 },
+      );
+    } else {
+      const { data: dest, error: destError } = await supabase
+        .from("darb_destinations")
+        .select("id, city")
+        .eq("id", destId)
+        .single();
+
+      if (destError || !dest) {
+        return NextResponse.json({ error: "Destination not found" }, { status: 404 });
+      }
+
+      updates.darb_destination_id = dest.id;
+      updates.customer_city = dest.city;
+      updates.city_id = null;
+      updates.dexpress_state_id = null;
+    }
+  }
+
+  // Dexpress state swap (Libya fallback — dexpress_states table). Writes both the
   // numeric reference (used by dispatch) and the name snapshot (used by UI).
-  // Clears city_id so the order doesn't carry both systems' values.
+  // Clears city_id and darb_destination_id so the order doesn't carry two systems.
   if ("dexpress_state_id" in body && body.dexpress_state_id !== undefined) {
     const stateId = body.dexpress_state_id;
     if (stateId === null) {
@@ -298,6 +361,7 @@ export async function PATCH(
       updates.dexpress_state_id = state.id;
       updates.customer_city = state.name;
       updates.city_id = null;
+      updates.darb_destination_id = null;
     }
   }
 
@@ -305,7 +369,7 @@ export async function PATCH(
   // recompute total_price from the product subtotal + current delivery_fee so the
   // +10% is applied/removed immediately.
   if ("card_payment" in updates && !("total_price" in updates)) {
-    updates.total_price = computeOrderTotal(await resolveSubtotal(), Number(order.delivery_fee ?? 0), cardPayment);
+    updates.total_price = computeOrderTotal(await resolveSubtotal(), Number(order.delivery_fee ?? 0), cardPayment, applyCardSurcharge());
   }
 
   if (Object.keys(updates).length === 0) {
@@ -322,6 +386,7 @@ export async function PATCH(
       else if (k === "variant_id") acc["variant"] = updates.variant_label;
       else if (k === "city_id") acc["city"] = updates.customer_city;
       else if (k === "dexpress_state_id") acc["city"] = updates.customer_city;
+      else if (k === "darb_destination_id") acc["city"] = updates.customer_city;
       else acc[k] = updates[k];
       return acc;
     }, {}),

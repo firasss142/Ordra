@@ -1270,7 +1270,8 @@ describe("handleWebhook — storefront -> OMS mapping resolution", () => {
     skuProductRow?: unknown; // products via sku
     nameProductRow?: unknown; // products via name ILIKE
     cityRows?: unknown[]; // cities name match (Tunisia)
-    dexpressStateRows?: unknown[]; // dexpress_states name match (Libya)
+    dexpressStateRows?: unknown[]; // dexpress_states name match (Libya fallback)
+    darbRows?: unknown[]; // darb_destinations name match (Libya primary)
   }) {
     const captured: { orderInsert?: Record<string, unknown>; historyInserts: unknown[] } = {
       historyInserts: [],
@@ -1317,8 +1318,16 @@ describe("handleWebhook — storefront -> OMS mapping resolution", () => {
           })),
         };
       }
+      if (table === "darb_destinations") {
+        // resolver awaits .select().eq("is_active", true) directly — Libya primary
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(async () => ({ data: opts.darbRows ?? [], error: null })),
+          })),
+        };
+      }
       if (table === "dexpress_states") {
-        // resolver awaits .select().eq("status", 1) directly — Libya path
+        // resolver awaits .select().eq("status", 1) directly — Libya fallback
         return {
           select: vi.fn(() => ({
             eq: vi.fn(async () => ({ data: opts.dexpressStateRows ?? [], error: null })),

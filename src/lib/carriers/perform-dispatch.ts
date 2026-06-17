@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { dispatchToCarrier } from "./dispatch";
 import type { CarrierOrderData } from "./types";
+import type { OrderItem } from "@/types/order-items";
 
 export interface PerformDispatchInput {
   orderId: string;
@@ -119,6 +120,16 @@ export async function performDispatch({
     };
   }
 
+  // Itemized line items for carriers that send a real products[] (Darb Assabil).
+  // Adapters that don't need them ignore order_items; an empty array means the
+  // adapter falls back to its legacy single-line projection.
+  const { data: itemRows } = await admin
+    .from("order_items")
+    .select("*")
+    .eq("order_id", orderId)
+    .order("created_at", { ascending: true });
+  const orderItems = (itemRows as OrderItem[] | null) ?? [];
+
   const orderData: CarrierOrderData = {
     customer_name: order.customer_name,
     customer_phone: order.customer_phone,
@@ -131,6 +142,7 @@ export async function performDispatch({
     variant_label: order.variant_label,
     quantity: order.quantity,
     total_price: order.total_price,
+    order_items: orderItems,
   };
 
   let result;

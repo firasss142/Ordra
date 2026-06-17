@@ -34,6 +34,10 @@ let carrierResult: { data: unknown; error: unknown } = {
   data: mockCarrierRow,
   error: null,
 };
+let orderItemsResult: { data: unknown; error: unknown } = {
+  data: [],
+  error: null,
+};
 
 const rpcMock = vi.fn();
 const dispatchToCarrierMock = vi.fn();
@@ -43,8 +47,10 @@ vi.mock("@/lib/supabase/server", () => ({
     from: (table: string) => ({
       select: () => ({
         eq: () => ({
+          // orders/carriers read a single row; order_items reads an ordered list.
           single: () =>
             Promise.resolve(table === "orders" ? orderResult : carrierResult),
+          order: () => Promise.resolve(orderItemsResult),
         }),
       }),
     }),
@@ -62,6 +68,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   orderResult = { data: mockOrderRow, error: null };
   carrierResult = { data: mockCarrierRow, error: null };
+  orderItemsResult = { data: [], error: null };
   rpcMock.mockResolvedValue({ data: { ok: true }, error: null });
   dispatchToCarrierMock.mockResolvedValue({
     success: true,
@@ -206,6 +213,25 @@ describe("performDispatch market isolation", () => {
       "dispatch_order",
       expect.objectContaining({ p_carrier_extra: null })
     );
+  });
+
+  test("passes the order's order_items into CarrierOrderData for itemized carriers", async () => {
+    const items = [
+      { id: "it-1", order_id: "o-1", product_id: "p-1", product_name: "هاتف", variant_id: null, variant_label: "أسود", quantity: 2, unit_price: 100, line_total: 200, created_at: "", updated_at: "" },
+    ];
+    orderItemsResult = { data: items, error: null };
+
+    await performDispatch({ orderId: "o-1", carrierId: "c-1", actorId: "actor-1" });
+
+    expect(dispatchToCarrierMock).toHaveBeenCalledTimes(1);
+    const orderArg = dispatchToCarrierMock.mock.calls[0][0];
+    expect(orderArg.order_items).toEqual(items);
+  });
+
+  test("passes an empty order_items array when the order has no line items", async () => {
+    await performDispatch({ orderId: "o-1", carrierId: "c-1", actorId: "actor-1" });
+    const orderArg = dispatchToCarrierMock.mock.calls[0][0];
+    expect(orderArg.order_items).toEqual([]);
   });
 
   test("returns 422 when carrier adapter rejects (same market, active)", async () => {
