@@ -14,15 +14,8 @@ import {
 import { CallbackPicker } from "./CallbackPicker";
 import { RejectionReasonSelect } from "./RejectionReasonSelect";
 import { DexpressLocationPicker, type DexpressSelection } from "./DexpressLocationPicker";
-import {
-  DarbAssabilLocationPicker,
-  type DarbAssabilSelection,
-} from "./DarbAssabilLocationPicker";
+import { DarbAssabilDispatchModal } from "./DarbAssabilDispatchModal";
 import { coverageFor, type CoverageState } from "@/lib/carriers/coverage";
-import {
-  resolveDarbDestination,
-  resolveDispatchPair,
-} from "@/lib/carriers/darb-assabil-areas";
 import { useOptimisticOrderAction } from "@/hooks/useOptimisticOrderAction";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -86,9 +79,6 @@ type Flow =
   // Sub-flow of upload_after_confirm: agent chose Dexpress but the order
   // has no dexpress_state_id yet — pick one inline before uploading.
   | "upload_pick_state"
-  // Sub-flow of upload_after_confirm: agent chose Darb Assabil — pick the
-  // destination city/area inline before uploading (sent via extra).
-  | "upload_pick_area"
   // Sub-flow of upload_after_confirm: agent picked a carrier and clicked
   // "Programmer" — show the date/time picker.
   | "schedule_after_confirm";
@@ -209,7 +199,6 @@ export function PostCallActionSheet({
 }: PostCallActionSheetProps) {
   const t = useTranslations("queue");
   const tDup = useTranslations("duplicateOrder.uploadGuard");
-  const tDarb = useTranslations("dispatch.darbAssabil");
   const tCov = useTranslations("dispatch.coverage");
   const panelRef = useRef<HTMLDivElement>(null);
   const [flow, setFlow] = useState<Flow>(initialFlow ?? "option_select");
@@ -243,10 +232,9 @@ export function PostCallActionSheet({
     stateId: null,
     stateName: "",
   });
-  const [areaSelection, setAreaSelection] = useState<DarbAssabilSelection>({
-    city: null,
-    area: null,
-  });
+  // Darb Assabil uploads route through the shared DarbAssabilDispatchModal
+  // (service + area + options) — one source of truth, no inline divergence.
+  const [darbModalOpen, setDarbModalOpen] = useState(false);
 
   // SCHEDULE_AFTER_CONFIRM
   const todayIso = (() => {
@@ -305,8 +293,8 @@ export function PostCallActionSheet({
   const isPostConfirm =
     flow === "upload_after_confirm" ||
     flow === "upload_pick_state" ||
-    flow === "upload_pick_area" ||
-    flow === "schedule_after_confirm";
+    flow === "schedule_after_confirm" ||
+    darbModalOpen;
 
   const { data: carriersData } = useSWR<{ data: CarrierOption[] }>(
     isPostConfirm && marketId
@@ -356,16 +344,6 @@ export function PostCallActionSheet({
     if (code === "darb_assabil") return coverage.darb_assabil;
     return "covered";
   }
-
-  // When the order's city is a known multi-area Darb city (طرابلس), scope the
-  // area picker to it so the agent picks an area within their city — not a
-  // different city. Single-area cities never reach the picker (auto-resolved);
-  // unknown cities get the full list (undefined scope).
-  const darbResolved = resolveDarbDestination(
-    orderForUpload?.data?.customer_city ?? null,
-  );
-  const darbScopeCity =
-    darbResolved && darbResolved.areas.length > 1 ? darbResolved.city : undefined;
 
   function httpErrorMessage(status: number): string {
     if (status === 401) return t("sessionExpired");
@@ -484,31 +462,13 @@ export function PostCallActionSheet({
       return;
     }
 
-    // Darb Assabil requires a destination (city, area) pair. The order's own
-    // city resolution takes precedence over the picker selection, so a stale
-    // pick can't override a different order's real city.
-    const isDarbAssabil = selectedCarrier.code === "darb_assabil";
-    let darbPair: { city: string; area: string } | null = null;
-    if (isDarbAssabil) {
-      const decision = resolveDispatchPair(
-        orderForUpload?.data?.customer_city ?? null,
-        areaSelection,
-      );
-      if (decision.kind === "dispatch") {
-        darbPair = { city: decision.city, area: decision.area };
-      } else {
-        // Opening the picker. Drop any selection that doesn't belong to the
-        // scoped city so the agent must pick a valid in-city area (and the
-        // Upload button stays disabled until they do).
-        if (
-          decision.scopeCity &&
-          areaSelection.city !== decision.scopeCity
-        ) {
-          setAreaSelection({ city: null, area: null });
-        }
-        setFlow("upload_pick_area");
-        return;
-      }
+    // Darb Assabil uploads go through the shared DarbAssabilDispatchModal, which
+    // collects the service package, destination (city, area), and per-order
+    // options, then performs the dispatch itself. Open it instead of POSTing
+    // inline so the agent gets the SAME choices as the order-detail flow.
+    if (selectedCarrier.code === "darb_assabil") {
+      setDarbModalOpen(true);
+      return;
     }
 
     setUploading(true);
@@ -517,10 +477,6 @@ export function PostCallActionSheet({
       const extra: Record<string, unknown> = {};
       if (isDexpress) {
         extra.state_id = savedStateId ?? stateSelection.stateId;
-      }
-      if (isDarbAssabil && darbPair) {
-        extra.customer_area = darbPair.area;
-        extra.city = darbPair.city;
       }
 
       const res = await fetch(`/api/orders/${orderId}/dispatch`, {
@@ -937,38 +893,6 @@ export function PostCallActionSheet({
               </div>
             )}
 
-            {/* ── Darb Assabil: pick a destination city/area inline. ── */}
-            {flow === "upload_pick_area" && (
-              <div>
-                <button
-                  type="button"
-                  className="bg-transparent border-0 text-[14px] text-ink-secondary p-0 pb-3 text-start hover:text-ink-primary transition-colors duration-fast"
-                  onClick={() => setFlow("upload_after_confirm")}
-                >
-                  {t("back")}
-                </button>
-
-                <p className="text-[14px] text-ink-secondary mb-3">
-                  {tDarb("pickDestination")}
-                </p>
-
-                <DarbAssabilLocationPicker
-                  value={areaSelection}
-                  onChange={setAreaSelection}
-                  restrictToCity={darbScopeCity}
-                />
-
-                <button
-                  type="button"
-                  className={`${submitButtonClasses} mt-4`}
-                  disabled={areaSelection.area === null || uploading}
-                  onClick={() => submitUploadNow()}
-                >
-                  {uploading ? t("uploadingNow") : t("uploadNow")}
-                </button>
-              </div>
-            )}
-
             {/* ── Schedule the upload for later (auto-dispatch via cron). ── */}
             {flow === "schedule_after_confirm" && (
               <div>
@@ -1067,6 +991,22 @@ export function PostCallActionSheet({
         </div>
       </FocusTrap>
     </div>
+
+    {/* Darb Assabil upload — the shared modal (service + area + options + its
+        own dispatch + duplicate guard). On success, finalise as uploaded. */}
+    {darbModalOpen && (
+      <DarbAssabilDispatchModal
+        orderId={orderId}
+        marketId={marketId}
+        customerAddress={orderForUpload?.data?.customer_address ?? null}
+        customerCity={orderForUpload?.data?.customer_city ?? null}
+        onClose={() => setDarbModalOpen(false)}
+        onSuccess={() => {
+          setDarbModalOpen(false);
+          onSuccess({ action: "confirmed", newStatus: "uploaded" });
+        }}
+      />
+    )}
 
     {/* Duplicate-upload confirm: a sibling order is already shipped to the
         carrier. Warn but allow the agent to proceed. */}

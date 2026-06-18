@@ -44,6 +44,23 @@ vi.mock("../RejectionReasonSelect", () => ({
   ),
 }));
 
+// The Darb upload modal is exercised in its own test; here we only assert the
+// sheet opens it and wires onSuccess. A light stub avoids its SWR/network.
+vi.mock("../DarbAssabilDispatchModal", () => ({
+  DarbAssabilDispatchModal: ({
+    onSuccess,
+    onClose,
+  }: {
+    onSuccess: (tracking: string | null) => void;
+    onClose: () => void;
+  }) => (
+    <div data-testid="darb-dispatch-modal">
+      <button onClick={() => onSuccess("SH-TEST")}>Darb submit</button>
+      <button onClick={onClose}>Darb cancel</button>
+    </div>
+  ),
+}));
+
 vi.mock("../ScheduleDispatchModal", () => ({
   ScheduleDispatchModal: ({
     onClose,
@@ -326,6 +343,52 @@ describe("PostCallActionSheet", () => {
       expect(defaultProps.onSuccess).toHaveBeenCalledWith({
         action: "confirmed",
         newStatus: "confirmed",
+      });
+    });
+
+    it("Darb Assabil upload opens the shared dispatch modal (service/area/options), not an inline send", async () => {
+      // confirm → carriers (Darb only) → order detail (a Darb city) → pick Darb → upload.
+      mockFetch.mockImplementation((url: string) => {
+        if (url.includes("/confirm")) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, new_status: "confirmed" }) });
+        }
+        if (url.includes("/api/carriers")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ data: [{ id: "c-darb", name: "Darb Assabil", code: "darb_assabil", is_active: true }] }),
+          });
+        }
+        if (url.includes("/api/orders/order-1")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ data: { customer_address: "شارع", customer_city: "طرابلس", dexpress_state_id: null } }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      });
+
+      render(<PostCallActionSheet {...defaultProps} />);
+      await act(async () => {
+        fireEvent.click(screen.getByText("Confirmé"));
+      });
+
+      // Darb auto-selects as the only carrier; click "Envoyer maintenant".
+      await waitFor(() => expect(screen.getByText("Envoyer maintenant")).toBeDefined());
+      await act(async () => {
+        fireEvent.click(screen.getByText("Envoyer maintenant"));
+      });
+
+      // The shared modal opens — the sheet did NOT POST /dispatch itself.
+      await waitFor(() => expect(screen.getByTestId("darb-dispatch-modal")).toBeDefined());
+      expect(mockFetch.mock.calls.some((c) => String(c[0]).includes("/dispatch"))).toBe(false);
+
+      // The modal's success finalises the order as uploaded.
+      await act(async () => {
+        fireEvent.click(screen.getByText("Darb submit"));
+      });
+      expect(defaultProps.onSuccess).toHaveBeenCalledWith({
+        action: "confirmed",
+        newStatus: "uploaded",
       });
     });
   });
