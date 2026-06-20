@@ -90,34 +90,33 @@ describe("DarbAssabilAdapter", () => {
       });
     });
 
-    describe("payment_by — always 'receiver' (fees charged on top of the COD)", () => {
+    describe("payment_by — per-service (receiver only for a paid special service)", () => {
       // Verified against Darb's calculate/shipping API: "sales" makes Darb DEDUCT
       // the shipping + service fees from our settlement (customer pays only the
-      // product), while "receiver" charges them ON TOP of the product (the
-      // customer pays product + shipping + any service premium). We always want
-      // the latter, so paymentBy is fixed to "receiver" regardless of the legacy
-      // payment_by credential value.
-      test("is 'receiver' by default", () => {
+      // product); "receiver" charges them ON TOP (customer pays product + shipping
+      // + the service premium). We want "receiver" ONLY when the chosen service
+      // carries a surcharge (women's +10, express +15) — the dispatch UI signals
+      // that via extra.service_fee_on_top. The free default (men's) stays "sales"
+      // so a normal order's base shipping is settled as before.
+      test("defaults to 'sales' for the free default service (no flag)", () => {
         const payload = adapter.formatPayload(mockOrder, mockConfig, mockExtra);
+        expect(payload.payment_by).toBe("sales");
+      });
+
+      test("'receiver' when extra.service_fee_on_top is true (paid special service)", () => {
+        const payload = adapter.formatPayload(mockOrder, mockConfig, {
+          ...mockExtra,
+          service_fee_on_top: true,
+        });
         expect(payload.payment_by).toBe("receiver");
       });
 
-      test("stays 'receiver' even if the legacy payment_by credential is '1'", () => {
-        const config = {
-          ...mockConfig,
-          apiCredentials: { ...mockConfig.apiCredentials, payment_by: "1" },
-        };
-        const payload = adapter.formatPayload(mockOrder, config, mockExtra);
-        expect(payload.payment_by).toBe("receiver");
-      });
-
-      test("stays 'receiver' when the legacy payment_by credential is '0'", () => {
-        const config = {
-          ...mockConfig,
-          apiCredentials: { ...mockConfig.apiCredentials, payment_by: "0" },
-        };
-        const payload = adapter.formatPayload(mockOrder, config, mockExtra);
-        expect(payload.payment_by).toBe("receiver");
+      test("'sales' when extra.service_fee_on_top is false (free service)", () => {
+        const payload = adapter.formatPayload(mockOrder, mockConfig, {
+          ...mockExtra,
+          service_fee_on_top: false,
+        });
+        expect(payload.payment_by).toBe("sales");
       });
     });
 
