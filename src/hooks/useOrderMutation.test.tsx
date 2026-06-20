@@ -205,4 +205,93 @@ describe("useOrderMutation", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body).toEqual({ customer_name: "Alice", customer_phone: "555" });
   });
+
+  it("patchItemOptimistic sends PATCH to /api/orders/{id}/items/{itemId} with body as JSON", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data: {
+            id: "item-1",
+            order_id: ORDER_ID,
+            unit_price: 50,
+            quantity: 1,
+            line_total: 50,
+          },
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const { result } = renderHook(() => useOrderMutation(ORDER_ID), { wrapper });
+
+    await act(async () => {
+      await result.current.patchItemOptimistic("item-1", { unit_price: 50 });
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      `${KEY}/items/item-1`,
+      expect.objectContaining({
+        method: "PATCH",
+        headers: expect.objectContaining({ "Content-Type": "application/json" }),
+      })
+    );
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body).toEqual({ unit_price: 50 });
+  });
+
+  it("patchItemOptimistic throws on non-ok response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        json: () => Promise.resolve({ error: "unit_price must be >= 0" }),
+      })
+    );
+
+    const { result } = renderHook(() => useOrderMutation(ORDER_ID), { wrapper });
+
+    await expect(
+      act(async () => {
+        await result.current.patchItemOptimistic("item-1", { unit_price: -5 });
+      })
+    ).rejects.toThrow("unit_price must be >= 0");
+  });
+
+  it("deleteItemOptimistic sends DELETE to /api/orders/{id}/items/{itemId}", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+      json: () => Promise.resolve({}),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const { result } = renderHook(() => useOrderMutation(ORDER_ID), { wrapper });
+
+    await act(async () => {
+      await result.current.deleteItemOptimistic("item-1");
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      `${KEY}/items/item-1`,
+      expect.objectContaining({ method: "DELETE" })
+    );
+  });
+
+  it("deleteItemOptimistic throws on non-ok response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        json: () => Promise.resolve({ error: "Cannot remove the last item from an order" }),
+      })
+    );
+
+    const { result } = renderHook(() => useOrderMutation(ORDER_ID), { wrapper });
+
+    await expect(
+      act(async () => {
+        await result.current.deleteItemOptimistic("item-1");
+      })
+    ).rejects.toThrow("Cannot remove the last item from an order");
+  });
 });

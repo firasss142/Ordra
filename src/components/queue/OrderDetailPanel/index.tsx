@@ -443,7 +443,9 @@ export function OrderDetailPanel({
 
   const nameFieldRef = useRef<HTMLDivElement>(null);
 
-  const { commit } = useOrderMutation(orderId ?? "__none__");
+  const { commit, patchItemOptimistic, deleteItemOptimistic } = useOrderMutation(
+    orderId ?? "__none__",
+  );
 
   // An uploaded order whose carrier reference was deleted falls back into the
   // editable pool (treated like confirmed); otherwise uploaded is edit-blocked.
@@ -547,6 +549,39 @@ export function OrderDetailPanel({
       }
     },
     [commit, mutateProducts, t],
+  );
+
+  const runItemPatch = useCallback(
+    async (itemId: string, body: Record<string, unknown>) => {
+      try {
+        setSaveError(null);
+        await patchItemOptimistic(itemId, body);
+        setSaveFlash("saved");
+        if ("product_id" in body) mutateProducts();
+        setTimeout(() => setSaveFlash(null), 1500);
+      } catch (e) {
+        setSaveFlash("error");
+        setSaveError(e instanceof Error ? e.message : t("inlineSaveError"));
+        setTimeout(() => setSaveFlash(null), 2500);
+      }
+    },
+    [patchItemOptimistic, mutateProducts, t],
+  );
+
+  const runItemDelete = useCallback(
+    async (itemId: string) => {
+      try {
+        setSaveError(null);
+        await deleteItemOptimistic(itemId);
+        setSaveFlash("saved");
+        setTimeout(() => setSaveFlash(null), 1500);
+      } catch (e) {
+        setSaveFlash("error");
+        setSaveError(e instanceof Error ? e.message : t("inlineSaveError"));
+        setTimeout(() => setSaveFlash(null), 2500);
+      }
+    },
+    [deleteItemOptimistic, t],
   );
 
   useEffect(() => {
@@ -1081,19 +1116,10 @@ export function OrderDetailPanel({
                       defaultOpen={order.status === "confirmed"}
                       onCommitLegacyProduct={(productId) => runCommit({ product_id: productId })}
                       onCommitLegacyQuantity={(qty) => runCommit({ quantity: qty })}
+                      onCommitLegacyPrice={(price) => runCommit({ unit_price: price })}
                       onCommitLegacyVariant={(variantId) => runCommit({ variant_id: variantId })}
-                      onPatchItem={async (itemId, body) => {
-                        await fetch(`/api/orders/${order.id}/items/${itemId}`, {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify(body),
-                        });
-                        mutate();
-                      }}
-                      onDeleteItem={async (itemId) => {
-                        await fetch(`/api/orders/${order.id}/items/${itemId}`, { method: "DELETE" });
-                        mutate();
-                      }}
+                      onPatchItem={(itemId, body) => runItemPatch(itemId, body)}
+                      onDeleteItem={(itemId) => runItemDelete(itemId)}
                       onCommitDeliveryFee={(v) => runCommit({ delivery_fee: v })}
                       renderAddProduct={() => (
                         <AddProductTrigger
@@ -1102,7 +1128,7 @@ export function OrderDetailPanel({
                           currentItemIds={items.map((it) => it.product_id)}
                           open={addProductOpen}
                           onOpenChange={setAddProductOpen}
-                          onAdded={() => mutate()}
+                          onAdded={() => {}}
                           label={t("addProduct")}
                         />
                       )}
