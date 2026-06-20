@@ -25,9 +25,11 @@ import { CarrierDispatchError, CarrierConfigError } from "./errors";
  *  - tracking_number = the human reference ("SH<digits>"); the internal _id is
  *    returned in result.extra.darb_assabil_id for later status polling.
  *  - Cancellation is a hard delete; we do not support it (voidDispatch).
- *  - paymentBy controls who bears the delivery fee: "sales" deducts it from the
- *    COD settlement (fee included in the customer's price), "receiver" charges
- *    it on top. Driven by the `payment_by` settings toggle (default: included).
+ *  - paymentBy is fixed to "receiver": Darb charges the shipping + any service
+ *    fee (women's/express premium) ON TOP of the product COD, to the customer.
+ *    ("sales" would instead deduct those fees from our settlement — verified via
+ *    the calculate/shipping API — so a special-service fee silently came out of
+ *    our money. The old `payment_by` settings toggle was removed.)
  */
 export class DarbAssabilAdapter implements CarrierAdapter {
   formatPayload(
@@ -93,11 +95,13 @@ export class DarbAssabilAdapter implements CarrierAdapter {
       ? `${order.product_name} - ${order.variant_label}`
       : order.product_name;
 
-    // Shipping-fee-included toggle (settings switch, stored "1"/"0"; empty = on).
-    // On  → "sales": customer pays the product amount, the fee is deducted from
-    //        the COD settlement (fee effectively included in the price).
-    // Off  → "receiver": the fee is charged to the customer on top.
-    const paymentBy = creds.payment_by === "0" ? "receiver" : "sales";
+    // Fees are ALWAYS charged to the receiver (the customer), on top of the
+    // product COD. Verified against Darb's calculate/shipping API: "sales" makes
+    // Darb deduct the shipping + service fees from our settlement (so a women's
+    // /express premium silently came out of our money), whereas "receiver" adds
+    // them on top — the customer pays product + shipping + any service fee. The
+    // legacy `payment_by` settings toggle no longer changes this direction.
+    const paymentBy = "receiver";
 
     // Per-order option flags, chosen in the dispatch modal and threaded via extra.
     const isFragile = extraFlag(extra, "is_fragile");

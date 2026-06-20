@@ -27,6 +27,9 @@ describe("Darb Assabil registration", () => {
     expect(keys).toContain("api_key");
     expect(keys).toContain("account_id");
     expect(keys).toContain("default_service_id");
+    // payment_by was removed — fees are always charged to the receiver now, so
+    // the toggle did nothing and would mislead. (See darb-assabil-adapter.)
+    expect(keys).not.toContain("payment_by");
 
     const apiKeyField = desc?.credentialFields.find((f) => f.key === "api_key");
     expect(apiKeyField?.secret).toBe(true);
