@@ -90,26 +90,28 @@ describe("DarbAssabilAdapter", () => {
       });
     });
 
-    describe("payment_by (shipping-fee-included toggle)", () => {
-      // The settings switch stores "1"/"0". On ("1", and the empty default) means
-      // "shipping included in the price" → paymentBy "sales" (customer pays the
-      // product amount, fee deducted from the COD settlement). Off ("0") keeps the
-      // legacy behaviour → "receiver" (fee added on top of the product amount).
-      test("defaults to 'sales' when payment_by credential is unset (included)", () => {
+    describe("payment_by — always 'receiver' (fees charged on top of the COD)", () => {
+      // Verified against Darb's calculate/shipping API: "sales" makes Darb DEDUCT
+      // the shipping + service fees from our settlement (customer pays only the
+      // product), while "receiver" charges them ON TOP of the product (the
+      // customer pays product + shipping + any service premium). We always want
+      // the latter, so paymentBy is fixed to "receiver" regardless of the legacy
+      // payment_by credential value.
+      test("is 'receiver' by default", () => {
         const payload = adapter.formatPayload(mockOrder, mockConfig, mockExtra);
-        expect(payload.payment_by).toBe("sales");
+        expect(payload.payment_by).toBe("receiver");
       });
 
-      test("'1' → 'sales' (shipping included)", () => {
+      test("stays 'receiver' even if the legacy payment_by credential is '1'", () => {
         const config = {
           ...mockConfig,
           apiCredentials: { ...mockConfig.apiCredentials, payment_by: "1" },
         };
         const payload = adapter.formatPayload(mockOrder, config, mockExtra);
-        expect(payload.payment_by).toBe("sales");
+        expect(payload.payment_by).toBe("receiver");
       });
 
-      test("'0' → 'receiver' (fee charged on top)", () => {
+      test("stays 'receiver' when the legacy payment_by credential is '0'", () => {
         const config = {
           ...mockConfig,
           apiCredentials: { ...mockConfig.apiCredentials, payment_by: "0" },

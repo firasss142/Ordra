@@ -97,12 +97,6 @@ const ADAPTER_DESCRIPTORS: Record<string, AdapterDescriptor> = {
         placeholder: "6783c612dcf305c9e775c987",
         secret: false,
       },
-      {
-        key: "payment_by",
-        label: "Frais de livraison inclus dans le prix",
-        secret: false,
-        type: "switch",
-      },
     ],
     markets: ["ly"],
   },
