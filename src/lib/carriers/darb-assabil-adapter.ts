@@ -25,11 +25,12 @@ import { CarrierDispatchError, CarrierConfigError } from "./errors";
  *  - tracking_number = the human reference ("SH<digits>"); the internal _id is
  *    returned in result.extra.darb_assabil_id for later status polling.
  *  - Cancellation is a hard delete; we do not support it (voidDispatch).
- *  - paymentBy is fixed to "receiver": Darb charges the shipping + any service
- *    fee (women's/express premium) ON TOP of the product COD, to the customer.
- *    ("sales" would instead deduct those fees from our settlement — verified via
- *    the calculate/shipping API — so a special-service fee silently came out of
- *    our money. The old `payment_by` settings toggle was removed.)
+ *  - paymentBy is per-service: "receiver" for a PAID special service (women's
+ *    /express — fees charged ON TOP of the product COD, to the customer), else
+ *    "sales" for the free default men's service (base shipping settled from our
+ *    payout, as before). The dispatch UI flags a paid service via
+ *    extra.service_fee_on_top. ("sales" deducts fees from our settlement, "receiver"
+ *    adds them on top — verified via the calculate/shipping API.)
  */
 export class DarbAssabilAdapter implements CarrierAdapter {
   formatPayload(
@@ -95,13 +96,15 @@ export class DarbAssabilAdapter implements CarrierAdapter {
       ? `${order.product_name} - ${order.variant_label}`
       : order.product_name;
 
-    // Fees are ALWAYS charged to the receiver (the customer), on top of the
-    // product COD. Verified against Darb's calculate/shipping API: "sales" makes
-    // Darb deduct the shipping + service fees from our settlement (so a women's
-    // /express premium silently came out of our money), whereas "receiver" adds
-    // them on top — the customer pays product + shipping + any service fee. The
-    // legacy `payment_by` settings toggle no longer changes this direction.
-    const paymentBy = "receiver";
+    // Fee direction, per chosen service. Verified against Darb's calculate/shipping
+    // API: "sales" DEDUCTS the shipping + service fees from our settlement (customer
+    // pays only the product); "receiver" charges them ON TOP (customer pays product
+    // + shipping + the service premium). We want "receiver" ONLY for a PAID special
+    // service (women's +10, express +15) — the dispatch UI sets
+    // extra.service_fee_on_top for those. The free default (men's) stays "sales" so
+    // a normal order's base shipping settles as before. Non-modal paths (cron) ship
+    // the free default and send no flag → "sales", which is correct.
+    const paymentBy = extraFlag(extra, "service_fee_on_top") ? "receiver" : "sales";
 
     // Per-order option flags, chosen in the dispatch modal and threaded via extra.
     const isFragile = extraFlag(extra, "is_fragile");

@@ -146,6 +146,30 @@ describe("DarbAssabilDispatchModal — per-order options", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.extra.service_id).toBe("svc-express");
+    // Express has a surcharge → fees billed to the customer on top.
+    expect(body.extra.service_fee_on_top).toBe(true);
+
+    vi.unstubAllGlobals();
+  });
+
+  it("sends service_fee_on_top=false for the free default service (men's)", async () => {
+    mockCarrierAndServices();
+    const fetchMock = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: () => Promise.resolve({ data: { tracking_number: "SH1" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="اجدابيا" />);
+
+    // Leave the preselected default (men's, surcharge 0) and confirm.
+    fireEvent.click(screen.getByRole("button", { name: /Confirmer l'envoi/ }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.extra.service_id).toBe("svc-male");
+    expect(body.extra.service_fee_on_top).toBe(false);
 
     vi.unstubAllGlobals();
   });

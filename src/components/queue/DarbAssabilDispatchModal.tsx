@@ -124,6 +124,11 @@ export function DarbAssabilDispatchModal({
       setServiceId((services.find((s) => s.is_default) ?? services[0]).service_id);
     }
   }, [services, serviceId]);
+  // A paid service (surcharge > 0 → women's/express) has its fees billed to the
+  // customer on top of the COD (adapter paymentBy="receiver"); the free default
+  // does not. Drives extra.service_fee_on_top below.
+  const chosenServiceFeeOnTop =
+    (services.find((s) => s.service_id === serviceId)?.surcharge ?? 0) > 0;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -164,6 +169,9 @@ export function DarbAssabilDispatchModal({
             city: decision.city,
             // Chosen service package; omitted → adapter uses default_service_id.
             ...(serviceId ? { service_id: serviceId } : {}),
+            // A paid special service (women's/express, surcharge > 0) bills its
+            // fees to the customer on top of the COD; the free default does not.
+            service_fee_on_top: chosenServiceFeeOnTop,
             allow_inspection: options.allow_inspection,
             is_fragile: options.is_fragile,
             allow_card_payment: options.allow_card_payment,
