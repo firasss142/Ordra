@@ -225,6 +225,102 @@ describe("PATCH /api/orders/[id]", () => {
     expect(capturedUpdate?.quantity).toBe(3);
   });
 
+  test("recomputes total_price on unit_price change (new price * quantity)", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
+
+    let capturedUpdate: Record<string, unknown> = {};
+
+    const updateChain: Record<string, unknown> = {};
+    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    const insertChain: Record<string, unknown> = {};
+    insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChain({ data: { role: "agent", market_id: "m-1" }, error: null });
+      if (table === "orders") {
+        const chain: Record<string, unknown> = {};
+        chain.select = vi.fn().mockReturnValue(chain);
+        chain.eq = vi.fn().mockReturnValue(chain);
+        chain.update = vi.fn().mockImplementation((data: Record<string, unknown>) => {
+          capturedUpdate = data;
+          return updateChain;
+        });
+        chain.single = vi.fn().mockResolvedValue({ data: { ...assignedOrder, unit_price: 100, quantity: 2 }, error: null });
+        return chain;
+      }
+      if (table === "order_history") {
+        const chain = queryChain({ data: [{ id: "h-1" }], error: null });
+        chain.insert = vi.fn().mockReturnValue(insertChain);
+        return chain;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const res = await PATCH(makeRequest({ unit_price: 80 }), {
+      params: Promise.resolve({ id: "order-1" }),
+    });
+    expect(res.status).toBe(200);
+    expect(capturedUpdate?.unit_price).toBe(80);
+    expect(capturedUpdate?.total_price).toBe(160); // 80 * 2
+  });
+
+  test("recomputes total_price on a combined unit_price + quantity change", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
+
+    let capturedUpdate: Record<string, unknown> = {};
+
+    const updateChain: Record<string, unknown> = {};
+    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    const insertChain: Record<string, unknown> = {};
+    insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChain({ data: { role: "agent", market_id: "m-1" }, error: null });
+      if (table === "orders") {
+        const chain: Record<string, unknown> = {};
+        chain.select = vi.fn().mockReturnValue(chain);
+        chain.eq = vi.fn().mockReturnValue(chain);
+        chain.update = vi.fn().mockImplementation((data: Record<string, unknown>) => {
+          capturedUpdate = data;
+          return updateChain;
+        });
+        chain.single = vi.fn().mockResolvedValue({ data: { ...assignedOrder, unit_price: 50, quantity: 1 }, error: null });
+        return chain;
+      }
+      if (table === "order_history") {
+        const chain = queryChain({ data: [{ id: "h-1" }], error: null });
+        chain.insert = vi.fn().mockReturnValue(insertChain);
+        return chain;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const res = await PATCH(makeRequest({ unit_price: 30, quantity: 4 }), {
+      params: Promise.resolve({ id: "order-1" }),
+    });
+    expect(res.status).toBe(200);
+    expect(capturedUpdate?.unit_price).toBe(30);
+    expect(capturedUpdate?.quantity).toBe(4);
+    expect(capturedUpdate?.total_price).toBe(120); // 30 * 4 (new price, new qty)
+  });
+
+  test("returns 400 when unit_price is negative", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChain({ data: { role: "agent", market_id: "m-1" }, error: null });
+      if (table === "orders") return queryChain({ data: assignedOrder, error: null });
+      return queryChain({ data: null, error: null });
+    });
+    const res = await PATCH(makeRequest({ unit_price: -1 }), {
+      params: Promise.resolve({ id: "order-1" }),
+    });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toContain("unit_price");
+  });
+
   test("patches customer_note and persists it on the order", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
 

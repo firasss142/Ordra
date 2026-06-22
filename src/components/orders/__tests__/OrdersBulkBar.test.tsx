@@ -23,8 +23,12 @@ const defaultProps = {
   onClearSelection: vi.fn(),
   onBulkAssign: vi.fn(),
   onBulkCancel: vi.fn(),
+  onUpload: vi.fn(),
+  onReopen: vi.fn(),
   canAssign: true,
   canCancel: true,
+  canUpload: true,
+  canReopen: true,
 };
 
 describe("OrdersBulkBar", () => {
@@ -44,5 +48,19 @@ describe("OrdersBulkBar", () => {
     expect(cancel).toBeDisabled();
     await user.click(cancel);
     expect(onBulkCancel).not.toHaveBeenCalled();
+  });
+
+  it("shows the Uploader button when canUpload and fires onUpload", async () => {
+    const user = userEvent.setup();
+    const onUpload = vi.fn();
+    render(<OrdersBulkBar {...defaultProps} onUpload={onUpload} />);
+    const upload = screen.getByRole("button", { name: /uploader/i });
+    await user.click(upload);
+    expect(onUpload).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the Uploader button when canUpload is false", () => {
+    render(<OrdersBulkBar {...defaultProps} canUpload={false} />);
+    expect(screen.queryByRole("button", { name: /uploader/i })).not.toBeInTheDocument();
   });
 });

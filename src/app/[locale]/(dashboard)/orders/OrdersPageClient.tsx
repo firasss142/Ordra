@@ -25,6 +25,8 @@ import { OrdersFilterChips } from "@/components/orders/OrdersFilterChips";
 import { OrdersPresetPills } from "@/components/orders/OrdersPresetPills";
 import { OrdersTable } from "@/components/orders/OrdersTable";
 import { OrdersBulkBar } from "@/components/orders/OrdersBulkBar";
+import { BulkUploadPanel } from "@/components/orders/BulkUploadPanel";
+import { BulkReopenPanel } from "@/components/orders/BulkReopenPanel";
 import { OrdersStatusStrip } from "@/components/orders/OrdersStatusStrip";
 import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
 
@@ -255,6 +257,8 @@ export function OrdersPageClient({
   }, []);
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [reopenOpen, setReopenOpen] = useState(false);
 
   // ---------- Detail panel + flash highlight ----------
   const [openOrderId, setOpenOrderId] = useState<string | null>(null);
@@ -420,6 +424,11 @@ export function OrdersPageClient({
   const hasBulkDeleteIneligible = selectedRows.some(
     (row) => !canManuallyDeleteOrderStatus(row.status),
   );
+  // Reopen acts only on uploaded orders (void shipment → back to confirmed).
+  const uploadedSelectedCount = useMemo(
+    () => selectedRows.filter((row) => row.status === "uploaded").length,
+    [selectedRows],
+  );
 
   const activeMarketLabel = useMemo(() => {
     if (!isSuperAdmin) return userMarketLabel;
@@ -583,11 +592,39 @@ export function OrdersPageClient({
         onClearSelection={clearSelection}
         onBulkAssign={handleBulkAssign}
         onBulkCancel={handleBulkCancel}
+        onUpload={() => setUploadOpen(true)}
+        onReopen={() => setReopenOpen(true)}
         canAssign={canAssign}
         canCancel={canAssign}
+        canUpload={canAssign}
+        canReopen={canAssign}
         cancelDisabled={hasBulkDeleteIneligible}
         cancelDisabledReason={t("bulk.cancelIneligible")}
       />
+
+      {uploadOpen && (
+        <BulkUploadPanel
+          selectedIds={Array.from(selectedIds)}
+          marketId={effectiveMarketId}
+          onClose={() => setUploadOpen(false)}
+          onDone={() => {
+            clearSelection();
+            void mutate();
+          }}
+        />
+      )}
+
+      {reopenOpen && (
+        <BulkReopenPanel
+          selectedIds={Array.from(selectedIds)}
+          eligibleCount={uploadedSelectedCount}
+          onClose={() => setReopenOpen(false)}
+          onDone={() => {
+            clearSelection();
+            void mutate();
+          }}
+        />
+      )}
 
       <CreateOrderModal
         isOpen={createOpen}

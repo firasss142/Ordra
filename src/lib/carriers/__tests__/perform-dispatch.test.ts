@@ -4,6 +4,7 @@ const mockOrderRow = {
   id: "o-1",
   status: "confirmed",
   market_id: "m-tn",
+  tracking_number: null,
   customer_name: "Ahmed",
   customer_phone: "22123456",
   customer_address: "Rue 1",
@@ -114,6 +115,28 @@ describe("performDispatch market isolation", () => {
     if (!result.ok) {
       expect(result.status).toBe(400);
       expect(result.error).toMatch(/not active/i);
+    }
+    expect(dispatchToCarrierMock).not.toHaveBeenCalled();
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  test("rejects with 409 when the order already has an active shipment", async () => {
+    orderResult = {
+      data: { ...mockOrderRow, tracking_number: "SH1777014" },
+      error: null,
+    };
+
+    const result = await performDispatch({
+      orderId: "o-1",
+      carrierId: "c-1",
+      actorId: "actor-1",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe(409);
+      expect(result.errorCode).toBe("active_shipment_exists");
+      expect(result.error).toMatch(/active shipment/i);
     }
     expect(dispatchToCarrierMock).not.toHaveBeenCalled();
     expect(rpcMock).not.toHaveBeenCalled();

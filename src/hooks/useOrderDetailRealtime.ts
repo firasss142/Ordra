@@ -131,13 +131,19 @@ export function useOrderDetailRealtime({
         { revalidate: false },
       );
       // Server recomputes total_price + quantity on item change; debounced
-      // revalidate to backfill from the server canon.
+      // revalidate to backfill from the server canon. But while the user is
+      // mid-edit (order locked), a blind refetch would clobber the in-flight
+      // optimistic change — so queue it and let the unlock effect flush it once.
+      if (orderId && editLock.isLocked("orders", orderId)) {
+        pendingRevalidateRef.current = true;
+        return;
+      }
       if (itemsRevalidateTimerRef.current) clearTimeout(itemsRevalidateTimerRef.current);
       itemsRevalidateTimerRef.current = setTimeout(() => {
         mutate(swrKey);
       }, 500);
     },
-    [mutate, swrKey],
+    [editLock, mutate, orderId, swrKey],
   );
 
   const historyHandler = useCallback(

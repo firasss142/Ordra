@@ -16,7 +16,11 @@ vi.mock("swr", () => ({
 }));
 
 vi.mock("@/hooks/useOrderMutation", () => ({
-  useOrderMutation: () => ({ commit: vi.fn() }),
+  useOrderMutation: () => ({
+    commit: vi.fn(),
+    patchItemOptimistic: vi.fn(),
+    deleteItemOptimistic: vi.fn(),
+  }),
 }));
 
 vi.mock("@/hooks/useOrderDetailRealtime", () => ({

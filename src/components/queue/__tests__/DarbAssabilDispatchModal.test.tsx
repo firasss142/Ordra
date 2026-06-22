@@ -18,33 +18,25 @@ vi.mock("next-intl", async () => {
 
 import useSWR from "swr";
 
-// Default: active carrier, no services (services list empty → service_id omitted).
-function mockActiveCarrier() {
-  (useSWR as ReturnType<typeof vi.fn>).mockImplementation((key: string) => {
-    if (typeof key === "string" && key.includes("/api/darb/services")) {
-      return { data: { services: [] }, isLoading: false };
-    }
-    return { data: { carrier: { id: "c-darb", is_active: true } }, isLoading: false };
-  });
-}
-
 const SERVICES = [
   { service_id: "svc-male", title: "توصيل رجالي", attribute: "male", surcharge: 0, currency: "lyd", is_default: true },
   { service_id: "svc-express", title: "توصيل فوري", attribute: "express", surcharge: 15, currency: "lyd", is_default: false },
 ];
 
-function mockCarrierAndServices() {
+// The carrier account is now passed in via the `carrierId` prop, so the modal's
+// only data fetch is the Darb service catalogue.
+function mockServices(services: typeof SERVICES) {
   (useSWR as ReturnType<typeof vi.fn>).mockImplementation((key: string) => {
     if (typeof key === "string" && key.includes("/api/darb/services")) {
-      return { data: { services: SERVICES }, isLoading: false };
+      return { data: { services }, isLoading: false };
     }
-    return { data: { carrier: { id: "c-darb", is_active: true } }, isLoading: false };
+    return { data: undefined, isLoading: false };
   });
 }
 
 const BASE = {
   orderId: "order-1",
-  marketId: "m-ly",
+  carrierId: "c-darb",
   customerAddress: "test",
   onClose: vi.fn(),
   onSuccess: vi.fn(),
@@ -52,7 +44,7 @@ const BASE = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockActiveCarrier();
+  mockServices([]);
 });
 
 describe("DarbAssabilDispatchModal — destination resolution", () => {
@@ -116,6 +108,8 @@ describe("DarbAssabilDispatchModal — per-order options", () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    // Dispatch targets the carrier account the agent picked (passed via prop).
+    expect(body.carrier_id).toBe("c-darb");
     expect(body.extra).toMatchObject({
       city: "اجدابيا",
       customer_area: "اجدابيا",
@@ -129,7 +123,7 @@ describe("DarbAssabilDispatchModal — per-order options", () => {
   });
 
   it("sends the chosen service_id (defaults to is_default, switches on pick)", async () => {
-    mockCarrierAndServices();
+    mockServices(SERVICES);
     const fetchMock = vi.fn().mockResolvedValue({
       status: 200,
       ok: true,
@@ -153,7 +147,7 @@ describe("DarbAssabilDispatchModal — per-order options", () => {
   });
 
   it("sends service_fee_on_top=false for the free default service (men's)", async () => {
-    mockCarrierAndServices();
+    mockServices(SERVICES);
     const fetchMock = vi.fn().mockResolvedValue({
       status: 200,
       ok: true,
@@ -170,6 +164,30 @@ describe("DarbAssabilDispatchModal — per-order options", () => {
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.extra.service_id).toBe("svc-male");
     expect(body.extra.service_fee_on_top).toBe(false);
+
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("DarbAssabilDispatchModal — account selection", () => {
+  it("dispatches against the carrierId prop (a second Darb account routes to its own id)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: () => Promise.resolve({ data: { tracking_number: "SH2" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    // The agent picked the *second* Darb account; the modal must ship to it,
+    // not re-resolve "the" darb_assabil carrier by code.
+    render(
+      <DarbAssabilDispatchModal {...BASE} carrierId="c-darb-2" customerCity="اجدابيا" />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Confirmer l'envoi/ }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.carrier_id).toBe("c-darb-2");
 
     vi.unstubAllGlobals();
   });

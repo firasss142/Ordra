@@ -214,13 +214,27 @@ export async function PATCH(
     updates.total_price = computeOrderTotal(await resolveSubtotal(), fee, cardPayment, applyCardSurcharge());
   }
 
-  // Quantity → recalculate total_price from current unit_price (+10% if card payment)
-  if ("quantity" in updates) {
-    const newQty = updates.quantity as number;
+  // unit_price → validate ≥ 0. This is the legacy single-item price path (no
+  // order_items rows yet); the line PATCH route owns price on materialized orders.
+  // The effective price drives the quantity/price total recompute below.
+  let effectiveUnitPrice = order.unit_price as number;
+  if ("unit_price" in body) {
+    const price = typeof body.unit_price === "string" ? parseFloat(body.unit_price) : (body.unit_price as number);
+    if (typeof price !== "number" || isNaN(price) || price < 0) {
+      return NextResponse.json({ error: "unit_price must be >= 0" }, { status: 400 });
+    }
+    updates.unit_price = price;
+    effectiveUnitPrice = price;
+  }
+
+  // Quantity and/or unit_price → recalculate total_price from the effective
+  // (new-or-current) unit_price × quantity (+10% if card payment).
+  if ("quantity" in updates || "unit_price" in updates) {
+    const newQty = ("quantity" in updates ? updates.quantity : order.quantity) as number;
     if (typeof newQty !== "number" || newQty < 1 || !Number.isInteger(newQty)) {
       return NextResponse.json({ error: "quantity must be a positive integer" }, { status: 400 });
     }
-    updates.total_price = computeOrderTotal((order.unit_price as number) * newQty, 0, cardPayment, applyCardSurcharge());
+    updates.total_price = computeOrderTotal(effectiveUnitPrice * newQty, 0, cardPayment, applyCardSurcharge());
   }
 
   // Product swap

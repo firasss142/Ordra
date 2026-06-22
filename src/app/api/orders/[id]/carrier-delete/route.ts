@@ -37,6 +37,16 @@ export async function POST(
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
 
+  // When true, the operator asserts they cancelled the shipment at the carrier
+  // by hand — proceed even if the automatic void couldn't be confirmed.
+  let confirmManualCancel = false;
+  try {
+    const body = await req.json();
+    confirmManualCancel = (body as { confirm_manual_cancel?: unknown })?.confirm_manual_cancel === true;
+  } catch {
+    // no body — default false
+  }
+
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .select(
@@ -101,6 +111,24 @@ export async function POST(
   } catch (err) {
     voidReason = err instanceof Error ? err.message : "unknown";
     warning = "Suppression chez transporteur échouée — coordination manuelle requise";
+  }
+
+  // Fail closed: if the carrier-side cancellation wasn't confirmed, do NOT flip
+  // the order off `uploaded`. Leaving a live shipment while the order goes back
+  // into the queue is exactly how a shipment gets orphaned and later duplicated.
+  // The operator cancels at the carrier and retries with confirm_manual_cancel.
+  if (voidOutcome !== "carrier_voided" && !confirmManualCancel) {
+    return NextResponse.json(
+      {
+        error:
+          warning ??
+          "Annulation chez le transporteur non confirmée — annulez-la manuellement puis confirmez.",
+        code: "carrier_void_failed",
+        needsManualConfirm: true,
+        voidReason,
+      },
+      { status: 409 },
+    );
   }
 
   // Step 2: best-effort log to carrier_event_log (don't fail the request on

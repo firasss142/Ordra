@@ -426,6 +426,11 @@ export function OrderDetailPanel({
   const [uploadingCarrierId, setUploadingCarrierId] = useState<string | null>(null);
   const [dexpressModalOpen, setDexpressModalOpen] = useState(false);
   const [darbAssabilModalOpen, setDarbAssabilModalOpen] = useState(false);
+  // The Darb account the agent picked in the upload sheet — dispatch targets
+  // this exact id (a market can have more than one Darb Assabil account).
+  const [selectedDarbCarrierId, setSelectedDarbCarrierId] = useState<string | null>(
+    null,
+  );
   const [uploadFeedback, setUploadFeedback] = useState<
     | { kind: "success"; tracking: string }
     | { kind: "error"; message: string }
@@ -443,7 +448,9 @@ export function OrderDetailPanel({
 
   const nameFieldRef = useRef<HTMLDivElement>(null);
 
-  const { commit } = useOrderMutation(orderId ?? "__none__");
+  const { commit, patchItemOptimistic, deleteItemOptimistic } = useOrderMutation(
+    orderId ?? "__none__",
+  );
 
   // An uploaded order whose carrier reference was deleted falls back into the
   // editable pool (treated like confirmed); otherwise uploaded is edit-blocked.
@@ -549,6 +556,39 @@ export function OrderDetailPanel({
     [commit, mutateProducts, t],
   );
 
+  const runItemPatch = useCallback(
+    async (itemId: string, body: Record<string, unknown>) => {
+      try {
+        setSaveError(null);
+        await patchItemOptimistic(itemId, body);
+        setSaveFlash("saved");
+        if ("product_id" in body) mutateProducts();
+        setTimeout(() => setSaveFlash(null), 1500);
+      } catch (e) {
+        setSaveFlash("error");
+        setSaveError(e instanceof Error ? e.message : t("inlineSaveError"));
+        setTimeout(() => setSaveFlash(null), 2500);
+      }
+    },
+    [patchItemOptimistic, mutateProducts, t],
+  );
+
+  const runItemDelete = useCallback(
+    async (itemId: string) => {
+      try {
+        setSaveError(null);
+        await deleteItemOptimistic(itemId);
+        setSaveFlash("saved");
+        setTimeout(() => setSaveFlash(null), 1500);
+      } catch (e) {
+        setSaveFlash("error");
+        setSaveError(e instanceof Error ? e.message : t("inlineSaveError"));
+        setTimeout(() => setSaveFlash(null), 2500);
+      }
+    },
+    [deleteItemOptimistic, t],
+  );
+
   useEffect(() => {
     if (!order || !canEdit) return;
     const handler = (e: KeyboardEvent) => {
@@ -642,13 +682,38 @@ export function OrderDetailPanel({
       updated_at: order.updated_at,
     });
 
-  async function handleReopen() {
+  // `confirmManualCancel` is `unknown` because onClick passes a MouseEvent here;
+  // only the literal `true` from the override path counts.
+  async function handleReopen(confirmManualCancel: unknown = false) {
     if (!orderId) return;
+    const force = confirmManualCancel === true;
     setReopening(true);
     try {
-      const res = await fetch(`/api/orders/${orderId}/reopen`, { method: "POST" });
+      const res = await fetch(`/api/orders/${orderId}/reopen`, {
+        method: "POST",
+        ...(force
+          ? {
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ confirm_manual_cancel: true }),
+            }
+          : {}),
+      });
       const json = await res.json().catch(() => ({}));
+      // Carrier cancellation couldn't be confirmed — don't silently reopen (that
+      // orphans the live shipment). Ask the operator to confirm a manual cancel.
+      if (res.status === 409 && json?.code === "carrier_void_failed" && !force) {
+        const proceed = window.confirm(
+          `${json?.error ?? ""}\n\n${t("confirmManualCancel")}`,
+        );
+        if (proceed) {
+          await handleReopen(true);
+          return;
+        }
+        setReopenModalOpen(false);
+        return;
+      }
       if (!res.ok) {
+        setReopenWarning((json?.error as string) ?? null);
         setReopenModalOpen(false);
         return;
       }
@@ -764,18 +829,36 @@ export function OrderDetailPanel({
         userId !== undefined &&
         order.assigned_to === userId));
 
-  async function handleDeleteCarrierBarcode(): Promise<void> {
+  async function handleDeleteCarrierBarcode(
+    confirmManualCancel: unknown = false,
+  ): Promise<void> {
     if (!orderId) return;
+    const force = confirmManualCancel === true;
     setDeleteFeedback(null);
     try {
       const res = await fetch(`/api/orders/${orderId}/carrier-delete`, {
         method: "POST",
+        ...(force
+          ? {
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ confirm_manual_cancel: true }),
+            }
+          : {}),
       });
       const json = (await res.json().catch(() => ({}))) as {
         data?: { void_outcome?: string };
         warning?: string;
         error?: string;
+        code?: string;
       };
+      // Carrier cancellation couldn't be confirmed — offer a manual-cancel
+      // override rather than leaving the shipment live behind the order.
+      if (res.status === 409 && json.code === "carrier_void_failed" && !force) {
+        if (window.confirm(`${json.error ?? ""}\n\n${t("confirmManualCancel")}`)) {
+          await handleDeleteCarrierBarcode(true);
+        }
+        return;
+      }
       if (!res.ok) {
         setDeleteFeedback({
           kind: "error",
@@ -1081,19 +1164,10 @@ export function OrderDetailPanel({
                       defaultOpen={order.status === "confirmed"}
                       onCommitLegacyProduct={(productId) => runCommit({ product_id: productId })}
                       onCommitLegacyQuantity={(qty) => runCommit({ quantity: qty })}
+                      onCommitLegacyPrice={(price) => runCommit({ unit_price: price })}
                       onCommitLegacyVariant={(variantId) => runCommit({ variant_id: variantId })}
-                      onPatchItem={async (itemId, body) => {
-                        await fetch(`/api/orders/${order.id}/items/${itemId}`, {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify(body),
-                        });
-                        mutate();
-                      }}
-                      onDeleteItem={async (itemId) => {
-                        await fetch(`/api/orders/${order.id}/items/${itemId}`, { method: "DELETE" });
-                        mutate();
-                      }}
+                      onPatchItem={(itemId, body) => runItemPatch(itemId, body)}
+                      onDeleteItem={(itemId) => runItemDelete(itemId)}
                       onCommitDeliveryFee={(v) => runCommit({ delivery_fee: v })}
                       renderAddProduct={() => (
                         <AddProductTrigger
@@ -1102,7 +1176,7 @@ export function OrderDetailPanel({
                           currentItemIds={items.map((it) => it.product_id)}
                           open={addProductOpen}
                           onOpenChange={setAddProductOpen}
-                          onAdded={() => mutate()}
+                          onAdded={() => {}}
                           label={t("addProduct")}
                         />
                       )}
@@ -1259,6 +1333,7 @@ export function OrderDetailPanel({
                         return;
                       }
                       if (c.code === "darb_assabil") {
+                        setSelectedDarbCarrierId(c.id);
                         setUploadOpen(false);
                         setDarbAssabilModalOpen(true);
                         return;
@@ -1329,10 +1404,10 @@ export function OrderDetailPanel({
         />
       )}
 
-      {darbAssabilModalOpen && order && orderId && (
+      {darbAssabilModalOpen && order && orderId && selectedDarbCarrierId && (
         <DarbAssabilDispatchModal
           orderId={orderId}
-          marketId={order.market_id}
+          carrierId={selectedDarbCarrierId}
           customerAddress={order.customer_address}
           customerCity={order.customer_city}
           onClose={() => setDarbAssabilModalOpen(false)}

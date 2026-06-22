@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronDown, X, UserPlus, XCircle } from "lucide-react";
+import { ChevronDown, X, UserPlus, XCircle, Truck, RotateCcw } from "lucide-react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface Agent {
@@ -16,8 +16,14 @@ interface Props {
   onClearSelection: () => void;
   onBulkAssign: (agentId: string) => Promise<void> | void;
   onBulkCancel: () => Promise<void> | void;
+  /** Opens the bulk upload-to-carrier panel (parent owns the panel state). */
+  onUpload: () => void;
+  /** Opens the bulk reopen panel for uploaded orders (parent owns the state). */
+  onReopen: () => void;
   canAssign: boolean;
   canCancel: boolean;
+  canUpload: boolean;
+  canReopen: boolean;
   cancelDisabled?: boolean;
   cancelDisabledReason?: string;
 }
@@ -28,8 +34,12 @@ export function OrdersBulkBar({
   onClearSelection,
   onBulkAssign,
   onBulkCancel,
+  onUpload,
+  onReopen,
   canAssign,
   canCancel,
+  canUpload,
+  canReopen,
   cancelDisabled = false,
   cancelDisabledReason,
 }: Props) {
@@ -145,6 +155,32 @@ export function OrdersBulkBar({
             </div>
           )}
         </div>
+      )}
+
+      {/* Upload selected to a carrier/account */}
+      {canUpload && (
+        <button
+          type="button"
+          onClick={onUpload}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-card bg-white/10 hover:bg-white/15 active:bg-white/20 text-[13px] font-medium transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Truck size={13} strokeWidth={2} aria-hidden="true" />
+          {t("upload")}
+        </button>
+      )}
+
+      {/* Reopen uploaded selected (void shipment + back to confirmed) */}
+      {canReopen && (
+        <button
+          type="button"
+          onClick={onReopen}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-card bg-white/10 hover:bg-white/15 active:bg-white/20 text-[13px] font-medium transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <RotateCcw size={13} strokeWidth={2} aria-hidden="true" />
+          {t("reopen")}
+        </button>
       )}
 
       {/* Cancel selected */}

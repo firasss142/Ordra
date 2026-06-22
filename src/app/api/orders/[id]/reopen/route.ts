@@ -21,9 +21,21 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Operator override: proceed even if the carrier-side cancellation can't be
+  // confirmed (they assert they cancelled it by hand).
+  let confirmManualCancel = false;
+  try {
+    const body = await req.json();
+    confirmManualCancel = (body as { confirm_manual_cancel?: unknown })?.confirm_manual_cancel === true;
+  } catch {
+    // no body — default false
+  }
+
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("id, status, assigned_to, updated_at, tracking_number, carrier_id")
+    .select(
+      "id, status, assigned_to, updated_at, tracking_number, carrier_id, carrier_extra",
+    )
     .eq("id", orderId)
     .single();
 
@@ -53,9 +65,14 @@ export async function POST(
       try {
         const config = buildConfig(carrierRow);
         const adapter = getCarrierAdapter(carrierRow.code);
+        // Pass carrier_extra so adapters that address the shipment by an
+        // internal id (Darb Assabil's darb_assabil_id) can actually cancel it.
+        // Without it the void short-circuits as "failed" and orphans the
+        // shipment (matches the carrier-delete flow).
         const voidResult = await adapter.voidDispatch(
           order.tracking_number,
           config,
+          (order.carrier_extra as Record<string, unknown> | null) ?? undefined,
         );
         if (voidResult.success) {
           voidOutcome = "carrier_voided";
@@ -73,6 +90,23 @@ export async function POST(
       voidOutcome = "local_only";
       warning = "Transporteur introuvable — coordination manuelle requise";
     }
+  }
+
+  // Fail closed: an attempted-but-unconfirmed cancellation (local_only) must not
+  // reopen the order — that orphans the still-live shipment. `no_barcode` means
+  // there was nothing to cancel, and `carrier_voided` is confirmed, so both
+  // proceed. The operator retries with confirm_manual_cancel after cancelling.
+  if (voidOutcome === "local_only" && !confirmManualCancel) {
+    return NextResponse.json(
+      {
+        error:
+          warning ??
+          "Annulation transporteur non confirmée — annulez-la manuellement puis confirmez.",
+        code: "carrier_void_failed",
+        needsManualConfirm: true,
+      },
+      { status: 409 },
+    );
   }
 
   const { data: rpcData, error: rpcError } = await supabase.rpc("reopen_order", {

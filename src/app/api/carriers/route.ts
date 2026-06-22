@@ -156,8 +156,11 @@ export async function POST(req: NextRequest) {
   if (error) {
     console.error("[POST /api/carriers] insert failed", { code: error.code, message: error.message, details: error.details });
     if (error.code === "23505") {
+      // Carriers are unique on (market_id, code, name): the same carrier can be
+      // added more than once per market (e.g. two Darb Assabil accounts) as long
+      // as each has a distinct display name. A clash here means the name is taken.
       return NextResponse.json(
-        { error: `Un transporteur avec le code "${codeStr}" existe déjà pour ce marché.` },
+        { error: `Un transporteur nommé « ${name} » existe déjà pour ce marché. Choisissez un autre nom.` },
         { status: 409 }
       );
     }

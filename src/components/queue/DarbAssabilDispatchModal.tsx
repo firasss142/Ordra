@@ -17,18 +17,17 @@ import { fetcher } from "@/lib/swr-config";
 
 interface DarbAssabilDispatchModalProps {
   orderId: string;
-  marketId: string;
+  /**
+   * The Darb Assabil carrier account the agent picked. Dispatch targets this
+   * exact id, so the right account is used when a market has more than one.
+   */
+  carrierId: string;
   /** Required by Darb Assabil. If empty/null, dispatch is blocked. */
   customerAddress: string | null;
   /** The order's stored city — used to pre-resolve / scope the destination. */
   customerCity: string | null;
   onClose: () => void;
   onSuccess: (trackingNumber: string | null) => void;
-}
-
-interface CarrierResolution {
-  id: string;
-  is_active: boolean;
 }
 
 interface DarbService {
@@ -52,7 +51,7 @@ interface DarbService {
  */
 export function DarbAssabilDispatchModal({
   orderId,
-  marketId,
+  carrierId,
   customerAddress,
   customerCity,
   onClose,
@@ -101,13 +100,6 @@ export function DarbAssabilDispatchModal({
     allow_testing: false,
   });
 
-  const { data: carrierData, isLoading: carrierLoading } = useSWR<{
-    carrier: CarrierResolution | null;
-  }>(`/api/carriers/active?code=darb_assabil&market_id=${marketId}`, fetcher, {
-    revalidateOnFocus: false,
-  });
-  const carrier = carrierData?.carrier ?? null;
-
   // Darb service packages (توصيل رجالي / نسائي / فوري). The agent picks one per
   // dispatch; the chosen service_id rides extra.service_id (the adapter forwards
   // it as `service`). Default to the catalogue's is_default (men's courier).
@@ -142,12 +134,9 @@ export function DarbAssabilDispatchModal({
     selection.area != null &&
     selection.city != null &&
     !submitting &&
-    carrier !== null &&
-    carrier.is_active &&
     hasAddress;
 
   async function handleSubmit(confirmDuplicate = false) {
-    if (!carrier) return;
     if (!confirmDuplicate && !canSubmit) return;
     // Final guard: the order's city resolution wins over the raw selection, so
     // a mismatched pair can never be dispatched (mirrors the popup path).
@@ -163,7 +152,7 @@ export function DarbAssabilDispatchModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          carrier_id: carrier.id,
+          carrier_id: carrierId,
           extra: {
             customer_area: decision.area,
             city: decision.city,
@@ -242,21 +231,6 @@ export function DarbAssabilDispatchModal({
                 className="mb-3 rounded border border-status-critical/30 bg-status-criticalBg px-3 py-2 text-[13px] text-status-critical"
               >
                 {error}
-              </div>
-            )}
-
-            {carrierLoading && (
-              <div className="mb-3 text-[13px] text-ink-secondary">
-                {tShip("loadingCarrier")}
-              </div>
-            )}
-
-            {!carrierLoading && (!carrier || !carrier.is_active) && (
-              <div
-                role="alert"
-                className="mb-3 rounded border border-status-warning/30 bg-status-warningBg px-3 py-2 text-[13px] text-status-warning"
-              >
-                {tShip("noActiveCarrier")}
               </div>
             )}
 

@@ -185,7 +185,7 @@ describe("POST /api/orders/[id]/reopen", () => {
     expect(json.warning).toBeUndefined();
   });
 
-  test("falls back to local_only when voidDispatch fails — returns 200 with warning", async () => {
+  test("fails closed (409) when voidDispatch can't confirm cancellation — does NOT reopen", async () => {
     vi.mocked(getCarrierAdapter).mockReturnValue({
       formatPayload: vi.fn(),
       dispatch: vi.fn(),
@@ -218,14 +218,13 @@ describe("POST /api/orders/[id]/reopen", () => {
     mockRpc.mockResolvedValue({ data: { order_id: "o-1", from_status: "dispatched", void_outcome: "local_only" }, error: null });
 
     const res = await POST(createRequest(), PARAMS);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(409);
     const json = await res.json();
-    expect(json.warning).toBeDefined();
-    const rpcArgs = mockRpc.mock.calls[0];
-    expect(rpcArgs[1].p_void_outcome).toBe("local_only");
+    expect(json.code).toBe("carrier_void_failed");
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 
-  test("falls back to local_only when carrier void not supported — returns 200 with warning", async () => {
+  test("fails closed (409) when the carrier void is unsupported — does NOT reopen", async () => {
     vi.mocked(getCarrierAdapter).mockReturnValue({
       formatPayload: vi.fn(),
       dispatch: vi.fn(),
@@ -258,9 +257,45 @@ describe("POST /api/orders/[id]/reopen", () => {
     mockRpc.mockResolvedValue({ data: { order_id: "o-1", from_status: "dispatched", void_outcome: "local_only" }, error: null });
 
     const res = await POST(createRequest(), PARAMS);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(409);
     const json = await res.json();
-    expect(json.warning).toBeDefined();
+    expect(json.code).toBe("carrier_void_failed");
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  test("confirm_manual_cancel=true reopens despite a failed void (RPC gets local_only)", async () => {
+    vi.mocked(getCarrierAdapter).mockReturnValue({
+      formatPayload: vi.fn(),
+      dispatch: vi.fn(),
+      parseResponse: vi.fn(),
+      voidDispatch: vi.fn().mockResolvedValue({ success: false, supported: true, reason: "carrier timeout" }),
+    });
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return queryChainSingle({ data: { role: "agent", market_id: "m-1" }, error: null });
+      }
+      if (table === "carriers") {
+        return queryChainSingle({
+          data: { id: "c-1", code: "navex", api_endpoint: "https://app.navex.tn/api", api_credentials: "encrypted-blob", delivery_fee: 7, return_fee: 5 },
+          error: null,
+        });
+      }
+      return queryChainSingle({
+        data: { id: "o-1", status: "dispatched", assigned_to: "agent-1", updated_at: withinWindow, tracking_number: "TN123", carrier_id: "c-1" },
+        error: null,
+      });
+    });
+    mockRpc.mockResolvedValue({ data: { order_id: "o-1", void_outcome: "local_only" }, error: null });
+
+    const req = new NextRequest(new URL("http://localhost:3000/api/orders/o-1/reopen"), {
+      method: "POST",
+      body: JSON.stringify({ confirm_manual_cancel: true }),
+    });
+    const res = await POST(req, PARAMS);
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalled();
+    expect(mockRpc.mock.calls[0][1].p_void_outcome).toBe("local_only");
   });
 
   test("returns 500 when RPC errors", async () => {

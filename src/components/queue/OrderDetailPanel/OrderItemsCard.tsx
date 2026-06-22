@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { ShoppingBag, X } from "lucide-react";
+import { Pencil, ShoppingBag, X } from "lucide-react";
 import { InlineField } from "@/components/ui/InlineField";
 import { Combobox, type ComboboxOption } from "@/components/ui/Combobox";
 import { StepperField } from "@/components/ui/StepperField";
@@ -36,6 +36,7 @@ export interface OrderItemsCardProps {
   defaultOpen?: boolean;
   onCommitLegacyProduct: (productId: string) => void;
   onCommitLegacyQuantity: (qty: number) => void;
+  onCommitLegacyPrice: (price: number) => void;
   onCommitLegacyVariant: (variantId: string) => void;
   onPatchItem: (itemId: string, body: Record<string, unknown>) => void;
   onDeleteItem: (itemId: string) => void;
@@ -64,6 +65,7 @@ export function OrderItemsCard({
   defaultOpen = false,
   onCommitLegacyProduct,
   onCommitLegacyQuantity,
+  onCommitLegacyPrice,
   onCommitLegacyVariant,
   onPatchItem,
   onDeleteItem,
@@ -207,9 +209,33 @@ export function OrderItemsCard({
                       readOnly={!canEdit}
                     />
                     <span className="text-[12px] text-ink-muted">×</span>
-                    <span className="text-[12px] text-ink-secondary tabular-nums truncate">
-                      {item.unit_price} {displayCurrency}
+                    <span className="inline-flex items-center gap-1 min-w-0">
+                      <InlineField
+                        value={String(item.unit_price)}
+                        onCommit={(v) => {
+                          const price = parseFloat(v) || 0;
+                          if (item.id === "legacy") {
+                            onCommitLegacyPrice(price);
+                          } else {
+                            onPatchItem(item.id, { unit_price: price });
+                          }
+                        }}
+                        validate={(v) => (parseFloat(v) >= 0 ? null : "invalid")}
+                        type="number"
+                        displayMode
+                        readOnly={!canEdit}
+                        displayClassName="text-[12px] text-ink-secondary tabular-nums"
+                      />
+                      {canEdit && (
+                        <span
+                          title={t("fieldUnitPrice")}
+                          className="flex-shrink-0 inline-flex text-ink-muted opacity-0 group-hover:opacity-100 transition-opacity duration-fast"
+                        >
+                          <Pencil size={11} strokeWidth={2} aria-hidden="true" />
+                        </span>
+                      )}
                     </span>
+                    <span className="text-[12px] text-ink-muted">{displayCurrency}</span>
                   </div>
                   <span className="text-[14px] font-semibold text-ink-primary tabular-nums whitespace-nowrap">
                     {item.line_total}

@@ -28,6 +28,7 @@ type OrderRow = {
   id: string;
   status: string;
   market_id: string;
+  tracking_number: string | null;
   customer_name: string;
   customer_phone: string;
   customer_phone_2: string | null;
@@ -53,7 +54,7 @@ type CarrierRow = {
 };
 
 const ORDER_COLUMNS =
-  "id, status, market_id, customer_name, customer_phone, customer_phone_2, customer_whatsapp, customer_address, customer_city, customer_note, product_name, variant_label, quantity, total_price";
+  "id, status, market_id, tracking_number, customer_name, customer_phone, customer_phone_2, customer_whatsapp, customer_address, customer_city, customer_note, product_name, variant_label, quantity, total_price";
 
 const CARRIER_COLUMNS =
   "id, code, api_endpoint, api_credentials, delivery_fee, return_fee, market_id, is_active";
@@ -82,6 +83,19 @@ export async function performDispatch({
       ok: false,
       status: 404,
       error: `Order not found (${orderError?.code ?? "no_row"}: ${orderError?.message ?? "no rows returned"})`,
+    };
+  }
+
+  // Duplicate-shipment backstop: a dispatchable order must not already carry a
+  // live tracking number. If it does, a prior reopen/cancel didn't clear it (or
+  // never confirmed the carrier-side cancellation) — uploading now would create
+  // a SECOND shipment. Refuse, regardless of carrier or upload path.
+  if (order.tracking_number) {
+    return {
+      ok: false,
+      status: 409,
+      error: `Order already has an active shipment (${order.tracking_number}). Cancel it before re-uploading.`,
+      errorCode: "active_shipment_exists",
     };
   }
 

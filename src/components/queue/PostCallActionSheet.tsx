@@ -994,10 +994,10 @@ export function PostCallActionSheet({
 
     {/* Darb Assabil upload — the shared modal (service + area + options + its
         own dispatch + duplicate guard). On success, finalise as uploaded. */}
-    {darbModalOpen && (
+    {darbModalOpen && selectedCarrier && (
       <DarbAssabilDispatchModal
         orderId={orderId}
-        marketId={marketId}
+        carrierId={selectedCarrier.id}
         customerAddress={orderForUpload?.data?.customer_address ?? null}
         customerCity={orderForUpload?.data?.customer_city ?? null}
         onClose={() => setDarbModalOpen(false)}
