@@ -253,6 +253,29 @@ export function QueuePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawAllOrdersUnsorted, tick]);
 
+  // App-launch Darb sweep: fire the market-wide, server-throttled Darb status
+  // sync ONCE per mount, then revalidate the queue so fresh slugs/statuses flow
+  // in. The server's claim_darb_sync throttles to one carrier sweep per market
+  // per 10 min, so multiple mounts/refreshes don't hammer the carrier. Fire-and-
+  // forget: failures are non-fatal (the queue still renders cached data).
+  const launchSyncedRef = useRef(false);
+  useEffect(() => {
+    if (launchSyncedRef.current) return;
+    launchSyncedRef.current = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/darb-assabil/sync-market", { method: "POST" });
+        if (!res.ok) return;
+        const body = (await res.json().catch(() => null)) as { skipped?: boolean } | null;
+        // Only revalidate if the sweep actually ran (skipped=false) — a throttled
+        // skip wrote nothing, so there's nothing new to pull.
+        if (body && body.skipped === false) await mutate();
+      } catch {
+        // non-fatal
+      }
+    })();
+  }, [mutate]);
+
   // Warm the dropdown caches before the user opens a panel — the detail panel
   // reads these SWR keys; by the time it mounts, they're already resolved.
   useSWR("/api/products/search", jsonFetcher, {

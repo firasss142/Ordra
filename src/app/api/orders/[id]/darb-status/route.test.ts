@@ -11,9 +11,9 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-const mockFetchDarbTimeline = vi.fn();
+const mockFetchDarbShipment = vi.fn();
 vi.mock("@/lib/carriers/darb-assabil-tracking", () => ({
-  fetchDarbTimeline: (...args: unknown[]) => mockFetchDarbTimeline(...args),
+  fetchDarbShipment: (...args: unknown[]) => mockFetchDarbShipment(...args),
 }));
 
 const mockBuildConfig = vi.fn();
@@ -33,6 +33,8 @@ function singleChain(data: unknown, error: unknown = null) {
   c.select = vi.fn().mockReturnValue(c);
   c.eq = vi.fn().mockReturnValue(c);
   c.single = vi.fn().mockResolvedValue({ data, error });
+  // update().eq() is awaited (reference repair) — resolve to a no-op result.
+  c.update = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
   return c;
 }
 
@@ -40,6 +42,7 @@ const darbOrder = {
   id: "order-1",
   tracking_number: "SH1584689",
   carrier_id: "darb-uuid",
+  carrier_extra: { darb_assabil_id: "69fd0af4889e7a3cd010f1a1" },
   carriers: { code: "darb_assabil" },
 };
 
@@ -84,23 +87,31 @@ describe("GET /api/orders/[id]/darb-status", () => {
     expect((await GET(req(), { params })).status).toBe(400);
   });
 
-  test("400 when the order has no tracking number", async () => {
+  test("400 when the order has no internal darb_assabil_id", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } } });
-    mockFrom.mockReturnValue(singleChain({ ...darbOrder, tracking_number: null }));
+    mockFrom.mockReturnValue(
+      singleChain({ ...darbOrder, carrier_extra: {} }),
+    );
     expect((await GET(req(), { params })).status).toBe(400);
   });
 
-  test("200 with the parsed Arabic timeline events", async () => {
+  test("200 with the inline timeline read by _id (not the stored reference)", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } } });
     mockFrom.mockImplementation((table: string) => {
       if (table === "orders") return singleChain(darbOrder);
       if (table === "carriers") return singleChain(carrierRow);
       return singleChain(null);
     });
-    mockFetchDarbTimeline.mockResolvedValue([
-      { type: "info", labelAr: "تم إنشاء الشحنة", timestamp: "2026-05-07T21:58:12.019Z" },
-      { type: "success", labelAr: "تم التسليم", timestamp: "2026-05-09T10:00:00.000Z" },
-    ]);
+    mockFetchDarbShipment.mockResolvedValue({
+      kind: "ok",
+      reference: "1143633",
+      slug: "completed",
+      rawStatus: "completed",
+      timeline: [
+        { type: "info", labelAr: "تم إنشاء الشحنة", timestamp: "2026-05-07T21:58:12.019Z" },
+        { type: "completed", labelAr: "تم التسليم", timestamp: "2026-05-09T10:00:00.000Z" },
+      ],
+    });
 
     const res = await GET(req(), { params });
     expect(res.status).toBe(200);
@@ -108,7 +119,56 @@ describe("GET /api/orders/[id]/darb-status", () => {
     expect(json.kind).toBe("ok");
     expect(json.timeline).toHaveLength(2);
     expect(json.timeline[1].labelAr).toBe("تم التسليم");
-    expect(mockFetchDarbTimeline).toHaveBeenCalledWith("SH1584689", expect.anything());
+    // Fetched by the internal _id, NOT the stored tracking_number.
+    expect(mockFetchDarbShipment).toHaveBeenCalledWith(
+      "69fd0af4889e7a3cd010f1a1",
+      expect.anything(),
+    );
+    // The real reference is surfaced to the client.
+    expect(json.trackingNumber).toBe("1143633");
+  });
+
+  test("persists the repaired reference when it differs from the stored one", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } } });
+    const orderChain = singleChain(darbOrder);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "orders") return orderChain;
+      if (table === "carriers") return singleChain(carrierRow);
+      return singleChain(null);
+    });
+    mockFetchDarbShipment.mockResolvedValue({
+      kind: "ok",
+      reference: "1143633",
+      slug: "completed",
+      rawStatus: "completed",
+      timeline: [],
+    });
+
+    await GET(req(), { params });
+    // tracking_number repaired from SH1584689 -> 1143633
+    expect(orderChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ tracking_number: "1143633" }),
+    );
+  });
+
+  test("does NOT write when the reference is unchanged or empty", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } } });
+    const orderChain = singleChain(darbOrder);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "orders") return orderChain;
+      if (table === "carriers") return singleChain(carrierRow);
+      return singleChain(null);
+    });
+    mockFetchDarbShipment.mockResolvedValue({
+      kind: "ok",
+      reference: "SH1584689", // same as stored
+      slug: "pending",
+      rawStatus: "pending",
+      timeline: [],
+    });
+
+    await GET(req(), { params });
+    expect(orderChain.update).not.toHaveBeenCalled();
   });
 
   test("502 when the carrier fetch throws", async () => {
@@ -118,7 +178,7 @@ describe("GET /api/orders/[id]/darb-status", () => {
       if (table === "carriers") return singleChain(carrierRow);
       return singleChain(null);
     });
-    mockFetchDarbTimeline.mockRejectedValue(new Error("ECONNRESET"));
+    mockFetchDarbShipment.mockRejectedValue(new Error("ECONNRESET"));
 
     const res = await GET(req(), { params });
     expect(res.status).toBe(502);
