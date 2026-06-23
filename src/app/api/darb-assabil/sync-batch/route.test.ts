@@ -23,21 +23,23 @@ import { NextRequest } from "next/server";
 
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
+const mockRpc = vi.fn();
 const mockAdminFrom = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
     auth: { getUser: () => mockGetUser() },
     from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
   }),
   createAdminClient: vi.fn().mockReturnValue({
     from: (...args: unknown[]) => mockAdminFrom(...args),
   }),
 }));
 
-const mockFetchDarbStatus = vi.fn();
+const mockFetchDarbShipment = vi.fn();
 vi.mock("@/lib/carriers/darb-assabil-tracking", () => ({
-  fetchDarbStatus: (...args: unknown[]) => mockFetchDarbStatus(...args),
+  fetchDarbShipment: (...args: unknown[]) => mockFetchDarbShipment(...args),
 }));
 
 const mockBuildConfig = vi.fn();
@@ -108,9 +110,16 @@ function darbOrder(overrides: Record<string, unknown> = {}) {
   };
 }
 
+const rpcCalls: Array<Record<string, unknown>> = [];
+
 beforeEach(() => {
   vi.clearAllMocks();
   updateCalls.length = 0;
+  rpcCalls.length = 0;
+  mockRpc.mockImplementation(async (_name: string, params: Record<string, unknown>) => {
+    rpcCalls.push(params);
+    return { data: null, error: null };
+  });
   mockBuildConfig.mockReturnValue({
     id: "darb-uuid",
     code: "darb_assabil",
@@ -142,15 +151,16 @@ describe("POST /api/darb-assabil/sync-batch — per-order outcomes", () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } } });
   });
 
-  test("happy path: writes carrier_status_slug + synced_at, returns ok:true", async () => {
+  test("happy path: promotes via RPC with slug + real reference, returns ok:true", async () => {
     mockFrom.mockImplementation(
       makeFromRouter({ orderRows: [darbOrder()], carrierRows: [darbCarrier] }),
     );
-    mockFetchDarbStatus.mockResolvedValue({
+    mockFetchDarbShipment.mockResolvedValue({
       kind: "ok",
-      reference: "SH1584689",
+      reference: "1143633",
       slug: "released",
       rawStatus: "released",
+      timeline: [],
     });
 
     const res = await POST(req({ orderIds: ["o-1"] }));
@@ -158,47 +168,70 @@ describe("POST /api/darb-assabil/sync-batch — per-order outcomes", () => {
     const json = await res.json();
     expect(json.results["o-1"]).toEqual({ ok: true, slug: "released" });
 
-    expect(updateCalls).toHaveLength(1);
-    expect(updateCalls[0].id).toBe("o-1");
-    expect(updateCalls[0].patch.carrier_status_slug).toBe("released");
-    expect(updateCalls[0].patch.carrier_status_synced_at).toBeDefined();
-    // Must pass the INTERNAL id (not the SH reference) to the fetcher.
-    expect(mockFetchDarbStatus).toHaveBeenCalledWith(
-      "SH1584689",
+    expect(rpcCalls).toHaveLength(1);
+    expect(rpcCalls[0]).toMatchObject({
+      p_order_id: "o-1",
+      p_slug: "released",
+      p_reference: "1143633", // the REAL reference, repaired
+    });
+    expect(rpcCalls[0].p_synced_at).toBeDefined();
+    // Must fetch by the INTERNAL id (not the SH reference).
+    expect(mockFetchDarbShipment).toHaveBeenCalledWith(
       "69fd0af4889e7a3cd010f1a1",
       expect.anything(),
     );
   });
 
-  test("unknown Darb status: slug stored as null, synced_at still updated", async () => {
+  test("terminal status: RPC promotes (completed → delivered)", async () => {
     mockFrom.mockImplementation(
       makeFromRouter({ orderRows: [darbOrder()], carrierRows: [darbCarrier] }),
     );
-    mockFetchDarbStatus.mockResolvedValue({
+    mockFetchDarbShipment.mockResolvedValue({
+      kind: "ok",
+      reference: "1143633",
+      slug: "completed",
+      rawStatus: "completed",
+      timeline: [],
+    });
+
+    const res = await POST(req({ orderIds: ["o-1"] }));
+    const json = await res.json();
+    expect(json.results["o-1"]).toEqual({ ok: true, slug: "completed" });
+    // The RPC is the single promotion path — the route doesn't decide the OMS
+    // status itself, it passes the slug and lets promote_darb_status map it.
+    expect(rpcCalls[0]).toMatchObject({ p_order_id: "o-1", p_slug: "completed" });
+  });
+
+  test("unknown Darb status: RPC called with null slug (refresh only)", async () => {
+    mockFrom.mockImplementation(
+      makeFromRouter({ orderRows: [darbOrder()], carrierRows: [darbCarrier] }),
+    );
+    mockFetchDarbShipment.mockResolvedValue({
       kind: "ok",
       reference: "SH1584689",
       slug: null,
       rawStatus: "teleported",
+      timeline: [],
     });
 
     const res = await POST(req({ orderIds: ["o-1"] }));
     const json = await res.json();
     expect(json.results["o-1"]).toEqual({ ok: true, slug: null });
-    expect(updateCalls[0].patch.carrier_status_slug).toBe(null);
-    expect(updateCalls[0].patch.carrier_status_synced_at).toBeDefined();
+    expect(rpcCalls[0]).toMatchObject({ p_order_id: "o-1", p_slug: null });
   });
 
-  test("not_found: ok:false reason 'not_found', synced_at updated", async () => {
+  test("not_found: ok:false reason 'not_found', synced_at updated, no RPC", async () => {
     mockFrom.mockImplementation(
       makeFromRouter({ orderRows: [darbOrder()], carrierRows: [darbCarrier] }),
     );
-    mockFetchDarbStatus.mockResolvedValue({ kind: "not_found", reference: "SH1584689" });
+    mockFetchDarbShipment.mockResolvedValue({ kind: "not_found", timeline: [] });
 
     const res = await POST(req({ orderIds: ["o-1"] }));
     const json = await res.json();
     expect(json.results["o-1"]).toEqual({ ok: false, reason: "not_found" });
     expect(updateCalls).toHaveLength(1);
     expect(updateCalls[0].patch.carrier_status_synced_at).toBeDefined();
+    expect(rpcCalls).toHaveLength(0);
   });
 
   test("non-Darb carrier: ok:false reason 'not_darb', no fetch, no update", async () => {
@@ -213,7 +246,7 @@ describe("POST /api/darb-assabil/sync-batch — per-order outcomes", () => {
     const res = await POST(req({ orderIds: ["o-1"] }));
     const json = await res.json();
     expect(json.results["o-1"]).toEqual({ ok: false, reason: "not_darb" });
-    expect(mockFetchDarbStatus).not.toHaveBeenCalled();
+    expect(mockFetchDarbShipment).not.toHaveBeenCalled();
     expect(updateCalls).toHaveLength(0);
   });
 
@@ -227,7 +260,7 @@ describe("POST /api/darb-assabil/sync-batch — per-order outcomes", () => {
     const res = await POST(req({ orderIds: ["o-1"] }));
     const json = await res.json();
     expect(json.results["o-1"]).toEqual({ ok: false, reason: "no_tracking" });
-    expect(mockFetchDarbStatus).not.toHaveBeenCalled();
+    expect(mockFetchDarbShipment).not.toHaveBeenCalled();
   });
 
   test("missing internal id: ok:false reason 'no_internal_id', no fetch", async () => {
@@ -240,7 +273,7 @@ describe("POST /api/darb-assabil/sync-batch — per-order outcomes", () => {
     const res = await POST(req({ orderIds: ["o-1"] }));
     const json = await res.json();
     expect(json.results["o-1"]).toEqual({ ok: false, reason: "no_internal_id" });
-    expect(mockFetchDarbStatus).not.toHaveBeenCalled();
+    expect(mockFetchDarbShipment).not.toHaveBeenCalled();
     expect(updateCalls).toHaveLength(0);
   });
 
@@ -248,11 +281,12 @@ describe("POST /api/darb-assabil/sync-batch — per-order outcomes", () => {
     mockFrom.mockImplementation(
       makeFromRouter({ orderRows: [darbOrder()], carrierRows: [darbCarrier] }),
     );
-    mockFetchDarbStatus.mockResolvedValue({
+    mockFetchDarbShipment.mockResolvedValue({
       kind: "ok",
       reference: "SH1584689",
       slug: "completed",
       rawStatus: "completed",
+      timeline: [],
     });
     const res = await POST(req({ orderIds: ["o-1", "o-2"] }));
     const json = await res.json();
@@ -264,7 +298,7 @@ describe("POST /api/darb-assabil/sync-batch — per-order outcomes", () => {
     mockFrom.mockImplementation(
       makeFromRouter({ orderRows: [darbOrder()], carrierRows: [darbCarrier] }),
     );
-    mockFetchDarbStatus.mockRejectedValue(new Error("ECONNRESET"));
+    mockFetchDarbShipment.mockRejectedValue(new Error("ECONNRESET"));
     const res = await POST(req({ orderIds: ["o-1"] }));
     const json = await res.json();
     expect(json.results["o-1"]).toEqual({ ok: false, reason: "fetch_failed" });
@@ -285,19 +319,25 @@ describe("POST /api/darb-assabil/sync-batch — concurrency cap", () => {
 
     let inFlight = 0;
     let peak = 0;
-    mockFetchDarbStatus.mockImplementation(async (reference: string) => {
+    mockFetchDarbShipment.mockImplementation(async (internalId: string) => {
       inFlight++;
       peak = Math.max(peak, inFlight);
       await new Promise((r) => setTimeout(r, 20));
       inFlight--;
-      return { kind: "ok", reference, slug: "released", rawStatus: "released" };
+      return {
+        kind: "ok",
+        reference: internalId,
+        slug: "released",
+        rawStatus: "released",
+        timeline: [],
+      };
     });
 
     const res = await POST(req({ orderIds: ids }));
     expect(res.status).toBe(200);
     expect(peak).toBeLessThanOrEqual(3);
     expect(peak).toBeGreaterThan(0);
-    expect(mockFetchDarbStatus).toHaveBeenCalledTimes(10);
+    expect(mockFetchDarbShipment).toHaveBeenCalledTimes(10);
   });
 });
 
@@ -307,11 +347,12 @@ describe("POST /api/darb-assabil/sync-batch — unknown-slug observability log",
     mockFrom.mockImplementation(
       makeFromRouter({ orderRows: [darbOrder()], carrierRows: [darbCarrier] }),
     );
-    mockFetchDarbStatus.mockResolvedValue({
+    mockFetchDarbShipment.mockResolvedValue({
       kind: "ok",
       reference: "SH1584689",
       slug: null,
       rawStatus: "teleported",
+      timeline: [],
     });
 
     const logInsertSpy = vi.fn();

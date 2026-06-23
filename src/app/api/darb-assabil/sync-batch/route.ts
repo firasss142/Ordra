@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { buildConfig, type CarrierRow } from "@/lib/carriers/dispatch";
-import { fetchDarbStatus } from "@/lib/carriers/darb-assabil-tracking";
+import { fetchDarbShipment } from "@/lib/carriers/darb-assabil-tracking";
 
 /**
  * POST /api/darb-assabil/sync-batch
  *
- * Refreshes the cached carrier status slug for up to 25 Darb Assabil orders in
- * one call. Read-the-API / write-the-projection-column. Does NOT mutate
- * orders.status — the slug feeds the fermé bucket pill only.
+ * Refreshes Darb Assabil status for up to 25 orders in one call. Reads the
+ * authoritative by-`_id` shipment (status + real reference) and writes via the
+ * promote_darb_status RPC, which: refreshes carrier_status_slug, repairs
+ * tracking_number to the real reference, and — for the 3 TERMINAL Darb states —
+ * promotes orders.status (completed→delivered, returned→returned,
+ * cancelled→cancelled) with an append-only order_history row. In-flight states
+ * leave orders.status untouched (the "like Dexpress" model). No stock/cost
+ * side-effects (Libya).
  *
  * Auth via the cookie-scoped Supabase client → RLS enforces market isolation.
  * Orders the caller cannot see come back as { ok: false, reason: 'not_visible' }.
@@ -173,11 +178,7 @@ export async function POST(req: NextRequest) {
 
     let snapshot;
     try {
-      snapshot = await fetchDarbStatus(
-        order.tracking_number!,
-        order.internalId,
-        config,
-      );
+      snapshot = await fetchDarbShipment(order.internalId, config);
     } catch {
       results[order.id] = { ok: false, reason: "fetch_failed" };
       return;
@@ -194,14 +195,17 @@ export async function POST(req: NextRequest) {
       return;
     }
 
-    // kind === "ok" — persist the projection slug.
-    await supabase
-      .from("orders")
-      .update({
-        carrier_status_slug: snapshot.slug,
-        carrier_status_synced_at: syncedAt,
-      })
-      .eq("id", order.id);
+    // kind === "ok" — promote via the RPC: refreshes slug + repairs the real
+    // reference + promotes orders.status for terminal Darb states (append-only
+    // order_history). For a null slug (unknown status) the RPC still refreshes
+    // synced_at and leaves orders.status alone.
+    await supabase.rpc("promote_darb_status", {
+      p_order_id: order.id,
+      p_slug: snapshot.slug,
+      p_reference: snapshot.reference || null,
+      p_synced_at: syncedAt,
+      p_actor_id: null,
+    });
     results[order.id] = { ok: true, slug: snapshot.slug };
 
     // Fire-and-forget observability log for unknown statuses. Same shape as the
