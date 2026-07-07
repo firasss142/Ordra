@@ -573,7 +573,9 @@
       "vsYesterday": "vs hier",
       "vsLastWeek": "vs sem. dernière",
       "vsLastMonth": "vs mois dernier",
-      "vsPrevious": "vs période préc."
+      "vsPrevious": "vs période préc.",
+      "latestDataNotice": "Aucune activité récente — affichage des dernières données au {date}",
+      "jumpToToday": "Aller à aujourd'hui"
     },
     "sections": {
       "trend": "Confirmation & rejet — 30 derniers jours",

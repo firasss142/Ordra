@@ -22,6 +22,13 @@ interface FilterBarProps {
     month: string;
     custom: string;
   };
+
+  // Optional caption shown below the presets — e.g. to explain that the view is
+  // anchored to the latest available data rather than today.
+  notice?: {
+    text: string;
+    action?: { label: string; onClick: () => void };
+  } | null;
 }
 
 const CARD_BG = "#FFFFFF";
@@ -36,6 +43,7 @@ export function FilterBar({
   activePreset,
   onPeriodChange,
   labels,
+  notice,
 }: FilterBarProps) {
   const isMobile = useIsMobile();
   const presets: { key: PeriodPreset; label: string }[] = [
@@ -92,6 +100,38 @@ export function FilterBar({
           ) : null}
         </div>
       </div>
+      {notice ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 12,
+            color: MUTED,
+          }}
+        >
+          <span>{notice.text}</span>
+          {notice.action ? (
+            <button
+              type="button"
+              onClick={notice.action.onClick}
+              style={{
+                border: "none",
+                background: "transparent",
+                padding: 0,
+                color: TEXT,
+                fontSize: 12,
+                fontWeight: 600,
+                textDecoration: "underline",
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              {notice.action.label}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

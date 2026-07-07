@@ -1,11 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { fromCents } from "@/lib/calculations/math";
 import {
-  calculateRevenue,
-  calculateCogs,
-  calculateDeliveryCost,
-  calculateReturnCost,
-  calculatePackingCost,
   calculateNetProfit,
   calculateMargin,
 } from "@/lib/calculations/profitability";
@@ -27,52 +22,55 @@ export interface ProfitabilitySummary {
 
 type Supa = SupabaseClient;
 
+// Shape returned by the get_profitability_summary RPC. All monetary values are
+// integer cents (BIGINT), which PostgREST serializes as strings — Number()
+// coerces them. Counts come back as numbers.
+interface ProfitabilityAggRow {
+  revenue_cents: number | string;
+  cogs_cents: number | string;
+  delivery_cost_cents: number | string;
+  return_cost_cents: number | string;
+  packing_cost_cents: number | string;
+  delivered_count: number | string;
+  returned_count: number | string;
+  confirmed_count: number | string;
+}
+
+const ZERO_AGG: ProfitabilityAggRow = {
+  revenue_cents: 0,
+  cogs_cents: 0,
+  delivery_cost_cents: 0,
+  return_cost_cents: 0,
+  packing_cost_cents: 0,
+  delivered_count: 0,
+  returned_count: 0,
+  confirmed_count: 0,
+};
+
+// Aggregates the market P&L in the database via the get_profitability_summary
+// RPC (SECURITY DEFINER) instead of pulling every delivered/returned/confirmed
+// order_history row through the per-row RLS policy and summing in Node. The old
+// approach timed out under the market_manager role for any window wider than
+// ~1 week (the order_history_select RLS EXISTS subquery is evaluated per row);
+// the RPC does the same aggregation in one indexed pass (~20ms) and returns
+// byte-identical numbers. Ad spend and the leads count stay as direct queries,
+// and net_profit/margin are still computed by the shared JS calculators.
 export async function loadProfitabilitySummary(
   supabase: Supa,
   marketId: string,
   fromDate: string,
   toDate: string,
 ): Promise<ProfitabilitySummary> {
-  type DeliveredHistoryRow = { orders: { id: string; total_price: number; quantity: number; product_id: string | null; carrier_id: string | null } };
-  type ReturnedHistoryRow = { orders: { id: string; carrier_id: string | null } };
-  type ConfirmedHistoryRow = { orders: { id: string; product_id: string | null } };
-
   const dateLte = toDate + "T23:59:59.999Z";
 
-  const [
-    deliveredRows,
-    returnedRows,
-    confirmedRows,
-    leadsResult,
-    adSpendResult,
-  ] = await Promise.all([
-    fetchAllRows<DeliveredHistoryRow>(
-      supabase
-        .from("order_history")
-        .select("order_id, orders!inner(id, total_price, quantity, product_id, carrier_id, market_id)")
-        .eq("status_to", "delivered")
-        .eq("orders.market_id", marketId)
-        .gte("created_at", fromDate)
-        .lte("created_at", dateLte)
-    ),
-    fetchAllRows<ReturnedHistoryRow>(
-      supabase
-        .from("order_history")
-        .select("order_id, orders!inner(id, carrier_id, market_id)")
-        .eq("status_to", "returned")
-        .eq("orders.market_id", marketId)
-        .gte("created_at", fromDate)
-        .lte("created_at", dateLte)
-    ),
-    fetchAllRows<ConfirmedHistoryRow>(
-      supabase
-        .from("order_history")
-        .select("order_id, orders!inner(id, product_id, market_id)")
-        .eq("status_to", "confirmed")
-        .eq("orders.market_id", marketId)
-        .gte("created_at", fromDate)
-        .lte("created_at", dateLte)
-    ),
+  const [aggResult, leadsResult, adSpendResult] = await Promise.all([
+    supabase
+      .rpc("get_profitability_summary", {
+        p_market_id: marketId,
+        p_from_date: fromDate,
+        p_to_date: dateLte,
+      })
+      .maybeSingle<ProfitabilityAggRow>(),
     supabase
       .from("orders")
       .select("id", { count: "exact", head: true })
@@ -89,102 +87,14 @@ export async function loadProfitabilitySummary(
       .gte("period_end", fromDate),
   ]);
 
-  const deliveredOrders = deliveredRows.map((h) => h.orders);
-  const returnedOrders = returnedRows.map((h) => h.orders);
+  if (aggResult.error) throw new Error(aggResult.error.message);
+  const agg = aggResult.data ?? ZERO_AGG;
 
-  const confirmedOrderProductIds = confirmedRows
-    .map((h) => h.orders.product_id)
-    .filter((pid): pid is string => pid !== null);
-
-  const productIdSet = new Set<string>();
-  for (const o of deliveredOrders) if (o.product_id) productIdSet.add(o.product_id);
-  for (const pid of confirmedOrderProductIds) productIdSet.add(pid);
-  const productIds = Array.from(productIdSet);
-
-  const carrierIdSet = new Set<string>();
-  for (const o of deliveredOrders) if (o.carrier_id) carrierIdSet.add(o.carrier_id);
-  for (const o of returnedOrders) if (o.carrier_id) carrierIdSet.add(o.carrier_id);
-  const carrierIds = Array.from(carrierIdSet);
-
-  const [{ data: products }, { data: carriers }] = await Promise.all([
-    productIds.length > 0
-      ? supabase
-          .from("products")
-          .select("id, unit_cogs, packing_cost")
-          .in("id", productIds)
-      : Promise.resolve({ data: [] as { id: string; unit_cogs: number; packing_cost: number }[] }),
-    carrierIds.length > 0
-      ? supabase
-          .from("carriers")
-          .select("id, delivery_fee, return_fee")
-          .in("id", carrierIds)
-      : Promise.resolve({ data: [] as { id: string; delivery_fee: number; return_fee: number }[] }),
-  ]);
-
-  const productMap = new Map(
-    (products ?? []).map((p) => [
-      p.id,
-      { unit_cogs: Number(p.unit_cogs), packing_cost: Number(p.packing_cost) },
-    ]),
-  );
-
-  const carrierMap = new Map(
-    (carriers ?? []).map((c) => [
-      c.id,
-      { delivery_fee: Number(c.delivery_fee), return_fee: Number(c.return_fee) },
-    ]),
-  );
-
-  const revenue = calculateRevenue(
-    deliveredOrders.map((o) => ({ total_price: Number(o.total_price) })),
-  );
-
-  const cogs = calculateCogs(
-    deliveredOrders
-      .filter((o) => o.product_id && productMap.has(o.product_id))
-      .map((o) => ({
-        unit_cogs: productMap.get(o.product_id!)!.unit_cogs,
-        quantity: o.quantity,
-      })),
-  );
-
-  const deliveryCarrierCounts = new Map<string, number>();
-  for (const o of deliveredOrders) {
-    if (o.carrier_id) {
-      deliveryCarrierCounts.set(
-        o.carrier_id,
-        (deliveryCarrierCounts.get(o.carrier_id) ?? 0) + 1,
-      );
-    }
-  }
-  const deliveryCost = calculateDeliveryCost(
-    Array.from(deliveryCarrierCounts.entries()).map(([carrierId, count]) => ({
-      count,
-      delivery_fee: carrierMap.get(carrierId)?.delivery_fee ?? 0,
-    })),
-  );
-
-  const returnCarrierCounts = new Map<string, number>();
-  for (const o of returnedOrders) {
-    if (o.carrier_id) {
-      returnCarrierCounts.set(
-        o.carrier_id,
-        (returnCarrierCounts.get(o.carrier_id) ?? 0) + 1,
-      );
-    }
-  }
-  const returnCost = calculateReturnCost(
-    Array.from(returnCarrierCounts.entries()).map(([carrierId, count]) => ({
-      count,
-      return_fee: carrierMap.get(carrierId)?.return_fee ?? 0,
-    })),
-  );
-
-  const packingCost = calculatePackingCost(
-    confirmedOrderProductIds
-      .filter((pid) => productMap.has(pid))
-      .map((pid) => ({ packing_cost: productMap.get(pid)!.packing_cost })),
-  );
+  const revenue = fromCents(Number(agg.revenue_cents));
+  const cogs = fromCents(Number(agg.cogs_cents));
+  const deliveryCost = fromCents(Number(agg.delivery_cost_cents));
+  const returnCost = fromCents(Number(agg.return_cost_cents));
+  const packingCost = fromCents(Number(agg.packing_cost_cents));
 
   const adSpend = (adSpendResult.data ?? []).reduce(
     (sum, r) => sum + Number(r.amount),
@@ -210,9 +120,9 @@ export async function loadProfitabilitySummary(
     ad_spend: adSpend,
     net_profit: netProfit,
     margin,
-    delivered_count: deliveredOrders.length,
-    returned_count: returnedOrders.length,
-    confirmed_count: confirmedOrderProductIds.length,
+    delivered_count: Number(agg.delivered_count),
+    returned_count: Number(agg.returned_count),
+    confirmed_count: Number(agg.confirmed_count),
     leads_count: leadsResult.count ?? 0,
   };
 }

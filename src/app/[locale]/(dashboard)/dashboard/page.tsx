@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { DashboardClient } from "./DashboardClient";
 import { getServerUser } from "@/lib/auth/server-user";
 import { getDashboardSummary } from "@/lib/dashboard/summary";
+import { getLatestActivityDateCached } from "@/lib/dashboard/latest-activity";
+import { anchoredDefaultPeriod } from "@/lib/date";
 import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
 
 export default async function DashboardPage({
@@ -17,18 +19,33 @@ export default async function DashboardPage({
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const initialPeriod = { from_date: today, to_date: today };
 
   const markets = user.role === "super_admin" ? await getAllActiveMarkets() : [];
   const defaultMarketId = getDefaultMarketId(markets);
   const initialMarketId =
     user.role === "super_admin" ? (defaultMarketId || "all") : (user.market_id ?? "");
 
-  // Server-fetch Tunisia-scoped summary for super_admin (single-market = N× faster
-  // than "all") and pass as fallbackData so the client paints with zero network call.
+  // Anchor the initial period to the latest date that actually has revenue data
+  // for the initial market. Seed/imported data can end well before today (e.g.
+  // Tunisia fulfillment events stop in April), which would otherwise render an
+  // empty "today" dashboard. When the latest data is in the past we show a 30-day
+  // window ending there rather than one sparse day. The anchor market MUST equal
+  // the market initialSummary is fetched for so the client's fallbackData/
+  // initialKey match (no hydration miss).
+  const ssrMarketId =
+    user.role === "super_admin" ? (defaultMarketId || "all") : (user.market_id ?? null);
+  const latestActivity = await getLatestActivityDateCached(ssrMarketId);
+  const { period: initialPeriod, preset: initialPreset } = anchoredDefaultPeriod(
+    today,
+    latestActivity,
+  );
+
+  // Server-fetch the anchored single-market summary for super_admin (single-market
+  // = N× faster than "all") and pass as fallbackData so the client paints with
+  // zero network call.
   const initialSummary = await getDashboardSummary({
-    fromDate: today,
-    toDate: today,
+    fromDate: initialPeriod.from_date,
+    toDate: initialPeriod.to_date,
     marketId: user.role === "super_admin" ? (defaultMarketId || "all") : null,
     role: user.role,
     actorMarketId: user.market_id,
@@ -47,6 +64,7 @@ export default async function DashboardPage({
     <DashboardClient
       user={user}
       initialPeriod={initialPeriod}
+      initialPreset={initialPreset}
       initialSummary={initialSummary}
       initialMarketId={initialMarketId}
     />
