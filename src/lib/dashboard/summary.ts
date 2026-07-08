@@ -574,15 +574,16 @@ export async function getDashboardSummary(
 
   const followUpsPromise = isSuperAdmin
     ? supabase
-        .from("follow_ups")
+        .from("order_follow_ups")
         .select("id", { count: "exact", head: true })
         .eq("status", "open")
     : Promise.resolve({ count: 0 });
+  // Campaigns were renamed follow_up_campaigns → prospect_campaigns and no longer
+  // carry an is_active flag (they are simple saved prospect filters), so count all.
   const campaignsPromise = isSuperAdmin
     ? supabase
-        .from("follow_up_campaigns")
+        .from("prospect_campaigns")
         .select("id", { count: "exact", head: true })
-        .eq("is_active", true)
     : Promise.resolve({ count: 0 });
 
   const [

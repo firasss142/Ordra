@@ -143,14 +143,14 @@ export function ReturnsDecisionCard({
     <div className="bg-surface-card border border-line-subtle rounded-card p-5 flex flex-col gap-4 shadow-panel">
       <header className="flex justify-between items-start gap-3">
         <div className="min-w-0">
-          <h2 className="text-[16px] font-semibold text-ink-primary m-0">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-muted mb-1">
             {t("heading")}
+          </div>
+          <h2 className="text-[18px] font-semibold leading-tight text-ink-primary m-0 truncate">
+            {order.customer_name ?? "—"}
           </h2>
-          <p className="text-[13px] text-ink-primary mt-1.5 mb-0">
-            <strong>{order.customer_name ?? "—"}</strong>
-            {order.customer_city ? ` · ${order.customer_city}` : ""}
-          </p>
-          <p className="text-[12px] text-ink-secondary mt-0.5 mb-0">
+          <p className="text-[12px] text-ink-secondary mt-1 mb-0">
+            {order.customer_city ? `${order.customer_city} · ` : ""}
             {order.product_name ?? "—"} · ×{order.quantity} · #{order.id.slice(0, 8)}
           </p>
         </div>

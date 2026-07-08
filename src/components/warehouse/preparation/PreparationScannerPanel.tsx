@@ -1,10 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ScanLine, CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
+import dynamic from "next/dynamic";
+import { ScanLine, CheckCircle2, XCircle, Clock, AlertTriangle, Camera } from "lucide-react";
 import { playBeep } from "@/components/warehouse/ScanFeedbackTile";
 import { createScannerInputHandler } from "@/lib/preparation/scanner-input";
 import type { ScanErrorCode } from "@/lib/preparation/tray-state";
+
+const QrScanner = dynamic(
+  () => import("@/components/warehouse/QrScanner").then((m) => m.QrScanner),
+  { ssr: false },
+);
 
 export type ScanResult =
   | { ok: true; stockAfter: number; customer: string; orderId: string }
@@ -25,6 +31,7 @@ interface Props {
   disabled?: boolean;
   labels: {
     inputPlaceholder: string;
+    openCamera: string;
     feedbackIdle: string;
     recentTitle: string;
     recentEmpty: string;
@@ -54,12 +61,13 @@ export function PreparationScannerPanel({ onScan, disabled = false, labels }: Pr
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState>({ kind: "idle" });
   const [recent, setRecent] = useState<RecentScan[]>([]);
 
   useEffect(() => {
-    if (!submitting && !disabled) inputRef.current?.focus();
-  }, [submitting, disabled]);
+    if (!submitting && !disabled && !cameraOpen) inputRef.current?.focus();
+  }, [submitting, disabled, cameraOpen]);
 
   useEffect(() => {
     if (feedback.kind !== "success" && feedback.kind !== "neutral") return;
@@ -122,6 +130,7 @@ export function PreparationScannerPanel({ onScan, disabled = false, labels }: Pr
   );
 
   useEffect(() => {
+    if (cameraOpen) return;
     const { handler, cleanup } = createScannerInputHandler((scanned) => {
       if (!disabled) submit(scanned);
     });
@@ -130,7 +139,7 @@ export function PreparationScannerPanel({ onScan, disabled = false, labels }: Pr
       window.removeEventListener("keydown", handler);
       cleanup();
     };
-  }, [submit, disabled]);
+  }, [submit, disabled, cameraOpen]);
 
   const feedbackChrome =
     feedback.kind === "success"
@@ -142,32 +151,49 @@ export function PreparationScannerPanel({ onScan, disabled = false, labels }: Pr
           : "border-2 border-dashed border-line bg-surface-card";
 
   return (
-    <div className="flex flex-col gap-3 p-4 h-full">
-      <div className="flex gap-2 items-center">
-        <ScanLine size={18} strokeWidth={1.5} className="text-ink-secondary shrink-0" />
-        <input
-          ref={inputRef}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              e.stopPropagation();
-              submit(value);
-            }
-          }}
-          placeholder={labels.inputPlaceholder}
+    <div className="flex flex-col gap-4 p-4 h-full">
+      <div className="flex items-stretch gap-2">
+        <div className="relative flex-1">
+          <ScanLine
+            size={18}
+            strokeWidth={1.5}
+            className="absolute start-3 top-1/2 -translate-y-1/2 text-ink-secondary pointer-events-none"
+            aria-hidden
+          />
+          <input
+            ref={inputRef}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                submit(value);
+              }
+            }}
+            placeholder={labels.inputPlaceholder}
+            disabled={submitting || disabled}
+            autoComplete="off"
+            spellCheck={false}
+            aria-label={labels.inputPlaceholder}
+            className="w-full font-mono text-[15px] tracking-wide ps-10 pe-3 py-3 border-2 border-line rounded-card bg-surface-page text-ink-primary outline-none focus:border-ink-primary focus:bg-surface-card transition-colors duration-fast disabled:opacity-60"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setCameraOpen(true)}
           disabled={submitting || disabled}
-          autoComplete="off"
-          spellCheck={false}
-          aria-label={labels.inputPlaceholder}
-          className="flex-1 font-mono text-[13px] px-3 py-2 border border-line rounded-md bg-surface-card text-ink-primary outline-none"
-        />
+          aria-label={labels.openCamera}
+          title={labels.openCamera}
+          className="inline-flex items-center justify-center px-3 rounded-card border-2 border-line text-ink-primary bg-surface-page hover:bg-surface-hover hover:border-line-strong transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+        >
+          <Camera size={18} strokeWidth={1.5} aria-hidden />
+        </button>
       </div>
 
       <div
         aria-live="polite"
-        className={`rounded-card px-4 py-5 flex items-center gap-3 min-h-[80px] transition-all duration-base ${feedbackChrome}`}
+        className={`rounded-card px-4 py-5 flex items-center gap-3 min-h-[92px] transition-all duration-base ${feedbackChrome}`}
       >
         {feedback.kind === "idle" && (
           <>
@@ -177,15 +203,29 @@ export function PreparationScannerPanel({ onScan, disabled = false, labels }: Pr
         )}
         {feedback.kind === "success" && (
           <>
-            <CheckCircle2 size={24} className="text-status-success shrink-0" />
-            <div>
-              <div className="font-bold text-[15px] text-ink-primary">
+            <CheckCircle2 size={26} strokeWidth={1.75} className="text-status-success shrink-0" />
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-[18px] leading-tight text-ink-primary truncate">
                 {feedback.customer}
               </div>
-              <div className="text-[12px] text-ink-secondary tabular-nums">
+              <div className="text-[12px] text-ink-secondary tabular-nums mt-0.5">
                 #{feedback.shortId} ·{" "}
                 {labels.stockAfter.replace("{stock}", String(feedback.stockAfter))}
               </div>
+            </div>
+            <div
+              className={`shrink-0 flex items-baseline gap-0.5 ps-3 border-s border-line-subtle ${
+                feedback.stockAfter === 0
+                  ? "text-status-critical"
+                  : feedback.stockAfter <= 5
+                    ? "text-status-warning"
+                    : "text-status-success"
+              }`}
+            >
+              <span className="text-[13px] font-semibold leading-none">×</span>
+              <span className="text-[22px] font-bold tabular-nums leading-none">
+                {feedback.stockAfter}
+              </span>
             </div>
           </>
         )}
@@ -214,8 +254,14 @@ export function PreparationScannerPanel({ onScan, disabled = false, labels }: Pr
       </div>
 
       <div>
-        <div className="text-[11px] font-semibold text-ink-secondary uppercase tracking-[0.05em] mb-1.5">
-          {labels.recentTitle}
+        <div className="flex items-center gap-1.5 mb-2">
+          <Clock size={12} strokeWidth={2} className="text-ink-muted shrink-0" aria-hidden />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+            {labels.recentTitle}
+          </span>
+          {recent.length > 0 && (
+            <span className="text-[10px] text-ink-muted tabular-nums">· {recent.length}</span>
+          )}
         </div>
         {recent.length === 0 ? (
           <div className="text-[12px] text-ink-secondary py-2">
@@ -226,7 +272,7 @@ export function PreparationScannerPanel({ onScan, disabled = false, labels }: Pr
             {recent.map((r) => (
               <div
                 key={r.id}
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] ${r.errorCode ? "bg-status-criticalBg" : "bg-status-successBg"}`}
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] border-s-[3px] hover:shadow-hover-row hover:-translate-y-px transition-all duration-fast ${r.errorCode ? "bg-status-criticalBg border-s-status-critical" : "bg-status-successBg border-s-status-success"}`}
               >
                 {r.errorCode ? (
                   <XCircle size={13} className="text-status-critical shrink-0" />
@@ -251,6 +297,17 @@ export function PreparationScannerPanel({ onScan, disabled = false, labels }: Pr
           </div>
         )}
       </div>
+
+      {cameraOpen ? (
+        <QrScanner
+          active={cameraOpen}
+          onScan={(text) => {
+            setCameraOpen(false);
+            submit(text);
+          }}
+          onClose={() => setCameraOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
