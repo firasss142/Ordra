@@ -309,20 +309,20 @@ describe("Sidebar — active sub-tab", () => {
     expect(link).toHaveAttribute("aria-current", "page");
   });
 
-  it("does not mark Dashboard as active when on /fr/dashboard/alerts", () => {
-    pathnameMock = "/fr/dashboard/alerts";
+  it("does not mark Dashboard as active when on /fr/dashboard/stock", () => {
+    pathnameMock = "/fr/dashboard/stock";
     searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard/alerts" unassignedCount={0} />);
+    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard/stock" unassignedCount={0} />);
     const link = screen.getByRole("link", { name: /Dashboard/ });
     expect(link).not.toHaveAttribute("aria-current", "page");
   });
+});
 
-  it("marks Alertes as active when on /fr/dashboard/alerts", () => {
-    pathnameMock = "/fr/dashboard/alerts";
-    searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard/alerts" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /Alertes/ });
-    expect(link).toHaveAttribute("aria-current", "page");
+describe("Sidebar — alerts bell", () => {
+  it("renders the alerts bell in the brand area (no Alertes nav item)", () => {
+    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
+    expect(screen.getByRole("button", { name: /Alertes/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Alertes/ })).not.toBeInTheDocument();
   });
 });
 

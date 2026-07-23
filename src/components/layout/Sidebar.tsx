@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 import useSWR from "swr";
 import {
   BarChart3,
-  Bell,
   Boxes,
   ChevronRight,
   ChevronsUpDown,
@@ -40,6 +39,7 @@ import {
 } from "lucide-react";
 import { prefetchForRoute } from "./prefetch";
 import { Avatar } from "@/components/ui/Avatar";
+import { AlertsBell } from "@/components/alerts/AlertsBell";
 import { MarketScopeSwitcher } from "@/components/layout/MarketScopeSwitcher";
 import { getPermissionsForRole } from "@/lib/user-permissions";
 import type { AuthUser } from "@/types";
@@ -75,8 +75,6 @@ interface NavItemDef {
   /** Prefetch hint — usually matches the base route segment */
   prefetchRoute?: string;
   showBadge?: boolean;
-  /** Show the live alerts count badge for this item */
-  showAlertsBadge?: boolean;
 }
 
 interface NavSection {
@@ -98,7 +96,6 @@ const NAV_SECTIONS: readonly NavSection[] = [
     defaultExpanded: true,
     items: [
       { key: "pulse", href: "dashboard", icon: LayoutDashboard, prefetchRoute: "dashboard" },
-      { key: "alertes", href: "dashboard/alerts", icon: Bell, prefetchRoute: "dashboard", showAlertsBadge: true },
     ],
   },
   {
@@ -344,12 +341,6 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
     revalidateOnFocus: false,
   });
 
-  const alertsKey = `/api/alerts/summary${marketParam}`;
-  const { data: alertsSummaryData } = useSWR<{ total: number }>(alertsKey, {
-    refreshInterval: 60000,
-    revalidateOnFocus: false,
-  });
-
   if (user.role === "agent" || user.role === "warehouse_agent") {
     return null;
   }
@@ -467,6 +458,9 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
             {marketName}
           </span>
         )}
+        <span style={{ marginInlineStart: "auto", display: "inline-flex" }}>
+          <AlertsBell user={user} />
+        </span>
       </div>
 
       {/* Nav sections */}
@@ -479,15 +473,8 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
             section.items.some((i) => i.showBadge) && liveCount !== undefined
               ? liveCount
               : 0;
-          const sectionAlertsBadge =
-            section.items.some((i) => i.showAlertsBadge) && alertsSummaryData?.total !== undefined
-              ? alertsSummaryData.total
-              : 0;
-          const sectionBadgeCount = sectionUnassignedBadge + sectionAlertsBadge;
-          const sectionBadge = sectionBadgeCount > 0 ? sectionBadgeCount : undefined;
-          // Tone: critical if any alerts, else warning if unassigned, else neutral
-          const sectionBadgeTone: BadgeTone =
-            sectionAlertsBadge > 0 ? "critical" : sectionUnassignedBadge > 0 ? "warning" : "neutral";
+          const sectionBadge = sectionUnassignedBadge > 0 ? sectionUnassignedBadge : undefined;
+          const sectionBadgeTone: BadgeTone = sectionUnassignedBadge > 0 ? "warning" : "neutral";
 
           return (
             <div key={section.id}>
@@ -531,16 +518,8 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
                 >
                   {section.items.map((item) => {
                     const fullHref = `/${user.locale}/${item.href}`;
-                    const itemBadgeCount = item.showBadge
-                      ? liveCount
-                      : item.showAlertsBadge
-                        ? alertsSummaryData?.total
-                        : undefined;
-                    const itemBadgeTone: BadgeTone = item.showAlertsBadge
-                      ? "critical"
-                      : item.showBadge
-                        ? "warning"
-                        : "neutral";
+                    const itemBadgeCount = item.showBadge ? liveCount : undefined;
+                    const itemBadgeTone: BadgeTone = item.showBadge ? "warning" : "neutral";
                     return (
                       <li key={item.key}>
                         <SubNavItem

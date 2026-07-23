@@ -115,7 +115,6 @@
     },
     "items": {
       "pulse": "لوحة القيادة",
-      "alertes": "التنبيهات",
       "inConfirmation": "قيد التأكيد",
       "orders": "الطلبات",
       "archived": "المؤرشفة",
@@ -536,7 +535,9 @@
       "agent_inactive": {
         "label": "وكيل غير نشط"
       }
-    }
+    },
+    "bell": "التنبيهات",
+    "bellWithCount": "التنبيهات — {count} نشطة"
   },
   "dashboard": {
     "title": "لوحة التحكم",

@@ -1,7 +1,20 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { AlertAttentionBar } from "./AlertAttentionBar";
 import type { AlertType } from "@/app/api/alerts/summary/route";
+
+const openPanelMock = vi.fn();
+vi.mock("@/context/alerts-panel", () => ({
+  useAlertsPanel: () => ({
+    open: false,
+    openPanel: openPanelMock,
+    closePanel: vi.fn(),
+  }),
+}));
+
+beforeEach(() => {
+  openPanelMock.mockReset();
+});
 
 const labels = {
   overdueCallbacks: "{count} rappels en retard",
@@ -95,7 +108,7 @@ describe("AlertAttentionBar", () => {
     expect(screen.queryByText(/stocks bas/)).toBeNull();
   });
 
-  it("shows view-all link pointing to alerts page", () => {
+  it("opens the alerts panel from the view-all button", () => {
     render(
       <AlertAttentionBar
         byType={makeByType({ overdue_callback: 5 })}
@@ -105,8 +118,8 @@ describe("AlertAttentionBar", () => {
         labels={labels}
       />,
     );
-    const link = screen.getByRole("link", { name: "Voir tout" });
-    expect(link).toHaveAttribute("href", "/fr/dashboard/alerts");
+    fireEvent.click(screen.getByRole("button", { name: "Voir tout" }));
+    expect(openPanelMock).toHaveBeenCalled();
   });
 
   it("combines low_stock and stock_depleted counts in the low stock chip", () => {

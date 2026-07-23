@@ -1,5 +1,6 @@
 "use client";
 
+import { useAlertsPanel } from "@/context/alerts-panel";
 import type { AlertType } from "@/app/api/alerts/summary/route";
 import type { DashboardRole } from "./HeroKpiStrip";
 
@@ -23,7 +24,8 @@ function interpolate(template: string, count: number): string {
   return template.replace(/\{count\}/g, String(count));
 }
 
-export function AlertAttentionBar({ byType, totalCount, role, locale, labels }: AlertAttentionBarProps) {
+export function AlertAttentionBar({ byType, totalCount, role, locale: _locale, labels }: AlertAttentionBarProps) {
+  const { openPanel } = useAlertsPanel();
   if (!byType) return null;
 
   if (totalCount === 0) {
@@ -91,19 +93,24 @@ export function AlertAttentionBar({ byType, totalCount, role, locale, labels }: 
           {chip.text}
         </span>
       ))}
-      <a
-        href={`/${locale}/dashboard/alerts`}
+      <button
+        type="button"
+        onClick={() => openPanel()}
         style={{
           marginInlineStart: "auto",
           color: "#D97706",
-          textDecoration: "none",
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
           fontWeight: 600,
           fontSize: 12,
           whiteSpace: "nowrap",
+          fontFamily: "inherit",
         }}
       >
         {labels.viewAll}
-      </a>
+      </button>
     </div>
   );
 }
