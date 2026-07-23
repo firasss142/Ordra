@@ -58,7 +58,7 @@ export function CostCompositionBars({
   const isNegativeNet = data.net_profit < 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div className="flex flex-col gap-2.5">
       {rows.map((row) => {
         const share = pct(row.value, data.revenue);
         const fill = row.isReturns
@@ -72,63 +72,26 @@ export function CostCompositionBars({
         return (
           <div
             key={row.key}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "120px 1fr 110px",
-              alignItems: "center",
-              gap: 12,
-              fontSize: 13,
-              color: "#1A1A1A",
-            }}
+            className="grid grid-cols-[120px_1fr_110px] items-center gap-3 text-[13px] text-ink-primary"
           >
-            <span style={{ color: "#1A1A1A", fontWeight: 500 }}>
-              {labels[row.key] ?? ""}
-            </span>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <div
-                style={{
-                  flex: 1,
-                  height: 8,
-                  background: "#F1F2F4",
-                  borderRadius: 4,
-                  overflow: "hidden",
-                }}
-              >
+            <span className="font-medium">{labels[row.key] ?? ""}</span>
+            <div className="flex items-center gap-2.5">
+              <div className="flex-1 h-2 bg-surface-selected rounded-[4px] overflow-hidden">
                 <div
                   data-testid={`bar-fill-${row.key}`}
+                  className="h-full"
                   style={{
                     width: `${Math.min(share, 100)}%`,
-                    height: "100%",
                     backgroundColor: fill,
                     transition: "width 200ms ease",
                   }}
                 />
               </div>
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "#6D7175",
-                  fontVariantNumeric: "tabular-nums",
-                  minWidth: 44,
-                  textAlign: "end",
-                }}
-              >
+              <span className="text-[11px] text-ink-secondary tabular-nums min-w-[44px] text-end">
                 {share.toFixed(1)}%
               </span>
             </div>
-            <span
-              style={{
-                textAlign: "end",
-                fontVariantNumeric: "tabular-nums",
-                color: "#6D7175",
-              }}
-            >
+            <span className="text-end tabular-nums text-ink-secondary">
               −{formatCurrency(row.value)}
             </span>
           </div>
@@ -137,25 +100,14 @@ export function CostCompositionBars({
 
       <div
         data-testid="net-profit-row"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "120px 1fr 110px",
-          alignItems: "center",
-          gap: 12,
-          paddingTop: 10,
-          marginTop: 4,
-          borderTop: "2px solid #1A1A1A",
-          fontSize: 14,
-          fontWeight: 700,
-          color: isNegativeNet ? "#D72C0D" : "#1A1A1A",
-          fontVariantNumeric: "tabular-nums",
-        }}
+        className="grid grid-cols-[120px_1fr_110px] items-center gap-3 pt-2.5 mt-1 border-t-2 border-ink-primary text-[14px] font-bold tabular-nums"
+        style={{ color: isNegativeNet ? "#D72C0D" : "#1A1A1A" }}
       >
         <span>{labels.netProfit}</span>
-        <span style={{ fontSize: 11, color: "#6D7175", fontWeight: 500 }}>
+        <span className="text-[11px] text-ink-secondary font-medium">
           {pct(data.net_profit, data.revenue).toFixed(1)}% {labels.ofRevenue}
         </span>
-        <span style={{ textAlign: "end" }}>{formatCurrency(data.net_profit)}</span>
+        <span className="text-end">{formatCurrency(data.net_profit)}</span>
       </div>
     </div>
   );

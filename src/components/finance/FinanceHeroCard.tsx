@@ -2,12 +2,8 @@ import { TONE_COLOR, type Tone } from "@/components/dashboard/kpiDelta";
 
 export type HeroTone = "positive" | "negative" | "neutral";
 
-const SURFACE: Record<HeroTone, string> = {
-  positive: "#F1F8F5",
-  negative: "#FFF4F4",
-  neutral: "#FFFFFF",
-};
-
+// Flat white cards per the design system — tone colors only the value text
+// (functional color, never a decorative surface tint).
 const VALUE_COLOR: Record<HeroTone, string> = {
   positive: "#1A1A1A",
   negative: "#D72C0D",
@@ -32,77 +28,29 @@ export function FinanceHeroCard({
   return (
     <div
       data-testid="hero-card"
-      style={{
-        background: SURFACE[tone],
-        border: "1px solid #E1E3E5",
-        borderRadius: 10,
-        padding: "16px 20px",
-        minHeight: 132,
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-      }}
+      className="bg-surface-card border border-line-subtle rounded-[8px] px-5 py-4 min-h-[132px] flex flex-col gap-1.5 transition-shadow duration-fast hover:shadow-hover-row"
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "baseline",
-          justifyContent: "space-between",
-          gap: 8,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: "#6D7175",
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-          }}
-        >
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-secondary">
           {label}
         </span>
         {deltaText ? (
           <span
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: TONE_COLOR[deltaTone],
-              fontVariantNumeric: "tabular-nums",
-              padding: "2px 8px",
-              borderRadius: 999,
-              background: "#FFFFFF",
-              border: "1px solid #E1E3E5",
-            }}
+            className="text-[12px] font-semibold tabular-nums px-2 py-0.5 rounded-pill bg-surface-page"
+            style={{ color: TONE_COLOR[deltaTone] }}
           >
             {deltaText}
           </span>
         ) : null}
       </div>
       <div
-        style={{
-          fontSize: "clamp(22px, 2.5vw, 32px)",
-          fontWeight: 700,
-          color: VALUE_COLOR[tone],
-          fontVariantNumeric: "tabular-nums",
-          lineHeight: 1.1,
-          wordBreak: "break-word",
-          marginTop: 4,
-        }}
+        className="font-bold tabular-nums leading-[1.1] break-words mt-1"
+        style={{ fontSize: "clamp(22px, 2.5vw, 32px)", color: VALUE_COLOR[tone] }}
       >
         {value}
       </div>
       {subtitle ? (
-        <div
-          style={{
-            fontSize: 13,
-            color: "#6D7175",
-            fontVariantNumeric: "tabular-nums",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
+        <div className="text-[13px] text-ink-secondary tabular-nums whitespace-nowrap overflow-hidden text-ellipsis">
           {subtitle}
         </div>
       ) : null}

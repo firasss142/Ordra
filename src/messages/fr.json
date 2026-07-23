@@ -456,7 +456,8 @@
         "ads": "Dépenses publicitaires",
         "netProfit": "Profit net"
       }
-    }
+    },
+    "scopeAllBanner": "Vue multi-marchés indisponible pour le P&L — affichage : {market}"
   },
   "alerts": {
     "title": "Alertes",

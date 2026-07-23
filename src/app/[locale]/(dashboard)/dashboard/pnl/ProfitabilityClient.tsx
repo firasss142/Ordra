@@ -4,15 +4,14 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import { FilterBar, type Period, type PeriodPreset } from "@/components/dashboard/FilterBar";
+import { Panel, EmptyState } from "@/components/dashboard/Panel";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useMarketScope } from "@/context/market-scope";
 import { periodDeltaProps } from "@/components/dashboard/PeriodDeltaBadge";
 import { computePreviousPeriod, lastNDaysPeriod } from "@/lib/date";
 import { formatCurrency as formatMarketCurrency } from "@/lib/format";
 import { TONE_COLOR, formatPct, type Tone } from "@/components/dashboard/kpiDelta";
-import {
-  calculatePeriodDelta,
-  calculateMarginDelta,
-} from "@/lib/calculations/deltas";
+import type { PeriodDelta } from "@/lib/calculations/deltas";
 import { FinanceHeroCard } from "@/components/finance/FinanceHeroCard";
 import { CostCompositionBars } from "@/components/finance/CostCompositionBars";
 import { FinanceFunnel } from "@/components/finance/FinanceFunnel";
@@ -34,7 +33,18 @@ interface PreviousData {
   leads_count: number;
   cpa: number | null;
   cpl: number | null;
+  aov: number;
   period: { from_date: string; to_date: string };
+}
+
+interface ProfitabilityDeltas {
+  revenue: PeriodDelta;
+  net_profit: PeriodDelta;
+  margin_pp: number;
+  ad_spend: PeriodDelta;
+  cpa: PeriodDelta | null;
+  cpl: PeriodDelta | null;
+  aov: PeriodDelta | null;
 }
 
 interface ProfitabilityData {
@@ -52,6 +62,11 @@ interface ProfitabilityData {
   leads_count: number;
   cpa: number | null;
   cpl: number | null;
+  aov: number;
+  profit_per_delivered: number;
+  return_rate_pct: number;
+  returns_cost_share_pct: number;
+  deltas: ProfitabilityDeltas | null;
   previous: PreviousData | null;
 }
 
@@ -72,6 +87,9 @@ export function ProfitabilityClient({
   const [preset, setPreset] = useState<PeriodPreset>("month");
   const { marketId: scopeMarketId } = useMarketScope();
 
+  // The P&L API has no cross-market mode; on "all markets" scope we fall back
+  // to the default market and say so explicitly (scopeAllBanner below).
+  const scopeIsAll = isSuperAdmin && scopeMarketId == null;
   const effectiveMarketId = isSuperAdmin
     ? (scopeMarketId ?? initialMarketId)
     : user.market_id ?? "";
@@ -110,54 +128,45 @@ export function ProfitabilityClient({
   });
 
   const pnl = data?.data ?? null;
+  const deltas = pnl?.deltas ?? null;
+  const showSkeleton = isLoading && !pnl;
 
   const marketLabel =
     markets.find((m) => m.id === effectiveMarketId)?.name ??
     (isSuperAdmin ? tNav("marketPlaceholder") : "");
 
-  const deltas = useMemo(() => {
-    if (!pnl?.previous) return null;
-    const prev = pnl.previous;
-    const aov = pnl.delivered_count > 0 ? pnl.revenue / pnl.delivered_count : 0;
-    const prevAov = prev.delivered_count > 0 ? prev.revenue / prev.delivered_count : 0;
-    return {
-      revenue: calculatePeriodDelta(pnl.revenue, prev.revenue),
-      netProfit: calculatePeriodDelta(pnl.net_profit, prev.net_profit),
-      marginPP: calculateMarginDelta(pnl.margin / 100, prev.margin / 100),
-      adSpend: calculatePeriodDelta(pnl.ad_spend, prev.ad_spend),
-      cpa: pnl.cpa != null && prev.cpa != null ? calculatePeriodDelta(pnl.cpa, prev.cpa) : null,
-      cpl: pnl.cpl != null && prev.cpl != null ? calculatePeriodDelta(pnl.cpl, prev.cpl) : null,
-      aov: aov > 0 && prevAov > 0 ? calculatePeriodDelta(aov, prevAov) : null,
-    };
-  }, [pnl]);
-
-  const aov = pnl && pnl.delivered_count > 0 ? pnl.revenue / pnl.delivered_count : 0;
-  const profitPerDelivered =
-    pnl && pnl.delivered_count > 0 ? pnl.net_profit / pnl.delivered_count : 0;
-  const returnRate =
-    pnl && pnl.delivered_count + pnl.returned_count > 0
-      ? (pnl.returned_count / (pnl.delivered_count + pnl.returned_count)) * 100
-      : 0;
-  const returnsCostShare = pnl && pnl.revenue > 0 ? (pnl.return_cost / pnl.revenue) * 100 : 0;
+  const fmt = (value: number | null | undefined): string =>
+    value == null ? "—" : formatMarketCurrency(value, marketCode);
 
   return (
-    <div style={{ backgroundColor: "#F6F6F7", minHeight: "100vh" }} className="px-4 sm:px-6 pt-5 pb-10">
+    <div className="bg-surface-page min-h-screen px-4 sm:px-6 pt-5 pb-10">
       <header className="flex items-baseline justify-between gap-4 mb-3">
         <div className="flex items-baseline gap-3 flex-wrap">
-          <h1 style={{ fontSize: 18, fontWeight: 600, color: "#1A1A1A", margin: 0, letterSpacing: "-0.01em" }}>
+          <h1 className="text-[20px] font-semibold text-ink-primary m-0 tracking-[-0.01em]">
             {t("title")}
           </h1>
-          <span style={{ fontSize: 12, color: "#6D7175" }}>{t("subtitle")}</span>
+          <span className="text-[12px] text-ink-secondary">{t("subtitle")}</span>
+          {marketLabel ? (
+            <span className="text-[12px] font-medium text-ink-secondary px-2 py-0.5 rounded-pill bg-surface-selected">
+              {marketLabel}
+            </span>
+          ) : null}
         </div>
       </header>
 
-      <div style={{ marginBottom: 12 }}>
+      {scopeIsAll ? (
+        <div className="mb-3 px-3.5 py-2.5 rounded-[8px] bg-surface-card border border-line-subtle text-[12px] text-ink-secondary">
+          {t("scopeAllBanner", { market: marketLabel })}
+        </div>
+      ) : null}
+
+      <div className="mb-3">
         <FilterBar
           period={period}
           activePreset={preset}
-          onPeriodChange={(p, preset) => {
+          onPeriodChange={(p, nextPreset) => {
             setPeriod(p);
-            setPreset(preset);
+            setPreset(nextPreset);
           }}
           labels={{
             today: tNav("today"),
@@ -171,84 +180,95 @@ export function ProfitabilityClient({
       {error && (
         <div
           role="alert"
-          style={{
-            padding: "8px 12px",
-            backgroundColor: "#FEE2E2",
-            color: "#B91C1C",
-            borderRadius: 6,
-            fontSize: 12,
-            marginBottom: 10,
-          }}
+          className="px-3 py-2 rounded-[6px] text-[12px] mb-2.5"
+          style={{ backgroundColor: "#FFF4F4", color: "#D72C0D" }}
         >
           {t("loadError")}
         </div>
       )}
 
       {/* Hero KPI row — Net Profit, Revenue, Margin */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-        <FinanceHeroCard
-          label={t("kpi.netProfit")}
-          value={formatCurrency(pnl?.net_profit, isLoading, marketCode)}
-          subtitle={pnl ? `${pnl.margin.toFixed(1)}% ${t("kpi.margin").toLowerCase()}` : null}
-          tone={pnl == null ? "neutral" : pnl.net_profit < 0 ? "negative" : "positive"}
-          {...periodDeltaProps(deltas?.netProfit ?? null)}
-        />
-        <FinanceHeroCard
-          label={t("kpi.revenue")}
-          value={formatCurrency(pnl?.revenue, isLoading, marketCode)}
-          subtitle={pnl ? t("kpi.deliveredCount", { count: pnl.delivered_count }) : null}
-          tone="neutral"
-          {...periodDeltaProps(deltas?.revenue ?? null)}
-        />
-        <FinanceHeroCard
-          label={t("kpi.margin")}
-          value={pnl != null ? formatPct(pnl.margin) : "—"}
-          subtitle={pnl?.previous ? `${pnl.previous.margin.toFixed(1)}% ${t("kpi.prevShort")}` : null}
-          tone="neutral"
-          deltaText={deltas?.marginPP != null ? formatPP(deltas.marginPP) : null}
-          deltaTone={
-            deltas?.marginPP == null
-              ? "neutral"
-              : deltas.marginPP > 0
-                ? "success"
-                : deltas.marginPP < 0
-                  ? "critical"
-                  : "neutral"
-          }
-        />
-      </div>
+      {showSkeleton ? (
+        <div role="status" className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+          <Skeleton className="h-[132px]" />
+          <Skeleton className="h-[132px]" />
+          <Skeleton className="h-[132px]" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+          <FinanceHeroCard
+            label={t("kpi.netProfit")}
+            value={fmt(pnl?.net_profit)}
+            subtitle={pnl ? `${pnl.margin.toFixed(1)}% ${t("kpi.margin").toLowerCase()}` : null}
+            tone={pnl == null ? "neutral" : pnl.net_profit < 0 ? "negative" : "positive"}
+            {...periodDeltaProps(deltas?.net_profit ?? null)}
+          />
+          <FinanceHeroCard
+            label={t("kpi.revenue")}
+            value={fmt(pnl?.revenue)}
+            subtitle={pnl ? t("kpi.deliveredCount", { count: pnl.delivered_count }) : null}
+            tone="neutral"
+            {...periodDeltaProps(deltas?.revenue ?? null)}
+          />
+          <FinanceHeroCard
+            label={t("kpi.margin")}
+            value={pnl != null ? formatPct(pnl.margin) : "—"}
+            subtitle={pnl?.previous ? `${pnl.previous.margin.toFixed(1)}% ${t("kpi.prevShort")}` : null}
+            tone="neutral"
+            deltaText={deltas != null ? formatPP(deltas.margin_pp) : null}
+            deltaTone={
+              deltas == null
+                ? "neutral"
+                : deltas.margin_pp > 0
+                  ? "success"
+                  : deltas.margin_pp < 0
+                    ? "critical"
+                    : "neutral"
+            }
+          />
+        </div>
+      )}
 
       {/* Secondary KPI strip — AOV, Ad Spend, CPA, CPL */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-        <SecondaryKpi
-          label={t("kpi.aov")}
-          value={formatCurrency(pnl ? aov : undefined, isLoading, marketCode)}
-          subtitle={pnl ? `${pnl.delivered_count.toLocaleString()} ${t("operational.delivered").toLowerCase()}` : null}
-          {...periodDeltaProps(deltas?.aov ?? null)}
-        />
-        <SecondaryKpi
-          label={t("kpi.adSpend")}
-          value={formatCurrency(pnl?.ad_spend, isLoading, marketCode)}
-          subtitle={pnl ? `${pnl.leads_count} ${t("kpi.leadsShort")}` : null}
-          {...periodDeltaProps(deltas?.adSpend ?? null, { invert: true })}
-        />
-        <SecondaryKpi
-          label={t("kpi.cpa")}
-          value={formatCurrencyOrDash(pnl?.cpa, isLoading, marketCode)}
-          subtitle={pnl ? `${pnl.confirmed_count} ${t("kpi.confirmedShort")}` : null}
-          {...periodDeltaProps(deltas?.cpa ?? null, { invert: true })}
-        />
-        <SecondaryKpi
-          label={t("kpi.cpl")}
-          value={formatCurrencyOrDash(pnl?.cpl, isLoading, marketCode)}
-          subtitle={pnl ? `${pnl.leads_count} ${t("kpi.leadsShort")}` : null}
-          {...periodDeltaProps(deltas?.cpl ?? null, { invert: true })}
-        />
-      </div>
+      {showSkeleton ? (
+        <div role="status" className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+          <Skeleton className="h-[88px]" />
+          <Skeleton className="h-[88px]" />
+          <Skeleton className="h-[88px]" />
+          <Skeleton className="h-[88px]" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+          <SecondaryKpi
+            label={t("kpi.aov")}
+            value={fmt(pnl?.aov)}
+            subtitle={pnl ? `${pnl.delivered_count.toLocaleString()} ${t("operational.delivered").toLowerCase()}` : null}
+            {...periodDeltaProps(deltas?.aov ?? null)}
+          />
+          <SecondaryKpi
+            label={t("kpi.adSpend")}
+            value={fmt(pnl?.ad_spend)}
+            subtitle={pnl ? `${pnl.leads_count} ${t("kpi.leadsShort")}` : null}
+            {...periodDeltaProps(deltas?.ad_spend ?? null, { invert: true })}
+          />
+          <SecondaryKpi
+            label={t("kpi.cpa")}
+            value={fmt(pnl?.cpa)}
+            subtitle={pnl ? `${pnl.confirmed_count} ${t("kpi.confirmedShort")}` : null}
+            {...periodDeltaProps(deltas?.cpa ?? null, { invert: true })}
+          />
+          <SecondaryKpi
+            label={t("kpi.cpl")}
+            value={fmt(pnl?.cpl)}
+            subtitle={pnl ? `${pnl.leads_count} ${t("kpi.leadsShort")}` : null}
+            {...periodDeltaProps(deltas?.cpl ?? null, { invert: true })}
+          />
+        </div>
+      )}
 
       {/* Composition + Funnel/operational two-column grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
-        <DenseCard title={t("composition.title")}>
+        <Panel title={t("composition.title")} minHeight={0}>
           {pnl ? (
             <CostCompositionBars
               data={pnl}
@@ -263,13 +283,19 @@ export function ProfitabilityClient({
                 ofRevenue: t("composition.ofRevenue"),
               }}
             />
+          ) : showSkeleton ? (
+            <div role="status" className="flex flex-col gap-2.5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-5" />
+              ))}
+            </div>
           ) : (
-            <DenseEmpty label={isLoading ? t("loading") : t("noData")} />
+            <EmptyState label={t("noData")} minHeight={120} />
           )}
-        </DenseCard>
+        </Panel>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <DenseCard title={t("funnel.title")}>
+        <div className="flex flex-col gap-3">
+          <Panel title={t("funnel.title")} minHeight={0}>
             {pnl ? (
               <FinanceFunnel
                 leads={pnl.leads_count}
@@ -283,19 +309,21 @@ export function ProfitabilityClient({
                   toDelivered: t("funnel.toDelivered"),
                 }}
               />
+            ) : showSkeleton ? (
+              <Skeleton className="h-16" />
             ) : (
-              <DenseEmpty label={isLoading ? t("loading") : t("noData")} />
+              <EmptyState label={t("noData")} minHeight={120} />
             )}
-          </DenseCard>
+          </Panel>
 
-          <DenseCard title={t("operational.title")}>
+          <Panel title={t("operational.title")} minHeight={0}>
             {pnl ? (
               <OperationalCompactStats
                 returnedCount={pnl.returned_count}
-                returnRate={returnRate}
-                aov={aov}
-                profitPerDelivered={profitPerDelivered}
-                returnsCostShare={returnsCostShare}
+                returnRate={pnl.return_rate_pct}
+                aov={pnl.aov}
+                profitPerDelivered={pnl.profit_per_delivered}
+                returnsCostShare={pnl.returns_cost_share_pct}
                 marketCode={marketCode}
                 labels={{
                   returned: t("operational.returned"),
@@ -305,10 +333,12 @@ export function ProfitabilityClient({
                   returnsCostShare: t("composition.ofRevenue"),
                 }}
               />
+            ) : showSkeleton ? (
+              <Skeleton className="h-16" />
             ) : (
-              <DenseEmpty label={isLoading ? t("loading") : t("noData")} />
+              <EmptyState label={t("noData")} minHeight={120} />
             )}
-          </DenseCard>
+          </Panel>
         </div>
       </div>
     </div>
@@ -331,113 +361,31 @@ function SecondaryKpi({
   deltaTone?: Tone;
 }) {
   return (
-    <div
-      style={{
-        background: "#FFFFFF",
-        border: "1px solid #E1E3E5",
-        borderRadius: 8,
-        padding: "12px 14px",
-        minHeight: 88,
-        display: "flex",
-        flexDirection: "column",
-        gap: 4,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 4,
-          flexWrap: "wrap",
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: "#6D7175",
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-          }}
-        >
+    <div className="bg-surface-card border border-line-subtle rounded-[8px] px-3.5 py-3 min-h-[88px] flex flex-col gap-1 transition-shadow duration-fast hover:shadow-hover-row">
+      <div className="flex items-start justify-between gap-1 flex-wrap">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-secondary">
           {label}
         </span>
         {deltaText ? (
           <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: TONE_COLOR[deltaTone],
-              fontVariantNumeric: "tabular-nums",
-              flexShrink: 0,
-            }}
+            className="text-[11px] font-semibold tabular-nums flex-shrink-0"
+            style={{ color: TONE_COLOR[deltaTone] }}
           >
             {deltaText}
           </span>
         ) : null}
       </div>
       <span
-        style={{
-          fontSize: "clamp(14px, 1.5vw, 18px)",
-          fontWeight: 700,
-          color: "#1A1A1A",
-          fontVariantNumeric: "tabular-nums",
-          wordBreak: "break-word",
-          marginTop: 2,
-        }}
+        className="font-bold text-ink-primary tabular-nums break-words mt-0.5"
+        style={{ fontSize: "clamp(14px, 1.5vw, 18px)" }}
       >
         {value}
       </span>
       {subtitle ? (
-        <div
-          style={{
-            fontSize: 12,
-            color: "#6D7175",
-            fontVariantNumeric: "tabular-nums",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
+        <div className="text-[12px] text-ink-secondary tabular-nums whitespace-nowrap overflow-hidden text-ellipsis">
           {subtitle}
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function DenseCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        background: "#FFFFFF",
-        border: "1px solid #E1E3E5",
-        borderRadius: 8,
-        padding: "12px 14px 14px",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          color: "#6D7175",
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-          marginBottom: 10,
-        }}
-      >
-        {title}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function DenseEmpty({ label }: { label: string }) {
-  return (
-    <div style={{ padding: "24px 0", textAlign: "center", fontSize: 12, color: "#6D7175" }}>
-      {label}
     </div>
   );
 }
@@ -485,27 +433,16 @@ function OperationalCompactStats({
   ];
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 16px" }}>
+    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
       {rows.map((row) => (
         <div
           key={row.label}
-          style={{
-            display: "flex",
-            alignItems: "baseline",
-            justifyContent: "space-between",
-            gap: 8,
-            padding: "5px 0",
-            borderBottom: "1px solid #F6F6F7",
-            fontSize: 12,
-          }}
+          className="flex items-baseline justify-between gap-2 py-1 border-b border-line-subtle text-[12px]"
         >
-          <span style={{ color: "#6D7175" }}>{row.label}</span>
+          <span className="text-ink-secondary">{row.label}</span>
           <span
-            style={{
-              fontWeight: 600,
-              color: row.tone === "critical" ? "#D72C0D" : "#1A1A1A",
-              fontVariantNumeric: "tabular-nums",
-            }}
+            className="font-semibold tabular-nums"
+            style={{ color: row.tone === "critical" ? "#D72C0D" : "#1A1A1A" }}
           >
             {row.value}
           </span>
@@ -516,21 +453,6 @@ function OperationalCompactStats({
 }
 
 // ---------- Helpers ----------
-
-function formatCurrency(value: number | undefined, loading: boolean, marketCode: string): string {
-  if (value === undefined) return loading ? "—" : "—";
-  return formatMarketCurrency(value, marketCode);
-}
-
-function formatCurrencyOrDash(
-  value: number | null | undefined,
-  loading: boolean,
-  marketCode: string,
-): string {
-  if (value === null) return "—";
-  if (value === undefined) return loading ? "—" : "—";
-  return formatMarketCurrency(value, marketCode);
-}
 
 function formatPP(pp: number): string {
   const sign = pp > 0 ? "+" : "";
