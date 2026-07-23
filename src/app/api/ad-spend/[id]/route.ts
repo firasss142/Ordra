@@ -10,7 +10,9 @@ async function resolveActorAndEntry(req: NextRequest, id: string) {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
-  if ("response" in actorResult) return { err: actorResult.response } as const;
+  if ("response" in actorResult) {
+    return { err: actorResult.response as NextResponse } as const;
+  }
   const { actor } = actorResult;
 
   if (!canViewFinanceSection(actor.role)) {
@@ -36,7 +38,7 @@ async function resolveActorAndEntry(req: NextRequest, id: string) {
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<NextResponse> {
   const { id } = await params;
   const resolved = await resolveActorAndEntry(req, id);
   if ("err" in resolved) return resolved.err;
@@ -89,7 +91,7 @@ export async function PATCH(
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<NextResponse> {
   const { id } = await params;
   const resolved = await resolveActorAndEntry(req, id);
   if ("err" in resolved) return resolved.err;
