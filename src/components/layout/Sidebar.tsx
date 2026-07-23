@@ -108,12 +108,6 @@ const NAV_SECTIONS: readonly NavSection[] = [
     items: [
       { key: "toAssign", href: "assign", icon: Inbox, prefetchRoute: "assign", showBadge: true },
       {
-        key: "inConfirmation",
-        href: "confirmation-flow",
-        icon: PhoneCall,
-        prefetchRoute: "confirmation-flow",
-      },
-      {
         key: "orders",
         href: "orders",
         icon: Send,
@@ -164,6 +158,12 @@ const NAV_SECTIONS: readonly NavSection[] = [
     icon: Gauge,
     defaultExpanded: true,
     items: [
+      {
+        key: "inConfirmation",
+        href: "confirmation-flow",
+        icon: PhoneCall,
+        prefetchRoute: "confirmation-flow",
+      },
       { key: "performanceLive", href: "team", icon: BarChart3, prefetchRoute: "team" },
       { key: "access", href: "users", icon: UserPlus, prefetchRoute: "users" },
     ],

@@ -167,6 +167,13 @@ describe("Sidebar — default expanded sections", () => {
     expect(screen.getByRole("link", { name: /^Performance$/ })).toBeInTheDocument();
   });
 
+  it("renders En confirmation under ÉQUIPE (visible by default, not inside collapsed COMMANDES)", () => {
+    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
+    // ÉQUIPE is expanded by default while COMMANDES is collapsed — the
+    // relocated analytics item is therefore immediately visible.
+    expect(screen.getByRole("link", { name: /En confirmation/ })).toBeInTheDocument();
+  });
+
   it("keeps COMMANDES collapsed by default (no À assigner sub-tab visible)", () => {
     renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
     expect(screen.queryByRole("link", { name: /À assigner/ })).not.toBeInTheDocument();
