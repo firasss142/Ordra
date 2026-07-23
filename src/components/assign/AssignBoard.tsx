@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import type { Locale, Role } from "@/types";
 import type { AssignmentAlgorithm } from "@/types/settings";
 import { useUnassignedOrders } from "@/hooks/useUnassignedOrders";
 import { useAgentCapacity } from "@/hooks/useAgentCapacity";
@@ -15,17 +14,23 @@ import { AgentCapacityPanel } from "@/components/assign/AgentCapacityPanel";
 import { AutoAssignBar } from "@/components/assign/AutoAssignBar";
 
 interface Props {
-  role: Role;
+  /** Market scope: a market id, or "all" for super_admin cross-market scope. */
   marketId: string;
   marketCode: string;
-  locale: Locale;
+  /** Called after a successful (auto-)assignment so the host page can revalidate its own data. */
+  onAssigned?: () => void;
 }
 
-export function AssignPageClient({ role: _role, marketId, marketCode }: Props) {
+/**
+ * Assignment board for unassigned pending orders: age-bucketed cards,
+ * agent-capacity rail, and auto-assign controls. Rendered by the orders
+ * page as the default view of the "unassigned" preset tab.
+ */
+export function AssignBoard({ marketId, marketCode, onAssigned }: Props) {
   const t = useTranslations("assign");
   const isMobile = useIsMobile();
   const specificMarketId = (!marketId || marketId === "all") ? null : marketId;
-  const { orders, isLoading: ordersLoading, mutate: mutateOrders } = useUnassignedOrders(
+  const { orders, total, isLoading: ordersLoading, mutate: mutateOrders } = useUnassignedOrders(
     marketId || null
   );
   const { agents, isLoading: agentsLoading, mutate: mutateAgents } = useAgentCapacity(
@@ -100,13 +105,14 @@ export function AssignPageClient({ role: _role, marketId, marketCode }: Props) {
         setSelectedIds(new Set());
         showToast(t("assignSuccess", { count: ids.length }));
         await Promise.all([mutateOrders(), mutateAgents()]);
+        onAssigned?.();
       } catch {
         showToast(t("assignFailed"));
       } finally {
         setBusyAgentId(null);
       }
     },
-    [selectedIds, mutateOrders, mutateAgents, showToast, t]
+    [selectedIds, mutateOrders, mutateAgents, showToast, t, onAssigned]
   );
 
   const runAutoAssign = useCallback(async () => {
@@ -127,13 +133,14 @@ export function AssignPageClient({ role: _role, marketId, marketCode }: Props) {
       if (assigned > 0) {
         setSelectedIds(new Set());
         await Promise.all([mutateOrders(), mutateAgents()]);
+        onAssigned?.();
       }
     } catch {
       showToast(t("autoAssign.failed"));
     } finally {
       setAutoBusy(false);
     }
-  }, [selectedIds, mutateOrders, mutateAgents, showToast, t]);
+  }, [selectedIds, mutateOrders, mutateAgents, showToast, t, onAssigned]);
 
   const onAlgorithmChange = useCallback(
     async (next: AssignmentAlgorithm) => {
@@ -168,22 +175,7 @@ export function AssignPageClient({ role: _role, marketId, marketCode }: Props) {
   );
 
   return (
-    <div
-      style={{
-        padding: isMobile ? "64px 16px 48px" : 24,
-        display: "flex",
-        flexDirection: "column",
-        gap: 16,
-        minHeight: "100%",
-      }}
-    >
-      <header>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1A1A1A", margin: 0 }}>
-          {t("title")}
-        </h1>
-        <p style={{ fontSize: 13, color: "#6D7175", margin: "4px 0 0" }}>{t("subtitle")}</p>
-      </header>
-
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <AutoAssignBar
         selectedCount={selectedIds.size}
         totalCount={orders.length}
@@ -196,6 +188,12 @@ export function AssignPageClient({ role: _role, marketId, marketCode }: Props) {
         onClearSelection={clearSelection}
         onSelectAll={selectAll}
       />
+
+      {total > orders.length ? (
+        <p style={{ fontSize: 12, color: "#6D7175", margin: 0 }}>
+          {t("showingFirstN", { count: orders.length, total })}
+        </p>
+      ) : null}
 
       <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 16, alignItems: "flex-start" }}>
         <main style={{ flex: 1, minWidth: 0, width: "100%" }}>

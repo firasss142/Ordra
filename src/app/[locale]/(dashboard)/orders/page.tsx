@@ -51,7 +51,7 @@ export default async function OrdersPage({
     user.market_id
       ? supabase
           .from("markets")
-          .select("name, currency")
+          .select("name, currency, code")
           .eq("id", user.market_id)
           .single()
       : Promise.resolve({ data: null }),
@@ -78,6 +78,7 @@ export default async function OrdersPage({
 
   const userMarketLabel = marketResult.data?.name ?? "";
   const userMarketCurrency = marketResult.data?.currency ?? "TND";
+  const userMarketCode = marketResult.data?.code ?? "TN";
   const fallbackFirstPage = ordersResult.data
     ? { rows: ordersResult.data, nextCursor: null }
     : { rows: [], nextCursor: null };
@@ -90,6 +91,7 @@ export default async function OrdersPage({
       userMarketId={user.market_id ?? superAdminInitialMarketId}
       userMarketLabel={userMarketLabel}
       userMarketCurrency={userMarketCurrency}
+      userMarketCode={userMarketCode}
       locale={params.locale as Locale}
       fallbackFirstPage={fallbackFirstPage as never}
       initialMarketId={superAdminInitialMarketId}

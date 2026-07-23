@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { useTranslations } from "next-intl";
 import type { Locale, Role } from "@/types";
 import { useOrdersFiltersUrl } from "@/hooks/useOrdersFiltersUrl";
@@ -29,6 +29,7 @@ import { OrdersBulkBar } from "@/components/orders/OrdersBulkBar";
 import { BulkUploadPanel } from "@/components/orders/BulkUploadPanel";
 import { BulkReopenPanel } from "@/components/orders/BulkReopenPanel";
 import { OrdersStatusStrip } from "@/components/orders/OrdersStatusStrip";
+import { OrdersViewToggle, type OrdersView } from "@/components/orders/OrdersViewToggle";
 import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
 
 const OrdersAdvancedDrawer = dynamic(
@@ -45,6 +46,10 @@ const CreateOrderModal = dynamic(
 );
 const PostCallActionSheet = dynamic(
   () => import("@/components/queue/PostCallActionSheet").then((m) => m.PostCallActionSheet),
+  { ssr: false },
+);
+const AssignBoard = dynamic(
+  () => import("@/components/assign/AssignBoard").then((m) => m.AssignBoard),
   { ssr: false },
 );
 
@@ -75,6 +80,7 @@ interface Props {
   userMarketId: string;
   userMarketLabel: string;
   userMarketCurrency: string;
+  userMarketCode: string;
   locale: Locale;
   fallbackFirstPage: OrdersListPage;
   initialMarketId: string;
@@ -87,6 +93,7 @@ export function OrdersPageClient({
   userMarketId,
   userMarketLabel,
   userMarketCurrency,
+  userMarketCode,
   locale,
   fallbackFirstPage,
   initialMarketId,
@@ -280,6 +287,34 @@ export function OrdersPageClient({
     }
     window.history.replaceState(window.history.state, "", url.toString());
   }, [openOrderId]);
+
+  // ---------- Unassigned tab view mode (assignment board | plain table) ----------
+  const canAssign = isSuperAdmin || role === "market_manager";
+  const [view, setView] = useState<OrdersView>(() =>
+    searchParams?.get("view") === "table" ? "table" : "board",
+  );
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (view === "table") {
+      if (url.searchParams.get("view") === "table") return;
+      url.searchParams.set("view", "table");
+    } else {
+      if (!url.searchParams.has("view")) return;
+      url.searchParams.delete("view");
+    }
+    window.history.replaceState(window.history.state, "", url.toString());
+  }, [view]);
+
+  const { mutate: globalMutate } = useSWRConfig();
+  const refreshAfterAssign = useCallback(() => {
+    void mutate();
+    void globalMutate(
+      (key) =>
+        typeof key === "string" &&
+        (key.startsWith("/api/orders/status-counts") ||
+          key.startsWith("/api/orders/unassigned/count")),
+    );
+  }, [mutate, globalMutate]);
   const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set());
   const highlightTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const flashRow = useCallback((id: string) => {
@@ -434,7 +469,6 @@ export function OrdersPageClient({
     [rows, openOrderId],
   );
 
-  const canAssign = isSuperAdmin || role === "market_manager";
   const selectedRows = useMemo(
     () => rows.filter((row) => selectedIds.has(row.id)),
     [rows, selectedIds],
@@ -454,6 +488,14 @@ export function OrdersPageClient({
     return markets.find((m) => m.id === filters.marketId)?.name ?? "—";
   }, [isSuperAdmin, filters.marketId, markets, userMarketLabel, t]);
 
+  const activeMarketCode = useMemo(() => {
+    if (filters.marketId) {
+      const code = markets.find((m) => m.id === filters.marketId)?.code;
+      if (code) return code;
+    }
+    return userMarketCode || "TN";
+  }, [filters.marketId, markets, userMarketCode]);
+
   // Quick inline stats derived from loaded rows
   const unassignedCount = rows.filter((r) => r.status === "pending" && r.assigned_to === null).length;
   const callbackCount = rows.filter((r) => r.status === "callback_scheduled").length;
@@ -470,6 +512,11 @@ export function OrdersPageClient({
     filters.totalMax !== null ||
     filters.rejectionReason !== null ||
     filters.carrierId !== null;
+
+  // Assignment board is the default view of the unassigned tab; any active
+  // filter chip falls back to the plain table (filters apply to the table only).
+  const boardActive =
+    filters.preset === "unassigned" && canAssign && view === "board" && !hasActiveFilterChips;
 
   return (
     <div
@@ -504,10 +551,26 @@ export function OrdersPageClient({
 
         <OrdersStatusStrip marketId={effectiveMarketId} />
 
-        <OrdersPresetPills
-          active={filters.preset}
-          onChange={(next) => update({ preset: next })}
-        />
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+            flexWrap: "wrap",
+          }}
+        >
+          <OrdersPresetPills
+            active={filters.preset}
+            onChange={(next) => update({ preset: next })}
+          />
+          {filters.preset === "unassigned" && canAssign ? (
+            <OrdersViewToggle
+              view={hasActiveFilterChips ? "table" : view}
+              onChange={setView}
+            />
+          ) : null}
+        </div>
       </div>
 
       {/* ── Filter card ── */}
@@ -560,6 +623,14 @@ export function OrdersPageClient({
         </div>
       ) : null}
 
+      {boardActive ? (
+        <AssignBoard
+          marketId={effectiveMarketId ?? "all"}
+          marketCode={activeMarketCode}
+          onAssigned={refreshAfterAssign}
+        />
+      ) : (
+        <>
       {/* ── Orders table wrapped in card ── */}
       <div
         style={{
@@ -619,6 +690,8 @@ export function OrdersPageClient({
         cancelDisabled={hasBulkDeleteIneligible}
         cancelDisabledReason={t("bulk.cancelIneligible")}
       />
+        </>
+      )}
 
       {uploadOpen && (
         <BulkUploadPanel

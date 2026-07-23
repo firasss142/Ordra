@@ -174,18 +174,18 @@ describe("Sidebar — default expanded sections", () => {
     expect(screen.getByRole("link", { name: /En confirmation/ })).toBeInTheDocument();
   });
 
-  it("keeps COMMANDES collapsed by default (no À assigner sub-tab visible)", () => {
+  it("keeps COMMANDES collapsed by default (no Archivées sub-tab visible)", () => {
     renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.queryByRole("link", { name: /À assigner/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Archivées/ })).not.toBeInTheDocument();
   });
 });
 
 describe("Sidebar — accordion toggle", () => {
   it("expands COMMANDES when its header is clicked", () => {
     renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
-    expect(screen.queryByRole("link", { name: /À assigner/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Archivées/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Commandes/ }));
-    expect(screen.getByRole("link", { name: /À assigner/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Archivées/ })).toBeInTheDocument();
   });
 
   it("collapses ACCUEIL when its header is clicked (while on a non-accueil route)", () => {
@@ -248,7 +248,7 @@ describe("Sidebar — active route auto-expand", () => {
     pathnameMock = "/fr/orders";
     searchParamsMock = new URLSearchParams("preset=unassigned");
     renderSidebar(<Sidebar user={managerUser} currentPath="/fr/orders" unassignedCount={0} />);
-    expect(screen.getByRole("link", { name: /À assigner/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Archivées/ })).toBeInTheDocument();
   });
 
   it("auto-expands COMMANDES when on /fr/orders with no filter", () => {
@@ -256,31 +256,31 @@ describe("Sidebar — active route auto-expand", () => {
     searchParamsMock = new URLSearchParams("");
     renderSidebar(<Sidebar user={managerUser} currentPath="/fr/orders" unassignedCount={0} />);
     // Section expanded via path-prefix match — sub-items are rendered
-    expect(screen.getByRole("link", { name: /À assigner/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Archivées/ })).toBeInTheDocument();
   });
 
-  it("marks À assigner active on /fr/assign", () => {
-    pathnameMock = "/fr/assign";
-    searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/assign" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /À assigner/ });
+  it("marks Commandes active on /fr/orders?preset=unassigned (query ignored for plain-path items)", () => {
+    pathnameMock = "/fr/orders";
+    searchParamsMock = new URLSearchParams("preset=unassigned");
+    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/orders" unassignedCount={0} />);
+    const link = screen.getByRole("link", { name: /Commandes/ });
     expect(link).toHaveAttribute("aria-current", "page");
   });
 
-  it("does not mark À assigner active on bare /fr/orders", () => {
+  it("marks Commandes active on bare /fr/orders", () => {
     pathnameMock = "/fr/orders";
     searchParamsMock = new URLSearchParams("");
     renderSidebar(<Sidebar user={managerUser} currentPath="/fr/orders" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /À assigner/ });
-    expect(link).not.toHaveAttribute("aria-current", "page");
+    const link = screen.getByRole("link", { name: /Commandes/ });
+    expect(link).toHaveAttribute("aria-current", "page");
   });
 });
 
 describe("Sidebar — badge on unassigned", () => {
-  it("shows the badge count on À assigner sub-tab when COMMANDES is expanded", () => {
+  it("shows the badge count on the Commandes sub-tab when COMMANDES is expanded", () => {
     renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={12} />);
     fireEvent.click(screen.getByRole("button", { name: /Commandes/ }));
-    const link = screen.getByRole("link", { name: /À assigner/ });
+    const link = screen.getByRole("link", { name: /Commandes/ });
     expect(within(link).getByText("12")).toBeInTheDocument();
   });
 

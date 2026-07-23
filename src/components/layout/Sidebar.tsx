@@ -16,7 +16,6 @@ import {
   FileClock,
   Gauge,
   Home,
-  Inbox,
   Key,
   LayoutDashboard,
   LineChart,
@@ -106,12 +105,12 @@ const NAV_SECTIONS: readonly NavSection[] = [
     id: "commandes",
     icon: ShoppingBag,
     items: [
-      { key: "toAssign", href: "assign", icon: Inbox, prefetchRoute: "assign", showBadge: true },
       {
         key: "orders",
         href: "orders",
         icon: Send,
         prefetchRoute: "orders",
+        showBadge: true,
       },
       {
         key: "archived",
@@ -206,13 +205,14 @@ function splitHref(href: string): { path: string; search: string } {
  * A sub-tab is active when the URL's path matches the item's path AND every
  * query param the item declares is present (subset match). Extra filters in
  * the URL (e.g. ?q=text on top of ?preset=unassigned) leave the tab active.
- * A plain-path item (no query) matches only on exact path + no query, so
- * siblings like /dashboard and /dashboard/alerts don't double-activate.
+ * A plain-path item (no query) matches on exact path regardless of query, so
+ * /orders?preset=unassigned or /orders?open=<id> keep Commandes active.
+ * Path-distinct siblings (/dashboard vs /dashboard/alerts) never double-activate.
  */
 function isItemActive(itemHref: string, activePath: string, activeSearch: string): boolean {
   const { path: itemPath, search: itemSearch } = splitHref(itemHref);
   if (activePath !== itemPath) return false;
-  if (!itemSearch) return activeSearch === "";
+  if (!itemSearch) return true;
   const itemParams = new URLSearchParams(itemSearch);
   const activeParams = new URLSearchParams(activeSearch);
   for (const [key, value] of itemParams.entries()) {
