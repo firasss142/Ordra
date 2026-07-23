@@ -551,40 +551,24 @@ export function OrdersPageClient({
 
         <OrdersStatusStrip marketId={effectiveMarketId} />
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 8,
-            flexWrap: "wrap",
-          }}
-        >
+        <div className="flex items-end justify-between gap-2 flex-wrap border-b border-line">
           <OrdersPresetPills
             active={filters.preset}
             onChange={(next) => update({ preset: next })}
           />
           {filters.preset === "unassigned" && canAssign ? (
-            <OrdersViewToggle
-              view={hasActiveFilterChips ? "table" : view}
-              onChange={setView}
-            />
+            <div className="pb-1.5">
+              <OrdersViewToggle
+                view={hasActiveFilterChips ? "table" : view}
+                onChange={setView}
+              />
+            </div>
           ) : null}
         </div>
       </div>
 
       {/* ── Filter card ── */}
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: "1px solid #E1E3E5",
-          borderRadius: 8,
-          padding: "14px 16px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-        }}
-      >
+      <div className="bg-surface-card border border-line-subtle rounded-[8px] px-4 py-3.5 flex flex-col gap-2.5">
         <OrdersFilterBar
           filters={filters}
           onChange={update}
@@ -610,14 +594,8 @@ export function OrdersPageClient({
       {errorBanner ? (
         <div
           role="alert"
-          style={{
-            padding: "10px 14px",
-            borderRadius: 8,
-            background: "#FFF4F4",
-            color: "#D72C0D",
-            border: "1px solid #F3B9B0",
-            fontSize: 13,
-          }}
+          className="px-3.5 py-2.5 rounded-[8px] text-[13px]"
+          style={{ background: "#FFF4F4", color: "#D72C0D", border: "1px solid #F3B9B0" }}
         >
           {errorBanner}
         </div>
@@ -632,14 +610,7 @@ export function OrdersPageClient({
       ) : (
         <>
       {/* ── Orders table wrapped in card ── */}
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: "1px solid #E1E3E5",
-          borderRadius: 8,
-          overflow: "hidden",
-        }}
-      >
+      <div className="bg-surface-card border border-line-subtle rounded-[8px] overflow-hidden">
         <OrdersTable
           rows={rows}
           locale={locale}

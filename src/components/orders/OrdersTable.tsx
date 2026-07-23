@@ -2,9 +2,11 @@
 
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
+import { Inbox } from "lucide-react";
 import type { OrdersListRow } from "@/hooks/useOrdersList";
 import { Pagination } from "@/components/shared/Pagination";
 import { PAGE_SIZE_OPTIONS } from "@/lib/orders/list-filters";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { OrderRow } from "./OrderRow";
 
 interface Agent {
@@ -80,18 +82,14 @@ export function OrdersTable({
   }
   if (isEmpty) {
     return (
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: "1px solid #E1E3E5",
-          borderRadius: 8,
-          padding: "48px 18px",
-          textAlign: "center",
-          color: "#6D7175",
-          fontSize: 14,
-        }}
-      >
-        {t("emptyState")}
+      <div className="bg-surface-card border border-line-subtle rounded-[8px] px-[18px] py-12 flex flex-col items-center gap-2">
+        <span
+          aria-hidden="true"
+          className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-surface-sunken text-ink-muted"
+        >
+          <Inbox size={18} strokeWidth={1.75} />
+        </span>
+        <span className="text-[14px] text-ink-secondary">{t("emptyState")}</span>
       </div>
     );
   }
@@ -202,26 +200,11 @@ export function OrdersTable({
 function TableSkeleton() {
   return (
     <div
-      style={{
-        background: "#FFFFFF",
-        border: "1px solid #E1E3E5",
-        borderRadius: 8,
-        padding: 18,
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-      }}
+      role="status"
+      className="bg-surface-card border border-line-subtle rounded-[8px] p-[18px] flex flex-col gap-2.5"
     >
       {Array.from({ length: 10 }).map((_, i) => (
-        <div
-          key={i}
-          style={{
-            height: 40,
-            background: "#F7F7F7",
-            borderRadius: 6,
-            animation: "pulse 1.5s ease-in-out infinite",
-          }}
-        />
+        <Skeleton key={i} className="h-10" />
       ))}
     </div>
   );

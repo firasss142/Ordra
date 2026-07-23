@@ -35,6 +35,10 @@ const config: Config = {
           hover: "#FAFAFA",
           selected: "#F2F2F2",
           elevated: "#FFFFFF",
+          sunken: "#FAFAFB",
+        },
+        chart: {
+          line: "#8C9196",
         },
         ink: {
           primary: "#1A1A1A",

@@ -10,6 +10,10 @@ interface Props {
   counts?: Partial<Record<OrdersPreset, number>>;
 }
 
+/**
+ * Preset tabs for the orders list. Underline style — the active tab carries
+ * the 2px accent underline reserved by the design system for exactly this.
+ */
 export function OrdersPresetPills({ active, onChange, counts }: Props) {
   const t = useTranslations("orders.presets");
 
@@ -17,11 +21,7 @@ export function OrdersPresetPills({ active, onChange, counts }: Props) {
     <div
       role="tablist"
       aria-label={t("label")}
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 4,
-      }}
+      className="flex items-end gap-1 overflow-x-auto"
     >
       {ORDERS_PRESETS.map((key) => {
         const isActive = active === key;
@@ -33,37 +33,24 @@ export function OrdersPresetPills({ active, onChange, counts }: Props) {
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(key)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "6px 12px",
-              border: isActive ? "none" : "1px solid #E1E3E5",
-              borderRadius: 6,
-              background: isActive ? "#1A1A1A" : "#FFFFFF",
-              color: isActive ? "#FFFFFF" : "#1A1A1A",
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: "pointer",
-              transition: "background-color 120ms ease, color 120ms ease",
-              whiteSpace: "nowrap",
-            }}
+            className={
+              "relative inline-flex items-center gap-1.5 px-3 pt-1.5 pb-2 text-[13px] whitespace-nowrap bg-transparent border-0 cursor-pointer transition-colors duration-fast " +
+              (isActive
+                ? "font-semibold text-ink-primary"
+                : "font-medium text-ink-secondary hover:text-ink-primary")
+            }
           >
             {t(key)}
             {typeof count === "number" && count > 0 ? (
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  padding: "1px 6px",
-                  borderRadius: 9999,
-                  background: isActive ? "rgba(255,255,255,0.2)" : "#F2F2F2",
-                  color: isActive ? "#FFFFFF" : "#6D7175",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
+              <span className="text-[11px] font-medium px-1.5 py-px rounded-pill bg-surface-selected text-ink-secondary tabular-nums">
                 {count}
               </span>
+            ) : null}
+            {isActive ? (
+              <span
+                aria-hidden="true"
+                className="absolute inset-x-2 bottom-0 h-[2px] rounded-pill bg-accent"
+              />
             ) : null}
           </button>
         );
