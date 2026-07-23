@@ -393,8 +393,8 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
       className="sidebar-scroll sidebar-mobile-drawer"
       data-mobile-open={mobileOpen ? "true" : "false"}
       style={{
-        width: "248px",
-        minWidth: "248px",
+        width: "240px",
+        minWidth: "240px",
         height: "100vh",
         backgroundColor: "var(--sidebar-bg)",
         display: "flex",

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
@@ -261,7 +262,24 @@ export function OrdersPageClient({
   const [reopenOpen, setReopenOpen] = useState(false);
 
   // ---------- Detail panel + flash highlight ----------
-  const [openOrderId, setOpenOrderId] = useState<string | null>(null);
+  // Deep-linkable via ?open=<id> (e.g. from alerts or the legacy /orders/[id]
+  // redirect). Local state is the source of truth for instant open/close; the
+  // URL is kept in sync via history.replaceState so no RSC refetch happens.
+  const searchParams = useSearchParams();
+  const [openOrderId, setOpenOrderId] = useState<string | null>(
+    () => searchParams?.get("open") ?? null,
+  );
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (openOrderId) {
+      if (url.searchParams.get("open") === openOrderId) return;
+      url.searchParams.set("open", openOrderId);
+    } else {
+      if (!url.searchParams.has("open")) return;
+      url.searchParams.delete("open");
+    }
+    window.history.replaceState(window.history.state, "", url.toString());
+  }, [openOrderId]);
   const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set());
   const highlightTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const flashRow = useCallback((id: string) => {
