@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
-import { canViewProfitability } from "@/lib/profitability-permissions";
+import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { isPeriodLocked } from "@/lib/ad-spend/period-lock";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ async function resolveActorAndEntry(req: NextRequest, id: string) {
   if ("response" in actorResult) return { err: actorResult.response } as const;
   const { actor } = actorResult;
 
-  if (!canViewProfitability(actor.role)) {
+  if (!canViewFinanceSection(actor.role)) {
     return { err: NextResponse.json({ error: "Forbidden" }, { status: 403 }) } as const;
   }
 

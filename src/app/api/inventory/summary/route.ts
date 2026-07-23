@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { canViewFinanceSection } from "@/lib/finance-permissions";
 import {
   computeProductIntelligence,
   reorderSuggestions,
@@ -78,7 +79,7 @@ export async function GET(req: NextRequest) {
   const { actor } = actorResult;
   const role = actor.role;
 
-  if (role !== "super_admin" && role !== "market_manager") {
+  if (!canViewFinanceSection(role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

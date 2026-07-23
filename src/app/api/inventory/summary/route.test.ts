@@ -80,8 +80,18 @@ describe("GET /api/inventory/summary", () => {
     expect(res.status).toBe(403);
   });
 
-  test("returns inventory intelligence with days-of-supply, turnover, reorder, daily buckets", async () => {
+  test("returns 403 for market_manager (finance section is super_admin only)", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return userSingleChain("market_manager", "m-1");
+      return buildChain({ data: [], error: null });
+    });
+    const res = await GET(createRequest());
+    expect(res.status).toBe(403);
+  });
+
+  test("returns inventory intelligence with days-of-supply, turnover, reorder, daily buckets", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "admin-1" } }, error: null });
 
     const products = [
       {
@@ -159,7 +169,7 @@ describe("GET /api/inventory/summary", () => {
     ];
 
     mockFrom.mockImplementation((table: string) => {
-      if (table === "users") return userSingleChain("market_manager", "m-1");
+      if (table === "users") return userSingleChain("super_admin", "m-1");
       if (table === "products") return buildChain({ data: products, error: null });
       if (table === "inventory_log") return buildChain({ data: logRows, error: null });
       return buildChain({ data: [], error: null });

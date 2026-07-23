@@ -6,7 +6,7 @@ import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import type { Role } from "@/types";
 import { canManageProducts } from "@/lib/product-permissions";
-import { canViewProfitability } from "@/lib/profitability-permissions";
+import { canViewProductProfitability } from "@/lib/finance-permissions";
 import { canToggleProductActive } from "@/lib/product-permissions";
 import { isLowStock } from "@/lib/product-calculations";
 import { useMarketScope } from "@/context/market-scope";
@@ -83,7 +83,7 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
     role === "super_admin" ? (scopeMarketId ?? "") : marketId;
 
   const canManage = canManageProducts(role, selectedMarketId, marketId);
-  const canViewPerf = canViewProfitability(role);
+  const canViewPerf = canViewProductProfitability(role);
   const canToggleActive = canToggleProductActive(role);
 
   const defaultMode: ProductFilterMode =

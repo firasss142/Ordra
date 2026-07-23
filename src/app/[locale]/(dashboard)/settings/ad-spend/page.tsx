@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/auth/server-user";
-import { canViewProfitability } from "@/lib/role-permissions";
+import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { listMarketsFor, getDefaultMarketId } from "@/lib/markets/list";
 import { AdSpendClient } from "./AdSpendClient";
 
@@ -11,7 +11,7 @@ export default async function AdSpendPage({
 }) {
   const user = await getServerUser();
   if (!user) redirect(`/${params.locale}/login`);
-  if (!canViewProfitability(user.role)) redirect(`/${params.locale}/dashboard`);
+  if (!canViewFinanceSection(user.role)) redirect(`/${params.locale}/dashboard`);
 
   const markets = await listMarketsFor(user.role, user.market_id);
   const initialMarketId =

@@ -8,7 +8,7 @@ import { Printer, ScanLine, RotateCcw, AlertTriangle } from "lucide-react";
 import { useWarehouseSummary } from "@/hooks/useWarehouseSummary";
 import { useWarehouseRealtime } from "@/hooks/useWarehouseRealtime";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { canViewProfitability } from "@/lib/role-permissions";
+import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { Panel, EmptyState } from "@/components/dashboard/Panel";
 import { LogisticsPageHeader } from "./shared/LogisticsPageHeader";
 import { LogisticsKpiStrip, type KpiTileDef } from "./shared/LogisticsKpiStrip";
@@ -47,7 +47,7 @@ export function WarehouseOverviewClient({
   initialMarketId,
 }: Props) {
   const t = useTranslations("warehouse");
-  const isSuperAdmin = canViewProfitability(user.role);
+  const isSuperAdmin = canViewFinanceSection(user.role);
   const isMobile = useIsMobile();
 
   const [selectedMarketId, setSelectedMarketId] = useState<string | "all">(
