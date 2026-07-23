@@ -134,7 +134,7 @@ describe("GET /api/inventory/summary", () => {
         order_id: `o-${i}`,
         change: -2,
         balance_after: 30,
-        reason: "deposit",
+        reason: "scanned",
         is_damaged: false,
         note: null,
         created_at: day(i),
@@ -153,6 +153,19 @@ describe("GET /api/inventory/summary", () => {
         created_at: day(i),
         products: { name: "Alpha", market_id: "m-1" },
       })),
+      // Legacy pre-migration rows: 'deposit' must NOT count as scan-out anymore
+      ...Array.from({ length: 5 }, (_, i) => ({
+        id: `l-p1-legacy-${i}`,
+        product_id: "p1",
+        order_id: `o-legacy-${i}`,
+        change: -50,
+        balance_after: 30,
+        reason: "deposit",
+        is_damaged: false,
+        note: null,
+        created_at: day(i),
+        products: { name: "Alpha", market_id: "m-1" },
+      })),
       // p2: 30 units scanned out → 1/day → 2 DOS → urgent reorder
       ...Array.from({ length: 30 }, (_, i) => ({
         id: `l-p2-${i}`,
@@ -160,7 +173,7 @@ describe("GET /api/inventory/summary", () => {
         order_id: `o-p2-${i}`,
         change: -1,
         balance_after: 2,
-        reason: "deposit",
+        reason: "scanned",
         is_damaged: false,
         note: null,
         created_at: day(i),

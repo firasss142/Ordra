@@ -369,12 +369,12 @@
       "balanceShort": "← {balance}",
       "hasOrder": "عرض الطلب",
       "reasons": {
+        "scanned": "خروج من المستودع (مسح)",
         "deposit": "صرف (إيداع)",
         "returned": "إرجاع",
         "damaged_return": "إرجاع تالف",
         "manual_adjustment": "تعديل يدوي",
         "damaged_writeoff": "شطب تالف",
-        "manual_restock": "تعبئة يدوية",
         "initial_stock": "المخزون الابتدائي"
       }
     },

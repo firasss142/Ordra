@@ -369,12 +369,12 @@
       "balanceShort": "→ {balance}",
       "hasOrder": "Voir la commande",
       "reasons": {
+        "scanned": "Sortie entrepôt (scan)",
         "deposit": "Sortie (dépôt)",
         "returned": "Retour",
         "damaged_return": "Retour endommagé",
         "manual_adjustment": "Ajustement manuel",
         "damaged_writeoff": "Démarque",
-        "manual_restock": "Réappro manuel",
         "initial_stock": "Stock initial"
       }
     },

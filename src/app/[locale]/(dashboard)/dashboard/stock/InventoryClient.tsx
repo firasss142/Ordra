@@ -861,13 +861,15 @@ const HEALTH_PALETTE: Record<
   reorder: { bg: "#FFF4F4", fg: "#D72C0D" },
 };
 
+// 'scanned' is the current warehouse scan-out reason; 'deposit' and
+// 'damaged_return' remain only for pre-migration rows (log is append-only).
 const KNOWN_REASONS = new Set([
+  "scanned",
   "deposit",
   "returned",
   "damaged_return",
   "manual_adjustment",
   "damaged_writeoff",
-  "manual_restock",
   "initial_stock",
 ]);
 
