@@ -6,17 +6,33 @@ import { enforcePeriodLock } from "@/lib/ad-spend/enforce-lock";
 
 export const dynamic = "force-dynamic";
 
-async function resolveActorAndEntry(req: NextRequest, id: string) {
+interface AdSpendEntryRef {
+  id: string;
+  market_id: string;
+  period_start: string;
+  period_end: string;
+}
+
+type ResolvedEntry =
+  | { kind: "err"; err: NextResponse }
+  | {
+      kind: "ok";
+      supabase: Awaited<ReturnType<typeof createClient>>;
+      role: string;
+      entry: AdSpendEntryRef;
+    };
+
+async function resolveActorAndEntry(req: NextRequest, id: string): Promise<ResolvedEntry> {
   const supabase = await createClient();
 
   const actorResult = await getActor(req);
   if ("response" in actorResult) {
-    return { err: actorResult.response as NextResponse } as const;
+    return { kind: "err", err: actorResult.response as NextResponse };
   }
   const { actor } = actorResult;
 
   if (!canViewFinanceSection(actor.role)) {
-    return { err: NextResponse.json({ error: "Forbidden" }, { status: 403 }) } as const;
+    return { kind: "err", err: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
   }
 
   const { data: entry } = await supabase
@@ -25,13 +41,15 @@ async function resolveActorAndEntry(req: NextRequest, id: string) {
     .eq("id", id)
     .single();
 
-  if (!entry) return { err: NextResponse.json({ error: "Not found" }, { status: 404 }) } as const;
-
-  if (actor.role === "market_manager" && entry.market_id !== actor.market_id) {
-    return { err: NextResponse.json({ error: "Forbidden" }, { status: 403 }) } as const;
+  if (!entry) {
+    return { kind: "err", err: NextResponse.json({ error: "Not found" }, { status: 404 }) };
   }
 
-  return { supabase, role: actor.role, entry } as const;
+  if (actor.role === "market_manager" && entry.market_id !== actor.market_id) {
+    return { kind: "err", err: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
+  }
+
+  return { kind: "ok", supabase, role: actor.role, entry: entry as AdSpendEntryRef };
 }
 
 // PATCH: update entry fields
@@ -41,7 +59,7 @@ export async function PATCH(
 ): Promise<NextResponse> {
   const { id } = await params;
   const resolved = await resolveActorAndEntry(req, id);
-  if ("err" in resolved) return resolved.err;
+  if (resolved.kind === "err") return resolved.err;
   const { supabase, role, entry } = resolved;
 
   const lockErr = enforcePeriodLock(entry.period_end, role, req);
@@ -94,7 +112,7 @@ export async function DELETE(
 ): Promise<NextResponse> {
   const { id } = await params;
   const resolved = await resolveActorAndEntry(req, id);
-  if ("err" in resolved) return resolved.err;
+  if (resolved.kind === "err") return resolved.err;
   const { supabase, role, entry } = resolved;
 
   const lockErr = enforcePeriodLock(entry.period_end, role, req);
