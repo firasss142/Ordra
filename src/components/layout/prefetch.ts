@@ -1,14 +1,16 @@
 import { preload } from "swr";
 import { fetcher } from "@/lib/swr-config";
+import { isValidScope, scopeToMarketId } from "@/lib/markets";
 import type { AuthUser } from "@/types";
 
-function todayRangeParams(): string {
-  const now = new Date();
-  const to = now.toISOString().slice(0, 10);
-  const from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
-  return `from_date=${from}&to_date=${to}`;
+// Same cookie the MarketScopeProvider reads/writes (client context — the
+// server-only SCOPE_COOKIE constant lives behind next/headers).
+const SCOPE_COOKIE = "oms_scope_market";
+
+function readScopeCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${SCOPE_COOKIE}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
 }
 
 /**
@@ -19,11 +21,21 @@ function todayRangeParams(): string {
  */
 export function prefetchForRoute(route: string, user: AuthUser): void {
   if (route === "dashboard") {
-    const range = todayRangeParams();
-    preload(`/api/metrics?${range}`, fetcher);
+    // Reproduce DashboardClient's buildSummaryKey byte-for-byte (raw template,
+    // param order from_date/to_date/market_id) so the preload hits its cache key.
+    const today = new Date().toISOString().slice(0, 10);
+    let marketId: string;
     if (user.role === "super_admin") {
-      preload(`/api/markets`, fetcher);
+      const raw = readScopeCookie();
+      const scope = isValidScope(raw) ? raw : "tn";
+      marketId = scope === "all" ? "all" : scopeToMarketId(scope) ?? "all";
+    } else {
+      marketId = user.market_id ?? "";
     }
+    preload(
+      `/api/dashboard/summary?from_date=${today}&to_date=${today}&market_id=${marketId}`,
+      fetcher,
+    );
     return;
   }
 

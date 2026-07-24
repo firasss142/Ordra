@@ -3,7 +3,7 @@ import { DashboardClient } from "./DashboardClient";
 import { getServerUser } from "@/lib/auth/server-user";
 import { getDashboardSummary, stripFinancials } from "@/lib/dashboard/summary";
 import { canViewFinanceSection } from "@/lib/finance-permissions";
-import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
+import { getActiveMarketScope } from "@/lib/auth/market-scope";
 
 export default async function DashboardPage({
   params,
@@ -20,17 +20,19 @@ export default async function DashboardPage({
   const today = new Date().toISOString().slice(0, 10);
   const initialPeriod = { from_date: today, to_date: today };
 
-  const markets = user.role === "super_admin" ? await getAllActiveMarkets() : [];
-  const defaultMarketId = getDefaultMarketId(markets);
+  // Honor the scope cookie so the server-rendered fallbackData key matches the
+  // client's mount key for every cookie state (tn / ly / all / absent) — the
+  // client then paints with zero duplicate network call.
+  const activeScope = user.role === "super_admin" ? await getActiveMarketScope(user) : null;
   const initialMarketId =
-    user.role === "super_admin" ? (defaultMarketId || "all") : (user.market_id ?? "");
+    user.role === "super_admin"
+      ? (activeScope!.scope === "all" ? "all" : activeScope!.marketId ?? "all")
+      : (user.market_id ?? "");
 
-  // Server-fetch Tunisia-scoped summary for super_admin (single-market = N× faster
-  // than "all") and pass as fallbackData so the client paints with zero network call.
   const rawSummary = await getDashboardSummary({
     fromDate: today,
     toDate: today,
-    marketId: user.role === "super_admin" ? (defaultMarketId || "all") : null,
+    marketId: user.role === "super_admin" ? initialMarketId : null,
     role: user.role,
     actorMarketId: user.market_id,
   });
