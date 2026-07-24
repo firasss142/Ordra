@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-
 interface FooterLinksProps {
   items: Array<{
     key: string;
@@ -14,71 +12,35 @@ interface FooterLinksProps {
 export function FooterLinks({ items }: FooterLinksProps) {
   if (items.length === 0) return null;
   return (
-    <div
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 10,
-      }}
-    >
+    <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3">
       {items.map((it) => (
-        <Pill key={it.key} label={it.label} value={it.value} href={it.href} />
+        <FooterCard key={it.key} label={it.label} value={it.value} href={it.href} />
       ))}
     </div>
   );
 }
 
-function Pill({ label, value, href }: { label: string; value: string; href?: string }) {
-  const [hover, setHover] = useState(false);
+function FooterCard({ label, value, href }: { label: string; value: string; href?: string }) {
+  const baseClasses =
+    "bg-surface-card border border-line-subtle rounded-[8px] px-4 py-3 flex items-center justify-between gap-3 sm:min-w-[180px]";
   const content = (
     <>
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 500,
-          color: "#6D7175",
-          textTransform: "uppercase",
-          letterSpacing: "0.04em",
-        }}
-      >
+      <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-secondary">
         {label}
       </span>
-      <span
-        style={{
-          fontSize: 14,
-          fontWeight: 600,
-          color: "#1A1A1A",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {value}
-      </span>
+      <span className="text-[16px] font-bold tabular-nums text-ink-primary">{value}</span>
     </>
   );
-  const baseStyle: React.CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    padding: "6px 12px",
-    background: hover && href ? "#F7F7F7" : "#FFFFFF",
-    border: "1px solid #E1E3E5",
-    borderRadius: 9999,
-    cursor: href ? "pointer" : "default",
-    textDecoration: "none",
-    transition: "background-color 120ms ease",
-  };
 
   if (href) {
     return (
       <a
         href={href}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-        style={baseStyle}
+        className={`${baseClasses} no-underline hover:bg-surface-hover hover:shadow-hover-row transition-all duration-fast`}
       >
         {content}
       </a>
     );
   }
-  return <span style={baseStyle}>{content}</span>;
+  return <span className={baseClasses}>{content}</span>;
 }

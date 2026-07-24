@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
-import { useIsMobile } from "@/hooks/useIsMobile";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import { HeroKpiStrip } from "@/components/dashboard/HeroKpiStrip";
@@ -16,6 +15,7 @@ import { InsightsBand } from "@/components/dashboard/InsightsBand";
 import { TopPerformers } from "@/components/dashboard/TopPerformers";
 import { SecondaryKpiStrip } from "@/components/dashboard/SecondaryKpiStrip";
 import { TopPerformingProducts } from "@/components/dashboard/TopPerformingProducts";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useDashboardRealtime } from "@/hooks/useDashboardRealtime";
 import { useMarketScope } from "@/context/market-scope";
@@ -41,7 +41,6 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
   const tPipe = useTranslations("dashboard.pipeline");
   const pathname = usePathname();
   const locale = pathname.split("/")[1] ?? "fr";
-  const isMobile = useIsMobile();
   const isSuperAdmin = canViewFinanceSection(user.role);
   const role: "super_admin" | "market_manager" = isSuperAdmin ? "super_admin" : "market_manager";
 
@@ -65,12 +64,13 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
     return buildSummaryKey(initialPeriod, mid);
   }, [isSuperAdmin, initialMarketId, user.market_id, initialPeriod]);
 
-  const { data, isLoading, mutate: mutateSummary } = useSWR<{ data: DashboardSummary }>(
+  const { data, isLoading, error, mutate: mutateSummary } = useSWR<{ data: DashboardSummary }>(
     summaryKey,
     {
       fallbackData: summaryKey === initialKey ? { data: initialSummary } : undefined,
       refreshInterval: 60_000,
       revalidateOnFocus: true,
+      keepPreviousData: true,
     },
   );
 
@@ -80,10 +80,13 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
     mutate: () => void mutateSummary(),
   });
 
-  const summary = data?.data ?? initialSummary;
-  const currency = summary.selectedMarket?.currency ?? summary.availableMarkets[0]?.currency ?? "TND";
+  const summary = data?.data ?? null;
+  const currency =
+    summary?.selectedMarket?.currency ?? summary?.availableMarkets[0]?.currency ?? "TND";
 
-  const agentsOffline = summary.kpis.agentsTotal - summary.kpis.agentsOnline - summary.kpis.agentsIdle;
+  const agentsOffline = summary
+    ? summary.kpis.agentsTotal - summary.kpis.agentsOnline - summary.kpis.agentsIdle
+    : 0;
 
   const periodLabel = useMemo(() => {
     if (preset === "today") return t("filters.vsYesterday");
@@ -96,18 +99,20 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
   const { byType, totalCount } = useAlerts({ marketId: alertMarketId });
 
   const openOrdersCount = useMemo(
-    () => summary.pipeline.reduce((sum, p) => sum + p.count, 0),
-    [summary.pipeline],
+    () => (summary?.pipeline ?? []).reduce((sum, p) => sum + p.count, 0),
+    [summary],
   );
 
   const insights = useMemo(
     () =>
-      computeInsights(summary, {
-        confAboveAvg: t.raw("insights.confAboveAvg") as string,
-        confBelowAvg: t.raw("insights.confBelowAvg") as string,
-        topProduct: t.raw("insights.topProduct") as string,
-        leadingAgent: t.raw("insights.leadingAgent") as string,
-      }),
+      summary
+        ? computeInsights(summary, {
+            confAboveAvg: t.raw("insights.confAboveAvg") as string,
+            confBelowAvg: t.raw("insights.confBelowAvg") as string,
+            topProduct: t.raw("insights.topProduct") as string,
+            leadingAgent: t.raw("insights.leadingAgent") as string,
+          })
+        : [],
     [summary, t],
   );
 
@@ -126,17 +131,17 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
 
   const pipelineRows = useMemo(
     () =>
-      summary.pipeline.map((p) => ({
+      (summary?.pipeline ?? []).map((p) => ({
         key: p.bucket,
         label: tPipe(p.bucket),
         value: p.count,
       })),
-    [summary.pipeline, tPipe],
+    [summary, tPipe],
   );
 
   const footerItems = useMemo(() => {
     const items: Array<{ key: string; label: string; value: string; href?: string }> = [];
-    if (!isSuperAdmin) return items;
+    if (!isSuperAdmin || !summary) return items;
     items.push({
       key: "followups",
       label: t("footer.followUps"),
@@ -158,24 +163,15 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
       });
     }
     return items;
-  }, [isSuperAdmin, summary.footer, t, locale, currency]);
+  }, [isSuperAdmin, summary, t, locale, currency]);
 
   return (
-    <div
-      style={{
-        padding: isMobile ? "64px 16px 48px" : "32px 32px 64px",
-        background: "#F6F6F7",
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        gap: isMobile ? 16 : 24,
-      }}
-    >
+    <div className="bg-surface-page min-h-screen px-4 pt-16 pb-12 sm:px-6 lg:px-8 lg:pt-8 lg:pb-16 flex flex-col gap-4 lg:gap-6">
       <div>
-        <h1 style={{ fontSize: 20, fontWeight: 600, color: "#1A1A1A", margin: 0 }}>
+        <h1 className="m-0 text-[20px] font-semibold text-ink-primary tracking-[-0.01em]">
           {t("title")}
         </h1>
-        <p style={{ fontSize: 13, color: "#6D7175", margin: "4px 0 0" }}>
+        <p className="mb-0 mt-1 text-[13px] text-ink-secondary">
           {t("subtitle")}
           {isLoading ? ` · ${t("refreshing")}` : ""}
         </p>
@@ -188,102 +184,147 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
         presets={["today", "last7", "last30", "custom"]}
       />
 
-      <AlertAttentionBar
-        byType={byType}
-        totalCount={totalCount}
-        role={role}
-        locale={locale}
-        labels={{
-          overdueCallbacks: t("attention.overdueCallbacks", { count: byType?.overdue_callback ?? 0 }),
-          unassignedOverflow: t("attention.unassignedOverflow", { count: byType?.unassigned_overflow ?? 0 }),
-          lowStock: t("attention.lowStock", {
-            count: (byType?.low_stock ?? 0) + (byType?.stock_depleted ?? 0),
-          }),
-          viewAll: t("attention.viewAll"),
-          allClear: t("attention.allClear"),
-        }}
-      />
+      {summary == null && error ? (
+        <div
+          role="alert"
+          className="bg-surface-card border border-line-subtle rounded-[8px] px-5 py-6 flex flex-col items-start gap-3"
+        >
+          <span className="text-[13px] text-status-critical">{t("loadError")}</span>
+          <button
+            type="button"
+            onClick={() => void mutateSummary()}
+            className="px-3 py-1.5 text-[13px] font-medium text-ink-primary bg-surface-card border border-line rounded-[6px] cursor-pointer hover:bg-surface-hover transition-colors duration-fast"
+          >
+            {t("retry")}
+          </button>
+        </div>
+      ) : summary == null ? (
+        <div role="status" className="flex flex-col gap-4 lg:gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+            <Skeleton className="h-[132px]" />
+            <Skeleton className="h-[132px]" />
+            <Skeleton className="h-[132px]" />
+            <Skeleton className="h-[132px]" />
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
+            <Skeleton className="h-[124px]" />
+            <Skeleton className="h-[124px]" />
+            <Skeleton className="h-[124px]" />
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Skeleton className="h-[280px]" />
+            <Skeleton className="h-[280px]" />
+          </div>
+        </div>
+      ) : (
+        <>
+          {error ? (
+            <div
+              role="alert"
+              className="px-3.5 py-2.5 rounded-[8px] text-[13px] bg-status-criticalBg text-status-critical"
+            >
+              {t("loadError")}
+            </div>
+          ) : null}
 
-      <HeroKpiStrip
-        role={role}
-        kpis={summary.kpis}
-        trend={summary.trend}
-        currencySymbol={currency}
-        periodLabel={periodLabel}
-        labels={{
-          revenue: t("kpi.revenue"),
-          netProfit: t("kpi.netProfit"),
-          confirmationRate: t("kpi.confirmationRate"),
-          rejectionRate: t("kpi.rejectionRate"),
-          ordersProcessed: t("kpi.ordersProcessed"),
-          deliveryRate: t("kpi.deliveryRate"),
-        }}
-      />
-
-      <InsightsBand insights={insights} />
-
-      <SecondaryKpiStrip
-        role={role}
-        kpis={summary.kpis}
-        openOrdersCount={openOrdersCount}
-        agentsIdle={summary.kpis.agentsIdle}
-        agentsOffline={agentsOffline}
-        periodLabel={periodLabel}
-        labels={{
-          ordersProcessed: t("kpi.ordersProcessed"),
-          rejectionRate: t("kpi.rejectionRate"),
-          agentsOnline: t("kpi.agentsOnline"),
-          openOrders: t("kpi.openOrders"),
-          idleSuffix: t("kpi.idleSuffix"),
-          offlineSuffix: t("kpi.offlineSuffix"),
-        }}
-      />
-
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(0, 1fr)", gap: 16 }}>
-        <Panel title={t("sections.pipeline")}>
-          <HorizontalBars rows={pipelineRows} compact />
-        </Panel>
-        <TopPerformers
-          agents={summary.presence}
-          title={t("sections.topPerformers")}
-          confirmedLabel={t("topPerformers.confirmed")}
-          onlineCountTemplate={(online, total) =>
-            t("topPerformers.onlineCount", { online, total })
-          }
-          viewAllHref={`/${locale}/team`}
-          viewAllLabel={t("topPerformers.viewAll")}
-          emptyLabel={t("topPerformers.empty")}
-        />
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(0, 1fr)", gap: 16 }}>
-        <TopPerformingProducts
-          products={summary.topProducts}
-          title={t("sections.topProducts")}
-          deliveredLabel={t("topProducts.delivered")}
-          revenueLabel={t("topProducts.revenue")}
-          currencySymbol={currency}
-          showRevenue={isSuperAdmin}
-          emptyLabel={t("topProducts.empty")}
-        />
-        {isSuperAdmin && summary.markets.length > 1 ? (
-          <MarketsStrip
-            markets={summary.markets}
-            title={t("sections.markets")}
-            drillLabel={t("markets.drill")}
-            revenueLabel={t("kpi.revenue")}
-            profitLabel={t("kpi.netProfit")}
-            ordersLabel={t("kpi.ordersProcessed")}
-            agentsLabel={t("kpi.agents")}
-            confirmationLabel={t("kpi.confirmationRate")}
-            rejectionLabel={t("kpi.rejectionRate")}
-            onlineSuffix={t("presence.online")}
-            onDrill={handleDrillMarket}
+          <AlertAttentionBar
+            byType={byType}
+            totalCount={totalCount}
+            role={role}
+            locale={locale}
+            labels={{
+              overdueCallbacks: t("attention.overdueCallbacks", { count: byType?.overdue_callback ?? 0 }),
+              unassignedOverflow: t("attention.unassignedOverflow", { count: byType?.unassigned_overflow ?? 0 }),
+              lowStock: t("attention.lowStock", {
+                count: (byType?.low_stock ?? 0) + (byType?.stock_depleted ?? 0),
+              }),
+              viewAll: t("attention.viewAll"),
+              allClear: t("attention.allClear"),
+            }}
           />
-        ) : null}
-      </div>
 
-      {footerItems.length > 0 ? <FooterLinks items={footerItems} /> : null}
+          <HeroKpiStrip
+            role={role}
+            kpis={summary.kpis}
+            trend={summary.trend}
+            currencySymbol={currency}
+            periodLabel={periodLabel}
+            labels={{
+              revenue: t("kpi.revenue"),
+              netProfit: t("kpi.netProfit"),
+              confirmationRate: t("kpi.confirmationRate"),
+              rejectionRate: t("kpi.rejectionRate"),
+              ordersProcessed: t("kpi.ordersProcessed"),
+              deliveryRate: t("kpi.deliveryRate"),
+            }}
+          />
+
+          <InsightsBand insights={insights} />
+
+          <SecondaryKpiStrip
+            role={role}
+            kpis={summary.kpis}
+            openOrdersCount={openOrdersCount}
+            agentsIdle={summary.kpis.agentsIdle}
+            agentsOffline={agentsOffline}
+            periodLabel={periodLabel}
+            labels={{
+              ordersProcessed: t("kpi.ordersProcessed"),
+              rejectionRate: t("kpi.rejectionRate"),
+              agentsOnline: t("kpi.agentsOnline"),
+              openOrders: t("kpi.openOrders"),
+              idleSuffix: t("kpi.idleSuffix"),
+              offlineSuffix: t("kpi.offlineSuffix"),
+            }}
+          />
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Panel title={t("sections.pipeline")}>
+              <HorizontalBars rows={pipelineRows} compact />
+            </Panel>
+            <TopPerformers
+              agents={summary.presence}
+              title={t("sections.topPerformers")}
+              confirmedLabel={t("topPerformers.confirmed")}
+              onlineCountTemplate={(online, total) =>
+                t("topPerformers.onlineCount", { online, total })
+              }
+              viewAllHref={`/${locale}/team`}
+              viewAllLabel={t("topPerformers.viewAll")}
+              emptyLabel={t("topPerformers.empty")}
+            />
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <TopPerformingProducts
+              products={summary.topProducts}
+              title={t("sections.topProducts")}
+              deliveredLabel={t("topProducts.delivered")}
+              revenueLabel={t("topProducts.revenue")}
+              currencySymbol={currency}
+              showRevenue={isSuperAdmin}
+              emptyLabel={t("topProducts.empty")}
+            />
+            {isSuperAdmin && summary.markets.length > 1 ? (
+              <MarketsStrip
+                markets={summary.markets}
+                title={t("sections.markets")}
+                drillLabel={t("markets.drill")}
+                revenueLabel={t("kpi.revenue")}
+                profitLabel={t("kpi.netProfit")}
+                ordersLabel={t("kpi.ordersProcessed")}
+                agentsLabel={t("kpi.agents")}
+                confirmationLabel={t("kpi.confirmationRate")}
+                rejectionLabel={t("kpi.rejectionRate")}
+                onlineSuffix={t("presence.online")}
+                onDrill={handleDrillMarket}
+              />
+            ) : null}
+          </div>
+
+          {footerItems.length > 0 ? <FooterLinks items={footerItems} /> : null}
+        </>
+      )}
     </div>
   );
 }

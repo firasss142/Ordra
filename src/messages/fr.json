@@ -545,6 +545,8 @@
     "title": "Tableau de bord",
     "subtitle": "Aperçu en direct — actualisé automatiquement",
     "refreshing": "actualisation…",
+    "loadError": "Impossible de charger le tableau de bord",
+    "retry": "Réessayer",
     "ordersReceived": "Commandes reçues",
     "confirmed": "Confirmées",
     "confirmationRate": "Taux de confirmation",
