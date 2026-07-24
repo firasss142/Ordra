@@ -4,6 +4,7 @@ import {
   aggregatePeriodCounts,
   buildDailyTrend,
   computeDelta,
+  computeFinancialSummary,
   previousPeriod,
   computeDeliveryRate,
   aggregateDeliveryCounts,
@@ -213,5 +214,69 @@ describe("aggregateTopProducts", () => {
   it("skips rows where product_id is null", () => {
     const rows = [{ orders: { product_id: null, total_price: 100, products: null } }];
     expect(aggregateTopProducts(rows)).toEqual([]);
+  });
+});
+
+describe("computeFinancialSummary (P&L parity)", () => {
+  it("sums revenue over delivered orders only", () => {
+    const { revenue } = computeFinancialSummary({
+      delivered: [
+        { total_price: 120.5, quantity: 1, unit_cogs: 0, delivery_fee: 0 },
+        { total_price: 79.5, quantity: 2, unit_cogs: 0, delivery_fee: 0 },
+      ],
+      returned: [{ return_fee: 4 }],
+      confirmedPacking: [{ packing_cost: 2 }],
+      adSpend: 0,
+    });
+    expect(revenue).toBe(200);
+  });
+
+  it("counts packing only for confirmed events — delivered rows contribute none", () => {
+    // A delivered order whose product has a packing cost must NOT pay packing
+    // again (the old calculateBusinessProfitability path double-counted it).
+    const { netProfit } = computeFinancialSummary({
+      delivered: [{ total_price: 100, quantity: 1, unit_cogs: 0, delivery_fee: 0 }],
+      returned: [],
+      confirmedPacking: [],
+      adSpend: 0,
+    });
+    expect(netProfit).toBe(100);
+  });
+
+  it("computes net profit as revenue - cogs - delivery - return - packing - adSpend", () => {
+    const { revenue, netProfit } = computeFinancialSummary({
+      delivered: [
+        { total_price: 100, quantity: 2, unit_cogs: 10, delivery_fee: 7 },
+        { total_price: 50, quantity: 1, unit_cogs: 5, delivery_fee: 7 },
+      ],
+      returned: [{ return_fee: 4 }, { return_fee: 4 }],
+      confirmedPacking: [{ packing_cost: 1.5 }, { packing_cost: 1.5 }],
+      adSpend: 20,
+    });
+    // 150 - (20 + 5) - 14 - 8 - 3 - 20 = 80
+    expect(revenue).toBe(150);
+    expect(netProfit).toBe(80);
+  });
+
+  it("uses cents math (no float drift)", () => {
+    const { netProfit } = computeFinancialSummary({
+      delivered: [{ total_price: 0.1, quantity: 1, unit_cogs: 0.02, delivery_fee: 0.01 }],
+      returned: [{ return_fee: 0.03 }],
+      confirmedPacking: [{ packing_cost: 0.02 }],
+      adSpend: 0.01,
+    });
+    // 0.10 - 0.02 - 0.01 - 0.03 - 0.02 - 0.01 = 0.01 exactly
+    expect(netProfit).toBe(0.01);
+  });
+
+  it("returns zeros on empty input", () => {
+    expect(
+      computeFinancialSummary({
+        delivered: [],
+        returned: [],
+        confirmedPacking: [],
+        adSpend: 0,
+      }),
+    ).toEqual({ revenue: 0, netProfit: 0 });
   });
 });

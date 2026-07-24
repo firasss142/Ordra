@@ -1,6 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { calculateConfirmationRate } from "@/lib/metrics";
-import { calculateBusinessProfitability } from "@/lib/calculations/business-profitability";
+import {
+  calculateRevenue,
+  calculateCogs,
+  calculateDeliveryCost,
+  calculateReturnCost,
+  calculatePackingCost,
+  calculateNetProfit,
+} from "@/lib/calculations/profitability";
 import { getPresence, type PresenceState } from "@/lib/presence";
 import { TERMINAL_STATUSES } from "@/types/order-status";
 import type { Role } from "@/types";
@@ -216,6 +223,39 @@ export function previousPeriod(fromDate: string, toDate: string): { from: string
   };
 }
 
+/**
+ * Aggregates raw financial rows with the exact same calc functions and
+ * definitions as the P&L page (loadProfitabilitySummary): revenue/COGS/
+ * delivery fees on delivered events, return fees on returned events,
+ * packing on confirmed events only, cents math throughout — so the
+ * dashboard and /api/profitability agree by construction.
+ */
+export function computeFinancialSummary(input: {
+  delivered: { total_price: number; quantity: number; unit_cogs: number; delivery_fee: number }[];
+  returned: { return_fee: number }[];
+  confirmedPacking: { packing_cost: number }[];
+  adSpend: number;
+}): { revenue: number; netProfit: number } {
+  const revenue = calculateRevenue(input.delivered);
+  const cogs = calculateCogs(input.delivered);
+  const deliveryCost = calculateDeliveryCost(
+    input.delivered.map((o) => ({ count: 1, delivery_fee: o.delivery_fee })),
+  );
+  const returnCost = calculateReturnCost(
+    input.returned.map((o) => ({ count: 1, return_fee: o.return_fee })),
+  );
+  const packingCost = calculatePackingCost(input.confirmedPacking);
+  const netProfit = calculateNetProfit({
+    revenue,
+    cogs,
+    deliveryCost,
+    returnCost,
+    packingCost,
+    adSpend: input.adSpend,
+  });
+  return { revenue, netProfit };
+}
+
 async function fetchFinancials(
   supabase: Awaited<ReturnType<typeof createClient>>,
   marketId: string,
@@ -224,7 +264,6 @@ async function fetchFinancials(
 ): Promise<{ revenue: number; netProfit: number; totalAdSpend: number }> {
   const dateLte = toDate + "T23:59:59.999Z";
 
-  // Counts use head:true (no row transfer, not subject to row cap).
   // Row-returning joins use fetchAllRows() to bypass PostgREST's 1000-row cap.
   type DeliveredRow = {
     orders: {
@@ -241,21 +280,8 @@ async function fetchFinancials(
     orders: { products: { packing_cost: number } | null };
   };
 
-  const [totalOrders, rejectedCount, deliveredRows, returnedRows, confirmedRows, adSpend] =
+  const [deliveredRows, returnedRows, confirmedRows, adSpend] =
     await Promise.all([
-      supabase
-        .from("orders")
-        .select("id", { count: "exact", head: true })
-        .eq("market_id", marketId)
-        .gte("created_at", fromDate)
-        .lte("created_at", dateLte),
-      supabase
-        .from("order_history")
-        .select("id, orders!inner(market_id)", { count: "exact", head: true })
-        .eq("status_to", "rejected")
-        .eq("orders.market_id", marketId)
-        .gte("created_at", fromDate)
-        .lte("created_at", dateLte),
       fetchAllRows<DeliveredRow>(
         supabase
           .from("order_history")
@@ -298,56 +324,23 @@ async function fetchFinancials(
 
   const totalAdSpend = (adSpend.data ?? []).reduce((sum, r) => sum + Number(r.amount), 0);
 
-  const delivered = deliveredRows.map((h) => {
-    const o = h.orders;
-    return {
-      total_price: Number(o.total_price),
-      quantity: Number(o.quantity),
-      status: "delivered" as const,
-      carrier_delivery_fee: Number(o.carriers?.delivery_fee ?? 0),
-      carrier_return_fee: Number(o.carriers?.return_fee ?? 0),
-      product_unit_cogs: Number(o.products?.unit_cogs ?? 0),
-      product_packing_cost: Number(o.products?.packing_cost ?? 0),
-    };
-  });
-  const returned = returnedRows.map((h) => {
-    const o = h.orders;
-    return {
-      total_price: 0,
-      quantity: 1,
-      status: "returned" as const,
-      carrier_delivery_fee: Number(o.carriers?.delivery_fee ?? 0),
-      carrier_return_fee: Number(o.carriers?.return_fee ?? 0),
-      product_unit_cogs: 0,
-      product_packing_cost: 0,
-    };
-  });
-  const confirmed = confirmedRows.map((h) => {
-    const o = h.orders;
-    return {
-      total_price: 0,
-      quantity: 1,
-      status: "confirmed" as const,
-      carrier_delivery_fee: 0,
-      carrier_return_fee: 0,
-      product_unit_cogs: 0,
-      product_packing_cost: Number(o.products?.packing_cost ?? 0),
-    };
+  const { revenue, netProfit } = computeFinancialSummary({
+    delivered: deliveredRows.map((h) => ({
+      total_price: Number(h.orders.total_price),
+      quantity: Number(h.orders.quantity),
+      unit_cogs: Number(h.orders.products?.unit_cogs ?? 0),
+      delivery_fee: Number(h.orders.carriers?.delivery_fee ?? 0),
+    })),
+    returned: returnedRows.map((h) => ({
+      return_fee: Number(h.orders.carriers?.return_fee ?? 0),
+    })),
+    confirmedPacking: confirmedRows.map((h) => ({
+      packing_cost: Number(h.orders.products?.packing_cost ?? 0),
+    })),
+    adSpend: totalAdSpend,
   });
 
-  const result = calculateBusinessProfitability({
-    orders: [...delivered, ...returned, ...confirmed],
-    totalAdSpend,
-    totalOrdersReceived: totalOrders.count ?? 0,
-    totalConfirmed: confirmed.length,
-    totalRejected: rejectedCount.count ?? 0,
-  });
-
-  return {
-    revenue: result.grossRevenue,
-    netProfit: result.simplifiedNetProfit,
-    totalAdSpend,
-  };
+  return { revenue, netProfit, totalAdSpend };
 }
 
 async function fetchNonFinancialCounts(
