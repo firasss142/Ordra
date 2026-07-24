@@ -398,7 +398,8 @@
       "saving": "Enregistrement…",
       "cancel": "Annuler",
       "errorGeneric": "Ajustement impossible. Réessayez."
-    }
+    },
+    "scopeAllCurrencyNote": "Devises mixtes (tous les marchés) — sélectionnez un marché pour les valeurs monétaires."
   },
   "pnl": {
     "title": "P&L global",
