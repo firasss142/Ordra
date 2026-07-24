@@ -3308,9 +3308,13 @@
   "periodSelector": {
     "label": "Période",
     "today": "Aujourd'hui",
+    "yesterday": "Hier",
     "week": "Cette semaine",
     "month": "Ce mois",
     "last7": "7 derniers jours",
-    "last30": "30 derniers jours"
+    "last30": "30 derniers jours",
+    "custom": "Personnalisé",
+    "from": "Du",
+    "to": "Au"
   }
 }
