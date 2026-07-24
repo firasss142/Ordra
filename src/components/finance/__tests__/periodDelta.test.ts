@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { periodDeltaProps } from "../PeriodDeltaBadge";
+import { periodDeltaProps } from "../periodDelta";
 
 describe("periodDeltaProps", () => {
   it("returns '—' and neutral when delta is null", () => {

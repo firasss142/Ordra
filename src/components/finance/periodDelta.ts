@@ -1,5 +1,5 @@
 import type { PeriodDelta } from "@/lib/calculations/deltas";
-import type { DeltaProps } from "./kpiDelta";
+import type { DeltaProps } from "@/components/dashboard/kpiDelta";
 
 export function periodDeltaProps(
   delta: PeriodDelta | null | undefined,

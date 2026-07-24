@@ -7,7 +7,7 @@ import { PeriodSelector, type Period, type PeriodPreset } from "@/components/sha
 import { Panel, EmptyState } from "@/components/dashboard/Panel";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useMarketScope } from "@/context/market-scope";
-import { periodDeltaProps } from "@/components/dashboard/PeriodDeltaBadge";
+import { periodDeltaProps } from "@/components/finance/periodDelta";
 import { computePreviousPeriod, lastNDaysPeriod } from "@/lib/date";
 import { formatCurrency as formatMarketCurrency } from "@/lib/format";
 import { TONE_COLOR, formatPct, type Tone } from "@/components/dashboard/kpiDelta";

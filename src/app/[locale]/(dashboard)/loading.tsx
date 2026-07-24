@@ -1,39 +1,13 @@
+import { Skeleton } from "@/components/ui/Skeleton";
+
+/** Generic route skeleton for dashboard-group pages (list-shaped). */
 export default function DashboardLoading() {
   return (
-    <div
-      className="animate-pulse"
-      style={{
-        padding: 24,
-        backgroundColor: "var(--bg-page)",
-        minHeight: "100vh",
-      }}
-    >
-      <div
-        style={{
-          width: 180,
-          height: 28,
-          backgroundColor: "#E1E3E5",
-          borderRadius: 4,
-          marginBottom: 24,
-        }}
-      />
-      <div
-        style={{
-          backgroundColor: "white",
-          border: "1px solid #E1E3E5",
-          borderRadius: 8,
-          overflow: "hidden",
-        }}
-      >
+    <div role="status" className="bg-surface-page min-h-screen p-6">
+      <Skeleton className="h-7 w-44 mb-6" />
+      <div className="bg-surface-card border border-line-subtle rounded-[8px] overflow-hidden flex flex-col gap-px">
         {[0, 1, 2, 3, 4, 5].map((i) => (
-          <div
-            key={i}
-            style={{
-              height: 52,
-              borderBottom: "1px solid #F1F2F3",
-              backgroundColor: i % 2 === 0 ? "white" : "#FAFAFA",
-            }}
-          />
+          <Skeleton key={i} className="h-[52px] rounded-none" />
         ))}
       </div>
     </div>
