@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, TriangleAlert } from "lucide-react";
 import { useAlertsPanel } from "@/context/alerts-panel";
 import type { AlertType } from "@/app/api/alerts/summary/route";
 import type { DashboardRole } from "./HeroKpiStrip";
@@ -31,22 +32,8 @@ export function AlertAttentionBar({ byType, totalCount, role, locale: _locale, l
   if (totalCount === 0) {
     if (role !== "super_admin") return null;
     return (
-      <div
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          background: "#EAF7EF",
-          border: "1px solid #CDE9D7",
-          borderRadius: 9999,
-          padding: "6px 12px",
-          fontSize: 13,
-          fontWeight: 500,
-          color: "#008060",
-          alignSelf: "flex-start",
-        }}
-      >
-        <span style={{ fontSize: 14 }}>✓</span>
+      <div className="self-start inline-flex items-center gap-1.5 bg-status-successBg text-status-success rounded-pill px-3 py-1.5 text-[13px] font-medium">
+        <Check size={14} strokeWidth={2.5} aria-hidden />
         {labels.allClear}
       </div>
     );
@@ -62,33 +49,12 @@ export function AlertAttentionBar({ byType, totalCount, role, locale: _locale, l
   if (lowStockCount > 0) chips.push({ text: interpolate(labels.lowStock, lowStockCount), count: lowStockCount });
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        flexWrap: "wrap",
-        gap: 8,
-        background: "#FFF4E5",
-        border: "1px solid #D4841C",
-        borderRadius: 8,
-        padding: "10px 14px",
-        fontSize: 13,
-        fontWeight: 500,
-        color: "#92400E",
-      }}
-    >
-      <span style={{ color: "#D97706", marginInlineEnd: 4 }}>⚠</span>
+    <div className="bg-surface-card border border-line-subtle rounded-[8px] px-3.5 py-2.5 flex flex-wrap items-center gap-2">
+      <TriangleAlert size={14} strokeWidth={2.25} aria-hidden className="text-status-warning" />
       {chips.map((chip) => (
         <span
           key={chip.text}
-          style={{
-            background: "#FEF3C7",
-            border: "1px solid #FCD34D",
-            borderRadius: 9999,
-            padding: "2px 10px",
-            color: "#92400E",
-            fontSize: 12,
-          }}
+          className="bg-status-warningBg text-status-warning rounded-pill px-2.5 py-0.5 text-[12px] font-medium"
         >
           {chip.text}
         </span>
@@ -96,18 +62,8 @@ export function AlertAttentionBar({ byType, totalCount, role, locale: _locale, l
       <button
         type="button"
         onClick={() => openPanel()}
-        style={{
-          marginInlineStart: "auto",
-          color: "#D97706",
-          background: "transparent",
-          border: "none",
-          padding: 0,
-          cursor: "pointer",
-          fontWeight: 600,
-          fontSize: 12,
-          whiteSpace: "nowrap",
-          fontFamily: "inherit",
-        }}
+        className="ms-auto bg-transparent border-0 p-0 cursor-pointer text-[12px] font-semibold text-ink-primary whitespace-nowrap"
+        style={{ fontFamily: "inherit" }}
       >
         {labels.viewAll}
       </button>
