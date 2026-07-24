@@ -58,7 +58,10 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
   const fromDate = useMemo(() => twelveWeekFrom(), []);
   const toDate = useMemo(() => todayISO(), []);
   const currency = useMemo(
-    () => (markets.find((m) => m.id === selectedMarketId)?.code === "LY" ? "LYD" : "TND"),
+    () =>
+      markets.find((m) => m.id === selectedMarketId)?.code.toUpperCase() === "LY"
+        ? "LYD"
+        : "TND",
     [markets, selectedMarketId],
   );
 
