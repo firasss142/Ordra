@@ -1584,7 +1584,6 @@
       "errors": {
         "skuConflict": "Ce SKU est déjà utilisé pour un autre produit de ce marché."
       },
-      "example": "Exemple indicatif : 100 leads · 60 confirmés · 40 livrés à {price} → marge estimée {margin}",
       "submit": "Créer le produit",
       "cancel": "Annuler"
     },
@@ -1634,7 +1633,9 @@
       "editThreshold": "Modifier le seuil",
       "variants": "{count} variante(s)",
       "moreVariants": "+{count} autres"
-    }
+    },
+    "selectMarketPrompt": "Sélectionnez un marché dans la barre latérale pour afficher le catalogue.",
+    "noSearchMatch": "Aucun produit ne correspond à « {q} »."
   },
   "mappings": {
     "title": "Correspondances",
@@ -3303,5 +3304,13 @@
       "returned": "Commande #{id} retournée",
       "deleted": "Commande #{id} supprimée"
     }
+  },
+  "periodSelector": {
+    "label": "Période",
+    "today": "Aujourd'hui",
+    "week": "Cette semaine",
+    "month": "Ce mois",
+    "last7": "7 derniers jours",
+    "last30": "30 derniers jours"
   }
 }

@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { calculateProductProfitability } from "@/lib/calculations/product-profitability";
 import { ProductImagePicker } from "./ProductImagePicker";
 import type { Role } from "@/types";
 
@@ -46,29 +45,6 @@ export function ProductCreateForm({ markets, defaultMarketId, locale, lockedMark
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Live cost example using typed values + reference scenario (100 leads, 60 confirmed, 40 delivered)
-  const example = useMemo(() => {
-    const uCogs = parseFloat(unitCogs) || 0;
-    const pCost = parseFloat(packingCost) || 0;
-    const procCost = parseFloat(processingCost) || 0;
-    const price = parseFloat(defaultPrice) || 120;
-    const result = calculateProductProfitability({
-      totalLeads: 100,
-      confirmedCount: 60,
-      dispatchedCount: 45,
-      deliveredCount: 40,
-      returnedCount: 5,
-      unitCogs: uCogs,
-      packingCost: pCost,
-      confirmationProcessingCost: procCost,
-      deliveredOrders: Array(40).fill({ total_price: price, quantity: 1, carrier_delivery_fee: 7 }),
-      returnedOrders: Array(5).fill({ carrier_return_fee: 4 }),
-      adSpend: 0,
-    });
-    const marginPct = result.revenue === 0 ? 0 : Math.round((result.simplifiedNetProfit / result.revenue) * 1000) / 10;
-    return { margin: marginPct, price };
-  }, [unitCogs, packingCost, processingCost, defaultPrice]);
 
   async function handleSubmit() {
     setError(null);
@@ -249,16 +225,6 @@ export function ProductCreateForm({ markets, defaultMarketId, locale, lockedMark
             <p style={hintStyle}>{t("create.hints.processingCost")}</p>
           </div>
 
-          {/* Live cost example */}
-          <div
-            data-testid="cost-example"
-            style={{ background: "#F6F6F7", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "10px 14px", fontSize: 12, color: MUTED }}
-          >
-            {t("create.example", {
-              price: example.price.toFixed(0),
-              margin: `${example.margin > 0 ? "+" : ""}${example.margin}%`,
-            })}
-          </div>
         </div>
       </div>
 

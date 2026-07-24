@@ -9,8 +9,7 @@ import { ProductDetailHeader } from "@/components/products/ProductDetailHeader";
 import { ProductCostsReferenceCard } from "@/components/products/ProductCostsReferenceCard";
 import { ProductRentabilityClient } from "@/components/products/ProductRentabilityClient";
 import { StockHistoryPanel } from "@/components/products/StockHistoryPanel";
-import { PeriodSelector } from "@/components/dashboard/MetricsTable";
-import type { Period } from "@/components/dashboard/MetricsTable";
+import { PeriodSelector, type Period } from "@/components/shared/PeriodSelector";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 

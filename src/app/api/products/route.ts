@@ -78,6 +78,13 @@ export async function GET(req: NextRequest) {
     query = query.eq("market_id", targetMarketId);
   }
 
+  // Server-side name search — filters the WHOLE catalog, not the current page.
+  const rawQ = req.nextUrl.searchParams.get("q")?.trim() ?? "";
+  if (rawQ) {
+    const escaped = rawQ.replace(/[%_]/g, (m) => `\\${m}`);
+    query = query.ilike("name", `%${escaped}%`);
+  }
+
   const { data, error, count } = await query;
 
   if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });

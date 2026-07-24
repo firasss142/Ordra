@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
-import type { Period } from "@/components/dashboard/MetricsTable";
+import type { Period } from "@/components/shared/PeriodSelector";
 import type { ProductProfitabilityData, ProductProfitabilityPeriodData } from "@/types/profitability";
 import { computePreviousPeriod } from "@/lib/date";
 import { FinanceHeroCard } from "@/components/finance/FinanceHeroCard";

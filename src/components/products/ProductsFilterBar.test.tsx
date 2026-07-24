@@ -35,10 +35,6 @@ function renderBar(overrides: Partial<React.ComponentProps<typeof ProductsFilter
     onStatusChange: vi.fn(),
     search: "",
     onSearchChange: vi.fn(),
-    selectedCount: 0,
-    onBulkActivate: vi.fn(),
-    onBulkDeactivate: vi.fn(),
-    onBulkClear: vi.fn(),
     canManage: true,
     canViewPerformance: true,
   };
@@ -92,32 +88,6 @@ describe("ProductsFilterBar", () => {
     const input = screen.getByPlaceholderText("Rechercher un produit…");
     await userEvent.type(input, "sport");
     expect(onSearchChange).toHaveBeenCalled();
-  });
-
-  it("does not show bulk action buttons when selectedCount is 0", () => {
-    renderBar({ selectedCount: 0 });
-    expect(screen.queryByRole("button", { name: "Activer" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Désactiver" })).not.toBeInTheDocument();
-  });
-
-  it("shows bulk action buttons when selectedCount > 0", () => {
-    renderBar({ selectedCount: 3 });
-    expect(screen.getByRole("button", { name: "Activer" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Désactiver" })).toBeInTheDocument();
-  });
-
-  it("calls onBulkActivate when Activer is clicked", async () => {
-    const onBulkActivate = vi.fn();
-    renderBar({ selectedCount: 2, onBulkActivate });
-    await userEvent.click(screen.getByRole("button", { name: "Activer" }));
-    expect(onBulkActivate).toHaveBeenCalled();
-  });
-
-  it("calls onBulkDeactivate when Désactiver is clicked", async () => {
-    const onBulkDeactivate = vi.fn();
-    renderBar({ selectedCount: 2, onBulkDeactivate });
-    await userEvent.click(screen.getByRole("button", { name: "Désactiver" }));
-    expect(onBulkDeactivate).toHaveBeenCalled();
   });
 
   it("renders the market label as a read-only chip (sidebar is the only writer)", () => {
