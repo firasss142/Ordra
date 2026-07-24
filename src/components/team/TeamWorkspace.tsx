@@ -6,11 +6,11 @@ import { useTranslations } from "next-intl";
 import { useRealtimeSubscribe } from "@/components/providers/RealtimeProvider";
 import { computeStreak } from "@/lib/team/streak";
 import { medianMinutes } from "@/lib/team/ttfc";
-import { TeamPeriodSelector, type TeamPeriodPreset } from "./TeamPeriodSelector";
 import { TeamLeaderboard } from "./TeamLeaderboard";
 import { TeamTable, type TeamTableAgent } from "./TeamTable";
 import { AgentDrilldown } from "./AgentDrilldown";
-import type { Period } from "@/components/dashboard/FilterBar";
+import { PeriodSelector, type Period, type PeriodPreset } from "@/components/shared/PeriodSelector";
+import { todayISO } from "@/lib/date";
 import type { Role } from "@/types";
 
 const jsonFetcher = async (url: string) => {
@@ -73,7 +73,7 @@ export function TeamWorkspace({ role, marketId }: TeamWorkspaceProps) {
   const t = useTranslations("teamPerf");
   const yesterday = yesterdayISO();
   const [period, setPeriod] = useState<Period>({ from_date: yesterday, to_date: yesterday });
-  const [preset, setPreset] = useState<TeamPeriodPreset>("yesterday");
+  const [preset, setPreset] = useState<PeriodPreset>("yesterday");
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
   const teamUrl = buildTeamUrl(period, marketId);
@@ -194,13 +194,13 @@ export function TeamWorkspace({ role, marketId }: TeamWorkspaceProps) {
 
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
-        <TeamPeriodSelector
-          period={period}
-          activePreset={preset}
-          onChange={(p, pr) => { setPeriod(p); setPreset(pr); }}
-        />
-      </div>
+      <PeriodSelector
+        period={period}
+        activePreset={preset}
+        onChange={(p, pr) => { setPeriod(p); setPreset(pr); }}
+        presets={["yesterday", "last7", "last30", "custom"]}
+        maxDate={todayISO()}
+      />
 
       {/* KPI strip: avg rate, calls total, FCR avg, TTFC median, agents online */}
       <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>

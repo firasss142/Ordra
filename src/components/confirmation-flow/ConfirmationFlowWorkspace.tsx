@@ -8,13 +8,12 @@ import {
 } from "@/hooks/useConfirmationFlowOverview";
 import { useCallbacksDueSoon } from "@/hooks/useCallbacksDueSoon";
 import { useConfirmationFlowRealtime } from "@/hooks/useConfirmationFlowRealtime";
-import { TeamPeriodSelector, type TeamPeriodPreset } from "@/components/team/TeamPeriodSelector";
 import { FunnelChart } from "./FunnelChart";
 import { AgentStrugglingTable } from "./AgentStrugglingTable";
 import { CallbacksDueSoon } from "./CallbacksDueSoon";
 import { TtfcDistribution } from "./TtfcDistribution";
 import { NewEventsBanner } from "./NewEventsBanner";
-import type { Period } from "@/components/dashboard/FilterBar";
+import { PeriodSelector, type Period, type PeriodPreset } from "@/components/shared/PeriodSelector";
 import type { Role } from "@/types";
 
 function sevenDaysAgoISO(): string {
@@ -38,7 +37,7 @@ export function ConfirmationFlowWorkspace({ role, marketId }: ConfirmationFlowWo
     from_date: sevenDaysAgoISO(),
     to_date: todayISO(),
   });
-  const [preset, setPreset] = useState<TeamPeriodPreset>("7d");
+  const [preset, setPreset] = useState<PeriodPreset>("last7");
 
   const {
     data: overview,
@@ -103,13 +102,15 @@ export function ConfirmationFlowWorkspace({ role, marketId }: ConfirmationFlowWo
             {t("subtitle")}
           </p>
         </div>
-        <TeamPeriodSelector
+        <PeriodSelector
           period={period}
           activePreset={preset}
           onChange={(p, pr) => {
             setPeriod(p);
             setPreset(pr);
           }}
+          presets={["yesterday", "last7", "last30", "custom"]}
+          maxDate={todayISO()}
         />
       </div>
 

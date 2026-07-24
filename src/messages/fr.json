@@ -3004,14 +3004,6 @@
   },
   "teamPerf": {
     "title": "Performance équipe",
-    "periods": {
-      "yesterday": "Hier",
-      "7d": "7 j",
-      "30d": "30 j",
-      "custom": "Personnalisé",
-      "from": "Du",
-      "to": "Au"
-    },
     "kpis": {
       "avgRate": "Taux moy.",
       "totalCalls": "Appels",
