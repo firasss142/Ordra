@@ -28,10 +28,12 @@ export interface DeltaProps {
 }
 
 export function deltaPctProps(kpi: KpiValue, periodLabel?: string, invert?: boolean): DeltaProps {
-  if (kpi.deltaPct == null || Number.isNaN(kpi.deltaPct)) {
+  // A % change against a negative baseline is meaningless (and its sign
+  // contradicts the absolute direction) — show no percentage.
+  if (kpi.deltaPct == null || Number.isNaN(kpi.deltaPct) || kpi.previous < 0) {
     return { deltaText: "—", deltaTone: "neutral" };
   }
-  const sign = kpi.delta > 0 ? "+" : "";
+  const sign = kpi.deltaPct > 0 ? "+" : "";
   const suffix = periodLabel ? ` ${periodLabel}` : "";
   return {
     deltaText: `${sign}${kpi.deltaPct.toFixed(1)}%${suffix}`,
