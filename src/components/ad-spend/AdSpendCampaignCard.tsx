@@ -43,7 +43,7 @@ function MetricRow({
         ? D.warning
         : tone === "critical"
           ? D.danger
-          : D.white;
+          : D.ink;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <span
@@ -103,7 +103,7 @@ export function AdSpendCampaignCard({
       style={{
         background: D.cardBg,
         border: `1px solid ${hovered ? D.borderHover : D.border}`,
-        borderRadius: 12,
+        borderRadius: 8,
         boxShadow: D.shadow,
         padding: 20,
         display: "flex",
@@ -186,7 +186,7 @@ export function AdSpendCampaignCard({
           style={{
             fontSize: 30,
             fontWeight: 700,
-            color: D.white,
+            color: D.ink,
             fontVariantNumeric: "tabular-nums",
             lineHeight: 1,
           }}
@@ -252,7 +252,7 @@ export function AdSpendCampaignCard({
             borderRadius: 6,
             border: `1px solid ${D.border}`,
             background: "transparent",
-            color: editDisabled ? D.tertiary : D.white,
+            color: editDisabled ? D.tertiary : D.ink,
             cursor: editDisabled ? "not-allowed" : "pointer",
           }}
         >
@@ -273,7 +273,7 @@ export function AdSpendCampaignCard({
             fontWeight: 500,
             padding: "8px 12px",
             borderRadius: 6,
-            border: `1px solid ${editDisabled ? D.border : "rgba(244,114,114,0.3)"}`,
+            border: `1px solid ${editDisabled ? D.border : "#F3B9B0"}`,
             background: "transparent",
             color: editDisabled ? D.tertiary : D.danger,
             cursor: editDisabled ? "not-allowed" : "pointer",

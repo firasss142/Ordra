@@ -718,7 +718,9 @@
       "errorEmpty": "لا يوجد محتوى للتحليل",
       "errorUnknownFormat": "تنسيق غير معروف. استخدم تصدير Meta أو TikTok.",
       "errorNoRows": "لم يتم العثور على أسطر صالحة"
-    }
+    },
+    "selectMarketPrompt": "اختر سوقًا من الشريط الجانبي لإدارة نفقات الإعلانات.",
+    "deleteError": "فشل الحذف — لم يتم حذف الإدخال."
   },
   "orders": {
     "tracking": {

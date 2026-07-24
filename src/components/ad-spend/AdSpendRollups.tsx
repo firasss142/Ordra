@@ -56,7 +56,7 @@ export function AdSpendRollups({
           style={{
             background: D.cardBg,
             border: `1px solid ${D.border}`,
-            borderRadius: 12,
+            borderRadius: 8,
             boxShadow: D.shadow,
             padding: 20,
             display: "flex",
@@ -96,7 +96,7 @@ export function AdSpendRollups({
               style={{
                 fontSize: "clamp(22px, 5vw, 32px)",
                 fontWeight: 700,
-                color: D.white,
+                color: D.ink,
                 fontVariantNumeric: "tabular-nums",
                 lineHeight: 1,
               }}
