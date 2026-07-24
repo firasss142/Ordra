@@ -8,9 +8,13 @@ vi.mock("@/lib/auth/actor", () => ({
   getActor: (...args: unknown[]) => mockGetActor(...args),
 }));
 
-vi.mock("@/lib/dashboard/summary", () => ({
-  getDashboardSummary: (...args: unknown[]) => mockGetSummary(...args),
-}));
+vi.mock("@/lib/dashboard/summary", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/dashboard/summary")>();
+  return {
+    ...actual,
+    getDashboardSummary: (...args: unknown[]) => mockGetSummary(...args),
+  };
+});
 
 import { GET } from "./route";
 import { NextRequest } from "next/server";

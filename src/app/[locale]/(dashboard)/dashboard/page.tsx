@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { DashboardClient } from "./DashboardClient";
 import { getServerUser } from "@/lib/auth/server-user";
-import { getDashboardSummary } from "@/lib/dashboard/summary";
+import { getDashboardSummary, stripFinancials } from "@/lib/dashboard/summary";
+import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
 
 export default async function DashboardPage({
@@ -26,7 +27,7 @@ export default async function DashboardPage({
 
   // Server-fetch Tunisia-scoped summary for super_admin (single-market = N× faster
   // than "all") and pass as fallbackData so the client paints with zero network call.
-  const initialSummary = await getDashboardSummary({
+  const rawSummary = await getDashboardSummary({
     fromDate: today,
     toDate: today,
     marketId: user.role === "super_admin" ? (defaultMarketId || "all") : null,
@@ -35,13 +36,9 @@ export default async function DashboardPage({
   });
 
   // Role-gate financials server-side before sending to client.
-  if (user.role !== "super_admin") {
-    initialSummary.kpis.revenue = null;
-    initialSummary.kpis.netProfit = null;
-    initialSummary.footer.adSpend = null;
-    initialSummary.markets = [];
-    initialSummary.topProducts = initialSummary.topProducts.map((p) => ({ ...p, revenue: null }));
-  }
+  const initialSummary = canViewFinanceSection(user.role)
+    ? rawSummary
+    : stripFinancials(rawSummary);
 
   return (
     <DashboardClient

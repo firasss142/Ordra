@@ -256,6 +256,20 @@ export function computeFinancialSummary(input: {
   return { revenue, netProfit };
 }
 
+/**
+ * Removes financial data from a summary for roles that may not see it
+ * (single definition shared by the API route and the server page).
+ */
+export function stripFinancials(summary: DashboardSummary): DashboardSummary {
+  return {
+    ...summary,
+    kpis: { ...summary.kpis, revenue: null, netProfit: null },
+    footer: { ...summary.footer, adSpend: null },
+    markets: [],
+    topProducts: summary.topProducts.map((p) => ({ ...p, revenue: null })),
+  };
+}
+
 async function fetchFinancials(
   supabase: Awaited<ReturnType<typeof createClient>>,
   marketId: string,

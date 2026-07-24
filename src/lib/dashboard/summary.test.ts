@@ -5,10 +5,12 @@ import {
   buildDailyTrend,
   computeDelta,
   computeFinancialSummary,
+  stripFinancials,
   previousPeriod,
   computeDeliveryRate,
   aggregateDeliveryCounts,
   aggregateTopProducts,
+  type DashboardSummary,
   type HistoryRow,
 } from "./summary";
 
@@ -278,5 +280,74 @@ describe("computeFinancialSummary (P&L parity)", () => {
         adSpend: 0,
       }),
     ).toEqual({ revenue: 0, netProfit: 0 });
+  });
+});
+
+describe("stripFinancials", () => {
+  const kpiValue = { current: 10, previous: 8, delta: 2, deltaPct: 25 };
+
+  const summary: DashboardSummary = {
+    period: { from_date: "2026-04-01", to_date: "2026-04-30" },
+    kpis: {
+      revenue: kpiValue,
+      netProfit: kpiValue,
+      confirmationRate: kpiValue,
+      rejectionRate: kpiValue,
+      ordersProcessed: kpiValue,
+      deliveryRate: kpiValue,
+      agentsOnline: 3,
+      agentsTotal: 5,
+      agentsIdle: 1,
+    },
+    trend: [],
+    pipeline: [{ bucket: "pending", count: 4 }],
+    rejectionBreakdown: [],
+    presence: [],
+    markets: [
+      {
+        market_id: "m1",
+        name: "Tunisie",
+        code: "tn",
+        currency: "TND",
+        revenue: 100,
+        netProfit: 50,
+        confirmationRate: 60,
+        rejectionRate: 10,
+        ordersProcessed: 20,
+        agentsOnline: 2,
+        agentsTotal: 3,
+      },
+    ],
+    topProducts: [
+      { product_id: "p1", product_name: "Produit", delivered_count: 7, revenue: 700 },
+    ],
+    footer: { followUpsOpen: 2, campaignsActive: 1, adSpend: 250 },
+    selectedMarket: { id: "m1", name: "Tunisie", currency: "TND" },
+    availableMarkets: [],
+    scope: "single",
+  };
+
+  it("nulls financials, empties markets, keeps everything else", () => {
+    const out = stripFinancials(summary);
+    expect(out.kpis.revenue).toBeNull();
+    expect(out.kpis.netProfit).toBeNull();
+    expect(out.footer.adSpend).toBeNull();
+    expect(out.markets).toEqual([]);
+    expect(out.topProducts).toEqual([
+      { product_id: "p1", product_name: "Produit", delivered_count: 7, revenue: null },
+    ]);
+    // non-financial data untouched
+    expect(out.kpis.confirmationRate).toEqual(kpiValue);
+    expect(out.kpis.agentsOnline).toBe(3);
+    expect(out.pipeline).toEqual([{ bucket: "pending", count: 4 }]);
+    expect(out.footer.followUpsOpen).toBe(2);
+  });
+
+  it("does not mutate its input", () => {
+    stripFinancials(summary);
+    expect(summary.kpis.revenue).toEqual(kpiValue);
+    expect(summary.footer.adSpend).toBe(250);
+    expect(summary.markets).toHaveLength(1);
+    expect(summary.topProducts[0].revenue).toBe(700);
   });
 });

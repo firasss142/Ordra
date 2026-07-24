@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActor } from "@/lib/auth/actor";
-import { getDashboardSummary } from "@/lib/dashboard/summary";
+import { getDashboardSummary, stripFinancials } from "@/lib/dashboard/summary";
+import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { todayISO } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
@@ -28,16 +29,10 @@ export async function GET(req: NextRequest) {
     actorMarketId: actor.market_id,
   });
 
-  if (actor.role !== "super_admin") {
-    summary.kpis.revenue = null;
-    summary.kpis.netProfit = null;
-    summary.footer.adSpend = null;
-    summary.markets = [];
-    summary.topProducts = summary.topProducts.map((p) => ({ ...p, revenue: null }));
-  }
+  const payload = canViewFinanceSection(actor.role) ? summary : stripFinancials(summary);
 
   return NextResponse.json(
-    { data: summary },
+    { data: payload },
     { headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=55" } },
   );
 }
