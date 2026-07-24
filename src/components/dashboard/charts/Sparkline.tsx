@@ -21,15 +21,18 @@ export function Sparkline({ data, color, relativeDomain = true, showTooltip = fa
         {showTooltip ? (
           <Tooltip
             cursor={false}
+            // recharts requires literal styles; mirrors the light card surface
+            // (dark content surfaces are forbidden by the design system).
             contentStyle={{
-              background: "#1A1A1A",
-              border: "none",
-              borderRadius: 4,
+              background: "#FFFFFF",
+              border: "1px solid #E1E3E5",
+              borderRadius: 6,
               fontSize: 12,
-              color: "#FFFFFF",
+              color: "#1A1A1A",
               padding: "4px 8px",
+              boxShadow: "0 8px 24px rgba(16,24,40,0.10)",
             }}
-            labelStyle={{ color: "#E3E5E7" }}
+            labelStyle={{ color: "#6D7175" }}
             formatter={(value) => [Number(value).toLocaleString(), ""]}
           />
         ) : null}
