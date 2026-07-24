@@ -41,27 +41,20 @@ export function KpiCard({
         {label}
       </div>
       <div
-        className="text-[28px] font-bold tabular-nums leading-[1.1]"
-        style={{ color: muted ? "#6D7175" : "#1A1A1A" }}
+        className={`text-[28px] font-bold tabular-nums leading-[1.1] ${muted ? "text-ink-secondary" : "text-ink-primary"}`}
       >
         {value}
       </div>
-      {visual ? (
-        <div style={{ height: 40, marginTop: "auto" }}>{visual}</div>
-      ) : null}
+      {visual ? <div className="h-10 mt-auto">{visual}</div> : null}
       {deltaText ? (
         <div
-          style={{
-            fontSize: 13,
-            fontWeight: 500,
-            color: TONE_COLOR[deltaTone],
-            fontVariantNumeric: "tabular-nums",
-          }}
+          className="text-[13px] font-medium tabular-nums"
+          style={{ color: TONE_COLOR[deltaTone] }}
         >
           {deltaText}
         </div>
       ) : subtitle ? (
-        <div style={{ fontSize: 13, fontWeight: 500, color: "#6D7175" }}>{subtitle}</div>
+        <div className="text-[13px] font-medium text-ink-secondary">{subtitle}</div>
       ) : null}
     </div>
   );

@@ -36,90 +36,40 @@ export function TopPerformingProducts({
   }
 
   const top = products.slice(0, 5);
-  const lastIdx = top.length - 1;
+  const gridCols = showRevenue ? "grid-cols-[auto_1fr_auto_auto]" : "grid-cols-[auto_1fr_auto]";
 
   return (
     <Panel title={title} minHeight={280}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <div className="flex flex-col">
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: showRevenue ? "auto 1fr auto auto" : "auto 1fr auto",
-            gap: 12,
-            padding: "6px 4px",
-            fontSize: 11,
-            fontWeight: 500,
-            color: "#6D7175",
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-            borderBottom: "1px solid #E1E3E5",
-          }}
+          className={`grid ${gridCols} gap-3 py-1.5 px-1 text-[11px] font-medium uppercase tracking-[0.05em] text-ink-secondary border-b border-line-subtle`}
         >
-          <span style={{ width: 22 }} />
+          <span className="w-[22px]" />
           <span />
-          <span style={{ textAlign: "end" }}>{deliveredLabel}</span>
-          {showRevenue ? <span style={{ textAlign: "end" }}>{revenueLabel}</span> : null}
+          <span className="text-end">{deliveredLabel}</span>
+          {showRevenue ? <span className="text-end">{revenueLabel}</span> : null}
         </div>
         {top.map((p, idx) => (
           <div
             key={p.product_id}
             data-testid="product-row"
-            style={{
-              display: "grid",
-              gridTemplateColumns: showRevenue ? "auto 1fr auto auto" : "auto 1fr auto",
-              gap: 12,
-              alignItems: "center",
-              padding: "10px 4px",
-              fontSize: 13,
-              borderBottom: idx === lastIdx ? "none" : "1px solid #F1F2F3",
-            }}
+            className={`grid ${gridCols} gap-3 items-center py-2.5 px-1 text-[13px] border-b border-line-subtle last:border-b-0`}
           >
             <span
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: "50%",
-                background: idx === 0 ? "#1A1A1A" : "#E1E3E5",
-                color: idx === 0 ? "#FFFFFF" : "#3D4043",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 12,
-                fontWeight: 600,
-              }}
+              className={`w-[22px] h-[22px] rounded-full inline-flex items-center justify-center text-[12px] font-semibold ${
+                idx === 0 ? "bg-ink-primary text-white" : "bg-surface-selected text-ink-primary"
+              }`}
             >
               {idx + 1}
             </span>
-            <span
-              style={{
-                color: "#1A1A1A",
-                fontWeight: 500,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-              title={p.product_name}
-            >
+            <span className="text-ink-primary font-medium truncate" title={p.product_name}>
               {p.product_name}
             </span>
-            <span
-              style={{
-                color: "#1A1A1A",
-                fontWeight: 600,
-                fontVariantNumeric: "tabular-nums",
-                textAlign: "end",
-              }}
-            >
+            <span className="text-ink-primary font-semibold tabular-nums text-end">
               {p.delivered_count.toLocaleString()}
             </span>
             {showRevenue ? (
-              <span
-                style={{
-                  color: "#1A1A1A",
-                  fontVariantNumeric: "tabular-nums",
-                  textAlign: "end",
-                }}
-              >
+              <span className="text-ink-primary tabular-nums text-end">
                 {p.revenue != null ? formatCurrency(p.revenue, currencySymbol) : "—"}
               </span>
             ) : null}

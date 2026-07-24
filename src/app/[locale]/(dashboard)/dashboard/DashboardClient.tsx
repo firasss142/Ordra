@@ -241,7 +241,7 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(0, 1fr)", gap: 16 }}>
         <Panel title={t("sections.pipeline")}>
-          <HorizontalBars rows={pipelineRows} color="#2C6ECB" compact />
+          <HorizontalBars rows={pipelineRows} compact />
         </Panel>
         <TopPerformers
           agents={summary.presence}

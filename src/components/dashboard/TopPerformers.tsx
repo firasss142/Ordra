@@ -40,33 +40,19 @@ export function TopPerformers({
       {top3.length === 0 ? (
         <EmptyState label={emptyLabel} />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="flex flex-col gap-1.5">
           {top3.map((agent, idx) => (
             <div
               key={agent.agent_id}
               data-testid="top-performer-row"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "auto auto 1fr auto",
-                gap: 12,
-                alignItems: "center",
-                padding: "8px 4px",
-                fontSize: 13,
-              }}
+              className="grid grid-cols-[auto_auto_1fr_auto] gap-3 items-center py-2 px-1 rounded-[6px] text-[13px] hover:bg-surface-hover transition-colors duration-fast"
             >
               <span
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: "50%",
-                  background: idx === 0 ? "#1A1A1A" : "#E1E3E5",
-                  color: idx === 0 ? "#FFFFFF" : "#3D4043",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 12,
-                  fontWeight: 600,
-                }}
+                className={`w-[22px] h-[22px] rounded-full inline-flex items-center justify-center text-[12px] font-semibold ${
+                  idx === 0
+                    ? "bg-ink-primary text-white"
+                    : "bg-surface-selected text-ink-primary"
+                }`}
               >
                 {idx + 1}
               </span>
@@ -74,30 +60,15 @@ export function TopPerformers({
                 user={{ full_name: agent.full_name, avatar_url: agent.avatar_url }}
                 size={28}
               />
-              <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                <span
-                  style={{
-                    color: "#1A1A1A",
-                    fontWeight: 500,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                  title={agent.full_name}
-                >
+              <div className="flex flex-col min-w-0">
+                <span className="text-ink-primary font-medium truncate" title={agent.full_name}>
                   {agent.full_name}
                 </span>
-                <span style={{ fontSize: 12, color: "#6D7175", fontVariantNumeric: "tabular-nums" }}>
+                <span className="text-[12px] text-ink-secondary tabular-nums">
                   {agent.confirmed_today} {confirmedLabel}
                 </span>
               </div>
-              <span
-                style={{
-                  color: "#1A1A1A",
-                  fontWeight: 600,
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
+              <span className="text-ink-primary font-semibold tabular-nums">
                 {agent.confirmation_rate.toFixed(1)}%
               </span>
             </div>
@@ -105,27 +76,9 @@ export function TopPerformers({
         </div>
       )}
 
-      <div
-        style={{
-          marginTop: 12,
-          paddingTop: 12,
-          borderTop: "1px solid #E1E3E5",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          fontSize: 12,
-          color: "#6D7175",
-        }}
-      >
+      <div className="mt-3 pt-3 border-t border-line-subtle flex items-center justify-between text-[12px] text-ink-secondary">
         <span>{onlineCountTemplate(onlineCount, total)}</span>
-        <a
-          href={viewAllHref}
-          style={{
-            color: "#1A1A1A",
-            fontWeight: 500,
-            textDecoration: "none",
-          }}
-        >
+        <a href={viewAllHref} className="text-ink-primary font-medium no-underline">
           {viewAllLabel} <span aria-hidden="true">→</span>
         </a>
       </div>
