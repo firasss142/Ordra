@@ -566,10 +566,6 @@
       "openOrders": "Commandes ouvertes"
     },
     "filters": {
-      "today": "Aujourd'hui",
-      "week": "7 jours",
-      "month": "30 jours",
-      "custom": "Personnalisé",
       "allMarkets": "Tous les marchés",
       "marketPlaceholder": "Choisir un marché",
       "vsYesterday": "vs hier",

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
-import { FilterBar, type Period, type PeriodPreset } from "@/components/dashboard/FilterBar";
+import { PeriodSelector, type Period, type PeriodPreset } from "@/components/shared/PeriodSelector";
 import { Panel, EmptyState } from "@/components/dashboard/Panel";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useMarketScope } from "@/context/market-scope";
@@ -84,7 +84,7 @@ export function ProfitabilityClient({
   const isSuperAdmin = user.role === "super_admin";
 
   const [period, setPeriod] = useState<Period>(() => lastNDaysPeriod(30));
-  const [preset, setPreset] = useState<PeriodPreset>("month");
+  const [preset, setPreset] = useState<PeriodPreset>("last30");
   const { marketId: scopeMarketId } = useMarketScope();
 
   // The P&L API has no cross-market mode; on "all markets" scope we fall back
@@ -160,22 +160,15 @@ export function ProfitabilityClient({
         </div>
       ) : null}
 
-      <div className="mb-3">
-        <FilterBar
-          period={period}
-          activePreset={preset}
-          onPeriodChange={(p, nextPreset) => {
-            setPeriod(p);
-            setPreset(nextPreset);
-          }}
-          labels={{
-            today: tNav("today"),
-            week: tNav("week"),
-            month: tNav("month"),
-            custom: tNav("custom"),
-          }}
-        />
-      </div>
+      <PeriodSelector
+        period={period}
+        activePreset={preset}
+        onChange={(p, nextPreset) => {
+          setPeriod(p);
+          setPreset(nextPreset);
+        }}
+        presets={["today", "last7", "last30", "custom"]}
+      />
 
       {error && (
         <div

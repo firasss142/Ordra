@@ -7,7 +7,7 @@ import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import { HeroKpiStrip } from "@/components/dashboard/HeroKpiStrip";
 import { MarketsStrip } from "@/components/dashboard/MarketsStrip";
-import { FilterBar, type Period, type PeriodPreset } from "@/components/dashboard/FilterBar";
+import { PeriodSelector, type Period, type PeriodPreset } from "@/components/shared/PeriodSelector";
 import { FooterLinks } from "@/components/dashboard/FooterLinks";
 import { HorizontalBars } from "@/components/dashboard/charts/HorizontalBars";
 import { Panel } from "@/components/dashboard/Panel";
@@ -87,8 +87,8 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
 
   const periodLabel = useMemo(() => {
     if (preset === "today") return t("filters.vsYesterday");
-    if (preset === "week") return t("filters.vsLastWeek");
-    if (preset === "month") return t("filters.vsLastMonth");
+    if (preset === "last7") return t("filters.vsLastWeek");
+    if (preset === "last30") return t("filters.vsLastMonth");
     return t("filters.vsPrevious");
   }, [preset, t]);
 
@@ -181,16 +181,11 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
         </p>
       </div>
 
-      <FilterBar
+      <PeriodSelector
         period={period}
         activePreset={preset}
-        onPeriodChange={handlePeriodChange}
-        labels={{
-          today: t("filters.today"),
-          week: t("filters.week"),
-          month: t("filters.month"),
-          custom: t("filters.custom"),
-        }}
+        onChange={handlePeriodChange}
+        presets={["today", "last7", "last30", "custom"]}
       />
 
       <AlertAttentionBar

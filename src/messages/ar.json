@@ -566,10 +566,6 @@
       "openOrders": "الطلبات المفتوحة"
     },
     "filters": {
-      "today": "اليوم",
-      "week": "7 أيام",
-      "month": "30 يوماً",
-      "custom": "مخصص",
       "allMarkets": "كل الأسواق",
       "marketPlaceholder": "اختر السوق",
       "vsYesterday": "مقارنة بالأمس",
