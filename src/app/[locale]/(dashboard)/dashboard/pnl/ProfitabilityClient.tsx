@@ -1,14 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import { FilterBar, type Period, type PeriodPreset } from "@/components/dashboard/FilterBar";
 import { Panel, EmptyState } from "@/components/dashboard/Panel";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useMarketScope } from "@/context/market-scope";
+import { useLatestActivity } from "@/hooks/useLatestActivity";
 import { periodDeltaProps } from "@/components/dashboard/PeriodDeltaBadge";
-import { computePreviousPeriod, lastNDaysPeriod } from "@/lib/date";
+import {
+  computePreviousPeriod,
+  lastNDaysPeriod,
+  anchoredDefaultPeriod,
+  todayISO,
+} from "@/lib/date";
 import { formatCurrency as formatMarketCurrency } from "@/lib/format";
 import { TONE_COLOR, formatPct, type Tone } from "@/components/dashboard/kpiDelta";
 import type { PeriodDelta } from "@/lib/calculations/deltas";
@@ -85,6 +91,8 @@ export function ProfitabilityClient({
 
   const [period, setPeriod] = useState<Period>(() => lastNDaysPeriod(30));
   const [preset, setPreset] = useState<PeriodPreset>("month");
+  // Once the user picks a preset/custom range we stop auto-anchoring to latest data.
+  const [userPickedPeriod, setUserPickedPeriod] = useState(false);
   const { marketId: scopeMarketId } = useMarketScope();
 
   // The P&L API has no cross-market mode; on "all markets" scope we fall back
@@ -93,6 +101,24 @@ export function ProfitabilityClient({
   const effectiveMarketId = isSuperAdmin
     ? (scopeMarketId ?? initialMarketId)
     : user.market_id ?? "";
+
+  // Anchor the default 30-day window to the latest date that actually has data
+  // for the selected market. Seed/imported fulfillment events can end well before
+  // today, which would otherwise show an empty P&L. Re-anchors when the market
+  // changes, until the user manually chooses a period.
+  const { latest, forMarket } = useLatestActivity(effectiveMarketId || null);
+  const anchoredMarketRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (userPickedPeriod || !effectiveMarketId) return;
+    // Only act once the latest date for THIS market has loaded (not a stale value).
+    if (forMarket !== effectiveMarketId) return;
+    if (anchoredMarketRef.current === effectiveMarketId) return;
+    anchoredMarketRef.current = effectiveMarketId;
+    const { period: p, preset: ps } = anchoredDefaultPeriod(todayISO(), latest);
+    setPeriod(p);
+    setPreset(ps);
+  }, [userPickedPeriod, latest, forMarket, effectiveMarketId]);
+
   const marketCode = useMemo(() => {
     const m = markets.find((x) => x.id === effectiveMarketId);
     return (m?.code ?? "tn").toUpperCase();
@@ -167,6 +193,7 @@ export function ProfitabilityClient({
           onPeriodChange={(p, nextPreset) => {
             setPeriod(p);
             setPreset(nextPreset);
+            setUserPickedPeriod(true);
           }}
           labels={{
             today: tNav("today"),
@@ -174,6 +201,21 @@ export function ProfitabilityClient({
             month: tNav("month"),
             custom: tNav("custom"),
           }}
+          notice={
+            !userPickedPeriod && period.to_date < todayISO()
+              ? {
+                  text: tNav("latestDataNotice", { date: period.to_date }),
+                  action: {
+                    label: tNav("jumpToToday"),
+                    onClick: () => {
+                      setPeriod(lastNDaysPeriod(30));
+                      setPreset("month");
+                      setUserPickedPeriod(true);
+                    },
+                  },
+                }
+              : null
+          }
         />
       </div>
 

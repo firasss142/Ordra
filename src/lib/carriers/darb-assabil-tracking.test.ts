@@ -2,8 +2,10 @@ import { describe, test, expect, afterEach, vi } from "vitest";
 import {
   parseShipmentStatus,
   parseTimeline,
+  parseShipmentFull,
   fetchDarbStatus,
   fetchDarbTimeline,
+  fetchDarbShipment,
   type DarbStatusSnapshot,
 } from "./darb-assabil-tracking";
 import type { CarrierConfig } from "./types";
@@ -99,6 +101,170 @@ describe("parseTimeline", () => {
       data: { timeline: [{ type: "info", description: { en: "X" }, timestamp: "t" }] },
     });
     expect(events[0].labelAr).toBe("X");
+  });
+});
+
+// ── noisy-event filtering ────────────────────────────────────────────
+// Darb emits low-value, untranslated system rows (the "referenced" type:
+// "Reference the order by 1113059", "Box Reference the order by BX18KF").
+// These add noise to the Arabic-RTL panel and never carry an AR translation.
+// The parser drops them so the timeline shows only meaningful milestones.
+describe("noisy-event filtering", () => {
+  test("parseTimeline drops 'referenced' rows, keeps meaningful events", () => {
+    const events = parseTimeline({
+      status: true,
+      data: {
+        timeline: [
+          { type: "info", description: { en: "Shipment is created", ar: "تم إنشاء الشحنة" }, timestamp: "t1" },
+          { type: "referenced", description: { en: "Reference the order by 1113059", ar: "Reference the order by 1113059" }, timestamp: "t2" },
+          { type: "referenced", description: { en: "Box Reference the order by BX18KF", ar: "Box Reference the order by BX18KF" }, timestamp: "t3" },
+          { type: "completed", description: { en: "Delivered", ar: "تم التسليم" }, timestamp: "t4" },
+        ],
+      },
+    });
+    expect(events.map((e) => e.type)).toEqual(["info", "completed"]);
+  });
+
+  test("parseShipmentFull also drops noisy events from its inline timeline", () => {
+    const full = parseShipmentFull("", {
+      status: true,
+      data: {
+        results: [
+          {
+            reference: "1143633",
+            status: "completed",
+            timeline: [
+              { type: "referenced", description: { en: "Reference the order by X", ar: "Reference the order by X" }, timestamp: "t1" },
+              { type: "booked", description: { en: "Booked", ar: "تم الحجز" }, timestamp: "t2" },
+            ],
+          },
+        ],
+      },
+    });
+    expect(full.timeline.map((e) => e.type)).toEqual(["booked"]);
+  });
+});
+
+// ── parseShipmentFull ────────────────────────────────────────────────
+// The by-_id endpoint (GET /api/local/shipments/:id) returns the authoritative
+// status, the REAL human reference, AND the full timeline inline — all in one
+// call. This is the single source we trust (the stored tracking_number / the
+// separate timeline/:reference endpoint are unreliable; see investigation).
+describe("parseShipmentFull", () => {
+  test("extracts snapshot + real reference + inline timeline from the list shape", () => {
+    const full = parseShipmentFull("STORED-REF", {
+      status: true,
+      data: {
+        results: [
+          {
+            _id: "6a36a94a7043ef2602adb50f",
+            reference: "1143633",
+            status: "completed",
+            timeline: [
+              { type: "info", description: { en: "Created", ar: "تم الإنشاء" }, timestamp: "t1" },
+              { type: "completed", description: { en: "Delivered", ar: "تم التسليم" }, timestamp: "t2" },
+            ],
+          },
+        ],
+      },
+    });
+    expect(full).toEqual({
+      kind: "ok",
+      reference: "1143633", // the REAL reference, not the passed-in stored one
+      slug: "completed",
+      rawStatus: "completed",
+      timeline: [
+        { type: "info", labelAr: "تم الإنشاء", timestamp: "t1" },
+        { type: "completed", labelAr: "تم التسليم", timestamp: "t2" },
+      ],
+    });
+  });
+
+  test("not_found (body.status false) → kind not_found, empty timeline", () => {
+    const full = parseShipmentFull("STORED-REF", { status: false, messages: [{ message: "x" }] });
+    expect(full.kind).toBe("not_found");
+    expect(full.timeline).toEqual([]);
+  });
+
+  test("empty results → not_found with empty timeline", () => {
+    const full = parseShipmentFull("STORED-REF", { status: true, data: { results: [] } });
+    expect(full.kind).toBe("not_found");
+    expect(full.timeline).toEqual([]);
+  });
+
+  test("ok with unknown status keeps rawStatus + null slug, still returns timeline + reference", () => {
+    const full = parseShipmentFull("STORED-REF", {
+      status: true,
+      data: {
+        results: [
+          {
+            reference: "999",
+            status: "teleported",
+            timeline: [{ type: "info", description: { en: "X" }, timestamp: "t" }],
+          },
+        ],
+      },
+    });
+    expect(full.kind).toBe("ok");
+    if (full.kind === "ok") {
+      expect(full.slug).toBeNull();
+      expect(full.rawStatus).toBe("teleported");
+      expect(full.reference).toBe("999");
+    }
+    expect(full.timeline).toHaveLength(1);
+  });
+});
+
+// ── fetchDarbShipment ────────────────────────────────────────────────
+describe("fetchDarbShipment", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  test("GETs the by-_id endpoint and returns snapshot + reference + timeline", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: true,
+          data: {
+            results: [
+              {
+                _id: "69fd0af4889e7a3cd010f1a1",
+                reference: "1143633",
+                status: "released",
+                timeline: [
+                  { type: "info", description: { en: "Created", ar: "تم الإنشاء" }, timestamp: "t1" },
+                ],
+              },
+            ],
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const full = await fetchDarbShipment("69fd0af4889e7a3cd010f1a1", mockConfig);
+
+    expect(full.kind).toBe("ok");
+    if (full.kind === "ok") {
+      expect(full.slug).toBe("released");
+      expect(full.reference).toBe("1143633");
+      expect(full.timeline).toEqual([
+        { type: "info", labelAr: "تم الإنشاء", timestamp: "t1" },
+      ]);
+    }
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe("https://v2.sabil.ly/api/local/shipments/69fd0af4889e7a3cd010f1a1");
+    expect((init.headers as Record<string, string>).Authorization).toBe(
+      "apikey decrypted-api-key-123",
+    );
+  });
+
+  test("returns not_found without an HTTP call when internalId is empty", async () => {
+    const mockFetch = vi.fn();
+    vi.stubGlobal("fetch", mockFetch);
+    const full = await fetchDarbShipment("", mockConfig);
+    expect(full.kind).toBe("not_found");
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });
 

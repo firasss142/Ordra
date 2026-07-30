@@ -95,7 +95,12 @@ const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
     "deleted",
   ],
   dispatch_scheduled: ["uploaded", "deleted"],
-  uploaded: ["scanned", "deleted"],
+  // Darb Assabil (Libya) jumps straight from uploaded to a terminal carrier
+  // status — Libya skips the warehouse scan/dispatch pipeline. These three
+  // transitions are driven ONLY by promote_darb_status (carrier-sync); the
+  // Tunisia/Dexpress flow still goes uploaded → scanned. Kept in lockstep with
+  // migration 20260817000001_promote_darb_status.sql.
+  uploaded: ["scanned", "delivered", "returned", "cancelled", "deleted"],
   scanned: ["dispatched", "deleted"],
   // Phase 2: Fulfillment
   dispatched: ["deposit", "unverified", "cancelled", "deleted"],

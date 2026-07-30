@@ -1,5 +1,12 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
-import { computePreviousPeriod, lastNDaysPeriod, periodLengthDays } from "../date";
+import {
+  computePreviousPeriod,
+  lastNDaysPeriod,
+  lastNDaysEndingAt,
+  periodLengthDays,
+  anchorDate,
+  anchoredDefaultPeriod,
+} from "../date";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -60,6 +67,90 @@ describe("periodLengthDays", () => {
 
   it("returns 30 for april", () => {
     expect(periodLengthDays("2026-04-01", "2026-04-30")).toBe(30);
+  });
+});
+
+describe("anchorDate", () => {
+  it("returns today when latest is null (no data)", () => {
+    expect(anchorDate("2026-07-06", null)).toBe("2026-07-06");
+  });
+
+  it("returns today when latest equals today", () => {
+    expect(anchorDate("2026-07-06", "2026-07-06")).toBe("2026-07-06");
+  });
+
+  it("returns latest when latest is in the past", () => {
+    expect(anchorDate("2026-07-06", "2026-04-27")).toBe("2026-04-27");
+  });
+
+  it("returns today when latest is (defensively) in the future", () => {
+    expect(anchorDate("2026-07-06", "2026-08-01")).toBe("2026-07-06");
+  });
+});
+
+describe("anchoredDefaultPeriod", () => {
+  it("uses single-day today when latest is null (no data)", () => {
+    expect(anchoredDefaultPeriod("2026-07-06", null)).toEqual({
+      period: { from_date: "2026-07-06", to_date: "2026-07-06" },
+      preset: "today",
+    });
+  });
+
+  it("uses single-day today when latest is today", () => {
+    expect(anchoredDefaultPeriod("2026-07-06", "2026-07-06")).toEqual({
+      period: { from_date: "2026-07-06", to_date: "2026-07-06" },
+      preset: "today",
+    });
+  });
+
+  it("uses a 30-day window ending at latest when latest is in the past", () => {
+    expect(anchoredDefaultPeriod("2026-07-06", "2026-04-27")).toEqual({
+      period: { from_date: "2026-03-29", to_date: "2026-04-27" },
+      preset: "month",
+    });
+  });
+});
+
+describe("lastNDaysEndingAt", () => {
+  it("returns a 30-day window ending at the given date", () => {
+    expect(lastNDaysEndingAt(30, "2026-04-27")).toEqual({
+      from_date: "2026-03-29",
+      to_date: "2026-04-27",
+    });
+  });
+
+  it("returns a 7-day window ending at the given date", () => {
+    expect(lastNDaysEndingAt(7, "2026-05-04")).toEqual({
+      from_date: "2026-04-28",
+      to_date: "2026-05-04",
+    });
+  });
+
+  it("single day for days=1", () => {
+    expect(lastNDaysEndingAt(1, "2026-04-27")).toEqual({
+      from_date: "2026-04-27",
+      to_date: "2026-04-27",
+    });
+  });
+
+  it("handles year boundary", () => {
+    expect(lastNDaysEndingAt(7, "2026-01-02")).toEqual({
+      from_date: "2025-12-27",
+      to_date: "2026-01-02",
+    });
+  });
+
+  it("does not depend on the system clock", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-12-31T00:00:00Z"));
+    expect(lastNDaysEndingAt(30, "2026-04-27")).toEqual({
+      from_date: "2026-03-29",
+      to_date: "2026-04-27",
+    });
+  });
+
+  it("throws for non-positive days", () => {
+    expect(() => lastNDaysEndingAt(0, "2026-04-27")).toThrow(RangeError);
   });
 });
 

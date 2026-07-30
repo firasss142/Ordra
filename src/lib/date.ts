@@ -22,6 +22,45 @@ export function lastNDaysPeriod(days: number): { from_date: string; to_date: str
   };
 }
 
+// N-day window ending at (and including) a given ISO end date — the clock-free
+// counterpart to lastNDaysPeriod. Used to anchor a default period to the latest
+// date that actually has data instead of always to "today".
+export function lastNDaysEndingAt(
+  days: number,
+  endDateISO: string,
+): { from_date: string; to_date: string } {
+  if (!Number.isInteger(days) || days < 1) {
+    throw new RangeError("days must be a positive integer");
+  }
+  const endMs = parseISODate(endDateISO);
+  return {
+    from_date: toISODate(endMs - (days - 1) * MS_PER_DAY),
+    to_date: endDateISO,
+  };
+}
+
+// Clamp a default anchor to min(today, latest): if the market's latest activity
+// is in the past, anchor there; otherwise (no data, or latest ≥ today) use today.
+// Pure string comparison is safe for ISO YYYY-MM-DD dates.
+export function anchorDate(today: string, latest: string | null): string {
+  return latest && latest < today ? latest : today;
+}
+
+// The default period + preset for a dashboard/P&L view, anchored to real data.
+// - Data today (or no data at all): single-day "today" — the existing default.
+// - Latest data is in the past: a 30-day window ending at the latest data date,
+//   so the view lands on a meaningful range instead of one sparse historical day.
+// Shared by SSR and the client re-anchor effect so both agree on the same period.
+export function anchoredDefaultPeriod(
+  today: string,
+  latest: string | null,
+): { period: { from_date: string; to_date: string }; preset: "today" | "month" } {
+  if (latest && latest < today) {
+    return { period: lastNDaysEndingAt(30, latest), preset: "month" };
+  }
+  return { period: { from_date: today, to_date: today }, preset: "today" };
+}
+
 export function startOfWeekISO(): string {
   const d = new Date();
   const day = d.getUTCDay();

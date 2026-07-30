@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import useSWR from "swr";
@@ -18,7 +18,9 @@ import { SecondaryKpiStrip } from "@/components/dashboard/SecondaryKpiStrip";
 import { TopPerformingProducts } from "@/components/dashboard/TopPerformingProducts";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useDashboardRealtime } from "@/hooks/useDashboardRealtime";
+import { useLatestActivity } from "@/hooks/useLatestActivity";
 import { useMarketScope } from "@/context/market-scope";
+import { anchoredDefaultPeriod, todayISO } from "@/lib/date";
 import { computeInsights } from "@/lib/dashboard/insights";
 import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { marketIdToCode } from "@/lib/markets";
@@ -28,6 +30,7 @@ import type { AuthUser } from "@/types";
 interface DashboardClientProps {
   user: AuthUser;
   initialPeriod: Period;
+  initialPreset: PeriodPreset;
   initialSummary: DashboardSummary;
   initialMarketId: string;
 }
@@ -36,7 +39,7 @@ function buildSummaryKey(period: Period, marketId: string): string {
   return `/api/dashboard/summary?from_date=${period.from_date}&to_date=${period.to_date}&market_id=${marketId}`;
 }
 
-export function DashboardClient({ user, initialPeriod, initialSummary, initialMarketId }: DashboardClientProps) {
+export function DashboardClient({ user, initialPeriod, initialPreset, initialSummary, initialMarketId }: DashboardClientProps) {
   const t = useTranslations("dashboard");
   const tPipe = useTranslations("dashboard.pipeline");
   const pathname = usePathname();
@@ -46,7 +49,9 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
   const role: "super_admin" | "market_manager" = isSuperAdmin ? "super_admin" : "market_manager";
 
   const [period, setPeriod] = useState<Period>(initialPeriod);
-  const [preset, setPreset] = useState<PeriodPreset>("today");
+  const [preset, setPreset] = useState<PeriodPreset>(initialPreset);
+  // Once the user picks a preset/custom range we stop auto-anchoring to latest data.
+  const [userPickedPeriod, setUserPickedPeriod] = useState(false);
   const { scope, marketId: scopeMarketId, setScope } = useMarketScope();
 
   const effectiveMarketId = useMemo(() => {
@@ -54,6 +59,27 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
     if (scope === "all") return "all";
     return scopeMarketId ?? "all";
   }, [isSuperAdmin, scope, scopeMarketId, user.market_id]);
+
+  // Re-anchor the default period to the latest data when a super_admin switches
+  // markets. Only super_admins switch markets; others are locked to one market
+  // (already anchored server-side), so skip the fetch for them. We anchor once
+  // per market: `forMarket` guarantees the latest date belongs to the current
+  // market (not a stale value mid-switch), and the ref records which market we
+  // last anchored so returning to a market re-anchors it too.
+  const { latest: latestForMarket, forMarket } = useLatestActivity(
+    isSuperAdmin ? effectiveMarketId : null,
+  );
+  const anchoredMarketRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isSuperAdmin || userPickedPeriod) return;
+    // Only act once the latest date for THIS market has loaded.
+    if (forMarket !== effectiveMarketId) return;
+    if (anchoredMarketRef.current === effectiveMarketId) return;
+    anchoredMarketRef.current = effectiveMarketId;
+    const { period: p, preset: ps } = anchoredDefaultPeriod(todayISO(), latestForMarket);
+    setPeriod(p);
+    setPreset(ps);
+  }, [isSuperAdmin, userPickedPeriod, latestForMarket, forMarket, effectiveMarketId]);
 
   const summaryKey = useMemo(
     () => buildSummaryKey(period, effectiveMarketId),
@@ -114,6 +140,7 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
   const handlePeriodChange = useCallback((p: Period, newPreset: PeriodPreset) => {
     setPeriod(p);
     setPreset(newPreset);
+    setUserPickedPeriod(true);
   }, []);
 
   const handleDrillMarket = useCallback(
@@ -191,6 +218,18 @@ export function DashboardClient({ user, initialPeriod, initialSummary, initialMa
           month: t("filters.month"),
           custom: t("filters.custom"),
         }}
+        notice={
+          !userPickedPeriod && period.to_date < todayISO()
+            ? {
+                text: t("filters.latestDataNotice", { date: period.to_date }),
+                action: {
+                  label: t("filters.jumpToToday"),
+                  onClick: () =>
+                    handlePeriodChange({ from_date: todayISO(), to_date: todayISO() }, "today"),
+                },
+              }
+            : null
+        }
       />
 
       <AlertAttentionBar

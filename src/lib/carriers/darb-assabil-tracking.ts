@@ -37,6 +37,25 @@ export interface DarbTimelineEvent {
   timestamp: string;
 }
 
+/**
+ * Everything the by-`_id` endpoint gives us in ONE call: the authoritative
+ * status snapshot, the REAL human reference (which the carrier re-assigns after
+ * creation, so the stored tracking_number is unreliable), and the inline
+ * timeline. This is the single trusted read for Darb status + timeline.
+ */
+export type DarbShipmentFull =
+  | {
+      kind: "ok";
+      reference: string;
+      slug: DarbSlug | null;
+      rawStatus: string;
+      timeline: DarbTimelineEvent[];
+    }
+  | {
+      kind: "not_found";
+      timeline: [];
+    };
+
 // ── Pure parsers ─────────────────────────────────────────────────────
 
 /**
@@ -72,23 +91,66 @@ export function parseShipmentStatus(
 export function parseTimeline(body: unknown): DarbTimelineEvent[] {
   const b = asRecord(body);
   if (b.status !== true) return [];
+  return mapTimelineEvents(asRecord(b.data).timeline);
+}
 
-  const timeline = asRecord(b.data).timeline;
+/**
+ * Event types Darb emits that are low-value internal bookkeeping — the carrier
+ * never gives them a real Arabic translation (ar === en raw English like
+ * "Reference the order by 1113059" / "Box Reference the order by BX18KF"). We
+ * drop them so the Arabic-RTL panel shows only meaningful milestones.
+ */
+const NOISY_DARB_EVENT_TYPES: ReadonlySet<string> = new Set(["referenced"]);
+
+/** Map a raw timeline array (oldest-first) into DarbTimelineEvent[], dropping noise. */
+function mapTimelineEvents(timeline: unknown): DarbTimelineEvent[] {
   if (!Array.isArray(timeline)) return [];
-
   const events: DarbTimelineEvent[] = [];
   for (const raw of timeline) {
     const e = asRecord(raw);
+    const type = typeof e.type === "string" ? e.type : "info";
+    if (NOISY_DARB_EVENT_TYPES.has(type)) continue;
     const desc = asRecord(e.description);
     const ar = typeof desc.ar === "string" && desc.ar ? desc.ar : null;
     const en = typeof desc.en === "string" && desc.en ? desc.en : null;
     events.push({
-      type: typeof e.type === "string" ? e.type : "info",
+      type,
       labelAr: ar ?? en ?? "",
       timestamp: typeof e.timestamp === "string" ? e.timestamp : "",
     });
   }
   return events;
+}
+
+/**
+ * Parse the by-`_id` (`GET /api/local/shipments/:id`) body into a full read:
+ * status snapshot + the REAL reference + the inline timeline. The single-shipment
+ * GET returns a list shape (`data.results[0]`) that carries `status`, `reference`,
+ * and `timeline` together. `status !== true` or an empty result set → not_found.
+ */
+export function parseShipmentFull(
+  storedReference: string,
+  body: unknown,
+): DarbShipmentFull {
+  void storedReference; // the real reference comes from the response, not the input
+  const b = asRecord(body);
+  if (b.status !== true) return { kind: "not_found", timeline: [] };
+
+  const results = asRecord(b.data).results;
+  const first = Array.isArray(results) ? asRecord(results[0]) : null;
+  if (!first) return { kind: "not_found", timeline: [] };
+
+  const rawStatus = typeof first.status === "string" ? first.status : "";
+  const reference = typeof first.reference === "string" ? first.reference : "";
+  if (!rawStatus && !reference) return { kind: "not_found", timeline: [] };
+
+  return {
+    kind: "ok",
+    reference,
+    slug: normalizeDarbStatus(rawStatus),
+    rawStatus,
+    timeline: mapTimelineEvents(first.timeline),
+  };
 }
 
 // ── Fetchers ─────────────────────────────────────────────────────────
@@ -110,6 +172,25 @@ export async function fetchDarbStatus(
     config,
   );
   return parseShipmentStatus(reference, body);
+}
+
+/**
+ * Fetch the full shipment by its internal `_id`: status + real reference +
+ * inline timeline, in one call. Preferred over fetchDarbTimeline (whose
+ * `:reference` endpoint depends on the unreliable stored tracking_number).
+ * A missing `internalId` short-circuits to not_found without an HTTP call.
+ */
+export async function fetchDarbShipment(
+  internalId: string,
+  config: CarrierConfig,
+): Promise<DarbShipmentFull> {
+  if (!internalId) return { kind: "not_found", timeline: [] };
+  const base = baseUrl(config);
+  const { body } = await getJson(
+    `${base}/api/local/shipments/${encodeURIComponent(internalId)}`,
+    config,
+  );
+  return parseShipmentFull("", body);
 }
 
 /** Fetch the append-only timeline for a shipment via its `SH…` reference. */
