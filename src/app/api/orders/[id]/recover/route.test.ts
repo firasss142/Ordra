@@ -11,28 +11,35 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
+vi.mock("@/lib/auth/actor", async () => {
+  const { makeGetActor } = await import("@/test/helpers/actorMock");
+  return { getActor: makeGetActor() };
+});
+
 import { POST } from "./route";
+import { setTestActor, resetTestActor } from "@/test/helpers/actorMock";
+import type { Role } from "@/types";
 
 const ORDER_ID = "11111111-1111-1111-1111-111111111111";
 
 function createRequest(
   body: unknown = {},
-  actor: { role: string; id?: string; marketId?: string } = {
+  actor: { role: Role; id?: string; marketId?: string } = {
     role: "market_manager",
     id: "mgr-1",
     marketId: "m-1",
   },
 ) {
+  setTestActor({
+    role: actor.role,
+    id: actor.id ?? "actor-1",
+    market_id: actor.marketId ?? null,
+  });
   return new NextRequest(
     new URL(`http://localhost:3000/api/orders/${ORDER_ID}/recover`),
     {
       method: "POST",
       body: JSON.stringify(body),
-      headers: {
-        "x-oms-role": actor.role,
-        "x-oms-actor-id": actor.id ?? "actor-1",
-        ...(actor.marketId ? { "x-oms-market-id": actor.marketId } : {}),
-      },
     },
   );
 }
@@ -49,6 +56,7 @@ function orderChain(resolveWith: { data: unknown; error: unknown }) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resetTestActor();
 });
 
 describe("POST /api/orders/[id]/recover", () => {

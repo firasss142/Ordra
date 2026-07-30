@@ -137,7 +137,8 @@
       "mappings": "الربط",
       "carriersConfig": "شركات الشحن",
       "generalSettings": "الإعدادات",
-      "logs": "السجلات"
+      "logs": "السجلات",
+      "investors": "المستثمرون"
     },
     "a11y": {
       "expandSection": "توسيع قسم {section}",
@@ -154,7 +155,8 @@
       "super_admin": "مدير عام",
       "market_manager": "مدير سوق",
       "agent": "وكيل",
-      "warehouse_agent": "عامل المستودع"
+      "warehouse_agent": "عامل المستودع",
+      "investor": "مستثمر"
     }
   },
   "carrierTracking": {
@@ -2659,7 +2661,8 @@
       "super_admin": "المشرفون العاملون",
       "active": "نشطون",
       "invited": "مدعوون",
-      "disabled": "معطّلون"
+      "disabled": "معطّلون",
+      "investor": "المستثمرون"
     },
     "stats": {
       "ordersActioned": "{count} إجراء",
@@ -3227,5 +3230,102 @@
     "month": "هذا الشهر",
     "last7": "آخر 7 أيام",
     "last30": "آخر 30 يومًا"
+  },
+  "investor": {
+    "title": "المحفظة",
+    "nav": {
+      "portfolio": "المحفظة",
+      "statements": "الكشوف",
+      "withdrawals": "السحوبات"
+    },
+    "journey": {
+      "title": "رأس مالك",
+      "invested": "المستثمر",
+      "units": "وحدة ممولة",
+      "orders": "طلب",
+      "delivered": "تم التسليم",
+      "revenue": "الإيرادات",
+      "yourShare": "حصتك",
+      "multiple": "المضاعف"
+    },
+    "balance": {
+      "title": "الرصيد",
+      "pending": "قيد الانتظار",
+      "reserve": "احتياطي",
+      "available": "متاح",
+      "withdrawn": "تم سحبه",
+      "pendingHint": "تقدير، لم تتم التسوية بعد",
+      "reserveHint": "محتجز مقابل المرتجعات المتأخرة",
+      "availableHint": "تمت التسوية — قابل للسحب الآن"
+    },
+    "cycle": {
+      "title": "دورة النقد",
+      "confirmed": "مؤكد",
+      "shipped": "تم الشحن",
+      "delivered": "تم التسليم",
+      "remitted": "تم التحصيل",
+      "settled": "تمت التسوية",
+      "withdrawable": "قابل للسحب",
+      "hint": "يمر مالك بهذه المراحل قبل أن يصبح قابلاً للسحب."
+    },
+    "positions": {
+      "title": "منتجاتك",
+      "capital": "رأس المال",
+      "netProfit": "صافي الربح",
+      "yourShare": "حصتك",
+      "deliveryRate": "معدل التسليم",
+      "returnRate": "معدل الإرجاع",
+      "empty": "لا توجد مراكز حتى الآن"
+    },
+    "funnel": {
+      "title": "المسار",
+      "leads": "الطلبات الواردة",
+      "confirmed": "المؤكدة",
+      "uploaded": "المرسلة",
+      "delivered": "المسلّمة",
+      "returned": "المرتجعة"
+    },
+    "waterfall": {
+      "title": "التفصيل",
+      "revenue": "الإيرادات",
+      "cogs": "تكلفة البضاعة",
+      "delivery": "التوصيل",
+      "returns": "المرتجعات",
+      "packing": "التغليف",
+      "processing": "المعالجة",
+      "ads": "الإعلانات",
+      "netProfit": "صافي الربح"
+    },
+    "statements": {
+      "title": "الكشوف",
+      "period": "الفترة",
+      "product": "المنتج",
+      "share": "الحصة",
+      "amount": "المبلغ",
+      "status": "الحالة",
+      "empty": "لا توجد كشوف حتى الآن",
+      "export": "تصدير CSV"
+    },
+    "withdrawals": {
+      "title": "السحوبات",
+      "request": "طلب سحب",
+      "amount": "المبلغ",
+      "available": "المتاح",
+      "submit": "إرسال الطلب",
+      "history": "السجل",
+      "empty": "لا توجد سحوبات حتى الآن",
+      "status": {
+        "requested": "مطلوب",
+        "approved": "موافق عليه",
+        "rejected": "مرفوض",
+        "paid": "مدفوع"
+      },
+      "exceeds": "المبلغ يتجاوز الرصيد المتاح",
+      "success": "تم إرسال الطلب"
+    },
+    "errors": {
+      "load": "تعذر تحميل بياناتك",
+      "retry": "إعادة المحاولة"
+    }
   }
 }

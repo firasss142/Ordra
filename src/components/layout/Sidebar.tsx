@@ -20,6 +20,7 @@ import {
   LineChart,
   Link2,
   Megaphone,
+  HandCoins,
   PackageCheck,
   PackageOpen,
   PackageSearch,
@@ -139,6 +140,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
       { key: "productsMargins", href: "products", icon: Percent, prefetchRoute: "products" },
       { key: "stockInventory", href: "dashboard/stock", icon: Boxes, prefetchRoute: "dashboard" },
       { key: "adSpend", href: "finance/ad-spend", icon: Megaphone },
+      { key: "investors", href: "finance/investors", icon: HandCoins },
     ],
   },
   {

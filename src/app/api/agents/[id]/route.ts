@@ -111,6 +111,16 @@ export async function PATCH(
 
     if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 
+    // Flipping is_active alone leaves the Supabase session usable. Revoke it so
+    // the account cannot keep acting until its profile cookie expires.
+    try {
+      await admin.auth.admin.signOut(id, "global");
+    } catch (signOutError) {
+      // Best effort — the account is already flagged inactive, and both
+      // getActor() and getServerUser() reject it on the next cookie refresh.
+      console.error("[PATCH /api/agents] session revoke failed:", signOutError);
+    }
+
     await writeAuditLog(admin, actor.id, id, "user_deactivated", {
       reason,
       orders_returned: returned,

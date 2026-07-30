@@ -59,6 +59,20 @@ const ROLE_PERMISSIONS: Record<Role, Record<PermissionKey, boolean>> = {
     canManageProducts: false,
     canInviteUsers: false,
   },
+  // Investors are external and read-only. They see their own portfolio through
+  // dedicated server-computed endpoints, never a staff capability.
+  // canViewFinances stays false: it gates the internal FINANCES sidebar section
+  // (market P&L, ad spend, stock), which is whole-business data.
+  investor: {
+    canConfirmOrders: false,
+    canViewAllOrders: false,
+    canManageAgents: false,
+    canViewFinances: false,
+    canAccessSettings: false,
+    canScanWarehouse: false,
+    canManageProducts: false,
+    canInviteUsers: false,
+  },
 };
 
 export function getPermissionsForRole(role: Role): PermissionItem[] {

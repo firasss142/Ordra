@@ -16,8 +16,12 @@ const STATIC_EXT = /\.(svg|png|jpg|jpeg|webp|woff2|map|txt|ico)$/;
 function getRoleHome(role: string, locale: string): string {
   if (role === "agent") return `/${locale}/queue`;
   if (role === "warehouse_agent") return `/${locale}/warehouse`;
+  if (role === "investor") return `/${locale}/investor`;
   return `/${locale}/dashboard`;
 }
+
+// The only paths an investor may reach. Everything else in the OMS bounces.
+const INVESTOR_ALLOWED_PREFIXES = ["/investor", "/profile"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -93,22 +97,36 @@ export async function middleware(request: NextRequest) {
   } else {
     const { data: userRecord } = await supabase
       .from("users")
-      .select("role, market_id, full_name, avatar_url, markets(code)")
+      .select(
+        "role, market_id, full_name, avatar_url, is_active, deleted_at, markets(code)",
+      )
       .eq("id", user.id)
       .single();
-
-    if (!userRecord) {
-      const loginUrl = new URL("/fr/login", request.url);
-      return NextResponse.redirect(loginUrl);
-    }
 
     const record = userRecord as unknown as {
       role: ProfilePayload["role"];
       market_id: string | null;
       full_name: string;
       avatar_url: string | null;
+      is_active: boolean | null;
+      deleted_at: string | null;
       markets: { code: string } | { code: string }[] | null;
-    };
+    } | null;
+
+    // Deactivated / soft-deleted accounts must not hold a session. This runs on
+    // every profile-cookie refresh, so a deactivation takes effect within
+    // PROFILE_TTL_MS at worst — and immediately for anyone without a warm cookie.
+    if (!record || record.is_active === false || record.deleted_at) {
+      const locale = localeMatch ? localeMatch[1] : "fr";
+      await supabase.auth.signOut();
+      const redirect = NextResponse.redirect(
+        new URL(`/${locale}/login`, request.url),
+      );
+      // Carry the cleared auth cookies from signOut onto the redirect response.
+      response.cookies.getAll().forEach((c) => redirect.cookies.set(c));
+      redirect.cookies.set(PROFILE_COOKIE, "", { path: "/", maxAge: 0 });
+      return redirect;
+    }
     role = record.role;
     market_id = record.market_id;
     const marketsData = Array.isArray(record.markets)
@@ -159,6 +177,26 @@ export async function middleware(request: NextRequest) {
   // Redirect "/" to the role's home page
   if (routeSegment === "/") {
     return NextResponse.redirect(new URL(getRoleHome(role, correctLocale), request.url));
+  }
+
+  // Investors are external users, so they get a deny-by-default containment
+  // rule rather than being added to the opt-in `knownRoutes` list below.
+  //
+  // That list omits /dashboard, /in-delivery, /follow-ups, /mappings, /finance,
+  // /admin, /confirmation-flow and /markets, and those pages guard with DENIAL
+  // lists naming agent/warehouse_agent explicitly. A fifth role would fall
+  // straight through into manager pages. Checking an allow-list here closes
+  // every one of them at once, without touching the other roles' routing.
+  if (role === "investor") {
+    const allowed = INVESTOR_ALLOWED_PREFIXES.some(
+      (p) => routeSegment === p || routeSegment.startsWith(p + "/"),
+    );
+    if (!allowed) {
+      return NextResponse.redirect(
+        new URL(`/${correctLocale}/investor`, request.url),
+      );
+    }
+    return response;
   }
 
   // Redirect agents away from dashboard

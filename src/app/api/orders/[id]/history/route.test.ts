@@ -10,26 +10,32 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
+vi.mock("@/lib/auth/actor", async () => {
+  const { makeGetActor } = await import("@/test/helpers/actorMock");
+  return { getActor: makeGetActor() };
+});
+
 import { GET } from "./route";
 import { NextRequest } from "next/server";
+import { setTestActor, resetTestActor } from "@/test/helpers/actorMock";
+import type { Role } from "@/types";
 
 const ORDER_ID = "order-1";
 
-/** Build a request whose headers carry the actor (warm-cache path in getActor). */
+/** Build a request and set the actor getActor() will resolve to. */
 function makeRequest(
-  actor: { role: string; id: string; market_id?: string } = {
+  actor: { role: Role; id: string; market_id?: string } = {
     role: "market_manager",
     id: "mgr-1",
     market_id: "m-1",
   },
 ) {
-  return new NextRequest(`http://localhost:3000/api/orders/${ORDER_ID}/history`, {
-    headers: {
-      "x-oms-role": actor.role,
-      "x-oms-actor-id": actor.id,
-      ...(actor.market_id ? { "x-oms-market-id": actor.market_id } : {}),
-    },
+  setTestActor({
+    role: actor.role,
+    id: actor.id,
+    market_id: actor.market_id ?? null,
   });
+  return new NextRequest(`http://localhost:3000/api/orders/${ORDER_ID}/history`);
 }
 
 /** A Supabase chain whose terminal `.single()` resolves (used for the order lookup). */
@@ -110,7 +116,10 @@ function wireHappyPath(opts?: {
   });
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  resetTestActor();
+});
 
 describe("GET /api/orders/[id]/history", () => {
   test("returns 404 when the order does not exist", async () => {

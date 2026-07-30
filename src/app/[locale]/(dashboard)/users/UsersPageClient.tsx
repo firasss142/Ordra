@@ -22,7 +22,13 @@ interface Props {
   user: AuthUser;
 }
 
-const ROLE_ORDER: Role[] = ["super_admin", "market_manager", "agent", "warehouse_agent"];
+const ROLE_ORDER: Role[] = [
+  "super_admin",
+  "market_manager",
+  "agent",
+  "warehouse_agent",
+  "investor",
+];
 
 function groupUsersByRole(users: UserWithStats[]): Partial<Record<Role, UserWithStats[]>> {
   const map: Partial<Record<Role, UserWithStats[]>> = {};

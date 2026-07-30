@@ -1,6 +1,11 @@
 // Shared TypeScript types — single source of truth
 
-export type Role = "super_admin" | "market_manager" | "agent" | "warehouse_agent";
+export type Role =
+  | "super_admin"
+  | "market_manager"
+  | "agent"
+  | "warehouse_agent"
+  | "investor";
 export type Locale = "fr" | "ar";
 export type Direction = "ltr" | "rtl";
 export type DeactivationReason = "off-boarded" | "on-leave" | "terminated";

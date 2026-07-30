@@ -7,6 +7,8 @@ const ROLE_LABELS: Record<string, string> = {
   super_admin: "Super Admin",
   market_manager: "Market Manager",
   agent: "Agent",
+  warehouse_agent: "Agent entrepôt",
+  investor: "Investisseur",
 };
 
 const MARKET_LABELS: Record<string, string> = {

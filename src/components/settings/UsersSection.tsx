@@ -26,7 +26,12 @@ interface UserRow {
   created_at: string;
 }
 
-const CREATABLE_ROLES: Role[] = ["market_manager", "agent", "warehouse_agent"];
+const CREATABLE_ROLES: Role[] = [
+  "market_manager",
+  "agent",
+  "warehouse_agent",
+  "investor",
+];
 
 const labelStyle: React.CSSProperties = {
   display: "block",

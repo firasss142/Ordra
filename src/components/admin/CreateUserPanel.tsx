@@ -26,13 +26,19 @@ interface Props {
   }) => Promise<void>;
 }
 
-const SUPER_ADMIN_CREATABLE: Role[] = ["market_manager", "agent", "warehouse_agent"];
+const SUPER_ADMIN_CREATABLE: Role[] = [
+  "market_manager",
+  "agent",
+  "warehouse_agent",
+  "investor",
+];
 const MANAGER_CREATABLE: Role[] = ["agent", "warehouse_agent"];
 
 const ROLE_LABELS: Record<string, string> = {
   market_manager: "Market Manager",
   agent: "Agent de confirmation",
   warehouse_agent: "Agent entrepôt",
+  investor: "Investisseur",
 };
 
 const inputStyle: React.CSSProperties = {

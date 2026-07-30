@@ -137,7 +137,8 @@
       "mappings": "Correspondances",
       "carriersConfig": "Transporteurs",
       "generalSettings": "Paramètres",
-      "logs": "Journaux"
+      "logs": "Journaux",
+      "investors": "Investisseurs"
     },
     "a11y": {
       "expandSection": "Déplier la section {section}",
@@ -154,7 +155,8 @@
       "super_admin": "Super admin",
       "market_manager": "Market manager",
       "agent": "Agent",
-      "warehouse_agent": "Agent entrepôt"
+      "warehouse_agent": "Agent entrepôt",
+      "investor": "Investisseur"
     }
   },
   "carrierTracking": {
@@ -2659,7 +2661,8 @@
       "super_admin": "Super admins",
       "active": "Actifs",
       "invited": "Invités",
-      "disabled": "Désactivés"
+      "disabled": "Désactivés",
+      "investor": "Investisseurs"
     },
     "stats": {
       "ordersActioned": "{count} actions",
@@ -3314,5 +3317,102 @@
     "month": "Ce mois",
     "last7": "7 derniers jours",
     "last30": "30 derniers jours"
+  },
+  "investor": {
+    "title": "Portefeuille",
+    "nav": {
+      "portfolio": "Portefeuille",
+      "statements": "Relevés",
+      "withdrawals": "Retraits"
+    },
+    "journey": {
+      "title": "Votre capital",
+      "invested": "Investi",
+      "units": "unités financées",
+      "orders": "commandes",
+      "delivered": "livrées",
+      "revenue": "chiffre d'affaires",
+      "yourShare": "votre part",
+      "multiple": "multiple"
+    },
+    "balance": {
+      "title": "Solde",
+      "pending": "En cours",
+      "reserve": "Réserve",
+      "available": "Disponible",
+      "withdrawn": "Retiré",
+      "pendingHint": "Estimation, pas encore réglée",
+      "reserveHint": "Retenue contre les retours tardifs",
+      "availableHint": "Réglé — retirable maintenant"
+    },
+    "cycle": {
+      "title": "Cycle de trésorerie",
+      "confirmed": "Confirmé",
+      "shipped": "Expédié",
+      "delivered": "Livré",
+      "remitted": "Encaissé",
+      "settled": "Réglé",
+      "withdrawable": "Retirable",
+      "hint": "Votre argent traverse ces étapes avant d'être retirable."
+    },
+    "positions": {
+      "title": "Vos produits",
+      "capital": "Capital",
+      "netProfit": "Bénéfice net",
+      "yourShare": "Votre part",
+      "deliveryRate": "Taux de livraison",
+      "returnRate": "Taux de retour",
+      "empty": "Aucune position pour le moment"
+    },
+    "funnel": {
+      "title": "Entonnoir",
+      "leads": "Commandes reçues",
+      "confirmed": "Confirmées",
+      "uploaded": "Transmises",
+      "delivered": "Livrées",
+      "returned": "Retournées"
+    },
+    "waterfall": {
+      "title": "Décomposition",
+      "revenue": "Chiffre d'affaires",
+      "cogs": "Coût des marchandises",
+      "delivery": "Livraison",
+      "returns": "Retours",
+      "packing": "Emballage",
+      "processing": "Traitement",
+      "ads": "Publicité",
+      "netProfit": "Bénéfice net"
+    },
+    "statements": {
+      "title": "Relevés",
+      "period": "Période",
+      "product": "Produit",
+      "share": "Part",
+      "amount": "Montant",
+      "status": "Statut",
+      "empty": "Aucun relevé pour le moment",
+      "export": "Exporter CSV"
+    },
+    "withdrawals": {
+      "title": "Retraits",
+      "request": "Demander un retrait",
+      "amount": "Montant",
+      "available": "Disponible",
+      "submit": "Envoyer la demande",
+      "history": "Historique",
+      "empty": "Aucun retrait pour le moment",
+      "status": {
+        "requested": "Demandé",
+        "approved": "Approuvé",
+        "rejected": "Refusé",
+        "paid": "Payé"
+      },
+      "exceeds": "Le montant dépasse le solde disponible",
+      "success": "Demande envoyée"
+    },
+    "errors": {
+      "load": "Impossible de charger vos données",
+      "retry": "Réessayer"
+    }
   }
 }

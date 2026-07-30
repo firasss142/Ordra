@@ -14,12 +14,14 @@ const ROLE_LABEL: Record<"fr" | "ar", Record<string, string>> = {
     market_manager: "Manager",
     agent: "Agent",
     warehouse_agent: "Entrepôt",
+    investor: "Investisseur",
   },
   ar: {
     super_admin: "مدير عام",
     market_manager: "مدير سوق",
     agent: "وكيل",
     warehouse_agent: "مخزن",
+    investor: "مستثمر",
   },
 };
 

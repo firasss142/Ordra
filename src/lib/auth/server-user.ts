@@ -47,10 +47,12 @@ export const getServerUser = cache(async (): Promise<AuthUser | null> => {
 
   const { data } = await supabase
     .from("users")
-    .select("full_name, avatar_url, role, market_id")
+    .select("full_name, avatar_url, role, market_id, is_active, deleted_at")
     .eq("id", authUser.id)
     .single();
-  if (!data) return null;
+  // A deactivated or soft-deleted account resolves to "no user", so every page
+  // guard that redirects on a null user also covers account status.
+  if (!data || data.is_active === false || data.deleted_at) return null;
 
   const marketCode =
     data.market_id === LY_MARKET_ID ? "ly" : data.market_id ? "tn" : null;

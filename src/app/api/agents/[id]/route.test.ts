@@ -4,6 +4,7 @@ const mockGetUser = vi.fn();
 const mockRpc = vi.fn();
 const mockAdminUpdateUser = vi.fn();
 const mockAdminDeleteUser = vi.fn();
+const mockAdminSignOut = vi.fn();
 const mockAdminFrom = vi.fn();
 
 // Per-call mocks for the "users" table accessed via createClient
@@ -67,6 +68,7 @@ vi.mock("@/lib/supabase/server", () => ({
       admin: {
         updateUserById: (...args: unknown[]) => mockAdminUpdateUser(...args),
         deleteUser: (...args: unknown[]) => mockAdminDeleteUser(...args),
+        signOut: (...args: unknown[]) => mockAdminSignOut(...args),
       },
     },
     from: (...args: unknown[]) => mockAdminFrom(...args),
@@ -112,6 +114,7 @@ beforeEach(() => {
   mockUsersTargetSingle.mockResolvedValue({ data: { market_id: "market-tn", deleted_at: null }, error: null });
   mockAdminDeleteUser.mockResolvedValue({ data: { user: null }, error: null });
   mockAdminUpdateUser.mockResolvedValue({ data: { user: null }, error: null });
+  mockAdminSignOut.mockResolvedValue({ data: null, error: null });
   // Default: no open orders
   mockOrdersIn.mockResolvedValue({ data: [], error: null });
   // Default: update succeeds
@@ -173,10 +176,17 @@ describe("PATCH agents/[id] action=deactivate", () => {
     };
 
     const { req, params } = makeRequest(TARGET_ID, { action: "deactivate", reason: "terminated" });
-    await PATCH(req, params);
-    expect(updateSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ is_active: false, deactivation_reason: "terminated" })
-    );
+    try {
+      await PATCH(req, params);
+      expect(updateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ is_active: false, deactivation_reason: "terminated" })
+      );
+    } finally {
+      // createClient is mockResolvedValue, so every caller shares ONE client
+      // object. Without restoring `from`, this patch leaks into every later
+      // test in the file and they silently exercise `updateSpy` instead.
+      supabase.from = origFrom;
+    }
   });
 
   test("calls return_order_to_pool RPC for each open order", async () => {
@@ -222,6 +232,20 @@ describe("PATCH agents/[id] action=deactivate", () => {
     const body = await res.json();
     expect(body.success).toBe(true);
     expect(body.ordersReturned).toBe(3);
+  });
+
+  test("revokes the target's auth session so they cannot keep acting", async () => {
+    const { req, params } = makeRequest(TARGET_ID, { action: "deactivate", reason: "off-boarded" });
+    await PATCH(req, params);
+    expect(mockAdminSignOut).toHaveBeenCalledWith(TARGET_ID, "global");
+  });
+
+  test("still deactivates when the session revoke fails", async () => {
+    mockAdminSignOut.mockRejectedValue(new Error("auth unreachable"));
+    const { req, params } = makeRequest(TARGET_ID, { action: "deactivate", reason: "off-boarded" });
+    const res = await PATCH(req, params);
+    expect(res.status).toBe(200);
+    expect(mockUsersUpdate).toHaveBeenCalled();
   });
 
   test("market_manager cannot deactivate user in different market", async () => {

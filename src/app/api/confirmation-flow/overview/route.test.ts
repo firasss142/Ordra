@@ -9,26 +9,30 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
+vi.mock("@/lib/auth/actor", async () => {
+  const { makeGetActor } = await import("@/test/helpers/actorMock");
+  return { getActor: makeGetActor() };
+});
+
 import { GET } from "./route";
 import { NextRequest } from "next/server";
+import { setTestActor, resetTestActor } from "@/test/helpers/actorMock";
+import type { Role } from "@/types";
 
 function req(
   params: Record<string, string> = {},
-  role = "market_manager",
-  marketId = "market-tn",
+  role: Role = "market_manager",
+  marketId: string | null = "market-tn",
   actorId = "actor-1"
 ) {
+  setTestActor({ role, market_id: marketId || null, id: actorId });
   const url = new URL("http://localhost:3000/api/confirmation-flow/overview");
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const headers: Record<string, string> = {
-    "x-oms-role": role,
-    "x-oms-actor-id": actorId,
-  };
-  if (marketId) headers["x-oms-market-id"] = marketId;
-  return new NextRequest(url, { headers });
+  return new NextRequest(url);
 }
 
 function unauthReq(params: Record<string, string> = {}) {
+  setTestActor(null);
   const url = new URL("http://localhost:3000/api/confirmation-flow/overview");
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   return new NextRequest(url);
@@ -57,10 +61,13 @@ function singleChain(data: unknown) {
   return chain;
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  resetTestActor();
+});
 
 describe("GET /api/confirmation-flow/overview", () => {
-  test("returns 401 when no auth headers and no session", async () => {
+  test("returns 401 when there is no session", async () => {
     const res = await GET(unauthReq());
     expect(res.status).toBe(401);
   });
@@ -71,15 +78,7 @@ describe("GET /api/confirmation-flow/overview", () => {
   });
 
   test("returns 400 when super_admin omits market_id", async () => {
-    const url = new URL("http://localhost:3000/api/confirmation-flow/overview");
-    const r = new NextRequest(url, {
-      headers: {
-        "x-oms-role": "super_admin",
-        "x-oms-actor-id": "admin-1",
-        // No x-oms-market-id
-      },
-    });
-    const res = await GET(r);
+    const res = await GET(req({}, "super_admin", null, "admin-1"));
     expect(res.status).toBe(400);
   });
 

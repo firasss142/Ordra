@@ -9,7 +9,17 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
+vi.mock("@/lib/auth/actor", async () => {
+  const { makeGetActor } = await import("@/test/helpers/actorMock");
+  return { getActor: makeGetActor() };
+});
+
 import { GET } from "./route";
+import {
+  setTestActor,
+  resetTestActor,
+  type TestActor,
+} from "@/test/helpers/actorMock";
 
 interface ProductRow {
   id: string;
@@ -82,26 +92,26 @@ function historyRows(count: number, prefix: string) {
 
 function createRequest(
   params: Record<string, string> = {},
-  headers: Record<string, string> = {}
+  actor: Partial<TestActor> = {}
 ): NextRequest {
+  setTestActor({
+    role: "market_manager",
+    id: "mgr-1",
+    market_id: "m-tn",
+    ...actor,
+  });
   const url = new URL(
     "http://localhost:3000/api/profitability/product/prod-1"
   );
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  return new NextRequest(url, {
-    headers: {
-      "x-oms-role": "market_manager",
-      "x-oms-actor-id": "mgr-1",
-      "x-oms-market-id": "m-tn",
-      ...headers,
-    },
-  });
+  return new NextRequest(url);
 }
 
 const params = Promise.resolve({ productId: "prod-1" });
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resetTestActor();
 });
 
 describe("GET /api/profitability/product/[productId]", () => {
@@ -109,7 +119,7 @@ describe("GET /api/profitability/product/[productId]", () => {
     mockFrom.mockImplementation(buildChain(() => ({ data: PRODUCT })));
     const req = createRequest(
       { from_date: "2026-04-01", to_date: "2026-04-13" },
-      { "x-oms-role": "agent", "x-oms-actor-id": "a-1" }
+      { role: "agent", id: "a-1" }
     );
     const res = await GET(req, { params });
     expect(res.status).toBe(403);
@@ -246,11 +256,7 @@ describe("GET /api/profitability/product/[productId]", () => {
     );
     const req = createRequest(
       { from_date: "2026-04-01", to_date: "2026-04-13" },
-      {
-        "x-oms-role": "super_admin",
-        "x-oms-actor-id": "admin-1",
-        "x-oms-market-id": "",
-      }
+      { role: "super_admin", id: "admin-1", market_id: null }
     );
     const res = await GET(req, { params });
     expect(res.status).toBe(200);

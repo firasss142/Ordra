@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { canAccess } from "@/lib/role-permissions";
+import {
+  canAccess,
+  canEditCosts,
+  canManageProducts,
+  canPrintLabels,
+  canScanWarehouse,
+} from "@/lib/role-permissions";
 
 // Routes in the system
 const DASHBOARD_ROUTES = [
@@ -112,5 +118,54 @@ describe("canAccess — warehouse_agent", () => {
 
   it("cannot access /dashboard", () => {
     expect(canAccess("warehouse_agent", "/dashboard")).toBe(false);
+  });
+});
+
+// ─── investor ────────────────────────────────────────────────────────────────
+// External users. Their allow-list is exactly one route; everything else in the
+// OMS — orders, products, team, settings, the warehouse — must stay closed.
+
+describe("canAccess — investor", () => {
+  it("can access /investor", () => {
+    expect(canAccess("investor", "/investor")).toBe(true);
+  });
+
+  it("cannot access any staff route", () => {
+    const STAFF_ROUTES = [
+      "/orders",
+      "/unassigned",
+      "/products",
+      "/team",
+      "/users",
+      "/carriers",
+      "/settings",
+      "/queue",
+      "/leads",
+      "/warehouse",
+    ] as const;
+
+    for (const route of STAFF_ROUTES) {
+      expect(canAccess("investor", route)).toBe(false);
+    }
+  });
+
+  it("cannot edit costs, manage products, print labels or scan", () => {
+    expect(canEditCosts("investor")).toBe(false);
+    expect(canManageProducts("investor")).toBe(false);
+    expect(canPrintLabels("investor")).toBe(false);
+    expect(canScanWarehouse("investor")).toBe(false);
+  });
+});
+
+describe("canAccess — unknown role", () => {
+  it("denies instead of throwing", () => {
+    // PERMISSIONS[role].includes() threw a TypeError for any role missing from
+    // the map, which crashed middleware for every request by that user.
+    expect(() =>
+      canAccess("not_a_real_role" as Parameters<typeof canAccess>[0], "/orders")
+    ).not.toThrow();
+    expect(
+      canAccess("not_a_real_role" as Parameters<typeof canAccess>[0], "/orders")
+    ).toBe(false);
   });
 });

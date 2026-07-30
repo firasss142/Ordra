@@ -41,6 +41,7 @@ const ROLE_BADGE: Record<Role, { label: string; bg: string; color: string }> = {
   market_manager: { label: "Manager", bg: "#F0FDF4", color: "#166534" },
   agent: { label: "Agent", bg: "#FFF7ED", color: "#9A3412" },
   warehouse_agent: { label: "Entrepôt", bg: "#F0F9FF", color: "#075985" },
+  investor: { label: "Investisseur", bg: "#FEF3C7", color: "#92400E" },
 };
 
 export function UserCard({

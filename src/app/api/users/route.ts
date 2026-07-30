@@ -14,6 +14,9 @@ const CREATABLE_ROLES: readonly Role[] = [
   "market_manager",
   "agent",
   "warehouse_agent",
+  // Investors are external. The market_manager guard below already restricts
+  // creation to agent/warehouse_agent, so this stays super_admin-only.
+  "investor",
 ] as const;
 
 function isCreatableRole(value: unknown): value is (typeof CREATABLE_ROLES)[number] {
