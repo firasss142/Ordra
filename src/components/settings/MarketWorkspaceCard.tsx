@@ -142,7 +142,7 @@ export function MarketWorkspaceCard({
         <div style={{ display: "flex", gap: 8 }}>
           {hasAlerts && (
             <Link
-              href={`/${params.locale}/dashboard/alerts`}
+              href={`/${params.locale}/dashboard?alerts=open`}
               style={{
                 fontSize: 13,
                 color: "#D72C0D",

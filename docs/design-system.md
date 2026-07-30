@@ -26,6 +26,13 @@ All tokens are CSS custom properties defined in `src/app/globals.css`.
 | `--bg-card` | `#FFFFFF` | Cards, panels, modals |
 | `--bg-hover` | `#F7F7F7` | Row/item hover state |
 | `--bg-selected` | `#F2F2F2` | Selected/active item background |
+| `--surface-sunken` / `bg-surface-sunken` | `#FAFAFB` | Skeleton blocks, empty-state wells |
+
+### Charts (neutral, non-status)
+
+| Token | Hex | Role |
+|---|---|---|
+| `--chart-line` / `text-chart-line` | `#8C9196` | Sparkline strokes, axis ticks — never a status color |
 
 ### Text
 
@@ -213,6 +220,38 @@ Section identity inside a panel is communicated through a tiny uppercase label p
 
 Examples: Customer = `User`, Address = `MapPin`, Order = `ShoppingBag`, Note = `StickyNote`, History = `Clock`, Fulfillment = `Truck`. Never tint a section background to signal "kind of content" — the label + icon does that job.
 
+### 4.11 Tabs (underline)
+
+The accent green's reserved "active-tab underline" slot is implemented by underline tabs (see `OrdersPresetPills`). Pills-as-tabs are deprecated.
+
+- Container: `role="tablist"`, `flex items-end gap-1`, sits on a row with `border-b border-line` as the shared baseline
+- Tab: `px-3 pt-1.5 pb-2 text-[13px]`, inactive `font-medium text-ink-secondary hover:text-ink-primary`, active `font-semibold text-ink-primary`
+- Active indicator: absolutely-positioned `inset-x-2 bottom-0 h-[2px] bg-accent rounded-pill` — the **only** place the accent underline appears
+- Count badge inside a tab: neutral pill `bg-surface-selected text-ink-secondary text-[11px] tabular-nums`
+- Keep `role="tab"` / `aria-selected`
+
+### 4.12 Skeleton loading
+
+Use `src/components/ui/Skeleton.tsx` — `bg-surface-sunken rounded-[6px] animate-pulse`, `aria-hidden`. Size with `h-* w-*` utilities. Wrap a group of skeleton rows in a container with `role="status"`. Never ship text-only "loading…" placeholders in cards or tables.
+
+### 4.13 Slide-over panel (generalized from §4.9)
+
+Right-edge overlay surface for tool panels that aren't order details (e.g. `AlertsPanel`):
+
+- Backdrop: `fixed inset-0` `rgba(26,26,26,0.5)`, click closes
+- Panel: `fixed top-0 end-0 h-full w-full sm:w-[440px] bg-surface-card border-s border-line-subtle shadow-panel` (440px for tool panels; 480px stays for the order drawer)
+- `role="dialog"` + `aria-modal="true"`; Escape closes — register the key handler in the **capture** phase so a drawer underneath doesn't also close (topmost surface wins)
+- Header band `h-[56px] border-b border-line-subtle px-4`; body `flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3`
+- Focus the close button on open
+
+### 4.14 Bell + count badge (dark surface)
+
+Sidebar-header notification affordance (`AlertsBell`):
+
+- Button: 28×28, `border: 1px solid var(--sidebar-border-strong)`, transparent background, `var(--sidebar-text)` icon
+- Count badge: absolute top-end, `min-width 15px`, `border-radius: 9999px`, `background: var(--critical)`, white 9.5px text, `tabular-nums`, caps at "99+"
+- The badge is a live count, not decoration — it uses the critical status token because it demands action
+
 ---
 
 ## 5. Layout
@@ -241,7 +280,9 @@ Examples: Customer = `User`, Address = `MapPin`, Order = `ShoppingBag`, Note = `
 - Hover (inactive): `background: #2A2A2A`
 - User menu at bottom: `padding: 16px`, `border-top: 1px solid #2A2A2A`
 
-### Topbar
+### Topbar (agent shell only)
+
+Manager/admin pages have **no global topbar** — `DashboardChrome` renders only the sidebar and the content area; the alerts bell and user menu live in the sidebar. The topbar spec below applies to the agent shell (`AgentDashboardShell`) only:
 
 - Height: `56px`
 - Background: `#FFFFFF`

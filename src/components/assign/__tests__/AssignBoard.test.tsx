@@ -116,7 +116,7 @@ vi.mock("@/hooks/useAssignmentRule", () => ({
   }),
 }));
 
-import { AssignPageClient } from "./AssignPageClient";
+import { AssignBoard } from "@/components/assign/AssignBoard";
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch as unknown as typeof fetch;
@@ -126,17 +126,16 @@ beforeEach(() => {
   mockFetch.mockReset();
 });
 
-describe("<AssignPageClient /> integration", () => {
-  it("bulk-assigns selected orders to an agent via /api/orders/bulk-assign", async () => {
+describe("<AssignBoard /> integration", () => {
+  it("bulk-assigns selected orders to an agent via /api/orders/bulk-assign and notifies the host", async () => {
     const user = userEvent.setup();
+    const onAssigned = vi.fn();
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ data: { assigned: 2, skipped: 0, errors: [] } }),
     });
 
-    render(
-      <AssignPageClient role="market_manager" marketId="m-tn" marketCode="TN" locale="fr" />
-    );
+    render(<AssignBoard marketId="m-tn" marketCode="TN" onAssigned={onAssigned} />);
 
     // Select both orders
     const checkboxes = screen.getAllByRole("checkbox");
@@ -163,12 +162,13 @@ describe("<AssignPageClient /> integration", () => {
     const calledBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(calledBody.order_ids.sort()).toEqual(["o1", "o2"]);
     expect(mutateOrders).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(onAssigned).toHaveBeenCalled();
+    });
   });
 
   it("renders bucket sections for each age group that has orders", () => {
-    render(
-      <AssignPageClient role="market_manager" marketId="m-tn" marketCode="TN" locale="fr" />
-    );
+    render(<AssignBoard marketId="m-tn" marketCode="TN" />);
     // The 10-minute old orders land in "fresh" bucket
     expect(screen.getByText(/Fraîches/)).toBeTruthy();
   });

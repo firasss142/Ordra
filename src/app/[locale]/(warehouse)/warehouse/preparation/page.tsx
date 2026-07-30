@@ -62,6 +62,7 @@ export default async function Page({
         },
         scanFirst: {
           inputPlaceholder: t("preparation.scanFirst.inputPlaceholder"),
+          openCamera: t("scanner.openCamera"),
           idleHeadline: t("preparation.scanFirst.idleHeadline"),
           idleHint: t("preparation.scanFirst.idleHint"),
           customerHeading: t("preparation.scanFirst.customerHeading"),
@@ -98,6 +99,7 @@ export default async function Page({
         },
         scanner: {
           inputPlaceholder: t("preparation.scanner.inputPlaceholder"),
+          openCamera: t("scanner.openCamera"),
           feedbackIdle: t("preparation.scanner.feedbackIdle"),
           recentTitle: t("preparation.scanner.recentTitle"),
           recentEmpty: t("preparation.scanner.recentEmpty"),

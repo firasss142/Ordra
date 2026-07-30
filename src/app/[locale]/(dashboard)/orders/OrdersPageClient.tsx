@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { useTranslations } from "next-intl";
 import type { Locale, Role } from "@/types";
 import { useOrdersFiltersUrl } from "@/hooks/useOrdersFiltersUrl";
@@ -28,6 +29,7 @@ import { OrdersBulkBar } from "@/components/orders/OrdersBulkBar";
 import { BulkUploadPanel } from "@/components/orders/BulkUploadPanel";
 import { BulkReopenPanel } from "@/components/orders/BulkReopenPanel";
 import { OrdersStatusStrip } from "@/components/orders/OrdersStatusStrip";
+import { OrdersViewToggle, type OrdersView } from "@/components/orders/OrdersViewToggle";
 import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
 
 const OrdersAdvancedDrawer = dynamic(
@@ -44,6 +46,10 @@ const CreateOrderModal = dynamic(
 );
 const PostCallActionSheet = dynamic(
   () => import("@/components/queue/PostCallActionSheet").then((m) => m.PostCallActionSheet),
+  { ssr: false },
+);
+const AssignBoard = dynamic(
+  () => import("@/components/assign/AssignBoard").then((m) => m.AssignBoard),
   { ssr: false },
 );
 
@@ -74,6 +80,7 @@ interface Props {
   userMarketId: string;
   userMarketLabel: string;
   userMarketCurrency: string;
+  userMarketCode: string;
   locale: Locale;
   fallbackFirstPage: OrdersListPage;
   initialMarketId: string;
@@ -86,6 +93,7 @@ export function OrdersPageClient({
   userMarketId,
   userMarketLabel,
   userMarketCurrency,
+  userMarketCode,
   locale,
   fallbackFirstPage,
   initialMarketId,
@@ -261,7 +269,52 @@ export function OrdersPageClient({
   const [reopenOpen, setReopenOpen] = useState(false);
 
   // ---------- Detail panel + flash highlight ----------
-  const [openOrderId, setOpenOrderId] = useState<string | null>(null);
+  // Deep-linkable via ?open=<id> (e.g. from alerts or the legacy /orders/[id]
+  // redirect). Local state is the source of truth for instant open/close; the
+  // URL is kept in sync via history.replaceState so no RSC refetch happens.
+  const searchParams = useSearchParams();
+  const [openOrderId, setOpenOrderId] = useState<string | null>(
+    () => searchParams?.get("open") ?? null,
+  );
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (openOrderId) {
+      if (url.searchParams.get("open") === openOrderId) return;
+      url.searchParams.set("open", openOrderId);
+    } else {
+      if (!url.searchParams.has("open")) return;
+      url.searchParams.delete("open");
+    }
+    window.history.replaceState(window.history.state, "", url.toString());
+  }, [openOrderId]);
+
+  // ---------- Unassigned tab view mode (assignment board | plain table) ----------
+  const canAssign = isSuperAdmin || role === "market_manager";
+  const [view, setView] = useState<OrdersView>(() =>
+    searchParams?.get("view") === "table" ? "table" : "board",
+  );
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (view === "table") {
+      if (url.searchParams.get("view") === "table") return;
+      url.searchParams.set("view", "table");
+    } else {
+      if (!url.searchParams.has("view")) return;
+      url.searchParams.delete("view");
+    }
+    window.history.replaceState(window.history.state, "", url.toString());
+  }, [view]);
+
+  const { mutate: globalMutate } = useSWRConfig();
+  const refreshAfterAssign = useCallback(() => {
+    void mutate();
+    void globalMutate(
+      (key) =>
+        typeof key === "string" &&
+        (key.startsWith("/api/orders/status-counts") ||
+          key.startsWith("/api/orders/unassigned/count")),
+    );
+  }, [mutate, globalMutate]);
   const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set());
   const highlightTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const flashRow = useCallback((id: string) => {
@@ -416,7 +469,6 @@ export function OrdersPageClient({
     [rows, openOrderId],
   );
 
-  const canAssign = isSuperAdmin || role === "market_manager";
   const selectedRows = useMemo(
     () => rows.filter((row) => selectedIds.has(row.id)),
     [rows, selectedIds],
@@ -436,6 +488,14 @@ export function OrdersPageClient({
     return markets.find((m) => m.id === filters.marketId)?.name ?? "—";
   }, [isSuperAdmin, filters.marketId, markets, userMarketLabel, t]);
 
+  const activeMarketCode = useMemo(() => {
+    if (filters.marketId) {
+      const code = markets.find((m) => m.id === filters.marketId)?.code;
+      if (code) return code;
+    }
+    return userMarketCode || "TN";
+  }, [filters.marketId, markets, userMarketCode]);
+
   // Quick inline stats derived from loaded rows
   const unassignedCount = rows.filter((r) => r.status === "pending" && r.assigned_to === null).length;
   const callbackCount = rows.filter((r) => r.status === "callback_scheduled").length;
@@ -452,6 +512,11 @@ export function OrdersPageClient({
     filters.totalMax !== null ||
     filters.rejectionReason !== null ||
     filters.carrierId !== null;
+
+  // Assignment board is the default view of the unassigned tab; any active
+  // filter chip falls back to the plain table (filters apply to the table only).
+  const boardActive =
+    filters.preset === "unassigned" && canAssign && view === "board" && !hasActiveFilterChips;
 
   return (
     <div
@@ -486,24 +551,24 @@ export function OrdersPageClient({
 
         <OrdersStatusStrip marketId={effectiveMarketId} />
 
-        <OrdersPresetPills
-          active={filters.preset}
-          onChange={(next) => update({ preset: next })}
-        />
+        <div className="flex items-end justify-between gap-2 flex-wrap border-b border-line">
+          <OrdersPresetPills
+            active={filters.preset}
+            onChange={(next) => update({ preset: next })}
+          />
+          {filters.preset === "unassigned" && canAssign ? (
+            <div className="pb-1.5">
+              <OrdersViewToggle
+                view={hasActiveFilterChips ? "table" : view}
+                onChange={setView}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* ── Filter card ── */}
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: "1px solid #E1E3E5",
-          borderRadius: 8,
-          padding: "14px 16px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-        }}
-      >
+      <div className="bg-surface-card border border-line-subtle rounded-[8px] px-4 py-3.5 flex flex-col gap-2.5">
         <OrdersFilterBar
           filters={filters}
           onChange={update}
@@ -529,28 +594,23 @@ export function OrdersPageClient({
       {errorBanner ? (
         <div
           role="alert"
-          style={{
-            padding: "10px 14px",
-            borderRadius: 8,
-            background: "#FFF4F4",
-            color: "#D72C0D",
-            border: "1px solid #F3B9B0",
-            fontSize: 13,
-          }}
+          className="px-3.5 py-2.5 rounded-[8px] text-[13px]"
+          style={{ background: "#FFF4F4", color: "#D72C0D", border: "1px solid #F3B9B0" }}
         >
           {errorBanner}
         </div>
       ) : null}
 
+      {boardActive ? (
+        <AssignBoard
+          marketId={effectiveMarketId ?? "all"}
+          marketCode={activeMarketCode}
+          onAssigned={refreshAfterAssign}
+        />
+      ) : (
+        <>
       {/* ── Orders table wrapped in card ── */}
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: "1px solid #E1E3E5",
-          borderRadius: 8,
-          overflow: "hidden",
-        }}
-      >
+      <div className="bg-surface-card border border-line-subtle rounded-[8px] overflow-hidden">
         <OrdersTable
           rows={rows}
           locale={locale}
@@ -601,6 +661,8 @@ export function OrdersPageClient({
         cancelDisabled={hasBulkDeleteIneligible}
         cancelDisabledReason={t("bulk.cancelIneligible")}
       />
+        </>
+      )}
 
       {uploadOpen && (
         <BulkUploadPanel

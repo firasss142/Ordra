@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 import useSWR from "swr";
 import {
   BarChart3,
-  Bell,
   Boxes,
   ChevronRight,
   ChevronsUpDown,
@@ -16,7 +15,6 @@ import {
   FileClock,
   Gauge,
   Home,
-  Inbox,
   Key,
   LayoutDashboard,
   LineChart,
@@ -41,6 +39,7 @@ import {
 } from "lucide-react";
 import { prefetchForRoute } from "./prefetch";
 import { Avatar } from "@/components/ui/Avatar";
+import { AlertsBell } from "@/components/alerts/AlertsBell";
 import { MarketScopeSwitcher } from "@/components/layout/MarketScopeSwitcher";
 import { getPermissionsForRole } from "@/lib/user-permissions";
 import type { AuthUser } from "@/types";
@@ -76,8 +75,6 @@ interface NavItemDef {
   /** Prefetch hint — usually matches the base route segment */
   prefetchRoute?: string;
   showBadge?: boolean;
-  /** Show the live alerts count badge for this item */
-  showAlertsBadge?: boolean;
 }
 
 interface NavSection {
@@ -99,25 +96,18 @@ const NAV_SECTIONS: readonly NavSection[] = [
     defaultExpanded: true,
     items: [
       { key: "pulse", href: "dashboard", icon: LayoutDashboard, prefetchRoute: "dashboard" },
-      { key: "alertes", href: "dashboard/alerts", icon: Bell, prefetchRoute: "dashboard", showAlertsBadge: true },
     ],
   },
   {
     id: "commandes",
     icon: ShoppingBag,
     items: [
-      { key: "toAssign", href: "assign", icon: Inbox, prefetchRoute: "assign", showBadge: true },
-      {
-        key: "inConfirmation",
-        href: "confirmation-flow",
-        icon: PhoneCall,
-        prefetchRoute: "confirmation-flow",
-      },
       {
         key: "orders",
         href: "orders",
         icon: Send,
         prefetchRoute: "orders",
+        showBadge: true,
       },
       {
         key: "archived",
@@ -164,6 +154,12 @@ const NAV_SECTIONS: readonly NavSection[] = [
     icon: Gauge,
     defaultExpanded: true,
     items: [
+      {
+        key: "inConfirmation",
+        href: "confirmation-flow",
+        icon: PhoneCall,
+        prefetchRoute: "confirmation-flow",
+      },
       { key: "performanceLive", href: "team", icon: BarChart3, prefetchRoute: "team" },
       { key: "access", href: "users", icon: UserPlus, prefetchRoute: "users" },
     ],
@@ -206,13 +202,14 @@ function splitHref(href: string): { path: string; search: string } {
  * A sub-tab is active when the URL's path matches the item's path AND every
  * query param the item declares is present (subset match). Extra filters in
  * the URL (e.g. ?q=text on top of ?preset=unassigned) leave the tab active.
- * A plain-path item (no query) matches only on exact path + no query, so
- * siblings like /dashboard and /dashboard/alerts don't double-activate.
+ * A plain-path item (no query) matches on exact path regardless of query, so
+ * /orders?preset=unassigned or /orders?open=<id> keep Commandes active.
+ * Path-distinct siblings (/dashboard vs /dashboard/alerts) never double-activate.
  */
 function isItemActive(itemHref: string, activePath: string, activeSearch: string): boolean {
   const { path: itemPath, search: itemSearch } = splitHref(itemHref);
   if (activePath !== itemPath) return false;
-  if (!itemSearch) return activeSearch === "";
+  if (!itemSearch) return true;
   const itemParams = new URLSearchParams(itemSearch);
   const activeParams = new URLSearchParams(activeSearch);
   for (const [key, value] of itemParams.entries()) {
@@ -344,12 +341,6 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
     revalidateOnFocus: false,
   });
 
-  const alertsKey = `/api/alerts/summary${marketParam}`;
-  const { data: alertsSummaryData } = useSWR<{ total: number }>(alertsKey, {
-    refreshInterval: 60000,
-    revalidateOnFocus: false,
-  });
-
   if (user.role === "agent" || user.role === "warehouse_agent") {
     return null;
   }
@@ -393,8 +384,8 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
       className="sidebar-scroll sidebar-mobile-drawer"
       data-mobile-open={mobileOpen ? "true" : "false"}
       style={{
-        width: "248px",
-        minWidth: "248px",
+        width: "240px",
+        minWidth: "240px",
         height: "100vh",
         backgroundColor: "var(--sidebar-bg)",
         display: "flex",
@@ -467,6 +458,9 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
             {marketName}
           </span>
         )}
+        <span style={{ marginInlineStart: "auto", display: "inline-flex" }}>
+          <AlertsBell user={user} />
+        </span>
       </div>
 
       {/* Nav sections */}
@@ -479,15 +473,8 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
             section.items.some((i) => i.showBadge) && liveCount !== undefined
               ? liveCount
               : 0;
-          const sectionAlertsBadge =
-            section.items.some((i) => i.showAlertsBadge) && alertsSummaryData?.total !== undefined
-              ? alertsSummaryData.total
-              : 0;
-          const sectionBadgeCount = sectionUnassignedBadge + sectionAlertsBadge;
-          const sectionBadge = sectionBadgeCount > 0 ? sectionBadgeCount : undefined;
-          // Tone: critical if any alerts, else warning if unassigned, else neutral
-          const sectionBadgeTone: BadgeTone =
-            sectionAlertsBadge > 0 ? "critical" : sectionUnassignedBadge > 0 ? "warning" : "neutral";
+          const sectionBadge = sectionUnassignedBadge > 0 ? sectionUnassignedBadge : undefined;
+          const sectionBadgeTone: BadgeTone = sectionUnassignedBadge > 0 ? "warning" : "neutral";
 
           return (
             <div key={section.id}>
@@ -531,16 +518,8 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
                 >
                   {section.items.map((item) => {
                     const fullHref = `/${user.locale}/${item.href}`;
-                    const itemBadgeCount = item.showBadge
-                      ? liveCount
-                      : item.showAlertsBadge
-                        ? alertsSummaryData?.total
-                        : undefined;
-                    const itemBadgeTone: BadgeTone = item.showAlertsBadge
-                      ? "critical"
-                      : item.showBadge
-                        ? "warning"
-                        : "neutral";
+                    const itemBadgeCount = item.showBadge ? liveCount : undefined;
+                    const itemBadgeTone: BadgeTone = item.showBadge ? "warning" : "neutral";
                     return (
                       <li key={item.key}>
                         <SubNavItem

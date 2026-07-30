@@ -1,25 +1,11 @@
-import { OrderDetail } from "@/components/orders/OrderDetail";
+import { redirect } from "next/navigation";
 
 interface Props {
   params: Promise<{ orderId: string; locale: string }>;
 }
 
+// Legacy route — the order detail now opens as a drawer over the orders list.
 export default async function OrderDetailPage({ params }: Props) {
-  const { orderId } = await params;
-
-  return (
-    <div style={{ backgroundColor: "#F6F6F7", minHeight: "100vh", padding: "32px 32px 64px" }}>
-      <h1
-        style={{
-          fontSize: 20,
-          fontWeight: 600,
-          color: "#1A1A1A",
-          margin: "0 0 24px 0",
-        }}
-      >
-        Détail commande
-      </h1>
-      <OrderDetail orderId={orderId} />
-    </div>
-  );
+  const { orderId, locale } = await params;
+  redirect(`/${locale}/orders?open=${orderId}`);
 }

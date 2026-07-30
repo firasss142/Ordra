@@ -115,8 +115,6 @@
     },
     "items": {
       "pulse": "لوحة القيادة",
-      "alertes": "التنبيهات",
-      "toAssign": "للتعيين",
       "inConfirmation": "قيد التأكيد",
       "orders": "الطلبات",
       "archived": "المؤرشفة",
@@ -537,7 +535,9 @@
       "agent_inactive": {
         "label": "وكيل غير نشط"
       }
-    }
+    },
+    "bell": "التنبيهات",
+    "bellWithCount": "التنبيهات — {count} نشطة"
   },
   "dashboard": {
     "title": "لوحة التحكم",
@@ -1196,6 +1196,11 @@
         "totalPriceInvalid": "السعر الإجمالي غير صالح.",
         "requestFailed": "فشل الطلب ({status})"
       }
+    },
+    "view": {
+      "label": "وضع العرض",
+      "board": "لوحة الإسناد",
+      "table": "جدول"
     }
   },
   "unassigned": {
@@ -3018,7 +3023,8 @@
       "failed": "فشل الإسناد التلقائي"
     },
     "assignSuccess": "تم إسناد {count} طلب",
-    "assignFailed": "فشل الإسناد"
+    "assignFailed": "فشل الإسناد",
+    "showingFirstN": "عرض أحدث {count} طلبًا من أصل {total}"
   },
   "confirmationFlow": {
     "title": "تدفق التأكيد",

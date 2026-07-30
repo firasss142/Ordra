@@ -501,7 +501,7 @@ export function StorefrontsSection({ role, marketId }: StorefrontsSectionProps) 
                   )}
                   {state === "failing" && (
                     <Link
-                      href={`/${params.locale}/dashboard/alerts`}
+                      href={`/${params.locale}/dashboard?alerts=open`}
                       style={{
                         fontSize: 12,
                         color: "#D72C0D",

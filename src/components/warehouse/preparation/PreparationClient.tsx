@@ -41,6 +41,7 @@ interface Props {
     };
     scanFirst: {
       inputPlaceholder: string;
+      openCamera: string;
       idleHeadline: string;
       idleHint: string;
       customerHeading: string;
@@ -77,6 +78,7 @@ interface Props {
     };
     scanner: {
       inputPlaceholder: string;
+      openCamera: string;
       feedbackIdle: string;
       recentTitle: string;
       recentEmpty: string;

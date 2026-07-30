@@ -26,10 +26,10 @@ function tileBody(tile: KpiTile) {
   const valueColor = TONE_TEXT[tile.tone ?? "neutral"];
   return (
     <>
-      <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-secondary">
+      <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
         {tile.label}
       </span>
-      <span className={`text-[22px] font-bold tabular-nums ${valueColor}`}>
+      <span className={`text-[24px] font-extrabold tabular-nums leading-none ${valueColor}`}>
         {tile.value}
       </span>
       {tile.hint ? (
@@ -42,7 +42,7 @@ function tileBody(tile: KpiTile) {
 const TILE_BASE =
   "flex flex-col gap-1 flex-1 min-h-[64px] bg-surface-card border border-line-subtle rounded-card px-4 py-3 text-start";
 const TILE_INTERACTIVE =
-  "hover:shadow-hover-row transition-shadow duration-fast cursor-pointer";
+  "hover:shadow-hover-row hover:-translate-y-px transition-all duration-fast cursor-pointer";
 
 export function WarehouseKpiStrip({ tiles }: Props) {
   return (

@@ -1,16 +1,11 @@
 import { redirect } from "next/navigation";
-import { getServerUser } from "@/lib/auth/server-user";
-import { AlertsClient } from "./AlertsClient";
 
+// Legacy route — alerts now open as a slide-over panel (bell in the sidebar).
+// Kept as a redirect for bookmarks; ?alerts=open deep-links the panel open.
 export default async function AlertsPage({
   params,
 }: {
   params: { locale: string };
 }) {
-  const user = await getServerUser();
-  if (!user) redirect(`/${params.locale}/login`);
-  if (user.role === "agent" || user.role === "warehouse_agent") {
-    redirect(`/${params.locale}/queue`);
-  }
-  return <AlertsClient user={user} />;
+  redirect(`/${params.locale}/dashboard?alerts=open`);
 }

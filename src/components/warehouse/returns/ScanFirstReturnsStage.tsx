@@ -216,12 +216,13 @@ export function ScanFirstReturnsStage({
 
       {/* Recent timeline */}
       <div className="bg-surface-card border border-line-subtle rounded-card overflow-hidden">
-        <div className="px-4 py-3 border-b border-line-subtle flex items-center gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-ink-secondary">
+        <div className="px-4 py-3 border-b border-line-subtle flex items-center gap-1.5">
+          <PackageX size={12} strokeWidth={2} className="text-ink-muted shrink-0" aria-hidden />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
             {labels.recentTitle}
           </span>
           {recent.length > 0 && (
-            <span className="text-[11px] text-ink-muted tabular-nums">· {recent.length}</span>
+            <span className="text-[10px] text-ink-muted tabular-nums">· {recent.length}</span>
           )}
         </div>
         {recent.length === 0 ? (
@@ -330,7 +331,7 @@ function RecentReturnRow({
 
   return (
     <li
-      className={`grid grid-cols-[20px_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto] gap-3 px-4 py-2.5 border-b border-line-subtle border-s-[3px] ${accent} items-center text-[13px]`}
+      className={`grid grid-cols-[20px_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto] gap-3 px-4 py-2.5 border-b border-line-subtle border-s-[3px] ${accent} items-center text-[13px] hover:shadow-hover-row hover:-translate-y-px transition-all duration-fast`}
     >
       <Icon size={15} strokeWidth={1.75} className={`${iconClass} shrink-0`} aria-hidden />
       <div className="min-w-0">

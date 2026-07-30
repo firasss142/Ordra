@@ -8,6 +8,10 @@
   --bg-card: #FFFFFF;
   --bg-hover: #F7F7F7;
   --bg-selected: #F2F2F2;
+  --surface-sunken: #FAFAFB;
+
+  /* Charts (neutral, non-status) */
+  --chart-line: #8C9196;
 
   /* Text */
   --text-primary: #1A1A1A;

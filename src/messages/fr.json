@@ -115,8 +115,6 @@
     },
     "items": {
       "pulse": "Dashboard",
-      "alertes": "Alertes",
-      "toAssign": "À assigner",
       "inConfirmation": "En confirmation",
       "orders": "Commandes",
       "archived": "Archivées",
@@ -537,7 +535,9 @@
       "agent_inactive": {
         "label": "Agent inactif"
       }
-    }
+    },
+    "bell": "Alertes",
+    "bellWithCount": "Alertes — {count} active(s)"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -1196,6 +1196,11 @@
         "totalPriceInvalid": "Prix total invalide.",
         "requestFailed": "Erreur {status}"
       }
+    },
+    "view": {
+      "label": "Mode d'affichage",
+      "board": "Assignation",
+      "table": "Tableau"
     }
   },
   "unassigned": {
@@ -3105,7 +3110,8 @@
       "failed": "Échec de l'auto-assignation"
     },
     "assignSuccess": "{count} commande(s) assignée(s)",
-    "assignFailed": "Échec de l'assignation"
+    "assignFailed": "Échec de l'assignation",
+    "showingFirstN": "Affichage des {count} commandes les plus récentes sur {total}"
   },
   "confirmationFlow": {
     "title": "Flux Confirmation",

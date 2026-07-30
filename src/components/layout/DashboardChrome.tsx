@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { Menu } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { AlertsPanelProvider } from "@/context/alerts-panel";
 import type { AuthUser } from "@/types";
 
 interface Props {
@@ -20,6 +21,7 @@ export function DashboardChrome({ user, children, currentPath }: Props) {
   const handleMenuClick = useCallback(() => setMobileOpen(true), []);
 
   return (
+    <AlertsPanelProvider user={user}>
     <div
       style={{
         display: "flex",
@@ -69,5 +71,6 @@ export function DashboardChrome({ user, children, currentPath }: Props) {
         {children}
       </main>
     </div>
+    </AlertsPanelProvider>
   );
 }

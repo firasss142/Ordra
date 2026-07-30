@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   AlertTriangle,
+  Camera,
   CheckCircle2,
   MapPin,
   Package,
@@ -15,6 +17,11 @@ import { createScannerInputHandler } from "@/lib/preparation/scanner-input";
 import type { ScanErrorCode } from "@/lib/preparation/tray-state";
 import type { ScanResult } from "./PreparationScannerPanel";
 import type { TrayRow } from "@/hooks/usePreparationTray";
+
+const QrScanner = dynamic(
+  () => import("@/components/warehouse/QrScanner").then((m) => m.QrScanner),
+  { ssr: false },
+);
 
 interface CustomerIdentity {
   customer: string;
@@ -55,6 +62,7 @@ type FocusState =
 
 interface Labels {
   inputPlaceholder: string;
+  openCamera: string;
   idleHeadline: string;
   idleHint: string;
   customerHeading: string;
@@ -89,6 +97,7 @@ export function ScanFirstPreparationStage({ onScan, trayRows, labels }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [focus, setFocus] = useState<FocusState>({ kind: "idle" });
   const [recent, setRecent] = useState<RecentEntry[]>([]);
   const [pulse, setPulse] = useState(0);
@@ -100,10 +109,10 @@ export function ScanFirstPreparationStage({ onScan, trayRows, labels }: Props) {
     return () => window.clearInterval(i);
   }, []);
 
-  // Keep input focused unless submitting
+  // Keep input focused unless submitting or the camera modal is open
   useEffect(() => {
-    if (!submitting) inputRef.current?.focus();
-  }, [submitting]);
+    if (!submitting && !cameraOpen) inputRef.current?.focus();
+  }, [submitting, cameraOpen]);
 
   const lookupTrayRow = useCallback(
     (orderId: string): TrayRow | undefined => {
@@ -222,8 +231,9 @@ export function ScanFirstPreparationStage({ onScan, trayRows, labels }: Props) {
     [onScan, submitting, lookupTrayRow, labels],
   );
 
-  // Hardware scanner buffered keystrokes
+  // Hardware scanner buffered keystrokes (paused while the camera modal is open)
   useEffect(() => {
+    if (cameraOpen) return;
     const { handler, cleanup } = createScannerInputHandler((scanned) => {
       submit(scanned);
     });
@@ -232,7 +242,7 @@ export function ScanFirstPreparationStage({ onScan, trayRows, labels }: Props) {
       window.removeEventListener("keydown", handler);
       cleanup();
     };
-  }, [submit]);
+  }, [submit, cameraOpen]);
 
   const now = Date.now();
 
@@ -247,31 +257,43 @@ export function ScanFirstPreparationStage({ onScan, trayRows, labels }: Props) {
               {labels.idleHeadline}
             </span>
           </div>
-          <div className="relative w-full">
-            <ScanLine
-              size={20}
-              strokeWidth={1.5}
-              className="absolute start-4 top-1/2 -translate-y-1/2 text-ink-secondary pointer-events-none"
-              aria-hidden
-            />
-            <input
-              ref={inputRef}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  submit(value);
-                }
-              }}
-              placeholder={labels.inputPlaceholder}
+          <div className="w-full flex items-stretch gap-2">
+            <div className="relative flex-1">
+              <ScanLine
+                size={20}
+                strokeWidth={1.5}
+                className="absolute start-4 top-1/2 -translate-y-1/2 text-ink-secondary pointer-events-none"
+                aria-hidden
+              />
+              <input
+                ref={inputRef}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    submit(value);
+                  }
+                }}
+                placeholder={labels.inputPlaceholder}
+                disabled={submitting}
+                autoComplete="off"
+                spellCheck={false}
+                aria-label={labels.inputPlaceholder}
+                className="w-full font-mono text-[18px] sm:text-[20px] tracking-wide ps-12 pe-4 py-4 border-2 border-line rounded-card bg-surface-page text-ink-primary outline-none focus:border-ink-primary focus:bg-surface-card transition-colors duration-fast"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setCameraOpen(true)}
               disabled={submitting}
-              autoComplete="off"
-              spellCheck={false}
-              aria-label={labels.inputPlaceholder}
-              className="w-full font-mono text-[18px] sm:text-[20px] tracking-wide ps-12 pe-4 py-4 border-2 border-line rounded-card bg-surface-page text-ink-primary outline-none focus:border-ink-primary focus:bg-surface-card transition-colors duration-fast"
-            />
+              aria-label={labels.openCamera}
+              className="inline-flex items-center gap-2 px-4 rounded-card border-2 border-line text-[14px] font-medium text-ink-primary bg-surface-page hover:bg-surface-hover hover:border-line-strong transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            >
+              <Camera size={20} strokeWidth={1.5} aria-hidden />
+              <span className="hidden sm:inline">{labels.openCamera}</span>
+            </button>
           </div>
           <p className="text-[12px] text-ink-secondary text-center m-0">{labels.idleHint}</p>
         </div>
@@ -282,12 +304,13 @@ export function ScanFirstPreparationStage({ onScan, trayRows, labels }: Props) {
 
       {/* Recent timeline */}
       <div className="bg-surface-card border border-line-subtle rounded-card overflow-hidden">
-        <div className="px-4 py-3 border-b border-line-subtle flex items-center gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-ink-secondary">
+        <div className="px-4 py-3 border-b border-line-subtle flex items-center gap-1.5">
+          <ScanLine size={12} strokeWidth={2} className="text-ink-muted shrink-0" aria-hidden />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
             {labels.recentTitle}
           </span>
           {recent.length > 0 && (
-            <span className="text-[11px] text-ink-muted tabular-nums">· {recent.length}</span>
+            <span className="text-[10px] text-ink-muted tabular-nums">· {recent.length}</span>
           )}
         </div>
         {recent.length === 0 ? (
@@ -308,6 +331,17 @@ export function ScanFirstPreparationStage({ onScan, trayRows, labels }: Props) {
           </ul>
         )}
       </div>
+
+      {cameraOpen ? (
+        <QrScanner
+          active={cameraOpen}
+          onScan={(text) => {
+            setCameraOpen(false);
+            submit(text);
+          }}
+          onClose={() => setCameraOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -483,7 +517,7 @@ function RecentRow({
 
   return (
     <li
-      className={`grid grid-cols-[20px_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto] gap-3 px-4 py-2.5 border-b border-line-subtle border-s-[3px] ${accent} items-center text-[13px]`}
+      className={`grid grid-cols-[20px_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto] gap-3 px-4 py-2.5 border-b border-line-subtle border-s-[3px] ${accent} items-center text-[13px] hover:shadow-hover-row hover:-translate-y-px transition-all duration-fast`}
     >
       <Icon size={15} strokeWidth={1.75} className={`${iconClass} shrink-0`} aria-hidden />
       <div className="min-w-0">

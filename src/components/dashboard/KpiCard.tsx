@@ -36,37 +36,13 @@ export function KpiCard({
   muted,
 }: KpiCardProps) {
   return (
-    <div
-      style={{
-        background: "#FFFFFF",
-        border: "1px solid #E1E3E5",
-        borderRadius: 8,
-        padding: "16px 18px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-        minHeight: 124,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 12,
-          fontWeight: 500,
-          color: "#6D7175",
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-        }}
-      >
+    <div className="bg-surface-card border border-line-subtle rounded-[8px] px-[18px] py-4 flex flex-col gap-2.5 min-h-[124px] transition-shadow duration-fast hover:shadow-hover-row">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-secondary">
         {label}
       </div>
       <div
-        style={{
-          fontSize: 28,
-          fontWeight: 700,
-          color: muted ? "#6D7175" : "#1A1A1A",
-          fontVariantNumeric: "tabular-nums",
-          lineHeight: 1.1,
-        }}
+        className="text-[28px] font-bold tabular-nums leading-[1.1]"
+        style={{ color: muted ? "#6D7175" : "#1A1A1A" }}
       >
         {value}
       </div>
