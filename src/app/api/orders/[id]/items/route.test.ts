@@ -205,6 +205,52 @@ describe("POST /api/orders/[id]/items", () => {
     expect(body.data).toEqual(newItem);
   });
 
+  test("whole-pack variant line ('2 for 89'): qty 1 pack → row quantity 2, line_total 89", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
+    const orderWithItems = { ...assignedOrder, total_price: 0, delivery_fee: 0 };
+    const packProduct = { ...activeProduct, unit_cogs: 10, current_stock: 50 };
+    const items = itemsChain({ existing: [{ line_total: 0, quantity: 0 }], inserted: [{ id: "item-pack" }] });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChain({ data: agentUser, error: null });
+      if (table === "orders") return queryChain({ data: orderWithItems, error: null });
+      if (table === "products") return queryChain({ data: packProduct, error: null });
+      if (table === "product_variants")
+        return queryChain({
+          data: {
+            id: "var-pack2",
+            product_id: "prod-2",
+            label: "White · pack of 2",
+            units_per_pack: 2,
+            display_price: 89,
+            price_basis: "pack",
+            is_active: true,
+          },
+          error: null,
+        });
+      if (table === "order_items") return items;
+      return queryChain({ data: null, error: null });
+    });
+
+    // unit_price in the body is intentionally wrong — for a variant the line is
+    // derived from the variant, not the caller-supplied price.
+    const res = await POST(
+      makeRequest({ product_id: "prod-2", quantity: 1, unit_price: 999, variant_id: "var-pack2" }),
+      { params: Promise.resolve({ id: "order-1" }) },
+    );
+    expect(res.status).toBe(201);
+    const batch = items.insertedBatches[0];
+    const row = batch[batch.length - 1];
+    expect(row).toMatchObject({
+      product_id: "prod-2",
+      variant_id: "var-pack2",
+      variant_label: "White · pack of 2",
+      quantity: 2, // 1 pack × units_per_pack 2
+      unit_price: 44.5, // 89 / 2
+      line_total: 89, // whole-pack price
+    });
+  });
+
   test("does NOT backfill when order_items already has rows", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
     const orderWithExisting = { ...assignedOrder, product_id: "prod-legacy", product_name: "Legacy", quantity: 1, unit_price: 100 };

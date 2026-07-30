@@ -31,12 +31,26 @@ export interface Product {
   updated_at: string;
 }
 
+/**
+ * How a variant's `display_price` is interpreted when building line revenue:
+ *   'pack' → display_price is the whole-pack price (e.g. "2 pieces for 89" → 89)
+ *   'unit' → display_price is the per-piece price
+ */
+export type VariantPriceBasis = "pack" | "unit";
+
 export interface ProductVariant {
   id: string;
   product_id: string;
   label: string;
+  /**
+   * Physical units contained in one unit of this variant (pack size). Drives
+   * stock deduction (orders.quantity) and the COGS multiplier.
+   */
+  units_per_pack: number;
+  /** @deprecated superseded by units_per_pack; retained during rollout. */
   quantity: number;
   display_price: number;
+  price_basis: VariantPriceBasis;
   is_active: boolean;
   created_at: string;
   updated_at: string;

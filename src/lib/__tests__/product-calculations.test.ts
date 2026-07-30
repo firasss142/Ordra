@@ -1,9 +1,132 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateVariantCogs,
+  computeVariantLine,
   isLowStock,
   calculateStockAfterMovement,
 } from "@/lib/product-calculations";
+
+describe("computeVariantLine", () => {
+  it("whole-pack price: 'White, 2 pieces for 89' bought once → revenue 89, 2 physical units", () => {
+    const line = computeVariantLine({
+      unitsPerPack: 2,
+      priceBasis: "pack",
+      displayPrice: 89,
+      unitCogs: 10,
+      packsOrdered: 1,
+    });
+    expect(line.physicalUnits).toBe(2);
+    expect(line.lineRevenue).toBe(89);
+    expect(line.lineCogs).toBe(20);
+    // unit_price stored so that quantity × unit_price === total (display invariant)
+    expect(line.unitPrice).toBe(44.5);
+  });
+
+  it("whole-pack price: 2 packs of 2 for 89 each → revenue 178, 4 physical units", () => {
+    const line = computeVariantLine({
+      unitsPerPack: 2,
+      priceBasis: "pack",
+      displayPrice: 89,
+      unitCogs: 10,
+      packsOrdered: 2,
+    });
+    expect(line.physicalUnits).toBe(4);
+    expect(line.lineRevenue).toBe(178);
+    expect(line.lineCogs).toBe(40);
+    expect(line.unitPrice).toBe(44.5);
+  });
+
+  it("per-piece price: 50 each, single-unit variant, 3 ordered → revenue 150, 3 units", () => {
+    const line = computeVariantLine({
+      unitsPerPack: 1,
+      priceBasis: "unit",
+      displayPrice: 50,
+      unitCogs: 12,
+      packsOrdered: 3,
+    });
+    expect(line.physicalUnits).toBe(3);
+    expect(line.lineRevenue).toBe(150);
+    expect(line.lineCogs).toBe(36);
+    expect(line.unitPrice).toBe(50);
+  });
+
+  it("per-piece price on a multi-unit pack: 50/piece × (3 packs × 2 units) → revenue 300", () => {
+    const line = computeVariantLine({
+      unitsPerPack: 2,
+      priceBasis: "unit",
+      displayPrice: 50,
+      unitCogs: 12,
+      packsOrdered: 3,
+    });
+    expect(line.physicalUnits).toBe(6);
+    expect(line.lineRevenue).toBe(300);
+    expect(line.lineCogs).toBe(72);
+    expect(line.unitPrice).toBe(50);
+  });
+
+  it("defaults packsOrdered to 1 when omitted", () => {
+    const line = computeVariantLine({
+      unitsPerPack: 3,
+      priceBasis: "pack",
+      displayPrice: 120,
+      unitCogs: 10,
+    });
+    expect(line.physicalUnits).toBe(3);
+    expect(line.lineRevenue).toBe(120);
+    expect(line.lineCogs).toBe(30);
+    expect(line.unitPrice).toBe(40);
+  });
+
+  it("rounds money to 3 decimals (currency precision) — pack of 3 for 100", () => {
+    const line = computeVariantLine({
+      unitsPerPack: 3,
+      priceBasis: "pack",
+      displayPrice: 100,
+      unitCogs: 7,
+      packsOrdered: 1,
+    });
+    expect(line.physicalUnits).toBe(3);
+    expect(line.lineRevenue).toBe(100);
+    // 100 / 3 = 33.333… → rounded to 3dp
+    expect(line.unitPrice).toBe(33.333);
+  });
+
+  it("invalid unitsPerPack < 1 throws", () => {
+    expect(() =>
+      computeVariantLine({
+        unitsPerPack: 0,
+        priceBasis: "pack",
+        displayPrice: 89,
+        unitCogs: 10,
+        packsOrdered: 1,
+      })
+    ).toThrow("unitsPerPack must be at least 1");
+  });
+
+  it("invalid packsOrdered < 1 throws", () => {
+    expect(() =>
+      computeVariantLine({
+        unitsPerPack: 2,
+        priceBasis: "pack",
+        displayPrice: 89,
+        unitCogs: 10,
+        packsOrdered: 0,
+      })
+    ).toThrow("packsOrdered must be at least 1");
+  });
+
+  it("negative displayPrice throws", () => {
+    expect(() =>
+      computeVariantLine({
+        unitsPerPack: 2,
+        priceBasis: "pack",
+        displayPrice: -1,
+        unitCogs: 10,
+        packsOrdered: 1,
+      })
+    ).toThrow("displayPrice cannot be negative");
+  });
+});
 
 describe("calculateVariantCogs", () => {
   it("unitCogs 12, quantity 1 → 12", () => {

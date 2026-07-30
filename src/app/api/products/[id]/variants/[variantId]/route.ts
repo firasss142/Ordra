@@ -52,12 +52,25 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const allowedFields = ["label", "quantity", "display_price", "is_active"];
+  const allowedFields = [
+    "label",
+    "units_per_pack",
+    "quantity",
+    "display_price",
+    "price_basis",
+    "is_active",
+  ];
   const updates: Record<string, unknown> = {};
   for (const key of allowedFields) {
     if (key in body) {
       updates[key] = body[key];
     }
+  }
+
+  // `quantity` is a deprecated alias for units_per_pack — fold it in so older
+  // callers keep working, then drive everything off units_per_pack below.
+  if (!("units_per_pack" in updates) && "quantity" in updates) {
+    updates.units_per_pack = updates.quantity;
   }
 
   if (Object.keys(updates).length === 0) {
@@ -71,14 +84,22 @@ export async function PATCH(
     }
     updates.label = (updates.label as string).trim();
   }
-  if ("quantity" in updates) {
-    if (typeof updates.quantity !== "number" || (updates.quantity as number) < 1) {
-      return NextResponse.json({ error: "quantity must be at least 1" }, { status: 400 });
+  if ("units_per_pack" in updates) {
+    const upp = updates.units_per_pack;
+    if (typeof upp !== "number" || !Number.isInteger(upp) || upp < 1) {
+      return NextResponse.json({ error: "units_per_pack must be a positive integer" }, { status: 400 });
     }
+    // Keep the deprecated `quantity` column in sync during rollout.
+    updates.quantity = upp;
   }
   if ("display_price" in updates) {
     if (typeof updates.display_price !== "number" || (updates.display_price as number) <= 0) {
       return NextResponse.json({ error: "display_price must be greater than 0" }, { status: 400 });
+    }
+  }
+  if ("price_basis" in updates) {
+    if (updates.price_basis !== "pack" && updates.price_basis !== "unit") {
+      return NextResponse.json({ error: "price_basis must be 'pack' or 'unit'" }, { status: 400 });
     }
   }
 

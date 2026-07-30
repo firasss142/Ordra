@@ -455,6 +455,29 @@ async function handleOrderCreated(
     cityMatchStatus(cityResolution.match_method),
   );
 
+  // The storefront's `total_price` is the revenue source of truth, but its
+  // `quantity` counts storefront line units (a "pack" line is usually 1). When
+  // the line resolves to an OMS variant, multiply by units_per_pack so
+  // orders.quantity reflects PHYSICAL stock units (what scan-out deducts and
+  // COGS multiplies). unit_price is re-derived to keep quantity × unit === total.
+  let stockQuantity = orderData.quantity;
+  let unitPrice = orderData.unit_price;
+  if (productResolution.product_variant_id) {
+    const { data: variant } = await adminClient
+      .from("product_variants")
+      .select("units_per_pack")
+      .eq("id", productResolution.product_variant_id)
+      .maybeSingle();
+    const unitsPerPack = Number(variant?.units_per_pack) || 1;
+    if (unitsPerPack > 1) {
+      stockQuantity = orderData.quantity * unitsPerPack;
+      unitPrice =
+        stockQuantity > 0
+          ? Math.round((orderData.total_price / stockQuantity) * 1000) / 1000
+          : orderData.unit_price;
+    }
+  }
+
   const { data: order, error: insertError } = await adminClient
     .from("orders")
     .insert({
@@ -472,8 +495,8 @@ async function handleOrderCreated(
       product_variant_id: productResolution.product_variant_id,
       product_name: orderData.product_name,
       variant_label: orderData.variant_label,
-      quantity: orderData.quantity,
-      unit_price: orderData.unit_price,
+      quantity: stockQuantity,
+      unit_price: unitPrice,
       total_price: orderData.total_price,
       city_id: cityResolution.city_id,
       dexpress_state_id: cityResolution.dexpress_state_id,

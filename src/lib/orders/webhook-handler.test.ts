@@ -279,6 +279,108 @@ describe("handleWebhook", () => {
     });
   });
 
+  test("multiplies payload quantity by resolved variant units_per_pack (pack of 2)", async () => {
+    // Payload: 1 pack, total 89. Variant resolves (via explicit mapping) to a
+    // units_per_pack=2 variant → stock-truth quantity must become 2, while the
+    // storefront's total stays the revenue source of truth.
+    const admin = mockAdminClient({});
+
+    const mappingChain = createQueryChain({
+      data: { product_id: "prod-1", product_variant_id: "var-oms-1" },
+      error: null,
+    });
+    const variantChain = createQueryChain({
+      data: { id: "var-oms-1", units_per_pack: 2 },
+      error: null,
+    });
+    const insertFn = vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({ data: { id: "order-uuid-1" }, error: null }),
+      }),
+    });
+    const ordersChain = createQueryChain({ data: { id: "order-uuid-1" }, error: null });
+    ordersChain.insert = insertFn;
+
+    admin.from.mockImplementation((table: string) => {
+      if (table === "orders") return ordersChain;
+      if (table === "storefront_product_mappings") return mappingChain;
+      if (table === "product_variants") return variantChain;
+      return mockAdminClient({}).from(table);
+    });
+
+    const body = JSON.stringify(
+      makePayload({
+        cost: 89,
+        total_cost: 89,
+        cart_items: [
+          {
+            product_id: "prod-1",
+            variant_id: "var-store-1",
+            price: 89,
+            quantity: 1,
+            product: { id: "prod-1", name: "Sleeves", sku: "SL-1" },
+            variant: {
+              id: "var-store-1",
+              variation_props: [{ variation: "color", variation_prop: "White" }],
+            },
+          },
+        ],
+      })
+    );
+    const headers = new Headers({ secret: SECRET });
+
+    await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers,
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    expect(insertFn).toHaveBeenCalled();
+    const insertPayload = insertFn.mock.calls[0][0];
+    expect(insertPayload).toMatchObject({
+      product_variant_id: "var-oms-1",
+      quantity: 2, // 1 pack × units_per_pack 2
+      total_price: 89, // storefront total unchanged
+      unit_price: 44.5, // 89 / 2 so quantity × unit_price === total
+    });
+  });
+
+  test("leaves quantity untouched when no variant resolves", async () => {
+    // makePayload resolves by SKU/name to a product but NO variant → no multiplier.
+    const admin = mockAdminClient({});
+    const insertFn = vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({ data: { id: "order-uuid-1" }, error: null }),
+      }),
+    });
+    const ordersChain = createQueryChain({ data: { id: "order-uuid-1" }, error: null });
+    ordersChain.insert = insertFn;
+    admin.from.mockImplementation((table: string) => {
+      if (table === "orders") return ordersChain;
+      return mockAdminClient({}).from(table);
+    });
+
+    const body = JSON.stringify(makePayload()); // qty 2, total 60, no variant resolves
+    const headers = new Headers({ secret: SECRET });
+
+    await handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody: body,
+      headers,
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (s: string) => s,
+    });
+
+    const insertPayload = insertFn.mock.calls[0][0];
+    expect(insertPayload).toMatchObject({
+      product_variant_id: null,
+      quantity: 2, // unchanged from payload
+      total_price: 60,
+    });
+  });
+
   test("returns 200 idempotently when duplicate external_id", async () => {
     const admin = mockAdminClient({
       insertError: { code: "23505", message: "duplicate key" },

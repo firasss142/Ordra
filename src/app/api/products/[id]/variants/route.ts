@@ -37,7 +37,9 @@ export async function GET(
 
   const { data: variants, error } = await supabase
     .from("product_variants")
-    .select("id, product_id, label, quantity, display_price, is_active")
+    .select(
+      "id, product_id, label, units_per_pack, quantity, display_price, price_basis, is_active",
+    )
     .eq("product_id", id)
     .order("label", { ascending: true });
 
@@ -81,16 +83,24 @@ export async function POST(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { label, quantity, display_price } = body;
+  const { label, display_price, price_basis } = body;
+  // units_per_pack is the pack size; accept legacy `quantity` as an alias so
+  // older callers keep working during rollout.
+  const unitsPerPack =
+    typeof body.units_per_pack === "number" ? body.units_per_pack : body.quantity;
 
   if (typeof label !== "string" || label.trim() === "") {
     return NextResponse.json({ error: "label is required and must be non-empty" }, { status: 400 });
   }
-  if (typeof quantity !== "number" || quantity < 1) {
-    return NextResponse.json({ error: "quantity must be at least 1" }, { status: 400 });
+  if (typeof unitsPerPack !== "number" || !Number.isInteger(unitsPerPack) || unitsPerPack < 1) {
+    return NextResponse.json({ error: "units_per_pack must be a positive integer" }, { status: 400 });
   }
   if (typeof display_price !== "number" || display_price <= 0) {
     return NextResponse.json({ error: "display_price must be greater than 0" }, { status: 400 });
+  }
+  const priceBasis = price_basis ?? "pack";
+  if (priceBasis !== "pack" && priceBasis !== "unit") {
+    return NextResponse.json({ error: "price_basis must be 'pack' or 'unit'" }, { status: 400 });
   }
 
   // Duplicate label check (case-insensitive)
@@ -113,8 +123,11 @@ export async function POST(
     .insert({
       product_id: id,
       label: label.trim(),
-      quantity,
+      units_per_pack: unitsPerPack,
+      // Keep the deprecated `quantity` column in sync during rollout.
+      quantity: unitsPerPack,
       display_price,
+      price_basis: priceBasis,
       is_active: true,
     })
     .select()

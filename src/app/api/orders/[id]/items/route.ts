@@ -3,8 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canEditOrder, EDIT_BLOCKED_STATUSES } from "@/lib/order-permissions";
 import { computeOrderTotal, roundLineTotal } from "@/lib/calculations/order-total";
+import { computeVariantLine } from "@/lib/product-calculations";
 import type { Role } from "@/types";
 import type { OrderItem } from "@/types/order-items";
+import type { VariantPriceBasis } from "@/types/product";
 
 type OrderItemInsert = Omit<OrderItem, "id" | "created_at" | "updated_at">;
 
@@ -73,7 +75,7 @@ export async function POST(
 
   const { data: product, error: productError } = await supabase
     .from("products")
-    .select("id, market_id, name, current_stock, is_active")
+    .select("id, market_id, name, current_stock, unit_cogs, is_active")
     .eq("id", product_id)
     .single();
 
@@ -86,15 +88,19 @@ export async function POST(
   if (!product.is_active) {
     return NextResponse.json({ error: "Product is not active" }, { status: 409 });
   }
-  if (Number(product.current_stock ?? 0) < quantity) {
-    return NextResponse.json({ error: "Product is out of stock" }, { status: 409 });
-  }
-
+  // Effective line values. Without a variant, the request quantity/unit_price
+  // are the line as-is. With a variant, the request quantity is the number of
+  // PACKS ordered and computeVariantLine derives physical units + correctly-
+  // based revenue + a unit_price that keeps quantity × unit === line_total.
   let variantLabel: string | null = null;
+  let lineQuantity = quantity;
+  let lineUnitPrice = unit_price;
+  let lineTotal = roundLineTotal(quantity, unit_price);
+
   if (variant_id) {
     const { data: variant, error: variantError } = await supabase
       .from("product_variants")
-      .select("id, product_id, label, is_active")
+      .select("id, product_id, label, units_per_pack, display_price, price_basis, is_active")
       .eq("id", variant_id)
       .single();
 
@@ -107,7 +113,28 @@ export async function POST(
     if (!variant.is_active) {
       return NextResponse.json({ error: "Variant is not active" }, { status: 409 });
     }
+
+    const displayPrice = Number(variant.display_price);
+    if (!Number.isFinite(displayPrice) || displayPrice < 0) {
+      return NextResponse.json({ error: "Variant price is not configured" }, { status: 400 });
+    }
+
+    const line = computeVariantLine({
+      unitsPerPack: Number(variant.units_per_pack) || 1,
+      priceBasis: (variant.price_basis as VariantPriceBasis) ?? "pack",
+      displayPrice,
+      unitCogs: Number(product.unit_cogs) || 0,
+      packsOrdered: quantity,
+    });
     variantLabel = variant.label as string;
+    lineQuantity = line.physicalUnits;
+    lineUnitPrice = line.unitPrice;
+    lineTotal = line.lineRevenue;
+  }
+
+  // Stock is checked against physical units (a pack of 2 needs 2 in stock).
+  if (Number(product.current_stock ?? 0) < lineQuantity) {
+    return NextResponse.json({ error: "Product is out of stock" }, { status: 409 });
   }
 
   // Fetch existing items once — we use this both to decide whether a legacy
@@ -153,9 +180,9 @@ export async function POST(
     product_name: product.name,
     variant_id: variant_id ?? null,
     variant_label: variantLabel,
-    quantity,
-    unit_price,
-    line_total: roundLineTotal(quantity, unit_price),
+    quantity: lineQuantity,
+    unit_price: lineUnitPrice,
+    line_total: lineTotal,
   });
 
   const { data: insertedRows, error: insertError } = await supabase

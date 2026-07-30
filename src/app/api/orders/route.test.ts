@@ -244,4 +244,142 @@ describe("POST /api/orders", () => {
       assigned_to: "agent-1",
     });
   });
+
+  test("whole-pack variant ('2 pieces for 89') → quantity 2, total 89 (not 178)", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });
+
+    let capturedOrderInsert: Record<string, unknown> | undefined;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return queryChain({ data: { role: "agent", market_id: "market-a" }, error: null });
+      }
+      if (table === "storefronts") {
+        return queryChain({ data: { id: "storefront-a" }, error: null });
+      }
+      if (table === "products") {
+        return queryChain({
+          data: {
+            id: "product-a",
+            market_id: "market-a",
+            name: "Sleeves",
+            default_price: 49,
+            is_active: true,
+          },
+          error: null,
+        });
+      }
+      if (table === "product_variants") {
+        return queryChain({
+          data: {
+            id: "variant-pack2",
+            product_id: "product-a",
+            label: "White · pack of 2",
+            units_per_pack: 2,
+            quantity: 2,
+            display_price: 89,
+            price_basis: "pack",
+            is_active: true,
+          },
+          error: null,
+        });
+      }
+      if (table === "orders") {
+        const chain = queryChain({ data: { id: "order-1", status: "pending", created_at: "now" }, error: null });
+        chain.insert = vi.fn((payload: Record<string, unknown>) => {
+          capturedOrderInsert = payload;
+          return chain;
+        });
+        return chain;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const req = createRequest("POST", "/api/orders", {
+      market_id: "market-a",
+      customer_name: "Customer",
+      customer_phone: "123",
+      product_id: "product-a",
+      variant_id: "variant-pack2",
+      quantity: 1, // one pack
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    expect(capturedOrderInsert).toMatchObject({
+      product_id: "product-a",
+      product_variant_id: "variant-pack2",
+      variant_label: "White · pack of 2",
+      quantity: 2, // physical units deducted from stock
+      total_price: 89, // customer pays 89 for the pack — NOT 2 × 89
+      unit_price: 44.5, // 89 / 2 so quantity × unit_price === total
+    });
+  });
+
+  test("per-piece variant (price_basis 'unit') → 2 packs of 1 priced 50 each → quantity 2, total 100", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });
+
+    let capturedOrderInsert: Record<string, unknown> | undefined;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return queryChain({ data: { role: "agent", market_id: "market-a" }, error: null });
+      }
+      if (table === "storefronts") {
+        return queryChain({ data: { id: "storefront-a" }, error: null });
+      }
+      if (table === "products") {
+        return queryChain({
+          data: {
+            id: "product-a",
+            market_id: "market-a",
+            name: "Sleeves",
+            default_price: 49,
+            is_active: true,
+          },
+          error: null,
+        });
+      }
+      if (table === "product_variants") {
+        return queryChain({
+          data: {
+            id: "variant-unit",
+            product_id: "product-a",
+            label: "Black",
+            units_per_pack: 1,
+            quantity: 1,
+            display_price: 50,
+            price_basis: "unit",
+            is_active: true,
+          },
+          error: null,
+        });
+      }
+      if (table === "orders") {
+        const chain = queryChain({ data: { id: "order-1", status: "pending", created_at: "now" }, error: null });
+        chain.insert = vi.fn((payload: Record<string, unknown>) => {
+          capturedOrderInsert = payload;
+          return chain;
+        });
+        return chain;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const req = createRequest("POST", "/api/orders", {
+      market_id: "market-a",
+      customer_name: "Customer",
+      customer_phone: "123",
+      product_id: "product-a",
+      variant_id: "variant-unit",
+      quantity: 2, // two pieces
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    expect(capturedOrderInsert).toMatchObject({
+      product_variant_id: "variant-unit",
+      quantity: 2,
+      total_price: 100,
+      unit_price: 50,
+    });
+  });
 });

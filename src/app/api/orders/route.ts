@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { canViewOrders, canCreateOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
+import { computeVariantLine } from "@/lib/product-calculations";
+import type { VariantPriceBasis } from "@/types/product";
 
 export const dynamic = "force-dynamic";
 
@@ -139,7 +141,7 @@ export async function POST(req: NextRequest) {
 
   const { data: product, error: productError } = await supabase
     .from("products")
-    .select("id, market_id, name, default_price, is_active")
+    .select("id, market_id, name, default_price, unit_cogs, is_active")
     .eq("id", product_id as string)
     .eq("market_id", marketId)
     .eq("is_active", true)
@@ -154,6 +156,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "quantity must be a positive integer" }, { status: 400 });
   }
 
+  // Without a variant, the request quantity is a plain unit count. With a
+  // variant it is the number of PACKS ordered — computeVariantLine turns that
+  // into physical stock units + correctly-based revenue (see the helper).
   let quantity = requestedQty;
   const rawProductPrice = product.default_price as unknown;
   let unitPrice =
@@ -165,11 +170,14 @@ export async function POST(req: NextRequest) {
       ? body.variant_label.trim()
       : null;
   let productVariantId: string | null = null;
+  let totalPrice: number | null = null;
 
   if (typeof variant_id === "string" && variant_id.trim() !== "") {
     const { data: variant, error: variantError } = await supabase
       .from("product_variants")
-      .select("id, product_id, label, quantity, display_price, is_active")
+      .select(
+        "id, product_id, label, units_per_pack, display_price, price_basis, is_active",
+      )
       .eq("id", variant_id)
       .eq("product_id", product.id)
       .eq("is_active", true)
@@ -179,14 +187,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Variant not found" }, { status: 404 });
     }
 
+    const displayPrice = Number(variant.display_price);
+    if (!Number.isFinite(displayPrice) || displayPrice < 0) {
+      return NextResponse.json(
+        { error: "Variant price is not configured" },
+        { status: 400 },
+      );
+    }
+
+    const line = computeVariantLine({
+      unitsPerPack: Number(variant.units_per_pack) || 1,
+      priceBasis: (variant.price_basis as VariantPriceBasis) ?? "pack",
+      displayPrice,
+      unitCogs: Number(product.unit_cogs) || 0,
+      packsOrdered: requestedQty,
+    });
+
     productVariantId = variant.id;
     variantLabel = variant.label;
-    quantity = variant.quantity;
-    const rawVariantPrice = variant.display_price as unknown;
-    unitPrice =
-      rawVariantPrice !== null && rawVariantPrice !== undefined
-        ? Number(rawVariantPrice)
-        : NaN;
+    quantity = line.physicalUnits;
+    unitPrice = line.unitPrice;
+    totalPrice = line.lineRevenue;
   }
 
   if (!Number.isFinite(unitPrice) || unitPrice < 0) {
@@ -196,7 +217,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const totalPrice = Math.round(quantity * unitPrice * 1000) / 1000;
+  if (totalPrice === null) {
+    totalPrice = Math.round(quantity * unitPrice * 1000) / 1000;
+  }
   const isAgent = role === "agent";
   const initialStatus = "pending";
 
