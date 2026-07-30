@@ -369,12 +369,12 @@
       "balanceShort": "→ {balance}",
       "hasOrder": "Voir la commande",
       "reasons": {
+        "scanned": "Sortie entrepôt (scan)",
         "deposit": "Sortie (dépôt)",
         "returned": "Retour",
         "damaged_return": "Retour endommagé",
         "manual_adjustment": "Ajustement manuel",
         "damaged_writeoff": "Démarque",
-        "manual_restock": "Réappro manuel",
         "initial_stock": "Stock initial"
       }
     },
@@ -398,7 +398,8 @@
       "saving": "Enregistrement…",
       "cancel": "Annuler",
       "errorGeneric": "Ajustement impossible. Réessayez."
-    }
+    },
+    "scopeAllCurrencyNote": "Devises mixtes (tous les marchés) — sélectionnez un marché pour les valeurs monétaires."
   },
   "pnl": {
     "title": "P&L global",
@@ -456,7 +457,8 @@
         "ads": "Dépenses publicitaires",
         "netProfit": "Profit net"
       }
-    }
+    },
+    "scopeAllBanner": "Vue multi-marchés indisponible pour le P&L — affichage : {market}"
   },
   "alerts": {
     "title": "Alertes",
@@ -719,7 +721,9 @@
       "errorEmpty": "Aucun contenu à analyser",
       "errorUnknownFormat": "Format non reconnu. Utilisez un export Meta ou TikTok.",
       "errorNoRows": "Aucune ligne valide trouvée"
-    }
+    },
+    "selectMarketPrompt": "Sélectionnez un marché dans la barre latérale pour gérer les dépenses publicitaires.",
+    "deleteError": "La suppression a échoué — l'entrée n'a pas été supprimée."
   },
   "orders": {
     "tracking": {
@@ -1582,7 +1586,6 @@
       "errors": {
         "skuConflict": "Ce SKU est déjà utilisé pour un autre produit de ce marché."
       },
-      "example": "Exemple indicatif : 100 leads · 60 confirmés · 40 livrés à {price} → marge estimée {margin}",
       "submit": "Créer le produit",
       "cancel": "Annuler"
     },
@@ -1632,7 +1635,9 @@
       "editThreshold": "Modifier le seuil",
       "variants": "{count} variante(s)",
       "moreVariants": "+{count} autres"
-    }
+    },
+    "selectMarketPrompt": "Sélectionnez un marché dans la barre latérale pour afficher le catalogue.",
+    "noSearchMatch": "Aucun produit ne correspond à « {q} »."
   },
   "mappings": {
     "title": "Correspondances",
@@ -3301,5 +3306,13 @@
       "returned": "Commande #{id} retournée",
       "deleted": "Commande #{id} supprimée"
     }
+  },
+  "periodSelector": {
+    "label": "Période",
+    "today": "Aujourd'hui",
+    "week": "Cette semaine",
+    "month": "Ce mois",
+    "last7": "7 derniers jours",
+    "last30": "30 derniers jours"
   }
 }

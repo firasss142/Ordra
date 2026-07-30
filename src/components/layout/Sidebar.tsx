@@ -138,7 +138,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
       { key: "pnl", href: "dashboard/pnl", icon: DollarSign, prefetchRoute: "dashboard" },
       { key: "productsMargins", href: "products", icon: Percent, prefetchRoute: "products" },
       { key: "stockInventory", href: "dashboard/stock", icon: Boxes, prefetchRoute: "dashboard" },
-      { key: "adSpend", href: "settings/ad-spend", icon: Megaphone, prefetchRoute: "settings" },
+      { key: "adSpend", href: "finance/ad-spend", icon: Megaphone },
     ],
   },
   {

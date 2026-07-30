@@ -148,7 +148,7 @@ export function AdSpendEntryModal({
         style={{
           background: D.cardBg,
           border: `1px solid ${D.border}`,
-          borderRadius: 12,
+          borderRadius: 8,
           width: 480,
           maxWidth: "100%",
           boxShadow: "0 8px 24px rgba(16,24,40,0.10)",
@@ -166,7 +166,7 @@ export function AdSpendEntryModal({
             borderBottom: `1px solid ${D.border}`,
           }}
         >
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: D.white }}>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: D.ink }}>
             {entry ? t("titleEdit") : t("titleNew")}
           </h2>
           <button

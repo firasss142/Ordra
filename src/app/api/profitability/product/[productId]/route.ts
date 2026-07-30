@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { canViewProfitability } from "@/lib/profitability-permissions";
+import { canViewProductProfitability } from "@/lib/finance-permissions";
 import {
   calculateProductProfitability,
   type ProductProfitabilityResult,
@@ -183,7 +183,7 @@ export async function GET(
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
   const role = actor.role;
-  if (!canViewProfitability(role)) {
+  if (!canViewProductProfitability(role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

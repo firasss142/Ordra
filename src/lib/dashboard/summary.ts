@@ -289,8 +289,9 @@ async function fetchFinancials(
         .from("ad_spend")
         .select("amount")
         .eq("market_id", marketId)
+        // Total ad spend includes product-scoped entries — same definition
+        // as /api/profitability and the ad-spend page rollups.
         .eq("is_active", true)
-        .is("product_id", null)
         .lte("period_start", toDate)
         .gte("period_end", fromDate),
     ]);

@@ -22,7 +22,7 @@ import { useLatestActivity } from "@/hooks/useLatestActivity";
 import { useMarketScope } from "@/context/market-scope";
 import { anchoredDefaultPeriod, todayISO } from "@/lib/date";
 import { computeInsights } from "@/lib/dashboard/insights";
-import { canViewProfitability } from "@/lib/role-permissions";
+import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { marketIdToCode } from "@/lib/markets";
 import type { DashboardSummary } from "@/lib/dashboard/summary";
 import type { AuthUser } from "@/types";
@@ -45,7 +45,7 @@ export function DashboardClient({ user, initialPeriod, initialPreset, initialSum
   const pathname = usePathname();
   const locale = pathname.split("/")[1] ?? "fr";
   const isMobile = useIsMobile();
-  const isSuperAdmin = canViewProfitability(user.role);
+  const isSuperAdmin = canViewFinanceSection(user.role);
   const role: "super_admin" | "market_manager" = isSuperAdmin ? "super_admin" : "market_manager";
 
   const [period, setPeriod] = useState<Period>(initialPeriod);

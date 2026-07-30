@@ -84,10 +84,19 @@ describe("GET /api/profitability", () => {
     expect(res.status).toBe(403);
   });
 
+  test("returns 403 for market_manager (finance section is super_admin only)", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-403" } }, error: null });
+    mockFrom.mockReturnValue(actorChain("market_manager", "m-1"));
+    const res = await GET(
+      createRequest({ from_date: "2026-04-01", to_date: "2026-04-13" }),
+    );
+    expect(res.status).toBe(403);
+  });
+
   test("returns 400 when dates missing", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
-    mockFrom.mockReturnValue(actorChain("market_manager", "m-1"));
-    const res = await GET(createRequest({ from_date: "2026-04-01" }));
+    mockFrom.mockReturnValue(actorChain("super_admin", null));
+    const res = await GET(createRequest({ from_date: "2026-04-01", market_id: "m-1" }));
     expect(res.status).toBe(400);
   });
 
@@ -103,15 +112,15 @@ describe("GET /api/profitability", () => {
     expect(res.status).toBe(400);
   });
 
-  test("market_manager: returns summary + cpa + cpl + previous", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
-    mockFrom.mockReturnValue(actorChain("market_manager", "m-1"));
+  test("super_admin: returns summary + cpa + cpl + previous", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "admin-1" } }, error: null });
+    mockFrom.mockReturnValue(actorChain("super_admin", null));
     mockLoadSummary
       .mockResolvedValueOnce(summaryStub({ ad_spend: 100, confirmed_count: 9, leads_count: 498 }))
       .mockResolvedValueOnce(summaryStub({ ad_spend: 80, confirmed_count: 8, leads_count: 400, revenue: 900, net_profit: 400, margin: 44.4 }));
 
     const res = await GET(
-      createRequest({ from_date: "2026-04-01", to_date: "2026-04-13" }),
+      createRequest({ from_date: "2026-04-01", to_date: "2026-04-13", market_id: "m-1" }),
     );
     const body = await res.json();
 
@@ -129,14 +138,15 @@ describe("GET /api/profitability", () => {
   });
 
   test("include_previous=false skips previous period fetch", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
-    mockFrom.mockReturnValue(actorChain("market_manager", "m-1"));
+    mockGetUser.mockResolvedValue({ data: { user: { id: "admin-1" } }, error: null });
+    mockFrom.mockReturnValue(actorChain("super_admin", null));
     mockLoadSummary.mockResolvedValueOnce(summaryStub());
 
     const res = await GET(
       createRequest({
         from_date: "2026-04-01",
         to_date: "2026-04-13",
+        market_id: "m-1",
         include_previous: "false",
       }),
     );
@@ -148,14 +158,14 @@ describe("GET /api/profitability", () => {
   });
 
   test("cpa and cpl are null when divisors are zero", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
-    mockFrom.mockReturnValue(actorChain("market_manager", "m-1"));
+    mockGetUser.mockResolvedValue({ data: { user: { id: "admin-1" } }, error: null });
+    mockFrom.mockReturnValue(actorChain("super_admin", null));
     mockLoadSummary
       .mockResolvedValueOnce(summaryStub({ confirmed_count: 0, leads_count: 0, ad_spend: 50 }))
       .mockResolvedValueOnce(summaryStub({ confirmed_count: 0, leads_count: 0, ad_spend: 50 }));
 
     const res = await GET(
-      createRequest({ from_date: "2026-04-01", to_date: "2026-04-13" }),
+      createRequest({ from_date: "2026-04-01", to_date: "2026-04-13", market_id: "m-1" }),
     );
     const body = await res.json();
 

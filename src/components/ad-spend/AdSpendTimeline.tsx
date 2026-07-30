@@ -103,9 +103,9 @@ export function AdSpendTimeline({
             borderRadius: 8,
             fontSize: 12,
             padding: "10px 12px",
-            color: D.white,
+            color: D.ink,
           }}
-          labelStyle={{ fontWeight: 600, color: D.white, marginBottom: 4 }}
+          labelStyle={{ fontWeight: 600, color: D.ink, marginBottom: 4 }}
           labelFormatter={(l) => formatWeek(String(l))}
           formatter={(value, name) => [`${value ?? 0} ${currency}`, String(name)]}
         />

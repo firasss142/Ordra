@@ -11,10 +11,6 @@ export function canAccess(role: Role, route: string): boolean {
   return PERMISSIONS[role].includes(route);
 }
 
-export function canViewProfitability(role: Role): boolean {
-  return role === "super_admin";
-}
-
 export function canEditCosts(role: Role): boolean {
   return role === "super_admin";
 }

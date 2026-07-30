@@ -50,7 +50,7 @@ export function AdSpendCampaignList({
               height: 260,
               background: D.cardBg,
               border: `1px solid ${D.border}`,
-              borderRadius: 12,
+              borderRadius: 8,
               opacity: 0.5,
             }}
           />

@@ -10,7 +10,7 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { POST } from "./route";
+import { GET, POST } from "./route";
 import { NextRequest } from "next/server";
 
 function singleChain(data: unknown, error: unknown = null) {
@@ -31,6 +31,41 @@ function postReq(body: unknown) {
 beforeEach(() => {
   mockGetUser.mockReset();
   mockFrom.mockReset();
+});
+
+describe("GET /api/products — server-side search", () => {
+  test("q param applies an escaped ilike name filter", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "admin-1" } }, error: null });
+
+    const ilike = vi.fn();
+    const listChain: Record<string, unknown> = {};
+    const passthrough = () => listChain;
+    for (const m of ["select", "eq", "order", "range"]) {
+      listChain[m] = vi.fn().mockImplementation(passthrough);
+    }
+    listChain.ilike = vi.fn().mockImplementation((...args: unknown[]) => {
+      ilike(...args);
+      return listChain;
+    });
+    listChain.then = (res: (v: unknown) => unknown) =>
+      Promise.resolve({ data: [], error: null, count: 0 }).then(res);
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return singleChain({ role: "super_admin", market_id: null });
+      }
+      return listChain;
+    });
+
+    const url = new URL("http://localhost/api/products");
+    url.searchParams.set("market_id", "m-1");
+    url.searchParams.set("page", "1");
+    url.searchParams.set("q", "crème_50%");
+    const res = await GET(new NextRequest(url));
+
+    expect(res.status).toBe(200);
+    expect(ilike).toHaveBeenCalledWith("name", "%crème\\_50\\%%");
+  });
 });
 
 describe("POST /api/products — stock integrity lockdown", () => {

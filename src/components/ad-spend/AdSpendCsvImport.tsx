@@ -102,7 +102,7 @@ export function AdSpendCsvImport({ products, onClose, onImport }: AdSpendCsvImpo
         style={{
           background: D.cardBg,
           border: `1px solid ${D.border}`,
-          borderRadius: 12,
+          borderRadius: 8,
           width: 640,
           maxWidth: "100%",
           maxHeight: "90vh",
@@ -122,7 +122,7 @@ export function AdSpendCsvImport({ products, onClose, onImport }: AdSpendCsvImpo
             flexShrink: 0,
           }}
         >
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: D.white }}>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: D.ink }}>
             {t("title")}
           </h2>
           <button
@@ -159,7 +159,7 @@ export function AdSpendCsvImport({ products, onClose, onImport }: AdSpendCsvImpo
               >
                 <Check size={24} strokeWidth={2} color={D.accent} />
               </div>
-              <p style={{ fontSize: 15, fontWeight: 600, color: D.white, margin: 0 }}>
+              <p style={{ fontSize: 15, fontWeight: 600, color: D.ink, margin: 0 }}>
                 {t("successTitle", { count: result.inserted })}
               </p>
               {result.rejected > 0 && (
@@ -213,7 +213,7 @@ export function AdSpendCsvImport({ products, onClose, onImport }: AdSpendCsvImpo
                     background: "transparent",
                     border: `1px solid ${D.border}`,
                     borderRadius: 6,
-                    color: D.white,
+                    color: D.ink,
                     cursor: "pointer",
                   }}
                 >
@@ -279,7 +279,7 @@ export function AdSpendCsvImport({ products, onClose, onImport }: AdSpendCsvImpo
                     padding: "9px 18px",
                     fontSize: 13,
                     fontWeight: 600,
-                    background: D.white,
+                    background: D.ink,
                     border: "none",
                     borderRadius: 6,
                     color: "#000",
@@ -324,12 +324,12 @@ export function AdSpendCsvImport({ products, onClose, onImport }: AdSpendCsvImpo
                   <tbody>
                     {parsed.map((row, i) => (
                       <tr key={i} style={{ borderBottom: `1px solid ${D.border}` }}>
-                        <td style={{ padding: "8px 10px", color: D.white, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <td style={{ padding: "8px 10px", color: D.ink, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {row.campaign_name}
                         </td>
                         <td style={{ padding: "8px 10px", color: D.muted, whiteSpace: "nowrap" }}>{row.period_start}</td>
                         <td style={{ padding: "8px 10px", color: D.muted, whiteSpace: "nowrap" }}>{row.period_end}</td>
-                        <td style={{ padding: "8px 10px", color: D.white, fontVariantNumeric: "tabular-nums", textAlign: "end" }}>
+                        <td style={{ padding: "8px 10px", color: D.ink, fontVariantNumeric: "tabular-nums", textAlign: "end" }}>
                           {row.amount.toFixed(2)}
                         </td>
                         <td style={{ padding: "8px 10px" }}>

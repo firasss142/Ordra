@@ -23,10 +23,6 @@ interface ProductsFilterBarProps {
   onStatusChange: (s: ProductFilterStatus) => void;
   search: string;
   onSearchChange: (v: string) => void;
-  selectedCount: number;
-  onBulkActivate: () => void;
-  onBulkDeactivate: () => void;
-  onBulkClear: () => void;
   canManage: boolean;
   canViewPerformance: boolean;
   locale?: string;
@@ -51,10 +47,6 @@ export function ProductsFilterBar({
   onStatusChange,
   search,
   onSearchChange,
-  selectedCount,
-  onBulkActivate,
-  onBulkDeactivate,
-  onBulkClear,
   canManage,
   canViewPerformance,
   locale = "fr",
@@ -157,33 +149,6 @@ export function ProductsFilterBar({
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* Bulk actions */}
-          {selectedCount > 0 && (
-            <>
-              <span style={{ fontSize: 13, color: MUTED, whiteSpace: "nowrap" }}>
-                {t("bulk.selectedCount", { count: selectedCount })}
-              </span>
-              <button type="button" onClick={onBulkActivate} style={primaryBtnSmall}>
-                {t("bulk.activate")}
-              </button>
-              <button type="button" onClick={onBulkDeactivate} style={primaryBtnSmall}>
-                {t("bulk.deactivate")}
-              </button>
-              <button
-                type="button"
-                onClick={onBulkClear}
-                style={{
-                  ...primaryBtnSmall,
-                  border: `1px solid ${BORDER}`,
-                  background: SOFT_BG,
-                  color: MUTED,
-                }}
-              >
-                {t("bulk.clear")}
-              </button>
-            </>
-          )}
-
           {canManage && (
             <Link
               href={`/${locale}/products/new`}
@@ -305,20 +270,6 @@ export function ProductsFilterBar({
     </div>
   );
 }
-
-const primaryBtnSmall: React.CSSProperties = {
-  height: 28,
-  padding: "0 12px",
-  fontSize: 12,
-  fontWeight: 500,
-  border: `1px solid ${TEXT}`,
-  borderRadius: 6,
-  background: TEXT,
-  color: "#FFFFFF",
-  cursor: "pointer",
-  whiteSpace: "nowrap",
-  fontFamily: "inherit",
-};
 
 function Divider() {
   return (

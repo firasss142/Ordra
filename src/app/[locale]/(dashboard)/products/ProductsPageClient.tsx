@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import type { Role } from "@/types";
 import { canManageProducts } from "@/lib/product-permissions";
-import { canViewProfitability } from "@/lib/profitability-permissions";
+import { canViewProductProfitability } from "@/lib/finance-permissions";
 import { canToggleProductActive } from "@/lib/product-permissions";
 import { isLowStock } from "@/lib/product-calculations";
 import { useMarketScope } from "@/context/market-scope";
@@ -19,12 +19,12 @@ import { ProductCatalogRow } from "@/components/products/ProductCatalogRow";
 import { BulkActionBar } from "@/components/products/BulkActionBar";
 import { StockAdjustModal, type StockAdjustState } from "@/components/products/StockAdjustModal";
 import { PortfolioStrip } from "@/components/products/PortfolioStrip";
-import { PeriodSelector } from "@/components/dashboard/MetricsTable";
-import type { Period } from "@/components/dashboard/MetricsTable";
+import { PeriodSelector, type Period } from "@/components/shared/PeriodSelector";
 import type { BulkProductMetrics } from "@/app/api/products/profitability-bulk/route";
 import { sortProducts, type ProductSortKey } from "@/lib/product-sort";
 import { formatCurrency } from "@/lib/format";
 import { Pagination } from "@/components/shared/Pagination";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -83,7 +83,7 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
     role === "super_admin" ? (scopeMarketId ?? "") : marketId;
 
   const canManage = canManageProducts(role, selectedMarketId, marketId);
-  const canViewPerf = canViewProfitability(role);
+  const canViewPerf = canViewProductProfitability(role);
   const canToggleActive = canToggleProductActive(role);
 
   const defaultMode: ProductFilterMode =
@@ -92,6 +92,13 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
   const [mode, setMode] = useState<ProductFilterMode>(defaultMode);
   const [status, setStatus] = useState<ProductFilterStatus>("all");
   const [search, setSearch] = useState("");
+  // Search is server-side (whole catalog, not the current page) — debounced
+  // into the SWR key.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const [period, setPeriod] = useState<Period>(todayPeriod);
 
   // ---- URL-synced page + page size ----
@@ -138,13 +145,26 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
       : currentMarket?.name ?? "";
 
   const productKey = selectedMarketId
-    ? `/api/products?market_id=${selectedMarketId}&page=${page}&limit=${limit}`
+    ? `/api/products?market_id=${selectedMarketId}&page=${page}&limit=${limit}${
+        debouncedSearch ? `&q=${encodeURIComponent(debouncedSearch)}` : ""
+      }`
     : null;
 
-  const { data: productsData, mutate: mutateProducts } = useSWR<{
+  const {
+    data: productsData,
+    isLoading: productsLoading,
+    mutate: mutateProducts,
+  } = useSWR<{
     data: ProductRow[];
     pagination?: { total: number; page: number; limit: number; totalPages: number };
   }>(productKey, fetcher);
+
+  // A new search resets pagination — page numbers from the old result set
+  // are meaningless against the filtered catalog.
+  useEffect(() => {
+    if (page > 1) setQuery({ page: 1 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
 
   const products = productsData?.data ?? [];
   const totalPages = productsData?.pagination?.totalPages ?? 1;
@@ -169,11 +189,9 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
   }, [profData]);
 
   const filteredProducts = useMemo(() => {
+    // Name search happens server-side (q param); status + sort stay
+    // client-side over the current page (documented tradeoff).
     let list = products;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter((p) => p.name.toLowerCase().includes(q));
-    }
     if (status === "active") {
       list = list.filter((p) => p.is_active);
     } else if (status === "lowStock") {
@@ -330,10 +348,6 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
           }}
           search={search}
           onSearchChange={setSearch}
-          selectedCount={0}
-          onBulkActivate={handleBulkActivate}
-          onBulkDeactivate={handleBulkDeactivate}
-          onBulkClear={handleBulkClear}
           canManage={canManage}
           canViewPerformance={canViewPerf}
           locale={locale}
@@ -377,9 +391,19 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
 
         {/* Product list card */}
         <div className="overflow-hidden rounded-card border border-line-subtle bg-surface-card">
-          {filteredProducts.length === 0 ? (
+          {role === "super_admin" && !selectedMarketId ? (
             <div className="px-6 py-12 text-center text-[14px] text-ink-secondary">
-              {t("emptyState")}
+              {t("selectMarketPrompt")}
+            </div>
+          ) : productsLoading && !productsData ? (
+            <div role="status" className="flex flex-col gap-2 p-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton key={i} className="h-12" />
+              ))}
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="px-6 py-12 text-center text-[14px] text-ink-secondary">
+              {debouncedSearch ? t("noSearchMatch", { q: debouncedSearch }) : t("emptyState")}
             </div>
           ) : (
             <>

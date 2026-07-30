@@ -80,8 +80,18 @@ describe("GET /api/inventory/summary", () => {
     expect(res.status).toBe(403);
   });
 
-  test("returns inventory intelligence with days-of-supply, turnover, reorder, daily buckets", async () => {
+  test("returns 403 for market_manager (finance section is super_admin only)", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return userSingleChain("market_manager", "m-1");
+      return buildChain({ data: [], error: null });
+    });
+    const res = await GET(createRequest());
+    expect(res.status).toBe(403);
+  });
+
+  test("returns inventory intelligence with days-of-supply, turnover, reorder, daily buckets", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "admin-1" } }, error: null });
 
     const products = [
       {
@@ -124,7 +134,7 @@ describe("GET /api/inventory/summary", () => {
         order_id: `o-${i}`,
         change: -2,
         balance_after: 30,
-        reason: "deposit",
+        reason: "scanned",
         is_damaged: false,
         note: null,
         created_at: day(i),
@@ -143,6 +153,19 @@ describe("GET /api/inventory/summary", () => {
         created_at: day(i),
         products: { name: "Alpha", market_id: "m-1" },
       })),
+      // Legacy pre-migration rows: 'deposit' must NOT count as scan-out anymore
+      ...Array.from({ length: 5 }, (_, i) => ({
+        id: `l-p1-legacy-${i}`,
+        product_id: "p1",
+        order_id: `o-legacy-${i}`,
+        change: -50,
+        balance_after: 30,
+        reason: "deposit",
+        is_damaged: false,
+        note: null,
+        created_at: day(i),
+        products: { name: "Alpha", market_id: "m-1" },
+      })),
       // p2: 30 units scanned out → 1/day → 2 DOS → urgent reorder
       ...Array.from({ length: 30 }, (_, i) => ({
         id: `l-p2-${i}`,
@@ -150,7 +173,7 @@ describe("GET /api/inventory/summary", () => {
         order_id: `o-p2-${i}`,
         change: -1,
         balance_after: 2,
-        reason: "deposit",
+        reason: "scanned",
         is_damaged: false,
         note: null,
         created_at: day(i),
@@ -159,7 +182,7 @@ describe("GET /api/inventory/summary", () => {
     ];
 
     mockFrom.mockImplementation((table: string) => {
-      if (table === "users") return userSingleChain("market_manager", "m-1");
+      if (table === "users") return userSingleChain("super_admin", "m-1");
       if (table === "products") return buildChain({ data: products, error: null });
       if (table === "inventory_log") return buildChain({ data: logRows, error: null });
       return buildChain({ data: [], error: null });

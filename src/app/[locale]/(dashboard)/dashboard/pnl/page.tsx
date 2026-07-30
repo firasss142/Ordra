@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/auth/server-user";
-import { canViewProfitability } from "@/lib/role-permissions";
+import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
 import { ProfitabilityClient } from "./ProfitabilityClient";
 
@@ -16,7 +16,7 @@ export default async function ProfitabilityPage({
   if (user.role === "agent" || user.role === "warehouse_agent") {
     redirect(`/${params.locale}/queue`);
   }
-  if (!canViewProfitability(user.role)) redirect(`/${params.locale}/dashboard`);
+  if (!canViewFinanceSection(user.role)) redirect(`/${params.locale}/dashboard`);
 
   const markets = user.role === "super_admin" ? await getAllActiveMarkets() : [];
   const defaultMarketId = getDefaultMarketId(markets);

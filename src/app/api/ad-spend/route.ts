@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { canViewProfitability } from "@/lib/profitability-permissions";
+import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { getActor } from "@/lib/auth/actor";
+import { enforcePeriodLock } from "@/lib/ad-spend/enforce-lock";
 import { overlayRealizedMetrics } from "@/lib/ad-spend/realized-metrics";
 import type { AdSpendEntryLite, RealizedMetric } from "@/lib/ad-spend/realized-metrics";
 
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
   const role = actor.role;
-  if (!canViewProfitability(role)) {
+  if (!canViewFinanceSection(role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -98,8 +99,15 @@ export async function GET(req: NextRequest) {
   for (const e of entries) metricsById[e.id] = { confirmed_count: 0, delivered_count: 0, revenue: 0 };
 
   // Fetch all relevant order_history rows for the combined envelope period + market.
+  // The confirmation window is widened to cover the current month so the
+  // response can carry a de-duplicated market-level month_confirmed_count
+  // (overlapping entries must not double-count confirmations).
   const minStart = entries.reduce((min, e) => (e.period_start < min ? e.period_start : min), entries[0].period_start);
   const maxEnd = entries.reduce((max, e) => (e.period_end > max ? e.period_end : max), entries[0].period_end);
+  const today = new Date().toISOString().slice(0, 10);
+  const monthStart = today.slice(0, 8) + "01";
+  const confFetchStart = monthStart < minStart ? monthStart : minStart;
+  const confFetchEnd = today > maxEnd ? today : maxEnd;
 
   const [{ data: confRows }, { data: delivRows }] = await Promise.all([
     supabase
@@ -107,8 +115,8 @@ export async function GET(req: NextRequest) {
       .select("created_at, orders!inner(product_id, market_id)")
       .eq("status_to", "confirmed")
       .eq("orders.market_id", marketId)
-      .gte("created_at", minStart)
-      .lte("created_at", maxEnd + "T23:59:59"),
+      .gte("created_at", confFetchStart)
+      .lte("created_at", confFetchEnd + "T23:59:59"),
     supabase
       .from("order_history")
       .select("created_at, orders!inner(product_id, market_id, total_price)")
@@ -145,9 +153,16 @@ export async function GET(req: NextRequest) {
 
   const withMetrics = overlayRealizedMetrics(entries as AdSpendEntryLite[], metricsById);
 
+  // De-duplicated market-level confirmation count for the current month —
+  // each history row counts once, regardless of how many entries overlap it.
+  const monthConfirmedCount = confs.filter(
+    (c) => c.created_at.slice(0, 10) >= monthStart && c.created_at.slice(0, 10) <= today,
+  ).length;
+
   return NextResponse.json({
     data: withMetrics,
     products: includeProducts ? products : undefined,
+    meta: { month_confirmed_count: monthConfirmedCount },
   });
 }
 
@@ -159,7 +174,7 @@ export async function POST(req: NextRequest) {
   const { actor } = actorResult;
   const role = actor.role;
 
-  if (!canViewProfitability(role)) {
+  if (!canViewFinanceSection(role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -180,6 +195,11 @@ export async function POST(req: NextRequest) {
   if (period_start > period_end) {
     return NextResponse.json({ error: "period_start must be before period_end" }, { status: 400 });
   }
+
+  // Closed periods are locked for inserts too — otherwise the edit/delete
+  // lock is trivially bypassed by creating a fresh entry in the closed period.
+  const lockErr = enforcePeriodLock(period_end, role, req);
+  if (lockErr) return lockErr;
 
   const marketId = role === "super_admin" ? (body.market_id ?? actor.market_id ?? "") : (actor.market_id ?? "");
 

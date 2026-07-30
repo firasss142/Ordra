@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { canViewFinanceSection } from "@/lib/finance-permissions";
 import {
   computeProductIntelligence,
   reorderSuggestions,
@@ -78,7 +79,7 @@ export async function GET(req: NextRequest) {
   const { actor } = actorResult;
   const role = actor.role;
 
-  if (role !== "super_admin" && role !== "market_manager") {
+  if (!canViewFinanceSection(role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -148,13 +149,17 @@ export async function GET(req: NextRequest) {
   const bucketRows: { created_at: string; change: number }[] = [];
   const recent_movements: InventoryMovementRow[] = [];
   for (const row of rawLog) {
-    if (row.reason === "deposit" && row.change < 0) {
+    // Stock boundary is the warehouse scan-out: scan_order_out writes
+    // reason 'scanned' (uploaded → scanned) since the uploaded-status model.
+    if (row.reason === "scanned" && row.change < 0) {
       scanOutQtyByProduct.set(
         row.product_id,
         (scanOutQtyByProduct.get(row.product_id) ?? 0) + Math.abs(row.change),
       );
     }
-    if (row.reason === "returned" || (row.reason === "damaged_return" && row.is_damaged)) {
+    // Damaged returns are logged as 'damaged_writeoff' with is_damaged=true
+    // (scan_return_in); is_damaged=false write-offs are manual adjustments.
+    if (row.reason === "returned" || (row.reason === "damaged_writeoff" && row.is_damaged)) {
       returnsQtyByProduct.set(
         row.product_id,
         (returnsQtyByProduct.get(row.product_id) ?? 0) + 1,

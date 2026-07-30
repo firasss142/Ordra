@@ -12,6 +12,8 @@ export interface CampaignsProduct {
 interface CampaignsResponse {
   data: AdSpendWithMetrics[];
   products?: CampaignsProduct[];
+  /** Present when overlay=metrics: de-duplicated market-level counts. */
+  meta?: { month_confirmed_count: number };
 }
 
 const fetcher = async (url: string): Promise<CampaignsResponse> => {
@@ -47,6 +49,7 @@ export function useAdSpendCampaigns(params: {
   return {
     entries: data?.data ?? [],
     products: data?.products ?? [],
+    monthConfirmedCount: data?.meta?.month_confirmed_count ?? null,
     isLoading,
     error,
     mutate,

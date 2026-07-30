@@ -81,7 +81,9 @@ export async function loadProfitabilitySummary(
       .from("ad_spend")
       .select("amount")
       .eq("market_id", marketId)
-      .is("product_id", null)
+      // Total ad spend = ALL active entries (market-wide AND product-scoped);
+      // product-scoped spend is real market spend. Same definition as the
+      // ad-spend page rollups — the two surfaces must agree.
       .eq("is_active", true)
       .lte("period_start", toDate)
       .gte("period_end", fromDate),

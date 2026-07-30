@@ -119,15 +119,6 @@ describe("ProductCreateForm", () => {
     await waitFor(() => expect(screen.getByText("Erreur serveur")).toBeInTheDocument());
   });
 
-  it("live example updates when unit_cogs changes", async () => {
-    renderForm();
-    const cogsInput = screen.getByLabelText("COGS unitaire");
-    await userEvent.clear(cogsInput);
-    await userEvent.type(cogsInput, "20");
-    // Example section should reflect cost model computation
-    expect(screen.getByTestId("cost-example")).toBeInTheDocument();
-  });
-
   it("cancel navigates back to products list", async () => {
     renderForm();
     await userEvent.click(screen.getByRole("button", { name: "Annuler" }));

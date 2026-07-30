@@ -12,22 +12,17 @@ describe("FinanceHeroCard", () => {
     expect(screen.getByText("18.4% margin")).toBeInTheDocument();
   });
 
-  it("uses success-bg tint for positive tone", () => {
+  it("keeps a flat token surface regardless of tone (no decorative tint)", () => {
     render(<FinanceHeroCard label="Net" value="100" tone="positive" />);
     const card = screen.getByTestId("hero-card");
-    expect(card.style.backgroundColor).toBe("rgb(241, 248, 245)");
+    expect(card.className).toContain("bg-surface-card");
+    expect(card.style.backgroundColor).toBe("");
   });
 
-  it("uses critical-bg tint for negative tone", () => {
-    render(<FinanceHeroCard label="Net" value="-100" tone="negative" />);
-    const card = screen.getByTestId("hero-card");
-    expect(card.style.backgroundColor).toBe("rgb(255, 244, 244)");
-  });
-
-  it("uses white surface for neutral tone", () => {
-    render(<FinanceHeroCard label="Revenue" value="10 000" tone="neutral" />);
-    const card = screen.getByTestId("hero-card");
-    expect(card.style.backgroundColor).toBe("rgb(255, 255, 255)");
+  it("keeps the value in default ink for positive tone (color only signals loss)", () => {
+    render(<FinanceHeroCard label="Net" value="100" tone="positive" />);
+    const value = screen.getByText("100");
+    expect(value.style.color).toBe("rgb(26, 26, 26)");
   });
 
   it("renders the value in critical color when tone is negative", () => {

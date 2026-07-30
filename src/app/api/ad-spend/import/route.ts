@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { canViewProfitability } from "@/lib/profitability-permissions";
+import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { getActor } from "@/lib/auth/actor";
+import { isLockedForActor } from "@/lib/ad-spend/enforce-lock";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
   const { actor } = actorResult;
   const role = actor.role;
 
-  if (!canViewProfitability(role)) {
+  if (!canViewFinanceSection(role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -54,6 +55,11 @@ export async function POST(req: NextRequest) {
     }
     if (!r.period_start || !r.period_end || r.period_start > r.period_end) {
       rejected.push({ index: i, reason: "invalid_period" });
+      return;
+    }
+    // Same closed-period rule as single POST — imports must not bypass it.
+    if (isLockedForActor(r.period_end, role, req)) {
+      rejected.push({ index: i, reason: "locked_period" });
       return;
     }
     valid.push({

@@ -5,7 +5,7 @@ export const AD_SPEND_THEME = {
   border:   "#E1E3E5",
   borderHover: "#DADCE0",
   shadow:   "none",
-  white:    "#1A1A1A",
+  ink:      "#1A1A1A",
   muted:    "#6D7175",
   tertiary: "#8C9196",
   accent:   "#008060",
