@@ -7,6 +7,7 @@ import {
   encodeCursor,
   listQuerySchema,
 } from "@/lib/orders/list-filters";
+import { resolveProductDisplayName, unwrapEmbed } from "@/lib/orders/display-name";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
 
@@ -19,7 +20,7 @@ const LIST_SELECT =
   "assigned_to, carrier_id, rejection_reason, callback_scheduled_at, " +
   "carrier_barcode_deleted_at, carrier_barcode_deleted_carrier_code, " +
   "created_at, updated_at, " +
-  "product:products(image_url)";
+  "product:products(image_url, name)";
 
 export async function GET(req: NextRequest) {
   const actorResult = await getActor(req);
@@ -154,14 +155,21 @@ export async function GET(req: NextRequest) {
     id: string;
     market_id: string;
     created_at: string;
-    product?: { image_url: string | null } | null;
+    product?:
+      | { image_url: string | null; name?: string | null }
+      | { image_url: string | null; name?: string | null }[]
+      | null;
   };
   const rows = ((data ?? []) as unknown) as RawRow[];
   const hasMore = rows.length > q.limit;
   const page: Array<Record<string, unknown> & { id: string; market_id: string; created_at: string }> =
     (hasMore ? rows.slice(0, q.limit) : rows).map((r) => {
       const { product, ...rest } = r;
-      return { ...rest, product_image_url: product?.image_url ?? null };
+      return {
+        ...rest,
+        product_image_url: unwrapEmbed(product)?.image_url ?? null,
+        product_display_name: resolveProductDisplayName(r),
+      };
     });
   const last = page[page.length - 1];
   const nextCursor =

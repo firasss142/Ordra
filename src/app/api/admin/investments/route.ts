@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   let query = admin
     .from("investment_positions")
     .select(
-      "id, investor_id, product_id, market_id, amount, effective_from, effective_to, status, note, created_at, products(name), investors(legal_name)"
+      "id, investor_id, product_id, market_id, amount, effective_from, effective_to, status, note, created_at, products(name, image_url), investors(legal_name)"
     )
     .order("effective_from", { ascending: false });
 

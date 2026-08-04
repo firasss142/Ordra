@@ -43,9 +43,36 @@ export async function GET(req: NextRequest) {
   }
 
   const rows = (data ?? []).map((row) => {
-    const rel = (row as { products?: { name: string } | { name: string }[] }).products;
+    const r = row as Record<string, unknown>;
+    const rel = r.products as { name: string } | { name: string }[] | undefined;
     const product = Array.isArray(rel) ? rel[0] : rel;
-    return { ...row, product_name: product?.name ?? "—", products: undefined };
+
+    // Strip cost_inputs to a whitelist.
+    //
+    // The full blob carries market_wide_ad_spend (the WHOLE market's ad budget,
+    // across every product — business data an investor has no claim to) and
+    // capital_basis.total (house capital plus every other investor's capital).
+    // Combined with investor_capital on the same row, that is enough to derive
+    // the cap table. The UI never rendered any of it.
+    const ci = (r.cost_inputs ?? {}) as Record<string, unknown>;
+    const safeCostInputs = {
+      allocated_ad_spend: ci.allocated_ad_spend ?? 0,
+      gross_share_before_loss: ci.gross_share_before_loss ?? 0,
+      carried_loss_before: ci.carried_loss_before ?? 0,
+      carried_loss_after: ci.carried_loss_after ?? 0,
+      reserve_pct: ci.reserve_pct ?? 0,
+      reserve_release_after: ci.reserve_release_after ?? null,
+    };
+
+    return {
+      ...r,
+      // total_capital is the denominator behind share_pct. share_pct alone
+      // justifies the split without disclosing anyone else's position size.
+      total_capital: undefined,
+      products: undefined,
+      product_name: product?.name ?? "—",
+      cost_inputs: safeCostInputs,
+    };
   });
 
   return NextResponse.json({ data: rows });

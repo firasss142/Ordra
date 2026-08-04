@@ -254,6 +254,69 @@ Sidebar-header notification affordance (`AlertsBell`):
 
 ---
 
+## 4.15 Investor portal — scoped extension
+
+Everything above is written for staff at a desk all day: flat, greyscale, zero
+decoration, and correct for that job. The investor portal is a different product — an
+outsider checking their own money on a phone, with no training and no support channel.
+Applied unchanged, the admin grammar renders "money you can withdraw" and "money already
+gone" in the same greyscale at nearly the same size.
+
+The portal therefore inherits the whole system **except** the four allowances below,
+which apply **only** under `src/components/investor/` and `src/app/[locale]/(investor)/`.
+Nothing here relaxes the rules for any other surface.
+
+### Money-direction colour
+
+The one genuine addition. Money has direction, and direction is status:
+
+| Direction | Token | Applies to |
+|---|---|---|
+| Money in | `status-success` `#008060` | Profit share, revenue, reserve released, capital returned |
+| Money out / lost | `status-critical` `#D72C0D` | Costs, negative net profit, paid withdrawals, negative corrections |
+| Not yet money | `ink-secondary` `#6D7175` | Estimates, held reserve, anything unsettled |
+
+Colour goes on the **figure**, never on a container. A neutral number — a count, a rate,
+a date — stays `ink-primary`. This is §1 rule 3 ("functional color only on status")
+extended to a second kind of status, not an exception to it.
+
+### Product imagery
+
+`products.image_url` rendered through `ProductAvatar` (`src/components/orders/ProductAvatar.tsx`).
+56px on cards, 72px on a detail hero, 28px in table rows. It is the only imagery permitted,
+justified because the funded product *is* the investor's mental model — they think "my
+Biovera", not "position 4f2a".
+
+Use the existing component rather than a new `<img>`: it already carries lazy loading,
+`object-cover`, and the letter-avatar fallback. Do **not** reach for `next/image` — the
+project has no `images.remotePatterns` configured and raw `<img>` is the codebase
+convention for every remote image.
+
+### Elevation on tappable cards
+
+`hover:shadow-hover-row transition-shadow duration-fast` on cards that navigate. This is
+already sanctioned by §2 for interactive rows; it is listed here only to confirm that a
+product card counts as one. **Resting non-interactive cards stay flat** — no change.
+
+A tappable card must be a real `<Link>` or `<button>`, never a `<div onClick>`, so it
+receives the global `:focus-visible` ring and works from a keyboard.
+
+### Hero type scale
+
+**One** figure per screen may use the `KpiCard` scale (`text-[28px] font-bold tabular-nums
+leading-[1.1]`) — the single number that screen exists to answer. Portfolio: available
+balance. Withdrawals: withdrawable amount. A second hero on the same screen means neither
+is one.
+
+### Still forbidden here
+
+Gradients · accent green `#10B981` outside its two reserved slots · colour as decoration ·
+shadows on resting non-interactive cards · hardcoded strings · physical CSS properties.
+The portal is the OMS's only mobile-first *and* RTL-load-bearing surface, so logical
+properties (`ps`/`pe`/`text-end`/`inset-inline-*`) are not optional.
+
+---
+
 ## 5. Layout
 
 ### Shell Structure

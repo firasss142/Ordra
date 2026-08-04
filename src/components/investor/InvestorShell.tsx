@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Wallet, FileText, ArrowDownToLine } from "lucide-react";
+import { Wallet, FileText, ArrowDownToLine, UserRound } from "lucide-react";
 import type { AuthUser } from "@/types";
 
 /**
@@ -29,10 +29,18 @@ export function InvestorShell({
     { href: `/${locale}/investor`, label: t("nav.portfolio"), icon: Wallet, exact: true },
     { href: `/${locale}/investor/statements`, label: t("nav.statements"), icon: FileText },
     { href: `/${locale}/investor/withdrawals`, label: t("nav.withdrawals"), icon: ArrowDownToLine },
+    // Carries sign-out. Without it the portal had no way to end a session on
+    // what is very often a shared phone.
+    { href: `/${locale}/investor/account`, label: t("nav.account"), icon: UserRound },
   ];
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
+
+  // The header used to print the portal title unconditionally, so Relevés,
+  // Retraits and Compte all announced themselves as "Portefeuille" — the one
+  // piece of chrome that tells you where you are, saying the wrong thing.
+  const activeTab = tabs.find((tab) => isActive(tab.href, tab.exact));
 
   return (
     <div className="min-h-screen bg-surface-page flex flex-col">
@@ -42,7 +50,9 @@ export function InvestorShell({
             <p className="m-0 text-[15px] font-semibold text-ink-primary truncate">
               {user.full_name}
             </p>
-            <p className="m-0 text-[12px] text-ink-secondary">{t("title")}</p>
+            <p className="m-0 text-[12px] text-ink-secondary">
+              {activeTab?.label ?? t("title")}
+            </p>
           </div>
 
           {/* Desktop nav — hidden on phones, where the bottom bar takes over. */}
@@ -68,8 +78,13 @@ export function InvestorShell({
         </div>
       </header>
 
-      {/* pb-20 leaves room for the fixed bottom bar on phones. */}
-      <main className="flex-1 mx-auto w-full max-w-5xl px-4 sm:px-6 py-4 sm:py-6 pb-20 sm:pb-6">
+      {/* pb-20 leaves room for the fixed bottom bar on phones. The id is the
+          target of the root layout's skip link, which pointed at nothing on
+          every page of this portal. */}
+      <main
+        id="main-content"
+        className="flex-1 mx-auto w-full max-w-5xl px-4 sm:px-6 py-4 sm:py-6 pb-20 sm:pb-6"
+      >
         {children}
       </main>
 

@@ -8,7 +8,10 @@ export interface QueueOrder {
   customer_phone: string;
   customer_address: string | null;
   customer_city: string;
+  /** Untouched external string from the storefront — audit record. */
   product_name: string;
+  /** Internal catalog name (products.name) when the order resolved to one. */
+  product_display_name?: string | null;
   variant_label: string;
   quantity: number;
   /** Product thumbnail URL (joined from products.image_url), null when unset. */

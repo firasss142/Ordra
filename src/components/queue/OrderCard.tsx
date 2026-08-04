@@ -160,6 +160,10 @@ export const OrderCard = memo(function OrderCard({
     setNow(new Date());
   }, []);
 
+  // Prefer the internal catalog name; fall back to the external storefront
+  // string for orders that never resolved to a product.
+  const productDisplayName = order.product_display_name || order.product_name;
+
   const callbackDate = order.callback_time ? new Date(order.callback_time) : null;
   const callbackOverdue = now !== null && callbackDate !== null && callbackDate <= now;
 
@@ -304,7 +308,7 @@ export const OrderCard = memo(function OrderCard({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={order.product_image_url}
-                alt={order.product_name}
+                alt={productDisplayName}
                 width={36}
                 height={36}
                 loading="lazy"
@@ -355,7 +359,7 @@ export const OrderCard = memo(function OrderCard({
                     anchorStatus={order.status}
                     anchorCreatedAt={order.created_at}
                     anchorTotalPrice={order.total_price}
-                    anchorProductName={order.product_name}
+                    anchorProductName={productDisplayName}
                     anchorProductImageUrl={order.product_image_url}
                     anchorCustomerName={order.customer_name}
                     anchorCustomerAddress={order.customer_address}
@@ -371,7 +375,7 @@ export const OrderCard = memo(function OrderCard({
                     anchorStatus={order.status}
                     anchorCreatedAt={order.created_at}
                     anchorTotalPrice={order.total_price}
-                    anchorProductName={order.product_name}
+                    anchorProductName={productDisplayName}
                     anchorProductImageUrl={order.product_image_url}
                     anchorCustomerName={order.customer_name}
                     anchorCustomerAddress={order.customer_address}
@@ -388,9 +392,9 @@ export const OrderCard = memo(function OrderCard({
           {/* Product identity — muted secondary line under the customer name
               (who → what). Variant folds in here, so there's no separate variant
               column. */}
-          {order.product_name && (
+          {productDisplayName && (
             <span className="text-[12px] text-agent-on-surface-variant truncate leading-tight">
-              {order.product_name}
+              {productDisplayName}
               {order.variant_label ? ` · ${order.variant_label}` : ""}
             </span>
           )}

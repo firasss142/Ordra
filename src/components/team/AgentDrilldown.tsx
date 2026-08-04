@@ -23,7 +23,10 @@ interface AgentQueueOrder {
   customer_name: string;
   customer_phone: string;
   customer_city: string | null;
+  /** Untouched external string from the storefront — audit record. */
   product_name: string;
+  /** Internal catalog name (products.name) when the order resolved to one. */
+  product_display_name?: string | null;
   variant_label: string | null;
   total_price: number;
   currency: string;
@@ -373,7 +376,7 @@ export function AgentDrilldown({
                       </span>
                       <div style={{ textAlign: "end" }}>
                         <div style={{ fontSize: 13, color: "#374151" }}>
-                          {order.product_name}
+                          {order.product_display_name || order.product_name}
                           {order.variant_label ? ` · ${order.variant_label}` : ""}
                         </div>
                         <div style={{ fontSize: 14, fontWeight: 600, color: "#1A1A1A" }}>

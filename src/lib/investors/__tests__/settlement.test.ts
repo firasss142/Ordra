@@ -47,6 +47,7 @@ function input(partial: Partial<SettlementInput> = {}): SettlementInput {
     ],
     carriedLosses: new Map(),
     reservePct: new Map([["inv-a", 0]]),
+    reserveReleaseAfter: "2026-09-28", // periodEnd + 90d
     ...partial,
   };
 }
@@ -171,6 +172,32 @@ describe("computeSettlement", () => {
     // Investors + house must not exceed the product's net profit.
     const houseShare = 6920 * 0.4;
     expect(a.investor_share + b.investor_share + houseShare).toBeCloseTo(6920, 3);
+  });
+
+  test("records the reserve release date so the hold can be undone", () => {
+    // reserve_release had an enum value, a fold arm and tests, but no writer —
+    // so every held reserve was kept forever. The release date is what lets
+    // the cron find matured holds.
+    const r = computeSettlement(input({ reservePct: new Map([["inv-a", 10]]) }));
+    const s = r.statements[0];
+
+    expect(s.cost_inputs.reserve_release_after).toBe("2026-09-28");
+    expect(s.reserve_held).toBeGreaterThan(0);
+
+    const hold = r.ledger.find((l) => l.entry_type === "reserve_hold");
+    expect(hold?.note).toContain("2026-09-28");
+  });
+
+  test("every ledger row carries its period so the RPC join cannot fan out", () => {
+    // apply_investor_settlement joins ledger rows to inserted statements. With
+    // only (investor, product) the join is a cartesian product as soon as one
+    // call settles more than one period.
+    const r = computeSettlement(input());
+    expect(r.ledger.length).toBeGreaterThan(0);
+    for (const l of r.ledger) {
+      expect(l.period_start).toBe("2026-06-01");
+      expect(l.period_end).toBe("2026-06-30");
+    }
   });
 
   test("a position that closed before the period earns nothing", () => {

@@ -37,6 +37,9 @@ export function OrderCard({ order, selected, onToggle, marketCode, now = new Dat
   const accent = getBucketAccent(bucket);
   const accentColor = ACCENT_COLOR[accent] ?? ACCENT_COLOR.neutral;
   const ageLabel = formatRelativeMinutes(order.created_at, now);
+  // Prefer the internal catalog name; fall back to the external storefront
+  // string for orders that never resolved to a product.
+  const productDisplayName = order.product_display_name || order.product_name;
 
   return (
     <div
@@ -111,9 +114,9 @@ export function OrderCard({ order, selected, onToggle, marketCode, now = new Dat
             alignItems: "center",
           }}
         >
-          {order.product_name ? (
+          {productDisplayName ? (
             <span>
-              {order.product_name}
+              {productDisplayName}
               {order.variant_label ? ` · ${order.variant_label}` : ""}
               {` × ${order.quantity}`}
             </span>

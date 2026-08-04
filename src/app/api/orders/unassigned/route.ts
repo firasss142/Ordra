@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { canAssignOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
+import { resolveProductDisplayName } from "@/lib/orders/display-name";
+import type { OrderNameSource } from "@/lib/orders/display-name";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +33,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("orders")
-    .select("id, external_id, external_platform, storefront_id, customer_name, customer_phone, customer_city, customer_address, product_id, product_name, variant_label, quantity, total_price, created_at", { count: "exact" })
+    .select("id, external_id, external_platform, storefront_id, customer_name, customer_phone, customer_city, customer_address, product_id, product_name, variant_label, quantity, total_price, created_at, product:products(name)", { count: "exact" })
     .eq("status", "pending")
     .is("assigned_to", null);
 
@@ -57,8 +59,14 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 
+  type UnassignedRow = Record<string, unknown> & OrderNameSource;
+  const orders = ((data ?? []) as unknown as UnassignedRow[]).map((r) => {
+    const { product, ...rest } = r;
+    return { ...rest, product_display_name: resolveProductDisplayName(r) };
+  });
+
   return NextResponse.json({
-    orders: data ?? [],
+    orders,
     total: count ?? 0,
     page,
     limit,

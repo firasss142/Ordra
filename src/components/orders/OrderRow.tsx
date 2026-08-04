@@ -166,6 +166,9 @@ function Row({
   onDuplicateChange,
 }: Props) {
   const statusTone = STATUS_TONE[order.status] ?? "neutral";
+  // Prefer the internal catalog name; fall back to the external storefront
+  // string for orders that never resolved to a product.
+  const productDisplayName = order.product_display_name || order.product_name;
   const canDelete = canManuallyDeleteOrderStatus(order.status);
   // A soft-deleted order can be recovered by a manager/admin (onRecover passed).
   const canRecover = order.status === "deleted" && onRecover !== undefined;
@@ -210,13 +213,13 @@ function Row({
         <div className="flex items-center gap-3">
           <ProductAvatar
             imageUrl={order.product_image_url ?? null}
-            productName={order.product_name}
+            productName={productDisplayName}
           />
 
           {/* Product block */}
           <div className="flex min-w-0 items-baseline gap-1.5">
             <span className="truncate text-[14px] font-medium leading-5 text-ink-primary">
-              {order.product_name}
+              {productDisplayName}
             </span>
             {order.variant_label && (
               <span className="shrink-0 text-[12px] text-ink-secondary">
@@ -269,7 +272,7 @@ function Row({
                     anchorStatus={order.status}
                     anchorCreatedAt={order.created_at}
                     anchorTotalPrice={order.total_price}
-                    anchorProductName={order.product_name}
+                    anchorProductName={productDisplayName}
                     anchorProductImageUrl={order.product_image_url ?? null}
                     anchorCustomerName={order.customer_name}
                     anchorCustomerAddress={order.customer_address}
@@ -285,7 +288,7 @@ function Row({
                     anchorStatus={order.status}
                     anchorCreatedAt={order.created_at}
                     anchorTotalPrice={order.total_price}
-                    anchorProductName={order.product_name}
+                    anchorProductName={productDisplayName}
                     anchorProductImageUrl={order.product_image_url ?? null}
                     anchorCustomerName={order.customer_name}
                     anchorCustomerAddress={order.customer_address}

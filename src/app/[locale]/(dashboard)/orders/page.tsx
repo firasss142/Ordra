@@ -4,6 +4,8 @@ import { getServerUser } from "@/lib/auth/server-user";
 import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/orders/list-filters";
+import { resolveProductDisplayName } from "@/lib/orders/display-name";
+import type { OrderNameSource } from "@/lib/orders/display-name";
 import { OrdersPageClient } from "./OrdersPageClient";
 import type { Locale } from "@/types";
 
@@ -13,7 +15,11 @@ const LIST_COLS =
   "id, external_id, external_platform, market_id, customer_name, customer_phone, customer_city, " +
   "product_id, product_name, variant_label, quantity, total_price, status, " +
   "assigned_to, carrier_id, rejection_reason, callback_scheduled_at, " +
-  "created_at, updated_at";
+  "created_at, updated_at, " +
+  // Must stay in sync with LIST_SELECT in /api/orders/list — this SSR prefetch
+  // backs the first paint, and a missing embed would show external product
+  // names that visibly swap once SWR revalidates.
+  "product:products(name)";
 
 export default async function OrdersPage({
   params,
@@ -80,7 +86,15 @@ export default async function OrdersPage({
   const userMarketCurrency = marketResult.data?.currency ?? "TND";
   const userMarketCode = marketResult.data?.code ?? "TN";
   const fallbackFirstPage = ordersResult.data
-    ? { rows: ordersResult.data, nextCursor: null }
+    ? {
+        rows: (
+          ordersResult.data as unknown as Array<Record<string, unknown> & OrderNameSource>
+        ).map((r) => {
+          const { product, ...rest } = r;
+          return { ...rest, product_display_name: resolveProductDisplayName(r) };
+        }),
+        nextCursor: null,
+      }
     : { rows: [], nextCursor: null };
   const fallbackAgents = agentsResult.data ?? [];
 

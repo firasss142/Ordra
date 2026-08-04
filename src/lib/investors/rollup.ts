@@ -136,20 +136,60 @@ export function buildDailyStats(input: RollupInput): DailyProductStat[] {
   for (const o of input.leadOrders) for (const p of productsOf(o)) get(p).leads += 1;
   for (const o of input.uploadedOrders) for (const p of productsOf(o)) get(p).uploaded += 1;
 
-  // ── Confirmed: per-product costs begin here (packing + processing).
+  // ── Confirmed: funnel count ONLY.
+  //
+  // Packing and processing used to be booked here. That split an order's costs
+  // from its revenue whenever confirmation and delivery fell in different
+  // periods — routine in COD, where delivery lags 3-10 days. The investor who
+  // held the position in the confirm month paid packing for orders whose
+  // revenue landed in the next month, and the incoming investor got that
+  // revenue cost-free. Both figures were wrong; money moved between investors.
+  // Costs now follow the revenue (see the delivered/returned loops below).
   for (const o of input.confirmedOrders) {
-    for (const productId of productsOf(o)) {
-      const a = get(productId);
-      a.confirmed += 1;
-      const costs = input.products.get(productId);
-      if (costs) {
-        a.packingCost += toMillimes(costs.packingCost);
-        a.processingCost += toMillimes(costs.processingCost);
-      }
-    }
+    for (const productId of productsOf(o)) get(productId).confirmed += 1;
   }
 
-  // ── Delivered: revenue realised, COGS and the delivery fee land here.
+  /**
+   * Books the costs an order incurs no matter how it ends: packing the parcel
+   * and processing the confirmation. Charged once the outcome is known, so
+   * they always land in the same period as the revenue or the return.
+   *
+   * Packing is a PER-ORDER cost — one parcel, one packing operation — so it is
+   * split across the order's products like the carrier fee. It was previously
+   * added once per distinct product, which charged a 3-product order 3x the
+   * packing of a single parcel.
+   */
+  const bookFulfilmentCosts = (o: RollupOrder): void => {
+    const products = productsOf(o);
+    if (products.length === 0) return;
+
+    // Representative per-order packing cost: the products in one parcel can in
+    // principle have different packing_cost values, so take the max rather
+    // than an arbitrary first — packing a mixed parcel is at least as costly
+    // as its most demanding item.
+    const packing = Math.max(
+      ...products.map((id) => input.products.get(id)?.packingCost ?? 0),
+      0
+    );
+    if (packing > 0) {
+      for (const [productId, share] of splitOrderFee(o, packing)) {
+        get(productId).packingCost += toMillimes(share);
+      }
+    }
+
+    // Processing is per confirmation call, also per order.
+    const processing = Math.max(
+      ...products.map((id) => input.products.get(id)?.processingCost ?? 0),
+      0
+    );
+    if (processing > 0) {
+      for (const [productId, share] of splitOrderFee(o, processing)) {
+        get(productId).processingCost += toMillimes(share);
+      }
+    }
+  };
+
+  // ── Delivered: revenue realised, COGS, delivery fee and fulfilment costs.
   for (const o of input.deliveredOrders) {
     const revenueByProduct = attributeOrderRevenue({
       totalPrice: o.totalPrice,
@@ -176,19 +216,50 @@ export function buildDailyStats(input: RollupInput): DailyProductStat[] {
         get(productId).deliveryCost += toMillimes(share);
       }
     }
+
+    bookFulfilmentCosts(o);
   }
 
-  // ── Returned: the return fee, split the same way. No revenue, no COGS —
-  // the goods came back.
+  // ── Returned: reverse the sale, then book the costs that still applied.
+  //
+  // A returned order previously kept its `delivered` revenue in the stats
+  // forever and only added the return fee — so a delivered-then-returned order
+  // showed as pure profit. `delivered` and `returned` are separate append-only
+  // history rows, so the delivery revenue is never removed by anything else.
+  // It has to be reversed here or it is never reversed at all.
   for (const o of input.returnedOrders) {
     for (const productId of productsOf(o)) get(productId).returned += 1;
 
+    // Reverse the revenue that the delivered transition booked.
+    const revenueByProduct = attributeOrderRevenue({
+      totalPrice: o.totalPrice,
+      lines: o.lines.map((l) => ({ productId: l.productId, lineTotal: l.lineTotal })),
+    });
+    for (const [productId, amount] of revenueByProduct) {
+      get(productId).revenue -= toMillimes(amount);
+    }
+
+    // The goods came back, so their cost is no longer sold. Stock is restored
+    // by scan_return_in; the P&L must mirror that.
+    for (const line of o.lines) {
+      if (!line.productId) continue;
+      const costs = input.products.get(line.productId);
+      if (costs) {
+        get(line.productId).cogs -= toMillimes(costs.unitCogs * line.quantity);
+      }
+    }
+
+    // The outbound delivery fee is NOT refunded by the carrier on a return —
+    // they still drove it — so deliveryCost stays. The return fee is extra.
     const fee = o.carrierId ? input.carriers.get(o.carrierId)?.returnFee ?? 0 : 0;
     if (fee > 0) {
       for (const [productId, share] of splitOrderFee(o, fee)) {
         get(productId).returnCost += toMillimes(share);
       }
     }
+
+    // Packing and processing were really incurred on a returned order too.
+    bookFulfilmentCosts(o);
   }
 
   // ── Direct ad spend. A product with spend but no orders still needs a row,

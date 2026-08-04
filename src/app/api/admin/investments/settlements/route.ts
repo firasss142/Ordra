@@ -15,6 +15,21 @@ export const dynamic = "force-dynamic";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * How long a reserve is held before it auto-releases.
+ *
+ * Long enough to cover the carrier return window, short enough that an
+ * investor is not financing the business indefinitely.
+ */
+const RESERVE_HOLD_DAYS = 90;
+
+/** ISO date N days after the given ISO date, in UTC. */
+function addDays(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 interface DailyRow {
   product_id: string;
   revenue: number;
@@ -75,6 +90,34 @@ export async function POST(req: NextRequest) {
   const admin = createAdminClient();
 
   try {
+    // ── Refuse to re-settle a period that is already closed ──────────────
+    //
+    // The rollup cron recomputes recent days idempotently, so a late carrier
+    // event can change the daily stats underneath an already-settled period.
+    // Re-running settlement then produces different numbers while the original
+    // statements stay immutable. The unique constraint stops a double-pay, but
+    // silently inserting nothing is a confusing way to find that out.
+    const { count: settledCount } = await admin
+      .from("investor_statements")
+      .select("id", { count: "exact", head: true })
+      .eq("market_id", marketId)
+      .eq("period_start", periodStart)
+      .eq("period_end", periodEnd)
+      .in("status", ["settled", "paid"]);
+
+    if (!dryRun && (settledCount ?? 0) > 0) {
+      return NextResponse.json(
+        {
+          error: "This period is already settled.",
+          detail:
+            `${settledCount} statement(s) exist for ${periodStart}..${periodEnd}. ` +
+            "Post a correction instead — settlements are immutable.",
+          settledStatements: settledCount,
+        },
+        { status: 409 }
+      );
+    }
+
     // ── Aggregate the rollup for the period ──────────────────────────────
     const daily = await fetchAllRows<DailyRow>(
       admin
@@ -162,6 +205,10 @@ export async function POST(req: NextRequest) {
         .from("investment_positions")
         .select("product_id, investor_id, amount, effective_from, effective_to")
         .in("product_id", productIds)
+        // Scope by market as well as product. Without it, any position row
+        // belonging to another market silently joins the totalCapital
+        // denominator and dilutes every investor in this one.
+        .eq("market_id", marketId)
     );
 
     const positions: InvestorPositionsForProduct[] = productIds.map((productId) => {
@@ -189,7 +236,12 @@ export async function POST(req: NextRequest) {
         ? admin.from("investors").select("id, reserve_pct").in("id", investorIds)
         : Promise.resolve({ data: [] as { id: string; reserve_pct: number }[] }),
       investorIds.length > 0
-        ? fetchAllRows<{ investor_id: string; product_id: string; cost_inputs: Record<string, unknown> }>(
+        ? fetchAllRows<{
+            investor_id: string;
+            product_id: string;
+            period_end: string;
+            cost_inputs: Record<string, unknown> | null;
+          }>(
             admin
               .from("investor_statements")
               .select("investor_id, product_id, cost_inputs, period_end")
@@ -205,10 +257,20 @@ export async function POST(req: NextRequest) {
     );
 
     // The most recent prior statement carries the outstanding loss forward.
+    //
+    // This must NOT rely on iteration order. fetchAllRows pages with .range(),
+    // and PostgREST only guarantees ordering within a page — so a stale
+    // carried_loss_after from a later page could overwrite the current one and
+    // pay out money that was never earned. Compare period_end explicitly and
+    // keep the maximum per (investor, product).
+    const latestPeriodEnd = new Map<string, string>();
     const carriedLosses = new Map<string, number>();
     for (const s of priorStatements) {
-      const after = Number(s.cost_inputs?.carried_loss_after ?? 0);
-      carriedLosses.set(`${s.investor_id}:${s.product_id}`, after);
+      const key = `${s.investor_id}:${s.product_id}`;
+      const seen = latestPeriodEnd.get(key);
+      if (seen !== undefined && s.period_end <= seen) continue;
+      latestPeriodEnd.set(key, s.period_end);
+      carriedLosses.set(key, Number(s.cost_inputs?.carried_loss_after ?? 0));
     }
 
     // ── Compute ──────────────────────────────────────────────────────────
@@ -221,11 +283,41 @@ export async function POST(req: NextRequest) {
       positions,
       carriedLosses,
       reservePct,
+      reserveReleaseAfter: addDays(periodEnd, RESERVE_HOLD_DAYS),
     });
 
     const totalPayable = fromMillimes(
       result.statements.reduce((acc, s) => acc + toMillimes(s.investor_share), 0)
     );
+
+    // Reconciliation. computeSettlement returns netProfitByProduct explicitly
+    // for this and it was previously discarded. Investor shares plus the house
+    // share must equal the product's net profit; any gap means the capital
+    // split or the allocation is wrong, and it is far cheaper to see it here
+    // than after the money has moved.
+    const reconciliation = [...result.netProfitByProduct.entries()].map(
+      ([productId, netProfit]) => {
+        const investorShare = result.statements
+          .filter((s) => s.product_id === productId)
+          .reduce((acc, s) => acc + toMillimes(s.investor_share + s.carried_loss_applied), 0);
+        const housePct =
+          100 -
+          result.statements
+            .filter((s) => s.product_id === productId)
+            .reduce((acc, s) => acc + s.share_pct, 0);
+        const houseShare = Math.round((toMillimes(netProfit) * housePct) / 100);
+        return {
+          productId,
+          netProfit,
+          allocated: fromMillimes(investorShare + houseShare),
+          unallocated: fromMillimes(toMillimes(netProfit) - investorShare - houseShare),
+        };
+      }
+    );
+
+    // Any product whose allocation does not add back up to its net profit is
+    // a bug in the capital split — surface it rather than paying it out.
+    const unreconciled = reconciliation.filter((r) => Math.abs(r.unallocated) > 0.001);
 
     if (dryRun) {
       return NextResponse.json({
@@ -236,7 +328,21 @@ export async function POST(req: NextRequest) {
         statements: result.statements,
         ledgerEntries: result.ledger.length,
         totalPayable,
+        reserveReleaseAfter: addDays(periodEnd, RESERVE_HOLD_DAYS),
+        alreadySettled: (settledCount ?? 0) > 0,
+        reconciliation,
+        unreconciled,
       });
+    }
+
+    if (unreconciled.length > 0) {
+      return NextResponse.json(
+        {
+          error: "Refusing to settle: allocations do not reconcile to net profit.",
+          unreconciled,
+        },
+        { status: 422 }
+      );
     }
 
     // ── Commit atomically ────────────────────────────────────────────────

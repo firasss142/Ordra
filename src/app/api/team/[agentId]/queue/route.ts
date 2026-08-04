@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sortAgentQueue } from "@/lib/orders/queue-sort";
+import { resolveProductDisplayName } from "@/lib/orders/display-name";
+import type { OrderNameSource } from "@/lib/orders/display-name";
 import { TERMINAL_STATUSES } from "@/types/order-status";
 import { getActor } from "@/lib/auth/actor";
 
@@ -47,7 +49,7 @@ export async function GET(
   // Query orders assigned to this agent in non-terminal statuses
   const { data: orders, error: ordersError } = await supabase
     .from("orders")
-    .select("id, status, customer_name, customer_phone, customer_city, product_name, variant_label, total_price, quantity, callback_scheduled_at, created_at")
+    .select("id, status, customer_name, customer_phone, customer_city, product_name, variant_label, total_price, quantity, callback_scheduled_at, created_at, product:products(name)")
     .eq("assigned_to", agentId)
     .not("status", "in", `(${TERMINAL_STATUSES.join(",")})`);
 
@@ -55,6 +57,23 @@ export async function GET(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  const ordersWithCurrency = (orders ?? []).map((o) => ({ ...o, currency }));
+  // sortAgentQueue needs these three as concrete fields; the rest ride along
+  // via the index signature.
+  type QueueRow = Record<string, unknown> &
+    OrderNameSource & {
+      status: string;
+      callback_scheduled_at: string | null;
+      created_at: string;
+    };
+  const ordersWithCurrency = ((orders ?? []) as unknown as QueueRow[]).map(
+    (o) => {
+      const { product, ...rest } = o;
+      return {
+        ...rest,
+        currency,
+        product_display_name: resolveProductDisplayName(o),
+      };
+    },
+  );
   return NextResponse.json({ data: sortAgentQueue(ordersWithCurrency) });
 }

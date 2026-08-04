@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth/server-user";
 import { canViewOwnPortfolio } from "@/lib/investor-permissions";
@@ -27,15 +28,15 @@ export default async function InvestorPortfolioPage({
 
   if (!portfolio) {
     // Role granted but no investors row yet — an onboarding gap, not an error
-    // the investor can act on.
+    // the investor can act on. The string was hardcoded French, so an
+    // Arabic-locale investor met their first screen in the wrong language.
+    const t = await getTranslations("investor");
     return (
-      <div className="rounded-[10px] border border-line-subtle bg-surface-card p-8 text-center">
-        <p className="m-0 text-[14px] text-ink-secondary">
-          Votre profil investisseur n&apos;est pas encore configuré.
-        </p>
+      <div className="rounded-card border border-line-subtle bg-surface-card p-8 text-center">
+        <p className="m-0 text-[14px] text-ink-secondary">{t("profileNotConfigured")}</p>
       </div>
     );
   }
 
-  return <PortfolioClient initialData={portfolio} />;
+  return <PortfolioClient initialData={portfolio} locale={params.locale} />;
 }

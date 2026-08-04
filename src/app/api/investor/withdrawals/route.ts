@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canRequestWithdrawal } from "@/lib/investor-permissions";
-import { loadPortfolio } from "@/lib/investors/portfolio";
-import { toMillimes } from "@/lib/calculations/math";
 
 export const dynamic = "force-dynamic";
 
@@ -64,49 +62,32 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  const portfolio = await loadPortfolio(admin, actor.id);
-  if (!portfolio) {
-    return NextResponse.json({ error: "Investor profile not found" }, { status: 404 });
-  }
-
-  // Any already-requested amount is reserved against the balance, so an
-  // investor cannot queue several requests that jointly exceed what they have.
-  const { data: openRequests } = await admin
-    .from("withdrawal_requests")
-    .select("amount")
-    .eq("investor_id", actor.id)
-    .in("status", ["requested", "approved"]);
-
-  const alreadyClaimed = (openRequests ?? []).reduce(
-    (acc, r) => acc + toMillimes(Number(r.amount)),
-    0
-  );
-  const availableMillimes = toMillimes(portfolio.balance.available) - alreadyClaimed;
-
-  if (toMillimes(amount) > availableMillimes) {
-    return NextResponse.json(
-      {
-        error: "Amount exceeds available balance",
-        available: portfolio.balance.available,
-        pendingRequests: alreadyClaimed / 1000,
-      },
-      { status: 422 }
-    );
-  }
-
-  const { data, error } = await admin
-    .from("withdrawal_requests")
-    .insert({
-      investor_id: actor.id,
-      market_id: portfolio.marketId,
-      amount,
-      status: "requested",
-      note: typeof body.note === "string" ? body.note.slice(0, 500) : null,
-    })
-    .select("id, amount, status, requested_at")
-    .single();
+  // Delegated to request_withdrawal, which takes a row lock on the investor,
+  // recomputes the available balance from the ledger and inserts — all in one
+  // transaction.
+  //
+  // This used to be a read-then-write across three separate statements with no
+  // lock and no constraint, so two concurrent requests both passed the balance
+  // check and both inserted. Approving each then wrote two `withdrawal` ledger
+  // entries and the balance went negative. The investor_id comes from the
+  // session, never the body.
+  const { data, error } = await admin.rpc("request_withdrawal", {
+    p_investor_id: actor.id,
+    p_amount: amount,
+    p_note: typeof body.note === "string" ? body.note.slice(0, 500) : null,
+  });
 
   if (error) {
+    // check_violation = the RPC's own balance/amount guards.
+    if (error.code === "23514" || /exceeds available balance/i.test(error.message)) {
+      return NextResponse.json(
+        { error: "AMOUNT_EXCEEDS_AVAILABLE", detail: error.details ?? error.message },
+        { status: 422 }
+      );
+    }
+    if (error.code === "P0002" || /not found/i.test(error.message)) {
+      return NextResponse.json({ error: "Investor profile not found" }, { status: 404 });
+    }
     console.error("[POST /api/investor/withdrawals]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

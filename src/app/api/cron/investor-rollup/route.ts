@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { computeDailyRollup, persistDailyRollup } from "@/lib/investors/load-rollup";
+import { releaseMaturedReserves } from "@/lib/investors/reserve-release";
 
 export const dynamic = "force-dynamic";
 
@@ -114,15 +115,31 @@ async function run(req: NextRequest) {
 
   const failed = results.filter((r) => r.error);
 
+  // Release matured reserves.
+  //
+  // A reserve is deducted from every payout to cover late returns. Nothing ever
+  // released one, so investors permanently lost reserve_pct of everything they
+  // earned. Running it here means it happens daily without anyone remembering.
+  let reserves: Awaited<ReturnType<typeof releaseMaturedReserves>> | null = null;
+  let reserveError: string | null = null;
+  try {
+    reserves = await releaseMaturedReserves(admin, new Date().toISOString().slice(0, 10));
+  } catch (err) {
+    reserveError = err instanceof Error ? err.message : String(err);
+    console.error("[cron/investor-rollup] reserve release failed:", reserveError);
+  }
+
   return NextResponse.json(
     {
-      success: failed.length === 0,
+      success: failed.length === 0 && !reserveError,
       days: dates.length,
       rowsWritten: results.reduce((sum, r) => sum + r.rows, 0),
       failures: failed.length,
       results,
+      reserves,
+      reserveError,
     },
-    { status: failed.length > 0 ? 207 : 200 },
+    { status: failed.length > 0 || reserveError ? 207 : 200 },
   );
 }
 

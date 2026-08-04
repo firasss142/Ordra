@@ -107,7 +107,10 @@ describe("buildDailyStats", () => {
     expect(rows.every((r) => r.returned_count === 1)).toBe(true);
   });
 
-  test("books packing and processing per confirmed order per product", () => {
+  test("a confirmed order books the funnel count but NO costs yet", () => {
+    // Costs follow the revenue. Booking packing/processing on confirm split an
+    // order's costs from its revenue across a period boundary and moved money
+    // between the outgoing and incoming investor.
     const rows = buildDailyStats(
       input({
         confirmedOrders: [
@@ -120,17 +123,83 @@ describe("buildDailyStats", () => {
     );
 
     const a = rows.find((r) => r.product_id === "p-a")!;
-    const b = rows.find((r) => r.product_id === "p-b")!;
 
     expect(a.confirmed_count).toBe(1);
-    expect(a.packing_cost).toBe(1);
-    expect(a.processing_cost).toBe(0.25);
-    expect(b.packing_cost).toBe(0.5);
-    expect(b.processing_cost).toBe(0.25);
-
-    // Confirmed orders carry no revenue or COGS — nothing was delivered.
+    expect(a.packing_cost).toBe(0);
+    expect(a.processing_cost).toBe(0);
     expect(a.revenue).toBe(0);
     expect(a.cogs).toBe(0);
+  });
+
+  test("packing is charged once per parcel, not once per product", () => {
+    // One order = one parcel = one packing operation, split across its
+    // products. Charging per distinct product tripled the cost of a
+    // 3-product order.
+    const rows = buildDailyStats(
+      input({
+        deliveredOrders: [
+          order("o1", 300, [
+            { productId: "p-a", lineTotal: 150, quantity: 1 },
+            { productId: "p-b", lineTotal: 150, quantity: 1 },
+          ]),
+        ],
+      })
+    );
+
+    const totalPacking = rows.reduce((s, r) => s + r.packing_cost, 0);
+    const totalProcessing = rows.reduce((s, r) => s + r.processing_cost, 0);
+
+    // max(packing) across the parcel's products = max(1, 0.5) = 1
+    expect(totalPacking).toBe(1);
+    expect(totalProcessing).toBe(0.25);
+  });
+
+  test("costs land with the revenue when an order is delivered", () => {
+    const rows = buildDailyStats(
+      input({
+        deliveredOrders: [order("o1", 149, [{ productId: "p-a", lineTotal: 149, quantity: 1 }])],
+      })
+    );
+
+    expect(rows[0].revenue).toBe(149);
+    expect(rows[0].packing_cost).toBe(1);
+    expect(rows[0].processing_cost).toBe(0.25);
+  });
+
+  test("a returned order reverses its revenue and COGS", () => {
+    // delivered and returned are separate append-only rows, so nothing else
+    // ever removes the delivery revenue. A delivered-then-returned order used
+    // to read as pure profit.
+    const delivered = order("o1", 149, [{ productId: "p-a", lineTotal: 149, quantity: 2 }]);
+
+    const rows = buildDailyStats(
+      input({ deliveredOrders: [delivered], returnedOrders: [delivered] })
+    );
+
+    const a = rows.find((r) => r.product_id === "p-a")!;
+
+    expect(a.revenue).toBe(0); // 149 booked, 149 reversed
+    expect(a.cogs).toBe(0); // 20 booked, 20 reversed
+    expect(a.delivered_count).toBe(1);
+    expect(a.returned_count).toBe(1);
+
+    // Costs really were incurred: outbound delivery is not refunded, the
+    // return fee is extra, and the parcel was still packed twice over the
+    // two events.
+    expect(a.delivery_cost).toBe(7);
+    expect(a.return_cost).toBe(3);
+    expect(a.packing_cost).toBe(2);
+  });
+
+  test("a return leaves a net loss, never a net gain", () => {
+    const o = order("o1", 500, [{ productId: "p-a", lineTotal: 500, quantity: 1 }]);
+    const rows = buildDailyStats(input({ deliveredOrders: [o], returnedOrders: [o] }));
+    const a = rows[0];
+
+    const net =
+      a.revenue - a.cogs - a.delivery_cost - a.return_cost - a.packing_cost - a.processing_cost;
+
+    expect(net).toBeLessThan(0);
   });
 
   test("aggregates several orders for the same product into one row", () => {

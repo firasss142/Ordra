@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { canViewOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
+import { resolveProductDisplayName } from "@/lib/orders/display-name";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +66,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("orders")
-    .select("id, created_at, customer_name, customer_phone, customer_city, product_name, variant_label, total_price, status, assigned_to");
+    .select("id, created_at, customer_name, customer_phone, customer_city, product_name, variant_label, total_price, status, assigned_to, product:products(name)");
 
   if (marketId) {
     query = query.eq("market_id", marketId);
@@ -137,7 +138,7 @@ export async function GET(req: NextRequest) {
         escapeCsv(row.customer_name),
         escapeCsv(row.customer_phone),
         escapeCsv(row.customer_city),
-        escapeCsv(row.product_name),
+        escapeCsv(resolveProductDisplayName(row)),
         escapeCsv(row.variant_label),
         escapeCsv(String(row.total_price ?? "")),
         escapeCsv(STATUS_LABELS[row.status] ?? row.status),

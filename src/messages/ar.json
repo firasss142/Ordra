@@ -3236,7 +3236,8 @@
     "nav": {
       "portfolio": "المحفظة",
       "statements": "الكشوف",
-      "withdrawals": "السحوبات"
+      "withdrawals": "السحوبات",
+      "account": "الحساب"
     },
     "journey": {
       "title": "رأس مالك",
@@ -3256,7 +3257,13 @@
       "withdrawn": "تم سحبه",
       "pendingHint": "تقدير، لم تتم التسوية بعد",
       "reserveHint": "محتجز مقابل المرتجعات المتأخرة",
-      "availableHint": "تمت التسوية — قابل للسحب الآن"
+      "availableHint": "تمت التسوية — قابل للسحب الآن",
+      "claimedHint": "منها {amount} في انتظار الدفع",
+      "flowTitle": "أموالك",
+      "reserveOn": "تُحرَّر في {date}",
+      "reserveNoDate": "لا يوجد احتياطي محتجز",
+      "withdrawCta": "طلب سحب",
+      "availableEmpty": "لا يوجد مبلغ للسحب حاليًا"
     },
     "cycle": {
       "title": "دورة النقد",
@@ -3275,7 +3282,18 @@
       "yourShare": "حصتك",
       "deliveryRate": "معدل التسليم",
       "returnRate": "معدل الإرجاع",
-      "empty": "لا توجد مراكز حتى الآن"
+      "empty": "لا توجد مراكز حتى الآن",
+      "yourMoney": "أموالك",
+      "settled": "تمت تسويته",
+      "pending": "تقدير جارٍ",
+      "shareNote": "تُحتسب حصتك بالتناسب مع عدد الأيام التي يكون فيها رأس مالك نشطًا خلال الفترة.",
+      "yourProfit": "ربحك",
+      "sharePctOf": "{pct}% من المنتج",
+      "viewDetail": "عرض التفاصيل",
+      "since": "منذ {date}",
+      "closedOn": "أُغلقت في {date}",
+      "active": "نشطة",
+      "closed": "مغلقة"
     },
     "funnel": {
       "title": "المسار",
@@ -3283,7 +3301,8 @@
       "confirmed": "المؤكدة",
       "uploaded": "المرسلة",
       "delivered": "المسلّمة",
-      "returned": "المرتجعة"
+      "returned": "المرتجعة",
+      "returnedNote": "من {delivered} تم تسليمها"
     },
     "waterfall": {
       "title": "التفصيل",
@@ -3294,7 +3313,9 @@
       "packing": "التغليف",
       "processing": "المعالجة",
       "ads": "الإعلانات",
-      "netProfit": "صافي الربح"
+      "netProfit": "صافي الربح",
+      "columnProduct": "المنتج (100%)",
+      "columnYours": "أنت ({pct}%)"
     },
     "statements": {
       "title": "الكشوف",
@@ -3302,9 +3323,23 @@
       "product": "المنتج",
       "share": "الحصة",
       "amount": "المبلغ",
-      "status": "الحالة",
+      "status": {
+        "settled": "تمت التسوية",
+        "paid": "مدفوع"
+      },
       "empty": "لا توجد كشوف حتى الآن",
-      "export": "تصدير CSV"
+      "export": "تصدير CSV",
+      "net": "صافي الربح",
+      "reserve": "احتياطي",
+      "carriedLoss": "طُبّق على خسارة مرحّلة",
+      "reserveReleases": "يُحرَّر الاحتياطي في",
+      "details": "تفصيل التكاليف",
+      "capitalBasis": "رأس المال المعتمد",
+      "delivered": "تم تسليمها",
+      "returned": "مرتجعة",
+      "settledAt": "سُوّيت في",
+      "expand": "عرض التفاصيل",
+      "collapse": "إخفاء التفاصيل"
     },
     "withdrawals": {
       "title": "السحوبات",
@@ -3321,11 +3356,56 @@
         "paid": "مدفوع"
       },
       "exceeds": "المبلغ يتجاوز الرصيد المتاح",
-      "success": "تم إرسال الطلب"
+      "success": "تم إرسال الطلب",
+      "all": "سحب الكل",
+      "requestedOn": "طُلب في {date}",
+      "decidedOn": "تمت المعالجة في {date}",
+      "paidOn": "دُفع في {date}",
+      "reference": "المرجع",
+      "nothingAvailable": "لا يوجد رصيد متاح حاليًا"
     },
     "errors": {
       "load": "تعذر تحميل بياناتك",
-      "retry": "إعادة المحاولة"
+      "retry": "إعادة المحاولة",
+      "stale": "البيانات غير محدّثة — جارٍ إعادة الاتصال…",
+      "generic": "حدث خطأ"
+    },
+    "account": {
+      "title": "حسابك",
+      "name": "الاسم",
+      "account": "المعرّف",
+      "signOut": "تسجيل الخروج",
+      "signOutHint": "أنهِ جلستك، خاصة على هاتف مشترك.",
+      "market": "السوق",
+      "currency": "العملة",
+      "reserve": "نسبة الاحتياطي",
+      "payout": "طريقة الدفع",
+      "payoutMethod": {
+        "bank_transfer": "تحويل بنكي",
+        "cash": "نقدًا",
+        "wallet": "محفظة"
+      }
+    },
+    "profileNotConfigured": "لم يتم إعداد ملفك الاستثماري بعد.",
+    "detail": {
+      "back": "المحفظة",
+      "notFound": "هذا المنتج ليس ضمن محفظتك.",
+      "statements": "كشوف هذا المنتج",
+      "noStatements": "لا توجد كشوف لهذا المنتج"
+    },
+    "movements": {
+      "title": "الحركات",
+      "hint": "كل تغيير في رصيدك، من الأحدث إلى الأقدم.",
+      "empty": "لا توجد حركات بعد",
+      "type": {
+        "accrual": "ربح متراكم",
+        "settlement": "تسوية الفترة",
+        "reserve_hold": "احتجاز احتياطي",
+        "reserve_release": "تحرير الاحتياطي",
+        "withdrawal": "سحب مدفوع",
+        "correction": "تصحيح",
+        "principal_return": "إعادة رأس المال"
+      }
     }
   }
 }

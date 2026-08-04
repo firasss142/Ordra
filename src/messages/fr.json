@@ -3323,7 +3323,8 @@
     "nav": {
       "portfolio": "Portefeuille",
       "statements": "Relevés",
-      "withdrawals": "Retraits"
+      "withdrawals": "Retraits",
+      "account": "Compte"
     },
     "journey": {
       "title": "Votre capital",
@@ -3343,7 +3344,13 @@
       "withdrawn": "Retiré",
       "pendingHint": "Estimation, pas encore réglée",
       "reserveHint": "Retenue contre les retours tardifs",
-      "availableHint": "Réglé — retirable maintenant"
+      "availableHint": "Réglé — retirable maintenant",
+      "claimedHint": "Dont {amount} en attente de versement",
+      "flowTitle": "Votre argent",
+      "reserveOn": "Libérée le {date}",
+      "reserveNoDate": "Aucune réserve retenue",
+      "withdrawCta": "Demander un retrait",
+      "availableEmpty": "Rien à retirer pour le moment"
     },
     "cycle": {
       "title": "Cycle de trésorerie",
@@ -3362,7 +3369,18 @@
       "yourShare": "Votre part",
       "deliveryRate": "Taux de livraison",
       "returnRate": "Taux de retour",
-      "empty": "Aucune position pour le moment"
+      "empty": "Aucune position pour le moment",
+      "yourMoney": "Votre argent",
+      "settled": "Déjà réglé",
+      "pending": "Estimation en cours",
+      "shareNote": "Votre part est calculée au prorata des jours où votre capital est actif dans la période.",
+      "yourProfit": "Votre bénéfice",
+      "sharePctOf": "{pct}% du produit",
+      "viewDetail": "Voir le détail",
+      "since": "Depuis le {date}",
+      "closedOn": "Clôturée le {date}",
+      "active": "Active",
+      "closed": "Clôturée"
     },
     "funnel": {
       "title": "Entonnoir",
@@ -3370,7 +3388,8 @@
       "confirmed": "Confirmées",
       "uploaded": "Transmises",
       "delivered": "Livrées",
-      "returned": "Retournées"
+      "returned": "Retournées",
+      "returnedNote": "sur {delivered} livrées"
     },
     "waterfall": {
       "title": "Décomposition",
@@ -3381,7 +3400,9 @@
       "packing": "Emballage",
       "processing": "Traitement",
       "ads": "Publicité",
-      "netProfit": "Bénéfice net"
+      "netProfit": "Bénéfice net",
+      "columnProduct": "Produit (100%)",
+      "columnYours": "Vous ({pct}%)"
     },
     "statements": {
       "title": "Relevés",
@@ -3389,9 +3410,23 @@
       "product": "Produit",
       "share": "Part",
       "amount": "Montant",
-      "status": "Statut",
+      "status": {
+        "settled": "Réglé",
+        "paid": "Payé"
+      },
       "empty": "Aucun relevé pour le moment",
-      "export": "Exporter CSV"
+      "export": "Exporter CSV",
+      "net": "Bénéfice net",
+      "reserve": "Réserve",
+      "carriedLoss": "appliqué à une perte reportée",
+      "reserveReleases": "Réserve libérée le",
+      "details": "Détail des coûts",
+      "capitalBasis": "Capital retenu",
+      "delivered": "Livrées",
+      "returned": "Retournées",
+      "settledAt": "Réglé le",
+      "expand": "Voir le détail",
+      "collapse": "Masquer le détail"
     },
     "withdrawals": {
       "title": "Retraits",
@@ -3408,11 +3443,56 @@
         "paid": "Payé"
       },
       "exceeds": "Le montant dépasse le solde disponible",
-      "success": "Demande envoyée"
+      "success": "Demande envoyée",
+      "all": "Tout retirer",
+      "requestedOn": "Demandé le {date}",
+      "decidedOn": "Décidé le {date}",
+      "paidOn": "Versé le {date}",
+      "reference": "Référence",
+      "nothingAvailable": "Aucun montant disponible pour l'instant"
     },
     "errors": {
       "load": "Impossible de charger vos données",
-      "retry": "Réessayer"
+      "retry": "Réessayer",
+      "stale": "Données non actualisées — reconnexion…",
+      "generic": "Une erreur est survenue"
+    },
+    "account": {
+      "title": "Votre compte",
+      "name": "Nom",
+      "account": "Identifiant",
+      "signOut": "Se déconnecter",
+      "signOutHint": "Terminez votre session, surtout sur un téléphone partagé.",
+      "market": "Marché",
+      "currency": "Devise",
+      "reserve": "Taux de réserve",
+      "payout": "Mode de versement",
+      "payoutMethod": {
+        "bank_transfer": "Virement bancaire",
+        "cash": "Espèces",
+        "wallet": "Portefeuille"
+      }
+    },
+    "profileNotConfigured": "Votre profil investisseur n'est pas encore configuré.",
+    "detail": {
+      "back": "Portefeuille",
+      "notFound": "Ce produit ne fait pas partie de votre portefeuille.",
+      "statements": "Relevés de ce produit",
+      "noStatements": "Aucun relevé pour ce produit"
+    },
+    "movements": {
+      "title": "Mouvements",
+      "hint": "Chaque changement de votre solde, du plus récent au plus ancien.",
+      "empty": "Aucun mouvement pour le moment",
+      "type": {
+        "accrual": "Bénéfice accumulé",
+        "settlement": "Règlement de période",
+        "reserve_hold": "Mise en réserve",
+        "reserve_release": "Réserve libérée",
+        "withdrawal": "Retrait versé",
+        "correction": "Correction",
+        "principal_return": "Capital restitué"
+      }
     }
   }
 }

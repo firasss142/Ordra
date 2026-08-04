@@ -15,7 +15,10 @@ export interface UnassignedOrder {
   customer_city: string | null;
   customer_address: string | null;
   product_id: string | null;
+  /** Untouched external string from the storefront — audit record. */
   product_name: string | null;
+  /** Internal catalog name (products.name) when the order resolved to one. */
+  product_display_name?: string | null;
   variant_label: string | null;
   quantity: number;
   total_price: number;

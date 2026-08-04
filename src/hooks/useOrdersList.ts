@@ -15,7 +15,10 @@ export interface OrdersListRow {
   customer_address: string | null;
   customer_city: string | null;
   product_id: string | null;
+  /** Untouched external string from the storefront — audit record. */
   product_name: string;
+  /** Internal catalog name (products.name) when the order resolved to one. */
+  product_display_name?: string | null;
   product_image_url: string | null;
   variant_label: string | null;
   quantity: number;

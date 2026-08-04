@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sortAgentQueue } from "@/lib/orders/queue-sort";
+import { resolveProductDisplayName, unwrapEmbed } from "@/lib/orders/display-name";
 import { getActor } from "@/lib/auth/actor";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
@@ -44,12 +45,12 @@ export async function GET(_req: NextRequest) {
   const [activeRes, closedRes] = await Promise.all([
     supabase
       .from("orders")
-      .select("*, product:products(image_url), carrier:carriers!orders_carrier_id_fkey(code,name)")
+      .select("*, product:products(image_url, name), carrier:carriers!orders_carrier_id_fkey(code,name)")
       .eq("assigned_to", actor.id)
       .in("status", ACTIVE_QUEUE_STATUSES),
     supabase
       .from("orders")
-      .select("*, product:products(image_url), carrier:carriers!orders_carrier_id_fkey(code,name)")
+      .select("*, product:products(image_url, name), carrier:carriers!orders_carrier_id_fkey(code,name)")
       .eq("assigned_to", actor.id)
       .in("status", CLOSED_STATUSES)
       .gte("updated_at", closedSince.toISOString())
@@ -64,6 +65,7 @@ export async function GET(_req: NextRequest) {
   // can show a product thumbnail and the carrier's brand logo. Mirrors
   // /api/orders/list.
   type CarrierJoin = { code: string | null; name: string | null };
+  type ProductJoin = { image_url: string | null; name?: string | null };
   type RawRow = Record<string, unknown> & {
     id: string;
     status: string;
@@ -71,7 +73,7 @@ export async function GET(_req: NextRequest) {
     scheduled_dispatch_at: string | null;
     scheduled_dispatch_auto: boolean | null;
     created_at: string;
-    product?: { image_url: string | null } | { image_url: string | null }[] | null;
+    product?: ProductJoin | ProductJoin[] | null;
     carrier?: CarrierJoin | CarrierJoin[] | null;
   };
   type FlatRow = Record<string, unknown> & {
@@ -82,15 +84,20 @@ export async function GET(_req: NextRequest) {
     scheduled_dispatch_auto: boolean | null;
     created_at: string;
     product_image_url: string | null;
+    product_display_name: string;
     carrier_code: string | null;
     carrier_name: string | null;
   };
   const flattenJoins = (rows: RawRow[]): FlatRow[] =>
     rows.map(({ product, carrier, ...rest }) => {
-      const c = Array.isArray(carrier) ? carrier[0] : carrier;
+      const c = unwrapEmbed(carrier);
       return {
         ...(rest as Omit<RawRow, "product" | "carrier">),
-        product_image_url: (Array.isArray(product) ? product[0] : product)?.image_url ?? null,
+        product_image_url: unwrapEmbed(product)?.image_url ?? null,
+        product_display_name: resolveProductDisplayName({
+          product_name: rest.product_name as string | null,
+          product,
+        }),
         carrier_code: c?.code ?? null,
         carrier_name: c?.name ?? null,
       } as FlatRow;

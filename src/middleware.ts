@@ -21,7 +21,13 @@ function getRoleHome(role: string, locale: string): string {
 }
 
 // The only paths an investor may reach. Everything else in the OMS bounces.
-const INVESTOR_ALLOWED_PREFIXES = ["/investor", "/profile"];
+//
+// /profile is deliberately NOT here. It lives in the (dashboard) route group,
+// whose layout renders the full staff Sidebar — Commandes, Logistique,
+// Clients, Équipe — so allowing it disclosed the entire internal information
+// architecture to an external user. The investor portal has its own account
+// page at /investor/account instead.
+const INVESTOR_ALLOWED_PREFIXES = ["/investor"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

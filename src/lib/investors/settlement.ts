@@ -57,6 +57,15 @@ export interface SettlementInput {
   carriedLosses: Map<string, number>;
   /** Reserve percentage per investor id. */
   reservePct: Map<string, number>;
+  /**
+   * ISO date on which this period's reserve becomes releasable.
+   *
+   * A reserve exists to absorb returns that arrive after a period closes, so
+   * it must have an end. Without a release date the hold is permanent — which
+   * is exactly what happened before: `reserve_release` was declared and folded
+   * but never written, so investors lost reserve_pct of every payout forever.
+   */
+  reserveReleaseAfter: string;
 }
 
 export interface StatementRow {
@@ -91,6 +100,14 @@ export interface LedgerRow {
   investor_id: string;
   product_id: string;
   market_id: string;
+  /**
+   * The period this entry belongs to. apply_investor_settlement joins ledger
+   * rows to the statements it inserted on (investor, product, period) — without
+   * the period key the join is a cartesian product as soon as one call settles
+   * more than one period.
+   */
+  period_start: string;
+  period_end: string;
   entry_type: LedgerEntryType;
   amount: number;
   note: string;
@@ -171,11 +188,13 @@ export function computeSettlement(input: SettlementInput): SettlementResult {
       const outcome = settleInvestorShare({ netProfit, sharePct, carriedLoss });
       carriedLossAfter.set(key, outcome.carriedLossAfter);
 
-      // Reserve is held against returns that land after the period closes.
+      // Reserve is held against returns that land after the period closes,
+      // and released on reserveReleaseAfter by the rollup cron.
       const pct = input.reservePct.get(holderId) ?? 0;
       const reserveHeld = fromMillimes(
         Math.round((toMillimes(outcome.payable) * pct) / 100)
       );
+      const releaseAfter = input.reserveReleaseAfter;
 
       statements.push({
         investor_id: holderId,
@@ -208,6 +227,7 @@ export function computeSettlement(input: SettlementInput): SettlementResult {
           carried_loss_before: carriedLoss,
           carried_loss_after: outcome.carriedLossAfter,
           reserve_pct: pct,
+          reserve_release_after: releaseAfter,
           capital_basis: { investor: investorCapital, total: totalCapital },
         },
         status: "draft",
@@ -219,30 +239,35 @@ export function computeSettlement(input: SettlementInput): SettlementResult {
       if (outcome.payable <= 0) continue;
 
       const label = `${input.periodStart}..${input.periodEnd}`;
-      ledger.push({
+      const base = {
         investor_id: holderId,
         product_id: product.productId,
         market_id: input.marketId,
+        period_start: input.periodStart,
+        period_end: input.periodEnd,
+      };
+
+      ledger.push({
+        ...base,
         entry_type: "accrual",
         amount: outcome.payable,
         note: `Profit share ${label}`,
       });
       ledger.push({
-        investor_id: holderId,
-        product_id: product.productId,
-        market_id: input.marketId,
+        ...base,
         entry_type: "settlement",
         amount: outcome.payable,
         note: `Settled ${label}`,
       });
       if (reserveHeld > 0) {
         ledger.push({
-          investor_id: holderId,
-          product_id: product.productId,
-          market_id: input.marketId,
+          ...base,
           entry_type: "reserve_hold",
           amount: reserveHeld,
-          note: `Reserve ${pct}% held against late returns ${label}`,
+          // The release date is what makes this reserve recoverable. Before
+          // this existed, held reserves had no writer for reserve_release and
+          // were silently kept forever.
+          note: `Reserve ${pct}% held against late returns ${label} — releases ${releaseAfter}`,
         });
       }
     }
