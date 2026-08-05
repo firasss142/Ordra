@@ -112,38 +112,101 @@ export class DarbAssabilAdapter implements CarrierAdapter {
     const allowTesting = extraFlag(extra, "allow_testing");
     const allowCardPayment = extraFlag(extra, "allow_card_payment");
 
+    // Carrier-warehouse fulfilment: Darb holds this stock in their own
+    // warehouse and picks it themselves. perform-dispatch resolves the
+    // carrier-side ids from carrier_product_mappings and threads them here,
+    // one entry per order line, in line order.
+    const fromCarrierWarehouse = extraFlag(
+      extra,
+      "fulfil_from_carrier_warehouse"
+    );
+    const carrierWarehouseId = (
+      typeof extra?.carrier_warehouse_id === "string"
+        ? extra.carrier_warehouse_id
+        : ""
+    ).trim();
+    const warehouseLines = fromCarrierWarehouse
+      ? parseWarehouseLines(extra?.warehouse_lines_json)
+      : [];
+
     // Build the itemized products[]. Real line items map 1:1 to Darb products with
     // their own title/quantity/per-unit amount. When the order has no order_items
     // (legacy single-product orders), fall back to ONE aggregated line (qty 1,
     // amount = full goods price) — avoids float precision risk from
     // total_price / quantity. The per-order flags apply to every line.
     const items = order.order_items ?? [];
-    const products: DarbProduct[] =
-      items.length > 0
-        ? items.map((it) => ({
-            title: it.variant_label
-              ? `${it.product_name} - ${it.variant_label}`
-              : it.product_name,
-            quantity: it.quantity,
-            amount: it.unit_price,
-            currency: "lyd",
-            isChargeable: true,
-            isFragile,
-            allowInspection,
-            allowTesting,
-          }))
-        : [
-            {
-              title: product,
-              quantity: 1,
-              amount: order.total_price,
-              currency: "lyd",
-              isChargeable: true,
-              isFragile,
-              allowInspection,
-              allowTesting,
-            },
-          ];
+    let products: DarbProduct[];
+
+    if (fromCarrierWarehouse) {
+      // Never fall back to home mode on a gap: these goods already left our
+      // warehouse for Darb's, so shipping home mode would ask them to collect
+      // a package we no longer hold. Fail loudly instead.
+      if (!carrierWarehouseId) {
+        throw new CarrierDispatchError(
+          "Darb Assabil: identifiant d'entrepôt transporteur manquant"
+        );
+      }
+      if (items.length === 0) {
+        throw new CarrierDispatchError(
+          "Darb Assabil: aucune ligne de commande pour un envoi depuis l'entrepôt transporteur"
+        );
+      }
+      if (warehouseLines.length !== items.length) {
+        throw new CarrierDispatchError(
+          "Darb Assabil: produit(s) sans correspondance dans l'entrepôt transporteur"
+        );
+      }
+
+      products = items.map((it, i) => {
+        const link = warehouseLines[i];
+        // COD is OUR sold price, never the carrier's catalogue price. Darb's UI
+        // seeds `amount` from salePrice but leaves it editable, so treating
+        // their price as authoritative would silently re-price sold orders —
+        // e.g. an order sold at 179 for an item they list at 199.
+        const amount = Number(it.unit_price);
+        return {
+          title: link.external_sku
+            ? `${it.product_name} - ${link.external_sku}`
+            : it.product_name,
+          quantity: it.quantity,
+          amount,
+          currency: "lyd",
+          isChargeable: amount > 0,
+          isFragile,
+          allowInspection,
+          allowTesting,
+          warehouseProduct: link.external_product_id,
+          warehouseProductVariant: link.external_variant_id,
+          ...(link.external_sku ? { sku: link.external_sku } : {}),
+        };
+      });
+    } else if (items.length > 0) {
+      products = items.map((it) => ({
+        title: it.variant_label
+          ? `${it.product_name} - ${it.variant_label}`
+          : it.product_name,
+        quantity: it.quantity,
+        amount: it.unit_price,
+        currency: "lyd",
+        isChargeable: true,
+        isFragile,
+        allowInspection,
+        allowTesting,
+      }));
+    } else {
+      products = [
+        {
+          title: product,
+          quantity: 1,
+          amount: order.total_price,
+          currency: "lyd",
+          isChargeable: true,
+          isFragile,
+          allowInspection,
+          allowTesting,
+        },
+      ];
+    }
 
     return {
       service_id: serviceId,
@@ -164,6 +227,13 @@ export class DarbAssabilAdapter implements CarrierAdapter {
       // stays a flat Record<string,string> (the dry-run contract).
       products_json: JSON.stringify(products),
       allow_card_payment: allowCardPayment ? "1" : "0",
+      // Carrier-warehouse mode. isPickup is FORCED true here, mirroring Darb's
+      // own client (`isPickup: _l || (ns && !ss) ? true : …`): when they fulfil
+      // from a physical warehouse of theirs, they collect from that warehouse,
+      // and their UI disables the switch. It is not a choice we may offer.
+      ...(fromCarrierWarehouse
+        ? { carrier_warehouse_id: carrierWarehouseId, is_pickup: "1" }
+        : {}),
       notes: order.customer_note ?? "",
     };
   }
@@ -231,6 +301,12 @@ export class DarbAssabilAdapter implements CarrierAdapter {
     if (p.allow_card_payment === "1") {
       shipmentBody.allowCardPayment = true;
       shipmentBody.cardFeePaymentBy = "receiver";
+    }
+    // Carrier-warehouse fulfilment. Both keys are omitted entirely in home mode
+    // so the existing production payload is byte-for-byte unchanged.
+    if (p.carrier_warehouse_id) {
+      shipmentBody.warehouse = p.carrier_warehouse_id;
+      shipmentBody.isPickup = p.is_pickup === "1";
     }
 
     let shipmentRaw: { status: number; body: unknown };
@@ -403,6 +479,13 @@ interface DarbPayloadSnapshot {
   products_json?: string;
   /** Online card payment toggle, "1"/"0". */
   allow_card_payment?: string;
+  /**
+   * Carrier warehouse to fulfil from (Darb's top-level `warehouse`). Present
+   * only in carrier-warehouse mode; its absence IS home mode.
+   */
+  carrier_warehouse_id?: string;
+  /** Pickup toggle, "1"/"0". Forced "1" in carrier-warehouse mode. */
+  is_pickup?: string;
   notes: string;
 }
 
@@ -416,6 +499,34 @@ interface DarbProduct {
   isFragile: boolean;
   allowInspection: boolean;
   allowTesting: boolean;
+  /** Carrier-side product id — set only when fulfilling from their warehouse. */
+  warehouseProduct?: string;
+  /** Carrier-side variant id — set only when fulfilling from their warehouse. */
+  warehouseProductVariant?: string;
+  /** Carrier-side SKU, echoed back on the line. */
+  sku?: string;
+}
+
+/**
+ * One order line's resolved carrier-side identity, as read from
+ * carrier_product_mappings by perform-dispatch and passed through `extra`.
+ */
+export interface DarbWarehouseLine {
+  external_product_id: string;
+  external_variant_id: string;
+  external_sku?: string | null;
+  external_sale_price?: number | null;
+}
+
+/** Parse the serialized warehouse-line array; malformed input yields []. */
+function parseWarehouseLines(raw: unknown): DarbWarehouseLine[] {
+  if (typeof raw !== "string" || !raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as DarbWarehouseLine[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 /** Reads a boolean-ish flag from the dispatch `extra` (true only for true/"1"/1). */

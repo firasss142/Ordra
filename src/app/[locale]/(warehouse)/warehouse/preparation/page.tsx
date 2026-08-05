@@ -80,6 +80,9 @@ export default async function Page({
             INVALID_STATUS: t("preparation.scanFirst.errors.INVALID_STATUS"),
             NO_LABEL_PRINTED: t("preparation.scanFirst.errors.NO_LABEL_PRINTED"),
             STOCK_UNDERFLOW: t("preparation.scanFirst.errors.STOCK_UNDERFLOW"),
+            CARRIER_WAREHOUSE_ORDER: t(
+              "preparation.scanFirst.errors.CARRIER_WAREHOUSE_ORDER"
+            ),
             NETWORK_ERROR: t("preparation.scanFirst.errors.NETWORK_ERROR"),
           },
         },

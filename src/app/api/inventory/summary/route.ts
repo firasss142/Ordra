@@ -151,6 +151,10 @@ export async function GET(req: NextRequest) {
   for (const row of rawLog) {
     // Stock boundary is the warehouse scan-out: scan_order_out writes
     // reason 'scanned' (uploaded → scanned) since the uploaded-status model.
+    // EXCEPTION: orders fulfilled from a carrier's own warehouse are never
+    // scanned here and write no inventory_log row — those units already left
+    // our stock at handover (one 'manual_adjustment'), so they are correctly
+    // absent from these aggregates rather than filtered out of them.
     if (row.reason === "scanned" && row.change < 0) {
       scanOutQtyByProduct.set(
         row.product_id,

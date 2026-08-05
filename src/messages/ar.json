@@ -2335,6 +2335,7 @@
           "INVALID_STATUS": "تم مسحه في مكان آخر",
           "NO_LABEL_PRINTED": "الملصق غير موجود — اطبع أولاً",
           "STOCK_UNDERFLOW": "المخزون غير كافٍ — راجع المشرف",
+          "CARRIER_WAREHOUSE_ORDER": "تُشحن من مخزن الناقل — لا حاجة للمسح",
           "NETWORK_ERROR": "خطأ في الشبكة — أعد المحاولة"
         }
       },
@@ -3204,7 +3205,16 @@
       "optionTesting": "السماح بالتجربة",
       "serviceLabel": "خدمة التوصيل",
       "serviceSurcharge": "+{amount} {currency}",
-      "loadingServices": "جارٍ تحميل الخدمات…"
+      "loadingServices": "جارٍ تحميل الخدمات…",
+      "fulfilmentLabel": "مصدر الشحن",
+      "fulfilmentHome": "مخزننا",
+      "fulfilmentHomeHint": "درب السبيل يستلم الطرد منّا",
+      "fulfilmentCarrier": "مخزن درب السبيل",
+      "fulfilmentCarrierHint": "درب السبيل يجهّز ويشحن من مخزنه",
+      "fulfilmentCarrierPickupNote": "لا حاجة لمسح الخروج أو الاستلام: درب السبيل يجهّز البضاعة من مخزنه.",
+      "fulfilmentChecking": "جارٍ التحقق من مخزون الناقل…",
+      "fulfilmentUnavailable": "غير متاح لهذه الطلبية",
+      "fulfilmentStock": "المطلوب {requested} · المتاح {available}"
     },
     "coverage": {
       "badge": "غير مغطّاة",

@@ -48,6 +48,29 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = await createClient();
+
+  // Carrier-warehouse orders must never be scanned out. The goods are on the
+  // carrier's shelves — they already left our stock once, at handover — so
+  // scan_order_out would deduct current_stock a second time for units we no
+  // longer hold. Those orders go uploaded → dispatched instead (see
+  // 20260821000002_carrier_warehouse_transitions.sql).
+  const { data: orderRow } = await supabase
+    .from("orders")
+    .select("carrier_extra")
+    .eq("id", orderId)
+    .maybeSingle<{ carrier_extra: Record<string, unknown> | null }>();
+
+  if (orderRow?.carrier_extra?.fulfil_from_carrier_warehouse === true) {
+    return NextResponse.json(
+      {
+        error_code: "CARRIER_WAREHOUSE_ORDER",
+        message:
+          "Commande expédiée depuis l'entrepôt du transporteur — aucun scan de sortie requis",
+      },
+      { status: 409 }
+    );
+  }
+
   const { data, error } = await supabase.rpc("scan_order_out", {
     p_order_id: orderId,
     p_actor_id: actor.id,

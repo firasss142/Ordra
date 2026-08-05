@@ -20,6 +20,7 @@ function errorLabel(code: ScanErrorCode | undefined): string {
     case "INVALID_STATUS": return "Statut invalide";
     case "NO_LABEL_PRINTED": return "Étiquette manquante";
     case "STOCK_UNDERFLOW": return "Stock insuffisant";
+    case "CARRIER_WAREHOUSE_ORDER": return "Entrepôt transporteur";
     case "NETWORK_ERROR": return "Erreur réseau";
     default: return "Erreur";
   }

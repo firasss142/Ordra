@@ -1,7 +1,24 @@
 import { createAdminClient } from "@/lib/supabase/server";
-import { dispatchToCarrier } from "./dispatch";
+import { dispatchToCarrier, buildConfig } from "./dispatch";
+import {
+  CARRIER_WAREHOUSE_FLAG,
+  loadCarrierProductMappings,
+  resolveWarehouseLines,
+  fetchDarbWarehouseStock,
+  checkWarehouseStock,
+  effectiveOrderLines,
+} from "./carrier-warehouse";
 import type { CarrierOrderData } from "./types";
 import type { OrderItem } from "@/types/order-items";
+
+/** Reads a boolean-ish flag from the dispatch `extra` (true only for true/"1"/1). */
+function extraFlag(
+  extra: Record<string, unknown> | undefined,
+  key: string
+): boolean {
+  const v = extra?.[key];
+  return v === true || v === "1" || v === 1;
+}
 
 export interface PerformDispatchInput {
   orderId: string;
@@ -36,6 +53,7 @@ type OrderRow = {
   customer_address: string | null;
   customer_city: string | null;
   customer_note: string | null;
+  product_id: string | null;
   product_name: string;
   variant_label: string | null;
   quantity: number;
@@ -53,8 +71,10 @@ type CarrierRow = {
   is_active: boolean;
 };
 
+// product_id is needed for carrier-warehouse fulfilment: orders predating
+// order_items map to carrier stock through the header product.
 const ORDER_COLUMNS =
-  "id, status, market_id, tracking_number, customer_name, customer_phone, customer_phone_2, customer_whatsapp, customer_address, customer_city, customer_note, product_name, variant_label, quantity, total_price";
+  "id, status, market_id, tracking_number, customer_name, customer_phone, customer_phone_2, customer_whatsapp, customer_address, customer_city, customer_note, product_id, product_name, variant_label, quantity, total_price";
 
 const CARRIER_COLUMNS =
   "id, code, api_endpoint, api_credentials, delivery_fee, return_fee, market_id, is_active";
@@ -159,9 +179,70 @@ export async function performDispatch({
     order_items: orderItems,
   };
 
+  // ── Carrier-warehouse fulfilment ──────────────────────────────────
+  // The adapter is synchronous and cannot query, so the carrier-side ids are
+  // resolved here and threaded through `extra`. Any gap aborts the dispatch:
+  // these goods already sit in the carrier's warehouse, so quietly shipping
+  // home mode would ask them to collect a package we do not have.
+  let dispatchExtra = extra;
+  if (extraFlag(extra, CARRIER_WAREHOUSE_FLAG)) {
+    // Orders predating order_items describe their goods on the header only;
+    // promote that to one synthetic line so both shapes resolve identically.
+    const lines = effectiveOrderLines(orderItems, {
+      product_id: order.product_id,
+      product_name: order.product_name,
+      variant_label: order.variant_label,
+      quantity: order.quantity,
+      total_price: order.total_price,
+    });
+    // The adapter zips warehouse lines positionally against order_items, so it
+    // must see the same list we resolved against.
+    orderData.order_items = lines;
+
+    const productIds = [
+      ...new Set(
+        lines
+          .map((it) => it.product_id)
+          .filter((id): id is string => Boolean(id))
+      ),
+    ];
+    const mappings = await loadCarrierProductMappings(
+      admin,
+      carrierId,
+      productIds
+    );
+    const resolved = resolveWarehouseLines(mappings, lines);
+    if (!resolved.ok) {
+      return { ok: false, status: 422, error: resolved.error };
+    }
+
+    let config;
+    try {
+      config = buildConfig(carrier);
+    } catch {
+      return {
+        ok: false,
+        status: 500,
+        error: "Failed to parse carrier credentials",
+      };
+    }
+
+    const stock = await fetchDarbWarehouseStock(config, resolved.warehouseId);
+    const stockCheck = checkWarehouseStock(resolved.lines, lines, stock);
+    if (!stockCheck.ok) {
+      return { ok: false, status: 422, error: stockCheck.error };
+    }
+
+    dispatchExtra = {
+      ...(extra ?? {}),
+      carrier_warehouse_id: resolved.warehouseId,
+      warehouse_lines_json: JSON.stringify(resolved.lines),
+    };
+  }
+
   let result;
   try {
-    result = await dispatchToCarrier(orderData, carrier, extra);
+    result = await dispatchToCarrier(orderData, carrier, dispatchExtra);
   } catch (err) {
     console.error("[performDispatch] dispatchToCarrier threw", {
       orderId,
@@ -184,7 +265,10 @@ export async function performDispatch({
 
   // Persist the caller's extra (e.g. dispatch-time picker values) plus any
   // carrier-returned extra (e.g. Darb Assabil's internal _id) on carrier_extra.
-  const mergedExtra = { ...(extra ?? {}), ...(result.extra ?? {}) };
+  // Uses dispatchExtra so the resolved carrier-warehouse ids are recorded too —
+  // the fulfil_from_carrier_warehouse flag on carrier_extra is what tells
+  // transition_order_status and the scan-out route to skip the stock boundary.
+  const mergedExtra = { ...(dispatchExtra ?? {}), ...(result.extra ?? {}) };
   const carrierExtra =
     Object.keys(mergedExtra).length > 0 ? mergedExtra : null;
 

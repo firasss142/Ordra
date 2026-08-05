@@ -52,6 +52,8 @@ function errorLabel(code: ScanErrorCode): string {
     case "INVALID_STATUS": return "Déjà scanné ailleurs";
     case "NO_LABEL_PRINTED": return "Étiquette manquante — imprimez d'abord";
     case "STOCK_UNDERFLOW": return "Stock insuffisant — contactez le superviseur";
+    case "CARRIER_WAREHOUSE_ORDER":
+      return "Expédiée depuis l'entrepôt du transporteur — aucun scan requis";
     case "NETWORK_ERROR": return "Erreur réseau — réessayez";
     default: return "Erreur inconnue";
   }

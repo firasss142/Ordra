@@ -688,4 +688,199 @@ describe("DarbAssabilAdapter", () => {
       expect(result.reason).toBe("ECONNRESET");
     });
   });
+
+  // ── Carrier-warehouse fulfilment ────────────────────────────────────
+  // Darb holds some of our stock in their own warehouse (مخزن طرابلس) and
+  // fulfils those orders themselves. Verified against their web client's
+  // submit handler: physical warehouse ⇒ top-level `warehouse` id AND
+  // `isPickup: true` (forced — their UI disables the switch), with each
+  // line referencing warehouseProduct / warehouseProductVariant.
+  describe("carrier-warehouse fulfilment", () => {
+    const WAREHOUSE_ID = "68a079176ddfe500994eea7e";
+
+    // What perform-dispatch resolves from carrier_product_mappings and
+    // threads through `extra`, one entry per order line, in line order.
+    const warehouseLines = [
+      {
+        external_product_id: "6a4cf251a17046128d971c0b",
+        external_variant_id: "6a4cf251a17046128d971c08",
+        external_sku: "دميه ملاكمه حجم صغير",
+        external_sale_price: 129,
+      },
+    ];
+
+    const warehouseExtra = {
+      ...mockExtra,
+      fulfil_from_carrier_warehouse: true,
+      carrier_warehouse_id: WAREHOUSE_ID,
+      warehouse_lines_json: JSON.stringify(warehouseLines),
+    };
+
+    const oneItemOrder = {
+      ...mockOrder,
+      order_items: [
+        {
+          id: "i1",
+          order_id: "o1",
+          product_id: "p1",
+          product_name: "دميه ملاكمه حجم صغير",
+          variant_id: null,
+          variant_label: null,
+          quantity: 1,
+          unit_price: 129,
+          line_total: 129,
+          created_at: "",
+          updated_at: "",
+        },
+      ],
+    };
+
+    describe("formatPayload", () => {
+      test("keeps the snapshot a flat string map (dry-run contract)", () => {
+        const payload = adapter.formatPayload(
+          oneItemOrder,
+          mockConfig,
+          warehouseExtra
+        );
+        for (const [, v] of Object.entries(payload)) {
+          expect(typeof v).toBe("string");
+        }
+      });
+
+      test("snapshots the warehouse id and forces pickup", () => {
+        const payload = adapter.formatPayload(
+          oneItemOrder,
+          mockConfig,
+          warehouseExtra
+        );
+        expect(payload.carrier_warehouse_id).toBe(WAREHOUSE_ID);
+        expect(payload.is_pickup).toBe("1");
+      });
+
+      test("product lines carry the carrier-side ids and sku", () => {
+        const payload = adapter.formatPayload(
+          oneItemOrder,
+          mockConfig,
+          warehouseExtra
+        );
+        const products = JSON.parse(payload.products_json!);
+        expect(products).toHaveLength(1);
+        expect(products[0]).toMatchObject({
+          warehouseProduct: "6a4cf251a17046128d971c0b",
+          warehouseProductVariant: "6a4cf251a17046128d971c08",
+          sku: "دميه ملاكمه حجم صغير",
+          quantity: 1,
+          currency: "lyd",
+          isChargeable: true,
+        });
+      });
+
+      // The COD the customer pays is OUR sold price, never the carrier's
+      // catalogue price. Darb's own UI seeds `amount` from salePrice but leaves
+      // it editable — treating it as fixed would silently re-price sold orders
+      // (a real case: an order sold at 179 for an item they list at 199).
+      test("amount is the order's price, NOT the carrier catalogue price", () => {
+        const discounted = {
+          ...oneItemOrder,
+          order_items: [{ ...oneItemOrder.order_items[0], unit_price: 179 }],
+        };
+        const payload = adapter.formatPayload(discounted, mockConfig, {
+          ...warehouseExtra,
+          warehouse_lines_json: JSON.stringify([
+            { ...warehouseLines[0], external_sale_price: 199 },
+          ]),
+        });
+        const products = JSON.parse(payload.products_json!);
+        expect(products[0].amount).toBe(179);
+      });
+
+      test("isChargeable is false for a zero-amount line (vendor rule)", () => {
+        const free = {
+          ...oneItemOrder,
+          order_items: [{ ...oneItemOrder.order_items[0], unit_price: 0 }],
+        };
+        const payload = adapter.formatPayload(free, mockConfig, warehouseExtra);
+        const products = JSON.parse(payload.products_json!);
+        expect(products[0].isChargeable).toBe(false);
+      });
+
+      test("keeps the real quantity so the carrier deducts the right units", () => {
+        const three = {
+          ...oneItemOrder,
+          order_items: [{ ...oneItemOrder.order_items[0], quantity: 3 }],
+        };
+        const payload = adapter.formatPayload(three, mockConfig, warehouseExtra);
+        const products = JSON.parse(payload.products_json!);
+        expect(products[0].quantity).toBe(3);
+      });
+
+      test("refuses to build when a line has no mapping (never ship unmapped)", () => {
+        // Goods are already at Darb's warehouse; silently falling back to home
+        // mode would ask them to collect a package we do not have.
+        expect(() =>
+          adapter.formatPayload(oneItemOrder, mockConfig, {
+            ...warehouseExtra,
+            warehouse_lines_json: JSON.stringify([]),
+          })
+        ).toThrow(CarrierDispatchError);
+      });
+
+      test("refuses to build when the warehouse id is missing", () => {
+        expect(() =>
+          adapter.formatPayload(oneItemOrder, mockConfig, {
+            ...warehouseExtra,
+            carrier_warehouse_id: "",
+          })
+        ).toThrow(CarrierDispatchError);
+      });
+    });
+
+    describe("dispatch — wire body", () => {
+      afterEach(() => vi.unstubAllGlobals());
+
+      test("sends top-level warehouse and isPickup:true with warehouse product lines", async () => {
+        const mockFetch = vi
+          .fn()
+          .mockResolvedValueOnce(jsonResponse(200, CONTACT_OK))
+          .mockResolvedValueOnce(jsonResponse(200, SHIPMENT_OK));
+        vi.stubGlobal("fetch", mockFetch);
+
+        const snapshot = adapter.formatPayload(
+          oneItemOrder,
+          mockConfig,
+          warehouseExtra
+        );
+        await adapter.dispatch(snapshot, mockConfig);
+
+        const shipBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+        expect(shipBody.warehouse).toBe(WAREHOUSE_ID);
+        expect(shipBody.isPickup).toBe(true);
+        expect(shipBody.products[0]).toMatchObject({
+          warehouseProduct: "6a4cf251a17046128d971c0b",
+          warehouseProductVariant: "6a4cf251a17046128d971c08",
+        });
+      });
+
+      test("home mode sends NO warehouse key and no isPickup override", async () => {
+        // Guards the current production path against regression.
+        const mockFetch = vi
+          .fn()
+          .mockResolvedValueOnce(jsonResponse(200, CONTACT_OK))
+          .mockResolvedValueOnce(jsonResponse(200, SHIPMENT_OK));
+        vi.stubGlobal("fetch", mockFetch);
+
+        const snapshot = adapter.formatPayload(
+          oneItemOrder,
+          mockConfig,
+          mockExtra
+        );
+        await adapter.dispatch(snapshot, mockConfig);
+
+        const shipBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+        expect(shipBody).not.toHaveProperty("warehouse");
+        expect(shipBody).not.toHaveProperty("isPickup");
+        expect(shipBody.products[0]).not.toHaveProperty("warehouseProduct");
+      });
+    });
+  });
 });

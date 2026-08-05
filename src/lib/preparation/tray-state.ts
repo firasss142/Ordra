@@ -6,6 +6,8 @@ export type ScanErrorCode =
   | "INVALID_STATUS"
   | "NO_LABEL_PRINTED"
   | "STOCK_UNDERFLOW"
+  // Fulfilled from the carrier's own warehouse — never scanned out here.
+  | "CARRIER_WAREHOUSE_ORDER"
   | "NETWORK_ERROR";
 
 export interface TrayRowInit {

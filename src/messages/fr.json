@@ -2335,6 +2335,7 @@
           "INVALID_STATUS": "Déjà scanné ailleurs",
           "NO_LABEL_PRINTED": "Étiquette manquante — imprimez d'abord",
           "STOCK_UNDERFLOW": "Stock insuffisant — contactez le superviseur",
+          "CARRIER_WAREHOUSE_ORDER": "Expédiée depuis l'entrepôt du transporteur — aucun scan requis",
           "NETWORK_ERROR": "Erreur réseau — réessayez"
         }
       },
@@ -3291,7 +3292,16 @@
       "optionTesting": "Autoriser l'essai",
       "serviceLabel": "Service de livraison",
       "serviceSurcharge": "+{amount} {currency}",
-      "loadingServices": "Chargement des services…"
+      "loadingServices": "Chargement des services…",
+      "fulfilmentLabel": "Source d'expédition",
+      "fulfilmentHome": "Notre entrepôt",
+      "fulfilmentHomeHint": "Darb Assabil récupère le colis chez nous",
+      "fulfilmentCarrier": "Entrepôt Darb Assabil",
+      "fulfilmentCarrierHint": "Darb Assabil prépare et expédie depuis son entrepôt",
+      "fulfilmentCarrierPickupNote": "Aucun scan de sortie ni ramassage : Darb Assabil prélève la marchandise dans son propre entrepôt.",
+      "fulfilmentChecking": "Vérification du stock transporteur…",
+      "fulfilmentUnavailable": "Indisponible pour cette commande",
+      "fulfilmentStock": "{requested} demandé(s) · {available} disponible(s)"
     },
     "coverage": {
       "badge": "Non desservi",

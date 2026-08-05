@@ -22,11 +22,21 @@ function req(body: unknown = { order_id: "order-1" }) {
   });
 }
 
-function singleChain(data: unknown, error: unknown = null) {
+/**
+ * `single` serves the actor lookup; `maybeSingle` serves the route's
+ * carrier_extra check on orders. Default: no order row → home-mode order, so
+ * the scan proceeds to the RPC exactly as before this guard existed.
+ */
+function singleChain(
+  data: unknown,
+  error: unknown = null,
+  maybeSingleData: unknown = null
+) {
   const c: Record<string, unknown> = {};
   c.select = vi.fn().mockReturnValue(c);
   c.eq = vi.fn().mockReturnValue(c);
   c.single = vi.fn().mockResolvedValue({ data, error });
+  c.maybeSingle = vi.fn().mockResolvedValue({ data: maybeSingleData, error: null });
   return c;
 }
 
@@ -145,5 +155,45 @@ describe("POST /api/warehouse/scan-out — structured RPC errors", () => {
     expect(res.status).toBe(409);
     const json = await res.json();
     expect(json.error_code).toBe("ORDER_NOT_FOUND");
+  });
+});
+
+// Orders the carrier fulfils from its own warehouse must never be scanned out:
+// those units already left our stock at handover, so scan_order_out would
+// deduct current_stock a second time for goods we no longer hold.
+describe("POST /api/warehouse/scan-out — carrier-warehouse orders", () => {
+  test("refuses the scan and never calls the RPC", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    mockFrom.mockReturnValue(
+      singleChain({ role: "warehouse_agent", market_id: "m-1" }, null, {
+        carrier_extra: { fulfil_from_carrier_warehouse: true },
+      })
+    );
+
+    const res = await POST(req({ order_id: "order-1" }));
+
+    expect(res.status).toBe(409);
+    const json = await res.json();
+    expect(json.error_code).toBe("CARRIER_WAREHOUSE_ORDER");
+    // The stock deduction must not happen at all.
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  test("still scans a normal order whose carrier_extra lacks the flag", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    mockFrom.mockReturnValue(
+      singleChain({ role: "warehouse_agent", market_id: "m-1" }, null, {
+        carrier_extra: { city: "طرابلس" },
+      })
+    );
+    mockRpc.mockResolvedValue({ data: { success: true }, error: null });
+
+    const res = await POST(req({ order_id: "order-1" }));
+
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("scan_order_out", {
+      p_order_id: "order-1",
+      p_actor_id: "wh-1",
+    });
   });
 });

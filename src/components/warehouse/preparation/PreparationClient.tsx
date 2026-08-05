@@ -59,6 +59,7 @@ interface Props {
         INVALID_STATUS: string;
         NO_LABEL_PRINTED: string;
         STOCK_UNDERFLOW: string;
+        CARRIER_WAREHOUSE_ORDER: string;
         NETWORK_ERROR: string;
       };
     };

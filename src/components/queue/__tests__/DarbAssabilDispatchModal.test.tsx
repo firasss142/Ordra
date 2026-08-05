@@ -134,7 +134,7 @@ describe("DarbAssabilDispatchModal — per-order options", () => {
     render(<DarbAssabilDispatchModal {...BASE} customerCity="اجدابيا" />);
 
     // Default service (men's) is preselected; pick express instead.
-    fireEvent.click(screen.getByRole("button", { name: /توصيل فوري/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /توصيل فوري/ }));
     fireEvent.click(screen.getByRole("button", { name: /Confirmer l'envoi/ }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
@@ -190,5 +190,68 @@ describe("DarbAssabilDispatchModal — account selection", () => {
     expect(body.carrier_id).toBe("c-darb-2");
 
     vi.unstubAllGlobals();
+  });
+});
+
+// The fulfilment selector is rendered by this shared modal, so it appears
+// identically whether the agent arrives from the post-call sheet (pending →
+// confirm → upload) or from the order detail panel.
+describe("DarbAssabilDispatchModal — fulfilment source", () => {
+  function mockAvailability(availability: unknown, opts: { loading?: boolean } = {}) {
+    (useSWR as ReturnType<typeof vi.fn>).mockImplementation((key: string) => {
+      if (typeof key === "string" && key.includes("/api/darb/services")) {
+        return { data: { services: SERVICES }, isLoading: false };
+      }
+      if (typeof key === "string" && key.includes("warehouse-availability")) {
+        return { data: availability, isLoading: !!opts.loading };
+      }
+      return { data: undefined, isLoading: false };
+    });
+  }
+
+  it("offers both fulfilment tiles, defaulting to our own warehouse", () => {
+    mockAvailability({ available: true, reason: null, lines: [] });
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="اجدابيا" />);
+
+    const ours = screen.getByRole("radio", { name: /Notre entrepôt/ });
+    const theirs = screen.getByRole("radio", { name: /Entrepôt Darb Assabil/ });
+    expect(ours).toHaveAttribute("aria-checked", "true");
+    expect(theirs).toHaveAttribute("aria-checked", "false");
+    expect(theirs).toBeEnabled();
+  });
+
+  it("shows live carrier stock once their warehouse is selected", () => {
+    mockAvailability({
+      available: true,
+      reason: null,
+      lines: [{ product_name: "Quran", sku: "القران", requested: 1, available: 29, sufficient: true }],
+    });
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="اجدابيا" />);
+    fireEvent.click(screen.getByRole("radio", { name: /Entrepôt Darb Assabil/ }));
+
+    expect(screen.getByText(/1 demandé\(s\) · 29 disponible\(s\)/)).toBeInTheDocument();
+  });
+
+  it("disables their warehouse and states the reason when unavailable", () => {
+    mockAvailability({
+      available: false,
+      reason: "Stock insuffisant chez le transporteur : القران (0/1)",
+      lines: [],
+    });
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="اجدابيا" />);
+
+    expect(screen.getByRole("radio", { name: /Entrepôt Darb Assabil/ })).toBeDisabled();
+    expect(screen.getByText(/Stock insuffisant chez le transporteur/)).toBeInTheDocument();
+  });
+
+  // The SWR fetcher throws on a non-2xx, so `data` stays undefined. Without an
+  // explicit branch the tile went dead with no explanation while its hint still
+  // read "prépare et expédie depuis son entrepôt" — silently unusable.
+  it("explains itself when the availability check fails outright", () => {
+    mockAvailability(undefined);
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="اجدابيا" />);
+
+    expect(screen.getByRole("radio", { name: /Entrepôt Darb Assabil/ })).toBeDisabled();
+    expect(screen.getByText(/Indisponible pour cette commande/)).toBeInTheDocument();
   });
 });

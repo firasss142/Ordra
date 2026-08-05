@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import FocusTrap from "focus-trap-react";
 import useSWR from "swr";
-import { X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import {
   DarbAssabilLocationPicker,
   type DarbAssabilSelection,
@@ -37,6 +37,89 @@ interface DarbService {
   surcharge: number;
   currency: string;
   is_default: boolean;
+}
+
+/**
+ * One labelled block of the dispatch form.
+ *
+ * Sections are separated by a hairline rather than each being its own bordered
+ * card: the form is a single sequence of decisions, and nesting cards inside a
+ * card gave four equal-weight boxes with no reading order.
+ */
+function Section({
+  label,
+  children,
+  last = false,
+}: {
+  label: string;
+  children: React.ReactNode;
+  last?: boolean;
+}) {
+  return (
+    <section
+      className={`px-5 py-4 ${last ? "" : "border-b border-line-subtle"}`}
+    >
+      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-secondary">
+        {label}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * A tile in an exclusive choice. Selection is carried by border + fill + an
+ * explicit check — never fill alone, which read as "slightly grey" at a glance
+ * and left agents unsure what was actually selected.
+ */
+function ChoiceTile({
+  selected,
+  disabled = false,
+  title,
+  hint,
+  onSelect,
+}: {
+  selected: boolean;
+  disabled?: boolean;
+  title: string;
+  hint?: string;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      disabled={disabled}
+      onClick={onSelect}
+      className={`flex min-h-[52px] w-full items-start gap-2 rounded-card border px-3 py-2.5 text-start transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-primary focus-visible:ring-offset-1 ${
+        selected
+          ? "border-ink-primary bg-surface-selected"
+          : "border-line-subtle hover:border-line-strong hover:bg-surface-hover"
+      } ${disabled ? "cursor-not-allowed opacity-55 hover:border-line-subtle hover:bg-transparent" : ""}`}
+    >
+      <span
+        aria-hidden="true"
+        className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+          selected
+            ? "border-ink-primary bg-ink-primary text-surface-card"
+            : "border-line-strong"
+        }`}
+      >
+        {selected && <Check size={11} strokeWidth={3} />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13px] font-medium text-ink-primary" dir="auto">
+          {title}
+        </span>
+        {hint && (
+          <span className="mt-0.5 block text-[11px] leading-4 text-ink-secondary" dir="auto">
+            {hint}
+          </span>
+        )}
+      </span>
+    </button>
+  );
 }
 
 /**
@@ -122,6 +205,39 @@ export function DarbAssabilDispatchModal({
   const chosenServiceFeeOnTop =
     (services.find((s) => s.service_id === serviceId)?.surcharge ?? 0) > 0;
 
+  // Fulfilment source. "home" = we hold the goods and Darb collects from us
+  // (the long-standing default). "carrier" = Darb already holds this stock in
+  // their own warehouse and picks it themselves — they force isPickup, so there
+  // is deliberately no pickup control here.
+  const [fulfilment, setFulfilment] = useState<"home" | "carrier">("home");
+
+  // Can this order be fulfilled from Darb's warehouse? Every line must map to
+  // carrier-side stock and they must hold enough right now. Server re-checks
+  // authoritatively at upload; this is the agent-facing preview.
+  const { data: availability, isLoading: availabilityLoading } = useSWR<{
+    available: boolean;
+    reason: string | null;
+    lines: {
+      product_name: string;
+      sku: string | null;
+      requested: number;
+      available: number;
+      sufficient: boolean;
+    }[];
+  }>(
+    `/api/orders/${orderId}/warehouse-availability?carrier_id=${carrierId}`,
+    fetcher,
+    { revalidateOnFocus: false },
+  );
+  const warehouseAvailable = availability?.available === true;
+
+  // Never leave the agent on an option that has become impossible.
+  useEffect(() => {
+    if (fulfilment === "carrier" && availability && !warehouseAvailable) {
+      setFulfilment("home");
+    }
+  }, [fulfilment, availability, warehouseAvailable]);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -165,6 +281,12 @@ export function DarbAssabilDispatchModal({
             is_fragile: options.is_fragile,
             allow_card_payment: options.allow_card_payment,
             allow_testing: options.allow_testing,
+            // Carrier-warehouse fulfilment. Sent only when chosen AND still
+            // available; the server resolves the carrier-side product ids and
+            // re-checks stock, refusing the dispatch on any gap.
+            ...(fulfilment === "carrier" && warehouseAvailable
+              ? { fulfil_from_carrier_warehouse: true }
+              : {}),
           },
           ...(confirmDuplicate ? { confirm_duplicate: true } : {}),
         }),
@@ -224,101 +346,166 @@ export function DarbAssabilDispatchModal({
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 py-4">
-            {error && (
-              <div
-                role="alert"
-                className="mb-3 rounded border border-status-critical/30 bg-status-criticalBg px-3 py-2 text-[13px] text-status-critical"
-              >
-                {error}
+          <div className="flex-1 overflow-y-auto">
+            {(error || !hasAddress) && (
+              <div className="space-y-2 px-5 pt-4">
+                {error && (
+                  <div
+                    role="alert"
+                    className="rounded-card border border-status-critical/30 bg-status-criticalBg px-3 py-2 text-[13px] text-status-critical"
+                  >
+                    {error}
+                  </div>
+                )}
+                {!hasAddress && (
+                  <div
+                    role="alert"
+                    className="rounded-card border border-status-critical/30 bg-status-criticalBg px-3 py-2 text-[13px] text-status-critical"
+                  >
+                    {tShip("missingAddress")}
+                  </div>
+                )}
               </div>
             )}
 
-            {!hasAddress && (
-              <div
-                role="alert"
-                className="mb-3 rounded border border-status-critical/30 bg-status-criticalBg px-3 py-2 text-[13px] text-status-critical"
-              >
-                {tShip("missingAddress")}
-              </div>
-            )}
-
-            {mode === "resolved" ? (
-              // Fixed destination — show it, no free choice of city.
-              <div className="rounded-card border border-line-subtle bg-surface-card px-4 py-3">
-                <div className="text-[12px] uppercase tracking-[0.06em] text-ink-secondary">
-                  {t("destinationLabel")}
-                </div>
-                <div
-                  className="mt-1 text-[14px] font-medium text-ink-primary"
-                  dir="auto"
-                >
-                  {selection.city}
-                  {selection.area && selection.area !== selection.city
-                    ? ` — ${selection.area}`
-                    : ""}
-                </div>
-                <p className="mt-1 text-[12px] text-ink-secondary">
-                  {t("resolvedFromCity")}
-                </p>
-              </div>
-            ) : (
-              <DarbAssabilLocationPicker
-                value={selection}
-                onChange={setSelection}
-                restrictToCity={scopeCity}
-              />
-            )}
-
-            {/* Service package picker (توصيل رجالي / نسائي / فوري). */}
-            <fieldset className="mt-4 rounded-card border border-line-subtle px-4 py-3">
-              <legend className="px-1 text-[12px] uppercase tracking-[0.06em] text-ink-secondary">
-                {t("serviceLabel")}
-              </legend>
-              {services.length === 0 ? (
-                <div className="mt-1 text-[12px] text-ink-secondary">
-                  {t("loadingServices")}
-                </div>
+            <Section label={t("destinationLabel")}>
+              {mode === "resolved" ? (
+                // Fixed destination — show it, no free choice of city.
+                <>
+                  <p className="text-[15px] font-medium text-ink-primary" dir="auto">
+                    {selection.city}
+                    {selection.area && selection.area !== selection.city
+                      ? ` — ${selection.area}`
+                      : ""}
+                  </p>
+                  <p className="mt-1 text-[12px] text-ink-secondary">
+                    {t("resolvedFromCity")}
+                  </p>
+                </>
               ) : (
-                <div className="mt-1 flex flex-wrap gap-2">
-                  {services.map((s) => {
-                    const active = s.service_id === serviceId;
-                    return (
-                      <button
-                        key={s.service_id}
-                        type="button"
-                        onClick={() => setServiceId(s.service_id)}
-                        aria-pressed={active}
-                        className={`flex flex-col items-start rounded-card border px-3 py-2 text-start transition-colors duration-fast ${
-                          active
-                            ? "border-ink-primary bg-surface-hover"
-                            : "border-line-subtle hover:bg-surface-hover"
-                        }`}
-                      >
-                        <span className="text-[13px] font-medium text-ink-primary" dir="auto">
-                          {s.title}
-                        </span>
-                        {s.surcharge > 0 && (
-                          <span className="text-[11px] font-semibold text-ink-muted tabular-nums">
-                            {t("serviceSurcharge", {
-                              amount: s.surcharge,
-                              currency: s.currency.toUpperCase(),
+                <DarbAssabilLocationPicker
+                  value={selection}
+                  onChange={setSelection}
+                  restrictToCity={scopeCity}
+                />
+              )}
+            </Section>
+
+            {/* Fulfilment source: our warehouse (default) vs Darb's own. */}
+            <Section label={t("fulfilmentLabel")}>
+              <div
+                role="radiogroup"
+                aria-label={t("fulfilmentLabel")}
+                className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+              >
+                <ChoiceTile
+                  selected={fulfilment === "home"}
+                  title={t("fulfilmentHome")}
+                  hint={t("fulfilmentHomeHint")}
+                  onSelect={() => setFulfilment("home")}
+                />
+                <ChoiceTile
+                  selected={fulfilment === "carrier"}
+                  disabled={!warehouseAvailable}
+                  title={t("fulfilmentCarrier")}
+                  hint={
+                    availabilityLoading
+                      ? t("fulfilmentChecking")
+                      : t("fulfilmentCarrierHint")
+                  }
+                  onSelect={() => warehouseAvailable && setFulfilment("carrier")}
+                />
+              </div>
+
+              {/* Why it is unavailable — never hide the reason from the agent.
+                  Covers the check failing outright too: the SWR fetcher throws
+                  on a non-2xx, leaving `availability` undefined, and without
+                  this the tile would sit dead with no explanation. */}
+              {!availabilityLoading && !warehouseAvailable && (
+                <p className="mt-2 text-[12px] text-ink-secondary" dir="auto">
+                  {availability?.reason ?? t("fulfilmentUnavailable")}
+                </p>
+              )}
+
+              {/* Consequences of the carrier-warehouse choice, in a sunken well
+                  so they read as detail attached to the selection rather than
+                  as another peer section. Pickup is not a choice here: Darb
+                  forces isPickup when fulfilling from a warehouse of theirs. */}
+              {fulfilment === "carrier" && warehouseAvailable && (
+                <div className="mt-2 rounded-card bg-surface-sunken px-3 py-2.5">
+                  {availability?.lines?.length ? (
+                    <ul className="space-y-1">
+                      {availability.lines.map((line, i) => (
+                        // dir="auto" belongs on the product name alone. On the
+                        // row it made the first strong character (Arabic) flip
+                        // the whole line, reordering the counts into
+                        // "demandé(s) · 29 disponible(s) 1".
+                        <li
+                          key={`${line.sku ?? line.product_name}-${i}`}
+                          className="flex items-center justify-between gap-3 text-[12px]"
+                        >
+                          <span className="truncate text-ink-primary" dir="auto">
+                            {line.sku ?? line.product_name}
+                          </span>
+                          <span className="shrink-0 whitespace-nowrap tabular-nums text-ink-secondary">
+                            {t("fulfilmentStock", {
+                              requested: line.requested,
+                              available: line.available,
                             })}
                           </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  <p
+                    className={`text-[12px] leading-5 text-ink-secondary ${
+                      availability?.lines?.length
+                        ? "mt-2 border-t border-line-subtle pt-2"
+                        : ""
+                    }`}
+                    dir="auto"
+                  >
+                    {t("fulfilmentCarrierPickupNote")}
+                  </p>
                 </div>
               )}
-            </fieldset>
+            </Section>
+
+            {/* Service package picker (توصيل رجالي / نسائي / فوري). */}
+            <Section label={t("serviceLabel")}>
+              {services.length === 0 ? (
+                <p className="text-[12px] text-ink-secondary">
+                  {t("loadingServices")}
+                </p>
+              ) : (
+                <div
+                  role="radiogroup"
+                  aria-label={t("serviceLabel")}
+                  className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+                >
+                  {services.map((s) => (
+                    <ChoiceTile
+                      key={s.service_id}
+                      selected={s.service_id === serviceId}
+                      title={s.title}
+                      hint={
+                        s.surcharge > 0
+                          ? t("serviceSurcharge", {
+                              amount: s.surcharge,
+                              currency: s.currency.toUpperCase(),
+                            })
+                          : undefined
+                      }
+                      onSelect={() => setServiceId(s.service_id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </Section>
 
             {/* Per-order Darb options (inspection / fragile / online card / testing). */}
-            <fieldset className="mt-4 rounded-card border border-line-subtle px-4 py-3">
-              <legend className="px-1 text-[12px] uppercase tracking-[0.06em] text-ink-secondary">
-                {t("optionsLabel")}
-              </legend>
-              <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Section label={t("optionsLabel")} last>
+              <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
                 {(
                   [
                     ["allow_inspection", t("optionInspection")],
@@ -329,7 +516,7 @@ export function DarbAssabilDispatchModal({
                 ).map(([key, label]) => (
                   <label
                     key={key}
-                    className="flex items-center gap-2 text-[13px] text-ink-primary"
+                    className="flex min-h-[36px] cursor-pointer items-center gap-2.5 text-[13px] text-ink-primary"
                   >
                     <input
                       type="checkbox"
@@ -339,19 +526,19 @@ export function DarbAssabilDispatchModal({
                       }
                       className="h-4 w-4 shrink-0 accent-ink-primary"
                     />
-                    <span>{label}</span>
+                    <span dir="auto">{label}</span>
                   </label>
                 ))}
               </div>
-            </fieldset>
+            </Section>
           </div>
 
-          <div className="shrink-0 border-t border-line-subtle px-5 py-4">
+          <div className="shrink-0 border-t border-line-subtle bg-surface-card px-5 py-4">
             <button
               type="button"
               disabled={!canSubmit}
               onClick={() => handleSubmit()}
-              className="w-full rounded bg-ink-primary px-4 py-2.5 text-[14px] font-medium text-surface-card disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-card bg-ink-primary px-4 py-3 text-[14px] font-medium text-surface-card transition-opacity duration-fast hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? tShip("uploading") : tShip("confirmDispatch")}
             </button>
