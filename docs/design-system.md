@@ -317,6 +317,71 @@ properties (`ps`/`pe`/`text-end`/`inset-inline-*`) are not optional.
 
 ---
 
+## 4.16 Agent product sheet — scoped extension
+
+Everything above §4.15 is written for someone at a desk who can scan a table at leisure.
+The product sheet (`ProductSheetDrawer`) is read by a confirmation agent **mid-call, with a
+customer talking at them**, to answer one question in a few seconds. Applied unchanged, the
+admin grammar renders the price, the return rate, the pitch and the timestamp at the same
+weight and nearly the same size — everything equally scannable means nothing is.
+
+The sheet inherits the whole system **except** the four allowances below, which apply **only**
+under `src/components/queue/ProductSheet*.tsx`. Nothing here relaxes the rules elsewhere.
+
+### Hero imagery
+
+§4.15 already justifies product imagery as the mental model. Here it grows from a 72px
+avatar to a **full-width 1:1** hero: `rounded-[8px] border border-line-subtle object-cover`,
+`loading="lazy"`, with the same letter fallback as `ProductAvatar`. Raw `<img>`, not
+`next/image` — the project configures no `images.remotePatterns`.
+
+A thumbnail strip appears **only** when there is more than one asset: 48px squares, the
+active one marked by a `border-ink-primary` ring, never a tint.
+
+### One hero figure
+
+The price uses the `KpiCard` scale (`text-[24px] font-bold tabular-nums leading-none`) —
+§4.15's "one figure per screen that the screen exists to answer". The currency code rides
+alongside at 12px/500 `ink-secondary`. No second figure on the sheet may use this scale;
+signal figures cap at 18px.
+
+### Status colour on rate figures
+
+Confirmation rate and return rate take `status-success` / `status-warning` /
+`status-critical` **on the number**, never on a container. This is §4.15's money-direction
+rule extended to a second kind of status: a rate is a status. Thresholds live in
+`src/lib/products/signals.ts`, not in the component.
+
+Contraindications are rendered in the critical tone for the same reason — a warning *is*
+status, so it earns colour where a description does not.
+
+### Reading rhythm
+
+Body sections use `gap-5` (20px) instead of the §4.13 drawer default of `gap-3`, and prose
+blocks (description, notes, usage, composition) use `leading-relaxed`. This is a reading
+surface, not a dense form. Everything else — labels, rows, badges — keeps the standard
+tight rhythm.
+
+### Type ladder
+
+| Role | Size / weight | Token |
+|---|---|---|
+| Price (one only) | 24 / 700, tabular | `ink-primary` |
+| Product name | 17 / 600, leading-snug | `ink-primary` |
+| Signal figure | 18 / 700, tabular | status colour |
+| Section label (§4.10) | 10 / 600, uppercase 0.1em | `ink-muted` |
+| Body emphasis | 13 / 500 | `ink-primary` |
+| Reading body | 13 / 400, leading-relaxed | `ink-secondary` |
+| Meta / caption | 11 / 400 | `ink-muted` |
+
+### Still forbidden here
+
+Tinted section backgrounds (§4.10 — identity comes from icon + label; status *alerts* are
+not section backgrounds and remain allowed) · gradients · accent green outside its two
+reserved slots · shadows on resting cards · hardcoded strings · physical CSS properties.
+
+---
+
 ## 5. Layout
 
 ### Shell Structure
