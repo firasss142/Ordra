@@ -5,12 +5,26 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { ProductImagePicker } from "./ProductImagePicker";
 
+import type { AgentBriefTone } from "@/types/product";
+import {
+  AGENT_BRIEF_MAX,
+  VARIANT_NOTE_MAX,
+} from "@/lib/products/agent-content-limits";
+
 interface EditableProduct {
   id: string;
   name: string;
   sku: string | null;
   description: string | null;
   image_url: string | null;
+  agent_brief: string | null;
+  agent_brief_tone: AgentBriefTone;
+  agent_notes: string | null;
+  agent_composition: string | null;
+  agent_contraindications: string | null;
+  agent_usage: string | null;
+  cross_sell_product_id: string | null;
+  floor_price: number | null;
   unit_cogs: number;
   packing_cost: number;
   confirmation_processing_cost: number | null;
@@ -19,9 +33,29 @@ interface EditableProduct {
   is_active: boolean;
 }
 
+interface EditableVariant {
+  id: string;
+  label: string;
+  agent_note: string | null;
+}
+
+interface CrossSellOption {
+  id: string;
+  name: string;
+}
+
 interface Props {
   product: EditableProduct;
   locale: string;
+  /**
+   * Super admins only. Market managers reach this form to author the agent
+   * sheet for their own market; costs, stock and identity stay locked to
+   * super_admin per the stock-integrity model.
+   */
+  canManageCosts: boolean;
+  variants: EditableVariant[];
+  /** Active products in the same market, excluding this one. */
+  crossSellOptions: CrossSellOption[];
 }
 
 const TEXT = "#1A1A1A";
@@ -39,13 +73,34 @@ function numberOrEmpty(n: number | null | undefined): string {
   return String(n);
 }
 
-export function ProductEditForm({ product, locale }: Props) {
+export function ProductEditForm({
+  product,
+  locale,
+  canManageCosts,
+  variants,
+  crossSellOptions,
+}: Props) {
   const t = useTranslations("products");
   const router = useRouter();
 
   const [name, setName] = useState(product.name);
   const [sku, setSku] = useState(product.sku ?? "");
   const [description, setDescription] = useState(product.description ?? "");
+  const [agentBrief, setAgentBrief] = useState(product.agent_brief ?? "");
+  const [agentBriefTone, setAgentBriefTone] = useState<AgentBriefTone>(
+    product.agent_brief_tone,
+  );
+  const [agentNotes, setAgentNotes] = useState(product.agent_notes ?? "");
+  const [variantNotes, setVariantNotes] = useState<Record<string, string>>(() =>
+    Object.fromEntries(variants.map((v) => [v.id, v.agent_note ?? ""])),
+  );
+  const [composition, setComposition] = useState(product.agent_composition ?? "");
+  const [contraindications, setContraindications] = useState(
+    product.agent_contraindications ?? "",
+  );
+  const [usage, setUsage] = useState(product.agent_usage ?? "");
+  const [crossSell, setCrossSell] = useState(product.cross_sell_product_id ?? "");
+  const [floorPrice, setFloorPrice] = useState(numberOrEmpty(product.floor_price));
   // What the picker shows: the existing remote URL, a freshly-picked data URL, or null (cleared).
   const [image, setImage] = useState<string | null>(product.image_url ?? null);
   // Only set when the user picks a NEW file this session — drives the upload call.
@@ -62,77 +117,123 @@ export function ProductEditForm({ product, locale }: Props) {
   async function handleSubmit() {
     setError(null);
 
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      setError(t("editForm.errors.nameRequired"));
+    if (agentBrief.trim().length > AGENT_BRIEF_MAX) {
+      setError(t("editForm.agentContent.agentBriefHint"));
       return;
     }
 
-    const unitCogsNum = parseFloat(unitCogs);
-    if (isNaN(unitCogsNum) || unitCogsNum < 0) {
-      setError(t("editForm.errors.unitCogsInvalid"));
-      return;
-    }
+    if (canManageCosts) {
+      const trimmedName = name.trim();
+      if (!trimmedName) {
+        setError(t("editForm.errors.nameRequired"));
+        return;
+      }
 
-    const thresholdNum = parseInt(threshold, 10);
-    if (isNaN(thresholdNum) || thresholdNum < 0) {
-      setError(t("editForm.errors.thresholdInvalid"));
-      return;
-    }
+      const unitCogsNum = parseFloat(unitCogs);
+      if (isNaN(unitCogsNum) || unitCogsNum < 0) {
+        setError(t("editForm.errors.unitCogsInvalid"));
+        return;
+      }
 
-    setLoading(true);
+      const thresholdNum = parseInt(threshold, 10);
+      if (isNaN(thresholdNum) || thresholdNum < 0) {
+        setError(t("editForm.errors.thresholdInvalid"));
+        return;
+      }
 
-    const body: Record<string, unknown> = {
-      name: trimmedName,
-      sku: sku.trim(),
-      description: description.trim(),
-      unit_cogs: unitCogsNum,
-      packing_cost: parseFloat(packingCost) || 0,
-      confirmation_processing_cost: parseFloat(processingCost) || 0,
-      low_stock_threshold: thresholdNum,
-      is_active: isActive,
-    };
+      setLoading(true);
 
-    // Image upload happens via a separate route after the PATCH. The only
-    // image_url change we send through PATCH is an explicit clear (picker
-    // emptied and no new file picked) — the upload route never clears.
-    if (image === null && newImageDataUrl === null) {
-      body.image_url = "";
-    }
+      const body: Record<string, unknown> = {
+        name: trimmedName,
+        sku: sku.trim(),
+        unit_cogs: unitCogsNum,
+        packing_cost: parseFloat(packingCost) || 0,
+        confirmation_processing_cost: parseFloat(processingCost) || 0,
+        low_stock_threshold: thresholdNum,
+        is_active: isActive,
+      };
 
-    if (defaultPrice.trim() !== "") {
-      const dp = parseFloat(defaultPrice);
-      if (!isNaN(dp) && dp >= 0) body.default_price = dp;
-    } else {
-      body.default_price = null;
-    }
+      // Image upload happens via a separate route after the PATCH. The only
+      // image_url change we send through PATCH is an explicit clear (picker
+      // emptied and no new file picked) — the upload route never clears.
+      if (image === null && newImageDataUrl === null) {
+        body.image_url = "";
+      }
 
-    const res = await fetch(`/api/products/${product.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+      if (defaultPrice.trim() !== "") {
+        const dp = parseFloat(defaultPrice);
+        if (!isNaN(dp) && dp >= 0) body.default_price = dp;
+      } else {
+        body.default_price = null;
+      }
 
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      const msg = res.status === 409 ? t("editForm.errors.skuConflict") : (json.error ?? `Erreur ${res.status}`);
-      setError(msg);
-      setLoading(false);
-      return;
-    }
+      // Floor price rides with default_price: both set revenue, both are
+      // super_admin-only, so neither belongs on the content route.
+      if (floorPrice.trim() !== "") {
+        const fp = parseFloat(floorPrice);
+        if (!isNaN(fp) && fp >= 0) body.floor_price = fp;
+      } else {
+        body.floor_price = null;
+      }
 
-    // Upload a freshly-picked image, if any.
-    if (newImageDataUrl) {
-      const imgRes = await fetch(`/api/products/${product.id}/image`, {
-        method: "PUT",
+      const res = await fetch(`/api/products/${product.id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data_url: newImageDataUrl }),
+        body: JSON.stringify(body),
       });
-      if (!imgRes.ok) {
-        setError(t("image.uploadFailed"));
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        const msg = res.status === 409 ? t("editForm.errors.skuConflict") : (json.error ?? `Erreur ${res.status}`);
+        setError(msg);
         setLoading(false);
         return;
       }
+
+      // Upload a freshly-picked image, if any.
+      if (newImageDataUrl) {
+        const imgRes = await fetch(`/api/products/${product.id}/image`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data_url: newImageDataUrl }),
+        });
+        if (!imgRes.ok) {
+          setError(t("image.uploadFailed"));
+          setLoading(false);
+          return;
+        }
+      }
+    } else {
+      setLoading(true);
+    }
+
+    // The agent sheet is a weaker permission than the rest of this form, so it
+    // always goes through its own route — that is the only write a market
+    // manager is allowed to make here.
+    const contentRes = await fetch(`/api/products/${product.id}/agent-content`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: description.trim(),
+        agent_brief: agentBrief.trim(),
+        agent_brief_tone: agentBriefTone,
+        agent_notes: agentNotes.trim(),
+        agent_composition: composition.trim(),
+        agent_contraindications: contraindications.trim(),
+        agent_usage: usage.trim(),
+        cross_sell_product_id: crossSell,
+        variant_notes: variants.map((v) => ({
+          id: v.id,
+          agent_note: variantNotes[v.id] ?? "",
+        })),
+      }),
+    });
+
+    if (!contentRes.ok) {
+      const json = await contentRes.json().catch(() => ({}));
+      setError(json.error ?? `Erreur ${contentRes.status}`);
+      setLoading(false);
+      return;
     }
 
     router.push(`/${locale}/products/${product.id}`);
@@ -146,25 +247,82 @@ export function ProductEditForm({ product, locale }: Props) {
       </h1>
       <p style={{ fontSize: 13, color: MUTED, margin: "0 0 24px 0" }}>{t("editForm.intro")}</p>
 
-      {/* Identity */}
+      {/* Identity — super_admin only */}
+      {canManageCosts ? (
+        <div style={sectionStyle}>
+          <div style={sectionTitleStyle}>{t("create.sections.identity")}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <label htmlFor="edit-name" style={labelStyle}>{t("editForm.fields.name")} *</label>
+              <input id="edit-name" type="text" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label htmlFor="edit-sku" style={labelStyle}>{t("editForm.fields.sku")}</label>
+              <input
+                id="edit-sku"
+                type="text"
+                value={sku}
+                onChange={(e) => setSku(e.target.value)}
+                placeholder="bv-01"
+                style={inputStyle}
+              />
+              <p style={hintStyle}>{t("editForm.hints.sku")}</p>
+            </div>
+            <ProductImagePicker
+              value={image}
+              onChange={(dataUrl) => {
+                setImage(dataUrl);
+                setNewImageDataUrl(dataUrl);
+              }}
+            />
+          </div>
+        </div>
+      ) : (
+        <div style={sectionStyle}>
+          <div style={sectionTitleStyle}>{product.name}</div>
+        </div>
+      )}
+
+      {/* Fiche agent — what the confirmation agent reads during the call */}
       <div style={sectionStyle}>
-        <div style={sectionTitleStyle}>{t("create.sections.identity")}</div>
+        <div style={sectionTitleStyle}>{t("editForm.agentContent.section")}</div>
+        <p style={{ ...hintStyle, marginTop: 0, marginBottom: 14 }}>
+          {t("editForm.agentContent.sectionHint")}
+        </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <label htmlFor="edit-name" style={labelStyle}>{t("editForm.fields.name")} *</label>
-            <input id="edit-name" type="text" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
-          </div>
-          <div>
-            <label htmlFor="edit-sku" style={labelStyle}>{t("editForm.fields.sku")}</label>
+            <label htmlFor="edit-agent-brief" style={labelStyle}>
+              {t("editForm.agentContent.agentBrief")}
+            </label>
             <input
-              id="edit-sku"
+              id="edit-agent-brief"
               type="text"
-              value={sku}
-              onChange={(e) => setSku(e.target.value)}
-              placeholder="bv-01"
+              value={agentBrief}
+              maxLength={AGENT_BRIEF_MAX}
+              onChange={(e) => setAgentBrief(e.target.value)}
               style={inputStyle}
             />
-            <p style={hintStyle}>{t("editForm.hints.sku")}</p>
+            <p style={hintStyle}>
+              {t("editForm.agentContent.agentBriefHint")}{" "}
+              {t("editForm.agentContent.charsLeft", {
+                count: AGENT_BRIEF_MAX - agentBrief.length,
+              })}
+            </p>
+          </div>
+          <div>
+            <label htmlFor="edit-agent-brief-tone" style={labelStyle}>
+              {t("editForm.agentContent.agentBriefTone")}
+            </label>
+            <select
+              id="edit-agent-brief-tone"
+              value={agentBriefTone}
+              onChange={(e) => setAgentBriefTone(e.target.value as AgentBriefTone)}
+              style={inputStyle}
+            >
+              <option value="info">{t("editForm.agentContent.toneInfo")}</option>
+              <option value="warning">{t("editForm.agentContent.toneWarning")}</option>
+              <option value="critical">{t("editForm.agentContent.toneCritical")}</option>
+            </select>
           </div>
           <div>
             <label htmlFor="edit-description" style={labelStyle}>{t("editForm.fields.description")}</label>
@@ -176,17 +334,126 @@ export function ProductEditForm({ product, locale }: Props) {
               style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }}
             />
           </div>
-          <ProductImagePicker
-            value={image}
-            onChange={(dataUrl) => {
-              setImage(dataUrl);
-              setNewImageDataUrl(dataUrl);
-            }}
-          />
+          <div>
+            <label htmlFor="edit-agent-notes" style={labelStyle}>
+              {t("editForm.agentContent.agentNotes")}
+            </label>
+            <textarea
+              id="edit-agent-notes"
+              value={agentNotes}
+              onChange={(e) => setAgentNotes(e.target.value)}
+              rows={6}
+              style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }}
+            />
+            <p style={hintStyle}>{t("editForm.agentContent.agentNotesHint")}</p>
+          </div>
+
+          <div>
+            <label htmlFor="edit-composition" style={labelStyle}>
+              {t("editForm.agentContent.composition")}
+            </label>
+            <textarea
+              id="edit-composition"
+              value={composition}
+              onChange={(e) => setComposition(e.target.value)}
+              rows={2}
+              style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }}
+            />
+            <p style={hintStyle}>{t("editForm.agentContent.compositionHint")}</p>
+          </div>
+
+          <div>
+            <label htmlFor="edit-usage" style={labelStyle}>
+              {t("editForm.agentContent.usage")}
+            </label>
+            <textarea
+              id="edit-usage"
+              value={usage}
+              onChange={(e) => setUsage(e.target.value)}
+              rows={2}
+              style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }}
+            />
+            <p style={hintStyle}>{t("editForm.agentContent.usageHint")}</p>
+          </div>
+
+          <div>
+            <label htmlFor="edit-contraindications" style={labelStyle}>
+              {t("editForm.agentContent.contraindications")}
+            </label>
+            <textarea
+              id="edit-contraindications"
+              value={contraindications}
+              onChange={(e) => setContraindications(e.target.value)}
+              rows={2}
+              style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical" }}
+            />
+            <p style={hintStyle}>{t("editForm.agentContent.contraindicationsHint")}</p>
+          </div>
+
+          {canManageCosts && (
+            <div>
+              <label htmlFor="edit-floor-price" style={labelStyle}>
+                {t("editForm.agentContent.floorPrice")}
+              </label>
+              <input
+                id="edit-floor-price"
+                type="number"
+                min="0"
+                step="0.001"
+                value={floorPrice}
+                onChange={(e) => setFloorPrice(e.target.value)}
+                style={inputStyle}
+              />
+              <p style={hintStyle}>{t("editForm.agentContent.floorPriceHint")}</p>
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="edit-cross-sell" style={labelStyle}>
+              {t("editForm.agentContent.crossSell")}
+            </label>
+            <select
+              id="edit-cross-sell"
+              value={crossSell}
+              onChange={(e) => setCrossSell(e.target.value)}
+              style={inputStyle}
+            >
+              <option value="">{t("editForm.agentContent.crossSellNone")}</option>
+              {crossSellOptions.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+            <p style={hintStyle}>{t("editForm.agentContent.crossSellHint")}</p>
+          </div>
+
+          {variants.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {variants.map((v) => (
+                <div key={v.id}>
+                  <label htmlFor={`edit-variant-note-${v.id}`} style={labelStyle}>
+                    {v.label}
+                  </label>
+                  <input
+                    id={`edit-variant-note-${v.id}`}
+                    type="text"
+                    value={variantNotes[v.id] ?? ""}
+                    maxLength={VARIANT_NOTE_MAX}
+                    onChange={(e) =>
+                      setVariantNotes((prev) => ({ ...prev, [v.id]: e.target.value }))
+                    }
+                    style={inputStyle}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Cost model */}
+      {/* Cost model — super_admin only */}
+      {canManageCosts && (
       <div style={sectionStyle}>
         <div style={sectionTitleStyle}>{t("create.sections.costModel")}</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -207,8 +474,10 @@ export function ProductEditForm({ product, locale }: Props) {
           </div>
         </div>
       </div>
+      )}
 
-      {/* Inventory & status */}
+      {/* Inventory & status — super_admin only */}
+      {canManageCosts && (
       <div style={{ ...sectionStyle, borderBottom: "none", marginBottom: 24 }}>
         <div style={sectionTitleStyle}>{t("editForm.sections.inventoryAndStatus")}</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -227,6 +496,7 @@ export function ProductEditForm({ product, locale }: Props) {
           </label>
         </div>
       </div>
+      )}
 
       {error && (
         <div style={{ fontSize: 13, color: "#DC2626", marginBottom: 12 }}>{error}</div>
