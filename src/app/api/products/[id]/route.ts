@@ -95,6 +95,9 @@ export async function PATCH(
     "packing_cost",
     "confirmation_processing_cost",
     "default_price",
+    // The agent-facing floor price sits with default_price, not with the
+    // agent-content RPC: it sets revenue, so it stays super_admin-only.
+    "floor_price",
     "low_stock_threshold",
     "is_active",
   ];
