@@ -4,7 +4,39 @@ import {
   canViewProducts,
   canAdjustStock,
   canToggleProductActive,
+  canEditProductContent,
 } from "@/lib/product-permissions";
+
+describe("canEditProductContent", () => {
+  it("super_admin can edit content cross-market", () => {
+    expect(canEditProductContent("super_admin", "market-ly", "market-tn")).toBe(true);
+  });
+
+  it("market_manager can edit content in own market", () => {
+    expect(canEditProductContent("market_manager", "market-tn", "market-tn")).toBe(true);
+  });
+
+  it("market_manager cannot edit content in another market", () => {
+    expect(canEditProductContent("market_manager", "market-ly", "market-tn")).toBe(false);
+  });
+
+  it("agent cannot edit content even in own market", () => {
+    expect(canEditProductContent("agent", "market-tn", "market-tn")).toBe(false);
+  });
+
+  it("warehouse_agent cannot edit content (they only toggle is_active)", () => {
+    expect(canEditProductContent("warehouse_agent", "market-tn", "market-tn")).toBe(false);
+  });
+
+  it("investor cannot edit content", () => {
+    expect(canEditProductContent("investor", "market-tn", "market-tn")).toBe(false);
+  });
+
+  it("is strictly weaker than canManageProducts for managers (content yes, costs no)", () => {
+    expect(canEditProductContent("market_manager", "market-tn", "market-tn")).toBe(true);
+    expect(canManageProducts("market_manager", "market-tn", "market-tn")).toBe(false);
+  });
+});
 
 // Stock integrity lockdown: canManageProducts and canAdjustStock are SA-only.
 // canViewProducts stays per-market. canToggleProductActive is carved out for

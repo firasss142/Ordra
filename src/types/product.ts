@@ -13,24 +13,39 @@ export const StockMovementReason = {
   damaged_writeoff: "damaged_writeoff" as const,
 };
 
+/** Tone of the pinned must-know shown to agents on the order. */
+export type AgentBriefTone = "info" | "warning" | "critical";
+
 export interface Product {
   id: string;
   market_id: string;
   name: string;
   sku?: string | null;
+  description?: string | null;
   unit_cogs: number;
   packing_cost: number;
   confirmation_processing_cost?: number;
   default_price?: number | null;
   low_stock_threshold: number;
+  initial_stock?: number;
   current_stock: number;
   damaged_return_count: number;
   is_active: boolean;
   image_url?: string | null;
+  /** Pinned must-know for confirmation agents. Always visible on the order. */
+  agent_brief?: string | null;
+  agent_brief_tone?: AgentBriefTone;
+  /** Internal selling notes shown in the product sheet drawer. */
+  agent_notes?: string | null;
+  agent_content_updated_at?: string | null;
+  agent_content_updated_by?: string | null;
   created_at: string;
   updated_at: string;
 }
 
+// NOTE: product_variants has no created_at/updated_at columns — see the
+// explicit comment in 001_initial_schema.sql. They were declared here in
+// error and nothing ever read them.
 export interface ProductVariant {
   id: string;
   product_id: string;
@@ -38,8 +53,8 @@ export interface ProductVariant {
   quantity: number;
   display_price: number;
   is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  /** One-line upsell/pack note for this quantity tier. */
+  agent_note?: string | null;
 }
 
 export interface InventoryLogEntry {

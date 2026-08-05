@@ -31,6 +31,24 @@ export function canViewProducts(
   return false;
 }
 
+/**
+ * "Content" = the selling narrative an agent reads mid-call: description,
+ * agent brief/notes, media, and the per-variant pack note. Deliberately
+ * weaker than canManageProducts — managers own the pitch for their market,
+ * but costs, stock, name, sku and price stay super_admin-only (see
+ * 20260422_product_stock_lockdown.sql). Writes route through
+ * update_product_agent_content / update_variant_agent_note.
+ */
+export function canEditProductContent(
+  role: Role,
+  targetMarketId: string,
+  actorMarketId: string,
+): boolean {
+  if (role === "super_admin") return true;
+  if (role === "market_manager") return targetMarketId === actorMarketId;
+  return false;
+}
+
 export function canToggleProductActive(role: Role): boolean {
   return (
     role === "super_admin" ||

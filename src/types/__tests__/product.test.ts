@@ -173,7 +173,10 @@ describe("Product type", () => {
 });
 
 describe("ProductVariant type", () => {
-  it("has exactly 8 keys", () => {
+  // The table has no created_at/updated_at (001_initial_schema.sql says so
+  // explicitly); the type used to declare them anyway. Required keys are the
+  // six real columns, plus the optional agent_note.
+  it("has exactly 6 required keys", () => {
     const variant: ProductVariant = {
       id: "var-1",
       product_id: "prod-1",
@@ -181,11 +184,9 @@ describe("ProductVariant type", () => {
       quantity: 3,
       display_price: 29.99,
       is_active: true,
-      created_at: "2026-04-01T00:00:00Z",
-      updated_at: "2026-04-01T00:00:00Z",
     };
     const keys = Object.keys(variant);
-    expect(keys).toHaveLength(8);
+    expect(keys).toHaveLength(6);
     expect(keys).toEqual(
       expect.arrayContaining([
         "id",
@@ -194,10 +195,21 @@ describe("ProductVariant type", () => {
         "quantity",
         "display_price",
         "is_active",
-        "created_at",
-        "updated_at",
       ])
     );
+  });
+
+  it("carries an optional agent_note for the pack-tier upsell line", () => {
+    const variant: ProductVariant = {
+      id: "var-1",
+      product_id: "prod-1",
+      label: "Pack of 3",
+      quantity: 3,
+      display_price: 29.99,
+      is_active: true,
+      agent_note: "Meilleure marge — proposer en premier",
+    };
+    expect(variant.agent_note).toBe("Meilleure marge — proposer en premier");
   });
 
   it("label is non-empty string", () => {
@@ -208,8 +220,6 @@ describe("ProductVariant type", () => {
       quantity: 1,
       display_price: 15,
       is_active: true,
-      created_at: "2026-04-01T00:00:00Z",
-      updated_at: "2026-04-01T00:00:00Z",
     };
     expect(typeof variant.label).toBe("string");
     expect(variant.label.length).toBeGreaterThan(0);
@@ -223,8 +233,6 @@ describe("ProductVariant type", () => {
       quantity: 2,
       display_price: 25,
       is_active: true,
-      created_at: "2026-04-01T00:00:00Z",
-      updated_at: "2026-04-01T00:00:00Z",
     };
     expect(Number.isInteger(variant.quantity)).toBe(true);
     expect(variant.quantity).toBeGreaterThanOrEqual(1);
@@ -238,8 +246,6 @@ describe("ProductVariant type", () => {
       quantity: 1,
       display_price: 19.99,
       is_active: true,
-      created_at: "2026-04-01T00:00:00Z",
-      updated_at: "2026-04-01T00:00:00Z",
     };
     expect(typeof variant.display_price).toBe("number");
     expect(variant.display_price).toBeGreaterThan(0);
@@ -253,8 +259,6 @@ describe("ProductVariant type", () => {
       quantity: 1,
       display_price: 10,
       is_active: false,
-      created_at: "2026-04-01T00:00:00Z",
-      updated_at: "2026-04-01T00:00:00Z",
     };
     expect(typeof variant.is_active).toBe("boolean");
   });
