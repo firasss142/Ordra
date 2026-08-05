@@ -1378,7 +1378,8 @@
       "outcomeCallback": "4 — Rappel demandé",
       "cancel": "Fermer",
       "help": "Afficher les raccourcis",
-      "close": "Fermer"
+      "close": "Fermer",
+      "productSheet": "p — Fiche produit"
     },
     "stats": {
       "assigned": "Assignées",
@@ -1619,7 +1620,31 @@
         "skuConflict": "Ce SKU est déjà utilisé pour un autre produit de ce marché."
       },
       "submit": "Enregistrer",
-      "saving": "Enregistrement…"
+      "saving": "Enregistrement…",
+      "agentContent": {
+        "section": "Fiche agent",
+        "sectionHint": "Ce que l'agent de confirmation voit pendant l'appel. Les coûts et le stock ne sont jamais affichés.",
+        "agentBrief": "À savoir (épinglé)",
+        "agentBriefHint": "Une seule ligne, toujours visible sur la commande sans clic. 280 caractères max.",
+        "agentBriefTone": "Importance",
+        "toneInfo": "Information",
+        "toneWarning": "Attention",
+        "toneCritical": "Critique",
+        "agentNotes": "Notes internes",
+        "agentNotesHint": "Objections, packs, ce qu'il ne faut pas dire. Une idée par ligne.",
+        "charsLeft": "{count} caractères restants",
+        "composition": "Composition",
+        "compositionHint": "Ingrédients ou matériaux — demandé très souvent au téléphone.",
+        "usage": "Mode d'emploi",
+        "usageHint": "Application, fréquence, durée.",
+        "contraindications": "Contre-indications",
+        "contraindicationsHint": "Grossesse, âge, allergies. Affiché en rouge à l'agent — à remplir dès qu'il y a un risque.",
+        "floorPrice": "Prix plancher",
+        "floorPriceHint": "Prix le plus bas que l'agent peut accepter sans validation.",
+        "crossSell": "Produit alternatif",
+        "crossSellHint": "Proposé à l'agent quand ce produit est refusé. Même marché uniquement.",
+        "crossSellNone": "Aucun"
+      }
     },
     "image": {
       "label": "Image du produit",
@@ -3494,5 +3519,50 @@
         "principal_return": "Capital restitué"
       }
     }
+  },
+  "productSheet": {
+    "title": "Fiche produit",
+    "open": "Voir la fiche produit",
+    "close": "Fermer",
+    "mustKnow": "À savoir",
+    "description": "Description produit",
+    "descriptionHint": "Ce que le client voit",
+    "agentNotes": "Notes internes",
+    "agentNotesHint": "Pour l'agent — ne pas lire au client",
+    "packs": "Offres et packs",
+    "packOrdered": "Commandé",
+    "stock": "Stock",
+    "noContent": "Aucune information n'a encore été ajoutée pour ce produit.",
+    "updatedAt": "Mis à jour le {date}",
+    "loading": "Chargement de la fiche…",
+    "loadError": "Impossible de charger la fiche produit.",
+    "unmappedTitle": "Produit non rattaché au catalogue",
+    "unmappedBody": "Cette commande est arrivée avec « {name} » sans correspondance dans le catalogue. Aucune information produit n'est disponible.",
+    "copyImage": "Copier le lien de l'image",
+    "copied": "Lien copié",
+    "sendWhatsapp": "Envoyer sur WhatsApp",
+    "whatsappMessage": "Bonjour, voici le produit : {name} — {price} {currency}\n{url}",
+    "checks": {
+      "unmapped": "Produit non rattaché au catalogue",
+      "product_inactive": "Produit désactivé — ne pas confirmer",
+      "out_of_stock": "Rupture de stock",
+      "low_stock": "Stock faible — {stock} restants",
+      "variant_inactive": "Le pack « {label} » n'est plus disponible",
+      "price_mismatch": "Prix commande {orderPrice} ≠ catalogue {catalogPrice}"
+    },
+    "signals": "Signaux",
+    "signalConfirmation": "Confirmation",
+    "signalReturns": "Retours",
+    "signalSample": "n = {count}",
+    "signalTopRejection": "Refus principal",
+    "composition": "Composition",
+    "usage": "Mode d'emploi",
+    "contraindications": "Contre-indications",
+    "floorPrice": "Prix plancher {price} {currency}",
+    "floorPriceHint": "Ne pas descendre en dessous sans accord",
+    "crossSell": "Alternative",
+    "crossSellHint": "À proposer en cas de refus",
+    "viewingAlternative": "Vous consultez une alternative",
+    "backToOrdered": "Revenir au produit commandé"
   }
 }

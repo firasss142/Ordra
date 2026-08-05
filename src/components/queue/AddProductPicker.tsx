@@ -12,7 +12,8 @@ import { createPortal } from "react-dom";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
-import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/Badge";
+import { stockBadge } from "@/lib/products/stock-badge";
 import { fetcher } from "@/lib/swr-config";
 import { useOrderMutation } from "@/hooks/useOrderMutation";
 
@@ -203,19 +204,11 @@ export function AddProductPicker({
     }
   }
 
-  function stockBadge(stock: number) {
-    let tone: BadgeTone = "success";
-    let label = t("inStock");
-    if (stock <= 0) {
-      tone = "critical";
-      label = t("outOfStock");
-    } else if (stock <= 5) {
-      tone = "warning";
-      label = t("stockLeft", { count: stock });
-    }
+  function renderStockBadge(stock: number) {
+    const { tone, key, count } = stockBadge(stock);
     return (
       <Badge tone={tone} dot>
-        {label}
+        {t(key, count !== undefined ? { count } : undefined)}
       </Badge>
     );
   }
@@ -345,7 +338,7 @@ export function AddProductPicker({
                 </div>
 
                 {/* Stock badge */}
-                <div className="flex-shrink-0">{stockBadge(p.current_stock)}</div>
+                <div className="flex-shrink-0">{renderStockBadge(p.current_stock)}</div>
               </li>
             );
           })

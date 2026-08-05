@@ -1378,7 +1378,8 @@
       "outcomeCallback": "4 — طلب معاودة",
       "cancel": "إغلاق",
       "help": "عرض الاختصارات",
-      "close": "إغلاق"
+      "close": "إغلاق",
+      "productSheet": "p — بطاقة المنتج"
     },
     "stats": {
       "assigned": "معيّنة",
@@ -1619,7 +1620,31 @@
         "skuConflict": "هذا الـ SKU مستخدم بالفعل لمنتج آخر في هذا السوق."
       },
       "submit": "حفظ",
-      "saving": "جاري الحفظ…"
+      "saving": "جاري الحفظ…",
+      "agentContent": {
+        "section": "بطاقة الموظف",
+        "sectionHint": "ما يراه موظف التأكيد أثناء المكالمة. لا تُعرض التكاليف ولا المخزون أبدًا.",
+        "agentBrief": "معلومة مهمة (مثبّتة)",
+        "agentBriefHint": "سطر واحد، ظاهر دائمًا على الطلب دون نقر. 280 حرفًا كحد أقصى.",
+        "agentBriefTone": "الأهمية",
+        "toneInfo": "معلومة",
+        "toneWarning": "تنبيه",
+        "toneCritical": "حرِج",
+        "agentNotes": "ملاحظات داخلية",
+        "agentNotesHint": "الاعتراضات، الحزم، وما لا يجب قوله. فكرة واحدة في كل سطر.",
+        "charsLeft": "بقي {count} حرفًا",
+        "composition": "المكوّنات",
+        "compositionHint": "المكوّنات أو المواد — يُسأل عنها كثيرًا عبر الهاتف.",
+        "usage": "طريقة الاستعمال",
+        "usageHint": "الطريقة، عدد المرات، المدة.",
+        "contraindications": "موانع الاستعمال",
+        "contraindicationsHint": "الحمل، السن، الحساسية. تُعرض للموظف بالأحمر — املأها عند وجود أي خطر.",
+        "floorPrice": "السعر الأدنى",
+        "floorPriceHint": "أدنى سعر يمكن للموظف قبوله دون موافقة.",
+        "crossSell": "منتج بديل",
+        "crossSellHint": "يُقترح على الموظف عند رفض هذا المنتج. نفس السوق فقط.",
+        "crossSellNone": "بدون"
+      }
     },
     "image": {
       "label": "صورة المنتج",
@@ -3407,5 +3432,50 @@
         "principal_return": "إعادة رأس المال"
       }
     }
+  },
+  "productSheet": {
+    "title": "بطاقة المنتج",
+    "open": "عرض بطاقة المنتج",
+    "close": "إغلاق",
+    "mustKnow": "معلومة مهمة",
+    "description": "وصف المنتج",
+    "descriptionHint": "ما يراه الزبون",
+    "agentNotes": "ملاحظات داخلية",
+    "agentNotesHint": "للموظف — لا تُقرأ للزبون",
+    "packs": "العروض والحزم",
+    "packOrdered": "المطلوب",
+    "stock": "المخزون",
+    "noContent": "لم تتم إضافة أي معلومات لهذا المنتج بعد.",
+    "updatedAt": "آخر تحديث {date}",
+    "loading": "جارٍ تحميل البطاقة…",
+    "loadError": "تعذّر تحميل بطاقة المنتج.",
+    "unmappedTitle": "المنتج غير مرتبط بالكتالوج",
+    "unmappedBody": "وصل هذا الطلب بـ «{name}» دون مطابقة في الكتالوج. لا تتوفر أي معلومات عن المنتج.",
+    "copyImage": "نسخ رابط الصورة",
+    "copied": "تم نسخ الرابط",
+    "sendWhatsapp": "إرسال عبر واتساب",
+    "whatsappMessage": "مرحبًا، هذا هو المنتج: {name} — {price} {currency}\n{url}",
+    "checks": {
+      "unmapped": "المنتج غير مرتبط بالكتالوج",
+      "product_inactive": "المنتج معطّل — لا تؤكد الطلب",
+      "out_of_stock": "نفد المخزون",
+      "low_stock": "المخزون منخفض — بقي {stock}",
+      "variant_inactive": "الحزمة «{label}» لم تعد متوفرة",
+      "price_mismatch": "سعر الطلب {orderPrice} ≠ الكتالوج {catalogPrice}"
+    },
+    "signals": "المؤشرات",
+    "signalConfirmation": "التأكيد",
+    "signalReturns": "الإرجاع",
+    "signalSample": "ع = {count}",
+    "signalTopRejection": "سبب الرفض الأول",
+    "composition": "المكوّنات",
+    "usage": "طريقة الاستعمال",
+    "contraindications": "موانع الاستعمال",
+    "floorPrice": "السعر الأدنى {price} {currency}",
+    "floorPriceHint": "لا تنزل تحته دون موافقة",
+    "crossSell": "بديل",
+    "crossSellHint": "اقترحه عند الرفض",
+    "viewingAlternative": "أنت تطالع منتجًا بديلًا",
+    "backToOrdered": "العودة إلى المنتج المطلوب"
   }
 }

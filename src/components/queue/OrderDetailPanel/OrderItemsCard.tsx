@@ -2,11 +2,12 @@
 
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { Pencil, ShoppingBag, X } from "lucide-react";
+import { BookOpen, Pencil, ShoppingBag, X } from "lucide-react";
 import { InlineField } from "@/components/ui/InlineField";
 import { Combobox, type ComboboxOption } from "@/components/ui/Combobox";
 import { StepperField } from "@/components/ui/StepperField";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { stockBadge } from "@/lib/products/stock-badge";
 import { SectionCard } from "./SectionCard";
 import type { OrderItem } from "./types";
 
@@ -41,6 +42,8 @@ export interface OrderItemsCardProps {
   onPatchItem: (itemId: string, body: Record<string, unknown>) => void;
   onDeleteItem: (itemId: string) => void;
   onCommitDeliveryFee: (v: number) => void;
+  /** Opens the agent product sheet for a given line's product. */
+  onOpenProductSheet?: (productId: string | null) => void;
   /** Slot for the "+ add product" affordance — supplied by parent. */
   renderAddProduct?: () => ReactNode;
 }
@@ -70,9 +73,11 @@ export function OrderItemsCard({
   onPatchItem,
   onDeleteItem,
   onCommitDeliveryFee,
+  onOpenProductSheet,
   renderAddProduct,
 }: OrderItemsCardProps) {
   const t = useTranslations("orders.detail");
+  const tSheet = useTranslations("productSheet");
   const [open, setOpen] = useState(defaultOpen);
 
   const summaryItem = items[0];
@@ -133,17 +138,11 @@ export function OrderItemsCard({
           {items.map((item, idx) => {
             const itemProduct = products.find((p) => p.id === item.product_id) ?? null;
             const stock = itemProduct?.current_stock ?? null;
-            let stockTone: BadgeTone = "success";
-            let stockLabel = t("inStock");
-            if (stock !== null) {
-              if (stock <= 0) {
-                stockTone = "critical";
-                stockLabel = t("outOfStock");
-              } else if (stock <= 5) {
-                stockTone = "warning";
-                stockLabel = t("stockLeft", { count: stock });
-              }
-            }
+            const badge = stock !== null ? stockBadge(stock) : null;
+            const stockTone: BadgeTone = badge?.tone ?? "success";
+            const stockLabel = badge
+              ? t(badge.key, badge.count !== undefined ? { count: badge.count } : undefined)
+              : "";
 
             return (
               <div
@@ -169,6 +168,17 @@ export function OrderItemsCard({
                       displayClassName="text-[14px] font-semibold text-ink-primary leading-snug"
                     />
                   </div>
+                  {onOpenProductSheet && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenProductSheet(item.product_id)}
+                      title={tSheet("open")}
+                      aria-label={tSheet("open")}
+                      className="flex-shrink-0 inline-flex items-center justify-center w-6 h-6 rounded text-ink-muted hover:text-ink-primary hover:bg-surface-hover transition-colors duration-fast"
+                    >
+                      <BookOpen size={13} strokeWidth={2} aria-hidden="true" />
+                    </button>
+                  )}
                   {canEdit && items.length > 1 && item.id !== "legacy" && (
                     <button
                       type="button"

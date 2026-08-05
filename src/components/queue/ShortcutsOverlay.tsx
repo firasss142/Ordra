@@ -29,6 +29,7 @@ export function ShortcutsOverlay({ open, onClose }: ShortcutsOverlayProps) {
     { keys: "2", label: t("outcomeConfirmed") },
     { keys: "3", label: t("outcomeRejected") },
     { keys: "4", label: t("outcomeCallback") },
+    { keys: "p", label: t("productSheet") },
     { keys: "Esc", label: t("cancel") },
     { keys: "?", label: t("help") },
   ];

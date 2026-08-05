@@ -56,6 +56,9 @@ import { type BadgeTone } from "@/components/ui/Badge";
 import { useOrderMutation } from "@/hooks/useOrderMutation";
 import { useOrderDetailRealtime } from "@/hooks/useOrderDetailRealtime";
 import { useCarriers } from "@/hooks/useCarriers";
+import { useProductSheet } from "@/hooks/useProductSheet";
+import { ProductBriefBanner } from "../ProductBriefBanner";
+import { ProductSheetDrawer } from "../ProductSheetDrawer";
 import { DexpressStatusSection } from "../DexpressStatusSection";
 import { DarbStatusSection } from "../DarbStatusSection";
 import { formatDisplayCurrencyCode, LY_MARKET_ID } from "@/lib/markets";
@@ -525,6 +528,44 @@ export function OrderDetailPanel({
   // Libya orders use the carrier (Dexpress) state list — same one shown at
   // dispatch time. Fetched only when editing a Libya order.
   const isLibyaOrder = order?.market_id === LY_MARKET_ID;
+
+  // ── Agent product sheet ──
+  // Fetched as soon as the panel opens: the pinned brief and the verification
+  // checks render inline, without the agent opening anything.
+  const [productSheetOpen, setProductSheetOpen] = useState(false);
+  const [productSheetProductId, setProductSheetProductId] = useState<string | null>(null);
+  const productSheet = useProductSheet(
+    order?.id ?? null,
+    productSheetProductId,
+    Boolean(order),
+  );
+
+  const closeProductSheet = useCallback(() => {
+    setProductSheetOpen(false);
+    // Back to the order's primary product so the inline banner reflects the
+    // order as a whole again.
+    setProductSheetProductId(null);
+  }, []);
+
+  const openProductSheet = useCallback((productId?: string | null) => {
+    if (productId !== undefined) setProductSheetProductId(productId);
+    setProductSheetOpen(true);
+  }, []);
+
+  // "p" opens the sheet. Deliberately not gated on canEdit — an agent must be
+  // able to read the product even on an order they can no longer modify.
+  useEffect(() => {
+    if (!order || productSheetOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (isEditableTarget(e.target)) return;
+      if (e.key === "p" || e.key === "P") {
+        e.preventDefault();
+        setProductSheetOpen(true);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [order, productSheetOpen]);
   const { data: dexpressStatesData } = useSWR<{
     states: Array<{ id: number; name: string }>;
   }>(
@@ -591,6 +632,10 @@ export function OrderDetailPanel({
 
   useEffect(() => {
     if (!order || !canEdit) return;
+    // While the product sheet is stacked on top, it owns Escape. Both
+    // listeners sit on `document`, so without this guard one Escape would
+    // collapse both layers at once.
+    if (productSheetOpen) return;
     const handler = (e: KeyboardEvent) => {
       if (isEditableTarget(e.target)) return;
       if (e.key === "e" || e.key === "E") {
@@ -606,7 +651,7 @@ export function OrderDetailPanel({
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [order, canEdit, onClose]);
+  }, [order, canEdit, onClose, productSheetOpen]);
 
   if (orderId === null) return null;
 
@@ -1111,6 +1156,14 @@ export function OrderDetailPanel({
                 onCancelSchedule={handleCancelSchedule}
               />
 
+              {/* ── Product must-know + catalogue mismatches (zero clicks) ── */}
+              <ProductBriefBanner
+                brief={productSheet.data?.product?.agent_brief ?? null}
+                tone={productSheet.data?.product?.agent_brief_tone ?? "info"}
+                checks={productSheet.data?.checks ?? []}
+                onOpenSheet={() => openProductSheet()}
+              />
+
               {/* ── Body sections ── */}
               <div className="flex flex-col gap-3 px-4 py-4 pb-10">
 
@@ -1169,6 +1222,7 @@ export function OrderDetailPanel({
                       onPatchItem={(itemId, body) => runItemPatch(itemId, body)}
                       onDeleteItem={(itemId) => runItemDelete(itemId)}
                       onCommitDeliveryFee={(v) => runCommit({ delivery_fee: v })}
+                      onOpenProductSheet={(productId) => openProductSheet(productId)}
                       renderAddProduct={() => (
                         <AddProductTrigger
                           orderId={order.id}
@@ -1458,6 +1512,20 @@ export function OrderDetailPanel({
           </button>
         </div>
       </Sheet>
+
+      {/* Stacks over this panel; the panel's own Escape handler stands down
+          while it is open. */}
+      <ProductSheetDrawer
+        open={productSheetOpen}
+        onClose={closeProductSheet}
+        data={productSheet.data}
+        isLoading={productSheet.isLoading}
+        isError={productSheet.isError}
+        customerPhone={order?.customer_phone ?? null}
+        market={isLibyaOrder ? "ly" : "tn"}
+        locale={locale === "ar" ? "ar" : "fr"}
+        onOpenProduct={(productId) => setProductSheetProductId(productId)}
+      />
     </>
   );
 }
