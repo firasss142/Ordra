@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { AlertTriangle, Info, Package } from "lucide-react";
+import { AlertTriangle, BookOpen, Info } from "lucide-react";
 import type { SheetCheck, SheetCheckSeverity } from "@/lib/products/sheet-checks";
 import type { AgentBriefTone } from "@/types/product";
 
@@ -81,15 +81,20 @@ export function ProductBriefBanner({
               <span className={row.label ? "ms-2" : "font-medium"}>{row.text}</span>
             </div>
             {/* One affordance per banner, on the last row, so problems-without-
-                a-brief still lead somewhere. */}
+                a-brief still lead somewhere. Icon-only: the label would
+                compete with the message it sits beside, and the same BookOpen
+                glyph marks every receipt line, so the gesture is learned once.
+                text-current inherits the row tone, so it reads as part of the
+                alert rather than bolted onto it. */}
             {isLast && (
               <button
                 type="button"
                 onClick={onOpenSheet}
-                className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-medium underline underline-offset-2 hover:no-underline"
+                title={t("open")}
+                aria-label={t("open")}
+                className="flex-shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-md text-current transition-colors duration-fast hover:bg-ink-primary/10"
               >
-                <Package size={11} strokeWidth={2} aria-hidden="true" />
-                {t("open")}
+                <BookOpen size={13} strokeWidth={2} aria-hidden="true" />
               </button>
             )}
           </div>

@@ -105,4 +105,20 @@ describe("ProductBriefBanner — opening the sheet", () => {
     fireEvent.click(screen.getByRole("button", { name: /fiche produit/i }));
     expect(onOpenSheet).toHaveBeenCalledTimes(1);
   });
+
+  it("is an icon, not a word — the label must not compete with the message", () => {
+    renderBanner({ brief: "Garantie 14 jours" });
+    const button = screen.getByRole("button", { name: /fiche produit/i });
+    // Reachable by name via aria-label, but renders no visible text.
+    expect(button.textContent?.trim()).toBe("");
+    expect(button.querySelector("svg")).toBeTruthy();
+  });
+
+  it("keeps a hover tooltip so the icon is still discoverable", () => {
+    renderBanner({ brief: "Garantie 14 jours" });
+    expect(screen.getByRole("button", { name: /fiche produit/i })).toHaveAttribute(
+      "title",
+      "Voir la fiche produit",
+    );
+  });
 });
