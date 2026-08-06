@@ -57,8 +57,10 @@ export function CustomerCard({
     return dexpressStates.filter((s) => s.name.includes(q));
   }, [dexpressStates, libyaQuery]);
 
+  // Holds address/city/note — titling this "client" put two sections headed
+  // CLIENT one directly above the other.
   return (
-    <SectionCard title={t("client")} icon={MapPin}>
+    <SectionCard title={t("delivery")} icon={MapPin}>
       <div className="flex flex-col">
         <FieldRow label={t("fieldAddress")}>
           <InlineField

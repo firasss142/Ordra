@@ -817,7 +817,10 @@ export function OrderDetailPanel({
   const displayCurrency = order
     ? formatDisplayCurrencyCode(order.currency, order.market_id)
     : "";
-  const historyLocale = isLibyaOrder ? "ar" : locale;
+  // The timeline's chrome follows the interface language. Forcing it to the
+  // market's language put an Arabic log inside an otherwise French panel.
+  // Agent-authored note text is stored as written and is unaffected.
+  const historyLocale = locale;
 
   async function handleUploadToCarrier(carrierId: string) {
     if (!orderId) return;

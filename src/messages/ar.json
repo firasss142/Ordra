@@ -1083,7 +1083,7 @@
       "cardPayment": "الدفع بالبطاقة",
       "fieldNote": "ملاحظة",
       "fieldNotePlaceholder": "إضافة ملاحظة…",
-      "addProduct": "+ إضافة منتج",
+      "addProduct": "إضافة منتج",
       "removeItem": "حذف",
       "grandTotal": "المجموع الكلي",
       "inStock": "متوفر",
@@ -1118,7 +1118,9 @@
         "close": "إغلاق",
         "overflowMenu": "خيارات إضافية",
         "primaryDisabledNoCarrier": "لا يوجد ناقل نشط متاح"
-      }
+      },
+      "delivery": "التوصيل",
+      "addPhone2": "إضافة هاتف ثانٍ"
     },
     "scheduleDispatch": {
       "title": "جدولة التوصيل",

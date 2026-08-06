@@ -130,7 +130,8 @@ export function CustomerHero({
             type="tel"
             displayMode
             readOnly={!canEdit}
-            placeholder={canEdit ? t("fieldPhone2") : ""}
+            // Empty + editable reads as "add one", not as a label for a missing field.
+            placeholder={canEdit ? (phone2 ? t("fieldPhone2") : t("addPhone2")) : ""}
             displayClassName="text-[13px] text-ink-secondary tabular-nums"
           />
           {phone2 ? (

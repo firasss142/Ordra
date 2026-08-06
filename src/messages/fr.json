@@ -1083,7 +1083,7 @@
       "cardPayment": "Paiement par carte",
       "fieldNote": "Note",
       "fieldNotePlaceholder": "Ajouter une note…",
-      "addProduct": "+ Ajouter un produit",
+      "addProduct": "Ajouter un produit",
       "removeItem": "Supprimer",
       "grandTotal": "Total",
       "inStock": "En stock",
@@ -1118,7 +1118,9 @@
         "close": "Fermer",
         "overflowMenu": "Plus d'actions",
         "primaryDisabledNoCarrier": "Aucun transporteur actif disponible"
-      }
+      },
+      "delivery": "Livraison",
+      "addPhone2": "Ajouter un 2ᵉ téléphone"
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",
