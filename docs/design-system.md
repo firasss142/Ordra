@@ -479,6 +479,51 @@ opens must be the same set. Concretely:
 - Measure states, not snapshots. Confirmation is transient; counting `status = confirmed`
   alone reported 7.7% where the true rate was 78.7%.
 
+### G. Order detail panel
+
+The panel opens from three surfaces (list, archive, agent queue) and uses the same layout for
+all three. It inherits §A–F; the rules below are what the panel adds.
+
+**A fixed masthead over a single scroller.** Header, hero, facts grid and blockers do not
+scroll; the tab body is the only scrolling region. An agent mid-call must be able to read the
+customer's number back while scrolling a long receipt. Anything unbounded — carrier status
+blocks, product briefs — belongs in a tab, or the masthead grows until the body has no room.
+
+**A tab is a disclosure. Do not nest another one inside it.** Tab panels hold bare rows on the
+panel surface: no bordered cards, no collapse. A card inside a tab that also collapsed meant
+opening the panel to check a receipt, then clicking again to see it.
+
+**Hide tab panels with the `hidden` attribute on an element that sets no `display`.** The UA
+rule `[hidden] { display: none }` loses to any author `display` value, so `hidden` on an
+element classed `flex` does nothing. Wrap instead. Keeping panels mounted (rather than
+conditionally rendered) means switching tabs cannot remount an inline editor mid-edit, and
+`hidden` still removes them from the accessibility tree.
+
+**One money spine per surface.** Every amount in a column shares one right edge, and the
+currency slot is reserved on every row even when only one row fills it. Otherwise the row that
+names its currency pushes its own digits left and the column reads as ragged. Amounts are
+always two decimals with the currency demoted to 10.5px — the same reading as the table's Total
+column, so one order never appears as two different figures in two places.
+
+**Editable values declare themselves at rest.** Click-to-edit fields carry a dotted underline
+(`decoration-dotted decoration-oms-border-strong`). A pencil that appears on hover is
+undiscoverable: you have to already suspect the field is editable to find out that it is.
+
+**Never promote a destructive action beside the primary CTA.** The footer promotes the first
+*non-destructive* overflow action to a labelled secondary; the rest stay behind `⋯`, where
+opening the menu is itself the confirmation step. Any action that cannot be undone from the
+panel — cancelling an order, pulling back a carrier barcode — must carry `destructive: true`
+in `resolvePanelActions`, which is what keeps it out of that slot.
+
+**A blocker states its consequence and carries its fix.** Amber for "will block", red for "has
+failed", each with a glyph so it survives greyscale. An empty field that blocks a downstream
+step reads in the warn colour with the control that resolves it — never as a bare dash, which
+is indistinguishable from "not applicable".
+
+**No developer strings reach the timeline.** Notes written by intake or integrations are
+translated in `lib/order-history-display` before display, keeping any raw value that a human
+has to recognise.
+
 ---
 
 ## 5. Layout
