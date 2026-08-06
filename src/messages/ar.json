@@ -1120,7 +1120,10 @@
         "primaryDisabledNoCarrier": "لا يوجد ناقل نشط متاح"
       },
       "delivery": "التوصيل",
-      "addPhone2": "إضافة هاتف ثانٍ"
+      "addPhone2": "إضافة هاتف ثانٍ",
+      "blockerCity": "المدينة غير معروفة",
+      "blockerCityBody": "لا يمكن الإرسال إلى شركة التوصيل قبل تحديد المدينة.",
+      "blockerResolve": "حل المشكلة"
     },
     "scheduleDispatch": {
       "title": "جدولة التوصيل",

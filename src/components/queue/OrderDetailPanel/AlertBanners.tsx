@@ -17,6 +17,10 @@ export interface AlertBannersProps {
   /** Whether the cancel-schedule action is currently in flight. */
   cancelingSchedule: boolean;
   onCancelSchedule: () => void;
+  /** No delivery city resolved — carrier upload cannot proceed. */
+  cityUnmatched?: boolean;
+  /** Opens the city picker so the blocker can be cleared where it is reported. */
+  onResolveCity?: () => void;
 }
 
 /**
@@ -33,6 +37,8 @@ export function AlertBanners({
   dispatchScheduledAuto,
   cancelingSchedule,
   onCancelSchedule,
+  cityUnmatched = false,
+  onResolveCity,
 }: AlertBannersProps) {
   const t = useTranslations("orders.detail");
 
@@ -45,12 +51,43 @@ export function AlertBanners({
     });
   }
 
-  if (!editBlocked && !callbackScheduledAt && !dispatchScheduledAt) return null;
+  if (!editBlocked && !callbackScheduledAt && !dispatchScheduledAt && !cityUnmatched) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col gap-0">
+      {/* Blockers lead. Something that stops the order moving should be the
+          first thing read, not a consequence discovered later in the log. */}
+      {cityUnmatched && (
+        <div
+          role="status"
+          className="flex items-start gap-2.5 border-b border-status-warning/20 bg-status-warningBg px-4 py-2.5 text-[12px]"
+        >
+          <AlertTriangle
+            size={14}
+            strokeWidth={2}
+            className="mt-px flex-shrink-0 text-status-warning"
+            aria-hidden="true"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="m-0 font-semibold text-status-warning">{t("blockerCity")}</p>
+            <p className="m-0 mt-0.5 text-ink-secondary">{t("blockerCityBody")}</p>
+          </div>
+          {onResolveCity && (
+            <button
+              type="button"
+              onClick={onResolveCity}
+              className="flex-shrink-0 whitespace-nowrap rounded-md border border-status-warning/30 px-2 py-1 text-[11px] font-semibold text-status-warning transition-colors duration-fast hover:bg-status-warning/10"
+            >
+              {t("blockerResolve")}
+            </button>
+          )}
+        </div>
+      )}
+
       {editBlocked && (
-        <div className="flex items-start gap-2 px-4 py-2.5 bg-surface-page border-y border-line-subtle text-[12px] text-ink-secondary">
+        <div role="status" className="flex items-start gap-2 px-4 py-2.5 bg-surface-page border-y border-line-subtle text-[12px] text-ink-secondary">
           <AlertTriangle
             size={13}
             strokeWidth={2}

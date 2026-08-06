@@ -1157,6 +1157,18 @@ export function OrderDetailPanel({
                 dispatchScheduledAuto={order.scheduled_dispatch_auto ?? false}
                 cancelingSchedule={cancelingSchedule}
                 onCancelSchedule={handleCancelSchedule}
+                // A missing city stops the carrier upload. Worth saying out
+                // loud on any order that still has somewhere to go — not on
+                // one that is already finished.
+                cityUnmatched={
+                  !order.customer_city?.trim() && !TERMINAL_STATUSES.has(order.status)
+                }
+                onResolveCity={() => {
+                  document
+                    .querySelector<HTMLElement>('[data-field="city"]')
+                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                  document.querySelector<HTMLElement>('[data-field="city"] button')?.click();
+                }}
               />
 
               {/* ── Product must-know + catalogue mismatches (zero clicks) ── */}

@@ -1120,7 +1120,10 @@
         "primaryDisabledNoCarrier": "Aucun transporteur actif disponible"
       },
       "delivery": "Livraison",
-      "addPhone2": "Ajouter un 2ᵉ téléphone"
+      "addPhone2": "Ajouter un 2ᵉ téléphone",
+      "blockerCity": "Ville non reconnue",
+      "blockerCityBody": "L'envoi au transporteur est bloqué tant que la ville n'est pas définie.",
+      "blockerResolve": "Résoudre"
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",

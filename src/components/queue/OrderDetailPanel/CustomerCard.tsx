@@ -72,7 +72,7 @@ export function CustomerCard({
             displayClassName="text-[13px]"
           />
         </FieldRow>
-        <FieldRow label={t("fieldCity")}>
+        <FieldRow label={t("fieldCity")} field="city">
           {isLibyaOrder ? (
             !canEdit ? (
               <span className="text-[13px] text-ink-primary" dir="auto">
@@ -169,13 +169,19 @@ function FieldRow({
   label,
   icon: Icon,
   children,
+  field,
 }: {
   label: string;
   icon?: typeof MapPin;
+  /** Anchor so a blocker banner can scroll to and open this field. */
+  field?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-baseline gap-4 py-2 border-b border-line-subtle last:border-0">
+    <div
+      data-field={field}
+      className="flex items-baseline gap-4 py-2 border-b border-line-subtle last:border-0"
+    >
       <span className="w-[88px] flex-shrink-0 inline-flex items-center gap-1.5 text-[12px] font-medium text-ink-muted leading-[1.4]">
         {Icon ? <Icon size={11} strokeWidth={2} aria-hidden="true" className="flex-shrink-0" /> : null}
         {label}
