@@ -75,6 +75,7 @@ import { FulfillmentCard, FULFILLMENT_STATUS_VALUES as FULFILLMENT_VALUES_FROM_C
 import type { FulfillmentStatusValue } from "./FulfillmentCard";
 import { AlertBanners } from "./AlertBanners";
 import { OrderFacts } from "./OrderFacts";
+import { PanelTabs, type PanelTab } from "./PanelTabs";
 import { usePrimaryAction } from "./usePrimaryAction";
 import type { PanelActionKind } from "./types";
 
@@ -425,6 +426,8 @@ export function OrderDetailPanel({
   const [scheduleDispatchOpen, setScheduleDispatchOpen] = useState(false);
   const [cancelingSchedule, setCancelingSchedule] = useState(false);
   const [addProductOpen, setAddProductOpen] = useState(false);
+  // Articles opens by default — it is the section that changes most.
+  const [tab, setTab] = useState<PanelTab>("items");
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadingCarrierId, setUploadingCarrierId] = useState<string | null>(null);
@@ -1176,7 +1179,9 @@ export function OrderDetailPanel({
               <OrderFacts
                 total={order.total_price}
                 currencyCode={displayCurrency}
-                itemCount={order.order_items.length}
+                // Typed as an array but absent on some payloads — the items card
+                // guards it the same way. Reading it bare crashed the panel.
+                itemCount={order.order_items?.length ?? 0}
               />
 
               {/* ── Product must-know + catalogue mismatches (zero clicks) ── */}
@@ -1188,119 +1193,132 @@ export function OrderDetailPanel({
               />
 
               {/* ── Body sections ── */}
+              <PanelTabs
+                active={tab}
+                onChange={setTab}
+                historyCount={order.history?.length ?? 0}
+              />
               <div className="flex flex-col gap-3 px-4 py-4 pb-10">
-
-                {/* Customer card — address, city, note (no tints) */}
-                <CustomerCard
-                  address={order.customer_address}
-                  city={order.customer_city}
-                  note={order.customer_note}
-                  canEdit={canEdit}
-                  isLibyaOrder={isLibyaOrder}
-                  dexpressStates={dexpressStates}
-                  loadCities={loadCities}
-                  onCommitAddress={(v) => runCommit({ customer_address: v })}
-                  onCommitCity={(id) => runCommit({ city_id: id })}
-                  onCommitDexpressState={(id) => runCommit({ dexpress_state_id: id })}
-                  onCommitNote={(v) => runCommit({ customer_note: v })}
-                />
-
-                {/* Order receipt card — collapsible (default-open on
-                    confirmed so the agent can verify before upload). */}
-                {(() => {
-                  const items: OrderItem[] = order.order_items?.length
-                    ? order.order_items
-                    : [{
-                        id: "legacy",
-                        order_id: order.id,
-                        product_id: order.product_id,
-                        product_name: order.product_name,
-                        variant_id: order.variant_id,
-                        variant_label: order.variant_label,
-                        quantity: order.quantity,
-                        unit_price: order.unit_price,
-                        line_total: order.total_price - (order.delivery_fee ?? 0),
-                        created_at: order.updated_at,
-                        updated_at: order.updated_at,
-                      }];
-                  return (
-                    <OrderItemsCard
-                      items={items}
-                      currentProductId={order.product_id}
-                      products={productsData?.data ?? []}
-                      variantOptions={variantOptions}
-                      loadProducts={loadProducts}
-                      deliveryFee={order.delivery_fee ?? 0}
-                      cardPayment={order.card_payment}
-                      grandTotal={order.total_price}
-                      displayCurrency={displayCurrency}
-                      canEdit={canEdit}
-                      isLibyaOrder={isLibyaOrder}
-                      saveError={saveError}
-                      defaultOpen={order.status === "confirmed"}
-                      onCommitLegacyProduct={(productId) => runCommit({ product_id: productId })}
-                      onCommitLegacyQuantity={(qty) => runCommit({ quantity: qty })}
-                      onCommitLegacyPrice={(price) => runCommit({ unit_price: price })}
-                      onCommitLegacyVariant={(variantId) => runCommit({ variant_id: variantId })}
-                      onPatchItem={(itemId, body) => runItemPatch(itemId, body)}
-                      onDeleteItem={(itemId) => runItemDelete(itemId)}
-                      onCommitDeliveryFee={(v) => runCommit({ delivery_fee: v })}
-                      onOpenProductSheet={(productId) => openProductSheet(productId)}
-                      renderAddProduct={() => (
-                        <AddProductTrigger
-                          orderId={order.id}
-                          marketId={order.market_id}
-                          currentItemIds={items.map((it) => it.product_id)}
-                          open={addProductOpen}
-                          onOpenChange={setAddProductOpen}
-                          onAdded={() => {}}
-                          label={t("addProduct")}
-                        />
-                      )}
-                    />
-                  );
-                })()}
+                <div hidden={tab !== "items"} className="flex flex-col gap-3">
+                  {/* Order receipt card — collapsible (default-open on
+                      confirmed so the agent can verify before upload). */}
+                  {(() => {
+                    const items: OrderItem[] = order.order_items?.length
+                      ? order.order_items
+                      : [{
+                          id: "legacy",
+                          order_id: order.id,
+                          product_id: order.product_id,
+                          product_name: order.product_name,
+                          variant_id: order.variant_id,
+                          variant_label: order.variant_label,
+                          quantity: order.quantity,
+                          unit_price: order.unit_price,
+                          line_total: order.total_price - (order.delivery_fee ?? 0),
+                          created_at: order.updated_at,
+                          updated_at: order.updated_at,
+                        }];
+                    return (
+                      <OrderItemsCard
+                        items={items}
+                        currentProductId={order.product_id}
+                        products={productsData?.data ?? []}
+                        variantOptions={variantOptions}
+                        loadProducts={loadProducts}
+                        deliveryFee={order.delivery_fee ?? 0}
+                        cardPayment={order.card_payment}
+                        grandTotal={order.total_price}
+                        displayCurrency={displayCurrency}
+                        canEdit={canEdit}
+                        isLibyaOrder={isLibyaOrder}
+                        saveError={saveError}
+                        defaultOpen={order.status === "confirmed"}
+                        onCommitLegacyProduct={(productId) => runCommit({ product_id: productId })}
+                        onCommitLegacyQuantity={(qty) => runCommit({ quantity: qty })}
+                        onCommitLegacyPrice={(price) => runCommit({ unit_price: price })}
+                        onCommitLegacyVariant={(variantId) => runCommit({ variant_id: variantId })}
+                        onPatchItem={(itemId, body) => runItemPatch(itemId, body)}
+                        onDeleteItem={(itemId) => runItemDelete(itemId)}
+                        onCommitDeliveryFee={(v) => runCommit({ delivery_fee: v })}
+                        onOpenProductSheet={(productId) => openProductSheet(productId)}
+                        renderAddProduct={() => (
+                          <AddProductTrigger
+                            orderId={order.id}
+                            marketId={order.market_id}
+                            currentItemIds={items.map((it) => it.product_id)}
+                            open={addProductOpen}
+                            onOpenChange={setAddProductOpen}
+                            onAdded={() => {}}
+                            label={t("addProduct")}
+                          />
+                        )}
+                      />
+                    );
+                  })()}
 
 
-                {/* History timeline */}
-                <HistoryTimeline
-                  entries={order.history}
-                  historyLocale={historyLocale === "ar" ? "ar" : "fr"}
-                  defaultOpen={TERMINAL_STATUSES.has(order.status)}
-                />
+                </div>
 
-                {/* Fulfillment override — managers only */}
-                {canFulfillmentOverride && (
-                  <FulfillmentCard
-                    statusLabels={Object.fromEntries(
-                      FULFILLMENT_VALUES_FROM_CARD.map((v) => [
-                        v,
-                        ts(v as Parameters<typeof ts>[0]),
-                      ]),
-                    ) as Record<FulfillmentStatusValue, string>}
-                    anchorId="order-fulfillment-card"
-                    onSubmit={async ({ status, note, isDamaged: damaged }) => {
-                      if (!orderId) return t("loadError");
-                      try {
-                        const body: Record<string, unknown> = { status, note };
-                        if (status === "returned" && damaged) body.is_damaged = true;
-                        const res = await fetch(`/api/orders/${orderId}/fulfillment`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify(body),
-                        });
-                        if (!res.ok) {
-                          const json = await res.json().catch(() => ({}));
-                          return json.error ?? `Erreur ${res.status}`;
-                        }
-                        await mutate();
-                        return null;
-                      } catch {
-                        return t("loadError");
-                      }
-                    }}
+                <div hidden={tab !== "shipping"} className="flex flex-col gap-3">
+                  {/* Customer card — address, city, note (no tints) */}
+                  <CustomerCard
+                    address={order.customer_address}
+                    city={order.customer_city}
+                    note={order.customer_note}
+                    canEdit={canEdit}
+                    isLibyaOrder={isLibyaOrder}
+                    dexpressStates={dexpressStates}
+                    loadCities={loadCities}
+                    onCommitAddress={(v) => runCommit({ customer_address: v })}
+                    onCommitCity={(id) => runCommit({ city_id: id })}
+                    onCommitDexpressState={(id) => runCommit({ dexpress_state_id: id })}
+                    onCommitNote={(v) => runCommit({ customer_note: v })}
                   />
-                )}
+
+                  {/* Fulfillment override — managers only */}
+                  {canFulfillmentOverride && (
+                    <FulfillmentCard
+                      statusLabels={Object.fromEntries(
+                        FULFILLMENT_VALUES_FROM_CARD.map((v) => [
+                          v,
+                          ts(v as Parameters<typeof ts>[0]),
+                        ]),
+                      ) as Record<FulfillmentStatusValue, string>}
+                      anchorId="order-fulfillment-card"
+                      onSubmit={async ({ status, note, isDamaged: damaged }) => {
+                        if (!orderId) return t("loadError");
+                        try {
+                          const body: Record<string, unknown> = { status, note };
+                          if (status === "returned" && damaged) body.is_damaged = true;
+                          const res = await fetch(`/api/orders/${orderId}/fulfillment`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(body),
+                          });
+                          if (!res.ok) {
+                            const json = await res.json().catch(() => ({}));
+                            return json.error ?? `Erreur ${res.status}`;
+                          }
+                          await mutate();
+                          return null;
+                        } catch {
+                          return t("loadError");
+                        }
+                      }}
+                    />
+                  )}
+
+                </div>
+
+                <div hidden={tab !== "history"} className="flex flex-col gap-3">
+                  {/* History timeline */}
+                  <HistoryTimeline
+                    entries={order.history}
+                    historyLocale={historyLocale === "ar" ? "ar" : "fr"}
+                    defaultOpen={TERMINAL_STATUSES.has(order.status)}
+                  />
+
+                </div>
 
               </div>
             </>

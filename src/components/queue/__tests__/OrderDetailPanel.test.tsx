@@ -184,7 +184,7 @@ describe("OrderDetailPanel", () => {
     expect(screen.getByText("رسوم التوصيل")).toBeTruthy();
   });
 
-  it("keeps history collapsed until the dropdown is opened", () => {
+  it("keeps the log out of reach until you open its tab and expand it", () => {
     currentOrder = {
       ...order,
       history: [
@@ -209,7 +209,13 @@ describe("OrderDetailPanel", () => {
       />,
     );
 
+    // Inactive tabs are `hidden`, so their content is out of the accessibility
+    // tree entirely — the log is neither visible nor reachable until selected.
     expect(screen.queryByRole("list")).toBeNull();
+
+    const historyTab = screen.getByRole("tab", { name: /historique|السجل/i });
+    expect(historyTab.getAttribute("aria-selected")).toBe("false");
+    fireEvent.click(historyTab);
 
     const historyButton = screen.getByTestId("order-history-toggle");
     expect(historyButton.getAttribute("aria-expanded")).toBe("false");
