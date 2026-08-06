@@ -74,6 +74,7 @@ import { HistoryTimeline } from "./HistoryTimeline";
 import { FulfillmentCard, FULFILLMENT_STATUS_VALUES as FULFILLMENT_VALUES_FROM_CARD } from "./FulfillmentCard";
 import type { FulfillmentStatusValue } from "./FulfillmentCard";
 import { AlertBanners } from "./AlertBanners";
+import { OrderFacts } from "./OrderFacts";
 import { usePrimaryAction } from "./usePrimaryAction";
 import type { PanelActionKind } from "./types";
 
@@ -1169,6 +1170,13 @@ export function OrderDetailPanel({
                     ?.scrollIntoView({ behavior: "smooth", block: "center" });
                   document.querySelector<HTMLElement>('[data-field="city"] button')?.click();
                 }}
+              />
+
+              {/* ── The four facts checked before anything else ── */}
+              <OrderFacts
+                total={order.total_price}
+                currencyCode={displayCurrency}
+                itemCount={order.order_items.length}
               />
 
               {/* ── Product must-know + catalogue mismatches (zero clicks) ── */}

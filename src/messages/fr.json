@@ -1123,7 +1123,15 @@
       "addPhone2": "Ajouter un 2ᵉ téléphone",
       "blockerCity": "Ville non reconnue",
       "blockerCityBody": "L'envoi au transporteur est bloqué tant que la ville n'est pas définie.",
-      "blockerResolve": "Résoudre"
+      "blockerResolve": "Résoudre",
+      "factTotal": "Total",
+      "factItems": "Articles",
+      "factAgent": "Agent",
+      "factCarrier": "Transporteur",
+      "unassigned": "Non assigné",
+      "tabItems": "Articles",
+      "tabShipping": "Livraison",
+      "tabHistory": "Historique"
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",

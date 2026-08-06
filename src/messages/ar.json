@@ -1123,7 +1123,15 @@
       "addPhone2": "إضافة هاتف ثانٍ",
       "blockerCity": "المدينة غير معروفة",
       "blockerCityBody": "لا يمكن الإرسال إلى شركة التوصيل قبل تحديد المدينة.",
-      "blockerResolve": "حل المشكلة"
+      "blockerResolve": "حل المشكلة",
+      "factTotal": "الإجمالي",
+      "factItems": "المنتجات",
+      "factAgent": "الوكيل",
+      "factCarrier": "شركة التوصيل",
+      "unassigned": "غير مسند",
+      "tabItems": "المنتجات",
+      "tabShipping": "التوصيل",
+      "tabHistory": "السجل"
     },
     "scheduleDispatch": {
       "title": "جدولة التوصيل",
