@@ -949,7 +949,8 @@
       "agent": "Agent",
       "date": "Date",
       "selectAll": "Tout sélectionner",
-      "actions": "Actions"
+      "actions": "Actions",
+      "age": "Âge"
     },
     "statuses": {
       "pending": "En attente",

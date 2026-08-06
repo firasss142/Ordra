@@ -140,7 +140,7 @@ export function OrdersTable({
               <th style={headerStyle}>{t("columns.order")}</th>
               <th style={{ ...headerStyle, textAlign: "end" }}>{t("columns.totalPrice")}</th>
               <th style={headerStyle}>{t("columns.status")}</th>
-              <th style={headerStyle}>{t("columns.date")}</th>
+              <th style={headerStyle}>{t("columns.age")}</th>
               <th style={headerStyle}>{t("columns.agent")}</th>
               <th style={headerStyle}>{t("columns.source")}</th>
               <th style={headerStyle} aria-label={t("columns.actions")} />

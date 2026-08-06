@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { MoreHorizontal, RotateCcw } from "lucide-react";
+import { MoreHorizontal, RotateCcw, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import type { BadgeTone } from "@/components/ui/Badge";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
@@ -10,8 +10,35 @@ import { StatusHistoryPopover } from "./StatusHistoryPopover";
 import { ProductAvatar } from "./ProductAvatar";
 import { SourceLogo } from "@/components/shared/SourceLogo";
 import { formatDateTime } from "@/lib/format";
+import { classifyOrderAge, formatOrderAge, AGE_TONE } from "@/lib/orders/order-age";
 import type { OrdersListRow } from "@/hooks/useOrdersList";
 import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
+
+/** Deterministic hue per agent so the same person keeps the same colour. */
+function AgentAvatar({ name }: { name: string | null }) {
+  if (!name) {
+    return (
+      <span
+        aria-hidden
+        className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-dashed border-oms-border-strong text-[11px] text-oms-ink-3"
+      >
+        +
+      </span>
+    );
+  }
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  const hue = hash % 360;
+  return (
+    <span
+      aria-hidden
+      className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold uppercase text-white"
+      style={{ background: `linear-gradient(140deg, hsl(${hue} 55% 58%), hsl(${hue} 58% 42%))` }}
+    >
+      {name.trim().slice(0, 2)}
+    </span>
+  );
+}
 
 const STATUS_TONE: Record<string, BadgeTone> = {
   pending: "neutral",
@@ -176,6 +203,7 @@ function Row({
     !!order.callback_scheduled_at &&
     new Date(order.callback_scheduled_at).getTime() <= Date.now();
   const hasPriorRejections = (order.prior_rejected_count ?? 0) > 0;
+  const age = classifyOrderAge(order.created_at, order.status);
 
   const rowBg = selected
     ? "bg-[#F2F6FC]"
@@ -208,7 +236,10 @@ function Row({
         />
       </td>
 
-      {/* Order cell — image + product + customer + city + #id */}
+      {/* Order cell — two-line record: customer leads, product supports.
+          The order reference used to live here pushed to inline-end, which is
+          what created the empty gap across every row. It now lives in the
+          detail panel and stays searchable. */}
       <td className="px-4 py-2 align-middle">
         <div className="flex items-center gap-3">
           <ProductAvatar
@@ -216,27 +247,10 @@ function Row({
             productName={productDisplayName}
           />
 
-          {/* Product block */}
-          <div className="flex min-w-0 items-baseline gap-1.5">
-            <span className="truncate text-[14px] font-medium leading-5 text-ink-primary">
-              {productDisplayName}
-            </span>
-            {order.variant_label && (
-              <span className="shrink-0 text-[12px] text-ink-secondary">
-                · {order.variant_label}
-              </span>
-            )}
-            <span className="shrink-0 text-[13px] font-semibold tabular-nums text-ink-primary">
-              ×{order.quantity}
-            </span>
-          </div>
-
-          {/* Divider */}
-          <span aria-hidden className="h-4 w-px shrink-0 bg-line-subtle" />
-
-          {/* Customer block */}
-          <div className="flex min-w-0 items-center gap-1.5">
-            {hasPriorRejections && (
+          <div className="flex min-w-0 flex-col gap-px">
+            {/* Line 1 — the row's entry point */}
+            <div className="flex min-w-0 items-center gap-1.5">
+              {hasPriorRejections && (
               <span
                 aria-hidden
                 title={labels.priorRejected.replace(
@@ -246,14 +260,12 @@ function Row({
                 className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-status-critical"
               />
             )}
-            <span className="min-w-0 truncate text-[14px] font-medium leading-5 text-ink-primary">
+            <span
+              dir="auto"
+              className="min-w-0 truncate text-[14px] font-semibold leading-[1.32] tracking-[-0.006em] text-oms-ink-1"
+            >
               {order.customer_name}
             </span>
-            {order.customer_city && (
-              <span className="shrink-0 text-[12px] text-ink-secondary">
-                · {order.customer_city}
-              </span>
-            )}
             {order.status !== "deleted" &&
             ((order.repeat_kind && order.repeat_kind !== "none") ||
               (order.is_potential_duplicate && order.is_duplicate_anchor)) ? (
@@ -300,21 +312,43 @@ function Row({
                 )}
               </span>
             ) : null}
-          </div>
+            </div>
 
-          {/* Order ID — pushed to inline-end */}
-          <span className="ms-auto shrink-0 font-mono text-[12px] tabular-nums text-ink-secondary">
-            #{order.external_id ?? order.id.slice(0, 8)}
-          </span>
+            {/* Line 2 — quiet supporting detail */}
+            <div className="flex min-w-0 items-center gap-1.5 text-[12px] leading-[1.34] text-oms-ink-3">
+              {order.customer_city && (
+                <span dir="auto" className="shrink-0 truncate">
+                  {order.customer_city}
+                </span>
+              )}
+              {order.customer_city && <span aria-hidden>·</span>}
+              {/* Name and variant stay separate nodes so each resolves its own
+                  direction — an Arabic variant beside a Latin name otherwise
+                  flips the separator to the wrong side. */}
+              <span dir="auto" className="min-w-0 truncate text-oms-ink-2">
+                {productDisplayName}
+              </span>
+              {order.variant_label && (
+                <span dir="auto" className="shrink-0 truncate text-oms-ink-3">
+                  · {order.variant_label}
+                </span>
+              )}
+              {order.quantity > 1 && (
+                <span className="shrink-0 font-semibold tabular-nums text-oms-ink-2">
+                  ×{order.quantity}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </td>
 
-      {/* Price */}
+      {/* Price — the loudest thing in the row; currency demoted so the number wins */}
       <td className="whitespace-nowrap px-4 py-2 text-end align-middle">
-        <span className="text-[15px] font-semibold tabular-nums text-ink-primary">
+        <span className="text-[16px] font-[650] tracking-[-0.02em] tabular-nums text-oms-ink-1">
           {order.total_price.toFixed(2)}
         </span>
-        <span className="ms-1 text-[11px] font-medium text-ink-secondary">
+        <span className="ms-1 text-[10.5px] font-medium uppercase tracking-[0.05em] text-oms-ink-3">
           {currencyCode}
         </span>
       </td>
@@ -349,21 +383,33 @@ function Row({
         </span>
       </td>
 
-      {/* Created date */}
+      {/* Age — how long it has been waiting. Escalates only while the order
+          still needs a human; the exact timestamp is on hover. */}
       <td className="whitespace-nowrap px-4 py-2 text-start align-middle">
-        <span className="text-[13px] tabular-nums text-ink-secondary">
-          {formatDateTime(order.created_at, locale)}
+        <span
+          data-testid="order-age"
+          data-tier={age.tier}
+          title={formatDateTime(order.created_at, locale)}
+          className={`inline-flex items-center gap-1 text-[12.5px] tabular-nums ${AGE_TONE[age.tier]}`}
+        >
+          {age.isBreach && (
+            <AlertTriangle size={11} strokeWidth={2} aria-hidden="true" className="shrink-0" />
+          )}
+          {formatOrderAge(age.minutes, locale)}
         </span>
       </td>
 
-      {/* Assignee */}
+      {/* Assignee — unassigned is the actionable state, so it reads differently */}
       <td className="whitespace-nowrap px-4 py-2 align-middle">
-        <span
-          className={`block truncate text-[13px] font-medium ${
-            agentName ? "text-ink-primary" : "text-ink-secondary"
-          }`}
-        >
-          {agentName ?? labels.unassigned}
+        <span className="flex items-center gap-2">
+          <AgentAvatar name={agentName} />
+          <span
+            className={`min-w-0 truncate text-[12.5px] ${
+              agentName ? "font-medium text-oms-ink-1" : "italic text-oms-ink-3"
+            }`}
+          >
+            {agentName ?? labels.unassigned}
+          </span>
         </span>
       </td>
 
