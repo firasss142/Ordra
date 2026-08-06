@@ -1132,6 +1132,7 @@ export function OrderDetailPanel({
                   phone={order.customer_phone}
                   phone2={order.customer_phone_2}
                   city={order.customer_city}
+                  address={order.customer_address}
                   terminal={TERMINAL_STATUSES.has(order.status)}
                   canEdit={canEdit}
                   isLibyaOrder={isLibyaOrder}
