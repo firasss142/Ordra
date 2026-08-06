@@ -54,6 +54,23 @@ const config: Config = {
           DEFAULT: "#10B981",
           soft: "rgba(16,185,129,0.10)",
         },
+        // Orders console — "soft & warm". Scoped to the orders surface;
+        // see docs/design-system.md §"Orders console".
+        oms: {
+          bg: "var(--oms-bg)",
+          surface: "var(--oms-surface)",
+          sunken: "var(--oms-surface-sunken)",
+          border: "var(--oms-border)",
+          "border-strong": "var(--oms-border-strong)",
+          "ink-1": "var(--oms-ink-1)",
+          "ink-2": "var(--oms-ink-2)",
+          "ink-3": "var(--oms-ink-3)",
+          accent: "var(--oms-accent)",
+          "accent-ink": "var(--oms-accent-ink)",
+          "accent-bg": "var(--oms-accent-bg)",
+          "age-warm": "var(--oms-age-warm)",
+          "age-late": "var(--oms-age-late)",
+        },
         status: {
           action: "#2C6ECB",
           success: "#008060",

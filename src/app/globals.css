@@ -21,6 +21,32 @@
   --border: #E1E3E5;
   --border-strong: #C9CCCF;
 
+  /* ── Orders console ("soft & warm") ───────────────────────────────
+     Scoped to the orders surface. Warmer ground than --bg-page, a
+     three-step neutral ramp where every step clears 4.5:1 on white,
+     and a violet accent for the KPI strip's active state — the slot
+     vacated when the preset tabs were retired.
+     See docs/design-system.md §"Orders console".
+     ─────────────────────────────────────────────────────────────── */
+  --oms-bg: #FAFAF8;
+  --oms-surface: #FFFFFF;
+  --oms-surface-sunken: #F4F3EF;
+  --oms-border: #EAE7E1;
+  --oms-border-strong: #DCD8D0;
+
+  --oms-ink-1: #1B1917;  /* 17.5:1 — customer name, price */
+  --oms-ink-2: #5C5852;  /*  7.1:1 — product, secondary labels */
+  --oms-ink-3: #78726A;  /*  4.8:1 — meta, period labels, column heads */
+
+  --oms-accent: #6E56CF;
+  --oms-accent-ink: #513FA8;
+  --oms-accent-bg: #F1EEFC;
+
+  /* Aging scale — escalates only while an order still needs a human */
+  --oms-age-fresh: var(--oms-ink-3);
+  --oms-age-warm: #A9670C;
+  --oms-age-late: #B23A32;
+
   /* Sidebar — dark surface (refreshed) */
   --sidebar-bg:              #0E1013;
   --sidebar-bg-elevated:     #14171C;

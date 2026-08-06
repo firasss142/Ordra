@@ -1207,6 +1207,27 @@
       "label": "Mode d'affichage",
       "board": "Assignation",
       "table": "Tableau"
+    },
+    "kpi": {
+      "label": "Indicateurs",
+      "pipeline": "Pipeline",
+      "unassigned": "Non assignées",
+      "unassignedHint": "aucun agent",
+      "today": "Aujourd'hui",
+      "waiting": "En attente",
+      "toRecall": "À rappeler",
+      "confirmed": "Confirmées",
+      "uploaded": "Téléchargées",
+      "confirmationRate": "Taux de confirmation",
+      "ratePeriod": "7 derniers jours · vs 7 précédents",
+      "periodNow": "maintenant",
+      "periodToday": "aujourd'hui",
+      "scaleNote": "échelles distinctes — comparer au sein d’une même période",
+      "scaleQueues": "files",
+      "scaleDaily": "volumes du jour",
+      "hidePipeline": "Masquer le pipeline",
+      "showPipeline": "Afficher le pipeline",
+      "total": "{count} au total"
     }
   },
   "unassigned": {

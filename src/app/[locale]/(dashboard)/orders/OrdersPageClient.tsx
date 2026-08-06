@@ -23,12 +23,13 @@ import {
 } from "@/lib/orders/list-filters";
 import { OrdersFilterBar } from "@/components/orders/OrdersFilterBar";
 import { OrdersFilterChips } from "@/components/orders/OrdersFilterChips";
-import { OrdersPresetPills } from "@/components/orders/OrdersPresetPills";
+import { OrdersKpiStrip, type KpiTile } from "@/components/orders/OrdersKpiStrip";
+import { filtersForTile, tileForFilters } from "@/lib/orders/kpi-tiles";
+import type { StatusCounts } from "@/app/api/orders/status-counts/route";
 import { OrdersTable } from "@/components/orders/OrdersTable";
 import { OrdersBulkBar } from "@/components/orders/OrdersBulkBar";
 import { BulkUploadPanel } from "@/components/orders/BulkUploadPanel";
 import { BulkReopenPanel } from "@/components/orders/BulkReopenPanel";
-import { OrdersStatusStrip } from "@/components/orders/OrdersStatusStrip";
 import { OrdersViewToggle, type OrdersView } from "@/components/orders/OrdersViewToggle";
 import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
 
@@ -513,16 +514,30 @@ export function OrdersPageClient({
     filters.rejectionReason !== null ||
     filters.carrierId !== null;
 
-  // Assignment board is the default view of the unassigned tab; any active
+  // ---------- KPI strip ----------
+  // Counts are market-wide and deliberately independent of the table filters:
+  // a tile that moved when you clicked another tile could not be trusted as
+  // navigation. Tile <-> filter mapping lives in lib/orders/kpi-tiles.
+  const { data: kpiData, isLoading: kpiLoading } = useSWR<{ data: StatusCounts }>(
+    effectiveMarketId
+      ? `/api/orders/status-counts?market_id=${effectiveMarketId}`
+      : `/api/orders/status-counts`,
+    fetcher,
+    { refreshInterval: 60_000, revalidateOnFocus: false },
+  );
+  const kpiCounts = kpiData?.data;
+  const activeTile: KpiTile | null = useMemo(() => tileForFilters(filters), [filters]);
+
+  // Assignment board is the default view of the unassigned tile; any active
   // filter chip falls back to the plain table (filters apply to the table only).
   const boardActive =
-    filters.preset === "unassigned" && canAssign && view === "board" && !hasActiveFilterChips;
+    activeTile === "unassigned" && canAssign && view === "board" && !hasActiveFilterChips;
 
   return (
     <div
       style={{
         padding: isMobile ? "64px 16px 80px" : "24px 24px 80px",
-        background: "#F6F6F7",
+        background: "var(--oms-bg)",
         minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
@@ -549,15 +564,17 @@ export function OrdersPageClient({
           </div>
         </div>
 
-        <OrdersStatusStrip marketId={effectiveMarketId} />
-
-        <div className="flex items-end justify-between gap-2 flex-wrap border-b border-line">
-          <OrdersPresetPills
-            active={filters.preset}
-            onChange={(next) => update({ preset: next })}
-          />
-          {filters.preset === "unassigned" && canAssign ? (
-            <div className="pb-1.5">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <OrdersKpiStrip
+              counts={kpiCounts}
+              isLoading={kpiLoading}
+              activeTile={activeTile}
+              onSelect={(tile) => update(filtersForTile(tile))}
+            />
+          </div>
+          {activeTile === "unassigned" && canAssign ? (
+            <div className="pt-1">
               <OrdersViewToggle
                 view={hasActiveFilterChips ? "table" : view}
                 onChange={setView}

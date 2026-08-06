@@ -1207,6 +1207,27 @@
       "label": "وضع العرض",
       "board": "لوحة الإسناد",
       "table": "جدول"
+    },
+    "kpi": {
+      "label": "المؤشرات",
+      "pipeline": "المسار",
+      "unassigned": "غير مسندة",
+      "unassignedHint": "بدون وكيل",
+      "today": "اليوم",
+      "waiting": "في الانتظار",
+      "toRecall": "إعادة الاتصال",
+      "confirmed": "مؤكدة",
+      "uploaded": "مرفوعة",
+      "confirmationRate": "نسبة التأكيد",
+      "ratePeriod": "آخر 7 أيام · مقارنة بالـ7 السابقة",
+      "periodNow": "الآن",
+      "periodToday": "اليوم",
+      "scaleNote": "مقاييس مختلفة — قارن ضمن نفس الفترة",
+      "scaleQueues": "قوائم الانتظار",
+      "scaleDaily": "حجم اليوم",
+      "hidePipeline": "إخفاء المسار",
+      "showPipeline": "إظهار المسار",
+      "total": "{count} الإجمالي"
     }
   },
   "unassigned": {
