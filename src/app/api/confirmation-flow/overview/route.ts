@@ -109,8 +109,8 @@ export async function GET(req: NextRequest) {
   //    (order_history table has no market_id column, so filter via FK relation)
   const { data: history, error: histErr } = await supabase
     .from("order_history")
-    .select("order_id, status_from, status_to, actor_id, created_at, orders!inner(market_id)")
-    .eq("orders.market_id", marketId)
+    .select("order_id, status_from, status_to, actor_id, created_at")
+    .eq("market_id", marketId)
     .in("status_to", [...CONFIRMATION_STATUSES])
     .gte("created_at", isoStart(fromISO))
     .lte("created_at", isoEnd(toISO))

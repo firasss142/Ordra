@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
   let query = supabase
     .from("order_history")
     .select("order_id, status_to, orders!inner(status)")
-    .eq("orders.market_id", market_id)
+    .eq("market_id", market_id)
     .in("status_to", orderStatuses)
     .in("orders.status", orderStatuses);
 

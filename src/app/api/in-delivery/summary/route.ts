@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
     .select("order_id, status_to, created_at, orders!inner(carrier_id, market_id)")
     .in("status_to", ["delivered", "returned"])
     .gte("created_at", d30CutoffIso);
-  if (marketId) fulfillmentQuery = fulfillmentQuery.eq("orders.market_id", marketId);
+  if (marketId) fulfillmentQuery = fulfillmentQuery.eq("market_id", marketId);
 
   const [ordersResult, carriersResult, fulfillmentResult] = await Promise.all([
     ordersQuery,

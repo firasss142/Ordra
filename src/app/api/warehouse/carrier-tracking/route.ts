@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
     .in("status_to", PHASE_2_STATUSES as unknown as string[])
     .order("created_at", { ascending: false })
     .limit(RECENT_TRANSITIONS_LIMIT);
-  if (marketId) transitionsQuery = transitionsQuery.eq("orders.market_id", marketId);
+  if (marketId) transitionsQuery = transitionsQuery.eq("market_id", marketId);
 
   /* ─────────────── Fulfillment history last 90d (delivery rates, cost, trends) ─────────────── */
   let fulfillmentQuery = supabase
@@ -134,7 +134,7 @@ export async function GET(req: NextRequest) {
     )
     .in("status_to", ["delivered", "returned"])
     .gte("created_at", d90CutoffIso);
-  if (marketId) fulfillmentQuery = fulfillmentQuery.eq("orders.market_id", marketId);
+  if (marketId) fulfillmentQuery = fulfillmentQuery.eq("market_id", marketId);
 
   const [ordersResult, carriersResult, transitionsResult, fulfillmentResult] =
     await Promise.all([ordersQuery, carriersQuery, transitionsQuery, fulfillmentQuery]);

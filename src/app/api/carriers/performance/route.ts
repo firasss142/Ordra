@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
     )
     .in("status_to", ["delivered", "returned"])
     .gte("created_at", cutoffIso)
-    .eq("orders.market_id", marketId);
+    .eq("market_id", marketId);
 
   if (histErr) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

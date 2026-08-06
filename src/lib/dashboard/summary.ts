@@ -249,39 +249,46 @@ async function fetchFinancials(
         .eq("market_id", marketId)
         .gte("created_at", fromDate)
         .lte("created_at", dateLte),
+      // Market is filtered on order_history.market_id (denormalized by
+      // 20260819000001), NOT through the embedded orders row. That turns the
+      // predicate into an exact prefix match on
+      // idx_order_history_market_status_created (market_id, status_to,
+      // created_at), so Postgres narrows order_history first and only joins the
+      // survivors. Filtering via orders.market_id forced the join to run for
+      // every candidate row instead.
       supabase
         .from("order_history")
-        .select("id, orders!inner(market_id)", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("status_to", "rejected")
-        .eq("orders.market_id", marketId)
+        .eq("market_id", marketId)
         .gte("created_at", fromDate)
         .lte("created_at", dateLte),
       fetchAllRows<DeliveredRow>(
         supabase
           .from("order_history")
           .select(
-            "orders!inner(total_price, quantity, products(unit_cogs, packing_cost), carriers!orders_carrier_id_fkey(delivery_fee, return_fee), market_id)",
+            "orders!inner(total_price, quantity, products(unit_cogs, packing_cost), carriers!orders_carrier_id_fkey(delivery_fee, return_fee))",
           )
           .eq("status_to", "delivered")
-          .eq("orders.market_id", marketId)
+          .eq("market_id", marketId)
           .gte("created_at", fromDate)
           .lte("created_at", dateLte),
       ),
       fetchAllRows<ReturnedRow>(
         supabase
           .from("order_history")
-          .select("orders!inner(carriers!orders_carrier_id_fkey(delivery_fee, return_fee), market_id)")
+          .select("orders!inner(carriers!orders_carrier_id_fkey(delivery_fee, return_fee))")
           .eq("status_to", "returned")
-          .eq("orders.market_id", marketId)
+          .eq("market_id", marketId)
           .gte("created_at", fromDate)
           .lte("created_at", dateLte),
       ),
       fetchAllRows<ConfirmedRow>(
         supabase
           .from("order_history")
-          .select("orders!inner(products(packing_cost), market_id)")
+          .select("orders!inner(products(packing_cost))")
           .eq("status_to", "confirmed")
-          .eq("orders.market_id", marketId)
+          .eq("market_id", marketId)
           .gte("created_at", fromDate)
           .lte("created_at", dateLte),
       ),
@@ -361,13 +368,15 @@ async function fetchNonFinancialCounts(
   ordersProcessed: number;
 }> {
   const dateLte = toDate + "T23:59:59.999Z";
+  // No join: market lives on order_history itself, and nothing else here needs
+  // the order row.
   let q = supabase
     .from("order_history")
-    .select("status_to, orders!inner(market_id)")
+    .select("status_to")
     .in("status_to", ["confirmed", "uploaded", "rejected"])
     .gte("created_at", fromDate)
     .lte("created_at", dateLte);
-  if (marketId) q = q.eq("orders.market_id", marketId);
+  if (marketId) q = q.eq("market_id", marketId);
 
   const data = await fetchAllRows<{ status_to: string }>(q);
   const counts = aggregatePeriodCounts(
@@ -500,32 +509,36 @@ export async function getDashboardSummary(
     assigned_to: string | null;
   }>(pipelineBuilder);
 
+  // This is the widest read on the page — every status in the period. It used
+  // to join orders solely to reach rejection_reason, paying that join on every
+  // row when only the rejected minority needs it. Now it reads order_history
+  // alone; the reasons are fetched afterwards for just those order ids.
   let periodHistoryBuilder = supabase
     .from("order_history")
-    .select("status_to, created_at, actor_id, order_id, orders!inner(market_id, rejection_reason)")
+    .select("status_to, created_at, actor_id, order_id, market_id")
     .gte("created_at", fromDate)
     .lte("created_at", dateLte);
-  if (scopedMarketId) periodHistoryBuilder = periodHistoryBuilder.eq("orders.market_id", scopedMarketId);
+  if (scopedMarketId) periodHistoryBuilder = periodHistoryBuilder.eq("market_id", scopedMarketId);
   type PeriodHistoryRow = {
     status_to: string;
     created_at: string;
     actor_id: string | null;
     order_id: string | null;
-    orders: { market_id: string | null; rejection_reason: string | null } | null;
+    market_id: string | null;
   };
   const periodHistoryPromise = fetchAllRows<PeriodHistoryRow>(periodHistoryBuilder);
 
   let trendHistoryBuilder = supabase
     .from("order_history")
-    .select("status_to, created_at, orders!inner(market_id)")
+    .select("status_to, created_at, market_id")
     .in("status_to", ["confirmed", "uploaded", "rejected"])
     .gte("created_at", trendFromIso)
     .lte("created_at", trendToIso + "T23:59:59.999Z");
-  if (scopedMarketId) trendHistoryBuilder = trendHistoryBuilder.eq("orders.market_id", scopedMarketId);
+  if (scopedMarketId) trendHistoryBuilder = trendHistoryBuilder.eq("market_id", scopedMarketId);
   type TrendHistoryRow = {
     status_to: string;
     created_at: string;
-    orders: { market_id: string | null } | null;
+    market_id: string | null;
   };
   const trendHistoryPromise = fetchAllRows<TrendHistoryRow>(trendHistoryBuilder);
 
@@ -539,21 +552,21 @@ export async function getDashboardSummary(
 
   let deliveryHistoryBuilder = supabase
     .from("order_history")
-    .select("status_to, orders!inner(market_id)")
+    .select("status_to")
     .in("status_to", ["delivered", "returned"])
     .gte("created_at", fromDate)
     .lte("created_at", dateLte);
-  if (scopedMarketId) deliveryHistoryBuilder = deliveryHistoryBuilder.eq("orders.market_id", scopedMarketId);
-  type DeliveryHistoryRow = { status_to: string; orders: { market_id: string | null } | null };
+  if (scopedMarketId) deliveryHistoryBuilder = deliveryHistoryBuilder.eq("market_id", scopedMarketId);
+  type DeliveryHistoryRow = { status_to: string };
   const deliveryHistoryPromise = fetchAllRows<DeliveryHistoryRow>(deliveryHistoryBuilder);
 
   let prevDeliveryHistoryBuilder = supabase
     .from("order_history")
-    .select("status_to, orders!inner(market_id)")
+    .select("status_to")
     .in("status_to", ["delivered", "returned"])
     .gte("created_at", prev.from)
     .lte("created_at", prevLte);
-  if (scopedMarketId) prevDeliveryHistoryBuilder = prevDeliveryHistoryBuilder.eq("orders.market_id", scopedMarketId);
+  if (scopedMarketId) prevDeliveryHistoryBuilder = prevDeliveryHistoryBuilder.eq("market_id", scopedMarketId);
   const prevDeliveryHistoryPromise = fetchAllRows<DeliveryHistoryRow>(prevDeliveryHistoryBuilder);
 
   let topProductsBuilder = supabase
@@ -562,7 +575,10 @@ export async function getDashboardSummary(
     .eq("status_to", "delivered")
     .gte("created_at", fromDate)
     .lte("created_at", dateLte);
-  if (scopedMarketId) topProductsBuilder = topProductsBuilder.eq("orders.market_id", scopedMarketId);
+  // Join stays — this genuinely needs total_price/product_id/products.name —
+  // but the market predicate moves onto order_history so the index narrows the
+  // candidate set before any order row is fetched.
+  if (scopedMarketId) topProductsBuilder = topProductsBuilder.eq("market_id", scopedMarketId);
   type TopProductRow = {
     orders: {
       market_id: string;
@@ -632,13 +648,37 @@ export async function getDashboardSummary(
     perMarketCountsPromises = allMarkets.map((m) => fetchNonFinancialCounts(supabase, m.id, fromDate, toDate));
   }
 
+  // rejection_reason lives on orders and is only read for rejected rows (the
+  // breakdown ignores every other status). Fetching it for just those order ids
+  // costs one narrow indexed lookup instead of joining orders to every history
+  // row in the period.
+  const rejectedOrderIds = [
+    ...new Set(
+      periodHistoryRowsAll
+        .filter((r) => r.status_to === "rejected" && r.order_id)
+        .map((r) => r.order_id as string),
+    ),
+  ];
+  const rejectionReasonByOrder = new Map<string, string | null>();
+  if (rejectedOrderIds.length > 0) {
+    const reasonRows = await fetchAllRows<{
+      id: string;
+      rejection_reason: string | null;
+    }>(supabase.from("orders").select("id, rejection_reason").in("id", rejectedOrderIds));
+    for (const row of reasonRows) {
+      rejectionReasonByOrder.set(row.id, row.rejection_reason);
+    }
+  }
+
   const periodHistory: HistoryRow[] = periodHistoryRowsAll.map((r) => ({
     status_to: r.status_to,
     created_at: r.created_at,
     actor_id: r.actor_id,
     order_id: r.order_id,
-    rejection_reason: r.orders?.rejection_reason ?? null,
-    market_id: r.orders?.market_id ?? null,
+    rejection_reason: r.order_id
+      ? rejectionReasonByOrder.get(r.order_id) ?? null
+      : null,
+    market_id: r.market_id,
   }));
 
   const trendHistory: HistoryRow[] = trendHistoryRowsAll.map((r) => ({
@@ -647,7 +687,7 @@ export async function getDashboardSummary(
     actor_id: null,
     order_id: null,
     rejection_reason: null,
-    market_id: r.orders?.market_id ?? null,
+    market_id: r.market_id,
   }));
 
   const rejectionBreakdown = aggregateRejectionBreakdown(periodHistory);

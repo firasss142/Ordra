@@ -43,8 +43,12 @@ describe("getLatestActivityDate", () => {
     const date = await getLatestActivityDate(supabase as never, "market-tn");
     expect(date).toBe("2026-04-27");
     expect(calls.table).toBe("order_history");
-    // filters by the joined market
-    expect(calls.eqArgs).toContainEqual(["orders.market_id", "market-tn"]);
+    // Filters on order_history's own market_id — NOT through an embedded
+    // orders row. The join made Postgres fetch an order per candidate before
+    // LIMIT 1 could apply; the local column lets the composite index serve the
+    // ordering directly.
+    expect(calls.eqArgs).toContainEqual(["market_id", "market-tn"]);
+    expect(calls.eqArgs).not.toContainEqual(["orders.market_id", "market-tn"]);
     // filters to revenue-relevant statuses only (not any order_history churn)
     expect(calls.inArgs).toContainEqual(["status_to", REVENUE_RELEVANT_STATUSES]);
   });

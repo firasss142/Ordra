@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     .limit(50000);
 
   if (marketId) {
-    historyQuery = historyQuery.eq("orders.market_id", marketId);
+    historyQuery = historyQuery.eq("market_id", marketId);
   }
 
   const { data: historyRows, error: historyError } = await historyQuery;

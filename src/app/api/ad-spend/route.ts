@@ -114,14 +114,14 @@ export async function GET(req: NextRequest) {
       .from("order_history")
       .select("created_at, orders!inner(product_id, market_id)")
       .eq("status_to", "confirmed")
-      .eq("orders.market_id", marketId)
+      .eq("market_id", marketId)
       .gte("created_at", confFetchStart)
       .lte("created_at", confFetchEnd + "T23:59:59"),
     supabase
       .from("order_history")
       .select("created_at, orders!inner(product_id, market_id, total_price)")
       .eq("status_to", "delivered")
-      .eq("orders.market_id", marketId)
+      .eq("market_id", marketId)
       .gte("created_at", minStart)
       .lte("created_at", maxEnd + "T23:59:59"),
   ]);

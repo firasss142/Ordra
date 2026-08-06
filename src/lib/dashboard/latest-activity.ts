@@ -18,22 +18,24 @@ export const REVENUE_RELEVANT_STATUSES = [
 // order_history event for a market, or null if the market has none. For "all" /
 // null (super_admin cross-market), returns the global max across every market.
 //
-// order_history has no market_id column, so we join orders!inner(market_id) —
-// the same pattern used throughout src/lib/dashboard/summary.ts. This is a
-// single-row descending fetch (LIMIT 1), not a full enumeration, so it is cheap.
+// Reads order_history.market_id directly (denormalized by 20260819000001) — an
+// earlier version joined orders!inner(market_id) because the column did not yet
+// exist. The join forced a row from orders per candidate before the LIMIT 1
+// could apply; filtering locally lets
+// idx_order_history_market_status_created serve the ordering outright.
 export async function getLatestActivityDate(
   supabase: SupabaseClient,
   marketId: string | "all" | null,
 ): Promise<string | null> {
   let query = supabase
     .from("order_history")
-    .select("created_at, orders!inner(market_id)")
+    .select("created_at")
     .in("status_to", REVENUE_RELEVANT_STATUSES as unknown as string[])
     .order("created_at", { ascending: false })
     .limit(1);
 
   if (marketId && marketId !== "all") {
-    query = query.eq("orders.market_id", marketId);
+    query = query.eq("market_id", marketId);
   }
 
   const { data, error } = (await query) as {
