@@ -1230,6 +1230,18 @@
       "hidePipeline": "إخفاء المسار",
       "showPipeline": "إظهار المسار",
       "total": "{count} الإجمالي"
+    },
+    "facets": {
+      "anyOf": "أي منها",
+      "anyOfF": "أي منها",
+      "clearAll": "مسح الكل",
+      "remove": "إزالة {label}",
+      "results": "{count} معروضة",
+      "search": "تصفية…",
+      "none": "لا نتائج",
+      "unassigned": "غير مسند",
+      "product": "المنتج",
+      "source": "المصدر"
     }
   },
   "unassigned": {

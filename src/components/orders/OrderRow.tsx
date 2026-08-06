@@ -205,16 +205,13 @@ function Row({
   const hasPriorRejections = (order.prior_rejected_count ?? 0) > 0;
   const age = classifyOrderAge(order.created_at, order.status);
 
-  const rowBg = selected
-    ? "bg-[#F2F6FC]"
-    : highlighted
-      ? "bg-[#FFFBEA]"
-      : "bg-surface-card hover:bg-surface-hover";
-
   return (
     <tr
       onClick={() => onOpen(order.id)}
-      className={`group/row cursor-pointer border-b border-line-subtle transition-colors duration-fast ${rowBg} hover:shadow-hover-row`}
+      data-selected={selected}
+      data-highlighted={highlighted}
+      data-breach={age.isBreach}
+      className="oms-row group/row cursor-pointer"
     >
       {/* Checkbox + accent bar */}
       <td

@@ -96,20 +96,14 @@ export function OrdersTable({
 
   return (
     <div
-      style={{
-        background: "#FFFFFF",
-        border: "1px solid #E1E3E5",
-        borderRadius: 8,
-        overflow: "hidden",
-      }}
+      style={{ background: "transparent" }}
     >
       <div style={{ overflowX: "auto" }}>
         <table
+          className="oms-rows"
           style={{
             width: "100%",
             minWidth: 900,
-            borderCollapse: "separate",
-            borderSpacing: 0,
             tableLayout: "fixed",
           }}
         >
@@ -124,7 +118,7 @@ export function OrdersTable({
             <col style={{ width: 48 }} />
           </colgroup>
           <thead>
-            <tr style={{ background: "#FFFFFF", position: "sticky", top: 0, zIndex: 1 }}>
+            <tr style={{ background: "var(--oms-bg)", position: "sticky", top: 0, zIndex: 1 }}>
               <th style={headerStyle}>
                 <input
                   type="checkbox"

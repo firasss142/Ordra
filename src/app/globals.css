@@ -101,6 +101,49 @@
   color: var(--text-primary);
 }
 
+/* ─────────────────────────────────────────────────────────
+   Orders console — rows read as bands on the warm ground
+   rather than as lines in a grid. Resting surfaces stay flat;
+   elevation appears on hover only (design-system §4.17 E).
+   Logical properties throughout so the Libya market mirrors.
+   ───────────────────────────────────────────────────────── */
+.oms-rows {
+  border-collapse: separate;
+  border-spacing: 0 6px;
+}
+.oms-row > td {
+  background: var(--oms-surface);
+  border-block: 1px solid var(--oms-border);
+  transition: border-color 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+.oms-row > td:first-child {
+  border-inline-start: 1px solid var(--oms-border);
+  border-start-start-radius: 10px;
+  border-end-start-radius: 10px;
+}
+.oms-row > td:last-child {
+  border-inline-end: 1px solid var(--oms-border);
+  border-start-end-radius: 10px;
+  border-end-end-radius: 10px;
+}
+.oms-row {
+  transition: box-shadow 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+.oms-row:hover > td {
+  border-color: var(--oms-border-strong);
+}
+.oms-row:hover {
+  box-shadow: 0 1px 2px rgba(27, 25, 23, 0.05), 0 3px 10px rgba(27, 25, 23, 0.06);
+}
+/* Selected and flagged rows tint the band itself, not a stripe behind it. */
+.oms-row[data-selected="true"] > td { background: var(--oms-accent-bg); }
+.oms-row[data-selected="true"] > td { border-color: var(--oms-accent); }
+.oms-row[data-highlighted="true"] > td { background: #FFFBEA; }
+/* SLA breach — a severity stripe on the leading edge, not decoration. */
+.oms-row[data-breach="true"] > td:first-child {
+  box-shadow: inset 3px 0 0 var(--oms-age-late);
+}
+
 /* Global focus-visible ring — 2px Neon Green, 2px offset (design-system §4) */
 :focus-visible {
   outline: 2px solid #36F4A4;

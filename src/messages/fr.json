@@ -1230,6 +1230,18 @@
       "hidePipeline": "Masquer le pipeline",
       "showPipeline": "Afficher le pipeline",
       "total": "{count} au total"
+    },
+    "facets": {
+      "anyOf": "n'importe lequel",
+      "anyOfF": "n'importe laquelle",
+      "clearAll": "Tout effacer",
+      "remove": "Retirer {label}",
+      "results": "{count} affichées",
+      "search": "Filtrer…",
+      "none": "Aucun résultat",
+      "unassigned": "Non assigné",
+      "product": "Produit",
+      "source": "Source"
     }
   },
   "unassigned": {

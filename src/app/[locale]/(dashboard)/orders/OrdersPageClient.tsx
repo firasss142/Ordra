@@ -23,6 +23,7 @@ import {
 } from "@/lib/orders/list-filters";
 import { OrdersFilterBar } from "@/components/orders/OrdersFilterBar";
 import { OrdersFilterChips } from "@/components/orders/OrdersFilterChips";
+import { OrdersFacetBar } from "@/components/orders/OrdersFacetBar";
 import { OrdersKpiStrip, type KpiTile } from "@/components/orders/OrdersKpiStrip";
 import { filtersForTile, tileForFilters } from "@/lib/orders/kpi-tiles";
 import type { StatusCounts } from "@/app/api/orders/status-counts/route";
@@ -528,6 +529,13 @@ export function OrdersPageClient({
   const kpiCounts = kpiData?.data;
   const activeTile: KpiTile | null = useMemo(() => tileForFilters(filters), [filters]);
 
+  /** Cities present in the current result set, for the Ville facet. */
+  const knownCities = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rows) if (r.customer_city) set.add(r.customer_city);
+    return [...set].sort((a, b) => a.localeCompare(b, locale === "ar" ? "ar" : "fr"));
+  }, [rows, locale]);
+
   // Assignment board is the default view of the unassigned tile; any active
   // filter chip falls back to the plain table (filters apply to the table only).
   const boardActive =
@@ -585,7 +593,7 @@ export function OrdersPageClient({
       </div>
 
       {/* ── Filter card ── */}
-      <div className="bg-surface-card border border-line-subtle rounded-[8px] px-4 py-3.5 flex flex-col gap-2.5">
+      <div className="bg-oms-surface border border-oms-border rounded-card px-4 py-3.5 flex flex-col gap-2.5">
         <OrdersFilterBar
           filters={filters}
           onChange={update}
@@ -596,6 +604,23 @@ export function OrdersPageClient({
           onNewOrder={() => setCreateOpen(true)}
           onExport={handleExport}
           marketLabel={activeMarketLabel}
+        />
+        {/* Named facets, applied on click. Replaces the "Avancé" drawer for the
+            three filters an ops dispatcher reaches for constantly; the panel
+            still holds the long tail (product, carrier, price, reason). */}
+        <OrdersFacetBar
+          filters={filters}
+          onChange={update}
+          agents={agents}
+          cities={knownCities}
+          resultCount={rows.length}
+          resultValue={rows
+            .reduce((sum, r) => sum + (r.total_price ?? 0), 0)
+            .toLocaleString(locale === "ar" ? "ar" : "fr-FR", {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            })}
+          currencyCode={currencyCode}
         />
         {hasActiveFilterChips ? (
           <OrdersFilterChips
