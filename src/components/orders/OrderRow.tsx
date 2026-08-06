@@ -13,32 +13,7 @@ import { formatDateTime } from "@/lib/format";
 import { classifyOrderAge, formatOrderAge, AGE_TONE } from "@/lib/orders/order-age";
 import type { OrdersListRow } from "@/hooks/useOrdersList";
 import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
-
-/** Deterministic hue per agent so the same person keeps the same colour. */
-function AgentAvatar({ name }: { name: string | null }) {
-  if (!name) {
-    return (
-      <span
-        aria-hidden
-        className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-dashed border-oms-border-strong text-[11px] text-oms-ink-3"
-      >
-        +
-      </span>
-    );
-  }
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  const hue = hash % 360;
-  return (
-    <span
-      aria-hidden
-      className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold uppercase text-white"
-      style={{ background: `linear-gradient(140deg, hsl(${hue} 55% 58%), hsl(${hue} 58% 42%))` }}
-    >
-      {name.trim().slice(0, 2)}
-    </span>
-  );
-}
+import { AgentAvatar } from "@/components/shared/AgentAvatar";
 
 const STATUS_TONE: Record<string, BadgeTone> = {
   pending: "neutral",

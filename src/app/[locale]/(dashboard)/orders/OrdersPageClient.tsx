@@ -158,7 +158,7 @@ export function OrdersPageClient({
     fetcher,
   );
   const { data: carriersData } = useSWR<{ data: Carrier[] }>(
-    drawerMounted && effectiveMarketId ? `/api/carriers?market_id=${effectiveMarketId}` : null,
+    effectiveMarketId ? `/api/carriers?market_id=${effectiveMarketId}` : null,
     fetcher,
   );
 
@@ -635,6 +635,7 @@ export function OrdersPageClient({
           onChange={update}
           agents={agents}
           products={productsData?.data ?? []}
+          carriers={carriersData?.data ?? []}
           cities={knownCities}
           resultCount={rows.length}
           resultValue={rows

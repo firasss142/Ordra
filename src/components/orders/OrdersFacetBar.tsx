@@ -5,6 +5,9 @@ import { useTranslations } from "next-intl";
 import { ChevronDown, X } from "lucide-react";
 import type { OrderListFilters } from "@/lib/orders/list-filters";
 import type { OrderStatus } from "@/types/order-status";
+import { ProductAvatar } from "./ProductAvatar";
+import { AgentAvatar } from "@/components/shared/AgentAvatar";
+import { CarrierMark } from "@/components/shared/CarrierMark";
 
 /**
  * Instant facet bar — one row, every filter named.
@@ -21,11 +24,26 @@ import type { OrderStatus } from "@/types/order-status";
  * the two axes it actually represents.
  */
 
+/** An option may carry a leading visual — a product photo, an agent avatar,
+ *  a carrier mark. Recognition is faster than reading, especially in a list
+ *  of Arabic product names that share a prefix. */
+export interface FacetOption {
+  value: string;
+  label: string;
+  selected: boolean;
+  icon?: React.ReactNode;
+}
+
 interface AgentLike {
   id: string;
   full_name: string;
 }
 interface ProductLike {
+  id: string;
+  name: string;
+  image_url?: string | null;
+}
+interface CarrierLike {
   id: string;
   name: string;
 }
@@ -35,6 +53,7 @@ interface Props {
   onChange: (patch: Partial<OrderListFilters>) => void;
   agents: AgentLike[];
   products: ProductLike[];
+  carriers: CarrierLike[];
   cities: string[];
   /** Rows currently loaded. The keyset list exposes no total, so this is
    *  labelled "affichées" rather than claiming to be the filtered total. */
@@ -81,6 +100,7 @@ export function OrdersFacetBar({
   onChange,
   agents,
   products,
+  carriers,
   cities,
   resultCount,
   resultValue,
@@ -162,6 +182,13 @@ export function OrdersFacetBar({
       clear: { productId: null },
     });
   }
+  if (filters.carrierId) {
+    chips.push({
+      key: "carrier",
+      label: carriers.find((c) => c.id === filters.carrierId)?.name ?? filters.carrierId,
+      clear: { carrierId: null },
+    });
+  }
   if (dateActive) {
     chips.push({
       key: "date",
@@ -224,11 +251,13 @@ export function OrdersFacetBar({
               value: "unassigned",
               label: tf("unassigned"),
               selected: filters.agentId === "unassigned",
+              icon: <AgentAvatar name={null} size={20} />,
             },
             ...agents.map((a) => ({
               value: a.id,
               label: a.full_name,
               selected: filters.agentId === a.id,
+              icon: <AgentAvatar name={a.full_name} size={20} />,
             })),
           ]}
           onSelect={(v) => onChange({ agentId: filters.agentId === v ? null : v })}
@@ -267,8 +296,24 @@ export function OrdersFacetBar({
             value: p.id,
             label: p.name,
             selected: filters.productId === p.id,
+            icon: <ProductAvatar imageUrl={p.image_url ?? null} productName={p.name} size={20} />,
           }))}
           onSelect={(v) => onChange({ productId: filters.productId === v ? null : v })}
+        />
+
+        <Facet
+          label={tf("carrier")}
+          count={filters.carrierId ? 1 : 0}
+          open={open === "carrier"}
+          onToggle={() => toggle("carrier")}
+          logic={tf("anyOf")}
+          options={carriers.map((c) => ({
+            value: c.id,
+            label: c.name,
+            selected: filters.carrierId === c.id,
+            icon: <CarrierMark name={c.name} size={20} />,
+          }))}
+          onSelect={(v) => onChange({ carrierId: filters.carrierId === v ? null : v })}
         />
 
         <label className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-pill border border-oms-border bg-oms-surface px-3 text-[12.5px] font-medium text-oms-ink-2 transition-colors duration-fast hover:border-oms-border-strong hover:text-oms-ink-1">
@@ -344,7 +389,7 @@ function Facet({
   onToggle: () => void;
   logic: string;
   searchable?: boolean;
-  options: { value: string; label: string; selected: boolean }[];
+  options: FacetOption[];
   onSelect: (value: string) => void;
 }) {
   const tf = useTranslations("orders.facets");
@@ -407,6 +452,7 @@ function Facet({
                   selected={o.selected}
                   onSelect={() => onSelect(o.value)}
                   label={o.label}
+                  icon={o.icon}
                 />
               ))
             )}
@@ -421,10 +467,12 @@ function Option({
   selected,
   onSelect,
   label,
+  icon,
 }: {
   selected: boolean;
   onSelect: () => void;
   label: string;
+  icon?: React.ReactNode;
 }) {
   return (
     <button
@@ -453,6 +501,7 @@ function Option({
           </svg>
         )}
       </span>
+      {icon}
       <span dir="auto" className="min-w-0 truncate">
         {label}
       </span>

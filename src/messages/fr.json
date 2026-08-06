@@ -1252,7 +1252,8 @@
       "onePeriod": "une seule période",
       "anyProduct": "n'importe lequel",
       "showDeleted": "Afficher supprimées",
-      "more": "Plus de filtres"
+      "more": "Plus de filtres",
+      "carrier": "Transporteur"
     }
   },
   "unassigned": {

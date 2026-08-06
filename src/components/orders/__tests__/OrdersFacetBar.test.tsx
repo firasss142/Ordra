@@ -19,7 +19,8 @@ function renderBar(props: Partial<React.ComponentProps<typeof OrdersFacetBar>> =
         filters={DEFAULT_FILTERS}
         onChange={onChange}
         agents={AGENTS}
-        products={[]}
+        products={[{ id: "p1", name: "Boxing Doll", image_url: null }]}
+        carriers={[{ id: "c1", name: "Sanad" }]}
         cities={["بنغازي", "طرابلس"]}
         resultCount={61}
         resultValue="10 890"
@@ -36,7 +37,7 @@ describe("OrdersFacetBar", () => {
 
   test("offers each facet as a named control, not a generic panel", () => {
     renderBar();
-    for (const label of ["Appel", "Livraison", "Agent", "Ville", "Produit"]) {
+    for (const label of ["Appel", "Livraison", "Agent", "Ville", "Produit", "Transporteur"]) {
       expect(screen.getByRole("button", { name: new RegExp(label, "i") })).toBeDefined();
     }
   });
@@ -137,6 +138,38 @@ describe("OrdersFacetBar", () => {
     expect(call).toHaveTextContent(/En attente/i);
     // Fulfilment states belong to the other axis, not this menu.
     expect(call).not.toHaveTextContent(/Livré/i);
+  });
+
+  test("each option carries its own visual, not just a label", async () => {
+    const user = userEvent.setup();
+    render(
+      <NextIntlClientProvider locale="fr" messages={messages}>
+        <OrdersFacetBar
+          filters={DEFAULT_FILTERS}
+          onChange={vi.fn()}
+          agents={AGENTS}
+          products={[{ id: "p1", name: "Boxing Doll", image_url: "https://x/p.jpg" }]}
+          carriers={[{ id: "c1", name: "Sanad" }]}
+          cities={["بنغازي"]}
+          resultCount={0}
+          resultValue="0"
+          currencyCode="TND"
+        />
+      </NextIntlClientProvider>,
+    );
+
+    // A product picker without the product photo makes you read near-identical
+    // Arabic names instead of recognising them.
+    await user.click(screen.getByRole("button", { name: /Produit/i }));
+    expect(screen.getByRole("img", { name: /Boxing Doll/i })).toBeDefined();
+
+    await user.click(screen.getByRole("button", { name: /Agent/i }));
+    const agentOpt = screen.getByRole("option", { name: /tasnim/i });
+    expect(agentOpt.querySelector("span[aria-hidden]")).not.toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /Transporteur/i }));
+    const carrierOpt = screen.getByRole("option", { name: /Sanad/i });
+    expect(carrierOpt.textContent).toMatch(/Sa/);
   });
 
   test("marks a facet with an active count so state is visible while closed", () => {
