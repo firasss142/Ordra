@@ -382,6 +382,105 @@ reserved slots · shadows on resting cards · hardcoded strings · physical CSS 
 
 ---
 
+## 4.17 Orders console — scoped extension
+
+The orders list is the one screen an ops dispatcher stares at all day while triaging a
+multi-thousand-row backlog. Applied unchanged, the admin grammar rendered every field at the
+same weight: a 24-character Mongo ObjectId won the visual hierarchy, the price lost, and an
+absolute timestamp gave no sense of how long an order had been rotting.
+
+The console inherits the whole system **except** the allowances below, which apply **only**
+under `src/components/orders/**` and the orders route. Nothing here relaxes the rules elsewhere.
+
+### A. Warm ground
+
+The console runs on a warmer, lower-contrast ground than `--bg-page`, so white row bands read
+as objects sitting on a surface rather than as the surface itself.
+
+| Token | Hex | Role |
+|---|---|---|
+| `--oms-bg` | `#FAFAF8` | Console page background (replaces `--bg-page` here only) |
+| `--oms-surface` | `#FFFFFF` | Row bands, tiles, dropdowns |
+| `--oms-surface-sunken` | `#F4F3EF` | Bar tracks, skeletons, the health tile |
+| `--oms-border` | `#EAE7E1` | Hairlines |
+| `--oms-border-strong` | `#DCD8D0` | Hover borders, chevrons |
+
+### B. Three-step neutral ramp
+
+The global `--text-secondary` / `--text-muted` pair is a two-step ramp, and `#9CA3AF` on white
+is **2.9:1** — below AA for the 12px meta text this screen is full of. The console uses three
+steps, each verified against `--oms-surface`:
+
+| Token | Hex | Contrast | Role |
+|---|---|---|---|
+| `--oms-ink-1` | `#1B1917` | 17.5:1 | Customer name, price — the row's two entry points |
+| `--oms-ink-2` | `#5C5852` | 7.1:1 | Product name, tile labels |
+| `--oms-ink-3` | `#78726A` | 4.8:1 | Meta, period labels, column headers |
+
+Every step clears 4.5:1. Quiet is achieved by weight and size, never by dropping below AA.
+
+### C. Accent — the retired tab slot
+
+§1 reserves the accent for exactly two places, one of which was the active-tab underline. The
+orders console **has no tabs**: the KPI strip replaced them, so the tile *is* the navigation and
+inherits that slot. The count of sanctioned accent uses is unchanged.
+
+| Token | Hex | Role |
+|---|---|---|
+| `--oms-accent` | `#6E56CF` | Active KPI tile, funnel bars, focus ring |
+| `--oms-accent-ink` | `#513FA8` | Accent text on `--oms-accent-bg` |
+| `--oms-accent-bg` | `#F1EEFC` | Active tile fill |
+
+> **Open question.** The global brand accent is emerald `#10B981` (sidebar active bar, brand
+> tokens). Violet was carried over from the approved prototype and currently sits beside an
+> emerald sidebar. Either reconcile the two or accept the console as a deliberately distinct
+> surface — this is a live decision, not a settled rule.
+
+### D. Aging scale
+
+Elapsed time escalates in colour, but **only while an order still needs a human**. Confirmed,
+rejected and cancelled orders stay neutral no matter how old — colouring closed orders red
+makes the heat map useless.
+
+| Age | Token | Treatment |
+|---|---|---|
+| < 2 h | `--oms-ink-3` | neutral |
+| 2–24 h | `--oms-age-warm` `#A9670C` | amber |
+| > 24 h | `--oms-age-late` `#B23A32` | red + `⚠` glyph + row edge stripe |
+
+Never colour alone — the glyph carries the signal in greyscale.
+
+### E. Elevation
+
+Consistent with §1: resting surfaces are flat. Row bands and tiles take `shadow-hover-row`
+**on hover only**. Twenty-five resting shadows in a list is decoration; one under the cursor
+is feedback.
+
+### F. Numerals and bilingual type
+
+- `tabular-nums` on all money, counts, and elapsed time so columns align without a mono face.
+- Currency is demoted (`--oms-ink-3`, ~0.7em) so the number wins.
+- Arabic content carries `dir="auto"` **per node**, never on a container — the chrome stays LTR
+  while customer names, cities and product names resolve individually. This is what keeps the
+  `·` separators on the correct side in the Libya market.
+- Arabic sets ~6% larger than Latin at the same px; the `.ar` treatment compensates optically
+  but must not set `line-height`, or it inflates table row heights.
+
+### G. Counts must not lie
+
+Not styling, but the rule this section exists to protect. A headline number and the view it
+opens must be the same set. Concretely:
+
+- Aggregate with exact head-only counts. `.select(col)` then counting the array truncates at
+  PostgREST's 1000-row cap — that is how "1000 au total" survived against 2578 real orders.
+- Label every figure with the period it measures. A backlog ("maintenant") and a daily count
+  ("aujourd'hui") answer different questions and must never share a bar scale.
+- Map each tile to the exact filter set its count came from (`lib/orders/kpi-tiles`).
+- Measure states, not snapshots. Confirmation is transient; counting `status = confirmed`
+  alone reported 7.7% where the true rate was 78.7%.
+
+---
+
 ## 5. Layout
 
 ### Shell Structure

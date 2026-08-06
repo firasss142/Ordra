@@ -1,12 +1,43 @@
 ---
 name: shopify-design-system
 description: >
-  A complete dark-first, cinematic design system inspired by Shopify — covering colors, typography, components, spacing, depth, motion, iconography, and accessibility. ALWAYS use this skill before writing ANY UI, frontend, or design-related code — no exceptions. This skill MUST trigger whenever the user mentions, implies, or touches anything related to: building a UI, designing an interface, writing CSS, creating a component, making a page, styling anything, building a website, landing page, dashboard, app screen, hero section, navbar, card, button, form, modal, sidebar, footer, pricing page, feature section, portfolio, SaaS product page, marketing site, admin panel, mobile screen, or any visual/interactive element. Also trigger on words like: "make it look good", "design", "style", "theme", "layout", "frontend", "HTML", "React component", "Tailwind", "CSS", "UI", "UX", "user interface", "user experience", "visual", "aesthetic", "polished", "beautiful", "modern", "clean", "redesign", "improve the design", "make it prettier", "color scheme", "typography", "font", "spacing", "responsive", "mobile-friendly", "motion", "animation", "transition", "accessibility", "a11y", "focus state", "figma", "wireframe", "prototype", "component library", "design system". If the user is building ANYTHING a human will look at, read this skill first. When in doubt, trigger. Missing this skill means shipping ugly, generic UI — that is not acceptable.
+  MARKETING/LANDING SURFACES ONLY — the OMS product UI is governed by docs/design-system.md (light admin console); read that instead for anything under src/. A complete dark-first, cinematic design system inspired by Shopify — covering colors, typography, components, spacing, depth, motion, iconography, and accessibility. ALWAYS use this skill before writing ANY UI, frontend, or design-related code — no exceptions. This skill MUST trigger whenever the user mentions, implies, or touches anything related to: building a UI, designing an interface, writing CSS, creating a component, making a page, styling anything, building a website, landing page, dashboard, app screen, hero section, navbar, card, button, form, modal, sidebar, footer, pricing page, feature section, portfolio, SaaS product page, marketing site, admin panel, mobile screen, or any visual/interactive element. Also trigger on words like: "make it look good", "design", "style", "theme", "layout", "frontend", "HTML", "React component", "Tailwind", "CSS", "UI", "UX", "user interface", "user experience", "visual", "aesthetic", "polished", "beautiful", "modern", "clean", "redesign", "improve the design", "make it prettier", "color scheme", "typography", "font", "spacing", "responsive", "mobile-friendly", "motion", "animation", "transition", "accessibility", "a11y", "focus state", "figma", "wireframe", "prototype", "component library", "design system". If the user is building ANYTHING a human will look at, read this skill first. When in doubt, trigger. Missing this skill means shipping ugly, generic UI — that is not acceptable.
 ---
 
 # Shopify-Inspired Design System (Refined)
 
-Dark-first, cinematic design for premium digital experiences. Read fully before writing any UI code.
+Dark-first, cinematic design for premium digital experiences.
+
+---
+
+## ⚠ Scope — read this first
+
+**This skill does not govern the OMS product UI.**
+
+The application under `src/` is a light admin console: `#F6F6F7` page, white cards, one dark
+sidebar, black text, functional colour on status badges only. That system is documented in
+**`docs/design-system.md`**, which is the authority for anything a user of the OMS sees, and
+it is what `CLAUDE.md` points to.
+
+This skill describes a *different* surface — dark, cinematic, marketing-scale (96px display
+type, 96–128px section gaps, void backgrounds, neon-green accent). Those rules are correct for
+a landing or marketing page and actively wrong for a 2500-row data table: "no bright
+backgrounds" contradicts the admin console, and theatrical section spacing destroys the density
+a dispatcher needs.
+
+**Which to use:**
+
+| Building | Read |
+|---|---|
+| Anything under `src/app` or `src/components` (the OMS itself) | `docs/design-system.md` |
+| Orders console specifically | `docs/design-system.md` §4.17 |
+| Agent-facing queue / product sheet | `docs/design-system.md` §4.16 |
+| Investor portal | `docs/design-system.md` §4.15 |
+| A marketing site, landing page, or public-facing pitch surface | this skill |
+
+If the two ever conflict for OMS work, `docs/design-system.md` wins. When unsure which surface
+you are building, ask rather than guess — picking wrong means shipping a page that looks like a
+different product.
 
 ---
 
