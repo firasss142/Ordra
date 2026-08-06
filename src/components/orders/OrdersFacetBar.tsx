@@ -7,54 +7,80 @@ import type { OrderListFilters } from "@/lib/orders/list-filters";
 import type { OrderStatus } from "@/types/order-status";
 
 /**
- * Instant facet bar.
+ * Instant facet bar — one row, every filter named.
  *
- * The bar it replaces hid status, agent, city, product and price behind a
- * drawer labelled "Avancé", with no indication of what was applied. Reaching a
- * filtered view cost several clicks and a round trip, and you could not tell
- * from the closed bar that anything was narrowing your results.
+ * What it replaces hid status, agent, city, product and price behind a drawer
+ * labelled "Avancé", with nothing on the closed bar to say what was applied.
+ * Here one click applies, each menu states its own combination rule, and
+ * active values surface as removable chips.
  *
- * Here every facet is a named control, one click applies, and the combination
- * rule (OR within a facet, AND across facets) is stated in the menu rather
- * than left to be guessed.
+ * The schema carries a single `status` enum spanning both phases of an order's
+ * life. An operator does not think that way: "did the customer say yes" and
+ * "where is the parcel" are separate questions. `Appel` and `Livraison` write
+ * to the same field but each offers only its own phase, so one enum reads as
+ * the two axes it actually represents.
  */
 
 interface AgentLike {
   id: string;
   full_name: string;
 }
+interface ProductLike {
+  id: string;
+  name: string;
+}
 
 interface Props {
   filters: OrderListFilters;
   onChange: (patch: Partial<OrderListFilters>) => void;
   agents: AgentLike[];
+  products: ProductLike[];
   cities: string[];
-  /** Rows currently loaded — the keyset list has no total, so this is
+  /** Rows currently loaded. The keyset list exposes no total, so this is
    *  labelled "affichées" rather than claiming to be the filtered total. */
   resultCount: number;
   resultValue: string;
   currencyCode: string;
 }
 
-/** Status values worth exposing as a facet, grouped the way an operator thinks. */
-const STATUS_OPTIONS: { value: OrderStatus; labelKey: string }[] = [
-  { value: "pending" as OrderStatus, labelKey: "pending" },
-  { value: "attempt_1" as OrderStatus, labelKey: "attempt_1" },
-  { value: "attempt_2" as OrderStatus, labelKey: "attempt_2" },
-  { value: "attempt_3" as OrderStatus, labelKey: "attempt_3" },
-  { value: "callback_scheduled" as OrderStatus, labelKey: "callback_scheduled" },
-  { value: "confirmed" as OrderStatus, labelKey: "confirmed" },
-  { value: "uploaded" as OrderStatus, labelKey: "uploaded" },
-  { value: "delivered" as OrderStatus, labelKey: "delivered" },
-  { value: "returned" as OrderStatus, labelKey: "returned" },
-  { value: "rejected" as OrderStatus, labelKey: "rejected" },
-  { value: "cancelled" as OrderStatus, labelKey: "cancelled" },
+const CALL_STATUSES = [
+  "pending",
+  "attempt_1",
+  "attempt_2",
+  "attempt_3",
+  "callback_scheduled",
+  "confirmed",
+  "rejected",
+  "cancelled",
 ];
+
+const DELIVERY_STATUSES = [
+  "uploaded",
+  "scanned",
+  "dispatched",
+  "deposit",
+  "in_transit",
+  "delivered",
+  "returned",
+  "to_be_returned",
+];
+
+const DATE_RANGES = ["today", "d3", "d7", "d30"] as const;
+
+function isoDaysAgo(days: number): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+const rangeDays = (key: string) => (key === "today" ? 0 : Number(key.slice(1)));
 
 export function OrdersFacetBar({
   filters,
   onChange,
   agents,
+  products,
   cities,
   resultCount,
   resultValue,
@@ -68,51 +94,80 @@ export function OrdersFacetBar({
 
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent) => {
+    const away = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(null);
     };
     const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(null);
-    document.addEventListener("mousedown", handler);
+    document.addEventListener("mousedown", away);
     document.addEventListener("keydown", esc);
     return () => {
-      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("mousedown", away);
       document.removeEventListener("keydown", esc);
     };
   }, [open]);
 
-  const statusLabel = (s: string) => {
+  const label = (s: string) => {
     try {
       return tStatus(s);
     } catch {
       return s;
     }
   };
+  const toggle = (id: string) => setOpen(open === id ? null : id);
 
-  /** OR within a facet: selecting a second value widens the set. */
-  const toggleStatus = (value: OrderStatus) => {
-    const next = filters.statuses.includes(value)
+  /** OR within a facet: picking a second value widens the set. */
+  const toggleStatus = (value: string) => {
+    const next = filters.statuses.includes(value as OrderStatus)
       ? filters.statuses.filter((s) => s !== value)
-      : [...filters.statuses, value];
+      : [...filters.statuses, value as OrderStatus];
     onChange({ statuses: next });
+  };
+
+  const activeCall = filters.statuses.filter((s) => CALL_STATUSES.includes(s)).length;
+  const activeDelivery = filters.statuses.filter((s) => DELIVERY_STATUSES.includes(s)).length;
+  const dateActive = filters.dateFrom || filters.dateTo ? 1 : 0;
+
+  const applyRange = (key: string) => {
+    const from = isoDaysAgo(rangeDays(key));
+    onChange(
+      filters.dateFrom === from
+        ? { dateFrom: null, dateTo: null }
+        : { dateFrom: from, dateTo: null },
+    );
   };
 
   const chips: { key: string; label: string; clear: Partial<OrderListFilters> }[] = [];
   for (const s of filters.statuses) {
     chips.push({
-      key: `status-${s}`,
-      label: statusLabel(s),
+      key: `s-${s}`,
+      label: label(s),
       clear: { statuses: filters.statuses.filter((x) => x !== s) },
     });
   }
   if (filters.agentId) {
-    const name =
-      filters.agentId === "unassigned"
-        ? tf("unassigned")
-        : agents.find((a) => a.id === filters.agentId)?.full_name ?? filters.agentId;
-    chips.push({ key: "agent", label: name, clear: { agentId: null } });
+    chips.push({
+      key: "agent",
+      label:
+        filters.agentId === "unassigned"
+          ? tf("unassigned")
+          : agents.find((a) => a.id === filters.agentId)?.full_name ?? filters.agentId,
+      clear: { agentId: null },
+    });
   }
-  if (filters.city) {
-    chips.push({ key: "city", label: filters.city, clear: { city: "" } });
+  if (filters.city) chips.push({ key: "city", label: filters.city, clear: { city: "" } });
+  if (filters.productId) {
+    chips.push({
+      key: "product",
+      label: products.find((p) => p.id === filters.productId)?.name ?? filters.productId,
+      clear: { productId: null },
+    });
+  }
+  if (dateActive) {
+    chips.push({
+      key: "date",
+      label: `${filters.dateFrom ?? "…"} → ${filters.dateTo ?? "…"}`,
+      clear: { dateFrom: null, dateTo: null },
+    });
   }
 
   const clearAll: Partial<OrderListFilters> = {
@@ -129,31 +184,41 @@ export function OrdersFacetBar({
   };
 
   return (
-    <div ref={ref} className="flex flex-col gap-2">
-      {/* Facets */}
+    <div ref={ref} className="flex flex-col gap-2.5">
       <div className="flex flex-wrap items-center gap-1.5">
         <Facet
-          id="status"
-          label={t("filters.status")}
-          count={filters.statuses.length}
-          open={open === "status"}
-          onToggle={() => setOpen(open === "status" ? null : "status")}
+          label={tf("call")}
+          count={activeCall}
+          open={open === "call"}
+          onToggle={() => toggle("call")}
           logic={tf("anyOf")}
-          options={STATUS_OPTIONS.map((o) => ({
-            value: o.value,
-            label: statusLabel(o.labelKey),
-            selected: filters.statuses.includes(o.value),
+          options={CALL_STATUSES.map((s) => ({
+            value: s,
+            label: label(s),
+            selected: filters.statuses.includes(s as OrderStatus),
           }))}
-          onSelect={(v) => toggleStatus(v as OrderStatus)}
+          onSelect={toggleStatus}
         />
-
         <Facet
-          id="agent"
+          label={tf("delivery")}
+          count={activeDelivery}
+          open={open === "delivery"}
+          onToggle={() => toggle("delivery")}
+          logic={tf("anyOf")}
+          options={DELIVERY_STATUSES.map((s) => ({
+            value: s,
+            label: label(s),
+            selected: filters.statuses.includes(s as OrderStatus),
+          }))}
+          onSelect={toggleStatus}
+        />
+        <Facet
           label={t("filters.agent")}
           count={filters.agentId ? 1 : 0}
           open={open === "agent"}
-          onToggle={() => setOpen(open === "agent" ? null : "agent")}
+          onToggle={() => toggle("agent")}
           logic={tf("anyOf")}
+          searchable
           options={[
             {
               value: "unassigned",
@@ -168,21 +233,55 @@ export function OrdersFacetBar({
           ]}
           onSelect={(v) => onChange({ agentId: filters.agentId === v ? null : v })}
         />
-
         <Facet
-          id="city"
+          label={tf("date")}
+          count={dateActive}
+          open={open === "date"}
+          onToggle={() => toggle("date")}
+          logic={tf("onePeriod")}
+          options={DATE_RANGES.map((r) => ({
+            value: r,
+            label: tf(r),
+            selected: filters.dateFrom === isoDaysAgo(rangeDays(r)),
+          }))}
+          onSelect={applyRange}
+        />
+        <Facet
           label={t("columns.city")}
           count={filters.city ? 1 : 0}
           open={open === "city"}
-          onToggle={() => setOpen(open === "city" ? null : "city")}
+          onToggle={() => toggle("city")}
           logic={tf("anyOfF")}
           searchable
           options={cities.map((c) => ({ value: c, label: c, selected: filters.city === c }))}
           onSelect={(v) => onChange({ city: filters.city === v ? "" : v })}
         />
+        <Facet
+          label={tf("product")}
+          count={filters.productId ? 1 : 0}
+          open={open === "product"}
+          onToggle={() => toggle("product")}
+          logic={tf("anyProduct")}
+          searchable
+          options={products.map((p) => ({
+            value: p.id,
+            label: p.name,
+            selected: filters.productId === p.id,
+          }))}
+          onSelect={(v) => onChange({ productId: filters.productId === v ? null : v })}
+        />
+
+        <label className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-pill border border-oms-border bg-oms-surface px-3 text-[12.5px] font-medium text-oms-ink-2 transition-colors duration-fast hover:border-oms-border-strong hover:text-oms-ink-1">
+          <input
+            type="checkbox"
+            checked={filters.includeDeleted}
+            onChange={(e) => onChange({ includeDeleted: e.target.checked })}
+            className="h-3.5 w-3.5 cursor-pointer accent-oms-accent"
+          />
+          {tf("showDeleted")}
+        </label>
       </div>
 
-      {/* Active chips — you always know what is on */}
       {chips.length > 0 && (
         <div data-testid="active-chips" className="flex flex-wrap items-center gap-1.5">
           {chips.map((c) => (
@@ -211,7 +310,6 @@ export function OrdersFacetBar({
         </div>
       )}
 
-      {/* What the current filters actually returned */}
       <div
         data-testid="result-summary"
         className="flex items-baseline gap-2 border-b border-oms-border pb-2 text-[13px]"
@@ -240,7 +338,6 @@ function Facet({
   options,
   onSelect,
 }: {
-  id: string;
   label: string;
   count: number;
   open: boolean;
@@ -264,7 +361,7 @@ function Facet({
         aria-expanded={open}
         onClick={onToggle}
         className={
-          "inline-flex h-[30px] items-center gap-1.5 rounded-pill border ps-2.5 pe-2 text-[12.5px] font-medium transition-colors duration-fast " +
+          "inline-flex h-[30px] items-center gap-1.5 rounded-pill border ps-3 pe-2.5 text-[12.5px] font-medium transition-colors duration-fast " +
           (count > 0
             ? "border-oms-accent bg-oms-accent-bg text-oms-accent-ink"
             : "border-oms-border bg-oms-surface text-oms-ink-2 hover:border-oms-border-strong hover:text-oms-ink-1")
@@ -272,7 +369,7 @@ function Facet({
       >
         {label}
         {count > 0 && (
-          <span className="grid h-[15px] min-w-[15px] place-items-center rounded-pill bg-oms-accent px-1 text-[10.5px] font-semibold text-white tabular-nums">
+          <span className="grid h-[16px] min-w-[16px] place-items-center rounded-pill bg-oms-accent px-1 text-[10.5px] font-semibold tabular-nums text-white">
             {count}
           </span>
         )}
@@ -283,7 +380,7 @@ function Facet({
         <div
           role="listbox"
           aria-label={label}
-          className="absolute start-0 top-[calc(100%+6px)] z-30 max-h-[320px] w-[240px] overflow-hidden rounded-card border border-oms-border bg-oms-surface shadow-floating"
+          className="absolute start-0 top-[calc(100%+6px)] z-30 w-[248px] overflow-hidden rounded-card border border-oms-border bg-oms-surface shadow-floating"
         >
           <div className="border-b border-oms-border bg-oms-sunken px-3 py-2">
             <div className="text-[12px] font-semibold text-oms-ink-1">{label}</div>
@@ -300,7 +397,7 @@ function Facet({
               />
             </div>
           )}
-          <div className="max-h-[240px] overflow-y-auto p-1.5">
+          <div className="max-h-[260px] overflow-y-auto p-1.5">
             {visible.length === 0 ? (
               <p className="px-2 py-3 text-[12.5px] text-oms-ink-3">{tf("none")}</p>
             ) : (

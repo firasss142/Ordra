@@ -89,44 +89,14 @@ export function OrdersFilterBar({
 
   return (
     <div
-      style={{
-        background: CARD_BG,
-        border: `1px solid ${BORDER}`,
-        borderRadius: 10,
-        padding: "10px 12px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-      }}
+      style={{ display: "flex", flexDirection: "column", gap: 8 }}
     >
       {/* Top row: market + search + actions */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {/* Row 1: market chip + search */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              height: 30,
-              padding: "0 12px",
-              borderRadius: 8,
-              border: `1px solid ${BORDER}`,
-              background: SUBTLE_BG,
-              color: MUTED,
-              fontSize: 13,
-              fontWeight: 500,
-              flexShrink: 0,
-            }}
-          >
-            <Globe size={13} strokeWidth={1.75} />
-            {marketLabel}
-          </span>
-
-          {!isMobile && <Divider />}
-
           {/* Search — grows to fill available space */}
-          <div style={{ position: "relative", flex: "1 1 140px", minWidth: 100 }}>
+          <div style={{ position: "relative", flex: 1, minWidth: 100 }}>
             <Search
               size={13}
               strokeWidth={1.75}
@@ -161,141 +131,31 @@ export function OrdersFilterBar({
                 fontFamily: "inherit",
               }}
             />
+            {!isMobile && (
+              <kbd
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  insetInlineEnd: 8,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  fontFamily: "inherit",
+                  fontSize: 10.5,
+                  color: "var(--oms-ink-3)",
+                  border: "1px solid var(--oms-border)",
+                  borderRadius: 4,
+                  padding: "1px 4px",
+                  background: "var(--oms-surface-sunken)",
+                }}
+              >
+                ⌘K
+              </kbd>
+            )}
           </div>
         </div>
 
-        {/* Row 2: export + new order (full-width on mobile) */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <IconButton
-            onClick={onExport}
-            label={t("exportCsv")}
-            icon={<Download size={15} strokeWidth={1.75} />}
-          />
-          <button
-            type="button"
-            onClick={onNewOrder}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              flex: isMobile ? 1 : undefined,
-              height: 34,
-              padding: "0 14px",
-              fontSize: 13,
-              fontWeight: 500,
-              border: `1px solid ${TEXT}`,
-              borderRadius: 8,
-              background: TEXT,
-              color: "#FFFFFF",
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            <Plus size={14} strokeWidth={2} />
-            {t("create.newOrder")}
-          </button>
-        </div>
       </div>
 
-      {/* Second row: filter chips */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          flexWrap: "wrap",
-          paddingTop: 8,
-          borderTop: `1px solid ${BORDER}`,
-        }}
-      >
-        {/* The decorative "Avancé" caption that used to sit here was a
-            non-interactive span carrying the same label as the button beside
-            it — two identical labels, one of which did nothing. */}
-        <DateChip
-          from={filters.dateFrom}
-          to={filters.dateTo}
-          onChange={(dateFrom, dateTo) => onChange({ dateFrom, dateTo })}
-          label={t("filters.date")}
-          active={dateActive}
-        />
-
-        <button
-          type="button"
-          onClick={onOpenAdvanced}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            height: 28,
-            padding: "0 10px",
-            fontSize: 12,
-            fontWeight: 500,
-            border: `1px dashed ${BORDER}`,
-            borderRadius: 6,
-            background: "transparent",
-            color: MUTED,
-            cursor: "pointer",
-            fontFamily: "inherit",
-          }}
-        >
-          <SlidersHorizontal size={12} strokeWidth={1.75} />
-          {t("filters.moreFilters")}
-          {/* Surfaces what is applied without making you open the panel to find out. */}
-          {advancedCount > 0 && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minWidth: 15,
-                height: 15,
-                padding: "0 4px",
-                borderRadius: 999,
-                background: "var(--oms-accent)",
-                color: "#fff",
-                fontSize: 10.5,
-                fontWeight: 600,
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              {advancedCount}
-            </span>
-          )}
-        </button>
-
-        <label
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            height: 28,
-            padding: "0 8px",
-            fontSize: 12,
-            fontWeight: 500,
-            border: `1px solid ${filters.includeDeleted ? TEXT : BORDER}`,
-            borderRadius: 6,
-            background: filters.includeDeleted ? "#F2F2F2" : SOFT_BG,
-            color: TEXT,
-            cursor: "pointer",
-            userSelect: "none",
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={filters.includeDeleted}
-            onChange={(e) => onChange({ includeDeleted: e.target.checked })}
-            style={{
-              width: 13,
-              height: 13,
-              margin: 0,
-              accentColor: TEXT,
-              cursor: "pointer",
-            }}
-          />
-          {t("filters.showDeleted")}
-        </label>
-      </div>
     </div>
   );
 }

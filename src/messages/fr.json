@@ -797,7 +797,7 @@
       "date": "Date",
       "agent": "Agent",
       "advanced": "Avancé",
-      "searchPlaceholder": "Nom · téléphone · ID",
+      "searchPlaceholder": "Nom · téléphone · référence",
       "searchAria": "Rechercher une commande",
       "refresh": "Actualiser",
       "allMarkets": "Tous les marchés",
@@ -1241,7 +1241,18 @@
       "none": "Aucun résultat",
       "unassigned": "Non assigné",
       "product": "Produit",
-      "source": "Source"
+      "source": "Source",
+      "call": "Appel",
+      "delivery": "Livraison",
+      "date": "Date",
+      "today": "Aujourd'hui",
+      "d3": "3 derniers jours",
+      "d7": "7 derniers jours",
+      "d30": "30 derniers jours",
+      "onePeriod": "une seule période",
+      "anyProduct": "n'importe lequel",
+      "showDeleted": "Afficher supprimées",
+      "more": "Plus de filtres"
     }
   },
   "unassigned": {

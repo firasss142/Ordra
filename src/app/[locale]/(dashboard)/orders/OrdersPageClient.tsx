@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Download, Plus } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -153,7 +154,7 @@ export function OrdersPageClient({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMounted, setDrawerMounted] = useState(false);
   const { data: productsData } = useSWR<{ data: Product[] }>(
-    drawerMounted && effectiveMarketId ? `/api/products?market_id=${effectiveMarketId}` : null,
+    effectiveMarketId ? `/api/products?market_id=${effectiveMarketId}` : null,
     fetcher,
   );
   const { data: carriersData } = useSWR<{ data: Carrier[] }>(
@@ -562,13 +563,34 @@ export function OrdersPageClient({
       >
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ fontSize: 20, fontWeight: 600, color: "#1A1A1A", margin: 0 }}>
+            <h1 className="m-0 text-[22px] font-semibold tracking-[-0.017em] text-oms-ink-1">
               {t("title")}
             </h1>
-            <p style={{ fontSize: 13, color: "#6D7175", margin: "4px 0 0" }}>
+            <p className="m-0 mt-0.5 flex items-center gap-1.5 text-[12.5px] text-oms-ink-2">
+              <span aria-hidden className="h-[7px] w-[7px] rounded-full bg-oms-accent" />
               {activeMarketLabel}
               {isValidating ? ` · ${t("refreshing")}` : ""}
             </p>
+          </div>
+
+          {/* Primary action lives top-right, not buried inside the filter card. */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExport}
+              className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-oms-border bg-oms-surface px-3 text-[13px] font-medium text-oms-ink-1 transition-colors duration-fast hover:border-oms-border-strong"
+            >
+              <Download size={14} strokeWidth={1.75} aria-hidden />
+              {t("exportCsv")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex h-[34px] items-center gap-1.5 rounded-lg bg-oms-accent px-3.5 text-[13px] font-semibold text-white shadow-hover-row transition-colors duration-fast hover:bg-oms-accent-ink"
+            >
+              <Plus size={14} strokeWidth={2.2} aria-hidden />
+              {t("create.newOrder")}
+            </button>
           </div>
         </div>
 
@@ -593,7 +615,7 @@ export function OrdersPageClient({
       </div>
 
       {/* ── Filter card ── */}
-      <div className="bg-oms-surface border border-oms-border rounded-card px-4 py-3.5 flex flex-col gap-2.5">
+      <div className="flex flex-col gap-2.5">
         <OrdersFilterBar
           filters={filters}
           onChange={update}
@@ -612,6 +634,7 @@ export function OrdersPageClient({
           filters={filters}
           onChange={update}
           agents={agents}
+          products={productsData?.data ?? []}
           cities={knownCities}
           resultCount={rows.length}
           resultValue={rows

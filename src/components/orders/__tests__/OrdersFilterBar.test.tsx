@@ -36,59 +36,16 @@ function renderBar(props: Partial<ComponentProps<typeof OrdersFilterBar>> = {}) 
 }
 
 describe("OrdersFilterBar", () => {
-  it("toggles deleted order visibility", async () => {
-    const user = userEvent.setup();
-    const { onChange } = renderBar();
-
-    await user.click(screen.getByLabelText("Afficher supprimées"));
-
-    expect(onChange).toHaveBeenCalledWith({ includeDeleted: true });
-  });
-
-  it("can turn deleted order visibility off", async () => {
-    const user = userEvent.setup();
-    const { onChange } = renderBar({
-      filters: { ...DEFAULT_FILTERS, includeDeleted: true },
-    });
-
-    await user.click(screen.getByLabelText("Afficher supprimées"));
-
-    expect(onChange).toHaveBeenCalledWith({ includeDeleted: false });
-  });
-});
-
-describe("OrdersFilterBar — filter affordances", () => {
-  it('has exactly one control named "Avancé"-style, and it is a real button', () => {
-    // The bar shipped a decorative <span> reading "Avancé" next to a button
-    // reading "Avancé". Two identical labels, one of which did nothing.
+  it("renders the search field with the reference hint", () => {
     renderBar();
-    const matches = screen.queryAllByText(/^Avancé$/);
-    expect(matches).toHaveLength(0);
+    expect(screen.getByLabelText(/rechercher une commande/i)).toBeDefined();
   });
 
-  it("names the overflow control after what it opens", () => {
+  it("no longer carries filter controls — those are named facets now", () => {
+    // Status, agent, city, product, date and deleted-visibility all moved to
+    // OrdersFacetBar, where each is a named control rather than a drawer.
     renderBar();
-    const btn = screen.getByRole("button", { name: /plus de filtres/i });
-    expect(btn).toBeDefined();
-  });
-
-  it("reports how many filters are active without opening the panel", async () => {
-    renderBar({
-      filters: {
-        ...DEFAULT_FILTERS,
-        city: "Benghazi",
-        productId: "p1",
-        totalMin: 100,
-      },
-    });
-    const btn = screen.getByRole("button", { name: /plus de filtres/i });
-    // You could not previously tell what was applied without opening the drawer.
-    expect(btn.textContent).toMatch(/3/);
-  });
-
-  it("shows no count when nothing in the panel is set", () => {
-    renderBar();
-    const btn = screen.getByRole("button", { name: /plus de filtres/i });
-    expect(btn.textContent).not.toMatch(/\d/);
+    expect(screen.queryByRole("button", { name: /plus de filtres/i })).toBeNull();
+    expect(screen.queryByText(/^Avancé$/)).toBeNull();
   });
 });

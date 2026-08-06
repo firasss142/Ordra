@@ -797,7 +797,7 @@
       "date": "التاريخ",
       "agent": "الوكيل",
       "advanced": "متقدم",
-      "searchPlaceholder": "الاسم · الهاتف · المعرّف",
+      "searchPlaceholder": "الاسم · الهاتف · المرجع",
       "searchAria": "بحث عن طلب",
       "refresh": "تحديث",
       "allMarkets": "جميع الأسواق",
@@ -1241,7 +1241,18 @@
       "none": "لا نتائج",
       "unassigned": "غير مسند",
       "product": "المنتج",
-      "source": "المصدر"
+      "source": "المصدر",
+      "call": "الاتصال",
+      "delivery": "التوصيل",
+      "date": "التاريخ",
+      "today": "اليوم",
+      "d3": "آخر 3 أيام",
+      "d7": "آخر 7 أيام",
+      "d30": "آخر 30 يوماً",
+      "onePeriod": "فترة واحدة",
+      "anyProduct": "أي منها",
+      "showDeleted": "إظهار المحذوفة",
+      "more": "مرشحات إضافية"
     }
   },
   "unassigned": {

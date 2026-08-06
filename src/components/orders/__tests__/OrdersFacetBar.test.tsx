@@ -19,6 +19,7 @@ function renderBar(props: Partial<React.ComponentProps<typeof OrdersFacetBar>> =
         filters={DEFAULT_FILTERS}
         onChange={onChange}
         agents={AGENTS}
+        products={[]}
         cities={["بنغازي", "طرابلس"]}
         resultCount={61}
         resultValue="10 890"
@@ -35,7 +36,7 @@ describe("OrdersFacetBar", () => {
 
   test("offers each facet as a named control, not a generic panel", () => {
     renderBar();
-    for (const label of ["Statut", "Agent", "Ville"]) {
+    for (const label of ["Appel", "Livraison", "Agent", "Ville", "Produit"]) {
       expect(screen.getByRole("button", { name: new RegExp(label, "i") })).toBeDefined();
     }
   });
@@ -44,7 +45,7 @@ describe("OrdersFacetBar", () => {
     const user = userEvent.setup();
     const { onChange } = renderBar();
 
-    await user.click(screen.getByRole("button", { name: /Statut/i }));
+    await user.click(screen.getByRole("button", { name: /Appel/i }));
     await user.click(screen.getByRole("option", { name: /En attente/i }));
 
     // One click in, already applied — no "Apply" to hunt for.
@@ -57,7 +58,7 @@ describe("OrdersFacetBar", () => {
     const user = userEvent.setup();
     renderBar();
 
-    await user.click(screen.getByRole("button", { name: /Statut/i }));
+    await user.click(screen.getByRole("button", { name: /Appel/i }));
 
     // OR within a facet is not guessable — the menu says so.
     expect(screen.getByRole("listbox")).toHaveTextContent(/n'importe lequel/i);
@@ -69,7 +70,7 @@ describe("OrdersFacetBar", () => {
       filters: { ...DEFAULT_FILTERS, statuses: ["pending"] },
     });
 
-    await user.click(screen.getByRole("button", { name: /Statut/i }));
+    await user.click(screen.getByRole("button", { name: /Appel/i }));
     await user.click(screen.getByRole("option", { name: /^Confirmé$/i }));
 
     expect(onChange.mock.calls[0][0].statuses).toEqual(
@@ -118,8 +119,28 @@ describe("OrdersFacetBar", () => {
     expect(summary.textContent).toMatch(/TND/);
   });
 
+  test("toggles deleted-order visibility from the same row", async () => {
+    const user = userEvent.setup();
+    const { onChange } = renderBar();
+
+    await user.click(screen.getByLabelText(/afficher supprim/i));
+
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ includeDeleted: true }));
+  });
+
+  test("splits the single status enum into the two axes an operator thinks in", async () => {
+    const user = userEvent.setup();
+    renderBar();
+
+    await user.click(screen.getByRole("button", { name: /Appel/i }));
+    const call = screen.getByRole("listbox");
+    expect(call).toHaveTextContent(/En attente/i);
+    // Fulfilment states belong to the other axis, not this menu.
+    expect(call).not.toHaveTextContent(/Livré/i);
+  });
+
   test("marks a facet with an active count so state is visible while closed", () => {
     renderBar({ filters: { ...DEFAULT_FILTERS, statuses: ["pending", "confirmed"] } });
-    expect(screen.getByRole("button", { name: /Statut/i })).toHaveTextContent("2");
+    expect(screen.getByRole("button", { name: /Appel/i })).toHaveTextContent("2");
   });
 });
