@@ -807,7 +807,8 @@
       "from": "Du",
       "to": "Au",
       "clear": "Effacer",
-      "showDeleted": "Afficher supprimées"
+      "showDeleted": "Afficher supprimées",
+      "moreFilters": "Plus de filtres"
     },
     "chips": {
       "search": "Recherche",

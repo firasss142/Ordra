@@ -56,3 +56,39 @@ describe("OrdersFilterBar", () => {
     expect(onChange).toHaveBeenCalledWith({ includeDeleted: false });
   });
 });
+
+describe("OrdersFilterBar — filter affordances", () => {
+  it('has exactly one control named "Avancé"-style, and it is a real button', () => {
+    // The bar shipped a decorative <span> reading "Avancé" next to a button
+    // reading "Avancé". Two identical labels, one of which did nothing.
+    renderBar();
+    const matches = screen.queryAllByText(/^Avancé$/);
+    expect(matches).toHaveLength(0);
+  });
+
+  it("names the overflow control after what it opens", () => {
+    renderBar();
+    const btn = screen.getByRole("button", { name: /plus de filtres/i });
+    expect(btn).toBeDefined();
+  });
+
+  it("reports how many filters are active without opening the panel", async () => {
+    renderBar({
+      filters: {
+        ...DEFAULT_FILTERS,
+        city: "Benghazi",
+        productId: "p1",
+        totalMin: 100,
+      },
+    });
+    const btn = screen.getByRole("button", { name: /plus de filtres/i });
+    // You could not previously tell what was applied without opening the drawer.
+    expect(btn.textContent).toMatch(/3/);
+  });
+
+  it("shows no count when nothing in the panel is set", () => {
+    renderBar();
+    const btn = screen.getByRole("button", { name: /plus de filtres/i });
+    expect(btn.textContent).not.toMatch(/\d/);
+  });
+});

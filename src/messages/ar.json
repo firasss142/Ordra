@@ -807,7 +807,8 @@
       "from": "من",
       "to": "إلى",
       "clear": "مسح",
-      "showDeleted": "إظهار المحذوفة"
+      "showDeleted": "إظهار المحذوفة",
+      "moreFilters": "مرشحات إضافية"
     },
     "chips": {
       "search": "بحث",

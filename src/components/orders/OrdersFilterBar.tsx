@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   Plus,
-  Filter,
   Globe,
   ChevronDown,
   Search,
@@ -77,6 +76,16 @@ export function OrdersFilterBar({
   }, []);
 
   const dateActive = !!(filters.dateFrom || filters.dateTo);
+
+  /** How many of the panel-only filters are set — the bar could not previously
+   *  tell you anything was applied without opening the panel to look. */
+  const advancedCount = [
+    filters.city !== "",
+    filters.productId !== null,
+    filters.carrierId !== null,
+    filters.rejectionReason !== null,
+    filters.totalMin !== null || filters.totalMax !== null,
+  ].filter(Boolean).length;
 
   return (
     <div
@@ -200,21 +209,9 @@ export function OrdersFilterBar({
           borderTop: `1px solid ${BORDER}`,
         }}
       >
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 12,
-            fontWeight: 500,
-            color: MUTED,
-            paddingInlineEnd: 4,
-          }}
-        >
-          <Filter size={13} strokeWidth={1.75} />
-          {t("filters.advanced")}
-        </span>
-
+        {/* The decorative "Avancé" caption that used to sit here was a
+            non-interactive span carrying the same label as the button beside
+            it — two identical labels, one of which did nothing. */}
         <DateChip
           from={filters.dateFrom}
           to={filters.dateTo}
@@ -243,7 +240,28 @@ export function OrdersFilterBar({
           }}
         >
           <SlidersHorizontal size={12} strokeWidth={1.75} />
-          {t("filters.advanced")}
+          {t("filters.moreFilters")}
+          {/* Surfaces what is applied without making you open the panel to find out. */}
+          {advancedCount > 0 && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minWidth: 15,
+                height: 15,
+                padding: "0 4px",
+                borderRadius: 999,
+                background: "var(--oms-accent)",
+                color: "#fff",
+                fontSize: 10.5,
+                fontWeight: 600,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {advancedCount}
+            </span>
+          )}
         </button>
 
         <label
