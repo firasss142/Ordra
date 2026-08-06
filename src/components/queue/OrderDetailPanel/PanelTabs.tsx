@@ -27,7 +27,10 @@ export function PanelTabs({ active, onChange, historyCount }: Props) {
   ];
 
   return (
-    <div role="tablist" className="flex gap-0.5 border-b border-line-subtle px-3.5">
+    <div
+      role="tablist"
+      className="flex flex-shrink-0 gap-0.5 border-b border-oms-border px-3.5 pt-4"
+    >
       {tabs.map((tab) => {
         const selected = tab.key === active;
         return (
@@ -38,20 +41,23 @@ export function PanelTabs({ active, onChange, historyCount }: Props) {
             aria-selected={selected}
             onClick={() => onChange(tab.key)}
             className={
-              "relative inline-flex items-center gap-1.5 whitespace-nowrap px-3 pb-2.5 pt-2 text-[13px] transition-colors duration-fast " +
+              "relative inline-flex items-center gap-1.5 whitespace-nowrap px-[11px] pb-[11px] pt-2 text-[13px] transition-colors duration-fast " +
               (selected
-                ? "font-semibold text-ink-primary"
-                : "font-medium text-ink-muted hover:text-ink-primary")
+                ? "font-[650] text-oms-ink-1"
+                : "font-medium text-oms-ink-3 hover:text-oms-ink-1")
             }
           >
             {tab.label}
             {typeof tab.count === "number" && tab.count > 0 && (
-              <span className="grid h-4 min-w-[16px] place-items-center rounded-pill bg-surface-selected px-1 text-[10px] font-semibold tabular-nums text-ink-secondary">
+              <span className="grid h-4 min-w-[16px] place-items-center rounded-pill bg-oms-sunken px-1 text-[10px] font-[650] tabular-nums text-oms-ink-3">
                 {tab.count}
               </span>
             )}
             {selected && (
-              <span aria-hidden="true" className="absolute inset-x-2 -bottom-px h-[2px] rounded-pill bg-accent" />
+              <span
+                aria-hidden="true"
+                className="absolute inset-x-2 -bottom-px h-[2px] rounded-pill bg-oms-accent"
+              />
             )}
           </button>
         );

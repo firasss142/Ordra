@@ -1131,7 +1131,12 @@
       "unassigned": "غير مسند",
       "tabItems": "المنتجات",
       "tabShipping": "التوصيل",
-      "tabHistory": "السجل"
+      "tabHistory": "السجل",
+      "copyReference": "نسخ المرجع",
+      "subtotal": "المجموع الفرعي",
+      "fieldTracking": "التتبع",
+      "cityDefine": "تحديد",
+      "cityEmpty": "غير محددة"
     },
     "scheduleDispatch": {
       "title": "جدولة التوصيل",

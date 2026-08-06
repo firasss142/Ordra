@@ -141,7 +141,13 @@ export function resolvePanelActions(input: PrimaryActionInputs): PanelActions {
   // to be the loud green button before the redesign.
   if (status === "uploaded") {
     const overflow: PanelAction[] = [];
-    overflow.push({ kind: "deleteCarrierBarcode", labelKey: "actions.deleteCarrierBarcode" });
+    // Destructive: this cancels the shipment with the carrier. The flag keeps
+    // it in the overflow menu rather than promoted beside the primary CTA.
+    overflow.push({
+      kind: "deleteCarrierBarcode",
+      labelKey: "actions.deleteCarrierBarcode",
+      destructive: true,
+    });
     if (isManagerish(role)) {
       overflow.push({ kind: "cancel", labelKey: "actions.cancel", destructive: true });
     }

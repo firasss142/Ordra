@@ -153,9 +153,15 @@ interface OrderDetail {
   currency: string;
   status: string;
   assigned_to: string | null;
+  /** Resolved server-side — `null` means unassigned, never "not looked up". */
+  assigned_agent_name: string | null;
   market_id: string;
   attempts_count?: number | null;
+  /** Intake time — drives the header's elapsed-time reading. */
+  created_at: string;
   updated_at: string;
+  /** Storefront order number. Preferred over the UUID as the human reference. */
+  external_id: string | null;
   tracking_number: string | null;
   carrier_id: string | null;
   carrier_barcode_deleted_at: string | null;
@@ -412,6 +418,12 @@ export function OrderDetailPanel({
       carriersForOrderMarket.find((c) => c.id === order.carrier_id)?.code ===
         "darb_assabil",
   );
+
+  // Same cached list, so naming the carrier costs no extra request. `null` is
+  // "no carrier yet", which is a real state — not a lookup that hasn't landed.
+  const assignedCarrierName = order?.carrier_id
+    ? carriersForOrderMarket.find((c) => c.id === order.carrier_id)?.name ?? null
+    : null;
 
   const [returningToPool, setReturningToPool] = useState(false);
   const [recovering, setRecovering] = useState(false);
@@ -821,6 +833,32 @@ export function OrderDetailPanel({
   const displayCurrency = order
     ? formatDisplayCurrencyCode(order.currency, order.market_id)
     : "";
+
+  // Orders predating the order_items table carry their single product on the
+  // order row itself. The receipt has always synthesised a line for them; the
+  // facts grid counted the empty array instead and captioned a one-product
+  // order "0 articles".
+  const orderItems: OrderItem[] = useMemo(() => {
+    if (!order) return [];
+    if (order.order_items?.length) return order.order_items;
+    return [
+      {
+        id: "legacy",
+        order_id: order.id,
+        product_id: order.product_id,
+        product_name: order.product_name,
+        variant_id: order.variant_id,
+        variant_label: order.variant_label,
+        // Defaulted, because a receipt that prints "1 × undefined" during a
+        // revalidation is worse than one that briefly prints a zero.
+        quantity: order.quantity ?? 1,
+        unit_price: order.unit_price ?? 0,
+        line_total: (order.total_price ?? 0) - (order.delivery_fee ?? 0),
+        created_at: order.updated_at,
+        updated_at: order.updated_at,
+      },
+    ];
+  }, [order]);
   // The timeline's chrome follows the interface language. Forcing it to the
   // market's language put an Arabic log inside an otherwise French panel.
   // Agent-authored note text is stored as written and is unaffected.
@@ -1049,7 +1087,12 @@ export function OrderDetailPanel({
 
         {/* ── Sticky header ─────────────────────────────────────── */}
         <PanelHeader
-          shortId={(order?.id ?? orderId ?? "").slice(0, 8).toUpperCase()}
+          // The storefront number is what a customer quotes and what a carrier
+          // search box expects; the UUID is only a fallback.
+          reference={order?.external_id ?? order?.id ?? orderId ?? ""}
+          createdAt={order?.created_at ?? new Date().toISOString()}
+          status={order?.status ?? "pending"}
+          locale={locale}
           statusLabel={
             order
               ? ts(order.status as Parameters<typeof ts>[0])
@@ -1075,56 +1118,23 @@ export function OrderDetailPanel({
           onClose={onClose}
         />
 
-        {/* ── Scrollable body ───────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Loading / error */}
+        {isLoading && !order && (
+          <div className="flex-1 py-16 text-center text-[13px] text-oms-ink-2">{t("loading")}</div>
+        )}
+        {errorMessage && (
+          <div className="flex-1 py-16 text-center text-[13px] text-oms-bad">{errorMessage}</div>
+        )}
 
-          {/* Loading / error */}
-          {isLoading && !order && (
-            <div className="py-16 text-center text-[13px] text-ink-secondary">{t("loading")}</div>
-          )}
-          {errorMessage && (
-            <div className="py-16 text-center text-[13px] text-status-critical">{errorMessage}</div>
-          )}
-
-          {order && (
-            <>
-              {/* ── Tracking barcode (only after carrier upload) ── */}
-              {deleteFeedback && (
-                <div
-                  role={deleteFeedback.kind === "success" ? "status" : "alert"}
-                  className={[
-                    "px-4 py-2 text-[12px] border-b border-line-subtle",
-                    deleteFeedback.kind === "success"
-                      ? "bg-status-successBg text-status-success"
-                      : deleteFeedback.kind === "warning"
-                        ? "bg-status-warningBg text-status-warning"
-                        : "bg-status-criticalBg text-status-critical",
-                  ].join(" ")}
-                >
-                  {deleteFeedback.kind === "success"
-                    ? t("deleteBarcodeSuccess")
-                    : deleteFeedback.message}
-                </div>
-              )}
-              <TrackingBarcode
-                value={order.tracking_number}
-                onDelete={
-                  canDeleteCarrierBarcode
-                    ? handleDeleteCarrierBarcode
-                    : undefined
-                }
-              />
-
-              {/* ── Dexpress carrier-side status (Libya only, after upload) ── */}
-              <DexpressStatusSection
-                orderId={order.id}
-                enabled={dexpressEligible}
-                role={role}
-              />
-
-              {/* ── Darb Assabil carrier-side status (Libya only, after upload) ── */}
-              <DarbStatusSection orderId={order.id} enabled={darbEligible} />
-
+        {order && (
+          <>
+            {/* ── Masthead: identity, money, blockers ─────────────────
+                Deliberately outside the scroll region. An agent mid-call
+                must be able to read the name and number back while
+                scrolling a long receipt. max-h is a backstop only — it
+                should never engage now that the carrier blocks live in
+                the Livraison tab. */}
+            <div className="flex max-h-[50%] flex-shrink-0 flex-col overflow-y-auto">
               {/* ── Customer hero ── */}
               <div ref={nameFieldRef}>
                 <CustomerHero
@@ -1151,6 +1161,17 @@ export function OrderDetailPanel({
                 />
               </div>
 
+              {/* ── The four facts checked before anything else ── */}
+              <OrderFacts
+                total={order.total_price}
+                currencyCode={displayCurrency}
+                // Same list the receipt renders, so the count and the receipt
+                // can never disagree.
+                itemCount={orderItems.length}
+                agentName={order.assigned_agent_name ?? null}
+                carrierName={assignedCarrierName}
+              />
+
               {/* ── Alert banners ── */}
               <AlertBanners
                 locale={locale === "ar" ? "ar" : "fr"}
@@ -1169,59 +1190,39 @@ export function OrderDetailPanel({
                   !order.customer_city?.trim() && !TERMINAL_STATUSES.has(order.status)
                 }
                 onResolveCity={() => {
-                  document
-                    .querySelector<HTMLElement>('[data-field="city"]')
-                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
-                  document.querySelector<HTMLElement>('[data-field="city"] button')?.click();
+                  // The city lives in the Livraison tab — switch to it first,
+                  // or the scroll target is inside a `hidden` panel.
+                  setTab("shipping");
+                  requestAnimationFrame(() => {
+                    document
+                      .querySelector<HTMLElement>('[data-field="city"]')
+                      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    document.querySelector<HTMLElement>('[data-field="city"] button')?.click();
+                  });
                 }}
               />
+            </div>
 
-              {/* ── The four facts checked before anything else ── */}
-              <OrderFacts
-                total={order.total_price}
-                currencyCode={displayCurrency}
-                // Typed as an array but absent on some payloads — the items card
-                // guards it the same way. Reading it bare crashed the panel.
-                itemCount={order.order_items?.length ?? 0}
-              />
+            <PanelTabs
+              active={tab}
+              onChange={setTab}
+              historyCount={order.history?.length ?? 0}
+            />
 
-              {/* ── Product must-know + catalogue mismatches (zero clicks) ── */}
-              <ProductBriefBanner
-                brief={productSheet.data?.product?.agent_brief ?? null}
-                tone={productSheet.data?.product?.agent_brief_tone ?? "info"}
-                checks={productSheet.data?.checks ?? []}
-                onOpenSheet={() => openProductSheet()}
-              />
+            {/* ── The only scrolling region ───────────────────────── */}
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-[18px]">
+                <div role="tabpanel" hidden={tab !== "items"}>
+                  <div className="flex flex-col gap-3">
+                  {/* ── Product must-know + catalogue mismatches ── */}
+                  <ProductBriefBanner
+                    brief={productSheet.data?.product?.agent_brief ?? null}
+                    tone={productSheet.data?.product?.agent_brief_tone ?? "info"}
+                    checks={productSheet.data?.checks ?? []}
+                    onOpenSheet={() => openProductSheet()}
+                  />
 
-              {/* ── Body sections ── */}
-              <PanelTabs
-                active={tab}
-                onChange={setTab}
-                historyCount={order.history?.length ?? 0}
-              />
-              <div className="flex flex-col gap-3 px-4 py-4 pb-10">
-                <div hidden={tab !== "items"} className="flex flex-col gap-3">
-                  {/* Order receipt card — collapsible (default-open on
-                      confirmed so the agent can verify before upload). */}
-                  {(() => {
-                    const items: OrderItem[] = order.order_items?.length
-                      ? order.order_items
-                      : [{
-                          id: "legacy",
-                          order_id: order.id,
-                          product_id: order.product_id,
-                          product_name: order.product_name,
-                          variant_id: order.variant_id,
-                          variant_label: order.variant_label,
-                          quantity: order.quantity,
-                          unit_price: order.unit_price,
-                          line_total: order.total_price - (order.delivery_fee ?? 0),
-                          created_at: order.updated_at,
-                          updated_at: order.updated_at,
-                        }];
-                    return (
-                      <OrderItemsCard
-                        items={items}
+                  <OrderItemsCard
+                        items={orderItems}
                         currentProductId={order.product_id}
                         products={productsData?.data ?? []}
                         variantOptions={variantOptions}
@@ -1233,7 +1234,6 @@ export function OrderDetailPanel({
                         canEdit={canEdit}
                         isLibyaOrder={isLibyaOrder}
                         saveError={saveError}
-                        defaultOpen={order.status === "confirmed"}
                         onCommitLegacyProduct={(productId) => runCommit({ product_id: productId })}
                         onCommitLegacyQuantity={(qty) => runCommit({ quantity: qty })}
                         onCommitLegacyPrice={(price) => runCommit({ unit_price: price })}
@@ -1246,26 +1246,26 @@ export function OrderDetailPanel({
                           <AddProductTrigger
                             orderId={order.id}
                             marketId={order.market_id}
-                            currentItemIds={items.map((it) => it.product_id)}
+                            currentItemIds={orderItems.map((it) => it.product_id)}
                             open={addProductOpen}
                             onOpenChange={setAddProductOpen}
                             onAdded={() => {}}
                             label={t("addProduct")}
                           />
                         )}
-                      />
-                    );
-                  })()}
-
-
+                  />
+                  </div>
                 </div>
 
-                <div hidden={tab !== "shipping"} className="flex flex-col gap-3">
-                  {/* Customer card — address, city, note (no tints) */}
+                <div role="tabpanel" hidden={tab !== "shipping"}>
+                  <div className="flex flex-col gap-3">
+                  {/* Delivery facts — address, city, carrier, tracking, note */}
                   <CustomerCard
                     address={order.customer_address}
                     city={order.customer_city}
                     note={order.customer_note}
+                    carrierName={assignedCarrierName}
+                    trackingNumber={order.tracking_number}
                     canEdit={canEdit}
                     isLibyaOrder={isLibyaOrder}
                     dexpressStates={dexpressStates}
@@ -1275,6 +1275,38 @@ export function OrderDetailPanel({
                     onCommitDexpressState={(id) => runCommit({ dexpress_state_id: id })}
                     onCommitNote={(v) => runCommit({ customer_note: v })}
                   />
+
+                  {/* Carrier-side detail lives with the delivery it describes,
+                      not above the customer's name where it used to sit. */}
+                  {deleteFeedback && (
+                    <div
+                      role={deleteFeedback.kind === "success" ? "status" : "alert"}
+                      className={[
+                        "rounded-[10px] border px-3 py-2 text-[12px]",
+                        deleteFeedback.kind === "success"
+                          ? "border-oms-ok/25 bg-oms-ok-bg text-oms-ok"
+                          : deleteFeedback.kind === "warning"
+                            ? "border-oms-warn/25 bg-oms-warn-bg text-oms-warn"
+                            : "border-oms-bad/25 bg-oms-bad-bg text-oms-bad",
+                      ].join(" ")}
+                    >
+                      {deleteFeedback.kind === "success"
+                        ? t("deleteBarcodeSuccess")
+                        : deleteFeedback.message}
+                    </div>
+                  )}
+                  <TrackingBarcode
+                    value={order.tracking_number}
+                    onDelete={
+                      canDeleteCarrierBarcode ? handleDeleteCarrierBarcode : undefined
+                    }
+                  />
+                  <DexpressStatusSection
+                    orderId={order.id}
+                    enabled={dexpressEligible}
+                    role={role}
+                  />
+                  <DarbStatusSection orderId={order.id} enabled={darbEligible} />
 
                   {/* Fulfillment override — managers only */}
                   {canFulfillmentOverride && (
@@ -1308,23 +1340,21 @@ export function OrderDetailPanel({
                       }}
                     />
                   )}
-
+                  </div>
                 </div>
 
-                <div hidden={tab !== "history"} className="flex flex-col gap-3">
-                  {/* History timeline */}
-                  <HistoryTimeline
-                    entries={order.history}
-                    historyLocale={historyLocale === "ar" ? "ar" : "fr"}
-                    defaultOpen={TERMINAL_STATUSES.has(order.status)}
-                  />
-
+                <div role="tabpanel" hidden={tab !== "history"}>
+                  <div className="flex flex-col gap-3">
+                    <HistoryTimeline
+                      entries={order.history}
+                      historyLocale={historyLocale === "ar" ? "ar" : "fr"}
+                    />
+                  </div>
                 </div>
 
-              </div>
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
 
         {/* ── Reopen warning ─────────────────────────────────────── */}
         {reopenWarning && (
@@ -1604,7 +1634,9 @@ function AddProductTrigger({
         onClick={() => onOpenChange(!open)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="inline-flex items-center justify-center gap-1.5 w-full text-[12px] font-medium text-ink-secondary border border-dashed border-line-strong rounded-card py-1.5 hover:text-ink-primary hover:border-ink-primary hover:bg-surface-hover transition-colors duration-fast mt-1"
+        // Reads as the empty slot for the next line, so it sits at the same
+        // left edge as the product thumbs rather than as a page-wide control.
+        className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-[10px] border border-dashed border-oms-border-strong text-[12.5px] font-semibold text-oms-ink-2 transition-colors duration-fast hover:border-oms-accent hover:bg-oms-accent-bg hover:text-oms-accent-ink"
       >
         <Plus size={12} strokeWidth={2} aria-hidden="true" />
         {label}

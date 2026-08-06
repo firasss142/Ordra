@@ -1,15 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { X, Check, RotateCcw } from "lucide-react";
+import { X, Check, RotateCcw, Copy } from "lucide-react";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { classifyOrderAge, formatOrderAge, AGE_TONE } from "@/lib/orders/order-age";
 
 export interface PanelHeaderProps {
-  /** Eight-char uppercase id (we slice in the parent and pass it). */
-  shortId: string;
+  /** Full human reference — storefront order number, else the order id. */
+  reference: string;
+  /** Intake time. Drives the elapsed-time reading. */
+  createdAt: string;
+  /** Raw status — the aging scale escalates only while an order is still open. */
+  status: string;
   /** Localised status label e.g. "Confirmé" / "مؤكد". */
   statusLabel: string;
   statusTone: BadgeTone;
+  locale: string;
   /** When provided, renders the "Change status" affordance next to the badge. */
   onChangeStatus?: () => void;
   /** Inline save-flash signal coming from inline-edit commits. */
@@ -20,69 +27,126 @@ export interface PanelHeaderProps {
 }
 
 /**
- * Sticky white header band — 56px tall, no shadow, sits above the hero card.
- * Replaces the previous combo of id-pill + status-badge + change-link + save
- * flash + close button with a single composable component.
+ * Quiet chrome: what this order is, how long it has been waiting, and how to
+ * leave. Nothing here should out-shout the customer's name below it.
+ *
+ * The elapsed time is the addition that matters. The list has shown it since
+ * the redesign; opening an order used to drop it, so the one number that
+ * decides "call now or later" disappeared at exactly the moment you act on it.
+ * It shares `order-age.ts` with the row so both readings always agree.
+ *
+ * The reference went the other way — it was a bordered mono pill competing with
+ * the status badge for something nobody reads unless they are pasting it into a
+ * carrier's site. Now it is grey text with a copy button, which is the whole job.
  */
 export function PanelHeader({
-  shortId,
+  reference,
+  createdAt,
+  status,
   statusLabel,
   statusTone,
+  locale,
   onChangeStatus,
   saveFlash,
   carrierDeletedChip,
   onClose,
 }: PanelHeaderProps) {
   const t = useTranslations("orders.detail");
+  const [copied, setCopied] = useState(false);
+
+  const age = classifyOrderAge(createdAt, status);
+  // Show the tail — the leading digits are identical across a market's orders
+  // and carry no information at a glance.
+  const short = reference.length > 6 ? `…${reference.slice(-5)}` : reference;
+
+  async function copyReference() {
+    try {
+      await navigator.clipboard.writeText(reference);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    } catch {
+      /* clipboard denied — the value is still on screen and selectable */
+    }
+  }
 
   return (
-    <div className="flex-shrink-0 bg-surface-card border-b border-line-subtle">
-      <div className="flex items-center justify-between gap-3 px-4 h-[56px]">
-        <div className="flex items-center gap-2 min-w-0">
-          <Badge tone={statusTone} dot>
-            {statusLabel}
-          </Badge>
-          {onChangeStatus ? (
-            <button
-              type="button"
-              onClick={onChangeStatus}
-              className="text-[11px] font-medium text-ink-secondary hover:text-ink-primary underline-offset-2 hover:underline"
-            >
-              {t("changeStatus")}
-            </button>
-          ) : null}
-          <span className="inline-flex items-center h-[22px] px-2 rounded-card bg-surface-page border border-line-subtle font-mono text-[11px] font-semibold tabular-nums text-ink-secondary flex-shrink-0">
-            #{shortId}
+    <div className="flex-shrink-0 border-b border-oms-border bg-oms-surface">
+      <div className="flex h-[50px] items-center gap-2.5 px-[18px]">
+        <Badge tone={statusTone} dot>
+          {statusLabel}
+        </Badge>
+
+        <span
+          data-testid="panel-age"
+          data-tier={age.tier}
+          title={new Date(createdAt).toLocaleString(locale === "ar" ? "ar-LY" : "fr-TN", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+          className={`whitespace-nowrap text-[11.5px] tabular-nums ${AGE_TONE[age.tier]}`}
+        >
+          {formatOrderAge(age.minutes, locale)}
+        </span>
+
+        {onChangeStatus ? (
+          <button
+            type="button"
+            onClick={onChangeStatus}
+            className="text-[11px] font-medium text-oms-ink-2 underline-offset-2 hover:text-oms-ink-1 hover:underline"
+          >
+            {t("changeStatus")}
+          </button>
+        ) : null}
+
+        {carrierDeletedChip ? (
+          <span
+            className="inline-flex h-[22px] flex-shrink-0 items-center gap-1 rounded-card border border-oms-border bg-oms-sunken px-2 text-[11px] font-medium text-oms-ink-2"
+            title={carrierDeletedChip.tooltip}
+          >
+            <RotateCcw size={10} strokeWidth={2} aria-hidden="true" />
+            {carrierDeletedChip.label}
           </span>
-          {carrierDeletedChip ? (
-            <span
-              className="inline-flex items-center gap-1 h-[22px] px-2 rounded-card border border-line-subtle bg-surface-page text-[11px] font-medium text-ink-secondary"
-              title={carrierDeletedChip.tooltip}
-            >
-              <RotateCcw size={10} strokeWidth={2} aria-hidden="true" />
-              {carrierDeletedChip.label}
-            </span>
-          ) : null}
-        </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {saveFlash === "saved" ? (
-            <span className="inline-flex items-center gap-1 text-[11px] text-status-success font-medium">
-              <Check size={11} strokeWidth={2.5} aria-hidden="true" />
-              {t("inlineSaved")}
-            </span>
-          ) : null}
-          {saveFlash === "error" ? (
-            <span className="text-[11px] text-status-critical">{t("inlineSaveError")}</span>
-          ) : null}
+        ) : null}
+
+        {saveFlash === "saved" ? (
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-oms-ok">
+            <Check size={11} strokeWidth={2.5} aria-hidden="true" />
+            {t("inlineSaved")}
+          </span>
+        ) : null}
+        {saveFlash === "error" ? (
+          <span className="text-[11px] text-oms-bad">{t("inlineSaveError")}</span>
+        ) : null}
+
+        {/* Reference and close sit at the trailing edge — chrome, not content. */}
+        <span className="ms-auto flex flex-shrink-0 items-center gap-1">
+          <span className="text-[11px] tabular-nums tracking-[0.01em] text-oms-ink-3">
+            #{short}
+          </span>
+          <button
+            type="button"
+            onClick={() => void copyReference()}
+            aria-label={t("copyReference")}
+            title={reference}
+            className="grid h-[26px] w-[26px] place-items-center rounded-[7px] text-oms-ink-3 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-ink-1"
+          >
+            {copied ? (
+              <Check size={13} strokeWidth={2.5} aria-hidden="true" />
+            ) : (
+              <Copy size={12} strokeWidth={2} aria-hidden="true" />
+            )}
+          </button>
           <button
             type="button"
             onClick={onClose}
             aria-label={t("close")}
-            className="inline-flex items-center justify-center w-8 h-8 rounded-card text-ink-secondary hover:text-ink-primary hover:bg-surface-hover transition-colors duration-fast"
+            className="grid h-[26px] w-[26px] place-items-center rounded-[7px] text-oms-ink-3 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-ink-1"
           >
-            <X size={16} strokeWidth={2} aria-hidden="true" />
+            <X size={15} strokeWidth={2} aria-hidden="true" />
           </button>
-        </div>
+        </span>
       </div>
     </div>
   );

@@ -47,6 +47,16 @@
   --oms-age-warm: #A9670C;
   --oms-age-late: #B23A32;
 
+  /* Semantic states. Same two hues as the aging scale, named for meaning
+     rather than for elapsed time — a blocked order and a late one deserve
+     the same amber, but one is about the clock and the other is not. */
+  --oms-warn: var(--oms-age-warm);
+  --oms-warn-bg: #FBF1E2;
+  --oms-bad: var(--oms-age-late);
+  --oms-bad-bg: #FBECEA;
+  --oms-ok: #2F7A4A;
+  --oms-ok-bg: #E8F4EC;
+
   /* Sidebar — dark surface (refreshed) */
   --sidebar-bg:              #0E1013;
   --sidebar-bg-elevated:     #14171C;

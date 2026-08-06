@@ -56,29 +56,33 @@ export function AlertBanners({
   }
 
   return (
-    <div className="flex flex-col gap-0">
+    <div className="flex flex-col gap-2 px-[18px] pb-1 pt-3.5">
       {/* Blockers lead. Something that stops the order moving should be the
           first thing read, not a consequence discovered later in the log. */}
       {cityUnmatched && (
         <div
           role="status"
-          className="flex items-start gap-2.5 border-b border-status-warning/20 bg-status-warningBg px-4 py-2.5 text-[12px]"
+          className="flex items-center gap-2.5 rounded-[10px] border border-oms-warn/25 bg-oms-warn-bg px-3 py-[11px]"
         >
           <AlertTriangle
-            size={14}
+            size={15}
             strokeWidth={2}
-            className="mt-px flex-shrink-0 text-status-warning"
+            className="flex-none text-oms-warn"
             aria-hidden="true"
           />
           <div className="min-w-0 flex-1">
-            <p className="m-0 font-semibold text-status-warning">{t("blockerCity")}</p>
-            <p className="m-0 mt-0.5 text-ink-secondary">{t("blockerCityBody")}</p>
+            <b className="block text-[12.5px] font-[650] leading-[1.35] text-oms-warn">
+              {t("blockerCity")}
+            </b>
+            <p className="m-0 mt-0.5 text-[12px] leading-[1.4] text-oms-ink-2">
+              {t("blockerCityBody")}
+            </p>
           </div>
           {onResolveCity && (
             <button
               type="button"
               onClick={onResolveCity}
-              className="flex-shrink-0 whitespace-nowrap rounded-md border border-status-warning/30 px-2 py-1 text-[11px] font-semibold text-status-warning transition-colors duration-fast hover:bg-status-warning/10"
+              className="h-7 flex-none whitespace-nowrap rounded-[8px] border border-oms-warn/40 px-[11px] text-[11.5px] font-[650] text-oms-warn transition-colors duration-fast hover:bg-oms-warn/10"
             >
               {t("blockerResolve")}
             </button>
@@ -87,11 +91,14 @@ export function AlertBanners({
       )}
 
       {editBlocked && (
-        <div role="status" className="flex items-start gap-2 px-4 py-2.5 bg-surface-page border-y border-line-subtle text-[12px] text-ink-secondary">
+        <div
+          role="status"
+          className="flex items-center gap-2.5 rounded-[10px] border border-oms-border bg-oms-sunken px-3 py-[11px] text-[12px] text-oms-ink-2"
+        >
           <AlertTriangle
-            size={13}
+            size={14}
             strokeWidth={2}
-            className="flex-shrink-0 mt-0.5 text-status-warning"
+            className="flex-none text-oms-warn"
             aria-hidden="true"
           />
           <span>{t("editBlockedStatus")}</span>
@@ -99,11 +106,11 @@ export function AlertBanners({
       )}
 
       {callbackScheduledAt && (
-        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-status-actionBg border-b border-status-action/15 text-[12px] text-status-action">
-          <Calendar size={13} strokeWidth={2} className="flex-shrink-0" aria-hidden="true" />
-          <div className="flex-1 min-w-0">
-            <span className="font-semibold">{t("scheduledCallbackBanner")}</span>
-            <span className="text-status-action/70 ms-2 tabular-nums">
+        <div className="flex items-center gap-2.5 rounded-[10px] border border-oms-accent/20 bg-oms-accent-bg px-3 py-[11px] text-[12px] text-oms-accent-ink">
+          <Calendar size={14} strokeWidth={2} className="flex-none" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <span className="font-[650]">{t("scheduledCallbackBanner")}</span>
+            <span className="ms-2 tabular-nums opacity-75">
               {formatDateTime(callbackScheduledAt)}
             </span>
           </div>
@@ -111,15 +118,15 @@ export function AlertBanners({
       )}
 
       {dispatchScheduledAt && (
-        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-status-actionBg border-b border-status-action/15 text-[12px] text-status-action">
-          <Calendar size={13} strokeWidth={2} className="flex-shrink-0" aria-hidden="true" />
-          <div className="flex-1 min-w-0">
-            <span className="font-semibold">
+        <div className="flex items-center gap-2.5 rounded-[10px] border border-oms-accent/20 bg-oms-accent-bg px-3 py-[11px] text-[12px] text-oms-accent-ink">
+          <Calendar size={14} strokeWidth={2} className="flex-none" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <span className="font-[650]">
               {dispatchScheduledAuto
                 ? t("scheduledDispatchAutoBanner")
                 : t("scheduledDispatchBanner")}
             </span>
-            <span className="text-status-action/70 ms-2 tabular-nums">
+            <span className="ms-2 tabular-nums opacity-75">
               {formatDateTime(dispatchScheduledAt)}
             </span>
           </div>
@@ -127,7 +134,7 @@ export function AlertBanners({
             type="button"
             disabled={cancelingSchedule}
             onClick={onCancelSchedule}
-            className="flex-shrink-0 text-[11px] font-medium text-status-action border border-status-action/30 rounded-md px-2 py-1 hover:bg-status-action/10 transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            className="h-7 flex-none whitespace-nowrap rounded-[8px] border border-oms-accent/30 px-[11px] text-[11.5px] font-[650] transition-colors duration-fast hover:bg-oms-accent/10 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {cancelingSchedule ? t("scheduledDispatchCanceling") : t("scheduledDispatchCancel")}
           </button>

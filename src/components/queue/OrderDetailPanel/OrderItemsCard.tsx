@@ -1,19 +1,19 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { BookOpen, Pencil, ShoppingBag, X } from "lucide-react";
+import { BookOpen, Pencil, X } from "lucide-react";
 import { InlineField } from "@/components/ui/InlineField";
 import { Combobox, type ComboboxOption } from "@/components/ui/Combobox";
 import { StepperField } from "@/components/ui/StepperField";
-import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { ProductAvatar } from "@/components/orders/ProductAvatar";
 import { stockBadge } from "@/lib/products/stock-badge";
-import { SectionCard } from "./SectionCard";
 import type { OrderItem } from "./types";
 
 interface ProductLite {
   id: string;
   current_stock: number;
+  image_url?: string | null;
   product_variants: { id: string; label: string; is_active: boolean }[];
 }
 
@@ -33,8 +33,6 @@ export interface OrderItemsCardProps {
   canEdit: boolean;
   isLibyaOrder: boolean;
   saveError: string | null;
-  /** Default-open in confirmed state, default-closed elsewhere. */
-  defaultOpen?: boolean;
   onCommitLegacyProduct: (productId: string) => void;
   onCommitLegacyQuantity: (qty: number) => void;
   onCommitLegacyPrice: (price: number) => void;
@@ -49,9 +47,15 @@ export interface OrderItemsCardProps {
 }
 
 /**
- * Collapsible order receipt card. Collapsed shows a compact one-row summary
- * (product · qty × price · card-toggle · total); expanded shows the full
- * editable receipt. Always white, no tinted background.
+ * The receipt: what was ordered, and what it comes to.
+ *
+ * The card chrome and the collapse are gone — the tab is the disclosure, and
+ * a collapsed card meant opening a panel to check a receipt, then clicking
+ * again to actually see it.
+ *
+ * The total is broken down rather than asserted. Sub-total and delivery are
+ * quiet; the grand total is stated exactly as the table's Total column and the
+ * facts grid state it, so one order never reads as two different amounts.
  */
 export function OrderItemsCard({
   items,
@@ -65,7 +69,6 @@ export function OrderItemsCard({
   canEdit,
   isLibyaOrder,
   saveError,
-  defaultOpen = false,
   onCommitLegacyProduct,
   onCommitLegacyQuantity,
   onCommitLegacyPrice,
@@ -78,79 +81,50 @@ export function OrderItemsCard({
 }: OrderItemsCardProps) {
   const t = useTranslations("orders.detail");
   const tSheet = useTranslations("productSheet");
-  const [open, setOpen] = useState(defaultOpen);
 
-  const summaryItem = items[0];
-  const extraItemCount = items.length - 1;
-
-  // Collapsed-state summary inline trailing chip
-  const trailing = !open ? (
-    <span className="text-[12px] font-semibold tabular-nums text-ink-primary">
-      {grandTotal}
-      <span className="text-[10px] font-medium text-ink-secondary ms-1">{displayCurrency}</span>
-    </span>
-  ) : undefined;
+  const subtotal = items.reduce((sum, it) => sum + (Number(it.line_total) || 0), 0);
 
   return (
-    <SectionCard
-      title={t("order")}
-      icon={ShoppingBag}
-      trailing={trailing}
-      collapsible={{
-        open,
-        onToggle: () => setOpen((v) => !v),
-        testId: "order-details-toggle",
-      }}
-    >
-      {!open && summaryItem && (
-        <div className="flex items-center gap-3 py-1">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-baseline gap-2 min-w-0">
-              <span className="truncate text-[14px] font-semibold text-ink-primary">
-                {summaryItem.product_name}
-              </span>
-              {extraItemCount > 0 && (
-                <span className="flex-shrink-0 text-[11px] font-medium text-ink-muted tabular-nums">
-                  +{extraItemCount}
-                </span>
-              )}
-            </div>
-            <span className="text-[12px] text-ink-secondary tabular-nums">
-              {summaryItem.quantity}
-              <span className="text-ink-muted"> × </span>
-              {summaryItem.unit_price} {displayCurrency}
-            </span>
-          </div>
-          {/* Card-payment is no longer set here (online payment is handled in the
-              Darb dispatch modal). Old orders that already carry it still show a
-              read-only marker so their higher total is explained. */}
-          {isLibyaOrder && cardPayment && (
-            <span className="flex items-center gap-1.5 flex-shrink-0 text-[11px] text-ink-secondary whitespace-nowrap">
-              {t("cardPayment")}
-              <span className="text-[10px] font-semibold text-ink-muted tabular-nums">+10%</span>
-            </span>
-          )}
-        </div>
-      )}
+    <div className="flex flex-col">
+      {items.map((item, idx) => {
+        const itemProduct = products.find((p) => p.id === item.product_id) ?? null;
+        const stock = itemProduct?.current_stock ?? null;
+        const badge = stock !== null ? stockBadge(stock) : null;
+        const stockLabel = badge
+          ? t(badge.key, badge.count !== undefined ? { count: badge.count } : undefined)
+          : "";
+        // Colour carries urgency; the label carries the fact. Never one alone.
+        const stockTone =
+          badge?.tone === "critical"
+            ? "text-oms-bad"
+            : badge?.tone === "warning"
+              ? "text-oms-warn"
+              : "text-oms-ok";
 
-      {open && (
-        <div className="flex flex-col pt-1">
-          {items.map((item, idx) => {
-            const itemProduct = products.find((p) => p.id === item.product_id) ?? null;
-            const stock = itemProduct?.current_stock ?? null;
-            const badge = stock !== null ? stockBadge(stock) : null;
-            const stockTone: BadgeTone = badge?.tone ?? "success";
-            const stockLabel = badge
-              ? t(badge.key, badge.count !== undefined ? { count: badge.count } : undefined)
-              : "";
+        // Editable values wear a dotted underline at rest. The pencil-on-hover
+        // alone was undiscoverable: you had to already suspect a field was
+        // editable in order to find out that it was.
+        const editableText = canEdit
+          ? "underline decoration-dotted decoration-oms-border-strong underline-offset-[3px]"
+          : "";
 
-            return (
-              <div
-                key={item.id}
-                className="group -mx-2 px-2 py-2.5 rounded-card border-b border-line-subtle last:border-0 hover:bg-surface-hover transition-colors duration-fast"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
+        return (
+          <div
+            key={item.id}
+            className="group border-b border-oms-border py-3 first:pt-0 last:border-0"
+          >
+            <div className="flex items-start gap-3">
+              <ProductAvatar
+                imageUrl={itemProduct?.image_url ?? null}
+                productName={item.product_name}
+                size={46}
+              />
+
+              <div className="flex min-w-0 flex-1 flex-col gap-[5px]">
+                {/* Name owns its line. It used to share one with the price and
+                    the sheet icon, which truncated Arabic names at ~28 chars. */}
+                <div className="flex min-w-0 items-start gap-1">
+                  <div className="min-w-0 flex-1">
                     <Combobox
                       value={item.product_name}
                       options={[]}
@@ -165,16 +139,19 @@ export function OrderItemsCard({
                       placeholder={t("pickProduct")}
                       displayMode
                       readOnly={!canEdit}
-                      displayClassName="text-[14px] font-semibold text-ink-primary leading-snug"
+                      displayClassName={`text-[14px] font-semibold leading-[1.35] text-oms-ink-1 ${editableText}`}
                     />
                   </div>
+
+                  {/* Actions sit next to the name, not in the money column —
+                      an icon must never push an amount off the spine. */}
                   {onOpenProductSheet && (
                     <button
                       type="button"
                       onClick={() => onOpenProductSheet(item.product_id)}
                       title={tSheet("open")}
                       aria-label={tSheet("open")}
-                      className="flex-shrink-0 inline-flex items-center justify-center w-6 h-6 rounded text-ink-muted hover:text-ink-primary hover:bg-surface-hover transition-colors duration-fast"
+                      className="grid h-6 w-6 flex-shrink-0 place-items-center rounded-[6px] text-oms-ink-3 opacity-0 transition-all duration-fast hover:bg-oms-sunken hover:text-oms-ink-1 focus-visible:opacity-100 group-hover:opacity-100"
                     >
                       <BookOpen size={13} strokeWidth={2} aria-hidden="true" />
                     </button>
@@ -185,137 +162,201 @@ export function OrderItemsCard({
                       onClick={() => onDeleteItem(item.id)}
                       title={t("removeItem")}
                       aria-label={t("removeItem")}
-                      className="flex-shrink-0 inline-flex items-center justify-center w-6 h-6 rounded text-ink-muted opacity-0 group-hover:opacity-100 hover:text-status-critical hover:bg-status-criticalBg transition-all duration-fast"
+                      className="grid h-6 w-6 flex-shrink-0 place-items-center rounded-[6px] text-oms-ink-3 opacity-0 transition-all duration-fast hover:bg-oms-bad-bg hover:text-oms-bad focus-visible:opacity-100 group-hover:opacity-100"
                     >
                       <X size={13} strokeWidth={2} aria-hidden="true" />
                     </button>
                   )}
                 </div>
 
-                {(item.variant_label || stock !== null) && (
-                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                    {item.variant_label && <Badge tone="neutral">{item.variant_label}</Badge>}
-                    {stock !== null && (
-                      <Badge tone={stockTone} dot>
-                        {stockLabel}
-                      </Badge>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between gap-3 mt-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <StepperField
-                      value={item.quantity}
-                      onCommit={(qty) => {
-                        if (item.id === "legacy") {
-                          onCommitLegacyQuantity(qty);
-                        } else {
-                          onPatchItem(item.id, { quantity: qty });
-                        }
-                      }}
-                      min={1}
-                      displayMode
-                      readOnly={!canEdit}
-                    />
-                    <span className="text-[12px] text-ink-muted">×</span>
-                    <span className="inline-flex items-center gap-1 min-w-0">
-                      <InlineField
-                        value={String(item.unit_price)}
-                        onCommit={(v) => {
-                          const price = parseFloat(v) || 0;
-                          if (item.id === "legacy") {
-                            onCommitLegacyPrice(price);
-                          } else {
-                            onPatchItem(item.id, { unit_price: price });
-                          }
-                        }}
-                        validate={(v) => (parseFloat(v) >= 0 ? null : "invalid")}
-                        type="number"
-                        displayMode
-                        readOnly={!canEdit}
-                        displayClassName="text-[12px] text-ink-secondary tabular-nums"
-                      />
-                      {canEdit && (
-                        <span
-                          title={t("fieldUnitPrice")}
-                          className="flex-shrink-0 inline-flex text-ink-muted opacity-0 group-hover:opacity-100 transition-opacity duration-fast"
-                        >
-                          <Pencil size={11} strokeWidth={2} aria-hidden="true" />
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-[12px] text-ink-muted">{displayCurrency}</span>
-                  </div>
-                  <span className="text-[14px] font-semibold text-ink-primary tabular-nums whitespace-nowrap">
-                    {item.line_total}
-                    <span className="text-[11px] font-normal text-ink-muted ms-1">{displayCurrency}</span>
+                {/* Quantity × unit price, stated in full. `1 × 179` left you
+                    guessing which number was the price and in what currency. */}
+                <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+                  <StepperField
+                    value={item.quantity}
+                    onCommit={(qty) => {
+                      if (item.id === "legacy") {
+                        onCommitLegacyQuantity(qty);
+                      } else {
+                        onPatchItem(item.id, { quantity: qty });
+                      }
+                    }}
+                    min={1}
+                    displayMode
+                    readOnly={!canEdit}
+                  />
+                  <span className="text-[12.5px] text-oms-ink-3" aria-hidden="true">
+                    ×
                   </span>
+                  <InlineField
+                    value={(Number(item.unit_price) || 0).toFixed(2)}
+                    onCommit={(v) => {
+                      const price = parseFloat(v) || 0;
+                      if (item.id === "legacy") {
+                        onCommitLegacyPrice(price);
+                      } else {
+                        onPatchItem(item.id, { unit_price: price });
+                      }
+                    }}
+                    validate={(v) => (parseFloat(v) >= 0 ? null : "invalid")}
+                    type="number"
+                    displayMode
+                    readOnly={!canEdit}
+                    displayClassName={`text-[12.5px] tabular-nums text-oms-ink-2 ${editableText}`}
+                  />
+                  <span className="text-[11px] font-medium uppercase tracking-[0.04em] text-oms-ink-3">
+                    {displayCurrency}
+                  </span>
+                  {canEdit && (
+                    <span
+                      title={t("fieldUnitPrice")}
+                      className="inline-flex flex-shrink-0 text-oms-ink-3 opacity-0 transition-opacity duration-fast group-hover:opacity-100"
+                    >
+                      <Pencil size={11} strokeWidth={2} aria-hidden="true" />
+                    </span>
+                  )}
+                  {item.variant_label && (
+                    <span className="truncate text-[12px] text-oms-ink-3" dir="auto">
+                      · {item.variant_label}
+                    </span>
+                  )}
                 </div>
 
+                {stock !== null && (
+                  <span
+                    data-testid={`item-stock-${item.id}`}
+                    className={`inline-flex items-center gap-1 text-[11.5px] font-semibold ${stockTone}`}
+                  >
+                    <i
+                      aria-hidden="true"
+                      className="block h-[5px] w-[5px] rounded-full bg-current"
+                    />
+                    {stockLabel}
+                  </span>
+                )}
+
                 {(idx === 0 || item.id === "legacy") && variantOptions.length > 0 && canEdit && (
-                  <div className="mt-2">
-                    <select
-                      value={item.variant_id ?? ""}
-                      disabled={!canEdit}
-                      onChange={(e) => {
-                        if (item.id === "legacy") onCommitLegacyVariant(e.target.value);
-                      }}
-                      className="w-full h-8 px-2.5 text-[12px] rounded-card border border-line-subtle bg-surface-card text-ink-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
-                    >
-                      <option value="">—</option>
-                      {variantOptions.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <select
+                    value={item.variant_id ?? ""}
+                    disabled={!canEdit}
+                    onChange={(e) => {
+                      if (item.id === "legacy") onCommitLegacyVariant(e.target.value);
+                    }}
+                    className="mt-1 h-8 w-full rounded-[8px] border border-oms-border bg-oms-surface px-2.5 text-[12px] text-oms-ink-1 focus:border-oms-accent focus:outline-none"
+                  >
+                    <option value="">—</option>
+                    {variantOptions.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
                 )}
               </div>
-            );
-          })}
 
-          {canEdit && renderAddProduct ? renderAddProduct() : null}
-
-          <div className="mt-2.5 pt-2.5 border-t border-line-subtle flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[12px] text-ink-secondary">{t("fieldDeliveryFee")}</span>
-              <div className="w-[90px]">
-                <InlineField
-                  value={String(deliveryFee ?? 0)}
-                  onCommit={(v) => onCommitDeliveryFee(parseFloat(v) || 0)}
-                  type="number"
-                  displayMode
-                  readOnly={!canEdit}
-                  displayClassName="text-[13px] text-ink-secondary tabular-nums text-end"
-                />
-              </div>
-            </div>
-            {/* Read-only card-payment marker for legacy orders that already have
-                it (no longer editable here — see the Darb dispatch modal). */}
-            {isLibyaOrder && cardPayment && (
-              <div className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-1.5 text-[12px] text-ink-secondary">
-                  {t("cardPayment")}
-                  <span className="text-[11px] font-semibold text-ink-muted tabular-nums">+10%</span>
-                </span>
-              </div>
-            )}
-            <div className="-mx-2 mt-1 flex items-center justify-between rounded-card bg-surface-page border border-line-subtle px-3 py-2.5">
-              <span className="text-[11px] font-semibold text-ink-primary uppercase tracking-[0.08em]">
-                {t("grandTotal")}
-              </span>
-              <span className="text-[18px] font-bold text-ink-primary tabular-nums tracking-tight leading-none">
-                {grandTotal}
-                <span className="text-[12px] font-semibold text-ink-secondary ms-1.5">{displayCurrency}</span>
-              </span>
+              {/* The money spine. Fixed width and last in the row, so every
+                  amount on this tab lands on one right edge. */}
+              <Money
+                amount={item.line_total}
+                className="text-[14px] font-[650] text-oms-ink-1"
+              />
             </div>
           </div>
+        );
+      })}
 
-          {saveError && <div className="text-[12px] text-status-critical mt-1">{saveError}</div>}
+      {canEdit && renderAddProduct ? (
+        <div className="pt-3">{renderAddProduct()}</div>
+      ) : null}
+
+      {/* Every value below sits in a 76px end-aligned column — the same one the
+          line totals use — so the whole tab reads down a single spine. */}
+      <div className="mt-[18px] border-t border-oms-border pt-3.5">
+        <div className="flex items-baseline gap-3 py-[5px] text-[13px]">
+          <span className="flex-1 text-oms-ink-2">{t("subtotal")}</span>
+          <Money testId="items-subtotal" amount={subtotal} className="text-oms-ink-1" />
         </div>
-      )}
-    </SectionCard>
+
+        <div className="flex items-baseline gap-3 py-[5px] text-[13px]">
+          <span className="flex-1 text-oms-ink-2">{t("fieldDeliveryFee")}</span>
+          <span className="flex flex-shrink-0 items-baseline justify-end gap-1">
+            <InlineField
+              value={(Number(deliveryFee) || 0).toFixed(2)}
+              onCommit={(v) => onCommitDeliveryFee(parseFloat(v) || 0)}
+              type="number"
+              displayMode
+              readOnly={!canEdit}
+              displayClassName={`block text-[13px] tabular-nums text-end text-oms-ink-1 ${
+                canEdit
+                  ? "underline decoration-dotted decoration-oms-border-strong underline-offset-[3px]"
+                  : ""
+              }`}
+            />
+            <span aria-hidden="true" className="w-[30px]" />
+          </span>
+        </div>
+
+        {/* Read-only card-payment marker for legacy orders that already carry
+            it — no longer editable here (see the Darb dispatch modal). */}
+        {isLibyaOrder && cardPayment && (
+          <div className="flex items-baseline gap-3 py-[5px] text-[13px]">
+            <span className="flex-1 text-oms-ink-2">{t("cardPayment")}</span>
+            <span className="w-[76px] flex-shrink-0 text-end text-[12px] font-semibold tabular-nums text-oms-ink-3">
+              +10%
+            </span>
+          </div>
+        )}
+
+        <div className="mt-1.5 flex items-baseline gap-3 border-t border-oms-border pt-[11px]">
+          <span className="flex-1 text-[10.5px] font-[650] uppercase tracking-[0.085em] text-oms-ink-3">
+            {t("grandTotal")}
+          </span>
+          <Money
+            testId="items-grand-total"
+            amount={grandTotal}
+            currency={displayCurrency}
+            className="text-[16px] font-[650] tracking-[-0.02em] text-oms-ink-1"
+          />
+        </div>
+      </div>
+
+      {saveError && <div className="mt-1 text-[12px] text-oms-bad">{saveError}</div>}
+    </div>
+  );
+}
+
+/**
+ * One amount on the receipt's money spine.
+ *
+ * The currency slot is reserved on every row and filled only on the grand
+ * total. Without it, the one row that names its currency pushes its own digits
+ * left and nothing below the line items lines up — which is exactly how the
+ * column came to read as ragged.
+ */
+function Money({
+  amount,
+  currency,
+  className = "",
+  testId,
+}: {
+  amount: number;
+  /** Rendered when present; the slot is reserved either way. */
+  currency?: string;
+  className?: string;
+  testId?: string;
+}) {
+  return (
+    <span
+      data-testid={testId}
+      className={`flex flex-shrink-0 items-baseline justify-end gap-1 ${className}`}
+    >
+      <span className="tabular-nums">{(Number(amount) || 0).toFixed(2)}</span>
+      <span
+        aria-hidden={currency ? undefined : "true"}
+        className="w-[30px] text-start text-[10.5px] font-medium uppercase tracking-[0.05em] text-oms-ink-3"
+      >
+        {currency ?? ""}
+      </span>
+    </span>
   );
 }

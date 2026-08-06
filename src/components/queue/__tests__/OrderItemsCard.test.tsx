@@ -46,7 +46,6 @@ function renderCard(overrides: Partial<OrderItemsCardProps> = {}) {
     canEdit: true,
     isLibyaOrder: false,
     saveError: null,
-    defaultOpen: true,
     onCommitLegacyProduct: vi.fn(),
     onCommitLegacyQuantity: vi.fn(),
     onCommitLegacyPrice,
@@ -109,5 +108,34 @@ describe("OrderItemsCard — editable unit_price", () => {
     fireEvent.change(input, { target: { value: "-5" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onPatchItem).not.toHaveBeenCalled();
+  });
+});
+
+describe("OrderItemsCard — the receipt", () => {
+  it("shows the items without asking to be opened first", () => {
+    // The tab is already the disclosure. A card inside it that also collapsed
+    // meant opening a panel to check a receipt, then clicking again to see it.
+    renderCard();
+    expect(screen.queryByTestId("order-details-toggle")).toBeNull();
+    expect(screen.getByText("Widget")).toBeInTheDocument();
+  });
+
+  it("breaks the total down instead of jumping straight to it", () => {
+    renderCard({ items: [makeItem({ line_total: 50 })], deliveryFee: 7, grandTotal: 57 });
+    expect(screen.getByTestId("items-subtotal")).toHaveTextContent("50.00");
+    expect(screen.getByTestId("items-grand-total")).toHaveTextContent("57.00");
+  });
+
+  it("states the grand total the way the table and the facts grid state it", () => {
+    // Same money, three places, one reading — two decimals, currency demoted.
+    renderCard({ grandTotal: 129 });
+    const total = screen.getByTestId("items-grand-total");
+    expect(total.textContent).toContain("129.00");
+    expect(total.textContent).toContain("DT");
+  });
+
+  it("reports stock in words, not by colour alone", () => {
+    renderCard({ products: [{ id: "p-1", current_stock: 0, product_variants: [] }] });
+    expect(screen.getByTestId("item-stock-item-1")).toHaveTextContent(/.+/);
   });
 });

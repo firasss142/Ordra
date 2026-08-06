@@ -60,8 +60,8 @@ export function CustomerHero({
   const t = useTranslations("orders.detail");
 
   return (
-    <section className="px-4 pb-1 pt-5" aria-label={t("client")}>
-      <span className="mb-1.5 block text-[10.5px] font-semibold uppercase tracking-[0.085em] text-ink-muted">
+    <section className="px-[18px] pb-1 pt-5" aria-label={t("client")}>
+      <span className="mb-[7px] block text-[10.5px] font-[650] uppercase tracking-[0.085em] text-oms-ink-3">
         {t("client")}
       </span>
 
@@ -71,8 +71,8 @@ export function CustomerHero({
         displayMode
         readOnly={!canEdit}
         displayClassName={[
-          "text-[21px] font-semibold leading-[1.3] tracking-[-0.018em]",
-          terminal ? "text-ink-secondary" : "text-ink-primary",
+          "text-[21px] font-[650] leading-[1.3] tracking-[-0.018em] [overflow-wrap:anywhere]",
+          terminal ? "text-oms-ink-2" : "text-oms-ink-1",
         ].join(" ")}
       />
 
@@ -87,8 +87,8 @@ export function CustomerHero({
             displayMode
             readOnly={!canEdit}
             placeholder={t("fieldPhone")}
-            className="text-[16px] font-semibold tabular-nums tracking-[0.01em]"
-            displayClassName="text-[16px] font-semibold tabular-nums tracking-[0.01em] text-ink-primary"
+            className="text-[16px] font-[650] tabular-nums tracking-[0.01em]"
+            displayClassName="text-[16px] font-[650] tabular-nums tracking-[0.01em] text-oms-ink-1"
           />
         </div>
 
@@ -96,7 +96,7 @@ export function CustomerHero({
           <a
             href={`tel:${phone}`}
             aria-label={`${t("callAction")} ${phone}`}
-            className="inline-flex h-[30px] flex-shrink-0 items-center gap-1.5 rounded-card border border-line-subtle bg-surface-card px-2.5 text-[12px] font-semibold text-ink-secondary transition-colors duration-fast hover:border-accent hover:text-ink-primary"
+            className="inline-flex h-[30px] flex-shrink-0 items-center gap-1.5 rounded-[8px] border border-oms-border bg-oms-surface px-[11px] text-[12px] font-semibold text-oms-ink-2 transition-colors duration-fast hover:border-oms-accent hover:bg-oms-accent-bg hover:text-oms-accent-ink"
           >
             <PhoneIcon size={12} strokeWidth={2} aria-hidden="true" />
             {t("callAction")}
@@ -106,7 +106,7 @@ export function CustomerHero({
           type="button"
           onClick={onCopyPhone}
           aria-label={t("copyPhone")}
-          className="inline-flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-card border border-line-subtle bg-surface-card text-ink-secondary transition-colors duration-fast hover:border-accent hover:text-ink-primary"
+          className="inline-flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[8px] border border-oms-border bg-oms-surface text-oms-ink-2 transition-colors duration-fast hover:border-oms-accent hover:bg-oms-accent-bg hover:text-oms-accent-ink"
         >
           {phoneCopied ? (
             <Check size={13} strokeWidth={2.5} aria-hidden="true" />
@@ -126,13 +126,13 @@ export function CustomerHero({
             readOnly={!canEdit}
             // Empty + editable reads as "add one", not as a label for a missing field.
             placeholder={canEdit ? (phone2 ? t("fieldPhone2") : t("addPhone2")) : ""}
-            displayClassName="text-[13px] tabular-nums text-ink-secondary"
+            displayClassName="text-[13px] tabular-nums text-oms-ink-2"
           />
           {phone2 ? (
             <a
               href={`tel:${phone2}`}
               aria-label={`${t("callAction")} ${phone2}`}
-              className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-card border border-line-subtle text-ink-secondary transition-colors duration-fast hover:border-accent hover:text-ink-primary"
+              className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-[8px] border border-oms-border text-oms-ink-2 transition-colors duration-fast hover:border-oms-accent hover:text-oms-accent-ink"
             >
               <PhoneIcon size={12} strokeWidth={2} aria-hidden="true" />
             </a>
@@ -140,11 +140,13 @@ export function CustomerHero({
         </div>
       ) : null}
 
-      {/* dir="auto" per node so an Arabic address resolves its own direction
-          inside otherwise-LTR chrome. */}
+      {/* Address only — the city has its own row in the Livraison tab, and a
+          missing one is announced by the blocker rather than by a gap here.
+          dir="auto" so an Arabic address resolves its own direction inside
+          otherwise-LTR chrome. */}
       {(address || city) && (
-        <p className="mt-2.5 text-[13.5px] leading-[1.5] text-ink-secondary" dir="auto">
-          {[address, city].filter(Boolean).join(" · ")}
+        <p className="mt-[9px] text-[13.5px] leading-[1.5] text-oms-ink-2" dir="auto">
+          {address || city}
         </p>
       )}
 

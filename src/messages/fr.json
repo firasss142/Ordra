@@ -1131,7 +1131,12 @@
       "unassigned": "Non assigné",
       "tabItems": "Articles",
       "tabShipping": "Livraison",
-      "tabHistory": "Historique"
+      "tabHistory": "Historique",
+      "copyReference": "Copier la référence",
+      "subtotal": "Sous-total",
+      "fieldTracking": "Suivi",
+      "cityDefine": "Définir",
+      "cityEmpty": "Non définie"
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",

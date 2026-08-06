@@ -123,6 +123,60 @@ describe("GET /api/orders/[id]", () => {
     expect(res.status).toBe(404);
   });
 
+  test("carries the assignee's name, so the panel can caption the order", async () => {
+    // The panel has `assigned_to` but never had a name to show for it, so the
+    // Agent cell omitted itself. Resolving it here rather than client-side is
+    // deliberate: /api/agents is manager-gated, so an agent opening their own
+    // order would have got a 403.
+    const order = { id: "order-1", market_id: "m-1", status: "assigned", assigned_to: "agent-1" };
+    mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+    let usersLookups = 0;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        usersLookups += 1;
+        // First lookup resolves the actor; the second resolves the assignee.
+        return usersLookups === 1
+          ? queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null })
+          : queryChain({ data: { full_name: "tasnim" }, error: null });
+      }
+      if (table === "orders") return queryChain({ data: order, error: null });
+      if (table === "order_history") {
+        const chain = queryChain({ data: [], error: null });
+        chain.order = vi.fn().mockResolvedValue({ data: [], error: null });
+        return chain;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const req = createRequest();
+    const res = await GET(req, { params: Promise.resolve({ id: "order-1" }) });
+    const json = await res.json();
+    expect(json.data.assigned_agent_name).toBe("tasnim");
+  });
+
+  test("an unassigned order reports null rather than omitting the field", async () => {
+    // `undefined` means "not resolved" to the facts grid and drops the cell;
+    // `null` means "nobody owns this", which is the state worth acting on.
+    const order = { id: "order-1", market_id: "m-1", status: "pending", assigned_to: null };
+    mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
+      if (table === "orders") return queryChain({ data: order, error: null });
+      if (table === "order_history") {
+        const chain = queryChain({ data: [], error: null });
+        chain.order = vi.fn().mockResolvedValue({ data: [], error: null });
+        return chain;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const req = createRequest();
+    const res = await GET(req, { params: Promise.resolve({ id: "order-1" }) });
+    const json = await res.json();
+    expect(json.data).toHaveProperty("assigned_agent_name");
+    expect(json.data.assigned_agent_name).toBeNull();
+  });
+
   test("agent cannot view unassigned order", async () => {
     const order = { id: "order-1", market_id: "m-1", status: "pending", assigned_to: null };
     mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });

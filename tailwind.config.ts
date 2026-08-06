@@ -70,6 +70,12 @@ const config: Config = {
           "accent-bg": "var(--oms-accent-bg)",
           "age-warm": "var(--oms-age-warm)",
           "age-late": "var(--oms-age-late)",
+          warn: "var(--oms-warn)",
+          "warn-bg": "var(--oms-warn-bg)",
+          bad: "var(--oms-bad)",
+          "bad-bg": "var(--oms-bad-bg)",
+          ok: "var(--oms-ok)",
+          "ok-bg": "var(--oms-ok-bg)",
         },
         status: {
           action: "#2C6ECB",
