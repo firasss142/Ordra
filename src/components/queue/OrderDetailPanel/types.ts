@@ -46,9 +46,15 @@ export interface OrderDetail {
   currency: string;
   status: string;
   assigned_to: string | null;
+  /** Resolved server-side — `null` means unassigned, never "not looked up". */
+  assigned_agent_name: string | null;
   market_id: string;
   attempts_count?: number | null;
+  /** Intake time — drives the header's elapsed-time reading. */
+  created_at: string;
   updated_at: string;
+  /** Storefront order number. Preferred over the UUID as the human reference. */
+  external_id: string | null;
   tracking_number: string | null;
   carrier_id: string | null;
   carrier_barcode_deleted_at: string | null;

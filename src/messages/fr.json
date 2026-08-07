@@ -797,7 +797,7 @@
       "date": "Date",
       "agent": "Agent",
       "advanced": "Avancé",
-      "searchPlaceholder": "Nom · téléphone · ID",
+      "searchPlaceholder": "Nom · téléphone · référence",
       "searchAria": "Rechercher une commande",
       "refresh": "Actualiser",
       "allMarkets": "Tous les marchés",
@@ -807,7 +807,8 @@
       "from": "Du",
       "to": "Au",
       "clear": "Effacer",
-      "showDeleted": "Afficher supprimées"
+      "showDeleted": "Afficher supprimées",
+      "moreFilters": "Plus de filtres"
     },
     "chips": {
       "search": "Recherche",
@@ -949,7 +950,8 @@
       "agent": "Agent",
       "date": "Date",
       "selectAll": "Tout sélectionner",
-      "actions": "Actions"
+      "actions": "Actions",
+      "age": "Âge"
     },
     "statuses": {
       "pending": "En attente",
@@ -1081,7 +1083,7 @@
       "cardPayment": "Paiement par carte",
       "fieldNote": "Note",
       "fieldNotePlaceholder": "Ajouter une note…",
-      "addProduct": "+ Ajouter un produit",
+      "addProduct": "Ajouter un produit",
       "removeItem": "Supprimer",
       "grandTotal": "Total",
       "inStock": "En stock",
@@ -1116,7 +1118,25 @@
         "close": "Fermer",
         "overflowMenu": "Plus d'actions",
         "primaryDisabledNoCarrier": "Aucun transporteur actif disponible"
-      }
+      },
+      "delivery": "Livraison",
+      "addPhone2": "Ajouter un 2ᵉ téléphone",
+      "blockerCity": "Ville non reconnue",
+      "blockerCityBody": "L'envoi au transporteur est bloqué tant que la ville n'est pas définie.",
+      "blockerResolve": "Résoudre",
+      "factTotal": "Total",
+      "factItems": "Articles",
+      "factAgent": "Agent",
+      "factCarrier": "Transporteur",
+      "unassigned": "Non assigné",
+      "tabItems": "Articles",
+      "tabShipping": "Livraison",
+      "tabHistory": "Historique",
+      "copyReference": "Copier la référence",
+      "subtotal": "Sous-total",
+      "fieldTracking": "Suivi",
+      "cityDefine": "Définir",
+      "cityEmpty": "Non définie"
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",
@@ -1207,6 +1227,51 @@
       "label": "Mode d'affichage",
       "board": "Assignation",
       "table": "Tableau"
+    },
+    "kpi": {
+      "label": "Indicateurs",
+      "pipeline": "Pipeline",
+      "unassigned": "Non assignées",
+      "unassignedHint": "aucun agent",
+      "today": "Aujourd'hui",
+      "waiting": "En attente",
+      "toRecall": "À rappeler",
+      "confirmed": "Confirmées",
+      "uploaded": "Téléchargées",
+      "confirmationRate": "Taux de confirmation",
+      "ratePeriod": "7 derniers jours · vs 7 précédents",
+      "periodNow": "maintenant",
+      "periodToday": "aujourd'hui",
+      "scaleNote": "échelles distinctes — comparer au sein d’une même période",
+      "scaleQueues": "files",
+      "scaleDaily": "volumes du jour",
+      "hidePipeline": "Masquer le pipeline",
+      "showPipeline": "Afficher le pipeline",
+      "total": "{count} au total"
+    },
+    "facets": {
+      "anyOf": "n'importe lequel",
+      "anyOfF": "n'importe laquelle",
+      "clearAll": "Tout effacer",
+      "remove": "Retirer {label}",
+      "results": "{count} affichées",
+      "search": "Filtrer…",
+      "none": "Aucun résultat",
+      "unassigned": "Non assigné",
+      "product": "Produit",
+      "source": "Source",
+      "call": "Appel",
+      "delivery": "Livraison",
+      "date": "Date",
+      "today": "Aujourd'hui",
+      "d3": "3 derniers jours",
+      "d7": "7 derniers jours",
+      "d30": "30 derniers jours",
+      "onePeriod": "une seule période",
+      "anyProduct": "n'importe lequel",
+      "showDeleted": "Afficher supprimées",
+      "more": "Plus de filtres",
+      "carrier": "Transporteur"
     }
   },
   "unassigned": {

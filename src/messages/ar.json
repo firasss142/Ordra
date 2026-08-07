@@ -797,7 +797,7 @@
       "date": "التاريخ",
       "agent": "الوكيل",
       "advanced": "متقدم",
-      "searchPlaceholder": "الاسم · الهاتف · المعرّف",
+      "searchPlaceholder": "الاسم · الهاتف · المرجع",
       "searchAria": "بحث عن طلب",
       "refresh": "تحديث",
       "allMarkets": "جميع الأسواق",
@@ -807,7 +807,8 @@
       "from": "من",
       "to": "إلى",
       "clear": "مسح",
-      "showDeleted": "إظهار المحذوفة"
+      "showDeleted": "إظهار المحذوفة",
+      "moreFilters": "مرشحات إضافية"
     },
     "chips": {
       "search": "بحث",
@@ -949,7 +950,8 @@
       "agent": "الوكيل",
       "date": "التاريخ",
       "selectAll": "تحديد الكل",
-      "actions": "إجراءات"
+      "actions": "إجراءات",
+      "age": "المدة"
     },
     "statuses": {
       "pending": "قيد الانتظار",
@@ -1081,7 +1083,7 @@
       "cardPayment": "الدفع بالبطاقة",
       "fieldNote": "ملاحظة",
       "fieldNotePlaceholder": "إضافة ملاحظة…",
-      "addProduct": "+ إضافة منتج",
+      "addProduct": "إضافة منتج",
       "removeItem": "حذف",
       "grandTotal": "المجموع الكلي",
       "inStock": "متوفر",
@@ -1116,7 +1118,25 @@
         "close": "إغلاق",
         "overflowMenu": "خيارات إضافية",
         "primaryDisabledNoCarrier": "لا يوجد ناقل نشط متاح"
-      }
+      },
+      "delivery": "التوصيل",
+      "addPhone2": "إضافة هاتف ثانٍ",
+      "blockerCity": "المدينة غير معروفة",
+      "blockerCityBody": "لا يمكن الإرسال إلى شركة التوصيل قبل تحديد المدينة.",
+      "blockerResolve": "حل المشكلة",
+      "factTotal": "الإجمالي",
+      "factItems": "المنتجات",
+      "factAgent": "الوكيل",
+      "factCarrier": "شركة التوصيل",
+      "unassigned": "غير مسند",
+      "tabItems": "المنتجات",
+      "tabShipping": "التوصيل",
+      "tabHistory": "السجل",
+      "copyReference": "نسخ المرجع",
+      "subtotal": "المجموع الفرعي",
+      "fieldTracking": "التتبع",
+      "cityDefine": "تحديد",
+      "cityEmpty": "غير محددة"
     },
     "scheduleDispatch": {
       "title": "جدولة التوصيل",
@@ -1207,6 +1227,51 @@
       "label": "وضع العرض",
       "board": "لوحة الإسناد",
       "table": "جدول"
+    },
+    "kpi": {
+      "label": "المؤشرات",
+      "pipeline": "المسار",
+      "unassigned": "غير مسندة",
+      "unassignedHint": "بدون وكيل",
+      "today": "اليوم",
+      "waiting": "في الانتظار",
+      "toRecall": "إعادة الاتصال",
+      "confirmed": "مؤكدة",
+      "uploaded": "مرفوعة",
+      "confirmationRate": "نسبة التأكيد",
+      "ratePeriod": "آخر 7 أيام · مقارنة بالـ7 السابقة",
+      "periodNow": "الآن",
+      "periodToday": "اليوم",
+      "scaleNote": "مقاييس مختلفة — قارن ضمن نفس الفترة",
+      "scaleQueues": "قوائم الانتظار",
+      "scaleDaily": "حجم اليوم",
+      "hidePipeline": "إخفاء المسار",
+      "showPipeline": "إظهار المسار",
+      "total": "{count} الإجمالي"
+    },
+    "facets": {
+      "anyOf": "أي منها",
+      "anyOfF": "أي منها",
+      "clearAll": "مسح الكل",
+      "remove": "إزالة {label}",
+      "results": "{count} معروضة",
+      "search": "تصفية…",
+      "none": "لا نتائج",
+      "unassigned": "غير مسند",
+      "product": "المنتج",
+      "source": "المصدر",
+      "call": "الاتصال",
+      "delivery": "التوصيل",
+      "date": "التاريخ",
+      "today": "اليوم",
+      "d3": "آخر 3 أيام",
+      "d7": "آخر 7 أيام",
+      "d30": "آخر 30 يوماً",
+      "onePeriod": "فترة واحدة",
+      "anyProduct": "أي منها",
+      "showDeleted": "إظهار المحذوفة",
+      "more": "مرشحات إضافية",
+      "carrier": "شركة التوصيل"
     }
   },
   "unassigned": {

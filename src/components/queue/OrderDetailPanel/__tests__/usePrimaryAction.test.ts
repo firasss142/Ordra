@@ -130,6 +130,17 @@ describe("resolvePanelActions — primary CTA", () => {
     expect(overflow.some((a) => a.kind === "reopen")).toBe(false);
   });
 
+  it("marks deleting the carrier barcode destructive, because it cancels a shipment", () => {
+    // The footer promotes the first non-destructive overflow action to a
+    // labelled button. Unflagged, "Supprimer le code-barres" was landing next
+    // to the primary CTA — one mis-click from pulling a live shipment back.
+    const { overflow } = resolvePanelActions(input({
+      order: { status: "uploaded", assigned_to: "agent-1", updated_at: STALE, tracking_number: "TR123", carrier_barcode_deleted_at: null },
+    }));
+    const del = overflow.find((a) => a.kind === "deleteCarrierBarcode");
+    expect(del?.destructive).toBe(true);
+  });
+
   it("falls back to close for uploaded when stale; reopen does not appear", () => {
     const { primary, overflow } = resolvePanelActions(input({
       order: { status: "uploaded", assigned_to: "agent-1", updated_at: STALE, tracking_number: "TR123", carrier_barcode_deleted_at: null },

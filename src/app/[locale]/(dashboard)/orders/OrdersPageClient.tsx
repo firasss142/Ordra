@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Download, Plus } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -23,12 +24,14 @@ import {
 } from "@/lib/orders/list-filters";
 import { OrdersFilterBar } from "@/components/orders/OrdersFilterBar";
 import { OrdersFilterChips } from "@/components/orders/OrdersFilterChips";
-import { OrdersPresetPills } from "@/components/orders/OrdersPresetPills";
+import { OrdersFacetBar } from "@/components/orders/OrdersFacetBar";
+import { OrdersKpiStrip, type KpiTile } from "@/components/orders/OrdersKpiStrip";
+import { filtersForTile, tileForFilters } from "@/lib/orders/kpi-tiles";
+import type { StatusCounts } from "@/app/api/orders/status-counts/route";
 import { OrdersTable } from "@/components/orders/OrdersTable";
 import { OrdersBulkBar } from "@/components/orders/OrdersBulkBar";
 import { BulkUploadPanel } from "@/components/orders/BulkUploadPanel";
 import { BulkReopenPanel } from "@/components/orders/BulkReopenPanel";
-import { OrdersStatusStrip } from "@/components/orders/OrdersStatusStrip";
 import { OrdersViewToggle, type OrdersView } from "@/components/orders/OrdersViewToggle";
 import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
 
@@ -151,11 +154,11 @@ export function OrdersPageClient({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMounted, setDrawerMounted] = useState(false);
   const { data: productsData } = useSWR<{ data: Product[] }>(
-    drawerMounted && effectiveMarketId ? `/api/products?market_id=${effectiveMarketId}` : null,
+    effectiveMarketId ? `/api/products?market_id=${effectiveMarketId}` : null,
     fetcher,
   );
   const { data: carriersData } = useSWR<{ data: Carrier[] }>(
-    drawerMounted && effectiveMarketId ? `/api/carriers?market_id=${effectiveMarketId}` : null,
+    effectiveMarketId ? `/api/carriers?market_id=${effectiveMarketId}` : null,
     fetcher,
   );
 
@@ -513,16 +516,37 @@ export function OrdersPageClient({
     filters.rejectionReason !== null ||
     filters.carrierId !== null;
 
-  // Assignment board is the default view of the unassigned tab; any active
+  // ---------- KPI strip ----------
+  // Counts are market-wide and deliberately independent of the table filters:
+  // a tile that moved when you clicked another tile could not be trusted as
+  // navigation. Tile <-> filter mapping lives in lib/orders/kpi-tiles.
+  const { data: kpiData, isLoading: kpiLoading } = useSWR<{ data: StatusCounts }>(
+    effectiveMarketId
+      ? `/api/orders/status-counts?market_id=${effectiveMarketId}`
+      : `/api/orders/status-counts`,
+    fetcher,
+    { refreshInterval: 60_000, revalidateOnFocus: false },
+  );
+  const kpiCounts = kpiData?.data;
+  const activeTile: KpiTile | null = useMemo(() => tileForFilters(filters), [filters]);
+
+  /** Cities present in the current result set, for the Ville facet. */
+  const knownCities = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rows) if (r.customer_city) set.add(r.customer_city);
+    return [...set].sort((a, b) => a.localeCompare(b, locale === "ar" ? "ar" : "fr"));
+  }, [rows, locale]);
+
+  // Assignment board is the default view of the unassigned tile; any active
   // filter chip falls back to the plain table (filters apply to the table only).
   const boardActive =
-    filters.preset === "unassigned" && canAssign && view === "board" && !hasActiveFilterChips;
+    activeTile === "unassigned" && canAssign && view === "board" && !hasActiveFilterChips;
 
   return (
     <div
       style={{
         padding: isMobile ? "64px 16px 80px" : "24px 24px 80px",
-        background: "#F6F6F7",
+        background: "var(--oms-bg)",
         minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
@@ -539,25 +563,48 @@ export function OrdersPageClient({
       >
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ fontSize: 20, fontWeight: 600, color: "#1A1A1A", margin: 0 }}>
+            <h1 className="m-0 text-[22px] font-semibold tracking-[-0.017em] text-oms-ink-1">
               {t("title")}
             </h1>
-            <p style={{ fontSize: 13, color: "#6D7175", margin: "4px 0 0" }}>
+            <p className="m-0 mt-0.5 flex items-center gap-1.5 text-[12.5px] text-oms-ink-2">
+              <span aria-hidden className="h-[7px] w-[7px] rounded-full bg-oms-accent" />
               {activeMarketLabel}
               {isValidating ? ` · ${t("refreshing")}` : ""}
             </p>
           </div>
+
+          {/* Primary action lives top-right, not buried inside the filter card. */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExport}
+              className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-oms-border bg-oms-surface px-3 text-[13px] font-medium text-oms-ink-1 transition-colors duration-fast hover:border-oms-border-strong"
+            >
+              <Download size={14} strokeWidth={1.75} aria-hidden />
+              {t("exportCsv")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex h-[34px] items-center gap-1.5 rounded-lg bg-oms-accent px-3.5 text-[13px] font-semibold text-white shadow-hover-row transition-colors duration-fast hover:bg-oms-accent-ink"
+            >
+              <Plus size={14} strokeWidth={2.2} aria-hidden />
+              {t("create.newOrder")}
+            </button>
+          </div>
         </div>
 
-        <OrdersStatusStrip marketId={effectiveMarketId} />
-
-        <div className="flex items-end justify-between gap-2 flex-wrap border-b border-line">
-          <OrdersPresetPills
-            active={filters.preset}
-            onChange={(next) => update({ preset: next })}
-          />
-          {filters.preset === "unassigned" && canAssign ? (
-            <div className="pb-1.5">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <OrdersKpiStrip
+              counts={kpiCounts}
+              isLoading={kpiLoading}
+              activeTile={activeTile}
+              onSelect={(tile) => update(filtersForTile(tile))}
+            />
+          </div>
+          {activeTile === "unassigned" && canAssign ? (
+            <div className="pt-1">
               <OrdersViewToggle
                 view={hasActiveFilterChips ? "table" : view}
                 onChange={setView}
@@ -568,7 +615,7 @@ export function OrdersPageClient({
       </div>
 
       {/* ── Filter card ── */}
-      <div className="bg-surface-card border border-line-subtle rounded-[8px] px-4 py-3.5 flex flex-col gap-2.5">
+      <div className="flex flex-col gap-2.5">
         <OrdersFilterBar
           filters={filters}
           onChange={update}
@@ -579,6 +626,25 @@ export function OrdersPageClient({
           onNewOrder={() => setCreateOpen(true)}
           onExport={handleExport}
           marketLabel={activeMarketLabel}
+        />
+        {/* Named facets, applied on click. Replaces the "Avancé" drawer for the
+            three filters an ops dispatcher reaches for constantly; the panel
+            still holds the long tail (product, carrier, price, reason). */}
+        <OrdersFacetBar
+          filters={filters}
+          onChange={update}
+          agents={agents}
+          products={productsData?.data ?? []}
+          carriers={carriersData?.data ?? []}
+          cities={knownCities}
+          resultCount={rows.length}
+          resultValue={rows
+            .reduce((sum, r) => sum + (r.total_price ?? 0), 0)
+            .toLocaleString(locale === "ar" ? "ar" : "fr-FR", {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            })}
+          currencyCode={currencyCode}
         />
         {hasActiveFilterChips ? (
           <OrdersFilterChips

@@ -14,9 +14,14 @@ export interface ActionFooterProps {
 }
 
 /**
- * Sticky footer for the order panel. Renders one state-contextual primary
- * CTA plus an overflow menu for less-frequent actions. Hides the overflow
- * trigger entirely when no overflow items apply (most terminal states).
+ * Sticky footer: the primary CTA, the second-commonest action beside it, and
+ * everything else behind `⋯`.
+ *
+ * Promoting the second action is what the panel's own design asks for — but
+ * only when it is safe to promote. `resolvePanelActions` puts `cancel` first
+ * for managers on several statuses, so promoting blindly would park "Annuler
+ * la commande" one mis-click from "Confirmer". Destructive actions stay in the
+ * menu, where opening it is the confirmation step.
  *
  * Translations live under `orders.detail.actions.*` — every PanelAction kind
  * carries its own labelKey so this footer never knows about state.
@@ -34,7 +39,11 @@ export function ActionFooter({ actions, primaryPending, onInvoke }: ActionFooter
     ? t(primary.disabledReasonKey as Parameters<typeof t>[0])
     : undefined;
 
-  const items: MenuItem[] = overflow.map((action) => ({
+  const promotedIndex = overflow.findIndex((a) => !a.destructive && !a.disabled);
+  const promoted = promotedIndex >= 0 ? overflow[promotedIndex] : null;
+  const remaining = overflow.filter((_, i) => i !== promotedIndex);
+
+  const items: MenuItem[] = remaining.map((action) => ({
     id: action.kind,
     label: t(action.labelKey as Parameters<typeof t>[0]),
     onSelect: () => onInvoke(action.kind),
@@ -43,20 +52,31 @@ export function ActionFooter({ actions, primaryPending, onInvoke }: ActionFooter
   }));
 
   return (
-    <div className="flex-shrink-0 bg-surface-card border-t border-line-subtle px-4 py-3 flex items-center gap-2">
+    <div className="flex flex-shrink-0 items-center gap-2 border-t border-oms-border bg-oms-surface px-[18px] py-[13px]">
+      {promoted ? (
+        <button
+          type="button"
+          onClick={() => onInvoke(promoted.kind)}
+          className="inline-flex h-[38px] flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-[9px] border border-oms-border bg-oms-surface text-[13px] font-semibold text-oms-ink-1 transition-colors duration-fast hover:border-oms-border-strong hover:bg-oms-sunken"
+        >
+          {t(promoted.labelKey as Parameters<typeof t>[0])}
+        </button>
+      ) : null}
+
       <button
         type="button"
         onClick={() => onInvoke(primary.kind)}
         disabled={primary.disabled || primaryPending}
         title={disabledTitle}
         className={[
-          "flex-1 inline-flex items-center justify-center h-11 rounded-card text-[14px] font-semibold",
-          "bg-ink-primary text-white hover:bg-[#2A2A2A] transition-colors duration-fast",
-          "disabled:bg-surface-page disabled:text-ink-muted disabled:cursor-not-allowed",
+          "inline-flex h-[38px] flex-1 items-center justify-center whitespace-nowrap rounded-[9px] text-[13px] font-semibold",
+          "border border-oms-accent bg-oms-accent text-white transition-colors duration-fast hover:bg-oms-accent-ink hover:border-oms-accent-ink",
+          "disabled:cursor-not-allowed disabled:opacity-[0.42]",
         ].join(" ")}
       >
         {primaryLabel}
       </button>
+
       {items.length > 0 ? (
         <Menu
           ariaLabel={t("actions.overflowMenu")}
@@ -66,7 +86,7 @@ export function ActionFooter({ actions, primaryPending, onInvoke }: ActionFooter
             <button
               type="button"
               aria-label={t("actions.overflowMenu")}
-              className="inline-flex items-center justify-center w-11 h-11 rounded-card border border-line-subtle text-ink-secondary hover:text-ink-primary hover:bg-surface-hover transition-colors duration-fast"
+              className="inline-flex h-[38px] w-[38px] items-center justify-center rounded-[9px] border border-oms-border text-oms-ink-2 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-ink-1"
             >
               <MoreHorizontal size={16} strokeWidth={2} aria-hidden="true" />
             </button>

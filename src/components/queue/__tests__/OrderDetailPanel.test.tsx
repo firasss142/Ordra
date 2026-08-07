@@ -159,7 +159,7 @@ describe("OrderDetailPanel", () => {
     expect(phoneInput.value).toBe(order.customer_phone);
   });
 
-  it("shows a compact order summary and reveals line-item details on toggle", () => {
+  it("shows the whole receipt on the Articles tab, with nothing left to expand", () => {
     render(
       <OrderDetailPanel
         orderId="order-1"
@@ -169,22 +169,40 @@ describe("OrderDetailPanel", () => {
       />,
     );
 
-    // Compact summary is always visible: product name + total.
+    // The tab is the disclosure. A card inside it that also collapsed meant
+    // opening a panel to check a receipt, then clicking again to see it.
+    expect(screen.queryByTestId("order-details-toggle")).toBeNull();
+
     expect(screen.getAllByText("Product").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("20").length).toBeGreaterThan(0);
-
-    // Detailed receipt (delivery fee row) is hidden until expanded.
-    const toggle = screen.getByTestId("order-details-toggle");
-    expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.queryByText("رسوم التوصيل")).toBeNull();
-
-    fireEvent.click(toggle);
-
-    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    // The breakdown is present immediately, not behind a toggle.
     expect(screen.getByText("رسوم التوصيل")).toBeTruthy();
+    expect(screen.getByTestId("items-grand-total").textContent).toContain("20.00");
   });
 
-  it("keeps history collapsed until the dropdown is opened", () => {
+  it("shows one tab's content at a time", () => {
+    // `hidden` as an attribute loses to any author `display` rule — a panel
+    // classed `flex` stayed on screen while marked hidden, so the delivery
+    // rows rendered underneath the receipt and the log below both.
+    render(
+      <OrderDetailPanel
+        orderId="order-1"
+        onClose={() => {}}
+        onCallTerminated={() => {}}
+        userId="user-1"
+      />,
+    );
+
+    // On Articles: the receipt is on screen, the delivery rows are not.
+    expect(screen.getByTestId("items-grand-total")).toBeVisible();
+    expect(screen.getByText("التتبع")).not.toBeVisible();
+
+    fireEvent.click(screen.getByRole("tab", { name: /livraison|التوصيل/i }));
+
+    expect(screen.getByText("التتبع")).toBeVisible();
+    expect(screen.getByTestId("items-grand-total")).not.toBeVisible();
+  });
+
+  it("keeps the log out of reach until you open its tab", () => {
     currentOrder = {
       ...order,
       history: [
@@ -209,14 +227,18 @@ describe("OrderDetailPanel", () => {
       />,
     );
 
+    // Inactive tabs are `hidden`, so their content is out of the accessibility
+    // tree entirely — the log is neither visible nor reachable until selected.
     expect(screen.queryByRole("list")).toBeNull();
 
-    const historyButton = screen.getByTestId("order-history-toggle");
-    expect(historyButton.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(historyButton);
+    const historyTab = screen.getByRole("tab", { name: /historique|السجل/i });
+    expect(historyTab.getAttribute("aria-selected")).toBe("false");
+    fireEvent.click(historyTab);
 
+    // Selecting the tab is the whole gesture — the log is not then folded
+    // inside a second collapse.
+    expect(screen.queryByTestId("order-history-toggle")).toBeNull();
     expect(screen.getByRole("list")).toBeTruthy();
-    expect(historyButton.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getAllByText("قيد الانتظار").length).toBeGreaterThan(0);
     expect(screen.getByText("تم استلام الطلب من تكامل المتجر")).toBeTruthy();
     expect(screen.queryByText("pending")).toBeNull();

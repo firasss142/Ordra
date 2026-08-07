@@ -382,6 +382,197 @@ reserved slots · shadows on resting cards · hardcoded strings · physical CSS 
 
 ---
 
+## 4.17 Orders console — scoped extension
+
+The orders list is the one screen an ops dispatcher stares at all day while triaging a
+multi-thousand-row backlog. Applied unchanged, the admin grammar rendered every field at the
+same weight: a 24-character Mongo ObjectId won the visual hierarchy, the price lost, and an
+absolute timestamp gave no sense of how long an order had been rotting.
+
+The console inherits the whole system **except** the allowances below, which apply **only**
+under `src/components/orders/**` and the orders route. Nothing here relaxes the rules elsewhere.
+
+### A. Warm ground
+
+The console runs on a warmer, lower-contrast ground than `--bg-page`, so white row bands read
+as objects sitting on a surface rather than as the surface itself.
+
+| Token | Hex | Role |
+|---|---|---|
+| `--oms-bg` | `#FAFAF8` | Console page background (replaces `--bg-page` here only) |
+| `--oms-surface` | `#FFFFFF` | Row bands, tiles, dropdowns |
+| `--oms-surface-sunken` | `#F4F3EF` | Bar tracks, skeletons, the health tile |
+| `--oms-border` | `#EAE7E1` | Hairlines |
+| `--oms-border-strong` | `#DCD8D0` | Hover borders, chevrons |
+
+### B. Three-step neutral ramp
+
+The global `--text-secondary` / `--text-muted` pair is a two-step ramp, and `#9CA3AF` on white
+is **2.9:1** — below AA for the 12px meta text this screen is full of. The console uses three
+steps, each verified against `--oms-surface`:
+
+| Token | Hex | Contrast | Role |
+|---|---|---|---|
+| `--oms-ink-1` | `#1B1917` | 17.5:1 | Customer name, price — the row's two entry points |
+| `--oms-ink-2` | `#5C5852` | 7.1:1 | Product name, tile labels |
+| `--oms-ink-3` | `#78726A` | 4.8:1 | Meta, period labels, column headers |
+
+Every step clears 4.5:1. Quiet is achieved by weight and size, never by dropping below AA.
+
+### C. Accent — the retired tab slot
+
+§1 reserves the accent for exactly two places, one of which was the active-tab underline. The
+orders console **has no tabs**: the KPI strip replaced them, so the tile *is* the navigation and
+inherits that slot. The count of sanctioned accent uses is unchanged.
+
+| Token | Hex | Role |
+|---|---|---|
+| `--oms-accent` | `#6E56CF` | Active KPI tile, funnel bars, focus ring |
+| `--oms-accent-ink` | `#513FA8` | Accent text on `--oms-accent-bg` |
+| `--oms-accent-bg` | `#F1EEFC` | Active tile fill |
+
+> **Open question.** The global brand accent is emerald `#10B981` (sidebar active bar, brand
+> tokens). Violet was carried over from the approved prototype and currently sits beside an
+> emerald sidebar. Either reconcile the two or accept the console as a deliberately distinct
+> surface — this is a live decision, not a settled rule.
+
+### D. Aging scale
+
+Elapsed time escalates in colour, but **only while an order still needs a human**. Confirmed,
+rejected and cancelled orders stay neutral no matter how old — colouring closed orders red
+makes the heat map useless.
+
+| Age | Token | Treatment |
+|---|---|---|
+| < 2 h | `--oms-ink-3` | neutral |
+| 2–24 h | `--oms-age-warm` `#A9670C` | amber |
+| > 24 h | `--oms-age-late` `#B23A32` | red + `⚠` glyph + row edge stripe |
+
+Never colour alone — the glyph carries the signal in greyscale.
+
+### E. Elevation
+
+Consistent with §1: resting surfaces are flat. Row bands and tiles take `shadow-hover-row`
+**on hover only**. Twenty-five resting shadows in a list is decoration; one under the cursor
+is feedback.
+
+### F. Numerals and bilingual type
+
+- `tabular-nums` on all money, counts, and elapsed time so columns align without a mono face.
+- Currency is demoted (`--oms-ink-3`, ~0.7em) so the number wins.
+- Arabic content carries `dir="auto"` **per node**, never on a container — the chrome stays LTR
+  while customer names, cities and product names resolve individually. This is what keeps the
+  `·` separators on the correct side in the Libya market.
+- Arabic sets ~6% larger than Latin at the same px; the `.ar` treatment compensates optically
+  but must not set `line-height`, or it inflates table row heights.
+
+### G. Counts must not lie
+
+Not styling, but the rule this section exists to protect. A headline number and the view it
+opens must be the same set. Concretely:
+
+- Aggregate with exact head-only counts. `.select(col)` then counting the array truncates at
+  PostgREST's 1000-row cap — that is how "1000 au total" survived against 2578 real orders.
+- Label every figure with the period it measures. A backlog ("maintenant") and a daily count
+  ("aujourd'hui") answer different questions and must never share a bar scale.
+- Map each tile to the exact filter set its count came from (`lib/orders/kpi-tiles`).
+- Measure states, not snapshots. Confirmation is transient; counting `status = confirmed`
+  alone reported 7.7% where the true rate was 78.7%.
+
+### F-bis. Status badges — three encodings, none of them alone
+
+Status was carried by hue and nothing else, and the hue was assigned by category
+rather than by urgency. Measured over the newest 100 orders, 35% were `uploaded`
+and 28% `rejected` — both settled — while `pending` sat in a grey outline. Roughly
+two-thirds of the column shouted for states nobody had to act on. **Red on a quarter
+of the rows is not a signal; it is the background.**
+
+Three encodings now share the load. Each is independently sufficient to tell two
+statuses apart, so losing any one of them degrades rather than blinds.
+
+| Encoding | Carries | Values |
+|---|---|---|
+| **Hue** | phase + outcome | warm (`neutral` / `amber` / `violet`) through confirmation, cool (`teal` / `green`) once with the carrier, `red` for an unsuccessful end |
+| **Shape** | open or closed | round (`ring` / `solid` / `half`) while someone owes an action; angular (`check` / `cross` / `square`) once handed off or finished |
+| **Weight** | how much it wants you | `quiet` → `medium` → `loud` |
+
+**Weight is the lever, not hue.** Every state keeps a pill — the hue is how you
+recognise it — but how much the pill asserts itself is what ranks the column:
+
+- **quiet** — 70% tint, `font-medium`. Settled: `uploaded` → `delivered`, `rejected`,
+  `cancelled`, `deleted`. Red still reads as red; it just stops being an alarm.
+- **medium** — full tint, `font-semibold`. Open work: `pending`, `attempt_*`,
+  `callback_scheduled`, `to_be_returned`.
+- **loud** — full tint plus a coloured border, `font-[650]`. **A border is the only
+  treatment that reads as an alarm, so it is spent last** — currently only when call
+  attempts are exhausted.
+
+Shape encodes open/closed rather than phase because the glyph vocabulary has no round
+success mark, and forcing one would have made the family inconsistent. Phase is
+already unmistakable from hue: nothing before the carrier upload is teal.
+
+**Rules**
+
+- Colour is never the only signal. Reuse `components/shared/StatusGlyph` — it exists
+  for this and its own docstring says so.
+- One presentation map, `lib/orders/status-presentation`. A per-surface `STATUS_TONE`
+  with a `?? "neutral"` fallback is how a status silently renders as "some grey thing".
+- The glyph sits in a fixed-width slot so every label in a column starts at the same x.
+- Text on a tint uses the `-ink` step (`--oms-warn-ink`, `--oms-info-ink`,
+  `--oms-accent-ink`), not the base hue. Amber shipped at 4.05:1 against its own tint.
+  `lib/orders/status-contrast.test.ts` reads the tokens out of `globals.css` and fails
+  if any pair drops below 4.5:1.
+- A count in a label is a number that should be aligned and compared, not read as a
+  word. Derive it from data, never from the status string — `attempt_3` is a cap, not
+  a count, and the market's real ceiling lives in `max_call_attempts`.
+
+### G. Order detail panel
+
+The panel opens from three surfaces (list, archive, agent queue) and uses the same layout for
+all three. It inherits §A–F; the rules below are what the panel adds.
+
+**A fixed masthead over a single scroller.** Header, hero, facts grid and blockers do not
+scroll; the tab body is the only scrolling region. An agent mid-call must be able to read the
+customer's number back while scrolling a long receipt. Anything unbounded — carrier status
+blocks, product briefs — belongs in a tab, or the masthead grows until the body has no room.
+
+**A tab is a disclosure. Do not nest another one inside it.** Tab panels hold bare rows on the
+panel surface: no bordered cards, no collapse. A card inside a tab that also collapsed meant
+opening the panel to check a receipt, then clicking again to see it.
+
+**Hide tab panels with the `hidden` attribute on an element that sets no `display`.** The UA
+rule `[hidden] { display: none }` loses to any author `display` value, so `hidden` on an
+element classed `flex` does nothing. Wrap instead. Keeping panels mounted (rather than
+conditionally rendered) means switching tabs cannot remount an inline editor mid-edit, and
+`hidden` still removes them from the accessibility tree.
+
+**One money spine per surface.** Every amount in a column shares one right edge, and the
+currency slot is reserved on every row even when only one row fills it. Otherwise the row that
+names its currency pushes its own digits left and the column reads as ragged. Amounts are
+always two decimals with the currency demoted to 10.5px — the same reading as the table's Total
+column, so one order never appears as two different figures in two places.
+
+**Editable values declare themselves at rest.** Click-to-edit fields carry a dotted underline
+(`decoration-dotted decoration-oms-border-strong`). A pencil that appears on hover is
+undiscoverable: you have to already suspect the field is editable to find out that it is.
+
+**Never promote a destructive action beside the primary CTA.** The footer promotes the first
+*non-destructive* overflow action to a labelled secondary; the rest stay behind `⋯`, where
+opening the menu is itself the confirmation step. Any action that cannot be undone from the
+panel — cancelling an order, pulling back a carrier barcode — must carry `destructive: true`
+in `resolvePanelActions`, which is what keeps it out of that slot.
+
+**A blocker states its consequence and carries its fix.** Amber for "will block", red for "has
+failed", each with a glyph so it survives greyscale. An empty field that blocks a downstream
+step reads in the warn colour with the control that resolves it — never as a bare dash, which
+is indistinguishable from "not applicable".
+
+**No developer strings reach the timeline.** Notes written by intake or integrations are
+translated in `lib/order-history-display` before display, keeping any raw value that a human
+has to recognise.
+
+---
+
 ## 5. Layout
 
 ### Shell Structure

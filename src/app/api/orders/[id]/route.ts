@@ -42,8 +42,11 @@ export async function GET(
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  // Fetch history + product stock + order_items in parallel
-  const [historyRes, productRes, itemsRes] = await Promise.all([
+  // Fetch history + product stock + order_items + assignee name in parallel.
+  // The assignee is resolved here rather than in the browser because
+  // /api/agents is gated by canManageAgents — an agent opening their own order
+  // would get a 403 and the panel's Agent cell would stay permanently empty.
+  const [historyRes, productRes, itemsRes, assigneeRes] = await Promise.all([
     supabase
       .from("order_history")
       .select("id, status_from, status_to, note, actor_id, actor_type, created_at")
@@ -61,6 +64,13 @@ export async function GET(
       .select("*")
       .eq("order_id", id)
       .order("created_at", { ascending: true }),
+    order.assigned_to
+      ? supabase
+          .from("users")
+          .select("full_name")
+          .eq("id", order.assigned_to)
+          .single()
+      : Promise.resolve({ data: null }),
   ]);
 
   const history = (historyRes.data ?? []).map((h) => ({
@@ -76,6 +86,11 @@ export async function GET(
   const product_current_stock = productRes.data?.current_stock ?? null;
   const order_items = itemsRes.data ?? [];
 
+  // Always present, never undefined: the panel reads `null` as "nobody owns
+  // this" and omits the cell only when the key is missing entirely.
+  const assigned_agent_name =
+    (assigneeRes.data as { full_name?: string | null } | null)?.full_name ?? null;
+
   // Exclude raw_payload (large webhook JSON blob, not needed in the panel)
   const { raw_payload: _, ...orderFields } = order as typeof order & { raw_payload?: unknown };
 
@@ -87,7 +102,9 @@ export async function GET(
     [orderFields as { id: string } & Record<string, unknown>],
   );
 
-  return NextResponse.json({ data: { ...enriched, history, product_current_stock, order_items } });
+  return NextResponse.json({
+    data: { ...enriched, history, product_current_stock, order_items, assigned_agent_name },
+  });
 }
 
 const SIMPLE_PATCHABLE_FIELDS = ["customer_name", "customer_phone", "customer_phone_2", "customer_address", "customer_city", "quantity"] as const;

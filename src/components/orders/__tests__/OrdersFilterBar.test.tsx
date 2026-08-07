@@ -36,23 +36,16 @@ function renderBar(props: Partial<ComponentProps<typeof OrdersFilterBar>> = {}) 
 }
 
 describe("OrdersFilterBar", () => {
-  it("toggles deleted order visibility", async () => {
-    const user = userEvent.setup();
-    const { onChange } = renderBar();
-
-    await user.click(screen.getByLabelText("Afficher supprimées"));
-
-    expect(onChange).toHaveBeenCalledWith({ includeDeleted: true });
+  it("renders the search field with the reference hint", () => {
+    renderBar();
+    expect(screen.getByLabelText(/rechercher une commande/i)).toBeDefined();
   });
 
-  it("can turn deleted order visibility off", async () => {
-    const user = userEvent.setup();
-    const { onChange } = renderBar({
-      filters: { ...DEFAULT_FILTERS, includeDeleted: true },
-    });
-
-    await user.click(screen.getByLabelText("Afficher supprimées"));
-
-    expect(onChange).toHaveBeenCalledWith({ includeDeleted: false });
+  it("no longer carries filter controls — those are named facets now", () => {
+    // Status, agent, city, product, date and deleted-visibility all moved to
+    // OrdersFacetBar, where each is a named control rather than a drawer.
+    renderBar();
+    expect(screen.queryByRole("button", { name: /plus de filtres/i })).toBeNull();
+    expect(screen.queryByText(/^Avancé$/)).toBeNull();
   });
 });

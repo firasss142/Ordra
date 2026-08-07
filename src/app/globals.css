@@ -21,6 +21,55 @@
   --border: #E1E3E5;
   --border-strong: #C9CCCF;
 
+  /* ── Orders console ("soft & warm") ───────────────────────────────
+     Scoped to the orders surface. Warmer ground than --bg-page, a
+     three-step neutral ramp where every step clears 4.5:1 on white,
+     and a violet accent for the KPI strip's active state — the slot
+     vacated when the preset tabs were retired.
+     See docs/design-system.md §"Orders console".
+     ─────────────────────────────────────────────────────────────── */
+  --oms-bg: #FAFAF8;
+  --oms-surface: #FFFFFF;
+  --oms-surface-sunken: #F4F3EF;
+  --oms-border: #EAE7E1;
+  --oms-border-strong: #DCD8D0;
+
+  --oms-ink-1: #1B1917;  /* 17.5:1 — customer name, price */
+  --oms-ink-2: #5C5852;  /*  7.1:1 — product, secondary labels */
+  --oms-ink-3: #78726A;  /*  4.8:1 — meta, period labels, column heads */
+
+  --oms-accent: #6E56CF;
+  --oms-accent-ink: #513FA8;
+  --oms-accent-bg: #F1EEFC;
+
+  /* Aging scale — escalates only while an order still needs a human */
+  --oms-age-fresh: var(--oms-ink-3);
+  --oms-age-warm: #A9670C;
+  --oms-age-late: #B23A32;
+
+  /* Semantic states. Same two hues as the aging scale, named for meaning
+     rather than for elapsed time — a blocked order and a late one deserve
+     the same amber, but one is about the clock and the other is not. */
+  --oms-warn: var(--oms-age-warm);
+  --oms-warn-bg: #FBF1E2;
+  /* Amber is legible on white but only reaches 4.05:1 on its own tint, so text
+     sitting inside a warn-tinted badge uses this deeper step instead. Same
+     relationship --oms-accent-ink has to --oms-accent. */
+  --oms-warn-ink: #8F5608;
+  --oms-bad: var(--oms-age-late);
+  --oms-bad-bg: #FBECEA;
+  --oms-ok: #2F7A4A;
+  --oms-ok-bg: #E8F4EC;
+
+  /* Carrier-side states. A cool hue so phase 2 can never be mistaken for
+     phase 1's violet — the same pair CarrierMark derives its marks from, so a
+     carrier status and a carrier mark read as one family. */
+  --oms-info: #0E7A6E;
+  --oms-info-bg: #E4F3F0;
+  /* Clears 4.5:1 on the tint with room to spare, where --oms-info itself only
+     just scrapes it. */
+  --oms-info-ink: #0B6A60;
+
   /* Sidebar — dark surface (refreshed) */
   --sidebar-bg:              #0E1013;
   --sidebar-bg-elevated:     #14171C;
@@ -73,6 +122,49 @@
   font-family: var(--font-sans), var(--font-sans-arabic), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 0.875rem;
   color: var(--text-primary);
+}
+
+/* ─────────────────────────────────────────────────────────
+   Orders console — rows read as bands on the warm ground
+   rather than as lines in a grid. Resting surfaces stay flat;
+   elevation appears on hover only (design-system §4.17 E).
+   Logical properties throughout so the Libya market mirrors.
+   ───────────────────────────────────────────────────────── */
+.oms-rows {
+  border-collapse: separate;
+  border-spacing: 0 6px;
+}
+.oms-row > td {
+  background: var(--oms-surface);
+  border-block: 1px solid var(--oms-border);
+  transition: border-color 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+.oms-row > td:first-child {
+  border-inline-start: 1px solid var(--oms-border);
+  border-start-start-radius: 10px;
+  border-end-start-radius: 10px;
+}
+.oms-row > td:last-child {
+  border-inline-end: 1px solid var(--oms-border);
+  border-start-end-radius: 10px;
+  border-end-end-radius: 10px;
+}
+.oms-row {
+  transition: box-shadow 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+.oms-row:hover > td {
+  border-color: var(--oms-border-strong);
+}
+.oms-row:hover {
+  box-shadow: 0 1px 2px rgba(27, 25, 23, 0.05), 0 3px 10px rgba(27, 25, 23, 0.06);
+}
+/* Selected and flagged rows tint the band itself, not a stripe behind it. */
+.oms-row[data-selected="true"] > td { background: var(--oms-accent-bg); }
+.oms-row[data-selected="true"] > td { border-color: var(--oms-accent); }
+.oms-row[data-highlighted="true"] > td { background: #FFFBEA; }
+/* SLA breach — a severity stripe on the leading edge, not decoration. */
+.oms-row[data-breach="true"] > td:first-child {
+  box-shadow: inset 3px 0 0 var(--oms-age-late);
 }
 
 /* Global focus-visible ring — 2px Neon Green, 2px offset (design-system §4) */

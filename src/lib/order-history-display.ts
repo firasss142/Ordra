@@ -197,8 +197,19 @@ function formatArabicPatternNote(note: string): string | null {
 
   if (/^Auto-assigned/i.test(normalized)) return "تم تعيين الطلب تلقائيا";
 
+  match = normalized.match(UNMATCHED_CITY);
+  if (match) return `المدينة غير معروفة: "${match[1]}"`;
+
   return null;
 }
+
+/**
+ * Written by the intake when a storefront's city string matches no known
+ * destination. It reached the timeline verbatim — English, in the middle of an
+ * otherwise French or Arabic log. The raw value is kept, because it is the
+ * thing someone has to recognise before they can map it.
+ */
+const UNMATCHED_CITY = /^Mapping needs review:\s*city unmatched\s*\(\s*"?(.*?)"?\s*\)$/i;
 
 function formatFrenchPatternNote(note: string): string | null {
   let match = note.match(/^Confirm(?:e|é|Ã©) par l['’]agent$/i);
@@ -206,6 +217,9 @@ function formatFrenchPatternNote(note: string): string | null {
 
   match = note.match(/^Confirm(?:e|é|Ã©) par le manager$/i);
   if (match) return "Confirm\u00e9e par le manager";
+
+  match = normalizeHistoryNote(note).match(UNMATCHED_CITY);
+  if (match) return `Ville non reconnue : \u00ab ${match[1]} \u00bb`;
 
   return null;
 }

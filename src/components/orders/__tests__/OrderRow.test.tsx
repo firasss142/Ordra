@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { OrderRow } from "../OrderRow";
@@ -42,6 +42,7 @@ const mockOrder: OrdersListRow = {
   carrier_barcode_deleted_at: null,
   carrier_barcode_deleted_carrier_code: null,
   callback_scheduled_at: null,
+  attempts_count: null,
   created_at: "2026-05-20T14:32:00",
   updated_at: new Date().toISOString(),
   repeat_kind: "none",
@@ -86,9 +87,23 @@ function renderRow(props: Partial<typeof defaultProps> = {}) {
 }
 
 describe("OrderRow", () => {
-  it("renders order ID with # prefix", () => {
+  it("does not put the raw order reference in the row", () => {
+    // The id was the widest, least readable field on the line and it forced the
+    // dead gap in the middle of every row. It stays searchable and lives in the
+    // detail panel; the row is for things a dispatcher scans.
     renderRow();
-    expect(screen.getByText("#3047")).toBeDefined();
+    expect(screen.queryByText("#3047")).toBeNull();
+    expect(screen.queryByText(/#3047/)).toBeNull();
+  });
+
+  it("leads with the customer, not the product", () => {
+    renderRow();
+    const row = screen.getByRole("row");
+    const text = row.textContent ?? "";
+    expect(text.indexOf(mockOrder.customer_name)).toBeGreaterThan(-1);
+    expect(text.indexOf(mockOrder.customer_name)).toBeLessThan(
+      text.indexOf(mockOrder.product_name),
+    );
   });
 
   it("renders product name", () => {
@@ -129,9 +144,15 @@ describe("OrderRow", () => {
     expect(screen.getByText("×2")).toBeDefined();
   });
 
-  it("renders ×1 when quantity is 1", () => {
+  it("shows the quantity only when it is not one", () => {
+    // Most orders are single-item. Printing "×1" on every row is noise when
+    // its absence already carries the same information.
     renderRow({ order: { ...mockOrder, quantity: 1 } });
-    expect(screen.getByText("×1")).toBeDefined();
+    expect(screen.queryByText("×1")).toBeNull();
+
+    cleanup();
+    renderRow({ order: { ...mockOrder, quantity: 3 } });
+    expect(screen.getByText("×3")).toBeDefined();
   });
 
   it("renders customer name", () => {
@@ -250,9 +271,27 @@ describe("OrderRow", () => {
     expect(screen.queryByText("en retard")).toBeNull();
   });
 
-  it("renders the formatted creation date/time", () => {
+  it("shows how long the order has been waiting, not just when it arrived", () => {
+    // "06/08/2026 16:00" tells a dispatcher nothing about urgency; "3 j" does.
     renderRow();
-    expect(screen.getByText(formatDateTime(mockOrder.created_at, "fr"))).toBeDefined();
+    const age = screen.getByTestId("order-age");
+    expect(age.textContent).toMatch(/\d+\s*(min|h|j)/);
+  });
+
+  it("keeps the exact timestamp available on hover", () => {
+    renderRow();
+    expect(screen.getByTestId("order-age").getAttribute("title")).toBe(
+      formatDateTime(mockOrder.created_at, "fr"),
+    );
+  });
+
+  it("marks an old unanswered order as breaching, and a settled one as not", () => {
+    renderRow({ order: { ...mockOrder, status: "pending", created_at: "2020-01-01T00:00:00" } });
+    expect(screen.getByTestId("order-age").getAttribute("data-tier")).toBe("late");
+
+    cleanup();
+    renderRow({ order: { ...mockOrder, status: "delivered", created_at: "2020-01-01T00:00:00" } });
+    expect(screen.getByTestId("order-age").getAttribute("data-tier")).toBe("settled");
   });
 
   it("renders a Date cell in the row", () => {

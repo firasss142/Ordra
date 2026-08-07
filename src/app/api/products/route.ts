@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
     : supabase
         .from("products")
         .select(
-          "id, name, current_stock, is_active, market_id, product_variants(count)",
+          "id, name, image_url, current_stock, is_active, market_id, product_variants(count)",
           countOpts,
         )
         .order("name", { ascending: true });
@@ -89,11 +89,27 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 
+  // `product_inventory_view` carries stock columns only, so thumbnails come
+  // from a second indexed lookup rather than an ALTER on the view. Pickers
+  // that show the product photo (orders facet, product sheet) need it.
+  const ids = (data ?? []).map((p) => (p as { id: string }).id);
+  const images = new Map<string, string | null>();
+  if (ids.length > 0) {
+    const { data: imgRows } = await supabase
+      .from("products")
+      .select("id, image_url")
+      .in("id", ids);
+    for (const row of imgRows ?? []) {
+      images.set((row as { id: string }).id, (row as { image_url: string | null }).image_url);
+    }
+  }
+
   const products = (data ?? []).map((p: Record<string, unknown>) => {
     const { product_variants, ...rest } = p;
     const variants = product_variants as { count: number }[] | undefined;
     return {
       ...rest,
+      image_url: images.get(p.id as string) ?? (rest.image_url as string | null) ?? null,
       variant_count: variants?.[0]?.count ?? 0,
     };
   });

@@ -46,7 +46,6 @@ function renderCard(overrides: Partial<OrderItemsCardProps> = {}) {
     canEdit: true,
     isLibyaOrder: false,
     saveError: null,
-    defaultOpen: true,
     onCommitLegacyProduct: vi.fn(),
     onCommitLegacyQuantity: vi.fn(),
     onCommitLegacyPrice,
@@ -65,17 +64,17 @@ describe("OrderItemsCard — editable unit_price", () => {
   it("renders the unit price and turns it into a number input on click when editable", () => {
     renderCard();
     // Price text "50" is shown (also the quantity is 1; assert price specifically via click-to-edit).
-    const priceText = screen.getAllByText("50")[0];
+    const priceText = screen.getAllByText("50.00")[0];
     fireEvent.click(priceText);
-    const input = screen.getByDisplayValue("50") as HTMLInputElement;
+    const input = screen.getByDisplayValue("50.00") as HTMLInputElement;
     expect(input.type).toBe("number");
   });
 
   it("committing a new price calls onPatchItem with { unit_price }", () => {
     const { onPatchItem } = renderCard();
-    const priceText = screen.getAllByText("50")[0];
+    const priceText = screen.getAllByText("50.00")[0];
     fireEvent.click(priceText);
-    const input = screen.getByDisplayValue("50");
+    const input = screen.getByDisplayValue("50.00");
     fireEvent.change(input, { target: { value: "75" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onPatchItem).toHaveBeenCalledWith("item-1", { unit_price: 75 });
@@ -83,18 +82,18 @@ describe("OrderItemsCard — editable unit_price", () => {
 
   it("does not allow editing the price when canEdit is false", () => {
     renderCard({ canEdit: false });
-    const priceText = screen.getAllByText("50")[0];
+    const priceText = screen.getAllByText("50.00")[0];
     fireEvent.click(priceText);
-    expect(screen.queryByDisplayValue("50")).toBeNull();
+    expect(screen.queryByDisplayValue("50.00")).toBeNull();
   });
 
   it("lets the synthetic legacy row edit its price via onCommitLegacyPrice", () => {
     const { onCommitLegacyPrice, onPatchItem } = renderCard({
       items: [makeItem({ id: "legacy" })],
     });
-    const priceText = screen.getAllByText("50")[0];
+    const priceText = screen.getAllByText("50.00")[0];
     fireEvent.click(priceText);
-    const input = screen.getByDisplayValue("50");
+    const input = screen.getByDisplayValue("50.00");
     fireEvent.change(input, { target: { value: "90" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onCommitLegacyPrice).toHaveBeenCalledWith(90);
@@ -103,11 +102,40 @@ describe("OrderItemsCard — editable unit_price", () => {
 
   it("rejects a negative price without calling onPatchItem", () => {
     const { onPatchItem } = renderCard();
-    const priceText = screen.getAllByText("50")[0];
+    const priceText = screen.getAllByText("50.00")[0];
     fireEvent.click(priceText);
-    const input = screen.getByDisplayValue("50");
+    const input = screen.getByDisplayValue("50.00");
     fireEvent.change(input, { target: { value: "-5" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onPatchItem).not.toHaveBeenCalled();
+  });
+});
+
+describe("OrderItemsCard — the receipt", () => {
+  it("shows the items without asking to be opened first", () => {
+    // The tab is already the disclosure. A card inside it that also collapsed
+    // meant opening a panel to check a receipt, then clicking again to see it.
+    renderCard();
+    expect(screen.queryByTestId("order-details-toggle")).toBeNull();
+    expect(screen.getByText("Widget")).toBeInTheDocument();
+  });
+
+  it("breaks the total down instead of jumping straight to it", () => {
+    renderCard({ items: [makeItem({ line_total: 50 })], deliveryFee: 7, grandTotal: 57 });
+    expect(screen.getByTestId("items-subtotal")).toHaveTextContent("50.00");
+    expect(screen.getByTestId("items-grand-total")).toHaveTextContent("57.00");
+  });
+
+  it("states the grand total the way the table and the facts grid state it", () => {
+    // Same money, three places, one reading — two decimals, currency demoted.
+    renderCard({ grandTotal: 129 });
+    const total = screen.getByTestId("items-grand-total");
+    expect(total.textContent).toContain("129.00");
+    expect(total.textContent).toContain("DT");
+  });
+
+  it("reports stock in words, not by colour alone", () => {
+    renderCard({ products: [{ id: "p-1", current_stock: 0, product_variants: [] }] });
+    expect(screen.getByTestId("item-stock-item-1")).toHaveTextContent(/.+/);
   });
 });

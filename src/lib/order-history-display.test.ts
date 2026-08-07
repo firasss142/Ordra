@@ -80,3 +80,29 @@ describe("formatOrderHistoryNote", () => {
     );
   });
 });
+
+describe("the city-mapping note", () => {
+  // The intake writes a developer string when a storefront city fails to match
+  // a known destination. It reached the log verbatim — English, quoted, and
+  // in the middle of an otherwise French or Arabic timeline.
+  const RAW = 'Mapping needs review: city unmatched ("n/a")';
+
+  it("reads as French in a French log, and keeps the value that failed", () => {
+    const out = formatOrderHistoryNote(RAW, "fr")!;
+    expect(out).not.toMatch(/mapping needs review/i);
+    expect(out).toMatch(/ville non reconnue/i);
+    expect(out).toContain("n/a");
+  });
+
+  it("reads as Arabic in an Arabic log", () => {
+    const out = formatOrderHistoryNote(RAW, "ar")!;
+    expect(out).not.toMatch(/mapping needs review/i);
+    expect(out).toContain("n/a");
+  });
+
+  it("handles an unmatched city with no quotes around it", () => {
+    const out = formatOrderHistoryNote("Mapping needs review: city unmatched (Tripoli)", "fr")!;
+    expect(out).toMatch(/ville non reconnue/i);
+    expect(out).toContain("Tripoli");
+  });
+});
