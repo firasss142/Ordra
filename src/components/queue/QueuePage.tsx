@@ -77,6 +77,7 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     customer_phone_2: (raw.customer_phone_2 as string | null) ?? null,
     created_at: raw.created_at as string,
     assigned_at: (raw.assigned_at as string) ?? (raw.created_at as string),
+    last_action_at: (raw.last_action_at as string | null) ?? null,
     repeat_kind: (raw.repeat_kind as QueueOrder["repeat_kind"]) ?? "none",
     prior_order_count: (raw.prior_order_count as number) ?? 0,
     prior_lead_count: (raw.prior_lead_count as number) ?? 0,

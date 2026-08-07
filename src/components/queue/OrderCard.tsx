@@ -2,22 +2,28 @@
 
 import { memo, useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { Check, MapPin, Phone } from "lucide-react";
-import { isReferenceDeletedUpload, isBulkCallEligible, EDIT_BLOCKED_STATUSES, canDeleteDuplicateSiblingStatus } from "@/lib/order-permissions";
-import { formatDateTime, formatLongDate, formatTime } from "@/lib/format";
+import { Check, MapPin, MessageSquare, Phone } from "lucide-react";
+import {
+  isReferenceDeletedUpload,
+  isBulkCallEligible,
+  EDIT_BLOCKED_STATUSES,
+  canDeleteDuplicateSiblingStatus,
+} from "@/lib/order-permissions";
 import { formatDisplayCurrencyCode } from "@/lib/markets";
+import { classifyOrderAge, formatOrderAge, AGE_TONE } from "@/lib/orders/order-age";
+import { classifyLastAction, LAST_ACTION_TONE } from "@/lib/queue/last-action";
+import { presentAgentStatus } from "@/lib/queue/agent-status";
 import { Button } from "@/components/ui/Button";
-import { AttemptEtiquette } from "./AttemptEtiquette";
+import { QueueStatusPill } from "./QueueStatusPill";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
 import { DuplicateOrderBadge } from "@/components/shared/DuplicateOrderBadge";
 import { RejectionReasonHover } from "./RejectionReasonHover";
-import { AddressChangeNote } from "./AddressChangeNote";
 import { getCarrierLogo } from "@/lib/carriers/carrier-logos";
-import { bucketFor, type Bucket } from "@/lib/carriers/buckets";
 import type { QueueOrder } from "@/types/queue";
 import type { BucketKey } from "./QueueHeader";
 import { highlightSegments, type HighlightSegment } from "@/lib/queue/highlight";
 import type { ParsedQuery, SearchField } from "@/lib/queue/search";
+import { QUEUE_ROW_GRID, QUEUE_ROW_SPACING } from "./row-grid";
 
 interface OrderCardProps {
   order: QueueOrder;
@@ -27,7 +33,8 @@ interface OrderCardProps {
   focused?: boolean;
   isSelected?: boolean;
   onToggleSelect?: (id: string) => void;
-  /** Bucket the card is currently rendered under — drives border tone. */
+  /** Bucket the row is currently rendered under. Kept for callers; the row's
+   *  colour now comes from the status itself, so the two can never disagree. */
   selectedBucket?: BucketKey;
   /** When set (search active), matching substrings are highlighted. */
   highlightQuery?: ParsedQuery;
@@ -55,7 +62,7 @@ function Highlighted({
     <>
       {segments.map((seg, i) =>
         seg.match ? (
-          <mark key={i} className="bg-amber-200/70 text-inherit rounded-[2px]">
+          <mark key={i} className="bg-hue-amber-bg text-inherit rounded-[2px]">
             {seg.text}
           </mark>
         ) : (
@@ -67,77 +74,73 @@ function Highlighted({
 }
 
 /**
- * A soft, pill-shaped status sign: tinted label on a quiet fill, no dot. The
- * tint+label carry the state at a glance; the contrast stays accessible without
- * a separate marker, for a calmer, more minimal look.
+ * A note or an address change is one glyph until you want it.
+ *
+ * These used to occupy a whole extra sub-row under the card, which made row
+ * height depend on whether a customer happened to leave a comment. Now every
+ * row is the same height and the text is a hover (or a tab-stop) away.
+ *
+ * The panel is anchored to the indicator's inline-start edge rather than
+ * centred, so one rule works in both text directions.
  */
-function StatusSign({
+function HoverNote({
   label,
-  className,
+  body,
+  tone = "neutral",
+  children,
 }: {
   label: string;
-  className: string;
+  body: string;
+  tone?: "neutral" | "warn";
+  children: React.ReactNode;
 }) {
   return (
-    <span
-      className={[
-        "inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-[0.01em] whitespace-nowrap",
-        className,
-      ].join(" ")}
-    >
-      {label}
+    <span className="group/note relative inline-flex shrink-0">
+      <button
+        type="button"
+        data-hover-note
+        aria-label={`${label} — ${body}`}
+        onClick={(e) => e.stopPropagation()}
+        className={[
+          "inline-flex h-[21px] w-[21px] items-center justify-center rounded-md",
+          "transition-colors duration-fast",
+          tone === "warn"
+            ? "text-hue-amber-edge hover:bg-hue-amber-bg"
+            : "text-agent-ink-3 hover:bg-agent-surface-low hover:text-agent-on-surface",
+        ].join(" ")}
+      >
+        {children}
+      </button>
+      <span
+        role="tooltip"
+        className={[
+          "pointer-events-none absolute bottom-[calc(100%+8px)] start-0 z-30",
+          "w-max max-w-[260px] rounded-[9px] px-3 py-2 text-start",
+          "bg-agent-on-surface text-agent-surface shadow-floating",
+          "text-[12px] font-medium leading-relaxed",
+          "translate-y-[3px] opacity-0 transition duration-base",
+          "group-hover/note:translate-y-0 group-hover/note:opacity-100",
+          "group-focus-within/note:translate-y-0 group-focus-within/note:opacity-100",
+        ].join(" ")}
+      >
+        <span className="block text-[10px] font-bold tracking-[0.07em] opacity-60">
+          {label}
+        </span>
+        {body}
+      </span>
     </span>
   );
 }
 
-// Per-lifecycle-bucket pill colors. Anchored to the Dexpress timeline color
-// story (see src/lib/carriers/dexpress/pipeline.ts) so the panel and the list
-// speak the same visual language.
-const BUCKET_PILL_CLASS: Record<Bucket, string> = {
-  uploaded: "bg-[#F3E8FF] text-[#7C3AED]",     // purple — handed to carrier
-  deposit: "bg-[#E0F2FE] text-[#0891B2]",      // cyan — in motion
-  delivered: "bg-status-successBg text-status-success", // green — terminal success
-  returned: "bg-rose-50 text-rose-700",        // rose — coming back
-  cancelled: "bg-[#F1F5F9] text-[#475569]",    // slate — carrier-side cancellation
-  rejected: "bg-status-criticalBg text-status-critical", // red — OMS-side rejection
+/** Per-hue inline-start rail. The row echoes its own status pill's colour. */
+const RAIL: Record<string, string> = {
+  neutral: "bg-hue-neutral-edge",
+  amber: "bg-hue-amber-edge",
+  violet: "bg-hue-violet-edge",
+  teal: "bg-hue-teal-edge",
+  green: "bg-hue-green-edge",
+  red: "bg-hue-red-edge",
 };
-
-// Per-bucket border tone. Fermées is per-status (rejected/uploaded/delivered
-// get their own accent; everything else falls back to a neutral archive gray).
-function bucketBorderClass(
-  bucket: BucketKey | undefined,
-  status: string,
-  lifecycleBucket: Bucket | null,
-): string {
-  if (bucket === "fermees") {
-    // Lifecycle bucket wins when present — keeps the border tone in sync with
-    // the pill color for Dexpress orders.
-    if (lifecycleBucket === "rejected") return "border border-[#DC2626]";
-    if (lifecycleBucket === "uploaded") return "border border-[#7C3AED]";
-    if (lifecycleBucket === "deposit") return "border border-[#0891B2]";
-    if (lifecycleBucket === "delivered") return "border border-[#10B981]";
-    if (lifecycleBucket === "returned") return "border border-rose-400";
-    if (lifecycleBucket === "cancelled") return "border border-[#94A3B8]";
-    if (status === "rejected") return "border border-[#DC2626]";
-    if (status === "uploaded") return "border border-[#7C3AED]";
-    if (status === "delivered") return "border border-[#D97706]";
-    return "border border-agent-outline";
-  }
-  if (bucket === "nouveau") return "border border-[#1E3A5F]";
-  if (bucket === "en_cours") return "border border-[#B07A00]";
-  if (bucket === "confirme") return "border border-[#10B981]";
-  return "border border-black/35";
-}
-
-function isAttemptOrCallback(status: string): boolean {
-  return (
-    status === "attempt_1" ||
-    status === "attempt_2" ||
-    status === "attempt_3" ||
-    status === "callback_scheduled" ||
-    status === "dispatch_scheduled"
-  );
-}
 
 export const OrderCard = memo(function OrderCard({
   order,
@@ -147,14 +150,14 @@ export const OrderCard = memo(function OrderCard({
   focused = false,
   isSelected = false,
   onToggleSelect,
-  selectedBucket,
   highlightQuery,
   onMutate,
 }: OrderCardProps) {
   const t = useTranslations("queue");
-  const ts = useTranslations("orders.statuses");
   const locale = useLocale();
 
+  // Mounted-only clock: the server and the client would otherwise disagree on
+  // every elapsed value and blow up hydration.
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
     setNow(new Date());
@@ -164,35 +167,13 @@ export const OrderCard = memo(function OrderCard({
   // string for orders that never resolved to a product.
   const productDisplayName = order.product_display_name || order.product_name;
 
-  const callbackDate = order.callback_time ? new Date(order.callback_time) : null;
-  const callbackOverdue = now !== null && callbackDate !== null && callbackDate <= now;
-
-  const dispatchDate = order.scheduled_dispatch_at
-    ? new Date(order.scheduled_dispatch_at)
-    : null;
-  const dispatchOverdue =
-    now !== null && dispatchDate !== null && dispatchDate <= now;
-
-  // The "End call" affordance shows whenever the order is still in the agent's
-  // hands: the call pool (new/assigned/attempts/callbacks), confirmed, or a
-  // scheduled dispatch — plus uploads whose carrier reference was deleted
-  // (treated like confirmed). It is hidden on terminal and carrier-locked
-  // statuses (rejected, normal uploaded, dispatched, …).
-  const TERMINAL = new Set([
-    "delivered",
-    "returned",
-    "rejected",
-    "deleted",
-    "cancelled",
-  ]);
+  // The end-call affordance shows whenever the order is still in the agent's
+  // hands, plus uploads whose carrier reference was deleted. Hidden on terminal
+  // and carrier-locked statuses.
+  const TERMINAL = new Set(["delivered", "returned", "rejected", "deleted", "cancelled"]);
   const showEndCall =
     !TERMINAL.has(order.status) &&
     (isReferenceDeletedUpload(order) || !EDIT_BLOCKED_STATUSES.has(order.status));
-
-  const truncatedNote =
-    order.customer_note && order.customer_note.length > 60
-      ? order.customer_note.slice(0, 60) + "…"
-      : order.customer_note;
 
   function getCustomerInitials(name: string): string {
     const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -201,385 +182,300 @@ export const OrderCard = memo(function OrderCard({
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
   }
 
-  // Status pill style: attempts/callbacks are handled by AttemptEtiquette.
-  // Every other status gets a labelled pill.
-  //
-  // For closed orders we consult bucketFor() first — it maps the (OMS status,
-  // carrier, Dexpress slug) triple to one of 5 lifecycle buckets so the pill
-  // reflects what the carrier portal actually says about the order. Falls
-  // through to the legacy OMS-status pills for non-Dexpress carriers and for
-  // active-queue statuses (pending, confirmed, ...).
-  //
-  // Reference-deleted uploads stay on the "À réuploader" warning pill — that
-  // signals an action the AGENT must take, which overrides the carrier-side
-  // bucket view. Bucket spec: plans/dexpress-list-status-bucket.md.
-  const bucket: Bucket | null = bucketFor({
+  const displayCurrency = formatDisplayCurrencyCode(order.currency, order.market_id);
+  const nowMs = now?.getTime();
+
+  // Two clocks. The age is how long the customer has waited; the last action is
+  // how long since anyone touched it. They coincide on a new order, which is
+  // why the second reads "—" there instead of restating the first.
+  const age = classifyOrderAge(order.created_at, order.status, nowMs);
+  const lastAction = classifyLastAction({
+    lastActionAt: order.last_action_at,
     status: order.status,
-    carrierCode: order.carrier_code,
-    dexpressStatusSlug: order.dexpress_status_slug,
-    dexpressStatusAccepted: order.dexpress_status_accepted,
-    carrierStatusSlug: order.carrier_status_slug,
+    attemptsCount: order.attempt_count,
+    maxAttempts,
+    nowMs,
   });
 
-  const statusPill = (() => {
-    if (isReferenceDeletedUpload(order)) {
-      return {
-        label: t("statusReferenceDeleted"),
-        className: "bg-status-warningBg text-status-warning",
-      };
-    }
-    if (bucket) {
-      return {
-        label: ts(`bucket.${bucket}` as Parameters<typeof ts>[0]),
-        className: BUCKET_PILL_CLASS[bucket],
-      };
-    }
-    if (order.status === "confirmed") {
-      return {
-        label: ts("confirmed"),
-        className: "bg-agent-primary-container/20 text-agent-on-primary-container",
-      };
-    }
-    if (order.status === "pending" || order.status === "assigned") {
-      return {
-        label: ts(order.status as Parameters<typeof ts>[0]),
-        // New orders read as "fresh" with the soft blue nouveau accent.
-        className: "bg-[#1E3A5F]/10 text-[#1E3A5F]",
-      };
-    }
-    return null;
-  })();
+  const { hue } = presentAgentStatus(order, { maxAttempts, nowMs });
 
-  const cardBorderClass = bucketBorderClass(selectedBucket, order.status, bucket);
-  const displayCurrency = formatDisplayCurrencyCode(order.currency, order.market_id);
+  const showBadges =
+    order.status !== "deleted" &&
+    (order.repeat_kind !== "none" ||
+      (order.is_potential_duplicate && order.is_duplicate_anchor));
+
+  const statusPill = (
+    <QueueStatusPill order={order} maxAttempts={maxAttempts} now={now ?? undefined} />
+  );
 
   return (
     <div
       data-order-id={order.id}
       data-focused={focused || undefined}
-      onClick={() => onOpenDetail(order.id)}
       data-selected={isSelected || undefined}
+      onClick={() => onOpenDetail(order.id)}
       className={[
-        "group relative cursor-pointer agent-card-hover",
-        "rounded-xl px-3 py-1.5",
-        "bg-agent-surface",
-        cardBorderClass,
-        isSelected ? "ring-2 ring-black/20" : "",
+        "group relative grid cursor-pointer items-center py-3",
+        QUEUE_ROW_GRID,
+        QUEUE_ROW_SPACING,
+        "border-b border-agent-outline-variant bg-agent-surface",
+        "transition-[background-color,box-shadow] duration-base",
+        "last:rounded-b-xl last:border-b-0 hover:bg-agent-surface-low hover:shadow-hover-row",
+        isSelected ? "bg-hue-green-bg/60" : "",
       ].join(" ")}
     >
-      {/* Bulk-select checkbox — only on orders that can join a "Start calls"
-          batch, so the bulk bar never queues an order the call sheet can't act
-          on (confirmed / uploaded / dispatched / closed have no checkbox). */}
-      {onToggleSelect && isBulkCallEligible(order) && (
-        <button
-          type="button"
-          role="checkbox"
-          data-checkbox
-          aria-checked={isSelected}
-          aria-label={t("selectOrder")}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleSelect(order.id);
-          }}
-          className={[
-            "absolute top-3 start-3 z-10",
-            "inline-flex items-center justify-center",
-            "h-[18px] w-[18px] rounded-[5px] border",
-            "transition-all duration-fast",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-agent-primary/40 focus-visible:ring-offset-1",
-            isSelected
-              ? "bg-agent-primary border-agent-primary opacity-100"
-              : "bg-agent-surface border-agent-outline opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:border-agent-on-surface [[data-has-selection]_&]:opacity-100",
-          ].join(" ")}
-        >
-          {isSelected && (
-            <Check size={12} strokeWidth={3} className="text-white" aria-hidden="true" />
-          )}
-        </button>
-      )}
+      {/* Status rail — the row carries its own status colour at the leading
+          edge, so state reads twice: once as colour here, once as a word in
+          the status column. */}
+      <span
+        aria-hidden="true"
+        className={`absolute inset-y-0 start-0 w-[3px] ${RAIL[hue] ?? RAIL.neutral}`}
+      />
 
-      <div className="flex items-center gap-3 sm:gap-5">
-        {/* Leading visual — product image, falling back to customer initials.
-            A small ×N quantity badge sits on the corner so multi-unit orders
-            read at a glance (always shown, incl. ×1). */}
-        <span className="relative shrink-0">
-          {order.product_image_url ? (
-            <span className="flex items-center justify-center w-9 h-9 rounded-lg overflow-hidden bg-agent-surface-high border border-agent-outline-variant">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={order.product_image_url}
-                alt={productDisplayName}
-                width={36}
-                height={36}
-                loading="lazy"
-                decoding="async"
-                className="h-full w-full object-cover"
-              />
-            </span>
-          ) : (
-            <span
-              aria-hidden="true"
-              className="flex items-center justify-center w-9 h-9 rounded-lg bg-agent-surface-high border border-agent-outline-variant text-agent-primary text-[13px] font-bold"
-            >
-              {getCustomerInitials(order.customer_name)}
-            </span>
-          )}
-          <span
-            aria-label={`×${order.quantity}`}
-            className="absolute -bottom-1 -end-1 min-w-[16px] h-[16px] px-1 inline-flex items-center justify-center rounded-full bg-agent-on-surface text-agent-surface text-[10px] font-bold tabular-nums leading-none ring-1 ring-agent-surface"
+      {/* Bulk-select checkbox — only on orders a "Start calls" batch can act on. */}
+      <span className="flex justify-center">
+        {onToggleSelect && isBulkCallEligible(order) && (
+          <button
+            type="button"
+            role="checkbox"
+            data-checkbox
+            aria-checked={isSelected}
+            aria-label={t("selectOrder")}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSelect(order.id);
+            }}
+            className={[
+              "inline-flex h-[18px] w-[18px] items-center justify-center rounded-[5px] border",
+              "transition-all duration-fast",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-agent-primary/40 focus-visible:ring-offset-1",
+              isSelected
+                ? "border-agent-primary bg-agent-primary opacity-100"
+                : "border-agent-outline bg-agent-surface opacity-0 hover:border-agent-on-surface group-hover:opacity-100 focus-visible:opacity-100 [[data-has-selection]_&]:opacity-100",
+            ].join(" ")}
           >
-            ×{new Intl.NumberFormat(locale).format(order.quantity)}
-          </span>
-        </span>
-
-        {/* Customer name + badges. On mobile this is a column: the name takes
-            the full width on its own line, and a compact status + date row sits
-            underneath it. On desktop it stays a single inline row and the
-            status/date render as separate trailing columns (below). */}
-        <div className="flex flex-col gap-1 min-w-0 flex-1">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="min-w-0 truncate text-[14px] font-bold text-agent-on-surface">
-              <Highlighted value={order.customer_name} field="name" query={highlightQuery} />
-            </span>
-            {order.status !== "deleted" &&
-              (order.repeat_kind !== "none" ||
-                (order.is_potential_duplicate && order.is_duplicate_anchor)) && (
-              <span className="inline-flex shrink-0 items-center gap-1">
-                {order.repeat_kind !== "none" && (
-                  <RepeatBuyerBadge
-                    source="order"
-                    sourceId={order.id}
-                    repeatKind={order.repeat_kind}
-                    priorOrderCount={order.prior_order_count}
-                    priorLeadCount={order.prior_lead_count}
-                    priorRejectedCount={order.prior_rejected_count}
-                    currencyCode={displayCurrency}
-                    customerPhone={order.customer_phone}
-                    anchorOrderId={order.id}
-                    anchorStatus={order.status}
-                    anchorCreatedAt={order.created_at}
-                    anchorTotalPrice={order.total_price}
-                    anchorProductName={productDisplayName}
-                    anchorProductImageUrl={order.product_image_url}
-                    anchorCustomerName={order.customer_name}
-                    anchorCustomerAddress={order.customer_address}
-                    anchorCustomerCity={order.customer_city}
-                  />
-                )}
-                {order.is_potential_duplicate && order.is_duplicate_anchor && (
-                  <DuplicateOrderBadge
-                    count={order.duplicate_count}
-                    siblings={order.duplicate_siblings}
-                    hasUploadedSibling={order.has_uploaded_sibling}
-                    anchorOrderId={order.id}
-                    anchorStatus={order.status}
-                    anchorCreatedAt={order.created_at}
-                    anchorTotalPrice={order.total_price}
-                    anchorProductName={productDisplayName}
-                    anchorProductImageUrl={order.product_image_url}
-                    anchorCustomerName={order.customer_name}
-                    anchorCustomerAddress={order.customer_address}
-                    anchorCustomerCity={order.customer_city}
-                    currencyCode={displayCurrency}
-                    canDelete={canDeleteDuplicateSiblingStatus(order.status)}
-                    onChange={onMutate}
-                  />
-                )}
-              </span>
+            {isSelected && (
+              <Check size={12} strokeWidth={3} className="text-white" aria-hidden="true" />
             )}
-          </div>
+          </button>
+        )}
+      </span>
 
-          {/* Product identity — muted secondary line under the customer name
-              (who → what). Variant folds in here, so there's no separate variant
-              column. */}
+      {/* Leading visual — product image, falling back to customer initials. A
+          small ×N badge sits on the corner so multi-unit orders read at a glance. */}
+      <span className="relative shrink-0">
+        {order.product_image_url ? (
+          <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-[9px] border border-agent-outline-variant bg-agent-surface-low">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={order.product_image_url}
+              alt={productDisplayName}
+              width={40}
+              height={40}
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover"
+            />
+          </span>
+        ) : (
+          <span
+            aria-hidden="true"
+            className="flex h-10 w-10 items-center justify-center rounded-[9px] border border-agent-outline-variant bg-agent-surface-low text-[13px] font-bold text-agent-on-surface-variant"
+          >
+            {getCustomerInitials(order.customer_name)}
+          </span>
+        )}
+        <span
+          aria-label={`×${order.quantity}`}
+          className="absolute -bottom-1 -end-1 inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-pill bg-agent-on-surface px-1 text-[10px] font-bold leading-none text-agent-surface ring-2 ring-agent-surface tabular-nums"
+        >
+          ×{new Intl.NumberFormat(locale).format(order.quantity)}
+        </span>
+      </span>
+
+      {/* Identity — who, then what. The product line is the catalogue name, not
+          the storefront's marketing sentence, and the city rides with it. */}
+      <div className="flex min-w-0 flex-col gap-[3px]">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className="min-w-0 truncate text-[15px] font-semibold tracking-[-0.005em] text-agent-on-surface">
+            <Highlighted value={order.customer_name} field="name" query={highlightQuery} />
+          </span>
+
+          {showBadges && (
+            <span className="inline-flex shrink-0 items-center gap-1">
+              {order.repeat_kind !== "none" && (
+                <RepeatBuyerBadge
+                  source="order"
+                  sourceId={order.id}
+                  repeatKind={order.repeat_kind}
+                  priorOrderCount={order.prior_order_count}
+                  priorLeadCount={order.prior_lead_count}
+                  priorRejectedCount={order.prior_rejected_count}
+                  currencyCode={displayCurrency}
+                  customerPhone={order.customer_phone}
+                  anchorOrderId={order.id}
+                  anchorStatus={order.status}
+                  anchorCreatedAt={order.created_at}
+                  anchorTotalPrice={order.total_price}
+                  anchorProductName={productDisplayName}
+                  anchorProductImageUrl={order.product_image_url}
+                  anchorCustomerName={order.customer_name}
+                  anchorCustomerAddress={order.customer_address}
+                  anchorCustomerCity={order.customer_city}
+                />
+              )}
+              {order.is_potential_duplicate && order.is_duplicate_anchor && (
+                <DuplicateOrderBadge
+                  count={order.duplicate_count}
+                  siblings={order.duplicate_siblings}
+                  hasUploadedSibling={order.has_uploaded_sibling}
+                  anchorOrderId={order.id}
+                  anchorStatus={order.status}
+                  anchorCreatedAt={order.created_at}
+                  anchorTotalPrice={order.total_price}
+                  anchorProductName={productDisplayName}
+                  anchorProductImageUrl={order.product_image_url}
+                  anchorCustomerName={order.customer_name}
+                  anchorCustomerAddress={order.customer_address}
+                  anchorCustomerCity={order.customer_city}
+                  currencyCode={displayCurrency}
+                  canDelete={canDeleteDuplicateSiblingStatus(order.status)}
+                  onChange={onMutate}
+                />
+              )}
+            </span>
+          )}
+
+          {order.last_known_address && (
+            <HoverNote
+              label={t("addressChanged")}
+              body={order.last_known_address}
+              tone="warn"
+            >
+              <MapPin size={13} strokeWidth={2} aria-hidden="true" />
+            </HoverNote>
+          )}
+          {order.customer_note && (
+            <HoverNote label={t("customerNote")} body={order.customer_note}>
+              <MessageSquare size={13} strokeWidth={2} aria-hidden="true" />
+            </HoverNote>
+          )}
+        </div>
+
+        <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] text-agent-ink-3">
           {productDisplayName && (
-            <span className="text-[12px] text-agent-on-surface-variant truncate leading-tight">
+            <span className="min-w-0 truncate">
               {productDisplayName}
               {order.variant_label ? ` · ${order.variant_label}` : ""}
             </span>
           )}
-
-          {/* Mobile-only status + date sub-row (hidden from sm: up, where the
-              status/date render as their own trailing columns instead). */}
-          <div className="flex sm:hidden items-center gap-2 min-w-0">
-            {isAttemptOrCallback(order.status) ? (
-              <AttemptEtiquette
-                status={order.status}
-                attemptsCount={order.attempt_count ?? 0}
-                maxAttempts={maxAttempts}
-                callbackAt={order.callback_time}
-                scheduledDispatchAt={order.scheduled_dispatch_at}
-                scheduledDispatchAuto={order.scheduled_dispatch_auto}
-                now={now ?? undefined}
-                compact
-              />
-            ) : statusPill ? (
-              order.status === "rejected" ? (
-                <RejectionReasonHover
-                  reason={order.rejection_reason}
-                  note={order.rejection_note}
-                >
-                  <StatusSign label={statusPill.label} className={`${statusPill.className} !text-[10px] !px-2 !py-0.5`} />
-                </RejectionReasonHover>
-              ) : (
-                <StatusSign label={statusPill.label} className={`${statusPill.className} !text-[10px] !px-2 !py-0.5`} />
-              )
-            ) : null}
-            <span className="text-[10.5px] text-agent-on-surface-variant/80 tabular-nums truncate shrink-0">
-              {formatLongDate(order.created_at, locale)}
+          {productDisplayName && order.customer_city && (
+            <span aria-hidden="true" className="shrink-0 text-agent-outline">
+              ·
             </span>
-          </div>
-        </div>
-
-        {/* City */}
-        {order.customer_city && (
-          <span className="hidden md:inline-flex items-center gap-1 text-[12.5px] text-agent-on-surface-variant max-w-[120px] shrink-0">
-            <MapPin size={12} strokeWidth={2} aria-hidden="true" className="shrink-0" />
-            <span className="truncate">
+          )}
+          {order.customer_city && (
+            <span className="inline-flex shrink-0 items-center gap-1">
+              <MapPin size={11} strokeWidth={2} aria-hidden="true" />
               <Highlighted value={order.customer_city} field="city" query={highlightQuery} />
             </span>
-          </span>
-        )}
-
-        {/* Created date + time — a single quiet line, icon-free, centered in its
-            own column (e.g. "21 mai 2026, 14:30"). Minimal by design: the
-            elapsed-since-assignment detail lives in the order panel, not here. */}
-        <span
-          className="hidden md:block shrink-0 text-center text-[12px] text-agent-on-surface-variant tabular-nums whitespace-nowrap"
-          aria-label={t("createdAt", { date: formatLongDate(order.created_at, locale) })}
-        >
-          {formatLongDate(order.created_at, locale)}, {formatTime(order.created_at, locale)}
+          )}
         </span>
-
-        {/* Carrier brand logo — shown once a carrier is assigned (uploaded
-            onward) so the agent sees which delivery company holds the order.
-            Logo-only; a neutral text chip stands in when the carrier has no
-            asset yet. */}
-        {order.carrier_code && (
-          <span
-            className="shrink-0 hidden sm:inline-flex items-center"
-            title={order.carrier_name ?? order.carrier_code}
-          >
-            {getCarrierLogo(order.carrier_code) ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={getCarrierLogo(order.carrier_code)!}
-                alt={order.carrier_name ?? order.carrier_code}
-                width={20}
-                height={20}
-                loading="lazy"
-                decoding="async"
-                className="h-5 w-auto object-contain"
-              />
-            ) : (
-              <span
-                aria-label={order.carrier_name ?? order.carrier_code}
-                className="inline-flex items-center justify-center h-5 px-1.5 rounded bg-agent-surface-high border border-agent-outline-variant text-[10px] font-bold uppercase text-agent-on-surface-variant"
-              >
-                {(order.carrier_name ?? order.carrier_code).slice(0, 3)}
-              </span>
-            )}
-          </span>
-        )}
-
-        {/* Status sign — desktop trailing column. On mobile the status renders
-            in the name's sub-row instead (see above), so hide it here below sm. */}
-        <div className="shrink-0 hidden sm:flex items-center">
-          {isAttemptOrCallback(order.status) ? (
-            <AttemptEtiquette
-              status={order.status}
-              attemptsCount={order.attempt_count ?? 0}
-              maxAttempts={maxAttempts}
-              callbackAt={order.callback_time}
-              scheduledDispatchAt={order.scheduled_dispatch_at}
-              scheduledDispatchAuto={order.scheduled_dispatch_auto}
-              now={now ?? undefined}
-            />
-          ) : statusPill ? (
-            order.status === "rejected" ? (
-              <RejectionReasonHover
-                reason={order.rejection_reason}
-                note={order.rejection_note}
-              >
-                <StatusSign label={statusPill.label} className={statusPill.className} />
-              </RejectionReasonHover>
-            ) : (
-              <StatusSign label={statusPill.label} className={statusPill.className} />
-            )
-          ) : null}
-        </div>
-
-        {/* Price — trailing edge, the standout figure on the card */}
-        <div className="shrink-0 flex items-baseline gap-1 ps-3 ms-1 border-s border-agent-outline-variant/50">
-          <span className="text-[22px] font-extrabold text-agent-primary tabular-nums leading-none">
-            {order.total_price}
-          </span>
-          <span className="text-[12px] font-bold text-agent-on-surface-variant">
-            {displayCurrency}
-          </span>
-        </div>
-
-        {/* Mobile call-ended action — sits next to the price in the main row so
-            the card stays short (no extra bottom row). Desktop renders the
-            labelled button below instead. */}
-        {showEndCall && (
-          <Button
-            size="sm"
-            aria-label={t("callEnded")}
-            className="sm:hidden shrink-0 w-8 px-0 gap-0 ms-1"
-            onClick={(e) => {
-              e.stopPropagation();
-              onCallTerminated(order.id);
-            }}
-          >
-            <Phone size={14} strokeWidth={2.25} aria-hidden="true" />
-          </Button>
-        )}
       </div>
 
-      {/* Optional supporting row — address change, customer note, attempts overdue */}
-      {(order.last_known_address ||
-        truncatedNote ||
-        (order.status === "callback_scheduled" && callbackOverdue) ||
-        (order.status === "dispatch_scheduled" && dispatchOverdue)) && (
-        <div className="mt-2 ps-[52px] flex flex-col gap-1.5">
-          {order.last_known_address && (
-            <AddressChangeNote
-              currentAddress={order.customer_address}
-              lastKnownAddress={order.last_known_address}
-            />
-          )}
-          {order.status === "callback_scheduled" && callbackOverdue && callbackDate && (
-            <span className="text-[12px] font-semibold text-agent-error">
-              {t("callbackAt", { time: formatDateTime(order.callback_time!, locale) })}
-            </span>
-          )}
-          {order.status === "dispatch_scheduled" && dispatchOverdue && dispatchDate && (
-            <span className="text-[12px] font-semibold text-agent-error">
-              {t("dispatchOverdue")} · {formatDateTime(order.scheduled_dispatch_at!, locale)}
-            </span>
-          )}
-          {truncatedNote && (
-            <span className="text-[12px] text-agent-on-surface-variant italic">{truncatedNote}</span>
-          )}
-        </div>
-      )}
+      {/* Clock 1 — how long the customer has waited. Escalates only while the
+          order still needs a human. */}
+      <span
+        data-testid="order-age"
+        data-tier={age.tier}
+        className={`hidden lg:inline-flex items-center gap-1 text-[12.5px] tabular-nums ${AGE_TONE[age.tier]}`}
+      >
+        {now ? formatOrderAge(age.minutes, locale) : ""}
+      </span>
 
-      {/* Call-ended action — desktop labelled button on its own row. On mobile
-          the icon-only button lives in the main row next to the price instead. */}
-      {showEndCall && (
-        <div className="hidden sm:flex justify-end mt-2">
-          <Button
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onCallTerminated(order.id);
-            }}
-          >
-            {t("callEnded")}
-          </Button>
-        </div>
-      )}
+      {/* Clock 2 — how long since an agent last acted. A dash means never. */}
+      <span
+        data-testid="order-last-action"
+        data-tier={lastAction.tier}
+        className={`hidden lg:inline-flex items-center gap-1 text-[12.5px] tabular-nums ${LAST_ACTION_TONE[lastAction.tier]}`}
+      >
+        {!now ? "" : lastAction.minutes === null ? "—" : formatOrderAge(lastAction.minutes, locale)}
+      </span>
+
+      {/* Status */}
+      <span className="hidden min-w-0 lg:flex">
+        {order.status === "rejected" ? (
+          <RejectionReasonHover reason={order.rejection_reason} note={order.rejection_note}>
+            {statusPill}
+          </RejectionReasonHover>
+        ) : (
+          statusPill
+        )}
+      </span>
+
+      {/* Money — aligned to the trailing edge, tabular so the column stacks. */}
+      <span className="flex items-baseline justify-end gap-1">
+        <span className="text-[15px] font-bold tracking-[-0.01em] text-agent-on-surface tabular-nums">
+          {order.total_price}
+        </span>
+        <span className="text-[11px] font-semibold text-agent-ink-3">{displayCurrency}</span>
+      </span>
+
+      {/* Action — or, once the order is with a carrier, whose it is. */}
+      <span className="flex justify-end">
+        {showEndCall ? (
+          <>
+            <Button
+              size="sm"
+              aria-label={t("callEnded")}
+              className="w-8 gap-0 px-0 lg:hidden"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCallTerminated(order.id);
+              }}
+            >
+              <Phone size={14} strokeWidth={2.25} aria-hidden="true" />
+            </Button>
+            <Button
+              size="sm"
+              className="hidden whitespace-nowrap lg:inline-flex"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCallTerminated(order.id);
+              }}
+            >
+              {t("callEnded")}
+            </Button>
+          </>
+        ) : (
+          order.carrier_code && (
+            <span
+              className="inline-flex items-center"
+              title={order.carrier_name ?? order.carrier_code}
+            >
+              {getCarrierLogo(order.carrier_code) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={getCarrierLogo(order.carrier_code)!}
+                  alt={order.carrier_name ?? order.carrier_code}
+                  width={20}
+                  height={20}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-5 w-auto object-contain"
+                />
+              ) : (
+                <span
+                  aria-label={order.carrier_name ?? order.carrier_code}
+                  className="inline-flex h-5 items-center justify-center rounded border border-agent-outline-variant bg-agent-surface-low px-1.5 text-[10px] font-bold uppercase text-agent-ink-3"
+                >
+                  {(order.carrier_name ?? order.carrier_code).slice(0, 3)}
+                </span>
+              )}
+            </span>
+          )
+        )}
+      </span>
     </div>
   );
 });

@@ -8,6 +8,7 @@ import { OrderCard } from "./OrderCard";
 import type { QueueOrder } from "@/types/queue";
 import type { BucketKey } from "./QueueHeader";
 import type { ParsedQuery } from "@/lib/queue/search";
+import { QUEUE_ROW_GRID, QUEUE_ROW_SPACING } from "./row-grid";
 
 interface QueueStats {
   assigned_count: number;
@@ -136,26 +137,52 @@ export function QueueList({
   return (
     <div
       data-has-selection={hasSelection || undefined}
-      className={[
-        "flex flex-col gap-3 px-8 pt-4",
-        hasSelection ? "pb-24" : "pb-8",
-      ].join(" ")}
+      className={["px-4 pt-3 sm:px-5", hasSelection ? "pb-24" : "pb-10"].join(" ")}
     >
-      {orders.map((order) => (
-        <OrderCard
-          key={order.id}
-          order={order}
-          onOpenDetail={onOpenDetail}
-          onCallTerminated={onCallTerminated}
-          focused={focusedOrderId === order.id}
-          isSelected={selectedOrderIds?.has(order.id) ?? false}
-          onToggleSelect={onToggleSelect}
-          selectedBucket={selectedBucket}
-          maxAttempts={maxAttempts}
-          highlightQuery={highlightQuery}
-          onMutate={onRefresh}
-        />
-      ))}
+      {/* Rows sit in one banded shell rather than as separate floating cards:
+          twelve boxes stacked with a gap read as a form, a single ruled list
+          reads as a list. No overflow-hidden — the row's hover notes have to be
+          able to escape the shell. */}
+      <div className="rounded-xl border border-agent-outline-variant bg-agent-surface">
+        {/* Two adjacent time columns are a guessing game unlabelled. This costs
+            34px once instead of ambiguity on every row. */}
+        <div
+          role="row"
+          aria-hidden="true"
+          className={[
+            "grid items-center rounded-t-xl border-b border-agent-outline-variant",
+            "bg-agent-surface-low py-2",
+            QUEUE_ROW_GRID,
+            QUEUE_ROW_SPACING,
+            "text-[10px] font-bold tracking-[0.08em] text-agent-ink-3",
+          ].join(" ")}
+        >
+          <span />
+          <span />
+          <span>{t("columns.customer")}</span>
+          <span className="hidden lg:block">{t("columns.age")}</span>
+          <span className="hidden lg:block">{t("columns.lastAction")}</span>
+          <span className="hidden lg:block">{t("columns.status")}</span>
+          <span className="text-end">{t("columns.amount")}</span>
+          <span />
+        </div>
+
+        {orders.map((order) => (
+          <OrderCard
+            key={order.id}
+            order={order}
+            onOpenDetail={onOpenDetail}
+            onCallTerminated={onCallTerminated}
+            focused={focusedOrderId === order.id}
+            isSelected={selectedOrderIds?.has(order.id) ?? false}
+            onToggleSelect={onToggleSelect}
+            selectedBucket={selectedBucket}
+            maxAttempts={maxAttempts}
+            highlightQuery={highlightQuery}
+            onMutate={onRefresh}
+          />
+        ))}
+      </div>
     </div>
   );
 }

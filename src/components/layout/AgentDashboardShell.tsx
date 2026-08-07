@@ -46,6 +46,10 @@ export function AgentDashboardShell({
             marketName=""
             actions={actions}
             variant="agent"
+            // Desktop folds navigation into the header row; the standalone band
+            // below is mobile-only. Two chrome bands cost ~56px of every screen
+            // to hold one search field and three links.
+            navSlot={<AgentNavTabs user={user} variant="inline" />}
             searchSlot={onQueueTab ? <QueueSearchBar variant="navbar" /> : null}
           />
         </div>

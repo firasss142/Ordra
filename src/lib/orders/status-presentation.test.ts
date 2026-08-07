@@ -109,3 +109,22 @@ describe("status presentation — the attempt counter tells the truth", () => {
     expect(presentStatus("pending", { attemptsCount: 0, maxAttempts: 8 }).counter).toBeNull();
   });
 });
+
+describe("presentStatus — a zero attempt count on an attempt status", () => {
+  // Every attempt_* order in the database carries attempts_count = 0, so the
+  // pill rendered "Tentative 0/9". An order cannot be in attempt_2 having made
+  // zero calls: the zero is a data artifact, and the status is then the best
+  // available truth. The cap-not-a-count rule is unaffected — a real count
+  // above the enum's ceiling still wins.
+  it("falls back to the status digit rather than showing 0", () => {
+    expect(presentStatus("attempt_2", { attemptsCount: 0, maxAttempts: 9 }).counter).toBe("2/9");
+  });
+
+  it("still prefers a real count over the status digit", () => {
+    expect(presentStatus("attempt_3", { attemptsCount: 7, maxAttempts: 9 }).counter).toBe("7/9");
+  });
+
+  it("does not go loud off a fabricated count", () => {
+    expect(presentStatus("attempt_3", { attemptsCount: 0, maxAttempts: 9 }).weight).toBe("medium");
+  });
+});

@@ -31,6 +31,15 @@ export interface QueueOrder {
   customer_phone_2: string | null;
   created_at: string;
   assigned_at: string;
+  /**
+   * When an *agent* last acted on this order — the newest `actor_type='agent'`
+   * row in order_history. Null when nobody has acted yet.
+   *
+   * Deliberately NOT `orders.updated_at`: `trg_orders_updated_at` fires on
+   * every write, and the carrier status-sync crons write to these rows, so an
+   * order nobody has called in three days would report "5 minutes ago".
+   */
+  last_action_at: string | null;
   repeat_kind: RepeatKind;
   prior_order_count: number;
   prior_lead_count: number;

@@ -21,6 +21,62 @@
   --border: #E1E3E5;
   --border-strong: #C9CCCF;
 
+  /* ── Agent queue palette ──────────────────────────────────────────
+     Defined at :root (not inside .agent-theme) so the agent.* Tailwind
+     utilities resolve everywhere — a few agent-facing components render
+     under the manager shell too.
+
+     The ground is a warm neutral rather than the old mint (#f4fbf4), and
+     the ink is the same three-step ramp the orders console uses, every
+     step ≥4.5:1 on white. Green is no longer the page; it is spent on the
+     primary action, the confirmed state, and the active tab, and nowhere
+     else. See docs/design-system.md §4.17 A–B.
+     ─────────────────────────────────────────────────────────────── */
+  --agent-bg: #FAFAF9;
+  --agent-surface: #FFFFFF;
+  --agent-surface-low: #F4F3EF;
+  --agent-surface-high: #EFEDE8;
+  --agent-surface-highest: #E7E4DE;
+  --agent-surface-variant: #F4F3EF;
+  --agent-primary: #006C49;
+  --agent-primary-container: #10B981;
+  --agent-on-primary: #FFFFFF;
+  --agent-on-primary-container: #00422B;
+  --agent-on-surface: #1B1917;        /* ink-1 — 17.5:1, customer name + price */
+  --agent-on-surface-variant: #5C5852; /* ink-2 —  7.1:1, product, labels      */
+  --agent-ink-3: #78726A;              /* ink-3 —  4.8:1, meta, city, clocks   */
+  --agent-outline: #DCD9D3;
+  --agent-outline-variant: #EAE8E4;
+  --agent-tertiary: #a43a3a;
+  --agent-tertiary-container: #fc7c78;
+  --agent-error: #B23A32;
+  --agent-error-container: #FBECEA;
+
+  /* ── Status hues ──────────────────────────────────────────────────
+     Aliased to the orders-console tokens rather than restated, so the
+     agent queue and the super-admin table cannot drift apart and both
+     stay covered by src/lib/orders/status-contrast.test.ts.
+     hue = phase + outcome; see §4.17 F-bis.
+     ─────────────────────────────────────────────────────────────── */
+  --hue-neutral-ink: var(--oms-ink-2);
+  --hue-neutral-bg: var(--oms-surface-sunken);
+  --hue-neutral-edge: var(--oms-border-strong);
+  --hue-amber-ink: var(--oms-warn-ink);
+  --hue-amber-bg: var(--oms-warn-bg);
+  --hue-amber-edge: var(--oms-warn);
+  --hue-violet-ink: var(--oms-accent-ink);
+  --hue-violet-bg: var(--oms-accent-bg);
+  --hue-violet-edge: var(--oms-accent);
+  --hue-teal-ink: var(--oms-info-ink);
+  --hue-teal-bg: var(--oms-info-bg);
+  --hue-teal-edge: var(--oms-info);
+  --hue-green-ink: var(--oms-ok);
+  --hue-green-bg: var(--oms-ok-bg);
+  --hue-green-edge: var(--oms-ok);
+  --hue-red-ink: var(--oms-bad);
+  --hue-red-bg: var(--oms-bad-bg);
+  --hue-red-edge: var(--oms-bad);
+
   /* ── Orders console ("soft & warm") ───────────────────────────────
      Scoped to the orders surface. Warmer ground than --bg-page, a
      three-step neutral ramp where every step clears 4.5:1 on white,
@@ -179,25 +235,10 @@
    Manager/admin UI is unaffected.
    ───────────────────────────────────────────────────────── */
 .agent-theme {
-  /* Material-style agent palette (source: ui/stitch_premium_rtl_order_workspace/DESIGN.md) */
-  --agent-bg: #f4fbf4;
-  --agent-surface: #ffffff;
-  --agent-surface-low: #eef6ee;
-  --agent-surface-high: #e3eae3;
-  --agent-surface-highest: #dde4dd;
-  --agent-surface-variant: #dde4dd;
-  --agent-primary: #006c49;
-  --agent-primary-container: #10b981;
-  --agent-on-primary: #ffffff;
-  --agent-on-primary-container: #00422b;
-  --agent-on-surface: #161d19;
-  --agent-on-surface-variant: #3c4a42;
-  --agent-outline: #6c7a71;
-  --agent-outline-variant: #bbcabf;
-  --agent-tertiary: #a43a3a;
-  --agent-tertiary-container: #fc7c78;
-  --agent-error: #ba1a1a;
-  --agent-error-container: #ffdad6;
+  /* The palette itself now lives at :root (see "Agent queue palette") so the
+     agent.* utilities resolve outside this wrapper too. What stays scoped here
+     is the remap of the *shared* semantic tokens below, which is what lets
+     existing primitives inherit the agent ground without touching their JSX. */
 
   /* Re-map the shared semantic tokens so existing components
      (Button, OrderDetailPanel surfaces, modals) inherit emerald
@@ -262,11 +303,15 @@
   background-color: var(--agent-on-primary-container) !important;
 }
 
-/* Status badge utility classes used in queue + detail panel */
-.agent-theme .bg-status-successBg { background-color: var(--agent-surface-low); }
-.agent-theme .text-status-success { color: var(--agent-primary); }
-.agent-theme .bg-status-criticalBg { background-color: var(--agent-error-container); }
-.agent-theme .text-status-critical { color: var(--agent-error); }
+/* Status badge utility classes used in queue + detail panel — mapped onto the
+   shared hue families so a legacy status class and a new status pill of the
+   same meaning render identically. */
+.agent-theme .bg-status-successBg { background-color: var(--hue-green-bg); }
+.agent-theme .text-status-success { color: var(--hue-green-ink); }
+.agent-theme .bg-status-criticalBg { background-color: var(--hue-red-bg); }
+.agent-theme .text-status-critical { color: var(--hue-red-ink); }
+.agent-theme .bg-status-warningBg { background-color: var(--hue-amber-bg); }
+.agent-theme .text-status-warning { color: var(--hue-amber-ink); }
 
 /* Custom thin scrollbar — Stitch reference */
 .agent-theme .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }

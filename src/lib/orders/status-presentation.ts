@@ -127,8 +127,15 @@ export function presentStatus(status: string, ctx: StatusContext = {}): StatusPr
 
   // The status enum stops at attempt_3 while max_call_attempts is configurable
   // (8 in Libya), so attempts_count is the only honest source past three.
+  //
+  // Zero is treated as absent, not as a count: an order cannot be in attempt_2
+  // having made no calls, so a 0 there is a data artifact and the status digit
+  // is the better truth. Rendering it literally produced "Tentative 0/9".
+  const fromStatus = Number(status.slice("attempt_".length)) || null;
   const attempts = isAttempt
-    ? (ctx.attemptsCount ?? (Number(status.slice("attempt_".length)) || null))
+    ? ctx.attemptsCount && ctx.attemptsCount > 0
+      ? ctx.attemptsCount
+      : fromStatus
     : null;
 
   const max = ctx.maxAttempts ?? null;

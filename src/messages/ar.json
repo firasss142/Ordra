@@ -1331,6 +1331,16 @@
     "title": "قائمة الانتظار",
     "emptyState": "لا توجد طلبات في قائمتك",
     "callEnded": "انتهت المكالمة",
+    "overdueShort": "متأخرة",
+    "columns": {
+      "customer": "العميل",
+      "age": "العمر",
+      "lastAction": "آخر إجراء",
+      "status": "الحالة",
+      "amount": "المبلغ"
+    },
+    "addressChanged": "تغيّر العنوان",
+    "customerNote": "ملاحظة العميل",
     "noResponse": "لا إجابة",
     "confirmed": "مؤكد",
     "rejected": "مرفوض",

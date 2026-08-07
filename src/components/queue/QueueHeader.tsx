@@ -4,21 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Inbox,
-  Phone,
-  Calendar,
   CheckCircle,
   Archive,
   ListTodo,
   ChevronDown,
   Plus,
-  UploadCloud,
-  Truck,
-  XCircle,
-  RotateCcw,
   RefreshCw,
-  Ban,
   type LucideIcon,
 } from "lucide-react";
+import { StatusGlyph, type StatusGlyphShape } from "@/components/shared/StatusGlyph";
+import { presentStatus, type StatusHue } from "@/lib/orders/status-presentation";
 import type { AgentQueueBuckets } from "@/hooks/useAgentQueue";
 
 export interface AgentStats {
@@ -27,11 +22,7 @@ export interface AgentStats {
   confirmation_rate: number;
 }
 
-export type BucketKey =
-  | "nouveau"
-  | "en_cours"
-  | "confirme"
-  | "fermees";
+export type BucketKey = "nouveau" | "en_cours" | "confirme" | "fermees";
 
 export type EnCoursSubfilter = "all" | "rappel" | "tentative" | "livraison";
 export type TentativeSubfilter = "all" | 1 | 2 | 3;
@@ -57,13 +48,7 @@ interface QueueHeaderProps {
   closedSubfilter: ClosedSubfilter;
   onClosedSubfilterChange: (sub: ClosedSubfilter) => void;
   closedCounts: Record<ClosedSubfilter, number>;
-  /**
-   * Manual Dexpress refresh handler — invoked when the agent clicks the
-   * refresh button in the fermé chip row. Optional so non-Dexpress markets
-   * can simply omit the button.
-   */
   onRefreshDexpress?: () => void;
-  /** True while a Dexpress refresh batch is in flight. Disables the button + animates the icon. */
   refreshingDexpress?: boolean;
   onNewOrder?: () => void;
   /**
@@ -78,73 +63,53 @@ interface TabDef {
   key: BucketKey;
   icon: LucideIcon;
   labelKey: "new" | "inProgress" | "confirmed" | "closed";
-  /** Visual tone reflecting the lifecycle phase — active state colors */
-  tone: "neutral" | "warning" | "success" | "archive";
 }
 
 const TABS: TabDef[] = [
-  { key: "nouveau", icon: Inbox, labelKey: "new", tone: "neutral" },
-  { key: "en_cours", icon: ListTodo, labelKey: "inProgress", tone: "warning" },
-  { key: "confirme", icon: CheckCircle, labelKey: "confirmed", tone: "success" },
-  { key: "fermees", icon: Archive, labelKey: "closed", tone: "archive" },
+  { key: "nouveau", icon: Inbox, labelKey: "new" },
+  { key: "en_cours", icon: ListTodo, labelKey: "inProgress" },
+  { key: "confirme", icon: CheckCircle, labelKey: "confirmed" },
+  { key: "fermees", icon: Archive, labelKey: "closed" },
 ];
 
-// Six lifecycle buckets in fermé, in lifecycle order:
-//   uploaded → deposit → delivered → returned → cancelled, then rejected last.
-// 'cancelled' is a Darb Assabil carrier-side cancellation (Dexpress never sets it).
-// Spec: plans/dexpress-list-status-bucket.md + plans/darb-assabil-status-display.md.
-const CLOSED_STATUS_CHIPS: Array<{
-  key: Exclude<ClosedSubfilter, "all">;
-  icon: LucideIcon;
-}> = [
-  { key: "uploaded", icon: UploadCloud },
-  { key: "deposit", icon: Truck },
-  { key: "delivered", icon: CheckCircle },
-  { key: "returned", icon: RotateCcw },
-  { key: "cancelled", icon: Ban },
-  { key: "rejected", icon: XCircle },
-];
+/**
+ * Sub-filter chips carry the hue and glyph of the status they filter for, so
+ * choosing a filter and reading the rows it reveals is one continuous thought.
+ * Both are derived from the shared presentation map rather than restated —
+ * a chip and its pills cannot disagree.
+ */
+function chipFace(status: string | null): { hue: StatusHue | null; glyph: StatusGlyphShape | null } {
+  if (!status) return { hue: null, glyph: null };
+  const p = presentStatus(status);
+  return { hue: p.hue, glyph: p.glyph };
+}
 
-// Active-state token sets per tone. Each tab lights up in its lifecycle color
-// only when selected, keeping the segmented control quiet at rest.
-const TAB_TONE: Record<
-  TabDef["tone"],
-  { activeBg: string; activeText: string; activeBorder: string; chipBg: string; chipText: string; iconActive: string }
-> = {
-  neutral: {
-    activeBg: "bg-[#EEF2F7]",
-    activeText: "text-[#1E3A5F]",
-    activeBorder: "border-[#C7D2E0]",
-    chipBg: "bg-[#1E3A5F]",
-    chipText: "text-white",
-    iconActive: "text-[#1E3A5F]",
-  },
-  warning: {
-    activeBg: "bg-[#FEF4E2]",
-    activeText: "text-[#8A5A00]",
-    activeBorder: "border-[#F0C97D]",
-    chipBg: "bg-[#B07A00]",
-    chipText: "text-white",
-    iconActive: "text-[#8A5A00]",
-  },
-  success: {
-    activeBg: "bg-[#DFF8EC]",
-    activeText: "text-[#004D35]",
-    activeBorder: "border-[#10B981]",
-    chipBg: "bg-[#007A52]",
-    chipText: "text-white",
-    iconActive: "text-[#008060]",
-  },
-  archive: {
-    activeBg: "bg-agent-surface-high",
-    activeText: "text-agent-on-surface",
-    activeBorder: "border-agent-outline",
-    chipBg: "bg-agent-on-surface-variant",
-    chipText: "text-white",
-    iconActive: "text-agent-on-surface",
-  },
+/** Chip tone per hue. Rest is transparent; only the selected chip takes a tint. */
+const CHIP_HUE: Record<StatusHue, string> = {
+  neutral: "bg-hue-neutral-bg text-hue-neutral-ink border-hue-neutral-edge/40",
+  amber: "bg-hue-amber-bg text-hue-amber-ink border-hue-amber-edge/40",
+  violet: "bg-hue-violet-bg text-hue-violet-ink border-hue-violet-edge/40",
+  teal: "bg-hue-teal-bg text-hue-teal-ink border-hue-teal-edge/40",
+  green: "bg-hue-green-bg text-hue-green-ink border-hue-green-edge/40",
+  red: "bg-hue-red-bg text-hue-red-ink border-hue-red-edge/40",
 };
 
+const CHIP_GLYPH_HUE: Record<StatusHue, string> = {
+  neutral: "text-hue-neutral-edge",
+  amber: "text-hue-amber-edge",
+  violet: "text-hue-violet-edge",
+  teal: "text-hue-teal-edge",
+  green: "text-hue-green-edge",
+  red: "text-hue-red-edge",
+};
+
+/**
+ * Level 1 — a bucket. Where am I?
+ *
+ * Underline tabs on the page ground: bigger type than the filters below, an
+ * icon, and a count that only fills green when selected, so exactly one tab is
+ * unmistakably current.
+ */
 function TabButton({
   tab,
   label,
@@ -159,7 +124,6 @@ function TabButton({
   onClick: () => void;
 }) {
   const Icon = tab.icon;
-  const tone = TAB_TONE[tab.tone];
   return (
     <button
       type="button"
@@ -167,44 +131,61 @@ function TabButton({
       aria-selected={active}
       onClick={onClick}
       className={[
-        // Mobile: equal-width tabs that split the row so all four show without
-        // scrolling (icon hidden, tighter padding). Desktop keeps the original
-        // auto-width icon+label tab.
-        "group relative flex-1 sm:flex-none justify-center inline-flex items-center gap-1 sm:gap-2 py-2 px-1.5 sm:px-4 rounded-xl",
-        "text-[12px] sm:text-[13.5px] font-semibold transition-all duration-fast",
-        active
-          ? `${tone.activeBg} ${tone.activeText} shadow-[0_1px_2px_rgba(16,24,40,0.04)] border ${tone.activeBorder}`
-          : "text-agent-on-surface-variant hover:text-agent-on-surface hover:bg-agent-surface-low/60 border border-transparent",
+        "group/tab relative inline-flex flex-1 items-center justify-center gap-2 sm:flex-none",
+        "h-[46px] whitespace-nowrap px-2.5 text-[13px] sm:h-[52px] sm:px-3.5 sm:text-[14px]",
+        "font-semibold transition-colors duration-base",
+        active ? "text-agent-on-surface" : "text-agent-ink-3 hover:text-agent-on-surface",
       ].join(" ")}
     >
       <Icon
         size={15}
-        strokeWidth={active ? 2.5 : 2}
+        strokeWidth={active ? 2.25 : 2}
         aria-hidden="true"
         className={[
-          "hidden sm:inline",
-          active ? tone.iconActive : "text-agent-on-surface-variant/70",
+          "hidden shrink-0 transition-opacity duration-base sm:inline",
+          active ? "opacity-100" : "opacity-55 group-hover/tab:opacity-100",
         ].join(" ")}
       />
       <span className="truncate">{label}</span>
       <span
         className={[
-          "inline-flex items-center justify-center min-w-[18px] sm:min-w-[20px] h-[18px] px-1 sm:px-1.5 rounded-pill tabular-nums text-[10.5px] sm:text-[11px] font-bold shrink-0",
-          active ? `${tone.chipBg} ${tone.chipText}` : "bg-agent-surface-high text-agent-on-surface-variant/80",
+          "grid h-5 min-w-[21px] shrink-0 place-items-center rounded-pill px-1.5",
+          "text-[11px] font-bold tabular-nums transition-colors duration-base",
+          active
+            ? "bg-agent-primary text-agent-on-primary"
+            : "bg-agent-surface-low text-agent-ink-3",
         ].join(" ")}
       >
         {count}
       </span>
+      {/* The indicator is always in the DOM so switching tabs animates a colour
+          rather than inserting a box and nudging the row. */}
+      <span
+        aria-hidden="true"
+        className={[
+          "absolute inset-x-2 bottom-0 h-[2.5px] rounded-t-[3px] transition-colors duration-base",
+          active
+            ? "bg-agent-primary"
+            : "bg-transparent group-hover/tab:bg-agent-outline",
+        ].join(" ")}
+      />
     </button>
   );
 }
 
-function SubChip({
+/**
+ * Level 2 — a sub-filter. Narrowing what I'm already inside.
+ *
+ * Deliberately lighter than a tab: smaller, borderless at rest, and living in a
+ * recessed panel. An inverted dark slab (the old active state) read as a
+ * different component rather than as a state.
+ */
+function FilterChip({
   active,
   count,
   onClick,
-  children,
-  srLabel,
+  label,
+  status,
   trailing,
   buttonRef,
   ariaHaspopup,
@@ -213,58 +194,66 @@ function SubChip({
   active: boolean;
   count: number;
   onClick: () => void;
-  children: React.ReactNode;
-  srLabel: string;
+  label: string;
+  /** The status this chip filters for; drives its hue + glyph. Null for "all". */
+  status: string | null;
   trailing?: React.ReactNode;
   buttonRef?: React.Ref<HTMLButtonElement>;
   ariaHaspopup?: boolean;
   ariaExpanded?: boolean;
 }) {
+  const { hue, glyph } = chipFace(status);
   return (
     <button
       type="button"
       ref={buttonRef}
       aria-pressed={active}
-      aria-current={active ? "true" : undefined}
-      aria-label={srLabel}
+      aria-label={`${label} — ${count}`}
       aria-haspopup={ariaHaspopup ? "menu" : undefined}
       aria-expanded={ariaHaspopup ? ariaExpanded : undefined}
       onClick={onClick}
       className={[
-        // Larger tap target on mobile (~40px tall) so chips are easy to press;
-        // desktop keeps the original compact size.
-        "inline-flex items-center gap-1.5 shrink-0 py-2 px-3.5 sm:py-1 sm:px-2.5 rounded-pill",
-        "text-[12.5px] sm:text-[11.5px] font-semibold transition-colors duration-fast",
+        "inline-flex h-[30px] shrink-0 items-center gap-[7px] rounded-lg border px-2.5",
+        "text-[12.5px] font-semibold whitespace-nowrap transition-colors duration-fast",
         active
-          ? "bg-agent-on-surface/90 text-white"
-          : "bg-agent-surface sm:bg-transparent border border-agent-outline-variant sm:border-0 text-agent-on-surface-variant hover:bg-agent-surface-high/60 hover:text-agent-on-surface",
+          ? hue
+            ? CHIP_HUE[hue]
+            : "border-agent-outline bg-agent-surface text-agent-on-surface"
+          : "border-transparent bg-transparent text-agent-on-surface-variant hover:border-agent-outline-variant hover:bg-agent-surface hover:text-agent-on-surface",
       ].join(" ")}
     >
-      <span>{children}</span>
-      <span className="tabular-nums">{count}</span>
+      {glyph && hue && (
+        <span
+          aria-hidden="true"
+          className={[
+            "grid w-2 flex-none place-items-center transition-opacity duration-fast",
+            active ? "opacity-100" : `${CHIP_GLYPH_HUE[hue]} opacity-60`,
+          ].join(" ")}
+        >
+          <StatusGlyph shape={glyph} tone="inherit" />
+        </span>
+      )}
+      <span>{label}</span>
+      <span
+        aria-hidden="true"
+        className={`flex-none tabular-nums font-bold ${active ? "opacity-85" : "opacity-60"}`}
+      >
+        {count}
+      </span>
       {trailing}
     </button>
   );
 }
 
-function StatPill({ label, value }: { label: string; value: string }) {
+/** A shift readout, not navigation — so it gets no pill chrome. */
+function MeterCell({ label, value }: { label: string; value: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 bg-agent-surface border border-agent-outline-variant rounded-pill py-1 px-3">
-      <span className="text-[12px] text-agent-on-surface-variant">{label}</span>
-      <span className="text-[13px] font-bold tabular-nums text-agent-on-surface">
+    <span className="flex flex-col items-end gap-px border-s border-agent-outline-variant px-4 first:border-s-0">
+      <span className="text-[15px] font-bold leading-tight tabular-nums text-agent-on-surface">
         {value}
       </span>
-    </span>
-  );
-}
-
-function StatusCount({ dot, label, count }: { dot: string; label: string; count: number }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 bg-agent-surface border border-agent-outline-variant rounded-md py-[5px] px-2.5">
-      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
-      <span className="text-[11.5px] text-agent-on-surface-variant">{label}</span>
-      <span className="text-[12px] font-bold tabular-nums text-agent-on-surface ms-0.5">
-        {count}
+      <span className="whitespace-nowrap text-[10px] font-semibold tracking-[0.07em] text-agent-ink-3">
+        {label}
       </span>
     </span>
   );
@@ -292,12 +281,12 @@ export function QueueHeader({
   const tEnCours = useTranslations("queue.buckets.enCoursSubfilter");
   const tAttempt = useTranslations("queue.buckets.subfilter");
   const tClosed = useTranslations("queue.buckets.closedSubfilter");
+  const tShell = useTranslations("queue.agentShell");
 
   const [tentativePopoverOpen, setTentativePopoverOpen] = useState(false);
   const tentativeAnchorRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
 
-  // Close popover on outside click / Escape
   useEffect(() => {
     if (!tentativePopoverOpen) return;
     function onPointerDown(e: MouseEvent) {
@@ -321,7 +310,6 @@ export function QueueHeader({
     };
   }, [tentativePopoverOpen]);
 
-  // Close popover when leaving the en_cours bucket
   useEffect(() => {
     if (selectedBucket !== "en_cours") setTentativePopoverOpen(false);
   }, [selectedBucket]);
@@ -353,8 +341,6 @@ export function QueueHeader({
     enCoursSubfilter === "tentative" || tentativePopoverOpen;
 
   function handleTentativeChipClick() {
-    // Open: filter to all attempts and reveal T1/T2/T3.
-    // Click again while open: just close — the chip stays as the active filter.
     if (tentativePopoverOpen) {
       setTentativePopoverOpen(false);
       return;
@@ -368,258 +354,242 @@ export function QueueHeader({
     setTentativePopoverOpen(false);
   }
 
-  const tShell = useTranslations("queue.agentShell");
-
   // Status enum caps at attempt_3, so the T3 bucket actually holds attempts
   // 3..max. Relabel as "3+" when max > 3 so agents see the bucket is collective.
   const t3Plus = maxAttempts > 3;
   const t3Label = t3Plus ? tAttempt("t3Plus") : tAttempt("t3");
   const tentativeBadge: string =
-    tentativeSubfilter === "all" ? "" : tentativeSubfilter === 3 && t3Plus ? "3+" : String(tentativeSubfilter);
+    tentativeSubfilter === "all"
+      ? ""
+      : tentativeSubfilter === 3 && t3Plus
+        ? "3+"
+        : String(tentativeSubfilter);
 
-  const totalPending = counts.nouveau + enCoursTotal;
+  const showSubfilters = selectedBucket === "en_cours" || selectedBucket === "fermees";
 
   return (
-    <div className="bg-agent-bg px-4 sm:px-8 pt-4 sm:pt-6 pb-2">
-      {/* Title row — live queue title + subtitle on lead edge,
-          stats + new order on trail edge */}
-      <div className="flex items-end justify-between gap-4 mb-4 flex-wrap">
-        <div className="min-w-0">
-          <h1 className="text-[24px] font-bold text-agent-on-surface leading-tight tracking-tight">
+    <div className="bg-agent-bg px-4 pt-4 sm:px-5 sm:pt-5">
+      {/* Title row — identity on the lead edge, shift readout and the single
+          filled CTA on the trail edge. */}
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex min-w-0 items-center gap-3">
+          <h1 className="truncate text-[20px] font-bold leading-tight tracking-[-0.015em] text-agent-on-surface">
             {tShell("liveQueueTitle")}
           </h1>
-          <p className="text-[13px] text-agent-on-surface-variant mt-1">
+          <span className="hidden whitespace-nowrap text-[12.5px] text-agent-ink-3 sm:inline">
             {agentName
               ? tShell("liveQueueSubtitleWithName", { name: agentName })
               : tShell("liveQueueSubtitle")}
-          </p>
-        </div>
-
-        <div className="hidden md:flex items-center gap-2">
-          <StatPill label={t("stats.assigned")} value={String(stats.assigned_count)} />
-          <StatPill label={t("stats.actioned")} value={String(stats.actioned_count)} />
-          <StatPill
-            label={t("stats.confirmationRate")}
-            value={`${stats.confirmation_rate.toFixed(1)}%`}
-          />
-        </div>
-      </div>
-
-      {/* Status summary strip */}
-      <div className="flex items-center gap-1.5 mb-4 flex-wrap">
-        <StatusCount dot="bg-amber-400" label={t("statusSummary.pending")} count={totalPending} />
-        <StatusCount dot="bg-blue-500" label={t("statusSummary.confirmed")} count={counts.confirme} />
-        <StatusCount dot="bg-violet-500" label={t("statusSummary.uploaded")} count={closedCounts.uploaded} />
-        <StatusCount dot="bg-red-400" label={t("statusSummary.rejected")} count={counts.rejete} />
-      </div>
-
-      {/* Bucket segmented control + primary "New Order" CTA on the row's
-          trailing edge (which is the left side in RTL Arabic, right in LTR).
-          Each tab lights up in its lifecycle tone when selected.
-          On mobile this stacks: a compact New Order button sits on its own row
-          above the four bucket tabs, which then split the full width so all
-          four are visible without horizontal scrolling. */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-        {onNewOrder && (
-          <button
-            type="button"
-            onClick={onNewOrder}
-            className="self-start sm:self-auto sm:order-2 sm:ms-auto shrink-0 inline-flex items-center gap-1 sm:gap-1.5 h-8 sm:h-10 px-3 sm:px-5 rounded-pill bg-agent-primary text-white text-[12.5px] sm:text-[13.5px] font-bold hover:bg-agent-on-primary-container transition-colors duration-fast"
-          >
-            <Plus size={14} strokeWidth={2.5} aria-hidden="true" className="sm:hidden" />
-            <Plus size={16} strokeWidth={2.5} aria-hidden="true" className="hidden sm:inline" />
-            <span>{tShell("newOrder")}</span>
-          </button>
-        )}
-
-        <div className="sm:order-1 sm:overflow-x-auto min-w-0 sm:-mx-1 sm:px-1 custom-scrollbar">
-          <div
-            role="tablist"
-            aria-label={t("title")}
-            className="flex sm:inline-flex items-center gap-1 p-1 bg-agent-surface rounded-2xl border border-agent-outline-variant shadow-[0_1px_2px_rgba(16,24,40,0.02)]"
-          >
-            {TABS.map((tab) => (
-              <TabButton
-                key={tab.key}
-                tab={tab}
-                label={t(`buckets.${tab.labelKey}`)}
-                count={bucketCount[tab.key]}
-                active={selectedBucket === tab.key}
-                onClick={() => onBucketChange(tab.key)}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Sub-filter chips — En cours. Visually subordinate to the segmented control above:
-          smaller, ghost-style, with a "Filter:" label so users see the relationship. */}
-      {selectedBucket === "en_cours" && (
-        // Wraps on mobile (rather than horizontal-scroll) because the Tentative
-        // chip opens a downward popover — an overflow-x scroller would clip it.
-        <div className="flex items-center gap-2 sm:gap-1.5 mt-3 flex-wrap">
-          <span className="shrink-0 text-[10.5px] font-bold uppercase tracking-[0.08em] text-agent-on-surface-variant me-1">
-            {tShell("filterLabel")}
           </span>
-          <SubChip
-            active={enCoursSubfilter === "all"}
-            count={enCoursTotal}
-            srLabel={tEnCours("all")}
-            onClick={() => onEnCoursSubfilterChange("all")}
-          >
-            {tEnCours("all")}
-          </SubChip>
-
-          <SubChip
-            active={enCoursSubfilter === "rappel"}
-            count={counts.rappel_prevu}
-            srLabel={tEnCours("rappel")}
-            onClick={() => onEnCoursSubfilterChange("rappel")}
-          >
-            <Phone size={12} strokeWidth={2} aria-hidden="true" className="me-1 inline" />
-            {tEnCours("rappel")}
-          </SubChip>
-
-          {/* Tentative chip + popover */}
-          <div className="relative inline-block">
-            <SubChip
-              buttonRef={tentativeAnchorRef}
-              active={tentativeChipActive}
-              count={
-                tentativeSubfilter === 1
-                  ? counts.tentative_1
-                  : tentativeSubfilter === 2
-                    ? counts.tentative_2
-                    : tentativeSubfilter === 3
-                      ? counts.tentative_3
-                      : counts.tentative_total
-              }
-              srLabel={tEnCours("tentative")}
-              ariaHaspopup
-              ariaExpanded={tentativePopoverOpen}
-              onClick={handleTentativeChipClick}
-              trailing={
-                <ChevronDown
-                  size={12}
-                  strokeWidth={2}
-                  aria-hidden="true"
-                  className={[
-                    "ms-0.5 transition-transform duration-fast",
-                    tentativePopoverOpen ? "rotate-180" : "",
-                  ].join(" ")}
-                />
-              }
-            >
-              {tEnCours("tentative")}
-              {tentativeSubfilter !== "all" && (
-                <span className="ms-1 text-[11px] opacity-80">
-                  · {tentativeBadge}
-                </span>
-              )}
-            </SubChip>
-
-            {tentativePopoverOpen && (
-              <div
-                ref={popoverRef}
-                role="menu"
-                aria-label={tEnCours("tentative")}
-                className="absolute z-20 mt-1 start-0 min-w-[160px] bg-agent-surface border border-agent-outline-variant rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] py-1"
-              >
-                <TentativePopoverItem
-                  active={tentativeSubfilter === "all"}
-                  count={counts.tentative_total}
-                  label={tAttempt("all")}
-                  onClick={() => handleTentativeOptionClick("all")}
-                />
-                <TentativePopoverItem
-                  active={tentativeSubfilter === 1}
-                  count={counts.tentative_1}
-                  label={tAttempt("t1")}
-                  onClick={() => handleTentativeOptionClick(1)}
-                />
-                <TentativePopoverItem
-                  active={tentativeSubfilter === 2}
-                  count={counts.tentative_2}
-                  label={tAttempt("t2")}
-                  onClick={() => handleTentativeOptionClick(2)}
-                />
-                <TentativePopoverItem
-                  active={tentativeSubfilter === 3}
-                  count={counts.tentative_3}
-                  label={t3Label}
-                  onClick={() => handleTentativeOptionClick(3)}
-                />
-              </div>
-            )}
-          </div>
-
-          <SubChip
-            active={enCoursSubfilter === "livraison"}
-            count={counts.livraison_planifiee}
-            srLabel={tEnCours("livraison")}
-            onClick={() => onEnCoursSubfilterChange("livraison")}
-          >
-            <Calendar size={12} strokeWidth={2} aria-hidden="true" className="me-1 inline" />
-            {tEnCours("livraison")}
-          </SubChip>
         </div>
-      )}
 
-      {selectedBucket === "fermees" && (
-        <div className="flex items-center gap-2 mt-3 flex-nowrap overflow-x-auto sm:overflow-visible custom-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
-          <div className="flex items-center gap-2 sm:gap-1.5 flex-nowrap sm:flex-wrap">
-            <SubChip
-              active={closedSubfilter === "all"}
-              count={closedCounts.all}
-              srLabel={tClosed("all")}
-              onClick={() => onClosedSubfilterChange("all")}
-            >
-              {tClosed("all")}
-            </SubChip>
-
-            {CLOSED_STATUS_CHIPS.map(({ key, icon: Icon }) => (
-              <SubChip
-                key={key}
-                active={closedSubfilter === key}
-                count={closedCounts[key]}
-                srLabel={tClosed(key)}
-                onClick={() => onClosedSubfilterChange(key)}
-              >
-                <Icon size={12} strokeWidth={2} aria-hidden="true" className="me-1 inline" />
-                {tClosed(key)}
-              </SubChip>
-            ))}
+        <div className="ms-auto flex items-center gap-3">
+          <div className="hidden items-center md:flex">
+            <MeterCell
+              label={t("stats.confirmationRate")}
+              value={`${stats.confirmation_rate.toFixed(1)}%`}
+            />
+            <MeterCell label={t("stats.actioned")} value={String(stats.actioned_count)} />
+            <MeterCell label={t("stats.assigned")} value={String(stats.assigned_count)} />
           </div>
 
-          {onRefreshDexpress && (
+          {onNewOrder && (
             <button
               type="button"
-              onClick={onRefreshDexpress}
-              disabled={refreshingDexpress}
-              aria-label={t("fermeesRefresh.button")}
-              title={t("fermeesRefresh.button")}
-              className={[
-                "ms-auto shrink-0 inline-flex items-center gap-1.5",
-                "h-7 px-2.5 rounded-full text-[11.5px] font-semibold",
-                "border border-agent-outline-variant bg-agent-surface",
-                "text-agent-on-surface-variant",
-                "hover:bg-agent-surface-low hover:text-agent-on-surface",
-                "disabled:opacity-50 disabled:cursor-not-allowed",
-                "transition-colors duration-fast",
-              ].join(" ")}
+              onClick={onNewOrder}
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-pill bg-agent-primary px-4 text-[13.5px] font-bold text-agent-on-primary transition-colors duration-base hover:bg-agent-on-primary-container"
             >
-              <RefreshCw
-                size={12}
-                strokeWidth={2.25}
-                aria-hidden="true"
-                className={refreshingDexpress ? "animate-spin" : ""}
-              />
-              <span className="hidden sm:inline">
-                {refreshingDexpress
-                  ? t("fermeesRefresh.syncing")
-                  : t("fermeesRefresh.button")}
-              </span>
+              <Plus size={15} strokeWidth={2.5} aria-hidden="true" />
+              <span>{tShell("newOrder")}</span>
             </button>
+          )}
+        </div>
+      </div>
+
+      {/* Level 1 — buckets. */}
+      <div
+        role="tablist"
+        aria-label={t("title")}
+        className="flex items-end border-b border-agent-outline-variant"
+      >
+        {TABS.map((tab) => (
+          <TabButton
+            key={tab.key}
+            tab={tab}
+            label={t(`buckets.${tab.labelKey}`)}
+            count={bucketCount[tab.key]}
+            active={selectedBucket === tab.key}
+            onClick={() => onBucketChange(tab.key)}
+          />
+        ))}
+      </div>
+
+      {/* Level 2 — sub-filters, in one permanent place whichever bucket is open.
+          They used to render inline for en_cours and as a second row for
+          fermées, so their position moved as you navigated. */}
+      {showSubfilters && (
+        <div
+          role="group"
+          aria-label={tShell("filterLabel")}
+          className="custom-scrollbar mt-2.5 flex items-center gap-2 overflow-x-auto rounded-xl border border-agent-outline-variant bg-agent-surface-low px-3.5 py-2"
+        >
+          <span className="flex shrink-0 items-center self-stretch border-e border-agent-outline pe-2.5 text-[10px] font-bold tracking-[0.09em] text-agent-ink-3">
+            {tShell("filterLabel")}
+          </span>
+
+          {selectedBucket === "en_cours" && (
+            <div className="flex flex-nowrap items-center gap-1.5">
+              <FilterChip
+                active={enCoursSubfilter === "all"}
+                count={enCoursTotal}
+                label={tEnCours("all")}
+                status={null}
+                onClick={() => onEnCoursSubfilterChange("all")}
+              />
+              <FilterChip
+                active={enCoursSubfilter === "rappel"}
+                count={counts.rappel_prevu}
+                label={tEnCours("rappel")}
+                status="callback_scheduled"
+                onClick={() => onEnCoursSubfilterChange("rappel")}
+              />
+
+              <div className="relative inline-block">
+                <FilterChip
+                  buttonRef={tentativeAnchorRef}
+                  active={tentativeChipActive}
+                  count={
+                    tentativeSubfilter === 1
+                      ? counts.tentative_1
+                      : tentativeSubfilter === 2
+                        ? counts.tentative_2
+                        : tentativeSubfilter === 3
+                          ? counts.tentative_3
+                          : counts.tentative_total
+                  }
+                  label={
+                    tentativeSubfilter === "all"
+                      ? tEnCours("tentative")
+                      : `${tEnCours("tentative")} · ${tentativeBadge}`
+                  }
+                  status="attempt_1"
+                  ariaHaspopup
+                  ariaExpanded={tentativePopoverOpen}
+                  onClick={handleTentativeChipClick}
+                  trailing={
+                    <ChevronDown
+                      size={12}
+                      strokeWidth={2.25}
+                      aria-hidden="true"
+                      className={[
+                        "ms-0.5 opacity-60 transition-transform duration-base",
+                        tentativePopoverOpen ? "rotate-180" : "",
+                      ].join(" ")}
+                    />
+                  }
+                />
+
+                {tentativePopoverOpen && (
+                  <div
+                    ref={popoverRef}
+                    role="menu"
+                    aria-label={tEnCours("tentative")}
+                    className="absolute start-0 z-20 mt-1.5 min-w-[168px] rounded-xl border border-agent-outline-variant bg-agent-surface py-1 shadow-floating"
+                  >
+                    <TentativePopoverItem
+                      active={tentativeSubfilter === "all"}
+                      count={counts.tentative_total}
+                      label={tAttempt("all")}
+                      onClick={() => handleTentativeOptionClick("all")}
+                    />
+                    <TentativePopoverItem
+                      active={tentativeSubfilter === 1}
+                      count={counts.tentative_1}
+                      label={tAttempt("t1")}
+                      onClick={() => handleTentativeOptionClick(1)}
+                    />
+                    <TentativePopoverItem
+                      active={tentativeSubfilter === 2}
+                      count={counts.tentative_2}
+                      label={tAttempt("t2")}
+                      onClick={() => handleTentativeOptionClick(2)}
+                    />
+                    <TentativePopoverItem
+                      active={tentativeSubfilter === 3}
+                      count={counts.tentative_3}
+                      label={t3Label}
+                      onClick={() => handleTentativeOptionClick(3)}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <FilterChip
+                active={enCoursSubfilter === "livraison"}
+                count={counts.livraison_planifiee}
+                label={tEnCours("livraison")}
+                status="dispatch_scheduled"
+                onClick={() => onEnCoursSubfilterChange("livraison")}
+              />
+            </div>
+          )}
+
+          {selectedBucket === "fermees" && (
+            <>
+              <div className="flex flex-nowrap items-center gap-1.5">
+                <FilterChip
+                  active={closedSubfilter === "all"}
+                  count={closedCounts.all}
+                  label={tClosed("all")}
+                  status={null}
+                  onClick={() => onClosedSubfilterChange("all")}
+                />
+                {(
+                  [
+                    "uploaded",
+                    "deposit",
+                    "delivered",
+                    "returned",
+                    "cancelled",
+                    "rejected",
+                  ] as const
+                ).map((key) => (
+                  <FilterChip
+                    key={key}
+                    active={closedSubfilter === key}
+                    count={closedCounts[key]}
+                    label={tClosed(key)}
+                    // Lifecycle bucket names are themselves keys in the shared
+                    // presentation map, so the chip inherits the pill's face.
+                    status={key}
+                    onClick={() => onClosedSubfilterChange(key)}
+                  />
+                ))}
+              </div>
+
+              {onRefreshDexpress && (
+                <button
+                  type="button"
+                  onClick={onRefreshDexpress}
+                  disabled={refreshingDexpress}
+                  aria-label={t("fermeesRefresh.button")}
+                  title={t("fermeesRefresh.button")}
+                  className="ms-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border border-agent-outline-variant bg-agent-surface px-2.5 text-[11.5px] font-semibold text-agent-ink-3 transition-colors duration-fast hover:border-agent-outline hover:text-agent-on-surface disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <RefreshCw
+                    size={12}
+                    strokeWidth={2.25}
+                    aria-hidden="true"
+                    className={refreshingDexpress ? "animate-spin" : ""}
+                  />
+                  <span className="hidden sm:inline">
+                    {refreshingDexpress
+                      ? t("fermeesRefresh.syncing")
+                      : t("fermeesRefresh.button")}
+                  </span>
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
@@ -645,15 +615,15 @@ function TentativePopoverItem({
       aria-label={label}
       onClick={onClick}
       className={[
-        "w-full flex items-center justify-between gap-3 px-3 py-2",
-        "text-[12px] font-semibold text-start transition-colors duration-fast",
+        "flex w-full items-center justify-between gap-3 px-3 py-2",
+        "text-start text-[12px] font-semibold transition-colors duration-fast",
         active
-          ? "bg-agent-primary/10 text-agent-on-primary-container"
+          ? "bg-hue-amber-bg text-hue-amber-ink"
           : "text-agent-on-surface-variant hover:bg-agent-surface-low hover:text-agent-on-surface",
       ].join(" ")}
     >
       <span>{label}</span>
-      <span className="tabular-nums text-[11px] text-ink-muted">{count}</span>
+      <span className="tabular-nums text-[11px] text-agent-ink-3">{count}</span>
     </button>
   );
 }

@@ -33,6 +33,7 @@ function makeOrder(overrides: Partial<QueueOrder> = {}): QueueOrder {
     customer_phone_2: null,
     created_at: "2026-01-01T00:00:00Z",
     assigned_at: "2026-01-01T00:00:00Z",
+    last_action_at: null,
     repeat_kind: "none",
     prior_order_count: 0,
     prior_lead_count: 0,
