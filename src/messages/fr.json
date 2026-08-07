@@ -553,61 +553,9 @@
     "rejected": "Rejetées",
     "rejectionEmpty": "Aucun rejet sur la période sélectionnée.",
     "comingSoon": "Les données du tableau de bord seront disponibles prochainement.",
-    "kpi": {
-      "revenue": "Chiffre d'affaires",
-      "netProfit": "Profit net",
-      "confirmationRate": "Taux de confirmation",
-      "rejectionRate": "Taux de rejet",
-      "ordersProcessed": "Commandes traitées",
-      "agentsOnline": "Agents actifs",
-      "agents": "Agents",
-      "idleSuffix": "inactifs",
-      "offlineSuffix": "hors ligne",
-      "vsPreviousPeriod": "vs période précédente",
-      "deliveryRate": "Taux de livraison",
-      "openOrders": "Commandes ouvertes"
-    },
     "filters": {
-      "today": "Aujourd'hui",
-      "week": "7 jours",
-      "month": "30 jours",
-      "custom": "Personnalisé",
       "allMarkets": "Tous les marchés",
-      "marketPlaceholder": "Choisir un marché",
-      "vsYesterday": "vs hier",
-      "vsLastWeek": "vs sem. dernière",
-      "vsLastMonth": "vs mois dernier",
-      "vsPrevious": "vs période préc.",
-      "latestDataNotice": "Aucune activité récente — affichage des dernières données au {date}",
-      "jumpToToday": "Aller à aujourd'hui"
-    },
-    "sections": {
-      "trend": "Confirmation & rejet — 30 derniers jours",
-      "pipeline": "Pipeline en cours",
-      "presence": "Équipe en direct",
-      "rejections": "Motifs de rejet",
-      "markets": "Marchés",
-      "topPerformers": "Top performeurs aujourd'hui",
-      "topProducts": "Produits les plus performants"
-    },
-    "presence": {
-      "online": "en ligne",
-      "idle": "inactif",
-      "offline": "hors ligne",
-      "queueSuffix": "en file",
-      "empty": "Aucun agent trouvé pour ce périmètre.",
-      "viewAll": "Voir tous les agents"
-    },
-    "markets": {
-      "drill": "Voir le marché"
-    },
-    "pipeline": {
-      "new": "Nouvelles",
-      "assigned": "Assignées",
-      "attempts": "En tentative",
-      "callback": "Rappels",
-      "confirmed": "Confirmées",
-      "uploaded": "Expédiées"
+      "marketPlaceholder": "Choisir un marché"
     },
     "rejectionReasons": {
       "refus_client": "Refus client",
@@ -618,35 +566,76 @@
       "non_serieux": "Non sérieux",
       "autre": "Autre"
     },
-    "footer": {
-      "followUps": "Suivis ouverts",
-      "campaigns": "Campagnes actives",
-      "adSpend": "Dépenses pub"
+    "scope": {
+      "realized": "sur commandes livrées",
+      "cohort": "par jour de commande",
+      "now": "en direct"
     },
-    "attention": {
-      "overdueCallbacks": "{count, plural, one {# rappel en retard} other {# rappels en retard}}",
-      "unassignedOverflow": "{count, plural, one {# commande non assignée > 2 h} other {# commandes non assignées > 2 h}}",
-      "lowStock": "{count, plural, one {# produit en stock bas} other {# produits en stock bas}}",
-      "viewAll": "Voir tout",
-      "allClear": "Tout va bien"
+    "money": {
+      "grossMargin": "Marge brute",
+      "netProfit": "Profit net",
+      "revenue": "Chiffre d'affaires",
+      "afterCosts": "après COGS, livraison, retours, colisage",
+      "adMissing": "hors pub — aucune dépense saisie",
+      "adPartial": "hors pub — {covered} j couverts sur {total}",
+      "committed": "CA en attente",
+      "committedHint": "{n} expédiées non livrées",
+      "committedRate": "taux livr. {rate}"
     },
-    "insights": {
-      "confAboveAvg": "{diff}% au-dessus de la moyenne de la semaine",
-      "confBelowAvg": "{diff}% sous la moyenne de la semaine",
-      "topProduct": "Produit top : {name} ({count} livrées)",
-      "leadingAgent": "Leader : {name} ({rate} %)"
+    "funnel": {
+      "leads": "Commandes reçues",
+      "deliveredOf": "{delivered} livrées à ce jour",
+      "rates": "{conf} confirmé · {del} des résolues livrées",
+      "cohortOpen": "{pct}% encore en cours — plancher, pas un résultat",
+      "received": "Commandes",
+      "confirmedLabel": "Confirmées",
+      "todaySuffix": "aujourd'hui",
+      "overWeek": "{n} sur {days} j",
+      "confirmRate": "{n} sur 30 j · {rate} du flux"
     },
-    "topPerformers": {
-      "confirmed": "confirmées",
-      "onlineCount": "{online}/{total} agents en ligne",
-      "viewAll": "Voir l'équipe",
-      "empty": "Aucun agent actif aujourd'hui"
+    "chart": {
+      "title": "Commandes par jour",
+      "delivered": "Livrées",
+      "returned": "Retours",
+      "rejected": "Rejetées",
+      "open": "En cours",
+      "cohortNote": "les jours récents ont encore des commandes non résolues"
     },
-    "topProducts": {
+    "carriers": {
+      "title": "Transporteurs",
+      "window": "{days} derniers jours",
+      "overallRate": "Taux de livraison",
+      "overallScope": "tous transporteurs",
       "delivered": "livrées",
-      "revenue": "CA réalisé",
-      "empty": "Aucune livraison sur la période"
-    }
+      "returned": "retours",
+      "resolved": "résolues",
+      "colCarrier": "Transporteur",
+      "colRate": "Taux de livraison",
+      "colTransit": "Transit",
+      "colCost": "Coût réel / livrée",
+      "colInFlight": "En circulation",
+      "liveSuffix": "en direct",
+      "volume": "{delivered} livrées · {returned} retours",
+      "stuckValue": "{n} bloquées",
+      "noneInFlight": "aucun colis en circulation",
+      "noResolved": "pas encore de livraison résolue",
+      "thin": "{n} commandes — pas assez pour un taux",
+      "days": "{n} j",
+      "best": "meilleur",
+      "gap": "{name} livre {pts} points de plus",
+      "empty": "Aucun transporteur sur la période.",
+      "costHint": "Frais de livraison + {spend} de frais de retour, répartis sur les livraisons réussies",
+      "returnSpend": "{amount} perdus en retours — {n} colis repartis sans vente"
+    },
+    "delta": {
+      "vsPrevious": "vs 30 j précédents",
+      "basedOn": "sur {n} commandes",
+      "tooFew": "{n} commandes — trop peu pour comparer",
+      "noBaseline": "pas d'historique",
+      "vsMean": "vs moy. 7 j"
+    },
+    "window": "30 derniers jours",
+    "noActivity": "Aucune activité sur cette période — dernière le {date}"
   },
   "adSpend": {
     "title": "Dépenses pub",

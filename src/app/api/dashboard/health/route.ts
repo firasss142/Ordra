@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActor } from "@/lib/auth/actor";
-import { getDashboardSummary } from "@/lib/dashboard/summary";
+import { getDashboardHealth } from "@/lib/dashboard/health";
 import { todayISO } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,10 @@ export async function GET(req: NextRequest) {
   const toDate = normalizeDate(req.nextUrl.searchParams.get("to_date"));
   const marketIdParam = req.nextUrl.searchParams.get("market_id");
 
-  const summary = await getDashboardSummary({
+  // Financial role gating happens inside getDashboardHealth (money block is
+  // nulled and markets emptied for non-super_admin), so unlike the old summary
+  // route there is no second, drift-prone copy of the rule here.
+  const health = await getDashboardHealth({
     fromDate,
     toDate,
     marketId: actor.role === "super_admin" ? marketIdParam ?? "all" : null,
@@ -28,16 +31,10 @@ export async function GET(req: NextRequest) {
     actorMarketId: actor.market_id,
   });
 
-  if (actor.role !== "super_admin") {
-    summary.kpis.revenue = null;
-    summary.kpis.netProfit = null;
-    summary.footer.adSpend = null;
-    summary.markets = [];
-    summary.topProducts = summary.topProducts.map((p) => ({ ...p, revenue: null }));
-  }
-
   return NextResponse.json(
-    { data: summary },
-    { headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=55" } },
+    { data: health },
+    // Period-scoped figures change slowly; the client polls at 5 min and the
+    // realtime mutate() now targets /queues instead of this route.
+    { headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=300" } },
   );
 }

@@ -553,61 +553,9 @@
     "rejected": "المرفوضة",
     "rejectionEmpty": "لا توجد رفوضات في الفترة المحددة.",
     "comingSoon": "بيانات لوحة التحكم ستكون متاحة قريباً.",
-    "kpi": {
-      "revenue": "رقم المعاملات",
-      "netProfit": "صافي الربح",
-      "confirmationRate": "معدل التأكيد",
-      "rejectionRate": "معدل الرفض",
-      "ordersProcessed": "الطلبات المُعالَجة",
-      "agentsOnline": "الوكلاء النشطون",
-      "agents": "الوكلاء",
-      "idleSuffix": "غير نشط",
-      "offlineSuffix": "غير متصل",
-      "vsPreviousPeriod": "مقارنة بالفترة السابقة",
-      "deliveryRate": "معدل التوصيل",
-      "openOrders": "الطلبات المفتوحة"
-    },
     "filters": {
-      "today": "اليوم",
-      "week": "7 أيام",
-      "month": "30 يوماً",
-      "custom": "مخصص",
       "allMarkets": "كل الأسواق",
-      "marketPlaceholder": "اختر السوق",
-      "vsYesterday": "مقارنة بالأمس",
-      "vsLastWeek": "مقارنة بالأسبوع الماضي",
-      "vsLastMonth": "مقارنة بالشهر الماضي",
-      "vsPrevious": "مقارنة بالفترة السابقة",
-      "latestDataNotice": "لا يوجد نشاط حديث — عرض أحدث البيانات حتى {date}",
-      "jumpToToday": "الانتقال إلى اليوم"
-    },
-    "sections": {
-      "trend": "التأكيد والرفض — آخر 30 يوماً",
-      "pipeline": "الطلبات الجارية",
-      "presence": "الفريق المباشر",
-      "rejections": "أسباب الرفض",
-      "markets": "الأسواق",
-      "topPerformers": "أفضل أداء اليوم",
-      "topProducts": "أفضل المنتجات أداءً"
-    },
-    "presence": {
-      "online": "متصل",
-      "idle": "غير نشط",
-      "offline": "غير متصل",
-      "queueSuffix": "في الطابور",
-      "empty": "لا يوجد وكلاء في هذا النطاق.",
-      "viewAll": "عرض كل الوكلاء"
-    },
-    "markets": {
-      "drill": "عرض السوق"
-    },
-    "pipeline": {
-      "new": "جديدة",
-      "assigned": "مُسنَدة",
-      "attempts": "قيد المحاولة",
-      "callback": "مكالمات لاحقة",
-      "confirmed": "مؤكدة",
-      "uploaded": "مُرسَلة"
+      "marketPlaceholder": "اختر السوق"
     },
     "rejectionReasons": {
       "refus_client": "رفض العميل",
@@ -618,35 +566,76 @@
       "non_serieux": "غير جاد",
       "autre": "أخرى"
     },
-    "footer": {
-      "followUps": "متابعات مفتوحة",
-      "campaigns": "حملات نشطة",
-      "adSpend": "مصاريف الإعلانات"
+    "scope": {
+      "realized": "على الطلبات المسلَّمة",
+      "cohort": "حسب يوم الطلب",
+      "now": "مباشر"
     },
-    "attention": {
-      "overdueCallbacks": "{count, plural, one {# تذكير متأخر} other {# تذكيرات متأخرة}}",
-      "unassignedOverflow": "{count, plural, one {# طلب غير مُسنَد > 2 ساعة} other {# طلبات غير مُسنَدة > 2 ساعة}}",
-      "lowStock": "{count, plural, one {# منتج بمخزون منخفض} other {# منتجات بمخزون منخفض}}",
-      "viewAll": "عرض الكل",
-      "allClear": "كل شيء على ما يرام"
+    "money": {
+      "grossMargin": "الهامش الإجمالي",
+      "netProfit": "صافي الربح",
+      "revenue": "رقم المعاملات",
+      "afterCosts": "بعد التكلفة والتوصيل والمرتجعات والتغليف",
+      "adMissing": "بدون الإعلانات — لم تُسجَّل أي مصاريف",
+      "adPartial": "بدون الإعلانات — {covered} يوماً مغطى من {total}",
+      "committed": "مبيعات قيد الانتظار",
+      "committedHint": "{n} مُرسَلة لم تُوصَّل بعد",
+      "committedRate": "معدل التوصيل {rate}"
     },
-    "insights": {
-      "confAboveAvg": "{diff}% فوق متوسط الأسبوع",
-      "confBelowAvg": "{diff}% تحت متوسط الأسبوع",
-      "topProduct": "المنتج الأفضل : {name} ({count} مُوصَّلة)",
-      "leadingAgent": "القائد : {name} ({rate} %)"
+    "funnel": {
+      "leads": "الطلبات المستلمة",
+      "deliveredOf": "{delivered} تم توصيلها حتى الآن",
+      "rates": "{conf} تأكيد · {del} من المحسومة تم توصيلها",
+      "cohortOpen": "{pct}% لا تزال جارية — حد أدنى وليس نتيجة نهائية",
+      "received": "الطلبات",
+      "confirmedLabel": "المؤكدة",
+      "todaySuffix": "اليوم",
+      "overWeek": "{n} خلال {days} يوماً",
+      "confirmRate": "{n} خلال 30 يوماً · {rate} من التدفق"
     },
-    "topPerformers": {
-      "confirmed": "مؤكدة",
-      "onlineCount": "{online}/{total} وكيل متصل",
-      "viewAll": "عرض الفريق",
-      "empty": "لا يوجد وكلاء نشطون اليوم"
-    },
-    "topProducts": {
+    "chart": {
+      "title": "الطلبات حسب اليوم",
       "delivered": "مُوصَّلة",
-      "revenue": "إيراد محقق",
-      "empty": "لا توجد توصيلات في هذه الفترة"
-    }
+      "returned": "مرتجعة",
+      "rejected": "مرفوضة",
+      "open": "قيد المعالجة",
+      "cohortNote": "الأيام الأخيرة لا تزال تحتوي على طلبات غير محسومة"
+    },
+    "carriers": {
+      "title": "شركات التوصيل",
+      "window": "آخر {days} يوماً",
+      "overallRate": "نسبة التوصيل",
+      "overallScope": "كل الشركات",
+      "delivered": "مُوصَّلة",
+      "returned": "مرتجعة",
+      "resolved": "محسومة",
+      "colCarrier": "الشركة",
+      "colRate": "نسبة التوصيل",
+      "colTransit": "مدة النقل",
+      "colCost": "التكلفة الفعلية / توصيلة",
+      "colInFlight": "قيد التوصيل",
+      "liveSuffix": "مباشر",
+      "volume": "{delivered} مُوصَّلة · {returned} مرتجعة",
+      "stuckValue": "{n} متوقفة",
+      "noneInFlight": "لا توجد طرود قيد التوصيل",
+      "noResolved": "لا توجد عمليات توصيل محسومة بعد",
+      "thin": "{n} طلبات — غير كافية لحساب النسبة",
+      "days": "{n} يوم",
+      "best": "الأفضل",
+      "gap": "{name} يوصّل بفارق {pts} نقطة",
+      "empty": "لا توجد شركات توصيل في الفترة.",
+      "costHint": "رسوم التوصيل + {spend} رسوم إرجاع، موزّعة على عمليات التوصيل الناجحة",
+      "returnSpend": "{amount} خسائر بسبب المرتجعات — {n} طرداً عاد دون بيع"
+    },
+    "delta": {
+      "vsPrevious": "مقارنة بالـ 30 يوماً السابقة",
+      "basedOn": "من {n} طلباً",
+      "tooFew": "{n} طلبات — غير كافية للمقارنة",
+      "noBaseline": "لا يوجد سجل سابق",
+      "vsMean": "مقارنة بمتوسط 7 أيام"
+    },
+    "window": "آخر 30 يوماً",
+    "noActivity": "لا يوجد نشاط في هذه الفترة — آخر نشاط في {date}"
   },
   "adSpend": {
     "title": "مصاريف الإعلانات",

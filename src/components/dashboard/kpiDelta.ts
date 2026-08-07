@@ -1,4 +1,15 @@
-import type { KpiValue } from "@/lib/dashboard/summary";
+// KpiValue used to live in lib/dashboard/summary, which the dashboard health
+// refactor removed. It is declared here because the remaining consumers are
+// P&L, product rentability and the finance hero card — none of which are the
+// dashboard. Those surfaces still use the old, unguarded delta formatting; the
+// dashboard now goes through lib/dashboard/confidence instead, which refuses to
+// print a percentage when the denominator is too small to support one.
+export interface KpiValue {
+  current: number;
+  previous: number;
+  delta: number;
+  deltaPct: number | null;
+}
 
 export type Tone = "neutral" | "success" | "critical";
 
