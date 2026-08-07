@@ -30,6 +30,12 @@ export interface OrdersListRow {
   carrier_barcode_deleted_at: string | null;
   carrier_barcode_deleted_carrier_code: string | null;
   callback_scheduled_at: string | null;
+  /**
+   * Calls actually made. The status enum stops at `attempt_3` while
+   * `max_call_attempts` is configurable per market (8 in Libya), so this is the
+   * only honest source once an order passes three.
+   */
+  attempts_count: number | null;
   created_at: string;
   updated_at: string;
   repeat_kind?: import("@/lib/customer-history/classify").RepeatKind;

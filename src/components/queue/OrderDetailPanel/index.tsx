@@ -52,10 +52,10 @@ import { canReopenOrder, EDIT_BLOCKED_STATUSES, isReferenceDeletedUpload } from 
 import { fetcher } from "@/lib/swr-config";
 import { isEditableTarget } from "@/lib/dom";
 import { type ComboboxOption } from "@/components/ui/Combobox";
-import { type BadgeTone } from "@/components/ui/Badge";
 import { useOrderMutation } from "@/hooks/useOrderMutation";
 import { useOrderDetailRealtime } from "@/hooks/useOrderDetailRealtime";
 import { useCarriers } from "@/hooks/useCarriers";
+import { useMaxCallAttempts } from "@/hooks/useMaxCallAttempts";
 import { useProductSheet } from "@/hooks/useProductSheet";
 import { ProductBriefBanner } from "../ProductBriefBanner";
 import { ProductSheetDrawer } from "../ProductSheetDrawer";
@@ -197,30 +197,6 @@ const TERMINAL_STATUSES = new Set([
   "deleted",
   "cancelled",
 ]);
-
-const STATUS_TONE: Record<string, BadgeTone> = {
-  pending: "neutral",
-  assigned: "neutral",
-  attempt_1: "warning",
-  attempt_2: "warning",
-  attempt_3: "warning",
-  callback_scheduled: "warning",
-  confirmed: "action",
-  dispatch_scheduled: "action",
-  uploaded: "action",
-  scanned: "action",
-  dispatched: "action",
-  deposit: "action",
-  in_transit: "action",
-  unverified: "warning",
-  to_be_returned: "warning",
-  received: "action",
-  delivered: "success",
-  returned: "critical",
-  rejected: "critical",
-  cancelled: "critical",
-  deleted: "neutral",
-};
 
 
 export interface CallTerminatedContext {
@@ -421,6 +397,8 @@ export function OrderDetailPanel({
 
   // Same cached list, so naming the carrier costs no extra request. `null` is
   // "no carrier yet", which is a real state — not a lookup that hasn't landed.
+  const maxCallAttempts = useMaxCallAttempts(order?.market_id ?? null);
+
   const assignedCarrierName = order?.carrier_id
     ? carriersForOrderMarket.find((c) => c.id === order.carrier_id)?.name ?? null
     : null;
@@ -1098,7 +1076,8 @@ export function OrderDetailPanel({
               ? ts(order.status as Parameters<typeof ts>[0])
               : ts("pending")
           }
-          statusTone={order ? STATUS_TONE[order.status] ?? "neutral" : "neutral"}
+          attemptsCount={order?.attempts_count}
+          maxAttempts={maxCallAttempts}
           saveFlash={saveFlash}
           carrierDeletedChip={
             order?.carrier_barcode_deleted_at && !order.tracking_number

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { X, Check, RotateCcw, Copy } from "lucide-react";
-import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
 import { classifyOrderAge, formatOrderAge, AGE_TONE } from "@/lib/orders/order-age";
 
 export interface PanelHeaderProps {
@@ -15,8 +15,11 @@ export interface PanelHeaderProps {
   status: string;
   /** Localised status label e.g. "Confirmé" / "مؤكد". */
   statusLabel: string;
-  statusTone: BadgeTone;
   locale: string;
+  /** Calls made — the status label stops counting at three. */
+  attemptsCount?: number | null;
+  /** The market's `max_call_attempts`. Omit until settings load. */
+  maxAttempts?: number | null;
   /** When provided, renders the "Change status" affordance next to the badge. */
   onChangeStatus?: () => void;
   /** Inline save-flash signal coming from inline-edit commits. */
@@ -44,8 +47,9 @@ export function PanelHeader({
   createdAt,
   status,
   statusLabel,
-  statusTone,
   locale,
+  attemptsCount,
+  maxAttempts,
   onChangeStatus,
   saveFlash,
   carrierDeletedChip,
@@ -72,9 +76,13 @@ export function PanelHeader({
   return (
     <div className="flex-shrink-0 border-b border-oms-border bg-oms-surface">
       <div className="flex h-[50px] items-center gap-2.5 px-[18px]">
-        <Badge tone={statusTone} dot>
-          {statusLabel}
-        </Badge>
+        <OrderStatusBadge
+          status={status}
+          label={statusLabel}
+          locale={locale}
+          attemptsCount={attemptsCount}
+          maxAttempts={maxAttempts}
+        />
 
         <span
           data-testid="panel-age"

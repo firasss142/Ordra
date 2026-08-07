@@ -2,8 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { MoreHorizontal, RotateCcw, AlertTriangle } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
-import type { BadgeTone } from "@/components/ui/Badge";
+import { OrderStatusBadge } from "./OrderStatusBadge";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
 import { DuplicateOrderBadge } from "@/components/shared/DuplicateOrderBadge";
 import { StatusHistoryPopover } from "./StatusHistoryPopover";
@@ -14,30 +13,7 @@ import { classifyOrderAge, formatOrderAge, AGE_TONE } from "@/lib/orders/order-a
 import type { OrdersListRow } from "@/hooks/useOrdersList";
 import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
 import { AgentAvatar } from "@/components/shared/AgentAvatar";
-
-const STATUS_TONE: Record<string, BadgeTone> = {
-  pending: "neutral",
-  assigned: "neutral",
-  attempt_1: "warning",
-  attempt_2: "warning",
-  attempt_3: "warning",
-  callback_scheduled: "warning",
-  confirmed: "action",
-  dispatch_scheduled: "action",
-  uploaded: "action",
-  scanned: "action",
-  dispatched: "action",
-  deposit: "action",
-  in_transit: "action",
-  unverified: "warning",
-  to_be_returned: "warning",
-  received: "action",
-  delivered: "success",
-  returned: "critical",
-  rejected: "critical",
-  cancelled: "critical",
-  deleted: "neutral",
-};
+import { useMaxCallAttempts } from "@/hooks/useMaxCallAttempts";
 
 interface Props {
   order: OrdersListRow;
@@ -167,7 +143,6 @@ function Row({
   recoveringId,
   onDuplicateChange,
 }: Props) {
-  const statusTone = STATUS_TONE[order.status] ?? "neutral";
   // Prefer the internal catalog name; fall back to the external storefront
   // string for orders that never resolved to a product.
   const productDisplayName = order.product_display_name || order.product_name;
@@ -179,6 +154,10 @@ function Row({
     new Date(order.callback_scheduled_at).getTime() <= Date.now();
   const hasPriorRejections = (order.prior_rejected_count ?? 0) > 0;
   const age = classifyOrderAge(order.created_at, order.status);
+  // Per row rather than per table: a super_admin's list spans both markets, and
+  // each has its own ceiling. SWR dedupes on the key, so this is one request
+  // per market however many rows are on screen.
+  const maxAttempts = useMaxCallAttempts(order.market_id);
 
   return (
     <tr
@@ -332,7 +311,14 @@ function Row({
             orderId={order.id}
             sourcePlatform={order.external_platform ?? null}
           >
-            <Badge tone={statusTone}>{labels.status}</Badge>
+            <OrderStatusBadge
+              status={order.status}
+              label={labels.status}
+              locale={locale}
+              attemptsCount={order.attempts_count}
+              maxAttempts={maxAttempts}
+              className="cursor-pointer hover:border-oms-border-strong"
+            />
           </StatusHistoryPopover>
           {order.carrier_barcode_deleted_at && (
             <span

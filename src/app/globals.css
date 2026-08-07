@@ -52,10 +52,23 @@
      the same amber, but one is about the clock and the other is not. */
   --oms-warn: var(--oms-age-warm);
   --oms-warn-bg: #FBF1E2;
+  /* Amber is legible on white but only reaches 4.05:1 on its own tint, so text
+     sitting inside a warn-tinted badge uses this deeper step instead. Same
+     relationship --oms-accent-ink has to --oms-accent. */
+  --oms-warn-ink: #8F5608;
   --oms-bad: var(--oms-age-late);
   --oms-bad-bg: #FBECEA;
   --oms-ok: #2F7A4A;
   --oms-ok-bg: #E8F4EC;
+
+  /* Carrier-side states. A cool hue so phase 2 can never be mistaken for
+     phase 1's violet — the same pair CarrierMark derives its marks from, so a
+     carrier status and a carrier mark read as one family. */
+  --oms-info: #0E7A6E;
+  --oms-info-bg: #E4F3F0;
+  /* Clears 4.5:1 on the tint with room to spare, where --oms-info itself only
+     just scrapes it. */
+  --oms-info-ink: #0B6A60;
 
   /* Sidebar — dark surface (refreshed) */
   --sidebar-bg:              #0E1013;

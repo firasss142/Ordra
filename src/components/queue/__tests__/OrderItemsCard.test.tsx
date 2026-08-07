@@ -64,17 +64,17 @@ describe("OrderItemsCard — editable unit_price", () => {
   it("renders the unit price and turns it into a number input on click when editable", () => {
     renderCard();
     // Price text "50" is shown (also the quantity is 1; assert price specifically via click-to-edit).
-    const priceText = screen.getAllByText("50")[0];
+    const priceText = screen.getAllByText("50.00")[0];
     fireEvent.click(priceText);
-    const input = screen.getByDisplayValue("50") as HTMLInputElement;
+    const input = screen.getByDisplayValue("50.00") as HTMLInputElement;
     expect(input.type).toBe("number");
   });
 
   it("committing a new price calls onPatchItem with { unit_price }", () => {
     const { onPatchItem } = renderCard();
-    const priceText = screen.getAllByText("50")[0];
+    const priceText = screen.getAllByText("50.00")[0];
     fireEvent.click(priceText);
-    const input = screen.getByDisplayValue("50");
+    const input = screen.getByDisplayValue("50.00");
     fireEvent.change(input, { target: { value: "75" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onPatchItem).toHaveBeenCalledWith("item-1", { unit_price: 75 });
@@ -82,18 +82,18 @@ describe("OrderItemsCard — editable unit_price", () => {
 
   it("does not allow editing the price when canEdit is false", () => {
     renderCard({ canEdit: false });
-    const priceText = screen.getAllByText("50")[0];
+    const priceText = screen.getAllByText("50.00")[0];
     fireEvent.click(priceText);
-    expect(screen.queryByDisplayValue("50")).toBeNull();
+    expect(screen.queryByDisplayValue("50.00")).toBeNull();
   });
 
   it("lets the synthetic legacy row edit its price via onCommitLegacyPrice", () => {
     const { onCommitLegacyPrice, onPatchItem } = renderCard({
       items: [makeItem({ id: "legacy" })],
     });
-    const priceText = screen.getAllByText("50")[0];
+    const priceText = screen.getAllByText("50.00")[0];
     fireEvent.click(priceText);
-    const input = screen.getByDisplayValue("50");
+    const input = screen.getByDisplayValue("50.00");
     fireEvent.change(input, { target: { value: "90" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onCommitLegacyPrice).toHaveBeenCalledWith(90);
@@ -102,9 +102,9 @@ describe("OrderItemsCard — editable unit_price", () => {
 
   it("rejects a negative price without calling onPatchItem", () => {
     const { onPatchItem } = renderCard();
-    const priceText = screen.getAllByText("50")[0];
+    const priceText = screen.getAllByText("50.00")[0];
     fireEvent.click(priceText);
-    const input = screen.getByDisplayValue("50");
+    const input = screen.getByDisplayValue("50.00");
     fireEvent.change(input, { target: { value: "-5" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onPatchItem).not.toHaveBeenCalled();

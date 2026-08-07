@@ -15,7 +15,6 @@ function renderHeader(props: Partial<React.ComponentProps<typeof PanelHeader>> =
         createdAt={new Date(Date.now() - 4 * HOUR).toISOString()}
         status="pending"
         statusLabel="En attente"
-        statusTone="neutral"
         locale="fr"
         saveFlash={null}
         onClose={onClose}

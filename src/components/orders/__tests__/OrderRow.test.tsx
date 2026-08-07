@@ -42,6 +42,7 @@ const mockOrder: OrdersListRow = {
   carrier_barcode_deleted_at: null,
   carrier_barcode_deleted_carrier_code: null,
   callback_scheduled_at: null,
+  attempts_count: null,
   created_at: "2026-05-20T14:32:00",
   updated_at: new Date().toISOString(),
   repeat_kind: "none",
