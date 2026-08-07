@@ -479,6 +479,53 @@ opens must be the same set. Concretely:
 - Measure states, not snapshots. Confirmation is transient; counting `status = confirmed`
   alone reported 7.7% where the true rate was 78.7%.
 
+### F-bis. Status badges — three encodings, none of them alone
+
+Status was carried by hue and nothing else, and the hue was assigned by category
+rather than by urgency. Measured over the newest 100 orders, 35% were `uploaded`
+and 28% `rejected` — both settled — while `pending` sat in a grey outline. Roughly
+two-thirds of the column shouted for states nobody had to act on. **Red on a quarter
+of the rows is not a signal; it is the background.**
+
+Three encodings now share the load. Each is independently sufficient to tell two
+statuses apart, so losing any one of them degrades rather than blinds.
+
+| Encoding | Carries | Values |
+|---|---|---|
+| **Hue** | phase + outcome | warm (`neutral` / `amber` / `violet`) through confirmation, cool (`teal` / `green`) once with the carrier, `red` for an unsuccessful end |
+| **Shape** | open or closed | round (`ring` / `solid` / `half`) while someone owes an action; angular (`check` / `cross` / `square`) once handed off or finished |
+| **Weight** | how much it wants you | `quiet` → `medium` → `loud` |
+
+**Weight is the lever, not hue.** Every state keeps a pill — the hue is how you
+recognise it — but how much the pill asserts itself is what ranks the column:
+
+- **quiet** — 70% tint, `font-medium`. Settled: `uploaded` → `delivered`, `rejected`,
+  `cancelled`, `deleted`. Red still reads as red; it just stops being an alarm.
+- **medium** — full tint, `font-semibold`. Open work: `pending`, `attempt_*`,
+  `callback_scheduled`, `to_be_returned`.
+- **loud** — full tint plus a coloured border, `font-[650]`. **A border is the only
+  treatment that reads as an alarm, so it is spent last** — currently only when call
+  attempts are exhausted.
+
+Shape encodes open/closed rather than phase because the glyph vocabulary has no round
+success mark, and forcing one would have made the family inconsistent. Phase is
+already unmistakable from hue: nothing before the carrier upload is teal.
+
+**Rules**
+
+- Colour is never the only signal. Reuse `components/shared/StatusGlyph` — it exists
+  for this and its own docstring says so.
+- One presentation map, `lib/orders/status-presentation`. A per-surface `STATUS_TONE`
+  with a `?? "neutral"` fallback is how a status silently renders as "some grey thing".
+- The glyph sits in a fixed-width slot so every label in a column starts at the same x.
+- Text on a tint uses the `-ink` step (`--oms-warn-ink`, `--oms-info-ink`,
+  `--oms-accent-ink`), not the base hue. Amber shipped at 4.05:1 against its own tint.
+  `lib/orders/status-contrast.test.ts` reads the tokens out of `globals.css` and fails
+  if any pair drops below 4.5:1.
+- A count in a label is a number that should be aligned and compared, not read as a
+  word. Derive it from data, never from the status string — `attempt_3` is a cap, not
+  a count, and the market's real ceiling lives in `max_call_attempts`.
+
 ### G. Order detail panel
 
 The panel opens from three surfaces (list, archive, agent queue) and uses the same layout for
