@@ -16,6 +16,13 @@ import type { AuthUser } from "@/types";
 
 interface Props {
   user: AuthUser;
+  /**
+   * "inline" sits inside the header row; "band" is the standalone strip beneath
+   * it. Desktop uses inline so the chrome is one 64px band instead of two,
+   * which is roughly two more orders visible before scrolling. Mobile keeps the
+   * band, where three tabs plus a search field cannot share a row.
+   */
+  variant?: "band" | "inline";
 }
 
 interface TabDef {
@@ -29,10 +36,12 @@ function AgentTabInner({
   tab,
   active,
   onHover,
+  inline,
 }: {
   tab: TabDef;
   active: boolean;
   onHover: () => void;
+  inline: boolean;
 }) {
   const Icon = tab.icon;
   return (
@@ -44,23 +53,23 @@ function AgentTabInner({
       onFocus={onHover}
       onTouchStart={onHover}
       className={[
-        // Mobile: each tab is an equal-width, centered column (no fixed
-        // right-margin) so the three tabs split the row cleanly without
-        // wrapping. Desktop keeps the inline auto-width tabs with me-8.
-        "flex-1 justify-center sm:flex-none sm:justify-start",
-        "inline-flex items-center gap-1.5 sm:gap-2 py-4 px-1 sm:me-8",
-        "text-[13px] sm:text-[14px] no-underline transition-colors duration-fast",
+        "inline-flex items-center no-underline transition-colors duration-fast",
         "border-b-2 -mb-px",
+        inline
+          ? // Inside the header row: full-height, compact, auto-width.
+            "h-full gap-2 px-3.5 text-[13.5px]"
+          : // Standalone band on mobile: equal-width columns that split the row.
+            "flex-1 justify-center gap-1.5 px-1 py-3.5 text-[13px]",
         active
           ? "font-bold text-agent-primary border-agent-primary"
-          : "font-medium text-agent-on-surface-variant border-transparent hover:text-agent-on-surface",
+          : "font-semibold text-agent-ink-3 border-transparent hover:text-agent-on-surface",
       ].join(" ")}
     >
       <Icon
         size={16}
         strokeWidth={2}
         aria-hidden="true"
-        className={active ? "text-agent-primary" : "text-agent-on-surface-variant/70"}
+        className={active ? "text-agent-primary" : "text-agent-ink-3 opacity-70"}
       />
       <span className="whitespace-nowrap">{tab.label}</span>
     </Link>
@@ -69,7 +78,7 @@ function AgentTabInner({
 
 const AgentTab = memo(AgentTabInner);
 
-function AgentNavTabsInner({ user }: Props) {
+function AgentNavTabsInner({ user, variant = "band" }: Props) {
   const pathname = usePathname();
   const tNav = useTranslations("nav");
   const tCrm = useTranslations("crm");
@@ -100,9 +109,15 @@ function AgentNavTabsInner({ user }: Props) {
     preload(key, fetcher);
   }, []);
 
+  const inline = variant === "inline";
+
   return (
     <nav
-      className="flex bg-surface-card border-b border-line-subtle px-2 sm:px-8"
+      className={
+        inline
+          ? "flex items-stretch h-full"
+          : "flex bg-agent-surface border-b border-agent-outline-variant px-2 lg:hidden"
+      }
       style={{ direction: user.direction === "rtl" ? "rtl" : "ltr" }}
     >
       {tabs.map((tab) => {
@@ -114,6 +129,7 @@ function AgentNavTabsInner({ user }: Props) {
             tab={tab}
             active={active}
             onHover={() => prefetchData(tab.prefetchKey)}
+            inline={inline}
           />
         );
       })}

@@ -8,7 +8,14 @@ export type StatusGlyphShape =
   | "cross"
   | "square";
 
-export type StatusGlyphTone = "default" | "muted";
+/**
+ * `inherit` takes the parent's colour instead of the monochrome ink. The orders
+ * table wants the mark to read as a separate token from the tint, so it uses
+ * `default`; the agent queue's pill wants the glyph, label and count to read as
+ * one object, so it uses `inherit`. Both stay legible because every hue's ink
+ * step clears 4.5:1 on its own tint.
+ */
+export type StatusGlyphTone = "default" | "muted" | "inherit";
 
 interface Props {
   shape: StatusGlyphShape;
@@ -20,7 +27,8 @@ interface Props {
  * glyph is redundant, never the sole signal (WCAG).
  */
 export function StatusGlyph({ shape, tone = "default" }: Props) {
-  const color = tone === "muted" ? "#6D7175" : "#1A1A1A";
+  const color =
+    tone === "inherit" ? "currentColor" : tone === "muted" ? "#6D7175" : "#1A1A1A";
   return (
     <svg
       width={8}

@@ -1331,6 +1331,16 @@
     "title": "Ma file d'attente",
     "emptyState": "Aucune commande dans votre file d'attente",
     "callEnded": "Appel terminé",
+    "overdueShort": "En retard",
+    "columns": {
+      "customer": "Client",
+      "age": "Âge",
+      "lastAction": "Dernière action",
+      "status": "Statut",
+      "amount": "Montant"
+    },
+    "addressChanged": "Adresse modifiée",
+    "customerNote": "Note client",
     "noResponse": "Pas de réponse",
     "confirmed": "Confirmé",
     "rejected": "Rejeté",

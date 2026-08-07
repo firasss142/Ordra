@@ -8,6 +8,51 @@ import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Stamps `last_action_at` — when an agent last touched each order — onto the
+ * rows in place.
+ *
+ * The source is `order_history`, not `orders.updated_at`. `trg_orders_updated_at`
+ * (001_initial_schema.sql) fires on every write, and the Dexpress / Darb status
+ * polls write to these rows, so `updated_at` would report an order as freshly
+ * handled minutes after a cron touched it — a column that lies.
+ *
+ * Rows come back newest-first, so the first hit per order_id is the max. The
+ * limit is a backstop far above any real queue (an agent holds tens of orders,
+ * each with a handful of transitions); because the sort is descending, hitting
+ * it could only ever drop rows older than ones already kept.
+ */
+const HISTORY_ROW_CAP = 10_000;
+
+async function attachLastAgentAction(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  groups: Array<Array<Record<string, unknown> & { id: string }>>,
+): Promise<void> {
+  const ids = groups.flat().map((o) => o.id);
+  if (ids.length === 0) return;
+
+  const { data, error } = await supabase
+    .from("order_history")
+    .select("order_id, created_at")
+    .in("order_id", ids)
+    .eq("actor_type", "agent")
+    .order("created_at", { ascending: false })
+    .limit(HISTORY_ROW_CAP);
+
+  // A history read failing must not take the queue down with it — the column
+  // simply reads "never actioned" until the next poll.
+  const latest = new Map<string, string>();
+  if (!error) {
+    for (const row of (data ?? []) as Array<{ order_id: string; created_at: string }>) {
+      if (!latest.has(row.order_id)) latest.set(row.order_id, row.created_at);
+    }
+  }
+
+  for (const order of groups.flat()) {
+    order.last_action_at = latest.get(order.id) ?? null;
+  }
+}
+
 const ACTIVE_QUEUE_STATUSES = [
   "pending",
   "assigned",
@@ -105,6 +150,8 @@ export async function GET(_req: NextRequest) {
 
   const allOrders = flattenJoins((activeRes.data ?? []) as RawRow[]);
   const closedOrders = flattenJoins((closedRes.data ?? []) as RawRow[]);
+
+  await attachLastAgentAction(supabase, [allOrders, closedOrders]);
 
   const activeOrders = allOrders.filter((o) => {
     // confirmed (without carrier) stays in the active queue so the agent

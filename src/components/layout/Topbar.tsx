@@ -31,6 +31,12 @@ interface TopbarProps {
   actions?: React.ReactNode;
   /** Centered slot in the agent navbar — used for the queue search bar. */
   searchSlot?: React.ReactNode;
+  /**
+   * Primary navigation, rendered inline in the agent header rather than as a
+   * second band beneath it. Two stacked bands cost ~56px of every screen to
+   * hold one input and three links.
+   */
+  navSlot?: React.ReactNode;
   /** When provided, renders a hamburger button on mobile that calls this. */
   onMenuClick?: () => void;
   /**
@@ -61,7 +67,7 @@ const ONLINE_NOW_LABEL: Record<"fr" | "ar", string> = {
   ar: "متصل الآن",
 };
 
-function TopbarInner({ user, marketName, actions, searchSlot, onMenuClick, variant = "default" }: TopbarProps) {
+function TopbarInner({ user, marketName, actions, searchSlot, navSlot, onMenuClick, variant = "default" }: TopbarProps) {
   const router = useRouter();
   const [sessionExpired, setSessionExpired] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -238,6 +244,10 @@ function TopbarInner({ user, marketName, actions, searchSlot, onMenuClick, varia
               </div>
             )}
           </div>
+
+          {/* Primary navigation, inline. Hidden on mobile, where the tabs would
+              crowd the search out of the row entirely. */}
+          {navSlot && <div className="hidden lg:flex items-stretch self-stretch">{navSlot}</div>}
 
           {/* Centered search slot — grows to fill the space between identity
               and the trailing cluster. */}

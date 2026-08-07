@@ -32,6 +32,8 @@ function queryChainList(resolveWith: { data: unknown[]; error: unknown }) {
   chain.in = vi.fn().mockReturnValue(chain);
   chain.gte = vi.fn().mockReturnValue(chain);
   chain.order = vi.fn().mockReturnValue(chain);
+  // The order_history lookup that stamps last_action_at is bounded by .limit().
+  chain.limit = vi.fn().mockReturnValue(chain);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (chain as any).then = (resolve: (v: unknown) => unknown) =>
     Promise.resolve(resolve(resolveWith));
