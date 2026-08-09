@@ -81,6 +81,19 @@ const config: Config = {
           "info-ink": "var(--oms-info-ink)",
           "info-bg": "var(--oms-info-bg)",
         },
+        // Products console — scoped extension. Aliases only; the values live in
+        // globals.css. Seven tokens, because red/amber/blue reuse status.* and
+        // only the grass green was genuinely missing (status.success is a teal,
+        // and accent is reserved for two specific uses by the design system).
+        prod: {
+          brand: "var(--prod-brand)",
+          "brand-hover": "var(--prod-brand-hover)",
+          "brand-soft": "var(--prod-brand-soft)",
+          "brand-tint": "var(--prod-brand-tint)",
+          pos: "var(--prod-pos)",
+          "info-bg": "var(--prod-info-bg)",
+          "neutral-bg": "var(--prod-neutral-bg)",
+        },
         status: {
           action: "#2C6ECB",
           success: "#008060",

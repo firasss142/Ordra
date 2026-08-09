@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { ProductsPageClient } from "./ProductsPageClient";
 
@@ -23,13 +22,12 @@ export default async function ProductsPage({
 
   if (!profile) redirect(`/${params.locale}/login`);
 
-  const t = await getTranslations({ locale: params.locale, namespace: "products" });
-
+  // The h1 and subtitle moved into the client component so they can sit on the
+  // same row as the header actions, matching /orders. This shell now only does
+  // auth + role resolution; the hardcoded #F6F6F7 / #1A1A1A hexes and the
+  // 24px/700 title (the design system calls for 20–22/600) are gone with it.
   return (
-    <div style={{ padding: 24, backgroundColor: "#F6F6F7", minHeight: "100vh" }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: "#1A1A1A", margin: "0 0 24px 0" }}>
-        {t("title")}
-      </h1>
+    <div className="min-h-screen bg-surface-page px-6 pb-16 pt-6 md:px-8">
       <ProductsPageClient
         role={profile.role}
         marketId={profile.market_id ?? ""}

@@ -55,17 +55,45 @@ export async function GET(req: NextRequest) {
 
   const countOpts = paginate ? { count: "exact" as const } : undefined;
 
+  // Explicit column list, never "*". A missing column under "*" arrives as an
+  // absent key with no error — that is exactly how unit_cogs, packing_cost and
+  // is_active went undetected long enough to render "NaN LYD", paint every
+  // health dot red, and make the row toggle unable to deactivate anything.
+  // Naming the columns turns a view/route drift into a PostgREST error.
+  // Widened by 20260824000001_product_inventory_view_full_columns.sql.
+  const VIEW_COLUMNS = [
+    "id",
+    "market_id",
+    "name",
+    "sku",
+    "image_url",
+    "unit_cogs",
+    "packing_cost",
+    "confirmation_processing_cost",
+    "default_price",
+    "initial_stock",
+    "current_stock",
+    "system_inventory",
+    "real_inventory",
+    "low_stock_threshold",
+    "damaged_return_count",
+    "is_active",
+  ].join(", ");
+
+  // Agents never receive cost columns. Enforced by the select list itself
+  // rather than by stripping keys afterwards, so there is no path where a
+  // refactor accidentally leaks them.
+  const AGENT_COLUMNS =
+    "id, name, image_url, current_stock, is_active, market_id";
+
   let query = useView
     ? supabase
         .from("product_inventory_view")
-        .select("*, product_variants(count)", countOpts)
+        .select(`${VIEW_COLUMNS}, product_variants(count)`, countOpts)
         .order("name", { ascending: true })
     : supabase
         .from("products")
-        .select(
-          "id, name, image_url, current_stock, is_active, market_id, product_variants(count)",
-          countOpts,
-        )
+        .select(`${AGENT_COLUMNS}, product_variants(count)`, countOpts)
         .order("name", { ascending: true });
 
   if (paginate) {
@@ -76,6 +104,13 @@ export async function GET(req: NextRequest) {
 
   if (targetMarketId) {
     query = query.eq("market_id", targetMarketId);
+  }
+
+  // NewLeadModal and ConvertLeadModal have always sent &is_active=true; the
+  // route never read it, so both pickers listed deactivated products.
+  const rawActive = req.nextUrl.searchParams.get("is_active");
+  if (rawActive === "true" || rawActive === "false") {
+    query = query.eq("is_active", rawActive === "true");
   }
 
   // Server-side name search — filters the WHOLE catalog, not the current page.
@@ -89,27 +124,15 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 
-  // `product_inventory_view` carries stock columns only, so thumbnails come
-  // from a second indexed lookup rather than an ALTER on the view. Pickers
-  // that show the product photo (orders facet, product sheet) need it.
-  const ids = (data ?? []).map((p) => (p as { id: string }).id);
-  const images = new Map<string, string | null>();
-  if (ids.length > 0) {
-    const { data: imgRows } = await supabase
-      .from("products")
-      .select("id, image_url")
-      .in("id", ids);
-    for (const row of imgRows ?? []) {
-      images.set((row as { id: string }).id, (row as { image_url: string | null }).image_url);
-    }
-  }
-
-  const products = (data ?? []).map((p: Record<string, unknown>) => {
+  // PostgREST's inferred row type for an embedded aggregate does not survive a
+  // template-literal select string, so the rows are widened once here.
+  const rows = (data ?? []) as unknown as Record<string, unknown>[];
+  const products = rows.map((p) => {
     const { product_variants, ...rest } = p;
     const variants = product_variants as { count: number }[] | undefined;
     return {
       ...rest,
-      image_url: images.get(p.id as string) ?? (rest.image_url as string | null) ?? null,
+      image_url: (rest.image_url as string | null) ?? null,
       variant_count: variants?.[0]?.count ?? 0,
     };
   });

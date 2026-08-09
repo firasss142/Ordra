@@ -1547,7 +1547,23 @@
       "unitCogs": "تكلفة الوحدة",
       "packing": "التغليف",
       "status": "الحالة",
-      "actions": "الإجراءات"
+      "actions": "الإجراءات",
+      "sku": "الرمز",
+      "price": "سعر البيع",
+      "stockValue": "قيمة المخزون",
+      "revenue": "الإيرادات",
+      "netProfit": "الربح الصافي",
+      "margin": "الهامش",
+      "confRate": "التأكيد",
+      "delivRate": "التسليم",
+      "returnRate": "الإرجاع",
+      "leads": "العملاء",
+      "adSpend": "الإعلانات",
+      "costPerDelivered": "التكلفة / تسليم",
+      "damaged": "تالف",
+      "selectAll": "تحديد الكل",
+      "selectRow": "تحديد {name}",
+      "loading": "جارٍ تحميل المنتجات…"
     },
     "lowStock": "مخزون منخفض",
     "edit": "تعديل",
@@ -1563,7 +1579,9 @@
       "notePlaceholder": "سبب التعديل…",
       "cancel": "إلغاء",
       "apply": "تطبيق",
-      "saving": "جارٍ الحفظ…"
+      "saving": "جارٍ الحفظ…",
+      "errorQuantity": "يجب أن تكون الكمية عدداً صحيحاً غير صفري.",
+      "errorNote": "الملاحظة إلزامية."
     },
     "stockReasons": {
       "initial_stock": "مخزون أولي",
@@ -1588,7 +1606,11 @@
         "all": "الكل",
         "active": "نشط",
         "lowStock": "مخزون منخفض",
-        "losingMoney": "خاسر"
+        "losingMoney": "خاسر",
+        "inactive": "غير نشطة",
+        "outOfStock": "نفد المخزون",
+        "noSales": "بلا مبيعات",
+        "thinMargin": "هامش ضعيف"
       },
       "search": {
         "placeholder": "البحث عن منتج…"
@@ -1599,7 +1621,9 @@
       "activate": "تفعيل",
       "deactivate": "تعطيل",
       "clear": "إلغاء التحديد",
-      "confirmTitle": "تأكيد الإجراء الجماعي"
+      "confirmTitle": "تأكيد الإجراء الجماعي",
+      "label": "إجراءات جماعية",
+      "selected": "{count} محددة"
     },
     "metrics": {
       "confirmationRate": "تأكيد",
@@ -1630,7 +1654,9 @@
       "revenueDesc": "الإيرادات (الأعلى)",
       "marginAsc": "الهامش (الأدنى)",
       "stockAsc": "المخزون (الأدنى)",
-      "name": "الاسم"
+      "name": "الاسم",
+      "profitDesc": "الربح الصافي (الأعلى)",
+      "returnDesc": "الإرجاع (الأعلى)"
     },
     "create": {
       "title": "منتج جديد",
@@ -1725,10 +1751,83 @@
     "row": {
       "editThreshold": "تعديل الحد",
       "variants": "{count} نوع",
-      "moreVariants": "+{count} أخرى"
+      "moreVariants": "+{count} أخرى",
+      "edit": "تعديل المنتج",
+      "adjustStock": "تعديل المخزون",
+      "duplicate": "نسخ"
     },
     "selectMarketPrompt": "اختر سوقًا من الشريط الجانبي لعرض الكتالوج.",
-    "noSearchMatch": "لا يوجد منتج يطابق « {q} »."
+    "noSearchMatch": "لا يوجد منتج يطابق « {q} ».",
+    "subtitle": "إدارة الكتالوج والمخزون وأداء المنتجات",
+    "refreshing": "جارٍ التحديث…",
+    "exportCsv": "تصدير CSV",
+    "noPermission": "لا تملك صلاحية الوصول إلى ربحية المنتجات.",
+    "activeLabel": "نشط",
+    "inactive": "غير نشط",
+    "emptyStateHint": "أضف منتجاً أو غيّر الفلتر لعرض المنتجات.",
+    "emptySearchTitle": "لا نتائج",
+    "columns": {
+      "label": "الأعمدة",
+      "heading": "الأعمدة المعروضة",
+      "fixed": "ثابت"
+    },
+    "facets": {
+      "heading": "يتطلب انتباهاً",
+      "flagged": "{count} منتجات مُعلَّمة",
+      "allClear": "لا شيء للإبلاغ",
+      "showAll": "عرض الكل",
+      "outOfStock": "نفد",
+      "lowStock": "مخزون منخفض",
+      "losingMoney": "خسارة",
+      "noSales": "بلا مبيعات",
+      "inactive": "غير نشطة"
+    },
+    "kpi": {
+      "revenue": "إيرادات الفترة ({period})",
+      "netProfit": "الربح الصافي ({period})",
+      "stockValue": "قيمة المخزون",
+      "vsPrevious": "مقارنة بالفترة السابقة",
+      "vsValue": "مقابل {value} في الفترة السابقة",
+      "avgMargin": "متوسط الهامش {value}",
+      "units": "{count} قطعة",
+      "stockHealthy": "سليم",
+      "stockLow": "منخفض",
+      "stockOut": "نفد",
+      "stockSplit": "توزيع المخزون",
+      "loading": "جارٍ تحميل المؤشرات…"
+    },
+    "drawer": {
+      "profitability": "الربحية",
+      "stock": "المخزون والحركات",
+      "costs": "التكاليف والأسعار",
+      "netProfit": "الربح الصافي",
+      "delivered": "مسلّمة",
+      "returned": "مرتجعة",
+      "perDelivered": "الربح / تسليم",
+      "leads": "العملاء",
+      "confirmed": "مؤكدة",
+      "cogs": "تكلفة الشراء",
+      "packing": "التغليف",
+      "processing": "المعالجة",
+      "ads": "الإعلانات",
+      "systemVsReal": "النظام / الفعلي",
+      "initialStock": "المخزون الأولي",
+      "costsReadOnly": "تُعدَّل التكاليف من الصفحة الكاملة — super_admin فقط.",
+      "openFull": "فتح الصفحة الكاملة",
+      "close": "إغلاق",
+      "delivery": "التسليم",
+      "returns": "المرتجعات",
+      "net": "الصافي"
+    },
+    "period": {
+      "lastNDays": "آخر {count} يوماً",
+      "compact": "{count}ي"
+    },
+    "errors": {
+      "toggleFailed": "تعذّر تحديث {count} من المنتجات.",
+      "thresholdFailed": "تعذّر حفظ الحد.",
+      "generic": "خطأ {status}"
+    }
   },
   "mappings": {
     "title": "الربط",

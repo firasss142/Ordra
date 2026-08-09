@@ -1547,7 +1547,23 @@
       "unitCogs": "COGS unitaire",
       "packing": "Emballage",
       "status": "Statut",
-      "actions": "Actions"
+      "actions": "Actions",
+      "sku": "SKU",
+      "price": "Prix de vente",
+      "stockValue": "Valeur du stock",
+      "revenue": "CA",
+      "netProfit": "Profit net",
+      "margin": "Marge",
+      "confRate": "Conv.",
+      "delivRate": "Liv.",
+      "returnRate": "Ret.",
+      "leads": "Prospects",
+      "adSpend": "Publicité",
+      "costPerDelivered": "Coût / livrée",
+      "damaged": "Endommagés",
+      "selectAll": "Tout sélectionner",
+      "selectRow": "Sélectionner {name}",
+      "loading": "Chargement des produits…"
     },
     "lowStock": "Stock bas",
     "edit": "Modifier",
@@ -1563,7 +1579,9 @@
       "notePlaceholder": "Raison de l'ajustement…",
       "cancel": "Annuler",
       "apply": "Appliquer",
-      "saving": "Enregistrement…"
+      "saving": "Enregistrement…",
+      "errorQuantity": "La quantité doit être un entier non nul.",
+      "errorNote": "La note est obligatoire."
     },
     "stockReasons": {
       "initial_stock": "Stock initial",
@@ -1588,7 +1606,11 @@
         "all": "Tous",
         "active": "Actifs",
         "lowStock": "Stock bas",
-        "losingMoney": "Perdant de l'argent"
+        "losingMoney": "Perdant de l'argent",
+        "inactive": "Inactifs",
+        "outOfStock": "Rupture de stock",
+        "noSales": "Sans ventes",
+        "thinMargin": "Marge faible"
       },
       "search": {
         "placeholder": "Rechercher un produit…"
@@ -1599,7 +1621,9 @@
       "activate": "Activer",
       "deactivate": "Désactiver",
       "clear": "Effacer la sélection",
-      "confirmTitle": "Confirmer l'action groupée"
+      "confirmTitle": "Confirmer l'action groupée",
+      "label": "Actions groupées",
+      "selected": "{count} sélectionnées"
     },
     "metrics": {
       "confirmationRate": "Conf.",
@@ -1630,7 +1654,9 @@
       "revenueDesc": "CA (plus élevé)",
       "marginAsc": "Marge (plus faible)",
       "stockAsc": "Stock (plus bas)",
-      "name": "Nom"
+      "name": "Nom",
+      "profitDesc": "Profit net (plus élevé)",
+      "returnDesc": "Retours (plus élevé)"
     },
     "create": {
       "title": "Nouveau produit",
@@ -1725,10 +1751,83 @@
     "row": {
       "editThreshold": "Modifier le seuil",
       "variants": "{count} variante(s)",
-      "moreVariants": "+{count} autres"
+      "moreVariants": "+{count} autres",
+      "edit": "Modifier la fiche",
+      "adjustStock": "Ajuster le stock",
+      "duplicate": "Dupliquer"
     },
     "selectMarketPrompt": "Sélectionnez un marché dans la barre latérale pour afficher le catalogue.",
-    "noSearchMatch": "Aucun produit ne correspond à « {q} »."
+    "noSearchMatch": "Aucun produit ne correspond à « {q} ».",
+    "subtitle": "Gérez votre catalogue, vos stocks et la performance de vos produits",
+    "refreshing": "actualisation…",
+    "exportCsv": "Exporter CSV",
+    "noPermission": "Vous n'avez pas accès à la rentabilité des produits.",
+    "activeLabel": "Actif",
+    "inactive": "Inactif",
+    "emptyStateHint": "Ajoutez un produit ou changez de filtre pour en voir.",
+    "emptySearchTitle": "Aucun résultat",
+    "columns": {
+      "label": "Colonnes",
+      "heading": "Colonnes affichées",
+      "fixed": "fixe"
+    },
+    "facets": {
+      "heading": "Attention requise",
+      "flagged": "{count} produits signalés",
+      "allClear": "Rien à signaler",
+      "showAll": "Tout afficher",
+      "outOfStock": "Rupture",
+      "lowStock": "Stock bas",
+      "losingMoney": "Perte",
+      "noSales": "Sans ventes",
+      "inactive": "Inactifs"
+    },
+    "kpi": {
+      "revenue": "CA période ({period})",
+      "netProfit": "Profit net ({period})",
+      "stockValue": "Valeur du stock",
+      "vsPrevious": "vs période précédente",
+      "vsValue": "vs {value} la période précédente",
+      "avgMargin": "Marge moyenne {value}",
+      "units": "{count} unités",
+      "stockHealthy": "sains",
+      "stockLow": "bas",
+      "stockOut": "rupture",
+      "stockSplit": "Répartition du stock",
+      "loading": "Chargement des indicateurs…"
+    },
+    "drawer": {
+      "profitability": "Rentabilité",
+      "stock": "Stock et mouvements",
+      "costs": "Coûts et prix",
+      "netProfit": "Profit net",
+      "delivered": "Livrées",
+      "returned": "Retournées",
+      "perDelivered": "Profit / livrée",
+      "leads": "Prospects",
+      "confirmed": "Confirmées",
+      "cogs": "COGS",
+      "packing": "Emballage",
+      "processing": "Traitement",
+      "ads": "Publicité",
+      "systemVsReal": "Système / Réel",
+      "initialStock": "Stock initial",
+      "costsReadOnly": "Les coûts se modifient depuis la fiche complète — super_admin uniquement.",
+      "openFull": "Ouvrir la fiche complète",
+      "close": "Fermer",
+      "delivery": "Livraison",
+      "returns": "Retours",
+      "net": "Net"
+    },
+    "period": {
+      "lastNDays": "{count} derniers jours",
+      "compact": "{count}j"
+    },
+    "errors": {
+      "toggleFailed": "{count} produit(s) n'ont pas pu être mis à jour.",
+      "thresholdFailed": "Le seuil n'a pas pu être enregistré.",
+      "generic": "Erreur {status}"
+    }
   },
   "mappings": {
     "title": "Correspondances",

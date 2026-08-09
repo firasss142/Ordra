@@ -1,237 +1,180 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import useSWR from "swr";
 import { useTranslations } from "next-intl";
+import { Download, Plus } from "lucide-react";
 import type { Role } from "@/types";
-import { canManageProducts } from "@/lib/product-permissions";
+import { canManageProducts, canToggleProductActive } from "@/lib/product-permissions";
 import { canViewProductProfitability } from "@/lib/finance-permissions";
-import { canToggleProductActive } from "@/lib/product-permissions";
-import { isLowStock } from "@/lib/product-calculations";
 import { useMarketScope } from "@/context/market-scope";
+import { useProductsList } from "@/hooks/useProductsList";
 import {
-  ProductsFilterBar,
-  type ProductFilterMode,
-  type ProductFilterStatus,
-} from "@/components/products/ProductsFilterBar";
-import { ProductCatalogRow } from "@/components/products/ProductCatalogRow";
+  parseProductListQuery,
+  productListQueryToParams,
+  type ProductListQuery,
+} from "@/lib/products/list-filters";
+import { periodLengthDays } from "@/lib/date";
+import type {
+  ProductListRow,
+  ProductSortKey,
+  SortDirection,
+} from "@/types/product-list";
+import { ProductsKpiCards } from "@/components/products/ProductsKpiCards";
+import { ProductsExceptionBar } from "@/components/products/ProductsExceptionBar";
+import { ProductsToolbar } from "@/components/products/ProductsToolbar";
+import {
+  DEFAULT_VISIBLE_COLUMNS,
+  PRODUCT_COLUMNS,
+  ProductsTable,
+} from "@/components/products/ProductsTable";
 import { BulkActionBar } from "@/components/products/BulkActionBar";
 import { StockAdjustModal, type StockAdjustState } from "@/components/products/StockAdjustModal";
-import { PortfolioStrip } from "@/components/products/PortfolioStrip";
-import { PeriodSelector, type Period } from "@/components/shared/PeriodSelector";
-import type { BulkProductMetrics } from "@/app/api/products/profitability-bulk/route";
-import { sortProducts, type ProductSortKey } from "@/lib/product-sort";
-import { formatCurrency } from "@/lib/format";
-import { Pagination } from "@/components/shared/Pagination";
-import { Skeleton } from "@/components/ui/Skeleton";
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// Drawer is only ever opened by an interaction, so it never belongs in the
+// first paint. ssr:false because Sheet mounts a focus trap.
+const ProductDetailDrawer = dynamic(
+  () => import("@/components/products/ProductDetailDrawer").then((m) => m.ProductDetailDrawer),
+  { ssr: false },
+);
 
-interface ProductRow {
-  id: string;
-  market_id: string;
-  name: string;
-  unit_cogs: number;
-  packing_cost: number;
-  low_stock_threshold: number;
-  current_stock: number;
-  system_inventory?: number;
-  real_inventory?: number;
-  is_active: boolean;
-  variant_count: number;
-}
-
-interface Market {
-  id: string;
-  name: string;
-  code: string;
-}
-
-interface ProductsPageClientProps {
+interface Props {
   role: Role;
   marketId: string;
   locale: string;
 }
 
-function todayPeriod(): Period {
-  const d = new Date().toISOString().slice(0, 10);
-  return { from_date: d, to_date: d };
-}
+const COLUMN_STORAGE_KEY = "oms:products:columns";
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
-const DEFAULT_PRODUCTS_PAGE_SIZE = 25;
-
-function clampPage(n: number): number {
-  if (!Number.isFinite(n) || n < 1) return 1;
-  return Math.floor(n);
-}
-
-function pickPageSize(n: number): number {
-  return (PAGE_SIZE_OPTIONS as readonly number[]).includes(n)
-    ? n
-    : DEFAULT_PRODUCTS_PAGE_SIZE;
-}
-
-export function ProductsPageClient({ role, marketId, locale }: ProductsPageClientProps) {
+export function ProductsPageClient({ role, marketId, locale }: Props) {
   const t = useTranslations("products");
-
-  const { marketId: scopeMarketId } = useMarketScope();
-  // For super_admin, the selected market follows the global scope (TN/LY/All).
-  // For managers, marketId comes from the server as their pinned market.
-  const selectedMarketId =
-    role === "super_admin" ? (scopeMarketId ?? "") : marketId;
-
-  const canManage = canManageProducts(role, selectedMarketId, marketId);
-  const canViewPerf = canViewProductProfitability(role);
-  const canToggleActive = canToggleProductActive(role);
-
-  const defaultMode: ProductFilterMode =
-    role === "market_manager" ? "performance" : "catalogue";
-
-  const [mode, setMode] = useState<ProductFilterMode>(defaultMode);
-  const [status, setStatus] = useState<ProductFilterStatus>("all");
-  const [search, setSearch] = useState("");
-  // Search is server-side (whole catalog, not the current page) — debounced
-  // into the SWR key.
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
-    return () => clearTimeout(timer);
-  }, [search]);
-  const [period, setPeriod] = useState<Period>(todayPeriod);
-
-  // ---- URL-synced page + page size ----
   const router = useRouter();
   const pathname = usePathname();
   const urlParams = useSearchParams();
-  const page = clampPage(Number(urlParams.get("page") ?? "1"));
-  const limit = pickPageSize(Number(urlParams.get("limit") ?? DEFAULT_PRODUCTS_PAGE_SIZE));
 
-  const setQuery = useCallback(
-    (patch: { page?: number; limit?: number }) => {
-      const next = new URLSearchParams(urlParams);
-      if (patch.page !== undefined) {
-        patch.page === 1 ? next.delete("page") : next.set("page", String(patch.page));
-      }
-      if (patch.limit !== undefined) {
-        patch.limit === DEFAULT_PRODUCTS_PAGE_SIZE
-          ? next.delete("limit")
-          : next.set("limit", String(patch.limit));
-      }
-      const qs = next.toString();
+  const { marketId: scopeMarketId } = useMarketScope();
+  const selectedMarketId = role === "super_admin" ? (scopeMarketId ?? "") : marketId;
+
+  const canManage = canManageProducts(role, selectedMarketId, marketId);
+  const canToggleActive = canToggleProductActive(role);
+  const canViewPerf = canViewProductProfitability(role);
+
+  // The URL is the single source of truth for everything the server sees.
+  // Previously filter/sort lived in useState while page lived in the URL, so a
+  // filtered view was neither shareable nor survivable across a reload.
+  const query: ProductListQuery = useMemo(
+    () => parseProductListQuery(urlParams),
+    [urlParams],
+  );
+
+  const patchQuery = useCallback(
+    (patch: Partial<ProductListQuery>) => {
+      const next: ProductListQuery = { ...query, ...patch };
+      // Any change to what is being LOOKED AT resets pagination in the SAME
+      // navigation. The old page reset for search but not for sort, so sorting
+      // from page 3 left you on page 3 of a reordered set.
+      const changesResultSet =
+        patch.filter !== undefined ||
+        patch.sort !== undefined ||
+        patch.dir !== undefined ||
+        patch.q !== undefined ||
+        patch.limit !== undefined;
+      if (changesResultSet && patch.page === undefined) next.page = 1;
+
+      const params = productListQueryToParams(next, { omitDefaults: true });
+      // Preserve the drawer deep-link across filter changes.
+      const open = urlParams.get("open");
+      if (open) params.set("open", open);
+      const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
-    [router, pathname, urlParams],
+    [query, router, pathname, urlParams],
   );
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkLoading, setBulkLoading] = useState(false);
-  const [stockModal, setStockModal] = useState<StockAdjustState | null>(null);
-  const [sortKey, setSortKey] = useState<ProductSortKey>("default");
 
-  const { data: marketsData } = useSWR<{ data: Market[] }>(
-    role === "super_admin" ? "/api/markets" : null,
-    fetcher
+  const openId = urlParams.get("open");
+
+  const setOpenId = useCallback(
+    (id: string | null) => {
+      const params = new URLSearchParams(urlParams);
+      if (id) params.set("open", id);
+      else params.delete("open");
+      const qs = params.toString();
+      // history.replaceState, not router.replace: opening a drawer must not
+      // trigger an RSC round trip or re-run the page's server component.
+      window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
+      setOpenIdLocal(id);
+    },
+    [urlParams, pathname],
   );
-  const markets = marketsData?.data ?? [];
-
-  const currentMarket = markets.find((m) => m.id === selectedMarketId);
-  const currency = currentMarket?.code === "ly" ? "LYD" : "TND";
-  const marketLabel =
-    role === "super_admin"
-      ? selectedMarketId
-        ? currentMarket?.name ?? "—"
-        : t("filters.allMarkets")
-      : currentMarket?.name ?? "";
-
-  const productKey = selectedMarketId
-    ? `/api/products?market_id=${selectedMarketId}&page=${page}&limit=${limit}${
-        debouncedSearch ? `&q=${encodeURIComponent(debouncedSearch)}` : ""
-      }`
-    : null;
+  // Local mirror, because replaceState does not notify useSearchParams.
+  const [openIdLocal, setOpenIdLocal] = useState<string | null>(openId);
+  useEffect(() => {
+    setOpenIdLocal(openId);
+  }, [openId]);
 
   const {
-    data: productsData,
-    isLoading: productsLoading,
-    mutate: mutateProducts,
-  } = useSWR<{
-    data: ProductRow[];
-    pagination?: { total: number; page: number; limit: number; totalPages: number };
-  }>(productKey, fetcher);
+    rows,
+    pagination,
+    facets,
+    totals,
+    period,
+    currency,
+    isLoading,
+    isValidating,
+    mutate,
+  } = useProductsList({
+    marketId: selectedMarketId,
+    query,
+    enabled: canViewPerf && Boolean(selectedMarketId),
+  });
 
-  // A new search resets pagination — page numbers from the old result set
-  // are meaningless against the filtered catalog.
+  // ── column visibility, persisted per user ──
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS);
   useEffect(() => {
-    if (page > 1) setQuery({ page: 1 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch]);
-
-  const products = productsData?.data ?? [];
-  const totalPages = productsData?.pagination?.totalPages ?? 1;
-
-  // Bulk profitability
-  const profKey =
-    canViewPerf && selectedMarketId
-      ? `/api/products/profitability-bulk?market_id=${selectedMarketId}&from_date=${period.from_date}&to_date=${period.to_date}`
-      : null;
-
-  const { data: profData } = useSWR<{ data: BulkProductMetrics[]; currency: string }>(
-    profKey,
-    fetcher
-  );
-
-  const metricsMap = useMemo(() => {
-    const m = new Map<string, BulkProductMetrics>();
-    for (const item of profData?.data ?? []) {
-      m.set(item.product_id, item);
+    try {
+      const raw = window.localStorage.getItem(COLUMN_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return;
+      // Intersect with the current column set so a renamed or removed column in
+      // a stored preference cannot blank the table.
+      const known = PRODUCT_COLUMNS.map((c) => c.key);
+      const locked = PRODUCT_COLUMNS.filter((c) => c.locked).map((c) => c.key);
+      const restored = PRODUCT_COLUMNS.filter(
+        (c) => locked.includes(c.key) || (parsed as string[]).includes(c.key),
+      )
+        .map((c) => c.key)
+        .filter((k) => known.includes(k));
+      if (restored.length > 0) setVisibleColumns(restored);
+    } catch {
+      // A corrupt preference must not break the page.
     }
-    return m;
-  }, [profData]);
-
-  const filteredProducts = useMemo(() => {
-    // Name search happens server-side (q param); status + sort stay
-    // client-side over the current page (documented tradeoff).
-    let list = products;
-    if (status === "active") {
-      list = list.filter((p) => p.is_active);
-    } else if (status === "lowStock") {
-      list = list.filter((p) => isLowStock(p.current_stock, p.low_stock_threshold));
-    } else if (status === "losingMoney") {
-      list = list.filter((p) => {
-        const m = metricsMap.get(p.id);
-        return m !== undefined && m.margin_pct < 0;
-      });
+  }, []);
+  const handleColumnsChange = useCallback((cols: string[]) => {
+    setVisibleColumns(cols);
+    try {
+      window.localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(cols));
+    } catch {
+      // Private browsing / quota — visibility just won't persist.
     }
-    return sortProducts(list, metricsMap, sortKey);
-  }, [products, search, status, metricsMap, sortKey]);
+  }, []);
 
-  const handleToggleActive = useCallback(
-    async (productId: string) => {
-      const product = products.find((p) => p.id === productId);
-      if (!product) return;
-      await fetch(`/api/products/${productId}/active`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: !product.is_active }),
-      });
-      mutateProducts();
-    },
-    [products, mutateProducts]
-  );
+  // ── selection ──
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Prune to visible rows whenever the result set changes, so a bulk action can
+  // never hit a product the user can no longer see.
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === 0) return prev;
+      const visible = new Set(rows.map((r) => r.id));
+      const next = new Set([...prev].filter((id) => visible.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [rows]);
 
-  const handleThresholdSave = useCallback(
-    async (productId: string, value: number) => {
-      await fetch(`/api/products/${productId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ low_stock_threshold: value }),
-      });
-      mutateProducts();
-    },
-    [mutateProducts]
-  );
-
-  const handleSelect = useCallback((id: string) => {
+  const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -239,41 +182,103 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
       return next;
     });
   }, []);
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      const all = rows.length > 0 && rows.every((r) => prev.has(r.id));
+      return all ? new Set() : new Set(rows.map((r) => r.id));
+    });
+  }, [rows]);
 
-  const handleBulkActivate = useCallback(async () => {
-    setBulkLoading(true);
-    await Promise.allSettled(
-      [...selectedIds].map((id) =>
-        fetch(`/api/products/${id}/active`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ is_active: true }),
-        })
+  // ── mutations ──
+  const [banner, setBanner] = useState<string | null>(null);
+  useEffect(() => {
+    if (!banner) return;
+    const timer = setTimeout(() => setBanner(null), 4000);
+    return () => clearTimeout(timer);
+  }, [banner]);
+
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  const setActive = useCallback(
+    async (ids: string[], value: boolean) => {
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          fetch(`/api/products/${id}/active`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ is_active: value }),
+          }).then((r) => {
+            if (!r.ok) throw new Error(String(r.status));
+            return r;
+          }),
+        ),
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) setBanner(t("errors.toggleFailed", { count: failed }));
+      // Revalidate rather than patch locally: a product deactivated while
+      // filter=active must LEAVE the list, and only the server knows what
+      // backfills its slot.
+      await mutate();
+    },
+    [mutate, t],
+  );
+
+  const handleToggleActive = useCallback(
+    (id: string) => {
+      const row = rows.find((r) => r.id === id);
+      if (!row) return;
+      // Reads the real is_active off the row. This is the bug that made the old
+      // toggle send `is_active: !undefined` = true, forever.
+      void setActive([id], !row.is_active);
+    },
+    [rows, setActive],
+  );
+
+  const handleThresholdSave = useCallback(
+    async (id: string, value: number) => {
+      const res = await fetch(`/api/products/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ low_stock_threshold: value }),
+      });
+      if (!res.ok) setBanner(t("errors.thresholdFailed"));
+      await mutate();
+    },
+    [mutate, t],
+  );
+
+  const handleBulkActive = useCallback(
+    async (value: boolean) => {
+      setBulkLoading(true);
+      await setActive([...selectedIds], value);
+      setBulkLoading(false);
+      setSelectedIds(new Set());
+    },
+    [selectedIds, setActive],
+  );
+
+  const handleExportCsv = useCallback(() => {
+    const chosen = selectedIds.size > 0 ? rows.filter((r) => selectedIds.has(r.id)) : rows;
+    const cols = PRODUCT_COLUMNS.filter((c) => visibleColumns.includes(c.key));
+    const header = ["id", ...cols.map((c) => t(c.labelKey))];
+    const lines = [header, ...chosen.map((r) => [r.id, ...cols.map((c) => csvCell(r, c.key))])];
+    const csv = lines
+      .map((cells) =>
+        cells.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
       )
-    );
-    setBulkLoading(false);
-    setSelectedIds(new Set());
-    mutateProducts();
-  }, [selectedIds, mutateProducts]);
+      .join("\r\n");
+    // BOM so Excel opens the Arabic product names as UTF-8 rather than mojibake.
+    const blob = new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `products-${query.from_date}_${query.to_date}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [rows, selectedIds, visibleColumns, query.from_date, query.to_date, t]);
 
-  const handleBulkDeactivate = useCallback(async () => {
-    setBulkLoading(true);
-    await Promise.allSettled(
-      [...selectedIds].map((id) =>
-        fetch(`/api/products/${id}/active`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ is_active: false }),
-        })
-      )
-    );
-    setBulkLoading(false);
-    setSelectedIds(new Set());
-    mutateProducts();
-  }, [selectedIds, mutateProducts]);
-
-  const handleBulkClear = useCallback(() => setSelectedIds(new Set()), []);
-
+  // ── stock adjust modal ──
+  const [stockModal, setStockModal] = useState<StockAdjustState | null>(null);
   const openStockModal = useCallback((productId: string, productName: string) => {
     setStockModal({
       productId,
@@ -286,194 +291,229 @@ export function ProductsPageClient({ role, marketId, locale }: ProductsPageClien
     });
   }, []);
 
-  async function handleStockSubmit() {
+  async function submitStock() {
     if (!stockModal) return;
-    const changeNum = parseInt(stockModal.change, 10);
-    if (!Number.isInteger(changeNum) || changeNum === 0) {
-      setStockModal((s) => s && ({ ...s, error: "La quantité doit être un entier non nul." }));
+    const change = parseInt(stockModal.change, 10);
+    if (!Number.isInteger(change) || change === 0) {
+      setStockModal((s) => s && { ...s, error: t("stockModal.errorQuantity") });
       return;
     }
     if (!stockModal.note.trim()) {
-      setStockModal((s) => s && ({ ...s, error: "La note est obligatoire." }));
+      setStockModal((s) => s && { ...s, error: t("stockModal.errorNote") });
       return;
     }
-    setStockModal((s) => s && ({ ...s, loading: true, error: null }));
+    setStockModal((s) => s && { ...s, loading: true, error: null });
     const res = await fetch(`/api/products/${stockModal.productId}/stock`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ change: changeNum, reason: stockModal.reason, note: stockModal.note.trim() }),
+      body: JSON.stringify({
+        change,
+        reason: stockModal.reason,
+        note: stockModal.note.trim(),
+      }),
     });
     if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      setStockModal((s) => s && ({ ...s, loading: false, error: json.error ?? `Erreur ${res.status}` }));
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      setStockModal(
+        (s) =>
+          s && {
+            ...s,
+            loading: false,
+            error: json.error ?? t("errors.generic", { status: res.status }),
+          },
+      );
       return;
     }
     setStockModal(null);
-    mutateProducts();
+    await mutate();
   }
 
   if (role === "agent") return null;
 
-  const allSelected =
-    filteredProducts.length > 0 && filteredProducts.every((p) => selectedIds.has(p.id));
-  const toggleAll = () => {
-    if (allSelected) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredProducts.map((p) => p.id)));
-    }
-  };
+  const periodDays = period ? periodLengthDays(period.from_date, period.to_date) : 30;
+  const periodLabel = t("period.lastNDays", { count: periodDays });
+  const openRow = rows.find((r) => r.id === openIdLocal) ?? null;
+  const needsMarket = role === "super_admin" && !selectedMarketId;
 
   return (
     <>
       {stockModal && (
         <StockAdjustModal
           state={stockModal}
-          onChange={(patch) => setStockModal((s) => s && ({ ...s, ...patch }))}
-          onSubmit={handleStockSubmit}
+          onChange={(patch) => setStockModal((s) => s && { ...s, ...patch })}
+          onSubmit={submitStock}
           onClose={() => setStockModal((s) => (s && !s.loading ? null : s))}
         />
       )}
 
-      <div className="flex flex-col gap-4">
-        {/* Filter bar — bulk actions intentionally suppressed (handled by floating bar) */}
-        <ProductsFilterBar
-          marketLabel={marketLabel}
-          mode={mode}
-          onModeChange={setMode}
-          status={status}
-          onStatusChange={(s) => {
-            setStatus(s);
-            setQuery({ page: 1 });
-          }}
-          search={search}
-          onSearchChange={setSearch}
-          canManage={canManage}
-          canViewPerformance={canViewPerf}
-          locale={locale}
-          sortKey={sortKey}
-          onSortChange={setSortKey}
-        />
-
-        {mode === "performance" && canViewPerf && (
-          <PeriodSelector period={period} onChange={setPeriod} />
-        )}
-
-        {mode === "performance" && canViewPerf && products.length > 0 && (
-          <PortfolioStrip
-            products={products.map((p) => ({
-              id: p.id,
-              name: p.name,
-              current_stock: p.current_stock,
-              low_stock_threshold: p.low_stock_threshold,
-              is_active: p.is_active,
-            }))}
-            metricsMap={
-              new Map(
-                Array.from(metricsMap.entries()).map(([id, m]) => [
-                  id,
-                  { revenue: m.revenue, margin_pct: m.margin_pct },
-                ]),
-              )
-            }
-            formatRevenue={(n) => formatCurrency(n, currency.toUpperCase() === "LYD" ? "LY" : "TN")}
-            labels={{
-              topEarner: t("portfolio.topEarner"),
-              worstMargin: t("portfolio.worstMargin"),
-              lowStock: t("portfolio.lowStock"),
-              active: t("portfolio.active"),
-              ofTotal: (total) => t("portfolio.ofTotal", { total }),
-              ofActive: (total) => t("portfolio.ofActive", { total }),
-              noData: t("portfolio.noData"),
-            }}
-          />
-        )}
-
-        {/* Product list card */}
-        <div className="overflow-hidden rounded-card border border-line-subtle bg-surface-card">
-          {role === "super_admin" && !selectedMarketId ? (
-            <div className="px-6 py-12 text-center text-[14px] text-ink-secondary">
-              {t("selectMarketPrompt")}
-            </div>
-          ) : productsLoading && !productsData ? (
-            <div role="status" className="flex flex-col gap-2 p-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} className="h-12" />
-              ))}
-            </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="px-6 py-12 text-center text-[14px] text-ink-secondary">
-              {debouncedSearch ? t("noSearchMatch", { q: debouncedSearch }) : t("emptyState")}
-            </div>
-          ) : (
-            <>
-              {/* Column header */}
-              <div className="flex items-center border-b border-line bg-surface-page text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-secondary">
-                <span aria-hidden className="w-[3px] flex-shrink-0" />
-                <div className="flex w-12 flex-shrink-0 items-center justify-center py-2">
-                  <input
-                    type="checkbox"
-                    aria-label={allSelected ? t("bulk.clear") : "Sélectionner tout"}
-                    checked={allSelected}
-                    onChange={toggleAll}
-                    className="h-4 w-4 cursor-pointer accent-ink-primary"
-                  />
-                </div>
-                <div className="flex-[2] py-2 pe-4">{t("table.product")}</div>
-                <div className="w-[160px] flex-shrink-0 py-2 pe-4">{t("table.stock")}</div>
-                <div className="flex-[3] py-2 pe-4">
-                  {mode === "performance" ? t("metrics.margin") : t("table.unitCogs")}
-                </div>
-                <div className="w-[112px] flex-shrink-0 py-2 pe-4">{t("table.status")}</div>
-                <div className="w-12 flex-shrink-0 py-2 pe-2 text-end">
-                  {t("table.actions")}
-                </div>
-              </div>
-
-              {filteredProducts.map((product) => (
-                <ProductCatalogRow
-                  key={product.id}
-                  product={product}
-                  metrics={metricsMap.get(product.id) ?? null}
-                  mode={mode}
-                  locale={locale}
-                  currency={currency}
-                  isSelected={selectedIds.has(product.id)}
-                  onSelect={handleSelect}
-                  onToggleActive={handleToggleActive}
-                  onAdjustStock={openStockModal}
-                  onThresholdSave={handleThresholdSave}
-                  canManage={canManage}
-                  canToggleActive={canToggleActive}
-                />
-              ))}
-
-              <Pagination
-                currentPage={page}
-                pageSize={limit}
-                pageSizeOptions={[...PAGE_SIZE_OPTIONS]}
-                totalItems={productsData?.pagination?.total}
-                hasPrev={page > 1}
-                hasNext={page < totalPages}
-                rangeFrom={filteredProducts.length > 0 ? (page - 1) * limit + 1 : undefined}
-                rangeTo={filteredProducts.length > 0 ? (page - 1) * limit + filteredProducts.length : undefined}
-                onPrev={() => setQuery({ page: Math.max(1, page - 1) })}
-                onNext={() => setQuery({ page: Math.min(totalPages, page + 1) })}
-                onPageSizeChange={(n) => setQuery({ page: 1, limit: n })}
-              />
-            </>
-          )}
+      <div className="flex flex-col gap-[22px]">
+        <div className="flex flex-wrap items-start justify-between gap-5">
+          <div>
+            <h1 className="m-0 text-[29px] font-semibold leading-tight tracking-[-0.028em] text-ink-primary">
+              {t("title")}
+            </h1>
+            <p className="mt-[7px] text-[14.5px] font-normal text-ink-muted">
+              {t("subtitle")}
+              {isValidating && !isLoading && (
+                <span className="ms-2 text-[13px] text-ink-muted">· {t("refreshing")}</span>
+              )}
+            </p>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              disabled={rows.length === 0}
+              className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-[11px] border border-line bg-surface-card px-[18px] text-[14px] font-medium text-ink-primary transition-colors duration-fast hover:border-line-strong hover:bg-surface-sunken disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download size={16} strokeWidth={2} className="text-ink-secondary" aria-hidden />
+              {t("exportCsv")}
+            </button>
+            {canManage && (
+              <Link
+                href={`/${locale}/products/new`}
+                className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-[11px] bg-prod-brand px-[18px] text-[14px] font-semibold text-white no-underline shadow-hover-row transition-colors duration-fast hover:bg-prod-brand-hover"
+              >
+                <Plus size={16} strokeWidth={2.6} aria-hidden />
+                {t("addButton")}
+              </Link>
+            )}
+          </div>
         </div>
+
+        {banner && (
+          <div
+            role="alert"
+            className="rounded-[10px] border border-status-critical/30 bg-status-criticalBg px-4 py-2.5 text-[13px] text-status-critical"
+          >
+            {banner}
+          </div>
+        )}
+
+        {needsMarket ? (
+          <div className="rounded-[15px] border border-line-subtle bg-surface-card px-6 py-16 text-center text-[14px] text-ink-secondary">
+            {t("selectMarketPrompt")}
+          </div>
+        ) : !canViewPerf ? (
+          <div className="rounded-[15px] border border-line-subtle bg-surface-card px-6 py-16 text-center text-[14px] text-ink-secondary">
+            {t("noPermission")}
+          </div>
+        ) : (
+          <>
+            <ProductsKpiCards
+              totals={totals}
+              currency={currency}
+              periodLabel={periodLabel}
+              loading={isLoading}
+            />
+
+            <ProductsExceptionBar
+              facets={facets}
+              active={query.filter}
+              onChange={(f) => patchQuery({ filter: f })}
+              loading={isLoading}
+            />
+
+            <ProductsToolbar
+              search={query.q}
+              onSearchChange={(q) => patchQuery({ q })}
+              facet={query.filter}
+              facets={facets}
+              onFacetChange={(f) => patchQuery({ filter: f })}
+              sort={query.sort}
+              dir={query.dir}
+              onSortChange={(sort, dir) => patchQuery({ sort, dir })}
+              visibleColumns={visibleColumns}
+              onColumnsChange={handleColumnsChange}
+            />
+
+            <ProductsTable
+              rows={rows}
+              visibleColumns={visibleColumns}
+              sort={query.sort}
+              dir={query.dir}
+              onSort={(key: ProductSortKey) => {
+                const nextDir: SortDirection =
+                  query.sort === key ? (query.dir === "asc" ? "desc" : "asc") : key === "name" ? "asc" : "desc";
+                patchQuery({ sort: key, dir: nextDir });
+              }}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
+              onToggleSelectAll={toggleSelectAll}
+              onOpen={setOpenId}
+              openId={openIdLocal}
+              onThresholdSave={handleThresholdSave}
+              onToggleActive={handleToggleActive}
+              onAdjustStock={openStockModal}
+              canManage={canManage}
+              canToggleActive={canToggleActive}
+              locale={locale}
+              currency={currency}
+              loading={isLoading}
+              searchTerm={query.q}
+              pagination={pagination}
+              onPageChange={(page) => patchQuery({ page })}
+              onPageSizeChange={(limit) => patchQuery({ limit })}
+              bulkBar={
+                <BulkActionBar
+                  selectedCount={selectedIds.size}
+                  loading={bulkLoading}
+                  canToggleActive={canToggleActive}
+                  onActivate={() => void handleBulkActive(true)}
+                  onDeactivate={() => void handleBulkActive(false)}
+                  onExport={handleExportCsv}
+                  onClear={() => setSelectedIds(new Set())}
+                />
+              }
+            />
+          </>
+        )}
       </div>
 
-      {/* Floating bulk action bar */}
-      <BulkActionBar
-        selectedCount={selectedIds.size}
-        loading={bulkLoading}
-        onActivate={handleBulkActivate}
-        onDeactivate={handleBulkDeactivate}
-        onClear={handleBulkClear}
-      />
+      {openRow && (
+        <ProductDetailDrawer
+          key={openRow.id}
+          row={openRow}
+          open
+          onClose={() => setOpenId(null)}
+          onToggleActive={handleToggleActive}
+          onAdjustStock={openStockModal}
+          canManage={canManage}
+          canToggleActive={canToggleActive}
+          locale={locale}
+          currency={currency}
+          periodDays={periodDays}
+        />
+      )}
     </>
   );
+}
+
+function csvCell(r: ProductListRow, key: string): string | number {
+  switch (key) {
+    case "name":
+      return r.name;
+    case "stock":
+      return r.current_stock;
+    case "sku":
+      return r.sku ?? "";
+    case "unit_cogs":
+      return r.unit_cogs;
+    case "packing_cost":
+      return r.packing_cost;
+    case "default_price":
+      return r.default_price ?? "";
+    case "stock_value":
+      return r.current_stock * r.unit_cogs;
+    case "damaged":
+      return r.damaged_return_count;
+    case "is_active":
+      return r.is_active ? "1" : "0";
+    default: {
+      const m = r.metrics;
+      if (!m) return "";
+      const v = (m as unknown as Record<string, number>)[key];
+      return v === undefined ? "" : v;
+    }
+  }
 }

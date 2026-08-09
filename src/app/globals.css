@@ -90,6 +90,30 @@
   --oms-border: #EAE7E1;
   --oms-border-strong: #DCD8D0;
 
+  /* ───────────────────────────────────────────────────────────────
+     Products console — scoped extension, same pattern as oms.* and
+     agent.*: CSS vars here are the single source of truth and
+     tailwind.config.ts only aliases them.
+
+     Only SEVEN vars, because the rest of the surface deliberately
+     reuses the global tokens. status-critical / status-warning /
+     status-action already carry the red, amber and blue at the right
+     contrast — adding near-duplicates would mean two reds that drift.
+     What genuinely did not exist is this green: status-success
+     (#008060) is a teal, and accent (#10B981) is reserved by
+     docs/design-system.md §1 for exactly two uses (focused-row bar,
+     active-tab underline). --prod-brand is the grass green the
+     products surface uses for its primary action, active nav pill,
+     and "Actif" badge.
+     ─────────────────────────────────────────────────────────────── */
+  --prod-brand: #15803D;        /*  5.5:1 on white — buttons, active states */
+  --prod-brand-hover: #12692F;
+  --prod-brand-soft: #E9F6EE;   /* badge / icon-chip tint */
+  --prod-brand-tint: #F1FAF4;   /* selected row, hero card */
+  --prod-pos: #16A34A;          /* positive figures + delta pills */
+  --prod-info-bg: #EBF1FE;      /* tint for status-action, which has none */
+  --prod-neutral-bg: #F2F3F5;   /* tint for inactive / muted chips */
+
   --oms-ink-1: #1B1917;  /* 17.5:1 — customer name, price */
   --oms-ink-2: #5C5852;  /*  7.1:1 — product, secondary labels */
   --oms-ink-3: #78726A;  /*  4.8:1 — meta, period labels, column heads */
