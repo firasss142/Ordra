@@ -15,7 +15,9 @@ import type { DashboardHealth, SavingsBlock } from "@/lib/dashboard/health";
 import type { Metric } from "@/lib/dashboard/confidence";
 
 function metric(current: number): Metric {
-  return { current, previous: 0, delta: null, pct: null, confidence: "none", n: 0 };
+  // deltaPct null + confidence "none" = no baseline, so no delta line renders.
+  // These tiles are scenery for the savings tile under test.
+  return { current, previous: 0, delta: 0, deltaPct: null, n: 0, confidence: "none" };
 }
 
 function health(savings: Partial<SavingsBlock>): DashboardHealth {
