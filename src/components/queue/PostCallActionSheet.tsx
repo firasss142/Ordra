@@ -16,6 +16,9 @@ import { RejectionReasonSelect } from "./RejectionReasonSelect";
 import { DexpressLocationPicker, type DexpressSelection } from "./DexpressLocationPicker";
 import { DarbAssabilDispatchModal } from "./DarbAssabilDispatchModal";
 import { coverageFor, type CoverageState } from "@/lib/carriers/coverage";
+import { useCarrierRates } from "@/hooks/useCarrierRates";
+import { pickInitialCarrier } from "@/lib/carriers/initial-carrier-selection";
+import { CarrierRateBadge, CheapestPill } from "./CarrierRateBadge";
 import { useOptimisticOrderAction } from "@/hooks/useOptimisticOrderAction";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -311,22 +314,34 @@ export function PostCallActionSheet({
     { revalidateOnFocus: false },
   );
 
-  // Auto-select the only carrier when there's exactly one. Saves a click but
-  // keeps the radio visible (per UX call) so the user always sees what's
-  // about to happen.
+  // Per-destination price per carrier account. Libya runs two Darb Assabil
+  // accounts whose prices for the same address differ by 5-25 LYD.
+  const { ratesByCarrierId, recommendedCarrierId } = useCarrierRates(
+    orderId,
+    isPostConfirm,
+  );
+
+  // Pre-select: the agent's own choice always wins; otherwise the cheapest
+  // account, else the pre-existing "exactly one carrier" rule. The whole rule
+  // lives in pickInitialCarrier so it is tested outside React.
   useEffect(() => {
     if (!isPostConfirm) return;
-    // Don't auto-select a carrier that clearly doesn't serve this city.
-    if (
-      carriers.length === 1 &&
-      selectedCarrierId === null &&
-      carrierCoverage(carriers[0].code) !== "uncovered"
-    ) {
-      setSelectedCarrierId(carriers[0].id);
-    }
+    const next = pickInitialCarrier({
+      carriers,
+      coverageOf: carrierCoverage,
+      recommendedCarrierId,
+      currentSelection: selectedCarrierId,
+    });
+    if (next !== null && next !== selectedCarrierId) setSelectedCarrierId(next);
     // carrierCoverage is derived from the same deps (carriers + orderForUpload).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carriers, isPostConfirm, selectedCarrierId, orderForUpload]);
+  }, [
+    carriers,
+    isPostConfirm,
+    selectedCarrierId,
+    orderForUpload,
+    recommendedCarrierId,
+  ]);
 
   const selectedCarrier =
     carriers.find((c) => c.id === selectedCarrierId) ?? null;
@@ -807,13 +822,22 @@ export function PostCallActionSheet({
                                   : "border border-line-strong bg-surface-card text-ink-primary hover:bg-surface-hover",
                             ].join(" ")}
                           >
-                            <span className="font-medium">{c.name}</span>
+                            <span className="flex items-center gap-1.5">
+                              <span className="font-medium">{c.name}</span>
+                              {!blocked && c.id === recommendedCarrierId && <CheapestPill />}
+                            </span>
                             <span
                               className={[
-                                "text-[12px] font-normal",
+                                "flex items-center gap-2 text-[12px] font-normal",
                                 blocked ? "text-status-critical" : "text-ink-secondary",
                               ].join(" ")}
                             >
+                              {!blocked && (
+                                <CarrierRateBadge
+                                  info={ratesByCarrierId[c.id]}
+                                  marketId={marketId}
+                                />
+                              )}
                               {blocked ? tCov("badge") : `(${c.code})`}
                             </span>
                           </button>

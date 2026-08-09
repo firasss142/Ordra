@@ -64,6 +64,8 @@ import { DarbStatusSection } from "../DarbStatusSection";
 import { formatDisplayCurrencyCode, LY_MARKET_ID } from "@/lib/markets";
 import { isValidLibyanPhone } from "@/lib/carriers/phone";
 import { coverageFor, type CoverageState } from "@/lib/carriers/coverage";
+import { useCarrierRates } from "@/hooks/useCarrierRates";
+import { CarrierRateBadge, CheapestPill } from "../CarrierRateBadge";
 import type { Role } from "@/types";
 import { PanelHeader } from "./PanelHeader";
 import { CustomerHero } from "./CustomerHero";
@@ -795,7 +797,29 @@ export function OrderDetailPanel({
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 5 * 60 * 1000 },
   );
-  const activeCarriers = (uploadCarriersData?.data ?? []).filter((c) => c.is_active);
+  const allActiveCarriers = (uploadCarriersData?.data ?? []).filter((c) => c.is_active);
+
+  // Per-destination price per carrier account. Libya runs two Darb Assabil
+  // accounts whose prices for the same address differ by 5-25 LYD, so the flat
+  // carriers.delivery_fee cannot tell them apart.
+  const { ratesByCarrierId, recommendedCarrierId } = useCarrierRates(
+    order?.id,
+    Boolean(canUploadToCarrier && order && uploadOpen),
+  );
+
+  // Cheapest first, but ONLY once a recommendation exists — a list that
+  // reshuffles itself when a request lands is worse than a static one.
+  const activeCarriers = recommendedCarrierId
+    ? [...allActiveCarriers].sort((a, b) => {
+        const costOf = (id: string) => ratesByCarrierId[id]?.effectiveCost;
+        const ca = costOf(a.id);
+        const cb = costOf(b.id);
+        if (ca == null && cb == null) return 0;
+        if (ca == null) return 1;
+        if (cb == null) return -1;
+        return ca - cb;
+      })
+    : allActiveCarriers;
 
   // Per-carrier destination coverage for this order's city (see lib/carriers/coverage).
   // Carriers with no coverage model are treated as "covered" (never blocked).
@@ -1452,13 +1476,22 @@ export function OrderDetailPanel({
                         : "border-line-subtle text-ink-primary hover:bg-surface-hover disabled:opacity-50",
                     ].join(" ")}
                   >
-                    <span className="font-medium">{c.name}</span>
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <span className="font-medium truncate">{c.name}</span>
+                      {!blocked && c.id === recommendedCarrierId && <CheapestPill />}
+                    </span>
                     <span
                       className={[
-                        "text-[11px] uppercase tracking-wide",
+                        "flex flex-shrink-0 items-center gap-2 text-[11px] uppercase tracking-wide",
                         blocked ? "text-status-critical" : "text-ink-secondary",
                       ].join(" ")}
                     >
+                      {!blocked && uploadingCarrierId !== c.id && (
+                        <CarrierRateBadge
+                          info={ratesByCarrierId[c.id]}
+                          marketId={order?.market_id}
+                        />
+                      )}
                       {blocked
                         ? tCov("badge")
                         : uploadingCarrierId === c.id

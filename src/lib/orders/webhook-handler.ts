@@ -5,6 +5,7 @@ import { PayloadMappingError } from "@/lib/storefronts/errors";
 import { validateUuidOnlyPayload } from "@/lib/storefronts/uuid-only-payload";
 import { resolveProduct } from "@/lib/storefronts/product-resolver";
 import { resolveCity, resolvedCustomerCity } from "@/lib/storefronts/city-resolver";
+import { recommendCarrierForOrder } from "@/lib/carriers/recommend-carrier-for-order";
 import {
   productMatchStatus,
   cityMatchStatus,
@@ -455,6 +456,16 @@ async function handleOrderCreated(
     cityMatchStatus(cityResolution.match_method),
   );
 
+  // Advisory: which Darb account is cheapest for this destination. Libya's two
+  // Darb accounts price the same address 5-25 LYD apart. A separate, failure-
+  // tolerant step from city resolution — an order without a recommendation is
+  // fine, an order that doesn't arrive is a lost sale.
+  const carrierRec = await recommendCarrierForOrder(adminClient, {
+    market_id: storefront.market_id,
+    city: cityResolution.darb_city,
+    area: cityResolution.darb_area,
+  }).catch(() => ({ carrier_id: null, reason: "none" as const, ranked: [] }));
+
   const { data: order, error: insertError } = await adminClient
     .from("orders")
     .insert({
@@ -478,6 +489,8 @@ async function handleOrderCreated(
       city_id: cityResolution.city_id,
       dexpress_state_id: cityResolution.dexpress_state_id,
       darb_destination_id: cityResolution.darb_destination_id,
+      recommended_carrier_id: carrierRec.carrier_id,
+      recommended_carrier_reason: carrierRec.reason,
       mapping_status: mappingStatus,
       external_product_id: orderData.external_product_id ?? null,
       external_variant_id: orderData.external_variant_id ?? null,

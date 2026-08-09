@@ -580,7 +580,11 @@
       "adPartial": "hors pub — {covered} j couverts sur {total}",
       "committed": "CA en attente",
       "committedHint": "{n} expédiées non livrées",
-      "committedRate": "taux livr. {rate}"
+      "committedRate": "taux livr. {rate}",
+      "savings": "Économies livraison",
+      "savingsHint": "{wins} au moins cher · {losses} plus cher",
+      "savingsEmpty": "démarre au prochain envoi",
+      "savingsPeriod": "{amount} sur 30 j"
     },
     "funnel": {
       "leads": "Commandes reçues",
@@ -3470,6 +3474,11 @@
       "badge": "Non desservi",
       "notCovered": "Ce transporteur ne dessert pas « {city} ».",
       "unknownCity": "Couverture non vérifiée pour cette ville — vérifiez la destination à l'étape suivante."
+    },
+    "rates": {
+      "cheapest": "Le moins cher",
+      "unknownFee": "Tarif inconnu",
+      "staleFee": "Tarif non actualisé"
     }
   },
   "dexpressStatus": {

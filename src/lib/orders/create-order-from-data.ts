@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { InternalOrderData } from "@/lib/storefronts/types";
 import { resolveProduct } from "@/lib/storefronts/product-resolver";
 import { resolveCity, resolvedCustomerCity } from "@/lib/storefronts/city-resolver";
+import { recommendCarrierForOrder } from "@/lib/carriers/recommend-carrier-for-order";
 import {
   productMatchStatus,
   cityMatchStatus,
@@ -51,6 +52,14 @@ export async function createOrderFromData(
     cityMatchStatus(cityResolution.match_method)
   );
 
+  // Advisory: which Darb account is cheapest for this destination. Same
+  // failure-tolerant step the webhook path runs — see webhook-handler.ts.
+  const carrierRec = await recommendCarrierForOrder(adminClient, {
+    market_id: storefront.market_id,
+    city: cityResolution.darb_city,
+    area: cityResolution.darb_area,
+  }).catch(() => ({ carrier_id: null, reason: "none" as const, ranked: [] }));
+
   const { data: order, error: insertError } = await adminClient
     .from("orders")
     .insert({
@@ -74,6 +83,8 @@ export async function createOrderFromData(
       city_id: cityResolution.city_id,
       dexpress_state_id: cityResolution.dexpress_state_id ?? orderData.dexpress_state_id,
       darb_destination_id: cityResolution.darb_destination_id,
+      recommended_carrier_id: carrierRec.carrier_id,
+      recommended_carrier_reason: carrierRec.reason,
       mapping_status: mappingStatus,
       external_product_id: orderData.external_product_id ?? null,
       external_variant_id: orderData.external_variant_id ?? null,

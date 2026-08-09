@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
 
   const code = req.nextUrl.searchParams.get("code");
   const marketId = req.nextUrl.searchParams.get("market_id");
+  const carrierId = req.nextUrl.searchParams.get("carrier_id");
   if (!code || !marketId) {
     return NextResponse.json(
       { error: "Missing code or market_id" },
@@ -46,18 +47,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // A market can hold SEVERAL rows under one code — Libya runs two Darb Assabil
+  // accounts (Tripoli + Benghazi), since 20260816000003 relaxed the uniqueness
+  // key to (market_id, code, name). .maybeSingle() throws on multiple rows, so
+  // this takes the first deterministically and lets a caller that knows which
+  // account it means disambiguate with ?carrier_id=.
   const supabase = await createClient();
-  const { data: carrier, error } = await supabase
+  let query = supabase
     .from("carriers")
     .select("id, delivery_fee, is_active")
     .eq("code", code)
-    .eq("market_id", marketId)
-    .maybeSingle();
+    .eq("market_id", marketId);
+  if (carrierId) query = query.eq("id", carrierId);
+
+  const { data: carriers, error } = await query.order("id", { ascending: true }).limit(1);
 
   if (error) {
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 
+  const carrier = carriers?.[0];
   if (!carrier) {
     return NextResponse.json({ carrier: null });
   }

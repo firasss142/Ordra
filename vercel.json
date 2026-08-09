@@ -17,6 +17,9 @@
     },
     "src/app/api/cron/investor-rollup/route.ts": {
       "maxDuration": 300
+    },
+    "src/app/api/cron/darb-rates-harvest/route.ts": {
+      "maxDuration": 300
     }
   }
 }

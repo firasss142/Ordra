@@ -580,7 +580,11 @@
       "adPartial": "بدون الإعلانات — {covered} يوماً مغطى من {total}",
       "committed": "مبيعات قيد الانتظار",
       "committedHint": "{n} مُرسَلة لم تُوصَّل بعد",
-      "committedRate": "معدل التوصيل {rate}"
+      "committedRate": "معدل التوصيل {rate}",
+      "savings": "توفير التوصيل",
+      "savingsHint": "{wins} للأرخص · {losses} للأغلى",
+      "savingsEmpty": "يبدأ عند أول إرسال",
+      "savingsPeriod": "{amount} خلال 30 يوم"
     },
     "funnel": {
       "leads": "الطلبات المستلمة",
@@ -3383,6 +3387,11 @@
       "badge": "غير مغطّاة",
       "notCovered": "هذا الناقل لا يغطّي «{city}».",
       "unknownCity": "لم يتم التحقق من التغطية لهذه المدينة — تحقق من الوجهة في الخطوة التالية."
+    },
+    "rates": {
+      "cheapest": "الأرخص",
+      "unknownFee": "التعريفة غير معروفة",
+      "staleFee": "تعريفة غير محدثة"
     }
   },
   "dexpressStatus": {

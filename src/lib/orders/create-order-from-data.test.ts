@@ -31,9 +31,16 @@ vi.mock("./auto-assignment-orchestrator", () => ({
   tryAutoAssign: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/lib/carriers/recommend-carrier-for-order", () => ({
+  recommendCarrierForOrder: vi
+    .fn()
+    .mockResolvedValue({ carrier_id: null, reason: "none", ranked: [] }),
+}));
+
 import { resolveProduct } from "@/lib/storefronts/product-resolver";
 import { resolveCity } from "@/lib/storefronts/city-resolver";
 import { tryAutoAssign } from "./auto-assignment-orchestrator";
+import { recommendCarrierForOrder } from "@/lib/carriers/recommend-carrier-for-order";
 
 const ORDER_DATA: InternalOrderData = {
   external_id: "6a0c4e064992e02ef080ea3b",
@@ -178,6 +185,71 @@ describe("createOrderFromData", () => {
       status_to: "pending",
       actor_type: "system",
       note: "Order received via Google Sheets sync",
+    });
+  });
+
+  it("stores the recommended carrier and the reason that decided it", async () => {
+    vi.mocked(recommendCarrierForOrder).mockResolvedValueOnce({
+      carrier_id: "carrier-benghazi",
+      reason: "quote",
+      ranked: [],
+    });
+    const adminClient = makeAdminClient();
+    await createOrderFromData({
+      adminClient: adminClient as never,
+      storefront: STOREFRONT,
+      orderData: ORDER_DATA,
+      rawPayload: {},
+      sourceNote: "test",
+    });
+
+    expect(adminClient._insertedOrders[0]).toMatchObject({
+      recommended_carrier_id: "carrier-benghazi",
+      recommended_carrier_reason: "quote",
+    });
+  });
+
+  it("passes the resolved Darb city and area, not the raw storefront string", async () => {
+    vi.mocked(resolveCity).mockResolvedValueOnce({
+      city_id: null,
+      dexpress_state_id: null,
+      darb_destination_id: 12,
+      darb_city: "بنغازي",
+      darb_area: "قمينس",
+      match_method: "name",
+    });
+    const adminClient = makeAdminClient();
+    await createOrderFromData({
+      adminClient: adminClient as never,
+      storefront: STOREFRONT,
+      orderData: ORDER_DATA,
+      rawPayload: {},
+      sourceNote: "test",
+    });
+
+    expect(recommendCarrierForOrder).toHaveBeenCalledWith(
+      adminClient,
+      expect.objectContaining({ city: "بنغازي", area: "قمينس" }),
+    );
+  });
+
+  // Intake must never fail because of a rate lookup. An order without a
+  // recommendation is fine; an order that doesn't arrive is a lost sale.
+  it("still creates the order when the recommendation lookup throws", async () => {
+    vi.mocked(recommendCarrierForOrder).mockRejectedValueOnce(new Error("rates down"));
+    const adminClient = makeAdminClient();
+    const result = await createOrderFromData({
+      adminClient: adminClient as never,
+      storefront: STOREFRONT,
+      orderData: ORDER_DATA,
+      rawPayload: {},
+      sourceNote: "test",
+    });
+
+    expect(result.status).toBe("created");
+    expect(adminClient._insertedOrders[0]).toMatchObject({
+      recommended_carrier_id: null,
+      recommended_carrier_reason: "none",
     });
   });
 

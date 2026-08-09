@@ -8,6 +8,7 @@ import {
   checkWarehouseStock,
   effectiveOrderLines,
 } from "./carrier-warehouse";
+import { recordDeliverySaving } from "./record-delivery-saving";
 import type { CarrierOrderData } from "./types";
 import type { OrderItem } from "@/types/order-items";
 
@@ -286,6 +287,18 @@ export async function performDispatch({
   if (dispatchError) {
     return { ok: false, status: 500, error: "Failed to record dispatch" };
   }
+
+  // Snapshot what routing to THIS account was worth versus the cheapest account
+  // we didn't use. Runs after dispatch_order and cannot fail the request: by
+  // now the shipment exists at the carrier, so recordDeliverySaving swallows
+  // every error rather than turning a successful dispatch into a 500.
+  await recordDeliverySaving(admin, {
+    orderId,
+    carrierId,
+    carrierCode: carrier.code,
+    marketId: carrier.market_id,
+    extra: carrierExtra,
+  });
 
   return {
     ok: true,

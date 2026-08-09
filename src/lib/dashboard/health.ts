@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { computePreviousPeriod, periodLengthDays, lastNDaysEndingAt } from "@/lib/date";
 import { toMetric, type Metric } from "./confidence";
+import { realCostPerDelivered } from "@/lib/calculations/carrier-true-cost";
 import { PERIOD_DAYS, CARRIER_WINDOW_DAYS } from "./constants";
 import type { Role } from "@/types";
 
@@ -111,6 +112,35 @@ export interface CommittedBlock {
   count: number;
 }
 
+/**
+ * Net LYD earned by routing orders to the cheaper carrier account.
+ *
+ * Libya runs two Darb Assabil accounts that price the same destination 5-25 LYD
+ * apart. Each dispatch snapshots what its routing choice was worth onto
+ * orders.delivery_saving_lyd; this is the sum.
+ *
+ * `total` is ALL-TIME and ignores the page's 30-day window (like CommittedBlock)
+ * — it is a lifetime counter that only starts moving once orders are dispatched
+ * under the recommendation. Orders dispatched before the feature are excluded
+ * entirely rather than counted as zero.
+ *
+ * Net, not gross: `losses` are subtracted, so overriding the cheapest-account
+ * badge visibly costs the counter.
+ */
+export interface SavingsBlock {
+  /** All-time net saving in the market currency. Can be negative. */
+  total: number;
+  /** Orders with a measured saving, all-time. 0 = the counter hasn't started. */
+  count: number;
+  /** Orders routed to the cheaper account. */
+  wins: number;
+  /** Orders routed to the dearer account — the badge was overridden. */
+  losses: number;
+  /** Net saving inside the page's period. */
+  periodTotal: number;
+  periodCount: number;
+}
+
 export interface FlowBlock {
   intakePerDay: number;
   confirmedPerDay: number;
@@ -205,6 +235,7 @@ export interface DashboardHealth {
   today: TodayBlock;
   trailing7: Trailing7Block;
   committed: CommittedBlock;
+  savings: SavingsBlock;
   daily: DailyPoint[];
   flow: FlowBlock;
   queues: QueueBucket[];
@@ -242,6 +273,7 @@ interface RpcPayload {
   today: TodayBlock;
   trailing7: Trailing7Block;
   committed: CommittedBlock;
+  savings?: SavingsBlock;
   flow: { intake: number; confirmed: number };
   queues: QueueBucket[];
   carriers: Array<{
@@ -424,10 +456,13 @@ export function mapRpcPayload(
       // Failed deliveries are paid for out of the successful ones. Derived here
       // rather than in SQL, per this module's rule that the RPC returns raw sums
       // and every ratio is computed once, beside the denominator it came from.
-      realCostPerDelivered:
-        num(c.delivered) > 0
-          ? Math.round(((num(c.deliveryCost) + num(c.returnCost)) / num(c.delivered)) * 100) / 100
-          : null,
+      // The formula itself is shared with the Darb carrier recommendation, which
+      // tie-breaks equal quotes on it — so it lives in lib/calculations.
+      realCostPerDelivered: realCostPerDelivered({
+        delivered: num(c.delivered),
+        deliveryCost: num(c.deliveryCost),
+        returnCost: num(c.returnCost),
+      }),
       returnSpend: num(c.returnCost),
       inFlight: num(c.inFlight),
       stuck: num(c.stuck),
@@ -517,6 +552,17 @@ export function mapRpcPayload(
     committed: {
       value: num(raw.committed?.value),
       count: num(raw.committed?.count),
+    },
+    // All-time by design - see SavingsBlock. `count` 0 means no order has been
+    // dispatched under the recommendation yet, which the tile renders as a
+    // "starts counting now" state rather than a misleading 0 LYD saving.
+    savings: {
+      total: num(raw.savings?.total),
+      count: num(raw.savings?.count),
+      wins: num(raw.savings?.wins),
+      losses: num(raw.savings?.losses),
+      periodTotal: num(raw.savings?.periodTotal),
+      periodCount: num(raw.savings?.periodCount),
     },
     daily: (raw.daily ?? []).map((d) => ({
       day: d.day,
