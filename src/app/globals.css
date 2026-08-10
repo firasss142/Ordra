@@ -161,6 +161,44 @@
   --prod-info-bg: #EBF1FE;      /* tint for status-action, which has none */
   --prod-neutral-bg: #F2F3F5;   /* tint for inactive / muted chips */
 
+  /* ── Finance console — scoped extension ───────────────────────────
+     Palette from the approved P&L mockup. Scoped to the finance routes
+     and src/components/finance/**; it does NOT relax anything elsewhere.
+
+     This surface deliberately breaks §1 rule 3 ("functional colour only
+     on status"): green here is decorative — tinted icon holders, bar
+     fills, sparkline strokes, funnel stages. That is the point of the
+     design, and it is confined to the one surface that asked for it.
+
+     CONTRAST IS THE CONSTRAINT. Three of the five brand colours cannot
+     carry text on a light ground:
+
+       --fin-green  #16A34A  3.0:1  fills, glyphs, bars, strokes
+       --fin-teal   #0D9488  3.9:1  secondary series, glyphs
+       --fin-gold   #F59E0B  2.1:1  accent fill only
+
+     Each therefore has an `-ink` partner that IS AA-safe, and every one
+     of those is an existing token rather than a new colour. Text uses
+     the ink; the raw hue never does.
+     ─────────────────────────────────────────────────────────────── */
+  --fin-green: #16A34A;              /* Forest Green — fills and glyphs only */
+  --fin-green-ink: var(--brand);     /* #15803D · 5.0:1 on white, 4.9:1 on mint */
+  --fin-navy: #0F172A;               /* Deep Navy — headings, 16.9:1 on white */
+  --fin-mint: #E6F7EF;               /* Mint — icon holders, funnel wells, +delta pill */
+  --fin-teal: #0D9488;               /* Teal — secondary series */
+  --fin-teal-ink: var(--oms-info-ink);   /* #0B6A60 */
+  --fin-gold: #F59E0B;               /* Gold — accent fill only */
+  --fin-gold-ink: var(--oms-warn-ink);   /* #8F5608 */
+
+  /* Neutrals the mockup implies but does not name. The ground is cooler
+     and greener than --oms-bg, so cards read as lifted rather than as the
+     surface itself, and the ink ramp is cool to sit under the navy — the
+     warm --oms-ink-* greys fight it. Both ramp steps clear AA on white. */
+  --fin-bg: #F7F9F8;
+  --fin-line: #E8EEEA;
+  --fin-ink-2: #475569;   /* 7.5:1 — labels, row keys */
+  --fin-ink-3: #64748B;   /* 4.8:1 — meta, subtitles, axis */
+
   --oms-ink-1: #1B1917;  /* 17.5:1 — customer name, price */
   --oms-ink-2: #5C5852;  /*  7.1:1 — product, secondary labels */
   --oms-ink-3: #78726A;  /*  4.8:1 — meta, period labels, column heads */

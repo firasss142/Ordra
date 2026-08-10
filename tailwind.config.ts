@@ -105,6 +105,24 @@ const config: Config = {
           "info-bg": "var(--prod-info-bg)",
           "neutral-bg": "var(--prod-neutral-bg)",
         },
+        // Finance console — scoped extension. Aliases only; values live in
+        // globals.css. `green`/`teal`/`gold` are fills and glyphs; their
+        // `-ink` partners are the only ones that may carry text. See the
+        // contrast note in globals.css before using a raw hue on type.
+        fin: {
+          green: "var(--fin-green)",
+          "green-ink": "var(--fin-green-ink)",
+          navy: "var(--fin-navy)",
+          mint: "var(--fin-mint)",
+          teal: "var(--fin-teal)",
+          "teal-ink": "var(--fin-teal-ink)",
+          gold: "var(--fin-gold)",
+          "gold-ink": "var(--fin-gold-ink)",
+          bg: "var(--fin-bg)",
+          line: "var(--fin-line)",
+          "ink-2": "var(--fin-ink-2)",
+          "ink-3": "var(--fin-ink-3)",
+        },
         status: {
           action: "#2C6ECB",
           success: "#008060",
@@ -189,6 +207,10 @@ const config: Config = {
       },
       borderRadius: {
         card: "10px",
+        // Finance console only — the mockup's cards are noticeably softer
+        // than the 10px the rest of the console uses.
+        fin: "16px",
+        "fin-sm": "12px",
         pill: "9999px",
       },
       boxShadow: {
@@ -196,6 +218,11 @@ const config: Config = {
         floating: "0 8px 24px rgba(16,24,40,0.10)",
         panel: "0 4px 16px rgba(16,24,40,0.06)",
         "panel-elevated": "0 6px 20px rgba(16,24,40,0.08)",
+        // Finance console only. §1 says surfaces are flat at rest; this
+        // surface lifts its cards instead of outlining them, which is what
+        // the mockup does and why it needs its own shadow.
+        fin: "0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.05)",
+        "fin-hover": "0 2px 4px rgba(15,23,42,0.05), 0 8px 20px rgba(15,23,42,0.07)",
       },
       transitionDuration: {
         fast: "120ms",

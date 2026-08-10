@@ -422,7 +422,11 @@
       "noPrev": "—",
       "prevShort": "سابقة",
       "leadsShort": "عميل محتمل",
-      "confirmedShort": "مؤكدة"
+      "confirmedShort": "مؤكدة",
+      "basedOn": "على {n} عملية تسليم",
+      "tooFew": "{n} عملية تسليم — قليلة جداً للمقارنة",
+      "noBaseline": "لا يوجد سجل سابق",
+      "noAdSpend": "لم يتم تسجيل أي إنفاق"
     },
     "composition": {
       "title": "تركيبة الإيرادات",
@@ -434,7 +438,8 @@
       "confirmed": "المؤكدة",
       "delivered": "المُوصَّلة",
       "toConfirmed": "تأكيد",
-      "toDelivered": "توصيل"
+      "toDelivered": "توصيل",
+      "notCohort": "مجموعات مختلفة في هذه الفترة — لا يمكن حساب النسبة."
     },
     "operational": {
       "title": "العمليات",
@@ -460,7 +465,9 @@
         "netProfit": "صافي الربح"
       }
     },
-    "scopeAllBanner": "عرض جميع الأسواق غير متاح للأرباح والخسائر — يتم العرض: {market}"
+    "scopeAllBanner": "عرض جميع الأسواق غير متاح للأرباح والخسائر — يتم العرض: {market}",
+    "export": "تصدير",
+    "periodLabel": "الفترة"
   },
   "alerts": {
     "title": "التنبيهات",
@@ -555,7 +562,13 @@
     "comingSoon": "بيانات لوحة التحكم ستكون متاحة قريباً.",
     "filters": {
       "allMarkets": "كل الأسواق",
-      "marketPlaceholder": "اختر السوق"
+      "marketPlaceholder": "اختر السوق",
+      "today": "اليوم",
+      "week": "أسبوع",
+      "month": "شهر",
+      "custom": "مخصص",
+      "latestDataNotice": "لا يوجد نشاط بعد {date} — تم تثبيت الفترة على آخر البيانات.",
+      "jumpToToday": "العودة إلى اليوم"
     },
     "rejectionReasons": {
       "refus_client": "رفض العميل",

@@ -1,5 +1,14 @@
 import { TONE_COLOR, type Tone } from "@/components/dashboard/kpiDelta";
 
+/**
+ * @deprecated Superseded by `FinanceKpiCard`, which is the P&L console's card.
+ *
+ * Still alive for `products/ProductRentabilityClient`, the one other consumer.
+ * That page was not part of the P&L redesign and migrating only its three hero
+ * cards would leave it visibly half-converted — new cards above old panels.
+ * It goes when that page is migrated as a whole; do not add consumers.
+ */
+
 export type HeroTone = "positive" | "negative" | "neutral";
 
 // Flat white cards per the design system — tone colors only the value text

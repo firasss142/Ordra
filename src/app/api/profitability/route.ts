@@ -3,6 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewFinanceSection } from "@/lib/finance-permissions";
 import { loadProfitabilitySummary } from "@/lib/profitability/load-summary";
+import {
+  loadProfitabilityDaily,
+  loadCohortFunnel,
+} from "@/lib/profitability/load-daily";
 import { calculateCPA, calculateCPL } from "@/lib/calculations/acquisition";
 import {
   calculateMarginDelta,
@@ -72,6 +76,11 @@ export async function GET(req: NextRequest) {
       : Promise.resolve(null),
   ]);
 
+  const [daily, cohort] = await Promise.all([
+    loadProfitabilityDaily(supabase, marketId, fromDate, toDate, summary.ad_spend),
+    loadCohortFunnel(supabase, marketId, fromDate, toDate),
+  ]);
+
   const cpa = calculateCPA(summary.ad_spend, summary.confirmed_count);
   const cpl = calculateCPL(summary.ad_spend, summary.leads_count);
 
@@ -123,6 +132,8 @@ export async function GET(req: NextRequest) {
       profit_per_delivered: profitPerDelivered,
       return_rate_pct: returnRatePct,
       returns_cost_share_pct: returnsCostSharePct,
+      daily,
+      cohort,
       deltas,
       previous: previousSummary
         ? {

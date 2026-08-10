@@ -422,7 +422,11 @@
       "noPrev": "—",
       "prevShort": "précéd.",
       "leadsShort": "leads",
-      "confirmedShort": "conf."
+      "confirmedShort": "conf.",
+      "basedOn": "sur {n, plural, one {# livrée} other {# livrées}}",
+      "tooFew": "{n, plural, one {# livrée} other {# livrées}} — trop peu pour comparer",
+      "noBaseline": "pas d’historique",
+      "noAdSpend": "aucune dépense saisie"
     },
     "composition": {
       "title": "Composition du chiffre d'affaires",
@@ -434,7 +438,8 @@
       "confirmed": "Confirmées",
       "delivered": "Livrées",
       "toConfirmed": "Confirmation",
-      "toDelivered": "Livraison"
+      "toDelivered": "Livraison",
+      "notCohort": "Cohortes différentes sur cette fenêtre — taux non calculable."
     },
     "operational": {
       "title": "Opérations",
@@ -460,7 +465,9 @@
         "netProfit": "Profit net"
       }
     },
-    "scopeAllBanner": "Vue multi-marchés indisponible pour le P&L — affichage : {market}"
+    "scopeAllBanner": "Vue multi-marchés indisponible pour le P&L — affichage : {market}",
+    "export": "Exporter",
+    "periodLabel": "Période"
   },
   "alerts": {
     "title": "Alertes",
@@ -555,7 +562,13 @@
     "comingSoon": "Les données du tableau de bord seront disponibles prochainement.",
     "filters": {
       "allMarkets": "Tous les marchés",
-      "marketPlaceholder": "Choisir un marché"
+      "marketPlaceholder": "Choisir un marché",
+      "today": "Aujourd’hui",
+      "week": "Semaine",
+      "month": "Mois",
+      "custom": "Personnalisé",
+      "latestDataNotice": "Aucune activité après le {date} — fenêtre ancrée sur les dernières données.",
+      "jumpToToday": "Revenir à aujourd’hui"
     },
     "rejectionReasons": {
       "refus_client": "Refus client",

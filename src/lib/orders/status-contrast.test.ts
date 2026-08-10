@@ -54,6 +54,14 @@ const PAIRS: [string, string, string][] = [
   // Chrome green. Not a status hue, but it sits on a tint in exactly the same
   // way (active KPI tile, selected row band) and drifts just as easily.
   ["brand", "brand-hover", "brand-bg"],
+  // Finance console. Its three brand hues (#16A34A / #0D9488 / #F59E0B) are
+  // fills and glyphs — they fail AA as text by design, at 3.0, 3.9 and 2.1:1.
+  // What must hold is that each has an ink partner that clears 4.5:1 on the
+  // mint tint the design puts it on, so nobody "simplifies" the pair away and
+  // ships #F59E0B as a label.
+  ["fin green", "fin-green-ink", "fin-mint"],
+  ["fin teal", "fin-teal-ink", "fin-mint"],
+  ["fin gold", "fin-gold-ink", "fin-mint"],
 ];
 
 describe("status badge contrast", () => {
