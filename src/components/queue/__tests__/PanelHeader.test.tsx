@@ -33,7 +33,7 @@ describe("PanelHeader — how long this order has been waiting", () => {
     // used to drop that reading entirely, so the agent lost the one number
     // that decides whether to call now or later.
     renderHeader();
-    expect(screen.getByTestId("panel-age")).toHaveTextContent("4 h");
+    expect(screen.getByTestId("panel-age")).toHaveTextContent("4h");
   });
 
   test("escalates the same way the list does, on the same thresholds", () => {

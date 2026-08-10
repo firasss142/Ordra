@@ -35,7 +35,10 @@ export const CHART_TOOLTIP = {
   },
   labelStyle: { color: "var(--oms-ink-2)", fontSize: 11, marginBottom: 4 },
   itemStyle: { padding: 0, fontSize: 12 },
-  cursor: { fill: "var(--oms-sunken)" },
+  // --oms-sunken is the *Tailwind alias* (`bg-oms-sunken`); the CSS var it points
+  // at is --oms-surface-sunken. As written this resolved to nothing and the hover
+  // cursor band rendered transparent.
+  cursor: { fill: "var(--oms-surface-sunken)" },
 } as const;
 
 /**

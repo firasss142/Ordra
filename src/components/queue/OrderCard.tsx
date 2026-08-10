@@ -10,6 +10,7 @@ import {
   canDeleteDuplicateSiblingStatus,
 } from "@/lib/order-permissions";
 import { formatDisplayCurrencyCode } from "@/lib/markets";
+import { formatDateTime } from "@/lib/format";
 import { classifyOrderAge, formatOrderAge, AGE_TONE } from "@/lib/orders/order-age";
 import { classifyLastAction, LAST_ACTION_TONE } from "@/lib/queue/last-action";
 import { presentAgentStatus } from "@/lib/queue/agent-status";
@@ -17,8 +18,8 @@ import { Button } from "@/components/ui/Button";
 import { QueueStatusPill } from "./QueueStatusPill";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
 import { DuplicateOrderBadge } from "@/components/shared/DuplicateOrderBadge";
-import { RejectionReasonHover } from "./RejectionReasonHover";
 import { getCarrierLogo } from "@/lib/carriers/carrier-logos";
+import { carrierAccountRing } from "@/lib/carriers/carrier-account-mark";
 import type { QueueOrder } from "@/types/queue";
 import type { BucketKey } from "./QueueHeader";
 import { highlightSegments, type HighlightSegment } from "@/lib/queue/highlight";
@@ -199,6 +200,9 @@ export const OrderCard = memo(function OrderCard({
 
   const { hue } = presentAgentStatus(order, { maxAttempts, nowMs });
 
+  // Non-null only for carriers that run more than one account.
+  const accountRing = carrierAccountRing(order.carrier_code, order.carrier_id);
+
   const showBadges =
     order.status !== "deleted" &&
     (order.repeat_kind !== "none" ||
@@ -221,7 +225,7 @@ export const OrderCard = memo(function OrderCard({
         "border-b border-agent-outline-variant bg-agent-surface",
         "transition-[background-color,box-shadow] duration-base",
         "last:rounded-b-xl last:border-b-0 hover:bg-agent-surface-low hover:shadow-hover-row",
-        isSelected ? "bg-hue-green-bg/60" : "",
+        isSelected ? "bg-hue-green-fill-soft" : "",
       ].join(" ")}
     >
       {/* Status rail — the row carries its own status colour at the leading
@@ -384,10 +388,11 @@ export const OrderCard = memo(function OrderCard({
       </div>
 
       {/* Clock 1 — how long the customer has waited. Escalates only while the
-          order still needs a human. */}
+          order still needs a human; the exact timestamp is on hover. */}
       <span
         data-testid="order-age"
         data-tier={age.tier}
+        title={now ? formatDateTime(order.created_at, locale) : undefined}
         className={`hidden lg:inline-flex items-center gap-1 text-[12.5px] tabular-nums ${AGE_TONE[age.tier]}`}
       >
         {now ? formatOrderAge(age.minutes, locale) : ""}
@@ -397,21 +402,17 @@ export const OrderCard = memo(function OrderCard({
       <span
         data-testid="order-last-action"
         data-tier={lastAction.tier}
+        title={
+          now && order.last_action_at ? formatDateTime(order.last_action_at, locale) : undefined
+        }
         className={`hidden lg:inline-flex items-center gap-1 text-[12.5px] tabular-nums ${LAST_ACTION_TONE[lastAction.tier]}`}
       >
         {!now ? "" : lastAction.minutes === null ? "—" : formatOrderAge(lastAction.minutes, locale)}
       </span>
 
-      {/* Status */}
-      <span className="hidden min-w-0 lg:flex">
-        {order.status === "rejected" ? (
-          <RejectionReasonHover reason={order.rejection_reason} note={order.rejection_note}>
-            {statusPill}
-          </RejectionReasonHover>
-        ) : (
-          statusPill
-        )}
-      </span>
+      {/* Status — a rejected row states its reason instead of the word
+          "rejected", so the hover popover this used to need is gone. */}
+      <span className="hidden min-w-0 lg:flex">{statusPill}</span>
 
       {/* Money — aligned to the trailing edge, tabular so the column stacks. */}
       <span className="flex items-baseline justify-end gap-1">
@@ -454,6 +455,11 @@ export const OrderCard = memo(function OrderCard({
               title={order.carrier_name ?? order.carrier_code}
             >
               {getCarrierLogo(order.carrier_code) ? (
+                // Two Darb Assabil accounts share one code and therefore one
+                // logo file. The ring is the only thing separating a Tripoli
+                // shipment from a Benghazi one at 20px — and because colour must
+                // never be the sole signal, the account name stays in `title`
+                // and in `alt` (§4.18, named exception).
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={getCarrierLogo(order.carrier_code)!}
@@ -462,7 +468,13 @@ export const OrderCard = memo(function OrderCard({
                   height={20}
                   loading="lazy"
                   decoding="async"
-                  className="h-5 w-auto object-contain"
+                  data-carrier-account={accountRing ? order.carrier_id : undefined}
+                  className={
+                    accountRing
+                      ? "h-5 w-auto rounded-full object-contain ring-2 ring-offset-1 ring-offset-agent-surface"
+                      : "h-5 w-auto object-contain"
+                  }
+                  style={accountRing ? { ["--tw-ring-color" as string]: accountRing } : undefined}
                 />
               ) : (
                 <span

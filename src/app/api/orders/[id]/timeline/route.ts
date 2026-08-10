@@ -50,14 +50,21 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
 
-  if (actor.role !== "super_admin" && actor.role !== "market_manager") {
+  // Agents read this too, scoped to their own orders (checked below). The route
+  // was manager-only, which meant the order panel's tracking tab rendered empty
+  // for the people who spend all day in it.
+  if (
+    actor.role !== "super_admin" &&
+    actor.role !== "market_manager" &&
+    actor.role !== "agent"
+  ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { data: orderRow, error: orderErr } = await supabase
     .from("orders")
     .select(
-      "id, external_id, status, market_id, carrier_id, created_at, updated_at, needs_carrier_followup, carriers!orders_carrier_id_fkey(name)",
+      "id, external_id, status, market_id, carrier_id, assigned_to, created_at, updated_at, needs_carrier_followup, carriers!orders_carrier_id_fkey(name)",
     )
     .eq("id", params.id)
     .single();
@@ -72,6 +79,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     status: OrderStatus;
     market_id: string;
     carrier_id: string | null;
+    assigned_to: string | null;
     created_at: string;
     updated_at: string;
     needs_carrier_followup: boolean | null;
@@ -81,6 +89,13 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   if (actor.role === "market_manager" && order.market_id !== actor.market_id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // An agent sees the tracking of orders they own and nothing else. 404 rather
+  // than 403 — the same shape the rest of the agent routes use, so a probe
+  // cannot distinguish "not yours" from "does not exist".
+  if (actor.role === "agent" && order.assigned_to !== actor.id) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   const { data: historyRows, error: historyErr } = await supabase

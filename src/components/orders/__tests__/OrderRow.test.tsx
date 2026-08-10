@@ -275,7 +275,7 @@ describe("OrderRow", () => {
     // "06/08/2026 16:00" tells a dispatcher nothing about urgency; "3 j" does.
     renderRow();
     const age = screen.getByTestId("order-age");
-    expect(age.textContent).toMatch(/\d+\s*(min|h|j)/);
+    expect(age.textContent).toMatch(/^\d+(mn|h|d)( \d+(mn|h))?$/);
   });
 
   it("keeps the exact timestamp available on hover", () => {

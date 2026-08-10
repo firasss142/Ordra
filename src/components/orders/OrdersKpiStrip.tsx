@@ -2,6 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { CalendarDays, PieChart, UserRound } from "lucide-react";
+import { StatusIcon } from "@/components/shared/StatusIcon";
+import { presentStatus, type StatusHue } from "@/lib/orders/status-presentation";
 import type { StatusCounts } from "@/app/api/orders/status-counts/route";
 
 /**
@@ -34,16 +37,23 @@ interface StageDef {
   count: (c: StatusCounts) => number;
   /** Backlog ("maintenant") vs period count ("aujourd'hui") — labelled on every tile. */
   period: "now" | "today";
+  /**
+   * The status this tile counts. Hue and icon come from the shared presentation
+   * map (§4.19), so a tile and the rows it opens cannot disagree about what
+   * colour a state is. `today` has no status — it is a period, not a state — so
+   * it carries a calendar in the neutral hue.
+   */
+  status: string | null;
 }
 
 const STAGES: StageDef[] = [
-  { key: "today", count: (c) => c.today, period: "today" },
-  { key: "waiting", count: (c) => c.waiting, period: "now" },
-  { key: "toRecall", count: (c) => c.toRecall, period: "now" },
+  { key: "today", count: (c) => c.today, period: "today", status: null },
+  { key: "waiting", count: (c) => c.waiting, period: "now", status: "pending" },
+  { key: "toRecall", count: (c) => c.toRecall, period: "now", status: "callback_scheduled" },
   // Backlog, not "confirmed today": clicking filters to status=confirmed, and a
   // tile whose number disagreed with the table it opens is the bug this replaced.
-  { key: "confirmed", count: (c) => c.confirmed, period: "now" },
-  { key: "uploaded", count: (c) => c.uploaded, period: "now" },
+  { key: "confirmed", count: (c) => c.confirmed, period: "now", status: "confirmed" },
+  { key: "uploaded", count: (c) => c.uploaded, period: "now", status: "uploaded" },
 ];
 
 interface Props {
@@ -76,13 +86,15 @@ export function OrdersKpiStrip({ counts, activeTile, onSelect, isLoading }: Prop
   if (isLoading || !counts) {
     return (
       <div className="flex flex-col gap-2.5" aria-busy="true" aria-label={t("label")}>
+        {/* Sized to the real tiles, icon holder included — a skeleton that is
+            shorter than what replaces it makes the page jump on every load. */}
         <div className="flex gap-2">
-          <div className="h-[68px] w-[152px] rounded-card bg-oms-sunken" />
-          <div className="h-[68px] w-[258px] rounded-card bg-oms-sunken" />
+          <div className="h-[78px] w-[190px] rounded-card bg-oms-sunken" />
+          <div className="h-[78px] w-[290px] rounded-card bg-oms-sunken" />
         </div>
         <div className="flex gap-2">
           {STAGES.map((s) => (
-            <div key={s.key} className="h-[74px] flex-1 rounded-card bg-oms-sunken" />
+            <div key={s.key} className="h-[86px] flex-1 rounded-card bg-oms-sunken" />
           ))}
         </div>
       </div>
@@ -103,33 +115,53 @@ export function OrdersKpiStrip({ counts, activeTile, onSelect, isLoading }: Prop
           aria-pressed={activeTile === "unassigned"}
           aria-label={`${t("unassigned")}: ${nf.format(counts.unassigned)} (${t("periodNow")})`}
           onClick={() => toggle("unassigned")}
-          className={tileClass(activeTile === "unassigned", "min-w-[152px]")}
+          className={tileClass(activeTile === "unassigned", "min-w-[190px]")}
         >
-          <span className="block text-[22px] font-[650] leading-[1.12] tracking-[-0.022em] tabular-nums text-oms-age-warm">
-            {nf.format(counts.unassigned)}
-          </span>
-          <span className="mt-0.5 block text-[10.5px] font-semibold uppercase tracking-[0.075em] text-oms-ink-2">
-            {t("unassigned")}
-          </span>
-          <span className="mt-px block text-[10.5px] font-normal text-oms-ink-3">
-            {t("periodNow")} · {t("unassignedHint")}
+          <span className="flex items-start gap-2.5">
+            <span
+              aria-hidden="true"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-hue-amber-bg text-hue-amber-ink"
+            >
+              <UserRound size={18} strokeWidth={2} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[24px] font-[650] leading-[1.12] tracking-[-0.022em] tabular-nums text-oms-age-warm">
+                {nf.format(counts.unassigned)}
+              </span>
+              <span className="mt-0.5 block text-[10.5px] font-semibold uppercase tracking-[0.075em] text-oms-ink-2">
+                {t("unassigned")}
+              </span>
+              <span className="mt-px block text-[10.5px] font-normal text-oms-ink-3">
+                {t("periodNow")} · {t("unassignedHint")}
+              </span>
+            </span>
           </span>
         </button>
 
         {/* A rate has no destination to filter to, so it reads instead of
-            navigating — and is styled differently so that reads as a promise. */}
+            navigating. That used to be signalled by a dashed border on a sunken
+            fill, which read as disabled rather than as a readout. It is now the
+            same card as its neighbours with one difference the eye picks up on
+            contact: it is a <div>, and NOTHING here responds to hover. Every
+            control on this row lifts under the cursor; this one does not. */}
         {counts.confirmationRate !== null && (
-          <div className="flex min-w-[258px] items-center gap-3.5 rounded-card border border-dashed border-oms-border bg-oms-sunken px-3.5 py-2.5">
+          <div className="flex min-w-[290px] items-center gap-3 rounded-card border border-oms-border bg-oms-surface px-3.5 py-2.5">
+            <span
+              aria-hidden="true"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-hue-green-bg text-hue-green-ink"
+            >
+              <PieChart size={18} strokeWidth={2} />
+            </span>
             <div className="min-w-0">
               <div className="flex items-baseline gap-2">
-                <span className="text-[22px] font-[650] leading-[1.12] tracking-[-0.022em] tabular-nums text-oms-ink-1">
+                <span className="text-[24px] font-[650] leading-[1.12] tracking-[-0.022em] tabular-nums text-oms-ink-1">
                   {pct(counts.confirmationRate)}
                 </span>
                 {delta !== null && (
                   <span
                     className={
                       "inline-flex items-center gap-0.5 text-[11.5px] font-semibold tabular-nums " +
-                      (delta >= 0 ? "text-status-success" : "text-oms-age-late")
+                      (delta >= 0 ? "text-brand" : "text-oms-age-late")
                     }
                   >
                     {delta >= 0 ? "▲" : "▼"} {nf.format(Math.abs(Math.round(delta * 10) / 10))}
@@ -156,14 +188,14 @@ export function OrdersKpiStrip({ counts, activeTile, onSelect, isLoading }: Prop
         <div className="mb-1.5 flex items-center gap-3 text-[10.5px] font-semibold uppercase tracking-[0.075em] text-oms-ink-3">
           <span>{t("pipeline")}</span>
           <span className="inline-flex items-center gap-1.5 font-normal normal-case tracking-normal">
-            <i aria-hidden className="block h-1 w-4 rounded-pill bg-oms-accent opacity-80" />
+            <i aria-hidden className="block h-1 w-4 rounded-pill bg-brand opacity-80" />
             {t("scaleQueues")}
           </span>
           <span className="inline-flex items-center gap-1.5 font-normal normal-case tracking-normal">
             <i
               aria-hidden
               className="block h-1 w-4 rounded-pill opacity-60"
-              style={{ boxShadow: "inset 0 0 0 1.5px var(--oms-accent)" }}
+              style={{ boxShadow: "inset 0 0 0 1.5px var(--brand)" }}
             />
             {t("scaleDaily")}
           </span>
@@ -181,22 +213,14 @@ export function OrdersKpiStrip({ counts, activeTile, onSelect, isLoading }: Prop
         </div>
 
         {pipelineOpen && (
-          <div className="flex flex-wrap items-stretch">
-            {STAGES.map((stage, i) => {
+          <div className="flex flex-wrap items-stretch gap-2">
+            {STAGES.map((stage) => {
               const n = stage.count(counts);
               const active = activeTile === stage.key;
               const daily = stage.period === "today";
               const width = Math.max(4, (n / scaleMax[stage.period]) * 100);
               return (
                 <div key={stage.key} className="flex min-w-[118px] flex-1 basis-[128px] items-stretch">
-                  {i > 0 && (
-                    <span
-                      aria-hidden
-                      className="grid w-[18px] shrink-0 place-items-center text-[15px] leading-none text-oms-border-strong"
-                    >
-                      ›
-                    </span>
-                  )}
                   <button
                     type="button"
                     aria-pressed={active}
@@ -207,22 +231,27 @@ export function OrdersKpiStrip({ counts, activeTile, onSelect, isLoading }: Prop
                     onClick={() => toggle(stage.key)}
                     className={tileClass(active, "flex-1 min-w-0 !px-3 !py-2")}
                   >
-                    <span className="block text-[19px] font-[650] leading-[1.12] tracking-[-0.022em] tabular-nums text-oms-ink-1">
-                      {nf.format(n)}
-                    </span>
-                    <span className="mt-0.5 block truncate text-[10.5px] font-semibold uppercase tracking-[0.075em] text-oms-ink-2">
-                      {t(stage.key)}
-                    </span>
-                    <span className="mt-px block text-[10.5px] font-normal text-oms-ink-3">
-                      {daily ? t("periodToday") : t("periodNow")}
+                    <span className="flex items-start gap-2.5">
+                      <TileIcon status={stage.status} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[21px] font-[650] leading-[1.12] tracking-[-0.022em] tabular-nums text-oms-ink-1">
+                          {nf.format(n)}
+                        </span>
+                        <span className="mt-0.5 block truncate text-[10.5px] font-semibold uppercase tracking-[0.075em] text-oms-ink-2">
+                          {t(stage.key)}
+                        </span>
+                        <span className="mt-px block text-[10.5px] font-normal text-oms-ink-3">
+                          {daily ? t("periodToday") : t("periodNow")}
+                        </span>
+                      </span>
                     </span>
                     <span className="mt-1.5 block h-1 overflow-hidden rounded-pill bg-oms-sunken">
                       <i
                         className="block h-full rounded-pill"
                         style={
                           daily
-                            ? { width: `${width}%`, boxShadow: "inset 0 0 0 1.5px var(--oms-accent)", opacity: 0.6 }
-                            : { width: `${width}%`, background: "var(--oms-accent)", opacity: 0.8 }
+                            ? { width: `${width}%`, boxShadow: "inset 0 0 0 1.5px var(--brand)", opacity: 0.6 }
+                            : { width: `${width}%`, background: "var(--brand)", opacity: 0.8 }
                         }
                       />
                     </span>
@@ -237,15 +266,62 @@ export function OrdersKpiStrip({ counts, activeTile, onSelect, isLoading }: Prop
   );
 }
 
-/** Resting surfaces stay flat; elevation appears only on hover. */
+/**
+ * The §4.19 tinted icon holder: a 10% wash of the tile's own hue behind a 20px
+ * icon in the full hue. §4.10 forbids tinted backgrounds for section identity
+ * inside a panel; a tile row is a different job — it is scanned peripherally for
+ * the one number you came for, and the tint is what makes it scannable before
+ * a single label is read.
+ */
+function TileIcon({ status }: { status: string | null }) {
+  const face = status ? presentStatus(status) : null;
+  const hue = face?.hue ?? "neutral";
+  return (
+    <span
+      aria-hidden="true"
+      className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${HOLDER_BG[hue]} ${HOLDER_INK[hue]}`}
+    >
+      {face ? <StatusIcon name={face.icon} size={18} /> : <CalendarDays size={18} strokeWidth={2} />}
+    </span>
+  );
+}
+
+const HOLDER_BG: Record<StatusHue, string> = {
+  neutral: "bg-hue-neutral-bg",
+  amber: "bg-hue-amber-bg",
+  violet: "bg-hue-violet-bg",
+  teal: "bg-hue-teal-bg",
+  green: "bg-hue-green-bg",
+  red: "bg-hue-red-bg",
+};
+
+const HOLDER_INK: Record<StatusHue, string> = {
+  neutral: "text-hue-neutral-ink",
+  amber: "text-hue-amber-ink",
+  violet: "text-hue-violet-ink",
+  teal: "text-hue-teal-ink",
+  green: "text-hue-green-ink",
+  red: "text-hue-red-ink",
+};
+
+/**
+ * Resting surfaces stay flat; elevation appears only on hover.
+ *
+ * The active state is brand green, not the violet it used to be. §4.17 C had
+ * reserved violet for this tile on the argument that a tile and a tab are
+ * different instruments and should not share a colour — but the console has no
+ * tabs to confuse it with, and one green across the sidebar, the CTA and the
+ * active tile is what makes the page read as one product. Violet stays where it
+ * still means something: the `confirmed` / `callback_scheduled` status hue.
+ */
 function tileClass(active: boolean, extra = "") {
   return [
     "rounded-card border bg-oms-surface px-3.5 py-2.5 text-start",
     "transition-[border-color,box-shadow,background-color] duration-base",
     "hover:border-oms-border-strong hover:shadow-hover-row",
-    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-oms-accent",
+    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
     active
-      ? "border-oms-accent bg-oms-accent-bg shadow-[inset_0_0_0_1px_var(--oms-accent)]"
+      ? "border-brand bg-brand-bg shadow-[inset_0_0_0_1px_var(--brand)]"
       : "border-oms-border",
     extra,
   ].join(" ");

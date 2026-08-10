@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { CallbackPicker } from "./CallbackPicker";
 import { RejectionReasonSelect } from "./RejectionReasonSelect";
+import { isValidPair } from "@/lib/orders/rejection-taxonomy";
 import { DexpressLocationPicker, type DexpressSelection } from "./DexpressLocationPicker";
 import { DarbAssabilDispatchModal } from "./DarbAssabilDispatchModal";
 import { coverageFor, type CoverageState } from "@/lib/carriers/coverage";
@@ -260,6 +261,7 @@ export function PostCallActionSheet({
 
   // REJECT
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
+  const [rejectionSubreason, setRejectionSubreason] = useState<string | null>(null);
   const [rejectionNote, setRejectionNote] = useState<string | undefined>(undefined);
 
   // CALLBACK — pre-seed with default so "Planifier le rappel" is enabled immediately
@@ -589,6 +591,7 @@ export function PostCallActionSheet({
       optimisticPatch: () => ({
         status: "rejected",
         rejection_reason: rejectionReason,
+        rejection_subreason: rejectionSubreason,
         rejection_note: rejectionNote ?? null,
       }),
       request: () =>
@@ -597,6 +600,7 @@ export function PostCallActionSheet({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             rejection_reason: rejectionReason,
+            rejection_subreason: rejectionSubreason,
             rejection_note: rejectionNote,
           }),
         }),
@@ -739,7 +743,10 @@ export function PostCallActionSheet({
                   hint={atMax ? t("rejectedHintMax") : t("rejectedHint")}
                   onClick={() => {
                     setFlow("reject_flow");
-                    if (atMax) setRejectionReason("injoignable");
+                    if (atMax) {
+                      setRejectionReason("injoignable");
+                      setRejectionSubreason("pas_de_reponse");
+                    }
                   }}
                 />
 
@@ -984,16 +991,27 @@ export function PostCallActionSheet({
                   onClick={() => {
                     setFlow("option_select");
                     setRejectionReason(atMax ? "injoignable" : null);
+                    setRejectionSubreason(atMax ? "pas_de_reponse" : null);
                   }}
                 >
                   {t("back")}
                 </button>
 
                 <RejectionReasonSelect
-                  defaultReason={atMax ? "injoignable" : undefined}
-                  onSelect={(reason, note) => {
-                    setRejectionReason(reason);
+                  defaultGroup={atMax ? "injoignable" : undefined}
+                  onSelect={(group, sub, note) => {
+                    setRejectionReason(group);
+                    setRejectionSubreason(sub);
                     setRejectionNote(note);
+                  }}
+                  // "Wants it later" is a callback, not a rejection. Offering it
+                  // here — where the agent actually hears it — is what keeps it
+                  // out of the rejection rate.
+                  onPostpone={() => {
+                    setRejectionReason(null);
+                    setRejectionSubreason(null);
+                    setRejectionNote(undefined);
+                    setFlow("callback_expanded");
                   }}
                 />
 
@@ -1001,8 +1019,8 @@ export function PostCallActionSheet({
                   type="button"
                   className={`${submitButtonClasses} mt-4`}
                   disabled={
-                    !rejectionReason ||
-                    (rejectionReason === "autre" && !rejectionNote) ||
+                    !isValidPair(rejectionReason ?? "", rejectionSubreason) ||
+                    (rejectionReason === "autre" && !rejectionNote?.trim()) ||
                     loading
                   }
                   onClick={submitReject}

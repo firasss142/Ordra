@@ -43,8 +43,11 @@ export function NavItem({
       ? "var(--sidebar-text)"
       : "var(--sidebar-text-muted)";
 
+  // Active is a filled green block, not the old grey slab with a white edge
+  // bar. Green is the chrome accent — where you are and what you press
+  // (§1 rule 3, amended; §4.18).
   const background = isActive
-    ? "var(--sidebar-active)"
+    ? "var(--brand)"
     : hovered
       ? "var(--sidebar-hover)"
       : "transparent";
@@ -64,13 +67,14 @@ export function NavItem({
         paddingInlineStart: "14px",
         paddingInlineEnd: "16px",
         fontSize: "0.875rem",
-        fontWeight: isActive ? 500 : 400,
-        color: "var(--sidebar-text)",
+        fontWeight: isActive ? 600 : 400,
+        color: isActive ? "#FFFFFF" : "var(--sidebar-text)",
         textDecoration: "none",
         backgroundColor: background,
-        borderInlineStart: isActive
-          ? "2px solid #FFFFFF"
-          : "2px solid transparent",
+        // The fill IS the active marker now, so the edge bar is gone and the
+        // block gets a radius instead.
+        borderRadius: "8px",
+        marginInline: "8px",
         transition: "background-color 120ms ease, color 120ms ease",
       }}
     >

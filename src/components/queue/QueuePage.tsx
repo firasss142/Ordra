@@ -24,6 +24,7 @@ import { useQueueSearch } from "@/context/queue-search";
 import { isEditableTarget } from "@/lib/dom";
 import { AGENT_NEW_ORDER_EVENT } from "@/lib/agent-events";
 import { parseQuery, searchOrders } from "@/lib/queue/search";
+import { enCoursBucket } from "@/lib/queue/schedule-bucket";
 import { isBulkCallEligible } from "@/lib/order-permissions";
 import type { QueueOrder } from "@/types/queue";
 import { bucketFor, type Bucket } from "@/lib/carriers/buckets";
@@ -64,6 +65,7 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     variant_label: (raw.variant_label as string) ?? "",
     quantity: (raw.quantity as number) ?? 1,
     product_image_url: (raw.product_image_url as string | null) ?? null,
+    carrier_id: (raw.carrier_id as string | null) ?? null,
     carrier_code: (raw.carrier_code as string | null) ?? null,
     carrier_name: (raw.carrier_name as string | null) ?? null,
     total_price: (raw.total_price as number) ?? 0,
@@ -84,6 +86,7 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     prior_rejected_count: (raw.prior_rejected_count as number) ?? 0,
     last_known_address: (raw.last_known_address as string | null) ?? null,
     rejection_reason: (raw.rejection_reason as string | null) ?? null,
+    rejection_subreason: (raw.rejection_subreason as string | null) ?? null,
     rejection_note: (raw.rejection_note as string | null) ?? null,
     is_potential_duplicate: Boolean(raw.is_potential_duplicate),
     duplicate_count: (raw.duplicate_count as number) ?? 0,
@@ -158,32 +161,31 @@ function attemptNumberForStatus(status: string): 1 | 2 | 3 | null {
   return null;
 }
 
+/**
+ * The sub-filter predicate and the bucket resolver above must agree, or an
+ * order renders under "Tous" and matches no chip. They disagreed: this function
+ * used to reject an explicitly-future time while `bucketForStatus` accepted it,
+ * so anything scheduled for tomorrow fell through every sub-tab. Both sides now
+ * defer to `lib/queue/schedule-bucket`, which is tested to partition the whole
+ * en-cours set.
+ */
 function matchesEnCoursSubfilter(
   o: Record<string, unknown>,
   sub: EnCoursSubfilter,
+  nowMs: number,
 ): boolean {
-  const status = o.status as string;
-  const now = new Date();
   if (sub === "all") return true;
-  if (sub === "rappel") {
-    if (status !== "callback_scheduled") return false;
-    // Unscheduled (no time) or past-due callbacks belong in the queue; only an
-    // explicitly future time hides the order. Mirrors the server filter in
-    // /api/agent/queue.
-    const cbAt = o.callback_scheduled_at as string | null;
-    return !cbAt || new Date(cbAt) <= now;
-  }
-  if (sub === "livraison") {
-    if (status !== "dispatch_scheduled") return false;
-    // Auto rows always show so the agent can upload them manually ahead of the
-    // cron. Manual rows show when unscheduled or past-due; an explicitly future
-    // manual time holds the order back. Mirrors /api/agent/queue.
-    if (o.scheduled_dispatch_auto) return true;
-    const dAt = o.scheduled_dispatch_at as string | null;
-    return !dAt || new Date(dAt) <= now;
-  }
-  if (sub === "tentative") return attemptNumberForStatus(status) !== null;
-  return false;
+  return (
+    enCoursBucket(
+      {
+        status: o.status as string,
+        callback_scheduled_at: o.callback_scheduled_at as string | null,
+        scheduled_dispatch_at: o.scheduled_dispatch_at as string | null,
+        scheduled_dispatch_auto: o.scheduled_dispatch_auto as boolean | null,
+      },
+      nowMs,
+    ) === sub
+  );
 }
 
 function matchesTentativeSubfilter(
@@ -454,8 +456,11 @@ export function QueuePage() {
       });
       if (selectedBucket === "en_cours") {
         if (enCoursSubfilter !== "all") {
+          // One clock for the whole pass, so two rows scheduled a millisecond
+          // apart cannot be bucketed against different "now"s.
+          const nowMs = Date.now();
           filtered = filtered.filter((o) =>
-            matchesEnCoursSubfilter(o, enCoursSubfilter),
+            matchesEnCoursSubfilter(o, enCoursSubfilter, nowMs),
           );
         }
         if (enCoursSubfilter === "tentative" && tentativeSubfilter !== "all") {

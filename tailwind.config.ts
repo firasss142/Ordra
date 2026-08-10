@@ -54,6 +54,17 @@ const config: Config = {
           DEFAULT: "#10B981",
           soft: "rgba(16,185,129,0.10)",
         },
+        // Brand green — console-wide chrome. Values live in globals.css.
+        // `brand` is the light-ground green (5.0:1 white-on-fill); `on-dark`
+        // is #10B981, which is 2.5:1 on white and belongs to the sidebar only.
+        brand: {
+          DEFAULT: "var(--brand)",
+          hover: "var(--brand-hover)",
+          bg: "var(--brand-bg)",
+          tint: "var(--brand-tint)",
+          pos: "var(--brand-pos)",
+          "on-dark": "var(--brand-on-dark)",
+        },
         // Orders console — "soft & warm". Scoped to the orders surface;
         // see docs/design-system.md §"Orders console".
         oms: {
@@ -130,25 +141,50 @@ const config: Config = {
         },
         // Status hues — phase + outcome. Shared by the agent queue's status
         // pill and its sub-filter chips; aliased to the oms.* tokens.
+        // Status hues — phase + outcome. Shared by the agent queue's status
+        // pill and its sub-filter chips; aliased to the oms.* tokens.
+        //
+        // The `-fill-soft` / `-edge-soft` / `-edge-mid` steps exist because
+        // Tailwind v3 cannot apply a `/70` opacity modifier to a var()-backed
+        // colour — it drops the declaration silently. Do not reintroduce
+        // `bg-hue-amber-bg/70`; it compiles to nothing.
         hue: {
           "neutral-ink": "var(--hue-neutral-ink)",
           "neutral-bg": "var(--hue-neutral-bg)",
+          "neutral-fill-soft": "var(--hue-neutral-fill-soft)",
           "neutral-edge": "var(--hue-neutral-edge)",
+          "neutral-edge-soft": "var(--hue-neutral-edge-soft)",
+          "neutral-edge-mid": "var(--hue-neutral-edge-mid)",
           "amber-ink": "var(--hue-amber-ink)",
           "amber-bg": "var(--hue-amber-bg)",
+          "amber-fill-soft": "var(--hue-amber-fill-soft)",
           "amber-edge": "var(--hue-amber-edge)",
+          "amber-edge-soft": "var(--hue-amber-edge-soft)",
+          "amber-edge-mid": "var(--hue-amber-edge-mid)",
           "violet-ink": "var(--hue-violet-ink)",
           "violet-bg": "var(--hue-violet-bg)",
+          "violet-fill-soft": "var(--hue-violet-fill-soft)",
           "violet-edge": "var(--hue-violet-edge)",
+          "violet-edge-soft": "var(--hue-violet-edge-soft)",
+          "violet-edge-mid": "var(--hue-violet-edge-mid)",
           "teal-ink": "var(--hue-teal-ink)",
           "teal-bg": "var(--hue-teal-bg)",
+          "teal-fill-soft": "var(--hue-teal-fill-soft)",
           "teal-edge": "var(--hue-teal-edge)",
+          "teal-edge-soft": "var(--hue-teal-edge-soft)",
+          "teal-edge-mid": "var(--hue-teal-edge-mid)",
           "green-ink": "var(--hue-green-ink)",
           "green-bg": "var(--hue-green-bg)",
+          "green-fill-soft": "var(--hue-green-fill-soft)",
           "green-edge": "var(--hue-green-edge)",
+          "green-edge-soft": "var(--hue-green-edge-soft)",
+          "green-edge-mid": "var(--hue-green-edge-mid)",
           "red-ink": "var(--hue-red-ink)",
           "red-bg": "var(--hue-red-bg)",
+          "red-fill-soft": "var(--hue-red-fill-soft)",
           "red-edge": "var(--hue-red-edge)",
+          "red-edge-soft": "var(--hue-red-edge-soft)",
+          "red-edge-mid": "var(--hue-red-edge-mid)",
         },
       },
       borderRadius: {

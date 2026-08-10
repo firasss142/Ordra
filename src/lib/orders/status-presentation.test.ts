@@ -4,7 +4,6 @@ import {
   presentStatus,
   CONFIRMATION_STATUSES,
   FULFILLMENT_STATUSES,
-  OPEN_GLYPHS,
   FULFILLMENT_HUES,
 } from "./status-presentation";
 
@@ -16,27 +15,30 @@ describe("status presentation — coverage", () => {
     for (const status of Object.keys(STATUS_LABELS)) {
       const p = presentStatus(status);
       expect(p, `no presentation for "${status}"`).toBeDefined();
-      expect(p.glyph, `no glyph for "${status}"`).toBeTruthy();
+      expect(p.icon, `no icon for "${status}"`).toBeTruthy();
     }
   });
 
   it("still renders something for a status the backend invents later", () => {
     const p = presentStatus("teleported_to_mars");
-    expect(p.glyph).toBeTruthy();
+    expect(p.icon).toBeTruthy();
     expect(p.weight).toBe("quiet");
   });
 });
 
-describe("status presentation — shape says open, hue says phase", () => {
-  it("gives every status still awaiting a call a round glyph", () => {
-    for (const status of CONFIRMATION_STATUSES) {
-      expect(OPEN_GLYPHS.has(presentStatus(status).glyph), status).toBe(true);
-    }
-  });
-
-  it("gives every handed-off status an angular glyph", () => {
-    for (const status of FULFILLMENT_STATUSES) {
-      expect(OPEN_GLYPHS.has(presentStatus(status).glyph), status).toBe(false);
+describe("status presentation — icon says what, hue says phase", () => {
+  // The open/closed encoding that lived in glyph SHAPE is gone with
+  // StatusGlyph (§4.17 F-bis, amended). What replaced it is a distinct icon per
+  // status, so the assertion that matters now is that two states an agent has
+  // to tell apart never share one.
+  it("gives the confirmation phase and the carrier phase different icons", () => {
+    const confirmationIcons = new Set(CONFIRMATION_STATUSES.map((s) => presentStatus(s).icon));
+    const fulfillmentIcons = new Set(FULFILLMENT_STATUSES.map((s) => presentStatus(s).icon));
+    for (const icon of confirmationIcons) {
+      // `delivered` and `confirmed` legitimately share a check mark; hue keeps
+      // them apart. Nothing else may overlap.
+      if (icon === "confirmed") continue;
+      expect(fulfillmentIcons.has(icon), icon).toBe(false);
     }
   });
 
@@ -51,11 +53,11 @@ describe("status presentation — shape says open, hue says phase", () => {
   it("separates confirmed from uploaded, which were the same blue", () => {
     // Phase 1 done, still the agent's problem — vs gone to the carrier. The
     // two-phase model is the spine of this system and the row rendered both
-    // identically, so they must differ in hue AND shape.
+    // identically, so they must differ in hue AND icon.
     const confirmed = presentStatus("confirmed");
     const uploaded = presentStatus("uploaded");
     expect(confirmed.hue).not.toBe(uploaded.hue);
-    expect(confirmed.glyph).not.toBe(uploaded.glyph);
+    expect(confirmed.icon).not.toBe(uploaded.icon);
     expect(FULFILLMENT_HUES.has(confirmed.hue)).toBe(false);
     expect(FULFILLMENT_HUES.has(uploaded.hue)).toBe(true);
   });

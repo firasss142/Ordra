@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { validateTransition } from "@/lib/order-engine";
-import { REJECTION_REASONS } from "@/types/order-status";
 import type { OrderStatus, RejectionReason } from "@/types/order-status";
+import { isValidPair, REJECTION_GROUPS } from "@/lib/orders/rejection-taxonomy";
 import { getActor } from "@/lib/auth/actor";
 import {
   actorTypeFor,
@@ -29,19 +29,27 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: { rejection_reason: string; rejection_note?: string };
+  let body: {
+    rejection_reason: string;
+    rejection_subreason?: string | null;
+    rejection_note?: string;
+  };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (
-    !body.rejection_reason ||
-    !(REJECTION_REASONS as readonly string[]).includes(body.rejection_reason)
-  ) {
+  // A group on its own is not an answer. Requiring the pair is what stops the
+  // new taxonomy decaying back into the old one, where the vaguest option was
+  // always the fastest way to close the sheet.
+  if (!isValidPair(body.rejection_reason ?? "", body.rejection_subreason ?? null)) {
     return NextResponse.json(
-      { error: `Invalid rejection_reason. Must be one of: ${REJECTION_REASONS.join(", ")}` },
+      {
+        error:
+          `Invalid rejection reason. Group must be one of: ${REJECTION_GROUPS.join(", ")}` +
+          ", with a sub-reason belonging to it (none for 'autre').",
+      },
       { status: 400 }
     );
   }
@@ -103,6 +111,7 @@ export async function POST(
       p_actor_type: actorTypeFor(role),
       p_note: body.rejection_note ?? null,
       p_rejection_reason: body.rejection_reason as RejectionReason,
+      p_rejection_subreason: body.rejection_subreason ?? null,
       p_rejection_note: body.rejection_note ?? null,
     });
 
@@ -140,6 +149,7 @@ export async function POST(
     p_actor_type: "agent",
     p_note: body.rejection_note ?? null,
     p_rejection_reason: body.rejection_reason as RejectionReason,
+    p_rejection_subreason: body.rejection_subreason ?? null,
     p_rejection_note: body.rejection_note ?? null,
   });
 

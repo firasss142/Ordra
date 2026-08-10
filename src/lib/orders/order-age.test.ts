@@ -51,16 +51,40 @@ describe("classifyOrderAge", () => {
 
 describe("formatOrderAge", () => {
   test("reads in minutes, then hours, then days", () => {
-    expect(formatOrderAge(45, "fr")).toMatch(/45\s*min/);
-    expect(formatOrderAge(180, "fr")).toMatch(/3\s*h/);
-    expect(formatOrderAge(2880, "fr")).toMatch(/2\s*j/);
+    expect(formatOrderAge(45, "fr")).toBe("45mn");
+    expect(formatOrderAge(180, "fr")).toBe("3h");
+    expect(formatOrderAge(2880, "fr")).toBe("2d");
+  });
+
+  // A floored single unit reported "3h" for anything from 3h00 to 3h59, so two
+  // orders an hour apart in real urgency read identically.
+  test("carries a second unit when there is a remainder", () => {
+    expect(formatOrderAge(135, "fr")).toBe("2h 15mn");
+    expect(formatOrderAge(1680, "fr")).toBe("1d 4h");
+  });
+
+  test("drops the second unit when it would be zero", () => {
+    expect(formatOrderAge(120, "fr")).toBe("2h");
+    expect(formatOrderAge(1440, "fr")).toBe("1d");
+  });
+
+  // Past a week the remainder stops being actionable and only adds noise.
+  test("shows days alone once the order is a week old", () => {
+    expect(formatOrderAge(7 * 1440 + 300, "fr")).toBe("7d");
+    expect(formatOrderAge(12 * 1440 + 700, "fr")).toBe("12d");
   });
 
   test("never renders a bare zero", () => {
-    expect(formatOrderAge(0, "fr")).toMatch(/min/);
+    expect(formatOrderAge(0, "fr")).toBe("1mn");
   });
 
-  test("uses Arabic day and hour units for the ar locale", () => {
-    expect(formatOrderAge(2880, "ar")).not.toMatch(/j$/);
+  test("uses Arabic units for the ar locale", () => {
+    expect(formatOrderAge(45, "ar")).toBe("45د");
+    expect(formatOrderAge(135, "ar")).toBe("2س 15د");
+    expect(formatOrderAge(2880, "ar")).toBe("2ي");
+  });
+
+  test("falls back to French units for an unknown locale", () => {
+    expect(formatOrderAge(135, "es")).toBe("2h 15mn");
   });
 });

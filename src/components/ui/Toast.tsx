@@ -102,7 +102,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               key={t.id}
               role={style.role}
               aria-live={style.role === "alert" ? "assertive" : "polite"}
-              className="pointer-events-auto flex max-w-[420px] overflow-hidden rounded-lg bg-surface-ink text-white shadow-lg"
+              // `bg-surface-ink` was never defined in tailwind.config.ts, so
+              // this compiled to nothing and every toast rendered as white text
+              // on a transparent panel.
+              className="pointer-events-auto flex max-w-[420px] overflow-hidden rounded-lg bg-ink-primary text-white shadow-lg"
             >
               <span aria-hidden="true" className={`w-1 ${style.accent}`} />
               <div className="flex items-center gap-3 px-4 py-3 text-[13px]">

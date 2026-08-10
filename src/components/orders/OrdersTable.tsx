@@ -115,7 +115,9 @@ export function OrdersTable({
             <col style={{ width: 130 }} />
             <col style={{ width: 110 }} />
             <col style={{ width: 64 }} />
-            <col style={{ width: 48 }} />
+            {/* 56, not 48: the kebab is always visible now, and a 28px target
+                inside 48px of column left it crowding the source logo. */}
+            <col style={{ width: 56 }} />
           </colgroup>
           <thead>
             <tr style={{ background: "var(--oms-bg)", position: "sticky", top: 0, zIndex: 1 }}>
@@ -204,14 +206,23 @@ function TableSkeleton() {
   );
 }
 
+/**
+ * Column heads sit on the page ground, not on a card.
+ *
+ * They used to be 13px uppercase on `#FFFFFF` — a white band the sticky row
+ * behind them set to `var(--oms-bg)`, so the header disagreed with itself and
+ * showed a seam on scroll. At 13px with letter-spacing they also out-weighed
+ * the 14px row data they label. Now: 11px, the ink-3 step, and the same ground
+ * as the row they are stuck to.
+ */
 const headerStyle: React.CSSProperties = {
   textAlign: "start",
-  padding: "12px 16px",
-  fontSize: 13,
-  fontWeight: 500,
-  color: "#6D7175",
+  padding: "10px 16px",
+  fontSize: 11,
+  fontWeight: 600,
+  color: "var(--oms-ink-3)",
   textTransform: "uppercase",
-  letterSpacing: "0.05em",
-  borderBottom: "1px solid #E1E3E5",
-  background: "#FFFFFF",
+  letterSpacing: "0.06em",
+  borderBottom: "1px solid var(--oms-border)",
+  background: "var(--oms-bg)",
 };

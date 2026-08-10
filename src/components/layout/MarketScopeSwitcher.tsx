@@ -11,15 +11,47 @@ interface OptionDef {
   value: MarketScope;
   /** Solid dot color for TN/LY; null = "all", rendered as a globe icon */
   dot: string | null;
+  /**
+   * Flag for TN/LY; null = "all". A flag names the market faster than a colour
+   * anyone has to learn. It is never the only signal — the market name always
+   * sits beside it — which also covers the platforms that render a
+   * regional-indicator pair as the bare letters "TN"/"LY" instead of a flag.
+   */
+  flag: string | null;
 }
 
 const OPTIONS: readonly OptionDef[] = [
-  { value: "tn", dot: "#3B82F6" },
-  { value: "ly", dot: "#F59E0B" },
-  { value: "all", dot: null },
+  { value: "tn", dot: "#3B82F6", flag: "🇹🇳" },
+  { value: "ly", dot: "#F59E0B", flag: "🇱🇾" },
+  { value: "all", dot: null, flag: null },
 ];
 
-function ScopeGlyph({ dot, size = 8 }: { dot: string | null; size?: number }) {
+function ScopeGlyph({
+  dot,
+  flag,
+  size = 8,
+}: {
+  dot: string | null;
+  flag?: string | null;
+  size?: number;
+}) {
+  if (flag) {
+    return (
+      <span
+        aria-hidden="true"
+        style={{
+          fontSize: size + 6,
+          lineHeight: 1,
+          flexShrink: 0,
+          // Colour emoji ignore `color`, so no theming is needed or possible.
+          fontFamily:
+            '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif',
+        }}
+      >
+        {flag}
+      </span>
+    );
+  }
   if (!dot) {
     return (
       <Globe2
@@ -124,7 +156,7 @@ export function MarketScopeSwitcher({ user }: { user: AuthUser }) {
             "background-color 140ms ease, border-color 140ms ease, color 140ms ease",
         }}
       >
-        <ScopeGlyph dot={active.dot} />
+        <ScopeGlyph dot={active.dot} flag={active.flag} />
         <span style={{ letterSpacing: "0.01em" }}>{t(`markets.${active.value}`)}</span>
         <ChevronDown
           size={12}
@@ -176,6 +208,7 @@ export function MarketScopeSwitcher({ user }: { user: AuthUser }) {
                 key={opt.value}
                 label={t(`markets.${opt.value}`)}
                 dot={opt.dot}
+                flag={opt.flag}
                 selected={selected}
                 isRtl={isRtl}
                 onClick={() => {
@@ -210,12 +243,14 @@ export function MarketScopeSwitcher({ user }: { user: AuthUser }) {
 function MenuOption({
   label,
   dot,
+  flag,
   selected,
   isRtl,
   onClick,
 }: {
   label: string;
   dot: string | null;
+  flag: string | null;
   selected: boolean;
   isRtl: boolean;
   onClick: () => void;
@@ -257,7 +292,7 @@ function MenuOption({
         textAlign: isRtl ? "right" : "left",
       }}
     >
-      <ScopeGlyph dot={dot} />
+      <ScopeGlyph dot={dot} flag={flag} />
       <span
         style={{
           flex: 1,

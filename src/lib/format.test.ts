@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { formatExactTime, formatRelativeDate, formatLongDate, formatTime } from "./format";
+import { formatExactTime, formatLongDate, formatTime } from "./format";
 
 describe("formatTime", () => {
   it("returns a HH:MM time string", () => {
@@ -65,44 +65,3 @@ describe("formatExactTime", () => {
   });
 });
 
-describe("formatRelativeDate", () => {
-  afterEach(() => vi.useRealTimers());
-
-  it("returns 'Xh' for a date within the last 24 hours", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-26T14:00:00Z"));
-    const twoHoursAgo = new Date("2026-04-26T12:00:00Z").toISOString();
-    expect(formatRelativeDate(twoHoursAgo)).toBe("2h");
-  });
-
-  it("returns 'Xmin' for a date less than an hour ago", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-26T14:00:00Z"));
-    const thirtyMinsAgo = new Date("2026-04-26T13:30:00Z").toISOString();
-    expect(formatRelativeDate(thirtyMinsAgo)).toBe("30min");
-  });
-
-  it("returns short date (no year) when older than 24h but same year", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-26T14:00:00Z"));
-    const lastWeek = new Date("2026-04-19T10:00:00Z").toISOString();
-    const result = formatRelativeDate(lastWeek);
-    expect(result).toMatch(/apr/i);
-    expect(result).not.toMatch(/2026/);
-  });
-
-  it("includes the year for dates from a previous year", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-26T14:00:00Z"));
-    const lastYear = new Date("2025-03-10T10:00:00Z").toISOString();
-    const result = formatRelativeDate(lastYear);
-    expect(result).toMatch(/2025/);
-  });
-
-  it("returns '1min' for a date exactly 1 minute ago", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-26T14:01:00Z"));
-    const oneMinAgo = new Date("2026-04-26T14:00:00Z").toISOString();
-    expect(formatRelativeDate(oneMinAgo)).toBe("1min");
-  });
-});

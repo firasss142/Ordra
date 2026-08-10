@@ -16,6 +16,7 @@ function order(over: Partial<QueueOrder> = {}): QueueOrder {
     variant_label: "L",
     quantity: 1,
     product_image_url: null,
+    carrier_id: null,
     carrier_code: null,
     carrier_name: null,
     total_price: 89.9,
@@ -36,6 +37,7 @@ function order(over: Partial<QueueOrder> = {}): QueueOrder {
     prior_rejected_count: 0,
     last_known_address: null,
     rejection_reason: null,
+    rejection_subreason: null,
     rejection_note: null,
     is_potential_duplicate: false,
     duplicate_count: 0,
@@ -56,14 +58,14 @@ function order(over: Partial<QueueOrder> = {}): QueueOrder {
 describe("presentAgentStatus", () => {
   it("uses the shared map for a plain pending order", () => {
     const p = presentAgentStatus(order({ status: "pending" }), { nowMs: NOW });
-    expect(p).toMatchObject({ hue: "neutral", weight: "medium", glyph: "ring" });
+    expect(p).toMatchObject({ hue: "neutral", weight: "medium", icon: "waiting" });
     expect(p.label).toEqual({ ns: "orders.statuses", key: "pending" });
   });
 
   it("keeps confirmed violet, not green — the order has not left the agent's hands", () => {
     const p = presentAgentStatus(order({ status: "confirmed" }), { nowMs: NOW });
     expect(p.hue).toBe("violet");
-    expect(p.glyph).toBe("check");
+    expect(p.icon).toBe("confirmed");
   });
 
   it("makes uploaded teal — the first state that is actually with the carrier", () => {
@@ -173,5 +175,58 @@ describe("presentAgentStatus", () => {
     );
     expect(p.datum).toEqual({ kind: "counter", value: "1" });
     expect(p.weight).toBe("medium");
+  });
+});
+
+describe("a rejected row states why, not that it was rejected", () => {
+  // The word "Rejeté" repeats what the red hue and the cross already say, and
+  // it hid the only thing anyone wants to know. Reading it used to require
+  // hovering a popover that overlapped the rows beneath.
+  it("labels with the specific sub-reason when there is one", () => {
+    const p = presentAgentStatus(
+      order({
+        status: "rejected",
+        rejection_reason: "refus_client",
+        rejection_subreason: "achete_ailleurs",
+      }),
+      { nowMs: NOW },
+    );
+    expect(p.label).toEqual({
+      ns: "orders.rejectionSubreasonsShort",
+      key: "achete_ailleurs",
+    });
+    // Still unmistakably a rejection without reading a word.
+    expect(p.hue).toBe("red");
+  });
+
+  it("falls back to the group when the sub-reason was never recorded", () => {
+    // 339 legacy rows carry refus_client and nothing else.
+    const p = presentAgentStatus(
+      order({ status: "rejected", rejection_reason: "refus_client", rejection_subreason: null }),
+      { nowMs: NOW },
+    );
+    expect(p.label).toEqual({ ns: "orders.rejectionReasons", key: "refus_client" });
+  });
+
+  it("shows the free-text note for `autre`, which has no key", () => {
+    const p = presentAgentStatus(
+      order({
+        status: "rejected",
+        rejection_reason: "autre",
+        rejection_subreason: null,
+        rejection_note: "  le client a déménagé  ",
+      }),
+      { nowMs: NOW },
+    );
+    expect(p.label).toEqual({ ns: "literal", text: "le client a déménagé" });
+  });
+
+  it("falls back to the generic word when nothing at all was recorded", () => {
+    // 93 rows carry status=rejected with a null reason.
+    const p = presentAgentStatus(
+      order({ status: "rejected", rejection_reason: null, rejection_subreason: null }),
+      { nowMs: NOW },
+    );
+    expect(p.label).toEqual({ ns: "orders.statuses", key: "bucket.rejected" });
   });
 });

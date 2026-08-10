@@ -564,7 +564,9 @@
       "injoignable": "Injoignable",
       "prix": "Prix",
       "non_serieux": "Non sérieux",
-      "autre": "Autre"
+      "autre": "Autre",
+      "commande_invalide": "Commande non réelle",
+      "livraison_impossible": "Livraison impossible"
     },
     "scope": {
       "realized": "sur commandes livrées",
@@ -984,7 +986,9 @@
       "injoignable": "Injoignable",
       "prix": "Prix",
       "non_serieux": "Non sérieux",
-      "autre": "Autre"
+      "autre": "Autre",
+      "commande_invalide": "Commande non réelle",
+      "livraison_impossible": "Livraison impossible"
     },
     "detail": {
       "title": "Détail commande",
@@ -1129,7 +1133,8 @@
       "subtotal": "Sous-total",
       "fieldTracking": "Suivi",
       "cityDefine": "Définir",
-      "cityEmpty": "Non définie"
+      "cityEmpty": "Non définie",
+      "trackingTitle": "Suivi du colis"
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",
@@ -1265,6 +1270,60 @@
       "showDeleted": "Afficher supprimées",
       "more": "Plus de filtres",
       "carrier": "Transporteur"
+    },
+    "rejectionGroups": {
+      "refus_client": "Refus client",
+      "commande_invalide": "Commande non réelle",
+      "injoignable": "Injoignable",
+      "livraison_impossible": "Livraison impossible",
+      "autre": "Autre"
+    },
+    "rejectionGroupHints": {
+      "refus_client": "Le client a compris l'offre et a dit non",
+      "commande_invalide": "Il n'y avait pas de vraie commande derrière",
+      "injoignable": "Personne n'a pu être joint",
+      "livraison_impossible": "Joignable et d'accord, mais non livrable",
+      "autre": "Note obligatoire"
+    },
+    "rejectionSubreasons": {
+      "prix_eleve": "Prix trop élevé",
+      "frais_livraison": "Frais de livraison refusés",
+      "achete_ailleurs": "Acheté ailleurs",
+      "changement_avis": "A changé d'avis",
+      "produit_non_voulu": "Veut un autre produit",
+      "non_commande": "N'a pas commandé",
+      "doublon": "Commande en double",
+      "simple_info": "Simple demande d'info",
+      "non_serieux": "Commande non sérieuse",
+      "pas_de_reponse": "Ne répond pas",
+      "numero_invalide": "Numéro faux ou inexistant",
+      "numero_hors_service": "Éteint ou hors service",
+      "mauvais_interlocuteur": "Le numéro est à quelqu'un d'autre",
+      "raccroche": "Raccroche au téléphone",
+      "hors_couverture": "Hors zone de livraison",
+      "paiement_impossible": "Moyen de paiement indisponible",
+      "adresse_invalide": "Adresse invalide",
+      "absent_ville": "Absent de la ville"
+    },
+    "rejectionSubreasonsShort": {
+      "prix_eleve": "Prix",
+      "frais_livraison": "Livraison",
+      "achete_ailleurs": "Ailleurs",
+      "changement_avis": "Changé d'avis",
+      "produit_non_voulu": "Autre produit",
+      "non_commande": "Pas commandé",
+      "doublon": "Doublon",
+      "simple_info": "Info",
+      "non_serieux": "Non sérieux",
+      "pas_de_reponse": "Sans réponse",
+      "numero_invalide": "Faux n°",
+      "numero_hors_service": "Hors service",
+      "mauvais_interlocuteur": "Mauvais n°",
+      "raccroche": "Raccroche",
+      "hors_couverture": "Hors zone",
+      "paiement_impossible": "Paiement",
+      "adresse_invalide": "Adresse",
+      "absent_ville": "Absent"
     }
   },
   "unassigned": {
@@ -1307,6 +1366,7 @@
     "showUnreadOnly": "Voir seulement non lues",
     "callback_due": "Rappel en attente",
     "attempt_due": "Tentative en attente",
+    "dispatch_due": "Livraison planifiée à envoyer",
     "viewOrder": "Voir la commande",
     "unknownCustomer": "Client inconnu",
     "noProduct": "Produit non renseigné",
@@ -1484,7 +1544,7 @@
       },
       "enCoursSubfilter": {
         "all": "Tous",
-        "rappel": "Rappel",
+        "rappel": "Appel planifié",
         "tentative": "Tentative",
         "livraison": "Livraison planifiée"
       },
@@ -1535,7 +1595,12 @@
         "cancelledByManager": "Cette commande a été annulée",
         "deletedByManager": "Cette commande a été supprimée"
       }
-    }
+    },
+    "rejectionGroupLabel": "Pourquoi ?",
+    "rejectionSubLabel": "Plus précisément",
+    "rejectionBack": "Retour",
+    "rejectionPostpone": "Le client veut plus tard",
+    "rejectionPostponeHint": "Programme un rappel au lieu de rejeter"
   },
   "products": {
     "title": "Produits",

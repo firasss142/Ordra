@@ -51,6 +51,9 @@ const PAIRS: [string, string, string][] = [
   ["green", "oms-ok", "oms-ok-bg"],
   ["red", "oms-bad", "oms-bad-bg"],
   ["neutral", "oms-ink-2", "oms-surface-sunken"],
+  // Chrome green. Not a status hue, but it sits on a tint in exactly the same
+  // way (active KPI tile, selected row band) and drifts just as easily.
+  ["brand", "brand-hover", "brand-bg"],
 ];
 
 describe("status badge contrast", () => {
@@ -60,4 +63,27 @@ describe("status badge contrast", () => {
       expect(ratio, `${ink} on ${bg} was ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
     });
   }
+});
+
+/**
+ * The brand green is spent on filled chrome — the primary CTA, the active nav
+ * pill — where the label is white. `--brand-primary` (#10B981) reaches only
+ * 2.5:1 on white and must never take that job; these tests are what stops
+ * someone reaching for it because it looks brighter.
+ */
+describe("brand chrome contrast", () => {
+  it("white on the brand fill clears 4.5:1", () => {
+    const ratio = contrast("#FFFFFF", token("brand"));
+    expect(ratio, `white on --brand was ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("the focus ring clears 3:1 on the page ground", () => {
+    const ratio = contrast(token("focus-ring"), token("oms-bg"));
+    expect(ratio, `--focus-ring on --oms-bg was ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(3);
+  });
+
+  it("the focus ring clears 3:1 on the sidebar ground", () => {
+    const ratio = contrast(token("focus-ring"), token("sidebar-bg"));
+    expect(ratio, `--focus-ring on --sidebar-bg was ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(3);
+  });
 });

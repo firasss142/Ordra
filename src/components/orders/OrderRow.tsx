@@ -83,7 +83,12 @@ function RowKebab({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-ink-secondary opacity-0 transition-colors duration-fast hover:bg-surface-selected hover:text-ink-primary focus-visible:opacity-100 group-hover/row:opacity-100 data-[open=true]:opacity-100"
+        // Always visible, not hover-revealed. A menu that only exists under the
+        // cursor is undiscoverable on a touch device and invisible to anyone
+        // navigating by keyboard until they land on it. It is drawn in ink-muted
+        // so a column of them stays quiet; hover promotes it, it does not
+        // summon it. 28px square clears the 24px minimum target (WCAG 2.5.8).
+        className="flex h-7 w-7 items-center justify-center rounded-md text-ink-muted transition-colors duration-fast hover:bg-surface-selected hover:text-ink-primary data-[open=true]:bg-surface-selected data-[open=true]:text-ink-primary"
         data-open={open}
       >
         <MoreHorizontal size={16} strokeWidth={2} />
@@ -169,13 +174,13 @@ function Row({
     >
       {/* Checkbox + accent bar */}
       <td
-        className="relative px-4 py-2 align-middle"
+        className="relative px-4 py-2.5 align-middle"
         onClick={(e) => e.stopPropagation()}
       >
         {highlighted && (
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 start-0 w-1 bg-accent"
+            className="pointer-events-none absolute inset-y-0 start-0 w-1 bg-oms-warn"
           />
         )}
         <input
@@ -183,7 +188,7 @@ function Row({
           checked={selected}
           onChange={() => onToggleSelect(order.id)}
           aria-label={`select ${order.external_id ?? order.id}`}
-          className="h-4 w-4 cursor-pointer accent-ink-primary"
+          className="h-4 w-4 cursor-pointer accent-brand"
         />
       </td>
 
@@ -191,7 +196,7 @@ function Row({
           The order reference used to live here pushed to inline-end, which is
           what created the empty gap across every row. It now lives in the
           detail panel and stays searchable. */}
-      <td className="px-4 py-2 align-middle">
+      <td className="px-4 py-2.5 align-middle">
         <div className="flex items-center gap-3">
           <ProductAvatar
             imageUrl={order.product_image_url ?? null}
@@ -305,7 +310,7 @@ function Row({
       </td>
 
       {/* Status + callback overdue flag */}
-      <td className="whitespace-nowrap px-4 py-2 align-middle">
+      <td className="whitespace-nowrap px-4 py-2.5 align-middle">
         <span className="inline-flex items-center">
           <StatusHistoryPopover
             orderId={order.id}
@@ -358,7 +363,7 @@ function Row({
       </td>
 
       {/* Assignee — unassigned is the actionable state, so it reads differently */}
-      <td className="whitespace-nowrap px-4 py-2 align-middle">
+      <td className="whitespace-nowrap px-4 py-2.5 align-middle">
         <span className="flex items-center gap-2">
           <AgentAvatar name={agentName} />
           <span
@@ -372,12 +377,12 @@ function Row({
       </td>
 
       {/* Source platform — logo with tooltip */}
-      <td className="whitespace-nowrap px-4 py-2 align-middle">
+      <td className="whitespace-nowrap px-4 py-2.5 align-middle">
         <SourceLogo platform={order.external_platform} />
       </td>
 
       {/* Actions — hover-revealed kebab */}
-      <td className="px-2 py-2 align-middle">
+      <td className="px-2 py-2.5 align-middle">
         {(canDelete || canRecover) && (
           <RowKebab
             orderId={order.id}

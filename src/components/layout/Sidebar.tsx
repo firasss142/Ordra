@@ -190,7 +190,7 @@ function resolveMarketKey(marketId: string | null): "tn" | "ly" | "all" {
 }
 
 function marketDotColor(key: "tn" | "ly" | "all"): string {
-  if (key === "tn") return "var(--brand-primary)";
+  if (key === "tn") return "var(--brand-on-dark)";
   if (key === "ly") return "#F59E0B";
   return "var(--sidebar-text-secondary)";
 }
@@ -408,12 +408,34 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
           height: "60px",
           display: "flex",
           alignItems: "center",
-          gap: "10px",
+          // 8, not 10: the monogram added 28px to a 240px rail that also has to
+          // hold the wordmark, the market switcher and the bell.
+          gap: "8px",
           paddingInline: "14px",
           borderBlockEnd: "1px solid var(--sidebar-border-strong)",
           flexShrink: 0,
         }}
       >
+        {/* Monogram + wordmark. The mark is decorative — the wordmark beside it
+            is the accessible name, so a screen reader hears "Ordra" once. */}
+        <span
+          aria-hidden="true"
+          style={{
+            display: "grid",
+            placeItems: "center",
+            width: "28px",
+            height: "28px",
+            flexShrink: 0,
+            borderRadius: "8px",
+            backgroundColor: "var(--brand)",
+            color: "#FFFFFF",
+            fontSize: "15px",
+            fontWeight: 700,
+            lineHeight: 1,
+          }}
+        >
+          {t("brand").charAt(0)}
+        </span>
         <span
           role="presentation"
           style={{
@@ -870,13 +892,19 @@ function SubNavItem({
     }
   };
 
+  // The active item is a filled brand pill, not a 10% wash behind a 2px bar.
+  // The wash sat only ~1.2:1 above the sidebar ground, so at a glance the bar
+  // was doing all the work and the row itself read as inactive. A filled pill
+  // states it once, loudly, and puts the label at 5.0:1 on --brand.
+  // On the fill, not on the ground — so the icon takes the same white as the
+  // label. --sidebar-active-icon stays green for section headers, which never fill.
   const iconColor = isActive
-    ? "var(--sidebar-active-icon)"
+    ? "var(--sidebar-active-text)"
     : hovered
-      ? "var(--sidebar-active-icon)"
+      ? "var(--brand-on-dark)"
       : "var(--sidebar-text-muted)";
   const background = isActive
-    ? "var(--sidebar-active-bg)"
+    ? "var(--sidebar-active-fill)"
     : hovered
       ? "var(--sidebar-hover)"
       : "transparent";
@@ -902,16 +930,12 @@ function SubNavItem({
         marginInline: "2px",
         marginBlock: "1px",
         fontSize: "14px",
-        fontWeight: isActive ? 500 : 400,
+        fontWeight: isActive ? 600 : 400,
         color: textColor,
         textDecoration: "none",
         backgroundColor: background,
-        borderRadius: "6px",
-        borderInlineStart: isActive
-          ? "2px solid var(--sidebar-active-bar)"
-          : "2px solid transparent",
-        transition:
-          "background-color 160ms ease, color 160ms ease, border-color 160ms ease",
+        borderRadius: "8px",
+        transition: "background-color 160ms ease, color 160ms ease",
       }}
     >
       <Icon

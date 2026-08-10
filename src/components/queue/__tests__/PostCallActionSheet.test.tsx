@@ -35,11 +35,16 @@ vi.mock("../CallbackPicker", () => ({
 vi.mock("../RejectionReasonSelect", () => ({
   RejectionReasonSelect: ({
     onSelect,
+    onPostpone,
   }: {
-    onSelect: (r: string, n?: string) => void;
+    onSelect: (group: string, sub: string | null, note?: string) => void;
+    onPostpone?: () => void;
   }) => (
     <div data-testid="rejection-select">
-      <button onClick={() => onSelect("doublon")}>Doublon</button>
+      {/* The real picker only reports a complete pair — a group alone is never
+          a valid answer, so the stub reports one too. */}
+      <button onClick={() => onSelect("commande_invalide", "doublon")}>Doublon</button>
+      {onPostpone && <button onClick={onPostpone}>Plus tard</button>}
     </div>
   ),
 }));

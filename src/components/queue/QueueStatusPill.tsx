@@ -1,9 +1,10 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
-import { StatusGlyph } from "@/components/shared/StatusGlyph";
+import { StatusIcon } from "@/components/shared/StatusIcon";
+import { STATUS_HUE_TONE, STATUS_WEIGHT_FONT } from "@/components/shared/status-tone";
 import { presentAgentStatus } from "@/lib/queue/agent-status";
-import type { StatusHue, StatusWeight } from "@/lib/orders/status-presentation";
+import type { StatusHue } from "@/lib/orders/status-presentation";
 import { formatTime } from "@/lib/format";
 import type { QueueOrder } from "@/types/queue";
 
@@ -30,66 +31,44 @@ interface Props {
   className?: string;
 }
 
-const HUE: Record<StatusHue, { ink: string; quiet: string; medium: string; loud: string }> = {
-  neutral: {
-    ink: "text-hue-neutral-ink",
-    quiet: "bg-hue-neutral-bg/70",
-    medium: "bg-hue-neutral-bg",
-    loud: "bg-hue-neutral-bg border-hue-neutral-edge/45",
-  },
-  amber: {
-    ink: "text-hue-amber-ink",
-    quiet: "bg-hue-amber-bg/70",
-    medium: "bg-hue-amber-bg",
-    loud: "bg-hue-amber-bg border-hue-amber-edge/45",
-  },
-  violet: {
-    ink: "text-hue-violet-ink",
-    quiet: "bg-hue-violet-bg/70",
-    medium: "bg-hue-violet-bg",
-    loud: "bg-hue-violet-bg border-hue-violet-edge/45",
-  },
-  teal: {
-    ink: "text-hue-teal-ink",
-    quiet: "bg-hue-teal-bg/70",
-    medium: "bg-hue-teal-bg",
-    loud: "bg-hue-teal-bg border-hue-teal-edge/45",
-  },
-  green: {
-    ink: "text-hue-green-ink",
-    quiet: "bg-hue-green-bg/70",
-    medium: "bg-hue-green-bg",
-    loud: "bg-hue-green-bg border-hue-green-edge/45",
-  },
-  red: {
-    ink: "text-hue-red-ink",
-    quiet: "bg-hue-red-bg/70",
-    medium: "bg-hue-red-bg",
-    loud: "bg-hue-red-bg border-hue-red-edge/45",
-  },
-};
-
-const FONT: Record<StatusWeight, string> = {
-  quiet: "font-medium",
-  medium: "font-semibold",
-  loud: "font-[650]",
+/**
+ * The datum well, tinted per hue rather than derived from the text colour.
+ *
+ * Reuses the pill's own `-edge-soft` step rather than a `/20` modifier, which
+ * Tailwind drops on a var()-backed colour — see `components/shared/status-tone`.
+ */
+const WELL: Record<StatusHue, string> = {
+  neutral: "bg-hue-neutral-edge-soft",
+  amber: "bg-hue-amber-edge-soft",
+  violet: "bg-hue-violet-edge-soft",
+  teal: "bg-hue-teal-edge-soft",
+  green: "bg-hue-green-edge-soft",
+  red: "bg-hue-red-edge-soft",
 };
 
 export function QueueStatusPill({ order, maxAttempts = null, now, className = "" }: Props) {
   const tStatuses = useTranslations("orders.statuses");
   const tDetail = useTranslations("orders.detail");
+  const tSubShort = useTranslations("orders.rejectionSubreasonsShort");
+  const tReasons = useTranslations("orders.rejectionReasons");
   const tQueue = useTranslations("queue");
   const locale = useLocale();
 
-  const { hue, weight, glyph, label, datum } = presentAgentStatus(order, {
+  const { hue, weight, icon, label, datum } = presentAgentStatus(order, {
     maxAttempts,
     nowMs: now?.getTime(),
   });
 
   const rawLabel =
-    label.ns === "orders.detail"
-      ? tDetail(label.key as Parameters<typeof tDetail>[0])
-      : tStatuses(label.key as Parameters<typeof tStatuses>[0]);
+    label.ns === "literal"
+      ? label.text
+      : label.ns === "orders.detail"
+        ? tDetail(label.key as Parameters<typeof tDetail>[0])
+        : label.ns === "orders.rejectionSubreasonsShort"
+          ? tSubShort(label.key as Parameters<typeof tSubShort>[0])
+          : label.ns === "orders.rejectionReasons"
+            ? tReasons(label.key as Parameters<typeof tReasons>[0])
+            : tStatuses(label.key as Parameters<typeof tStatuses>[0]);
 
   const datumText =
     datum === null
@@ -106,7 +85,7 @@ export function QueueStatusPill({ order, maxAttempts = null, now, className = ""
   const text =
     datum?.kind === "counter" ? rawLabel.replace(/[\s ]*\d+$/, "") : rawLabel;
 
-  const tone = HUE[hue];
+  const tone = STATUS_HUE_TONE[hue];
 
   return (
     <span
@@ -117,22 +96,30 @@ export function QueueStatusPill({ order, maxAttempts = null, now, className = ""
       // disconnected fragments.
       aria-label={datumText ? `${text} ${datumText}` : rawLabel}
       className={[
-        "inline-flex h-[22px] max-w-full items-center gap-1.5 whitespace-nowrap",
-        "rounded-pill border border-transparent px-2 text-[11.5px] leading-none",
+        "inline-flex h-[24px] max-w-full items-center gap-1.5 whitespace-nowrap",
+        "rounded-pill border px-2 text-[12.5px] leading-none",
         tone.ink,
         tone[weight],
-        FONT[weight],
+        STATUS_WEIGHT_FONT[weight],
         className,
       ].join(" ")}
     >
-      <span aria-hidden="true" className="grid w-2 flex-none place-items-center">
-        <StatusGlyph shape={glyph} tone="inherit" />
+      {/* Fixed-width slot: every label in the column starts at the same x, so
+          the eye has something to run down. */}
+      <span aria-hidden="true" className="grid w-3.5 flex-none place-items-center">
+        <StatusIcon name={icon} size={14} />
       </span>
       <span className="truncate">{text}</span>
       {datumText && (
         <span
           aria-hidden="true"
-          className="flex-none rounded-pill bg-current/[0.13] px-1.5 py-[2px] text-[10.5px] font-bold tabular-nums"
+          className={[
+            "flex-none rounded-pill px-1.5 py-[2px] text-[11px] font-bold tabular-nums",
+            // An explicit per-hue tint. This used to be `bg-current/[0.13]`,
+            // which takes the *text* colour at 13% over an already-tinted pill
+            // and muddies differently in every hue.
+            WELL[hue],
+          ].join(" ")}
         >
           {datumText}
         </span>

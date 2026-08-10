@@ -110,7 +110,9 @@ describe("QueueHeader — bucket tabs", () => {
     expect(tab).toHaveAttribute("aria-selected", "true");
   });
 
-  it("'En cours' shows tentative_total + rappel_prevu + livraison_planifiee", () => {
+  // The badge must equal the rows the tab opens. It used to exclude anything
+  // scheduled for a future time and so reported fewer than it rendered.
+  it("'En cours' sums every sub-bucket", () => {
     renderHeader();
     const tab = screen.getByRole("tab", { name: /En cours/ });
     // 9 + 3 + 2 = 14
@@ -133,24 +135,24 @@ describe("QueueHeader — En cours sub-chips", () => {
     expect(screen.queryByRole("button", { name: /Livraison/ })).not.toBeInTheDocument();
   });
 
-  it("renders Tous, Rappel, Tentative, Livraison chips inside En cours", () => {
+  it("renders Tous, Appel planifié, Tentative, Livraison chips inside En cours", () => {
     renderHeader({ selectedBucket: "en_cours" });
     expect(screen.getByRole("button", { name: /^Tous/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Rappel/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Appel planifié/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Tentative/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Livraison/ })).toBeInTheDocument();
   });
 
   it("active sub-chip gets aria-pressed='true'", () => {
     renderHeader({ selectedBucket: "en_cours", enCoursSubfilter: "rappel" });
-    const chip = screen.getByRole("button", { name: /^Rappel/ });
+    const chip = screen.getByRole("button", { name: /^Appel planifié/ });
     expect(chip).toHaveAttribute("aria-pressed", "true");
   });
 
   it("calls onEnCoursSubfilterChange with 'rappel' when Rappel clicked", () => {
     const onEnCoursSubfilterChange = vi.fn();
     renderHeader({ selectedBucket: "en_cours", onEnCoursSubfilterChange });
-    fireEvent.click(screen.getByRole("button", { name: /^Rappel/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Appel planifié/ }));
     expect(onEnCoursSubfilterChange).toHaveBeenCalledWith("rappel");
   });
 
@@ -170,7 +172,7 @@ describe("QueueHeader — En cours sub-chips", () => {
 
   it("Rappel chip count = rappel_prevu", () => {
     renderHeader({ selectedBucket: "en_cours" });
-    const chip = screen.getByRole("button", { name: /^Rappel/ });
+    const chip = screen.getByRole("button", { name: /^Appel planifié/ });
     expect(chip).toHaveTextContent("3");
   });
 

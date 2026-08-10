@@ -16,9 +16,13 @@ describe("Button", () => {
   });
 
   it("applies primary variant by default", () => {
+    // Primary is brand green, not black. The agent shell already force-mapped
+    // the old `bg-ink-primary` to emerald through `.agent-theme` overrides, so
+    // the app shipped two different primary buttons depending on which half you
+    // were in; green is now the variant itself.
     render(<Button>Primary</Button>);
     const btn = screen.getByRole("button");
-    expect(btn.className).toMatch(/bg-ink-primary/);
+    expect(btn.className).toMatch(/bg-brand/);
     expect(btn.className).toMatch(/text-white/);
   });
 

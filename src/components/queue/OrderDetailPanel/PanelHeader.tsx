@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { X, Check, RotateCcw, Copy } from "lucide-react";
 import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
 import { classifyOrderAge, formatOrderAge, AGE_TONE } from "@/lib/orders/order-age";
+import { formatDateTime } from "@/lib/format";
 
 export interface PanelHeaderProps {
   /** Full human reference — storefront order number, else the order id. */
@@ -87,12 +88,9 @@ export function PanelHeader({
         <span
           data-testid="panel-age"
           data-tier={age.tier}
-          title={new Date(createdAt).toLocaleString(locale === "ar" ? "ar-LY" : "fr-TN", {
-            day: "2-digit",
-            month: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
+          // Shared formatter rather than a fourth local Intl call, so the
+          // hover reads identically here, in the queue row and in the table.
+          title={formatDateTime(createdAt, locale)}
           className={`whitespace-nowrap text-[11.5px] tabular-nums ${AGE_TONE[age.tier]}`}
         >
           {formatOrderAge(age.minutes, locale)}

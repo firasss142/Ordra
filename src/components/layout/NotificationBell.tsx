@@ -12,10 +12,12 @@ interface NotificationBellProps {
   agentId: string;
 }
 
-type Kind = "callback_due" | "attempt_due";
+type Kind = "callback_due" | "attempt_due" | "dispatch_due";
 
-// Semantic palette: callback is more urgent (we promised the customer a
-// specific time); attempt is a softer reminder.
+// Semantic palette, ordered by what the agent owes and to whom: a callback is a
+// promise made to a customer for a specific time; an attempt is a softer
+// reminder to try again; a dispatch is a delivery the agent scheduled for
+// themselves, so it is the quietest of the three.
 const KIND_STYLE: Record<
   Kind,
   { dot: string; badgeBg: string; barBg: string; toastAccent: string }
@@ -32,18 +34,27 @@ const KIND_STYLE: Record<
     barBg: "rgba(185, 137, 0, 0.10)",
     toastAccent: "#FFC857",
   },
+  dispatch_due: {
+    dot: "#6E56CF",
+    badgeBg: "#6E56CF",
+    barBg: "rgba(110, 86, 207, 0.10)",
+    toastAccent: "#B5A3F5",
+  },
 };
 
 // Pick the most-urgent unread to drive the badge color and shake.
-// callback_due > attempt_due > (no unread).
+// callback_due > attempt_due > dispatch_due > (no unread).
 function pickHighestKind(notifs: AgentNotification[]): Kind | null {
   let hasAttempt = false;
+  let hasDispatch = false;
   for (const n of notifs) {
     if (n.read_at) continue;
     if (n.kind === "callback_due") return "callback_due";
     if (n.kind === "attempt_due") hasAttempt = true;
+    if (n.kind === "dispatch_due") hasDispatch = true;
   }
-  return hasAttempt ? "attempt_due" : null;
+  if (hasAttempt) return "attempt_due";
+  return hasDispatch ? "dispatch_due" : null;
 }
 
 interface RelativeTimeParts {

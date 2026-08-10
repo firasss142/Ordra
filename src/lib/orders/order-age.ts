@@ -50,15 +50,42 @@ export function classifyOrderAge(
 
 const UNITS: Record<string, { min: string; hour: string; day: string }> = {
   ar: { min: "د", hour: "س", day: "ي" },
-  fr: { min: "min", hour: "h", day: "j" },
+  fr: { min: "mn", hour: "h", day: "d" },
 };
 
-/** Compact elapsed time — "45 min", "3 h", "2 j". */
+const MINUTES_PER_HOUR = 60;
+const MINUTES_PER_DAY = 1440;
+/** Past a week the remainder stops being actionable and only adds noise. */
+const COMPOUND_CEILING_MINUTES = 7 * MINUTES_PER_DAY;
+
+/**
+ * Compact elapsed time — "45mn", "2h 15mn", "1d 4h", "12d".
+ *
+ * Two units, not one. Flooring to a single unit reported "3h" for everything
+ * between 3h00 and 3h59, so an order about to breach and one that just crossed
+ * the hour read identically in a column whose whole job is ranking urgency.
+ *
+ * The second unit is dropped when it would be zero (never "2h 0mn") and past a
+ * week entirely — at that point the order is late by any measure and the hours
+ * are noise.
+ */
 export function formatOrderAge(minutes: number, locale: string): string {
   const u = UNITS[locale] ?? UNITS.fr;
-  if (minutes < 60) return `${Math.max(1, minutes)} ${u.min}`;
-  if (minutes < 1440) return `${Math.floor(minutes / 60)} ${u.hour}`;
-  return `${Math.floor(minutes / 1440)} ${u.day}`;
+  const m = Math.max(1, Math.floor(minutes));
+
+  if (m < MINUTES_PER_HOUR) return `${m}${u.min}`;
+
+  if (m < MINUTES_PER_DAY) {
+    const hours = Math.floor(m / MINUTES_PER_HOUR);
+    const rest = m % MINUTES_PER_HOUR;
+    return rest === 0 ? `${hours}${u.hour}` : `${hours}${u.hour} ${rest}${u.min}`;
+  }
+
+  const days = Math.floor(m / MINUTES_PER_DAY);
+  if (m >= COMPOUND_CEILING_MINUTES) return `${days}${u.day}`;
+
+  const hours = Math.floor((m % MINUTES_PER_DAY) / MINUTES_PER_HOUR);
+  return hours === 0 ? `${days}${u.day}` : `${days}${u.day} ${hours}${u.hour}`;
 }
 
 /** Tailwind text colour per tier — settled and fresh stay deliberately quiet. */

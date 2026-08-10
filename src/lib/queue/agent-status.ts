@@ -1,7 +1,7 @@
-import type { StatusGlyphShape } from "@/components/shared/StatusGlyph";
 import {
   presentStatus,
   type StatusHue,
+  type StatusIconName,
   type StatusWeight,
 } from "@/lib/orders/status-presentation";
 import { bucketFor } from "@/lib/carriers/buckets";
@@ -23,7 +23,7 @@ import type { QueueOrder } from "@/types/queue";
  *   3. A datum — the attempt counter, or a scheduled time — because a queue
  *      row has to answer "when" as well as "what".
  *
- * Hue, glyph and weight always come from the shared map.
+ * Hue, icon and weight always come from the shared map.
  */
 
 export type AgentDatum =
@@ -32,15 +32,48 @@ export type AgentDatum =
   | { kind: "overdue" }
   | null;
 
-export interface AgentStatusLabel {
-  ns: "orders.statuses" | "orders.detail";
-  key: string;
+export type AgentStatusLabel =
+  | {
+      ns:
+        | "orders.statuses"
+        | "orders.detail"
+        | "orders.rejectionSubreasonsShort"
+        | "orders.rejectionReasons";
+      key: string;
+    }
+  /** Free text that has no key — currently only an `autre` rejection note. */
+  | { ns: "literal"; text: string };
+
+/**
+ * What a rejected row should say.
+ *
+ * Not "Rejeté". The row is already unmistakably a rejection from the red hue and
+ * the cross icon, so spending the one readable field on the word "rejected"
+ * repeats what colour and shape already said, and hides the only thing a human
+ * actually wants: *why*. That used to require hovering a tooltip that overlapped
+ * the rows beneath it.
+ *
+ * Falls back through decreasing specificity, because 93 rows carry no reason at
+ * all and 339 carry a group with no sub-reason.
+ */
+function rejectionLabel(order: QueueOrder): AgentStatusLabel {
+  if (order.rejection_subreason) {
+    return { ns: "orders.rejectionSubreasonsShort", key: order.rejection_subreason };
+  }
+  // `autre` keeps its detail in free text — that is the whole point of it.
+  if (order.rejection_reason === "autre" && order.rejection_note?.trim()) {
+    return { ns: "literal", text: order.rejection_note.trim() };
+  }
+  if (order.rejection_reason) {
+    return { ns: "orders.rejectionReasons", key: order.rejection_reason };
+  }
+  return { ns: "orders.statuses", key: "bucket.rejected" };
 }
 
 export interface AgentStatusPresentation {
   hue: StatusHue;
   weight: StatusWeight;
-  glyph: StatusGlyphShape;
+  icon: StatusIconName;
   /** Where the visible words come from. The lib never resolves i18n itself. */
   label: AgentStatusLabel;
   datum: AgentDatum;
@@ -62,7 +95,7 @@ export function presentAgentStatus(
     return {
       hue: "amber",
       weight: "loud",
-      glyph: "half",
+      icon: "uploaded",
       // The key lives under orders.detail, not queue — OrderCard used to ask
       // the queue namespace for it and rendered the raw key as a result.
       label: { ns: "orders.detail", key: "statusReferenceDeleted" },
@@ -70,7 +103,21 @@ export function presentAgentStatus(
     };
   }
 
-  // 2. Closed orders follow the (status, carrier, portal slug) triple rather
+  // 2. A rejection says why, not that it happened — see rejectionLabel. This
+  //    sits before the bucket lookup because `bucketFor` also resolves rejected
+  //    orders, and it would answer with the generic word.
+  if (order.status === "rejected") {
+    const base = presentStatus("rejected");
+    return {
+      hue: base.hue,
+      weight: base.weight,
+      icon: base.icon,
+      label: rejectionLabel(order),
+      datum: null,
+    };
+  }
+
+  // 3. Closed orders follow the (status, carrier, portal slug) triple rather
   //    than orders.status alone. Bucket names are themselves keys in the
   //    shared map, so hue/glyph/weight still come from one place.
   const bucket = bucketFor({
@@ -85,7 +132,7 @@ export function presentAgentStatus(
     return {
       hue: base.hue,
       weight: base.weight,
-      glyph: base.glyph,
+      icon: base.icon,
       label: { ns: "orders.statuses", key: `bucket.${bucket}` },
       datum: null,
     };
@@ -129,7 +176,7 @@ export function presentAgentStatus(
   return {
     hue,
     weight,
-    glyph: base.glyph,
+    icon: base.icon,
     label: { ns: "orders.statuses", key: order.status },
     datum,
   };

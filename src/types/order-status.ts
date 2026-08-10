@@ -49,17 +49,34 @@ export const ALL_ORDER_STATUSES = [
 
 export type OrderStatus = (typeof ALL_ORDER_STATUSES)[number];
 
+/**
+ * The rejection *groups* — the top level of the two-level taxonomy that lives in
+ * `lib/orders/rejection-taxonomy`. Re-exported here because this module is the
+ * canonical status vocabulary and dozens of surfaces already import from it.
+ *
+ * `faux_numero`, `prix`, `doublon` and `non_serieux` were demoted to sub-reasons
+ * (see 20260827000004_rejection_taxonomy_backfill.sql). They remain in the
+ * Postgres enum — history has to keep rendering, and Postgres cannot drop an
+ * enum value without recreating the type — but nothing writes them any more and
+ * no picker offers them.
+ */
 export const REJECTION_REASONS = [
   "refus_client",
-  "faux_numero",
-  "doublon",
+  "commande_invalide",
   "injoignable",
-  "prix",
-  "non_serieux",
+  "livraison_impossible",
   "autre",
 ] as const;
 
 export type RejectionReason = (typeof REJECTION_REASONS)[number];
+
+/** Retired top-level values, kept so historical rows still resolve a label. */
+export const LEGACY_REJECTION_REASONS = [
+  "faux_numero",
+  "prix",
+  "doublon",
+  "non_serieux",
+] as const;
 
 export const TERMINAL_STATUSES: OrderStatus[] = [
   "delivered",

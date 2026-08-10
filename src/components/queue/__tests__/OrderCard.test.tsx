@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 import { OrderCard } from "../OrderCard";
 import type { QueueOrder } from "@/types/queue";
-import { formatLongDate } from "@/lib/format";
+import { formatLongDate, formatDateTime } from "@/lib/format";
 
 const intlMockState = vi.hoisted(() => ({ locale: "fr" }));
 
@@ -35,6 +35,7 @@ const mockOrder: QueueOrder = {
   variant_label: "L / Rouge",
   quantity: 1,
   product_image_url: null,
+  carrier_id: null,
   carrier_code: null,
   carrier_name: null,
   total_price: 89.9,
@@ -56,6 +57,7 @@ const mockOrder: QueueOrder = {
   prior_rejected_count: 0,
   last_known_address: null,
   rejection_reason: null,
+  rejection_subreason: null,
   rejection_note: null,
   is_potential_duplicate: false,
   duplicate_count: 0,
@@ -151,6 +153,64 @@ describe("OrderCard", () => {
     expect(screen.getByLabelText("Cosmos")).toBeDefined();
   });
 
+  it("distinguishes two accounts of the same carrier", () => {
+    // Libya runs two Darb Assabil accounts under one code, so both resolve to
+    // the same logo file. Without a per-account mark an agent cannot tell a
+    // Tripoli shipment from a Benghazi one while scanning.
+    const base = { ...mockOrder, carrier_code: "darb_assabil", status: "uploaded", customer_note: null };
+    const { container: tripoli } = render(
+      <OrderCard
+        order={{ ...base, carrier_id: "4f1271c8-b1f2-4836-9293-8ab3d0b18e69", carrier_name: "Darb Assabil - Tripoli" }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    const { container: benghazi } = render(
+      <OrderCard
+        order={{ ...base, carrier_id: "43077d36-3d61-40d6-ae35-59ed15cec8f7", carrier_name: "Darb Assabil — Benghazi" }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    const ringOf = (c: HTMLElement) =>
+      (c.querySelector("[data-carrier-account]") as HTMLElement | null)?.style.getPropertyValue(
+        "--tw-ring-color",
+      );
+    expect(ringOf(tripoli)).toBeTruthy();
+    expect(ringOf(benghazi)).toBeTruthy();
+    expect(ringOf(tripoli)).not.toBe(ringOf(benghazi));
+  });
+
+  it("keeps the account readable without colour", () => {
+    // Colour is never the only signal (§4.18) — the account name stays in alt.
+    render(
+      <OrderCard
+        order={{
+          ...mockOrder,
+          carrier_code: "darb_assabil",
+          carrier_id: "43077d36-3d61-40d6-ae35-59ed15cec8f7",
+          carrier_name: "Darb Assabil — Benghazi",
+          status: "uploaded",
+          customer_note: null,
+        }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    expect(screen.getByAltText("Darb Assabil — Benghazi")).toBeDefined();
+  });
+
+  it("gives no account ring to a carrier that runs a single account", () => {
+    const { container } = render(
+      <OrderCard
+        order={{ ...mockOrder, carrier_code: "navex", carrier_id: "n-1", carrier_name: "Navex", status: "uploaded", customer_note: null }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    expect(container.querySelector("[data-carrier-account]")).toBeNull();
+  });
+
   it("renders no carrier mark when no carrier is assigned", () => {
     render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
     // mockOrder has carrier_code null → only the qty badge image-less avatar, no carrier logo/chip.
@@ -187,11 +247,30 @@ describe("OrderCard", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-10T13:00:00Z"));
     render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
-    expect(screen.getByTestId("order-age").textContent).toBe("3 h");
+    expect(screen.getByTestId("order-age").textContent).toBe("3h");
     // The long-form date belongs in the panel, not in a column scanned all day.
     expect(
       screen.queryByText(new RegExp(formatLongDate(mockOrder.created_at, "fr"))),
     ).toBeNull();
+  });
+
+  it("carries a second unit once the elapsed time has a remainder", () => {
+    // A floored single unit read "3h" for anything from 3h00 to 3h59, so two
+    // orders an hour apart in real urgency looked identical.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-10T13:25:00Z"));
+    render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
+    expect(screen.getByTestId("order-age").textContent).toBe("3h 25mn");
+  });
+
+  it("keeps the exact timestamp reachable on hover", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-10T13:00:00Z"));
+    render(<OrderCard order={mockOrder} onOpenDetail={() => {}} onCallTerminated={() => {}} />);
+    expect(screen.getByTestId("order-age")).toHaveAttribute(
+      "title",
+      formatDateTime(mockOrder.created_at, "fr"),
+    );
   });
 
   it("escalates the age only while the order still needs a human", () => {
@@ -340,7 +419,7 @@ describe("OrderCard", () => {
       );
       // Three days old, but touched two hours ago — not neglected.
       expect(screen.getByTestId("order-age")).toHaveAttribute("data-tier", "late");
-      expect(screen.getByTestId("order-last-action").textContent).toBe("2 h");
+      expect(screen.getByTestId("order-last-action").textContent).toBe("2h");
       expect(screen.getByTestId("order-last-action")).toHaveAttribute("data-tier", "calm");
     });
 
@@ -451,8 +530,10 @@ describe("OrderCard", () => {
     expect(pill).toHaveAttribute("data-weight", "quiet");
   });
 
-  it("reveals the rejection reason on hover over a rejected pill", async () => {
-    const user = userEvent.setup();
+  it("states the rejection reason in the pill, with no hover needed", () => {
+    // This used to be a hover popover, which meant the one fact worth knowing
+    // about a rejected row was invisible while scanning — and the popover
+    // overlapped the rows beneath it.
     render(
       <OrderCard
         order={{
@@ -460,19 +541,36 @@ describe("OrderCard", () => {
           status: "rejected",
           customer_note: null,
           rejection_reason: "refus_client",
+          rejection_subreason: "achete_ailleurs",
         }}
         onOpenDetail={() => {}}
         onCallTerminated={() => {}}
       />,
     );
-    // Reason is not shown until hover
-    expect(screen.queryByText("Refus client")).not.toBeInTheDocument();
-    await user.hover(screen.getAllByText("Rejeté").at(-1)!);
-    expect(await screen.findByText("Refus client")).toBeInTheDocument();
+    expect(screen.getByText("Ailleurs")).toBeInTheDocument();
+    // The word "Rejeté" is spent: red + the cross already say that.
+    expect(screen.queryByText("Rejeté")).not.toBeInTheDocument();
+    expect(screen.getByTestId("queue-status")).toHaveAttribute("data-hue", "red");
   });
 
-  it("appends the free-text note for the 'autre' rejection reason on hover", async () => {
-    const user = userEvent.setup();
+  it("falls back to the group when no sub-reason was recorded", () => {
+    render(
+      <OrderCard
+        order={{
+          ...mockOrder,
+          status: "rejected",
+          customer_note: null,
+          rejection_reason: "refus_client",
+          rejection_subreason: null,
+        }}
+        onOpenDetail={() => {}}
+        onCallTerminated={() => {}}
+      />,
+    );
+    expect(screen.getByText("Refus client")).toBeInTheDocument();
+  });
+
+  it("shows the free-text note for the 'autre' reason, which has no key", () => {
     render(
       <OrderCard
         order={{
@@ -480,15 +578,15 @@ describe("OrderCard", () => {
           status: "rejected",
           customer_note: null,
           rejection_reason: "autre",
+          rejection_subreason: null,
           rejection_note: "Client injoignable depuis 3 jours",
         }}
         onOpenDetail={() => {}}
         onCallTerminated={() => {}}
       />,
     );
-    await user.hover(screen.getAllByText("Rejeté").at(-1)!);
     expect(
-      await screen.findByText(/Client injoignable depuis 3 jours/),
+      screen.getByText("Client injoignable depuis 3 jours"),
     ).toBeInTheDocument();
   });
 
