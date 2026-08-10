@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { canAssignOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
+import { whereUnassigned } from "@/lib/orders/unassigned";
 
 export const dynamic = "force-dynamic";
 
@@ -23,17 +24,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let query = supabase
-    .from("orders")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "pending")
-    .is("assigned_to", null);
+  let query = supabase.from("orders").select("*", { count: "exact", head: true });
+  if (marketId) query = query.eq("market_id", marketId);
 
-  if (marketId) {
-    query = query.eq("market_id", marketId);
-  }
-
-  const { count, error } = await query;
+  // Same predicate as the orders KPI tile, imported rather than restated — the
+  // two drifted before and reported 9 versus 188 for the same word.
+  const { count, error } = await whereUnassigned(query);
 
   if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 

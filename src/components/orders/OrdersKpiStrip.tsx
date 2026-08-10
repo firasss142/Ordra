@@ -115,20 +115,20 @@ export function OrdersKpiStrip({ counts, activeTile, onSelect, isLoading }: Prop
           aria-pressed={activeTile === "unassigned"}
           aria-label={`${t("unassigned")}: ${nf.format(counts.unassigned)} (${t("periodNow")})`}
           onClick={() => toggle("unassigned")}
-          className={tileClass(activeTile === "unassigned", "min-w-[190px]")}
+          className={tileClass(activeTile === "unassigned", "min-w-[200px]")}
         >
-          <span className="flex items-start gap-2.5">
+          <span className="flex items-center gap-3">
             <span
               aria-hidden="true"
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-hue-amber-bg text-hue-amber-ink"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-hue-amber-bg text-hue-amber-ink"
             >
-              <UserRound size={18} strokeWidth={2} />
+              <UserRound size={20} strokeWidth={2} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[24px] font-[650] leading-[1.12] tracking-[-0.022em] tabular-nums text-oms-age-warm">
+              <span className="block text-[26px] font-[650] leading-[1.08] tracking-[-0.022em] tabular-nums text-oms-age-warm">
                 {nf.format(counts.unassigned)}
               </span>
-              <span className="mt-0.5 block text-[10.5px] font-semibold uppercase tracking-[0.075em] text-oms-ink-2">
+              <span className="mt-1 block text-[10.5px] font-semibold uppercase tracking-[0.075em] text-oms-ink-2">
                 {t("unassigned")}
               </span>
               <span className="mt-px block text-[10.5px] font-normal text-oms-ink-3">
@@ -143,35 +143,47 @@ export function OrdersKpiStrip({ counts, activeTile, onSelect, isLoading }: Prop
             fill, which read as disabled rather than as a readout. It is now the
             same card as its neighbours with one difference the eye picks up on
             contact: it is a <div>, and NOTHING here responds to hover. Every
-            control on this row lifts under the cursor; this one does not. */}
+            control on this row lifts under the cursor; this one does not.
+
+            Rendered only when there IS a rate. A market with no decisions in the
+            window has an unknown rate, not a 0% one, and 0% reads as a
+            catastrophe rather than as an absence of data. */}
         {counts.confirmationRate !== null && (
-          <div className="flex min-w-[290px] items-center gap-3 rounded-card border border-oms-border bg-oms-surface px-3.5 py-2.5">
+          <div className="flex min-w-[300px] items-center gap-3 rounded-card border border-oms-border bg-oms-surface px-3.5 py-2.5">
             <span
               aria-hidden="true"
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-hue-green-bg text-hue-green-ink"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-hue-green-bg text-hue-green-ink"
             >
-              <PieChart size={18} strokeWidth={2} />
+              <PieChart size={20} strokeWidth={2} />
             </span>
             <div className="min-w-0">
               <div className="flex items-baseline gap-2">
-                <span className="text-[24px] font-[650] leading-[1.12] tracking-[-0.022em] tabular-nums text-oms-ink-1">
+                <span className="text-[26px] font-[650] leading-[1.08] tracking-[-0.022em] tabular-nums text-oms-ink-1">
                   {pct(counts.confirmationRate)}
                 </span>
                 {delta !== null && (
                   <span
                     className={
-                      "inline-flex items-center gap-0.5 text-[11.5px] font-semibold tabular-nums " +
-                      (delta >= 0 ? "text-brand" : "text-oms-age-late")
+                      "inline-flex items-center gap-0.5 rounded-pill px-1.5 py-0.5 text-[11px] font-semibold tabular-nums " +
+                      (delta >= 0
+                        ? "bg-hue-green-bg text-hue-green-ink"
+                        : "bg-hue-red-bg text-hue-red-ink")
                     }
                   >
                     {delta >= 0 ? "▲" : "▼"} {nf.format(Math.abs(Math.round(delta * 10) / 10))}
                   </span>
                 )}
               </div>
-              <div className="mt-0.5 text-[10.5px] font-semibold uppercase tracking-[0.075em] text-oms-ink-2">
+              <div className="mt-1 text-[10.5px] font-semibold uppercase tracking-[0.075em] text-oms-ink-2">
                 {t("confirmationRate")}
               </div>
-              <div className="mt-px text-[10.5px] text-oms-ink-3">{t("ratePeriod")}</div>
+              {/* The sample size travels with the rate. A percentage on its own
+                  cannot be judged — 100% of two calls and 100% of two hundred
+                  are the same number and completely different facts. */}
+              <div className="mt-px text-[10.5px] text-oms-ink-3">
+                {t("rateSample", { count: nf.format(counts.confirmationSample) })}
+                {delta !== null ? ` · ${t("ratePeriod")}` : ""}
+              </div>
             </div>
           </div>
         )}
@@ -231,13 +243,13 @@ export function OrdersKpiStrip({ counts, activeTile, onSelect, isLoading }: Prop
                     onClick={() => toggle(stage.key)}
                     className={tileClass(active, "flex-1 min-w-0 !px-3 !py-2")}
                   >
-                    <span className="flex items-start gap-2.5">
+                    <span className="flex items-center gap-3">
                       <TileIcon status={stage.status} />
                       <span className="min-w-0 flex-1">
-                        <span className="block text-[21px] font-[650] leading-[1.12] tracking-[-0.022em] tabular-nums text-oms-ink-1">
+                        <span className="block text-[23px] font-[650] leading-[1.08] tracking-[-0.022em] tabular-nums text-oms-ink-1">
                           {nf.format(n)}
                         </span>
-                        <span className="mt-0.5 block truncate text-[10.5px] font-semibold uppercase tracking-[0.075em] text-oms-ink-2">
+                        <span className="mt-1 block truncate text-[10.5px] font-semibold uppercase tracking-[0.075em] text-oms-ink-2">
                           {t(stage.key)}
                         </span>
                         <span className="mt-px block text-[10.5px] font-normal text-oms-ink-3">
@@ -279,9 +291,9 @@ function TileIcon({ status }: { status: string | null }) {
   return (
     <span
       aria-hidden="true"
-      className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${HOLDER_BG[hue]} ${HOLDER_INK[hue]}`}
+      className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${HOLDER_BG[hue]} ${HOLDER_INK[hue]}`}
     >
-      {face ? <StatusIcon name={face.icon} size={18} /> : <CalendarDays size={18} strokeWidth={2} />}
+      {face ? <StatusIcon name={face.icon} size={20} /> : <CalendarDays size={20} strokeWidth={2} />}
     </span>
   );
 }

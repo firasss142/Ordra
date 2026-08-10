@@ -15,6 +15,7 @@ const COUNTS: StatusCounts = {
   today: 181,
   confirmationRate: 63.5,
   confirmationRatePrev: 57.6,
+  confirmationSample: 216,
   total: 2578,
 };
 
@@ -114,6 +115,27 @@ describe("OrdersKpiStrip", () => {
   test("omits the trend when there is no previous period to compare", () => {
     renderStrip({ counts: { ...COUNTS, confirmationRatePrev: null } });
     expect(screen.queryByText(/5,9/)).not.toBeInTheDocument();
+  });
+
+  test("says what the rate is of, so a small sample cannot pass as a trend", () => {
+    // 100% of two calls and 100% of two hundred are the same number and
+    // completely different facts. Libya shipped a "▼ 40.8" computed against a
+    // previous window holding exactly one order.
+    renderStrip({ counts: { ...COUNTS, confirmationSample: 216 } });
+    expect(screen.getByText(/216/)).toBeInTheDocument();
+  });
+
+  test("shows no rate at all when nothing was decided", () => {
+    renderStrip({
+      counts: {
+        ...COUNTS,
+        confirmationRate: null,
+        confirmationRatePrev: null,
+        confirmationSample: 0,
+      },
+    });
+    // A rate over no decisions is unknown, not 0% — and 0% reads as catastrophe.
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
   });
 
   test("renders a loading state without inventing numbers", () => {

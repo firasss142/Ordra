@@ -2,11 +2,13 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
+const mockRpc = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
     auth: { getUser: () => mockGetUser() },
     from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
   }),
 }));
 
@@ -48,9 +50,20 @@ function singleChain(row: unknown) {
 let orderChains: Record<string, unknown>[] = [];
 
 /** Every orders query resolves to the same count — enough to prove aggregation is used. */
-function setup(role: string, marketId: string | null, ordersCount: number) {
+function setup(
+  role: string,
+  marketId: string | null,
+  ordersCount: number,
+  rate: {
+    current_yes: number;
+    current_total: number;
+    prev_yes: number;
+    prev_total: number;
+  } = { current_yes: 106, current_total: 216, prev_yes: 60, prev_total: 200 },
+) {
   orderChains = [];
   mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+  mockRpc.mockResolvedValue({ data: [rate], error: null });
   mockFrom.mockImplementation((table: string) => {
     if (table === "users") return singleChain({ role, market_id: marketId });
     const chain = countChain(ordersCount);
@@ -114,40 +127,82 @@ describe("GET /api/orders/status-counts", () => {
     }
   });
 
-  test("returns a confirmation rate and a previous-period rate to trend against", async () => {
-    setup("market_manager", "ly", 100);
+  test("counts only orders still awaiting an agent as unassigned", async () => {
+    // `assigned_to IS NULL` alone counts every order nobody was ever assigned to,
+    // including delivered, rejected and cancelled ones. On Libya that reported
+    // 188 where only 9 were actually waiting — the other 176 had already shipped
+    // or settled. The sidebar badge filtered on `pending` and the tile did not,
+    // so the same word meant two things 20x apart.
+    setup("market_manager", "ly", 9);
 
-    const res = await GET(createRequest("/api/orders/status-counts"));
-    const body = await res.json();
+    await GET(createRequest("/api/orders/status-counts"));
 
-    expect(body.data).toHaveProperty("confirmationRate");
-    expect(body.data).toHaveProperty("confirmationRatePrev");
-    // 100 confirmed of 100 resolved
-    expect(body.data.confirmationRate).toBe(100);
+    const unassignedChain = orderChains.find(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (chain) => ((chain.is as any)?.mock?.calls ?? []).some((c: unknown[]) => c[0] === "assigned_to"),
+    );
+
+    expect(unassignedChain, "no unassigned query found").toBeDefined();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const eqCalls = ((unassignedChain!.eq as any)?.mock?.calls ?? []) as unknown[][];
+    expect(
+      eqCalls.some((c) => c[0] === "status" && c[1] === "pending"),
+      "the unassigned tile must be scoped to pending, like the sidebar badge",
+    ).toBe(true);
   });
 
-  test("counts orders that moved past confirmation as confirmed", async () => {
-    // Confirmation is transient: a confirmed order becomes uploaded → scanned →
-    // delivered. Measuring only orders still sitting in `confirmed` counts every
-    // shipped order as a failure and reports ~7% where the truth is ~79%.
+  test("dates the confirmation rate by the decision, not by the last write", async () => {
+    // updated_at is "last touched". An order confirmed in May and delivered
+    // yesterday landed in this week's numerator, and any bulk write re-dated
+    // every row at once — which left Libya's previous window holding ONE order,
+    // a 100% rate, and a confident "▼ 40.8" trend that was pure noise.
+    // order_history is append-only, so the transition itself carries the date.
     setup("market_manager", "ly", 10);
 
     await GET(createRequest("/api/orders/status-counts"));
 
-    const inArgs = orderChains.flatMap(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (chain) => ((chain.in as any)?.mock?.calls ?? []).map((c: unknown[]) => c[1] as string[]),
+    expect(mockRpc).toHaveBeenCalledWith(
+      "get_confirmation_rate_windows",
+      expect.objectContaining({
+        p_current_from: expect.any(String),
+        p_prev_from: expect.any(String),
+      }),
     );
-    // The tile query and the rate numerator both contain "confirmed"; only the
-    // numerator should also span the downstream fulfilment statuses.
-    const numerator = inArgs.find(
-      (list) => list.includes("confirmed") && !list.includes("rejected") && list.length > 2,
-    );
+  });
 
-    expect(numerator, "no confirmation-rate numerator query found").toBeDefined();
-    for (const downstream of ["uploaded", "scanned", "dispatched", "in_transit", "delivered"]) {
-      expect(numerator, `${downstream} must count as confirmed`).toContain(downstream);
-    }
+  test("derives both rates from distinct decisions", async () => {
+    setup("market_manager", "ly", 10, {
+      current_yes: 106,
+      current_total: 216,
+      prev_yes: 60,
+      prev_total: 200,
+    });
+
+    const res = await GET(createRequest("/api/orders/status-counts"));
+    const body = await res.json();
+
+    expect(body.data.confirmationRate).toBe(49.1); // 106 / 216
+    expect(body.data.confirmationRatePrev).toBe(30); // 60 / 200
+    // The sample size travels with the rate so a reader can see what it is *of*.
+    expect(body.data.confirmationSample).toBe(216);
+  });
+
+  test("reports no rate at all rather than a rate derived from nothing", async () => {
+    // Libya's previous 7-day window genuinely holds zero decisions. Dividing by
+    // it produced 100%, and 100% is indistinguishable from a perfect week.
+    setup("market_manager", "ly", 10, {
+      current_yes: 0,
+      current_total: 0,
+      prev_yes: 0,
+      prev_total: 0,
+    });
+
+    const res = await GET(createRequest("/api/orders/status-counts"));
+    const body = await res.json();
+
+    expect(body.data.confirmationRate).toBeNull();
+    expect(body.data.confirmationRatePrev).toBeNull();
+    expect(body.data.confirmationSample).toBe(0);
   });
 
   test("rejects roles that cannot view orders", async () => {

@@ -1238,6 +1238,7 @@
       "uploaded": "مرفوعة",
       "confirmationRate": "نسبة التأكيد",
       "ratePeriod": "آخر 7 أيام · مقارنة بالـ7 السابقة",
+      "rateSample": "من {count} قرار · 7 أيام",
       "periodNow": "الآن",
       "periodToday": "اليوم",
       "scaleNote": "مقاييس مختلفة — قارن ضمن نفس الفترة",

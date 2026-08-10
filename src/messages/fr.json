@@ -1238,6 +1238,7 @@
       "uploaded": "Téléchargées",
       "confirmationRate": "Taux de confirmation",
       "ratePeriod": "7 derniers jours · vs 7 précédents",
+      "rateSample": "sur {count} décisions · 7 j",
       "periodNow": "maintenant",
       "periodToday": "aujourd'hui",
       "scaleNote": "échelles distinctes — comparer au sein d’une même période",
