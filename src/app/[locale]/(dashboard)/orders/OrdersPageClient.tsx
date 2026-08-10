@@ -563,11 +563,11 @@ export function OrdersPageClient({
       >
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
           <div>
-            <h1 className="m-0 text-[22px] font-semibold tracking-[-0.017em] text-oms-ink-1">
+            <h1 className="m-0 text-[24px] font-semibold tracking-[-0.017em] text-oms-ink-1">
               {t("title")}
             </h1>
             <p className="m-0 mt-0.5 flex items-center gap-1.5 text-[12.5px] text-oms-ink-2">
-              <span aria-hidden className="h-[7px] w-[7px] rounded-full bg-oms-accent" />
+              <span aria-hidden className="h-[7px] w-[7px] rounded-full bg-brand" />
               {activeMarketLabel}
               {isValidating ? ` · ${t("refreshing")}` : ""}
             </p>
@@ -578,7 +578,7 @@ export function OrdersPageClient({
             <button
               type="button"
               onClick={handleExport}
-              className="inline-flex h-[34px] items-center gap-1.5 rounded-lg border border-oms-border bg-oms-surface px-3 text-[13px] font-medium text-oms-ink-1 transition-colors duration-fast hover:border-oms-border-strong"
+              className="inline-flex h-[38px] items-center gap-1.5 rounded-lg border border-oms-border bg-oms-surface px-3.5 text-[13px] font-medium text-oms-ink-1 transition-colors duration-fast hover:border-oms-border-strong"
             >
               <Download size={14} strokeWidth={1.75} aria-hidden />
               {t("exportCsv")}
@@ -586,7 +586,7 @@ export function OrdersPageClient({
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
-              className="inline-flex h-[34px] items-center gap-1.5 rounded-lg bg-oms-accent px-3.5 text-[13px] font-semibold text-white shadow-hover-row transition-colors duration-fast hover:bg-oms-accent-ink"
+              className="inline-flex h-[38px] items-center gap-1.5 rounded-lg bg-brand px-4 text-[13px] font-semibold text-white shadow-hover-row transition-colors duration-fast hover:bg-brand-hover"
             >
               <Plus size={14} strokeWidth={2.2} aria-hidden />
               {t("create.newOrder")}

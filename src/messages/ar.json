@@ -564,7 +564,9 @@
       "injoignable": "لا يمكن الوصول",
       "prix": "السعر",
       "non_serieux": "غير جاد",
-      "autre": "أخرى"
+      "autre": "أخرى",
+      "commande_invalide": "الطلب غير حقيقي",
+      "livraison_impossible": "تعذر التوصيل"
     },
     "scope": {
       "realized": "على الطلبات المسلَّمة",
@@ -984,7 +986,9 @@
       "injoignable": "لا يمكن الوصول",
       "prix": "السعر",
       "non_serieux": "غير جاد",
-      "autre": "أخرى"
+      "autre": "أخرى",
+      "commande_invalide": "الطلب غير حقيقي",
+      "livraison_impossible": "تعذر التوصيل"
     },
     "detail": {
       "title": "تفاصيل الطلب",
@@ -1129,7 +1133,8 @@
       "subtotal": "المجموع الفرعي",
       "fieldTracking": "التتبع",
       "cityDefine": "تحديد",
-      "cityEmpty": "غير محددة"
+      "cityEmpty": "غير محددة",
+      "trackingTitle": "تتبع الشحنة"
     },
     "scheduleDispatch": {
       "title": "جدولة التوصيل",
@@ -1265,6 +1270,60 @@
       "showDeleted": "إظهار المحذوفة",
       "more": "مرشحات إضافية",
       "carrier": "شركة التوصيل"
+    },
+    "rejectionGroups": {
+      "refus_client": "رفض العميل",
+      "commande_invalide": "الطلب غير حقيقي",
+      "injoignable": "تعذر الاتصال",
+      "livraison_impossible": "تعذر التوصيل",
+      "autre": "أخرى"
+    },
+    "rejectionGroupHints": {
+      "refus_client": "فهم العميل العرض ورفض",
+      "commande_invalide": "لا يوجد طلب حقيقي وراء هذا",
+      "injoignable": "تعذر الوصول إلى أي شخص",
+      "livraison_impossible": "تم الاتصال ووافق، لكن التوصيل متعذر",
+      "autre": "الملاحظة إلزامية"
+    },
+    "rejectionSubreasons": {
+      "prix_eleve": "السعر مرتفع",
+      "frais_livraison": "رفض رسوم التوصيل",
+      "achete_ailleurs": "اشترى من مكان آخر",
+      "changement_avis": "غيّر رأيه",
+      "produit_non_voulu": "يريد منتجاً آخر",
+      "non_commande": "لم يطلب المنتج",
+      "doublon": "طلب مكرر",
+      "simple_info": "استفسار فقط",
+      "non_serieux": "طلب غير جاد",
+      "pas_de_reponse": "لا يرد",
+      "numero_invalide": "رقم خاطئ أو غير موجود",
+      "numero_hors_service": "مغلق أو خارج الخدمة",
+      "mauvais_interlocuteur": "الرقم لشخص آخر",
+      "raccroche": "يغلق الخط",
+      "hors_couverture": "خارج نطاق التغطية",
+      "paiement_impossible": "وسيلة الدفع غير متاحة",
+      "adresse_invalide": "عنوان غير صحيح",
+      "absent_ville": "خارج المدينة"
+    },
+    "rejectionSubreasonsShort": {
+      "prix_eleve": "السعر",
+      "frais_livraison": "رسوم التوصيل",
+      "achete_ailleurs": "مكان آخر",
+      "changement_avis": "غيّر رأيه",
+      "produit_non_voulu": "منتج آخر",
+      "non_commande": "لم يطلب",
+      "doublon": "مكرر",
+      "simple_info": "استفسار",
+      "non_serieux": "غير جاد",
+      "pas_de_reponse": "لا يرد",
+      "numero_invalide": "رقم خاطئ",
+      "numero_hors_service": "خارج الخدمة",
+      "mauvais_interlocuteur": "شخص آخر",
+      "raccroche": "يغلق الخط",
+      "hors_couverture": "خارج التغطية",
+      "paiement_impossible": "الدفع",
+      "adresse_invalide": "العنوان",
+      "absent_ville": "خارج المدينة"
     }
   },
   "unassigned": {
@@ -1307,6 +1366,7 @@
     "showUnreadOnly": "عرض غير المقروءة فقط",
     "callback_due": "موعد الاتصال",
     "attempt_due": "موعد المحاولة",
+    "dispatch_due": "موعد التوصيل المجدول",
     "viewOrder": "عرض الطلب",
     "unknownCustomer": "عميل غير معروف",
     "noProduct": "بدون منتج",
@@ -1484,7 +1544,7 @@
       },
       "enCoursSubfilter": {
         "all": "الكل",
-        "rappel": "اتصال",
+        "rappel": "اتصال مجدول",
         "tentative": "محاولة",
         "livraison": "توصيل مجدول"
       },
@@ -1535,7 +1595,12 @@
         "cancelledByManager": "تم إلغاء هذا الطلب",
         "deletedByManager": "تم حذف هذا الطلب"
       }
-    }
+    },
+    "rejectionGroupLabel": "لماذا؟",
+    "rejectionSubLabel": "بشكل أدق",
+    "rejectionBack": "رجوع",
+    "rejectionPostpone": "يؤجل الطلب",
+    "rejectionPostponeHint": "يجدول مكالمة بدل الرفض"
   },
   "products": {
     "title": "المنتجات",

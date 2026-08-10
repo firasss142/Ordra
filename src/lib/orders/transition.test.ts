@@ -62,7 +62,7 @@ describe("transitionOrderStatus", () => {
       newStatus: "rejected",
       actorId: "agent-1",
       actorType: "agent",
-      rejectionReason: "faux_numero",
+      rejectionReason: "injoignable",
       rejectionNote: "Number disconnected",
     });
 
@@ -72,7 +72,7 @@ describe("transitionOrderStatus", () => {
       p_actor_id: "agent-1",
       p_actor_type: "agent",
       p_note: null,
-      p_rejection_reason: "faux_numero",
+      p_rejection_reason: "injoignable",
       p_rejection_note: "Number disconnected",
     });
   });

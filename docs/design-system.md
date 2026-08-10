@@ -9,8 +9,10 @@
 Three rules govern every decision:
 
 1. **Restraint.** Every element earns its place. No gradient or decorative color. Resting surfaces are flat; **hover and floating surfaces use a calibrated elevation scale** (`shadow-hover-row`, `shadow-panel`, `shadow-floating`) — never as decoration, only to signal interactivity or layering.
-2. **Light content, dark sidebar.** The sidebar (`#1A1A1A`) is the only dark surface. Content areas are always light (`#F6F6F7`) with white cards.
-3. **Functional color only on status — and one accent.** Status badges carry semantic color (success/warning/critical/action). A single brand accent (`#10B981`) appears in **exactly two places**: (a) the focused-row inline-start bar in agent lists, (b) the active-tab underline. Nowhere else. Everything else is black, white, or gray.
+2. **Light content, dark sidebar.** The sidebar (`#0E1013`) is the only dark surface. Content areas are always light (`#F6F6F7`) with white cards.
+3. **Functional color only on status — and one brand accent.** Status badges carry semantic color (success/warning/critical/action). Everything that is not status or chrome is black, white, or gray.
+
+   > **Amended (§4.18).** This rule used to end "a single brand accent appears in **exactly two places**: the focused-row inline-start bar and the active-tab underline. Nowhere else." That held while the app had one accent used twice. It now has a brand green used as **chrome** — the active nav item, the primary CTA, the active tab's count badge, the focused-row bar — and the boundary that matters is no longer *how many places* but *which kind of thing*: green marks **where you are and what you press**, status hues mark **what an order is**. The two vocabularies must never borrow from each other, which is why `confirmed` is violet and `delivered` is green regardless of the chrome around them. Violet is now **exclusively** a status hue — it holds no chrome slot at all (§4.17 C).
 
 ---
 
@@ -49,12 +51,37 @@ All tokens are CSS custom properties defined in `src/app/globals.css`.
 | `--border` / `line.DEFAULT` | `#E1E3E5` | Standard border (legacy, inputs, dividers) |
 | `--border-strong` / `line-strong` | `#DADCE0` | Emphasized dividers, hover state on subtle borders |
 
-### Accent
+### Accent — brand green
+
+One green for all chrome: primary CTA, active nav pill, active KPI tile, funnel
+bars, focus ring, selected row. It is the same green on every surface, which is
+what makes the sidebar and the content read as one product.
 
 | Token | Hex | Role |
 |---|---|---|
-| `accent.DEFAULT` | `#10B981` | Brand accent — used **only** for focused-row bar and active-tab underline |
-| `accent.soft` | `rgba(16,185,129,0.10)` | Reserved for accent-soft fill if ever needed; do not use decoratively |
+| `--brand` | `#15803D` | Chrome fill and chrome text on light grounds. **5.0:1** white-on-fill |
+| `--brand-hover` | `#12692F` | CTA hover; also the text step on `--brand-bg` (**6.1:1**) |
+| `--brand-bg` | `#E9F6EE` | Active tile fill, selected row band, icon-holder tint |
+| `--brand-tint` | `#F1FAF4` | Hover wash |
+| `--brand-pos` | `#16A34A` | Positive figures and delta pills |
+| `--brand-on-dark` | `#10B981` | **Dark sidebar surface only** |
+
+**Two greens, and the split is load-bearing.** `--brand-on-dark` (`#10B981`)
+measures **2.5:1 on white**. It is legible on `--sidebar-bg` and nowhere else. It
+must never be text on a light ground, and never a fill behind white text. Reaching
+for it because it looks brighter is the mistake
+`src/lib/orders/status-contrast.test.ts` exists to catch — that test asserts
+white-on-`--brand` ≥ 4.5:1 and the focus ring ≥ 3:1 on both grounds.
+
+`--prod-brand*` are aliases of these; the products console needs no separate green.
+
+> **Superseded.** This table used to list `accent.DEFAULT #10B981` as the chrome
+> accent "for the focused-row bar and active segment count badge", and
+> `--agent-primary #006C49` as a second brand green for filled chrome. Two greens
+> for one job met on the same screen — "Nouvelle commande" opened a modal whose
+> submit button was a visibly different shade. `Button`'s `primary` variant now
+> resolves to `--brand`; `.agent-theme [data-agent-cta="primary"]` remains the hook
+> for anything that genuinely needs the agent surface's own tone.
 
 ### Elevation
 
@@ -70,11 +97,22 @@ Resting cards remain flat. Three calibrated shadow tokens are available:
 
 | Token | Hex | Role |
 |---|---|---|
-| `--sidebar-bg` | `#1A1A1A` | Sidebar background |
-| `--sidebar-text` | `#E3E5E7` | Sidebar primary text |
-| `--sidebar-text-muted` | `#8C9196` | Sidebar secondary text |
-| `--sidebar-hover` | `#2A2A2A` | Nav item hover |
-| `--sidebar-active` | `#333333` | Nav item active background |
+| `--sidebar-bg` | `#0E1013` | Sidebar background |
+| `--sidebar-bg-elevated` | `#14171C` | Popovers, market pill |
+| `--sidebar-text` | `#E6E8EB` | Sidebar primary text |
+| `--sidebar-text-secondary` | `#B5BAC2` | Role line, market name |
+| `--sidebar-text-muted` | `#7F858F` | Inactive icons, section heads |
+| `--sidebar-hover` | `rgba(255,255,255,.04)` | Nav item hover |
+| `--sidebar-hover-strong` | `rgba(255,255,255,.07)` | Section header hover |
+| `--sidebar-active-fill` | `var(--brand)` | **Active nav item — a filled pill** |
+| `--sidebar-active-text` | `#FFFFFF` | Active label + icon (5.0:1 on the fill) |
+
+> **Superseded.** This table listed `#1A1A1A` / `#2A2A2A` / `#333333` — the palette
+> from before the sidebar refresh — and a `--sidebar-active` token that does not
+> exist (the var is `--sidebar-active-bg`, which is why `NavItem.tsx` referencing
+> it was a silent no-op). The active item is also no longer a grey fill with a
+> 2px white bar: the 10% wash sat ~1.2:1 above the ground, so the bar carried the
+> whole signal and the row itself read as inactive. It is now a filled brand pill.
 
 ### Status Colors (badges only — never decorative)
 
@@ -91,18 +129,32 @@ Resting cards remain flat. Three calibrated shadow tokens are available:
 
 ```css
 :focus-visible {
-  outline: 2px solid #36F4A4; /* Neon Green */
+  outline: 2px solid var(--focus-ring); /* = --brand #15803D */
   outline-offset: 2px;
 }
 ```
 
-`#36F4A4` appears **only** as the keyboard focus ring. Never used as a fill, background, or decorative color.
+One ring serves the whole console: **5.0:1** on `--oms-bg`, **3.8:1** on
+`--sidebar-bg`. The 2px offset is what keeps it visible against a brand-green
+button — the ring lands on the page ground, not on the fill.
+
+> **Superseded.** The ring was `#36F4A4` ("Neon Green"). It measured **1.44:1 on
+> white** and failed WCAG 2.4.11, which requires 3:1 for a focus indicator — the
+> one thing on the page that has to be visible to the person who cannot use a
+> mouse was the least visible thing on it. `#36F4A4` is retired entirely.
 
 ---
 
 ## 3. Typography
 
-**Font stack:** `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`
+**Font stack:** `var(--font-sans), var(--font-sans-arabic), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`
+
+Loaded with `next/font/google` in `src/app/[locale]/layout.tsx`: **Inter** (`--font-sans`,
+latin), **Noto Sans Arabic** (`--font-sans-arabic`), **Cairo** (`--font-cairo`, used by
+`.agent-theme` and the agent queue). There are no `@font-face` rules and no local font files.
+
+> **Superseded.** This line read `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto` —
+> the system stack, from before the `next/font` work landed.
 
 **Base:** `14px` / `400` / `#1A1A1A`
 
@@ -131,12 +183,17 @@ Use `font-variant-numeric: tabular-nums` on all numeric data (prices, counts, st
 ### Buttons
 
 **Primary**
-- Background: `#1A1A1A`
+- Background: `var(--agent-primary)` (brand green) — see §4.18
 - Text: `#FFFFFF`
-- Border-radius: `4px`
+- Border-radius: `8px`
 - Padding: `10px 16px`
-- Hover: `background: #2A2A2A`
+- Hover: `background: var(--agent-on-primary-container)`
 - Disabled: `background: #F3F4F6`, `color: #9CA3AF`, `cursor: not-allowed`
+
+> Primary was `#1A1A1A` black with a `4px` radius. The agent shell already
+> force-mapped it to emerald through `.agent-theme` overrides in `globals.css`,
+> so the app shipped two different primary buttons depending on which half you
+> were in. Green is now the variant itself and those overrides can go.
 
 **Secondary / Outline**
 - Background: `#FFFFFF`
@@ -425,16 +482,34 @@ Every step clears 4.5:1. Quiet is achieved by weight and size, never by dropping
 orders console **has no tabs**: the KPI strip replaced them, so the tile *is* the navigation and
 inherits that slot. The count of sanctioned accent uses is unchanged.
 
+**The tile takes the brand green, like every other control.** `--oms-accent` is no
+longer chrome at all — it is now *only* the `confirmed` / `callback_scheduled`
+status hue.
+
 | Token | Hex | Role |
 |---|---|---|
-| `--oms-accent` | `#6E56CF` | Active KPI tile, funnel bars, focus ring |
-| `--oms-accent-ink` | `#513FA8` | Accent text on `--oms-accent-bg` |
-| `--oms-accent-bg` | `#F1EEFC` | Active tile fill |
+| `--brand` | `#15803D` | Active KPI tile ring, funnel bars, focus ring, primary CTA |
+| `--brand-bg` | `#E9F6EE` | Active tile fill, selected row band |
+| `--oms-accent` | `#6E56CF` | **Status hue only** — `confirmed`, `callback_scheduled` |
+| `--oms-accent-ink` | `#513FA8` | Violet text on `--oms-accent-bg` |
+| `--oms-accent-bg` | `#F1EEFC` | Violet pill tint |
 
-> **Open question.** The global brand accent is emerald `#10B981` (sidebar active bar, brand
-> tokens). Violet was carried over from the approved prototype and currently sits beside an
-> emerald sidebar. Either reconcile the two or accept the console as a deliberately distinct
-> surface — this is a live decision, not a settled rule.
+> **Superseded.** This section previously reserved violet for the active KPI tile,
+> on the argument that "a tab says which slice of the list, a tile says which
+> condition across the whole market — rendering both in the same green would make
+> two different instruments look like one control."
+>
+> The argument was sound but the premise expired: the console has **no tabs left**
+> to confuse the tile with. The KPI strip *is* the navigation. So the distinction
+> the violet was buying is now carried by shape and position — a tile is a card in
+> a row of cards, and nothing else on the page looks like one — and the colour is
+> free to do the more valuable job of tying the content to the sidebar.
+>
+> Violet keeps the meaning it actually earns: the confirmation-phase status hue.
+> That is a separate vocabulary from chrome (§1 rule 3), and it is *why* the tile
+> could not simply be repointed — `--hue-violet-*` aliases `--oms-accent`, so
+> recolouring the token would have turned `confirmed` green and collided it with
+> `delivered`. The fix was to split the job, not to repaint the token.
 
 ### D. Aging scale
 
@@ -493,28 +568,40 @@ statuses apart, so losing any one of them degrades rather than blinds.
 | Encoding | Carries | Values |
 |---|---|---|
 | **Hue** | phase + outcome | warm (`neutral` / `amber` / `violet`) through confirmation, cool (`teal` / `green`) once with the carrier, `red` for an unsuccessful end |
-| **Shape** | open or closed | round (`ring` / `solid` / `half`) while someone owes an action; angular (`check` / `cross` / `square`) once handed off or finished |
+| **Icon** | what kind of state | a lucide mark per status, from the single map in `lib/orders/status-presentation` |
 | **Weight** | how much it wants you | `quiet` → `medium` → `loud` |
 
-**Weight is the lever, not hue.** Every state keeps a pill — the hue is how you
-recognise it — but how much the pill asserts itself is what ranks the column:
+**Amended — the border is no longer the alarm.** This section previously read:
+*"loud — full tint plus a coloured border. A border is the only treatment that reads
+as an alarm, so it is spent last."* Every pill now carries a `1px` border in its own
+hue, which retires that lever deliberately. **Record the cost:** the measurement that
+motivated the old rule still holds — over the newest 100 orders 35% were `uploaded`
+and 28% `rejected`, both settled — so a uniformly-bordered column asserts itself more
+than the content warrants. Two things keep it from flattening completely:
 
-- **quiet** — 70% tint, `font-medium`. Settled: `uploaded` → `delivered`, `rejected`,
-  `cancelled`, `deleted`. Red still reads as red; it just stops being an alarm.
-- **medium** — full tint, `font-semibold`. Open work: `pending`, `attempt_*`,
-  `callback_scheduled`, `to_be_returned`.
-- **loud** — full tint plus a coloured border, `font-[650]`. **A border is the only
-  treatment that reads as an alarm, so it is spent last** — currently only when call
+- **quiet** — 70% tint, `font-medium`, border at low alpha. Settled: `uploaded` →
+  `delivered`, `rejected`, `cancelled`, `deleted`.
+- **medium** — full tint, `font-semibold`, border at mid alpha. Open work: `pending`,
+  `attempt_*`, `callback_scheduled`, `to_be_returned`.
+- **loud** — full tint, `font-[650]`, border at full opacity. Currently only when call
   attempts are exhausted.
 
-Shape encodes open/closed rather than phase because the glyph vocabulary has no round
-success mark, and forcing one would have made the family inconsistent. Phase is
-already unmistakable from hue: nothing before the carrier upload is teal.
+So `weight` still steps fill, face and border *opacity*; what it no longer does is
+switch a border on and off. If the column ever reads as noise again, this is the
+paragraph to revisit — the `StatusWeight` data is intact and the lever can be taken back.
+
+**Shape was retired with `StatusGlyph`.** The abstract 8×8 vocabulary
+(`ring`/`solid`/`half`/`check`/`cross`/`square`) encoded open-vs-closed but was not
+legible at a glance and had no round success mark. A per-status lucide icon says more
+in the same space. Phase remains unmistakable from hue: nothing before the carrier
+upload is teal.
 
 **Rules**
 
-- Colour is never the only signal. Reuse `components/shared/StatusGlyph` — it exists
-  for this and its own docstring says so.
+- Colour is never the only signal — the icon carries the state in greyscale.
+- The icon sits in a **fixed-width slot** so every label in a column starts at the
+  same x. Pills used to run 48px to 82px wide and the eye zigzagged down a thousand
+  rows with nothing to anchor on.
 - One presentation map, `lib/orders/status-presentation`. A per-surface `STATUS_TONE`
   with a `?? "neutral"` fallback is how a status silently renders as "some grey thing".
 - The glyph sits in a fixed-width slot so every label in a column starts at the same x.
@@ -573,6 +660,66 @@ has to recognise.
 
 ---
 
+## 4.18 Segmented navigation
+
+§4.11 says "Pills-as-tabs are deprecated" and reserves the accent for an underline. That was
+written for the orders console, which has **one** level of navigation. The agent queue has
+**three**: a bucket (`Nouveau` / `En cours` / `Confirmé` / `Fermées`), a sub-filter inside it
+(`Rappel` / `Tentative` / `Livraison` / `Planifié`), and an attempt number inside that. An
+underline can mark one row as current; it cannot show that a second row is nested inside the
+first. Stacking two underlined rows made them read as siblings.
+
+Levels 1 and 2 therefore use **bordered segments**, and the accent moves from the underline to
+the **active segment's count badge**.
+
+- Segment: `inline-flex items-center gap-2 rounded-lg border px-3`, `h-[38px]` (level 1) /
+  `h-[30px]` (level 2), `text-[13.5px]` / `[12.5px] font-semibold`
+- Rest `border-agent-outline-variant bg-agent-surface text-agent-on-surface-variant` ·
+  hover `border-agent-outline text-agent-on-surface` ·
+  active `border-agent-outline bg-agent-surface text-agent-on-surface`
+- Count badge: `h-5 min-w-[21px] rounded-pill px-1.5 text-[11px] font-bold tabular-nums`;
+  **active `bg-agent-primary text-agent-on-primary`**, inactive `bg-agent-surface-low text-agent-ink-3`
+- The row sits on a `border-b border-agent-outline-variant` baseline and scrolls with
+  `overflow-x-auto custom-scrollbar` rather than wrapping
+- Logical properties only (`ps`/`pe`/`border-s`) — the row must mirror under `dir="rtl"`
+
+One shared primitive, `components/ui/SegmentedTabs`, serves all of them. §4.11 remains in force
+for any surface with a single level of navigation.
+
+### The carrier-account ring — a named exception
+
+Libya runs two Darb Assabil accounts as two `carriers` rows sharing one `code`, so they resolve
+to the same logo file. They are distinguished by a `ring-1` tinted per account.
+
+This is colour carrying something that is **not** status, which §1 rule 3 and §4.15 both
+forbid. It is allowed here, narrowly, because the alternative — two near-identical wordmarks at
+20px — is not separable at a glance either. The condition is that colour is **never the only
+signal**: the account name stays in `title` and the city in `aria-label`, so the distinction
+survives greyscale and a screen reader. Do not extend this to any other carrier.
+
+---
+
+## 4.19 Tinted icon holder
+
+KPI tiles lead with a 40px `rounded-lg` square filled with ~10% of the tile's hue, holding a
+20px lucide icon in the full hue.
+
+§4.10 forbids tinted backgrounds for **section identity inside a panel** — "identity comes from
+icon + label, never a tint" — and that stands. This is a different job: a KPI tile is a
+*control* in a row of controls, scanned peripherally for the one number you came for, and the
+tint is what makes the row scannable without reading a single label. A panel section is read in
+sequence; a tile row is not read at all until one of them is.
+
+- Holder: `grid h-10 w-10 place-items-center rounded-lg`, background = hue at 10%
+- Icon: 20px lucide, `strokeWidth={2}`, colour = the full hue
+- Hue matches what the tile counts, and comes from the same status map as the pills — a tile
+  and the rows it opens must not disagree about what colour that state is
+- The tile stays flat at rest; elevation on hover only (§2)
+
+Do not use this holder outside a KPI tile.
+
+---
+
 ## 5. Layout
 
 ### Shell Structure
@@ -593,11 +740,12 @@ has to recognise.
 ### Sidebar
 
 - Width: `240px`, fixed
-- Background: `#1A1A1A`
-- Nav item: `padding: 8px 16px`, `font-size: 14px`
-- Active: `background: #333333`, `border-inline-start: 2px solid #FFFFFF`, `font-weight: 500`
-- Hover (inactive): `background: #2A2A2A`
-- User menu at bottom: `padding: 16px`, `border-top: 1px solid #2A2A2A`
+- Background: `var(--sidebar-bg)` `#0E1013`
+- Brand row: `60px`, monogram (28px `rounded-[8px]` on `--brand`) + wordmark + market switcher + bell
+- Sub-nav item: `height: 34px`, `padding-inline: 30px / 12px`, `font-size: 14px`, `border-radius: 8px`
+- Active: `background: var(--sidebar-active-fill)`, `color: #FFFFFF`, `font-weight: 600` — a filled pill, no bar
+- Hover (inactive): `background: var(--sidebar-hover)`
+- User menu at bottom: `padding: 8px 10px`, opens upward on `--sidebar-bg-elevated`
 
 ### Topbar (agent shell only)
 
@@ -676,6 +824,35 @@ New components use **Tailwind utility classes** referencing the semantic tokens 
 
 Legacy components (built before this convention) may still use inline `style={{ ... }}` with CSS custom properties — they should be migrated to Tailwind opportunistically when otherwise modified.
 
+### Never put a `/opacity` modifier on a token — it compiles to nothing
+
+Most colour tokens here are `var(--x)` aliases. **Tailwind v3 cannot compute alpha
+for a `var()`-backed colour** — it only does so for its own
+`rgb(… / <alpha-value>)` format. The utility is not approximated and it does not
+error; it is **silently dropped from the stylesheet**.
+
+```tsx
+// wrong — emits NO css. The pill falls back to the preflight grey border.
+<span className="bg-hue-amber-bg/70 border-hue-amber-edge/25" />
+
+// right — an explicit step, derived once in globals.css
+<span className="bg-hue-amber-fill-soft border-hue-amber-edge-soft" />
+```
+
+This shipped: every status pill's weight ladder (`quiet` / `medium` / `loud`) was
+written as opacity modifiers, so the fill and border steps never rendered and the
+whole column wore one flat grey edge instead of its own hue. Weight was visible
+only in the font.
+
+Where a token genuinely needs alpha steps, derive them in `globals.css` with
+`color-mix()` from the base token — one source of truth, and no pair of values
+that can drift — then alias them in `tailwind.config.ts`. See
+`--hue-*-fill-soft` / `--hue-*-edge-soft` / `--hue-*-edge-mid`.
+
+Keep the *inputs* plain `#RRGGBB`: `src/lib/orders/status-contrast.test.ts` reads
+tokens straight out of `globals.css` and throws on anything it cannot parse, which
+is what stops a palette change from quietly dropping a badge below 4.5:1.
+
 ### Interaction States
 
 Handle hover/focus via JavaScript event handlers with `useState`:
@@ -711,7 +888,7 @@ No entrance animations, page transitions, or transforms.
 - Use `border-line-subtle` (`#ECEEF0`) for new cards and list rows; reserve `border-line` (`#E1E3E5`) for inputs and legacy surfaces
 - Apply status badge colors only to convey order status — never decoratively
 - Use `shadow-hover-row` on interactive list items on hover; `shadow-floating` on bulk bars and modals
-- The accent green (`#10B981`) appears in exactly **two** places: the focused-row inline-start bar and the active-tab underline
+- Brand green is **chrome only** — active nav item, primary CTA, active segment count badge, focused-row bar (§4.18). Never on a status.
 - Use logical CSS properties (`ps-`, `pe-`, `start-`, `end-`, `margin-inline-start`, `inset-inline-end`) for RTL safety
 - Use `font-variant-numeric: tabular-nums` (Tailwind: `tabular-nums`) for all numeric data
 - Keep the sidebar the **only** dark surface; never add dark backgrounds to content
@@ -722,9 +899,9 @@ No entrance animations, page transitions, or transforms.
 - Don't add shadows to resting cards — flat surfaces by default; elevation appears only on hover/floating
 - Don't use gradients anywhere
 - Don't add color for decoration — color only where it communicates status
-- Don't sprinkle the accent green (`#10B981`) anywhere except the focused-row bar and active-tab underline
+- Don't let brand green carry a status, or a status hue carry chrome — they are two vocabularies (§1 rule 3)
 - Don't use physical CSS properties (`left`, `right`, `margin-left`) — use logical equivalents
-- Don't put Neon Green (`#36F4A4`) anywhere except the keyboard focus ring
+- Don't use `--brand-on-dark` (`#10B981`) on a light ground — it is 2.5:1 on white. Dark sidebar only
 - Don't hardcode UI strings — all text through `useTranslations()`
 - Don't bypass the semantic Tailwind tokens — use `bg-surface-card`, not `bg-white`; `border-line-subtle`, not `border-gray-200`
 - Don't animate more than background-color, border-color, opacity, transform, and box-shadow
@@ -741,15 +918,20 @@ Copy-paste values for common use:
 --bg-card: #FFFFFF;
 --bg-hover: #F7F7F7;
 --bg-selected: #F2F2F2;
---sidebar-bg: #1A1A1A;
---sidebar-hover: #2A2A2A;
---sidebar-active: #333333;
+--sidebar-bg: #0E1013;
+--sidebar-hover: rgba(255,255,255,.04);
+--sidebar-active-fill: var(--brand);
+
+/* Brand green — chrome. Two greens; see §2 Accent. */
+--brand: #15803D;         --brand-hover: #12692F;
+--brand-bg: #E9F6EE;      --brand-tint: #F1FAF4;
+--brand-on-dark: #10B981; /* sidebar surface ONLY — 2.5:1 on white */
 
 /* Text */
 --text-primary: #1A1A1A;
 --text-secondary: #6D7175;
---sidebar-text: #E3E5E7;
---sidebar-text-muted: #8C9196;
+--sidebar-text: #E6E8EB;
+--sidebar-text-muted: #7F858F;
 
 /* Borders */
 --border: #E1E3E5;
@@ -763,7 +945,8 @@ Copy-paste values for common use:
 --neutral: #6D7175;       --neutral-bg: #F6F6F7;
 
 /* Focus (global, do not override) */
-/* :focus-visible { outline: 2px solid #36F4A4; outline-offset: 2px; } */
+/* :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; } */
+--focus-ring: var(--brand);
 ```
 
 ### Example Prompts
@@ -772,6 +955,6 @@ Copy-paste values for common use:
 
 - *"Design a status badge for 'confirmed': `background: #F1F8F5`, `color: #008060`, `border-radius: 9999px`, `padding: 2px 8px`, `font-size: 13px`, `font-weight: 500`."*
 
-- *"Build a sidebar nav item: `padding: 8px 16px`, `font-size: 14px`, `color: #E3E5E7`. Active state: `background: #333333`, `border-inline-start: 2px solid #FFFFFF`, `font-weight: 500`. Hover: `background: #2A2A2A`."*
+- *"Build a sidebar nav item: `height: 34px`, `font-size: 14px`, `color: var(--sidebar-text)`, `border-radius: 8px`. Active: `background: var(--sidebar-active-fill)`, `color: #FFFFFF`, `font-weight: 600` — a filled pill, no bar. Hover: `background: var(--sidebar-hover)`."*
 
 - *"Create a data table. `<th>`: `13px/500/#6D7175`, uppercase, `letter-spacing: 0.05em`, `padding: 12px 16px`. `<td>`: `14px/400/#1A1A1A`, `padding: 12px 16px`. Row hover: `background: #F7F7F7`."*

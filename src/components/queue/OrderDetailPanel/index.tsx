@@ -59,6 +59,7 @@ import { useMaxCallAttempts } from "@/hooks/useMaxCallAttempts";
 import { useProductSheet } from "@/hooks/useProductSheet";
 import { ProductBriefBanner } from "../ProductBriefBanner";
 import { ProductSheetDrawer } from "../ProductSheetDrawer";
+import { TrackingSection } from "./TrackingSection";
 import { DexpressStatusSection } from "../DexpressStatusSection";
 import { DarbStatusSection } from "../DarbStatusSection";
 import { formatDisplayCurrencyCode, LY_MARKET_ID } from "@/lib/markets";
@@ -1304,6 +1305,11 @@ export function OrderDetailPanel({
                       canDeleteCarrierBarcode ? handleDeleteCarrierBarcode : undefined
                     }
                   />
+                  {/* OMS-side progress first: where the parcel is and how long
+                      each leg took. The carrier blocks below say whatever the
+                      carrier portal last said, which is a different question. */}
+                  <TrackingSection orderId={order.id} status={order.status} />
+
                   <DexpressStatusSection
                     orderId={order.id}
                     enabled={dexpressEligible}

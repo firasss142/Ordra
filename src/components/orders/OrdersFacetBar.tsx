@@ -316,12 +316,12 @@ export function OrdersFacetBar({
           onSelect={(v) => onChange({ carrierId: filters.carrierId === v ? null : v })}
         />
 
-        <label className="inline-flex h-[30px] cursor-pointer items-center gap-2 rounded-pill border border-oms-border bg-oms-surface px-3 text-[12.5px] font-medium text-oms-ink-2 transition-colors duration-fast hover:border-oms-border-strong hover:text-oms-ink-1">
+        <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-oms-border bg-oms-surface px-3 text-[13px] font-medium text-oms-ink-2 transition-colors duration-fast hover:border-oms-border-strong hover:text-oms-ink-1">
           <input
             type="checkbox"
             checked={filters.includeDeleted}
             onChange={(e) => onChange({ includeDeleted: e.target.checked })}
-            className="h-3.5 w-3.5 cursor-pointer accent-oms-accent"
+            className="h-3.5 w-3.5 cursor-pointer accent-brand"
           />
           {tf("showDeleted")}
         </label>
@@ -348,7 +348,7 @@ export function OrdersFacetBar({
           <button
             type="button"
             onClick={() => onChange(clearAll)}
-            className="px-1.5 text-[12px] font-semibold text-oms-accent hover:underline"
+            className="px-1.5 text-[12px] font-semibold text-brand hover:underline"
           >
             {tf("clearAll")}
           </button>
@@ -406,15 +406,15 @@ function Facet({
         aria-expanded={open}
         onClick={onToggle}
         className={
-          "inline-flex h-[30px] items-center gap-1.5 rounded-pill border ps-3 pe-2.5 text-[12.5px] font-medium transition-colors duration-fast " +
+          "inline-flex h-9 items-center gap-1.5 rounded-lg border ps-3 pe-2.5 text-[13px] font-medium transition-colors duration-fast " +
           (count > 0
-            ? "border-oms-accent bg-oms-accent-bg text-oms-accent-ink"
+            ? "border-brand bg-brand-bg text-brand-hover"
             : "border-oms-border bg-oms-surface text-oms-ink-2 hover:border-oms-border-strong hover:text-oms-ink-1")
         }
       >
         {label}
         {count > 0 && (
-          <span className="grid h-[16px] min-w-[16px] place-items-center rounded-pill bg-oms-accent px-1 text-[10.5px] font-semibold tabular-nums text-white">
+          <span className="grid h-[16px] min-w-[16px] place-items-center rounded-pill bg-brand px-1 text-[10.5px] font-semibold tabular-nums text-white">
             {count}
           </span>
         )}
@@ -438,7 +438,7 @@ function Facet({
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder={tf("search")}
-                className="h-[30px] w-full rounded-md border border-oms-border bg-oms-sunken px-2 text-[12.5px] outline-none focus:border-oms-accent focus:bg-oms-surface"
+                className="h-[30px] w-full rounded-md border border-oms-border bg-oms-sunken px-2 text-[12.5px] outline-none focus:border-brand focus:bg-oms-surface"
               />
             </div>
           )}
@@ -486,7 +486,7 @@ function Option({
         aria-hidden
         className={
           "grid h-[14px] w-[14px] shrink-0 place-items-center rounded-[3px] border " +
-          (selected ? "border-oms-accent bg-oms-accent" : "border-oms-border-strong")
+          (selected ? "border-brand bg-brand" : "border-oms-border-strong")
         }
       >
         {selected && (

@@ -159,37 +159,6 @@ export function formatExactTime(date: string | Date, _locale: string): string {
   return `${dd}/${mo} ${hh}:${mm}`;
 }
 
-const shortDateFormatters = new Map<string, Intl.DateTimeFormat>();
-function getShortDateFormatter(sameYear: boolean): Intl.DateTimeFormat {
-  const key = sameYear ? "sameYear" : "diffYear";
-  let fmt = shortDateFormatters.get(key);
-  if (!fmt) {
-    fmt = new Intl.DateTimeFormat("en-GB", {
-      day: "numeric",
-      month: "short",
-      ...(sameYear ? {} : { year: "numeric" }),
-    });
-    shortDateFormatters.set(key, fmt);
-  }
-  return fmt;
-}
-
-export function formatRelativeDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMins = Math.floor(diffMs / 60_000);
-
-  if (diffMins < 60 * 24) {
-    const hours = Math.floor(diffMins / 60);
-    if (hours >= 1) return `${hours}h`;
-    return `${Math.max(diffMins, 1)}min`;
-  }
-
-  const sameYear = d.getFullYear() === now.getFullYear();
-  return getShortDateFormatter(sameYear).format(d);
-}
-
 export function classifyDueTime(
   dueAt: string | null,
   nowMs: number,

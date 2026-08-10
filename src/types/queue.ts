@@ -16,6 +16,9 @@ export interface QueueOrder {
   quantity: number;
   /** Product thumbnail URL (joined from products.image_url), null when unset. */
   product_image_url: string | null;
+  /** The carrier ROW, not the brand — Libya runs two Darb Assabil accounts
+   *  under one code, and only the id tells them apart. */
+  carrier_id: string | null;
   /** Carrier code (joined from carriers.code), set once a carrier is assigned. Drives the brand logo. */
   carrier_code: string | null;
   /** Carrier display name (joined from carriers.name) — used for the logo's alt/title text. */
@@ -45,7 +48,10 @@ export interface QueueOrder {
   prior_lead_count: number;
   prior_rejected_count: number;
   last_known_address: string | null;
+  /** The rejection *group*. The specific reason is `rejection_subreason`. */
   rejection_reason: string | null;
+  /** Null on legacy rows and on group `autre`, where the note carries it. */
+  rejection_subreason: string | null;
   rejection_note: string | null;
   is_potential_duplicate: boolean;
   duplicate_count: number;

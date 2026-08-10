@@ -5,6 +5,7 @@ import { resolveProductDisplayName, unwrapEmbed } from "@/lib/orders/display-nam
 import { getActor } from "@/lib/auth/actor";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
+import { enCoursBucket } from "@/lib/queue/schedule-bucket";
 
 export const dynamic = "force-dynamic";
 
@@ -189,6 +190,8 @@ export async function GET(_req: NextRequest) {
     fermees: closedOrders.length,
   };
 
+  const nowMs = now.getTime();
+
   for (const o of allOrders) {
     const s = o.status as string;
     if (s === "pending" || s === "assigned") buckets.nouveau++;
@@ -201,22 +204,23 @@ export async function GET(_req: NextRequest) {
     } else if (s === "attempt_3") {
       buckets.tentative_3++;
       buckets.tentative_total++;
-    } else if (s === "callback_scheduled") {
-      // Count callbacks that show up in the agent's active list: unscheduled
-      // (no time) or past-due. Explicitly-future callbacks are filtered out of
-      // the list and out of the chip count alike, so the en_cours chip total
-      // always matches list length. Mirrors the activeOrders filter above.
-      const cbAt = o.callback_scheduled_at as string | null;
-      if (!cbAt || new Date(cbAt) <= now) buckets.rappel_prevu++;
-    } else if (s === "dispatch_scheduled") {
-      // Mirrors the activeOrders filter: auto rows always count (they always
-      // surface so the agent can pre-empt the cron); manual rows count only
-      // when unscheduled or past-due. The chip total stays equal to the visible
-      // list length.
-      const dAt = o.scheduled_dispatch_at as string | null;
-      if (o.scheduled_dispatch_auto || !dAt || new Date(dAt) <= now) {
-        buckets.livraison_planifiee++;
-      }
+    } else if (s === "callback_scheduled" || s === "dispatch_scheduled") {
+      // Computed over `allOrders`, which is what the queue actually renders —
+      // not over the time-filtered `activeOrders`. Every scheduled row lands in
+      // exactly one bucket, so tentative_total + rappel_prevu +
+      // livraison_planifiee is always the number of rows "Tous" opens. It used
+      // to be smaller, because future-scheduled rows were counted nowhere.
+      const bucket = enCoursBucket(
+        {
+          status: s,
+          callback_scheduled_at: o.callback_scheduled_at as string | null,
+          scheduled_dispatch_at: o.scheduled_dispatch_at as string | null,
+          scheduled_dispatch_auto: o.scheduled_dispatch_auto as boolean | null,
+        },
+        nowMs,
+      );
+      if (bucket === "rappel") buckets.rappel_prevu++;
+      else if (bucket === "livraison") buckets.livraison_planifiee++;
     } else if (s === "confirmed") buckets.confirme++;
   }
 

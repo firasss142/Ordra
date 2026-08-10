@@ -20,7 +20,9 @@ const TONES: Record<BadgeTone, { bg: string; fg: string; dot: string }> = {
     dot: "bg-ink-muted",
   },
   action: {
-    bg: "bg-[#EAF2FB]",
+    // --prod-info-bg exists for exactly this: status-action had no tint, so an
+    // arbitrary hex was inlined here and a near-identical one added there.
+    bg: "bg-prod-info-bg",
     fg: "text-status-action",
     dot: "bg-status-action",
   },

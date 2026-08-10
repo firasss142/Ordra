@@ -298,21 +298,28 @@ describe("isAutoCleared", () => {
 });
 
 describe("REJECTION_REASONS", () => {
-  it("contains exactly 7 rejection reasons", () => {
-    expect(REJECTION_REASONS).toHaveLength(7);
+  // Five groups, not the old flat seven. `faux_numero`, `prix`, `doublon` and
+  // `non_serieux` became sub-reasons — see lib/orders/rejection-taxonomy.
+  it("contains exactly the 5 rejection groups", () => {
+    expect(REJECTION_REASONS).toHaveLength(5);
   });
 
-  it("contains all required rejection reason values", () => {
+  it("contains all required rejection group values", () => {
     expect(REJECTION_REASONS).toEqual(
       expect.arrayContaining([
         "refus_client",
-        "faux_numero",
-        "doublon",
+        "commande_invalide",
         "injoignable",
-        "prix",
-        "non_serieux",
+        "livraison_impossible",
         "autre",
-      ])
+      ]),
     );
   });
+
+  it("no longer offers the demoted values as top-level reasons", () => {
+    for (const retired of ["faux_numero", "prix", "doublon", "non_serieux"]) {
+      expect(REJECTION_REASONS as readonly string[], retired).not.toContain(retired);
+    }
+  });
 });
+

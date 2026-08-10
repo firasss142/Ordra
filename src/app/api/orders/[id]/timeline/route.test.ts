@@ -57,10 +57,61 @@ describe("GET /api/orders/[id]/timeline", () => {
     expect(res.status).toBe(401);
   });
 
-  test("returns 403 for agents", async () => {
+  // Agents used to be refused outright, which meant the order panel's tracking
+  // tab rendered empty for the people who live in it. They now read the timeline
+  // of orders they own, and only those.
+  test("returns the timeline to the agent the order is assigned to", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "a-1" } }, error: null });
     mockFrom.mockImplementation((table: string) => {
       if (table === "users") return userSingleChain("agent", "m-1");
+      if (table === "orders")
+        return orderSingleChain({
+          id: "o-1",
+          external_id: "EXT",
+          status: "in_transit",
+          market_id: "m-1",
+          carrier_id: "c-1",
+          assigned_to: "a-1",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          needs_carrier_followup: false,
+          carriers: { name: "Navex" },
+        });
+      return historyListChain([]);
+    });
+    const res = await GET(createRequest(), { params: { id: "o-1" } });
+    expect(res.status).toBe(200);
+  });
+
+  test("hides another agent's order behind a 404, not a 403", async () => {
+    // 404 rather than 403 so a probe cannot distinguish "not yours" from "does
+    // not exist" — the same shape the other agent-scoped routes use.
+    mockGetUser.mockResolvedValue({ data: { user: { id: "a-1" } }, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return userSingleChain("agent", "m-1");
+      if (table === "orders")
+        return orderSingleChain({
+          id: "o-1",
+          external_id: "EXT",
+          status: "in_transit",
+          market_id: "m-1",
+          carrier_id: "c-1",
+          assigned_to: "someone-else",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          needs_carrier_followup: false,
+          carriers: { name: "Navex" },
+        });
+      return historyListChain([]);
+    });
+    const res = await GET(createRequest(), { params: { id: "o-1" } });
+    expect(res.status).toBe(404);
+  });
+
+  test("still refuses a role with no business reading order tracking", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "w-1" } }, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return userSingleChain("warehouse_agent", "m-1");
       return orderSingleChain(null);
     });
     const res = await GET(createRequest(), { params: { id: "o-1" } });

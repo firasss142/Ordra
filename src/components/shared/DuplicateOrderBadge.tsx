@@ -34,11 +34,18 @@ export interface DuplicateOrderBadgeProps {
 
 /**
  * Marks an order that looks like a DUPLICATE of another (same customer +
- * product + quantity within 24h). The marker is icon-only (Layers) — no text.
- * HOVER opens a floating popover that shows the whole duplicate group as stacked
- * cards: the current order first (violet tint), then its siblings, each with
- * status + price, and a delete affordance for permitted roles. Distinct from
- * RepeatBuyerBadge (recurrent customer).
+ * product + quantity within 24h). Icon-only (`Copy`) — no text.
+ *
+ * Deliberately a SQUARE chip, where RepeatBuyerBadge is a pill. The two used to
+ * be near-identical tinted pills sitting side by side, which is wrong because
+ * they mean opposite things: a repeat buyer is an asset (same person, ordering
+ * again), a duplicate is a defect (this order is probably misplaced and must not
+ * ship twice). Shape carries that difference so it survives a glance and
+ * greyscale both.
+ *
+ * HOVER opens a floating popover showing the whole duplicate group as stacked
+ * cards: the current order first, then its siblings with status + price, and a
+ * delete affordance for permitted roles.
  */
 export function DuplicateOrderBadge({
   count,
@@ -100,15 +107,19 @@ export function DuplicateOrderBadge({
           }
         }}
         className={[
-          "inline-flex items-center gap-1 rounded-pill px-2 py-0.5",
-          "text-[12px] font-medium leading-tight cursor-default select-none",
+          // Square, not a pill — see the component docstring.
+          "inline-flex items-center gap-1 rounded-[4px] border px-1.5 py-0.5",
+          "text-[12px] font-semibold leading-tight cursor-default select-none",
           "transition-colors",
+          // A sibling already with the carrier is the expensive case: shipping
+          // twice costs a delivery fee and a return. It is the one state here
+          // that earns the critical tone.
           hasUploadedSibling
-            ? "bg-status-criticalBg text-status-critical"
-            : "bg-[#F0F4FF] text-[#3D5AFE]",
+            ? "border-status-critical/40 bg-status-criticalBg text-status-critical"
+            : "border-[#3D5AFE]/30 bg-[#F0F4FF] text-[#3D5AFE]",
         ].join(" ")}
       >
-        <Copy size={11} strokeWidth={2.25} aria-hidden="true" />
+        <Copy size={12} strokeWidth={2.25} aria-hidden="true" />
         {count > 1 && <span aria-hidden="true">{count}×</span>}
       </span>
       {open && (

@@ -218,7 +218,9 @@ describe("applyRealtimeEvent", () => {
     expect(next.buckets.rappel_prevu).toBe(1);
   });
 
-  test("callback_scheduled with future time does NOT count in rappel_prevu", () => {
+  // The other half of the test above. A future callback used to be counted
+  // nowhere at all, which is exactly why it also matched no sub-tab.
+  test("callback_scheduled with future time counts in rappel_prevu", () => {
     const future = new Date(Date.now() + 60 * 60_000).toISOString();
     const cache = makeCache();
     const next = applyRealtimeEvent(cache, {
@@ -226,6 +228,48 @@ describe("applyRealtimeEvent", () => {
       agentId: AGENT_ID,
       new: row({ id: "o1", status: "callback_scheduled", callback_scheduled_at: future }),
     });
-    expect(next.buckets.rappel_prevu).toBe(0);
+    expect(next.buckets.rappel_prevu).toBe(1);
+  });
+
+  test("dispatch_scheduled counts in livraison whether due or scheduled ahead", () => {
+    // A chip says what kind of work an order needs, not when it is due — the
+    // status pill already turns red the moment the time passes.
+    const past = new Date(Date.now() - 60_000).toISOString();
+    const future = new Date(Date.now() + 60 * 60_000).toISOString();
+
+    for (const at of [past, future]) {
+      const next = applyRealtimeEvent(makeCache(), {
+        type: "INSERT",
+        agentId: AGENT_ID,
+        new: row({ id: "o1", status: "dispatch_scheduled", scheduled_dispatch_at: at }),
+      });
+      expect(next.buckets.livraison_planifiee, at).toBe(1);
+    }
+  });
+
+  // §4.17 G — "counts must not lie". The sub-buckets have to add up to every
+  // in-progress row, or the "Tous" chip reports a number smaller than the list
+  // it opens.
+  test("the en-cours sub-counts account for every in-progress row", () => {
+    const past = new Date(Date.now() - 60_000).toISOString();
+    const future = new Date(Date.now() + 60 * 60_000).toISOString();
+    const rows = [
+      row({ id: "a", status: "attempt_1" }),
+      row({ id: "b", status: "attempt_3" }),
+      row({ id: "c", status: "callback_scheduled", callback_scheduled_at: past }),
+      row({ id: "d", status: "callback_scheduled", callback_scheduled_at: future }),
+      row({ id: "e", status: "callback_scheduled", callback_scheduled_at: null }),
+      row({ id: "f", status: "dispatch_scheduled", scheduled_dispatch_at: past }),
+      row({ id: "g", status: "dispatch_scheduled", scheduled_dispatch_at: future }),
+    ];
+
+    let cache = makeCache();
+    for (const r of rows) {
+      cache = applyRealtimeEvent(cache, { type: "INSERT", agentId: AGENT_ID, new: r });
+    }
+
+    const b = cache.buckets;
+    const enCoursTotal = b.tentative_total + b.rappel_prevu + b.livraison_planifiee;
+    expect(enCoursTotal).toBe(rows.length);
   });
 });

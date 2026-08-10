@@ -25,7 +25,7 @@ describe("parseFiltersFromSearchParams", () => {
       date_to: "2026-04-22",
       total_min: "10",
       total_max: "500",
-      rejection_reason: "prix",
+      rejection_reason: "refus_client",
       include_deleted: "1",
     });
     const f = parseFiltersFromSearchParams(p);
@@ -36,7 +36,7 @@ describe("parseFiltersFromSearchParams", () => {
     expect(f.dateTo).toBe("2026-04-22");
     expect(f.totalMin).toBe(10);
     expect(f.totalMax).toBe(500);
-    expect(f.rejectionReason).toBe("prix");
+    expect(f.rejectionReason).toBe("refus_client");
     expect(f.includeDeleted).toBe(true);
   });
 

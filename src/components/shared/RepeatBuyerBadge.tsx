@@ -36,10 +36,20 @@ export interface RepeatBuyerBadgeProps {
   anchorCustomerCity: string | null;
 }
 
+/**
+ * A PILL, where DuplicateOrderBadge is a square. The two sat side by side as
+ * near-identical tinted pills while meaning opposite things — a repeat buyer is
+ * an asset, a duplicate is a defect — so shape now separates them.
+ *
+ * `risk` is amber rather than red. Red in this row already means "duplicate with
+ * a sibling that shipped", which is a concrete, expensive mistake; a customer
+ * with a poor delivery history is a caution, not the same class of problem, and
+ * two different reds made neither legible.
+ */
 const CHIP_STYLE: Record<Exclude<RepeatKind, "none">, string> = {
-  repeat: "bg-accent/10 text-accent",
-  likely: "bg-[#F3F0FF] text-[#6E40C9]",
-  risk: "bg-status-criticalBg text-status-critical",
+  repeat: "border border-accent/25 bg-accent/10 text-accent",
+  likely: "border border-[#6E40C9]/25 bg-[#F3F0FF] text-[#6E40C9]",
+  risk: "border border-status-warning/30 bg-status-warningBg text-status-warning",
 };
 
 export function RepeatBuyerBadge(props: RepeatBuyerBadgeProps) {
@@ -108,11 +118,12 @@ export function RepeatBuyerBadge(props: RepeatBuyerBadgeProps) {
         }}
         className={[
           "inline-flex items-center gap-1 rounded-pill px-2 py-0.5",
+          "font-semibold",
           "text-[12px] font-medium leading-tight cursor-default select-none transition-colors",
           chipStyle,
         ].join(" ")}
       >
-        <Icon size={11} strokeWidth={2.25} aria-hidden="true" />
+        <Icon size={12} strokeWidth={2.25} aria-hidden="true" />
         {count > 0 && <span aria-hidden="true">{count}</span>}
       </span>
       {open && (

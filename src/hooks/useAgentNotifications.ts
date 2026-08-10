@@ -13,7 +13,7 @@ export interface AgentNotificationOrder {
 export interface AgentNotification {
   id: string;
   order_id: string;
-  kind: "callback_due" | "attempt_due";
+  kind: "callback_due" | "attempt_due" | "dispatch_due";
   due_at: string;
   read_at: string | null;
   created_at: string;

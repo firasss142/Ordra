@@ -148,10 +148,11 @@ describe("GET /api/agent/queue", () => {
       "o-confirmed",
     ]);
 
-    // Buckets count ALL orders including future callback + confirmed
+    // Buckets count ALL orders, including the future callback the visible list
+    // holds back — the chip counts what the list *renders*, which is allOrders.
     expect(json.buckets.nouveau).toBe(1);       // assigned
     expect(json.buckets.tentative_1).toBe(1);   // attempt_1
-    expect(json.buckets.rappel_prevu).toBe(1);  // future callback_scheduled
+    expect(json.buckets.rappel_prevu).toBe(2);  // overdue + future callback
     expect(json.buckets.confirme).toBe(1);      // confirmed
   });
 
@@ -194,9 +195,9 @@ describe("GET /api/agent/queue", () => {
     // Untimed callback surfaces in the active list; the explicitly-future one
     // is held back until its time arrives.
     expect(json.orders.map((o: { id: string }) => o.id)).toEqual(["o-cb-untimed"]);
-    // The chip count mirrors the visible list: only the untimed one counts,
-    // the explicitly-future one is excluded from both list and chip.
-    expect(json.buckets.rappel_prevu).toBe(1);
+    // Both still count: a chip says what kind of work an order needs, not when
+    // it is due, and the queue renders `allOrders` rather than this filtered set.
+    expect(json.buckets.rappel_prevu).toBe(2);
   });
 
   test("shows manual untimed + all auto dispatch_scheduled, hides only future manual", async () => {
@@ -244,16 +245,27 @@ describe("GET /api/agent/queue", () => {
     const res = await GET(createRequest());
     const json = await res.json();
 
-    // Auto rows always surface (so the agent can upload them manually ahead of
-    // the cron), regardless of their scheduled time. The untimed manual row
-    // surfaces too. Only the future MANUAL row is held back until its time.
+    // Visibility is unchanged: auto rows always surface (so the agent can upload
+    // them manually ahead of the cron) regardless of their scheduled time, the
+    // untimed manual row surfaces too, and only the future MANUAL row is held
+    // back until its time.
     expect(json.orders.map((o: { id: string }) => o.id).sort()).toEqual([
       "o-dsp-auto-future",
       "o-dsp-manual-untimed",
     ]);
-    // Chip mirrors the visible list: the untimed manual + the future auto count;
-    // the future manual one does not.
-    expect(json.buckets.livraison_planifiee).toBe(2);
+
+    // Bucketing asks what kind of work this is, not when it is due: every
+    // `dispatch_scheduled` row counts here, auto or manual, due or ahead.
+    // Splitting the chip by time is what previously left future rows counted in
+    // no chip at all while the list still rendered them.
+    expect(json.buckets.livraison_planifiee).toBe(3);
+
+    // §4.17 G — the sub-counts account for every in-progress row.
+    expect(
+      json.buckets.tentative_total +
+        json.buckets.rappel_prevu +
+        json.buckets.livraison_planifiee,
+    ).toBe(rawOrders.length);
   });
 
   test("returns 500 when DB query errors", async () => {

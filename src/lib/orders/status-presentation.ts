@@ -1,4 +1,3 @@
-import type { StatusGlyphShape } from "@/components/shared/StatusGlyph";
 
 /**
  * How an order status should look, in one place.
@@ -26,25 +25,50 @@ import type { StatusGlyphShape } from "@/components/shared/StatusGlyph";
  *            action; angular means it is handed off or finished.
  *   weight — how much it wants you right now.
  *
- * Shape deliberately encodes open/closed rather than phase, because the shape
- * vocabulary has no round success mark and forcing one would have made the
- * family inconsistent. Phase is already unmistakable from hue: nothing in the
+ * Shape used to be a third encoding — an 8x8 ring/solid/half/check/cross/square
+ * vocabulary. It was retired with `StatusGlyph`: at that size the marks were
+ * indistinguishable, and the family had no round success mark, so `confirmed`
+ * and `delivered` were forced to share one. A per-status icon (see `icon`) says
+ * more in the same space. Phase remains unmistakable from hue: nothing in the
  * confirmation phase is teal, and nothing after it is violet.
  */
 
 export type StatusHue = "neutral" | "amber" | "violet" | "teal" | "green" | "red";
 export type StatusWeight = "quiet" | "medium" | "loud";
 
+/**
+ * Which mark a status wears. A *name*, not a component — this module stays free
+ * of React so it can be imported from a route handler as cheaply as from a
+ * client component. `components/shared/StatusIcon` resolves the name.
+ */
+export type StatusIconName =
+  | "waiting"
+  | "assigned"
+  | "unverified"
+  | "calling"
+  | "callback"
+  | "scheduled"
+  | "confirmed"
+  | "uploaded"
+  | "scanned"
+  | "dispatched"
+  | "deposit"
+  | "inTransit"
+  | "delivered"
+  | "received"
+  | "toReturn"
+  | "returned"
+  | "rejected"
+  | "cancelled"
+  | "deleted";
+
 export interface StatusPresentation {
   hue: StatusHue;
   weight: StatusWeight;
-  glyph: StatusGlyphShape;
+  icon: StatusIconName;
   /** e.g. "3/8" — present only on attempt statuses. */
   counter: string | null;
 }
-
-/** Round shapes mean the order is still open — someone owes an action. */
-export const OPEN_GLYPHS = new Set<StatusGlyphShape>(["ring", "solid", "half"]);
 
 /** Hues that only ever appear once the order has left the agent's hands. */
 export const FULFILLMENT_HUES = new Set<StatusHue>(["teal", "green"]);
@@ -77,42 +101,42 @@ type Base = Omit<StatusPresentation, "counter">;
 
 const BASE: Record<string, Base> = {
   // ── Phase 1: someone still owes this customer a call ──────────────────
-  pending: { hue: "neutral", weight: "medium", glyph: "ring" },
-  new: { hue: "neutral", weight: "medium", glyph: "ring" },
-  assigned: { hue: "neutral", weight: "medium", glyph: "ring" },
-  attempt_1: { hue: "amber", weight: "medium", glyph: "solid" },
-  attempt_2: { hue: "amber", weight: "medium", glyph: "solid" },
-  attempt_3: { hue: "amber", weight: "medium", glyph: "solid" },
+  pending: { hue: "neutral", weight: "medium", icon: "waiting" },
+  new: { hue: "neutral", weight: "medium", icon: "waiting" },
+  assigned: { hue: "neutral", weight: "medium", icon: "assigned" },
+  attempt_1: { hue: "amber", weight: "medium", icon: "calling" },
+  attempt_2: { hue: "amber", weight: "medium", icon: "calling" },
+  attempt_3: { hue: "amber", weight: "medium", icon: "calling" },
   // Scheduled is planned waiting — a different thing from nobody having called.
-  callback_scheduled: { hue: "violet", weight: "medium", glyph: "half" },
-  unverified: { hue: "amber", weight: "medium", glyph: "half" },
+  callback_scheduled: { hue: "violet", weight: "medium", icon: "callback" },
+  unverified: { hue: "amber", weight: "medium", icon: "unverified" },
 
   // Phase 1 outcomes. Confirmed is violet and round: the order has NOT left
   // the agent's hands yet — the carrier upload is a separate action.
-  confirmed: { hue: "violet", weight: "medium", glyph: "check" },
-  dispatch_scheduled: { hue: "violet", weight: "quiet", glyph: "check" },
+  confirmed: { hue: "violet", weight: "medium", icon: "confirmed" },
+  dispatch_scheduled: { hue: "violet", weight: "quiet", icon: "scheduled" },
 
   // ── Phase 2: with the carrier, or finished ────────────────────────────
-  uploaded: { hue: "teal", weight: "quiet", glyph: "square" },
-  scanned: { hue: "teal", weight: "quiet", glyph: "square" },
-  dispatched: { hue: "teal", weight: "quiet", glyph: "square" },
-  deposit: { hue: "teal", weight: "quiet", glyph: "square" },
-  received: { hue: "teal", weight: "quiet", glyph: "square" },
-  in_transit: { hue: "teal", weight: "medium", glyph: "square" },
-  delivered: { hue: "green", weight: "quiet", glyph: "check" },
+  uploaded: { hue: "teal", weight: "quiet", icon: "uploaded" },
+  scanned: { hue: "teal", weight: "quiet", icon: "scanned" },
+  dispatched: { hue: "teal", weight: "quiet", icon: "dispatched" },
+  deposit: { hue: "teal", weight: "quiet", icon: "deposit" },
+  received: { hue: "teal", weight: "quiet", icon: "received" },
+  in_transit: { hue: "teal", weight: "medium", icon: "inTransit" },
+  delivered: { hue: "green", weight: "quiet", icon: "delivered" },
 
   // Settled and unsuccessful. Red, but quiet: rejection is a normal COD
   // outcome on a quarter of orders, not an emergency on a quarter of orders.
-  rejected: { hue: "red", weight: "quiet", glyph: "cross" },
-  cancelled: { hue: "red", weight: "quiet", glyph: "cross" },
-  returned: { hue: "red", weight: "quiet", glyph: "square" },
+  rejected: { hue: "red", weight: "quiet", icon: "rejected" },
+  cancelled: { hue: "red", weight: "quiet", icon: "cancelled" },
+  returned: { hue: "red", weight: "quiet", icon: "returned" },
   // Not settled — a return still has to be organised by a person.
-  to_be_returned: { hue: "amber", weight: "medium", glyph: "square" },
-  deleted: { hue: "neutral", weight: "quiet", glyph: "square" },
+  to_be_returned: { hue: "amber", weight: "medium", icon: "toReturn" },
+  deleted: { hue: "neutral", weight: "quiet", icon: "deleted" },
 };
 
 /** A status the backend invented after this map was written. */
-const UNKNOWN: Base = { hue: "neutral", weight: "quiet", glyph: "square" };
+const UNKNOWN: Base = { hue: "neutral", weight: "quiet", icon: "waiting" };
 
 export interface StatusContext {
   /** Truth for how many calls were made — the status label caps at 3. */

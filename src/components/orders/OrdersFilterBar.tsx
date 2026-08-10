@@ -24,12 +24,12 @@ interface Props {
   marketLabel: string;
 }
 
-const CARD_BG = "#FFFFFF";
-const SOFT_BG = "#FFFFFF";
-const BORDER = "#E1E3E5";
+const CARD_BG = "var(--oms-surface)";
+const SOFT_BG = "var(--oms-surface)";
+const BORDER = "var(--oms-border)";
 const SUBTLE_BG = "#F6F6F7";
-const TEXT = "#1A1A1A";
-const MUTED = "#6D7175";
+const TEXT = "var(--oms-ink-1)";
+const MUTED = "var(--oms-ink-3)";
 
 export function OrdersFilterBar({
   filters,
@@ -118,9 +118,9 @@ export function OrdersFilterBar({
               placeholder={t("filters.searchPlaceholder")}
               aria-label={t("filters.searchAria")}
               style={{
-                height: 30,
+                height: 38,
                 width: "100%",
-                paddingInlineStart: 28,
+                paddingInlineStart: 30,
                 paddingInlineEnd: 10,
                 fontSize: 13,
                 border: `1px solid ${BORDER}`,
@@ -148,7 +148,7 @@ export function OrdersFilterBar({
                   background: "var(--oms-surface-sunken)",
                 }}
               >
-                ⌘K
+                /
               </kbd>
             )}
           </div>

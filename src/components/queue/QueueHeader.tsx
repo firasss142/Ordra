@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Inbox,
@@ -12,8 +12,14 @@ import {
   RefreshCw,
   type LucideIcon,
 } from "lucide-react";
-import { StatusGlyph, type StatusGlyphShape } from "@/components/shared/StatusGlyph";
-import { presentStatus, type StatusHue } from "@/lib/orders/status-presentation";
+import { StatusIcon } from "@/components/shared/StatusIcon";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { Popover } from "@/components/ui/Popover";
+import {
+  presentStatus,
+  type StatusHue,
+  type StatusIconName,
+} from "@/lib/orders/status-presentation";
 import type { AgentQueueBuckets } from "@/hooks/useAgentQueue";
 
 export interface AgentStats {
@@ -24,6 +30,12 @@ export interface AgentStats {
 
 export type BucketKey = "nouveau" | "en_cours" | "confirme" | "fermees";
 
+/**
+ * Three kinds of work, plus "all". A chip says *what* the order needs, not when
+ * it is due — the status pill already turns red the moment a scheduled time
+ * passes, so splitting each kind into due-now and scheduled-ahead meant four
+ * chips for three jobs and two places to look for "my calls".
+ */
 export type EnCoursSubfilter = "all" | "rappel" | "tentative" | "livraison";
 export type TentativeSubfilter = "all" | 1 | 2 | 3;
 export type ClosedSubfilter =
@@ -73,25 +85,25 @@ const TABS: TabDef[] = [
 ];
 
 /**
- * Sub-filter chips carry the hue and glyph of the status they filter for, so
+ * Sub-filter chips carry the hue and icon of the status they filter for, so
  * choosing a filter and reading the rows it reveals is one continuous thought.
  * Both are derived from the shared presentation map rather than restated —
  * a chip and its pills cannot disagree.
  */
-function chipFace(status: string | null): { hue: StatusHue | null; glyph: StatusGlyphShape | null } {
-  if (!status) return { hue: null, glyph: null };
+function chipFace(status: string | null): { hue: StatusHue | null; icon: StatusIconName | null } {
+  if (!status) return { hue: null, icon: null };
   const p = presentStatus(status);
-  return { hue: p.hue, glyph: p.glyph };
+  return { hue: p.hue, icon: p.icon };
 }
 
 /** Chip tone per hue. Rest is transparent; only the selected chip takes a tint. */
 const CHIP_HUE: Record<StatusHue, string> = {
-  neutral: "bg-hue-neutral-bg text-hue-neutral-ink border-hue-neutral-edge/40",
-  amber: "bg-hue-amber-bg text-hue-amber-ink border-hue-amber-edge/40",
-  violet: "bg-hue-violet-bg text-hue-violet-ink border-hue-violet-edge/40",
-  teal: "bg-hue-teal-bg text-hue-teal-ink border-hue-teal-edge/40",
-  green: "bg-hue-green-bg text-hue-green-ink border-hue-green-edge/40",
-  red: "bg-hue-red-bg text-hue-red-ink border-hue-red-edge/40",
+  neutral: "bg-hue-neutral-bg text-hue-neutral-ink border-hue-neutral-edge-mid",
+  amber: "bg-hue-amber-bg text-hue-amber-ink border-hue-amber-edge-mid",
+  violet: "bg-hue-violet-bg text-hue-violet-ink border-hue-violet-edge-mid",
+  teal: "bg-hue-teal-bg text-hue-teal-ink border-hue-teal-edge-mid",
+  green: "bg-hue-green-bg text-hue-green-ink border-hue-green-edge-mid",
+  red: "bg-hue-red-bg text-hue-red-ink border-hue-red-edge-mid",
 };
 
 const CHIP_GLYPH_HUE: Record<StatusHue, string> = {
@@ -104,109 +116,38 @@ const CHIP_GLYPH_HUE: Record<StatusHue, string> = {
 };
 
 /**
- * Level 1 — a bucket. Where am I?
- *
- * Underline tabs on the page ground: bigger type than the filters below, an
- * icon, and a count that only fills green when selected, so exactly one tab is
- * unmistakably current.
- */
-function TabButton({
-  tab,
-  label,
-  count,
-  active,
-  onClick,
-}: {
-  tab: TabDef;
-  label: string;
-  count: number;
-  active: boolean;
-  onClick: () => void;
-}) {
-  const Icon = tab.icon;
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className={[
-        "group/tab relative inline-flex flex-1 items-center justify-center gap-2 sm:flex-none",
-        "h-[46px] whitespace-nowrap px-2.5 text-[13px] sm:h-[52px] sm:px-3.5 sm:text-[14px]",
-        "font-semibold transition-colors duration-base",
-        active ? "text-agent-on-surface" : "text-agent-ink-3 hover:text-agent-on-surface",
-      ].join(" ")}
-    >
-      <Icon
-        size={15}
-        strokeWidth={active ? 2.25 : 2}
-        aria-hidden="true"
-        className={[
-          "hidden shrink-0 transition-opacity duration-base sm:inline",
-          active ? "opacity-100" : "opacity-55 group-hover/tab:opacity-100",
-        ].join(" ")}
-      />
-      <span className="truncate">{label}</span>
-      <span
-        className={[
-          "grid h-5 min-w-[21px] shrink-0 place-items-center rounded-pill px-1.5",
-          "text-[11px] font-bold tabular-nums transition-colors duration-base",
-          active
-            ? "bg-agent-primary text-agent-on-primary"
-            : "bg-agent-surface-low text-agent-ink-3",
-        ].join(" ")}
-      >
-        {count}
-      </span>
-      {/* The indicator is always in the DOM so switching tabs animates a colour
-          rather than inserting a box and nudging the row. */}
-      <span
-        aria-hidden="true"
-        className={[
-          "absolute inset-x-2 bottom-0 h-[2.5px] rounded-t-[3px] transition-colors duration-base",
-          active
-            ? "bg-agent-primary"
-            : "bg-transparent group-hover/tab:bg-agent-outline",
-        ].join(" ")}
-      />
-    </button>
-  );
-}
-
-/**
  * Level 2 — a sub-filter. Narrowing what I'm already inside.
  *
  * Deliberately lighter than a tab: smaller, borderless at rest, and living in a
  * recessed panel. An inverted dark slab (the old active state) read as a
  * different component rather than as a state.
  */
-function FilterChip({
-  active,
-  count,
-  onClick,
-  label,
-  status,
-  trailing,
-  buttonRef,
-  ariaHaspopup,
-  ariaExpanded,
-}: {
-  active: boolean;
-  count: number;
-  onClick: () => void;
-  label: string;
-  /** The status this chip filters for; drives its hue + glyph. Null for "all". */
-  status: string | null;
-  trailing?: React.ReactNode;
-  buttonRef?: React.Ref<HTMLButtonElement>;
-  ariaHaspopup?: boolean;
-  ariaExpanded?: boolean;
-}) {
-  const { hue, glyph } = chipFace(status);
+const FilterChip = forwardRef<
+  HTMLButtonElement,
+  {
+    active: boolean;
+    count: number;
+    /** Optional: as a Popover trigger the wrapper supplies its own handler. */
+    onClick?: () => void;
+    label: string;
+    /** The status this chip filters for; drives its hue + icon. Null for "all". */
+    status: string | null;
+    trailing?: React.ReactNode;
+    ariaHaspopup?: boolean;
+    ariaExpanded?: boolean;
+  }
+>(function FilterChip(
+  { active, count, onClick, label, status, trailing, ariaHaspopup, ariaExpanded, ...rest },
+  ref,
+) {
+  const { hue, icon } = chipFace(status);
   return (
     <button
       type="button"
-      ref={buttonRef}
+      // Forwarded so Popover can measure the trigger it is anchored to. Without
+      // it the panel has nothing to position against.
+      ref={ref}
+      {...rest}
       aria-pressed={active}
       aria-label={`${label} — ${count}`}
       aria-haspopup={ariaHaspopup ? "menu" : undefined}
@@ -219,31 +160,37 @@ function FilterChip({
           ? hue
             ? CHIP_HUE[hue]
             : "border-agent-outline bg-agent-surface text-agent-on-surface"
-          : "border-transparent bg-transparent text-agent-on-surface-variant hover:border-agent-outline-variant hover:bg-agent-surface hover:text-agent-on-surface",
+          : "border-agent-outline-variant bg-agent-surface text-agent-on-surface-variant hover:border-agent-outline hover:text-agent-on-surface",
       ].join(" ")}
     >
-      {glyph && hue && (
+      {icon && hue && (
         <span
           aria-hidden="true"
           className={[
-            "grid w-2 flex-none place-items-center transition-opacity duration-fast",
-            active ? "opacity-100" : `${CHIP_GLYPH_HUE[hue]} opacity-60`,
+            "grid w-3.5 flex-none place-items-center transition-opacity duration-fast",
+            active ? "opacity-100" : `${CHIP_GLYPH_HUE[hue]} opacity-70`,
           ].join(" ")}
         >
-          <StatusGlyph shape={glyph} tone="inherit" />
+          <StatusIcon name={icon} size={13} />
         </span>
       )}
       <span>{label}</span>
       <span
         aria-hidden="true"
-        className={`flex-none tabular-nums font-bold ${active ? "opacity-85" : "opacity-60"}`}
+        className={[
+          "grid h-[18px] min-w-[19px] flex-none place-items-center rounded-pill px-1",
+          "text-[10.5px] font-bold tabular-nums transition-colors duration-fast",
+          active
+            ? "bg-brand text-white"
+            : "bg-agent-surface-low text-agent-ink-3",
+        ].join(" ")}
       >
         {count}
       </span>
       {trailing}
     </button>
   );
-}
+});
 
 /** A shift readout, not navigation — so it gets no pill chrome. */
 function MeterCell({ label, value }: { label: string; value: string }) {
@@ -284,31 +231,6 @@ export function QueueHeader({
   const tShell = useTranslations("queue.agentShell");
 
   const [tentativePopoverOpen, setTentativePopoverOpen] = useState(false);
-  const tentativeAnchorRef = useRef<HTMLButtonElement | null>(null);
-  const popoverRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!tentativePopoverOpen) return;
-    function onPointerDown(e: MouseEvent) {
-      const target = e.target as Node;
-      if (
-        tentativeAnchorRef.current?.contains(target) ||
-        popoverRef.current?.contains(target)
-      ) {
-        return;
-      }
-      setTentativePopoverOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setTentativePopoverOpen(false);
-    }
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [tentativePopoverOpen]);
 
   useEffect(() => {
     if (selectedBucket !== "en_cours") setTentativePopoverOpen(false);
@@ -327,6 +249,9 @@ export function QueueHeader({
     fermees: 0,
   };
 
+  // Every in-progress row lands in exactly one of the three, so this total is
+  // the number of rows "Tous" opens. It used to exclude anything scheduled for
+  // a future time and therefore under-reported the list it labelled (§4.17 G).
   const enCoursTotal =
     counts.tentative_total + counts.rappel_prevu + counts.livraison_planifiee;
 
@@ -340,13 +265,11 @@ export function QueueHeader({
   const tentativeChipActive =
     enCoursSubfilter === "tentative" || tentativePopoverOpen;
 
-  function handleTentativeChipClick() {
-    if (tentativePopoverOpen) {
-      setTentativePopoverOpen(false);
-      return;
-    }
-    if (enCoursSubfilter !== "tentative") onEnCoursSubfilterChange("tentative");
-    setTentativePopoverOpen(true);
+  function handleTentativeOpenChange(next: boolean) {
+    // Opening the menu also selects the bucket, so the list behind it already
+    // shows what you are about to narrow. Closing must NOT deselect it.
+    if (next && enCoursSubfilter !== "tentative") onEnCoursSubfilterChange("tentative");
+    setTentativePopoverOpen(next);
   }
 
   function handleTentativeOptionClick(value: TentativeSubfilter) {
@@ -364,6 +287,16 @@ export function QueueHeader({
       : tentativeSubfilter === 3 && t3Plus
         ? "3+"
         : String(tentativeSubfilter);
+
+  const ATTEMPT_OPTIONS: {
+    value: Exclude<TentativeSubfilter, "all">;
+    count: number;
+    label: string;
+  }[] = [
+    { value: 1, count: counts.tentative_1, label: tAttempt("t1") },
+    { value: 2, count: counts.tentative_2, label: tAttempt("t2") },
+    { value: 3, count: counts.tentative_3, label: t3Label },
+  ];
 
   const showSubfilters = selectedBucket === "en_cours" || selectedBucket === "fermees";
 
@@ -397,7 +330,7 @@ export function QueueHeader({
             <button
               type="button"
               onClick={onNewOrder}
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-pill bg-agent-primary px-4 text-[13.5px] font-bold text-agent-on-primary transition-colors duration-base hover:bg-agent-on-primary-container"
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-brand px-4 text-[13.5px] font-bold text-white transition-colors duration-base hover:bg-brand-hover"
             >
               <Plus size={15} strokeWidth={2.5} aria-hidden="true" />
               <span>{tShell("newOrder")}</span>
@@ -406,23 +339,21 @@ export function QueueHeader({
         </div>
       </div>
 
-      {/* Level 1 — buckets. */}
-      <div
+      {/* Level 1 — buckets. Segments rather than underline tabs, because the
+          queue nests a second and third level under this one and an underline
+          cannot show containment (§4.18). */}
+      <SegmentedTabs
         role="tablist"
-        aria-label={t("title")}
-        className="flex items-end border-b border-agent-outline-variant"
-      >
-        {TABS.map((tab) => (
-          <TabButton
-            key={tab.key}
-            tab={tab}
-            label={t(`buckets.${tab.labelKey}`)}
-            count={bucketCount[tab.key]}
-            active={selectedBucket === tab.key}
-            onClick={() => onBucketChange(tab.key)}
-          />
-        ))}
-      </div>
+        ariaLabel={t("title")}
+        value={selectedBucket}
+        onChange={(key) => onBucketChange(key as BucketKey)}
+        segments={TABS.map((tab) => ({
+          key: tab.key,
+          label: t(`buckets.${tab.labelKey}`),
+          count: bucketCount[tab.key],
+          icon: tab.icon,
+        }))}
+      />
 
       {/* Level 2 — sub-filters, in one permanent place whichever bucket is open.
           They used to render inline for en_cours and as a second row for
@@ -446,83 +377,69 @@ export function QueueHeader({
                 status={null}
                 onClick={() => onEnCoursSubfilterChange("all")}
               />
-              <FilterChip
-                active={enCoursSubfilter === "rappel"}
-                count={counts.rappel_prevu}
-                label={tEnCours("rappel")}
-                status="callback_scheduled"
-                onClick={() => onEnCoursSubfilterChange("rappel")}
-              />
-
-              <div className="relative inline-block">
-                <FilterChip
-                  buttonRef={tentativeAnchorRef}
-                  active={tentativeChipActive}
-                  count={
-                    tentativeSubfilter === 1
-                      ? counts.tentative_1
-                      : tentativeSubfilter === 2
-                        ? counts.tentative_2
-                        : tentativeSubfilter === 3
-                          ? counts.tentative_3
-                          : counts.tentative_total
-                  }
-                  label={
-                    tentativeSubfilter === "all"
-                      ? tEnCours("tentative")
-                      : `${tEnCours("tentative")} · ${tentativeBadge}`
-                  }
-                  status="attempt_1"
-                  ariaHaspopup
-                  ariaExpanded={tentativePopoverOpen}
-                  onClick={handleTentativeChipClick}
-                  trailing={
-                    <ChevronDown
-                      size={12}
-                      strokeWidth={2.25}
-                      aria-hidden="true"
-                      className={[
-                        "ms-0.5 opacity-60 transition-transform duration-base",
-                        tentativePopoverOpen ? "rotate-180" : "",
-                      ].join(" ")}
-                    />
-                  }
-                />
-
-                {tentativePopoverOpen && (
-                  <div
-                    ref={popoverRef}
-                    role="menu"
-                    aria-label={tEnCours("tentative")}
-                    className="absolute start-0 z-20 mt-1.5 min-w-[168px] rounded-xl border border-agent-outline-variant bg-agent-surface py-1 shadow-floating"
-                  >
+              <Popover
+                open={tentativePopoverOpen}
+                onOpenChange={handleTentativeOpenChange}
+                align="start"
+                panelClassName="min-w-[184px] py-1"
+                trigger={
+                  <FilterChip
+                    active={tentativeChipActive}
+                    count={
+                      tentativeSubfilter === 1
+                        ? counts.tentative_1
+                        : tentativeSubfilter === 2
+                          ? counts.tentative_2
+                          : tentativeSubfilter === 3
+                            ? counts.tentative_3
+                            : counts.tentative_total
+                    }
+                    label={
+                      tentativeSubfilter === "all"
+                        ? tEnCours("tentative")
+                        : `${tEnCours("tentative")} · ${tentativeBadge}`
+                    }
+                    status="attempt_1"
+                    trailing={
+                      <ChevronDown
+                        size={12}
+                        strokeWidth={2.25}
+                        aria-hidden="true"
+                        className={[
+                          "ms-0.5 opacity-60 transition-transform duration-base",
+                          tentativePopoverOpen ? "rotate-180" : "",
+                        ].join(" ")}
+                      />
+                    }
+                  />
+                }
+              >
+                {(close) => (
+                  <div role="menu" aria-label={tEnCours("tentative")}>
                     <TentativePopoverItem
                       active={tentativeSubfilter === "all"}
                       count={counts.tentative_total}
                       label={tAttempt("all")}
-                      onClick={() => handleTentativeOptionClick("all")}
+                      onClick={() => {
+                        onTentativeSubfilterChange("all");
+                        close();
+                      }}
                     />
-                    <TentativePopoverItem
-                      active={tentativeSubfilter === 1}
-                      count={counts.tentative_1}
-                      label={tAttempt("t1")}
-                      onClick={() => handleTentativeOptionClick(1)}
-                    />
-                    <TentativePopoverItem
-                      active={tentativeSubfilter === 2}
-                      count={counts.tentative_2}
-                      label={tAttempt("t2")}
-                      onClick={() => handleTentativeOptionClick(2)}
-                    />
-                    <TentativePopoverItem
-                      active={tentativeSubfilter === 3}
-                      count={counts.tentative_3}
-                      label={t3Label}
-                      onClick={() => handleTentativeOptionClick(3)}
-                    />
+                    {ATTEMPT_OPTIONS.map(({ value, count, label }) => (
+                      <TentativePopoverItem
+                        key={value}
+                        active={tentativeSubfilter === value}
+                        count={count}
+                        label={label}
+                        onClick={() => {
+                          onTentativeSubfilterChange(value);
+                          close();
+                        }}
+                      />
+                    ))}
                   </div>
                 )}
-              </div>
+              </Popover>
 
               <FilterChip
                 active={enCoursSubfilter === "livraison"}
@@ -530,6 +447,15 @@ export function QueueHeader({
                 label={tEnCours("livraison")}
                 status="dispatch_scheduled"
                 onClick={() => onEnCoursSubfilterChange("livraison")}
+              />
+
+              {/* Every scheduled call, due now or ahead — one place to look. */}
+              <FilterChip
+                active={enCoursSubfilter === "rappel"}
+                count={counts.rappel_prevu}
+                label={tEnCours("rappel")}
+                status="callback_scheduled"
+                onClick={() => onEnCoursSubfilterChange("rappel")}
               />
             </div>
           )}

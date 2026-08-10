@@ -1,3 +1,5 @@
+import { enCoursBucket } from "@/lib/queue/schedule-bucket";
+
 export type RawOrderRow = Record<string, unknown> & {
   id: string;
   status: string;
@@ -14,7 +16,9 @@ export interface AgentQueueBuckets {
   tentative_2: number;
   tentative_3: number;
   tentative_total: number;
+  /** Every `callback_scheduled` order, due now or scheduled ahead. */
   rappel_prevu: number;
+  /** Every `dispatch_scheduled` order, due now or scheduled ahead. */
   livraison_planifiee: number;
   confirme: number;
   rejete: number;
@@ -77,16 +81,14 @@ export function computeBuckets(
         b.tentative_3++;
         b.tentative_total++;
         break;
-      case "callback_scheduled": {
-        const cbAt = o.callback_scheduled_at ?? null;
-        if (!cbAt || new Date(cbAt).getTime() <= now) b.rappel_prevu++;
-        break;
-      }
+      case "callback_scheduled":
       case "dispatch_scheduled": {
-        const dAt = o.scheduled_dispatch_at ?? null;
-        if (o.scheduled_dispatch_auto || !dAt || new Date(dAt).getTime() <= now) {
-          b.livraison_planifiee++;
-        }
+        // One rule, shared with the list filter and the server — see
+        // lib/queue/schedule-bucket. Attempts are counted above because they
+        // also need their per-attempt breakdown.
+        const bucket = enCoursBucket(o, now);
+        if (bucket === "rappel") b.rappel_prevu++;
+        else if (bucket === "livraison") b.livraison_planifiee++;
         break;
       }
       case "confirmed":

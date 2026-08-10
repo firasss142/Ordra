@@ -77,6 +77,38 @@
   --hue-red-bg: var(--oms-bad-bg);
   --hue-red-edge: var(--oms-bad);
 
+  /* ── Weight ladder: softened fills and edges ──────────────────────
+     `weight` steps the fill, the face and the border opacity together
+     (§4.17 F-bis). It could not step opacity through Tailwind: v3 only
+     computes alpha for its own `rgb(… / <alpha-value>)` format, so
+     `bg-hue-amber-bg/70` and `border-hue-amber-edge/25` emitted NOTHING
+     and every pill fell back to the preflight grey border — the hue was
+     on the text and the tint but never on the edge.
+
+     color-mix derives these from the hue tokens above, so there is still
+     one source of truth and no pair of values that can drift. Keep the
+     inputs plain hex: status-contrast.test.ts resolves them and throws
+     on anything it cannot parse.
+     ─────────────────────────────────────────────────────────────── */
+  --hue-neutral-fill-soft: color-mix(in srgb, var(--hue-neutral-bg) 70%, transparent);
+  --hue-neutral-edge-soft: color-mix(in srgb, var(--hue-neutral-edge) 40%, transparent);
+  --hue-neutral-edge-mid: color-mix(in srgb, var(--hue-neutral-edge) 70%, transparent);
+  --hue-amber-fill-soft: color-mix(in srgb, var(--hue-amber-bg) 70%, transparent);
+  --hue-amber-edge-soft: color-mix(in srgb, var(--hue-amber-edge) 25%, transparent);
+  --hue-amber-edge-mid: color-mix(in srgb, var(--hue-amber-edge) 50%, transparent);
+  --hue-violet-fill-soft: color-mix(in srgb, var(--hue-violet-bg) 70%, transparent);
+  --hue-violet-edge-soft: color-mix(in srgb, var(--hue-violet-edge) 25%, transparent);
+  --hue-violet-edge-mid: color-mix(in srgb, var(--hue-violet-edge) 50%, transparent);
+  --hue-teal-fill-soft: color-mix(in srgb, var(--hue-teal-bg) 70%, transparent);
+  --hue-teal-edge-soft: color-mix(in srgb, var(--hue-teal-edge) 25%, transparent);
+  --hue-teal-edge-mid: color-mix(in srgb, var(--hue-teal-edge) 50%, transparent);
+  --hue-green-fill-soft: color-mix(in srgb, var(--hue-green-bg) 70%, transparent);
+  --hue-green-edge-soft: color-mix(in srgb, var(--hue-green-edge) 25%, transparent);
+  --hue-green-edge-mid: color-mix(in srgb, var(--hue-green-edge) 50%, transparent);
+  --hue-red-fill-soft: color-mix(in srgb, var(--hue-red-bg) 70%, transparent);
+  --hue-red-edge-soft: color-mix(in srgb, var(--hue-red-edge) 25%, transparent);
+  --hue-red-edge-mid: color-mix(in srgb, var(--hue-red-edge) 50%, transparent);
+
   /* ── Orders console ("soft & warm") ───────────────────────────────
      Scoped to the orders surface. Warmer ground than --bg-page, a
      three-step neutral ramp where every step clears 4.5:1 on white,
@@ -90,27 +122,42 @@
   --oms-border: #EAE7E1;
   --oms-border-strong: #DCD8D0;
 
-  /* ───────────────────────────────────────────────────────────────
-     Products console — scoped extension, same pattern as oms.* and
-     agent.*: CSS vars here are the single source of truth and
-     tailwind.config.ts only aliases them.
+  /* ── Brand green — chrome, every surface ──────────────────────────
+     This started as --prod-brand, scoped to the products console. It is
+     now the console-wide chrome green: primary CTA, active nav pill,
+     active KPI tile, funnel bars, focus ring. The products tokens below
+     are aliases so that surface needed no edits.
 
-     Only SEVEN vars, because the rest of the surface deliberately
-     reuses the global tokens. status-critical / status-warning /
-     status-action already carry the red, amber and blue at the right
-     contrast — adding near-duplicates would mean two reds that drift.
-     What genuinely did not exist is this green: status-success
-     (#008060) is a teal, and accent (#10B981) is reserved by
-     docs/design-system.md §1 for exactly two uses (focused-row bar,
-     active-tab underline). --prod-brand is the grass green the
-     products surface uses for its primary action, active nav pill,
-     and "Actif" badge.
+     TWO GREENS, and the split is load-bearing:
+
+       --brand         #15803D   5.0:1 white-on-fill. Light grounds. Any
+                                 green that carries text, or sits behind
+                                 white text, is this one.
+       --brand-on-dark #10B981   2.5:1 on white — unusable on a light
+                                 ground. Dark sidebar surface ONLY.
+
+     Reaching for #10B981 on white because it looks brighter is the exact
+     mistake src/lib/orders/status-contrast.test.ts exists to catch.
      ─────────────────────────────────────────────────────────────── */
-  --prod-brand: #15803D;        /*  5.5:1 on white — buttons, active states */
-  --prod-brand-hover: #12692F;
-  --prod-brand-soft: #E9F6EE;   /* badge / icon-chip tint */
-  --prod-brand-tint: #F1FAF4;   /* selected row, hero card */
-  --prod-pos: #16A34A;          /* positive figures + delta pills */
+  --brand: #15803D;             /* 5.0:1 white-on-fill — CTA, active states */
+  --brand-hover: #12692F;       /* CTA hover; also text on --brand-bg (6.1:1) */
+  --brand-bg: #E9F6EE;          /* badge / icon-holder tint, active tile fill */
+  --brand-tint: #F1FAF4;        /* selected row, hero card */
+  --brand-pos: #16A34A;         /* positive figures + delta pills */
+
+  /* Keyboard focus. Named so it is greppable, and so the contrast test can
+     assert it against both grounds. Replaces #36F4A4, which was 1.44:1 on
+     white — a focus ring that fails WCAG 2.4.11 is not a focus ring. */
+  --focus-ring: var(--brand);
+
+  /* Products console — aliases only. status-critical / status-warning /
+     status-action already carry red, amber and blue at the right contrast;
+     near-duplicates would mean two reds that drift. */
+  --prod-brand: var(--brand);
+  --prod-brand-hover: var(--brand-hover);
+  --prod-brand-soft: var(--brand-bg);
+  --prod-brand-tint: var(--brand-tint);
+  --prod-pos: var(--brand-pos);
   --prod-info-bg: #EBF1FE;      /* tint for status-action, which has none */
   --prod-neutral-bg: #F2F3F5;   /* tint for inactive / muted chips */
 
@@ -164,15 +211,19 @@
 
   --sidebar-hover:           rgba(255, 255, 255, 0.04);
   --sidebar-hover-strong:    rgba(255, 255, 255, 0.07);
-  --sidebar-active-bg:       rgba(16, 185, 129, 0.10);
-  --sidebar-active-bar:      #10B981;
+  /* The active item is a filled pill, not a tinted row with a bar. White on
+     --brand is 5.0:1; the old 10% wash left the label at sidebar-text. */
+  --sidebar-active-fill:     var(--brand);
+  /* Label AND icon of the active sub-item — both sit on --sidebar-active-fill. */
   --sidebar-active-text:     #FFFFFF;
-  --sidebar-active-icon:     #10B981;
+  /* Section headers do NOT fill; they stay on the dark ground, so their active
+     icon keeps the bright green that only works there. */
+  --sidebar-active-icon:     var(--brand-on-dark);
 
-  /* Brand accent */
-  --brand-primary:           #10B981;
-  --brand-primary-soft:      rgba(16, 185, 129, 0.15);
-  --brand-primary-strong:    #34D399;
+  /* Brand accent, dark surface only — see the two-greens note above. */
+  --brand-on-dark:           #10B981;
+  --brand-on-dark-soft:      rgba(16, 185, 129, 0.15);
+  --brand-on-dark-strong:    #34D399;
 
   /* Sidebar badge tokens (semantic) */
   --badge-info-bg:       rgba(59, 130, 246, 0.15);
@@ -212,7 +263,10 @@
    ───────────────────────────────────────────────────────── */
 .oms-rows {
   border-collapse: separate;
-  border-spacing: 0 6px;
+  /* 4px, not 6px. The bands still read as separate objects, but a thousand-row
+     list spends a third less vertical space on gaps — which is what buys the
+     taller row without pushing fewer orders above the fold. */
+  border-spacing: 0 4px;
 }
 .oms-row > td {
   background: var(--oms-surface);
@@ -238,18 +292,24 @@
 .oms-row:hover {
   box-shadow: 0 1px 2px rgba(27, 25, 23, 0.05), 0 3px 10px rgba(27, 25, 23, 0.06);
 }
-/* Selected and flagged rows tint the band itself, not a stripe behind it. */
-.oms-row[data-selected="true"] > td { background: var(--oms-accent-bg); }
-.oms-row[data-selected="true"] > td { border-color: var(--oms-accent); }
+/* Selected and flagged rows tint the band itself, not a stripe behind it.
+   Selection is chrome, so it takes the brand green — the violet it used to use
+   is now spent only where it means "confirmation phase". */
+.oms-row[data-selected="true"] > td { background: var(--brand-bg); }
+.oms-row[data-selected="true"] > td { border-color: var(--brand); }
 .oms-row[data-highlighted="true"] > td { background: #FFFBEA; }
 /* SLA breach — a severity stripe on the leading edge, not decoration. */
 .oms-row[data-breach="true"] > td:first-child {
   box-shadow: inset 3px 0 0 var(--oms-age-late);
 }
 
-/* Global focus-visible ring — 2px Neon Green, 2px offset (design-system §4) */
+/* Global focus-visible ring — 2px brand green, 2px offset (design-system §4).
+   Was #36F4A4, which measured 1.44:1 on white and failed WCAG 2.4.11. The
+   brand green clears 3:1 on both grounds the app has — 5.0:1 on --oms-bg,
+   3.8:1 on --sidebar-bg — so one ring serves the whole console. The 2px
+   offset is what keeps it visible against a brand-green button. */
 :focus-visible {
-  outline: 2px solid #36F4A4;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
