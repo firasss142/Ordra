@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewOrders } from "@/lib/order-permissions";
+import { whereUnassigned } from "@/lib/orders/unassigned";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,12 @@ export interface StatusCounts {
   /** Health — 7-day confirmation rate, and the 7 days before it to trend against */
   confirmationRate: number | null;
   confirmationRatePrev: number | null;
+  /**
+   * How many decisions the current rate is computed from. A percentage with no
+   * sample size cannot be judged: 100% of two calls and 100% of two hundred are
+   * the same number and completely different facts.
+   */
+  confirmationSample: number;
   total: number;
 }
 
@@ -36,30 +43,6 @@ const RECALL_STATUSES = ["attempt_1", "attempt_2", "attempt_3", "callback_schedu
 
 /** Awaiting carrier upload — the `Confirmées` tile's backlog. */
 const CONFIRMED_STATUSES = ["confirmed", "dispatch_scheduled"];
-
-/**
- * Every status that means "the customer said yes".
- *
- * Confirmation is transient — a confirmed order becomes uploaded, then scanned,
- * dispatched and delivered. Measuring the rate against CONFIRMED_STATUSES alone
- * counts every shipped order as a failure: Libya reported 7.7% where the real
- * figure is 78.7%.
- */
-const REACHED_CONFIRMATION = [
-  ...CONFIRMED_STATUSES,
-  "uploaded",
-  "scanned",
-  "dispatched",
-  "deposit",
-  "in_transit",
-  "delivered",
-  "returned",
-  "to_be_returned",
-];
-
-const FAILED_STATUSES = ["rejected", "cancelled"];
-/** A call that reached an outcome — the denominator of the confirmation rate. */
-const RESOLVED_STATUSES = [...REACHED_CONFIRMATION, ...FAILED_STATUSES];
 
 function startOfTodayIso(): string {
   const d = new Date();
@@ -69,6 +52,13 @@ function startOfTodayIso(): string {
 
 function daysAgoIso(days: number): string {
   return new Date(Date.now() - days * 86_400_000).toISOString();
+}
+
+interface RateWindows {
+  current_yes: number;
+  current_total: number;
+  prev_yes: number;
+  prev_total: number;
 }
 
 export async function GET(req: NextRequest) {
@@ -115,22 +105,25 @@ export async function GET(req: NextRequest) {
     confirmed,
     uploaded,
     todayCount,
-    confirmed7,
-    resolved7,
-    confirmedPrev7,
-    resolvedPrev7,
+    rateWindows,
   ] = await Promise.all([
     countWhere((q) => q),
-    countWhere((q) => q.is("assigned_to", null)),
+    countWhere((q) => whereUnassigned(q as never)),
     countWhere((q) => q.eq("status", "pending")),
     countWhere((q) => q.in("status", RECALL_STATUSES)),
     countWhere((q) => q.in("status", CONFIRMED_STATUSES)),
     countWhere((q) => q.eq("status", "uploaded")),
     countWhere((q) => q.gte("created_at", today)),
-    countWhere((q) => q.in("status", REACHED_CONFIRMATION).gte("updated_at", d7)),
-    countWhere((q) => q.in("status", RESOLVED_STATUSES).gte("updated_at", d7)),
-    countWhere((q) => q.in("status", REACHED_CONFIRMATION).gte("updated_at", d14).lt("updated_at", d7)),
-    countWhere((q) => q.in("status", RESOLVED_STATUSES).gte("updated_at", d14).lt("updated_at", d7)),
+    // Dated by the transition itself, not by orders.updated_at — see the
+    // function's comment in the migration for why that distinction is the whole
+    // bug. Counting DISTINCT order_id is why this cannot be a PostgREST
+    // head-count: confirmed → uploaded → confirmed retries inflate a raw row
+    // count by ~60%.
+    supabase.rpc("get_confirmation_rate_windows", {
+      p_market_id: marketId,
+      p_current_from: d7,
+      p_prev_from: d14,
+    }) as unknown as Promise<{ data: RateWindows[] | null; error: unknown }>,
   ]);
 
   const firstError = [total, unassigned, waiting, toRecall, uploaded].find((r) => r?.error);
@@ -143,8 +136,18 @@ export async function GET(req: NextRequest) {
   }
 
   const n = (r: { count: number | null }) => r?.count ?? 0;
-  const rate = (num: { count: number | null }, den: { count: number | null }) =>
-    n(den) === 0 ? null : Math.round((n(num) / n(den)) * 1000) / 10;
+
+  /**
+   * A rate over no decisions is not 0% and it is not 100% — it is *unknown*.
+   * The previous version divided by a denominator that was sometimes 1, got
+   * 100%, and rendered a confident "▼ 40.8" against it.
+   */
+  const rate = (yes: number, den: number) =>
+    den === 0 ? null : Math.round((yes / den) * 1000) / 10;
+
+  const w = rateWindows.data?.[0];
+  const currentTotal = Number(w?.current_total ?? 0);
+  const prevTotal = Number(w?.prev_total ?? 0);
 
   const counts: StatusCounts = {
     unassigned: n(unassigned),
@@ -153,8 +156,9 @@ export async function GET(req: NextRequest) {
     confirmed: n(confirmed),
     uploaded: n(uploaded),
     today: n(todayCount),
-    confirmationRate: rate(confirmed7, resolved7),
-    confirmationRatePrev: rate(confirmedPrev7, resolvedPrev7),
+    confirmationRate: rate(Number(w?.current_yes ?? 0), currentTotal),
+    confirmationRatePrev: rate(Number(w?.prev_yes ?? 0), prevTotal),
+    confirmationSample: currentTotal,
     total: n(total),
   };
 
