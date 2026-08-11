@@ -361,6 +361,25 @@ describe("Sidebar — brand area", () => {
     expect(screen.getByText(/Tunisie/)).toBeInTheDocument();
   });
 
+  it("no longer carries the brand monogram beside the wordmark", () => {
+    // The rail is 240px and has to hold the market control and the bell. The
+    // 28px mark was the least informative thing competing for that width, and
+    // it only ever said the same word the wordmark says in full.
+    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
+    // The monogram was the brand's first letter, alone in its own element.
+    expect(screen.queryByText("O")).not.toBeInTheDocument();
+    expect(screen.getByText("Ordra")).toBeInTheDocument();
+  });
+
+  it("names the manager's market with its flag rather than a colour", () => {
+    // The pill drew a dot in a colour nobody has learned, while the super_admin
+    // switcher two pixels away already used flags for the same markets.
+    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
+    const pill = screen.getByTestId("sidebar-market-pill");
+    expect(pill).toHaveTextContent("🇹🇳");
+    expect(pill).toHaveTextContent(/Tunisie/);
+  });
+
   it("shows the market scope switcher for super_admin (defaults to TN per provider)", () => {
     renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
     // The brand area renders the scope switcher trigger, which reflects the active scope label.

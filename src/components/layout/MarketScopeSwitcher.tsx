@@ -4,86 +4,44 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Check, Globe2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMarketScope } from "@/context/market-scope";
-import type { MarketScope } from "@/lib/markets";
+import { marketFlag, type MarketScope } from "@/lib/markets";
 import type { AuthUser } from "@/types";
 
-interface OptionDef {
-  value: MarketScope;
-  /** Solid dot color for TN/LY; null = "all", rendered as a globe icon */
-  dot: string | null;
-  /**
-   * Flag for TN/LY; null = "all". A flag names the market faster than a colour
-   * anyone has to learn. It is never the only signal — the market name always
-   * sits beside it — which also covers the platforms that render a
-   * regional-indicator pair as the bare letters "TN"/"LY" instead of a flag.
-   */
-  flag: string | null;
-}
+const OPTIONS: readonly MarketScope[] = ["tn", "ly", "all"];
 
-const OPTIONS: readonly OptionDef[] = [
-  { value: "tn", dot: "#3B82F6", flag: "🇹🇳" },
-  { value: "ly", dot: "#F59E0B", flag: "🇱🇾" },
-  { value: "all", dot: null, flag: null },
-];
+/**
+ * A market's mark: its flag, or a globe for the cross-market scope.
+ *
+ * The coloured-dot branch this used to carry was unreachable — every real
+ * market had a flag and "all" had the globe — so it was a third vocabulary that
+ * only ever cost a reader time working out whether it meant something.
+ */
+function ScopeGlyph({ scope, size = 14 }: { scope: MarketScope; size?: number }) {
+  const flag = marketFlag(scope);
 
-function ScopeGlyph({
-  dot,
-  flag,
-  size = 8,
-}: {
-  dot: string | null;
-  flag?: string | null;
-  size?: number;
-}) {
-  if (flag) {
-    return (
-      <span
-        aria-hidden="true"
-        style={{
-          fontSize: size + 6,
-          lineHeight: 1,
-          flexShrink: 0,
-          // Colour emoji ignore `color`, so no theming is needed or possible.
-          fontFamily:
-            '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif',
-        }}
-      >
-        {flag}
-      </span>
-    );
-  }
-  if (!dot) {
+  if (!flag) {
     return (
       <Globe2
-        size={size + 6}
+        size={size}
         strokeWidth={1.75}
         aria-hidden="true"
-        style={{
-          color: "var(--sidebar-text-secondary)",
-          flexShrink: 0,
-        }}
+        style={{ color: "var(--sidebar-text-secondary)", flexShrink: 0 }}
       />
     );
   }
+
   return (
     <span
       aria-hidden="true"
       style={{
-        position: "relative",
-        width: size,
-        height: size,
+        fontSize: size,
+        lineHeight: 1,
         flexShrink: 0,
+        // Colour emoji ignore `color`, so no theming is needed or possible.
+        fontFamily: '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif',
       }}
     >
-      <span
-        style={{
-          position: "absolute",
-          inset: 0,
-          borderRadius: 9999,
-          backgroundColor: dot,
-          boxShadow: `0 0 0 3px ${dot}1f`,
-        }}
-      />
+      {flag}
     </span>
   );
 }
@@ -114,7 +72,7 @@ export function MarketScopeSwitcher({ user }: { user: AuthUser }) {
   if (user.role !== "super_admin") return null;
 
   const isRtl = user.direction === "rtl";
-  const active = OPTIONS.find((o) => o.value === scope) ?? OPTIONS[0];
+  const active = OPTIONS.includes(scope) ? scope : OPTIONS[0];
   const triggerActive = open || hovered;
 
   return (
@@ -156,8 +114,8 @@ export function MarketScopeSwitcher({ user }: { user: AuthUser }) {
             "background-color 140ms ease, border-color 140ms ease, color 140ms ease",
         }}
       >
-        <ScopeGlyph dot={active.dot} flag={active.flag} />
-        <span style={{ letterSpacing: "0.01em" }}>{t(`markets.${active.value}`)}</span>
+        <ScopeGlyph scope={active} />
+        <span style={{ letterSpacing: "0.01em" }}>{t(`markets.${active}`)}</span>
         <ChevronDown
           size={12}
           strokeWidth={2}
@@ -201,23 +159,19 @@ export function MarketScopeSwitcher({ user }: { user: AuthUser }) {
           >
             {t("markets.label", { default: "Marché" })}
           </div>
-          {OPTIONS.map((opt) => {
-            const selected = scope === opt.value;
-            return (
-              <MenuOption
-                key={opt.value}
-                label={t(`markets.${opt.value}`)}
-                dot={opt.dot}
-                flag={opt.flag}
-                selected={selected}
-                isRtl={isRtl}
-                onClick={() => {
-                  setScope(opt.value);
-                  setOpen(false);
-                }}
-              />
-            );
-          })}
+          {OPTIONS.map((opt) => (
+            <MenuOption
+              key={opt}
+              scope={opt}
+              label={t(`markets.${opt}`)}
+              selected={scope === opt}
+              isRtl={isRtl}
+              onClick={() => {
+                setScope(opt);
+                setOpen(false);
+              }}
+            />
+          ))}
         </div>
       )}
       <style>{`
@@ -242,15 +196,13 @@ export function MarketScopeSwitcher({ user }: { user: AuthUser }) {
 
 function MenuOption({
   label,
-  dot,
-  flag,
+  scope,
   selected,
   isRtl,
   onClick,
 }: {
   label: string;
-  dot: string | null;
-  flag: string | null;
+  scope: MarketScope;
   selected: boolean;
   isRtl: boolean;
   onClick: () => void;
@@ -292,7 +244,7 @@ function MenuOption({
         textAlign: isRtl ? "right" : "left",
       }}
     >
-      <ScopeGlyph dot={dot} flag={flag} />
+      <ScopeGlyph scope={scope} />
       <span
         style={{
           flex: 1,

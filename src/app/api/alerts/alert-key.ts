@@ -1,13 +1,11 @@
-export const VALID_ALERT_TYPES = new Set([
-  "dispatch_failure",
-  "carrier_webhook_stale",
-  "overdue_callback",
-  "unassigned_overflow",
-  "return_bottleneck",
-  "low_stock",
-  "stock_depleted",
-  "agent_inactive",
-]);
+import { ALERT_TYPES } from "@/lib/alerts/catalogue";
+
+/**
+ * Derived, never hand-listed. This set was maintained by hand and fell behind
+ * the engine, so an alert of a newly added type could be shown but not
+ * acknowledged or snoozed — the key was rejected before it reached the table.
+ */
+export const VALID_ALERT_TYPES: ReadonlySet<string> = new Set<string>(ALERT_TYPES);
 
 export function parseAlertKey(key: string): { type: string; entityId: string } | null {
   const idx = key.indexOf(":");

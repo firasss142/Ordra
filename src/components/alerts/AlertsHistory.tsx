@@ -2,8 +2,7 @@
 
 import useSWR from "swr";
 import { Panel, EmptyState } from "@/components/dashboard/Panel";
-import type { AlertType } from "@/app/api/alerts/summary/route";
-import type { AlertsTranslator } from "./format";
+import { typeLabel, type AlertsTranslator } from "./format";
 
 interface HistoryRow {
   id: string;
@@ -40,50 +39,22 @@ export function AlertsHistory({
       ) : !data || data.history.length === 0 ? (
         <EmptyState label={t("historyEmpty")} />
       ) : (
-        <ul
-          style={{
-            listStyle: "none",
-            margin: 0,
-            padding: 0,
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-          }}
-        >
+        <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
           {data.history.map((h) => (
             <li
               key={h.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "8px 12px",
-                border: "1px solid #E1E3E5",
-                borderRadius: 6,
-                fontSize: 12,
-                color: "#1A1A1A",
-              }}
+              className="flex items-center gap-2.5 rounded-[8px] border border-oms-border px-3 py-2 text-[12px] text-oms-ink-1"
             >
-              <span style={{ fontWeight: 500 }}>
-                {t(`types.${h.alert_type as AlertType}.label` as never, {
-                  default: h.alert_type,
-                })}
-              </span>
-              <span style={{ color: "#6D7175" }}>
+              <span className="flex-shrink-0 font-medium">{typeLabel(h.alert_type, t)}</span>
+              <span className="truncate text-oms-ink-3">
                 {h.acknowledged_at
                   ? t("acknowledgedAt", { when: new Date(h.acknowledged_at).toLocaleString() })
                   : h.snoozed_until
                     ? t("snoozedUntil", { when: new Date(h.snoozed_until).toLocaleString() })
                     : ""}
               </span>
-              <div style={{ flex: 1 }} />
-              <span
-                style={{
-                  fontSize: 10,
-                  color: "#6D7175",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
+              <span className="flex-1" />
+              <span className="flex-shrink-0 text-[10px] tabular-nums text-oms-ink-3">
                 {new Date(h.created_at).toLocaleString()}
               </span>
             </li>

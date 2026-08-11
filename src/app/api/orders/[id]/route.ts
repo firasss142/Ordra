@@ -409,7 +409,19 @@ export async function PATCH(
 
   updates.updated_at = new Date().toISOString();
 
-  const changedFields = Object.keys(updates).filter((k) => k !== "updated_at" && k !== "total_price" && k !== "unit_price");
+  // `total_price` is always derived, so it never belongs in the audit note —
+  // it moves on every quantity, product and fee edit. `unit_price` is derived
+  // too *unless* the caller sent it, which is a deliberate repricing and the
+  // one thing the "prix modifié par l'agent" alert exists to surface. Recording
+  // it unconditionally would mark every product swap as a price change and make
+  // that signal worthless.
+  const pricedDeliberately = "unit_price" in body;
+  const changedFields = Object.keys(updates).filter(
+    (k) =>
+      k !== "updated_at" &&
+      k !== "total_price" &&
+      (k !== "unit_price" || pricedDeliberately),
+  );
   const note = JSON.stringify(
     changedFields.reduce<Record<string, unknown>>((acc, k) => {
       // Use human-readable snapshot names, not raw UUIDs

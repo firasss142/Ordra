@@ -512,43 +512,60 @@
       "reassign": "إعادة تعيين"
     },
     "meta": {
-      "overdueBy": "متأخر بـ {value}",
-      "ageSuffix": "ينتظر منذ {value}",
-      "stuckHours": "عالق منذ {hours} س",
-      "stuckDays": "عالق منذ {days} ي",
-      "pendingReturns": "{count} مرتجع معلّق",
-      "remaining": "متبقي {count}",
-      "depleted": "نفد المخزون",
-      "inactiveFor": "غير نشط منذ {value}"
+      "dispatch_failure": "معطلة منذ {value}",
+      "carrier_webhook_stale": "صامت منذ {value}",
+      "overdue_callback": "متأخر بـ {value}",
+      "unassigned_overflow": "في الانتظار منذ {value}",
+      "pending_idle": "بدون إجراء منذ {value}",
+      "upload_stalled": "بدون تحديث منذ {value}",
+      "attempts_stalled": "{count, plural, one {محاولة واحدة} other {# محاولات}} خلال {value}",
+      "dispatch_schedule_missed": "لم تنطلق منذ {value}",
+      "price_changed": "تغيّر السعر منذ {value}",
+      "order_reopened": "أُعيد فتحها منذ {value}",
+      "stock_depleted": "نفاد المخزون"
     },
     "types": {
       "dispatch_failure": {
-        "label": "فشل الإرسال"
+        "label": "التوصيل معطل"
       },
       "carrier_webhook_stale": {
-        "label": "توقف الناقل"
+        "label": "لا تحديث من شركة التوصيل"
       },
       "overdue_callback": {
-        "label": "معاودة متأخرة"
+        "label": "معاودة اتصال متأخرة"
       },
       "unassigned_overflow": {
-        "label": "غير مُعيَّن"
-      },
-      "return_bottleneck": {
-        "label": "مرتجعات معلّقة"
-      },
-      "low_stock": {
-        "label": "مخزون منخفض"
+        "label": "غير معيّنة"
       },
       "stock_depleted": {
         "label": "نفاد المخزون"
       },
-      "agent_inactive": {
-        "label": "وكيل غير نشط"
+      "attempts_stalled": {
+        "label": "محاولات اتصال قليلة"
+      },
+      "pending_idle": {
+        "label": "قيد الانتظار بدون إجراء"
+      },
+      "dispatch_schedule_missed": {
+        "label": "التوصيل المجدول لم ينطلق"
+      },
+      "upload_stalled": {
+        "label": "تم الرفع بدون تحديث"
+      },
+      "price_changed": {
+        "label": "تغيير السعر من الوكيل"
+      },
+      "order_reopened": {
+        "label": "تمت إعادة فتح الطلب"
       }
     },
     "bell": "التنبيهات",
-    "bellWithCount": "التنبيهات — {count} نشطة"
+    "bellWithCount": "التنبيهات — {count} نشطة",
+    "daysShort": "{count} ي",
+    "groupCollapse": "طي",
+    "groupExpand": "توسيع",
+    "expiredNote": "التنبيهات التي تتجاوز مهلتها دون إجراء تخرج من هذه القائمة.",
+    "activeLabel": "{count, plural, one {تنبيه نشط} other {تنبيهات نشطة}}"
   },
   "dashboard": {
     "title": "لوحة التحكم",
@@ -1181,7 +1198,17 @@
       "returned": "تم الإرجاع",
       "toBeReturned": "للإرجاع",
       "scheduledDispatchCancelled": "تم إلغاء التوصيل المجدول",
-      "transition": "{from} ← {to}"
+      "transition": "{from} ← {to}",
+      "actorAgent": "الوكيل",
+      "actorSystem": "النظام",
+      "actorManager": "المدير",
+      "actorAdmin": "المشرف",
+      "actorUnknown": "—",
+      "gapMinutes": "+{m} د",
+      "gapHours": "+{h}س{m}",
+      "gapDays": "+{d} ي",
+      "current": "الحالي",
+      "label": "سجل الطلب"
     },
     "statusHistory": {
       "title": "سجل الحالة",

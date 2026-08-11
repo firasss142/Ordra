@@ -43,6 +43,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { AlertsBell } from "@/components/alerts/AlertsBell";
 import { MarketScopeSwitcher } from "@/components/layout/MarketScopeSwitcher";
 import { getPermissionsForRole } from "@/lib/user-permissions";
+import { marketFlag } from "@/lib/markets";
 import type { AuthUser } from "@/types";
 
 interface SidebarProps {
@@ -187,12 +188,6 @@ function resolveMarketKey(marketId: string | null): "tn" | "ly" | "all" {
   if (marketId === LY_MARKET_ID) return "ly";
   if (marketId) return "tn";
   return "all";
-}
-
-function marketDotColor(key: "tn" | "ly" | "all"): string {
-  if (key === "tn") return "var(--brand-on-dark)";
-  if (key === "ly") return "#F59E0B";
-  return "var(--sidebar-text-secondary)";
 }
 
 function splitHref(href: string): { path: string; search: string } {
@@ -408,34 +403,17 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
           height: "60px",
           display: "flex",
           alignItems: "center",
-          // 8, not 10: the monogram added 28px to a 240px rail that also has to
-          // hold the wordmark, the market switcher and the bell.
-          gap: "8px",
+          // 10 again: dropping the 28px monogram gave the rail back the room it
+          // needed for the market control and the bell.
+          gap: "10px",
           paddingInline: "14px",
           borderBlockEnd: "1px solid var(--sidebar-border-strong)",
           flexShrink: 0,
         }}
       >
-        {/* Monogram + wordmark. The mark is decorative — the wordmark beside it
-            is the accessible name, so a screen reader hears "Ordra" once. */}
-        <span
-          aria-hidden="true"
-          style={{
-            display: "grid",
-            placeItems: "center",
-            width: "28px",
-            height: "28px",
-            flexShrink: 0,
-            borderRadius: "8px",
-            backgroundColor: "var(--brand)",
-            color: "#FFFFFF",
-            fontSize: "15px",
-            fontWeight: 700,
-            lineHeight: 1,
-          }}
-        >
-          {t("brand").charAt(0)}
-        </span>
+        {/* Wordmark only. The monogram said the same word in one letter, and on
+            a 240px rail that also carries the market control and the bell it was
+            the least informative thing competing for the width. */}
         <span
           role="presentation"
           style={{
@@ -452,6 +430,7 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
           <MarketScopeSwitcher user={user} />
         ) : (
           <span
+            data-testid="sidebar-market-pill"
             aria-label={t("markets.ariaLabel", { market: marketName })}
             style={{
               display: "inline-flex",
@@ -460,7 +439,7 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
               fontSize: "12px",
               fontWeight: 500,
               color: "var(--sidebar-text-secondary)",
-              paddingBlock: "2px",
+              paddingBlock: "3px",
               paddingInline: "8px",
               borderRadius: "9999px",
               border: "1px solid var(--sidebar-border-strong)",
@@ -469,16 +448,21 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
               whiteSpace: "nowrap",
             }}
           >
+            {/* The flag, not a colour: the super_admin switcher two pixels away
+                already named these same markets that way, and a dot in an
+                unlearned colour named nothing. */}
             <span
               aria-hidden="true"
               style={{
-                width: "6px",
-                height: "6px",
-                borderRadius: "9999px",
-                backgroundColor: marketDotColor(marketKey),
+                fontSize: "13px",
+                lineHeight: 1,
                 flexShrink: 0,
+                fontFamily:
+                  '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif',
               }}
-            />
+            >
+              {marketFlag(marketKey)}
+            </span>
             {marketName}
           </span>
         )}

@@ -98,7 +98,7 @@ describe("POST /api/alerts/snooze", () => {
       return upsertChain({ data: [], error: null });
     });
     const res = await POST(
-      createRequest({ alert_keys: ["overdue_callback:o-1", "low_stock:p-1"], minutes: 60 }),
+      createRequest({ alert_keys: ["overdue_callback:o-1", "stock_depleted:p-1"], minutes: 60 }),
     );
     expect(res.status).toBe(200);
     const json = await res.json();

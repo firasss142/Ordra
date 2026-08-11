@@ -642,4 +642,90 @@ describe("PATCH /api/orders/[id]", () => {
     expect(res.status).toBe(200);
     expect(capturedUpdate?.total_price).toBe(136); // 129 + 7, NOT 7
   });
+
+  /**
+   * The audit note is what the alerts engine reads to raise "prix modifié par
+   * l'agent". `unit_price` used to be stripped from it unconditionally, because
+   * it is *recomputed* whenever the product or quantity changes and logging it
+   * every time would mark every edit as a price change. Intent is the thing
+   * worth auditing, so the note records the field only when the caller sent it.
+   */
+  describe("price changes are auditable", () => {
+    function setupCapture(order: Record<string, unknown>) {
+      const captured: { note?: string } = {};
+      const updateChain: Record<string, unknown> = {};
+      updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+      const insertChain: Record<string, unknown> = {};
+      insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
+
+      mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "users") {
+          return queryChain({ data: { role: "agent", market_id: "m-1" }, error: null });
+        }
+        if (table === "orders") {
+          const chain: Record<string, unknown> = {};
+          chain.select = vi.fn().mockReturnValue(chain);
+          chain.eq = vi.fn().mockReturnValue(chain);
+          chain.update = vi.fn().mockReturnValue(updateChain);
+          chain.single = vi.fn().mockResolvedValue({ data: order, error: null });
+          return chain;
+        }
+        if (table === "order_items") return queryChain({ data: [], error: null });
+        if (table === "products") {
+          return queryChain({
+            data: { id: "prod-2", name: "Autre", price: 250, market_id: "m-1", is_active: true },
+            error: null,
+          });
+        }
+        if (table === "order_history") {
+          const chain = queryChain({ data: [{ id: "h-1" }], error: null });
+          chain.insert = vi.fn().mockImplementation((row: { note?: string }) => {
+            captured.note = row.note;
+            return insertChain;
+          });
+          return chain;
+        }
+        return queryChain({ data: null, error: null });
+      });
+      return captured;
+    }
+
+    test("records the new unit price when the agent set it deliberately", async () => {
+      const captured = setupCapture(assignedOrder);
+
+      const res = await PATCH(makeRequest({ unit_price: 149 }), {
+        params: Promise.resolve({ id: "order-1" }),
+      });
+
+      expect(res.status).toBe(200);
+      expect(JSON.parse(captured.note ?? "{}")).toMatchObject({ unit_price: 149 });
+    });
+
+    test("stays silent about price when it was only recomputed", async () => {
+      // Swapping the product resets unit_price as a side effect. Logging that
+      // as a price change would make the alert fire on every product swap and
+      // the signal would be worthless.
+      const captured = setupCapture(assignedOrder);
+
+      const res = await PATCH(makeRequest({ product_id: "prod-2" }), {
+        params: Promise.resolve({ id: "order-1" }),
+      });
+
+      expect(res.status).toBe(200);
+      const note = JSON.parse(captured.note ?? "{}");
+      expect(note).not.toHaveProperty("unit_price");
+      expect(note).toHaveProperty("product");
+    });
+
+    test("never records the derived total, which changes on every edit", async () => {
+      const captured = setupCapture(assignedOrder);
+
+      await PATCH(makeRequest({ quantity: 3 }), {
+        params: Promise.resolve({ id: "order-1" }),
+      });
+
+      expect(JSON.parse(captured.note ?? "{}")).not.toHaveProperty("total_price");
+    });
+  });
 });

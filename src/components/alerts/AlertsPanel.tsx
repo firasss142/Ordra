@@ -6,11 +6,12 @@ import { useTranslations } from "next-intl";
 import { History, RefreshCw, X } from "lucide-react";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useMarketScope } from "@/context/market-scope";
-import type { Alert, AlertSeverity, AlertType } from "@/app/api/alerts/summary/route";
+import { SEVERITY_ORDER } from "@/lib/alerts/catalogue";
+import type { Alert, AlertSeverity, AlertType } from "@/lib/alerts/types";
 import type { AuthUser } from "@/types";
-import { SEVERITY_ORDER, type AlertsAgent } from "./constants";
-import { SeverityTile, Chip } from "./AlertsSeverityTiles";
-import { AlertRow, AllClear } from "./AlertsList";
+import { type AlertsAgent } from "./constants";
+import { SeverityTile, SeverityBar, Chip } from "./AlertsSeverityTiles";
+import { AlertBand, AlertRow, AllClear } from "./AlertsList";
 import { AlertsBulkBar } from "./AlertsBulkBar";
 import { AlertsHistory } from "./AlertsHistory";
 
@@ -49,6 +50,7 @@ export function AlertsPanel({ user, initialFilter, onClose }: Props) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [agentPickerOpen, setAgentPickerOpen] = useState(false);
+  const [collapsedBands, setCollapsedBands] = useState<Set<AlertSeverity>>(new Set());
 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -83,6 +85,18 @@ export function AlertsPanel({ user, initialFilter, onClose }: Props) {
     });
   }, [alerts, severityFilter, typeFilter]);
 
+  /**
+   * The list, banded by severity. Only bands with something in them are built,
+   * so an empty severity costs no vertical space — the tile above already says
+   * it is clear.
+   */
+  const bands = useMemo(() => {
+    return SEVERITY_ORDER.map((severity) => ({
+      severity,
+      alerts: filteredAlerts.filter((a) => a.severity === severity),
+    })).filter((band) => band.alerts.length > 0);
+  }, [filteredAlerts]);
+
   const visibleIds = useMemo(() => filteredAlerts.map((a) => a.id), [filteredAlerts]);
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const someSelected = selectedIds.size > 0;
@@ -114,6 +128,15 @@ export function AlertsPanel({ user, initialFilter, onClose }: Props) {
   };
 
   const clearSelection = () => setSelectedIds(new Set());
+
+  const toggleBand = (severity: AlertSeverity) => {
+    setCollapsedBands((prev) => {
+      const next = new Set(prev);
+      if (next.has(severity)) next.delete(severity);
+      else next.add(severity);
+      return next;
+    });
+  };
 
   const handleAcknowledge = async () => {
     if (selectedIds.size === 0) return;
@@ -192,8 +215,7 @@ export function AlertsPanel({ user, initialFilter, onClose }: Props) {
       <div
         aria-hidden="true"
         onClick={onClose}
-        className="fixed inset-0 z-[59]"
-        style={{ background: "rgba(26,26,26,0.5)" }}
+        className="fixed inset-0 z-[59] bg-[rgba(26,26,26,0.5)]"
       />
       {/* Slide-over */}
       <div
@@ -201,55 +223,74 @@ export function AlertsPanel({ user, initialFilter, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label={t("title")}
-        className="fixed top-0 end-0 h-full w-full sm:w-[440px] bg-surface-card border-s border-line-subtle shadow-panel z-[60] flex flex-col"
+        className="fixed top-0 end-0 z-[60] flex h-full w-full flex-col border-s border-oms-border bg-oms-bg shadow-panel sm:w-[460px]"
       >
-        {/* Sticky header */}
-        <div className="h-[56px] flex-shrink-0 flex items-center gap-2 px-4 border-b border-line-subtle">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-[15px] font-semibold text-ink-primary m-0 truncate">
-              {t("title")}
-            </h2>
-            <p className="text-[11px] text-ink-secondary m-0 truncate">
-              {totalCount === 0 ? t("subtitleZero") : t("subtitleCount", { count: totalCount })}
-            </p>
+        {/* Header. Given real weight: this is a page in its own right, and the
+            old 56px strip made the busiest surface in the app look incidental. */}
+        <div className="flex-shrink-0 border-b border-oms-border bg-oms-surface px-5 pb-4 pt-5">
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <h2 className="m-0 truncate text-[27px] font-bold leading-tight tracking-[-0.02em] text-oms-ink-1">
+                {t("title")}
+              </h2>
+              <p className="m-0 mt-0.5 truncate text-[14px] text-oms-ink-2">
+                {totalCount === 0 ? (
+                  t("subtitleZero")
+                ) : (
+                  <>
+                    <span className="font-bold text-brand">{totalCount}</span>{" "}
+                    {t("activeLabel", { count: totalCount })}
+                  </>
+                )}
+              </p>
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => mutate()}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-[11px] border border-oms-border bg-oms-surface text-oms-ink-2 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-ink-1"
+                aria-label={t("refresh")}
+                title={t("refresh")}
+              >
+                <RefreshCw size={16} strokeWidth={1.9} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowHistory((v) => !v)}
+                aria-pressed={showHistory}
+                className={
+                  "inline-flex h-9 w-9 items-center justify-center rounded-[11px] border transition-colors duration-fast " +
+                  (showHistory
+                    ? "border-oms-border-strong bg-oms-sunken text-oms-ink-1"
+                    : "border-oms-border bg-oms-surface text-oms-ink-2 hover:bg-oms-sunken hover:text-oms-ink-1")
+                }
+                aria-label={t("historyButton")}
+                title={t("historyButton")}
+              >
+                <History size={16} strokeWidth={1.9} />
+              </button>
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={onClose}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-[11px] border border-oms-border bg-oms-surface text-oms-ink-2 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-ink-1"
+                aria-label={t("close")}
+              >
+                <X size={17} strokeWidth={1.9} />
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => mutate()}
-            className="inline-flex items-center justify-center w-7 h-7 rounded-[6px] border border-line bg-surface-card text-ink-primary hover:bg-surface-hover"
-            aria-label={t("refresh")}
-            title={t("refresh")}
-          >
-            <RefreshCw size={13} strokeWidth={1.75} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowHistory((v) => !v)}
-            aria-pressed={showHistory}
-            className={
-              "inline-flex items-center justify-center w-7 h-7 rounded-[6px] border text-ink-primary hover:bg-surface-hover " +
-              (showHistory ? "bg-surface-selected border-line-strong" : "bg-surface-card border-line")
-            }
-            aria-label={t("historyButton")}
-            title={t("historyButton")}
-          >
-            <History size={13} strokeWidth={1.75} />
-          </button>
-          <button
-            ref={closeButtonRef}
-            type="button"
-            onClick={onClose}
-            className="inline-flex items-center justify-center w-7 h-7 rounded-[6px] border border-line bg-surface-card text-ink-primary hover:bg-surface-hover"
-            aria-label={t("close")}
-          >
-            <X size={14} strokeWidth={1.75} />
-          </button>
+
+          <div className="mt-3">
+            <SeverityBar bySeverity={bySeverity} order={SEVERITY_ORDER} />
+          </div>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
-          {/* Severity summary — 2×2 compact grid */}
-          <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+          {/* Severity summary — one compact row of four, so the whole board is
+              legible above the fold instead of a 2×2 block pushing the list down. */}
+          <div className="grid grid-cols-4 gap-1.5">
             {SEVERITY_ORDER.map((sev) => (
               <SeverityTile
                 key={sev}
@@ -265,10 +306,7 @@ export function AlertsPanel({ user, initialFilter, onClose }: Props) {
 
           {/* Type chips */}
           {byType && (
-            <div
-              className="flex flex-wrap gap-0.5 self-start rounded-[8px] border border-line p-0.5"
-              style={{ background: "#F6F6F7" }}
-            >
+            <div className="flex flex-wrap gap-2 rounded-[16px] border border-oms-border bg-oms-surface p-3">
               <Chip
                 label={t("filterAllTypes")}
                 active={typeFilter === "all"}
@@ -291,8 +329,7 @@ export function AlertsPanel({ user, initialFilter, onClose }: Props) {
           {(error || actionError) && (
             <div
               role="alert"
-              className="rounded-[6px] px-3.5 py-3 text-[13px]"
-              style={{ backgroundColor: "#FEE2E2", color: "#B91C1C" }}
+              className="rounded-[8px] border border-hue-red-edge-soft bg-hue-red-bg px-3.5 py-3 text-[13px] text-hue-red-ink"
             >
               {actionError ?? t("loadError")}
             </div>
@@ -321,12 +358,12 @@ export function AlertsPanel({ user, initialFilter, onClose }: Props) {
 
           {/* List */}
           {filteredAlerts.length > 0 ? (
-            <label className="flex items-center gap-1.5 self-end text-[12px] text-ink-secondary cursor-pointer">
+            <label className="flex cursor-pointer items-center gap-2.5 rounded-[16px] border border-oms-border bg-oms-surface px-3.5 py-3 text-[13px] text-oms-ink-2">
               <input
                 type="checkbox"
                 checked={allSelected}
                 onChange={toggleAll}
-                className="cursor-pointer"
+                className="h-4 w-4 cursor-pointer rounded-[4px]"
               />
               {allSelected ? t("deselectAll") : t("selectAll")}
             </label>
@@ -340,19 +377,31 @@ export function AlertsPanel({ user, initialFilter, onClose }: Props) {
               hasFilter={severityFilter !== "all" || typeFilter !== "all"}
             />
           ) : (
-            <ul className="list-none m-0 p-0 flex flex-col gap-1.5">
-              {filteredAlerts.map((alert) => (
-                <AlertRow
-                  key={alert.id}
-                  alert={alert}
-                  selected={selectedIds.has(alert.id)}
-                  onToggle={() => toggleOne(alert.id)}
-                  locale={user.locale}
+            <div className="flex flex-col gap-3">
+              {bands.map(({ severity, alerts: banded }) => (
+                <AlertBand
+                  key={severity}
+                  severity={severity}
+                  label={t(`severity.${severity}`)}
+                  count={banded.length}
+                  collapsed={collapsedBands.has(severity)}
+                  onToggleCollapsed={() => toggleBand(severity)}
                   t={t}
-                  onNavigate={onClose}
-                />
+                >
+                  {banded.map((alert) => (
+                    <AlertRow
+                      key={alert.id}
+                      alert={alert}
+                      selected={selectedIds.has(alert.id)}
+                      onToggle={() => toggleOne(alert.id)}
+                      locale={user.locale}
+                      t={t}
+                      onNavigate={onClose}
+                    />
+                  ))}
+                </AlertBand>
               ))}
-            </ul>
+            </div>
           )}
 
           {/* History */}
