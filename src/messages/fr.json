@@ -512,14 +512,17 @@
       "reassign": "Réassigner"
     },
     "meta": {
-      "overdueBy": "en retard de {value}",
-      "ageSuffix": "attend depuis {value}",
-      "stuckHours": "bloquée {hours} h",
-      "stuckDays": "bloquée {days} j",
-      "pendingReturns": "{count} retours en attente",
-      "remaining": "{count} restant",
-      "depleted": "rupture",
-      "inactiveFor": "inactif depuis {value}"
+      "dispatch_failure": "bloquée {value}",
+      "carrier_webhook_stale": "silencieux depuis {value}",
+      "overdue_callback": "en retard de {value}",
+      "unassigned_overflow": "attend depuis {value}",
+      "pending_idle": "sans action depuis {value}",
+      "upload_stalled": "sans suivi depuis {value}",
+      "attempts_stalled": "{count, plural, one {# tentative} other {# tentatives}} en {value}",
+      "dispatch_schedule_missed": "non déclenchée depuis {value}",
+      "price_changed": "prix modifié il y a {value}",
+      "order_reopened": "rouverte il y a {value}",
+      "stock_depleted": "rupture"
     },
     "types": {
       "dispatch_failure": {
@@ -534,21 +537,35 @@
       "unassigned_overflow": {
         "label": "Non assignée"
       },
-      "return_bottleneck": {
-        "label": "Retours à traiter"
-      },
-      "low_stock": {
-        "label": "Stock bas"
-      },
       "stock_depleted": {
         "label": "Rupture de stock"
       },
-      "agent_inactive": {
-        "label": "Agent inactif"
+      "attempts_stalled": {
+        "label": "Trop peu de tentatives"
+      },
+      "pending_idle": {
+        "label": "En attente sans action"
+      },
+      "dispatch_schedule_missed": {
+        "label": "Livraison planifiée non déclenchée"
+      },
+      "upload_stalled": {
+        "label": "Téléchargée sans suivi"
+      },
+      "price_changed": {
+        "label": "Prix modifié par l'agent"
+      },
+      "order_reopened": {
+        "label": "Commande rouverte"
       }
     },
     "bell": "Alertes",
-    "bellWithCount": "Alertes — {count} active(s)"
+    "bellWithCount": "Alertes — {count} active(s)",
+    "daysShort": "{count} j",
+    "groupCollapse": "Réduire",
+    "groupExpand": "Développer",
+    "expiredNote": "Les alertes sans action passé leur délai sortent de cette liste.",
+    "activeLabel": "{count, plural, one {alerte active} other {alertes actives}}"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -1181,7 +1198,17 @@
       "returned": "Retournée",
       "toBeReturned": "À retourner",
       "scheduledDispatchCancelled": "Livraison planifiée annulée",
-      "transition": "{from} → {to}"
+      "transition": "{from} → {to}",
+      "actorAgent": "Agent",
+      "actorSystem": "Système",
+      "actorManager": "Manager",
+      "actorAdmin": "Admin",
+      "actorUnknown": "—",
+      "gapMinutes": "+{m} min",
+      "gapHours": "+{h}h{m}",
+      "gapDays": "+{d}j",
+      "current": "Actuel",
+      "label": "Historique de la commande"
     },
     "statusHistory": {
       "title": "Historique du statut",

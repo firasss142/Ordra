@@ -99,7 +99,7 @@ describe("POST /api/alerts/acknowledge", () => {
       return upsertChain({ data: [], error: null });
     });
     const res = await POST(
-      createRequest({ alert_keys: ["overdue_callback:o-1", "low_stock:p-1"] }),
+      createRequest({ alert_keys: ["overdue_callback:o-1", "stock_depleted:p-1"] }),
     );
     expect(res.status).toBe(200);
     const json = await res.json();

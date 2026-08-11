@@ -20,6 +20,24 @@ export function isValidScope(value: unknown): value is MarketScope {
   return value === "tn" || value === "ly" || value === "all";
 }
 
+const MARKET_FLAGS: Record<MarketCode, string> = {
+  tn: "🇹🇳",
+  ly: "🇱🇾",
+};
+
+/**
+ * The flag for a market, or `null` for the cross-market scope — "all markets"
+ * is not a place, so it takes a globe instead.
+ *
+ * A flag names the market faster than a colour anyone has to learn, and it is
+ * never the only signal: the market name always sits beside it, which also
+ * covers platforms that render a regional-indicator pair as the bare letters
+ * "TN"/"LY".
+ */
+export function marketFlag(scope: MarketScope): string | null {
+  return scope === "all" ? null : MARKET_FLAGS[scope];
+}
+
 export function formatDisplayCurrencyCode(
   currency: string | null | undefined,
   marketId?: string | null,
