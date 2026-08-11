@@ -132,7 +132,31 @@ staleness bug would have become user-visible for the first time.
 Ordered by measured impact. The agent-visible latency problem is already solved;
 these are refinements.
 
-### Step 4 — cut the payload
+### Step 4 — cut the payload ✅ DONE
+
+Both halves shipped. Measured end-to-end on real agent data:
+
+| agent | active / closed | before | after | saved |
+|---|---|---|---|---|
+| `b18b831b…` | 133 / 2 | 494 kB | **150 kB** | 69.6% |
+| `76fda186…` | 21 / 321 | 850 kB | **400 kB** | 53.0% |
+| `6e5367ef…` | 9 / 394 | 957 kB | **472 kB** | 50.7% |
+
+- `QUEUE_ROW_SELECT` (34 columns + 2 embeds) replaces `select("*")`, in a new
+  `lib/agent-queue/row-fields.ts` that is the single source of truth for both
+  the query and the realtime narrowing.
+- The wire sends `visibleIds` instead of a second full copy of the active rows;
+  `expandAgentQueue` rehydrates them client-side, sharing row identity with
+  `allOrders` rather than duplicating.
+- The cache-patch hazard is closed by `pickQueueFields`, which narrows incoming
+  realtime rows to the same field set before merging.
+
+Still open here: the closed list has no `.limit()`. One agent carries 394 closed
+rows, which is most of the remaining 472 kB. Capping it (and lazy-loading the
+Fermées tab) is the next win, but it changes tab behaviour so it is not folded
+into a pure payload change.
+
+<details><summary>Original analysis</summary>
 
 `select("*")` ships `raw_payload` (372 B/row, the largest key on the wire, read
 by no agent surface), and `orders` is a subset of `allOrders` yet both are sent —
@@ -154,7 +178,9 @@ would carry 33, so patched rows would silently regain `raw_payload` and drift in
 shape. Narrow the realtime row to the same set before merging, and compare a known
 key set rather than `Object.keys().length`.
 
-### Step 5 — halve the enrichment round trips
+</details>
+
+### Step 5 — halve the enrichment round trips ✅ DONE
 
 The two enrichments in `agent/queue/route.ts:238-245` are `.then()`-chained but
 independent — `Promise.all` them. Collapse the four RPC calls into two over the

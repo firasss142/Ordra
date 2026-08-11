@@ -19,7 +19,21 @@ before the fix:
 | 3 | PATCH `/api/orders/[id]` — update is now sequential with `.select("id")`, returns 409 on zero rows, and the `order_history` INSERT runs only after a confirmed update. | 2 new tests in `patch.test.ts`; 13 existing update-chain mocks migrated. |
 | 4 | POST `/api/orders/[id]/items` — same `.select("id")` guard, plus a compensating delete so line items are rolled back rather than left diverged from `total_price`. | 2 new tests in `items/route.test.ts`. |
 
-Tiers 2–3 and the migration-only items below are **not** started.
+**Tier 2 #5 and #6 are also FIXED**, together with the payload work since all
+three touch the same files:
+
+| # | Fix | Evidence |
+|---|---|---|
+| 5 | `delivered` / `returned` added to `CLOSED_STATUSES` (route) and `CLOSED_AGENT_STATUSES` (buckets). `cancelled` deliberately left in `TERMINAL_REMOVED_STATUSES` so it keeps its toast. | `buckets.closed-statuses.test.ts`, 6 tests. Re-measured: worst-case closed-7d rises 387 → 394, still far under the 1000-row cap. |
+| 6 | `product_display_name` added to `toQueueOrder`, which is now exported. | `toQueueOrder.test.ts` — includes a key-coverage test that fails for the *next* dropped field too, not just this one. |
+
+**The product decision on #3 is resolved:** agents *can* edit rejected orders
+(migration `20260829000005` adds `rejected` to the `orders_update` allow-list).
+The 409 added in `20260829000004` now fires only for genuinely closed statuses.
+Verified by impersonation: an agent updates their own rejected order (1 row) and
+still cannot touch another agent's (0 rows).
+
+Remaining tier 2–3 items and the migration-only list below are **not** started.
 
 # Agent Interface — Final Bug List
 
