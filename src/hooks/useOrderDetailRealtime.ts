@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useSWRConfig } from "swr";
+import { toHistoryEntry } from "@/lib/orders/history-row";
 import {
   useRealtimeSubscribe,
   useRealtime,
@@ -160,7 +161,19 @@ export function useOrderDetailRealtime({
             ? current.data.history
             : [];
           if (history.some((h) => h.id === newRow.id)) return current;
-          return { data: { ...current.data, history: [newRow, ...history] } };
+          // Map, do not prepend raw. The API renames status_from/status_to to
+          // from_status/to_status; a realtime INSERT delivers the raw table
+          // row. Prepending it unmapped left to_status undefined, and
+          // HistoryTimeline's presentStatus(entry.to_status) then threw
+          // "Cannot read properties of undefined (reading 'startsWith')" —
+          // on every upload and reopen, because those write history while the
+          // panel is open.
+          return {
+            data: {
+              ...current.data,
+              history: [toHistoryEntry(newRow), ...history],
+            },
+          };
         },
         { revalidate: false },
       );

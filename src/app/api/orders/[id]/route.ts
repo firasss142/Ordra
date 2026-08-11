@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
+import { toHistoryEntry } from "@/lib/orders/history-row";
 import {
   canViewOrders,
   canEditOrder,
@@ -73,15 +74,9 @@ export async function GET(
       : Promise.resolve({ data: null }),
   ]);
 
-  const history = (historyRes.data ?? []).map((h) => ({
-    id: h.id,
-    from_status: h.status_from,
-    to_status: h.status_to,
-    note: h.note,
-    actor_id: h.actor_id,
-    actor_type: h.actor_type,
-    created_at: h.created_at,
-  }));
+  // Same mapper the realtime subscriber uses, so a row that arrives over the
+  // socket is indistinguishable from one that arrived in this response.
+  const history = (historyRes.data ?? []).map(toHistoryEntry);
 
   const product_current_stock = productRes.data?.current_stock ?? null;
   const order_items = itemsRes.data ?? [];
@@ -487,15 +482,7 @@ export async function PATCH(
     supabase.from("order_items").select("*").eq("order_id", id).order("created_at", { ascending: true }),
   ]);
 
-  const patchHistory = (historyRows ?? []).map((h) => ({
-    id: h.id,
-    from_status: h.status_from,
-    to_status: h.status_to,
-    note: h.note,
-    actor_id: h.actor_id,
-    actor_type: h.actor_type,
-    created_at: h.created_at,
-  }));
+  const patchHistory = (historyRows ?? []).map(toHistoryEntry);
 
   if (!updatedOrder) {
     return NextResponse.json({ error: "Order not found after update" }, { status: 404 });
