@@ -1,8 +1,17 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import useSWR from "swr";
 import { useRealtimeSubscribe } from "@/components/providers/RealtimeProvider";
+
+/**
+ * run_notifications_check inserts a whole tick's worth of notifications in one
+ * statement, so a single cron run delivers several realtime events within
+ * milliseconds. An explicit mutate() bypasses SWR's dedupingInterval, so
+ * without this each event would fire its own /api/notifications request.
+ * Matches the debounce idiom in useWarehouseRealtime.
+ */
+const REFETCH_DEBOUNCE_MS = 250;
 
 export interface AgentNotificationOrder {
   customer_name: string | null;
@@ -32,9 +41,23 @@ export function useAgentNotifications(agentId: string | undefined) {
   const notifications: AgentNotification[] = data?.data ?? [];
   const unreadCount = notifications.filter((n) => !n.read_at).length;
 
+  const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mutateRef = useRef(mutate);
+  mutateRef.current = mutate;
+
   const handler = useCallback(() => {
-    void mutate();
-  }, [mutate]);
+    if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current);
+    refetchTimerRef.current = setTimeout(() => {
+      void mutateRef.current();
+    }, REFETCH_DEBOUNCE_MS);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current);
+    },
+    [],
+  );
 
   useRealtimeSubscribe(
     agentId

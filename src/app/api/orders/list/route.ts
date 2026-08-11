@@ -190,14 +190,19 @@ export async function GET(req: NextRequest) {
   const enrichedById = new Map<string, Record<string, unknown>>();
   await Promise.all(
     Array.from(byMarket.entries()).map(async ([mid, group]) => {
-      const withHistory = await enrichRowsWithCustomerHistory(
-        supabase,
-        mid,
-        "order",
-        group as unknown as Array<{ id: string } & Record<string, unknown>>,
-      );
-      const enriched = await enrichRowsWithDuplicates(supabase, mid, withHistory);
-      for (const r of enriched) enrichedById.set(r.id, r);
+      const rows = group as unknown as Array<{ id: string } & Record<string, unknown>>;
+      // Concurrent, not chained. The two enrichments are independent — each
+      // builds its RPC payload from original row fields only, and neither reads
+      // a field the other produces — so awaiting one before starting the other
+      // just doubled the latency on the critical path of every list load.
+      // Both enrichers end in `rows.map(...)`, so index alignment is exact.
+      const [withHistory, withDuplicates] = await Promise.all([
+        enrichRowsWithCustomerHistory(supabase, mid, "order", rows),
+        enrichRowsWithDuplicates(supabase, mid, rows),
+      ]);
+      for (let i = 0; i < rows.length; i++) {
+        enrichedById.set(rows[i].id, { ...withHistory[i], ...withDuplicates[i] });
+      }
     }),
   );
   const enrichedPage = page.map(
