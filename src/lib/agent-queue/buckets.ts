@@ -36,7 +36,27 @@ export const ACTIVE_AGENT_STATUSES = new Set([
   "dispatch_scheduled",
 ]);
 
-export const CLOSED_AGENT_STATUSES = new Set(["rejected", "uploaded", "dispatched"]);
+/**
+ * Work that has left the agent's hands but still belongs in Fermées.
+ *
+ * `delivered` and `returned` are here because promote_darb_status
+ * (20260817000001) writes uploaded -> delivered|returned directly, and the Darb
+ * sync fires on every queue mount — so the promotion lands while the agent is
+ * watching. Without them, applyRowPatch dropped the row from closedOrders with
+ * no toast: an order the agent confirmed and shipped vanished the moment the
+ * carrier reported success, and the Livré / Retourné chips read 0 for everyone.
+ *
+ * `cancelled` is deliberately NOT here — it stays in TERMINAL_REMOVED_STATUSES
+ * so it keeps raising a toast. Demoting it to a silent Fermées row would trade
+ * a real signal for a chip.
+ */
+export const CLOSED_AGENT_STATUSES = new Set([
+  "rejected",
+  "uploaded",
+  "dispatched",
+  "delivered",
+  "returned",
+]);
 
 export const TERMINAL_REMOVED_STATUSES = new Set(["cancelled", "deleted"]);
 

@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { fetcher } from "@/lib/swr-config";
+import { fetchAgentQueue } from "@/lib/agent-queue/fetch-queue";
 import type { AuthUser } from "@/types";
 
 interface Props {
@@ -106,7 +107,12 @@ function AgentNavTabsInner({ user, variant = "band" }: Props) {
   ];
 
   const prefetchData = useCallback((key: string) => {
-    preload(key, fetcher);
+    // The queue key must be preloaded with its own fetcher. The wire sends
+    // `visibleIds` and fetchAgentQueue rehydrates the `orders` array that
+    // cache-patch operates on; preloading with the global fetcher would seed
+    // the cache with the raw wire shape and useAgentQueue would then read a
+    // cache entry that has no `orders` at all.
+    preload(key, key === "/api/agent/queue" ? fetchAgentQueue : fetcher);
   }, []);
 
   const inline = variant === "inline";

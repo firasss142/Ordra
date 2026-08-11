@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
 import { useAgentQueueRealtime, type ReassignmentEvent } from "./useAgentQueueRealtime";
+import { fetchAgentQueue } from "@/lib/agent-queue/fetch-queue";
 
 export type { AgentQueueBuckets } from "@/lib/agent-queue/buckets";
 import type { AgentQueueBuckets } from "@/lib/agent-queue/buckets";
@@ -14,8 +15,13 @@ interface UseAgentQueueOptions {
 
 export function useAgentQueue(options: UseAgentQueueOptions = {}) {
   const { agentId = null, marketId = null } = options;
+  // Explicit fetcher, not the global one: the wire sends `visibleIds` and
+  // fetchAgentQueue rehydrates it into the `orders` array that cache-patch and
+  // buckets operate on. Anywhere else that populates this key must use the same
+  // fetcher — see AgentNavTabs' preload.
   const { data, error, isLoading, mutate } = useSWR(
     "/api/agent/queue",
+    fetchAgentQueue,
     {
       refreshInterval: 60000,
       revalidateOnFocus: false,
@@ -58,7 +64,10 @@ export function useAgentQueue(options: UseAgentQueueOptions = {}) {
 
   return {
     orders: (data?.orders ?? []) as Record<string, unknown>[],
-    allOrders: (data?.allOrders ?? data?.orders ?? []) as Record<string, unknown>[],
+    // No `?? data.orders` fallback any more: fetchAgentQueue always produces
+    // both arrays, and `orders` is now a subset of `allOrders` rather than a
+    // possible stand-in for it.
+    allOrders: (data?.allOrders ?? []) as Record<string, unknown>[],
     closedOrders: (data?.closedOrders ?? []) as Record<string, unknown>[],
     buckets: (data?.buckets ?? null) as AgentQueueBuckets | null,
     error,
