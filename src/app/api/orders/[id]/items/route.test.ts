@@ -126,6 +126,75 @@ describe("POST /api/orders/[id]/items", () => {
     expect(body.data).toEqual(newItem);
   });
 
+  // order_items_agent RLS is ALL with no status predicate, so the line item
+  // lands; orders_update's status allow-list is narrower than the route's own
+  // EDIT_BLOCKED_STATUSES gate, so the totals UPDATE can be filtered out
+  // instead. PostgREST reports that as { data: [], error: null }, which the old
+  // `if (updateError)` guard could never see. The result was a persisted split:
+  // order_items summing to the new subtotal while orders.total_price kept the
+  // old one — and CLAUDE.md pins revenue to orders.total_price alone.
+  describe("when RLS filters the totals update", () => {
+    function setup() {
+      mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
+      const newItem = {
+        id: "item-new", order_id: "order-1", product_id: "prod-2",
+        product_name: "Widget B", variant_id: null, variant_label: null,
+        quantity: 2, unit_price: 50, line_total: 100,
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      };
+      const items = itemsChain({ existing: [{ line_total: 100, quantity: 1 }], inserted: [newItem] });
+
+      // orders: SELECT resolves the order; UPDATE ... .select("id") resolves [].
+      const ordersHandle: Record<string, unknown> = {};
+      ordersHandle.select = vi.fn().mockReturnValue(ordersHandle);
+      ordersHandle.eq = vi.fn().mockReturnValue(ordersHandle);
+      // `rejected` is inside EDIT_WINDOWED_STATUSES, so a fresh updated_at is
+      // what carries this past canEditOrder and on to the UPDATE — otherwise
+      // the route 409s at the permission gate and the test would pass without
+      // ever exercising the RLS path.
+      ordersHandle.single = vi.fn().mockResolvedValue({
+        data: {
+          ...assignedOrder,
+          status: "rejected",
+          updated_at: new Date().toISOString(),
+        },
+        error: null,
+      });
+      ordersHandle.update = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockResolvedValue({ data: [], error: null }),
+        }),
+      });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "users") return queryChain({ data: agentUser, error: null });
+        if (table === "orders") return ordersHandle;
+        if (table === "products") return queryChain({ data: activeProduct, error: null });
+        if (table === "order_items") return items;
+        return queryChain({ data: null, error: null });
+      });
+
+      return { items };
+    }
+
+    test("returns 409 rather than a 201 that silently splits items from the total", async () => {
+      setup();
+      const res = await POST(
+        makeRequest({ product_id: "prod-2", quantity: 2, unit_price: 50 }),
+        { params: Promise.resolve({ id: "order-1" }) },
+      );
+      expect(res.status).toBe(409);
+    });
+
+    test("rolls back the inserted line items so the two never diverge", async () => {
+      const { items } = setup();
+      await POST(makeRequest({ product_id: "prod-2", quantity: 2, unit_price: 50 }), {
+        params: Promise.resolve({ id: "order-1" }),
+      });
+      expect(items.delete).toHaveBeenCalled();
+    });
+  });
+
   test("orders SELECT only references columns that exist on the orders table", async () => {
     // Regression: requesting orders.variant_id (which only lives on order_items)
     // makes Supabase fail the row fetch, and the route then returns a
@@ -270,5 +339,8 @@ function itemsChain(opts: {
       };
     });
   handle.update = vi.fn().mockReturnValue(handle);
+  handle.delete = vi.fn().mockReturnValue({
+    in: vi.fn().mockResolvedValue({ data: null, error: null }),
+  });
   return handle;
 }

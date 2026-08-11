@@ -23,7 +23,12 @@ export interface AgentQueueCache {
 
 export type RealtimeEvent =
   | { type: "INSERT"; agentId: string; new: RawOrderRow }
-  | { type: "UPDATE"; agentId: string; old: RawOrderRow; new: RawOrderRow }
+  // No `old` on UPDATE. `orders` has REPLICA IDENTITY DEFAULT, so Postgres logs
+  // no old tuple unless a replica-identity column changes — and orders.id never
+  // does. The wire therefore carries old_record: null, which realtime-js turns
+  // into `old: {}`. The UPDATE branch below only ever read `event.new`, so this
+  // narrows the type to what actually arrives instead of what we wished did.
+  | { type: "UPDATE"; agentId: string; new: RawOrderRow }
   | { type: "DELETE"; agentId: string; old: RawOrderRow };
 
 function shallowEqual(a: RawOrderRow, b: RawOrderRow): boolean {

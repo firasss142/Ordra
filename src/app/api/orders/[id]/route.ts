@@ -435,21 +435,47 @@ export async function PATCH(
     }, {}),
   );
 
-  const [{ error: updateError }] = await Promise.all([
-    supabase.from("orders").update(updates).eq("id", id),
-    supabase.from("order_history").insert({
-      order_id: id,
-      status_from: order.status,
-      status_to: order.status,
-      actor_id: actor.id,
-      actor_type: role === "agent" ? "agent" : "manager",
-      note,
-    }),
-  ]);
+  // Sequential, and with .select("id"), on purpose.
+  //
+  // An UPDATE that RLS filters out is not an error — PostgREST returns 204 and
+  // supabase-js resolves { data: [], error: null }. Reading only `error` made
+  // this route answer 200 for a write that never landed, and the panel then
+  // rendered a "saved" flash over a field that snapped back. `.select("id")`
+  // is what turns "no rows matched" into something observable.
+  //
+  // The history INSERT used to run beside the UPDATE inside one Promise.all, so
+  // it landed even when the UPDATE did not, writing an edit that never happened
+  // into an append-only timeline. It now runs only after the UPDATE is
+  // confirmed to have touched a row.
+  const { data: updatedRows, error: updateError } = await supabase
+    .from("orders")
+    .update(updates)
+    .eq("id", id)
+    .select("id");
 
   if (updateError) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+
+  if (!updatedRows || updatedRows.length === 0) {
+    // The row exists (it was read above) and the caller passed the permission
+    // check, so a zero-row result means the database refused the write — today
+    // that is orders_update's status allow-list, which is narrower than
+    // EDIT_WINDOWED_STATUSES. Tell the agent rather than pretending it saved.
+    return NextResponse.json(
+      { error: "Cette commande ne peut plus être modifiée." },
+      { status: 409 },
+    );
+  }
+
+  await supabase.from("order_history").insert({
+    order_id: id,
+    status_from: order.status,
+    status_to: order.status,
+    actor_id: actor.id,
+    actor_type: role === "agent" ? "agent" : "manager",
+    note,
+  });
 
   const [{ data: updatedOrder }, { data: historyRows }, { data: patchedItems }] = await Promise.all([
     supabase.from("orders").select("*").eq("id", id).single(),

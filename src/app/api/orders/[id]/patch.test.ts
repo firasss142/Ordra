@@ -155,7 +155,8 @@ describe("PATCH /api/orders/[id]", () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
 
     const updateChain: Record<string, unknown> = {};
-    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+    updateChain.eq = vi.fn().mockReturnValue(updateChain);
+    updateChain.select = vi.fn().mockResolvedValue({ data: [{ id: "order-1" }], error: null });
 
     const insertChain: Record<string, unknown> = {};
     insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
@@ -191,7 +192,8 @@ describe("PATCH /api/orders/[id]", () => {
     let capturedUpdate: Record<string, unknown> = {};
 
     const updateChain: Record<string, unknown> = {};
-    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+    updateChain.eq = vi.fn().mockReturnValue(updateChain);
+    updateChain.select = vi.fn().mockResolvedValue({ data: [{ id: "order-1" }], error: null });
 
     const insertChain: Record<string, unknown> = {};
     insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
@@ -231,7 +233,8 @@ describe("PATCH /api/orders/[id]", () => {
     let capturedUpdate: Record<string, unknown> = {};
 
     const updateChain: Record<string, unknown> = {};
-    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+    updateChain.eq = vi.fn().mockReturnValue(updateChain);
+    updateChain.select = vi.fn().mockResolvedValue({ data: [{ id: "order-1" }], error: null });
 
     const insertChain: Record<string, unknown> = {};
     insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
@@ -271,7 +274,8 @@ describe("PATCH /api/orders/[id]", () => {
     let capturedUpdate: Record<string, unknown> = {};
 
     const updateChain: Record<string, unknown> = {};
-    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+    updateChain.eq = vi.fn().mockReturnValue(updateChain);
+    updateChain.select = vi.fn().mockResolvedValue({ data: [{ id: "order-1" }], error: null });
 
     const insertChain: Record<string, unknown> = {};
     insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
@@ -327,7 +331,8 @@ describe("PATCH /api/orders/[id]", () => {
     let capturedUpdate: Record<string, unknown> = {};
 
     const updateChain: Record<string, unknown> = {};
-    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+    updateChain.eq = vi.fn().mockReturnValue(updateChain);
+    updateChain.select = vi.fn().mockResolvedValue({ data: [{ id: "order-1" }], error: null });
 
     const insertChain: Record<string, unknown> = {};
     insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
@@ -366,7 +371,8 @@ describe("PATCH /api/orders/[id]", () => {
     let capturedUpdate: Record<string, unknown> = {};
 
     const updateChain: Record<string, unknown> = {};
-    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+    updateChain.eq = vi.fn().mockReturnValue(updateChain);
+    updateChain.select = vi.fn().mockResolvedValue({ data: [{ id: "order-1" }], error: null });
 
     const insertChain: Record<string, unknown> = {};
     insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
@@ -403,7 +409,8 @@ describe("PATCH /api/orders/[id]", () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "manager-1" } } });
 
     const updateChain: Record<string, unknown> = {};
-    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+    updateChain.eq = vi.fn().mockReturnValue(updateChain);
+    updateChain.select = vi.fn().mockResolvedValue({ data: [{ id: "order-1" }], error: null });
 
     const insertChain: Record<string, unknown> = {};
     insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
@@ -450,7 +457,8 @@ describe("PATCH /api/orders/[id]", () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
 
     const updateChain: Record<string, unknown> = {};
-    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+    updateChain.eq = vi.fn().mockReturnValue(updateChain);
+    updateChain.select = vi.fn().mockResolvedValue({ data: [{ id: "order-1" }], error: null });
 
     const insertChain: Record<string, unknown> = {};
     insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
@@ -485,7 +493,8 @@ describe("PATCH /api/orders/[id]", () => {
     let capturedUpdate: Record<string, unknown> = {};
 
     const updateChain: Record<string, unknown> = {};
-    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+    updateChain.eq = vi.fn().mockReturnValue(updateChain);
+    updateChain.select = vi.fn().mockResolvedValue({ data: [{ id: "order-1" }], error: null });
 
     const insertChain: Record<string, unknown> = {};
     insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
@@ -527,7 +536,8 @@ describe("PATCH /api/orders/[id]", () => {
     let capturedUpdate: Record<string, unknown> = {};
 
     const updateChain: Record<string, unknown> = {};
-    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+    updateChain.eq = vi.fn().mockReturnValue(updateChain);
+    updateChain.select = vi.fn().mockResolvedValue({ data: [{ id: "order-1" }], error: null });
 
     const insertChain: Record<string, unknown> = {};
     insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
@@ -567,7 +577,8 @@ describe("PATCH /api/orders/[id]", () => {
     let capturedUpdate: Record<string, unknown> = {};
 
     const updateChain: Record<string, unknown> = {};
-    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+    updateChain.eq = vi.fn().mockReturnValue(updateChain);
+    updateChain.select = vi.fn().mockResolvedValue({ data: [{ id: "order-1" }], error: null });
 
     const insertChain: Record<string, unknown> = {};
     insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
@@ -608,7 +619,8 @@ describe("PATCH /api/orders/[id]", () => {
     let capturedUpdate: Record<string, unknown> = {};
 
     const updateChain: Record<string, unknown> = {};
-    updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+    updateChain.eq = vi.fn().mockReturnValue(updateChain);
+    updateChain.select = vi.fn().mockResolvedValue({ data: [{ id: "order-1" }], error: null });
 
     const insertChain: Record<string, unknown> = {};
     insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
@@ -654,7 +666,8 @@ describe("PATCH /api/orders/[id]", () => {
     function setupCapture(order: Record<string, unknown>) {
       const captured: { note?: string } = {};
       const updateChain: Record<string, unknown> = {};
-      updateChain.eq = vi.fn().mockResolvedValue({ data: null, error: null });
+      updateChain.eq = vi.fn().mockReturnValue(updateChain);
+    updateChain.select = vi.fn().mockResolvedValue({ data: [{ id: "order-1" }], error: null });
       const insertChain: Record<string, unknown> = {};
       insertChain.single = vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null });
 
@@ -726,6 +739,74 @@ describe("PATCH /api/orders/[id]", () => {
       });
 
       expect(JSON.parse(captured.note ?? "{}")).not.toHaveProperty("total_price");
+    });
+  });
+
+  // An UPDATE that RLS filters out is not an error: PostgREST returns 204 and
+  // supabase-js resolves { data: [], error: null }. The route used to read only
+  // `error`, so it reported 200 for a write that never landed — and because the
+  // orders UPDATE and the order_history INSERT were fired together in one
+  // Promise.all, the append-only timeline recorded an edit that never happened.
+  //
+  // Live shape: `rejected` is in EDIT_WINDOWED_STATUSES (the UI offers editing
+  // for 7 days) but is absent from the orders_update RLS allow-list, so every
+  // agent edit of a rejected order took this path. 844 rows were in that state.
+  describe("when RLS silently filters the update", () => {
+    function setupFilteredUpdate() {
+      mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
+
+      const updateChain: Record<string, unknown> = {};
+      updateChain.eq = vi.fn().mockReturnValue(updateChain);
+      // Zero rows returned = the row did not match the USING clause.
+      updateChain.select = vi.fn().mockResolvedValue({ data: [], error: null });
+
+      const historyInsert = vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({ data: { id: "h-1" }, error: null }),
+      });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "users")
+          return queryChain({ data: { role: "agent", market_id: "m-1" }, error: null });
+        if (table === "orders") {
+          const chain: Record<string, unknown> = {};
+          chain.select = vi.fn().mockReturnValue(chain);
+          chain.eq = vi.fn().mockReturnValue(chain);
+          chain.update = vi.fn().mockReturnValue(updateChain);
+          chain.single = vi.fn().mockResolvedValue({
+            data: { ...assignedOrder, status: "rejected" },
+            error: null,
+          });
+          return chain;
+        }
+        if (table === "order_history") {
+          const chain = queryChain({ data: [], error: null });
+          chain.insert = historyInsert;
+          return chain;
+        }
+        return queryChain({ data: null, error: null });
+      });
+
+      return { historyInsert };
+    }
+
+    test("returns 409 instead of a false 200", async () => {
+      setupFilteredUpdate();
+
+      const res = await PATCH(makeRequest({ customer_phone: "5678" }), {
+        params: Promise.resolve({ id: "order-1" }),
+      });
+
+      expect(res.status).toBe(409);
+    });
+
+    test("does not write an order_history row for an edit that never landed", async () => {
+      const { historyInsert } = setupFilteredUpdate();
+
+      await PATCH(makeRequest({ customer_phone: "5678" }), {
+        params: Promise.resolve({ id: "order-1" }),
+      });
+
+      expect(historyInsert).not.toHaveBeenCalled();
     });
   });
 });

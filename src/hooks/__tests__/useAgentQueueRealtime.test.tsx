@@ -193,6 +193,86 @@ describe("useAgentQueueRealtime", () => {
     );
   });
 
+  // `orders` has REPLICA IDENTITY DEFAULT, so Postgres logs no old tuple for an
+  // UPDATE (orders.id never changes). realtime.apply_rls therefore emits
+  // old_record: null, and realtime-js turns that into `old: {}`
+  // (RealtimeChannel._getPayloadRecords -> Transformers.convertChangeData, which
+  // returns {} for a falsy record). Every other UPDATE test in this file
+  // fabricates an `old` row that production never sends; this one asserts the
+  // real wire shape.
+  test("UPDATE with the production payload shape (old: {}) still patches the cache", async () => {
+    const wrapper = makeWrapper();
+    const onReassignmentEvent = vi.fn();
+    const initial = freshCache([
+      {
+        id: "o1",
+        status: "pending",
+        assigned_to: "agent-1",
+        callback_scheduled_at: null,
+        created_at: "2026-04-14T08:00:00Z",
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      () => useTestSetup(initial, "agent-1", onReassignmentEvent),
+      { wrapper },
+    );
+    await flushSWR();
+
+    await act(async () => {
+      fireOnChannel("UPDATE", {
+        old: {},
+        new: {
+          id: "o1",
+          status: "attempt_1",
+          assigned_to: "agent-1",
+          callback_scheduled_at: null,
+          created_at: "2026-04-14T08:00:00Z",
+        },
+      });
+      await Promise.resolve();
+    });
+    rerender();
+
+    expect(
+      result.current.data?.allOrders.find((r) => r.id === "o1")?.status,
+    ).toBe("attempt_1");
+  });
+
+  test("UPDATE reassigning away is detected with old: {} (production shape)", async () => {
+    const wrapper = makeWrapper();
+    const onReassignmentEvent = vi.fn();
+    const initial = freshCache([
+      {
+        id: "o1",
+        status: "pending",
+        assigned_to: "agent-1",
+        callback_scheduled_at: null,
+        created_at: "2026-04-14T08:00:00Z",
+      },
+    ]);
+
+    renderHook(() => useTestSetup(initial, "agent-1", onReassignmentEvent), { wrapper });
+    await flushSWR();
+
+    await act(async () => {
+      fireOnChannel("UPDATE", {
+        old: {},
+        new: {
+          id: "o1",
+          status: "pending",
+          assigned_to: "agent-2",
+          callback_scheduled_at: null,
+          created_at: "2026-04-14T08:00:00Z",
+        },
+      });
+    });
+
+    expect(onReassignmentEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ orderId: "o1", kind: "reassigned" }),
+    );
+  });
+
   test("UPDATE status→cancelled invokes onReassignmentEvent with kind=cancelled", async () => {
     const wrapper = makeWrapper();
     const onReassignmentEvent = vi.fn();
