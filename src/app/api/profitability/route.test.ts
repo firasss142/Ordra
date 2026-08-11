@@ -3,6 +3,8 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
 const mockLoadSummary = vi.fn();
+const mockLoadDaily = vi.fn();
+const mockLoadCohort = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
@@ -13,6 +15,14 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/profitability/load-summary", () => ({
   loadProfitabilitySummary: (...args: unknown[]) => mockLoadSummary(...args),
+}));
+
+// Mocked at the loader boundary, like load-summary above — these two go
+// through RPCs the fake Supabase client has no `rpc` for, and the route's
+// contract with them is "give me a series and a cohort", not the SQL.
+vi.mock("@/lib/profitability/load-daily", () => ({
+  loadProfitabilityDaily: (...args: unknown[]) => mockLoadDaily(...args),
+  loadCohortFunnel: (...args: unknown[]) => mockLoadCohort(...args),
 }));
 
 import { GET } from "./route";
@@ -55,6 +65,8 @@ function summaryStub(overrides: Record<string, number> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockLoadDaily.mockResolvedValue([]);
+  mockLoadCohort.mockResolvedValue({ leads: 0, confirmed: 0, delivered: 0 });
 });
 
 describe("GET /api/profitability", () => {

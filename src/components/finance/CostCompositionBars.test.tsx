@@ -31,41 +31,58 @@ describe("CostCompositionBars", () => {
         labels={labels}
       />,
     );
-    // 200/1000 = 20%
     expect(screen.getByTestId("bar-fill-cogs").style.width).toBe("20%");
-    // 100/1000 = 10%
     expect(screen.getByTestId("bar-fill-delivery").style.width).toBe("10%");
-    // 50/1000 = 5%
     expect(screen.getByTestId("bar-fill-returns").style.width).toBe("5%");
   });
 
-  it("turns returns row amber when between 10% and 15% of revenue", () => {
+  /**
+   * Tone is asserted through a data attribute rather than a computed hex.
+   * The fills are token-backed now, so `style.backgroundColor` reads
+   * "var(--fin-green)" and a hex assertion would test nothing.
+   */
+  it("keeps an ordinary cost row on the default green fill", () => {
+    render(
+      <CostCompositionBars data={baseData} formatCurrency={(n) => `${n}`} labels={labels} />,
+    );
+    expect(screen.getByTestId("bar-fill-cogs").dataset.tone).toBe("default");
+    expect(screen.getByTestId("bar-fill-cogs").className).toContain("bg-fin-green");
+  });
+
+  it("escalates the returns row to gold between 10% and 15% of revenue", () => {
     const data = { ...baseData, return_cost: 120 };
     render(
       <CostCompositionBars data={data} formatCurrency={(n) => `${n}`} labels={labels} />,
     );
-    expect(screen.getByTestId("bar-fill-returns").style.backgroundColor).toBe(
-      "rgb(185, 137, 0)",
-    );
+    const bar = screen.getByTestId("bar-fill-returns");
+    expect(bar.dataset.tone).toBe("warn");
+    expect(bar.className).toContain("bg-fin-gold");
   });
 
-  it("turns returns row red when above 15% of revenue", () => {
+  it("escalates the returns row to red above 15% of revenue", () => {
     const data = { ...baseData, return_cost: 200 };
     render(
       <CostCompositionBars data={data} formatCurrency={(n) => `${n}`} labels={labels} />,
     );
-    expect(screen.getByTestId("bar-fill-returns").style.backgroundColor).toBe(
-      "rgb(215, 44, 13)",
-    );
+    const bar = screen.getByTestId("bar-fill-returns");
+    expect(bar.dataset.tone).toBe("bad");
+    expect(bar.className).toContain("bg-oms-age-late");
   });
 
-  it("renders the net profit row in critical color when negative", () => {
+  it("renders the net profit row in critical ink when negative", () => {
     const data = { ...baseData, net_profit: -100 };
     render(
       <CostCompositionBars data={data} formatCurrency={(n) => `${n}`} labels={labels} />,
     );
     const netRow = screen.getByTestId("net-profit-row");
-    expect(netRow.style.color).toBe("rgb(215, 44, 13)");
+    expect(netRow.className).toContain("text-oms-age-late");
+  });
+
+  it("renders the net profit row in navy ink when positive", () => {
+    render(
+      <CostCompositionBars data={baseData} formatCurrency={(n) => `${n}`} labels={labels} />,
+    );
+    expect(screen.getByTestId("net-profit-row").className).toContain("text-fin-navy");
   });
 
   it("handles zero revenue gracefully", () => {
@@ -73,7 +90,6 @@ describe("CostCompositionBars", () => {
     render(
       <CostCompositionBars data={data} formatCurrency={(n) => `${n}`} labels={labels} />,
     );
-    // Should not crash, all bars at 0
     expect(screen.getByTestId("bar-fill-cogs").style.width).toBe("0%");
   });
 });

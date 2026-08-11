@@ -26,13 +26,31 @@ interface Row {
   isReturns?: boolean;
 }
 
-const NEUTRAL_FILL = "#6D7175";
-const WARNING_FILL = "#B98900";
-const CRITICAL_FILL = "#D72C0D";
+type BarTone = "default" | "warn" | "bad";
+
+/**
+ * Fills are token classes, not inline hexes.
+ *
+ * The escalation reuses the console's aging scale rather than inventing a
+ * second warning ramp: gold past 10% of revenue, red past 15%. A returns bill
+ * eating a sixth of the top line is the one row on this panel that should
+ * shout, and it should shout in the colour the rest of the product uses.
+ */
+const BAR_TONE: Record<BarTone, string> = {
+  default: "bg-fin-green",
+  warn: "bg-fin-gold",
+  bad: "bg-oms-age-late",
+};
 
 function pct(part: number, total: number): number {
   if (total <= 0) return 0;
   return Math.round((part / total) * 1000) / 10;
+}
+
+function returnsTone(share: number): BarTone {
+  if (share > 15) return "bad";
+  if (share > 10) return "warn";
+  return "default";
 }
 
 export function CostCompositionBars({
@@ -58,40 +76,29 @@ export function CostCompositionBars({
   const isNegativeNet = data.net_profit < 0;
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-3">
       {rows.map((row) => {
         const share = pct(row.value, data.revenue);
-        const fill = row.isReturns
-          ? share > 15
-            ? CRITICAL_FILL
-            : share > 10
-              ? WARNING_FILL
-              : NEUTRAL_FILL
-          : NEUTRAL_FILL;
+        const tone: BarTone = row.isReturns ? returnsTone(share) : "default";
 
         return (
           <div
             key={row.key}
-            className="grid grid-cols-[120px_1fr_110px] items-center gap-3 text-[13px] text-ink-primary"
+            className="grid grid-cols-[minmax(110px,150px)_1fr_auto_minmax(96px,auto)] items-center gap-3 text-[13px]"
           >
-            <span className="font-medium">{labels[row.key] ?? ""}</span>
-            <div className="flex items-center gap-2.5">
-              <div className="flex-1 h-2 bg-surface-selected rounded-[4px] overflow-hidden">
-                <div
-                  data-testid={`bar-fill-${row.key}`}
-                  className="h-full"
-                  style={{
-                    width: `${Math.min(share, 100)}%`,
-                    backgroundColor: fill,
-                    transition: "width 200ms ease",
-                  }}
-                />
-              </div>
-              <span className="text-[11px] text-ink-secondary tabular-nums min-w-[44px] text-end">
-                {share.toFixed(1)}%
-              </span>
+            <span className="text-fin-ink-2">{labels[row.key] ?? ""}</span>
+            <div className="h-2.5 overflow-hidden rounded-pill bg-fin-bg">
+              <div
+                data-testid={`bar-fill-${row.key}`}
+                data-tone={tone}
+                className={`h-full rounded-pill transition-[width] duration-base ${BAR_TONE[tone]}`}
+                style={{ width: `${Math.min(share, 100)}%` }}
+              />
             </div>
-            <span className="text-end tabular-nums text-ink-secondary">
+            <span className="min-w-[46px] text-end text-[12px] tabular-nums text-fin-ink-3">
+              {share.toFixed(1)}%
+            </span>
+            <span className="text-end tabular-nums text-fin-ink-2">
               −{formatCurrency(row.value)}
             </span>
           </div>
@@ -100,13 +107,17 @@ export function CostCompositionBars({
 
       <div
         data-testid="net-profit-row"
-        className="grid grid-cols-[120px_1fr_110px] items-center gap-3 pt-2.5 mt-1 border-t-2 border-ink-primary text-[14px] font-bold tabular-nums"
-        style={{ color: isNegativeNet ? "#D72C0D" : "#1A1A1A" }}
+        className={
+          "mt-1 grid grid-cols-[minmax(110px,150px)_1fr_auto_minmax(96px,auto)] items-center gap-3 " +
+          "border-t border-fin-line pt-3.5 text-[15px] font-bold tabular-nums " +
+          (isNegativeNet ? "text-oms-age-late" : "text-fin-navy")
+        }
       >
         <span>{labels.netProfit}</span>
-        <span className="text-[11px] text-ink-secondary font-medium">
-          {pct(data.net_profit, data.revenue).toFixed(1)}% {labels.ofRevenue}
+        <span className="text-[12px] font-medium text-fin-ink-3">
+          {pct(data.net_profit, data.revenue).toFixed(1)} {labels.ofRevenue}
         </span>
+        <span />
         <span className="text-end">{formatCurrency(data.net_profit)}</span>
       </div>
     </div>
