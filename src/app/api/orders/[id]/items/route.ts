@@ -180,20 +180,50 @@ export async function POST(
     Boolean(order.card_payment),
   );
 
-  const { error: updateError } = await supabase
+  const { data: updatedOrderRows, error: updateError } = await supabase
     .from("orders")
     .update({
       total_price: newTotal,
       quantity: newQuantity,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
-  if (updateError) {
-    // Items already landed; the order's denormalized totals are now stale.
-    // Surface this so an operator can re-sync rather than letting the drift
-    // silently propagate.
-    console.error("[items POST] failed to update orders totals after insert", updateError);
+  // The items landed but the order's totals did not. `.select("id")` is what
+  // makes that detectable: order_items_agent RLS is ALL with no status
+  // predicate, while orders_update carries a status allow-list narrower than
+  // this route's own EDIT_BLOCKED_STATUSES gate — so the UPDATE can be filtered
+  // out and PostgREST reports it as { data: [], error: null }, never an error.
+  // Left alone, order_items sums to one subtotal while orders.total_price keeps
+  // another, and CLAUDE.md pins revenue to orders.total_price alone. Nothing
+  // downstream recomputes it: the only triggers on these tables are
+  // trg_orders_updated_at and trg_order_history_market_id.
+  //
+  // So roll the items back rather than persist the split. There is no
+  // transaction across two PostgREST calls, which is exactly why the
+  // compensating delete has to be explicit.
+  if (updateError || !updatedOrderRows || updatedOrderRows.length === 0) {
+    console.error(
+      "[items POST] orders totals update did not land; rolling back inserted items",
+      updateError,
+    );
+    const insertedIds = insertedRows.map((r) => (r as { id: string }).id);
+    const { error: rollbackError } = await supabase
+      .from("order_items")
+      .delete()
+      .in("id", insertedIds);
+    if (rollbackError) {
+      // Now genuinely inconsistent — loud, because only an operator can fix it.
+      console.error(
+        "[items POST] ROLLBACK FAILED — order_items and orders.total_price have diverged",
+        { orderId: id, insertedIds, rollbackError },
+      );
+    }
+    return NextResponse.json(
+      { error: "Cette commande ne peut plus être modifiée." },
+      { status: 409 },
+    );
   }
 
   // Return the user-facing new item (always last in the insert array — the

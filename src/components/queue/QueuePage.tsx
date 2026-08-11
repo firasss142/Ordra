@@ -27,6 +27,7 @@ import { parseQuery, searchOrders } from "@/lib/queue/search";
 import { enCoursBucket } from "@/lib/queue/schedule-bucket";
 import { isBulkCallEligible } from "@/lib/order-permissions";
 import type { QueueOrder } from "@/types/queue";
+import { NO_SIBLINGS, sameQueueOrders } from "@/lib/agent-queue/stable-orders";
 import { bucketFor, type Bucket } from "@/lib/carriers/buckets";
 
 const OrderDetailPanel = dynamic(() =>
@@ -90,8 +91,10 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     rejection_note: (raw.rejection_note as string | null) ?? null,
     is_potential_duplicate: Boolean(raw.is_potential_duplicate),
     duplicate_count: (raw.duplicate_count as number) ?? 0,
+    // NO_SIBLINGS rather than a fresh []: a new array each pass would make
+    // sameQueueOrders report a change on every single row, every render.
     duplicate_siblings:
-      (raw.duplicate_siblings as QueueOrder["duplicate_siblings"]) ?? [],
+      (raw.duplicate_siblings as QueueOrder["duplicate_siblings"]) ?? NO_SIBLINGS,
     has_uploaded_sibling: Boolean(raw.has_uploaded_sibling),
     is_duplicate_anchor: Boolean(raw.is_duplicate_anchor),
     tracking_number: (raw.tracking_number as string | null) ?? null,
@@ -471,9 +474,16 @@ export function QueuePage() {
       }
       next = filtered.map(toQueueOrder);
     }
-    // Preserve reference if length and first id are identical — avoids re-render on SWR poll when data unchanged
+    // Preserve the reference when nothing the UI can see changed, so an SWR
+    // poll that returns identical data does not re-render the list.
+    //
+    // This used to compare only length + first id + last id. That is blind to
+    // the one mutation the queue actually receives — a field changing on a row
+    // that keeps its id and its position — so realtime status updates were
+    // dropped and the list stayed stale until the next poll replaced it
+    // wholesale. sameQueueOrders compares row contents instead.
     const prev = stableOrdersRef.current;
-    if (next.length === prev.length && next[0]?.id === prev[0]?.id && next[next.length - 1]?.id === prev[prev.length - 1]?.id) return prev;
+    if (sameQueueOrders(next, prev)) return prev;
     stableOrdersRef.current = next;
     return next;
   }, [selectedBucket, enCoursSubfilter, tentativeSubfilter, closedSubfilter, rawAllOrders, rawClosedOrders]);
@@ -843,6 +853,16 @@ export function QueuePage() {
 
       {callTerminatedOrderId && activeOrder && (
         <PostCallActionSheet
+          // Keyed for the same reason OrderDetailPanel above is. Bulk advance
+          // calls setCallTerminatedOrderId(null) and handleCallTerminated(next)
+          // in one synchronous continuation, so React 18 batches them into a
+          // single commit and the `&&` guard never evaluates false. Unkeyed,
+          // React reconciles instead of remounting and the previous order's
+          // flow / rejectionReason / selectedCarrierId — plus
+          // RejectionReasonSelect's own group+sub, seeded at mount only — carry
+          // onto the next order, which then opens pre-armed on the rejection
+          // screen with someone else's reason.
+          key={callTerminatedOrderId}
           orderId={callTerminatedOrderId}
           orderStatus={activeOrder.status}
           marketId={user?.market_id ?? ""}
