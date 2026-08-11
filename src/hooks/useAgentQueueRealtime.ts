@@ -53,16 +53,19 @@ export function useAgentQueueRealtime({
           if (!current) return current;
           let event:
             | { type: "INSERT"; agentId: string; new: RawOrderRow }
-            | { type: "UPDATE"; agentId: string; old: RawOrderRow; new: RawOrderRow }
+            | { type: "UPDATE"; agentId: string; new: RawOrderRow }
             | { type: "DELETE"; agentId: string; old: RawOrderRow };
           if (payload.eventType === "INSERT" && payload.new) {
             event = { type: "INSERT", agentId, new: payload.new };
-          } else if (
-            payload.eventType === "UPDATE" &&
-            payload.new &&
-            payload.old?.id
-          ) {
-            event = { type: "UPDATE", agentId, old: payload.old as RawOrderRow, new: payload.new };
+          } else if (payload.eventType === "UPDATE" && payload.new?.id) {
+            // Gate on the NEW row, never on payload.old. `orders` has REPLICA
+            // IDENTITY DEFAULT, so an UPDATE carries old_record: null and
+            // realtime-js delivers `old: {}` — the previous `payload.old?.id`
+            // guard was never once satisfied in production, so every realtime
+            // UPDATE was silently discarded and the queue only ever refreshed
+            // on the 60s poll. applyRealtimeEvent's UPDATE branch reads only
+            // event.new, so nothing downstream needs the old row.
+            event = { type: "UPDATE", agentId, new: payload.new };
           } else if (payload.eventType === "DELETE" && payload.old?.id) {
             event = { type: "DELETE", agentId, old: payload.old as RawOrderRow };
           } else {

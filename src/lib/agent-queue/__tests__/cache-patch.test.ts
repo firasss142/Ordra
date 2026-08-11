@@ -76,7 +76,6 @@ describe("applyRealtimeEvent", () => {
     const next = applyRealtimeEvent(cache, {
       type: "UPDATE",
       agentId: AGENT_ID,
-      old: row({ id: "o1", status: "pending" }),
       new: row({ id: "o1", status: "confirmed" }),
     });
     expect(next.allOrders[0].status).toBe("confirmed");
@@ -92,7 +91,6 @@ describe("applyRealtimeEvent", () => {
     const next = applyRealtimeEvent(cache, {
       type: "UPDATE",
       agentId: AGENT_ID,
-      old: row({ id: "o1", status: "pending" }),
       new: row({ id: "o1", status: "uploaded" }),
     });
     expect(next.allOrders.find((r) => r.id === "o1")).toBeUndefined();
@@ -109,7 +107,6 @@ describe("applyRealtimeEvent", () => {
     const next = applyRealtimeEvent(cache, {
       type: "UPDATE",
       agentId: AGENT_ID,
-      old: row({ id: "o1", status: "pending" }),
       new: row({ id: "o1", status: "rejected" }),
     });
     expect(next.allOrders).toHaveLength(0);
@@ -126,7 +123,6 @@ describe("applyRealtimeEvent", () => {
     const next = applyRealtimeEvent(cache, {
       type: "UPDATE",
       agentId: AGENT_ID,
-      old: row({ id: "o1", status: "pending" }),
       new: row({ id: "o1", status: "pending", assigned_to: "someone-else" }),
     });
     expect(next.allOrders).toHaveLength(0);
@@ -142,7 +138,6 @@ describe("applyRealtimeEvent", () => {
     const next = applyRealtimeEvent(cache, {
       type: "UPDATE",
       agentId: AGENT_ID,
-      old: row({ id: "o1", status: "pending" }),
       new: row({ id: "o1", status: "cancelled" }),
     });
     expect(next.allOrders).toHaveLength(0);
@@ -175,7 +170,6 @@ describe("applyRealtimeEvent", () => {
     const next = applyRealtimeEvent(cache, {
       type: "UPDATE",
       agentId: AGENT_ID,
-      old: existing,
       new: { ...existing },
     });
     expect(next).toBe(cache);
@@ -189,7 +183,6 @@ describe("applyRealtimeEvent", () => {
     const next = applyRealtimeEvent(cache, {
       type: "UPDATE",
       agentId: AGENT_ID,
-      old: row({ id: "o1", status: "pending", customer_name: "Old" }),
       new: row({ id: "o1", status: "pending", customer_name: "New" }),
     });
     expect(next.allOrders[0].customer_name).toBe("New");
