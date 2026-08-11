@@ -71,7 +71,7 @@ describe("GET /api/agent/queue", () => {
     const res = await GET(createRequest());
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.orders).toEqual([]);
+    expect(json.visibleIds).toEqual([]);
     expect(json.buckets).toBeDefined();
     expect(json.buckets.nouveau).toBe(0);
     expect(json.buckets.tentative_1).toBe(0);
@@ -141,7 +141,7 @@ describe("GET /api/agent/queue", () => {
 
     // Active queue: overdue callback first, then attempts, then assigned,
     // then confirmed (awaiting upload to carrier).
-    expect(json.orders.map((o: { id: string }) => o.id)).toEqual([
+    expect(json.visibleIds).toEqual([
       "o-cb-overdue",
       "o-attempt1",
       "o-assigned",
@@ -194,7 +194,7 @@ describe("GET /api/agent/queue", () => {
 
     // Untimed callback surfaces in the active list; the explicitly-future one
     // is held back until its time arrives.
-    expect(json.orders.map((o: { id: string }) => o.id)).toEqual(["o-cb-untimed"]);
+    expect(json.visibleIds).toEqual(["o-cb-untimed"]);
     // Both still count: a chip says what kind of work an order needs, not when
     // it is due, and the queue renders `allOrders` rather than this filtered set.
     expect(json.buckets.rappel_prevu).toBe(2);
@@ -249,7 +249,7 @@ describe("GET /api/agent/queue", () => {
     // them manually ahead of the cron) regardless of their scheduled time, the
     // untimed manual row surfaces too, and only the future MANUAL row is held
     // back until its time.
-    expect(json.orders.map((o: { id: string }) => o.id).sort()).toEqual([
+    expect(json.visibleIds.sort()).toEqual([
       "o-dsp-auto-future",
       "o-dsp-manual-untimed",
     ]);

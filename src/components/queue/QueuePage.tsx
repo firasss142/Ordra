@@ -54,7 +54,13 @@ const jsonFetcher = (url: string) =>
     return r.json();
   });
 
-function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
+/**
+ * The single gate between the wire and QueueOrder. Anything not mapped here is
+ * invisible to QueueList / OrderCard / QueueStatusPill, however faithfully the
+ * server sent it — so a missing key is a silent, permanent data loss rather
+ * than a crash. Exported for the key-coverage test that guards exactly that.
+ */
+export function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
   return {
     id: raw.id as string,
     status: raw.status as string,
@@ -63,6 +69,11 @@ function toQueueOrder(raw: Record<string, unknown>): QueueOrder {
     customer_address: (raw.customer_address as string | null) ?? null,
     customer_city: (raw.customer_city as string) ?? "",
     product_name: (raw.product_name as string) ?? "",
+    // The catalog name the route resolved from products.name. OrderCard reads
+    // `product_display_name || product_name`, so omitting this made the || fall
+    // through to the raw storefront SKU on every row — while every manager
+    // surface showed the resolved name for the same order.
+    product_display_name: (raw.product_display_name as string | null) ?? null,
     variant_label: (raw.variant_label as string) ?? "",
     quantity: (raw.quantity as number) ?? 1,
     product_image_url: (raw.product_image_url as string | null) ?? null,

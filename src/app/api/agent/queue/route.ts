@@ -6,6 +6,7 @@ import { getActor } from "@/lib/auth/actor";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
 import { enCoursBucket } from "@/lib/queue/schedule-bucket";
+import { QUEUE_ROW_SELECT } from "@/lib/agent-queue/row-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -65,10 +66,23 @@ const ACTIVE_QUEUE_STATUSES = [
   "dispatch_scheduled",
 ];
 
+// Mirrors CLOSED_AGENT_STATUSES in lib/agent-queue/buckets.ts — the realtime
+// patcher and this query must agree on what "closed" means or a row lands in
+// one and not the other.
+//
+// delivered/returned are included because promote_darb_status (20260817000001)
+// writes uploaded -> delivered|returned directly. Without them the agent's own
+// shipped orders disappeared from Fermées as soon as the carrier reported, and
+// the Livré / Retourné chips were structurally always 0.
+//
+// cancelled stays out on purpose: it is handled as a removal-with-toast, not a
+// silent Fermées row.
 const CLOSED_STATUSES = [
   "rejected",
   "uploaded",
   "dispatched",
+  "delivered",
+  "returned",
 ];
 
 const CLOSED_WINDOW_DAYS = 7;
@@ -91,12 +105,12 @@ export async function GET(_req: NextRequest) {
   const [activeRes, closedRes] = await Promise.all([
     supabase
       .from("orders")
-      .select("*, product:products(image_url, name), carrier:carriers!orders_carrier_id_fkey(code,name)")
+      .select(QUEUE_ROW_SELECT)
       .eq("assigned_to", actor.id)
       .in("status", ACTIVE_QUEUE_STATUSES),
     supabase
       .from("orders")
-      .select("*, product:products(image_url, name), carrier:carriers!orders_carrier_id_fkey(code,name)")
+      .select(QUEUE_ROW_SELECT)
       .eq("assigned_to", actor.id)
       .in("status", CLOSED_STATUSES)
       .gte("updated_at", closedSince.toISOString())
@@ -134,15 +148,10 @@ export async function GET(_req: NextRequest) {
     carrier_code: string | null;
     carrier_name: string | null;
   };
-  // raw_payload is dropped here, not selected-around, because the two queries
-  // above use select("*") for the ~30 other columns the queue does need.
-  // It is the single largest key on the wire — 372 bytes/row averaged over the
-  // 1,608 rows currently in agent queues fleet-wide, ~30% of the whole body —
-  // and nothing in the agent interface reads it (grep: only the leads adapters,
-  // the webhook handler and /api/orders/[id] touch it, and that route strips it
-  // too). Mirrors the same strip in src/app/api/orders/[id]/route.ts.
+  // Only the embeds need stripping now — raw_payload and the ~21 other unread
+  // columns are simply never selected (QUEUE_ROW_SELECT).
   const flattenJoins = (rows: RawRow[]): FlatRow[] =>
-    rows.map(({ product, carrier, raw_payload: _rawPayload, ...rest }) => {
+    rows.map(({ product, carrier, ...rest }) => {
       const c = unwrapEmbed(carrier);
       return {
         ...(rest as Omit<RawRow, "product" | "carrier">),
@@ -268,10 +277,17 @@ export async function GET(_req: NextRequest) {
   const enrichedActive = enrichedUnion.slice(0, allSorted.length);
   const enrichedClosed = enrichedUnion.slice(allSorted.length);
 
-  const enrichedSorted = enrichedActive.filter((o) => sortedIds.has(o.id));
+  // Ids, not a second copy of the rows. `orders` is a subset of `allOrders` —
+  // 647 of 649 active rows fleet-wide appear in both — so sending it whole made
+  // a busy agent (130+ active orders) download nearly every row twice. The
+  // client rehydrates via expandAgentQueue, which also gives the two arrays
+  // shared row identity instead of structural duplicates.
+  const visibleIds = enrichedActive
+    .filter((o) => sortedIds.has(o.id))
+    .map((o) => o.id);
 
   return NextResponse.json({
-    orders: enrichedSorted,
+    visibleIds,
     allOrders: enrichedActive,
     closedOrders: enrichedClosed,
     buckets,
