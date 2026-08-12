@@ -65,7 +65,10 @@ export default async function OrdersPage({
     prefetchMarketId
       ? supabase
           .from("orders")
-          .select(LIST_COLS)
+          // Exact count alongside the rows: this page hydrates SWR directly and
+          // is never refetched, so without it the result summary would sit on
+          // its placeholder until the first filter change.
+          .select(LIST_COLS, { count: "exact" })
           .eq("market_id", prefetchMarketId)
           .neq("status", "deleted")
           .order("created_at", { ascending: false })
@@ -94,8 +97,9 @@ export default async function OrdersPage({
           return { ...rest, product_display_name: resolveProductDisplayName(r) };
         }),
         nextCursor: null,
+        total: (ordersResult as { count?: number | null }).count ?? null,
       }
-    : { rows: [], nextCursor: null };
+    : { rows: [], nextCursor: null, total: null };
   const fallbackAgents = agentsResult.data ?? [];
 
   return (

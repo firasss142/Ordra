@@ -52,6 +52,11 @@ export interface OrdersListRow {
 export interface OrdersListPage {
   rows: OrdersListRow[];
   nextCursor: string | null;
+  /**
+   * How many orders the filters match in total. Served on the first page only
+   * — a cursor page reports `null`, meaning "not asked", not "none".
+   */
+  total?: number | null;
 }
 
 const fetcher = async (url: string): Promise<OrdersListPage> => {
@@ -128,6 +133,16 @@ export function useOrdersList({ filters, fallbackFirstPage }: UseOrdersListOptio
   const hasNext = Boolean(data?.[currentPage - 1]?.nextCursor);
   const hasPrev = currentPage > 1;
 
+  /**
+   * The filtered total, read off page 1 and held for every page after it.
+   *
+   * It belongs to the SWR key, not to the visible page: changing a filter mints
+   * a new key and resets to page 1, so `data[0]` is never a count from a
+   * filter set that is no longer applied. `null` while page 1 is in flight —
+   * the caller shows nothing rather than a zero that is about to become 123.
+   */
+  const total = data?.[0]?.total ?? null;
+
   // True while the target page hasn't arrived yet
   const loadingPage =
     isValidating && (data == null || data.length < currentPage);
@@ -144,6 +159,7 @@ export function useOrdersList({ filters, fallbackFirstPage }: UseOrdersListOptio
 
   return {
     rows,
+    total,
     pages: data ?? [],
     error,
     isLoading: (isLoading && !data) || loadingPage,

@@ -22,7 +22,7 @@ import {
   type OrderListFilters,
   type PageSize,
 } from "@/lib/orders/list-filters";
-import { OrdersFilterBar } from "@/components/orders/OrdersFilterBar";
+import { OrdersSearchBar } from "@/components/orders/OrdersSearchBar";
 import { OrdersFilterChips } from "@/components/orders/OrdersFilterChips";
 import { OrdersFacetBar } from "@/components/orders/OrdersFacetBar";
 import { OrdersKpiStrip, type KpiTile } from "@/components/orders/OrdersKpiStrip";
@@ -153,13 +153,28 @@ export function OrdersPageClient({
   // Products/carriers lazy — only when Advanced drawer opens
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMounted, setDrawerMounted] = useState(false);
-  const { data: productsData } = useSWR<{ data: Product[] }>(
+  const { data: productsData, isLoading: productsLoading } = useSWR<{ data: Product[] }>(
     effectiveMarketId ? `/api/products?market_id=${effectiveMarketId}` : null,
     fetcher,
   );
-  const { data: carriersData } = useSWR<{ data: Carrier[] }>(
+  const { data: carriersData, isLoading: carriersLoading } = useSWR<{ data: Carrier[] }>(
     effectiveMarketId ? `/api/carriers?market_id=${effectiveMarketId}` : null,
     fetcher,
+  );
+  /**
+   * The market's cities, from the cities table rather than from whatever
+   * happened to be on screen.
+   *
+   * The Ville facet used to be built from `rows`, so a page size of 10 offered
+   * you five cities out of the market's 144 and silently hid the rest. Cached
+   * for five minutes server-side; this list changes about once a year.
+   */
+  const { data: citiesData, isLoading: citiesLoading } = useSWR<{
+    data: { name: string }[];
+  }>(
+    effectiveMarketId ? `/api/cities?market_id=${effectiveMarketId}` : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 5 * 60_000 },
   );
 
   // Currency picked from selected market
@@ -174,6 +189,7 @@ export function OrdersPageClient({
   // ---------- Orders list (SWR-infinite + keyset) ----------
   const {
     rows,
+    total,
     isLoading,
     hasMore,
     hasNext,
@@ -530,12 +546,20 @@ export function OrdersPageClient({
   const kpiCounts = kpiData?.data;
   const activeTile: KpiTile | null = useMemo(() => tileForFilters(filters), [filters]);
 
-  /** Cities present in the current result set, for the Ville facet. */
+  /**
+   * Cities to offer in the Ville facet: the market's canonical list, plus any
+   * city actually present on screen that is not in it.
+   *
+   * The union matters because `orders.customer_city` is free text arriving from
+   * three storefronts — a spelling the cities table does not carry would
+   * otherwise become unfilterable the moment this stopped reading `rows`.
+   */
   const knownCities = useMemo(() => {
     const set = new Set<string>();
+    for (const c of citiesData?.data ?? []) if (c.name) set.add(c.name);
     for (const r of rows) if (r.customer_city) set.add(r.customer_city);
     return [...set].sort((a, b) => a.localeCompare(b, locale === "ar" ? "ar" : "fr"));
-  }, [rows, locale]);
+  }, [citiesData, rows, locale]);
 
   // Assignment board is the default view of the unassigned tile; any active
   // filter chip falls back to the plain table (filters apply to the table only).
@@ -616,16 +640,10 @@ export function OrdersPageClient({
 
       {/* ── Filter card ── */}
       <div className="flex flex-col gap-2.5">
-        <OrdersFilterBar
-          filters={filters}
-          onChange={update}
-          onOpenAdvanced={() => {
-            setDrawerMounted(true);
-            setDrawerOpen(true);
-          }}
-          onNewOrder={() => setCreateOpen(true)}
-          onExport={handleExport}
-          marketLabel={activeMarketLabel}
+        <OrdersSearchBar
+          value={filters.q}
+          onChange={(q) => update({ q })}
+          busy={isValidating}
         />
         {/* Named facets, applied on click. Replaces the "Avancé" drawer for the
             three filters an ops dispatcher reaches for constantly; the panel
@@ -637,14 +655,12 @@ export function OrdersPageClient({
           products={productsData?.data ?? []}
           carriers={carriersData?.data ?? []}
           cities={knownCities}
-          resultCount={rows.length}
-          resultValue={rows
-            .reduce((sum, r) => sum + (r.total_price ?? 0), 0)
-            .toLocaleString(locale === "ar" ? "ar" : "fr-FR", {
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0,
-            })}
-          currencyCode={currencyCode}
+          resultCount={total}
+          loading={{
+            products: productsLoading,
+            carriers: carriersLoading,
+            cities: citiesLoading,
+          }}
         />
         {hasActiveFilterChips ? (
           <OrdersFilterChips

@@ -31,7 +31,8 @@ export type AlertType =
   | "dispatch_schedule_missed"
   | "upload_stalled"
   | "price_changed"
-  | "order_reopened";
+  | "order_reopened"
+  | "sheet_sync_stalled";
 
 const HOUR = 60;
 const DAY = 24 * HOUR;
@@ -113,6 +114,26 @@ export const ALERT_RULES: Record<AlertType, AlertRule> = {
   //    just need to be seen once and then stop occupying the inbox. ─────────
   price_changed: { base: "medium", expireAfterMinutes: 7 * DAY },
   order_reopened: { base: "low", expireAfterMinutes: 7 * DAY },
+
+  // ── Intake ──────────────────────────────────────────────────────────────
+  /**
+   * The Google Sheets import has stopped landing orders.
+   *
+   * Starts high and goes critical inside two hours because nothing else in the
+   * system notices: the sync ran every fifteen minutes for four days, timed out
+   * every single time, reported "succeeded" to pg_cron on all 384 attempts, and
+   * the first person to find out was an operator counting rows in the
+   * spreadsheet. Orders that never arrive cannot show up as stalled orders.
+   *
+   * Never expires. Every other rule here describes one order ageing out of
+   * relevance; this one describes the front door being shut, which does not
+   * become less true by being ignored for a fortnight.
+   */
+  sheet_sync_stalled: {
+    base: "high",
+    escalate: [{ afterMinutes: 2 * HOUR, to: "critical" }],
+    expireAfterMinutes: null,
+  },
 };
 
 export const ALERT_TYPES = Object.keys(ALERT_RULES) as AlertType[];
@@ -144,6 +165,8 @@ const FAMILIES: Record<AlertType, AlertFamily> = {
   price_changed: "oversight",
   order_reopened: "oversight",
   stock_depleted: "stock",
+  // Not "progress": no order is stuck, the orders are not in the system at all.
+  sheet_sync_stalled: "oversight",
 };
 
 export function familyOf(type: AlertType): AlertFamily {

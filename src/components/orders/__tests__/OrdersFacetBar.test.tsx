@@ -23,8 +23,6 @@ function renderBar(props: Partial<React.ComponentProps<typeof OrdersFacetBar>> =
         carriers={[{ id: "c1", name: "Sanad" }]}
         cities={["بنغازي", "طرابلس"]}
         resultCount={61}
-        resultValue="10 890"
-        currencyCode="TND"
         {...props}
       />
     </NextIntlClientProvider>,
@@ -112,12 +110,19 @@ describe("OrdersFacetBar", () => {
     expect(screen.queryByRole("button", { name: /tout effacer/i })).toBeNull();
   });
 
-  test("reports what the current filters actually returned", () => {
-    renderBar();
-    const summary = screen.getByTestId("result-summary");
-    expect(summary.textContent).toMatch(/61/);
-    expect(summary.textContent).toMatch(/10 890/);
-    expect(summary.textContent).toMatch(/TND/);
+  test("reports how many orders the filters match, not how many are on screen", () => {
+    // The count is served whole by the list API. Deriving it from the loaded
+    // rows made it a readout of the page-size control: 10 per page said "10"
+    // whether the filter matched eleven orders or eleven hundred.
+    renderBar({ resultCount: 123 });
+    expect(screen.getByTestId("result-summary").textContent).toMatch(/123/);
+  });
+
+  test("shows no number at all until the real one arrives", () => {
+    // "0 commandes" for a beat reads as "your filter matched nothing", which is
+    // a worse answer than saying nothing yet.
+    renderBar({ resultCount: null });
+    expect(screen.getByTestId("result-summary").textContent).toBe("");
   });
 
   test("toggles deleted-order visibility from the same row", async () => {
@@ -152,8 +157,6 @@ describe("OrdersFacetBar", () => {
           carriers={[{ id: "c1", name: "Sanad" }]}
           cities={["بنغازي"]}
           resultCount={0}
-          resultValue="0"
-          currencyCode="TND"
         />
       </NextIntlClientProvider>,
     );
@@ -175,5 +178,24 @@ describe("OrdersFacetBar", () => {
   test("marks a facet with an active count so state is visible while closed", () => {
     renderBar({ filters: { ...DEFAULT_FILTERS, statuses: ["pending", "confirmed"] } });
     expect(screen.getByRole("button", { name: /Appel/i })).toHaveTextContent("2");
+  });
+
+  test("a single selection names itself instead of showing a bare 1", () => {
+    // A "1" badge said a facet was set but not to what, so reading the bar
+    // meant opening every lit control in turn. Several selections stay a count
+    // — five status names do not fit on a chip.
+    renderBar({ filters: { ...DEFAULT_FILTERS, agentId: "a1" } });
+    expect(screen.getByRole("button", { name: /Agent/i })).toHaveTextContent("tasnim");
+  });
+
+  test("a menu still loading says so rather than claiming there is nothing", async () => {
+    // An empty product menu reads as "this market sells nothing", which is a
+    // different and wrong answer from "the list has not arrived".
+    const user = userEvent.setup();
+    renderBar({ products: [], loading: { products: true } });
+
+    await user.click(screen.getByRole("button", { name: /Produit/i }));
+    expect(screen.queryByText(/aucun résultat/i)).toBeNull();
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 });

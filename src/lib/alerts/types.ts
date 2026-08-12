@@ -19,7 +19,11 @@ export interface Alert {
   type: AlertType;
   severity: AlertSeverity;
   entity_id: string;
-  entity_kind: "order" | "product" | "agent";
+  /**
+   * `storefront` is not an order-shaped alert: it says orders are not arriving
+   * at all, so it points at the intake settings rather than at a row.
+   */
+  entity_kind: "order" | "product" | "agent" | "storefront";
   href: string;
   primary: string;
   secondary: string | null;

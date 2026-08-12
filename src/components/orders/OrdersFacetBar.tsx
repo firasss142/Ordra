@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { ChevronDown, X } from "lucide-react";
 import type { OrderListFilters } from "@/lib/orders/list-filters";
 import type { OrderStatus } from "@/types/order-status";
@@ -55,11 +55,19 @@ interface Props {
   products: ProductLike[];
   carriers: CarrierLike[];
   cities: string[];
-  /** Rows currently loaded. The keyset list exposes no total, so this is
-   *  labelled "affichées" rather than claiming to be the filtered total. */
-  resultCount: number;
-  resultValue: string;
-  currencyCode: string;
+  /**
+   * How many orders the filters match in total — served by the list API, not
+   * counted from the loaded rows.
+   *
+   * It used to be `rows.length`, which meant a page size of 10 capped the
+   * summary at "10 affichées" however many orders actually matched. The number
+   * moved with the pagination control, so it answered a question nobody asks.
+   *
+   * `null` while the first page is in flight.
+   */
+  resultCount: number | null;
+  /** Option lists still in flight, so their menus can say so. */
+  loading?: { products?: boolean; carriers?: boolean; cities?: boolean };
 }
 
 const CALL_STATUSES = [
@@ -103,12 +111,16 @@ export function OrdersFacetBar({
   carriers,
   cities,
   resultCount,
-  resultValue,
-  currencyCode,
+  loading,
 }: Props) {
   const t = useTranslations("orders");
   const tf = useTranslations("orders.facets");
   const tStatus = useTranslations("orders.statuses");
+  const locale = useLocale();
+  const nf = useMemo(
+    () => new Intl.NumberFormat(locale === "ar" ? "ar" : "fr-FR"),
+    [locale],
+  );
   const [open, setOpen] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -282,6 +294,7 @@ export function OrdersFacetBar({
           onToggle={() => toggle("city")}
           logic={tf("anyOfF")}
           searchable
+          loading={loading?.cities}
           options={cities.map((c) => ({ value: c, label: c, selected: filters.city === c }))}
           onSelect={(v) => onChange({ city: filters.city === v ? "" : v })}
         />
@@ -292,6 +305,7 @@ export function OrdersFacetBar({
           onToggle={() => toggle("product")}
           logic={tf("anyProduct")}
           searchable
+          loading={loading?.products}
           options={products.map((p) => ({
             value: p.id,
             label: p.name,
@@ -307,6 +321,7 @@ export function OrdersFacetBar({
           open={open === "carrier"}
           onToggle={() => toggle("carrier")}
           logic={tf("anyOf")}
+          loading={loading?.carriers}
           options={carriers.map((c) => ({
             value: c.id,
             label: c.name,
@@ -357,17 +372,18 @@ export function OrdersFacetBar({
 
       <div
         data-testid="result-summary"
+        aria-live="polite"
         className="flex items-baseline gap-2 border-b border-oms-border pb-2 text-[13px]"
       >
-        <span className="font-semibold tabular-nums text-oms-ink-1">
-          {tf("results", { count: resultCount })}
-        </span>
-        <span aria-hidden className="text-oms-border-strong">
-          ·
-        </span>
-        <span className="font-medium tabular-nums text-oms-ink-2">
-          {resultValue} {currencyCode}
-        </span>
+        {resultCount === null ? (
+          // Nothing, not a zero: page 1 is still in flight and "0 commandes"
+          // for a beat reads as "your filter matched nothing".
+          <span aria-hidden className="h-[17px] w-24 rounded-pill bg-oms-sunken" />
+        ) : (
+          <span className="font-semibold tabular-nums text-oms-ink-1">
+            {tf("results", { count: nf.format(resultCount) })}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -380,6 +396,7 @@ function Facet({
   onToggle,
   logic,
   searchable,
+  loading,
   options,
   onSelect,
 }: {
@@ -389,6 +406,8 @@ function Facet({
   onToggle: () => void;
   logic: string;
   searchable?: boolean;
+  /** Options are still being fetched — "none" would be a lie meanwhile. */
+  loading?: boolean;
   options: FacetOption[];
   onSelect: (value: string) => void;
 }) {
@@ -398,6 +417,17 @@ function Facet({
     ? options.filter((o) => o.label.toLowerCase().includes(q.trim().toLowerCase()))
     : options;
 
+  /**
+   * What is selected, said in words when there is one thing to say.
+   *
+   * A bare "1" badge told you a facet was active but not what it was set to,
+   * so reading the bar meant opening every lit control in turn. One selection
+   * names itself; several stay a count, because five status names do not fit
+   * on a chip.
+   */
+  const selectedLabels = options.filter((o) => o.selected).map((o) => o.label);
+  const value = selectedLabels.length === 1 ? selectedLabels[0] : null;
+
   return (
     <div className="relative">
       <button
@@ -406,19 +436,28 @@ function Facet({
         aria-expanded={open}
         onClick={onToggle}
         className={
-          "inline-flex h-9 items-center gap-1.5 rounded-lg border ps-3 pe-2.5 text-[13px] font-medium transition-colors duration-fast " +
+          "inline-flex h-9 max-w-[240px] items-center gap-1.5 rounded-lg border ps-3 pe-2.5 text-[13px] font-medium transition-colors duration-fast " +
           (count > 0
             ? "border-brand bg-brand-bg text-brand-hover"
             : "border-oms-border bg-oms-surface text-oms-ink-2 hover:border-oms-border-strong hover:text-oms-ink-1")
         }
       >
-        {label}
-        {count > 0 && (
-          <span className="grid h-[16px] min-w-[16px] place-items-center rounded-pill bg-brand px-1 text-[10.5px] font-semibold tabular-nums text-white">
-            {count}
-          </span>
+        <span className="flex-none">{label}</span>
+        {value ? (
+          <>
+            <span aria-hidden className="flex-none opacity-40">
+              ·
+            </span>
+            <span className="min-w-0 truncate font-semibold">{value}</span>
+          </>
+        ) : (
+          count > 0 && (
+            <span className="grid h-[16px] min-w-[16px] flex-none place-items-center rounded-pill bg-brand px-1 text-[10.5px] font-semibold tabular-nums text-white">
+              {count}
+            </span>
+          )
         )}
-        <ChevronDown size={12} strokeWidth={2} aria-hidden />
+        <ChevronDown size={12} strokeWidth={2} aria-hidden className="flex-none" />
       </button>
 
       {open && (
@@ -443,7 +482,16 @@ function Facet({
             </div>
           )}
           <div className="max-h-[260px] overflow-y-auto p-1.5">
-            {visible.length === 0 ? (
+            {loading && options.length === 0 ? (
+              // Three bars, not the word "Aucun résultat" — an empty menu while
+              // the fetch is still in flight reads as "this market has no
+              // products", which is a different and wrong answer.
+              <div aria-busy="true" className="flex flex-col gap-1.5 p-1.5">
+                {[0, 1, 2].map((i) => (
+                  <span key={i} className="h-6 rounded-md bg-oms-sunken" />
+                ))}
+              </div>
+            ) : visible.length === 0 ? (
               <p className="px-2 py-3 text-[12.5px] text-oms-ink-3">{tf("none")}</p>
             ) : (
               visible.map((o) => (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { AlertTriangle } from "lucide-react";
 import { useGoogleSheetsSync } from "@/hooks/useGoogleSheetsSync";
 
 interface GoogleSheetsSyncWidgetProps {
@@ -9,12 +10,37 @@ interface GoogleSheetsSyncWidgetProps {
 
 export function GoogleSheetsSyncWidget({ marketId }: GoogleSheetsSyncWidgetProps) {
   const t = useTranslations("settings.googleSheets");
-  const { status, isLoading, isSyncing, syncError, triggerSync, hasSheets } =
-    useGoogleSheetsSync(marketId);
+  const {
+    status,
+    isLoading,
+    isSyncing,
+    syncError,
+    triggerSync,
+    hasSheets,
+    isBroken,
+    failures,
+    lastSuccessAt,
+  } = useGoogleSheetsSync(marketId);
 
   if (!isLoading && !hasSheets) return null;
 
   const totalRows = status?.sources.reduce((sum, s) => sum + s.last_row, 0) ?? 0;
+  const catchingUp = status?.sources.some((s) => s.last_success?.has_more) ?? false;
+
+  /**
+   * A row count is not a health reading.
+   *
+   * This widget used to show "{n} lignes synchronisées" and nothing else, which
+   * is the same sentence whether the import ran a minute ago or died four days
+   * ago — the number simply stops moving. The state of the last *completed* run
+   * is what an operator needs, and a broken import says so in red.
+   */
+  const since = lastSuccessAt
+    ? new Intl.RelativeTimeFormat("fr", { numeric: "auto" }).format(
+        -Math.round((Date.now() - new Date(lastSuccessAt).getTime()) / 3_600_000),
+        "hour",
+      )
+    : null;
 
   return (
     <div
@@ -58,15 +84,47 @@ export function GoogleSheetsSyncWidget({ marketId }: GoogleSheetsSyncWidgetProps
           </div>
           {!isLoading && status && (
             <div
+              data-testid="sheets-sync-health"
               style={{
                 fontSize: 12,
-                color: "#6D7175",
+                color: isBroken ? "#D72C0D" : "#6D7175",
+                fontWeight: isBroken ? 600 : 400,
                 lineHeight: "16px",
                 marginTop: 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
                 fontVariantNumeric: "tabular-nums",
               }}
+              role={isBroken ? "alert" : undefined}
             >
-              {totalRows > 0 ? t("rowsSynced", { count: totalRows }) : t("neverSynced")}
+              {isBroken && <AlertTriangle size={12} strokeWidth={2.2} aria-hidden />}
+              {isBroken
+                ? since
+                  ? t("brokenHint", { since })
+                  : t("brokenNever")
+                : since
+                  ? t("healthy", { since })
+                  : totalRows > 0
+                    ? t("rowsSynced", { count: totalRows })
+                    : t("neverSynced")}
+            </div>
+          )}
+          {!isLoading && catchingUp && !isBroken && (
+            <div style={{ fontSize: 12, color: "#B98900", lineHeight: "16px", marginTop: 1 }}>
+              {t("catchingUp")}
+            </div>
+          )}
+          {failures.length > 0 && (
+            <div
+              data-testid="sheets-failed-rows"
+              title={failures
+                .slice(0, 5)
+                .map((f) => `#${f.row_index}: ${f.message}`)
+                .join("\n")}
+              style={{ fontSize: 12, color: "#B98900", lineHeight: "16px", marginTop: 1 }}
+            >
+              {t("failedRows", { count: failures.length })}
             </div>
           )}
           {syncError && (

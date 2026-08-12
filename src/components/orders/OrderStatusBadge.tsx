@@ -13,6 +13,15 @@ export interface OrderStatusBadgeProps {
   attemptsCount?: number | null;
   /** The market's `max_call_attempts`. Omit until settings load. */
   maxAttempts?: number | null;
+  /**
+   * Drop the word on attempt statuses and let the icon plus the counter carry
+   * it — "Tentative 3/8" becomes a 60px pill instead of a 112px one.
+   *
+   * Only for the orders table, where the column is 120px wide, every attempt
+   * row repeats the same word, and the number is the whole reason to look. A
+   * surface with room (the detail panel) keeps the phrase.
+   */
+  compact?: boolean;
   className?: string;
 }
 
@@ -32,6 +41,7 @@ export function OrderStatusBadge({
   label,
   attemptsCount,
   maxAttempts,
+  compact = false,
   className = "",
 }: OrderStatusBadgeProps) {
   const { hue, weight, icon, counter } = presentStatus(status, {
@@ -45,6 +55,10 @@ export function OrderStatusBadge({
   // number, so it replaces it rather than following it. Matching on a trailing
   // digit works for "Tentative 1" and "محاولة 1" alike.
   const text = counter ? label.replace(/[\s ]*\d+$/, "") : label;
+
+  // Reachable only on an attempt status, since that is the only kind that has
+  // a counter to stand in for the word.
+  const countOnly = compact && counter !== null;
 
   return (
     <span
@@ -68,12 +82,18 @@ export function OrderStatusBadge({
       <span aria-hidden="true" className="grid w-3.5 flex-none place-items-center">
         <StatusIcon name={icon} size={14} />
       </span>
-      <span className="truncate">{text}</span>
+      {!countOnly && <span className="truncate">{text}</span>}
       {counter && (
         <span
           data-testid="status-counter"
           aria-hidden="true"
-          className="flex-none tabular-nums opacity-75"
+          // Once the word is gone the count is the label, so it stops being a
+          // faded afterthought and takes the pill's full contrast.
+          className={
+            countOnly
+              ? "flex-none font-semibold tabular-nums"
+              : "flex-none tabular-nums opacity-75"
+          }
         >
           {counter}
         </span>

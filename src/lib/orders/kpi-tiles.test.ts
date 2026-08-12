@@ -3,7 +3,7 @@ import { filtersForTile, tileForFilters } from "./kpi-tiles";
 import { DEFAULT_FILTERS } from "./list-filters";
 import type { KpiTile } from "@/components/orders/OrdersKpiStrip";
 
-const TILES: KpiTile[] = ["unassigned", "today", "waiting", "toRecall", "confirmed", "uploaded"];
+const TILES: KpiTile[] = ["unassigned", "today", "waiting", "toRecall", "uploaded", "rejected"];
 
 describe("kpi tile ↔ filter mapping", () => {
   test("every tile round-trips back to itself", () => {
@@ -26,15 +26,15 @@ describe("kpi tile ↔ filter mapping", () => {
   });
 
   test("hand-edited filters match no tile rather than mislabelling one", () => {
-    const custom = { ...DEFAULT_FILTERS, statuses: ["rejected"], agentId: null, preset: "all" as const };
+    const custom = { ...DEFAULT_FILTERS, statuses: ["delivered"], agentId: null, preset: "all" as const };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(tileForFilters(custom as any)).toBeNull();
   });
 
   test("statuses are copied, so a caller cannot mutate the tile definitions", () => {
     const a = filtersForTile("toRecall");
-    a.statuses.push("rejected" as never);
-    expect(filtersForTile("toRecall").statuses).not.toContain("rejected");
+    a.statuses.push("delivered" as never);
+    expect(filtersForTile("toRecall").statuses).not.toContain("delivered");
   });
 
   test("unassigned selects by owner, not by status", () => {

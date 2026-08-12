@@ -38,6 +38,11 @@ async function run(req: NextRequest): Promise<NextResponse> {
 
   const adminClient = createAdminClient();
 
+  // One budget for the whole invocation, shared across markets. pg_net gives up
+  // at 55s and the function is killed at 60; every market must hand back before
+  // then, because work that is not handed back is work that is redone forever.
+  const deadlineAt = Date.now() + 45_000;
+
   const { data: markets } = await adminClient
     .from("markets")
     .select("id")
@@ -51,7 +56,10 @@ async function run(req: NextRequest): Promise<NextResponse> {
 
   for (const market of markets) {
     try {
-      const results = await runSyncForMarket(adminClient, market.id as string);
+      const results = await runSyncForMarket(adminClient, market.id as string, {
+        trigger: "cron",
+        deadlineAt,
+      });
       allResults.push({ market_id: market.id as string, results });
     } catch (err) {
       allResults.push({
@@ -63,6 +71,7 @@ async function run(req: NextRequest): Promise<NextResponse> {
           rows_duplicate: 0,
           rows_errored: 1,
           last_row: 0,
+          has_more: false,
           errors: [{ row: 0, message: err instanceof Error ? err.message : "Unknown error" }],
         }],
       });

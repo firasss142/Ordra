@@ -822,7 +822,7 @@
       "date": "Date",
       "agent": "Agent",
       "advanced": "Avancé",
-      "searchPlaceholder": "Nom · téléphone · référence",
+      "searchPlaceholder": "Rechercher — nom, téléphone, ville, produit…",
       "searchAria": "Rechercher une commande",
       "refresh": "Actualiser",
       "allMarkets": "Tous les marchés",
@@ -1274,8 +1274,8 @@
       "today": "Aujourd'hui",
       "waiting": "En attente",
       "toRecall": "À rappeler",
-      "confirmed": "Confirmées",
       "uploaded": "Téléchargées",
+      "rejected": "Rejetées",
       "confirmationRate": "Taux de confirmation",
       "ratePeriod": "7 derniers jours · vs 7 précédents",
       "rateSample": "sur {count} décisions · 7 j",
@@ -1293,7 +1293,7 @@
       "anyOfF": "n'importe laquelle",
       "clearAll": "Tout effacer",
       "remove": "Retirer {label}",
-      "results": "{count} affichées",
+      "results": "{count} commandes",
       "search": "Filtrer…",
       "none": "Aucun résultat",
       "unassigned": "Non assigné",
@@ -1365,6 +1365,20 @@
       "paiement_impossible": "Paiement",
       "adresse_invalide": "Adresse",
       "absent_ville": "Absent"
+    },
+    "search": {
+      "clear": "Effacer la recherche",
+      "scope": "Nom · téléphone · ville · adresse · produit · référence · n° de suivi",
+      "tryPrefix": "Cibler un champ :",
+      "fields": {
+        "name": "Nom",
+        "phone": "Téléphone",
+        "city": "Ville",
+        "address": "Adresse",
+        "product": "Produit",
+        "ref": "Référence",
+        "tracking": "Suivi"
+      }
     }
   },
   "unassigned": {
@@ -3235,7 +3249,13 @@
           "required": "ID du classeur et nom de l’onglet sont requis.",
           "saveFailed": "Échec de l’enregistrement. Réessayez."
         }
-      }
+      },
+      "broken": "Import interrompu",
+      "brokenHint": "Aucune synchronisation réussie depuis {since}. Les commandes du classeur n’arrivent pas.",
+      "brokenNever": "Aucune synchronisation n’a jamais abouti.",
+      "healthy": "Dernière synchronisation {since}",
+      "catchingUp": "Rattrapage en cours — il reste des lignes à importer.",
+      "failedRows": "{count} ligne(s) non importée(s)"
     }
   },
   "logs": {

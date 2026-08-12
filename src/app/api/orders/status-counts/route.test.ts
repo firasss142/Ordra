@@ -118,8 +118,8 @@ describe("GET /api/orders/status-counts", () => {
       "today",
       "waiting",
       "toRecall",
-      "confirmed",
       "uploaded",
+      "rejected",
       "total",
     ]) {
       expect(body.data, `missing ${key}`).toHaveProperty(key);

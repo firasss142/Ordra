@@ -260,6 +260,20 @@ describe("OrderRow", () => {
     expect(screen.getByText("en retard")).toBeDefined();
   });
 
+  it("drops the callback-overdue flag once the order is settled", () => {
+    // The timestamp survives a rejection, so "Rejeté" used to carry "en retard"
+    // beside it — a red flag on an order nobody owes a call.
+    renderRow({
+      order: {
+        ...mockOrder,
+        status: "rejected",
+        callback_scheduled_at: new Date(Date.now() - 60_000).toISOString(),
+      },
+      labels: { ...defaultProps.labels, status: "Rejeté" },
+    });
+    expect(screen.queryByText("en retard")).toBeNull();
+  });
+
   it("does not render the callback-overdue flag when callback_scheduled_at is in the future", () => {
     renderRow({
       order: {

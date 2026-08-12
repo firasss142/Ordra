@@ -7,6 +7,7 @@ import {
   encodeCursor,
   listQuerySchema,
 } from "@/lib/orders/list-filters";
+import { applySearch } from "@/lib/orders/search-query";
 import { resolveProductDisplayName, unwrapEmbed } from "@/lib/orders/display-name";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
@@ -52,9 +53,25 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = await createClient();
+
+  /**
+   * How many orders the filters match, whole — not how many fit on the page.
+   *
+   * Asked for on the first page only. The keyset cursor is part of the WHERE
+   * clause, so counting again on page 2 would answer "how many are left below
+   * this row", which is a different and useless question. Filters changing
+   * resets the list to page 1, so the count a client holds is always the count
+   * for the filters it is showing.
+   *
+   * Exact rather than estimated, and taken in the same round trip as the rows:
+   * a separate endpoint would have to restate all fifteen filters below and
+   * could then disagree with the table it labels.
+   */
+  const wantTotal = !q.cursor;
+
   let query = supabase
     .from("orders")
-    .select(LIST_SELECT)
+    .select(LIST_SELECT, wantTotal ? { count: "exact" } : undefined)
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(q.limit + 1); // peek one extra to know if there's a next page
@@ -106,15 +123,11 @@ export async function GET(req: NextRequest) {
   if (q.agent_id === "unassigned") query = query.is("assigned_to", null);
   else if (q.agent_id) query = query.eq("assigned_to", q.agent_id);
 
-  // ---- Search (customer name, phone, external id) ----
-  if (q.q && q.q.trim().length > 0) {
-    const needle = q.q.trim().replace(/[%,]/g, "");
-    if (needle) {
-      query = query.or(
-        `customer_name.ilike.%${needle}%,customer_phone.ilike.%${needle}%,external_id.ilike.%${needle}%,product_name.ilike.%${needle}%`,
-      );
-    }
-  }
+  // ---- Search ----
+  // Terms AND, each term ORs across every column a dispatcher can see, and a
+  // number is matched by its national digits so the three phone formats in
+  // this data are one search. See lib/orders/search-query.
+  query = applySearch(query, q.q);
 
   // ---- Advanced filters ----
   if (q.product_id) query = query.eq("product_id", q.product_id);
@@ -143,7 +156,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
   if (error) {
     return NextResponse.json(
       { error: "Internal server error", detail: error.message },
@@ -213,6 +226,8 @@ export async function GET(req: NextRequest) {
     {
       rows: enrichedPage,
       nextCursor,
+      // null on a cursor page — "not asked", never "zero".
+      total: wantTotal ? count ?? 0 : null,
     },
     {
       // Tiny edge cache to absorb double-fires during filter changes

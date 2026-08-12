@@ -23,8 +23,14 @@ export interface StatusCounts {
   unassigned: number;
   waiting: number;
   toRecall: number;
-  confirmed: number;
   uploaded: number;
+  /**
+   * Standing count of a terminal status, not a backlog — nobody works it down.
+   * It is still a "maintenant" figure, and it still has to equal what the table
+   * shows for `status=rejected`, which is every rejection ever and not a window
+   * over the last seven days.
+   */
+  rejected: number;
   /** Period counts — "aujourd'hui" */
   today: number;
   /** Health — 7-day confirmation rate, and the 7 days before it to trend against */
@@ -40,9 +46,6 @@ export interface StatusCounts {
 }
 
 const RECALL_STATUSES = ["attempt_1", "attempt_2", "attempt_3", "callback_scheduled"];
-
-/** Awaiting carrier upload — the `Confirmées` tile's backlog. */
-const CONFIRMED_STATUSES = ["confirmed", "dispatch_scheduled"];
 
 function startOfTodayIso(): string {
   const d = new Date();
@@ -102,8 +105,8 @@ export async function GET(req: NextRequest) {
     unassigned,
     waiting,
     toRecall,
-    confirmed,
     uploaded,
+    rejected,
     todayCount,
     rateWindows,
   ] = await Promise.all([
@@ -111,8 +114,8 @@ export async function GET(req: NextRequest) {
     countWhere((q) => whereUnassigned(q as never)),
     countWhere((q) => q.eq("status", "pending")),
     countWhere((q) => q.in("status", RECALL_STATUSES)),
-    countWhere((q) => q.in("status", CONFIRMED_STATUSES)),
     countWhere((q) => q.eq("status", "uploaded")),
+    countWhere((q) => q.eq("status", "rejected")),
     countWhere((q) => q.gte("created_at", today)),
     // Dated by the transition itself, not by orders.updated_at — see the
     // function's comment in the migration for why that distinction is the whole
@@ -126,7 +129,9 @@ export async function GET(req: NextRequest) {
     }) as unknown as Promise<{ data: RateWindows[] | null; error: unknown }>,
   ]);
 
-  const firstError = [total, unassigned, waiting, toRecall, uploaded].find((r) => r?.error);
+  const firstError = [total, unassigned, waiting, toRecall, uploaded, rejected].find(
+    (r) => r?.error,
+  );
   if (firstError?.error) {
     const detail =
       firstError.error instanceof Error
@@ -153,8 +158,8 @@ export async function GET(req: NextRequest) {
     unassigned: n(unassigned),
     waiting: n(waiting),
     toRecall: n(toRecall),
-    confirmed: n(confirmed),
     uploaded: n(uploaded),
+    rejected: n(rejected),
     today: n(todayCount),
     confirmationRate: rate(Number(w?.current_yes ?? 0), currentTotal),
     confirmationRatePrev: rate(Number(w?.prev_yes ?? 0), prevTotal),

@@ -17,10 +17,6 @@ export const RECALL_STATUSES: OrderStatus[] = [
   "callback_scheduled",
 ] as OrderStatus[];
 
-export const CONFIRMED_STATUSES: OrderStatus[] = [
-  "confirmed",
-  "dispatch_scheduled",
-] as OrderStatus[];
 
 /** The slice of OrderListFilters a tile controls — everything else is left alone. */
 export type TilePatch = Pick<OrderListFilters, "preset" | "statuses" | "agentId">;
@@ -30,8 +26,8 @@ const TILE_FILTERS: Record<KpiTile, TilePatch> = {
   today: { preset: "today", statuses: [], agentId: null },
   waiting: { preset: "all", statuses: ["pending"] as OrderStatus[], agentId: null },
   toRecall: { preset: "all", statuses: RECALL_STATUSES, agentId: null },
-  confirmed: { preset: "all", statuses: CONFIRMED_STATUSES, agentId: null },
   uploaded: { preset: "all", statuses: ["uploaded"] as OrderStatus[], agentId: null },
+  rejected: { preset: "all", statuses: ["rejected"] as OrderStatus[], agentId: null },
 };
 
 const CLEARED: TilePatch = { preset: "all", statuses: [], agentId: null };

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { applySearch } from "@/lib/orders/search-query";
 import { createClient } from "@/lib/supabase/server";
 import { canViewOrders } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
@@ -89,15 +90,9 @@ export async function GET(req: NextRequest) {
     else if (list.length > 1) query = query.in("status", list);
   }
 
-  const q = req.nextUrl.searchParams.get("q");
-  if (q && q.trim().length > 0) {
-    const needle = q.trim().replace(/[%,]/g, "");
-    if (needle) {
-      query = query.or(
-        `customer_name.ilike.%${needle}%,customer_phone.ilike.%${needle}%,external_id.ilike.%${needle}%,product_name.ilike.%${needle}%`,
-      );
-    }
-  }
+  // Same parser as the list route, so the CSV is exactly the rows the operator
+  // was looking at when they pressed Export.
+  query = applySearch(query, req.nextUrl.searchParams.get("q") ?? undefined);
 
   const rejectionReason = req.nextUrl.searchParams.get("rejection_reason");
   if (rejectionReason) query = query.eq("rejection_reason", rejectionReason);

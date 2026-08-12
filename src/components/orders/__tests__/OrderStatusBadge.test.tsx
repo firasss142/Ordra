@@ -80,4 +80,40 @@ describe("OrderStatusBadge", () => {
     renderBadge({ status: "attempt_2", label: "Tentative 2", attemptsCount: 2, maxAttempts: 8 });
     expect(screen.getByTestId("order-status")).toHaveAccessibleName("Tentative 2/8");
   });
+
+  describe("compact", () => {
+    it("drops the word on attempts and lets the count carry the pill", () => {
+      // In a 120px column every attempt row repeats the same word, so it
+      // encodes nothing; the phone mark says which kind of state this is and
+      // the fraction says the only thing that differs row to row.
+      renderBadge({
+        status: "attempt_2",
+        label: "Tentative 2",
+        attemptsCount: 3,
+        maxAttempts: 8,
+        compact: true,
+      });
+      expect(screen.queryByText("Tentative")).toBeNull();
+      expect(screen.getByTestId("status-counter")).toHaveTextContent("3/8");
+    });
+
+    it("still names itself in full to a screen reader", () => {
+      // Compact is a visual economy, not a loss of information.
+      renderBadge({
+        status: "attempt_2",
+        label: "Tentative 2",
+        attemptsCount: 3,
+        maxAttempts: 8,
+        compact: true,
+      });
+      expect(screen.getByTestId("order-status")).toHaveAccessibleName("Tentative 3/8");
+    });
+
+    it("keeps the word on every status that has no counter to replace it", () => {
+      // There is no number standing in for "Rejeté" — dropping it would leave
+      // a bare red circle.
+      renderBadge({ status: "rejected", label: "Rejeté", compact: true });
+      expect(screen.getByText("Rejeté")).toBeInTheDocument();
+    });
+  });
 });

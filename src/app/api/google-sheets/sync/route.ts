@@ -34,7 +34,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   try {
     const adminClient = createAdminClient();
-    const results = await runSyncForMarket(adminClient, marketId);
+    const results = await runSyncForMarket(adminClient, marketId, { trigger: "manual" });
     return NextResponse.json({ success: true, results });
   } catch (err) {
     return NextResponse.json(

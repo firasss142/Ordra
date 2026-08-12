@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { MoreHorizontal, RotateCcw, AlertTriangle } from "lucide-react";
+import { MoreHorizontal, RotateCcw, AlertTriangle, CalendarClock } from "lucide-react";
 import { OrderStatusBadge } from "./OrderStatusBadge";
 import { RepeatBuyerBadge } from "@/components/shared/RepeatBuyerBadge";
 import { DuplicateOrderBadge } from "@/components/shared/DuplicateOrderBadge";
@@ -12,6 +12,7 @@ import { formatDateTime } from "@/lib/format";
 import { classifyOrderAge, formatOrderAge, AGE_TONE } from "@/lib/orders/order-age";
 import type { OrdersListRow } from "@/hooks/useOrdersList";
 import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
+import { isTerminalStatus, type OrderStatus } from "@/types/order-status";
 import { AgentAvatar } from "@/components/shared/AgentAvatar";
 import { useMaxCallAttempts } from "@/hooks/useMaxCallAttempts";
 
@@ -154,7 +155,11 @@ function Row({
   const canDelete = canManuallyDeleteOrderStatus(order.status);
   // A soft-deleted order can be recovered by a manager/admin (onRecover passed).
   const canRecover = order.status === "deleted" && onRecover !== undefined;
+  // A callback nobody owes any more is not overdue. The timestamp survives a
+  // rejection, so a settled order kept flying the red flag — which is how
+  // "Rejeté" ended up carrying "en retard" beside it.
   const callbackOverdue =
+    !isTerminalStatus(order.status as OrderStatus) &&
     !!order.callback_scheduled_at &&
     new Date(order.callback_scheduled_at).getTime() <= Date.now();
   const hasPriorRejections = (order.prior_rejected_count ?? 0) > 0;
@@ -309,9 +314,13 @@ function Row({
         </span>
       </td>
 
-      {/* Status + callback overdue flag */}
-      <td className="whitespace-nowrap px-4 py-2.5 align-middle">
-        <span className="inline-flex items-center">
+      {/* Status. The column is 120px and fixed, so anything that outgrows it
+          used to paint straight over the age beside it — "Rejeté · en retard"
+          on top of "18h 47m". Two rules keep that impossible: the cell clips,
+          and the flags beside the badge are marks rather than sentences. Their
+          words live on the tooltip and in the accessible name. */}
+      <td className="overflow-hidden px-4 py-2.5 align-middle">
+        <span className="flex min-w-0 items-center gap-1.5">
           <StatusHistoryPopover
             orderId={order.id}
             sourcePlatform={order.external_platform ?? null}
@@ -322,25 +331,26 @@ function Row({
               locale={locale}
               attemptsCount={order.attempts_count}
               maxAttempts={maxAttempts}
-              className="cursor-pointer hover:border-oms-border-strong"
+              compact
+              className="min-w-0 cursor-pointer hover:border-oms-border-strong"
             />
           </StatusHistoryPopover>
           {order.carrier_barcode_deleted_at && (
             <span
-              className="ms-1.5 inline-flex items-center gap-1 h-[20px] px-1.5 rounded-card border border-line-subtle bg-surface-page text-[10.5px] font-medium text-ink-secondary"
+              className="grid h-5 w-5 flex-none place-items-center rounded-full border border-line-subtle bg-surface-page text-ink-secondary"
               title={labels.carrierBarcodeDeleted}
             >
-              <RotateCcw size={9} strokeWidth={2} aria-hidden="true" />
-              {labels.carrierBarcodeDeleted}
+              <RotateCcw size={11} strokeWidth={2} aria-hidden="true" />
+              <span className="sr-only">{labels.carrierBarcodeDeleted}</span>
             </span>
           )}
           {callbackOverdue && (
-            <span className="ms-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-status-critical">
-              <span
-                aria-hidden
-                className="inline-block h-1.5 w-1.5 rounded-full bg-status-critical"
-              />
-              {labels.callbackOverdue}
+            <span
+              className="grid h-5 w-5 flex-none place-items-center rounded-full bg-status-criticalBg text-status-critical"
+              title={labels.callbackOverdue}
+            >
+              <CalendarClock size={12} strokeWidth={2.25} aria-hidden="true" />
+              <span className="sr-only">{labels.callbackOverdue}</span>
             </span>
           )}
         </span>

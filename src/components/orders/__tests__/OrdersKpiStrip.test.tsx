@@ -10,8 +10,8 @@ const COUNTS: StatusCounts = {
   unassigned: 188,
   waiting: 19,
   toRecall: 43,
-  confirmed: 6,
   uploaded: 452,
+  rejected: 731,
   today: 181,
   confirmationRate: 63.5,
   confirmationRatePrev: 57.6,
@@ -49,8 +49,8 @@ describe("OrdersKpiStrip", () => {
       ["Aujourd'hui", "181"],
       ["En attente", "19"],
       ["À rappeler", "43"],
-      ["Confirmées", "6"],
       ["Téléchargées", "452"],
+      ["Rejetées", "731"],
     ] as const) {
       const tile = screen.getByRole("button", { name: new RegExp("^" + label, "i") });
       expect(within(tile).getByText(count)).toBeInTheDocument();
@@ -63,8 +63,10 @@ describe("OrdersKpiStrip", () => {
     // A backlog tile must say "maintenant"; a period tile must say "aujourd'hui".
     expect(screen.getByRole("button", { name: /^En attente/i })).toHaveTextContent(/maintenant/i);
     expect(screen.getByRole("button", { name: /^Aujourd'hui/i })).toHaveTextContent(/aujourd'hui/i);
-    expect(screen.getByRole("button", { name: /^Confirmées/i })).toHaveTextContent(/maintenant/i);
     expect(screen.getByRole("button", { name: /^Téléchargées/i })).toHaveTextContent(/maintenant/i);
+    // Rejetées is a standing total of a terminal status, not a daily tally —
+    // the table it opens has no date bound either.
+    expect(screen.getByRole("button", { name: /^Rejetées/i })).toHaveTextContent(/maintenant/i);
   });
 
   test("selecting a tile reports the filter it stands for", async () => {

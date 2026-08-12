@@ -29,11 +29,11 @@ export type KpiTile =
   | "today"
   | "waiting"
   | "toRecall"
-  | "confirmed"
-  | "uploaded";
+  | "uploaded"
+  | "rejected";
 
 interface StageDef {
-  key: Extract<KpiTile, "today" | "waiting" | "toRecall" | "confirmed" | "uploaded">;
+  key: Extract<KpiTile, "today" | "waiting" | "toRecall" | "uploaded" | "rejected">;
   count: (c: StatusCounts) => number;
   /** Backlog ("maintenant") vs period count ("aujourd'hui") — labelled on every tile. */
   period: "now" | "today";
@@ -50,10 +50,12 @@ const STAGES: StageDef[] = [
   { key: "today", count: (c) => c.today, period: "today", status: null },
   { key: "waiting", count: (c) => c.waiting, period: "now", status: "pending" },
   { key: "toRecall", count: (c) => c.toRecall, period: "now", status: "callback_scheduled" },
-  // Backlog, not "confirmed today": clicking filters to status=confirmed, and a
-  // tile whose number disagreed with the table it opens is the bug this replaced.
-  { key: "confirmed", count: (c) => c.confirmed, period: "now", status: "confirmed" },
   { key: "uploaded", count: (c) => c.uploaded, period: "now", status: "uploaded" },
+  // The pipeline ends on its unsuccessful outcome. Standing total, not
+  // "rejected today": clicking filters to status=rejected with no date bound,
+  // and a tile whose number disagreed with the table it opens is the bug this
+  // whole strip replaced.
+  { key: "rejected", count: (c) => c.rejected, period: "now", status: "rejected" },
 ];
 
 interface Props {

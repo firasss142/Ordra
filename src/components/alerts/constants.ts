@@ -122,10 +122,13 @@ export const TYPE_TONE: Record<AlertType, Tone> = {
   pending_idle: VIOLET,
   price_changed: VIOLET,
   order_reopened: NEUTRAL,
+  // Red: this is the only rule that says orders are missing rather than late.
+  sheet_sync_stalled: RED,
 };
 
 /** The mark on the row — which kind of problem this is. */
 export const TYPE_ICONS: Record<AlertType, LucideIcon> = {
+  sheet_sync_stalled: CloudOff,
   dispatch_failure: Truck,
   carrier_webhook_stale: RadioTower,
   overdue_callback: PhoneMissed,

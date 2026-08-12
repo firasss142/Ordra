@@ -29,9 +29,34 @@ const CARRIER_STALE_DAYS = 7;
 /** How far back the audit rules read the history log — their own expiry. */
 const OVERSIGHT_LOOKBACK_DAYS = 7;
 const ITEMS_PER_QUERY = 50;
+/**
+ * How long the import may go without a completed run before it is an alert.
+ *
+ * The cron fires every 15 minutes, so 45 tolerates two consecutive misses —
+ * a deploy, a cold start — without crying wolf, and catches the third.
+ */
+const SYNC_STALE_MINUTES = 45;
+const SYNC_ALERT_LABEL = "Import Google Sheets";
+const SYNC_NEVER_LABEL = "Aucune synchronisation réussie";
 
 /** Statuses that still owe the customer a phone call. */
 const OPEN_CONFIRMATION_STATUSES = ["pending", "assigned", "attempt_1"];
+
+interface SheetSourceSetting {
+  market_id: string;
+  value: Array<{ storefront_id?: string; is_active?: boolean }> | null;
+}
+
+interface SyncRunRow {
+  id: string;
+  market_id: string;
+  storefront_id: string;
+  status: string;
+  started_at: string;
+  finished_at: string | null;
+  rows_errored: number;
+  error: string | null;
+}
 
 interface OrderRow {
   id: string;
@@ -243,6 +268,38 @@ export async function GET(req: NextRequest) {
     .select("alert_key, acknowledged_at, snoozed_until");
   if (marketId) qAcks = qAcks.eq("market_id", marketId);
 
+  /**
+   * The last outcome of each Google Sheets import.
+   *
+   * Every other rule here reads orders that arrived and then stalled. This one
+   * reads the door they arrive through: when the sync is broken there are no
+   * rows to be late, so no other rule can see it. The sync failed silently four
+   * times an hour for four days and the panel had nothing to say about it.
+   */
+  let qSyncRuns = supabase
+    .from("sheet_sync_runs")
+    .select("id, market_id, storefront_id, status, started_at, finished_at, rows_errored, error")
+    .order("started_at", { ascending: false })
+    .limit(ITEMS_PER_QUERY);
+  if (marketId) qSyncRuns = qSyncRuns.eq("market_id", marketId);
+
+  /**
+   * Which sheet imports are supposed to be running.
+   *
+   * The rule is driven by what is CONFIGURED, not by the run rows that happen
+   * to exist, and the difference is the whole point. A sync that dies before it
+   * can write anything — wrong cron secret, a deploy that 500s on boot, the
+   * function never invoked at all — leaves zero run rows, and a rule that
+   * iterates over run rows would find nothing to complain about and stay
+   * silent. Silence is the failure being fixed, so a configured source with no
+   * successful run is the loudest case here, not the invisible one.
+   */
+  let qSheetSources = supabase
+    .from("settings")
+    .select("market_id, value")
+    .eq("key", "google_sheets_sources");
+  if (marketId) qSheetSources = qSheetSources.eq("market_id", marketId);
+
   const [
     overdueRes,
     unassignedRes,
@@ -255,6 +312,8 @@ export async function GET(req: NextRequest) {
     stockRes,
     oversightRes,
     acksRes,
+    syncRunsRes,
+    sheetSourcesRes,
   ] = await Promise.all([
     qOverdueCallback,
     qUnassigned,
@@ -267,6 +326,8 @@ export async function GET(req: NextRequest) {
     qStockDepleted,
     qOversight,
     qAcks,
+    qSyncRuns,
+    qSheetSources,
   ]);
 
   const failed = Object.entries({
@@ -383,6 +444,66 @@ export async function GET(req: NextRequest) {
       meta: { current_stock: p.current_stock },
       marketId: p.market_id,
     });
+  }
+
+  /**
+   * One alert per storefront whose import is not landing.
+   *
+   * Two ways to be broken, and the rule has to catch both, because the outage
+   * it was written for was the second kind:
+   *
+   *  · the last run *failed* — the sheet was unreachable, credentials expired;
+   *  · no run has *completed* for longer than the cron interval allows. This is
+   *    the one that hid for four days. Every run was started and killed at 55s,
+   *    so a rule that only looked for failures would have seen a `running` row
+   *    four times an hour and called it healthy.
+   *
+   * Anchored to the last successful finish, so the age reading is "how long we
+   * have not been receiving orders" — the number an operator can act on.
+   */
+  const syncRuns = (syncRunsRes.data ?? []) as SyncRunRow[];
+  const runsBySource = new Map<string, SyncRunRow[]>();
+  for (const r of syncRuns) {
+    const list = runsBySource.get(r.storefront_id) ?? [];
+    list.push(r);
+    runsBySource.set(r.storefront_id, list);
+  }
+
+  for (const setting of (sheetSourcesRes.data ?? []) as SheetSourceSetting[]) {
+    const configured = Array.isArray(setting.value) ? setting.value : [];
+
+    for (const source of configured) {
+      if (!source?.storefront_id || source.is_active === false) continue;
+
+      // Ordered newest-first by the query; absent entirely when nothing ran.
+      const runs = runsBySource.get(source.storefront_id) ?? [];
+      const lastSettled = runs.find((r) => r.status !== "running");
+      const lastGood = runs.find((r) => r.status === "succeeded" || r.status === "partial");
+
+      const stale =
+        !lastGood ||
+        minutesBetween(lastGood.finished_at ?? lastGood.started_at, now) > SYNC_STALE_MINUTES;
+      const failing = lastSettled?.status === "failed";
+      if (!stale && !failing) continue;
+
+      push({
+        type: "sheet_sync_stalled",
+        entityId: source.storefront_id,
+        entityKind: "storefront",
+        href: "/settings/storefronts",
+        primary: SYNC_ALERT_LABEL,
+        secondary: lastSettled?.error ?? (lastGood ? null : SYNC_NEVER_LABEL),
+        // Anchored to the last time orders actually landed, so the age reads as
+        // "how long we have not been receiving orders". With no successful run
+        // in the window it falls back to the oldest attempt we can see, and
+        // then to now — a source that has never run once is alerted at its base
+        // severity rather than being scored as infinitely overdue.
+        anchor:
+          lastGood?.finished_at ?? runs[runs.length - 1]?.started_at ?? nowIso,
+        meta: { rows_errored: lastSettled?.rows_errored ?? 0 },
+        marketId: setting.market_id,
+      });
+    }
   }
 
   for (const h of (oversightRes.data ?? []) as unknown as HistoryRow[]) {

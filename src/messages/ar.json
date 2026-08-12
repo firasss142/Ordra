@@ -822,7 +822,7 @@
       "date": "التاريخ",
       "agent": "الوكيل",
       "advanced": "متقدم",
-      "searchPlaceholder": "الاسم · الهاتف · المرجع",
+      "searchPlaceholder": "ابحث — الاسم، الهاتف، المدينة، المنتج…",
       "searchAria": "بحث عن طلب",
       "refresh": "تحديث",
       "allMarkets": "جميع الأسواق",
@@ -1274,8 +1274,8 @@
       "today": "اليوم",
       "waiting": "في الانتظار",
       "toRecall": "إعادة الاتصال",
-      "confirmed": "مؤكدة",
       "uploaded": "مرفوعة",
+      "rejected": "مرفوضة",
       "confirmationRate": "نسبة التأكيد",
       "ratePeriod": "آخر 7 أيام · مقارنة بالـ7 السابقة",
       "rateSample": "من {count} قرار · 7 أيام",
@@ -1293,7 +1293,7 @@
       "anyOfF": "أي منها",
       "clearAll": "مسح الكل",
       "remove": "إزالة {label}",
-      "results": "{count} معروضة",
+      "results": "{count} طلب",
       "search": "تصفية…",
       "none": "لا نتائج",
       "unassigned": "غير مسند",
@@ -1365,6 +1365,20 @@
       "paiement_impossible": "الدفع",
       "adresse_invalide": "العنوان",
       "absent_ville": "خارج المدينة"
+    },
+    "search": {
+      "clear": "مسح البحث",
+      "scope": "الاسم · الهاتف · المدينة · العنوان · المنتج · المرجع · رقم التتبع",
+      "tryPrefix": "استهدف حقلاً:",
+      "fields": {
+        "name": "الاسم",
+        "phone": "الهاتف",
+        "city": "المدينة",
+        "address": "العنوان",
+        "product": "المنتج",
+        "ref": "المرجع",
+        "tracking": "التتبع"
+      }
     }
   },
   "unassigned": {
@@ -3148,7 +3162,13 @@
           "required": "معرّف الجدول واسم الورقة مطلوبان.",
           "saveFailed": "فشل الحفظ. حاول مجدداً."
         }
-      }
+      },
+      "broken": "توقف الاستيراد",
+      "brokenHint": "لا توجد مزامنة ناجحة منذ {since}. الطلبات من الجدول لا تصل.",
+      "brokenNever": "لم تنجح أي مزامنة حتى الآن.",
+      "healthy": "آخر مزامنة {since}",
+      "catchingUp": "جارٍ التدارك — لا تزال هناك صفوف للاستيراد.",
+      "failedRows": "{count} صف لم يتم استيراده"
     }
   },
   "logs": {

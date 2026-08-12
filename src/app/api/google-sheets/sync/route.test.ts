@@ -35,6 +35,18 @@ vi.mock("@/lib/orders/create-order-from-data", () => ({
   createOrderFromData: vi.fn().mockResolvedValue({ status: "created", orderId: "x" }),
 }));
 
+// Run bookkeeping — the lock, the run record, the stale-run reaper — talks to
+// tables this route test does not model. These cases are about who is allowed
+// to trigger a sync and with what payload; sync-runs.test covers the rest.
+vi.mock("@/lib/google-sheets/sync-runs", () => ({
+  startRun: vi.fn().mockResolvedValue({ id: "run-1" }),
+  finishRun: vi.fn().mockResolvedValue(undefined),
+  failRun: vi.fn().mockResolvedValue(undefined),
+  recordSkipped: vi.fn().mockResolvedValue(undefined),
+  recordFailedRow: vi.fn().mockResolvedValue(undefined),
+  reapStaleRuns: vi.fn().mockResolvedValue(0),
+}));
+
 import { getActor } from "@/lib/auth/actor";
 
 const MARKET_ID = "market-uuid";
