@@ -1,15 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
+import { useCallback, useMemo, useState } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
-import {
-  Globe,
-  Search as SearchIcon,
-  CalendarRange,
-  Download,
-} from "lucide-react";
+import { Download, AlertCircle } from "lucide-react";
 import type { Locale, Role } from "@/types";
 import { fetcher } from "@/lib/swr-config";
 import { useMarketScope } from "@/context/market-scope";
@@ -17,20 +11,14 @@ import { useOrdersList, type OrdersListRow } from "@/hooks/useOrdersList";
 import { useOrdersRealtime } from "@/hooks/useOrdersRealtime";
 import {
   DEFAULT_FILTERS,
-  DEFAULT_PAGE_SIZE,
   type OrderListFilters,
-  type PageSize,
 } from "@/lib/orders/list-filters";
-import { REJECTION_REASONS, TERMINAL_STATUSES, type OrderStatus, type RejectionReason } from "@/types/order-status";
+import {
+  ARCHIVE_STATUSES,
+  DEFAULT_ARCHIVE_AFTER_DAYS,
+  type ArchiveState,
+} from "@/lib/orders/archive-scope";
 import { todayISO } from "@/lib/date";
-import { OrdersTable } from "@/components/orders/OrdersTable";
-
-const OrderDetailPanel = dynamic(
-  () => import("@/components/queue/OrderDetailPanel").then((m) => m.OrderDetailPanel),
-  { ssr: false },
-);
-
-interface Market { id: string; name: string; code: string; currency?: string }
 
 interface Props {
   role: Role;
@@ -41,674 +29,743 @@ interface Props {
   initialMarketId: string;
 }
 
-type OutcomeKey = "delivered" | "returned" | "rejected" | "deleted";
-const OUTCOME_KEYS: OutcomeKey[] = ["delivered", "returned", "rejected", "deleted"];
-
-interface ArchiveSummary {
+/** One snapshot from get_archive_summary — every figure over the same rows. */
+interface Summary {
   total: number;
-  outcomes: Record<OutcomeKey, number>;
-  rejectionReasons: Record<RejectionReason, number>;
-  topReturnedProducts: Array<{ product_id: string; product_name: string; count: number }>;
-  topReturnCities: Array<{ city: string; count: number }>;
-  topReturnCarriers: Array<{ carrier_id: string; count: number }>;
-  cohorts: Array<{ week: string; delivered: number; returned: number; rejected: number; deleted: number }>;
+  shipped: number;
+  outcomes: { delivered: number; returned: number; rejected: number; cancelled: number };
+  reasons: Record<string, number>;
+  winback: {
+    total: number;
+    never_called: number;
+    partial: number;
+    exhausted: number;
+    second_phone: number;
+  };
+  cities: Array<{ city: string; shipped: number; returned: number }>;
+  speed: Array<{
+    status: string;
+    n: number;
+    median_days: number;
+    p90_days: number;
+    same_day: number;
+  }>;
+  cohorts: Array<{ week: string; total: number }>;
+  placement: { archived: number; in_list: number };
 }
 
-const OUTCOME_COLORS: Record<OutcomeKey, { bg: string; fg: string }> = {
-  delivered: { bg: "#E3F1DF", fg: "#116530" },
-  returned:  { bg: "#FFF1E6", fg: "#8A4B00" },
-  rejected:  { bg: "#FFF4F4", fg: "#D72C0D" },
-  deleted: { bg: "#F1F1F1", fg: "#6D7175" },
+/**
+ * Below this many shipped parcels a return rate is noise, so it is withheld
+ * rather than ranked. A percentage over 20 orders invites acting on nothing.
+ */
+const MIN_SAMPLE = 30;
+
+const OUTCOMES = ["delivered", "returned", "rejected", "cancelled"] as const;
+type Outcome = (typeof OUTCOMES)[number];
+
+const OUTCOME_STYLE: Record<Outcome, { chip: string; bar: string }> = {
+  delivered: { chip: "bg-[#E3F1DF] text-[#116530]", bar: "bg-[#15803D]" },
+  returned: { chip: "bg-[#FFF1E6] text-[#8A4B00]", bar: "bg-[#8A4B00]" },
+  rejected: { chip: "bg-[#FFF4F4] text-[#D72C0D]", bar: "bg-[#D72C0D]" },
+  cancelled: { chip: "bg-[#EEF1F6] text-[#44546F]", bar: "bg-[#44546F]" },
 };
 
-function pct(part: number, total: number): string {
-  if (total <= 0) return "0%";
-  return `${Math.round((part / total) * 1000) / 10}%`;
-}
+/**
+ * Presentation for a loss cause. The LIST of causes is derived from the data,
+ * never from this table — a hard-coded list silently dropped `autre` (238
+ * orders), so the rows added up to less than the "orders lost" figure printed
+ * above them. Anything without an entry here still renders, with a neutral tag.
+ */
+const CAUSE_META: Record<string, { tag: string; tone: string; sub: string }> = {
+  injoignable:          { tag: "tagRecoverable",  tone: "bg-brand-bg text-brand border-[#CDE8D8]",        sub: "causeNeverReachedSub" },
+  refus_client:         { tag: "tagOffer",        tone: "bg-[#FFF1E6] text-[#8A4B00] border-[#F5DCC5]",   sub: "causeRefusedSub" },
+  commande_invalide:    { tag: "tagDataQuality",  tone: "bg-[#EEF1F6] text-[#44546F] border-[#D7DEE9]",   sub: "causeBadDataSub" },
+  autre:                { tag: "tagFixProcess",   tone: "bg-[#FFF4F4] text-[#D72C0D] border-[#F6D9D5]",   sub: "causeUntaggedSub" },
+  non_renseigne:        { tag: "tagFixProcess",   tone: "bg-[#FFF4F4] text-[#D72C0D] border-[#F6D9D5]",   sub: "causeUntaggedSub" },
+  livraison_impossible: { tag: "tagCarrier",      tone: "bg-[#EEF1F6] text-[#44546F] border-[#D7DEE9]",   sub: "causeUndeliverableSub" },
+  cancelled:            { tag: "tagCarrier",      tone: "bg-[#EEF1F6] text-[#44546F] border-[#D7DEE9]",   sub: "causeCarrierCancelledSub" },
+  returned:             { tag: "tagCarrier",      tone: "bg-[#FFF1E6] text-[#8A4B00] border-[#F5DCC5]",   sub: "causeReturnedSub" },
+};
+const NEUTRAL_TONE = "bg-surface-selected text-ink-secondary border-line-strong";
 
-function defaultDateRange(): { from: string; to: string } {
-  const to = new Date();
-  const from = new Date();
-  from.setUTCDate(from.getUTCDate() - 29);
-  return { from: from.toISOString().slice(0, 10), to: todayISO() };
+/** Deterministic thousands separator — Intl varies by ICU build. */
+function num(n: number): string {
+  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+function pct(part: number, whole: number): string {
+  if (whole <= 0) return "0 %";
+  return `${(Math.round((part / whole) * 1000) / 10).toFixed(1).replace(".", ",")} %`;
+}
+function daysAgo(iso: string | null): number | null {
+  if (!iso) return null;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 }
 
 export function ArchivePageClient({
   role,
-  locale,
   userMarketId,
   userMarketLabel,
-  userMarketCurrency,
   initialMarketId,
 }: Props) {
   const t = useTranslations("orders.archive");
   const tStatus = useTranslations("orders.statuses");
   const tReason = useTranslations("orders.rejectionReasons");
-  const isSuperAdmin = role === "super_admin";
+  const { marketId: scopedMarketId } = useMarketScope();
+  const marketId = scopedMarketId || initialMarketId || userMarketId;
 
-  const initial = defaultDateRange();
-  const [fromDate, setFromDate] = useState(initial.from);
-  const [toDate, setToDate] = useState(initial.to);
-  const { marketId: scopeMarketId } = useMarketScope();
-  const marketId = isSuperAdmin
-    ? (scopeMarketId ?? initialMarketId)
-    : userMarketId;
-  const [search, setSearch] = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const [outcomeFilter, setOutcomeFilter] = useState<OutcomeKey[]>([]);
-  const [reasonFilter, setReasonFilter] = useState<RejectionReason | "">("");
-  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
+  const [tab, setTab] = useState<Exclude<ArchiveState, "all">>("eligible");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  // Debounce: searchInput updates on every keystroke; search (used in filters) updates 300ms later
-  useEffect(() => {
-    const h = setTimeout(() => setSearch(searchInput.trim()), 300);
-    return () => clearTimeout(h);
-  }, [searchInput]);
+  const from = useMemo(() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - 89);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const to = todayISO();
 
-  const effectiveStatuses: OrderStatus[] =
-    outcomeFilter.length > 0 ? (outcomeFilter as OrderStatus[]) : TERMINAL_STATUSES;
+  const summaryKey = marketId
+    ? `/api/orders/archive/summary?market_id=${marketId}&from_date=${from}&to_date=${to}`
+    : null;
+  const { data: summaryRes, mutate: mutateSummary } = useSWR<{ data: Summary }>(
+    summaryKey,
+    fetcher,
+    { revalidateOnFocus: false },
+  );
+  const s = summaryRes?.data;
 
   const filters: OrderListFilters = useMemo(
     () => ({
       ...DEFAULT_FILTERS,
       marketId: marketId || null,
-      statuses: effectiveStatuses,
-      q: search,
-      dateFrom: fromDate,
-      dateTo: toDate,
-      rejectionReason: reasonFilter || null,
-      includeDeleted: true,
-      pageSize,
+      statuses: ARCHIVE_STATUSES,
+      scope: "archive",
+      dateFrom: from,
+      dateTo: to,
     }),
-    [marketId, effectiveStatuses, search, fromDate, toDate, reasonFilter, pageSize],
+    [marketId, from, to],
   );
 
-  const { data: marketsData } = useSWR<{ data: Market[] }>(
-    isSuperAdmin ? "/api/markets" : null,
-    fetcher,
-  );
-  const markets = marketsData?.data ?? [];
+  const { rows, mutate: mutateList } = useOrdersList({ filters });
+  useOrdersRealtime({ marketId: marketId || null, mutate: mutateList, matchFilter: () => false });
 
-  const currencyCode = useMemo(() => {
-    if (isSuperAdmin) {
-      const m = markets.find((m) => m.id === marketId);
-      return m?.currency ?? userMarketCurrency;
-    }
-    return userMarketCurrency;
-  }, [isSuperAdmin, markets, marketId, userMarketCurrency]);
+  // Which bucket a finished order sits in. Mirrors resolveArchiveState on the
+  // server so the tabs and the API agree.
+  const stateOf = useCallback((r: OrdersListRow): Exclude<ArchiveState, "all"> => {
+    if (r.archived_at) return "archived";
+    const age = daysAgo(r.terminal_at);
+    return age !== null && age >= DEFAULT_ARCHIVE_AFTER_DAYS ? "eligible" : "recent";
+  }, []);
 
-  const summaryKey = useMemo(() => {
-    if (!marketId) return null;
-    const params = new URLSearchParams({ market_id: marketId, from_date: fromDate, to_date: toDate });
-    if (outcomeFilter.length) params.set("status", outcomeFilter.join(","));
-    return `/api/orders/archive/summary?${params.toString()}`;
-  }, [marketId, fromDate, toDate, outcomeFilter]);
+  const visible = useMemo(() => rows.filter((r) => stateOf(r) === tab), [rows, tab, stateOf]);
 
-  const { data: summaryRes, isLoading: summaryLoading } = useSWR<{ data: ArchiveSummary }>(
-    summaryKey,
-    fetcher,
-    { revalidateOnFocus: false },
-  );
-  const summary = summaryRes?.data;
+  const toggle = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
-  const {
-    rows,
-    isLoading: listLoading,
-    hasNext,
-    hasPrev,
-    nextPage,
-    prevPage,
-    currentPage,
-    mutate: mutateList,
-  } = useOrdersList({ filters });
-
-  // Realtime: terminal orders entering the archive show up live; rows that
-  // somehow exit terminal (manual reopen) disappear from the list immediately.
-  const archiveMatch = useCallback(
-    (row: OrdersListRow) => {
-      if (marketId && row.market_id !== marketId) return false;
-      const statuses = (outcomeFilter.length ? outcomeFilter : OUTCOME_KEYS) as readonly string[];
-      return statuses.includes(row.status);
-    },
-    [marketId, outcomeFilter],
-  );
-  useOrdersRealtime({ marketId: marketId || null, mutate: mutateList, matchFilter: archiveMatch });
-
-  const [openOrderId, setOpenOrderId] = useState<string | null>(null);
-  const [recoveringId, setRecoveringId] = useState<string | null>(null);
-
-  // Recovery is manager/admin-only and applies only to soft-deleted orders.
-  const canRecover = isSuperAdmin || role === "market_manager";
-
-  const handleRecover = useCallback(
-    async (id: string) => {
-      if (!window.confirm(t("recoverConfirm"))) return;
-      setRecoveringId(id);
+  const run = useCallback(
+    async (action: "archive" | "unarchive") => {
+      const ids = Array.from(selected);
+      if (ids.length === 0) return;
+      setPending(true);
+      setError(null);
       try {
-        const res = await fetch(`/api/orders/${id}/recover`, {
+        const res = await fetch("/api/orders/archive", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order_ids: ids, action }),
         });
-        if (!res.ok) {
-          const json = await res.json().catch(() => ({}));
-          window.alert((json as { error?: string }).error ?? t("recoverError"));
-        } else {
-          await mutateList();
-        }
+        if (!res.ok) throw new Error(String(res.status));
+        setSelected(new Set());
+        setNotice(
+          action === "archive"
+            ? t("putAwayDone", { count: ids.length })
+            : t("broughtBackDone", { count: ids.length }),
+        );
+        // Rows and tiles refresh together, or the page contradicts itself.
+        await Promise.all([mutateList(), mutateSummary()]);
       } catch {
-        window.alert(t("recoverError"));
+        setError(t("actionError"));
       } finally {
-        setRecoveringId(null);
+        setPending(false);
       }
     },
-    [t, mutateList],
+    [selected, t, mutateList, mutateSummary],
   );
 
-  const handleExport = useCallback(() => {
-    const params = new URLSearchParams();
-    params.set("market_id", marketId);
-    params.set("status", (outcomeFilter.length ? outcomeFilter : OUTCOME_KEYS).join(","));
-    if ((outcomeFilter.length ? outcomeFilter : OUTCOME_KEYS).includes("deleted")) {
-      params.set("include_deleted", "1");
-    }
-    if (search) params.set("q", search);
-    if (fromDate) params.set("date_from", fromDate);
-    if (toDate) params.set("date_to", toDate);
-    if (reasonFilter) params.set("rejection_reason", reasonFilter);
-    window.location.href = `/api/orders/export?${params.toString()}`;
-  }, [marketId, outcomeFilter, search, fromDate, toDate, reasonFilter]);
+  const lost = s ? s.total - s.outcomes.delivered : 0;
 
-  const toggleOutcome = useCallback((k: OutcomeKey) =>
-    setOutcomeFilter((prev) =>
-      prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k],
-    ), []);
+  /**
+   * Every loss, largest first. Rejections come from their own reason
+   * breakdown; carrier outcomes come from the status counts. Together they
+   * are exactly `lost`, because the RPC computes both from the same rows.
+   */
+  const causeRows = useMemo(() => {
+    if (!s) return [];
+    const rows: Array<{ key: string; n: number; kind: "reason" | "status" }> = [
+      ...Object.entries(s.reasons).map(([key, n]) => ({ key, n, kind: "reason" as const })),
+      { key: "cancelled", n: s.outcomes.cancelled, kind: "status" as const },
+      { key: "returned", n: s.outcomes.returned, kind: "status" as const },
+    ];
+    return rows.filter((r) => r.n > 0).sort((a, b) => b.n - a.n);
+  }, [s]);
+  const hiddenCities = s ? s.cities.filter((c) => c.shipped < MIN_SAMPLE).length : 0;
 
-  const activeMarketLabel = useMemo(() => {
-    if (!isSuperAdmin) return userMarketLabel;
-    return markets.find((m) => m.id === marketId)?.name ?? "—";
-  }, [isSuperAdmin, markets, marketId, userMarketLabel]);
-
-  const totalInPeriod = summary?.total ?? 0;
+  // Rejections land in ~1 day, deliveries in ~4. Stating the gap turns two
+  // table rows into the finding they actually are.
+  const speedInsight = useMemo(() => {
+    const rej = s?.speed.find((r) => r.status === "rejected");
+    const del = s?.speed.find((r) => r.status === "delivered");
+    if (!rej || !del || del.median_days <= rej.median_days) return null;
+    return t("speedInsight", {
+      reject: t("days", { n: String(rej.median_days).replace(".", ",") }),
+      deliver: t("days", { n: String(del.median_days).replace(".", ",") }),
+    });
+  }, [s, t]);
 
   return (
-    <div style={{
-      padding: "32px 32px 64px",
-      background: "#F6F6F7",
-      minHeight: "100vh",
-      display: "flex",
-      flexDirection: "column",
-      gap: 20,
-    }}>
-      <div>
-        <h1 style={{ fontSize: 20, fontWeight: 600, color: "#1A1A1A", margin: 0 }}>
-          {t("title")}
-        </h1>
-        <p style={{ fontSize: 13, color: "#6D7175", margin: "4px 0 0" }}>
-          {t("subtitle", { market: activeMarketLabel, count: totalInPeriod })}
-        </p>
-      </div>
-
-      {/* Filter bar — leads-pattern card */}
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: "1px solid #E1E3E5",
-          borderRadius: 10,
-          padding: "10px 12px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: 10,
-            justifyContent: "space-between",
-          }}
+    <div className="mx-auto max-w-[1560px] px-6 pb-16 pt-5">
+      {/* ---------- header ---------- */}
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-[26px] font-bold leading-tight tracking-tight text-ink-primary">
+            {t("title")}
+          </h1>
+          <p className="mt-0.5 text-[12.5px] text-ink-secondary">
+            {t("subtitle", { count: num(s?.total ?? 0), market: userMarketLabel })}
+          </p>
+        </div>
+        <a
+          href={`/api/orders/export?scope=archive&market_id=${marketId}&date_from=${from}&date_to=${to}`}
+          className="inline-flex items-center gap-2 rounded-lg bg-brand px-3 py-2 text-[12.5px] font-semibold text-white hover:bg-brand-hover"
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap",
-              flex: "1 1 auto",
-            }}
-          >
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                height: 30,
-                padding: "0 12px",
-                borderRadius: 8,
-                border: "1px solid #E1E3E5",
-                background: "#F6F6F7",
-                color: "#6D7175",
-                fontSize: 13,
-                fontWeight: 500,
-              }}
-            >
-              <Globe size={13} strokeWidth={1.75} />
-              {activeMarketLabel}
-            </span>
+          <Download size={14} aria-hidden="true" />
+          {t("exportCsv")}
+        </a>
+      </header>
 
-            <span
-              aria-hidden
-              style={{
-                width: 1,
-                height: 20,
-                background: "#E1E3E5",
-                display: "inline-block",
-                margin: "0 2px",
-              }}
-            />
-
-            <div style={{ position: "relative", flex: "1 1 240px", minWidth: 200 }}>
-              <SearchIcon
-                size={13}
-                strokeWidth={1.75}
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  insetInlineStart: 10,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  color: "#6D7175",
-                  pointerEvents: "none",
-                }}
-              />
-              <input
-                type="search"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder={t("searchPlaceholder")}
-                aria-label={t("searchAria")}
-                style={{
-                  height: 30,
-                  width: "100%",
-                  paddingInlineStart: 28,
-                  paddingInlineEnd: 10,
-                  fontSize: 13,
-                  border: "1px solid #E1E3E5",
-                  borderRadius: 8,
-                  background: "#FFFFFF",
-                  color: "#1A1A1A",
-                  outline: "none",
-                  fontFamily: "inherit",
-                }}
-              />
-            </div>
+      {/* ---------- the rule, and what it does not do ---------- */}
+      <section className="mb-4 grid gap-3 lg:grid-cols-[1.5fr_1fr]">
+        <div className="rounded-2xl border border-line-subtle bg-surface-card p-4 shadow-sm">
+          <h2 className="text-[11px] font-bold uppercase tracking-wider text-ink-primary">
+            {t("ruleTitle")}
+          </h2>
+          <p className="mt-2 text-[12px] leading-relaxed text-ink-secondary">{t("ruleNote")}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Stat label={t("ruleArchived")} value={s?.placement.archived ?? 0} tone="brand" />
+            <Stat label={t("ruleEligible")} value={visibleCount(rows, stateOf, "eligible")} />
+            <Stat label={t("ruleRecent")} value={visibleCount(rows, stateOf, "recent")} />
           </div>
-
-          <button
-            type="button"
-            onClick={handleExport}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              height: 34,
-              padding: "0 14px",
-              fontSize: 13,
-              fontWeight: 500,
-              border: "1px solid #1A1A1A",
-              borderRadius: 8,
-              background: "#1A1A1A",
-              color: "#FFFFFF",
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            <Download size={14} strokeWidth={2} />
-            {t("exportCsv")}
-          </button>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexWrap: "wrap",
-            paddingTop: 8,
-            borderTop: "1px solid #E1E3E5",
-          }}
-        >
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 12,
-              fontWeight: 500,
-              color: "#6D7175",
-              paddingInlineEnd: 4,
-            }}
-          >
-            <CalendarRange size={13} strokeWidth={1.75} />
-            {t("dateFromAria")}
-          </span>
-          <input
-            type="date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            aria-label={t("dateFromAria")}
-            style={chipInputStyle}
-          />
-          <span aria-hidden style={{ color: "#6D7175", fontSize: 13 }}>→</span>
-          <input
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-            aria-label={t("dateToAria")}
-            style={chipInputStyle}
-          />
-        </div>
-      </div>
+        <section aria-label={t("resultSucceeded")} className="flex flex-col justify-center rounded-2xl border border-line-subtle bg-surface-card p-4 shadow-sm">
+          <p className="text-[12px] text-ink-muted">{t("resultHint", { count: num(s?.total ?? 0) })}</p>
+          <p className="mt-1 text-[32px] font-bold leading-none tracking-tight text-brand tabular-nums">
+            {pct(s?.outcomes.delivered ?? 0, s?.total ?? 0)}
+          </p>
+          <p className="mt-1.5 text-[12px] leading-snug text-ink-secondary">
+            {t("resultSucceeded")}
+            <br />
+            {t("resultSplit", { delivered: num(s?.outcomes.delivered ?? 0), lost: num(lost) })}
+          </p>
+        </section>
+      </section>
 
-      {/* Outcome distribution — click to filter results */}
-      <section style={sectionStyle}>
-        <h2 style={sectionTitleStyle}>{t("outcomeDistribution")}</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-          {OUTCOME_KEYS.map((k) => {
-            const count = summary?.outcomes[k] ?? 0;
-            const color = OUTCOME_COLORS[k];
-            const active = outcomeFilter.includes(k);
+      {/* ---------- outcome split ---------- */}
+      <section aria-label={t("resultTitle")} className="mb-4 rounded-2xl border border-line-subtle bg-surface-card p-4 shadow-sm">
+        <h2 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-ink-primary">
+          {t("resultTitle")}
+        </h2>
+        <div className="flex h-8 overflow-hidden rounded-lg" role="img" aria-label={t("resultTitle")}>
+          {OUTCOMES.map((o) => (
+            <span
+              key={o}
+              className={OUTCOME_STYLE[o].bar}
+              style={{ width: `${((s?.outcomes[o] ?? 0) / Math.max(1, s?.total ?? 1)) * 100}%` }}
+            />
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+          {OUTCOMES.map((o) => (
+            <span key={o} className="inline-flex items-center gap-2 text-[12px] text-ink-secondary">
+              <i className={`h-2.5 w-2.5 shrink-0 rounded-sm ${OUTCOME_STYLE[o].bar}`} />
+              {tStatus(o)}
+              <b className="font-bold tabular-nums text-ink-primary">{num(s?.outcomes[o] ?? 0)}</b>
+              <span className="tabular-nums">{pct(s?.outcomes[o] ?? 0, s?.total ?? 0)}</span>
+            </span>
+          ))}
+        </div>
+        {s && s.shipped > 0 && (
+          <p className="mt-3 border-t border-line pt-2.5 text-[12.5px] text-ink-secondary">
+            {t("shippedArrived", {
+              shipped: num(s.shipped),
+              rate: pct(s.outcomes.delivered, s.shipped),
+            })}{" "}
+            {t("shippedReturned", { rate: pct(s.outcomes.returned, s.shipped) })}
+          </p>
+        )}
+      </section>
+
+      {/* ---------- why we lose ---------- */}
+      <section aria-label={t("causesTitle")} className="mb-4 rounded-2xl border border-line-subtle bg-surface-card p-4 shadow-sm">
+        <h2 className="mb-1 text-[11px] font-bold uppercase tracking-wider text-ink-primary">
+          {t("causesTitle")}
+        </h2>
+        <p className="mb-3 text-[12px] text-ink-muted">{t("causesHint", { count: num(lost) })}</p>
+        <ul className="grid list-none gap-2 p-0 xl:grid-cols-2">
+          {causeRows.map((c) => {
+            const meta = CAUSE_META[c.key];
+            const label = c.kind === "reason" ? tReason(c.key) : tStatus(c.key);
             return (
-              <button
-                key={k}
-                onClick={() => toggleOutcome(k)}
-                type="button"
-                aria-pressed={active}
-                style={{
-                  textAlign: "start",
-                  padding: 16,
-                  borderRadius: 8,
-                  border: active ? "2px solid #1A1A1A" : "1px solid #E1E3E5",
-                  background: "#FFFFFF",
-                  cursor: "pointer",
-                }}
+              <li
+                key={`${c.kind}:${c.key}`}
+                data-count={c.n}
+                className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-lg border border-line px-3 py-2.5 sm:grid-cols-[minmax(120px,1fr)_56px_minmax(70px,1fr)_auto]"
               >
-                <div style={{
-                  display: "inline-block",
-                  padding: "2px 8px",
-                  borderRadius: 4,
-                  fontSize: 11,
-                  fontWeight: 500,
-                  background: color.bg,
-                  color: color.fg,
-                  marginBottom: 8,
-                }}>
-                  {tStatus(k)}
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-semibold text-ink-primary">{label}</p>
+                  <p className="truncate text-[11px] text-ink-muted">
+                    {meta
+                      ? c.key === "injoignable"
+                        ? t(meta.sub, { count: s?.winback.never_called ?? 0 })
+                        : t(meta.sub)
+                      : null}
+                  </p>
                 </div>
-                <div style={{ fontSize: 24, fontWeight: 600, color: "#1A1A1A" }}>
-                  {count.toLocaleString(locale === "ar" ? "ar" : "fr-FR")}
+                <div className="text-end">
+                  <p className="text-[18px] font-bold leading-none tabular-nums text-ink-primary">
+                    {num(c.n)}
+                  </p>
+                  <p className="mt-0.5 text-[10.5px] tabular-nums text-ink-muted">
+                    {t("causeShare", { pct: pct(c.n, lost) })}
+                  </p>
                 </div>
-                <div style={{ fontSize: 12, color: "#6D7175" }}>
-                  {pct(count, totalInPeriod)} {t("ofTotal")}
+                <div className="hidden h-1.5 overflow-hidden rounded-full bg-surface-selected sm:block">
+                  <i
+                    className="block h-full rounded-full bg-ink-muted"
+                    style={{ width: `${(c.n / Math.max(1, lost)) * 100}%` }}
+                  />
                 </div>
-              </button>
+                <span
+                  className={`rounded-md border px-2 py-0.5 text-[11px] font-bold ${meta?.tone ?? NEUTRAL_TONE}`}
+                >
+                  {t(meta?.tag ?? "tagFixProcess")}
+                </span>
+              </li>
             );
           })}
+        </ul>
+
+        {s && s.winback.never_called > 0 && (
+          <p className="mt-3 flex items-start gap-2.5 rounded-lg border border-[#F6D9D5] bg-[#FFF4F4] px-3.5 py-3 text-[12.5px] leading-relaxed text-[#8C2A18]">
+            <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <span>{t("neverCalledAlert", { count: s.winback.never_called })}</span>
+          </p>
+        )}
+      </section>
+
+      {/* ---------- win-back ---------- */}
+      {s && s.winback.total > 0 && (
+        <section aria-label={t("winbackTitle")} className="mb-4 rounded-2xl border border-line-subtle bg-surface-card p-4 shadow-sm">
+          <h2 className="mb-1 text-[11px] font-bold uppercase tracking-wider text-ink-primary">
+            {t("winbackTitle")}
+          </h2>
+          <p className="mb-3 text-[12px] text-ink-muted">
+            {t("winbackHint", { count: s.winback.total })}
+          </p>
+          <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+            <WinCard title={t("winbackNeverCalled")} sub={t("winbackNeverCalledSub")} n={s.winback.never_called} highlight />
+            <WinCard title={t("winbackPartial")} sub={t("winbackPartialSub")} n={s.winback.partial} highlight />
+            <WinCard title={t("winbackExhausted")} sub={t("winbackExhaustedSub")} n={s.winback.exhausted} />
+            <WinCard title={t("winbackSecondPhone")} sub={t("winbackSecondPhoneSub")} n={s.winback.second_phone} />
+          </div>
+        </section>
+      )}
+
+      {/* ---------- cities + speed ---------- */}
+      <section className="mb-4 grid gap-3 lg:grid-cols-2">
+        <div className="rounded-2xl border border-line-subtle bg-surface-card p-4 shadow-sm">
+          <h2 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-ink-primary">
+            {t("citiesTitle")}
+          </h2>
+          <DataTable>
+            <thead>
+              <tr>
+                <Th align="start">{t("cityCol")}</Th>
+                <Th>{t("shippedCol")}</Th>
+                <Th>{t("returnedCol")}</Th>
+                <Th>{t("rateCol")}</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {(s?.cities ?? []).map((c) => {
+                const weak = c.shipped < MIN_SAMPLE;
+                return (
+                  <tr key={c.city}>
+                    <Td align="start" className="text-ink-primary">{c.city}</Td>
+                    <Td className="tabular-nums text-ink-secondary">{c.shipped}</Td>
+                    <Td className="tabular-nums text-ink-secondary">{c.returned}</Td>
+                    <Td className="tabular-nums">
+                      {weak ? (
+                        <span className="inline-flex h-6 items-center rounded-lg border border-[#F5DCC5] bg-[#FFF1E6] px-2.5 text-[11.5px] font-semibold text-[#8A4B00]">
+                          {t("tooFew")}
+                        </span>
+                      ) : (
+                        <span className="font-semibold text-ink-primary">{pct(c.returned, c.shipped)}</span>
+                      )}
+                    </Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </DataTable>
+          {hiddenCities > 0 && (
+            <p className="mt-2.5 text-[12px] text-ink-muted">
+              {t("citiesHidden", { count: hiddenCities, threshold: MIN_SAMPLE })}
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-line-subtle bg-surface-card p-4 shadow-sm">
+          <h2 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-ink-primary">
+            {t("speedTitle")}
+          </h2>
+          <DataTable>
+            <thead>
+              <tr>
+                <Th align="start">{t("outcomeCol")}</Th>
+                <Th>{t("countCol")}</Th>
+                <Th>{t("medianCol")}</Th>
+                <Th>{t("p90Col")}</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {(s?.speed ?? []).map((r) => (
+                <tr key={r.status}>
+                  <Td align="start">
+                    <StatusChip status={r.status} label={tStatus(r.status)} />
+                  </Td>
+                  <Td className="tabular-nums text-ink-secondary">{num(r.n)}</Td>
+                  <Td className="font-semibold tabular-nums text-ink-primary">
+                    {t("days", { n: String(r.median_days).replace(".", ",") })}
+                  </Td>
+                  <Td className="tabular-nums text-ink-secondary">
+                    {t("days", { n: String(r.p90_days).replace(".", ",") })}
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
+          {speedInsight && (
+            <p className="mt-3 border-t border-line pt-2.5 text-[12.5px] leading-relaxed text-ink-secondary">
+              {speedInsight}
+            </p>
+          )}
         </div>
       </section>
 
-      {/* Rejection reasons — click to scope results to that reason */}
-      <section style={sectionStyle}>
-        <h2 style={sectionTitleStyle}>{t("rejectionBreakdown")}</h2>
-        {summary && REJECTION_REASONS.some((r) => summary.rejectionReasons[r] > 0) ? (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {REJECTION_REASONS.map((r) => {
-              const count = summary.rejectionReasons[r] ?? 0;
-              if (count === 0) return null;
-              const active = reasonFilter === r;
-              return (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => {
-                    setOutcomeFilter(["rejected"]);
-                    setReasonFilter(active ? "" : r);
-                  }}
-                  aria-pressed={active}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 6,
-                    border: active ? "2px solid #1A1A1A" : "1px solid #E1E3E5",
-                    background: "#FFFFFF",
-                    fontSize: 13,
-                    color: "#1A1A1A",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
+      {/* ---------- the register ---------- */}
+      <section className="rounded-2xl border border-line-subtle bg-surface-card p-4 shadow-sm">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-[11px] font-bold uppercase tracking-wider text-ink-primary">
+              {t("registerTitle")}
+            </h2>
+            <p className="mt-0.5 text-[12px] text-ink-muted">
+              {tab === "archived"
+                ? t("registerHintArchived")
+                : tab === "recent"
+                  ? t("registerHintRecent")
+                  : t("registerHintEligible")}
+            </p>
+          </div>
+          <div role="tablist" className="inline-flex gap-1 rounded-lg border border-line-strong bg-surface-selected p-1">
+            {(["eligible", "archived", "recent"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={tab === k}
+                onClick={() => {
+                  setTab(k);
+                  setSelected(new Set());
+                }}
+                className={`rounded-md px-3 py-1.5 text-[12.5px] font-semibold ${
+                  tab === k ? "bg-surface-card text-ink-primary shadow-sm" : "text-ink-secondary"
+                }`}
+              >
+                {t(k === "eligible" ? "tabEligible" : k === "archived" ? "tabArchived" : "tabRecent")}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {selected.size > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg bg-ink-primary px-3.5 py-2.5 text-[12.5px] text-white">
+            <b className="font-bold">{t("selected", { count: selected.size })}</b>
+            <span className="flex-1" />
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              className="rounded-md border border-white/25 px-3 py-1.5 font-semibold text-white/80"
+            >
+              {t("clearSelection")}
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => run(tab === "archived" ? "unarchive" : "archive")}
+              className="rounded-md bg-white px-3 py-1.5 font-semibold text-ink-primary disabled:opacity-50"
+            >
+              {tab === "archived" ? t("bringBack") : t("putAway")}
+            </button>
+          </div>
+        )}
+
+        {error && (
+          <p className="mb-3 rounded-lg border border-[#F6D9D5] bg-[#FFF4F4] px-3 py-2 text-[12.5px] text-[#8C2A18]">
+            {error}
+          </p>
+        )}
+        {notice && !error && (
+          <p className="mb-3 rounded-lg border border-[#CDE8D8] bg-brand-bg px-3 py-2 text-[12.5px] text-brand">
+            {notice}
+          </p>
+        )}
+
+        <DataTable minWidth={720}>
+          <thead>
+            <tr>
+              <Th align="start" className="w-10">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-brand align-middle"
+                  aria-label={t("selectAll")}
+                  checked={visible.length > 0 && visible.every((r) => selected.has(r.id))}
+                  onChange={(e) =>
+                    setSelected(e.target.checked ? new Set(visible.map((r) => r.id)) : new Set())
+                  }
+                />
+              </Th>
+              <Th align="start">#</Th>
+              <Th align="start">{t("cityCol")}</Th>
+              <Th align="start">{t("outcomeCol")}</Th>
+              <Th align="start">{t("reasonCol")}</Th>
+              <Th>{t("finishedAgo")}</Th>
+              <Th align="start">{t("whereItIs")}</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.length === 0 && (
+              <tr>
+                <td
+                  colSpan={7}
+                  className="px-3.5 py-10 text-center text-[13px] text-ink-secondary"
                 >
-                  <span>{tReason(r)}</span>
-                  <span style={{
-                    padding: "2px 6px",
-                    borderRadius: 4,
-                    background: "#F1F1F1",
-                    color: "#1A1A1A",
-                    fontSize: 11,
-                    fontWeight: 500,
-                  }}>{count}</span>
-                </button>
+                  {t("emptyHere")}
+                </td>
+              </tr>
+            )}
+            {visible.map((r) => {
+              const st = stateOf(r);
+              const age = daysAgo(r.terminal_at);
+              const isOn = selected.has(r.id);
+              return (
+                <tr key={r.id} className={isOn ? "bg-brand-tint" : undefined}>
+                  <Td align="start">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-brand align-middle"
+                      aria-label={`${t("putAway")} ${r.id}`}
+                      checked={isOn}
+                      onChange={() => toggle(r.id)}
+                    />
+                  </Td>
+                  <Td align="start" className="font-mono text-[12px] text-ink-primary">
+                    {r.external_id ?? r.id.slice(0, 8)}
+                  </Td>
+                  <Td align="start" className="text-ink-secondary">
+                    {r.customer_city ?? "—"}
+                  </Td>
+                  <Td align="start">
+                    <StatusChip status={r.status} label={tStatus(r.status)} />
+                  </Td>
+                  <Td align="start" className="text-ink-secondary">
+                    {r.rejection_reason ? tReason(r.rejection_reason) : "—"}
+                  </Td>
+                  <Td className="tabular-nums text-ink-secondary">
+                    {age === null ? "—" : t("days", { n: String(age) })}
+                  </Td>
+                  <Td align="start">
+                    <PlacementChip
+                      state={st}
+                      label={
+                        st === "archived"
+                          ? t("stateArchived")
+                          : st === "eligible"
+                            ? t("stateEligible")
+                            : t("stateInList")
+                      }
+                    />
+                  </Td>
+                </tr>
               );
             })}
-          </div>
-        ) : (
-          <p style={emptyTextStyle}>{summaryLoading ? t("loading") : t("noRejections")}</p>
-        )}
+          </tbody>
+        </DataTable>
       </section>
-
-      {/* Return investigation — top products / cities / carriers by return volume */}
-      <section style={sectionStyle}>
-        <h2 style={sectionTitleStyle}>{t("returnInvestigation")}</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
-          <TopList
-            title={t("topReturnedProducts")}
-            empty={t("noReturns")}
-            items={
-              summary?.topReturnedProducts.map((p) => ({
-                key: p.product_id,
-                label: p.product_name || p.product_id,
-                count: p.count,
-              })) ?? []
-            }
-          />
-          <TopList
-            title={t("topReturnCities")}
-            empty={t("noReturns")}
-            items={
-              summary?.topReturnCities.map((c) => ({
-                key: c.city,
-                label: c.city,
-                count: c.count,
-              })) ?? []
-            }
-          />
-          <TopList
-            title={t("topReturnCarriers")}
-            empty={t("noReturns")}
-            items={
-              summary?.topReturnCarriers.map((c) => ({
-                key: c.carrier_id,
-                label: c.carrier_id,
-                count: c.count,
-              })) ?? []
-            }
-          />
-        </div>
-      </section>
-
-      {/* Weekly cohort table */}
-      <section style={sectionStyle}>
-        <h2 style={sectionTitleStyle}>{t("cohortsWeekly")}</h2>
-        {summary && summary.cohorts.length > 0 ? (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ textAlign: "start", color: "#6D7175" }}>
-                  <th style={thStyle}>{t("week")}</th>
-                  <th style={thStyle}>{tStatus("delivered")}</th>
-                  <th style={thStyle}>{tStatus("returned")}</th>
-                  <th style={thStyle}>{tStatus("rejected")}</th>
-                  <th style={thStyle}>{tStatus("deleted")}</th>
-                  <th style={thStyle}>{t("total")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {summary.cohorts.map((c) => {
-                  const total = c.delivered + c.returned + c.rejected + c.deleted;
-                  return (
-                    <tr key={c.week} style={{ borderTop: "1px solid #F1F1F1" }}>
-                      <td style={tdStyle}>{c.week}</td>
-                      <td style={tdStyle}>{c.delivered}</td>
-                      <td style={tdStyle}>{c.returned}</td>
-                      <td style={tdStyle}>{c.rejected}</td>
-                      <td style={tdStyle}>{c.deleted}</td>
-                      <td style={{ ...tdStyle, fontWeight: 500 }}>{total}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p style={emptyTextStyle}>{summaryLoading ? t("loading") : t("noData")}</p>
-        )}
-      </section>
-
-      {/* Paginated order rows matching current filters */}
-      <section style={sectionStyle}>
-        <h2 style={sectionTitleStyle}>
-          {t("results", { count: rows.length })}
-        </h2>
-        <OrdersTable
-          rows={rows}
-          locale={locale}
-          currencyCode={currencyCode}
-          agents={[]}
-          selectedIds={new Set()}
-          highlightedIds={new Set()}
-          cancellingId={null}
-          recoveringId={recoveringId}
-          hasNext={hasNext}
-          hasPrev={hasPrev}
-          currentPage={currentPage}
-          pageSize={pageSize}
-          onNextPage={nextPage}
-          onPrevPage={prevPage}
-          onPageSizeChange={(n) => setPageSize(n as PageSize)}
-          onOpen={(id) => setOpenOrderId(id)}
-          onToggleSelect={() => {}}
-          onToggleSelectAll={() => {}}
-          onCancel={() => {}}
-          onRecover={canRecover ? handleRecover : undefined}
-          isLoading={listLoading}
-          isEmpty={!listLoading && rows.length === 0}
-        />
-      </section>
-
-      <OrderDetailPanel
-        key={openOrderId ?? "none"}
-        orderId={openOrderId}
-        role={role}
-        fallbackOrder={null}
-        onClose={() => setOpenOrderId(null)}
-        onCallTerminated={() => setOpenOrderId(null)}
-        onReturnToPool={undefined}
-        onReopened={() => void mutateList()}
-      />
     </div>
   );
 }
 
-function TopList({
+function visibleCount(
+  rows: OrdersListRow[],
+  stateOf: (r: OrdersListRow) => string,
+  want: string,
+): number {
+  return rows.filter((r) => stateOf(r) === want).length;
+}
+
+function Stat({ label, value, tone }: { label: string; value: number; tone?: "brand" }) {
+  return (
+    <div
+      className={`min-w-[112px] rounded-lg border px-3 py-2 ${
+        tone === "brand" ? "border-[#CDE8D8] bg-brand-bg" : "border-line bg-surface-card"
+      }`}
+    >
+      <p className="text-[10px] font-bold uppercase tracking-wide text-ink-muted">{label}</p>
+      <p
+        className={`mt-0.5 text-[19px] font-bold tabular-nums ${
+          tone === "brand" ? "text-brand" : "text-ink-primary"
+        }`}
+      >
+        {num(value)}
+      </p>
+    </div>
+  );
+}
+
+function WinCard({
   title,
-  empty,
-  items,
+  sub,
+  n,
+  highlight,
 }: {
   title: string;
-  empty: string;
-  items: Array<{ key: string; label: string; count: number }>;
+  sub: string;
+  n: number;
+  highlight?: boolean;
 }) {
   return (
-    <div style={{
-      background: "#FAFAFA",
-      border: "1px solid #F1F1F1",
-      borderRadius: 6,
-      padding: 12,
-    }}>
-      <h3 style={{ fontSize: 13, fontWeight: 500, color: "#6D7175", margin: "0 0 8px 0" }}>{title}</h3>
-      {items.length === 0 ? (
-        <p style={{ margin: 0, fontSize: 12, color: "#9AA0A6" }}>{empty}</p>
-      ) : (
-        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-          {items.map((i) => (
-            <li key={i.key} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#1A1A1A" }}>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>
-                {i.label}
-              </span>
-              <span style={{ fontWeight: 500 }}>{i.count}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div
+      className={`rounded-lg border p-3.5 ${
+        highlight ? "border-[#CDE8D8] bg-brand-bg" : "border-line opacity-70"
+      }`}
+    >
+      <p className="text-[10.5px] font-bold uppercase tracking-wide text-ink-muted">{title}</p>
+      <p className={`mt-1 text-[27px] font-bold leading-none tabular-nums ${highlight ? "text-brand" : "text-ink-primary"}`}>
+        {num(n)}
+      </p>
+      <p className="mt-1 text-[11.5px] leading-snug text-ink-secondary">{sub}</p>
     </div>
   );
 }
 
-const sectionStyle: React.CSSProperties = {
-  background: "#FFFFFF",
-  border: "1px solid #E1E3E5",
-  borderRadius: 8,
-  padding: 20,
-  display: "flex",
-  flexDirection: "column",
-  gap: 12,
-};
+/**
+ * Table primitives matching prototypes/products-ui-v4.html — sunken header
+ * band, hairline `line-subtle` rules, 12/14 cell padding, row hover, and no
+ * rule under the final row. All three tables on this page use them, so the
+ * register no longer looks like a different component from the two above it.
+ */
+function StatusChip({ status, label }: { status: string; label: string }) {
+  return (
+    <span
+      className={`inline-flex h-6 items-center rounded-lg px-2.5 text-[11.5px] font-semibold ${
+        OUTCOME_STYLE[status as Outcome]?.chip ?? "bg-surface-selected text-ink-secondary"
+      }`}
+    >
+      {label}
+    </span>
+  );
+}
 
-const sectionTitleStyle: React.CSSProperties = {
-  fontSize: 14,
-  fontWeight: 600,
-  color: "#1A1A1A",
-  margin: 0,
-};
+function PlacementChip({ state, label }: { state: string; label: string }) {
+  const tone =
+    state === "archived"
+      ? "bg-surface-selected text-ink-secondary"
+      : state === "eligible"
+        ? "bg-[#FFF1E6] text-[#8A4B00]"
+        : "bg-brand-bg text-brand";
+  return (
+    <span className={`inline-flex h-6 items-center rounded-lg px-2.5 text-[11.5px] font-semibold ${tone}`}>
+      {label}
+    </span>
+  );
+}
 
-const chipInputStyle: React.CSSProperties = {
-  height: 28,
-  padding: "0 8px",
-  fontSize: 12,
-  border: "1px solid #E1E3E5",
-  borderRadius: 6,
-  background: "#FFFFFF",
-  color: "#1A1A1A",
-  outline: "none",
-  fontFamily: "inherit",
-};
+function DataTable({
+  children,
+  minWidth,
+}: {
+  children: React.ReactNode;
+  minWidth?: number;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-line-subtle">
+      <table
+        className="w-full border-separate border-spacing-0 text-[13px] [&_tbody_tr:hover_td]:bg-surface-hover [&_tbody_tr:last-child_td]:border-b-0"
+        style={minWidth ? { minWidth } : undefined}
+      >
+        {children}
+      </table>
+    </div>
+  );
+}
 
-const emptyTextStyle: React.CSSProperties = {
-  margin: 0,
-  fontSize: 13,
-  color: "#6D7175",
-};
+function Th({
+  children,
+  align = "end",
+  className = "",
+}: {
+  children?: React.ReactNode;
+  align?: "start" | "end";
+  className?: string;
+}) {
+  return (
+    <th
+      scope="col"
+      className={`whitespace-nowrap border-b border-line-subtle bg-surface-sunken px-3.5 py-3 text-[10.5px] font-bold uppercase tracking-[0.06em] text-ink-muted ${
+        align === "start" ? "text-start" : "text-end"
+      } ${className}`}
+    >
+      {children}
+    </th>
+  );
+}
 
-const thStyle: React.CSSProperties = {
-  fontWeight: 500,
-  padding: "8px 10px",
-  fontSize: 12,
-  textTransform: "uppercase",
-  letterSpacing: "0.03em",
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "10px",
-  color: "#1A1A1A",
-};
+function Td({
+  children,
+  align = "end",
+  className = "",
+}: {
+  children?: React.ReactNode;
+  align?: "start" | "end";
+  className?: string;
+}) {
+  return (
+    <td
+      className={`border-b border-line-subtle px-3.5 py-3 ${
+        align === "start" ? "text-start" : "text-end"
+      } ${className}`}
+    >
+      {children}
+    </td>
+  );
+}

@@ -7,6 +7,11 @@ import {
   encodeCursor,
   listQuerySchema,
 } from "@/lib/orders/list-filters";
+import {
+  DEFAULT_ARCHIVE_AFTER_DAYS,
+  resolveArchiveState,
+  resolveArchiveStatuses,
+} from "@/lib/orders/archive-scope";
 import { applySearch } from "@/lib/orders/search-query";
 import { resolveProductDisplayName, unwrapEmbed } from "@/lib/orders/display-name";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
@@ -20,7 +25,7 @@ const LIST_SELECT =
   "product_id, product_name, variant_label, quantity, total_price, status, " +
   "assigned_to, carrier_id, rejection_reason, callback_scheduled_at, attempts_count, " +
   "carrier_barcode_deleted_at, carrier_barcode_deleted_carrier_code, " +
-  "created_at, updated_at, " +
+  "created_at, updated_at, terminal_at, archived_at, archived_by, " +
   "product:products(image_url, name)";
 
 export async function GET(req: NextRequest) {
@@ -77,10 +82,49 @@ export async function GET(req: NextRequest) {
     .limit(q.limit + 1); // peek one extra to know if there's a next page
 
   if (marketId) query = query.eq("market_id", marketId);
-  // "Afficher supprimées" toggle: when on, show ONLY soft-deleted orders;
-  // when off (default), hide deleted orders entirely.
-  if (q.include_deleted) query = query.eq("status", "deleted");
-  else query = query.neq("status", "deleted");
+
+  // Two separate axes, deliberately.
+  //
+  // `scope=archive` is the terminal-status view: it wants delivered, returned,
+  // rejected, cancelled and deleted together, so the soft-delete axis does not
+  // apply to it at all. Expressing the archive through `include_deleted`
+  // instead — which this route turns into `.eq("status","deleted")` — ANDed
+  // with the archive's own status list and left `status = 'deleted'` as the
+  // net predicate, so the archive table could only ever show soft-deleted
+  // orders while the summary above it counted all five.
+  //
+  // `include_deleted` keeps its original meaning for the orders list: it is the
+  // "Afficher supprimées" checkbox, and when on it shows ONLY soft-deleted
+  // orders.
+  if (q.scope === "archive") {
+    // Membership is "has finished". terminal_at carries the same set as the
+    // terminal statuses but is indexed and date-comparable, which is what the
+    // 30-day rule and the cohorts need.
+    query = query.not("terminal_at", "is", null).in("status", resolveArchiveStatuses(q.status));
+
+    // Where the finished order currently sits. Archiving is visibility only, so
+    // this narrows what is displayed and never what is counted.
+    const state = resolveArchiveState(q.state);
+    if (state === "archived") {
+      query = query.not("archived_at", "is", null);
+    } else if (state === "eligible" || state === "recent") {
+      const cutoff = new Date(
+        Date.now() - DEFAULT_ARCHIVE_AFTER_DAYS * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      query = query.is("archived_at", null);
+      query =
+        state === "eligible"
+          ? query.lt("terminal_at", cutoff)
+          : query.gte("terminal_at", cutoff);
+    }
+  } else {
+    // Orders that were put away drop out of the working list. This is the only
+    // thing archiving does — they are still counted and still searchable.
+    query = query.is("archived_at", null);
+
+    if (q.include_deleted) query = query.eq("status", "deleted");
+    else query = query.neq("status", "deleted");
+  }
 
   // ---- Preset filters ----
   switch (q.preset) {
@@ -113,7 +157,11 @@ export async function GET(req: NextRequest) {
   }
 
   // ---- Status multi-select ----
-  if (q.status) {
+  // Skipped in archive scope: `resolveArchiveStatuses` already consumed
+  // `q.status` above, and re-applying it here would AND a second predicate onto
+  // the same column — collapsing the view to nothing whenever the requested
+  // status was not itself terminal.
+  if (q.status && q.scope !== "archive") {
     const statuses = q.status.split(",").map((s) => s.trim()).filter(Boolean);
     if (statuses.length === 1) query = query.eq("status", statuses[0]);
     else if (statuses.length > 1) query = query.in("status", statuses);

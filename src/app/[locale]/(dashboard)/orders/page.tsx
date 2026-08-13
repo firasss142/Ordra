@@ -15,7 +15,7 @@ const LIST_COLS =
   "id, external_id, external_platform, market_id, customer_name, customer_phone, customer_city, " +
   "product_id, product_name, variant_label, quantity, total_price, status, " +
   "assigned_to, carrier_id, rejection_reason, callback_scheduled_at, " +
-  "created_at, updated_at, " +
+  "created_at, updated_at, terminal_at, archived_at, archived_by, " +
   // Must stay in sync with LIST_SELECT in /api/orders/list — this SSR prefetch
   // backs the first paint, and a missing embed would show external product
   // names that visibly swap once SWR revalidates.
@@ -71,6 +71,10 @@ export default async function OrdersPage({
           .select(LIST_COLS, { count: "exact" })
           .eq("market_id", prefetchMarketId)
           .neq("status", "deleted")
+          // Must match /api/orders/list exactly. This page hydrates SWR and is
+          // never refetched, so a mismatch would paint archived orders once and
+          // then drop them on the first filter change.
+          .is("archived_at", null)
           .order("created_at", { ascending: false })
           .order("id", { ascending: false })
           .limit(prefetchLimit)
