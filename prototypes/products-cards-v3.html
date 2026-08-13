@@ -1,0 +1,1193 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OMS — Produits v3 (cartes + fiche produit + édition)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ─────────────────────────────────────────────────────────────
+   Tokens — copied 1:1 from src/app/globals.css so the prototype
+   cannot drift from the shipped design system.
+   ───────────────────────────────────────────────────────────── */
+:root{
+  --bg-page:#F6F6F7; --bg-card:#FFFFFF; --sunken:#FAFAFB; --hover:#FAFAFA;
+  --ink-1:#1A1A1A; --ink-2:#6D7175; --ink-3:#9CA3AF;
+  --line-subtle:#ECEEF0; --line:#E1E3E5; --line-strong:#DADCE0;
+  --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4; --brand-pos:#16A34A;
+  --action:#2C6ECB; --action-bg:#EBF1FE;
+  --success:#008060; --success-bg:#F1F8F5;
+  --warning:#B98900; --warning-bg:#FFF8E6;
+  --critical:#D72C0D; --critical-bg:#FFF4F4;
+  --neutral:#6D7175; --neutral-bg:#F2F3F5;
+  --shadow-row:0 1px 2px rgba(16,24,40,.04);
+  --shadow-panel:0 4px 16px rgba(16,24,40,.06);
+  --shadow-float:0 8px 24px rgba(16,24,40,.10);
+  --sidebar-bg:#0E1013;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg-page); color:var(--ink-1);
+  font-family:"Inter","Noto Sans Arabic",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font-size:14px; line-height:1.45; -webkit-font-smoothing:antialiased;
+}
+.tnum{font-variant-numeric:tabular-nums}
+h1,h2,h3,h4,p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+[dir=auto]{unicode-bidi:plaintext}
+
+/* ── prototype chrome (not part of the product) ── */
+.proto-bar{
+  position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  background:var(--sidebar-bg);color:#E6E8EB;padding:9px 20px;
+}
+.proto-bar .tag{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7F858F}
+.proto-tabs{display:flex;gap:5px;margin-inline-start:auto;flex-wrap:wrap}
+.proto-tabs button{
+  border:1px solid rgba(255,255,255,.10);background:transparent;color:#B5BAC2;
+  border-radius:9px;padding:6px 13px;font-size:12.5px;font-weight:500;transition:.12s;
+}
+.proto-tabs button:hover{background:rgba(255,255,255,.06);color:#fff}
+.proto-tabs button[aria-selected=true]{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+.screen{display:none;padding:26px 30px 90px;max-width:1560px;margin:0 auto}
+.screen.on{display:block}
+.note{
+  display:flex;gap:11px;align-items:flex-start;border:1px dashed var(--line-strong);
+  background:#FFFDF5;border-radius:12px;padding:12px 15px;font-size:12.5px;color:var(--ink-2);
+  line-height:1.6;margin-bottom:22px;
+}
+.note b{color:var(--ink-1);font-weight:600}
+.note .k{flex:none;font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--warning);padding-top:1px}
+
+/* ── shared atoms ── */
+.chip{display:inline-flex;align-items:center;gap:5px;height:23px;padding:0 9px;border-radius:7px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.chip-ok{background:var(--brand-bg);color:var(--brand)}
+.chip-off{background:var(--neutral-bg);color:var(--ink-2)}
+.chip-warn{background:var(--warning-bg);color:var(--warning)}
+.chip-bad{background:var(--critical-bg);color:var(--critical)}
+.chip-info{background:var(--action-bg);color:var(--action)}
+.chip-sku{background:var(--sunken);color:var(--ink-2);font-weight:500;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px}
+
+.btn{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 15px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:13.5px;font-weight:500;transition:.12s;white-space:nowrap}
+.btn:hover{background:var(--sunken);border-color:var(--line-strong)}
+.btn-primary{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600;box-shadow:var(--shadow-row)}
+.btn-primary:hover{background:var(--brand-hover);border-color:var(--brand-hover)}
+.btn-sm{height:32px;padding:0 12px;font-size:12.5px;border-radius:9px}
+.btn-icon{width:34px;height:34px;padding:0;justify-content:center;border-radius:9px}
+
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:20px}
+.page-head h1{font-size:29px;font-weight:600;letter-spacing:-.028em;line-height:1.15}
+.page-head p{margin-top:6px;font-size:14.5px;color:var(--ink-2)}
+
+.sec-label{display:flex;align-items:center;gap:9px;font-size:11px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-2);margin-bottom:12px}
+.sec-label .meta{margin-inline-start:auto;font-size:12px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-3)}
+.card{background:var(--bg-card);border:1px solid var(--line-subtle);border-radius:15px}
+
+/* ══════════════════════════════════════════════════════════════
+   SCREEN 1 — Produits en cartes
+   ══════════════════════════════════════════════════════════════ */
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.search{position:relative;flex:1;min-width:260px;max-width:430px}
+.search input{
+  width:100%;height:42px;border:1px solid var(--line);border-radius:11px;background:#fff;
+  padding:0 14px 0 40px;font-size:14px;color:var(--ink-1);
+}
+.search input::placeholder{color:var(--ink-3)}
+.search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--ink-3)}
+.segmented{display:flex;background:var(--sunken);border:1px solid var(--line-subtle);border-radius:11px;padding:3px;gap:2px}
+.segmented button{border:0;background:transparent;border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:500;color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.segmented button:hover{color:var(--ink-1)}
+.segmented button[aria-pressed=true]{background:#fff;color:var(--ink-1);font-weight:600;box-shadow:var(--shadow-row)}
+.segmented .n{font-size:11px;font-weight:700;background:var(--neutral-bg);color:var(--ink-2);border-radius:5px;padding:1px 5px}
+.segmented button[aria-pressed=true] .n{background:var(--brand-bg);color:var(--brand)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(392px,1fr));gap:16px}
+
+.pcard{
+  background:var(--bg-card);border:1px solid var(--line-subtle);border-radius:16px;
+  display:flex;flex-direction:column;overflow:hidden;transition:.14s;position:relative;
+}
+.pcard:hover{border-color:var(--line-strong);box-shadow:var(--shadow-panel);transform:translateY(-1px)}
+.pcard[data-state=off]{background:#FCFCFD}
+.pcard[data-state=off] .pcard-img,.pcard[data-state=off] .pcard-name{opacity:.62}
+/* Rail inline-start réservé à la PERTE. Un rail vert sur chaque carte rentable
+   serait de la décoration : la règle du design system veut que la couleur
+   fonctionnelle signale un état qui demande une action. */
+.pcard::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:3px;background:transparent;border-radius:16px 0 0 16px}
+.pcard[data-tone=neg]::before{background:var(--critical)}
+
+.pcard-top{display:flex;gap:13px;padding:15px 16px 13px;align-items:flex-start}
+.pcard-img{
+  width:60px;height:60px;flex:none;border-radius:12px;border:1px solid var(--line-subtle);
+  background:var(--sunken) center/cover no-repeat;
+}
+.pcard-id{min-width:0;flex:1}
+.pcard-name{font-size:14.5px;font-weight:600;letter-spacing:-.012em;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pcard-meta{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;align-items:center}
+.pcard-menu{flex:none;width:30px;height:30px;border-radius:8px;border:1px solid transparent;background:transparent;display:grid;place-items:center;color:var(--ink-3)}
+.pcard-menu:hover{background:var(--sunken);border-color:var(--line-subtle);color:var(--ink-1)}
+
+/* ── funnel strip: commandes → confirmées → livrées ── */
+.funnel{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line-subtle);border-block:1px solid var(--line-subtle)}
+.fstep{background:#fff;padding:11px 14px 12px;display:flex;flex-direction:column;gap:2px}
+.fstep .lab{font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+.fstep .val{font-size:21px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.fstep .rate{font-size:11.5px;font-weight:600;color:var(--ink-2)}
+.fstep .rate.good{color:var(--brand-pos)}
+.fstep .rate.warn{color:var(--warning)}
+.fstep .rate.bad{color:var(--critical)}
+.fstep .track{height:3px;border-radius:2px;background:var(--sunken);margin-top:6px;overflow:hidden}
+.fstep .track i{display:block;height:100%;border-radius:2px;background:var(--brand)}
+.fstep .track i.warn{background:var(--warning)}
+.fstep .track i.bad{background:var(--critical)}
+
+/* ── money strip ── */
+.money{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--line-subtle)}
+.mcell{background:#fff;padding:11px 14px 13px;display:flex;flex-direction:column;gap:3px}
+.mcell.hero{background:var(--brand-tint)}
+.mcell.hero.neg{background:var(--critical-bg)}
+.mcell .lab{font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.mcell .val{font-size:15px;font-weight:700;letter-spacing:-.02em;line-height:1.25}
+.mcell.hero .val{font-size:16.5px;color:var(--brand-pos)}
+.mcell.hero.neg .val{color:var(--critical)}
+.mcell .sub{font-size:11px;color:var(--ink-3);font-weight:500}
+
+/* ── footer: stock + en cours ── */
+.pfoot{display:flex;align-items:center;gap:12px;padding:11px 16px 13px;background:#fff}
+.stockwrap{flex:1;min-width:0}
+.stockline{display:flex;align-items:baseline;gap:6px;font-size:12px;color:var(--ink-2)}
+.stockline b{font-size:13.5px;color:var(--ink-1);font-weight:700}
+.stockbar{height:5px;border-radius:3px;background:var(--sunken);margin-top:6px;overflow:hidden;display:flex}
+.stockbar i{display:block;height:100%;background:var(--brand)}
+.stockbar i.warn{background:var(--warning)}
+.stockbar i.bad{background:var(--critical)}
+.inflight{
+  flex:none;display:flex;align-items:center;gap:6px;height:27px;padding:0 10px;border-radius:8px;
+  background:var(--action-bg);color:var(--action);font-size:11.5px;font-weight:600;
+}
+.inflight.zero{background:var(--neutral-bg);color:var(--ink-3)}
+
+.empty-metrics{
+  padding:16px;text-align:center;font-size:12.5px;color:var(--ink-3);
+  background:var(--sunken);border-block:1px solid var(--line-subtle);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SCREEN 2 — Fiche produit /products/[id]
+   ══════════════════════════════════════════════════════════════ */
+.crumb{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-2);margin-bottom:14px}
+.crumb a:hover{color:var(--ink-1);text-decoration:underline}
+.dhead{display:flex;gap:18px;align-items:flex-start;padding:18px 20px;margin-bottom:20px}
+.dhead-img{width:84px;height:84px;flex:none;border-radius:14px;border:1px solid var(--line-subtle);background:var(--sunken) center/cover no-repeat}
+.dhead h1{font-size:22px;font-weight:600;letter-spacing:-.022em;line-height:1.3}
+.dhead-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;align-items:center}
+.dhead-acts{margin-inline-start:auto;display:flex;gap:8px;flex-wrap:wrap;flex:none}
+.dhead-quick{display:flex;gap:22px;margin-top:13px;flex-wrap:wrap}
+.dhead-quick div{display:flex;flex-direction:column;gap:1px}
+.dhead-quick .l{font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+.dhead-quick .v{font-size:14.5px;font-weight:700;letter-spacing:-.015em}
+
+section.block{margin-bottom:26px}
+.periodsel{display:flex;background:var(--sunken);border:1px solid var(--line-subtle);border-radius:10px;padding:3px;gap:2px}
+.periodsel button{border:0;background:transparent;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:500;color:var(--ink-2)}
+.periodsel button[aria-pressed=true]{background:#fff;color:var(--ink-1);font-weight:600;box-shadow:var(--shadow-row)}
+
+/* money section */
+.money-grid{display:grid;grid-template-columns:300px 1fr;gap:16px}
+.hero-net{padding:20px 22px;border:1px solid var(--brand-bg);background:var(--brand-tint);border-radius:15px;display:flex;flex-direction:column;gap:5px}
+.hero-net .l{font-size:11.5px;font-weight:600;color:var(--ink-2)}
+.hero-net .v{font-size:34px;font-weight:700;letter-spacing:-.032em;line-height:1;color:var(--brand-pos)}
+.hero-net .s{font-size:12px;color:var(--ink-2);margin-top:3px}
+.hero-sub{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line-subtle);border:1px solid var(--line-subtle);border-radius:13px;overflow:hidden;margin-top:14px}
+.hero-sub div{background:#fff;padding:11px 13px;display:flex;flex-direction:column;gap:2px}
+.hero-sub .l{font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.hero-sub .v{font-size:15px;font-weight:700;letter-spacing:-.018em}
+
+.bars{padding:18px 20px}
+.bar{display:grid;grid-template-columns:132px 1fr 116px;align-items:center;gap:14px;padding:5px 0}
+.bar.total{border-top:1px solid var(--line-subtle);margin-top:6px;padding-top:11px}
+.bar .l{font-size:12.5px;color:var(--ink-2)}
+.bar.total .l{font-size:13px;font-weight:600;color:var(--ink-1)}
+.bar .t{height:8px;border-radius:4px;background:var(--sunken);overflow:hidden}
+.bar .t i{display:block;height:100%;border-radius:4px}
+.bar .v{text-align:right;font-size:12.5px;font-weight:600}
+.bar.total .v{font-size:14px;font-weight:700}
+
+/* agents section */
+.agent-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line-subtle);border:1px solid var(--line-subtle);border-radius:14px;overflow:hidden;margin-bottom:14px}
+.akpi{background:#fff;padding:15px 17px;display:flex;flex-direction:column;gap:3px}
+.akpi .l{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.akpi .v{font-size:26px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.akpi .s{font-size:12px;color:var(--ink-2)}
+.akpi .s b{color:var(--ink-1);font-weight:600}
+.akpi .pct{font-size:13px;font-weight:700;color:var(--brand-pos)}
+.icon-holder{width:22px;height:22px;border-radius:7px;background:var(--brand-bg);color:var(--brand);display:grid;place-items:center;flex:none}
+.icon-holder.info{background:var(--action-bg);color:var(--action)}
+.icon-holder.warn{background:var(--warning-bg);color:var(--warning)}
+.icon-holder.neutral{background:var(--neutral-bg);color:var(--ink-2)}
+
+table.rank{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+table.rank th{
+  text-align:right;font-size:10.5px;font-weight:700;letter-spacing:.055em;text-transform:uppercase;color:var(--ink-3);
+  padding:11px 12px;background:var(--sunken);border-bottom:1px solid var(--line-subtle);white-space:nowrap;
+}
+table.rank th:first-child,table.rank th:nth-child(2){text-align:left}
+table.rank th.sorted{color:var(--brand)}
+table.rank td{padding:11px 12px;border-bottom:1px solid var(--line-subtle);text-align:right;white-space:nowrap}
+table.rank td:first-child,table.rank td:nth-child(2){text-align:left}
+table.rank tbody tr:hover td{background:var(--hover)}
+table.rank tbody tr:last-child td{border-bottom:0}
+table.rank tr.group td{background:var(--sunken);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);padding:7px 12px}
+table.rank tr.muted td{color:var(--ink-2)}
+.rankno{display:grid;place-items:center;width:22px;height:22px;border-radius:7px;background:var(--neutral-bg);font-size:11.5px;font-weight:700;color:var(--ink-2)}
+.rankno.top{background:var(--brand);color:#fff}
+.who{display:flex;align-items:center;gap:9px}
+.av{width:27px;height:27px;border-radius:9px;background:var(--brand-bg);color:var(--brand);display:grid;place-items:center;font-size:11.5px;font-weight:700;flex:none}
+.av.n{background:var(--neutral-bg);color:var(--ink-2)}
+.who .nm{font-weight:600;font-size:13px}
+.who .rl{font-size:11px;color:var(--ink-3)}
+.ratecell{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.ratecell b{font-weight:700}
+.minibar{width:58px;height:4px;border-radius:2px;background:var(--sunken);overflow:hidden}
+.minibar i{display:block;height:100%;border-radius:2px;background:var(--brand)}
+.minibar i.warn{background:var(--warning)}
+.minibar i.bad{background:var(--critical)}
+.pos{color:var(--brand-pos);font-weight:700}
+.neg{color:var(--critical);font-weight:700}
+
+.kv{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line-subtle);border:1px solid var(--line-subtle);border-radius:14px;overflow:hidden}
+.kv div{background:#fff;padding:12px 15px;display:flex;flex-direction:column;gap:2px}
+.kv .l{font-size:11px;font-weight:500;color:var(--ink-2)}
+.kv .v{font-size:15px;font-weight:600;letter-spacing:-.016em}
+
+.sheet-empty{border:1px dashed var(--line-strong);background:var(--sunken);border-radius:13px;padding:22px;text-align:center;color:var(--ink-2);font-size:13px}
+.sheet-empty b{display:block;color:var(--ink-1);font-size:13.5px;margin-bottom:4px}
+
+/* ══════════════════════════════════════════════════════════════
+   SCREEN 3 — Édition produit
+   ══════════════════════════════════════════════════════════════ */
+.edit-wrap{display:grid;grid-template-columns:1fr 352px;gap:22px;align-items:start}
+.fsec{margin-bottom:16px;padding:20px 22px}
+.fsec-head{display:flex;align-items:center;gap:11px;margin-bottom:4px}
+.fsec-head h3{font-size:15px;font-weight:600;letter-spacing:-.012em}
+.fsec-head .lock{margin-inline-start:auto}
+.fsec-hint{font-size:12.5px;color:var(--ink-2);margin-bottom:16px;line-height:1.55}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.f{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.f:last-child{margin-bottom:0}
+.f label{font-size:12.5px;font-weight:600;color:var(--ink-1)}
+.f .h{font-size:11.5px;color:var(--ink-3);line-height:1.5}
+.f input,.f select,.f textarea{
+  width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;
+  padding:9px 12px;font-size:13.5px;font-family:inherit;color:var(--ink-1);transition:.12s;
+}
+.f input:hover,.f select:hover,.f textarea:hover{border-color:var(--line-strong)}
+.f input:focus,.f select:focus,.f textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg)}
+.f input:disabled{background:var(--sunken);color:var(--ink-3);cursor:not-allowed}
+.f textarea{resize:vertical;line-height:1.55}
+.f .unit{position:relative}
+.f .unit input{padding-right:52px}
+.f .unit span{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--ink-3);font-weight:500}
+.counter{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-3)}
+.imgpick{display:flex;gap:14px;align-items:center}
+.imgpick .thumb{width:82px;height:82px;border-radius:13px;border:1px solid var(--line-subtle);background:var(--sunken) center/cover no-repeat;flex:none}
+.switch{display:flex;align-items:center;gap:11px;padding:13px 15px;border:1px solid var(--line-subtle);border-radius:12px;background:var(--sunken)}
+.switch .sw{width:38px;height:22px;border-radius:11px;background:var(--brand);position:relative;flex:none;transition:.15s}
+.switch .sw::after{content:"";position:absolute;top:2px;left:18px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.15s}
+.switch[data-on=false] .sw{background:var(--line-strong)}
+.switch[data-on=false] .sw::after{left:2px}
+.switch .txt{font-size:13px;font-weight:600}
+.switch .txt span{display:block;font-size:11.5px;font-weight:400;color:var(--ink-2)}
+
+.aside{position:sticky;top:70px;display:flex;flex-direction:column;gap:14px}
+.aside .card{padding:16px 17px}
+.aside h4{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);margin-bottom:12px}
+.margin-preview{display:flex;flex-direction:column;gap:9px}
+.mp-row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-2)}
+.mp-row b{color:var(--ink-1);font-weight:600}
+.mp-row.total{border-top:1px solid var(--line-subtle);padding-top:9px;font-size:13.5px}
+.mp-row.total b{font-size:16px;color:var(--brand-pos);font-weight:700}
+.agentprev{border:1px solid var(--line-subtle);border-radius:12px;overflow:hidden}
+.agentprev .bar{display:block;padding:9px 12px;background:var(--action-bg);color:var(--action);font-size:12.5px;font-weight:600}
+.agentprev .body{padding:12px;font-size:12.5px;color:var(--ink-2);line-height:1.6;min-height:70px}
+.savebar{
+  position:fixed;left:0;right:0;bottom:0;z-index:50;background:#fff;border-top:1px solid var(--line);
+  padding:12px 30px;display:flex;align-items:center;gap:11px;box-shadow:0 -4px 16px rgba(16,24,40,.06);
+}
+.savebar .msg{font-size:12.5px;color:var(--ink-2);margin-inline-end:auto}
+
+@media (max-width:1180px){
+  .money-grid{grid-template-columns:1fr}
+  .edit-wrap{grid-template-columns:1fr}
+  .aside{position:static}
+  .agent-kpis{grid-template-columns:1fr 1fr}
+}
+.scroll-x{overflow-x:auto}
+</style>
+</head>
+<body>
+
+<div class="proto-bar">
+  <span class="tag">Prototype</span>
+  <span style="font-size:13px;font-weight:600">Produits v3 — cartes · fiche produit · édition</span>
+  <span style="font-size:11.5px;color:#7F858F">Chiffres réels · marché Libye · cumul depuis le lancement</span>
+  <div class="proto-tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-go="s1">1 · Produits (cartes)</button>
+    <button role="tab" aria-selected="false" data-go="s2">2 · Fiche produit</button>
+    <button role="tab" aria-selected="false" data-go="s3">3 · Modifier</button>
+  </div>
+</div>
+
+<!-- ══════════════════ SCREEN 1 ══════════════════ -->
+<div class="screen on" id="s1">
+
+  <div class="note">
+    <span class="k">Ce qui change</span>
+    <div>
+      Les 3 tuiles KPI et la barre « attention requise » disparaissent — elles répondaient à une question
+      (« comment va le catalogue ? ») que le <b>tableau de bord</b> traite déjà. La page Produits redevient
+      un catalogue : <b>une carte par produit</b>, portant les 4 mesures demandées.
+      <br>
+      <b>Règles de calcul appliquées ici :</b>
+      le <b>CA ne compte que les commandes livrées</b> ·
+      une commande n'est <b>uploadée pour de bon</b> qu'une fois qu'un statut transporteur la suit
+      (livrée / retournée) — avant ça elle peut être rouverte, donc le <b>taux de livraison se calcule sur les
+      commandes réglées</b>, pas sur tout ce qui est parti. Le reste est affiché à part en « en cours ».
+    </div>
+  </div>
+
+  <div class="page-head">
+    <div>
+      <h1>Produits</h1>
+      <p>8 produits · 5 actifs · marché Libye</p>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Exporter CSV</button>
+      <button class="btn btn-primary"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Ajouter un produit</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" placeholder="Rechercher un produit…">
+    </div>
+    <div class="segmented" role="group">
+      <button aria-pressed="true">Tous <span class="n">8</span></button>
+      <button aria-pressed="false">Actifs <span class="n">5</span></button>
+      <button aria-pressed="false">Rupture <span class="n">2</span></button>
+      <button aria-pressed="false">Perte <span class="n">2</span></button>
+      <button aria-pressed="false">Sans ventes <span class="n">3</span></button>
+    </div>
+    <button class="btn btn-sm" style="margin-inline-start:auto">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5h10M11 12h10M11 19h10M3 5l2 2 3-3M3 12l2 2 3-3M3 19l2 2 3-3"/></svg>
+      Trier : Profit net
+    </button>
+    <button class="btn btn-sm">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="18" rx="1.5"/></svg>
+      Densité
+    </button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</div>
+
+<!-- ══════════════════ SCREEN 2 ══════════════════ -->
+<div class="screen" id="s2">
+
+  <div class="note">
+    <span class="k">Ce qui change</span>
+    <div>
+      Le tiroir latéral (<code>?open=&lt;id&gt;</code>) est supprimé. Cliquer une carte ouvre
+      <b>/products/[id]</b> — plus de bouton « fiche complète », il n'y a plus qu'une seule fiche.
+      Tout le contenu du tiroir est conservé et étendu.
+      <b>Nouveauté : la section « Agents » se place juste après « Argent »</b> — appels, commandes traitées et créées,
+      confirmées (n + %), livrées (n + %), puis le classement comparatif de tous les agents ayant travaillé ce produit.
+    </div>
+  </div>
+
+  <div class="crumb">
+    <a href="#">Produits</a>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
+    <span dir="auto">دميه ملاكمه حجم صغير</span>
+  </div>
+
+  <div class="card dhead">
+    <div class="dhead-img" id="dImg"></div>
+    <div style="min-width:0">
+      <h1 dir="auto">دميه ملاكمه حجم صغير</h1>
+      <div class="dhead-chips">
+        <span class="chip chip-ok">Actif</span>
+        <span class="chip chip-sku">box-wafra-shop</span>
+        <span class="chip chip-info">129,000 د.ل prix catalogue</span>
+      </div>
+      <div class="dhead-quick">
+        <div><span class="l">Stock</span><span class="v tnum">216 <span style="font-weight:400;color:var(--ink-3);font-size:12px">/ seuil 20</span></span></div>
+        <div><span class="l">Valeur du stock</span><span class="v tnum" id="dStockVal">—</span></div>
+        <div><span class="l">Commandes</span><span class="v tnum">866</span></div>
+        <div><span class="l">Agents impliqués</span><span class="v tnum">8</span></div>
+        <div><span class="l">Endommagés</span><span class="v tnum">0</span></div>
+      </div>
+    </div>
+    <div class="dhead-acts">
+      <button class="btn btn-primary" data-go="s3">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        Modifier
+      </button>
+      <button class="btn">Ajuster le stock</button>
+      <button class="btn">Désactiver</button>
+      <button class="btn btn-icon" aria-label="Plus d'actions">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── PIPELINE ── -->
+  <section class="block">
+    <div class="sec-label">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 4h18l-7 8v7l-4 2v-9L3 4Z"/></svg>
+      Entonnoir
+      <span class="meta">
+        <span class="periodsel" style="display:inline-flex;vertical-align:middle">
+          <button aria-pressed="false">7 j</button>
+          <button aria-pressed="false">30 j</button>
+          <button aria-pressed="true">Depuis le début</button>
+        </span>
+      </span>
+    </div>
+    <div class="card" style="padding:18px 20px" id="dFunnel"></div>
+  </section>
+
+  <!-- ── ARGENT ── -->
+  <section class="block">
+    <div class="sec-label">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Argent
+      <span class="meta">CA compté uniquement sur les commandes livrées</span>
+    </div>
+    <div class="money-grid">
+      <div>
+        <div class="hero-net">
+          <span class="l">Profit net</span>
+          <span class="v tnum" id="dNet">—</span>
+          <span class="s tnum" id="dNetSub">—</span>
+        </div>
+        <div class="hero-sub">
+          <div><span class="l">Chiffre d'affaires</span><span class="v tnum" id="dRev">—</span></div>
+          <div><span class="l">Profit brut</span><span class="v tnum" id="dGross">—</span></div>
+          <div><span class="l">Marge nette</span><span class="v tnum" id="dMargin">—</span></div>
+          <div><span class="l">Net / livraison</span><span class="v tnum" id="dPerDel">—</span></div>
+        </div>
+      </div>
+      <div class="card bars" id="dBars"></div>
+    </div>
+  </section>
+
+  <!-- ── AGENTS (nouveau) ── -->
+  <section class="block">
+    <div class="sec-label">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/></svg>
+      Agents sur ce produit
+      <span class="meta">8 personnes ont travaillé ce produit</span>
+    </div>
+
+    <div class="agent-kpis">
+      <div class="akpi">
+        <span class="l"><span class="icon-holder info"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg></span>Appels</span>
+        <span class="v tnum">1 450</span>
+        <span class="s tnum">sur <b>519</b> commandes appelées · <b>2,79</b> appels / commande</span>
+      </div>
+      <div class="akpi">
+        <span class="l"><span class="icon-holder neutral"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg></span>Traitées</span>
+        <span class="v tnum">770</span>
+        <span class="s tnum"><b>89 %</b> des 866 commandes · <b>8</b> créées à la main</span>
+      </div>
+      <div class="akpi">
+        <span class="l"><span class="icon-holder"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg></span>Confirmées</span>
+        <span class="v tnum">453</span>
+        <span class="s"><span class="pct">52,3 %</span> <span class="tnum" style="color:var(--ink-2)">des commandes traitées : 58,8 %</span></span>
+      </div>
+      <div class="akpi">
+        <span class="l"><span class="icon-holder"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M1 3h13v13H1zM14 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="17.5" cy="18.5" r="2"/></svg></span>Livrées</span>
+        <span class="v tnum">108</span>
+        <span class="s"><span class="pct">79,4 %</span> <span class="tnum" style="color:var(--ink-2)">des 136 réglées · 229 en cours</span></span>
+      </div>
+    </div>
+
+    <div class="card" style="overflow:hidden">
+      <div style="display:flex;align-items:center;gap:11px;padding:13px 16px;border-bottom:1px solid var(--line-subtle)">
+        <h3 style="font-size:14px;font-weight:600">Classement des agents</h3>
+        <span style="font-size:12px;color:var(--ink-3)">trié par CA généré · les colonnes sont triables</span>
+        <button class="btn btn-sm" style="margin-inline-start:auto">Exporter</button>
+      </div>
+      <div class="scroll-x">
+        <table class="rank">
+          <thead>
+            <tr>
+              <th style="width:44px">#</th>
+              <th>Agent</th>
+              <th>Appels</th>
+              <th>App./cmd</th>
+              <th>Traitées</th>
+              <th>Créées</th>
+              <th>Confirmées</th>
+              <th>Taux conf.</th>
+              <th>Livrées</th>
+              <th>Retours</th>
+              <th>Taux liv.</th>
+              <th class="sorted">CA généré</th>
+            </tr>
+          </thead>
+          <tbody id="rankBody"></tbody>
+        </table>
+      </div>
+      <div style="padding:11px 16px;border-top:1px solid var(--line-subtle);font-size:11.5px;color:var(--ink-3);line-height:1.6">
+        <b style="color:var(--ink-2)">Lecture —</b>
+        « Traitées » = commandes distinctes sur lesquelles l'agent a posé une action (appel, confirmation, rejet).
+        Une même commande peut être traitée par plusieurs agents : la somme de la colonne dépasse donc les 866 commandes du produit.
+        « Livrées » et « CA généré » sont attribués au <b>dernier agent qui a confirmé</b> la commande.
+        « Taux liv. » se calcule sur les commandes réglées (livrées + retournées), jamais sur celles encore chez le transporteur.
+      </div>
+    </div>
+  </section>
+
+  <!-- ── STOCK ── -->
+  <section class="block">
+    <div class="sec-label">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 8v8l-9 5-9-5V8l9-5 9 5Z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>
+      Stock
+    </div>
+    <div class="kv">
+      <div><span class="l">Stock actuel</span><span class="v tnum">216</span></div>
+      <div><span class="l">Seuil d'alerte</span><span class="v tnum">20</span></div>
+      <div><span class="l">Stock initial</span><span class="v tnum">0</span></div>
+      <div><span class="l">Valeur du stock</span><span class="v tnum" id="dStockVal2">—</span></div>
+      <div><span class="l">Retours endommagés</span><span class="v tnum">0</span></div>
+      <div><span class="l">Sorties (scannées)</span><span class="v tnum">112 unités livrées</span></div>
+    </div>
+  </section>
+
+  <!-- ── COÛTS ── -->
+  <section class="block">
+    <div class="sec-label">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+      Modèle de coût
+      <span class="meta">modifiable par le super admin uniquement</span>
+    </div>
+    <div class="kv">
+      <div><span class="l">Coût unitaire (COGS)</span><span class="v tnum" id="dCogs">—</span></div>
+      <div><span class="l">Emballage / commande</span><span class="v tnum">0,000 د.ل</span></div>
+      <div><span class="l">Traitement confirmation</span><span class="v tnum">0,000 د.ل</span></div>
+      <div><span class="l">Prix catalogue</span><span class="v tnum">129,000 د.ل</span></div>
+      <div><span class="l">Prix plancher</span><span class="v" style="color:var(--ink-3)">non défini</span></div>
+      <div><span class="l">Budget pub attribué</span><span class="v tnum">0,000 د.ل</span></div>
+    </div>
+  </section>
+
+  <!-- ── FICHE AGENT ── -->
+  <section class="block">
+    <div class="sec-label">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+      Fiche agent
+      <span class="meta">ce que l'agent lit pendant l'appel</span>
+    </div>
+    <div class="sheet-empty">
+      <b>Aucun contenu rédigé pour ce produit</b>
+      Brief, notes, composition, utilisation, contre-indications et vente croisée sont vides — les agents appellent sans script.
+      <div style="margin-top:13px"><button class="btn btn-primary btn-sm" data-go="s3">Rédiger la fiche</button></div>
+    </div>
+  </section>
+
+  <!-- ── HISTORIQUE ── -->
+  <section class="block">
+    <div class="sec-label">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      Historique de stock
+    </div>
+    <div class="card" style="padding:15px 18px;font-size:13px;color:var(--ink-2)">
+      Journal des mouvements (scan sortie, retour, ajustement manuel) — inchangé par rapport à la version actuelle.
+    </div>
+  </section>
+</div>
+
+<!-- ══════════════════ SCREEN 3 ══════════════════ -->
+<div class="screen" id="s3">
+
+  <div class="note">
+    <span class="k">Ce qui change</span>
+    <div>
+      La page d'édition est aujourd'hui la seule de la console encore écrite en styles inline
+      (bordures 4 px, bouton noir, colonne de 600 px). Elle passe aux mêmes jetons que le reste :
+      cartes blanches, rayons 10–15 px, vert de marque, focus vert, champs 38–40 px.
+      Ajouts : <b>colonne latérale collante</b> avec l'aperçu de marge en direct et un aperçu de la fiche
+      telle que l'agent la verra, plus une <b>barre d'enregistrement fixe</b> — le bouton n'est plus perdu en bas de page.
+    </div>
+  </div>
+
+  <div class="crumb">
+    <a href="#">Produits</a>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
+    <a href="#" data-go="s2" dir="auto">دميه ملاكمه حجم صغير</a>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
+    <span>Modifier</span>
+  </div>
+
+  <div class="page-head" style="margin-bottom:18px">
+    <div>
+      <h1 style="font-size:24px">Modifier le produit</h1>
+      <p style="font-size:13.5px">Identité, fiche agent, modèle de coût et statut. Les champs verrouillés dépendent de votre rôle.</p>
+    </div>
+    <span class="chip chip-ok" style="height:28px">Connecté en super admin — tous les champs ouverts</span>
+  </div>
+
+  <div class="edit-wrap">
+    <div>
+      <!-- Identité -->
+      <div class="card fsec">
+        <div class="fsec-head">
+          <span class="icon-holder"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 3h18v18H3z"/><path d="m3 15 5-5 4 4 3-3 6 6"/></svg></span>
+          <h3>Identité</h3>
+          <span class="chip chip-warn lock">Super admin</span>
+        </div>
+        <p class="fsec-hint">Nom affiché partout dans la console et sur les bordereaux transporteur.</p>
+        <div class="frow">
+          <div class="f">
+            <label for="e-name">Nom du produit *</label>
+            <input id="e-name" dir="auto" value="دميه ملاكمه حجم صغير">
+          </div>
+          <div class="f">
+            <label for="e-sku">Référence (SKU)</label>
+            <input id="e-sku" value="box-wafra-shop">
+            <span class="h">Sert au rapprochement avec la boutique. Doit rester unique dans le marché.</span>
+          </div>
+        </div>
+        <div class="f">
+          <label>Image</label>
+          <div class="imgpick">
+            <div class="thumb" id="eImg"></div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-sm">Remplacer</button>
+                <button class="btn btn-sm">Retirer</button>
+              </div>
+              <span class="h">JPG ou PNG, 1 Mo max. Affichée sur la carte produit et dans la file d'attente des agents.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fiche agent -->
+      <div class="card fsec">
+        <div class="fsec-head">
+          <span class="icon-holder info"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg></span>
+          <h3>Fiche agent</h3>
+          <span class="chip chip-info lock">Manager du marché</span>
+        </div>
+        <p class="fsec-hint">Ce bloc s'affiche à l'agent pendant l'appel. Un brief court en haut, le détail en dessous.</p>
+
+        <div class="f">
+          <label for="e-brief">Brief (une phrase)</label>
+          <input id="e-brief" maxlength="120" placeholder="Ex. Insister sur la livraison sous 48 h à Tripoli">
+          <div class="counter"><span>Première ligne que l'agent voit, en surbrillance.</span><span class="tnum">120 restants</span></div>
+        </div>
+        <div class="frow">
+          <div class="f">
+            <label for="e-tone">Ton du brief</label>
+            <select id="e-tone">
+              <option>Information (bleu)</option>
+              <option>Avertissement (ambre)</option>
+              <option>Critique (rouge)</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="e-cross">Vente croisée</label>
+            <select id="e-cross">
+              <option>Aucune</option>
+              <option>القرآن تدبر وعمل</option>
+              <option>دميه ملاكمه حجم متوسط</option>
+              <option>كتاب الداء والدواء للإمام ابن القيم</option>
+            </select>
+          </div>
+        </div>
+        <div class="f">
+          <label for="e-notes">Notes détaillées</label>
+          <textarea id="e-notes" rows="5" placeholder="Arguments, objections fréquentes, ce qu'il ne faut pas promettre…"></textarea>
+        </div>
+        <div class="frow">
+          <div class="f">
+            <label for="e-comp">Composition</label>
+            <textarea id="e-comp" rows="2"></textarea>
+          </div>
+          <div class="f">
+            <label for="e-use">Utilisation</label>
+            <textarea id="e-use" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="f">
+          <label for="e-contra">Contre-indications</label>
+          <textarea id="e-contra" rows="2"></textarea>
+        </div>
+      </div>
+
+      <!-- Coûts -->
+      <div class="card fsec">
+        <div class="fsec-head">
+          <span class="icon-holder warn"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+          <h3>Modèle de coût</h3>
+          <span class="chip chip-warn lock">Super admin</span>
+        </div>
+        <p class="fsec-hint">Ces trois champs alimentent chaque calcul de rentabilité du produit. La colonne de droite montre l'effet en direct.</p>
+        <div class="frow">
+          <div class="f">
+            <label for="e-cogs">Coût unitaire (COGS) *</label>
+            <div class="unit"><input id="e-cogs" type="number" step="0.001" value="24.998" data-live="cogs"><span>د.ل</span></div>
+            <span class="h">Prix d'achat d'une unité, hors transport et emballage.</span>
+          </div>
+          <div class="f">
+            <label for="e-pack">Emballage / commande</label>
+            <div class="unit"><input id="e-pack" type="number" step="0.001" value="0.000" data-live="pack"><span>د.ل</span></div>
+          </div>
+          <div class="f">
+            <label for="e-proc">Traitement / confirmation</label>
+            <div class="unit"><input id="e-proc" type="number" step="0.001" value="0.000" data-live="proc"><span>د.ل</span></div>
+          </div>
+          <div class="f">
+            <label for="e-price">Prix catalogue</label>
+            <div class="unit"><input id="e-price" type="number" step="0.001" value="129.000" data-live="price"><span>د.ل</span></div>
+          </div>
+          <div class="f">
+            <label for="e-floor">Prix plancher</label>
+            <div class="unit"><input id="e-floor" type="number" step="0.001" placeholder="—"><span>د.ل</span></div>
+            <span class="h">En dessous, l'agent ne peut pas négocier.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stock & statut -->
+      <div class="card fsec" style="margin-bottom:0">
+        <div class="fsec-head">
+          <span class="icon-holder neutral"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 8v8l-9 5-9-5V8l9-5 9 5Z"/><path d="m3 8 9 5 9-5"/></svg></span>
+          <h3>Stock et statut</h3>
+          <span class="chip chip-warn lock">Super admin</span>
+        </div>
+        <p class="fsec-hint">Le stock lui-même ne se modifie pas ici — il passe par « Ajuster le stock », qui écrit une ligne au journal d'inventaire.</p>
+        <div class="frow">
+          <div class="f">
+            <label for="e-thr">Seuil d'alerte stock bas</label>
+            <input id="e-thr" type="number" value="20">
+          </div>
+          <div class="f">
+            <label for="e-stock">Stock actuel</label>
+            <input id="e-stock" value="216" disabled>
+            <span class="h">Lecture seule · dernière sortie il y a 3 jours</span>
+          </div>
+        </div>
+        <div class="switch" data-on="true">
+          <span class="sw"></span>
+          <span class="txt">Produit actif<span>Visible dans la file des agents et acceptant de nouvelles commandes.</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── colonne latérale ── -->
+    <aside class="aside">
+      <div class="card">
+        <h4>Marge unitaire — en direct</h4>
+        <div class="margin-preview">
+          <div class="mp-row"><span>Prix catalogue</span><b class="tnum" id="mpPrice">—</b></div>
+          <div class="mp-row"><span>− Coût unitaire</span><b class="tnum" id="mpCogs">—</b></div>
+          <div class="mp-row"><span>− Emballage</span><b class="tnum" id="mpPack">—</b></div>
+          <div class="mp-row"><span>− Traitement</span><b class="tnum" id="mpProc">—</b></div>
+          <div class="mp-row"><span>− Livraison (moy. réelle)</span><b class="tnum" id="mpShip">—</b></div>
+          <div class="mp-row total"><span>Marge par livraison</span><b class="tnum" id="mpNet">—</b></div>
+        </div>
+        <p style="margin-top:11px;font-size:11.5px;color:var(--ink-3);line-height:1.55">
+          Frais de livraison moyens observés sur les 108 livraisons réelles de ce produit. Les retours ne sont pas
+          dans ce calcul unitaire — ils apparaissent dans le profit net de la fiche.
+        </p>
+      </div>
+
+      <div class="card">
+        <h4>Aperçu agent</h4>
+        <div class="agentprev">
+          <span class="bar" id="prevBrief">Brief vide — l'agent ne verra rien ici</span>
+          <div class="body" id="prevBody">Les notes détaillées s'afficheront ici, sous le nom du produit, dans la fiche que l'agent ouvre pendant l'appel.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4>Impact</h4>
+        <p style="font-size:12.5px;color:var(--ink-2);line-height:1.6">
+          Ce produit a <b style="color:var(--ink-1)">229 commandes en cours</b> chez le transporteur.
+          Changer le coût unitaire recalcule le profit net de toutes les livraisons passées —
+          la marge historique bougera dans le tableau de bord.
+        </p>
+      </div>
+    </aside>
+  </div>
+
+  <div class="savebar">
+    <span class="msg">Aucune modification en attente</span>
+    <button class="btn">Annuler</button>
+    <button class="btn btn-primary">Enregistrer les modifications</button>
+  </div>
+</div>
+
+<script>
+/* ─── données réelles — marché Libye, cumul depuis le lancement ───
+   Extraites de la base de production le 13/08/2026 :
+   leads = orders ; confirmed/uploaded/delivered/returned = order_history ;
+   revenue = Σ orders.total_price des commandes livrées ; frais = carriers.delivery_fee / return_fee. */
+const IMG = "https://vshynigvgrlihngozuwb.supabase.co/storage/v1/object/public/product-images/00000000-0000-0000-0000-000000000002/";
+const P = [
+  { name:"القرآن تدبر وعمل", sku:"qr-01", active:true,
+    img:IMG+"7bfabff2-7f13-49b4-98df-b33db5ad235a/image.jpeg",
+    leads:571, confirmed:251, uploaded:236, delivered:92, returned:12, inflight:53,
+    revenue:20057, delQty:93, cogsUnit:40, packing:0.5, proc:0, shipFee:920, retFee:60, ads:0,
+    stock:1000, threshold:99, price:249 },
+
+  { name:"دميه ملاكمه حجم صغير", sku:"box-wafra-shop", active:true,
+    img:IMG+"24ef8174-5ce8-4843-b72a-e8ef2a73cd41/image.jpeg",
+    leads:866, confirmed:453, uploaded:431, delivered:108, returned:28, inflight:229,
+    revenue:14738, delQty:112, cogsUnit:24.998, packing:0, proc:0, shipFee:1090, retFee:140, ads:0,
+    stock:216, threshold:20, price:129 },
+
+  { name:"دميه ملاكمه حجم متوسط", sku:null, active:true,
+    img:IMG+"6f347bea-d5e7-4356-b233-6f47091564a2/image.jpeg",
+    leads:893, confirmed:266, uploaded:246, delivered:63, returned:31, inflight:98,
+    revenue:11694, delQty:66, cogsUnit:20.002, packing:0, proc:0, shipFee:650, retFee:155, ads:0,
+    stock:200, threshold:5, price:179 },
+
+  { name:"كتاب الداء والدواء للإمام ابن القيم", sku:"DA2", active:true,
+    img:IMG+"e907b151-0b2e-4b72-9d05-91e25621af4d/image.jpeg",
+    leads:224, confirmed:109, uploaded:107, delivered:51, returned:12, inflight:4,
+    revenue:9099, delQty:51, cogsUnit:12, packing:0, proc:0, shipFee:510, retFee:60, ads:0,
+    stock:200, threshold:2, price:149 },
+
+  { name:"دميه ملاكمه حجم كبير", sku:null, active:true,
+    img:IMG+"19d40d38-bfbe-4607-93e7-ba849eaf73d3/image.jpeg",
+    leads:189, confirmed:94, uploaded:88, delivered:28, returned:9, inflight:27,
+    revenue:5611, delQty:29, cogsUnit:30, packing:0, proc:0, shipFee:280, retFee:45, ads:5777,
+    stock:600, threshold:50, price:199 },
+
+  { name:"دمية الملاكمة حجم كبير (179 دل)", sku:"دمية الملاكمة حجم كبير", active:false,
+    img:IMG+"70afbf75-be0c-4ae1-8595-2a9cb9f1da21/image.jpeg",
+    leads:128, confirmed:68, uploaded:67, delivered:0, returned:0, inflight:66,
+    revenue:0, delQty:0, cogsUnit:19.998, packing:2, proc:0, shipFee:0, retFee:0, ads:0,
+    stock:200, threshold:20, price:179 },
+
+  { name:"أكمام تغطية للساعد والمعصم للمحجبات 🤍🧕", sku:"manches", active:false,
+    img:IMG+"43d598f7-0691-4437-8004-6a3a32d6afb7/image.jpeg",
+    leads:2, confirmed:0, uploaded:0, delivered:0, returned:0, inflight:0,
+    revenue:0, delQty:0, cogsUnit:12, packing:0, proc:0, shipFee:0, retFee:0, ads:0,
+    stock:0, threshold:5, price:89 },
+
+  { name:"XX", sku:null, active:false,
+    img:IMG+"a8964b24-66e3-449c-b126-33d570db5877/image.jpeg",
+    leads:0, confirmed:0, uploaded:0, delivered:0, returned:0, inflight:0,
+    revenue:0, delQty:0, cogsUnit:1, packing:0, proc:0, shipFee:0, retFee:0, ads:0,
+    stock:0, threshold:5, price:null },
+];
+
+/* classement agents — produit « دميه ملاكمه حجم صغير » (box-wafra-shop) */
+const AGENTS = [
+  { n:"roqaya", role:"Agent",         calls:310, treated:261, created:0, confirmed:104, delivered:36, returned:14, revenue:5013 },
+  { n:"hend",   role:"Agent",         calls:164, treated:184, created:2, confirmed:90,  delivered:27, returned:5,  revenue:3483 },
+  { n:"mouna",  role:"Agent",         calls:514, treated:325, created:6, confirmed:198, delivered:22, returned:6,  revenue:2888 },
+  { n:"tasnim", role:"Agent",         calls:231, treated:117, created:0, confirmed:50,  delivered:13, returned:3,  revenue:1935 },
+  { n:"salima", role:"Agent",         calls:26,  treated:21,  created:0, confirmed:9,   delivered:1,  returned:0,  revenue:129  },
+];
+const SUPERVISORS = [
+  { n:"Admin",       role:"Manager",     calls:0,   treated:14, created:2, confirmed:14, delivered:8, returned:0, revenue:1032 },
+  { n:"hamidaly",    role:"Manager",     calls:93,  treated:56, created:1, confirmed:0,  delivered:0, returned:0, revenue:0    },
+  { n:"Super Admin", role:"Super admin", calls:112, treated:75, created:0, confirmed:1,  delivered:0, returned:0, revenue:0    },
+];
+
+/* ─── formatage ─── */
+/* nombres en fr (UI française), monnaie en ar-LY — exactement comme lib/format.ts */
+const nf  = new Intl.NumberFormat("fr-TN");
+const cur = new Intl.NumberFormat("ar-LY",{style:"currency",currency:"LYD",minimumFractionDigits:3,maximumFractionDigits:3});
+const cur0= new Intl.NumberFormat("ar-LY",{style:"currency",currency:"LYD",minimumFractionDigits:0,maximumFractionDigits:0});
+const money = n => cur.format(n);
+const money0= n => cur0.format(n);
+const num = n => nf.format(n);
+const pct = n => nf.format(Math.round(n*10)/10).replace(/,0$/,",0") + " %";
+const signed = n => (n>0?"+":n<0?"−":"") + money0(Math.abs(n));
+
+/* ─── modèle financier — mêmes règles que lib/calculations ─── */
+function calc(p){
+  const settled   = p.delivered + p.returned;                 // upload « scellé » par un statut transporteur
+  const confRate  = p.leads ? p.confirmed/p.leads*100 : 0;
+  const delRate   = settled  ? p.delivered/settled*100 : null; // jamais sur les commandes encore en vol
+  const cogs      = p.cogsUnit * p.delQty;                     // COGS des unités réellement livrées
+  const gross     = p.revenue - cogs;                          // profit brut
+  const packing   = p.packing * p.confirmed;
+  const proc      = p.proc * p.confirmed;
+  const net       = gross - p.shipFee - p.retFee - packing - proc - p.ads;
+  const margin    = p.revenue ? net/p.revenue*100 : 0;
+  return {settled, confRate, delRate, cogs, gross, packing, proc, net, margin,
+          perDel: p.delivered ? net/p.delivered : 0};
+}
+
+/* ─── écran 1 : cartes ─── */
+function tone(p,c){
+  if (!p.leads) return "idle";
+  if (c.net < 0) return "neg";
+  return c.net > 0 ? "pos" : "idle";
+}
+function rateClass(v,good,ok){ return v>=good ? "good" : v>=ok ? "warn" : "bad"; }
+
+// tri par défaut = profit net décroissant, comme l'annonce la barre d'outils
+const SORTED = [...P].sort((a,b)=> calc(b).net - calc(a).net);
+
+document.getElementById("grid").innerHTML = SORTED.map(p=>{
+  const c = calc(p);
+  const stockPctRaw = p.threshold>0 ? p.stock/(p.threshold*4)*100 : (p.stock>0?100:0);
+  const stockPct = Math.max(p.stock>0?4:0, Math.min(100, stockPctRaw));
+  const stockCls = p.stock<=0 ? "bad" : p.stock<=p.threshold ? "warn" : "";
+  const hasActivity = p.leads > 0;
+
+  const chips = [
+    p.active ? `<span class="chip chip-ok">Actif</span>` : `<span class="chip chip-off">Inactif</span>`,
+    p.stock<=0 ? `<span class="chip chip-bad">Rupture</span>` : p.stock<=p.threshold ? `<span class="chip chip-warn">Stock bas</span>` : "",
+    p.sku ? `<span class="chip chip-sku" dir="auto">${p.sku}</span>` : "",
+  ].filter(Boolean).join("");
+
+  const funnel = hasActivity ? `
+    <div class="funnel">
+      <div class="fstep">
+        <span class="lab">Commandes</span>
+        <span class="val tnum">${num(p.leads)}</span>
+        <span class="rate" style="color:var(--ink-3);font-weight:500">reçues</span>
+        <span class="track"><i style="width:100%"></i></span>
+      </div>
+      <div class="fstep">
+        <span class="lab">Confirmées</span>
+        <span class="val tnum">${num(p.confirmed)}</span>
+        <span class="rate ${rateClass(c.confRate,50,35)}">${pct(c.confRate)}</span>
+        <span class="track"><i class="${rateClass(c.confRate,50,35)==='good'?'':rateClass(c.confRate,50,35)}" style="width:${c.confRate.toFixed(1)}%"></i></span>
+      </div>
+      <div class="fstep">
+        <span class="lab">Livrées</span>
+        <span class="val tnum">${num(p.delivered)}</span>
+        ${c.delRate===null
+          ? `<span class="rate" style="color:var(--ink-3)">aucune réglée</span><span class="track"></span>`
+          : `<span class="rate ${rateClass(c.delRate,75,60)}">${pct(c.delRate)}</span>
+             <span class="track"><i class="${rateClass(c.delRate,75,60)==='good'?'':rateClass(c.delRate,75,60)}" style="width:${c.delRate.toFixed(1)}%"></i></span>`}
+      </div>
+    </div>` : `<div class="empty-metrics">Aucune commande sur ce produit</div>`;
+
+  // Sans CA il n'y a rien à teinter en vert : un « 0 » sur fond de marque se lirait
+  // comme un résultat, alors que c'est une absence de résultat.
+  const heroCls = p.revenue === 0 ? "" : c.net < 0 ? "hero neg" : "hero";
+  const money_ = hasActivity ? `
+    <div class="money">
+      <div class="mcell">
+        <span class="lab">CA livré</span>
+        <span class="val tnum">${money0(p.revenue)}</span>
+        <span class="sub tnum">${p.delQty ? num(p.delQty)+" unités" : "aucune livraison"}</span>
+      </div>
+      <div class="mcell">
+        <span class="lab">Profit brut</span>
+        <span class="val tnum">${signed(c.gross)}</span>
+        <span class="sub tnum">COGS ${money0(c.cogs)}</span>
+      </div>
+      <div class="mcell ${heroCls}">
+        <span class="lab">Profit net</span>
+        <span class="val tnum" ${p.revenue===0&&c.net<0?'style="color:var(--critical)"':""}>${signed(c.net)}</span>
+        <span class="sub tnum">${p.revenue ? "marge "+pct(c.margin) : "coûts engagés, rien d'encaissé"}</span>
+      </div>
+    </div>` : "";
+
+  return `
+  <article class="pcard" data-state="${p.active?'on':'off'}" data-tone="${tone(p,c)}" ${p.sku==='box-wafra-shop'?'data-go="s2" style="cursor:pointer"':''}>
+    <div class="pcard-top">
+      <div class="pcard-img" style="background-image:url('${p.img}')"></div>
+      <div class="pcard-id">
+        <div class="pcard-name" dir="auto">${p.name}</div>
+        <div class="pcard-meta">${chips}</div>
+      </div>
+      <button class="pcard-menu" aria-label="Actions">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      </button>
+    </div>
+    ${funnel}
+    ${money_}
+    <div class="pfoot">
+      <div class="stockwrap">
+        <div class="stockline"><b class="tnum">${num(p.stock)}</b> en stock <span style="color:var(--ink-3)">· seuil ${num(p.threshold)}</span></div>
+        <div class="stockbar"><i class="${stockCls}" style="width:${stockPct}%"></i></div>
+      </div>
+      <span class="inflight ${p.inflight?"":"zero"}" title="Uploadées, en attente d'un statut transporteur">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M1 3h13v13H1zM14 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="17.5" cy="18.5" r="2"/></svg>
+        ${num(p.inflight)} en cours
+      </span>
+    </div>
+  </article>`;
+}).join("");
+
+/* ─── écran 2 : fiche produit (produit box-wafra-shop) ─── */
+const D = P.find(p=>p.sku==="box-wafra-shop");
+const C = calc(D);
+
+document.getElementById("dImg").style.backgroundImage = `url('${D.img}')`;
+document.getElementById("eImg").style.backgroundImage = `url('${D.img}')`;
+document.getElementById("dStockVal").textContent  = money0(D.stock * D.cogsUnit);
+document.getElementById("dStockVal2").textContent = money0(D.stock * D.cogsUnit);
+document.getElementById("dCogs").textContent      = money(D.cogsUnit);
+document.getElementById("dNet").textContent    = signed(C.net);
+document.getElementById("dNetSub").textContent = `marge ${pct(C.margin)} · ${num(D.delivered)} livraisons`;
+document.getElementById("dRev").textContent    = money0(D.revenue);
+document.getElementById("dGross").textContent  = signed(C.gross);
+document.getElementById("dMargin").textContent = pct(C.margin);
+document.getElementById("dPerDel").textContent = signed(C.perDel);
+
+/* entonnoir détaillé — 5 étapes, avec le palier « uploadées » qui n'est scellé
+   qu'une fois qu'un statut transporteur l'a suivi */
+const steps = [
+  {l:"Commandes",  v:D.leads,     s:"reçues de la boutique",              w:100},
+  {l:"Traitées",   v:770,         s:"un agent a posé une action",         w:770/D.leads*100},
+  {l:"Confirmées", v:D.confirmed, s:pct(C.confRate)+" des commandes",     w:D.confirmed/D.leads*100},
+  {l:"Uploadées",  v:D.uploaded,  s:num(D.inflight)+" encore en cours",   w:D.uploaded/D.leads*100},
+  {l:"Livrées",    v:D.delivered, s:pct(C.delRate)+" des "+C.settled+" réglées", w:D.delivered/D.leads*100},
+];
+document.getElementById("dFunnel").innerHTML =
+  `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px">` +
+  steps.map((s,i)=>`
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <span style="font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)">${s.l}</span>
+      <span class="tnum" style="font-size:25px;font-weight:700;letter-spacing:-.03em;line-height:1.05">${num(s.v)}</span>
+      <span class="tnum" style="font-size:11.5px;color:var(--ink-2)">${s.s}</span>
+      <span style="display:block;height:5px;border-radius:3px;background:var(--sunken);margin-top:7px;overflow:hidden">
+        <i style="display:block;height:100%;border-radius:3px;background:${i===4?'var(--brand-pos)':'var(--brand)'};opacity:${1-i*0.13};width:${s.w.toFixed(1)}%"></i>
+      </span>
+    </div>`).join("") + `</div>
+  <p style="margin-top:15px;font-size:11.5px;color:var(--ink-3);line-height:1.6">
+    Une commande uploadée peut encore être rouverte tant qu'aucun statut transporteur ne l'a suivie.
+    Les <b style="color:var(--ink-2)">${num(D.inflight)} en cours</b> sont donc exclues du taux de livraison :
+    il se calcule sur les <b style="color:var(--ink-2)">${C.settled} commandes réglées</b> (livrées + retournées).
+  </p>`;
+
+/* cascade de coûts */
+const lines = [
+  {l:"Chiffre d'affaires", v:D.revenue, c:"var(--brand-pos)"},
+  {l:"COGS",               v:-C.cogs,    c:"#D72C0D"},
+  {l:"Livraison",          v:-D.shipFee, c:"#E08909"},
+  {l:"Retours",            v:-D.retFee,  c:"#E5847E"},
+  {l:"Emballage",          v:-C.packing, c:"#8C9196"},
+  {l:"Traitement",         v:-C.proc,    c:"#BEC3CA"},
+  {l:"Publicité",          v:-D.ads,     c:"#2C6ECB"},
+];
+const maxBar = Math.max(...lines.map(l=>Math.abs(l.v)), Math.abs(C.net), 1);
+document.getElementById("dBars").innerHTML =
+  lines.map(l=>`
+    <div class="bar">
+      <span class="l">${l.l}</span>
+      <span class="t"><i style="width:${(Math.abs(l.v)/maxBar*100).toFixed(1)}%;background:${l.c}"></i></span>
+      <span class="v tnum">${l.v<0?"−":""}${money0(Math.abs(l.v))}</span>
+    </div>`).join("") + `
+    <div class="bar total">
+      <span class="l">Profit net</span>
+      <span class="t"><i style="width:${(Math.abs(C.net)/maxBar*100).toFixed(1)}%;background:${C.net<0?'var(--critical)':'var(--brand-pos)'}"></i></span>
+      <span class="v tnum ${C.net<0?'neg':'pos'}">${signed(C.net)}</span>
+    </div>
+    <p style="margin-top:12px;font-size:11.5px;color:var(--ink-3);line-height:1.55">
+      Le CA ne compte que les ${D.delivered} commandes livrées. Les barres se soustraient exactement au profit net —
+      aucun arrondi intermédiaire.
+    </p>`;
+
+/* classement agents */
+function agentRow(a, i, muted){
+  const settled  = a.delivered + a.returned;
+  const confRate = a.treated ? a.confirmed/a.treated*100 : null;
+  const delRate  = settled   ? a.delivered/settled*100   : null;
+  const initials = a.n.slice(0,2).toUpperCase();
+  const cCls = confRate===null ? "" : rateClass(confRate,55,40);
+  const dCls = delRate===null  ? "" : rateClass(delRate,80,65);
+  return `
+  <tr class="${muted?"muted":""}">
+    <td><span class="rankno ${(!muted&&i===0)?"top":""}">${muted?"·":i+1}</span></td>
+    <td>
+      <span class="who">
+        <span class="av ${muted?"n":""}">${initials}</span>
+        <span><span class="nm">${a.n}</span><span class="rl">${a.role}</span></span>
+      </span>
+    </td>
+    <td class="tnum">${num(a.calls)}</td>
+    <td class="tnum" style="color:var(--ink-2)">${a.calls&&a.treated?nf.format(Math.round(a.calls/a.treated*100)/100):"—"}</td>
+    <td class="tnum">${num(a.treated)}</td>
+    <td class="tnum" style="color:${a.created?"var(--ink-1)":"var(--ink-3)"}">${a.created||"—"}</td>
+    <td class="tnum">${num(a.confirmed)}</td>
+    <td>${confRate===null?"—":`<span class="ratecell"><b class="tnum" style="color:${cCls==='good'?'var(--brand-pos)':cCls==='warn'?'var(--warning)':'var(--critical)'}">${pct(confRate)}</b><span class="minibar"><i class="${cCls==='good'?'':cCls}" style="width:${confRate.toFixed(0)}%"></i></span></span>`}</td>
+    <td class="tnum">${num(a.delivered)}</td>
+    <td class="tnum" style="color:${a.returned?"var(--critical)":"var(--ink-3)"}">${a.returned||"—"}</td>
+    <td>${delRate===null?`<span style="color:var(--ink-3)">—</span>`:`<span class="ratecell"><b class="tnum" style="color:${dCls==='good'?'var(--brand-pos)':dCls==='warn'?'var(--warning)':'var(--critical)'}">${pct(delRate)}</b><span class="minibar"><i class="${dCls==='good'?'':dCls}" style="width:${delRate.toFixed(0)}%"></i></span></span>`}</td>
+    <td class="tnum" style="font-weight:700">${a.revenue?money0(a.revenue):`<span style="color:var(--ink-3);font-weight:400">—</span>`}</td>
+  </tr>`;
+}
+document.getElementById("rankBody").innerHTML =
+  AGENTS.map((a,i)=>agentRow(a,i,false)).join("") +
+  `<tr class="group"><td colspan="12">Managers et administrateurs — hors classement</td></tr>` +
+  SUPERVISORS.map((a,i)=>agentRow(a,i,true)).join("");
+
+/* ─── écran 3 : aperçu de marge en direct ─── */
+const AVG_SHIP = D.shipFee / D.delivered; // frais de livraison moyen réel
+function refreshPreview(){
+  const g = id => parseFloat(document.getElementById(id).value) || 0;
+  const price = g("e-price"), cogs = g("e-cogs"), pack = g("e-pack"), proc = g("e-proc");
+  const net = price - cogs - pack - proc - AVG_SHIP;
+  document.getElementById("mpPrice").textContent = money(price);
+  document.getElementById("mpCogs").textContent  = "−"+money(cogs);
+  document.getElementById("mpPack").textContent  = "−"+money(pack);
+  document.getElementById("mpProc").textContent  = "−"+money(proc);
+  document.getElementById("mpShip").textContent  = "−"+money(AVG_SHIP);
+  const el = document.getElementById("mpNet");
+  el.textContent = signed(net) + "  ·  " + pct(price? net/price*100 : 0);
+  el.style.color = net<0 ? "var(--critical)" : "var(--brand-pos)";
+}
+["e-price","e-cogs","e-pack","e-proc"].forEach(id=>
+  document.getElementById(id).addEventListener("input", refreshPreview));
+refreshPreview();
+
+/* brief live preview + compteur */
+const briefIn = document.getElementById("e-brief");
+briefIn.addEventListener("input", e=>{
+  const v = e.target.value.trim();
+  const bar = document.getElementById("prevBrief");
+  bar.textContent = v || "Brief vide — l'agent ne verra rien ici";
+  bar.style.opacity = v ? "1" : ".6";
+  e.target.closest(".f").querySelector(".counter span:last-child").textContent = (120 - e.target.value.length) + " restants";
+});
+document.getElementById("e-notes").addEventListener("input", e=>{
+  const v = e.target.value.trim();
+  document.getElementById("prevBody").textContent =
+    v || "Les notes détaillées s'afficheront ici, sous le nom du produit, dans la fiche que l'agent ouvre pendant l'appel.";
+});
+document.querySelector(".switch").addEventListener("click", function(){
+  this.dataset.on = this.dataset.on === "true" ? "false" : "true";
+});
+
+/* ─── navigation prototype ─── */
+function go(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on", s.id===id));
+  document.querySelectorAll(".proto-tabs button").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.go===id)));
+  window.scrollTo({top:0});
+}
+document.addEventListener("click", e=>{
+  const t = e.target.closest("[data-go]");
+  if (t) { e.preventDefault(); go(t.dataset.go); }
+});
+document.querySelectorAll(".segmented button, .periodsel button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    b.parentElement.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false"));
+    b.setAttribute("aria-pressed","true");
+  });
+});
+</script>
+</body>
+</html>
