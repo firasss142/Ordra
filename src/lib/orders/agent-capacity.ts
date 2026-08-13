@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { TERMINAL_STATUSES } from "@/types/order-status";
 import type { AvailableAgent } from "./auto-assignment-types";
 
 /**
@@ -25,11 +26,20 @@ export async function fetchAgentCapacity(
 
   const agentIds = agentRows.map((r: { id: string }) => r.id);
 
+  // Derived from TERMINAL_STATUSES rather than hand-listed: the literal here
+  // omitted `deleted`, so soft-deleted orders counted against the agent they
+  // were assigned to and made them look busier than they were — which skewed
+  // auto-assignment toward agents who happened to have fewer deletions.
+  //
+  // idx_orders_assigned_status_partial is still usable: its predicate excludes
+  // four terminal statuses and this one excludes five, so the query predicate
+  // implies the index predicate. Narrowing the index to match would only make
+  // it smaller, never correct.
   const { data: queueRows } = await adminClient
     .from("orders")
     .select("assigned_to")
     .in("assigned_to", agentIds)
-    .not("status", "in", "(delivered,returned,rejected,cancelled)");
+    .not("status", "in", `(${TERMINAL_STATUSES.join(",")})`);
 
   const queueSizeByAgent: Record<string, number> = {};
   (queueRows ?? []).forEach((row: { assigned_to: string | null }) => {

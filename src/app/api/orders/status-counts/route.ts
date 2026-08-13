@@ -110,6 +110,10 @@ export async function GET(req: NextRequest) {
     todayCount,
     rateWindows,
   ] = await Promise.all([
+    // `total` and `today` deliberately count soft-deleted orders: they are
+    // operational counts of what came through, not money. Only financial
+    // figures exclude deleted orders — see the money RPCs in
+    // supabase/migrations/*_exclude_deleted_from_money.sql.
     countWhere((q) => q),
     countWhere((q) => whereUnassigned(q as never)),
     countWhere((q) => q.eq("status", "pending")),

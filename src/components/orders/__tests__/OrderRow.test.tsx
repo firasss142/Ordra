@@ -45,6 +45,11 @@ const mockOrder: OrdersListRow = {
   attempts_count: null,
   created_at: "2026-05-20T14:32:00",
   updated_at: new Date().toISOString(),
+  // `confirmed` is a live status, so the order has not finished and cannot
+  // have been put away — the database enforces the same pairing.
+  terminal_at: null,
+  archived_at: null,
+  archived_by: null,
   repeat_kind: "none",
   prior_order_count: 0,
   prior_lead_count: 0,

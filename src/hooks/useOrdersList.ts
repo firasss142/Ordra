@@ -38,6 +38,19 @@ export interface OrdersListRow {
   attempts_count: number | null;
   created_at: string;
   updated_at: string;
+  /**
+   * When the order finished — reached delivered/returned/rejected/cancelled/
+   * deleted. NULL while it is still live. Stamped by the database, never by
+   * app code, so it cannot drift from `status`.
+   */
+  terminal_at: string | null;
+  /**
+   * When it was put away, manually or by the auto-archive rule. NULL means it
+   * is still in the working Commandes list. Visibility only — an archived
+   * order is still counted everywhere and still searchable.
+   */
+  archived_at: string | null;
+  archived_by: string | null;
   repeat_kind?: import("@/lib/customer-history/classify").RepeatKind;
   prior_order_count?: number;
   prior_lead_count?: number;

@@ -13,6 +13,17 @@ function isPageSize(n: number): n is PageSize {
   return (PAGE_SIZE_OPTIONS as readonly number[]).includes(n);
 }
 
+/**
+ * Which view of the orders table is being read.
+ *
+ * `orders` is the working list — live orders, with the "Afficher supprimées"
+ * checkbox (`includeDeleted`) toggling the soft-deleted slice. `archive` is the
+ * terminal-status view, where the soft-delete axis does not apply: the archive
+ * wants every terminal status at once. Keeping the two axes separate is what
+ * stops the archive from collapsing to deleted orders only.
+ */
+export type OrdersScope = "orders" | "archive";
+
 export const IN_DELIVERY_STATUSES = [
   "uploaded",
   "dispatched",
@@ -23,6 +34,7 @@ export const IN_DELIVERY_STATUSES = [
 
 export interface OrderListFilters {
   preset: OrdersPreset;
+  scope: OrdersScope;
   marketId: string | null;
   q: string;
   statuses: OrderStatus[];
@@ -41,6 +53,7 @@ export interface OrderListFilters {
 
 export const DEFAULT_FILTERS: OrderListFilters = {
   preset: "all",
+  scope: "orders",
   marketId: null,
   q: "",
   statuses: [],
@@ -100,6 +113,7 @@ export function parseFiltersFromSearchParams(params: URLSearchParams): OrderList
 
   return {
     preset,
+    scope: params.get("scope") === "archive" ? "archive" : "orders",
     marketId: null,
     q: params.get("q") ?? "",
     statuses,
@@ -121,6 +135,7 @@ export function parseFiltersFromSearchParams(params: URLSearchParams): OrderList
 export function filtersToSearchParams(filters: OrderListFilters): URLSearchParams {
   const p = new URLSearchParams();
   if (filters.preset !== "all") p.set("preset", filters.preset);
+  if (filters.scope !== "orders") p.set("scope", filters.scope);
   if (filters.q) p.set("q", filters.q);
   if (filters.statuses.length > 0) p.set("status", filters.statuses.join(","));
   if (filters.agentId) p.set("agent_id", filters.agentId);
@@ -184,9 +199,18 @@ export function clearFilterField(filters: OrderListFilters, key: ClearableFilter
   }
 }
 
-/** Reset all filters but preserve marketId (super_admin's current market pick) and pageSize (view preference). */
+/**
+ * Reset all filters but preserve marketId (super_admin's current market pick),
+ * pageSize (view preference) and scope (which page the user is on — clearing
+ * filters in the archive must not navigate them back to the orders list).
+ */
 export function resetFilters(current: OrderListFilters): OrderListFilters {
-  return { ...DEFAULT_FILTERS, marketId: current.marketId, pageSize: current.pageSize };
+  return {
+    ...DEFAULT_FILTERS,
+    marketId: current.marketId,
+    pageSize: current.pageSize,
+    scope: current.scope,
+  };
 }
 
 // ---------- API-side Zod schema (used by /api/orders/list) ----------
@@ -195,6 +219,8 @@ export const listQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   preset: z.enum(["all", "unassigned", "callbacks", "today", "in_delivery"]).default("all"),
+  scope: z.enum(["orders", "archive"]).default("orders"),
+  state: z.string().optional(), // archive scope only — see resolveArchiveState
   market_id: z.string().uuid().optional(),
   q: z.string().optional(),
   status: z.string().optional(), // csv

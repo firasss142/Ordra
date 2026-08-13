@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveArchiveStatuses } from "@/lib/orders/archive-scope";
 import { applySearch } from "@/lib/orders/search-query";
 import { createClient } from "@/lib/supabase/server";
 import { canViewOrders } from "@/lib/order-permissions";
@@ -73,18 +74,26 @@ export async function GET(req: NextRequest) {
     query = query.eq("market_id", marketId);
   }
 
+  const status = req.nextUrl.searchParams.get("status");
+  const isArchive = req.nextUrl.searchParams.get("scope") === "archive";
+
   const includeDeleted =
     req.nextUrl.searchParams.get("include_deleted") === "1" ||
     req.nextUrl.searchParams.get("include_deleted") === "true";
-  // "Afficher supprimées": when on, export ONLY deleted orders; otherwise hide them.
-  if (includeDeleted) {
+
+  // Mirrors /api/orders/list exactly, so the CSV is the rows the operator was
+  // looking at. `scope=archive` is the terminal-status view and consumes
+  // `status` itself; `include_deleted` stays the orders-list "Afficher
+  // supprimées" checkbox, which exports ONLY soft-deleted orders when on.
+  if (isArchive) {
+    query = query.in("status", resolveArchiveStatuses(status));
+  } else if (includeDeleted) {
     query = query.eq("status", "deleted");
   } else {
     query = query.neq("status", "deleted");
   }
 
-  const status = req.nextUrl.searchParams.get("status");
-  if (status) {
+  if (status && !isArchive) {
     const list = status.split(",").map((s) => s.trim()).filter(Boolean);
     if (list.length === 1) query = query.eq("status", list[0]);
     else if (list.length > 1) query = query.in("status", list);

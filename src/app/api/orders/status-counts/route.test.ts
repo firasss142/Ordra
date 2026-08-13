@@ -28,7 +28,7 @@ function createRequest(url: string) {
 function countChain(count: number) {
   const chain: Record<string, unknown> = {};
   const self = () => chain;
-  for (const m of ["select", "eq", "in", "is", "gte", "lt", "lte", "not"]) {
+  for (const m of ["select", "eq", "neq", "in", "is", "gte", "lt", "lte", "not"]) {
     chain[m] = vi.fn(self);
   }
   chain.then = (resolve: (v: unknown) => unknown) =>
@@ -39,7 +39,7 @@ function countChain(count: number) {
 function singleChain(row: unknown) {
   const chain: Record<string, unknown> = {};
   const self = () => chain;
-  for (const m of ["select", "eq", "in", "is", "gte", "lt", "lte", "not"]) {
+  for (const m of ["select", "eq", "neq", "in", "is", "gte", "lt", "lte", "not"]) {
     chain[m] = vi.fn(self);
   }
   chain.single = vi.fn().mockResolvedValue({ data: row, error: null });
@@ -124,6 +124,22 @@ describe("GET /api/orders/status-counts", () => {
     ]) {
       expect(body.data, `missing ${key}`).toHaveProperty(key);
       expect(typeof body.data[key]).toBe("number");
+    }
+  });
+
+  /**
+   * Only money excludes soft-deleted orders. `total` and `today` are
+   * operational counts of what came through the door, so a manually deleted
+   * order still counts here — it did happen. The financial figures that
+   * exclude it live in the profitability RPCs, not in this route.
+   */
+  test("keeps soft-deleted orders in the operational counts", async () => {
+    setup("market_manager", "ly", 100);
+
+    await GET(createRequest("/api/orders/status-counts"));
+
+    for (const chain of orderChains) {
+      expect(chain.neq).not.toHaveBeenCalledWith("status", "deleted");
     }
   });
 

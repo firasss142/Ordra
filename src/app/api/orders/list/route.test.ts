@@ -1,87 +1,207 @@
 import { describe, test, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/auth/actor", async () => {
-  const { makeGetActor } = await import("@/test/helpers/actorMock");
-  return { getActor: makeGetActor() };
-});
-
-const selectSpy = vi.fn();
-
-/**
- * The PostgREST builder is a thenable that returns itself from every filter,
- * so one self-returning object stands in for the whole chain. Resolving with no
- * rows is deliberate: an empty page skips the enrichment RPCs entirely, which
- * keeps this test about the count and nothing else.
- */
-function chain(count: number | null) {
-  const c: Record<string, unknown> = {};
-  for (const m of ["order", "limit", "eq", "neq", "in", "is", "or", "gte", "lte", "ilike"]) {
-    c[m] = vi.fn().mockReturnValue(c);
-  }
-  c.select = vi.fn((...args: unknown[]) => {
-    selectSpy(...args);
-    return c;
-  });
-  c.then = (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null, count });
-  return c;
-}
-
-let currentCount: number | null = 0;
+const mockGetUser = vi.fn();
+const mockFrom = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
-    from: () => chain(currentCount),
+    auth: { getUser: () => mockGetUser() },
+    from: (...args: unknown[]) => mockFrom(...args),
   }),
 }));
 
 import { GET } from "./route";
 import { NextRequest } from "next/server";
-import { encodeCursor } from "@/lib/orders/list-filters";
-import { resetTestActor } from "@/test/helpers/actorMock";
+import { ARCHIVE_STATUSES } from "@/lib/orders/archive-scope";
 
-function get(query: string) {
-  return GET(
-    new NextRequest(new URL(`/api/orders/list?${query}`, "http://localhost:3000")),
-  );
+function createRequest(query = "") {
+  return new NextRequest(new URL(`/api/orders/list${query}`, "http://localhost:3000"), {
+    method: "GET",
+  });
 }
 
-/** The count option the route passes to `.select()`, if any. */
-function selectOptions() {
-  return selectSpy.mock.calls[0]?.[1];
+function actorChain(role: string, marketId: string | null) {
+  const chain: Record<string, unknown> = {};
+  chain.select = vi.fn().mockReturnValue(chain);
+  chain.eq = vi.fn().mockReturnValue(chain);
+  chain.single = vi.fn().mockResolvedValue({ data: { role, market_id: marketId }, error: null });
+  return chain;
 }
+
+/**
+ * Self-returning PostgREST stub. Every filter method records its call and hands
+ * the chain back; the terminal `await` resolves through `then`. Rows are empty
+ * so the route's per-page enrichment short-circuits and needs no RPC stubs.
+ */
+function ordersChain() {
+  const chain: Record<string, unknown> = {};
+  const result = { data: [], error: null, count: 0 };
+  for (const m of ["select", "eq", "neq", "in", "is", "not", "or", "gte", "gt", "lt", "lte", "ilike", "order", "limit"]) {
+    chain[m] = vi.fn().mockReturnValue(chain);
+  }
+  chain.then = (fn: (v: unknown) => unknown) => Promise.resolve(result).then(fn);
+  return chain;
+}
+
+function runAs(role = "market_manager", marketId: string | null = "m-1") {
+  mockGetUser.mockResolvedValue({ data: { user: { id: "u-1" } }, error: null });
+  const orders = ordersChain();
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "users") return actorChain(role, marketId);
+    return orders;
+  });
+  return orders;
+}
+
+const callsFor = (fn: unknown, column: string) =>
+  (fn as ReturnType<typeof vi.fn>).mock.calls.filter((c: unknown[]) => c[0] === column);
 
 beforeEach(() => {
   vi.clearAllMocks();
-  resetTestActor();
-  currentCount = 0;
 });
 
-describe("GET /api/orders/list — filtered total", () => {
-  test("reports how many orders the filters match, not how many fit on the page", async () => {
-    // The summary above the table used to count the loaded rows, so a page size
-    // of 10 capped it at "10" however many orders matched.
-    currentCount = 123;
-    const res = await get("limit=10");
-    const body = await res.json();
+describe("GET /api/orders/list — scope=archive", () => {
+  /**
+   * The archive used to reach the terminal-status view through the
+   * "Afficher supprimées" flag, which the route turns into
+   * `.eq("status","deleted")`. ANDed with the archive's own status list, the
+   * net predicate was `status = 'deleted'` — so the table could only ever
+   * render soft-deleted orders while the summary above it counted all five
+   * terminal statuses. These tests pin the two axes apart.
+   */
+  test("asks for every archive status and applies neither soft-delete branch", async () => {
+    const orders = runAs();
 
-    expect(selectOptions()).toEqual({ count: "exact" });
-    expect(body.total).toBe(123);
-    expect(body.rows).toHaveLength(0);
+    const res = await GET(createRequest("?scope=archive"));
+    expect(res.status).toBe(200);
+
+    const statusIn = callsFor(orders.in, "status");
+    expect(statusIn).toHaveLength(1);
+    expect(statusIn[0][1]).toEqual(ARCHIVE_STATUSES);
+    expect(orders.eq).not.toHaveBeenCalledWith("status", "deleted");
+    expect(orders.neq).not.toHaveBeenCalledWith("status", "deleted");
   });
 
-  test("does not recount on a cursor page", async () => {
-    // The cursor is part of the WHERE clause, so a count taken with it applied
-    // answers "how many are left below this row" — a different question, and
-    // one that would make the total shrink as you paged through it.
-    currentCount = 47;
-    const res = await get(
-      `limit=10&cursor=${encodeURIComponent(
-        encodeCursor({ createdAt: "2026-05-20T14:32:00Z", id: "order-1" }),
-      )}`,
-    );
-    const body = await res.json();
+  test("narrows to the requested outcomes", async () => {
+    const orders = runAs();
 
-    expect(selectOptions()).toBeUndefined();
-    expect(body.total).toBeNull();
+    await GET(createRequest("?scope=archive&status=delivered,returned"));
+
+    const statusIn = callsFor(orders.in, "status");
+    expect(statusIn).toHaveLength(1);
+    expect(statusIn[0][1]).toEqual(["delivered", "returned"]);
+  });
+
+  test("a non-terminal status cannot narrow or widen the archive", async () => {
+    const orders = runAs();
+
+    await GET(createRequest("?scope=archive&status=pending"));
+
+    const statusIn = callsFor(orders.in, "status");
+    expect(statusIn).toHaveLength(1);
+    expect(statusIn[0][1]).toEqual(ARCHIVE_STATUSES);
+    // The generic status multi-select must not run a second time in archive
+    // scope: `.eq("status","pending")` here would collapse the view to nothing.
+    expect(orders.eq).not.toHaveBeenCalledWith("status", "pending");
+  });
+
+  test("a single requested outcome still uses .in, never .eq", async () => {
+    const orders = runAs();
+
+    await GET(createRequest("?scope=archive&status=delivered"));
+
+    expect(callsFor(orders.in, "status")[0][1]).toEqual(["delivered"]);
+    expect(orders.eq).not.toHaveBeenCalledWith("status", "delivered");
+  });
+});
+
+/**
+ * Archiving is visibility only. `terminal_at` says when an order finished;
+ * `archived_at` says when someone put it away. The working list hides what has
+ * been put away; the archive reports on everything finished and splits it by
+ * where it currently sits.
+ */
+describe("GET /api/orders/list — archived orders leave the working list", () => {
+  test("the default orders list hides orders that were put away", async () => {
+    const orders = runAs();
+
+    await GET(createRequest());
+
+    expect(orders.is).toHaveBeenCalledWith("archived_at", null);
+  });
+
+  test("the archive does not hide them", async () => {
+    const orders = runAs();
+
+    await GET(createRequest("?scope=archive"));
+
+    expect(orders.is).not.toHaveBeenCalledWith("archived_at", null);
+    // Membership is "has finished", not "has a terminal status" — the two are
+    // the same set, but terminal_at is the indexed, date-comparable one.
+    expect(orders.not).toHaveBeenCalledWith("terminal_at", "is", null);
+  });
+
+  test("state=archived shows only what was put away", async () => {
+    const orders = runAs();
+
+    await GET(createRequest("?scope=archive&state=archived"));
+
+    expect(orders.not).toHaveBeenCalledWith("archived_at", "is", null);
+    expect(orders.is).not.toHaveBeenCalledWith("archived_at", null);
+  });
+
+  test("state=eligible is finished long enough ago but still in the list", async () => {
+    const orders = runAs();
+
+    await GET(createRequest("?scope=archive&state=eligible"));
+
+    expect(orders.is).toHaveBeenCalledWith("archived_at", null);
+    const cutoff = callsFor(orders.lt, "terminal_at");
+    expect(cutoff).toHaveLength(1);
+    expect(Date.parse(String(cutoff[0][1]))).toBeLessThan(Date.now());
+  });
+
+  test("state=recent is finished too recently to be put away", async () => {
+    const orders = runAs();
+
+    await GET(createRequest("?scope=archive&state=recent"));
+
+    expect(orders.is).toHaveBeenCalledWith("archived_at", null);
+    expect(callsFor(orders.gte, "terminal_at")).toHaveLength(1);
+  });
+});
+
+describe("GET /api/orders/list — the orders list is unchanged", () => {
+  test("hides deleted orders by default", async () => {
+    const orders = runAs();
+
+    await GET(createRequest());
+
+    expect(orders.neq).toHaveBeenCalledWith("status", "deleted");
+    expect(orders.eq).not.toHaveBeenCalledWith("status", "deleted");
+  });
+
+  test("include_deleted=1 still shows only soft-deleted orders", async () => {
+    const orders = runAs();
+
+    await GET(createRequest("?include_deleted=1"));
+
+    expect(orders.eq).toHaveBeenCalledWith("status", "deleted");
+    expect(orders.neq).not.toHaveBeenCalledWith("status", "deleted");
+  });
+
+  test("status multi-select still applies outside the archive", async () => {
+    const orders = runAs();
+
+    await GET(createRequest("?status=confirmed,uploaded"));
+
+    expect(callsFor(orders.in, "status")[0][1]).toEqual(["confirmed", "uploaded"]);
+    expect(orders.neq).toHaveBeenCalledWith("status", "deleted");
+  });
+
+  test("agents are refused", async () => {
+    runAs("agent");
+    const res = await GET(createRequest());
+    expect(res.status).toBe(403);
   });
 });

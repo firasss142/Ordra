@@ -173,6 +173,53 @@ describe("pageSize", () => {
   });
 });
 
+/**
+ * `scope` selects which view of the orders table is being read — the working
+ * list or the archive. It is deliberately separate from `includeDeleted`, which
+ * is the "Afficher supprimées" checkbox on the orders page: the archive needs
+ * every terminal status, and reusing the soft-delete toggle to express that is
+ * what collapsed the archive table down to deleted orders only.
+ */
+describe("scope", () => {
+  it("defaults to the orders list", () => {
+    expect(DEFAULT_FILTERS.scope).toBe("orders");
+    expect(parseFiltersFromSearchParams(new URLSearchParams()).scope).toBe("orders");
+  });
+
+  it("parses scope=archive", () => {
+    expect(parseFiltersFromSearchParams(new URLSearchParams({ scope: "archive" })).scope).toBe(
+      "archive",
+    );
+  });
+
+  it("falls back to orders for an unknown scope", () => {
+    expect(parseFiltersFromSearchParams(new URLSearchParams({ scope: "bogus" })).scope).toBe(
+      "orders",
+    );
+  });
+
+  it("serializes a non-default scope and omits the default", () => {
+    expect(filtersToSearchParams({ ...DEFAULT_FILTERS, scope: "archive" }).get("scope")).toBe(
+      "archive",
+    );
+    expect(filtersToSearchParams({ ...DEFAULT_FILTERS, scope: "orders" }).has("scope")).toBe(false);
+  });
+
+  it("round-trips", () => {
+    const params = filtersToSearchParams({ ...DEFAULT_FILTERS, scope: "archive" });
+    expect(parseFiltersFromSearchParams(params).scope).toBe("archive");
+  });
+
+  // Scope is which page you are on, not a filter you applied to it. Counting it
+  // would light up the "clear filters" affordance the moment the archive loads,
+  // and clearing filters would throw the user back to the orders list.
+  it("is not an active filter, and survives a reset", () => {
+    const f = { ...DEFAULT_FILTERS, scope: "archive" as const };
+    expect(hasActiveFilters(f)).toBe(false);
+    expect(resetFilters(f).scope).toBe("archive");
+  });
+});
+
 describe("cursor", () => {
   it("round-trips a cursor", () => {
     const c = { createdAt: "2026-04-22T10:00:00.000Z", id: "abc-123" };

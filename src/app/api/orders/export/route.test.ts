@@ -12,6 +12,7 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import { GET } from "./route";
 import { NextRequest } from "next/server";
+import { ARCHIVE_STATUSES } from "@/lib/orders/archive-scope";
 
 function createRequest(url: string) {
   return new NextRequest(new URL(url, "http://localhost:3000"), { method: "GET" });
@@ -153,6 +154,61 @@ describe("GET /api/orders/export", () => {
     expect(res.status).toBe(200);
     expect(orderChainRef!.eq).toHaveBeenCalledWith("status", "deleted");
     expect(orderChainRef!.neq).not.toHaveBeenCalledWith("status", "deleted");
+  });
+
+  /**
+   * The archive's "Exporter CSV" button reached the terminal-status view
+   * through include_deleted, so the default export from the archive contained
+   * soft-deleted orders only — while the page it was launched from reported
+   * every terminal order. Export and table now share one scope axis.
+   */
+  test("scope=archive exports every archive status, not just deleted", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
+    let orderChainRef: ReturnType<typeof queryChain>;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
+      if (table === "orders") {
+        orderChainRef = queryChain({ data: [], error: null });
+        return orderChainRef;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const req = createRequest("/api/orders/export?scope=archive");
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+
+    const statusIn = (orderChainRef!.in as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (c: unknown[]) => c[0] === "status",
+    );
+    expect(statusIn).toHaveLength(1);
+    expect(statusIn[0][1]).toEqual(ARCHIVE_STATUSES);
+    expect(orderChainRef!.eq).not.toHaveBeenCalledWith("status", "deleted");
+    expect(orderChainRef!.neq).not.toHaveBeenCalledWith("status", "deleted");
+  });
+
+  test("scope=archive narrows to the selected outcomes without a second status filter", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
+    let orderChainRef: ReturnType<typeof queryChain>;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
+      if (table === "orders") {
+        orderChainRef = queryChain({ data: [], error: null });
+        return orderChainRef;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const req = createRequest("/api/orders/export?scope=archive&status=returned");
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+
+    const statusIn = (orderChainRef!.in as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (c: unknown[]) => c[0] === "status",
+    );
+    expect(statusIn).toHaveLength(1);
+    expect(statusIn[0][1]).toEqual(["returned"]);
+    expect(orderChainRef!.eq).not.toHaveBeenCalledWith("status", "returned");
   });
 
   test("super_admin can export with market_id filter", async () => {
