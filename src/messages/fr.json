@@ -1299,20 +1299,7 @@
         "returned": "{count} retours",
         "returnedOne": "{count} retour"
       },
-      "slaTarget": "SLA {target}",
-      "ops": {
-        "title": "Résumé opérationnel",
-        "market": "Marché",
-        "market_tn": "Tunisie",
-        "market_ly": "Libye",
-        "origin": "Origine",
-        "originStorefront": "Storefront",
-        "originManual": "Manuelle",
-        "createdAt": "Créée le",
-        "duplicates": "Doublons",
-        "duplicatesNone": "Aucun",
-        "attempts": "Tentatives"
-      }
+      "slaTarget": "SLA {target}"
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",

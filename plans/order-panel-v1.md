@@ -8,13 +8,13 @@ so cutting from `main` would have meant conflicts in both on the way back.
 ## What changes
 
 | # | Change | Files | Data |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | Ville + Adresse promoted into the facts grid | `OrderFacts.tsx` | existing |
 | 2 | Reliability strip on the client line | `CustomerHero.tsx`, `index.tsx` | `/api/customer-history` (existing) |
 | 3 | SLA chip in the header | `PanelHeader.tsx`, `types/settings.ts`, `hooks/useSlaMinutes.ts` | **new setting** `sla_minutes` |
 | 4 | Three call outcomes in the footer | `usePrimaryAction.ts`, `ActionFooter.tsx`, `index.tsx` | existing |
 | 5 | Blockers moved directly above the footer | `index.tsx` | existing |
-| 6 | Admin-only operational summary | `OpsSummary.tsx` (new), `index.tsx` | existing |
+| ~~6~~ | ~~Admin-only operational summary~~ — built, then removed on review | — | — |
 
 The agent brief needs no change: `ProductBriefBanner` already lives inside the Articles
 tab, which is where the prototype leaves it. The prototype only dropped the *second*,
@@ -42,6 +42,15 @@ array for the in-confirmation group. `ActionFooter` renders the outcomes when pr
 and falls back to the single-CTA layout otherwise, so every other status is untouched.
 `Refuser` still opens `PostCallActionSheet` (a rejection reason is mandatory) — the
 sheet just opens on the rejection step instead of the outcome-picker step.
+
+## Removed after review
+
+**The operational summary card.** Shipped in 567528c, removed in the next
+commit. Seen against real data it did not earn its space: the origin cell
+printed a raw storefront UUID rather than an order number, the market cell
+restated a currency the total already carries, and "Doublons: Aucun" spent a
+line saying nothing happened. The provenance it showed belongs on a row in the
+orders console, not on the surface an agent uses to work one order.
 
 ## Deliberately NOT in this pass
 

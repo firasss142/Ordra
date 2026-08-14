@@ -80,7 +80,6 @@ import { FulfillmentCard, FULFILLMENT_STATUS_VALUES as FULFILLMENT_VALUES_FROM_C
 import type { FulfillmentStatusValue } from "./FulfillmentCard";
 import { AlertBanners } from "./AlertBanners";
 import { OrderFacts } from "./OrderFacts";
-import { OpsSummary } from "./OpsSummary";
 import { PanelTabs, type PanelTab } from "./PanelTabs";
 import { usePrimaryAction } from "./usePrimaryAction";
 import type { PanelActionKind } from "./types";
@@ -163,12 +162,6 @@ interface OrderDetail {
   assigned_agent_name: string | null;
   market_id: string;
   attempts_count?: number | null;
-  /**
-   * Siblings found by `enrichRowsWithDuplicates` on the detail route — same
-   * customer, product and quantity inside 24h. Absent on payloads that predate
-   * the enrichment, hence optional.
-   */
-  duplicate_count?: number | null;
   /** Intake time — drives the header's elapsed-time reading. */
   created_at: string;
   updated_at: string;
@@ -707,11 +700,6 @@ export function OrderDetailPanel({
     (role === "market_manager" || role === "super_admin") &&
     order !== null;
 
-  // Managers and admins together, as everywhere else in this panel: the two
-  // roles differ in scope (own market vs all), not in what they are allowed to
-  // see about one order they can already open.
-  const isManagerish = role === "market_manager" || role === "super_admin";
-
   async function handleReturnToPool() {
     if (!onReturnToPool) return;
     setReturningToPool(true);
@@ -1235,21 +1223,6 @@ export function OrderDetailPanel({
                 agentName={order.assigned_agent_name ?? null}
                 carrierName={assignedCarrierName}
               />
-
-              {/* Manager-only: provenance and duplicate context an agent has no
-                  use for mid-call, and no room for. */}
-              {isManagerish && (
-                <OpsSummary
-                  marketId={order.market_id}
-                  currencyCode={displayCurrency}
-                  createdAt={order.created_at}
-                  externalId={order.external_id}
-                  duplicateCount={order.duplicate_count ?? 0}
-                  attemptsCount={order.attempts_count ?? 0}
-                  maxAttempts={maxCallAttempts}
-                  locale={locale}
-                />
-              )}
 
             </div>
 

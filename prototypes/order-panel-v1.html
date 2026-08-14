@@ -1000,22 +1000,6 @@
             </div>
           </dl>
 
-          <!-- Admin ops summary -->
-          <div class="callout ops ann" data-ann="3" data-roles="admin">
-            <div class="callout-head">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3v18h18"/><path d="m7 14 3-4 3 3 5-6"/></svg>
-              Résumé opérationnel
-            </div>
-            <dl class="ops-grid">
-              <div><dt>Marché</dt><dd>Libye · LYD</dd></div>
-              <div><dt>Source</dt><dd>Converty · webhook</dd></div>
-              <div><dt>Créée le</dt><dd>14/08 · 09:42</dd></div>
-              <div><dt>Doublons</dt><dd>Aucun</dd></div>
-              <div><dt>Marge estimée</dt><dd class="pos">+72,40 <span class="cur">LYD</span></dd></div>
-              <div><dt>Tentatives</dt><dd>0 / 3</dd></div>
-            </dl>
-          </div>
-
           <!-- Tabs -->
           <div class="tabs" role="tablist">
             <button type="button" class="tab" role="tab" aria-selected="true" data-tab="items">Articles</button>
@@ -1097,7 +1081,7 @@
 
           <!-- Banners sit directly above the footer, where the decision is made -->
           <div class="banners">
-            <div class="banner warn ann" data-ann="4" id="cityBlocker">
+            <div class="banner warn ann" data-ann="3" id="cityBlocker">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex:none"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
               <div class="b-body"><b>Expédition bloquée</b> : ville non renseignée.</div>
               <button type="button" class="banner-btn">Résoudre</button>
@@ -1143,13 +1127,6 @@
           </li>
           <li>
             <span class="num">3</span>
-            <div><b>Résumé opérationnel</b><span class="tag new">nouveau</span><br>
-              Super admin uniquement. La marge doit être calculée côté serveur
-              (<code>lib/calculations/</code>) — jamais dans le client.
-            </div>
-          </li>
-          <li>
-            <span class="num">4</span>
             <div><b>Bloqueur ville</b><span class="tag exists">déjà en place</span><br>
               <code>AlertBanners.tsx</code> le rend déjà ; il descend juste au-dessus
               du pied de page, là où l'action est prise.
@@ -1164,7 +1141,7 @@
           <li><span class="who">Accent</span><span>Vert file agent (<code>--agent-primary</code>) / violet console (<code>--oms-accent</code>)</span></li>
           <li><span class="who">En-tête</span><span>SLA pour les deux ; « Modifier statut » admin seulement</span></li>
           <li><span class="who">Agent</span><span>Lecture seule / « Réassigner » pour l'admin</span></li>
-          <li><span class="who">Encart</span><span>Aucun (note client dans l'onglet Livraison) / Résumé opérationnel + marge</span></li>
+          <li><span class="who">Encart</span><span>Aucun des deux — le panneau reste identité, destination, articles</span></li>
           <li><span class="who">Pied</span><span>Trois issues d'appel / mêmes issues + annulation, fulfillment, restauration</span></li>
           <li><span class="who">Édition</span><span>Agent : sa commande, hors statuts bloqués. Admin : toujours</span></li>
         </ul>
