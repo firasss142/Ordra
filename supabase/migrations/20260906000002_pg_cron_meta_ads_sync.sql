@@ -76,6 +76,25 @@ SELECT cron.schedule(
   $sql$ SELECT invoke_meta_ads_sync(); $sql$
 );
 
+-- The sync-health strip has to be able to say "not scheduled" and be right.
+-- cron.job lives outside the public schema so PostgREST cannot reach it; this
+-- is the narrowest possible window onto it — one job name, two non-sensitive
+-- columns. Without it the strip either omits the cadence or asserts an hourly
+-- schedule it has not checked, and a strip that asserts is worse than none.
+CREATE OR REPLACE FUNCTION meta_ads_cron_status()
+RETURNS TABLE (schedule TEXT, active BOOLEAN)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, cron
+AS $$
+  SELECT j.schedule::TEXT, j.active
+  FROM cron.job j
+  WHERE j.jobname = 'meta-ads-sync';
+$$;
+
+GRANT EXECUTE ON FUNCTION meta_ads_cron_status() TO authenticated, service_role;
+
 -- Verifying this actually ran is a two-step check, because pg_cron reports
 -- "succeeded" for any job that merely handed a request to pg_net:
 --   SELECT * FROM cron.job_run_details WHERE jobname = 'meta-ads-sync' ORDER BY start_time DESC LIMIT 5;

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, Upload } from "lucide-react";
+import { Loader2, Plus, RefreshCw, Upload } from "lucide-react";
 import { useAdSpendCampaigns } from "@/hooks/useAdSpendCampaigns";
 import { useMarketScope } from "@/context/market-scope";
 import {
@@ -15,8 +15,10 @@ import {
   type SyncHealth,
 } from "@/components/ad-spend/AdSpendEconomics";
 import { useAdSpendEconomics } from "@/hooks/useAdSpendEconomics";
+import { useAdSpendSyncStatus } from "@/hooks/useAdSpendSyncStatus";
 import { AdSpendEntryModal } from "@/components/ad-spend/AdSpendEntryModal";
 import { AdSpendCsvImport } from "@/components/ad-spend/AdSpendCsvImport";
+import { AdSpendMappingDrawer } from "@/components/ad-spend/AdSpendMappingDrawer";
 import { EmptyState } from "@/components/dashboard/Panel";
 import type { AdSpendWithMetrics } from "@/lib/ad-spend/realized-metrics";
 import type { AuthUser } from "@/types";
@@ -41,6 +43,38 @@ function twelveWeekFrom(): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** "il y a 14 min" — the strip reads as freshness, not as a timestamp. */
+function relativeTime(iso: string | null, locale: string): string | null {
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return null;
+  const minutes = Math.round((then - Date.now()) / 60_000);
+  const rtf = new Intl.RelativeTimeFormat(locale === "ar" ? "ar" : "fr", { numeric: "auto" });
+  if (Math.abs(minutes) < 60) return rtf.format(minutes, "minute");
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) return rtf.format(hours, "hour");
+  return rtf.format(Math.round(hours / 24), "day");
+}
+
+/**
+ * Next firing of an hourly `M * * * *` schedule, as a local wall time.
+ *
+ * Only that one shape is decoded — it is the shape this job uses — and anything
+ * else falls back to showing the raw expression rather than guessing. A sync
+ * strip that quietly mis-states when the next run happens is worse than one
+ * that shows a cron string.
+ */
+function nextCronRun(schedule: string): string {
+  const match = /^(\d{1,2}) \* \* \* \*$/.exec(schedule.trim());
+  if (!match) return schedule;
+  const minute = Number(match[1]);
+  const next = new Date();
+  next.setSeconds(0, 0);
+  if (next.getMinutes() >= minute) next.setHours(next.getHours() + 1);
+  next.setMinutes(minute);
+  return next.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
 export function AdSpendClient({ user, markets }: AdSpendClientProps) {
   const t = useTranslations("adSpend");
   const isSuperAdmin = user.role === "super_admin";
@@ -63,13 +97,18 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
   } = useAdSpendEconomics({ marketId: selectedMarketId, fromDate, toDate });
 
   const market = markets.find((m) => m.id === selectedMarketId);
+  const marketLabel = market?.name ?? "";
   const currency = market?.code.toUpperCase() === "LY" ? "LYD" : "TND";
 
   const [editingEntry, setEditingEntry] = useState<AdSpendWithMetrics | null | undefined>(undefined); // undefined = modal closed
   const [showImport, setShowImport] = useState(false);
+  const [showMapping, setShowMapping] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<AdSpendWithMetrics | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const { status: syncStatus, mutate: mutateSync } = useAdSpendSyncStatus(selectedMarketId);
 
   // Entries and the product list back the CRUD surfaces only — every figure on
   // the page comes from the economics route. The metrics overlay is skipped
@@ -84,7 +123,39 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
   const refresh = useCallback(() => {
     mutate();
     mutateEconomics();
-  }, [mutate, mutateEconomics]);
+    mutateSync();
+  }, [mutate, mutateEconomics, mutateSync]);
+
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  const runSyncNow = useCallback(async () => {
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      // market_id is a query param, not a body field — the route reads
+      // `req.nextUrl.searchParams`, and a body would be silently ignored,
+      // syncing every market instead of this one.
+      const res = await fetch(`/api/ad-spend/sync?market_id=${encodeURIComponent(selectedMarketId)}`, {
+        method: "POST",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body?.ok === false) {
+        setSyncError(body?.error ?? t("economics.syncFailed"));
+        return;
+      }
+      // A run that finished but wrote nothing is worth saying out loud — it is
+      // the shape a wrong date window or a paused campaign takes.
+      const failed = (body?.results ?? []).filter(
+        (r: { status: string }) => r.status === "failed",
+      );
+      if (failed.length > 0) setSyncError(failed[0]?.error ?? t("economics.syncFailed"));
+    } catch {
+      setSyncError(t("economics.syncFailed"));
+    } finally {
+      setSyncing(false);
+      refresh();
+    }
+  }, [selectedMarketId, refresh, t]);
 
   const periodLabel = useMemo(() => {
     const f = new Intl.DateTimeFormat(locale === "ar" ? "ar" : "fr-FR", {
@@ -95,24 +166,47 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
     return `${f.format(new Date(fromDate))} – ${f.format(new Date(toDate))}`;
   }, [fromDate, toDate, locale]);
 
-  // Nothing has synced yet: the accounts table arrives with the Meta migration.
-  // Saying so out loud is the point — a blank strip would read as "healthy".
-  const syncHealth: SyncHealth = useMemo(
-    () => ({
-      lastSyncedAt: null,
-      rowsWritten: null,
-      campaigns: null,
-      cadenceLabel: null,
-      accounts: markets.map((m) => ({
-        label: m.name,
-        ok: false,
-        detail: t("economics.syncNotConnected"),
-        note: t("economics.syncTokenPending"),
-      })),
-      lastError: null,
-    }),
-    [markets, t],
-  );
+  // The strip has to be able to say "never synced" and "not scheduled" and be
+  // right about both. Everything here comes from the sync-status route; nothing
+  // is asserted. A blank strip would read as healthy, which is the one thing a
+  // broken sync must never look like.
+  const syncHealth: SyncHealth = useMemo(() => {
+    const accounts = (syncStatus?.accounts ?? []).map((a) => {
+      const tzBad = a.timezone.status === "mismatch";
+      return {
+        label: a.account_name ?? `act_${a.ad_account_id}`,
+        ok: a.is_active && !a.last_sync_error && !tzBad,
+        detail: a.last_sync_error
+          ? t("economics.syncFailing")
+          : !a.is_active
+            ? t("economics.syncPaused")
+            : tzBad
+              ? t("economics.syncTimezoneOff")
+              : `${t("economics.syncOk")} · ${a.account_currency}`,
+        note: a.account_timezone ?? t("economics.syncTimezoneUnknown"),
+      };
+    });
+
+    return {
+      lastSyncedAt: relativeTime(syncStatus?.last_run?.started_at ?? null, locale),
+      rowsWritten: syncStatus?.last_run?.rows_upserted ?? null,
+      campaigns: syncStatus?.campaigns ?? null,
+      cadenceLabel:
+        syncStatus?.cadence?.active === true ? nextCronRun(syncStatus.cadence.schedule) : null,
+      accounts:
+        accounts.length > 0
+          ? accounts
+          : [
+              {
+                label: marketLabel || t("economics.syncNoAccount"),
+                ok: false,
+                detail: t("economics.syncNotConnected"),
+                note: t("economics.syncTokenPending"),
+              },
+            ],
+      lastError: syncStatus?.last_error ?? null,
+    };
+  }, [syncStatus, t, locale, marketLabel]);
 
   const openEntry = useCallback(
     (entryId: string) => {
@@ -269,9 +363,32 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
                 {market.name} · {currency}
               </span>
             )}
-            <span className="inline-flex items-center gap-1.5 border border-ads-orange-line rounded-[8px] px-[11px] py-1.5 text-[12.5px] font-semibold bg-ads-orange-bg text-ads-orange-ink">
-              {t("economics.metaNotConnected")}
-            </span>
+            {/* One chip, three truths: connected and fresh, connected and
+                stale, or not connected at all. */}
+            {syncHealth.lastSyncedAt ? (
+              <span className="inline-flex items-center gap-1.5 border border-ads-line-2 rounded-[8px] px-[11px] py-1.5 text-[12.5px] font-semibold bg-surface-card text-ads-ink-1">
+                {t("economics.syncedAgo", { ago: syncHealth.lastSyncedAt })}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 border border-ads-orange-line rounded-[8px] px-[11px] py-1.5 text-[12.5px] font-semibold bg-ads-orange-bg text-ads-orange-ink">
+                {t("economics.metaNotConnected")}
+              </span>
+            )}
+            {(syncStatus?.accounts.length ?? 0) > 0 && (
+              <button
+                type="button"
+                onClick={runSyncNow}
+                disabled={syncing}
+                className="inline-flex items-center gap-1.5 border border-ads-line-2 rounded-[8px] px-3 py-[7px] text-[13px] font-semibold bg-surface-card text-ads-ink-1 hover:border-line-strong hover:bg-surface-sunken transition-colors duration-fast disabled:opacity-60"
+              >
+                {syncing ? (
+                  <Loader2 size={14} strokeWidth={2} className="animate-spin" />
+                ) : (
+                  <RefreshCw size={14} strokeWidth={1.8} />
+                )}
+                {t("economics.syncNow")}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setShowImport(true)}
@@ -302,7 +419,26 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
         </div>
       ) : (
         <>
-          <AdSpendUnmappedBanner meta={economicsMeta} currency={currency} />
+          {syncError && (
+            <div role="alert" className="rounded-card border border-ads-red-line bg-ads-red-bg px-4 py-3">
+              <p className="text-[13px] font-semibold text-ads-red-ink">{t("economics.syncFailed")}</p>
+              <p className="text-[12.5px] text-ads-ink-2 mt-0.5 break-words">{syncError}</p>
+            </div>
+          )}
+
+          {/* The drawer maps Meta campaigns. A manual market-level entry is
+              unmapped too, but it is fixed by editing the entry, not by
+              mapping a campaign — so the banner only offers the action when
+              there is actually a campaign behind it. */}
+          <AdSpendUnmappedBanner
+            meta={economicsMeta}
+            currency={currency}
+            onAttach={
+              economicsMeta.unmapped.entries.some((e) => e.source === "meta")
+                ? () => setShowMapping(true)
+                : undefined
+            }
+          />
 
           {economicsMeta.total_spend === 0 && (
             <div className="rounded-card border border-ads-orange-line bg-ads-orange-bg px-4 py-3">
@@ -331,6 +467,9 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
             currency={currency}
             onEditEntry={openEntry}
             onDeleteEntry={confirmDelete}
+            onMapCampaigns={
+              (syncStatus?.accounts.length ?? 0) > 0 ? () => setShowMapping(true) : undefined
+            }
           />
 
           <AdSpendSyncStrip health={syncHealth} />
@@ -398,6 +537,19 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Campaign → product mapping */}
+      {showMapping && (
+        <AdSpendMappingDrawer
+          marketId={selectedMarketId}
+          fromDate={fromDate}
+          toDate={toDate}
+          currency={currency}
+          products={products}
+          onClose={() => setShowMapping(false)}
+          onSaved={refresh}
+        />
       )}
 
       {/* CSV Import modal */}
