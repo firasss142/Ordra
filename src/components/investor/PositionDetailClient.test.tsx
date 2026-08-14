@@ -3,6 +3,8 @@ import { render, screen, within } from "@testing-library/react";
 import frMessages from "@/messages/fr.json";
 import { PositionDetailClient } from "./PositionDetailClient";
 import type { PortfolioResult, PositionSummary } from "@/lib/investors/portfolio";
+// Montants : isolats bidi + espaces insécables invisibles. Voir test/helpers/money.
+import { money } from "@/test/helpers/money";
 
 vi.mock("next-intl", () => ({
   useTranslations:
@@ -147,14 +149,14 @@ describe("PositionDetailClient — two-column waterfall", () => {
 
   test("the investor's bottom line is the loudest figure in the block", () => {
     detail();
-    const mine = screen.getByText("15 216,599 DT");
+    const mine = screen.getByText(money(15216.599));
     expect(mine.className).toContain("text-[18px]");
     expect(mine.className).toContain("text-status-success");
   });
 
   test("a losing position renders its bottom line as critical", () => {
     detail({ yours: { ...position().yours, netProfit: -900 } });
-    expect(screen.getByText("-900,000 DT").className).toContain("text-status-critical");
+    expect(screen.getByText(money(-900)).className).toContain("text-status-critical");
   });
 });
 

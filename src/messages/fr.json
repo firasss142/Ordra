@@ -626,8 +626,10 @@
       "received": "Commandes",
       "confirmedLabel": "Confirmées",
       "todaySuffix": "aujourd'hui",
+      "receivedHint": "commandes reçues",
+      "confirmedHint": "commandes confirmées",
       "overWeek": "{n} sur {days} j",
-      "confirmRate": "{n} sur 30 j · {rate} du flux"
+      "confirmRate": "{rate} du flux confirmé"
     },
     "chart": {
       "title": "Commandes par jour",
@@ -635,10 +637,15 @@
       "returned": "Retours",
       "rejected": "Rejetées",
       "open": "En cours",
-      "cohortNote": "les jours récents ont encore des commandes non résolues"
+      "cohortNote": "les jours récents ont encore des commandes non résolues",
+      "unresolvedNote": "Jours récents : données non résolues"
     },
     "carriers": {
       "title": "Transporteurs",
+      "summaryTitle": "Transporteurs — résumé",
+      "compareTitle": "Transporteurs — comparatif",
+      "totalShipments": "Total expéditions",
+      "shipments": "{n} expéditions",
       "window": "{days} derniers jours",
       "overallRate": "Taux de livraison",
       "overallScope": "tous transporteurs",
@@ -664,11 +671,18 @@
       "returnSpend": "{amount} perdus en retours — {n} colis repartis sans vente"
     },
     "delta": {
-      "vsPrevious": "vs 30 j précédents",
+      "vsPrevious": "vs période précédente",
       "basedOn": "sur {n} commandes",
       "tooFew": "{n} commandes — trop peu pour comparer",
       "noBaseline": "pas d'historique",
-      "vsMean": "vs moy. 7 j"
+      "vsMean": "vs moy. 7 j",
+      "vsRange": "vs {range}"
+    },
+    "period": {
+      "label": "Période",
+      "d7": "7j",
+      "d30": "30j",
+      "d90": "90j"
     },
     "window": "30 derniers jours",
     "noActivity": "Aucune activité sur cette période — dernière le {date}"
@@ -1346,8 +1360,33 @@
         "quantityInvalid": "Quantité invalide.",
         "unitPriceInvalid": "Prix unitaire invalide.",
         "totalPriceInvalid": "Prix total invalide.",
-        "requestFailed": "Erreur {status}"
-      }
+        "requestFailed": "Erreur {status}",
+        "totalOverrideInvalid": "Le total saisi est invalide.",
+        "cityRequired": "La ville est obligatoire."
+      },
+      "citySearchPlaceholder": "Rechercher une ville…",
+      "cityNoResults": "Aucune ville trouvée.",
+      "cityPlaceholder": "Rechercher une ville...",
+      "addressPlaceholder": "Saisir l'adresse complète",
+      "notePlaceholder": "Note (optionnelle)",
+      "phonePlaceholder": "91 234 5678",
+      "namePlaceholder": "Nom complet du client",
+      "productPlaceholder": "Choisir un produit…",
+      "productSearchPlaceholder": "Rechercher un produit…",
+      "productClear": "Retirer le produit",
+      "qtyDecrease": "Diminuer la quantité",
+      "qtyIncrease": "Augmenter la quantité",
+      "totalComputed": "Total calculé",
+      "totalBreakdown": "{qty} × {price}",
+      "totalEdit": "Modifier le total",
+      "totalReset": "Rétablir le calcul",
+      "totalOverridden": "Total modifié — écart de {delta}",
+      "existingCustomer": "Client existant",
+      "customerOrders": "{count} commandes",
+      "customerLastOrder": "Dernière commande le {date}",
+      "useCustomer": "Utiliser ce client",
+      "noMarketScopeTitle": "Choisissez un marché",
+      "noMarketScopeBody": "Sélectionnez un marché dans la barre latérale pour créer une commande."
     },
     "view": {
       "label": "Mode d'affichage",
@@ -1360,10 +1399,10 @@
       "unassigned": "Non assignées",
       "unassignedHint": "aucun agent",
       "today": "Aujourd'hui",
-      "waiting": "En attente",
       "toRecall": "À rappeler",
       "uploaded": "Téléchargées",
       "rejected": "Rejetées",
+      "delivered": "Livrées",
       "confirmationRate": "Taux de confirmation",
       "ratePeriod": "7 derniers jours · vs 7 précédents",
       "rateSample": "sur {count} décisions · 7 j",
@@ -1374,7 +1413,10 @@
       "scaleDaily": "volumes du jour",
       "hidePipeline": "Masquer le pipeline",
       "showPipeline": "Afficher le pipeline",
-      "total": "{count} au total"
+      "total": "{count} au total",
+      "periodSince": "depuis le {date}",
+      "periodUntil": "jusqu'au {date}",
+      "periodRange": "{from} → {to}"
     },
     "facets": {
       "anyOf": "n'importe lequel",
@@ -1394,6 +1436,11 @@
       "d3": "3 derniers jours",
       "d7": "7 derniers jours",
       "d30": "30 derniers jours",
+      "custom": "Personnalisé",
+      "dateFrom": "Du",
+      "dateTo": "Au",
+      "apply": "Appliquer",
+      "invalidRange": "La date de début doit précéder la date de fin.",
       "onePeriod": "une seule période",
       "anyProduct": "n'importe lequel",
       "showDeleted": "Afficher supprimées",
@@ -1994,43 +2041,6 @@
       "noSales": "Sans ventes",
       "inactive": "Inactifs"
     },
-    "kpi": {
-      "revenue": "CA période ({period})",
-      "netProfit": "Profit net ({period})",
-      "stockValue": "Valeur du stock",
-      "vsPrevious": "vs période précédente",
-      "vsValue": "vs {value} la période précédente",
-      "avgMargin": "Marge moyenne {value}",
-      "units": "{count} unités",
-      "stockHealthy": "sains",
-      "stockLow": "bas",
-      "stockOut": "rupture",
-      "stockSplit": "Répartition du stock",
-      "loading": "Chargement des indicateurs…"
-    },
-    "drawer": {
-      "profitability": "Rentabilité",
-      "stock": "Stock et mouvements",
-      "costs": "Coûts et prix",
-      "netProfit": "Profit net",
-      "delivered": "Livrées",
-      "returned": "Retournées",
-      "perDelivered": "Profit / livrée",
-      "leads": "Prospects",
-      "confirmed": "Confirmées",
-      "cogs": "COGS",
-      "packing": "Emballage",
-      "processing": "Traitement",
-      "ads": "Publicité",
-      "systemVsReal": "Système / Réel",
-      "initialStock": "Stock initial",
-      "costsReadOnly": "Les coûts se modifient depuis la fiche complète — super_admin uniquement.",
-      "openFull": "Ouvrir la fiche complète",
-      "close": "Fermer",
-      "delivery": "Livraison",
-      "returns": "Retours",
-      "net": "Net"
-    },
     "period": {
       "lastNDays": "{count} derniers jours",
       "compact": "{count}j"
@@ -2038,7 +2048,254 @@
     "errors": {
       "toggleFailed": "{count} produit(s) n'ont pas pu être mis à jour.",
       "thresholdFailed": "Le seuil n'a pas pu être enregistré.",
-      "generic": "Erreur {status}"
+      "generic": "Erreur {status}",
+      "archiveStillActive": "Désactivez d'abord le produit, puis archivez-le."
+    },
+    "rowList": {
+      "summary": "{count} produit(s) · {active} actif(s)",
+      "density": "Densité",
+      "densityComfortable": "Confortable",
+      "densityCompact": "Compact",
+      "sortBy": "Trier : {value}",
+      "sortAscending": "Croissant",
+      "sortDescending": "Décroissant",
+      "sortKeys": {
+        "name": "Nom",
+        "currentStock": "Stock",
+        "unitCogs": "COGS unitaire",
+        "revenue": "Chiffre d'affaires",
+        "netProfit": "Profit net",
+        "marginPct": "Marge nette",
+        "confirmationRate": "Taux de confirmation",
+        "deliveryRate": "Taux de livraison",
+        "returnRate": "Taux de retour",
+        "totalLeads": "Commandes reçues",
+        "isActive": "Statut"
+      },
+      "orders": "Commandes",
+      "ordersCaption": "reçues",
+      "confirmed": "Confirmées",
+      "delivered": "Livrées",
+      "noDispatch": "aucun upload",
+      "marginValue": "Marge {value}",
+      "noRevenueYet": "Coûts engagés, rien d'encaissé",
+      "stockCount": "{count} en stock",
+      "stockThreshold": "seuil {count}",
+      "inFlight": "{count} en cours",
+      "inFlightHint": "Uploadées, en attente d'un statut transporteur",
+      "noOrders": "Aucune commande sur ce produit",
+      "metricsUnavailable": "Chiffres indisponibles",
+      "openProduct": "Ouvrir la fiche de {name}",
+      "archive": "Archiver le produit"
+    },
+    "sheet": {
+      "breadcrumb": {
+        "label": "Fil d'Ariane",
+        "current": "Détails du produit"
+      },
+      "header": {
+        "thumbAlt": "Photo du produit",
+        "catalogPrice": "prix catalogue",
+        "stock": "Stock",
+        "stockThreshold": "/ seuil {value}",
+        "stockValue": "Valeur du stock",
+        "orders": "Commandes",
+        "agentsInvolved": "Agents impliqués",
+        "damaged": "Endommagés"
+      },
+      "funnel": {
+        "title": "Entonnoir",
+        "leads": "Commandes",
+        "leadsSub": "reçues de la boutique",
+        "treated": "Traitées",
+        "treatedSub": "un agent a posé une action",
+        "confirmed": "Confirmées",
+        "confirmedSub": "{value} des commandes",
+        "uploaded": "Uploadées",
+        "uploadedSub": "{count} encore en cours",
+        "delivered": "Livrées",
+        "deliveredSub": "{rate} des {count} uploadées",
+        "shareOfOrders": "{value} des commandes",
+        "unavailable": "donnée indisponible"
+      },
+      "callout": {
+        "text": "Le taux de livraison se calcule sur tout ce qui a été uploadé : les {inFlight} commandes encore chez le transporteur comptent comme non-livrées. Il répond à « quelle part du parti est arrivée à ce jour », pas à « le transporteur livre-t-il bien ».",
+        "convergence": "Sur les {settled} commandes déjà réglées, {rate} ont été livrées — c'est vers ce chiffre que le taux converge à mesure que le stock en vol se règle.",
+        "noSettled": "Aucune commande n'est encore réglée : le taux ne peut pas encore converger."
+      },
+      "money": {
+        "title": "Argent",
+        "meta": "CA compté uniquement sur les commandes livrées",
+        "netProfit": "Profit net",
+        "netProfitSub": "Marge {margin} · {count} livraisons",
+        "revenue": "Chiffre d'affaires",
+        "grossProfit": "Profit brut",
+        "netMargin": "Marge nette",
+        "netPerDelivery": "Net / livraison",
+        "waterfall": {
+          "revenue": "Chiffre d'affaires",
+          "cogs": "COGS",
+          "delivery": "Livraison",
+          "returns": "Retours",
+          "packing": "Emballage",
+          "processing": "Traitement",
+          "ads": "Publicité",
+          "netProfit": "Profit net",
+          "note": "Le CA ne compte que les {count} commandes livrées. Les barres se soustraient exactement au profit net, sans arrondi intermédiaire.",
+          "zeroNote": "{posts} valent {value} sur ce produit — les postes à zéro ne sont pas tracés, mais ils sont bien dans le calcul.",
+          "chartLabel": "Cascade du chiffre d'affaires au profit net"
+        }
+      },
+      "agents": {
+        "title": "Agents",
+        "meta": "{count} personnes ont travaillé ce produit",
+        "kpi": {
+          "calls": "Appels",
+          "callsSub": "sur {count} commandes appelées · {avg} appels / commande",
+          "callsSubPerConfirmation": "{avg} appels par confirmation · {count} confirmées",
+          "treated": "Traitées",
+          "treatedSub": "{rate} des {total} commandes",
+          "treatedUnavailable": "Total distinct indisponible : plusieurs agents peuvent traiter la même commande.",
+          "confirmed": "Confirmées",
+          "confirmedSub": "{rate} des commandes · {treatedRate} des traitées",
+          "confirmedSubNoTreated": "{rate} des commandes",
+          "delivered": "Livrées",
+          "deliveredSub": "{rate} des {uploaded} uploadées · {inFlight} en vol",
+          "deliveredSubNoFlight": "{rate} des {uploaded} uploadées",
+          "unavailable": "Donnée indisponible sur la période"
+        },
+        "table": {
+          "title": "Classement des agents",
+          "subtitle": "trié par CA généré · en-têtes triables",
+          "caption": "Comparaison des agents ayant travaillé ce produit",
+          "empty": "Aucun agent n'a travaillé ce produit sur la période."
+        },
+        "columns": {
+          "rank": "Rang",
+          "agent": "Agent",
+          "calls": "Appels",
+          "confirmation": "Confirmation",
+          "delivery": "Livraison",
+          "revenue": "CA généré"
+        },
+        "tips": {
+          "rank": "Classement par CA généré sur ce produit. Managers et administrateurs en sont exclus : ils confirment en lot sans appeler, ce qui fausserait la comparaison.",
+          "agent": "Rôle actuel. Un agent désactivé reste listé tant que son travail compte dans la période.",
+          "calls": "Tentatives d'appel enregistrées (attempt_1/2/3) et nombre de commandes distinctes appelées. Le repère sur la jauge est la médiane de l'équipe.",
+          "confirmation": "Confirmées ÷ traitées. L'agent est crédité s'il est le dernier à avoir confirmé la commande.",
+          "delivery": "Livrées ÷ confirmées. Les commandes encore chez le transporteur comptent comme non-livrées — d'où la pastille « en cours », qui indique ce qui peut encore remonter.",
+          "revenue": "Somme des prix des commandes livrées, attribuée au dernier agent qui a confirmé. Seules les livraisons comptent : rien n'est compté à l'upload."
+        },
+        "tipLabel": "À propos de {column}",
+        "callsDen": "sur {count} commandes",
+        "noCalls": "aucun appel passé",
+        "confirmationDen": "{confirmed} sur {treated} traitées",
+        "deliveryDen": "{delivered} livrées",
+        "deliveryDenWithReturns": "{delivered} livrées · {returned} retours",
+        "noConfirmation": "aucune confirmation",
+        "inFlightPill": "+{count} en cours",
+        "inFlightNone": "0 en cours",
+        "inFlightTitle": "Commandes confirmées par cet agent, encore chez le transporteur",
+        "teamMedian": "Médiane de l'équipe",
+        "supervisorsGroup": "Managers et administrateurs — hors classement",
+        "openAgent": "Ouvrir la fiche de {name}",
+        "openAgentColumn": "Ouvrir la fiche agent",
+        "unknownAgent": "Compte système / hors marché",
+        "roles": {
+          "agent": "Agent",
+          "market_manager": "Manager marché",
+          "super_admin": "Super admin",
+          "warehouse_agent": "Entrepôt",
+          "investor": "Investisseur",
+          "unknown": "Rôle inconnu"
+        },
+        "readingNote": "Lecture — tout ce qui suit la confirmation est attribué au dernier agent qui a confirmé, si bien que pour chaque ligne confirmées = livrées + retours + en cours + autres. Le trait vertical sur chaque jauge est la médiane de l'équipe. La pastille « en cours » est ce qui peut encore faire monter le taux de livraison. Les livrées de ce tableau lisent le statut COURANT des commandes, là où l'entonnoir compte les transitions de la période : les deux peuvent différer."
+      },
+      "stock": {
+        "title": "Stock",
+        "current": "Stock actuel",
+        "threshold": "Seuil d'alerte",
+        "initial": "Stock initial",
+        "value": "Valeur du stock",
+        "damaged": "Retours endommagés",
+        "deliveredUnits": "Unités livrées"
+      },
+      "agentContent": {
+        "title": "Fiche agent",
+        "meta": "ce que l'agent lit pendant l'appel",
+        "emptyTitle": "Aucun contenu rédigé pour ce produit",
+        "emptyBody": "Brief, notes, composition, utilisation, contre-indications et vente croisée sont vides — les agents qui appellent sur ce produit le font sans script.",
+        "emptyCta": "Rédiger la fiche",
+        "briefLabel": "À savoir (épinglé)",
+        "written": "Le contenu agent de ce produit est rédigé.",
+        "editCta": "Modifier la fiche"
+      }
+    },
+    "editV2": {
+      "intro": "Identité, fiche agent, modèle de coût et statut. Les champs verrouillés dépendent de votre rôle.",
+      "asideLabel": "Aperçus",
+      "nav": {
+        "label": "Sections du formulaire"
+      },
+      "sections": {
+        "composition": "Composition et utilisation"
+      },
+      "hints": {
+        "identity": "Nom affiché partout dans la console et sur les bordereaux transporteur.",
+        "agentSheet": "Ce bloc s'affiche à l'agent pendant l'appel. Un brief court en haut, le détail en dessous. La colonne latérale montre le rendu en direct.",
+        "composition": "Les trois champs que l'agent déplie quand le client pose une question précise.",
+        "costModel": "Ces champs alimentent chaque calcul de rentabilité du produit.",
+        "stockStatus": "Le stock ne se modifie pas ici — il passe par « Ajuster le stock », qui écrit une ligne au journal d'inventaire.",
+        "currentStock": "Lecture seule — le stock passe par l'ajustement d'inventaire.",
+        "isActive": "Visible dans la file des agents et acceptant de nouvelles commandes."
+      },
+      "permission": {
+        "superAdmin": "Super admin",
+        "marketManager": "Manager du marché",
+        "requiredRole": "Rôle requis : {role}"
+      },
+      "fields": {
+        "currentStock": "Stock actuel"
+      },
+      "variants": {
+        "title": "Notes par pack",
+        "hint": "Une ligne par pack, lue par l'agent au moment de proposer la quantité."
+      },
+      "margin": {
+        "title": "Marge unitaire — en direct",
+        "price": "Prix catalogue",
+        "cogs": "− Coût unitaire",
+        "packing": "− Emballage",
+        "processing": "− Traitement",
+        "delivery": "− Livraison (moy. réelle)",
+        "total": "Marge par livraison",
+        "note": "Frais de livraison moyens observés sur les livraisons réelles de ce produit. Les retours ne sont pas dans ce calcul unitaire — ils apparaissent dans le profit net de la fiche.",
+        "noDeliveryFee": "Frais de livraison moyens indisponibles — cette marge ne les déduit pas.",
+        "noPrice": "Renseignez un prix catalogue pour voir la marge."
+      },
+      "preview": {
+        "title": "Aperçu agent",
+        "emptyBrief": "Brief vide — l'agent ne verra rien ici",
+        "emptyNotes": "Les notes détaillées s'afficheront ici, sous le nom du produit, dans la fiche que l'agent ouvre pendant l'appel."
+      },
+      "impact": {
+        "title": "Impact",
+        "body": "Changer le coût unitaire recalcule le profit net de toutes les livraisons passées — la marge historique bougera dans le tableau de bord.",
+        "inFlight": "Ce produit a {count} commande(s) en cours chez le transporteur."
+      },
+      "savebar": {
+        "label": "Enregistrement",
+        "clean": "Aucune modification en attente",
+        "dirty": "Modifications non enregistrées"
+      }
+    },
+    "archiveModal": {
+      "title": "Archiver ce produit ?",
+      "body": "<strong>{name}</strong> quittera la liste, la recherche et le sélecteur de création de commande. Seul un super admin pourra le restaurer.",
+      "historyKept": "Les commandes, le journal d'inventaire et les états investisseur sont conservés — rien n'est effacé.",
+      "confirm": "Archiver",
+      "cancel": "Annuler",
+      "pending": "Archivage…"
     }
   },
   "mappings": {
@@ -3738,6 +3995,20 @@
     "month": "Ce mois",
     "last7": "7 derniers jours",
     "last30": "30 derniers jours"
+  },
+  "datePicker": {
+    "presets": {
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
+      "last7days": "7 derniers jours",
+      "last30days": "30 derniers jours",
+      "thisWeek": "Cette semaine",
+      "thisMonth": "Ce mois",
+      "thisQuarter": "Ce trimestre",
+      "custom": "Personnalisé"
+    },
+    "prevMonth": "Mois précédent",
+    "nextMonth": "Mois suivant"
   },
   "investor": {
     "title": "Portefeuille",

@@ -98,8 +98,10 @@ export function CostCompositionBars({
             <span className="min-w-[46px] text-end text-[12px] tabular-nums text-fin-ink-3">
               {share.toFixed(1)}%
             </span>
+            {/* Le signe passe DANS l'isolat bidi de formatCurrency : préfixé au
+                résultat, il dérive à l'autre bout du montant en contexte RTL. */}
             <span className="text-end tabular-nums text-fin-ink-2">
-              −{formatCurrency(row.value)}
+              {formatCurrency(row.value === 0 ? 0 : -Math.abs(row.value))}
             </span>
           </div>
         );

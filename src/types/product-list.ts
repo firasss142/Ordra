@@ -195,6 +195,17 @@ export interface ProductListResponse {
 }
 
 export const PRODUCT_PAGE_SIZES = [10, 25, 50, 100] as const;
+/**
+ * La facette d'ouverture de la console produits.
+ *
+ * « active » et non « all » : un produit désactivé est rangé, pas en attente
+ * d'arbitrage. Le garder dans la vue par défaut faisait payer à chaque lecture
+ * le bruit des produits retirés du catalogue. Les facettes « Tous » et
+ * « Inactifs » restent à un clic — c'est par là qu'on retrouve un produit
+ * désactivé pour l'archiver.
+ */
+export const DEFAULT_PRODUCT_FACET: ProductFacet = "active";
+
 export const DEFAULT_PRODUCT_PAGE_SIZE = 25;
 export const DEFAULT_PRODUCT_PERIOD_DAYS = 30;
 /** A positive margin at or below this is "thin". Not a cost variable — a display threshold. */

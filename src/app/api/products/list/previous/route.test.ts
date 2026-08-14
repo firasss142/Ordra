@@ -45,7 +45,8 @@ function metrics(over: Partial<ProductPeriodMetrics> = {}): ProductPeriodMetrics
 function productsChain(rows: unknown[]) {
   const c: Record<string, unknown> = {};
   c.select = vi.fn().mockReturnValue(c);
-  c.eq = vi.fn().mockImplementation(() => Promise.resolve({ data: rows, error: null }));
+  c.eq = vi.fn().mockReturnValue(c);
+  c.is = vi.fn().mockImplementation(() => Promise.resolve({ data: rows, error: null }));
   return c;
 }
 
@@ -163,7 +164,8 @@ describe("GET /api/products/list/previous — payload", () => {
     mockGetActor.mockResolvedValue({ actor: { id: "sa", role: "super_admin", market_id: null } });
     const c: Record<string, unknown> = {};
     c.select = vi.fn().mockReturnValue(c);
-    c.eq = vi.fn().mockResolvedValue({ data: null, error: { message: "boom" } });
+    c.eq = vi.fn().mockReturnValue(c);
+    c.is = vi.fn().mockResolvedValue({ data: null, error: { message: "boom" } });
     mockFrom.mockImplementation(() => c);
     expect((await GET(req("market_id=m-ly"))).status).toBe(500);
   });

@@ -1,0 +1,1343 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OMS — Produits v5</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   JETONS — docs/design-system.md + globals.css
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  --bg-page:#F6F6F7; --bg-card:#FFF; --sunken:#FAFAFB; --hover:#FAFAFA;
+  --ink-1:#1A1A1A; --ink-2:#6D7175; --ink-3:#9CA3AF;
+  --line-subtle:#ECEEF0; --line:#E1E3E5; --line-strong:#DADCE0;
+  --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4; --brand-pos:#16A34A;
+  --action:#2C6ECB; --action-bg:#EBF1FE;
+  --warning:#B98900; --warning-bg:#FFF8E6;
+  --critical:#D72C0D; --critical-bg:#FFF4F4;
+  --neutral-bg:#F2F3F5;
+  /* échelle verte de l'entonnoir — 5 paliers, contraste vérifié en §a11y */
+  --f1:#EAF7F0; --f2:#D2EEE0; --f3:#A8DFC6; --f4:#5FBF92; --f5:#15803D;
+  --r-xs:8px; --r-sm:10px; --r-md:12px; --r-lg:16px;
+  --e-card:0 1px 2px rgba(16,24,40,.03),0 1px 1px rgba(16,24,40,.02);
+  --e-row:0 1px 2px rgba(16,24,40,.04);
+  --e-panel:0 4px 16px rgba(16,24,40,.06);
+  --sidebar-bg:#0E1013;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg-page);color:var(--ink-1);font-size:14px;line-height:1.45;
+  font-family:"Inter","Noto Sans Arabic",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+[dir=auto]{unicode-bidi:plaintext}
+/* correctif bidi — voir bloc JS « amount() » */
+.tnum{font-variant-numeric:tabular-nums;unicode-bidi:isolate;direction:ltr}
+.money{unicode-bidi:isolate;direction:ltr;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ── chrome prototype ── */
+.pbar{position:sticky;top:0;z-index:90;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  background:var(--sidebar-bg);color:#E6E8EB;padding:10px 22px}
+.pbar .tag{font-size:10.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#7F858F}
+.ptabs{display:flex;gap:5px;margin-inline-start:auto;flex-wrap:wrap}
+.ptabs button{border:1px solid rgba(255,255,255,.1);background:transparent;color:#B5BAC2;
+  border-radius:var(--r-sm);padding:6px 13px;font-size:12.5px;font-weight:500;transition:.12s}
+.ptabs button:hover{background:rgba(255,255,255,.06);color:#fff}
+.ptabs button[aria-selected=true]{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+.screen{display:none;padding:24px 30px 96px;max-width:1660px;margin:0 auto}
+.screen.on{display:block}
+
+/* ══════════════ ATOMES ══════════════ */
+.ico{display:grid;place-items:center;flex:none;width:30px;height:30px;border-radius:var(--r-sm)}
+.ico-sm{width:25px;height:25px;border-radius:var(--r-xs)}
+.ico-lg{width:40px;height:40px;border-radius:var(--r-md)}
+.ico-brand{background:var(--brand-bg);color:var(--brand)}
+.ico-info{background:var(--action-bg);color:var(--action)}
+.ico-warn{background:var(--warning-bg);color:var(--warning)}
+.ico-bad{background:var(--critical-bg);color:var(--critical)}
+.ico-neutral{background:var(--neutral-bg);color:var(--ink-2)}
+
+.chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px;border-radius:var(--r-xs);
+  font-size:11.5px;font-weight:600;white-space:nowrap}
+.chip-ok{background:var(--brand-bg);color:var(--brand)}
+.chip-off{background:var(--neutral-bg);color:var(--ink-2)}
+.chip-warn{background:var(--warning-bg);color:var(--warning)}
+.chip-bad{background:var(--critical-bg);color:var(--critical)}
+.chip-info{background:var(--action-bg);color:var(--action)}
+.chip-sku{background:var(--sunken);border:1px solid var(--line-subtle);color:var(--ink-2);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;font-weight:500}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;
+  border-radius:var(--r-md);border:1px solid var(--line);background:#fff;font-size:13.5px;font-weight:500;
+  transition:background .12s,border-color .12s,color .12s;white-space:nowrap}
+.btn:hover{background:var(--sunken);border-color:var(--line-strong)}
+.btn-primary{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600;box-shadow:var(--e-row)}
+.btn-primary:hover{background:var(--brand-hover);border-color:var(--brand-hover)}
+.btn-gb{border-color:var(--brand-bg);background:var(--brand-tint);color:var(--brand);font-weight:600}
+.btn-gb:hover{border-color:var(--brand)}
+.btn-gr{border-color:#F6D5CE;background:var(--critical-bg);color:var(--critical);font-weight:600}
+.btn-gr:hover{border-color:var(--critical)}
+.btn-sm{height:33px;padding:0 12px;font-size:12.5px;border-radius:var(--r-sm)}
+.btn-icon{width:40px;padding:0}
+.btn[disabled]{background:var(--sunken);color:var(--ink-3);border-color:var(--line-subtle);cursor:not-allowed;box-shadow:none}
+
+.card{background:var(--bg-card);border:1px solid var(--line-subtle);border-radius:var(--r-lg);box-shadow:var(--e-card)}
+.lab{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.sub{font-size:11.5px;color:var(--ink-2)}
+.mute{color:var(--ink-3)}
+.pos{color:var(--brand-pos)} .neg{color:var(--critical)} .warn{color:var(--warning)}
+.track{display:block;height:4px;border-radius:2px;background:var(--sunken);overflow:hidden}
+.track i{display:block;height:100%;border-radius:2px;background:var(--brand)}
+.track i.warn{background:var(--warning)} .track i.bad{background:var(--critical)} .track i.info{background:var(--action)}
+
+.sec{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+.sec h2{font-size:15px;font-weight:600;letter-spacing:-.014em}
+.sec .meta{margin-inline-start:auto;font-size:12px;color:var(--ink-3);display:flex;align-items:center;gap:10px}
+
+/* ══════════════ ÉCRAN 1 — LISTE EN RANGÉES ══════════════ */
+.phead{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.phead h1{font-size:30px;font-weight:600;letter-spacing:-.03em;line-height:1.12}
+.phead .s{margin-top:5px;font-size:14px;color:var(--ink-2)}
+.phead .acts{margin-inline-start:auto;display:flex;gap:10px;flex-wrap:wrap}
+
+.toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--bg-card);
+  border:1px solid var(--line-subtle);border-radius:var(--r-lg);padding:11px 13px;margin-bottom:16px;box-shadow:var(--e-card)}
+.search{position:relative;flex:1;min-width:230px;max-width:400px}
+.search input{width:100%;height:42px;border:1px solid var(--line);border-radius:var(--r-md);
+  padding:0 14px 0 40px;font-size:14px;color:var(--ink-1);transition:.12s;background:#fff}
+.search input::placeholder{color:var(--ink-3)}
+.search input:hover{border-color:var(--line-strong)}
+.search input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg)}
+.search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--ink-3);pointer-events:none}
+.filters{display:flex;gap:7px;flex-wrap:wrap}
+.fchip{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 15px;border:1px solid var(--line);
+  border-radius:999px;background:#fff;font-size:13px;font-weight:500;color:var(--ink-2);transition:.12s}
+.fchip:hover{border-color:var(--line-strong);color:var(--ink-1)}
+.fchip .n{font-size:11.5px;font-weight:700;color:var(--ink-3);background:var(--neutral-bg);border-radius:6px;padding:1px 6px}
+/* Une facette d'exception NON VIDE porte sa teinte de statut au repos : elle
+   remplace la barre « attention requise » supprimée de la page. */
+.fchip[data-tone=bad][data-n]{color:var(--critical);border-color:#F6D5CE}
+.fchip[data-tone=bad][data-n] .n{color:var(--critical);background:var(--critical-bg)}
+.fchip[data-tone=warn][data-n]{color:var(--warning);border-color:#EFDCA6}
+.fchip[data-tone=warn][data-n] .n{color:var(--warning);background:var(--warning-bg)}
+.fchip[aria-pressed=true]{background:var(--brand-tint);border-color:var(--brand-bg);color:var(--brand);font-weight:600}
+.fchip[aria-pressed=true] .n{color:var(--brand);background:var(--brand-bg)}
+.fchip[aria-pressed=true][data-tone=bad]{background:var(--critical-bg);border-color:#F0BCB0;color:var(--critical)}
+.fchip[aria-pressed=true][data-tone=warn]{background:var(--warning-bg);border-color:#E5CE8C;color:var(--warning)}
+.tbr{margin-inline-start:auto;display:flex;gap:8px}
+
+.rows{display:flex;flex-direction:column;gap:10px}
+.prow{display:grid;grid-template-columns:minmax(250px,1.15fr) repeat(3,minmax(112px,.62fr)) 232px 40px;
+  align-items:center;gap:20px;background:var(--bg-card);border:1px solid var(--line-subtle);
+  border-radius:var(--r-lg);box-shadow:var(--e-card);padding:14px 16px;position:relative;
+  transition:box-shadow .15s,border-color .15s}
+.prow:hover{border-color:var(--line-strong);box-shadow:var(--e-panel)}
+.prow[data-off=true]{background:#FCFCFD}
+.prow[data-off=true] .rthumb,.prow[data-off=true] .rname{opacity:.6}
+.prow[data-loss=true]::before{content:"";position:absolute;inset-inline-start:0;top:12px;bottom:12px;
+  width:3px;border-radius:0 3px 3px 0;background:var(--critical)}
+
+.rid{display:flex;gap:13px;min-width:0}
+.rthumb{width:56px;height:56px;flex:none;border-radius:var(--r-md);border:1px solid var(--line-subtle);
+  background:var(--sunken) center/cover no-repeat}
+/* `unicode-bidi:plaintext` (hérité de [dir=auto]) donne l'ordre correct des
+   caractères arabes ; `text-align:left` empêche le bloc de fuir à droite dans
+   une console française. Les deux sont indépendants — direction ≠ alignement. */
+.rname{font-size:14.5px;font-weight:600;letter-spacing:-.012em;line-height:1.34;text-align:left;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rchips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.rfoot{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:9px;font-size:12px;color:var(--ink-2)}
+.rfoot b{color:var(--ink-1);font-weight:700;font-variant-numeric:tabular-nums}
+.rfoot .g{display:inline-flex;align-items:center;gap:6px}
+.rfoot .sep{width:1px;height:12px;background:var(--line)}
+.rfoot .fl{color:var(--action);font-weight:600}
+.rfoot .fl.zero{color:var(--ink-3);font-weight:500}
+
+.rm{display:flex;flex-direction:column;gap:3px;min-width:0}
+.rm .v{font-size:20px;font-weight:700;letter-spacing:-.03em;line-height:1.1;font-variant-numeric:tabular-nums}
+.rm .r{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.rm .track{margin-top:6px}
+
+.rprofit{border-radius:var(--r-md);padding:11px 14px;display:flex;flex-direction:column;gap:2px;
+  background:var(--brand-tint);border:1px solid var(--brand-bg)}
+.rprofit.loss{background:var(--critical-bg);border-color:#F6D5CE}
+.rprofit.flat{background:var(--sunken);border-color:var(--line-subtle)}
+.rprofit .v{font-size:19px;font-weight:700;letter-spacing:-.026em;line-height:1.15}
+.rmenu{width:34px;height:34px;border-radius:var(--r-sm);border:1px solid transparent;background:transparent;
+  display:grid;place-items:center;color:var(--ink-3);justify-self:end;transition:.12s}
+.rmenu:hover{background:var(--sunken);border-color:var(--line-subtle);color:var(--ink-1)}
+.rempty{grid-column:2 / 6;display:flex;align-items:center;gap:11px;justify-content:center;
+  color:var(--ink-3);font-size:13px}
+
+/* ══════════════ ÉCRAN 2 — FICHE ══════════════ */
+.crumb{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);margin-bottom:14px}
+.crumb a:hover{color:var(--ink-1);text-decoration:underline}
+
+.dhead{display:flex;gap:20px;align-items:flex-start;padding:20px 22px;margin-bottom:20px}
+.dthumb{width:92px;height:92px;flex:none;border-radius:var(--r-lg);border:1px solid var(--line-subtle);
+  background:var(--sunken) center/cover no-repeat}
+.dhead h1{font-size:23px;font-weight:600;letter-spacing:-.024em;line-height:1.28;text-align:left}
+.dchips{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.dacts{margin-inline-start:auto;display:flex;gap:9px;flex-wrap:wrap;flex:none}
+/* rangée de mesures séparées par des filets verticaux */
+.dstats{display:flex;flex-wrap:wrap;margin-top:16px;border-top:1px solid var(--line-subtle);padding-top:14px}
+.dstat{display:flex;align-items:center;gap:10px;padding:0 22px;border-inline-start:1px solid var(--line-subtle)}
+.dstat:first-child{padding-inline-start:0;border-inline-start:0}
+/* les deux lignes doivent s'empiler : en inline, « STOCK » et « 216 » se
+   collaient en « STOCK216 » */
+.dstat .lab,.dstat .v{display:block}
+.dstat .v{font-size:16px;font-weight:700;letter-spacing:-.02em;line-height:1.25;margin-top:1px}
+
+.psel{display:flex;background:var(--sunken);border:1px solid var(--line-subtle);border-radius:var(--r-sm);padding:3px;gap:2px}
+.psel button{border:0;background:transparent;border-radius:var(--r-xs);padding:6px 12px;font-size:12px;
+  font-weight:500;color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.psel button:hover{color:var(--ink-1)}
+.psel button[aria-pressed=true]{background:#fff;color:var(--ink-1);font-weight:600;box-shadow:var(--e-row)}
+
+/* ── entonnoir en chevrons ── */
+.funnel{display:flex;gap:4px;padding:14px;background:var(--bg-card);border:1px solid var(--line-subtle);
+  border-radius:var(--r-lg);box-shadow:var(--e-card)}
+.chev{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;
+  clip-path:polygon(0 0,calc(100% - 20px) 0,100% 50%,calc(100% - 20px) 100%,0 100%)}
+.chev:first-child{border-radius:var(--r-md) 0 0 var(--r-md)}
+.chev+.chev{clip-path:polygon(0 0,calc(100% - 20px) 0,100% 50%,calc(100% - 20px) 100%,0 100%,20px 50%)}
+.chev:last-child{clip-path:polygon(0 0,100% 0,100% 100%,0 100%,20px 50%);border-radius:0 var(--r-md) var(--r-md) 0}
+.chev .bd{flex:1;padding:14px 30px 13px 22px;display:flex;align-items:flex-start;gap:11px}
+.chev+.chev .bd{padding-left:36px}
+.chev .ic{width:34px;height:34px;border-radius:var(--r-sm);background:rgba(255,255,255,.72);
+  display:grid;place-items:center;flex:none;color:var(--brand)}
+.chev .l{font-size:12px;font-weight:600;opacity:.86}
+.chev .v{font-size:26px;font-weight:700;letter-spacing:-.032em;line-height:1.1;font-variant-numeric:tabular-nums}
+.chev .s{font-size:11.5px;opacity:.82;font-variant-numeric:tabular-nums}
+.chev .ft{padding:6px 30px 7px 22px;font-size:12px;font-weight:700;text-align:center;
+  background:rgba(0,0,0,.055);font-variant-numeric:tabular-nums}
+.chev[data-s="1"]{background:var(--f1);color:var(--ink-1)}
+.chev[data-s="2"]{background:var(--f2);color:var(--ink-1)}
+.chev[data-s="3"]{background:var(--f3);color:var(--ink-1)}
+.chev[data-s="4"]{background:var(--f4);color:#0F2E1D}
+.chev[data-s="4"] .ic{color:#0F2E1D}
+.chev[data-s="5"]{background:var(--f5);color:#fff}
+.chev[data-s="5"] .ic{background:rgba(255,255,255,.2);color:#fff}
+.chev[data-s="5"] .ft{background:rgba(0,0,0,.16)}
+
+.callout{display:flex;gap:12px;align-items:flex-start;background:var(--action-bg);border:1px solid #D6E4FB;
+  border-radius:var(--r-md);padding:12px 15px;margin-top:12px;font-size:12.5px;color:#1F4E8C;line-height:1.6}
+.callout b{color:#153A6B;font-weight:600}
+.callout .ic{width:26px;height:26px;border-radius:50%;background:#fff;color:var(--action);display:grid;place-items:center;flex:none}
+
+/* ── argent : cascade ── */
+.mgrid{display:grid;grid-template-columns:330px 1fr;gap:18px;align-items:start}
+.hero{padding:20px 22px}
+.hero .v{font-size:34px;font-weight:700;letter-spacing:-.034em;line-height:1;color:var(--brand-pos);margin-top:6px}
+.hero.loss .v{color:var(--critical)}
+.hero .rule{height:3px;border-radius:2px;background:var(--brand-pos);width:64px;margin:13px 0 12px}
+.hero.loss .rule{background:var(--critical)}
+.hsub{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+.hsub>div{background:var(--sunken);border:1px solid var(--line-subtle);border-radius:var(--r-md);
+  padding:11px 13px;display:flex;flex-direction:column;gap:2px}
+.hsub .v{font-size:15px;font-weight:700;letter-spacing:-.018em}
+
+.wf{padding:20px 22px 16px}
+.wfplot{position:relative;height:230px;display:grid;gap:12px;align-items:end;margin-bottom:2px}
+.wfcol{position:relative;height:100%}
+.wfbar{position:absolute;left:19%;right:19%;border-radius:4px;min-height:3px}
+.wfval{position:absolute;left:0;right:0;text-align:center;font-size:11.5px;font-weight:700;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.wflink{position:absolute;height:0;border-top:1px dashed var(--line-strong);left:81%;width:38%}
+.wfaxis{display:grid;gap:12px;border-top:1px solid var(--line-subtle);padding-top:9px}
+.wfaxis span{text-align:center;font-size:11.5px;color:var(--ink-2);line-height:1.35}
+.wfaxis span.tot{font-weight:700;color:var(--ink-1)}
+
+/* ── agents ── */
+.akpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+.akpi{padding:15px 17px;display:flex;flex-direction:column;gap:2px}
+.akpi .t{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.akpi .t span:last-child{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.akpi .v{font-size:26px;font-weight:700;letter-spacing:-.032em;line-height:1.1;font-variant-numeric:tabular-nums}
+
+/* ── classement des agents ──────────────────────────────────────────
+   6 colonnes au lieu de 11 : chaque colonne porte une mesure ET son
+   dénominateur, plutôt qu'une colonne par nombre. */
+.tablewrap{overflow:visible}
+@media (max-width:1180px){.tablewrap{overflow-x:auto}}
+table.rank{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;min-width:940px}
+table.rank th{text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--ink-3);padding:12px 16px;background:var(--sunken);border-bottom:1px solid var(--line-subtle);white-space:nowrap}
+table.rank th.num{text-align:right}
+table.rank th .hd{display:inline-flex;align-items:center;gap:7px}
+table.rank th .srt{display:inline-flex;align-items:center;gap:5px;background:none;border:0;padding:0;
+  font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;border-radius:4px}
+table.rank th .srt:hover{color:var(--ink-1)}
+table.rank th[aria-sort] .srt{color:var(--brand)}
+table.rank td{padding:14px 16px;border-bottom:1px solid var(--line-subtle);vertical-align:middle;white-space:nowrap}
+table.rank td.num{text-align:right}
+table.rank tbody tr.ag:hover td{background:var(--hover);cursor:pointer}
+table.rank tbody tr:last-child td{border-bottom:0}
+tr.dim td{opacity:.82}
+tr.dim .val{font-weight:600}
+
+/* infobulle d'en-tête */
+.tip{position:relative;display:inline-flex}
+.tip>button{width:16px;height:16px;border:0;background:none;padding:0;color:var(--ink-3);
+  display:grid;place-items:center;border-radius:50%}
+.tip>button:hover{color:var(--ink-1)}
+.tip .bub{position:absolute;top:calc(100% + 9px);left:50%;transform:translateX(-50%);width:248px;
+  background:var(--ink-1);color:#fff;padding:10px 12px;border-radius:var(--r-sm);font-size:11.5px;
+  font-weight:400;line-height:1.55;letter-spacing:0;text-transform:none;text-align:left;white-space:normal;
+  opacity:0;visibility:hidden;transition:opacity .12s;z-index:30;box-shadow:var(--e-float);pointer-events:none}
+.tip .bub::before{content:"";position:absolute;bottom:100%;left:50%;transform:translateX(-50%);
+  border:5px solid transparent;border-bottom-color:var(--ink-1)}
+.tip:hover .bub,.tip>button:focus-visible+.bub{opacity:1;visibility:visible}
+th:last-child .bub{left:auto;right:0;transform:none}
+th:last-child .bub::before{left:auto;right:14px;transform:none}
+
+/* médaille de rang */
+.rk{display:grid;place-items:center;width:28px;height:28px;border-radius:var(--r-xs);
+  font-size:12.5px;font-weight:700;background:#fff;border:1px solid var(--line);color:var(--ink-2)}
+.rk[data-m="1"]{background:var(--brand);border-color:var(--brand);color:#fff}
+.rk[data-m="2"]{background:#8C6800;border-color:#8C6800;color:#fff}
+.rk[data-m="3"]{background:#9A5B2D;border-color:#9A5B2D;color:#fff}
+
+.who{display:flex;align-items:center;gap:11px}
+.av{width:38px;height:38px;border-radius:50%;background:var(--brand-bg);color:var(--brand);
+  display:grid;place-items:center;font-size:12px;font-weight:700;flex:none;letter-spacing:.02em}
+.av.n{background:var(--neutral-bg);color:var(--ink-2)}
+.who .nm{font-weight:600;font-size:14px;display:block;letter-spacing:-.01em}
+.who .rl{font-size:11.5px;color:var(--ink-3)}
+
+/* cellule mesure : valeur + dénominateur + jauge repère */
+.cell{display:block}
+.cell .val,.cell .den{display:block}
+.cell .val{font-size:16px;font-weight:700;letter-spacing:-.02em;line-height:1.2;font-variant-numeric:tabular-nums}
+.cell .den{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;margin-top:1px}
+.gbar{position:relative;display:block;height:5px;border-radius:3px;background:var(--sunken);margin-top:9px;width:170px}
+.gbar i{display:block;height:100%;border-radius:3px;background:var(--brand)}
+.gbar i.warn{background:var(--warning)} .gbar i.bad{background:var(--critical)}
+/* repère = médiane de l'équipe sur cette colonne */
+.gbar em{position:absolute;top:-4px;bottom:-4px;width:2px;border-radius:1px;background:var(--ink-3);opacity:.55}
+.flow{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;
+  border:1px solid var(--line);background:#fff;color:var(--action);font-size:12px;font-weight:600;
+  margin-inline-start:14px;vertical-align:middle}
+.flow.zero{color:var(--ink-3)}
+.livcell{display:flex;align-items:center}
+.gomore{width:28px;height:28px;border-radius:var(--r-xs);border:0;background:none;color:var(--ink-3);
+  display:grid;place-items:center}
+tr.ag:hover .gomore{color:var(--ink-1);background:var(--neutral-bg)}
+
+/* groupe repliable */
+tr.grp td{background:var(--sunken);padding:0}
+tr.grp button{display:flex;align-items:center;gap:9px;width:100%;padding:9px 16px;background:none;border:0;
+  font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);text-align:left}
+tr.grp button:hover{color:var(--ink-1)}
+tr.grp svg{transition:transform .15s}
+tr.grp button[aria-expanded=false] svg{transform:rotate(-90deg)}
+
+.kv{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.kv>div{padding:13px 16px;display:flex;flex-direction:column;gap:3px}
+.kv .v{font-size:15px;font-weight:700;letter-spacing:-.018em}
+.zerostate{border:1px dashed var(--line-strong);background:var(--sunken);border-radius:var(--r-lg);padding:30px 22px;text-align:center}
+.zerostate .ico{margin:0 auto 12px;width:46px;height:46px;border-radius:50%}
+.zerostate b{display:block;font-size:14px;margin-bottom:5px}
+.zerostate p{font-size:13px;color:var(--ink-2);max-width:470px;margin:0 auto 15px;line-height:1.6}
+
+/* ══════════════ ÉCRAN 3 — ÉDITION ══════════════ */
+.ewrap{display:grid;grid-template-columns:1fr 380px;gap:22px;align-items:start}
+/* navigation de sections — ancres avec scroll-spy, PAS des onglets :
+   masquer des champs d'un formulaire long fait rater les champs requis. */
+.snav{display:flex;gap:2px;border-bottom:1px solid var(--line-subtle);padding:6px 8px 0;overflow-x:auto}
+.snav a{display:inline-flex;align-items:center;gap:9px;padding:12px 16px;font-size:13.5px;font-weight:500;
+  color:var(--ink-2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;border-radius:var(--r-xs) var(--r-xs) 0 0}
+.snav a:hover{color:var(--ink-1);background:var(--sunken)}
+.snav a[aria-current=true]{color:var(--brand);border-bottom-color:var(--brand);font-weight:600}
+.snav a[aria-current=true] .ico{background:var(--brand-bg);color:var(--brand)}
+.fsec{padding:22px 24px;border-bottom:1px solid var(--line-subtle);scroll-margin-top:80px}
+.fsec:last-child{border-bottom:0}
+.fhead{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.fhead h3{font-size:15.5px;font-weight:600;letter-spacing:-.014em}
+.fhead .lk{margin-inline-start:auto}
+.fhint{font-size:12.5px;color:var(--ink-2);margin:0 0 17px 42px;line-height:1.55}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.f{display:flex;flex-direction:column;gap:7px;margin-bottom:16px}
+.f:last-child{margin-bottom:0}
+.f>label{font-size:12.5px;font-weight:600}
+.f .h{font-size:11.5px;color:var(--ink-3);line-height:1.5;display:flex;align-items:flex-start;gap:7px}
+.f input,.f select,.f textarea{width:100%;border:1px solid var(--line);border-radius:var(--r-md);background:#fff;
+  padding:10px 13px;font-size:13.5px;font-family:inherit;color:var(--ink-1);transition:.12s}
+.f input:hover,.f select:hover,.f textarea:hover{border-color:var(--line-strong)}
+.f input:focus,.f select:focus,.f textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg)}
+.f input:disabled{background:var(--sunken);color:var(--ink-3);cursor:not-allowed}
+.f textarea{resize:vertical;line-height:1.6;min-height:76px}
+.f select{appearance:none;padding-right:38px;background-repeat:no-repeat;background-position:right 12px center;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236D7175' stroke-width='2' stroke-linecap='round'><path d='m6 9 6 6 6-6'/></svg>")}
+.unit{position:relative}
+.unit input{padding-right:56px}
+.unit .u{position:absolute;right:13px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--ink-3);font-weight:500;pointer-events:none}
+.cnt{display:flex;justify-content:space-between;gap:12px;font-size:11.5px;color:var(--ink-3)}
+.imgpick{display:flex;gap:16px;align-items:center}
+.imgpick .th{width:88px;height:88px;border-radius:var(--r-md);border:1px solid var(--line-subtle);
+  background:var(--sunken) center/cover no-repeat;flex:none}
+.sw{display:flex;align-items:center;gap:13px;padding:14px 16px;border:1px solid var(--line-subtle);
+  border-radius:var(--r-md);background:var(--sunken);width:100%;text-align:left}
+.sw .knob{width:40px;height:23px;border-radius:12px;background:var(--brand);position:relative;flex:none;transition:.16s}
+.sw .knob::after{content:"";position:absolute;top:2.5px;left:19px;width:18px;height:18px;border-radius:50%;
+  background:#fff;transition:.16s;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.sw[aria-checked=false] .knob{background:var(--line-strong)}
+.sw[aria-checked=false] .knob::after{left:2.5px}
+.sw .t{font-size:13px;font-weight:600}
+.sw .t span{display:block;font-size:11.5px;font-weight:400;color:var(--ink-2);margin-top:2px}
+
+.aside{position:sticky;top:74px;display:flex;flex-direction:column;gap:14px}
+.aside .card{padding:17px 19px}
+.aside h4{display:flex;align-items:center;gap:10px;font-size:11.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-2)}
+/* lignes de conduite pointillées */
+.mp{display:flex;flex-direction:column;gap:11px;margin-top:15px}
+.mp .r{display:flex;align-items:baseline;gap:9px;font-size:12.5px;color:var(--ink-2)}
+.mp .r .dots{flex:1;border-bottom:1px dotted var(--line-strong);min-width:12px;transform:translateY(-3px)}
+.mp .r b{color:var(--ink-1);font-weight:600}
+.mp .tot{border-top:1px solid var(--line-subtle);padding-top:13px;margin-top:3px;
+  display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--ink-1);font-weight:600}
+.mp .tot .amt{margin-inline-start:auto;font-size:17px;font-weight:700;color:var(--brand-pos)}
+.mp .tot .pc{font-size:12px;font-weight:700;background:var(--brand-bg);color:var(--brand);
+  padding:3px 8px;border-radius:var(--r-xs);font-variant-numeric:tabular-nums}
+.aprev{border:1px solid var(--line-subtle);border-radius:var(--r-md);overflow:hidden;margin-top:14px}
+.aprev .hd{display:flex;align-items:center;gap:8px;padding:10px 13px;background:var(--action-bg);
+  color:#1F4E8C;font-size:12.5px;font-weight:600}
+.aprev .hd[data-tone=warning]{background:var(--warning-bg);color:var(--warning)}
+.aprev .hd[data-tone=critical]{background:var(--critical-bg);color:var(--critical)}
+.aprev .bd{padding:13px;font-size:12.5px;color:var(--ink-2);line-height:1.6;min-height:76px;white-space:pre-wrap}
+.impact{background:var(--warning-bg);border-color:#EFDCA6}
+.impact h4{color:var(--warning)}
+.impact p{font-size:12.5px;color:#7A5B00;line-height:1.65;margin-top:12px}
+.impact p b{color:#5C4400}
+
+.savebar{position:fixed;left:0;right:0;bottom:0;z-index:80;background:rgba(255,255,255,.94);
+  backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:13px 30px;display:flex;align-items:center;
+  gap:12px;box-shadow:0 -4px 16px rgba(16,24,40,.06)}
+.savebar .msg{font-size:12.5px;color:var(--ink-2);margin-inline-end:auto;display:flex;align-items:center;gap:8px}
+
+@media (max-width:1400px){
+  .prow{grid-template-columns:minmax(230px,1.2fr) repeat(3,minmax(96px,.6fr)) 200px 40px;gap:14px}
+}
+@media (max-width:1240px){
+  .mgrid,.ewrap{grid-template-columns:1fr}
+  .aside{position:static}
+  .akpis{grid-template-columns:1fr 1fr}
+  .funnel{flex-direction:column}
+  .chev,.chev+.chev,.chev:last-child{clip-path:none;border-radius:var(--r-md)}
+  .chev .bd,.chev+.chev .bd{padding:13px 16px}
+  .chev .ft{padding:6px 16px 7px;text-align:left}
+  .prow{grid-template-columns:1fr 1fr 1fr;gap:14px}
+  .rid{grid-column:1/-1}
+  .rprofit{grid-column:1/-1}
+  .rmenu{position:absolute;top:12px;right:12px}
+  .rempty{grid-column:1/-1}
+}
+@media (max-width:820px){.akpis,.kv,.frow{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+.scrollx{overflow-x:auto}
+html{scroll-behavior:smooth}
+</style>
+</head>
+<body>
+
+<div class="pbar">
+  <span class="tag">Prototype v5</span>
+  <span style="font-size:13px;font-weight:600">Produits</span>
+  <span style="font-size:11.5px;color:#7F858F">Données réelles · marché Libye · taux de livraison = livrées / uploadées</span>
+  <div class="ptabs" role="tablist" aria-label="Écrans">
+    <button role="tab" aria-selected="true"  data-go="s1">1 · Liste</button>
+    <button role="tab" aria-selected="false" data-go="s2">2 · Fiche produit</button>
+    <button role="tab" aria-selected="false" data-go="s3">3 · Édition</button>
+  </div>
+</div>
+
+<!-- ═══════ ÉCRAN 1 ═══════ -->
+<main class="screen on" id="s1">
+  <div class="phead">
+    <div>
+      <h1>Produits</h1>
+      <p class="s">8 produits · 5 actifs · marché Libye</p>
+    </div>
+    <div class="acts">
+      <button class="btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Exporter CSV</button>
+      <button class="btn btn-primary"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Ajouter un produit</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" placeholder="Rechercher un produit…" aria-label="Rechercher un produit">
+    </div>
+    <div class="filters" role="group" aria-label="Filtrer">
+      <button class="fchip" aria-pressed="true">Tous <span class="n">8</span></button>
+      <button class="fchip" aria-pressed="false">Actifs <span class="n">5</span></button>
+      <button class="fchip" aria-pressed="false" data-tone="bad" data-n>Rupture <span class="n">2</span></button>
+      <button class="fchip" aria-pressed="false" data-tone="bad" data-n>Perte <span class="n">2</span></button>
+      <button class="fchip" aria-pressed="false" data-tone="warn">Sans ventes <span class="n">3</span></button>
+    </div>
+    <div class="tbr">
+      <button class="btn btn-sm">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 5h10M11 12h7M11 19h4M3 5l2 2 3-3"/></svg>
+        Trier : Profit net
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <button class="btn btn-sm">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        Densité
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="rows" id="rows"></div>
+</main>
+
+<!-- ═══════ ÉCRAN 2 ═══════ -->
+<main class="screen" id="s2">
+  <nav class="crumb" aria-label="Fil d'Ariane">
+    <span class="ico ico-neutral ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg></span>
+    <a href="#" data-go="s1">Produits</a>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+    <span aria-current="page">Détails du produit</span>
+  </nav>
+
+  <header class="card dhead">
+    <div class="dthumb" id="dThumb" role="img" aria-label="Photo du produit"></div>
+    <div style="min-width:0;flex:1">
+      <h1 dir="auto">دميه ملاكمه حجم صغير</h1>
+      <div class="dchips">
+        <span class="chip chip-ok">Actif</span>
+        <span class="chip chip-sku">box-wafra-shop</span>
+        <span class="chip chip-info"><span class="money" id="dPriceChip"></span> prix catalogue</span>
+      </div>
+      <div class="dstats">
+        <div class="dstat">
+          <span class="ico ico-neutral ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v8l-9 5-9-5V8l9-5 9 5Z"/><path d="m3 8 9 5 9-5"/></svg></span>
+          <span><span class="lab">Stock</span><span class="v tnum">216 <span class="mute" style="font-weight:400;font-size:12px">/ seuil 20</span></span></span>
+        </div>
+        <div class="dstat">
+          <span class="ico ico-brand ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+          <span><span class="lab">Valeur du stock</span><span class="v money" id="dStockVal"></span></span>
+        </div>
+        <div class="dstat">
+          <span class="ico ico-neutral ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l1 4H7ZM5 6h14l1 14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/></svg></span>
+          <span><span class="lab">Commandes</span><span class="v tnum">866</span></span>
+        </div>
+        <div class="dstat">
+          <span class="ico ico-info ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg></span>
+          <span><span class="lab">Agents impliqués</span><span class="v tnum">8</span></span>
+        </div>
+        <div class="dstat">
+          <span class="ico ico-neutral ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg></span>
+          <span><span class="lab">Endommagés</span><span class="v tnum">0</span></span>
+        </div>
+      </div>
+    </div>
+    <div class="dacts">
+      <button class="btn btn-primary" data-go="s3">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Modifier</button>
+      <button class="btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v8l-9 5-9-5V8l9-5 9 5Z"/><path d="m3 8 9 5 9-5"/></svg>Ajuster le stock</button>
+      <button class="btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v9M6.5 6.5a8 8 0 1 0 11 0"/></svg>Désactiver</button>
+      <button class="btn btn-icon" aria-label="Plus d'actions">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></button>
+    </div>
+  </header>
+
+  <section style="margin-bottom:24px">
+    <div class="sec">
+      <span class="ico ico-neutral ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18l-7 8v7l-4 2v-9L3 4Z"/></svg></span>
+      <h2>Entonnoir</h2>
+      <span class="meta">
+        <span class="psel" role="group" aria-label="Période">
+          <button aria-pressed="false">7 j</button>
+          <button aria-pressed="false">30 j</button>
+          <button aria-pressed="true">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+            Depuis le début</button>
+        </span>
+      </span>
+    </div>
+    <div class="funnel" id="funnel"></div>
+    <div class="callout">
+      <span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></span>
+      <p>Le taux de livraison se calcule sur <b>tout ce qui a été uploadé</b> : les <b id="cInflight"></b>
+      encore chez le transporteur comptent comme non-livrées. Il répond à « quelle part du parti est arrivée
+      à ce jour », pas à « le transporteur livre-t-il bien ». Sur les <b id="cSettled"></b>,
+      <b id="cRate"></b> ont été livrées — c'est vers ce chiffre que le taux converge à mesure que le
+      stock en vol se règle.</p>
+    </div>
+  </section>
+
+  <section style="margin-bottom:24px">
+    <div class="sec">
+      <span class="ico ico-brand ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+      <h2>Argent</h2>
+      <span class="meta">CA compté uniquement sur les commandes livrées</span>
+    </div>
+    <div class="mgrid">
+      <div class="card hero" id="dHero">
+        <span class="sub" style="font-weight:600">Profit net</span>
+        <div class="v money" id="dNet"></div>
+        <span class="rule"></span>
+        <span class="sub" id="dNetSub"></span>
+        <div class="hsub">
+          <div><span class="lab">Chiffre d'affaires</span><span class="v money" id="dRev"></span></div>
+          <div><span class="lab">Profit brut</span><span class="v money" id="dGross"></span></div>
+          <div><span class="lab">Marge nette</span><span class="v tnum" id="dMargin"></span></div>
+          <div><span class="lab">Net / livraison</span><span class="v money" id="dPerDel"></span></div>
+        </div>
+      </div>
+      <div class="card wf" id="dWf"></div>
+    </div>
+  </section>
+
+  <section style="margin-bottom:24px">
+    <div class="sec">
+      <span class="ico ico-info ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/></svg></span>
+      <h2>Agents</h2>
+      <span class="meta">8 personnes ont travaillé ce produit</span>
+    </div>
+
+    <div class="akpis">
+      <div class="card akpi">
+        <div class="t"><span class="ico ico-info ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg></span><span>Appels</span></div>
+        <span class="v">1 450</span>
+        <span class="sub">sur <b>519</b> commandes appelées · <b>2,79</b> appels / commande</span>
+      </div>
+      <div class="card akpi">
+        <div class="t"><span class="ico ico-neutral ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg></span><span>Traitées</span></div>
+        <span class="v">770</span>
+        <span class="sub"><b>89 %</b> des 866 commandes · <b>8</b> créées à la main</span>
+      </div>
+      <div class="card akpi">
+        <div class="t"><span class="ico ico-brand ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span>Confirmées</span></div>
+        <span class="v">453</span>
+        <span class="sub"><b class="pos">52,3 %</b> des commandes · 58,8 % des traitées</span>
+      </div>
+      <div class="card akpi">
+        <div class="t"><span class="ico ico-brand ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h13v13H1zM14 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="17.5" cy="18.5" r="2"/></svg></span><span>Livrées</span></div>
+        <span class="v">108</span>
+        <span class="sub"><b class="warn">25,1 %</b> des 431 uploadées · 229 en vol</span>
+      </div>
+    </div>
+
+    <div class="card" style="overflow:hidden">
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 17px;border-bottom:1px solid var(--line-subtle);flex-wrap:wrap">
+        <h3 style="font-size:14.5px;font-weight:600">Classement des agents</h3>
+        <span class="sub mute">trié par CA généré · en-têtes triables</span>
+        <button class="btn btn-sm" style="margin-inline-start:auto">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Exporter</button>
+      </div>
+      <div class="tablewrap">
+        <table class="rank">
+          <caption class="sr">Comparaison des agents ayant travaillé ce produit</caption>
+          <thead><tr id="rHead"></tr></thead>
+          <tbody id="rBody"></tbody>
+        </table>
+      </div>
+      <p style="padding:14px 17px;border-top:1px solid var(--line-subtle);font-size:11.5px;color:var(--ink-3);line-height:1.65">
+        <b style="color:var(--ink-2)">Lecture —</b> tout ce qui suit la confirmation est attribué au
+        <b style="color:var(--ink-2)">dernier agent qui a confirmé</b>, si bien que pour chaque ligne
+        confirmées = livrées + retours + en cours + annulées. Le trait vertical sur chaque jauge est la
+        <b style="color:var(--ink-2)">médiane de l'équipe</b> pour cette colonne.
+        La pastille « en cours » est ce qui peut encore faire monter le taux de livraison : mouna a
+        <b style="color:var(--ink-2)">147 commandes en vol</b>, ce qui explique ses 11,2 % — le chiffre n'est pas
+        stabilisé, contrairement à celui de roqaya.
+      </p>
+    </div>
+  </section>
+
+  <section style="margin-bottom:24px">
+    <div class="sec">
+      <span class="ico ico-neutral ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v8l-9 5-9-5V8l9-5 9 5Z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg></span>
+      <h2>Stock</h2>
+    </div>
+    <div class="kv">
+      <div class="card"><span class="lab">Stock actuel</span><span class="v tnum">216</span></div>
+      <div class="card"><span class="lab">Seuil d'alerte</span><span class="v tnum">20</span></div>
+      <div class="card"><span class="lab">Stock initial</span><span class="v tnum">0</span></div>
+      <div class="card"><span class="lab">Valeur du stock</span><span class="v money" id="dStockVal2"></span></div>
+      <div class="card"><span class="lab">Retours endommagés</span><span class="v tnum">0</span></div>
+      <div class="card"><span class="lab">Unités livrées</span><span class="v tnum">112</span></div>
+    </div>
+  </section>
+
+  <section style="margin-bottom:24px">
+    <div class="sec">
+      <span class="ico ico-warn ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></span>
+      <h2>Modèle de coût</h2>
+      <span class="meta">modifiable par le super admin uniquement</span>
+    </div>
+    <div class="kv">
+      <div class="card"><span class="lab">Coût unitaire (COGS)</span><span class="v money" id="dCogs"></span></div>
+      <div class="card"><span class="lab">Emballage / commande</span><span class="v money" id="dPack"></span></div>
+      <div class="card"><span class="lab">Traitement confirmation</span><span class="v money" id="dProc"></span></div>
+      <div class="card"><span class="lab">Prix catalogue</span><span class="v money" id="dPrice"></span></div>
+      <div class="card"><span class="lab">Prix plancher</span><span class="v mute" style="font-weight:400">non défini</span></div>
+      <div class="card"><span class="lab">Budget pub attribué</span><span class="v money" id="dAds"></span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec">
+      <span class="ico ico-info ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg></span>
+      <h2>Fiche agent</h2>
+      <span class="meta">ce que l'agent lit pendant l'appel</span>
+    </div>
+    <div class="zerostate">
+      <span class="ico ico-neutral"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg></span>
+      <b>Aucun contenu rédigé pour ce produit</b>
+      <p>Brief, notes, composition, utilisation, contre-indications et vente croisée sont vides — les 8 agents
+      qui appellent sur ce produit le font sans script.</p>
+      <button class="btn btn-primary btn-sm" data-go="s3">Rédiger la fiche</button>
+    </div>
+  </section>
+</main>
+
+<!-- ═══════ ÉCRAN 3 ═══════ -->
+<main class="screen" id="s3">
+  <div class="phead" style="margin-bottom:18px">
+    <div>
+      <h1 style="font-size:26px">Modifier le produit</h1>
+      <p class="s" style="font-size:13.5px">Identité, fiche agent, modèle de coût et statut. Les champs verrouillés dépendent de votre rôle.</p>
+    </div>
+    <span class="chip chip-ok acts" style="height:32px;align-self:center">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+      Connecté en super admin — tous les champs ouverts
+    </span>
+  </div>
+
+  <div class="ewrap">
+    <div class="card" style="overflow:hidden">
+      <nav class="snav" id="snav" aria-label="Sections du formulaire">
+        <a href="#sec-id"    aria-current="true"><span class="ico ico-neutral ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>Identité</a>
+        <a href="#sec-sheet"><span class="ico ico-neutral ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg></span>Fiche agent</a>
+        <a href="#sec-detail"><span class="ico ico-neutral ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v8l-9 5-9-5V8l9-5 9 5Z"/><path d="m3 8 9 5 9-5"/></svg></span>Composition</a>
+        <a href="#sec-cost"><span class="ico ico-neutral ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>Modèle de coût</a>
+        <a href="#sec-stock"><span class="ico ico-neutral ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>Stock et statut</a>
+      </nav>
+
+      <section class="fsec" id="sec-id">
+        <div class="fhead">
+          <span class="ico ico-brand"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 12 22l-9-9V3h10Z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg></span>
+          <h3>Identité</h3>
+          <span class="chip chip-warn lk">Super admin</span>
+        </div>
+        <p class="fhint">Nom affiché partout dans la console et sur les bordereaux transporteur.</p>
+        <div class="frow">
+          <div class="f">
+            <label for="e-name">Nom du produit <span class="neg" aria-hidden="true">*</span><span class="sr">obligatoire</span></label>
+            <input id="e-name" dir="auto" value="دميه ملاكمه حجم صغير" required>
+          </div>
+          <div class="f">
+            <label for="e-sku">Référence (SKU)</label>
+            <input id="e-sku" value="box-wafra-shop" aria-describedby="h-sku">
+            <span class="h" id="h-sku"><span class="ico ico-info ico-sm" style="width:18px;height:18px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></span>Sert au rapprochement avec la boutique. Doit rester unique dans le marché.</span>
+          </div>
+        </div>
+        <div class="f">
+          <label id="l-img">Image</label>
+          <div class="imgpick" role="group" aria-labelledby="l-img">
+            <div class="th" id="eThumb" role="img" aria-label="Image actuelle"></div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;gap:9px">
+                <button class="btn btn-sm btn-gb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 8l5-5 5 5M12 3v13"/></svg>Remplacer</button>
+                <button class="btn btn-sm btn-gr"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>Retirer</button>
+              </div>
+              <span class="h">JPG ou PNG, 1 Mo max. Affichée sur la ligne produit et dans la file d'attente des agents.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="fsec" id="sec-sheet">
+        <div class="fhead">
+          <span class="ico ico-info"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg></span>
+          <h3>Fiche agent</h3>
+          <span class="chip chip-info lk">Manager du marché</span>
+        </div>
+        <p class="fhint">Ce bloc s'affiche à l'agent pendant l'appel. Un brief court en haut, le détail en dessous. La colonne de droite montre le rendu en direct.</p>
+        <div class="f">
+          <label for="e-brief">Brief (une phrase)</label>
+          <input id="e-brief" maxlength="120" placeholder="Ex. Insister sur la livraison sous 48 h à Tripoli" aria-describedby="c-brief">
+          <div class="cnt" id="c-brief"><span>Première ligne que l'agent voit, en surbrillance.</span><span class="tnum" id="briefLeft" aria-live="polite">120 restants</span></div>
+        </div>
+        <div class="frow">
+          <div class="f">
+            <label for="e-tone">Ton du brief</label>
+            <select id="e-tone">
+              <option value="info">Information (bleu)</option>
+              <option value="warning">Avertissement (ambre)</option>
+              <option value="critical">Critique (rouge)</option>
+            </select>
+          </div>
+          <div class="f">
+            <label for="e-cross">Vente croisée</label>
+            <select id="e-cross">
+              <option>Aucune</option><option>القرآن تدبر وعمل</option>
+              <option>دميه ملاكمه حجم متوسط</option><option>كتاب الداء والدواء للإمام ابن القيم</option>
+            </select>
+          </div>
+        </div>
+        <div class="f">
+          <label for="e-notes">Notes détaillées</label>
+          <textarea id="e-notes" rows="5" placeholder="Arguments, objections fréquentes, ce qu'il ne faut pas promettre…"></textarea>
+        </div>
+      </section>
+
+      <section class="fsec" id="sec-detail">
+        <div class="fhead">
+          <span class="ico ico-neutral"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v8l-9 5-9-5V8l9-5 9 5Z"/><path d="m3 8 9 5 9-5"/></svg></span>
+          <h3>Composition et utilisation</h3>
+          <span class="chip chip-info lk">Manager du marché</span>
+        </div>
+        <p class="fhint">Les trois champs que l'agent déplie quand le client pose une question précise.</p>
+        <div class="f">
+          <label for="e-comp">Composition</label>
+          <textarea id="e-comp" rows="2" placeholder="Matières, dimensions, contenu de la boîte…"></textarea>
+        </div>
+        <div class="frow">
+          <div class="f">
+            <label for="e-use">Utilisation</label>
+            <textarea id="e-use" rows="2" placeholder="Montage, entretien…"></textarea>
+          </div>
+          <div class="f">
+            <label for="e-ctr">Contre-indications</label>
+            <textarea id="e-ctr" rows="2" placeholder="Âge minimum, précautions…"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <section class="fsec" id="sec-cost">
+        <div class="fhead">
+          <span class="ico ico-warn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+          <h3>Modèle de coût</h3>
+          <span class="chip chip-warn lk">Super admin</span>
+        </div>
+        <p class="fhint">Ces champs alimentent chaque calcul de rentabilité du produit.</p>
+        <div class="frow">
+          <div class="f">
+            <label for="e-cogs">Coût unitaire (COGS) <span class="neg" aria-hidden="true">*</span></label>
+            <div class="unit"><input id="e-cogs" type="number" step="0.001" min="0" value="24.998" data-live><span class="u">د.ل</span></div>
+            <span class="h">Prix d'achat d'une unité, hors transport et emballage.</span>
+          </div>
+          <div class="f">
+            <label for="e-pack">Emballage / commande</label>
+            <div class="unit"><input id="e-pack" type="number" step="0.001" min="0" value="0.000" data-live><span class="u">د.ل</span></div>
+          </div>
+          <div class="f">
+            <label for="e-proc">Traitement / confirmation</label>
+            <div class="unit"><input id="e-proc" type="number" step="0.001" min="0" value="0.000" data-live><span class="u">د.ل</span></div>
+          </div>
+          <div class="f">
+            <label for="e-price">Prix catalogue</label>
+            <div class="unit"><input id="e-price" type="number" step="0.001" min="0" value="129.000" data-live><span class="u">د.ل</span></div>
+          </div>
+          <div class="f">
+            <label for="e-floor">Prix plancher</label>
+            <div class="unit"><input id="e-floor" type="number" step="0.001" min="0" placeholder="—"><span class="u">د.ل</span></div>
+            <span class="h">En dessous, l'agent ne peut pas négocier.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="fsec" id="sec-stock">
+        <div class="fhead">
+          <span class="ico ico-neutral"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+          <h3>Stock et statut</h3>
+          <span class="chip chip-warn lk">Super admin</span>
+        </div>
+        <p class="fhint">Le stock ne se modifie pas ici — il passe par « Ajuster le stock », qui écrit une ligne au journal d'inventaire.</p>
+        <div class="frow">
+          <div class="f"><label for="e-thr">Seuil d'alerte stock bas</label><input id="e-thr" type="number" min="0" value="20"></div>
+          <div class="f">
+            <label for="e-stock">Stock actuel</label>
+            <input id="e-stock" value="216" disabled aria-describedby="h-stock">
+            <span class="h" id="h-stock">Lecture seule · dernière sortie il y a 3 jours</span>
+          </div>
+        </div>
+        <button class="sw" role="switch" aria-checked="true" id="swA">
+          <span class="knob" aria-hidden="true"></span>
+          <span class="t">Produit actif<span>Visible dans la file des agents et acceptant de nouvelles commandes.</span></span>
+        </button>
+      </section>
+    </div>
+
+    <aside class="aside" aria-label="Aperçus">
+      <div class="card">
+        <h4><span class="ico ico-brand ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></span>Marge unitaire — en direct</h4>
+        <div class="mp">
+          <div class="r"><span>Prix catalogue</span><span class="dots"></span><b class="money" id="mpPrice"></b></div>
+          <div class="r"><span>− Coût unitaire</span><span class="dots"></span><b class="money" id="mpCogs"></b></div>
+          <div class="r"><span>− Emballage</span><span class="dots"></span><b class="money" id="mpPack"></b></div>
+          <div class="r"><span>− Traitement</span><span class="dots"></span><b class="money" id="mpProc"></b></div>
+          <div class="r"><span>− Livraison (moy. réelle)</span><span class="dots"></span><b class="money" id="mpShip"></b></div>
+          <div class="tot"><span>Marge par livraison</span><span class="amt money" id="mpNet"></span><span class="pc" id="mpPct"></span></div>
+        </div>
+        <p class="h" style="margin-top:14px;font-size:11.5px;color:var(--ink-3);line-height:1.55">
+          Frais de livraison moyens observés sur les 108 livraisons réelles de ce produit. Les retours ne sont pas
+          dans ce calcul unitaire — ils apparaissent dans le profit net de la fiche.</p>
+      </div>
+
+      <div class="card">
+        <h4><span class="ico ico-info ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M18 20a6 6 0 0 0-12 0"/></svg></span>Aperçu agent</h4>
+        <div class="aprev">
+          <span class="hd" id="prevBrief" data-tone="info">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+            <span id="prevBriefTxt">Brief vide — l'agent ne verra rien ici</span>
+          </span>
+          <div class="bd" id="prevBody">Les notes détaillées s'afficheront ici, sous le nom du produit, dans la fiche que l'agent ouvre pendant l'appel.</div>
+        </div>
+      </div>
+
+      <div class="card impact">
+        <h4><span class="ico ico-warn ico-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg></span>Impact</h4>
+        <p>Ce produit a <b>229 commandes en cours</b> chez le transporteur. Changer le coût unitaire recalcule le
+        profit net de toutes les livraisons passées — la marge historique bougera dans le tableau de bord.</p>
+      </div>
+    </aside>
+  </div>
+
+  <div class="savebar">
+    <span class="msg" id="saveMsg">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+      Aucune modification en attente</span>
+    <button class="btn">Annuler</button>
+    <button class="btn btn-primary" id="saveBtn" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+      Enregistrer les modifications</button>
+  </div>
+</main>
+
+<script>
+/* ═══ DONNÉES RÉELLES — marché Libye, cumul, extraites le 13/08/2026 ═══ */
+const IMG="https://vshynigvgrlihngozuwb.supabase.co/storage/v1/object/public/product-images/00000000-0000-0000-0000-000000000002/";
+const P=[
+ {name:"القرآن تدبر وعمل",sku:"qr-01",active:true,img:IMG+"7bfabff2-7f13-49b4-98df-b33db5ad235a/image.jpeg",
+  leads:571,confirmed:251,uploaded:236,delivered:92,returned:12,inflight:53,
+  revenue:20057,delQty:93,cogsUnit:40,packing:.5,proc:0,shipFee:920,retFee:60,ads:0,stock:1000,threshold:99,price:249},
+ {name:"دميه ملاكمه حجم صغير",sku:"box-wafra-shop",active:true,img:IMG+"24ef8174-5ce8-4843-b72a-e8ef2a73cd41/image.jpeg",
+  leads:866,confirmed:453,uploaded:431,delivered:108,returned:28,inflight:229,
+  revenue:14738,delQty:112,cogsUnit:24.998,packing:0,proc:0,shipFee:1090,retFee:140,ads:0,stock:216,threshold:20,price:129},
+ {name:"دميه ملاكمه حجم متوسط",sku:null,active:true,img:IMG+"6f347bea-d5e7-4356-b233-6f47091564a2/image.jpeg",
+  leads:893,confirmed:266,uploaded:246,delivered:63,returned:31,inflight:98,
+  revenue:11694,delQty:66,cogsUnit:20.002,packing:0,proc:0,shipFee:650,retFee:155,ads:0,stock:200,threshold:5,price:179},
+ {name:"كتاب الداء والدواء للإمام ابن القيم",sku:"DA2",active:true,img:IMG+"e907b151-0b2e-4b72-9d05-91e25621af4d/image.jpeg",
+  leads:224,confirmed:109,uploaded:107,delivered:51,returned:12,inflight:4,
+  revenue:9099,delQty:51,cogsUnit:12,packing:0,proc:0,shipFee:510,retFee:60,ads:0,stock:200,threshold:2,price:149},
+ {name:"دميه ملاكمه حجم كبير",sku:null,active:true,img:IMG+"19d40d38-bfbe-4607-93e7-ba849eaf73d3/image.jpeg",
+  leads:189,confirmed:94,uploaded:88,delivered:28,returned:9,inflight:27,
+  revenue:5611,delQty:29,cogsUnit:30,packing:0,proc:0,shipFee:280,retFee:45,ads:5777,stock:600,threshold:50,price:199},
+ {name:"دمية الملاكمة حجم كبير (179 دل)",sku:"دمية الملاكمة حجم كبير",active:false,img:IMG+"70afbf75-be0c-4ae1-8595-2a9cb9f1da21/image.jpeg",
+  leads:128,confirmed:68,uploaded:67,delivered:0,returned:0,inflight:66,
+  revenue:0,delQty:0,cogsUnit:19.998,packing:2,proc:0,shipFee:0,retFee:0,ads:0,stock:200,threshold:20,price:179},
+ {name:"أكمام تغطية للساعد والمعصم للمحجبات 🤍🧕",sku:"manches",active:false,img:IMG+"43d598f7-0691-4437-8004-6a3a32d6afb7/image.jpeg",
+  leads:2,confirmed:0,uploaded:0,delivered:0,returned:0,inflight:0,
+  revenue:0,delQty:0,cogsUnit:12,packing:0,proc:0,shipFee:0,retFee:0,ads:0,stock:0,threshold:5,price:89},
+ {name:"XX",sku:null,active:false,img:IMG+"a8964b24-66e3-449c-b126-33d570db5877/image.jpeg",
+  leads:0,confirmed:0,uploaded:0,delivered:0,returned:0,inflight:0,
+  revenue:0,delQty:0,cogsUnit:1,packing:0,proc:0,shipFee:0,retFee:0,ads:0,stock:0,threshold:5,price:null},
+];
+/* Attribution « dernier agent qui a confirmé », appliquée à TOUTES les colonnes
+   de sortie. Le jeu est bouclé : confirmed = delivered + returned + inflight + other
+   (other = annulée / supprimée / rejetée après confirmation). */
+const AGENTS=[
+ {n:"roqaya",role:"Agent",calls:310,called:118,treated:261,confirmed:105,delivered:37,returned:14,inflight:30, other:24,revenue:5142},
+ {n:"hend",  role:"Agent",calls:164,called:80, treated:184,confirmed:82, delivered:27,returned:5, inflight:30, other:20,revenue:3483},
+ {n:"mouna", role:"Agent",calls:514,called:168,treated:325,confirmed:197,delivered:22,returned:6, inflight:147,other:22,revenue:2888},
+ {n:"tasnim",role:"Agent",calls:231,called:64, treated:117,confirmed:44, delivered:13,returned:3, inflight:11, other:17,revenue:1935},
+ {n:"salima",role:"Agent",calls:26, called:11, treated:21, confirmed:12, delivered:1, returned:0, inflight:10, other:1, revenue:129},
+];
+const SUP=[
+ {n:"Admin",      role:"Super admin",   calls:0,  called:0, treated:14,confirmed:14,delivered:8,returned:0,inflight:1,other:5,revenue:1032},
+ {n:"hamidaly",   role:"Manager marché",calls:93, called:56,treated:56,confirmed:1, delivered:1,returned:0,inflight:0,other:0,revenue:129},
+ {n:"Super Admin",role:"Super admin",   calls:112,called:75,treated:75,confirmed:2, delivered:0,returned:0,inflight:1,other:1,revenue:0},
+];
+
+/* ═══ FORMATAGE + CORRECTIF BIDI ═══
+   « د.ل » est RTL fort : collé à des chiffres latins il réordonne les segments
+   voisins, et dans un isolat à direction déduite (FSI) il renvoie le signe à
+   l'autre bout. D'où LRI (LTR imposé) + recomposition « montant␣symbole »,
+   ar-LY plaçant le symbole avant le montant avec des marques RLM. */
+const LRI="⁦",PDI="⁩",NBSP=" ",CTRL=/[‎‏؜]/g;
+const nf=new Intl.NumberFormat("fr-TN");
+const c3=new Intl.NumberFormat("ar-LY",{style:"currency",currency:"LYD",minimumFractionDigits:3,maximumFractionDigits:3});
+const c0=new Intl.NumberFormat("ar-LY",{style:"currency",currency:"LYD",minimumFractionDigits:0,maximumFractionDigits:0});
+function bits(f,n){const p=f.formatToParts(Math.abs(n));
+  const g=t=>p.filter(x=>t.includes(x.type)).map(x=>x.value).join("").replace(CTRL,"");
+  return{s:g(["currency"]),v:g(["integer","group","decimal","fraction"])}}
+function amt(f,n,sign){const{s,v}=bits(f,n);
+  return LRI+(sign?(n>0?"+":n<0?"−":""):"")+v+NBSP+s+PDI}
+const money  =n=>amt(c3,n,false), money0=n=>amt(c0,n,false);
+const signed =n=>amt(c0,n,true),  signed3=n=>amt(c3,n,true);
+const minus  =n=>{const{s,v}=bits(c0,n);return LRI+"−"+v+NBSP+s+PDI};
+const minus3 =n=>{const{s,v}=bits(c3,n);return LRI+"−"+v+NBSP+s+PDI};
+const num=n=>nf.format(n);
+const pct=n=>nf.format(Math.round(n*10)/10)+" %";
+
+/* ═══ MODÈLE FINANCIER ═══ */
+function calc(p){
+  const settled=p.delivered+p.returned;
+  const confRate=p.leads?p.confirmed/p.leads*100:0;
+  /* TAUX DE LIVRAISON — option B : dénominateur = tout ce qui a été uploadé.
+     Les commandes encore chez le transporteur comptent comme non-livrées. */
+  const delRate=p.uploaded?p.delivered/p.uploaded*100:null;
+  const cogs=p.cogsUnit*p.delQty, gross=p.revenue-cogs;
+  const packing=p.packing*p.confirmed, proc=p.proc*p.confirmed;
+  const net=gross-p.shipFee-p.retFee-packing-proc-p.ads;
+  return{settled,confRate,delRate,cogs,gross,packing,proc,net,
+    margin:p.revenue?net/p.revenue*100:0, perDel:p.delivered?net/p.delivered:0};
+}
+const tone=(v,g,o)=>v>=g?"":v>=o?"warn":"bad";
+const col=t=>t===""?"var(--brand-pos)":t==="warn"?"var(--warning)":"var(--critical)";
+
+/* ═══ ÉCRAN 1 — rangées ═══ */
+document.getElementById("rows").innerHTML=[...P].sort((a,b)=>calc(b).net-calc(a).net).map(p=>{
+  const c=calc(p), act=p.leads>0;
+  const sPct=Math.max(p.stock>0?4:0,Math.min(100,p.threshold>0?p.stock/(p.threshold*4)*100:(p.stock>0?100:0)));
+  const sT=p.stock<=0?"bad":p.stock<=p.threshold?"warn":"";
+  const cT=tone(c.confRate,50,35), dT=c.delRate===null?"":tone(c.delRate,40,25);
+  const chips=[p.active?`<span class="chip chip-ok">Actif</span>`:`<span class="chip chip-off">Inactif</span>`,
+    p.stock<=0?`<span class="chip chip-bad">Rupture</span>`:p.stock<=p.threshold?`<span class="chip chip-warn">Stock bas</span>`:"",
+    p.sku?`<span class="chip chip-sku" dir="auto">${p.sku}</span>`:""].filter(Boolean).join("");
+
+  const metrics=act?`
+    <div class="rm">
+      <span class="lab">Commandes</span><span class="v">${num(p.leads)}</span>
+      <span class="r mute" style="font-weight:500">reçues</span><span class="track"><i style="width:100%"></i></span>
+    </div>
+    <div class="rm">
+      <span class="lab">Confirmées</span><span class="v">${num(p.confirmed)}</span>
+      <span class="r" style="color:${col(cT)}">${pct(c.confRate)}</span>
+      <span class="track"><i class="${cT}" style="width:${c.confRate.toFixed(1)}%"></i></span>
+    </div>
+    <div class="rm">
+      <span class="lab">Livrées</span><span class="v">${num(p.delivered)}</span>
+      ${c.delRate===null?`<span class="r mute" style="font-weight:500">aucun upload</span><span class="track"></span>`
+       :`<span class="r" style="color:${col(dT)}">${pct(c.delRate)}</span>
+         <span class="track"><i class="${dT}" style="width:${c.delRate.toFixed(1)}%"></i></span>`}
+    </div>
+    <div class="rprofit ${p.revenue===0?"flat":c.net<0?"loss":""}">
+      <span class="lab">Profit net</span>
+      <span class="v money" style="color:${c.net<0?"var(--critical)":c.net>0?"var(--brand-pos)":"var(--ink-2)"}">${signed(c.net)}</span>
+      <span class="sub ${p.revenue?"":"mute"} tnum">${p.revenue?"marge "+pct(c.margin):"coûts engagés, rien d'encaissé"}</span>
+    </div>`
+  :`<div class="rempty">
+      <span class="ico ico-neutral"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v8l-9 5-9-5V8l9-5 9 5Z"/><path d="m3 8 9 5 9-5"/></svg></span>
+      Aucune commande sur ce produit
+    </div>`;
+
+  return `<article class="prow" data-off="${!p.active}" data-loss="${act&&c.net<0}"
+    ${p.sku==="box-wafra-shop"?'data-go="s2" role="link" tabindex="0" style="cursor:pointer"':""}>
+    <div class="rid">
+      <div class="rthumb" style="background-image:url('${p.img}')" role="img" aria-label="Photo"></div>
+      <div style="min-width:0">
+        <div class="rname" dir="auto">${p.name}</div>
+        <div class="rchips">${chips}</div>
+        <div class="rfoot">
+          <span class="g">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--ink-3)" aria-hidden="true"><path d="M21 8v8l-9 5-9-5V8l9-5 9 5Z"/><path d="m3 8 9 5 9-5"/></svg>
+            <b>${num(p.stock)}</b> en stock <span class="mute">· seuil ${num(p.threshold)}</span>
+          </span>
+          <span class="sep"></span>
+          <span class="g fl ${p.inflight?"":"zero"}" title="Uploadées, en attente d'un statut transporteur">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 3h13v13H1zM14 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="17.5" cy="18.5" r="2"/></svg>
+            <span class="tnum">${num(p.inflight)}</span> en cours
+          </span>
+        </div>
+        <span class="track" style="margin-top:8px;max-width:230px"><i class="${sT}" style="width:${sPct}%"></i></span>
+      </div>
+    </div>
+    ${metrics}
+    <button class="rmenu" aria-label="Actions sur ce produit">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>
+    </button>
+  </article>`;
+}).join("");
+
+/* ═══ ÉCRAN 2 ═══ */
+const D=P.find(p=>p.sku==="box-wafra-shop"), C=calc(D);
+const set=(id,v)=>{const e=document.getElementById(id); if(e) e.innerHTML=v;};
+document.getElementById("dThumb").style.backgroundImage=`url('${D.img}')`;
+document.getElementById("eThumb").style.backgroundImage=`url('${D.img}')`;
+set("dPriceChip",money(D.price));
+set("dStockVal", money0(D.stock*D.cogsUnit)); set("dStockVal2",money0(D.stock*D.cogsUnit));
+set("dCogs",money(D.cogsUnit)); set("dPack",money(D.packing)); set("dProc",money(D.proc));
+set("dPrice",money(D.price));   set("dAds",money(D.ads));
+set("cInflight",num(D.inflight)+" commandes"); set("cSettled",C.settled+" déjà réglées");
+set("cRate",pct(D.delivered/C.settled*100));
+document.getElementById("dHero").classList.toggle("loss",C.net<0);
+set("dNet",signed(C.net)); set("dNetSub",`Marge ${pct(C.margin)} · ${num(D.delivered)} livraisons`);
+set("dRev",money0(D.revenue)); set("dGross",signed(C.gross));
+set("dMargin",pct(C.margin));  set("dPerDel",signed3(C.perDel));
+
+/* entonnoir en chevrons */
+const IC={cart:`<path d="M2 3h3l2.7 12.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L21 7H6"/><circle cx="9.5" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/>`,
+ user:`<path d="M18 20a6 6 0 0 0-12 0"/><circle cx="12" cy="8" r="4"/>`,
+ chk:`<circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/>`,
+ up:`<path d="M12 16V7M8.5 10.5 12 7l3.5 3.5"/><path d="M20 16.5A4 4 0 0 0 18 9h-1A6 6 0 1 0 6 15"/>`,
+ truck:`<path d="M1 3h13v13H1zM14 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="17.5" cy="18.5" r="2"/>`};
+const STEPS=[
+ {l:"Commandes", v:D.leads,     s:"reçues de la boutique",              i:"cart"},
+ {l:"Traitées",  v:770,         s:"un agent a posé une action",         i:"user"},
+ {l:"Confirmées",v:D.confirmed, s:pct(C.confRate)+" des commandes",     i:"chk"},
+ {l:"Uploadées", v:D.uploaded,  s:num(D.inflight)+" encore en cours",   i:"up"},
+ {l:"Livrées",   v:D.delivered, s:pct(C.delRate)+" des "+num(D.uploaded)+" uploadées", i:"truck"},
+];
+document.getElementById("funnel").innerHTML=STEPS.map((s,i)=>`
+  <div class="chev" data-s="${i+1}">
+    <div class="bd">
+      <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">${IC[s.i]}</svg></span>
+      <span style="min-width:0">
+        <span class="l" style="display:block">${s.l}</span>
+        <span class="v" style="display:block">${num(s.v)}</span>
+        <span class="s" style="display:block">${s.s}</span>
+      </span>
+    </div>
+    <div class="ft">${pct(s.v/D.leads*100)} des commandes</div>
+  </div>`).join("");
+
+/* cascade — vraies barres flottantes reliées en pointillé */
+const WF=[
+ {l:"Chiffre<br>d'affaires", v:D.revenue,  c:"var(--brand-pos)", kind:"start"},
+ {l:"COGS",      v:-C.cogs,    c:"#D72C0D"},
+ {l:"Livraison", v:-D.shipFee, c:"#E08909"},
+ {l:"Retours",   v:-D.retFee,  c:"#E5847E"},
+ {l:"Profit net",v:C.net,      c:C.net<0?"var(--critical)":"var(--brand-pos)", kind:"end"},
+].filter(x=>x.kind||x.v!==0);
+// `topV`, pas `top` : `window.top` existe déjà et un `const top` au niveau
+// racine lève « Identifier 'top' has already been declared ».
+const H=230, topV=Math.max(D.revenue,Math.abs(C.net))*1.06;
+/* `after` = total courant APRÈS l'étape. C'est là que se pose le trait de
+   liaison vers la barre suivante — pas sur le bas de la barre, qui pour la
+   première étape vaut 0 et faisait courir le pointillé au ras de l'axe. */
+let run=0; const seg=WF.map(x=>{
+  let lo,hi,after;
+  if(x.kind==="start"){lo=0;hi=x.v;run=x.v;after=run;}
+  else if(x.kind==="end"){lo=Math.min(0,x.v);hi=Math.max(0,x.v);after=null;}
+  else{hi=run;run+=x.v;lo=run;after=run;}
+  return{...x,lo,hi,after};
+});
+const y=v=>v/topV*H;
+document.getElementById("dWf").innerHTML=`
+  <div class="wfplot" style="grid-template-columns:repeat(${seg.length},1fr)">
+    ${seg.map((s,i)=>`
+      <div class="wfcol">
+        <div class="wfbar" style="bottom:${y(s.lo).toFixed(1)}px;height:${Math.max(3,y(s.hi-s.lo)).toFixed(1)}px;background:${s.c}"></div>
+        <div class="wfval" style="bottom:${(y(s.hi)+7).toFixed(1)}px;color:${s.kind?s.c:"var(--ink-2)"}">${s.kind?money0(Math.abs(s.v)):minus(Math.abs(s.v))}</div>
+        ${i<seg.length-1&&s.after!==null?`<div class="wflink" style="bottom:${y(s.after).toFixed(1)}px"></div>`:""}
+      </div>`).join("")}
+  </div>
+  <div class="wfaxis" style="grid-template-columns:repeat(${seg.length},1fr)">
+    ${seg.map(s=>`<span class="${s.kind==="end"?"tot":""}">${s.l}</span>`).join("")}
+  </div>
+  <p style="margin-top:12px;font-size:11.5px;color:var(--ink-3);line-height:1.55">
+    Le CA ne compte que les ${D.delivered} commandes livrées. Emballage, traitement et publicité valent
+    ${money0(0)} sur ce produit — les postes à zéro ne sont pas tracés, mais ils sont bien dans le calcul.
+    Les barres se soustraient exactement au profit net, sans arrondi intermédiaire.</p>`;
+
+/* classement */
+/* Même dénominateur que l'option B, transposé à l'agent : livrées / confirmées. */
+const der=a=>({...a,
+  confRate:a.treated?a.confirmed/a.treated*100:null,
+  delRate: a.confirmed?a.delivered/a.confirmed*100:null});
+
+const COLS=[
+ {k:"rank",  t:"Rang", w:"78px", sort:1,
+  tip:"Classement par CA généré sur ce produit. Managers et administrateurs en sont exclus : ils confirment en lot sans appeler, ce qui fausserait la comparaison."},
+ {k:"n",     t:"Agent",
+  tip:"Rôle actuel. Un agent désactivé reste listé tant que son travail compte dans la période."},
+ {k:"calls", t:"Appels", sort:1,
+  tip:"Tentatives d'appel enregistrées (attempt_1/2/3) et nombre de commandes distinctes appelées. Le repère sur la jauge est la médiane de l'équipe."},
+ {k:"confRate", t:"Confirmation", sort:1,
+  tip:"Confirmées ÷ traitées. L'agent est crédité s'il est le dernier à avoir confirmé la commande."},
+ {k:"delRate",  t:"Livraison", sort:1,
+  tip:"Livrées ÷ confirmées. Les commandes encore chez le transporteur comptent comme non-livrées — d'où la pastille « en cours », qui indique ce qui peut encore remonter."},
+ {k:"revenue",  t:"CA généré", num:1, sort:1,
+  tip:"Somme des prix des commandes livrées, attribuée au dernier agent qui a confirmé. Seules les livraisons comptent : rien n'est compté à l'upload."},
+];
+let sk="revenue", sd="desc", supOpen=true;
+
+const median=a=>{const s=[...a].sort((x,y)=>x-y),m=s.length>>1;
+  return s.length?(s.length%2?s[m]:(s[m-1]+s[m])/2):0;};
+
+function draw(){
+  const A=AGENTS.map(der);
+  /* Repères : la médiane de l'équipe, pas une cible inventée. Elle rend chaque
+     ligne lisible en « au-dessus / en dessous » sans table de référence. */
+  const MED={calls:median(A.map(x=>x.calls)),
+             confRate:median(A.map(x=>x.confRate)),
+             delRate:median(A.map(x=>x.delRate))};
+  const MAX={calls:Math.max(...A.map(x=>x.calls),1)};
+
+  document.getElementById("rHead").innerHTML=COLS.map((c,i)=>{
+    const on=c.sort&&c.k===sk;
+    const ar=!c.sort?"":on
+      ?`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="${sd==="desc"?"M12 5v14m0 0-5-5m5 5 5-5":"M12 19V5m0 0-5 5m5-5 5 5"}"/></svg>`
+      :`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".38" aria-hidden="true"><path d="m7 9 5-5 5 5M7 15l5 5 5-5"/></svg>`;
+    const label=c.sort?`<button class="srt" data-s="${c.k}">${c.t}${ar}</button>`:c.t;
+    return `<th class="${c.num?"num":""}"${c.w?` style="width:${c.w}"`:""}${on?` aria-sort="${sd==="desc"?"descending":"ascending"}"`:""}>
+      <span class="hd">${label}<span class="tip">
+        <button type="button" aria-label="À propos de « ${c.t} »" aria-describedby="tip-${i}">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+        </button><span class="bub" role="tooltip" id="tip-${i}">${c.tip}</span></span></span></th>`;
+  }).join("")+`<th style="width:52px"><span class="sr">Ouvrir la fiche agent</span></th>`;
+
+  const rows=[...A].sort((a,b)=>{
+    if(sk==="rank") return sd==="desc"?b.revenue-a.revenue:a.revenue-b.revenue;
+    const x=a[sk]??-1,z=b[sk]??-1; return sd==="desc"?z-x:x-z;});
+
+  document.getElementById("rBody").innerHTML=
+    rows.map((a,i)=>row(a,i+1,MED,MAX)).join("")+
+    `<tr class="grp"><td colspan="7">
+      <button type="button" id="supTog" aria-expanded="${supOpen}" aria-controls="supRows">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        Managers et administrateurs — hors classement
+      </button></td></tr>`+
+    SUP.map(der).map(a=>row(a,null,MED,MAX)).join("");
+  syncSup();
+}
+
+function row(a,rank,MED,MAX){
+  const dim=rank===null;
+  const cT=a.confRate===null?"":tone(a.confRate,55,40);
+  const dT=a.delRate===null ?"":tone(a.delRate,30,20);
+  /* jauge + repère médiane */
+  const bar=(w,med,t)=>`<span class="gbar"><i class="${t}" style="width:${Math.min(100,Math.max(1,w)).toFixed(1)}%"></i>
+     <em style="left:${Math.min(99,Math.max(1,med)).toFixed(1)}%" title="médiane de l'équipe"></em></span>`;
+
+  const callsCell=a.calls
+    ? `<span class="val">${num(a.calls)}</span><span class="den">sur ${num(a.called)} commandes</span>
+       ${bar(a.calls/MAX.calls*100, MED.calls/MAX.calls*100, "")}`
+    : `<span class="val mute">—</span><span class="den">aucun appel passé</span>`;
+
+  const confCell=a.confRate===null
+    ? `<span class="val mute">—</span>`
+    : `<span class="val" style="color:${col(cT)}">${pct(a.confRate)}</span>
+       <span class="den">${num(a.confirmed)} sur ${num(a.treated)} traitées</span>
+       ${bar(a.confRate, MED.confRate, cT)}`;
+
+  const delCell=a.delRate===null
+    ? `<span class="val mute">—</span><span class="den">aucune confirmation</span>`
+    : `<span class="val" style="color:${col(dT)}">${pct(a.delRate)}</span>
+       <span class="den">${num(a.delivered)} livrées${a.returned?` · <span class="neg">${num(a.returned)} retours</span>`:""}</span>
+       ${bar(a.delRate, MED.delRate, dT)}`;
+
+  return `<tr class="${dim?"dim":"ag"}"${dim?' data-sup':''}>
+    <td>${dim?`<span class="rk" aria-hidden="true">·</span>`
+             :`<span class="rk" data-m="${rank<=3?rank:""}">${rank}</span>`}</td>
+    <td><span class="who">
+      <span class="av ${dim?"n":""}" aria-hidden="true">${a.n.slice(0,2).toUpperCase()}</span>
+      <span><span class="nm">${a.n}</span><span class="rl">${a.role}</span></span></span></td>
+    <td><span class="cell">${callsCell}</span></td>
+    <td><span class="cell">${confCell}</span></td>
+    <td><span class="livcell"><span class="cell">${delCell}</span>
+      <span class="flow ${a.inflight?"":"zero"}" title="Commandes confirmées par cet agent, encore chez le transporteur">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 3h13v13H1zM14 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="17.5" cy="18.5" r="2"/></svg>
+        ${a.inflight?"+"+num(a.inflight):"0"} en cours</span></span></td>
+    <td class="num"><span class="money" style="font-size:16px;font-weight:700">${
+      a.revenue?money0(a.revenue):`<span class="mute" style="font-weight:400">—</span>`}</span></td>
+    <td class="num">${dim?"":`<button class="gomore" aria-label="Ouvrir la fiche de ${a.n}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>`}</td>
+  </tr>`;
+}
+
+function syncSup(){
+  document.querySelectorAll("#rBody tr[data-sup]").forEach(r=>r.hidden=!supOpen);
+}
+draw();
+document.getElementById("rHead").addEventListener("click",e=>{
+  const b=e.target.closest("[data-s]"); if(!b)return;
+  if(b.dataset.s===sk) sd=sd==="desc"?"asc":"desc"; else{sk=b.dataset.s;sd="desc";}
+  draw();
+});
+document.getElementById("rBody").addEventListener("click",e=>{
+  if(e.target.closest("#supTog")){supOpen=!supOpen;
+    document.getElementById("supTog").setAttribute("aria-expanded",String(supOpen));syncSup();}
+});
+
+/* ═══ ÉCRAN 3 ═══ */
+const AVG=D.shipFee/D.delivered;
+const g=id=>parseFloat(document.getElementById(id).value)||0;
+function refresh(){
+  const price=g("e-price"),cogs=g("e-cogs"),pack=g("e-pack"),proc=g("e-proc");
+  const net=price-cogs-pack-proc-AVG;
+  set("mpPrice",money(price)); set("mpCogs",minus3(cogs)); set("mpPack",minus3(pack));
+  set("mpProc",minus3(proc));  set("mpShip",minus3(AVG));
+  const e=document.getElementById("mpNet"); e.innerHTML=signed3(net);
+  e.style.color=net<0?"var(--critical)":"var(--brand-pos)";
+  const p=document.getElementById("mpPct");
+  p.textContent=price?pct(net/price*100):"—";
+  p.style.background=net<0?"var(--critical-bg)":"var(--brand-bg)";
+  p.style.color=net<0?"var(--critical)":"var(--brand)";
+}
+refresh();
+
+let dirty=false;
+function markDirty(){
+  if(dirty)return; dirty=true;
+  document.getElementById("saveBtn").disabled=false;
+  document.getElementById("saveMsg").innerHTML=
+   `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+    <span style="color:var(--warning);font-weight:600">Modifications non enregistrées</span>`;
+}
+document.querySelectorAll("#s3 input,#s3 select,#s3 textarea").forEach(el=>{
+  el.addEventListener("input",markDirty); el.addEventListener("change",markDirty);});
+document.querySelectorAll("[data-live]").forEach(el=>el.addEventListener("input",refresh));
+
+document.getElementById("e-brief").addEventListener("input",e=>{
+  const v=e.target.value.trim(), t=document.getElementById("prevBriefTxt");
+  t.textContent=v||"Brief vide — l'agent ne verra rien ici";
+  t.parentElement.style.opacity=v?"1":".62";
+  document.getElementById("briefLeft").textContent=(120-e.target.value.length)+" restants";
+});
+document.getElementById("e-tone").addEventListener("change",e=>{
+  document.getElementById("prevBrief").dataset.tone=e.target.value;});
+document.getElementById("e-notes").addEventListener("input",e=>{
+  document.getElementById("prevBody").textContent=e.target.value.trim()||
+   "Les notes détaillées s'afficheront ici, sous le nom du produit, dans la fiche que l'agent ouvre pendant l'appel.";});
+const sw=document.getElementById("swA");
+sw.addEventListener("click",()=>{sw.setAttribute("aria-checked",sw.getAttribute("aria-checked")==="true"?"false":"true");markDirty();});
+
+/* scroll-spy de la navigation de sections — ancres, pas onglets :
+   masquer des champs d'un formulaire long fait rater les champs requis. */
+const links=[...document.querySelectorAll(".snav a")];
+const spy=new IntersectionObserver(es=>{
+  es.forEach(en=>{ if(!en.isIntersecting)return;
+    links.forEach(a=>a.setAttribute("aria-current",String(a.getAttribute("href")==="#"+en.target.id)));});
+},{rootMargin:"-80px 0px -65% 0px",threshold:0});
+document.querySelectorAll("#s3 .fsec").forEach(s=>spy.observe(s));
+
+/* ═══ navigation prototype ═══ */
+function go(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));
+  document.querySelectorAll(".ptabs button").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.go===id)));
+  window.scrollTo({top:0});
+}
+document.addEventListener("click",e=>{
+  const t=e.target.closest("[data-go]");
+  if(t&&!e.target.closest(".rmenu")){e.preventDefault();go(t.dataset.go);}
+});
+document.addEventListener("keydown",e=>{
+  if(e.key!=="Enter")return;
+  const t=e.target.closest('[data-go][role=link]');
+  if(t){e.preventDefault();go(t.dataset.go);}
+});
+document.querySelectorAll(".fchip,.psel button").forEach(b=>b.addEventListener("click",()=>{
+  b.parentElement.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false"));
+  b.setAttribute("aria-pressed","true");}));
+</script>
+</body>
+</html>

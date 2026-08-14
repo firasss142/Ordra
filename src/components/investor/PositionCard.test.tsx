@@ -3,6 +3,9 @@ import { render, screen, within } from "@testing-library/react";
 import frMessages from "@/messages/fr.json";
 import { PositionCard } from "./PositionCard";
 import type { PositionSummary } from "@/lib/investors/portfolio";
+// Les montants portent des isolats bidi et des espaces insécables invisibles
+// dans un littéral : on assert via le matcher partagé. Voir test/helpers/money.
+import { money } from "@/test/helpers/money";
 
 vi.mock("next-intl", () => ({
   useTranslations:
@@ -107,8 +110,8 @@ describe("PositionCard — product identity", () => {
 describe("PositionCard — whose money it is", () => {
   test("headlines the investor's share of net profit, not the product's", () => {
     card();
-    expect(screen.getByText("15 216,599 DT")).toBeInTheDocument();
-    expect(screen.queryByText("38 041,498 DT")).not.toBeInTheDocument();
+    expect(screen.getByText(money(15216.599))).toBeInTheDocument();
+    expect(screen.queryByText(money(38041.498))).not.toBeInTheDocument();
   });
 
   test("states the share the figure was taken at", () => {
@@ -123,13 +126,13 @@ describe("PositionCard — whose money it is", () => {
 
   test("renders a losing product in the critical tone, not the profit tone", () => {
     card({ yours: { ...position().yours, netProfit: -1200 } });
-    const profit = screen.getByText("-1 200,000 DT");
+    const profit = screen.getByText(money(-1200));
     expect(profit.className).toContain("text-status-critical");
   });
 
   test("renders a profitable product in the success tone", () => {
     card();
-    expect(screen.getByText("15 216,599 DT").className).toContain("text-status-success");
+    expect(screen.getByText(money(15216.599)).className).toContain("text-status-success");
   });
 });
 

@@ -49,6 +49,20 @@ export function canEditProductContent(
   return false;
 }
 
+/**
+ * Archiver retire le produit de TOUS les sélecteurs de la console — file agent,
+ * création de commande, mappings boutique et transporteur. C'est strictement
+ * plus lourd que désactiver, qui est réversible d'un clic et partagé avec les
+ * managers et le magasin. L'archivage reste donc avec le rôle qui possède déjà
+ * la création, les coûts et le stock.
+ *
+ * Le vrai gardien est la RPC archive_product (SECURITY DEFINER) : cette
+ * fonction ne sert qu'à rendre le refus lisible avant l'aller-retour réseau.
+ */
+export function canArchiveProduct(role: Role): boolean {
+  return role === "super_admin";
+}
+
 export function canToggleProductActive(role: Role): boolean {
   return (
     role === "super_admin" ||

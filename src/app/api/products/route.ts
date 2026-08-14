@@ -94,6 +94,10 @@ export async function GET(req: NextRequest) {
     : supabase
         .from("products")
         .select(`${AGENT_COLUMNS}, product_variants(count)`, countOpts)
+        // La branche agent lit la table de base : le filtre d'archive de
+        // product_inventory_view ne la couvre pas. Sans ceci, un produit archivé
+        // resterait visible dans la file de confirmation.
+        .is("deleted_at", null)
         .order("name", { ascending: true });
 
   if (paginate) {

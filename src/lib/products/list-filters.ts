@@ -14,6 +14,7 @@
 import { isLowStock } from "@/lib/product-calculations";
 import { lastNDaysPeriod } from "@/lib/date";
 import {
+  DEFAULT_PRODUCT_FACET,
   DEFAULT_PRODUCT_PAGE_SIZE,
   DEFAULT_PRODUCT_PERIOD_DAYS,
   METRIC_FACETS,
@@ -205,10 +206,15 @@ function isIsoDate(v: string | null): v is string {
  * handed to PostgREST.
  */
 export function parseProductListQuery(params: URLSearchParams): ProductListQuery {
+  // La console s'ouvre sur le catalogue VENDABLE. Un produit désactivé n'est plus
+  // une décision commerciale en attente — il est rangé — et le laisser dans la vue
+  // par défaut faisait porter à chaque lecture le bruit des produits retirés.
+  // « Tous » et « Inactifs » restent des facettes à un clic : c'est par là qu'on
+  // retrouve un produit désactivé pour l'archiver.
   const rawFilter = params.get("filter");
   const filter = (PRODUCT_FACETS as readonly string[]).includes(rawFilter ?? "")
     ? (rawFilter as ProductFacet)
-    : "all";
+    : DEFAULT_PRODUCT_FACET;
 
   const rawSort = params.get("sort");
   const sort = (PRODUCT_SORT_KEYS as readonly string[]).includes(rawSort ?? "")
@@ -255,7 +261,7 @@ export function productListQueryToParams(
     p.set(key, value);
   };
   put("q", query.q);
-  put("filter", query.filter, "all");
+  put("filter", query.filter, DEFAULT_PRODUCT_FACET);
   put("sort", query.sort, "name");
   put("dir", query.dir, "asc");
   put("from_date", query.from_date);
