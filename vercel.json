@@ -20,6 +20,9 @@
     },
     "src/app/api/cron/darb-rates-harvest/route.ts": {
       "maxDuration": 300
+    },
+    "src/app/api/cron/meta-ads-sync/route.ts": {
+      "maxDuration": 60
     }
   }
 }

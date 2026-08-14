@@ -63,7 +63,7 @@ async function computeForPeriod(
     { count: dispatchedCount },
     deliveredHistory,
     returnedHistory,
-    adSpendRes,
+    adSpendRows,
   ] = await Promise.all([
     supabase
       .from("orders")
@@ -114,19 +114,24 @@ async function computeForPeriod(
         .lte("created_at", toDateEnd)
     ),
 
-    supabase
-      .from("ad_spend")
-      .select("amount")
-      .eq("product_id", productId)
-      .eq("is_active", true)
-      .lte("period_start", toDate)
-      .gte("period_end", fromDate),
+    // Paged like the history reads above, and for the same reason now that ad
+    // spend is stored per campaign per day: a few campaigns on one product
+    // cross PostgREST's 1000-row cap in a matter of months, and a silently
+    // truncated read understates spend, which overstates this product's profit.
+    fetchAllRows<{ amount: number | string }>(
+      supabase
+        .from("ad_spend")
+        .select("amount")
+        .eq("product_id", productId)
+        .eq("is_active", true)
+        .lte("period_start", toDate)
+        .gte("period_end", fromDate)
+        // Total order — see load-summary.ts; paging over ties is not stable.
+        .order("id", { ascending: true })
+    ),
   ]);
 
-  const adSpend = (adSpendRes.data ?? []).reduce(
-    (sum: number, r: { amount: number | string }) => sum + Number(r.amount),
-    0
-  );
+  const adSpend = adSpendRows.reduce((sum, r) => sum + Number(r.amount), 0);
 
   const confirmedCount = new Set(
     confirmedHistory.map((row) => row.order_id).filter(Boolean)

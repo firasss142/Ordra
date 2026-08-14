@@ -44,8 +44,22 @@ function makeSupabase(opts: {
       builder.is = vi.fn(chain);
       builder.gte = vi.fn(chain);
       builder.lte = vi.fn(chain);
+      // The read carries a total order (period columns are tie-heavy once spend
+      // is daily), so the double has to accept .order() or it stops modelling
+      // the query under test.
+      builder.order = vi.fn(chain);
+      // An un-ranged read is capped at 1000 rows by PostgREST, with no error to
+      // mark the truncation — reproduce that, so a >1000-row fixture actually
+      // catches an unpaged read instead of quietly passing.
       builder.then = (resolve: (v: unknown) => unknown) =>
-        resolve({ data: opts.adSpendRows, error: null });
+        resolve({ data: opts.adSpendRows.slice(0, 1000), error: null });
+      // fetchAllRows pages with .range(from, to). PostgREST's bounds are
+      // inclusive on both ends, so mirror that — otherwise a >1000-row fixture
+      // would not exercise the second page the way production does.
+      builder.range = vi.fn((from: number, to: number) => ({
+        then: (resolve: (v: unknown) => unknown) =>
+          resolve({ data: opts.adSpendRows.slice(from, to + 1), error: null }),
+      }));
       return builder;
     }
     throw new Error(`unexpected table ${table}`);
@@ -123,6 +137,30 @@ describe("loadProfitabilitySummary", () => {
     expect(out.revenue).toBe(1000);
     expect(out.ad_spend).toBe(250.5);
     expect(out.net_profit).toBe(749.5);
+  });
+
+  // Daily campaign rows put ad_spend past PostgREST's 1000-row cap within
+  // months. Before this was paged, the sum below stopped at 1000 — understating
+  // spend and so overstating net profit, with no error to reveal it.
+  it("sums every ad_spend row past the 1000-row PostgREST cap", async () => {
+    const { supabase } = makeSupabase({
+      aggData: {
+        revenue_cents: "1000000", // 10000
+        cogs_cents: "0",
+        delivery_cost_cents: "0",
+        return_cost_cents: "0",
+        packing_cost_cents: "0",
+        delivered_count: 0,
+        returned_count: 0,
+        confirmed_count: 0,
+      },
+      leadsCount: 0,
+      adSpendRows: Array.from({ length: 1500 }, () => ({ amount: 1 })),
+    });
+
+    const out = await loadProfitabilitySummary(supabase, "m", "2026-01-01", "2026-06-30");
+    expect(out.ad_spend).toBe(1500);
+    expect(out.net_profit).toBe(8500);
   });
 
   it("returns all-zeros when the RPC yields no row (guard blocked / empty window)", async () => {

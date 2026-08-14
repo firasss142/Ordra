@@ -180,17 +180,28 @@ export async function POST(req: NextRequest) {
     const productIds = products.map((p) => p.productId);
 
     // ── Market-wide ad spend for the period ──────────────────────────────
-    const { data: marketAds } = await admin
-      .from("ad_spend")
-      .select("amount")
-      .eq("market_id", marketId)
-      .eq("is_active", true)
-      .is("product_id", null)
-      .lte("period_start", periodEnd)
-      .gte("period_end", periodStart);
+    // Paged like the position read below. Spend is recorded per campaign per
+    // day, so a settlement window of any length will eventually exceed
+    // PostgREST's 1000-row cap; a truncated read here understates the cost
+    // side of the settlement and silently overpays every investor.
+    const marketAds = await fetchAllRows<{ amount: number | string }>(
+      admin
+        .from("ad_spend")
+        .select("amount")
+        .eq("market_id", marketId)
+        .eq("is_active", true)
+        .is("product_id", null)
+        .lte("period_start", periodEnd)
+        .gte("period_end", periodStart)
+        // A total order is required: .range() paging over ties is OFFSET/LIMIT
+        // over an unordered relation, which Postgres does not promise is stable
+        // between statements. A repeated or skipped row here is a wrong sum, and
+        // this one feeds money.
+        .order("id", { ascending: true })
+    );
 
     const marketWideAdSpend = fromMillimes(
-      (marketAds ?? []).reduce((acc, r) => acc + toMillimes(Number(r.amount)), 0)
+      marketAds.reduce((acc, r) => acc + toMillimes(Number(r.amount)), 0)
     );
 
     // ── Capital positions, house included ────────────────────────────────

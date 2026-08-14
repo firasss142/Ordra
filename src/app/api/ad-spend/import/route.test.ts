@@ -103,4 +103,49 @@ describe("POST /api/ad-spend/import", () => {
     const json = await res.json();
     expect(json.rejected).toEqual([{ index: 0, reason: "locked_period" }]);
   });
+
+  // The CSV parser has always produced campaign_name and the import modal has
+  // always sent it, but the route built its insert field-by-field and never
+  // listed the column — so campaign identity was silently discarded.
+  test("carries campaign_name through to the insert payload", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "admin-1" } }, error: null });
+    mockFrom.mockImplementation((table: string) =>
+      table === "users" ? userChain("super_admin", null) : adSpendChain(),
+    );
+    const res = await POST(
+      importRequest({
+        rows: [{ ...open(), campaign_name: "TN | Retarget | Broad", note: "week 3 top-up" }],
+        market_id: "m-1",
+      }),
+    );
+    expect(res.status).toBe(201);
+    const inserted = insertMock.mock.calls.at(-1)?.[0] as Record<string, unknown>[];
+    expect(inserted[0].campaign_name).toBe("TN | Retarget | Broad");
+    // The note is a separate field — the campaign name must not overwrite it.
+    expect(inserted[0].note).toBe("week 3 top-up");
+  });
+
+  test("stamps source = 'csv' so imported rows are distinguishable from manual ones", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "admin-1" } }, error: null });
+    mockFrom.mockImplementation((table: string) =>
+      table === "users" ? userChain("super_admin", null) : adSpendChain(),
+    );
+    const res = await POST(
+      importRequest({ rows: [{ ...open(), campaign_name: "TN | Prospecting" }], market_id: "m-1" }),
+    );
+    expect(res.status).toBe(201);
+    const inserted = insertMock.mock.calls.at(-1)?.[0] as Record<string, unknown>[];
+    expect(inserted[0].source).toBe("csv");
+  });
+
+  test("a row without a campaign_name still inserts, with a null column", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "admin-1" } }, error: null });
+    mockFrom.mockImplementation((table: string) =>
+      table === "users" ? userChain("super_admin", null) : adSpendChain(),
+    );
+    const res = await POST(importRequest({ rows: [open()], market_id: "m-1" }));
+    expect(res.status).toBe(201);
+    const inserted = insertMock.mock.calls.at(-1)?.[0] as Record<string, unknown>[];
+    expect(inserted[0].campaign_name).toBeNull();
+  });
 });

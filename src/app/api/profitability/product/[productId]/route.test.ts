@@ -63,6 +63,9 @@ function buildChain(handler: (table: string, callIndex: number) => QueryOutcome)
     chain.in = vi.fn().mockReturnValue(chain);
     chain.gte = vi.fn().mockReturnValue(chain);
     chain.lte = vi.fn().mockReturnValue(chain);
+    // The ad_spend read is paged with fetchAllRows and therefore carries a
+    // total order; without .order() here the double stops matching the query.
+    chain.order = vi.fn().mockReturnValue(chain);
     chain.single = vi.fn().mockResolvedValue({
       data: outcome.data ?? null,
       error: outcome.error ?? null,

@@ -775,7 +775,8 @@
       "close": "Fermer",
       "errorEmpty": "Aucun contenu à analyser",
       "errorUnknownFormat": "Format non reconnu. Utilisez un export Meta ou TikTok.",
-      "errorNoRows": "Aucune ligne valide trouvée"
+      "errorNoRows": "Aucune ligne valide trouvée",
+      "confirmLockedImport": "Je confirme l'import dans une période clôturée"
     },
     "selectMarketPrompt": "Sélectionnez un marché dans la barre latérale pour gérer les dépenses publicitaires.",
     "deleteError": "La suppression a échoué — l'entrée n'a pas été supprimée."

@@ -227,7 +227,17 @@ export function AdSpendCampaignCard({
         />
       </div>
 
-      {/* Note */}
+      {/* Campaign identity, then the free-text note. The campaign name is what
+          the operator recognises from Ads Manager; before it was selected back
+          from the API every imported entry rendered as an anonymous amount. */}
+      {entry.campaign_name && (
+        <div
+          style={{ fontSize: 12, color: D.ink, fontWeight: 600 }}
+          title={entry.campaign_name}
+        >
+          {entry.campaign_name}
+        </div>
+      )}
       {entry.note && (
         <div style={{ fontSize: 12, color: D.muted, fontStyle: "italic" }}>
           "{entry.note}"

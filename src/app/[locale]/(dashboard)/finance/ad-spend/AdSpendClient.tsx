@@ -174,10 +174,22 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
   }, [deleteConfirm, mutate, t]);
 
   const handleImport = useCallback(
-    async (rows: { period_start: string; period_end: string; amount: number; product_id: string | null; note?: string | null; campaign_name: string }[]) => {
+    async (
+      rows: { period_start: string; period_end: string; amount: number; product_id: string | null; note?: string | null; campaign_name: string }[],
+      confirmLockedPeriod = false,
+    ) => {
+      // The import route runs the very same closed-period guard as the entry
+      // modal, so it needs the very same confirmation. Without this header a
+      // super_admin's deliberate backfill into a closed quarter comes back as
+      // `locked_period` for every affected row, and the import dialog can only
+      // report them as invalid — an outcome indistinguishable from a malformed
+      // CSV, which is how the affordance went missing unnoticed for so long.
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (confirmLockedPeriod) headers["x-confirm-locked-period"] = "true";
+
       const res = await fetch("/api/ad-spend/import", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           market_id: isSuperAdmin ? selectedMarketId : undefined,
           rows: rows.map((r) => ({
@@ -185,7 +197,12 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
             period_end: r.period_end,
             amount: r.amount,
             product_id: r.product_id,
-            note: r.campaign_name,
+            // The campaign name has a column of its own now. Folding it into
+            // `note` was lossy in both directions: it destroyed whatever note
+            // the row carried, and it buried campaign identity in free text
+            // that nothing downstream could match on.
+            campaign_name: r.campaign_name,
+            note: r.note ?? null,
           })),
         }),
       });
@@ -367,6 +384,7 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
           marketId={selectedMarketId}
           onClose={() => setShowImport(false)}
           onImport={handleImport}
+          canConfirmLocked={isSuperAdmin}
         />
       )}
     </div>
