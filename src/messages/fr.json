@@ -1245,6 +1245,9 @@
         "addProductFailed": "Impossible d'ajouter le produit"
       },
       "actions": {
+        "confirm": "Confirmer",
+        "callback": "Rappeler",
+        "reject": "Refuser",
         "endCall": "Appel terminé",
         "returnToPool": "Retirer de l'agent",
         "cancel": "Annuler la commande",
@@ -1296,7 +1299,20 @@
         "returned": "{count} retours",
         "returnedOne": "{count} retour"
       },
-      "slaTarget": "SLA {target}"
+      "slaTarget": "SLA {target}",
+      "ops": {
+        "title": "Résumé opérationnel",
+        "market": "Marché",
+        "market_tn": "Tunisie",
+        "market_ly": "Libye",
+        "origin": "Origine",
+        "originStorefront": "Storefront",
+        "originManual": "Manuelle",
+        "createdAt": "Créée le",
+        "duplicates": "Doublons",
+        "duplicatesNone": "Aucun",
+        "attempts": "Tentatives"
+      }
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",

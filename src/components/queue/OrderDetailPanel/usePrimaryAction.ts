@@ -80,7 +80,12 @@ export function resolvePanelActions(input: PrimaryActionInputs): PanelActions {
 
   // ── Group A: In-confirmation ────────────────────────────────────────────
   if (IN_CONFIRMATION_STATUSES.has(effectiveStatus)) {
-    const overflow: PanelAction[] = [];
+    // The call has three likely endings and the footer states all three, rather
+    // than one button that opens a menu of them. "Sans réponse" is the fourth
+    // and stays in the overflow: it is the outcome of a call that did not
+    // happen, and giving it equal weight to a confirmation would be reading the
+    // queue backwards.
+    const overflow: PanelAction[] = [{ kind: "endCall", labelKey: "actions.endCall" }];
     if (effectiveStatus === "callback_scheduled") {
       overflow.push({ kind: "rescheduleCallback", labelKey: "actions.rescheduleCallback" });
     }
@@ -91,7 +96,11 @@ export function resolvePanelActions(input: PrimaryActionInputs): PanelActions {
       overflow.push({ kind: "cancel", labelKey: "actions.cancel", destructive: true });
     }
     return {
-      primary: { kind: "endCall", labelKey: "actions.endCall" },
+      primary: { kind: "confirm", labelKey: "actions.confirm" },
+      outcomes: [
+        { kind: "callback", labelKey: "actions.callback" },
+        { kind: "reject", labelKey: "actions.reject", destructive: true },
+      ],
       overflow,
     };
   }

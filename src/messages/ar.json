@@ -1245,6 +1245,9 @@
         "addProductFailed": "تعذرت إضافة المنتج"
       },
       "actions": {
+        "confirm": "تأكيد",
+        "callback": "معاودة الاتصال",
+        "reject": "رفض",
         "endCall": "إنهاء المكالمة",
         "returnToPool": "إرجاع إلى القائمة",
         "cancel": "إلغاء الطلب",
@@ -1296,7 +1299,20 @@
         "returned": "{count} مرتجعات",
         "returnedOne": "{count} مرتجع"
       },
-      "slaTarget": "الهدف {target}"
+      "slaTarget": "الهدف {target}",
+      "ops": {
+        "title": "ملخص تشغيلي",
+        "market": "السوق",
+        "market_tn": "تونس",
+        "market_ly": "ليبيا",
+        "origin": "المصدر",
+        "originStorefront": "المتجر",
+        "originManual": "يدوية",
+        "createdAt": "أُنشئت في",
+        "duplicates": "التكرارات",
+        "duplicatesNone": "لا يوجد",
+        "attempts": "المحاولات"
+      }
     },
     "scheduleDispatch": {
       "title": "جدولة التوصيل",

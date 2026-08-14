@@ -68,7 +68,12 @@ interface PostCallActionSheetProps {
   marketId: string;
   maxAttempts?: number;
   attemptsCount?: number;
-  initialFlow?: Flow;
+  /**
+   * Step to open on. `confirm_now` is not a screen: it fires the confirmation
+   * immediately and lands on the carrier picker, for callers whose own UI
+   * already asked how the call ended.
+   */
+  initialFlow?: Flow | "confirm_now";
   onClose: () => void;
   onSuccess: (result: ActionResult) => void;
 }
@@ -205,7 +210,11 @@ export function PostCallActionSheet({
   const tDup = useTranslations("duplicateOrder.uploadGuard");
   const tCov = useTranslations("dispatch.coverage");
   const panelRef = useRef<HTMLDivElement>(null);
-  const [flow, setFlow] = useState<Flow>(initialFlow ?? "option_select");
+  // `confirm_now` has no screen of its own: the sheet shows the outcome list
+  // with the confirm option already in flight, then flips to the carrier step.
+  const [flow, setFlow] = useState<Flow>(
+    initialFlow && initialFlow !== "confirm_now" ? initialFlow : "option_select",
+  );
   const [loading, setLoading] = useState(false);
   // Which option is mid-flight on the option_select screen. Used purely for
   // UI feedback — `loading` already disables every button, but only the
@@ -417,6 +426,22 @@ export function PostCallActionSheet({
       setPendingAction(null);
     }
   }
+
+  // The caller already asked how the call ended and the answer was "confirmed",
+  // so the confirmation fires on open rather than making the agent say it
+  // twice. The ref — not the effect's dependency list — is what guarantees one
+  // POST: StrictMode mounts every effect twice in development, and a duplicate
+  // /confirm would be a second status transition on a live order.
+  const autoConfirmFired = useRef(false);
+  useEffect(() => {
+    if (initialFlow !== "confirm_now") return;
+    if (autoConfirmFired.current) return;
+    autoConfirmFired.current = true;
+    void submitConfirm();
+    // submitConfirm is stable for the lifetime of this sheet — it is recreated
+    // on render but only ever invoked once, guarded above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFlow]);
 
   // ── CONFIRM submit ───────────────────────────────────────────────
   // After confirm succeeds, we flip the sheet into the post-confirm carrier

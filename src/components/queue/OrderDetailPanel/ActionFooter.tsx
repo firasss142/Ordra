@@ -26,9 +26,15 @@ export interface ActionFooterProps {
  * Translations live under `orders.detail.actions.*` — every PanelAction kind
  * carries its own labelKey so this footer never knows about state.
  */
+/** Outline treatments for the two non-primary call outcomes. */
+const OUTCOME_TONE: Record<string, string> = {
+  callback: "border-oms-warn text-oms-warn-ink hover:bg-oms-warn-bg",
+  reject: "border-oms-bad text-oms-bad hover:bg-oms-bad-bg",
+};
+
 export function ActionFooter({ actions, primaryPending, onInvoke }: ActionFooterProps) {
   const t = useTranslations("orders.detail");
-  const { primary, overflow } = actions;
+  const { primary, overflow, outcomes = [] } = actions;
 
   const primaryLabelKey = primary.labelKey.replace(/^actions\./, "actions.");
   // useTranslations is already namespaced to "orders.detail" — the leaf is
@@ -39,7 +45,12 @@ export function ActionFooter({ actions, primaryPending, onInvoke }: ActionFooter
     ? t(primary.disabledReasonKey as Parameters<typeof t>[0])
     : undefined;
 
-  const promotedIndex = overflow.findIndex((a) => !a.destructive && !a.disabled);
+  // With three outcomes already on the bar there is nothing to promote — the
+  // footer is full, and a fourth button would only make the three that matter
+  // harder to hit.
+  const promotedIndex = outcomes.length
+    ? -1
+    : overflow.findIndex((a) => !a.destructive && !a.disabled);
   const promoted = promotedIndex >= 0 ? overflow[promotedIndex] : null;
   const remaining = overflow.filter((_, i) => i !== promotedIndex);
 
@@ -76,6 +87,22 @@ export function ActionFooter({ actions, primaryPending, onInvoke }: ActionFooter
       >
         {primaryLabel}
       </button>
+
+      {outcomes.map((outcome) => (
+        <button
+          key={outcome.kind}
+          type="button"
+          onClick={() => onInvoke(outcome.kind)}
+          disabled={outcome.disabled || primaryPending}
+          className={[
+            "inline-flex h-[38px] flex-1 items-center justify-center whitespace-nowrap rounded-[9px] border bg-oms-surface text-[13px] font-semibold transition-colors duration-fast",
+            OUTCOME_TONE[outcome.kind] ?? "border-oms-border text-oms-ink-1 hover:bg-oms-sunken",
+            "disabled:cursor-not-allowed disabled:opacity-[0.42]",
+          ].join(" ")}
+        >
+          {t(outcome.labelKey as Parameters<typeof t>[0])}
+        </button>
+      ))}
 
       {items.length > 0 ? (
         <Menu
