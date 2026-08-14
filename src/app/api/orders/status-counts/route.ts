@@ -19,20 +19,25 @@ export const dynamic = "force-dynamic";
  * every bucket was derived from an arbitrary truncated sample.
  */
 export interface StatusCounts {
-  /** Backlogs — "maintenant" */
+  /** Backlogs — "maintenant". No date window: a backlog is what is sitting there. */
   unassigned: number;
-  waiting: number;
   toRecall: number;
-  uploaded: number;
   /**
-   * Standing count of a terminal status, not a backlog — nobody works it down.
-   * It is still a "maintenant" figure, and it still has to equal what the table
-   * shows for `status=rejected`, which is every rejection ever and not a window
-   * over the last seven days.
+   * Outcome counts — measured over `window`, which defaults to today.
+   *
+   * Dated by `created_at`, the same column /api/orders/list filters on, so the
+   * tile and the table it opens count the same set. That means these read as
+   * "orders that CAME IN during the window and are now uploaded / rejected /
+   * delivered" — not "orders uploaded during the window". Deliberate: the
+   * alternative dates by the transition and no longer matches the table.
    */
+  uploaded: number;
   rejected: number;
+  delivered: number;
   /** Period counts — "aujourd'hui" */
   today: number;
+  /** The window the outcome counts were measured over, echoed back for labelling. */
+  window: { from: string | null; to: string | null };
   /** Health — 7-day confirmation rate, and the 7 days before it to trend against */
   confirmationRate: number | null;
   confirmationRatePrev: number | null;
@@ -47,10 +52,19 @@ export interface StatusCounts {
 
 const RECALL_STATUSES = ["attempt_1", "attempt_2", "attempt_3", "callback_scheduled"];
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 function startOfTodayIso(): string {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d.toISOString();
+}
+
+/** Local calendar date, matching how the client seeds its default window. */
+function todayDateOnly(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function daysAgoIso(days: number): string {
@@ -88,6 +102,18 @@ export async function GET(req: NextRequest) {
   const d7 = daysAgoIso(7);
   const d14 = daysAgoIso(14);
 
+  /**
+   * Outcome window. Anything that is not a bare YYYY-MM-DD is discarded rather
+   * than passed to PostgREST, and an absent window falls back to today — the
+   * default period the tiles are labelled with.
+   */
+  const rawFrom = req.nextUrl.searchParams.get("date_from");
+  const rawTo = req.nextUrl.searchParams.get("date_to");
+  const validFrom = rawFrom && ISO_DATE.test(rawFrom) ? rawFrom : null;
+  const validTo = rawTo && ISO_DATE.test(rawTo) ? rawTo : null;
+  const windowFrom = validFrom ?? (validTo ? null : todayDateOnly());
+  const windowTo = validTo;
+
   /** head-only exact count — never returns rows, so it cannot truncate. */
   const countWhere = (build: (q: ReturnType<typeof baseQuery>) => unknown) => {
     const q = baseQuery();
@@ -100,13 +126,27 @@ export async function GET(req: NextRequest) {
     return q;
   }
 
+  /**
+   * The outcome window, applied on `created_at` exactly as /api/orders/list
+   * applies it — same column, same inclusive upper bound. Any divergence here
+   * puts a number on a tile that the table it opens will not reproduce.
+   */
+  const inWindow = <T extends { gte: (c: string, v: string) => T; lte: (c: string, v: string) => T }>(
+    q: T,
+  ): T => {
+    let out = q;
+    if (windowFrom) out = out.gte("created_at", windowFrom);
+    if (windowTo) out = out.lte("created_at", `${windowTo}T23:59:59.999Z`);
+    return out;
+  };
+
   const [
     total,
     unassigned,
-    waiting,
     toRecall,
     uploaded,
     rejected,
+    delivered,
     todayCount,
     rateWindows,
   ] = await Promise.all([
@@ -116,10 +156,10 @@ export async function GET(req: NextRequest) {
     // supabase/migrations/*_exclude_deleted_from_money.sql.
     countWhere((q) => q),
     countWhere((q) => whereUnassigned(q as never)),
-    countWhere((q) => q.eq("status", "pending")),
     countWhere((q) => q.in("status", RECALL_STATUSES)),
-    countWhere((q) => q.eq("status", "uploaded")),
-    countWhere((q) => q.eq("status", "rejected")),
+    countWhere((q) => inWindow(q).eq("status", "uploaded")),
+    countWhere((q) => inWindow(q).eq("status", "rejected")),
+    countWhere((q) => inWindow(q).eq("status", "delivered")),
     countWhere((q) => q.gte("created_at", today)),
     // Dated by the transition itself, not by orders.updated_at — see the
     // function's comment in the migration for why that distinction is the whole
@@ -133,7 +173,7 @@ export async function GET(req: NextRequest) {
     }) as unknown as Promise<{ data: RateWindows[] | null; error: unknown }>,
   ]);
 
-  const firstError = [total, unassigned, waiting, toRecall, uploaded, rejected].find(
+  const firstError = [total, unassigned, toRecall, uploaded, rejected, delivered].find(
     (r) => r?.error,
   );
   if (firstError?.error) {
@@ -160,11 +200,12 @@ export async function GET(req: NextRequest) {
 
   const counts: StatusCounts = {
     unassigned: n(unassigned),
-    waiting: n(waiting),
     toRecall: n(toRecall),
     uploaded: n(uploaded),
     rejected: n(rejected),
+    delivered: n(delivered),
     today: n(todayCount),
+    window: { from: windowFrom, to: windowTo },
     confirmationRate: rate(Number(w?.current_yes ?? 0), currentTotal),
     confirmationRatePrev: rate(Number(w?.prev_yes ?? 0), prevTotal),
     confirmationSample: currentTotal,

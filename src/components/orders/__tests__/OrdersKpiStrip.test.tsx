@@ -8,11 +8,12 @@ import type { StatusCounts } from "@/app/api/orders/status-counts/route";
 
 const COUNTS: StatusCounts = {
   unassigned: 188,
-  waiting: 19,
   toRecall: 43,
   uploaded: 452,
   rejected: 731,
+  delivered: 96,
   today: 181,
+  window: { from: null, to: null },
   confirmationRate: 63.5,
   confirmationRatePrev: 57.6,
   confirmationSample: 216,
@@ -47,43 +48,75 @@ describe("OrdersKpiStrip", () => {
     renderStrip();
     for (const [label, count] of [
       ["Aujourd'hui", "181"],
-      ["En attente", "19"],
-      ["À rappeler", "43"],
       ["Téléchargées", "452"],
       ["Rejetées", "731"],
+      ["Livrées", "96"],
+      ["À rappeler", "43"],
     ] as const) {
       const tile = screen.getByRole("button", { name: new RegExp("^" + label, "i") });
       expect(within(tile).getByText(count)).toBeInTheDocument();
     }
   });
 
+  test("no longer offers the removed 'En attente' tile", () => {
+    renderStrip();
+    expect(screen.queryByRole("button", { name: /^En attente/i })).not.toBeInTheDocument();
+  });
+
+  test("stages read left to right as intake, outcomes, then the queue owed a call", () => {
+    renderStrip();
+    const order = screen
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-label") ?? "")
+      .filter((l) => /^(Aujourd'hui|Téléchargées|Rejetées|Livrées|À rappeler)/i.test(l))
+      .map((l) => l.split(":")[0]);
+    expect(order).toEqual([
+      "Aujourd'hui",
+      "Téléchargées",
+      "Rejetées",
+      "Livrées",
+      "À rappeler",
+    ]);
+  });
+
   test("labels each tile with the period it measures", () => {
     renderStrip();
     // A backlog and a period count must never be confused for one another.
-    // A backlog tile must say "maintenant"; a period tile must say "aujourd'hui".
-    expect(screen.getByRole("button", { name: /^En attente/i })).toHaveTextContent(/maintenant/i);
+    // A backlog tile must say "maintenant"; a period tile names its window.
+    expect(screen.getByRole("button", { name: /^À rappeler/i })).toHaveTextContent(/maintenant/i);
     expect(screen.getByRole("button", { name: /^Aujourd'hui/i })).toHaveTextContent(/aujourd'hui/i);
-    expect(screen.getByRole("button", { name: /^Téléchargées/i })).toHaveTextContent(/maintenant/i);
-    // Rejetées is a standing total of a terminal status, not a daily tally —
-    // the table it opens has no date bound either.
-    expect(screen.getByRole("button", { name: /^Rejetées/i })).toHaveTextContent(/maintenant/i);
+    // Outcome tiles default to today, so they must not claim to be standing totals.
+    for (const label of ["Téléchargées", "Rejetées", "Livrées"] as const) {
+      const tile = screen.getByRole("button", { name: new RegExp("^" + label, "i") });
+      expect(tile).toHaveTextContent(/aujourd'hui/i);
+      expect(tile).not.toHaveTextContent(/maintenant/i);
+    }
+  });
+
+  test("outcome tiles name the applied window instead of saying 'aujourd'hui'", () => {
+    renderStrip({ counts: { ...COUNTS, window: { from: "2026-08-01", to: "2026-08-12" } } });
+    const rejected = screen.getByRole("button", { name: /^Rejetées/i });
+    expect(rejected).toHaveTextContent(/01/);
+    expect(rejected).toHaveTextContent(/12/);
+    // The backlog ignores the window entirely — it has no date.
+    expect(screen.getByRole("button", { name: /^À rappeler/i })).toHaveTextContent(/maintenant/i);
   });
 
   test("selecting a tile reports the filter it stands for", async () => {
     const user = userEvent.setup();
     const { onSelect } = renderStrip();
 
-    await user.click(screen.getByRole("button", { name: /^En attente/i }));
+    await user.click(screen.getByRole("button", { name: /^Livrées/i }));
 
-    expect(onSelect).toHaveBeenCalledWith("waiting");
+    expect(onSelect).toHaveBeenCalledWith("delivered");
   });
 
   test("selecting the active tile clears it instead of reapplying", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
-    renderStrip({ activeTile: "waiting", onSelect });
+    renderStrip({ activeTile: "delivered", onSelect });
 
-    await user.click(screen.getByRole("button", { name: /^En attente/i }));
+    await user.click(screen.getByRole("button", { name: /^Livrées/i }));
 
     expect(onSelect).toHaveBeenCalledWith(null);
   });

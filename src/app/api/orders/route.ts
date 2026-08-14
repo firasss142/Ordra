@@ -181,7 +181,10 @@ export async function POST(req: NextRequest) {
 
     productVariantId = variant.id;
     variantLabel = variant.label;
-    quantity = variant.quantity;
+    // A variant sets the unit price and the label; it no longer dictates the
+    // quantity. It used to, which meant the panel could show "3 × 25,50 =
+    // 76,50" and the order would save as one unit at 25,50 — the operator was
+    // shown one number and the business recorded another.
     const rawVariantPrice = variant.display_price as unknown;
     unitPrice =
       rawVariantPrice !== null && rawVariantPrice !== undefined
@@ -196,8 +199,36 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const totalPrice = Math.round(quantity * unitPrice * 1000) / 1000;
+  const computedTotal = Math.round(quantity * unitPrice * 1000) / 1000;
+
+  /**
+   * An agreed price that is not quantity × unit price — a discount, a rounded
+   * cash figure. Accepted only from a manager or admin, and only as a real
+   * number ≥ 0; anything else falls back to the computed figure rather than
+   * writing a NaN into the column revenue is read from.
+   *
+   * Agents cannot set it. `total_price` IS revenue (see CLAUDE.md), so letting
+   * the confirmation queue rewrite it would make every reported figure a
+   * function of whoever took the call.
+   */
   const isAgent = role === "agent";
+  let totalPrice = computedTotal;
+  let totalOverridden = false;
+  if (!isAgent && body.total_price !== undefined && body.total_price !== null) {
+    const requested = Number(body.total_price);
+    if (!Number.isFinite(requested) || requested < 0) {
+      return NextResponse.json(
+        { error: "total_price must be a positive number" },
+        { status: 400 },
+      );
+    }
+    const rounded = Math.round(requested * 1000) / 1000;
+    if (rounded !== computedTotal) {
+      totalPrice = rounded;
+      totalOverridden = true;
+    }
+  }
+
   const initialStatus = "pending";
 
   const { data: order, error } = await supabase
@@ -238,6 +269,26 @@ export async function POST(req: NextRequest) {
     actor_type: isAgent ? "agent" : "manager",
     note: isAgent ? "Order created by agent (self-assigned)" : "Order created manually",
   });
+
+  /**
+   * A manually-set total gets its own history row, so a discounted order can
+   * later be told apart from a mispriced one. Without it the only trace is a
+   * total_price that happens not to divide by the quantity, which is not
+   * evidence of anything.
+   *
+   * A same-status row is the established annotation shape here (thousands of
+   * `pending → pending` rows already), and order_history is append-only.
+   */
+  if (totalOverridden) {
+    await supabase.from("order_history").insert({
+      order_id: order.id,
+      status_from: initialStatus,
+      status_to: initialStatus,
+      actor_id: actor.id,
+      actor_type: "manager",
+      note: `Total overridden: ${computedTotal} → ${totalPrice} (${quantity} × ${unitPrice})`,
+    });
+  }
 
   return NextResponse.json({ data: order }, { status: 201 });
 }

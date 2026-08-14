@@ -25,8 +25,9 @@ import {
 import { OrdersSearchBar } from "@/components/orders/OrdersSearchBar";
 import { OrdersFilterChips } from "@/components/orders/OrdersFilterChips";
 import { OrdersFacetBar } from "@/components/orders/OrdersFacetBar";
+import type { FacetCounts } from "@/app/api/orders/facet-counts/route";
 import { OrdersKpiStrip, type KpiTile } from "@/components/orders/OrdersKpiStrip";
-import { filtersForTile, tileForFilters } from "@/lib/orders/kpi-tiles";
+import { filtersForTile, resolveKpiWindow, tileForFilters } from "@/lib/orders/kpi-tiles";
 import type { StatusCounts } from "@/app/api/orders/status-counts/route";
 import { OrdersTable } from "@/components/orders/OrdersTable";
 import { OrdersBulkBar } from "@/components/orders/OrdersBulkBar";
@@ -532,16 +533,45 @@ export function OrdersPageClient({
     filters.rejectionReason !== null ||
     filters.carrierId !== null;
 
-  // ---------- KPI strip ----------
-  // Counts are market-wide and deliberately independent of the table filters:
-  // a tile that moved when you clicked another tile could not be trusted as
-  // navigation. Tile <-> filter mapping lives in lib/orders/kpi-tiles.
-  const { data: kpiData, isLoading: kpiLoading } = useSWR<{ data: StatusCounts }>(
-    effectiveMarketId
-      ? `/api/orders/status-counts?market_id=${effectiveMarketId}`
-      : `/api/orders/status-counts`,
+  // ---------- Facet option counts ----------
+  // What each unpicked filter value would return, given everything already
+  // applied. Keyed off the same serialization the list request uses, so the two
+  // stay in step and SWR dedupes them together.
+  const facetCountsKey = useMemo(() => {
+    const p = filtersToSearchParams(filters);
+    if (effectiveMarketId) p.set("market_id", effectiveMarketId);
+    p.delete("limit");
+    return `/api/orders/facet-counts?${p.toString()}`;
+  }, [filters, effectiveMarketId]);
+  const { data: facetCountsData } = useSWR<{ data: FacetCounts }>(
+    facetCountsKey,
     fetcher,
-    { refreshInterval: 60_000, revalidateOnFocus: false },
+    // Kept from the previous filter state while the next lands, so the numbers
+    // dim rather than vanish as the user works down the bar.
+    { revalidateOnFocus: false, keepPreviousData: true, dedupingInterval: 5_000 },
+  );
+
+  // ---------- KPI strip ----------
+  // Counts stay independent of every filter except the date range: a tile that
+  // moved when you picked an agent could not be trusted as navigation. The date
+  // range is the one exception, because the user reads the strip as "how did
+  // this period go". Tile <-> filter mapping lives in lib/orders/kpi-tiles.
+  const kpiWindow = useMemo(
+    () => resolveKpiWindow({ dateFrom: filters.dateFrom, dateTo: filters.dateTo }),
+    [filters.dateFrom, filters.dateTo],
+  );
+  const kpiKey = useMemo(() => {
+    const p = new URLSearchParams();
+    if (effectiveMarketId) p.set("market_id", effectiveMarketId);
+    if (kpiWindow.from) p.set("date_from", kpiWindow.from);
+    if (kpiWindow.to) p.set("date_to", kpiWindow.to);
+    const qs = p.toString();
+    return qs ? `/api/orders/status-counts?${qs}` : "/api/orders/status-counts";
+  }, [effectiveMarketId, kpiWindow]);
+  const { data: kpiData, isLoading: kpiLoading } = useSWR<{ data: StatusCounts }>(
+    kpiKey,
+    fetcher,
+    { refreshInterval: 60_000, revalidateOnFocus: false, keepPreviousData: true },
   );
   const kpiCounts = kpiData?.data;
   const activeTile: KpiTile | null = useMemo(() => tileForFilters(filters), [filters]);
@@ -624,7 +654,7 @@ export function OrdersPageClient({
               counts={kpiCounts}
               isLoading={kpiLoading}
               activeTile={activeTile}
-              onSelect={(tile) => update(filtersForTile(tile))}
+              onSelect={(tile) => update(filtersForTile(tile, kpiWindow))}
             />
           </div>
           {activeTile === "unassigned" && canAssign ? (
@@ -656,6 +686,7 @@ export function OrdersPageClient({
           carriers={carriersData?.data ?? []}
           cities={knownCities}
           resultCount={total}
+          counts={facetCountsData?.data}
           loading={{
             products: productsLoading,
             carriers: carriersLoading,
@@ -727,7 +758,9 @@ export function OrdersPageClient({
         {t("footerLive")}
       </div>
 
-      {/* ── Bulk action bar (fixed bottom, rendered via portal-like position:fixed) ── */}
+      {/* Page level, not inside the table: it is fixed to the viewport, so it
+          belongs to the page rather than to the card it acts on. Always
+          mounted — it animates itself in and out on the selection. */}
       <OrdersBulkBar
         selectedIds={Array.from(selectedIds)}
         agents={agents.filter((a) => a.is_active)}
