@@ -17,6 +17,7 @@ function singleChain(data: unknown, error: unknown = null) {
   const c: Record<string, unknown> = {};
   c.select = vi.fn().mockReturnValue(c);
   c.eq = vi.fn().mockReturnValue(c);
+  c.is = vi.fn().mockReturnValue(c);
   c.single = vi.fn().mockResolvedValue({ data, error });
   return c;
 }
@@ -78,7 +79,7 @@ describe("GET /api/products — column projection", () => {
   function listChainCapturing(sel: (arg: unknown) => void) {
     const c: Record<string, unknown> = {};
     const pass = () => c;
-    for (const m of ["eq", "order", "range", "ilike", "in"]) {
+    for (const m of ["eq", "is", "order", "range", "ilike", "in"]) {
       c[m] = vi.fn().mockImplementation(pass);
     }
     c.select = vi.fn().mockImplementation((...args: unknown[]) => {
@@ -203,6 +204,7 @@ describe("GET /api/products — column projection", () => {
       eqCalls.push(args);
       return c;
     });
+    c.is = vi.fn().mockReturnValue(c);
     c.then = (res: (v: unknown) => unknown) =>
       Promise.resolve({ data: [], error: null, count: 0 }).then(res);
 

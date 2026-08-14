@@ -35,7 +35,7 @@ export default async function EditProductPage({
   const { data: product, error } = await supabase
     .from("products")
     .select(
-      "id, market_id, name, sku, description, image_url, unit_cogs, packing_cost, confirmation_processing_cost, default_price, floor_price, low_stock_threshold, is_active, agent_brief, agent_brief_tone, agent_notes, agent_composition, agent_contraindications, agent_usage, cross_sell_product_id",
+      "id, market_id, name, sku, description, image_url, unit_cogs, packing_cost, confirmation_processing_cost, default_price, floor_price, low_stock_threshold, is_active, current_stock, agent_brief, agent_brief_tone, agent_notes, agent_composition, agent_contraindications, agent_usage, cross_sell_product_id",
     )
     .eq("id", params.id)
     .single();
@@ -61,20 +61,53 @@ export default async function EditProductPage({
     .neq("id", params.id)
     .order("name");
 
+  // ── chiffres que seul le serveur peut établir ────────────────────────────
+  // Le formulaire ne recalcule rien : la marge unitaire en direct a besoin du
+  // frais de livraison MOYEN RÉELLEMENT OBSERVÉ (moyenne des delivery_fee des
+  // transporteurs sur les livraisons de ce produit), et la carte « Impact » du
+  // nombre de commandes encore chez le transporteur. Absents, le formulaire
+  // masque ces lignes plutôt que d'afficher un nombre plausible mais faux.
+  const [{ data: market }, { data: deliveredRows }, { count: inFlightCount }] =
+    await Promise.all([
+      supabase.from("markets").select("currency").eq("id", product.market_id).single(),
+      supabase
+        .from("orders")
+        .select("carriers!orders_carrier_id_fkey(delivery_fee)")
+        .eq("product_id", params.id)
+        .eq("status", "delivered"),
+      supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", params.id)
+        .eq("status", "uploaded"),
+    ]);
+
+  // Le type généré déclare l'embed `carriers` comme un TABLEAU alors que la
+  // relation est to-one — même compromis que lib/products/metrics.ts. On accepte
+  // les deux formes plutôt que de mentir au compilateur.
+  type CarrierEmbed = { delivery_fee: number | string } | { delivery_fee: number | string }[] | null;
+  const fees = (deliveredRows ?? [])
+    .map((r) => {
+      const c = (r as unknown as { carriers: CarrierEmbed }).carriers;
+      const one = Array.isArray(c) ? c[0] : c;
+      return one ? Number(one.delivery_fee) : null;
+    })
+    .filter((f): f is number => f !== null && Number.isFinite(f));
+  const avgDeliveryFee =
+    fees.length > 0 ? fees.reduce((s, f) => s + f, 0) / fees.length : undefined;
+
+  const currencySymbol = market?.currency === "LYD" ? "د.ل" : market?.currency === "TND" ? "DT" : undefined;
+
   return (
-    <div style={{ padding: 24, backgroundColor: "#F6F6F7", minHeight: "100vh" }}>
-      <div
-        style={{
-          backgroundColor: "white",
-          borderRadius: "0.5rem",
-          border: "1px solid #E1E3E5",
-          padding: 32,
-          maxWidth: 640,
-        }}
-      >
+    <div className="min-h-screen bg-surface-page px-4 pb-28 pt-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1400px]">
         <ProductEditForm
           locale={params.locale}
           canManageCosts={canManageCosts}
+          avgDeliveryFee={avgDeliveryFee}
+          currencySymbol={currencySymbol}
+          currentStock={Number(product.current_stock)}
+          inFlightCount={inFlightCount ?? undefined}
           variants={(variants ?? []).map((v) => ({
             id: v.id,
             label: v.label,

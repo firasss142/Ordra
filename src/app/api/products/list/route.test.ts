@@ -216,7 +216,7 @@ describe("GET /api/products/list — whole-catalogue filter and sort", () => {
     wire();
 
     // Establish the premise: Yankee and Zulu are NOT on unfiltered page 1.
-    const unfiltered = await (await GET(req("market_id=m-ly&limit=10&page=1"))).json();
+    const unfiltered = await (await GET(req("market_id=m-ly&filter=all&limit=10&page=1"))).json();
     const page1 = unfiltered.data.map((r: { id: string }) => r.id);
     expect(page1).not.toContain("y");
     expect(page1).not.toContain("z");
@@ -284,7 +284,7 @@ describe("GET /api/products/list — pagination integrity", () => {
   test("rangeFrom/rangeTo agree with data length and total on a later page", async () => {
     mockGetActor.mockResolvedValue({ actor: { id: "sa", role: "super_admin", market_id: null } });
     wire();
-    const res = await GET(req("market_id=m-ly&limit=10&page=2"));
+    const res = await GET(req("market_id=m-ly&filter=all&limit=10&page=2"));
     const json = await res.json();
     // The old page computed these from the post-client-filter length against a
     // server total, so they could contradict each other by construction.
@@ -319,7 +319,7 @@ describe("GET /api/products/list — pagination integrity", () => {
 
     const seen: string[] = [];
     for (const page of [1, 2]) {
-      const res = await GET(req(`market_id=m-ly&sort=revenue&dir=desc&limit=10&page=${page}`));
+      const res = await GET(req(`market_id=m-ly&filter=all&sort=revenue&dir=desc&limit=10&page=${page}`));
       const json = await res.json();
       seen.push(...json.data.map((r: { id: string }) => r.id));
     }
@@ -431,5 +431,39 @@ describe("GET /api/products/list — payload", () => {
     wire();
     const res = await GET(req("market_id=m-ly"));
     expect(res.headers.get("Cache-Control")).toContain("private");
+  });
+});
+
+/**
+ * La facette d'ouverture est passée de « all » à « active ». C'est le seul
+ * endroit où l'absence de paramètre change de sens, donc le seul endroit où un
+ * appelant existant peut être surpris : on le verrouille.
+ */
+describe("GET /api/products/list — facette par défaut", () => {
+  test("sans paramètre filter, les produits désactivés sont exclus", async () => {
+    mockGetActor.mockResolvedValue({ actor: { id: "sa", role: "super_admin", market_id: null } });
+    wire();
+    const json = await (await GET(req("market_id=m-ly&limit=50"))).json();
+    const ids = json.data.map((r: { id: string }) => r.id);
+    expect(ids).not.toContain("e");
+    expect(json.pagination.total).toBe(CATALOGUE_SIZE - 1);
+  });
+
+  test("filter=all rend le catalogue entier, désactivés compris", async () => {
+    mockGetActor.mockResolvedValue({ actor: { id: "sa", role: "super_admin", market_id: null } });
+    wire();
+    const json = await (await GET(req("market_id=m-ly&filter=all&limit=50"))).json();
+    expect(json.data.map((r: { id: string }) => r.id)).toContain("e");
+    expect(json.pagination.total).toBe(CATALOGUE_SIZE);
+  });
+
+  // Les compteurs de facettes portent TOUT le catalogue, sinon la pastille
+  // « Inactifs » afficherait zéro depuis la vue par défaut.
+  test("les compteurs de facettes restent calculés sur le catalogue entier", async () => {
+    mockGetActor.mockResolvedValue({ actor: { id: "sa", role: "super_admin", market_id: null } });
+    wire();
+    const json = await (await GET(req("market_id=m-ly&limit=50"))).json();
+    expect(json.facets.all).toBe(CATALOGUE_SIZE);
+    expect(json.facets.inactive).toBe(1);
   });
 });

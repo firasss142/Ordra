@@ -35,7 +35,11 @@ export async function GET(req: NextRequest) {
       "id, market_id, name, default_price, current_stock, is_active, image_url, product_variants(id, label, is_active)",
     )
     .eq("market_id", marketId)
-    .eq("is_active", true);
+    .eq("is_active", true)
+    // Redondant avec is_active tant qu'on n'archive que du désactivé, mais on ne
+    // fait pas reposer l'exclusion d'un produit archivé sur un invariant tenu
+    // ailleurs : la RPC pourrait changer, ce filtre non.
+    .is("deleted_at", null);
 
   if (q) {
     query = query.ilike("name", `%${q}%`);

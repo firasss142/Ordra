@@ -207,7 +207,8 @@ export function StatementsClient({ market }: { market: string }) {
 
                   {Number(row.carried_loss_applied) > 0 ? (
                     <p className="m-0 mt-2 text-[11px] text-status-critical">
-                      −{formatCurrency(Number(row.carried_loss_applied), market)}{" "}
+                      {/* signe dans l'isolat — voir PositionDetailClient.Signed */}
+                      {formatCurrency(-Math.abs(Number(row.carried_loss_applied)), market)}{" "}
                       {t("carriedLoss")}
                     </p>
                   ) : null}

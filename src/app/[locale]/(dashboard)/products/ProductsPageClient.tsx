@@ -1,13 +1,12 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Download, Plus } from "lucide-react";
 import type { Role } from "@/types";
-import { canManageProducts, canToggleProductActive } from "@/lib/product-permissions";
+import { canArchiveProduct, canManageProducts, canToggleProductActive } from "@/lib/product-permissions";
 import { canViewProductProfitability } from "@/lib/finance-permissions";
 import { useMarketScope } from "@/context/market-scope";
 import { useProductsList } from "@/hooks/useProductsList";
@@ -17,28 +16,14 @@ import {
   type ProductListQuery,
 } from "@/lib/products/list-filters";
 import { periodLengthDays } from "@/lib/date";
-import type {
-  ProductListRow,
-  ProductSortKey,
-  SortDirection,
-} from "@/types/product-list";
-import { ProductsKpiCards } from "@/components/products/ProductsKpiCards";
-import { ProductsExceptionBar } from "@/components/products/ProductsExceptionBar";
-import { ProductsToolbar } from "@/components/products/ProductsToolbar";
-import {
-  DEFAULT_VISIBLE_COLUMNS,
-  PRODUCT_COLUMNS,
-  ProductsTable,
-} from "@/components/products/ProductsTable";
+import type { ProductListRow } from "@/types/product-list";
+import { ProductsRowList } from "@/components/products/ProductsRowList";
 import { BulkActionBar } from "@/components/products/BulkActionBar";
 import { StockAdjustModal, type StockAdjustState } from "@/components/products/StockAdjustModal";
-
-// Drawer is only ever opened by an interaction, so it never belongs in the
-// first paint. ssr:false because Sheet mounts a focus trap.
-const ProductDetailDrawer = dynamic(
-  () => import("@/components/products/ProductDetailDrawer").then((m) => m.ProductDetailDrawer),
-  { ssr: false },
-);
+import {
+  ArchiveProductModal,
+  type ArchiveProductState,
+} from "@/components/products/ArchiveProductModal";
 
 interface Props {
   role: Role;
@@ -46,7 +31,37 @@ interface Props {
   locale: string;
 }
 
-const COLUMN_STORAGE_KEY = "oms:products:columns";
+/** Preference of the column picker, which died with the table. Purged on load. */
+const LEGACY_COLUMN_STORAGE_KEY = "oms:products:columns";
+
+/**
+ * CSV columns.
+ *
+ * The picker is gone — rows have no columns to hide — so the export no longer
+ * mirrors what is on screen; it carries a FIXED, complete set. Labels reuse the
+ * existing `products.table.*` keys, and every key here is understood by
+ * `csvCell` below (metric keys fall through to `row.metrics`).
+ */
+const CSV_COLUMNS: { key: string; labelKey: string }[] = [
+  { key: "name", labelKey: "table.product" },
+  { key: "sku", labelKey: "table.sku" },
+  { key: "is_active", labelKey: "table.status" },
+  { key: "stock", labelKey: "table.stock" },
+  { key: "stock_value", labelKey: "table.stockValue" },
+  { key: "unit_cogs", labelKey: "table.unitCogs" },
+  { key: "packing_cost", labelKey: "table.packing" },
+  { key: "default_price", labelKey: "table.price" },
+  { key: "damaged", labelKey: "table.damaged" },
+  { key: "total_leads", labelKey: "table.leads" },
+  { key: "revenue", labelKey: "table.revenue" },
+  { key: "net_profit", labelKey: "table.netProfit" },
+  { key: "margin_pct", labelKey: "table.margin" },
+  { key: "confirmation_rate", labelKey: "table.confRate" },
+  { key: "delivery_rate", labelKey: "table.delivRate" },
+  { key: "return_rate", labelKey: "table.returnRate" },
+  { key: "ad_spend", labelKey: "table.adSpend" },
+  { key: "cost_per_delivered", labelKey: "table.costPerDelivered" },
+];
 
 export function ProductsPageClient({ role, marketId, locale }: Props) {
   const t = useTranslations("products");
@@ -59,6 +74,7 @@ export function ProductsPageClient({ role, marketId, locale }: Props) {
 
   const canManage = canManageProducts(role, selectedMarketId, marketId);
   const canToggleActive = canToggleProductActive(role);
+  const canArchive = canArchiveProduct(role);
   const canViewPerf = canViewProductProfitability(role);
 
   // The URL is the single source of truth for everything the server sees.
@@ -84,41 +100,42 @@ export function ProductsPageClient({ role, marketId, locale }: Props) {
       if (changesResultSet && patch.page === undefined) next.page = 1;
 
       const params = productListQueryToParams(next, { omitDefaults: true });
-      // Preserve the drawer deep-link across filter changes.
-      const open = urlParams.get("open");
-      if (open) params.set("open", open);
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
-    [query, router, pathname, urlParams],
+    [query, router, pathname],
   );
 
+  /**
+   * The drawer is gone: a row now navigates to /[locale]/products/[id].
+   *
+   * Links shared from the drawer era carry `?open=<id>`. Dropping the parameter
+   * silently would turn every one of those links into "the list, unfiltered and
+   * with nothing open", so they are forwarded to the sheet instead.
+   */
   const openId = urlParams.get("open");
-
-  const setOpenId = useCallback(
-    (id: string | null) => {
-      const params = new URLSearchParams(urlParams);
-      if (id) params.set("open", id);
-      else params.delete("open");
-      const qs = params.toString();
-      // history.replaceState, not router.replace: opening a drawer must not
-      // trigger an RSC round trip or re-run the page's server component.
-      window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
-      setOpenIdLocal(id);
-    },
-    [urlParams, pathname],
-  );
-  // Local mirror, because replaceState does not notify useSearchParams.
-  const [openIdLocal, setOpenIdLocal] = useState<string | null>(openId);
   useEffect(() => {
-    setOpenIdLocal(openId);
-  }, [openId]);
+    if (!openId) return;
+    router.replace(`/${locale}/products/${openId}`);
+  }, [openId, locale, router]);
 
+  // The column picker died with the table. Drop its stored preference rather
+  // than leaving a dead key in every user's browser forever.
+  useEffect(() => {
+    try {
+      window.localStorage.removeItem(LEGACY_COLUMN_STORAGE_KEY);
+    } catch {
+      // Private browsing — nothing to clean up.
+    }
+  }, []);
+
+  // `totals` and `highlights` are deliberately not destructured: the KPI tiles
+  // they fed are gone from this screen. They stay on the wire — the endpoint and
+  // its tests still assert them — but nothing here consumes them.
   const {
     rows,
     pagination,
     facets,
-    totals,
     period,
     currency,
     isLoading,
@@ -129,37 +146,6 @@ export function ProductsPageClient({ role, marketId, locale }: Props) {
     query,
     enabled: canViewPerf && Boolean(selectedMarketId),
   });
-
-  // ── column visibility, persisted per user ──
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS);
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(COLUMN_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as unknown;
-      if (!Array.isArray(parsed)) return;
-      // Intersect with the current column set so a renamed or removed column in
-      // a stored preference cannot blank the table.
-      const known = PRODUCT_COLUMNS.map((c) => c.key);
-      const locked = PRODUCT_COLUMNS.filter((c) => c.locked).map((c) => c.key);
-      const restored = PRODUCT_COLUMNS.filter(
-        (c) => locked.includes(c.key) || (parsed as string[]).includes(c.key),
-      )
-        .map((c) => c.key)
-        .filter((k) => known.includes(k));
-      if (restored.length > 0) setVisibleColumns(restored);
-    } catch {
-      // A corrupt preference must not break the page.
-    }
-  }, []);
-  const handleColumnsChange = useCallback((cols: string[]) => {
-    setVisibleColumns(cols);
-    try {
-      window.localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(cols));
-    } catch {
-      // Private browsing / quota — visibility just won't persist.
-    }
-  }, []);
 
   // ── selection ──
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -234,18 +220,10 @@ export function ProductsPageClient({ role, marketId, locale }: Props) {
     [rows, setActive],
   );
 
-  const handleThresholdSave = useCallback(
-    async (id: string, value: number) => {
-      const res = await fetch(`/api/products/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ low_stock_threshold: value }),
-      });
-      if (!res.ok) setBanner(t("errors.thresholdFailed"));
-      await mutate();
-    },
-    [mutate, t],
-  );
+  // The inline low-stock-threshold input went with the table cell that held it:
+  // a row shows "seuil 20" as a fact, not as a field. Editing it now lives where
+  // every other product field lives — the edit page, one click away in the ⋯
+  // menu. PATCH /api/products/[id] {low_stock_threshold} is untouched.
 
   const handleBulkActive = useCallback(
     async (value: boolean) => {
@@ -259,7 +237,7 @@ export function ProductsPageClient({ role, marketId, locale }: Props) {
 
   const handleExportCsv = useCallback(() => {
     const chosen = selectedIds.size > 0 ? rows.filter((r) => selectedIds.has(r.id)) : rows;
-    const cols = PRODUCT_COLUMNS.filter((c) => visibleColumns.includes(c.key));
+    const cols = CSV_COLUMNS;
     const header = ["id", ...cols.map((c) => t(c.labelKey))];
     const lines = [header, ...chosen.map((r) => [r.id, ...cols.map((c) => csvCell(r, c.key))])];
     const csv = lines
@@ -275,7 +253,41 @@ export function ProductsPageClient({ role, marketId, locale }: Props) {
     a.download = `products-${query.from_date}_${query.to_date}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [rows, selectedIds, visibleColumns, query.from_date, query.to_date, t]);
+  }, [rows, selectedIds, query.from_date, query.to_date, t]);
+
+  // ── archivage ──────────────────────────────────────────────────────────
+  // Le produit disparaît de la liste : on revalide plutôt que de retirer la
+  // ligne localement, parce que seul le serveur sait quelle ligne remonte à sa
+  // place dans la page courante.
+  const [archiveModal, setArchiveModal] = useState<ArchiveProductState | null>(null);
+  const openArchiveModal = useCallback((productId: string, productName: string) => {
+    setArchiveModal({ productId, productName, loading: false, error: null });
+  }, []);
+
+  const confirmArchive = useCallback(async () => {
+    setArchiveModal((s) => s && { ...s, loading: true, error: null });
+    const target = archiveModal;
+    if (!target) return;
+    const res = await fetch(`/api/products/${target.productId}/archive`, { method: "DELETE" });
+    if (!res.ok) {
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      // 422 = le produit est encore actif. Le message générique du serveur ne
+      // dirait pas quoi faire ; celui-ci si.
+      const message =
+        res.status === 422
+          ? t("errors.archiveStillActive")
+          : (json.error ?? t("errors.generic", { status: res.status }));
+      setArchiveModal((s) => s && { ...s, loading: false, error: message });
+      return;
+    }
+    setArchiveModal(null);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(target.productId);
+      return next;
+    });
+    await mutate();
+  }, [archiveModal, mutate, t]);
 
   // ── stock adjust modal ──
   const [stockModal, setStockModal] = useState<StockAdjustState | null>(null);
@@ -332,11 +344,18 @@ export function ProductsPageClient({ role, marketId, locale }: Props) {
 
   const periodDays = period ? periodLengthDays(period.from_date, period.to_date) : 30;
   const periodLabel = t("period.lastNDays", { count: periodDays });
-  const openRow = rows.find((r) => r.id === openIdLocal) ?? null;
   const needsMarket = role === "super_admin" && !selectedMarketId;
 
   return (
     <>
+      {archiveModal && (
+        <ArchiveProductModal
+          state={archiveModal}
+          onConfirm={() => void confirmArchive()}
+          onClose={() => setArchiveModal((s) => (s && !s.loading ? null : s))}
+        />
+      )}
+
       {stockModal && (
         <StockAdjustModal
           state={stockModal}
@@ -399,92 +418,46 @@ export function ProductsPageClient({ role, marketId, locale }: Props) {
             {t("noPermission")}
           </div>
         ) : (
-          <>
-            <ProductsKpiCards
-              totals={totals}
-              currency={currency}
-              periodLabel={periodLabel}
-              loading={isLoading}
-            />
-
-            <ProductsExceptionBar
-              facets={facets}
-              active={query.filter}
-              onChange={(f) => patchQuery({ filter: f })}
-              loading={isLoading}
-            />
-
-            <ProductsToolbar
-              search={query.q}
-              onSearchChange={(q) => patchQuery({ q })}
-              facet={query.filter}
-              facets={facets}
-              onFacetChange={(f) => patchQuery({ filter: f })}
-              sort={query.sort}
-              dir={query.dir}
-              onSortChange={(sort, dir) => patchQuery({ sort, dir })}
-              visibleColumns={visibleColumns}
-              onColumnsChange={handleColumnsChange}
-            />
-
-            <ProductsTable
-              rows={rows}
-              visibleColumns={visibleColumns}
-              sort={query.sort}
-              dir={query.dir}
-              onSort={(key: ProductSortKey) => {
-                const nextDir: SortDirection =
-                  query.sort === key ? (query.dir === "asc" ? "desc" : "asc") : key === "name" ? "asc" : "desc";
-                patchQuery({ sort: key, dir: nextDir });
-              }}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelect}
-              onToggleSelectAll={toggleSelectAll}
-              onOpen={setOpenId}
-              openId={openIdLocal}
-              onThresholdSave={handleThresholdSave}
-              onToggleActive={handleToggleActive}
-              onAdjustStock={openStockModal}
-              canManage={canManage}
-              canToggleActive={canToggleActive}
-              locale={locale}
-              currency={currency}
-              loading={isLoading}
-              searchTerm={query.q}
-              pagination={pagination}
-              onPageChange={(page) => patchQuery({ page })}
-              onPageSizeChange={(limit) => patchQuery({ limit })}
-              bulkBar={
-                <BulkActionBar
-                  selectedCount={selectedIds.size}
-                  loading={bulkLoading}
-                  canToggleActive={canToggleActive}
-                  onActivate={() => void handleBulkActive(true)}
-                  onDeactivate={() => void handleBulkActive(false)}
-                  onExport={handleExportCsv}
-                  onClear={() => setSelectedIds(new Set())}
-                />
-              }
-            />
-          </>
+          <ProductsRowList
+            rows={rows}
+            facets={facets}
+            facet={query.filter}
+            onFacetChange={(f) => patchQuery({ filter: f })}
+            search={query.q}
+            onSearchChange={(q) => patchQuery({ q })}
+            sort={query.sort}
+            dir={query.dir}
+            onSortChange={(sort, dir) => patchQuery({ sort, dir })}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={toggleSelectAll}
+            onToggleActive={handleToggleActive}
+            onAdjustStock={openStockModal}
+            onArchive={openArchiveModal}
+            canManage={canManage}
+            canToggleActive={canToggleActive}
+            canArchive={canArchive}
+            locale={locale}
+            currency={currency}
+            loading={isLoading}
+            periodLabel={periodLabel}
+            pagination={pagination}
+            onPageChange={(page) => patchQuery({ page })}
+            onPageSizeChange={(limit) => patchQuery({ limit })}
+            bulkBar={
+              <BulkActionBar
+                selectedCount={selectedIds.size}
+                loading={bulkLoading}
+                canToggleActive={canToggleActive}
+                onActivate={() => void handleBulkActive(true)}
+                onDeactivate={() => void handleBulkActive(false)}
+                onExport={handleExportCsv}
+                onClear={() => setSelectedIds(new Set())}
+              />
+            }
+          />
         )}
       </div>
-
-      {openRow && (
-        <ProductDetailDrawer
-          key={openRow.id}
-          row={openRow}
-          open
-          onClose={() => setOpenId(null)}
-          onToggleActive={handleToggleActive}
-          onAdjustStock={openStockModal}
-          canManage={canManage}
-          canToggleActive={canToggleActive}
-          locale={locale}
-          currency={currency}
-          periodDays={periodDays}
-        />
-      )}
     </>
   );
 }

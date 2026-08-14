@@ -226,12 +226,13 @@ function Waterfall({ position, market }: { position: PositionSummary; market: st
  * undermines every figure beside it.
  */
 function Signed({ value, sign, market }: { value: number; sign: number; market: string }) {
-  return (
-    <>
-      {sign < 0 && value !== 0 ? "−" : ""}
-      {formatCurrency(value, market)}
-    </>
-  );
+  // Le signe doit vivre À L'INTÉRIEUR de l'isolat bidi que produit formatCurrency,
+  // pas devant lui. Préfixer « − » au résultat le laisse soumis à la direction du
+  // paragraphe : sur le marché libyen (RTL) il dérive à l'autre bout du montant et
+  // « −15 730,000 DT » se lit « 15 730,000 DT− ». On signe donc la VALEUR.
+  // Un coût nul reste « 0,000 » et jamais « −0,000 » : formatCurrency n'émet
+  // aucun signe pour un montant qui s'arrondit à zéro.
+  return <>{formatCurrency(sign < 0 && value !== 0 ? -Math.abs(value) : value, market)}</>;
 }
 
 /**

@@ -254,9 +254,11 @@ describe("parseProductListQuery", () => {
     return parseProductListQuery(new URLSearchParams(qs));
   }
 
-  test("defaults: all / name / asc / page 1 / limit 25 / last 30 days", () => {
+  // La console s'ouvre sur le CATALOGUE VENDABLE, pas sur l'archive. Un produit
+  // désactivé n'est plus une décision commerciale en attente : il est rangé.
+  test("defaults: active / name / asc / page 1 / limit 25 / last 30 days", () => {
     const q = p("");
-    expect(q.filter).toBe("all");
+    expect(q.filter).toBe("active");
     expect(q.sort).toBe("name");
     expect(q.dir).toBe("asc");
     expect(q.page).toBe(1);
@@ -268,7 +270,7 @@ describe("parseProductListQuery", () => {
 
   test("unknown values fall back to defaults rather than throwing", () => {
     const q = p("filter=bogus&sort=bogus&dir=sideways&limit=7&page=0");
-    expect(q.filter).toBe("all");
+    expect(q.filter).toBe("active");
     expect(q.sort).toBe("name");
     expect(q.dir).toBe("asc");
     expect(q.limit).toBe(25);
@@ -285,6 +287,13 @@ describe("parseProductListQuery", () => {
     expect(q.q).toBe("cream");
   });
 
+  // « Tous » reste atteignable — c'est ainsi qu'on retrouve les désactivés pour
+  // les archiver. Ce n'est simplement plus ce qu'on voit en arrivant.
+  test("filter=all is still honoured when asked for explicitly", () => {
+    expect(p("filter=all").filter).toBe("all");
+    expect(p("filter=inactive").filter).toBe("inactive");
+  });
+
   test("explicit dates win over the 30-day default", () => {
     const q = p("from_date=2026-01-01&to_date=2026-01-31");
     expect(q.from_date).toBe("2026-01-01");
@@ -299,6 +308,16 @@ describe("parseProductListQuery", () => {
 });
 
 describe("productListQueryToParams", () => {
+  // Le défaut omis suit le défaut de parse : sinon l'URL porterait « filter=active »
+  // en permanence, et « filter=all » se ferait manger au round-trip.
+  test("omits filter=active as the default, but keeps filter=all", () => {
+    const asActive = productListQueryToParams({ filter: "active" }, { omitDefaults: true });
+    expect(asActive.get("filter")).toBeNull();
+    const asAll = productListQueryToParams({ filter: "all" }, { omitDefaults: true });
+    expect(asAll.get("filter")).toBe("all");
+    expect(parseProductListQuery(asAll).filter).toBe("all");
+  });
+
   test("round-trips and omits defaults so shared URLs stay short", () => {
     const q = parseProductListQuery(new URLSearchParams("filter=noSales&sort=revenue&dir=desc&page=2"));
     const params = productListQueryToParams(q, { omitDefaults: true });

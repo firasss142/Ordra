@@ -112,7 +112,12 @@ export async function POST(req: NextRequest) {
   // already block a cross-market write, but check explicitly for a clear 400.
   const [{ data: storefront }, { data: product }] = await Promise.all([
     supabase.from("storefronts").select("id, market_id").eq("id", storefrontId).maybeSingle(),
-    supabase.from("products").select("id, market_id").eq("id", productId).maybeSingle(),
+    supabase
+      .from("products")
+      .select("id, market_id")
+      .eq("id", productId)
+      .is("deleted_at", null)
+      .maybeSingle(),
   ]);
   if (!storefront || !product) {
     return NextResponse.json({ error: "Storefront or product not found" }, { status: 404 });

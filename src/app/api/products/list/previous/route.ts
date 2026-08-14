@@ -77,7 +77,10 @@ export async function GET(req: NextRequest) {
   const { data: products, error } = await supabase
     .from("products")
     .select("id, unit_cogs, packing_cost, confirmation_processing_cost")
-    .eq("market_id", marketId);
+    .eq("market_id", marketId)
+    // Même catalogue que la période courante, sinon la comparaison porte sur
+    // deux ensembles de produits différents et la variation est fausse.
+    .is("deleted_at", null);
 
   if (error) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

@@ -23,6 +23,7 @@ function singleChain(data: unknown, error: unknown = null) {
   const c: Record<string, unknown> = {};
   c.select = vi.fn().mockReturnValue(c);
   c.eq = vi.fn().mockReturnValue(c);
+  c.is = vi.fn().mockReturnValue(c);
   c.single = vi.fn().mockResolvedValue({ data, error });
   return c;
 }
@@ -31,6 +32,7 @@ function listChain(data: unknown[], error: unknown = null) {
   const c: Record<string, unknown> = {};
   c.select = vi.fn().mockReturnValue(c);
   c.eq = vi.fn().mockReturnValue(c);
+  c.is = vi.fn().mockReturnValue(c);
   c.ilike = vi.fn().mockReturnValue(c);
   c.order = vi.fn().mockResolvedValue({ data, error });
   return c;
@@ -94,6 +96,7 @@ describe("GET /api/products/search", () => {
     const chain: Record<string, unknown> = {};
     chain.select = vi.fn().mockReturnValue(chain);
     chain.eq = vi.fn().mockReturnValue(chain);
+    chain.is = vi.fn().mockReturnValue(chain);
     chain.ilike = vi.fn().mockImplementation(() => {
       ilikeCalled = true;
       return chain;
@@ -121,6 +124,7 @@ describe("GET /api/products/search", () => {
       eqCalls.push(args);
       return chain;
     });
+    chain.is = vi.fn().mockReturnValue(chain);
     chain.ilike = vi.fn().mockReturnValue(chain);
     chain.order = vi.fn().mockResolvedValue({ data: products, error: null });
 
@@ -148,6 +152,7 @@ describe("GET /api/products/search", () => {
       eqCalls.push(args);
       return chain;
     });
+    chain.is = vi.fn().mockReturnValue(chain);
     chain.ilike = vi.fn().mockReturnValue(chain);
     chain.order = vi.fn().mockResolvedValue({ data: products, error: null });
 
@@ -195,6 +200,7 @@ describe("GET /api/products/search", () => {
       eqCalls.push(args);
       return chain;
     });
+    chain.is = vi.fn().mockReturnValue(chain);
     chain.ilike = vi.fn().mockReturnValue(chain);
     chain.order = vi.fn().mockResolvedValue({ data: products, error: null });
 
@@ -220,6 +226,7 @@ describe("GET /api/products/search", () => {
       eqCalls.push(args);
       return chain;
     });
+    chain.is = vi.fn().mockReturnValue(chain);
     chain.ilike = vi.fn().mockReturnValue(chain);
     chain.order = vi.fn().mockResolvedValue({ data: products, error: null });
 
@@ -258,6 +265,7 @@ describe("GET /api/products/search", () => {
       return chain;
     });
     chain.eq = vi.fn().mockReturnValue(chain);
+    chain.is = vi.fn().mockReturnValue(chain);
     chain.ilike = vi.fn().mockReturnValue(chain);
     chain.order = vi.fn().mockResolvedValue({ data: [], error: null });
 
