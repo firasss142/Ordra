@@ -1,61 +1,80 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { CalendarDays, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
+import { DateRangePicker } from "@/components/ui/DateRangePicker";
+import { PeriodTabs, type PeriodPreset } from "./PeriodTabs";
+import type { Period } from "@/lib/dashboard/health";
 
 interface DashboardHeaderProps {
   marketLabel: string;
-  rangeLabel: string;
+  period: Period;
+  /** null when the range came from the calendar and matches no preset. */
+  preset: PeriodPreset | null;
+  onPresetChange: (days: PeriodPreset) => void;
+  onRangeChange: (period: Period) => void;
   isRefreshing: boolean;
-  /** Set when the fixed window contains no activity at all. */
+  /** Set when the selected window contains no activity at all. */
   lastActivity?: string | null;
 }
 
 /**
- * Title, market, and the one window this page reports on.
+ * Title and market on the left, the window controls on the right.
  *
- * There is no period control any more. The window is fixed at the last 30 days
- * and stated in words, which removes a whole class of confusion the old page
- * had: it used to silently shift to a 30-day window ending in the past while
- * the tab still read "30 jours", which is why every delta looked catastrophic.
- * If the fixed window really is empty we say when the last activity was rather
- * than quietly moving the goalposts to somewhere with data.
+ * The market is a chip rather than a line of running text: it is the single
+ * most consequential fact on the page — two fully isolated markets share this
+ * route — and it was previously the same size and weight as the date beside it.
+ *
+ * The controls are deliberately two instruments, not one. The segments cover the
+ * three windows anyone actually asks for; the calendar is the escape hatch. What
+ * must never come back is the old behaviour where the window silently re-anchored
+ * itself into the past while the label still claimed "30 jours" — so the segment,
+ * the calendar and the emptiness notice below all report the same range, and a
+ * custom range leaves every segment unselected instead of lighting a wrong one.
  */
 export function DashboardHeader({
   marketLabel,
-  rangeLabel,
+  period,
+  preset,
+  onPresetChange,
+  onRangeChange,
   isRefreshing,
   lastActivity,
 }: DashboardHeaderProps) {
   const t = useTranslations("dashboard");
 
   return (
-    <header className="flex flex-wrap items-end justify-between gap-3">
+    <header className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
         <h1 className="m-0 text-[26px] font-semibold tracking-[-0.02em] text-oms-ink-1">
           {t("title")}
         </h1>
-        {/* Icons replace the old accent dot: a pin and a calendar say "where"
-            and "when" without a legend, which the dot never did. */}
-        <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-oms-ink-2">
-          <span className="inline-flex items-center gap-1.5">
-            <MapPin aria-hidden size={13} strokeWidth={1.75} className="text-oms-accent" />
+        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="inline-flex items-center gap-1.5 rounded-pill border border-oms-border bg-oms-sunken px-2.5 py-1 text-[12px] font-medium text-oms-ink-2">
+            <MapPin aria-hidden size={12} strokeWidth={2} className="text-oms-ink-3" />
             <span dir="auto">{marketLabel}</span>
           </span>
-          <span aria-hidden className="text-oms-border-strong">·</span>
-          <span className="tabular-nums">{t("window")}</span>
-          <span aria-hidden className="text-oms-border-strong">·</span>
-          <span className="inline-flex items-center gap-1.5 text-oms-ink-3">
-            <CalendarDays aria-hidden size={13} strokeWidth={1.75} />
-            <span className="tabular-nums">{rangeLabel}</span>
-          </span>
-          {isRefreshing ? <span className="text-oms-ink-3">· {t("refreshing")}</span> : null}
+          {isRefreshing ? (
+            <span className="text-[11.5px] text-oms-ink-3">{t("refreshing")}</span>
+          ) : null}
         </p>
         {lastActivity ? (
-          <p className="mt-1 text-[11.5px] text-oms-warn-ink">
+          <p className="mt-1.5 text-[11.5px] text-oms-warn-ink">
             {t("noActivity", { date: lastActivity })}
           </p>
         ) : null}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <PeriodTabs value={preset} onChange={onPresetChange} />
+        <DateRangePicker
+          value={{ from: period.from_date, to: period.to_date }}
+          activePreset="custom"
+          onChange={(range) => onRangeChange({ from_date: range.from, to_date: range.to })}
+          presets={["today", "yesterday", "thisWeek", "thisMonth", "thisQuarter", "custom"]}
+          size="sm"
+          align="end"
+        />
       </div>
     </header>
   );

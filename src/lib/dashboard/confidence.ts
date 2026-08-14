@@ -130,3 +130,66 @@ export function formatDelta(
 
   return { text: `${arrow}${magnitude}${suffix}`, tone, showArrow: !flat };
 }
+
+export interface DeltaParts {
+  /**
+   * The tinted pill's contents — arrow + magnitude — or null when the sample is
+   * too thin to draw one. Null is the honesty rule made structural: a caller
+   * cannot render a pill it was not given.
+   */
+  badge: string | null;
+  /** The grey line beside the pill: the baseline, or why there isn't one. */
+  note: string;
+  tone: DeltaTone;
+  /** True when `note` explains an absent comparison rather than naming one. */
+  isCaveat: boolean;
+}
+
+/**
+ * The same judgement as `formatDelta`, split into the two typographic slots the
+ * tile design needs: a coloured pill and a neutral caption.
+ *
+ * `formatDelta` concatenates them into one string, which is right for a single
+ * text line and wrong here — the pill has to be tinted independently of the
+ * baseline label, and the "too few to compare" case must produce *no pill at
+ * all* rather than a grey one. Both functions share `classifyConfidence`, so
+ * the two renderings can never disagree about whether a delta is trustworthy.
+ */
+export function formatDeltaParts(
+  metric: Metric,
+  labels: DeltaLabels,
+  opts: { invert?: boolean; pp?: boolean } = {},
+): DeltaParts {
+  const { invert = false, pp = false } = opts;
+
+  if (metric.confidence === "none") {
+    return {
+      badge: null,
+      note: metric.previous === 0 ? labels.noBaseline : labels.tooFew(metric.n),
+      tone: "neutral",
+      isCaveat: true,
+    };
+  }
+
+  const rising = metric.delta > 0;
+  const flat = metric.delta === 0;
+  const tone: DeltaTone = flat ? "neutral" : rising !== invert ? "positive" : "negative";
+
+  const magnitude = pp
+    ? `${Math.abs(metric.delta).toFixed(1)} pp`
+    : metric.deltaPct != null
+      ? `${Math.abs(metric.deltaPct * 100).toFixed(1)}%`
+      : `${Math.abs(metric.delta).toFixed(1)}`;
+
+  // The arrow states DIRECTION OF MOVEMENT and never tone — a fall in rejections
+  // is a good thing and still points down. Tone is the pill's job.
+  const arrow = flat ? "" : rising ? "↗" : "↘";
+  const sign = flat ? "" : rising ? "+" : "−";
+
+  return {
+    badge: `${arrow} ${sign}${magnitude}`.trim(),
+    note: metric.confidence === "low" ? labels.basedOn(metric.n) : labels.vsPrevious,
+    tone,
+    isCaveat: metric.confidence === "low",
+  };
+}

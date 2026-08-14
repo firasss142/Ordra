@@ -1,9 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { ChartColumn, CircleCheck, Coins, Info, PiggyBank, ShoppingBag } from "lucide-react";
+import { ChartColumn, CircleCheck, Coins, Info, ShoppingBag, Truck } from "lucide-react";
 import { MetricTile } from "./MetricTile";
-import { toMetric } from "@/lib/dashboard/confidence";
 import type { DashboardHealth } from "@/lib/dashboard/health";
 
 function pct(v: number): string {
@@ -19,61 +18,53 @@ function makeSigned(nf: Intl.NumberFormat) {
   return (v: number): string => `${v > 0 ? "+" : ""}${nf.format(v)}`;
 }
 
-/** The baseline window for the two "today" tiles. Matches Trailing7Block. */
-const TRAILING_DAYS = 7;
-
 interface HeroTilesProps {
   health: DashboardHealth;
   currency: string;
   locale: string;
+  /**
+   * Names the baseline in words — "vs 15 juin – 14 juil.". Every tile here now
+   * compares the SELECTED PERIOD against the equivalent window before it, so
+   * one label serves the whole row.
+   */
+  comparisonLabel?: string;
 }
 
 /**
  * The KPI row, ordered left to right as the money-making process:
  *
- *   orders in → confirmed → delivery savings │ realised → margin
+ *   orders in → confirmed → delivery savings → realised → margin
  *
  * Three things here are deliberate corrections of what came before.
  *
- * 1. **Delivery savings replaced committed revenue.** Libya runs two Darb Assabil
+ * 1. **Every tile is period-scoped.** The two volume tiles used to show TODAY's
+ *    count against a trailing 7-day mean. That was defensible on a page with one
+ *    fixed 30-day window; it is not defensible now the header carries a 7/30/90
+ *    selector, because a tile that ignores the control above it reads as broken.
+ *    They now show the window's own totals against the previous window of equal
+ *    length — which is what `funnel.leads` and `funnel.confirmed` already were.
+ *    Today's intake is still legible: it is the last column of the chart below.
+ *
+ * 2. **Delivery savings replaced committed revenue.** Libya runs two Darb Assabil
  *    accounts that price the same destination 5-25 LYD apart, and the choice
  *    between them was invisible. This tile is the running net of that choice:
  *    what routing to the cheaper account has earned, minus what overriding the
- *    badge has cost. It is ALL-TIME and ignores the page's 30-day window — a
- *    lifetime counter, like the committed figure it replaced — with the period
+ *    badge has cost. It is ALL-TIME and ignores the page's window — a lifetime
+ *    counter, like the committed figure it replaced — with the period
  *    contribution in the footer. Orders dispatched before the feature are
  *    excluded, so the number is honest attribution rather than hindsight.
- *
- * 2. **"Today" is compared against the trailing 7-day mean, not the 30-day mean.**
- *    This market restarted: 186 of the last 187 orders arrived in one week.
- *    Against a 30-day mean an ordinary day reads +594%, which is an artefact.
  *
  * 3. **The money tile says MARGE BRUTE unless ad spend covers the whole window.**
  *    Reporting margin-without-ad-spend as "net profit" is what produced the
  *    implausible 77% figure on the old dashboard.
  */
-export function HeroTiles({ health, currency, locale }: HeroTilesProps) {
+export function HeroTiles({ health, currency, locale, comparisonLabel }: HeroTilesProps) {
   const t = useTranslations("dashboard");
   const nf = new Intl.NumberFormat(locale === "ar" ? "ar-LY" : "fr-FR", {
     maximumFractionDigits: 0,
   });
   const signed = makeSigned(nf);
-  const { money, funnel, today, trailing7, savings } = health;
-
-  // Today vs the 7-day mean, routed through toMetric so it inherits the
-  // suppression rule — on a quiet market 0 vs 0.3 must not render as a delta.
-  //
-  // `n` is the volume BEHIND THE BASELINE (mean × 7 = the trailing week's
-  // total), not today's count. What makes this comparison trustworthy or not is
-  // how much data the average was computed from; today's own figure is the thing
-  // being judged, so gating on it inverts the test. Passing today's count made
-  // the tile print "0 commandes — trop peu pour comparer" on a day when
-  // confirmations stopped dead against a healthy average — suppressing the
-  // strongest signal on the page precisely when it mattered most.
-  const weekReceived = Math.round(trailing7.meanReceived * TRAILING_DAYS);
-  const weekConfirmed = Math.round(trailing7.meanConfirmed * TRAILING_DAYS);
-  const receivedMetric = toMetric(today.received, trailing7.meanReceived, weekReceived);
-  const confirmedMetric = toMetric(today.confirmed, trailing7.meanConfirmed, weekConfirmed);
+  const { money, funnel, savings } = health;
 
   const adCoverageIncomplete =
     money.adSpend != null && !money.isNetProfit && money.adSpend.daysInPeriod > 0;
@@ -84,52 +75,40 @@ export function HeroTiles({ health, currency, locale }: HeroTilesProps) {
   const openPct = leads > 0 ? Math.round(((leads - resolved) / leads) * 100) : 0;
   const immature = leads > 0 && openPct >= 20;
 
+  // A negative net means the cheapest-account badge is being overridden more
+  // often than followed — that is exactly when the tile needs attention, and it
+  // is the one tile on the row that can turn amber.
+  const savingsWarm = savings.total < 0;
+
   return (
-    <div className="flex flex-wrap items-stretch gap-2">
+    <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       {/* ── volume ─────────────────────────────────────────── */}
       <MetricTile
         label={t("funnel.received")}
-        value={nf.format(today.received)}
-        icon={<ShoppingBag size={19} strokeWidth={1.75} />}
-        hint={t("funnel.todaySuffix")}
-        metric={receivedMetric}
-        comparisonLabel={t("delta.vsMean")}
-        footer={t("funnel.overWeek", {
-          n: nf.format(funnel.leads.current),
-          days: 30,
-        })}
+        value={nf.format(funnel.leads.current)}
+        icon={<ShoppingBag size={20} strokeWidth={2} />}
+        hint={t("funnel.receivedHint")}
+        metric={funnel.leads}
+        comparisonLabel={comparisonLabel}
       />
 
       <MetricTile
         label={t("funnel.confirmedLabel")}
-        value={nf.format(today.confirmed)}
-        icon={<CircleCheck size={19} strokeWidth={1.75} />}
-        hint={t("funnel.todaySuffix")}
-        metric={confirmedMetric}
-        comparisonLabel={t("delta.vsMean")}
-        footer={t("funnel.confirmRate", {
-          n: nf.format(funnel.confirmed.current),
-          rate: pct(funnel.confirmationRate.current),
-        })}
+        value={nf.format(funnel.confirmed.current)}
+        icon={<CircleCheck size={20} strokeWidth={2} />}
+        hint={t("funnel.confirmedHint")}
+        metric={funnel.confirmed}
+        comparisonLabel={comparisonLabel}
+        footer={t("funnel.confirmRate", { rate: pct(funnel.confirmationRate.current) })}
       />
-
-      {/* Separates the volume group from the money group. The two answer
-          different questions and must not read as one continuous series. */}
-      <div aria-hidden className="hidden w-px shrink-0 self-stretch bg-oms-border lg:block" />
 
       {/* ── money ──────────────────────────────────────────── */}
       {money.revenue != null ? (
         <MetricTile
           label={t("money.savings")}
-          value={
-            savings.count === 0
-              ? "—"
-              : `${signed(savings.total)} ${currency}`
-          }
-          icon={<PiggyBank size={19} strokeWidth={1.75} />}
-          // A negative net means the cheapest-account badge is being overridden
-          // more often than followed — that is exactly when it needs attention.
-          warm={savings.total < 0}
+          value={savings.count === 0 ? "—" : `${signed(savings.total)} ${currency}`}
+          icon={<Truck size={20} strokeWidth={2} />}
+          warm={savingsWarm}
           hint={
             savings.count === 0
               ? t("money.savingsEmpty")
@@ -152,9 +131,10 @@ export function HeroTiles({ health, currency, locale }: HeroTilesProps) {
         <MetricTile
           label={t("money.revenue")}
           value={`${nf.format(money.revenue.current)} ${currency}`}
-          icon={<ChartColumn size={19} strokeWidth={1.75} />}
+          icon={<ChartColumn size={20} strokeWidth={2} />}
           hint={t("scope.realized")}
           metric={money.revenue}
+          comparisonLabel={comparisonLabel}
           footer={t("funnel.deliveredOf", {
             delivered: nf.format(funnel.delivered.current),
           })}
@@ -165,9 +145,10 @@ export function HeroTiles({ health, currency, locale }: HeroTilesProps) {
         <MetricTile
           label={money.isNetProfit ? t("money.netProfit") : t("money.grossMargin")}
           value={`${nf.format(money.grossMargin.current)} ${currency}`}
-          icon={<Coins size={19} strokeWidth={1.75} />}
+          icon={<Coins size={20} strokeWidth={2} />}
           secondary={money.marginPct ? pct(money.marginPct.current) : undefined}
           metric={money.grossMargin}
+          comparisonLabel={comparisonLabel}
           hint={
             adCoverageIncomplete ? (
               <span className="inline-flex items-center gap-1 text-oms-warn-ink">
