@@ -26,6 +26,7 @@ export type AlertType =
   | "overdue_callback"
   | "unassigned_overflow"
   | "stock_depleted"
+  | "stock_unreconciled"
   | "attempts_stalled"
   | "pending_idle"
   | "dispatch_schedule_missed"
@@ -110,6 +111,32 @@ export const ALERT_RULES: Record<AlertType, AlertRule> = {
   // because it has been true for a month would be a lie.
   stock_depleted: { base: "high", expireAfterMinutes: null },
 
+  /**
+   * The registered stock disagrees with the order flow.
+   *
+   * One row per product, and deliberately not per order: `upload_stalled`
+   * already emits an order-shaped alert for every shipment sitting unscanned,
+   * and 414 of those rows tell you a queue is long without ever telling you
+   * which *number* is now wrong. This rule carries the fact those rows cannot —
+   * that this product's stock figure is off by N units — which is the form
+   * someone can act on, by counting the shelf or clearing the scan queue.
+   *
+   * Never expires, for the same reason as `stock_depleted`: it is the current
+   * state of the warehouse, not an event. It also cannot self-heal quietly —
+   * only a scan or a manual count closes it.
+   *
+   * Anchored to the oldest unscanned shipment, so the escalation reads as "how
+   * long we have been out of step" rather than how long the row has existed.
+   */
+  stock_unreconciled: {
+    base: "medium",
+    escalate: [
+      { afterMinutes: 7 * DAY, to: "high" },
+      { afterMinutes: 30 * DAY, to: "critical" },
+    ],
+    expireAfterMinutes: null,
+  },
+
   // ── Oversight. Events, not conditions: they do not worsen with age, they
   //    just need to be seen once and then stop occupying the inbox. ─────────
   price_changed: { base: "medium", expireAfterMinutes: 7 * DAY },
@@ -165,6 +192,7 @@ const FAMILIES: Record<AlertType, AlertFamily> = {
   price_changed: "oversight",
   order_reopened: "oversight",
   stock_depleted: "stock",
+  stock_unreconciled: "stock",
   // Not "progress": no order is stuck, the orders are not in the system at all.
   sheet_sync_stalled: "oversight",
 };

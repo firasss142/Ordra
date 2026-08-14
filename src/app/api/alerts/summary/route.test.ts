@@ -2,11 +2,21 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
+/** `get_stock_position` — defaults to an empty catalogue so the existing
+ *  order-shaped cases stay unaffected by the stock rule. */
+type StockRpcResult = {
+  data: { products: Record<string, unknown>[] } | null;
+  error: { message: string } | null;
+};
+const mockRpc = vi.fn(
+  async (): Promise<StockRpcResult> => ({ data: { products: [] }, error: null }),
+);
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
     auth: { getUser: () => mockGetUser() },
     from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...(args as [])),
   }),
 }));
 
@@ -198,6 +208,76 @@ describe("alerts age out of the live list", () => {
     setup({ products: [{ id: "p-1", market_id: "m-1", name: "Doll", current_stock: 0 }] });
     const { types } = await getAlerts();
     expect(types).toEqual(["stock_depleted"]);
+  });
+});
+
+describe("stock_unreconciled — the register disagrees with the order flow", () => {
+  /** One product straight out of production: 216 on the register, 382 shipped,
+   *  30 returned, not one scan. */
+  function stockProduct(over: Record<string, unknown> = {}) {
+    return {
+      id: "p-1",
+      name: "دميه ملاكمه حجم صغير",
+      market_id: "m-1",
+      current_stock: 216,
+      ledger_sum_units: 216,
+      shipped_units_all_time: 382,
+      returned_to_shelf_units_all_time: 30,
+      damaged_return_count: 0,
+      awaiting_scan_units: 239,
+      oldest_awaiting_scan_at: ago(85 * DAY),
+      carrier_name: "Darb Assabil - Tripoli",
+      ...over,
+    };
+  }
+
+  test("raises one row per product, carrying the gap in units", async () => {
+    setup({});
+    mockRpc.mockResolvedValueOnce({ data: { products: [stockProduct()] }, error: null });
+    const { json } = await getAlerts();
+    const a = json.alerts.find((x: { type: string }) => x.type === "stock_unreconciled");
+    expect(a).toBeDefined();
+    expect(a.entity_kind).toBe("product");
+    expect(a.meta.drift_units).toBe(352); // 216 − (216 − 382 + 30)
+    expect(a.meta.awaiting_units).toBe(239);
+  });
+
+  test("names the carrier that actually holds the goods", async () => {
+    setup({});
+    mockRpc.mockResolvedValueOnce({ data: { products: [stockProduct()] }, error: null });
+    const { json } = await getAlerts();
+    const a = json.alerts.find((x: { type: string }) => x.type === "stock_unreconciled");
+    expect(a.secondary).toBe("Darb Assabil - Tripoli");
+  });
+
+  test("escalates to critical once the gap is a month old", async () => {
+    setup({});
+    mockRpc.mockResolvedValueOnce({ data: { products: [stockProduct()] }, error: null });
+    const { json } = await getAlerts();
+    const a = json.alerts.find((x: { type: string }) => x.type === "stock_unreconciled");
+    expect(a.severity).toBe("critical");
+  });
+
+  test("stays quiet on a product that reconciles", async () => {
+    setup({});
+    mockRpc.mockResolvedValueOnce({
+      data: {
+        products: [
+          stockProduct({ shipped_units_all_time: 0, returned_to_shelf_units_all_time: 0, awaiting_scan_units: 0 }),
+        ],
+      },
+      error: null,
+    });
+    const { types } = await getAlerts();
+    expect(types).not.toContain("stock_unreconciled");
+  });
+
+  test("carries units but never a money figure — managers see this route", async () => {
+    setup({});
+    mockRpc.mockResolvedValueOnce({ data: { products: [stockProduct()] }, error: null });
+    const { json } = await getAlerts();
+    const a = json.alerts.find((x: { type: string }) => x.type === "stock_unreconciled");
+    expect(Object.keys(a.meta)).toEqual(["drift_units", "awaiting_units"]);
   });
 });
 

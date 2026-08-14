@@ -97,6 +97,27 @@ describe("familyOf — what a rule is actually complaining about", () => {
 
   test("keeps stock apart, since it is about a product and not an order", () => {
     expect(familyOf("stock_depleted")).toBe("stock");
+    expect(familyOf("stock_unreconciled")).toBe("stock");
+  });
+});
+
+describe("stock_unreconciled — the registered stock disagrees with the order flow", () => {
+  test("starts quiet: a fresh gap is a bookkeeping lag, not an emergency", () => {
+    expect(severityFor("stock_unreconciled", 1 * HOUR)).toBe("medium");
+  });
+
+  test("climbs once a week has passed without anyone closing it", () => {
+    expect(severityFor("stock_unreconciled", 7 * DAY)).toBe("high");
+  });
+
+  test("is critical at a month — production sat 85 days out of step", () => {
+    expect(severityFor("stock_unreconciled", 30 * DAY)).toBe("critical");
+  });
+
+  test("never expires, because only a scan or a count closes it", () => {
+    // Unlike an order ageing out of relevance, an unreconciled shelf does not
+    // become correct by being ignored.
+    expect(isExpired("stock_unreconciled", 365 * DAY)).toBe(false);
   });
 });
 

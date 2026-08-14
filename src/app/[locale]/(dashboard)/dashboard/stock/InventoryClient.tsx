@@ -13,7 +13,6 @@ import {
   ShieldAlert,
   ScanLine,
   Truck,
-  TriangleAlert,
   Rocket,
   ShoppingCart,
   PackageMinus,
@@ -166,36 +165,13 @@ export function InventoryClient({ user }: { user: AuthUser }) {
         </div>
       ) : null}
 
-      {/* ── bandeaux de fiabilité ── */}
-      {ledger && ledger.carrier_held_products > 0 ? (
-        <Band
-          tone="info"
-          icon={Truck}
-          title={t("band.carrierTitle")}
-          body={t("band.carrierBody", { count: ledger.carrier_held_products })}
-          cta={{ href: `/${user.locale}/mappings`, label: t("band.carrierCta") }}
-        />
-      ) : null}
-
-      {totals && totals.awaiting_scan_units > 0 ? (
-        <Band
-          tone="warn"
-          icon={TriangleAlert}
-          title={t("band.scanTitle", { units: nf.format(totals.awaiting_scan_units) })}
-          body={
-            t("band.scanBody", {
-              orders: nf.format(totals.awaiting_scan_orders),
-              days: totals.oldest_awaiting_scan_days ?? 0,
-              units: nf.format(Math.abs(totals.drift_units)),
-            }) +
-            (ledger && ledger.scan_out_rows === 0
-              ? ` ${t("band.neverScanned", { rows: ledger.inventory_log_rows })}`
-              : "")
-          }
-          cta={{ href: `/${user.locale}/warehouse`, label: t("band.scanCta") }}
-        />
-      ) : null}
-
+      {/*
+        The carrier-held and unscanned-stock warnings used to sit here as two
+        bands. They are conditions wanting action, not context for reading the
+        table, so they now emit as `stock_unreconciled` alerts — one row per
+        product, on the alerts page with everything else that needs doing. The
+        per-row source chip below still says which register is authoritative.
+      */}
       {/* ── tuiles ── */}
       {showSkeleton ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" role="status">
@@ -555,44 +531,6 @@ function actionWhy(t: T, a: StockAction, day: (iso: string) => string): string {
     default:
       return "";
   }
-}
-
-function Band({
-  tone,
-  icon: Icon,
-  title,
-  body,
-  cta,
-}: {
-  tone: "warn" | "info";
-  icon: typeof Truck;
-  title: string;
-  body: string;
-  cta: { href: string; label: string };
-}) {
-  const shell =
-    tone === "warn"
-      ? "border-oms-warn/30 bg-oms-warn-bg"
-      : "border-oms-info/25 bg-oms-info-bg";
-  const mark = tone === "warn" ? "bg-oms-warn-bg text-oms-warn-ink" : "bg-oms-info-bg text-oms-info-ink";
-
-  return (
-    <div className={`flex items-start gap-3 rounded-card border px-4 py-3 ${shell}`}>
-      <span className={`mt-px grid h-7 w-7 shrink-0 place-items-center rounded-lg ${mark}`}>
-        <Icon size={15} aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-semibold text-oms-ink-1">{title}</div>
-        <p className="mt-1 text-[12.5px] leading-relaxed text-oms-ink-2">{body}</p>
-        <Link
-          href={cta.href}
-          className="mt-2 inline-flex h-7 items-center rounded-lg border border-oms-border-strong bg-oms-surface px-3 text-[12px] font-medium text-oms-ink-1 hover:bg-oms-sunken"
-        >
-          {cta.label}
-        </Link>
-      </div>
-    </div>
-  );
 }
 
 function ActionRow({

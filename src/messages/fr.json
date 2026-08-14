@@ -344,15 +344,6 @@
       "noStockout": "Aucune rupture prévue",
       "daysUnit": "j"
     },
-    "band": {
-      "carrierTitle": "Le stock n'est pas dans notre entrepôt",
-      "carrierBody": "{count, plural, one {# produit est rattaché} other {# produits sont rattachés}} à l'entrepôt d'un transporteur, qui détient et expédie la marchandise. Les quantités ci-dessous viennent de notre registre et ne sont pas synchronisées avec le sien.",
-      "carrierCta": "Voir le mapping produits",
-      "scanTitle": "{units} unités attendent un scan de sortie",
-      "scanBody": "{orders} commandes sont au statut « uploaded », la plus ancienne depuis {days} jours. Tant que la sortie n'est pas enregistrée, le stock affiché reste surévalué de {units} unités.",
-      "scanCta": "Ouvrir la file de scan",
-      "neverScanned": "Aucune sortie n'a jamais été scannée ({rows} lignes de journal au total)."
-    },
     "table": {
       "title": "Produits",
       "scope": "position maintenant · demande sur {days} j",
@@ -541,7 +532,8 @@
       "dispatch_schedule_missed": "non déclenchée depuis {value}",
       "price_changed": "prix modifié il y a {value}",
       "order_reopened": "rouverte il y a {value}",
-      "stock_depleted": "rupture"
+      "stock_depleted": "rupture",
+      "stock_unreconciled": "{count, plural, one {# unité d'écart} other {# unités d'écart}}"
     },
     "types": {
       "dispatch_failure": {
@@ -576,6 +568,9 @@
       },
       "order_reopened": {
         "label": "Commande rouverte"
+      },
+      "stock_unreconciled": {
+        "label": "Stock non rapproché"
       }
     },
     "bell": "Alertes",

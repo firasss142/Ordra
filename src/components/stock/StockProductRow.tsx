@@ -1,9 +1,42 @@
 "use client";
 
 import Link from "next/link";
-import { Pencil, Truck, Warehouse, TriangleAlert } from "lucide-react";
+import Image from "next/image";
+import { Pencil, Package, Warehouse, TriangleAlert } from "lucide-react";
 import type { StockProduct, StockState } from "@/lib/inventory/stock-position-types";
+import { CarrierMark } from "@/components/shared/CarrierMark";
 import { Bar, CAPITAL_COLORS, Sparkline } from "./StockPrimitives";
+
+/**
+ * The product's own picture, which is how anyone actually recognises a row at a
+ * glance — the catalogue carries two boxing dolls whose names differ by one
+ * Arabic word. Falls back to a neutral glyph rather than a broken frame, since
+ * `image_url` is nullable and most rows in Tunisia have none.
+ */
+function ProductThumb({ src, name }: { src: string | null; name: string }) {
+  if (!src) {
+    return (
+      <span
+        className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-oms-border bg-oms-sunken text-oms-ink-3"
+        aria-hidden
+      >
+        <Package size={17} />
+      </span>
+    );
+  }
+  return (
+    <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-oms-border bg-oms-sunken">
+      <Image
+        src={src}
+        alt={name}
+        fill
+        sizes="40px"
+        className="object-cover"
+        unoptimized
+      />
+    </span>
+  );
+}
 
 /**
  * Shared grid template — header and rows read from the same constant so a
@@ -68,8 +101,9 @@ export function StockProductRow({
 
   return (
     <li className={`${STOCK_ROW_GRID} border-b border-oms-border px-4 py-3.5 last:border-b-0 hover:bg-oms-sunken`}>
-      {/* produit */}
-      <div className="flex min-w-0 items-center gap-3">
+      {/* produit — l'image porte l'identification, le texte porte les faits */}
+      <div className="flex min-w-0 items-center gap-2.5">
+        <ProductThumb src={p.image_url} name={p.name} />
         <div className="min-w-0">
           <Link
             href={`/${locale}/products/${p.id}`}
@@ -78,22 +112,26 @@ export function StockProductRow({
           >
             {p.name}
           </Link>
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            <span
-              className={`inline-flex items-center gap-1 rounded-[6px] px-1.5 py-px text-[10.5px] font-semibold ${
-                p.source === "carrier"
-                  ? "bg-oms-info-bg text-oms-info-ink"
-                  : "bg-oms-sunken text-oms-ink-2"
-              }`}
-            >
-              {p.source === "carrier" ? (
-                <Truck size={10} aria-hidden />
-              ) : (
-                <Warehouse size={10} aria-hidden />
-              )}
-              <span dir="auto">{p.carrier_name ?? labels.register}</span>
+          <div className="mt-1 flex min-w-0 items-center gap-1.5">
+            {p.source === "carrier" && p.carrier_name ? (
+              <CarrierMark name={p.carrier_name} size={16} />
+            ) : (
+              <span
+                className="grid h-4 w-4 shrink-0 place-items-center rounded-[4px] bg-oms-sunken text-oms-ink-3"
+                aria-hidden
+              >
+                <Warehouse size={10} />
+              </span>
+            )}
+            <span className="truncate text-[11px] text-oms-ink-3" dir="auto">
+              {p.carrier_name ?? labels.register}
             </span>
-            <span className="text-[11px] tabular-nums text-oms-ink-3">{formatMoney(p.unit_cogs)}</span>
+            <span className="shrink-0 text-oms-border-strong" aria-hidden>
+              ·
+            </span>
+            <span className="shrink-0 text-[11px] tabular-nums text-oms-ink-3">
+              {formatMoney(p.unit_cogs)}
+            </span>
           </div>
         </div>
       </div>

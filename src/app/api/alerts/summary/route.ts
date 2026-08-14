@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { minutesBetween } from "@/lib/format";
+import { lastNDaysPeriod } from "@/lib/date";
 import {
   ALERT_TYPES,
   familyOf,
@@ -45,6 +46,23 @@ const OPEN_CONFIRMATION_STATUSES = ["pending", "assigned", "attempt_1"];
 interface SheetSourceSetting {
   market_id: string;
   value: Array<{ storefront_id?: string; is_active?: boolean }> | null;
+}
+
+/** The subset of `get_stock_position` this route reads. */
+interface StockPositionPayload {
+  products?: Array<{
+    id: string;
+    name: string;
+    market_id: string;
+    current_stock: number | string;
+    ledger_sum_units: number | string;
+    shipped_units_all_time: number | string;
+    returned_to_shelf_units_all_time: number | string;
+    damaged_return_count: number | string;
+    awaiting_scan_units: number | string;
+    oldest_awaiting_scan_at: string | null;
+    carrier_name: string | null;
+  }>;
 }
 
 interface SyncRunRow {
@@ -300,6 +318,26 @@ export async function GET(req: NextRequest) {
     .eq("key", "google_sheets_sources");
   if (marketId) qSheetSources = qSheetSources.eq("market_id", marketId);
 
+  /**
+   * Reconciliation state, straight from the stock console's own RPC.
+   *
+   * Reused rather than reimplemented: `committed` is defined as in-flight units
+   * with no scan row, and a second copy of that definition here would drift from
+   * the one on /dashboard/stock the first time either changed.
+   *
+   * The narrowest window the RPC accepts, because this rule reads only position
+   * and ledger state — the demand series is incidental, and a 7-day window with
+   * weekly buckets makes it one point per product instead of ninety.
+   */
+  const stockWindow = lastNDaysPeriod(7);
+  const qStockPosition = supabase.rpc("get_stock_position", {
+    p_market_id: marketId || null,
+    p_from: stockWindow.from_date,
+    p_to: stockWindow.to_date,
+    p_bucket_days: 7,
+    p_rate_from: stockWindow.from_date,
+  });
+
   const [
     overdueRes,
     unassignedRes,
@@ -314,6 +352,7 @@ export async function GET(req: NextRequest) {
     acksRes,
     syncRunsRes,
     sheetSourcesRes,
+    stockPositionRes,
   ] = await Promise.all([
     qOverdueCallback,
     qUnassigned,
@@ -328,6 +367,7 @@ export async function GET(req: NextRequest) {
     qAcks,
     qSyncRuns,
     qSheetSources,
+    qStockPosition,
   ]);
 
   const failed = Object.entries({
@@ -443,6 +483,45 @@ export async function GET(req: NextRequest) {
       anchor: null,
       meta: { current_stock: p.current_stock },
       marketId: p.market_id,
+    });
+  }
+
+  /**
+   * One row per product whose registered stock no longer matches the order flow.
+   *
+   * Deliberately product-shaped. `upload_stalled` already emits an order for
+   * every unscanned shipment; hundreds of those rows say a queue is long without
+   * ever saying which number is now wrong, which is the only form anyone can act
+   * on. The carrier name rides on `secondary` because for a carrier-held product
+   * the register was never going to be authoritative in the first place — that
+   * is context for the reader, not a second alert.
+   *
+   * Units only, never value: this route serves market managers, and the money
+   * view is gated to super_admin on /dashboard/stock.
+   */
+  for (const p of ((stockPositionRes.data as StockPositionPayload | null)?.products ?? [])) {
+    const ledgerSum = Number(p.ledger_sum_units ?? 0);
+    const shipped = Number(p.shipped_units_all_time ?? 0);
+    const backToShelf = Number(p.returned_to_shelf_units_all_time ?? 0);
+    const damaged = Number(p.damaged_return_count ?? 0);
+    const expected = ledgerSum - shipped + Math.max(0, backToShelf - damaged);
+    const drift = Number(p.current_stock ?? 0) - expected;
+    const awaiting = Number(p.awaiting_scan_units ?? 0);
+
+    if (drift === 0 && awaiting === 0) continue;
+
+    push({
+      type: "stock_unreconciled",
+      entityId: String(p.id),
+      entityKind: "product",
+      href: `/products/${p.id}`,
+      primary: String(p.name ?? ""),
+      secondary: p.carrier_name ? String(p.carrier_name) : null,
+      // The oldest shipment still unscanned. Without one the gap has no clock,
+      // so the rule stays at its base severity rather than inventing an age.
+      anchor: p.oldest_awaiting_scan_at ? String(p.oldest_awaiting_scan_at) : null,
+      meta: { drift_units: Math.abs(drift), awaiting_units: awaiting },
+      marketId: String(p.market_id ?? ""),
     });
   }
 

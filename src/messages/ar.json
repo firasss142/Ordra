@@ -344,15 +344,6 @@
       "noStockout": "لا نفاد متوقع",
       "daysUnit": "ي"
     },
-    "band": {
-      "carrierTitle": "المخزون ليس في مستودعنا",
-      "carrierBody": "{count, plural, one {# منتج مرتبط} other {# منتجات مرتبطة}} بمستودع شركة التوصيل التي تحتفظ بالبضاعة وتشحنها. الكميات أدناه من سجلّنا وغير متزامنة مع سجلّها.",
-      "carrierCta": "عرض ربط المنتجات",
-      "scanTitle": "{units} وحدة تنتظر مسح الخروج",
-      "scanBody": "{orders} طلب في حالة «uploaded»، أقدمها منذ {days} يومًا. ما دام الخروج غير مسجَّل يبقى المخزون المعروض مبالغًا فيه بـ {units} وحدة.",
-      "scanCta": "فتح قائمة المسح",
-      "neverScanned": "لم يُسجَّل أي خروج قط ({rows} سطرًا في السجل إجمالًا)."
-    },
     "table": {
       "title": "المنتجات",
       "scope": "الوضعية الآن · الطلب على {days} يوم",
@@ -541,7 +532,8 @@
       "dispatch_schedule_missed": "لم تنطلق منذ {value}",
       "price_changed": "تغيّر السعر منذ {value}",
       "order_reopened": "أُعيد فتحها منذ {value}",
-      "stock_depleted": "نفاد المخزون"
+      "stock_depleted": "نفاد المخزون",
+      "stock_unreconciled": "{count, plural, zero {لا فرق} one {وحدة فارق} two {وحدتا فارق} few {# وحدات فارق} many {# وحدة فارق} other {# وحدة فارق}}"
     },
     "types": {
       "dispatch_failure": {
@@ -576,6 +568,9 @@
       },
       "order_reopened": {
         "label": "تمت إعادة فتح الطلب"
+      },
+      "stock_unreconciled": {
+        "label": "مخزون غير مطابق"
       }
     },
     "bell": "التنبيهات",
