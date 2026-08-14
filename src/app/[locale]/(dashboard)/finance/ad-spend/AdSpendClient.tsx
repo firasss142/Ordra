@@ -8,6 +8,13 @@ import { Plus, Upload } from "lucide-react";
 import { useAdSpendCampaigns } from "@/hooks/useAdSpendCampaigns";
 import { useMarketScope } from "@/context/market-scope";
 import { AdSpendRollups } from "@/components/ad-spend/AdSpendRollups";
+import {
+  AdSpendChain,
+  AdSpendCplBars,
+  AdSpendCostStack,
+  AdSpendProductTable,
+} from "@/components/ad-spend/AdSpendEconomics";
+import { useAdSpendEconomics } from "@/hooks/useAdSpendEconomics";
 import { AdSpendCampaignList } from "@/components/ad-spend/AdSpendCampaignList";
 import { AdSpendEntryModal } from "@/components/ad-spend/AdSpendEntryModal";
 import { AdSpendCsvImport } from "@/components/ad-spend/AdSpendCsvImport";
@@ -57,6 +64,12 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
 
   const fromDate = useMemo(() => twelveWeekFrom(), []);
   const toDate = useMemo(() => todayISO(), []);
+  const { products: economics, meta: economicsMeta } = useAdSpendEconomics({
+    marketId: selectedMarketId,
+    fromDate,
+    toDate,
+  });
+
   const currency = useMemo(
     () =>
       markets.find((m) => m.id === selectedMarketId)?.code.toUpperCase() === "LY"
@@ -262,6 +275,31 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
         </div>
       ) : (
         <>
+          {/* What the money turned into, end to end. Leads with the arithmetic
+              rather than four totals, because a total says how much was spent
+              and never whether spending it was a good idea. */}
+          {economicsMeta && economicsMeta.total_leads > 0 && (
+            <>
+              {economicsMeta.total_spend === 0 && (
+                <div className="rounded-card border border-warning/30 bg-warning-bg px-4 py-3">
+                  <p className="text-[13.5px] font-semibold text-ink-primary">{t("economics.noSpendYet")}</p>
+                  <p className="text-[12.5px] text-ink-secondary mt-1 leading-relaxed">
+                    {t("economics.noSpendYetHint")}
+                  </p>
+                </div>
+              )}
+
+              <AdSpendChain meta={economicsMeta} currency={currency} />
+
+              <div className="grid grid-cols-1 xl:grid-cols-[1.18fr_1fr] gap-4 items-start">
+                <AdSpendCplBars products={economics} currency={currency} />
+                <AdSpendCostStack products={economics} meta={economicsMeta} currency={currency} />
+              </div>
+
+              <AdSpendProductTable products={economics} meta={economicsMeta} currency={currency} />
+            </>
+          )}
+
           {/* KPI Rollups */}
           <AdSpendRollups
             thisWeek={rollups.this_week}
