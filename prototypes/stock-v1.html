@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OMS — Stock v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   JETONS — docs/design-system.md §2 + §4.17 (console oms-*)
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#FAFAF8; --surface:#FFF; --sunken:#F4F3EF;
+  --line:#EAE7E1; --line-strong:#DCD8D0;
+  --ink-1:#1B1917; --ink-2:#5C5852; --ink-3:#78726A;
+
+  --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4;
+
+  --ok:#2F7A4A;   --ok-bg:#E8F4EC;
+  --warn:#A9670C; --warn-bg:#FBF1E2; --warn-ink:#8F5608;
+  --bad:#B23A32;  --bad-bg:#FBECEA;
+  --info:#0E7A6E; --info-bg:#E4F3F0; --info-ink:#0B6A60;
+
+  /* viz — chartTheme.ts */
+  --c-actif:#15803D; --c-engage:#0E7A6E; --c-immobile:#C9C5BD; --c-deficit:#B23A32;
+  --chart-line:#8C9196;
+
+  --r-xs:6px; --r-sm:8px; --r-card:10px; --r-md:12px; --r-pill:9999px;
+  --e-row:0 1px 2px rgba(16,24,40,.04);
+  --e-panel:0 4px 16px rgba(16,24,40,.06);
+  --sidebar:#0E1013;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink-1);font-size:14px;line-height:1.45;
+  font-family:"Inter","Noto Sans Arabic",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,p,ul,ol{margin:0}
+ul,ol{list-style:none;padding:0}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+[dir=auto]{unicode-bidi:plaintext}
+.tnum{font-variant-numeric:tabular-nums;unicode-bidi:isolate;direction:ltr}
+.money{unicode-bidi:isolate;direction:ltr;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ── chrome prototype ── */
+.pbar{position:sticky;top:0;z-index:90;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  background:var(--sidebar);color:#E6E8EB;padding:10px 22px}
+.pbar .tag{font-size:10.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#7F858F}
+.pbar .nm{font-size:13px;font-weight:600}
+.pbar .dt{font-size:11.5px;color:#7F858F}
+.ptabs{display:flex;gap:5px;margin-inline-start:auto;flex-wrap:wrap}
+.ptabs button{border:1px solid rgba(255,255,255,.1);background:transparent;color:#B5BAC2;
+  border-radius:var(--r-sm);padding:6px 13px;font-size:12.5px;font-weight:500;transition:.12s}
+.ptabs button:hover{background:rgba(255,255,255,.06);color:#fff}
+.ptabs button[aria-selected=true]{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+.screen{display:none;padding:22px 28px 100px;max-width:1560px;margin:0 auto}
+.screen.on{display:block}
+
+/* ══════════════ ATOMES ══════════════ */
+.ico{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:var(--r-sm)}
+.ico svg{width:19px;height:19px}
+.ico-sm{width:26px;height:26px;border-radius:var(--r-xs)}
+.ico-sm svg{width:14px;height:14px}
+.t-ok{background:var(--ok-bg);color:var(--ok)}
+.t-warn{background:var(--warn-bg);color:var(--warn-ink)}
+.t-bad{background:var(--bad-bg);color:var(--bad)}
+.t-info{background:var(--info-bg);color:var(--info-ink)}
+.t-neutral{background:var(--sunken);color:var(--ink-2)}
+.t-brand{background:var(--brand-bg);color:var(--brand)}
+
+.lbl{font-size:10.5px;font-weight:600;letter-spacing:.075em;text-transform:uppercase;color:var(--ink-2)}
+.cap{font-size:11.5px;color:var(--ink-3)}
+.hint{font-size:11.5px;color:var(--ink-3);line-height:1.4}
+
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:var(--r-pill);
+  padding:2px 9px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.pill svg{width:11px;height:11px;flex:none}
+.p-ok{background:var(--ok-bg);color:var(--ok)}
+.p-warn{background:var(--warn-bg);color:var(--warn-ink)}
+.p-bad{background:var(--bad-bg);color:var(--bad)}
+.p-info{background:var(--info-bg);color:var(--info-ink)}
+.p-neutral{background:var(--sunken);color:var(--ink-2)}
+
+.btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:var(--r-sm);
+  font-size:13px;font-weight:500;border:1px solid var(--line-strong);background:#fff;color:var(--ink-1);transition:.12s}
+.btn:hover{background:var(--sunken);border-color:var(--ink-3)}
+.btn svg{width:14px;height:14px}
+.btn-p{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+.btn-p:hover{background:var(--brand-hover);border-color:var(--brand-hover)}
+.btn-sm{height:28px;padding:0 10px;font-size:12px;border-radius:var(--r-xs)}
+
+/* ── en-tête de page ── */
+.phead{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.phead h1{font-size:26px;font-weight:600;letter-spacing:-.02em}
+.phead .sub{font-size:13px;color:var(--ink-2);margin-top:3px}
+.mkt{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--sunken);
+  border-radius:var(--r-pill);padding:4px 11px;font-size:12px;font-weight:500;color:var(--ink-2)}
+.mkt svg{width:12px;height:12px}
+.spacer{margin-inline-start:auto}
+.tabs{display:flex;gap:3px;background:var(--sunken);border:1px solid var(--line);border-radius:var(--r-sm);padding:3px}
+.tabs button{border:0;background:transparent;border-radius:var(--r-xs);padding:5px 12px;font-size:12.5px;
+  font-weight:500;color:var(--ink-2);transition:.12s}
+.tabs button:hover{color:var(--ink-1)}
+.tabs button[aria-selected=true]{background:#fff;color:var(--ink-1);font-weight:600;
+  box-shadow:inset 0 0 0 1px var(--brand)}
+
+/* ── sections ── */
+.sec{margin-top:22px}
+.sec-h{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.sec-h .t{font-size:10.5px;font-weight:600;letter-spacing:.075em;text-transform:uppercase;color:var(--ink-2)}
+.sec-h .scope{font-size:11px;color:var(--ink-3)}
+.sec-h .act{margin-inline-start:auto}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card)}
+.pad{padding:16px}
+
+/* ── bandeau fiabilité ── */
+.band{display:flex;gap:13px;align-items:flex-start;border-radius:var(--r-card);padding:13px 15px;margin-bottom:16px;
+  border:1px solid}
+.band-warn{background:var(--warn-bg);border-color:#EBD9B8}
+.band-bad{background:var(--bad-bg);border-color:#F0D4D0}
+.band .bd{flex:1;min-width:0}
+.band .bt{font-size:13px;font-weight:600;color:var(--ink-1);margin-bottom:3px}
+.band .bx{font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.band .ba{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+
+/* ── tuiles ── */
+.tiles{display:grid;gap:12px;grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:1180px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tile{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-card);padding:15px;transition:border-color .16s,box-shadow .16s}
+.tile:hover{border-color:var(--line-strong);box-shadow:var(--e-row)}
+.tile .top{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.tile .val{font-size:26px;font-weight:650;line-height:1.05;letter-spacing:-.022em;font-variant-numeric:tabular-nums}
+.tile .cur{font-size:.62em;font-weight:600;color:var(--ink-3);margin-inline-start:3px}
+.tile .sub{font-size:12.5px;color:var(--ink-2);margin-top:5px;line-height:1.4}
+.tile .foot{margin-top:auto;padding-top:11px;font-size:11.5px;color:var(--ink-3);line-height:1.4}
+.tile.warm{background:#FFFDF8;border-color:#EBD9B8}
+.tile.hot{background:#FFFBFA;border-color:#F0D4D0}
+
+/* barre de composition */
+.comp{display:flex;height:8px;border-radius:var(--r-pill);overflow:hidden;background:var(--sunken);margin-top:11px}
+.comp i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:9px}
+.legend span{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--ink-2);white-space:nowrap}
+.legend b{width:8px;height:8px;border-radius:2px;flex:none}
+.legend em{font-style:normal;font-variant-numeric:tabular-nums;color:var(--ink-1);font-weight:600}
+
+/* ── tableau produits (bandes) ── */
+.rows{--g:minmax(200px,2.1fr) minmax(178px,1.55fr) minmax(126px,1.05fr) minmax(132px,1.15fr) 66px 106px 128px}
+.rows-h,.rows li{display:grid;grid-template-columns:var(--g);align-items:center;gap:0 14px}
+.rows-h{padding:0 12px 8px;border-bottom:1px solid var(--line)}
+.rows-h span{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.rows li{padding:12px;border-radius:var(--r-sm);border-bottom:1px solid var(--line);transition:.12s}
+.rows li:last-child{border-bottom:0}
+.rows li:hover{background:var(--sunken)}
+.te{text-align:end}
+
+.pname{font-size:13.5px;font-weight:600;color:var(--ink-1);line-height:1.3;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pmeta{display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap}
+.src{display:inline-flex;align-items:center;gap:4px;border-radius:var(--r-xs);padding:1px 6px;
+  font-size:10.5px;font-weight:600;letter-spacing:.01em}
+.src svg{width:10px;height:10px}
+.src-carrier{background:var(--info-bg);color:var(--info-ink)}
+.src-own{background:var(--sunken);color:var(--ink-2)}
+
+/* barre de position */
+.pos{display:flex;height:7px;border-radius:var(--r-pill);overflow:hidden;background:var(--sunken)}
+.pos i{display:block;height:100%}
+.pos .def{background:repeating-linear-gradient(45deg,var(--c-deficit) 0 3px,#D9615A 3px 6px)}
+.posx{font-size:11.5px;color:var(--ink-2);margin-top:6px;font-variant-numeric:tabular-nums}
+.posx b{color:var(--ink-1);font-weight:600}
+.posx .neg{color:var(--bad);font-weight:700}
+
+.cov{font-size:16px;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.15;
+  display:flex;align-items:center;gap:5px}
+.cov svg{width:13px;height:13px;flex:none}
+.cov.late{color:var(--bad)} .cov.warm{color:var(--warn-ink)} .cov.calm{color:var(--ink-3)}
+.covx{font-size:11px;color:var(--ink-3);margin-top:3px}
+
+.spark{display:block;width:100%;height:26px}
+.dem{font-size:11.5px;color:var(--ink-2);margin-top:3px;font-variant-numeric:tabular-nums}
+
+.ret{font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.ret.hi{color:var(--warn-ink)}
+.retx{height:3px;border-radius:var(--r-pill);background:var(--sunken);margin-top:5px;overflow:hidden}
+.retx i{display:block;height:100%;background:var(--chart-line)}
+.retx i.hi{background:var(--warn)}
+
+.val{font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.valx{font-size:11px;color:var(--ink-3);margin-top:2px}
+
+/* ── deux colonnes bas ── */
+.two{display:grid;gap:16px;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);align-items:start}
+@media(max-width:1080px){.two{grid-template-columns:1fr}}
+
+.capbar{display:flex;flex-direction:column;gap:11px}
+.capitem{display:grid;grid-template-columns:minmax(0,1fr) 88px;gap:12px;align-items:center}
+.capitem .nm{font-size:12.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.capitem .tr{height:20px;border-radius:var(--r-xs);background:var(--sunken);overflow:hidden;display:flex}
+.capitem .tr i{display:block;height:100%}
+.capitem .mv{font-size:12.5px;font-weight:600;text-align:end;font-variant-numeric:tabular-nums}
+
+.todo li{display:flex;gap:11px;align-items:flex-start;padding:12px;border-radius:var(--r-sm);
+  border-bottom:1px solid var(--line);transition:.12s}
+.todo li:last-child{border-bottom:0}
+.todo li:hover{background:var(--sunken)}
+.todo .td{flex:1;min-width:0}
+.todo .tt{font-size:13px;font-weight:600;line-height:1.35}
+.todo .tx{font-size:11.5px;color:var(--ink-3);margin-top:3px;line-height:1.4}
+.todo .tm{font-size:13px;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+.todo .chev{color:var(--ink-3);flex:none;margin-top:2px}
+.todo .chev svg{width:15px;height:15px}
+
+/* ── écran AVANT ── */
+.old-hero{display:grid;gap:12px;grid-template-columns:minmax(0,1.4fr) minmax(0,2.6fr)}
+@media(max-width:1080px){.old-hero{grid-template-columns:1fr}}
+.old-health{display:grid;gap:12px;grid-template-columns:repeat(5,minmax(0,1fr))}
+@media(max-width:1080px){.old-health{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.oldcard{background:#fff;border:1px solid #ECEEF0;border-radius:8px;padding:16px;min-height:132px;
+  display:flex;flex-direction:column}
+.oldcard .ov{font-size:26px;font-weight:700;margin-top:auto;font-variant-numeric:tabular-nums}
+.oldcard .oh{font-size:12px;color:#6D7175;margin-top:4px}
+.oldcard .ol{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#6D7175;margin-top:9px}
+.opanel{background:#fff;border:1px solid #ECEEF0;border-radius:8px;padding:18px}
+.opanel h2{font-size:16px;font-weight:600;margin-bottom:12px}
+.oempty{display:grid;place-items:center;background:#FAFAFB;border-radius:6px;color:#6D7175;font-size:13px;text-align:center;padding:20px}
+.otable{width:100%;border-collapse:collapse}
+.otable th{font-size:13px;font-weight:500;color:#6D7175;text-transform:uppercase;letter-spacing:.05em;
+  padding:12px 16px;border-bottom:1px solid #D1D5DB;text-align:start}
+.otable td{font-size:14px;padding:12px 16px;border-bottom:1px solid #E1E3E5;font-variant-numeric:tabular-nums}
+.otable th.te,.otable td.te{text-align:end}
+.hpill{display:inline-flex;border-radius:9999px;padding:2px 8px;font-size:13px;font-weight:500;
+  background:#F1F8F5;color:#008060}
+
+/* annotations */
+.note{border-inline-start:3px solid var(--brand);background:var(--brand-tint);border-radius:0 var(--r-sm) var(--r-sm) 0;
+  padding:11px 14px;margin-top:14px;font-size:12.5px;color:var(--ink-2);line-height:1.55}
+.note b{color:var(--ink-1)}
+.note.bad{border-color:var(--bad);background:var(--bad-bg)}
+.note.warn{border-color:var(--warn);background:var(--warn-bg)}
+
+/* ── anatomie ── */
+.anat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:26px 22px 30px}
+.mk{display:inline-grid;place-items:center;width:19px;height:19px;border-radius:50%;background:var(--brand);
+  color:#fff;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;flex:none}
+.anat-row{display:grid;grid-template-columns:var(--g);gap:0 14px;align-items:center;
+  border:1px dashed var(--line-strong);border-radius:var(--r-sm);padding:14px 12px}
+.anat .mkrow{display:grid;grid-template-columns:var(--g);gap:0 14px;margin-bottom:9px}
+.dl{margin-top:22px;border-top:1px solid var(--line)}
+.dl .it{display:grid;grid-template-columns:26px minmax(150px,1fr) minmax(0,2.1fr) minmax(0,1.5fr);
+  gap:14px;padding:14px 4px;border-bottom:1px solid var(--line);align-items:start}
+@media(max-width:960px){.dl .it{grid-template-columns:26px 1fr}}
+.dl .k{font-size:12.5px;font-weight:600}
+.dl .v{font-size:12.5px;color:var(--ink-2);line-height:1.55}
+.dl .a{font-size:12px;color:var(--ink-3);line-height:1.5}
+.dl code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;background:var(--sunken);
+  padding:1px 5px;border-radius:4px;color:var(--ink-1)}
+.kb{display:grid;gap:12px;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:18px}
+@media(max-width:900px){.kb{grid-template-columns:1fr}}
+.kb .b{border:1px solid var(--line);border-radius:var(--r-sm);padding:13px}
+.kb .b .h{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+.kb .b .x{font-size:12.5px;color:var(--ink-2);line-height:1.55}
+</style>
+</head>
+<body>
+
+<div class="pbar">
+  <span class="tag">Prototype</span>
+  <span class="nm">Stock &amp; inventaire — v1</span>
+  <span class="dt">chiffres de production réels · 14 août 2026 · projet vshynigvgrlihngozuwb</span>
+  <div class="ptabs" role="tablist">
+    <button role="tab" aria-selected="true" data-s="avant">Avant — prod réel</button>
+    <button role="tab" aria-selected="false" data-s="apres">Après</button>
+    <button role="tab" aria-selected="false" data-s="anat">Anatomie</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     ÉCRAN 1 — AVANT
+     ══════════════════════════════════════════════════════════════ -->
+<section class="screen on" id="s-avant">
+
+  <div class="note bad" style="margin:0 0 20px">
+    <b>Ceci n'est pas une maquette repoussoir.</b> C'est ce que <code style="font-family:ui-monospace,monospace;font-size:11.5px;background:#fff;padding:1px 5px;border-radius:4px">/api/inventory/summary</code>
+    renvoie aujourd'hui pour le marché Libye. La page calcule la vélocité à partir des lignes
+    <b>inventory_log</b> dont <b>reason = 'scanned'</b> : il n'y en a <b>aucune</b>, et il n'y en a jamais eu
+    — 0 commande a atteint le statut <b>scanned</b> sur 27 588 lignes d'historique.
+    Donc <b>days_of_supply = null</b> partout, <b>classifyHealth</b> renvoie <b>healthy</b> partout,
+    et quatre panneaux sur six sont vides.
+  </div>
+
+  <div class="phead">
+    <div>
+      <h1>Stock &amp; inventaire</h1>
+      <p class="sub">Valeur du stock, couverture et mouvements — dernières 30 jours.</p>
+    </div>
+  </div>
+
+  <div class="old-hero">
+    <div class="oldcard" style="min-height:auto">
+      <div class="ol" style="margin-top:0">Valeur du stock</div>
+      <div class="ov" style="font-size:32px;margin-top:8px">69 800 LYD</div>
+      <div class="oh">5 produits suivis</div>
+    </div>
+    <div class="old-health">
+      <div class="oldcard"><div class="ol" style="margin-top:0">Sain</div><div class="ov">5</div><div class="oh">≥ 14 j de couverture</div></div>
+      <div class="oldcard"><div class="ol" style="margin-top:0">À recommander</div><div class="ov">0</div><div class="oh">Rupture prévue &lt; 14 j</div></div>
+      <div class="oldcard"><div class="ol" style="margin-top:0">Stock bas</div><div class="ov">0</div><div class="oh">Sous le seuil ou &lt; 14 j</div></div>
+      <div class="oldcard"><div class="ol" style="margin-top:0">Rupture</div><div class="ov">0</div><div class="oh">Stock à zéro</div></div>
+      <div class="oldcard"><div class="ol" style="margin-top:0">Sur-stocké</div><div class="ov">0</div><div class="oh">&gt; 90 j de couverture</div></div>
+    </div>
+  </div>
+
+  <div style="display:grid;gap:12px;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);margin-top:12px">
+    <div class="opanel">
+      <h2>À recommander (14 prochains jours)</h2>
+      <div class="oempty" style="min-height:150px">Aucun produit à recommander</div>
+    </div>
+    <div class="opanel">
+      <h2>Mouvements par jour (14 j)</h2>
+      <div class="oempty" style="min-height:150px">Aucun mouvement</div>
+    </div>
+  </div>
+
+  <div class="opanel" style="margin-top:12px">
+    <h2>Produits</h2>
+    <table class="otable">
+      <thead><tr>
+        <th>Produit</th><th>Santé</th><th class="te">Stock</th><th class="te">Couverture</th>
+        <th class="te">Rotation</th><th class="te">Valeur</th><th class="te">Endommagés</th>
+      </tr></thead>
+      <tbody>
+        <tr><td dir="auto">دميه ملاكمه حجم صغير</td><td><span class="hpill">Sain</span></td><td class="te">216 <span style="color:#6D7175">/20</span></td><td class="te">—</td><td class="te">—</td><td class="te">5 400 LYD</td><td class="te">0</td></tr>
+        <tr><td dir="auto">دميه ملاكمه حجم متوسط</td><td><span class="hpill">Sain</span></td><td class="te">200 <span style="color:#6D7175">/5</span></td><td class="te">—</td><td class="te">—</td><td class="te">4 000 LYD</td><td class="te">0</td></tr>
+        <tr><td dir="auto">كتاب الداء والدواء للإمام ابن القيم</td><td><span class="hpill">Sain</span></td><td class="te">200 <span style="color:#6D7175">/2</span></td><td class="te">—</td><td class="te">—</td><td class="te">2 400 LYD</td><td class="te">0</td></tr>
+        <tr><td dir="auto">دميه ملاكمه حجم كبير</td><td><span class="hpill">Sain</span></td><td class="te">600 <span style="color:#6D7175">/50</span></td><td class="te">—</td><td class="te">—</td><td class="te">18 000 LYD</td><td class="te">0</td></tr>
+        <tr><td dir="auto">القرآن تدبر وعمل</td><td><span class="hpill">Sain</span></td><td class="te">1 000 <span style="color:#6D7175">/99</span></td><td class="te">—</td><td class="te">—</td><td class="te">40 000 LYD</td><td class="te">0</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="opanel" style="margin-top:12px">
+    <h2>Mouvements récents</h2>
+    <div class="oempty" style="min-height:130px">Aucun mouvement récent</div>
+  </div>
+
+  <div class="note warn">
+    <b>Ce que la page ne dit pas, et qui est vrai au même instant :</b>
+    صغير a <b>239 unités engagées chez le transporteur</b> pour 216 en stock — elle est déjà à découvert.
+    القرآن n'a <b>pas vendu une seule unité depuis 41 jours</b> et immobilise 37 880 LYD.
+    Le stock libyen n'est <b>pas dans notre entrepôt</b> : il est chez Darb Assabil, et ce chiffre de 1 000
+    a été saisi à la main le 17 avril. La page affiche « 5 sains ».
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════
+     ÉCRAN 2 — APRÈS
+     ══════════════════════════════════════════════════════════════ -->
+<section class="screen" id="s-apres">
+
+  <div class="phead">
+    <div>
+      <h1>Stock &amp; inventaire</h1>
+      <p class="sub">Position réelle, couverture et capital immobilisé.</p>
+    </div>
+    <span class="mkt">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+      Libye · LYD
+    </span>
+    <div class="spacer"></div>
+    <div class="tabs" role="tablist" aria-label="Fenêtre de demande">
+      <button role="tab" aria-selected="false">7 j</button>
+      <button role="tab" aria-selected="true">28 j</button>
+      <button role="tab" aria-selected="false">90 j</button>
+    </div>
+  </div>
+
+  <!-- bandeaux fiabilité -->
+  <div class="band band-bad">
+    <span class="ico ico-sm t-bad" style="margin-top:1px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+    </span>
+    <div class="bd">
+      <div class="bt">Le stock libyen n'est pas dans notre entrepôt</div>
+      <div class="bx">
+        Les 5 produits actifs sont rattachés à <b>l'entrepôt Darb Assabil Tripoli</b> — c'est le transporteur qui
+        détient, prélève et expédie. Les quantités affichées ci-dessous sont celles de notre registre,
+        <b>saisies à la main et jamais synchronisées</b> (dernière écriture le 8 juillet).
+        La quantité réelle est déjà exposée par <code style="font-family:ui-monospace,monospace;font-size:11.5px;background:#fff;padding:1px 5px;border-radius:4px">fetchDarbWarehouseStock()</code>, appelée à l'expédition et jamais affichée.
+      </div>
+      <div class="ba">
+        <button class="btn btn-sm btn-p">Connecter le flux Darb</button>
+        <button class="btn btn-sm">Voir le mapping produits</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="band band-warn">
+    <span class="ico ico-sm t-warn" style="margin-top:1px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+    </span>
+    <div class="bd">
+      <div class="bt">507 unités attendent un scan de sortie depuis 86 jours</div>
+      <div class="bx">
+        484 commandes sont bloquées au statut <b>uploaded</b>, la plus ancienne depuis le 20 mai.
+        Aucune commande n'a jamais atteint <b>scanned</b>. Tant que la sortie n'est pas enregistrée,
+        le stock affiché est surévalué de <b>3 148 unités — ≈20 570 LYD + 23 610 TND</b>.
+        685 unités retournées n'ont jamais été réintégrées.
+      </div>
+      <div class="ba">
+        <button class="btn btn-sm">Ouvrir la file de scan</button>
+        <button class="btn btn-sm">Lancer un inventaire physique</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 tuiles -->
+  <div class="tiles">
+    <div class="tile">
+      <div class="top">
+        <span class="ico t-brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg></span>
+        <span class="lbl">Valeur du stock</span>
+      </div>
+      <div class="val" style="font-size:26px;font-weight:650;letter-spacing:-.022em">69 800<span class="cur">LYD</span></div>
+      <div class="comp">
+        <i style="background:var(--c-engage);width:15.2%"></i>
+        <i style="background:var(--c-actif);width:5.6%"></i>
+        <i style="background:var(--c-immobile);width:79.2%"></i>
+      </div>
+      <div class="legend">
+        <span><b style="background:var(--c-engage)"></b>Engagé <em>10 578</em></span>
+        <span><b style="background:var(--c-actif)"></b>Actif <em>3 900</em></span>
+        <span><b style="background:var(--c-immobile)"></b>Immobile <em>55 322</em></span>
+      </div>
+      <div class="foot">Au coût d'achat · maintenant</div>
+    </div>
+
+    <div class="tile hot">
+      <div class="top">
+        <span class="ico t-bad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
+        <span class="lbl">Rupture la plus proche</span>
+      </div>
+      <div class="val" style="font-size:22px;font-weight:650;color:var(--bad)" dir="auto">صغير — à découvert</div>
+      <div class="sub">239 engagées pour 216 en registre. Rien à expédier sur les prochaines commandes.</div>
+      <div class="foot">Ensuite : متوسط, rupture le 28 sept. (45 j) · demande sur 28 j</div>
+    </div>
+
+    <div class="tile warm">
+      <div class="top">
+        <span class="ico t-warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
+        <span class="lbl">Capital dormant</span>
+      </div>
+      <div class="val">55 322<span class="cur">LYD</span></div>
+      <div class="sub"><b style="font-weight:650">79 %</b> du stock libyen n'a aucune demande derrière lui.</div>
+      <div class="foot">2 produits sans vente depuis 41 j · 1 produit à 761 j de couverture</div>
+    </div>
+
+    <div class="tile hot">
+      <div class="top">
+        <span class="ico t-bad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></span>
+        <span class="lbl">Fiabilité</span>
+      </div>
+      <div class="val" style="color:var(--bad)">−3 148<span class="cur">u</span></div>
+      <div class="sub">Écart entre le registre et le flux de commandes, tous marchés.</div>
+      <div class="foot">5 produits sur 6 en stock non vérifié · dernier ajustement le 8 juil. (37 j)</div>
+    </div>
+  </div>
+
+  <!-- tableau produits -->
+  <div class="sec">
+    <div class="sec-h">
+      <span class="t">Produits</span>
+      <span class="scope">position maintenant · demande sur 28 j</span>
+      <span class="act"><button class="btn btn-sm">Exporter</button></span>
+    </div>
+    <div class="card" style="padding:6px 6px 2px">
+      <div class="rows">
+        <div class="rows-h">
+          <span>Produit</span><span>Position</span><span>Couverture</span>
+          <span>Demande 28 j</span><span class="te">Retours</span><span class="te">Valeur</span><span class="te">Verdict</span>
+        </div>
+        <ul id="rowlist"></ul>
+      </div>
+    </div>
+    <div class="note">
+      <b>La colonne Position est la nouveauté.</b> Un seul chiffre de stock ne suffit pas dans un modèle COD :
+      les unités engagées sont déjà promises à un client et ne sont pas vendables, et les retours en cours
+      reviendront. <b>Libre à vendre = registre − engagé</b> — c'est le seul nombre sur lequel on peut décider
+      de relancer une publicité.
+    </div>
+  </div>
+
+  <!-- bas de page -->
+  <div class="sec two">
+    <div>
+      <div class="sec-h"><span class="t">Où va le capital</span><span class="scope">au coût · maintenant</span></div>
+      <div class="card pad">
+        <div class="capbar" id="capbar"></div>
+        <div class="legend" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+          <span><b style="background:var(--c-engage)"></b>Engagé — chez le transporteur</span>
+          <span><b style="background:var(--c-actif)"></b>Actif — ≤ 90 j de couverture</span>
+          <span><b style="background:var(--c-immobile)"></b>Immobile — aucune demande ou &gt; 90 j</span>
+        </div>
+        <div class="note" style="margin-top:14px">
+          <b>القرآن تدبر وعمل porte 54 % du capital stock libyen</b> — 37 880 LYD — sans une seule vente
+          depuis 41 jours. C'est le plus gros arbitrage de la page.
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-h"><span class="t">À faire</span><span class="scope">4 actions · chiffrées</span></div>
+      <div class="card" style="padding:4px 6px">
+        <ul class="todo">
+          <li>
+            <span class="ico ico-sm t-info" style="margin-top:1px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v6"/><path d="m8 7 4-4 4 4"/><path d="M4 14h16v7H4z"/></svg></span>
+            <div class="td">
+              <div class="tt">Synchroniser le stock Darb Assabil</div>
+              <div class="tx">5 produits · quantité réelle jamais lue · <code style="font-family:ui-monospace,monospace;font-size:11px;background:var(--sunken);padding:1px 4px;border-radius:3px">fetchDarbWarehouseStock()</code></div>
+            </div>
+            <span class="tm">69 800 <span style="font-size:.72em;color:var(--ink-3)">LYD</span></span>
+            <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span>
+          </li>
+          <li>
+            <span class="ico ico-sm t-warn" style="margin-top:1px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18"/><path d="M6 7v13h12V7"/><path d="M9 11v5"/><path d="M15 11v5"/></svg></span>
+            <div class="td">
+              <div class="tt">Scanner les 507 unités en attente</div>
+              <div class="tx">484 commandes en <b>uploaded</b> · la plus ancienne depuis 86 j</div>
+            </div>
+            <span class="tm">−3 148 <span style="font-size:.72em;color:var(--ink-3)">u</span></span>
+            <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span>
+          </li>
+          <li>
+            <span class="ico ico-sm t-bad" style="margin-top:1px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
+            <div class="td">
+              <div class="tt" dir="auto">القرآن تدبر وعمل — relancer ou liquider</div>
+              <div class="tx">947 unités immobiles · aucune vente depuis 41 j · 11 % de retours</div>
+            </div>
+            <span class="tm">37 880 <span style="font-size:.72em;color:var(--ink-3)">LYD</span></span>
+            <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span>
+          </li>
+          <li>
+            <span class="ico ico-sm t-bad" style="margin-top:1px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
+            <div class="td">
+              <div class="tt" dir="auto">دميه ملاكمه حجم صغير — compter physiquement</div>
+              <div class="tx">239 engagées pour 216 en registre · flux de commandes à −136</div>
+            </div>
+            <span class="tm">−23 <span style="font-size:.72em;color:var(--ink-3)">u</span></span>
+            <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="sec" style="margin-top:16px">
+        <div class="sec-h"><span class="t">Marché Tunisie</span><span class="scope">1 produit actif + 2 produits de test</span></div>
+        <div class="card pad">
+          <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+            <span style="font-size:13.5px;font-weight:600">Biovera</span>
+            <span class="pill p-bad">Dormant 110 j</span>
+            <span class="pill p-bad">Écart −2 361 u</span>
+          </div>
+          <p class="hint" style="margin-top:8px">
+            2 848 unités sont sorties, 487 sont revenues, le registre n'a jamais bougé de 1 000.
+            Le flux de commandes place le stock réel à <b style="color:var(--bad)">−1 361</b> :
+            <b>23 610 TND</b> de valeur surévaluée. Aucune vente depuis le 26 avril.
+          </p>
+          <p class="hint" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line)">
+            <b>« Produit Test E2E »</b> et <b>« E2E Test Product »</b> comptent encore pour
+            <b>2 490 TND</b> de valeur de stock fantôme et gonflent le compteur « produits suivis ».
+            À archiver.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════
+     ÉCRAN 3 — ANATOMIE
+     ══════════════════════════════════════════════════════════════ -->
+<section class="screen" id="s-anat">
+  <div class="phead"><div>
+    <h1>Anatomie d'une ligne</h1>
+    <p class="sub">D'où vient chaque chiffre, et ce qu'il déclenche. Exemple : دميه ملاكمه حجم متوسط.</p>
+  </div></div>
+
+  <div class="anat">
+    <div class="rows">
+      <div class="mkrow">
+        <span class="mk">1</span><span class="mk">2</span><span class="mk">3</span>
+        <span class="mk">4</span><span class="mk">5</span><span class="mk">6</span><span class="mk">7</span>
+      </div>
+      <div class="anat-row">
+        <div>
+          <div class="pname" dir="auto">دميه ملاكمه حجم متوسط</div>
+          <div class="pmeta">
+            <span class="src src-carrier">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-4l-3-4h-5v8h2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+              Darb Tripoli
+            </span>
+            <span class="cap">LY · 20,00 LYD/u</span>
+          </div>
+        </div>
+        <div>
+          <div class="pos">
+            <i style="background:var(--c-actif);width:46.5%"></i>
+            <i style="background:var(--c-engage);width:53.5%"></i>
+          </div>
+          <div class="posx"><b>200</b> registre · <b>107</b> engagés · <b>93</b> libres</div>
+        </div>
+        <div>
+          <div class="cov warm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+            45 j
+          </div>
+          <div class="covx">Rupture 28 sept.<br>Commander avant le 7 sept.</div>
+        </div>
+        <div>
+          <svg class="spark" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true">
+            <polyline fill="none" stroke="#8C9196" stroke-width="1.4" vector-effect="non-scaling-stroke"
+              points="0,8.6 14.3,22.1 28.6,23.3 42.9,25 57.1,25 71.4,25 85.7,3 100,4.3"/>
+          </svg>
+          <div class="dem">58 u · 2,1/j</div>
+        </div>
+        <div class="te"><div class="ret hi">31 %</div><div class="retx"><i class="hi" style="width:62%"></i></div></div>
+        <div class="te"><div class="val">4 000</div><div class="valx">LYD au coût</div></div>
+        <div class="te"><span class="pill p-warn">Réappro 7 sept.</span></div>
+      </div>
+    </div>
+
+    <div class="dl">
+      <div class="it">
+        <span class="mk">1</span>
+        <div class="k">Produit &amp; source</div>
+        <div class="v">La puce <b>Darb Tripoli</b> vient de <code>carrier_product_mappings.external_warehouse_id</code>.
+          Elle dit qui détient physiquement la marchandise — donc quel chiffre fait foi. Les produits sans mapping
+          portent <b>Entrepôt propre</b> et restent sur le registre.</div>
+        <div class="a">Sans cette puce, on ne sait pas si « 200 » est un fait ou une saisie.</div>
+      </div>
+      <div class="it">
+        <span class="mk">2</span>
+        <div class="k">Position</div>
+        <div class="v"><b>Registre</b> = <code>products.current_stock</code>.
+          <b>Engagé</b> = unités des commandes en <code>uploaded, dispatching, dispatched, deposit, in_transit,
+          unverified, received</code> — déjà promises, pas encore livrées.
+          <b>Libre à vendre</b> = registre − engagé. Un liseré rouge hachuré apparaît quand l'engagé dépasse le registre.</div>
+        <div class="a">→ Relancer ou couper la publicité. C'est le seul chiffre vendable.</div>
+      </div>
+      <div class="it">
+        <span class="mk">3</span>
+        <div class="k">Couverture</div>
+        <div class="v">libre ÷ demande/jour, converti en <b>date de rupture</b> puis en <b>date de commande</b>
+          via <code>supplier_lead_time_days</code> (nouveau réglage par marché, table <code>settings</code>, aucune migration).
+          Échelle d'ancienneté §4.17 D, toujours accompagnée d'un glyphe.</div>
+        <div class="a">→ Une date se met dans un agenda. « 45 j » non.</div>
+      </div>
+      <div class="it">
+        <span class="mk">4</span>
+        <div class="k">Demande</div>
+        <div class="v">Unités des commandes ayant atteint <code>uploaded</code> ou au-delà, par semaine, sur la fenêtre
+          choisie. <b>Pas</b> <code>inventory_log</code> : ce journal compte 16 lignes en tout.
+          Les commandes <code>rejected</code> / <code>cancelled</code> sont exclues — elles n'ont jamais consommé de stock.</div>
+        <div class="a">Le creux de juillet est réel : 238 commandes contre 1 260 en juin.</div>
+      </div>
+      <div class="it">
+        <span class="mk">5</span>
+        <div class="k">Retours</div>
+        <div class="v">retournées ÷ (livrées + retournées), depuis <code>product_return_rate_view</code> qui existe déjà.
+          Ambre au-delà de 25 %.</div>
+        <div class="a">À 31 %, la couverture ment : une unité sur trois revient. C'est le taux le plus haut du catalogue.</div>
+      </div>
+      <div class="it">
+        <span class="mk">6</span>
+        <div class="k">Valeur</div>
+        <div class="v"><code>current_stock × unit_cogs</code>, au coût, jamais au prix de vente. Devise depuis
+          <code>markets.currency</code> — les produits n'ont pas de colonne devise.</div>
+        <div class="a">Somme interdite entre TND et LYD — la portée « tous marchés » masque le total.</div>
+      </div>
+      <div class="it">
+        <span class="mk">7</span>
+        <div class="k">Verdict</div>
+        <div class="v">Une seule puce, dérivée dans cet ordre : découvert → réappro → dormant → excédent → sain.
+          Remplace les cinq compteurs de santé, qui affichaient « 5 sains / 0 / 0 / 0 / 0 ».</div>
+        <div class="a">→ La colonne se lit en diagonale : ce qui n'est pas « Sain » demande une décision.</div>
+      </div>
+    </div>
+
+    <div class="kb">
+      <div class="b">
+        <div class="h">Supprimé</div>
+        <div class="x">Les 5 tuiles de santé · « Mouvements par jour » · « Mouvements récents » ·
+          la colonne rotation (× 30 j) · le compteur <code>damaged_count</code> calculé et jamais affiché.</div>
+      </div>
+      <div class="b">
+        <div class="h">Réutilisé</div>
+        <div class="x"><code>MetricTile</code> · <code>Section</code> · <code>PeriodTabs</code> ·
+          le patron de lignes de <code>CarrierTable</code> · <code>product_return_rate_view</code> ·
+          <code>fetchDarbWarehouseStock()</code> · la couche de confiance <code>lib/dashboard/confidence</code>.</div>
+      </div>
+      <div class="b">
+        <div class="h">Coût schéma</div>
+        <div class="x"><b>Aucune migration.</b> Un seul nouveau réglage <code>supplier_lead_time_days</code>
+          dans <code>settings</code>, qui est une table clé/valeur jsonb.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ══════════════ DONNÉES — production réelle, 14 août 2026 ══════════════
+   Source : projet Supabase vshynigvgrlihngozuwb.
+   `carrierStock` est le seul champ non mesurable d'ici (API Darb, identifiants
+   live) — il est marqué `unknown` et rendu comme tel. */
+const PRODUCTS = [
+  { name:"دميه ملاكمه حجم صغير", src:"carrier", cur:"LYD", cogs:24.998,
+    stock:216, committed:239, reconciled:-136, d28:61, rate:2.18, ret:21.0,
+    weeks:[45,8,5,0,0,0,35,26], value:5400,
+    cover:null, coverTxt:"à découvert", coverTone:"late", coverX:"Aucune unité libre",
+    verdict:{t:"Réappro urgent", tone:"bad"} },
+
+  { name:"دميه ملاكمه حجم متوسط", src:"carrier", cur:"LYD", cogs:20.002,
+    stock:200, committed:107, reconciled:25, d28:58, rate:2.07, ret:31.3,
+    weeks:[19,3,2,0,0,0,30,28], value:4000,
+    cover:45, coverTone:"warm", coverX:"Rupture 28 sept.<br>Commander avant le 7 sept.",
+    verdict:{t:"Réappro 7 sept.", tone:"warn"} },
+
+  { name:"دميه ملاكمه حجم كبير", src:"carrier", cur:"LYD", cogs:30,
+    stock:600, committed:29, reconciled:541, d28:21, rate:0.75, ret:23.1,
+    weeks:[9,0,2,0,0,0,13,8], value:18000,
+    cover:761, coverTone:"calm", coverX:"Rupture en sept. 2028<br>15 090 LYD au-delà de 90 j",
+    verdict:{t:"Excédent 761 j", tone:"neutral"} },
+
+  { name:"القرآن تدبر وعمل", src:"carrier", cur:"LYD", cogs:40,
+    stock:1000, committed:53, reconciled:854, d28:0, rate:0, ret:11.4,
+    weeks:[40,43,7,0,0,0,0,0], value:40000,
+    cover:null, coverTxt:"—", coverTone:"calm", coverX:"Aucune vente depuis 41 j",
+    verdict:{t:"Dormant 41 j", tone:"bad"} },
+
+  { name:"كتاب الداء والدواء للإمام ابن القيم", src:"carrier", cur:"LYD", cogs:12,
+    stock:200, committed:4, reconciled:145, d28:0, rate:0, ret:19.0,
+    weeks:[43,24,0,0,0,0,0,0], value:2400,
+    cover:null, coverTxt:"—", coverTone:"calm", coverX:"Aucune vente depuis 41 j",
+    verdict:{t:"Dormant 41 j", tone:"bad"} },
+];
+
+const nf = n => new Intl.NumberFormat("fr-FR").format(Math.round(n));
+const TONE = { bad:"p-bad", warn:"p-warn", ok:"p-ok", info:"p-info", neutral:"p-neutral" };
+
+const GLYPH = {
+  late:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+  warm:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+  calm:''
+};
+const TRUCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-4l-3-4h-5v8h2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>';
+const HOME  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10 12 3l9 7v10H3z"/></svg>';
+
+/* sparkline — trait neutre (--chart-line), jamais une couleur de statut */
+function spark(vals){
+  const max = Math.max(1, ...vals);
+  const pts = vals.map((v,i) => {
+    const x = (i / (vals.length - 1)) * 100;
+    const y = 25 - (v / max) * 22;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  return `<svg class="spark" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true">
+    <polyline fill="none" stroke="#8C9196" stroke-width="1.4" vector-effect="non-scaling-stroke" points="${pts}"/>
+  </svg>`;
+}
+
+function posBar(stock, committed){
+  const scale = Math.max(stock, committed);
+  const free  = Math.max(0, stock - committed);
+  const eng   = Math.min(stock, committed);
+  const def   = Math.max(0, committed - stock);
+  return `<div class="pos">
+    ${free ? `<i style="background:var(--c-actif);width:${(free/scale*100).toFixed(1)}%"></i>` : ""}
+    ${eng  ? `<i style="background:var(--c-engage);width:${(eng/scale*100).toFixed(1)}%"></i>` : ""}
+    ${def  ? `<i class="def" style="width:${(def/scale*100).toFixed(1)}%"></i>` : ""}
+  </div>`;
+}
+
+document.getElementById("rowlist").innerHTML = PRODUCTS.map(p => {
+  const free = p.stock - p.committed;
+  const freeTxt = free < 0
+    ? `<span class="neg">${nf(free)}</span> libres`
+    : `<b>${nf(free)}</b> libres`;
+  const covMain = p.cover != null ? `${nf(p.cover)} j` : (p.coverTxt ?? "—");
+  return `<li>
+    <div>
+      <div class="pname" dir="auto">${p.name}</div>
+      <div class="pmeta">
+        <span class="src ${p.src === "carrier" ? "src-carrier" : "src-own"}">
+          ${p.src === "carrier" ? TRUCK + "Darb Tripoli" : HOME + "Entrepôt propre"}
+        </span>
+        <span class="cap tnum">${p.cogs.toLocaleString("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2})} ${p.cur}/u</span>
+      </div>
+    </div>
+    <div>
+      ${posBar(p.stock, p.committed)}
+      <div class="posx"><b>${nf(p.stock)}</b> registre · <b>${nf(p.committed)}</b> engagés · ${freeTxt}</div>
+    </div>
+    <div>
+      <div class="cov ${p.coverTone}">${GLYPH[p.coverTone] || ""}${covMain}</div>
+      <div class="covx">${p.coverX}</div>
+    </div>
+    <div>
+      ${spark(p.weeks)}
+      <div class="dem">${nf(p.d28)} u · ${p.rate.toLocaleString("fr-FR",{minimumFractionDigits:1,maximumFractionDigits:1})}/j</div>
+    </div>
+    <div class="te">
+      <div class="ret ${p.ret > 25 ? "hi" : ""}">${p.ret.toLocaleString("fr-FR",{maximumFractionDigits:0})} %</div>
+      <div class="retx"><i class="${p.ret > 25 ? "hi" : ""}" style="width:${Math.min(100, p.ret*2).toFixed(0)}%"></i></div>
+    </div>
+    <div class="te">
+      <div class="val">${nf(p.value)}</div>
+      <div class="valx">${p.cur} au coût</div>
+    </div>
+    <div class="te"><span class="pill ${TONE[p.verdict.tone]}">${p.verdict.t}</span></div>
+  </li>`;
+}).join("");
+
+/* ── « Où va le capital » — engagé / actif / immobile par produit ── */
+const CAP = [
+  { n:"القرآن تدبر وعمل",        eng:2120, act:0,    imm:37880 },
+  { n:"دميه ملاكمه حجم كبير",    eng:870,  act:2040, imm:15090 },
+  { n:"دميه ملاكمه حجم صغير",    eng:5400, act:0,    imm:0     },
+  { n:"دميه ملاكمه حجم متوسط",   eng:2140, act:1860, imm:0     },
+  { n:"كتاب الداء والدواء",      eng:48,   act:0,    imm:2352  },
+];
+const CAPMAX = Math.max(...CAP.map(c => c.eng + c.act + c.imm));
+document.getElementById("capbar").innerHTML = CAP.map(c => {
+  const tot = c.eng + c.act + c.imm;
+  const w = v => (v / CAPMAX * 100).toFixed(1);
+  return `<div class="capitem">
+    <div>
+      <div class="nm" dir="auto">${c.n}</div>
+      <div class="tr" style="margin-top:5px">
+        ${c.eng ? `<i style="background:var(--c-engage);width:${w(c.eng)}%"></i>` : ""}
+        ${c.act ? `<i style="background:var(--c-actif);width:${w(c.act)}%"></i>` : ""}
+        ${c.imm ? `<i style="background:var(--c-immobile);width:${w(c.imm)}%"></i>` : ""}
+      </div>
+    </div>
+    <div class="mv">${nf(tot)}<span style="font-size:.72em;color:var(--ink-3);margin-inline-start:3px">LYD</span></div>
+  </div>`;
+}).join("");
+
+/* ── onglets prototype ── */
+document.querySelectorAll(".ptabs button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".ptabs button").forEach(x => x.setAttribute("aria-selected", String(x === b)));
+    document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === "s-" + b.dataset.s));
+    window.scrollTo({ top: 0 });
+  });
+});
+document.querySelectorAll(".tabs button").forEach(b => {
+  b.addEventListener("click", () => {
+    b.parentElement.querySelectorAll("button").forEach(x => x.setAttribute("aria-selected", String(x === b)));
+  });
+});
+</script>
+</body>
+</html>

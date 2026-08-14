@@ -1,210 +1,289 @@
 import { describe, it, expect } from "vitest";
 import {
-  avgDailySales,
-  daysOfSupply,
-  turnoverRate,
+  effectiveWindowDays,
+  demandRatePerDay,
+  demandConfidence,
+  daysOfCover,
+  addDaysISO,
+  daysBetweenISO,
+  stockOutDate,
+  reorderByDate,
+  returnRate,
+  computeDrift,
+  chooseBucketDays,
+  classifyStockState,
+  splitCapital,
   damagedRate,
-  classifyHealth,
-  reorderSuggestions,
-  bucketMovementsByDay,
   isDamagedOutlier,
-  computeProductIntelligence,
 } from "../inventory-intelligence";
+import { CONFIDENCE_LOW_MIN, CONFIDENCE_OK_MIN } from "@/lib/dashboard/confidence";
 
-describe("avgDailySales", () => {
-  it("divides scan-out quantity by the window size", () => {
-    expect(avgDailySales(30, 30)).toBe(1);
+const NOW = new Date("2026-08-14T12:00:00Z");
+const TODAY = "2026-08-14";
+
+describe("effectiveWindowDays", () => {
+  it("narrows the window to the product's actual selling life", () => {
+    // A product first shipped 3 days into a 90-day window sells at units/3, not
+    // units/90 — the latter reports a thirtieth of the truth and hides a stockout.
+    expect(effectiveWindowDays(90, "2026-08-11T00:00:00Z", NOW)).toBe(3);
   });
-  it("handles fractional result with full precision", () => {
-    expect(avgDailySales(10, 30)).toBeCloseTo(0.333, 3);
+  it("never exceeds the nominal window", () => {
+    expect(effectiveWindowDays(28, "2026-01-01T00:00:00Z", NOW)).toBe(28);
   });
-  it("returns 0 when window is 0", () => {
-    expect(avgDailySales(10, 0)).toBe(0);
+  it("falls back to the nominal window when nothing has shipped", () => {
+    expect(effectiveWindowDays(28, null, NOW)).toBe(28);
   });
-  it("returns 0 when scan-outs is 0", () => {
-    expect(avgDailySales(0, 30)).toBe(0);
+  it("never returns zero, even for a shipment made today", () => {
+    expect(effectiveWindowDays(28, "2026-08-14T09:00:00Z", NOW)).toBe(1);
   });
 });
 
-describe("daysOfSupply", () => {
-  it("divides stock by average daily sales", () => {
-    expect(daysOfSupply(60, 2)).toBe(30);
+describe("demandRatePerDay", () => {
+  it("divides units by the effective window", () => {
+    expect(demandRatePerDay(28, 28)).toBe(1);
   });
-  it("returns null when no sales activity (can't predict)", () => {
-    expect(daysOfSupply(10, 0)).toBeNull();
+  it("is zero when there is no demand", () => {
+    expect(demandRatePerDay(0, 28)).toBe(0);
   });
-  it("returns 0 when stock is 0", () => {
-    expect(daysOfSupply(0, 2)).toBe(0);
-  });
-  it("rounds down to whole days (conservative — don't claim coverage you don't have)", () => {
-    expect(daysOfSupply(10, 3)).toBe(3);
+  it("is zero rather than infinite when the window collapses", () => {
+    expect(demandRatePerDay(10, 0)).toBe(0);
   });
 });
 
-describe("turnoverRate", () => {
-  it("returns cycles within window: scanOutQty / currentStock", () => {
-    expect(turnoverRate(30, 10)).toBe(3);
+describe("demandConfidence", () => {
+  it("refuses to judge an empty sample", () => {
+    expect(demandConfidence(0)).toBe("none");
   });
-  it("returns 0 when stock is 0 (no denominator)", () => {
-    expect(turnoverRate(30, 0)).toBe(0);
+  it("refuses just below the low threshold", () => {
+    expect(demandConfidence(CONFIDENCE_LOW_MIN - 1)).toBe("none");
   });
-  it("returns 0 when there were no scan-outs", () => {
-    expect(turnoverRate(0, 10)).toBe(0);
+  it("is low at the low threshold", () => {
+    expect(demandConfidence(CONFIDENCE_LOW_MIN)).toBe("low");
+  });
+  it("is ok at the ok threshold", () => {
+    expect(demandConfidence(CONFIDENCE_OK_MIN)).toBe("ok");
+  });
+  it("uses the shared dashboard thresholds, not its own literals", () => {
+    expect(demandConfidence(CONFIDENCE_OK_MIN - 1)).toBe("low");
+  });
+});
+
+describe("daysOfCover", () => {
+  it("divides free-to-sell by the daily rate", () => {
+    expect(daysOfCover(60, 2)).toBe(30);
+  });
+  it("floors a fractional result", () => {
+    expect(daysOfCover(10, 3)).toBe(3);
+  });
+  it("is unknowable — not infinite — when nothing sells", () => {
+    expect(daysOfCover(10, 0)).toBeNull();
+  });
+  it("is zero when there is nothing free to sell", () => {
+    expect(daysOfCover(0, 2)).toBe(0);
+  });
+  it("reads zero, never negative, when a product is oversold", () => {
+    // صغير in production: 216 in the register against 239 committed.
+    expect(daysOfCover(-23, 2)).toBe(0);
+  });
+});
+
+describe("date helpers", () => {
+  it("adds days across a month boundary", () => {
+    expect(addDaysISO("2026-08-28", 10)).toBe("2026-09-07");
+  });
+  it("subtracts with a negative offset", () => {
+    expect(addDaysISO("2026-09-07", -14)).toBe("2026-08-24");
+  });
+  it("counts whole days between two dates", () => {
+    expect(daysBetweenISO("2026-08-14", "2026-09-07")).toBe(24);
+  });
+  it("returns a negative count when the target is in the past", () => {
+    expect(daysBetweenISO("2026-08-14", "2026-08-10")).toBe(-4);
+  });
+});
+
+describe("stockOutDate", () => {
+  it("projects the cover forward from today", () => {
+    expect(stockOutDate(TODAY, 10)).toBe("2026-08-24");
+  });
+  it("is null when cover is unknowable", () => {
+    expect(stockOutDate(TODAY, null)).toBeNull();
+  });
+  it("is today when there is no cover left", () => {
+    expect(stockOutDate(TODAY, 0)).toBe(TODAY);
+  });
+});
+
+describe("reorderByDate", () => {
+  it("backs the lead time off the stock-out date", () => {
+    expect(reorderByDate("2026-08-24", 14)).toBe("2026-08-10");
+  });
+  it("is null when there is no stock-out date", () => {
+    expect(reorderByDate(null, 14)).toBeNull();
+  });
+  it("returns a date in the past rather than clamping to today", () => {
+    // Clamping would erase the alarm: a stock-out inside the lead time means
+    // the order is already late, and the page has to say so.
+    expect(reorderByDate("2026-08-16", 14)).toBe("2026-08-02");
+  });
+});
+
+describe("returnRate", () => {
+  it("divides returns by everything that resolved", () => {
+    expect(returnRate(3, 7)).toBe(0.3);
+  });
+  it("is null — not zero — when nothing has resolved", () => {
+    expect(returnRate(0, 0)).toBeNull();
+  });
+});
+
+describe("computeDrift", () => {
+  const base = {
+    currentStock: 100,
+    ledgerSumUnits: 100,
+    shippedUnitsAllTime: 0,
+    returnedToShelfUnitsAllTime: 0,
+    damagedReturnCount: 0,
+    unitCost: 10,
+  };
+
+  it("reports no drift on a reconciled product", () => {
+    expect(computeDrift(base).units).toBe(0);
+  });
+
+  it("measures the production case: stock shipped but never scanned", () => {
+    // The number this redesign exists to surface.
+    const d = computeDrift({ ...base, shippedUnitsAllTime: 507 });
+    expect(d.expectedStock).toBe(-407);
+    expect(d.units).toBe(507);
+    expect(d.value).toBe(5070);
+  });
+
+  it("credits units that came back to the shelf", () => {
+    const d = computeDrift({
+      ...base,
+      shippedUnitsAllTime: 50,
+      returnedToShelfUnitsAllTime: 20,
+    });
+    expect(d.expectedStock).toBe(70);
+    expect(d.units).toBe(30);
+  });
+
+  it("does not credit damaged returns — they never go back on the shelf", () => {
+    const d = computeDrift({
+      ...base,
+      shippedUnitsAllTime: 50,
+      returnedToShelfUnitsAllTime: 20,
+      damagedReturnCount: 5,
+    });
+    expect(d.expectedStock).toBe(65);
+  });
+});
+
+describe("chooseBucketDays", () => {
+  it("buckets short windows by day", () => {
+    expect(chooseBucketDays(7)).toBe(1);
+    expect(chooseBucketDays(28)).toBe(1);
+  });
+  it("buckets a quarter by week so a sparkline stays readable", () => {
+    expect(chooseBucketDays(90)).toBe(7);
+  });
+});
+
+describe("classifyStockState", () => {
+  const base = {
+    freeToSell: 100,
+    physicalStock: 100,
+    demandUnits: 50,
+    coverDays: 60 as number | null,
+    reorderByDateISO: "2026-12-01" as string | null,
+    todayISO: TODAY,
+    leadTimeDays: 14,
+    confidence: "ok" as const,
+  };
+
+  it("calls an oversold product out, however good its cover looks", () => {
+    expect(classifyStockState({ ...base, freeToSell: -23, coverDays: 900 })).toBe("out");
+  });
+  it("calls a product with stock and zero demand dead", () => {
+    expect(classifyStockState({ ...base, demandUnits: 0, coverDays: null, confidence: "none" })).toBe("dead");
+  });
+  it("prefers dead over unknown — zero demand is a fact, not a thin sample", () => {
+    expect(
+      classifyStockState({ ...base, demandUnits: 0, coverDays: null, confidence: "none" }),
+    ).not.toBe("unknown");
+  });
+  it("admits it cannot judge a thin sample", () => {
+    expect(classifyStockState({ ...base, demandUnits: 4, confidence: "none" })).toBe("unknown");
+  });
+  it("raises reorder_now once the reorder date has passed", () => {
+    expect(classifyStockState({ ...base, reorderByDateISO: "2026-08-10" })).toBe("reorder_now");
+  });
+  it("watches a product that runs out soon", () => {
+    expect(classifyStockState({ ...base, coverDays: 20, reorderByDateISO: "2026-09-01" })).toBe("watch");
+  });
+  it("flags capital sitting on a year of cover", () => {
+    expect(classifyStockState({ ...base, coverDays: 761, reorderByDateISO: null })).toBe("overstocked");
+  });
+  it("leaves a healthy product alone", () => {
+    expect(classifyStockState(base)).toBe("ok");
+  });
+});
+
+describe("splitCapital", () => {
+  it("partitions stock value into three buckets that sum to the whole", () => {
+    const s = splitCapital({
+      physicalStock: 600,
+      committed: 29,
+      ratePerDay: 0.75,
+      unitCost: 30,
+    });
+    expect(s.engaged + s.active + s.dormant).toBeCloseTo(600 * 30, 6);
+  });
+
+  it("counts units on the road as engaged", () => {
+    const s = splitCapital({ physicalStock: 600, committed: 29, ratePerDay: 0.75, unitCost: 30 });
+    expect(s.engaged).toBe(29 * 30);
+  });
+
+  it("treats everything past 90 days of cover as dormant", () => {
+    // كبير: 571 free at 0.75/day is 761 days of cover. 90 days is ~68 units.
+    const s = splitCapital({ physicalStock: 600, committed: 29, ratePerDay: 0.75, unitCost: 30 });
+    expect(s.active).toBe(68 * 30);
+    expect(s.dormant).toBe(503 * 30);
+  });
+
+  it("calls the whole shelf dormant when nothing sells", () => {
+    const s = splitCapital({ physicalStock: 1000, committed: 53, ratePerDay: 0, unitCost: 40 });
+    expect(s.active).toBe(0);
+    expect(s.dormant).toBe(947 * 40);
+  });
+
+  it("caps engaged at what is physically there when a product is oversold", () => {
+    const s = splitCapital({ physicalStock: 216, committed: 239, ratePerDay: 2.18, unitCost: 25 });
+    expect(s.engaged).toBe(216 * 25);
+    expect(s.active).toBe(0);
+    expect(s.dormant).toBe(0);
   });
 });
 
 describe("damagedRate", () => {
-  it("damaged / total returns", () => {
-    expect(damagedRate(3, 10)).toBe(0.3);
+  it("divides damaged units by total returns", () => {
+    expect(damagedRate(5, 20)).toBe(0.25);
   });
-  it("returns 0 when no returns at all", () => {
-    expect(damagedRate(0, 0)).toBe(0);
-  });
-});
-
-describe("classifyHealth", () => {
-  it("out when current stock <= 0", () => {
-    expect(classifyHealth({ currentStock: 0, threshold: 5, daysOfSupplyVal: 20 })).toBe("out");
-  });
-  it("low when current stock below threshold", () => {
-    expect(classifyHealth({ currentStock: 3, threshold: 5, daysOfSupplyVal: 7 })).toBe("low");
-  });
-  it("low when days-of-supply < 14 even if above threshold", () => {
-    expect(classifyHealth({ currentStock: 10, threshold: 5, daysOfSupplyVal: 10 })).toBe("low");
-  });
-  it("overstocked when days-of-supply > 90", () => {
-    expect(classifyHealth({ currentStock: 500, threshold: 5, daysOfSupplyVal: 180 })).toBe("overstocked");
-  });
-  it("healthy for normal range", () => {
-    expect(classifyHealth({ currentStock: 50, threshold: 5, daysOfSupplyVal: 45 })).toBe("healthy");
-  });
-  it("healthy when days-of-supply cannot be computed (no sales) but stock above threshold", () => {
-    expect(classifyHealth({ currentStock: 50, threshold: 5, daysOfSupplyVal: null })).toBe("healthy");
-  });
-  it("low when threshold is 0 but stock is positive and days-of-supply < 14", () => {
-    expect(classifyHealth({ currentStock: 10, threshold: 0, daysOfSupplyVal: 5 })).toBe("low");
-  });
-});
-
-describe("reorderSuggestions", () => {
-  it("returns only products that will stock out within horizon days, sorted by urgency (fewest days first)", () => {
-    const products = [
-      { id: "a", name: "A", currentStock: 2, avgDailySales: 1, daysOfSupplyVal: 2 }, // 2 days - urgent
-      { id: "b", name: "B", currentStock: 100, avgDailySales: 1, daysOfSupplyVal: 100 }, // safe
-      { id: "c", name: "C", currentStock: 5, avgDailySales: 1, daysOfSupplyVal: 5 }, // 5 days
-      { id: "d", name: "D", currentStock: 0, avgDailySales: 1, daysOfSupplyVal: 0 }, // already out - most urgent
-      { id: "e", name: "E", currentStock: 50, avgDailySales: 0, daysOfSupplyVal: null }, // no data, skipped
-    ];
-    const result = reorderSuggestions(products, { horizonDays: 14 });
-    expect(result.map((p) => p.id)).toEqual(["d", "a", "c"]);
-  });
-
-  it("returns empty when no product is at risk", () => {
-    const products = [
-      { id: "a", name: "A", currentStock: 100, avgDailySales: 1, daysOfSupplyVal: 100 },
-    ];
-    expect(reorderSuggestions(products, { horizonDays: 14 })).toHaveLength(0);
-  });
-
-  it("skips products with no sales (daysOfSupplyVal=null) — can't predict", () => {
-    const products = [{ id: "a", name: "A", currentStock: 0, avgDailySales: 0, daysOfSupplyVal: null }];
-    expect(reorderSuggestions(products, { horizonDays: 14 })).toHaveLength(0);
+  it("is zero when there are no returns", () => {
+    expect(damagedRate(5, 0)).toBe(0);
   });
 });
 
 describe("isDamagedOutlier", () => {
-  it("flags product whose damaged rate exceeds 2x the mean rate (and above floor)", () => {
-    expect(isDamagedOutlier(0.3, 0.1)).toBe(true);
+  it("flags a product at twice the mean", () => {
+    expect(isDamagedOutlier(0.4, 0.2)).toBe(true);
   });
-  it("does NOT flag when rate is below 2x mean", () => {
-    expect(isDamagedOutlier(0.15, 0.1)).toBe(false);
+  it("ignores a rate below the noise floor", () => {
+    expect(isDamagedOutlier(0.05, 0.02)).toBe(false);
   });
-  it("does NOT flag when the rate is below the absolute floor (0.1) even if statistically high", () => {
-    expect(isDamagedOutlier(0.05, 0.01)).toBe(false);
-  });
-  it("does NOT flag when mean rate is 0 (no data)", () => {
-    expect(isDamagedOutlier(0.5, 0)).toBe(false);
-  });
-});
-
-describe("bucketMovementsByDay", () => {
-  it("groups movements by YYYY-MM-DD and sums net change per day", () => {
-    const rows = [
-      { created_at: "2026-04-22T09:00:00Z", change: -2 },
-      { created_at: "2026-04-22T14:00:00Z", change: -3 },
-      { created_at: "2026-04-23T08:00:00Z", change: 1 },
-      { created_at: "2026-04-23T10:00:00Z", change: -1 },
-    ];
-    const result = bucketMovementsByDay(rows);
-    expect(result).toHaveLength(2);
-    expect(result[0].day).toBe("2026-04-23");
-    expect(result[0].net_change).toBe(0);
-    expect(result[0].movement_count).toBe(2);
-    expect(result[1].day).toBe("2026-04-22");
-    expect(result[1].net_change).toBe(-5);
-    expect(result[1].movement_count).toBe(2);
-  });
-
-  it("returns empty array when there are no rows", () => {
-    expect(bucketMovementsByDay([])).toEqual([]);
-  });
-});
-
-describe("computeProductIntelligence", () => {
-  it("composes per-product intelligence from raw product + scan-out stats", () => {
-    const result = computeProductIntelligence({
-      id: "p1",
-      name: "Widget",
-      current_stock: 30,
-      low_stock_threshold: 5,
-      unit_cost: 4,
-      damaged_return_count: 3,
-      scan_out_qty_30d: 60, // 2/day
-      returns_qty_30d: 10,
-      meanDamagedRate: 0.1,
-    });
-
-    expect(result.id).toBe("p1");
-    expect(result.stock_value).toBe(120); // 30 * 4
-    expect(result.avg_daily_sales).toBeCloseTo(2, 3);
-    expect(result.days_of_supply).toBe(15); // 30/2
-    expect(result.turnover_30d).toBe(2); // 60/30
-    expect(result.damaged_rate).toBe(0.3); // 3/10
-    expect(result.is_damaged_outlier).toBe(true); // 0.3 > 0.2 and above floor
-    expect(result.health).toBe("healthy");
-  });
-
-  it("handles no-sales product: null days-of-supply, healthy when above threshold", () => {
-    const result = computeProductIntelligence({
-      id: "p2",
-      name: "Dormant",
-      current_stock: 50,
-      low_stock_threshold: 5,
-      unit_cost: 1,
-      damaged_return_count: 0,
-      scan_out_qty_30d: 0,
-      returns_qty_30d: 0,
-      meanDamagedRate: 0.1,
-    });
-    expect(result.days_of_supply).toBeNull();
-    expect(result.avg_daily_sales).toBe(0);
-    expect(result.turnover_30d).toBe(0);
-    expect(result.health).toBe("healthy");
-  });
-
-  it("out-of-stock classification when current_stock is 0", () => {
-    const result = computeProductIntelligence({
-      id: "p3",
-      name: "Empty",
-      current_stock: 0,
-      low_stock_threshold: 5,
-      unit_cost: 2,
-      damaged_return_count: 0,
-      scan_out_qty_30d: 30,
-      returns_qty_30d: 0,
-      meanDamagedRate: 0.1,
-    });
-    expect(result.health).toBe("out");
-    expect(result.days_of_supply).toBe(0);
+  it("ignores everything when there is no mean to compare against", () => {
+    expect(isDamagedOutlier(0.4, 0)).toBe(false);
   });
 });

@@ -223,6 +223,40 @@ export function termToOrFilter(term: SearchTerm): string {
   return legs.join(",");
 }
 
+/** One ILIKE leg: match column `c` against `%v%`. */
+export interface SearchLeg {
+  c: string;
+  v: string;
+}
+
+/**
+ * The same term, shaped for a SQL function instead of a PostgREST filter string.
+ *
+ * `get_order_facet_counts` cannot take a PostgREST `or=(…)` body, so the legs
+ * travel as data. Built from the same `parseSearch` output as
+ * `termToOrFilter`, and column-for-column identical to it — if the two ever
+ * disagreed, the count on a facet option would not match the rows the same
+ * search returns in the table.
+ */
+export function termToLegs(term: SearchTerm): SearchLeg[] {
+  if (term.field) {
+    const value = term.phone && term.field === "phone" ? term.phone : term.value;
+    return FIELD_COLUMNS[term.field].map((c) => ({ c, v: value }));
+  }
+  const legs: SearchLeg[] = FREE_COLUMNS.map((c) => ({ c, v: term.value }));
+  if (term.phone) {
+    for (const c of FIELD_COLUMNS.phone) legs.push({ c, v: term.phone });
+  }
+  return legs;
+}
+
+/** Whole query as term-groups. `null` when nothing is searchable. */
+export function searchToLegs(raw: string | undefined): SearchLeg[][] | null {
+  const terms = parseSearch(raw ?? "");
+  if (terms.length === 0) return null;
+  return terms.map(termToLegs);
+}
+
 /**
  * Apply a parsed search to a PostgREST query builder.
  *

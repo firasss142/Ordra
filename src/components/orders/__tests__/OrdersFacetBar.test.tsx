@@ -188,6 +188,141 @@ describe("OrdersFacetBar", () => {
     expect(screen.getByRole("button", { name: /Agent/i })).toHaveTextContent("tasnim");
   });
 
+  describe("custom date range", () => {
+    const openDate = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(screen.getByRole("button", { name: /^Date/i }));
+      return screen.getByRole("listbox", { name: /^Date/i });
+    };
+
+    test("offers an explicit from/to range beside the presets", async () => {
+      const user = userEvent.setup();
+      renderBar();
+
+      const menu = await openDate(user);
+
+      // The presets answer "recently"; only a range answers "that week".
+      expect(within(menu).getByLabelText(/^Du$/i)).toBeDefined();
+      expect(within(menu).getByLabelText(/^Au$/i)).toBeDefined();
+    });
+
+    test("applies both bounds together", async () => {
+      const user = userEvent.setup();
+      const { onChange } = renderBar();
+
+      const menu = await openDate(user);
+      await user.type(within(menu).getByLabelText(/^Du$/i), "2026-08-01");
+      await user.type(within(menu).getByLabelText(/^Au$/i), "2026-08-12");
+      await user.click(within(menu).getByRole("button", { name: /appliquer/i }));
+
+      expect(onChange).toHaveBeenCalledWith({ dateFrom: "2026-08-01", dateTo: "2026-08-12" });
+    });
+
+    test("an open-ended range is allowed", async () => {
+      const user = userEvent.setup();
+      const { onChange } = renderBar();
+
+      const menu = await openDate(user);
+      await user.type(within(menu).getByLabelText(/^Du$/i), "2026-08-01");
+      await user.click(within(menu).getByRole("button", { name: /appliquer/i }));
+
+      expect(onChange).toHaveBeenCalledWith({ dateFrom: "2026-08-01", dateTo: null });
+    });
+
+    test("refuses a backwards range instead of filtering to nothing", async () => {
+      const user = userEvent.setup();
+      const { onChange } = renderBar();
+
+      const menu = await openDate(user);
+      await user.type(within(menu).getByLabelText(/^Du$/i), "2026-08-12");
+      await user.type(within(menu).getByLabelText(/^Au$/i), "2026-08-01");
+      await user.click(within(menu).getByRole("button", { name: /appliquer/i }));
+
+      // Silently returning zero rows would read as "no orders that week".
+      expect(onChange).not.toHaveBeenCalled();
+      expect(menu).toHaveTextContent(/doit précéder/i);
+    });
+
+    test("seeds the inputs from the range already applied", async () => {
+      const user = userEvent.setup();
+      renderBar({
+        filters: { ...DEFAULT_FILTERS, dateFrom: "2026-08-01", dateTo: "2026-08-12" },
+      });
+
+      const menu = await openDate(user);
+
+      expect(within(menu).getByLabelText(/^Du$/i)).toHaveValue("2026-08-01");
+      expect(within(menu).getByLabelText(/^Au$/i)).toHaveValue("2026-08-12");
+    });
+
+    test("a preset clears any custom upper bound it does not set", async () => {
+      const user = userEvent.setup();
+      const { onChange } = renderBar({
+        filters: { ...DEFAULT_FILTERS, dateFrom: "2026-08-01", dateTo: "2026-08-12" },
+      });
+
+      const menu = await openDate(user);
+      await user.click(within(menu).getByRole("option", { name: /7 derniers jours/i }));
+
+      // A preset is one period, not a lower bound grafted onto an old upper one.
+      expect(onChange.mock.calls[0][0].dateTo).toBeNull();
+      expect(onChange.mock.calls[0][0].dateFrom).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+  });
+
+  describe("per-option counts", () => {
+    const COUNTS = {
+      statuses: { pending: 41, rejected: 17 },
+      agents: { a1: 204, unassigned: 9 },
+      cities: { بنغازي: 88 },
+      products: { p1: 12 },
+      carriers: { c1: 30 },
+    };
+
+    test("says what each option would yield before it is picked", async () => {
+      const user = userEvent.setup();
+      renderBar({ counts: COUNTS });
+
+      await user.click(screen.getByRole("button", { name: /Appel/i }));
+      const pending = screen.getByRole("option", { name: /En attente/i });
+
+      expect(pending).toHaveTextContent("41");
+    });
+
+    test("an option with nothing behind it reads zero rather than blank", async () => {
+      const user = userEvent.setup();
+      renderBar({ counts: COUNTS });
+
+      await user.click(screen.getByRole("button", { name: /Appel/i }));
+      // Absent from the payload means no rows matched — that is a 0, and
+      // leaving it blank would read as "not counted yet". The number is part of
+      // the accessible name too, so it is not a sighted-only affordance.
+      expect(screen.getByRole("option", { name: /^Confirmé 0$/i })).toBeInTheDocument();
+    });
+
+    test("counts reach every dimension, not just status", async () => {
+      const user = userEvent.setup();
+      renderBar({ counts: COUNTS });
+
+      await user.click(screen.getByRole("button", { name: /Agent/i }));
+      expect(screen.getByRole("option", { name: /tasnim/i })).toHaveTextContent("204");
+      expect(screen.getByRole("option", { name: /Non assigné/i })).toHaveTextContent("9");
+
+      await user.click(screen.getByRole("button", { name: /Transporteur/i }));
+      expect(screen.getByRole("option", { name: /Sanad/i })).toHaveTextContent("30");
+    });
+
+    test("shows no numbers at all until they arrive", async () => {
+      const user = userEvent.setup();
+      renderBar();
+
+      await user.click(screen.getByRole("button", { name: /Appel/i }));
+
+      // A menu full of zeros while the request is in flight reads as "this
+      // market has nothing", which is a different and wrong answer.
+      expect(screen.getByRole("option", { name: /En attente/i })).not.toHaveTextContent(/\d/);
+    });
+  });
+
   test("a menu still loading says so rather than claiming there is nothing", async () => {
     // An empty product menu reads as "this market sells nothing", which is a
     // different and wrong answer from "the list has not arrived".

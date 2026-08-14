@@ -65,6 +65,13 @@ export function formatMeta(alert: Alert, t: AlertsTranslator): string {
 
   if (alert.type === "stock_depleted") return t(key);
 
+  // The reading is the gap itself, in units. An elapsed time would answer a
+  // question nobody asked — how long the shelf has been wrong matters less than
+  // by how much, and the severity ladder already carries the age.
+  if (alert.type === "stock_unreconciled") {
+    return t(key, { count: Number(alert.meta?.drift_units ?? 0) });
+  }
+
   const value = formatDuration(alert.age_minutes, t);
 
   if (alert.type === "attempts_stalled") {

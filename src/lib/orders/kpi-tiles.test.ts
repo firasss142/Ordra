@@ -1,9 +1,9 @@
 import { describe, test, expect } from "vitest";
-import { filtersForTile, tileForFilters } from "./kpi-tiles";
+import { filtersForTile, resolveKpiWindow, tileForFilters, todayIso } from "./kpi-tiles";
 import { DEFAULT_FILTERS } from "./list-filters";
 import type { KpiTile } from "@/components/orders/OrdersKpiStrip";
 
-const TILES: KpiTile[] = ["unassigned", "today", "waiting", "toRecall", "uploaded", "rejected"];
+const TILES: KpiTile[] = ["unassigned", "today", "uploaded", "rejected", "delivered", "toRecall"];
 
 describe("kpi tile ↔ filter mapping", () => {
   test("every tile round-trips back to itself", () => {
@@ -16,7 +16,13 @@ describe("kpi tile ↔ filter mapping", () => {
 
   test("clearing returns to the unfiltered list", () => {
     const cleared = filtersForTile(null);
-    expect(cleared).toEqual({ preset: "all", statuses: [], agentId: null });
+    expect(cleared).toEqual({
+      preset: "all",
+      statuses: [],
+      agentId: null,
+      dateFrom: null,
+      dateTo: null,
+    });
     expect(tileForFilters({ ...DEFAULT_FILTERS, ...cleared })).toBeNull();
   });
 
@@ -26,15 +32,84 @@ describe("kpi tile ↔ filter mapping", () => {
   });
 
   test("hand-edited filters match no tile rather than mislabelling one", () => {
-    const custom = { ...DEFAULT_FILTERS, statuses: ["delivered"], agentId: null, preset: "all" as const };
+    const custom = { ...DEFAULT_FILTERS, statuses: ["cancelled"], agentId: null, preset: "all" as const };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(tileForFilters(custom as any)).toBeNull();
+  });
+
+  test("delivered selects the delivered status", () => {
+    const f = filtersForTile("delivered");
+    expect(f.statuses).toEqual(["delivered"]);
+    expect(f.agentId).toBeNull();
+    expect(f.preset).toBe("all");
+  });
+
+  test("the removed 'waiting' tile no longer resolves", () => {
+    // `pending` alone used to be a tile. It was replaced by `delivered`; a
+    // leftover ?status=pending URL must highlight nothing rather than a tile
+    // that is no longer on screen.
+    const pendingOnly = { ...DEFAULT_FILTERS, statuses: ["pending"], agentId: null, preset: "all" as const };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(tileForFilters(pendingOnly as any)).toBeNull();
   });
 
   test("statuses are copied, so a caller cannot mutate the tile definitions", () => {
     const a = filtersForTile("toRecall");
     a.statuses.push("delivered" as never);
     expect(filtersForTile("toRecall").statuses).not.toContain("delivered");
+  });
+
+  test("an outcome tile carries its window into the table", () => {
+    // Otherwise "Rejetées · aujourd'hui" (16) opens every rejection ever (1 926).
+    const f = filtersForTile("rejected", { from: "2026-08-01", to: "2026-08-12" });
+    expect(f.dateFrom).toBe("2026-08-01");
+    expect(f.dateTo).toBe("2026-08-12");
+  });
+
+  test("an outcome tile with no window given falls back to today", () => {
+    const f = filtersForTile("delivered");
+    expect(f.dateFrom).toBe(todayIso());
+    expect(f.dateTo).toBeNull();
+  });
+
+  test("a queue tile carries no window — a backlog has no date", () => {
+    for (const tile of ["unassigned", "toRecall"] as const) {
+      const f = filtersForTile(tile, { from: "2026-08-01", to: "2026-08-12" });
+      expect(f.dateFrom).toBeNull();
+      expect(f.dateTo).toBeNull();
+    }
+  });
+
+  test("the window defaults to today and otherwise mirrors the filters", () => {
+    expect(resolveKpiWindow({ dateFrom: null, dateTo: null })).toEqual({
+      from: todayIso(),
+      to: null,
+    });
+    expect(resolveKpiWindow({ dateFrom: "2026-08-01", dateTo: "2026-08-12" })).toEqual({
+      from: "2026-08-01",
+      to: "2026-08-12",
+    });
+  });
+
+  test("an outcome status with no window highlights nothing", () => {
+    // The tile counts today; an unbounded table shows every rejection. They
+    // disagree, so the strip must not claim that tile is where you are.
+    const unbounded = {
+      ...DEFAULT_FILTERS,
+      statuses: ["rejected"],
+      preset: "all" as const,
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(tileForFilters(unbounded as any)).toBeNull();
+  });
+
+  test("a queue tile stops being active once a window is applied", () => {
+    const windowed = {
+      ...DEFAULT_FILTERS,
+      ...filtersForTile("toRecall"),
+      dateFrom: "2026-08-01",
+    };
+    expect(tileForFilters(windowed)).toBeNull();
   });
 
   test("unassigned selects by owner, not by status", () => {

@@ -2,6 +2,7 @@ import { describe, test, expect } from "vitest";
 import {
   applySearch,
   parseSearch,
+  searchToLegs,
   termToOrFilter,
   toNationalDigits,
 } from "./search-query";
@@ -147,4 +148,34 @@ describe("applySearch", () => {
     applySearch(fake, undefined);
     expect(calls).toEqual([]);
   });
+});
+
+describe("searchToLegs", () => {
+    test("one group per term, so the groups AND like the query does", () => {
+      const legs = searchToLegs("salima 925");
+      expect(legs).toHaveLength(2);
+    });
+
+    test("a bare term covers the same columns as the PostgREST filter", () => {
+      // Drift between these two means a facet option's count would not match
+      // the rows the same search returns in the table.
+      const [term] = parseSearch("salima");
+      const cols = searchToLegs("salima")![0].map((l) => l.c);
+      for (const c of cols) expect(termToOrFilter(term)).toContain(`${c}.ilike.`);
+      expect(new Set(cols).size).toBe(cols.length);
+    });
+
+    test("a phone term carries its national digits, not what was typed", () => {
+      const legs = searchToLegs("tel:0925782017")!;
+      expect(legs[0].every((l) => l.v === "925782017")).toBe(true);
+      expect(legs[0].map((l) => l.c)).toEqual(["customer_phone", "customer_phone_2"]);
+    });
+
+    test("nothing searchable yields null rather than an empty match-all", () => {
+      expect(searchToLegs("")).toBeNull();
+      expect(searchToLegs(undefined)).toBeNull();
+      // A single character is below the term floor and must not become a leg
+      // that matches most of the table.
+      expect(searchToLegs("a")).toBeNull();
+    });
 });

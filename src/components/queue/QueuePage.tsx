@@ -46,7 +46,10 @@ const CreateOrderModal = dynamic(() =>
 type Flow =
   | "option_select"
   | "reject_flow"
-  | "callback_expanded";
+  | "callback_expanded"
+  // Not a screen: the sheet opens, fires the confirmation straight away and
+  // lands on the carrier step. Sent by the panel's "Confirmer" button.
+  | "confirm_now";
 
 const jsonFetcher = (url: string) =>
   fetch(url).then((r) => {
@@ -840,9 +843,11 @@ export function QueuePage() {
             : null
         }
         onClose={() => setSelectedOrderId(null)}
-        onCallTerminated={(id) => {
+        onCallTerminated={(id, ctx) => {
           setSelectedOrderId(null);
-          setInitialFlow(undefined);
+          // The panel's footer now names the outcome, so the sheet opens on
+          // that step instead of asking the question a second time.
+          setInitialFlow(ctx?.flow);
           setCallTerminatedOrderId(id);
         }}
         role="agent"

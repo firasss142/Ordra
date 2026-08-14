@@ -68,6 +68,9 @@ export interface OrderDetail {
 }
 
 export type PanelActionKind =
+  | "confirm"
+  | "callback"
+  | "reject"
   | "endCall"
   | "uploadToCarrier"
   | "uploadNow"
@@ -98,6 +101,12 @@ export interface PanelAction {
 
 export interface PanelActions {
   primary: PanelAction;
+  /**
+   * The other ways a call can end, rendered as buttons beside the primary.
+   * Only the in-confirmation group has any: everywhere else the panel has one
+   * next step, not a choice between three.
+   */
+  outcomes?: PanelAction[];
   overflow: PanelAction[];
 }
 

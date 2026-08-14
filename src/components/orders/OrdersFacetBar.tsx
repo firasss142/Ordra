@@ -32,6 +32,12 @@ export interface FacetOption {
   label: string;
   selected: boolean;
   icon?: React.ReactNode;
+  /**
+   * How many orders picking this would yield, given every other active filter.
+   * `undefined` while the counts are in flight — a menu of zeros would read as
+   * "this market has nothing", which is a different and wrong answer.
+   */
+  count?: number;
 }
 
 interface AgentLike {
@@ -68,6 +74,21 @@ interface Props {
   resultCount: number | null;
   /** Option lists still in flight, so their menus can say so. */
   loading?: { products?: boolean; carriers?: boolean; cities?: boolean };
+  /**
+   * How many orders each option would yield, counted server-side with every
+   * other filter applied but not the option's own facet. Undefined until the
+   * first response lands.
+   */
+  counts?: FacetCounts;
+}
+
+/** Per-option counts, keyed by the value each facet's options carry. */
+export interface FacetCounts {
+  statuses: Record<string, number>;
+  agents: Record<string, number>;
+  cities: Record<string, number>;
+  products: Record<string, number>;
+  carriers: Record<string, number>;
 }
 
 const CALL_STATUSES = [
@@ -112,6 +133,7 @@ export function OrdersFacetBar({
   cities,
   resultCount,
   loading,
+  counts,
 }: Props) {
   const t = useTranslations("orders");
   const tf = useTranslations("orders.facets");
@@ -147,6 +169,15 @@ export function OrdersFacetBar({
   };
   const toggle = (id: string) => setOpen(open === id ? null : id);
 
+  /**
+   * An option's count. A key the server did not return means nothing matched,
+   * which is a 0 — but only once the counts have arrived at all. Before that
+   * it stays undefined so the menu shows no numbers rather than a wall of
+   * zeros it would have to take back.
+   */
+  const at = (dim: keyof FacetCounts, key: string): number | undefined =>
+    counts ? counts[dim][key] ?? 0 : undefined;
+
   /** OR within a facet: picking a second value widens the set. */
   const toggleStatus = (value: string) => {
     const next = filters.statuses.includes(value as OrderStatus)
@@ -167,6 +198,24 @@ export function OrdersFacetBar({
         : { dateFrom: from, dateTo: null },
     );
   };
+
+  /**
+   * What the active date period is called, in one place so the facet button and
+   * the chip cannot describe the same filter differently.
+   *
+   * A preset reads by its own name; only a hand-picked range needs its dates
+   * spelled out. Rendering "2026-08-06 → …" for what the user picked as
+   * "7 derniers jours" makes a preset look like something they typed.
+   */
+  const dateLabel = (() => {
+    if (!dateActive) return null;
+    const preset =
+      !filters.dateTo && DATE_RANGES.find((r) => filters.dateFrom === isoDaysAgo(rangeDays(r)));
+    if (preset) return tf(preset);
+    if (filters.dateFrom && filters.dateTo) return `${filters.dateFrom} → ${filters.dateTo}`;
+    if (filters.dateFrom) return `${tf("dateFrom")} ${filters.dateFrom}`;
+    return `${tf("dateTo")} ${filters.dateTo}`;
+  })();
 
   const chips: { key: string; label: string; clear: Partial<OrderListFilters> }[] = [];
   for (const s of filters.statuses) {
@@ -204,7 +253,7 @@ export function OrdersFacetBar({
   if (dateActive) {
     chips.push({
       key: "date",
-      label: `${filters.dateFrom ?? "…"} → ${filters.dateTo ?? "…"}`,
+      label: dateLabel as string,
       clear: { dateFrom: null, dateTo: null },
     });
   }
@@ -235,6 +284,7 @@ export function OrdersFacetBar({
             value: s,
             label: label(s),
             selected: filters.statuses.includes(s as OrderStatus),
+            count: at("statuses", s),
           }))}
           onSelect={toggleStatus}
         />
@@ -248,6 +298,7 @@ export function OrdersFacetBar({
             value: s,
             label: label(s),
             selected: filters.statuses.includes(s as OrderStatus),
+            count: at("statuses", s),
           }))}
           onSelect={toggleStatus}
         />
@@ -264,12 +315,14 @@ export function OrdersFacetBar({
               label: tf("unassigned"),
               selected: filters.agentId === "unassigned",
               icon: <AgentAvatar name={null} size={20} />,
+              count: at("agents", "unassigned"),
             },
             ...agents.map((a) => ({
               value: a.id,
               label: a.full_name,
               selected: filters.agentId === a.id,
               icon: <AgentAvatar name={a.full_name} size={20} />,
+              count: at("agents", a.id),
             })),
           ]}
           onSelect={(v) => onChange({ agentId: filters.agentId === v ? null : v })}
@@ -282,10 +335,24 @@ export function OrdersFacetBar({
           logic={tf("onePeriod")}
           options={DATE_RANGES.map((r) => ({
             value: r,
+            // A preset is only "the" active period while it owns both bounds;
+            // with a custom upper bound in play the lower bound matching by
+            // coincidence does not make it the selected preset.
             label: tf(r),
-            selected: filters.dateFrom === isoDaysAgo(rangeDays(r)),
+            selected: filters.dateFrom === isoDaysAgo(rangeDays(r)) && !filters.dateTo,
           }))}
           onSelect={applyRange}
+          valueLabel={dateLabel}
+          footer={
+            <DateRangeFields
+              from={filters.dateFrom}
+              to={filters.dateTo}
+              onApply={(dateFrom, dateTo) => {
+                onChange({ dateFrom, dateTo });
+                setOpen(null);
+              }}
+            />
+          }
         />
         <Facet
           label={t("columns.city")}
@@ -295,7 +362,12 @@ export function OrdersFacetBar({
           logic={tf("anyOfF")}
           searchable
           loading={loading?.cities}
-          options={cities.map((c) => ({ value: c, label: c, selected: filters.city === c }))}
+          options={cities.map((c) => ({
+            value: c,
+            label: c,
+            selected: filters.city === c,
+            count: at("cities", c),
+          }))}
           onSelect={(v) => onChange({ city: filters.city === v ? "" : v })}
         />
         <Facet
@@ -311,6 +383,7 @@ export function OrdersFacetBar({
             label: p.name,
             selected: filters.productId === p.id,
             icon: <ProductAvatar imageUrl={p.image_url ?? null} productName={p.name} size={20} />,
+            count: at("products", p.id),
           }))}
           onSelect={(v) => onChange({ productId: filters.productId === v ? null : v })}
         />
@@ -327,6 +400,7 @@ export function OrdersFacetBar({
             label: c.name,
             selected: filters.carrierId === c.id,
             icon: <CarrierMark name={c.name} size={20} />,
+            count: at("carriers", c.id),
           }))}
           onSelect={(v) => onChange({ carrierId: filters.carrierId === v ? null : v })}
         />
@@ -399,6 +473,8 @@ function Facet({
   loading,
   options,
   onSelect,
+  footer,
+  valueLabel,
 }: {
   label: string;
   count: number;
@@ -410,6 +486,14 @@ function Facet({
   loading?: boolean;
   options: FacetOption[];
   onSelect: (value: string) => void;
+  /** Extra controls below the options — the date facet's explicit range. */
+  footer?: React.ReactNode;
+  /**
+   * What the closed button should say it is set to, when that is not simply the
+   * one selected option — a custom date range is set via the footer and matches
+   * no option, but must still name itself rather than show a bare count.
+   */
+  valueLabel?: string | null;
 }) {
   const tf = useTranslations("orders.facets");
   const [q, setQ] = useState("");
@@ -426,7 +510,7 @@ function Facet({
    * on a chip.
    */
   const selectedLabels = options.filter((o) => o.selected).map((o) => o.label);
-  const value = selectedLabels.length === 1 ? selectedLabels[0] : null;
+  const value = valueLabel ?? (selectedLabels.length === 1 ? selectedLabels[0] : null);
 
   return (
     <div className="relative">
@@ -501,12 +585,108 @@ function Facet({
                   onSelect={() => onSelect(o.value)}
                   label={o.label}
                   icon={o.icon}
+                  count={o.count}
                 />
               ))
             )}
           </div>
+          {footer}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * An explicit from/to range, under the presets rather than instead of them.
+ *
+ * The presets answer "recently"; they cannot answer "that week in August",
+ * which is the question anyone reconciling a carrier invoice is actually
+ * asking. Applied on a button rather than on change, because a half-typed
+ * `2026-08-0` would otherwise fire a query per keystroke against a bound the
+ * user has not finished stating.
+ */
+function DateRangeFields({
+  from,
+  to,
+  onApply,
+}: {
+  from: string | null;
+  to: string | null;
+  onApply: (from: string | null, to: string | null) => void;
+}) {
+  const tf = useTranslations("orders.facets");
+  const [draftFrom, setDraftFrom] = useState(from ?? "");
+  const [draftTo, setDraftTo] = useState(to ?? "");
+  const [error, setError] = useState(false);
+
+  // Re-seed whenever the applied range changes underneath — clearing the date
+  // chip must empty these too, or reopening the menu offers a range that is no
+  // longer in force.
+  useEffect(() => {
+    setDraftFrom(from ?? "");
+    setDraftTo(to ?? "");
+    setError(false);
+  }, [from, to]);
+
+  const submit = () => {
+    const f = draftFrom || null;
+    const t = draftTo || null;
+    // An inverted range matches nothing, and "0 commandes" reads as an answer
+    // about the data rather than a mistake in the filter.
+    if (f && t && f > t) {
+      setError(true);
+      return;
+    }
+    setError(false);
+    onApply(f, t);
+  };
+
+  const field =
+    "h-[30px] w-full rounded-md border border-oms-border bg-oms-sunken px-2 text-[12.5px] tabular-nums text-oms-ink-1 outline-none focus:border-brand focus:bg-oms-surface";
+
+  return (
+    <div className="border-t border-oms-border bg-oms-sunken px-3 py-2.5">
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-oms-ink-3">
+        {tf("custom")}
+      </div>
+      <div className="flex items-end gap-2">
+        <label className="min-w-0 flex-1">
+          <span className="mb-1 block text-[11px] text-oms-ink-2">{tf("dateFrom")}</span>
+          <input
+            type="date"
+            value={draftFrom}
+            max={draftTo || undefined}
+            onChange={(e) => setDraftFrom(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            className={field}
+          />
+        </label>
+        <label className="min-w-0 flex-1">
+          <span className="mb-1 block text-[11px] text-oms-ink-2">{tf("dateTo")}</span>
+          <input
+            type="date"
+            value={draftTo}
+            min={draftFrom || undefined}
+            onChange={(e) => setDraftTo(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            className={field}
+          />
+        </label>
+      </div>
+      {error && (
+        <p role="alert" className="mt-1.5 text-[11px] text-hue-red-ink">
+          {tf("invalidRange")}
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={submit}
+        disabled={!draftFrom && !draftTo}
+        className="mt-2 h-[30px] w-full rounded-md bg-brand text-[12.5px] font-semibold text-white transition-colors duration-fast hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-oms-border-strong"
+      >
+        {tf("apply")}
+      </button>
     </div>
   );
 }
@@ -516,12 +696,19 @@ function Option({
   onSelect,
   label,
   icon,
+  count,
 }: {
   selected: boolean;
   onSelect: () => void;
   label: string;
   icon?: React.ReactNode;
+  count?: number;
 }) {
+  const locale = useLocale();
+  const nf = useMemo(
+    () => new Intl.NumberFormat(locale === "ar" ? "ar" : "fr-FR"),
+    [locale],
+  );
   return (
     <button
       type="button"
@@ -550,9 +737,22 @@ function Option({
         )}
       </span>
       {icon}
-      <span dir="auto" className="min-w-0 truncate">
+      <span dir="auto" className="min-w-0 flex-1 truncate">
         {label}
       </span>
+      {/* What picking this would return. An option that would empty the table
+          says 0 rather than staying silent about it — that is the single most
+          useful thing the number tells you. */}
+      {count !== undefined && (
+        <span
+          className={
+            "flex-none tabular-nums text-[11.5px] " +
+            (count === 0 ? "text-oms-ink-3 opacity-60" : "text-oms-ink-2")
+          }
+        >
+          {nf.format(count)}
+        </span>
+      )}
     </button>
   );
 }

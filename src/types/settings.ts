@@ -30,7 +30,33 @@ export interface MarketSettings {
   agent_inactivity_minutes?: number;
   attempt_retry_times?: string[];
   shift_config?: ShiftConfig;
+  /**
+   * Days between placing a supplier order and the goods being sellable.
+   *
+   * The stock console subtracts it from a product's projected stock-out to get
+   * the date an order must actually be placed. There is no purchase-order table,
+   * so this answers "when must an order be placed IF NONE HAS BEEN" — it cannot
+   * account for stock already inbound.
+   */
+  supplier_lead_time_days?: number;
+  /**
+   * Minutes an order may wait between intake and phone confirmation.
+   *
+   * Read by the order panel's SLA chip. It measures the confirmation phase
+   * only — the carrier's own delivery time is the carrier's problem and is
+   * tracked separately.
+   */
+  sla_minutes?: number;
 }
+
+/** Applied per market until someone sets a real one in Réglages. */
+export const DEFAULT_SUPPLIER_LEAD_TIME_DAYS = 14;
+
+/** Two hours. Applied per market until someone sets a real one in Réglages. */
+export const DEFAULT_SLA_MINUTES = 120;
+
+/** A week. Past this a target stops being a service level. */
+const MAX_SLA_MINUTES = 10_080;
 
 export const DEFAULT_SHIFT_CONFIG: ShiftConfig = {
   start: "08:00",
@@ -48,6 +74,8 @@ export const DEFAULT_MARKET_SETTINGS: MarketSettings = {
   active_agents_only: false,
   attempt_retry_times: [],
   shift_config: DEFAULT_SHIFT_CONFIG,
+  supplier_lead_time_days: DEFAULT_SUPPLIER_LEAD_TIME_DAYS,
+  sla_minutes: DEFAULT_SLA_MINUTES,
 };
 
 export interface CarrierConfig {
@@ -101,6 +129,28 @@ export function isValidMarketSettings(obj: unknown): obj is MarketSettings {
       if (mins <= prevMinutes) return false;
       prevMinutes = mins;
     }
+  }
+  if (s.supplier_lead_time_days !== undefined) {
+    // Whole days only: the value is subtracted from a date, and a fractional
+    // lead time would produce a reorder deadline nobody can act on.
+    if (
+      typeof s.supplier_lead_time_days !== "number" ||
+      !Number.isInteger(s.supplier_lead_time_days) ||
+      s.supplier_lead_time_days < 0 ||
+      s.supplier_lead_time_days > 365
+    )
+      return false;
+  }
+  if (s.sla_minutes !== undefined) {
+    // Whole minutes only, and never zero: a zero target would report every
+    // order as breached the instant it arrived.
+    if (
+      typeof s.sla_minutes !== "number" ||
+      !Number.isInteger(s.sla_minutes) ||
+      s.sla_minutes < 1 ||
+      s.sla_minutes > MAX_SLA_MINUTES
+    )
+      return false;
   }
   if (s.shift_config !== undefined) {
     if (!isValidShiftConfig(s.shift_config)) return false;

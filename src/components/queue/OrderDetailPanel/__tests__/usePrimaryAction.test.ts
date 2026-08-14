@@ -25,24 +25,73 @@ function input(overrides: Partial<PrimaryActionInputs> = {}): PrimaryActionInput
   };
 }
 
-describe("resolvePanelActions — primary CTA", () => {
-  it("returns endCall for pending", () => {
-    const { primary } = resolvePanelActions(input({ order: { status: "pending", assigned_to: "agent-1", updated_at: RECENT, tracking_number: null, carrier_barcode_deleted_at: null } }));
-    expect(primary.kind).toBe("endCall");
-    expect(primary.labelKey).toBe("actions.endCall");
+const inConfirmation = (status: string, overrides: Partial<PrimaryActionInputs> = {}) =>
+  resolvePanelActions(
+    input({
+      order: {
+        status,
+        assigned_to: "agent-1",
+        updated_at: RECENT,
+        tracking_number: null,
+        carrier_barcode_deleted_at: null,
+      },
+      ...overrides,
+    }),
+  );
+
+describe("resolvePanelActions — the three call outcomes", () => {
+  it("leads with confirm on pending", () => {
+    const { primary } = inConfirmation("pending");
+    expect(primary.kind).toBe("confirm");
+    expect(primary.labelKey).toBe("actions.confirm");
   });
 
-  it("returns endCall for every attempt_* status", () => {
+  it("offers callback and reject beside it, in that order", () => {
+    const { outcomes } = inConfirmation("pending");
+    expect(outcomes?.map((o) => o.kind)).toEqual(["callback", "reject"]);
+  });
+
+  it("marks reject as destructive so it never wears the confirm colour", () => {
+    const { outcomes } = inConfirmation("pending");
+    expect(outcomes?.find((o) => o.kind === "reject")?.destructive).toBe(true);
+  });
+
+  it("offers the same three outcomes on every attempt_* status", () => {
     for (const status of ["attempt_1", "attempt_2", "attempt_3"]) {
-      const { primary } = resolvePanelActions(input({ order: { status, assigned_to: "agent-1", updated_at: RECENT, tracking_number: null, carrier_barcode_deleted_at: null } }));
-      expect(primary.kind).toBe("endCall");
+      const { primary, outcomes } = inConfirmation(status);
+      expect(primary.kind).toBe("confirm");
+      expect(outcomes).toHaveLength(2);
     }
   });
 
-  it("returns endCall for callback_scheduled", () => {
-    const { primary } = resolvePanelActions(input({ order: { status: "callback_scheduled", assigned_to: "agent-1", updated_at: RECENT, tracking_number: null, carrier_barcode_deleted_at: null } }));
-    expect(primary.kind).toBe("endCall");
+  it("offers them on callback_scheduled too", () => {
+    expect(inConfirmation("callback_scheduled").primary.kind).toBe("confirm");
   });
+
+  it("keeps the full call sheet one click away, since no-answer has no button", () => {
+    // "Sans réponse" is the outcome the three buttons dropped. It stays
+    // reachable through the overflow rather than disappearing.
+    const { overflow } = inConfirmation("pending");
+    expect(overflow[0].kind).toBe("endCall");
+  });
+
+  it("offers no outcomes once the call is behind us", () => {
+    const { outcomes } = resolvePanelActions(
+      input({
+        order: {
+          status: "confirmed",
+          assigned_to: "agent-1",
+          updated_at: RECENT,
+          tracking_number: null,
+          carrier_barcode_deleted_at: null,
+        },
+      }),
+    );
+    expect(outcomes ?? []).toHaveLength(0);
+  });
+});
+
+describe("resolvePanelActions — primary CTA", () => {
 
   it("returns uploadToCarrier for confirmed when an active carrier exists", () => {
     const { primary } = resolvePanelActions(input({ order: { status: "confirmed", assigned_to: "agent-1", updated_at: RECENT, tracking_number: null, carrier_barcode_deleted_at: null } }));

@@ -27,16 +27,21 @@ import type { StatusCounts } from "@/app/api/orders/status-counts/route";
 export type KpiTile =
   | "unassigned"
   | "today"
-  | "waiting"
-  | "toRecall"
   | "uploaded"
-  | "rejected";
+  | "rejected"
+  | "delivered"
+  | "toRecall";
 
 interface StageDef {
-  key: Extract<KpiTile, "today" | "waiting" | "toRecall" | "uploaded" | "rejected">;
+  key: Extract<KpiTile, "today" | "uploaded" | "rejected" | "delivered" | "toRecall">;
   count: (c: StatusCounts) => number;
-  /** Backlog ("maintenant") vs period count ("aujourd'hui") — labelled on every tile. */
-  period: "now" | "today";
+  /**
+   * `window` — counted over the active date range (today by default), and it
+   * moves when the range does. `today` — always the current day. `now` — a
+   * standing backlog with no date at all. Labelled on every tile, because a
+   * daily tally and a backlog are not the same kind of number.
+   */
+  period: "now" | "today" | "window";
   /**
    * The status this tile counts. Hue and icon come from the shared presentation
    * map (§4.19), so a tile and the rows it opens cannot disagree about what
@@ -46,16 +51,19 @@ interface StageDef {
   status: string | null;
 }
 
+/**
+ * Intake, then the three outcomes it resolves into, then the queue still owed
+ * a call. `waiting` (plain `pending`) used to sit second; it was replaced by
+ * `delivered` so the row ends on the outcome the business is actually paid for.
+ */
 const STAGES: StageDef[] = [
   { key: "today", count: (c) => c.today, period: "today", status: null },
-  { key: "waiting", count: (c) => c.waiting, period: "now", status: "pending" },
+  { key: "uploaded", count: (c) => c.uploaded, period: "window", status: "uploaded" },
+  { key: "rejected", count: (c) => c.rejected, period: "window", status: "rejected" },
+  { key: "delivered", count: (c) => c.delivered, period: "window", status: "delivered" },
+  // A backlog, not an outcome: it ignores the date range entirely, because
+  // "orders still owing a call" is a fact about now, not about a period.
   { key: "toRecall", count: (c) => c.toRecall, period: "now", status: "callback_scheduled" },
-  { key: "uploaded", count: (c) => c.uploaded, period: "now", status: "uploaded" },
-  // The pipeline ends on its unsuccessful outcome. Standing total, not
-  // "rejected today": clicking filters to status=rejected with no date bound,
-  // and a tile whose number disagreed with the table it opens is the bug this
-  // whole strip replaced.
-  { key: "rejected", count: (c) => c.rejected, period: "now", status: "rejected" },
 ];
 
 interface Props {
@@ -73,15 +81,55 @@ export function OrdersKpiStrip({ counts, activeTile, onSelect, isLoading }: Prop
   const nf = useMemo(() => new Intl.NumberFormat(locale === "ar" ? "ar" : "fr-FR"), [locale]);
   const pct = (v: number) => nf.format(Math.round(v * 10) / 10) + " %";
 
-  /** Each period gets its own denominator — a daily inflow and a standing
-   *  backlog share no scale, so one bar width across both would compare
-   *  quantities that are not comparable. */
+  const df = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale === "ar" ? "ar" : "fr-FR", {
+        day: "2-digit",
+        month: "short",
+      }),
+    [locale],
+  );
+
+  /**
+   * What the windowed tiles say they measure.
+   *
+   * The default window is today, and then it must read "aujourd'hui" — spelling
+   * out a single-day range as a date pair would make the ordinary case look like
+   * a filter the user forgot they applied.
+   */
+  const windowLabel = useMemo(() => {
+    const w = counts?.window;
+    if (!w?.from && !w?.to) return t("periodToday");
+    const day = (iso: string) => df.format(new Date(`${iso}T00:00:00`));
+    if (w.from && !w.to) {
+      return isToday(w.from) ? t("periodToday") : t("periodSince", { date: day(w.from) });
+    }
+    if (!w.from && w.to) return t("periodUntil", { date: day(w.to) });
+    if (w.from === w.to) return day(w.from as string);
+    return t("periodRange", { from: day(w.from as string), to: day(w.to as string) });
+  }, [counts?.window, df, t]);
+
+  const periodLabel = (period: StageDef["period"]) =>
+    period === "now" ? t("periodNow") : period === "today" ? t("periodToday") : windowLabel;
+
+  /**
+   * Bars compare only within one period.
+   *
+   * The denominator is keyed on the rendered period label, so tiles that
+   * measure the same span share a scale and tiles that do not never do — a
+   * backlog of 376 and a daily tally of 12 drawn against one denominator would
+   * compare quantities that are not comparable.
+   */
   const scaleMax = useMemo(() => {
-    if (!counts) return { now: 1, today: 1 };
-    const max = { now: 1, today: 1 };
-    for (const s of STAGES) max[s.period] = Math.max(max[s.period], s.count(counts));
+    const max: Record<string, number> = {};
+    if (!counts) return max;
+    for (const s of STAGES) {
+      const key = periodLabel(s.period);
+      max[key] = Math.max(max[key] ?? 1, s.count(counts));
+    }
     return max;
-  }, [counts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [counts, windowLabel, t]);
 
   const toggle = (tile: KpiTile) => onSelect(activeTile === tile ? null : tile);
 
@@ -231,8 +279,11 @@ export function OrdersKpiStrip({ counts, activeTile, onSelect, isLoading }: Prop
             {STAGES.map((stage) => {
               const n = stage.count(counts);
               const active = activeTile === stage.key;
-              const daily = stage.period === "today";
-              const width = Math.max(4, (n / scaleMax[stage.period]) * 100);
+              const period = periodLabel(stage.period);
+              // Queue tiles are the standing figures; everything else is drawn
+              // as a period tally (hollow bar).
+              const daily = stage.period !== "now";
+              const width = Math.max(4, (n / (scaleMax[period] || 1)) * 100);
               return (
                 <div key={stage.key} className="flex min-w-[118px] flex-1 basis-[128px] items-stretch">
                   <button
@@ -241,7 +292,7 @@ export function OrdersKpiStrip({ counts, activeTile, onSelect, isLoading }: Prop
                     // Explicit: the visible label and the period label would
                     // otherwise concatenate into an ambiguous accessible name
                     // ("Confirmées aujourd'hui" vs the "Aujourd'hui" tile).
-                    aria-label={`${t(stage.key)}: ${nf.format(n)} (${daily ? t("periodToday") : t("periodNow")})`}
+                    aria-label={`${t(stage.key)}: ${nf.format(n)} (${period})`}
                     onClick={() => toggle(stage.key)}
                     className={tileClass(active, "flex-1 min-w-0 !px-3 !py-2")}
                   >
@@ -254,8 +305,8 @@ export function OrdersKpiStrip({ counts, activeTile, onSelect, isLoading }: Prop
                         <span className="mt-1 block truncate text-[10.5px] font-semibold uppercase tracking-[0.075em] text-oms-ink-2">
                           {t(stage.key)}
                         </span>
-                        <span className="mt-px block text-[10.5px] font-normal text-oms-ink-3">
-                          {daily ? t("periodToday") : t("periodNow")}
+                        <span className="mt-px block truncate text-[10.5px] font-normal text-oms-ink-3">
+                          {period}
                         </span>
                       </span>
                     </span>
@@ -278,6 +329,13 @@ export function OrdersKpiStrip({ counts, activeTile, onSelect, isLoading }: Prop
       </div>
     </section>
   );
+}
+
+/** Local calendar day, matching how the window default is seeded client-side. */
+function isToday(iso: string): boolean {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return iso === `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 /**

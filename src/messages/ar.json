@@ -310,98 +310,108 @@
   },
   "inventory": {
     "title": "المخزون والجرد",
-    "subtitle": "قيمة المخزون، أيام التغطية، والحركات خلال 30 يوماً.",
+    "subtitle": "الوضعية الحقيقية والتغطية ورأس المال المجمّد.",
     "loading": "جارٍ تحميل المخزون…",
     "loadError": "تعذّر تحميل الجرد.",
-    "totals": {
-      "stockValue": "قيمة المخزون",
-      "productsTracked": "{count, plural, one {# منتج مُتابع} other {# منتجات مُتابعة}}",
-      "lowStock": "مخزون منخفض",
-      "outOfStock": "نفاد المخزون",
-      "damaged": "مرتجعات تالفة",
-      "scannedOut30d": "{count} وحدة صُرفت خلال 30 يوماً"
+    "window": {
+      "7": "٧ ي",
+      "28": "٢٨ ي",
+      "90": "٩٠ ي",
+      "aria": "نافذة الطلب"
     },
-    "healthBreakdown": {
-      "healthy": "سليم",
-      "healthy_hint": "تغطية ≥ 14 يوم",
-      "reorder": "يتطلّب طلب",
-      "reorder_hint": "نفاد متوقّع خلال 14 يوم",
-      "low": "مخزون منخفض",
-      "low_hint": "تحت الحد أو < 14 يوم",
-      "out": "نفد",
-      "out_hint": "المخزون صفر",
-      "overstocked": "فائض",
-      "overstocked_hint": "تغطية > 90 يوم"
+    "scopeAllCurrencyNote": "نطاق «كل الأسواق»: المبالغ تخلط الدينار التونسي والليبي ولا تُجمع.",
+    "kpi": {
+      "stockValue": "القيمة الإجمالية للمخزون",
+      "stockValueFoot": "بسعر التكلفة · الآن",
+      "daysToStockout": "أيام قبل النفاد",
+      "dormantCapital": "رأس مال راكد",
+      "reliability": "فارق الموثوقية",
+      "free": "متاح",
+      "engaged": "محجوز",
+      "dormant": "راكد",
+      "productsOk": "منتجات سليمة",
+      "coverWatch": "≤ {days} يوم",
+      "coverUrgent": "≤ {days} يوم",
+      "ofStock": "من المخزون",
+      "products": "منتجات",
+      "avgAge": "متوسط العمر",
+      "units": "وحدات",
+      "unverified": "غير مُتحقَّق",
+      "lastMovement": "آخر تحديث منذ {days} ي",
+      "neverCounted": "لم يُجرد قط",
+      "impactedRate": "نسبة التأثر",
+      "dailyImpact": "الأثر / يوم",
+      "noStockout": "لا نفاد متوقع",
+      "daysUnit": "ي"
     },
-    "healthPill": {
-      "healthy": "سليم",
-      "low": "منخفض",
-      "out": "نفد",
-      "overstocked": "فائض"
-    },
-    "reorder": {
-      "title": "يُوصى بإعادة الطلب (14 يوماً)",
-      "empty": "جميع المنتجات لديها تغطية كافية.",
-      "stockOut": "نفاد متوقّع خلال {days} يوم · {rate}/يوم",
-      "daysShort": "{days} يوم"
-    },
-    "products": {
+    "table": {
       "title": "المنتجات",
+      "scope": "الوضعية الآن · الطلب على {days} يوم",
       "empty": "لا توجد منتجات نشطة في هذا السوق.",
-      "thresholdShort": "/{threshold}",
-      "daysShort": "{days} يوم",
       "cols": {
-        "name": "المنتج",
-        "health": "الحالة",
-        "stock": "المخزون",
-        "daysOfSupply": "التغطية",
-        "turnover": "دوران 30 يوم",
+        "product": "المنتج",
+        "unitCost": "تكلفة الوحدة",
+        "position": "الوضعية",
+        "cover": "التغطية",
+        "demand": "الطلب (و/ي)",
+        "returns": "الإرجاع",
         "value": "القيمة",
-        "damaged": "تالف"
-      }
+        "verdict": "الحكم"
+      },
+      "legend": {
+        "register": "السجل",
+        "engaged": "محجوز",
+        "free": "متاح"
+      },
+      "ownWarehouse": "مستودعنا",
+      "stockOutOn": "النفاد في {date}",
+      "reorderBy": "اطلب قبل {date}",
+      "reorderLate": "الطلب متأخر",
+      "dormantFor": "لا مبيعات منذ {days} ي",
+      "neverSold": "لم يُبع قط",
+      "perDay": "{rate}/ي",
+      "demandTotal": "{units} و",
+      "sparkAria": "الطلب على {days} يومًا",
+      "unverifiedValue": "غير مُتحقَّق",
+      "adjust": "تعديل مخزون {name}",
+      "inferred": "طلب تقديري"
     },
-    "movementsTimeline": {
-      "title": "الحركات اليومية (14 يوماً)",
-      "empty": "لا توجد حركات خلال 14 يوماً.",
-      "countShort": "{count} حركة"
+    "verdict": {
+      "out": "نفاد",
+      "reorder_now": "عاجل",
+      "watch": "قريبًا",
+      "ok": "سليم",
+      "overstocked": "فائض",
+      "dead": "راكد",
+      "unknown": "غير محدد"
     },
-    "movements": {
-      "title": "الحركات الأخيرة",
-      "empty": "لا توجد حركات حديثة.",
-      "balanceShort": "← {balance}",
-      "hasOrder": "عرض الطلب",
-      "reasons": {
-        "scanned": "خروج من المستودع (مسح)",
-        "deposit": "صرف (إيداع)",
-        "returned": "إرجاع",
-        "damaged_return": "إرجاع تالف",
-        "manual_adjustment": "تعديل يدوي",
-        "damaged_writeoff": "شطب تالف",
-        "initial_stock": "المخزون الابتدائي"
-      }
+    "capital": {
+      "title": "توزيع رأس المال",
+      "scope": "(قيمة المخزون)",
+      "active": "متاح",
+      "engaged": "محجوز",
+      "dormant": "راكد",
+      "others": "أخرى"
+    },
+    "actions": {
+      "title": "إجراءات ذات أولوية",
+      "total": "إجمالي قابل للاسترجاع",
+      "empty": "لا إجراءات ذات أولوية.",
+      "relaunch": "إعادة إطلاق {name}",
+      "relaunchWhy": "{units} وحدة راكدة · لا مبيعات منذ {days} ي",
+      "expedite": "تسريع تموين {name}",
+      "expediteWhy": "يتفادى النفاد المتوقع في {date}",
+      "liquidate": "تصفية {name} في عرض مجمّع",
+      "liquidateWhy": "مخزون سالب: {units} وحدة محجوزة أكثر من السجل",
+      "reduce_moq": "تقليل طلب المورّد على {name}",
+      "reduce_moqWhy": "فائض: {units} وحدة متاحة، تغطية {days} ي",
+      "scan": "مسح الوحدات المنتظرة"
     },
     "adjust": {
       "button": "تعديل",
       "openLabel": "تعديل مخزون {name}",
-      "title": "تعديل المخزون · {name}",
-      "close": "إغلاق",
-      "currentStock": "المخزون الحالي: {value}",
-      "reasonLabel": "السبب",
-      "reasons": {
-        "manual_adjustment": "تعديل يدوي",
-        "damaged_writeoff": "شطب تالف"
-      },
-      "changeLabel": "التغيير",
-      "changeHint": "عدد صحيح غير صفر. مثلاً +5 لتعبئة أو -2 لتصحيح.",
-      "changeHintDamaged": "يجب أن يكون سالباً (شطب).",
-      "noteLabel": "ملاحظة (إلزامية)",
-      "noteHint": "سبب التعديل — يُحفظ في السجل.",
-      "save": "حفظ",
-      "saving": "جارٍ الحفظ…",
-      "cancel": "إلغاء",
-      "errorGeneric": "تعذّر التعديل. حاول مجدداً."
-    },
-    "scopeAllCurrencyNote": "عملات مختلطة (جميع الأسواق) — اختر سوقًا لعرض القيم النقدية."
+      "errorGeneric": "تعذّر تعديل المخزون."
+    }
   },
   "pnl": {
     "title": "الأرباح والخسائر",
@@ -522,7 +532,8 @@
       "dispatch_schedule_missed": "لم تنطلق منذ {value}",
       "price_changed": "تغيّر السعر منذ {value}",
       "order_reopened": "أُعيد فتحها منذ {value}",
-      "stock_depleted": "نفاد المخزون"
+      "stock_depleted": "نفاد المخزون",
+      "stock_unreconciled": "{count, plural, zero {لا فرق} one {وحدة فارق} two {وحدتا فارق} few {# وحدات فارق} many {# وحدة فارق} other {# وحدة فارق}}"
     },
     "types": {
       "dispatch_failure": {
@@ -557,6 +568,9 @@
       },
       "order_reopened": {
         "label": "تمت إعادة فتح الطلب"
+      },
+      "stock_unreconciled": {
+        "label": "مخزون غير مطابق"
       }
     },
     "bell": "التنبيهات",
@@ -1231,6 +1245,9 @@
         "addProductFailed": "تعذرت إضافة المنتج"
       },
       "actions": {
+        "confirm": "تأكيد",
+        "callback": "معاودة الاتصال",
+        "reject": "رفض",
         "endCall": "إنهاء المكالمة",
         "returnToPool": "إرجاع إلى القائمة",
         "cancel": "إلغاء الطلب",
@@ -1255,6 +1272,9 @@
       "blockerResolve": "حل المشكلة",
       "factTotal": "الإجمالي",
       "factItems": "المنتجات",
+      "factCity": "المدينة",
+      "factAddress": "العنوان",
+      "factCityMissing": "غير محددة",
       "factAgent": "الوكيل",
       "factCarrier": "شركة التوصيل",
       "unassigned": "غير مسند",
@@ -1266,7 +1286,33 @@
       "fieldTracking": "التتبع",
       "cityDefine": "تحديد",
       "cityEmpty": "غير محددة",
-      "trackingTitle": "تتبع الشحنة"
+      "trackingTitle": "تتبع الشحنة",
+      "reliability": {
+        "reliable": "موثوق",
+        "average": "متوسط",
+        "risky": "غير موثوق",
+        "unknown": "جديد",
+        "orders": "{count} طلبات",
+        "ordersOne": "{count} طلب",
+        "delivered": "{count} تم تسليمها",
+        "deliveredOne": "{count} تم تسليمه",
+        "returned": "{count} مرتجعات",
+        "returnedOne": "{count} مرتجع"
+      },
+      "slaTarget": "الهدف {target}",
+      "ops": {
+        "title": "ملخص تشغيلي",
+        "market": "السوق",
+        "market_tn": "تونس",
+        "market_ly": "ليبيا",
+        "origin": "المصدر",
+        "originStorefront": "المتجر",
+        "originManual": "يدوية",
+        "createdAt": "أُنشئت في",
+        "duplicates": "التكرارات",
+        "duplicatesNone": "لا يوجد",
+        "attempts": "المحاولات"
+      }
     },
     "scheduleDispatch": {
       "title": "جدولة التوصيل",

@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OMS — Stock v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F5F7; --card:#FFF; --line:#E9EBEE; --line-2:#E3E6EA;
+  --ink-1:#151A1F; --ink-2:#6B7280; --ink-3:#9CA3AF;
+
+  --green:#16A34A; --green-ink:#15803D; --green-bg:#DCFCE7; --green-soft:#EAF7EF;
+  --orange:#F59E0B; --orange-ink:#B45309; --orange-bg:#FEF3C7;
+  --red:#DC2626;  --red-ink:#DC2626;  --red-bg:#FEE2E2; --red-band:#FEF2F2; --red-line:#FBD5D5;
+  --grey:#D8DBE0; --grey-2:#E5E7EB; --grey-ink:#4B5563;
+
+  --r-sm:6px; --r:8px; --r-md:10px; --r-lg:12px; --r-pill:9999px;
+  --sh:0 1px 2px rgba(16,24,40,.04);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink-1);font-size:14px;line-height:1.45;
+  font-family:"Inter","Noto Sans Arabic",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;padding:22px}
+h1,h2,h3,p,ul{margin:0}
+ul{list-style:none;padding:0}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+:focus-visible{outline:2px solid var(--green-ink);outline-offset:2px;border-radius:4px}
+[dir=auto]{unicode-bidi:plaintext}
+.n{font-variant-numeric:tabular-nums;unicode-bidi:isolate;direction:ltr}
+.wrap{max-width:1520px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh)}
+
+/* ═══════════ TUILES KPI ═══════════ */
+.kpis{display:grid;gap:16px;grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:1180px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{padding:16px 18px 14px}
+.kpi .h{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.kpi .v{font-size:31px;font-weight:700;letter-spacing:-.02em;line-height:1.15;margin-top:7px;font-variant-numeric:tabular-nums}
+.kpi .v .u{font-size:.52em;font-weight:600;color:var(--ink-2);margin-inline-start:5px;letter-spacing:0}
+.kpi .v.neg{color:var(--red)}
+
+.bar{display:flex;height:9px;border-radius:var(--r-pill);overflow:hidden;background:var(--grey-2);margin-top:13px}
+.bar i{display:block;height:100%}
+
+.chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.chip{display:inline-flex;align-items:center;gap:5px;border-radius:var(--r);padding:4px 9px;
+  font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.chip svg{width:12px;height:12px;flex:none}
+.chip-green{background:var(--green-bg);color:var(--green-ink)}
+.chip-red{background:#fff;color:var(--red);border:1px solid #F5C2C2}
+.chip-grey{background:#F3F4F6;color:var(--ink-2)}
+.chips .after{font-size:12.5px;color:var(--ink-2)}
+
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:15px;padding-top:13px;
+  border-top:1px solid var(--line)}
+.stat{display:flex;gap:8px;align-items:flex-start;padding-inline-end:8px}
+.stat + .stat{border-inline-start:1px solid var(--line);padding-inline-start:13px}
+.stat svg{width:15px;height:15px;flex:none;margin-top:2px}
+.stat .sv{font-size:14px;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums;white-space:nowrap}
+.stat .sl{font-size:11.5px;color:var(--ink-2);margin-top:2px;white-space:nowrap}
+.i-green{color:var(--green)} .i-orange{color:var(--orange)} .i-red{color:var(--red)}
+.i-grey{color:var(--ink-3)}
+
+/* ═══════════ TABLEAU ═══════════ */
+.tbl{padding:0 4px}
+.thead,.trow{display:grid;
+  grid-template-columns:minmax(230px,2.05fr) minmax(290px,2.7fr) minmax(112px,1fr) minmax(190px,1.9fr) 104px 112px 132px;
+  align-items:center;gap:0 12px}
+.thead{padding:15px 18px 12px;border-bottom:1px solid var(--line)}
+.thead span{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2)}
+.thead .sub{display:block;font-size:10.5px;font-weight:500;letter-spacing:.02em;text-transform:none;color:var(--ink-3);margin-top:3px}
+.tc{text-align:center}
+.leg{display:flex;gap:12px;margin-top:5px}
+.leg b{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:500;letter-spacing:0;
+  text-transform:none;color:var(--ink-2)}
+.leg b i{width:7px;height:7px;border-radius:2px;display:block}
+
+.trow{padding:15px 18px;border-bottom:1px solid var(--line)}
+.trow:last-child{border-bottom:0}
+.trow:hover{background:#FBFCFC}
+
+.prod{display:flex;align-items:center;gap:11px;min-width:0}
+.thumb{width:42px;height:42px;border-radius:var(--r);flex:none;display:grid;place-items:center;font-size:21px;
+  border:1px solid var(--line-2);background:#FAFAFA}
+.prod .pn{font-size:13.5px;font-weight:600;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prod .pc{font-size:11.5px;color:var(--ink-3);margin-top:3px;font-variant-numeric:tabular-nums}
+
+.pos i{display:block;height:100%}
+.postrack{display:flex;height:9px;border-radius:var(--r-pill);overflow:hidden;background:var(--grey-2)}
+.hatch{background:repeating-linear-gradient(45deg,#FCA5A5 0 4px,#FFF 4px 8px);
+  box-shadow:inset 0 0 0 1px var(--red)}
+.posv{display:flex;align-items:center;margin-top:9px;font-size:12.5px;font-variant-numeric:tabular-nums;font-weight:600}
+.posv span{display:inline-flex;align-items:center;gap:6px}
+.posv span i{width:7px;height:7px;border-radius:2px;display:block;flex:none}
+.posv .s2{margin-inline-start:auto;margin-inline-end:auto}
+.posv .s3{margin-inline-start:auto}
+.posv .neg{color:var(--red)}
+
+.cov{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.15}
+.cov.r{color:var(--red)} .cov.o{color:var(--orange-ink)} .cov.g{color:var(--green-ink)} .cov.n{color:var(--ink-3);font-weight:600}
+.covx{font-size:11.5px;color:var(--ink-2);margin-top:4px;line-height:1.35}
+
+.spark{display:block;width:100%;height:42px}
+.demx{font-size:11.5px;color:var(--ink-2);margin-top:3px;font-variant-numeric:tabular-nums}
+
+.ret{font-size:14.5px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center}
+.rettr{height:4px;border-radius:var(--r-pill);background:var(--grey-2);margin:7px auto 0;width:56px;overflow:hidden}
+.rettr i{display:block;height:100%;background:var(--ink-3)}
+.rettr i.o{background:var(--orange)}
+
+.val{font-size:14.5px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center}
+.valx{font-size:11px;color:var(--ink-3);text-align:center;margin-top:3px}
+
+.verdict{display:flex;justify-content:center}
+.vp{display:inline-flex;border-radius:var(--r-sm);padding:5px 13px;font-size:12.5px;font-weight:600}
+.v-red{background:var(--red-bg);color:var(--red)}
+.v-orange{background:var(--orange-bg);color:var(--orange-ink)}
+.v-grey{background:#F1F3F5;color:var(--grey-ink)}
+
+/* ═══════════ BAS DE PAGE ═══════════ */
+.bottom{display:grid;gap:18px;grid-template-columns:minmax(0,1fr) minmax(0,1.02fr)}
+@media(max-width:1180px){.bottom{grid-template-columns:1fr}}
+.ph{display:flex;align-items:baseline;gap:8px;padding:16px 18px 13px}
+.ph .t{font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.ph .x{font-size:11.5px;color:var(--ink-3);letter-spacing:.02em}
+.ph .r{margin-inline-start:auto;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2)}
+.ph .r b{font-size:14px;font-weight:700;color:var(--green-ink);letter-spacing:0;margin-inline-start:5px;font-variant-numeric:tabular-nums}
+.ph .r b em{font-style:normal;font-size:.72em;color:var(--ink-3);margin-inline-start:3px}
+
+/* trésor — treemap */
+.tree{display:flex;gap:5px;height:212px;padding:0 18px}
+.tree .blk{border-radius:var(--r);padding:13px 15px;display:flex;flex-direction:column;justify-content:flex-start}
+.tree .blk .bl{font-size:13px;font-weight:600}
+.tree .blk .bv{font-size:20px;font-weight:700;margin-top:5px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.tree .blk .bv em{font-style:normal;font-size:.58em;font-weight:600;margin-inline-start:4px}
+.tree .blk .bp{font-size:12.5px;font-weight:500;margin-top:3px;font-variant-numeric:tabular-nums}
+.b-grey{background:var(--grey-2);color:var(--grey-ink);flex:0 0 37.5%}
+.b-mid{flex:0 0 42.5%;display:flex;flex-direction:column;gap:5px}
+.b-green{background:var(--green);color:#fff;flex:0 0 55%}
+.b-orange{background:var(--orange);color:#fff;flex:1}
+.b-side{flex:1;display:flex;flex-direction:column;gap:5px}
+.b-side .sm{background:var(--green-soft);border-radius:var(--r);padding:8px 10px;flex:1;
+  display:flex;flex-direction:column;justify-content:center}
+.b-side .sm .sn{font-size:10.5px;font-weight:500;color:var(--grey-ink);line-height:1.3}
+.b-side .sm .sv{font-size:11.5px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums;color:var(--ink-1)}
+.tlegend{display:flex;gap:20px;padding:14px 18px 16px}
+.tlegend span{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.tlegend i{width:9px;height:9px;border-radius:var(--r-pill);display:block}
+
+/* actions */
+.acts{padding:0 12px 12px}
+.acts li{display:flex;align-items:center;gap:12px;padding:13px 12px;border-radius:var(--r-md);
+  border-bottom:1px solid var(--line)}
+.acts li:last-child{border-bottom:0}
+.acts li:hover{background:#FBFCFC}
+.acts li.on{background:var(--green-soft);border-bottom-color:transparent;
+  box-shadow:inset 3px 0 0 var(--green)}
+.acts .ai{display:grid;place-items:center;width:36px;height:36px;border-radius:var(--r);flex:none;font-size:17px}
+.acts .ad{flex:1;min-width:0}
+.acts .at{font-size:13.5px;font-weight:600;line-height:1.35}
+.acts .at .k{font-weight:700}
+.acts .ax{font-size:11.5px;color:var(--ink-2);margin-top:3px}
+.acts .am{font-size:14.5px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.acts .am em{font-style:normal;font-size:.72em;font-weight:600;color:var(--ink-3);margin-inline-start:3px}
+.acts .ac{color:var(--ink-3);flex:none;display:grid;place-items:center}
+.acts .ac svg{width:17px;height:17px}
+.a-green{background:var(--green-bg)} .a-orange{background:var(--orange-bg)}
+.a-red{background:var(--red-bg)} .a-grey{background:#EEF1F4}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ═════════ KPI ═════════ -->
+  <div class="kpis">
+
+    <div class="card kpi">
+      <div class="h">Valeur totale du stock</div>
+      <div class="v">69 800<span class="u">LYD</span></div>
+      <div class="bar">
+        <i style="background:var(--green);width:61%"></i>
+        <i style="background:var(--orange);width:15%"></i>
+        <i style="background:var(--grey);width:24%"></i>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <svg class="i-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m21 16-9 5-9-5V8l9-5 9 5v8Z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/></svg>
+          <div><div class="sv">42 570</div><div class="sl">Libre</div></div>
+        </div>
+        <div class="stat">
+          <svg class="i-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          <div><div class="sv">10 573</div><div class="sl">Engagé</div></div>
+        </div>
+        <div class="stat">
+          <svg class="i-grey" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-dasharray="3 2"><path d="m21 16-9 5-9-5V8l9-5 9 5v8Z"/></svg>
+          <div><div class="sv">16 657</div><div class="sl">Dormant</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card kpi">
+      <div class="h">Jours avant rupture</div>
+      <div class="v">26</div>
+      <div class="chips">
+        <span class="chip chip-green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>
+          26 sept. 2025
+        </span>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <svg class="i-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m3 17 6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg>
+          <div><div class="sv">23</div><div class="sl">Produits OK</div></div>
+        </div>
+        <div class="stat">
+          <svg class="i-orange" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <div><div class="sv">5</div><div class="sl">≤ 45 jours</div></div>
+        </div>
+        <div class="stat">
+          <svg class="i-red" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>
+          <div><div class="sv">2</div><div class="sl">≤ 7 jours</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card kpi">
+      <div class="h">Capital dormant</div>
+      <div class="v">55 322<span class="u">LYD</span></div>
+      <div class="chips">
+        <span class="chip chip-green">79 %</span>
+        <span class="after">du stock</span>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <svg class="i-grey" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m21 16-9 5-9-5V8l9-5 9 5v8Z"/><path d="m3 8 9 5 9-5"/></svg>
+          <div><div class="sv">41</div><div class="sl">Produits</div></div>
+        </div>
+        <div class="stat">
+          <svg class="i-grey" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3a9 9 0 1 0 9 9h-9V3Z"/><path d="M16 3.5A9 9 0 0 1 20.5 8H16V3.5Z"/></svg>
+          <div><div class="sv">797 j</div><div class="sl">Âge moy.</div></div>
+        </div>
+        <div class="stat">
+          <svg class="i-grey" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="2.5"/><path d="m3 3 18 18"/></svg>
+          <div><div class="sv">15 602</div><div class="sl">Unités</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card kpi">
+      <div class="h">Écart de fiabilité caisse</div>
+      <div class="v neg">−3 148<span class="u">u</span></div>
+      <div class="chips">
+        <span class="chip chip-red">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/></svg>
+          Non vérifié
+        </span>
+        <span class="chip chip-grey">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          Maj il y a 2 j
+        </span>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <svg class="i-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v11"/><path d="m8 10 4 4 4-4"/><path d="M4 18h16"/></svg>
+          <div><div class="sv">5</div><div class="sl">Produits</div></div>
+        </div>
+        <div class="stat">
+          <svg class="i-red" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m19 5-14 14"/><circle cx="7.5" cy="7.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></svg>
+          <div><div class="sv">8 %</div><div class="sl">Taux impacté</div></div>
+        </div>
+        <div class="stat">
+          <svg class="i-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m3 17 6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg>
+          <div><div class="sv">1 247 LYD</div><div class="sl">Impact / jour</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════════ TABLEAU ═════════ -->
+  <div class="card tbl">
+    <div class="thead">
+      <span>Produit<span class="sub">coût unitaire</span></span>
+      <span>Position
+        <span class="leg">
+          <b><i style="background:var(--grey)"></i>Caisse</b>
+          <b><i style="background:var(--orange)"></i>Engagé</b>
+          <b><i style="background:var(--green)"></i>Libre</b>
+        </span>
+      </span>
+      <span>Couverture</span>
+      <span>Demande (u/j)</span>
+      <span class="tc">Retours</span>
+      <span class="tc">Valeur</span>
+      <span class="tc">Verdict</span>
+    </div>
+    <ul id="rows"></ul>
+  </div>
+
+  <!-- ═════════ BAS ═════════ -->
+  <div class="bottom">
+
+    <div class="card">
+      <div class="ph"><span class="t">Répartition du capital</span><span class="x">(valeur du stock)</span></div>
+      <div class="tree">
+        <div class="blk b-grey">
+          <div class="bl">Dormant</div>
+          <div class="bv">55 322<em>LYD</em></div>
+          <div class="bp">79 %</div>
+        </div>
+        <div class="b-mid">
+          <div class="blk b-green">
+            <div class="bl">Libre</div>
+            <div class="bv">42 570<em>LYD</em></div>
+            <div class="bp">60,9 %</div>
+          </div>
+          <div class="blk b-orange">
+            <div class="bl">Engagé</div>
+            <div class="bv">10 573<em>LYD</em></div>
+            <div class="bp">15,1 %</div>
+          </div>
+        </div>
+        <div class="b-side">
+          <div class="sm"><div class="sn" dir="auto">دمية ملاكمة حجم كبير</div><div class="sv">18 000 LYD</div></div>
+          <div class="sm"><div class="sn" dir="auto">دمية ملاكمة حجم صغير</div><div class="sv">5 400 LYD</div></div>
+          <div class="sm"><div class="sn" dir="auto">دمية ملاكمة حجم متوسط</div><div class="sv">4 000 LYD</div></div>
+          <div class="sm"><div class="sn">Autres</div><div class="sv">15 170 LYD</div></div>
+        </div>
+      </div>
+      <div class="tlegend">
+        <span><i style="background:var(--green)"></i>Libre (60,9 %)</span>
+        <span><i style="background:var(--orange)"></i>Engagé (15,1 %)</span>
+        <span><i style="background:var(--grey)"></i>Dormant (79,1 %)</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ph">
+        <span class="t">Actions prioritaires</span>
+        <span class="r">Total récupérable : <b>7 880<em>LYD</em></b></span>
+      </div>
+      <ul class="acts">
+        <li class="on">
+          <span class="ai a-green">🚀</span>
+          <div class="ad">
+            <div class="at">Relancer <span class="k" dir="auto">القرآن تدبر وعمل</span> (dormant) sur 2 marchés</div>
+            <div class="ax">Demande existante détectée</div>
+          </div>
+          <span class="am">2 640<em>LYD</em></span>
+          <span class="ac"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span>
+        </li>
+        <li>
+          <span class="ai a-orange">🚚</span>
+          <div class="ad">
+            <div class="at">Accélérer les livraisons pour <span class="k" dir="auto">دمية ملاكمة حجم متوسط</span></div>
+            <div class="ax">Évite la rupture prévue le 7 sept.</div>
+          </div>
+          <span class="am">1 980<em>LYD</em></span>
+          <span class="ac"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span>
+        </li>
+        <li>
+          <span class="ai a-red">🛒</span>
+          <div class="ad">
+            <div class="at">Liquider <span class="k" dir="auto">دمية ملاكمة حجم صغير</span> en pack promo</div>
+            <div class="ax">Stock négatif et impact quotidien élevé</div>
+          </div>
+          <span class="am">1 480<em>LYD</em></span>
+          <span class="ac"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span>
+        </li>
+        <li>
+          <span class="ai a-grey">📦</span>
+          <div class="ad">
+            <div class="at">Réduire le MOQ fournisseur sur <span class="k" dir="auto">دمية ملاكمة حجم كبير</span></div>
+            <div class="ax">Surstock : 571 unités libres</div>
+          </div>
+          <span class="am">1 780<em>LYD</em></span>
+          <span class="ac"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+const PRODUCTS = [
+  { emoji:"🪆", name:"دمية ملاكمة حجم صغير", cost:"25,00 LYD/u",
+    caisse:216, engage:239, libre:-23,
+    cov:"3 j", covTone:"r", covX:"Rupture le<br>17 août",
+    demand:61, ret:21, retHi:false, value:"5 400",
+    verdict:{ t:"Urgent", c:"v-red" },
+    series:[38,44,40,49,45,53,48,57,52,60,55,63,58,66,61,69,64,72,67,75,70,78,73,80] },
+
+  { emoji:"🥊", name:"دمية ملاكمة حجم متوسط", cost:"20,00 LYD/u",
+    caisse:200, engage:107, libre:98,
+    cov:"31 j", covTone:"o", covX:"Rupture le<br>7 sept.",
+    demand:58, ret:31, retHi:true, value:"4 000",
+    verdict:{ t:"Bientôt", c:"v-orange" },
+    series:[42,38,45,40,48,43,52,46,55,49,58,51,62,54,66,58,70,62,74,66,70,64,68,63] },
+
+  { emoji:"🧸", name:"دمية ملاكمة حجم كبير", cost:"30,00 LYD/u",
+    caisse:630, engage:29, libre:571,
+    cov:"76 j", covTone:"g", covX:"Rupture le<br>31 oct.",
+    demand:21, ret:23, retHi:false, value:"18 000",
+    verdict:{ t:"Surplus", c:"v-grey" },
+    series:[30,36,32,40,35,44,38,48,42,53,46,58,50,64,55,70,60,66,57,62,54,58,51,55] },
+
+  { emoji:"📗", name:"القرآن تدبر وعمل", cost:"40,00 LYD/u",
+    caisse:1000, engage:0, libre:0,
+    cov:"—", covTone:"n", covX:"Dormant",
+    demand:0, ret:11, retHi:false, value:"40 000",
+    verdict:{ t:"Dormant", c:"v-grey" },
+    series:[20,22,21,23,20,22,21,23,22,21,23,20,22,21,23,22,20,22,21,23,21,22,20,22] },
+
+  { emoji:"📙", name:"كتاب الداء والدواء لابن القيم", cost:"12,00 LYD/u",
+    caisse:200, engage:0, libre:0,
+    cov:"—", covTone:"n", covX:"Dormant",
+    demand:0, ret:19, retHi:false, value:"2 400",
+    verdict:{ t:"Dormant", c:"v-grey" },
+    series:[21,20,22,21,23,20,22,23,21,22,20,23,21,22,23,20,22,21,23,21,22,23,20,22] },
+];
+
+const nf = n => new Intl.NumberFormat("fr-FR").format(n);
+
+/* sparkline vert + ligne de moyenne pointillée */
+function spark(v){
+  const min = Math.min(...v), max = Math.max(...v), span = (max - min) || 1;
+  const y = n => 36 - ((n - min) / span) * 30;
+  const pts = v.map((n,i) => `${(i/(v.length-1)*236).toFixed(1)},${y(n).toFixed(1)}`).join(" ");
+  const avg = y(v.reduce((a,b)=>a+b,0) / v.length).toFixed(1);
+  return `<svg class="spark" viewBox="0 0 236 42" preserveAspectRatio="none" aria-hidden="true">
+    <line x1="0" y1="${avg}" x2="236" y2="${avg}" stroke="#86C9A4" stroke-width="1" stroke-dasharray="4 4"/>
+    <polyline fill="none" stroke="#16A34A" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"
+      vector-effect="non-scaling-stroke" points="${pts}"/>
+  </svg>`;
+}
+
+/* piste : caisse (gris) + engagé (orange) + libre (vert), déficit hachuré en fin de piste */
+function track(p){
+  const deficit = p.libre < 0 ? -p.libre : 0;
+  const total = p.caisse + p.engage + Math.max(0, p.libre) + deficit;
+  const w = n => (n / total * 100).toFixed(2);
+  return `<div class="postrack">
+    ${p.caisse ? `<i style="background:var(--grey);width:${w(p.caisse)}%"></i>` : ""}
+    ${p.engage ? `<i style="background:var(--orange);width:${w(p.engage)}%"></i>` : ""}
+    ${p.libre > 0 ? `<i style="background:var(--green);width:${w(p.libre)}%"></i>` : ""}
+    ${deficit ? `<i class="hatch" style="width:${w(deficit)}%"></i>` : ""}
+  </div>`;
+}
+
+document.getElementById("rows").innerHTML = PRODUCTS.map(p => `
+  <li class="trow">
+    <div class="prod">
+      <span class="thumb">${p.emoji}</span>
+      <div style="min-width:0">
+        <div class="pn" dir="auto">${p.name}</div>
+        <div class="pc">${p.cost}</div>
+      </div>
+    </div>
+
+    <div class="pos">
+      ${track(p)}
+      <div class="posv">
+        <span><i style="background:var(--grey)"></i>${nf(p.caisse)}</span>
+        <span class="s2"><i style="background:var(--orange)"></i>${nf(p.engage)}</span>
+        <span class="s3 ${p.libre < 0 ? "neg" : ""}">${p.libre < 0 ? "" : `<i style="background:var(--green)"></i>`}${p.libre < 0 ? "−" + nf(-p.libre) : nf(p.libre)}</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="cov ${p.covTone}">${p.cov}</div>
+      <div class="covx">${p.covX}</div>
+    </div>
+
+    <div>
+      ${spark(p.series)}
+      <div class="demx">${p.demand} u / jour</div>
+    </div>
+
+    <div>
+      <div class="ret">${p.ret} %</div>
+      <div class="rettr"><i class="${p.retHi ? "o" : ""}" style="width:${Math.min(100, p.ret * 2.6).toFixed(0)}%"></i></div>
+    </div>
+
+    <div>
+      <div class="val">${p.value}</div>
+      <div class="valx">LYD</div>
+    </div>
+
+    <div class="verdict"><span class="vp ${p.verdict.c}">${p.verdict.t}</span></div>
+  </li>
+`).join("");
+</script>
+</body>
+</html>

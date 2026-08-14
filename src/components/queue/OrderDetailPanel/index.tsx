@@ -56,6 +56,8 @@ import { useOrderMutation } from "@/hooks/useOrderMutation";
 import { useOrderDetailRealtime } from "@/hooks/useOrderDetailRealtime";
 import { useCarriers } from "@/hooks/useCarriers";
 import { useMaxCallAttempts } from "@/hooks/useMaxCallAttempts";
+import { useCustomerHistory } from "@/hooks/useCustomerHistory";
+import { useSlaMinutes } from "@/hooks/useSlaMinutes";
 import { useProductSheet } from "@/hooks/useProductSheet";
 import { ProductBriefBanner } from "../ProductBriefBanner";
 import { ProductSheetDrawer } from "../ProductSheetDrawer";
@@ -78,6 +80,7 @@ import { FulfillmentCard, FULFILLMENT_STATUS_VALUES as FULFILLMENT_VALUES_FROM_C
 import type { FulfillmentStatusValue } from "./FulfillmentCard";
 import { AlertBanners } from "./AlertBanners";
 import { OrderFacts } from "./OrderFacts";
+import { OpsSummary } from "./OpsSummary";
 import { PanelTabs, type PanelTab } from "./PanelTabs";
 import { usePrimaryAction } from "./usePrimaryAction";
 import type { PanelActionKind } from "./types";
@@ -160,6 +163,12 @@ interface OrderDetail {
   assigned_agent_name: string | null;
   market_id: string;
   attempts_count?: number | null;
+  /**
+   * Siblings found by `enrichRowsWithDuplicates` on the detail route — same
+   * customer, product and quantity inside 24h. Absent on payloads that predate
+   * the enrichment, hence optional.
+   */
+  duplicate_count?: number | null;
   /** Intake time — drives the header's elapsed-time reading. */
   created_at: string;
   updated_at: string;
@@ -207,6 +216,12 @@ export interface CallTerminatedContext {
   status: string;
   marketId: string;
   attemptsCount: number;
+  /**
+   * Which step the post-call sheet should open on. Set when the footer already
+   * knows how the call ended, so the agent is not asked the same question
+   * twice. Omitted means the full outcome picker.
+   */
+  flow?: "option_select" | "reject_flow" | "callback_expanded" | "confirm_now";
 }
 
 interface OrderDetailPanelProps {
@@ -401,6 +416,29 @@ export function OrderDetailPanel({
   // Same cached list, so naming the carrier costs no extra request. `null` is
   // "no carrier yet", which is a real state — not a lookup that hasn't landed.
   const maxCallAttempts = useMaxCallAttempts(order?.market_id ?? null);
+
+  // The customer's record, for the reliability strip. Fetched as soon as the
+  // panel has an order — unlike the queue row's popover, which waits for a
+  // hover, this one is read at a glance while the agent is dialling, so making
+  // it appear a beat late would mean it appears after the decision.
+  const { detail: customerHistory } = useCustomerHistory("order", order?.id ?? null, Boolean(order));
+  const customerStats = customerHistory?.stats ?? null;
+
+  const slaMinutes = useSlaMinutes(order?.market_id ?? null);
+
+  // When the call actually landed, so the SLA chip can freeze at the time it
+  // took rather than keep counting. The history is append-only, so the first
+  // arrival at `confirmed` is the real one even if the order was later
+  // reopened and re-confirmed.
+  const confirmedAt = useMemo(() => {
+    const entries = order?.history ?? [];
+    let earliest: string | null = null;
+    for (const entry of entries) {
+      if (entry.to_status !== "confirmed") continue;
+      if (earliest === null || entry.created_at < earliest) earliest = entry.created_at;
+    }
+    return earliest;
+  }, [order?.history]);
 
   const assignedCarrierName = order?.carrier_id
     ? carriersForOrderMarket.find((c) => c.id === order.carrier_id)?.name ?? null
@@ -668,6 +706,11 @@ export function OrderDetailPanel({
     role &&
     (role === "market_manager" || role === "super_admin") &&
     order !== null;
+
+  // Managers and admins together, as everywhere else in this panel: the two
+  // roles differ in scope (own market vs all), not in what they are allowed to
+  // see about one order they can already open.
+  const isManagerish = role === "market_manager" || role === "super_admin";
 
   async function handleReturnToPool() {
     if (!onReturnToPool) return;
@@ -1012,11 +1055,25 @@ export function OrderDetailPanel({
         case "endCall":
         case "changeStatus":
         case "rescheduleCallback":
+        case "confirm":
+        case "callback":
+        case "reject":
           onCallTerminated(orderId, {
             orderId,
             status: order.status,
             marketId: order.market_id,
             attemptsCount: order.attempts_count ?? 0,
+            // The three outcome buttons name the ending; everything else opens
+            // the picker. `rescheduleCallback` deliberately lands on the
+            // callback step — that is the whole point of the action.
+            flow:
+              kind === "confirm"
+                ? "confirm_now"
+                : kind === "reject"
+                  ? "reject_flow"
+                  : kind === "callback" || kind === "rescheduleCallback"
+                    ? "callback_expanded"
+                    : undefined,
           });
           return;
         case "uploadToCarrier":
@@ -1101,6 +1158,8 @@ export function OrderDetailPanel({
               ? ts(order.status as Parameters<typeof ts>[0])
               : ts("pending")
           }
+          slaMinutes={slaMinutes}
+          confirmedAt={confirmedAt}
           attemptsCount={order?.attempts_count}
           maxAttempts={maxCallAttempts}
           saveFlash={saveFlash}
@@ -1145,9 +1204,8 @@ export function OrderDetailPanel({
                   name={order.customer_name}
                   phone={order.customer_phone}
                   phone2={order.customer_phone_2}
-                  city={order.customer_city}
-                  address={order.customer_address}
                   terminal={TERMINAL_STATUSES.has(order.status)}
+                  reliability={customerStats}
                   canEdit={canEdit}
                   isLibyaOrder={isLibyaOrder}
                   onCommitName={(v) => runCommit({ customer_name: v })}
@@ -1169,6 +1227,8 @@ export function OrderDetailPanel({
               <OrderFacts
                 total={order.total_price}
                 currencyCode={displayCurrency}
+                city={order.customer_city}
+                address={order.customer_address}
                 // Same list the receipt renders, so the count and the receipt
                 // can never disagree.
                 itemCount={orderItems.length}
@@ -1176,35 +1236,21 @@ export function OrderDetailPanel({
                 carrierName={assignedCarrierName}
               />
 
-              {/* ── Alert banners ── */}
-              <AlertBanners
-                locale={locale === "ar" ? "ar" : "fr"}
-                editBlocked={!canEdit && !canReopen}
-                callbackScheduledAt={
-                  order.status === "callback_scheduled" ? order.callback_scheduled_at : null
-                }
-                dispatchScheduledAt={isDispatchScheduled ? order.scheduled_dispatch_at : null}
-                dispatchScheduledAuto={order.scheduled_dispatch_auto ?? false}
-                cancelingSchedule={cancelingSchedule}
-                onCancelSchedule={handleCancelSchedule}
-                // A missing city stops the carrier upload. Worth saying out
-                // loud on any order that still has somewhere to go — not on
-                // one that is already finished.
-                cityUnmatched={
-                  !order.customer_city?.trim() && !TERMINAL_STATUSES.has(order.status)
-                }
-                onResolveCity={() => {
-                  // The city lives in the Livraison tab — switch to it first,
-                  // or the scroll target is inside a `hidden` panel.
-                  setTab("shipping");
-                  requestAnimationFrame(() => {
-                    document
-                      .querySelector<HTMLElement>('[data-field="city"]')
-                      ?.scrollIntoView({ behavior: "smooth", block: "center" });
-                    document.querySelector<HTMLElement>('[data-field="city"] button')?.click();
-                  });
-                }}
-              />
+              {/* Manager-only: provenance and duplicate context an agent has no
+                  use for mid-call, and no room for. */}
+              {isManagerish && (
+                <OpsSummary
+                  marketId={order.market_id}
+                  currencyCode={displayCurrency}
+                  createdAt={order.created_at}
+                  externalId={order.external_id}
+                  duplicateCount={order.duplicate_count ?? 0}
+                  attemptsCount={order.attempts_count ?? 0}
+                  maxAttempts={maxCallAttempts}
+                  locale={locale}
+                />
+              )}
+
             </div>
 
             <PanelTabs
@@ -1397,6 +1443,44 @@ export function OrderDetailPanel({
             className="flex-shrink-0 mx-4 mt-2 rounded-card px-3 py-2 text-[12px] border bg-status-criticalBg border-status-critical/30 text-status-critical"
           >
             {recoverError}
+          </div>
+        )}
+
+        {/* ── Blockers, directly above the buttons they block ──────
+            They used to sit under the facts grid, three scroll-lengths from
+            the footer. A warning about why the shipment cannot go out belongs
+            next to the control that would send it, not at the top of a panel
+            the agent has already scrolled past. */}
+        {order && (
+          <div className="flex-shrink-0">
+            <AlertBanners
+              locale={locale === "ar" ? "ar" : "fr"}
+              editBlocked={!canEdit && !canReopen}
+              callbackScheduledAt={
+                order.status === "callback_scheduled" ? order.callback_scheduled_at : null
+              }
+              dispatchScheduledAt={isDispatchScheduled ? order.scheduled_dispatch_at : null}
+              dispatchScheduledAuto={order.scheduled_dispatch_auto ?? false}
+              cancelingSchedule={cancelingSchedule}
+              onCancelSchedule={handleCancelSchedule}
+              // A missing city stops the carrier upload. Worth saying out
+              // loud on any order that still has somewhere to go — not on
+              // one that is already finished.
+              cityUnmatched={
+                !order.customer_city?.trim() && !TERMINAL_STATUSES.has(order.status)
+              }
+              onResolveCity={() => {
+                // The city lives in the Livraison tab — switch to it first,
+                // or the scroll target is inside a `hidden` panel.
+                setTab("shipping");
+                requestAnimationFrame(() => {
+                  document
+                    .querySelector<HTMLElement>('[data-field="city"]')
+                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                  document.querySelector<HTMLElement>('[data-field="city"] button')?.click();
+                });
+              }}
+            />
           </div>
         )}
 

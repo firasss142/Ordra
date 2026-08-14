@@ -310,98 +310,108 @@
   },
   "inventory": {
     "title": "Stock & inventaire",
-    "subtitle": "Valeur du stock, couverture et mouvements — dernières 30 jours.",
+    "subtitle": "Position réelle, couverture et capital immobilisé.",
     "loading": "Chargement du stock…",
     "loadError": "Impossible de charger l'inventaire.",
-    "totals": {
-      "stockValue": "Valeur du stock",
-      "productsTracked": "{count, plural, one {# produit suivi} other {# produits suivis}}",
-      "lowStock": "Stock bas",
-      "outOfStock": "Rupture de stock",
-      "damaged": "Retours endommagés",
-      "scannedOut30d": "{count} unités scannées sur 30 jours"
+    "window": {
+      "7": "7 j",
+      "28": "28 j",
+      "90": "90 j",
+      "aria": "Fenêtre de demande"
     },
-    "healthBreakdown": {
-      "healthy": "Sain",
-      "healthy_hint": "≥ 14 j de couverture",
-      "reorder": "À recommander",
-      "reorder_hint": "Rupture prévue < 14 j",
-      "low": "Stock bas",
-      "low_hint": "Sous le seuil ou < 14 j",
-      "out": "En rupture",
-      "out_hint": "Stock à zéro",
-      "overstocked": "Sur-stocké",
-      "overstocked_hint": "> 90 j de couverture"
+    "scopeAllCurrencyNote": "Portée « tous les marchés » : les montants mêlent TND et LYD et ne sont pas additionnés.",
+    "kpi": {
+      "stockValue": "Valeur totale du stock",
+      "stockValueFoot": "Au coût d'achat · maintenant",
+      "daysToStockout": "Jours avant rupture",
+      "dormantCapital": "Capital dormant",
+      "reliability": "Écart de fiabilité",
+      "free": "Libre",
+      "engaged": "Engagé",
+      "dormant": "Dormant",
+      "productsOk": "Produits OK",
+      "coverWatch": "≤ {days} jours",
+      "coverUrgent": "≤ {days} jours",
+      "ofStock": "du stock",
+      "products": "Produits",
+      "avgAge": "Âge moy.",
+      "units": "Unités",
+      "unverified": "Non vérifié",
+      "lastMovement": "Maj il y a {days} j",
+      "neverCounted": "Jamais inventorié",
+      "impactedRate": "Taux impacté",
+      "dailyImpact": "Impact / jour",
+      "noStockout": "Aucune rupture prévue",
+      "daysUnit": "j"
     },
-    "healthPill": {
-      "healthy": "Sain",
-      "low": "Bas",
-      "out": "Rupture",
-      "overstocked": "Sur-stocké"
-    },
-    "reorder": {
-      "title": "À recommander (14 prochains jours)",
-      "empty": "Tous les produits ont une couverture suffisante.",
-      "stockOut": "Rupture prévue dans {days} j · {rate}/j",
-      "daysShort": "{days} j"
-    },
-    "products": {
+    "table": {
       "title": "Produits",
+      "scope": "position maintenant · demande sur {days} j",
       "empty": "Aucun produit actif dans ce marché.",
-      "thresholdShort": "/{threshold}",
-      "daysShort": "{days} j",
       "cols": {
-        "name": "Produit",
-        "health": "État",
-        "stock": "Stock",
-        "daysOfSupply": "Couverture",
-        "turnover": "Rotation 30 j",
+        "product": "Produit",
+        "unitCost": "coût unitaire",
+        "position": "Position",
+        "cover": "Couverture",
+        "demand": "Demande (u/j)",
+        "returns": "Retours",
         "value": "Valeur",
-        "damaged": "Endommagés"
-      }
+        "verdict": "Verdict"
+      },
+      "legend": {
+        "register": "Registre",
+        "engaged": "Engagé",
+        "free": "Libre"
+      },
+      "ownWarehouse": "Entrepôt propre",
+      "stockOutOn": "Rupture le {date}",
+      "reorderBy": "Commander avant le {date}",
+      "reorderLate": "Commande en retard",
+      "dormantFor": "Aucune vente depuis {days} j",
+      "neverSold": "Jamais vendu",
+      "perDay": "{rate}/j",
+      "demandTotal": "{units} u",
+      "sparkAria": "Demande sur {days} jours",
+      "unverifiedValue": "non vérifié",
+      "adjust": "Ajuster le stock de {name}",
+      "inferred": "demande estimée"
     },
-    "movementsTimeline": {
-      "title": "Mouvements par jour (14 j)",
-      "empty": "Aucun mouvement sur les 14 derniers jours.",
-      "countShort": "{count} mvt"
+    "verdict": {
+      "out": "Rupture",
+      "reorder_now": "Urgent",
+      "watch": "Bientôt",
+      "ok": "Sain",
+      "overstocked": "Surplus",
+      "dead": "Dormant",
+      "unknown": "Indéterminé"
     },
-    "movements": {
-      "title": "Mouvements récents",
-      "empty": "Aucun mouvement récent.",
-      "balanceShort": "→ {balance}",
-      "hasOrder": "Voir la commande",
-      "reasons": {
-        "scanned": "Sortie entrepôt (scan)",
-        "deposit": "Sortie (dépôt)",
-        "returned": "Retour",
-        "damaged_return": "Retour endommagé",
-        "manual_adjustment": "Ajustement manuel",
-        "damaged_writeoff": "Démarque",
-        "initial_stock": "Stock initial"
-      }
+    "capital": {
+      "title": "Répartition du capital",
+      "scope": "(valeur du stock)",
+      "active": "Libre",
+      "engaged": "Engagé",
+      "dormant": "Dormant",
+      "others": "Autres"
+    },
+    "actions": {
+      "title": "Actions prioritaires",
+      "total": "Total récupérable",
+      "empty": "Aucune action prioritaire.",
+      "relaunch": "Relancer {name}",
+      "relaunchWhy": "{units} unités dormantes · aucune vente depuis {days} j",
+      "expedite": "Accélérer le réapprovisionnement de {name}",
+      "expediteWhy": "Évite la rupture prévue le {date}",
+      "liquidate": "Liquider {name} en pack promo",
+      "liquidateWhy": "Stock négatif : {units} unités engagées de plus que le registre",
+      "reduce_moq": "Réduire la commande fournisseur sur {name}",
+      "reduce_moqWhy": "Surstock : {units} unités libres, {days} j de couverture",
+      "scan": "Scanner les unités en attente"
     },
     "adjust": {
       "button": "Ajuster",
       "openLabel": "Ajuster le stock de {name}",
-      "title": "Ajuster le stock · {name}",
-      "close": "Fermer",
-      "currentStock": "Stock actuel : {value}",
-      "reasonLabel": "Motif",
-      "reasons": {
-        "manual_adjustment": "Ajustement manuel",
-        "damaged_writeoff": "Démarque (endommagé)"
-      },
-      "changeLabel": "Variation",
-      "changeHint": "Entier non nul. Ex. +5 pour réappro, -2 pour correction.",
-      "changeHintDamaged": "Doit être négatif (démarque).",
-      "noteLabel": "Note (obligatoire)",
-      "noteHint": "Raison de l'ajustement — tracée dans le journal.",
-      "save": "Enregistrer",
-      "saving": "Enregistrement…",
-      "cancel": "Annuler",
-      "errorGeneric": "Ajustement impossible. Réessayez."
-    },
-    "scopeAllCurrencyNote": "Devises mixtes (tous les marchés) — sélectionnez un marché pour les valeurs monétaires."
+      "errorGeneric": "Impossible d'ajuster le stock."
+    }
   },
   "pnl": {
     "title": "P&L global",
@@ -522,7 +532,8 @@
       "dispatch_schedule_missed": "non déclenchée depuis {value}",
       "price_changed": "prix modifié il y a {value}",
       "order_reopened": "rouverte il y a {value}",
-      "stock_depleted": "rupture"
+      "stock_depleted": "rupture",
+      "stock_unreconciled": "{count, plural, one {# unité d'écart} other {# unités d'écart}}"
     },
     "types": {
       "dispatch_failure": {
@@ -557,6 +568,9 @@
       },
       "order_reopened": {
         "label": "Commande rouverte"
+      },
+      "stock_unreconciled": {
+        "label": "Stock non rapproché"
       }
     },
     "bell": "Alertes",
@@ -1231,6 +1245,9 @@
         "addProductFailed": "Impossible d'ajouter le produit"
       },
       "actions": {
+        "confirm": "Confirmer",
+        "callback": "Rappeler",
+        "reject": "Refuser",
         "endCall": "Appel terminé",
         "returnToPool": "Retirer de l'agent",
         "cancel": "Annuler la commande",
@@ -1255,6 +1272,9 @@
       "blockerResolve": "Résoudre",
       "factTotal": "Total",
       "factItems": "Articles",
+      "factCity": "Ville",
+      "factAddress": "Adresse",
+      "factCityMissing": "Non renseignée",
       "factAgent": "Agent",
       "factCarrier": "Transporteur",
       "unassigned": "Non assigné",
@@ -1266,7 +1286,33 @@
       "fieldTracking": "Suivi",
       "cityDefine": "Définir",
       "cityEmpty": "Non définie",
-      "trackingTitle": "Suivi du colis"
+      "trackingTitle": "Suivi du colis",
+      "reliability": {
+        "reliable": "Fiable",
+        "average": "Moyen",
+        "risky": "À risque",
+        "unknown": "Nouveau",
+        "orders": "{count} commandes",
+        "ordersOne": "{count} commande",
+        "delivered": "{count} livrées",
+        "deliveredOne": "{count} livrée",
+        "returned": "{count} retours",
+        "returnedOne": "{count} retour"
+      },
+      "slaTarget": "SLA {target}",
+      "ops": {
+        "title": "Résumé opérationnel",
+        "market": "Marché",
+        "market_tn": "Tunisie",
+        "market_ly": "Libye",
+        "origin": "Origine",
+        "originStorefront": "Storefront",
+        "originManual": "Manuelle",
+        "createdAt": "Créée le",
+        "duplicates": "Doublons",
+        "duplicatesNone": "Aucun",
+        "attempts": "Tentatives"
+      }
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",
