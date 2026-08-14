@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { X, Upload, AlertTriangle, Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { parseAdSpendCsv } from "@/lib/ad-spend/csv-parse";
+import { isPeriodLocked } from "@/lib/ad-spend/period-lock";
 import type { ParsedAdSpendRow } from "@/lib/ad-spend/csv-parse";
 import type { CampaignsProduct } from "@/hooks/useAdSpendCampaigns";
 import { AD_SPEND_THEME as D } from "./theme";
@@ -16,7 +17,12 @@ interface AdSpendCsvImportProps {
   products: CampaignsProduct[];
   marketId: string;
   onClose: () => void;
-  onImport: (rows: MappedRow[]) => Promise<{ inserted: number; rejected: { index: number; reason: string }[] }>;
+  onImport: (
+    rows: MappedRow[],
+    confirmLockedPeriod?: boolean,
+  ) => Promise<{ inserted: number; rejected: { index: number; reason: string }[] }>;
+  /** super_admin is the only role the route will let past a closed period. */
+  canConfirmLocked?: boolean;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -30,7 +36,12 @@ const inputStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
-export function AdSpendCsvImport({ products, onClose, onImport }: AdSpendCsvImportProps) {
+export function AdSpendCsvImport({
+  products,
+  onClose,
+  onImport,
+  canConfirmLocked = false,
+}: AdSpendCsvImportProps) {
   const t = useTranslations("adSpend.import");
   const fileRef = useRef<HTMLInputElement>(null);
   const [csvText, setCsvText] = useState("");
@@ -39,6 +50,7 @@ export function AdSpendCsvImport({ products, onClose, onImport }: AdSpendCsvImpo
   const [parseError, setParseError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ inserted: number; rejected: number } | null>(null);
+  const [confirmLocked, setConfirmLocked] = useState(false);
 
   function handleParse() {
     setParseError(null);
@@ -77,7 +89,7 @@ export function AdSpendCsvImport({ products, onClose, onImport }: AdSpendCsvImpo
         ...r,
         product_id: mappings[r.campaign_name] || null,
       }));
-      const res = await onImport(rows);
+      const res = await onImport(rows, confirmLocked);
       setResult({ inserted: res.inserted, rejected: res.rejected.length });
     } finally {
       setSubmitting(false);
@@ -353,6 +365,35 @@ export function AdSpendCsvImport({ products, onClose, onImport }: AdSpendCsvImpo
                   </tbody>
                 </table>
               </div>
+
+              {/* A backfill lands in a closed quarter more often than not, and the
+                  import route runs the same lock the entry modal does. Without an
+                  explicit confirmation every such row comes back rejected as
+                  `locked_period` and the UI could only call it "invalid". */}
+              {canConfirmLocked && parsed.some((r) => isPeriodLocked(r.period_end)) && (
+                <label
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    alignItems: "flex-start",
+                    padding: "10px 12px",
+                    marginBottom: 12,
+                    background: "#FFF8E6",
+                    border: "1px solid #F0D9A8",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    color: "#8A6116",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={confirmLocked}
+                    onChange={(e) => setConfirmLocked(e.target.checked)}
+                    style={{ marginTop: 2 }}
+                  />
+                  <span>{t("confirmLockedImport")}</span>
+                </label>
+              )}
 
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                 <button

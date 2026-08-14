@@ -1,26 +1,28 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import dynamic from "next/dynamic";
-import useSWR from "swr";
 import { useTranslations } from "next-intl";
-import { Plus, Upload } from "lucide-react";
+import { Loader2, Plus, RefreshCw, Upload } from "lucide-react";
 import { useAdSpendCampaigns } from "@/hooks/useAdSpendCampaigns";
 import { useMarketScope } from "@/context/market-scope";
-import { AdSpendRollups } from "@/components/ad-spend/AdSpendRollups";
-import { AdSpendCampaignList } from "@/components/ad-spend/AdSpendCampaignList";
+import {
+  AdSpendChain,
+  AdSpendCplBars,
+  AdSpendCostStack,
+  AdSpendProductTable,
+  AdSpendSyncStrip,
+  AdSpendUnmappedBanner,
+  type SyncHealth,
+} from "@/components/ad-spend/AdSpendEconomics";
+import { useAdSpendEconomics } from "@/hooks/useAdSpendEconomics";
+import { useAdSpendSyncStatus } from "@/hooks/useAdSpendSyncStatus";
 import { AdSpendEntryModal } from "@/components/ad-spend/AdSpendEntryModal";
 import { AdSpendCsvImport } from "@/components/ad-spend/AdSpendCsvImport";
+import { AdSpendMappingDrawer } from "@/components/ad-spend/AdSpendMappingDrawer";
 import { EmptyState } from "@/components/dashboard/Panel";
-import { computeRollups, aggregateWeeklyTimeline } from "@/lib/ad-spend/realized-metrics";
 import type { AdSpendWithMetrics } from "@/lib/ad-spend/realized-metrics";
 import type { AuthUser } from "@/types";
 import { todayISO, startOfMonthISO } from "@/lib/date";
-
-const AdSpendTimeline = dynamic(
-  () => import("@/components/ad-spend/AdSpendTimeline").then((m) => m.AdSpendTimeline),
-  { ssr: false, loading: () => <div className="h-[260px] bg-surface-sunken rounded-[8px]" /> },
-);
 
 interface Market {
   id: string;
@@ -41,8 +43,36 @@ function twelveWeekFrom(): string {
   return d.toISOString().slice(0, 10);
 }
 
-function startOfYearISO(): string {
-  return `${new Date().getUTCFullYear()}-01-01`;
+/** "il y a 14 min" — the strip reads as freshness, not as a timestamp. */
+function relativeTime(iso: string | null, locale: string): string | null {
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return null;
+  const minutes = Math.round((then - Date.now()) / 60_000);
+  const rtf = new Intl.RelativeTimeFormat(locale === "ar" ? "ar" : "fr", { numeric: "auto" });
+  if (Math.abs(minutes) < 60) return rtf.format(minutes, "minute");
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) return rtf.format(hours, "hour");
+  return rtf.format(Math.round(hours / 24), "day");
+}
+
+/**
+ * Next firing of an hourly `M * * * *` schedule, as a local wall time.
+ *
+ * Only that one shape is decoded — it is the shape this job uses — and anything
+ * else falls back to showing the raw expression rather than guessing. A sync
+ * strip that quietly mis-states when the next run happens is worse than one
+ * that shows a cron string.
+ */
+function nextCronRun(schedule: string): string {
+  const match = /^(\d{1,2}) \* \* \* \*$/.exec(schedule.trim());
+  if (!match) return schedule;
+  const minute = Number(match[1]);
+  const next = new Date();
+  next.setSeconds(0, 0);
+  if (next.getMinutes() >= minute) next.setHours(next.getHours() + 1);
+  next.setMinutes(minute);
+  return next.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
 export function AdSpendClient({ user, markets }: AdSpendClientProps) {
@@ -57,60 +87,145 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
 
   const fromDate = useMemo(() => twelveWeekFrom(), []);
   const toDate = useMemo(() => todayISO(), []);
-  const currency = useMemo(
-    () =>
-      markets.find((m) => m.id === selectedMarketId)?.code.toUpperCase() === "LY"
-        ? "LYD"
-        : "TND",
-    [markets, selectedMarketId],
-  );
+  const locale = user.locale ?? "fr";
+
+  const {
+    products: economics,
+    meta: economicsMeta,
+    isLoading: economicsLoading,
+    mutate: mutateEconomics,
+  } = useAdSpendEconomics({ marketId: selectedMarketId, fromDate, toDate });
+
+  const market = markets.find((m) => m.id === selectedMarketId);
+  const marketLabel = market?.name ?? "";
+  const currency = market?.code.toUpperCase() === "LY" ? "LYD" : "TND";
 
   const [editingEntry, setEditingEntry] = useState<AdSpendWithMetrics | null | undefined>(undefined); // undefined = modal closed
   const [showImport, setShowImport] = useState(false);
+  const [showMapping, setShowMapping] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<AdSpendWithMetrics | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const { entries, products, monthConfirmedCount, isLoading, mutate } = useAdSpendCampaigns({
+  const { status: syncStatus, mutate: mutateSync } = useAdSpendSyncStatus(selectedMarketId);
+
+  // Entries and the product list back the CRUD surfaces only — every figure on
+  // the page comes from the economics route. The metrics overlay is skipped
+  // because nothing renders per-entry ROAS any more.
+  const { entries, products, mutate } = useAdSpendCampaigns({
     marketId: selectedMarketId,
     fromDate,
     toDate,
+    withMetrics: false,
   });
 
-  // Real YTD: a second lightweight fetch (amounts only, no metrics overlay) —
-  // the 12-week window above under-covers the year for most of it.
-  const ytdKey = selectedMarketId
-    ? `/api/ad-spend?market_id=${selectedMarketId}&from_date=${startOfYearISO()}&to_date=${toDate}&scope=all`
-    : null;
-  const { data: ytdData } = useSWR<{ data: { amount: number }[] }>(ytdKey, {
-    revalidateOnFocus: false,
-    dedupingInterval: 60_000,
-  });
-  const ytdSum = useMemo(
-    () => (ytdData?.data ?? []).reduce((s, e) => s + (Number(e.amount) || 0), 0),
-    [ytdData],
+  const refresh = useCallback(() => {
+    mutate();
+    mutateEconomics();
+    mutateSync();
+  }, [mutate, mutateEconomics, mutateSync]);
+
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  const runSyncNow = useCallback(async () => {
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      // market_id is a query param, not a body field — the route reads
+      // `req.nextUrl.searchParams`, and a body would be silently ignored,
+      // syncing every market instead of this one.
+      const res = await fetch(`/api/ad-spend/sync?market_id=${encodeURIComponent(selectedMarketId)}`, {
+        method: "POST",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body?.ok === false) {
+        setSyncError(body?.error ?? t("economics.syncFailed"));
+        return;
+      }
+      // A run that finished but wrote nothing is worth saying out loud — it is
+      // the shape a wrong date window or a paused campaign takes.
+      const failed = (body?.results ?? []).filter(
+        (r: { status: string }) => r.status === "failed",
+      );
+      if (failed.length > 0) setSyncError(failed[0]?.error ?? t("economics.syncFailed"));
+    } catch {
+      setSyncError(t("economics.syncFailed"));
+    } finally {
+      setSyncing(false);
+      refresh();
+    }
+  }, [selectedMarketId, refresh, t]);
+
+  const periodLabel = useMemo(() => {
+    const f = new Intl.DateTimeFormat(locale === "ar" ? "ar" : "fr-FR", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+    return `${f.format(new Date(fromDate))} – ${f.format(new Date(toDate))}`;
+  }, [fromDate, toDate, locale]);
+
+  // The strip has to be able to say "never synced" and "not scheduled" and be
+  // right about both. Everything here comes from the sync-status route; nothing
+  // is asserted. A blank strip would read as healthy, which is the one thing a
+  // broken sync must never look like.
+  const syncHealth: SyncHealth = useMemo(() => {
+    const accounts = (syncStatus?.accounts ?? []).map((a) => {
+      const tzBad = a.timezone.status === "mismatch";
+      return {
+        label: a.account_name ?? `act_${a.ad_account_id}`,
+        ok: a.is_active && !a.last_sync_error && !tzBad,
+        detail: a.last_sync_error
+          ? t("economics.syncFailing")
+          : !a.is_active
+            ? t("economics.syncPaused")
+            : tzBad
+              ? t("economics.syncTimezoneOff")
+              : `${t("economics.syncOk")} · ${a.account_currency}`,
+        note: a.account_timezone ?? t("economics.syncTimezoneUnknown"),
+      };
+    });
+
+    return {
+      lastSyncedAt: relativeTime(syncStatus?.last_run?.started_at ?? null, locale),
+      rowsWritten: syncStatus?.last_run?.rows_upserted ?? null,
+      campaigns: syncStatus?.campaigns ?? null,
+      cadenceLabel:
+        syncStatus?.cadence?.active === true ? nextCronRun(syncStatus.cadence.schedule) : null,
+      accounts:
+        accounts.length > 0
+          ? accounts
+          : [
+              {
+                label: marketLabel || t("economics.syncNoAccount"),
+                ok: false,
+                detail: t("economics.syncNotConnected"),
+                note: t("economics.syncTokenPending"),
+              },
+            ],
+      lastError: syncStatus?.last_error ?? null,
+    };
+  }, [syncStatus, t, locale, marketLabel]);
+
+  const openEntry = useCallback(
+    (entryId: string) => {
+      const found = entries.find((e) => e.id === entryId);
+      if (found) setEditingEntry(found);
+    },
+    [entries],
   );
 
-  const locale = user.locale ?? "fr";
-
-  const { rollups, timelineWeeks } = useMemo(() => {
-    const now = new Date();
-    const base = computeRollups(entries, now, 0);
-    return {
-      rollups: {
-        this_week: base.this_week,
-        this_month: base.this_month,
-        ytd: ytdSum,
-        // De-duplicated market-level count from the API — overlapping
-        // market-wide + product entries no longer double-count.
-        avg_cost_per_conf:
-          monthConfirmedCount && monthConfirmedCount > 0
-            ? Math.round((base.this_month / monthConfirmedCount) * 100) / 100
-            : null,
-      },
-      timelineWeeks: aggregateWeeklyTimeline(entries, 12, now),
-    };
-  }, [entries, ytdSum, monthConfirmedCount]);
+  const confirmDelete = useCallback(
+    (entryId: string) => {
+      const found = entries.find((e) => e.id === entryId);
+      if (found) {
+        setDeleteError(null);
+        setDeleteConfirm(found);
+      }
+    },
+    [entries],
+  );
 
   const handleSave = useCallback(
     async (
@@ -148,9 +263,9 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
           throw new Error(body?.message ?? `POST failed (${res.status})`);
         }
       }
-      mutate();
+      refresh();
     },
-    [selectedMarketId, isSuperAdmin, mutate],
+    [selectedMarketId, isSuperAdmin, refresh],
   );
 
   const handleDeleteConfirm = useCallback(async () => {
@@ -164,20 +279,39 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
         setDeleteError(body?.message ?? t("deleteError"));
         return; // keep the dialog open — the entry was NOT deleted
       }
-      mutate();
+      refresh();
       setDeleteConfirm(null);
     } catch {
       setDeleteError(t("deleteError"));
     } finally {
       setDeleting(false);
     }
-  }, [deleteConfirm, mutate, t]);
+  }, [deleteConfirm, refresh, t]);
 
   const handleImport = useCallback(
-    async (rows: { period_start: string; period_end: string; amount: number; product_id: string | null; note?: string | null; campaign_name: string }[]) => {
+    async (
+      rows: {
+        period_start: string;
+        period_end: string;
+        amount: number;
+        product_id: string | null;
+        note?: string | null;
+        campaign_name: string;
+      }[],
+      confirmLockedPeriod = false,
+    ) => {
+      // The import route runs the very same closed-period guard as the entry
+      // modal, so it needs the very same confirmation. Without this header a
+      // super_admin's deliberate backfill into a closed quarter comes back as
+      // `locked_period` for every affected row, and the import dialog can only
+      // report them as invalid — an outcome indistinguishable from a malformed
+      // CSV, which is how the affordance went missing unnoticed for so long.
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (confirmLockedPeriod) headers["x-confirm-locked-period"] = "true";
+
       const res = await fetch("/api/ad-spend/import", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           market_id: isSuperAdmin ? selectedMarketId : undefined,
           rows: rows.map((r) => ({
@@ -185,115 +319,160 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
             period_end: r.period_end,
             amount: r.amount,
             product_id: r.product_id,
-            note: r.campaign_name,
+            // The campaign name has a column of its own now. Folding it into
+            // `note` was lossy in both directions: it destroyed whatever note
+            // the row carried, and it buried campaign identity in free text
+            // that nothing downstream could match on.
+            campaign_name: r.campaign_name,
+            note: r.note ?? null,
           })),
         }),
       });
       const json = await res.json();
-      mutate();
+      refresh();
       return json?.data ?? { inserted: 0, rejected: [] };
     },
-    [selectedMarketId, isSuperAdmin, mutate],
+    [selectedMarketId, isSuperAdmin, refresh],
   );
 
-  const marketLabel = markets.find((m) => m.id === selectedMarketId)?.name ?? "";
+  const hasCohort = !!economicsMeta && economicsMeta.total_leads > 0;
 
   return (
-    <div className="bg-surface-page min-h-screen px-4 sm:px-6 pt-5 pb-16 flex flex-col gap-5">
+    <div className="bg-surface-page min-h-screen px-4 sm:px-6 pt-5 pb-16 flex flex-col gap-3.5">
       {/* Page header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-baseline gap-3 flex-wrap">
-            <h1 className="m-0 text-[20px] font-semibold text-ink-primary tracking-[-0.01em]">
-              {t("title")}
-            </h1>
-            {marketLabel ? (
-              <span className="text-[12px] font-medium text-ink-secondary px-2 py-0.5 rounded-pill bg-surface-selected">
-                {marketLabel}
-              </span>
-            ) : null}
-          </div>
-          <p className="m-0 text-[13px] text-ink-secondary">{t("subtitle")}</p>
+      <div className="flex items-start gap-3 flex-wrap">
+        <div>
+          <h1 className="m-0 text-[20px] font-semibold text-ads-ink-1 tracking-[-0.01em]">{t("title")}</h1>
+          <p className="m-0 text-[12.5px] text-ads-ink-2 mt-[3px]">
+            {hasCohort
+              ? t("cohortSubtitle", {
+                  period: periodLabel,
+                  maturity: `${Math.round(economicsMeta.maturity_pct * 100)} %`,
+                })
+              : t("subtitle")}
+          </p>
         </div>
 
-        {!scopeIsAll ? (
+        <span className="flex-1" />
+
+        {!scopeIsAll && (
           <div className="flex gap-2 flex-wrap items-center">
+            {market && (
+              <span className="inline-flex items-center gap-1.5 border border-ads-line-2 rounded-[8px] px-[11px] py-1.5 text-[12.5px] font-semibold bg-surface-card text-ads-ink-1">
+                <span className="w-[7px] h-[7px] rounded-full bg-ads-green" />
+                {market.name} · {currency}
+              </span>
+            )}
+            {/* One chip, three truths: connected and fresh, connected and
+                stale, or not connected at all. */}
+            {syncHealth.lastSyncedAt ? (
+              <span className="inline-flex items-center gap-1.5 border border-ads-line-2 rounded-[8px] px-[11px] py-1.5 text-[12.5px] font-semibold bg-surface-card text-ads-ink-1">
+                {t("economics.syncedAgo", { ago: syncHealth.lastSyncedAt })}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 border border-ads-orange-line rounded-[8px] px-[11px] py-1.5 text-[12.5px] font-semibold bg-ads-orange-bg text-ads-orange-ink">
+                {t("economics.metaNotConnected")}
+              </span>
+            )}
+            {(syncStatus?.accounts.length ?? 0) > 0 && (
+              <button
+                type="button"
+                onClick={runSyncNow}
+                disabled={syncing}
+                className="inline-flex items-center gap-1.5 border border-ads-line-2 rounded-[8px] px-3 py-[7px] text-[13px] font-semibold bg-surface-card text-ads-ink-1 hover:border-line-strong hover:bg-surface-sunken transition-colors duration-fast disabled:opacity-60"
+              >
+                {syncing ? (
+                  <Loader2 size={14} strokeWidth={2} className="animate-spin" />
+                ) : (
+                  <RefreshCw size={14} strokeWidth={1.8} />
+                )}
+                {t("economics.syncNow")}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setShowImport(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-medium bg-surface-card border border-line rounded-[6px] text-ink-primary cursor-pointer hover:bg-surface-hover transition-colors duration-fast"
+              className="inline-flex items-center gap-1.5 border border-ads-line-2 rounded-[8px] px-3 py-[7px] text-[13px] font-semibold bg-surface-card text-ads-ink-1 hover:border-line-strong hover:bg-surface-sunken transition-colors duration-fast"
             >
-              <Upload size={14} strokeWidth={1.5} />
+              <Upload size={14} strokeWidth={1.8} />
               {t("importCsv")}
             </button>
             <button
               type="button"
               onClick={() => setEditingEntry(null)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-semibold rounded-[6px] cursor-pointer transition-colors duration-fast"
-              style={{ background: "#1A1A1A", color: "#FFFFFF", border: "none" }}
+              className="inline-flex items-center gap-1.5 rounded-[8px] px-3 py-[7px] text-[13px] font-semibold bg-ads-green-ink text-white hover:bg-brand-hover transition-colors duration-fast"
             >
               <Plus size={14} strokeWidth={2} />
               {t("addEntry")}
             </button>
           </div>
-        ) : null}
+        )}
       </div>
 
       {scopeIsAll ? (
-        <div className="bg-surface-card border border-line-subtle rounded-[8px] p-6">
+        <div className="bg-surface-card border border-ads-line rounded-card p-6">
           <EmptyState label={t("selectMarketPrompt")} minHeight={160} />
+        </div>
+      ) : !hasCohort ? (
+        <div className="bg-surface-card border border-ads-line rounded-card p-6">
+          <EmptyState label={economicsLoading ? t("refreshing") : t("empty")} minHeight={260} />
         </div>
       ) : (
         <>
-          {/* KPI Rollups */}
-          <AdSpendRollups
-            thisWeek={rollups.this_week}
-            thisMonth={rollups.this_month}
-            ytd={rollups.ytd}
-            avgCostPerConf={rollups.avg_cost_per_conf}
+          {syncError && (
+            <div role="alert" className="rounded-card border border-ads-red-line bg-ads-red-bg px-4 py-3">
+              <p className="text-[13px] font-semibold text-ads-red-ink">{t("economics.syncFailed")}</p>
+              <p className="text-[12.5px] text-ads-ink-2 mt-0.5 break-words">{syncError}</p>
+            </div>
+          )}
+
+          {/* The drawer maps Meta campaigns. A manual market-level entry is
+              unmapped too, but it is fixed by editing the entry, not by
+              mapping a campaign — so the banner only offers the action when
+              there is actually a campaign behind it. */}
+          <AdSpendUnmappedBanner
+            meta={economicsMeta}
             currency={currency}
-            locale={locale}
+            onAttach={
+              economicsMeta.unmapped.entries.some((e) => e.source === "meta")
+                ? () => setShowMapping(true)
+                : undefined
+            }
           />
 
-          {/* Timeline chart */}
-          <div className="bg-surface-card border border-line-subtle rounded-[8px] p-5 flex flex-col gap-3.5">
-            <h2 className="m-0 text-[14px] font-semibold text-ink-primary">{t("timelineTitle")}</h2>
-            {entries.length > 0 ? (
-              <AdSpendTimeline
-                weeks={timelineWeeks}
-                products={products}
-                marketLabel={t("card.marketWide")}
-                currency={currency}
-              />
-            ) : (
-              <EmptyState label={t("empty")} minHeight={260} />
-            )}
+          {economicsMeta.total_spend === 0 && (
+            <div className="rounded-card border border-ads-orange-line bg-ads-orange-bg px-4 py-3">
+              <p className="text-[13.5px] font-semibold text-ads-ink-1">{t("economics.noSpendYet")}</p>
+              <p className="text-[12.5px] text-ads-ink-2 mt-1 leading-relaxed">{t("economics.noSpendYetHint")}</p>
+            </div>
+          )}
+
+          {/* What the money turned into, end to end. Leads with the arithmetic
+              rather than four totals, because a total says how much was spent
+              and never whether spending it was a good idea. */}
+          <AdSpendChain meta={economicsMeta} currency={currency} />
+
+          <div className="grid grid-cols-1 [@media(min-width:1240px)]:grid-cols-[1.18fr_1fr] gap-3.5 items-start">
+            <AdSpendCplBars
+              products={economics}
+              currency={currency}
+              periodLabel={t("economics.overPeriod")}
+            />
+            <AdSpendCostStack meta={economicsMeta} currency={currency} />
           </div>
 
-          {/* Section heading */}
-          <div className="flex items-center justify-between">
-            <h2 className="m-0 text-[16px] font-semibold text-ink-primary">{t("campaignsTitle")}</h2>
-            {isLoading && (
-              <span className="text-[11px] font-medium text-ink-secondary px-2.5 py-0.5 rounded-pill bg-surface-selected uppercase tracking-[0.06em]">
-                {t("refreshing")}
-              </span>
-            )}
-          </div>
-
-          {/* Campaign cards */}
-          <AdSpendCampaignList
-            entries={entries}
-            products={products}
+          <AdSpendProductTable
+            products={economics}
+            meta={economicsMeta}
             currency={currency}
-            locale={locale}
-            canEditLocked={isSuperAdmin}
-            isLoading={isLoading}
-            onEdit={(entry) => setEditingEntry(entry)}
-            onDelete={(entry) => {
-              setDeleteError(null);
-              setDeleteConfirm(entry);
-            }}
+            onEditEntry={openEntry}
+            onDeleteEntry={confirmDelete}
+            onMapCampaigns={
+              (syncStatus?.accounts.length ?? 0) > 0 ? () => setShowMapping(true) : undefined
+            }
           />
+
+          <AdSpendSyncStrip health={syncHealth} />
         </>
       )}
 
@@ -360,6 +539,19 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
         </div>
       )}
 
+      {/* Campaign → product mapping */}
+      {showMapping && (
+        <AdSpendMappingDrawer
+          marketId={selectedMarketId}
+          fromDate={fromDate}
+          toDate={toDate}
+          currency={currency}
+          products={products}
+          onClose={() => setShowMapping(false)}
+          onSaved={refresh}
+        />
+      )}
+
       {/* CSV Import modal */}
       {showImport && (
         <AdSpendCsvImport
@@ -367,6 +559,7 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
           marketId={selectedMarketId}
           onClose={() => setShowImport(false)}
           onImport={handleImport}
+          canConfirmLocked={isSuperAdmin}
         />
       )}
     </div>

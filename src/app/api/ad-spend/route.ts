@@ -5,6 +5,7 @@ import { getActor } from "@/lib/auth/actor";
 import { enforcePeriodLock } from "@/lib/ad-spend/enforce-lock";
 import { overlayRealizedMetrics } from "@/lib/ad-spend/realized-metrics";
 import type { AdSpendEntryLite, RealizedMetric } from "@/lib/ad-spend/realized-metrics";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
 export const dynamic = "force-dynamic";
 
@@ -40,34 +41,62 @@ export async function GET(req: NextRequest) {
   const overlay = req.nextUrl.searchParams.get("overlay"); // "metrics" | null
   const includeProducts = req.nextUrl.searchParams.get("include_products") === "true";
 
-  let query = supabase
-    .from("ad_spend")
-    .select("id, market_id, product_id, amount, period_start, period_end, note, created_by, created_at, is_active")
-    .eq("market_id", marketId)
-    .eq("is_active", true)
-    .order("period_start", { ascending: false });
+  const BASE_COLUMNS =
+    "id, market_id, product_id, amount, period_start, period_end, note, created_by, created_at, is_active";
+  // `campaign_name` and `source` arrive with 20260906000001. PostgREST answers
+  // an unknown column with 42703 rather than ignoring it, so naming them
+  // unconditionally takes the whole page down on a database that has not taken
+  // the migration yet. Ask for them, and fall back without them.
+  const RICH_COLUMNS = `${BASE_COLUMNS}, campaign_name, source`;
 
-  if (fromDate && toDate) {
-    query = query.lte("period_start", toDate).gte("period_end", fromDate);
+  const build = (columns: string) => {
+    let q = supabase
+      .from("ad_spend")
+      .select(columns)
+      .eq("market_id", marketId)
+      .eq("is_active", true)
+      .order("period_start", { ascending: false })
+      // period_start alone is NOT a total order, and the Meta sync makes it
+      // massively tie-heavy: every campaign writes one row per day, so ten
+      // campaigns give ten rows sharing a period_start. A page boundary landing
+      // inside a tie group can repeat one row and drop another, which the
+      // rollups then sum. `id` breaks every tie.
+      .order("id", { ascending: true });
+
+    if (fromDate && toDate) {
+      q = q.lte("period_start", toDate).gte("period_end", fromDate);
+    }
+
+    // Backward compatible: if product_id param given, filter exact; else scope controls.
+    if (productIdParam) {
+      q = q.eq("product_id", productIdParam);
+    } else if (scope === "market") {
+      q = q.is("product_id", null);
+    } else if (scope === "product") {
+      q = q.not("product_id", "is", null);
+    }
+    // scope === "all" or unset: no filter — return both market-wide and product-scoped.
+    return q;
+  };
+
+  // Paged rather than awaited directly. Now that spend arrives per campaign per
+  // day, a market with ten live campaigns passes PostgREST's 1000-row cap in
+  // roughly a hundred days — and the cap is not an error, it is a quietly
+  // shorter array. Every rollup on this page (this week, this month, YTD, cost
+  // per confirmation) is a sum over these rows, so truncation would understate
+  // spend and flatter the numbers with nothing to signal it.
+  let data: unknown[];
+  try {
+    data = await fetchAllRows<unknown>(build(RICH_COLUMNS));
+  } catch {
+    try {
+      data = await fetchAllRows<unknown>(build(BASE_COLUMNS));
+    } catch {
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
   }
 
-  // Backward compatible: if product_id param given, filter exact; else scope controls.
-  if (productIdParam) {
-    query = query.eq("product_id", productIdParam);
-  } else if (scope === "market") {
-    query = query.is("product_id", null);
-  } else if (scope === "product") {
-    query = query.not("product_id", "is", null);
-  }
-  // scope === "all" or unset: no filter — return both market-wide and product-scoped.
-
-  const { data, error } = await query;
-
-  if (error) {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-
-  const entries = (data ?? []) as AdSpendEntryLite[] & Array<{
+  const entries = data as AdSpendEntryLite[] & Array<{
     id: string;
     market_id: string;
     product_id: string | null;

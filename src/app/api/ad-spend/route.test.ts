@@ -35,6 +35,12 @@ function userChain(role: string, marketId: string | null) {
   return chain;
 }
 
+// PostgREST caps an un-ranged response at 1000 rows and reports no error when
+// it does — the array is simply shorter. The mock reproduces that, so a test
+// written against a >1000-row fixture fails for an unpaged read exactly the way
+// production would silently under-report.
+const POSTGREST_CAP = 1000;
+
 function thenableChain(payload: { data?: unknown; error?: unknown }) {
   const resolved = { data: payload.data ?? null, error: payload.error ?? null };
   const chain: Record<string, unknown> = {};
@@ -43,8 +49,19 @@ function thenableChain(payload: { data?: unknown; error?: unknown }) {
     chain[m] = vi.fn().mockImplementation(passthrough);
   }
   chain.single = vi.fn().mockResolvedValue(resolved);
-  chain.then = (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
-    Promise.resolve(resolved).then(res, rej);
+  chain.then = (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) => {
+    const capped = Array.isArray(resolved.data)
+      ? { ...resolved, data: resolved.data.slice(0, POSTGREST_CAP) }
+      : resolved;
+    return Promise.resolve(capped).then(res, rej);
+  };
+  // fetchAllRows pages with .range(from, to), inclusive on both ends the way
+  // PostgREST is. Slicing the fixture is what lets a >1000-row case exercise
+  // the second page instead of stopping at the cap.
+  chain.range = vi.fn().mockImplementation((from: number, to: number) => {
+    const all = Array.isArray(resolved.data) ? resolved.data : [];
+    return Promise.resolve({ data: all.slice(from, to + 1), error: resolved.error });
+  });
   return chain;
 }
 
@@ -103,6 +120,29 @@ describe("GET /api/ad-spend", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.data).toHaveLength(1);
+  });
+
+  // Daily campaign rows take a single market past PostgREST's 1000-row cap in
+  // about a hundred days. The cap is not an error — it is a shorter array — so
+  // an unpaged read would understate every rollup this page renders.
+  test("returns every entry past the 1000-row PostgREST cap", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "admin-1" } }, error: null });
+    const manyEntries = Array.from({ length: 1500 }, (_, i) => ({
+      id: `e${i}`,
+      market_id: "m-1",
+      product_id: null,
+      amount: 1,
+      period_start: "2026-07-01",
+      period_end: "2026-07-01",
+      note: null,
+    }));
+    mockFrom.mockImplementation((table: string) =>
+      table === "users" ? userChain("super_admin", null) : thenableChain({ data: manyEntries }),
+    );
+    const res = await GET(getRequest({ market_id: "m-1" }));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.data).toHaveLength(1500);
   });
 });
 

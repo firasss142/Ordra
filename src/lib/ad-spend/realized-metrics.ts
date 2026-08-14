@@ -5,6 +5,12 @@ export interface AdSpendEntryLite {
   period_start: string;
   period_end: string;
   note?: string | null;
+  /**
+   * The campaign this spend came from, for CSV-imported and Meta-synced rows.
+   * Manual entries have none — they are a period and an amount, nothing more.
+   */
+  campaign_name?: string | null;
+  source?: string | null;
 }
 
 export interface RealizedMetric {

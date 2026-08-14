@@ -15,6 +15,7 @@ import {
   calculateReturnRate,
 } from "@/lib/calculations/profitability";
 import { calculateConfirmationRate } from "@/lib/metrics";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
 export const dynamic = "force-dynamic";
 
@@ -60,18 +61,23 @@ export async function GET(
   const processingCostPerOrder = Number(product.confirmation_processing_cost ?? 0);
 
   // --- Ad spend rows scoped to this product, overlapping the period ---
-  const { data: adSpendRows } = await supabase
-    .from("ad_spend")
-    .select("amount")
-    .eq("product_id", productId)
-    .eq("is_active", true)
-    .lte("period_start", toDate)
-    .gte("period_end", fromDate);
-
-  const adSpend = (adSpendRows ?? []).reduce(
-    (sum, r) => sum + Number((r as { amount: number | string }).amount),
-    0
+  // Paged: spend is recorded per campaign per day, so a product advertised
+  // across a handful of campaigns passes PostgREST's 1000-row cap within a few
+  // months. A truncated read here understates the product's cost and reports a
+  // profit it never made — with nothing in the response to hint at it.
+  const adSpendRows = await fetchAllRows<{ amount: number | string }>(
+    supabase
+      .from("ad_spend")
+      .select("amount")
+      .eq("product_id", productId)
+      .eq("is_active", true)
+      .lte("period_start", toDate)
+      .gte("period_end", fromDate)
+      // Total order — see load-summary.ts; paging over ties is not stable.
+      .order("id", { ascending: true })
   );
+
+  const adSpend = adSpendRows.reduce((sum, r) => sum + Number(r.amount), 0);
 
   // --- Delivered orders for this product in period ---
   const { data: deliveredHistory } = await supabase

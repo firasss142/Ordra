@@ -12,6 +12,26 @@ interface ImportRowInput {
   amount: number;
   product_id?: string | null;
   note?: string | null;
+  /**
+   * The campaign as the ad platform named it. This is the only identity a CSV
+   * row carries that survives a re-export, so it is what a later reconciliation
+   * against Meta or TikTok has to match on — a note written by a human will not
+   * do. Optional because a hand-assembled row need not have one.
+   */
+  campaign_name?: string | null;
+}
+
+/** Exactly the column set this route writes. */
+interface AdSpendInsert {
+  market_id: string;
+  created_by: string;
+  amount: number;
+  period_start: string;
+  period_end: string;
+  product_id: string | null;
+  note: string | null;
+  campaign_name: string | null;
+  source: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -40,7 +60,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "market_id required" }, { status: 400 });
   }
 
-  const valid: Array<ImportRowInput & { market_id: string; created_by: string }> = [];
+  const valid: AdSpendInsert[] = [];
   const rejected: Array<{ index: number; reason: string }> = [];
 
   rows.forEach((r, i) => {
@@ -70,6 +90,11 @@ export async function POST(req: NextRequest) {
       period_end: r.period_end,
       product_id: r.product_id ?? null,
       note: r.note ?? null,
+      campaign_name: r.campaign_name ?? null,
+      // Stamping the provenance is what makes a later Meta sync safe: rows the
+      // API owns can be reconciled or replaced, while rows a human pasted in
+      // from a spreadsheet must be left exactly as they were typed.
+      source: "csv",
     });
   });
 
@@ -80,7 +105,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { data, error } = await supabase.from("ad_spend").insert(valid).select();
+  let { data, error } = await supabase.from("ad_spend").insert(valid).select();
+
+  if (error) {
+    // `campaign_name` and `source` arrive with 20260906000001. Until that
+    // migration is applied Postgres rejects the whole insert with 42703, and a
+    // CSV import that fails entirely is a worse outcome than one that lands
+    // without campaign identity. Retry with only the columns that exist.
+    const retry = await supabase
+      .from("ad_spend")
+      .insert(
+        valid.map(({ campaign_name: _campaign, source: _source, ...rest }) => rest),
+      )
+      .select();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

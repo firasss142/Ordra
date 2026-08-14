@@ -79,6 +79,39 @@ export async function PATCH(
   if (period_start !== undefined) updates.period_start = period_start;
   if (period_end !== undefined) updates.period_end = period_end;
 
+  // product_id is genuinely tri-state here, which is why it cannot be read with
+  // the `!== undefined` idiom used above: null is a *value* (the entry is
+  // market-level spend, attributable to no single product), not an omission.
+  // Presence of the key is therefore what decides whether the column is written
+  // — an absent key must leave whatever attribution the entry already has.
+  if (Object.prototype.hasOwnProperty.call(body, "product_id")) {
+    // `|| null` rather than `?? null`: the modal can send an empty string, and
+    // '' reaching a uuid column is a 500 where the caller meant "market-level".
+    const nextProductId = (body.product_id as string | null | undefined) || null;
+
+    // Market isolation is not free here. RLS on ad_spend gates the *entry* by
+    // market, and the FK to products only proves the id exists — neither checks
+    // that the product belongs to the same market. Without this, a manager could
+    // attach their own market's spend to another market's product, where it is
+    // then read by the product-profitability routes and by investor settlement.
+    if (nextProductId !== null) {
+      const { data: product } = await supabase
+        .from("products")
+        .select("market_id")
+        .eq("id", nextProductId)
+        .maybeSingle();
+
+      if (!product || product.market_id !== entry.market_id) {
+        return NextResponse.json(
+          { error: "product_id must belong to the same market as the entry" },
+          { status: 400 },
+        );
+      }
+    }
+
+    updates.product_id = nextProductId;
+  }
+
   // Validate against the STORED values too, so a single-sided update
   // (only period_start or only period_end sent) can't invert the period.
   const resolvedStart = (updates.period_start as string | undefined) ?? entry.period_start;

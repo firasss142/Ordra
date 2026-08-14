@@ -26,11 +26,12 @@ for orders that reached 'delivered' in the selected period
 ## COGS (Cost of Goods Sold)
 
 ```
-SUM(products.unit_cost × orders.quantity)
+SUM(products.unit_cogs × orders.quantity)
 for orders delivered in period
 ```
 
 - Join: `orders.product_id → products.id`
+- Column is `products.unit_cogs` (renamed from `unit_cost` in migration `20260819000003`)
 
 ## Delivery Cost
 

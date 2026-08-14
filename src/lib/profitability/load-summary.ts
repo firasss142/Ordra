@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { fromCents } from "@/lib/calculations/math";
 import {
   calculateNetProfit,
@@ -63,7 +64,7 @@ export async function loadProfitabilitySummary(
 ): Promise<ProfitabilitySummary> {
   const dateLte = toDate + "T23:59:59.999Z";
 
-  const [aggResult, leadsResult, adSpendResult] = await Promise.all([
+  const [aggResult, leadsResult, adSpendRows] = await Promise.all([
     supabase
       .rpc("get_profitability_summary", {
         p_market_id: marketId,
@@ -77,16 +78,28 @@ export async function loadProfitabilitySummary(
       .eq("market_id", marketId)
       .gte("created_at", fromDate)
       .lte("created_at", dateLte),
-    supabase
-      .from("ad_spend")
-      .select("amount")
-      .eq("market_id", marketId)
-      // Total ad spend = ALL active entries (market-wide AND product-scoped);
-      // product-scoped spend is real market spend. Same definition as the
-      // ad-spend page rollups — the two surfaces must agree.
-      .eq("is_active", true)
-      .lte("period_start", toDate)
-      .gte("period_end", fromDate),
+    // Paged deliberately. Ad spend is stored per campaign per day, so ten live
+    // campaigns cross PostgREST's 1000-row cap in about a hundred days and a
+    // plain select would start silently returning a prefix. The failure is the
+    // worst kind: understated spend inflates net profit and every investor
+    // share that hangs off it, with no error anywhere to notice.
+    fetchAllRows<{ amount: number | string }>(
+      supabase
+        .from("ad_spend")
+        .select("amount")
+        .eq("market_id", marketId)
+        // Total ad spend = ALL active entries (market-wide AND product-scoped);
+        // product-scoped spend is real market spend. Same definition as the
+        // ad-spend page rollups — the two surfaces must agree.
+        .eq("is_active", true)
+        .lte("period_start", toDate)
+        .gte("period_end", fromDate)
+        // A total order is required: .range() paging over ties is OFFSET/LIMIT
+        // over an unordered relation, which Postgres does not promise is stable
+        // between statements. A repeated or skipped row here is a wrong sum, and
+        // this one feeds money.
+        .order("id", { ascending: true }),
+    ),
   ]);
 
   if (aggResult.error) throw new Error(aggResult.error.message);
@@ -98,10 +111,7 @@ export async function loadProfitabilitySummary(
   const returnCost = fromCents(Number(agg.return_cost_cents));
   const packingCost = fromCents(Number(agg.packing_cost_cents));
 
-  const adSpend = (adSpendResult.data ?? []).reduce(
-    (sum, r) => sum + Number(r.amount),
-    0,
-  );
+  const adSpend = adSpendRows.reduce((sum, r) => sum + Number(r.amount), 0);
 
   const netProfit = calculateNetProfit({
     revenue,

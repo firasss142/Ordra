@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OMS — Dépenses pub v1 (sync Meta)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F5F7; --card:#FFF; --line:#E9EBEE; --line-2:#E3E6EA;
+  --ink-1:#151A1F; --ink-2:#6B7280; --ink-3:#9CA3AF;
+
+  --green:#16A34A; --green-ink:#15803D; --green-bg:#DCFCE7; --green-soft:#EAF7EF;
+  --orange:#F59E0B; --orange-ink:#B45309; --orange-bg:#FEF3C7;
+  --red:#DC2626; --red-ink:#DC2626; --red-bg:#FEE2E2; --red-band:#FEF2F2; --red-line:#FBD5D5;
+  --grey:#D8DBE0; --grey-2:#E5E7EB; --grey-ink:#4B5563;
+
+  /* status (OMS tokens) */
+  --success:#008060; --warning:#B98900; --critical:#D72C0D; --action:#2C6ECB;
+
+  /* chart series — validated: CVD ΔE 24.7, normal ΔE 33.6, all ≥3:1 on #FFF */
+  --s-revenue:#2a78d6;   /* slot 1 — argent qui rentre */
+  --s-spend:#eb6834;     /* slot 2 — argent qui sort */
+  --grid:#ECEEF0; --axis:#D6D9DE; --muted:#8C9196;
+
+  --r-sm:6px; --r:8px; --r-md:10px; --r-lg:12px; --r-pill:9999px;
+  --sh:0 1px 2px rgba(16,24,40,.04);
+  --sh-float:0 8px 24px rgba(16,24,40,.10);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink-1);font-size:14px;line-height:1.45;
+  font-family:"Inter","Noto Sans Arabic",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;padding:22px}
+h1,h2,h3,p,ul{margin:0}
+ul{list-style:none;padding:0}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+:focus-visible{outline:2px solid var(--green-ink);outline-offset:2px;border-radius:4px}
+.n{font-variant-numeric:tabular-nums;unicode-bidi:isolate;direction:ltr}
+.wrap{max-width:1520px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh)}
+
+/* ── page head ── */
+.head{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.head .t h1{font-size:20px;font-weight:600;letter-spacing:-.01em}
+.head .t p{font-size:13px;color:var(--ink-2);margin-top:3px}
+.head .sp{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-2);border-radius:var(--r);
+  padding:5px 10px;font-size:12.5px;font-weight:600;background:#fff}
+.chip svg{width:13px;height:13px}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-2);border-radius:var(--r);
+  padding:7px 12px;font-size:13px;font-weight:600;background:#fff}
+.btn:hover{border-color:var(--grey);background:#FAFBFC}
+.btn svg{width:14px;height:14px}
+.btn-p{background:var(--green-ink);border-color:var(--green-ink);color:#fff}
+.btn-p:hover{background:#12692F;border-color:#12692F}
+
+/* ── tabs ── */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);padding:0 2px}
+.tab{padding:9px 13px;font-size:13.5px;font-weight:600;color:var(--ink-2);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab[aria-selected=true]{color:var(--ink-1);border-bottom-color:var(--green-ink)}
+.tab:hover{color:var(--ink-1)}
+
+/* ── banner ── */
+.banner{display:flex;align-items:center;gap:11px;padding:11px 14px;border-radius:var(--r-lg);
+  background:var(--orange-bg);border:1px solid #F5DFA0;font-size:13.5px}
+.banner svg{width:17px;height:17px;color:var(--orange-ink);flex:none}
+.banner b{font-weight:600}
+.banner .sp{flex:1}
+.banner button{font-size:13px;font-weight:600;color:var(--orange-ink);text-decoration:underline;text-underline-offset:2px}
+
+/* ── hero ── */
+.hero{padding:18px 20px 16px}
+.hero-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}
+@media(max-width:1080px){.hero-grid{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:18px}}
+.hf{padding-inline:20px}
+.hf:first-child{padding-inline-start:0}
+.hf + .hf{border-inline-start:1px solid var(--line)}
+@media(max-width:1080px){.hf:nth-child(3){border-inline-start:0;padding-inline-start:0}}
+.hf .h{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);
+  display:flex;align-items:center;gap:6px}
+.hf .h svg{width:13px;height:13px}
+/* hero/stat values: proportional figures — tabular makes big numbers look loose */
+.hf .v{font-size:30px;font-weight:700;letter-spacing:-.022em;line-height:1.12;margin-top:8px}
+.hf .v .u{font-size:.5em;font-weight:600;color:var(--ink-2);margin-inline-start:5px;letter-spacing:0}
+.hf .v.pos{color:var(--green-ink)}
+.hf .sub{font-size:12px;color:var(--ink-2);margin-top:5px;display:flex;align-items:center;gap:5px}
+.hf .sub .n{font-variant-numeric:tabular-nums}
+
+/* ROAS gauge */
+.gauge{margin-top:11px}
+.gauge .track{position:relative;height:8px;border-radius:var(--r-pill);background:var(--grey-2);overflow:visible}
+.gauge .fill{position:absolute;inset-block:0;inset-inline-start:0;border-radius:var(--r-pill);background:var(--green)}
+.gauge .be{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--red);border-radius:1px}
+.gauge .lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);margin-top:6px}
+.gauge .lbl .be-l{color:var(--red-ink);font-weight:600}
+
+/* ── two clocks ── */
+.clocks{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:1080px){.clocks{grid-template-columns:1fr}}
+.clock{padding:16px 18px 17px}
+.clock-h{display:flex;align-items:center;gap:8px;padding-bottom:11px;border-bottom:1px solid var(--line)}
+.clock-h svg{width:15px;height:15px;color:var(--ink-2)}
+.clock-h h2{font-size:14px;font-weight:600}
+.clock-h .tag{font-size:11px;font-weight:600;color:var(--ink-2);background:#F3F4F6;border-radius:var(--r-sm);padding:2px 7px}
+.clock-h .sp{flex:1}
+.clock-note{font-size:12px;color:var(--ink-2);margin-top:9px;line-height:1.5}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin-top:13px}
+.m{padding-inline:14px}
+.m:first-child{padding-inline-start:0}
+.m + .m{border-inline-start:1px solid var(--line)}
+.m .ml{font-size:11.5px;color:var(--ink-2);white-space:nowrap}
+.m .mv{font-size:21px;font-weight:700;letter-spacing:-.015em;margin-top:4px;font-variant-numeric:tabular-nums}
+.m .mv .u{font-size:.55em;font-weight:600;color:var(--ink-2);margin-inline-start:3px}
+.m .mv.ok{color:var(--green-ink)} .m .mv.bad{color:var(--red-ink)}
+.m .mf{font-size:11px;color:var(--ink-2);margin-top:3px;font-variant-numeric:tabular-nums}
+.m .mf.ok{color:var(--green-ink)} .m .mf.bad{color:var(--red-ink)}
+
+/* maturity meter — fill + lighter step of same ramp as track */
+.mat{margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
+.mat-h{display:flex;justify-content:space-between;font-size:12px;margin-bottom:7px}
+.mat-h b{font-weight:600;font-variant-numeric:tabular-nums}
+.mat .track{height:8px;border-radius:var(--r-pill);background:#D6E4F7;overflow:hidden;display:flex}
+.mat .fill{height:100%;background:var(--s-revenue)}
+.mat .cap{font-size:11.5px;color:var(--ink-2);margin-top:7px;line-height:1.5}
+
+/* ── charts ── */
+.chart-card{padding:16px 18px 6px}
+.chart-h{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+.chart-h h2{font-size:14px;font-weight:600}
+.chart-h p{font-size:12px;color:var(--ink-2);margin-top:3px;max-width:60ch}
+.chart-h .sp{flex:1}
+.legend{display:flex;align-items:center;gap:14px;font-size:12px;color:var(--ink-2)}
+.legend .k{display:inline-flex;align-items:center;gap:6px}
+.legend .sw{width:11px;height:11px;border-radius:3px;flex:none}
+.legend .swl{width:14px;height:2px;border-radius:1px;flex:none}
+.toggle{font-size:12px;font-weight:600;color:var(--ink-2);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:4px 9px}
+.toggle:hover{color:var(--ink-1);border-color:var(--grey)}
+.plot{width:100%;display:block}
+.tv{display:none;margin:6px 0 14px;max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:var(--r)}
+.tv.on{display:block}
+.tv table{width:100%;border-collapse:collapse;font-size:12.5px}
+.tv th,.tv td{padding:6px 10px;text-align:end;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tv th:first-child,.tv td:first-child{text-align:start;font-variant-numeric:normal}
+.tv thead th{position:sticky;top:0;background:#FAFBFC;border-bottom:1px solid var(--line);font-weight:600;font-size:11.5px;color:var(--ink-2)}
+.tv tbody tr + tr td{border-top:1px solid var(--line)}
+
+/* tooltip */
+.tip{position:fixed;pointer-events:none;z-index:60;background:#151A1F;color:#fff;border-radius:var(--r);
+  padding:8px 10px;font-size:12px;box-shadow:var(--sh-float);opacity:0;transition:opacity .09s;max-width:250px}
+.tip.on{opacity:1}
+.tip .tt{font-weight:600;margin-bottom:5px;font-size:12.5px}
+.tip .tr{display:flex;align-items:center;gap:7px;justify-content:space-between;line-height:1.7}
+.tip .tr .lk{display:inline-flex;align-items:center;gap:6px;color:#C9CDD3}
+.tip .tr .sw{width:9px;height:9px;border-radius:2px;flex:none}
+.tip .tr b{font-weight:600;font-variant-numeric:tabular-nums}
+.tip .hr{height:1px;background:rgba(255,255,255,.14);margin:6px 0}
+
+/* ── table ── */
+.tbl-card{padding:0}
+.tbl-h{display:flex;align-items:center;gap:12px;padding:15px 18px 13px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tbl-h h2{font-size:14px;font-weight:600}
+.tbl-h .sp{flex:1}
+.tbl-scroll{overflow-x:auto}
+table.grid{width:100%;border-collapse:collapse;font-size:13px;min-width:1180px}
+table.grid th,table.grid td{padding:11px 12px;text-align:end;white-space:nowrap;font-variant-numeric:tabular-nums}
+table.grid th:first-child,table.grid td:first-child{text-align:start;font-variant-numeric:normal;padding-inline-start:18px}
+table.grid td:last-child,table.grid th:last-child{padding-inline-end:18px}
+table.grid thead th{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);
+  border-bottom:1px solid var(--line);padding-block:9px;background:#FAFBFC}
+table.grid tbody tr{border-bottom:1px solid var(--line)}
+table.grid tbody tr:hover{background:#FAFBFC}
+table.grid tfoot td{font-weight:600;border-top:1px solid var(--line-2);background:#FAFBFC;padding-block:12px}
+.cmp{display:flex;flex-direction:column;gap:3px}
+.cmp .cn{font-weight:600;font-size:13px}
+.cmp .cm{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2)}
+.pill{display:inline-flex;align-items:center;gap:4px;border-radius:var(--r-sm);padding:2px 7px;font-size:11px;font-weight:600}
+.pill svg{width:11px;height:11px}
+.pill-g{background:var(--green-bg);color:var(--green-ink)}
+.pill-a{background:var(--orange-bg);color:var(--orange-ink)}
+.pill-r{background:var(--red-bg);color:var(--red-ink)}
+.pill-n{background:#F3F4F6;color:var(--grey-ink)}
+.v-ok{color:var(--green-ink);font-weight:600}
+.v-bad{color:var(--red-ink);font-weight:600}
+.sub-c{font-size:11px;color:var(--ink-3);margin-top:2px}
+.lock{display:inline-flex;align-items:center;gap:4px;color:var(--ink-3);font-size:11.5px}
+.lock svg{width:12px;height:12px}
+.row-bad{background:var(--red-band)}
+.row-bad:hover{background:#FDEBEB}
+.act{display:inline-flex;gap:4px}
+.ia{width:27px;height:27px;display:grid;place-items:center;border-radius:var(--r-sm);color:var(--ink-2)}
+.ia:hover{background:#F0F1F3;color:var(--ink-1)}
+.ia[disabled]{opacity:.35;cursor:not-allowed}
+.ia svg{width:14px;height:14px}
+
+/* ── sync strip ── */
+.sync{display:flex;align-items:center;gap:0;padding:0;flex-wrap:wrap}
+.sy{padding:13px 18px;display:flex;flex-direction:column;gap:3px;flex:1;min-width:170px}
+.sy + .sy{border-inline-start:1px solid var(--line)}
+.sy .sl{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2)}
+.sy .sv{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+.sy .sv svg{width:13px;height:13px}
+.sy .sn{font-size:11.5px;color:var(--ink-2)}
+
+/* ── drawer ── */
+.scrim{position:fixed;inset:0;background:rgba(16,24,40,.36);z-index:70;opacity:0;pointer-events:none;transition:opacity .16s}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;inset-block:0;inset-inline-end:0;width:min(560px,100%);background:#fff;z-index:71;
+  box-shadow:var(--sh-float);transform:translateX(102%);transition:transform .2s ease;display:flex;flex-direction:column}
+[dir=rtl] .drawer{transform:translateX(-102%)}
+.drawer.on{transform:none}
+.dr-h{display:flex;align-items:flex-start;gap:12px;padding:17px 20px;border-bottom:1px solid var(--line)}
+.dr-h h2{font-size:15px;font-weight:600}
+.dr-h p{font-size:12.5px;color:var(--ink-2);margin-top:4px;max-width:46ch;line-height:1.5}
+.dr-h .sp{flex:1}
+.dr-b{padding:16px 20px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:12px}
+.mrow{border:1px solid var(--line);border-radius:var(--r-md);padding:13px 14px}
+.mrow.unm{border-color:#F0D9A8;background:#FFFCF4}
+.mrow .mh{display:flex;align-items:flex-start;gap:9px}
+.mrow .mn{font-weight:600;font-size:13px;line-height:1.35}
+.mrow .sp{flex:1}
+.mrow .ms{font-size:11.5px;color:var(--ink-2);margin-top:3px;font-variant-numeric:tabular-nums}
+.mrow label{display:block;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--ink-2);margin:11px 0 5px}
+.mrow select{width:100%;border:1px solid var(--line-2);border-radius:var(--r);padding:7px 10px;font:inherit;
+  font-size:13px;background:#fff}
+.dr-f{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:9px;justify-content:flex-end}
+
+.foot{font-size:11.5px;color:var(--ink-3);text-align:center;padding:4px 0 8px;line-height:1.7}
+.foot b{color:var(--ink-2);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ══ HEAD ══ -->
+  <div class="head">
+    <div class="t">
+      <h1>Dépenses publicitaires</h1>
+      <p>Synchronisé automatiquement depuis Meta Ads · campagne × jour</p>
+    </div>
+    <div class="sp"></div>
+    <span class="chip"><span class="dot" style="background:var(--green)"></span> Tunisie · TND</span>
+    <span class="chip">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+      Sync il y a 14 min
+    </span>
+    <button class="btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Dépense manuelle
+    </button>
+    <button class="btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+      Importer CSV
+    </button>
+    <button class="btn btn-p" id="openDrawer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 3H5a2 2 0 0 0-2 2v4M15 3h4a2 2 0 0 1 2 2v4M9 21H5a2 2 0 0 1-2-2v-4M15 21h4a2 2 0 0 0 2-2v-4"/><circle cx="12" cy="12" r="3"/></svg>
+      Mapper les campagnes
+    </button>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="false">7 jours</button>
+    <button class="tab" role="tab" aria-selected="false">30 jours</button>
+    <button class="tab" role="tab" aria-selected="true">1 mars – 15 avr. 2026</button>
+    <button class="tab" role="tab" aria-selected="false">Trimestre</button>
+    <button class="tab" role="tab" aria-selected="false">Personnalisé</button>
+  </div>
+
+  <!-- ══ BANNER ══ -->
+  <div class="banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+    <span><b>1 campagne · 2 200 TND</b> non attribuée à un produit. Cette dépense compte déjà dans le P&amp;L au niveau marché — la mapper la rendra visible par produit.</span>
+    <span class="sp"></span>
+    <button id="openDrawer2">Mapper maintenant</button>
+  </div>
+
+  <!-- ══ HERO ══ -->
+  <div class="card hero">
+    <div class="hero-grid">
+      <div class="hf">
+        <div class="h">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m3 17 6-6 4 4 8-8"/><path d="M21 7v6h-6"/></svg>
+          Dépense pub
+        </div>
+        <div class="v">24 900<span class="u">TND</span></div>
+        <div class="sub">≈ <span class="n">8 164 USD</span> · taux <span class="n">3,050</span> · 46 j couverts</div>
+      </div>
+      <div class="hf">
+        <div class="h">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Revenu livré
+        </div>
+        <div class="v">57 401<span class="u">TND</span></div>
+        <div class="sub">cohorte · <span class="n">1 099</span> commandes livrées</div>
+      </div>
+      <div class="hf">
+        <div class="h">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M12 8v8"/></svg>
+          Profit net
+        </div>
+        <div class="v pos">11 062<span class="u">TND</span></div>
+        <div class="sub">marge nette <span class="n">19,3 %</span> · après pub et tous coûts</div>
+      </div>
+      <div class="hf">
+        <div class="h">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          ROAS global
+        </div>
+        <div class="v pos">2,31<span class="u">×</span></div>
+        <div class="gauge">
+          <div class="track">
+            <div class="fill" style="inline-size:57.8%"></div>
+            <div class="be" style="inset-inline-start:40%" title="Seuil de rentabilité 1,60×"></div>
+          </div>
+          <div class="lbl">
+            <span>0</span>
+            <span class="be-l">seuil 1,60×</span>
+            <span>4,0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TWO CLOCKS ══ -->
+  <div class="clocks">
+    <div class="card clock">
+      <div class="clock-h">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
+        <h2>Horloge courte — exploitable aujourd'hui</h2>
+        <span class="sp"></span>
+        <span class="tag">temps réel</span>
+      </div>
+      <div class="metrics">
+        <div class="m">
+          <div class="ml">Coût par lead</div>
+          <div class="mv ok">12,27<span class="u">TND</span></div>
+          <div class="mf ok">seuil 17,72 · −30,8 %</div>
+        </div>
+        <div class="m">
+          <div class="ml">Leads reçus</div>
+          <div class="mv">2 029</div>
+          <div class="mf">Meta en annonce 2 141</div>
+        </div>
+        <div class="m">
+          <div class="ml">Coût / confirmation</div>
+          <div class="mv ok">17,51<span class="u">TND</span></div>
+          <div class="mf">1 422 confirmées · 70,1 %</div>
+        </div>
+      </div>
+      <p class="clock-note">Ces chiffres bougent le jour même. C'est sur eux qu'on coupe ou qu'on scale une campagne — sans attendre la livraison.</p>
+    </div>
+
+    <div class="card clock">
+      <div class="clock-h">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        <h2>Horloge longue — vérité à maturité</h2>
+        <span class="sp"></span>
+        <span class="tag">cohorte</span>
+      </div>
+      <div class="metrics">
+        <div class="m">
+          <div class="ml">ROAS cohorte</div>
+          <div class="mv ok">2,31<span class="u">×</span></div>
+          <div class="mf ok">seuil 1,60 · +44 %</div>
+        </div>
+        <div class="m">
+          <div class="ml">Coût / livrée</div>
+          <div class="mv ok">22,66<span class="u">TND</span></div>
+          <div class="mf ok">seuil 32,72 · −30,8 %</div>
+        </div>
+        <div class="m">
+          <div class="ml">Taux de livraison</div>
+          <div class="mv">54,2<span class="u">%</span></div>
+          <div class="mf">1 099 livrées / 2 029 leads</div>
+        </div>
+      </div>
+      <div class="mat">
+        <div class="mat-h"><span>Maturité de la cohorte</span><b>96,2 %</b></div>
+        <div class="track"><div class="fill" style="inline-size:96.2%"></div></div>
+        <p class="cap">1 951 des 2 029 commandes ont atteint un statut terminal. Les 78 restantes sont encore en transit — le ROAS ci-dessus ne peut que monter.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CHART 1 — CPL vs seuil ══ -->
+  <div class="card chart-card">
+    <div class="chart-h">
+      <div>
+        <h2>Coût par lead vs seuil de rentabilité</h2>
+        <p>Chaque point est une journée. Au-dessus de la ligne rouge, chaque lead acheté détruit de la marge — même si Meta affiche un ROAS flatteur.</p>
+      </div>
+      <span class="sp"></span>
+      <button class="toggle" data-tv="tv1">Voir le tableau</button>
+    </div>
+    <svg class="plot" id="c1" height="248" role="img" aria-label="Coût par lead quotidien comparé au seuil de rentabilité de 17,72 TND"></svg>
+    <div class="tv" id="tv1"></div>
+  </div>
+
+  <!-- ══ CHART 2 — spend vs revenue ══ -->
+  <div class="card chart-card">
+    <div class="chart-h">
+      <div>
+        <h2>Dépense pub vs revenu livré</h2>
+        <p>Par semaine, en TND — même unité, même axe. L'écart entre les deux barres est ce qui reste avant les coûts produit, livraison et retour.</p>
+      </div>
+      <span class="sp"></span>
+      <div class="legend">
+        <span class="k"><span class="sw" style="background:var(--s-spend)"></span> Dépense pub</span>
+        <span class="k"><span class="sw" style="background:var(--s-revenue)"></span> Revenu livré (réalisé)</span>
+      </div>
+      <button class="toggle" data-tv="tv2">Voir le tableau</button>
+    </div>
+    <svg class="plot" id="c2" height="248" role="img" aria-label="Dépense publicitaire et revenu livré par semaine, en dinars tunisiens"></svg>
+    <div class="tv" id="tv2"></div>
+  </div>
+
+  <!-- ══ CAMPAIGN TABLE ══ -->
+  <div class="card tbl-card">
+    <div class="tbl-h">
+      <h2>Campagnes Meta</h2>
+      <span class="pill pill-n">5 campagnes · act_419… (Tunisie)</span>
+      <span class="sp"></span>
+      <span class="lock">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Lignes synchronisées en lecture seule
+      </span>
+    </div>
+    <div class="tbl-scroll">
+      <table class="grid">
+        <thead>
+          <tr>
+            <th>Campagne</th>
+            <th>Dépense</th>
+            <th>Impr.</th>
+            <th>CPM</th>
+            <th>Clics</th>
+            <th>CTR</th>
+            <th>Résultats Meta</th>
+            <th>Leads OMS</th>
+            <th>Écart</th>
+            <th>CPL</th>
+            <th>ROAS</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+        <tfoot>
+          <tr>
+            <td>Total</td>
+            <td>24 900</td>
+            <td>2 984 100</td>
+            <td>8,34</td>
+            <td>44 120</td>
+            <td>1,48 %</td>
+            <td>2 141</td>
+            <td>2 029</td>
+            <td class="v-bad">−112</td>
+            <td>12,27</td>
+            <td class="v-ok">2,31×</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ SYNC HEALTH ══ -->
+  <div class="card sync">
+    <div class="sy">
+      <span class="sl">Dernière sync</span>
+      <span class="sv"><span class="dot" style="background:var(--green)"></span> il y a 14 min</span>
+      <span class="sn">15 avr. 2026, 14:07 — 46 lignes écrites</span>
+    </div>
+    <div class="sy">
+      <span class="sl">Prochaine</span>
+      <span class="sv">15:07</span>
+      <span class="sn">toutes les heures · fenêtre glissante 7 j</span>
+    </div>
+    <div class="sy">
+      <span class="sl">act_419… Tunisie</span>
+      <span class="sv"><span class="dot" style="background:var(--green)"></span> OK · USD</span>
+      <span class="sn">quota compte 3,1 % · Africa/Tunis</span>
+    </div>
+    <div class="sy">
+      <span class="sl">act_772… Libye</span>
+      <span class="sv"><span class="dot" style="background:var(--orange)"></span> Non connecté</span>
+      <span class="sn">token système à fournir</span>
+    </div>
+    <div class="sy">
+      <span class="sl">Dernière erreur</span>
+      <span class="sv" style="color:var(--ink-2);font-weight:500">Aucune</span>
+      <span class="sn">30 derniers jours</span>
+    </div>
+  </div>
+
+  <p class="foot">
+    Prototype — chiffres réels de production : <b>Biovera / Tunisie, cohorte 1 mars – 15 avr. 2026</b> (2 029 leads, 1 099 livrées, 57 401 TND).<br>
+    Seuils calculés depuis les coûts unitaires réels : COGS 10,000 × 1,1547 unité/commande · livraison mixte 5,230 (Navex 6,000 / Cosmos 0,000) · retour 4,000 · emballage 1,000 · Converty.<br>
+    Les montants de dépense pub sont modélisés — aucune donnée Meta n'existe encore dans le système.
+  </p>
+</div>
+
+<div class="tip" id="tip"></div>
+
+<!-- ══ DRAWER ══ -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drTitle">
+  <div class="dr-h">
+    <div>
+      <h2 id="drTitle">Mapper les campagnes</h2>
+      <p>Une campagne = un produit. Tant qu'une campagne n'est pas mappée, sa dépense compte au niveau marché et se répartit au prorata du revenu.</p>
+    </div>
+    <span class="sp"></span>
+    <button class="ia" id="closeDrawer" aria-label="Fermer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="dr-b" id="drawerBody"></div>
+  <div class="dr-f">
+    <button class="btn" id="closeDrawer2">Annuler</button>
+    <button class="btn btn-p">Enregistrer le mapping</button>
+  </div>
+</aside>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   DONNÉES — leads / livrées / revenu = production réelle
+   (Biovera, Tunisie, 1 mars – 15 avr. 2026)
+   dépense = modélisée (aucune donnée Meta en base à ce jour)
+   ═══════════════════════════════════════════════════════════════ */
+const DAYS = ['2026-03-01','2026-03-02','2026-03-03','2026-03-04','2026-03-05','2026-03-06','2026-03-07','2026-03-08','2026-03-09','2026-03-10','2026-03-11','2026-03-12','2026-03-13','2026-03-14','2026-03-15','2026-03-16','2026-03-17','2026-03-18','2026-03-19','2026-03-20','2026-03-21','2026-03-22','2026-03-23','2026-03-24','2026-03-25','2026-03-26','2026-03-27','2026-03-28','2026-03-29','2026-03-30','2026-03-31','2026-04-01','2026-04-02','2026-04-03','2026-04-04','2026-04-05','2026-04-06','2026-04-07','2026-04-08','2026-04-09','2026-04-10','2026-04-11','2026-04-12','2026-04-13','2026-04-14','2026-04-15'];
+const LEADS   = [0,8,21,33,21,15,27,21,13,13,15,21,18,26,25,43,32,49,39,62,44,49,52,33,34,56,28,69,63,44,29,8,61,76,62,53,54,48,52,98,91,84,98,88,80,73];
+const DELIV   = [0,0,0,0,0,8,0,1,0,5,12,17,9,9,7,4,9,3,10,9,3,7,20,18,0,33,2,0,0,86,1,46,21,22,26,19,1,0,102,18,2,73,15,39,4,3];
+const REVENUE = [0,0,0,0,0,392,0,49,0,245,588,833,441,441,363,196,496,147,490,441,147,392,980,882,0,1617,98,0,0,4254,49,2274,1049,1078,1294,951,49,0,5138,922,98,3657,735,1971,216,167];
+const SPEND   = [0,150,400,600,389,258,432,323,195,190,213,290,243,343,323,538,394,588,460,713,510,559,582,399,422,616,364,745,687,524,389,176,689,806,688,620,1021,941,770,950,946,899,930,860,896,869];
+
+const BE_CPL = 17.72;      /* seuil de rentabilité par lead, TND */
+const BE_ROAS = 1.596;
+
+const CAMPAIGNS = [
+  {name:'TN | Biovera | Conversions | Broad', id:'23851…8842', product:'Biovera', spend:9840, impr:1204880, cpm:8.17, clicks:18240, ctr:1.51, meta:921, leads:892, deliv:483, rev:25232},
+  {name:'TN | Biovera | Conversions | LAL 3 %', id:'23851…9017', product:'Biovera', spend:6120, impr:742300, cpm:8.24, clicks:11180, ctr:1.51, meta:588, leads:561, deliv:304, rev:15880},
+  {name:'TN | Biovera | Retargeting | 30 j', id:'23851…7734', product:'Biovera', spend:2480, impr:214600, cpm:11.56, clicks:6420, ctr:2.99, meta:281, leads:274, deliv:178, rev:9297},
+  {name:'TN | Biovera | Advantage+ | Avril', id:'23852…1190', product:'Biovera', spend:4260, impr:558420, cpm:7.63, clicks:6180, ctr:1.11, meta:254, leads:218, deliv:96, rev:5014},
+  {name:'TN | Test créa | Vidéo UGC 15 s', id:'23852…2406', product:null, spend:2200, impr:263900, cpm:8.34, clicks:2100, ctr:0.80, meta:97, leads:84, deliv:38, rev:1978}
+];
+
+/* ── helpers ── */
+const nf = (n,d=0)=>n.toLocaleString('fr-FR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const dLabel = s => {const [,m,d]=s.split('-');return d+'/'+m;};
+const tip = document.getElementById('tip');
+function showTip(html,e){tip.innerHTML=html;tip.classList.add('on');moveTip(e);}
+function moveTip(e){
+  const pad=14,w=tip.offsetWidth,h=tip.offsetHeight;
+  let x=e.clientX+pad, y=e.clientY-h-pad;
+  if(x+w>innerWidth-8) x=e.clientX-w-pad;
+  if(y<8) y=e.clientY+pad;
+  tip.style.left=x+'px';tip.style.top=y+'px';
+}
+function hideTip(){tip.classList.remove('on');}
+const SVGNS='http://www.w3.org/2000/svg';
+const el=(n,a={})=>{const e=document.createElementNS(SVGNS,n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+
+/* ═══════════ CHART 1 — CPL quotidien vs seuil ═══════════ */
+(function(){
+  const svg=document.getElementById('c1');
+  const W=svg.clientWidth||1460, H=248;
+  const M={t:16,r:52,b:30,l:50};
+  const pw=W-M.l-M.r, ph=H-M.t-M.b;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+
+  const pts=[];
+  for(let i=0;i<DAYS.length;i++){
+    if(LEADS[i]>0 && SPEND[i]>0) pts.push({i,cpl:SPEND[i]/LEADS[i]});
+  }
+  const maxY=Math.ceil(Math.max(...pts.map(p=>p.cpl),BE_CPL)/5)*5;
+  const x=i=>M.l+(i/(DAYS.length-1))*pw;
+  const y=v=>M.t+ph-(v/maxY)*ph;
+
+  /* zone de perte (au-dessus du seuil) */
+  svg.appendChild(el('rect',{x:M.l,y:M.t,width:pw,height:y(BE_CPL)-M.t,fill:'#D72C0D','fill-opacity':'0.05'}));
+
+  /* gridlines — hairline solide, jamais pointillé */
+  for(let v=0;v<=maxY;v+=5){
+    svg.appendChild(el('line',{x1:M.l,x2:M.l+pw,y1:y(v),y2:y(v),stroke:'var(--grid)','stroke-width':1}));
+    const t=el('text',{x:M.l-9,y:y(v)+4,'text-anchor':'end',fill:'var(--muted)','font-size':11});
+    t.textContent=nf(v);svg.appendChild(t);
+  }
+  /* axe x */
+  svg.appendChild(el('line',{x1:M.l,x2:M.l+pw,y1:M.t+ph,y2:M.t+ph,stroke:'var(--axis)','stroke-width':1}));
+  for(let i=0;i<DAYS.length;i+=5){
+    const t=el('text',{x:x(i),y:H-9,'text-anchor':'middle',fill:'var(--muted)','font-size':11});
+    t.textContent=dLabel(DAYS[i]);svg.appendChild(t);
+  }
+
+  /* ligne de seuil — pointillé RÉSERVÉ au seuil, pas à la grille */
+  svg.appendChild(el('line',{x1:M.l,x2:M.l+pw,y1:y(BE_CPL),y2:y(BE_CPL),stroke:'var(--critical)','stroke-width':2,'stroke-dasharray':'6 4','stroke-linecap':'round'}));
+  const bl=el('text',{x:M.l+pw+7,y:y(BE_CPL)+4,fill:'var(--critical)','font-size':11,'font-weight':600});
+  bl.textContent='seuil';svg.appendChild(bl);
+
+  /* courbe 2px */
+  let d='';pts.forEach((p,k)=>{d+=(k?'L':'M')+x(p.i)+' '+y(p.cpl);});
+  svg.appendChild(el('path',{d,fill:'none',stroke:'var(--s-revenue)','stroke-width':2,'stroke-linejoin':'round','stroke-linecap':'round'}));
+
+  /* marqueurs : anneau surface 2px, ≥8px */
+  pts.forEach(p=>{
+    const bad=p.cpl>BE_CPL;
+    const g=el('g',{});
+    g.appendChild(el('circle',{cx:x(p.i),cy:y(p.cpl),r:4.5,fill:bad?'var(--critical)':'var(--s-revenue)',stroke:'#fff','stroke-width':2}));
+    const hit=el('circle',{cx:x(p.i),cy:y(p.cpl),r:13,fill:'transparent'});
+    hit.style.cursor='crosshair';
+    const i=p.i;
+    hit.addEventListener('mousemove',e=>{
+      showTip(`<div class="tt">${dLabel(DAYS[i])} — ${DAYS[i].slice(0,4)}</div>
+        <div class="tr"><span class="lk"><span class="sw" style="background:var(--s-revenue)"></span>CPL</span><b>${nf(p.cpl,2)} TND</b></div>
+        <div class="tr"><span class="lk">Dépense</span><b>${nf(SPEND[i])} TND</b></div>
+        <div class="tr"><span class="lk">Leads</span><b>${nf(LEADS[i])}</b></div>
+        <div class="hr"></div>
+        <div class="tr"><span class="lk" style="color:${bad?'#FF8A80':'#7BE3A8'}">${bad?'au-dessus du seuil':'sous le seuil'}</span><b>${nf(BE_CPL,2)}</b></div>`,e);
+    });
+    hit.addEventListener('mouseleave',hideTip);
+    g.appendChild(hit);
+    svg.appendChild(g);
+  });
+
+  /* étiquette directe sur le dernier point seulement */
+  const last=pts[pts.length-1];
+  const lt=el('text',{x:x(last.i)-8,y:y(last.cpl)-11,'text-anchor':'end',fill:'var(--ink-1)','font-size':12,'font-weight':600});
+  lt.textContent=nf(last.cpl,2)+' TND';svg.appendChild(lt);
+
+  /* table view */
+  let rows='';pts.forEach(p=>{rows+=`<tr><td>${dLabel(DAYS[p.i])}</td><td>${nf(SPEND[p.i])}</td><td>${nf(LEADS[p.i])}</td><td>${nf(p.cpl,2)}</td><td>${p.cpl>BE_CPL?'au-dessus':'sous'}</td></tr>`;});
+  document.getElementById('tv1').innerHTML=
+    `<table><thead><tr><th>Jour</th><th>Dépense TND</th><th>Leads</th><th>CPL TND</th><th>vs seuil 17,72</th></tr></thead><tbody>${rows}</tbody></table>`;
+})();
+
+/* ═══════════ CHART 2 — dépense vs revenu, par semaine ═══════════ */
+(function(){
+  const svg=document.getElementById('c2');
+  const W=svg.clientWidth||1460, H=248;
+  const M={t:16,r:16,b:34,l:62};
+  const pw=W-M.l-M.r, ph=H-M.t-M.b;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+
+  /* agrégation hebdo (lundi) */
+  const wk=[];
+  for(let i=0;i<DAYS.length;i++){
+    const dt=new Date(DAYS[i]+'T00:00:00Z');
+    const dow=(dt.getUTCDay()+6)%7;
+    const mon=new Date(dt);mon.setUTCDate(dt.getUTCDate()-dow);
+    const key=mon.toISOString().slice(0,10);
+    let w=wk.find(v=>v.key===key);
+    if(!w){w={key,spend:0,rev:0,leads:0};wk.push(w);}
+    w.spend+=SPEND[i];w.rev+=REVENUE[i];w.leads+=LEADS[i];
+  }
+  /* la 1re semaine ISO ne contient que le 1er mars (0 lead, 0 dépense) — un slot vide
+     se lit comme un bug, pas comme une info. On coupe les semaines sans aucune donnée. */
+  while(wk.length && wk[0].spend===0 && wk[0].rev===0 && wk[0].leads===0) wk.shift();
+  const maxY=Math.ceil(Math.max(...wk.map(w=>Math.max(w.spend,w.rev)))/2000)*2000;
+  const bw=pw/wk.length;
+  const barW=Math.min(24,(bw-14)/2);
+  const y=v=>M.t+ph-(v/maxY)*ph;
+
+  for(let v=0;v<=maxY;v+=2000){
+    svg.appendChild(el('line',{x1:M.l,x2:M.l+pw,y1:y(v),y2:y(v),stroke:'var(--grid)','stroke-width':1}));
+    const t=el('text',{x:M.l-9,y:y(v)+4,'text-anchor':'end',fill:'var(--muted)','font-size':11});
+    t.textContent=nf(v);svg.appendChild(t);
+  }
+  svg.appendChild(el('line',{x1:M.l,x2:M.l+pw,y1:M.t+ph,y2:M.t+ph,stroke:'var(--axis)','stroke-width':1}));
+
+  /* barre à extrémité arrondie 4px, carrée à la ligne de base */
+  function bar(bx,v,fill){
+    const h=Math.max(0,M.t+ph-y(v));
+    if(h<=0)return null;
+    const r=Math.min(4,h);
+    const t=y(v);
+    const d=`M${bx} ${t+h} L${bx} ${t+r} Q${bx} ${t} ${bx+r} ${t} L${bx+barW-r} ${t} Q${bx+barW} ${t} ${bx+barW} ${t+r} L${bx+barW} ${t+h} Z`;
+    return el('path',{d,fill});
+  }
+
+  wk.forEach((w,k)=>{
+    const cx=M.l+k*bw+bw/2;
+    /* écart surface 2px entre barres adjacentes */
+    const x1=cx-barW-1, x2=cx+1;
+    const b1=bar(x1,w.spend,'var(--s-spend)'); if(b1)svg.appendChild(b1);
+    const b2=bar(x2,w.rev,'var(--s-revenue)'); if(b2)svg.appendChild(b2);
+
+    const lt=el('text',{x:cx,y:H-11,'text-anchor':'middle',fill:'var(--muted)','font-size':11});
+    lt.textContent='sem. '+dLabel(w.key);svg.appendChild(lt);
+
+    const hit=el('rect',{x:M.l+k*bw,y:M.t,width:bw,height:ph,fill:'transparent'});
+    hit.style.cursor='crosshair';
+    const roas=w.spend>0?w.rev/w.spend:0;
+    hit.addEventListener('mousemove',e=>{
+      showTip(`<div class="tt">Semaine du ${dLabel(w.key)}</div>
+        <div class="tr"><span class="lk"><span class="sw" style="background:var(--s-spend)"></span>Dépense pub</span><b>${nf(w.spend)} TND</b></div>
+        <div class="tr"><span class="lk"><span class="sw" style="background:var(--s-revenue)"></span>Revenu livré</span><b>${nf(w.rev)} TND</b></div>
+        <div class="hr"></div>
+        <div class="tr"><span class="lk">Leads</span><b>${nf(w.leads)}</b></div>
+        <div class="tr"><span class="lk">ROAS réalisé</span><b>${nf(roas,2)}×</b></div>`,e);
+    });
+    hit.addEventListener('mouseleave',hideTip);
+    svg.appendChild(hit);
+  });
+
+  let rows='';wk.forEach(w=>{rows+=`<tr><td>sem. ${dLabel(w.key)}</td><td>${nf(w.spend)}</td><td>${nf(w.rev)}</td><td>${nf(w.leads)}</td><td>${w.spend?nf(w.rev/w.spend,2):'—'}</td></tr>`;});
+  document.getElementById('tv2').innerHTML=
+    `<table><thead><tr><th>Semaine</th><th>Dépense TND</th><th>Revenu livré TND</th><th>Leads</th><th>ROAS réalisé</th></tr></thead><tbody>${rows}</tbody></table>`;
+})();
+
+/* ═══════════ TABLEAU CAMPAGNES ═══════════ */
+(function(){
+  const tb=document.getElementById('tbody');
+  tb.innerHTML=CAMPAIGNS.map(c=>{
+    const cpl=c.spend/c.leads, roas=c.rev/c.spend;
+    const gap=c.leads-c.meta, gapPct=(gap/c.meta*100);
+    const cplBad=cpl>BE_CPL, roasBad=roas<BE_ROAS;
+    return `<tr class="${roasBad?'row-bad':''}">
+      <td>
+        <div class="cmp">
+          <span class="cn">${c.name}</span>
+          <span class="cm">
+            ${c.product
+              ? `<span class="pill pill-n">${c.product}</span>`
+              : `<span class="pill pill-a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Non mappé</span>`}
+            <span>${c.id}</span>
+          </span>
+        </div>
+      </td>
+      <td>${nf(c.spend)}<div class="sub-c">TND</div></td>
+      <td>${nf(c.impr)}</td>
+      <td>${nf(c.cpm,2)}</td>
+      <td>${nf(c.clicks)}</td>
+      <td>${nf(c.ctr,2)} %</td>
+      <td>${nf(c.meta)}</td>
+      <td>${nf(c.leads)}</td>
+      <td class="${gapPct<-10?'v-bad':''}">${nf(gap)}<div class="sub-c">${nf(gapPct,1)} %</div></td>
+      <td class="${cplBad?'v-bad':'v-ok'}">${nf(cpl,2)}<div class="sub-c">seuil ${nf(BE_CPL,2)}</div></td>
+      <td class="${roasBad?'v-bad':'v-ok'}">${nf(roas,2)}×<div class="sub-c">seuil ${nf(BE_ROAS,2)}×</div></td>
+      <td>
+        <span class="act">
+          <button class="ia" disabled title="Ligne synchronisée depuis Meta — non modifiable">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </button>
+          <button class="ia" title="Mapper vers un produit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 3H5a2 2 0 0 0-2 2v4M15 3h4a2 2 0 0 1 2 2v4M9 21H5a2 2 0 0 1-2-2v-4M15 21h4a2 2 0 0 0 2-2v-4"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </span>
+      </td>
+    </tr>`;
+  }).join('');
+})();
+
+/* ═══════════ DRAWER ═══════════ */
+(function(){
+  const body=document.getElementById('drawerBody');
+  body.innerHTML=CAMPAIGNS.map(c=>`
+    <div class="mrow ${c.product?'':'unm'}">
+      <div class="mh">
+        <div>
+          <div class="mn">${c.name}</div>
+          <div class="ms">${nf(c.spend)} TND · ${nf(c.leads)} leads · CPL ${nf(c.spend/c.leads,2)}</div>
+        </div>
+        <span class="sp"></span>
+        ${c.product?'<span class="pill pill-g">Mappé</span>':'<span class="pill pill-a">À mapper</span>'}
+      </div>
+      <label>Produit</label>
+      <select>
+        <option ${c.product==='Biovera'?'selected':''}>Biovera</option>
+        <option ${!c.product?'selected':''}>— Aucun (niveau marché) —</option>
+        <option>Produit Test E2E</option>
+      </select>
+    </div>`).join('');
+
+  const scrim=document.getElementById('scrim'), dr=document.getElementById('drawer');
+  const open=()=>{scrim.classList.add('on');dr.classList.add('on');};
+  const close=()=>{scrim.classList.remove('on');dr.classList.remove('on');};
+  document.getElementById('openDrawer').onclick=open;
+  document.getElementById('openDrawer2').onclick=open;
+  document.getElementById('closeDrawer').onclick=close;
+  document.getElementById('closeDrawer2').onclick=close;
+  scrim.onclick=close;
+  addEventListener('keydown',e=>{if(e.key==='Escape')close();});
+})();
+
+/* ═══════════ TABLE VIEW TOGGLES ═══════════ */
+document.querySelectorAll('.toggle').forEach(b=>{
+  b.onclick=()=>{
+    const t=document.getElementById(b.dataset.tv);
+    const on=t.classList.toggle('on');
+    b.textContent=on?'Masquer le tableau':'Voir le tableau';
+  };
+});
+</script>
+</body>
+</html>
