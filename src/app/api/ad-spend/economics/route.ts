@@ -38,9 +38,20 @@ const CONFIRMED_PHASE = [
   "returned",
 ];
 
+/**
+ * Campaign identity lives in columns added by 20260906000001, which production
+ * has not taken yet. PostgREST answers an unknown column with 42703 rather than
+ * ignoring it, so asking for them unconditionally would take the whole page
+ * down on an un-migrated database. Ask for them, fall back without them.
+ */
+const SPEND_COLUMNS_RICH =
+  "id, product_id, amount, period_start, period_end, note, campaign_name, source, external_campaign_id";
+const SPEND_COLUMNS_BASE = "id, product_id, amount, period_start, period_end, note";
+
 interface OrderRow {
   product_id: string | null;
   status: string;
+  created_at: string | null;
   total_price: number | string | null;
   quantity: number | null;
   carriers: { delivery_fee: number | string; return_fee: number | string } | null;
@@ -55,8 +66,42 @@ interface ProductRow {
 }
 
 interface SpendRow {
+  id: string;
   product_id: string | null;
   amount: number | string;
+  period_start: string;
+  period_end: string;
+  note: string | null;
+  campaign_name?: string | null;
+  source?: string | null;
+  external_campaign_id?: string | null;
+}
+
+/** One `ad_spend` row, as the campaign sub-row under a product. */
+export interface SpendEntry {
+  id: string;
+  label: string | null;
+  campaign_id: string | null;
+  source: string;
+  amount: number;
+  period_start: string;
+  period_end: string;
+  /** Synced rows are overwritten by the next sync, so editing one is a lie. */
+  editable: boolean;
+}
+
+function toEntry(s: SpendRow): SpendEntry {
+  const source = s.source ?? "manual";
+  return {
+    id: s.id,
+    label: s.campaign_name ?? s.note ?? null,
+    campaign_id: s.external_campaign_id ?? null,
+    source,
+    amount: Number(s.amount) || 0,
+    period_start: s.period_start,
+    period_end: s.period_end,
+    editable: source === "manual" || source === "csv",
+  };
 }
 
 export async function GET(req: NextRequest) {
@@ -84,12 +129,30 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "from_date and to_date are required" }, { status: 400 });
   }
 
+  const spendQuery = (columns: string) =>
+    supabase
+      .from("ad_spend")
+      .select(columns)
+      .eq("market_id", marketId)
+      .eq("is_active", true)
+      .lte("period_start", toDate)
+      .gte("period_end", fromDate)
+      .order("id", { ascending: true });
+
+  const loadSpend = async (): Promise<SpendRow[]> => {
+    try {
+      return await fetchAllRows<SpendRow>(spendQuery(SPEND_COLUMNS_RICH));
+    } catch {
+      return await fetchAllRows<SpendRow>(spendQuery(SPEND_COLUMNS_BASE));
+    }
+  };
+
   const [orders, products, spend] = await Promise.all([
     fetchAllRows<OrderRow>(
       supabase
         .from("orders")
         .select(
-          "product_id, status, total_price, quantity, carriers!orders_carrier_id_fkey(delivery_fee, return_fee)",
+          "product_id, status, created_at, total_price, quantity, carriers!orders_carrier_id_fkey(delivery_fee, return_fee)",
         )
         .eq("market_id", marketId)
         .gte("created_at", fromDate)
@@ -103,16 +166,7 @@ export async function GET(req: NextRequest) {
         .eq("market_id", marketId)
         .order("id", { ascending: true }),
     ),
-    fetchAllRows<SpendRow>(
-      supabase
-        .from("ad_spend")
-        .select("product_id, amount")
-        .eq("market_id", marketId)
-        .eq("is_active", true)
-        .lte("period_start", toDate)
-        .gte("period_end", fromDate)
-        .order("id", { ascending: true }),
-    ),
+    loadSpend(),
   ]);
 
   const productById = new Map(products.map((p) => [p.id, p]));
@@ -127,6 +181,8 @@ export async function GET(req: NextRequest) {
     units: number;
     deliveryFeeTotal: number;
     returnFeeTotal: number;
+    /** ISO day → leads created that day, for the sparkline. */
+    byDay: Map<string, number>;
   }
   const empty = (): Bucket => ({
     leads: 0,
@@ -138,6 +194,7 @@ export async function GET(req: NextRequest) {
     units: 0,
     deliveryFeeTotal: 0,
     returnFeeTotal: 0,
+    byDay: new Map(),
   });
 
   const buckets = new Map<string, Bucket>();
@@ -150,8 +207,10 @@ export async function GET(req: NextRequest) {
       b = empty();
       buckets.set(o.product_id, b);
     }
+    const day = o.created_at ? o.created_at.slice(0, 10) : null;
     const bump = (t: Bucket) => {
       t.leads += 1;
+      if (day) t.byDay.set(day, (t.byDay.get(day) ?? 0) + 1);
       if (CONFIRMED_PHASE.includes(o.status)) t.confirmed += 1;
       if (TERMINAL.includes(o.status)) t.terminal += 1;
       if (o.status === "delivered") {
@@ -172,15 +231,26 @@ export async function GET(req: NextRequest) {
   }
 
   const spendByProduct = new Map<string, number>();
+  const entriesByProduct = new Map<string, SpendEntry[]>();
+  const unmappedEntries: SpendEntry[] = [];
   let marketLevelSpend = 0;
+
   for (const s of spend) {
-    const amt = Number(s.amount) || 0;
+    const entry = toEntry(s);
     if (s.product_id) {
-      spendByProduct.set(s.product_id, (spendByProduct.get(s.product_id) ?? 0) + amt);
+      spendByProduct.set(s.product_id, (spendByProduct.get(s.product_id) ?? 0) + entry.amount);
+      const list = entriesByProduct.get(s.product_id);
+      if (list) list.push(entry);
+      else entriesByProduct.set(s.product_id, [entry]);
     } else {
-      marketLevelSpend += amt;
+      marketLevelSpend += entry.amount;
+      unmappedEntries.push(entry);
     }
   }
+
+  /** Days with at least one lead, chronologically — the sparkline's x-axis. */
+  const sparkline = (byDay: Map<string, number>): number[] =>
+    [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, n]) => n);
 
   const rows = [...buckets.entries()]
     .map(([productId, b]) => {
@@ -193,15 +263,21 @@ export async function GET(req: NextRequest) {
       const aov = b.delivered > 0 ? b.revenue / b.delivered : 0;
       const unitsPerDelivered = b.delivered > 0 ? b.units / b.delivered : 1;
 
+      const unitCogs = Number(p.unit_cogs) || 0;
+      const packingCost = Number(p.packing_cost) || 0;
+      const processingCost = Number(p.confirmation_processing_cost) || 0;
+      const deliveryFee = b.delivered > 0 ? b.deliveryFeeTotal / b.delivered : 0;
+      const returnFee = b.returned > 0 ? b.returnFeeTotal / b.returned : 0;
+
       const breakEven = computeBreakEven({
         aov,
-        unitCogs: Number(p.unit_cogs) || 0,
+        unitCogs,
         unitsPerDelivered,
         // Effective blended fees, derived from what the carriers actually charged.
-        deliveryFee: b.delivered > 0 ? b.deliveryFeeTotal / b.delivered : 0,
-        returnFee: b.returned > 0 ? b.returnFeeTotal / b.returned : 0,
-        packingCost: Number(p.packing_cost) || 0,
-        processingCost: Number(p.confirmation_processing_cost) || 0,
+        deliveryFee,
+        returnFee,
+        packingCost,
+        processingCost,
         deliveryRate,
         confirmRate,
         returnRate,
@@ -210,6 +286,15 @@ export async function GET(req: NextRequest) {
       const productSpend = spendByProduct.get(productId) ?? 0;
       const cpl = b.leads > 0 ? productSpend / b.leads : 0;
       const margin = marginPerLead(breakEven, cpl);
+
+      // What a delivered order is worth once its own variable costs are paid.
+      // The lever behind "point mort": at this CPL, the delivery rate that
+      // would bring the cohort back to zero. Undefined when a delivered order
+      // does not even cover its own COGS — no delivery rate rescues that.
+      const netPerDelivered = aov - unitsPerDelivered * unitCogs - deliveryFee;
+      const fixedPerLead = returnRate * returnFee + confirmRate * (packingCost + processingCost);
+      const breakEvenDeliveryRate =
+        netPerDelivered > 0 ? (cpl + fixedPerLead) / netPerDelivered : null;
 
       return {
         product_id: productId,
@@ -222,23 +307,46 @@ export async function GET(req: NextRequest) {
         aov,
         delivery_rate: deliveryRate,
         confirm_rate: confirmRate,
+        return_rate: returnRate,
         maturity_pct: b.leads > 0 ? b.terminal / b.leads : 0,
+        // The five non-ad cost buckets, on the same cohort. The stack chart
+        // needs them named rather than lumped, because "where does the money
+        // go" is the whole question that panel exists to answer.
+        cost_cogs: b.units * unitCogs,
+        cost_delivery: b.deliveryFeeTotal,
+        cost_returns: b.returnFeeTotal,
+        cost_packing: b.confirmed * packingCost,
+        cost_processing: b.confirmed * processingCost,
         spend: productSpend,
         cpl,
         break_even_cpl: breakEven.cplFloor,
         break_even_cost_per_delivered: breakEven.costPerDeliveredFloor,
         break_even_roas: breakEven.roasFloor,
+        break_even_delivery_rate: breakEvenDeliveryRate,
         margin_per_lead: margin,
         profit: margin * b.leads,
         roas: productSpend > 0 ? b.revenue / productSpend : null,
+        daily_leads: sparkline(b.byDay),
+        entries: entriesByProduct.get(productId) ?? [],
       };
     })
     .filter((r): r is NonNullable<typeof r> => r !== null)
     .sort((a, b) => b.margin_per_lead - a.margin_per_lead);
 
-  const totalSpend = rows.reduce((s, r) => s + r.spend, 0) + marketLevelSpend;
+  const sum = (pick: (r: (typeof rows)[number]) => number) => rows.reduce((s, r) => s + pick(r), 0);
+
+  const costCogs = sum((r) => r.cost_cogs);
+  const costDelivery = sum((r) => r.cost_delivery);
+  const costReturns = sum((r) => r.cost_returns);
+  const costPacking = sum((r) => r.cost_packing);
+  const costProcessing = sum((r) => r.cost_processing);
+
+  const totalSpend = sum((r) => r.spend) + marketLevelSpend;
+  // Summed from the named buckets rather than backed out of the rounded
+  // per-lead floor, so the cost stack adds up to revenue exactly instead of
+  // accumulating five separate rounding errors.
   const totalCosts =
-    rows.reduce((s, r) => s + (r.revenue - r.margin_per_lead * r.leads - r.spend), 0) + totalSpend;
+    costCogs + costDelivery + costReturns + costPacking + costProcessing + totalSpend;
 
   return NextResponse.json({
     data: rows,
@@ -251,7 +359,16 @@ export async function GET(req: NextRequest) {
       total_revenue: market.revenue,
       total_costs: totalCosts,
       total_profit: market.revenue - totalCosts,
+      cost_cogs: costCogs,
+      cost_delivery: costDelivery,
+      cost_returns: costReturns,
+      cost_packing: costPacking,
+      cost_processing: costProcessing,
       maturity_pct: market.leads > 0 ? market.terminal / market.leads : 0,
+      unmapped: {
+        spend: marketLevelSpend,
+        entries: unmappedEntries,
+      },
       from_date: fromDate,
       to_date: toDate,
     },

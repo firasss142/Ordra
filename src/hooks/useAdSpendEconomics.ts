@@ -1,5 +1,17 @@
 import useSWR from "swr";
 
+/** One `ad_spend` row shown as a campaign sub-row under its product. */
+export interface SpendEntry {
+  id: string;
+  label: string | null;
+  campaign_id: string | null;
+  source: string;
+  amount: number;
+  period_start: string;
+  period_end: string;
+  editable: boolean;
+}
+
 /** One product's acquisition economics over the selected cohort. */
 export interface ProductEconomics {
   product_id: string;
@@ -12,15 +24,24 @@ export interface ProductEconomics {
   aov: number;
   delivery_rate: number;
   confirm_rate: number;
+  return_rate: number;
   maturity_pct: number;
+  cost_cogs: number;
+  cost_delivery: number;
+  cost_returns: number;
+  cost_packing: number;
+  cost_processing: number;
   spend: number;
   cpl: number;
   break_even_cpl: number;
   break_even_cost_per_delivered: number | null;
   break_even_roas: number | null;
+  break_even_delivery_rate: number | null;
   margin_per_lead: number;
   profit: number;
   roas: number | null;
+  daily_leads: number[];
+  entries: SpendEntry[];
 }
 
 export interface EconomicsMeta {
@@ -32,7 +53,13 @@ export interface EconomicsMeta {
   total_revenue: number;
   total_costs: number;
   total_profit: number;
+  cost_cogs: number;
+  cost_delivery: number;
+  cost_returns: number;
+  cost_packing: number;
+  cost_processing: number;
   maturity_pct: number;
+  unmapped: { spend: number; entries: SpendEntry[] };
   from_date: string;
   to_date: string;
 }

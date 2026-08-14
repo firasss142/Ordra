@@ -105,7 +105,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { data, error } = await supabase.from("ad_spend").insert(valid).select();
+  let { data, error } = await supabase.from("ad_spend").insert(valid).select();
+
+  if (error) {
+    // `campaign_name` and `source` arrive with 20260906000001. Until that
+    // migration is applied Postgres rejects the whole insert with 42703, and a
+    // CSV import that fails entirely is a worse outcome than one that lands
+    // without campaign identity. Retry with only the columns that exist.
+    const retry = await supabase
+      .from("ad_spend")
+      .insert(
+        valid.map(({ campaign_name: _campaign, source: _source, ...rest }) => rest),
+      )
+      .select();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

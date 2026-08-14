@@ -199,6 +199,62 @@
   --fin-ink-2: #475569;   /* 7.5:1 — labels, row keys */
   --fin-ink-3: #64748B;   /* 4.8:1 — meta, subtitles, axis */
 
+  /* ── Ad-spend console — scoped extension ─────────────────────────
+     Palette from the approved ad-spend mockup (prototypes/ad-spend-v3).
+     Scoped to /finance/ad-spend and src/components/ad-spend/**.
+
+     Two families, and they do different jobs:
+
+     1. STATUS. Green above the break-even floor, red below it. This is
+        the one judgement the page makes, so it gets the only saturated
+        colour in the layout. `-band` is the whole-row wash under a
+        losing product; it is deliberately far lighter than `-bg`, which
+        is a pill fill, because a full table row at pill strength reads
+        as an error state rather than as a number worth looking at.
+
+     2. COST STACK. Six categorical hues for "where a delivered order's
+        revenue goes". Validated against #FFFFFF with the dataviz
+        palette checker: every step inside the lightness band, chroma
+        above the grey floor, worst adjacent CVD ΔE 15.2, normal-vision
+        ΔE 22.6. They are fills only — each segment carries its label
+        and figure in ink beside it, never colour alone.
+
+     CONTRAST: --ads-green and --ads-red are 3.0:1 and 4.0:1 fills. Text
+     uses their `-ink` partners (--ads-green-ink 5.0:1, --ads-red-ink
+     6.2:1). The raw hues never carry type. */
+  --ads-line: #E9EBEE;
+  --ads-line-2: #E3E6EA;
+  --ads-ink-1: #151A1F;   /* 16.6:1 — figures, product names */
+  --ads-ink-2: #6B7280;   /*  5.0:1 — labels, sub-lines */
+  --ads-ink-3: #9CA3AF;   /*  2.6:1 — column heads, disabled cells only */
+  --ads-muted: #8C9196;   /* axis ticks — matches --chart-line */
+
+  --ads-green: #16A34A;
+  --ads-green-ink: #15803D;
+  --ads-red: #DC2626;
+  --ads-red-ink: #B91C1C;
+  --ads-red-bg: #FEE2E2;
+  --ads-red-band: #FEF6F6;
+  --ads-red-line: #F7CBCB;
+  --ads-orange-ink: #B45309;
+  --ads-orange-bg: #FEF3C7;
+  --ads-orange-line: #F5DFA0;
+
+  --ads-pub: #ea6a1f;
+  --ads-cogs: #2563eb;
+  --ads-delivery: #0d9488;
+  --ads-returns: #6d5ce0;
+  --ads-packing: #e87ba4;
+  --ads-profit: #15803d;
+
+  /* Hatched fills for the margin band. A texture rather than a tint so
+     the "what is left" segment survives greyscale printing and forced
+     colours, where a pale green and a pale red are the same swatch. */
+  --ads-hatch-ok: repeating-linear-gradient(135deg, #CDECD9 0 5px, #E4F5EB 5px 10px);
+  --ads-hatch-ok-line: #BBE3CC;
+  --ads-hatch-bad: repeating-linear-gradient(135deg, #F3B4B4 0 5px, #FBDCDC 5px 10px);
+  --ads-hatch-bad-line: #EC9A9A;
+
   --oms-ink-1: #1B1917;  /* 17.5:1 — customer name, price */
   --oms-ink-2: #5C5852;  /*  7.1:1 — product, secondary labels */
   --oms-ink-3: #78726A;  /*  4.8:1 — meta, period labels, column heads */

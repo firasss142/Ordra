@@ -1,33 +1,26 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import dynamic from "next/dynamic";
-import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import { Plus, Upload } from "lucide-react";
 import { useAdSpendCampaigns } from "@/hooks/useAdSpendCampaigns";
 import { useMarketScope } from "@/context/market-scope";
-import { AdSpendRollups } from "@/components/ad-spend/AdSpendRollups";
 import {
   AdSpendChain,
   AdSpendCplBars,
   AdSpendCostStack,
   AdSpendProductTable,
+  AdSpendSyncStrip,
+  AdSpendUnmappedBanner,
+  type SyncHealth,
 } from "@/components/ad-spend/AdSpendEconomics";
 import { useAdSpendEconomics } from "@/hooks/useAdSpendEconomics";
-import { AdSpendCampaignList } from "@/components/ad-spend/AdSpendCampaignList";
 import { AdSpendEntryModal } from "@/components/ad-spend/AdSpendEntryModal";
 import { AdSpendCsvImport } from "@/components/ad-spend/AdSpendCsvImport";
 import { EmptyState } from "@/components/dashboard/Panel";
-import { computeRollups, aggregateWeeklyTimeline } from "@/lib/ad-spend/realized-metrics";
 import type { AdSpendWithMetrics } from "@/lib/ad-spend/realized-metrics";
 import type { AuthUser } from "@/types";
 import { todayISO, startOfMonthISO } from "@/lib/date";
-
-const AdSpendTimeline = dynamic(
-  () => import("@/components/ad-spend/AdSpendTimeline").then((m) => m.AdSpendTimeline),
-  { ssr: false, loading: () => <div className="h-[260px] bg-surface-sunken rounded-[8px]" /> },
-);
 
 interface Market {
   id: string;
@@ -48,10 +41,6 @@ function twelveWeekFrom(): string {
   return d.toISOString().slice(0, 10);
 }
 
-function startOfYearISO(): string {
-  return `${new Date().getUTCFullYear()}-01-01`;
-}
-
 export function AdSpendClient({ user, markets }: AdSpendClientProps) {
   const t = useTranslations("adSpend");
   const isSuperAdmin = user.role === "super_admin";
@@ -64,19 +53,17 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
 
   const fromDate = useMemo(() => twelveWeekFrom(), []);
   const toDate = useMemo(() => todayISO(), []);
-  const { products: economics, meta: economicsMeta } = useAdSpendEconomics({
-    marketId: selectedMarketId,
-    fromDate,
-    toDate,
-  });
+  const locale = user.locale ?? "fr";
 
-  const currency = useMemo(
-    () =>
-      markets.find((m) => m.id === selectedMarketId)?.code.toUpperCase() === "LY"
-        ? "LYD"
-        : "TND",
-    [markets, selectedMarketId],
-  );
+  const {
+    products: economics,
+    meta: economicsMeta,
+    isLoading: economicsLoading,
+    mutate: mutateEconomics,
+  } = useAdSpendEconomics({ marketId: selectedMarketId, fromDate, toDate });
+
+  const market = markets.find((m) => m.id === selectedMarketId);
+  const currency = market?.code.toUpperCase() === "LY" ? "LYD" : "TND";
 
   const [editingEntry, setEditingEntry] = useState<AdSpendWithMetrics | null | undefined>(undefined); // undefined = modal closed
   const [showImport, setShowImport] = useState(false);
@@ -84,46 +71,67 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const { entries, products, monthConfirmedCount, isLoading, mutate } = useAdSpendCampaigns({
+  // Entries and the product list back the CRUD surfaces only — every figure on
+  // the page comes from the economics route. The metrics overlay is skipped
+  // because nothing renders per-entry ROAS any more.
+  const { entries, products, mutate } = useAdSpendCampaigns({
     marketId: selectedMarketId,
     fromDate,
     toDate,
+    withMetrics: false,
   });
 
-  // Real YTD: a second lightweight fetch (amounts only, no metrics overlay) —
-  // the 12-week window above under-covers the year for most of it.
-  const ytdKey = selectedMarketId
-    ? `/api/ad-spend?market_id=${selectedMarketId}&from_date=${startOfYearISO()}&to_date=${toDate}&scope=all`
-    : null;
-  const { data: ytdData } = useSWR<{ data: { amount: number }[] }>(ytdKey, {
-    revalidateOnFocus: false,
-    dedupingInterval: 60_000,
-  });
-  const ytdSum = useMemo(
-    () => (ytdData?.data ?? []).reduce((s, e) => s + (Number(e.amount) || 0), 0),
-    [ytdData],
+  const refresh = useCallback(() => {
+    mutate();
+    mutateEconomics();
+  }, [mutate, mutateEconomics]);
+
+  const periodLabel = useMemo(() => {
+    const f = new Intl.DateTimeFormat(locale === "ar" ? "ar" : "fr-FR", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+    return `${f.format(new Date(fromDate))} – ${f.format(new Date(toDate))}`;
+  }, [fromDate, toDate, locale]);
+
+  // Nothing has synced yet: the accounts table arrives with the Meta migration.
+  // Saying so out loud is the point — a blank strip would read as "healthy".
+  const syncHealth: SyncHealth = useMemo(
+    () => ({
+      lastSyncedAt: null,
+      rowsWritten: null,
+      campaigns: null,
+      cadenceLabel: null,
+      accounts: markets.map((m) => ({
+        label: m.name,
+        ok: false,
+        detail: t("economics.syncNotConnected"),
+        note: t("economics.syncTokenPending"),
+      })),
+      lastError: null,
+    }),
+    [markets, t],
   );
 
-  const locale = user.locale ?? "fr";
+  const openEntry = useCallback(
+    (entryId: string) => {
+      const found = entries.find((e) => e.id === entryId);
+      if (found) setEditingEntry(found);
+    },
+    [entries],
+  );
 
-  const { rollups, timelineWeeks } = useMemo(() => {
-    const now = new Date();
-    const base = computeRollups(entries, now, 0);
-    return {
-      rollups: {
-        this_week: base.this_week,
-        this_month: base.this_month,
-        ytd: ytdSum,
-        // De-duplicated market-level count from the API — overlapping
-        // market-wide + product entries no longer double-count.
-        avg_cost_per_conf:
-          monthConfirmedCount && monthConfirmedCount > 0
-            ? Math.round((base.this_month / monthConfirmedCount) * 100) / 100
-            : null,
-      },
-      timelineWeeks: aggregateWeeklyTimeline(entries, 12, now),
-    };
-  }, [entries, ytdSum, monthConfirmedCount]);
+  const confirmDelete = useCallback(
+    (entryId: string) => {
+      const found = entries.find((e) => e.id === entryId);
+      if (found) {
+        setDeleteError(null);
+        setDeleteConfirm(found);
+      }
+    },
+    [entries],
+  );
 
   const handleSave = useCallback(
     async (
@@ -161,9 +169,9 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
           throw new Error(body?.message ?? `POST failed (${res.status})`);
         }
       }
-      mutate();
+      refresh();
     },
-    [selectedMarketId, isSuperAdmin, mutate],
+    [selectedMarketId, isSuperAdmin, refresh],
   );
 
   const handleDeleteConfirm = useCallback(async () => {
@@ -177,18 +185,25 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
         setDeleteError(body?.message ?? t("deleteError"));
         return; // keep the dialog open — the entry was NOT deleted
       }
-      mutate();
+      refresh();
       setDeleteConfirm(null);
     } catch {
       setDeleteError(t("deleteError"));
     } finally {
       setDeleting(false);
     }
-  }, [deleteConfirm, mutate, t]);
+  }, [deleteConfirm, refresh, t]);
 
   const handleImport = useCallback(
     async (
-      rows: { period_start: string; period_end: string; amount: number; product_id: string | null; note?: string | null; campaign_name: string }[],
+      rows: {
+        period_start: string;
+        period_end: string;
+        amount: number;
+        product_id: string | null;
+        note?: string | null;
+        campaign_name: string;
+      }[],
       confirmLockedPeriod = false,
     ) => {
       // The import route runs the very same closed-period guard as the entry
@@ -220,135 +235,105 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
         }),
       });
       const json = await res.json();
-      mutate();
+      refresh();
       return json?.data ?? { inserted: 0, rejected: [] };
     },
-    [selectedMarketId, isSuperAdmin, mutate],
+    [selectedMarketId, isSuperAdmin, refresh],
   );
 
-  const marketLabel = markets.find((m) => m.id === selectedMarketId)?.name ?? "";
+  const hasCohort = !!economicsMeta && economicsMeta.total_leads > 0;
 
   return (
-    <div className="bg-surface-page min-h-screen px-4 sm:px-6 pt-5 pb-16 flex flex-col gap-5">
+    <div className="bg-surface-page min-h-screen px-4 sm:px-6 pt-5 pb-16 flex flex-col gap-3.5">
       {/* Page header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-baseline gap-3 flex-wrap">
-            <h1 className="m-0 text-[20px] font-semibold text-ink-primary tracking-[-0.01em]">
-              {t("title")}
-            </h1>
-            {marketLabel ? (
-              <span className="text-[12px] font-medium text-ink-secondary px-2 py-0.5 rounded-pill bg-surface-selected">
-                {marketLabel}
-              </span>
-            ) : null}
-          </div>
-          <p className="m-0 text-[13px] text-ink-secondary">{t("subtitle")}</p>
+      <div className="flex items-start gap-3 flex-wrap">
+        <div>
+          <h1 className="m-0 text-[20px] font-semibold text-ads-ink-1 tracking-[-0.01em]">{t("title")}</h1>
+          <p className="m-0 text-[12.5px] text-ads-ink-2 mt-[3px]">
+            {hasCohort
+              ? t("cohortSubtitle", {
+                  period: periodLabel,
+                  maturity: `${Math.round(economicsMeta.maturity_pct * 100)} %`,
+                })
+              : t("subtitle")}
+          </p>
         </div>
 
-        {!scopeIsAll ? (
+        <span className="flex-1" />
+
+        {!scopeIsAll && (
           <div className="flex gap-2 flex-wrap items-center">
+            {market && (
+              <span className="inline-flex items-center gap-1.5 border border-ads-line-2 rounded-[8px] px-[11px] py-1.5 text-[12.5px] font-semibold bg-surface-card text-ads-ink-1">
+                <span className="w-[7px] h-[7px] rounded-full bg-ads-green" />
+                {market.name} · {currency}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5 border border-ads-orange-line rounded-[8px] px-[11px] py-1.5 text-[12.5px] font-semibold bg-ads-orange-bg text-ads-orange-ink">
+              {t("economics.metaNotConnected")}
+            </span>
             <button
               type="button"
               onClick={() => setShowImport(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-medium bg-surface-card border border-line rounded-[6px] text-ink-primary cursor-pointer hover:bg-surface-hover transition-colors duration-fast"
+              className="inline-flex items-center gap-1.5 border border-ads-line-2 rounded-[8px] px-3 py-[7px] text-[13px] font-semibold bg-surface-card text-ads-ink-1 hover:border-line-strong hover:bg-surface-sunken transition-colors duration-fast"
             >
-              <Upload size={14} strokeWidth={1.5} />
+              <Upload size={14} strokeWidth={1.8} />
               {t("importCsv")}
             </button>
             <button
               type="button"
               onClick={() => setEditingEntry(null)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-[13px] font-semibold rounded-[6px] cursor-pointer transition-colors duration-fast"
-              style={{ background: "#1A1A1A", color: "#FFFFFF", border: "none" }}
+              className="inline-flex items-center gap-1.5 rounded-[8px] px-3 py-[7px] text-[13px] font-semibold bg-ads-green-ink text-white hover:bg-brand-hover transition-colors duration-fast"
             >
               <Plus size={14} strokeWidth={2} />
               {t("addEntry")}
             </button>
           </div>
-        ) : null}
+        )}
       </div>
 
       {scopeIsAll ? (
-        <div className="bg-surface-card border border-line-subtle rounded-[8px] p-6">
+        <div className="bg-surface-card border border-ads-line rounded-card p-6">
           <EmptyState label={t("selectMarketPrompt")} minHeight={160} />
+        </div>
+      ) : !hasCohort ? (
+        <div className="bg-surface-card border border-ads-line rounded-card p-6">
+          <EmptyState label={economicsLoading ? t("refreshing") : t("empty")} minHeight={260} />
         </div>
       ) : (
         <>
+          <AdSpendUnmappedBanner meta={economicsMeta} currency={currency} />
+
+          {economicsMeta.total_spend === 0 && (
+            <div className="rounded-card border border-ads-orange-line bg-ads-orange-bg px-4 py-3">
+              <p className="text-[13.5px] font-semibold text-ads-ink-1">{t("economics.noSpendYet")}</p>
+              <p className="text-[12.5px] text-ads-ink-2 mt-1 leading-relaxed">{t("economics.noSpendYetHint")}</p>
+            </div>
+          )}
+
           {/* What the money turned into, end to end. Leads with the arithmetic
               rather than four totals, because a total says how much was spent
               and never whether spending it was a good idea. */}
-          {economicsMeta && economicsMeta.total_leads > 0 && (
-            <>
-              {economicsMeta.total_spend === 0 && (
-                <div className="rounded-card border border-warning/30 bg-warning-bg px-4 py-3">
-                  <p className="text-[13.5px] font-semibold text-ink-primary">{t("economics.noSpendYet")}</p>
-                  <p className="text-[12.5px] text-ink-secondary mt-1 leading-relaxed">
-                    {t("economics.noSpendYetHint")}
-                  </p>
-                </div>
-              )}
+          <AdSpendChain meta={economicsMeta} currency={currency} />
 
-              <AdSpendChain meta={economicsMeta} currency={currency} />
-
-              <div className="grid grid-cols-1 xl:grid-cols-[1.18fr_1fr] gap-4 items-start">
-                <AdSpendCplBars products={economics} currency={currency} />
-                <AdSpendCostStack products={economics} meta={economicsMeta} currency={currency} />
-              </div>
-
-              <AdSpendProductTable products={economics} meta={economicsMeta} currency={currency} />
-            </>
-          )}
-
-          {/* KPI Rollups */}
-          <AdSpendRollups
-            thisWeek={rollups.this_week}
-            thisMonth={rollups.this_month}
-            ytd={rollups.ytd}
-            avgCostPerConf={rollups.avg_cost_per_conf}
-            currency={currency}
-            locale={locale}
-          />
-
-          {/* Timeline chart */}
-          <div className="bg-surface-card border border-line-subtle rounded-[8px] p-5 flex flex-col gap-3.5">
-            <h2 className="m-0 text-[14px] font-semibold text-ink-primary">{t("timelineTitle")}</h2>
-            {entries.length > 0 ? (
-              <AdSpendTimeline
-                weeks={timelineWeeks}
-                products={products}
-                marketLabel={t("card.marketWide")}
-                currency={currency}
-              />
-            ) : (
-              <EmptyState label={t("empty")} minHeight={260} />
-            )}
+          <div className="grid grid-cols-1 [@media(min-width:1240px)]:grid-cols-[1.18fr_1fr] gap-3.5 items-start">
+            <AdSpendCplBars
+              products={economics}
+              currency={currency}
+              periodLabel={t("economics.overPeriod")}
+            />
+            <AdSpendCostStack meta={economicsMeta} currency={currency} />
           </div>
 
-          {/* Section heading */}
-          <div className="flex items-center justify-between">
-            <h2 className="m-0 text-[16px] font-semibold text-ink-primary">{t("campaignsTitle")}</h2>
-            {isLoading && (
-              <span className="text-[11px] font-medium text-ink-secondary px-2.5 py-0.5 rounded-pill bg-surface-selected uppercase tracking-[0.06em]">
-                {t("refreshing")}
-              </span>
-            )}
-          </div>
-
-          {/* Campaign cards */}
-          <AdSpendCampaignList
-            entries={entries}
-            products={products}
+          <AdSpendProductTable
+            products={economics}
+            meta={economicsMeta}
             currency={currency}
-            locale={locale}
-            canEditLocked={isSuperAdmin}
-            isLoading={isLoading}
-            onEdit={(entry) => setEditingEntry(entry)}
-            onDelete={(entry) => {
-              setDeleteError(null);
-              setDeleteConfirm(entry);
-            }}
+            onEditEntry={openEntry}
+            onDeleteEntry={confirmDelete}
           />
+
+          <AdSpendSyncStrip health={syncHealth} />
         </>
       )}
 

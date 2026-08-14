@@ -123,6 +123,34 @@ const config: Config = {
           "ink-2": "var(--fin-ink-2)",
           "ink-3": "var(--fin-ink-3)",
         },
+        // Ad-spend console — scoped extension. Aliases only; the values live
+        // in globals.css. Status pair (green above the floor, red below) plus
+        // the six validated cost-stack hues. See the contrast note there
+        // before putting type on a raw hue.
+        ads: {
+          line: "var(--ads-line)",
+          "line-2": "var(--ads-line-2)",
+          "ink-1": "var(--ads-ink-1)",
+          "ink-2": "var(--ads-ink-2)",
+          "ink-3": "var(--ads-ink-3)",
+          muted: "var(--ads-muted)",
+          green: "var(--ads-green)",
+          "green-ink": "var(--ads-green-ink)",
+          red: "var(--ads-red)",
+          "red-ink": "var(--ads-red-ink)",
+          "red-bg": "var(--ads-red-bg)",
+          "red-band": "var(--ads-red-band)",
+          "red-line": "var(--ads-red-line)",
+          "orange-ink": "var(--ads-orange-ink)",
+          "orange-bg": "var(--ads-orange-bg)",
+          "orange-line": "var(--ads-orange-line)",
+          pub: "var(--ads-pub)",
+          cogs: "var(--ads-cogs)",
+          delivery: "var(--ads-delivery)",
+          returns: "var(--ads-returns)",
+          packing: "var(--ads-packing)",
+          profit: "var(--ads-profit)",
+        },
         status: {
           action: "#2C6ECB",
           success: "#008060",
