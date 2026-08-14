@@ -205,6 +205,38 @@ describe("isValidMarketSettings — supplier_lead_time_days", () => {
   });
 });
 
+describe("isValidMarketSettings — sla_minutes", () => {
+  const valid = {
+    delivery_fee: 7,
+    return_fee: 3,
+    packing_cost: 1.5,
+    max_call_attempts: 3,
+    assignment_algorithm: "round_robin",
+  };
+
+  // The order panel reads this as the confirmation target. Without a branch
+  // here the whitelist validator rejects the whole payload, so the target could
+  // be read but never saved.
+  it("accepts a whole number of minutes", () => {
+    expect(isValidMarketSettings({ ...valid, sla_minutes: 120 })).toBe(true);
+  });
+  it("is optional — a market that has not set one falls back to the default", () => {
+    expect(isValidMarketSettings(valid)).toBe(true);
+  });
+  it("rejects zero, which would mark every order late on arrival", () => {
+    expect(isValidMarketSettings({ ...valid, sla_minutes: 0 })).toBe(false);
+  });
+  it("rejects a fractional target", () => {
+    expect(isValidMarketSettings({ ...valid, sla_minutes: 90.5 })).toBe(false);
+  });
+  it("rejects a numeric string", () => {
+    expect(isValidMarketSettings({ ...valid, sla_minutes: "120" })).toBe(false);
+  });
+  it("rejects a target beyond a week, which is not a service level", () => {
+    expect(isValidMarketSettings({ ...valid, sla_minutes: 20_000 })).toBe(false);
+  });
+});
+
 describe("CarrierConfig type", () => {
   it("accepts a valid CarrierConfig object", () => {
     const config: CarrierConfig = {

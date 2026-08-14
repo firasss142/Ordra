@@ -39,10 +39,24 @@ export interface MarketSettings {
    * account for stock already inbound.
    */
   supplier_lead_time_days?: number;
+  /**
+   * Minutes an order may wait between intake and phone confirmation.
+   *
+   * Read by the order panel's SLA chip. It measures the confirmation phase
+   * only — the carrier's own delivery time is the carrier's problem and is
+   * tracked separately.
+   */
+  sla_minutes?: number;
 }
 
 /** Applied per market until someone sets a real one in Réglages. */
 export const DEFAULT_SUPPLIER_LEAD_TIME_DAYS = 14;
+
+/** Two hours. Applied per market until someone sets a real one in Réglages. */
+export const DEFAULT_SLA_MINUTES = 120;
+
+/** A week. Past this a target stops being a service level. */
+const MAX_SLA_MINUTES = 10_080;
 
 export const DEFAULT_SHIFT_CONFIG: ShiftConfig = {
   start: "08:00",
@@ -61,6 +75,7 @@ export const DEFAULT_MARKET_SETTINGS: MarketSettings = {
   attempt_retry_times: [],
   shift_config: DEFAULT_SHIFT_CONFIG,
   supplier_lead_time_days: DEFAULT_SUPPLIER_LEAD_TIME_DAYS,
+  sla_minutes: DEFAULT_SLA_MINUTES,
 };
 
 export interface CarrierConfig {
@@ -123,6 +138,17 @@ export function isValidMarketSettings(obj: unknown): obj is MarketSettings {
       !Number.isInteger(s.supplier_lead_time_days) ||
       s.supplier_lead_time_days < 0 ||
       s.supplier_lead_time_days > 365
+    )
+      return false;
+  }
+  if (s.sla_minutes !== undefined) {
+    // Whole minutes only, and never zero: a zero target would report every
+    // order as breached the instant it arrived.
+    if (
+      typeof s.sla_minutes !== "number" ||
+      !Number.isInteger(s.sla_minutes) ||
+      s.sla_minutes < 1 ||
+      s.sla_minutes > MAX_SLA_MINUTES
     )
       return false;
   }

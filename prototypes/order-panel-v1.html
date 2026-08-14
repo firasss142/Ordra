@@ -1,0 +1,1422 @@
+<title>Order Panel v1</title>
+
+<style>
+  /* ────────────────────────────────────────────────────────────────
+     Tokens — copied verbatim from src/app/globals.css so the mock and
+     the app cannot drift. Only --accent / --accent-bg are re-pointed
+     per role (agent queue = green, orders console = violet).
+     ──────────────────────────────────────────────────────────────── */
+  :root {
+    --bg: #FAFAF8;
+    --surface: #FFFFFF;
+    --sunken: #F4F3EF;
+    --border: #EAE7E1;
+    --border-strong: #DCD8D0;
+    --ink-1: #1B1917;
+    --ink-2: #5C5852;
+    --ink-3: #78726A;
+
+    --warn: #A9670C;
+    --warn-ink: #8F5608;
+    --warn-bg: #FBF1E2;
+    --bad: #B23A32;
+    --bad-bg: #FBECEA;
+    --ok: #2F7A4A;
+    --ok-bg: #E8F4EC;
+    --info: #0E7A6E;
+    --info-ink: #0B6A60;
+    --info-bg: #E4F3F0;
+
+    --brand: #15803D;
+    --brand-hover: #12692F;
+    --brand-bg: #E9F6EE;
+
+    --violet: #6E56CF;
+    --violet-ink: #513FA8;
+    --violet-bg: #F1EEFC;
+    --agent-primary: #006C49;
+
+    --accent: var(--agent-primary);
+    --accent-ink: #005539;
+    --accent-bg: var(--brand-bg);
+
+    --radius: 10px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  [data-role="admin"] {
+    --accent: var(--violet);
+    --accent-ink: var(--violet-ink);
+    --accent-bg: var(--violet-bg);
+  }
+
+  * { box-sizing: border-box; }
+
+  /* Several blocks below set an explicit `display`, which otherwise beats the
+     UA rule for [hidden] and leaves toggled-off banners on screen. */
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink-1);
+    font-family: var(--font);
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 26px 22px 64px;
+  }
+
+  /* ── Prototype chrome ─────────────────────────────────────────── */
+  .proto-head { margin-bottom: 20px; }
+  .proto-head h1 {
+    margin: 0 0 4px;
+    font-size: 19px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+  }
+  .proto-head p {
+    margin: 0;
+    color: var(--ink-2);
+    font-size: 13px;
+    line-height: 1.55;
+    max-width: 70ch;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 18px;
+    margin: 18px 0 22px;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .ctl-group { display: flex; align-items: center; gap: 8px; }
+  .ctl-label {
+    font-size: 10.5px;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.085em;
+    color: var(--ink-3);
+  }
+  .seg {
+    display: inline-flex;
+    background: var(--sunken);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 2px;
+    gap: 2px;
+  }
+  .seg button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-2);
+    padding: 5px 11px;
+    border-radius: 7px;
+    cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] {
+    background: var(--surface);
+    color: var(--ink-1);
+    box-shadow: 0 1px 2px rgba(27, 25, 23, 0.08);
+  }
+  .check {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .check input { accent-color: var(--accent); width: 15px; height: 15px; }
+
+  .stage-wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: 22px;
+    align-items: start;
+  }
+  @media (max-width: 1080px) {
+    .stage-wrap { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* ── Faux console behind the drawer ───────────────────────────── */
+  .stage {
+    position: relative;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    min-height: 940px;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .ghost {
+    position: absolute;
+    inset: 0;
+    padding: 18px 20px;
+    filter: blur(1.6px);
+    opacity: 0.5;
+    pointer-events: none;
+    user-select: none;
+  }
+  .ghost h4 {
+    margin: 0 0 3px;
+    font-size: 17px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+  }
+  .ghost .g-sub { font-size: 11.5px; color: var(--ink-3); margin-bottom: 14px; }
+  .ghost .g-row {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 0.7fr 0.6fr;
+    gap: 10px;
+    padding: 12px 13px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    margin-bottom: 7px;
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .ghost .g-row b { color: var(--ink-1); font-weight: 600; }
+  .scrim {
+    position: absolute;
+    inset: 0;
+    background: rgba(27, 25, 23, 0.22);
+  }
+
+  /* ── The panel ────────────────────────────────────────────────── */
+  .panel {
+    position: relative;
+    width: 468px;
+    max-width: 100%;
+    background: var(--surface);
+    border-inline-start: 1px solid var(--border);
+    box-shadow: -18px 0 44px rgba(27, 25, 23, 0.10);
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+  }
+
+  /* Header */
+  .p-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 650;
+    white-space: nowrap;
+  }
+  .badge.warn { background: var(--warn-bg); color: var(--warn-ink); }
+  .badge.ok   { background: var(--ok-bg);   color: var(--ok); }
+  .badge.info { background: var(--info-bg); color: var(--info-ink); }
+  .badge.bad  { background: var(--bad-bg);  color: var(--bad); }
+
+  .sla {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 62px;
+    padding: 3px 8px;
+    border: 1px solid var(--warn);
+    border-radius: 8px;
+    line-height: 1.15;
+  }
+  .sla b { font-size: 12.5px; font-weight: 650; color: var(--warn-ink); font-variant-numeric: tabular-nums; }
+  .sla span { font-size: 9.5px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.03em; }
+  /* Frozen at the moment of confirmation — the reading becomes "we made it",
+     not "you are late". */
+  .sla[data-tone="met"] { border-color: var(--ok); }
+  .sla[data-tone="met"] b { color: var(--ok); }
+
+  .head-link {
+    appearance: none;
+    background: none;
+    border: 0;
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--ink-2);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    padding: 0;
+  }
+  .spacer { margin-inline-start: auto; }
+  .ref {
+    font-size: 11.5px;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .icon-btn {
+    appearance: none;
+    display: inline-grid;
+    place-items: center;
+    width: 27px;
+    height: 27px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+  .icon-btn:hover { background: var(--sunken); color: var(--ink-1); }
+
+  /* Scroll body */
+  .p-body { flex: 1 1 auto; overflow-y: auto; }
+
+  /* Client */
+  .client { padding: 18px 18px 4px; }
+  .client-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .micro {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.085em;
+    color: var(--ink-3);
+  }
+  .cust-name {
+    margin: 7px 0 0;
+    font-size: 21px;
+    font-weight: 650;
+    letter-spacing: -0.018em;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  /* Reliability strip — one line. The three figures carry their own meaning
+     through the glyph (carton / livré / retour), so the words are only needed
+     on hover. Compact enough to sit on the CLIENT label line. */
+  .rel {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    height: 28px;
+    padding: 0 11px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .rel-tone {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .dot.good { background: var(--ok); }
+  .dot.mid  { background: var(--warn); }
+  .dot.risk { background: var(--bad); }
+  .rel-sep { width: 1px; height: 14px; background: var(--border); flex: none; }
+  .rel-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 3.5px;
+    font-size: 12px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
+    cursor: default;
+  }
+  .rel-stat svg { flex: none; opacity: 0.9; }
+  .rel-stat.ok { color: var(--ok); }
+  .rel-stat.bad { color: var(--bad); }
+
+  /* Phone row */
+  .phone-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .phone {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 17px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+  .btn-call {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 38px;
+    padding: 0 18px;
+    border-radius: 9px;
+    background: var(--brand);
+    color: #fff;
+    border: 1px solid var(--brand);
+    font-size: 13.5px;
+    font-weight: 650;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .btn-call:hover { background: var(--brand-hover); border-color: var(--brand-hover); }
+  .btn-square {
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .btn-square:hover { border-color: var(--border-strong); background: var(--sunken); }
+
+  /* Facts grid */
+  .facts {
+    margin: 16px 0 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border-block: 1px solid var(--border);
+  }
+  .fact { background: var(--surface); padding: 11px 18px 12px; min-width: 0; }
+  .fact dt { margin: 0 0 5px; }
+  .fact dd {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 14px;
+    font-weight: 600;
+    min-width: 0;
+  }
+  .fact .money { font-size: 16px; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .fact .cur { font-size: 10.5px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); margin-inline-start: 4px; }
+  .fact .muted { color: var(--ink-3); font-weight: 500; }
+  .fact.wide { grid-column: 1 / -1; }
+
+  .warn-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    border: 1px solid var(--warn);
+    border-radius: 9px;
+    padding: 9px 11px;
+    color: var(--warn-ink);
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 11px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--ink-2);
+    background: var(--sunken);
+  }
+  .avatar {
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--violet);
+    color: #fff;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    flex: none;
+  }
+  .addr-ar {
+    direction: rtl;
+    text-align: right;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.55;
+    color: var(--ink-1);
+  }
+
+  /* Callout cards (brief / ops) */
+  .callout {
+    margin: 16px 18px 4px;
+    border-radius: 12px;
+    padding: 13px 15px;
+    background: var(--info-bg);
+  }
+  .callout.ops { background: var(--accent-bg); }
+  .callout-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 650;
+    color: var(--info-ink);
+    margin-bottom: 7px;
+  }
+  .callout.ops .callout-head { color: var(--accent-ink); }
+  .ops-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px 14px;
+  }
+  .ops-grid div { min-width: 0; }
+  .ops-grid dt { font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-3); margin-bottom: 2px; }
+  .ops-grid dd { margin: 0; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pos { color: var(--ok); }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    padding: 16px 14px 0;
+    border-bottom: 1px solid var(--border);
+    margin-top: 14px;
+  }
+  .tab {
+    position: relative;
+    appearance: none;
+    background: none;
+    border: 0;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-3);
+    padding: 8px 11px 11px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tab[aria-selected="true"] { color: var(--ink-1); font-weight: 650; }
+  .tab[aria-selected="true"]::after {
+    content: "";
+    position: absolute;
+    inset-inline: 8px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--accent);
+  }
+  .tab-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--sunken);
+    font-size: 10px;
+    font-weight: 650;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .tabpanel { padding: 16px 18px 20px; }
+  .tabpanel[hidden] { display: none; }
+
+  /* Line item */
+  .item { display: flex; gap: 12px; align-items: flex-start; }
+  .thumb {
+    width: 56px;
+    height: 56px;
+    flex: none;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--sunken);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+  .item-main { flex: 1 1 auto; min-width: 0; }
+  .item-name {
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    direction: rtl;
+    text-align: start;
+  }
+  .item-qty { font-size: 12.5px; color: var(--ink-2); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .stock { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; margin-top: 5px; }
+  .stock.in { color: var(--ok); }
+  .stock.low { color: var(--warn-ink); }
+  .item-price { font-size: 13.5px; font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .item-price .cur { font-size: 10px; color: var(--ink-3); font-weight: 500; margin-inline-start: 3px; }
+
+  .add-product {
+    width: 100%;
+    margin-top: 16px;
+    height: 42px;
+    border: 1px dashed var(--border-strong);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+  }
+  .add-product:hover { background: var(--sunken); color: var(--ink-1); }
+
+  .totals { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 14px; }
+  .t-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--ink-2);
+    padding: 5px 0;
+  }
+  .t-row .val { font-variant-numeric: tabular-nums; color: var(--ink-1); font-weight: 500; }
+  .t-row .cur { font-size: 10px; color: var(--ink-3); margin-inline-start: 3px; }
+  .t-row.grand {
+    margin-top: 9px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 650;
+    color: var(--ink-1);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .t-row.grand .val { font-size: 18px; font-weight: 650; letter-spacing: -0.02em; }
+  .pencil { color: var(--ink-3); display: inline-flex; }
+
+  /* Shipping tab */
+  .field { padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .field:last-child { border-bottom: 0; }
+  .field dt { margin-bottom: 4px; }
+  .field dd { margin: 0; font-size: 13.5px; font-weight: 500; }
+  .mono { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+
+  /* History */
+  .tl { list-style: none; margin: 0; padding: 0; }
+  .tl li {
+    position: relative;
+    padding: 0 0 16px 20px;
+    border-inline-start: 1px solid var(--border);
+    margin-inline-start: 4px;
+  }
+  .tl li:last-child { border-inline-start-color: transparent; padding-bottom: 0; }
+  .tl li::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: -4.5px;
+    top: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border-strong);
+  }
+  .tl li:first-child::before { background: var(--accent); }
+  .tl b { display: block; font-size: 13px; font-weight: 600; }
+  .tl .meta { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+  .tl .note { font-size: 12.5px; color: var(--ink-2); margin-top: 4px; }
+
+  /* Banners */
+  .banners { padding: 0 18px; }
+  .banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-radius: 10px;
+    padding: 11px 12px;
+    margin-bottom: 10px;
+    font-size: 12.5px;
+    line-height: 1.4;
+  }
+  .banner.warn { background: var(--warn-bg); border: 1px solid rgba(169, 103, 12, 0.25); color: var(--warn-ink); }
+  .banner.quiet { background: var(--sunken); border: 1px solid var(--border); color: var(--ink-2); }
+  .banner .b-body { flex: 1 1 auto; min-width: 0; }
+  .banner b { font-weight: 650; }
+  .banner-btn {
+    flex: none;
+    height: 29px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(169, 103, 12, 0.4);
+    background: transparent;
+    color: var(--warn-ink);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 650;
+    cursor: pointer;
+  }
+  .banner-btn:hover { background: rgba(169, 103, 12, 0.1); }
+
+  /* Footer */
+  .p-foot {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 18px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    position: relative;
+  }
+  .btn {
+    flex: 1 1 0;
+    height: 44px;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 650;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    white-space: nowrap;
+    border: 1px solid transparent;
+    background: var(--surface);
+  }
+  .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .btn.primary:hover { background: var(--brand-hover); border-color: var(--brand-hover); }
+  .btn.primary[data-blocked="true"] { background: #7FA98E; border-color: #7FA98E; cursor: not-allowed; }
+  .btn.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+  /* "Fermer" is a dismissal, not a confirmation — it never wears the green. */
+  .btn.dark { background: var(--ink-1); border-color: var(--ink-1); color: #fff; }
+  .btn.dark:hover { background: #322E2A; border-color: #322E2A; }
+  .btn.neutral { border-color: var(--border); color: var(--ink-1); }
+  .btn.neutral:hover { background: var(--sunken); border-color: var(--border-strong); }
+  .btn.warnish { border-color: var(--warn); color: var(--warn-ink); }
+  .btn.warnish:hover { background: var(--warn-bg); }
+  .btn.badish { border-color: var(--bad); color: var(--bad); }
+  .btn.badish:hover { background: var(--bad-bg); }
+  .btn.more { flex: 0 0 44px; width: 44px; border-color: var(--border); color: var(--ink-2); }
+
+  .menu {
+    position: absolute;
+    inset-inline-end: 18px;
+    bottom: 62px;
+    min-width: 232px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    box-shadow: 0 10px 28px rgba(27, 25, 23, 0.14);
+    padding: 5px;
+    z-index: 5;
+  }
+  .menu[hidden] { display: none; }
+  .menu button {
+    display: block;
+    width: 100%;
+    text-align: start;
+    appearance: none;
+    background: none;
+    border: 0;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-1);
+    padding: 9px 11px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .menu button:hover { background: var(--sunken); }
+  .menu button.destructive { color: var(--bad); }
+  .menu button.destructive:hover { background: var(--bad-bg); }
+
+  /* ── Annotation mode ─────────────────────────────────────────── */
+  .ann { position: relative; }
+  .annotated .ann {
+    outline: 1.5px dashed var(--accent);
+    outline-offset: 3px;
+    border-radius: 10px;
+  }
+  .annotated .ann::before {
+    content: attr(data-ann);
+    position: absolute;
+    top: -9px;
+    inset-inline-start: -9px;
+    z-index: 4;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  /* ── Notes column ────────────────────────────────────────────── */
+  .notes { display: flex; flex-direction: column; gap: 14px; }
+  .note-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 15px 16px;
+  }
+  .note-card h3 {
+    margin: 0 0 10px;
+    font-size: 10.5px;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.085em;
+    color: var(--ink-3);
+  }
+  .note-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 11px; }
+  .note-list li { display: flex; gap: 9px; font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+  .num {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    border-radius: 50%;
+    background: var(--accent-bg);
+    color: var(--accent-ink);
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .note-list b { color: var(--ink-1); font-weight: 650; }
+  .tag {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    margin-inline-start: 5px;
+    vertical-align: 1px;
+  }
+  .tag.new { background: var(--warn-bg); color: var(--warn-ink); }
+  .tag.exists { background: var(--ok-bg); color: var(--ok); }
+  .diff { margin: 0; padding: 0; list-style: none; font-size: 12.5px; line-height: 1.55; }
+  .diff li { display: flex; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); color: var(--ink-2); }
+  .diff li:last-child { border-bottom: 0; }
+  .diff .who {
+    flex: none;
+    width: 74px;
+    font-weight: 650;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-3);
+    padding-top: 1px;
+  }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px;
+    background: var(--sunken);
+    padding: 1px 5px;
+    border-radius: 5px;
+    color: var(--ink-1);
+  }
+</style>
+
+<div class="shell" id="root" data-role="agent" data-status="pending">
+  <div class="proto-head">
+    <h1>Panneau commande — prototype v1</h1>
+    <p>
+      Deux rôles sur la même surface : <b>agent</b> (file de confirmation, accent vert)
+      et <b>super admin</b> (console commandes, accent violet). Les couleurs, rayons et
+      tailles viennent des tokens réels de <code>globals.css</code> ; les libellés
+      viennent de <code>messages/fr.json</code> quand la clé existe déjà.
+      Aucun code applicatif n'a été modifié.
+    </p>
+  </div>
+
+  <div class="controls">
+    <div class="ctl-group">
+      <span class="ctl-label">Rôle</span>
+      <div class="seg" id="roleSeg">
+        <button type="button" data-role="agent" aria-pressed="true">Agent</button>
+        <button type="button" data-role="admin" aria-pressed="false">Super admin</button>
+      </div>
+    </div>
+    <div class="ctl-group">
+      <span class="ctl-label">Statut</span>
+      <div class="seg" id="statusSeg">
+        <button type="button" data-status="pending" aria-pressed="true">En attente</button>
+        <button type="button" data-status="confirmed" aria-pressed="false">Confirmé</button>
+        <button type="button" data-status="uploaded" aria-pressed="false">Envoyé</button>
+        <button type="button" data-status="delivered" aria-pressed="false">Livré</button>
+        <button type="button" data-status="rejected" aria-pressed="false">Refusé</button>
+      </div>
+    </div>
+    <label class="check"><input type="checkbox" id="cityToggle" checked> Ville non renseignée</label>
+    <label class="check"><input type="checkbox" id="annToggle"> Annotations</label>
+  </div>
+
+  <div class="stage-wrap">
+    <div class="stage">
+      <div class="ghost" aria-hidden="true">
+        <h4>Commandes</h4>
+        <div class="g-sub">142 commandes · marché Libye</div>
+        <div class="g-row"><b>Nafesa Ton</b><span>922692547</span><span>199,00 LYD</span><span>En attente</span></div>
+        <div class="g-row"><b>Salem Abdallah</b><span>911204338</span><span>89,00 LYD</span><span>Confirmé</span></div>
+        <div class="g-row"><b>Mouna Haddad</b><span>925617740</span><span>199,00 LYD</span><span>Envoyé</span></div>
+        <div class="g-row"><b>Youssef Ben Ali</b><span>913882015</span><span>259,00 LYD</span><span>Livré</span></div>
+        <div class="g-row"><b>Rania Chebbi</b><span>926440178</span><span>199,00 LYD</span><span>En attente</span></div>
+        <div class="g-row"><b>Anis Trabelsi</b><span>918230064</span><span>139,00 LYD</span><span>Confirmé</span></div>
+      </div>
+      <div class="scrim" aria-hidden="true"></div>
+
+      <aside class="panel" aria-label="Détail commande">
+        <!-- ── Header ─────────────────────────────────────────── -->
+        <div class="p-head">
+          <span class="badge warn" id="statusBadge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            <span id="statusLabel">En attente</span>
+          </span>
+
+          <div class="sla ann" id="slaChip" data-ann="1" title="Temps écoulé depuis l'intake / objectif SLA du marché">
+            <b id="slaElapsed">1h 13m</b>
+            <span>SLA 2h</span>
+          </div>
+
+          <button type="button" class="head-link" data-roles="admin">Modifier statut</button>
+
+          <span class="spacer"></span>
+          <span class="ref">#A-21837</span>
+          <button type="button" class="icon-btn" aria-label="Copier la référence">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+          </button>
+          <button type="button" class="icon-btn" aria-label="Fermer">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- ── Scroll body ────────────────────────────────────── -->
+        <div class="p-body">
+          <section class="client">
+            <div class="client-top">
+              <div>
+                <span class="micro">Client</span>
+                <h2 class="cust-name">Nafesa Ton</h2>
+              </div>
+
+              <div class="rel ann" data-ann="2" title="Client à fiabilité moyenne — 12 commandes, 11 livrées, 1 retour" aria-label="Client à fiabilité moyenne : 12 commandes, 11 livrées, 1 retour">
+                <!-- Un mot, pas une phrase : la pastille porte le niveau,
+                     le mot le nomme. Fiable / Moyen / À risque. -->
+                <span class="rel-tone"><span class="dot mid"></span>Moyen</span>
+                <span class="rel-sep"></span>
+                <span class="rel-stat" title="12 commandes">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M21 8v8a2 2 0 0 1-1 1.7l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 16V8a2 2 0 0 1 1-1.7l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8Z"/><path d="m3.3 7 8.7 5 8.7-5M12 21v-9"/></svg>12
+                </span>
+                <span class="rel-stat ok" title="11 livrées">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>11
+                </span>
+                <span class="rel-stat bad" title="1 retour">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>1
+                </span>
+              </div>
+            </div>
+
+            <div class="phone-row">
+              <span class="phone">922692547</span>
+              <a class="btn-call" id="callBtn" href="tel:922692547">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .3 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg>
+                Appeler
+              </a>
+              <button type="button" class="btn-square" aria-label="Copier le numéro">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+              </button>
+            </div>
+          </section>
+
+          <!-- Facts -->
+          <dl class="facts">
+            <div class="fact">
+              <dt class="micro">Ville</dt>
+              <dd id="cityCell"></dd>
+            </div>
+            <div class="fact">
+              <dt class="micro">Adresse</dt>
+              <dd class="addr-ar">حي الأندلس، شارع 9، عمارة رقم 12<br>الطابق 2، شقة 5</dd>
+            </div>
+
+            <div class="fact">
+              <dt class="micro">Total</dt>
+              <dd><span class="money">199,00<span class="cur">LYD</span></span></dd>
+            </div>
+            <div class="fact">
+              <dt class="micro">Articles</dt>
+              <dd><span style="font-variant-numeric: tabular-nums;">1</span></dd>
+            </div>
+
+            <div class="fact">
+              <dt class="micro">Agent</dt>
+              <dd>
+                <span class="avatar">TA</span>
+                <span>tasnim</span>
+                <button type="button" class="head-link" data-roles="admin" style="margin-inline-start:auto">Réassigner</button>
+              </dd>
+            </div>
+            <div class="fact">
+              <dt class="micro">Transporteur</dt>
+              <dd id="carrierCell"></dd>
+            </div>
+          </dl>
+
+          <!-- Admin ops summary -->
+          <div class="callout ops ann" data-ann="3" data-roles="admin">
+            <div class="callout-head">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3v18h18"/><path d="m7 14 3-4 3 3 5-6"/></svg>
+              Résumé opérationnel
+            </div>
+            <dl class="ops-grid">
+              <div><dt>Marché</dt><dd>Libye · LYD</dd></div>
+              <div><dt>Source</dt><dd>Converty · webhook</dd></div>
+              <div><dt>Créée le</dt><dd>14/08 · 09:42</dd></div>
+              <div><dt>Doublons</dt><dd>Aucun</dd></div>
+              <div><dt>Marge estimée</dt><dd class="pos">+72,40 <span class="cur">LYD</span></dd></div>
+              <div><dt>Tentatives</dt><dd>0 / 3</dd></div>
+            </dl>
+          </div>
+
+          <!-- Tabs -->
+          <div class="tabs" role="tablist">
+            <button type="button" class="tab" role="tab" aria-selected="true" data-tab="items">Articles</button>
+            <button type="button" class="tab" role="tab" aria-selected="false" data-tab="shipping">Livraison</button>
+            <button type="button" class="tab" role="tab" aria-selected="false" data-tab="history">
+              Historique <span class="tab-count">4</span>
+            </button>
+          </div>
+
+          <div class="tabpanel" role="tabpanel" data-panel="items">
+            <div class="item">
+              <div class="thumb">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#5C5852" stroke-width="1.6" stroke-linecap="round"><path d="M8 3h8l-1 3H9L8 3Z"/><rect x="9" y="6" width="6" height="12" rx="3"/><path d="M12 18v3M9 21h6"/></svg>
+              </div>
+              <div class="item-main">
+                <div class="item-name">افضل كيس بوكسينغ متين وقابل للنفخ للتمارين المنزلية</div>
+                <div class="item-qty">1 × 199,00 LYD</div>
+                <div class="stock in">
+                  <span class="dot good"></span> En stock
+                </div>
+              </div>
+              <div class="item-price">199,00<span class="cur">LYD</span></div>
+            </div>
+
+            <button type="button" class="add-product" data-editable="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              Ajouter un produit
+            </button>
+
+            <div class="totals">
+              <div class="t-row">
+                <span>Sous-total</span>
+                <span class="val">199,00<span class="cur">LYD</span></span>
+              </div>
+              <div class="t-row">
+                <span>
+                  Frais de livraison
+                  <span class="pencil" data-editable="true">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                  </span>
+                </span>
+                <span class="val">0,00<span class="cur">LYD</span></span>
+              </div>
+              <div class="t-row grand">
+                <span>Total</span>
+                <span class="val">199,00<span class="cur">LYD</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabpanel" role="tabpanel" data-panel="shipping" hidden>
+            <dl style="margin:0">
+              <div class="field">
+                <dt class="micro">Ville de livraison</dt>
+                <dd id="shipCity"></dd>
+              </div>
+              <div class="field">
+                <dt class="micro">Adresse</dt>
+                <dd class="addr-ar">حي الأندلس، شارع 9، عمارة رقم 12، الطابق 2، شقة 5</dd>
+              </div>
+              <div class="field">
+                <dt class="micro">Note client</dt>
+                <dd>Livrer en matinée si possible.</dd>
+              </div>
+              <div class="field" id="trackingField" hidden>
+                <dt class="micro">Suivi transporteur</dt>
+                <dd class="mono">DX-4471-902 · Darb Assabil</dd>
+              </div>
+              <div class="field" data-roles="admin">
+                <dt class="micro">Frais transporteur (estimation)</dt>
+                <dd class="mono">12,00 <span class="cur">LYD</span></dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="tabpanel" role="tabpanel" data-panel="history" hidden>
+            <ul class="tl" id="timeline"></ul>
+          </div>
+
+          <!-- Banners sit directly above the footer, where the decision is made -->
+          <div class="banners">
+            <div class="banner warn ann" data-ann="4" id="cityBlocker">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex:none"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+              <div class="b-body"><b>Expédition bloquée</b> : ville non renseignée.</div>
+              <button type="button" class="banner-btn">Résoudre</button>
+            </div>
+
+            <div class="banner quiet" id="readonlyBanner" hidden>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex:none;color:var(--warn)"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+              <span id="readonlyText">Réouvrez la commande pour modifier ses détails.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Footer ─────────────────────────────────────────── -->
+        <div class="p-foot" id="footer"></div>
+      </aside>
+    </div>
+
+    <!-- ── Notes column ───────────────────────────────────────── -->
+    <div class="notes">
+      <div class="note-card">
+        <h3>Ce que le panneau ajoute</h3>
+        <ul class="note-list">
+          <li>
+            <span class="num">1</span>
+            <div><b>Pastille SLA</b><span class="tag new">nouveau</span><br>
+              L'âge existe déjà (<code>order-age.ts</code>) mais il n'y a pas d'objectif :
+              il faut un <code>sla_minutes</code> par marché dans <code>settings</code>.
+            </div>
+          </li>
+          <li>
+            <span class="num">2</span>
+            <div><b>Fiabilité client</b><span class="tag exists">données existantes</span><br>
+              <code>/api/customer-history</code> renvoie déjà
+              <code>total_orders / delivered_count / returned_count</code> — aujourd'hui
+              seulement dans un popover au survol. Réduit ici à une ligne : carton =
+              commandes, coche = livrées, flèche retour = retours. Les mots restent
+              au survol.<br>
+              Verdict en un mot — <b>Fiable</b> / <b>Moyen</b> / <b>À risque</b> —
+              la pastille porte le niveau. Le seuil reste à fixer
+              (proposition : ≥ 85 % livrées = fiable, &lt; 60 % ou ≥ 2 retours = à risque,
+              et « — » sous 3 commandes, faute d'historique).
+            </div>
+          </li>
+          <li>
+            <span class="num">3</span>
+            <div><b>Résumé opérationnel</b><span class="tag new">nouveau</span><br>
+              Super admin uniquement. La marge doit être calculée côté serveur
+              (<code>lib/calculations/</code>) — jamais dans le client.
+            </div>
+          </li>
+          <li>
+            <span class="num">4</span>
+            <div><b>Bloqueur ville</b><span class="tag exists">déjà en place</span><br>
+              <code>AlertBanners.tsx</code> le rend déjà ; il descend juste au-dessus
+              du pied de page, là où l'action est prise.
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="note-card">
+        <h3>Agent vs super admin</h3>
+        <ul class="diff">
+          <li><span class="who">Accent</span><span>Vert file agent (<code>--agent-primary</code>) / violet console (<code>--oms-accent</code>)</span></li>
+          <li><span class="who">En-tête</span><span>SLA pour les deux ; « Modifier statut » admin seulement</span></li>
+          <li><span class="who">Agent</span><span>Lecture seule / « Réassigner » pour l'admin</span></li>
+          <li><span class="who">Encart</span><span>Aucun (note client dans l'onglet Livraison) / Résumé opérationnel + marge</span></li>
+          <li><span class="who">Pied</span><span>Trois issues d'appel / mêmes issues + annulation, fulfillment, restauration</span></li>
+          <li><span class="who">Édition</span><span>Agent : sa commande, hors statuts bloqués. Admin : toujours</span></li>
+        </ul>
+      </div>
+
+      <div class="note-card">
+        <h3>Décision à trancher</h3>
+        <p style="margin:0;font-size:12.5px;line-height:1.6;color:var(--ink-2)">
+          Le pied de page éclate <b>« Appel terminé »</b> en trois issues explicites
+          (<b>Confirmer / Rappeler / Refuser</b>). Aujourd'hui c'est un seul CTA qui ouvre
+          <code>PostCallActionSheet</code>. Trois boutons = un clic de moins, mais
+          « Refuser » demande toujours un motif, donc la feuille reste nécessaire pour
+          ce chemin — et <code>resolvePanelActions</code> devra renvoyer plusieurs
+          actions primaires au lieu d'une.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const root = document.getElementById("root");
+
+  const STATUS = {
+    pending:   { label: "En attente", tone: "warn", sla: "1h 13m", slaTone: "run", editable: true,  carrier: "attente" },
+    confirmed: { label: "Confirmé",   tone: "ok",   sla: "1h 47m", slaTone: "met", editable: true,  carrier: "pending" },
+    uploaded:  { label: "Envoyé",     tone: "info", sla: null,                     editable: false, carrier: "darb", tracking: true },
+    delivered: { label: "Livré",      tone: "ok",   sla: null,                     editable: false, carrier: "darb", tracking: true },
+    rejected:  { label: "Refusé",     tone: "bad",  sla: null,                     editable: false, carrier: "none" },
+  };
+
+  // Mirrors resolvePanelActions(), with the new three-outcome footer for the
+  // in-confirmation group. `d` marks a destructive overflow item.
+  const FOOTER = {
+    pending: {
+      agent: { outcomes: true, more: ["Retirer de l'agent", "Planifier la livraison"] },
+      admin: { outcomes: true, more: ["Modifier le statut", "Réassigner l'agent", "d:Annuler la commande"] },
+    },
+    confirmed: {
+      agent: { primary: "Envoyer au transporteur", second: "Planifier la livraison", more: ["Modifier le statut"] },
+      admin: { primary: "Envoyer au transporteur", second: "Planifier la livraison", more: ["Modifier le statut", "Réassigner l'agent", "d:Annuler la commande"] },
+    },
+    uploaded: {
+      agent: { primary: "Fermer", second: "Réouvrir la commande", more: ["d:Supprimer le code-barres"] },
+      admin: { primary: "Fermer", more: ["Mettre à jour le fulfillment", "d:Supprimer le code-barres", "d:Annuler la commande"] },
+    },
+    delivered: {
+      agent: { primary: "Fermer", more: [] },
+      admin: { primary: "Fermer", more: ["Mettre à jour le fulfillment"] },
+    },
+    rejected: {
+      agent: { primary: "Réouvrir la commande", more: [] },
+      admin: { primary: "Fermer", more: ["Modifier le statut", "Restaurer la commande"] },
+    },
+  };
+
+  const HISTORY = [
+    { s: "Commande reçue", m: "14/08 · 09:42 · webhook Converty" },
+    { s: "Assignée à tasnim", m: "14/08 · 09:43 · auto-assignation" },
+    { s: "Tentative 1 — sans réponse", m: "14/08 · 10:15 · tasnim", n: "Pas de réponse, rappel prévu." },
+    { s: "Rappel planifié", m: "14/08 · 10:16 · tasnim", n: "Rappel à 18:00 à la demande du client." },
+  ];
+
+  function state() {
+    return { role: root.dataset.role, status: root.dataset.status, cityMissing: document.getElementById("cityToggle").checked };
+  }
+
+  function render() {
+    const { role, status, cityMissing } = state();
+    const meta = STATUS[status];
+
+    // Header ------------------------------------------------------
+    const badge = document.getElementById("statusBadge");
+    badge.className = "badge " + meta.tone;
+    document.getElementById("statusLabel").textContent = meta.label;
+
+    const sla = document.getElementById("slaChip");
+    sla.hidden = !meta.sla;
+    if (meta.sla) {
+      sla.dataset.tone = meta.slaTone;
+      document.getElementById("slaElapsed").textContent = meta.sla;
+    }
+
+    // City + carrier ---------------------------------------------
+    const cityCell = document.getElementById("cityCell");
+    cityCell.innerHTML = cityMissing
+      ? '<span class="warn-field">Non renseignée' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></span>'
+      : "<span>Tripoli · Hay Andalus</span>";
+    document.getElementById("shipCity").innerHTML = cityMissing
+      ? '<span style="color:var(--warn-ink);font-weight:600">Non renseignée — à choisir</span>'
+      : "Tripoli · Hay Andalus";
+
+    const carrierCell = document.getElementById("carrierCell");
+    const carrierMap = {
+      attente: '<span class="chip">En attente de ville</span>',
+      pending: '<span class="chip">Darb Assabil · prêt</span>',
+      darb: "<span>Darb Assabil</span>",
+      none: '<span class="muted">—</span>',
+    };
+    // "En attente de ville" is only true while the order is still shippable —
+    // a rejected order is not waiting on anything.
+    const carrierKey =
+      cityMissing && (status === "pending" || status === "confirmed") ? "attente" : meta.carrier;
+    carrierCell.innerHTML = carrierMap[carrierKey];
+
+    document.getElementById("trackingField").hidden = !meta.tracking;
+
+    // Terminal orders drop the call affordance — same rule as CustomerHero.
+    document.getElementById("callBtn").hidden = status === "delivered" || status === "rejected";
+
+    // Role / editability visibility -------------------------------
+    document.querySelectorAll("[data-roles]").forEach((el) => {
+      el.hidden = el.dataset.roles !== role;
+    });
+    const canEdit = role === "admin" || meta.editable;
+    document.querySelectorAll("[data-editable]").forEach((el) => {
+      el.style.display = canEdit ? "" : "none";
+    });
+
+    // Banners ------------------------------------------------------
+    document.getElementById("cityBlocker").hidden =
+      !cityMissing || !(status === "pending" || status === "confirmed");
+    const ro = document.getElementById("readonlyBanner");
+    ro.hidden = canEdit;
+    document.getElementById("readonlyText").textContent =
+      status === "rejected"
+        ? "Réouvrez la commande pour modifier ses détails."
+        : "Commande partie chez le transporteur — modification bloquée.";
+
+    // History ------------------------------------------------------
+    const tl = document.getElementById("timeline");
+    tl.innerHTML = HISTORY.slice().reverse().map((h) =>
+      "<li><b>" + h.s + "</b><div class='meta'>" + h.m + "</div>" +
+      (h.n ? "<div class='note'>" + h.n + "</div>" : "") +
+      "</li>"
+    ).join("");
+
+    renderFooter(role, status, cityMissing);
+  }
+
+  function renderFooter(role, status, cityMissing) {
+    const spec = FOOTER[status][role];
+    const foot = document.getElementById("footer");
+    const blocked = cityMissing && (status === "pending" || status === "confirmed");
+    let html = "";
+
+    if (spec.outcomes) {
+      const lock = blocked
+        ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>'
+        : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>';
+      html +=
+        '<button type="button" class="btn primary" data-blocked="' + blocked + '" ' +
+        (blocked ? 'title="Expédition bloquée : ville non renseignée"' : "") + ">" + lock + "Confirmer</button>";
+      html +=
+        '<button type="button" class="btn warnish">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Rappeler</button>';
+      html +=
+        '<button type="button" class="btn badish">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></svg>Refuser</button>';
+    } else {
+      if (spec.second) html += '<button type="button" class="btn neutral">' + spec.second + "</button>";
+      const cls = spec.primary === "Fermer" ? "dark" : "primary";
+      html +=
+        '<button type="button" class="btn ' + cls + '" data-blocked="' + (blocked && status === "confirmed") + '">' +
+        (blocked && status === "confirmed"
+          ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>'
+          : "") +
+        spec.primary + "</button>";
+    }
+
+    if (spec.more.length) {
+      html +=
+        '<button type="button" class="btn more" id="moreBtn" aria-label="Plus d\'actions">' +
+        '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg></button>';
+      html +=
+        '<div class="menu" id="moreMenu" hidden>' +
+        spec.more
+          .map((m) => {
+            const dest = m.startsWith("d:");
+            return '<button type="button" class="' + (dest ? "destructive" : "") + '">' + (dest ? m.slice(2) : m) + "</button>";
+          })
+          .join("") +
+        "</div>";
+    }
+
+    foot.innerHTML = html;
+
+    const moreBtn = document.getElementById("moreBtn");
+    if (moreBtn) {
+      moreBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const menu = document.getElementById("moreMenu");
+        menu.hidden = !menu.hidden;
+      });
+    }
+  }
+
+  document.addEventListener("click", () => {
+    const menu = document.getElementById("moreMenu");
+    if (menu) menu.hidden = true;
+  });
+
+  // Controls ------------------------------------------------------
+  document.getElementById("roleSeg").addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    root.dataset.role = btn.dataset.role;
+    document.querySelectorAll("#roleSeg button").forEach((b) =>
+      b.setAttribute("aria-pressed", String(b === btn)));
+    render();
+  });
+
+  document.getElementById("statusSeg").addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    root.dataset.status = btn.dataset.status;
+    document.querySelectorAll("#statusSeg button").forEach((b) =>
+      b.setAttribute("aria-pressed", String(b === btn)));
+    render();
+  });
+
+  document.getElementById("cityToggle").addEventListener("change", render);
+  document.getElementById("annToggle").addEventListener("change", (e) => {
+    root.classList.toggle("annotated", e.target.checked);
+  });
+
+  // Tabs ----------------------------------------------------------
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach((t) =>
+        t.setAttribute("aria-selected", String(t === tab)));
+      document.querySelectorAll(".tabpanel").forEach((p) => {
+        p.hidden = p.dataset.panel !== tab.dataset.tab;
+      });
+    });
+  });
+
+  // Deep-linkable: ?role=admin&status=uploaded&city=ok&ann=1 — so one specific
+  // combination can be sent to someone rather than described.
+  const qs = new URLSearchParams(location.search);
+  if (STATUS[qs.get("status")]) root.dataset.status = qs.get("status");
+  if (qs.get("role") === "admin" || qs.get("role") === "agent") root.dataset.role = qs.get("role");
+  if (qs.get("city") === "ok") document.getElementById("cityToggle").checked = false;
+  if (qs.get("ann") === "1") {
+    document.getElementById("annToggle").checked = true;
+    root.classList.add("annotated");
+  }
+  document.querySelectorAll("#roleSeg button").forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.role === root.dataset.role)));
+  document.querySelectorAll("#statusSeg button").forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.status === root.dataset.status)));
+
+  render();
+</script>

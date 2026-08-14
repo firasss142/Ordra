@@ -1274,6 +1274,9 @@
       "blockerResolve": "حل المشكلة",
       "factTotal": "الإجمالي",
       "factItems": "المنتجات",
+      "factCity": "المدينة",
+      "factAddress": "العنوان",
+      "factCityMissing": "غير محددة",
       "factAgent": "الوكيل",
       "factCarrier": "شركة التوصيل",
       "unassigned": "غير مسند",
@@ -1285,7 +1288,20 @@
       "fieldTracking": "التتبع",
       "cityDefine": "تحديد",
       "cityEmpty": "غير محددة",
-      "trackingTitle": "تتبع الشحنة"
+      "trackingTitle": "تتبع الشحنة",
+      "reliability": {
+        "reliable": "موثوق",
+        "average": "متوسط",
+        "risky": "غير موثوق",
+        "unknown": "جديد",
+        "orders": "{count} طلبات",
+        "ordersOne": "{count} طلب",
+        "delivered": "{count} تم تسليمها",
+        "deliveredOne": "{count} تم تسليمه",
+        "returned": "{count} مرتجعات",
+        "returnedOne": "{count} مرتجع"
+      },
+      "slaTarget": "الهدف {target}"
     },
     "scheduleDispatch": {
       "title": "جدولة التوصيل",

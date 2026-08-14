@@ -1274,6 +1274,9 @@
       "blockerResolve": "Résoudre",
       "factTotal": "Total",
       "factItems": "Articles",
+      "factCity": "Ville",
+      "factAddress": "Adresse",
+      "factCityMissing": "Non renseignée",
       "factAgent": "Agent",
       "factCarrier": "Transporteur",
       "unassigned": "Non assigné",
@@ -1285,7 +1288,20 @@
       "fieldTracking": "Suivi",
       "cityDefine": "Définir",
       "cityEmpty": "Non définie",
-      "trackingTitle": "Suivi du colis"
+      "trackingTitle": "Suivi du colis",
+      "reliability": {
+        "reliable": "Fiable",
+        "average": "Moyen",
+        "risky": "À risque",
+        "unknown": "Nouveau",
+        "orders": "{count} commandes",
+        "ordersOne": "{count} commande",
+        "delivered": "{count} livrées",
+        "deliveredOne": "{count} livrée",
+        "returned": "{count} retours",
+        "returnedOne": "{count} retour"
+      },
+      "slaTarget": "SLA {target}"
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",

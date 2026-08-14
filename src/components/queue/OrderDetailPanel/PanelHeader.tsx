@@ -5,7 +5,15 @@ import { useTranslations } from "next-intl";
 import { X, Check, RotateCcw, Copy } from "lucide-react";
 import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
 import { classifyOrderAge, formatOrderAge, AGE_TONE } from "@/lib/orders/order-age";
+import { resolveSlaChip, type SlaState } from "@/lib/orders/sla";
 import { formatDateTime } from "@/lib/format";
+
+/** Amber while it runs, red past the target, green once it was met. */
+const SLA_TONE: Record<SlaState, string> = {
+  running: "border-oms-warn text-oms-warn-ink",
+  breached: "border-oms-bad text-oms-bad",
+  met: "border-oms-ok text-oms-ok",
+};
 
 export interface PanelHeaderProps {
   /** Full human reference — storefront order number, else the order id. */
@@ -17,6 +25,15 @@ export interface PanelHeaderProps {
   /** Localised status label e.g. "Confirmé" / "مؤكد". */
   statusLabel: string;
   locale: string;
+  /**
+   * The market's confirmation target. Null while it loads — the chip stays out
+   * and the header falls back to the plain age reading.
+   */
+  slaMinutes?: number | null;
+  /** When the order reached `confirmed`, from its history. Freezes the chip. */
+  confirmedAt?: string | null;
+  /** Injectable clock, for deterministic tests. */
+  now?: Date;
   /** Calls made — the status label stops counting at three. */
   attemptsCount?: number | null;
   /** The market's `max_call_attempts`. Omit until settings load. */
@@ -49,6 +66,9 @@ export function PanelHeader({
   status,
   statusLabel,
   locale,
+  slaMinutes = null,
+  confirmedAt = null,
+  now,
   attemptsCount,
   maxAttempts,
   onChangeStatus,
@@ -59,7 +79,8 @@ export function PanelHeader({
   const t = useTranslations("orders.detail");
   const [copied, setCopied] = useState(false);
 
-  const age = classifyOrderAge(createdAt, status);
+  const age = classifyOrderAge(createdAt, status, now?.getTime());
+  const sla = resolveSlaChip({ createdAt, confirmedAt, status, slaMinutes, now });
   // Show the tail — the leading digits are identical across a market's orders
   // and carry no information at a glance.
   const short = reference.length > 6 ? `…${reference.slice(-5)}` : reference;
@@ -85,16 +106,36 @@ export function PanelHeader({
           maxAttempts={maxAttempts}
         />
 
-        <span
-          data-testid="panel-age"
-          data-tier={age.tier}
-          // Shared formatter rather than a fourth local Intl call, so the
-          // hover reads identically here, in the queue row and in the table.
-          title={formatDateTime(createdAt, locale)}
-          className={`whitespace-nowrap text-[11.5px] tabular-nums ${AGE_TONE[age.tier]}`}
-        >
-          {formatOrderAge(age.minutes, locale)}
-        </span>
+        {/* The SLA chip states the age against a target, so the bare age would
+            be the same number twice. It stays as the fallback for the stretches
+            where there is no target to state it against: once the order is with
+            the carrier, and while the setting is still loading. */}
+        {sla ? (
+          <span
+            data-testid="panel-sla"
+            data-state={sla.state}
+            title={formatDateTime(createdAt, locale)}
+            className={`inline-flex flex-none flex-col items-center justify-center rounded-[8px] border px-2 py-[3px] leading-[1.15] ${SLA_TONE[sla.state]}`}
+          >
+            <b className="text-[12.5px] font-[650] tabular-nums">
+              {formatOrderAge(sla.minutes, locale)}
+            </b>
+            <span className="text-[9.5px] font-semibold tracking-[0.03em] text-oms-ink-3">
+              {t("slaTarget", { target: formatOrderAge(sla.targetMinutes, locale) })}
+            </span>
+          </span>
+        ) : (
+          <span
+            data-testid="panel-age"
+            data-tier={age.tier}
+            // Shared formatter rather than a fourth local Intl call, so the
+            // hover reads identically here, in the queue row and in the table.
+            title={formatDateTime(createdAt, locale)}
+            className={`whitespace-nowrap text-[11.5px] tabular-nums ${AGE_TONE[age.tier]}`}
+          >
+            {formatOrderAge(age.minutes, locale)}
+          </span>
+        )}
 
         {onChangeStatus ? (
           <button

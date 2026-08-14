@@ -56,6 +56,8 @@ import { useOrderMutation } from "@/hooks/useOrderMutation";
 import { useOrderDetailRealtime } from "@/hooks/useOrderDetailRealtime";
 import { useCarriers } from "@/hooks/useCarriers";
 import { useMaxCallAttempts } from "@/hooks/useMaxCallAttempts";
+import { useCustomerHistory } from "@/hooks/useCustomerHistory";
+import { useSlaMinutes } from "@/hooks/useSlaMinutes";
 import { useProductSheet } from "@/hooks/useProductSheet";
 import { ProductBriefBanner } from "../ProductBriefBanner";
 import { ProductSheetDrawer } from "../ProductSheetDrawer";
@@ -401,6 +403,29 @@ export function OrderDetailPanel({
   // Same cached list, so naming the carrier costs no extra request. `null` is
   // "no carrier yet", which is a real state — not a lookup that hasn't landed.
   const maxCallAttempts = useMaxCallAttempts(order?.market_id ?? null);
+
+  // The customer's record, for the reliability strip. Fetched as soon as the
+  // panel has an order — unlike the queue row's popover, which waits for a
+  // hover, this one is read at a glance while the agent is dialling, so making
+  // it appear a beat late would mean it appears after the decision.
+  const { detail: customerHistory } = useCustomerHistory("order", order?.id ?? null, Boolean(order));
+  const customerStats = customerHistory?.stats ?? null;
+
+  const slaMinutes = useSlaMinutes(order?.market_id ?? null);
+
+  // When the call actually landed, so the SLA chip can freeze at the time it
+  // took rather than keep counting. The history is append-only, so the first
+  // arrival at `confirmed` is the real one even if the order was later
+  // reopened and re-confirmed.
+  const confirmedAt = useMemo(() => {
+    const entries = order?.history ?? [];
+    let earliest: string | null = null;
+    for (const entry of entries) {
+      if (entry.to_status !== "confirmed") continue;
+      if (earliest === null || entry.created_at < earliest) earliest = entry.created_at;
+    }
+    return earliest;
+  }, [order?.history]);
 
   const assignedCarrierName = order?.carrier_id
     ? carriersForOrderMarket.find((c) => c.id === order.carrier_id)?.name ?? null
@@ -1101,6 +1126,8 @@ export function OrderDetailPanel({
               ? ts(order.status as Parameters<typeof ts>[0])
               : ts("pending")
           }
+          slaMinutes={slaMinutes}
+          confirmedAt={confirmedAt}
           attemptsCount={order?.attempts_count}
           maxAttempts={maxCallAttempts}
           saveFlash={saveFlash}
@@ -1145,9 +1172,8 @@ export function OrderDetailPanel({
                   name={order.customer_name}
                   phone={order.customer_phone}
                   phone2={order.customer_phone_2}
-                  city={order.customer_city}
-                  address={order.customer_address}
                   terminal={TERMINAL_STATUSES.has(order.status)}
+                  reliability={customerStats}
                   canEdit={canEdit}
                   isLibyaOrder={isLibyaOrder}
                   onCommitName={(v) => runCommit({ customer_name: v })}
@@ -1169,6 +1195,8 @@ export function OrderDetailPanel({
               <OrderFacts
                 total={order.total_price}
                 currencyCode={displayCurrency}
+                city={order.customer_city}
+                address={order.customer_address}
                 // Same list the receipt renders, so the count and the receipt
                 // can never disagree.
                 itemCount={orderItems.length}
