@@ -170,6 +170,41 @@ describe("isValidMarketSettings", () => {
   });
 });
 
+describe("isValidMarketSettings — supplier_lead_time_days", () => {
+  const valid = {
+    delivery_fee: 7,
+    return_fee: 3,
+    packing_cost: 1.5,
+    max_call_attempts: 3,
+    assignment_algorithm: "round_robin",
+  };
+
+  // The stock console derives `reorder_by_date` as stock-out minus this value.
+  // Without a branch here the whitelist validator rejects the whole payload, so
+  // the setting could be read but never saved.
+  it("accepts a whole number of days", () => {
+    expect(isValidMarketSettings({ ...valid, supplier_lead_time_days: 14 })).toBe(true);
+  });
+  it("accepts zero — a domestic supplier with same-day pickup", () => {
+    expect(isValidMarketSettings({ ...valid, supplier_lead_time_days: 0 })).toBe(true);
+  });
+  it("is optional", () => {
+    expect(isValidMarketSettings(valid)).toBe(true);
+  });
+  it("rejects a negative lead time", () => {
+    expect(isValidMarketSettings({ ...valid, supplier_lead_time_days: -1 })).toBe(false);
+  });
+  it("rejects a fractional lead time", () => {
+    expect(isValidMarketSettings({ ...valid, supplier_lead_time_days: 3.5 })).toBe(false);
+  });
+  it("rejects a numeric string", () => {
+    expect(isValidMarketSettings({ ...valid, supplier_lead_time_days: "14" })).toBe(false);
+  });
+  it("rejects a lead time beyond a year", () => {
+    expect(isValidMarketSettings({ ...valid, supplier_lead_time_days: 400 })).toBe(false);
+  });
+});
+
 describe("CarrierConfig type", () => {
   it("accepts a valid CarrierConfig object", () => {
     const config: CarrierConfig = {
