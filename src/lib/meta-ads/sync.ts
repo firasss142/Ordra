@@ -9,6 +9,7 @@ import {
   normaliseInsightsRow,
   extractLeadCount,
   convertToMarketCurrency,
+  type MetaInsightsRow,
 } from "./insights";
 import {
   startRun,
@@ -66,10 +67,35 @@ interface AdAccountRow {
   account_currency: string;
   graph_version: string;
   access_token: string;
+  /** NULL means never synced, which is what selects the backfill window. */
+  last_synced_at: string | null;
 }
 
 /** How far back each run re-reads. Covers Meta's restatement window with slack. */
 export const ROLLING_WINDOW_DAYS = 7;
+
+/**
+ * How far back a never-synced account reaches on its first run.
+ *
+ * The steady-state window is seven days because Meta restates recent spend and
+ * re-reading is the only correct answer. But seven days is the wrong window for
+ * an account being connected for the first time: the page analyses a 12-week
+ * cohort, so a fresh connection would leave every campaign older than a week
+ * invisible — and with it every product whose campaigns ran last month, which
+ * then reads as "no spend" rather than "not fetched yet". 90 days covers the
+ * page's own window with room to spare.
+ */
+export const BACKFILL_WINDOW_DAYS = 90;
+
+/**
+ * Largest range requested in one Insights call.
+ *
+ * Meta answers an over-large campaign×day request with code 100 / subcode
+ * 1487534 rather than truncating, so a 90-day backfill has to arrive in slices.
+ * 30 days keeps each call well inside the limit and bounds how much work is
+ * lost if one slice fails.
+ */
+export const MAX_SLICE_DAYS = 30;
 
 function isoDay(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -80,6 +106,34 @@ export function rollingWindow(now: Date, days = ROLLING_WINDOW_DAYS): { since: s
   const since = new Date(now);
   since.setUTCDate(since.getUTCDate() - (days - 1));
   return { since: isoDay(since), until: isoDay(until) };
+}
+
+/**
+ * Split a window into consecutive slices of at most `maxDays`, oldest first.
+ *
+ * Oldest first matters: if the deadline cuts a backfill short, what landed is a
+ * contiguous run from the start of the window, and the next run resumes from a
+ * known-good edge rather than leaving a hole in the middle that nothing would
+ * ever notice.
+ */
+export function sliceWindow(
+  since: string,
+  until: string,
+  maxDays = MAX_SLICE_DAYS,
+): { since: string; until: string }[] {
+  const start = new Date(`${since}T00:00:00Z`);
+  const end = new Date(`${until}T00:00:00Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return [];
+
+  const slices: { since: string; until: string }[] = [];
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    const sliceEnd = new Date(cursor);
+    sliceEnd.setUTCDate(sliceEnd.getUTCDate() + maxDays - 1);
+    slices.push({ since: isoDay(cursor), until: isoDay(sliceEnd > end ? end : sliceEnd) });
+    cursor.setUTCDate(cursor.getUTCDate() + maxDays);
+  }
+  return slices;
 }
 
 /**
@@ -150,10 +204,21 @@ export async function restampMappedProduct(
 export async function syncAccount(
   adminClient: SupabaseClient,
   account: AdAccountRow,
-  opts: { trigger: SyncTrigger; now?: Date; deadlineAt?: number },
+  opts: {
+    trigger: SyncTrigger;
+    now?: Date;
+    deadlineAt?: number;
+    /** Explicit range for a backfill; defaults to the rolling window. */
+    window?: { since: string; until: string };
+  },
 ): Promise<SyncAccountResult> {
   const now = opts.now ?? new Date();
-  const { since, until } = rollingWindow(now);
+  // An account that has never synced reaches back far enough to cover the
+  // page's own analysis window; after that the rolling window takes over.
+  const defaultWindow = account.last_synced_at
+    ? rollingWindow(now)
+    : rollingWindow(now, BACKFILL_WINDOW_DAYS);
+  const { since, until } = opts.window ?? defaultWindow;
 
   const base = {
     ad_account_id: account.ad_account_id,
@@ -201,7 +266,18 @@ export async function syncAccount(
       graphVersion: account.graph_version,
     };
 
-    const { rows, accUtilPct } = await fetchCampaignInsights(cfg, { since, until });
+    // Sliced, because Meta refuses an over-large campaign×day range outright
+    // (100 / 1487534) rather than returning what it can. A single-slice window
+    // — the steady-state seven days — costs exactly one call, as before.
+    const rows: MetaInsightsRow[] = [];
+    let accUtilPct: number | null = null;
+    for (const slice of sliceWindow(since, until)) {
+      if (opts.deadlineAt && Date.now() > opts.deadlineAt) break;
+      const page = await fetchCampaignInsights(cfg, slice);
+      rows.push(...page.rows);
+      if (page.accUtilPct !== null) accUtilPct = page.accUtilPct;
+    }
+
     const mappings = await loadMappings(adminClient, account.ad_account_id);
 
     const payload = rows.map((raw) => {
@@ -318,7 +394,13 @@ export async function syncAccount(
 /** Sync every active account, sequentially, inside one shared time budget. */
 export async function syncAllAccounts(
   adminClient: SupabaseClient,
-  opts: { trigger: SyncTrigger; deadlineAt?: number; marketId?: string },
+  opts: {
+    trigger: SyncTrigger;
+    deadlineAt?: number;
+    marketId?: string;
+    /** Explicit backfill range, applied to every account in this pass. */
+    window?: { since: string; until: string };
+  },
 ): Promise<SyncAccountResult[]> {
   // Must run before anything claims a lock — a run killed mid-flight holds its
   // account forever otherwise.
@@ -326,7 +408,9 @@ export async function syncAllAccounts(
 
   let query = adminClient
     .from("meta_ad_accounts")
-    .select("id, market_id, ad_account_id, account_currency, graph_version, access_token")
+    .select(
+      "id, market_id, ad_account_id, account_currency, graph_version, access_token, last_synced_at",
+    )
     .eq("is_active", true);
 
   if (opts.marketId) query = query.eq("market_id", opts.marketId);

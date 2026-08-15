@@ -315,7 +315,12 @@ export function AdSpendCplBars({
 
       <div className="flex flex-col gap-px">
         {products.map((p) => {
-          const negative = p.margin_per_lead < 0;
+          // No attributed spend is not a CPL of zero. Drawing it as one would
+          // paint the product's entire floor as realised margin and rank it
+          // first — telling you to scale the one product whose acquisition
+          // cost is unknown. It gets the floor marker and nothing else.
+          const unknown = p.spend <= 0;
+          const negative = !unknown && p.margin_per_lead < 0;
           // Solid bar to whichever comes first, hatched band across the gap:
           // above the floor the band is the margin left, below it the overrun.
           const solid = negative ? p.break_even_cpl : p.cpl;
@@ -362,25 +367,38 @@ export function AdSpendCplBars({
               </div>
 
               <div className="relative h-[26px]">
-                <div
-                  className={`absolute inset-y-[2px] start-0 rounded-s-[3px] ${negative ? "bg-ads-red" : "bg-ads-green"}`}
-                  style={{ inlineSize: `${toPct(solid)}%` }}
-                />
-                {/* The margin is a distance you can see, not a number to hold
-                    in your head against another number. */}
-                <div
-                  className="absolute inset-y-[2px] rounded-e-[3px] border border-s-0"
-                  style={{
-                    insetInlineStart: `${toPct(gapFrom)}%`,
-                    inlineSize: `${Math.max(0, toPct(gapTo) - toPct(gapFrom))}%`,
-                    background: negative ? "var(--ads-hatch-bad)" : "var(--ads-hatch-ok)",
-                    borderColor: negative ? "var(--ads-hatch-bad-line)" : "var(--ads-hatch-ok-line)",
-                  }}
-                />
-                {toPct(solid) > 12 && (
-                  <span className="absolute top-[5px] start-[9px] text-[11.5px] font-bold text-white tabular-nums z-[2]">
-                    {fmt(p.cpl, 2)}
-                  </span>
+                {unknown ? (
+                  // An empty track up to the floor: the ceiling is known, what
+                  // is being paid against it is not.
+                  <div
+                    className="absolute inset-y-[2px] start-0 rounded-[3px] border border-dashed border-ads-line-2 bg-surface-sunken"
+                    style={{ inlineSize: `${toPct(p.break_even_cpl)}%` }}
+                  />
+                ) : (
+                  <>
+                    <div
+                      className={`absolute inset-y-[2px] start-0 rounded-s-[3px] ${negative ? "bg-ads-red" : "bg-ads-green"}`}
+                      style={{ inlineSize: `${toPct(solid)}%` }}
+                    />
+                    {/* The margin is a distance you can see, not a number to
+                        hold in your head against another number. */}
+                    <div
+                      className="absolute inset-y-[2px] rounded-e-[3px] border border-s-0"
+                      style={{
+                        insetInlineStart: `${toPct(gapFrom)}%`,
+                        inlineSize: `${Math.max(0, toPct(gapTo) - toPct(gapFrom))}%`,
+                        background: negative ? "var(--ads-hatch-bad)" : "var(--ads-hatch-ok)",
+                        borderColor: negative
+                          ? "var(--ads-hatch-bad-line)"
+                          : "var(--ads-hatch-ok-line)",
+                      }}
+                    />
+                    {toPct(solid) > 12 && (
+                      <span className="absolute top-[5px] start-[9px] text-[11.5px] font-bold text-white tabular-nums z-[2]">
+                        {fmt(p.cpl, 2)}
+                      </span>
+                    )}
+                  </>
                 )}
                 <div
                   className="absolute -inset-y-px w-[2.5px] bg-ads-ink-1 rounded-[1px] z-[3]"
@@ -388,16 +406,25 @@ export function AdSpendCplBars({
                 />
               </div>
 
-              <div
-                className={`text-end text-[15px] font-bold tabular-nums leading-[1.2] ${
-                  negative ? "text-ads-red-ink" : "text-ads-green-ink"
-                }`}
-              >
-                {signed(p.margin_per_lead)}
-                <em className="block not-italic text-[11.5px] font-semibold mt-[3px]">
-                  {signed(p.profit, 0)} {currency}
-                </em>
-              </div>
+              {unknown ? (
+                <div className="text-end text-[13px] font-semibold text-ads-ink-2 leading-[1.2]">
+                  {t("costUnknown")}
+                  <em className="block not-italic text-[11.5px] font-medium mt-[3px] tabular-nums">
+                    {t("canPayUpTo", { amount: fmt(p.break_even_cpl, 2) })}
+                  </em>
+                </div>
+              ) : (
+                <div
+                  className={`text-end text-[15px] font-bold tabular-nums leading-[1.2] ${
+                    negative ? "text-ads-red-ink" : "text-ads-green-ink"
+                  }`}
+                >
+                  {signed(p.margin_per_lead)}
+                  <em className="block not-italic text-[11.5px] font-semibold mt-[3px]">
+                    {signed(p.profit, 0)} {currency}
+                  </em>
+                </div>
+              )}
             </div>
           );
         })}
@@ -474,11 +501,17 @@ export function AdSpendCplBars({
                   <td className="px-2.5 py-1.5 text-start" dir="auto">
                     {p.product_name}
                   </td>
-                  <td className="px-2.5 py-1.5 text-end tabular-nums">{fmt(p.cpl, 2)}</td>
+                  <td className="px-2.5 py-1.5 text-end tabular-nums">
+                    {p.spend > 0 ? fmt(p.cpl, 2) : "—"}
+                  </td>
                   <td className="px-2.5 py-1.5 text-end tabular-nums">{fmt(p.break_even_cpl, 2)}</td>
-                  <td className="px-2.5 py-1.5 text-end tabular-nums">{signed(p.margin_per_lead)}</td>
+                  <td className="px-2.5 py-1.5 text-end tabular-nums">
+                    {p.spend > 0 ? signed(p.margin_per_lead) : "—"}
+                  </td>
                   <td className="px-2.5 py-1.5 text-end tabular-nums">{pct(p.delivery_rate)}</td>
-                  <td className="px-2.5 py-1.5 text-end tabular-nums">{signed(p.profit, 0)}</td>
+                  <td className="px-2.5 py-1.5 text-end tabular-nums">
+                    {p.spend > 0 ? signed(p.profit, 0) : "—"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -625,6 +658,17 @@ export function AdSpendCostStack({ meta, currency }: { meta: EconomicsMeta; curr
 function Verdict({ p }: { p: ProductEconomics }) {
   const t = useTranslations("adSpend.economics");
   const base = "inline-flex items-center gap-1.5 rounded-[6px] px-[11px] py-[5px] text-[12px] font-bold";
+
+  // No attributed spend means no verdict is available. Saying "Scaler" here —
+  // which the margin alone would produce, since it equals the entire floor —
+  // recommends raising budget on a product whose cost per lead is unknown.
+  if (p.spend <= 0) {
+    return (
+      <span className={`${base} bg-surface-card border border-ads-line-2 text-ads-ink-2`}>
+        {t("verdictNoData")}
+      </span>
+    );
+  }
 
   if (p.margin_per_lead < 0) {
     // Cut when the bleeding is large in absolute terms OR still accelerating;
@@ -841,7 +885,8 @@ export function AdSpendProductTable({
 
           <tbody>
             {products.map((p) => {
-              const negative = p.margin_per_lead < 0;
+              const unknown = p.spend <= 0;
+              const negative = !unknown && p.margin_per_lead < 0;
               const isOpen = !!open[p.product_id];
               return [
                 <tr
@@ -884,22 +929,29 @@ export function AdSpendProductTable({
                     <b className="text-ads-ink-1 font-semibold">{p.delivered}</b>
                   </td>
                   <td className="px-[13px] py-[11px] text-end tabular-nums">{pct(p.delivery_rate)}</td>
-                  <td className="px-[13px] py-[11px] text-end tabular-nums">{fmt(p.cpl, 2)}</td>
+                  {/* An em dash, not 0,00. A zero here is a measurement nobody
+                      took, and printing it as a number invites the reader to
+                      do arithmetic with it. */}
+                  <td
+                    className={`px-[13px] py-[11px] text-end tabular-nums ${unknown ? "text-ads-ink-3" : ""}`}
+                  >
+                    {unknown ? "—" : fmt(p.cpl, 2)}
+                  </td>
                   <td className="px-[13px] py-[11px] text-end tabular-nums">{fmt(p.break_even_cpl, 2)}</td>
                   <td
                     className={`px-[13px] py-[11px] text-end tabular-nums text-[14px] font-bold ${
-                      negative ? "text-ads-red-ink" : "text-ads-green-ink"
+                      unknown ? "text-ads-ink-3 font-medium" : negative ? "text-ads-red-ink" : "text-ads-green-ink"
                     }`}
                   >
-                    {signed(p.margin_per_lead)}
+                    {unknown ? "—" : signed(p.margin_per_lead)}
                   </td>
                   <td
                     className={`px-[13px] py-[11px] text-end tabular-nums text-[14px] font-bold ${
-                      negative ? "text-ads-red-ink" : "text-ads-green-ink"
+                      unknown ? "text-ads-ink-3 font-medium" : negative ? "text-ads-red-ink" : "text-ads-green-ink"
                     }`}
                   >
-                    {signed(p.profit, 0)}
-                    {p.roas !== null && (
+                    {unknown ? "—" : signed(p.profit, 0)}
+                    {!unknown && p.roas !== null && (
                       <div className="text-[11px] font-medium text-ads-ink-2 mt-0.5">ROAS {fmt(p.roas, 2)}×</div>
                     )}
                   </td>
@@ -1068,6 +1120,51 @@ export function AdSpendUnmappedBanner({
           className="text-[13px] font-semibold text-ads-orange-ink underline underline-offset-2"
         >
           {t("attach")}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ──────────────── products with no attributed spend ──────────────── */
+
+/**
+ * Names the gap rather than leaving it to be inferred from a column of dashes.
+ *
+ * Two different causes look identical on the page — nobody has mapped the
+ * campaign, or the sync has never reached back far enough to see it — and the
+ * second one is fixable in one click, so it gets one.
+ */
+export function AdSpendCoverageBanner({
+  meta,
+  fromDate,
+  onBackfill,
+  backfilling,
+}: {
+  meta: EconomicsMeta;
+  fromDate: string;
+  onBackfill?: () => void;
+  backfilling?: boolean;
+}) {
+  const t = useTranslations("adSpend.economics");
+  if (meta.products_without_spend <= 0) return null;
+
+  return (
+    <div className="flex items-center gap-[11px] px-3.5 py-[11px] rounded-card bg-ads-orange-bg border border-ads-orange-line text-[13.5px] text-ads-ink-1">
+      <AlertTriangle size={17} strokeWidth={2} className="flex-none text-ads-orange-ink" />
+      <span>
+        <b className="font-bold">{t("coverageTitle", { count: meta.products_without_spend })}</b>{" "}
+        {t("coverageHint")}
+      </span>
+      <span className="flex-1" />
+      {onBackfill && (
+        <button
+          type="button"
+          onClick={onBackfill}
+          disabled={backfilling}
+          className="text-[13px] font-semibold text-ads-orange-ink underline underline-offset-2 disabled:opacity-60 whitespace-nowrap"
+        >
+          {backfilling ? t("backfilling") : t("backfillFrom", { date: fromDate })}
         </button>
       )}
     </div>

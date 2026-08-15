@@ -331,7 +331,14 @@ export async function GET(req: NextRequest) {
       };
     })
     .filter((r): r is NonNullable<typeof r> => r !== null)
-    .sort((a, b) => b.margin_per_lead - a.margin_per_lead);
+    // Products with attributed spend first. A product with none has a margin
+    // equal to its whole floor, which would otherwise sort it to the top and
+    // present "we do not know what this costs" as the best performer on the
+    // page. Within each group, best margin first.
+    .sort(
+      (a, b) =>
+        Number(b.spend > 0) - Number(a.spend > 0) || b.margin_per_lead - a.margin_per_lead,
+    );
 
   const sum = (pick: (r: (typeof rows)[number]) => number) => rows.reduce((s, r) => s + pick(r), 0);
 
@@ -364,6 +371,10 @@ export async function GET(req: NextRequest) {
       cost_returns: costReturns,
       cost_packing: costPacking,
       cost_processing: costProcessing,
+      // Products that took leads in this window but carry no attributed spend.
+      // Usually a campaign nobody has mapped, or a window the sync has not
+      // reached back to — either way their margin is unknowable, not excellent.
+      products_without_spend: rows.filter((r) => r.spend === 0).length,
       maturity_pct: market.leads > 0 ? market.terminal / market.leads : 0,
       unmapped: {
         spend: marketLevelSpend,

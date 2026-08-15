@@ -887,7 +887,14 @@
       "loading": "Chargement…",
       "close": "Fermer",
       "cancel": "Annuler",
-      "syncFailed": "La synchronisation a échoué"
+      "syncFailed": "La synchronisation a échoué",
+      "costUnknown": "Coût inconnu",
+      "canPayUpTo": "peut payer jusqu'à {amount}",
+      "verdictNoData": "Non attribué",
+      "coverageTitle": "{count} produit(s) sans dépense attribuée.",
+      "coverageHint": "Leur marge est inconnue, pas excellente — soit la campagne n'est pas encore rattachée, soit la synchronisation n'est jamais remontée jusque-là.",
+      "backfillFrom": "Récupérer depuis le {date}",
+      "backfilling": "Récupération…"
     },
     "cohortSubtitle": "Cohorte du {period} · mûre à {maturity}"
   },

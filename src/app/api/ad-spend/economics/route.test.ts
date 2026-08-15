@@ -272,6 +272,47 @@ describe("GET /api/ad-spend/economics", () => {
     expect(e.editable).toBe(false);
   });
 
+  test("ranks a product with no attributed spend below one that has it", async () => {
+    // A product with no spend has margin === its whole floor, so a plain
+    // margin sort puts "we do not know what this costs" at the top of the page
+    // as the best performer. It has to sort below anything measured.
+    const withSecondProduct = [
+      ...boxingDollOrders(),
+      ...Array.from({ length: 60 }, () => ({
+        product_id: "p2",
+        status: "delivered",
+        created_at: "2026-06-04T09:00:00+00:00",
+        total_price: 200,
+        quantity: 1,
+        carriers: DARB,
+      })),
+    ];
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return chain([]);
+      if (table === "orders") return chain(withSecondProduct);
+      if (table === "products")
+        return chain([
+          ...PRODUCTS,
+          { id: "p2", name: "Produit sans dépense", unit_cogs: 10, packing_cost: 0, confirmation_processing_cost: 0 },
+        ]);
+      // Spend on p1 only.
+      return chain([
+        { id: "s1", product_id: "p1", amount: 7310, period_start: "2026-06-01", period_end: "2026-06-30" },
+      ]);
+    });
+
+    const { data, meta } = await (await GET(request())).json();
+
+    // p2's floor is enormous (100% delivery, high margin) and would otherwise win.
+    expect(data[0].product_id).toBe("p1");
+    expect(data[1].product_id).toBe("p2");
+    expect(data[1].spend).toBe(0);
+    expect(data[1].break_even_cpl).toBeGreaterThan(data[0].break_even_cpl);
+    // And the page is told how many rows it must not read as profit.
+    expect(meta.products_without_spend).toBe(1);
+  });
+
   test("400s without a date range rather than guessing one", async () => {
     mockFrom.mockImplementation(() => chain([]));
     const res = await GET(request("market_id=m-1"));

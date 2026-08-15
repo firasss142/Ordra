@@ -7,6 +7,7 @@ import { useAdSpendCampaigns } from "@/hooks/useAdSpendCampaigns";
 import { useMarketScope } from "@/context/market-scope";
 import {
   AdSpendChain,
+  AdSpendCoverageBanner,
   AdSpendCplBars,
   AdSpendCostStack,
   AdSpendProductTable,
@@ -128,16 +129,19 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
 
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  const runSyncNow = useCallback(async () => {
+  const runSyncNow = useCallback(async (range?: { since: string; until: string }) => {
     setSyncing(true);
     setSyncError(null);
     try {
       // market_id is a query param, not a body field — the route reads
       // `req.nextUrl.searchParams`, and a body would be silently ignored,
       // syncing every market instead of this one.
-      const res = await fetch(`/api/ad-spend/sync?market_id=${encodeURIComponent(selectedMarketId)}`, {
-        method: "POST",
-      });
+      const qs = new URLSearchParams({ market_id: selectedMarketId });
+      if (range) {
+        qs.set("since", range.since);
+        qs.set("until", range.until);
+      }
+      const res = await fetch(`/api/ad-spend/sync?${qs}`, { method: "POST" });
       const body = await res.json().catch(() => ({}));
       if (!res.ok || body?.ok === false) {
         setSyncError(body?.error ?? t("economics.syncFailed"));
@@ -377,7 +381,9 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
             {(syncStatus?.accounts.length ?? 0) > 0 && (
               <button
                 type="button"
-                onClick={runSyncNow}
+                // Wrapped: passing the handler directly would hand the click
+                // event in as the backfill range.
+                onClick={() => runSyncNow()}
                 disabled={syncing}
                 className="inline-flex items-center gap-1.5 border border-ads-line-2 rounded-[8px] px-3 py-[7px] text-[13px] font-semibold bg-surface-card text-ads-ink-1 hover:border-line-strong hover:bg-surface-sunken transition-colors duration-fast disabled:opacity-60"
               >
@@ -430,6 +436,19 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
               unmapped too, but it is fixed by editing the entry, not by
               mapping a campaign — so the banner only offers the action when
               there is actually a campaign behind it. */}
+          {/* The backfill covers exactly the window the page is analysing, so
+              "no spend" stops meaning "never fetched". */}
+          <AdSpendCoverageBanner
+            meta={economicsMeta}
+            fromDate={fromDate}
+            backfilling={syncing}
+            onBackfill={
+              (syncStatus?.accounts.length ?? 0) > 0
+                ? () => runSyncNow({ since: fromDate, until: toDate })
+                : undefined
+            }
+          />
+
           <AdSpendUnmappedBanner
             meta={economicsMeta}
             currency={currency}

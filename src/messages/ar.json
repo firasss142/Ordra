@@ -887,7 +887,14 @@
       "loading": "جارٍ التحميل…",
       "close": "إغلاق",
       "cancel": "إلغاء",
-      "syncFailed": "فشلت المزامنة"
+      "syncFailed": "فشلت المزامنة",
+      "costUnknown": "التكلفة غير معروفة",
+      "canPayUpTo": "يمكن الدفع حتى {amount}",
+      "verdictNoData": "غير مرتبط",
+      "coverageTitle": "{count} منتج بدون إنفاق مرتبط.",
+      "coverageHint": "هامشها غير معروف لا ممتاز — إما أن الحملة لم تُربط بعد، أو أن المزامنة لم تعد إلى تلك الفترة.",
+      "backfillFrom": "استرجاع من {date}",
+      "backfilling": "جارٍ الاسترجاع…"
     },
     "cohortSubtitle": "فوج {period} · ناضج بنسبة {maturity}"
   },

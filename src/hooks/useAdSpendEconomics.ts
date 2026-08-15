@@ -58,6 +58,7 @@ export interface EconomicsMeta {
   cost_returns: number;
   cost_packing: number;
   cost_processing: number;
+  products_without_spend: number;
   maturity_pct: number;
   unmapped: { spend: number; entries: SpendEntry[] };
   from_date: string;
