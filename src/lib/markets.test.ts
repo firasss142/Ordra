@@ -31,3 +31,12 @@ describe("formatDisplayCurrencyCode", () => {
     expect(formatDisplayCurrencyCode("TND", TN_MARKET_ID)).toBe("TND");
   });
 });
+
+describe("marketTimezone", () => {
+  it("maps each market to its IANA zone and falls back to Tunis", async () => {
+    const { marketTimezone, TN_MARKET_ID, LY_MARKET_ID } = await import("./markets");
+    expect(marketTimezone(TN_MARKET_ID)).toBe("Africa/Tunis");
+    expect(marketTimezone(LY_MARKET_ID)).toBe("Africa/Tripoli");
+    expect(marketTimezone(null)).toBe("Africa/Tunis");
+  });
+});

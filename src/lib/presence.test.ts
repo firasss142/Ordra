@@ -25,22 +25,29 @@ describe("getPresence", () => {
     expect(getPresence(new Date().toISOString())).toBe("online");
   });
 
-  test("returns 'online' at exactly 89s ago (just under threshold)", () => {
-    const ts = new Date(Date.now() - 89_000).toISOString();
+  test("returns 'online' just under the online threshold (4 min 59 s)", () => {
+    const ts = new Date(Date.now() - (ONLINE_THRESHOLD_MS - 1_000)).toISOString();
     expect(getPresence(ts)).toBe("online");
   });
 
-  test("returns 'idle' at exactly the online threshold (90s)", () => {
+  test("returns 'idle' at exactly the online threshold (5 min)", () => {
     const ts = new Date(Date.now() - ONLINE_THRESHOLD_MS).toISOString();
     expect(getPresence(ts)).toBe("idle");
   });
 
-  test("returns 'idle' between 90s and 5min", () => {
-    const ts = new Date(Date.now() - 3 * 60_000).toISOString();
+  test("returns 'idle' between 5 and 30 min", () => {
+    const ts = new Date(Date.now() - 12 * 60_000).toISOString();
     expect(getPresence(ts)).toBe("idle");
   });
 
-  test("returns 'offline' at exactly the idle threshold (5min)", () => {
+  test("accepts an explicit `now` so callers can be deterministic", () => {
+    const now = new Date("2026-04-17T12:00:00.000Z");
+    const ts = new Date(now.getTime() - 2 * 60_000).toISOString();
+    expect(getPresence(ts, now)).toBe("online");
+    expect(getPresence(ts, new Date(now.getTime() + 60 * 60_000))).toBe("offline");
+  });
+
+  test("returns 'offline' at exactly the idle threshold (30 min)", () => {
     const ts = new Date(Date.now() - IDLE_THRESHOLD_MS).toISOString();
     expect(getPresence(ts)).toBe("offline");
   });

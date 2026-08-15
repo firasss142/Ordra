@@ -139,7 +139,8 @@
       "integrations": "Intégrations",
       "generalSettings": "Paramètres",
       "logs": "Journaux",
-      "investors": "Investisseurs"
+      "investors": "Investisseurs",
+      "controlRoom": "Salle de contrôle"
     },
     "a11y": {
       "expandSection": "Déplier la section {section}",
@@ -4382,5 +4383,230 @@
     "crossSellHint": "À proposer en cas de refus",
     "viewingAlternative": "Vous consultez une alternative",
     "backToOrdered": "Revenir au produit commandé"
+  },
+  "team": {
+    "presence": {
+      "online": "En ligne",
+      "idle": "Inactif",
+      "offline": "Hors ligne"
+    },
+    "relative": {
+      "now": "à l'instant",
+      "minutes": "il y a {n} min",
+      "hours": "il y a {n} h",
+      "yesterday": "hier {time}",
+      "date": "le {date}"
+    },
+    "live": {
+      "title": "Salle de contrôle",
+      "subtitle": "Qui travaille, ce qui avance, ce qui bloque — maintenant.",
+      "realtime": "Temps réel",
+      "loadError": "Impossible de charger la salle de contrôle. Réessayez dans un instant.",
+      "verdict": {
+        "online": "{count, plural, =0 {0 agent en ligne} one {# agent en ligne} other {# agents en ligne}}",
+        "blocked": "{count, plural, =0 {0 commande bloquée} one {# commande bloquée} other {# commandes bloquées}}",
+        "orphan": "{count, plural, =0 {0 file orpheline} one {# file orpheline} other {# files orphelines}}"
+      },
+      "tiles": {
+        "exhausted": "Tentatives épuisées",
+        "oldest": "plus ancienne {age}",
+        "orphan": "Files orphelines",
+        "orphanConfirmed": "dont {count, plural, one {# confirmée jamais expédiée} other {# confirmées jamais expédiées}}",
+        "online": "En ligne",
+        "lastSeen": "{name} vue {rel}",
+        "nobodySeen": "aucun agent vu en ligne",
+        "overdue": "Rappels dépassés",
+        "neverCalled": "Sans appel"
+      },
+      "roster": {
+        "title": "Agents",
+        "hint": "cliquer un agent pour le détail",
+        "today": "Aujourd'hui",
+        "agent": "Agent",
+        "lastAction": "Dernière action",
+        "treated": "Traitées",
+        "confirmed": "Confirmées",
+        "goals": "Objectifs du jour",
+        "goalsTitle": "Volume {v}/{vt} · Qualité {q} % (cible {qt} %) · Hygiène : {h} problème(s)",
+        "queue": "File",
+        "action": "Action",
+        "noAction": "aucune action",
+        "idleFor": "{days} j sans action",
+        "reassign": "Réassigner",
+        "returnToPool": "Retour au pool",
+        "reassignTo": "Réassigner à {name}",
+        "reassignDone": "{n, plural, =0 {Aucune commande à déplacer} one {# commande réassignée} other {# commandes réassignées}}",
+        "reassignPartial": "{ok} réassignée(s), {failed} en échec",
+        "reassignFailed": "Échec de la réassignation",
+        "pill": {
+          "older24": "{n} > 24 h",
+          "olderThan": "{n} > {age}",
+          "confAge": "conf. ≥ {age}",
+          "overdue": "{n, plural, one {# rappel dépassé} other {# rappels dépassés}}",
+          "dispatch": "expéd. planifiée"
+        }
+      },
+      "blocked": {
+        "title": "À débloquer",
+        "empty": "Rien à débloquer — toutes les commandes avancent.",
+        "order": "Commande",
+        "situation": "Situation",
+        "age": "Âge",
+        "action": "Action",
+        "kind": {
+          "confirmed_stuck": "Confirmée, jamais expédiée",
+          "exhausted": "Tentatives épuisées",
+          "overdue_callback": "Rappel dépassé"
+        },
+        "upload": "Uploader",
+        "reassign": "Réassigner…",
+        "unassigned": "non assignée",
+        "more": "+ {n} autres",
+        "openOrders": "Ouvrir dans Commandes",
+        "reassignTitle": "Réassigner — {name}",
+        "reassignHint": "La commande change de propriétaire ; son historique est conservé.",
+        "cancel": "Annuler"
+      },
+      "callbacks": {
+        "title": "Rappels à venir",
+        "allWith": "Les {n} avec {name}",
+        "count": "{n} rappels",
+        "empty": "Aucun rappel planifié.",
+        "unassigned": "non assignée"
+      }
+    },
+    "perf": {
+      "title": "Performance équipe",
+      "subtitle": "Débit par heure active × taux de confirmation — les deux mesures qui comptent.",
+      "loadError": "Impossible de charger la performance. Réessayez dans un instant.",
+      "productFilter": "Filtrer par produit",
+      "allProducts": "Tous les produits",
+      "maskHint": "taux masqué sous 10 traitées",
+      "periods": {
+        "label": "Période",
+        "yesterday": "Hier",
+        "7d": "7 jours",
+        "30d": "30 jours",
+        "custom": "Personnalisé",
+        "from": "du",
+        "to": "au"
+      },
+      "strip": {
+        "treated": "Traitées",
+        "treatedCap": "commandes menées à un verdict",
+        "rate": "Taux",
+        "rateCap": "pondéré, {c} / {t}",
+        "hours": "Heures",
+        "hoursCap": "équipe entière",
+        "throughput": "Débit",
+        "perHour": "/ h",
+        "throughputCap": "médiane des agents",
+        "teamGoal": "Objectif équipe",
+        "teamGoalOf": "/ {target} conf."
+      },
+      "ranking": {
+        "title": "Classement",
+        "hint": "confirmées / heure active · cible {target}",
+        "empty": "Pas assez d'activité pour classer qui que ce soit sur cette période.",
+        "rate": "taux",
+        "productRate": "taux produit",
+        "throughput": "débit",
+        "treated": "traitées",
+        "days": "{n} j",
+        "confPerHour": "conf/h",
+        "streak": "série {n} j",
+        "streakTitle": "jours actifs consécutifs à 3/3 objectifs — meilleure série sur 14 j : {best}",
+        "ctaRate": "Objectif taux {v} %",
+        "ctaThroughput": "Objectif débit {v}/h",
+        "ctaTitle": "Fixe cet objectif pour l'agent (visible dans son suivi)",
+        "ctaNoPerm": "Réservé aux managers",
+        "targetSaved": "Objectif enregistré",
+        "targetFailed": "Objectif non enregistré",
+        "unranked": "Hors classement :",
+        "noActivity": "aucune action",
+        "littleActivity": "{time} d'activité"
+      },
+      "chart": {
+        "title": "Carte débit × taux",
+        "aria": "Carte débit contre taux de confirmation par agent",
+        "xAxis": "traitées / heure active",
+        "yAxis": "taux de confirmation %",
+        "refTeam": "équipe {rate}",
+        "refMedian": "médiane {v}",
+        "q": {
+          "reliableSlow": "Fiable · lent",
+          "target": "Cible",
+          "weak": "Faible",
+          "fastLossy": "Rapide · perd des leads"
+        }
+      },
+      "products": {
+        "title": "Par produit",
+        "hint": "le taux d'un produit est le plafond de l'équipe",
+        "product": "Produit",
+        "treated": "Traitées",
+        "teamRate": "Taux conf. équipe",
+        "min": "Min (pire)",
+        "team": "Équipe",
+        "max": "Max (meilleur)",
+        "spread": "Écart max entre agents",
+        "pts": "{n} pts",
+        "noSpread": "moins de deux agents à 10 traitées",
+        "others": "Autres ({n})",
+        "insufficient": "volume insuffisant",
+        "empty": "Aucune commande traitée sur la période."
+      },
+      "presence": {
+        "title": "Présence",
+        "hint": "heures actives par jour",
+        "agent": "Agent",
+        "total": "Total",
+        "treated": "traitées",
+        "confirmed": "conf.",
+        "absent": "absente",
+        "days": "{n} j",
+        "l0": "0 h",
+        "l1": "< 1 h",
+        "l2": "1 – 2 h",
+        "l3": "2 – 3 h",
+        "l4": "3 h +"
+      }
+    },
+    "drawer": {
+      "close": "Fermer",
+      "presence": {
+        "online": "en ligne",
+        "idle": "inactive depuis peu",
+        "offline": "hors ligne"
+      },
+      "today": "Aujourd'hui",
+      "calls": "appels",
+      "treated": "traitées",
+      "confirmed": "confirmées",
+      "activity": "activité",
+      "goalsToday": "Objectifs du jour",
+      "noActionToday": "Aucune action aujourd'hui.",
+      "goalsPeriod": "Objectifs — période",
+      "confPerHour": "conf/h · cible {target}",
+      "streak": "série (j)",
+      "bestStreak": "meilleure série 14 j",
+      "daysActive": "jours actifs",
+      "rules": "Objectifs du jour : volume ≥ {volume} traitées · qualité ≥ {rate} % (dès {min} traitées) · hygiène : 0 rappel dépassé, 0 commande > 24 h sans tentative.",
+      "loading": "Chargement…",
+      "byProduct": "Par produit — période",
+      "vsTeam": "{d} pts vs équipe",
+      "noneTreated": "Aucune commande traitée sur la période.",
+      "queue": "File actuelle",
+      "queueEmpty": "File vide.",
+      "rejections": "Rejets — période",
+      "unknownReason": "Motif non renseigné",
+      "vagueReason": "⚠ motif à préciser",
+      "noRejections": "Aucun rejet sur la période.",
+      "takeaway": "À retenir",
+      "takeawayRate": "Le taux ({rate}) est le point faible — objectif {target} % : ralentir le rythme et qualifier avant de rejeter.",
+      "takeawayThroughput": "Le taux tient ; c'est le débit ({thr}/h) qui peut monter — objectif {target}/h.",
+      "takeawayNone": "Pas assez d'activité pour un verdict sur cette période.",
+      "takeawayOrphan": "{n} commande(s) attendent dans sa file alors qu'elle est hors ligne : les récupérer d'abord."
+    }
   }
 }
