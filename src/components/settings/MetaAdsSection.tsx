@@ -47,6 +47,103 @@ interface Market {
   code: string;
 }
 
+/**
+ * Currencies `ad_spend.amount` is already denominated in, so no rate is needed.
+ * Mirrors the check in syncAccount — if the two ever disagree, the sync fails
+ * on a rate the UI said was unnecessary.
+ */
+const NATIVE_CURRENCIES = new Set(["LYD", "TND"]);
+
+/**
+ * The FX rate the sync refuses to run without.
+ *
+ * Rendered on the account card rather than on a settings page of its own,
+ * because the only way to know a rate is needed is to look at the account's
+ * billing currency — which is right here. It appears when that currency is not
+ * the market's, and shouts when it is missing.
+ */
+function FxRateField({ account }: { account: MetaAccount }) {
+  const { data, mutate } = useSWR<{ data: { rates: Record<string, number> } }>(
+    `/api/meta/fx-rate?market_id=${account.market_id}`,
+    fetcher,
+    { revalidateOnFocus: false },
+  );
+
+  const stored = data?.data?.rates?.[account.account_currency];
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const value = draft !== "" ? draft : stored !== undefined ? String(stored) : "";
+  const missing = stored === undefined;
+
+  const save = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/meta/fx-rate", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          market_id: account.market_id,
+          currency: account.account_currency,
+          rate: Number(value),
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(body?.message ?? "Enregistrement impossible.");
+        return;
+      }
+      setDraft("");
+      mutate();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className={`rounded-[8px] border px-3 py-2.5 ${
+        missing ? "border-ads-red-line bg-ads-red-bg" : "border-ads-line bg-surface-sunken"
+      }`}
+    >
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[12.5px] font-semibold text-ads-ink-1">
+          Taux {account.account_currency} → devise du marché
+        </span>
+        <span className="flex-1" />
+        <input
+          value={value}
+          onChange={(e) => setDraft(e.target.value)}
+          inputMode="decimal"
+          placeholder="4.85"
+          aria-label={`Taux ${account.account_currency}`}
+          className="w-[110px] border border-line rounded-[6px] px-2.5 py-1.5 text-[13px] bg-surface-card text-ads-ink-1 tabular-nums"
+        />
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving || value === "" || Number(value) <= 0 || String(stored) === value}
+          className="rounded-[8px] px-3 py-1.5 text-[13px] font-semibold bg-ads-green-ink text-white hover:bg-brand-hover disabled:opacity-50"
+        >
+          Enregistrer
+        </button>
+      </div>
+      <p className={`text-[11.5px] mt-1.5 ${missing ? "text-ads-red-ink" : "text-ads-ink-2"}`}>
+        {missing
+          ? `Requis — la synchronisation refuse de tourner sans ce taux, plutôt que d'enregistrer des ${account.account_currency} comme des dinars.`
+          : "Figé sur chaque ligne au moment de la synchronisation : le modifier n'altère pas l'historique déjà importé."}
+      </p>
+      {error && (
+        <p role="alert" className="text-[11.5px] text-ads-red-ink mt-1">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 interface Stage {
   key: string;
   status: "ok" | "warning" | "failed" | "skipped";
@@ -244,6 +341,8 @@ export function MetaAdsSection({ markets }: { markets: Market[] }) {
                       </button>
                     </div>
                   </div>
+
+                  {!NATIVE_CURRENCIES.has(a.account_currency) && <FxRateField account={a} />}
 
                   {result && (
                     <div className="rounded-[8px] border border-ads-line bg-surface-sunken px-3 py-2.5 flex flex-col gap-1.5">
