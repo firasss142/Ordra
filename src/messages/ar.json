@@ -130,7 +130,7 @@
       "adSpend": "مصاريف الإعلانات",
       "activeProspects": "العملاء المحتملون",
       "followUps": "المتابعات",
-      "performanceLive": "الأداء",
+      "performanceLive": "أداء الفريق",
       "access": "الوصول",
       "marketsConfig": "الأسواق",
       "storefrontsConfig": "المتاجر",
@@ -139,7 +139,8 @@
       "integrations": "التكاملات",
       "generalSettings": "الإعدادات",
       "logs": "السجلات",
-      "investors": "المستثمرون"
+      "investors": "المستثمرون",
+      "controlRoom": "غرفة التحكم"
     },
     "a11y": {
       "expandSection": "توسيع قسم {section}",
@@ -4382,5 +4383,230 @@
     "crossSellHint": "اقترحه عند الرفض",
     "viewingAlternative": "أنت تطالع منتجًا بديلًا",
     "backToOrdered": "العودة إلى المنتج المطلوب"
+  },
+  "team": {
+    "presence": {
+      "online": "متصل",
+      "idle": "غير نشط",
+      "offline": "غير متصل"
+    },
+    "relative": {
+      "now": "الآن",
+      "minutes": "منذ {n} د",
+      "hours": "منذ {n} س",
+      "yesterday": "أمس {time}",
+      "date": "في {date}"
+    },
+    "live": {
+      "title": "غرفة التحكم",
+      "subtitle": "من يعمل، ما الذي يتقدم، وما الذي يعلق — الآن.",
+      "realtime": "مباشر",
+      "loadError": "تعذّر تحميل غرفة التحكم. أعد المحاولة بعد قليل.",
+      "verdict": {
+        "online": "{count, plural, =0 {0 وكيل متصل} one {وكيل واحد متصل} two {وكيلان متصلان} few {# وكلاء متصلون} many {# وكيلاً متصلاً} other {# وكيل متصل}}",
+        "blocked": "{count, plural, =0 {0 طلب معلّق} one {طلب واحد معلّق} two {طلبان معلّقان} few {# طلبات معلّقة} many {# طلباً معلّقاً} other {# طلب معلّق}}",
+        "orphan": "{count, plural, =0 {0 قائمة يتيمة} one {قائمة يتيمة واحدة} two {قائمتان يتيمتان} few {# قوائم يتيمة} many {# قائمة يتيمة} other {# قائمة يتيمة}}"
+      },
+      "tiles": {
+        "exhausted": "محاولات مستنفدة",
+        "oldest": "الأقدم {age}",
+        "orphan": "قوائم يتيمة",
+        "orphanConfirmed": "منها {count} مؤكدة لم تُشحن",
+        "online": "متصلون",
+        "lastSeen": "{name} شوهدت {rel}",
+        "nobodySeen": "لم يُشاهد أي وكيل متصلاً",
+        "overdue": "مواعيد إعادة اتصال متأخرة",
+        "neverCalled": "بدون اتصال"
+      },
+      "roster": {
+        "title": "الوكلاء",
+        "hint": "انقر على وكيل لعرض التفاصيل",
+        "today": "اليوم",
+        "agent": "الوكيل",
+        "lastAction": "آخر إجراء",
+        "treated": "معالَجة",
+        "confirmed": "مؤكدة",
+        "goals": "أهداف اليوم",
+        "goalsTitle": "الحجم {v}/{vt} · الجودة {q} % (الهدف {qt} %) · النظافة: {h} مشكلة",
+        "queue": "القائمة",
+        "action": "الإجراء",
+        "noAction": "لا إجراء",
+        "idleFor": "{days} يوم بلا إجراء",
+        "reassign": "إعادة إسناد",
+        "returnToPool": "إرجاع إلى المجموعة",
+        "reassignTo": "إسناد إلى {name}",
+        "reassignDone": "{n} طلب أُعيد إسناده",
+        "reassignPartial": "{ok} نجح، {failed} فشل",
+        "reassignFailed": "فشل إعادة الإسناد",
+        "pill": {
+          "older24": "{n} > 24 س",
+          "olderThan": "{n} > {age}",
+          "confAge": "مؤكدة ≥ {age}",
+          "overdue": "{n} إعادة اتصال متأخرة",
+          "dispatch": "شحن مجدول"
+        }
+      },
+      "blocked": {
+        "title": "للتحرير",
+        "empty": "لا شيء عالق — كل الطلبات تتقدم.",
+        "order": "الطلب",
+        "situation": "الحالة",
+        "age": "العمر",
+        "action": "الإجراء",
+        "kind": {
+          "confirmed_stuck": "مؤكدة، لم تُشحن",
+          "exhausted": "محاولات مستنفدة",
+          "overdue_callback": "إعادة اتصال متأخرة"
+        },
+        "upload": "رفع",
+        "reassign": "إعادة إسناد…",
+        "unassigned": "غير مسندة",
+        "more": "+ {n} أخرى",
+        "openOrders": "فتح في الطلبات",
+        "reassignTitle": "إعادة إسناد — {name}",
+        "reassignHint": "يتغير مالك الطلب ويُحفظ سجله.",
+        "cancel": "إلغاء"
+      },
+      "callbacks": {
+        "title": "إعادة اتصال قادمة",
+        "allWith": "الـ {n} مع {name}",
+        "count": "{n} إعادة اتصال",
+        "empty": "لا مواعيد مجدولة.",
+        "unassigned": "غير مسندة"
+      }
+    },
+    "perf": {
+      "title": "أداء الفريق",
+      "subtitle": "المعالجة في الساعة النشطة × نسبة التأكيد — المقياسان اللذان يهمّان.",
+      "loadError": "تعذّر تحميل الأداء. أعد المحاولة بعد قليل.",
+      "productFilter": "تصفية حسب المنتج",
+      "allProducts": "كل المنتجات",
+      "maskHint": "النسبة مخفية تحت 10 معالَجات",
+      "periods": {
+        "label": "الفترة",
+        "yesterday": "أمس",
+        "7d": "7 أيام",
+        "30d": "30 يوماً",
+        "custom": "مخصص",
+        "from": "من",
+        "to": "إلى"
+      },
+      "strip": {
+        "treated": "معالَجة",
+        "treatedCap": "طلبات وصلت إلى قرار",
+        "rate": "النسبة",
+        "rateCap": "مرجّحة، {c} / {t}",
+        "hours": "الساعات",
+        "hoursCap": "الفريق كله",
+        "throughput": "المعدل",
+        "perHour": "/ س",
+        "throughputCap": "وسيط الوكلاء",
+        "teamGoal": "هدف الفريق",
+        "teamGoalOf": "/ {target} تأكيد"
+      },
+      "ranking": {
+        "title": "الترتيب",
+        "hint": "تأكيدات / ساعة نشطة · الهدف {target}",
+        "empty": "لا يوجد نشاط كافٍ للترتيب في هذه الفترة.",
+        "rate": "النسبة",
+        "productRate": "نسبة المنتج",
+        "throughput": "المعدل",
+        "treated": "معالَجة",
+        "days": "{n} ي",
+        "confPerHour": "تأكيد/س",
+        "streak": "سلسلة {n} ي",
+        "streakTitle": "أيام نشطة متتالية بـ 3/3 أهداف — أفضل سلسلة في 14 يوماً: {best}",
+        "ctaRate": "هدف النسبة {v} %",
+        "ctaThroughput": "هدف المعدل {v}/س",
+        "ctaTitle": "حدّد هذا الهدف للوكيل",
+        "ctaNoPerm": "للمديرين فقط",
+        "targetSaved": "تم حفظ الهدف",
+        "targetFailed": "لم يُحفظ الهدف",
+        "unranked": "خارج الترتيب:",
+        "noActivity": "لا إجراء",
+        "littleActivity": "{time} نشاط"
+      },
+      "chart": {
+        "title": "خريطة المعدل × النسبة",
+        "aria": "خريطة المعدل مقابل نسبة التأكيد لكل وكيل",
+        "xAxis": "معالَجة / ساعة نشطة",
+        "yAxis": "نسبة التأكيد %",
+        "refTeam": "الفريق {rate}",
+        "refMedian": "الوسيط {v}",
+        "q": {
+          "reliableSlow": "موثوق · بطيء",
+          "target": "الهدف",
+          "weak": "ضعيف",
+          "fastLossy": "سريع · يخسر العملاء"
+        }
+      },
+      "products": {
+        "title": "حسب المنتج",
+        "hint": "نسبة المنتج هي سقف الفريق",
+        "product": "المنتج",
+        "treated": "معالَجة",
+        "teamRate": "نسبة تأكيد الفريق",
+        "min": "الأدنى (الأسوأ)",
+        "team": "الفريق",
+        "max": "الأعلى (الأفضل)",
+        "spread": "أكبر فارق بين الوكلاء",
+        "pts": "{n} نقطة",
+        "noSpread": "أقل من وكيلين بـ 10 معالَجات",
+        "others": "أخرى ({n})",
+        "insufficient": "حجم غير كافٍ",
+        "empty": "لا طلبات معالَجة في الفترة."
+      },
+      "presence": {
+        "title": "الحضور",
+        "hint": "ساعات نشطة في اليوم",
+        "agent": "الوكيل",
+        "total": "المجموع",
+        "treated": "معالَجة",
+        "confirmed": "مؤكدة",
+        "absent": "غائبة",
+        "days": "{n} ي",
+        "l0": "0 س",
+        "l1": "< 1 س",
+        "l2": "1 – 2 س",
+        "l3": "2 – 3 س",
+        "l4": "3 س +"
+      }
+    },
+    "drawer": {
+      "close": "إغلاق",
+      "presence": {
+        "online": "متصلة",
+        "idle": "غير نشطة منذ قليل",
+        "offline": "غير متصلة"
+      },
+      "today": "اليوم",
+      "calls": "مكالمات",
+      "treated": "معالَجة",
+      "confirmed": "مؤكدة",
+      "activity": "نشاط",
+      "goalsToday": "أهداف اليوم",
+      "noActionToday": "لا إجراء اليوم.",
+      "goalsPeriod": "الأهداف — الفترة",
+      "confPerHour": "تأكيد/س · الهدف {target}",
+      "streak": "سلسلة (ي)",
+      "bestStreak": "أفضل سلسلة 14 ي",
+      "daysActive": "أيام نشطة",
+      "rules": "أهداف اليوم: الحجم ≥ {volume} معالَجة · الجودة ≥ {rate} % (بدءاً من {min} معالَجات) · النظافة: 0 إعادة اتصال متأخرة، 0 طلب > 24 س بلا محاولة.",
+      "loading": "جارٍ التحميل…",
+      "byProduct": "حسب المنتج — الفترة",
+      "vsTeam": "{d} نقطة مقابل الفريق",
+      "noneTreated": "لا طلبات معالَجة في الفترة.",
+      "queue": "القائمة الحالية",
+      "queueEmpty": "القائمة فارغة.",
+      "rejections": "الرفض — الفترة",
+      "unknownReason": "سبب غير محدد",
+      "vagueReason": "⚠ سبب يجب توضيحه",
+      "noRejections": "لا رفض في الفترة.",
+      "takeaway": "الخلاصة",
+      "takeawayRate": "النسبة ({rate}) هي نقطة الضعف — الهدف {target} %: التمهّل والتأهيل قبل الرفض.",
+      "takeawayThroughput": "النسبة جيدة؛ المعدل ({thr}/س) هو ما يمكن رفعه — الهدف {target}/س.",
+      "takeawayNone": "لا نشاط كافٍ لإصدار حكم في هذه الفترة.",
+      "takeawayOrphan": "{n} طلب ينتظر في قائمتها وهي غير متصلة: استعادتها أولاً."
+    }
   }
 }

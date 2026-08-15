@@ -48,3 +48,18 @@ export function formatDisplayCurrencyCode(
   }
   return normalized;
 }
+
+/**
+ * IANA timezone per market. Team pages bucket "a day" and "today" in the
+ * market's local time — a Tripoli agent who works 22:00–01:00 has one shift,
+ * not two, and a UTC day boundary would split it.
+ */
+export const MARKET_TIMEZONE: Record<MarketCode, string> = {
+  tn: "Africa/Tunis",
+  ly: "Africa/Tripoli",
+};
+
+export function marketTimezone(marketId: string | null | undefined): string {
+  const code = marketIdToCode(marketId);
+  return code ? MARKET_TIMEZONE[code] : MARKET_TIMEZONE.tn;
+}

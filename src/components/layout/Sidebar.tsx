@@ -159,12 +159,12 @@ const NAV_SECTIONS: readonly NavSection[] = [
     defaultExpanded: true,
     items: [
       {
-        key: "inConfirmation",
-        href: "confirmation-flow",
+        key: "controlRoom",
+        href: "team",
         icon: PhoneCall,
-        prefetchRoute: "confirmation-flow",
+        prefetchRoute: "team",
       },
-      { key: "performanceLive", href: "team", icon: BarChart3, prefetchRoute: "team" },
+      { key: "performanceLive", href: "team/performance", icon: BarChart3, prefetchRoute: "team" },
       { key: "access", href: "users", icon: UserPlus, prefetchRoute: "users" },
     ],
   },
