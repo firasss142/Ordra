@@ -3,6 +3,7 @@
 import { useState, useCallback, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { AlertTriangle, ChevronRight, Info, Lock, Pencil, Trash2 } from "lucide-react";
+import { ProductAvatar } from "@/components/orders/ProductAvatar";
 import type { ProductEconomics, EconomicsMeta, SpendEntry } from "@/hooks/useAdSpendEconomics";
 
 /**
@@ -303,7 +304,7 @@ export function AdSpendCplBars({
         </button>
       </div>
 
-      <div className="grid grid-cols-[minmax(140px,214px)_1fr_104px] gap-3.5 mt-4 pb-[7px] text-[10.5px] font-semibold uppercase tracking-[0.045em] text-ads-ink-3">
+      <div className="grid grid-cols-[minmax(190px,260px)_1fr_104px] gap-3.5 mt-4 pb-[7px] text-[10.5px] font-semibold uppercase tracking-[0.045em] text-ads-ink-3">
         <span>{t("product")}</span>
         <span>{t("costPerLead", { currency })}</span>
         <span className="text-end leading-[1.5]">
@@ -331,7 +332,7 @@ export function AdSpendCplBars({
           return (
             <div
               key={p.product_id}
-              className={`grid grid-cols-[minmax(140px,214px)_1fr_104px] items-center gap-3.5 py-2 rounded-[6px] ${
+              className={`grid grid-cols-[minmax(190px,260px)_1fr_104px] items-center gap-3.5 py-2 rounded-[6px] ${
                 negative ? "bg-ads-red-band hover:bg-[#FDEFEF]" : "hover:bg-surface-sunken"
               }`}
               onMouseMove={(e) =>
@@ -355,6 +356,11 @@ export function AdSpendCplBars({
               onMouseLeave={hide}
             >
               <div className="flex items-center gap-2.5 min-w-0">
+                <ProductAvatar
+                  imageUrl={p.product_image_url}
+                  productName={p.product_name}
+                  size={30}
+                />
                 <span className="min-w-0">
                   <span className="block text-[13px] font-semibold leading-[1.3] text-ads-ink-1 truncate" dir="auto">
                     {p.product_name}
@@ -432,7 +438,7 @@ export function AdSpendCplBars({
 
       {/* The axis reuses the row's own grid template rather than a hand-tuned
           margin, so the ticks stay under the bars at every column width. */}
-      <div className="grid grid-cols-[minmax(140px,214px)_1fr_104px] gap-3.5 mt-1">
+      <div className="grid grid-cols-[minmax(190px,260px)_1fr_104px] gap-3.5 mt-1">
         <span />
         <div className="relative h-[34px] border-t border-ads-line">
           {ticks.map((v) => (
@@ -862,7 +868,7 @@ export function AdSpendProductTable({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-[13px] min-w-[1300px]">
+        <table className="w-full border-collapse text-[13px] min-w-[1360px]">
           <thead>
             <tr>
               {columns.map((c, i) => (
@@ -909,7 +915,16 @@ export function AdSpendProductTable({
                           isOpen ? "rotate-90" : "rtl:rotate-180"
                         }`}
                       />
-                      <span>
+                      {/* The names are long Arabic strings that truncate to
+                          near-identical prefixes — three boxing dolls differing
+                          only in the size word. The thumbnail is what makes a
+                          row identifiable at a glance. */}
+                      <ProductAvatar
+                        imageUrl={p.product_image_url}
+                        productName={p.product_name}
+                        size={34}
+                      />
+                      <span className="min-w-0">
                         <span className="block text-[13px] font-semibold leading-[1.3] text-ads-ink-1" dir="auto">
                           {p.product_name}
                         </span>
@@ -995,7 +1010,16 @@ export function AdSpendProductTable({
                           open.__unmapped ? "rotate-90" : "rtl:rotate-180"
                         }`}
                       />
-                      <span>
+                      {/* Holds the thumbnail column open so this row's name
+                          starts on the same line as every product above it. */}
+                      <span
+                        aria-hidden
+                        className="flex-none grid place-items-center rounded-md border border-dashed border-ads-line-2 bg-surface-sunken text-ads-ink-3"
+                        style={{ width: 34, height: 34 }}
+                      >
+                        <AlertTriangle size={15} strokeWidth={1.8} />
+                      </span>
+                      <span className="min-w-0">
                         <span className="block text-[13px] font-semibold leading-[1.3] text-ads-ink-1">
                           {t("unmappedRow")}
                         </span>

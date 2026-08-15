@@ -16,6 +16,7 @@ export interface SpendEntry {
 export interface ProductEconomics {
   product_id: string;
   product_name: string;
+  product_image_url: string | null;
   leads: number;
   confirmed: number;
   delivered: number;

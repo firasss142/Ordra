@@ -60,6 +60,7 @@ interface OrderRow {
 interface ProductRow {
   id: string;
   name: string;
+  image_url: string | null;
   unit_cogs: number | string;
   packing_cost: number | string | null;
   confirmation_processing_cost: number | string | null;
@@ -162,7 +163,7 @@ export async function GET(req: NextRequest) {
     fetchAllRows<ProductRow>(
       supabase
         .from("products")
-        .select("id, name, unit_cogs, packing_cost, confirmation_processing_cost")
+        .select("id, name, image_url, unit_cogs, packing_cost, confirmation_processing_cost")
         .eq("market_id", marketId)
         .order("id", { ascending: true }),
     ),
@@ -299,6 +300,7 @@ export async function GET(req: NextRequest) {
       return {
         product_id: productId,
         product_name: p.name,
+        product_image_url: p.image_url ?? null,
         leads: b.leads,
         confirmed: b.confirmed,
         delivered: b.delivered,
