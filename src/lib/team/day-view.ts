@@ -22,7 +22,7 @@ import type {
   DayQueue,
   DayTotals,
 } from "./types";
-import { MIN_TREATED_FOR_RATE, computeGoalStreak, rateOf, type GoalTargets } from "./goals";
+import { MIN_TREATED_FOR_RATE, rateOf } from "./goals";
 
 /** A follow-up call is expected within this many minutes of the previous one. */
 export const CADENCE_SLA_MIN = 120;
@@ -47,6 +47,32 @@ export function queueBand(attemptsLeft: number): QueueBand {
   if (attemptsLeft <= 0) return "exhausted";
   if (attemptsLeft <= LAST_CHANCE_MAX) return "lastChance";
   return "healthy";
+}
+
+/** What became of the orders the agent actually called. The four sum to `attempted`. */
+export type OutcomeKind = "uploaded" | "stuck" | "rejected" | "pending";
+
+export interface OutcomeSegment {
+  kind: OutcomeKind;
+  n: number;
+}
+
+/**
+ * The day as one closed funnel — assigned → attempted → outcome. Both stages
+ * account for every order, which is what makes the bars readable as proportions
+ * rather than as five unrelated numbers.
+ */
+export interface DayFunnel {
+  assigned: number;
+  attempted: number;
+  /** Orders that sat in the queue all day without a single call. */
+  notAttempted: number;
+  /** attempted / assigned, percent — how much of the pool was worked at all. */
+  reachRate: number | null;
+  calls: number;
+  /** Calls spent per order called — the effort behind the volume. */
+  callsPerAttempt: number | null;
+  outcome: OutcomeSegment[];
 }
 
 export interface HourCell extends DayHour {
@@ -99,6 +125,7 @@ export interface AgentDayView {
   avatarUrl: string | null;
   totals: DayTotals;
   targets: AgentDayDetail["targets"];
+  funnel: DayFunnel;
   /** confirmed / treated, percent. Null when nothing was treated. */
   confirmRate: number | null;
   /** uploaded / treated, percent — the honest yield. */
@@ -107,10 +134,8 @@ export interface AgentDayView {
   signatureDelta: number | null;
   /** Uploads per active hour — the rhythm the ranking is built on. */
   uploadsPerHour: number | null;
-  /** How many logged actions it took to ship one order. */
+  /** How many calls it took to ship one order. */
   callsPerUpload: number | null;
-  /** Consecutive active days at 3/3, over the 14-day series ending on this day. */
-  streak: { current: number; best: number };
   hours: HourCell[];
   products: DayProductView[];
   motifs: { reason: string; n: number }[];
@@ -118,10 +143,6 @@ export interface AgentDayView {
   queue: QueueView;
   series: AgentDayDetail["series"];
   takeaways: Takeaway[];
-}
-
-function streakTargets(t: AgentDayDetail["targets"]): GoalTargets {
-  return { dailyTreated: t.daily_treated, minRate: t.min_rate, confPerHour: t.conf_per_hour };
 }
 
 function perHour(count: number, activeMinutes: number): number | null {
@@ -172,23 +193,12 @@ export function buildAgentDayView(detail: AgentDayDetail): AgentDayView {
     avatarUrl: detail.agent?.avatar_url ?? null,
     totals,
     targets,
+    funnel: buildFunnel(totals),
     confirmRate,
     uploadRate,
     signatureDelta,
     uploadsPerHour: perHour(totals.uploaded, totals.active_minutes),
     callsPerUpload: totals.uploaded > 0 ? Math.round((totals.calls / totals.uploaded) * 10) / 10 : null,
-    // Historical hygiene is not reconstructible from the event log, so the
-    // streak is volume + quality only — the same documented compromise
-    // computeGoalStreak already makes on the performance page.
-    streak: computeGoalStreak(
-      detail.series.map((s) => ({
-        treated: s.treated,
-        confirmed: s.confirmed,
-        overdueCallbacks: 0,
-        staleUntouched: 0,
-      })),
-      streakTargets(targets),
-    ),
     hours,
     products,
     motifs: detail.motifs,
@@ -196,6 +206,29 @@ export function buildAgentDayView(detail: AgentDayDetail): AgentDayView {
     queue,
     series: detail.series,
     takeaways: buildTakeaways(totals, detail.motifs, tier, median, queue),
+  };
+}
+
+function buildFunnel(t: DayTotals): DayFunnel {
+  // The pool is reconstructed and can undercount (an order reassigned away since
+  // is no longer provably hers), so never let it read as smaller than what she
+  // demonstrably called — the bar would invert.
+  const assigned = Math.max(t.assigned, t.attempted);
+  return {
+    assigned,
+    attempted: t.attempted,
+    notAttempted: assigned - t.attempted,
+    reachRate: assigned > 0 ? Math.round((t.attempted / assigned) * 1000) / 10 : null,
+    calls: t.calls,
+    callsPerAttempt: t.attempted > 0 ? Math.round((t.calls / t.attempted) * 10) / 10 : null,
+    outcome: [
+      { kind: "uploaded", n: t.uploaded },
+      // Confirmed and not (yet) at the carrier — the customer said yes, nothing shipped.
+      { kind: "stuck", n: Math.max(0, t.confirmed - t.uploaded) },
+      { kind: "rejected", n: t.rejected },
+      // Called, no decision — still in the queue at the end of it.
+      { kind: "pending", n: Math.max(0, t.attempted - t.treated) },
+    ],
   };
 }
 

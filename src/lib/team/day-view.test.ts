@@ -16,7 +16,7 @@ function detail(over: Partial<AgentDayDetail> = {}): AgentDayDetail {
     agent: { agent_id: "a1", name: "tasnim", avatar_url: null },
     targets: { daily_treated: 12, min_rate: 40, conf_per_hour: 3, max_attempts: 8 },
     totals: {
-      calls: 0, touched: 0, treated: 0, confirmed: 0, rejected: 0,
+      assigned: 0, calls: 0, attempted: 0, touched: 0, treated: 0, confirmed: 0, rejected: 0,
       active_minutes: 0, uploaded: 0, stuck_confirmed: 0, lost_after_confirm: 0,
     },
     hourly: [],
@@ -80,6 +80,60 @@ describe("buildAgentDayView — yield", () => {
   });
 });
 
+describe("buildAgentDayView — the day as a funnel", () => {
+  /** 11 Aug in production: 43 assigned, 37 attempted, 62 calls, 13 confirmed of
+   *  which 7 shipped, 15 rejected, 28 treated. */
+  const REAL_DAY = detail({
+    totals: {
+      assigned: 43, calls: 62, attempted: 37, touched: 37, treated: 28,
+      confirmed: 13, rejected: 15, active_minutes: 220, uploaded: 7,
+      stuck_confirmed: 0, lost_after_confirm: 6,
+    },
+  });
+
+  it("names the orders that sat all day without a single call", () => {
+    // The whole point of showing `assigned` next to `attempted`.
+    expect(buildAgentDayView(REAL_DAY).funnel.notAttempted).toBe(6);
+  });
+
+  it("closes: attempted + never-called accounts for every assigned order", () => {
+    const f = buildAgentDayView(REAL_DAY).funnel;
+    expect(f.attempted + f.notAttempted).toBe(f.assigned);
+  });
+
+  it("closes: the four outcomes account for every attempted order", () => {
+    const f = buildAgentDayView(REAL_DAY).funnel;
+    expect(f.outcome.reduce((s, o) => s + o.n, 0)).toBe(f.attempted);
+    const by = Object.fromEntries(f.outcome.map((o) => [o.kind, o.n]));
+    expect(by.uploaded).toBe(7);
+    expect(by.stuck).toBe(6); // confirmed 13 − shipped 7
+    expect(by.rejected).toBe(15);
+    expect(by.pending).toBe(9); // attempted 37 − treated 28
+  });
+
+  it("measures how hard the agent had to dial", () => {
+    // 62 calls across 37 orders — the effort behind the volume.
+    expect(buildAgentDayView(REAL_DAY).funnel.callsPerAttempt).toBeCloseTo(1.7, 1);
+    expect(buildAgentDayView(REAL_DAY).funnel.reachRate).toBeCloseTo(86, 0);
+  });
+
+  it("never reports a negative gap when the pool is smaller than what was called", () => {
+    // Assignment history is reconstructed and can undercount; the bar must not invert.
+    const v = buildAgentDayView(
+      detail({ totals: { ...detail().totals, assigned: 5, attempted: 9, calls: 12, touched: 9 } }),
+    );
+    expect(v.funnel.notAttempted).toBe(0);
+    expect(v.funnel.assigned).toBe(9);
+  });
+
+  it("has no rates on a day with nothing in it", () => {
+    const f = buildAgentDayView(detail()).funnel;
+    expect(f.reachRate).toBeNull();
+    expect(f.callsPerAttempt).toBeNull();
+    expect(f.outcome.every((o) => o.n === 0)).toBe(true);
+  });
+});
+
 describe("buildAgentDayView — products", () => {
   it("withholds a per-product rate below the significance threshold", () => {
     // 14 Aug in production: the day total clears 10 treated but no single
@@ -87,8 +141,8 @@ describe("buildAgentDayView — products", () => {
     const v = buildAgentDayView(
       detail({
         products: [
-          { key: "p1", name: "A", image_url: null, calls: 49, touched: 17, treated: 7, confirmed: 2, uploaded: 2 },
-          { key: "p2", name: "B", image_url: null, calls: 31, touched: 12, treated: 12, confirmed: 6, uploaded: 5 },
+          { key: "p1", name: "A", image_url: null, calls: 49, attempted: 17, touched: 17, treated: 7, confirmed: 2, uploaded: 2 },
+          { key: "p2", name: "B", image_url: null, calls: 31, attempted: 12, touched: 12, treated: 12, confirmed: 6, uploaded: 5 },
         ],
       }),
     );

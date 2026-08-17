@@ -169,9 +169,19 @@ export type TargetMetric = "daily_treated" | "min_rate" | "conf_per_hour" | "thr
  * ──────────────────────────────────────────────────────────────── */
 
 export interface DayTotals {
-  /** Order-touching actions logged that day — not distinct orders. */
+  /**
+   * The day's workload pool: orders in this agent's hands and workable that day,
+   * reconstructed from orders.assigned_to plus the assignment-event log.
+   */
+  assigned: number;
+  /**
+   * Real calls logged that day — a note-stamped dial, or a row landing on
+   * confirmed/rejected/callback_scheduled. Never a field edit.
+   */
   calls: number;
-  /** Distinct orders the agent acted on. */
+  /** Distinct orders that got at least one real call. */
+  attempted: number;
+  /** Distinct orders the agent acted on in any way, calls included. */
   touched: number;
   /** Distinct orders reaching confirmed OR rejected. */
   treated: number;
@@ -198,6 +208,7 @@ export interface DayProduct {
   name: string;
   image_url: string | null;
   calls: number;
+  attempted: number;
   touched: number;
   treated: number;
   confirmed: number;
