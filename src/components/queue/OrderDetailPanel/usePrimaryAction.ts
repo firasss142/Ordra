@@ -46,12 +46,19 @@ function isManagerish(role: PrimaryActionInputs["role"]): boolean {
   return role === "market_manager" || role === "super_admin";
 }
 
+/**
+ * `role === undefined` is the agent queue, which mounts the panel without one.
+ *
+ * A manager needs no `userId` here: `canReopenOrder` clears them past the
+ * ownership check, and requiring an id they may not have been handed is what
+ * would silently drop them back to "Fermer".
+ */
 function reopenable(input: PrimaryActionInputs): boolean {
-  if (input.role !== "agent" && input.role !== undefined) return false;
-  if (!input.userId) return false;
+  const role = input.role ?? "agent";
+  if (role === "agent" && !input.userId) return false;
   return canReopenOrder(
-    "agent",
-    input.userId,
+    role,
+    input.userId ?? "",
     {
       status: input.order.status,
       assigned_to: input.order.assigned_to,

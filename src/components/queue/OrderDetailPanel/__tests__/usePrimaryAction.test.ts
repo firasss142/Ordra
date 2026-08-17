@@ -206,6 +206,85 @@ describe("resolvePanelActions — primary CTA", () => {
   });
 });
 
+/**
+ * Opening an uploaded order from the orders page gave a manager "Fermer" where
+ * the same order in the agent queue gave "Rouvrir" — the resolver returned
+ * early for any role that was not `agent`. A manager's whole job is correcting
+ * what an agent did; the ownership and window checks are agent guardrails, not
+ * a statement about what a manager may undo.
+ */
+describe("resolvePanelActions — reopen is not agent-only", () => {
+  const uploaded = (over: Partial<PrimaryActionInputs>) =>
+    resolvePanelActions(input({
+      order: {
+        status: "uploaded",
+        assigned_to: "agent-1",
+        updated_at: RECENT,
+        tracking_number: "TR123",
+        carrier_barcode_deleted_at: null,
+      },
+      ...over,
+    }));
+
+  for (const role of ["market_manager", "super_admin"] as const) {
+    it(`leads with reopen on an uploaded order for ${role}`, () => {
+      expect(uploaded({ role, userId: "manager-1" }).primary.kind).toBe("reopen");
+    });
+
+    it(`still leads with reopen for ${role} when the order is outside the agent window`, () => {
+      const { primary } = resolvePanelActions(input({
+        order: { status: "uploaded", assigned_to: "agent-1", updated_at: STALE, tracking_number: "TR123", carrier_barcode_deleted_at: null },
+        role,
+        userId: "manager-1",
+      }));
+      expect(primary.kind).toBe("reopen");
+    });
+
+    it(`keeps the destructive overflow beside ${role}'s reopen`, () => {
+      // Reopen and barcode-deletion are different landings — pending vs
+      // confirmed — so promoting one must not remove the other.
+      const { overflow } = uploaded({ role, userId: "manager-1" });
+      expect(overflow.some((a) => a.kind === "deleteCarrierBarcode")).toBe(true);
+      expect(overflow.some((a) => a.kind === "cancel")).toBe(true);
+    });
+
+    it(`leads with reopen on a rejected order for ${role}`, () => {
+      const { primary } = resolvePanelActions(input({
+        order: { status: "rejected", assigned_to: "agent-1", updated_at: STALE, tracking_number: null, carrier_barcode_deleted_at: null },
+        role,
+        userId: "manager-1",
+      }));
+      expect(primary.kind).toBe("reopen");
+    });
+
+    it(`still refuses a genuinely terminal status for ${role}`, () => {
+      for (const status of ["delivered", "returned"]) {
+        const { primary } = resolvePanelActions(input({
+          order: { status, assigned_to: "agent-1", updated_at: RECENT, tracking_number: "TR123", carrier_barcode_deleted_at: null },
+          role,
+          userId: "manager-1",
+        }));
+        expect(primary.kind, status).toBe("close");
+      }
+    });
+  }
+
+  it("leaves warehouse_agent with close — reopen is not theirs to do", () => {
+    expect(uploaded({ role: "warehouse_agent", userId: "wh-1" }).primary.kind).toBe("close");
+  });
+
+  it("a reference-deleted upload is still an upload job, not a reopen", () => {
+    // No tracking number and a deletion stamp means it already came back from
+    // the carrier; it behaves as `confirmed` and wants re-uploading.
+    const { primary } = resolvePanelActions(input({
+      order: { status: "uploaded", assigned_to: "agent-1", updated_at: RECENT, tracking_number: null, carrier_barcode_deleted_at: RECENT },
+      role: "market_manager",
+      userId: "manager-1",
+    }));
+    expect(primary.kind).toBe("uploadToCarrier");
+  });
+});
+
 describe("resolvePanelActions — overflow by role", () => {
   it("manager overflow on confirmed includes cancel and scheduleDispatch", () => {
     const { overflow } = resolvePanelActions(input({
