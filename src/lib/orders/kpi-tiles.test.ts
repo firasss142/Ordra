@@ -3,7 +3,14 @@ import { filtersForTile, resolveKpiWindow, tileForFilters, todayIso } from "./kp
 import { DEFAULT_FILTERS } from "./list-filters";
 import type { KpiTile } from "@/components/orders/OrdersKpiStrip";
 
-const TILES: KpiTile[] = ["unassigned", "today", "uploaded", "rejected", "delivered", "toRecall"];
+const TILES: KpiTile[] = [
+  "unassigned",
+  "periodTotal",
+  "uploaded",
+  "rejected",
+  "delivered",
+  "toRecall",
+];
 
 describe("kpi tile ↔ filter mapping", () => {
   test("every tile round-trips back to itself", () => {
@@ -110,6 +117,44 @@ describe("kpi tile ↔ filter mapping", () => {
       dateFrom: "2026-08-01",
     };
     expect(tileForFilters(windowed)).toBeNull();
+  });
+
+  describe("the period-total tile", () => {
+    test("carries the active window rather than counting today forever", () => {
+      // It used to be a fixed "Aujourd'hui" tile: pick "30 derniers jours" and
+      // every other tile moved while this one kept reporting the current day,
+      // so the row described two periods at once.
+      const f = filtersForTile("periodTotal", { from: "2026-08-01", to: "2026-08-12" });
+      expect(f.dateFrom).toBe("2026-08-01");
+      expect(f.dateTo).toBe("2026-08-12");
+    });
+
+    test("is the window itself — no status and no owner narrowing it", () => {
+      const f = filtersForTile("periodTotal", { from: "2026-08-01", to: null });
+      expect(f.statuses).toEqual([]);
+      expect(f.agentId).toBeNull();
+      // `preset: "today"` would AND a second, contradictory date predicate onto
+      // the window the tile is reporting.
+      expect(f.preset).toBe("all");
+    });
+
+    test("with no window given it falls back to today", () => {
+      const f = filtersForTile("periodTotal");
+      expect(f.dateFrom).toBe(todayIso());
+      expect(f.dateTo).toBeNull();
+    });
+
+    test("a bare date range is this tile, so the strip says where you are", () => {
+      // Picking "7 derniers jours" in the Date facet puts the table in exactly
+      // the state this tile stands for; highlighting nothing would be a lie.
+      expect(
+        tileForFilters({ ...DEFAULT_FILTERS, dateFrom: "2026-08-01", dateTo: null }),
+      ).toBe("periodTotal");
+    });
+
+    test("an unfiltered list is not this tile", () => {
+      expect(tileForFilters(DEFAULT_FILTERS)).toBeNull();
+    });
   });
 
   test("unassigned selects by owner, not by status", () => {

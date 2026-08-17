@@ -25,7 +25,7 @@ export type TilePatch = Pick<
 >;
 
 /**
- * The period the outcome tiles count over.
+ * The period the windowed tiles count over.
  *
  * Queue tiles (`unassigned`, `toRecall`) are standing backlogs and have no
  * window — a backlog is whatever is sitting there right now.
@@ -37,11 +37,19 @@ export interface KpiWindow {
   to: string | null;
 }
 
-/** Tiles that count a period rather than a standing backlog. */
-export const OUTCOME_TILES = ["uploaded", "rejected", "delivered"] as const;
+/**
+ * Tiles that count a period rather than a standing backlog.
+ *
+ * `periodTotal` is in here rather than being the fixed "Aujourd'hui" tile it
+ * used to be. Every other windowed tile followed the date range while that one
+ * stayed on the current day, so selecting "30 derniers jours" left one row
+ * describing two different periods — and the tile that reads as the row's
+ * denominator was the one telling the wrong story.
+ */
+export const WINDOWED_TILES = ["periodTotal", "uploaded", "rejected", "delivered"] as const;
 
-export function isOutcomeTile(tile: KpiTile): boolean {
-  return (OUTCOME_TILES as readonly string[]).includes(tile);
+export function isWindowedTile(tile: KpiTile): boolean {
+  return (WINDOWED_TILES as readonly string[]).includes(tile);
 }
 
 export function todayIso(): string {
@@ -69,7 +77,10 @@ export function resolveKpiWindow(
 
 const TILE_STATUSES: Record<KpiTile, Pick<TilePatch, "preset" | "statuses" | "agentId">> = {
   unassigned: { preset: "all", statuses: [], agentId: "unassigned" },
-  today: { preset: "today", statuses: [], agentId: null },
+  // Nothing but the window. `preset: "today"` would AND a second date predicate
+  // onto the range the tile is reporting, so a 30-day window would open a table
+  // of today's orders — the tile and its own list disagreeing by construction.
+  periodTotal: { preset: "all", statuses: [], agentId: null },
   uploaded: { preset: "all", statuses: ["uploaded"] as OrderStatus[], agentId: null },
   rejected: { preset: "all", statuses: ["rejected"] as OrderStatus[], agentId: null },
   delivered: { preset: "all", statuses: ["delivered"] as OrderStatus[], agentId: null },
@@ -87,7 +98,7 @@ const CLEARED: TilePatch = {
 /**
  * Filters to apply when a tile is selected — `null` clears back to everything.
  *
- * An outcome tile carries its window into the table. Without that, clicking
+ * A windowed tile carries its window into the table. Without that, clicking
  * "Rejetées · aujourd'hui" (16) would open an unbounded table of every
  * rejection ever recorded (1 926) — the headline number disagreeing with the
  * list it opens is the bug this whole strip exists to prevent.
@@ -95,7 +106,7 @@ const CLEARED: TilePatch = {
 export function filtersForTile(tile: KpiTile | null, window?: KpiWindow): TilePatch {
   if (!tile) return { ...CLEARED };
   const f = TILE_STATUSES[tile];
-  const w = isOutcomeTile(tile) ? window ?? resolveKpiWindow({ dateFrom: null, dateTo: null }) : null;
+  const w = isWindowedTile(tile) ? window ?? resolveKpiWindow({ dateFrom: null, dateTo: null }) : null;
   return {
     ...f,
     statuses: [...f.statuses],
@@ -112,9 +123,14 @@ const sameStatuses = (a: readonly string[], b: readonly string[]) =>
  * Returns null when filters were hand-edited into something no tile stands for —
  * the strip then shows nothing active rather than lying about where you are.
  *
- * The date axis is part of the identity. An outcome tile is only "where you
+ * The date axis is part of the identity. A windowed tile is only "where you
  * are" while a window is applied, because that is the only time its count and
  * the table agree; a queue tile is only itself while no window is applied.
+ *
+ * This is also what makes a bare date range resolve to `periodTotal`: picking
+ * "7 derniers jours" in the Date facet leaves the table in exactly the state
+ * that tile stands for, so the tile lights up rather than the strip claiming
+ * you are nowhere.
  */
 export function tileForFilters(
   filters: Pick<OrderListFilters, "preset" | "statuses" | "agentId" | "dateFrom" | "dateTo">,
@@ -128,7 +144,7 @@ export function tileForFilters(
       filters.preset === f.preset &&
       filters.agentId === f.agentId &&
       sameStatuses(filters.statuses, f.statuses) &&
-      windowed === isOutcomeTile(tile)
+      windowed === isWindowedTile(tile)
     ) {
       return tile;
     }

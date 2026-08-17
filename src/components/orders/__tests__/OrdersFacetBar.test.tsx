@@ -188,6 +188,28 @@ describe("OrdersFacetBar", () => {
     expect(screen.getByRole("button", { name: /Agent/i })).toHaveTextContent("tasnim");
   });
 
+  test("a lit facet resets from its own menu, and only its own axis", async () => {
+    // Undoing a status meant hunting for its chip in a row that can hold ten of
+    // them. The menu you set it from can unset it.
+    const user = userEvent.setup();
+    const { onChange } = renderBar({
+      filters: { ...DEFAULT_FILTERS, statuses: ["pending", "delivered"] },
+    });
+
+    await user.click(screen.getByRole("button", { name: /Appel/i }));
+    await user.click(
+      within(screen.getByRole("listbox")).getByRole("button", { name: /^effacer$/i }),
+    );
+
+    // Appel and Livraison write to one enum; clearing one must not empty the other.
+    expect(onChange).toHaveBeenCalledWith({ statuses: ["delivered"] });
+  });
+
+  test("an untouched facet offers nothing to clear", () => {
+    renderBar();
+    expect(screen.queryByRole("button", { name: /^effacer$/i })).toBeNull();
+  });
+
   describe("custom date range", () => {
     const openDate = async (user: ReturnType<typeof userEvent.setup>) => {
       await user.click(screen.getByRole("button", { name: /^Date/i }));
@@ -252,6 +274,51 @@ describe("OrdersFacetBar", () => {
 
       expect(within(menu).getByLabelText(/^Du$/i)).toHaveValue("2026-08-01");
       expect(within(menu).getByLabelText(/^Au$/i)).toHaveValue("2026-08-12");
+    });
+
+    test("marks the one period in force, because only one can be", async () => {
+      // The panel states "une seule période" but rendered checkboxes, which
+      // promise the opposite. Exactly one preset may read as selected.
+      const user = userEvent.setup();
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - 7);
+      renderBar({ filters: { ...DEFAULT_FILTERS, dateFrom: d.toISOString().slice(0, 10) } });
+
+      const menu = await openDate(user);
+
+      expect(within(menu).getByRole("option", { name: /7 derniers jours/i })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      const lit = within(menu)
+        .getAllByRole("option")
+        .filter((o) => o.getAttribute("aria-selected") === "true");
+      expect(lit).toHaveLength(1);
+    });
+
+    test("states the span a custom range covers before it is applied", async () => {
+      const user = userEvent.setup();
+      renderBar();
+
+      const menu = await openDate(user);
+      await user.type(within(menu).getByLabelText(/^Du$/i), "2026-08-01");
+      await user.type(within(menu).getByLabelText(/^Au$/i), "2026-08-12");
+
+      // How long the range is, which a pair of dates does not state on its own.
+      expect(menu).toHaveTextContent(/12 jours/i);
+    });
+
+    test("clears the period from inside the menu that set it", async () => {
+      const user = userEvent.setup();
+      const { onChange } = renderBar({
+        filters: { ...DEFAULT_FILTERS, dateFrom: "2026-08-01", dateTo: "2026-08-12" },
+      });
+
+      const menu = await openDate(user);
+      await user.click(within(menu).getByRole("button", { name: /^effacer$/i }));
+
+      expect(onChange).toHaveBeenCalledWith({ dateFrom: null, dateTo: null });
     });
 
     test("a preset clears any custom upper bound it does not set", async () => {

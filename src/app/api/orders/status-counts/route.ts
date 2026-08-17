@@ -34,9 +34,21 @@ export interface StatusCounts {
   uploaded: number;
   rejected: number;
   delivered: number;
-  /** Period counts — "aujourd'hui" */
-  today: number;
-  /** The window the outcome counts were measured over, echoed back for labelling. */
+  /**
+   * Every order that came in during `window`, whatever became of it — the
+   * denominator the outcome tiles above are read against.
+   *
+   * It was a fixed "orders created today" figure, which meant selecting
+   * "30 derniers jours" moved every other tile and left this one on the current
+   * day: one row describing two periods at once.
+   *
+   * Unlike `total`, this one excludes soft-deleted orders. It is navigation —
+   * the tile opens the table filtered to the same window, and the working list
+   * hides deleted orders, so counting them here would put a number on screen
+   * that the list it opens cannot reproduce (design-system §4.17 G).
+   */
+  periodTotal: number;
+  /** The window the period counts were measured over, echoed back for labelling. */
   window: { from: string | null; to: string | null };
   /** Health — 7-day confirmation rate, and the 7 days before it to trend against */
   confirmationRate: number | null;
@@ -53,12 +65,6 @@ export interface StatusCounts {
 const RECALL_STATUSES = ["attempt_1", "attempt_2", "attempt_3", "callback_scheduled"];
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-function startOfTodayIso(): string {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-}
 
 /** Local calendar date, matching how the client seeds its default window. */
 function todayDateOnly(): string {
@@ -98,7 +104,6 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = await createClient();
-  const today = startOfTodayIso();
   const d7 = daysAgoIso(7);
   const d14 = daysAgoIso(14);
 
@@ -147,12 +152,12 @@ export async function GET(req: NextRequest) {
     uploaded,
     rejected,
     delivered,
-    todayCount,
+    periodTotal,
     rateWindows,
   ] = await Promise.all([
-    // `total` and `today` deliberately count soft-deleted orders: they are
-    // operational counts of what came through, not money. Only financial
-    // figures exclude deleted orders — see the money RPCs in
+    // `total` deliberately counts soft-deleted orders: it is the market's
+    // standing head-count of what came through the door, not money. Only
+    // financial figures exclude deleted orders — see the money RPCs in
     // supabase/migrations/*_exclude_deleted_from_money.sql.
     countWhere((q) => q),
     countWhere((q) => whereUnassigned(q as never)),
@@ -160,7 +165,11 @@ export async function GET(req: NextRequest) {
     countWhere((q) => inWindow(q).eq("status", "uploaded")),
     countWhere((q) => inWindow(q).eq("status", "rejected")),
     countWhere((q) => inWindow(q).eq("status", "delivered")),
-    countWhere((q) => q.gte("created_at", today)),
+    // Every status in the window. `neq deleted` mirrors what /api/orders/list
+    // does for the working list, so the tile and the table it opens count the
+    // same set — the status tiles above get that for free, since `deleted` is
+    // itself a status they exclude by selecting another one.
+    countWhere((q) => inWindow(q).neq("status", "deleted")),
     // Dated by the transition itself, not by orders.updated_at — see the
     // function's comment in the migration for why that distinction is the whole
     // bug. Counting DISTINCT order_id is why this cannot be a PostgREST
@@ -173,7 +182,7 @@ export async function GET(req: NextRequest) {
     }) as unknown as Promise<{ data: RateWindows[] | null; error: unknown }>,
   ]);
 
-  const firstError = [total, unassigned, toRecall, uploaded, rejected, delivered].find(
+  const firstError = [total, unassigned, toRecall, uploaded, rejected, delivered, periodTotal].find(
     (r) => r?.error,
   );
   if (firstError?.error) {
@@ -204,7 +213,7 @@ export async function GET(req: NextRequest) {
     uploaded: n(uploaded),
     rejected: n(rejected),
     delivered: n(delivered),
-    today: n(todayCount),
+    periodTotal: n(periodTotal),
     window: { from: windowFrom, to: windowTo },
     confirmationRate: rate(Number(w?.current_yes ?? 0), currentTotal),
     confirmationRatePrev: rate(Number(w?.prev_yes ?? 0), prevTotal),

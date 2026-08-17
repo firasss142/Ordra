@@ -1550,7 +1550,7 @@
       "pipeline": "Pipeline",
       "unassigned": "Non assignées",
       "unassignedHint": "aucun agent",
-      "today": "Aujourd'hui",
+      "periodTotal": "Total commandes",
       "toRecall": "À rappeler",
       "uploaded": "Téléchargées",
       "rejected": "Rejetées",
@@ -1562,7 +1562,7 @@
       "periodToday": "aujourd'hui",
       "scaleNote": "échelles distinctes — comparer au sein d’une même période",
       "scaleQueues": "files",
-      "scaleDaily": "volumes du jour",
+      "scaleDaily": "volumes de la période",
       "hidePipeline": "Masquer le pipeline",
       "showPipeline": "Afficher le pipeline",
       "total": "{count} au total",
@@ -1597,7 +1597,9 @@
       "anyProduct": "n'importe lequel",
       "showDeleted": "Afficher supprimées",
       "more": "Plus de filtres",
-      "carrier": "Transporteur"
+      "carrier": "Transporteur",
+      "clear": "Effacer",
+      "rangeDays": "{days, plural, one {# jour} other {# jours}}"
     },
     "rejectionGroups": {
       "refus_client": "Refus client",

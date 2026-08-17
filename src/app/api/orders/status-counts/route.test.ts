@@ -115,11 +115,11 @@ describe("GET /api/orders/status-counts", () => {
 
     for (const key of [
       "unassigned",
-      "today",
-      "waiting",
+      "periodTotal",
       "toRecall",
       "uploaded",
       "rejected",
+      "delivered",
       "total",
     ]) {
       expect(body.data, `missing ${key}`).toHaveProperty(key);
@@ -127,20 +127,72 @@ describe("GET /api/orders/status-counts", () => {
     }
   });
 
+  /** The chain that counts every order in the window — windowed, no status. */
+  const periodTotalChain = () =>
+    orderChains.find(
+      (chain) =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ((chain.gte as any)?.mock?.calls ?? []).some((c: unknown[]) => c[0] === "created_at") &&
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        !((chain.eq as any)?.mock?.calls ?? []).some((c: unknown[]) => c[0] === "status"),
+    );
+
+  test("the period total is counted over the requested window, not over today", async () => {
+    // The tile it feeds used to be a fixed "Aujourd'hui": ask for August and
+    // every other tile moved while this number stayed on the current day.
+    setup("market_manager", "ly", 935);
+
+    const res = await GET(
+      createRequest("/api/orders/status-counts?date_from=2026-08-01&date_to=2026-08-12"),
+    );
+    const body = await res.json();
+
+    const chain = periodTotalChain();
+    expect(chain, "no windowed all-status count found").toBeDefined();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(chain!.gte).toHaveBeenCalledWith("created_at", "2026-08-01");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(chain!.lte).toHaveBeenCalledWith("created_at", "2026-08-12T23:59:59.999Z");
+    expect(body.data.periodTotal).toBe(935);
+    expect(body.data.window).toEqual({ from: "2026-08-01", to: "2026-08-12" });
+  });
+
   /**
-   * Only money excludes soft-deleted orders. `total` and `today` are
-   * operational counts of what came through the door, so a manually deleted
-   * order still counts here — it did happen. The financial figures that
+   * Only money excludes soft-deleted orders. `total` is the market's
+   * standing headcount of what came through the door, so a manually deleted
+   * order still counts there — it did happen. The financial figures that
    * exclude it live in the profitability RPCs, not in this route.
    */
-  test("keeps soft-deleted orders in the operational counts", async () => {
+  test("keeps soft-deleted orders in the standing total", async () => {
     setup("market_manager", "ly", 100);
 
     await GET(createRequest("/api/orders/status-counts"));
 
-    for (const chain of orderChains) {
-      expect(chain.neq).not.toHaveBeenCalledWith("status", "deleted");
-    }
+    // The unfiltered head-count: no window, no status, no owner.
+    const totalChain = orderChains.find(
+      (chain) =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ((chain.gte as any)?.mock?.calls ?? []).length === 0 &&
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ((chain.in as any)?.mock?.calls ?? []).length === 0 &&
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ((chain.is as any)?.mock?.calls ?? []).length === 0,
+    );
+
+    expect(totalChain, "no unfiltered total found").toBeDefined();
+    expect(totalChain!.neq).not.toHaveBeenCalledWith("status", "deleted");
+  });
+
+  test("the period total drops them, because it is navigation", async () => {
+    // Unlike `total`, this figure is a tile you click: it opens the table
+    // filtered to the same window, and the table hides deleted orders. A
+    // headline number and the view it opens must be the same set
+    // (design-system §4.17 G).
+    setup("market_manager", "ly", 100);
+
+    await GET(createRequest("/api/orders/status-counts"));
+
+    expect(periodTotalChain()!.neq).toHaveBeenCalledWith("status", "deleted");
   });
 
   test("counts only orders still awaiting an agent as unassigned", async () => {

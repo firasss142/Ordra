@@ -1550,7 +1550,7 @@
       "pipeline": "المسار",
       "unassigned": "غير مسندة",
       "unassignedHint": "بدون وكيل",
-      "today": "اليوم",
+      "periodTotal": "إجمالي الطلبات",
       "toRecall": "إعادة الاتصال",
       "uploaded": "مرفوعة",
       "rejected": "مرفوضة",
@@ -1562,7 +1562,7 @@
       "periodToday": "اليوم",
       "scaleNote": "مقاييس مختلفة — قارن ضمن نفس الفترة",
       "scaleQueues": "قوائم الانتظار",
-      "scaleDaily": "حجم اليوم",
+      "scaleDaily": "حجم الفترة",
       "hidePipeline": "إخفاء المسار",
       "showPipeline": "إظهار المسار",
       "total": "{count} الإجمالي",
@@ -1597,7 +1597,9 @@
       "anyProduct": "أي منها",
       "showDeleted": "إظهار المحذوفة",
       "more": "مرشحات إضافية",
-      "carrier": "شركة التوصيل"
+      "carrier": "شركة التوصيل",
+      "clear": "مسح",
+      "rangeDays": "{days, plural, zero {# يوم} one {يوم واحد} two {يومان} few {# أيام} many {# يوماً} other {# يوم}}"
     },
     "rejectionGroups": {
       "refus_client": "رفض العميل",

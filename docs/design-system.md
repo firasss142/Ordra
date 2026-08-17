@@ -658,6 +658,48 @@ is indistinguishable from "not applicable".
 translated in `lib/order-history-display` before display, keeping any raw value that a human
 has to recognise.
 
+### H. One period per row
+
+Every tile that counts a span counts the **same** span — the date range the table is filtered
+by (`lib/orders/kpi-tiles`, `WINDOWED_TILES`). The leading tile used to be a fixed
+"Aujourd'hui": selecting "30 derniers jours" moved its four neighbours and left it on the
+current day, so one row described two periods at once and the figure that reads as the row's
+denominator was the one telling the wrong story. It is now `periodTotal` — every order that
+came in during the window, whatever became of it.
+
+Two consequences worth keeping:
+
+- Because the tiles share a period label they share a bar scale (§4.17 G), so `periodTotal`
+  sets the scale and each outcome bar draws as its **share of intake**. The funnel reads as
+  a funnel rather than as five unrelated bars.
+- `periodTotal` is navigation, so it excludes soft-deleted orders even though the standing
+  `total` readout beside it does not. The working list hides them; a tile that counted them
+  would put a number on screen its own table cannot reproduce.
+
+Only backlogs (`unassigned`, `toRecall`) stay dateless, and they still say "maintenant".
+
+### I. Filter bar
+
+Seven identically-shaped grey pills forced a left-to-right read of every label to find one
+control. The facet bar (`components/orders/OrdersFacetBar`) therefore carries:
+
+- A 14px lucide glyph per facet, `strokeWidth={1.9}`, `aria-hidden` — recognition in
+  peripheral vision, never the only carrier of meaning. The word stays.
+- Three button states, not two: rest, **open** (`border-oms-border-strong` + `shadow-hover-row`,
+  so the panel visibly belongs to one of seven controls) and active (`border-brand bg-brand-bg`).
+- A hairline (`w-px bg-oms-border`) before "Afficher supprimées". Everything left of it narrows
+  which orders *match*; that control changes which rows are *eligible to be shown at all*.
+- `Effacer` in each open menu's header. Undoing a value meant hunting for its chip in a row
+  that can hold ten of them; the menu that set it can unset it. Status facets drop only their
+  own axis — Appel and Livraison write to one enum.
+- Menus animate in with `menuDrop` (140ms, `origin-top`). §7 Motion allows this as the
+  established dropdown entrance; nothing else on the bar moves.
+
+**A rule and its affordance must agree.** The date menu states "une seule période" and rendered
+checkboxes, which promise exactly the opposite. Its presets are radios laid out two-up, and the
+custom range states the span it will apply (`12 jours`) — two ISO dates do not state their own
+length, and the length is the thing being decided.
+
 ---
 
 ## 4.18 Segmented navigation

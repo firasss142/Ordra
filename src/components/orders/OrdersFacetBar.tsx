@@ -2,7 +2,18 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { ChevronDown, X } from "lucide-react";
+import {
+  ArrowRight,
+  Building2,
+  CalendarDays,
+  ChevronDown,
+  MapPin,
+  Package,
+  PhoneCall,
+  Truck,
+  UserRound,
+  X,
+} from "lucide-react";
 import type { OrderListFilters } from "@/lib/orders/list-filters";
 import type { OrderStatus } from "@/types/order-status";
 import { ProductAvatar } from "./ProductAvatar";
@@ -123,6 +134,16 @@ function isoDaysAgo(days: number): string {
 }
 
 const rangeDays = (key: string) => (key === "today" ? 0 : Number(key.slice(1)));
+
+/**
+ * A 14px glyph per facet, so the bar is scanned rather than read.
+ *
+ * Seven identically-shaped grey pills forced a left-to-right read of every
+ * label to find the one control you wanted; the glyph is recognised in
+ * peripheral vision. Decorative only — every button still carries its word,
+ * and the icons are `aria-hidden`.
+ */
+const glyph = (Icon: typeof PhoneCall) => <Icon size={14} strokeWidth={1.9} aria-hidden />;
 
 export function OrdersFacetBar({
   filters,
@@ -271,14 +292,26 @@ export function OrdersFacetBar({
     dateTo: null,
   };
 
+  /**
+   * Undo a facet from the menu that set it.
+   *
+   * Appel and Livraison write to one enum, so each drops only its own axis —
+   * clearing the call phase must not silently empty the fulfilment filter the
+   * user set from the neighbouring control.
+   */
+  const clearStatuses = (axis: string[]) => () =>
+    onChange({ statuses: filters.statuses.filter((s) => !axis.includes(s)) });
+
   return (
     <div ref={ref} className="flex flex-col gap-2.5">
       <div className="flex flex-wrap items-center gap-1.5">
         <Facet
           label={tf("call")}
+          icon={glyph(PhoneCall)}
           count={activeCall}
           open={open === "call"}
           onToggle={() => toggle("call")}
+          onClear={activeCall ? clearStatuses(CALL_STATUSES) : undefined}
           logic={tf("anyOf")}
           options={CALL_STATUSES.map((s) => ({
             value: s,
@@ -290,9 +323,11 @@ export function OrdersFacetBar({
         />
         <Facet
           label={tf("delivery")}
+          icon={glyph(Truck)}
           count={activeDelivery}
           open={open === "delivery"}
           onToggle={() => toggle("delivery")}
+          onClear={activeDelivery ? clearStatuses(DELIVERY_STATUSES) : undefined}
           logic={tf("anyOf")}
           options={DELIVERY_STATUSES.map((s) => ({
             value: s,
@@ -304,9 +339,11 @@ export function OrdersFacetBar({
         />
         <Facet
           label={t("filters.agent")}
+          icon={glyph(UserRound)}
           count={filters.agentId ? 1 : 0}
           open={open === "agent"}
           onToggle={() => toggle("agent")}
+          onClear={filters.agentId ? () => onChange({ agentId: null }) : undefined}
           logic={tf("anyOf")}
           searchable
           options={[
@@ -329,22 +366,25 @@ export function OrdersFacetBar({
         />
         <Facet
           label={tf("date")}
+          icon={glyph(CalendarDays)}
           count={dateActive}
           open={open === "date"}
           onToggle={() => toggle("date")}
+          onClear={dateActive ? () => onChange({ dateFrom: null, dateTo: null }) : undefined}
           logic={tf("onePeriod")}
-          options={DATE_RANGES.map((r) => ({
-            value: r,
-            // A preset is only "the" active period while it owns both bounds;
-            // with a custom upper bound in play the lower bound matching by
-            // coincidence does not make it the selected preset.
-            label: tf(r),
-            selected: filters.dateFrom === isoDaysAgo(rangeDays(r)) && !filters.dateTo,
-          }))}
-          onSelect={applyRange}
           valueLabel={dateLabel}
-          footer={
-            <DateRangeFields
+          width="w-[318px]"
+          body={
+            <DatePanel
+              presets={DATE_RANGES.map((r) => ({
+                value: r,
+                // A preset is only "the" active period while it owns both bounds;
+                // with a custom upper bound in play the lower bound matching by
+                // coincidence does not make it the selected preset.
+                label: tf(r),
+                selected: filters.dateFrom === isoDaysAgo(rangeDays(r)) && !filters.dateTo,
+              }))}
+              onPreset={applyRange}
               from={filters.dateFrom}
               to={filters.dateTo}
               onApply={(dateFrom, dateTo) => {
@@ -356,9 +396,11 @@ export function OrdersFacetBar({
         />
         <Facet
           label={t("columns.city")}
+          icon={glyph(MapPin)}
           count={filters.city ? 1 : 0}
           open={open === "city"}
           onToggle={() => toggle("city")}
+          onClear={filters.city ? () => onChange({ city: "" }) : undefined}
           logic={tf("anyOfF")}
           searchable
           loading={loading?.cities}
@@ -372,9 +414,11 @@ export function OrdersFacetBar({
         />
         <Facet
           label={tf("product")}
+          icon={glyph(Package)}
           count={filters.productId ? 1 : 0}
           open={open === "product"}
           onToggle={() => toggle("product")}
+          onClear={filters.productId ? () => onChange({ productId: null }) : undefined}
           logic={tf("anyProduct")}
           searchable
           loading={loading?.products}
@@ -390,9 +434,11 @@ export function OrdersFacetBar({
 
         <Facet
           label={tf("carrier")}
+          icon={glyph(Building2)}
           count={filters.carrierId ? 1 : 0}
           open={open === "carrier"}
           onToggle={() => toggle("carrier")}
+          onClear={filters.carrierId ? () => onChange({ carrierId: null }) : undefined}
           logic={tf("anyOf")}
           loading={loading?.carriers}
           options={carriers.map((c) => ({
@@ -405,7 +451,19 @@ export function OrdersFacetBar({
           onSelect={(v) => onChange({ carrierId: filters.carrierId === v ? null : v })}
         />
 
-        <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-oms-border bg-oms-surface px-3 text-[13px] font-medium text-oms-ink-2 transition-colors duration-fast hover:border-oms-border-strong hover:text-oms-ink-1">
+        {/* Not a facet: every control to the left narrows which orders match,
+            this one changes which rows are eligible to be shown at all. The
+            hairline says so without a heading. */}
+        <span aria-hidden className="mx-1 h-6 w-px self-center bg-oms-border" />
+
+        <label
+          className={
+            "inline-flex h-9 cursor-pointer select-none items-center gap-2 rounded-[10px] border px-3 text-[13px] font-medium transition-[background-color,border-color,box-shadow,color] duration-fast " +
+            (filters.includeDeleted
+              ? "border-brand bg-brand-bg text-brand-hover"
+              : "border-oms-border bg-oms-surface text-oms-ink-2 hover:border-oms-border-strong hover:text-oms-ink-1 hover:shadow-hover-row")
+          }
+        >
           <input
             type="checkbox"
             checked={filters.includeDeleted}
@@ -428,9 +486,9 @@ export function OrdersFacetBar({
                 type="button"
                 aria-label={tf("remove", { label: c.label })}
                 onClick={() => onChange(c.clear)}
-                className="grid h-[17px] w-[17px] place-items-center rounded-full text-oms-ink-3 transition-colors duration-fast hover:bg-oms-sunken hover:text-oms-age-late"
+                className="grid h-[18px] w-[18px] place-items-center rounded-full text-oms-ink-3 transition-colors duration-fast hover:bg-hue-red-bg hover:text-oms-age-late"
               >
-                <X size={11} strokeWidth={2.2} />
+                <X size={11} strokeWidth={2.4} />
               </button>
             </span>
           ))}
@@ -452,7 +510,7 @@ export function OrdersFacetBar({
         {resultCount === null ? (
           // Nothing, not a zero: page 1 is still in flight and "0 commandes"
           // for a beat reads as "your filter matched nothing".
-          <span aria-hidden className="h-[17px] w-24 rounded-pill bg-oms-sunken" />
+          <span aria-hidden className="h-[17px] w-24 animate-pulse rounded-pill bg-oms-sunken" />
         ) : (
           <span className="font-semibold tabular-nums text-oms-ink-1">
             {tf("results", { count: nf.format(resultCount) })}
@@ -465,32 +523,47 @@ export function OrdersFacetBar({
 
 function Facet({
   label,
+  icon,
   count,
   open,
   onToggle,
+  onClear,
   logic,
   searchable,
   loading,
-  options,
+  options = [],
   onSelect,
-  footer,
+  body,
+  width,
   valueLabel,
 }: {
   label: string;
+  /** Decorative glyph, `aria-hidden` — the word is still the accessible name. */
+  icon?: React.ReactNode;
   count: number;
   open: boolean;
   onToggle: () => void;
+  /**
+   * Drop this facet's own selection. Absent while the facet is untouched, so
+   * the menu never offers to undo nothing.
+   */
+  onClear?: () => void;
   logic: string;
   searchable?: boolean;
   /** Options are still being fetched — "none" would be a lie meanwhile. */
   loading?: boolean;
-  options: FacetOption[];
-  onSelect: (value: string) => void;
-  /** Extra controls below the options — the date facet's explicit range. */
-  footer?: React.ReactNode;
+  options?: FacetOption[];
+  onSelect?: (value: string) => void;
+  /**
+   * A purpose-built body in place of the option list — the date facet, whose
+   * choices are one-of-four plus a range and so are not a list of checkboxes.
+   */
+  body?: React.ReactNode;
+  /** Panel width, when the default is too narrow for the body it holds. */
+  width?: string;
   /**
    * What the closed button should say it is set to, when that is not simply the
-   * one selected option — a custom date range is set via the footer and matches
+   * one selected option — a custom date range is set in the body and matches
    * no option, but must still name itself rather than show a bare count.
    */
   valueLabel?: string | null;
@@ -520,12 +593,28 @@ function Facet({
         aria-expanded={open}
         onClick={onToggle}
         className={
-          "inline-flex h-9 max-w-[240px] items-center gap-1.5 rounded-lg border ps-3 pe-2.5 text-[13px] font-medium transition-colors duration-fast " +
+          "group inline-flex h-9 max-w-[250px] items-center gap-1.5 rounded-[10px] border ps-2.5 pe-2 text-[13px] font-medium " +
+          "transition-[background-color,border-color,box-shadow,color] duration-fast " +
+          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand " +
           (count > 0
             ? "border-brand bg-brand-bg text-brand-hover"
-            : "border-oms-border bg-oms-surface text-oms-ink-2 hover:border-oms-border-strong hover:text-oms-ink-1")
+            : open
+              ? // The open menu's owner. Without this the panel appears to
+                // belong to no particular control on a bar of seven.
+                "border-oms-border-strong bg-oms-surface text-oms-ink-1 shadow-hover-row"
+              : "border-oms-border bg-oms-surface text-oms-ink-2 hover:border-oms-border-strong hover:text-oms-ink-1 hover:shadow-hover-row")
         }
       >
+        {icon && (
+          <span
+            className={
+              "flex-none transition-colors duration-fast " +
+              (count > 0 ? "text-brand" : "text-oms-ink-3 group-hover:text-oms-ink-2")
+            }
+          >
+            {icon}
+          </span>
+        )}
         <span className="flex-none">{label}</span>
         {value ? (
           <>
@@ -541,59 +630,146 @@ function Facet({
             </span>
           )
         )}
-        <ChevronDown size={12} strokeWidth={2} aria-hidden className="flex-none" />
+        <ChevronDown
+          size={12}
+          strokeWidth={2}
+          aria-hidden
+          className={
+            "flex-none transition-transform duration-fast " +
+            (open ? "rotate-180" : "opacity-55 group-hover:opacity-100")
+          }
+        />
       </button>
 
       {open && (
         <div
           role="listbox"
           aria-label={label}
-          className="absolute start-0 top-[calc(100%+6px)] z-30 w-[248px] overflow-hidden rounded-card border border-oms-border bg-oms-surface shadow-floating"
+          className={
+            "absolute start-0 top-[calc(100%+7px)] z-30 origin-top overflow-hidden rounded-[14px] " +
+            "border border-oms-border bg-oms-surface shadow-floating " +
+            "animate-[menuDrop_140ms_cubic-bezier(0.16,1,0.3,1)] " +
+            (width ?? "w-[252px]")
+          }
         >
-          <div className="border-b border-oms-border bg-oms-sunken px-3 py-2">
-            <div className="text-[12px] font-semibold text-oms-ink-1">{label}</div>
-            {/* The rule is stated, not guessed. */}
-            <div className="text-[11px] text-oms-ink-3">{logic}</div>
-          </div>
-          {searchable && (
-            <div className="px-2 pt-2">
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder={tf("search")}
-                className="h-[30px] w-full rounded-md border border-oms-border bg-oms-sunken px-2 text-[12.5px] outline-none focus:border-brand focus:bg-oms-surface"
-              />
+          <div className="flex items-start gap-2 border-b border-oms-border bg-oms-sunken px-3 py-2">
+            <div className="min-w-0 flex-1">
+              <div className="text-[12px] font-semibold text-oms-ink-1">{label}</div>
+              {/* The rule is stated, not guessed. */}
+              <div className="text-[11px] text-oms-ink-3">{logic}</div>
             </div>
-          )}
-          <div className="max-h-[260px] overflow-y-auto p-1.5">
-            {loading && options.length === 0 ? (
-              // Three bars, not the word "Aucun résultat" — an empty menu while
-              // the fetch is still in flight reads as "this market has no
-              // products", which is a different and wrong answer.
-              <div aria-busy="true" className="flex flex-col gap-1.5 p-1.5">
-                {[0, 1, 2].map((i) => (
-                  <span key={i} className="h-6 rounded-md bg-oms-sunken" />
-                ))}
-              </div>
-            ) : visible.length === 0 ? (
-              <p className="px-2 py-3 text-[12.5px] text-oms-ink-3">{tf("none")}</p>
-            ) : (
-              visible.map((o) => (
-                <Option
-                  key={o.value}
-                  selected={o.selected}
-                  onSelect={() => onSelect(o.value)}
-                  label={o.label}
-                  icon={o.icon}
-                  count={o.count}
-                />
-              ))
+            {/* Undo where it was done. Hunting for the right chip in a row that
+                can hold ten of them is the alternative. */}
+            {onClear && (
+              <button
+                type="button"
+                onClick={onClear}
+                className="flex-none rounded-md px-1.5 py-1 text-[11.5px] font-semibold text-oms-ink-3 transition-colors duration-fast hover:bg-oms-surface hover:text-oms-age-late"
+              >
+                {tf("clear")}
+              </button>
             )}
           </div>
-          {footer}
+
+          {body ?? (
+            <>
+              {searchable && (
+                <div className="px-2 pt-2">
+                  <input
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder={tf("search")}
+                    className="h-[30px] w-full rounded-lg border border-oms-border bg-oms-sunken px-2.5 text-[12.5px] outline-none transition-colors duration-fast focus:border-brand focus:bg-oms-surface"
+                  />
+                </div>
+              )}
+              <div className="max-h-[264px] overflow-y-auto p-1.5">
+                {loading && options.length === 0 ? (
+                  // Three bars, not the word "Aucun résultat" — an empty menu while
+                  // the fetch is still in flight reads as "this market has no
+                  // products", which is a different and wrong answer.
+                  <div aria-busy="true" className="flex flex-col gap-1.5 p-1.5">
+                    {[0, 1, 2].map((i) => (
+                      <span key={i} className="h-6 animate-pulse rounded-md bg-oms-sunken" />
+                    ))}
+                  </div>
+                ) : visible.length === 0 ? (
+                  <p className="px-2 py-3 text-[12.5px] text-oms-ink-3">{tf("none")}</p>
+                ) : (
+                  visible.map((o) => (
+                    <Option
+                      key={o.value}
+                      selected={o.selected}
+                      onSelect={() => onSelect?.(o.value)}
+                      label={o.label}
+                      icon={o.icon}
+                      count={o.count}
+                    />
+                  ))
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * The date facet's body: four periods, then a range.
+ *
+ * The generic option list rendered the presets as checkboxes under a caption
+ * reading "une seule période" — an affordance promising exactly what the rule
+ * above it forbids. They are radios now, laid out two-up so the four fit
+ * without scrolling and read as one closed set of choices.
+ */
+function DatePanel({
+  presets,
+  onPreset,
+  from,
+  to,
+  onApply,
+}: {
+  presets: { value: string; label: string; selected: boolean }[];
+  onPreset: (value: string) => void;
+  from: string | null;
+  to: string | null;
+  onApply: (from: string | null, to: string | null) => void;
+}) {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-1.5 p-2">
+        {presets.map((p) => (
+          <button
+            key={p.value}
+            type="button"
+            role="option"
+            aria-selected={p.selected}
+            onClick={() => onPreset(p.value)}
+            className={
+              "flex items-center gap-2 rounded-[9px] border px-2 py-[7px] text-start text-[12.5px] " +
+              "transition-[background-color,border-color,color] duration-fast " +
+              (p.selected
+                ? "border-brand bg-brand-bg font-semibold text-brand-hover"
+                : "border-oms-border bg-oms-surface text-oms-ink-2 hover:border-oms-border-strong hover:bg-oms-sunken hover:text-oms-ink-1")
+            }
+          >
+            <span
+              aria-hidden
+              className={
+                "grid h-[13px] w-[13px] shrink-0 place-items-center rounded-full border transition-colors duration-fast " +
+                (p.selected ? "border-brand" : "border-oms-border-strong")
+              }
+            >
+              {p.selected && <i className="block h-[6px] w-[6px] rounded-full bg-brand" />}
+            </span>
+            <span className="min-w-0 truncate">{p.label}</span>
+          </button>
+        ))}
+      </div>
+      <DateRangeFields from={from} to={to} onApply={onApply} />
+    </>
   );
 }
 
@@ -616,9 +792,35 @@ function DateRangeFields({
   onApply: (from: string | null, to: string | null) => void;
 }) {
   const tf = useTranslations("orders.facets");
+  const locale = useLocale();
   const [draftFrom, setDraftFrom] = useState(from ?? "");
   const [draftTo, setDraftTo] = useState(to ?? "");
   const [error, setError] = useState(false);
+
+  const df = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale === "ar" ? "ar" : "fr-FR", {
+        day: "2-digit",
+        month: "short",
+      }),
+    [locale],
+  );
+
+  /**
+   * What the drafted range actually covers, before it is applied.
+   *
+   * Two ISO dates do not state their own length, and the length is the thing
+   * being decided — "01/08 → 12/08" is read as a fortnight about as often as
+   * the twelve days it is. Renders only for a complete, forward range; a
+   * half-typed bound has no span to report.
+   */
+  const span = useMemo(() => {
+    if (!draftFrom || !draftTo || draftFrom > draftTo) return null;
+    const day = (iso: string) => new Date(`${iso}T00:00:00`);
+    const days = Math.round((day(draftTo).getTime() - day(draftFrom).getTime()) / 86_400_000) + 1;
+    if (!Number.isFinite(days)) return null;
+    return { days, from: df.format(day(draftFrom)), to: df.format(day(draftTo)) };
+  }, [draftFrom, draftTo, df]);
 
   // Re-seed whenever the applied range changes underneath — clearing the date
   // chip must empty these too, or reopening the menu offers a range that is no
@@ -643,14 +845,18 @@ function DateRangeFields({
   };
 
   const field =
-    "h-[30px] w-full rounded-md border border-oms-border bg-oms-sunken px-2 text-[12.5px] tabular-nums text-oms-ink-1 outline-none focus:border-brand focus:bg-oms-surface";
+    "h-[32px] w-full rounded-lg border bg-oms-surface px-2 text-[12.5px] tabular-nums text-oms-ink-1 outline-none transition-colors duration-fast focus:border-brand " +
+    (error ? "border-hue-red-edge" : "border-oms-border");
 
   return (
     <div className="border-t border-oms-border bg-oms-sunken px-3 py-2.5">
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-oms-ink-3">
-        {tf("custom")}
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-[10.5px] font-semibold uppercase tracking-[0.07em] text-oms-ink-3">
+          {tf("custom")}
+        </span>
+        <span aria-hidden className="h-px flex-1 bg-oms-border" />
       </div>
-      <div className="flex items-end gap-2">
+      <div className="flex items-end gap-1.5">
         <label className="min-w-0 flex-1">
           <span className="mb-1 block text-[11px] text-oms-ink-2">{tf("dateFrom")}</span>
           <input
@@ -662,6 +868,12 @@ function DateRangeFields({
             className={field}
           />
         </label>
+        <ArrowRight
+          size={12}
+          strokeWidth={2}
+          aria-hidden
+          className="mb-[10px] flex-none text-oms-ink-3 rtl:rotate-180"
+        />
         <label className="min-w-0 flex-1">
           <span className="mb-1 block text-[11px] text-oms-ink-2">{tf("dateTo")}</span>
           <input
@@ -674,6 +886,24 @@ function DateRangeFields({
           />
         </label>
       </div>
+      {span && (
+        <p className="mt-2 flex items-center gap-1.5 rounded-lg bg-oms-surface px-2 py-1.5 text-[11.5px] text-oms-ink-2">
+          <CalendarDays size={12} strokeWidth={1.9} aria-hidden className="flex-none text-oms-ink-3" />
+          <span className="tabular-nums">
+            {span.from}
+            <span aria-hidden className="px-1 opacity-40">
+              –
+            </span>
+            {span.to}
+          </span>
+          <span aria-hidden className="opacity-30">
+            ·
+          </span>
+          <span className="font-semibold tabular-nums text-oms-ink-1">
+            {tf("rangeDays", { days: span.days })}
+          </span>
+        </p>
+      )}
       {error && (
         <p role="alert" className="mt-1.5 text-[11px] text-hue-red-ink">
           {tf("invalidRange")}
@@ -683,7 +913,7 @@ function DateRangeFields({
         type="button"
         onClick={submit}
         disabled={!draftFrom && !draftTo}
-        className="mt-2 h-[30px] w-full rounded-md bg-brand text-[12.5px] font-semibold text-white transition-colors duration-fast hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-oms-border-strong"
+        className="mt-2 h-[32px] w-full rounded-lg bg-brand text-[12.5px] font-semibold text-white transition-colors duration-fast hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-oms-border-strong"
       >
         {tf("apply")}
       </button>
@@ -715,12 +945,18 @@ function Option({
       role="option"
       aria-selected={selected}
       onClick={onSelect}
-      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-[13px] text-oms-ink-1 transition-colors duration-fast hover:bg-oms-sunken"
+      className={
+        "flex w-full items-center gap-2 rounded-lg px-2 py-[7px] text-start text-[13px] " +
+        "transition-colors duration-fast " +
+        (selected
+          ? "bg-brand-bg font-medium text-oms-ink-1"
+          : "text-oms-ink-1 hover:bg-oms-sunken")
+      }
     >
       <span
         aria-hidden
         className={
-          "grid h-[14px] w-[14px] shrink-0 place-items-center rounded-[3px] border " +
+          "grid h-[14px] w-[14px] shrink-0 place-items-center rounded-[4px] border transition-colors duration-fast " +
           (selected ? "border-brand bg-brand" : "border-oms-border-strong")
         }
       >

@@ -12,7 +12,7 @@ const COUNTS: StatusCounts = {
   uploaded: 452,
   rejected: 731,
   delivered: 96,
-  today: 181,
+  periodTotal: 181,
   window: { from: null, to: null },
   confirmationRate: 63.5,
   confirmationRatePrev: 57.6,
@@ -47,7 +47,7 @@ describe("OrdersKpiStrip", () => {
   test("renders every funnel stage with its count", () => {
     renderStrip();
     for (const [label, count] of [
-      ["Aujourd'hui", "181"],
+      ["Total commandes", "181"],
       ["Téléchargées", "452"],
       ["Rejetées", "731"],
       ["Livrées", "96"],
@@ -68,10 +68,10 @@ describe("OrdersKpiStrip", () => {
     const order = screen
       .getAllByRole("button")
       .map((b) => b.getAttribute("aria-label") ?? "")
-      .filter((l) => /^(Aujourd'hui|Téléchargées|Rejetées|Livrées|À rappeler)/i.test(l))
+      .filter((l) => /^(Total commandes|Téléchargées|Rejetées|Livrées|À rappeler)/i.test(l))
       .map((l) => l.split(":")[0]);
     expect(order).toEqual([
-      "Aujourd'hui",
+      "Total commandes",
       "Téléchargées",
       "Rejetées",
       "Livrées",
@@ -84,7 +84,9 @@ describe("OrdersKpiStrip", () => {
     // A backlog and a period count must never be confused for one another.
     // A backlog tile must say "maintenant"; a period tile names its window.
     expect(screen.getByRole("button", { name: /^À rappeler/i })).toHaveTextContent(/maintenant/i);
-    expect(screen.getByRole("button", { name: /^Aujourd'hui/i })).toHaveTextContent(/aujourd'hui/i);
+    expect(screen.getByRole("button", { name: /^Total commandes/i })).toHaveTextContent(
+      /aujourd'hui/i,
+    );
     // Outcome tiles default to today, so they must not claim to be standing totals.
     for (const label of ["Téléchargées", "Rejetées", "Livrées"] as const) {
       const tile = screen.getByRole("button", { name: new RegExp("^" + label, "i") });
@@ -100,6 +102,30 @@ describe("OrdersKpiStrip", () => {
     expect(rejected).toHaveTextContent(/12/);
     // The backlog ignores the window entirely — it has no date.
     expect(screen.getByRole("button", { name: /^À rappeler/i })).toHaveTextContent(/maintenant/i);
+  });
+
+  test("the intake tile moves with the period like the rest of the row", async () => {
+    // It was a fixed "Aujourd'hui" tile. Selecting "30 derniers jours" shifted
+    // every other tile and left this one reporting the current day, so the row
+    // described two periods at once and its number looked simply wrong.
+    renderStrip({
+      counts: { ...COUNTS, periodTotal: 935, window: { from: "2026-08-01", to: "2026-08-12" } },
+    });
+
+    const tile = screen.getByRole("button", { name: /^Total commandes/i });
+    expect(within(tile).getByText("935")).toBeInTheDocument();
+    expect(tile).toHaveTextContent(/01/);
+    expect(tile).toHaveTextContent(/12/);
+    expect(tile).not.toHaveTextContent(/maintenant/i);
+  });
+
+  test("the intake tile opens the window it counts", async () => {
+    const user = userEvent.setup();
+    const { onSelect } = renderStrip();
+
+    await user.click(screen.getByRole("button", { name: /^Total commandes/i }));
+
+    expect(onSelect).toHaveBeenCalledWith("periodTotal");
   });
 
   test("selecting a tile reports the filter it stands for", async () => {

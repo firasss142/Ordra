@@ -26,27 +26,27 @@ import type { StatusCounts } from "@/app/api/orders/status-counts/route";
 
 export type KpiTile =
   | "unassigned"
-  | "today"
+  | "periodTotal"
   | "uploaded"
   | "rejected"
   | "delivered"
   | "toRecall";
 
 interface StageDef {
-  key: Extract<KpiTile, "today" | "uploaded" | "rejected" | "delivered" | "toRecall">;
+  key: Extract<KpiTile, "periodTotal" | "uploaded" | "rejected" | "delivered" | "toRecall">;
   count: (c: StatusCounts) => number;
   /**
    * `window` — counted over the active date range (today by default), and it
-   * moves when the range does. `today` — always the current day. `now` — a
-   * standing backlog with no date at all. Labelled on every tile, because a
-   * daily tally and a backlog are not the same kind of number.
+   * moves when the range does. `now` — a standing backlog with no date at all.
+   * Labelled on every tile, because a period tally and a backlog are not the
+   * same kind of number.
    */
-  period: "now" | "today" | "window";
+  period: "now" | "window";
   /**
    * The status this tile counts. Hue and icon come from the shared presentation
    * map (§4.19), so a tile and the rows it opens cannot disagree about what
-   * colour a state is. `today` has no status — it is a period, not a state — so
-   * it carries a calendar in the neutral hue.
+   * colour a state is. `periodTotal` has no status — it is every order in the
+   * period — so it carries a calendar in the neutral hue.
    */
   status: string | null;
 }
@@ -55,9 +55,14 @@ interface StageDef {
  * Intake, then the three outcomes it resolves into, then the queue still owed
  * a call. `waiting` (plain `pending`) used to sit second; it was replaced by
  * `delivered` so the row ends on the outcome the business is actually paid for.
+ *
+ * The leading tile was pinned to the current day while its four neighbours
+ * followed the date range. It now counts the same window they do, so the row
+ * reads as one period and the intake figure is the denominator the outcomes
+ * are actually a share of.
  */
 const STAGES: StageDef[] = [
-  { key: "today", count: (c) => c.today, period: "today", status: null },
+  { key: "periodTotal", count: (c) => c.periodTotal, period: "window", status: null },
   { key: "uploaded", count: (c) => c.uploaded, period: "window", status: "uploaded" },
   { key: "rejected", count: (c) => c.rejected, period: "window", status: "rejected" },
   { key: "delivered", count: (c) => c.delivered, period: "window", status: "delivered" },
@@ -110,7 +115,7 @@ export function OrdersKpiStrip({ counts, activeTile, onSelect, isLoading }: Prop
   }, [counts?.window, df, t]);
 
   const periodLabel = (period: StageDef["period"]) =>
-    period === "now" ? t("periodNow") : period === "today" ? t("periodToday") : windowLabel;
+    period === "now" ? t("periodNow") : windowLabel;
 
   /**
    * Bars compare only within one period.

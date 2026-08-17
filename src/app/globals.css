@@ -656,6 +656,20 @@
   }
 }
 
+/* Filter menu entrance — drops out of the control it hangs off, rather than
+   appearing fully formed. 140ms, so it reads as "this belongs to that button"
+   without ever making the user wait for it. */
+@keyframes menuDrop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* Scan-first focus card pop entrance */
 @keyframes scanPop {
   0% {
