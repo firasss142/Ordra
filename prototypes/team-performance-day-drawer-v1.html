@@ -1,0 +1,1055 @@
+<title>Journée de tasnim</title>
+<style>
+  :root{
+    --bg:#F6F6F7; --surface:#FFFFFF; --sunken:#FAFAFB;
+    --line:#E1E3E5; --line-subtle:#ECEEF0;
+    --ink-1:#1A1A1A; --ink-2:#6D7175; --ink-3:#9CA3AF;
+
+    --brand:#15803D; --brand-bg:#E9F6EE;
+    --success:#008060; --success-bg:#F1F8F5;
+    --warning:#B98900; --warning-bg:#FFF8E6;
+    --critical:#D72C0D; --critical-bg:#FFF4F4;
+    --neutral:#6D7175; --neutral-bg:#F6F6F7;
+
+    --sidebar:#0E1013;
+    --r-sm:6px; --r-card:8px; --r-pill:9999px;
+    --e-panel:0 4px 16px rgba(16,24,40,.08);
+    --e-row:0 1px 2px rgba(16,24,40,.04);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg)}
+  body{
+    color:var(--ink-1); font-size:14px; line-height:1.45;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  [dir=auto]{unicode-bidi:plaintext}
+  .tnum{font-variant-numeric:tabular-nums}
+  button{font:inherit;color:inherit;cursor:pointer;background:none;border:0}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+  h1,h2,h3,p{margin:0}
+
+  /* ── prototype chrome (not part of the real app) ── */
+  .pbar{
+    position:sticky;top:0;z-index:80;background:var(--sidebar);color:#E6E8EB;
+    padding:14px 28px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  }
+  .pbar .tag{font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#7F858F}
+  .pbar h1{font-size:14px;font-weight:600;color:#fff}
+  .pbar .src{font-size:11.5px;color:#8B9198;tabular-nums:none}
+  .pbar .src b{color:#B7D9C4;font-weight:600}
+  .tabs{display:flex;gap:6px;margin-inline-start:auto}
+  .tabs button{
+    height:32px;padding:0 14px;border-radius:8px;font-size:12.5px;font-weight:600;
+    border:1px solid rgba(255,255,255,.14);color:#B5BAC2;transition:background-color .12s,color .12s;
+  }
+  .tabs button:hover{background:rgba(255,255,255,.08);color:#fff}
+  .tabs button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 24px 100px}
+  .lede{max-width:760px;margin:0 0 22px}
+  .lede h2{font-size:17px;font-weight:600;margin-bottom:6px}
+  .lede p{font-size:13.5px;color:var(--ink-2);line-height:1.6}
+  .lede .bug{color:var(--critical);font-weight:600}
+  .lede .fix{color:var(--brand);font-weight:600}
+
+  .card{background:var(--surface);border:1px solid var(--line-subtle);border-radius:var(--r-card);padding:18px 18px 16px;max-width:820px}
+  .card h3{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2);margin-bottom:2px}
+  .card .hint{font-size:11.5px;color:var(--ink-3);margin-bottom:12px}
+  .tablewrap{overflow-x:auto}
+
+  /* ── Présence heatmap — mirrors PresenceHeatmap.tsx exactly ── */
+  table.pres{border-collapse:separate;border-spacing:5px 6px;margin:2px}
+  table.pres th{padding:0 2px 4px;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2);text-align:center}
+  table.pres th.agent-h{text-align:start}
+  table.pres th span{display:block;line-height:1.25}
+  .name-cell{white-space:nowrap;padding-inline-end:10px}
+  .name-cell .row{display:flex;align-items:center;gap:9px}
+  .avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:600;font-size:12.5px;flex:none}
+  .name-cell b{font-size:13.5px;font-weight:600}
+  td.daycell{padding:0}
+  .cell{width:52px;height:28px;border-radius:8px;cursor:pointer;border:0;transition:transform .1s,box-shadow .1s}
+  .cell:hover{box-shadow:0 0 0 2px var(--brand) inset;transform:scale(1.03)}
+  .total-cell{white-space:nowrap;padding-inline-start:10px;font-size:13px}
+  .total-cell.zero{color:var(--critical);font-weight:600}
+  tr.agent-row:hover .name-cell b{text-decoration:underline}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;padding:12px 4px 2px;font-size:12px;color:var(--ink-2)}
+  .legend i{display:inline-block;width:16px;height:12px;border-radius:3px;vertical-align:middle;margin-inline-end:6px}
+
+  .callout{margin-top:14px;max-width:820px;border-radius:var(--r-card);padding:12px 14px;font-size:12.5px;line-height:1.55;display:flex;gap:10px}
+  .callout.bad{background:var(--critical-bg);color:#7A2A24;border:1px solid #F0C9C4}
+  .callout.good{background:var(--brand-bg);color:#0F5C2C;border:1px solid #BFE5CE}
+  .callout b{font-weight:700}
+
+  .whole-row-note{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:11.5px;color:var(--ink-3)}
+
+  /* ── drawer / sheet ── */
+  .backdrop{position:fixed;inset:0;background:rgba(26,26,26,.5);opacity:0;pointer-events:none;transition:opacity .15s ease;z-index:200}
+  .backdrop.show{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;inset-inline-end:0;height:100vh;width:600px;max-width:94vw;background:var(--surface);
+    box-shadow:var(--e-panel);transform:translateX(102%);transition:transform .2s ease;z-index:201;
+    display:flex;flex-direction:column}
+  [dir=rtl] .drawer{transform:translateX(-102%)}
+  .drawer.show{transform:translateX(0)}
+  .drawer.narrow{width:400px}
+  .dr-head{height:56px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 16px;border-bottom:1px solid var(--line-subtle)}
+  .dr-head .who{display:flex;align-items:center;gap:10px}
+  .dr-head .nm{font-size:15px;font-weight:600}
+  .dr-head .dt{font-size:11.5px;color:var(--ink-2)}
+  .dr-close{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--ink-2)}
+  .dr-close:hover{background:var(--sunken);color:var(--ink-1)}
+  .dr-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+
+  .sec{border:1px solid var(--line-subtle);border-radius:var(--r-card);padding:14px}
+  .sec.sunken{background:var(--sunken)}
+  .sec-label{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-3);margin-bottom:10px}
+  .sec-label svg{flex:none}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .stat-grid.n4{grid-template-columns:repeat(4,1fr)}
+  .stat{background:var(--sunken);border-radius:6px;padding:8px 4px;text-align:center}
+  .sec:not(.sunken) .stat{background:var(--sunken)}
+  .stat .v{font-size:17px;font-weight:700}
+  .stat .l{font-size:10px;color:var(--ink-2);margin-top:1px;line-height:1.3}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+  .chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:var(--r-pill);font-size:11.5px;font-weight:600;border:1px solid transparent}
+  .chip.ok{background:var(--success-bg);color:var(--success)}
+  .chip.bad{background:var(--critical-bg);color:var(--critical)}
+  .chip.mut{background:var(--neutral-bg);color:var(--ink-2);font-weight:500}
+
+  /* ── KPI slider cards (Volume / Qualité / Écart / Activité) ── */
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+  .kpi-card{border:1px solid var(--line-subtle);border-radius:8px;padding:11px 12px}
+  .kpi-label{font-size:11px;color:var(--ink-2);font-weight:500;margin-bottom:9px}
+  .kpi-track{position:relative;height:4px;border-radius:2px;background:var(--line-subtle);margin-bottom:9px}
+  .kpi-fill{position:absolute;top:0;bottom:0;inset-inline-start:0;border-radius:2px;background:var(--success)}
+  .kpi-fill.bad{background:var(--critical)}
+  .kpi-dot{position:absolute;top:50%;width:9px;height:9px;border-radius:50%;background:var(--surface);border:2px solid var(--success);transform:translate(-50%,-50%)}
+  .kpi-dot.bad{border-color:var(--critical)}
+  .kpi-target{position:absolute;top:-3px;width:2px;height:10px;background:var(--ink-3);border-radius:1px}
+  .kpi-value{font-size:19px;font-weight:800;letter-spacing:-.01em;tabular-nums:1;white-space:nowrap}
+  .kpi-cible{font-size:11px;color:var(--ink-3);margin-top:1px}
+  .kpi-plain{display:flex;flex-direction:column;justify-content:center;height:100%}
+  .kpi-plain svg{color:var(--ink-3);margin-bottom:8px}
+
+  /* ── résumé hero: ONE judged number (confirmations/heure — the same metric
+     the team ranking is sorted by), a target+trend comparison, then the 4
+     KPI cards below it. Replaces the old stat-grid+kpi-grid pair, which
+     silently repeated two of its own numbers (Traitées≡Volume, Taux≡Qualité)
+     in two different visual grammars and left Appels/Touchées/Activité with
+     no judgment at all. ── */
+  .hero-row{display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap}
+  .hero-main{flex:1;min-width:150px}
+  .hero-label{font-size:11px;color:var(--ink-2);font-weight:500;margin-bottom:2px}
+  .hero-value{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.05;tabular-nums:1}
+  .hero-value .unit{font-size:16px;font-weight:600;color:var(--ink-2);margin-inline-start:2px}
+  .hero-sub{font-size:12.5px;color:var(--ink-2);margin-top:3px}
+  .hero-compare{display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:150px}
+  .hero-delta{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px;border-radius:var(--r-pill);font-size:12.5px;font-weight:700}
+  .hero-delta.ok{background:var(--success-bg);color:var(--success)}
+  .hero-delta.bad{background:var(--critical-bg);color:var(--critical)}
+  .hero-delta span{font-weight:500;color:inherit;opacity:.8}
+  .hero-spark{width:150px;height:28px;display:block}
+  .hero-spark-label{font-size:10.5px;color:var(--ink-3)}
+  .context-strip{font-size:12px;color:var(--ink-2);padding-top:11px;margin-top:11px;border-top:1px solid var(--line-subtle)}
+  .context-strip b{color:var(--ink-1);font-weight:600}
+
+  /* ── cadence + streak KPI cards: same card shell as Volume/Qualité, but a
+     tier badge instead of a target-slider — a callback gap of 200 min vs
+     2827 min doesn't read on a linear track the way a bounded rate does. ── */
+  .kpi-tier{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:var(--r-pill);font-size:10.5px;font-weight:700;margin-bottom:8px}
+  .kpi-tier.ok{background:var(--success-bg);color:var(--success)}
+  .kpi-tier.late{background:var(--warning-bg);color:var(--warning)}
+  .kpi-tier.abandoned{background:var(--critical-bg);color:var(--critical)}
+  .kpi-streak{display:flex;align-items:center;gap:3px;margin-bottom:9px;color:var(--ink-3)}
+  .kpi-streak.active{color:var(--warning)}
+
+  /* ── end-of-day queue: what tasnim left behind, by attempts REMAINING ── */
+  .q-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .q-head .n{font-size:24px;font-weight:800;letter-spacing:-.015em}
+  .q-head .lbl{font-size:12.5px;color:var(--ink-2);margin-inline-start:6px}
+  .q-head .of{font-size:11.5px;color:var(--ink-3)}
+  /* Two encodings, no overlap: X position = tentatives restantes (urgency),
+     segment fill = real end-of-day STATUS. The danger zone is a background
+     band rather than a second use of colour, so red never competes with the
+     status ramp. */
+  .q-legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px}
+  .q-legend span{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-2)}
+  .q-legend i{width:9px;height:9px;border-radius:2px;flex:none}
+
+  .q-chart{position:relative;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;height:104px;align-items:end;
+           padding-bottom:1px;border-bottom:1px solid var(--line)}
+  .q-zone{position:absolute;top:0;bottom:0;border-radius:5px 5px 0 0;pointer-events:none}
+  .q-zone.crit{background:color-mix(in srgb,var(--critical) 7%,transparent)}
+  .q-zone.warn{background:color-mix(in srgb,var(--warning) 7%,transparent)}
+  .q-col{position:relative;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;min-width:0;height:100%}
+  .q-col .cnt{font-size:12px;font-weight:800;line-height:1;color:var(--ink-1)}
+  .q-stack{width:100%;display:flex;flex-direction:column-reverse;border-radius:3px;overflow:hidden}
+  .q-stack i{display:block;width:100%}
+  .q-stack i + i{border-top:1.5px solid var(--surface)}
+  .q-empty{width:100%;height:3px;border-radius:2px;background:var(--line-subtle)}
+
+  .q-axis{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:5px}
+  .q-axis div{text-align:center;font-size:11px;font-weight:600;color:var(--ink-2);min-width:0}
+  .q-axis div.dim{color:var(--ink-3);font-weight:400}
+  .q-zones{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:5px}
+  .q-zones span{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;text-align:center;
+                padding-top:5px;border-top:2px solid currentColor;min-width:0}
+  .q-zones .z-crit{grid-column:span 1;color:var(--critical)}
+  .q-zones .z-warn{grid-column:span 2;color:var(--warning)}
+  .q-zones .z-ok{grid-column:span 5;color:var(--ink-3);border-top-color:var(--line)}
+  .q-axis-cap{font-size:11px;color:var(--ink-3);text-align:center;margin-top:9px}
+  .q-tiers{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+  .q-tier{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:var(--r-pill);font-size:12px;font-weight:600}
+  .q-tier .dot{width:7px;height:7px;border-radius:50%;flex:none}
+  .q-tier.crit{background:var(--critical-bg);color:var(--critical)}
+  .q-tier.crit .dot{background:var(--critical)}
+  .q-tier.warn{background:var(--warning-bg);color:var(--warning)}
+  .q-tier.warn .dot{background:var(--warning)}
+  .q-tier.ok{background:var(--neutral-bg);color:var(--ink-2)}
+  .q-tier.ok .dot{background:var(--ink-3)}
+
+  /* stuck confirmations — phone work done, never pushed to the carrier */
+  .stuck-row{display:flex;align-items:center;gap:11px;padding:11px 12px;margin-top:12px;border-radius:8px;background:var(--warning-bg);border:1px solid color-mix(in srgb,var(--warning) 28%,transparent)}
+  .stuck-row .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--surface);color:var(--warning);flex:none}
+  .stuck-row .tx{flex:1;min-width:0}
+  .stuck-row .tx .h{font-size:13px;font-weight:700;color:var(--warning)}
+  .stuck-row .tx .s{font-size:11.5px;color:var(--ink-2);line-height:1.45;margin-top:1px}
+  .stuck-row .btn{flex:none;height:30px;padding:0 12px;border-radius:7px;font-size:12px;font-weight:600;border:1px solid var(--warning);color:var(--warning);background:var(--surface);display:inline-flex;align-items:center;gap:5px}
+  .stuck-none{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:var(--success)}
+  .stuck-tag{display:inline-flex;align-items:center;gap:3px;height:16px;padding:0 5px;border-radius:4px;background:var(--warning-bg);color:var(--warning);font-size:10px;font-weight:700;margin-inline-start:5px;vertical-align:middle}
+  .q-foot{font-size:11.5px;color:var(--ink-3);margin-top:11px;padding-top:10px;border-top:1px solid var(--line-subtle);line-height:1.5}
+
+  /* ── mini rate bar + insufficient-volume tag, per-product table ── */
+  .rate-cell{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+  .rate-bar{width:56px;height:4px;border-radius:2px;background:var(--line-subtle);overflow:hidden}
+  .rate-bar i{display:block;height:100%;background:var(--success)}
+  .rate-bar.warn i{background:var(--warning)}
+  .n-tag{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:4px;background:var(--neutral-bg);color:var(--ink-3);font-size:9px;font-weight:700;margin-inline-start:5px}
+
+  /* ── key takeaways: aggregate insight + a fix, not a data dump ── */
+  .kt-row{display:flex;align-items:center;gap:11px;padding:11px 0;border-top:1px solid var(--line-subtle)}
+  .kt-row:first-child{border-top:0}
+  .kt-icon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;flex:none}
+  .kt-icon.ok{background:var(--success-bg);color:var(--success)}
+  .kt-icon.warn{background:var(--warning-bg);color:var(--warning)}
+  .kt-icon.bad{background:var(--critical-bg);color:var(--critical)}
+  .kt-text{flex:1;min-width:0}
+  .kt-text .h{font-size:12.5px;font-weight:600;color:var(--ink-1)}
+  .kt-text .h b{tabular-nums:1}
+  .kt-btn{flex:none;height:30px;padding:0 12px;border-radius:7px;font-size:12px;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--ink-1);display:inline-flex;align-items:center;gap:5px}
+  .kt-btn:hover{background:var(--sunken)}
+  .kt-btn.accent{border-color:var(--success);color:var(--success)}
+  .kt-btn.accent2{border-color:var(--warning);color:var(--warning)}
+  .kt-detail{margin-top:2px;padding-top:10px}
+  .kt-hint{font-size:11px;color:var(--ink-3);margin-top:2px}
+
+  table.prod{width:100%;border-collapse:collapse}
+  table.prod th{text-align:end;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:var(--ink-3);padding:0 0 6px}
+  table.prod th:first-child{text-align:start}
+  table.prod td{padding:7px 0;font-size:13px;border-top:1px solid var(--line-subtle);text-align:end}
+  table.prod td:first-child{text-align:start}
+  table.prod tr:first-child td{border-top:0}
+  .rate-ok{color:var(--success);font-weight:600}
+  .rate-warn{color:var(--warning);font-weight:600}
+  .rate-mut{color:var(--ink-3)}
+
+  .hr-dots{display:flex;gap:2px;height:8px;margin-bottom:2px}
+  .hr-dot-slot{width:20px;flex:none;display:flex;justify-content:center}
+  .hr-dot{width:5px;height:5px;border-radius:50%;background:var(--warning)}
+  .hourstrip{display:flex;gap:2px;overflow-x:auto;padding-bottom:2px}
+  .hr-cell{width:20px;height:26px;border-radius:4px;flex:none}
+  .hr-ticks{display:flex;gap:2px;margin-top:4px}
+  .hr-tick{width:20px;flex:none;font-size:9px;color:var(--ink-3);text-align:center}
+  .hr-legend{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:11px;color:var(--ink-2)}
+  .hr-legend .ramp{display:flex;gap:1px}
+  .hr-legend .ramp i{width:10px;height:8px;border-radius:2px}
+  .hr-legend .sep{color:var(--ink-3)}
+  .hr-legend .due{display:flex;align-items:center;gap:5px;margin-inline-start:auto}
+
+  .rej-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--line-subtle);font-size:12.5px}
+  .rej-row:first-child{border-top:0}
+  .rej-row .nm{flex:1}
+  .rej-row .n{font-weight:600;tabular-nums:1}
+  .rej-row .bar{width:80px;height:5px;border-radius:3px;background:var(--line-subtle);overflow:hidden}
+  .rej-row .bar i{display:block;height:100%;background:var(--ink-3)}
+  .vague{color:var(--warning);font-weight:600;font-size:11px;margin-inline-start:6px}
+
+  .recon-bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--line-subtle)}
+  .recon-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;font-size:12px}
+  .recon-legend .li{display:flex;align-items:center;gap:6px;color:var(--ink-2)}
+  .recon-legend .sw{width:9px;height:9px;border-radius:2.5px;flex:none}
+  .recon-legend b{color:var(--ink-1);font-weight:600}
+  .recon-flag{margin-top:10px;font-size:12px;color:var(--warning);display:flex;gap:6px;align-items:flex-start}
+
+  .summary p{font-size:13px;line-height:1.6;color:var(--ink-1)}
+
+  /* ── insight cards (KPI-tile pattern, design-system §4.19) ── */
+  .insight-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+  .insight-card{display:flex;gap:11px;align-items:flex-start;padding:12px;border-radius:8px;border:1px solid var(--line-subtle);background:var(--surface)}
+  .insight-icon{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;flex:none}
+  .insight-icon.ok{background:var(--success-bg);color:var(--success)}
+  .insight-icon.warn{background:var(--warning-bg);color:var(--warning)}
+  .insight-icon.bad{background:var(--critical-bg);color:var(--critical)}
+  .insight-body .v{font-size:15px;font-weight:700;line-height:1.3}
+  .insight-body .d{font-size:11.5px;color:var(--ink-2);line-height:1.45;margin-top:2px}
+
+  /* ── cadence table ── */
+  .cad-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+  .cad-head .headline{display:flex;align-items:baseline;gap:7px}
+  .cad-head .rate{font-size:20px;font-weight:800;letter-spacing:-.01em}
+  .cad-head .rate.warn{color:var(--critical)}
+  .cad-head .rate-label{font-size:12px;color:var(--ink-2);font-weight:500}
+  .tier-split{display:flex;gap:6px;flex-wrap:wrap}
+  .tier-chip{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:var(--r-pill);font-size:11px;font-weight:600}
+  .tier-chip .dot{width:6px;height:6px;border-radius:50%;flex:none}
+  .tier-chip.abandoned{background:var(--critical-bg);color:var(--critical)}
+  .tier-chip.abandoned .dot{background:var(--critical)}
+  .tier-chip.late{background:var(--warning-bg);color:var(--warning)}
+  .tier-chip.late .dot{background:var(--warning)}
+
+  .status-badge{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;border-radius:var(--r-pill);font-size:11.5px;font-weight:600;white-space:nowrap;flex:none}
+  .status-badge.sm{height:18px;padding:0 7px;font-size:10.5px}
+  .status-badge .dot{width:6px;height:6px;border-radius:50%;flex:none}
+  .status-badge.open{background:var(--warning-bg);color:var(--warning)}
+  .status-badge.open .dot{background:var(--warning)}
+  .status-badge.rejected{background:var(--critical-bg);color:var(--critical)}
+  .status-badge.rejected .dot{background:var(--critical)}
+  .status-badge.ok{background:var(--success-bg);color:var(--success)}
+  .status-badge.ok .dot{background:var(--success)}
+  .status-badge.other{background:var(--neutral-bg);color:var(--ink-2)}
+  .status-badge.other .dot{background:var(--ink-3)}
+
+  /* ── cadence list — grouped by what needs a human, not one flat table ── */
+  .cad-group-label{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2);margin:16px 0 4px}
+  .cad-group-label:first-of-type{margin-top:2px}
+  .cad-group-label .n{font-size:12px;color:var(--ink-1);font-weight:800;text-transform:none;letter-spacing:0}
+  .sev-dot{width:7px;height:7px;border-radius:50%;flex:none}
+  .sev-dot.ok{background:var(--success)}
+  .sev-dot.late{background:var(--warning)}
+  .sev-dot.abandoned{background:var(--critical)}
+  .sev-dot.done{background:var(--ink-3)}
+
+  .prod-ava{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:11px;flex:none}
+
+  .cad-item{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line-subtle)}
+  .cad-group-label + div .cad-item:first-child{border-top:0}
+  .item-body{flex:1;min-width:0}
+  .item-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .item-name{font-size:12.5px;font-weight:600;color:var(--ink-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item-line{display:flex;align-items:baseline;gap:6px;font-size:12px;color:var(--ink-2);margin-top:3px}
+  .item-line b{font-weight:700}
+  .item-line.abandoned b{color:var(--critical)}
+  .item-line.late b{color:var(--warning)}
+  .item-line.ok b{color:var(--success)}
+  .item-cap{color:var(--ink-3)}
+
+  .cad-closed .prod-ava{width:22px;height:22px;font-size:9.5px;border-radius:6px;opacity:.75}
+  .cad-closed .item-name{font-size:12px;font-weight:500}
+  .cad-closed .item-line{font-size:11.5px}
+  .cad-closed .cad-item{padding:6px 0}
+
+  .cad-foot{margin-top:12px;padding-top:10px;border-top:1px solid var(--line-subtle);font-size:11.5px;color:var(--ink-3);line-height:1.6}
+
+  .note{font-size:12px;color:var(--ink-2);line-height:1.6}
+  .note .jump{display:inline-flex;align-items:center;gap:4px;margin-inline-end:8px;margin-top:8px;height:26px;padding:0 10px;border-radius:7px;background:var(--sunken);border:1px solid var(--line);font-weight:600;font-size:11.5px;color:var(--ink-1)}
+  .note .jump:hover{background:var(--brand-bg);border-color:var(--brand);color:var(--brand)}
+  .empty-state{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:30px 10px;color:var(--ink-3)}
+
+  [hidden]{display:none !important}
+  @media (max-width:720px){
+    .stat-grid,.stat-grid.n4{grid-template-columns:repeat(2,1fr)}
+    .drawer{width:100vw}
+  }
+</style>
+
+<div class="pbar">
+  <span class="tag">OMS · Team Performance</span>
+  <h1>Présence — maquette clic-jour</h1>
+  <span class="src">chiffres de production réels · agent <b>tasnim</b> · marché Libye (ly) · 3–16 août 2026 · projet Supabase <b>vshynigvgrlihngozuwb</b></span>
+  <div class="tabs">
+    <button id="tab-avant" class="on" onclick="setTab('avant')">Avant</button>
+    <button id="tab-apres" onclick="setTab('apres')">Après</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ============================= AVANT ============================= -->
+  <section id="panel-avant">
+    <div class="lede">
+      <h2>Ce qui se passe aujourd'hui</h2>
+      <p>Le clic est posé sur la ligne entière (<code>&lt;tr&gt;</code>), jamais sur la cellule du jour — donc peu importe quelle case vous cliquez, le panneau ouvert affiche toujours <b>« Aujourd'hui »</b> (en direct, 16 août) plus la <b>période</b> sélectionnée en haut de page (7 derniers jours). <span class="bug">Le jour réellement cliqué n'a aucun effet sur les chiffres affichés.</span></p>
+    </div>
+    <div class="card">
+      <h3>Présence</h3>
+      <div class="hint">heures actives par jour — cliquez n'importe quelle case</div>
+      <div class="tablewrap">
+        <table class="pres" id="pres-avant"></table>
+      </div>
+      <div class="legend" id="legend-avant"></div>
+      <div class="whole-row-note">⚠ toute la ligne est une seule cible cliquable — essayez plusieurs jours, regardez le panneau ne pas changer</div>
+    </div>
+  </section>
+
+  <!-- ============================= APRÈS ============================= -->
+  <section id="panel-apres" hidden>
+    <div class="lede">
+      <h2>Ce qui change</h2>
+      <p>Chaque case jour devient sa propre cible. Cliquer le <b class="fix">16</b> ou le <b class="fix">10</b> ouvre deux panneaux différents, avec les vrais chiffres de ces deux jours-là — appels, produits, heures d'activité, motifs de refus, et ce que sont devenues les commandes touchées ce jour-là. Cliquer le nom/avatar garde le comportement actuel (vue d'ensemble période).</p>
+    </div>
+    <div class="card">
+      <h3>Présence</h3>
+      <div class="hint">heures actives par jour — cliquez une case pour son détail, le nom pour la période</div>
+      <div class="tablewrap">
+        <table class="pres" id="pres-apres"></table>
+      </div>
+      <div class="legend" id="legend-apres"></div>
+      <div class="whole-row-note">✓ 11 et 14 août sont branchés en détail complet dans cette maquette pour prouver le concept — dans la vraie RPC, les 24 jours le seraient tous</div>
+    </div>
+  </section>
+
+</div>
+
+<div class="backdrop" id="backdrop" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer" role="dialog" aria-modal="true">
+  <div class="dr-head">
+    <div class="who">
+      <span class="avatar" id="dr-avatar">T</span>
+      <div>
+        <div class="nm" id="dr-name">tasnim</div>
+        <div class="dt" id="dr-date"></div>
+      </div>
+    </div>
+    <button class="dr-close" onclick="closeDrawer()" aria-label="Fermer">✕</button>
+  </div>
+  <div class="dr-body" id="dr-body"></div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   DONNÉES — production réelle, agent tasnim (0fe04d68…), marché Libye
+   Source : projet Supabase vshynigvgrlihngozuwb, requêtes en lecture
+   seule sur order_history/orders/users, 16 août 2026.
+   ══════════════════════════════════════════════════════════════════ */
+const RAMP = ["#F5EFE1","#E3F1EA","#A9D6BE","#5DB58E","#0F7A5C"];
+const AGENT_COLOR = "#DB6B4A"; // agentColor("tasnim") from src/lib/team/format.ts
+
+// per-day totals across the visible window (active_minutes, treated, confirmed)
+// [iso, active_minutes, treated, TÉLÉCHARGÉES]
+// The 4th value is uploaded-to-carrier, not confirmed. `confirmed` only means the
+// phone call went well — the order is still sitting in the agent's queue with an
+// "Upload" affordance until it is actually pushed to the carrier (CLAUDE.md:
+// "confirmed = phone confirmation outcome only; no carrier work yet"). Counting
+// confirmations flattered three days in this window: 6 Aug 13→11, 11 Aug 13→11.
+// (10 Aug reads 4 vs 3 because an order confirmed earlier was uploaded that day.)
+const DAYS = [
+  ["2026-08-03",0,0,0],["2026-08-04",0,0,0],["2026-08-05",140,29,13],
+  ["2026-08-06",190,22,11],["2026-08-07",0,0,0],["2026-08-08",240,28,13],
+  ["2026-08-09",0,0,0],["2026-08-10",90,8,4],["2026-08-11",220,28,11],
+  ["2026-08-12",150,12,5],["2026-08-13",0,0,0],["2026-08-14",160,13,6],
+  ["2026-08-15",50,1,1],["2026-08-16",170,17,8],
+];
+const FULL_DAYS = new Set(["2026-08-11","2026-08-14"]);
+
+// "avant" — what the current bug shows no matter which day you click
+const AVANT_TODAY = { touches:46, treated:17, confirmed:8, minutes:170 };
+const AVANT_PERIOD = { treated:79, confirmed:36, days_active:6, minutes:840, from:"10", to:"16 août" };
+
+const OWN_AVG_RATE = 45.6; // her téléchargée rate across the active days above (72/158)
+
+// Real market setting, Libya: settings.max_call_attempts = 8 — NOT 3. The
+// attempt_1/2/3 status enum is a capped display tier; the real ladder runs to 8
+// and orders.attempts_count tracks it. "Attempts left" must be computed from the
+// setting, never from the status name.
+const MAX_ATTEMPTS = 8;
+
+/**
+ * Fill colours for the queue chart, by real end-of-day status.
+ *
+ * attempt_1 → 2 → 3 is a PROGRESSION, so it gets one amber hue light→dark
+ * (a sequential ramp — the further down the ladder, the darker). A scheduled
+ * callback is not a further step, it is a different kind of state, so it takes
+ * a categorical hue (the design-system action blue) instead of a ramp step.
+ * Urgency is NOT encoded here — it is the x-axis and the zone bands.
+ */
+const QUEUE_STATUS = [
+  {k:"attempt_1",          c:"#F3DCA8"},
+  {k:"attempt_2",          c:"#DDA92F"},
+  {k:"attempt_3",          c:"#B98900"},
+  {k:"callback_scheduled", c:"#2C6ECB"},
+];
+
+// real market default (supabase/migrations/20260907000001_team_goals_schema.sql:
+// goal_conf_per_hour = 3) — confirmations per active hour is what RankingCard
+// ranks the whole team by; the day drawer never surfaced it at all before this.
+const GOAL_TREATED = 12, GOAL_RATE = 40, GOAL_CPH = 3;
+
+/**
+ * Consecutive qualifying days, oldest → newest, ending ON iso — same rule as
+ * computeGoalStreak() in src/lib/team/goals.ts: a day counts if treated ≥ 12
+ * AND rate ≥ 40 %; inactive days (no treated, no confirmed) are skipped, not
+ * counted as a break; hygiene is not reconstructible from history so, like
+ * the real function, only volume+quality gate the streak here.
+ */
+function streakAsOf(iso){
+  let current = 0, best = 0;
+  for (const [d, , treated, confirmed] of DAYS){
+    const active = treated > 0 || confirmed > 0;
+    if (active){
+      const rate = treated > 0 ? (confirmed/treated*100) : null;
+      const met = treated >= GOAL_TREATED && rate !== null && rate >= GOAL_RATE;
+      if (met){ current += 1; if (current > best) best = current; } else { current = 0; }
+    }
+    if (d === iso) break;
+  }
+  return { current, best };
+}
+
+const FULL = {
+  "2026-08-11": {
+    // uploaded = téléchargées (the real win). stuck = confirmed by phone but never
+    // pushed to the carrier, so still sitting in her queue at 23:59.
+    calls:86, touched:37, treated:28, uploaded:11, stuck:2, rejected:15, minutes:220,
+    products:[
+      {name:"دميه ملاكمه حجم متوسط", calls:48, touched:21, treated:18, uploaded:7, stuck:2},
+      {name:"دميه ملاكمه حجم صغير",  calls:30, touched:13, treated:9,  uploaded:3, stuck:0},
+      {name:"دميه ملاكمه حجم كبير",  calls:6,  touched:2,  treated:1,  uploaded:1, stuck:0},
+      {name:"كتاب الداء والدواء للإمام ابن القيم", calls:2, touched:1, treated:0, uploaded:0, stuck:0},
+    ],
+    // [active_minutes, treated, téléchargées] — 18h/19h differ from the confirmed
+    // series: 2 confirmations there never became uploads.
+    hourly: {14:[60,11,3],15:[60,10,5],16:[20,3,2],17:[10,0,0],18:[40,3,1],19:[30,1,0]},
+    // end-of-day queue, by attempts REMAINING (MAX_ATTEMPTS − attempts made)
+    // rem = tentatives restantes ; by = statut réel en fin de journée.
+    // Tout ce qui reste ce jour-là est bloqué à attempt_3 (le palier d'affichage
+    // plafonné) alors que le compteur réel va de 3 à 8 tentatives faites.
+    queue: {left:[{rem:5,by:{attempt_3:6}},{rem:4,by:{attempt_3:2}},{rem:0,by:{attempt_3:1}}], stuck:2},
+    rejections:[{reason:"autre",n:13},{reason:"refus_client",n:2}],
+    statusNow:[{status:"attempt_3",n:3},{status:"uploaded",n:3},{status:"delivered",n:5},
+               {status:"rejected",n:20},{status:"cancelled",n:5},{status:"deleted",n:1}],
+    // real per-order call-attempt cadence, from order_history rows matching /^(Tentative \d+|Auto-rejete)/
+    // (field-edit and reassignment rows on the same order excluded — they aren't dial attempts)
+    firstContactOnly: 6, noAttemptThisDay: 21,
+    cadenceNote: "presque tous des écarts de 3 à 3h30 — un rythme de rappel trop lent plutôt que des commandes oubliées",
+    medianGapMin: 200, // median of the 15 judged gaps, real data
+    lateHours: {17:3, 18:7, 19:2}, // real local hour of each flagged follow-up call
+    cadenceOrders:[
+      {product:"دميه ملاكمه حجم صغير",  status:"rejected",     attempts:[{n:8, gap:4173, late:true},{n:9,gap:174,late:true}]},
+      {product:"كتاب الداء والدواء للإمام ابن القيم", status:"deleted", attempts:[{n:4, gap:1444, late:true},{n:5,gap:239,late:true}]},
+      {product:"دميه ملاكمه حجم كبير",  status:"rejected",     attempts:[{n:2, gap:209, late:true}]},
+      {product:"دميه ملاكمه حجم متوسط", status:"attempt_3",    attempts:[{n:2, gap:209, late:true}]},
+      {product:"دميه ملاكمه حجم متوسط", status:"rejected",     attempts:[{n:2, gap:202, late:true},{n:3,gap:10,late:false}]},
+      {product:"دميه ملاكمه حجم متوسط", status:"rejected",     attempts:[{n:2, gap:201, late:true},{n:3,gap:10,late:false}]},
+      {product:"دميه ملاكمه حجم صغير",  status:"uploaded",     attempts:[{n:2, gap:200, late:true},{n:3,gap:27,late:false}]},
+      {product:"دميه ملاكمه حجم صغير",  status:"attempt_3",    attempts:[{n:4, gap:173, late:true}]},
+      {product:"دميه ملاكمه حجم صغير",  status:"rejected",     attempts:[{n:3, gap:168, late:true}]},
+      {product:"دميه ملاكمه حجم متوسط", status:"attempt_3",    attempts:[{n:2, gap:164, late:true}]},
+    ],
+  },
+  "2026-08-14": {
+    calls:95, touched:34, treated:13, uploaded:6, stuck:0, rejected:7, minutes:160,
+    products:[
+      {name:"دميه ملاكمه حجم متوسط", calls:49, touched:17, treated:7, uploaded:2, stuck:0},
+      {name:"دميه ملاكمه حجم صغير",  calls:31, touched:12, treated:4, uploaded:3, stuck:0},
+      {name:"دميه ملاكمه حجم كبير",  calls:15, touched:5,  treated:2, uploaded:1, stuck:0},
+    ],
+    hourly: {15:[40,3,1],16:[40,4,2],17:[50,2,2],18:[30,4,1]},
+    // 21 orders left needing a call — and one already out of attempts.
+    // Ce jour-là la file couvre les quatre statuts : une tentative 1, une
+    // tentative 2, un rappel programmé, et tout le reste bloqué en tentative 3.
+    queue: {left:[
+      {rem:7,by:{attempt_1:1}},{rem:6,by:{attempt_2:1}},
+      {rem:5,by:{attempt_3:2, callback_scheduled:1}},{rem:4,by:{attempt_3:6}},
+      {rem:3,by:{attempt_3:6}},{rem:2,by:{attempt_3:2}},
+      {rem:1,by:{attempt_3:1}},{rem:0,by:{attempt_3:1}},
+    ], stuck:0},
+    rejections:[{reason:"autre",n:7}],
+    statusNow:[{status:"uploaded",n:7},{status:"attempt_3",n:4},
+               {status:"callback_scheduled",n:1},{status:"delivered",n:1},{status:"rejected",n:21}],
+    firstContactOnly: 11, noAttemptThisDay: 9,
+    cadenceNote: "presque tous les écarts dépassent 1 jour, certains 3 jours — des commandes laissées de côté, pas juste rappelées lentement",
+    medianGapMin: 2827, // median of the 17 judged gaps, real data
+    lateHours: {15:2, 16:5, 17:4, 18:2},
+    cadenceOrders:[
+      {product:"دميه ملاكمه حجم صغير",  status:"rejected", attempts:[{n:4, gap:4249, late:true}]},
+      {product:"دميه ملاكمه حجم صغير",  status:"attempt_3",attempts:[{n:5, gap:4243, late:true}]},
+      {product:"دميه ملاكمه حجم متوسط", status:"attempt_3",attempts:[{n:4, gap:4223, late:true}]},
+      {product:"دميه ملاكمه حجم متوسط", status:"rejected", attempts:[{n:4, gap:4182, late:true}]},
+      {product:"دميه ملاكمه حجم متوسط", status:"rejected", attempts:[{n:5, gap:3006, late:true}]},
+      {product:"دميه ملاكمه حجم كبير",  status:"rejected", attempts:[{n:5, gap:2895, late:true}]},
+      {product:"دميه ملاكمه حجم متوسط", status:"attempt_3",attempts:[{n:6, gap:2880, late:true}]},
+      {product:"دميه ملاكمه حجم متوسط", status:"rejected", attempts:[{n:6, gap:2878, late:true}]},
+      {product:"دميه ملاكمه حجم متوسط", status:"rejected", attempts:[{n:3, gap:2827, late:true}]},
+      {product:"دميه ملاكمه حجم متوسط", status:"rejected", attempts:[{n:2, gap:2725, late:true},{n:3,gap:106,late:false}]},
+      {product:"دميه ملاكمه حجم متوسط", status:"rejected", attempts:[{n:2, gap:2724, late:true},{n:3,gap:96, late:false}]},
+      {product:"دميه ملاكمه حجم متوسط", status:"rejected", attempts:[{n:4, gap:2693, late:true},{n:5,gap:106,late:false}]},
+      {product:"دميه ملاكمه حجم كبير",  status:"rejected", attempts:[{n:2, gap:148, late:true}]},
+      {product:"دميه ملاكمه حجم صغير",  status:"rejected", attempts:[{n:5, gap:0, late:false}]},
+    ],
+  },
+};
+
+const REASON_FR = {autre:"Autre", refus_client:"Refus client", faux_numero:"Faux numéro",
+  doublon:"Doublon", injoignable:"Injoignable", prix:"Prix", non_serieux:"Non sérieux", unknown:"Non précisé"};
+const STATUS_FR = {pending:"En attente", attempt_1:"Tentative 1", attempt_2:"Tentative 2", attempt_3:"Tentative 3",
+  callback_scheduled:"Rappel prévu", confirmed:"Confirmée (à téléch.)", uploaded:"Téléchargée",
+  dispatch_scheduled:"Envoi programmé", scanned:"Scannée", dispatched:"Expédiée", deposit:"En dépôt",
+  in_transit:"En transit", delivered:"Livrée", returned:"Retournée", rejected:"Rejetée",
+  cancelled:"Annulée", deleted:"Supprimée"};
+function bucketOf(status){
+  if (["uploaded","scanned","dispatched","deposit","in_transit","delivered"].includes(status)) return "ok";
+  if (["confirmed","attempt_1","attempt_2","attempt_3","callback_scheduled","pending","dispatch_scheduled"].includes(status)) return "open";
+  if (status === "rejected") return "rejected";
+  return "other";
+}
+const BUCKET_COLOR = {ok:"var(--success)", open:"var(--warning)", rejected:"var(--critical)", other:"var(--ink-3)"};
+const BUCKET_LABEL  = {ok:"Confirmées (envoyées au transporteur)", open:"Toujours ouvertes", rejected:"Rejetées", other:"Autres (annulées / supprimées)"};
+
+/* ── helpers ── */
+function levelDay(m){ if(m===0) return 0; if(m<60) return 1; if(m<120) return 2; if(m<180) return 3; return 4; }
+function levelHour(m){ if(m===0) return 0; if(m<=15) return 1; if(m<=30) return 2; if(m<=45) return 3; return 4; }
+function fmtMin(m){ if(m<=0) return "0 min"; if(m<60) return m+" min"; const h=Math.floor(m/60), r=m%60; return h+" h"+(r?" "+String(r).padStart(2,"0"):""); }
+function fmtPct(x){ if(x==null||isNaN(x)) return "—"; return x.toLocaleString("fr-FR",{minimumFractionDigits:1,maximumFractionDigits:1})+" %"; }
+function fmtN(x){ return x.toLocaleString("fr-FR"); }
+// same shape as fmtNum(locale, n, digits) in src/lib/team/format.ts
+function fmtNum(x, digits){ return x.toLocaleString("fr-FR",{minimumFractionDigits:digits||0,maximumFractionDigits:digits||0}); }
+function fmtGapDur(min){
+  if (min < 60) return min+" min";
+  const totalH = Math.floor(min/60), m = min%60;
+  if (totalH < 24) return totalH+"h"+(m?String(m).padStart(2,"0"):"00");
+  const d = Math.floor(totalH/24), h = totalH%24;
+  return d+"j "+h+"h";
+}
+function rateOf(c,t){ return t>0 ? (c/t*100) : null; }
+function kpiSlider(value, target, scale, bad){
+  const vPos = Math.min(100, Math.max(0, value/scale*100));
+  const tPos = Math.min(100, Math.max(0, target/scale*100));
+  return `<div class="kpi-track"><div class="kpi-fill ${bad?'bad':''}" style="width:${vPos}%"></div><div class="kpi-target" style="left:${tPos}%"></div><div class="kpi-dot ${bad?'bad':''}" style="left:${vPos}%"></div></div>`;
+}
+function kpiCard(label, track, value, cible){
+  return `<div class="kpi-card"><div class="kpi-label">${label}</div>${track}<div class="kpi-value">${value}</div><div class="kpi-cible">${cible}</div></div>`;
+}
+// deterministic per-product hue, same hashing shape as agentColor() in src/lib/team/format.ts
+const PRODUCT_PALETTE = ["#2C6ECB","#0F7A5C","#8A5CF6","#B98900","#0E7490","#DB6B4A"];
+function productColor(name){ let h=0; for(let i=0;i<name.length;i++) h=(h*31+name.charCodeAt(i))>>>0; return PRODUCT_PALETTE[h%PRODUCT_PALETTE.length]; }
+function productInitial(name){ return name.trim()[0] || "?"; }
+// tier thresholds: same-session slow vs. multi-day abandonment read very differently to a manager
+function tierOf(gapMin){ if (gapMin <= 120) return "ok"; if (gapMin <= 1440) return "late"; return "abandoned"; }
+const TIER_LABEL = {ok:"à temps", late:"tardif", abandoned:"abandonné"};
+function dayLabel(iso){ const d=new Date(iso+"T12:00:00Z"); return new Intl.DateTimeFormat("fr-FR",{weekday:"short",day:"numeric",timeZone:"UTC"}).format(d); }
+function dayLabelLong(iso){ const d=new Date(iso+"T12:00:00Z"); return new Intl.DateTimeFormat("fr-FR",{weekday:"long",day:"numeric",month:"long",timeZone:"UTC"}).format(d); }
+function esc(s){ return s; } // demo data only, no user input
+
+function svgIcon(name, size){
+  size = size || 12;
+  const P = {
+    clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    target:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".6" fill="currentColor"/>',
+    package:'<path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v9l9 5 9-5V8"/><path d="M12 13v9"/>',
+    bars:'<path d="M4 20V10M11 20V4M18 20v-7"/>',
+    xcircle:'<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/>',
+    swap:'<path d="M7 3v14M7 3l-3 3M7 3l3 3M17 21V7M17 21l3-3M17 21l-3-3"/>',
+    note:'<path d="M5 3h11l3 3v15H5z"/><path d="M9 8h7M9 12h7M9 16h4"/>',
+    inbox:'<path d="M3 10h4l2 3h6l2-3h4"/><path d="M3 10 5 4h14l2 6v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    alert:'<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>',
+    chevron:'<path d="m9 6 6 6-6 6"/>',
+    flame:'<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+    upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/>',
+    phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  };
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+P[name]+'</svg>';
+}
+
+/* ── build the two Présence tables (identical real data) ── */
+function buildPres(tableId, legendId, mode){
+  const t = document.getElementById(tableId);
+  let head = '<tr><th class="agent-h">Agent</th>';
+  DAYS.forEach(d => head += `<th><span>${dayLabel(d[0]).split(" ")[0]}</span><span>${dayLabel(d[0]).split(" ")[1]}</span></th>`);
+  head += '<th class="agent-h">Total</th></tr>';
+  const total = DAYS.reduce((s,d)=>s+d[1],0);
+  const activeDays = DAYS.filter(d=>d[1]>0).length;
+  let row = `<tr class="agent-row"><td class="name-cell"><span class="row" ${mode==='apres'?'onclick="openAgentOverview()" style="cursor:pointer"':''}>` +
+    `<span class="avatar" style="background:${AGENT_COLOR}">T</span><b>tasnim</b></span></td>`;
+  DAYS.forEach(d => {
+    const [iso,m,tr,c] = d;
+    const click = mode==='avant' ? `openAvant('${iso}')` : `openApres('${iso}')`;
+    row += `<td class="daycell"><button class="cell" style="background:${RAMP[levelDay(m)]}" onclick="${click}" title="${dayLabelLong(iso)} · ${m? fmtMin(m)+' · '+tr+' traitées · '+c+' téléchargées':'absente'}"></button></td>`;
+  });
+  row += `<td class="total-cell ${total===0?'zero':''}">${fmtMin(total)} · ${activeDays} j</td></tr>`;
+  t.innerHTML = head + row;
+
+  const lg = document.getElementById(legendId);
+  const labels = ["0 h","&lt; 1 h","1 – 2 h","2 – 3 h","3 h +"];
+  lg.innerHTML = labels.map((l,i)=>`<span><i style="background:${RAMP[i]};${i===0?'border:1px solid var(--line)':''}"></i>${l}</span>`).join("");
+}
+buildPres("pres-avant","legend-avant","avant");
+buildPres("pres-apres","legend-apres","apres");
+
+/* ── tabs ── */
+function setTab(which){
+  document.getElementById("tab-avant").classList.toggle("on", which==="avant");
+  document.getElementById("tab-apres").classList.toggle("on", which==="apres");
+  document.getElementById("panel-avant").hidden = which!=="avant";
+  document.getElementById("panel-apres").hidden = which!=="apres";
+  closeDrawer();
+}
+
+/* ── drawer plumbing ── */
+function openDrawer(name, dateLabel, bodyHtml, narrow){
+  document.getElementById("dr-name").textContent = name;
+  document.getElementById("dr-date").textContent = dateLabel;
+  document.getElementById("dr-body").innerHTML = bodyHtml;
+  document.getElementById("drawer").classList.toggle("narrow", !!narrow);
+  document.getElementById("backdrop").classList.add("show");
+  document.getElementById("drawer").classList.add("show");
+}
+function closeDrawer(){
+  document.getElementById("backdrop").classList.remove("show");
+  document.getElementById("drawer").classList.remove("show");
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
+
+/* ── AVANT: identical panel no matter which day was clicked ── */
+function openAvant(iso){
+  const banner = `<div class="callout bad">⚠️<div><b>Jour cliqué dans le tableau : ${dayLabelLong(iso)}.</b>
+    Le panneau ci-dessous ne le sait pas — il affiche toujours « Aujourd'hui » (16 août, en direct)
+    et la période fixe (10–16 août), quel que soit le jour cliqué. Essayez une autre case : rien ne bouge.</div></div>`;
+
+  const today = `<div class="sec"><div class="sec-label">${svgIcon('clock')}Aujourd'hui</div>
+    <div class="stat-grid n4">
+      <div class="stat"><div class="v tnum">${AVANT_TODAY.touches}</div><div class="l">Appels</div></div>
+      <div class="stat"><div class="v tnum">${AVANT_TODAY.treated}</div><div class="l">Traitées</div></div>
+      <div class="stat"><div class="v tnum">${AVANT_TODAY.confirmed}</div><div class="l">Confirmées</div></div>
+      <div class="stat"><div class="v tnum">${fmtMin(AVANT_TODAY.minutes)}</div><div class="l">Activité</div></div>
+    </div></div>`;
+
+  const period = `<div class="sec"><div class="sec-label">${svgIcon('target')}Objectifs — période</div>
+    <div class="stat-grid n4">
+      <div class="stat"><div class="v tnum">${AVANT_PERIOD.treated}</div><div class="l">Traitées (7 j)</div></div>
+      <div class="stat"><div class="v tnum">${AVANT_PERIOD.confirmed}</div><div class="l">Confirmées (7 j)</div></div>
+      <div class="stat"><div class="v tnum">${fmtPct(rateOf(AVANT_PERIOD.confirmed,AVANT_PERIOD.treated))}</div><div class="l">Taux (7 j)</div></div>
+      <div class="stat"><div class="v tnum">${AVANT_PERIOD.days_active}/7</div><div class="l">Jours actifs</div></div>
+    </div></div>`;
+
+  openDrawer("tasnim", "Panneau actuel — ne varie pas avec le jour", banner+today+period);
+}
+
+/* ── APRÈS: agent name → unchanged period-overview behavior ── */
+function openAgentOverview(){
+  const body = `<div class="callout good">✓<div><b>Comportement inchangé.</b> Cliquer le nom ou l'avatar
+    ouvre toujours la vue d'ensemble période — ce n'est que le clic sur une case jour qui change de sens.</div></div>
+    <div class="sec"><div class="sec-label">${svgIcon('target')}Objectifs — période (10–16 août)</div>
+    <div class="stat-grid n4">
+      <div class="stat"><div class="v tnum">${AVANT_PERIOD.treated}</div><div class="l">Traitées</div></div>
+      <div class="stat"><div class="v tnum">${AVANT_PERIOD.confirmed}</div><div class="l">Confirmées</div></div>
+      <div class="stat"><div class="v tnum">${fmtPct(rateOf(AVANT_PERIOD.confirmed,AVANT_PERIOD.treated))}</div><div class="l">Taux</div></div>
+      <div class="stat"><div class="v tnum">${AVANT_PERIOD.days_active}/7</div><div class="l">Jours actifs</div></div>
+    </div></div>`;
+  openDrawer("tasnim", "Vue d'ensemble — période", body, true);
+}
+
+/* ── APRÈS: day cell → real single-day detail ── */
+function openApres(iso){
+  const d = DAYS.find(x => x[0]===iso);
+  const [,minutes,treated,uploaded] = d;
+
+  if (minutes === 0){
+    const body = `<div class="empty-state">${svgIcon('xcircle')}<p><b>Aucune activité ce jour-là.</b><br>tasnim absente ou n'a touché aucune commande le ${dayLabelLong(iso)}.</p></div>`;
+    openDrawer("tasnim", dayLabelLong(iso), body);
+    return;
+  }
+  if (FULL_DAYS.has(iso)) { openApresFull(iso); return; }
+
+  const rate = rateOf(uploaded,treated);
+  const delta = rate!=null ? Math.round((rate-OWN_AVG_RATE)*10)/10 : null;
+  const body = `
+    <div class="sec"><div class="sec-label">${svgIcon('clock')}Ce jour-là</div>
+      <div class="stat-grid n4">
+        <div class="stat"><div class="v tnum">${treated}</div><div class="l">Traitées</div></div>
+        <div class="stat"><div class="v tnum">${uploaded}</div><div class="l">Téléchargées</div></div>
+        <div class="stat"><div class="v tnum">${fmtPct(rate)}</div><div class="l">Taux téléch.</div></div>
+        <div class="stat"><div class="v tnum">${fmtMin(minutes)}</div><div class="l">Activité</div></div>
+      </div>
+      <div class="chips">
+        <span class="chip ${treated>=12?'ok':'bad'}">${treated>=12?'✓':'✗'} Volume ${treated}/12</span>
+        <span class="chip ${rate!=null && rate>=40?'ok':(rate==null?'mut':'bad')}">${rate==null?'—':(rate>=40?'✓':'✗')} Qualité ${fmtPct(rate)}/40&nbsp;%</span>
+        ${delta!=null ? `<span class="chip mut">${delta>=0?'+':'−'}${fmtPct(Math.abs(delta)).replace(' %','')} pt vs sa moyenne 14&nbsp;j</span>` : ''}
+      </div>
+    </div>
+    <div class="sec"><div class="sec-label">${svgIcon('package')}Détail par produit / heure / motifs</div>
+      <p class="note">Ces trois vues viennent du même nouveau RPC — calculées pour <b>tous les jours</b> en
+      production. Dans cette maquette, seuls deux jours sont branchés en entier pour la démo :</p>
+      <button class="jump" onclick="openApres('2026-08-11')">Voir le 11 août (jour chargé)</button>
+      <button class="jump" onclick="openApres('2026-08-14')">Voir le 14 août (jour type)</button>
+    </div>`;
+  openDrawer("tasnim", dayLabelLong(iso), body);
+}
+
+function openApresFull(iso){
+  const f = FULL[iso];
+  // Rate is TÉLÉCHARGÉES ÷ traitées. On 11 Aug this is 39,3 % where the
+  // confirmation-based rate read 46,4 % — the two stuck orders are the whole gap,
+  // and they are what drops her under the 40 % target.
+  const rate = rateOf(f.uploaded, f.treated);
+
+  // ── résumé: one hero number (confirmées/heure — what the team ranking
+  // actually sorts by), its target + a 14-day trend, a de-emphasised raw-count
+  // line, then 4 non-overlapping KPI cards. Everything below is DERIVED from
+  // f/DAYS, nothing hand-typed, so it can't drift from the totals elsewhere
+  // on this same panel.
+  const hours = f.minutes/60;
+  const cph = hours>0 ? f.uploaded/hours : 0;
+  const cphDelta = Math.round((cph-GOAL_CPH)*10)/10;
+  const cphOk = cph >= GOAL_CPH;
+  const callsPerConf = f.uploaded>0 ? Math.round(f.calls/f.uploaded*10)/10 : null;
+
+  // 14-day confirmées/heure trend, same window as the Présence heatmap above —
+  // not a true trailing-14-ending-on-iso series (no data before 3 Aug exists),
+  // labelled honestly as the visible window with the opened day marked.
+  const sparkVals = DAYS.map(([,m,,c]) => m>0 ? c/(m/60) : 0);
+  const sparkIdx = DAYS.findIndex(d => d[0]===iso);
+  const sMax = Math.max(...sparkVals, GOAL_CPH) * 1.15;
+  const sW=150, sH=28, sN=sparkVals.length, sStep=sW/(sN-1);
+  const sPts = sparkVals.map((v,i) => [i*sStep, sH - (v/sMax)*sH]);
+  const sPath = sPts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  const sMarker = sparkIdx>=0 ? `<circle cx="${sPts[sparkIdx][0].toFixed(1)}" cy="${sPts[sparkIdx][1].toFixed(1)}" r="3" fill="var(--brand)"/>` : '';
+  const spark = `<svg class="hero-spark" viewBox="0 0 ${sW} ${sH}" preserveAspectRatio="none">
+    <line x1="0" y1="${(sH-(GOAL_CPH/sMax)*sH).toFixed(1)}" x2="${sW}" y2="${(sH-(GOAL_CPH/sMax)*sH).toFixed(1)}" stroke="var(--line)" stroke-dasharray="2 2"/>
+    <path d="${sPath}" fill="none" stroke="var(--ink-3)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${sMarker}</svg>`;
+
+  const streak = streakAsOf(iso);
+  const streakActive = streak.current > 0;
+  const streakLabel = streakActive ? `Jour ${streak.current}` : "Rompue";
+  const streakSub = !streakActive
+    ? `record ${streak.best} j`
+    : streak.current < streak.best ? `record ${streak.best} j` : "record égalé";
+
+  const cadTier = tierOf(f.medianGapMin);
+  const cadTierLbl = {ok:"à temps", late:"tardif", abandoned:"abandonné"}[cadTier];
+
+  const resume = `<div class="sec"><div class="sec-label">${svgIcon('clock')}Résumé du jour</div>
+    <div class="hero-row">
+      <div class="hero-main">
+        <div class="hero-label">Rythme de téléchargement</div>
+        <div class="hero-value tnum">${fmtNum(cph,1)}<span class="unit">/h</span></div>
+        <div class="hero-sub">${f.uploaded} téléchargée${f.uploaded>1?"s":""} en ${fmtMin(f.minutes)} d'activité</div>
+      </div>
+      <div class="hero-compare">
+        <span class="hero-delta ${cphOk?"ok":"bad"}">${
+          cphDelta === 0
+            ? `= cible`
+            : `${cphOk?"▲":"▼"} ${cphDelta>0?"+":"−"}${fmtNum(Math.abs(cphDelta),1)}/h`
+        }<span>${cphDelta === 0 ? `${GOAL_CPH}/h` : `vs cible ${GOAL_CPH}/h`}</span></span>
+        ${spark}
+        <span class="hero-spark-label">Rythme, fenêtre affichée</span>
+      </div>
+    </div>
+    <div class="context-strip"><b class="tnum">${f.calls}</b> appels · <b class="tnum">${f.touched}</b> commandes touchées${callsPerConf!=null?` · <b class="tnum">${fmtNum(callsPerConf,1)}</b> appels par téléchargement`:""}</div>
+    <div class="kpi-grid">
+      ${kpiCard("Volume", kpiSlider(f.treated,12,Math.max(f.treated,12)*1.3,f.treated<12), f.treated, "cible 12 traitées")}
+      ${kpiCard("Qualité", kpiSlider(rate,40,100,rate<40), fmtPct(rate), "cible 40 %")}
+      ${kpiCard("Cadence rappel", `<span class="kpi-tier ${cadTier}">${cadTierLbl}</span>`, fmtGapDur(f.medianGapMin), "médiane · cible 2&nbsp;h")}
+      ${kpiCard("Série en cours", `<span class="kpi-streak ${streakActive?"active":""}">${svgIcon('flame',15)}</span>`, streakLabel, streakSub)}
+    </div></div>`;
+
+  // per product — rate is téléchargées ÷ traitées, still gated on the real
+  // MIN_TREATED_FOR_RATE = 10 per product (AgentDrawer.tsx does the same).
+  // A product holding stuck confirmations gets a badge on its own row, so the
+  // blockage is attributable instead of only visible as a day total.
+  let prodRows = "";
+  f.products.forEach(p => {
+    const r = p.treated >= 10 ? rateOf(p.uploaded,p.treated) : null;
+    const cls = r==null ? "rate-mut" : (r>=40?"rate-ok":"rate-warn");
+    const rateCell = r==null
+      ? `<span class="rate-cell"><span class="${cls}">${p.uploaded}/${p.treated}<span class="n-tag" title="Moins de 10 traitées — taux non significatif">n</span></span></span>`
+      : `<span class="rate-cell"><span class="${cls}">${fmtPct(r)}</span><span class="rate-bar ${r<40?'warn':''}"><i style="width:${Math.min(100,r)}%"></i></span></span>`;
+    const stuckTag = p.stuck ? ` <span class="stuck-tag" title="Confirmées par téléphone mais jamais envoyées au transporteur">${svgIcon('upload',10)}${p.stuck}</span>` : "";
+    prodRows += `<tr><td dir="auto">${esc(p.name)}${stuckTag}</td><td class="tnum">${p.calls}</td><td class="tnum">${p.touched}</td>
+      <td class="tnum">${p.treated}</td><td class="tnum">${rateCell}</td></tr>`;
+  });
+  const products = `<div class="sec"><div class="sec-label">${svgIcon('package')}Par produit — ce jour-là</div>
+    <table class="prod"><thead><tr><th>Produit</th><th>Appels</th><th>Touchées</th><th>Traitées</th><th>Taux téléch.</th></tr></thead>
+    <tbody>${prodRows}</tbody></table></div>`;
+
+  // hourly strip, 00–23, with a dot over hours where a flagged (late) follow-up call actually happened
+  let cells = "", ticks = "", dots = "";
+  for (let h=0; h<24; h++){
+    const hh = f.hourly[h] || [0,0,0];
+    const label = String(h).padStart(2,"0")+"h–"+String((h+1)%24).padStart(2,"0")+"h";
+    const dueN = f.lateHours[h] || 0;
+    cells += `<div class="hr-cell" style="background:${RAMP[levelHour(hh[0])]}" title="${label} · ${hh[0]?fmtMin(hh[0])+' · '+hh[1]+' traitées · '+hh[2]+' téléchargées':'inactif'}${dueN?' · '+dueN+' rappel(s) tardif(s) traité(s) cette heure-ci':''}"></div>`;
+    ticks += `<div class="hr-tick">${h%3===0?h:''}</div>`;
+    dots += `<div class="hr-dot-slot">${dueN?'<span class="hr-dot"></span>':''}</div>`;
+  }
+  const hourly = `<div class="sec"><div class="sec-label">${svgIcon('bars')}Activité par heure — ce jour-là (00–23)</div>
+    <div class="hr-dots">${dots}</div>
+    <div class="hourstrip">${cells}</div><div class="hr-ticks">${ticks}</div>
+    <div class="hr-legend"><span class="ramp">${RAMP.map(c=>`<i style="background:${c}"></i>`).join("")}</span><span>Faible → forte activité</span><span class="due"><span class="hr-dot"></span>Rappel tardif traité</span></div>
+    </div>`;
+
+  // rejections
+  const totalRej = f.rejections.reduce((s,r)=>s+r.n,0);
+  let rejRows = f.rejections.map(r => {
+    const vague = r.reason==="autre" && r.n/totalRej > 0.5;
+    return `<div class="rej-row"><span class="nm">${REASON_FR[r.reason]||r.reason}${vague?'<span class="vague">⚠ motif imprécis</span>':''}</span>
+      <span class="bar"><i style="width:${Math.round(r.n/totalRej*100)}%"></i></span><span class="n tnum">${r.n}</span></div>`;
+  }).join("");
+  const rejections = `<div class="sec"><div class="sec-label">${svgIcon('xcircle')}Motifs de refus — ce jour-là</div>${rejRows}</div>`;
+
+  // The "still open" count now comes from the END-OF-DAY queue (f.queue) rather
+  // than each order's status as of today — "what she left behind that evening" is
+  // the coaching question; "where is it now" is a different, later one.
+  const allAttempts = f.cadenceOrders.flatMap(o => o.attempts);
+  const lateN = allAttempts.filter(a => a.late).length;
+  const judgedN = allAttempts.length;
+  const latePct = judgedN ? lateN/judgedN*100 : 0;
+
+  // 3-tier breakdown across every judged attempt — same-session slow vs. multi-day abandoned read as different problems
+  const tierCounts = {ok:0, late:0, abandoned:0};
+  allAttempts.forEach(a => tierCounts[tierOf(a.gap)]++);
+
+  // cadence table — the redesigned "touched orders": rows that still need a call float to the top,
+  // sorted by worst gap within that group; already-closed rows (good or bad outcome) sink below.
+  const rowsData = f.cadenceOrders.map(o => {
+    const worst = o.attempts.reduce((a,b) => b.gap > a.gap ? b : a);
+    const others = o.attempts.filter(a => a !== worst);
+    const bucket = bucketOf(o.status);
+    return { o, worst, others, bucket, tier: tierOf(worst.gap), needsAction: bucket === "open" };
+  }).sort((a,b) => (b.needsAction - a.needsAction) || (b.worst.gap - a.worst.gap));
+
+  function cadItem({o,worst,others,bucket,tier}, closed){
+    const cap = others.length
+      ? ` <span class="item-cap">· ${others.map(a => a.late ? `puis encore ${fmtGapDur(a.gap)}` : `puis rattrapé en ${fmtGapDur(a.gap)}`).join(", ")}</span>`
+      : "";
+    const phrase = tier === "abandoned" ? "sans nouvelle relance" : tier === "late" ? "avant la relance suivante" : "avant la relance suivante — dans les temps";
+    return `<div class="cad-item">
+      <span class="prod-ava" style="background:${productColor(o.product)}">${productInitial(o.product)}</span>
+      <div class="item-body">
+        <div class="item-top"><span class="item-name" dir="auto" title="${esc(o.product)}">${esc(o.product)}</span><span class="status-badge sm ${bucket}"><i class="dot"></i>${STATUS_FR[o.status]||o.status}</span></div>
+        <div class="item-line ${tier}"><i class="sev-dot ${closed?'done':tier}"></i><b>${fmtGapDur(worst.gap)}</b> ${phrase}${cap}</div>
+      </div>
+    </div>`;
+  }
+  const openRows = rowsData.filter(r => r.needsAction);
+  const closedRows = rowsData.filter(r => !r.needsAction);
+  const openList = openRows.length
+    ? `<div class="cad-group-label"><span class="sev-dot abandoned"></span>À relancer maintenant <span class="n">${openRows.length}</span></div><div>${openRows.map(r=>cadItem(r,false)).join("")}</div>`
+    : "";
+  const closedList = closedRows.length
+    ? `<div class="cad-group-label"><span class="sev-dot done"></span>Déjà closes <span class="n">${closedRows.length}</span></div><div class="cad-closed">${closedRows.map(r=>cadItem(r,true)).join("")}</div>`
+    : "";
+
+  const medTier = tierOf(f.medianGapMin);
+  const detailId = "caddetail-" + iso;
+  const detail = `<div class="kt-detail" id="${detailId}" hidden>
+      <div class="cad-head">
+        <div class="headline"><span class="rate ${latePct>50?"warn":""}">${lateN}/${judgedN}</span><span class="rate-label">rappels &gt; 2h</span></div>
+        <div class="tier-split">
+          ${tierCounts.abandoned ? `<span class="tier-chip abandoned"><i class="dot"></i>${tierCounts.abandoned} abandonné${tierCounts.abandoned>1?"s":""} (+24h)</span>` : ""}
+          ${tierCounts.late ? `<span class="tier-chip late"><i class="dot"></i>${tierCounts.late} tardif${tierCounts.late>1?"s":""} (2–24h)</span>` : ""}
+        </div>
+      </div>
+      ${openList}${closedList}
+      <div class="cad-foot">+ ${f.firstContactOnly} premier${f.firstContactOnly>1?"s":""} contact${f.firstContactOnly>1?"s":""} ce jour-là (rien à comparer) · + ${f.noAttemptThisDay} commande${f.noAttemptThisDay>1?"s":""} touchée${f.noAttemptThisDay>1?"s":""} sans rappel chronométrable (édition de fiche, réassignation, ou résolue au premier contact).</div>
+    </div>`;
+
+  // ── "File d'attente à la fin du jour" — replaces "Points clés à retenir".
+  //
+  // The old section answered "how did she do?", which the Résumé above already
+  // answers with judged numbers. This answers the question a manager acts on the
+  // next morning: WHAT DID SHE LEAVE BEHIND, and how much runway is left on each
+  // one. Two structurally different kinds of leftover:
+  //   1. still needs a CALL   → bucketed by attempts remaining (MAX_ATTEMPTS − made)
+  //   2. still needs an UPLOAD → confirmed by phone, never pushed to the carrier
+  // Only (2) is silently costly: the customer said yes and nothing was shipped.
+  const q = f.queue;
+  const totalOf = (b) => Object.values(b.by).reduce((s,n)=>s+n, 0);
+  const needCall = q.left.reduce((s,b) => s+totalOf(b), 0);
+  const byRem = {}; q.left.forEach(b => byRem[b.rem] = b);
+  const nAt = (r) => byRem[r] ? totalOf(byRem[r]) : 0;
+  const exhausted = nAt(0);
+  const lastChance = nAt(1) + nAt(2);
+  const roomy = needCall - exhausted - lastChance;
+
+  // Which statuses actually occur today — the legend never lists a status that
+  // isn't on the chart, so 11 Aug shows one entry and 14 Aug shows four.
+  const seen = QUEUE_STATUS.filter(s => q.left.some(b => b.by[s.k]));
+  const legend = seen.map(s =>
+    `<span><i style="background:${s.c}"></i>${STATUS_FR[s.k]||s.k}</span>`).join("");
+
+  // One column per "attempts remaining" value, 0 → MAX_ATTEMPTS−1. Segments are
+  // stacked by status; a column with nothing in it draws a flat baseline tick
+  // rather than a coloured stub, which previously made empty buckets 1 and 2
+  // read as if they held urgent work.
+  const PLOT = 84; // px available above the count label
+  const peak = Math.max(1, ...Array.from({length:MAX_ATTEMPTS}, (_,r) => nAt(r)));
+  let cols = "", axis = "";
+  for (let r=0; r<MAX_ATTEMPTS; r++){
+    const b = byRem[r];
+    const n = nAt(r);
+    const parts = seen.filter(s => b && b.by[s.k]).map(s => {
+      const c = b.by[s.k];
+      return `<i style="height:${Math.max(4, Math.round(c/peak*PLOT))}px;background:${s.c}"
+        title="${c} × ${STATUS_FR[s.k]||s.k} · ${r} tentative(s) restante(s)"></i>`;
+    }).join("");
+    const detail = b
+      ? Object.entries(b.by).map(([k,c]) => `${c} ${STATUS_FR[k]||k}`).join(" · ")
+      : "rien en attente";
+    cols += `<div class="q-col" title="${r} tentative(s) restante(s) — ${detail}">
+      ${n ? `<span class="cnt">${n}</span>` : ""}
+      ${n ? `<div class="q-stack">${parts}</div>` : `<span class="q-empty"></span>`}
+    </div>`;
+    axis += `<div class="${n?'':'dim'}">${r}</div>`;
+  }
+  const zoneBand = `<div class="q-zone crit" style="left:0;width:calc(12.5% - 2px)"></div>
+    <div class="q-zone warn" style="left:calc(12.5% + 2px);width:calc(25% - 4px)"></div>`;
+
+  const stuckBlock = q.stuck > 0
+    ? `<div class="stuck-row">
+        <span class="ic">${svgIcon('upload',16)}</span>
+        <div class="tx">
+          <div class="h">${q.stuck} confirmée${q.stuck>1?"s":""} jamais téléchargée${q.stuck>1?"s":""}</div>
+          <div class="s">Le client a dit oui, mais la commande n'est jamais partie chez le transporteur — elle reste dans sa file avec le bouton « Télécharger ». C'est ce qui fait passer son taux de ${fmtPct(rateOf(f.uploaded + q.stuck, f.treated))} à ${fmtPct(rate)}.</div>
+        </div>
+        <button class="btn">${svgIcon('upload',13)}Télécharger</button>
+      </div>`
+    : `<div class="stuck-none">${svgIcon('target',13)}Aucune confirmation en attente de téléchargement — tout ce qui a été confirmé est parti.</div>`;
+
+  const queueSec = `<div class="sec"><div class="sec-label">${svgIcon('inbox')}File d'attente à la fin du jour</div>
+    <div class="q-head">
+      <div><span class="n tnum">${needCall}</span><span class="lbl">commande${needCall>1?"s":""} à rappeler</span></div>
+      <span class="of tnum">sur ${f.touched} touchées · ${f.uploaded} téléchargées · ${f.rejected} rejetées</span>
+    </div>
+    <div class="q-legend">${legend}</div>
+    <div class="q-chart">${zoneBand}${cols}</div>
+    <div class="q-axis">${axis}</div>
+    <div class="q-zones">
+      <span class="z-crit">épuisée</span>
+      <span class="z-warn">dernière chance</span>
+      <span class="z-ok">de la marge</span>
+    </div>
+    <div class="q-axis-cap">tentatives restantes — max ${MAX_ATTEMPTS} (réglage du marché)</div>
+    <div class="q-tiers">
+      ${exhausted ? `<span class="q-tier crit"><i class="dot"></i>${exhausted} épuisée${exhausted>1?"s":""} — rejet auto</span>` : ""}
+      ${lastChance ? `<span class="q-tier warn"><i class="dot"></i>${lastChance} dernière${lastChance>1?"s":""} chance${lastChance>1?"s":""}</span>` : ""}
+      ${roomy ? `<span class="q-tier ok"><i class="dot"></i>${roomy} avec de la marge</span>` : ""}
+      <button class="kt-btn" onclick="toggleCadDetail('${detailId}', this)">Détail des relances${svgIcon('chevron',12)}</button>
+    </div>
+    ${stuckBlock}
+    ${detail}
+    <div class="q-foot">${f.cadenceNote.charAt(0).toUpperCase()+f.cadenceNote.slice(1)}.</div>
+    </div>`;
+
+  openDrawer("tasnim", dayLabelLong(iso), resume+queueSec+products+hourly+rejections);
+}
+
+function toggleCadDetail(id, btn){
+  const el = document.getElementById(id);
+  el.hidden = !el.hidden;
+  btn.innerHTML = el.hidden ? `Voir${svgIcon('chevron',12)}` : `Masquer${svgIcon('chevron',12)}`;
+  btn.style.transform = "";
+}
+</script>
