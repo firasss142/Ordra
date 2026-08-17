@@ -745,11 +745,12 @@ export function OrderDetailPanel({
     }
   }
 
+  // `role === undefined` is the agent queue, which mounts the panel without
+  // one. Managers reach the same action from the orders page; the permission
+  // helper is what decides, not the surface the panel happens to be on.
   const canReopen =
-    role === undefined &&
-    userId !== undefined &&
     order !== null &&
-    canReopenOrder("agent", userId, {
+    canReopenOrder(role ?? "agent", userId ?? "", {
       status: order.status,
       assigned_to: order.assigned_to,
       updated_at: order.updated_at,

@@ -348,10 +348,49 @@ describe("canReopenOrder", () => {
     }, now)).toBe(false);
   });
 
-  test("market_manager cannot reopen orders (agent-only action)", () => {
-    expect(canReopenOrder("market_manager", AGENT_ID, {
-      status: "rejected", assigned_to: AGENT_ID, updated_at: withinWindow,
-    }, now)).toBe(false);
+  describe("manager override", () => {
+    const MANAGER_ID = "manager-1";
+
+    // A manager is never the assignee, and the 7-day window is an agent
+    // guardrail rather than a rule about what a manager may correct. Same shape
+    // as canEditOrder / canCancelOrder / canRecoverDeletedOrder, which all
+    // return true for managerish roles before the ownership branch.
+    for (const role of ["market_manager", "super_admin"] as const) {
+      test(`${role} can reopen an uploaded order owned by someone else`, () => {
+        expect(canReopenOrder(role, MANAGER_ID, {
+          status: "uploaded", assigned_to: AGENT_ID, updated_at: withinWindow,
+        }, now)).toBe(true);
+      });
+
+      test(`${role} can reopen an order with no assignee at all`, () => {
+        expect(canReopenOrder(role, MANAGER_ID, {
+          status: "uploaded", assigned_to: null, updated_at: withinWindow,
+        }, now)).toBe(true);
+      });
+
+      test(`${role} is not bound by the agent's 7-day window`, () => {
+        expect(canReopenOrder(role, MANAGER_ID, {
+          status: "uploaded", assigned_to: AGENT_ID, updated_at: outsideWindow,
+        }, now)).toBe(true);
+      });
+
+      test(`${role} still cannot reopen a status that is not reopenable`, () => {
+        // The status set is the rule the reopen exists to enforce — it is not
+        // an agent guardrail, and overriding it would resurrect a delivered
+        // order with its carrier fields wiped.
+        for (const status of ["delivered", "returned", "confirmed", "scanned", "pending"]) {
+          expect(canReopenOrder(role, MANAGER_ID, {
+            status, assigned_to: AGENT_ID, updated_at: withinWindow,
+          }, now), status).toBe(false);
+        }
+      });
+    }
+
+    test("warehouse_agent still cannot reopen anything", () => {
+      expect(canReopenOrder("warehouse_agent", MANAGER_ID, {
+        status: "uploaded", assigned_to: AGENT_ID, updated_at: withinWindow,
+      }, now)).toBe(false);
+    });
   });
 
   test("uses current time when now param is omitted", () => {

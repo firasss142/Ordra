@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { canReopenOrder } from "@/lib/order-permissions";
+import { actorTypeFor } from "@/lib/orders/manager-takeover";
 import { getCarrierAdapter, buildConfig } from "@/lib/carriers";
 import { getActor } from "@/lib/auth/actor";
 
@@ -17,7 +18,11 @@ export async function POST(
   if ("response" in actorResult) return actorResult.response;
   const { actor } = actorResult;
   const role = actor.role;
-  if (role !== "agent") {
+  // Managers reopen too. The agent-scoped gates below (own the order, inside
+  // 7 days) are guardrails on the agent, not a statement about what a manager
+  // may undo — enforcing them on every role is what made an uploaded order
+  // reopenable from the agent queue and dead from the orders page.
+  if (role !== "agent" && role !== "market_manager" && role !== "super_admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -34,7 +39,7 @@ export async function POST(
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .select(
-      "id, status, assigned_to, updated_at, tracking_number, carrier_id, carrier_extra",
+      "id, status, market_id, assigned_to, updated_at, tracking_number, carrier_id, carrier_extra",
     )
     .eq("id", orderId)
     .single();
@@ -43,11 +48,17 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (order.assigned_to !== actor.id) {
+  // 404 rather than 403 throughout: an order you have no business seeing must
+  // not be confirmed to exist by the shape of the refusal.
+  if (role === "agent" && order.assigned_to !== actor.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (!canReopenOrder("agent", actor.id, order)) {
+  if (role === "market_manager" && order.market_id !== actor.market_id) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (!canReopenOrder(role, actor.id, order)) {
     return NextResponse.json({ error: "Cannot reopen this order" }, { status: 409 });
   }
 
@@ -109,10 +120,14 @@ export async function POST(
     );
   }
 
+  // `p_actor_type` both relaxes the RPC's own assignee check for managers and
+  // stamps the history row correctly. order_history is append-only, so a
+  // manager's reopen recorded as 'agent' is a permanent misattribution.
   const { data: rpcData, error: rpcError } = await supabase.rpc("reopen_order", {
     p_order_id: orderId,
     p_actor_id: actor.id,
     p_void_outcome: voidOutcome,
+    p_actor_type: actorTypeFor(role),
   });
 
   if (rpcError) {

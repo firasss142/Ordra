@@ -182,15 +182,30 @@ export function isReferenceDeletedUpload(order: {
   );
 }
 
+/**
+ * Whether this actor may pull an order back out of a closed state.
+ *
+ * The status set is the real rule and binds everyone: reopening wipes the
+ * carrier fields, so resurrecting a `delivered` order would strand a shipment
+ * that already arrived. Ownership and the 7-day window are different in kind —
+ * they are agent guardrails, and a manager is never the assignee to begin with.
+ * Gating managers on them meant an uploaded order reopened from the agent queue
+ * and refused from the orders page.
+ *
+ * Managerish roles therefore clear both, exactly as they do in `canEditOrder`,
+ * `canCancelOrder` and `canRecoverDeletedOrder`. Market scope is not checked
+ * here — callers hold the order's `market_id`; see the reopen route.
+ */
 export function canReopenOrder(
   role: Role,
   actorId: string,
   order: { status: string; assigned_to: string | null; updated_at: string },
   now: Date = new Date(),
 ): boolean {
+  if (!REOPENABLE_STATUSES.has(order.status)) return false;
+  if (role === "super_admin" || role === "market_manager") return true;
   if (role !== "agent") return false;
   if (order.assigned_to !== actorId) return false;
-  if (!REOPENABLE_STATUSES.has(order.status)) return false;
   const updatedAt = new Date(order.updated_at);
   return now.getTime() - updatedAt.getTime() <= AGENT_WINDOW_MS;
 }
