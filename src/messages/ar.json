@@ -4571,7 +4571,9 @@
         "l1": "< 1 س",
         "l2": "1 – 2 س",
         "l3": "2 – 3 س",
-        "l4": "3 س +"
+        "l4": "3 س +",
+        "openDay": "{agent} — {day}",
+        "openAgent": "{agent} — نظرة عامة على الفترة"
       }
     },
     "drawer": {
@@ -4609,6 +4611,71 @@
       "takeawayThroughput": "النسبة جيدة؛ المعدل ({thr}/س) هو ما يمكن رفعه — الهدف {target}/س.",
       "takeawayNone": "لا نشاط كافٍ لإصدار حكم في هذه الفترة.",
       "takeawayOrphan": "{n} طلب ينتظر في قائمتها وهي غير متصلة: استعادتها أولاً."
+    },
+    "dayDrawer": {
+      "close": "إغلاق",
+      "loading": "جارٍ التحميل…",
+      "loadError": "تعذّر تحميل هذا اليوم.",
+      "noActivity": "لا يوجد نشاط في هذا اليوم.",
+      "rhythm": "وتيرة الرفع",
+      "perHour": "/س",
+      "rhythmTarget": "الهدف {n}/س",
+      "rhythmWindow": "الوتيرة، آخر 14 يومًا",
+      "callsLine": "{calls} مكالمة · {touched} طلب تم التعامل معه · {ratio} مكالمة لكل رفع",
+      "volume": "الحجم",
+      "volumeTarget": "الهدف {n} معالجة",
+      "signature": "البصمة",
+      "sigLegend": "{confirmed} مؤكدة → {uploaded} مرفوعة",
+      "cadence": "إيقاع المعاودة",
+      "cadenceMedian": "الوسيط · الهدف ساعتان",
+      "cadenceNone": "لا توجد معاودة للقياس",
+      "tier": {
+        "ok": "في الوقت",
+        "late": "متأخر",
+        "abandoned": "مهمل"
+      },
+      "streak": "التتابع",
+      "streakDays": "أيام عند الهدف",
+      "streakBest": "الرقم القياسي {n} ي",
+      "queue": "قائمة الانتظار في نهاية اليوم",
+      "queueOpen": "طلبات تحتاج معاودة",
+      "queueRoll": "{touched} تم التعامل معها · {uploaded} مرفوعة · {rejected} مرفوضة",
+      "bucketTitle": "{left} محاولات متبقية · {n} طلب",
+      "band": {
+        "exhausted": "مستنفدة",
+        "lastChance": "الفرصة الأخيرة",
+        "healthy": "يوجد متسع"
+      },
+      "chipExhausted": "{n} مستنفدة — رفض تلقائي",
+      "chipHealthy": "{n} لديها متسع",
+      "showCadence": "تفاصيل المعاودات",
+      "hideCadence": "إخفاء التفاصيل",
+      "stuckConfirmed": "{n} مؤكدة ولم تُرفع أبدًا",
+      "byProduct": "حسب المنتج",
+      "noProducts": "لا يوجد منتج تمت معالجته في هذا اليوم.",
+      "thProduct": "المنتج",
+      "thCalls": "مكالمات",
+      "thTouched": "تم التعامل",
+      "thTreated": "معالجة",
+      "thUploadRate": "نسبة الرفع",
+      "notSignificant": "أقل من {n} معالجة — النسبة غير دالة",
+      "hourly": "النشاط حسب الساعة (00–23)",
+      "hourTitle": "{hour} س · {minutes} · {treated} معالجة · {confirmed} مؤكدة",
+      "hourLow": "منخفض",
+      "hourHigh": "نشاط مرتفع",
+      "lateDot": "معاودة متأخرة تمت",
+      "takeaways": "أسباب الرفض — ملاحظات",
+      "takeaway": {
+        "cadence": {
+          "ok": "معاودات في الوقت المناسب",
+          "late": "معاودات بطيئة، لكن غير منسية",
+          "abandoned": "معاودات مهملة لعدة أيام"
+        },
+        "vagueBad": "رفض بدون سبب واضح · {pct}",
+        "vagueOk": "أسباب الرفض مفصّلة بشكل صحيح",
+        "stuck": "{n} مؤكدة ولم تُرفع أبدًا",
+        "openQueue": "{n} طلبات مفتوحة في نهاية اليوم"
+      }
     }
   }
 }

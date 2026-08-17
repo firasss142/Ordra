@@ -4571,7 +4571,9 @@
         "l1": "< 1 h",
         "l2": "1 – 2 h",
         "l3": "2 – 3 h",
-        "l4": "3 h +"
+        "l4": "3 h +",
+        "openDay": "{agent} — {day}",
+        "openAgent": "{agent} — vue d'ensemble de la période"
       }
     },
     "drawer": {
@@ -4609,6 +4611,71 @@
       "takeawayThroughput": "Le taux tient ; c'est le débit ({thr}/h) qui peut monter — objectif {target}/h.",
       "takeawayNone": "Pas assez d'activité pour un verdict sur cette période.",
       "takeawayOrphan": "{n} commande(s) attendent dans sa file alors qu'elle est hors ligne : les récupérer d'abord."
+    },
+    "dayDrawer": {
+      "close": "Fermer",
+      "loading": "Chargement…",
+      "loadError": "Impossible de charger cette journée.",
+      "noActivity": "Aucune activité ce jour-là.",
+      "rhythm": "Rythme de téléchargement",
+      "perHour": "/h",
+      "rhythmTarget": "cible {n}/h",
+      "rhythmWindow": "Rythme, 14 derniers jours",
+      "callsLine": "{calls} appels · {touched} commandes touchées · {ratio} appels par téléchargement",
+      "volume": "Volume",
+      "volumeTarget": "cible {n} traitées",
+      "signature": "Signature",
+      "sigLegend": "{confirmed} confirmées → {uploaded} téléchargées",
+      "cadence": "Cadence rappel",
+      "cadenceMedian": "médiane · cible 2 h",
+      "cadenceNone": "Aucune relance à mesurer",
+      "tier": {
+        "ok": "à temps",
+        "late": "tardif",
+        "abandoned": "abandonné"
+      },
+      "streak": "Série",
+      "streakDays": "jours à la cible",
+      "streakBest": "record {n} j",
+      "queue": "File d'attente à la fin du jour",
+      "queueOpen": "commandes à rappeler",
+      "queueRoll": "{touched} touchées · {uploaded} téléchargées · {rejected} rejetées",
+      "bucketTitle": "{left} tentatives restantes · {n} commande(s)",
+      "band": {
+        "exhausted": "Épuisée",
+        "lastChance": "Dernière chance",
+        "healthy": "De la marge"
+      },
+      "chipExhausted": "{n} épuisée — rejet auto",
+      "chipHealthy": "{n} avec de la marge",
+      "showCadence": "Détail des relances",
+      "hideCadence": "Masquer le détail",
+      "stuckConfirmed": "{n} confirmées jamais téléchargées",
+      "byProduct": "Par produit",
+      "noProducts": "Aucun produit traité ce jour-là.",
+      "thProduct": "Produit",
+      "thCalls": "Appels",
+      "thTouched": "Touchées",
+      "thTreated": "Traitées",
+      "thUploadRate": "Taux téléch.",
+      "notSignificant": "Moins de {n} traitées — taux non significatif",
+      "hourly": "Activité par heure (00–23)",
+      "hourTitle": "{hour} h · {minutes} · {treated} traitées · {confirmed} confirmées",
+      "hourLow": "Faible",
+      "hourHigh": "Forte activité",
+      "lateDot": "Rappel tardif traité",
+      "takeaways": "Motifs de refus — constats",
+      "takeaway": {
+        "cadence": {
+          "ok": "Rappels dans les temps",
+          "late": "Rappels trop lents, pas oubliés",
+          "abandoned": "Rappels abandonnés plusieurs jours"
+        },
+        "vagueBad": "Rejets sans motif clair · {pct}",
+        "vagueOk": "Motifs de refus correctement détaillés",
+        "stuck": "{n} confirmées jamais téléchargées",
+        "openQueue": "{n} commandes ouvertes en fin de journée"
+      }
     }
   }
 }

@@ -162,3 +162,101 @@ export interface TeamPerformance {
 }
 
 export type TargetMetric = "daily_treated" | "min_rate" | "conf_per_hour" | "throughput";
+
+/* ────────────────────────────────────────────────────────────────
+ * get_agent_day_detail — one agent, one market-local day.
+ * (supabase/migrations/20260908000001_agent_day_detail_rpc.sql)
+ * ──────────────────────────────────────────────────────────────── */
+
+export interface DayTotals {
+  /** Order-touching actions logged that day — not distinct orders. */
+  calls: number;
+  /** Distinct orders the agent acted on. */
+  touched: number;
+  /** Distinct orders reaching confirmed OR rejected. */
+  treated: number;
+  confirmed: number;
+  rejected: number;
+  active_minutes: number;
+  /** Of that day's confirmations, how many have since reached the carrier. */
+  uploaded: number;
+  /** Confirmed that day and STILL sitting at confirmed — never shipped. */
+  stuck_confirmed: number;
+  /** Confirmed that day, then cancelled/deleted/rejected afterwards. */
+  lost_after_confirm: number;
+}
+
+export interface DayHour {
+  hour: number;
+  active_minutes: number;
+  treated: number;
+  confirmed: number;
+}
+
+export interface DayProduct {
+  key: string;
+  name: string;
+  image_url: string | null;
+  calls: number;
+  touched: number;
+  treated: number;
+  confirmed: number;
+  uploaded: number;
+}
+
+export interface DayAttempt {
+  /** The true attempts_count stamped on the note — can exceed 3. */
+  n: number | null;
+  gap_min: number;
+  late: boolean;
+}
+
+export interface DayCadenceOrder {
+  order_id: string;
+  external_id: string | null;
+  product_name: string;
+  status_now: string;
+  worst_gap_min: number;
+  attempts: DayAttempt[];
+}
+
+export interface DayCadence {
+  /** Follow-ups on this day that had a previous attempt to measure against. */
+  judged: number;
+  late: number;
+  median_gap_min: number | null;
+  tiers: { ok: number; late: number; abandoned: number };
+  orders: DayCadenceOrder[];
+}
+
+export interface DayQueue {
+  open: number;
+  uploaded: number;
+  rejected: number;
+  by_attempts_left: { attempts_left: number; n: number }[];
+}
+
+export interface DaySeriesPoint {
+  day: string;
+  active_minutes: number;
+  treated: number;
+  confirmed: number;
+  uploaded: number;
+}
+
+export interface AgentDayDetail {
+  day: string;
+  tz: string;
+  market_id: string;
+  agent: { agent_id: string; name: string; avatar_url: string | null } | null;
+  targets: { daily_treated: number; min_rate: number; conf_per_hour: number; max_attempts: number };
+  totals: DayTotals;
+  hourly: DayHour[];
+  /** hour → number of late follow-ups handled in it. */
+  late_hours: Record<string, number>;
+  products: DayProduct[];
+  motifs: { reason: string; n: number }[];
+  cadence: DayCadence;
+  queue_end_of_day: DayQueue;
+  series: DaySeriesPoint[];
+}

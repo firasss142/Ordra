@@ -18,6 +18,7 @@ import { ThroughputRateChart } from "./ThroughputRateChart";
 import { ProductsCard } from "./ProductsCard";
 import { PresenceHeatmap } from "./PresenceHeatmap";
 import { AgentDrawer } from "./AgentDrawer";
+import { AgentDayDrawer } from "./AgentDayDrawer";
 
 interface Props {
   marketId: string;
@@ -44,6 +45,8 @@ export function TeamPerformanceWorkspace({ marketId, locale, tz, role }: Props) 
   const [preset, setPreset] = useState<PeriodPreset>("7d");
   const [productKey, setProductKey] = useState<string>("all");
   const [selected, setSelected] = useState<string | null>(null);
+  /** A Présence cell: one agent on one local day. */
+  const [selectedDay, setSelectedDay] = useState<{ agentId: string; day: string } | null>(null);
 
   const { perf, error, mutate } = useTeamPerformance(marketId, period.from_date, period.to_date);
   const view = useMemo(() => (perf ? buildPerformanceView(perf) : null), [perf]);
@@ -115,7 +118,13 @@ export function TeamPerformanceWorkspace({ marketId, locale, tz, role }: Props) 
           </div>
           <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)]">
             <ProductsCard view={view} locale={locale} />
-            <PresenceHeatmap view={view} locale={locale} tz={tz} onSelectAgent={setSelected} />
+            <PresenceHeatmap
+              view={view}
+              locale={locale}
+              tz={tz}
+              onSelectAgent={setSelected}
+              onSelectDay={(agentId, day) => setSelectedDay({ agentId, day })}
+            />
           </div>
         </div>
       )}
@@ -129,6 +138,15 @@ export function TeamPerformanceWorkspace({ marketId, locale, tz, role }: Props) 
         perf={perf}
         defaultPeriod={{ from: period.from_date, to: period.to_date }}
         now={now}
+      />
+
+      <AgentDayDrawer
+        agentId={selectedDay?.agentId ?? null}
+        day={selectedDay?.day ?? null}
+        onClose={() => setSelectedDay(null)}
+        marketId={marketId}
+        locale={locale}
+        tz={tz}
       />
     </div>
   );
