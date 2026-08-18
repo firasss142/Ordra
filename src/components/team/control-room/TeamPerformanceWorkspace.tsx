@@ -19,6 +19,13 @@ import { ProductsCard } from "./ProductsCard";
 import { PresenceHeatmap } from "./PresenceHeatmap";
 import { AgentDrawer } from "./AgentDrawer";
 import { AgentDayDrawer } from "./AgentDayDrawer";
+import { CommissionsCard } from "./CommissionsCard";
+import { PayoutModal, type PayoutRequest } from "./PayoutModal";
+import { useTeamCommissions } from "@/hooks/useTeamCommissions";
+import { buildCommissionView, type CommissionAgentView } from "@/lib/commissions/view-models";
+import { submitPayout } from "@/lib/commissions/payouts-client";
+import { canManageCommissions } from "@/lib/role-permissions";
+import { marketIdToCode } from "@/lib/markets";
 
 interface Props {
   marketId: string;
@@ -51,6 +58,26 @@ export function TeamPerformanceWorkspace({ marketId, locale, tz, role }: Props) 
   const { perf, error, mutate } = useTeamPerformance(marketId, period.from_date, period.to_date);
   const view = useMemo(() => (perf ? buildPerformanceView(perf) : null), [perf]);
   const canSetTargets = role === "super_admin" || role === "market_manager";
+
+  // Commissions — same period as the page; balances all-time.
+  const marketCode = (marketIdToCode(marketId) ?? "tn").toUpperCase();
+  const canPay = canManageCommissions(role);
+  const { commissions, mutate: mutateCommissions } = useTeamCommissions(marketId, period.from_date, period.to_date);
+  const commissionView = useMemo(() => (commissions ? buildCommissionView(commissions) : null), [commissions]);
+  const commissionsById = useMemo(() => {
+    if (!commissions) return null;
+    const m: Record<string, { delivered: number; earned: number }> = {};
+    commissions.agents.forEach((a) => { m[a.agent_id] = { delivered: a.delivered, earned: a.earned }; });
+    return m;
+  }, [commissions]);
+  const [payTarget, setPayTarget] = useState<CommissionAgentView | null>(null);
+  const tc = useTranslations("team.commissions");
+  async function onPayoutSubmit(req: PayoutRequest) {
+    const r = await submitPayout(req);
+    show({ message: r.ok ? tc("payout.saved") : tc("payout.failed"), tone: r.ok ? "info" : "critical" });
+    if (r.ok) void mutateCommissions();
+    return r;
+  }
 
   async function setTarget(agentId: string, metric: "min_rate" | "throughput", value: number) {
     const res = await fetch("/api/team/targets", {
@@ -111,9 +138,9 @@ export function TeamPerformanceWorkspace({ marketId, locale, tz, role }: Props) 
 
       {view && (
         <div className="flex flex-col gap-3.5">
-          <TeamStrip view={view} locale={locale} />
+          <TeamStrip view={view} locale={locale} commissions={commissions ? { earned: commissions.team.earned, delivered: commissions.team.delivered, paid: commissions.team.paid, marketCode } : null} />
           <div className="grid grid-cols-1 items-stretch gap-3.5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)]">
-            <RankingCard view={view} locale={locale} productKey={productKey === "all" ? null : productKey} onSelectAgent={setSelected} onSetTarget={setTarget} canSetTargets={canSetTargets} />
+            <RankingCard view={view} locale={locale} productKey={productKey === "all" ? null : productKey} onSelectAgent={setSelected} onSetTarget={setTarget} canSetTargets={canSetTargets} commissionsById={commissionsById} marketCode={marketCode} />
             <ThroughputRateChart view={view} locale={locale} />
           </div>
           <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)]">
@@ -126,6 +153,20 @@ export function TeamPerformanceWorkspace({ marketId, locale, tz, role }: Props) 
               onSelectDay={(agentId, day) => setSelectedDay({ agentId, day })}
             />
           </div>
+          {commissionView && (
+            <CommissionsCard
+              view={commissionView}
+              marketCode={marketCode}
+              locale={locale}
+              tz={tz}
+              canPay={canPay}
+              onPay={setPayTarget}
+              onSelectAgent={setSelected}
+              settingsHref={`/${locale}/settings/general?tab=commissions`}
+              exportHrefFor={(id) => `/api/team/commissions/${id}/ledger?format=csv`}
+              marketState={commissions?.market ?? null}
+            />
+          )}
         </div>
       )}
 
@@ -138,6 +179,22 @@ export function TeamPerformanceWorkspace({ marketId, locale, tz, role }: Props) 
         perf={perf}
         defaultPeriod={{ from: period.from_date, to: period.to_date }}
         now={now}
+        commission={selected ? commissionView?.byId[selected] ?? (commissions ? undefined : null) : undefined}
+        marketCode={marketCode}
+        commissionPeriodLabel={rangeLabel}
+        canPay={canPay}
+        onPay={setPayTarget}
+      />
+
+      <PayoutModal
+        open={payTarget !== null}
+        agent={payTarget ? { id: payTarget.agent.agent_id, name: payTarget.agent.name, balance: payTarget.agent.balance } : null}
+        marketCode={marketCode}
+        currency={commissions?.currency ?? ""}
+        tz={tz}
+        locale={locale}
+        onClose={() => setPayTarget(null)}
+        onSubmit={onPayoutSubmit}
       />
 
       <AgentDayDrawer

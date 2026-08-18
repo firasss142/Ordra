@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronDown, Clock, Inbox, Settings2, Target, User } from "lucide-react";
+import { ChevronDown, Clock, Coins, Inbox, Settings2, Target, User } from "lucide-react";
 import { Menu, type MenuItem } from "@/components/ui/Menu";
 import type { LiveView, LiveAgentView } from "@/lib/team/view-models";
 import type { LiveAgent } from "@/lib/team/types";
@@ -11,6 +11,8 @@ import { reassignAgentQueue } from "@/lib/team/reassign-queue";
 import { AgentAvatar } from "./AgentAvatar";
 import { GoalSegments } from "./GoalSegments";
 import { TeamCard, TeamCardHead } from "./Card";
+import type { CommissionView, CommissionAgentView } from "@/lib/commissions/view-models";
+import { BalanceCell } from "./CommissionsCard";
 
 interface Props {
   view: LiveView;
@@ -21,6 +23,11 @@ interface Props {
   onSelectAgent: (agentId: string) => void;
   onQueueChanged: () => void;
   onToast: (msg: string, tone: "success" | "error") => void;
+  /** balances per agent — null while loading, undefined when the feature is off */
+  commissions?: CommissionView | null;
+  marketCode?: string;
+  canPay?: boolean;
+  onPay?: (a: CommissionAgentView) => void;
 }
 
 export function useRelativeLabel(locale: string, tz: string, now: Date) {
@@ -74,8 +81,9 @@ function QueuePill({ a, locale }: { a: LiveAgent; locale: string }) {
   return null;
 }
 
-export function AgentRoster({ view, locale, tz, now, agentsForReassign, onSelectAgent, onQueueChanged, onToast }: Props) {
+export function AgentRoster({ view, locale, tz, now, agentsForReassign, onSelectAgent, onQueueChanged, onToast, commissions, marketCode, canPay, onPay }: Props) {
   const t = useTranslations("team.live.roster");
+  const tc = useTranslations("team.commissions");
   const tStatus = useTranslations("orders.statuses");
   const rel = useRelativeLabel(locale, tz, now);
   const [busyAgent, setBusyAgent] = useState<string | null>(null);
@@ -130,7 +138,7 @@ export function AgentRoster({ view, locale, tz, now, agentsForReassign, onSelect
               <th colSpan={2} className="border-x border-line-subtle px-3.5 pt-2 text-center text-[12px] font-medium text-ink-secondary">
                 {t("today")}
               </th>
-              <th colSpan={3} />
+              <th colSpan={4} />
             </tr>
             <tr className="border-b border-line">
               <ThIcon icon={User} label={t("agent")} />
@@ -138,6 +146,10 @@ export function AgentRoster({ view, locale, tz, now, agentsForReassign, onSelect
               <ThIcon label={t("treated")} className="!text-center border-s border-line-subtle" />
               <ThIcon label={t("confirmed")} className="!text-center border-e border-line-subtle" />
               <ThIcon icon={Target} label={t("goals")} />
+              <th className="whitespace-nowrap px-3.5 py-2.5 text-start text-[12px] font-medium text-ink-secondary" title={tc("colBalanceTitle")}>
+                <Coins size={14} className="me-1.5 inline-block -translate-y-px text-ink-muted" aria-hidden="true" />
+                {tc("colBalance")}
+              </th>
               <ThIcon icon={Inbox} label={t("queue")} className="!text-end" />
               <ThIcon icon={Settings2} label={t("action")} className="!text-center" />
             </tr>
@@ -171,6 +183,28 @@ export function AgentRoster({ view, locale, tz, now, agentsForReassign, onSelect
                   <td className={`border-e border-line-subtle px-3.5 py-3 text-center tabular-nums ${idle ? "text-ink-muted" : ""}`}>{idle ? "—" : fmtNum(locale, a.today.confirmed)}</td>
                   <td className="px-3.5 py-3">
                     <GoalSegments goals={av.goals} muted={idle} title={t("goalsTitle", { v: av.goals.volume.value, vt: av.goals.volume.target, q: av.goals.quality.value ?? "—", qt: av.goals.quality.target, h: av.goals.hygiene.value })} />
+                  </td>
+                  <td className="whitespace-nowrap px-3.5 py-3">
+                    {(() => {
+                      const cv = commissions?.byId[a.agent_id];
+                      if (!cv || !marketCode) return <span className="text-ink-muted">{commissions === null ? "…" : "—"}</span>;
+                      const showPay = canPay && onPay && (!cv.disabled || cv.agent.balance !== 0);
+                      return (
+                        <span className="inline-flex items-center gap-2">
+                          <BalanceCell a={cv} marketCode={marketCode} />
+                          {showPay && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); onPay(cv); }}
+                              className="rounded-md border border-line-subtle bg-surface-card px-2 py-[3px] text-[11.5px] font-medium text-ink-secondary hover:border-line-strong hover:text-ink-primary"
+                              title={tc("recordPayment")}
+                            >
+                              {tc("card.pay")}
+                            </button>
+                          )}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="px-3.5 py-3 text-end">
                     <span className="inline-flex items-center justify-end gap-2.5">

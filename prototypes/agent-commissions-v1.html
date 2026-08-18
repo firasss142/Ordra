@@ -1,0 +1,784 @@
+<title>Commissions agents</title>
+<style>
+  :root{
+    --page:#F6F6F7;--card:#FFFFFF;--hover:#FAFAFA;--sunken:#FAFAFB;
+    --ink:#1A1A1A;--ink2:#6D7175;--ink3:#9CA3AF;
+    --line0:#ECEEF0;--line:#E1E3E5;--line2:#DADCE0;
+    --brand:#15803D;--brand-hover:#12692F;--brand-bg:#E9F6EE;--brand-tint:#F1FAF4;--brand-pos:#16A34A;
+    --crit:#D72C0D;--crit-bg:#FFF4F4;--warn:#B98900;--warn-bg:#FFF8E6;--ok:#008060;--ok-bg:#F1F8F5;--amber-ink:#A9670C;
+    --side:#1A1A1A;--side-ink:#E3E3E3;--side-ink2:#9A9EA3;--side-active:rgba(16,185,129,.15);--side-active-ink:#34D399;
+    --r:10px;--pill:9999px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--page);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  button{font:inherit;color:inherit;cursor:pointer}
+  button:focus-visible,[tabindex]:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .num{font-variant-numeric:tabular-nums}
+  .money{white-space:nowrap;unicode-bidi:isolate;direction:ltr}
+  .money .cur{font-size:.86em;color:var(--ink2);margin-inline-start:3px}
+  .pos{color:var(--ink)}
+  .neg{color:var(--crit)}
+  .muted{color:var(--ink2)}
+  .faint{color:var(--ink3)}
+  /* ─── shell ─── */
+  .shell{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
+  .sidebar{background:var(--side);color:var(--side-ink);padding:14px 10px 20px;position:sticky;top:0;height:100vh;overflow:auto}
+  .brandrow{display:flex;align-items:center;gap:10px;padding:6px 8px 16px}
+  .logo{width:28px;height:28px;border-radius:7px;background:var(--brand);display:grid;place-items:center;font-weight:700;color:#fff;font-size:13px}
+  .brandrow b{font-size:15px;letter-spacing:.01em}
+  .brandrow small{display:block;color:var(--side-ink2);font-size:11.5px}
+  .grp{margin-top:10px}
+  .grp>span{display:block;padding:8px 10px 4px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--side-ink2)}
+  .nav{display:flex;flex-direction:column;gap:2px}
+  .nav a,.nav button{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;color:var(--side-ink);font-size:13.5px;background:none;border:0;text-align:start;width:100%}
+  .nav a:hover,.nav button:hover{background:rgba(255,255,255,.06)}
+  .nav .on{background:var(--side-active);color:var(--side-active-ink);font-weight:600}
+  .nav i{width:16px;height:16px;border-radius:4px;border:1.5px solid currentColor;opacity:.75;flex:none}
+  .main{min-width:0}
+  .topbar{height:52px;background:var(--card);border-bottom:1px solid var(--line0);display:flex;align-items:center;justify-content:space-between;padding:0 22px;position:sticky;top:0;z-index:5}
+  .topbar .crumb{font-size:13px;color:var(--ink2)}
+  .topbar .crumb b{color:var(--ink);font-weight:600}
+  .topbar .right{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--ink2)}
+  .mkt{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:var(--pill);padding:3px 10px;font-weight:500;color:var(--ink)}
+  .avatar{width:26px;height:26px;border-radius:50%;background:#2C6ECB;color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700}
+  .content{padding:18px 22px 60px;max-width:1420px;margin:0 auto}
+  /* ─── review bar ─── */
+  .review{background:var(--card);border:1px solid var(--line0);border-radius:var(--r);padding:12px 16px;margin-bottom:16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:start}
+  .review h1{margin:0;font-size:15px;font-weight:600}
+  .review p{margin:4px 0 0;font-size:12.5px;color:var(--ink2);max-width:78ch}
+  .review .ctl{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+  .toggle{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink);cursor:pointer;user-select:none}
+  .toggle input{width:16px;height:16px;accent-color:var(--brand)}
+  .tabs{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .tabs button{border:0;background:var(--card);padding:6px 12px;font-size:12.5px;font-weight:500;color:var(--ink2);border-inline-end:1px solid var(--line)}
+  .tabs button:last-child{border-inline-end:0}
+  .tabs button.on{background:var(--brand-bg);color:var(--brand-hover);font-weight:600}
+  details.points{grid-column:1/-1;border-top:1px solid var(--line0);padding-top:10px;font-size:12.5px;color:var(--ink2)}
+  details.points summary{cursor:pointer;color:var(--ink);font-weight:500}
+  details.points ol{margin:8px 0 0;padding-inline-start:20px;display:grid;gap:4px}
+  /* ─── highlight of additions ─── */
+  [data-new]{position:relative}
+  body.hl [data-new]{outline:2px dashed var(--brand);outline-offset:3px;border-radius:6px}
+  body.hl [data-new]::after{content:attr(data-new);position:absolute;top:-9px;inset-inline-end:8px;background:var(--brand);color:#fff;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:var(--pill);z-index:2;pointer-events:none;line-height:1.5}
+  body.hl th[data-new]::after{top:-2px}
+  body.hl [data-new=""]::after{display:none}
+  /* ─── page header ─── */
+  .ph{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:2px 0 14px}
+  .ph h2{margin:0;font-size:20px;font-weight:600;letter-spacing:-.01em}
+  .ph p{margin:3px 0 0;font-size:13px;color:var(--ink2)}
+  .ph .meta{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block}
+  .view{display:none}.view.on{display:block}
+  .stack{display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--card);border:1px solid var(--line0);border-radius:var(--r)}
+  .card h3{margin:0;font-size:16px;font-weight:600}
+  .card .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line0)}
+  .card .hd small{display:block;font-size:12.5px;color:var(--ink2);margin-top:2px}
+  .hd .acts{display:flex;gap:8px}
+  .btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--line2);background:var(--card);font-size:13px;font-weight:500;color:var(--ink)}
+  .btn:hover{background:var(--hover)}
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.primary:hover{background:var(--brand-hover)}
+  .btn.sm{height:28px;padding:0 10px;font-size:12.5px}
+  .btn.ghost{border-color:transparent;color:var(--ink2)}
+  /* verdict */
+  .verdict{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 16px;font-size:14.5px;font-weight:500}
+  .verdict .sep{color:var(--ink3)}
+  /* tiles */
+  .tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+  .tile{display:grid;grid-template-columns:60px 1fr;gap:8px 16px;padding:16px 18px}
+  .tile .ico{width:60px;height:60px;border-radius:14px;display:grid;place-items:center;font-size:22px;font-weight:700}
+  .tile .lab{font-size:14.5px}
+  .tile .val{font-size:34px;font-weight:700;line-height:1.1}
+  .tile .cap{grid-column:1/-1;font-size:13px;color:var(--ink2);line-height:1.45}
+  .t-crit .ico{background:var(--crit-bg);color:var(--crit)} .t-crit .val{color:var(--crit)}
+  .t-warn .ico{background:var(--warn-bg);color:var(--amber-ink)} .t-warn .val{color:var(--amber-ink)}
+  .t-neu .ico{background:#F0F1F2;color:var(--ink2)}
+  .t-ok .ico{background:var(--ok-bg);color:var(--ok)}
+  /* tables */
+  .tw{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{white-space:nowrap;padding:10px 14px;text-align:start;font-size:12px;font-weight:500;color:var(--ink2);border-bottom:1px solid var(--line0)}
+  td{padding:11px 14px;border-bottom:1px solid var(--line0);vertical-align:middle}
+  tr:last-child td{border-bottom:0}
+  tbody tr:hover td{background:var(--hover)}
+  tbody tr.click{cursor:pointer}
+  .ag{display:flex;align-items:center;gap:10px;font-weight:600}
+  .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700;position:relative;flex:none}
+  .av .pr{position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;border:2px solid var(--card)}
+  .pr.on{background:var(--ok)}.pr.idle{background:var(--warn)}.pr.off{background:var(--ink3)}
+  .pill{display:inline-flex;align-items:center;gap:6px;border-radius:var(--pill);padding:3px 10px;font-size:12.5px;font-weight:500;border:1px solid var(--line);background:var(--card);white-space:nowrap}
+  .pill.neg{border-color:var(--crit);color:var(--crit)}
+  .pill.warn{border-color:var(--warn);color:var(--amber-ink)}
+  .pill.ok{border-color:var(--ok);color:var(--ok);background:var(--ok-bg)}
+  .pill.violet{border-color:#8A5CF6;color:#6D3FD8}
+  .segs{display:inline-flex;gap:3px}
+  .segs i{width:18px;height:6px;border-radius:3px;background:#E3E5E7}
+  .segs i.f{background:var(--brand)}
+  .menu{position:relative;display:inline-block}
+  .menu .dd{display:none;position:absolute;inset-inline-end:0;top:calc(100% + 4px);background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(26,26,26,.12);min-width:220px;padding:6px;z-index:6}
+  .menu.open .dd{display:block}
+  .dd button{display:block;width:100%;text-align:start;border:0;background:none;padding:8px 10px;border-radius:6px;font-size:13px}
+  .dd button:hover{background:var(--hover)}
+  .dd hr{border:0;border-top:1px solid var(--line0);margin:4px 0}
+  .stripe td:first-child{box-shadow:inset 3px 0 0 var(--crit)}
+  .two{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr);gap:14px;align-items:start}
+  .two-eq{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:14px;align-items:start}
+  .empty{padding:14px 16px;font-size:13.5px;color:var(--ink2)}
+  /* strip */
+  .strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}
+  .cell{display:grid;grid-template-columns:40px 1fr;gap:0 12px;padding:16px 14px;border-inline-end:1px solid var(--line0);min-width:0}
+  .cell:last-child{border-inline-end:0}
+  .cell .ico{width:40px;height:40px;border-radius:11px;background:#F0F1F2;display:grid;place-items:center;font-weight:700;font-size:16px;color:var(--ink)}
+  .cell .lab{font-size:13.5px;white-space:nowrap}
+  .cell .val{font-size:22px;font-weight:700;line-height:1.15;margin-top:1px;white-space:nowrap}
+  .cell .val small{font-size:13px;font-weight:500;color:var(--ink2)}
+  .cell .cap{font-size:12px;color:var(--ink2);margin-top:3px}
+  .bar{position:relative;height:6px;border-radius:var(--pill);background:#EAECEE;overflow:hidden}
+  .bar i{position:absolute;inset-block:0;inset-inline-start:0;border-radius:var(--pill);background:var(--brand)}
+  /* ranking */
+  .rk{display:flex;align-items:center;gap:14px;padding:26px 16px 16px;border-bottom:1px solid var(--line0);position:relative;cursor:pointer}
+  .rk:last-of-type{border-bottom:0}
+  .rk:hover{background:var(--hover)}
+  .rk .n{width:22px;text-align:center;font-size:28px;font-weight:600}
+  .rk .who{flex:1;min-width:0}
+  .rk .who b{font-size:14.5px;font-weight:600}
+  .rk .comps{font-size:12.5px;color:var(--ink2);margin-top:4px;white-space:nowrap}
+  .rk .comps strong{color:var(--ink);font-weight:600}
+  .rk .comps2{font-size:12.5px;color:var(--ink2);margin-top:3px;white-space:nowrap}
+  .rk .comps2 strong{color:var(--ink);font-weight:600}
+  .rk .score{display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:130px}
+  .rk .score .big{font-size:22px;font-weight:700;line-height:1}
+  .rk .score .big small{font-size:12px;font-weight:500;color:var(--ink2);margin-inline-start:4px}
+  .rk .score .bar{width:112px}
+  .rk .streak{position:absolute;inset-inline-end:16px;top:10px;font-size:11.5px;color:var(--ink2)}
+  .rk .cta{display:inline-flex;align-items:center;gap:6px;margin-top:6px;border:1px solid var(--line2);border-radius:6px;padding:3px 9px;font-size:11.5px;font-weight:500;background:var(--card)}
+  .rk-foot{padding:11px 16px;font-size:12.5px;color:var(--ink2)}
+  .rate-ok{color:var(--ok);font-weight:600}.rate-mid{color:var(--amber-ink);font-weight:600}.rate-bad{color:var(--crit);font-weight:600}
+  /* scatter placeholder */
+  .scatter{position:relative;height:300px;margin:14px 16px 8px;border-inline-start:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .scatter .q{position:absolute;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink3)}
+  .scatter .ref{position:absolute;border-top:1px dashed var(--line2)}
+  .scatter .refv{position:absolute;border-inline-start:1px dashed var(--line2)}
+  .scatter .pt{position:absolute;width:12px;height:12px;border-radius:50%;background:var(--ink);transform:translate(-50%,50%)}
+  .scatter .pt span{position:absolute;left:16px;top:-4px;font-size:12px;white-space:nowrap;color:var(--ink)}
+  .axis{display:flex;justify-content:space-between;padding:0 16px 14px;font-size:11.5px;color:var(--ink2)}
+  /* heatmap */
+  .heat{padding:8px 16px 14px}
+  .heat table td{padding:5px 3px;text-align:center;border-bottom:0}
+  .heat table th{padding:8px 3px;text-align:center}
+  .heat table th:first-child,.heat table td:first-child{text-align:start}
+  .heat .c{display:inline-block;width:26px;height:20px;border-radius:5px;background:#EEF0F1}
+  .h1{background:#CFE9DA!important}.h2{background:#9ED4B4!important}.h3{background:#5DB784!important}.h4{background:#15803D!important}
+  .heat .tot{font-weight:600;white-space:nowrap;font-size:12.5px;text-align:end!important}
+  /* products card */
+  .prod td{font-size:13px}
+  .prod td:first-child{white-space:nowrap}
+  .thumb{width:28px;height:28px;border-radius:6px;background:#E9EBED;display:inline-block;vertical-align:middle;margin-inline-end:8px}
+  .rng{position:relative;height:6px;width:180px;border-radius:var(--pill);background:#EAECEE}
+  .rng b{position:absolute;top:-4px;width:14px;height:14px;border-radius:50%;background:var(--card);border:2px solid var(--ink)}
+  .rng b.t{background:var(--ink)}
+  /* commissions card */
+  .tot td{font-weight:600;background:var(--sunken)}
+  .lp{font-size:12.5px;color:var(--ink2);white-space:nowrap}
+  .lp b{color:var(--ink);font-weight:500}
+  .rate-tag{font-size:11.5px;color:var(--ink2)}
+  /* overlays */
+  .scrim{position:fixed;inset:0;background:rgba(26,26,26,.45);z-index:20;display:none}
+  .scrim.on{display:block}
+  .drawer{position:fixed;top:0;bottom:0;inset-inline-end:0;width:470px;max-width:96vw;background:var(--card);z-index:21;box-shadow:-8px 0 30px rgba(26,26,26,.15);transform:translateX(105%);transition:transform .22s ease;overflow:auto;display:flex;flex-direction:column}
+  .drawer.on{transform:none}
+  @media (prefers-reduced-motion:reduce){.drawer{transition:none}}
+  .drawer .top{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line0);position:sticky;top:0;background:var(--card);z-index:1}
+  .drawer .top .who{display:flex;align-items:center;gap:10px}
+  .drawer .top .who b{font-size:15px}
+  .drawer .top .who small{display:block;color:var(--ink2);font-size:12px}
+  .x{border:0;background:none;font-size:18px;color:var(--ink2);padding:4px 8px;border-radius:6px}
+  .x:hover{background:var(--hover);color:var(--ink)}
+  .drawer .body{padding:14px 18px 30px;display:flex;flex-direction:column;gap:12px}
+  .sec{border:1px solid var(--line0);border-radius:var(--r);padding:12px 14px}
+  .sec .sl{display:flex;align-items:center;gap:8px;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin-bottom:10px}
+  .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  .st .v{font-size:18px;font-weight:700;line-height:1.1}
+  .st .l{font-size:11.5px;color:var(--ink2);margin-top:2px}
+  .kv{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+  .kv .v{font-size:16px;font-weight:700;line-height:1.15}
+  .kv .l{font-size:11.5px;color:var(--ink2);margin-top:2px}
+  .kv .v.est{font-weight:600;color:var(--ink2)}
+  .ledger{margin-top:12px;border-top:1px solid var(--line0);padding-top:8px}
+  .ledger table{font-size:12.5px}
+  .ledger td,.ledger th{padding:6px 4px}
+  .ty{display:inline-block;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;background:#F0F1F2;color:var(--ink2)}
+  .ty.acc{background:var(--brand-bg);color:var(--brand-hover)}
+  .ty.pay{background:#F0F1F2;color:var(--ink)}
+  .ty.rev{background:var(--crit-bg);color:var(--crit)}
+  .ty.adj{background:var(--warn-bg);color:var(--amber-ink)}
+  .modal{position:fixed;inset:0;z-index:22;display:none;place-items:center}
+  .modal.on{display:grid}
+  .dlg{width:460px;max-width:94vw;background:var(--card);border-radius:12px;box-shadow:0 20px 60px rgba(26,26,26,.25);padding:20px}
+  .dlg h4{margin:0;font-size:16px;font-weight:600}
+  .dlg p.hint{margin:4px 0 14px;font-size:12.5px;color:var(--ink2)}
+  .fld{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;min-width:0}
+  .fld input,.fld select{width:100%}
+  .fld label{font-size:12.5px;font-weight:500}
+  .fld input,.fld select,.fld textarea{height:36px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font:inherit;background:var(--card);color:var(--ink)}
+  .fld textarea{height:64px;padding:8px 10px;resize:vertical}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .after{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line0);padding-top:12px;margin-top:4px;font-size:13.5px}
+  .after b{font-size:16px}
+  .warnbox{display:none;margin-top:10px;border:1px solid #F0D48A;background:var(--warn-bg);color:var(--amber-ink);border-radius:8px;padding:10px 12px;font-size:12.5px}
+  .warnbox.on{display:block}
+  .warnbox label{display:flex;gap:8px;align-items:center;margin-top:8px;color:var(--ink);font-weight:500}
+  .dlg .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+  .sheet .body h5{margin:0 0 8px;font-size:13px;font-weight:600}
+  .rate-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line0);font-size:13px}
+  .rate-row:last-child{border-bottom:0}
+  .rate-row small{display:block;color:var(--ink2);font-size:12px}
+  .caption{font-size:12px;color:var(--ink2);padding:6px 16px 12px}
+  /* settings view */
+  .stabs{display:inline-flex;border:1px solid var(--line);border-radius:6px;background:var(--card)}
+  .stabs button:first-child{border-radius:5px 0 0 5px}.stabs button:last-child{border-radius:0 5px 5px 0}
+  .stabs button{height:36px;padding:0 16px;border:0;background:transparent;font-size:13px;font-weight:500;color:var(--ink)}
+  .stabs button.on{background:var(--ink);color:#fff}
+  .sf{display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid var(--line0)}
+  .sf:last-child{border-bottom:0}
+  .sf .lb{font-size:13.5px;font-weight:500}
+  .sf .lb small{display:block;font-weight:400;color:var(--ink2);font-size:12px;margin-top:2px}
+  .sf .ct{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+  .sf input,.sf select{height:36px;border:1px solid var(--line);border-radius:6px;padding:0 10px;font:inherit;background:var(--card);color:var(--ink)}
+  .hist{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink2);border:1px solid var(--line0);border-radius:var(--pill);padding:2px 9px;background:var(--sunken)}
+  .foot-save{display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--line0);padding:12px 18px}
+  .sw{width:36px;height:20px;border-radius:10px;background:#C9CDD1;position:relative;border:0;padding:0;flex:none;transition:background .15s;vertical-align:middle}
+  .sw::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .sw[aria-checked="true"]{background:var(--brand)}
+  .sw[aria-checked="true"]::after{left:18px}
+  .sw:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+  .swl{display:inline-flex;align-items:center;gap:10px;font-size:13.5px}
+  tr.off td{color:var(--ink3)}
+  tr.off .ag{color:var(--ink2)}
+  .off-tag{display:inline-block;border-radius:var(--pill);border:1px solid var(--line);padding:1px 8px;font-size:11.5px;color:var(--ink2);background:var(--sunken);white-space:nowrap}
+  .ovr td{font-size:13px}
+  /* agent view */
+  .agent-shell{background:#FAFAF9;min-height:100vh;color:#1B1917}
+  .aband{height:64px;background:#fff;border-bottom:1px solid #EAE8E4;display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:5}
+  .aband .l{display:flex;align-items:center;gap:22px;height:100%}
+  .aband .logo{width:30px;height:30px;border-radius:8px;background:#006C49;color:#fff;display:grid;place-items:center;font-weight:700}
+  .atabs{display:flex;height:100%}
+  .atabs a{display:inline-flex;align-items:center;gap:8px;padding:0 14px;height:100%;border-bottom:2px solid transparent;font-size:13.5px;font-weight:600;color:#78726A}
+  .atabs a.on{color:#006C49;border-bottom-color:#006C49;font-weight:700}
+  .atabs i{width:14px;height:14px;border:1.6px solid currentColor;border-radius:3px;opacity:.7}
+  .aband .r{display:flex;align-items:center;gap:12px;color:#5C5852;font-size:13px}
+  .acontent{max-width:880px;margin:0 auto;padding:22px 20px 60px}
+  .acard{background:#fff;border:1px solid #EAE8E4;border-radius:12px}
+  .ahero{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:0}
+  .ahero>div{padding:20px 22px;border-inline-end:1px solid #EAE8E4}
+  .ahero>div:last-child{border-inline-end:0}
+  .ahero .l1{font-size:12.5px;color:#5C5852;letter-spacing:.02em}
+  .ahero .v1{font-size:34px;font-weight:800;line-height:1.1;margin-top:4px;color:#1B1917}
+  .ahero .v2{font-size:22px;font-weight:700;line-height:1.15;margin-top:6px}
+  .ahero .c1{font-size:12.5px;color:#78726A;margin-top:6px}
+  .aexpl{padding:12px 22px;border-top:1px solid #EAE8E4;font-size:13px;color:#5C5852;background:#F4F3EF;border-radius:0 0 12px 12px}
+  .arow{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid #EAE8E4;font-size:13.5px}
+  .arow:last-child{border-bottom:0}
+  .arow .d{color:#78726A;font-size:12.5px;width:96px;flex:none}
+  .arow .t{flex:1;min-width:0}
+  .arow .t small{display:block;color:#78726A;font-size:12px}
+  .arow .t .apill{white-space:nowrap}
+  .arow .m{font-weight:700;white-space:nowrap;margin-inline-start:12px;min-width:64px;text-align:end}
+  .apill{display:inline-block;border-radius:var(--pill);padding:2px 9px;font-size:11.5px;font-weight:600;background:#F4F3EF;color:#5C5852}
+  .apill.acc{background:#E3F4EC;color:#006C49}
+  .apill.pay{background:#EFEDE8;color:#1B1917}
+  .agrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+  .ahd{padding:14px 18px;border-bottom:1px solid #EAE8E4;display:flex;justify-content:space-between;align-items:baseline}
+  .ahd b{font-size:15px}
+  .ahd small{color:#78726A;font-size:12.5px}
+  .aday{border-bottom:1px solid #EAE8E4}
+  .aday:last-of-type{border-bottom:0}
+  .aday summary{list-style:none;display:flex;align-items:center;padding:11px 18px;cursor:pointer;font-size:13.5px}
+  .aday summary::-webkit-details-marker{display:none}
+  .aday summary:hover{background:#FAFAF9}
+  .aday .d{color:#78726A;font-size:12.5px;width:96px;flex:none}
+  .aday .t{flex:1;min-width:0}
+  .aday .t small{display:block;color:#78726A;font-size:12px}
+  .aday .m{font-weight:700;white-space:nowrap;margin-inline-start:12px;min-width:64px;text-align:end}
+  .aday[open] summary{background:#FAFAF9}
+  .aorders{padding:2px 18px 10px 114px;font-size:12.5px;color:#5C5852;display:grid;gap:4px;background:#FAFAF9}
+  .aorders div{display:flex;justify-content:space-between;gap:12px}
+  .aorders .money{color:#5C5852;font-weight:600}
+  .arow.apay{background:#F4F3EF}
+  body.agentmode .sidebar,body.agentmode .topbar{display:none}
+  body.agentmode .shell{grid-template-columns:1fr}
+  body.agentmode .content{max-width:none;padding:0}
+  body.agentmode .review{margin:18px 22px 0}
+  @media (max-width:1100px){.tiles{grid-template-columns:repeat(2,1fr)}.strip{grid-template-columns:repeat(3,1fr)}.two,.two-eq{grid-template-columns:1fr}.shell{grid-template-columns:1fr}.sidebar{display:none}}
+</style>
+
+<div class="shell">
+  <aside class="sidebar" aria-label="Navigation">
+    <div class="brandrow"><div class="logo">O</div><div><b>Ordra</b><small>Libye · super_admin</small></div></div>
+    <div class="grp"><span>Accueil</span><nav class="nav"><a href="#"><i></i>Tableau de bord</a></nav></div>
+    <div class="grp"><span>Commandes</span><nav class="nav"><a href="#"><i></i>Commandes</a><a href="#"><i></i>Archivées</a></nav></div>
+    <div class="grp"><span>Finances</span><nav class="nav"><a href="#"><i></i>P&amp;L</a><a href="#"><i></i>Marges produits</a><a href="#"><i></i>Ad spend</a><a href="#"><i></i>Investisseurs</a></nav></div>
+    <div class="grp"><span>Équipe</span><nav class="nav">
+      <button id="nav-live" class="on" onclick="showView('live')"><i></i>Salle de contrôle</button>
+      <button id="nav-perf" onclick="showView('perf')"><i></i>Performance équipe</button>
+      <a href="#"><i></i>Accès</a>
+    </nav></div>
+    <div class="grp"><span>Système</span><nav class="nav"><a href="#"><i></i>Transporteurs</a><button id="nav-settings" onclick="showView('settings')"><i></i>Général</button></nav></div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="crumb" id="crumb">Équipe / <b>Salle de contrôle</b></div>
+      <div class="right"><span class="mkt">🇱🇾 Libye · LYD</span><span>Firas</span><span class="avatar">F</span></div>
+    </header>
+
+    <div class="content">
+      <div class="review">
+        <div>
+          <h1>Prototype — commissions agents sur les deux pages Équipe</h1>
+          <p>Chiffres réels du marché Libye (extraits le 17 août 2026 ; salle de contrôle figée au 16 août 20 h 34, dernière soirée active ; performance sur 10 → 16 août). <b>Le taux est illustratif</b> — 3,000 د.ل. par commande livrée, tasnim à 3,500 — et les paiements sont des exemples pour montrer chaque état (dont un solde négatif). Rien n'existe encore en base ni dans le code. <b>v2–v4 :</b> le taux et les interrupteurs (marché · par agent) se règlent dans <i>Paramètres › Général</i>, et l'agent voit son propre solde.</p>
+        </div>
+        <div class="ctl">
+          <div class="tabs" role="tablist"><button class="on" id="tab-live" onclick="showView('live')">Salle de contrôle</button><button id="tab-perf" onclick="showView('perf')">Performance équipe</button><button id="tab-settings" onclick="showView('settings')">Paramètres</button><button id="tab-agent" onclick="showView('agent')">Vue agent</button></div>
+          <label class="toggle"><input type="checkbox" id="hl" checked onchange="document.body.classList.toggle('hl',this.checked)"> Surligner les ajouts</label>
+        </div>
+        <details class="points">
+          <summary>Points à valider (10)</summary>
+          <ol>
+            <li><b>Salle de contrôle</b> — le solde par agent entre dans la table (colonne « Solde »), pas dans une tuile : l'argent est par personne, les tuiles restent sur le travail bloqué.</li>
+            <li>La barre-verdict gagne « N agents à payer (Σ) » et, seulement s'il y en a, « N solde négatif ».</li>
+            <li>Le menu Action de chaque agent gagne « Enregistrer un paiement… ».</li>
+            <li><b>Performance</b> — 6ᵉ cellule « Commissions » dans la barre (acquis sur la période · livrées · versé).</li>
+            <li>Chaque ligne du classement affiche « livrées N · +X » — la commission suit la livraison, l'agent doit voir le lien.</li>
+            <li>Nouvelle carte « Commissions &amp; paiements » (pleine largeur, sous Présence) : acquis / versé sur la période, solde depuis toujours, dernier paiement, bouton Payer, taux, export.</li>
+            <li>Tiroir agent (commun aux deux pages) : section « Commission » + relevé + paiement. Modal de paiement : montant, date, mode, référence, note, et avertissement si le solde devient négatif.</li>
+            <li><b>Paramètres › Général</b> — nouvel onglet « Commissions » (super_admin) : taux du marché par commande livrée, date d'effet, exceptions par agent, historique. La carte Performance ne fait que pointer vers cet onglet.</li>
+            <li><b>Interrupteurs</b> — un interrupteur marché (« Commissions activées ») et un par agent, dans la même table que les taux ; couper = pause datée, jamais une suppression. Agent coupé : plus d'onglet côté agent, hors des totaux à payer, solde restant toujours payable.</li>
+            <li><b>Vue agent</b> — onglet « Mes commissions », volontairement minimal : un seul chiffre (À recevoir, depuis le dernier paiement), trois faits (ce mois · en cours · dernier paiement), et un historique <b>par jour</b> qui s'ouvre sur les commandes. Lecture seule ; arabe RTL pour la Libye.</li>
+          </ol>
+        </details>
+      </div>
+
+      <!-- ═══════════════════ VIEW 1 — SALLE DE CONTRÔLE ═══════════════════ -->
+      <section id="view-live" class="view on" aria-label="Salle de contrôle">
+        <div class="ph">
+          <div><h2>Salle de contrôle</h2><p>Qui travaille, ce qui avance, ce qui bloque — maintenant.</p></div>
+          <div class="meta"><span class="dot"></span><b style="color:var(--ink)">Temps réel</b><span>· sam. 16 août, 20:34 (Tripoli)</span></div>
+        </div>
+        <div class="stack">
+          <div class="card verdict">
+            <span>1 agent en ligne</span><span class="sep">·</span>
+            <span>16 commandes bloquées</span><span class="sep">·</span>
+            <span>2 files orphelines</span>
+            <span class="sep">·</span><span data-new="Nouveau">3 agents à payer (<span class="money">78 500<span class="cur">د.ل.</span></span>)</span>
+            <span class="sep">·</span><span data-new="Nouveau" class="neg">1 solde négatif</span>
+          </div>
+
+          <div class="tiles">
+            <div class="card tile t-crit"><div class="ico">✕</div><div><div class="lab">Tentatives épuisées</div><div class="val">7</div></div><div class="cap">plus ancienne 6 j · tasnim 5 · riheb 2</div></div>
+            <div class="card tile t-warn"><div class="ico">◔</div><div><div class="lab">Files orphelines</div><div class="val">12</div></div><div class="cap">tasnim 10 · riheb 2 — dont 9 confirmées jamais expédiées</div></div>
+            <div class="card tile t-neu"><div class="ico">👥</div><div><div class="lab">En ligne</div><div class="val">1 <span style="font-size:15px;font-weight:500;color:var(--ink2)">/ 6</span></div></div><div class="cap">salima vue il y a 2 min</div></div>
+            <div class="card tile t-warn"><div class="ico">✓</div><div><div class="lab">Rappels dépassés</div><div class="val" style="font-size:26px">3</div><div class="lab" style="margin-top:8px;border-top:1px solid var(--line0);padding-top:8px">Sans appel</div><div class="val" style="font-size:26px">5</div></div></div>
+          </div>
+
+          <div class="card">
+            <div class="hd"><div><h3>Agents</h3><small>cliquer un agent pour le détail</small></div></div>
+            <div class="tw"><table>
+              <thead><tr>
+                <th>Agent</th><th>Dernière action</th><th>Aujourd'hui</th><th>Objectifs du jour</th>
+                <th data-new="Nouveau" title="commissions acquises − versées, depuis le lancement">Solde</th>
+                <th>File</th><th>Action</th>
+              </tr></thead>
+              <tbody>
+                <tr class="click" onclick="openDrawer('salima')">
+                  <td><div class="ag"><span class="av" style="background:#B98900">S<span class="pr on"></span></span>salima</div></td>
+                  <td>rejetée · il y a 2 min</td>
+                  <td>28 tr · <b>16 conf</b></td>
+                  <td><span class="segs" title="Volume 28/12 · Qualité 57 % · Hygiène 1 problème"><i class="f"></i><i class="f"></i><i></i></span></td>
+                  <td data-new=""><span class="money pos">+13 000<span class="cur">د.ل.</span></span></td>
+                  <td>30 <span class="pill neg">conf. ≥ 3 j</span></td>
+                  <td onclick="event.stopPropagation()"><div class="menu" id="m-salima"><button class="btn sm" onclick="toggleMenu('m-salima')">Réassigner ▾</button><div class="dd"><button>Retour au pool</button><button>Réassigner à tasnim</button><button>Réassigner à roqaya</button><hr><button data-new="Nouveau" onclick="openPay('salima');toggleMenu('m-salima')">Enregistrer un paiement…</button></div></div></td>
+                </tr>
+                <tr class="click stripe" onclick="openDrawer('tasnim')">
+                  <td><div class="ag"><span class="av" style="background:#8A5CF6">T<span class="pr off"></span></span>tasnim</div></td>
+                  <td>tentative 2 · il y a 43 min</td>
+                  <td>27 tr · <b>13 conf</b></td>
+                  <td><span class="segs"><i class="f"></i><i class="f"></i><i></i></span></td>
+                  <td data-new=""><span class="money pos">+29 500<span class="cur">د.ل.</span></span></td>
+                  <td>10 <span class="pill neg">5 épuisées</span></td>
+                  <td onclick="event.stopPropagation()"><div class="menu" id="m-tasnim"><button class="btn sm" onclick="toggleMenu('m-tasnim')">Réassigner ▾</button><div class="dd"><button>Retour au pool</button><button>Réassigner à salima</button><hr><button onclick="openPay('tasnim');toggleMenu('m-tasnim')">Enregistrer un paiement…</button></div></div></td>
+                </tr>
+                <tr class="click" onclick="openDrawer('roqaya')">
+                  <td><div class="ag"><span class="av" style="background:#0F7A5C">R<span class="pr off"></span></span>roqaya</div></td>
+                  <td>tentative 3 · hier 13:10</td>
+                  <td class="muted">0 · 0</td>
+                  <td><span class="segs"><i></i><i></i><i class="f"></i></span></td>
+                  <td data-new=""><span class="pill neg">doit <span class="money">7 000<span class="cur" style="color:inherit">د.ل.</span></span></span></td>
+                  <td class="muted">0</td>
+                  <td onclick="event.stopPropagation()"><div class="menu" id="m-roqaya"><button class="btn sm" onclick="toggleMenu('m-roqaya')">Réassigner ▾</button><div class="dd"><button disabled style="color:var(--ink3)">File vide</button><hr><button onclick="openPay('roqaya');toggleMenu('m-roqaya')">Enregistrer un paiement…</button></div></div></td>
+                </tr>
+                <tr class="click" onclick="openDrawer('hend')">
+                  <td><div class="ag"><span class="av" style="background:#2C6ECB">H<span class="pr off"></span></span>hend</div></td>
+                  <td>uploadée · hier 18:01</td>
+                  <td class="muted">0 · 0</td>
+                  <td><span class="segs"><i></i><i></i><i class="f"></i></span></td>
+                  <td data-new=""><span class="money pos">+36 000<span class="cur">د.ل.</span></span> <span class="rate-tag">jamais payée</span></td>
+                  <td class="muted">0</td>
+                  <td onclick="event.stopPropagation()"><div class="menu" id="m-hend"><button class="btn sm" onclick="toggleMenu('m-hend')">Réassigner ▾</button><div class="dd"><button disabled style="color:var(--ink3)">File vide</button><hr><button onclick="openPay('hend');toggleMenu('m-hend')">Enregistrer un paiement…</button></div></div></td>
+                </tr>
+                <tr class="click" onclick="openDrawer('mouna')">
+                  <td><div class="ag"><span class="av" style="background:#DB6B4A">M<span class="pr off"></span></span>mouna</div></td>
+                  <td class="neg">39 j sans action</td>
+                  <td class="muted">0 · 0</td>
+                  <td><span class="segs"><i></i><i></i><i class="f"></i></span></td>
+                  <td data-new=""><span class="off-tag">désactivée</span></td>
+                  <td class="muted">0</td>
+                  <td onclick="event.stopPropagation()"><div class="menu" id="m-mouna"><button class="btn sm" onclick="toggleMenu('m-mouna')">Réassigner ▾</button><div class="dd"><button disabled style="color:var(--ink3)">File vide</button><hr><button onclick="openPay('mouna');toggleMenu('m-mouna')">Enregistrer un paiement…</button></div></div></td>
+                </tr>
+                <tr class="click stripe" onclick="openDrawer('riheb')">
+                  <td><div class="ag"><span class="av" style="background:#6D7175">R<span class="pr off"></span></span>riheb</div></td>
+                  <td class="neg">6 j sans action</td>
+                  <td class="muted">0 · 0</td>
+                  <td><span class="segs"><i></i><i></i><i></i></span></td>
+                  <td data-new="" class="faint">—</td>
+                  <td>2 <span class="pill neg">2 épuisées</span></td>
+                  <td onclick="event.stopPropagation()"><div class="menu" id="m-riheb"><button class="btn sm" onclick="toggleMenu('m-riheb')">Réassigner ▾</button><div class="dd"><button>Retour au pool</button><hr><button onclick="openPay('riheb');toggleMenu('m-riheb')">Enregistrer un paiement…</button></div></div></td>
+                </tr>
+              </tbody>
+            </table></div>
+          </div>
+
+          <div class="two">
+            <div class="card">
+              <div class="hd"><div><h3>À débloquer <span class="pill" style="margin-inline-start:6px">16</span></h3></div></div>
+              <div class="tw"><table>
+                <thead><tr><th>Commande</th><th>Situation</th><th>Âge</th><th>Action</th></tr></thead>
+                <tbody>
+                  <tr><td><b>Ali Ben Salem</b> · Dibio · salima</td><td><span class="pill violet">Confirmée, jamais expédiée</span></td><td class="neg">⚠ 4 j</td><td><button class="btn sm">Uploader</button></td></tr>
+                  <tr><td><b>Fatma Trabelsi</b> · Dibio · tasnim</td><td><span class="pill warn">Tentatives épuisées</span></td><td class="neg">⚠ 6 j</td><td><button class="btn sm">Réassigner…</button></td></tr>
+                  <tr><td><b>Mohamed K.</b> · Slim Fit · riheb</td><td><span class="pill warn">Tentatives épuisées</span></td><td class="neg">⚠ 6 j</td><td><button class="btn sm">Réassigner…</button></td></tr>
+                </tbody>
+              </table></div>
+              <div class="caption">+ 13 autres · Ouvrir dans Commandes →</div>
+            </div>
+            <div class="card">
+              <div class="hd"><div><h3>Rappels à venir</h3></div><span class="pill">3 rappels</span></div>
+              <div class="tw"><table><tbody>
+                <tr><td><b>Sara M.</b> · Dibio · salima</td><td class="muted">dim. 17 août · 10:00</td></tr>
+                <tr><td><b>Yosra B.</b> · Dibio · tasnim</td><td class="muted">dim. 17 août · 11:30</td></tr>
+                <tr><td><b>Nour H.</b> · Slim Fit · salima</td><td class="muted">lun. 18 août · 09:00</td></tr>
+              </tbody></table></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════ VIEW 2 — PERFORMANCE ÉQUIPE ═══════════════════ -->
+      <section id="view-perf" class="view" aria-label="Performance équipe">
+        <div class="ph">
+          <div><h2>Performance équipe</h2><p>Débit par heure active × taux de confirmation — les deux mesures qui comptent.</p></div>
+          <div class="meta">📅 <b style="color:var(--ink)">dim. 10 août → sam. 16 août</b><span>· Tripoli</span></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <div class="tabs"><button>Hier</button><button class="on">7 jours</button><button>30 jours</button><button>Personnalisé</button></div>
+            <select style="height:38px;min-width:200px;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:0 10px;font:inherit"><option>Tous les produits</option><option>Dibio</option><option>Slim Fit</option></select>
+          </div>
+          <span class="muted" style="font-size:12.5px">taux masqué sous 10 traitées</span>
+        </div>
+
+        <div class="stack">
+          <div class="card strip">
+            <div class="cell"><div class="ico">☑</div><div><div class="lab">Traitées</div><div class="val">288</div><div class="cap">commandes menées à un verdict</div></div></div>
+            <div class="cell"><div class="ico">%</div><div><div class="lab">Taux</div><div class="val">37,5 %</div><div class="cap">pondéré, 108 / 288</div></div></div>
+            <div class="cell"><div class="ico">◷</div><div><div class="lab">Heures</div><div class="val">33 h 20</div><div class="cap">équipe entière</div></div></div>
+            <div class="cell"><div class="ico">⌁</div><div><div class="lab">Débit</div><div class="val">7,5 <small>/ h</small></div><div class="cap">médiane des agents</div></div></div>
+            <div class="cell"><div class="ico">◎</div><div><div class="lab">Objectif équipe</div><div class="val">108 <small>/ 150 conf.</small></div><div style="display:flex;align-items:center;gap:10px;margin-top:8px"><div class="bar" style="flex:1"><i style="width:72%"></i></div><span style="font-size:12.5px;font-weight:600;color:var(--brand)">72 %</span></div></div></div>
+            <div class="cell" data-new="Nouveau"><div class="ico">د.ل</div><div><div class="lab">Commissions</div><div class="val"><span class="money">185 500<span class="cur">د.ل.</span></span></div><div class="cap">58 livrées · <span class="money">120 000<span class="cur">د.ل.</span></span> versées</div></div></div>
+          </div>
+
+          <div class="two-eq">
+            <div class="card">
+              <div class="hd"><div><h3>Classement</h3><small>confirmées / heure active · cible 3,0</small></div></div>
+              <div class="rk" onclick="openDrawer('salima')"><div class="n">1</div><span class="av" style="background:#B98900">S</span><div class="who"><b>salima</b><div class="comps">taux <span class="rate-ok">52,4 %</span> · débit <strong>7,3/h</strong> · 11 h 30 · 4 j</div><div class="comps2" data-new="Nouveau">livrées <strong>9</strong> · <strong class="money">+27 000<span class="cur">د.ل.</span></strong> de commission</div></div><div class="score"><div class="big">3,8<small>conf/h</small></div><div class="bar"><i style="width:100%"></i></div><div class="faint" style="font-size:11px">3,8 / 3,0</div></div><div class="streak">🔥 série 4 j</div></div>
+              <div class="rk" onclick="openDrawer('roqaya')"><div class="n">2</div><span class="av" style="background:#0F7A5C">R</span><div class="who"><b>roqaya</b><div class="comps">taux <span class="rate-bad">18,0 %</span> · débit <strong>20,0/h</strong> · 5 h · 4 j</div><div class="comps2">livrées <strong>15</strong> · <strong class="money">+45 000<span class="cur">د.ل.</span></strong> de commission</div><button class="cta">→ Objectif taux 40 %</button></div><div class="score"><div class="big">3,6<small>conf/h</small></div><div class="bar"><i style="width:100%"></i></div><div class="faint" style="font-size:11px">3,6 / 3,0</div></div><div class="streak">🔥 série 0 j</div></div>
+              <div class="rk" onclick="openDrawer('tasnim')"><div class="n">3</div><span class="av" style="background:#8A5CF6">T</span><div class="who"><b>tasnim</b><div class="comps">taux <span class="rate-ok">46,9 %</span> · débit <strong>5,9/h</strong> · 13 h 50 · 5 j</div><div class="comps2">livrées <strong>23</strong> · <strong class="money">+80 500<span class="cur">د.ل.</span></strong> de commission</div><button class="cta">→ Objectif débit 7/h</button></div><div class="score"><div class="big">2,7<small>conf/h</small></div><div class="bar"><i style="width:90%"></i></div><div class="faint" style="font-size:11px">2,7 / 3,0</div></div><div class="streak">🔥 série 2 j</div></div>
+              <div class="rk" onclick="openDrawer('hend')"><div class="n">4</div><span class="av" style="background:#2C6ECB">H</span><div class="who"><b>hend</b><div class="comps">taux <span class="rate-mid">34,8 %</span> · débit <strong>7,7/h</strong> · 3 h · 3 j</div><div class="comps2">livrées <strong>11</strong> · <strong class="money">+33 000<span class="cur">د.ل.</span></strong> de commission</div></div><div class="score"><div class="big">2,7<small>conf/h</small></div><div class="bar"><i style="width:90%"></i></div><div class="faint" style="font-size:11px">2,7 / 3,0</div></div><div class="streak">🔥 série 1 j</div></div>
+              <div class="rk-foot">Hors classement : mouna (aucune action) · riheb (aucune action)</div>
+            </div>
+            <div class="card">
+              <div class="hd"><div><h3>Carte débit × taux</h3><small>traitées / heure active contre taux de confirmation</small></div></div>
+              <div class="scatter">
+                <div class="q" style="left:8px;top:8px">Fiable · lent</div><div class="q" style="right:8px;top:8px;color:var(--brand)">Cible</div><div class="q" style="left:8px;bottom:8px">Faible</div><div class="q" style="right:8px;bottom:8px">Rapide · perd des leads</div>
+                <div class="ref" style="left:0;right:0;top:56%"></div><div class="refv" style="top:0;bottom:0;left:37%"></div>
+                <div class="pt" style="left:36%;bottom:52%"><span>salima</span></div>
+                <div class="pt" style="left:29%;bottom:47%"><span>tasnim</span></div>
+                <div class="pt" style="left:38%;bottom:35%"><span>hend</span></div>
+                <div class="pt" style="left:88%;bottom:18%"><span>roqaya</span></div>
+              </div>
+              <div class="axis"><span>taux de confirmation % ↑ · équipe 37,5</span><span>traitées / heure active → · médiane 7,5</span></div>
+            </div>
+          </div>
+
+          <div class="two-eq">
+            <div class="card prod">
+              <div class="hd"><div><h3>Par produit</h3><small>le taux d'un produit est le plafond de l'équipe</small></div></div>
+              <div class="tw"><table>
+                <thead><tr><th>Produit</th><th>Traitées</th><th>Taux conf. équipe</th><th>Écart max entre agents</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="thumb"></span>Dibio</td><td>221</td><td><div style="display:flex;align-items:center;gap:8px"><span class="rng" style="flex:none"><b style="left:14%"></b><b class="t" style="left:38%"></b><b style="left:57%"></b></span><span style="white-space:nowrap">38 %</span></div></td><td>34 pts</td></tr>
+                  <tr><td><span class="thumb"></span>Slim Fit</td><td>67</td><td><div style="display:flex;align-items:center;gap:8px"><span class="rng" style="flex:none"><b style="left:20%"></b><b class="t" style="left:35%"></b><b style="left:48%"></b></span><span style="white-space:nowrap">35 %</span></div></td><td class="muted">moins de deux agents à 10 traitées</td></tr>
+                </tbody>
+              </table></div>
+            </div>
+            <div class="card heat">
+              <div class="hd" style="padding-inline:0"><div><h3>Présence</h3><small>heures actives par jour</small></div></div>
+              <div class="tw"><table>
+                <thead><tr><th style="padding-inline-start:0">Agent</th><th>dim. 10</th><th>lun. 11</th><th>mar. 12</th><th>mer. 13</th><th>jeu. 14</th><th>ven. 15</th><th>sam. 16</th><th>Total</th></tr></thead>
+                <tbody>
+                  <tr><td style="padding-inline-start:0"><b>tasnim</b></td><td><span class="c h3"></span></td><td><span class="c h4"></span></td><td><span class="c h2"></span></td><td><span class="c"></span></td><td><span class="c h2"></span></td><td><span class="c h3"></span></td><td><span class="c h4"></span></td><td class="tot">13 h 50 · 5 j</td></tr>
+                  <tr><td style="padding-inline-start:0"><b>salima</b></td><td><span class="c"></span></td><td><span class="c h3"></span></td><td><span class="c h3"></span></td><td><span class="c"></span></td><td><span class="c"></span></td><td><span class="c h3"></span></td><td><span class="c h3"></span></td><td class="tot">11 h 30 · 4 j</td></tr>
+                  <tr><td style="padding-inline-start:0"><b>roqaya</b></td><td><span class="c h2"></span></td><td><span class="c"></span></td><td><span class="c h1"></span></td><td><span class="c h2"></span></td><td><span class="c"></span></td><td><span class="c h1"></span></td><td><span class="c"></span></td><td class="tot">5 h · 4 j</td></tr>
+                  <tr><td style="padding-inline-start:0"><b>hend</b></td><td><span class="c h1"></span></td><td><span class="c h1"></span></td><td><span class="c h1"></span></td><td><span class="c"></span></td><td><span class="c"></span></td><td><span class="c"></span></td><td><span class="c"></span></td><td class="tot">3 h · 3 j</td></tr>
+                  <tr><td style="padding-inline-start:0"><b>mouna</b></td><td><span class="c"></span></td><td><span class="c"></span></td><td><span class="c"></span></td><td><span class="c"></span></td><td><span class="c"></span></td><td><span class="c"></span></td><td><span class="c"></span></td><td class="tot neg">0 · absente</td></tr>
+                </tbody>
+              </table></div>
+            </div>
+          </div>
+
+          <!-- NEW CARD -->
+          <div class="card" data-new="Nouvelle carte">
+            <div class="hd">
+              <div><h3>Commissions &amp; paiements</h3><small>acquis et versé sur la période · solde depuis le lancement (27 juil.) · taux 3,000 د.ل. / livrée, tasnim 3,500</small></div>
+              <div class="acts"><button class="btn sm ghost" onclick="showView('settings')">Taux · Paramètres →</button><button class="btn sm">Exporter CSV</button></div>
+            </div>
+            <div class="tw"><table>
+              <thead><tr><th>Agent</th><th>Livrées</th><th>Acquis (période)</th><th>Versé (période)</th><th>Solde total</th><th>Dernier paiement</th><th></th></tr></thead>
+              <tbody>
+                <tr class="click" onclick="openDrawer('tasnim')"><td><div class="ag"><span class="av" style="background:#8A5CF6">T</span>tasnim <span class="rate-tag">3,500</span></div></td><td>23</td><td><span class="money">80 500<span class="cur">د.ل.</span></span></td><td><span class="money">100 000<span class="cur">د.ل.</span></span></td><td><span class="money pos">+29 500<span class="cur">د.ل.</span></span></td><td class="lp"><b>10 août</b> · 100 000 · espèces</td><td onclick="event.stopPropagation()"><button class="btn sm" onclick="openPay('tasnim')">Payer</button></td></tr>
+                <tr class="click" onclick="openDrawer('roqaya')"><td><div class="ag"><span class="av" style="background:#0F7A5C">R</span>roqaya</div></td><td>15</td><td><span class="money">45 000<span class="cur">د.ل.</span></span></td><td class="faint">—</td><td><span class="pill neg">doit <span class="money">7 000<span class="cur" style="color:inherit">د.ل.</span></span></span></td><td class="lp"><b>9 août</b> · 70 000 · virement</td><td onclick="event.stopPropagation()"><button class="btn sm" onclick="openPay('roqaya')">Payer</button></td></tr>
+                <tr class="click" onclick="openDrawer('hend')"><td><div class="ag"><span class="av" style="background:#2C6ECB">H</span>hend</div></td><td>11</td><td><span class="money">33 000<span class="cur">د.ل.</span></span></td><td class="faint">—</td><td><span class="money pos">+36 000<span class="cur">د.ل.</span></span></td><td class="lp muted">jamais payée</td><td onclick="event.stopPropagation()"><button class="btn sm" onclick="openPay('hend')">Payer</button></td></tr>
+                <tr class="click" onclick="openDrawer('salima')"><td><div class="ag"><span class="av" style="background:#B98900">S</span>salima</div></td><td>9</td><td><span class="money">27 000<span class="cur">د.ل.</span></span></td><td><span class="money">20 000<span class="cur">د.ل.</span></span></td><td><span class="money pos">+13 000<span class="cur">د.ل.</span></span></td><td class="lp"><b>12 août</b> · 20 000 · espèces</td><td onclick="event.stopPropagation()"><button class="btn sm" onclick="openPay('salima')">Payer</button></td></tr>
+                <tr class="click" onclick="openDrawer('mouna')"><td><div class="ag"><span class="av" style="background:#DB6B4A">M</span>mouna <span class="off-tag">désactivée</span></div></td><td class="faint">0</td><td class="faint">—</td><td class="faint">—</td><td class="faint">—</td><td class="lp muted">—</td><td></td></tr>
+                <tr class="click" onclick="openDrawer('riheb')"><td><div class="ag"><span class="av" style="background:#6D7175">R</span>riheb</div></td><td class="faint">0</td><td class="faint">—</td><td class="faint">—</td><td class="faint">—</td><td class="lp muted">—</td><td></td></tr>
+                <tr class="tot"><td>Total</td><td>58</td><td><span class="money">185 500<span class="cur">د.ل.</span></span></td><td><span class="money">120 000<span class="cur">د.ل.</span></span></td><td><span class="money">+71 500<span class="cur">د.ل.</span></span> <span class="rate-tag" style="font-weight:400">net · 78 500 à payer</span></td><td></td><td></td></tr>
+              </tbody>
+            </table></div>
+            <div class="caption">Une commission naît quand une commande confirmée par l'agent atteint <b>livrée</b> ; rien ne la réduit (pas de pénalité retour). Le relevé est en écriture seule : une erreur se corrige par une écriture inverse, jamais par une suppression.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════ VIEW 3 — PARAMÈTRES › GÉNÉRAL ═══════════════════ -->
+      <section id="view-settings" class="view" aria-label="Paramètres généraux">
+        <div class="ph">
+          <div><h2>Paramètres généraux</h2><p>Libye · les variables du marché, groupe par groupe.</p></div>
+        </div>
+        <div class="stack">
+          <div class="stabs" role="tablist"><button>Opérations</button><button>Finance</button><button>Équipe</button><button class="on" data-new="Nouvel onglet">Commissions</button><button>Libellés</button></div>
+          <div class="card" data-new="Nouvelle section">
+            <div class="hd"><div><h3>Commissions</h3><small>Ce qu'un agent gagne par commande livrée. Un changement ne touche jamais les commandes déjà livrées.</small></div><button class="btn sm">Réinitialiser ce groupe</button></div>
+            <div style="padding:4px 18px 0">
+              <div class="sf" data-new="Nouveau">
+                <div class="lb">Commissions activées<small>Éteint : plus aucune commission n'est calculée pour les commandes livrées à partir de la date choisie. Les soldes déjà acquis restent visibles et payables.</small></div>
+                <div class="ct"><label class="swl"><button class="sw" role="switch" aria-checked="true" onclick="this.setAttribute('aria-checked',this.getAttribute('aria-checked')==='true'?'false':'true')"></button> Activées pour la Libye</label><span class="hist">⟲ activées le 27 juil. · Firas</span></div>
+              </div>
+              <div class="sf">
+                <div class="lb">Commission par commande livrée (د.ل.)<small>Taux du marché — s'applique à tout agent sans exception.</small></div>
+                <div class="ct"><input type="number" step="0.5" value="3.000" style="width:150px" aria-label="Taux du marché"><span class="hist" title="Historique des modifications">⟲ modifié le 27 juil. · Firas</span></div>
+              </div>
+              <div class="sf">
+                <div class="lb">À partir du<small>Les commandes livrées avant cette date gardent leur ancien taux.</small></div>
+                <div class="ct"><input type="date" value="2026-08-18" aria-label="Date d'effet"><span class="muted" style="font-size:12.5px">demain 00:00, heure de Tripoli</span></div>
+              </div>
+              <div class="sf" data-new="Nouveau">
+                <div class="lb">Par agent<small>Coupe la commission d'un agent, ou donne-lui un taux propre. Sinon, le taux du marché s'applique.</small></div>
+                <div class="ct" style="display:block">
+                  <div class="tw" style="border:1px solid var(--line0);border-radius:8px"><table class="ovr">
+                    <thead><tr><th>Agent</th><th>Commission</th><th>Taux</th><th>Depuis</th><th>Note</th><th></th></tr></thead>
+                    <tbody>
+                      <tr><td><div class="ag"><span class="av" style="background:#8A5CF6;width:24px;height:24px;font-size:11px">T</span>tasnim</div></td><td><button class="sw" role="switch" aria-checked="true" aria-label="Commission tasnim" onclick="toggleAgent(this)"></button></td><td><b>3,500</b> د.ل. <span class="off-tag">taux propre</span></td><td class="muted">1ᵉʳ août 2026</td><td class="muted">senior</td><td style="text-align:end"><button class="btn sm ghost">Modifier</button></td></tr>
+                      <tr><td><div class="ag"><span class="av" style="background:#B98900;width:24px;height:24px;font-size:11px">S</span>salima</div></td><td><button class="sw" role="switch" aria-checked="true" aria-label="Commission salima" onclick="toggleAgent(this)"></button></td><td>3,000 <span class="muted">· marché</span></td><td class="muted">27 juil. 2026</td><td class="muted">—</td><td style="text-align:end"><button class="btn sm ghost">Taux propre…</button></td></tr>
+                      <tr><td><div class="ag"><span class="av" style="background:#0F7A5C;width:24px;height:24px;font-size:11px">R</span>roqaya</div></td><td><button class="sw" role="switch" aria-checked="true" aria-label="Commission roqaya" onclick="toggleAgent(this)"></button></td><td>3,000 <span class="muted">· marché</span></td><td class="muted">27 juil. 2026</td><td class="muted">—</td><td style="text-align:end"><button class="btn sm ghost">Taux propre…</button></td></tr>
+                      <tr><td><div class="ag"><span class="av" style="background:#2C6ECB;width:24px;height:24px;font-size:11px">H</span>hend</div></td><td><button class="sw" role="switch" aria-checked="true" aria-label="Commission hend" onclick="toggleAgent(this)"></button></td><td>3,000 <span class="muted">· marché</span></td><td class="muted">27 juil. 2026</td><td class="muted">—</td><td style="text-align:end"><button class="btn sm ghost">Taux propre…</button></td></tr>
+                      <tr class="off"><td><div class="ag"><span class="av" style="background:#DB6B4A;width:24px;height:24px;font-size:11px">M</span>mouna</div></td><td><button class="sw" role="switch" aria-checked="false" aria-label="Commission mouna" onclick="toggleAgent(this)"></button></td><td><span class="off-tag">désactivée</span></td><td class="muted">18 août 2026</td><td class="muted">inactive depuis juillet</td><td style="text-align:end"><button class="btn sm ghost">Taux propre…</button></td></tr>
+                      <tr><td><div class="ag"><span class="av" style="background:#6D7175;width:24px;height:24px;font-size:11px">R</span>riheb</div></td><td><button class="sw" role="switch" aria-checked="true" aria-label="Commission riheb" onclick="toggleAgent(this)"></button></td><td>3,000 <span class="muted">· marché</span></td><td class="muted">27 juil. 2026</td><td class="muted">—</td><td style="text-align:end"><button class="btn sm ghost">Taux propre…</button></td></tr>
+                    </tbody>
+                  </table></div>
+                  <p class="muted" style="font-size:12px;margin:8px 0 0">Un agent désactivé ne voit plus l'onglet « Mes commissions » (sauf s'il lui reste un solde à recevoir) et sort des totaux à payer. Couper puis rallumer ne touche jamais l'historique.</p>
+                </div>
+              </div>
+              <div class="sf">
+                <div class="lb">Historique<small>Chaque changement est daté et signé.</small></div>
+                <div class="ct" style="display:block;font-size:13px">
+                  <div class="rate-row"><div>18 août 2026 — <b>mouna</b> commission désactivée<small>« inactive depuis juillet » · Firas</small></div></div>
+                  <div class="rate-row"><div>1ᵉʳ août 2026 — <b>tasnim</b> 3,000 → 3,500<small>« senior » · Firas</small></div></div>
+                  <div class="rate-row"><div>27 juil. 2026 — <b>marché</b> activé à 3,000<small>lancement des commissions · Firas</small></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="foot-save"><span class="muted" style="font-size:12.5px;align-self:center">Visible par super_admin uniquement</span><button class="btn primary sm">Enregistrer</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════ VIEW 4 — AGENT · MES COMMISSIONS ═══════════════════ -->
+      <section id="view-agent" class="view" aria-label="Vue agent">
+        <div class="agent-shell">
+          <header class="aband">
+            <div class="l"><div class="logo">O</div>
+              <nav class="atabs"><a href="#"><i></i>Commandes</a><a href="#"><i></i>Prospects</a><a href="#"><i></i>Relances</a><a href="#" class="on" data-new="Nouvel onglet"><i></i>Mes commissions</a></nav>
+            </div>
+            <div class="r"><span>tasnim</span><span class="av" style="background:#8A5CF6;width:28px;height:28px;font-size:11px">T</span></div>
+          </header>
+          <div class="acontent" style="max-width:640px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
+              <h2 style="margin:0;font-size:20px;font-weight:700">Mes commissions</h2>
+              <span style="font-size:12.5px;color:#78726A"><b style="color:#1B1917">3,500 د.ل.</b> par commande livrée</span>
+            </div>
+            <div class="acard" data-new="Nouvelle page">
+              <div style="padding:22px 22px 18px">
+                <div class="l1" style="font-size:12.5px;color:#5C5852;letter-spacing:.02em">À recevoir</div>
+                <div class="money" style="font-size:40px;font-weight:800;line-height:1.05;margin-top:4px;color:#1B1917">29 500<span class="cur" style="color:#5C5852;font-size:.5em">د.ل.</span></div>
+                <div style="font-size:13px;color:#5C5852;margin-top:8px">depuis ton paiement du <b style="color:#1B1917">10 août</b> · 9 livrées, 1 correction</div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-top:1px solid #EAE8E4">
+                <div style="padding:14px 18px;border-inline-end:1px solid #EAE8E4"><div style="font-size:12px;color:#78726A">Ce mois</div><div style="font-size:18px;font-weight:700;margin-top:2px">37 livrées</div><div class="money" style="font-size:12.5px;color:#5C5852">+129 500 د.ل.</div></div>
+                <div style="padding:14px 18px;border-inline-end:1px solid #EAE8E4"><div style="font-size:12px;color:#78726A">En cours</div><div style="font-size:18px;font-weight:700;margin-top:2px;color:#5C5852">39 cmd</div><div class="money" style="font-size:12.5px;color:#78726A">≈ 136 500 si livrées</div></div>
+                <div style="padding:14px 18px"><div style="font-size:12px;color:#78726A">Dernier paiement</div><div style="font-size:18px;font-weight:700;margin-top:2px">10 août</div><div class="money" style="font-size:12.5px;color:#5C5852">100 000 د.ل. · espèces</div></div>
+              </div>
+            </div>
+
+            <div class="acard" style="margin-top:14px">
+              <div class="ahd"><b>Historique</b><small>par jour · touche un jour pour voir les commandes</small></div>
+              <details class="aday" open><summary><span class="d">16 août</span><span class="t">2 livrées</span><span class="m money">+7 000</span></summary>
+                <div class="aorders"><div>#LY-10432 · Dibio · Tripoli <span class="money">+3 500</span></div><div>#LY-10398 · Dibio · Benghazi <span class="money">+3 500</span></div></div></details>
+              <details class="aday"><summary><span class="d">15 août</span><span class="t">1 livrée</span><span class="m money">+3 500</span></summary>
+                <div class="aorders"><div>#LY-10371 · Slim Fit · Misrata <span class="money">+3 500</span></div></div></details>
+              <details class="aday"><summary><span class="d">14 août</span><span class="t">1 correction <small>commande #LY-10290 n'était pas livrée</small></span><span class="m money" style="color:#B23A32">−3 500</span></summary>
+                <div class="aorders"><div>#LY-10290 · Dibio · Zawiya — statut corrigé par le transporteur <span class="money" style="color:#B23A32">−3 500</span></div></div></details>
+              <div class="arow apay"><span class="d">10 août</span><span class="t"><b>Paiement reçu</b> <small>espèces · réf. C-0812</small></span><span class="m money">−100 000</span></div>
+              <details class="aday"><summary><span class="d">10 août</span><span class="t">1 livrée</span><span class="m money">+3 500</span></summary>
+                <div class="aorders"><div>#LY-10241 · Dibio · Tripoli <span class="money">+3 500</span></div></div></details>
+              <details class="aday"><summary><span class="d">9 août</span><span class="t">3 livrées</span><span class="m money">+10 500</span></summary>
+                <div class="aorders"><div>#LY-10218 · Dibio · Tripoli <span class="money">+3 500</span></div><div>#LY-10202 · Slim Fit · Tripoli <span class="money">+3 500</span></div><div>#LY-10190 · Dibio · Sabha <span class="money">+3 500</span></div></div></details>
+              <details class="aday"><summary><span class="d">7 août</span><span class="t">4 livrées</span><span class="m money">+14 000</span></summary>
+                <div class="aorders"><div>#LY-10161 · Dibio · Tripoli <span class="money">+3 500</span></div><div>#LY-10155 · Dibio · Benghazi <span class="money">+3 500</span></div><div>#LY-10149 · Dibio · Tripoli <span class="money">+3 500</span></div><div>#LY-10131 · Slim Fit · Misrata <span class="money">+3 500</span></div></div></details>
+              <div style="padding:10px 18px;font-size:12.5px;color:#78726A;display:flex;justify-content:space-between"><span>Voir juillet</span><span>Une commande compte le jour où le transporteur la marque livrée.</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ DRAWER ═══════════════════ -->
+<div class="scrim" id="scrim" onclick="closeAll()"></div>
+<aside class="drawer" id="drawer" aria-label="Détail agent">
+  <div class="top">
+    <div class="who"><span class="av" id="d-av" style="background:#8A5CF6">T</span><div><b id="d-name">tasnim</b><small id="d-sub">agent · Libye · vue hier 19:51</small></div></div>
+    <button class="x" onclick="closeAll()" aria-label="Fermer">✕</button>
+  </div>
+  <div class="body">
+    <div class="sec"><div class="sl">◷ Aujourd'hui</div>
+      <div class="stats"><div class="st"><div class="v" id="d-touch">41</div><div class="l">appels</div></div><div class="st"><div class="v" id="d-tr">27</div><div class="l">traitées</div></div><div class="st"><div class="v" id="d-conf">13</div><div class="l">confirmées</div></div><div class="st"><div class="v" id="d-min">4 h 10</div><div class="l">activité</div></div></div>
+    </div>
+    <div class="sec" data-new="Nouvelle section"><div class="sl">د.ل Commission</div>
+      <div class="kv">
+        <div><div class="v" id="c-today">2 livrées · <span class="money">+7 000<span class="cur">د.ل.</span></span></div><div class="l">aujourd'hui</div></div>
+        <div><div class="v" id="c-period">23 livrées · <span class="money">+80 500<span class="cur">د.ل.</span></span></div><div class="l">sur la période (10 → 16 août)</div></div>
+        <div><div class="v est" id="c-inflight">39 cmd ≈ <span class="money">136 500<span class="cur">د.ل.</span></span></div><div class="l">en cours de livraison — estimation, pas encore acquis</div></div>
+        <div><div class="v" id="c-rate">3,500 <span class="rate-tag">taux agent · depuis 1ᵉʳ août</span></div><div class="l">par commande livrée</div></div>
+        <div><div class="v" id="c-bal"><span class="money pos">+29 500<span class="cur">د.ل.</span></span></div><div class="l">solde — acquis 129 500 · versé 100 000</div></div>
+        <div><div class="v" id="c-last" style="font-size:14px;font-weight:600">10 août · <span class="money">100 000<span class="cur">د.ل.</span></span> · espèces</div><div class="l">dernier paiement · par Firas</div></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px"><button class="btn primary sm" onclick="openPay(currentAgent)">Enregistrer un paiement</button><button class="btn sm" onclick="document.getElementById('ledger').style.display='block'">Voir le relevé</button></div>
+      <div class="ledger" id="ledger" style="display:none">
+        <table>
+          <thead><tr><th>Date</th><th>Type</th><th style="text-align:end">Montant</th><th>Détail</th></tr></thead>
+          <tbody>
+            <tr><td class="muted">16 août 18:40</td><td><span class="ty acc">acquis</span></td><td style="text-align:end" class="money">+3 500</td><td class="muted">#LY-10432 · Dibio · livrée (Darb)</td></tr>
+            <tr><td class="muted">16 août 12:05</td><td><span class="ty acc">acquis</span></td><td style="text-align:end" class="money">+3 500</td><td class="muted">#LY-10398 · Dibio</td></tr>
+            <tr><td class="muted">15 août 17:22</td><td><span class="ty acc">acquis</span></td><td style="text-align:end" class="money">+3 500</td><td class="muted">#LY-10371 · Slim Fit</td></tr>
+            <tr><td class="muted">14 août 09:48</td><td><span class="ty rev">annulé</span></td><td style="text-align:end" class="money neg">−3 500</td><td class="muted">#LY-10290 · statut corrigé (n'était pas livrée)</td></tr>
+            <tr><td class="muted">10 août</td><td><span class="ty pay">versé</span></td><td style="text-align:end" class="money">−100 000</td><td class="muted">espèces · réf. C-0812 · par Firas</td></tr>
+            <tr><td class="muted">10 août 20:15</td><td><span class="ty acc">acquis</span></td><td style="text-align:end" class="money">+3 500</td><td class="muted">#LY-10241 · Dibio</td></tr>
+            <tr><td class="muted">1ᵉʳ août</td><td><span class="ty adj">taux</span></td><td style="text-align:end" class="faint">—</td><td class="muted">3,000 → 3,500 par livrée · « senior »</td></tr>
+          </tbody>
+        </table>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12.5px"><a href="#" style="color:var(--brand);font-weight:500">Tout le relevé (41 lignes) →</a><a href="#" class="muted">Exporter CSV</a></div>
+      </div>
+    </div>
+    <div class="sec"><div class="sl">◎ Objectifs 7 j</div>
+      <div class="stats"><div class="st"><div class="v">2,7</div><div class="l">conf/h · cible 3,0</div></div><div class="st"><div class="v">2</div><div class="l">série</div></div><div class="st"><div class="v">4</div><div class="l">meilleure série</div></div><div class="st"><div class="v">5/7</div><div class="l">jours actifs</div></div></div>
+    </div>
+    <div class="sec"><div class="sl">▣ Par produit</div><div style="font-size:13px;display:grid;gap:6px"><div style="display:flex;justify-content:space-between"><span>Dibio</span><span><b>48 %</b> <span class="muted">· +10 pts vs équipe</span></span></div><div style="display:flex;justify-content:space-between"><span>Slim Fit</span><span><b>41 %</b> <span class="muted">· +6 pts</span></span></div></div></div>
+    <div class="sec"><div class="sl">☰ File actuelle</div><div style="font-size:13px" class="muted">10 commandes · Dibio 7 · Slim Fit 3 · plus ancienne 6 j · 5 tentatives épuisées</div></div>
+    <div class="sec"><div class="sl">✕ Rejets</div><div style="font-size:13px" class="muted">refus client 9 · injoignable 6 · prix 3</div></div>
+  </div>
+</aside>
+
+<!-- ═══════════════════ PAYOUT MODAL ═══════════════════ -->
+<div class="modal" id="pay" role="dialog" aria-modal="true" aria-labelledby="pay-title">
+  <div class="dlg" data-new="Nouveau">
+    <h4 id="pay-title">Enregistrer un paiement — <span id="p-name">tasnim</span></h4>
+    <p class="hint">Solde actuel <b id="p-bal">+29 500 د.ل.</b> · le paiement est daté du jour où l'argent a été remis, pas d'aujourd'hui.</p>
+    <div class="grid2">
+      <div class="fld"><label for="p-amt">Montant (د.ل.)</label><input id="p-amt" type="number" step="500" min="0" value="29500" oninput="recalc()"></div>
+      <div class="fld"><label for="p-date">Date du paiement</label><input id="p-date" type="date" value="2026-08-17"></div>
+    </div>
+    <div class="grid2">
+      <div class="fld"><label for="p-mode">Mode</label><select id="p-mode"><option>Espèces</option><option>Virement</option><option>Wallet</option></select></div>
+      <div class="fld"><label for="p-ref">Référence <span class="muted">(optionnel)</span></label><input id="p-ref" placeholder="reçu, n° virement…"></div>
+    </div>
+    <div class="fld"><label for="p-note">Note <span class="muted">(optionnel)</span></label><textarea id="p-note" placeholder="ex. règlement du 1ᵉʳ au 16 août"></textarea></div>
+    <div class="after"><span>Solde après paiement</span><b id="p-after" class="money">0 د.ل.</b></div>
+    <div class="warnbox" id="p-warn">Ce montant dépasse ce que l'agent a acquis : le solde deviendra <b id="p-negv">−500 د.ل.</b>. Rien ne l'annulera automatiquement — il se résorbera avec les prochaines livraisons.<label><input type="checkbox" id="p-ok"> Je confirme ce paiement au-delà du solde</label></div>
+    <div class="foot"><button class="btn" onclick="closeAll()">Annuler</button><button class="btn primary" onclick="confirmPay()">Enregistrer</button></div>
+  </div>
+</div>
+
+
+<script>
+  var AG={
+    tasnim:{av:'T',c:'#8A5CF6',sub:'agent · Libye · vue hier 19:51',touch:41,tr:27,conf:13,min:'4 h 10',today:'2 livrées · +7 000',period:'23 livrées · +80 500',infl:'39 cmd ≈ 136 500',rate:'3,500 <span class="rate-tag">taux agent · depuis 1ᵉʳ août</span>',bal:29500,earned:129500,paid:100000,last:'10 août · 100 000 · espèces'},
+    salima:{av:'S',c:'#B98900',sub:'agent · Libye · en ligne',touch:44,tr:28,conf:16,min:'2 h 40',today:'3 livrées · +9 000',period:'9 livrées · +27 000',infl:'13 cmd ≈ 39 000',rate:'3,000 <span class="rate-tag">taux du marché</span>',bal:13000,earned:33000,paid:20000,last:'12 août · 20 000 · espèces'},
+    roqaya:{av:'R',c:'#0F7A5C',sub:'agent · Libye · vue hier 14:28',touch:0,tr:0,conf:0,min:'0',today:'0 livrée · —',period:'15 livrées · +45 000',infl:'66 cmd ≈ 198 000',rate:'3,000 <span class="rate-tag">taux du marché</span>',bal:-7000,earned:63000,paid:70000,last:'9 août · 70 000 · virement'},
+    hend:{av:'H',c:'#2C6ECB',sub:'agent · Libye · vue ven. 18:01',touch:0,tr:0,conf:0,min:'0',today:'0 livrée · —',period:'11 livrées · +33 000',infl:'76 cmd ≈ 228 000',rate:'3,000 <span class="rate-tag">taux du marché</span>',bal:36000,earned:36000,paid:0,last:'jamais payée'},
+    mouna:{av:'M',c:'#DB6B4A',sub:'agent · Libye · 39 j sans action',touch:0,tr:0,conf:0,min:'0',today:'0 livrée · —',period:'0 livrée · —',infl:'265 cmd — anciennes confirmations',rate:'3,000 <span class="rate-tag">taux du marché</span>',bal:0,earned:0,paid:0,last:'—'},
+    riheb:{av:'R',c:'#6D7175',sub:'agent · Libye · 6 j sans action',touch:0,tr:0,conf:0,min:'0',today:'0 livrée · —',period:'0 livrée · —',infl:'0',rate:'3,000 <span class="rate-tag">taux du marché</span>',bal:0,earned:0,paid:0,last:'—'}
+  };
+  var currentAgent='tasnim';
+  function fmt(n){var s=Math.abs(n).toLocaleString('fr-FR').replace(/ | /g,' ');return (n<0?'−':n>0?'+':'')+s;}
+  function money(n,sign){var s=Math.abs(n).toLocaleString('fr-FR').replace(/ | /g,' ');var p=n<0?'−':(sign&&n>0?'+':'');return p+s+' د.ل.';}
+  var VIEWS=['live','perf','settings','agent'],CRUMB={live:'Équipe / <b>Salle de contrôle</b>',perf:'Équipe / <b>Performance équipe</b>',settings:'Système / <b>Paramètres généraux</b>',agent:'Agent / <b>Mes commissions</b>'};
+  function showView(v){VIEWS.forEach(function(k){document.getElementById('view-'+k).classList.toggle('on',k===v);var nb=document.getElementById('nav-'+k);if(nb)nb.classList.toggle('on',k===v);document.getElementById('tab-'+k).classList.toggle('on',k===v);});document.body.classList.toggle('agentmode',v==='agent');document.getElementById('crumb').innerHTML=CRUMB[v];window.scrollTo(0,0);}
+  function toggleMenu(id){var el=document.getElementById(id);var was=el.classList.contains('open');document.querySelectorAll('.menu.open').forEach(function(m){m.classList.remove('open')});if(!was)el.classList.add('open');}
+  document.addEventListener('click',function(e){if(!e.target.closest('.menu'))document.querySelectorAll('.menu.open').forEach(function(m){m.classList.remove('open')});});
+  function openDrawer(a){currentAgent=a;var d=AG[a];document.getElementById('d-av').textContent=d.av;document.getElementById('d-av').style.background=d.c;document.getElementById('d-name').textContent=a;document.getElementById('d-sub').textContent=d.sub;document.getElementById('d-touch').textContent=d.touch;document.getElementById('d-tr').textContent=d.tr;document.getElementById('d-conf').textContent=d.conf;document.getElementById('d-min').textContent=d.min;
+    document.getElementById('c-today').innerHTML=d.today.replace(/\+([\d ]+)/,'<span class="money">+$1<span class="cur">د.ل.</span></span>');
+    document.getElementById('c-period').innerHTML=d.period.replace(/\+([\d ]+)/,'<span class="money">+$1<span class="cur">د.ل.</span></span>');
+    document.getElementById('c-inflight').innerHTML=d.infl.replace(/≈ ([\d ]+)/,'≈ <span class="money">$1<span class="cur">د.ل.</span></span>');
+    document.getElementById('c-rate').innerHTML=d.rate;
+    var b=document.getElementById('c-bal');b.innerHTML=d.bal<0?'<span class="pill neg">doit <span class="money">'+money(-d.bal)+'</span></span>':(d.bal===0?'<span class="faint">—</span>':'<span class="money pos">'+money(d.bal,true)+'</span>');
+    b.nextElementSibling.textContent='solde — acquis '+fmt(d.earned).replace('+','')+' · versé '+fmt(d.paid).replace('+','');
+    document.getElementById('c-last').textContent=d.last;
+    document.getElementById('ledger').style.display='none';
+    document.getElementById('scrim').classList.add('on');document.getElementById('drawer').classList.add('on');}
+  function openPay(a){currentAgent=a;var d=AG[a];document.getElementById('p-name').textContent=a;document.getElementById('p-bal').textContent=money(d.bal,true);document.getElementById('p-amt').value=Math.max(0,d.bal);recalc();document.getElementById('scrim').classList.add('on');document.getElementById('pay').classList.add('on');}
+  function recalc(){var d=AG[currentAgent];var v=parseFloat(document.getElementById('p-amt').value||'0');var after=d.bal-v;var el=document.getElementById('p-after');el.textContent=money(after,true);el.className='money '+(after<0?'neg':'');var w=document.getElementById('p-warn');w.classList.toggle('on',after<0);document.getElementById('p-negv').textContent=money(after);}
+  function confirmPay(){var d=AG[currentAgent];var v=parseFloat(document.getElementById('p-amt').value||'0');if(d.bal-v<0&&!document.getElementById('p-ok').checked){document.getElementById('p-ok').focus();return;}alert('Prototype : le paiement serait enregistré (ligne « versé » '+money(-v)+' pour '+currentAgent+'). Le solde et les cartes se mettent à jour.');closeAll();}
+  function openRates(){showView('settings');}
+  function toggleAgent(b){var on=b.getAttribute('aria-checked')!=='true';b.setAttribute('aria-checked',on?'true':'false');var tr=b.closest('tr');tr.classList.toggle('off',!on);}
+  function closeAll(){['drawer','pay','scrim'].forEach(function(id){document.getElementById(id).classList.remove('on')});}
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeAll();});
+  // initial state + deep links: #perf · #drawer[:agent] · #pay[:agent] · #rates · add ,plain to hide the highlight
+  (function(){var h=(location.hash||'').slice(1);var plain=/plain/.test(h);document.body.classList.toggle('hl',!plain);document.getElementById('hl').checked=!plain;
+    if(/^perf/.test(h))showView('perf');else if(/^settings/.test(h))showView('settings');else if(/^agent/.test(h))showView('agent');
+    var m=h.match(/(drawer|pay)(?::(\w+))?/);if(m){var a=m[2]&&AG[m[2]]?m[2]:'tasnim';if(m[1]==='drawer'){openDrawer(a);if(/ledger/.test(h))document.getElementById('ledger').style.display='block';}else if(m[1]==='pay'){openPay(a);if(/over/.test(h)){document.getElementById('p-amt').value=Math.max(0,AG[a].bal)+5000;recalc();}}}
+  })();
+</script>

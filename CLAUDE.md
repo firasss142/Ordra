@@ -130,6 +130,7 @@ refus_client | faux_numero | doublon | injoignable | prix | non_serieux | autre 
 - Business profitability logic: docs/business-logic.md (created in Session 12)
 - Claude Code mastery patterns: docs/mastery-guide.md
 - Darb Assabil (Libya carrier) live API contract + sync engine: docs/darb-assabil-sync.md
+- Agent commissions (rules, ledger, RPCs, surfaces): docs/agent-commissions.md
 
 
 - super_admin: admin@oms.local / testpass123

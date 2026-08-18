@@ -33,3 +33,18 @@ export function canPrintLabels(role: Role): boolean {
 export function canScanWarehouse(role: Role): boolean {
   return role === "warehouse_agent" || role === "super_admin" || role === "market_manager";
 }
+
+/** See and record agent commission payouts — a market's managers and super_admin. */
+export function canManageCommissions(role: Role): boolean {
+  return role === "super_admin" || role === "market_manager";
+}
+
+/** Set the commission rate or the on/off switch (Paramètres › Général › Commissions). */
+export function canSetCommissionRates(role: Role): boolean {
+  return role === "super_admin";
+}
+
+/** The read-only "Mes commissions" tab. */
+export function canViewOwnCommissions(role: Role): boolean {
+  return role === "agent";
+}

@@ -21,6 +21,8 @@ Source of truth: OMS spec Sections 2, 3, 5, 6, 9.2, 10, 12.3, 14.2.
 | inventory_log | Immutable stock movement log | **APPEND-ONLY** | SA: all, MM+Agent: own market |
 | assignment_rules | Algorithm config per market | Yes | SA: all, MM: own market |
 | ad_spend | Manual ad spend entry per period | Yes | SA: all, MM: own market |
+| agent_commission_rates | Commission rules per market / agent, effective-dated (see docs/agent-commissions.md) | Append rows, close by new row | SA: all, MM: own market (read) |
+| agent_commission_ledger | Signed commission movements per agent — balance = SUM(amount) | **APPEND-ONLY** | SA: all, MM: own market (read); agents via RPC only |
 
 ---
 

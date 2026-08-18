@@ -20,7 +20,7 @@ export function AgentDashboardShell({
   const isRtl = user.direction === "rtl";
   const pathname = usePathname();
   // The navbar search only drives the order queue, so show it on that tab only.
-  const onQueueTab = !pathname.includes("/leads") && !pathname.includes("/follow-ups");
+  const onQueueTab = !pathname.includes("/leads") && !pathname.includes("/follow-ups") && !pathname.includes("/commissions");
 
   const actions = useMemo(
     () => <NotificationBell agentId={user.id} />,

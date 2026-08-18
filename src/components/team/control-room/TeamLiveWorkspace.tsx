@@ -16,11 +16,19 @@ import { AgentRoster, useRelativeLabel } from "./AgentRoster";
 import { BlockedOrdersCard } from "./BlockedOrdersCard";
 import { UpcomingCallbacksCard } from "./UpcomingCallbacksCard";
 import { AgentDrawer } from "./AgentDrawer";
+import { PayoutModal, type PayoutRequest } from "./PayoutModal";
+import { useTeamCommissions } from "@/hooks/useTeamCommissions";
+import { buildCommissionView, fmtCommission, type CommissionAgentView } from "@/lib/commissions/view-models";
+import { submitPayout } from "@/lib/commissions/payouts-client";
+import { canManageCommissions } from "@/lib/role-permissions";
+import { marketIdToCode } from "@/lib/markets";
+import type { Role } from "@/types";
 
 interface Props {
   marketId: string;
   locale: string;
   tz: string;
+  role?: Role;
 }
 
 function isoDayIn(tz: string, d: Date, offsetDays = 0): string {
@@ -28,8 +36,9 @@ function isoDayIn(tz: string, d: Date, offsetDays = 0): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(shifted);
 }
 
-export function TeamLiveWorkspace({ marketId, locale, tz }: Props) {
+export function TeamLiveWorkspace({ marketId, locale, tz, role }: Props) {
   const t = useTranslations("team.live");
+  const tc = useTranslations("team.commissions");
   const { show } = useToast();
   const { live, isLoading, error, mutate } = useTeamLive(marketId);
   const [now, setNow] = useState(() => new Date());
@@ -49,6 +58,22 @@ export function TeamLiveWorkspace({ marketId, locale, tz }: Props) {
 
   const view = useMemo(() => (live ? buildLiveView(live) : null), [live]);
   const rel = useRelativeLabel(locale, tz, now);
+
+  // Commissions — balances are all-time; the period only feeds the drawer's
+  // "sur la période" line, so the last 7 local days is a fine default here.
+  const marketCode = (marketIdToCode(marketId) ?? "tn").toUpperCase();
+  const canPay = !!role && canManageCommissions(role);
+  const commPeriod = useMemo(() => ({ from: isoDayIn(tz, now, -6), to: isoDayIn(tz, now) }), [tz, now]);
+  const { commissions, mutate: mutateCommissions } = useTeamCommissions(marketId, commPeriod.from, commPeriod.to);
+  const commissionView = useMemo(() => (commissions ? buildCommissionView(commissions) : null), [commissions]);
+  const [payTarget, setPayTarget] = useState<CommissionAgentView | null>(null);
+  const onPay = useCallback((a: CommissionAgentView) => setPayTarget(a), []);
+  const onPayoutSubmit = useCallback(async (req: PayoutRequest) => {
+    const r = await submitPayout(req);
+    show({ message: r.ok ? tc("payout.saved") : tc("payout.failed"), tone: r.ok ? "info" : "critical" });
+    if (r.ok) void mutateCommissions();
+    return r;
+  }, [show, tc, mutateCommissions]);
 
   const lastSeenCaption = useMemo(() => {
     if (!live) return null;
@@ -108,6 +133,18 @@ export function TeamLiveWorkspace({ marketId, locale, tz }: Props) {
             <span>{t("verdict.blocked", { count: view.verdict.blocked })}</span>
             <span className="text-ink-muted">·</span>
             <span>{t("verdict.orphan", { count: view.verdict.orphanAgents })}</span>
+            {commissionView && commissionView.totals.to_pay_count > 0 && (
+              <>
+                <span className="text-ink-muted">·</span>
+                <span>{tc("verdictToPay", { count: commissionView.totals.to_pay_count, sum: fmtCommission(commissionView.totals.to_pay_sum, marketCode) })}</span>
+              </>
+            )}
+            {commissionView && commissionView.totals.negative_count > 0 && (
+              <>
+                <span className="text-ink-muted">·</span>
+                <span className="text-status-critical">{tc("verdictNegative", { count: commissionView.totals.negative_count })}</span>
+              </>
+            )}
           </TeamCard>
 
           <LiveTiles live={live} locale={locale} lastSeenCaption={lastSeenCaption} />
@@ -121,6 +158,10 @@ export function TeamLiveWorkspace({ marketId, locale, tz }: Props) {
             onSelectAgent={setSelected}
             onQueueChanged={() => void mutate()}
             onToast={onToast}
+            commissions={commissionView}
+            marketCode={marketCode}
+            canPay={canPay}
+            onPay={onPay}
           />
 
           <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,1fr)]">
@@ -158,6 +199,22 @@ export function TeamLiveWorkspace({ marketId, locale, tz }: Props) {
         live={live}
         defaultPeriod={defaultPeriod}
         now={now}
+        commission={selected ? commissionView?.byId[selected] ?? (commissions ? undefined : null) : undefined}
+        marketCode={marketCode}
+        commissionPeriodLabel={`${commPeriod.from} → ${commPeriod.to}`}
+        canPay={canPay}
+        onPay={onPay}
+      />
+
+      <PayoutModal
+        open={payTarget !== null}
+        agent={payTarget ? { id: payTarget.agent.agent_id, name: payTarget.agent.name, balance: payTarget.agent.balance } : null}
+        marketCode={marketCode}
+        currency={commissions?.currency ?? ""}
+        tz={tz}
+        locale={locale}
+        onClose={() => setPayTarget(null)}
+        onSubmit={onPayoutSubmit}
       />
     </div>
   );

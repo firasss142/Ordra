@@ -9,6 +9,7 @@ import {
   ShoppingBag,
   Users,
   ClipboardList,
+  Coins,
   type LucideIcon,
 } from "lucide-react";
 import { fetcher } from "@/lib/swr-config";
@@ -103,6 +104,12 @@ function AgentNavTabsInner({ user, variant = "band" }: Props) {
       label: tFollowUps("nav"),
       icon: ClipboardList,
       prefetchKey: "/api/follow-ups",
+    },
+    {
+      href: `/${user.locale}/commissions`,
+      label: tNav("myCommissions"),
+      icon: Coins,
+      prefetchKey: "/api/agent/commissions?days=60",
     },
   ];
 

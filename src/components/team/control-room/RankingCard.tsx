@@ -6,6 +6,7 @@ import { ArrowRight, Flame } from "lucide-react";
 import type { PerformanceView, PerfAgentView } from "@/lib/team/view-models";
 import { formatActiveMinutes } from "@/lib/team/goals";
 import { fmtNum, fmtPct } from "@/lib/team/format";
+import { fmtCommission } from "@/lib/commissions/view-models";
 import { AgentAvatar } from "./AgentAvatar";
 import { TeamCard } from "./Card";
 
@@ -16,6 +17,9 @@ interface Props {
   onSelectAgent: (id: string) => void;
   onSetTarget: (agentId: string, metric: "min_rate" | "throughput", value: number) => Promise<void>;
   canSetTargets: boolean;
+  /** agent_id → period commission figures; absent = feature not loaded */
+  commissionsById?: Record<string, { delivered: number; earned: number }> | null;
+  marketCode?: string;
 }
 
 function rateTone(r: number | null, min: number): string {
@@ -25,8 +29,9 @@ function rateTone(r: number | null, min: number): string {
   return "text-status-critical";
 }
 
-export function RankingCard({ view, locale, productKey, onSelectAgent, onSetTarget, canSetTargets }: Props) {
+export function RankingCard({ view, locale, productKey, onSelectAgent, onSetTarget, canSetTargets, commissionsById, marketCode }: Props) {
   const t = useTranslations("team.perf.ranking");
+  const tc = useTranslations("team.commissions");
   const [busy, setBusy] = useState<string | null>(null);
   const target = view.team.confPerHourTarget;
 
@@ -68,6 +73,15 @@ export function RankingCard({ view, locale, productKey, onSelectAgent, onSetTarg
                 {" · "}{formatActiveMinutes(r.agent.active_minutes)}{" · "}{t("days", { n: r.agent.days_active })}
                 {pr && <> · <b className="font-semibold text-ink-primary">{fmtNum(locale, pr.treated)}</b> {t("treated")}</>}
               </div>
+              {commissionsById && marketCode && commissionsById[r.agent.agent_id] && commissionsById[r.agent.agent_id].delivered > 0 && (
+                <div className="mt-1 whitespace-nowrap text-[12.5px] text-ink-secondary tabular-nums">
+                  {tc.rich("compsDelivered", {
+                    n: fmtNum(locale, commissionsById[r.agent.agent_id].delivered),
+                    amount: fmtCommission(commissionsById[r.agent.agent_id].earned, marketCode, { signed: true }),
+                    b: (chunks) => <b className="font-semibold text-ink-primary">{chunks}</b>,
+                  })}
+                </div>
+              )}
               {cta && (
                 <div className="mt-1.5">
                   <button

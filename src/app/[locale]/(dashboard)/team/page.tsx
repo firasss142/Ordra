@@ -23,7 +23,7 @@ export default async function TeamLivePage({ params }: { params: { locale: strin
 
   return (
     <div className="min-h-screen bg-surface-page px-[30px] pb-[60px] pt-[26px]">
-      <TeamLiveWorkspace marketId={marketId} locale={params.locale} tz={marketTimezone(marketId)} />
+      <TeamLiveWorkspace marketId={marketId} locale={params.locale} tz={marketTimezone(marketId)} role={user.role} />
     </div>
   );
 }

@@ -14,6 +14,8 @@ import { formatActiveMinutes, MIN_TREATED_FOR_RATE, rateOf } from "@/lib/team/go
 import { fmtAge, fmtNum, fmtPct } from "@/lib/team/format";
 import { AgentAvatar } from "./AgentAvatar";
 import { GoalSegments } from "./GoalSegments";
+import { CommissionSection } from "./CommissionSection";
+import type { CommissionAgentView } from "@/lib/commissions/view-models";
 
 interface Props {
   agentId: string | null;
@@ -26,6 +28,12 @@ interface Props {
   /** last 7 local days when the caller has no period of its own */
   defaultPeriod: { from: string; to: string };
   now: Date;
+  /** commissions for this agent (null while loading, undefined = feature not wired) */
+  commission?: CommissionAgentView | null;
+  marketCode?: string;
+  commissionPeriodLabel?: string;
+  canPay?: boolean;
+  onPay?: (a: CommissionAgentView) => void;
 }
 
 function SecLabel({ icon: Icon, children }: { icon: typeof Clock; children: string }) {
@@ -53,7 +61,7 @@ function rateTone(r: number | null, min: number): string {
   return "text-status-critical";
 }
 
-export function AgentDrawer({ agentId, onClose, marketId, locale, tz, live, perf, defaultPeriod, now }: Props) {
+export function AgentDrawer({ agentId, onClose, marketId, locale, tz, live, perf, defaultPeriod, now, commission, marketCode, commissionPeriodLabel, canPay, onPay }: Props) {
   const t = useTranslations("team.drawer");
   const tStatus = useTranslations("orders.statuses");
   const tReason = useTranslations("orders.rejectionReasons");
@@ -206,6 +214,19 @@ export function AgentDrawer({ agentId, onClose, marketId, locale, tz, live, perf
               <p className="py-2 text-[12.5px] text-ink-muted">{t("noRejections")}</p>
             )}
           </section>
+
+          {/* Commission */}
+          {commission && marketCode && (
+            <CommissionSection
+              a={commission}
+              marketCode={marketCode}
+              locale={locale}
+              tz={tz}
+              periodLabel={commissionPeriodLabel ?? `${defaultPeriod.from} → ${defaultPeriod.to}`}
+              canPay={!!canPay}
+              onPay={onPay ?? (() => {})}
+            />
+          )}
 
           {/* Note */}
           {pa && (

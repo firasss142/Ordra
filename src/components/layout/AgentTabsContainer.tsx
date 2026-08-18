@@ -6,10 +6,11 @@ import { QueuePage } from "@/components/queue/QueuePage";
 import { AgentLeadsQueue } from "@/components/crm/AgentLeadsQueue";
 import type { AuthUser } from "@/types";
 
-type Tab = "queue" | "leads" | "follow-ups";
+type Tab = "queue" | "leads" | "follow-ups" | "commissions";
 
 function resolveActiveTab(pathname: string): Tab {
   if (pathname.includes("/follow-ups")) return "follow-ups";
+  if (pathname.includes("/commissions")) return "commissions";
   if (pathname.includes("/leads")) return "leads";
   return "queue";
 }
@@ -24,8 +25,8 @@ function AgentTabsContainerInner({
   const pathname = usePathname();
   const active = resolveActiveTab(pathname);
 
-  // follow-ups renders via the dedicated /follow-ups page (FollowUpsPageClient)
-  if (active === "follow-ups") {
+  // follow-ups and commissions render via their own pages
+  if (active === "follow-ups" || active === "commissions") {
     return <main id="main-content">{children}</main>;
   }
 

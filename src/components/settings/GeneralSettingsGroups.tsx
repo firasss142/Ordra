@@ -3,6 +3,11 @@
 // TODO(i18n): migrate strings to useTranslations('settings.general') in a follow-up.
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { marketIdToCode, marketTimezone } from "@/lib/markets";
+import { canSetCommissionRates } from "@/lib/role-permissions";
+import { CommissionsSection } from "./general/CommissionsSection";
 import type { MarketSettings } from "@/types/settings";
 import { DEFAULT_MARKET_SETTINGS, DEFAULT_SHIFT_CONFIG } from "@/types/settings";
 import type { Role } from "@/types";
@@ -13,7 +18,7 @@ import { FinanceSection } from "./general/FinanceSection";
 import { TeamSection } from "./general/TeamSection";
 import { LabelsSection } from "./general/LabelsSection";
 
-type Group = "operations" | "finance" | "team" | "labels";
+type Group = "operations" | "finance" | "team" | "commissions" | "labels";
 
 const GROUPS: { key: Group; label: string; description: string }[] = [
   {
@@ -27,6 +32,7 @@ const GROUPS: { key: Group; label: string; description: string }[] = [
     description: "Frais et coûts par commande",
   },
   { key: "team", label: "Équipe", description: "Affectation et heures ouvrées" },
+  { key: "commissions", label: "Commissions", description: "Ce qu'un agent gagne par commande livrée" },
   {
     key: "labels",
     label: "Libellés",
@@ -46,7 +52,16 @@ export function GeneralSettingsGroups({
   role,
 }: Props) {
   const showCosts = canEditCosts(role);
-  const [group, setGroup] = useState<Group>("operations");
+  const showCommissions = canSetCommissionRates(role);
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams?.get("tab");
+  const [group, setGroup] = useState<Group>(
+    requestedTab === "commissions" && showCommissions ? "commissions" : "operations",
+  );
+  const locale = useLocale();
+  const tMarkets = useTranslations("nav.markets");
+  const marketCode = marketIdToCode(marketId);
+  const marketName = marketCode ? tMarkets(marketCode) : marketId;
   const [values, setValues] = useState<MarketSettings>({
     ...DEFAULT_MARKET_SETTINGS,
     ...initialValues,
@@ -134,7 +149,7 @@ export function GeneralSettingsGroups({
     });
   }
 
-  const visibleTabs = GROUPS.filter((g) => g.key !== "finance" || showCosts);
+  const visibleTabs = GROUPS.filter((g) => (g.key !== "finance" || showCosts) && (g.key !== "commissions" || showCommissions));
 
   return (
     <div className="flex flex-col gap-5">
@@ -182,6 +197,10 @@ export function GeneralSettingsGroups({
           successMsg={successMsg}
           errorMsg={errorMsg}
         />
+      )}
+
+      {group === "commissions" && showCommissions && (
+        <CommissionsSection marketId={marketId} marketName={marketName} tz={marketTimezone(marketId)} locale={locale} />
       )}
 
       {group === "labels" && <LabelsSection marketId={marketId} />}

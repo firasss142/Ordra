@@ -169,3 +169,23 @@ describe("canAccess — unknown role", () => {
     ).toBe(false);
   });
 });
+
+describe("commission permissions", async () => {
+  const { canManageCommissions, canSetCommissionRates, canViewOwnCommissions } = await import("../role-permissions");
+  it("managers of a market and super_admin can see and record commissions", () => {
+    expect(canManageCommissions("super_admin")).toBe(true);
+    expect(canManageCommissions("market_manager")).toBe(true);
+    expect(canManageCommissions("agent")).toBe(false);
+    expect(canManageCommissions("warehouse_agent")).toBe(false);
+    expect(canManageCommissions("investor")).toBe(false);
+  });
+  it("only super_admin sets rates or the on/off switch", () => {
+    expect(canSetCommissionRates("super_admin")).toBe(true);
+    expect(canSetCommissionRates("market_manager")).toBe(false);
+  });
+  it("only agents have an own-commissions view", () => {
+    expect(canViewOwnCommissions("agent")).toBe(true);
+    expect(canViewOwnCommissions("market_manager")).toBe(false);
+    expect(canViewOwnCommissions("super_admin")).toBe(false);
+  });
+});
