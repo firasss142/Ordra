@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { getActor } from "@/lib/auth/actor";
 import { buildConfig, type CarrierRow } from "@/lib/carriers/dispatch";
 import { fetchDarbShipment } from "@/lib/carriers/darb-assabil-tracking";
 
@@ -39,20 +40,14 @@ interface OrderRow {
 export async function POST(_req: NextRequest) {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // Resolve the caller's market.
-  const { data: profile } = await supabase
-    .from("users")
-    .select("market_id")
-    .eq("id", user.id)
-    .single<{ market_id: string | null }>();
-  const marketId = profile?.market_id ?? null;
+  // getActor reads the HMAC-signed oms_profile cookie — zero network calls, and
+  // it already carries market_id. The previous auth.getUser() + users lookup
+  // cost two round-trips (one to Supabase Auth, one to Postgres) before this
+  // route did any work, which is why an app-launch sweep that is usually
+  // throttled to a no-op still took ~550-720ms on every agent page load.
+  const actorResult = await getActor(_req);
+  if ("response" in actorResult) return actorResult.response;
+  const marketId = actorResult.actor.market_id;
   if (!marketId) {
     return NextResponse.json({ error: "No market for user" }, { status: 400 });
   }

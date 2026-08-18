@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getActor } from "@/lib/auth/actor";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Signed-cookie fast path instead of auth.getUser() — the bell polls this on
+  // every agent page, so a network round-trip to Supabase Auth per poll is pure
+  // latency. RLS still scopes rows to auth.uid(); this only resolves identity.
+  const actorResult = await getActor(req);
+  if ("response" in actorResult) return actorResult.response;
 
   const includeAll = req.nextUrl.searchParams.get("include") === "all";
 
