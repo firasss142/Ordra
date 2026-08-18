@@ -10,14 +10,11 @@ const PAYOUT_METHODS = ["bank_transfer", "cash", "wallet"] as const;
 /**
  * Edit an investor's commercial terms.
  *
- * Only the four fields below are editable. `id` is the user id and the ledger's
- * foreign key, so it is never patchable — accepting it from the body would let
- * one investor's terms be written onto another's row.
- *
- * reserve_pct applies to FUTURE settlements only. computeSettlement snapshots
- * it into cost_inputs at settlement time, so changing it here cannot reach a
- * period that has already been paid out. The UI says so explicitly, because an
- * admin who assumes otherwise will expect a historical payout to move.
+ * Only legal_name, payout_method, payout_details and notes are editable. `id`
+ * is the user id and the ledger's foreign key, so it is never patchable —
+ * accepting it from the body would let one investor's terms be written onto
+ * another's row. Commercial terms (share %, capital, cadence, maturity) live on
+ * the DEAL (investor_deal_terms), not on the profile.
  */
 export async function PATCH(
   req: NextRequest,
@@ -61,16 +58,6 @@ export async function PATCH(
     patch.payout_method = method;
   }
 
-  if (body.reserve_pct !== undefined) {
-    const pct = Number(body.reserve_pct);
-    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
-      return NextResponse.json(
-        { error: "reserve_pct must be between 0 and 100" },
-        { status: 400 }
-      );
-    }
-    patch.reserve_pct = pct;
-  }
 
   if (body.payout_details !== undefined) patch.payout_details = body.payout_details;
   if (body.notes !== undefined) {
@@ -97,7 +84,7 @@ export async function PATCH(
     .from("investors")
     .update(patch)
     .eq("id", id)
-    .select("id, legal_name, payout_method, payout_details, reserve_pct, notes")
+    .select("id, legal_name, payout_method, payout_details, notes")
     .single();
 
   if (error) {
