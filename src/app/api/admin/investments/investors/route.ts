@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canManageInvestments, canViewInvestorAdmin } from "@/lib/investor-permissions";
+import { loadInvestorMoneySummaries } from "@/lib/investors/admin-summary";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ const PAYOUT_METHODS = ["bank_transfer", "cash", "wallet"] as const;
  *
  * A login and a profile are two different things. `POST /api/users` creates the
  * user with role='investor'; the `investors` row holds the commercial terms —
- * legal name, payout method, reserve percentage. Nothing could write that row,
+ * legal name, payout method, notes. Nothing could write that row,
  * so a freshly created investor logged in to "Votre profil investisseur n'est
  * pas encore configuré" and there was no way out of that state.
  *
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
   const { data: profiles, error: profileError } = ids.length
     ? await admin
         .from("investors")
-        .select("id, legal_name, payout_method, payout_details, reserve_pct, notes")
+        .select("id, legal_name, payout_method, payout_details, notes")
         .in("id", ids)
     : { data: [], error: null };
 
@@ -67,9 +68,12 @@ export async function GET(req: NextRequest) {
     ((profiles ?? []) as Record<string, unknown>[]).map((p) => [p.id as string, p])
   );
 
+  const money = await loadInvestorMoneySummaries(admin, ids);
+
   const data = (users ?? []).map((u) => {
     const profile = byId.get(u.id as string);
     return {
+      money: money.get(u.id as string) ?? null,
       id: u.id,
       email: u.email,
       full_name: u.full_name,
@@ -79,7 +83,6 @@ export async function GET(req: NextRequest) {
       legal_name: (profile?.legal_name as string) ?? null,
       payout_method: (profile?.payout_method as string) ?? null,
       payout_details: profile?.payout_details ?? null,
-      reserve_pct: profile ? Number(profile.reserve_pct) : null,
       notes: (profile?.notes as string) ?? null,
     };
   });
@@ -107,7 +110,6 @@ export async function POST(req: NextRequest) {
   const userId = String(body.user_id ?? "");
   const legalName = typeof body.legal_name === "string" ? body.legal_name.trim() : "";
   const payoutMethod = String(body.payout_method ?? "bank_transfer");
-  const reservePct = body.reserve_pct === undefined ? 10 : Number(body.reserve_pct);
 
   if (!userId) {
     return NextResponse.json({ error: "user_id is required" }, { status: 400 });
@@ -118,14 +120,6 @@ export async function POST(req: NextRequest) {
   if (!PAYOUT_METHODS.includes(payoutMethod as (typeof PAYOUT_METHODS)[number])) {
     return NextResponse.json(
       { error: `payout_method must be one of ${PAYOUT_METHODS.join(", ")}` },
-      { status: 400 }
-    );
-  }
-  // Mirrors the CHECK on investors.reserve_pct, so a bad value fails here with
-  // an explanation rather than as a constraint violation.
-  if (!Number.isFinite(reservePct) || reservePct < 0 || reservePct > 100) {
-    return NextResponse.json(
-      { error: "reserve_pct must be between 0 and 100" },
       { status: 400 }
     );
   }
@@ -157,10 +151,9 @@ export async function POST(req: NextRequest) {
       legal_name: legalName.slice(0, 200),
       payout_method: payoutMethod,
       payout_details: body.payout_details ?? null,
-      reserve_pct: reservePct,
       notes: typeof body.notes === "string" ? body.notes.slice(0, 1000) : null,
     })
-    .select("id, legal_name, payout_method, reserve_pct")
+    .select("id, legal_name, payout_method")
     .single();
 
   if (error) {

@@ -12,18 +12,20 @@ Two fully isolated markets under one system. Desktop-first.
 - SWR for client-side data fetching (instant navigation)
 - Deployed on Vercel
 - Two markets: Tunisia (French, LTR) + Libya (Arabic, RTL)
-- Three roles: super_admin (cross-market), market_manager (own market), agent (own queue)
+- Five roles: super_admin (cross-market), market_manager (own market), agent (own queue), warehouse_agent, investor (external; own portal only)
 
 ## Stack layout
 src/
   app/[locale]/              → locale-routed pages (fr | ar)
   app/[locale]/(dashboard)/  → manager + super_admin views
   app/[locale]/(agent)/      → agent confirmation queue (no sidebar)
+  app/[locale]/(investor)/   → investor portal (mobile-first PWA, no staff chrome)
   app/api/webhooks/          → storefront webhook endpoints
   components/ui/             → Button, Input, Card, Badge, Modal, Toast
   components/layout/         → Sidebar, Topbar, NavItem
   lib/supabase/              → browser + server clients
   lib/calculations/          → financial logic (SERVER-SIDE ONLY — never client)
+  lib/investors/             → investor v2 engine (facts, accrual, settlement, rollup) — see docs/investor-domain.md
   lib/carriers/              → CarrierAdapter interface + implementations
   lib/storefronts/           → StorefrontAdapter interface + implementations
   types/                     → TypeScript types + order status definitions
@@ -128,6 +130,7 @@ refus_client | faux_numero | doublon | injoignable | prix | non_serieux | autre 
 - Order status pipeline: docs/order-pipeline.md
 - Design system tokens + rules: docs/design-system.md
 - Business profitability logic: docs/business-logic.md (created in Session 12)
+- Investor domain v2 (deals, facts, accrual, settlement, rollup, surfaces): docs/investor-domain.md
 - Claude Code mastery patterns: docs/mastery-guide.md
 - Darb Assabil (Libya carrier) live API contract + sync engine: docs/darb-assabil-sync.md
 - Agent commissions (rules, ledger, RPCs, surfaces): docs/agent-commissions.md

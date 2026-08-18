@@ -1,88 +1,42 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { AdminInvestorsPanel } from "./AdminInvestorsPanel";
+import { AdminDealsPanel } from "./AdminDealsPanel";
+import { AdminClosePanel } from "./AdminClosePanel";
 import { AdminWithdrawalsPanel } from "./AdminWithdrawalsPanel";
 import { AdminCorrectionsPanel } from "./AdminCorrectionsPanel";
-import { AdminSettlementPanel } from "./AdminSettlementPanel";
-import { AdminPositionsPanel } from "./AdminPositionsPanel";
+import { AdminRollupPanel } from "./AdminRollupPanel";
 
-const TABS = [
-  { key: "investors", label: "Investisseurs" },
-  { key: "positions", label: "Positions" },
-  { key: "settlements", label: "Clôtures" },
-  { key: "withdrawals", label: "Retraits" },
-  { key: "corrections", label: "Corrections" },
-] as const;
+export type AdminTab = "investors" | "deals" | "close" | "withdrawals" | "corrections" | "rollup";
+const TABS: AdminTab[] = ["investors", "deals", "close", "withdrawals", "corrections", "rollup"];
 
-type TabKey = (typeof TABS)[number]["key"];
-
-/**
- * Admin surface for investor capital and settlements.
- *
- * Five panels used to stack on one scroll with no way to focus any of them, so
- * an operator paying a withdrawal scrolled past a period-close form whose
- * confirm button writes an irreversible ledger entry. Tabs put one job on
- * screen at a time and keep the dangerous one behind a deliberate click.
- *
- * Settlement still defaults to a DRY RUN — committing writes to an append-only
- * ledger, so a mistaken run cannot be edited away, only corrected forward.
- */
-export function AdminInvestorsClient({
-  markets,
-  locale,
-}: {
-  markets: { id: string; code: string; name: string }[];
-  locale: string;
-}) {
-  const [tab, setTab] = useState<TabKey>("investors");
-
+/** Admin console for investor v2 — six tabs, one page. Everything writes through SECURITY DEFINER RPCs behind super_admin routes. */
+export function AdminInvestorsClient({ locale, initialTab = "investors", investorsHref }: { locale: string; initialTab?: AdminTab; investorsHref: string }) {
+  const t = useTranslations("investorAdmin");
+  const [tab, setTab] = useState<AdminTab>(initialTab);
+  const [ctx, setCtx] = useState<{ investorId?: string; dealId?: string }>({});
+  const go = (next: AdminTab, c?: { investorId?: string; dealId?: string }) => { if (c) setCtx((x) => ({ ...x, ...c })); setTab(next); };
   return (
     <div className="flex flex-col gap-4">
-      {/* Underline tabs — design-system §4.11. The 2px accent underline is one
-          of the accent colour's two reserved slots. */}
-      <div
-        role="tablist"
-        aria-label="Sections investisseurs"
-        className="flex items-end gap-1 overflow-x-auto border-b border-line"
-      >
-        {TABS.map(({ key, label }) => {
-          const active = tab === key;
-          return (
-            <button
-              type="button"
-              key={key}
-              role="tab"
-              aria-selected={active}
-              aria-controls={`investor-tab-${key}`}
-              onClick={() => setTab(key)}
-              className={`relative cursor-pointer whitespace-nowrap border-0 bg-transparent px-3 pb-2 pt-1.5 text-[13px] transition-colors duration-fast ${
-                active
-                  ? "font-semibold text-ink-primary"
-                  : "font-medium text-ink-secondary hover:text-ink-primary"
-              }`}
-            >
-              {label}
-              {active ? (
-                <span
-                  aria-hidden="true"
-                  className="absolute inset-x-2 bottom-0 h-[2px] rounded-pill bg-accent"
-                />
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
-
-      <div id={`investor-tab-${tab}`} role="tabpanel">
-        {tab === "investors" ? <AdminInvestorsPanel markets={markets} locale={locale} /> : null}
-        {tab === "positions" ? <AdminPositionsPanel markets={markets} locale={locale} /> : null}
-        {tab === "settlements" ? <AdminSettlementPanel markets={markets} locale={locale} /> : null}
-        {tab === "withdrawals" ? (
-          <AdminWithdrawalsPanel markets={markets} locale={locale} />
-        ) : null}
-        {tab === "corrections" ? <AdminCorrectionsPanel /> : null}
-      </div>
+      <header className="flex items-end gap-4">
+        <div>
+          <h1 className="m-0 text-[26px] font-semibold tracking-[-0.02em] text-oms-ink-1">{t(`tabs.${tab}`)}</h1>
+          <p className="m-0 mt-1 text-[12.5px] text-oms-ink-2">{t(`meta.${tab}`)}</p>
+        </div>
+      </header>
+      <nav className="flex gap-5 border-b border-oms-border text-[13px]" role="tablist">
+        {TABS.map((k) => (
+          <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`-mb-px border-b-2 px-0.5 pb-2.5 pt-2 font-semibold ${tab === k ? "border-oms-ink-1 text-oms-ink-1" : "border-transparent text-oms-ink-2 hover:text-oms-ink-1"}`}>{t(`tabs.${k}`)}</button>
+        ))}
+      </nav>
+      {tab === "investors" && <AdminInvestorsPanel locale={locale} go={go} investorsHref={investorsHref} />}
+      {tab === "deals" && <AdminDealsPanel locale={locale} go={go} initialDealId={ctx.dealId} initialInvestorId={ctx.investorId} />}
+      {tab === "close" && <AdminClosePanel locale={locale} initialInvestorId={ctx.investorId} />}
+      {tab === "withdrawals" && <AdminWithdrawalsPanel locale={locale} />}
+      {tab === "corrections" && <AdminCorrectionsPanel locale={locale} initialInvestorId={ctx.investorId} />}
+      {tab === "rollup" && <AdminRollupPanel locale={locale} />}
     </div>
   );
 }

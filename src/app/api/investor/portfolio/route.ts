@@ -1,44 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
-import { getActor } from "@/lib/auth/actor";
-import { canViewOwnPortfolio } from "@/lib/investor-permissions";
-import { loadPortfolio } from "@/lib/investors/portfolio";
+import { investorActor, INVESTOR_CACHE } from "@/lib/investors/investor-route";
+import { loadInvestorPortfolio } from "@/lib/investors/portfolio-summary";
 
 export const dynamic = "force-dynamic";
 
-/**
- * The investor's own portfolio.
- *
- * The investor id comes from the session via getActor() and is NEVER read from
- * a query parameter or body — that is the single control preventing one
- * investor from reading another's position, since the service-role client used
- * here bypasses RLS.
- */
+/** The investor home: hero per currency, value series, deal cards, unread count. */
 export async function GET(req: NextRequest) {
-  const actorResult = await getActor(req);
-  if ("response" in actorResult) return actorResult.response;
-  const { actor } = actorResult;
-
-  if (!canViewOwnPortfolio(actor.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const admin = createAdminClient();
-
+  const g = await investorActor(req);
+  if ("response" in g) return g.response;
   try {
-    const portfolio = await loadPortfolio(admin, actor.id);
-
-    if (!portfolio) {
-      // The user has the investor role but no investors row yet.
-      return NextResponse.json({ error: "Investor profile not found" }, { status: 404 });
-    }
-
-    return NextResponse.json(
-      { data: portfolio },
-      { headers: { "Cache-Control": "private, max-age=15, stale-while-revalidate=45" } }
-    );
-  } catch (err) {
-    console.error("[GET /api/investor/portfolio]", err);
+    const data = await loadInvestorPortfolio(g.admin, g.actor.id, g.today);
+    return NextResponse.json({ data }, { headers: INVESTOR_CACHE });
+  } catch (e) {
+    console.error("[GET /api/investor/portfolio]", e);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

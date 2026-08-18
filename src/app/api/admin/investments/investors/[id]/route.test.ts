@@ -43,13 +43,13 @@ describe("PATCH investor profile", () => {
     mockFrom.mockImplementation(() => ({ ...chain({ id: "inv-1" }), update }));
 
     const res = await PATCH(
-      req({ legal_name: "New Ltd", reserve_pct: 15, payout_method: "cash" }),
+      req({ legal_name: "New Ltd", payout_method: "cash" }),
       { params }
     );
 
     expect(res.status).toBe(200);
     expect(update).toHaveBeenCalledWith(
-      expect.objectContaining({ legal_name: "New Ltd", reserve_pct: 15, payout_method: "cash" })
+      expect.objectContaining({ legal_name: "New Ltd", payout_method: "cash" })
     );
   });
 
@@ -72,19 +72,6 @@ describe("PATCH investor profile", () => {
     expect((await PATCH(req({ legal_name: "   " }), { params })).status).toBe(400);
   });
 
-  test.each([[-0.01], [100.01]])("rejects reserve_pct %s", async (pct) => {
-    setTestActor({ role: "super_admin", market_id: null });
-    expect((await PATCH(req({ reserve_pct: pct }), { params })).status).toBe(400);
-  });
-
-  test("accepts the reserve_pct boundaries", async () => {
-    setTestActor({ role: "super_admin", market_id: null });
-    const update = vi.fn().mockReturnValue(chain({ id: "inv-1" }));
-    mockFrom.mockImplementation(() => ({ ...chain({ id: "inv-1" }), update }));
-    expect((await PATCH(req({ reserve_pct: 0 }), { params })).status).toBe(200);
-    expect((await PATCH(req({ reserve_pct: 100 }), { params })).status).toBe(200);
-  });
-
   test("rejects a request with nothing to change", async () => {
     setTestActor({ role: "super_admin", market_id: null });
     expect((await PATCH(req({}), { params })).status).toBe(400);
@@ -103,6 +90,6 @@ describe("PATCH investor profile", () => {
 
   test("an investor cannot edit their own terms", async () => {
     setTestActor({ role: "investor", market_id: "m-tn" });
-    expect((await PATCH(req({ reserve_pct: 0 }), { params })).status).toBe(403);
+    expect((await PATCH(req({ legal_name: "X" }), { params })).status).toBe(403);
   });
 });
