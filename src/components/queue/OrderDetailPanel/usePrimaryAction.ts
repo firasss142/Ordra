@@ -178,7 +178,6 @@ export function resolvePanelActions(input: PrimaryActionInputs): PanelActions {
   if (FULFILLMENT_OVERRIDE_STATUSES.has(status)) {
     const overflow: PanelAction[] = [];
     if (isManagerish(role)) {
-      overflow.push({ kind: "fulfillmentOverride", labelKey: "actions.fulfillmentOverride" });
       if (PRE_DISPATCH_CANCELLABLE.has(status)) {
         overflow.push({ kind: "cancel", labelKey: "actions.cancel", destructive: true });
       }

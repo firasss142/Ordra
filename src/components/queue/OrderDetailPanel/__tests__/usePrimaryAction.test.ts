@@ -351,13 +351,15 @@ describe("resolvePanelActions — fulfillment-stage statuses", () => {
     }
   });
 
-  it("manager overflow on scanned includes fulfillmentOverride", () => {
+  it("manager overflow on scanned offers no fulfillment override", () => {
+    // The manual fulfillment override was removed: carrier status is authoritative
+    // and arrives via the sweep, so a hand-entered status could only contradict it.
     const { overflow } = resolvePanelActions(input({
       order: { status: "scanned", assigned_to: "agent-1", updated_at: RECENT, tracking_number: "TR123", carrier_barcode_deleted_at: null },
       role: "market_manager",
       userId: undefined,
     }));
-    expect(overflow.some((a) => a.kind === "fulfillmentOverride")).toBe(true);
+    expect(overflow.map((a) => a.kind)).not.toContain("fulfillmentOverride");
   });
 
   it("agent overflow on scanned is empty", () => {

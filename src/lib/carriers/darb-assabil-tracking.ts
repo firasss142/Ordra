@@ -153,6 +153,36 @@ export function parseShipmentFull(
   };
 }
 
+/**
+ * One page of the shipment LIST endpoint. `records` are raw vendor objects —
+ * projection into OMS shapes is `darb-assabil-shipment.ts`'s job, so this stays
+ * a pure transport parser.
+ */
+export interface DarbShipmentPage {
+  records: Array<Record<string, unknown>>;
+  /** `data.totalCount`, or null when the caller didn't ask for it. */
+  totalCount: number | null;
+}
+
+/**
+ * Parse a `GET /api/local/shipments` (no `:id`) list body. Never throws — a
+ * malformed or `status:false` body is an empty page, and the caller decides
+ * whether that is an error.
+ */
+export function parseShipmentPage(body: unknown): DarbShipmentPage {
+  const b = asRecord(body);
+  if (b.status !== true) return { records: [], totalCount: null };
+
+  const data = asRecord(b.data);
+  const results = data.results;
+  return {
+    records: Array.isArray(results)
+      ? results.filter((r): r is Record<string, unknown> => !!r && typeof r === "object")
+      : [],
+    totalCount: typeof data.totalCount === "number" ? data.totalCount : null,
+  };
+}
+
 // ── Fetchers ─────────────────────────────────────────────────────────
 
 /**
@@ -191,6 +221,40 @@ export async function fetchDarbShipment(
     config,
   );
   return parseShipmentFull("", body);
+}
+
+/**
+ * Fetch ONE PAGE of the account's shipments via the list endpoint.
+ *
+ * `GET /api/local/shipments` with the `:id` segment omitted is a paginated list
+ * (vendor Postman marks `:id` "(optional)"). Verified live 2026-08-17: `limit=500`
+ * is served, `sort` and `offset` work, and `data.totalCount` is exact. That makes
+ * a full two-account mirror ~3 requests instead of one request per order.
+ *
+ * Sorted newest-updated-first so a caller can stop early once it reaches records
+ * older than its last successful sweep.
+ *
+ * DO NOT add a multi-value filter here. Darb rejects a comma-separated enum with
+ * HTTP 400 "Invalid choice!", and — far worse — silently honours only the LAST
+ * value of a repeated param, returning confidently wrong data. Filter locally.
+ * See docs/darb-assabil-sync.md §1.
+ */
+export async function fetchDarbShipmentPage(
+  config: CarrierConfig,
+  options: { offset: number; limit: number; status?: DarbSlug },
+): Promise<DarbShipmentPage> {
+  const base = baseUrl(config);
+  const params = new URLSearchParams({
+    offset: String(options.offset),
+    limit: String(options.limit),
+    includeTotalCount: "true",
+    sort: '{"updatedAt":-1}',
+  });
+  // Single value only — never `append`.
+  if (options.status) params.set("status", options.status);
+
+  const { body } = await getJson(`${base}/api/local/shipments?${params}`, config);
+  return parseShipmentPage(body);
 }
 
 /** Fetch the append-only timeline for a shipment via its `SH…` reference. */

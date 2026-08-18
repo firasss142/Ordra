@@ -83,8 +83,7 @@ export type PanelActionKind =
   | "cancelSchedule"
   | "deleteCarrierBarcode"
   | "reopen"
-  | "recover"
-  | "fulfillmentOverride";
+  | "recover";
 
 export interface PanelAction {
   /** Action identifier — also the i18n suffix under `orders.detail.actions.*`. */

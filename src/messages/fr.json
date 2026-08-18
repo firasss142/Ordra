@@ -654,7 +654,9 @@
       "rejected": "Rejetées",
       "open": "En cours",
       "cohortNote": "les jours récents ont encore des commandes non résolues",
-      "unresolvedNote": "Jours récents : données non résolues"
+      "unresolvedNote": "Jours récents : données non résolues",
+      "uploadedEvents": "Uploadées",
+      "tooltipRevenue": "Chiffre d'affaires"
     },
     "carriers": {
       "title": "Transporteurs",

@@ -129,6 +129,7 @@ refus_client | faux_numero | doublon | injoignable | prix | non_serieux | autre 
 - Design system tokens + rules: docs/design-system.md
 - Business profitability logic: docs/business-logic.md (created in Session 12)
 - Claude Code mastery patterns: docs/mastery-guide.md
+- Darb Assabil (Libya carrier) live API contract + sync engine: docs/darb-assabil-sync.md
 
 
 - super_admin: admin@oms.local / testpass123

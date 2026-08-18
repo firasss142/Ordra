@@ -8,6 +8,7 @@ import { useMarketScope } from "@/context/market-scope";
 import { CarrierSplitCards } from "@/components/in-delivery/CarrierSplitCards";
 import { StuckAlertsList } from "@/components/in-delivery/StuckAlertsList";
 import { InFlightTable } from "@/components/in-delivery/InFlightTable";
+import { DarbControlRoom } from "@/components/in-delivery/DarbControlRoom";
 
 export function InDeliveryClient({ user }: { user: AuthUser }) {
   const t = useTranslations("inDelivery");
@@ -17,6 +18,11 @@ export function InDeliveryClient({ user }: { user: AuthUser }) {
   });
 
   const unassigned = summary?.unassigned_carrier_count ?? 0;
+
+  // Darb is Libya-only. Scope by the carriers actually present in the summary
+  // rather than hardcoding a market id, so this stays correct if Darb is ever
+  // enabled elsewhere or the market ids change.
+  const isLibya = (summary?.carriers ?? []).some((c) => c.code === "darb_assabil");
 
   return (
     <div style={{ backgroundColor: "#F6F6F7", minHeight: "100vh", padding: "32px 32px 64px" }}>
@@ -90,6 +96,16 @@ export function InDeliveryClient({ user }: { user: AuthUser }) {
           <InFlightTable orders={summary?.in_flight ?? []} locale={user.locale} />
         )}
       </Section>
+
+      {/* Darb Assabil runs the whole Libya market but never enters the phase-2
+          statuses everything above filters on, so its shipments appear nowhere
+          else on this page. Rendered for Libya only — the panel is meaningless
+          for Tunisia, which has no Darb accounts. */}
+      {isLibya && (
+        <div style={{ marginBlockStart: 32 }}>
+          <DarbControlRoom />
+        </div>
+      )}
     </div>
   );
 }

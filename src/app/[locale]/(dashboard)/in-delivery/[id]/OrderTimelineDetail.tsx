@@ -6,6 +6,7 @@ import { Flag } from "lucide-react";
 import { useOrderTimeline } from "@/hooks/useOrderTimeline";
 import { OrderTimeline } from "@/components/in-delivery/OrderTimeline";
 import { EscalateCarrierModal } from "@/components/in-delivery/EscalateCarrierModal";
+import { DarbStatusSection } from "@/components/queue/DarbStatusSection";
 
 export function OrderTimelineDetail({ orderId }: { orderId: string }) {
   const t = useTranslations("inDelivery.detail");
@@ -47,6 +48,9 @@ export function OrderTimelineDetail({ orderId }: { orderId: string }) {
   }
 
   const canEscalate = !timeline.order.needs_carrier_followup;
+  // Darb detail is gated on the carrier itself, not the market: a Libya order on
+  // another carrier has no Darb shipment to show.
+  const isDarb = timeline.order.carrier_code === "darb_assabil";
 
   return (
     <>
@@ -110,6 +114,23 @@ export function OrderTimelineDetail({ orderId }: { orderId: string }) {
 
         <OrderTimeline stages={timeline.stages} currentStatus={timeline.order.status} />
       </section>
+
+      {/* Carrier-side detail: who is holding the parcel, their number, their
+          note, and the real billed cost. The OMS pipeline above shows only our
+          own statuses, which for Libya jump straight from uploaded to terminal. */}
+      {isDarb && (
+        <section
+          style={{
+            backgroundColor: "#FFFFFF",
+            border: "1px solid #E1E3E5",
+            borderRadius: 6,
+            marginBlockEnd: 20,
+            overflow: "hidden",
+          }}
+        >
+          <DarbStatusSection orderId={orderId} enabled />
+        </section>
+      )}
 
       <section
         style={{

@@ -29,6 +29,8 @@ export interface OrderTimeline {
     external_id: string | null;
     status: OrderStatus;
     carrier_name: string;
+    /** Gates carrier-specific detail panels (e.g. Darb Assabil). */
+    carrier_code: string | null;
     created_at: string;
     updated_at: string;
     needs_carrier_followup: boolean;
@@ -64,7 +66,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const { data: orderRow, error: orderErr } = await supabase
     .from("orders")
     .select(
-      "id, external_id, status, market_id, carrier_id, assigned_to, created_at, updated_at, needs_carrier_followup, carriers!orders_carrier_id_fkey(name)",
+      "id, external_id, status, market_id, carrier_id, assigned_to, created_at, updated_at, needs_carrier_followup, carriers!orders_carrier_id_fkey(name, code)",
     )
     .eq("id", params.id)
     .single();
@@ -83,7 +85,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     created_at: string;
     updated_at: string;
     needs_carrier_followup: boolean | null;
-    carriers: { name: string } | { name: string }[] | null;
+    carriers:
+      | { name: string; code: string }
+      | { name: string; code: string }[]
+      | null;
   };
   const order = orderRow as OrderRow;
 
@@ -141,6 +146,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       external_id: order.external_id,
       status: order.status,
       carrier_name: carrierRel?.name ?? "",
+      carrier_code: carrierRel?.code ?? null,
       created_at: order.created_at,
       updated_at: order.updated_at,
       needs_carrier_followup: Boolean(order.needs_carrier_followup),

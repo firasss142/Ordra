@@ -12,7 +12,6 @@
  *   CustomerCard.tsx      — address + city + note
  *   OrderItemsCard.tsx    — collapsible receipt + line items + total
  *   HistoryTimeline.tsx   — collapsible status-change timeline
- *   FulfillmentCard.tsx   — manager-only override block
  *   ActionFooter.tsx      — primary CTA + overflow menu
  *   SectionCard.tsx       — shared white card shell (label + icon header)
  *   usePrimaryAction.ts   — pure resolver: (status, role, ...) → CTA + overflow
@@ -76,8 +75,6 @@ import { ActionFooter } from "./ActionFooter";
 import { CustomerCard } from "./CustomerCard";
 import { OrderItemsCard } from "./OrderItemsCard";
 import { HistoryTimeline } from "./HistoryTimeline";
-import { FulfillmentCard, FULFILLMENT_STATUS_VALUES as FULFILLMENT_VALUES_FROM_CARD } from "./FulfillmentCard";
-import type { FulfillmentStatusValue } from "./FulfillmentCard";
 import { AlertBanners } from "./AlertBanners";
 import { OrderFacts } from "./OrderFacts";
 import { PanelTabs, type PanelTab } from "./PanelTabs";
@@ -695,11 +692,6 @@ export function OrderDetailPanel({
     order.assigned_to !== null &&
     !TERMINAL_STATUSES.has(order.status);
 
-  const canFulfillmentOverride =
-    role &&
-    (role === "market_manager" || role === "super_admin") &&
-    order !== null;
-
   async function handleReturnToPool() {
     if (!onReturnToPool) return;
     setReturningToPool(true);
@@ -1088,14 +1080,6 @@ export function OrderDetailPanel({
         case "deleteCarrierBarcode":
           void handleDeleteCarrierBarcode();
           return;
-        case "fulfillmentOverride": {
-          // Existing fulfillment card lives inline in the body. Best we can do
-          // from the footer is scroll it into view; the manager fills it in
-          // and hits "Appliquer" on the card itself.
-          const card = document.querySelector('[data-fulfillment-card="true"]');
-          card?.scrollIntoView({ behavior: "smooth", block: "center" });
-          return;
-        }
         case "cancel":
           // Phase 1: cancel from the panel still routes through the manager's
           // bulk-cancel flow on the list. The dedicated /api/orders/:id/cancel
@@ -1337,38 +1321,6 @@ export function OrderDetailPanel({
                   />
                   <DarbStatusSection orderId={order.id} enabled={darbEligible} />
 
-                  {/* Fulfillment override — managers only */}
-                  {canFulfillmentOverride && (
-                    <FulfillmentCard
-                      statusLabels={Object.fromEntries(
-                        FULFILLMENT_VALUES_FROM_CARD.map((v) => [
-                          v,
-                          ts(v as Parameters<typeof ts>[0]),
-                        ]),
-                      ) as Record<FulfillmentStatusValue, string>}
-                      anchorId="order-fulfillment-card"
-                      onSubmit={async ({ status, note, isDamaged: damaged }) => {
-                        if (!orderId) return t("loadError");
-                        try {
-                          const body: Record<string, unknown> = { status, note };
-                          if (status === "returned" && damaged) body.is_damaged = true;
-                          const res = await fetch(`/api/orders/${orderId}/fulfillment`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify(body),
-                          });
-                          if (!res.ok) {
-                            const json = await res.json().catch(() => ({}));
-                            return json.error ?? `Erreur ${res.status}`;
-                          }
-                          await mutate();
-                          return null;
-                        } catch {
-                          return t("loadError");
-                        }
-                      }}
-                    />
-                  )}
                   </div>
                 </div>
 

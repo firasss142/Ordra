@@ -6,6 +6,8 @@ import {
   fetchDarbStatus,
   fetchDarbTimeline,
   fetchDarbShipment,
+  fetchDarbShipmentPage,
+  parseShipmentPage,
   type DarbStatusSnapshot,
 } from "./darb-assabil-tracking";
 import type { CarrierConfig } from "./types";
@@ -337,5 +339,121 @@ describe("fetchDarbTimeline", () => {
     const mockFetch = vi.fn().mockRejectedValue(new Error("ECONNRESET"));
     vi.stubGlobal("fetch", mockFetch);
     await expect(fetchDarbTimeline("SH1", mockConfig)).rejects.toThrow("ECONNRESET");
+  });
+});
+
+// ── parseShipmentPage ────────────────────────────────────────────────
+describe("parseShipmentPage", () => {
+  test("returns every record plus the server's totalCount", () => {
+    const page = parseShipmentPage({
+      status: true,
+      data: {
+        totalCount: 710,
+        results: [
+          { _id: "a", reference: "1609701", status: "processing" },
+          { _id: "b", reference: "SH2057634", status: "pending" },
+        ],
+      },
+    });
+    expect(page.totalCount).toBe(710);
+    expect(page.records).toHaveLength(2);
+    expect(page.records[0]).toMatchObject({ _id: "a", status: "processing" });
+  });
+
+  test("treats body.status === false as an empty page (HTTP 200 is not success)", () => {
+    const page = parseShipmentPage({ status: false, messages: [{ message: "Invalid choice!" }] });
+    expect(page).toEqual({ records: [], totalCount: null });
+  });
+
+  test("tolerates a missing totalCount (includeTotalCount not requested)", () => {
+    const page = parseShipmentPage({ status: true, data: { results: [{ _id: "a" }] } });
+    expect(page.totalCount).toBeNull();
+    expect(page.records).toHaveLength(1);
+  });
+
+  test("returns an empty page rather than throwing on a malformed body", () => {
+    expect(parseShipmentPage(null)).toEqual({ records: [], totalCount: null });
+    expect(parseShipmentPage("gateway timeout")).toEqual({ records: [], totalCount: null });
+    expect(parseShipmentPage({ status: true, data: { results: "nope" } })).toEqual({
+      records: [],
+      totalCount: null,
+    });
+  });
+});
+
+// ── fetchDarbShipmentPage ────────────────────────────────────────────
+describe("fetchDarbShipmentPage", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  test("GETs the list endpoint with no :id, paging params and includeTotalCount", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ status: true, data: { totalCount: 710, results: [] } }), {
+        status: 200,
+      }),
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    await fetchDarbShipmentPage(mockConfig, { offset: 500, limit: 500 });
+
+    const [url, init] = mockFetch.mock.calls[0];
+    const parsed = new URL(url as string);
+    expect(parsed.pathname).toBe("/api/local/shipments");
+    expect(parsed.searchParams.get("offset")).toBe("500");
+    expect(parsed.searchParams.get("limit")).toBe("500");
+    expect(parsed.searchParams.get("includeTotalCount")).toBe("true");
+    // Newest-updated first is what makes an early-exit delta sweep possible.
+    expect(parsed.searchParams.get("sort")).toBe('{"updatedAt":-1}');
+    expect((init as RequestInit).method).toBe("GET");
+  });
+
+  test("sends the three Darb auth headers with the literal apikey prefix", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ status: true, data: { results: [] } }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    await fetchDarbShipmentPage(mockConfig, { offset: 0, limit: 10 });
+
+    const headers = (mockFetch.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+    expect(headers.Authorization).toBe("apikey decrypted-api-key-123");
+    expect(headers["X-API-VERSION"]).toBe("1.0.0");
+    expect(headers["X-ACCOUNT-ID"]).toBe("692637b42f63874515cebd63");
+  });
+
+  test("NEVER sends a multi-value status filter — Darb silently honours only the last", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ status: true, data: { results: [] } }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    await fetchDarbShipmentPage(mockConfig, { offset: 0, limit: 10, status: "released" });
+
+    const parsed = new URL(mockFetch.mock.calls[0][0] as string);
+    expect(parsed.searchParams.getAll("status")).toEqual(["released"]);
+    expect(parsed.searchParams.get("negateStatus")).toBeNull();
+  });
+
+  test("returns the parsed page", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: true,
+          data: { totalCount: 2, results: [{ _id: "a", status: "delayed" }] },
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const page = await fetchDarbShipmentPage(mockConfig, { offset: 0, limit: 500 });
+    expect(page.totalCount).toBe(2);
+    expect(page.records[0]).toMatchObject({ _id: "a", status: "delayed" });
+  });
+
+  test("throws on a network failure so the caller can record a failed run", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ETIMEDOUT")));
+    await expect(fetchDarbShipmentPage(mockConfig, { offset: 0, limit: 10 })).rejects.toThrow(
+      "ETIMEDOUT",
+    );
   });
 });

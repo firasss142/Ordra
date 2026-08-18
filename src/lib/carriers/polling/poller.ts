@@ -188,8 +188,15 @@ export function buildProductionDeps(admin: SupabaseClient): PollerDeps {
       const { data, error } = await admin
         .from("orders")
         .select(
+          // The FK must be named explicitly: `orders` has THREE foreign keys to
+          // `carriers` (carrier_id, scheduled_dispatch_carrier_id,
+          // recommended_carrier_id), so a bare `carriers!inner(...)` embed is
+          // ambiguous and PostgREST rejects the whole query. That regressed this
+          // cron to a hard 500 on every tick when recommended_carrier_id landed
+          // (20260825000002) — silently, because pg_cron reports success as long
+          // as pg_net delivers the request.
           `id, tracking_number, status,
-           carriers!inner ( code, api_credentials, api_endpoint )`
+           carriers!orders_carrier_id_fkey!inner ( code, api_credentials, api_endpoint )`
         )
         .in("status", OPEN_STATUSES)
         .not("tracking_number", "is", null)
