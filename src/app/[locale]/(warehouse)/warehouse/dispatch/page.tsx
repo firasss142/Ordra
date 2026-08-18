@@ -53,7 +53,7 @@ export default async function DispatchPage({
     supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_city, product_id, product_name, variant_label, quantity, total_price, status, scheduled_dispatch_at, scheduled_dispatch_auto, scheduled_dispatch_carrier_id, products(current_stock, low_stock_threshold)",
+        "id, customer_name, customer_city, product_id, product_name, variant_label, quantity, total_price, status, scheduled_dispatch_at, scheduled_dispatch_auto, scheduled_dispatch_carrier_id, products!orders_product_id_fkey(current_stock, low_stock_threshold)",
       )
       .eq("market_id", targetMarketId)
       .in("status", SHIPPABLE_STATUSES as unknown as string[])

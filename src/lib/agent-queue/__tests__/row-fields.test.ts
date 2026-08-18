@@ -8,7 +8,9 @@ describe("QUEUE_ROW_SELECT", () => {
   });
 
   test("keeps the product and carrier embeds the card renders", () => {
-    expect(QUEUE_ROW_SELECT).toContain("product:products(image_url, name)");
+    expect(QUEUE_ROW_SELECT).toContain(
+      "product:products!orders_product_id_fkey(image_url, name)",
+    );
     expect(QUEUE_ROW_SELECT).toContain("carrier:carriers!orders_carrier_id_fkey(code, name)");
   });
 

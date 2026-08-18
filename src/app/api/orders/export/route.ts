@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("orders")
-    .select("id, created_at, customer_name, customer_phone, customer_city, product_name, variant_label, total_price, status, assigned_to, product:products(name)");
+    .select("id, created_at, customer_name, customer_phone, customer_city, product_name, variant_label, total_price, status, assigned_to, product:products!orders_product_id_fkey(name)");
 
   if (marketId) {
     query = query.eq("market_id", marketId);

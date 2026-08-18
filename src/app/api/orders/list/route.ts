@@ -26,7 +26,7 @@ const LIST_SELECT =
   "assigned_to, carrier_id, rejection_reason, callback_scheduled_at, attempts_count, " +
   "carrier_barcode_deleted_at, carrier_barcode_deleted_carrier_code, " +
   "created_at, updated_at, terminal_at, archived_at, archived_by, " +
-  "product:products(image_url, name)";
+  "product:products!orders_product_id_fkey(image_url, name)";
 
 export async function GET(req: NextRequest) {
   const actorResult = await getActor(req);

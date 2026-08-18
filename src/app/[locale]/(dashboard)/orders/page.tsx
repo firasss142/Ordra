@@ -19,7 +19,7 @@ const LIST_COLS =
   // Must stay in sync with LIST_SELECT in /api/orders/list — this SSR prefetch
   // backs the first paint, and a missing embed would show external product
   // names that visibly swap once SWR revalidates.
-  "product:products(name)";
+  "product:products!orders_product_id_fkey(name)";
 
 export default async function OrdersPage({
   params,

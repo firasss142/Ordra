@@ -117,8 +117,27 @@ export async function GET(_req: NextRequest) {
       .order("updated_at", { ascending: false }),
   ]);
 
+  // Log before returning the opaque 500. Without this the platform log records
+  // the status and an empty `logs` array, so a broken query (e.g. a PostgREST
+  // PGRST201 ambiguous-embed error) is indistinguishable from any other
+  // failure and the queue just reads "خطأ في التحميل" with no way to tell why.
   if (activeRes.error) {
+    console.error("[agent/queue] active orders query failed", {
+      code: activeRes.error.code,
+      message: activeRes.error.message,
+      details: activeRes.error.details,
+      hint: activeRes.error.hint,
+    });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+
+  // The closed list failing must not blank the whole queue — the agent keeps
+  // their active work and only the Fermées bucket comes back empty.
+  if (closedRes.error) {
+    console.error("[agent/queue] closed orders query failed", {
+      code: closedRes.error.code,
+      message: closedRes.error.message,
+    });
   }
 
   // Flatten the joined product image + carrier onto each row, so the queue card

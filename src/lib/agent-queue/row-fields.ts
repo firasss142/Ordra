@@ -86,7 +86,7 @@ const FIELD_SET: ReadonlySet<string> = new Set(QUEUE_ROW_FIELDS);
 // exist" regression test). Concatenation or .join() widens it to `string` and
 // the inference collapses to GenericStringError, taking that check with it.
 // eslint-disable-next-line max-len
-export const QUEUE_ROW_SELECT = "id, market_id, assigned_to, external_id, status, customer_name, customer_phone, customer_phone_2, customer_address, customer_city, customer_note, product_id, product_name, variant_label, quantity, total_price, currency, carrier_id, tracking_number, carrier_barcode_deleted_at, attempts_count, callback_scheduled_at, scheduled_dispatch_at, scheduled_dispatch_auto, created_at, updated_at, rejection_reason, rejection_subreason, rejection_note, dexpress_status_slug, dexpress_status_synced_at, dexpress_status_accepted, carrier_status_slug, carrier_status_synced_at, product:products(image_url, name), carrier:carriers!orders_carrier_id_fkey(code, name)";
+export const QUEUE_ROW_SELECT = "id, market_id, assigned_to, external_id, status, customer_name, customer_phone, customer_phone_2, customer_address, customer_city, customer_note, product_id, product_name, variant_label, quantity, total_price, currency, carrier_id, tracking_number, carrier_barcode_deleted_at, attempts_count, callback_scheduled_at, scheduled_dispatch_at, scheduled_dispatch_auto, created_at, updated_at, rejection_reason, rejection_subreason, rejection_note, dexpress_status_slug, dexpress_status_synced_at, dexpress_status_accepted, carrier_status_slug, carrier_status_synced_at, product:products!orders_product_id_fkey(image_url, name), carrier:carriers!orders_carrier_id_fkey(code, name)";
 
 /**
  * Narrow a raw realtime row to the same shape the route returns.

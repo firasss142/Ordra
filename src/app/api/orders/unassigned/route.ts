@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("orders")
-    .select("id, external_id, external_platform, storefront_id, customer_name, customer_phone, customer_city, customer_address, product_id, product_name, variant_label, quantity, total_price, created_at, product:products(name)", { count: "exact" })
+    .select("id, external_id, external_platform, storefront_id, customer_name, customer_phone, customer_city, customer_address, product_id, product_name, variant_label, quantity, total_price, created_at, product:products!orders_product_id_fkey(name)", { count: "exact" })
     .eq("status", "pending")
     .is("assigned_to", null);
 

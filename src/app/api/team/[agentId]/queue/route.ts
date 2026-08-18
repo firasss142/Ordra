@@ -49,7 +49,7 @@ export async function GET(
   // Query orders assigned to this agent in non-terminal statuses
   const { data: orders, error: ordersError } = await supabase
     .from("orders")
-    .select("id, status, customer_name, customer_phone, customer_city, product_name, variant_label, total_price, quantity, callback_scheduled_at, created_at, product:products(name)")
+    .select("id, status, customer_name, customer_phone, customer_city, product_name, variant_label, total_price, quantity, callback_scheduled_at, created_at, product:products!orders_product_id_fkey(name)")
     .eq("assigned_to", agentId)
     .not("status", "in", `(${TERMINAL_STATUSES.join(",")})`);
 
