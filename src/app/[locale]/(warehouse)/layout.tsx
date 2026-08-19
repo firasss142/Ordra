@@ -47,7 +47,7 @@ function WarehouseTabsBand({
 }) {
   const tabs = useWarehouseTabs(locale);
   return (
-    <div className="border-b border-line-subtle bg-surface-card px-4 sm:px-6 lg:px-8">
+    <div className="border-b border-wh-border bg-wh-surface px-4 sm:px-6 lg:px-8">
       <WarehouseTabBar tabs={tabs} direction={direction} />
     </div>
   );
@@ -62,7 +62,7 @@ export default function WarehouseLayout({
   const pathname = usePathname();
 
   if (loading || !user) {
-    return <div className="min-h-screen bg-surface-page" aria-hidden="true" />;
+    return <div className="wh-console min-h-screen bg-wh-bg" aria-hidden="true" />;
   }
 
   const direction: "ltr" | "rtl" = user.direction === "rtl" ? "rtl" : "ltr";
@@ -71,7 +71,7 @@ export default function WarehouseLayout({
   if (isAgent) {
     // Warehouse agents use Topbar without a sidebar drawer (no nav menu).
     return (
-      <div className="min-h-screen bg-surface-page" style={{ direction }}>
+      <div className="wh-console min-h-screen bg-wh-bg" style={{ direction }}>
         <Topbar user={user} marketName="" />
         <WarehouseTabsBand locale={user.locale} direction={direction} />
         <main id="main-content">{children}</main>
@@ -103,7 +103,7 @@ function WarehouseManagerShell({
   const handleOpen = useCallback(() => setMobileOpen(true), []);
   if (!user) return null;
   return (
-    <div className="flex min-h-screen bg-surface-page" style={{ direction }}>
+    <div className="wh-console flex min-h-screen bg-wh-bg" style={{ direction }}>
       <Sidebar
         user={user}
         currentPath={pathname}
@@ -134,7 +134,7 @@ function WarehouseManagerShell({
       </button>
       <main
         id="main-content"
-        className="flex-1 md:ms-[240px] min-h-screen bg-surface-page pt-14 md:pt-0"
+        className="flex-1 md:ms-[240px] min-h-screen bg-wh-bg pt-14 md:pt-0"
         style={{ minWidth: 0 }}
       >
         {children}

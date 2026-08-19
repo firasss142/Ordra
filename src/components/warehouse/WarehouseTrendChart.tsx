@@ -41,15 +41,20 @@ const SCHEME = {
     tooltipLabelColor: "#1A1A1A",
     legendColor:       "#6D7175",
   },
+  // Entrepôt console. The previous trio (#7FB8F5 / #36F4A4 / #F47272) sat well
+  // above the dark lightness band — on #121417 they read as glare rather than
+  // as data, and #36F4A4 is the same value status-contrast.test.ts already
+  // rejects elsewhere. Re-stepped onto the --wh-series-* tokens: all six checks
+  // pass on this surface (normal ΔE 24,8 · protan 22,4 · tritan 9,7).
   dark: {
-    colors:            { scanned: "#7FB8F5", returned: "#36F4A4", damaged: "#F47272" },
-    gridStroke:        "#1E2C31",
-    tickFill:          "#71717A",
-    axisStroke:        "#1E2C31",
-    tooltipBg:         "#02090A",
-    tooltipBorder:     "1px solid #1E2C31",
-    tooltipLabelColor: "#FFFFFF",
-    legendColor:       "#A1A1AA",
+    colors:            { scanned: "#1FAE59", returned: "#8B7CF0", damaged: "#E0605C" },
+    gridStroke:        "#1E2228",
+    tickFill:          "#6B7280",
+    axisStroke:        "#22262C",
+    tooltipBg:         "#181B1F",
+    tooltipBorder:     "1px solid #2E343C",
+    tooltipLabelColor: "#F2F4F6",
+    legendColor:       "#9BA3AD",
   },
 } as const;
 

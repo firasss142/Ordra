@@ -78,6 +78,14 @@ interface NavItemDef {
   /** Prefetch hint — usually matches the base route segment */
   prefetchRoute?: string;
   showBadge?: boolean;
+  /**
+   * Permission key from user-permissions; the ITEM is hidden when the role
+   * lacks it, even though its section stays visible. Needed since Stock &
+   * inventaire moved into Entrepôt: the group is open to every role, but the
+   * page behind this one link is still super-admin only, and a link that
+   * bounces you back to the dashboard is worse than no link.
+   */
+  requiresPermission?: "canViewFinances";
 }
 
 interface NavSection {
@@ -127,6 +135,13 @@ const NAV_SECTIONS: readonly NavSection[] = [
       { key: "preparation", href: "warehouse/preparation", icon: PackageSearch, prefetchRoute: "warehouse" },
       { key: "dispatch", href: "warehouse/dispatch", icon: PackageCheck, prefetchRoute: "warehouse" },
       { key: "returns", href: "warehouse/returns", icon: PackageOpen, prefetchRoute: "warehouse" },
+      {
+        key: "stockInventory",
+        href: "dashboard/stock",
+        icon: Boxes,
+        prefetchRoute: "dashboard",
+        requiresPermission: "canViewFinances",
+      },
       { key: "carrierTracking", href: "warehouse/carrier-tracking", icon: Truck, prefetchRoute: "warehouse" },
       { key: "inDeliveryBoard", href: "in-delivery", icon: Gauge, prefetchRoute: "in-delivery" },
       { key: "warehouseJournal", href: "warehouse/history", icon: FileClock, prefetchRoute: "warehouse" },
@@ -140,7 +155,6 @@ const NAV_SECTIONS: readonly NavSection[] = [
     items: [
       { key: "pnl", href: "dashboard/pnl", icon: DollarSign, prefetchRoute: "dashboard" },
       { key: "productsMargins", href: "products", icon: Percent, prefetchRoute: "products" },
-      { key: "stockInventory", href: "dashboard/stock", icon: Boxes, prefetchRoute: "dashboard" },
       { key: "adSpend", href: "finance/ad-spend", icon: Megaphone },
       { key: "investors", href: "finance/investors", icon: HandCoins },
     ],
@@ -275,7 +289,14 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
       if (s.superAdminOnly && user.role !== "super_admin") return false;
       if (s.requiresPermission && !perms.get(s.requiresPermission)) return false;
       return true;
-    });
+    })
+      .map((s) => {
+        const items = s.items.filter(
+          (i) => !i.requiresPermission || perms.get(i.requiresPermission),
+        );
+        return items.length === s.items.length ? s : { ...s, items };
+      })
+      .filter((s) => s.items.length > 0);
   }, [user.role]);
 
   const activeSectionId = useMemo(

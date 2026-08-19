@@ -106,6 +106,30 @@ describe("Sidebar — sections", () => {
     expect(screen.getByRole("button", { name: /Finances/ })).toBeInTheDocument();
   });
 
+  it("lists Stock & inventaire under ENTREPÔT, not under FINANCES", () => {
+    renderSidebar(
+      <Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Entrepôt/ }));
+    const stockLink = screen.getByRole("link", { name: /Stock & inventaire/ });
+    expect(stockLink).toBeInTheDocument();
+    expect(stockLink).toHaveAttribute("href", "/fr/dashboard/stock");
+
+    // Finances is expanded by default and keeps the money pages; the units
+    // page has left it, so the link exists exactly once in the whole nav.
+    expect(screen.getByRole("link", { name: /P&L global/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Stock & inventaire/ })).toHaveLength(1);
+  });
+
+  it("hides Stock & inventaire from market_manager, whose page redirects anyway", () => {
+    // The page is super-admin only (canViewFinanceSection). Showing the link to a
+    // manager would offer a door that bounces them straight back to the dashboard.
+    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
+    fireEvent.click(screen.getByRole("button", { name: /Entrepôt/ }));
+    expect(screen.getByRole("link", { name: /Préparation/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Stock & inventaire/ })).not.toBeInTheDocument();
+  });
+
   it("hides SYSTÈME section from market_manager", () => {
     renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
     expect(screen.queryByRole("button", { name: /Système/ })).not.toBeInTheDocument();

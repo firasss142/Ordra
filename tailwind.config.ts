@@ -127,6 +127,35 @@ const config: Config = {
         // in globals.css. Status pair (green above the floor, red below) plus
         // the six validated cost-stack hues. See the contrast note there
         // before putting type on a raw hue.
+        wh: {
+          bg: "var(--wh-bg)",
+          surface: "var(--wh-surface)",
+          "surface-2": "var(--wh-surface-2)",
+          sunken: "var(--wh-sunken)",
+          border: "var(--wh-border)",
+          "border-strong": "var(--wh-border-strong)",
+          "ink-1": "var(--wh-ink-1)",
+          "ink-2": "var(--wh-ink-2)",
+          "ink-3": "var(--wh-ink-3)",
+          ok: "var(--wh-ok)",
+          "ok-bg": "var(--wh-ok-bg)",
+          "ok-edge": "var(--wh-ok-edge)",
+          warn: "var(--wh-warn)",
+          "warn-bg": "var(--wh-warn-bg)",
+          "warn-edge": "var(--wh-warn-edge)",
+          bad: "var(--wh-bad)",
+          "bad-bg": "var(--wh-bad-bg)",
+          "bad-edge": "var(--wh-bad-edge)",
+          scan: "var(--wh-scan)",
+          "scan-bg": "var(--wh-scan-bg)",
+          "scan-edge": "var(--wh-scan-edge)",
+          move: "var(--wh-move)",
+          "move-bg": "var(--wh-move-bg)",
+          "move-edge": "var(--wh-move-edge)",
+          "series-1": "var(--wh-series-1)",
+          "series-2": "var(--wh-series-2)",
+          grid: "var(--wh-grid)",
+        },
         ads: {
           line: "var(--ads-line)",
           "line-2": "var(--ads-line-2)",
@@ -238,6 +267,7 @@ const config: Config = {
         // Finance console only — the mockup's cards are noticeably softer
         // than the 10px the rest of the console uses.
         fin: "16px",
+        wh: "12px",
         "fin-sm": "12px",
         pill: "9999px",
       },
@@ -250,6 +280,7 @@ const config: Config = {
         // surface lifts its cards instead of outlining them, which is what
         // the mockup does and why it needs its own shadow.
         fin: "0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.05)",
+        "wh-glow": "var(--wh-glow)",
         "fin-hover": "0 2px 4px rgba(15,23,42,0.05), 0 8px 20px rgba(15,23,42,0.07)",
       },
       transitionDuration: {

@@ -51,8 +51,8 @@ function WarehouseTabBarInner({ tabs, direction = "ltr" }: Props) {
               "transition-colors duration-fast no-underline",
               "border-b-2 -mb-px",
               active
-                ? "text-ink-primary font-semibold border-accent"
-                : "text-ink-secondary font-medium border-transparent hover:text-ink-primary",
+                ? "text-wh-ok font-semibold border-wh-ok"
+                : "text-wh-ink-2 font-medium border-transparent hover:text-wh-ink-1",
             ].join(" ")}
           >
             <Icon size={16} strokeWidth={1.5} aria-hidden="true" />
