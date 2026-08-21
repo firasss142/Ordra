@@ -1,18 +1,16 @@
 import { redirect } from "next/navigation";
-import { GeneralSettingsClient } from "./GeneralSettingsClient";
-import { getServerUser } from "@/lib/auth/server-user";
 
-export default async function GeneralSettingsPage({
+/**
+ * Legacy route — the settings workspace moved to /system/settings in the
+ * Système redesign. Redirect, preserving a deep-linked tab.
+ */
+export default function GeneralSettingsPage({
   params,
+  searchParams,
 }: {
   params: { locale: string };
+  searchParams: { tab?: string };
 }) {
-  const user = await getServerUser();
-  if (!user) redirect(`/${params.locale}/login`);
-
-  if (user.role !== "super_admin" && user.role !== "market_manager") {
-    redirect(`/${params.locale}/dashboard`);
-  }
-
-  return <GeneralSettingsClient user={user} />;
+  const tab = searchParams?.tab ? `?tab=${encodeURIComponent(searchParams.tab)}` : "";
+  redirect(`/${params.locale}/system/settings${tab}`);
 }

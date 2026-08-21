@@ -1,6 +1,8 @@
 "use client";
 
-// TODO(i18n): migrate strings to useTranslations('settings.general') in a follow-up.
+// Hardcoded French by convention — the settings/general subsystem predates the
+// settings.general i18n namespace (see the redesign plan). Kept consistent here
+// rather than half-migrating one workspace.
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -11,52 +13,45 @@ import { CommissionsSection } from "./general/CommissionsSection";
 import type { MarketSettings } from "@/types/settings";
 import { DEFAULT_MARKET_SETTINGS, DEFAULT_SHIFT_CONFIG } from "@/types/settings";
 import type { Role } from "@/types";
-import { canEditCosts } from "@/lib/role-permissions";
 import { SettingsTabNav } from "./general/SettingsTabNav";
 import { OperationsSection } from "./general/OperationsSection";
-import { FinanceSection } from "./general/FinanceSection";
+import { AlertesSection } from "./general/AlertesSection";
 import { TeamSection } from "./general/TeamSection";
-import { LabelsSection } from "./general/LabelsSection";
+import { ObjectifsSection } from "./general/ObjectifsSection";
 
-type Group = "operations" | "finance" | "team" | "commissions" | "labels";
+type Group = "operations" | "alertes" | "team" | "objectifs" | "commissions";
 
 const GROUPS: { key: Group; label: string; description: string }[] = [
-  {
-    key: "operations",
-    label: "Opérations",
-    description: "Tentatives, rappels, inactivité",
-  },
-  {
-    key: "finance",
-    label: "Finance",
-    description: "Frais et coûts par commande",
-  },
-  { key: "team", label: "Équipe", description: "Affectation et heures ouvrées" },
+  { key: "operations", label: "Opérations", description: "Confirmation, réception, expédition, cycle de vie" },
+  { key: "alertes", label: "Alertes", description: "Seuils qui déclenchent les alertes" },
+  { key: "team", label: "Équipe", description: "Affectation, présence, heures ouvrées" },
+  { key: "objectifs", label: "Objectifs", description: "Cibles de l'équipe" },
   { key: "commissions", label: "Commissions", description: "Ce qu'un agent gagne par commande livrée" },
-  {
-    key: "labels",
-    label: "Libellés",
-    description: "Noms des statuts dans chaque langue",
-  },
 ];
 
 interface Props {
   initialValues: MarketSettings;
   marketId: string;
   role: Role;
+  /** Manager view: everything is visible but read-only. */
+  readOnly?: boolean;
 }
 
 export function GeneralSettingsGroups({
   initialValues,
   marketId,
   role,
+  readOnly = false,
 }: Props) {
-  const showCosts = canEditCosts(role);
   const showCommissions = canSetCommissionRates(role);
   const searchParams = useSearchParams();
   const requestedTab = searchParams?.get("tab");
+  const initialTab: Group =
+    requestedTab && GROUPS.some((g) => g.key === requestedTab)
+      ? (requestedTab as Group)
+      : "operations";
   const [group, setGroup] = useState<Group>(
-    requestedTab === "commissions" && showCommissions ? "commissions" : "operations",
+    initialTab === "commissions" && !showCommissions ? "operations" : initialTab,
   );
   const locale = useLocale();
   const tMarkets = useTranslations("nav.markets");
@@ -78,33 +73,66 @@ export function GeneralSettingsGroups({
     setValues((v) => ({ ...v, [key]: value }));
   };
 
+  // Keys owned by each tab — saved together when that tab's "Enregistrer" fires.
+  // saveGroup always PATCHes the full assembled object (the route validates the
+  // whole shape), so listing keys here documents ownership more than it gates.
+  const GROUP_KEYS: Record<Group, (keyof MarketSettings)[]> = {
+    operations: [
+      "max_call_attempts",
+      "attempt_retry_times",
+      "after_max_attempts_action",
+      "after_max_attempts_delay_hours",
+      "callback_max_days",
+      "callback_grace_minutes",
+      "dispatch_cutoff_time",
+      "sla_minutes",
+      "duplicate_window_hours",
+      "auto_assign_on_intake",
+      "order_amount_min",
+      "order_amount_max",
+      "unknown_city_policy",
+      "auto_upload_on_confirm",
+      "unverified_after_days",
+      "auto_restock_on_return_scan",
+      "auto_archive_after_days",
+      "supplier_lead_time_days",
+    ],
+    alertes: [
+      "carrier_error_rate_threshold",
+      "webhook_failure_threshold",
+      "sync_staleness_hours",
+      "carrier_stall_days",
+      "stockout_days_of_cover",
+      "sla_breach_alert",
+    ],
+    team: [
+      "assignment_algorithm",
+      "active_agents_only",
+      "agent_inactivity_minutes",
+      "max_open_orders_per_agent",
+      "orphan_reassign_after_minutes",
+      "orphan_reassign_enabled",
+      "outside_hours_policy",
+      "shift_config",
+    ],
+    objectifs: [
+      "goal_daily_treated",
+      "goal_min_rate",
+      "goal_conf_per_hour",
+      "goal_team_weekly_conf",
+    ],
+    commissions: [],
+  };
+
   async function saveGroup(g: Group) {
+    if (readOnly) return;
     setSaving(g);
     setSuccessMsg("");
     setErrorMsg("");
 
-    const payload: Partial<MarketSettings> = {};
-    if (g === "operations") {
-      payload.max_call_attempts = values.max_call_attempts;
-      payload.attempt_retry_times = values.attempt_retry_times ?? [];
-      if (values.agent_inactivity_minutes !== undefined) {
-        payload.agent_inactivity_minutes = values.agent_inactivity_minutes;
-      }
-    } else if (g === "finance") {
-      payload.delivery_fee = values.delivery_fee;
-      payload.return_fee = values.return_fee;
-      payload.packing_cost = values.packing_cost;
-    } else if (g === "team") {
-      payload.assignment_algorithm = values.assignment_algorithm;
-      payload.active_agents_only = values.active_agents_only ?? false;
-      if (values.shift_config) payload.shift_config = values.shift_config;
-    }
-
-    const full: MarketSettings = {
-      ...DEFAULT_MARKET_SETTINGS,
-      ...values,
-      ...payload,
-    };
+    // The route validates and upserts the whole MarketSettings; sending `values`
+    // (seeded from defaults) keeps every key valid and only the touched ones changed.
+    const full: MarketSettings = { ...DEFAULT_MARKET_SETTINGS, ...values };
 
     try {
       const res = await fetch(`/api/settings/${marketId}`, {
@@ -115,8 +143,7 @@ export function GeneralSettingsGroups({
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         setErrorMsg(
-          (body as { error?: string }).error ??
-            "Erreur lors de l'enregistrement",
+          (body as { error?: string }).error ?? "Erreur lors de l'enregistrement",
         );
       } else {
         setSuccessMsg("Paramètres enregistrés");
@@ -130,80 +157,81 @@ export function GeneralSettingsGroups({
   }
 
   function resetGroup(g: Group) {
+    if (readOnly) return;
     setValues((v) => {
       const next = { ...v };
-      if (g === "operations") {
-        next.max_call_attempts = DEFAULT_MARKET_SETTINGS.max_call_attempts;
-        next.attempt_retry_times = [];
-        next.agent_inactivity_minutes = undefined;
-      } else if (g === "finance") {
-        next.delivery_fee = 0;
-        next.return_fee = 0;
-        next.packing_cost = 0;
-      } else if (g === "team") {
-        next.assignment_algorithm = "manual";
-        next.active_agents_only = false;
-        next.shift_config = DEFAULT_SHIFT_CONFIG;
+      for (const key of GROUP_KEYS[g]) {
+        (next as unknown as Record<string, unknown>)[key] = (
+          DEFAULT_MARKET_SETTINGS as unknown as Record<string, unknown>
+        )[key];
       }
       return next;
     });
   }
 
-  const visibleTabs = GROUPS.filter((g) => (g.key !== "finance" || showCosts) && (g.key !== "commissions" || showCommissions));
+  const visibleTabs = GROUPS.filter(
+    (g) => g.key !== "commissions" || showCommissions,
+  );
+
+  const common = {
+    values,
+    marketId,
+    set,
+    saving: false,
+    successMsg,
+    errorMsg,
+    readOnly,
+  };
 
   return (
     <div className="flex flex-col gap-5">
-      <SettingsTabNav
-        tabs={visibleTabs}
-        active={group}
-        onChange={setGroup}
-      />
+      <SettingsTabNav tabs={visibleTabs} active={group} onChange={setGroup} />
 
       {group === "operations" && (
         <OperationsSection
-          values={values}
+          {...common}
           initialValues={initialValues}
-          marketId={marketId}
-          set={set}
           onSave={() => saveGroup("operations")}
           onReset={() => resetGroup("operations")}
           saving={saving === "operations"}
-          successMsg={successMsg}
-          errorMsg={errorMsg}
         />
       )}
 
-      {group === "finance" && showCosts && (
-        <FinanceSection
-          values={values}
-          marketId={marketId}
-          set={set}
-          onSave={() => saveGroup("finance")}
-          onReset={() => resetGroup("finance")}
-          saving={saving === "finance"}
-          successMsg={successMsg}
-          errorMsg={errorMsg}
+      {group === "alertes" && (
+        <AlertesSection
+          {...common}
+          onSave={() => saveGroup("alertes")}
+          onReset={() => resetGroup("alertes")}
+          saving={saving === "alertes"}
         />
       )}
 
       {group === "team" && (
         <TeamSection
-          values={values}
-          marketId={marketId}
-          set={set}
+          {...common}
           onSave={() => saveGroup("team")}
           onReset={() => resetGroup("team")}
           saving={saving === "team"}
-          successMsg={successMsg}
-          errorMsg={errorMsg}
+        />
+      )}
+
+      {group === "objectifs" && (
+        <ObjectifsSection
+          {...common}
+          onSave={() => saveGroup("objectifs")}
+          onReset={() => resetGroup("objectifs")}
+          saving={saving === "objectifs"}
         />
       )}
 
       {group === "commissions" && showCommissions && (
-        <CommissionsSection marketId={marketId} marketName={marketName} tz={marketTimezone(marketId)} locale={locale} />
+        <CommissionsSection
+          marketId={marketId}
+          marketName={marketName}
+          tz={marketTimezone(marketId)}
+          locale={locale}
+        />
       )}
-
-      {group === "labels" && <LabelsSection marketId={marketId} />}
     </div>
   );
 }

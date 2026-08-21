@@ -192,7 +192,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
       { key: "mappings", href: "mappings", icon: Link2, prefetchRoute: "mappings" },
       { key: "carriersConfig", href: "settings/carriers", icon: Truck, prefetchRoute: "settings" },
       { key: "integrations", href: "settings/integrations", icon: Plug, prefetchRoute: "settings" },
-      { key: "generalSettings", href: "settings/general", icon: Settings, prefetchRoute: "settings" },
+      { key: "generalSettings", href: "system/settings", icon: Settings, prefetchRoute: "settings" },
       { key: "logs", href: "admin/logs", icon: Key, prefetchRoute: "admin" },
     ],
   },
