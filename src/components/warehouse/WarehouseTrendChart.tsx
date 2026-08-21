@@ -31,15 +31,18 @@ function formatDay(day: string) {
 }
 
 const SCHEME = {
+  // Entrepôt console. Green ↔ violet is the widest pair the section's five
+  // hues allow (OKLab ΔE 26,7) and both clear 5:1 on white, so each may also
+  // label itself. See the --wh-* block in globals.css.
   light: {
-    colors:            { scanned: "#1A1A1A", returned: "#008060", damaged: "#D72C0D" },
-    gridStroke:        "#F2F2F2",
-    tickFill:          "#6D7175",
-    axisStroke:        "#E1E3E5",
+    colors:            { scanned: "#0E7A45", returned: "#6553C4", damaged: "#B23A2E" },
+    gridStroke:        "#E5E7E2",
+    tickFill:          "#8B8F85",
+    axisStroke:        "#E5E7E2",
     tooltipBg:         "#FFFFFF",
-    tooltipBorder:     "1px solid #E1E3E5",
-    tooltipLabelColor: "#1A1A1A",
-    legendColor:       "#6D7175",
+    tooltipBorder:     "1px solid #E5E7E2",
+    tooltipLabelColor: "#1B1D1A",
+    legendColor:       "#585C54",
   },
   // Entrepôt console. The previous trio (#7FB8F5 / #36F4A4 / #F47272) sat well
   // above the dark lightness band — on #121417 they read as glare rather than

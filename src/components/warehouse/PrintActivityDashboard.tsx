@@ -5,15 +5,15 @@ import { X, Printer } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 
 const D = {
-  cardBg: "#FFFFFF",
-  sectionBg: "#F6F6F7",
-  border: "#E1E3E5",
-  textPrimary: "#1A1A1A",
-  textSecondary: "#6D7175",
-  accent: "#008060",
-  warning: "#B98900",
+  cardBg: "var(--wh-surface)",
+  sectionBg: "var(--wh-bg)",
+  border: "var(--wh-border)",
+  textPrimary: "var(--wh-ink-1)",
+  textSecondary: "var(--wh-ink-2)",
+  accent: "var(--wh-ok)",
+  warning: "var(--wh-warn)",
   cardShadow:
-    "0 0 0 1px #E1E3E5, 0 4px 12px rgba(0,0,0,0.1), 0 16px 40px rgba(0,0,0,0.08)",
+    "0 0 0 1px var(--wh-border), 0 4px 12px rgba(0,0,0,0.1), 0 16px 40px rgba(0,0,0,0.08)",
 };
 
 export interface PrintSession {
@@ -206,7 +206,7 @@ export function PrintActivityDashboard({
                 borderBottom: `1px solid ${D.border}`,
                 fontSize: 12,
                 minHeight: 40,
-                backgroundColor: isScanned ? "#F1F8F5" : "transparent",
+                backgroundColor: isScanned ? "var(--wh-ok-bg)" : "transparent",
                 transition: "background-color 400ms ease",
               }}
             >
@@ -276,8 +276,8 @@ export function PrintActivityDashboard({
                   padding: "3px 8px",
                   borderRadius: 9999,
                   color: isScanned ? D.accent : D.warning,
-                  backgroundColor: isScanned ? "#F1F8F5" : "#FFF8E6",
-                  border: `1px solid ${isScanned ? "#A7F3D0" : "#FFD585"}`,
+                  backgroundColor: isScanned ? "var(--wh-ok-bg)" : "var(--wh-warn-bg)",
+                  border: `1px solid ${isScanned ? "var(--wh-ok-edge)" : "var(--wh-warn-edge)"}`,
                   transition: "all 300ms ease",
                 }}
               >
@@ -293,8 +293,8 @@ export function PrintActivityDashboard({
         <div
           style={{
             padding: "10px 16px",
-            backgroundColor: "#F1F8F5",
-            borderTop: `1px solid #A7F3D0`,
+            backgroundColor: "var(--wh-ok-bg)",
+            borderTop: `1px solid var(--wh-ok-edge)`,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -311,7 +311,7 @@ export function PrintActivityDashboard({
               fontSize: 12,
               fontWeight: 600,
               color: D.accent,
-              border: `1px solid #A7F3D0`,
+              border: `1px solid var(--wh-ok-edge)`,
               backgroundColor: "transparent",
               borderRadius: 9999,
               padding: "4px 12px",

@@ -14,7 +14,7 @@ import {
   Minus,
 } from "lucide-react";
 import type { WarehouseSummary } from "@/lib/warehouse/summary";
-import { WhActionRow, WhCard, WhKpiStrip, WhPill, type WhKpiCellDef } from "./primitives";
+import { WhActionRow, WhCard, WhKpiStrip, type WhKpiCellDef } from "./primitives";
 import { WH_LABEL } from "./tokens";
 
 const WarehouseTrendChart = dynamic(
@@ -87,7 +87,21 @@ export function TodayOverview({
   const { kpis, lowStock, trend } = summary;
 
   const cells: WhKpiCellDef[] = useMemo(() => {
-    const scanTarget = Math.max(kpis.toScanOut.current + kpis.toScanOut.previous, 1);
+    /*
+     * The gauges share ONE denominator: everything currently in flight. So a
+     * bar means "this queue's share of the work on the floor", and the five
+     * bars are comparable to each other.
+     *
+     * They previously used per-cell fudges (`min(count * 4, 100)`), which drew
+     * a full bar for 25 orders and a full bar for 400 — a shape that looks
+     * like data and carries none. Damaged and low-stock are counts of
+     * different things, so they get no gauge at all rather than a fake one.
+     */
+    const inFlight = Math.max(
+      kpis.pendingLabels.current + kpis.toScanOut.current + kpis.returnsInbox.current,
+      1,
+    );
+    const share = (n: number) => Math.round((n / inFlight) * 100);
     return [
       {
         id: "pendingLabels",
@@ -95,7 +109,7 @@ export function TodayOverview({
         value: kpis.pendingLabels.current,
         tone: kpis.pendingLabels.current > 0 ? "warn" : "muted",
         icon: PackageSearch,
-        gaugePct: Math.min(kpis.pendingLabels.current * 4, 100),
+        gaugePct: share(kpis.pendingLabels.current),
         settled: kpis.pendingLabels.current === 0,
       },
       {
@@ -104,7 +118,7 @@ export function TodayOverview({
         value: kpis.toScanOut.current,
         tone: "scan",
         icon: ScanLine,
-        gaugePct: Math.round((kpis.toScanOut.current / scanTarget) * 100),
+        gaugePct: share(kpis.toScanOut.current),
         settled: kpis.toScanOut.current === 0,
       },
       {
@@ -113,7 +127,7 @@ export function TodayOverview({
         value: kpis.returnsInbox.current,
         tone: kpis.returnsInbox.current > 0 ? "move" : "muted",
         icon: RotateCcw,
-        gaugePct: Math.min(kpis.returnsInbox.current * 8, 100),
+        gaugePct: share(kpis.returnsInbox.current),
         settled: kpis.returnsInbox.current === 0,
       },
       {
@@ -122,7 +136,6 @@ export function TodayOverview({
         value: kpis.damagedThisWeek.current,
         tone: kpis.damagedThisWeek.current > 0 ? "bad" : "muted",
         icon: AlertTriangle,
-        gaugePct: Math.min(kpis.damagedThisWeek.current * 10, 100),
         settled: kpis.damagedThisWeek.current === 0,
       },
       {
@@ -154,10 +167,10 @@ export function TodayOverview({
         key: "prepare",
         icon: PackageSearch,
         tone: "warn",
-        title: t("overview.pendingLabels"),
-        detail: t("overview.goToPreparation"),
+        title: t("overview.actionPrepare"),
+        detail: t("overview.actionPrepareDetail"),
         value: kpis.pendingLabels.current,
-        unit: "cmdes",
+        unit: t("overview.unitOrders"),
         stripe: kpis.pendingLabels.current > 20 ? "warn" : undefined,
         onClick: onOpenPreparation,
       });
@@ -167,10 +180,10 @@ export function TodayOverview({
         key: "returns",
         icon: RotateCcw,
         tone: "move",
-        title: t("overview.returnsInbox"),
-        detail: t("overview.goToReturns"),
+        title: t("overview.actionReturns"),
+        detail: t("overview.actionReturnsDetail"),
         value: kpis.returnsInbox.current,
-        unit: "colis",
+        unit: t("overview.unitParcels"),
         onClick: onOpenReturns,
       });
     }
@@ -179,10 +192,13 @@ export function TodayOverview({
         key: `low-${p.id}`,
         icon: Layers,
         tone: "bad",
-        title: p.name,
-        detail: `${p.current_stock} / ${p.low_stock_threshold} u`,
+        title: t("overview.actionLowStock", { product: p.name }),
+        detail: t("overview.actionLowStockDetail", {
+          stock: p.current_stock,
+          threshold: p.low_stock_threshold,
+        }),
         value: Math.max(p.low_stock_threshold - p.current_stock, 0),
-        unit: "u",
+        unit: t("overview.unitUnits"),
         stripe: "bad",
       });
     }
@@ -197,21 +213,24 @@ export function TodayOverview({
 
   return (
     <div className="flex flex-col gap-4">
-      <WhKpiStrip cells={cells} />
+      <WhKpiStrip cells={cells} settledLabel={t("overview.settled")} />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.85fr)]">
         <div className="flex flex-col gap-4">
           <WhCard
-            title={t("overview.recentScans")}
+            title={t("overview.priorityActions")}
             actions={
-              <span className={WH_LABEL}>
-                {actions.length}
+              <span className="flex items-baseline gap-2">
+                <span className={WH_LABEL}>{t("overview.totalToCatchUp")}</span>
+                <b className="text-[15px] font-semibold tabular-nums text-wh-ink-1">
+                  {actions.reduce((n, a) => n + a.value, 0)}
+                </b>
               </span>
             }
           >
             {actions.length === 0 ? (
               <p data-testid="wh-actions-empty" className="px-4 py-8 text-center text-[13px] text-wh-ink-3">
-                {t("overview.lowStockEmpty")}
+                {t("overview.priorityActionsEmpty")}
               </p>
             ) : (
               <div className="divide-y divide-wh-border">
@@ -236,7 +255,7 @@ export function TodayOverview({
             <div className="p-4">
               <WarehouseTrendChart
                 data={trend}
-                colorScheme="dark"
+                colorScheme="light"
                 labels={{
                   scanned: t("overview.trendScanned"),
                   returned: t("overview.trendReturned"),
@@ -247,7 +266,7 @@ export function TodayOverview({
           </WhCard>
         </div>
 
-        <WhCard title={t("overview.vsLastWeek")}>
+        <WhCard title={t("overview.vsYesterday")}>
           <div className="divide-y divide-wh-border">
             {comparisons.map((c) => {
               const k = kpis[c.key];
@@ -261,7 +280,9 @@ export function TodayOverview({
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <DeltaBadge id={c.key} delta={k.delta} deltaPct={k.deltaPct} riseIsGood={c.riseIsGood} />
-                    <WhPill tone="muted">{k.previous}</WhPill>
+                    <span className="text-[11.5px] tabular-nums text-wh-ink-3">
+                      {t("overview.vsLastWeek")} {k.previous}
+                    </span>
                   </div>
                 </div>
               );

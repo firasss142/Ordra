@@ -23,18 +23,18 @@ const QrScanner = dynamic(
 );
 
 const D = {
-  pageBg: "#F6F6F7",
-  cardBg: "#FFFFFF",
-  sectionBg: "#F6F6F7",
-  border: "#E1E3E5",
-  textPrimary: "#1A1A1A",
-  textSecondary: "#6D7175",
-  accent: "#008060",
-  danger: "#D72C0D",
-  warning: "#B98900",
-  cardShadow: "0 0 0 1px #E1E3E5",
-  inputBg: "#FFFFFF",
-  inputBorder: "#C9CCCF",
+  pageBg: "var(--wh-bg)",
+  cardBg: "var(--wh-surface)",
+  sectionBg: "var(--wh-bg)",
+  border: "var(--wh-border)",
+  textPrimary: "var(--wh-ink-1)",
+  textSecondary: "var(--wh-ink-2)",
+  accent: "var(--wh-ok)",
+  danger: "var(--wh-bad)",
+  warning: "var(--wh-warn)",
+  cardShadow: "0 0 0 1px var(--wh-border)",
+  inputBg: "var(--wh-surface)",
+  inputBorder: "var(--wh-border-strong)",
 };
 
 interface Props {
@@ -276,8 +276,8 @@ export function ToScanQueue({ marketId, fallbackRows }: Props) {
             padding: "0 20px",
             minHeight: 52,
             minWidth: isMobile ? "100%" : 160,
-            backgroundColor: "#1A1A1A",
-            color: "#FFFFFF",
+            backgroundColor: "var(--wh-ink-1)",
+            color: "var(--wh-surface)",
             border: "none",
             borderRadius: 9999,
             fontSize: 14,
@@ -296,8 +296,8 @@ export function ToScanQueue({ marketId, fallbackRows }: Props) {
       <ScanFeedbackTile
         state={feedback}
         idleLabel={t("toScan.feedbackIdle")}
-        successColors={{ bg: "#F1F8F5", border: "#A7F3D0", accent: D.accent }}
-        errorColors={{ bg: "#FFF4F4", border: "#FECACA", accent: D.danger }}
+        successColors={{ bg: "var(--wh-ok-bg)", border: "var(--wh-ok-edge)", accent: D.accent }}
+        errorColors={{ bg: "var(--wh-bad-bg)", border: "var(--wh-bad-edge)", accent: D.danger }}
       />
 
       {recent.length > 0 ? (
@@ -508,9 +508,9 @@ const ToScanRow = memo(function ToScanRow({
         textTransform: "uppercase",
         padding: "2px 7px",
         borderRadius: 999,
-        background: isOut ? "#FFF4F4" : "#FFF8E6",
+        background: isOut ? "var(--wh-bad-bg)" : "var(--wh-warn-bg)",
         color: stockAccent,
-        border: `1px solid ${isOut ? "#FECACA" : "#FFD585"}`,
+        border: `1px solid ${isOut ? "var(--wh-bad-edge)" : "var(--wh-warn-edge)"}`,
         flexShrink: 0,
         whiteSpace: "nowrap",
       }}

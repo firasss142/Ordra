@@ -33,23 +33,23 @@ interface Props {
 }
 
 const D = {
-  bgPage: "#F6F6F7",
-  bgCard: "#FFFFFF",
-  bgHover: "#F7F7F7",
-  border: "#E1E3E5",
-  borderStrong: "#C9CCCF",
-  textPrimary: "#1A1A1A",
-  textSecondary: "#6D7175",
-  successBg: "#F1F8F5",
-  success: "#008060",
-  warningBg: "#FFF8E6",
-  warning: "#B98900",
-  criticalBg: "#FFF4F4",
-  critical: "#D72C0D",
-  neutralBg: "#F6F6F7",
-  neutral: "#6D7175",
-  actionBg: "#EEF3FB",
-  action: "#2C6ECB",
+  bgPage: "var(--wh-bg)",
+  bgCard: "var(--wh-surface)",
+  bgHover: "var(--wh-surface-2)",
+  border: "var(--wh-border)",
+  borderStrong: "var(--wh-border-strong)",
+  textPrimary: "var(--wh-ink-1)",
+  textSecondary: "var(--wh-ink-2)",
+  successBg: "var(--wh-ok-bg)",
+  success: "var(--wh-ok)",
+  warningBg: "var(--wh-warn-bg)",
+  warning: "var(--wh-warn)",
+  criticalBg: "var(--wh-bad-bg)",
+  critical: "var(--wh-bad)",
+  neutralBg: "var(--wh-bg)",
+  neutral: "var(--wh-ink-2)",
+  actionBg: "var(--wh-scan-bg)",
+  action: "var(--wh-scan)",
 } as const;
 
 type FeedbackKind = "success" | "error" | null;
@@ -574,7 +574,7 @@ function GroupCard({
           alignItems: "center",
           gap: 12,
           borderBottom: `1px solid ${D.border}`,
-          backgroundColor: "#FAFBFB",
+          backgroundColor: "var(--wh-sunken)",
         }}
       >
         <input
@@ -608,7 +608,7 @@ function GroupCard({
                   gap: 10,
                   padding: "12px 14px",
                   borderBottom: `1px solid ${D.border}`,
-                  backgroundColor: isSelected ? "#F2F6FC" : D.bgCard,
+                  backgroundColor: isSelected ? "var(--wh-scan-bg)" : D.bgCard,
                   cursor: "pointer",
                 }}
               >
@@ -664,7 +664,7 @@ function GroupCard({
                 <tr
                   key={r.id}
                   style={{
-                    backgroundColor: isSelected ? "#F2F6FC" : D.bgCard,
+                    backgroundColor: isSelected ? "var(--wh-scan-bg)" : D.bgCard,
                   }}
                 >
                   <td style={tdStyle}>
@@ -694,7 +694,7 @@ function GroupCard({
                           width: 28,
                           height: 28,
                           borderRadius: 6,
-                          background: "#F6F6F7",
+                          background: "var(--wh-bg)",
                           color: D.textPrimary,
                           fontSize: 12,
                           fontWeight: 700,
@@ -703,7 +703,7 @@ function GroupCard({
                           justifyContent: "center",
                           flexShrink: 0,
                           marginTop: 1,
-                          border: "1px solid #E1E3E5",
+                          border: "1px solid var(--wh-border)",
                         }}
                       >
                         {productInitial}
@@ -739,10 +739,10 @@ function GroupCard({
                                   fontSize: 11,
                                   fontWeight: 500,
                                   color: D.textSecondary,
-                                  background: "#F6F6F7",
+                                  background: "var(--wh-bg)",
                                   borderRadius: 4,
                                   padding: "1px 5px",
-                                  border: "1px solid #E1E3E5",
+                                  border: "1px solid var(--wh-border)",
                                 }}
                               >
                                 ×{r.quantity}
@@ -836,7 +836,7 @@ function NestedGroupCard({
           alignItems: "center",
           gap: 12,
           borderBottom: `1px solid ${D.border}`,
-          backgroundColor: "#F4F6F8",
+          backgroundColor: "var(--wh-sunken)",
         }}
       >
         <input
@@ -979,7 +979,7 @@ function BulkBar({
         insetInlineEnd: 0,
         bottom: 0,
         backgroundColor: D.textPrimary,
-        color: "#FFFFFF",
+        color: "var(--wh-surface)",
         padding: isMobile ? "10px 16px" : "12px 24px",
         display: "flex",
         flexDirection: isMobile ? "column" : "row",
@@ -1000,7 +1000,7 @@ function BulkBar({
             all: "unset",
             padding: "4px 8px",
             fontSize: 13,
-            color: "#8C9196",
+            color: "var(--wh-ink-3)",
             cursor: "pointer",
           }}
         >
@@ -1019,8 +1019,8 @@ function BulkBar({
             padding: "6px 8px",
             borderRadius: 4,
             border: "1px solid #444",
-            backgroundColor: "#2A2A2A",
-            color: "#FFFFFF",
+            backgroundColor: "var(--wh-ink-1)",
+            color: "var(--wh-surface)",
             fontSize: 13,
           }}
         >
@@ -1040,8 +1040,8 @@ function BulkBar({
             flex: isMobile ? 1 : undefined,
             textAlign: "center",
             padding: "8px 14px",
-            backgroundColor: dispatching || !carrierId ? "#444" : "#FFFFFF",
-            color: dispatching || !carrierId ? "#9CA3AF" : D.textPrimary,
+            backgroundColor: dispatching || !carrierId ? "#444" : "var(--wh-surface)",
+            color: dispatching || !carrierId ? "var(--wh-ink-3)" : D.textPrimary,
             fontSize: 13,
             fontWeight: 500,
             borderRadius: 4,
@@ -1060,7 +1060,7 @@ function BulkBar({
             textAlign: "center",
             padding: "8px 14px",
             backgroundColor: "transparent",
-            color: "#FFFFFF",
+            color: "var(--wh-surface)",
             fontSize: 13,
             fontWeight: 500,
             border: "1px solid #444",
@@ -1079,7 +1079,7 @@ function BulkBar({
               all: "unset",
               padding: "8px 12px",
               fontSize: 13,
-              color: "#8C9196",
+              color: "var(--wh-ink-3)",
               cursor: "pointer",
             }}
           >

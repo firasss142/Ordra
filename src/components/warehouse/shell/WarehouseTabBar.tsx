@@ -9,6 +9,12 @@ import { jsonFetcher } from "@/lib/fetchers";
 
 export interface WarehouseTab {
   href: string;
+  /**
+   * Match this href exactly. The section index (`/warehouse`) is a prefix of
+   * every other route in the section, so without this it would read as active
+   * on every page.
+   */
+  exact?: boolean;
   label: string;
   icon: LucideIcon;
   prefetchKey?: string;
@@ -34,8 +40,9 @@ function WarehouseTabBarInner({ tabs, direction = "ltr" }: Props) {
       aria-label="Warehouse sections"
     >
       {tabs.map((tab) => {
-        const active =
-          pathname === tab.href || pathname.startsWith(tab.href + "/");
+        const active = tab.exact
+          ? pathname === tab.href
+          : pathname === tab.href || pathname.startsWith(tab.href + "/");
         const Icon = tab.icon;
         return (
           <Link

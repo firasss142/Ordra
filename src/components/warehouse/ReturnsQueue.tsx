@@ -411,7 +411,7 @@ export function ReturnsQueue({ marketId, fallbackPage }: Props) {
         }}
         onDismiss={() => setArrivalCount(0)}
         labels={{
-          reveal: tCommon("banner.newReveal"),
+          reveal: tCommon("banner.newReveal", { count: arrivalCount }),
           dismiss: tCommon("banner.dismiss"),
         }}
       />

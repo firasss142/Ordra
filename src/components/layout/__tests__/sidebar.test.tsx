@@ -106,27 +106,89 @@ describe("Sidebar — sections", () => {
     expect(screen.getByRole("button", { name: /Finances/ })).toBeInTheDocument();
   });
 
-  it("lists Stock & inventaire under ENTREPÔT, not under FINANCES", () => {
+  it("keeps ENTREPÔT to the five questions the warehouse actually asks", () => {
+    // Eight flat items mixed three audiences: floor work, a manager's stock
+    // register, and two screens about parcels that already left the building.
     renderSidebar(
       <Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />,
     );
     fireEvent.click(screen.getByRole("button", { name: /Entrepôt/ }));
-    const stockLink = screen.getByRole("link", { name: /Stock & inventaire/ });
-    expect(stockLink).toBeInTheDocument();
-    expect(stockLink).toHaveAttribute("href", "/fr/dashboard/stock");
-
-    // Finances is expanded by default and keeps the money pages; the units
-    // page has left it, so the link exists exactly once in the whole nav.
-    expect(screen.getByRole("link", { name: /P&L global/ })).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Stock & inventaire/ })).toHaveLength(1);
+    const group = screen.getByRole("link", { name: /Aujourd'hui/ }).closest("div");
+    const hrefs = Array.from(group?.querySelectorAll("a") ?? []).map((a) =>
+      a.getAttribute("href"),
+    );
+    expect(hrefs).toEqual([
+      "/fr/warehouse",
+      "/fr/warehouse/preparation",
+      "/fr/warehouse/returns",
+      "/fr/warehouse/stock",
+      "/fr/warehouse/history",
+    ]);
   });
 
-  it("hides Stock & inventaire from market_manager, whose page redirects anyway", () => {
-    // The page is super-admin only (canViewFinanceSection). Showing the link to a
-    // manager would offer a door that bounces them straight back to the dashboard.
+  it("moves post-handover tracking out of ENTREPÔT into LIVRAISON", () => {
+    // A warehouse agent can take no action on a parcel that has already gone.
+    renderSidebar(
+      <Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Livraison/ }));
+    expect(screen.getByRole("link", { name: /Suivi transporteur/ })).toHaveAttribute(
+      "href",
+      "/fr/warehouse/carrier-tracking",
+    );
+    expect(screen.getByRole("link", { name: /Tableau livraison/ })).toHaveAttribute(
+      "href",
+      "/fr/in-delivery",
+    );
+  });
+
+  it("no longer offers Expédition, which is carrier upload rather than floor work", () => {
+    renderSidebar(
+      <Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Entrepôt/ }));
+    expect(screen.queryByRole("link", { name: /^Expédition$/ })).not.toBeInTheDocument();
+  });
+
+  it("puts Aujourd'hui first in ENTREPÔT so the overview is reachable", () => {
+    // The redesigned overview lives at /warehouse and had no nav entry at all,
+    // which made it unreachable by clicking.
+    renderSidebar(
+      <Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Entrepôt/ }));
+    const today = screen.getByRole("link", { name: /Aujourd'hui/ });
+    expect(today).toHaveAttribute("href", "/fr/warehouse");
+
+    const group = today.closest("div");
+    const hrefs = Array.from(group?.querySelectorAll("a") ?? []).map((a) =>
+      a.getAttribute("href"),
+    );
+    expect(hrefs[0]).toBe("/fr/warehouse");
+  });
+
+  it("separates the floor's stock screen from the capital one", () => {
+    // Entrepôt gets units the agent can act on; Finances keeps the money view,
+    // which is costed at COGS and stays super-admin.
+    renderSidebar(
+      <Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Entrepôt/ }));
+    expect(screen.getByRole("link", { name: /^Stock$/ })).toHaveAttribute(
+      "href",
+      "/fr/warehouse/stock",
+    );
+    expect(screen.getByRole("link", { name: /Stock & inventaire/ })).toHaveAttribute(
+      "href",
+      "/fr/dashboard/stock",
+    );
+  });
+
+  it("shows the floor's stock screen to a market_manager", () => {
     renderSidebar(<Sidebar user={managerUser} currentPath="/fr/dashboard" unassignedCount={0} />);
     fireEvent.click(screen.getByRole("button", { name: /Entrepôt/ }));
-    expect(screen.getByRole("link", { name: /Préparation/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Stock$/ })).toBeInTheDocument();
+    // ...but not the capital view, which lives behind canViewFinances.
     expect(screen.queryByRole("link", { name: /Stock & inventaire/ })).not.toBeInTheDocument();
   });
 

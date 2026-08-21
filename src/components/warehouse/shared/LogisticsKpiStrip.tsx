@@ -9,21 +9,21 @@ export interface KpiTileDef {
 }
 
 const TONE_COLOR: Record<NonNullable<KpiTileDef["tone"]>, string> = {
-  neutral: "#1A1A1A",
-  success: "#008060",
-  warning: "#B98900",
-  critical: "#D72C0D",
+  neutral: "var(--wh-ink-1)",
+  success: "var(--wh-ok)",
+  warning: "var(--wh-warn)",
+  critical: "var(--wh-bad)",
 };
 
 function KpiTile({ tile }: { tile: KpiTileDef }) {
-  const valueColor = tile.tone ? TONE_COLOR[tile.tone] : "#1A1A1A";
+  const valueColor = tile.tone ? TONE_COLOR[tile.tone] : "var(--wh-ink-1)";
 
   const inner = (
     <div
       data-tile
       style={{
-        backgroundColor: "#FFFFFF",
-        border: "1px solid #E1E3E5",
+        backgroundColor: "var(--wh-surface)",
+        border: "1px solid var(--wh-border)",
         borderRadius: 8,
         padding: "14px 16px",
         minHeight: 64,
@@ -37,7 +37,7 @@ function KpiTile({ tile }: { tile: KpiTileDef }) {
         style={{
           fontSize: 11,
           fontWeight: 600,
-          color: "#6D7175",
+          color: "var(--wh-ink-2)",
           textTransform: "uppercase",
           letterSpacing: "0.05em",
         }}
@@ -55,7 +55,7 @@ function KpiTile({ tile }: { tile: KpiTileDef }) {
         {tile.value}
       </span>
       {tile.hint ? (
-        <span style={{ fontSize: 12, color: "#6D7175" }}>{tile.hint}</span>
+        <span style={{ fontSize: 12, color: "var(--wh-ink-2)" }}>{tile.hint}</span>
       ) : null}
     </div>
   );

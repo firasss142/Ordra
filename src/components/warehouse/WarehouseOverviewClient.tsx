@@ -55,7 +55,7 @@ export function WarehouseOverviewClient({
       value={selectedMarketId}
       onChange={(e) => setSelectedMarketId(e.target.value)}
       aria-label={t("overview.title")}
-      className="rounded-[8px] border border-wh-border bg-wh-surface-2 px-3 py-1.5 text-[13px] text-wh-ink-1 outline-none focus-visible:border-wh-ok"
+      className="rounded-[8px] border border-wh-border bg-wh-surface px-3 py-1.5 text-[13px] text-wh-ink-1 outline-none focus-visible:border-wh-ok"
     >
       <option value="all">{t("overview.title")}</option>
       {current.availableMarkets.map((m) => (
@@ -84,13 +84,13 @@ export function WarehouseOverviewClient({
             {marketSelector}
             <Link
               href={`/${locale}/warehouse/history`}
-              className="inline-flex items-center gap-2 rounded-[8px] border border-wh-border bg-wh-surface-2 px-3.5 py-2 text-[13px] font-semibold text-wh-ink-1 transition-colors hover:border-wh-border-strong"
+              className="inline-flex items-center gap-2 rounded-[8px] border border-wh-border bg-wh-surface px-3.5 py-2 text-[13px] font-semibold text-wh-ink-1 transition-colors hover:border-wh-border-strong"
             >
               {t("overview.goToHistory")}
             </Link>
             <Link
               href={`/${locale}/warehouse/preparation`}
-              className="inline-flex items-center gap-2 rounded-[8px] border border-wh-ok bg-wh-ok px-3.5 py-2 text-[13px] font-semibold text-[#04150B] shadow-wh-glow transition-opacity hover:opacity-90"
+              className="inline-flex items-center gap-2 rounded-[8px] border border-wh-ok bg-wh-ok hover:bg-[color:var(--wh-ok-hover)] px-3.5 py-2 text-[13px] font-semibold text-white shadow-wh-glow transition-opacity hover:opacity-90"
             >
               <ScanLine size={15} strokeWidth={2} aria-hidden="true" />
               {t("overview.goToPreparation")}

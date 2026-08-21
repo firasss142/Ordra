@@ -62,6 +62,7 @@ type NavSectionId =
   | "accueil"
   | "commandes"
   | "logistique"
+  | "livraison"
   | "finances"
   | "clients"
   | "equipe"
@@ -132,19 +133,25 @@ const NAV_SECTIONS: readonly NavSection[] = [
     id: "logistique",
     icon: Warehouse,
     items: [
+      { key: "warehouseToday", href: "warehouse", icon: LayoutDashboard, prefetchRoute: "warehouse" },
       { key: "preparation", href: "warehouse/preparation", icon: PackageSearch, prefetchRoute: "warehouse" },
-      { key: "dispatch", href: "warehouse/dispatch", icon: PackageCheck, prefetchRoute: "warehouse" },
       { key: "returns", href: "warehouse/returns", icon: PackageOpen, prefetchRoute: "warehouse" },
-      {
-        key: "stockInventory",
-        href: "dashboard/stock",
-        icon: Boxes,
-        prefetchRoute: "dashboard",
-        requiresPermission: "canViewFinances",
-      },
+      { key: "warehouseStock", href: "warehouse/stock", icon: Boxes, prefetchRoute: "warehouse" },
+      { key: "warehouseJournal", href: "warehouse/history", icon: FileClock, prefetchRoute: "warehouse" },
+    ],
+  },
+  {
+    /*
+     * Post-handover tracking. Split out of Entrepôt because the warehouse can
+     * take no action on a parcel that has already left the building — keeping
+     * these two here made the section list eight items across three different
+     * audiences, and nothing in it read as primary.
+     */
+    id: "livraison",
+    icon: Truck,
+    items: [
       { key: "carrierTracking", href: "warehouse/carrier-tracking", icon: Truck, prefetchRoute: "warehouse" },
       { key: "inDeliveryBoard", href: "in-delivery", icon: Gauge, prefetchRoute: "in-delivery" },
-      { key: "warehouseJournal", href: "warehouse/history", icon: FileClock, prefetchRoute: "warehouse" },
     ],
   },
   {
@@ -155,6 +162,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
     items: [
       { key: "pnl", href: "dashboard/pnl", icon: DollarSign, prefetchRoute: "dashboard" },
       { key: "productsMargins", href: "products", icon: Percent, prefetchRoute: "products" },
+      { key: "stockInventory", href: "dashboard/stock", icon: Boxes, prefetchRoute: "dashboard" },
       { key: "adSpend", href: "finance/ad-spend", icon: Megaphone },
       { key: "investors", href: "finance/investors", icon: HandCoins },
     ],
@@ -188,7 +196,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
     superAdminOnly: true,
     items: [
       { key: "marketsConfig", href: "markets", icon: Store, prefetchRoute: "markets" },
-      { key: "storefrontsConfig", href: "settings/storefronts", icon: ShoppingBag, prefetchRoute: "settings" },
+      { key: "storefrontsConfig", href: "system/connections", icon: ShoppingBag, prefetchRoute: "settings" },
       { key: "mappings", href: "mappings", icon: Link2, prefetchRoute: "mappings" },
       { key: "carriersConfig", href: "settings/carriers", icon: Truck, prefetchRoute: "settings" },
       { key: "integrations", href: "settings/integrations", icon: Plug, prefetchRoute: "settings" },

@@ -76,7 +76,13 @@ export interface WhKpiCellDef {
   settled?: boolean;
 }
 
-export function WhKpiCell({ cell }: { cell: WhKpiCellDef }) {
+export function WhKpiCell({
+  cell,
+  settledLabel = "à jour",
+}: {
+  cell: WhKpiCellDef;
+  settledLabel?: string;
+}) {
   const tone = WH_TONE[cell.tone];
   return (
     <div className="flex min-w-0 flex-col gap-3 px-5 py-4">
@@ -106,7 +112,7 @@ export function WhKpiCell({ cell }: { cell: WhKpiCellDef }) {
               <circle cx="12" cy="12" r="9" />
               <path d="m8.5 12.5 2.5 2.5 4.5-5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            à jour
+            {settledLabel}
           </span>
         ) : cell.gaugePct !== undefined ? (
           <div data-testid="wh-kpi-gauge" className="h-[3px] overflow-hidden rounded-pill bg-wh-sunken">
@@ -123,11 +129,17 @@ export function WhKpiCell({ cell }: { cell: WhKpiCellDef }) {
   );
 }
 
-export function WhKpiStrip({ cells }: { cells: WhKpiCellDef[] }) {
+export function WhKpiStrip({
+  cells,
+  settledLabel,
+}: {
+  cells: WhKpiCellDef[];
+  settledLabel?: string;
+}) {
   return (
     <div className={`${WH_CARD} grid divide-y divide-wh-border sm:grid-flow-col sm:auto-cols-fr sm:divide-x sm:divide-y-0`}>
       {cells.map((cell) => (
-        <WhKpiCell key={cell.id} cell={cell} />
+        <WhKpiCell key={cell.id} cell={cell} settledLabel={settledLabel} />
       ))}
     </div>
   );

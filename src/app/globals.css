@@ -255,56 +255,54 @@
   --ads-hatch-bad: repeating-linear-gradient(135deg, #F3B4B4 0 5px, #FBDCDC 5px 10px);
   --ads-hatch-bad-line: #EC9A9A;
 
-  /* ── Entrepôt console — scoped extension, and the only DARK one ───
-     Every other surface in this app is a light desk console. The warehouse
-     is not a desk: it is a physical station — a wall screen above the
-     packing bench, a tablet under shop lighting — where a pale ground is
-     a glare source and the operator is two metres away, not forty
-     centimetres. So this surface inverts, and it inverts ALONE.
+  /* ── Entrepôt console — scoped extension ──────────────────────────
+     Palette from the approved Entrepôt prototype (docs/design/entrepot/).
+     Scoped exactly like --fin-* and --ads-*: consumed under `.wh-console`
+     and nowhere else.
 
-     Scoped exactly like --fin-* and --ads-*: these tokens are consumed
-     under .wh-console (see the block after :root) and nowhere else, so
-     inverting here cannot leak into orders, finance or the agent queue.
+     A warmer, greener neutral than the rest of the console, so the section
+     reads as its own place without leaving the light product.
 
-     CONTRAST IS STILL THE CONSTRAINT, it just runs the other way. The ink
-     ramp is measured against --wh-surface (#121417), not against white:
-       --wh-ink-1  #F2F4F6  16.1:1  figures, customer names
-       --wh-ink-2  #9BA3AD   6.6:1  labels, sub-lines
-       --wh-ink-3  #6B7280   3.4:1  column heads and meta ONLY, never prose
-     Reaching for --wh-ink-3 to write a sentence is the mistake this note
-     exists to prevent.
+     CONTRAST, measured (scripts in docs/design/entrepot/entrepot-spec.md):
+       ink-1 #1B1D1A  16.9:1 on white   figures, customer names
+       ink-2 #585C54   6.8:1            labels, sub-lines
+       ink-3 #8B8F85   3.3:1            column heads and meta ONLY, never prose
+     Every accent below clears 5:1 on white, so each may carry text.
+
+     COLOUR IS NEVER THE ONLY CHANNEL HERE, and that is deliberate. Two pairs
+     sit close in perceptual distance — green↔teal ΔE 10,4 and red↔amber
+     ΔE 10,9 — and they cannot be pulled apart: moving teal away from green
+     walks it straight into violet (ΔE 18,3 / 10,6). Five hues at one
+     lightness will not separate further. So every chip carries its label
+     ("Réception", "Remise") and every age pill carries its number; the hue
+     confirms, it never informs alone.
      ─────────────────────────────────────────────────────────────── */
-  --wh-bg: #0A0B0D;
-  --wh-surface: #121417;
-  --wh-surface-2: #181B1F;      /* hovered row, lifted tile */
-  --wh-sunken: #0E1013;         /* table head, group band */
-  --wh-border: #22262C;
-  --wh-border-strong: #2E343C;
-  --wh-ink-1: #F2F4F6;
-  --wh-ink-2: #9BA3AD;
-  --wh-ink-3: #6B7280;
+  --wh-bg: #F6F7F5;
+  --wh-surface: #FFFFFF;
+  --wh-surface-2: #EFF1ED;      /* hovered row, lifted tile */
+  --wh-sunken: #EFF1ED;         /* table head, group band */
+  --wh-border: #E5E7E2;
+  --wh-border-strong: #CFD3CB;
+  --wh-ink-1: #1B1D1A;
+  --wh-ink-2: #585C54;
+  --wh-ink-3: #8B8F85;
 
-  /* Functional families. Each ships a stroke, a tint and an edge, because
-     on a dark ground a tint alone is nearly invisible — the 1px edge is
-     what makes a pill read as a pill. */
-  --wh-ok: #22C55E;        --wh-ok-bg: #0E2818;      --wh-ok-edge: #1B4D2E;
-  --wh-warn: #F59E0B;      --wh-warn-bg: #2A1F0A;    --wh-warn-edge: #5A3F12;
-  --wh-bad: #EF4444;       --wh-bad-bg: #2A1315;     --wh-bad-edge: #5A2326;
-  --wh-scan: #8B5CF6;      --wh-scan-bg: #1B1630;    --wh-scan-edge: #382B63;
-  --wh-move: #14B8A6;      --wh-move-bg: #0C2523;    --wh-move-edge: #17504A;
+  /* Functional families: stroke, tint, edge. */
+  --wh-ok: #0E7A45;    --wh-ok-bg: #E7F4ED;   --wh-ok-edge: #BCE0CB;
+  --wh-ok-hover: #0B633A;
+  --wh-ok-tint: #F2FAF5;        /* selected row */
+  --wh-warn: #92600A;  --wh-warn-bg: #FAF0DA; --wh-warn-edge: #E8CFA0;
+  --wh-bad: #B23A2E;   --wh-bad-bg: #FBECE8;  --wh-bad-edge: #EBC3BC;
+  --wh-scan: #6553C4;  --wh-scan-bg: #F0EDFB; --wh-scan-edge: #D6CDF3;
+  --wh-move: #0C7180;  --wh-move-bg: #E4F1F3; --wh-move-edge: #BBD9DE;
 
-  /* Chart marks. NOT the UI greens above: these two are the only pair that
-     clears all six checks against --wh-surface (normal ΔE 31,2 · deutan
-     23,6 · tritan 9,7 — scripts/validate_palette.js, dark, #121417).
-     --wh-ok #22C55E sits above the dark lightness band and must stay a UI
-     colour: buttons, edges, glyphs — never a plotted series. */
-  --wh-series-1: #1FAE59;
-  --wh-series-2: #8B7CF0;
-  --wh-grid: #1E2228;
+  /* Chart marks. Green ΔE 26,7 from violet — the widest pair available. */
+  --wh-series-1: #0E7A45;
+  --wh-series-2: #6553C4;
+  --wh-grid: #E5E7E2;
 
-  /* The one glow in the app. Reserved for the primary action and the armed
-     scan field — the two things an operator must find without looking. */
-  --wh-glow: 0 0 0 1px rgba(34,197,94,.22), 0 4px 20px -4px rgba(34,197,94,.40);
+  /* The one glow: primary action and the armed scan field. */
+  --wh-glow: 0 0 0 3px rgba(14,122,69,.16), 0 0 18px rgba(14,122,69,.22);
 
   --oms-ink-1: #1B1917;  /* 17.5:1 — customer name, price */
   --oms-ink-2: #5C5852;  /*  7.1:1 — product, secondary labels */
@@ -736,3 +734,68 @@
     transform: scale(1);
   }
 }
+
+/* ── Entrepôt console — the sidebar edge ──────────────────────────────
+   The sidebar is #0E1013 and the console ground is #0A0B0D: four points of
+   luminance apart, so the two dark masses run together and the chrome stops
+   reading as chrome. Everywhere else the split is dark-sidebar / light-content
+   and needs no help; here the edge does the whole job, so it steps up from the
+   6%-white hairline to the console's own strong border.
+   ─────────────────────────────────────────────────────────────────── */
+.wh-console nav.sidebar-scroll {
+  border-inline-end-color: var(--wh-border-strong);
+}
+
+/* ── Entrepôt console — the section's existing screens ────────────────
+   Préparation, Retours and Journal were built against the light console's
+   semantic utilities (bg-surface-card, text-ink-primary, …), which compile to
+   literal hex in tailwind.config.ts and so cannot be re-pointed by a variable.
+   These rules restate them in the console's warmer neutral, scoped to
+   `.wh-console` — one extra class of specificity, reversible by deleting the
+   block. Only the values that actually differ from the global palette are
+   listed; the rest already resolve correctly.
+   ─────────────────────────────────────────────────────────────────── */
+.wh-console .bg-surface-page      { background-color: var(--wh-bg); }
+.wh-console .bg-surface-card,
+.wh-console .bg-surface-elevated  { background-color: var(--wh-surface); }
+.wh-console .bg-surface-selected  { background-color: var(--wh-ok-tint); }
+.wh-console .bg-surface-sunken    { background-color: var(--wh-sunken); }
+
+.wh-console .text-ink-primary     { color: var(--wh-ink-1); }
+.wh-console .text-ink-secondary   { color: var(--wh-ink-2); }
+.wh-console .text-ink-muted       { color: var(--wh-ink-3); }
+
+.wh-console .border-line-subtle   { border-color: var(--wh-border); }
+.wh-console .border-line          { border-color: var(--wh-border); }
+.wh-console .border-line-strong   { border-color: var(--wh-border-strong); }
+.wh-console .divide-line-subtle > * + * { border-color: var(--wh-border); }
+.wh-console .bg-line-subtle       { background-color: var(--wh-border); }
+.wh-console .bg-line-strong       { background-color: var(--wh-border-strong); }
+
+/* Status families, restated in the console's accents so a warehouse warning
+   is the same amber as the rest of this section. */
+.wh-console .text-status-success  { color: var(--wh-ok); }
+.wh-console .text-status-warning  { color: var(--wh-warn); }
+.wh-console .text-status-critical { color: var(--wh-bad); }
+.wh-console .text-status-action   { color: var(--wh-scan); }
+.wh-console .bg-status-successBg  { background-color: var(--wh-ok-bg); }
+.wh-console .bg-status-warningBg  { background-color: var(--wh-warn-bg); }
+.wh-console .bg-status-criticalBg { background-color: var(--wh-bad-bg); }
+.wh-console .bg-status-neutralBg  { background-color: var(--wh-sunken); }
+.wh-console .bg-status-success    { background-color: var(--wh-ok); }
+.wh-console .bg-status-critical   { background-color: var(--wh-bad); }
+.wh-console .border-status-success  { border-color: var(--wh-ok-edge); }
+.wh-console .border-status-warning  { border-color: var(--wh-warn-edge); }
+.wh-console .border-status-critical { border-color: var(--wh-bad-edge); }
+
+/* State variants get their own selectors from Tailwind, so the block above
+   does not reach them — and the miss is not cosmetic: the scan field is
+   auto-focused on mount, so a stale `focus:` rule repaints the console's most
+   important control the moment the page loads. */
+.wh-console .hover\:bg-surface-hover:hover  { background-color: var(--wh-surface-2); }
+.wh-console .hover\:bg-surface-card:hover   { background-color: var(--wh-surface-2); }
+.wh-console .hover\:text-ink-primary:hover  { color: var(--wh-ink-1); }
+.wh-console .hover\:text-status-critical:hover { color: var(--wh-bad); }
+.wh-console .hover\:border-line-strong:hover { border-color: var(--wh-border-strong); }
+.wh-console .focus\:bg-surface-card:focus   { background-color: var(--wh-surface); }
+.wh-console .focus\:border-ink-primary:focus { border-color: var(--wh-ok); }

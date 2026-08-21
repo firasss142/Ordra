@@ -17,18 +17,18 @@ import {
 } from "./PrintActivityDashboard";
 
 const D = {
-  pageBg: "#F6F6F7",
-  cardBg: "#FFFFFF",
-  sectionBg: "#F6F6F7",
-  border: "#E1E3E5",
-  textPrimary: "#1A1A1A",
-  textSecondary: "#6D7175",
-  accent: "#008060",
-  danger: "#D72C0D",
-  warning: "#B98900",
-  cardShadow: "0 0 0 1px #E1E3E5",
-  inputBg: "#FFFFFF",
-  inputBorder: "#C9CCCF",
+  pageBg: "var(--wh-bg)",
+  cardBg: "var(--wh-surface)",
+  sectionBg: "var(--wh-bg)",
+  border: "var(--wh-border)",
+  textPrimary: "var(--wh-ink-1)",
+  textSecondary: "var(--wh-ink-2)",
+  accent: "var(--wh-ok)",
+  danger: "var(--wh-bad)",
+  warning: "var(--wh-warn)",
+  cardShadow: "0 0 0 1px var(--wh-border)",
+  inputBg: "var(--wh-surface)",
+  inputBorder: "var(--wh-border-strong)",
 };
 
 interface Props {
@@ -185,7 +185,7 @@ export function ToLabelQueue({ marketId, fallbackRows, locale }: Props) {
         }}
         onDismiss={() => setArrivalCount(0)}
         labels={{
-          reveal: t("banner.newReveal"),
+          reveal: t("banner.newReveal", { count: arrivalCount }),
           dismiss: t("banner.dismiss"),
         }}
       />
@@ -217,8 +217,8 @@ export function ToLabelQueue({ marketId, fallbackRows, locale }: Props) {
           role="alert"
           style={{
             padding: "10px 12px",
-            background: "#FFF4F4",
-            border: `1px solid #FECACA`,
+            background: "var(--wh-bad-bg)",
+            border: `1px solid var(--wh-bad-edge)`,
             borderRadius: 6,
             color: D.danger,
             fontSize: 13,
@@ -271,7 +271,7 @@ export function ToLabelQueue({ marketId, fallbackRows, locale }: Props) {
             }}
           >
             {allSelected ? (
-              <CheckSquare size={16} strokeWidth={1.5} color="#2C6ECB" aria-hidden="true" />
+              <CheckSquare size={16} strokeWidth={1.5} color="var(--wh-scan)" aria-hidden="true" />
             ) : (
               <Square size={16} strokeWidth={1.5} aria-hidden="true" />
             )}
@@ -302,9 +302,9 @@ export function ToLabelQueue({ marketId, fallbackRows, locale }: Props) {
               gap: 8,
               padding: "10px 20px",
               minHeight: 44,
-              backgroundColor: selected.size === 0 || printing ? "#F6F6F7" : "#1A1A1A",
+              backgroundColor: selected.size === 0 || printing ? "var(--wh-bg)" : "var(--wh-ink-1)",
               opacity: selected.size === 0 || printing ? 0.5 : 1,
-              color: selected.size === 0 || printing ? D.textSecondary : "#FFFFFF",
+              color: selected.size === 0 || printing ? D.textSecondary : "var(--wh-surface)",
               border: "none",
               borderRadius: 9999,
               fontSize: 13,
@@ -443,9 +443,9 @@ const ToLabelRow = memo(function ToLabelRow({
         textTransform: "uppercase",
         padding: "2px 7px",
         borderRadius: 999,
-        background: isOut ? "#FFF4F4" : "#FFF8E6",
+        background: isOut ? "var(--wh-bad-bg)" : "var(--wh-warn-bg)",
         color: stockAccent,
-        border: `1px solid ${isOut ? "#FECACA" : "#FFD585"}`,
+        border: `1px solid ${isOut ? "var(--wh-bad-edge)" : "var(--wh-warn-edge)"}`,
         flexShrink: 0,
         whiteSpace: "nowrap",
       }}
@@ -464,7 +464,7 @@ const ToLabelRow = memo(function ToLabelRow({
           gap: 6,
           padding: "14px 16px",
           borderBottom: `1px solid ${D.border}`,
-          backgroundColor: selected ? "#F2F2F2" : "transparent",
+          backgroundColor: selected ? "var(--wh-surface-2)" : "transparent",
           cursor: "pointer",
           minHeight: 44,
         }}
@@ -474,7 +474,7 @@ const ToLabelRow = memo(function ToLabelRow({
             type="checkbox"
             checked={selected}
             onChange={() => onToggle(order.id)}
-            style={{ width: 18, height: 18, cursor: "pointer", accentColor: "#2C6ECB" }}
+            style={{ width: 18, height: 18, cursor: "pointer", accentColor: "var(--wh-scan)" }}
           />
           <span style={{ fontWeight: 700, color: D.textPrimary, flex: 1, fontSize: 14 }}>
             {order.customer_city ?? "—"}
@@ -540,7 +540,7 @@ const ToLabelRow = memo(function ToLabelRow({
         alignItems: "center",
         fontSize: 13,
         cursor: "pointer",
-        backgroundColor: selected ? "#F2F2F2" : "transparent",
+        backgroundColor: selected ? "var(--wh-surface-2)" : "transparent",
         transition: "background-color 120ms ease",
         minHeight: 44,
       }}
@@ -549,7 +549,7 @@ const ToLabelRow = memo(function ToLabelRow({
         type="checkbox"
         checked={selected}
         onChange={() => onToggle(order.id)}
-        style={{ cursor: "pointer", accentColor: "#2C6ECB" }}
+        style={{ cursor: "pointer", accentColor: "var(--wh-scan)" }}
       />
       <div style={{ fontWeight: 700, color: D.textPrimary }}>
         {order.customer_city ?? "—"}

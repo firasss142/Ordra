@@ -24,14 +24,14 @@ export function LogisticsPageHeader({ title, subtitle, actions }: Props) {
               margin: 0,
               fontSize: 20,
               fontWeight: 600,
-              color: "#1A1A1A",
+              color: "var(--wh-ink-1)",
               letterSpacing: "-0.01em",
             }}
           >
             {title}
           </h1>
           {subtitle ? (
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6D7175" }}>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--wh-ink-2)" }}>
               {subtitle}
             </p>
           ) : null}

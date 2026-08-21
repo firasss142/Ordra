@@ -24,14 +24,14 @@ import { groupRowsIntoSessions, rowDay } from "@/lib/warehouse/group-by-session"
 import type { WarehouseHistoryPage, WarehouseHistoryRow } from "@/hooks/useWarehouseList";
 
 const ROLE_RING: Record<string, string> = {
-  super_admin: "#1A1A1A",
-  market_manager: "#2C6ECB",
-  warehouse_agent: "#008060",
-  agent: "#6D7175",
+  super_admin: "var(--wh-ink-1)",
+  market_manager: "var(--wh-scan)",
+  warehouse_agent: "var(--wh-ok)",
+  agent: "var(--wh-ink-2)",
 };
 
 function roleRingColor(role: string | null | undefined): string {
-  return role ? (ROLE_RING[role] ?? "#6D7175") : "#C9CCCF";
+  return role ? (ROLE_RING[role] ?? "var(--wh-ink-2)") : "var(--wh-border-strong)";
 }
 
 function formatRoleName(role: string): string {
@@ -142,7 +142,7 @@ export function WarehouseHistoryClient({ locale, marketId, fallbackFirstPage }: 
         count={arrivalCount}
         onReveal={() => { setArrivalCount(0); mutate(); }}
         onDismiss={() => setArrivalCount(0)}
-        labels={{ reveal: t("banner.newReveal"), dismiss: t("banner.dismiss") }}
+        labels={{ reveal: t("banner.newReveal", { count: arrivalCount }), dismiss: t("banner.dismiss") }}
       />
 
       {/* Command-bar search */}
@@ -635,7 +635,7 @@ function ActorAvatar({
   const isSystem = !name && !role;
 
   const inner = isSystem ? (
-    <span style={{ fontSize: Math.floor(size * 0.45), color: "#C9CCCF" }}>⏱</span>
+    <span style={{ fontSize: Math.floor(size * 0.45), color: "var(--wh-border-strong)" }}>⏱</span>
   ) : (
     <span style={{ fontSize: Math.floor(size * 0.38) }} className="font-bold text-white tracking-[0.02em]">
       {initials}
@@ -645,8 +645,8 @@ function ActorAvatar({
   const style: React.CSSProperties = {
     width: size,
     height: size,
-    background: isSystem ? "#F6F6F7" : ringColor,
-    border: isSystem ? "2px dashed #C9CCCF" : `2px solid ${ringColor}`,
+    background: isSystem ? "var(--wh-bg)" : ringColor,
+    border: isSystem ? "2px dashed var(--wh-border-strong)" : `2px solid ${ringColor}`,
   };
 
   if (onClick) {

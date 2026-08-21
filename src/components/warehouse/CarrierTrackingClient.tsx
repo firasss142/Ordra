@@ -53,7 +53,7 @@ export function CarrierTrackingClient({ user }: { user: AuthUser }) {
   const marketCode = user.locale === "ar" ? "LY" : "TN";
 
   return (
-    <div style={{ backgroundColor: "#F6F6F7", minHeight: "100vh", padding: "24px 32px 64px" }}>
+    <div style={{ backgroundColor: "var(--wh-bg)", minHeight: "100vh", padding: "24px 32px 64px" }}>
       <LogisticsPageHeader title={t("title")} subtitle={t("subtitle")} />
 
       {error && (
@@ -61,8 +61,8 @@ export function CarrierTrackingClient({ user }: { user: AuthUser }) {
           role="alert"
           style={{
             padding: "12px 14px",
-            backgroundColor: "#FEE2E2",
-            color: "#B91C1C",
+            backgroundColor: "var(--wh-bad-bg)",
+            color: "var(--wh-bad)",
             borderRadius: 6,
             fontSize: 13,
             marginBottom: 16,
@@ -81,8 +81,8 @@ export function CarrierTrackingClient({ user }: { user: AuthUser }) {
           role="status"
           style={{
             padding: "10px 14px",
-            backgroundColor: "#FEF3C7",
-            color: "#92400E",
+            backgroundColor: "var(--wh-warn-bg)",
+            color: "var(--wh-warn)",
             borderRadius: 6,
             fontSize: 13,
             marginBottom: 16,
@@ -146,8 +146,8 @@ function DegradationBanner({
       role="alert"
       style={{
         padding: "12px 14px",
-        backgroundColor: "#FEF3C7",
-        color: "#92400E",
+        backgroundColor: "var(--wh-warn-bg)",
+        color: "var(--wh-warn)",
         borderRadius: 6,
         fontSize: 13,
         marginBottom: 16,
@@ -190,8 +190,8 @@ function CarrierCard({
   return (
     <div
       style={{
-        background: "#FFFFFF",
-        border: "1px solid #E1E3E5",
+        background: "var(--wh-surface)",
+        border: "1px solid var(--wh-border)",
         borderRadius: 8,
         overflow: "hidden",
       }}
@@ -218,8 +218,8 @@ function CarrierCard({
             width: 36,
             height: 36,
             borderRadius: 6,
-            backgroundColor: "#F1F2F4",
-            color: "#1A1A1A",
+            backgroundColor: "var(--wh-sunken)",
+            color: "var(--wh-ink-1)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -231,7 +231,7 @@ function CarrierCard({
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 15, fontWeight: 600, color: "#1A1A1A" }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: "var(--wh-ink-1)" }}>
               {carrier.name || t("unnamedCarrier")}
             </span>
             {carrier.trend_alert && (
@@ -240,8 +240,8 @@ function CarrierCard({
                   fontSize: 11,
                   fontWeight: 500,
                   padding: "2px 8px",
-                  backgroundColor: "#FEF3C7",
-                  color: "#92400E",
+                  backgroundColor: "var(--wh-warn-bg)",
+                  color: "var(--wh-warn)",
                   borderRadius: 4,
                   display: "inline-flex",
                   alignItems: "center",
@@ -258,8 +258,8 @@ function CarrierCard({
                   fontSize: 11,
                   fontWeight: 500,
                   padding: "2px 8px",
-                  backgroundColor: "#FEE2E2",
-                  color: "#B91C1C",
+                  backgroundColor: "var(--wh-bad-bg)",
+                  color: "var(--wh-bad)",
                   borderRadius: 4,
                   display: "inline-flex",
                   alignItems: "center",
@@ -271,7 +271,7 @@ function CarrierCard({
               </span>
             )}
           </div>
-          <div style={{ marginTop: 4, fontSize: 13, color: "#6D7175" }}>
+          <div style={{ marginTop: 4, fontSize: 13, color: "var(--wh-ink-2)" }}>
             {t("story", {
               inFlight: carrier.total,
               median:
@@ -285,7 +285,7 @@ function CarrierCard({
         <span
           aria-hidden="true"
           style={{
-            color: "#6D7175",
+            color: "var(--wh-ink-2)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -303,7 +303,7 @@ function CarrierCard({
           display: "grid",
           gridTemplateColumns: "repeat(4, 1fr)",
           gap: 8,
-          borderBlockStart: "1px solid #F1F2F4",
+          borderBlockStart: "1px solid var(--wh-sunken)",
           paddingBlockStart: 10,
           marginInline: 0,
         }}
@@ -320,8 +320,8 @@ function CarrierCard({
       {expanded && (
         <div
           style={{
-            borderBlockStart: "1px solid #F1F2F4",
-            background: "#FAFBFB",
+            borderBlockStart: "1px solid var(--wh-sunken)",
+            background: "var(--wh-sunken)",
             padding: 16,
             display: "flex",
             flexDirection: "column",
@@ -360,7 +360,7 @@ function DeliveryRatesRow({
           fontSize: 11,
           textTransform: "uppercase",
           letterSpacing: "0.04em",
-          color: "#6D7175",
+          color: "var(--wh-ink-2)",
           marginBottom: 6,
         }}
       >
@@ -373,14 +373,14 @@ function DeliveryRatesRow({
             <div
               key={c.key}
               style={{
-                background: "#FFFFFF",
-                border: "1px solid #E1E3E5",
+                background: "var(--wh-surface)",
+                border: "1px solid var(--wh-border)",
                 borderRadius: 6,
                 padding: "10px 12px",
               }}
             >
-              <div style={{ fontSize: 11, color: "#6D7175" }}>{c.label}</div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: "#1A1A1A" }}>
+              <div style={{ fontSize: 11, color: "var(--wh-ink-2)" }}>{c.label}</div>
+              <div style={{ fontSize: 18, fontWeight: 600, color: "var(--wh-ink-1)" }}>
                 {v === null ? "—" : `${Math.round(v * 100)}%`}
               </div>
             </div>
@@ -407,7 +407,7 @@ function CostStrip({
           fontSize: 11,
           textTransform: "uppercase",
           letterSpacing: "0.04em",
-          color: "#6D7175",
+          color: "var(--wh-ink-2)",
           marginBottom: 6,
         }}
       >
@@ -439,14 +439,14 @@ function KpiTile({ label, value }: { label: string; value: string }) {
   return (
     <div
       style={{
-        background: "#FFFFFF",
-        border: "1px solid #E1E3E5",
+        background: "var(--wh-surface)",
+        border: "1px solid var(--wh-border)",
         borderRadius: 6,
         padding: "10px 12px",
       }}
     >
-      <div style={{ fontSize: 11, color: "#6D7175" }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: "#1A1A1A" }}>{value}</div>
+      <div style={{ fontSize: 11, color: "var(--wh-ink-2)" }}>{label}</div>
+      <div style={{ fontSize: 15, fontWeight: 600, color: "var(--wh-ink-1)" }}>{value}</div>
     </div>
   );
 }
@@ -467,7 +467,7 @@ function StuckOrdersTable({
           fontSize: 11,
           textTransform: "uppercase",
           letterSpacing: "0.04em",
-          color: "#6D7175",
+          color: "var(--wh-ink-2)",
           marginBottom: 6,
           display: "flex",
           alignItems: "center",
@@ -481,10 +481,10 @@ function StuckOrdersTable({
         <div
           style={{
             fontSize: 12,
-            color: "#6D7175",
+            color: "var(--wh-ink-2)",
             padding: "10px 12px",
-            background: "#FFFFFF",
-            border: "1px solid #E1E3E5",
+            background: "var(--wh-surface)",
+            border: "1px solid var(--wh-border)",
             borderRadius: 6,
           }}
         >
@@ -493,15 +493,15 @@ function StuckOrdersTable({
       ) : (
         <div
           style={{
-            background: "#FFFFFF",
-            border: "1px solid #E1E3E5",
+            background: "var(--wh-surface)",
+            border: "1px solid var(--wh-border)",
             borderRadius: 6,
             overflow: "hidden",
           }}
         >
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
-              <tr style={{ background: "#FAFBFB" }}>
+              <tr style={{ background: "var(--wh-sunken)" }}>
                 <th style={thStyle}>{t("stuckOrders.cols.customer")}</th>
                 <th style={thStyle}>{t("stuckOrders.cols.city")}</th>
                 <th style={thStyle}>{t("stuckOrders.cols.status")}</th>
@@ -511,24 +511,24 @@ function StuckOrdersTable({
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} style={{ borderBlockStart: "1px solid #F1F2F4" }}>
+                <tr key={r.id} style={{ borderBlockStart: "1px solid var(--wh-sunken)" }}>
                   <td style={tdStyle}>
                     <Link
                       href={`/${locale}/orders/${r.id}`}
-                      style={{ color: "#1A1A1A", textDecoration: "none", fontWeight: 500 }}
+                      style={{ color: "var(--wh-ink-1)", textDecoration: "none", fontWeight: 500 }}
                     >
                       {r.customer_name || t("unknownCustomer")}
                     </Link>
                   </td>
                   <td style={tdStyle}>{r.customer_city || "—"}</td>
                   <td style={tdStyle}>
-                    <span style={{ color: "#6D7175" }}>
+                    <span style={{ color: "var(--wh-ink-2)" }}>
                       {t(`status.${r.status}` as "status.dispatched")}
                     </span>
                   </td>
                   <td style={tdStyle}>{formatExactTime(r.last_update, locale)}</td>
                   <td style={tdStyle}>
-                    <span style={{ color: r.age_hours >= 24 * 5 ? "#B91C1C" : "#92400E", fontWeight: 500 }}>
+                    <span style={{ color: r.age_hours >= 24 * 5 ? "var(--wh-bad)" : "var(--wh-warn)", fontWeight: 500 }}>
                       {t("stuckOrders.ageHours", { hours: r.age_hours })}
                     </span>
                   </td>
@@ -547,27 +547,27 @@ const thStyle: React.CSSProperties = {
   padding: "8px 12px",
   fontSize: 11,
   fontWeight: 500,
-  color: "#6D7175",
+  color: "var(--wh-ink-2)",
   textTransform: "uppercase",
   letterSpacing: "0.04em",
 };
 
 const tdStyle: React.CSSProperties = {
   padding: "8px 12px",
-  color: "#1A1A1A",
+  color: "var(--wh-ink-1)",
   verticalAlign: "middle",
 };
 
 function StatusBucket({ label, count }: { label: string; count: number }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-      <span style={{ fontSize: 16, fontWeight: 600, color: count > 0 ? "#1A1A1A" : "#C9CCCF" }}>
+      <span style={{ fontSize: 16, fontWeight: 600, color: count > 0 ? "var(--wh-ink-1)" : "var(--wh-border-strong)" }}>
         {count}
       </span>
       <span
         style={{
           fontSize: 10,
-          color: "#6D7175",
+          color: "var(--wh-ink-2)",
           textTransform: "uppercase",
           letterSpacing: "0.04em",
           textAlign: "center",
@@ -607,10 +607,10 @@ function TransitionsList({
               alignItems: "center",
               gap: 10,
               padding: "8px 10px",
-              border: "1px solid #E1E3E5",
+              border: "1px solid var(--wh-border)",
               borderRadius: 6,
               textDecoration: "none",
-              color: "#1A1A1A",
+              color: "var(--wh-ink-1)",
             }}
           >
             <span
@@ -625,12 +625,12 @@ function TransitionsList({
               }}
             >
               {r.customer_name || t("unknownCustomer")}
-              <span style={{ fontWeight: 400, color: "#6D7175", marginInlineStart: 8 }}>
+              <span style={{ fontWeight: 400, color: "var(--wh-ink-2)", marginInlineStart: 8 }}>
                 · {r.carrier_name || t("unnamedCarrier")}
               </span>
             </span>
-            <span style={{ fontSize: 11, color: "#6D7175", whiteSpace: "nowrap" }}>
-              {r.status_from ?? "—"} → <strong style={{ color: "#1A1A1A" }}>{r.status_to}</strong>
+            <span style={{ fontSize: 11, color: "var(--wh-ink-2)", whiteSpace: "nowrap" }}>
+              {r.status_from ?? "—"} → <strong style={{ color: "var(--wh-ink-1)" }}>{r.status_to}</strong>
             </span>
           </Link>
         </li>

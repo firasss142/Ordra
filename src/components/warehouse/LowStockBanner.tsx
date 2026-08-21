@@ -31,8 +31,8 @@ export function LowStockBanner({ items, labels, locale }: LowStockBannerProps) {
   return (
     <div
       style={{
-        background: "#FFFFFF",
-        border: "1px solid #E1E3E5",
+        background: "var(--wh-surface)",
+        border: "1px solid var(--wh-border)",
         borderRadius: 8,
         padding: 18,
         display: "flex",
@@ -54,7 +54,7 @@ export function LowStockBanner({ items, labels, locale }: LowStockBannerProps) {
           <AlertTriangle
             size={16}
             strokeWidth={1.75}
-            color="#B98900"
+            color="var(--wh-warn)"
             aria-hidden="true"
           />
           <h2
@@ -62,7 +62,7 @@ export function LowStockBanner({ items, labels, locale }: LowStockBannerProps) {
               margin: 0,
               fontSize: 16,
               fontWeight: 600,
-              color: "#1A1A1A",
+              color: "var(--wh-ink-1)",
             }}
           >
             {labels.title}
@@ -73,7 +73,7 @@ export function LowStockBanner({ items, labels, locale }: LowStockBannerProps) {
             href={`/${locale}/products?low_stock=1`}
             style={{
               fontSize: 13,
-              color: "#2C6ECB",
+              color: "var(--wh-scan)",
               fontWeight: 500,
               textDecoration: "none",
             }}
@@ -90,7 +90,7 @@ export function LowStockBanner({ items, labels, locale }: LowStockBannerProps) {
             p.low_stock_threshold > 0
               ? Math.min(1, Math.max(0, p.current_stock / p.low_stock_threshold))
               : 0;
-          const fillColor = isOut ? "#D72C0D" : "#B98900";
+          const fillColor = isOut ? "var(--wh-bad)" : "var(--wh-warn)";
           const badgeLabel = isOut ? labels.critical : labels.badge;
           return (
             <div
@@ -102,7 +102,7 @@ export function LowStockBanner({ items, labels, locale }: LowStockBannerProps) {
                 gap: 12,
                 padding: "8px 10px",
                 borderRadius: 6,
-                background: "#F7F7F7",
+                background: "var(--wh-surface-2)",
               }}
               title={formatLabel(labels.tooltip, {
                 current: p.current_stock,
@@ -113,7 +113,7 @@ export function LowStockBanner({ items, labels, locale }: LowStockBannerProps) {
                 style={{
                   fontSize: 13,
                   fontWeight: 500,
-                  color: "#1A1A1A",
+                  color: "var(--wh-ink-1)",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -124,7 +124,7 @@ export function LowStockBanner({ items, labels, locale }: LowStockBannerProps) {
               <div
                 style={{
                   height: 6,
-                  background: "#E1E3E5",
+                  background: "var(--wh-border)",
                   borderRadius: 9999,
                   overflow: "hidden",
                 }}

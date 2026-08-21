@@ -4,12 +4,12 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import type React from "react";
 
 const D = {
-  sectionBg: "#F6F6F7",
-  border: "#E1E3E5",
-  textSecondary: "#6D7175",
-  textPrimary: "#1A1A1A",
-  inputBg: "#FFFFFF",
-  inputBorder: "#C9CCCF",
+  sectionBg: "var(--wh-bg)",
+  border: "var(--wh-border)",
+  textSecondary: "var(--wh-ink-2)",
+  textPrimary: "var(--wh-ink-1)",
+  inputBg: "var(--wh-surface)",
+  inputBorder: "var(--wh-border-strong)",
 };
 
 const btnBase: React.CSSProperties = {
@@ -24,8 +24,8 @@ const btnBase: React.CSSProperties = {
   fontSize: 13,
   fontWeight: 600,
   cursor: "pointer",
-  backgroundColor: "#1A1A1A",
-  color: "#FFFFFF",
+  backgroundColor: "var(--wh-ink-1)",
+  color: "var(--wh-surface)",
   transition: "opacity 150ms ease",
   fontFamily: "inherit",
 };
