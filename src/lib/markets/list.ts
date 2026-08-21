@@ -5,6 +5,10 @@ export interface MarketRow {
   id: string;
   name: string;
   code: string;
+  language?: string;
+  currency?: string;
+  direction?: string;
+  is_active?: boolean;
 }
 
 export const getAllActiveMarkets = unstable_cache(
@@ -12,7 +16,7 @@ export const getAllActiveMarkets = unstable_cache(
     const admin = createAdminClient();
     const { data } = await admin
       .from("markets")
-      .select("id, name, code")
+      .select("id, name, code, language, currency, direction, is_active")
       .eq("is_active", true)
       .order("name");
     return (data ?? []) as MarketRow[];
