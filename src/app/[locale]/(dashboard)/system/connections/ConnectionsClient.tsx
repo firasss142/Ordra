@@ -8,6 +8,7 @@ import { ConnectionsTabs, type ConnTab } from "@/components/connections/Connecti
 import { StorefrontsPanel } from "@/components/connections/StorefrontsPanel";
 import { CarriersPanel } from "@/components/connections/CarriersPanel";
 import { ServicesPanel } from "@/components/connections/ServicesPanel";
+import { OverviewPanel } from "@/components/connections/OverviewPanel";
 import { MappingsPageClient } from "@/app/[locale]/(dashboard)/mappings/MappingsPageClient";
 import { useMarketScope } from "@/context/market-scope";
 import { marketIdToCode } from "@/lib/markets";
@@ -77,10 +78,7 @@ export function ConnectionsClient({ user, readOnly = false, markets }: Props) {
       )}
 
       {tab === "overview" && (
-        <div className="rounded-card border border-line-subtle bg-surface-card p-10 text-center text-[13.5px] text-ink-secondary">
-          <b className="block text-ink-primary">Vue d'ensemble</b>
-          <span>La vue d'ensemble (inventaire des connecteurs + automatisations) arrive dans la suite du chantier.</span>
-        </div>
+        <OverviewPanel marketId={marketId} onNavigate={setTab} />
       )}
     </div>
   );
