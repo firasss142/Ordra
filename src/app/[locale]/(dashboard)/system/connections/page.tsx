@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { ConnectionsClient } from "./ConnectionsClient";
 import { getServerUser } from "@/lib/auth/server-user";
+import { listMarketsFor } from "@/lib/markets/list";
 
 /**
  * Système › Connexions. Storefronts, carriers, third-party services and
@@ -20,5 +21,6 @@ export default async function SystemConnectionsPage({
   }
 
   const readOnly = user.role !== "super_admin";
-  return <ConnectionsClient user={user} readOnly={readOnly} />;
+  const markets = await listMarketsFor(user.role, user.market_id);
+  return <ConnectionsClient user={user} readOnly={readOnly} markets={markets} />;
 }
