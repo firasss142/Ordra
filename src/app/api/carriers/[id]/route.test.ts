@@ -19,7 +19,7 @@ vi.mock("@/lib/crypto", () => ({
   maskCredential: vi.fn(() => "••••••••"),
 }));
 
-import { PATCH, GET } from "./route";
+import { PATCH, GET, DELETE } from "./route";
 import { NextRequest } from "next/server";
 
 function req(body: Record<string, unknown> = { is_active: false }) {
@@ -27,6 +27,23 @@ function req(body: Record<string, unknown> = { is_active: false }) {
     new URL("http://localhost/api/carriers/carrier-1"),
     { method: "PATCH", body: JSON.stringify(body) }
   );
+}
+
+function delReq(hard = false) {
+  const url = hard
+    ? "http://localhost/api/carriers/carrier-1?hard=true"
+    : "http://localhost/api/carriers/carrier-1";
+  return new NextRequest(new URL(url), { method: "DELETE" });
+}
+
+/** Chain whose terminal .eq() resolves — for update/delete .. eq and head+count. */
+function terminalEqChain(resolve: { data?: unknown; error?: unknown; count?: number }) {
+  const c: Record<string, unknown> = {};
+  c.select = vi.fn().mockReturnValue(c);
+  c.update = vi.fn().mockReturnValue(c);
+  c.delete = vi.fn().mockReturnValue(c);
+  c.eq = vi.fn().mockResolvedValue({ data: resolve.data ?? null, error: resolve.error ?? null, count: resolve.count });
+  return c;
 }
 
 function getReq() {
@@ -248,5 +265,56 @@ describe("GET /api/carriers/[id] — non-secret credential prefill", () => {
     });
     const res = await GET(getReq(), { params: Promise.resolve({ id: "carrier-1" }) });
     expect(res.status).toBe(403);
+  });
+});
+
+describe("DELETE /api/carriers/[id]", () => {
+  test("default (archive) soft-deletes: sets is_active=false, returns 204", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    let call = 0;
+    let updateChain: Record<string, unknown> | null = null;
+    mockFrom.mockImplementation(() => {
+      call++;
+      if (call === 1) return singleChain({ role: "super_admin", market_id: null });
+      if (call === 2) return singleChain(CARRIER_TN);
+      updateChain = terminalEqChain({ error: null });
+      return updateChain;
+    });
+    const res = await DELETE(delReq(false), { params: Promise.resolve({ id: "carrier-1" }) });
+    expect(res.status).toBe(204);
+    expect((updateChain as unknown as { update: ReturnType<typeof vi.fn> }).update).toHaveBeenCalledWith({ is_active: false });
+  });
+
+  test("hard delete is blocked (409) when orders reference the carrier", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    let call = 0;
+    mockFrom.mockImplementation((table: string) => {
+      call++;
+      if (call === 1) return singleChain({ role: "super_admin", market_id: null });
+      if (call === 2) return singleChain(CARRIER_TN);
+      if (table === "orders") return terminalEqChain({ count: 12, error: null });
+      return terminalEqChain({ error: null });
+    });
+    const res = await DELETE(delReq(true), { params: Promise.resolve({ id: "carrier-1" }) });
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toMatch(/commande|référenc|order/i);
+  });
+
+  test("hard delete succeeds (204) when no orders reference the carrier", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    let call = 0;
+    let deleteChain: Record<string, unknown> | null = null;
+    mockFrom.mockImplementation((table: string) => {
+      call++;
+      if (call === 1) return singleChain({ role: "super_admin", market_id: null });
+      if (call === 2) return singleChain(CARRIER_TN);
+      if (table === "orders") return terminalEqChain({ count: 0, error: null });
+      deleteChain = terminalEqChain({ error: null });
+      return deleteChain;
+    });
+    const res = await DELETE(delReq(true), { params: Promise.resolve({ id: "carrier-1" }) });
+    expect(res.status).toBe(204);
+    expect((deleteChain as unknown as { delete: ReturnType<typeof vi.fn> }).delete).toHaveBeenCalled();
   });
 });

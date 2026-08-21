@@ -155,7 +155,39 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Soft-delete
+  // ?hard=true → permanent delete, allowed ONLY when no order references the
+  // carrier. orders.carrier_id is nullable (so the FK wouldn't block), but an
+  // order that shipped via this carrier is a real reference we must not silently
+  // orphan — check first and return a clear 409. Rate/mapping/session tables
+  // cascade, so they don't block.
+  const hard = req.nextUrl.searchParams.get("hard") === "true";
+  if (hard) {
+    const { count } = await supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("carrier_id", id);
+
+    if ((count ?? 0) > 0) {
+      return NextResponse.json(
+        {
+          error: `Suppression impossible : ${count} commande(s) référencent ce transporteur. Archivez-le à la place.`,
+        },
+        { status: 409 },
+      );
+    }
+
+    const { error: delError } = await supabase
+      .from("carriers")
+      .delete()
+      .eq("id", id);
+
+    if (delError) {
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+    return new NextResponse(null, { status: 204 });
+  }
+
+  // Default: archive (soft-delete).
   const { error } = await supabase
     .from("carriers")
     .update({ is_active: false })

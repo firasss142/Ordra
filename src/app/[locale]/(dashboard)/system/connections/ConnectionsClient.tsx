@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { SettingsPageHeader } from "@/components/settings/SettingsPageHeader";
 import { ConnectionsTabs, type ConnTab } from "@/components/connections/ConnectionsTabs";
 import { StorefrontsPanel } from "@/components/connections/StorefrontsPanel";
+import { CarriersPanel } from "@/components/connections/CarriersPanel";
 import { useMarketScope } from "@/context/market-scope";
 import { marketIdToCode } from "@/lib/markets";
 import type { AuthUser } from "@/types";
@@ -30,6 +31,7 @@ export function ConnectionsClient({ user, readOnly = false }: Props) {
   const tMarkets = useTranslations("nav.markets");
   const code = marketIdToCode(marketId);
   const marketName = code ? tMarkets(code) : "";
+  const currency = code === "ly" ? "LYD" : "TND";
 
   const searchParams = useSearchParams();
   const requested = searchParams?.get("tab");
@@ -51,7 +53,11 @@ export function ConnectionsClient({ user, readOnly = false }: Props) {
         <StorefrontsPanel role={user.role} marketId={marketId} marketName={marketName} readOnly={readOnly} />
       )}
 
-      {tab !== "storefronts" && (
+      {tab === "carriers" && (
+        <CarriersPanel role={user.role} marketId={marketId} currency={currency} readOnly={readOnly} />
+      )}
+
+      {tab !== "storefronts" && tab !== "carriers" && (
         <div className="rounded-card border border-line-subtle bg-surface-card p-10 text-center text-[13.5px] text-ink-secondary">
           <b className="block text-ink-primary">
             {TABS.find((t) => t.key === tab)?.label}
