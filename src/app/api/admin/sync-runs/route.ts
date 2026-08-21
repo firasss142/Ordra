@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
           .order("started_at", { ascending: false })
           .limit(limit);
         if (error || !data) return [] as SyncRun[];
-        return (data as Record<string, unknown>[]).map((r) => ({
+        return (data as unknown as Record<string, unknown>[]).map((r) => ({
           id: String(r.id),
           source: label,
           started_at: String(r.started_at),

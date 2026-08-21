@@ -16,9 +16,13 @@ import {
   Search,
   Webhook,
   Truck,
+  RefreshCcw,
+  ClipboardList,
   X,
 } from "lucide-react";
 import { SettingsPageHeader } from "@/components/settings/SettingsPageHeader";
+import { SyncRunsPanel } from "./SyncRunsPanel";
+import { AuditPanel } from "./AuditPanel";
 import {
   type CarrierEventRow,
   type WebhookLogRow,
@@ -28,7 +32,7 @@ import {
 } from "@/hooks/useLogsWorkspace";
 import type { AuthUser } from "@/types";
 
-type Tab = "webhooks" | "carrier";
+type Tab = "webhooks" | "carrier" | "syncs" | "audit";
 type OutcomeFilter = "all" | "processed" | "ignored" | "error";
 
 type PayloadRow =
@@ -116,6 +120,7 @@ export function LogsWorkspace({ user }: { user: AuthUser }) {
   >(null);
 
   const isWebhooks = tab === "webhooks";
+  const isTechnical = tab === "webhooks" || tab === "carrier";
 
   const webhook = useWebhookLogs({
     page,
@@ -172,65 +177,69 @@ export function LogsWorkspace({ user }: { user: AuthUser }) {
         isRtl={isRtl}
       />
 
-      <StatsStrip summary={summary} t={t} />
+      {isTechnical && <StatsStrip summary={summary} t={t} />}
 
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <Tabs tab={tab} onChange={switchTab} t={t} />
 
         <div className="flex-1" />
 
-        <form onSubmit={handleSearchSubmit} className="relative">
-          <Search
-            size={14}
-            aria-hidden
-            className="absolute top-1/2 -translate-y-1/2 text-ink-secondary start-[10px]"
-          />
-          <input
-            type="search"
-            placeholder={t("searchPlaceholder")}
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            aria-label={t("searchAria")}
-            className="min-w-[260px] rounded-md border border-line bg-surface-card py-1.5 pe-2.5 ps-7 text-[13px] text-ink-primary placeholder:text-ink-secondary"
-          />
-        </form>
+        {isTechnical && (
+          <>
+            <form onSubmit={handleSearchSubmit} className="relative">
+              <Search
+                size={14}
+                aria-hidden
+                className="absolute top-1/2 -translate-y-1/2 text-ink-secondary start-[10px]"
+              />
+              <input
+                type="search"
+                placeholder={t("searchPlaceholder")}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                aria-label={t("searchAria")}
+                className="min-w-[260px] rounded-md border border-line bg-surface-card py-1.5 pe-2.5 ps-7 text-[13px] text-ink-primary placeholder:text-ink-secondary"
+              />
+            </form>
 
-        <OutcomeSelect
-          value={outcomeFilter}
-          onChange={(v) => {
-            setOutcomeFilter(v);
-            setPage(1);
-            if (v !== "all") setFailuresOnly(false);
-          }}
-          t={t}
-        />
+            <OutcomeSelect
+              value={outcomeFilter}
+              onChange={(v) => {
+                setOutcomeFilter(v);
+                setPage(1);
+                if (v !== "all") setFailuresOnly(false);
+              }}
+              t={t}
+            />
 
-        <ToggleButton
-          active={failuresOnly}
-          onClick={() => {
-            setFailuresOnly((v) => {
-              const next = !v;
-              if (next) setOutcomeFilter("all");
-              return next;
-            });
-            setPage(1);
-          }}
-          label={t("failuresOnly")}
-        />
+            <ToggleButton
+              active={failuresOnly}
+              onClick={() => {
+                setFailuresOnly((v) => {
+                  const next = !v;
+                  if (next) setOutcomeFilter("all");
+                  return next;
+                });
+                setPage(1);
+              }}
+              label={t("failuresOnly")}
+            />
 
-        <button
-          type="button"
-          onClick={refresh}
-          aria-label={t("refresh")}
-          className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface-card px-2.5 py-1.5 text-[13px] font-medium text-ink-primary hover:bg-surface-hover transition-colors duration-fast"
-        >
-          <RefreshCw size={14} />
-          {t("refresh")}
-        </button>
+            <button
+              type="button"
+              onClick={refresh}
+              aria-label={t("refresh")}
+              className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface-card px-2.5 py-1.5 text-[13px] font-medium text-ink-primary hover:bg-surface-hover transition-colors duration-fast"
+            >
+              <RefreshCw size={14} />
+              {t("refresh")}
+            </button>
+          </>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-card border border-line-subtle bg-surface-card">
-        {isWebhooks ? (
+        {isWebhooks && (
           <WebhookTable
             rows={webhook.rows}
             isLoading={webhook.isLoading}
@@ -242,7 +251,8 @@ export function LogsWorkspace({ user }: { user: AuthUser }) {
             selectedId={selected?.kind === "webhook" ? selected.row.id : null}
             t={t}
           />
-        ) : (
+        )}
+        {tab === "carrier" && (
           <CarrierTable
             rows={carrier.rows}
             isLoading={carrier.isLoading}
@@ -255,8 +265,10 @@ export function LogsWorkspace({ user }: { user: AuthUser }) {
             t={t}
           />
         )}
+        {tab === "syncs" && <SyncRunsPanel locale={locale} />}
+        {tab === "audit" && <AuditPanel locale={locale} />}
 
-        {pagination && pagination.total > 0 && (
+        {isTechnical && pagination && pagination.total > 0 && (
           <PaginationBar
             page={page}
             totalPages={totalPages}
@@ -267,8 +279,6 @@ export function LogsWorkspace({ user }: { user: AuthUser }) {
           />
         )}
       </div>
-
-      <p className="mt-3 text-[12px] text-ink-secondary">{t("retentionNote")}</p>
 
       {selected && (
         <PayloadInspector
@@ -496,6 +506,18 @@ function Tabs({
         onClick={() => onChange("carrier")}
         icon={<Truck size={14} />}
         label={t("tabs.carrier")}
+      />
+      <TabButton
+        active={tab === "syncs"}
+        onClick={() => onChange("syncs")}
+        icon={<RefreshCcw size={14} />}
+        label="Synchronisations"
+      />
+      <TabButton
+        active={tab === "audit"}
+        onClick={() => onChange("audit")}
+        icon={<ClipboardList size={14} />}
+        label="Audit"
       />
     </div>
   );
