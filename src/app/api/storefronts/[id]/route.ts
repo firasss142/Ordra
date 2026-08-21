@@ -65,7 +65,38 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Soft-delete
+  // ?hard=true → permanent delete, allowed ONLY when nothing references the
+  // storefront. orders.storefront_id is NOT NULL with no cascade, so a referenced
+  // storefront cannot be removed; we check first to return a clear 409 rather
+  // than a raw FK error. storefront_product_mappings cascade, so they don't block.
+  const hard = req.nextUrl.searchParams.get("hard") === "true";
+  if (hard) {
+    const { count } = await supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("storefront_id", id);
+
+    if ((count ?? 0) > 0) {
+      return NextResponse.json(
+        {
+          error: `Suppression impossible : ${count} commande(s) référencent ce storefront. Archivez-le à la place.`,
+        },
+        { status: 409 },
+      );
+    }
+
+    const { error: delError } = await supabase
+      .from("storefronts")
+      .delete()
+      .eq("id", id);
+
+    if (delError) {
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+    return new NextResponse(null, { status: 204 });
+  }
+
+  // Default: archive (soft-delete).
   const { error } = await supabase
     .from("storefronts")
     .update({ is_active: false })

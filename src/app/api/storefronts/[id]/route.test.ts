@@ -15,7 +15,7 @@ vi.mock("@/lib/crypto", () => ({
   maskCredential: vi.fn(() => "••••••••"),
 }));
 
-import { PATCH } from "./route";
+import { PATCH, DELETE } from "./route";
 import { NextRequest } from "next/server";
 
 function req(body: Record<string, unknown> = { is_active: false }) {
@@ -25,12 +25,29 @@ function req(body: Record<string, unknown> = { is_active: false }) {
   );
 }
 
+function delReq(hard = false) {
+  const url = hard
+    ? "http://localhost/api/storefronts/sf-1?hard=true"
+    : "http://localhost/api/storefronts/sf-1";
+  return new NextRequest(new URL(url), { method: "DELETE" });
+}
+
 function singleChain(data: unknown, error: unknown = null) {
   const c: Record<string, unknown> = {};
   c.select = vi.fn().mockReturnValue(c);
   c.eq = vi.fn().mockReturnValue(c);
   c.update = vi.fn().mockReturnValue(c);
   c.single = vi.fn().mockResolvedValue({ data, error });
+  return c;
+}
+
+/** Chain whose terminal .eq() resolves (for update ... eq, and for head+count). */
+function terminalEqChain(resolve: { data?: unknown; error?: unknown; count?: number }) {
+  const c: Record<string, unknown> = {};
+  c.select = vi.fn().mockReturnValue(c);
+  c.update = vi.fn().mockReturnValue(c);
+  c.delete = vi.fn().mockReturnValue(c);
+  c.eq = vi.fn().mockResolvedValue({ data: resolve.data ?? null, error: resolve.error ?? null, count: resolve.count });
   return c;
 }
 
@@ -69,5 +86,56 @@ describe("PATCH /api/storefronts/[id] — market isolation", () => {
     });
     const res = await PATCH(req(), { params: Promise.resolve({ id: "sf-1" }) });
     expect(res.status).toBe(200);
+  });
+});
+
+describe("DELETE /api/storefronts/[id]", () => {
+  test("default (archive) soft-deletes: sets is_active=false, returns 204", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    let call = 0;
+    let updateChain: Record<string, unknown> | null = null;
+    mockFrom.mockImplementation(() => {
+      call++;
+      if (call === 1) return singleChain({ role: "super_admin", market_id: null }); // actor
+      if (call === 2) return singleChain(SF_TN); // existing lookup
+      updateChain = terminalEqChain({ error: null }); // update .. eq
+      return updateChain;
+    });
+    const res = await DELETE(delReq(false), { params: Promise.resolve({ id: "sf-1" }) });
+    expect(res.status).toBe(204);
+    expect((updateChain as unknown as { update: ReturnType<typeof vi.fn> }).update).toHaveBeenCalledWith({ is_active: false });
+  });
+
+  test("hard delete is blocked (409) when orders reference the storefront", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    let call = 0;
+    mockFrom.mockImplementation((table: string) => {
+      call++;
+      if (call === 1) return singleChain({ role: "super_admin", market_id: null }); // actor
+      if (call === 2) return singleChain(SF_TN); // existing lookup
+      if (table === "orders") return terminalEqChain({ count: 5, error: null }); // 5 orders reference it
+      return terminalEqChain({ error: null });
+    });
+    const res = await DELETE(delReq(true), { params: Promise.resolve({ id: "sf-1" }) });
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toMatch(/commande|référenc|order/i);
+  });
+
+  test("hard delete succeeds (204) when no orders reference the storefront", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    let call = 0;
+    let deleteChain: Record<string, unknown> | null = null;
+    mockFrom.mockImplementation((table: string) => {
+      call++;
+      if (call === 1) return singleChain({ role: "super_admin", market_id: null });
+      if (call === 2) return singleChain(SF_TN);
+      if (table === "orders") return terminalEqChain({ count: 0, error: null });
+      deleteChain = terminalEqChain({ error: null }); // delete .. eq
+      return deleteChain;
+    });
+    const res = await DELETE(delReq(true), { params: Promise.resolve({ id: "sf-1" }) });
+    expect(res.status).toBe(204);
+    expect((deleteChain as unknown as { delete: ReturnType<typeof vi.fn> }).delete).toHaveBeenCalled();
   });
 });
