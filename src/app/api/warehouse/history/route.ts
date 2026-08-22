@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { warehouseHistoryQuerySchema } from "@/lib/warehouse/list-filters";
 import { getWarehouseHistoryPage } from "@/lib/warehouse/history-fetch";
+import { resolveWarehouseScope } from "@/lib/warehouse/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,9 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = await createClient();
-  const scopeMarket = actor.role !== "super_admin" ? actor.market_id : null;
+  // Same rule as the rest of the console: a super-admin viewing Libye must not
+  // be handed a Tunisian ledger. This route used to pass null for them.
+  const { marketId: scopeMarket } = resolveWarehouseScope(req, actor);
   const page = await getWarehouseHistoryPage(supabase, parseResult.data, scopeMarket);
 
   return NextResponse.json(page, {

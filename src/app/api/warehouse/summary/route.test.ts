@@ -2,11 +2,13 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
+const mockRpc = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
     auth: { getUser: () => mockGetUser() },
     from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
   }),
 }));
 
@@ -45,8 +47,31 @@ function userProfileChain(profile: { role: string; market_id: string | null }) {
   return chain;
 }
 
+/**
+ * The summary reads four RPCs alongside its table queries. The mock answers
+ * each by name: an object where the route expects an object, a list where it
+ * expects rows. Without this the client had no `rpc` at all and every success
+ * case died on "supabase.rpc is not a function" before reaching an assertion.
+ */
+const RPC_RESULTS: Record<string, unknown> = {
+  get_warehouse_trend: [],
+  get_low_stock_products: [],
+  get_warehouse_queue_stats: {
+    to_prepare: 0, oldest_prepare_hours: 0, late_prepare: 0, never_scanned: 0,
+    confirmed_not_uploaded: 0, carrier_warehouse: 0, returns_inbox: 0, to_hand_over: 0,
+  },
+  get_warehouse_day_stats: {
+    scanned_today: 0, scanned_yesterday: 0, handed_today: 0,
+    handed_yesterday: 0, returns_today: 0, returns_yesterday: 0,
+  },
+  get_warehouse_leaderboard: [],
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
+  mockRpc.mockImplementation((name: string) =>
+    Promise.resolve({ data: RPC_RESULTS[name] ?? null, error: null }),
+  );
 });
 
 describe("GET /api/warehouse/summary — auth", () => {
@@ -88,6 +113,9 @@ describe("GET /api/warehouse/summary — success", () => {
     expect(Array.isArray(body.data.trend)).toBe(true);
     expect(Array.isArray(body.data.activity)).toBe(true);
     expect(Array.isArray(body.data.lowStock)).toBe(true);
+    expect(Array.isArray(body.data.leaderboard)).toBe(true);
+    expect(body.data.queue.toPrepare).toBe(0);
+    expect(body.data.day.scannedToday).toBe(0);
     expect(body.data.scope).toBe("single");
     expect(res.headers.get("Cache-Control")).toMatch(/max-age=2/);
   });

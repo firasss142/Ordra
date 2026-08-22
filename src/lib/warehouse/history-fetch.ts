@@ -19,7 +19,7 @@ export interface WarehouseActor {
 }
 
 export interface WarehouseHistoryRow {
-  kind: "print" | "scan" | "return" | "adjust" | "writeoff";
+  kind: "print" | "scan" | "handover" | "return" | "adjust" | "writeoff";
   id: string;
   order_id: string | null;
   order_number: string | null;
@@ -62,6 +62,25 @@ interface PrintRow {
   actor: ActorRow | null;
 }
 
+/**
+ * A handover is a status change, not a stock movement: the units left the
+ * shelf at scan-out. So it comes from order_history, carries no delta, and
+ * shows a solde of "—" in the ledger.
+ */
+interface HandoverRow {
+  id: string;
+  order_id: string;
+  created_at: string;
+  actor_id: string | null;
+  orders: {
+    order_number?: string | null;
+    customer_name?: string | null;
+    customer_city?: string | null;
+    product_name?: string | null;
+  } | null;
+  actor: ActorRow | null;
+}
+
 interface InvRow {
   id: string;
   order_id: string | null;
@@ -82,8 +101,10 @@ interface InvRow {
   actor: ActorRow | null;
 }
 
-function toKindCursor(kind: "print" | "scan" | "return" | "adjust" | "writeoff"): WarehouseHistoryKindCursor {
-  return kind === "print" ? "print" : "scan";
+function toKindCursor(kind: WarehouseHistoryRow["kind"]): WarehouseHistoryKindCursor {
+  if (kind === "print") return "print";
+  if (kind === "handover") return "handover";
+  return "scan";
 }
 
 function safeRole(r: string | null): WarehouseActor["role"] {
@@ -219,9 +240,10 @@ export async function getWarehouseHistoryPage(
 
   const kindSet = q.kind;
   const includePrints = kindSet === "all" || kindSet === "print";
-  const includeInventory = kindSet !== "print";
-  const bothStreams = includePrints && includeInventory;
-  const fetchLimit = bothStreams ? q.limit * 2 + 1 : q.limit + 1;
+  const includeHandovers = kindSet === "all" || kindSet === "handover";
+  const includeInventory = kindSet !== "print" && kindSet !== "handover";
+  const streams = [includePrints, includeHandovers, includeInventory].filter(Boolean).length;
+  const fetchLimit = streams > 1 ? q.limit * streams + 1 : q.limit + 1;
 
   // Determine which inventory reasons to include
   const scanReasons: string[] = [];
@@ -260,6 +282,31 @@ export async function getWarehouseHistoryPage(
     return { data: (data ?? []) as unknown as PrintRow[] };
   })();
 
+  const handoversPromise = (async () => {
+    // Filters that only make sense for stock rows exclude this stream
+    // entirely rather than silently returning unfiltered handovers.
+    if (!includeHandovers || q.product_id) return { data: [] as HandoverRow[] };
+    let qb = supabase
+      .from("order_history")
+      .select("id, order_id, created_at, actor_id, orders(order_number, customer_name, customer_city, product_name), actor:users!actor_id(id, full_name, role, avatar_url)")
+      .eq("status_to", "dispatched")
+      .order("created_at", { ascending: false })
+      .limit(fetchLimit);
+    if (scopeMarket) qb = qb.eq("market_id", scopeMarket);
+    if (cursor) qb = qb.lte("created_at", cursor.createdAt);
+    if (q.date_from) qb = qb.gte("created_at", q.date_from);
+    if (q.date_to) qb = qb.lte("created_at", q.date_to + "T23:59:59.999Z");
+    if (q.actor_id) qb = qb.eq("actor_id", q.actor_id);
+    if (q.q) {
+      const like = `%${q.q}%`;
+      qb = qb.or(`order_number.ilike.${like},customer_name.ilike.${like}`, {
+        foreignTable: "orders",
+      });
+    }
+    const { data } = await qb;
+    return { data: (data ?? []) as unknown as HandoverRow[] };
+  })();
+
   const scansPromise = (async () => {
     if (!includeInventory || scanReasons.length === 0) return { data: [] as InvRow[] };
     let qb = supabase
@@ -288,8 +335,9 @@ export async function getWarehouseHistoryPage(
     return { data: (data ?? []) as unknown as InvRow[] };
   })();
 
-  const [{ data: prints }, { data: scans }] = await Promise.all([
+  const [{ data: prints }, { data: handovers }, { data: scans }] = await Promise.all([
     printsPromise,
+    handoversPromise,
     scansPromise,
   ]);
 
@@ -315,6 +363,31 @@ export async function getWarehouseHistoryPage(
     is_reprint: !!p.is_reprint,
     note: null,
     actor: mapActor(p.actor),
+    anomalies: [],
+  }));
+
+  const handoverRows: WarehouseHistoryRow[] = handovers.map((h) => ({
+    kind: "handover" as const,
+    id: h.id,
+    order_id: h.order_id,
+    order_number: h.orders?.order_number ?? null,
+    product_id: null,
+    product_name: h.orders?.product_name ?? null,
+    qty_change: null,
+    balance_after: null,
+    at: h.created_at,
+    detail:
+      [
+        h.orders?.order_number ? `#${h.orders.order_number}` : null,
+        h.orders?.customer_name,
+        h.orders?.customer_city,
+      ]
+        .filter(Boolean)
+        .join(" · ") || "—",
+    is_damaged: false,
+    is_reprint: false,
+    note: null,
+    actor: mapActor(h.actor),
     anomalies: [],
   }));
 
@@ -354,7 +427,7 @@ export async function getWarehouseHistoryPage(
     };
   });
 
-  const merged = [...printRows, ...scanRows]
+  const merged = [...printRows, ...handoverRows, ...scanRows]
     .filter((r) => {
       if (!cursor) return true;
       if (r.at < cursor.createdAt) return true;

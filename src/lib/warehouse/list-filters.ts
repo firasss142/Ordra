@@ -1,11 +1,19 @@
 import { z } from "zod";
 
-export type WarehouseHistoryKind = "all" | "print" | "scan" | "return" | "adjust" | "writeoff";
+export type WarehouseHistoryKind =
+  | "all"
+  | "print"
+  | "scan"
+  | "handover"
+  | "return"
+  | "adjust"
+  | "writeoff";
 
 export const WAREHOUSE_HISTORY_KINDS: WarehouseHistoryKind[] = [
   "all",
   "print",
   "scan",
+  "handover",
   "return",
   "adjust",
   "writeoff",
@@ -121,7 +129,9 @@ export function clearWarehouseHistoryField(
 export const warehouseHistoryQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
-  kind: z.enum(["all", "print", "scan", "return", "adjust", "writeoff"]).default("all"),
+  kind: z
+    .enum(["all", "print", "scan", "handover", "return", "adjust", "writeoff"])
+    .default("all"),
   date_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   date_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   q: z.string().optional(),
@@ -134,7 +144,12 @@ export type WarehouseHistoryQuery = z.infer<typeof warehouseHistoryQuerySchema>;
 
 // ---------- Keyset cursor helpers ----------
 
-export type WarehouseHistoryKindCursor = "print" | "scan";
+/**
+ * Streams are merged by (created_at desc, kind desc, id desc), so the cursor
+ * carries which stream a row came from. Ordering is the plain string order:
+ * "handover" < "print" < "scan".
+ */
+export type WarehouseHistoryKindCursor = "print" | "scan" | "handover";
 
 export interface WarehouseHistoryCursor {
   createdAt: string;

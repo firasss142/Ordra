@@ -40,6 +40,7 @@ function formatRoleName(role: string): string {
 
 const KIND_TONE: Record<WarehouseHistoryRow["kind"], BadgeTone> = {
   scan: "success",
+  handover: "neutral",
   return: "success",
   print: "neutral",
   adjust: "warning",

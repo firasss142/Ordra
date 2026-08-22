@@ -459,7 +459,3 @@ export function TodayOverview({
     </div>
   );
 }
-
-// `locale` and `onOpenReturns` stay in the signature: the returns action row
-// gains its destination in the same pass that lands the Retours console.
-void 0;
