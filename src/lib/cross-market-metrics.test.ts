@@ -81,6 +81,22 @@ describe("computeCrossMarketMetrics", () => {
     expect(ly.last_order_at).toBe(orders[0].created_at);
   });
 
+  it("uses the out-of-window last-order date for a dormant market", () => {
+    // TN's last order is weeks old — outside the 30d order set — so the card
+    // needs the true date to render 'en sommeil' instead of a blank zero card.
+    const res = computeCrossMarketMetrics({
+      now: NOW,
+      marketIds: ["tn"],
+      orders: [], // nothing in the 30d window
+      agents: [],
+      storefronts: [],
+      carriers: [],
+      lastOrderByMarket: { tn: "2026-07-07T09:00:00.000Z" },
+    });
+    expect(res[0].last_order_at).toBe("2026-07-07T09:00:00.000Z");
+    expect(res[0].window_30d.received).toBe(0);
+  });
+
   it("counts an agent as online only within the ONLINE_MINUTES window", () => {
     const res = computeCrossMarketMetrics({
       now: NOW,

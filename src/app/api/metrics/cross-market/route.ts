@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     supabase
       .from("users")
       .select("market_id, is_active, last_seen_at")
-      .in("role", ["agent", "market_manager"]),
+      .eq("role", "agent"),
     supabase.from("storefronts").select("market_id, is_active"),
     supabase.from("carriers").select("market_id, is_active"),
   ]);
@@ -50,6 +50,22 @@ export async function GET(req: NextRequest) {
   }
 
   const markets = (marketsRes.data ?? []) as { id: string; code: string; name: string }[];
+
+  // True last-order date per market, unbounded by the 30d window — otherwise a
+  // dormant market reports null and the card can't show "en sommeil".
+  const lastOrderPairs = await Promise.all(
+    markets.map(async (m) => {
+      const { data } = await supabase
+        .from("orders")
+        .select("created_at")
+        .eq("market_id", m.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      return [m.id, (data?.[0]?.created_at as string | undefined) ?? null] as const;
+    }),
+  );
+  const lastOrderByMarket = Object.fromEntries(lastOrderPairs);
+
   const metrics = computeCrossMarketMetrics({
     now,
     marketIds: markets.map((m) => m.id),
@@ -57,6 +73,7 @@ export async function GET(req: NextRequest) {
     agents: (agentsRes.data ?? []) as { market_id: string; is_active: boolean; last_seen_at: string | null }[],
     storefronts: (sfRes.data ?? []) as { market_id: string; is_active: boolean }[],
     carriers: (caRes.data ?? []) as { market_id: string; is_active: boolean }[],
+    lastOrderByMarket,
   });
 
   return NextResponse.json({ data: metrics });

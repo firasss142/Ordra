@@ -70,6 +70,13 @@ interface Input {
   agents: AgentRow[];
   storefronts: ConnRow[];
   carriers: ConnRow[];
+  /**
+   * True last-order timestamp per market, from a query NOT bounded by the 30-day
+   * window — otherwise a dormant market (last order weeks ago) reports null and
+   * the card can't tell "in sommeil" from "brand new". Optional: falls back to
+   * the newest in-window order when absent.
+   */
+  lastOrderByMarket?: Record<string, string | null>;
 }
 
 function pct(numerator: number, denominator: number): number {
@@ -82,7 +89,7 @@ function startOfUtcDay(d: Date): number {
 }
 
 export function computeCrossMarketMetrics(input: Input): CrossMarketMetrics[] {
-  const { now, marketIds, orders, agents, storefronts, carriers } = input;
+  const { now, marketIds, orders, agents, storefronts, carriers, lastOrderByMarket } = input;
   const nowMs = now.getTime();
   const cut7d = nowMs - 7 * DAY_MS;
   const cut30d = nowMs - 30 * DAY_MS;
@@ -153,7 +160,7 @@ export function computeCrossMarketMetrics(input: Input): CrossMarketMetrics[] {
       storefronts_active: sfHere.filter((s) => s.is_active).length,
       carriers_total: caHere.length,
       carriers_active: caHere.filter((c) => c.is_active).length,
-      last_order_at: lastOrderIso,
+      last_order_at: lastOrderByMarket?.[market_id] ?? lastOrderIso,
       spark_7d: spark,
     };
   });
