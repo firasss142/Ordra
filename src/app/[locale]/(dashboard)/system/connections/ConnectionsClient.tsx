@@ -48,7 +48,7 @@ export function ConnectionsClient({ user, readOnly = false, markets }: Props) {
   const searchParams = useSearchParams();
   const requested = searchParams?.get("tab");
   const [tab, setTab] = useState<string>(
-    requested && TABS.some((t) => t.key === requested) ? requested : "storefronts",
+    requested && TABS.some((t) => t.key === requested) ? requested : "overview",
   );
 
   return (
@@ -78,7 +78,7 @@ export function ConnectionsClient({ user, readOnly = false, markets }: Props) {
       )}
 
       {tab === "overview" && (
-        <OverviewPanel marketId={marketId} onNavigate={setTab} />
+        <OverviewPanel onNavigate={setTab} />
       )}
     </div>
   );
