@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Noto_Sans_Arabic, Cairo } from "next/font/google";
+import { Inter, Noto_Sans_Arabic, Cairo, IBM_Plex_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, unstable_setRequestLocale as setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -28,6 +28,19 @@ const notoArabic = Noto_Sans_Arabic({
   display: "swap",
   variable: "--font-sans-arabic",
   weight: ["400", "500", "600"],
+});
+
+/*
+ * The Entrepôt console sets every figure in mono — stock counts, sticker
+ * numbers, amounts, ages. On a packing bench the numbers ARE the content, and
+ * a fixed advance keeps a column of them from shifting as they change.
+ * Loaded here so the whole app can opt in; only .wh-console does today.
+ */
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-mono",
+  weight: ["500", "600", "700"],
 });
 
 const cairo = Cairo({
@@ -73,7 +86,7 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       dir={dir}
-      className={`${inter.variable} ${notoArabic.variable} ${cairo.variable}`}
+      className={`${inter.variable} ${notoArabic.variable} ${cairo.variable} ${plexMono.variable}`}
     >
       <body>
         <NextIntlClientProvider locale={locale} messages={messages}>

@@ -9,6 +9,15 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
+        /* Entrepôt console figures. See the --wh-* block in globals.css. */
+        mono: [
+          "var(--font-mono)",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Consolas",
+          "monospace",
+        ],
         sans: [
           "var(--font-sans)",
           "var(--font-sans-arabic)",
