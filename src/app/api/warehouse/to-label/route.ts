@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
+import { SCOPE_COOKIE } from "@/lib/auth/market-scope";
+import { isValidScope, scopeToMarketId } from "@/lib/markets";
 import {
   buildQueuePageMeta,
   clampQueueLimit,
@@ -33,8 +35,24 @@ export async function GET(req: NextRequest) {
   const cursor = decodeQueueCursor(req.nextUrl.searchParams.get("cursor"));
 
   const supabase = await createClient();
+
+  /*
+   * Super-admins pick a market in the topbar, and the packing bench must obey
+   * it: this route used to pass null for them, so a super-admin with "Libye"
+   * selected got Tunisian orders in the Libyan queue — cross-market work on a
+   * screen whose scan flow is market-specific.
+   * An explicit ?market_id wins; otherwise the scope cookie decides.
+   */
+  const requested = req.nextUrl.searchParams.get("market_id");
+  const cookieScope = req.cookies.get(SCOPE_COOKIE)?.value;
   const marketScope =
-    actor.role !== "super_admin" && actor.market_id ? actor.market_id : null;
+    actor.role !== "super_admin"
+      ? (actor.market_id ?? null)
+      : requested && requested !== "all"
+        ? requested
+        : isValidScope(cookieScope)
+          ? scopeToMarketId(cookieScope)
+          : null;
 
   const { data, error } = await supabase.rpc("get_to_label_orders", {
     p_market_id: marketScope,

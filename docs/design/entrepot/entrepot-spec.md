@@ -1,3 +1,13 @@
+> ## ⚠️ SUPERSEDED — ne pas suivre pour l'apparence
+>
+> Ce document transcrit les **cinq maquettes sombres du 19 août 2026**, qui ont été
+> **abandonnées**. La console Entrepôt est **claire**. La référence est
+> [`entrepot-light.html`](./entrepot-light.html) — voir [README.md](./README.md).
+>
+> Conservé pour l'historique des décisions (anatomie des KPI, règles de sévérité,
+> raisonnement produit). **Aucune de ses couleurs ni son fond sombre ne s'applique.**
+> En cas de contradiction, le prototype clair gagne.
+
 # Entrepôt — spécification visuelle
 
 Transcription des cinq maquettes validées. Chaque section décrit un écran composant par

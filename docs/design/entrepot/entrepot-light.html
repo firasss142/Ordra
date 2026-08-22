@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entrepôt — OMS (thème clair)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#F6F7F5; --card:#FFFFFF; --sunken:#EFF1ED; --line:#E5E7E2; --line-strong:#CFD3CB;
+  --ink-1:#1B1D1A; --ink-2:#585C54; --ink-3:#8B8F85;
+  --green:#0E7A45; --green-hover:#0B633A; --green-bg:#E7F4ED; --green-tint:#F2FAF5;
+  --violet:#6553C4; --violet-bg:#F0EDFB;
+  --amber:#92600A; --amber-bg:#FAF0DA;
+  --red:#B23A2E; --red-bg:#FBECE8;
+  --teal:#0C7180; --teal-bg:#E4F1F3;
+  --glow:0 0 0 3px rgba(14,122,69,.16), 0 0 18px rgba(14,122,69,.22);
+  --shadow:0 1px 2px rgba(27,29,26,.05);
+  --shadow-lift:0 4px 14px rgba(27,29,26,.08);
+  --shadow-pop:0 14px 34px rgba(27,29,26,.16);
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Consolas,monospace;
+  --r:12px; --r-sm:8px; --pill:999px;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--ground);color:var(--ink-1);font:14px/1.45 Inter,"Noto Sans Arabic",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:none;padding:0}
+:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(14,122,69,.28);border-radius:6px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+bdi{unicode-bidi:isolate}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ---- chrome ---- */
+.tabband{display:flex;gap:4px;padding:8px 26px 0;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:40}
+.tab{display:inline-flex;align-items:center;gap:7px;padding:9px 14px 11px;font-size:13.5px;font-weight:500;color:var(--ink-2);border-bottom:2px solid transparent;margin-bottom:-1px;border-radius:8px 8px 0 0;transition:color .12s,background .12s}
+.tab:hover{color:var(--ink-1);background:var(--sunken)}
+.tab[aria-current]{color:var(--green);border-bottom-color:var(--green);font-weight:600}
+.tab .cnt{font-family:var(--mono);font-size:11px;font-weight:600;background:var(--sunken);color:var(--ink-2);padding:1px 7px;border-radius:var(--pill)}
+.tab[aria-current] .cnt{background:var(--green-bg);color:var(--green)}
+.page{max-width:1460px;margin:0 auto;padding:26px 26px 90px}
+.screen[hidden]{display:none}
+.ph{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.ph h1{margin:0;font-size:24px;font-weight:700;letter-spacing:-.02em}
+.ph p{margin:5px 0 0;color:var(--ink-2);font-size:13px}
+.ph-actions{margin-left:auto;display:flex;gap:9px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-size:13.5px;font-weight:600;box-shadow:var(--shadow);transition:background .12s,border-color .12s,transform .08s,box-shadow .12s}
+.btn:hover{border-color:var(--line-strong);background:var(--sunken)}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 1px 2px rgba(14,122,69,.4)}
+.btn-primary:hover{background:var(--green-hover);border-color:var(--green-hover);box-shadow:0 3px 10px rgba(14,122,69,.35)}
+.btn-sm{padding:5px 11px;font-size:12.5px;border-radius:8px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.ico{width:16px;height:16px;flex:0 0 auto}
+
+/* ---- cards / kpis ---- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:center;gap:9px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.card-h h2{margin:0;font-size:14.5px;font-weight:650}
+.card-h .sub{font-size:12px;color:var(--ink-3)}
+.card-h .right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.pipeline{display:grid;grid-template-columns:repeat(5,1fr);background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:18px;overflow:hidden}
+.pcell{padding:18px 20px 16px;display:flex;gap:14px;align-items:flex-start;position:relative}
+.pcell + .pcell{border-left:1px solid var(--line)}
+.pcell .pi{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;flex:0 0 42px}
+.pcell .pv{font-family:var(--mono);font-size:30px;font-weight:700;line-height:1;letter-spacing:-.02em}
+.pcell .pl{font-size:10.5px;font-weight:650;letter-spacing:.08em;color:var(--ink-3);text-transform:uppercase;margin-top:5px}
+.pcell .pb{position:absolute;left:20px;right:20px;bottom:0;height:3px;border-radius:3px 3px 0 0}
+.pcell.dim{opacity:.5}
+.chipmini{display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:2.5px 9px;border-radius:var(--pill);font-size:11.5px;font-weight:600}
+.c-amber{background:var(--amber-bg);color:var(--amber)}
+.c-green{background:var(--green-bg);color:var(--green)}
+.c-red{background:var(--red-bg);color:var(--red)}
+.c-violet{background:var(--violet-bg);color:var(--violet)}
+.c-teal{background:var(--teal-bg);color:var(--teal)}
+.c-mute{background:var(--sunken);color:var(--ink-2)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-bottom:18px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px 18px;transition:box-shadow .14s,transform .14s,border-color .14s}
+.kpi:hover{box-shadow:var(--shadow-lift);transform:translateY(-1px);border-color:var(--line-strong)}
+.kpi .kl{display:flex;align-items:center;gap:9px;font-size:10.5px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.kpi .kl .ki{width:30px;height:30px;border-radius:9px;display:grid;place-items:center}
+.kpi .kv{margin-top:9px;font-family:var(--mono);font-size:29px;font-weight:700;line-height:1.05;letter-spacing:-.02em;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.kpi .kv .u{font-size:13px;color:var(--ink-3);font-weight:600}
+.kpi .kn{margin-top:6px;font-size:12px;color:var(--ink-2)}
+.kpi .kf{margin-top:12px;padding-top:11px;border-top:1px solid var(--line);display:flex;gap:0}
+.kpi .kf>div{flex:1}
+.kpi .kf>div+div{border-left:1px solid var(--line);padding-left:13px}
+.kpi .kf .fv{font-family:var(--mono);font-size:13.5px;font-weight:650}
+.kpi .kf .fl{font-size:11.5px;color:var(--ink-3);margin-top:1px}
+.kpi.edge-amber{border-color:#E8CFA0;box-shadow:var(--shadow),inset 0 2px 0 var(--amber)}
+.kpi.edge-red{border-color:#E6B3AC;box-shadow:var(--shadow),inset 0 2px 0 var(--red)}
+.kpi.edge-green{box-shadow:var(--shadow),inset 0 2px 0 var(--green)}
+.kpi.dim .kv,.kpi.dim .kl{color:var(--ink-3)}
+.prog{height:6px;border-radius:var(--pill);background:var(--sunken);overflow:hidden;margin-top:10px}
+.prog i{display:block;height:100%;background:var(--green);border-radius:var(--pill)}
+
+/* ---- overview layout ---- */
+.ov-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(340px,1fr);gap:16px;align-items:start}
+@media(max-width:1120px){.ov-grid{grid-template-columns:1fr}}
+.act{display:flex;gap:13px;align-items:flex-start;padding:14px 18px;border-top:1px solid var(--line);transition:background .1s;position:relative}
+.act:hover{background:var(--sunken)}
+.act:first-of-type{border-top:none}
+.act .aic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:0 0 36px}
+.act .ab b{display:block;font-size:13.5px;font-weight:650}
+.act .ab span{display:block;font-size:12.5px;color:var(--ink-2);margin-top:2px}
+.act .an{margin-left:auto;display:flex;align-items:center;gap:9px;white-space:nowrap}
+.act .an .n{font-family:var(--mono);font-size:16px;font-weight:700}
+.act .an .nu{font-size:11.5px;color:var(--ink-3)}
+.act.top{box-shadow:inset 3px 0 0 var(--red)}
+.chev{color:var(--ink-3)}
+.rk{display:flex;gap:13px;align-items:center;padding:15px 18px;border-top:1px solid var(--line)}
+.rk:first-of-type{border-top:none}
+.rk .rn{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink-3);width:14px}
+.rk .rav{width:38px;height:38px;border-radius:var(--pill);display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff}
+.rk .rb{flex:1;min-width:0}
+.rk .rb b{font-size:14px;font-weight:650}
+.rk .rb span{display:block;font-size:12px;color:var(--ink-2);margin-top:2px}
+.rk .rr{flex:0 0 190px}
+.rk .rv{font-family:var(--mono);font-size:19px;font-weight:700;text-align:right;letter-spacing:-.01em}
+.rk .rv .u{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.race{position:relative;height:8px;border-radius:var(--pill);background:var(--sunken);margin-top:7px}
+.race i{position:absolute;inset:0 auto 0 0;border-radius:var(--pill)}
+.race .tick{position:absolute;top:-3px;bottom:-3px;width:2.5px;background:var(--ink-1);border-radius:2px}
+.rk .gap{font-size:11.5px;color:var(--ink-3);text-align:right;margin-top:5px;font-family:var(--mono)}
+.obj{display:flex;align-items:center;gap:8px;padding:11px 18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-2);background:var(--sunken);border-radius:0 0 var(--r) var(--r)}
+.vs{display:grid;grid-template-columns:repeat(3,1fr)}
+.vs>div{padding:15px 18px;text-align:left}
+.vs>div+div{border-left:1px solid var(--line)}
+.vs .vl{font-size:12px;color:var(--ink-2)}
+.vs .vv{font-family:var(--mono);font-size:23px;font-weight:700;margin-top:5px}
+.vs .vd{font-size:12px;font-weight:650;margin-top:4px;display:inline-flex;align-items:center;gap:4px}
+.chartwrap{padding:10px 18px 16px}
+.leg{display:flex;gap:16px;font-size:12px;color:var(--ink-2);padding:12px 18px 0}
+.leg .k{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:-1px}
+
+/* ---- prep ---- */
+.work{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(360px,.9fr);gap:16px;align-items:start}
+@media(max-width:1120px){.work{grid-template-columns:1fr}}
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.search{display:flex;align-items:center;gap:9px;padding:9px 13px;border:1px solid var(--line);border-radius:10px;background:var(--card);flex:1;min-width:240px;box-shadow:var(--shadow)}
+.search input{border:none;background:none;outline:none;box-shadow:none;width:100%;font-size:13px}
+.kbd{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);border:1px solid var(--line);border-radius:5px;padding:1px 6px;background:var(--sunken)}
+.fpill{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:var(--pill);border:1px solid var(--line);background:var(--card);font-size:12.5px;font-weight:600;color:var(--ink-2);box-shadow:var(--shadow)}
+.fpill:hover{border-color:var(--line-strong)}
+.fpill.warn{border-color:#E8CFA0;background:var(--amber-bg);color:var(--amber)}
+.fpill .fb{font-family:var(--mono);font-size:11px;background:var(--amber);color:#fff;border-radius:var(--pill);padding:0 6px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 14px;font-size:10.5px;font-weight:650;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr{transition:background .1s}
+tbody tr:hover{background:var(--sunken)}
+tr.taken{background:var(--green-tint);box-shadow:inset 3px 0 0 var(--green)}
+tr.taken:hover{background:var(--green-tint)}
+td.num,th.num{text-align:right}
+.regband td{background:var(--sunken);padding:7px 14px;font-size:11.5px;font-weight:650;color:var(--ink-2);letter-spacing:.04em}
+.regband:hover td{background:var(--sunken)}
+.regband .rc{float:right;color:var(--ink-3);font-weight:600;text-transform:none;letter-spacing:0}
+.pdot{display:inline-block;width:8px;height:8px;border-radius:var(--pill);margin-right:8px;vertical-align:1px}
+.oc b{display:block;font-size:13.5px;font-weight:650}
+.oc span{display:block;font-size:11.5px;color:var(--ink-3);font-family:var(--mono)}
+.thumb{width:34px;height:34px;border-radius:8px;background:var(--sunken);border:1px solid var(--line);display:grid;place-items:center;font-size:15px}
+.age{display:inline-block;font-family:var(--mono);font-size:11.5px;font-weight:650;padding:2.5px 9px;border-radius:var(--pill)}
+.a-ok{background:var(--sunken);color:var(--ink-2)}
+.a-warn{background:var(--amber-bg);color:var(--amber)}
+.a-bad{background:var(--red-bg);color:var(--red)}
+.sdot{display:inline-block;width:7px;height:7px;border-radius:var(--pill);margin-left:7px;vertical-align:1px}
+.selbar{position:sticky;bottom:0;display:none;align-items:center;gap:12px;padding:12px 16px;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);border-top:1px solid var(--line-strong);border-radius:0 0 var(--r) var(--r);box-shadow:0 -6px 16px rgba(27,29,26,.06)}
+.selbar.on{display:flex}
+.selbar .sn{font-weight:650;font-size:13px}
+.selbar .sp{margin-left:auto;display:flex;gap:9px}
+input[type=checkbox]{width:15px;height:15px;accent-color:var(--green)}
+
+/* ---- scan station ---- */
+.scanpanel .card-h h2{display:flex;gap:8px;align-items:center}
+.handtile{margin:16px;border:1px solid var(--line);border-radius:11px;padding:14px 15px;background:var(--sunken)}
+.handtile .hl{font-size:10.5px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);display:flex;align-items:center}
+.handtile .hl .reg{margin-left:auto}
+.handtile .hn{font-size:16px;font-weight:700;margin-top:7px}
+.handtile .hm{font-size:12.5px;color:var(--ink-2);margin-top:2px}
+.handtile .hs{font-family:var(--mono);font-size:12.5px;color:var(--ink-2);margin-top:7px}
+.scanin{margin:0 16px;display:flex;align-items:center;gap:11px;padding:14px 16px;border:2px solid var(--green);border-radius:12px;background:var(--card);box-shadow:var(--glow);transition:box-shadow .15s}
+.scanin input{flex:1;border:none;outline:none;box-shadow:none;background:none;font-family:var(--mono);font-size:16px;font-weight:600;letter-spacing:.04em}
+.scanin input::placeholder{font-family:Inter,sans-serif;font-weight:500;font-size:13.5px;letter-spacing:0;color:var(--ink-3)}
+.scanfb{margin:14px 16px 0;border-radius:11px;padding:14px 15px;display:none}
+.scanfb.on{display:block;animation:pop .25s ease-out}
+.scanfb.ok{background:var(--green-bg);border:1px solid #BCE0CB}
+.scanfb.err{background:var(--red-bg);border:1px solid #EBC3BC}
+.scanfb .fh{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:650;letter-spacing:.08em;text-transform:uppercase}
+.scanfb.ok .fh{color:var(--green)} .scanfb.err .fh{color:var(--red)}
+.scanfb .fv{font-family:var(--mono);font-size:19px;font-weight:700;margin-top:6px;letter-spacing:.02em}
+.scanfb .fs{font-family:var(--mono);font-size:12.5px;color:var(--ink-2);margin-top:4px}
+@keyframes pop{from{transform:scale(.97);opacity:.4}to{transform:none;opacity:1}}
+.lastscans{margin:16px}
+.lastscans .lh{font-size:10.5px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+.ls{display:flex;align-items:center;gap:9px;padding:8px 2px;border-top:1px solid var(--line);font-family:var(--mono);font-size:12px}
+.ls:first-of-type{border-top:none}
+.ls .lt{margin-left:auto;color:var(--ink-3)}
+.ls .lst{font-weight:650}
+.warnnote{margin:0;padding:12px 16px;border-top:1px solid var(--line);background:var(--sunken);color:var(--ink-2);font-size:12px;display:flex;gap:9px;border-radius:0 0 var(--r) var(--r)}
+
+/* ---- returns ---- */
+.reasons{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:11px 18px;margin-bottom:16px}
+.reasons .rl{font-size:10.5px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-right:6px}
+.rchip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--line);border-radius:var(--pill);font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--card)}
+.rchip .rn{font-family:var(--mono);font-size:11px;font-weight:650;background:var(--sunken);border-radius:var(--pill);padding:1px 7px}
+.rrow{display:flex;align-items:center;gap:13px;padding:13px 18px;border-top:1px solid var(--line);transition:background .1s}
+.rrow:hover{background:var(--sunken)}
+.rrow:first-of-type{border-top:none}
+.rrow .bell{color:var(--red);flex:0 0 16px}
+.rrow .bell.off{visibility:hidden}
+.rrow .oc{flex:1.2;min-width:0}
+.rrow .pr{flex:1.1;font-size:12.5px;color:var(--ink-2)}
+.rrow .val{flex:0 0 92px;text-align:right;font-family:var(--mono);font-weight:650;font-size:13px}
+.reason{display:inline-block;padding:3px 10px;border-radius:var(--pill);background:var(--sunken);font-size:11.5px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.steps{display:flex;align-items:center;gap:8px;margin:16px;color:var(--ink-3);font-size:12px}
+.steps .st{display:flex;flex-direction:column;align-items:center;gap:5px}
+.steps .sc{width:24px;height:24px;border-radius:var(--pill);border:1.5px solid var(--line-strong);display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:650}
+.steps .st.on .sc{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.steps .st.on{color:var(--green);font-weight:600}
+.steps .dash{flex:1;border-top:1.5px dashed var(--line-strong);margin-top:-16px}
+.dtiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:4px 16px 12px}
+.dtile{border:1.5px solid var(--line);border-radius:11px;padding:16px 12px;text-align:center;background:var(--card);opacity:.55;transition:opacity .15s,border-color .15s,background .15s,transform .1s}
+.dtile b{display:block;font-size:12.5px;margin-top:9px}
+.dtile span{display:block;font-size:11px;color:var(--ink-2);margin-top:4px;line-height:1.35}
+.dtile.g{border-color:#BCE0CB;color:var(--green)}
+.dtile.r{border-color:#EBC3BC;color:var(--red)}
+.dtile.t{border-color:#BBD9DE;color:var(--teal)}
+.dtiles.armed .dtile{opacity:1;cursor:pointer}
+.dtiles.armed .dtile:hover{transform:translateY(-2px);box-shadow:var(--shadow-lift)}
+.dtile.picked.g{background:var(--green-bg)}
+.dtile.picked.r{background:var(--red-bg)}
+.dtile.picked.t{background:var(--teal-bg)}
+.locknote{display:flex;align-items:center;gap:8px;margin:0 16px 16px;font-size:12px;color:var(--ink-3)}
+.decsel{margin:16px;border:1px solid var(--line);border-radius:11px;padding:13px 15px;background:var(--sunken);display:none}
+.decsel.on{display:block}
+.spark{display:block}
+
+/* ---- journal ---- */
+.jfilters{display:flex;gap:7px;flex-wrap:wrap}
+.jpill{padding:6px 13px;border-radius:var(--pill);border:1px solid var(--line);background:var(--card);font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.jpill:hover{border-color:var(--line-strong)}
+.jpill[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:#fff}
+.jtable-wrap{max-height:640px;overflow-y:auto}
+.dayband td{position:sticky;top:0;background:var(--sunken);z-index:5;font-size:11px;font-weight:650;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2);padding:7px 14px;border-bottom:1px solid var(--line)}
+.dayband .dc{font-family:var(--mono);background:var(--card);border:1px solid var(--line);border-radius:var(--pill);padding:0 7px;margin-left:8px;font-size:10.5px}
+.tchip{display:inline-flex;align-items:center;gap:5px;padding:2.5px 10px;border-radius:var(--pill);font-size:11.5px;font-weight:600;white-space:nowrap}
+.jr td:first-child{font-family:var(--mono);color:var(--ink-3);font-size:12px;white-space:nowrap}
+.jr .ev{font-size:13px}
+.jr .ev .sep{color:var(--ink-3);margin:0 6px}
+.jr .op{color:var(--ink-2);font-size:12.5px}
+.jr td.delta{white-space:nowrap;font-family:var(--mono);font-size:12.5px;text-align:right}
+.jr td.delta .d{font-weight:700}
+.jr td.delta .arr{color:var(--ink-3);margin:0 5px}
+.jr td.delta .sol{color:var(--ink-2)}
+.jr.anom{box-shadow:inset 3px 0 0 var(--amber);background:#FDFAF2}
+.jchip{display:inline-block;margin-left:8px;padding:1.5px 8px;border-radius:var(--pill);background:var(--amber-bg);color:var(--amber);font-size:10.5px;font-weight:650}
+.copy{color:var(--ink-3);border-radius:6px;padding:4px;transition:color .12s,background .12s}
+.copy:hover{color:var(--ink-1);background:var(--sunken)}
+.jfoot{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:11px 18px;border-top:1px solid var(--line);background:var(--sunken);font-size:11.5px;color:var(--ink-2);border-radius:0 0 var(--r) var(--r)}
+.jfoot .k{width:8px;height:8px;border-radius:var(--pill);display:inline-block;margin-right:5px}
+
+/* ---- toasts ---- */
+.toasts{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:80;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+.toast{background:var(--ink-1);color:#fff;padding:10px 17px;border-radius:var(--pill);font-size:13px;font-weight:600;box-shadow:var(--shadow-pop);animation:rise .22s ease-out}
+.toast.ok{background:var(--green)}
+.toast.err{background:var(--red)}
+@keyframes rise{from{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}
+</style>
+</head>
+<body>
+<nav class="tabband" aria-label="Sections">
+  <button class="tab" data-go="today" aria-current="page">Aujourd'hui</button>
+  <button class="tab" data-go="prep">Préparation <span class="cnt">17</span></button>
+  <button class="tab" data-go="returns">Retours <span class="cnt">6</span></button>
+  <button class="tab" data-go="journal">Journal</button>
+</nav>
+
+<main class="page">
+
+<!-- ============ AUJOURD'HUI ============ -->
+<section class="screen" id="sc-today">
+  <div class="ph">
+    <div><h1>Entrepôt</h1><p>Vue opérationnelle · Libye · Darb Assabil</p></div>
+    <div class="ph-actions">
+      <button class="btn" data-go="journal"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>Journal</button>
+      <button class="btn btn-primary" data-go="prep"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8V6a2 2 0 0 0-2-2h-2M3 8V6a2 2 0 0 1 2-2h2m10 16h2a2 2 0 0 0 2-2v-2M7 20H5a2 2 0 0 1-2-2v-2M8 12h8"/></svg>Préparer</button>
+    </div>
+  </div>
+
+  <div class="pipeline">
+    <div class="pcell"><div class="pi" style="background:var(--amber-bg);color:var(--amber)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7z"/></svg></div>
+      <div><div class="pv">17</div><div class="pl">À préparer</div><span class="chipmini c-amber">Plus ancien : 4 j</span></div><i class="pb" style="background:var(--amber);width:38%"></i></div>
+    <div class="pcell"><div class="pi" style="background:var(--violet-bg);color:var(--violet)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2m10 0h2a2 2 0 0 1 2 2v2m0 10v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></svg></div>
+      <div><div class="pv">11</div><div class="pl">Scannées</div><span class="chipmini c-green">+3 vs objectif</span></div><i class="pb" style="background:var(--violet);width:28%"></i></div>
+    <div class="pcell"><div class="pi" style="background:var(--green-bg);color:var(--green)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17h-2v-6l3-5h9v11"/><path d="M15 17h-5"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="17.5" cy="17.5" r="1.5"/><path d="M15 6h4l2 5v6h-2"/></svg></div>
+      <div><div class="pv">14</div><div class="pl">Remis</div></div><i class="pb" style="background:var(--green);width:35%"></i></div>
+    <div class="pcell"><div class="pi" style="background:var(--teal-bg);color:var(--teal)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v1"/></svg></div>
+      <div><div class="pv">6</div><div class="pl">Retours</div></div><i class="pb" style="background:var(--teal);width:15%"></i></div>
+    <div class="pcell dim"><div class="pi" style="background:var(--sunken);color:var(--ink-3)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/></svg></div>
+      <div><div class="pv">0</div><div class="pl">Stock bas</div><span class="chipmini c-mute"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>aucun</span></div></div>
+  </div>
+
+  <div class="ov-grid">
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <div class="card">
+        <div class="card-h"><h2>Actions prioritaires</h2><div class="right"><span class="sub">TOTAL À RATTRAPER</span><b class="num" style="font-size:17px">478</b></div></div>
+        <div class="act top"><div class="aic" style="background:var(--red-bg);color:var(--red)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
+          <div class="ab"><b>Rattraper les commandes jamais scannées</b><span>Étiquetées chez Darb, toujours comptées dans notre stock.</span></div>
+          <div class="an"><span class="n">427</span><span class="nu">cmdes</span><svg class="ico chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div></div>
+        <div class="act"><div class="aic" style="background:var(--amber-bg);color:var(--amber)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+          <div class="ab"><b>Sortir les colis en retard</b><span>Le plus ancien attend 4 j · le transporteur facture le dépôt tardif.</span></div>
+          <div class="an"><span class="n">5</span><span class="nu">colis</span><svg class="ico chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div></div>
+        <div class="act"><div class="aic" style="background:var(--green-bg);color:var(--green)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg></div>
+          <div class="ab"><b>Envoyer les confirmées au transporteur</b><span>Sans téléchargement, elles n'arriveront jamais en préparation.</span></div>
+          <div class="an"><span class="n">10</span><span class="nu">cmdes</span><svg class="ico chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div></div>
+        <div class="act"><div class="aic" style="background:var(--violet-bg);color:var(--violet)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17h-2v-6l3-5h9v11"/><path d="M15 17h-5"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="17.5" cy="17.5" r="1.5"/><path d="M15 6h4l2 5v6h-2"/></svg></div>
+          <div class="ab"><b>Suivre les colis servis par Darb</b><span>Expédiés de leur entrepôt — aucun scan attendu de notre côté.</span></div>
+          <div class="an"><span class="n">36</span><span class="nu">cmdes</span><svg class="ico chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Activité</h2><span class="sub">14 derniers jours</span></div>
+        <div class="leg"><span><span class="k" style="background:var(--green)"></span>Sorties scannées</span><span><span class="k" style="background:var(--violet)"></span>Retours traités</span></div>
+        <div class="chartwrap"><svg id="ovChart" viewBox="0 0 640 190" width="100%" role="img" aria-label="Activité des 14 derniers jours"></svg></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <div class="card">
+        <div class="card-h"><h2>Classement</h2><span class="sub" title="Sorties scannées par heure de présence — un agent à mi-temps n'est pas un agent lent.">ⓘ</span></div>
+        <div class="rk"><span class="rn">1</span><span class="rav" style="background:var(--green)">SA</span>
+          <div class="rb"><b>Salima</b><span>38 sorties · 4 h actives</span><div class="race"><i style="background:var(--green);width:96%"></i><span class="tick" style="left:60%"></span></div></div>
+          <div class="rr"><div class="rv num">4,8 <span class="u">/h</span></div></div></div>
+        <div class="rk"><span class="rn">2</span><span class="rav" style="background:var(--violet)">HE</span>
+          <div class="rb"><b>Hend</b><span>26 sorties · 5 h actives</span><div class="race"><i style="background:var(--violet);width:66%"></i><span class="tick" style="left:60%"></span></div></div>
+          <div class="rr"><div class="rv num">3,3 <span class="u">/h</span></div><div class="gap">−1,5 /h vs Salima</div></div></div>
+        <div class="rk"><span class="rn">3</span><span class="rav" style="background:var(--teal)">TA</span>
+          <div class="rb"><b>Tasnim</b><span>19 sorties · 6 h actives</span><div class="race"><i style="background:var(--teal);width:48%"></i><span class="tick" style="left:60%"></span></div></div>
+          <div class="rr"><div class="rv num">2,4 <span class="u">/h</span></div><div class="gap">−0,9 /h vs Hend</div></div></div>
+        <div class="obj"><span style="display:inline-block;width:2.5px;height:14px;background:var(--ink-1);border-radius:2px"></span>Objectif : <b class="num">3,0 /h</b></div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Aujourd'hui vs hier</h2></div>
+        <div class="vs">
+          <div><div class="vl">Sorties scannées</div><div class="vv">14</div><span class="vd" style="color:var(--green)">▲ 27 %</span></div>
+          <div><div class="vl">Retours traités</div><div class="vv">6</div><span class="vd" style="color:var(--red)">▼ 14 %</span></div>
+          <div><div class="vl">Remis</div><div class="vv">14</div><span class="vd" style="color:var(--green)">▲ 17 %</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRÉPARATION ============ -->
+<section class="screen" id="sc-prep" hidden>
+  <div class="ph">
+    <div><h1>Préparation</h1><p>Emballer, étiqueter, scanner la sortie · Libye</p></div>
+    <div class="ph-actions"><button class="btn"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>Liste de picking</button></div>
+  </div>
+
+  <div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr));max-width:900px">
+    <div class="kpi"><div class="kl"><span class="ki" style="background:var(--violet-bg);color:var(--violet)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7z"/></svg></span>File de préparation</div>
+      <div class="kv">17</div><div class="kn">3 régions · 17 commandes</div></div>
+    <div class="kpi"><div class="kl"><span class="ki" style="background:var(--green-bg);color:var(--green)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2m10 0h2a2 2 0 0 1 2 2v2m0 10v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></svg></span>Scannées aujourd'hui</div>
+      <div class="kv">11 <span class="chipmini c-green" style="margin:0">+28 %</span></div>
+      <div class="prog"><i style="width:27.5%"></i></div><div class="kn num" style="margin-top:7px">11 / 40 objectif quotidien</div></div>
+    <div class="kpi edge-amber"><div class="kl"><span class="ki" style="background:var(--amber-bg);color:var(--amber)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>Colis en retard</div>
+      <div class="kv" style="color:var(--amber)">5</div><div class="kn"><span class="chipmini c-amber" style="margin:0">Plus ancien : 16 h</span></div></div>
+  </div>
+
+  <div class="work">
+    <div style="min-width:0">
+      <div class="toolbar">
+        <div class="search"><svg class="ico" style="color:var(--ink-3)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="prepSearch" placeholder="Rechercher un client, une référence, un produit ou un sticker…"><span class="kbd">⌘K</span></div>
+        <button class="fpill">Âge ▾</button><button class="fpill">Région ▾</button><button class="fpill">Produit ▾</button>
+        <button class="fpill warn">En retard <span class="fb">5</span> ▾</button>
+      </div>
+      <div class="card">
+        <table id="prepTable">
+          <thead><tr><th style="width:34px"></th><th>Commande</th><th>Produit</th><th class="num">Encaisser</th><th>Âge</th><th class="num">Stock</th><th></th></tr></thead>
+          <tbody id="prepBody"></tbody>
+        </table>
+        <div class="selbar" id="selbar"><input type="checkbox" checked disabled><span class="sn"><span id="selN">0</span> sélectionnées</span>
+          <div class="sp"><button class="btn" id="takeAll">Tout prendre</button><button class="btn btn-primary" id="makeLot">Créer un lot (<span id="selN2">0</span>)</button></div></div>
+      </div>
+    </div>
+
+    <div class="card scanpanel" style="position:sticky;top:70px">
+      <div class="card-h"><h2><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2m10 0h2a2 2 0 0 1 2 2v2m0 10v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/></svg>Scanner les stickers Darb</h2><span class="sub">un sticker = un colis</span></div>
+      <div class="handtile" id="handTile">
+        <div class="hl">Colis en main <span class="reg chipmini c-violet" style="margin:0" id="handReg">OUEST</span></div>
+        <div class="hn" id="handName"><bdi>ام خالد</bdi></div>
+        <div class="hm" id="handMeta"><span class="num">C-0111</span> · <bdi>الخمس</bdi> · Sac de frappe · moyen × 1</div>
+        <div class="hs">Sticker : <b id="handSticker">000000542713</b></div>
+      </div>
+      <div class="scanin"><svg class="ico" style="color:var(--green)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5v14M8 5v14M12 5v14M17 5v14M21 5v14"/></svg><input id="scanInput" placeholder="Scannez le sticker Darb…" autocomplete="off"></div>
+      <div class="scanfb" id="scanFb"></div>
+      <div class="lastscans"><div class="lh">Derniers scans</div><div id="lastScans"></div></div>
+      <div class="warnnote"><svg class="ico" style="flex:0 0 16px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>Ne jamais saisir un numéro à la main : le transporteur accepte n'importe quel numéro sans vérifier qu'il nous appartient.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RETOURS ============ -->
+<section class="screen" id="sc-returns" hidden>
+  <div class="ph"><div><h1>Retours</h1><p>Chaque colis revenu reçoit une décision explicite avant de quitter la file.</p></div></div>
+
+  <div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(250px,1fr))">
+    <div class="kpi edge-amber"><div class="kl"><span class="ki" style="background:var(--amber-bg);color:var(--amber)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h12M6 22h12M8 2v4l4 4 4-4V2M8 22v-4l4-4 4 4v4"/></svg></span>Dans la file</div>
+      <div class="kv" style="color:var(--amber)"><span id="rQueueN">6</span></div><div class="kn">Le plus ancien : 14 j</div>
+      <div class="kf"><div><div class="fl">Valeur en file</div><div class="fv" id="rQueueVal">944,00 LYD</div></div></div></div>
+    <div class="kpi edge-green"><div class="kl"><span class="ki" style="background:var(--green-bg);color:var(--green)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 5-6"/></svg></span>Traités aujourd'hui</div>
+      <div class="kv" style="color:var(--green)"><span id="rDoneN">1</span></div><div class="kn"><span id="rDoneDetail">1 remis en stock · 0 déprécié</span></div>
+      <div class="kf"><div><div class="fl">Valeur traitée</div><div class="fv" id="rDoneVal">129,00 LYD</div></div></div></div>
+    <div class="kpi"><div class="kl"><span class="ki" style="background:var(--red-bg);color:var(--red)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg></span>Taux de retour</div>
+      <div class="kv">21 <span class="u">%</span><span class="chipmini c-red" style="margin:0">▲ +4,2 pts</span></div>
+      <div class="kn">Sur 28 jours, livraisons + retours · vs période précédente</div>
+      <svg class="spark" viewBox="0 0 220 44" width="100%" height="44" aria-hidden="true">
+        <polyline points="10,26 76,30 142,28 210,12" fill="none" stroke="var(--red)" stroke-width="2"/>
+        <circle cx="10" cy="26" r="2.5" fill="var(--red)"/><circle cx="76" cy="30" r="2.5" fill="var(--red)"/><circle cx="142" cy="28" r="2.5" fill="var(--red)"/><circle cx="210" cy="12" r="3" fill="var(--red)"/>
+        <text x="10" y="42" font-size="9" fill="var(--ink-3)">S-4</text><text x="72" y="42" font-size="9" fill="var(--ink-3)">S-3</text><text x="138" y="42" font-size="9" fill="var(--ink-3)">S-2</text><text x="202" y="42" font-size="9" fill="var(--ink-3)">S-1</text>
+      </svg></div>
+    <div class="kpi dim"><div class="kl"><span class="ki" style="background:var(--sunken);color:var(--ink-3)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V6l-8-3-8 3v6c0 6 8 10 8 10z"/></svg></span>Dépréciés</div>
+      <div class="kv">0 <span class="u">u</span></div><div class="kn">Aucune perte enregistrée sur 28 j</div>
+      <div class="kf"><div><div class="fl">Valeur dépréciée</div><div class="fv">0,00 LYD</div></div></div></div>
+  </div>
+
+  <div class="reasons"><span class="rl">Répartition par raison</span>
+    <span class="rchip">📵 Injoignable <span class="rn">2</span></span>
+    <span class="rchip">✕ Refus <span class="rn">2</span></span>
+    <span class="rchip">📍 Adresse <span class="rn">1</span></span>
+    <span class="rchip">🕐 Non retiré <span class="rn">1</span></span>
+  </div>
+
+  <div class="work" style="grid-template-columns:minmax(0,1.4fr) minmax(380px,1fr)">
+    <div class="card" style="min-width:0">
+      <div class="card-h"><h2>File des retours</h2><span class="sub">Tri : par ancienneté (âge)</span></div>
+      <div id="rQueue"></div>
+    </div>
+
+    <div class="card" style="position:sticky;top:70px">
+      <div class="card-h"><h2>Décision</h2><span class="sub" id="decState">Aucun colis sélectionné</span></div>
+      <div class="scanin" style="margin-top:16px"><svg class="ico" style="color:var(--green)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5v14M8 5v14M12 5v14M17 5v14M21 5v14"/></svg><input id="rScan" placeholder="Scannez le colis retourné…" autocomplete="off"></div>
+      <div class="steps">
+        <span class="st on" id="st1"><span class="sc">1</span>Scanner</span><span class="dash"></span>
+        <span class="st" id="st2"><span class="sc">2</span>Décision</span><span class="dash"></span>
+        <span class="st" id="st3"><span class="sc">3</span>Journal</span>
+      </div>
+      <div class="decsel" id="decSel"></div>
+      <div style="margin:0 16px 6px;font-size:11px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)" id="dtLabel">Aperçu des décisions possibles</div>
+      <div class="dtiles" id="dtiles">
+        <button class="dtile g" data-dec="restock"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="margin:auto;display:block"><path d="M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg><b>Remettre en stock</b><span>Le colis est complet et en bon état.</span></button>
+        <button class="dtile r" data-dec="damage"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="margin:auto;display:block"><path d="M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7z"/><path d="m9 10 6 5m0-5-6 5"/></svg><b>Endommagé / déprécié</b><span>Le colis ou son contenu est endommagé.</span></button>
+        <button class="dtile t" data-dec="redeliver"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="margin:auto;display:block"><path d="M5 17h-2v-6l3-5h9v11"/><path d="M15 17h-5"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="17.5" cy="17.5" r="1.5"/><path d="M15 6h4l2 5v6h-2"/></svg><b>Rélivrer au client</b><span>Le colis sera réexpédié au client.</span></button>
+      </div>
+      <div style="margin:0 16px 16px;display:none" id="valWrap"><button class="btn btn-primary" style="width:100%;justify-content:center" id="valBtn" disabled>Valider la décision</button></div>
+      <div class="locknote" id="lockNote"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Scannez un colis ou choisissez « Traiter » pour activer les actions.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ JOURNAL ============ -->
+<section class="screen" id="sc-journal" hidden>
+  <div class="ph">
+    <div><h1>Journal</h1><p>Registre en écriture seule — rien n'est modifié ni supprimé, seulement complété</p></div>
+    <div class="ph-actions"><button class="btn" id="csvBtn"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Exporter CSV</button></div>
+  </div>
+
+  <div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">
+    <div class="kpi"><div class="kl">Événements</div><div class="kv"><span id="jTodayN">7</span> <span class="u">aujourd'hui</span></div><div class="kn">toutes catégories confondues</div>
+      <div class="kf"><div><div class="fv">4</div><div class="fl">sorties</div></div><div><div class="fv">10</div><div class="fl">mouvements de stock</div></div></div></div>
+    <div class="kpi edge-amber"><div class="kl">Anomalies</div><div class="kv" style="color:var(--amber)">1</div><div class="kn">1 écart d'inventaire à justifier</div>
+      <div class="kf"><div><div class="fv">−2 u</div><div class="fl">écart cumulé</div></div><div><div class="fv">1</div><div class="fl">à revoir</div></div></div></div>
+    <div class="kpi edge-green"><div class="kl">Traçabilité</div><div class="kv" style="color:var(--green)">100 <span class="u">%</span></div><div class="kn">chaque mouvement porte un auteur et un motif</div>
+      <div class="kf"><div><div class="fv">3</div><div class="fl">opérateurs</div></div><div><div class="fv">0</div><div class="fl">sans auteur</div></div></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><h2>Événements</h2><span class="sub num" id="jCount">14</span>
+      <div class="right jfilters" id="jFilters">
+        <button class="jpill" data-f="all" aria-pressed="true">Tout</button>
+        <button class="jpill" data-f="sortie" aria-pressed="false">Sorties</button>
+        <button class="jpill" data-f="remise" aria-pressed="false">Remises</button>
+        <button class="jpill" data-f="retour" aria-pressed="false">Retours</button>
+        <button class="jpill" data-f="reception" aria-pressed="false">Réceptions</button>
+        <button class="jpill" data-f="inventaire" aria-pressed="false">Inventaires</button>
+        <button class="jpill" data-f="transfert" aria-pressed="false">Transferts</button>
+        <button class="jpill" data-f="impression" aria-pressed="false">Impressions</button>
+      </div></div>
+    <div style="padding:12px 18px;border-bottom:1px solid var(--line)">
+      <div class="search" style="max-width:380px"><svg class="ico" style="color:var(--ink-3)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="jSearch" placeholder="Rechercher (produit, opérateur, motif…)"><span class="kbd">⌘K</span></div>
+    </div>
+    <div class="jtable-wrap">
+      <table>
+        <thead><tr><th style="width:76px">Heure</th><th style="width:120px">Type</th><th>Événement</th><th style="width:110px">Opérateur</th><th class="num" style="width:130px">Δ → Solde <span title="Le solde reflète l'état du stock après chaque événement.">ⓘ</span></th><th style="width:44px"></th></tr></thead>
+        <tbody id="jBody"></tbody>
+      </table>
+    </div>
+    <div class="jfoot"><span>Trié par date et heure décroissantes. Le solde reflète l'état après chaque événement.</span>
+      <span style="margin-left:auto"><span class="k" style="background:var(--violet)"></span>Sortie</span>
+      <span><span class="k" style="background:var(--teal)"></span>Remise</span>
+      <span><span class="k" style="background:var(--amber)"></span>Retour</span>
+      <span><span class="k" style="background:var(--green)"></span>Réception</span>
+      <span><span class="k" style="background:var(--ink-3)"></span>Inventaire · Transfert</span>
+    </div>
+  </div>
+</section>
+
+</main>
+<div class="toasts" id="toasts"></div>
+<script>
+/* ================= données ================= */
+const PREP = [
+ {reg:'OUEST', regAr:'المنطقة الغربية', dot:'var(--violet)', rows:[
+  {ref:'C-0101',name:'ام حمودي',city:'طرابلس',prod:'Sac de frappe · moyen × 1',price:'179,00',age:'3 h',ac:'ok',stock:200,sd:'ok',em:'🥊'},
+  {ref:'C-0103',name:'طارق رافع',city:'مصراتة',prod:'Sac de frappe · grand × 1',price:'199,00',age:'7 h',ac:'ok',stock:600,sd:'ok',em:'🥊'},
+  {ref:'C-0106',name:'محمد محروقي',city:'غريان',prod:'Sac de frappe · moyen × 1',price:'179,00',age:'14 h',ac:'warn',stock:200,sd:'ok',em:'🥊'},
+  {ref:'C-0107',name:'ابو ياسين',city:'الزاوية',prod:'Sac de frappe · petit × 1',price:'129,00',age:'16 h',ac:'warn',stock:216,sd:'ok',em:'🥊'},
+  {ref:'C-0111',name:'ام خالد',city:'الخمس',prod:'Sac de frappe · moyen × 1',price:'179,00',age:'2 j',ac:'warn',stock:200,sd:'ok',em:'🥊',taken:true},
+  {ref:'C-0112',name:'هدي الدهوكي',city:'مصراتة',prod:'Sac de frappe · petit × 2',price:'258,00',age:'2 j',ac:'warn',stock:216,sd:'ok',em:'🥊'},
+  {ref:'C-0114',name:'سميرة بن عمر',city:'الزاوية',prod:'Mushaf Tadabbur × 1',price:'95,00',age:'3 j',ac:'bad',stock:1000,sd:'ok',em:'📖'},
+  {ref:'C-0115',name:'خالد الورفلي',city:'طرابلس',prod:'Ad-Dāʾ wa ad-Dawāʾ × 1',price:'60,00',age:'3 j',ac:'bad',stock:200,sd:'bad',em:'📕'},
+  {ref:'C-0117',name:'رجاء القادري',city:'طرابلس',prod:'Sac de frappe · petit × 1',price:'129,00',age:'4 j',ac:'bad',stock:216,sd:'ok',em:'🥊'},
+ ]},
+ {reg:'EST', regAr:'المنطقة الشرقية', dot:'var(--teal)', rows:[
+  {ref:'C-0102',name:'حنان المبروك',city:'بنغازي',prod:'Sac de frappe · petit × 1',price:'129,00',age:'5 h',ac:'ok',stock:216,sd:'ok',em:'🥊'},
+  {ref:'C-0104',name:'فرج العبيدي',city:'بنغازي',prod:'Sac de frappe · moyen × 1',price:'179,00',age:'9 h',ac:'ok',stock:200,sd:'ok',em:'🥊'},
+  {ref:'C-0105',name:'سالم الفيتوري',city:'البيضاء',prod:'Sac de frappe · grand × 1',price:'199,00',age:'12 h',ac:'ok',stock:600,sd:'ok',em:'🥊'},
+  {ref:'C-0108',name:'نورية بالحاج',city:'طبرق',prod:'Mushaf Tadabbur × 1',price:'95,00',age:'18 h',ac:'warn',stock:1000,sd:'ok',em:'📖'},
+  {ref:'C-0109',name:'عائشة العرفي',city:'درنة',prod:'Sac de frappe · petit × 1',price:'129,00',age:'1 j',ac:'warn',stock:216,sd:'ok',em:'🥊'},
+  {ref:'C-0110',name:'عمر بوخطوة',city:'المرج',prod:'Ad-Dāʾ wa ad-Dawāʾ × 1',price:'60,00',age:'2 j',ac:'warn',stock:200,sd:'bad',em:'📕'},
+  {ref:'C-0113',name:'يوسف الزوي',city:'اجدابيا',prod:'Sac de frappe · moyen × 1',price:'179,00',age:'2 j',ac:'warn',stock:200,sd:'ok',em:'🥊'},
+ ]}
+];
+let RETURNS = [
+ {ref:'C-0129',name:'عبد السلام قديجي',city:'الزاوية',prod:'Sac de frappe · petit × 1',val:179,reason:'Injoignable',age:14,bell:true},
+ {ref:'C-0130',name:'ام خالد',city:'البيضاء',prod:'Sac de frappe · grand × 1',val:229,reason:'Refus',age:7,bell:true},
+ {ref:'C-0131',name:'هدي الترهوني',city:'طبرق',prod:'Mushaf Tadabbur × 1',val:89,reason:'Adresse',age:4},
+ {ref:'C-0132',name:'رمزي الشريف',city:'بنغازي',prod:'Ad-Dāʾ wa ad-Dawāʾ × 1',val:119,reason:'Injoignable',age:6},
+ {ref:'C-0133',name:'سميرة بن عمر',city:'الخمس',prod:'Sac de frappe · moyen × 1',val:149,reason:'Refus',age:9},
+ {ref:'C-0134',name:'خالد الورفلي',city:'مصراتة',prod:'Sac de frappe · petit × 1',val:179,reason:'Non retiré',age:14},
+];
+const TYPES = {
+ sortie:{lbl:'Sortie',bg:'var(--violet-bg)',fg:'var(--violet)'},
+ remise:{lbl:'Remise',bg:'var(--teal-bg)',fg:'var(--teal)'},
+ retour:{lbl:'Retour',bg:'var(--amber-bg)',fg:'var(--amber)'},
+ reception:{lbl:'Réception',bg:'var(--green-bg)',fg:'var(--green)'},
+ inventaire:{lbl:'Inventaire',bg:'var(--sunken)',fg:'var(--ink-2)'},
+ transfert:{lbl:'Transfert',bg:'var(--sunken)',fg:'var(--ink-2)'},
+ impression:{lbl:'Impression',bg:'var(--sunken)',fg:'var(--ink-2)'},
+};
+let JOURNAL = [
+ {day:"Aujourd'hui",time:'10:04',type:'sortie',ev:['Sortie scannée','دمية ملاكمة حجم متوسط'],op:'Salima',d:-1,s:200},
+ {day:"Aujourd'hui",time:'09:51',type:'sortie',ev:['Sortie scannée','دمية ملاكمة حجم صغير'],op:'Salima',d:-1,s:216},
+ {day:"Aujourd'hui",time:'09:38',type:'remise',ev:['Remise transporteur','Darb Assabil — Tripoli','9 colis'],op:'Salima'},
+ {day:"Aujourd'hui",time:'09:15',type:'retour',ev:['Retour remis en stock','دمية ملاكمة حجم صغير'],op:'Tasnim',d:1,s:217},
+ {day:"Aujourd'hui",time:'08:47',type:'sortie',ev:['Sortie scannée','دمية ملاكمة حجم كبير'],op:'Hend',d:-1,s:600},
+ {day:"Aujourd'hui",time:'08:31',type:'impression',ev:['Étiquettes imprimées','lot de 12'],op:'Salima'},
+ {day:"Aujourd'hui",time:'08:12',type:'sortie',ev:['Sortie scannée','دمية ملاكمة حجم متوسط'],op:'Salima',d:-1,s:201},
+ {day:'Hier',time:'17:22',type:'inventaire',ev:['Inventaire','دمية ملاكمة حجم صغير','écart de comptage'],op:'Salima',d:-2,s:216,anom:true},
+ {day:'Hier',time:'15:40',type:'retour',ev:['Retour endommagé','دمية ملاكمة حجم متوسط','dommage transporteur'],op:'Salima',d:0,s:202},
+ {day:'Hier',time:'11:08',type:'reception',ev:['Réception fournisseur','دمية ملاكمة حجم متوسط','BL 2026-0812'],op:'Salima',d:120,s:202},
+ {day:'Hier',time:'09:55',type:'remise',ev:['Remise transporteur','Darb Assabil — Tripoli','16 colis'],op:'Salima'},
+ {day:'Hier',time:'09:12',type:'transfert',ev:['Transfert vers Darb Tripoli','دمية ملاكمة حجم صغير'],op:'Salima',d:-60,s:218},
+ {day:'Lundi 16 août',time:'16:30',type:'impression',ev:['Étiquettes imprimées','lot de 22'],op:'Salima'},
+ {day:'Lundi 16 août',time:'14:02',type:'sortie',ev:['Sortie scannée','دمية ملاكمة حجم كبير'],op:'Salima',d:-1,s:601},
+];
+
+/* ================= utilitaires ================= */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(msg, cls){
+  const t = document.createElement('div');
+  t.className = 'toast' + (cls ? ' '+cls : '');
+  t.textContent = msg;
+  $('toasts').appendChild(t);
+  setTimeout(() => t.remove(), 2600);
+}
+const fmtLYD = n => n.toLocaleString('fr-FR',{minimumFractionDigits:2}) + ' LYD';
+const nowTime = () => new Date().toTimeString().slice(0,5);
+
+/* ================= navigation ================= */
+const SCREENS = ['today','prep','returns','journal'];
+function go(name){
+  SCREENS.forEach(s => { $('sc-'+s).hidden = (s !== name); });
+  document.querySelectorAll('.tab').forEach(t => {
+    if (t.dataset.go === name) t.setAttribute('aria-current','page');
+    else t.removeAttribute('aria-current');
+  });
+  window.scrollTo({top:0});
+}
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-go]');
+  if (g && !g.classList.contains('dtile')) go(g.dataset.go);
+});
+
+/* ================= aujourd'hui : graphe ================= */
+(function(){
+  const sorties = [13,20,16,14,26,29,25,21,27,19,12,31,24,26];
+  const retours = [4,5,4,6,7,8,6,5,7,6,4,7,5,6];
+  const W=640,H=190,P={l:34,r:14,t:12,b:26};
+  const iw=W-P.l-P.r, ih=H-P.t-P.b, max=35;
+  const X=i=>P.l+i*(iw/(sorties.length-1)), Y=v=>P.t+ih-(v/max)*ih;
+  let g='';
+  [0,10,20,30].forEach(v=>{ g+=`<line x1="${P.l}" y1="${Y(v)}" x2="${W-P.r}" y2="${Y(v)}" stroke="var(--line)" stroke-dasharray="2 4"/><text x="${P.l-8}" y="${Y(v)+3.5}" font-size="10" fill="var(--ink-3)" text-anchor="end" font-family="var(--mono)">${v}</text>`; });
+  const line=a=>a.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ');
+  const area=a=>line(a)+` L ${X(a.length-1).toFixed(1)} ${Y(0)} L ${X(0).toFixed(1)} ${Y(0)} Z`;
+  $('ovChart').innerHTML =
+    `<defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--green)" stop-opacity=".2"/><stop offset="1" stop-color="var(--green)" stop-opacity="0"/></linearGradient></defs>`
+    + g
+    + `<path d="${area(sorties)}" fill="url(#ag)"/>`
+    + `<path d="${line(sorties)}" fill="none" stroke="var(--green)" stroke-width="2.2" stroke-linejoin="round"/>`
+    + `<path d="${line(retours)}" fill="none" stroke="var(--violet)" stroke-width="2" stroke-dasharray="4 5" stroke-linejoin="round"/>`
+    + `<circle cx="${X(13)}" cy="${Y(sorties[13])}" r="4" fill="var(--green)" stroke="#fff" stroke-width="2"/>`
+    + `<text x="${P.l}" y="${H-8}" font-size="10" fill="var(--ink-3)">5 août</text>`
+    + `<text x="${W-P.r}" y="${H-8}" font-size="10" fill="var(--ink-3)" text-anchor="end">aujourd'hui</text>`;
+})();
+
+/* ================= préparation ================= */
+let HAND = {ref:'C-0111', name:'ام خالد', city:'الخمس', prod:'Sac de frappe · moyen × 1', reg:'OUEST', sticker:'000000542713', stock:200};
+let nextSticker = 542714;
+let SCANS = [
+ {st:'000000542713',t:'11:24:31',from:200,to:199,ok:true},
+ {st:'000000542712',t:'11:23:48',from:150,to:149,ok:true},
+ {st:'000000542711',t:'11:22:16',from:80,to:79,ok:true},
+ {st:'000000000123',t:'11:21:03',ok:false},
+];
+function renderPrep(filter){
+  const q = (filter||'').trim().toLowerCase();
+  let html = '';
+  PREP.forEach(grp => {
+    const rows = grp.rows.filter(r => !q || (r.ref+r.name+r.city+r.prod).toLowerCase().includes(q));
+    if (!rows.length) return;
+    html += `<tr class="regband"><td colspan="7"><span class="pdot" style="background:${grp.dot}"></span>${grp.reg} — <bdi>${grp.regAr}</bdi><span class="rc num">${rows.length} commandes</span></td></tr>`;
+    rows.forEach(r => {
+      html += `<tr data-ref="${r.ref}" class="${r.taken?'taken':''}">
+        <td><input type="checkbox" class="selck" data-ref="${r.ref}" aria-label="Sélectionner ${r.ref}"></td>
+        <td><div style="display:flex;gap:11px;align-items:center"><span class="thumb">${r.em}</span><span class="oc"><b><bdi>${esc(r.name)}</bdi></b><span>${r.ref} · <bdi>${esc(r.city)}</bdi></span></span></div></td>
+        <td style="color:var(--ink-2)">${esc(r.prod)}</td>
+        <td class="num" style="font-weight:650">${r.price} LYD</td>
+        <td><span class="age a-${r.ac}">${r.age}</span></td>
+        <td class="num">${r.stock}<span class="sdot" style="background:${r.sd==='bad'?'var(--red)':'var(--green)'}"></span></td>
+        <td><button class="btn btn-sm take" data-ref="${r.ref}">Prendre</button></td></tr>`;
+    });
+  });
+  $('prepBody').innerHTML = html || '<tr><td colspan="7" style="text-align:center;color:var(--ink-3);padding:26px">Aucune commande ne correspond à cette recherche.</td></tr>';
+}
+function renderHand(){
+  $('handReg').textContent = HAND.reg;
+  $('handName').innerHTML = '<bdi>'+esc(HAND.name)+'</bdi>';
+  $('handMeta').innerHTML = '<span class="num">'+HAND.ref+'</span> · <bdi>'+esc(HAND.city)+'</bdi> · '+esc(HAND.prod);
+  $('handSticker').textContent = HAND.sticker;
+}
+function renderScans(){
+  $('lastScans').innerHTML = SCANS.slice(0,6).map(s => s.ok
+    ? `<div class="ls"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 5-6"/></svg><span class="lst">${s.st}</span><span class="lt">${s.t} · <span style="color:var(--green)">${s.from} → ${s.to}</span></span></div>`
+    : `<div class="ls"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></svg><span class="lst">${s.st}</span><span class="lt" style="color:var(--red)">Non trouvé</span></div>`
+  ).join('');
+}
+function updateSelbar(){
+  const n = document.querySelectorAll('.selck:checked').length;
+  $('selbar').classList.toggle('on', n > 0);
+  $('selN').textContent = n; $('selN2').textContent = n;
+}
+document.addEventListener('change', e => { if (e.target.classList.contains('selck')) updateSelbar(); });
+document.addEventListener('click', e => {
+  const b = e.target.closest('.take');
+  if (!b) return;
+  for (const grp of PREP) {
+    const r = grp.rows.find(x => x.ref === b.dataset.ref);
+    if (r) {
+      PREP.forEach(g => g.rows.forEach(x => x.taken = false));
+      r.taken = true;
+      HAND = {ref:r.ref, name:r.name, city:r.city, prod:r.prod, reg:grp.reg, sticker:'000000'+(nextSticker), stock:r.stock};
+      renderPrep($('prepSearch').value); renderHand();
+      $('scanFb').className = 'scanfb'; $('scanInput').focus();
+      toast('Colis en main : ' + r.ref);
+      return;
+    }
+  }
+});
+$('prepSearch').addEventListener('input', e => renderPrep(e.target.value));
+$('takeAll').addEventListener('click', () => toast('Lot pris — ' + $('selN').textContent + ' commandes en main'));
+$('makeLot').addEventListener('click', () => toast('Lot créé (' + $('selN').textContent + ')', 'ok'));
+$('scanInput').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const v = e.target.value.trim();
+  if (!v) return;
+  e.target.value = '';
+  const fb = $('scanFb');
+  if (v === HAND.sticker || /^0{4,}\d{4,}$/.test(v)) {
+    const from = HAND.stock, to = from - 1;
+    HAND.stock = to;
+    SCANS.unshift({st:(v===HAND.sticker?v:HAND.sticker), t:nowTime()+':'+String(new Date().getSeconds()).padStart(2,'0'), from, to, ok:true});
+    fb.className = 'scanfb ok on';
+    fb.innerHTML = `<div class="fh"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 5-6"/></svg>Sticker scanné</div><div class="fv">${HAND.sticker}</div><div class="fs">Stock : ${from} → <b style="color:var(--green)">${to}</b></div>`;
+    nextSticker++; HAND.sticker = '000000'+nextSticker;
+    renderHand(); renderScans();
+    toast('Sortie scannée — stock débité', 'ok');
+  } else {
+    SCANS.unshift({st:v.slice(0,14), t:nowTime()+':'+String(new Date().getSeconds()).padStart(2,'0'), ok:false});
+    fb.className = 'scanfb err on';
+    fb.innerHTML = `<div class="fh"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></svg>Sticker non trouvé</div><div class="fv">${esc(v.slice(0,16))}</div><div class="fs">Ce numéro n'appartient pas à nos lots. Vérifiez le rouleau.</div>`;
+    toast('Sticker non trouvé', 'err');
+  }
+  renderScans();
+});
+
+/* ================= retours ================= */
+let PICKED = null, DECISION = null;
+function renderReturns(){
+  $('rQueue').innerHTML = RETURNS.map(r => `
+    <div class="rrow" data-ref="${r.ref}">
+      <svg class="bell ${r.bell?'':'off'}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>
+      <span class="oc"><b><bdi>${esc(r.name)}</bdi></b><span>${r.ref} · <bdi>${esc(r.city)}</bdi></span></span>
+      <span class="pr">${esc(r.prod)}</span>
+      <span class="val">${r.val.toFixed(2).replace('.',',')} LYD</span>
+      <span class="reason">${r.reason}</span>
+      <span class="age ${r.age>=10?'a-bad':r.age>=5?'a-warn':'a-ok'}" style="min-width:42px;text-align:center">${r.age} j</span>
+      <button class="btn btn-sm rtake" data-ref="${r.ref}">Traiter</button>
+    </div>`).join('') || '<div style="padding:26px;text-align:center;color:var(--ink-3)">File vide — tous les retours ont reçu leur décision.</div>';
+  $('rQueueN').textContent = RETURNS.length;
+  $('rQueueVal').textContent = fmtLYD(RETURNS.reduce((a,r)=>a+r.val,0));
+}
+function setStep(n){
+  ['st1','st2','st3'].forEach((id,i)=> $(id).classList.toggle('on', i < n));
+}
+function pickReturn(r){
+  PICKED = r; DECISION = null;
+  $('decState').textContent = r.ref + ' sélectionné';
+  $('decSel').className = 'decsel on';
+  $('decSel').innerHTML = `<div style="display:flex;gap:12px;align-items:center"><span class="oc" style="flex:1"><b><bdi>${esc(r.name)}</bdi></b><span>${r.ref} · <bdi>${esc(r.city)}</bdi> · ${esc(r.prod)}</span></span><span class="val num" style="font-weight:700">${r.val.toFixed(2).replace('.',',')} LYD</span><span class="reason">${r.reason}</span></div>`;
+  $('dtiles').classList.add('armed');
+  $('dtLabel').textContent = 'Choisissez la décision';
+  $('valWrap').style.display = 'block'; $('valBtn').disabled = true;
+  $('lockNote').style.display = 'none';
+  document.querySelectorAll('.dtile').forEach(t => t.classList.remove('picked'));
+  setStep(2);
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('.rtake');
+  if (b) { const r = RETURNS.find(x => x.ref === b.dataset.ref); if (r) pickReturn(r); return; }
+  const d = e.target.closest('.dtile');
+  if (d && PICKED) {
+    DECISION = d.dataset.dec;
+    document.querySelectorAll('.dtile').forEach(t => t.classList.toggle('picked', t === d));
+    $('valBtn').disabled = false;
+  }
+});
+$('rScan').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const v = e.target.value.trim().toUpperCase(); e.target.value = '';
+  const r = RETURNS.find(x => x.ref === v || x.ref.endsWith(v));
+  if (r) pickReturn(r); else toast('Colis introuvable dans la file', 'err');
+});
+$('valBtn').addEventListener('click', () => {
+  if (!PICKED || !DECISION) return;
+  const labels = {restock:'Retour remis en stock', damage:'Retour endommagé · déprécié', redeliver:'Retour re-livrable · réexpédition'};
+  const deltas = {restock:1, damage:0, redeliver:0};
+  JOURNAL.unshift({day:"Aujourd'hui", time:nowTime(), type:'retour', ev:[labels[DECISION], PICKED.prod.split(' · ')[0], PICKED.ref], op:'Salima', d:deltas[DECISION], s:DECISION==='restock'?218:undefined, anom:false});
+  if (DECISION==='restock'){ const n=+$('rDoneN').textContent+1; $('rDoneN').textContent=n; $('rDoneDetail').textContent = n+' remis en stock · 0 déprécié'; }
+  RETURNS = RETURNS.filter(x => x !== PICKED);
+  renderReturns(); renderJournal();
+  $('decState').textContent = 'Aucun colis sélectionné';
+  $('decSel').className = 'decsel'; $('dtiles').classList.remove('armed');
+  document.querySelectorAll('.dtile').forEach(t => t.classList.remove('picked'));
+  $('dtLabel').textContent = 'Aperçu des décisions possibles';
+  $('valWrap').style.display = 'none'; $('lockNote').style.display = 'flex';
+  setStep(3); setTimeout(()=>setStep(1), 1200);
+  toast('Décision enregistrée au journal', 'ok');
+  PICKED = null; DECISION = null;
+});
+
+/* ================= journal ================= */
+let JF = 'all';
+function renderJournal(){
+  const q = ($('jSearch').value||'').trim().toLowerCase();
+  let html = '', lastDay = null, count = 0;
+  const dayCounts = {};
+  JOURNAL.forEach(r => { dayCounts[r.day] = (dayCounts[r.day]||0)+1; });
+  JOURNAL.forEach(r => {
+    if (JF !== 'all' && r.type !== JF) return;
+    const hay = (r.ev.join(' ')+' '+r.op).toLowerCase();
+    if (q && !hay.includes(q)) return;
+    count++;
+    if (r.day !== lastDay) {
+      lastDay = r.day;
+      html += `<tr class="dayband"><td colspan="6">📅 ${r.day}<span class="dc">${dayCounts[r.day]}</span></td></tr>`;
+    }
+    const T = TYPES[r.type];
+    const ev = r.ev.map((p,i) => i===0 ? esc(p) : '<span class="sep">·</span><bdi>'+esc(p)+'</bdi>').join('');
+    const delta = (r.d === undefined) ? '<span style="color:var(--ink-3)">—</span>'
+      : `<span class="d" style="color:${r.d>0?'var(--green)':r.d<0?'var(--red)':'var(--ink-3)'}">${r.d>0?'+':''}${r.d}</span><span class="arr">→</span><span class="sol">${r.s ?? '—'}</span>`;
+    html += `<tr class="jr ${r.anom?'anom':''}">
+      <td>${r.time}</td>
+      <td><span class="tchip" style="background:${T.bg};color:${T.fg}">${T.lbl}</span></td>
+      <td class="ev">${ev}${r.anom?'<span class="jchip">à justifier</span>':''}</td>
+      <td class="op">${r.op}</td>
+      <td class="delta">${delta}</td>
+      <td><button class="copy" data-copy="${r.time} ${T.lbl}" title="Copier la référence"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button></td></tr>`;
+  });
+  $('jBody').innerHTML = html || '<tr><td colspan="6" style="text-align:center;color:var(--ink-3);padding:26px">Aucun événement ne correspond.</td></tr>';
+  $('jCount').textContent = count;
+}
+$('jFilters').addEventListener('click', e => {
+  const p = e.target.closest('.jpill'); if (!p) return;
+  JF = p.dataset.f;
+  document.querySelectorAll('.jpill').forEach(x => x.setAttribute('aria-pressed', x === p ? 'true' : 'false'));
+  renderJournal();
+});
+$('jSearch').addEventListener('input', renderJournal);
+document.addEventListener('click', e => {
+  const c = e.target.closest('.copy'); if (!c) return;
+  try { navigator.clipboard && navigator.clipboard.writeText(c.dataset.copy); } catch(_){}
+  toast('Référence copiée');
+});
+$('csvBtn').addEventListener('click', () => toast('Export CSV généré', 'ok'));
+
+/* ================= init ================= */
+renderPrep(); renderHand(); renderScans(); renderReturns(); renderJournal();
+</script>
+</body>
+</html>
