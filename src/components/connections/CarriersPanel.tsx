@@ -141,7 +141,9 @@ export function CarriersPanel({ role, marketId, currency = "", readOnly = false 
   }
 
   return (
-    <Card>
+    <div className="flex flex-col gap-5">
+      <CarrierKpis carriers={carriers} perfByCarrier={perfByCarrier} currency={currency} />
+      <Card>
       <div className="flex flex-wrap items-center gap-2 border-b border-line-subtle bg-surface-sunken px-4 py-3">
         <div className="relative">
           <svg className="pointer-events-none absolute inset-inline-start-2.5 top-2 h-4 w-4 text-ink-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -233,7 +235,75 @@ export function CarriersPanel({ role, marketId, currency = "", readOnly = false 
           <DeleteConfirm name={confirmDelete.name} busy={busy} onCancel={() => setConfirmDelete(null)} onConfirm={() => hardDelete(confirmDelete)} />
         )}
       </Sheet>
-    </Card>
+      </Card>
+    </div>
+  );
+}
+
+/**
+ * KPI strip for the Transporteurs tab. Uses only data already on the panel
+ * (carrier list + 30-day performance). The cost tile surfaces a known truth
+ * from the Darb rate harvest: the flat 10 LYD fee understates real billing by
+ * roughly 2.9× — an insight that would otherwise stay buried.
+ */
+function CarrierKpis({
+  carriers, perfByCarrier, currency,
+}: {
+  carriers: Carrier[];
+  perfByCarrier: Record<string, PerfRow>;
+  currency: string;
+}) {
+  if (carriers.length === 0) return null;
+  const active = carriers.filter((c) => c.is_active).length;
+  let delivered = 0;
+  let sample = 0;
+  for (const c of carriers) {
+    const p = perfByCarrier[c.id];
+    if (p) { delivered += p.delivered ?? 0; sample += p.sample_size ?? 0; }
+  }
+  const rate = sample > 0 ? Math.round((delivered / sample) * 100) : null;
+  const darb = carriers.find((c) => /darb/i.test(c.code));
+  const isLy = currency === "LYD";
+  const configured = darb?.delivery_fee ?? 0;
+  const real = configured > 0 ? Math.round(configured * 2.9) : 0;
+  const avgFee = active > 0
+    ? carriers.filter((c) => c.is_active).reduce((s, c) => s + (c.delivery_fee ?? 0), 0) / active
+    : 0;
+
+  return (
+    <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+      <Tile label="Transporteurs" value={`${active}`} sub={`/ ${carriers.length} actifs`} />
+      <Tile label="Livraison 30 j" value={rate === null ? "—" : `${rate}`} unit={rate === null ? undefined : "%"} sub={`${delivered.toLocaleString("fr")} livrées`} />
+      <Tile label="Colis livrés 30 j" value={delivered.toLocaleString("fr")} />
+      {isLy && darb ? (
+        <div className="flex min-h-[112px] flex-col gap-1 rounded-card border border-status-warning/30 bg-gradient-to-b from-status-warningBg to-surface-card p-4 shadow-hover-row">
+          <div className="text-[11px] font-bold uppercase tracking-[0.07em] text-ink-secondary">Coût réel / colis</div>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-[22px] font-bold tabular-nums text-ink-primary">{configured}</span>
+            <span className="text-[12px] text-ink-secondary">{currency} configuré</span>
+            <span className="text-[16px] font-semibold text-status-warning">≠</span>
+            <span className="text-[22px] font-bold tabular-nums text-status-critical">{real}</span>
+            <span className="text-[12px] text-ink-secondary">{currency} réel</span>
+          </div>
+          <p className="mt-auto text-[11.5px] text-ink-secondary">Forfait vs tarif relevé (≈ 2,9×) — biaise les marges en aval.</p>
+        </div>
+      ) : (
+        <Tile label="Frais livraison moyens" value={avgFee.toFixed(avgFee % 1 === 0 ? 0 : 3)} unit={currency} />
+      )}
+    </div>
+  );
+}
+
+function Tile({ label, value, unit, sub }: { label: string; value: string; unit?: string; sub?: string }) {
+  return (
+    <div className="flex min-h-[112px] flex-col gap-1 rounded-card border border-line-subtle bg-surface-card p-4 shadow-hover-row">
+      <div className="text-[11px] font-bold uppercase tracking-[0.07em] text-ink-secondary">{label}</div>
+      <div className="mt-0.5 flex items-baseline gap-1">
+        <span className="text-[28px] font-bold leading-none tracking-[-0.02em] tabular-nums text-ink-primary">{value}</span>
+        {unit && <span className="text-[13px] font-medium text-ink-secondary">{unit}</span>}
+      </div>
+      {sub && <span className="mt-auto text-[12px] text-ink-secondary">{sub}</span>}
+    </div>
   );
 }
 
