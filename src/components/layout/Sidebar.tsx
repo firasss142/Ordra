@@ -18,7 +18,6 @@ import {
   Key,
   LayoutDashboard,
   LineChart,
-  Link2,
   Megaphone,
   HandCoins,
   PackageCheck,
@@ -73,6 +72,14 @@ type BadgeTone = "neutral" | "warning" | "critical";
 interface NavItemDef {
   /** i18n key under `nav.items.*` */
   key: string;
+  /**
+   * Hardcoded label that overrides the `nav.items.*` lookup. Used by the
+   * redesigned Système section for "Connexions", which has no i18n key yet:
+   * the message catalogs are owned by a parallel branch, so the key can't be
+   * added here without entangling the two. TODO: add `nav.items.connexions`
+   * and drop this.
+   */
+  labelText?: string;
   /** Full href relative to `/{locale}/`, may include query string */
   href: string;
   icon: LucideIcon;
@@ -194,12 +201,12 @@ const NAV_SECTIONS: readonly NavSection[] = [
     id: "systeme",
     icon: Server,
     superAdminOnly: true,
+    // Four workspaces, matching the Système redesign. Storefronts, Transporteurs,
+    // Correspondances and Intégrations are no longer separate nav entries — they
+    // are tabs inside Connexions. Their old routes still redirect for bookmarks.
     items: [
       { key: "marketsConfig", href: "system/markets", icon: Store, prefetchRoute: "markets" },
-      { key: "storefrontsConfig", href: "system/connections", icon: ShoppingBag, prefetchRoute: "settings" },
-      { key: "mappings", href: "mappings", icon: Link2, prefetchRoute: "mappings" },
-      { key: "carriersConfig", href: "system/connections?tab=carriers", icon: Truck, prefetchRoute: "settings" },
-      { key: "integrations", href: "settings/integrations", icon: Plug, prefetchRoute: "settings" },
+      { key: "connexions", labelText: "Connexions", href: "system/connections", icon: Plug, prefetchRoute: "settings" },
       { key: "generalSettings", href: "system/settings", icon: Settings, prefetchRoute: "settings" },
       { key: "logs", href: "admin/logs", icon: Key, prefetchRoute: "admin" },
     ],
@@ -563,7 +570,7 @@ export function Sidebar({ user, currentPath, unassignedCount, mobileOpen = false
                       <li key={item.key}>
                         <SubNavItem
                           href={fullHref}
-                          label={t(`items.${item.key}`)}
+                          label={item.labelText ?? t(`items.${item.key}`)}
                           icon={item.icon}
                           isActive={isItemActive(fullHref, activePath, activeSearch)}
                           badge={itemBadgeCount}

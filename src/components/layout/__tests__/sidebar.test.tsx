@@ -202,28 +202,33 @@ describe("Sidebar — sections", () => {
     expect(screen.getByRole("button", { name: /Système/ })).toBeInTheDocument();
   });
 
-  it("expanding SYSTÈME reveals all sub-tabs for super_admin", () => {
+  it("expanding SYSTÈME reveals the four redesigned workspaces for super_admin", () => {
     renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />);
     fireEvent.click(screen.getByRole("button", { name: /Système/ }));
+    // Four workspaces only. Storefronts, Transporteurs, Correspondances and
+    // Intégrations are now tabs inside Connexions, not separate nav entries.
     expect(screen.getByRole("link", { name: /^Marchés$/ })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Storefronts$/ })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Transporteurs/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Connexions$/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^Paramètres$/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Journaux/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Storefronts$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Intégrations$/ })).not.toBeInTheDocument();
   });
 
-  it("activates Transporteurs on /fr/settings/carriers (super_admin)", () => {
-    pathnameMock = "/fr/settings/carriers";
-    searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/settings/carriers" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /Transporteurs/ });
+  it("activates Connexions across every tab of the workspace (super_admin)", () => {
+    // Connexions is one nav entry; its tabs (carriers, etc.) live in ?tab=.
+    // The plain-path item stays active regardless of the query string.
+    pathnameMock = "/fr/system/connections";
+    searchParamsMock = new URLSearchParams("tab=carriers");
+    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/system/connections" unassignedCount={0} />);
+    const link = screen.getByRole("link", { name: /^Connexions$/ });
     expect(link).toHaveAttribute("aria-current", "page");
   });
 
-  it("activates Marchés on /fr/markets", () => {
-    pathnameMock = "/fr/markets";
+  it("activates Marchés on the Marchés workspace", () => {
+    pathnameMock = "/fr/system/markets";
     searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/markets" unassignedCount={0} />);
+    renderSidebar(<Sidebar user={superAdminAllMarkets} currentPath="/fr/system/markets" unassignedCount={0} />);
     const link = screen.getByRole("link", { name: /^Marchés$/ });
     expect(link).toHaveAttribute("aria-current", "page");
   });
