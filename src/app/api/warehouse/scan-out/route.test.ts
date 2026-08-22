@@ -94,6 +94,7 @@ describe("POST /api/warehouse/scan-out — success", () => {
     expect(mockRpc).toHaveBeenCalledWith("scan_order_out", {
       p_order_id: "order-1",
       p_actor_id: "wh-1",
+      p_sticker_ref: null,
     });
   });
 
@@ -194,6 +195,78 @@ describe("POST /api/warehouse/scan-out — carrier-warehouse orders", () => {
     expect(mockRpc).toHaveBeenCalledWith("scan_order_out", {
       p_order_id: "order-1",
       p_actor_id: "wh-1",
+      p_sticker_ref: null,
     });
+  });
+});
+
+// In Libya the number on the parcel is Darb's pre-printed sticker. It is the
+// only link between our order and the parcel the carrier tracks, so the scan
+// records it — and a sticker may be bound exactly once.
+describe("POST /api/warehouse/scan-out — Darb sticker", () => {
+  function agent(maybeSingleData: unknown = null) {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    mockFrom.mockReturnValue(
+      singleChain({ role: "warehouse_agent", market_id: "m-1" }, null, maybeSingleData)
+    );
+  }
+
+  test("forwards the scanned sticker to the RPC", async () => {
+    agent();
+    mockRpc.mockResolvedValue({ data: { success: true }, error: null });
+
+    const res = await POST(req({ order_id: "order-1", sticker_ref: "000000542713" }));
+
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("scan_order_out", {
+      p_order_id: "order-1",
+      p_actor_id: "wh-1",
+      p_sticker_ref: "000000542713",
+    });
+  });
+
+  test("trims the sticker and treats an empty one as absent", async () => {
+    agent();
+    mockRpc.mockResolvedValue({ data: { success: true }, error: null });
+
+    await POST(req({ order_id: "order-1", sticker_ref: "  000000542713  " }));
+    expect(mockRpc).toHaveBeenLastCalledWith("scan_order_out", {
+      p_order_id: "order-1",
+      p_actor_id: "wh-1",
+      p_sticker_ref: "000000542713",
+    });
+
+    await POST(req({ order_id: "order-1", sticker_ref: "   " }));
+    expect(mockRpc).toHaveBeenLastCalledWith("scan_order_out", {
+      p_order_id: "order-1",
+      p_actor_id: "wh-1",
+      p_sticker_ref: null,
+    });
+  });
+
+  test("STICKER_ALREADY_USED → 409 with error_code", async () => {
+    agent();
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: "Sticker 000000542713 is already bound to another order" },
+    });
+
+    const res = await POST(req({ order_id: "order-1", sticker_ref: "000000542713" }));
+
+    expect(res.status).toBe(409);
+    const json = await res.json();
+    expect(json.error_code).toBe("STICKER_ALREADY_USED");
+  });
+
+  test("a duplicate sticker is not mistaken for a missing order", async () => {
+    agent();
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: { message: "Sticker 000000542713 is already bound to another order" },
+    });
+
+    const json = await (await POST(req({ order_id: "order-1", sticker_ref: "x" }))).json();
+
+    expect(json.error_code).not.toBe("ORDER_NOT_FOUND");
   });
 });

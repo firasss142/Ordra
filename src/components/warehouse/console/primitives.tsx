@@ -8,11 +8,11 @@ import { WH_CARD, WH_LABEL, WH_STRIPE, WH_TONE, type WhTone } from "./tokens";
 /**
  * Entrepôt console primitives.
  *
- * The dark warehouse surface is built from five shapes, and every screen in
- * docs/design/entrepot/entrepot-spec.md is a composition of them. They exist
- * as one module so the section cannot drift into a second visual dialect —
- * which is exactly what happened to `shared/*` (inline hex) versus `shell/*`
- * (semantic tokens) in the light era.
+ * Every screen in docs/design/entrepot/entrepot-light.html is a composition of
+ * these shapes, and their measurements come from that file — not from memory.
+ * They exist as one module so the section cannot drift into a second visual
+ * dialect, which is exactly what happened to `shared/*` (inline hex) versus
+ * `shell/*` (semantic tokens) before.
  */
 
 /* ── The tinted icon square that fronts every figure ─────────────── */
@@ -57,90 +57,221 @@ export function WhPill({
   );
 }
 
-/* ── KPI strip: one card, N cells divided by hairlines ─────────────── */
+/* ── Chipmini: the borderless context chip under a figure ─────────── */
 
-export interface WhKpiCellDef {
+export function WhChip({
+  tone = "muted",
+  icon: Icon,
+  children,
+  className = "",
+}: {
+  tone?: WhTone;
+  icon?: LucideIcon;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-pill px-2.5 py-[2.5px] text-[11.5px] font-semibold ${WH_TONE[tone].tint} ${className}`}
+    >
+      {Icon ? <Icon size={11} aria-hidden="true" /> : null}
+      {children}
+    </span>
+  );
+}
+
+/* ── Pipeline: one card, five cells divided by hairlines ───────────── */
+
+export interface WhPipelineCellDef {
   id: string;
   label: string;
   value: ReactNode;
   tone: WhTone;
   icon: LucideIcon;
-  /** Context chip under the figure — an age, a delta, a target. */
+  /** Context chip under the figure — an age, a delta, a reassurance. */
   chip?: ReactNode;
-  /** 0–100. Omitted when there is nothing to pace against. */
-  gaugePct?: number;
+  /** 0–100, drawn as a hairline along the cell's bottom edge. */
+  barPct?: number;
   /**
-   * Nothing to do. Draws a quiet check instead of a gauge, so an empty
-   * queue stops competing for attention with a full one.
+   * Nothing to do here. The whole cell steps back to half opacity rather than
+   * earning a decoration: an empty queue should not compete with a full one.
    */
-  settled?: boolean;
+  dim?: boolean;
 }
 
-export function WhKpiCell({
-  cell,
-  settledLabel = "à jour",
-}: {
-  cell: WhKpiCellDef;
-  settledLabel?: string;
-}) {
+export function WhPipelineCell({ cell }: { cell: WhPipelineCellDef }) {
   const tone = WH_TONE[cell.tone];
   return (
-    <div className="flex min-w-0 flex-col gap-3 px-5 py-4">
-      <div className="flex items-start gap-3">
-        <WhHolder icon={cell.icon} tone={cell.tone} />
-        <div className="min-w-0">
-          <div
-            className={`text-[32px] font-semibold leading-none tracking-[-0.022em] tabular-nums ${
-              cell.settled ? "text-wh-ink-3" : "text-wh-ink-1"
-            }`}
-          >
-            {cell.value}
-          </div>
-          <div className={`mt-1.5 ${WH_LABEL}`}>{cell.label}</div>
+    <div
+      data-testid={`wh-cell-${cell.id}`}
+      data-dim={cell.dim ? "true" : "false"}
+      className={`relative flex items-start gap-3.5 px-5 pb-4 pt-[18px] ${
+        cell.dim ? "opacity-50" : ""
+      }`}
+    >
+      <span
+        className={`grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[11px] ${tone.tint}`}
+      >
+        <cell.icon size={19} aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <div
+          data-testid="wh-value"
+          className="font-mono text-[30px] font-bold leading-none tracking-[-0.02em] tabular-nums text-wh-ink-1"
+        >
+          {cell.value}
         </div>
+        <div className={`mt-[5px] ${WH_LABEL}`}>{cell.label}</div>
+        {cell.chip ? <div className="mt-2 flex">{cell.chip}</div> : null}
       </div>
-
-      {cell.chip ? <div className="flex">{cell.chip}</div> : null}
-
-      <div className="mt-auto pt-1">
-        {cell.settled ? (
-          <span
-            data-testid="wh-kpi-settled"
-            className="inline-flex items-center gap-1.5 text-[11.5px] text-wh-ink-3"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" />
-              <path d="m8.5 12.5 2.5 2.5 4.5-5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            {settledLabel}
-          </span>
-        ) : cell.gaugePct !== undefined ? (
-          <div data-testid="wh-kpi-gauge" className="h-[3px] overflow-hidden rounded-pill bg-wh-sunken">
-            <i
-              className={`block h-full rounded-pill ${tone.fill}`}
-              style={{ width: `${Math.min(Math.max(cell.gaugePct, 2), 100)}%` }}
-            />
-          </div>
-        ) : (
-          <div className="h-[3px]" />
-        )}
-      </div>
+      {cell.barPct !== undefined && !cell.dim ? (
+        // The cell's share of everything on the floor, so the five bars are
+        // comparable to each other rather than each pacing against a fudge.
+        <i
+          data-testid="wh-bar"
+          aria-hidden="true"
+          className={`absolute bottom-0 start-5 h-[3px] rounded-t-[3px] ${tone.fill}`}
+          style={{ width: `calc((100% - 40px) * ${Math.min(Math.max(cell.barPct, 2), 100) / 100})` }}
+        />
+      ) : null}
     </div>
   );
 }
 
-export function WhKpiStrip({
-  cells,
-  settledLabel,
+export function WhPipeline({ cells }: { cells: WhPipelineCellDef[] }) {
+  return (
+    <div
+      className={`${WH_CARD} grid overflow-hidden shadow-sm divide-y divide-wh-border sm:grid-cols-2 lg:grid-cols-5 lg:divide-x lg:divide-y-0`}
+    >
+      {cells.map((cell) => (
+        <WhPipelineCell key={cell.id} cell={cell} />
+      ))}
+    </div>
+  );
+}
+
+/* ── KPI card: label · figure · note · divided footer ──────────────── */
+
+/** The inset top bar that marks a card as demanding, settled, or lost. */
+const KPI_EDGE: Record<"warn" | "ok" | "bad", string> = {
+  warn: "border-wh-warn-edge shadow-[inset_0_2px_0_var(--wh-warn)]",
+  ok: "shadow-[inset_0_2px_0_var(--wh-ok)]",
+  bad: "border-wh-bad-edge shadow-[inset_0_2px_0_var(--wh-bad)]",
+};
+
+export interface WhKpiFoot {
+  value: ReactNode;
+  label: string;
+}
+
+export function WhKpiCard({
+  id,
+  label,
+  icon: Icon,
+  tone = "muted",
+  value,
+  unit,
+  chip,
+  note,
+  progressPct,
+  foot,
+  edge,
+  dim,
+  children,
 }: {
-  cells: WhKpiCellDef[];
-  settledLabel?: string;
+  id: string;
+  label: string;
+  icon?: LucideIcon;
+  tone?: WhTone;
+  value: ReactNode;
+  /** Small suffix beside the figure — %, u, a currency. */
+  unit?: string;
+  chip?: ReactNode;
+  note?: ReactNode;
+  /** 0–100 progress toward a target. */
+  progressPct?: number;
+  /** Up to three divided cells beneath the rule. */
+  foot?: WhKpiFoot[];
+  edge?: "warn" | "ok" | "bad";
+  /** Nothing happening: the figure and label step back to the muted ink. */
+  dim?: boolean;
+  /** A sparkline or any other body placed under the note. */
+  children?: ReactNode;
 }) {
   return (
-    <div className={`${WH_CARD} grid divide-y divide-wh-border sm:grid-flow-col sm:auto-cols-fr sm:divide-x sm:divide-y-0`}>
-      {cells.map((cell) => (
-        <WhKpiCell key={cell.id} cell={cell} settledLabel={settledLabel} />
-      ))}
+    <div
+      data-testid={`wh-kpi-${id}`}
+      data-dim={dim ? "true" : "false"}
+      className={`rounded-wh border border-wh-border bg-wh-surface px-[18px] py-4 shadow-sm transition-[box-shadow,transform,border-color] duration-150 hover:-translate-y-px hover:border-wh-border-strong hover:shadow-md ${
+        edge ? KPI_EDGE[edge] : ""
+      }`}
+    >
+      <div className={`flex items-center gap-2.5 ${WH_LABEL}`}>
+        {Icon ? (
+          <span className={`grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] ${WH_TONE[tone].tint}`}>
+            <Icon size={15} aria-hidden="true" />
+          </span>
+        ) : null}
+        {label}
+      </div>
+
+      <div
+        data-testid="wh-value"
+        className={`mt-2.5 flex flex-wrap items-baseline gap-2 font-mono text-[29px] font-bold leading-[1.05] tracking-[-0.02em] tabular-nums ${
+          dim ? "text-wh-ink-3" : "text-wh-ink-1"
+        }`}
+      >
+        {value}
+        {unit ? <span className="text-[13px] font-semibold text-wh-ink-3">{unit}</span> : null}
+        {chip}
+      </div>
+
+      {progressPct !== undefined ? (
+        <div className="mt-2.5 h-1.5 overflow-hidden rounded-pill bg-wh-sunken">
+          <i
+            className="block h-full rounded-pill bg-wh-ok"
+            style={{ width: `${Math.min(Math.max(progressPct, 0), 100)}%` }}
+            aria-hidden="true"
+          />
+        </div>
+      ) : null}
+
+      {note ? <div className="mt-1.5 text-[12px] text-wh-ink-2">{note}</div> : null}
+      {children}
+
+      {foot && foot.length > 0 ? (
+        <div className="mt-3 flex border-t border-wh-border pt-[11px]">
+          {foot.map((f, i) => (
+            <div
+              key={f.label}
+              className={`flex-1 ${i > 0 ? "border-s border-wh-border ps-[13px]" : ""}`}
+            >
+              <div className="font-mono text-[13.5px] font-semibold tabular-nums text-wh-ink-1">
+                {f.value}
+              </div>
+              <div className="mt-px text-[11.5px] text-wh-ink-3">{f.label}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** The auto-fitting row the prototype wraps every KPI set in. */
+export function WhKpiGrid({
+  children,
+  min = 230,
+}: {
+  children: ReactNode;
+  min?: number;
+}) {
+  return (
+    <div
+      className="grid gap-3.5"
+      style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${min}px, 1fr))` }}
+    >
+      {children}
     </div>
   );
 }
@@ -148,6 +279,7 @@ export function WhKpiStrip({
 /* ── Action row: icon · title · detail · value · chevron ───────────── */
 
 export function WhActionRow({
+  id,
   icon,
   tone,
   title,
@@ -157,35 +289,58 @@ export function WhActionRow({
   stripe,
   onClick,
 }: {
+  id: string;
   icon: LucideIcon;
   tone: WhTone;
   title: string;
   detail: string;
   value: ReactNode;
   unit: string;
-  stripe?: "bad" | "warn";
+  /** Only the heaviest row carries one. A stripe on every row means nothing. */
+  stripe?: boolean;
   onClick?: () => void;
 }) {
   const body = (
     <>
-      <WhHolder icon={icon} tone={tone} size={34} />
+      <span
+        className={`grid h-9 w-9 shrink-0 place-items-center rounded-[10px] ${WH_TONE[tone].tint}`}
+      >
+        {(() => {
+          const Icon = icon;
+          return <Icon size={17} aria-hidden="true" />;
+        })()}
+      </span>
       <span className="min-w-0 flex-1 text-start">
-        <span className="block truncate text-[13.5px] font-semibold text-wh-ink-1">{title}</span>
+        <span className="block text-[13.5px] font-semibold text-wh-ink-1">{title}</span>
         <span className="mt-0.5 block text-[12.5px] text-wh-ink-2">{detail}</span>
       </span>
-      <span className="whitespace-nowrap text-end text-[15px] font-semibold tabular-nums text-wh-ink-1">
-        {value}
-        <span className="ms-1 text-[11px] font-semibold text-wh-ink-3">{unit}</span>
+      <span className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap text-end">
+        <span className="font-mono text-[16px] font-bold tabular-nums text-wh-ink-1">{value}</span>
+        <span className="text-[11.5px] text-wh-ink-3">{unit}</span>
       </span>
       {onClick ? <ChevronRight size={16} className="shrink-0 text-wh-ink-3" aria-hidden="true" /> : null}
     </>
   );
 
-  const shell = `flex w-full items-center gap-3 px-4 py-3.5 ${stripe ? WH_STRIPE[stripe] : ""}`;
+  const shell = `flex w-full items-start gap-3 px-[18px] py-3.5 ${
+    stripe ? "shadow-[inset_3px_0_0_var(--wh-bad)]" : ""
+  }`;
 
-  if (!onClick) return <div className={shell}>{body}</div>;
+  if (!onClick) {
+    return (
+      <div data-testid={`wh-action-${id}`} data-stripe={stripe ? "true" : "false"} className={shell}>
+        {body}
+      </div>
+    );
+  }
   return (
-    <button type="button" onClick={onClick} className={`${shell} transition-colors hover:bg-wh-surface-2`}>
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid={`wh-action-${id}`}
+      data-stripe={stripe ? "true" : "false"}
+      className={`${shell} transition-colors hover:bg-wh-sunken`}
+    >
       {body}
     </button>
   );

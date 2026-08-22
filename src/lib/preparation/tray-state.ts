@@ -8,6 +8,8 @@ export type ScanErrorCode =
   | "STOCK_UNDERFLOW"
   // Fulfilled from the carrier's own warehouse — never scanned out here.
   | "CARRIER_WAREHOUSE_ORDER"
+  // The scanned sticker is already bound to a different parcel.
+  | "STICKER_ALREADY_USED"
   | "NETWORK_ERROR";
 
 export interface TrayRowInit {

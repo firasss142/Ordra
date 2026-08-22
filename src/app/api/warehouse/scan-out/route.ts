@@ -8,6 +8,11 @@ export const dynamic = "force-dynamic";
 
 function classifyRpcError(message: string): { code: ScanErrorCode; status: number } {
   const m = message.toLowerCase();
+  // Checked before ORDER_NOT_FOUND: the duplicate message names an order too,
+  // and "already bound to another order" would otherwise read as "not found".
+  if (m.includes("sticker") && m.includes("already")) {
+    return { code: "STICKER_ALREADY_USED", status: 409 };
+  }
   if (m.includes("not found") && m.includes("order")) {
     return { code: "ORDER_NOT_FOUND", status: 409 };
   }
@@ -35,7 +40,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: { order_id?: string };
+  let body: { order_id?: string; sticker_ref?: string };
   try {
     body = await req.json();
   } catch {
@@ -46,6 +51,11 @@ export async function POST(req: NextRequest) {
   if (!orderId) {
     return NextResponse.json({ error: "Missing order_id" }, { status: 400 });
   }
+
+  // Libya: the number on the parcel is Darb's pre-printed sticker, the only
+  // link between our order and the shipment they track. Tunisia scans our own
+  // QR, which already carries the order id — so the sticker is optional.
+  const stickerRef = body.sticker_ref?.trim() || null;
 
   const supabase = await createClient();
 
@@ -74,6 +84,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase.rpc("scan_order_out", {
     p_order_id: orderId,
     p_actor_id: actor.id,
+    p_sticker_ref: stickerRef,
   });
 
   if (error) {

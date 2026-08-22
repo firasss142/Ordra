@@ -52,8 +52,50 @@ export interface WarehouseMarketSummary {
   currency: string;
 }
 
+/**
+ * The five pipeline figures and the four priority actions, straight from
+ * get_warehouse_queue_stats. "À préparer" is `uploaded`, not `confirmed`:
+ * since the uploaded status model a confirmed order has not reached the
+ * carrier yet, so it is not warehouse work.
+ */
+export interface WarehouseQueueStats {
+  toPrepare: number;
+  oldestPrepareHours: number;
+  latePrepare: number;
+  neverScanned: number;
+  confirmedNotUploaded: number;
+  carrierWarehouse: number;
+  returnsInbox: number;
+  toHandOver: number;
+}
+
+/** Today and yesterday, from order_history — never a snapshot of itself. */
+export interface WarehouseDayStats {
+  scannedToday: number;
+  scannedYesterday: number;
+  handedToday: number;
+  handedYesterday: number;
+  returnsToday: number;
+  returnsYesterday: number;
+}
+
+/**
+ * One operator's day. `activeHours` is the span between their first and last
+ * scan, not hours in the day: a half-day operator is not a slow one.
+ */
+export interface WarehouseLeaderRow {
+  actorId: string;
+  name: string;
+  scanned: number;
+  activeHours: number;
+  ratePerHour: number;
+}
+
 export interface WarehouseSummary {
   kpis: WarehouseKpis;
+  queue: WarehouseQueueStats;
+  day: WarehouseDayStats;
+  leaderboard: WarehouseLeaderRow[];
   trend: WarehouseTrendPoint[];
   activity: WarehouseActivityEntry[];
   lowStock: LowStockProduct[];
@@ -224,6 +266,16 @@ export async function getWarehouseSummary(
     p_limit: 20,
   });
 
+  const queueStatsQuery = supabase.rpc("get_warehouse_queue_stats", {
+    p_market_id: scopedMarketId ?? null,
+  });
+  const dayStatsQuery = supabase.rpc("get_warehouse_day_stats", {
+    p_market_id: scopedMarketId ?? null,
+  });
+  const leaderboardQuery = supabase.rpc("get_warehouse_leaderboard", {
+    p_market_id: scopedMarketId ?? null,
+  });
+
   const [
     marketsResult,
     confirmedResult,
@@ -235,6 +287,9 @@ export async function getWarehouseSummary(
     labelActivityResult,
     invActivityResult,
     lowStockResult,
+    queueStatsResult,
+    dayStatsResult,
+    leaderboardResult,
   ] = await Promise.all([
     marketsPromise,
     confirmedQuery,
@@ -246,6 +301,9 @@ export async function getWarehouseSummary(
     labelActivityQuery,
     invActivityQuery,
     lowStockQuery,
+    queueStatsQuery,
+    dayStatsQuery,
+    leaderboardQuery,
   ]);
 
   // --- Markets ---
@@ -351,8 +409,52 @@ export async function getWarehouseSummary(
     damagedThisWeek: computeKpiDelta(damagedCurrent, damagedPrev),
   };
 
+  // --- Queue / day / team ---
+  const q = (queueStatsResult.data ?? {}) as Record<string, number | null>;
+  const queue: WarehouseQueueStats = {
+    toPrepare: Number(q.to_prepare ?? 0),
+    oldestPrepareHours: Number(q.oldest_prepare_hours ?? 0),
+    latePrepare: Number(q.late_prepare ?? 0),
+    neverScanned: Number(q.never_scanned ?? 0),
+    confirmedNotUploaded: Number(q.confirmed_not_uploaded ?? 0),
+    carrierWarehouse: Number(q.carrier_warehouse ?? 0),
+    returnsInbox: Number(q.returns_inbox ?? 0),
+    toHandOver: Number(q.to_hand_over ?? 0),
+  };
+
+  const d = (dayStatsResult.data ?? {}) as Record<string, number | null>;
+  const day: WarehouseDayStats = {
+    scannedToday: Number(d.scanned_today ?? 0),
+    scannedYesterday: Number(d.scanned_yesterday ?? 0),
+    handedToday: Number(d.handed_today ?? 0),
+    handedYesterday: Number(d.handed_yesterday ?? 0),
+    returnsToday: Number(d.returns_today ?? 0),
+    returnsYesterday: Number(d.returns_yesterday ?? 0),
+  };
+
+  const leaderboard: WarehouseLeaderRow[] = (
+    (leaderboardResult.data ?? []) as Array<{
+      actor_id: string;
+      full_name: string | null;
+      scanned: number;
+      active_hours: number | string;
+    }>
+  ).map((r) => {
+    const hours = Number(r.active_hours) || 0.5;
+    return {
+      actorId: r.actor_id,
+      name: r.full_name ?? "—",
+      scanned: Number(r.scanned) || 0,
+      activeHours: hours,
+      ratePerHour: Math.round((Number(r.scanned) / hours) * 10) / 10,
+    };
+  });
+
   return {
     kpis,
+    queue,
+    day,
+    leaderboard,
     trend,
     activity,
     lowStock,

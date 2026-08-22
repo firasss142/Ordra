@@ -51,6 +51,23 @@ function ageOf(iso: string): { label: string; tone: AgeTone; hours: number } {
   return { label, tone: hours >= 48 ? "bad" : hours >= 12 ? "warn" : "ok", hours };
 }
 
+/** Operator-facing wording for the scan refusals the API can return. */
+function scanErrorLabel(
+  code: string | undefined,
+  t: (k: string) => string,
+): string | null {
+  switch (code) {
+    case "STICKER_ALREADY_USED": return t("errStickerUsed");
+    case "NO_LABEL_PRINTED": return t("errNoLabel");
+    case "INVALID_STATUS": return t("errStatus");
+    case "MARKET_MISMATCH": return t("errMarket");
+    case "STOCK_UNDERFLOW": return t("errStock");
+    case "CARRIER_WAREHOUSE_ORDER": return t("errCarrierWarehouse");
+    case "ORDER_NOT_FOUND": return t("notFound");
+    default: return null;
+  }
+}
+
 interface ScanEntry {
   id: string;
   code: string;
@@ -179,7 +196,10 @@ export function PreparationConsole({
       const res = await fetch("/api/warehouse/scan-out", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order_id: target.id }),
+        // Libya only: the code IS Darb's sticker, and it is the only link
+        // between this order and the parcel they track. In Tunisia the code is
+        // our own order id, which is already the order_id above.
+        body: JSON.stringify({ order_id: target.id, sticker_ref: isLy ? code : null }),
       });
       const body = (await res.json().catch(() => ({}))) as {
         stock_after?: number; message?: string; error_code?: string; error?: string;
@@ -188,7 +208,9 @@ export function PreparationConsole({
         setScans((s) => [
           {
             id: `${Date.now()}`, code, at: new Date().toISOString(), ok: false,
-            message: body.message ?? body.error ?? body.error_code ?? t("scanErr"),
+            // A raw Postgres exception is not an instruction. Map the codes we
+            // know to something an operator at the bench can act on.
+            message: scanErrorLabel(body.error_code, t) ?? body.message ?? body.error ?? t("scanErr"),
           },
           ...s,
         ].slice(0, 8));

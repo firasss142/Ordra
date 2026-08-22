@@ -60,6 +60,7 @@ interface Props {
         NO_LABEL_PRINTED: string;
         STOCK_UNDERFLOW: string;
         CARRIER_WAREHOUSE_ORDER: string;
+        STICKER_ALREADY_USED: string;
         NETWORK_ERROR: string;
       };
     };

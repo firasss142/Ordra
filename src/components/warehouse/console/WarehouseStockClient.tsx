@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Boxes, Lock, PackageCheck, TriangleAlert, ClipboardList } from "lucide-react";
 import type { WarehouseStockRow } from "@/app/api/warehouse/stock/route";
-import { WhCard, WhKpiStrip, WhPill, type WhKpiCellDef } from "./primitives";
+import { WhCard, WhKpiCard, WhKpiGrid, WhPill } from "./primitives";
 import { WH_LABEL } from "./tokens";
 import { StockCountDialog } from "./StockCountDialog";
 
@@ -34,20 +34,22 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
 
   const rows = data?.rows ?? [];
 
-  const cells: WhKpiCellDef[] = useMemo(() => {
+  const cells = useMemo(() => {
     const low = rows.filter((r) => r.current_stock <= r.low_stock_threshold);
     const negative = rows.filter((r) => r.free < 0);
     const engaged = rows.reduce((n, r) => n + r.engaged, 0);
     return [
-      { id: "products", label: t("kpiProducts"), value: rows.length, tone: "muted", icon: Boxes },
+      { id: "products", label: t("kpiProducts"), value: rows.length, tone: "muted" as const, icon: Boxes },
       {
         id: "low", label: t("kpiLow"), value: low.length,
-        tone: low.length ? "warn" : "muted", icon: TriangleAlert, settled: low.length === 0,
+        tone: low.length ? ("warn" as const) : ("muted" as const), icon: TriangleAlert,
+        edge: low.length ? ("warn" as const) : undefined, dim: low.length === 0,
       },
-      { id: "engaged", label: t("kpiEngaged"), value: engaged, tone: "scan", icon: Lock },
+      { id: "engaged", label: t("kpiEngaged"), value: engaged, tone: "scan" as const, icon: Lock },
       {
         id: "negative", label: t("kpiNegative"), value: negative.length,
-        tone: negative.length ? "bad" : "muted", icon: PackageCheck, settled: negative.length === 0,
+        tone: negative.length ? ("bad" as const) : ("muted" as const), icon: PackageCheck,
+        edge: negative.length ? ("bad" as const) : undefined, dim: negative.length === 0,
       },
     ];
   }, [rows, t]);
@@ -60,7 +62,11 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
       </header>
 
       <div className="mb-4">
-        <WhKpiStrip cells={cells} />
+        <WhKpiGrid>
+        {cells.map((c) => (
+          <WhKpiCard key={c.id} {...c} />
+        ))}
+      </WhKpiGrid>
       </div>
 
       <WhCard title={t("title")} hint={`${rows.length}`}>
