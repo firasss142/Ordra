@@ -6,7 +6,7 @@ import useSWR from "swr";
 import { SettingsPageHeader } from "@/components/settings/SettingsPageHeader";
 import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
-import { MarketCard, type MarketRow, type MarketMetrics } from "@/components/markets/MarketCard";
+import { MarketCard, type MarketRow, type MarketMetrics, type MarketWindow } from "@/components/markets/MarketCard";
 import type { AuthUser } from "@/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -21,11 +21,12 @@ export function MarketsWorkspace({ user }: Props) {
   const locale = params?.locale ?? "fr";
   const canEdit = user.role === "super_admin";
 
+  const [window, setWindow] = useState<MarketWindow>("7d");
   const { data: marketsData, mutate } = useSWR<{ data: MarketRow[] }>("/api/markets", fetcher);
-  const today = new Date().toISOString().slice(0, 10);
   const { data: metricsData } = useSWR<{ data: MarketMetrics[] }>(
-    `/api/metrics/cross-market?from_date=${today}&to_date=${today}`,
+    "/api/metrics/cross-market",
     fetcher,
+    { refreshInterval: 60_000 },
   );
 
   const markets = marketsData?.data ?? [];
@@ -39,6 +40,23 @@ export function MarketsWorkspace({ user }: Props) {
         title="Marchés"
         description="Chaque marché possède ses connexions, ses réglages et ses journaux. Cette page répond à une seule question : lequel demande votre attention ?"
         isRtl={isRtl}
+        right={
+          <div className="inline-flex rounded-pill bg-status-neutralBg p-0.5">
+            {(["7d", "30d"] as const).map((w) => (
+              <button
+                key={w}
+                type="button"
+                onClick={() => setWindow(w)}
+                aria-pressed={window === w}
+                className={`rounded-pill px-3.5 py-1.5 text-[12.5px] font-medium transition-colors ${
+                  window === w ? "bg-surface-card text-ink-primary shadow-hover-row" : "text-ink-secondary"
+                }`}
+              >
+                {w === "7d" ? "7 jours" : "30 jours"}
+              </button>
+            ))}
+          </div>
+        }
       />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -47,6 +65,7 @@ export function MarketsWorkspace({ user }: Props) {
             key={m.id}
             market={m}
             metrics={metricsMap[m.id]}
+            window={window}
             locale={locale}
             canEdit={canEdit}
             onEdit={setEditing}
