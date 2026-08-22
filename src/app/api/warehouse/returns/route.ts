@@ -8,6 +8,7 @@ import {
   decodeQueueCursor,
 } from "@/lib/warehouse/queue-cursor";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
+import { resolveWarehouseScope } from "@/lib/warehouse/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +28,10 @@ export async function GET(req: NextRequest) {
 
   const limit = clampQueueLimit(req.nextUrl.searchParams.get("limit"));
   const cursor = decodeQueueCursor(req.nextUrl.searchParams.get("cursor"));
-  const marketScope =
-    actor.role !== "super_admin" && actor.market_id ? actor.market_id : null;
+  // A super-admin viewing Libye must not be handed the Tunisian returns queue.
+  // This route used to pass null for them, so the list and the KPI card above
+  // it disagreed on screen: "0 dans la file" over fifty Tunisian rows.
+  const { marketId: marketScope } = resolveWarehouseScope(req, actor);
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_to_be_returned_orders", {

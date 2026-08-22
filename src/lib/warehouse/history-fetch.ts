@@ -55,7 +55,6 @@ interface PrintRow {
   created_at: string;
   printed_by: string | null;
   orders: {
-    order_number?: string | null;
     customer_name?: string | null;
     customer_city?: string | null;
   } | null;
@@ -73,7 +72,6 @@ interface HandoverRow {
   created_at: string;
   actor_id: string | null;
   orders: {
-    order_number?: string | null;
     customer_name?: string | null;
     customer_city?: string | null;
     product_name?: string | null;
@@ -94,7 +92,6 @@ interface InvRow {
   product_id: string | null;
   products: { name?: string | null; market_id?: string | null } | null;
   orders: {
-    order_number?: string | null;
     customer_name?: string | null;
     customer_city?: string | null;
   } | null;
@@ -105,6 +102,11 @@ function toKindCursor(kind: WarehouseHistoryRow["kind"]): WarehouseHistoryKindCu
   if (kind === "print") return "print";
   if (kind === "handover") return "handover";
   return "scan";
+}
+
+/** Orders have no human-readable number; the console shows the id's head. */
+function shortRef(orderId: string | null): string | null {
+  return orderId ? orderId.slice(0, 8).toUpperCase() : null;
 }
 
 function safeRole(r: string | null): WarehouseActor["role"] {
@@ -263,7 +265,7 @@ export async function getWarehouseHistoryPage(
     if (!includePrints) return { data: [] as PrintRow[] };
     let qb = supabase
       .from("label_prints")
-      .select("id, order_id, is_reprint, created_at, printed_by, orders(order_number, customer_name, customer_city), actor:users!printed_by(id, full_name, role, avatar_url)")
+      .select("id, order_id, is_reprint, created_at, printed_by, orders(customer_name, customer_city), actor:users!printed_by(id, full_name, role, avatar_url)")
       .order("created_at", { ascending: false })
       .limit(fetchLimit);
     if (scopeMarket) qb = qb.eq("market_id", scopeMarket);
@@ -274,11 +276,12 @@ export async function getWarehouseHistoryPage(
     if (q.product_id) return { data: [] as PrintRow[] }; // prints have no product
     if (q.q) {
       const like = `%${q.q}%`;
-      qb = qb.or(`order_number.ilike.${like},customer_name.ilike.${like}`, {
+      qb = qb.or(`customer_name.ilike.${like},customer_city.ilike.${like}`, {
         foreignTable: "orders",
       });
     }
-    const { data } = await qb;
+    const { data, error } = await qb;
+    if (error) throw new Error(`label_prints: ${error.message}`);
     return { data: (data ?? []) as unknown as PrintRow[] };
   })();
 
@@ -288,7 +291,7 @@ export async function getWarehouseHistoryPage(
     if (!includeHandovers || q.product_id) return { data: [] as HandoverRow[] };
     let qb = supabase
       .from("order_history")
-      .select("id, order_id, created_at, actor_id, orders(order_number, customer_name, customer_city, product_name), actor:users!actor_id(id, full_name, role, avatar_url)")
+      .select("id, order_id, created_at, actor_id, orders(customer_name, customer_city, product_name), actor:users!actor_id(id, full_name, role, avatar_url)")
       .eq("status_to", "dispatched")
       .order("created_at", { ascending: false })
       .limit(fetchLimit);
@@ -299,11 +302,12 @@ export async function getWarehouseHistoryPage(
     if (q.actor_id) qb = qb.eq("actor_id", q.actor_id);
     if (q.q) {
       const like = `%${q.q}%`;
-      qb = qb.or(`order_number.ilike.${like},customer_name.ilike.${like}`, {
+      qb = qb.or(`customer_name.ilike.${like},customer_city.ilike.${like}`, {
         foreignTable: "orders",
       });
     }
-    const { data } = await qb;
+    const { data, error } = await qb;
+    if (error) throw new Error(`order_history: ${error.message}`);
     return { data: (data ?? []) as unknown as HandoverRow[] };
   })();
 
@@ -311,7 +315,7 @@ export async function getWarehouseHistoryPage(
     if (!includeInventory || scanReasons.length === 0) return { data: [] as InvRow[] };
     let qb = supabase
       .from("inventory_log")
-      .select("id, order_id, reason, change, balance_after, created_at, is_damaged, note, actor_id, product_id, products!inner(market_id, name), orders(order_number, customer_name, customer_city), actor:users!actor_id(id, full_name, role, avatar_url)")
+      .select("id, order_id, reason, change, balance_after, created_at, is_damaged, note, actor_id, product_id, products!inner(market_id, name), orders(customer_name, customer_city), actor:users!actor_id(id, full_name, role, avatar_url)")
       .in("reason", scanReasons)
       .order("created_at", { ascending: false })
       .limit(fetchLimit);
@@ -324,14 +328,15 @@ export async function getWarehouseHistoryPage(
     if (q.q) {
       const like = `%${q.q}%`;
       qb = qb.or(
-        `order_number.ilike.${like},customer_name.ilike.${like}`,
+        `customer_name.ilike.${like},customer_city.ilike.${like}`,
         { foreignTable: "orders" },
       ).or(
         `name.ilike.${like}`,
         { foreignTable: "products" },
       ).or(`note.ilike.${like}`);
     }
-    const { data } = await qb;
+    const { data, error } = await qb;
+    if (error) throw new Error(`inventory_log: ${error.message}`);
     return { data: (data ?? []) as unknown as InvRow[] };
   })();
 
@@ -345,7 +350,7 @@ export async function getWarehouseHistoryPage(
     kind: "print" as const,
     id: p.id,
     order_id: p.order_id,
-    order_number: p.orders?.order_number ?? null,
+    order_number: shortRef(p.order_id),
     product_id: null,
     product_name: null,
     qty_change: null,
@@ -353,7 +358,7 @@ export async function getWarehouseHistoryPage(
     at: p.created_at,
     detail:
       [
-        p.orders?.order_number ? `#${p.orders.order_number}` : null,
+        shortRef(p.order_id),
         p.orders?.customer_name,
         p.orders?.customer_city,
       ]
@@ -370,7 +375,7 @@ export async function getWarehouseHistoryPage(
     kind: "handover" as const,
     id: h.id,
     order_id: h.order_id,
-    order_number: h.orders?.order_number ?? null,
+    order_number: shortRef(h.order_id),
     product_id: null,
     product_name: h.orders?.product_name ?? null,
     qty_change: null,
@@ -378,7 +383,7 @@ export async function getWarehouseHistoryPage(
     at: h.created_at,
     detail:
       [
-        h.orders?.order_number ? `#${h.orders.order_number}` : null,
+        shortRef(h.order_id),
         h.orders?.customer_name,
         h.orders?.customer_city,
       ]
@@ -405,7 +410,7 @@ export async function getWarehouseHistoryPage(
       kind,
       id: s.id,
       order_id: s.order_id,
-      order_number: s.orders?.order_number ?? null,
+      order_number: shortRef(s.order_id),
       product_id: s.product_id,
       product_name: s.products?.name ?? null,
       qty_change: s.change ?? null,
@@ -413,7 +418,7 @@ export async function getWarehouseHistoryPage(
       at: s.created_at,
       detail:
         [
-          s.orders?.order_number ? `#${s.orders.order_number}` : null,
+          shortRef(s.order_id),
           s.products?.name,
           s.orders?.customer_name,
         ]

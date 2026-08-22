@@ -217,6 +217,7 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
             icon={Undo2}
             tone={stats && stats.queueCount > 0 ? "warn" : "muted"}
             edge={stats && stats.queueCount > 0 ? "warn" : undefined}
+            valueTone="warn"
             dim={!stats || stats.queueCount === 0}
             value={stats?.queueCount ?? 0}
             note={
@@ -233,6 +234,7 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
             icon={PackageCheck}
             tone={stats && stats.doneToday > 0 ? "ok" : "muted"}
             edge={stats && stats.doneToday > 0 ? "ok" : undefined}
+            valueTone="ok"
             dim={!stats || stats.doneToday === 0}
             value={stats?.doneToday ?? 0}
             note={t("kpiDoneDetail", {
@@ -293,7 +295,7 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
               {t("queueEmpty")}
             </p>
           ) : (
-            <div className="divide-y divide-wh-border">
+            <div className="max-h-[640px] divide-y divide-wh-border overflow-y-auto">
               {orders.map((o) => {
                 const age = daysSince(o.created_at);
                 const tone = age >= 10 ? "bad" : age >= 5 ? "warn" : "muted";

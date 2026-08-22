@@ -15,6 +15,14 @@ import type { WarehouseTrendPoint } from "@/lib/warehouse/summary";
 interface WarehouseTrendChartProps {
   data: WarehouseTrendPoint[];
   labels: { scanned: string; returned: string; damaged: string };
+  /**
+   * Which series to draw. Aujourd'hui shows two — the prototype's legend is
+   * "Sorties scannées" and "Retours traités"; damage is a Retours concern and
+   * a third line here only crowds the curve.
+   */
+  series?: Array<"scanned" | "returned" | "damaged">;
+  /** Off when the card draws its own legend, so the two do not double up. */
+  showLegend?: boolean;
   colorScheme?: "light" | "dark";
 }
 
@@ -61,7 +69,13 @@ const SCHEME = {
   },
 } as const;
 
-export function WarehouseTrendChart({ data, labels, colorScheme = "light" }: WarehouseTrendChartProps) {
+export function WarehouseTrendChart({
+  data,
+  labels,
+  colorScheme = "light",
+  series = ["scanned", "returned", "damaged"],
+  showLegend = true,
+}: WarehouseTrendChartProps) {
   const { colors, gridStroke, tickFill, axisStroke, tooltipBg, tooltipBorder, tooltipLabelColor, legendColor } = SCHEME[colorScheme];
 
   return (
@@ -108,13 +122,16 @@ export function WarehouseTrendChart({ data, labels, colorScheme = "light" }: War
           labelStyle={{ fontWeight: 600, color: tooltipLabelColor }}
           labelFormatter={(l) => formatDay(String(l))}
         />
-        <Legend
-          verticalAlign="top"
-          align="right"
-          iconType="circle"
-          iconSize={8}
-          wrapperStyle={{ fontSize: 12, color: legendColor }}
-        />
+        {showLegend ? (
+          <Legend
+            verticalAlign="top"
+            align="right"
+            iconType="circle"
+            iconSize={8}
+            wrapperStyle={{ fontSize: 12, color: legendColor }}
+          />
+        ) : null}
+        {series.includes("scanned") ? (
         <Area
           type="monotone"
           dataKey="scanned"
@@ -124,15 +141,20 @@ export function WarehouseTrendChart({ data, labels, colorScheme = "light" }: War
           fill="url(#scanFill)"
           isAnimationActive={false}
         />
+        ) : null}
+        {series.includes("returned") ? (
         <Area
           type="monotone"
           dataKey="returned"
           name={labels.returned}
           stroke={colors.returned}
           strokeWidth={2}
+          strokeDasharray="4 5"
           fill="url(#retFill)"
           isAnimationActive={false}
         />
+        ) : null}
+        {series.includes("damaged") ? (
         <Area
           type="monotone"
           dataKey="damaged"
@@ -142,6 +164,7 @@ export function WarehouseTrendChart({ data, labels, colorScheme = "light" }: War
           fill="url(#dmgFill)"
           isAnimationActive={false}
         />
+        ) : null}
       </AreaChart>
     </ResponsiveContainer>
   );

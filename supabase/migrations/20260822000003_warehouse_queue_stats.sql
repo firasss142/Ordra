@@ -32,9 +32,15 @@ AS $$
           FILTER (WHERE status = 'uploaded' AND ours),
         0
       )::INT,
-    -- Late: past two days on the bench. The carrier bills late deposits.
+    -- Late but still recent: past the two-day mark, not yet abandoned. This
+    -- and never_scanned PARTITION the backlog — they must not overlap, or the
+    -- "total à rattraper" counts the same order twice.
     'late_prepare',
-      COUNT(*) FILTER (WHERE status = 'uploaded' AND ours AND created_at < now() - INTERVAL '2 days'),
+      COUNT(*) FILTER (
+        WHERE status = 'uploaded' AND ours
+          AND created_at <  now() - INTERVAL '2 days'
+          AND created_at >= now() - INTERVAL '7 days'
+      ),
     -- Never scanned: stickered in Darb's own app, so the OMS never saw the
     -- scan and still counts the units as ours.
     'never_scanned',

@@ -16,6 +16,14 @@ export const dynamic = "force-dynamic";
 export interface ToLabelQueuePage {
   orders: WarehouseOrderRow[];
   nextCursor: string | null;
+  /**
+   * The whole queue, not this page. The bench KPIs used to count the loaded
+   * rows, so Préparation read "50" under an Aujourd'hui that said 407 — the
+   * page size, presented as the workload.
+   */
+  total: number;
+  late: number;
+  oldestHours: number;
 }
 
 const cacheHeaders = {
@@ -54,22 +62,34 @@ export async function GET(req: NextRequest) {
           ? scopeToMarketId(cookieScope)
           : null;
 
-  const { data, error } = await supabase.rpc("get_to_label_orders", {
-    p_market_id: marketScope,
-    p_limit: limit + 1,
-    p_cursor_created_at: cursor?.timestamp ?? null,
-    p_cursor_id: cursor?.id ?? null,
-  });
+  const [{ data, error }, { data: statsData }] = await Promise.all([
+    supabase.rpc("get_to_label_orders", {
+      p_market_id: marketScope,
+      p_limit: limit + 1,
+      p_cursor_created_at: cursor?.timestamp ?? null,
+      p_cursor_id: cursor?.id ?? null,
+    }),
+    supabase.rpc("get_warehouse_queue_stats", { p_market_id: marketScope }),
+  ]);
 
   if (error) {
     return NextResponse.json({ error: "db_error" }, { status: 500 });
   }
+
+  const stats = (statsData ?? {}) as Record<string, number | null>;
 
   const { rows: orders, nextCursor } = buildQueuePageMeta(
     (data ?? []) as WarehouseOrderRow[],
     limit,
   );
 
-  const body: ToLabelQueuePage = { orders, nextCursor };
+  const body: ToLabelQueuePage = {
+    orders,
+    nextCursor,
+    total: Number(stats.to_prepare ?? orders.length),
+    // Anything past two days on the bench, however long it has been there.
+    late: Number(stats.late_prepare ?? 0) + Number(stats.never_scanned ?? 0),
+    oldestHours: Number(stats.oldest_prepare_hours ?? 0),
+  };
   return NextResponse.json(body, { headers: cacheHeaders });
 }

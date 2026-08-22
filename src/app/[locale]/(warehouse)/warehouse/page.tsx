@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/auth/server-user";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { getWarehouseSummary } from "@/lib/warehouse/summary";
+import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { WarehouseOverviewClient } from "@/components/warehouse/WarehouseOverviewClient";
 
 export const dynamic = "force-dynamic";
@@ -24,15 +25,21 @@ export default async function WarehouseOverviewPage({
     redirect(`/${locale}/warehouse/preparation`);
   }
 
+  /*
+   * The topbar switcher is the one that decides. This page used to force
+   * "all" for super-admins, so the header said "Libye" while the figures
+   * summed both markets — 50 Tunisian returns under a Libyan heading.
+   */
   const isSuperAdmin = user.role === "super_admin";
+  const { marketId: scopeMarketId } = await getActiveMarketScope(user);
   const initialMarketId: string | "all" | null = isSuperAdmin
-    ? "all"
+    ? (scopeMarketId ?? "all")
     : user.market_id;
 
   const initialSummary = await getWarehouseSummary({
     role: user.role,
     actorMarketId: user.market_id,
-    marketId: isSuperAdmin ? "all" : null,
+    marketId: isSuperAdmin ? (scopeMarketId ?? "all") : null,
   });
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ScanLine, FileClock } from "lucide-react";
@@ -28,9 +28,15 @@ export function WarehouseOverviewClient({
   const t = useTranslations("warehouse");
   const isSuperAdmin = canViewFinanceSection(user.role);
 
-  const [selectedMarketId, setSelectedMarketId] = useState<string | "all">(
-    isSuperAdmin ? (initialMarketId ?? "all") : (user.market_id ?? ""),
-  );
+  /*
+   * Scope comes from the topbar switcher (the oms_scope_market cookie), which
+   * the server already resolved into initialMarketId. The page used to carry
+   * a second selector of its own, so the header could read "Libye" while the
+   * figures summed both markets.
+   */
+  const selectedMarketId: string | "all" = isSuperAdmin
+    ? (initialMarketId ?? "all")
+    : (user.market_id ?? "");
 
   const { summary, isLoading, mutate } = useWarehouseSummary({
     marketId: isSuperAdmin ? selectedMarketId : user.market_id,
@@ -51,21 +57,6 @@ export function WarehouseOverviewClient({
 
   const current = summary ?? initialSummary;
 
-  const marketSelector = isSuperAdmin && current.availableMarkets.length > 0 ? (
-    <select
-      value={selectedMarketId}
-      onChange={(e) => setSelectedMarketId(e.target.value)}
-      aria-label={t("overview.title")}
-      className="rounded-[8px] border border-wh-border bg-wh-surface px-3 py-1.5 text-[13px] text-wh-ink-1 outline-none focus-visible:border-wh-ok"
-    >
-      <option value="all">{t("overview.title")}</option>
-      {current.availableMarkets.map((m) => (
-        <option key={m.id} value={m.id}>
-          {m.name}
-        </option>
-      ))}
-    </select>
-  ) : null;
 
   return (
     <div className="wh-console min-h-screen bg-wh-bg">
@@ -82,7 +73,6 @@ export function WarehouseOverviewClient({
             </p>
           </div>
           <div className="ms-auto flex items-center gap-2.5">
-            {marketSelector}
             <Link href={`/${locale}/warehouse/history`} className={WH_BTN}>
               <FileClock size={16} aria-hidden="true" />
               {t("overview.buttonJournal")}

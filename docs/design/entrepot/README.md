@@ -61,4 +61,24 @@ Le prototype montre des données inventées ; le produit n'en invente aucune.
 | Journal › filtres Réceptions, Transferts | **Retirés.** Ces flux n'existent pas dans le modèle de données. |
 | Journal › filtre Remises | Dérivé de `order_history` (`status_to = 'dispatched'`). |
 | Classement, « Scannées », « Aujourd'hui vs hier » | Réels, mais à **zéro** tant que l'entrepôt n'a pas scanné : `order_history` ne contient aucun événement `scanned`. Les états vides sont donc dessinés, pas masqués. |
-| Numéro de sticker Darb | Enregistré chez nous (`orders.carrier_sticker_ref`). Aucun appel à l'API Darb au moment du scan. |
+| Numéro de sticker Darb | Enregistré chez nous (`orders.carrier_sticker_ref`, unique par marché). Aucun appel à l'API Darb au moment du scan. |
+| Sous-titre « · Darb Assabil » | Réduit au nom du marché : aucune donnée ne désigne un transporteur unique par marché (la Libye en a trois). |
+| Largeurs de colonnes de Préparation | Le prototype n'a pas de barre latérale ; l'application en a une de 240 px. Les colonnes sont dimensionnées pour la zone réelle (~715 px), pas pour la maquette. |
+
+## Anomalies trouvées pendant la refonte
+
+Quatre défauts pré-existants ont été mis au jour en branchant les écrans sur les
+vraies données. Ils sont corrigés ici parce qu'ils rendaient la section
+inutilisable, pas parce qu'ils faisaient partie de la refonte :
+
+1. **`get_operator_prep_stats` levait une exception** — elle lisait
+   `markets.timezone`, colonne qui n'existe pas. `/api/warehouse/operator-stats`
+   renvoyait 500 à chaque appel.
+2. **Le Journal était vide pour tout le monde** — toutes les requêtes
+   sélectionnaient `orders.order_number`, colonne inexistante ; PostgREST
+   rejetait, et l'erreur était ignorée. Un registre d'audit qui n'affiche rien.
+3. **La file de préparation lisait le mauvais statut** — `get_to_label_orders`
+   filtrait encore `confirmed`, hérité d'avant le modèle `uploaded`. Le poste
+   affichait 1 commande libyenne au lieu de 407.
+4. **`scan_order_out` exigeait une étiquette imprimée** — impossible en Libye,
+   où Darb fournit le sticker. Les 407 commandes étaient inscannables.

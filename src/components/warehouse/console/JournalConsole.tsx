@@ -171,6 +171,7 @@ export function JournalConsole({ locale }: { locale: string }) {
             label={t("kpiAnomalies")}
             value={stats.anomalies}
             edge={stats.anomalies > 0 ? "warn" : undefined}
+            valueTone="warn"
             dim={stats.anomalies === 0}
             note={
               stats.anomalies > 0
@@ -188,6 +189,7 @@ export function JournalConsole({ locale }: { locale: string }) {
             value={stats.traceability}
             unit="%"
             edge={stats.withoutActor === 0 ? "ok" : "warn"}
+            valueTone={stats.withoutActor === 0 ? "ok" : "warn"}
             note={t("kpiTraceabilityNote")}
             foot={[
               { value: stats.operators, label: t("footOperators") },

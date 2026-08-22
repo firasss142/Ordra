@@ -126,7 +126,7 @@
       "warehouseStock": "المخزون",
       "carrierTracking": "تتبع الناقل",
       "inDeliveryBoard": "لوحة التسليم",
-      "warehouseJournal": "سجل المستودع",
+      "warehouseJournal": "السجل",
       "pnl": "الأرباح والخسائر",
       "productsMargins": "المنتجات والهوامش",
       "stockInventory": "المخزون والجرد",
@@ -3561,7 +3561,8 @@
       "errStatus": "لم تعد هذه الطلبية قيد التحضير",
       "errMarket": "طلبية من سوق آخر",
       "errStock": "المخزون غير كافٍ — أبلغ المشرف",
-      "errCarrierWarehouse": "تُشحن من مستودع الناقل — لا حاجة للمسح"
+      "errCarrierWarehouse": "تُشحن من مستودع الناقل — لا حاجة للمسح",
+      "showingFirst": "تُعرض أقدم {count} طلبية."
     },
     "returns2": {
       "title": "المرتجعات",

@@ -317,11 +317,13 @@ describe("Sidebar — active route auto-expand", () => {
     expect(link).toHaveAttribute("aria-current", "page");
   });
 
-  it("marks Journal entrepôt active on /fr/warehouse/history", () => {
+  // The sidebar, the tab band and the page's own <h1> all say "Journal": the
+  // section had three names for one screen.
+  it("marks Journal active on /fr/warehouse/history", () => {
     pathnameMock = "/fr/warehouse/history";
     searchParamsMock = new URLSearchParams("");
     renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse/history" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /Journal entrepôt/ });
+    const link = screen.getByRole("link", { name: /^Journal$/ });
     expect(link).toHaveAttribute("aria-current", "page");
   });
 

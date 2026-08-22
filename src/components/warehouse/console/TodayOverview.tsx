@@ -376,6 +376,8 @@ export function TodayOverview({
               <WarehouseTrendChart
                 data={trend}
                 colorScheme="light"
+                series={["scanned", "returned"]}
+                showLegend={false}
                 labels={{
                   scanned: t("overview.seriesScanned"),
                   returned: t("overview.seriesReturns"),

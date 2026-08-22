@@ -177,6 +177,7 @@ export function WhKpiCard({
   foot,
   edge,
   dim,
+  valueTone,
   children,
 }: {
   id: string;
@@ -195,6 +196,12 @@ export function WhKpiCard({
   edge?: "warn" | "ok" | "bad";
   /** Nothing happening: the figure and label step back to the muted ink. */
   dim?: boolean;
+  /**
+   * Colours the figure itself. The prototype does this for the cards that
+   * carry a verdict — an amber queue, a green day — and leaves neutral
+   * measurements in the default ink.
+   */
+  valueTone?: WhTone;
   /** A sparkline or any other body placed under the note. */
   children?: ReactNode;
 }) {
@@ -218,7 +225,7 @@ export function WhKpiCard({
       <div
         data-testid="wh-value"
         className={`mt-2.5 flex flex-wrap items-baseline gap-2 font-mono text-[29px] font-bold leading-[1.05] tracking-[-0.02em] tabular-nums ${
-          dim ? "text-wh-ink-3" : "text-wh-ink-1"
+          dim ? "text-wh-ink-3" : valueTone ? WH_TONE[valueTone].text : "text-wh-ink-1"
         }`}
       >
         {value}

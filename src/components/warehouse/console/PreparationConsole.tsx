@@ -88,11 +88,15 @@ export function PreparationConsole({
   const t = useTranslations("warehouse.prep2");
   const isLy = market === "ly";
 
-  const { data, mutate } = useSWR<{ orders: WarehouseOrderRow[] }>(
-    "/api/warehouse/to-label",
-    fetcher,
-    { fallbackData: { orders: initialOrders }, revalidateOnFocus: true },
-  );
+  const { data, mutate } = useSWR<{
+    orders: WarehouseOrderRow[];
+    total?: number;
+    late?: number;
+    oldestHours?: number;
+  }>("/api/warehouse/to-label?limit=100", fetcher, {
+    fallbackData: { orders: initialOrders },
+    revalidateOnFocus: true,
+  });
 
   const [query, setQuery] = useState("");
   const [ageFilter, setAgeFilter] = useState<"all" | "fresh" | "late">("all");
@@ -139,14 +143,17 @@ export function PreparationConsole({
     return REGION_ORDER.filter((r) => by.has(r)).map((r) => ({ region: r, rows: by.get(r)! }));
   }, [filtered, isLy]);
 
-  const lateCount = useMemo(
-    () => orders.filter((o) => ageOf(o.created_at).hours >= 48).length,
-    [orders],
-  );
-  const oldest = useMemo(
-    () => orders.reduce((max, o) => Math.max(max, ageOf(o.created_at).hours), 0),
-    [orders],
-  );
+  /*
+   * The KPIs describe the WHOLE queue, which the API counts server-side. They
+   * used to count the loaded rows, so the bench read "50" — the page size —
+   * under an Aujourd'hui that correctly said 407.
+   */
+  const queueTotal = data?.total ?? orders.length;
+  const lateCount =
+    data?.late ?? orders.filter((o) => ageOf(o.created_at).hours >= 48).length;
+  const oldest =
+    data?.oldestHours ??
+    orders.reduce((max, o) => Math.max(max, ageOf(o.created_at).hours), 0);
   const scannedToday = scans.filter((s) => s.ok).length;
   const goalPct = Math.round((scannedToday / DAILY_GOAL) * 100);
 
@@ -265,10 +272,15 @@ export function PreparationConsole({
             <WhHolder icon={PackageSearch} tone="scan" size={30} />
             {t("kpiQueue")}
           </div>
-          <div className={KPI_VALUE}>{orders.length}</div>
+          <div className={KPI_VALUE}>{queueTotal}</div>
           <p className="mt-1.5 text-[12px] text-wh-ink-2">
-            {t("kpiQueueSub", { regions: groups.length, orders: orders.length })}
+            {t("kpiQueueSub", { regions: groups.length, orders: queueTotal })}
           </p>
+          {queueTotal > orders.length ? (
+            <p className="mt-1 text-[11.5px] text-wh-ink-3">
+              {t("showingFirst", { count: orders.length })}
+            </p>
+          ) : null}
         </div>
 
         <div className={KPI_CARD}>
@@ -327,7 +339,7 @@ export function PreparationConsole({
         </div>
       </div>
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.9fr)]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(340px,0.8fr)]">
         <div className="min-w-0">
           <div className="mb-3.5 flex flex-wrap items-center gap-2.5">
             <label className="flex min-w-[240px] flex-1 items-center gap-2.5 rounded-[10px] border border-wh-border bg-wh-surface px-3.5 py-2.5 shadow-sm focus-within:border-wh-ok">
@@ -404,16 +416,16 @@ export function PreparationConsole({
 
           <WhCard>
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-[13px]">
+              <table className="w-full table-fixed border-collapse text-[13px]">
                 <thead>
                   <tr>
-                    <th className="w-[34px] border-b border-wh-border px-3.5 py-2.5" />
+                    <th className="w-[40px] border-b border-wh-border px-2 py-2.5" />
                     <th className={`border-b border-wh-border px-3.5 py-2.5 text-start ${WH_LABEL}`}>{t("colOrder")}</th>
-                    <th className={`border-b border-wh-border px-3.5 py-2.5 text-start ${WH_LABEL}`}>{t("colProduct")}</th>
-                    <th className={`border-b border-wh-border px-3.5 py-2.5 text-end ${WH_LABEL}`}>{t("colCollect")}</th>
-                    <th className={`border-b border-wh-border px-3.5 py-2.5 text-start ${WH_LABEL}`}>{t("colAge")}</th>
-                    <th className={`border-b border-wh-border px-3.5 py-2.5 text-end ${WH_LABEL}`}>{t("colStock")}</th>
-                    <th className="border-b border-wh-border px-3.5 py-2.5" />
+                    <th className={`w-[150px] border-b border-wh-border px-2 py-2.5 text-start ${WH_LABEL}`}>{t("colProduct")}</th>
+                    <th className={`w-[104px] border-b border-wh-border px-2 py-2.5 text-end ${WH_LABEL}`}>{t("colCollect")}</th>
+                    <th className={`w-[64px] border-b border-wh-border px-2 py-2.5 text-start ${WH_LABEL}`}>{t("colAge")}</th>
+                    <th className={`w-[72px] border-b border-wh-border px-2 py-2.5 text-end ${WH_LABEL}`}>{t("colStock")}</th>
+                    <th className="w-[92px] border-b border-wh-border px-2 py-2.5" />
                   </tr>
                 </thead>
                 <tbody>
@@ -711,7 +723,7 @@ function FragmentGroup({
               inHand ? "bg-wh-ok-tint shadow-[inset_3px_0_0_var(--wh-ok)]" : "hover:bg-wh-surface-2"
             }`}
           >
-            <td className="px-3.5 py-2.5">
+            <td className="px-2 py-2.5">
               <input
                 type="checkbox"
                 checked={selected.has(o.id)}
@@ -726,24 +738,31 @@ function FragmentGroup({
                   <Boxes size={15} className="text-wh-ink-3" aria-hidden="true" />
                 </span>
                 <span className="min-w-0">
-                  <b className="block truncate text-[13.5px] font-semibold text-wh-ink-1">{o.customer_name}</b>
+                  <b className="block truncate text-[13.5px] font-semibold text-wh-ink-1">
+                    <bdi>{o.customer_name}</bdi>
+                  </b>
                   <span className="block truncate font-mono text-[11.5px] tabular-nums text-wh-ink-3">
                     {o.id.slice(0, 8).toUpperCase()}
-                    {o.customer_city ? ` · ${o.customer_city}` : ""}
+                    {o.customer_city ? <> · <bdi>{o.customer_city}</bdi></> : null}
                   </span>
                 </span>
               </div>
             </td>
-            <td className="px-3.5 py-2.5 text-wh-ink-2">
-              {o.product_name} <span className="text-wh-ink-3">× {o.quantity}</span>
+            <td className="px-2 py-2.5 text-wh-ink-2">
+              <span
+                className="block truncate"
+                title={`${o.product_name} × ${o.quantity}`}
+              >
+                <bdi>{o.product_name}</bdi> <span className="text-wh-ink-3">× {o.quantity}</span>
+              </span>
             </td>
-            <td className="px-3.5 py-2.5 text-end font-mono font-semibold tabular-nums">
+            <td className="whitespace-nowrap px-2 py-2.5 text-end font-mono font-semibold tabular-nums">
               {Number(o.total_price).toFixed(2).replace(".", ",")}
               <span className="ms-1 font-sans text-[11px] font-semibold text-wh-ink-3">{currency}</span>
             </td>
             <td className="px-3.5 py-2.5">
               <span
-                className={`inline-block rounded-pill px-2.5 py-1 font-mono text-[11.5px] font-semibold tabular-nums ${
+                className={`inline-block whitespace-nowrap rounded-pill px-2.5 py-1 font-mono text-[11.5px] font-semibold tabular-nums ${
                   age.tone === "bad"
                     ? "bg-wh-bad-bg text-wh-bad"
                     : age.tone === "warn"

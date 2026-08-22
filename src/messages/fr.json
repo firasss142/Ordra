@@ -126,7 +126,7 @@
       "warehouseStock": "Stock",
       "carrierTracking": "Suivi transporteur",
       "inDeliveryBoard": "Tableau livraison",
-      "warehouseJournal": "Journal entrepôt",
+      "warehouseJournal": "Journal",
       "pnl": "P&L global",
       "productsMargins": "Produits & marges",
       "stockInventory": "Stock & inventaire",
@@ -3098,7 +3098,7 @@
       "preparation": "Préparation",
       "returns": "Retours",
       "stock": "Stock",
-      "history": "Historique"
+      "history": "Journal"
     },
     "preparation": {
       "title": "Préparation",
@@ -3561,7 +3561,8 @@
       "errStatus": "Cette commande n'est plus à préparer",
       "errMarket": "Commande d'un autre marché",
       "errStock": "Stock insuffisant — prévenez le superviseur",
-      "errCarrierWarehouse": "Expédiée depuis l'entrepôt du transporteur — aucun scan requis"
+      "errCarrierWarehouse": "Expédiée depuis l'entrepôt du transporteur — aucun scan requis",
+      "showingFirst": "Les {count} plus anciennes sont affichées."
     },
     "returns2": {
       "title": "Retours",
