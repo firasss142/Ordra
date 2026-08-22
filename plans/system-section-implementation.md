@@ -196,3 +196,43 @@ Light console: page `#F6F6F7`, white cards, `#1A1A1A` text, `#E1E3E5` borders, c
 ## 6. Verification
 - Prototype: open artifact, click through Marchés / Connexions (5 tabs) / Paramètres (4 tabs) / Journaux (4 tabs); drawer + wizard + read-only mode toggle render; no horizontal scroll at 1440.
 - Spec checklist: business logic ✓, structure/flows ✓, design guidelines ✓, KPI panel per sub-section ✓, CRUD tables (admin, storefronts, carriers) ✓, Connexions overview lists every storefront/carrier/third-party ✓.
+
+---
+
+## Remediation — prototype-fidelity pass (2026-08-22)
+
+User feedback: Marchés showed all zeros; Connexions overview was too thin; obsolete nav
+items were never removed; overall fidelity to the prototype was low. Fixed:
+
+- **Marchés zeros (root cause).** The workspace fetched `/api/metrics/cross-market` — a
+  route that **never existed** — so every card fell back to 0. Built it, backed by a pure,
+  unit-tested aggregator `src/lib/cross-market-metrics.ts` (7d/30d funnels, today, delivery
+  rate, agents online/active, connection counts, spark, last order). Rebuilt `MarketCard` to
+  the prototype (sparkline, 3-stage funnel, connections/agents/delivery grid, data-driven
+  insight) + a 7j/30j toggle. **Real data note:** TN has had no order since **7 July 2026**
+  (dormant) — its zeros are *real*; the card now reads "en sommeil · dernière commande le
+  7 juillet" instead of a blank card. LY is the live market (172 orders/7d). Verified live
+  via `scripts/verify-market-metrics.ts` (admin-client, runs the exact route aggregation).
+  Fixed a follow-on bug: last-order date must be fetched unbounded by the 30d window, else a
+  dormant market reports null and mis-renders as healthy.
+- **Connexions › Vue d'ensemble rebuilt.** New `/api/connections/overview` (all markets for
+  super_admin / own market for manager) with real 24h carrier events + error rate (Navex
+  34.5%), sync-run freshness per source, webhook + mapping counts. Panel now has the 5 KPI
+  tiles, three connector groups (Storefronts · Transporteurs · Services tiers), an
+  Automatisations panel with real last-run freshness, and a derived "À traiter" list. Default
+  tab is now Vue d'ensemble (was Storefronts). Fixed the super_admin-sees-nothing gap.
+- **Carriers tab KPI strip** added (active carriers, weighted 30d delivery, parcels delivered,
+  Darb configured-vs-real cost ≈2.9×).
+- **Nav collapsed 7 → 4** (Marchés · Connexions · Paramètres · Journaux). Storefronts,
+  Transporteurs, Correspondances, Intégrations are tabs inside Connexions, not nav entries.
+  `/mappings` redirects to `…/connections?tab=mappings`; `/settings/integrations` stays
+  reachable-by-URL (unlinked) until its credential UI is folded in. Sidebar tests updated.
+
+Commits: metrics fix, overview rebuild, nav cleanup, last-order fix, carrier KPIs. Gate:
+`tsc --noEmit` clean; new unit tests (7) + connections/sidebar suites green (the lone red —
+"En confirmation" — is a pre-existing failure on the entrepot branch, unrelated).
+
+**Still open (honest gaps):** Journaux date-range picker; carrier create/edit still on the
+old `/settings/carriers` screen; mapping edit/delete backend; enforcement wiring for the new
+Paramètres keys; `nav.items.connexions` i18n key (Connexions uses a documented `labelText`
+override because the message catalogs are owned by a parallel branch).
