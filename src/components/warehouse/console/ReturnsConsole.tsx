@@ -352,7 +352,7 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
         <WhCard
           title={t("decision")}
           hint={picked ? t("decisionPicked", { ref: picked.id.slice(0, 8).toUpperCase() }) : t("decisionNone")}
-          className="xl:sticky xl:top-[70px]"
+          className="xl:sticky xl:top-4"
         >
           <div className="mx-4 mt-4 flex items-center gap-2.5 rounded-[12px] border-2 border-wh-ok bg-wh-surface px-4 py-3.5 shadow-wh-glow">
             <ScanLine size={18} className="shrink-0 text-wh-ok" aria-hidden="true" />

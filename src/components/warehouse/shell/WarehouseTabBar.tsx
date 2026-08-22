@@ -71,4 +71,12 @@ function WarehouseTabBarInner({ tabs, direction = "ltr" }: Props) {
   );
 }
 
+/**
+ * The Entrepôt tab band.
+ *
+ * Rendered ONLY for warehouse_agent, whose shell has no sidebar — Sidebar
+ * returns null for the role — so this is that role's entire navigation.
+ * Everyone else reaches the same five screens from the sidebar's ENTREPÔT
+ * group; showing both was the old structure duplicating itself one row down.
+ */
 export const WarehouseTabBar = memo(WarehouseTabBarInner);

@@ -496,7 +496,7 @@ export function PreparationConsole({
         </div>
 
         {/* Scan station. Sticky, because the operator's hands are on a parcel. */}
-        <div className="lg:sticky lg:top-[70px]">
+        <div className="lg:sticky lg:top-4">
           <WhCard
             title={isLy ? t("scanTitle") : t("scanTitleTn")}
             hint={isLy ? t("scanHint") : t("scanHintTn")}

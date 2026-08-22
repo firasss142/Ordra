@@ -55,7 +55,10 @@ function WarehouseTabsBand({
 }) {
   const tabs = useWarehouseTabs(locale);
   return (
-    <div className="border-b border-wh-border bg-wh-surface px-4 sm:px-6 lg:px-8">
+    <div
+      data-testid="wh-tabs"
+      className="border-b border-wh-border bg-wh-surface px-4 sm:px-6 lg:px-8"
+    >
       <WarehouseTabBar tabs={tabs} direction={direction} />
     </div>
   );
@@ -76,8 +79,17 @@ export default function WarehouseLayout({
   const direction: "ltr" | "rtl" = user.direction === "rtl" ? "rtl" : "ltr";
   const isAgent = user.role === "warehouse_agent";
 
+  /*
+   * Two shells, one navigation each.
+   *
+   * A warehouse agent has no sidebar — Sidebar returns null for the role — so
+   * the tab band IS their navigation and stays.
+   *
+   * Everyone else already has the ENTREPÔT group in the sidebar, listing the
+   * same five screens. The band repeated it one row below, which is the old
+   * structure showing through: two navigations for one section.
+   */
   if (isAgent) {
-    // Warehouse agents use Topbar without a sidebar drawer (no nav menu).
     return (
       <div className="wh-console min-h-screen bg-wh-bg" style={{ direction }}>
         <Topbar user={user} marketName="" />
@@ -89,7 +101,6 @@ export default function WarehouseLayout({
 
   return (
     <WarehouseManagerShell user={user} pathname={pathname} direction={direction}>
-      <WarehouseTabsBand locale={user.locale} direction={direction} />
       {children}
     </WarehouseManagerShell>
   );
@@ -142,7 +153,10 @@ function WarehouseManagerShell({
       </button>
       <main
         id="main-content"
-        className="flex-1 md:ms-[240px] min-h-screen bg-wh-bg pt-14 md:pt-0"
+        // The tab band used to sit above the page and gave the title its
+        // breathing room. Without it the heading would start flush against
+        // the viewport edge, so the shell carries that space now.
+        className="flex-1 md:ms-[240px] min-h-screen bg-wh-bg pt-14 md:pt-3"
         style={{ minWidth: 0 }}
       >
         {children}
