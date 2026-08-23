@@ -103,6 +103,7 @@ export function ScanStation({
   orders,
   rolls,
   onScanned,
+  onManageRolls,
 }: {
   variant?: "panel" | "station";
   market: "ly" | "tn";
@@ -113,6 +114,8 @@ export function ScanStation({
   orders: WarehouseOrderRow[];
   rolls: RollRow[];
   onScanned: () => void;
+  /** Opens the roll registry. Absent on surfaces that cannot manage rolls. */
+  onManageRolls?: () => void;
 }) {
   const t = useTranslations("warehouse.scan");
   const isLy = market === "ly";
@@ -212,9 +215,18 @@ export function ScanStation({
       {/* No roll registered anywhere: the sticker guard is dormant. Say so —
           silently accepting any number is exactly the failure it exists for. */}
       {isLy && openRolls.length === 0 ? (
-        <div className="mb-3 flex items-start gap-2.5 rounded-[11px] border border-wh-warn-edge bg-wh-warn-bg p-3 text-[12.5px] text-wh-warn">
+        <div className="mb-3 flex flex-wrap items-start gap-2.5 rounded-[11px] border border-wh-warn-edge bg-wh-warn-bg p-3 text-[12.5px] text-wh-warn">
           <CircleAlert size={16} className="mt-px shrink-0" aria-hidden="true" />
-          <span>{t("noRolls")}</span>
+          <span className="min-w-0 flex-1">{t("noRolls")}</span>
+          {onManageRolls ? (
+            <button
+              type="button"
+              onClick={onManageRolls}
+              className="shrink-0 rounded-[8px] border border-wh-warn-edge bg-wh-surface px-2.5 py-1 text-[12px] font-semibold text-wh-warn hover:bg-wh-warn-bg"
+            >
+              {t("registerRoll")}
+            </button>
+          ) : null}
         </div>
       ) : null}
 

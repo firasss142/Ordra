@@ -37,6 +37,7 @@ function patch(body: unknown) {
 function wire({
   actor = { role: "warehouse_agent", market_id: "m-1" } as Record<string, unknown> | null,
   insertError = null as { message: string } | null,
+  carriers = [] as Array<Record<string, unknown>>,
 } = {}) {
   const insert = vi.fn().mockResolvedValue({ error: insertError });
   const updateEq = vi.fn().mockResolvedValue({ error: null });
@@ -46,6 +47,7 @@ function wire({
     const c: Record<string, unknown> = {};
     c.select = vi.fn().mockReturnValue(c);
     c.eq = vi.fn().mockReturnValue(c);
+    c.order = vi.fn().mockResolvedValue({ data: carriers, error: null });
     c.single = vi.fn().mockResolvedValue({ data: actor, error: null });
     c.maybeSingle = vi.fn().mockResolvedValue({ data: actor, error: null });
     if (table === "sticker_rolls") {
@@ -81,6 +83,30 @@ describe("GET /api/warehouse/sticker-rolls", () => {
     wire({ actor: { role: "agent", market_id: "m-1" } });
     const res = await GET(new NextRequest(new URL("http://localhost/api/warehouse/sticker-rolls")));
     expect(res.status).toBe(403);
+  });
+
+  test("also returns the accounts a roll can be opened against", async () => {
+    // The registration form needs them, and asking a second endpoint for a
+    // two-row list would be a round trip for nothing.
+    wire({
+      carriers: [
+        { id: "c-tripoli", name: "Darb Assabil - Tripoli" },
+        { id: "c-benghazi", name: "Darb Assabil — Benghazi" },
+      ],
+    });
+    const res = await GET(new NextRequest(new URL("http://localhost/api/warehouse/sticker-rolls")));
+    const json = await res.json();
+    expect(json.accounts).toEqual([
+      { id: "c-tripoli", name: "Darb Assabil - Tripoli" },
+      { id: "c-benghazi", name: "Darb Assabil — Benghazi" },
+    ]);
+  });
+
+  test("offers no account when no carrier supplies its own stickers", async () => {
+    // Tunisia prints its own labels, so there is no roll to register there.
+    wire({ carriers: [] });
+    const res = await GET(new NextRequest(new URL("http://localhost/api/warehouse/sticker-rolls")));
+    expect((await res.json()).accounts).toEqual([]);
   });
 });
 
@@ -137,6 +163,19 @@ describe("POST /api/warehouse/sticker-rolls", () => {
     const res = await POST(post(valid));
     expect(res.status).toBe(409);
     expect((await res.json()).error).toMatch(/chevauche/i);
+  });
+
+  test("names an RLS refusal instead of leaking db_error", async () => {
+    // A roll for another market's carrier. Only a real submission surfaced
+    // this — the mock never meets row-level security.
+    wire({
+      insertError: {
+        message: 'new row violates row-level security policy for table "sticker_rolls"',
+      },
+    });
+    const res = await POST(post(valid));
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toMatch(/ne pouvez pas enregistrer/i);
   });
 
   test("403 for an agent who cannot scan", async () => {

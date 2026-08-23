@@ -41,14 +41,24 @@ export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const { marketId } = resolveWarehouseScope(req, actor);
 
-  const { data, error } = await supabase.rpc("get_sticker_rolls", {
-    p_market_id: marketId,
-  });
+  // The accounts a roll can belong to travel with the rolls: the registration
+  // form needs both, and only a carrier that supplies its own stickers has any.
+  const accountQuery = supabase
+    .from("carriers")
+    .select("id, name")
+    .eq("supplies_own_labels", true)
+    .eq("is_active", true);
+
+  const [{ data, error }, { data: accounts }] = await Promise.all([
+    supabase.rpc("get_sticker_rolls", { p_market_id: marketId }),
+    (marketId ? accountQuery.eq("market_id", marketId) : accountQuery).order("name"),
+  ]);
+
   if (error) {
     return NextResponse.json({ error: "db_error" }, { status: 500 });
   }
 
-  return NextResponse.json({ rolls: data ?? [] });
+  return NextResponse.json({ rolls: data ?? [], accounts: accounts ?? [] });
 }
 
 export async function POST(req: NextRequest) {
@@ -132,6 +142,14 @@ export async function POST(req: NextRequest) {
     }
     if (error.message.includes("sticker_rolls_range_sane")) {
       return NextResponse.json({ error: "Plage trop large pour un rouleau" }, { status: 400 });
+    }
+    // RLS refusal. It reached the floor as a bare "db_error" until a real form
+    // submission hit it — the route tests mock Supabase and never meet RLS.
+    if (error.message.includes("row-level security")) {
+      return NextResponse.json(
+        { error: "Vous ne pouvez pas enregistrer un rouleau pour ce transporteur" },
+        { status: 403 },
+      );
     }
     return NextResponse.json({ error: "db_error" }, { status: 500 });
   }

@@ -10,6 +10,7 @@ import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import type { OrderZone } from "@/lib/warehouse/zone-index";
 import { DARB_ZONES } from "@/lib/carriers/darb-zones";
 import { ScanStation, type RollRow } from "./ScanStation";
+import { StickerRollsDialog, type RollAccount } from "./StickerRollsDialog";
 import { WH_LABEL } from "./tokens";
 
 /**
@@ -46,13 +47,14 @@ export function ScanModeClient({
     fetcher,
     { fallbackData: { orders: initialOrders }, revalidateOnFocus: true },
   );
-  const { data: rollData } = useSWR<{ rolls: RollRow[] }>(
-    "/api/warehouse/sticker-rolls",
-    fetcher,
-  );
+  const { data: rollData, mutate: mutateRolls } = useSWR<{
+    rolls: RollRow[];
+    accounts: RollAccount[];
+  }>("/api/warehouse/sticker-rolls", fetcher);
 
   const [query, setQuery] = useState("");
   const [hand, setHand] = useState<Row | null>(null);
+  const [rollsOpen, setRollsOpen] = useState(false);
 
   const orders = useMemo(() => data?.orders ?? [], [data]);
   const back = `/${locale}/warehouse/preparation`;
@@ -156,10 +158,20 @@ export function ScanModeClient({
           orders={orders}
           rolls={rollData?.rolls ?? []}
           onScanned={onScanned}
+          onManageRolls={() => setRollsOpen(true)}
         />
 
         <p className={`mt-4 text-center ${WH_LABEL}`}>{tp("escToLeave")}</p>
       </div>
+
+      {rollsOpen ? (
+        <StickerRollsDialog
+          rolls={rollData?.rolls ?? []}
+          accounts={rollData?.accounts ?? []}
+          onClose={() => setRollsOpen(false)}
+          onChanged={() => void mutateRolls()}
+        />
+      ) : null}
     </div>
   );
 }
