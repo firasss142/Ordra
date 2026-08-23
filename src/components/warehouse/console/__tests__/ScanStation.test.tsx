@@ -196,18 +196,20 @@ describe("ScanStation — the five outcomes", () => {
 });
 
 describe("ScanStation — what it refuses to do", () => {
-  test("Libya will not scan without a parcel in hand", async () => {
-    const fetchSpy = vi.fn();
-    vi.stubGlobal("fetch", fetchSpy);
+  test("Libya cannot scan at all without a parcel in hand", () => {
+    // The sticker alone cannot identify the order, so the input is closed
+    // rather than accepting a scan that could only fail. It says why.
     renderStation({ hand: null, handZone: null });
 
-    scan("889230");
+    const input = screen.getByPlaceholderText(/Prenez d'abord un colis/i);
+    expect(input).toBeDisabled();
+    // And no roll is named, because there is no parcel to name one for.
+    expect(screen.queryByText(/Rouleau Vert/i)).not.toBeInTheDocument();
+  });
 
-    await waitFor(() =>
-      expect(screen.getAllByText(/Commande introuvable/i).length).toBeGreaterThan(0),
-    );
-    // The sticker alone cannot identify the order, so nothing is sent.
-    expect(fetchSpy).not.toHaveBeenCalled();
+  test("arms the moment a parcel is taken", () => {
+    renderStation();
+    expect(screen.getByPlaceholderText(/Scannez le sticker/i)).not.toBeDisabled();
   });
 
   test("Tunisia resolves the order from the code itself", async () => {

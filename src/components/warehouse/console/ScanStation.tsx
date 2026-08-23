@@ -220,7 +220,9 @@ export function ScanStation({
 
       {/* The roll to pick up. First thing on the panel, biggest thing on the
           station — it is the decision made before the parcel is touched. */}
-      {isLy ? <RollStrip zone={handZone} roll={requiredRoll} big={isStation} t={t} /> : null}
+      {isLy && hand ? (
+        <RollStrip zone={handZone} roll={requiredRoll} big={isStation} t={t} />
+      ) : null}
 
       <div className={`rounded-wh border border-wh-border bg-wh-surface ${isStation ? "" : "shadow-sm"}`}>
         <div className="flex items-center gap-2 border-b border-wh-border px-4 py-3">
@@ -264,7 +266,7 @@ export function ScanStation({
           <label
             className={`flex flex-1 items-center gap-2.5 rounded-[12px] border-2 bg-wh-surface px-4 ${
               isStation ? "py-5" : "py-3.5"
-            } ${armed ? "border-wh-ok shadow-wh-glow" : "border-wh-border"}`}
+            } ${armed ? "border-wh-ok shadow-wh-glow" : "border-wh-border bg-wh-sunken"}`}
           >
             <ScanLine
               size={isStation ? 24 : 18}
@@ -281,11 +283,11 @@ export function ScanStation({
                   void submit(value);
                 }
               }}
-              disabled={busy}
+              disabled={busy || !armed}
               autoComplete="off"
               aria-label={isLy ? t("placeholder") : t("placeholderTn")}
-              placeholder={isLy ? t("placeholder") : t("placeholderTn")}
-              className={`w-full border-none bg-transparent font-mono font-semibold tracking-wide outline-none ${
+              placeholder={armed ? (isLy ? t("placeholder") : t("placeholderTn")) : t("placeholderIdle")}
+              className={`w-full border-none bg-transparent font-mono font-semibold tracking-wide outline-none placeholder:font-sans placeholder:font-normal disabled:cursor-not-allowed ${
                 isStation ? "text-[26px]" : "text-[16px]"
               }`}
             />

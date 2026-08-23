@@ -47,6 +47,12 @@ export interface ToLabelQueuePage {
    */
   scannedToday: number;
   scannedYesterday: number;
+  /**
+   * Past the seven-day mark. `late` and this PARTITION the backlog, so showing
+   * only the total makes "en retard 407" read as a duplicate of the queue size
+   * when in fact 406 of them are abandoned rather than merely slow.
+   */
+  neverScanned: number;
 }
 
 const cacheHeaders = {
@@ -124,6 +130,7 @@ export async function GET(req: NextRequest) {
     releasedAtCarrier: Number(stats.released_at_carrier ?? 0),
     scannedToday: Number(day.scanned_today ?? 0),
     scannedYesterday: Number(day.scanned_yesterday ?? 0),
+    neverScanned: Number(stats.never_scanned ?? 0),
   };
   return NextResponse.json(body, { headers: cacheHeaders });
 }

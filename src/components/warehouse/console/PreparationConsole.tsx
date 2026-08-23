@@ -36,6 +36,7 @@ interface QueuePage {
   releasedAtCarrier?: number;
   scannedToday?: number;
   scannedYesterday?: number;
+  neverScanned?: number;
 }
 
 /** Card and figure treatments, lifted so the KPIs cannot drift apart. */
@@ -148,6 +149,7 @@ export function PreparationConsole({
   const released = data?.releasedAtCarrier ?? 0;
   const scannedToday = data?.scannedToday ?? 0;
   const scannedYesterday = data?.scannedYesterday ?? 0;
+  const neverScanned = data?.neverScanned ?? 0;
   const goalPct = dailyGoal > 0 ? Math.round((scannedToday / dailyGoal) * 100) : 0;
 
   // The chip in the search field promises ⌘K; make it true.
@@ -247,6 +249,13 @@ export function PreparationConsole({
           >
             {lateCount}
           </div>
+          {/* Without this split the figure reads as a copy of the queue total.
+              Most of the backlog is not slow, it is abandoned. */}
+          {neverScanned > 0 ? (
+            <p className="mt-1.5 text-[12px] text-wh-ink-2">
+              {t("kpiLateSplit", { stale: neverScanned, recent: Math.max(lateCount - neverScanned, 0) })}
+            </p>
+          ) : null}
           {oldest > 0 ? (
             <div className="mt-2">
               <WhPill tone={lateCount ? "warn" : "muted"}>
