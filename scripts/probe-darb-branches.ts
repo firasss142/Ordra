@@ -32,6 +32,10 @@
  *   npx tsx --env-file=.env.local scripts/probe-darb-branches.ts
  *   npx tsx --env-file=.env.local scripts/probe-darb-branches.ts --raw
  *   npx tsx --env-file=.env.local scripts/probe-darb-branches.ts --out=report/darb-branches.json
+ *   npx tsx --env-file=.env.local scripts/probe-darb-branches.ts --sync   # refresh darb_branches
+ *
+ * `--sync` is the ONLY write, and it writes only to our own mirror table
+ * (`darb_branches`). Darb is never written to by this script.
  */
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -55,6 +59,7 @@ const val = (name: string) => {
   return hit ? hit.slice(name.length + 3) : undefined;
 };
 const SHOW_RAW = has("raw");
+const SYNC = has("sync");
 const OUT = val("out");
 
 function env(name: string): string {
@@ -137,6 +142,7 @@ async function main() {
   if (error) throw new Error(error.message);
 
   const report: Record<string, unknown> = {};
+  const rawByAccount = new Map<string, Rec[]>();
   const colourKeysSeen = new Set<string>();
   const allShapes = new Set<string>();
 
@@ -173,6 +179,7 @@ async function main() {
       continue;
     }
     console.log(`   fetched ${records.length} branch records\n`);
+    rawByAccount.set(String(row.name), records);
 
     // 1. Every key path the payload actually carries.
     for (const rec of records.slice(0, 50)) {
@@ -264,6 +271,86 @@ async function main() {
   } else {
     console.log(">>> POSSIBLE COLOUR-BEARING KEYS — inspect these:");
     for (const k of colourKeysSeen) console.log(`      ${k}`);
+  }
+
+
+  if (SYNC) {
+    console.log("\n── syncing darb_branches ──────────────────────────────");
+    const accounts = [...rawByAccount.values()];
+    if (accounts.length === 0) {
+      console.log("   nothing fetched — not touching the mirror");
+    } else {
+      // Both accounts publish the same directory; assert it before relying on
+      // it, so a silent divergence becomes a loud refusal rather than a
+      // half-written table.
+      const signature = (recs: Rec[]) =>
+        recs
+          .map((r) => `${str(r.branchGroup)}|${str(r.city)}|${str(r.area)}|${str(r.color)}`)
+          .sort()
+          .join("\n");
+      if (accounts.length > 1 && signature(accounts[0]) !== signature(accounts[1])) {
+        throw new Error(
+          "The two Darb accounts no longer publish the same branch directory. " +
+            "darb_branches is not keyed on carrier_id, so this must be resolved first.",
+        );
+      }
+
+      // One row per (branch_group, city, area) — the table's key. The nested
+      // areas[] carry the real per-area names; the top-level `area` is the
+      // branch's own seat.
+      const rows = new Map<string, Record<string, unknown>>();
+      const put = (group: string, code: string | null, city: string, area: string, color: string | null) => {
+        rows.set(`${group}|${city}|${area}`, {
+          branch_group: group,
+          branch_code: code,
+          city,
+          area,
+          color: color ? color.toLowerCase() : null,
+        });
+      };
+      for (const rec of accounts[0]) {
+        const group = str(rec.branchGroup);
+        const city = str(rec.city);
+        if (!group || !city) continue;
+        const code = str(rec.branchCode);
+        const colour = str(rec.color);
+        put(group, code, city, "", colour);
+        const seat = str(rec.area);
+        if (seat) put(group, code, city, seat, colour);
+        if (Array.isArray(rec.areas)) {
+          for (const a of rec.areas as Rec[]) {
+            const name = str(asRec(a).area);
+            if (name) put(group, code, city, name, colour);
+          }
+        }
+      }
+
+      const payload = [...rows.values()];
+      const { error: upsertError } = await admin
+        .from("darb_branches")
+        .upsert(payload, { onConflict: "branch_group,city,area" });
+      if (upsertError) throw new Error(`darb_branches upsert failed: ${upsertError.message}`);
+
+      // Drop anything Darb no longer publishes, so a closed branch cannot keep
+      // colouring orders. Compared on the composite key we just wrote.
+      const keep = new Set(rows.keys());
+      const { data: existing } = await admin
+        .from("darb_branches")
+        .select("branch_group, city, area");
+      const stale = (existing ?? []).filter(
+        (r) => !keep.has(`${r.branch_group}|${r.city}|${r.area}`),
+      );
+      for (const r of stale) {
+        await admin
+          .from("darb_branches")
+          .delete()
+          .eq("branch_group", r.branch_group)
+          .eq("city", r.city)
+          .eq("area", r.area);
+      }
+
+      console.log(`   upserted ${payload.length} rows, removed ${stale.length} stale`);
+    }
   }
 
   if (OUT) {
