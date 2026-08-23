@@ -10,6 +10,15 @@ export type ScanErrorCode =
   | "CARRIER_WAREHOUSE_ORDER"
   // The scanned sticker is already bound to a different parcel.
   | "STICKER_ALREADY_USED"
+  // The number is not on any roll this account has registered — most likely a
+  // typo, since Darb accepts foreign numbers without complaint.
+  | "STICKER_NOT_IN_ROLL"
+  // Right number, wrong roll: the sticker's colour is not the destination's.
+  | "STICKER_WRONG_ROLL"
+  // Darb has no shipment for our stored reference, so nothing can be bound.
+  | "DARB_SHIPMENT_UNKNOWN"
+  // Darb refused the binding, or was unreachable.
+  | "DARB_BIND_FAILED"
   | "NETWORK_ERROR";
 
 export interface TrayRowInit {

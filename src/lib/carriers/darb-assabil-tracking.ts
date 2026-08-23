@@ -17,6 +17,7 @@
 
 import type { CarrierConfig } from "./types";
 import { normalizeDarbStatus, type DarbSlug } from "./darb-assabil-statuses";
+import { darbFetch, darbUrl } from "./darb-assabil-http";
 
 export type DarbStatusSnapshot =
   | {
@@ -273,36 +274,25 @@ export async function fetchDarbTimeline(
 // ── Internals ────────────────────────────────────────────────────────
 
 function baseUrl(config: CarrierConfig): string {
-  return (config.apiEndpoint || "https://v2.sabil.ly").replace(/\/$/, "");
+  return darbUrl(config, "");
 }
 
-/** The three headers every Darb Assabil request needs (apikey literal prefix). */
-function buildHeaders(config: CarrierConfig): Record<string, string> {
-  return {
-    "Content-Type": "application/json",
-    Authorization: `apikey ${config.apiCredentials.api_key}`,
-    "X-API-VERSION": "1.0.0",
-    "X-ACCOUNT-ID": config.apiCredentials.account_id,
-  };
-}
-
-/** GET JSON with a 15s timeout; parse JSON body, falling back to raw text. */
+/**
+ * GET JSON. The headers, timeout and body parsing live in darb-assabil-http so
+ * the read and write paths cannot drift — a missing Darb header fails silently
+ * rather than 401ing, which makes a divergence expensive to spot.
+ *
+ * A transport failure still throws here: every caller of this module is a
+ * background sweep whose retry is the next cycle, unlike the scan bench, which
+ * needs to turn an unreachable carrier into a message.
+ */
 async function getJson(
   url: string,
   config: CarrierConfig,
 ): Promise<{ status: number; body: unknown }> {
-  const response = await fetch(url, {
-    method: "GET",
-    headers: buildHeaders(config),
-    signal: AbortSignal.timeout(15000),
-  });
-  let parsed: unknown;
-  try {
-    parsed = await response.json();
-  } catch {
-    parsed = await response.text();
-  }
-  return { status: response.status, body: parsed };
+  const response = await darbFetch(url, config, { method: "GET" });
+  if (!response.ok) throw new Error(response.error);
+  return { status: response.status, body: response.body };
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
