@@ -67,6 +67,12 @@ export interface WarehouseQueueStats {
   carrierWarehouse: number;
   returnsInbox: number;
   toHandOver: number;
+  /**
+   * Taken off the bench and no longer counted in any figure above. Still at
+   * `uploaded`, still in every metric elsewhere — not cancelled, not deleted.
+   * Reported so an emptied queue reads as cleared rather than as broken.
+   */
+  setAside: number;
 }
 
 /** Today and yesterday, from order_history — never a snapshot of itself. */
@@ -437,6 +443,7 @@ export async function getWarehouseSummary(
     carrierWarehouse: Number(q.carrier_warehouse ?? 0),
     returnsInbox: Number(q.returns_inbox ?? 0),
     toHandOver: Number(q.to_hand_over ?? 0),
+    setAside: Number(q.set_aside ?? 0),
   };
 
   const d = (dayStatsResult.data ?? {}) as Record<string, number | null>;

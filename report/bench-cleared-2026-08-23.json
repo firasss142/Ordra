@@ -1,0 +1,3698 @@
+{
+ "cleared_on": "2026-08-23",
+ "rule": "our-warehouse orders at `uploaded` whose bench clock (the uploaded event) predates 7 days",
+ "count": 410,
+ "note": "Status, stock and every metric are untouched. Restore with restore_bench_orders(uuid[]). Customer fields deliberately omitted — the orders themselves are unchanged in the database.",
+ "orders": [
+  {
+   "id": "87863a4a-18e0-467d-acce-67f2e0341ec8",
+   "market": "tn",
+   "tracking": "861351029762",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-06T21:29:36.286309+00:00",
+   "price": 53
+  },
+  {
+   "id": "e5d24956-7d35-4562-a2ee-15c2a516663f",
+   "market": "tn",
+   "tracking": "757211026822",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-06T21:24:42.450979+00:00",
+   "price": 49
+  },
+  {
+   "id": "1eac6654-0d89-4d1a-8cd0-baccaf879a75",
+   "market": "tn",
+   "tracking": "974561014202",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-06T21:03:40.763751+00:00",
+   "price": 49
+  },
+  {
+   "id": "b708100a-9793-4cc7-8f76-a0cfbc1b8f20",
+   "market": "ly",
+   "tracking": "SH1772182",
+   "darb_status": null,
+   "darb_id": "6a3417b990dc575ccde62b13",
+   "bench_at": "2026-06-18T16:07:21.67023+00:00",
+   "price": 199
+  },
+  {
+   "id": "4cf0d2cb-b426-45df-a8bf-dfc5dc46cbfd",
+   "market": "ly",
+   "tracking": "1339628",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:51:53.461705+00:00",
+   "price": 129
+  },
+  {
+   "id": "1cf55784-b74d-4186-a3fa-6c53b55682e7",
+   "market": "ly",
+   "tracking": "1339629",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:52:17.487571+00:00",
+   "price": 129
+  },
+  {
+   "id": "04647c99-ef4c-4478-b8ff-4942f41208de",
+   "market": "ly",
+   "tracking": "1339630",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:54:34.447371+00:00",
+   "price": 129
+  },
+  {
+   "id": "91415f43-b63d-423e-8693-14dd7459c922",
+   "market": "ly",
+   "tracking": "1339631",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:55:09.106777+00:00",
+   "price": 129
+  },
+  {
+   "id": "80adbf5b-62e7-49b5-9bca-b91ec765dc52",
+   "market": "ly",
+   "tracking": "1339632",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:55:26.521413+00:00",
+   "price": 129
+  },
+  {
+   "id": "6301408f-3136-4077-85d3-57f1e184e5e3",
+   "market": "ly",
+   "tracking": "1339634",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:55:45.685266+00:00",
+   "price": 129
+  },
+  {
+   "id": "52f11912-415d-45f3-a9a2-0b418a23568f",
+   "market": "ly",
+   "tracking": "1339635",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:55:55.938239+00:00",
+   "price": 129
+  },
+  {
+   "id": "943c2a9b-0385-469a-b6bd-493a8146233b",
+   "market": "ly",
+   "tracking": "1339636",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:56:31.271477+00:00",
+   "price": 129
+  },
+  {
+   "id": "b4f492ec-6ac4-4492-be2b-1d30b5a5567c",
+   "market": "ly",
+   "tracking": "1339638",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:56:48.309836+00:00",
+   "price": 129
+  },
+  {
+   "id": "f48b68e2-3d7e-4a65-929e-c063cd969171",
+   "market": "ly",
+   "tracking": "1339639",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:57:09.588502+00:00",
+   "price": 129
+  },
+  {
+   "id": "b0699119-8043-4035-af8d-5ab89a20e7c5",
+   "market": "ly",
+   "tracking": "1339641",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:57:33.008131+00:00",
+   "price": 129
+  },
+  {
+   "id": "6e0884c3-a06d-4045-9b9b-cba6686376b5",
+   "market": "ly",
+   "tracking": "1339652",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T01:01:04.899002+00:00",
+   "price": 129
+  },
+  {
+   "id": "9d229ffb-e736-462b-8b12-7e8e4abd8158",
+   "market": "ly",
+   "tracking": "1339657",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T01:04:37.932522+00:00",
+   "price": 129
+  },
+  {
+   "id": "9bd113e2-c94a-44d8-ab23-fa6605843c53",
+   "market": "ly",
+   "tracking": "1339646",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:58:43.792717+00:00",
+   "price": 129
+  },
+  {
+   "id": "d52350d6-482a-4f1e-88ad-9e855d41f084",
+   "market": "ly",
+   "tracking": "1339647",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:58:52.182165+00:00",
+   "price": 129
+  },
+  {
+   "id": "f604f921-0ff9-4a00-bdb7-1e300edce1fe",
+   "market": "ly",
+   "tracking": "1339656",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T01:03:09.534997+00:00",
+   "price": 129
+  },
+  {
+   "id": "785804e7-8d58-4611-aeb5-b989e898fbe6",
+   "market": "ly",
+   "tracking": "1339648",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:59:06.686143+00:00",
+   "price": 129
+  },
+  {
+   "id": "104966d1-36a8-4e10-be72-7a9c8fcf42e0",
+   "market": "ly",
+   "tracking": "1339653",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T01:02:19.900726+00:00",
+   "price": 129
+  },
+  {
+   "id": "53471bac-57dd-4259-a5b2-7612e7b7864e",
+   "market": "ly",
+   "tracking": "1339642",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:57:51.291385+00:00",
+   "price": 129
+  },
+  {
+   "id": "5b4ae6af-d681-427f-a33d-6113d28de979",
+   "market": "ly",
+   "tracking": "1339645",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:58:24.516717+00:00",
+   "price": 129
+  },
+  {
+   "id": "88a5555b-d772-4cd6-89e1-53959a6ff806",
+   "market": "ly",
+   "tracking": "1339627",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:50:28.741364+00:00",
+   "price": 141.9
+  },
+  {
+   "id": "b68cc931-9a21-40dd-a7fa-a8753c1f9691",
+   "market": "ly",
+   "tracking": "1339644",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:58:17.395068+00:00",
+   "price": 129
+  },
+  {
+   "id": "13549978-82f8-4954-8a40-c09c47af4694",
+   "market": "ly",
+   "tracking": "1339643",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T00:58:08.731973+00:00",
+   "price": 129
+  },
+  {
+   "id": "8cc45b12-c980-4621-8bbd-be448e34c01e",
+   "market": "ly",
+   "tracking": "1341161",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T19:01:20.242853+00:00",
+   "price": 129
+  },
+  {
+   "id": "ad31abfb-2c51-42f0-81d9-14ee95b40031",
+   "market": "ly",
+   "tracking": "1340893",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T15:04:30.027769+00:00",
+   "price": 129
+  },
+  {
+   "id": "4164a840-9574-46f1-af7f-b0939799f25d",
+   "market": "ly",
+   "tracking": "1340843",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T14:41:04.577659+00:00",
+   "price": 141.9
+  },
+  {
+   "id": "22ec2b79-1f1b-4d6c-8c60-f051fe970a8c",
+   "market": "ly",
+   "tracking": "1340959",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T16:00:18.531835+00:00",
+   "price": 129
+  },
+  {
+   "id": "c6f2df4e-1d29-4725-8e6f-9dc67b6c63e6",
+   "market": "ly",
+   "tracking": "1340861",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T14:48:30.547978+00:00",
+   "price": 129
+  },
+  {
+   "id": "6e61aba1-8d73-42de-aa51-f65acd61d819",
+   "market": "ly",
+   "tracking": "1341049",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T17:26:16.642968+00:00",
+   "price": 129
+  },
+  {
+   "id": "e97881b5-95b3-43c8-a2a0-0b2a9d4c3409",
+   "market": "ly",
+   "tracking": "1340875",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T14:55:47.968941+00:00",
+   "price": 129
+  },
+  {
+   "id": "d15d2c78-34eb-4717-a04c-6f33ed8e0a52",
+   "market": "ly",
+   "tracking": "1340882",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T15:01:07.288162+00:00",
+   "price": 129
+  },
+  {
+   "id": "c1ad5a16-d11d-447d-99e9-0355f5bf9f5c",
+   "market": "ly",
+   "tracking": "1342194",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T08:00:06.037026+00:00",
+   "price": 129
+  },
+  {
+   "id": "ddbe0ec4-189d-456d-b81c-1b5363cc7822",
+   "market": "ly",
+   "tracking": "1342195",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T08:00:08.634274+00:00",
+   "price": 129
+  },
+  {
+   "id": "c80d5fcc-d6e6-4a79-8ae6-f7f9b224ebb1",
+   "market": "ly",
+   "tracking": "1340969",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T16:08:45.65414+00:00",
+   "price": 129
+  },
+  {
+   "id": "2bdabfc2-4941-4c29-94c3-74fdbeb1eca8",
+   "market": "ly",
+   "tracking": "1340972",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T16:12:09.150948+00:00",
+   "price": 129
+  },
+  {
+   "id": "4733d293-a8b7-45a3-a821-a018739f72f1",
+   "market": "ly",
+   "tracking": "1343804",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T01:12:00.633378+00:00",
+   "price": 129
+  },
+  {
+   "id": "7d1e42a5-9063-4623-99cb-fc78bf564805",
+   "market": "ly",
+   "tracking": "1340944",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T15:50:42.165047+00:00",
+   "price": 129
+  },
+  {
+   "id": "bbe28f98-0ba9-4e39-9df0-537afdcffd99",
+   "market": "ly",
+   "tracking": "1341023",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T17:04:25.24123+00:00",
+   "price": 141.9
+  },
+  {
+   "id": "391c3539-89e7-468a-aef3-dd98c0d1d4a0",
+   "market": "ly",
+   "tracking": "1341006",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T16:49:13.268535+00:00",
+   "price": 129
+  },
+  {
+   "id": "fe375c64-3136-447c-b5ec-60bdf7ce6220",
+   "market": "ly",
+   "tracking": "1341077",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T17:44:21.853853+00:00",
+   "price": 129
+  },
+  {
+   "id": "eb77b899-19b6-4715-8481-9a30ae6be5cd",
+   "market": "ly",
+   "tracking": "1341239",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T19:25:30.05097+00:00",
+   "price": 258
+  },
+  {
+   "id": "a0ca0811-7ae6-4a09-92b1-17f2e38e27d5",
+   "market": "ly",
+   "tracking": "1341741",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T16:39:55.035021+00:00",
+   "price": 129
+  },
+  {
+   "id": "d31be64c-3cc1-4cbc-aabd-3b402f2a33fe",
+   "market": "ly",
+   "tracking": "1341263",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-21T20:21:40.20664+00:00",
+   "price": 129
+  },
+  {
+   "id": "bd8e5bae-4b6d-445e-8990-65e44d8598b2",
+   "market": "ly",
+   "tracking": "1341636",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T14:38:08.973548+00:00",
+   "price": 129
+  },
+  {
+   "id": "72b8340d-ceaa-4c07-90da-69a8da517a8d",
+   "market": "ly",
+   "tracking": "1350377",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T10:33:50.649393+00:00",
+   "price": 129
+  },
+  {
+   "id": "1276ddfe-e896-481c-a0d9-faa77e1b7d71",
+   "market": "ly",
+   "tracking": "1341743",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T16:44:10.501501+00:00",
+   "price": 129
+  },
+  {
+   "id": "bc3f259f-fe52-465a-9148-1460a8f99a2a",
+   "market": "ly",
+   "tracking": "1341643",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T14:47:10.312478+00:00",
+   "price": 129
+  },
+  {
+   "id": "3ecbee9b-22d2-4bdb-83ad-b6cb67928318",
+   "market": "ly",
+   "tracking": "1341645",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T14:50:50.120419+00:00",
+   "price": 129
+  },
+  {
+   "id": "408a8343-d3be-4c1a-b9c4-b2d06c68dd7d",
+   "market": "ly",
+   "tracking": "1341647",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T14:59:33.331019+00:00",
+   "price": 129
+  },
+  {
+   "id": "232bebcc-b17c-43c4-a9bb-9c21ff490d10",
+   "market": "ly",
+   "tracking": "1341650",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T15:03:32.590637+00:00",
+   "price": 129
+  },
+  {
+   "id": "e7d27dcd-8732-40e6-855b-b7d69c65fdb4",
+   "market": "ly",
+   "tracking": "1341653",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T15:06:47.614032+00:00",
+   "price": 129
+  },
+  {
+   "id": "d96dde60-e03d-420d-ab6c-c3adb70cfedf",
+   "market": "ly",
+   "tracking": "1341657",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T15:09:14.762412+00:00",
+   "price": 129
+  },
+  {
+   "id": "d8520973-d175-4be4-8319-4979d986dd69",
+   "market": "ly",
+   "tracking": "1344596",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T17:53:47.133374+00:00",
+   "price": 129
+  },
+  {
+   "id": "3d390752-0864-491f-bcaf-64ef4bf7897a",
+   "market": "ly",
+   "tracking": "1341751",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T16:55:10.193285+00:00",
+   "price": 129
+  },
+  {
+   "id": "75fd9876-ee7f-4fb9-8b45-6029806b5677",
+   "market": "ly",
+   "tracking": "1341662",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T15:20:32.251353+00:00",
+   "price": 129
+  },
+  {
+   "id": "3de04117-fcc5-4287-b60a-539bd6513dc7",
+   "market": "ly",
+   "tracking": "1341665",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T15:24:22.056974+00:00",
+   "price": 129
+  },
+  {
+   "id": "4ad3a0fe-15a3-4755-ada8-90a357d33713",
+   "market": "ly",
+   "tracking": "1341683",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T15:37:15.198195+00:00",
+   "price": 129
+  },
+  {
+   "id": "9733a3eb-147a-43bb-9910-e2887f47d09e",
+   "market": "ly",
+   "tracking": "1341685",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T15:40:58.311979+00:00",
+   "price": 129
+  },
+  {
+   "id": "3eec6973-6b65-4b62-9fd8-203ee2a710d6",
+   "market": "ly",
+   "tracking": "1341686",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T15:42:57.38123+00:00",
+   "price": 179
+  },
+  {
+   "id": "641383cf-fa53-4ad9-becb-a7a81aa49dd0",
+   "market": "ly",
+   "tracking": "1341689",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T15:49:35.208348+00:00",
+   "price": 179
+  },
+  {
+   "id": "e768ec08-3a34-47b0-88dd-31c2775faf24",
+   "market": "ly",
+   "tracking": "1341804",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T18:27:23.721974+00:00",
+   "price": 129
+  },
+  {
+   "id": "ce1e3214-defd-4109-8a71-e509ddb28ab8",
+   "market": "ly",
+   "tracking": "1341756",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T17:06:47.636823+00:00",
+   "price": 179
+  },
+  {
+   "id": "183cc354-f8cd-49d4-9e06-edf197e84538",
+   "market": "ly",
+   "tracking": "1341760",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T17:10:45.474085+00:00",
+   "price": 179
+  },
+  {
+   "id": "a6f5f374-842a-446f-a69d-688936b3fc8c",
+   "market": "ly",
+   "tracking": "1341771",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T17:27:19.016484+00:00",
+   "price": 129
+  },
+  {
+   "id": "618e0b50-563f-472d-8e60-60d53624102f",
+   "market": "ly",
+   "tracking": "1341831",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T19:44:55.91337+00:00",
+   "price": 129
+  },
+  {
+   "id": "be68b9ac-2686-4ff8-9e9c-ca38bc60c43e",
+   "market": "ly",
+   "tracking": "1341864",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T22:18:29.241871+00:00",
+   "price": 129
+  },
+  {
+   "id": "88b48162-9785-460e-afd2-1a660255a7eb",
+   "market": "ly",
+   "tracking": "1341809",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T18:36:34.164786+00:00",
+   "price": 129
+  },
+  {
+   "id": "e557f678-9c03-4b9b-b957-26ce6057b0a0",
+   "market": "ly",
+   "tracking": "1350775",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-03T17:23:32.540685+00:00",
+   "price": 258
+  },
+  {
+   "id": "14d13826-537c-4a35-9e1c-94b69ed2c29f",
+   "market": "ly",
+   "tracking": "1341829",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T19:35:54.197598+00:00",
+   "price": 129
+  },
+  {
+   "id": "5d672f0d-4bbe-456d-b218-ce14eea2ca9f",
+   "market": "ly",
+   "tracking": "1343576",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T18:42:15.375623+00:00",
+   "price": 129
+  },
+  {
+   "id": "295ac51c-2e06-49fb-b088-0f6d90913f41",
+   "market": "ly",
+   "tracking": "1341835",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-22T20:06:19.020646+00:00",
+   "price": 129
+  },
+  {
+   "id": "6b9170c3-3469-4a45-8b1c-0a05b7fa4052",
+   "market": "ly",
+   "tracking": "1343188",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T14:02:05.835932+00:00",
+   "price": 129
+  },
+  {
+   "id": "53ce7bdd-c8b2-48f0-996f-34994df6da7e",
+   "market": "ly",
+   "tracking": "1343191",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T14:05:04.82287+00:00",
+   "price": 258
+  },
+  {
+   "id": "7491d3bf-86c5-47fb-93ef-1968c718e110",
+   "market": "ly",
+   "tracking": "1343561",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T18:33:29.480091+00:00",
+   "price": 129
+  },
+  {
+   "id": "4903caba-fa39-421b-9acf-c1017ba3420a",
+   "market": "ly",
+   "tracking": "1343199",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T14:10:43.549652+00:00",
+   "price": 129
+  },
+  {
+   "id": "f1af6592-5b69-4a20-9459-0ad7fd0fbeab",
+   "market": "ly",
+   "tracking": "1343211",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T14:16:55.847595+00:00",
+   "price": 129
+  },
+  {
+   "id": "05731816-aace-4198-9670-7fc557ad441a",
+   "market": "ly",
+   "tracking": "1343562",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T18:36:27.67272+00:00",
+   "price": 129
+  },
+  {
+   "id": "f982aa3a-0b8b-47df-b3fe-3907a6252302",
+   "market": "ly",
+   "tracking": "1343564",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T18:38:04.690534+00:00",
+   "price": 179
+  },
+  {
+   "id": "72a8f2a0-0bd0-4ea3-8f28-44976da8cd40",
+   "market": "ly",
+   "tracking": "1343219",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T14:20:53.427388+00:00",
+   "price": 179
+  },
+  {
+   "id": "2fb39199-4213-46ce-a6e5-1d66cd531aab",
+   "market": "ly",
+   "tracking": "1343222",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T14:22:29.666956+00:00",
+   "price": 129
+  },
+  {
+   "id": "f7c015dd-7b7c-4b88-9481-a0be25333aa3",
+   "market": "ly",
+   "tracking": "1343231",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T14:26:11.928634+00:00",
+   "price": 179
+  },
+  {
+   "id": "abe392ee-7d58-4c0d-bca3-d46564ebb269",
+   "market": "ly",
+   "tracking": "1343234",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T14:28:10.255834+00:00",
+   "price": 179
+  },
+  {
+   "id": "a8fa8be4-dc5f-4ad6-903e-e7ba74943757",
+   "market": "ly",
+   "tracking": "1343634",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T20:13:52.648013+00:00",
+   "price": 119
+  },
+  {
+   "id": "7a2ca43c-063c-41cd-9b1c-7d97992e2f57",
+   "market": "ly",
+   "tracking": "1343514",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T17:46:30.211818+00:00",
+   "price": 129
+  },
+  {
+   "id": "868c388e-bf84-4475-8fb9-056a99c23bc2",
+   "market": "ly",
+   "tracking": "1344599",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T18:07:24.587538+00:00",
+   "price": 129
+  },
+  {
+   "id": "2ef17b5f-9a33-48eb-bce9-ab23b000457a",
+   "market": "ly",
+   "tracking": "1343361",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T15:49:48.056421+00:00",
+   "price": 141.9
+  },
+  {
+   "id": "a4d21d1f-ea23-44de-8603-196df2284b1b",
+   "market": "ly",
+   "tracking": "1343283",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T15:01:33.597953+00:00",
+   "price": 179
+  },
+  {
+   "id": "358a78b2-bd95-4093-8e82-8e7f0e8608ee",
+   "market": "ly",
+   "tracking": "1343289",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T15:05:34.172207+00:00",
+   "price": 129
+  },
+  {
+   "id": "c5871d10-f201-4ceb-aad2-0b5afa7e40ce",
+   "market": "ly",
+   "tracking": "1343638",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T20:24:34.071226+00:00",
+   "price": 179
+  },
+  {
+   "id": "bebbbe86-fcdd-479d-bfa4-68d1b3c8f357",
+   "market": "ly",
+   "tracking": "1344601",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T18:12:04.846985+00:00",
+   "price": 179
+  },
+  {
+   "id": "56b9841b-21bb-479b-84a6-0e9f30423379",
+   "market": "ly",
+   "tracking": "1343295",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T15:11:39.547825+00:00",
+   "price": 179
+  },
+  {
+   "id": "ce902833-772a-4a57-86e1-11a2f234c297",
+   "market": "ly",
+   "tracking": "1343304",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T15:14:02.474138+00:00",
+   "price": 129
+  },
+  {
+   "id": "8d0dc90a-2588-4e3b-8062-84efb805dc52",
+   "market": "ly",
+   "tracking": "1343319",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T15:24:04.903706+00:00",
+   "price": 179
+  },
+  {
+   "id": "62d8606b-3228-4a54-b75e-ea156706742c",
+   "market": "ly",
+   "tracking": "1343323",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T15:24:48.93529+00:00",
+   "price": 179
+  },
+  {
+   "id": "1a11792b-d9ff-4fa5-a7c5-8b3268422ba5",
+   "market": "ly",
+   "tracking": "1343328",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T15:27:56.059158+00:00",
+   "price": 129
+  },
+  {
+   "id": "8bac62c6-f75c-4808-ae1b-ecd4ff2991ed",
+   "market": "ly",
+   "tracking": "1343341",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T15:37:54.311279+00:00",
+   "price": 129
+  },
+  {
+   "id": "d2bd30da-f822-4fdc-88a2-07de3a1854b4",
+   "market": "ly",
+   "tracking": "1343805",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T01:12:43.707554+00:00",
+   "price": 179
+  },
+  {
+   "id": "126f2bb7-2ee5-4564-8dd9-9bcb6a3eb925",
+   "market": "ly",
+   "tracking": "1343352",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T15:46:43.704386+00:00",
+   "price": 179
+  },
+  {
+   "id": "94d0f5ba-96ba-4014-bc9f-7a81fa648373",
+   "market": "ly",
+   "tracking": "1343370",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T15:54:27.668429+00:00",
+   "price": 129
+  },
+  {
+   "id": "b8cc8ba2-be4d-4ac8-aa79-3a1ace451e63",
+   "market": "ly",
+   "tracking": "1343377",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T15:56:28.090043+00:00",
+   "price": 358
+  },
+  {
+   "id": "9cb5834f-d6fb-4dac-860f-c1cc740d3092",
+   "market": "ly",
+   "tracking": "1343517",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T17:47:43.147494+00:00",
+   "price": 179
+  },
+  {
+   "id": "d661d872-6fd2-417f-b428-5ed8d77d3d2b",
+   "market": "ly",
+   "tracking": "1343520",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T17:49:01.982766+00:00",
+   "price": 129
+  },
+  {
+   "id": "68a951c3-de3b-436c-a08a-ed645a8c99bf",
+   "market": "ly",
+   "tracking": "1344501",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T14:56:30.574973+00:00",
+   "price": 179
+  },
+  {
+   "id": "39d8c567-8736-49cf-a986-17437cb0f055",
+   "market": "ly",
+   "tracking": "1343526",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T17:56:27.727271+00:00",
+   "price": 129
+  },
+  {
+   "id": "45b2d2bf-38a3-41e3-9ed9-67f2ca3b4ebb",
+   "market": "ly",
+   "tracking": "1343527",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T17:57:39.674005+00:00",
+   "price": 179
+  },
+  {
+   "id": "fae27bf7-6f1f-4f89-86a8-9e8d10892344",
+   "market": "ly",
+   "tracking": "1344604",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T18:22:22.756405+00:00",
+   "price": 179
+  },
+  {
+   "id": "ed349480-356e-4f09-a5d9-9a525ba68cd2",
+   "market": "ly",
+   "tracking": "1343545",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T18:13:36.957784+00:00",
+   "price": 179
+  },
+  {
+   "id": "3b061d6d-ff5e-4ac4-a06c-1b29c0c54be5",
+   "market": "ly",
+   "tracking": "1343548",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T18:18:34.002165+00:00",
+   "price": 716
+  },
+  {
+   "id": "e007aa43-ea60-4344-a319-2131f669409d",
+   "market": "ly",
+   "tracking": "1343669",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T21:00:42.562676+00:00",
+   "price": 129
+  },
+  {
+   "id": "f170000d-c488-402f-a01b-32c88abb21ab",
+   "market": "ly",
+   "tracking": "1344606",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T18:30:12.577566+00:00",
+   "price": 179
+  },
+  {
+   "id": "67b76e10-0789-4b45-ac99-b276f45d78e2",
+   "market": "ly",
+   "tracking": "1343607",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T19:41:07.168098+00:00",
+   "price": 179
+  },
+  {
+   "id": "de2008fb-ba19-406d-a925-bb1c0332d4c6",
+   "market": "ly",
+   "tracking": "1343614",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T19:44:33.126051+00:00",
+   "price": 129
+  },
+  {
+   "id": "839c8a5e-4a0e-4df7-8eb2-d108796abd21",
+   "market": "ly",
+   "tracking": "1343615",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T19:45:45.23924+00:00",
+   "price": 179
+  },
+  {
+   "id": "7685681d-db7b-4d71-8c46-b9d5a0b8070f",
+   "market": "ly",
+   "tracking": "1343616",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T19:50:00.676168+00:00",
+   "price": 238
+  },
+  {
+   "id": "f1e20a18-15da-4b7f-872d-3adaf9430768",
+   "market": "ly",
+   "tracking": "1343618",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T19:53:00.188547+00:00",
+   "price": 129
+  },
+  {
+   "id": "7afee67d-1714-42c7-9861-f69dd20067bf",
+   "market": "ly",
+   "tracking": "1343624",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T19:56:06.631252+00:00",
+   "price": 179
+  },
+  {
+   "id": "f885b2d3-b1ca-4cd8-9138-193b7d1e1a17",
+   "market": "ly",
+   "tracking": "1343625",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T19:57:33.333651+00:00",
+   "price": 179
+  },
+  {
+   "id": "e0b38412-23c3-467b-9b85-05cfdd295f9c",
+   "market": "ly",
+   "tracking": "1343629",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T20:01:00.96908+00:00",
+   "price": 129
+  },
+  {
+   "id": "65211851-efd3-48f1-b108-eab189f5c3ac",
+   "market": "ly",
+   "tracking": "1343631",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-23T20:02:54.141904+00:00",
+   "price": 179
+  },
+  {
+   "id": "ee4eb74e-fc58-444c-a79d-27d5c39a9a3d",
+   "market": "ly",
+   "tracking": "1350568",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T17:07:57.274939+00:00",
+   "price": 179
+  },
+  {
+   "id": "14db9e9a-6aea-461a-a70a-5619a7af9068",
+   "market": "ly",
+   "tracking": "1350647",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-02T12:10:39.556472+00:00",
+   "price": 129
+  },
+  {
+   "id": "05237178-5003-4d3d-b6c4-88e45d10bb8d",
+   "market": "ly",
+   "tracking": "1350569",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T17:30:03.241516+00:00",
+   "price": 129
+  },
+  {
+   "id": "493b84a6-9021-4c88-947b-fed9090d3814",
+   "market": "ly",
+   "tracking": "1344610",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T18:36:30.71478+00:00",
+   "price": 129
+  },
+  {
+   "id": "5be98919-4257-4a69-a2d5-83e2b28a7e83",
+   "market": "ly",
+   "tracking": "1344507",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T15:01:45.364771+00:00",
+   "price": 129
+  },
+  {
+   "id": "e64731fd-790c-45f7-86d9-2a9e7925dfcc",
+   "market": "ly",
+   "tracking": "1344508",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T15:03:26.184642+00:00",
+   "price": 179
+  },
+  {
+   "id": "f24ca7f1-bd52-48b3-a31e-f06d143b9770",
+   "market": "ly",
+   "tracking": "1344510",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T15:06:02.702861+00:00",
+   "price": 129
+  },
+  {
+   "id": "01af1d0d-c8f3-4af6-b9fe-d92d8ed5cd10",
+   "market": "ly",
+   "tracking": "1349627",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T12:29:25.679457+00:00",
+   "price": 179
+  },
+  {
+   "id": "f0973cca-49e5-4d77-95b8-70167db35399",
+   "market": "ly",
+   "tracking": "1344511",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T15:10:38.572496+00:00",
+   "price": 196.9
+  },
+  {
+   "id": "303d5471-7522-4866-a0dd-cbb4f5240adf",
+   "market": "ly",
+   "tracking": "1344515",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T15:12:07.824466+00:00",
+   "price": 179
+  },
+  {
+   "id": "2b888940-b24f-4c14-9d2c-47bf7bdc4bcc",
+   "market": "ly",
+   "tracking": "1344612",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T18:41:59.168077+00:00",
+   "price": 129
+  },
+  {
+   "id": "31ab2f60-9b6b-448c-95c0-410f7955fb63",
+   "market": "ly",
+   "tracking": "1344620",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T18:45:45.108319+00:00",
+   "price": 129
+  },
+  {
+   "id": "fa986bea-ca9b-4f96-9b56-8e529f108561",
+   "market": "ly",
+   "tracking": "1345434",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-28T21:37:43.368901+00:00",
+   "price": 179
+  },
+  {
+   "id": "ba3646dd-3cb3-42a9-a38d-fa13dd482a86",
+   "market": "ly",
+   "tracking": "1344523",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T15:23:18.104712+00:00",
+   "price": 129
+  },
+  {
+   "id": "555597da-1d2f-410b-a260-5637e90af7b4",
+   "market": "ly",
+   "tracking": "1344529",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T15:29:09.467111+00:00",
+   "price": 129
+  },
+  {
+   "id": "c42b6d94-b546-4223-a66d-2acdee53c7f2",
+   "market": "ly",
+   "tracking": "1344669",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T19:26:27.790961+00:00",
+   "price": 129
+  },
+  {
+   "id": "012f2d21-3d9a-430c-b49e-88bb8eb38c0d",
+   "market": "ly",
+   "tracking": "1344627",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T18:57:05.485758+00:00",
+   "price": 129
+  },
+  {
+   "id": "0ee4f429-0796-4ab4-9a55-cb139ae8f015",
+   "market": "ly",
+   "tracking": "1344631",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T18:59:31.879551+00:00",
+   "price": 129
+  },
+  {
+   "id": "18e5c903-4354-4e53-b448-bdfb47513f95",
+   "market": "ly",
+   "tracking": "1344633",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T19:01:44.444602+00:00",
+   "price": 179
+  },
+  {
+   "id": "ac8a9fb1-1d19-40f0-ac2a-af3580076983",
+   "market": "ly",
+   "tracking": "1344644",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T19:08:42.762913+00:00",
+   "price": 179
+  },
+  {
+   "id": "ae557fb5-90aa-4239-930d-81f4e77ae01b",
+   "market": "ly",
+   "tracking": "1344640",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T19:07:11.590388+00:00",
+   "price": 179
+  },
+  {
+   "id": "f3179f2a-10fe-4748-8feb-12ec101a4390",
+   "market": "ly",
+   "tracking": "1344540",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T15:45:25.500453+00:00",
+   "price": 179
+  },
+  {
+   "id": "d8efb085-2ac5-462f-9059-2356e2f2df84",
+   "market": "ly",
+   "tracking": "1344547",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T15:54:24.560962+00:00",
+   "price": 179
+  },
+  {
+   "id": "b447e240-5e57-4861-8d79-f89fd104113a",
+   "market": "ly",
+   "tracking": "1344549",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T15:58:49.141298+00:00",
+   "price": 179
+  },
+  {
+   "id": "09f07eed-e16a-47bb-a80f-0bbf0aca855e",
+   "market": "ly",
+   "tracking": "1344657",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T19:18:13.96526+00:00",
+   "price": 129
+  },
+  {
+   "id": "24f89265-966f-43de-af95-07e73699c81d",
+   "market": "ly",
+   "tracking": "1344551",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T16:06:52.737615+00:00",
+   "price": 119
+  },
+  {
+   "id": "ac415f3b-ecb1-4dd1-8f79-2e33ecb99a08",
+   "market": "ly",
+   "tracking": "1344552",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T16:09:16.712075+00:00",
+   "price": 179
+  },
+  {
+   "id": "bb628ebf-4712-4c6e-808b-d5befa097531",
+   "market": "ly",
+   "tracking": "1344654",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T19:15:39.269593+00:00",
+   "price": 179
+  },
+  {
+   "id": "8c1cb2f6-78f6-473f-9950-edb44b4bab92",
+   "market": "ly",
+   "tracking": "1344558",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T16:13:10.767562+00:00",
+   "price": 119
+  },
+  {
+   "id": "94c51b38-8d9b-486b-9ab3-bb04660b46c7",
+   "market": "ly",
+   "tracking": "1344559",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T16:16:26.724667+00:00",
+   "price": 179
+  },
+  {
+   "id": "2a9c4a41-50af-4efe-8fbc-c6eb3a30f143",
+   "market": "ly",
+   "tracking": "1344667",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T19:25:55.528397+00:00",
+   "price": 179
+  },
+  {
+   "id": "1fc5eacc-ddc4-4e0e-b45f-4d31060b69f5",
+   "market": "ly",
+   "tracking": "1344560",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T16:19:42.572524+00:00",
+   "price": 129
+  },
+  {
+   "id": "206c345d-851e-4915-bb83-d39a2a857e23",
+   "market": "ly",
+   "tracking": "1344561",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T16:21:03.18594+00:00",
+   "price": 129
+  },
+  {
+   "id": "20d1e08a-402e-4f16-8216-c586363c911f",
+   "market": "ly",
+   "tracking": "1344660",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T19:22:45.226827+00:00",
+   "price": 129
+  },
+  {
+   "id": "3c68ff7b-9900-43c4-915b-f19ad3c37f15",
+   "market": "ly",
+   "tracking": "1344562",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T16:23:32.334979+00:00",
+   "price": 129
+  },
+  {
+   "id": "53e1c578-8c79-49eb-a84d-34c2cd8b5465",
+   "market": "ly",
+   "tracking": "1344666",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T19:24:55.998591+00:00",
+   "price": 129
+  },
+  {
+   "id": "3107de62-403e-4f6d-b21b-04e7561815c2",
+   "market": "ly",
+   "tracking": "1344672",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T19:31:56.945618+00:00",
+   "price": 179
+  },
+  {
+   "id": "8b11a5a1-0e49-4b43-a637-b6058552c95c",
+   "market": "ly",
+   "tracking": "1349322",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T11:01:50.326725+00:00",
+   "price": 141.9
+  },
+  {
+   "id": "8d95f4d4-a5c6-420c-b41b-33c4b7d5296d",
+   "market": "ly",
+   "tracking": "1349801",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T13:18:04.753785+00:00",
+   "price": 196.9
+  },
+  {
+   "id": "03bf05a1-5bc0-44bd-83ed-c8aa9d91b5c7",
+   "market": "ly",
+   "tracking": "1344674",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T19:37:50.051704+00:00",
+   "price": 179
+  },
+  {
+   "id": "5837adb7-6240-4843-9229-e1e58ff0dfd3",
+   "market": "ly",
+   "tracking": "1344707",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-24T22:10:06.021069+00:00",
+   "price": 179
+  },
+  {
+   "id": "df32bccb-6dbf-4aa2-8983-6623843ec574",
+   "market": "ly",
+   "tracking": "1345144",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T11:26:46.676346+00:00",
+   "price": 141.9
+  },
+  {
+   "id": "335f57bd-9825-4107-8aee-d792c35d6762",
+   "market": "ly",
+   "tracking": "1345226",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T15:03:40.156052+00:00",
+   "price": 129
+  },
+  {
+   "id": "51462198-ba52-4fb1-a71e-03c434791c3b",
+   "market": "ly",
+   "tracking": "1345281",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T18:03:32.532361+00:00",
+   "price": 179
+  },
+  {
+   "id": "f39e0693-caa6-4cfb-bd60-9aace9ffc464",
+   "market": "ly",
+   "tracking": "1345282",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T18:04:50.6988+00:00",
+   "price": 179
+  },
+  {
+   "id": "9aa35962-fa4d-4db0-b9f5-9e98e4b923b7",
+   "market": "ly",
+   "tracking": "1345227",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T15:09:29.649331+00:00",
+   "price": 179
+  },
+  {
+   "id": "9e71225f-1969-4b9e-9efe-e5db6d322fc4",
+   "market": "ly",
+   "tracking": "1345312",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T20:51:57.906601+00:00",
+   "price": 179
+  },
+  {
+   "id": "1d0c7696-65c9-4d07-b417-a6feeae4d52a",
+   "market": "ly",
+   "tracking": "1345284",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T18:13:54.708591+00:00",
+   "price": 129
+  },
+  {
+   "id": "9fff4e8a-3184-4626-85e3-939048de9c24",
+   "market": "ly",
+   "tracking": "1345283",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T18:12:16.940445+00:00",
+   "price": 129
+  },
+  {
+   "id": "3f2534da-6518-475f-a409-f555ffccac0b",
+   "market": "ly",
+   "tracking": "1345285",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T18:19:18.709089+00:00",
+   "price": 179
+  },
+  {
+   "id": "5243bdc7-f9c2-43df-a8a1-d7c00d3faf5e",
+   "market": "ly",
+   "tracking": "1345232",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T15:21:59.142947+00:00",
+   "price": 129
+  },
+  {
+   "id": "8153940f-a84c-42ed-b55c-1d3327296625",
+   "market": "ly",
+   "tracking": "1345233",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T15:25:19.632392+00:00",
+   "price": 179
+  },
+  {
+   "id": "c9b73825-2828-4546-afd6-5ab3cf153da0",
+   "market": "ly",
+   "tracking": "1345234",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T15:30:25.342847+00:00",
+   "price": 129
+  },
+  {
+   "id": "97dcb8ac-f2aa-42ce-990d-079a56659770",
+   "market": "ly",
+   "tracking": "1345235",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T15:35:23.087998+00:00",
+   "price": 129
+  },
+  {
+   "id": "3a323901-86da-45bf-aded-075677bcc166",
+   "market": "ly",
+   "tracking": "1345309",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T20:47:32.562224+00:00",
+   "price": 179
+  },
+  {
+   "id": "65618239-7e1e-478f-b9c4-e37ea280a548",
+   "market": "ly",
+   "tracking": "1345237",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T15:39:19.728153+00:00",
+   "price": 129
+  },
+  {
+   "id": "b40d6d15-edad-4e0d-b440-b41a681185ee",
+   "market": "ly",
+   "tracking": "1345238",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T15:42:00.623545+00:00",
+   "price": 179
+  },
+  {
+   "id": "bfdfddc9-780b-4ea9-8ca9-3be9f4cfb945",
+   "market": "ly",
+   "tracking": "1345241",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T15:44:35.714306+00:00",
+   "price": 179
+  },
+  {
+   "id": "320aa788-58d9-45de-9402-25899931e698",
+   "market": "ly",
+   "tracking": "1345242",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T15:51:39.393575+00:00",
+   "price": 179
+  },
+  {
+   "id": "ac5276e6-2252-4205-b50a-89be6cd7dff5",
+   "market": "ly",
+   "tracking": "1345178",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T13:02:20.86531+00:00",
+   "price": 129
+  },
+  {
+   "id": "c54377e3-147d-4e4e-96ff-57d2d1e38870",
+   "market": "ly",
+   "tracking": "1345179",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T13:05:19.589467+00:00",
+   "price": 129
+  },
+  {
+   "id": "b40489b0-c0fa-4197-af48-587abe585911",
+   "market": "ly",
+   "tracking": "1345181",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T13:12:57.14455+00:00",
+   "price": 129
+  },
+  {
+   "id": "7d37e406-ca31-405f-99ee-28d5e22bcb20",
+   "market": "ly",
+   "tracking": "1345184",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T13:16:13.533371+00:00",
+   "price": 141.9
+  },
+  {
+   "id": "4ed58777-6f96-4ef7-8e03-4e33f2b08165",
+   "market": "ly",
+   "tracking": "1345202",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T14:06:21.094728+00:00",
+   "price": 179
+  },
+  {
+   "id": "96362f05-b710-4862-9b64-d3fddc43ba94",
+   "market": "ly",
+   "tracking": "1345287",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T18:27:56.630517+00:00",
+   "price": 129
+  },
+  {
+   "id": "fc8ed0c4-b6a1-4833-8a02-dacf665efb3b",
+   "market": "ly",
+   "tracking": "1345201",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T14:03:41.583023+00:00",
+   "price": 179
+  },
+  {
+   "id": "48f4417e-7fc1-4124-9f25-b28bc356ce6e",
+   "market": "ly",
+   "tracking": "1345244",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T15:53:45.476892+00:00",
+   "price": 179
+  },
+  {
+   "id": "08d30867-0c7a-481c-bf55-96b1c807cd63",
+   "market": "ly",
+   "tracking": "1345548",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T17:58:19.633937+00:00",
+   "price": 179
+  },
+  {
+   "id": "f81da200-4350-4078-a41e-5e91076ce2e1",
+   "market": "ly",
+   "tracking": "1345251",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T16:00:55.384224+00:00",
+   "price": 179
+  },
+  {
+   "id": "02be2589-aa38-46c8-b2d7-411b71092627",
+   "market": "ly",
+   "tracking": "1345167",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T12:13:38.200575+00:00",
+   "price": 179
+  },
+  {
+   "id": "9c4ee00d-8924-4186-a50e-6394a0bcd125",
+   "market": "ly",
+   "tracking": "1345292",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T18:43:54.265052+00:00",
+   "price": 129
+  },
+  {
+   "id": "c58365d2-0283-4bd0-a432-008a8455da2c",
+   "market": "ly",
+   "tracking": "1345198",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T13:59:54.705402+00:00",
+   "price": 141.9
+  },
+  {
+   "id": "dc8545ff-eb25-4ebc-8777-7a2d69164d88",
+   "market": "ly",
+   "tracking": "1345252",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T16:02:37.243958+00:00",
+   "price": 179
+  },
+  {
+   "id": "cc21521b-eedb-44a1-8ce1-7a48b5eb7104",
+   "market": "ly",
+   "tracking": "1345278",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T17:54:59.128296+00:00",
+   "price": 129
+  },
+  {
+   "id": "b7bb24ab-be9a-4970-9126-7c6a6713f60f",
+   "market": "ly",
+   "tracking": "1345280",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T18:01:35.256901+00:00",
+   "price": 179
+  },
+  {
+   "id": "24cad510-1cae-4106-a53c-46f27f1c2c07",
+   "market": "ly",
+   "tracking": "1345298",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T19:34:03.677752+00:00",
+   "price": 179
+  },
+  {
+   "id": "c5511536-d160-496f-b2ef-f3bd8c311b10",
+   "market": "ly",
+   "tracking": "1345299",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T19:35:50.211752+00:00",
+   "price": 129
+  },
+  {
+   "id": "a60fb601-6dcc-4cab-8366-3783670c3014",
+   "market": "ly",
+   "tracking": "1345300",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T19:40:21.987684+00:00",
+   "price": 129
+  },
+  {
+   "id": "867c3c6a-fef6-44ef-861f-d821e4cb1678",
+   "market": "ly",
+   "tracking": "1345301",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T19:43:11.538418+00:00",
+   "price": 129
+  },
+  {
+   "id": "61b66242-9f73-4639-b0c1-46a5b6338fd6",
+   "market": "ly",
+   "tracking": "1345302",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T19:44:45.900478+00:00",
+   "price": 199
+  },
+  {
+   "id": "3d1cf900-32e3-40b4-874d-c9a542c06207",
+   "market": "ly",
+   "tracking": "1345308",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T20:34:02.384401+00:00",
+   "price": 129
+  },
+  {
+   "id": "f223c63d-bb43-4a9e-ab4e-d1273089635c",
+   "market": "ly",
+   "tracking": "1345304",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T19:48:01.488625+00:00",
+   "price": 129
+  },
+  {
+   "id": "6d63c574-4835-4d28-82f6-9816516fce98",
+   "market": "ly",
+   "tracking": "1345307",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-25T20:30:02.849584+00:00",
+   "price": 179
+  },
+  {
+   "id": "3b67010b-eaf9-4590-aa05-979ee27a4e36",
+   "market": "ly",
+   "tracking": "1350487",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T12:30:13.421307+00:00",
+   "price": 179
+  },
+  {
+   "id": "d319a490-1aef-4be9-bca5-ef2e40a38941",
+   "market": "ly",
+   "tracking": "1350669",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-02T16:07:30.490965+00:00",
+   "price": 199
+  },
+  {
+   "id": "be9832e9-8660-4949-8aa0-92dea64c54e2",
+   "market": "ly",
+   "tracking": "1346097",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T14:34:00.253988+00:00",
+   "price": 129
+  },
+  {
+   "id": "79c74145-93e4-4b49-acad-c044d8529fc2",
+   "market": "ly",
+   "tracking": "1346101",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T14:39:20.687705+00:00",
+   "price": 129
+  },
+  {
+   "id": "9c440dc2-a3ed-479f-b2e6-80977f17fbb4",
+   "market": "ly",
+   "tracking": "1346301",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T19:52:07.374041+00:00",
+   "price": 129
+  },
+  {
+   "id": "6d7c5405-3f7e-45f3-a48b-10b0664dc562",
+   "market": "ly",
+   "tracking": "1346293",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T19:24:27.190784+00:00",
+   "price": 258
+  },
+  {
+   "id": "46f07d41-7b4e-434d-b997-3c0a7995e98b",
+   "market": "ly",
+   "tracking": "1346295",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T19:38:42.942028+00:00",
+   "price": 129
+  },
+  {
+   "id": "25d5ac67-0fd5-4cfa-adba-0763df3bcda2",
+   "market": "ly",
+   "tracking": "1346111",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T15:11:48.550349+00:00",
+   "price": 199
+  },
+  {
+   "id": "f7f28c94-dab6-4ee3-88a0-5efd6948876a",
+   "market": "ly",
+   "tracking": "1346322",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T20:52:28.022164+00:00",
+   "price": 308
+  },
+  {
+   "id": "eb6733f2-2c73-43b7-928c-c4126b3056fb",
+   "market": "ly",
+   "tracking": "1350565",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T16:13:11.786231+00:00",
+   "price": 179
+  },
+  {
+   "id": "0b089d75-a4ef-4fff-a05c-741db38f0a7e",
+   "market": "ly",
+   "tracking": "1346178",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T17:11:29.878842+00:00",
+   "price": 129
+  },
+  {
+   "id": "796ea16a-2633-46de-af08-a608175f8f8e",
+   "market": "ly",
+   "tracking": "1350488",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T12:37:10.682658+00:00",
+   "price": 258
+  },
+  {
+   "id": "2442f7e5-c5b0-4303-b7b3-6d715cf72c06",
+   "market": "ly",
+   "tracking": "1350489",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T12:40:10.148867+00:00",
+   "price": 129
+  },
+  {
+   "id": "39112980-93db-4238-887c-082524f35fd4",
+   "market": "ly",
+   "tracking": "1346181",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T17:20:53.731311+00:00",
+   "price": 199
+  },
+  {
+   "id": "91e3f5e8-c303-4393-ab2d-0d8c6e3a8fbf",
+   "market": "ly",
+   "tracking": "1350540",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T14:04:17.6662+00:00",
+   "price": 179
+  },
+  {
+   "id": "af95d267-edfe-41ea-8ae5-8b0f99410426",
+   "market": "ly",
+   "tracking": "1350544",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T14:15:07.465074+00:00",
+   "price": 129
+  },
+  {
+   "id": "f9fe7399-7cd3-48f3-9e53-dd7c6f13ac82",
+   "market": "ly",
+   "tracking": "1350570",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T18:31:03.486298+00:00",
+   "price": 129
+  },
+  {
+   "id": "7286bd11-54b9-4507-af4c-fa567b311366",
+   "market": "ly",
+   "tracking": "1350545",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T14:21:00.933468+00:00",
+   "price": 129
+  },
+  {
+   "id": "214c2298-5f62-4560-a5da-239d3da0de04",
+   "market": "ly",
+   "tracking": "1350491",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T12:47:24.679079+00:00",
+   "price": 129
+  },
+  {
+   "id": "33d03888-c0b6-4eaf-a0fc-f55336a14e31",
+   "market": "ly",
+   "tracking": "1346182",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T17:24:22.889113+00:00",
+   "price": 179
+  },
+  {
+   "id": "7648fc12-3a9a-4b36-8ef6-7184680d7de7",
+   "market": "ly",
+   "tracking": "1350495",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T12:55:22.839538+00:00",
+   "price": 258
+  },
+  {
+   "id": "8758fd69-97cc-4835-8293-31b612a26f67",
+   "market": "ly",
+   "tracking": "1346090",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T14:24:11.118086+00:00",
+   "price": 179
+  },
+  {
+   "id": "b82f6845-53dc-4081-bb96-d07d984600d9",
+   "market": "ly",
+   "tracking": "1346093",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T14:29:56.426251+00:00",
+   "price": 129
+  },
+  {
+   "id": "42f9d177-4c39-4de3-aad3-c8c9c1a8075e",
+   "market": "ly",
+   "tracking": "1346164",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T16:23:03.795772+00:00",
+   "price": 179
+  },
+  {
+   "id": "0c0dcc59-8040-4d2e-9ff9-9ac0237bed12",
+   "market": "ly",
+   "tracking": "1346297",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T19:46:30.08687+00:00",
+   "price": 129
+  },
+  {
+   "id": "f00e36fc-f6f7-4a07-bfc7-6714d8f58acc",
+   "market": "ly",
+   "tracking": "1346300",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T19:50:06.323755+00:00",
+   "price": 179
+  },
+  {
+   "id": "48029f41-fed7-43eb-bf19-cda744a30641",
+   "market": "ly",
+   "tracking": "1346172",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T16:46:28.70276+00:00",
+   "price": 129
+  },
+  {
+   "id": "38836fa0-5abb-464a-a54b-99062e07a5ee",
+   "market": "ly",
+   "tracking": "1346173",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T16:56:31.23335+00:00",
+   "price": 179
+  },
+  {
+   "id": "9dc5e1e0-61b4-4faa-8f11-318f12d48776",
+   "market": "ly",
+   "tracking": "1346174",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T16:58:07.05382+00:00",
+   "price": 199
+  },
+  {
+   "id": "d5b8f38f-282e-48fd-aea2-2d44e50374d2",
+   "market": "ly",
+   "tracking": "1350658",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-02T13:50:36.738393+00:00",
+   "price": 179
+  },
+  {
+   "id": "fffefdb9-3b45-4c76-98e5-9f3ae9a3ca43",
+   "market": "ly",
+   "tracking": "1346175",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T17:04:01.054013+00:00",
+   "price": 179
+  },
+  {
+   "id": "7600ef1e-e5c1-4e5f-b830-4a9c7e71dfc2",
+   "market": "ly",
+   "tracking": "1346307",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T20:08:04.87905+00:00",
+   "price": 179
+  },
+  {
+   "id": "83034273-ecf2-46d8-82cc-fe7186471136",
+   "market": "ly",
+   "tracking": "1346176",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T17:06:38.793811+00:00",
+   "price": 179
+  },
+  {
+   "id": "ada4f7ce-4aee-437f-944b-da8b5b5dab9a",
+   "market": "ly",
+   "tracking": "1350973",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-05T17:30:06.733773+00:00",
+   "price": 179
+  },
+  {
+   "id": "b262a995-8e39-48f3-ab5d-2c899ed1b877",
+   "market": "ly",
+   "tracking": "1350470",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T12:15:04.653479+00:00",
+   "price": 129
+  },
+  {
+   "id": "69ece325-cc21-4b38-8e0c-37d8a073cf20",
+   "market": "ly",
+   "tracking": "1350467",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T12:06:54.761589+00:00",
+   "price": 129
+  },
+  {
+   "id": "45ad2c02-f026-44ca-b911-429ed8642b6f",
+   "market": "ly",
+   "tracking": "1350485",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T12:19:17.06879+00:00",
+   "price": 179
+  },
+  {
+   "id": "fc3200f0-ace1-4c69-afa2-5a14bb4e1169",
+   "market": "ly",
+   "tracking": "1350571",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T18:37:04.106695+00:00",
+   "price": 179
+  },
+  {
+   "id": "727b4d36-6a7d-47d8-a1c8-d9e8f51126cb",
+   "market": "ly",
+   "tracking": "1350503",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T13:03:27.52076+00:00",
+   "price": 141.9
+  },
+  {
+   "id": "614a78d3-8522-4c00-b2a4-398a855e5e20",
+   "market": "ly",
+   "tracking": "1350516",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T13:16:54.475014+00:00",
+   "price": 129
+  },
+  {
+   "id": "8659a852-fd91-41b2-8701-b13b956e80cc",
+   "market": "ly",
+   "tracking": "1350578",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T19:47:37.422684+00:00",
+   "price": 129
+  },
+  {
+   "id": "987adb10-45e9-4f98-85c5-344da3b24daf",
+   "market": "ly",
+   "tracking": "1349906",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T13:48:41.23564+00:00",
+   "price": 179
+  },
+  {
+   "id": "27bde3e1-b1a0-432f-abe4-8d3d5a807f41",
+   "market": "ly",
+   "tracking": "1350071",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T14:30:53.343714+00:00",
+   "price": 129
+  },
+  {
+   "id": "822d22f6-59de-4cf5-8521-aa19c463c11e",
+   "market": "ly",
+   "tracking": "1345469",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T14:07:36.041095+00:00",
+   "price": 129
+  },
+  {
+   "id": "e7f0f519-e9e1-420c-881e-0fc0208d2e0c",
+   "market": "ly",
+   "tracking": "1345552",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T18:06:51.256848+00:00",
+   "price": 129
+  },
+  {
+   "id": "25a8b783-2918-4c22-9ae0-b395c5154795",
+   "market": "ly",
+   "tracking": "1345555",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T18:09:13.89686+00:00",
+   "price": 129
+  },
+  {
+   "id": "95b13e77-9096-41f2-98ad-b0a55cbf5b77",
+   "market": "ly",
+   "tracking": "1345474",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T14:27:44.249049+00:00",
+   "price": 129
+  },
+  {
+   "id": "adbdbdba-8881-4755-9b77-f377782185d8",
+   "market": "ly",
+   "tracking": "1350172",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T16:12:31.93327+00:00",
+   "price": 129
+  },
+  {
+   "id": "f2ea950e-1868-4c94-8ec8-a151282fc03d",
+   "market": "ly",
+   "tracking": "1350128",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T15:29:44.119389+00:00",
+   "price": 129
+  },
+  {
+   "id": "d47c23ef-e4db-453a-a437-999b9fe91080",
+   "market": "ly",
+   "tracking": "1350524",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T13:37:04.975883+00:00",
+   "price": 179
+  },
+  {
+   "id": "dc4d269a-4833-46da-bb83-c97f066266d2",
+   "market": "ly",
+   "tracking": "1350527",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T13:39:15.889194+00:00",
+   "price": 179
+  },
+  {
+   "id": "4811765a-0333-4a58-8ab8-a2423d912fc2",
+   "market": "ly",
+   "tracking": "1350174",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T16:19:43.035328+00:00",
+   "price": 199
+  },
+  {
+   "id": "cab24e2e-7037-4aeb-abe8-7fae82ed2ccc",
+   "market": "ly",
+   "tracking": "1350187",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T16:37:55.552705+00:00",
+   "price": 199
+  },
+  {
+   "id": "b9149e98-57b3-45cd-acbb-2ed5860d115a",
+   "market": "ly",
+   "tracking": "1350549",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-01T14:31:47.123713+00:00",
+   "price": 179
+  },
+  {
+   "id": "4cc77a65-10b6-4b18-acaf-a6281e58e8b7",
+   "market": "ly",
+   "tracking": "1350199",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T17:07:38.437517+00:00",
+   "price": 196.9
+  },
+  {
+   "id": "7d804b6b-dff3-44d8-89ff-38242aceb7dc",
+   "market": "ly",
+   "tracking": "1350205",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T17:25:24.244871+00:00",
+   "price": 218.9
+  },
+  {
+   "id": "416b1868-61ce-4d56-b380-9099619c8e67",
+   "market": "ly",
+   "tracking": "1346320",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T20:41:16.522112+00:00",
+   "price": 179
+  },
+  {
+   "id": "40576982-7a55-4aa5-87ed-b8d3968677ca",
+   "market": "ly",
+   "tracking": "1346180",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T17:16:10.885864+00:00",
+   "price": 129
+  },
+  {
+   "id": "405c0f04-d556-42a9-ac00-30e1945bfcff",
+   "market": "ly",
+   "tracking": "1350659",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-02T14:18:11.037776+00:00",
+   "price": 199
+  },
+  {
+   "id": "c1302adb-4f73-4e16-ba74-94a54fa1ff11",
+   "market": "ly",
+   "tracking": "1350684",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-02T17:27:39.127016+00:00",
+   "price": 129
+  },
+  {
+   "id": "0dd65889-8b08-4f43-af2b-d89981b4cd42",
+   "market": "ly",
+   "tracking": "1350686",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-02T17:32:57.711414+00:00",
+   "price": 179
+  },
+  {
+   "id": "eb379b82-3f8d-4610-b1a9-e9c5e6f15f70",
+   "market": "ly",
+   "tracking": "1350664",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-02T14:59:09.415827+00:00",
+   "price": 129
+  },
+  {
+   "id": "7b3007a0-3381-41cf-b928-68f12f0644d3",
+   "market": "ly",
+   "tracking": "1346185",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T17:30:44.743024+00:00",
+   "price": 179
+  },
+  {
+   "id": "e6bf48f1-3360-4b46-8496-d7b36a5adbda",
+   "market": "ly",
+   "tracking": "1345478",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T14:43:49.176929+00:00",
+   "price": 129
+  },
+  {
+   "id": "cb51006e-44b8-45e1-93cd-f372b28a9b44",
+   "market": "ly",
+   "tracking": "1345480",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T14:53:41.12418+00:00",
+   "price": 129
+  },
+  {
+   "id": "f887ade2-18e5-46bf-8c4a-2fc1fc26f852",
+   "market": "ly",
+   "tracking": "1350687",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-02T17:35:48.738406+00:00",
+   "price": 179
+  },
+  {
+   "id": "e9037248-f7b9-4ab6-ae2d-d6845150aabf",
+   "market": "ly",
+   "tracking": "1346131",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T15:49:29.219476+00:00",
+   "price": 179
+  },
+  {
+   "id": "143727e7-fa8f-4fe2-aaeb-e463e6b248e6",
+   "market": "ly",
+   "tracking": "1350660",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-02T14:24:50.113851+00:00",
+   "price": 179
+  },
+  {
+   "id": "82f153e5-eecb-467f-83b0-3f1978e5ab52",
+   "market": "ly",
+   "tracking": "1345466",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T13:46:27.118875+00:00",
+   "price": 129
+  },
+  {
+   "id": "98066793-1c87-464d-a57f-cce30e17b293",
+   "market": "ly",
+   "tracking": "1346122",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T15:40:27.268365+00:00",
+   "price": 358
+  },
+  {
+   "id": "6cb17169-b512-4117-be5d-bdb495fd111a",
+   "market": "ly",
+   "tracking": "1345481",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T15:04:04.907041+00:00",
+   "price": 179
+  },
+  {
+   "id": "11b1458f-31be-4ea5-b007-3b59079b01b8",
+   "market": "ly",
+   "tracking": "1345484",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T15:16:10.765824+00:00",
+   "price": 328
+  },
+  {
+   "id": "8a7ba7bf-2438-418e-b08b-49518a2b416f",
+   "market": "ly",
+   "tracking": "1345489",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T15:22:40.050317+00:00",
+   "price": 129
+  },
+  {
+   "id": "72383f56-0ba1-4a4f-a4b2-2cd25d1b2ab5",
+   "market": "ly",
+   "tracking": "1345559",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T18:26:58.894145+00:00",
+   "price": 179
+  },
+  {
+   "id": "0c52ec03-d81b-4e40-ad7f-348946623627",
+   "market": "ly",
+   "tracking": "1345496",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T15:42:30.822791+00:00",
+   "price": 179
+  },
+  {
+   "id": "b2c5effb-0913-4711-8115-6789b09a3758",
+   "market": "ly",
+   "tracking": "1346160",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T16:04:46.534164+00:00",
+   "price": 129
+  },
+  {
+   "id": "6cf821a7-066a-42b7-b1fd-b4758102f018",
+   "market": "ly",
+   "tracking": "1350149",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T16:00:05.116363+00:00",
+   "price": 179
+  },
+  {
+   "id": "e0d7b240-83c8-48a8-beb5-2d54cbde1613",
+   "market": "ly",
+   "tracking": "1349829",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T13:25:48.979165+00:00",
+   "price": 196.9
+  },
+  {
+   "id": "86748fbf-4220-4d5f-9a08-b88a223ae024",
+   "market": "ly",
+   "tracking": "1345560",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T18:29:16.673397+00:00",
+   "price": 179
+  },
+  {
+   "id": "5279f577-1fff-41c3-9b6f-23f68f6132e0",
+   "market": "ly",
+   "tracking": "1345491",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T15:35:15.595836+00:00",
+   "price": 129
+  },
+  {
+   "id": "1d4bb4ff-7521-4b3c-a057-3b664ccdef05",
+   "market": "ly",
+   "tracking": "1345493",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T15:39:12.031257+00:00",
+   "price": 199
+  },
+  {
+   "id": "bd2721e1-8bd2-444d-b5f4-f0486436a0f6",
+   "market": "ly",
+   "tracking": "1345494",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T15:41:30.264342+00:00",
+   "price": 179
+  },
+  {
+   "id": "75ba672d-7156-4fe7-b02e-5d132142bdc1",
+   "market": "ly",
+   "tracking": "1345497",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T15:43:06.190849+00:00",
+   "price": 199
+  },
+  {
+   "id": "25dcacba-11de-4976-a342-fc2d1ccbde2f",
+   "market": "ly",
+   "tracking": "1345501",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T15:50:19.269773+00:00",
+   "price": 199
+  },
+  {
+   "id": "cdcc44ba-3934-4434-92ee-9fe3bf65b1c5",
+   "market": "ly",
+   "tracking": "1345503",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T15:54:38.011184+00:00",
+   "price": 179
+  },
+  {
+   "id": "4ed05e65-a9fc-4da8-a454-1ebbe6d6ef8c",
+   "market": "ly",
+   "tracking": "1345563",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T18:38:27.45756+00:00",
+   "price": 129
+  },
+  {
+   "id": "431f3477-250e-4e8a-b9d7-6a1343055790",
+   "market": "ly",
+   "tracking": "1345549",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T18:00:43.055063+00:00",
+   "price": 179
+  },
+  {
+   "id": "592b2294-505f-494c-b787-129063c5c5f7",
+   "market": "ly",
+   "tracking": "1345540",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T17:44:02.275642+00:00",
+   "price": 129
+  },
+  {
+   "id": "086e758d-04b0-4d3a-87cb-ba3ec66734b5",
+   "market": "ly",
+   "tracking": "1346163",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T16:14:30.923696+00:00",
+   "price": 308
+  },
+  {
+   "id": "12016cbf-db9b-421d-8734-8d3a3f62342f",
+   "market": "ly",
+   "tracking": "1345534",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T17:37:57.622834+00:00",
+   "price": 179
+  },
+  {
+   "id": "233adcd1-1651-4123-9397-43b24277fcf6",
+   "market": "ly",
+   "tracking": "1345542",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T17:46:13.276961+00:00",
+   "price": 196.9
+  },
+  {
+   "id": "e13e437b-fb2d-457f-aa54-6952f7ce2e05",
+   "market": "ly",
+   "tracking": "1345545",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T17:53:22.133459+00:00",
+   "price": 129
+  },
+  {
+   "id": "7955b700-2db9-4299-9292-445402b3c221",
+   "market": "ly",
+   "tracking": "1345965",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T12:32:06.222043+00:00",
+   "price": 199
+  },
+  {
+   "id": "c3182314-8817-4cd5-9f13-a9123c42aeb8",
+   "market": "ly",
+   "tracking": "1345973",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T12:40:31.008686+00:00",
+   "price": 196.9
+  },
+  {
+   "id": "14b9e5a8-8945-44fe-8792-6455f507fa93",
+   "market": "ly",
+   "tracking": "1345977",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T12:45:09.955187+00:00",
+   "price": 129
+  },
+  {
+   "id": "07dbcb98-dac3-4808-a96f-84b1f200ec32",
+   "market": "ly",
+   "tracking": "1345998",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T12:59:10.979878+00:00",
+   "price": 129
+  },
+  {
+   "id": "54be448e-9867-4367-acd8-0977f4c48b0e",
+   "market": "ly",
+   "tracking": "1346011",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T13:13:17.360745+00:00",
+   "price": 199
+  },
+  {
+   "id": "9aa27030-9666-4a59-95b1-8d97b6173983",
+   "market": "ly",
+   "tracking": "1345465",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-29T13:45:58.122966+00:00",
+   "price": 196.9
+  },
+  {
+   "id": "c7879fef-3b1b-4c07-af35-c9bae21176a4",
+   "market": "ly",
+   "tracking": "1346059",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T13:51:13.040443+00:00",
+   "price": 199
+  },
+  {
+   "id": "d56bee6b-f590-4216-9a2c-ba12aa12238a",
+   "market": "ly",
+   "tracking": "1350024",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T14:15:03.472962+00:00",
+   "price": 129
+  },
+  {
+   "id": "87e4612a-c2b7-4102-b238-a87b4b14d8d6",
+   "market": "ly",
+   "tracking": "1346171",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T16:43:20.812426+00:00",
+   "price": 378
+  },
+  {
+   "id": "48d5e3fb-59f4-49b0-9eac-09955f7af2d5",
+   "market": "ly",
+   "tracking": "1346190",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T17:36:45.925929+00:00",
+   "price": 129
+  },
+  {
+   "id": "4bfe5d43-ad96-42e2-b806-4197e49ecd10",
+   "market": "ly",
+   "tracking": "1346193",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T17:40:05.071539+00:00",
+   "price": 179
+  },
+  {
+   "id": "664eb3d7-3fcf-4f8e-9e7b-9676e31251bb",
+   "market": "ly",
+   "tracking": "1346196",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T17:42:23.940054+00:00",
+   "price": 129
+  },
+  {
+   "id": "2e5bd91b-9dc1-4a30-bde0-445ed1fa8d1c",
+   "market": "ly",
+   "tracking": "1346285",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T18:52:13.468328+00:00",
+   "price": 129
+  },
+  {
+   "id": "c1850719-5701-4c01-a18b-89781daec5d7",
+   "market": "ly",
+   "tracking": "1346289",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T18:57:59.015807+00:00",
+   "price": 129
+  },
+  {
+   "id": "31897144-fdba-48c8-bf79-b8e9ad9fc5d0",
+   "market": "ly",
+   "tracking": "1350778",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-06-03T17:27:36.208196+00:00",
+   "price": 199
+  },
+  {
+   "id": "d03b0026-c54d-4699-b53f-7258cdb63118",
+   "market": "ly",
+   "tracking": "1345840",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T10:29:00.672283+00:00",
+   "price": 179
+  },
+  {
+   "id": "6b72c397-c6c4-47b7-befc-f5eccfaf584c",
+   "market": "ly",
+   "tracking": "1345860",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T10:37:45.904608+00:00",
+   "price": 129
+  },
+  {
+   "id": "bbf1d4f8-2998-48fb-91da-b2e89e6c2b53",
+   "market": "ly",
+   "tracking": "1349442",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T11:32:54.872701+00:00",
+   "price": 129
+  },
+  {
+   "id": "94498f3d-1a26-4432-bd08-4864f486b1e1",
+   "market": "ly",
+   "tracking": "1345899",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T11:20:41.285792+00:00",
+   "price": 129
+  },
+  {
+   "id": "78cc5f44-f0f5-48f5-84d9-e9d85d5c21c7",
+   "market": "ly",
+   "tracking": "1349448",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T11:40:00.556823+00:00",
+   "price": 129
+  },
+  {
+   "id": "a55ad396-2208-4a59-9e39-4d1538cd7553",
+   "market": "ly",
+   "tracking": "1345944",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T12:02:33.975846+00:00",
+   "price": 179
+  },
+  {
+   "id": "ca2695a8-4c3e-42af-a9d8-a964ce7da050",
+   "market": "ly",
+   "tracking": "1345950",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T12:13:13.076181+00:00",
+   "price": 129
+  },
+  {
+   "id": "3bdc1b6f-46ad-43dd-86bc-8a41e7178ab1",
+   "market": "ly",
+   "tracking": "1345955",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T12:19:13.75746+00:00",
+   "price": 129
+  },
+  {
+   "id": "b1075c55-07dc-459b-b1f6-b504dfe81d96",
+   "market": "ly",
+   "tracking": "1345960",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T12:27:07.271297+00:00",
+   "price": 129
+  },
+  {
+   "id": "91f36fc4-1c5c-4918-a6ae-64567b7f9ebf",
+   "market": "ly",
+   "tracking": "1346073",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T14:03:29.250111+00:00",
+   "price": 129
+  },
+  {
+   "id": "d3fb4c60-098d-4c3f-9b2c-3b43c96489ca",
+   "market": "ly",
+   "tracking": "1349508",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-31T11:58:09.057141+00:00",
+   "price": 179
+  },
+  {
+   "id": "423205f5-d856-4a75-b6b8-d4cad0163969",
+   "market": "ly",
+   "tracking": "1346305",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T20:03:32.161167+00:00",
+   "price": 415.8
+  },
+  {
+   "id": "d8a2f7a1-3212-49e4-9cac-e4b6dee59e79",
+   "market": "ly",
+   "tracking": "1346291",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T19:06:31.711251+00:00",
+   "price": 199
+  },
+  {
+   "id": "8a23a345-eb2d-4223-8585-2c1e1f088c94",
+   "market": "ly",
+   "tracking": "1346085",
+   "darb_status": null,
+   "darb_id": null,
+   "bench_at": "2026-05-30T14:16:42.932014+00:00",
+   "price": 129
+  },
+  {
+   "id": "e00b001b-da9d-46f3-82bd-92f94b79805a",
+   "market": "ly",
+   "tracking": "SH1752052",
+   "darb_status": null,
+   "darb_id": "6a2ef5b765fbffd3ad77e676",
+   "bench_at": "2026-06-14T18:40:55.689063+00:00",
+   "price": 387
+  },
+  {
+   "id": "0ad54740-892d-4e81-a0fe-723e2944ad7b",
+   "market": "ly",
+   "tracking": "1123712",
+   "darb_status": "released",
+   "darb_id": "6a2efa0af91cdbc67a82667d",
+   "bench_at": "2026-06-14T18:59:22.210324+00:00",
+   "price": 179
+  },
+  {
+   "id": "8876e0b2-fa2b-429e-8e06-2b3bd172142f",
+   "market": "ly",
+   "tracking": "1123709",
+   "darb_status": "released",
+   "darb_id": "6a300097ce6dd4e53a035a21",
+   "bench_at": "2026-06-15T13:39:36.027537+00:00",
+   "price": 179
+  },
+  {
+   "id": "9ea49c2d-f7e3-4141-b4fc-b7675ac92e12",
+   "market": "ly",
+   "tracking": "1123719",
+   "darb_status": "released",
+   "darb_id": "6a2fe789cab01a820f9c877d",
+   "bench_at": "2026-06-15T11:52:41.271447+00:00",
+   "price": 358
+  },
+  {
+   "id": "d1c01d82-898b-4662-9a94-9e2e906481f7",
+   "market": "ly",
+   "tracking": "1123711",
+   "darb_status": "released",
+   "darb_id": "6a303654318c241c8d8e64e7",
+   "bench_at": "2026-06-15T17:28:53.423219+00:00",
+   "price": 179
+  },
+  {
+   "id": "a6b82a84-3d1f-4b5c-ad50-0ab238dd868d",
+   "market": "ly",
+   "tracking": "1033773",
+   "darb_status": "released",
+   "darb_id": "6a314170cd2e2e225559246b",
+   "bench_at": "2026-06-16T12:28:32.980256+00:00",
+   "price": 129
+  },
+  {
+   "id": "92ab27c9-ee79-4fcd-a5ae-fa2d8a8abcea",
+   "market": "ly",
+   "tracking": "SH1762045",
+   "darb_status": null,
+   "darb_id": "6a317447f7274f3d5cc34bf2",
+   "bench_at": "2026-06-16T16:05:27.83116+00:00",
+   "price": 129
+  },
+  {
+   "id": "2bd8a09b-0689-4047-9530-04d0d701262f",
+   "market": "ly",
+   "tracking": "1143604",
+   "darb_status": "released",
+   "darb_id": "6a31a72ed52a0729ec9ccc79",
+   "bench_at": "2026-06-16T19:42:38.382148+00:00",
+   "price": 199
+  },
+  {
+   "id": "bee8738d-0c3d-4749-899a-234eb28118b5",
+   "market": "ly",
+   "tracking": "1143610",
+   "darb_status": "released",
+   "darb_id": "6a328e6ea6621311bc035aca",
+   "bench_at": "2026-06-17T12:09:18.260172+00:00",
+   "price": 129
+  },
+  {
+   "id": "aab68805-10e7-4801-92ba-15c825f2981e",
+   "market": "ly",
+   "tracking": "1173531",
+   "darb_status": "released",
+   "darb_id": "6a32d3cbf92900291d81e249",
+   "bench_at": "2026-06-17T17:05:15.962742+00:00",
+   "price": 308
+  },
+  {
+   "id": "72b1407e-32d7-452a-9786-9023627200e6",
+   "market": "ly",
+   "tracking": "1104933",
+   "darb_status": "released",
+   "darb_id": "6a33e5e4e1e2c44f019febbc",
+   "bench_at": "2026-06-18T12:34:44.959217+00:00",
+   "price": 129
+  },
+  {
+   "id": "88ffa0f5-2f67-4144-919a-de90a8267605",
+   "market": "ly",
+   "tracking": "1103199",
+   "darb_status": "released",
+   "darb_id": "6a340ea8ae4fb3c0f741f849",
+   "bench_at": "2026-06-18T15:28:40.23949+00:00",
+   "price": 179
+  },
+  {
+   "id": "a3a643d6-4602-4033-b6f8-664588a65186",
+   "market": "ly",
+   "tracking": "1095146",
+   "darb_status": "released",
+   "darb_id": "6a33ed64b82add957a947864",
+   "bench_at": "2026-06-18T13:06:44.771375+00:00",
+   "price": 129
+  },
+  {
+   "id": "539313d6-0253-4b8d-8bc2-071da39bcff6",
+   "market": "ly",
+   "tracking": "SH1791414",
+   "darb_status": null,
+   "darb_id": "6a39756431ae87e5ea701344",
+   "bench_at": "2026-06-22T17:48:20.393579+00:00",
+   "price": 129
+  },
+  {
+   "id": "ff5aaf9d-ce21-4d62-8055-8ae37fc59189",
+   "market": "ly",
+   "tracking": "1130066",
+   "darb_status": "released",
+   "darb_id": "6a3699b50e8bc62e7b20bdb3",
+   "bench_at": "2026-06-20T13:46:29.709591+00:00",
+   "price": 129
+  },
+  {
+   "id": "b28d8c7c-13a9-47cc-a40b-2df4d680ad55",
+   "market": "ly",
+   "tracking": "973991",
+   "darb_status": "released",
+   "darb_id": "6a3686372d0c8640b80a2593",
+   "bench_at": "2026-06-20T12:23:19.330555+00:00",
+   "price": 129
+  },
+  {
+   "id": "b2374201-fbf6-435a-9c58-f25122535e7a",
+   "market": "ly",
+   "tracking": "SH1833177",
+   "darb_status": null,
+   "darb_id": "6a452e00a7208a355d56c980",
+   "bench_at": "2026-07-01T15:10:56.612368+00:00",
+   "price": 249
+  },
+  {
+   "id": "b35ef82b-9c97-405f-97e8-16ee38a5dd15",
+   "market": "ly",
+   "tracking": "SH1807017",
+   "darb_status": "pending",
+   "darb_id": "6a3eac3a7d3f59922ddd3ceb",
+   "bench_at": "2026-06-26T16:43:38.932086+00:00",
+   "price": 249
+  },
+  {
+   "id": "d1a97c6f-0809-49c7-8ab5-49b136e9b06e",
+   "market": "ly",
+   "tracking": "SH1812263",
+   "darb_status": "pending",
+   "darb_id": "6a3fea2d3a01aee8a519e7d0",
+   "bench_at": "2026-06-27T15:20:13.630959+00:00",
+   "price": 249
+  },
+  {
+   "id": "6827c9d9-3d55-48fd-963c-66ae3f067003",
+   "market": "ly",
+   "tracking": "SH1813853",
+   "darb_status": "pending",
+   "darb_id": "6a4034e93a4ba28d4bd70630",
+   "bench_at": "2026-06-27T20:39:05.193401+00:00",
+   "price": 249
+  },
+  {
+   "id": "0f6cbbd4-01e5-4f26-b9c7-22dc55f33a41",
+   "market": "ly",
+   "tracking": "SH1812332",
+   "darb_status": "pending",
+   "darb_id": "6a3feb7c005928209482847b",
+   "bench_at": "2026-06-27T15:25:48.247657+00:00",
+   "price": 249
+  },
+  {
+   "id": "04d7e1e2-8d0f-436e-8fc5-63a2df63a614",
+   "market": "ly",
+   "tracking": "SH1860988",
+   "darb_status": "pending",
+   "darb_id": "6a4d05ace263fc9c428d7f26",
+   "bench_at": "2026-07-07T13:57:00.731743+00:00",
+   "price": 179
+  },
+  {
+   "id": "24455fce-f30e-41b5-a2fa-38a22fb1ad5d",
+   "market": "ly",
+   "tracking": "SH1813866",
+   "darb_status": "pending",
+   "darb_id": "6a40362e6643a7472d6a6d30",
+   "bench_at": "2026-06-27T20:44:30.153768+00:00",
+   "price": 249
+  },
+  {
+   "id": "c9d01671-ddbd-4a9e-97a5-1d96dfd9d4b1",
+   "market": "ly",
+   "tracking": "SH1813893",
+   "darb_status": "pending",
+   "darb_id": "6a4038493a4ba28d4bd7094f",
+   "bench_at": "2026-06-27T20:53:29.194005+00:00",
+   "price": 249
+  },
+  {
+   "id": "2ef904bf-7950-4153-9144-c0f646de91c2",
+   "market": "ly",
+   "tracking": "SH1813121",
+   "darb_status": "pending",
+   "darb_id": "6a40054bf4911b3d1eb2c6cb",
+   "bench_at": "2026-06-27T17:15:55.734513+00:00",
+   "price": 249
+  },
+  {
+   "id": "f98fca80-790b-46d6-a39d-6d58eea09d8c",
+   "market": "ly",
+   "tracking": "SH1813140",
+   "darb_status": "pending",
+   "darb_id": "6a40067bf4911b3d1eb2c8a9",
+   "bench_at": "2026-06-27T17:20:59.646251+00:00",
+   "price": 249
+  },
+  {
+   "id": "18a056d0-e6bd-40b7-9347-022263263c8e",
+   "market": "ly",
+   "tracking": "SH1832929",
+   "darb_status": null,
+   "darb_id": "6a45265d065056f7b27ad03d",
+   "bench_at": "2026-07-01T14:38:21.605027+00:00",
+   "price": 179
+  },
+  {
+   "id": "05d5cf18-ce0a-49e5-968e-ddc4e87fafd9",
+   "market": "ly",
+   "tracking": "SH1820573",
+   "darb_status": "pending",
+   "darb_id": "6a424f1eeb65e601f157a319",
+   "bench_at": "2026-06-29T10:55:26.920674+00:00",
+   "price": 249
+  },
+  {
+   "id": "6562e1f5-36db-4498-b0ca-f84b552cde1d",
+   "market": "ly",
+   "tracking": "SH1821945",
+   "darb_status": "pending",
+   "darb_id": "6a427d833995669f2c24bf9b",
+   "bench_at": "2026-06-29T14:13:24.057167+00:00",
+   "price": 249
+  },
+  {
+   "id": "84e6cebd-f8bf-4f76-b10f-ae0266299d92",
+   "market": "ly",
+   "tracking": "SH1821221",
+   "darb_status": "pending",
+   "darb_id": "6a4266b669ff0609e10b7b65",
+   "bench_at": "2026-06-29T12:36:06.959868+00:00",
+   "price": 249
+  },
+  {
+   "id": "5ee19574-a6db-469c-84a7-10c31fb359b0",
+   "market": "ly",
+   "tracking": "SH1821729",
+   "darb_status": "pending",
+   "darb_id": "6a427667e1ec9177fde141c5",
+   "bench_at": "2026-06-29T13:43:03.403081+00:00",
+   "price": 249
+  },
+  {
+   "id": "8c65e2b0-724e-400b-8ac4-e7d9c17c1363",
+   "market": "ly",
+   "tracking": "SH1833355",
+   "darb_status": null,
+   "darb_id": "6a4534ef0bfd9bc3ef1b9efd",
+   "bench_at": "2026-07-01T15:40:31.213738+00:00",
+   "price": 129
+  },
+  {
+   "id": "99f970f9-cb90-44ec-98a3-e049f31f03c2",
+   "market": "ly",
+   "tracking": "SH1826323",
+   "darb_status": "pending",
+   "darb_id": "6a43a4fa5511af92db1a5065",
+   "bench_at": "2026-06-30T11:14:02.470577+00:00",
+   "price": 249
+  },
+  {
+   "id": "2b714f54-6733-494a-b6ff-4c5d4f73a74d",
+   "market": "ly",
+   "tracking": "SH1852284",
+   "darb_status": "pending",
+   "darb_id": "6a4ac4b892f7bc23e30f01cc",
+   "bench_at": "2026-07-05T20:55:20.925173+00:00",
+   "price": 249
+  },
+  {
+   "id": "4f28595f-4448-4d93-b848-8413d632ab22",
+   "market": "ly",
+   "tracking": "SH1844962",
+   "darb_status": null,
+   "darb_id": "6a491a4af7c80afa443692ca",
+   "bench_at": "2026-07-04T14:35:54.994719+00:00",
+   "price": 249
+  },
+  {
+   "id": "f52fb2a0-a642-4553-81c2-708da5096654",
+   "market": "ly",
+   "tracking": "SH1850340",
+   "darb_status": "pending",
+   "darb_id": "6a4a667f5dc45f088a4ad08f",
+   "bench_at": "2026-07-05T14:13:19.567168+00:00",
+   "price": 249
+  },
+  {
+   "id": "fc44cacf-93f4-4af9-bcf5-0c20db37d954",
+   "market": "ly",
+   "tracking": "SH1852303",
+   "darb_status": "pending",
+   "darb_id": "6a4ac5ca9c5d0999fc74d4ef",
+   "bench_at": "2026-07-05T20:59:54.24814+00:00",
+   "price": 249
+  },
+  {
+   "id": "6135f902-91ac-4f34-8b36-685563b2b971",
+   "market": "ly",
+   "tracking": "SH1846055",
+   "darb_status": null,
+   "darb_id": "6a4936996018ade19a716e95",
+   "bench_at": "2026-07-04T16:36:42.188288+00:00",
+   "price": 179
+  },
+  {
+   "id": "3f3a1da4-02bc-4b19-b5eb-33738fa0e2cc",
+   "market": "ly",
+   "tracking": "SH1856140",
+   "darb_status": null,
+   "darb_id": "6a4bbefc1ee511fc997f3e79",
+   "bench_at": "2026-07-06T14:43:08.306393+00:00",
+   "price": 249
+  },
+  {
+   "id": "ce438ea9-e1d2-4da6-a78b-4d2e03b7b8bd",
+   "market": "ly",
+   "tracking": "1212500",
+   "darb_status": "released",
+   "darb_id": "6a48f39ab6cea29bedfcbc1b",
+   "bench_at": "2026-07-04T11:50:50.703455+00:00",
+   "price": 249
+  },
+  {
+   "id": "ed10a956-b64e-448d-b645-54ae45b33de1",
+   "market": "ly",
+   "tracking": "SH1846087",
+   "darb_status": null,
+   "darb_id": "6a4938016018ade19a7170b6",
+   "bench_at": "2026-07-04T16:42:41.365941+00:00",
+   "price": 249
+  },
+  {
+   "id": "879150a5-37c3-4fe7-930d-19b6d13d8bf7",
+   "market": "ly",
+   "tracking": "SH1846105",
+   "darb_status": null,
+   "darb_id": "6a49390cf700434cb553e232",
+   "bench_at": "2026-07-04T16:47:08.174531+00:00",
+   "price": 249
+  },
+  {
+   "id": "5799c2fd-8760-47af-8ccd-7d614be9603c",
+   "market": "ly",
+   "tracking": "SH1852330",
+   "darb_status": "pending",
+   "darb_id": "6a4ac74392f7bc23e30f036d",
+   "bench_at": "2026-07-05T21:06:11.990932+00:00",
+   "price": 249
+  },
+  {
+   "id": "5b7fd635-435a-41e6-943c-bb7e0849a3f5",
+   "market": "ly",
+   "tracking": "SH1846143",
+   "darb_status": null,
+   "darb_id": "6a493a0e2087c621f5597b71",
+   "bench_at": "2026-07-04T16:51:27.104171+00:00",
+   "price": 249
+  },
+  {
+   "id": "5d33fa6b-9d9b-4425-8b07-d914f8e37f9a",
+   "market": "ly",
+   "tracking": "SH1849410",
+   "darb_status": "pending",
+   "darb_id": "6a4a4ad415f6ef25ab46b391",
+   "bench_at": "2026-07-05T12:15:16.221291+00:00",
+   "price": 179
+  },
+  {
+   "id": "26d271f3-8a86-4436-99f6-c7cefdbca4ed",
+   "market": "ly",
+   "tracking": "SH1845288",
+   "darb_status": "pending",
+   "darb_id": "6a49213d6018ade19a71431d",
+   "bench_at": "2026-07-04T15:05:33.847195+00:00",
+   "price": 249
+  },
+  {
+   "id": "ff3501a3-0e55-4b02-9a05-db62a8a9089b",
+   "market": "ly",
+   "tracking": "SH1844934",
+   "darb_status": "pending",
+   "darb_id": "6a4919aef7c80afa44369156",
+   "bench_at": "2026-07-04T14:33:18.13513+00:00",
+   "price": 249
+  },
+  {
+   "id": "24afcd3c-c0e1-400b-8cbc-2747738ecd39",
+   "market": "ly",
+   "tracking": "SH1844969",
+   "darb_status": "pending",
+   "darb_id": "6a491a86524c88219220b424",
+   "bench_at": "2026-07-04T14:36:54.8113+00:00",
+   "price": 249
+  },
+  {
+   "id": "cc09e497-bf66-46d2-8d1e-77619565ba46",
+   "market": "ly",
+   "tracking": "SH1844986",
+   "darb_status": "pending",
+   "darb_id": "6a491b1c524c88219220b563",
+   "bench_at": "2026-07-04T14:39:24.677085+00:00",
+   "price": 249
+  },
+  {
+   "id": "38519e39-2c78-4630-a8f2-b1e69542708a",
+   "market": "ly",
+   "tracking": "SH1845042",
+   "darb_status": "pending",
+   "darb_id": "6a491c75f7c80afa443697b3",
+   "bench_at": "2026-07-04T14:45:09.173523+00:00",
+   "price": 249
+  },
+  {
+   "id": "f2a7da7e-4686-4e05-8ed6-3c2248953054",
+   "market": "ly",
+   "tracking": "SH1845084",
+   "darb_status": "pending",
+   "darb_id": "6a491d6a524c88219220bad7",
+   "bench_at": "2026-07-04T14:49:15.276689+00:00",
+   "price": 249
+  },
+  {
+   "id": "ad669e4e-479e-4176-b348-b5ef58238be0",
+   "market": "ly",
+   "tracking": "SH1851028",
+   "darb_status": "pending",
+   "darb_id": "6a4a7dee2ee9a97bca5d045d",
+   "bench_at": "2026-07-05T15:53:18.316611+00:00",
+   "price": 249
+  },
+  {
+   "id": "40ca2b12-88e9-4c63-ae48-9639114af11b",
+   "market": "ly",
+   "tracking": "SH1849441",
+   "darb_status": "pending",
+   "darb_id": "6a4a4bc73b6bef5df2e963ea",
+   "bench_at": "2026-07-05T12:19:19.282713+00:00",
+   "price": 249
+  },
+  {
+   "id": "4464c076-81ef-4311-a499-d3dc5264092a",
+   "market": "ly",
+   "tracking": "SH1845547",
+   "darb_status": null,
+   "darb_id": "6a4927e16018ade19a715077",
+   "bench_at": "2026-07-04T15:33:53.784557+00:00",
+   "price": 249
+  },
+  {
+   "id": "e32adf3f-93fc-40ab-a32e-1b0dd3b24a18",
+   "market": "ly",
+   "tracking": "SH1845567",
+   "darb_status": null,
+   "darb_id": "6a492890a45c865f1a2c59f3",
+   "bench_at": "2026-07-04T15:36:49.015063+00:00",
+   "price": 249
+  },
+  {
+   "id": "82e18676-000d-4e09-a2f4-709e2408244f",
+   "market": "ly",
+   "tracking": "SH1848973",
+   "darb_status": "pending",
+   "darb_id": "6a4a3c01af21dfbada623c5e",
+   "bench_at": "2026-07-05T11:12:02.310985+00:00",
+   "price": 249
+  },
+  {
+   "id": "9dafd4e1-2411-4a37-ba9a-db28ecb1118d",
+   "market": "ly",
+   "tracking": "SH1849041",
+   "darb_status": "pending",
+   "darb_id": "6a4a3db0d27e44351bce722c",
+   "bench_at": "2026-07-05T11:19:13.005942+00:00",
+   "price": 249
+  },
+  {
+   "id": "cc8a0f0b-8212-4ce9-b0ee-ecee56f15392",
+   "market": "ly",
+   "tracking": "SH1851120",
+   "darb_status": null,
+   "darb_id": "6a4a81582ee9a97bca5d0a56",
+   "bench_at": "2026-07-05T16:07:52.838011+00:00",
+   "price": 249
+  },
+  {
+   "id": "d48820e5-b47c-46af-85be-4c146a8d9fe0",
+   "market": "ly",
+   "tracking": "SH1849327",
+   "darb_status": "pending",
+   "darb_id": "6a4a47a630793110da2ce747",
+   "bench_at": "2026-07-05T12:01:42.371987+00:00",
+   "price": 249
+  },
+  {
+   "id": "ccc626d1-8bb8-4356-a91c-f0cb163159f7",
+   "market": "ly",
+   "tracking": "SH1849103",
+   "darb_status": "pending",
+   "darb_id": "6a4a3f9faf21dfbada6241ba",
+   "bench_at": "2026-07-05T11:27:27.486301+00:00",
+   "price": 249
+  },
+  {
+   "id": "37acd5d9-e995-481e-b95b-25678a9c60c7",
+   "market": "ly",
+   "tracking": "SH1849352",
+   "darb_status": "pending",
+   "darb_id": "6a4a48c115f6ef25ab46b072",
+   "bench_at": "2026-07-05T12:06:25.564444+00:00",
+   "price": 249
+  },
+  {
+   "id": "a943b0e4-72e6-4552-8d79-94f24e1d74c3",
+   "market": "ly",
+   "tracking": "SH1851021",
+   "darb_status": null,
+   "darb_id": "6a4a7db32ee9a97bca5d03fe",
+   "bench_at": "2026-07-05T15:52:19.323027+00:00",
+   "price": 249
+  },
+  {
+   "id": "24e61cad-660f-42c4-962c-44739548359b",
+   "market": "ly",
+   "tracking": "SH1852435",
+   "darb_status": "pending",
+   "darb_id": "6a4aceac92f7bc23e30f0811",
+   "bench_at": "2026-07-05T21:37:49.079877+00:00",
+   "price": 249
+  },
+  {
+   "id": "cac1c7d6-b66c-488c-a6e4-c7ffd2f5327e",
+   "market": "ly",
+   "tracking": "SH1855234",
+   "darb_status": "pending",
+   "darb_id": "6a4ba4b9aed92a442ef52253",
+   "bench_at": "2026-07-06T12:51:05.940404+00:00",
+   "price": 249
+  },
+  {
+   "id": "97f12fe6-1e78-4f72-9f22-7e972c2431be",
+   "market": "ly",
+   "tracking": "SH1854617",
+   "darb_status": "pending",
+   "darb_id": "6a4b93b5dcb5c34cee498f0d",
+   "bench_at": "2026-07-06T11:38:29.195367+00:00",
+   "price": 249
+  },
+  {
+   "id": "616ba0f4-d8cf-4311-b972-1dd348a9a513",
+   "market": "ly",
+   "tracking": "SH1854716",
+   "darb_status": "pending",
+   "darb_id": "6a4b95f8aed92a442ef509e8",
+   "bench_at": "2026-07-06T11:48:08.301838+00:00",
+   "price": 249
+  },
+  {
+   "id": "b90f0fbd-7d2e-4699-b09a-92cd8d70690f",
+   "market": "ly",
+   "tracking": "SH1855027",
+   "darb_status": "pending",
+   "darb_id": "6a4b9f01cc91c2741f0f01f8",
+   "bench_at": "2026-07-06T12:26:42.03569+00:00",
+   "price": 249
+  },
+  {
+   "id": "f16b9245-cbef-4322-84ea-5ee42f62b905",
+   "market": "ly",
+   "tracking": "SH1855128",
+   "darb_status": "pending",
+   "darb_id": "6a4ba1f0cc91c2741f0f065c",
+   "bench_at": "2026-07-06T12:39:12.842942+00:00",
+   "price": 249
+  },
+  {
+   "id": "2ef4e211-c0c3-4b7d-a9f5-469d729d7b33",
+   "market": "ly",
+   "tracking": "SH1856644",
+   "darb_status": "pending",
+   "darb_id": "6a4bd1aa1db4f3472b0eedb1",
+   "bench_at": "2026-07-06T16:02:51.007473+00:00",
+   "price": 249
+  },
+  {
+   "id": "0265a2e6-c872-4c26-9155-3b1873fd7a6f",
+   "market": "ly",
+   "tracking": "SH1855503",
+   "darb_status": "pending",
+   "darb_id": "6a4bacedcc91c2741f0f17ec",
+   "bench_at": "2026-07-06T13:26:05.747941+00:00",
+   "price": 249
+  },
+  {
+   "id": "cca33e88-38df-4e0d-bd66-6e8742162bed",
+   "market": "ly",
+   "tracking": "SH1857155",
+   "darb_status": "pending",
+   "darb_id": "6a4be37a65dabdb18538b9c7",
+   "bench_at": "2026-07-06T17:18:51.451584+00:00",
+   "price": 129
+  },
+  {
+   "id": "d8cab084-cf55-4a6d-9385-7ae08797ca44",
+   "market": "ly",
+   "tracking": "SH1860999",
+   "darb_status": "pending",
+   "darb_id": "6a4d060ce263fc9c428d7fac",
+   "bench_at": "2026-07-07T13:58:36.217695+00:00",
+   "price": 249
+  },
+  {
+   "id": "74892a7e-f46f-40b9-b507-47ae9328aba6",
+   "market": "ly",
+   "tracking": "SH1861221",
+   "darb_status": "pending",
+   "darb_id": "6a4d0d0ad2ced92f6b2ac32e",
+   "bench_at": "2026-07-07T14:28:26.565676+00:00",
+   "price": 129
+  },
+  {
+   "id": "2ffcc6c0-f7a2-4135-81a0-a40e4cd586f0",
+   "market": "ly",
+   "tracking": "SH1860067",
+   "darb_status": "pending",
+   "darb_id": "6a4ce621cd5ffdb00ef93234",
+   "bench_at": "2026-07-07T11:42:25.649186+00:00",
+   "price": 179
+  },
+  {
+   "id": "80a7f38a-c44b-4267-bc2c-080f17e07257",
+   "market": "ly",
+   "tracking": "SH1860094",
+   "darb_status": "pending",
+   "darb_id": "6a4ce798801955428c122dff",
+   "bench_at": "2026-07-07T11:48:40.542998+00:00",
+   "price": 199
+  },
+  {
+   "id": "b5f92c63-556a-4263-9367-8cce121c4332",
+   "market": "ly",
+   "tracking": "SH1866764",
+   "darb_status": "pending",
+   "darb_id": "6a4e6e5f8baf079610e2695e",
+   "bench_at": "2026-07-08T15:35:59.807136+00:00",
+   "price": 249
+  },
+  {
+   "id": "164f9265-43a7-4790-88c5-72047e8def84",
+   "market": "ly",
+   "tracking": "SH1860122",
+   "darb_status": "pending",
+   "darb_id": "6a4ce8cbcd5ffdb00ef9358a",
+   "bench_at": "2026-07-07T11:53:47.753988+00:00",
+   "price": 179
+  },
+  {
+   "id": "331a7fc1-a8b7-4efe-bcb7-a9bf51edba95",
+   "market": "ly",
+   "tracking": "SH1860185",
+   "darb_status": "pending",
+   "darb_id": "6a4ceaa2801955428c123248",
+   "bench_at": "2026-07-07T12:01:38.871158+00:00",
+   "price": 249
+  },
+  {
+   "id": "aa7e1c36-1e29-46f5-9bc2-c4a14964c965",
+   "market": "ly",
+   "tracking": "SH1860258",
+   "darb_status": "pending",
+   "darb_id": "6a4ced1fd99bd264c46bb793",
+   "bench_at": "2026-07-07T12:12:15.879354+00:00",
+   "price": 199
+  },
+  {
+   "id": "6f8ee936-f084-478f-9616-7c0e097ab142",
+   "market": "ly",
+   "tracking": "SH1862712",
+   "darb_status": "pending",
+   "darb_id": "6a4d5920ed058ff25391607a",
+   "bench_at": "2026-07-07T19:53:04.466771+00:00",
+   "price": 258
+  },
+  {
+   "id": "51d87d7c-70a1-4b2a-b021-c1935eb4b801",
+   "market": "ly",
+   "tracking": "SH2002148",
+   "darb_status": "pending",
+   "darb_id": "6a734f3b06e0fcb37da90551",
+   "bench_at": "2026-08-05T14:56:59.492738+00:00",
+   "price": 179
+  },
+  {
+   "id": "366f4e97-8687-446a-aa5c-f66d3cf56af8",
+   "market": "ly",
+   "tracking": "SH2057634",
+   "darb_status": "pending",
+   "darb_id": "6a81c04a33f0b88f6385ef6d",
+   "bench_at": "2026-08-16T13:51:06.608936+00:00",
+   "price": 129
+  },
+  {
+   "id": "73fecbdd-84bd-418d-8608-df7f9fa0a09a",
+   "market": "ly",
+   "tracking": "SH2058859",
+   "darb_status": "pending",
+   "darb_id": "6a81e7bb7bfdd7ff388740f1",
+   "bench_at": "2026-08-16T16:39:23.164512+00:00",
+   "price": 129
+  }
+ ]
+}

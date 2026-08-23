@@ -53,6 +53,12 @@ export interface ToLabelQueuePage {
    * when in fact 406 of them are abandoned rather than merely slow.
    */
   neverScanned: number;
+  /**
+   * Orders taken off the bench because they had sat there past the cutoff.
+   * Every count above excludes them, so this is what keeps an emptied queue
+   * from reading as a broken page — 410 orders do not evaporate.
+   */
+  setAside: number;
 }
 
 const cacheHeaders = {
@@ -131,6 +137,7 @@ export async function GET(req: NextRequest) {
     scannedToday: Number(day.scanned_today ?? 0),
     scannedYesterday: Number(day.scanned_yesterday ?? 0),
     neverScanned: Number(stats.never_scanned ?? 0),
+    setAside: Number(stats.set_aside ?? 0),
   };
   return NextResponse.json(body, { headers: cacheHeaders });
 }
