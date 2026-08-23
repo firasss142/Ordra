@@ -1,15 +1,16 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import {
-  Undo2, PackageCheck, TrendingDown, Trash2, Bell, ScanLine,
+  Undo2, PackageCheck, TrendingDown, Trash2, Bell, ScanLine, Camera, CircleAlert,
   RotateCcw, Send, Lock,
 } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import type { ReturnsStats } from "@/app/api/warehouse/returns/stats/route";
 import { RETURN_REASONS, type ReturnReason } from "@/lib/warehouse/returns-validation";
+import { QrScanner } from "@/components/warehouse/QrScanner";
 import { WhCard, WhChip, WhKpiCard, WhKpiGrid } from "./primitives";
 import { WH_BTN, WH_BTN_PRIMARY, WH_BTN_SM, WH_LABEL, WH_TONE } from "./tokens";
 
@@ -29,6 +30,24 @@ import { WH_BTN, WH_BTN_PRIMARY, WH_BTN_SM, WH_LABEL, WH_TONE } from "./tokens";
  */
 
 type Decision = "restock" | "damage" | "redeliver";
+
+/** What the lookup endpoint decided the scanned code was. */
+interface ScanLookup {
+  outcome: "found" | "wrong_status" | "ambiguous" | "not_found" | "empty";
+  code?: string;
+  order?: WarehouseOrderRow;
+  status?: string;
+  matches?: number;
+}
+
+/**
+ * What is printed on the parcel, which is what an operator can read off the box
+ * and what a scanner emits. The OMS id appears nowhere on it, so it is the last
+ * resort rather than the default.
+ */
+function parcelRef(o: WarehouseOrderRow): string {
+  return o.carrier_sticker_ref ?? o.tracking_number ?? o.id.slice(0, 8).toUpperCase();
+}
 
 const fetcher = (u: string) => fetch(u).then((r) => {
   if (!r.ok) throw new Error(String(r.status));
@@ -128,6 +147,9 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState<{ ok: boolean; text: string } | null>(null);
   const [scan, setScan] = useState("");
+  const [camera, setCamera] = useState(false);
+  const [looking, setLooking] = useState(false);
+  const [scanResult, setScanResult] = useState<ScanLookup | null>(null);
   const scanRef = useRef<HTMLInputElement>(null);
   const currency = stats?.currency ?? "TND";
 
@@ -137,16 +159,52 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
     setReason(null);
     setNote("");
     setFlash(null);
+    setScanResult(null);
   }, []);
 
-  const submitScan = useCallback(() => {
-    const code = scan.trim().toLowerCase();
-    setScan("");
-    if (!code) return;
-    const hit = orders.find((o) => o.id.toLowerCase().startsWith(code) || o.id.toLowerCase().endsWith(code));
-    if (hit) take(hit);
-    else setFlash({ ok: false, text: t("notInQueue") });
-  }, [scan, orders, take, t]);
+  /**
+   * Resolve what was scanned.
+   *
+   * Server-side, and across the whole market: nothing printed on a parcel looks
+   * like an OMS uuid — Tunisia carries a twelve-digit Cosmos tracking number,
+   * Libya carries Darb's sticker — and the parcel an operator cannot find by
+   * eye is precisely the one deep in a queue the browser has not loaded.
+   */
+  const submitScan = useCallback(
+    async (raw: string) => {
+      const code = raw.trim();
+      setScan("");
+      if (!code || looking) return;
+
+      setLooking(true);
+      setFlash(null);
+      try {
+        const res = await fetch(
+          `/api/warehouse/returns/lookup?code=${encodeURIComponent(code)}`,
+        );
+        if (!res.ok) {
+          setScanResult({ outcome: "not_found", code });
+          return;
+        }
+        const body = (await res.json()) as ScanLookup;
+        setScanResult(body);
+        // Only a parcel that IS a return arms the decision panel. Anything else
+        // is explained on screen and left alone.
+        if (body.outcome === "found" && body.order) take(body.order);
+      } catch {
+        setScanResult({ outcome: "not_found", code });
+      } finally {
+        setLooking(false);
+        if (!camera) scanRef.current?.focus();
+      }
+    },
+    [looking, camera, take],
+  );
+
+  // The bench's hands are on a parcel; the field has to be ready without a click.
+  useEffect(() => {
+    if (!camera) scanRef.current?.focus();
+  }, [camera, picked]);
 
   // Damage is a financial act: it writes off units. It never lands without a
   // stated cause, and "other" never lands without a note.
@@ -196,10 +254,23 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
 
   const step = picked ? (decision ? 3 : 2) : 1;
 
+  /*
+   * Below this, a percentage is arithmetic rather than a measurement. Tunisia's
+   * 28-day window holds three terminal orders and zero deliveries, which the
+   * card rendered as "100 %" — a figure nobody could act on and everybody would
+   * read as a crisis. Its all-time rate is 23 %.
+   */
+  const MIN_RATE_SAMPLE = 20;
+  const rateShowable =
+    stats?.rate28d !== null &&
+    stats?.rate28d !== undefined &&
+    (stats?.sample28d ?? 0) >= MIN_RATE_SAMPLE;
+
   const rateDelta =
-    stats?.rate28d !== null && stats?.rate28d !== undefined &&
-    stats?.ratePrev28d !== null && stats?.ratePrev28d !== undefined
-      ? stats.rate28d - stats.ratePrev28d
+    rateShowable &&
+    stats?.ratePrev28d !== null && stats?.ratePrev28d !== undefined &&
+    (stats?.samplePrev28d ?? 0) >= MIN_RATE_SAMPLE
+      ? stats!.rate28d! - stats.ratePrev28d
       : null;
 
   return (
@@ -249,8 +320,8 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
             label={t("kpiRate")}
             icon={TrendingDown}
             tone="bad"
-            value={stats?.rate28d === null || stats?.rate28d === undefined ? "—" : pct(stats.rate28d)}
-            unit={stats?.rate28d === null || stats?.rate28d === undefined ? undefined : "%"}
+            value={rateShowable ? pct(stats!.rate28d!) : "—"}
+            unit={rateShowable ? "%" : undefined}
             chip={
               rateDelta !== null && Math.abs(rateDelta) >= 0.05 ? (
                 <WhChip tone={rateDelta > 0 ? "bad" : "ok"}>
@@ -260,9 +331,11 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
               ) : undefined
             }
             note={
-              stats?.rate28d === null || stats?.rate28d === undefined
-                ? t("kpiRateNone")
-                : t("kpiRateNote")
+              rateShowable
+                ? t("kpiRateNote")
+                : (stats?.sample28d ?? 0) > 0
+                  ? t("kpiRateThin", { n: stats?.sample28d ?? 0 })
+                  : t("kpiRateNone")
             }
           >
             <Sparkline points={stats?.weekly ?? []} />
@@ -318,7 +391,7 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
                         <bdi>{o.customer_name}</bdi>
                       </b>
                       <span className="block truncate font-mono text-[11.5px] tabular-nums text-wh-ink-3">
-                        {o.id.slice(0, 8).toUpperCase()} · <bdi>{o.customer_city ?? "—"}</bdi>
+                        {parcelRef(o)} · <bdi>{o.customer_city ?? "—"}</bdi>
                       </span>
                     </span>
                     <span className="hidden min-w-0 flex-[1.1] truncate text-[12.5px] text-wh-ink-2 sm:block">
@@ -351,24 +424,79 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
         {/* ── The decision panel ────────────────────────────────────── */}
         <WhCard
           title={t("decision")}
-          hint={picked ? t("decisionPicked", { ref: picked.id.slice(0, 8).toUpperCase() }) : t("decisionNone")}
+          hint={picked ? t("decisionPicked", { ref: parcelRef(picked) }) : t("decisionNone")}
           className="xl:sticky xl:top-4"
         >
-          <div className="mx-4 mt-4 flex items-center gap-2.5 rounded-[12px] border-2 border-wh-ok bg-wh-surface px-4 py-3.5 shadow-wh-glow">
-            <ScanLine size={18} className="shrink-0 text-wh-ok" aria-hidden="true" />
-            <input
-              ref={scanRef}
-              value={scan}
-              onChange={(e) => setScan(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") submitScan();
-              }}
-              placeholder={t("scanPlaceholder")}
-              autoComplete="off"
-              aria-label={t("scanPlaceholder")}
-              className="w-full border-none bg-transparent font-mono text-[16px] font-semibold tracking-wide outline-none placeholder:font-sans placeholder:text-[13.5px] placeholder:font-medium placeholder:tracking-normal placeholder:text-wh-ink-3"
-            />
+          <div className="mx-4 mt-4 flex items-center gap-2">
+            <label className="flex flex-1 items-center gap-2.5 rounded-[12px] border-2 border-wh-ok bg-wh-surface px-4 py-3.5 shadow-wh-glow">
+              <ScanLine size={18} className="shrink-0 text-wh-ok" aria-hidden="true" />
+              <input
+                ref={scanRef}
+                value={scan}
+                onChange={(e) => setScan(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void submitScan(scan);
+                  }
+                }}
+                disabled={looking}
+                placeholder={t("scanPlaceholder")}
+                autoComplete="off"
+                aria-label={t("scanPlaceholder")}
+                className="w-full border-none bg-transparent font-mono text-[16px] font-semibold tracking-wide outline-none placeholder:font-sans placeholder:text-[13.5px] placeholder:font-medium placeholder:tracking-normal placeholder:text-wh-ink-3"
+              />
+            </label>
+            {/* A tablet at the returns table has no barcode gun. */}
+            <button
+              type="button"
+              onClick={() => setCamera((v) => !v)}
+              aria-pressed={camera}
+              aria-label={t("camera")}
+              className={`grid h-[50px] w-[50px] shrink-0 place-items-center rounded-[12px] border ${
+                camera
+                  ? "border-wh-ok bg-wh-ok-bg text-wh-ok"
+                  : "border-wh-border bg-wh-surface text-wh-ink-2 hover:border-wh-border-strong"
+              }`}
+            >
+              <Camera size={18} aria-hidden="true" />
+            </button>
           </div>
+
+          {camera ? (
+            <div className="mx-4 mt-3">
+              <QrScanner
+                active={camera}
+                onScan={(text) => void submitScan(text)}
+                onClose={() => setCamera(false)}
+              />
+            </div>
+          ) : null}
+
+          {/* What the scan actually resolved to. A parcel in the operator's
+              hands is never "introuvable" without a reason worth reading. */}
+          {scanResult && scanResult.outcome !== "found" ? (
+            <div
+              role="status"
+              data-testid="wh-scan-verdict"
+              className="mx-4 mt-3 flex items-start gap-2.5 rounded-[11px] border border-wh-warn-edge bg-wh-warn-bg p-3 text-[12.5px] text-wh-warn"
+            >
+              <CircleAlert size={16} className="mt-px shrink-0" aria-hidden="true" />
+              <span>
+                <b className="block font-mono text-[13px] tabular-nums text-wh-ink-1">
+                  {scanResult.code}
+                </b>
+                {scanResult.outcome === "wrong_status"
+                  ? t("scanWrongStatus", {
+                      status: scanResult.status ?? "?",
+                      customer: scanResult.order?.customer_name ?? "—",
+                    })
+                  : scanResult.outcome === "ambiguous"
+                    ? t("scanAmbiguous", { n: scanResult.matches ?? 0 })
+                    : t("scanNotFound")}
+              </span>
+            </div>
+          ) : null}
 
           {/* Where the operator is in the three-step motion. */}
           <div className="mx-4 mt-4 flex items-center gap-2 text-[12px] text-wh-ink-3">
@@ -403,7 +531,7 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
                     <bdi>{picked.customer_name}</bdi>
                   </b>
                   <span className="block truncate text-[11.5px] text-wh-ink-3">
-                    <span className="font-mono tabular-nums">{picked.id.slice(0, 8).toUpperCase()}</span>
+                    <span className="font-mono tabular-nums">{parcelRef(picked)}</span>
                     {" · "}
                     <bdi>{picked.customer_city ?? "—"}</bdi> · {picked.product_name}
                   </span>

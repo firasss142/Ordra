@@ -19,6 +19,8 @@ const stats = {
   doneToday: 1, doneTodayValue: 129, restockedToday: 1, depreciatedToday: 0,
   depreciatedUnits: 0, depreciatedValue: 0,
   rate28d: 21, ratePrev28d: 16.8,
+  // Both windows hold enough terminal orders for the rate to mean something.
+  sample28d: 116, samplePrev28d: 120,
   weekly: [
     { week: 4, rate: 12 }, { week: 3, rate: 15 },
     { week: 2, rate: 14 }, { week: 1, rate: 21 },
@@ -176,5 +178,122 @@ describe("Retours — house rules", () => {
       .filter((c): c is string => typeof c === "string")
       .join(" ");
     expect(classes).not.toMatch(/#[0-9a-fA-F]{3,8}/);
+  });
+});
+
+/**
+ * The scanner.
+ *
+ * It used to match the scanned code against `orders.id`, the OMS uuid, and only
+ * against the page the browser held. Nothing printed on a returned parcel looks
+ * like a uuid — Tunisia's fifty returns carry a twelve-digit Cosmos tracking
+ * number and none carries a sticker — so scanning a real parcel could not work.
+ */
+describe("Retours — the return rate withholds itself when the sample is thin", () => {
+  it("shows a dash and the sample instead of a percentage nobody can act on", async () => {
+    // Tunisia's real 28-day window: three terminal orders, zero deliveries.
+    // The arithmetic says 100 %. Presenting that as a rate reads as a crisis.
+    const thin = { ...stats, rate28d: 100, ratePrev28d: null, sample28d: 3, samplePrev28d: 0 };
+    vi.doMock("swr", () => ({
+      default: (key: string) => ({
+        data: key.includes("stats") ? thin : { orders: rows, nextCursor: null },
+        error: undefined,
+        isLoading: false,
+        mutate: vi.fn(),
+      }),
+    }));
+    vi.resetModules();
+    const { ReturnsConsole: Fresh } = await import("../ReturnsConsole");
+    render(<Fresh marketId="00000000-0000-0000-0000-000000000001" />);
+
+    const card = screen.getByTestId("wh-kpi-rate");
+    expect(card).toHaveTextContent("—");
+    expect(card).not.toHaveTextContent("100");
+    expect(card).toHaveTextContent(/3 commandes terminées/);
+    vi.doUnmock("swr");
+  });
+});
+
+describe("ReturnsConsole — the scanner", () => {
+  function scan(code: string) {
+    const input = screen.getByLabelText(/Scannez/i);
+    fireEvent.change(input, { target: { value: code } });
+    fireEvent.keyDown(input, { key: "Enter" });
+  }
+
+  function lookupReturns(body: unknown) {
+    const mock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => body });
+    vi.stubGlobal("fetch", mock);
+    return mock;
+  }
+
+  it("resolves a carrier tracking number, not just an OMS id", async () => {
+    const mock = lookupReturns({
+      outcome: "found",
+      code: "000000227104",
+      order: rows[0],
+    });
+    render(<ReturnsConsole marketId="00000000-0000-0000-0000-000000000002" />);
+
+    scan("000000227104");
+
+    await waitFor(() =>
+      expect(mock).toHaveBeenCalledWith(
+        "/api/warehouse/returns/lookup?code=000000227104",
+      ),
+    );
+    // The decision panel arms on the parcel the scan found. Asserted on the
+    // step indicator: the customer's name also appears in the queue row behind.
+    await waitFor(() =>
+      expect(screen.getByTestId("wh-step-2")).toHaveAttribute("data-on", "true"),
+    );
+  });
+
+  it("says what a parcel is when it is not a return, rather than 'introuvable'", async () => {
+    // The operator is holding it. "Not found" would be false and unactionable.
+    lookupReturns({
+      outcome: "wrong_status",
+      code: "000000227999",
+      status: "delivered",
+      order: { ...rows[0], customer_name: "Ali" },
+    });
+    render(<ReturnsConsole marketId="00000000-0000-0000-0000-000000000002" />);
+
+    scan("000000227999");
+
+    const verdict = await screen.findByTestId("wh-scan-verdict");
+    expect(verdict).toHaveTextContent(/delivered/);
+    expect(verdict).toHaveTextContent(/Ali/);
+  });
+
+  it("refuses to guess when a short code matches several orders", async () => {
+    lookupReturns({ outcome: "ambiguous", code: "af69d0", matches: 3 });
+    render(<ReturnsConsole marketId="00000000-0000-0000-0000-000000000002" />);
+
+    scan("af69d0");
+
+    const verdict = await screen.findByTestId("wh-scan-verdict");
+    expect(verdict).toHaveTextContent(/3/);
+    expect(verdict).toHaveTextContent(/complet/i);
+  });
+
+  it("reports a code no order carries", async () => {
+    lookupReturns({ outcome: "not_found", code: "999999999999" });
+    render(<ReturnsConsole marketId="00000000-0000-0000-0000-000000000002" />);
+
+    scan("999999999999");
+
+    expect(await screen.findByTestId("wh-scan-verdict")).toHaveTextContent(/Aucune commande/i);
+  });
+
+  it("does not arm the decision panel on a failed scan", async () => {
+    lookupReturns({ outcome: "not_found", code: "999999999999" });
+    render(<ReturnsConsole marketId="00000000-0000-0000-0000-000000000002" />);
+
+    scan("999999999999");
+    await screen.findByTestId("wh-scan-verdict");
+
+    // Step 2 is "Décision"; it must stay unreached.
+    expect(screen.getByTestId("wh-step-2")).toHaveAttribute("data-on", "false");
   });
 });

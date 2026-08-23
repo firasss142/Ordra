@@ -19,6 +19,13 @@ export interface ReturnsStats {
   /** Null when the window holds no terminal order — a rate needs a denominator. */
   rate28d: number | null;
   ratePrev28d: number | null;
+  /**
+   * How many terminal orders each rate rests on. Tunisia's 28-day window holds
+   * three, which yields "100 %" — arithmetically right and a coin toss dressed
+   * as a metric. The console withholds a rate below MIN_RATE_SAMPLE.
+   */
+  sample28d: number;
+  samplePrev28d: number;
   /** Four weekly points, oldest first (S-4 → S-1). */
   weekly: Array<{ week: number; rate: number | null }>;
   currency: string;
@@ -56,6 +63,8 @@ export async function GET(req: NextRequest) {
     depreciatedUnits: Number(d.depreciated_units ?? 0),
     depreciatedValue: Number(d.depreciated_value ?? 0),
     rate28d: d.rate_28d === null || d.rate_28d === undefined ? null : Number(d.rate_28d),
+    sample28d: Number(d.sample_28d ?? 0),
+    samplePrev28d: Number(d.sample_prev_28d ?? 0),
     ratePrev28d:
       d.rate_prev_28d === null || d.rate_prev_28d === undefined ? null : Number(d.rate_prev_28d),
     weekly: Array.isArray(d.weekly)

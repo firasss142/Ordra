@@ -45,11 +45,14 @@ const env = Object.fromEntries(
 const SUPABASE_URL = env.NEXT_PUBLIC_SUPABASE_URL;
 const REF = new URL(SUPABASE_URL).hostname.split(".")[0];
 
+// Scan mode is a Libya screen — Tunisia prints its own labels and has no
+// coloured rolls, so a Tunisian scope is redirected back to the queue.
 const SCREENS = [
-  ["preparation", `/fr/warehouse/preparation`],
-  ["scan-mode", `/fr/warehouse/scan`],
-  ["today", `/fr/warehouse`],
-];
+  ["preparation", `/fr/warehouse/preparation`, "any"],
+  ["scan-mode", `/fr/warehouse/scan`, "ly"],
+  ["returns", `/fr/warehouse/returns`, "any"],
+  ["today", `/fr/warehouse`, "any"],
+].filter(([, , market]) => market === "any" || market === MARKET);
 
 async function mintSession() {
   const admin = createClient(SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
