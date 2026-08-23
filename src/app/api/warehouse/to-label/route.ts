@@ -40,6 +40,13 @@ export interface ToLabelQueuePage {
    * not read as ordinary bench work.
    */
   releasedAtCarrier: number;
+  /**
+   * Scans across the WHOLE market today, not this browser tab's. The KPI used
+   * to count the component's own state, so it reset on reload and ignored
+   * every other operator on the floor.
+   */
+  scannedToday: number;
+  scannedYesterday: number;
 }
 
 const cacheHeaders = {
@@ -78,7 +85,7 @@ export async function GET(req: NextRequest) {
           ? scopeToMarketId(cookieScope)
           : null;
 
-  const [{ data, error }, { data: statsData }, zoneIndex] = await Promise.all([
+  const [{ data, error }, { data: statsData }, zoneIndex, { data: dayData }] = await Promise.all([
     supabase.rpc("get_to_label_orders", {
       p_market_id: marketScope,
       p_limit: limit + 1,
@@ -87,6 +94,7 @@ export async function GET(req: NextRequest) {
     }),
     supabase.rpc("get_warehouse_queue_stats", { p_market_id: marketScope }),
     getZoneIndex(supabase),
+    supabase.rpc("get_warehouse_day_stats", { p_market_id: marketScope }),
   ]);
 
   if (error) {
@@ -94,6 +102,7 @@ export async function GET(req: NextRequest) {
   }
 
   const stats = (statsData ?? {}) as Record<string, number | null>;
+  const day = (dayData ?? {}) as Record<string, number | null>;
 
   const { rows, nextCursor } = buildQueuePageMeta(
     (data ?? []) as WarehouseOrderRow[],
@@ -113,6 +122,8 @@ export async function GET(req: NextRequest) {
     late: Number(stats.late_prepare ?? 0) + Number(stats.never_scanned ?? 0),
     oldestHours: Number(stats.oldest_prepare_hours ?? 0),
     releasedAtCarrier: Number(stats.released_at_carrier ?? 0),
+    scannedToday: Number(day.scanned_today ?? 0),
+    scannedYesterday: Number(day.scanned_yesterday ?? 0),
   };
   return NextResponse.json(body, { headers: cacheHeaders });
 }

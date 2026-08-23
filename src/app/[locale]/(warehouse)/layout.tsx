@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { Package, PackageOpen, History, Menu, LayoutDashboard, Boxes } from "lucide-react";
+import { Boxes, History, LayoutDashboard, Menu, Package, PackageOpen, ScanLine } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { WarehouseTabBar, type WarehouseTab } from "@/components/warehouse/shell/WarehouseTabBar";
@@ -24,6 +24,14 @@ function useWarehouseTabs(locale: string): WarehouseTab[] {
       label: t("nav.preparation"),
       icon: Package,
       prefetchKey: "/api/warehouse/to-label",
+    },
+    // Scan mode is the bench's own screen. It sits next to Préparation because
+    // that is where an operator comes from: pick a row, then stand at the table.
+    {
+      href: `/${locale}/warehouse/scan`,
+      label: t("nav.scan"),
+      icon: ScanLine,
+      prefetchKey: "/api/warehouse/sticker-rolls",
     },
     {
       href: `/${locale}/warehouse/returns`,

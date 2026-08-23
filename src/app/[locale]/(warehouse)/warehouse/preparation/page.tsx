@@ -5,10 +5,14 @@ import { canScanWarehouse } from "@/lib/role-permissions";
 import { createClient } from "@/lib/supabase/server";
 import { PreparationConsole } from "@/components/warehouse/console/PreparationConsole";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
+import { getZoneIndex } from "@/lib/warehouse/zone-index-cache";
+import { zoneForOrder } from "@/lib/warehouse/zone-index";
 
 export const dynamic = "force-dynamic";
 
 const PAGE_LIMIT = 200;
+/** Used only until a market sets `goal_daily_scanned`. */
+const DEFAULT_DAILY_GOAL = 40;
 
 /**
  * Préparation. The queue is prefetched server-side so the bench has rows the
@@ -28,14 +32,36 @@ export default async function Page({
   const { marketId: scope, marketCode } = await getActiveMarketScope(user);
 
   const supabase = await createClient();
-  const { data } = await supabase.rpc("get_to_label_orders", {
-    p_market_id: scope,
-    p_limit: PAGE_LIMIT,
-    p_cursor_created_at: null,
-    p_cursor_id: null,
-  });
+  const [{ data }, zoneIndex, { data: goalRow }] = await Promise.all([
+    supabase.rpc("get_to_label_orders", {
+      p_market_id: scope,
+      p_limit: PAGE_LIMIT,
+      p_cursor_created_at: null,
+      p_cursor_id: null,
+    }),
+    getZoneIndex(supabase),
+    // The daily target is a market setting, never a constant in the component.
+    supabase
+      .from("settings")
+      .select("value")
+      .eq("market_id", scope)
+      .eq("key", "goal_daily_scanned")
+      .maybeSingle<{ value: unknown }>(),
+  ]);
 
-  const orders = (data ?? []) as unknown as WarehouseOrderRow[];
+  // Settings are stored both as a bare value and as { value }, depending on
+  // when the row was written. Read both shapes rather than trusting one.
+  const raw = goalRow?.value;
+  const unwrapped =
+    raw && typeof raw === "object" && "value" in raw ? (raw as { value: unknown }).value : raw;
+  const dailyGoal = Number.isFinite(Number(unwrapped)) && Number(unwrapped) > 0
+    ? Number(unwrapped)
+    : DEFAULT_DAILY_GOAL;
+
+  const orders = ((data ?? []) as unknown as WarehouseOrderRow[]).map((row) => ({
+    ...row,
+    zone: zoneForOrder(row, zoneIndex),
+  }));
 
   /*
    * What gets scanned differs by market: Libya scans Darb's pre-printed
@@ -49,5 +75,5 @@ export default async function Page({
    */
   const market: "ly" | "tn" = marketCode === "ly" ? "ly" : "tn";
 
-  return <PreparationConsole market={market} initialOrders={orders} />;
+  return <PreparationConsole market={market} initialOrders={orders} dailyGoal={dailyGoal} />;
 }
