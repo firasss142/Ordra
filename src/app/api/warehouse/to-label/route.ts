@@ -10,11 +10,22 @@ import {
   decodeQueueCursor,
 } from "@/lib/warehouse/queue-cursor";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
+import { getZoneIndex } from "@/lib/warehouse/zone-index-cache";
+import { zoneForOrder, type OrderZone } from "@/lib/warehouse/zone-index";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * A queue row with the sticker roll it needs.
+ *
+ * The colour is resolved here rather than in SQL: folding a free-text Arabic
+ * city onto Darb's branch names needs hamza and alef normalisation, which lives
+ * — and is tested — in darb-destination.ts. One implementation, not two.
+ */
+export type ToLabelRow = WarehouseOrderRow & { zone: OrderZone };
+
 export interface ToLabelQueuePage {
-  orders: WarehouseOrderRow[];
+  orders: ToLabelRow[];
   nextCursor: string | null;
   /**
    * The whole queue, not this page. The bench KPIs used to count the loaded
@@ -24,6 +35,11 @@ export interface ToLabelQueuePage {
   total: number;
   late: number;
   oldestHours: number;
+  /**
+   * Already out for delivery at the carrier. These cannot be scanned and must
+   * not read as ordinary bench work.
+   */
+  releasedAtCarrier: number;
 }
 
 const cacheHeaders = {
@@ -62,7 +78,7 @@ export async function GET(req: NextRequest) {
           ? scopeToMarketId(cookieScope)
           : null;
 
-  const [{ data, error }, { data: statsData }] = await Promise.all([
+  const [{ data, error }, { data: statsData }, zoneIndex] = await Promise.all([
     supabase.rpc("get_to_label_orders", {
       p_market_id: marketScope,
       p_limit: limit + 1,
@@ -70,6 +86,7 @@ export async function GET(req: NextRequest) {
       p_cursor_id: cursor?.id ?? null,
     }),
     supabase.rpc("get_warehouse_queue_stats", { p_market_id: marketScope }),
+    getZoneIndex(supabase),
   ]);
 
   if (error) {
@@ -78,10 +95,15 @@ export async function GET(req: NextRequest) {
 
   const stats = (statsData ?? {}) as Record<string, number | null>;
 
-  const { rows: orders, nextCursor } = buildQueuePageMeta(
+  const { rows, nextCursor } = buildQueuePageMeta(
     (data ?? []) as WarehouseOrderRow[],
     limit,
   );
+
+  const orders: ToLabelRow[] = rows.map((row) => ({
+    ...row,
+    zone: zoneForOrder(row, zoneIndex),
+  }));
 
   const body: ToLabelQueuePage = {
     orders,
@@ -90,6 +112,7 @@ export async function GET(req: NextRequest) {
     // Anything past two days on the bench, however long it has been there.
     late: Number(stats.late_prepare ?? 0) + Number(stats.never_scanned ?? 0),
     oldestHours: Number(stats.oldest_prepare_hours ?? 0),
+    releasedAtCarrier: Number(stats.released_at_carrier ?? 0),
   };
   return NextResponse.json(body, { headers: cacheHeaders });
 }

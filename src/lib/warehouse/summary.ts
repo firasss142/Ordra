@@ -117,6 +117,23 @@ export interface WarehouseOrderRow {
   total_price: number;
   status: string;
   created_at: string;
+  /**
+   * When the order reached the bench — the `uploaded` event, not intake. Every
+   * age on Préparation measures from here: an order created three weeks ago and
+   * uploaded this morning has been the warehouse's problem for two hours, and
+   * on real data the two clocks differ by up to a month.
+   */
+  uploaded_at: string | null;
+  /** Darb's destination branch, which decides the sticker-roll colour. */
+  branch_group: string | null;
+  /** The area behind `customer_city`; a city alone is ambiguous for routing. */
+  customer_area: string | null;
+  tracking_number: string | null;
+  carrier_sticker_ref: string | null;
+  /** The carrier's own status. `released` means it already left for delivery. */
+  carrier_status_slug: string | null;
+  /** Whether Darb's internal id is known, i.e. whether a scan can bind at all. */
+  has_carrier_ref: boolean | null;
   current_stock: number | null;
   low_stock_threshold: number | null;
 }
