@@ -5,15 +5,14 @@ import Link from "next/link";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import {
-  Boxes, ChevronDown, Clock, Maximize2, PackageSearch, ScanLine, Search, Tickets, Truck,
+  Boxes, ChevronDown, Clock, Maximize2, PackageSearch, ScanLine, Search, Truck,
 } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import type { OrderZone } from "@/lib/warehouse/zone-index";
 import { DARB_ZONE_ORDER, DARB_ZONES } from "@/lib/carriers/darb-zones";
 import { WhCard, WhHolder, WhPill } from "./primitives";
 import { WH_LABEL, WH_BTN } from "./tokens";
-import { ScanStation, type RollRow } from "./ScanStation";
-import { StickerRollsDialog, type RollAccount } from "./StickerRollsDialog";
+import { ScanStation } from "./ScanStation";
 
 /**
  * Préparation — the packing bench.
@@ -79,7 +78,6 @@ export function PreparationConsole({
   dailyGoal: number;
 }) {
   const t = useTranslations("warehouse.prep2");
-  const tr = useTranslations("warehouse.rolls");
   const isLy = market === "ly";
 
   const { data, mutate } = useSWR<QueuePage>(
@@ -88,24 +86,15 @@ export function PreparationConsole({
     { fallbackData: { orders: initialOrders }, revalidateOnFocus: true },
   );
 
-  const { data: rollData, mutate: mutateRolls } = useSWR<{
-    rolls: RollRow[];
-    accounts: RollAccount[];
-  }>(isLy ? "/api/warehouse/sticker-rolls" : null, fetcher);
-
   const [query, setQuery] = useState("");
   const [ageFilter, setAgeFilter] = useState<"all" | "fresh" | "late">("all");
   const [product, setProduct] = useState<string | null>(null);
   const [zoneFilter, setZoneFilter] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [hand, setHand] = useState<Row | null>(null);
-  const [rollsOpen, setRollsOpen] = useState(false);
 
   const orders = useMemo(() => data?.orders ?? [], [data]);
   const currency = isLy ? t("currency") : t("currencyTn");
-  const rolls = rollData?.rolls ?? [];
-  const rollAccounts = rollData?.accounts ?? [];
-  const openRolls = rolls.filter((r) => r.status === "open").length;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -187,25 +176,10 @@ export function PreparationConsole({
         </div>
         <div className="ms-auto flex flex-wrap gap-2.5">
           {isLy ? (
-            <>
-              {/* The count is the point: zero rolls means the scan guard is
-                  off, and that should be visible without opening anything. */}
-              <button type="button" onClick={() => setRollsOpen(true)} className={WH_BTN}>
-                <Tickets size={16} aria-hidden="true" />
-                {tr("open")}
-                <span
-                  className={`ms-1 rounded-pill px-1.5 font-mono text-[11px] tabular-nums ${
-                    openRolls ? "bg-wh-sunken text-wh-ink-2" : "bg-wh-warn-bg text-wh-warn"
-                  }`}
-                >
-                  {openRolls}
-                </span>
-              </button>
-              <Link href="./scan" className={WH_BTN}>
-                <Maximize2 size={16} aria-hidden="true" />
-                {t("scanMode")}
-              </Link>
-            </>
+            <Link href="./scan" className={WH_BTN}>
+              <Maximize2 size={16} aria-hidden="true" />
+              {t("scanMode")}
+            </Link>
           ) : null}
         </div>
       </header>
@@ -414,21 +388,11 @@ export function PreparationConsole({
             hand={hand}
             handZone={hand?.zone ?? null}
             orders={orders}
-            rolls={rolls}
             onScanned={onScanned}
-            onManageRolls={() => setRollsOpen(true)}
           />
         </div>
       </div>
 
-      {rollsOpen ? (
-        <StickerRollsDialog
-          rolls={rolls}
-          accounts={rollAccounts}
-          onClose={() => setRollsOpen(false)}
-          onChanged={() => void mutateRolls()}
-        />
-      ) : null}
     </div>
   );
 }

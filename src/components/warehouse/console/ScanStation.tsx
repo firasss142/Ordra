@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Camera, Check, ScanLine, TriangleAlert, X, CircleAlert } from "lucide-react";
+import { Camera, Check, ScanLine, TriangleAlert, X } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import type { OrderZone } from "@/lib/warehouse/zone-index";
 import { QrScanner } from "@/components/warehouse/QrScanner";
@@ -16,36 +16,19 @@ import { WhPill } from "./primitives";
  * `station` is the full-screen mode for a tablet at the packing table, where
  * the operator's hands are on a parcel and the nearest thing they can read is
  * two feet away. Sharing the component is the point: the outcomes are subtle
- * enough (bound at Darb / wrong roll / refused here / refused there / bound but
- * not committed) that two implementations would drift and one of them would
- * start lying.
+ * enough (bound at Darb / refused here / refused there / bound but not
+ * committed) that two implementations would drift and one would start lying.
  *
- * THE ROLL COLOUR IS THE LOUDEST THING ON THE PANEL. Darb hands out
- * pre-printed stickers on coloured rolls and routes by that colour, so picking
- * the wrong roll sends the parcel to the wrong city — and Darb accepts the
- * number without complaint, so nothing downstream catches it.
+ * THE COLOUR IS THE LOUDEST THING ON THE PANEL. Darb hands out pre-printed
+ * stickers on coloured rolls and routes by that colour, so reaching for the
+ * wrong roll sends the parcel to the wrong city — and Darb accepts the number
+ * without complaint, so nothing downstream catches it. Naming the colour before
+ * the parcel is touched is the whole control; we deliberately do not track
+ * which rolls are open, so there is nothing to check the scanned number against.
  */
-
-export interface RollRow {
-  id: string;
-  carrier_id: string;
-  color_hex: string;
-  colour_fr: string;
-  name_fr: string;
-  name_ar: string;
-  label: string | null;
-  range_start: number;
-  range_end: number;
-  status: string;
-  capacity: number;
-  consumed: number;
-  remaining: number;
-  next_number: number | null;
-}
 
 export type ScanOutcome =
   | "bound"
-  | "wrong_roll"
   | "refused_here"
   | "refused_darb"
   | "bound_not_committed";
@@ -58,8 +41,6 @@ export interface ScanEntry {
   from?: number;
   to?: number;
   message?: string;
-  stickerColor?: string | null;
-  requiredColor?: string | null;
 }
 
 interface ScanResponse {
@@ -68,15 +49,12 @@ interface ScanResponse {
   error_code?: string;
   error?: string;
   darb_bound?: boolean;
-  sticker_color?: string | null;
-  required_color?: string | null;
 }
 
 /** Which outcome a response represents. Only `bound` is a clean success. */
 function outcomeFor(ok: boolean, body: ScanResponse): ScanOutcome {
   if (ok) return "bound";
   if (body.darb_bound) return "bound_not_committed";
-  if (body.error_code === "STICKER_WRONG_ROLL") return "wrong_roll";
   if (body.error_code === "DARB_BIND_FAILED" || body.error_code === "DARB_SHIPMENT_UNKNOWN") {
     return "refused_darb";
   }
@@ -85,7 +63,6 @@ function outcomeFor(ok: boolean, body: ScanResponse): ScanOutcome {
 
 const OUTCOME_TONE: Record<ScanOutcome, { border: string; bg: string; ink: string }> = {
   bound: { border: "border-wh-ok-edge", bg: "bg-wh-ok-bg", ink: "text-wh-ok" },
-  wrong_roll: { border: "border-wh-warn-edge", bg: "bg-wh-warn-bg", ink: "text-wh-warn" },
   refused_here: { border: "border-wh-bad-edge", bg: "bg-wh-bad-bg", ink: "text-wh-bad" },
   refused_darb: { border: "border-wh-bad-edge", bg: "bg-wh-bad-bg", ink: "text-wh-bad" },
   bound_not_committed: {
@@ -101,9 +78,7 @@ export function ScanStation({
   hand,
   handZone,
   orders,
-  rolls,
   onScanned,
-  onManageRolls,
 }: {
   variant?: "panel" | "station";
   market: "ly" | "tn";
@@ -112,10 +87,7 @@ export function ScanStation({
   handZone: OrderZone | null;
   /** Tunisia scans our own QR, which IS the order id, so it resolves itself. */
   orders: WarehouseOrderRow[];
-  rolls: RollRow[];
   onScanned: () => void;
-  /** Opens the roll registry. Absent on surfaces that cannot manage rolls. */
-  onManageRolls?: () => void;
 }) {
   const t = useTranslations("warehouse.scan");
   const isLy = market === "ly";
@@ -126,14 +98,6 @@ export function ScanStation({
   const [camera, setCamera] = useState(false);
   const [scans, setScans] = useState<ScanEntry[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const openRolls = useMemo(() => rolls.filter((r) => r.status === "open"), [rolls]);
-
-  /** The roll this parcel needs — matched on Darb's colour, not on a name. */
-  const requiredRoll = useMemo(() => {
-    if (!handZone?.colorHex) return null;
-    return openRolls.find((r) => r.color_hex === handZone.colorHex) ?? null;
-  }, [openRolls, handZone]);
 
   useEffect(() => {
     if (!camera) inputRef.current?.focus();
@@ -191,8 +155,6 @@ export function ScanStation({
               message: res.ok
                 ? undefined
                 : errorLabel(body.error_code, t) ?? body.message ?? body.error,
-              stickerColor: body.sticker_color ?? null,
-              requiredColor: body.required_color ?? null,
             },
             ...s,
           ].slice(0, 8),
@@ -212,29 +174,9 @@ export function ScanStation({
 
   return (
     <div className={isStation ? "mx-auto w-full max-w-[720px]" : ""}>
-      {/* No roll registered anywhere: the sticker guard is dormant. Say so —
-          silently accepting any number is exactly the failure it exists for. */}
-      {isLy && openRolls.length === 0 ? (
-        <div className="mb-3 flex flex-wrap items-start gap-2.5 rounded-[11px] border border-wh-warn-edge bg-wh-warn-bg p-3 text-[12.5px] text-wh-warn">
-          <CircleAlert size={16} className="mt-px shrink-0" aria-hidden="true" />
-          <span className="min-w-0 flex-1">{t("noRolls")}</span>
-          {onManageRolls ? (
-            <button
-              type="button"
-              onClick={onManageRolls}
-              className="shrink-0 rounded-[8px] border border-wh-warn-edge bg-wh-surface px-2.5 py-1 text-[12px] font-semibold text-wh-warn hover:bg-wh-warn-bg"
-            >
-              {t("registerRoll")}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {/* The roll to pick up. First thing on the panel, biggest thing on the
-          station — it is the decision made before the parcel is touched. */}
-      {isLy && hand ? (
-        <RollStrip zone={handZone} roll={requiredRoll} big={isStation} t={t} />
-      ) : null}
+      {/* The colour to reach for. First thing on the panel, biggest thing on
+          the station — it is the decision made before the parcel is touched. */}
+      {isLy && hand ? <RollStrip zone={handZone} big={isStation} t={t} /> : null}
 
       <div className={`rounded-wh border border-wh-border bg-wh-surface ${isStation ? "" : "shadow-sm"}`}>
         <div className="flex items-center gap-2 border-b border-wh-border px-4 py-3">
@@ -376,21 +318,19 @@ export function ScanStation({
 }
 
 /**
- * Which roll to reach for, before the parcel is touched.
+ * Which colour to reach for, before the parcel is touched.
  *
- * Three states, and the difference matters: a colour Darb published, a colour
- * we could not determine, and a colour with no roll registered for it. The
- * third is the one that would otherwise look fine and then refuse at the
- * scanner.
+ * Two states only: a colour Darb published for this destination, or none it
+ * could resolve. There is no third state about our own stock — we do not track
+ * which rolls are open, and inventing a "roll missing" warning from nothing
+ * would be worse than silence.
  */
 function RollStrip({
   zone,
-  roll,
   big,
   t,
 }: {
   zone: OrderZone | null;
-  roll: RollRow | null;
   big: boolean;
   t: (key: string, values?: Record<string, string | number>) => string;
 }) {
@@ -427,24 +367,17 @@ function RollStrip({
           {zone.nameAr ? <> · <bdi>{zone.nameAr}</bdi></> : null}
         </span>
       </span>
-      <span className="ms-auto text-end">
-        {roll ? (
-          <>
-            <span className="block font-mono text-[13px] font-semibold tabular-nums text-wh-ink-1">
-              {roll.next_number ?? "—"}
-            </span>
-            <span className="block text-[11.5px] text-wh-ink-3">
-              {t("rollRemaining", { n: roll.remaining })}
-            </span>
-          </>
-        ) : (
-          <WhPill tone="warn">{t("rollMissing")}</WhPill>
-        )}
-      </span>
     </div>
   );
 }
 
+/**
+ * The last scan, in four distinguishable states.
+ *
+ * `bound_not_committed` is the one that earns the extra state: the parcel IS
+ * live at Darb, and an operator shown a plain "erreur" would re-sticker it and
+ * bind a second number to a shipment already moving.
+ */
 function ResultTile({
   entry,
   big,
@@ -457,7 +390,6 @@ function ResultTile({
   const tone = OUTCOME_TONE[entry.outcome];
   const heading: Record<ScanOutcome, string> = {
     bound: t("okBound"),
-    wrong_roll: t("errWrongRoll"),
     refused_here: t("errRefused"),
     refused_darb: t("errCarrier"),
     bound_not_committed: t("errBoundNotCommitted"),
@@ -482,35 +414,12 @@ function ResultTile({
       >
         {entry.code}
       </div>
-
-      {/* On a wrong roll, showing both swatches is faster to act on than any
-          sentence: the operator sees which roll they used and which to take. */}
-      {entry.outcome === "wrong_roll" && entry.stickerColor && entry.requiredColor ? (
-        <div className="mt-2 flex items-center gap-2 text-[12.5px] text-wh-ink-2">
-          <Swatch hex={entry.stickerColor} />
-          <span>{t("scanned")}</span>
-          <span aria-hidden="true">→</span>
-          <Swatch hex={entry.requiredColor} />
-          <span className="font-semibold text-wh-ink-1">{t("takeThis")}</span>
-        </div>
-      ) : (
-        <div className="mt-1 font-mono text-[12.5px] tabular-nums text-wh-ink-2">
-          {entry.outcome === "bound"
-            ? `${entry.from ?? "—"} → ${entry.to ?? "—"}`
-            : entry.message}
-        </div>
-      )}
+      <div className="mt-1 font-mono text-[12.5px] tabular-nums text-wh-ink-2">
+        {entry.outcome === "bound"
+          ? `${entry.from ?? "—"} → ${entry.to ?? "—"}`
+          : entry.message}
+      </div>
     </div>
-  );
-}
-
-function Swatch({ hex }: { hex: string }) {
-  return (
-    <span
-      className="inline-block h-4 w-4 shrink-0 rounded-full border border-black/15 align-[-3px]"
-      style={{ background: hex }}
-      aria-hidden="true"
-    />
   );
 }
 
@@ -518,8 +427,6 @@ function Swatch({ hex }: { hex: string }) {
 function errorLabel(code: string | undefined, t: (k: string) => string): string | null {
   switch (code) {
     case "STICKER_ALREADY_USED": return t("errStickerUsed");
-    case "STICKER_NOT_IN_ROLL": return t("errNotInRoll");
-    case "STICKER_WRONG_ROLL": return t("errWrongRollDetail");
     case "DARB_SHIPMENT_UNKNOWN": return t("errShipmentUnknown");
     case "DARB_BIND_FAILED": return t("errBindFailed");
     case "NO_LABEL_PRINTED": return t("errNoLabel");

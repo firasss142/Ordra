@@ -31,7 +31,7 @@ function useWarehouseTabs(locale: string): WarehouseTab[] {
       href: `/${locale}/warehouse/scan`,
       label: t("nav.scan"),
       icon: ScanLine,
-      prefetchKey: "/api/warehouse/sticker-rolls",
+      prefetchKey: "/api/warehouse/to-label",
     },
     {
       href: `/${locale}/warehouse/returns`,

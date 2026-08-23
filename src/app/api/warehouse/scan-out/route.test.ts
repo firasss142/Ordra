@@ -194,11 +194,6 @@ describe("POST /api/warehouse/scan-out — structured RPC errors", () => {
     ["stock cannot go below zero", "STOCK_UNDERFLOW"],
     ["Order not found: abc-123", "ORDER_NOT_FOUND"],
     ["Sticker 889201 is already bound to another order", "STICKER_ALREADY_USED"],
-    ["Sticker 4443873 is not in any registered roll", "STICKER_NOT_IN_ROLL"],
-    [
-      "Sticker 889201 is from the #fc6401 roll but this parcel needs the #339307 roll",
-      "STICKER_WRONG_ROLL",
-    ],
   ])("%s → %s", async (message, code) => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
     wireSupabase();
@@ -343,19 +338,13 @@ describe("POST /api/warehouse/scan-out — binding the sticker at Darb", () => {
     expect(mockRpc).not.toHaveBeenCalledWith("scan_order_out", expect.anything());
   });
 
-  test("refuses a wrong-roll sticker before touching the carrier at all", async () => {
+  test("refuses a duplicate sticker before touching the carrier at all", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
     wireSupabase({ orderRow: darbOrder(), carrierRow: { id: "darb-1", code: "darb_assabil" } });
     mockRpc.mockImplementation((fn: string) =>
       fn === "precheck_scan_out"
         ? Promise.resolve({
-            data: {
-              ok: false,
-              code: "STICKER_WRONG_ROLL",
-              sticker_color: "#fc6401",
-              required_color: "#339307",
-              branch_group: "BN",
-            },
+            data: { ok: false, code: "STICKER_ALREADY_USED", sticker: "889201" },
             error: null,
           })
         : Promise.resolve({ data: { success: true }, error: null }),
@@ -364,10 +353,7 @@ describe("POST /api/warehouse/scan-out — binding the sticker at Darb", () => {
     const res = await POST(req(scan));
 
     expect(res.status).toBe(409);
-    const json = await res.json();
-    expect(json.error_code).toBe("STICKER_WRONG_ROLL");
-    expect(json.sticker_color).toBe("#fc6401");
-    expect(json.required_color).toBe("#339307");
+    expect((await res.json()).error_code).toBe("STICKER_ALREADY_USED");
     // A doomed scan must never cause a carrier write.
     expect(mockBindDarbReference).not.toHaveBeenCalled();
   });

@@ -26,9 +26,8 @@ export const dynamic = "force-dynamic";
  * response says `darb_bound: true`, because an operator told only "stock
  * error" would assume nothing happened and re-sticker the parcel.
  *
- * `precheck_scan_out` runs everything cheap first — duplicate sticker, roll
- * membership, roll colour, status, market — so a doomed scan never causes a
- * carrier write.
+ * `precheck_scan_out` runs everything cheap first — duplicate sticker, status,
+ * market — so a doomed scan never causes a carrier write.
  */
 
 const DARB_CODE = "darb_assabil";
@@ -43,10 +42,8 @@ interface OrderRow {
 interface Precheck {
   ok?: boolean;
   code?: string;
-  sticker_color?: string | null;
   required_color?: string | null;
   branch_group?: string | null;
-  unguarded?: boolean;
 }
 
 const PRECHECK_STATUS: Record<string, number> = {
@@ -55,20 +52,10 @@ const PRECHECK_STATUS: Record<string, number> = {
   MARKET_MISMATCH: 409,
   INVALID_STATUS: 409,
   STICKER_ALREADY_USED: 409,
-  STICKER_NOT_IN_ROLL: 409,
-  STICKER_WRONG_ROLL: 409,
 };
 
 function classifyRpcError(message: string): { code: ScanErrorCode; status: number } {
   const m = message.toLowerCase();
-  // Roll failures name a sticker too, so they are checked before the duplicate
-  // and not-found tests, which would otherwise swallow them.
-  if (m.includes("not in any registered roll")) {
-    return { code: "STICKER_NOT_IN_ROLL", status: 409 };
-  }
-  if (m.includes("but this parcel needs")) {
-    return { code: "STICKER_WRONG_ROLL", status: 409 };
-  }
   if (m.includes("sticker") && m.includes("already")) {
     return { code: "STICKER_ALREADY_USED", status: 409 };
   }
@@ -213,7 +200,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error_code: precheck.code,
-        sticker_color: precheck.sticker_color ?? null,
         required_color: precheck.required_color ?? null,
         branch_group: precheck.branch_group ?? null,
         message: "Scan refusé",
@@ -262,6 +248,5 @@ export async function POST(req: NextRequest) {
     darb_bound: darbBound,
     required_color: precheck.required_color ?? null,
     branch_group: branchGroup,
-    ...(precheck.unguarded ? { unguarded: true } : {}),
   });
 }

@@ -126,15 +126,6 @@ async function main() {
         console.log(`${(name + "-in-hand").padEnd(20)} parcel taken`);
       }
 
-      // The roll registry, which is what arms the sticker guard.
-      const rolls = page.getByRole("button", { name: /^Rouleaux/ }).first();
-      if (await rolls.count()) {
-        await rolls.click();
-        await page.waitForTimeout(500);
-        await page.screenshot({ path: `${OUT}/sticker-rolls.png` });
-        console.log(`${"sticker-rolls".padEnd(20)} registry opened`);
-        await page.keyboard.press("Escape");
-      }
     }
   }
 
