@@ -56,8 +56,59 @@ Steps 1–2 are ours. Step 6 onward is Darb's — their reception staff book the
 
 ---
 
-## Open question
+## The sticker roll is colour-coded — and Darb's API says which colour
 
-The sticker carries a **region band** (`TR / المنطقة الشرقية`). It is not yet established
-whether a roll must match the destination region, or whether any roll works for any
-destination. Confirm with Darb before relying on it either way.
+Settled 2026-08-22 by `scripts/probe-darb-branches.ts` (read-only).
+
+`GET /api/local/branches/public` returns a **`color` hex on every branch
+record**. The field is absent from the vendor's Postman collection and from
+INTEGRATION_GUIDE.md — the documented schema is not the whole payload — so it
+had been missed. Nine distinct colours come back, and they reproduce Darb's own
+printed price poster card for card:
+
+| `color` | Branch groups | Poster card | Example destinations |
+|---|---|---|---|
+| `#d80a0a` rouge | TR · SA1 · SH2 · SH3 · SH4 · TDSW · HR · EXCU | طرابلس + ضواحي | طرابلس · جنزور · تاجوراء · ورشفانة |
+| `#5a3001` brun | HW | جنوب طرابلس | ترهونة · بني وليد |
+| `#fc6401` orange | ZWR · ZWY · ZY | غرب طرابلس | الزاوية · صبراتة · زوارة · العجيلات |
+| `#f9fc01` jaune | KHM · MS | شرق طرابلس | الخمس · زليتن · مصراتة |
+| `#ed00ff` magenta | WS · ZW | المنطقة الوسطى | سرت · اجدابيا · البريقة · الجفرة |
+| `#339307` vert | BN · BNN · BYD · DRN · MRJ · QBA · TBR | المنطقة الشرقية | بنغازي · البيضاء · درنة · طبرق |
+| `#091d96` bleu marine | JB | الجبل الغربي | غريان · الزنتان · نالوت · يفرن |
+| `#0cbceb` cyan | SB | المنطقة الجنوبية | سبها · أوباري · مرزق · غات |
+| `#8fff00` vert lime | JL · KF | الجنوب الشرقي | جالو أوجلة · الكفرة |
+
+**The colour follows the DESTINATION, and the join key is `toBranchGroup`.**
+That field is on every shipment from creation — before booking, before handover
+— so the roll can be named on the picking list, not discovered at the bench.
+
+Two near-misses, recorded so nobody retries them:
+
+* **`toZoneCode` is not the colour.** It has 8 values and merges what the
+  colours keep apart: zone `TR` covers both طرابلس (rouge) and ترهونة (brun);
+  zone `WA` covers both اجدابيا (magenta) and الكفرة (lime).
+* **`breakdown.branchToBranch` is not the colour** either. It is a radial
+  distance band measured from the *origin* branch, so it differs between our
+  Tripoli and Benghazi accounts and cuts straight across the cards.
+
+**Both accounts return an identical directory**, so the colour scheme is
+company-wide. What does differ between the two accounts is the *price*: the
+harvested quotes in `darb_shipping_rates` are a different list per account
+(بنغازي costs 0–15 from Benghazi and 20–35 from Tripoli).
+
+Two Tripoli branches — `EXP` (زناتة) and `RGG` (الرياضية) — carry no colour.
+Every other branch in طرابلس is rouge, so they resolve from the city and are
+flagged as inferred rather than guessed silently.
+
+Whether a roll *must* match its destination is now moot in practice: the OMS
+refuses a scan whose sticker comes from a roll registered to a different
+colour, and names both in the refusal.
+
+## Related
+
+- Colour + branch directory probe: `scripts/probe-darb-branches.ts`
+  (output committed at `report/darb-branches.json`)
+- Reference binding (step 5): `PATCH /api/local/shipments/reference/:id`, probed
+  by `scripts/probe-darb-reference-permission.ts` and
+  `scripts/probe-darb-reference-validation.ts`
+- Status sync and API gotchas: `docs/darb-assabil-sync.md`
