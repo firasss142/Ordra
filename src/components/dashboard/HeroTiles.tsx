@@ -92,14 +92,18 @@ export function HeroTiles({ health, currency, locale, comparisonLabel }: HeroTil
         comparisonLabel={comparisonLabel}
       />
 
+      {/* `funnel.confirmed` now counts orders that reached `uploaded` or went
+          beyond it — the RPC key kept its name, only its boundary moved. The
+          label follows the number: the figure worth steering on is how many
+          orders reached the carrier, not how many the agent got agreement on. */}
       <MetricTile
-        label={t("funnel.confirmedLabel")}
+        label={t("funnel.uploadedLabel")}
         value={nf.format(funnel.confirmed.current)}
         icon={<CircleCheck size={20} strokeWidth={2} />}
-        hint={t("funnel.confirmedHint")}
+        hint={t("funnel.uploadedHint")}
         metric={funnel.confirmed}
         comparisonLabel={comparisonLabel}
-        footer={t("funnel.confirmRate", { rate: pct(funnel.confirmationRate.current) })}
+        footer={t("funnel.uploadRate", { rate: pct(funnel.confirmationRate.current) })}
       />
 
       {/* ── money ──────────────────────────────────────────── */}

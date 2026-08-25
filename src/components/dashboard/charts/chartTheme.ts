@@ -19,6 +19,19 @@ export type OutcomeKey = keyof typeof CHART_COLORS;
 /** Stacking order, bottom to top: resolved outcomes first, unresolved on top. */
 export const OUTCOME_ORDER: OutcomeKey[] = ["delivered", "returned", "rejected", "open"];
 
+/**
+ * Confirmations — tooltip only, deliberately NOT in CHART_COLORS.
+ *
+ * That map is keyed by OutcomeKey, which is also what the stack iterates, so
+ * adding this there would make `confirmed` render as a fifth band and break the
+ * one guarantee the bar makes: that its segments sum to the day's intake.
+ * Confirmations are an order_history EVENT count on a different basis.
+ *
+ * Blue because none of the outcome tones are near it — the reader should never
+ * mistake this chip for delivered-green or rejected-amber at a glance.
+ */
+export const CONFIRMED_COLOR = "#2C6ECB";
+
 export const CHART_AXIS = {
   tick: { fill: "var(--oms-ink-3)", fontSize: 10.5 },
   line: "var(--oms-border)",

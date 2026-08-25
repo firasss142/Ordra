@@ -3,8 +3,9 @@
 import { useTranslations } from "next-intl";
 import {
   Bar,
-  BarChart,
   CartesianGrid,
+  ComposedChart,
+  Line,
   ReferenceArea,
   ResponsiveContainer,
   Tooltip,
@@ -15,6 +16,7 @@ import {
   CHART_AXIS,
   CHART_COLORS,
   CHART_TOOLTIP,
+  CONFIRMED_COLOR,
   OUTCOME_ORDER,
   axisTickInterval,
   formatDayTick,
@@ -69,6 +71,116 @@ export function UnresolvedNote() {
   );
 }
 
+/** One labelled number in the tooltip. `key` is also its i18n key. */
+export interface TooltipRow {
+  key: string;
+  value: number;
+  /** Set only for rows that ARE a segment of the bar being hovered. */
+  color?: string;
+}
+
+export interface TooltipModel {
+  rows: TooltipRow[];
+  revenue: number;
+}
+
+/** Outcome bands the card lists, in stacking order. */
+const TOOLTIP_OUTCOMES = OUTCOME_ORDER.filter((key) => key !== "returned");
+
+/**
+ * The day, as five numbers.
+ *
+ * Reads top-down as: how big was the day, how much of it did we get agreement
+ * on, and where did the rest land.
+ *
+ * `returned` and `uploaded` are deliberately absent. Returns are a CARRIER
+ * outcome that settles weeks after the cohort day being hovered, so on any
+ * recent bar the row is a 0 that says nothing about that day's work. `uploaded`
+ * had the opposite problem in the same place: it is an order_history event
+ * count, so a day whose orders had not been handed over yet showed 0 beside a
+ * large rejected count, which read as a contradiction rather than a fact.
+ *
+ * The bar still STACKS returned, so the listed bands intentionally do not sum
+ * to the intake row above them — the card explains the day, it is not a
+ * reconciliation of the bar's height.
+ *
+ * Every counted row carries a chip so the card reads as one list. Confirmations
+ * get their own blue rather than any band's colour, because they are an event
+ * count and not a slice of the stack. Only the intake row stays plain: it IS
+ * the bar, so a swatch would file it alongside the parts it contains.
+ */
+export function tooltipRows(d: DailyPoint): TooltipModel {
+  return {
+    rows: [
+      { key: "ordersCount", value: d.intake },
+      { key: "confirmedEvents", value: d.confirmed ?? 0, color: CONFIRMED_COLOR },
+      ...TOOLTIP_OUTCOMES.map((key) => ({ key, value: d[key], color: CHART_COLORS[key] })),
+    ],
+    revenue: d.revenue,
+  };
+}
+
+/**
+ * The hover card.
+ *
+ * Replaces recharts' default, which could only ever list the four stacked
+ * series — it reads the payload's series entries, so intake, the event counts
+ * and revenue were all fetched and then thrown away. Rendering from the raw
+ * DailyPoint instead means the card can say what the day actually was.
+ */
+function OutcomeTooltip({
+  active,
+  payload,
+  locale,
+  currency,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload?: DailyPoint }>;
+  locale: string;
+  currency: string;
+}) {
+  const t = useTranslations("dashboard.chart");
+  const point = payload?.[0]?.payload;
+  if (!active || !point) return null;
+
+  const { rows, revenue } = tooltipRows(point);
+  const nf = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
+
+  return (
+    <div
+      className="rounded-lg border border-oms-border bg-oms-surface px-2.5 py-2 text-[11.5px] shadow-[0_8px_24px_rgba(16,24,40,.10)]"
+      style={{ minWidth: 168 }}
+    >
+      <div className="mb-1.5 text-[10.5px] text-oms-ink-3">{formatDayTick(point.day, locale)}</div>
+
+      <div className="flex flex-col gap-[3px]">
+        {rows.map((row) => (
+          <div key={row.key} className="flex items-center justify-between gap-4">
+            <span className="inline-flex items-center gap-1.5 text-oms-ink-2">
+              {/* A fixed-width slot whether or not this row has a chip, so the
+                  labels stay on one left edge. */}
+              <i
+                aria-hidden
+                className="block h-2 w-2 shrink-0 rounded-full"
+                style={{ background: row.color ?? "transparent" }}
+              />
+              {t(row.key)}
+            </span>
+            <span className="tabular-nums text-oms-ink-1">{nf.format(row.value)}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-1.5 flex items-baseline justify-between gap-4 border-t border-oms-border pt-1.5">
+        <span className="ps-3.5 text-oms-ink-2">{t("tooltipRevenue")}</span>
+        <span className="font-medium tabular-nums text-oms-ink-1">
+          {nf.format(revenue)} {currency}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Daily intake by eventual outcome.
  *
@@ -86,7 +198,15 @@ export function UnresolvedNote() {
  * exactly the trailing days that are still settling — so the caveat arrives at
  * the same moment as the shape it qualifies.
  */
-export function OutcomeChart({ data, locale }: { data: DailyPoint[]; locale: string }) {
+export function OutcomeChart({
+  data,
+  locale,
+  currency,
+}: {
+  data: DailyPoint[];
+  locale: string;
+  currency: string;
+}) {
   const t = useTranslations("dashboard.chart");
   const interval = axisTickInterval(data.length);
   const hatchFrom = unresolvedTailStart(data);
@@ -106,6 +226,17 @@ export function OutcomeChart({ data, locale }: { data: DailyPoint[]; locale: str
             {t(key)}
           </span>
         ))}
+        {/* Drawn as a bar of the line's own colour, not a dot: the key should
+            look like the mark it stands for, and every dot above it belongs to
+            a stacked segment. */}
+        <span className="inline-flex items-center gap-1.5">
+          <i
+            aria-hidden
+            className="block h-[2px] w-3.5 rounded-full"
+            style={{ background: CONFIRMED_COLOR }}
+          />
+          {t("confirmedEvents")}
+        </span>
       </div>
 
       <div className="w-full">
@@ -121,7 +252,11 @@ export function OutcomeChart({ data, locale }: { data: DailyPoint[]; locale: str
           debounce={0}
           initialDimension={{ width: 900, height: 230 }}
         >
-          <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }} barCategoryGap="18%">
+          <ComposedChart
+            data={data}
+            margin={{ top: 4, right: 4, bottom: 0, left: -20 }}
+            barCategoryGap="18%"
+          >
             <defs>
               <pattern
                 id={HATCH_ID}
@@ -169,12 +304,12 @@ export function OutcomeChart({ data, locale }: { data: DailyPoint[]; locale: str
               width={44}
               allowDecimals={false}
             />
-            {/* recharts v3 types these callbacks against ReactNode/ValueType,
-                so the payload is narrowed here rather than in the signature. */}
+            {/* Custom content, so only `cursor` from the shared theme still
+                applies — contentStyle/labelStyle/itemStyle are ignored once
+                recharts is handed a node to render. */}
             <Tooltip
-              {...CHART_TOOLTIP}
-              labelFormatter={(label) => formatDayTick(String(label), locale)}
-              formatter={(value, name) => [Number(value), t(String(name))]}
+              cursor={CHART_TOOLTIP.cursor}
+              content={<OutcomeTooltip locale={locale} currency={currency} />}
             />
             {OUTCOME_ORDER.map((key) => (
               <Bar
@@ -187,7 +322,26 @@ export function OutcomeChart({ data, locale }: { data: DailyPoint[]; locale: str
                 radius={key === "open" ? [3, 3, 0, 0] : undefined}
               />
             ))}
-          </BarChart>
+            {/* Confirmations ride OVER the columns rather than joining the
+                stack. They are an order_history event count, so stacking them
+                would add a fifth segment to a bar whose height is defined as
+                that day's intake — every column would overstate the day by
+                however many confirmations it logged. A line shares the axis
+                (both are order counts) without claiming to be part of the
+                total. Declared last so it paints above the bars. */}
+            <Line
+              type="monotone"
+              dataKey="confirmed"
+              stroke={CONFIRMED_COLOR}
+              strokeWidth={1.75}
+              // A dot per day would collide with the 30-bar axis; the active
+              // dot still marks whichever day the tooltip is reading.
+              dot={false}
+              activeDot={{ r: 3, fill: CONFIRMED_COLOR, stroke: "none" }}
+              isAnimationActive={false}
+              connectNulls
+            />
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </div>

@@ -39,6 +39,23 @@ export function lastNDaysEndingAt(
   };
 }
 
+/**
+ * Where the dashboard's trend window should END.
+ *
+ * The chart is a running picture of the market, so its axis has to reach the
+ * real current day. Ending it at the selected period's end broke that whenever
+ * the period was anchored to the latest day that HAS data: a quiet stretch fell
+ * off the right edge entirely, and the chart looked stalled rather than showing
+ * the silence. That is the same re-anchoring bug PeriodTabs documents — a window
+ * that quietly ends in the past while the UI presents it as current.
+ *
+ * Pure string comparison is safe for ISO YYYY-MM-DD dates. A period end BEYOND
+ * today is left alone, so a future-dated range keeps the span it asked for.
+ */
+export function trendWindowEnd(periodTo: string, today: string): string {
+  return periodTo < today ? today : periodTo;
+}
+
 // Clamp a default anchor to min(today, latest): if the market's latest activity
 // is in the past, anchor there; otherwise (no data, or latest ≥ today) use today.
 // Pure string comparison is safe for ISO YYYY-MM-DD dates.

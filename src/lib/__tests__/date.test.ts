@@ -6,6 +6,7 @@ import {
   periodLengthDays,
   anchorDate,
   anchoredDefaultPeriod,
+  trendWindowEnd,
 } from "../date";
 
 afterEach(() => {
@@ -108,6 +109,27 @@ describe("anchoredDefaultPeriod", () => {
       period: { from_date: "2026-03-29", to_date: "2026-04-27" },
       preset: "month",
     });
+  });
+});
+
+describe("trendWindowEnd", () => {
+  // The intake chart must always run up to the real current day. Anchoring it
+  // to the selected period's end hid the tail: with the period anchored to the
+  // latest day that HAS data, a quiet stretch simply dropped off the axis and
+  // the chart looked like it stopped updating.
+  it("uses today when the period ends in the past", () => {
+    expect(trendWindowEnd("2026-08-16", "2026-08-18")).toBe("2026-08-18");
+  });
+
+  it("uses today when the period ends today", () => {
+    expect(trendWindowEnd("2026-08-18", "2026-08-18")).toBe("2026-08-18");
+  });
+
+  // A period end past today (clock skew, or a calendar range picked into the
+  // future) is left alone — clamping it backwards would shorten the window the
+  // caller asked for.
+  it("keeps the period end when it is beyond today", () => {
+    expect(trendWindowEnd("2026-09-01", "2026-08-18")).toBe("2026-09-01");
   });
 });
 

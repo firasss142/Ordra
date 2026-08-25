@@ -142,7 +142,7 @@ export function DashboardClient({
         scopeLabel={`${windowLabel} · ${cohortScope}`}
         action={<UnresolvedNote />}
       >
-        <OutcomeChart data={data.daily} locale={locale} />
+        <OutcomeChart data={data.daily} locale={locale} currency={currency} />
       </Section>
 
       {/* The reference layout puts the market's own rate beside the carrier

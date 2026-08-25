@@ -82,13 +82,13 @@ describe("HeroTiles — period scoping", () => {
   test("the volume tiles report the window, not today", () => {
     renderTiles();
     expect(within(tile("Commandes")).getByText("52")).toBeInTheDocument();
-    expect(within(tile("Confirmées")).getByText("18")).toBeInTheDocument();
+    expect(within(tile("Uploadées")).getByText("18")).toBeInTheDocument();
     expect(screen.queryByText("aujourd'hui")).not.toBeInTheDocument();
   });
 
   test("tiles with a trustworthy comparison name the baseline in dates", () => {
     renderTiles();
-    // Commandes, Chiffre d'affaires, Marge brute. Confirmées is excluded on
+    // Commandes, Chiffre d'affaires, Marge brute. Uploadées is excluded on
     // purpose — see the next test.
     expect(screen.getAllByText("vs 15 juin — 14 juil.")).toHaveLength(3);
   });
@@ -101,7 +101,7 @@ describe("HeroTiles — period scoping", () => {
    */
   test("a low-confidence tile states its sample size instead of the baseline", () => {
     renderTiles();
-    const card = tile("Confirmées");
+    const card = tile("Uploadées");
     expect(within(card).getByText("sur 18 commandes")).toBeInTheDocument();
     expect(within(card).queryByText("vs 15 juin — 14 juil.")).not.toBeInTheDocument();
   });
@@ -109,7 +109,7 @@ describe("HeroTiles — period scoping", () => {
   test("a rise and a fall get opposite pills", () => {
     renderTiles();
     expect(within(tile("Commandes")).getByText("↗ +36.8%")).toBeInTheDocument();
-    expect(within(tile("Confirmées")).getByText("↘ −41.9%")).toBeInTheDocument();
+    expect(within(tile("Uploadées")).getByText("↘ −41.9%")).toBeInTheDocument();
   });
 
   // The suppression rule still governs the row: a thin window gets a caption
@@ -121,9 +121,9 @@ describe("HeroTiles — period scoping", () => {
     expect(within(card).queryByText(/[↗↘]/)).not.toBeInTheDocument();
   });
 
-  test("the confirmation rate stays with the confirmed tile", () => {
+  test("the upload rate stays with the uploaded tile", () => {
     renderTiles();
-    expect(within(tile("Confirmées")).getByText("34.6% du flux confirmé")).toBeInTheDocument();
+    expect(within(tile("Uploadées")).getByText("34.6% du flux uploadé")).toBeInTheDocument();
   });
 
   test("keeps the money tiles alongside the volume ones", () => {
