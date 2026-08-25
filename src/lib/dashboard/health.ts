@@ -1,5 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import { computePreviousPeriod, periodLengthDays, lastNDaysEndingAt } from "@/lib/date";
+import {
+  computePreviousPeriod,
+  periodLengthDays,
+  lastNDaysEndingAt,
+  trendWindowEnd,
+  todayISO,
+} from "@/lib/date";
 import { toMetric, type Metric } from "./confidence";
 import { realCostPerDelivered } from "@/lib/calculations/carrier-true-cost";
 import { PERIOD_DAYS, CARRIER_WINDOW_DAYS } from "./constants";
@@ -91,7 +97,14 @@ export interface DailyPoint {
    * outcome fields above, which is why the flow chart draws it as a line over
    * the intake columns rather than stacking it with them.
    */
-  confirmed: number;
+  confirmed?: number;
+  /**
+   * Carrier-upload EVENTS that day, same basis as `confirmed`. Cohort counting
+   * would be meaningless here: `uploaded` is a transient status, so an order
+   * that reached `delivered` no longer carries it and the count would collapse
+   * to whatever happens to be mid-flight.
+   */
+  uploaded?: number;
   revenue: number;
 }
 
@@ -622,9 +635,13 @@ export async function getDashboardHealth(
 
   const prev = computePreviousPeriod(input.fromDate, input.toDate);
 
-  // Trend window: 30 days ending at toDate, independent of the selected period,
-  // so the chart keeps its shape when the user flips to "today".
-  const trend = lastNDaysEndingAt(PERIOD_DAYS, input.toDate);
+  // Trend window: 30 days ending TODAY, independent of the selected period, so
+  // the chart keeps its shape when the user flips to "today" and its axis still
+  // reaches the current day when the period is anchored back to the last day
+  // that has data. Without the clamp a quiet stretch drops off the right edge
+  // and the chart reads as stalled instead of showing the silence.
+  const trendEnd = trendWindowEnd(input.toDate, todayISO());
+  const trend = lastNDaysEndingAt(PERIOD_DAYS, trendEnd);
   // Carrier rates need volume to be worth drawing at all; 30 days of a restarted
   // market puts every carrier under n=10 and the confidence rule would suppress
   // the rate entirely. 90 days is stated on the block.
