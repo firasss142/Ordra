@@ -1000,3 +1000,75 @@ Copy-paste values for common use:
 - *"Build a sidebar nav item: `height: 34px`, `font-size: 14px`, `color: var(--sidebar-text)`, `border-radius: 8px`. Active: `background: var(--sidebar-active-fill)`, `color: #FFFFFF`, `font-weight: 600` — a filled pill, no bar. Hover: `background: var(--sidebar-hover)`."*
 
 - *"Create a data table. `<th>`: `13px/500/#6D7175`, uppercase, `letter-spacing: 0.05em`, `padding: 12px 16px`. `<td>`: `14px/400/#1A1A1A`, `padding: 12px 16px`. Row hover: `background: #F7F7F7`."*
+
+---
+
+## 4.20 Entrepôt mobile — scoped extension
+
+Everything above §4.15 is written for someone at a desk. §4.17 narrowed that to
+the orders console; this narrows it to the opposite end of the building. The
+warehouse agent works **standing, one hand on the phone, the other on a parcel**,
+and has no sidebar at all — `Sidebar` returns null for the role.
+
+Applied unchanged, the admin grammar gave them a 1460px page: six columns in
+390px overprinted `PRODUIT` on `COMMANDE` and rendered "PRODUMANDE", and every
+customer name truncated to a single letter.
+
+The agent shell therefore inherits the whole system **except** the five
+allowances below, which apply **only** under
+`src/components/warehouse/shell/` and the `isAgent` branch of
+`src/app/[locale]/(warehouse)/layout.tsx`. Nothing here relaxes the rules for
+the manager console, which keeps the desk layout.
+
+Visual reference: `docs/design/entrepot/mobile/` — four mockups plus the map
+of which figure resolves to which query.
+
+### Bottom navigation
+
+Four destinations — Aujourd'hui · Préparation · Retours · Stock — pinned to the
+bottom edge, 56px per cell plus `env(safe-area-inset-bottom)`. The whole cell is
+the target, never the label. The active cell is marked by a **tinted plate as
+well as by colour**: colour alone fails on a loading dock in sunlight.
+
+The bar is **opaque**. At 95% the list scrolling underneath blurred through and
+the product names read as smudges under the labels.
+
+### The scan button
+
+Scanning is the one thing the agent does continuously, so it does not take a
+quarter of the bar: it floats above it as a labelled green pill, clearing
+`56px + safe-area + 16px`. It hides on the scan screen itself — a button that
+navigates to where you already are is noise, and at 390px it covers the
+viewfinder.
+
+This is the **only** floating action button in the OMS. It is justified by
+frequency, not by decoration; do not add a second one anywhere.
+
+### The graph-paper ground
+
+`.wh-grid-ground` — a 24px lattice in `--wh-grid` under `--wh-bg`. It separates
+the working surface from the white cards sitting on it, which matters when the
+whole screen is cards. It is the one texture allowed in the system and it lives
+only here.
+
+### Touch targets and the camera
+
+Every control is at least 44px; the primary scan control is 52px. On a phone
+there is no barcode gun, so the wedge-scanner-first reasoning inverts: the
+camera becomes a full-width primary button, while the desk keeps the compact
+50px toggle beside the input. Same state, two affordances, one breakpoint.
+
+### KPI strip becomes a carousel
+
+`WhKpiGrid` is a snap-scrolling strip below `md` and the auto-fitting grid at
+and above it. The grid alone collapsed to one card per row, pushing the actual
+work two screens down under four headline figures. Cards are 158px so the next
+one peeks in — the only honest signal that the row scrolls.
+
+### Still forbidden here
+
+Gradients · colour as the sole channel for a roll colour or a severity ·
+inventing a figure the warehouse has not earned (a stock goal nobody set, an
+accuracy nobody measured) · physical CSS properties. Libya is RTL and this is
+the section's only load-bearing RTL surface, so `ps`/`pe`/`ms`/`me`/`text-start`
+are not optional.

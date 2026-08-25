@@ -141,7 +141,7 @@ export function JournalConsole({ locale }: { locale: string }) {
   let lastDay: number | null = null;
 
   return (
-    <div className="mx-auto w-full max-w-[1460px] px-6 py-6">
+    <div className="mx-auto w-full max-w-[1460px] px-4 py-5 md:px-6 md:py-6">
       <header className="mb-5 flex flex-wrap items-start gap-4">
         <div>
           <h1 className="text-[24px] font-bold tracking-[-0.02em] text-wh-ink-1">{t("title")}</h1>

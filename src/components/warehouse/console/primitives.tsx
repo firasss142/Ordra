@@ -209,22 +209,24 @@ export function WhKpiCard({
     <div
       data-testid={`wh-kpi-${id}`}
       data-dim={dim ? "true" : "false"}
-      className={`rounded-wh border border-wh-border bg-wh-surface px-[18px] py-4 shadow-sm transition-[box-shadow,transform,border-color] duration-150 hover:-translate-y-px hover:border-wh-border-strong hover:shadow-md ${
+      className={`rounded-wh border border-wh-border bg-wh-surface px-3.5 py-3 shadow-sm transition-[box-shadow,transform,border-color] duration-150 md:px-[18px] md:py-4 md:hover:-translate-y-px md:hover:border-wh-border-strong md:hover:shadow-md ${
         edge ? KPI_EDGE[edge] : ""
       }`}
     >
-      <div className={`flex items-center gap-2.5 ${WH_LABEL}`}>
+      <div className={`flex items-center gap-2 md:gap-2.5 ${WH_LABEL}`}>
         {Icon ? (
-          <span className={`grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] ${WH_TONE[tone].tint}`}>
-            <Icon size={15} aria-hidden="true" />
+          <span className={`grid h-[26px] w-[26px] shrink-0 place-items-center rounded-[8px] md:h-[30px] md:w-[30px] md:rounded-[9px] ${WH_TONE[tone].tint}`}>
+            <Icon size={14} aria-hidden="true" />
           </span>
         ) : null}
-        {label}
+        {/* A 158px card cannot hold an Arabic KPI label on one line, and
+            truncating the label loses the only thing that names the figure. */}
+        <span className="min-w-0 leading-tight">{label}</span>
       </div>
 
       <div
         data-testid="wh-value"
-        className={`mt-2.5 flex flex-wrap items-baseline gap-2 font-mono text-[29px] font-bold leading-[1.05] tracking-[-0.02em] tabular-nums ${
+        className={`mt-2 flex flex-wrap items-baseline gap-1.5 font-mono text-[26px] font-bold leading-[1.05] tracking-[-0.02em] tabular-nums md:mt-2.5 md:gap-2 md:text-[29px] ${
           dim ? "text-wh-ink-3" : valueTone ? WH_TONE[valueTone].text : "text-wh-ink-1"
         }`}
       >
@@ -265,7 +267,19 @@ export function WhKpiCard({
   );
 }
 
-/** The auto-fitting row the prototype wraps every KPI set in. */
+/**
+ * The KPI row: a snap-scrolling strip on a phone, an auto-fitting grid at a
+ * desk.
+ *
+ * The grid alone collapses to one card per row at 390px, which pushes the
+ * actual work — the queue — two screens down under four headline figures.
+ * The strip keeps them to one band and lets the next card peek in, which is
+ * the only honest signal that the row scrolls.
+ *
+ * The negative inline margin lets the strip bleed to the screen edges while
+ * the page keeps its padding, so a card can sit half-off-screen instead of
+ * stopping short of it.
+ */
 export function WhKpiGrid({
   children,
   min = 230,
@@ -275,7 +289,15 @@ export function WhKpiGrid({
 }) {
   return (
     <div
-      className="grid gap-3.5"
+      className={[
+        "-mx-4 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-4 pb-1",
+        "[&>*]:min-w-[158px] [&>*]:shrink-0 [&>*]:snap-start",
+        "md:mx-0 md:grid md:gap-3.5 md:overflow-visible md:px-0 md:pb-0",
+        "md:[&>*]:min-w-0 md:[&>*]:shrink",
+        "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+      ].join(" ")}
+      // grid-template-columns is inert under display:flex, so the phone strip
+      // ignores it and the md:grid picks it up — one declaration, both layouts.
       style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${min}px, 1fr))` }}
     >
       {children}

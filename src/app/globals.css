@@ -398,6 +398,25 @@
   color: var(--text-primary);
 }
 
+/* ── Entrepôt mobile ────────────────────────────────────────────────────────
+   The agent shell is the only warehouse surface that runs full-bleed on a
+   phone, so it is the only one that has to reason about the notch and the
+   home indicator. Defined here rather than inline because jsdom cannot parse
+   env() in a style attribute, which made the behaviour untestable. */
+.wh-safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.wh-safe-top    { padding-top: env(safe-area-inset-top, 0px); }
+
+/* The graph-paper ground from the mockups: a 24px lattice in the section's own
+   line colour, faint enough to sit under text without competing with it. */
+.wh-grid-ground {
+  background-image:
+    linear-gradient(to right, var(--wh-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--wh-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: -1px -1px;
+}
+
+
 /* ─────────────────────────────────────────────────────────
    Orders console — rows read as bands on the warm ground
    rather than as lines in a grid. Resting surfaces stay flat;

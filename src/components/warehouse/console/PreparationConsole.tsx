@@ -13,6 +13,7 @@ import { DARB_ZONE_ORDER, DARB_ZONES } from "@/lib/carriers/darb-zones";
 import { WhCard, WhHolder, WhPill } from "./primitives";
 import { WH_LABEL, WH_BTN } from "./tokens";
 import { ScanStation } from "./ScanStation";
+import { PrepCard } from "./PrepCard";
 
 /**
  * Préparation — the packing bench.
@@ -169,10 +170,10 @@ export function PreparationConsole({
   }, [mutate]);
 
   return (
-    <div className="mx-auto w-full max-w-[1460px] px-6 py-6">
+    <div className="mx-auto w-full max-w-[1460px] px-4 py-5 md:px-6 md:py-6">
       <header className="mb-5 flex flex-wrap items-start gap-4">
         <div>
-          <h1 className="text-[24px] font-bold tracking-[-0.02em] text-wh-ink-1">{t("title")}</h1>
+          <h1 className="text-[22px] font-bold tracking-[-0.02em] text-wh-ink-1 md:text-[24px]">{t("title")}</h1>
           <p className="mt-1 text-[13px] text-wh-ink-2">
             {t("subtitle")} · {isLy ? "Libye" : "Tunisie"}
           </p>
@@ -349,7 +350,41 @@ export function PreparationConsole({
           </div>
 
           <WhCard>
-            <div className="overflow-x-auto">
+            {/* The phone gets cards. Six columns in 390px overprinted PRODUIT
+                on COMMANDE and truncated every customer to one letter. */}
+            <div className="flex flex-col gap-2.5 p-2.5 md:hidden">
+              {groups.length === 0 ? (
+                <p className="px-1 py-8 text-center text-[13px] text-wh-ink-3">
+                  {orders.length > 0
+                    ? t("noMatch")
+                    : setAside > 0
+                      ? t("emptySetAside", { count: setAside })
+                      : t("empty")}
+                </p>
+              ) : (
+                groups.map((g) => (
+                  <div key={g.key} className="flex flex-col gap-2.5">
+                    {isLy && g.rows.length > 1 ? (
+                      <p className="px-1 pt-1 font-mono text-[11px] font-bold tabular-nums text-wh-ink-3">
+                        {t("orders", { count: g.rows.length })}
+                      </p>
+                    ) : null}
+                    {g.rows.map((o) => (
+                      <PrepCard
+                        key={o.id}
+                        row={o}
+                        isLy={isLy}
+                        hand={hand}
+                        onTake={take}
+                        currency={currency}
+                      />
+                    ))}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full table-fixed border-collapse text-[13px]">
                 <thead>
                   <tr>

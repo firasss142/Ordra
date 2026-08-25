@@ -12,7 +12,7 @@ import type { ReturnsStats } from "@/app/api/warehouse/returns/stats/route";
 import { RETURN_REASONS, type ReturnReason } from "@/lib/warehouse/returns-validation";
 import { QrScanner } from "@/components/warehouse/QrScanner";
 import { WhCard, WhChip, WhKpiCard, WhKpiGrid } from "./primitives";
-import { WH_BTN, WH_BTN_PRIMARY, WH_BTN_SM, WH_LABEL, WH_TONE } from "./tokens";
+import { WH_BTN, WH_BTN_PRIMARY, WH_LABEL, WH_TONE } from "./tokens";
 
 /**
  * Retours — "which parcels came back, and what happens to each one?"
@@ -274,7 +274,7 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
       : null;
 
   return (
-    <div className="mx-auto w-full max-w-[1460px] px-6 py-6">
+    <div className="mx-auto w-full max-w-[1460px] px-4 py-5 md:px-6 md:py-6">
       <header className="mb-5">
         <h1 className="text-[24px] font-bold tracking-[-0.02em] text-wh-ink-1">{t("title")}</h1>
         <p className="mt-[5px] text-[13px] text-wh-ink-2">{t("subtitle")}</p>
@@ -368,7 +368,12 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
               {t("queueEmpty")}
             </p>
           ) : (
-            <div className="max-h-[640px] divide-y divide-wh-border overflow-y-auto">
+            <div
+              // The inner scroller is a desk affordance. On a phone a scroll
+              // region inside a scrolling page traps the thumb and hides how
+              // long the queue actually is.
+              className="divide-y divide-wh-border md:max-h-[640px] md:overflow-y-auto"
+            >
               {orders.map((o) => {
                 const age = daysSince(o.created_at);
                 const tone = age >= 10 ? "bad" : age >= 5 ? "warn" : "muted";
@@ -376,44 +381,53 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
                   <div
                     key={o.id}
                     data-testid={`wh-return-${o.id}`}
-                    className={`flex items-center gap-3.5 px-[18px] py-[13px] transition-colors hover:bg-wh-sunken ${
+                    // Stacked on a phone, one row at a desk. Squeezed into a
+                    // single row at 390px the name column got ~30px and every
+                    // customer read as "a…", which is not an identification.
+                    className={`px-4 py-3 transition-colors sm:flex sm:items-center sm:gap-3.5 sm:px-[18px] sm:py-[13px] sm:hover:bg-wh-sunken ${
                       picked?.id === o.id ? "bg-wh-ok-tint" : ""
                     }`}
                   >
-                    {/* Ten days on the shelf is money standing still. */}
-                    <Bell
-                      size={16}
-                      className={`shrink-0 text-wh-bad ${age >= 10 ? "" : "invisible"}`}
-                      aria-hidden="true"
-                    />
-                    <span className="min-w-0 flex-[1.2]">
-                      <b className="block truncate text-[13.5px] font-semibold text-wh-ink-1">
-                        <bdi>{o.customer_name}</bdi>
-                      </b>
-                      <span className="block truncate font-mono text-[11.5px] tabular-nums text-wh-ink-3">
-                        {parcelRef(o)} · <bdi>{o.customer_city ?? "—"}</bdi>
+                    <div className="flex items-start gap-2.5 sm:contents">
+                      {/* Ten days on the shelf is money standing still. */}
+                      <Bell
+                        size={16}
+                        className={`mt-0.5 shrink-0 text-wh-bad sm:mt-0 ${age >= 10 ? "" : "invisible"}`}
+                        aria-hidden="true"
+                      />
+                      <span className="min-w-0 flex-1 sm:flex-[1.2]">
+                        <b className="block truncate text-[14px] font-semibold text-wh-ink-1 sm:text-[13.5px]">
+                          <bdi>{o.customer_name}</bdi>
+                        </b>
+                        <span className="block truncate font-mono text-[11.5px] tabular-nums text-wh-ink-3">
+                          {parcelRef(o)} · <bdi>{o.customer_city ?? "—"}</bdi>
+                        </span>
                       </span>
-                    </span>
-                    <span className="hidden min-w-0 flex-[1.1] truncate text-[12.5px] text-wh-ink-2 sm:block">
+                      <span
+                        className={`inline-block min-w-[46px] shrink-0 rounded-pill px-2.5 py-1 text-center font-mono text-[11.5px] font-semibold tabular-nums sm:order-4 ${WH_TONE[tone].tint}`}
+                      >
+                        {t("days", { count: age })}
+                      </span>
+                    </div>
+
+                    <span className="mt-2 block min-w-0 truncate text-[12.5px] text-wh-ink-2 sm:order-2 sm:mt-0 sm:flex-[1.1]">
                       {o.product_name}
                       {o.variant_label ? ` · ${o.variant_label}` : ""} × {o.quantity}
                     </span>
-                    <span className="w-[92px] shrink-0 text-end font-mono text-[13px] font-semibold tabular-nums text-wh-ink-1">
-                      {money(o.total_price, currency)}
-                    </span>
-                    <span
-                      className={`inline-block min-w-[46px] shrink-0 rounded-pill px-2.5 py-1 text-center font-mono text-[11.5px] font-semibold tabular-nums ${WH_TONE[tone].tint}`}
-                    >
-                      {t("days", { count: age })}
-                    </span>
-                    <button
-                      type="button"
-                      data-testid={`wh-take-${o.id}`}
-                      onClick={() => take(o)}
-                      className={`${WH_BTN} ${WH_BTN_SM} shrink-0`}
-                    >
-                      {t("process")}
-                    </button>
+
+                    <div className="mt-2 flex items-center gap-3 sm:contents">
+                      <span className="shrink-0 font-mono text-[14px] font-semibold tabular-nums text-wh-ink-1 sm:order-3 sm:w-[92px] sm:text-end sm:text-[13px]">
+                        {money(o.total_price, currency)}
+                      </span>
+                      <button
+                        type="button"
+                        data-testid={`wh-take-${o.id}`}
+                        onClick={() => take(o)}
+                        className={`${WH_BTN} ms-auto min-h-[44px] shrink-0 sm:order-5 sm:ms-0 sm:min-h-0 sm:px-[11px] sm:py-[5px] sm:text-[12.5px]`}
+                      >
+                        {t("process")}
+                      </button>
+                    </div>
                   </div>
                 );
               })}

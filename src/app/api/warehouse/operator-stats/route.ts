@@ -27,9 +27,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "db_error" }, { status: 500 });
   }
 
+  // rate_per_hour is null, not 0, when nothing has been scanned: "no pace
+  // recorded" and "standing still" are different claims about an operator.
   return NextResponse.json(data ?? {
     labels_printed_today: 0,
     orders_scanned_today: 0,
     avg_cycle_seconds: 0,
+    scans_last_hour: 0,
+    rate_per_hour: null,
   }, { headers: cacheHeaders });
 }

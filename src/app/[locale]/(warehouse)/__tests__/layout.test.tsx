@@ -11,6 +11,15 @@ vi.mock("@/context/auth", () => ({
 vi.mock("next/navigation", () => ({
   usePathname: () => "/fr/warehouse/preparation",
 }));
+vi.mock("next/link", () => ({
+  default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
+    <a href={href} {...rest}>{children}</a>
+  ),
+}));
+vi.mock("swr", () => ({
+  default: () => ({ data: undefined, error: undefined, isLoading: false }),
+  preload: vi.fn(),
+}));
 vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
   const messages = (await import("@/messages/fr.json")).default;
@@ -55,13 +64,29 @@ describe("Entrepôt shell — navigation", () => {
     expect(screen.queryByTestId("wh-tabs")).toBeNull();
   });
 
-  it("keeps the tab band for a warehouse agent, who has no sidebar at all", () => {
+  it("navigates a warehouse agent from the bottom, where a thumb reaches", () => {
     mockUser = user("warehouse_agent");
     render(<WarehouseLayout><div>page</div></WarehouseLayout>);
-    // Sidebar renders null for this role, so removing the band here would
-    // leave the agent with no way to reach another screen.
+    // Sidebar renders null for this role, so this bar is the agent's entire
+    // navigation. It replaced the top band: an agent holds the phone in one
+    // hand and a parcel in the other, and the top edge is out of reach.
     expect(screen.queryByTestId("sidebar")).toBeNull();
-    expect(screen.getByTestId("wh-tabs")).toBeInTheDocument();
+    expect(screen.getByTestId("wh-bottom-bar")).toBeInTheDocument();
+    expect(screen.queryByTestId("wh-tabs")).toBeNull();
+  });
+
+  it("gives the agent the scan button on every screen but the scanner", () => {
+    mockUser = user("warehouse_agent");
+    render(<WarehouseLayout><div>page</div></WarehouseLayout>);
+    expect(screen.getByTestId("wh-scan-fab")).toBeInTheDocument();
+  });
+
+  it("leaves room under the page for the bar, so the last row is reachable", () => {
+    mockUser = user("warehouse_agent");
+    render(<WarehouseLayout><div>page</div></WarehouseLayout>);
+    // Without this the final card sits behind the fixed bar and cannot be
+    // tapped — the classic bottom-navigation bug.
+    expect(screen.getByTestId("wh-mobile-main").className).toMatch(/pb-\[/);
   });
 
   it("renders the page in every shell", () => {

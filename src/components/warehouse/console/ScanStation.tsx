@@ -246,14 +246,17 @@ export function ScanStation({
               }`}
             />
           </label>
-          {/* A phone or tablet has no barcode gun. The camera is the fallback,
-              never the default: a wedge scanner is faster and cannot mistype. */}
+          {/* At a desk the wedge scanner leads and the camera is a compact
+              fallback: a gun is faster and cannot mistype. On a phone there is
+              no gun, so that reasoning inverts and the camera gets the primary
+              button below — same state, two affordances. */}
           <button
             type="button"
+            data-testid="wh-camera-toggle"
             onClick={() => setCamera((v) => !v)}
             aria-pressed={camera}
             aria-label={t("camera")}
-            className={`grid shrink-0 place-items-center rounded-[12px] border ${
+            className={`hidden shrink-0 place-items-center rounded-[12px] border md:grid ${
               isStation ? "h-[62px] w-[62px]" : "h-[50px] w-[50px]"
             } ${
               camera
@@ -262,6 +265,23 @@ export function ScanStation({
             }`}
           >
             <Camera size={isStation ? 22 : 18} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="px-4 md:hidden">
+          <button
+            type="button"
+            data-testid="wh-camera-primary"
+            onClick={() => setCamera((v) => !v)}
+            aria-pressed={camera}
+            className={`mt-2.5 inline-flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-pill border text-[15px] font-semibold transition-colors ${
+              camera
+                ? "border-wh-ok bg-wh-ok-bg text-wh-ok"
+                : "border-wh-ok bg-wh-ok text-white shadow-[0_2px_10px_rgba(14,122,69,.3)]"
+            }`}
+          >
+            <Camera size={20} aria-hidden="true" />
+            {camera ? t("cameraStop") : t("camera")}
           </button>
         </div>
 

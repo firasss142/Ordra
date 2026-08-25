@@ -2,75 +2,10 @@
 
 import { usePathname } from "next/navigation";
 import { useState, useCallback } from "react";
-import { useTranslations } from "next-intl";
-import { Boxes, History, LayoutDashboard, Menu, Package, PackageOpen, ScanLine } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { Topbar } from "@/components/layout/Topbar";
-import { WarehouseTabBar, type WarehouseTab } from "@/components/warehouse/shell/WarehouseTabBar";
+import { WarehouseMobileShell } from "@/components/warehouse/shell/WarehouseMobileShell";
 import { useAuth } from "@/context/auth";
-
-function useWarehouseTabs(locale: string): WarehouseTab[] {
-  const t = useTranslations("warehouse");
-  return [
-    {
-      href: `/${locale}/warehouse`,
-      label: t("nav.today"),
-      icon: LayoutDashboard,
-      exact: true,
-      prefetchKey: "/api/warehouse/summary",
-    },
-    {
-      href: `/${locale}/warehouse/preparation`,
-      label: t("nav.preparation"),
-      icon: Package,
-      prefetchKey: "/api/warehouse/to-label",
-    },
-    // Scan mode is the bench's own screen. It sits next to Préparation because
-    // that is where an operator comes from: pick a row, then stand at the table.
-    {
-      href: `/${locale}/warehouse/scan`,
-      label: t("nav.scan"),
-      icon: ScanLine,
-      prefetchKey: "/api/warehouse/to-label",
-    },
-    {
-      href: `/${locale}/warehouse/returns`,
-      label: t("nav.returns"),
-      icon: PackageOpen,
-      prefetchKey: "/api/warehouse/returns",
-    },
-    {
-      href: `/${locale}/warehouse/stock`,
-      label: t("nav.stock"),
-      icon: Boxes,
-      prefetchKey: "/api/warehouse/stock",
-    },
-    {
-      href: `/${locale}/warehouse/history`,
-      label: t("nav.history"),
-      icon: History,
-      prefetchKey: "/api/warehouse/history",
-    },
-  ];
-}
-
-function WarehouseTabsBand({
-  locale,
-  direction,
-}: {
-  locale: string;
-  direction: "ltr" | "rtl";
-}) {
-  const tabs = useWarehouseTabs(locale);
-  return (
-    <div
-      data-testid="wh-tabs"
-      className="border-b border-wh-border bg-wh-surface px-4 sm:px-6 lg:px-8"
-    >
-      <WarehouseTabBar tabs={tabs} direction={direction} />
-    </div>
-  );
-}
 
 export default function WarehouseLayout({
   children,
@@ -90,20 +25,19 @@ export default function WarehouseLayout({
   /*
    * Two shells, one navigation each.
    *
-   * A warehouse agent has no sidebar — Sidebar returns null for the role — so
-   * the tab band IS their navigation and stays.
+   * A warehouse agent has no sidebar — Sidebar returns null for the role — and
+   * does not work at a desk: they are standing, holding a parcel, one hand on
+   * the phone. Their shell is the mobile one, navigated from the bottom.
    *
    * Everyone else already has the ENTREPÔT group in the sidebar, listing the
-   * same five screens. The band repeated it one row below, which is the old
+   * same screens. The top band repeated it one row below, which was the old
    * structure showing through: two navigations for one section.
    */
   if (isAgent) {
     return (
-      <div className="wh-console min-h-screen bg-wh-bg" style={{ direction }}>
-        <Topbar user={user} marketName="" />
-        <WarehouseTabsBand locale={user.locale} direction={direction} />
-        <main id="main-content">{children}</main>
-      </div>
+      <WarehouseMobileShell user={user} direction={direction}>
+        {children}
+      </WarehouseMobileShell>
     );
   }
 

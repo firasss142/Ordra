@@ -4,11 +4,12 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Boxes, Lock, PackageCheck, TriangleAlert, ClipboardList } from "lucide-react";
+import { Boxes, Lock, PackageCheck, Search, TriangleAlert, ClipboardList } from "lucide-react";
 import type { WarehouseStockRow } from "@/app/api/warehouse/stock/route";
 import { WhCard, WhKpiCard, WhKpiGrid, WhPill } from "./primitives";
 import { WH_LABEL } from "./tokens";
 import { StockCountDialog } from "./StockCountDialog";
+import { StockCard } from "./StockCard";
 
 const fetcher = (url: string) => fetch(url).then((r) => {
   if (!r.ok) throw new Error(String(r.status));
@@ -31,15 +32,31 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
     { revalidateOnFocus: true },
   );
   const [counting, setCounting] = useState<WarehouseStockRow | null>(null);
+  const [query, setQuery] = useState("");
 
-  const rows = data?.rows ?? [];
+  const all = useMemo(() => data?.rows ?? [], [data]);
+
+  /*
+   * The search the mockup promises. A picker standing at a shelf knows the
+   * code or the name, not the position in an alphabetical list, so both are
+   * matched — and the KPIs above deliberately keep describing the WHOLE
+   * catalogue, not the filtered view.
+   */
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return all;
+    return all.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) || (r.sku ?? "").toLowerCase().includes(q),
+    );
+  }, [all, query]);
 
   const cells = useMemo(() => {
-    const low = rows.filter((r) => r.current_stock <= r.low_stock_threshold);
-    const negative = rows.filter((r) => r.free < 0);
-    const engaged = rows.reduce((n, r) => n + r.engaged, 0);
+    const low = all.filter((r) => r.current_stock <= r.low_stock_threshold);
+    const negative = all.filter((r) => r.free < 0);
+    const engaged = all.reduce((n, r) => n + r.engaged, 0);
     return [
-      { id: "products", label: t("kpiProducts"), value: rows.length, tone: "muted" as const, icon: Boxes },
+      { id: "products", label: t("kpiProducts"), value: all.length, tone: "muted" as const, icon: Boxes },
       {
         id: "low", label: t("kpiLow"), value: low.length,
         tone: low.length ? ("warn" as const) : ("muted" as const), icon: TriangleAlert,
@@ -52,14 +69,28 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
         edge: negative.length ? ("bad" as const) : undefined, dim: negative.length === 0,
       },
     ];
-  }, [rows, t]);
+  }, [all, t]);
 
   return (
-    <div className="mx-auto w-full max-w-[1440px] px-6 py-6">
-      <header className="mb-5">
-        <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-wh-ink-1">{t("title")}</h1>
+    <div className="mx-auto w-full max-w-[1440px] px-4 py-5 md:px-6 md:py-6">
+      <header className="mb-4 md:mb-5">
+        <h1 className="text-[22px] font-bold tracking-[-0.02em] text-wh-ink-1 md:text-[24px] md:font-semibold">
+          {t("title")}
+        </h1>
         <p className="mt-1 text-[13px] text-wh-ink-2">{t("subtitle")}</p>
       </header>
+
+      <label className="mb-4 flex items-center gap-2.5 rounded-wh border border-wh-border bg-wh-surface px-3.5 py-2.5 focus-within:border-wh-ok">
+        <Search size={16} className="shrink-0 text-wh-ink-3" aria-hidden="true" />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t("searchPlaceholder")}
+          aria-label={t("searchPlaceholder")}
+          className="min-w-0 flex-1 bg-transparent text-[14px] text-wh-ink-1 outline-none placeholder:text-wh-ink-3"
+        />
+      </label>
 
       <div className="mb-4">
         <WhKpiGrid>
@@ -80,8 +111,19 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
           </div>
         ) : rows.length === 0 ? (
           <p className="px-4 py-8 text-center text-[13px] text-wh-ink-3">{t("empty")}</p>
+        ) : rows.length === 0 ? (
+          <p className="px-4 py-8 text-center text-[13px] text-wh-ink-3">{t("noMatch")}</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* The phone gets cards: a six-column table on a 390px screen is a
+                horizontal scroll, and a picker cannot scroll sideways with a
+                parcel in the other hand. */}
+            <div className="flex flex-col gap-2.5 p-2.5 md:hidden">
+              {rows.map((r) => (
+                <StockCard key={r.product_id} row={r} onCount={setCounting} />
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
             <table className="w-full border-collapse text-[13px]">
               <thead>
                 <tr className="border-b border-wh-border">
@@ -141,7 +183,8 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
                 })}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
       </WhCard>
 

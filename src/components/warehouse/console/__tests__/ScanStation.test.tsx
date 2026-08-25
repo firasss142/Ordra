@@ -193,3 +193,37 @@ describe("ScanStation — what it refuses to do", () => {
     expect(rows.length).toBeLessThanOrEqual(9); // 8 in the list + the result tile
   });
 });
+
+/**
+ * On a phone there is no barcode gun, so the reasoning that makes the camera a
+ * fallback at a desk inverts: it is the only scanner the agent has.
+ */
+describe("ScanStation — on a phone the camera is the scanner", () => {
+  test("offers the camera as a full-width primary action, not a 50px icon", () => {
+    renderStation();
+    const primary = screen.getByTestId("wh-camera-primary");
+    expect(primary).toHaveTextContent(/cam/i);
+    // Full width so it can be hit without looking, and gone at desk width
+    // where the small toggle beside the input takes over. The breakpoint sits
+    // on the wrapper, so ask the wrapper.
+    expect(primary.className).toMatch(/w-full/);
+    expect(primary.closest("div")!.className).toMatch(/md:hidden/);
+  });
+
+  test("keeps the compact toggle for the desk, where a wedge scanner leads", () => {
+    renderStation();
+    const toggle = screen.getByTestId("wh-camera-toggle").className;
+    expect(toggle).toMatch(/\bhidden\b/);
+    expect(toggle).toMatch(/\bmd:grid\b/);
+  });
+
+  test("the phone button and the desk toggle drive the same camera", () => {
+    renderStation();
+    const primary = screen.getByTestId("wh-camera-primary");
+    expect(primary).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(primary);
+    expect(screen.getByTestId("wh-camera-primary")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("wh-camera-toggle")).toHaveAttribute("aria-pressed", "true");
+  });
+});
+

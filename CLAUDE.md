@@ -131,6 +131,8 @@ refus_client | faux_numero | doublon | injoignable | prix | non_serieux | autre 
 - Claude Code mastery patterns: docs/mastery-guide.md
 - Darb Assabil (Libya carrier) live API contract + sync engine: docs/darb-assabil-sync.md
 - Agent commissions (rules, ledger, RPCs, surfaces): docs/agent-commissions.md
+- Entrepôt desk console (light, source of truth): docs/design/entrepot/README.md
+- Entrepôt mobile agent shell (mockups + which figure comes from which query): docs/design/entrepot/mobile/README.md
 
 
 - super_admin: admin@oms.local / testpass123

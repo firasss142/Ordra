@@ -16,15 +16,38 @@ export const dynamic = "force-dynamic";
 export interface WarehouseStockRow {
   product_id: string;
   name: string;
+  /** What is printed on the shelf label. Null for products nobody has coded. */
+  sku: string | null;
+  image_url: string | null;
   current_stock: number;
   low_stock_threshold: number;
+  /**
+   * The target somebody set, or null. Null is a fact, not a zero: rendering an
+   * unset target as "Goal: 0" paints every product as wildly overstocked.
+   */
+  stock_goal: number | null;
+  /** current_stock as a percentage of the target, capped. Null without one. */
+  goal_pct: number | null;
   damaged_return_count: number;
   /** Units already committed to orders that have left the agent queue. */
   engaged: number;
   /** current_stock - engaged. Negative means we owe more than we hold. */
   free: number;
   last_counted_at: string | null;
+  /**
+   * How close the books were to the shelf at the last physical count. Null
+   * where nobody has counted — "never verified" and "verified and correct"
+   * are opposite facts and must not share a number.
+   */
+  accuracy: number | null;
+  /** Daily on-hand level, oldest first — the card's sparkline. */
+  series: number[];
 }
+
+/** Two weeks is what fits a 56px sparkline without the line becoming noise. */
+const SERIES_DAYS = 14;
+/** A count older than a quarter is not evidence about today's shelf. */
+const ACCURACY_DAYS = 90;
 
 /** Statuses that hold a unit spoken for but not yet delivered. */
 const ENGAGED_STATUSES = ["uploaded", "scanned", "dispatched", "deposit", "in_transit"];
@@ -46,7 +69,9 @@ export async function GET(req: NextRequest) {
 
   let productQuery = supabase
     .from("products")
-    .select("id, name, current_stock, low_stock_threshold, damaged_return_count, market_id")
+    .select(
+      "id, name, sku, image_url, current_stock, low_stock_threshold, stock_goal, damaged_return_count, market_id",
+    )
     .eq("is_active", true)
     .order("name", { ascending: true });
   if (marketId) productQuery = productQuery.eq("market_id", marketId);
@@ -61,7 +86,8 @@ export async function GET(req: NextRequest) {
 
   // Engaged units and the last count are two small reads rather than a view,
   // so this route stays deletable without a migration behind it.
-  const [{ data: engagedRows }, { data: counts }] = await Promise.all([
+  const [{ data: engagedRows }, { data: counts }, { data: seriesRows }, { data: accuracyData }] =
+    await Promise.all([
     supabase
       .from("orders")
       .select("product_id, quantity")
@@ -73,6 +99,10 @@ export async function GET(req: NextRequest) {
       .in("product_id", ids)
       .eq("reason", "stock_count")
       .order("created_at", { ascending: false }),
+    // The card's sparkline. balance_after is on every inventory_log row and
+    // the table is append-only, so the history needs no store of its own.
+    supabase.rpc("get_product_stock_series", { p_product_ids: ids, p_days: SERIES_DAYS }),
+    supabase.rpc("get_count_accuracy", { p_market_id: marketId ?? null, p_days: ACCURACY_DAYS }),
   ]);
 
   const engagedBy = new Map<string, number>();
@@ -85,17 +115,42 @@ export async function GET(req: NextRequest) {
     if (c.product_id && !countedBy.has(c.product_id)) countedBy.set(c.product_id, c.created_at);
   }
 
+  // The RPC returns one row per product per day, already ordered; collecting
+  // in arrival order keeps the line chronological without a second sort.
+  const seriesBy = new Map<string, number[]>();
+  for (const r of (seriesRows ?? []) as Array<{ product_id: string; balance: number }>) {
+    const bucket = seriesBy.get(r.product_id);
+    if (bucket) bucket.push(r.balance);
+    else seriesBy.set(r.product_id, [r.balance]);
+  }
+
+  const accuracyBy = new Map<string, number | null>();
+  for (const a of ((accuracyData as { products?: Array<{ product_id: string; accuracy: number | null }> } | null)
+    ?.products ?? [])) {
+    accuracyBy.set(a.product_id, a.accuracy);
+  }
+
   const rows: WarehouseStockRow[] = (products ?? []).map((p) => {
     const engaged = engagedBy.get(p.id) ?? 0;
+    const goal = typeof p.stock_goal === "number" ? p.stock_goal : null;
     return {
       product_id: p.id,
       name: p.name,
+      sku: p.sku ?? null,
+      image_url: p.image_url ?? null,
       current_stock: p.current_stock ?? 0,
       low_stock_threshold: p.low_stock_threshold ?? 0,
+      stock_goal: goal,
+      goal_pct:
+        goal && goal > 0
+          ? Math.min(Math.round(((p.current_stock ?? 0) / goal) * 100), 100)
+          : null,
       damaged_return_count: p.damaged_return_count ?? 0,
       engaged,
       free: (p.current_stock ?? 0) - engaged,
       last_counted_at: countedBy.get(p.id) ?? null,
+      accuracy: accuracyBy.get(p.id) ?? null,
+      series: seriesBy.get(p.id) ?? [],
     };
   });
 

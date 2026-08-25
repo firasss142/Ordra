@@ -9,6 +9,11 @@
  * Read-only against the app; the only writes are the PNGs.
  *
  *   node scripts/capture-warehouse-screens.mjs [--market=ly] [--out=report/shots]
+ *                                              [--email=…] [--phone]
+ *
+ * --phone captures at 390x844 (iPhone 14) with a touch-capable context. The
+ * warehouse AGENT shell is mobile-first, so it is the only honest way to see
+ * that section: logging in as an admin shows the desk console instead.
  */
 import { createRequire } from "node:module";
 import { readFileSync, mkdirSync } from "node:fs";
@@ -30,6 +35,7 @@ const MARKET = arg("market", "ly");
 const OUT = arg("out", "report/shots");
 const BASE = arg("base", "http://localhost:3000");
 const EMAIL = arg("email", "admin@oms.local");
+const PHONE = process.argv.includes("--phone");
 
 // .env.local is not loaded for a bare `node`, so read it directly.
 const env = Object.fromEntries(
@@ -51,6 +57,7 @@ const SCREENS = [
   ["preparation", `/fr/warehouse/preparation`, "any"],
   ["scan-mode", `/fr/warehouse/scan`, "ly"],
   ["returns", `/fr/warehouse/returns`, "any"],
+  ["stock", `/fr/warehouse/stock`, "any"],
   ["today", `/fr/warehouse`, "any"],
 ].filter(([, , market]) => market === "any" || market === MARKET);
 
@@ -99,7 +106,16 @@ async function main() {
   const session = await mintSession();
 
   const browser = await chromium.launch();
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const context = await browser.newContext(
+    PHONE
+      ? {
+          viewport: { width: 390, height: 844 },
+          deviceScaleFactor: 3,
+          isMobile: true,
+          hasTouch: true,
+        }
+      : { viewport: { width: 1440, height: 900 } },
+  );
   await context.addCookies([
     ...sessionCookies(session),
     { name: "oms_scope_market", value: MARKET, domain: "localhost", path: "/" },
@@ -115,6 +131,10 @@ async function main() {
     await page.goto(`${BASE}${path}`, { waitUntil: "networkidle", timeout: 120000 });
     // SWR revalidates after hydration; let the real numbers land.
     await page.waitForTimeout(2500);
+    // Viewport-sized, never fullPage: a fullPage shot renders position:fixed
+    // chrome at its viewport offset, so the tab bar lands in the middle of the
+    // image and the one thing being judged — what fits above the fold — is
+    // exactly what the shot destroys.
     await page.screenshot({ path: `${OUT}/${name}.png` });
     console.log(`${name.padEnd(20)} ${page.url()}`);
 
