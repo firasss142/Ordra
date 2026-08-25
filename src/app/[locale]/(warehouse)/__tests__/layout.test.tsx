@@ -81,6 +81,28 @@ describe("Entrepôt shell — navigation", () => {
     expect(screen.getByTestId("wh-scan-fab")).toBeInTheDocument();
   });
 
+  it("gives the agent no top bar — the mockups start with the page title", () => {
+    mockUser = user("warehouse_agent");
+    render(<WarehouseLayout><div>page</div></WarehouseLayout>);
+    // 56px of chrome that carried a market badge the agent cannot change and
+    // an avatar menu that now lives in Réglages. Three of the four mockups
+    // have no header at all.
+    expect(screen.queryByTestId("topbar")).toBeNull();
+  });
+
+  it("navigates to the four sections the mockups show", () => {
+    mockUser = user("warehouse_agent");
+    render(<WarehouseLayout><div>page</div></WarehouseLayout>);
+    const bar = screen.getByTestId("wh-bottom-bar");
+    const labels = Array.from(bar.querySelectorAll("a")).map((a) => a.getAttribute("href"));
+    expect(labels).toEqual([
+      "/fr/warehouse",
+      "/fr/warehouse/stock",
+      "/fr/warehouse/returns",
+      "/fr/warehouse/settings",
+    ]);
+  });
+
   it("leaves room under the page for the bar, so the last row is reachable", () => {
     mockUser = user("warehouse_agent");
     render(<WarehouseLayout><div>page</div></WarehouseLayout>);

@@ -35,5 +35,6 @@ export async function GET(req: NextRequest) {
     avg_cycle_seconds: 0,
     scans_last_hour: 0,
     rate_per_hour: null,
+    hourly: [],
   }, { headers: cacheHeaders });
 }

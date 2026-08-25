@@ -28,6 +28,13 @@ export interface ReturnsStats {
   samplePrev28d: number;
   /** Four weekly points, oldest first (S-4 → S-1). */
   weekly: Array<{ week: number; rate: number | null }>;
+  /**
+   * Mean minutes from "marked coming back" to a decision, over 28 days.
+   * Null when nothing was processed. Read it WITH processedSample: today one
+   * market's figure rests on three parcels averaging 115 days each.
+   */
+  avgProcessingMinutes: number | null;
+  processedSample: number;
   currency: string;
 }
 
@@ -70,6 +77,11 @@ export async function GET(req: NextRequest) {
     weekly: Array.isArray(d.weekly)
       ? (d.weekly as Array<{ week: number; rate: number | null }>)
       : [],
+    avgProcessingMinutes:
+      d.avg_processing_minutes === null || d.avg_processing_minutes === undefined
+        ? null
+        : Number(d.avg_processing_minutes),
+    processedSample: Number(d.processed_sample ?? 0),
     currency,
   };
 

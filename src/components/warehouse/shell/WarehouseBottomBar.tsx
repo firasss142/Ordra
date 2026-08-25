@@ -59,7 +59,7 @@ function WarehouseBottomBarInner({ tabs }: { tabs: BottomTab[] }) {
       // Opaque, not translucent: a list scrolls underneath this bar, and at
       // 95 % the product names blurred through it and read as smudges under
       // the labels. A navigation bar has nothing to gain from transparency.
-      className="wh-safe-bottom fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-wh-border bg-wh-surface shadow-[0_-1px_8px_rgba(27,29,26,.06)]"
+      className="wh-safe-bottom fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-wm-card-edge bg-wm-card"
     >
       {tabs.map((tab) => {
         const active = tab.exact
@@ -77,7 +77,7 @@ function WarehouseBottomBarInner({ tabs }: { tabs: BottomTab[] }) {
             className={[
               "relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 px-1 py-2",
               "text-[10.5px] font-semibold no-underline transition-colors duration-fast",
-              active ? "text-wh-ok" : "text-wh-ink-3 active:text-wh-ink-1",
+              active ? "text-wm-accent" : "text-wm-ink-2 active:text-wm-ink",
             ].join(" ")}
           >
             <span className="relative">
@@ -86,8 +86,8 @@ function WarehouseBottomBarInner({ tabs }: { tabs: BottomTab[] }) {
                   sunlight on a loading dock. */}
               <span
                 aria-hidden="true"
-                className={`absolute -inset-x-3 -inset-y-1.5 rounded-pill transition-opacity ${
-                  active ? "bg-wh-ok-bg opacity-100" : "opacity-0"
+                className={`absolute -inset-x-3.5 -inset-y-1.5 rounded-pill transition-opacity ${
+                  active ? "bg-wm-accent-soft opacity-100" : "opacity-0"
                 }`}
               />
               <Icon
@@ -99,7 +99,7 @@ function WarehouseBottomBarInner({ tabs }: { tabs: BottomTab[] }) {
               {tab.count ? (
                 <span
                   data-testid={`wh-tab-count-${tab.label}`}
-                  className="absolute -end-2.5 -top-1.5 z-10 grid min-w-[17px] place-items-center rounded-pill bg-wh-bad px-1 py-px font-mono text-[9.5px] font-bold leading-[13px] tabular-nums text-white"
+                  className="absolute -end-2.5 -top-1.5 z-10 grid min-w-[17px] place-items-center rounded-pill bg-wh-bad px-1 py-px text-[9.5px] font-bold leading-[13px] tabular-nums text-white"
                 >
                   {badge(tab.count)}
                 </span>

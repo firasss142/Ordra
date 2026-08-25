@@ -39,7 +39,7 @@ const STATE_TONE: Record<State, "bad" | "warn" | "ok"> = {
 const STATE_BORDER: Record<State, string> = {
   negative: "border-wh-bad-edge",
   low: "border-wh-warn-edge",
-  ok: "border-wh-border",
+  ok: "border-wm-card-edge",
 };
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
@@ -66,13 +66,13 @@ export function StockCard({
     <article
       data-testid="wh-stock-card"
       data-state={state}
-      className={`rounded-wh border bg-wh-surface p-3.5 ${STATE_BORDER[state]}`}
+      className={`rounded-[10px] border bg-wm-card p-3.5 ${STATE_BORDER[state]}`}
     >
       <div className="flex items-start gap-3">
         {/* Identity first: on a shelf you match the picture, then the code. */}
         <span
           data-testid="wh-stock-thumb"
-          className="grid h-[52px] w-[52px] shrink-0 place-items-center overflow-hidden rounded-[10px] border border-wh-border bg-wh-sunken"
+          className="grid h-[52px] w-[52px] shrink-0 place-items-center overflow-hidden rounded-[10px] bg-[#E9E9E9]"
         >
           {row.image_url ? (
             // Raw <img>: the project configures no images.remotePatterns.
@@ -84,15 +84,15 @@ export function StockCard({
               className="h-full w-full object-cover"
             />
           ) : (
-            <Package size={20} className="text-wh-ink-3" aria-hidden="true" />
+            <Package size={20} className="text-wm-ink-2" aria-hidden="true" />
           )}
         </span>
 
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-[14px] font-semibold leading-snug text-wh-ink-1">
+          <h3 className="truncate text-[14px] font-bold leading-snug text-wm-ink">
             {row.name}
           </h3>
-          <p className="mt-0.5 truncate font-mono text-[11.5px] text-wh-ink-3">
+          <p className="mt-0.5 truncate text-[12px] text-wm-ink-2">
             {row.sku ?? t("noSku")}
           </p>
         </div>
@@ -100,7 +100,7 @@ export function StockCard({
         <button
           type="button"
           onClick={() => onCount(row)}
-          className="inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-pill border border-wh-border bg-wh-surface px-3.5 text-[12.5px] font-semibold text-wh-ink-1 active:bg-wh-sunken"
+          className="inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-pill border border-wm-accent bg-wm-card px-3.5 text-[12.5px] font-bold text-wm-accent active:bg-wm-accent-soft"
         >
           <ClipboardList size={14} aria-hidden="true" />
           {t("count")}
@@ -111,13 +111,13 @@ export function StockCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-1.5">
             <span
-              className={`font-mono text-[22px] font-bold leading-none tabular-nums ${
-                state === "ok" ? "text-wh-ink-1" : WH_TONE[tone].text
+              className={`text-[22px] font-extrabold leading-none tabular-nums ${
+                state === "ok" ? "text-wm-ink" : WH_TONE[tone].text
               }`}
             >
               {row.current_stock}
             </span>
-            <span className="text-[11.5px] text-wh-ink-3">{t("unitsHeld")}</span>
+            <span className="text-[11.5px] text-wm-ink-2">{t("unitsHeld")}</span>
           </div>
 
           {row.stock_goal !== null && row.goal_pct !== null ? (
@@ -129,7 +129,7 @@ export function StockCard({
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-label={t("goalAria", { goal: row.stock_goal })}
-                className="mt-2 h-1.5 overflow-hidden rounded-pill bg-wh-sunken"
+                className="mt-2 h-1.5 overflow-hidden rounded-pill bg-wm-track"
               >
                 <i
                   className={`block h-full rounded-pill ${WH_TONE[tone].fill}`}
@@ -138,10 +138,10 @@ export function StockCard({
               </div>
               <p
                 data-testid="wh-stock-goal"
-                className="mt-1.5 font-mono text-[11.5px] tabular-nums text-wh-ink-2"
+                className="mt-1.5 text-[11.5px] tabular-nums text-wm-ink-2"
               >
                 {t("stockOfGoal", { stock: row.current_stock, goal: row.stock_goal })}
-                <span className="ms-1.5 font-sans text-wh-ink-3">{row.goal_pct} %</span>
+                <span className="ms-1.5 font-semibold text-wm-ink-2">{row.goal_pct} %</span>
               </p>
             </>
           ) : (
@@ -149,7 +149,7 @@ export function StockCard({
             // instead — inventing a goal would misrepresent every product.
             <p
               data-testid="wh-stock-threshold"
-              className="mt-2 font-mono text-[11.5px] tabular-nums text-wh-ink-3"
+              className="mt-2 text-[11.5px] tabular-nums text-wm-ink-2"
             >
               {t("thresholdAt", { threshold: row.low_stock_threshold })}
             </p>
@@ -157,13 +157,13 @@ export function StockCard({
         </div>
 
         {row.series.length >= 2 ? (
-          <div className={`w-[64px] shrink-0 pb-0.5 ${WH_TONE[tone].text}`}>
+          <div className={`w-[64px] shrink-0 pb-0.5 ${state === "ok" ? "text-wm-accent" : WH_TONE[tone].text}`}>
             <WhSpark values={row.series} />
           </div>
         ) : null}
       </div>
 
-      <footer className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-wh-border pt-2.5 text-[11.5px] text-wh-ink-3">
+      <footer className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-wm-card-edge pt-2.5 text-[11.5px] text-wm-ink-2">
         <span>{t("engagedUnits", { engaged: row.engaged })}</span>
         {row.last_counted_at ? (
           <span>{relativeDay(row.last_counted_at, t)}</span>
@@ -171,7 +171,7 @@ export function StockCard({
           <span>{t("never")}</span>
         )}
         {row.accuracy !== null ? (
-          <span data-testid="wh-stock-accuracy" className="ms-auto font-mono tabular-nums">
+          <span data-testid="wh-stock-accuracy" className="ms-auto font-semibold tabular-nums">
             {t("accuracyShort", { pct: row.accuracy })}
           </span>
         ) : null}

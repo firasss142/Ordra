@@ -406,13 +406,46 @@
 .wh-safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
 .wh-safe-top    { padding-top: env(safe-area-inset-top, 0px); }
 
-/* The graph-paper ground from the mockups: a 24px lattice in the section's own
-   line colour, faint enough to sit under text without competing with it. */
-.wh-grid-ground {
+/* ── The mockup palette (--wm-*) ─────────────────────────────────────────────
+   Sampled pixel-by-pixel out of docs/design/entrepot/mobile/*.png, not chosen.
+   It is deliberately NOT the desk console's --wh-* set: the mockups run a
+   single deep green over a warm paper ground, where the console runs five
+   functional hues over a cool one. Both are correct for their reader.
+
+   Scoped under .wh-mobile so the manager console cannot inherit any of it. */
+.wh-mobile {
+  --wm-accent: #147A47;         /* FAB fill (01), camera + success pills (02) */
+  --wm-accent-deep: #0F6239;    /* pressed, active tab glyph */
+  --wm-accent-soft: #E4F1E9;    /* active tab plate, progress track tint */
+  --wm-ground: #F4F3ED;         /* the paper ground, all four mockups */
+  --wm-grid: #E3E6DD;           /* lattice */
+  --wm-card: #FAFAF6;      /* barely lifted off the ground, as in the mockups */
+  --wm-card-edge: #BFD6C7;      /* the green-tinted hairline on every card */
+  --wm-ink: #111311;
+  --wm-ink-2: #4C524D;
+  --wm-track: #E5E5E5;          /* progress groove (03) */
+  --wm-viewfinder: #353636;     /* scanner surround (02) */
+
+  background-color: var(--wm-ground);
+  color: var(--wm-ink);
+}
+
+/* Figures are bold sans here, not mono. The mockups contain no monospace at
+   all, and the console's IBM Plex Mono immediately reads as "a different app".
+   Tabular figures stay on so columns of numbers still line up. */
+.wh-mobile .font-mono {
+  font-family: var(--font-sans), var(--font-sans-arabic), -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* The graph-paper ground from the mockups: a 40px lattice on the paper
+   colour, faint enough to sit under text without competing with it. */
+.wm-grid-ground {
   background-image:
-    linear-gradient(to right, var(--wh-grid) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--wh-grid) 1px, transparent 1px);
-  background-size: 24px 24px;
+    linear-gradient(to right, var(--wm-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--wm-grid) 1px, transparent 1px);
+  background-size: 40px 40px;
   background-position: -1px -1px;
 }
 

@@ -6,6 +6,7 @@ import { Camera, Check, ScanLine, TriangleAlert, X } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import type { OrderZone } from "@/lib/warehouse/zone-index";
 import { QrScanner } from "@/components/warehouse/QrScanner";
+import { ScanViewfinder } from "@/components/warehouse/mobile/ScanViewfinder";
 import { WH_LABEL } from "./tokens";
 import { WhPill } from "./primitives";
 
@@ -216,6 +217,40 @@ export function ScanStation({
           )}
         </div>
 
+        {/*
+          The camera frame. ONE instance: rendering it in a phone branch and a
+          desk branch mounted two scanners, which both grabbed the camera and
+          emitted the same reader element id twice.
+
+          Phone: the frame is always on screen and leads, because there is no
+          barcode gun — mockup 02. Desk: it appears only once the camera is
+          asked for, since a wedge scanner is faster and cannot mistype.
+        */}
+        {camera ? (
+          <div className="mx-4 mb-4">
+            <QrScanner
+              active={camera}
+              success={last?.outcome === "bound" ? last.code : null}
+              onScan={(text) => void submit(text)}
+              onClose={() => setCamera(false)}
+            />
+          </div>
+        ) : (
+          <div className="mx-4 mb-4 md:hidden">
+            <ScanViewfinder success={last?.outcome === "bound" ? last.code : null}>
+              <button
+                type="button"
+                data-testid="wh-camera-primary"
+                onClick={() => setCamera(true)}
+                className="absolute inset-x-0 bottom-5 mx-auto inline-flex min-h-[52px] w-max items-center justify-center gap-2.5 rounded-pill bg-wm-accent px-6 text-[15px] font-bold text-white shadow-lg active:scale-[0.97]"
+              >
+                <Camera size={20} aria-hidden="true" />
+                {t("camera")}
+              </button>
+            </ScanViewfinder>
+          </div>
+        )}
+
         <div className="mx-4 flex items-center gap-2">
           <label
             className={`flex flex-1 items-center gap-2.5 rounded-[12px] border-2 bg-wh-surface px-4 ${
@@ -267,33 +302,6 @@ export function ScanStation({
             <Camera size={isStation ? 22 : 18} aria-hidden="true" />
           </button>
         </div>
-
-        <div className="px-4 md:hidden">
-          <button
-            type="button"
-            data-testid="wh-camera-primary"
-            onClick={() => setCamera((v) => !v)}
-            aria-pressed={camera}
-            className={`mt-2.5 inline-flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-pill border text-[15px] font-semibold transition-colors ${
-              camera
-                ? "border-wh-ok bg-wh-ok-bg text-wh-ok"
-                : "border-wh-ok bg-wh-ok text-white shadow-[0_2px_10px_rgba(14,122,69,.3)]"
-            }`}
-          >
-            <Camera size={20} aria-hidden="true" />
-            {camera ? t("cameraStop") : t("camera")}
-          </button>
-        </div>
-
-        {camera ? (
-          <div className="mx-4 mt-3">
-            <QrScanner
-              active={camera}
-              onScan={(text) => void submit(text)}
-              onClose={() => setCamera(false)}
-            />
-          </div>
-        ) : null}
 
         {last ? <ResultTile entry={last} big={isStation} t={t} /> : null}
 

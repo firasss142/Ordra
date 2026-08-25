@@ -29,8 +29,8 @@ export function ScanFab({ href, label }: { href: string; label: string }) {
         // 56px bar + the home indicator + 16px of air.
         "fixed bottom-[calc(56px+env(safe-area-inset-bottom,0px)+16px)] end-4 z-50",
         "inline-flex min-h-[52px] items-center gap-2.5 rounded-pill",
-        "border border-wh-ok bg-wh-ok px-5 text-[14px] font-semibold text-white no-underline",
-        "shadow-[0_6px_20px_rgba(14,122,69,.38)] transition-transform active:scale-[0.97]",
+        "bg-wm-accent px-5 text-[14px] font-bold text-white no-underline",
+        "shadow-[0_6px_20px_rgba(20,122,71,.38)] transition-transform active:scale-[0.97]",
       ].join(" ")}
     >
       <ScanBarcode size={20} strokeWidth={2} aria-hidden="true" />

@@ -13,6 +13,7 @@ import { RETURN_REASONS, type ReturnReason } from "@/lib/warehouse/returns-valid
 import { QrScanner } from "@/components/warehouse/QrScanner";
 import { WhCard, WhChip, WhKpiCard, WhKpiGrid } from "./primitives";
 import { WH_BTN, WH_BTN_PRIMARY, WH_LABEL, WH_TONE } from "./tokens";
+import { ReturnCard, ProcessingTime } from "@/components/warehouse/mobile/ReturnCard";
 
 /**
  * Retours — "which parcels came back, and what happens to each one?"
@@ -368,11 +369,37 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
               {t("queueEmpty")}
             </p>
           ) : (
+            <>
+            {/* Phone: one card per parcel with its decisions on it (mockup
+                04). The desk keeps the row + side panel, which is faster with
+                a mouse and a full-width table. */}
+            <div className="flex flex-col gap-2.5 p-2.5 md:hidden">
+              {orders.map((o) => (
+                <ReturnCard
+                  key={o.id}
+                  row={o}
+                  picked={picked?.id === o.id}
+                  decision={picked?.id === o.id ? decision : null}
+                  busy={busy}
+                  currency={currency}
+                  onPick={take}
+                  onDecide={(d) => {
+                    setDecision(d);
+                    if (d !== "damage") setReason(null);
+                  }}
+                />
+              ))}
+              <ProcessingTime
+                minutes={stats?.avgProcessingMinutes ?? null}
+                sample={stats?.processedSample ?? 0}
+              />
+            </div>
+
             <div
               // The inner scroller is a desk affordance. On a phone a scroll
               // region inside a scrolling page traps the thumb and hides how
               // long the queue actually is.
-              className="divide-y divide-wh-border md:max-h-[640px] md:overflow-y-auto"
+              className="hidden divide-y divide-wh-border md:block md:max-h-[640px] md:overflow-y-auto"
             >
               {orders.map((o) => {
                 const age = daysSince(o.created_at);
@@ -432,6 +459,7 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
                 );
               })}
             </div>
+            </>
           )}
         </WhCard>
 
@@ -439,7 +467,11 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
         <WhCard
           title={t("decision")}
           hint={picked ? t("decisionPicked", { ref: parcelRef(picked) }) : t("decisionNone")}
-          className="xl:sticky xl:top-4"
+          // On a phone the cards carry the decisions, so this panel only
+          // appears once a parcel is held — it is then the confirm step and
+          // the damage-reason sheet, which the card deliberately does not
+          // duplicate.
+          className={`xl:sticky xl:top-4 ${picked ? "" : "hidden md:block"}`}
         >
           <div className="mx-4 mt-4 flex items-center gap-2">
             <label className="flex flex-1 items-center gap-2.5 rounded-[12px] border-2 border-wh-ok bg-wh-surface px-4 py-3.5 shadow-wh-glow">

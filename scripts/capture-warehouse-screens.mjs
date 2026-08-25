@@ -59,6 +59,7 @@ const SCREENS = [
   ["returns", `/fr/warehouse/returns`, "any"],
   ["stock", `/fr/warehouse/stock`, "any"],
   ["today", `/fr/warehouse`, "any"],
+  ["settings", `/fr/warehouse/settings`, "any"],
 ].filter(([, , market]) => market === "any" || market === MARKET);
 
 async function mintSession() {
@@ -105,7 +106,14 @@ async function main() {
   mkdirSync(OUT, { recursive: true });
   const session = await mintSession();
 
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({
+    // The viewfinder is the point of the scan screen; without a fake device
+    // it captures a permission prompt instead of a picture.
+    args: [
+      "--use-fake-ui-for-media-stream",
+      "--use-fake-device-for-media-stream",
+    ],
+  });
   const context = await browser.newContext(
     PHONE
       ? {

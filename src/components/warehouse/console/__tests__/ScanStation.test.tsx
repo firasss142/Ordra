@@ -199,15 +199,20 @@ describe("ScanStation — what it refuses to do", () => {
  * fallback at a desk inverts: it is the only scanner the agent has.
  */
 describe("ScanStation — on a phone the camera is the scanner", () => {
-  test("offers the camera as a full-width primary action, not a 50px icon", () => {
+  test("leads with the viewfinder, with the camera control inside the frame", () => {
+    // Mockup 02: the frame is the screen. A wedge gun is faster at a desk, but
+    // on a phone there is no gun, so the camera stops being a fallback.
     renderStation();
-    const primary = screen.getByTestId("wh-camera-primary");
-    expect(primary).toHaveTextContent(/cam/i);
-    // Full width so it can be hit without looking, and gone at desk width
-    // where the small toggle beside the input takes over. The breakpoint sits
-    // on the wrapper, so ask the wrapper.
-    expect(primary.className).toMatch(/w-full/);
-    expect(primary.closest("div")!.className).toMatch(/md:hidden/);
+    const frame = screen.getByTestId("wm-viewfinder");
+    expect(frame).toBeInTheDocument();
+    expect(frame.contains(screen.getByTestId("wh-camera-primary"))).toBe(true);
+  });
+
+  test("starting the camera swaps the empty frame for the live scanner", () => {
+    renderStation();
+    expect(screen.queryByTestId("qr-scanner")).toBeNull();
+    fireEvent.click(screen.getByTestId("wh-camera-primary"));
+    expect(screen.getByTestId("qr-scanner")).toBeInTheDocument();
   });
 
   test("keeps the compact toggle for the desk, where a wedge scanner leads", () => {
@@ -216,14 +221,4 @@ describe("ScanStation — on a phone the camera is the scanner", () => {
     expect(toggle).toMatch(/\bhidden\b/);
     expect(toggle).toMatch(/\bmd:grid\b/);
   });
-
-  test("the phone button and the desk toggle drive the same camera", () => {
-    renderStation();
-    const primary = screen.getByTestId("wh-camera-primary");
-    expect(primary).toHaveAttribute("aria-pressed", "false");
-    fireEvent.click(primary);
-    expect(screen.getByTestId("wh-camera-primary")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("wh-camera-toggle")).toHaveAttribute("aria-pressed", "true");
-  });
 });
-

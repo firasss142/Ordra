@@ -23,13 +23,46 @@ export function WhSpark({
   values,
   variant = "line",
   className = "",
+  height = "h-7",
+  emptyBaseline = false,
 }: {
   values: number[];
   variant?: SparkVariant;
   /** Colour comes from `currentColor`, so the caller sets the family. */
   className?: string;
+  /** Tailwind height class. The dashboard cards want a taller chart. */
+  height?: string;
+  /**
+   * What an all-zero series looks like. Default: nothing, because the bar
+   * floor would otherwise draw a tidy row of equal stubs that reads as
+   * activity. On a card whose whole lower half is the chart, that hole reads
+   * as a broken card instead — so those callers ask for a flat baseline,
+   * which is what zero actually looks like.
+   */
+  emptyBaseline?: boolean;
 }) {
   if (!values || values.length < 2) return null;
+
+  const allZero = values.every((v) => v === 0);
+  if (allZero && !emptyBaseline) return null;
+  if (allZero) {
+    return (
+      <svg
+        data-testid="wh-spark"
+        data-empty="true"
+        aria-hidden="true"
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        className={`block w-full ${height} ${className}`}
+      >
+        <line
+          x1="0" y1={H - 1} x2={W} y2={H - 1}
+          stroke="currentColor" strokeWidth={1.5} opacity={0.3}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    );
+  }
 
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -50,7 +83,7 @@ export function WhSpark({
         aria-hidden="true"
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
-        className={`block h-7 w-full ${className}`}
+        className={`block w-full ${height} ${className}`}
       >
         {values.map((v, i) => {
           // Floor at 1.5 so an empty day is still drawn.
@@ -89,7 +122,7 @@ export function WhSpark({
       aria-hidden="true"
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="none"
-      className={`block h-7 w-full ${className}`}
+      className={`block w-full ${height} ${className}`}
     >
       {flat ? null : <path data-role="area" d={area} fill="currentColor" opacity={0.11} />}
       <path

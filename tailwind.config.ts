@@ -165,6 +165,22 @@ const config: Config = {
           "series-2": "var(--wh-series-2)",
           grid: "var(--wh-grid)",
         },
+        /* Entrepôt MOBILE — the mockup palette, sampled from
+           docs/design/entrepot/mobile/*.png. Only resolves under .wh-mobile,
+           which is where the vars are defined. */
+        wm: {
+          accent: "var(--wm-accent)",
+          "accent-deep": "var(--wm-accent-deep)",
+          "accent-soft": "var(--wm-accent-soft)",
+          ground: "var(--wm-ground)",
+          grid: "var(--wm-grid)",
+          card: "var(--wm-card)",
+          "card-edge": "var(--wm-card-edge)",
+          ink: "var(--wm-ink)",
+          "ink-2": "var(--wm-ink-2)",
+          track: "var(--wm-track)",
+          viewfinder: "var(--wm-viewfinder)",
+        },
         ads: {
           line: "var(--ads-line)",
           "line-2": "var(--ads-line-2)",

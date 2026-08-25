@@ -56,6 +56,26 @@ describe("WhSpark", () => {
     expect(screen.getByTestId("wh-spark").querySelector("path[data-role='area']")).not.toBeNull();
   });
 
+  it("draws nothing when every value is zero", () => {
+    // Bars are floored at 1.5px so a single quiet day still shows among real
+    // ones. Applied to an all-zero series that floor produces a tidy row of
+    // equal stubs that reads as activity — under a figure that says 0.
+    render(<WhSpark values={[0, 0, 0, 0]} variant="bar" />);
+    expect(screen.queryByTestId("wh-spark")).toBeNull();
+  });
+
+  it("draws nothing for an all-zero line either", () => {
+    render(<WhSpark values={[0, 0, 0]} />);
+    expect(screen.queryByTestId("wh-spark")).toBeNull();
+  });
+
+  it("still draws a quiet day inside a series that has movement", () => {
+    render(<WhSpark values={[0, 4, 0]} variant="bar" />);
+    const bars = screen.getByTestId("wh-spark").querySelectorAll("rect");
+    expect(bars).toHaveLength(3);
+    expect(Number(bars[0].getAttribute("height"))).toBeGreaterThan(0);
+  });
+
   it("is hidden from assistive tech — the figure beside it is the content", () => {
     render(<WhSpark values={[1, 2, 3]} />);
     expect(screen.getByTestId("wh-spark")).toHaveAttribute("aria-hidden", "true");

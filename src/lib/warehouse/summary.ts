@@ -26,6 +26,11 @@ export interface WarehouseTrendPoint {
   scanned: number;
   returned: number;
   damaged: number;
+  /**
+   * Parcels handed to the carrier. Unlike the other three this moves no
+   * stock, so it comes from order_history rather than inventory_log.
+   */
+  handed: number;
 }
 
 export interface LowStockProduct {
@@ -140,6 +145,8 @@ export interface WarehouseOrderRow {
   carrier_status_slug: string | null;
   /** Whether Darb's internal id is known, i.e. whether a scan can bind at all. */
   has_carrier_ref: boolean | null;
+  /** When the parcel was marked as coming back. Returns queue only. */
+  returned_at?: string | null;
   current_stock: number | null;
   low_stock_threshold: number | null;
 }
@@ -170,15 +177,24 @@ function resolveScope(
 }
 
 export function buildWarehouseTrend(
-  rows: Array<{ day: string; scanned: number | string; returned: number | string; damaged: number | string }>,
+  rows: Array<{
+    day: string;
+    scanned: number | string;
+    returned: number | string;
+    damaged: number | string;
+    handed?: number | string;
+  }>,
   fromDate: string,
   toDate: string,
 ): WarehouseTrendPoint[] {
-  const perDay = new Map<string, { scanned: number; returned: number; damaged: number }>();
+  const perDay = new Map<string, { scanned: number; returned: number; damaged: number; handed: number }>();
   const fromMs = new Date(fromDate + "T00:00:00Z").getTime();
   const toMs   = new Date(toDate   + "T00:00:00Z").getTime();
+  // Zero-fill every day in the window. The RPC only returns days that had
+  // activity, and a sparkline drawn from sparse points compresses a quiet
+  // fortnight into a line that looks like constant movement.
   for (let t = fromMs; t <= toMs; t += DAY_MS) {
-    perDay.set(new Date(t).toISOString().slice(0, 10), { scanned: 0, returned: 0, damaged: 0 });
+    perDay.set(new Date(t).toISOString().slice(0, 10), { scanned: 0, returned: 0, damaged: 0, handed: 0 });
   }
   for (const r of rows) {
     const day = String(r.day).slice(0, 10);
@@ -187,6 +203,7 @@ export function buildWarehouseTrend(
     bucket.scanned  = Number(r.scanned)  || 0;
     bucket.returned = Number(r.returned) || 0;
     bucket.damaged  = Number(r.damaged)  || 0;
+    bucket.handed   = Number(r.handed)   || 0;
   }
   return Array.from(perDay.entries())
     .sort(([a], [b]) => a.localeCompare(b))
@@ -350,6 +367,7 @@ export async function getWarehouseSummary(
 
   // --- Trend ---
   const trendRows = ((trendResult.data ?? []) as unknown) as Array<{
+    handed?: number | string;
     day: string;
     scanned: number;
     returned: number;

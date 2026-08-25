@@ -2,16 +2,27 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { ScanViewfinder } from "@/components/warehouse/mobile/ScanViewfinder";
 
 interface Props {
   active: boolean;
   onScan: (value: string) => void;
   onClose: () => void;
+  /** The code that just bound, shown as the mockup's success pill. */
+  success?: string | null;
 }
 
 const READER_ID = "oms-qr-reader";
 
-export function QrScanner({ active, onScan, onClose }: Props) {
+/**
+ * The camera scanner.
+ *
+ * It used to render as a full-screen black modal over the page. On a phone
+ * that covered the roll strip — which colour of sticker to reach for — and
+ * that strip is the one thing the agent must read WHILE aiming. The frame
+ * therefore sits inline in the page now; ScanViewfinder owns the chrome.
+ */
+export function QrScanner({ active, onScan, onClose, success = null }: Props) {
   const t = useTranslations("warehouse.scanner");
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
@@ -104,85 +115,17 @@ export function QrScanner({ active, onScan, onClose }: Props) {
   if (!active) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0,0,0,0.85)",
-        zIndex: 1000,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexDirection: "column",
-        padding: 16,
-      }}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t("dialogLabel")}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 480,
-          backgroundColor: "#000",
-          borderRadius: 8,
-          overflow: "hidden",
-          position: "relative",
-        }}
-      >
-        <div id={READER_ID} style={{ width: "100%" }} />
-        {starting && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#FFFFFF",
-              fontSize: 14,
-            }}
-          >
-            {t("starting")}
-          </div>
-        )}
-      </div>
-
-      {error && (
-        <div
-          role="alert"
-          style={{
-            marginTop: 16,
-            padding: "10px 14px",
-            backgroundColor: "#FEF2F2",
-            border: "1px solid #FECACA",
-            borderRadius: 6,
-            color: "#DC2626",
-            fontSize: 13,
-            maxWidth: 480,
-            width: "100%",
-            textAlign: "center",
-          }}
-        >
-          {error}
-        </div>
-      )}
-
+    <div>
+      <ScanViewfinder
+        readerId={READER_ID}
+        starting={starting}
+        error={error}
+        success={success}
+      />
       <button
         type="button"
         onClick={onClose}
-        style={{
-          marginTop: 16,
-          padding: "12px 24px",
-          backgroundColor: "#FFFFFF",
-          color: "#1A1A1A",
-          border: "none",
-          borderRadius: 6,
-          fontSize: 14,
-          fontWeight: 600,
-          cursor: "pointer",
-          minWidth: 160,
-        }}
+        className="mt-2.5 inline-flex min-h-[48px] w-full items-center justify-center gap-2.5 rounded-pill border border-wm-accent px-5 text-[14px] font-bold text-wm-accent active:bg-wm-accent-soft"
       >
         {t("close")}
       </button>

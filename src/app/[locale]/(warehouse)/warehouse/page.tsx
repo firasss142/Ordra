@@ -4,6 +4,11 @@ import { canScanWarehouse } from "@/lib/role-permissions";
 import { getWarehouseSummary } from "@/lib/warehouse/summary";
 import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { WarehouseOverviewClient } from "@/components/warehouse/WarehouseOverviewClient";
+import { AgentDashboard } from "@/components/warehouse/mobile/AgentDashboard";
+import { createClient } from "@/lib/supabase/server";
+
+/** Used only until a market sets `goal_daily_scanned`. */
+const DEFAULT_DAILY_GOAL = 40;
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +25,37 @@ export default async function WarehouseOverviewPage({
     redirect(`/${locale}/queue`);
   }
 
-  // Warehouse agents don't see the overview — they jump straight to the queue.
+  /*
+   * The agent's home screen is the mobile dashboard (mockup 01). It used to
+   * redirect straight to Préparation because the desk overview was unusable
+   * on a phone and told an agent nothing about their own day; now the tab
+   * exists and has somewhere to land.
+   */
   if (user.role === "warehouse_agent") {
-    redirect(`/${locale}/warehouse/preparation`);
+    const { marketId: agentScope } = await getActiveMarketScope(user);
+    const supabase = await createClient();
+    const [summary, { data: goalRow }] = await Promise.all([
+      getWarehouseSummary({
+        role: user.role,
+        actorMarketId: user.market_id,
+        marketId: null,
+      }),
+      supabase
+        .from("settings")
+        .select("value")
+        .eq("market_id", agentScope)
+        .eq("key", "goal_daily_scanned")
+        .maybeSingle(),
+    ]);
+
+    const raw = (goalRow?.value ?? null) as unknown;
+    const unwrapped = typeof raw === "string" ? raw : raw === null ? null : String(raw);
+    const dailyGoal =
+      Number.isFinite(Number(unwrapped)) && Number(unwrapped) > 0
+        ? Number(unwrapped)
+        : DEFAULT_DAILY_GOAL;
+
+    return <AgentDashboard summary={summary} dailyGoal={dailyGoal} locale={locale} />;
   }
 
   /*
