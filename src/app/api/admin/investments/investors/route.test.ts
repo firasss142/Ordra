@@ -17,7 +17,7 @@ import { setTestActor, resetTestActor } from "@/test/helpers/actorMock";
 /** A thenable query chain that resolves to {data,error} after any builder call. */
 function chain(result: { data: unknown; error?: unknown }) {
   const c: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "in", "order", "is", "not", "single", "maybeSingle"]) {
+  for (const m of ["select", "eq", "in", "order", "is", "not", "range", "limit", "single", "maybeSingle"]) {
     c[m] = vi.fn().mockReturnValue(c);
   }
   c.single = vi.fn().mockResolvedValue({ data: result.data, error: result.error ?? null });
@@ -55,7 +55,7 @@ describe("GET /api/admin/investments/investors", () => {
         });
       }
       if (table === "investors") {
-        return chain({ data: [{ id: "u-1", legal_name: "A Ltd", reserve_pct: 10 }] });
+        return chain({ data: [{ id: "u-1", legal_name: "A Ltd" }] });
       }
       return chain({ data: [] });
     });
@@ -106,10 +106,10 @@ describe("POST /api/admin/investments/investors — configure a profile", () => 
       return chain({ data: null });
     });
 
-    const res = await POST(post({ user_id: "u-2", legal_name: "B Ltd", reserve_pct: 12.5 }));
+    const res = await POST(post({ user_id: "u-2", legal_name: "B Ltd" }));
     expect(res.status).toBe(201);
     expect(insert).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "u-2", legal_name: "B Ltd", reserve_pct: 12.5 })
+      expect.objectContaining({ id: "u-2", legal_name: "B Ltd" })
     );
   });
 
@@ -131,12 +131,6 @@ describe("POST /api/admin/investments/investors — configure a profile", () => 
   test("requires a legal name", async () => {
     setTestActor({ role: "super_admin", market_id: null });
     expect((await POST(post({ user_id: "u-2", legal_name: "  " }))).status).toBe(400);
-  });
-
-  test.each([[-1], [101]])("rejects reserve_pct %s", async (pct) => {
-    setTestActor({ role: "super_admin", market_id: null });
-    const res = await POST(post({ user_id: "u-2", legal_name: "B", reserve_pct: pct }));
-    expect(res.status).toBe(400);
   });
 
   test("rejects an unknown payout method", async () => {

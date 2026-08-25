@@ -13,6 +13,16 @@ import {
 const PUBLIC_PATHS = ["/login", "/auth/callback"];
 const STATIC_EXT = /\.(svg|png|jpg|jpeg|webp|woff2|map|txt|ico)$/;
 
+// Vercel kills a middleware invocation that hasn't responded within 25s. Every
+// Supabase call below shares this timeout so a slow/degraded Auth API fails
+// fast and redirects to login instead of hanging the whole site until Vercel
+// kills it (see the 2026-08-24 outage: GoTrue /user took up to 97s to respond).
+const SUPABASE_FETCH_TIMEOUT_MS = 6000;
+
+function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit) {
+  return fetch(input, { ...init, signal: AbortSignal.timeout(SUPABASE_FETCH_TIMEOUT_MS) });
+}
+
 function getRoleHome(role: string, locale: string): string {
   if (role === "agent") return `/${locale}/queue`;
   if (role === "warehouse_agent") return `/${locale}/warehouse`;
@@ -37,6 +47,22 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next({ request });
   }
 
+  // Extract locale segment from path: /fr/... or /ar/...
+  const localeMatch = pathname.match(/^\/(fr|ar)(\/|$)/);
+  const pathWithoutLocale = localeMatch
+    ? pathname.slice(localeMatch[1].length + 1) || "/"
+    : pathname;
+
+  // Allow public paths (under any locale or without locale) before touching
+  // Supabase at all — the login page must keep working even when Auth is down.
+  if (
+    PUBLIC_PATHS.some(
+      (p) => pathWithoutLocale === p || pathWithoutLocale.startsWith(p + "/"),
+    )
+  ) {
+    return NextResponse.next({ request });
+  }
+
   // Build a response we can mutate (for cookie refresh)
   let response = NextResponse.next({ request });
 
@@ -44,6 +70,7 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      global: { fetch: fetchWithTimeout },
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -61,24 +88,17 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  // Refresh session (no-op if still valid, refreshes if near expiry)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  // Extract locale segment from path: /fr/... or /ar/...
-  const localeMatch = pathname.match(/^\/(fr|ar)(\/|$)/);
-  const pathWithoutLocale = localeMatch
-    ? pathname.slice(localeMatch[1].length + 1) || "/"
-    : pathname;
-
-  // Allow public paths (under any locale or without locale)
-  if (
-    PUBLIC_PATHS.some(
-      (p) => pathWithoutLocale === p || pathWithoutLocale.startsWith(p + "/"),
-    )
-  ) {
-    return response;
+  // Refresh session (no-op if still valid, refreshes if near expiry). A slow
+  // or unreachable Auth API is bounded by fetchWithTimeout above and treated
+  // as "no session" rather than hanging the request.
+  let user: { id: string; email?: string } | null = null;
+  try {
+    const {
+      data: { user: fetchedUser },
+    } = await supabase.auth.getUser();
+    user = fetchedUser;
+  } catch {
+    user = null;
   }
 
   // No session → redirect to login (preserve locale if present)
@@ -101,15 +121,7 @@ export async function middleware(request: NextRequest) {
     market_id = cached.market_id;
     marketCode = cached.market_code;
   } else {
-    const { data: userRecord } = await supabase
-      .from("users")
-      .select(
-        "role, market_id, full_name, avatar_url, is_active, deleted_at, markets(code)",
-      )
-      .eq("id", user.id)
-      .single();
-
-    const record = userRecord as unknown as {
+    type UserRecord = {
       role: ProfilePayload["role"];
       market_id: string | null;
       full_name: string;
@@ -117,19 +129,40 @@ export async function middleware(request: NextRequest) {
       is_active: boolean | null;
       deleted_at: string | null;
       markets: { code: string } | { code: string }[] | null;
-    } | null;
+    };
+
+    let record: UserRecord | null = null;
+    try {
+      const { data: userRecord } = await supabase
+        .from("users")
+        .select(
+          "role, market_id, full_name, avatar_url, is_active, deleted_at, markets(code)",
+        )
+        .eq("id", user.id)
+        .single();
+      record = userRecord as unknown as UserRecord | null;
+    } catch {
+      // Timed out or unreachable — fall through to the fail-closed redirect below.
+      record = null;
+    }
 
     // Deactivated / soft-deleted accounts must not hold a session. This runs on
     // every profile-cookie refresh, so a deactivation takes effect within
     // PROFILE_TTL_MS at worst — and immediately for anyone without a warm cookie.
+    // A Supabase timeout lands here too (record stays null) — fail closed rather
+    // than let the middleware hang until Vercel's own 25s cap kills it.
     if (!record || record.is_active === false || record.deleted_at) {
       const locale = localeMatch ? localeMatch[1] : "fr";
-      await supabase.auth.signOut();
       const redirect = NextResponse.redirect(
         new URL(`/${locale}/login`, request.url),
       );
-      // Carry the cleared auth cookies from signOut onto the redirect response.
-      response.cookies.getAll().forEach((c) => redirect.cookies.set(c));
+      try {
+        await supabase.auth.signOut();
+        // Carry the cleared auth cookies from signOut onto the redirect response.
+        response.cookies.getAll().forEach((c) => redirect.cookies.set(c));
+      } catch {
+        // Best-effort sign-out; still force the redirect below.
+      }
       redirect.cookies.set(PROFILE_COOKIE, "", { path: "/", maxAge: 0 });
       return redirect;
     }

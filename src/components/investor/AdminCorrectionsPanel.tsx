@@ -1,214 +1,65 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import useSWR from "swr";
-import { Button } from "@/components/ui/Button";
-import { Panel } from "@/components/dashboard/Panel";
+import { fetcher } from "@/lib/swr-config";
+import type { InvestorMoneySummary } from "@/lib/investors/admin-summary";
+import { dateTimeShort, fmtNum, money, moneySigned } from "@/lib/investors/ui-format";
+import { Btn, Callout, Card, Eq, Field, inputCls, Label, td, tdL, th, thL } from "./admin-shared";
 
-interface InvestorOption {
-  id: string;
-  legal_name: string | null;
-  full_name: string;
-  configured: boolean;
-}
+type Investor = { id: string; legal_name: string | null; full_name: string | null; email: string; configured: boolean; money: InvestorMoneySummary | null };
+type Deal = { id: string; investor_id: string; products: { name: string } | null; currency: string };
+type Corr = { id: string; investor_id: string; amount: string; currency: string; note: string | null; created_at: string; investors: { legal_name: string | null } | null; investor_deals: { products: { name: string } | null } | null; users: { email: string } | null };
 
-const ENTRY_TYPES = [
-  { value: "correction", label: "Correction" },
-  { value: "reserve_release", label: "Libération de réserve" },
-  { value: "principal_return", label: "Retour de capital" },
-];
-
-/**
- * Compensating ledger entries.
- *
- * investor_ledger is append-only by trigger, so a mistake can only be answered
- * with another entry — there is no edit and no delete. That is exactly why this
- * form confirms before posting and why the note is mandatory: an unexplained
- * adjustment to someone's money is indistinguishable from theft when it is read
- * back a year later.
- *
- * The API enforces both rules too; this is the affordance, not the guard.
- */
-export function AdminCorrectionsPanel() {
-  const { data } = useSWR<{ data: InvestorOption[] }>("/api/admin/investments/investors");
-  // A correction needs an investors row to hang off — an unconfigured user has
-  // no profile and the RPC would reject it.
-  const investors = (data?.data ?? []).filter((i) => i.configured);
-
-  const [investorId, setInvestorId] = useState("");
-  const [entryType, setEntryType] = useState("correction");
-  const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
-  const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ kind: "error" | "success"; text: string } | null>(
-    null
-  );
-
-  function review() {
-    setMessage(null);
-
-    if (!investorId) {
-      setMessage({ kind: "error", text: "Choisissez un investisseur" });
-      return;
-    }
-    const value = Number(amount);
-    if (!Number.isFinite(value) || value === 0) {
-      setMessage({ kind: "error", text: "Le montant doit être différent de zéro" });
-      return;
-    }
-    if (!note.trim()) {
-      setMessage({
-        kind: "error",
-        text: "Un motif est obligatoire — une correction doit être explicable",
-      });
-      return;
-    }
-
-    setConfirming(true);
-  }
-
+export function AdminCorrectionsPanel({ locale, initialInvestorId }: { locale: string; initialInvestorId?: string }) {
+  const t = useTranslations("investorAdmin.corrections");
+  const tc = useTranslations("investorAdmin.common");
+  const { data: inv } = useSWR<{ data: Investor[] }>("/api/admin/investments/investors", fetcher);
+  const { data: deals } = useSWR<{ data: Deal[] }>("/api/admin/investments/deals", fetcher);
+  const { data: hist, mutate } = useSWR<{ data: Corr[] }>("/api/admin/investments/corrections", fetcher);
+  const investors = (inv?.data ?? []).filter((i) => i.configured);
+  const [investorId, setInvestorId] = useState(initialInvestorId ?? "");
+  const [dealId, setDealId] = useState(""); const [amount, setAmount] = useState(""); const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false); const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string } | null>(null); const [confirm, setConfirm] = useState(false);
+  const investor = investors.find((i) => i.id === investorId);
+  const cur = investor ? Object.keys(investor.money?.by_currency ?? {})[0] : undefined;
+  const before = investor && cur ? investor.money!.by_currency[cur].available : 0;
+  const amt = Number(amount.replace(",", ".")) || 0;
   async function post() {
-    setBusy(true);
-    setMessage(null);
-    try {
-      const res = await fetch("/api/admin/investments/corrections", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          investor_id: investorId,
-          entry_type: entryType,
-          amount: Number(amount),
-          note: note.trim(),
-        }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setMessage({ kind: "error", text: body.error ?? "Écriture impossible" });
-        return;
-      }
-
-      setAmount("");
-      setNote("");
-      setConfirming(false);
-      setMessage({ kind: "success", text: "Écriture enregistrée" });
-    } finally {
-      setBusy(false);
-    }
+    setBusy(true); setMsg(null);
+    const r = await fetch("/api/admin/investments/corrections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ investor_id: investorId, amount: amt, note, deal_id: dealId || undefined }) });
+    setBusy(false); setConfirm(false);
+    if (r.ok) { setMsg({ tone: "ok", text: t("posted") }); setAmount(""); setNote(""); mutate(); } else { const j = await r.json().catch(() => ({})); setMsg({ tone: "bad", text: j.code ?? j.error ?? tc("error") }); }
   }
-
   return (
-    <Panel title="Corrections">
-      <div className="flex flex-col gap-3">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <label className="text-[12px]">
-            <span className="block mb-1 text-ink-secondary">Investisseur</span>
-            <select
-              value={investorId}
-              onChange={(e) => setInvestorId(e.target.value)}
-              className="w-full rounded-[6px] border border-line bg-surface-card px-3 py-2 text-[14px] text-ink-primary"
-            >
-              <option value="">—</option>
-              {investors.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.legal_name ?? i.full_name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="text-[12px]">
-            <span className="block mb-1 text-ink-secondary">Type</span>
-            <select
-              value={entryType}
-              onChange={(e) => setEntryType(e.target.value)}
-              className="w-full rounded-[6px] border border-line bg-surface-card px-3 py-2 text-[14px] text-ink-primary"
-            >
-              {ENTRY_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="text-[12px]">
-            <span className="block mb-1 text-ink-secondary">Montant</span>
-            <input
-              type="number"
-              step="0.001"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-full rounded-[6px] border border-line bg-surface-card px-3 py-2 text-[14px] tabular-nums text-ink-primary"
-            />
-          </label>
+    <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[520px_1fr]">
+      <Card>
+        <Label className="mb-2.5">{t("title")}</Label>
+        <Field label={t("investor")}><select className={inputCls} value={investorId} onChange={(e) => { setInvestorId(e.target.value); setDealId(""); }}><option value="">—</option>{investors.map((i) => <option key={i.id} value={i.id}>{i.legal_name ?? i.full_name ?? i.email}</option>)}</select></Field>
+        <div className="mt-3"><Field label={t("deal")}><select className={inputCls} value={dealId} onChange={(e) => setDealId(e.target.value)}><option value="">{t("none")}</option>{(deals?.data ?? []).filter((d) => d.investor_id === investorId).map((d) => <option key={d.id} value={d.id}>{d.products?.name}</option>)}</select></Field></div>
+        <div className="mt-3"><Field label={t("amount")} hint={t("amountHint")}><input className={inputCls} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="−67,26" /></Field></div>
+        <div className="mt-3"><Field label={t("note")}><textarea className={`${inputCls} h-20 py-2`} value={note} onChange={(e) => setNote(e.target.value)} /></Field></div>
+        {investor && cur && <div className="mt-3"><Eq rows={[{ k: t("before"), v: money(before, cur, locale, 2) }, { k: t("correction"), v: <span className={amt < 0 ? "text-oms-age-late" : amt > 0 ? "text-oms-ok" : ""}>{moneySigned(amt, cur, locale, 2)}</span> }, { k: t("after"), v: money(before + amt, cur, locale, 2), tot: true }]} /></div>}
+        <div className="mt-3"><Callout tone="warn">{t("warn")}</Callout></div>
+        {msg && <div className="mt-2"><Callout tone={msg.tone === "ok" ? "info" : "bad"}>{msg.text}</Callout></div>}
+        <div className="mt-3 flex justify-end gap-2">
+          {!confirm ? <Btn variant="destructive" onClick={() => setConfirm(true)} disabled={!investorId || !amt || !note.trim()}>{t("post")}</Btn> : <><Btn onClick={() => setConfirm(false)}>{tc("cancel")}</Btn><Btn variant="destructive" onClick={post} disabled={busy}>{tc("confirm")} · {moneySigned(amt, cur, locale, 2)}</Btn></>}
         </div>
-
-        <label className="text-[12px]">
-          <span className="block mb-1 text-ink-secondary">Motif</span>
-          <input
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            className="w-full rounded-[6px] border border-line bg-surface-card px-3 py-2 text-[14px] text-ink-primary"
-          />
-        </label>
-
-        <p className="m-0 text-[11px] text-ink-secondary">
-          Un montant négatif retire de l&apos;argent au solde de l&apos;investisseur, un montant
-          positif en ajoute.
-        </p>
-
-        {!confirming ? (
-          <div>
-            <Button variant="primary" onClick={review}>
-              Poster l&apos;écriture
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2 rounded-[8px] border border-status-critical bg-status-criticalBg p-3">
-            {/* The confirm step used to be a generic warning that never said
-                WHAT was about to be posted, so it could only be agreed with,
-                never checked. */}
-            <p className="m-0 text-[12px] text-status-critical">
-              <strong>
-                {ENTRY_TYPES.find((t) => t.value === entryType)?.label ?? entryType}
-              </strong>{" "}
-              de <strong>{amount}</strong> sur le compte de{" "}
-              <strong>
-                {investors.find((i) => i.id === investorId)?.legal_name ??
-                  investors.find((i) => i.id === investorId)?.full_name ??
-                  "—"}
-              </strong>
-              {" — "}
-              {note.trim()}
-            </p>
-            <p className="m-0 text-[12px] text-status-critical">
-              Le grand livre est immuable : cette écriture est irréversible et ne pourra être
-              corrigée que par une autre écriture.
-            </p>
-            <div className="flex gap-2">
-              <Button variant="destructive" disabled={busy} onClick={() => void post()}>
-                Confirmer
-              </Button>
-              <Button variant="secondary" onClick={() => setConfirming(false)}>
-                Annuler
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {message ? (
-          <p
-            role="alert"
-            className={`m-0 text-[12px] ${
-              message.kind === "error" ? "text-status-critical" : "text-status-success"
-            }`}
-          >
-            {message.text}
-          </p>
-        ) : null}
+      </Card>
+      <div className="flex flex-col gap-3.5">
+        <Card pad={false}>
+          <div className="px-3.5 pb-1 pt-3"><Label>{t("history")}</Label></div>
+          <table className="w-full border-collapse text-[12.5px]"><thead><tr><th className={thL}>{t("colDate")}</th><th className={thL}>{t("colInvestor")}</th><th className={thL}>{t("colAttached")}</th><th className={th}>{t("colAmount")}</th><th className={thL}>{t("colNote")}</th><th className={thL}>{t("colBy")}</th></tr></thead>
+            <tbody>{(hist?.data ?? []).length === 0 && <tr><td className={`${tdL} py-6 text-center text-oms-ink-3`} colSpan={6}>{t("empty")}</td></tr>}{(hist?.data ?? []).map((c) => <tr key={c.id}><td className={tdL}>{dateTimeShort(c.created_at, locale)}</td><td className={tdL}>{c.investors?.legal_name}</td><td className={tdL}>{c.investor_deals?.products?.name ?? "—"}</td><td className={td}><span className={Number(c.amount) < 0 ? "text-oms-age-late" : "text-oms-ok"}>{fmtNum(Number(c.amount), 2)}</span> {c.currency}</td><td className={tdL}>{c.note}</td><td className={tdL}>{c.users?.email}</td></tr>)}</tbody></table>
+        </Card>
+        <Card>
+          <Label className="mb-2">{t("when")}</Label>
+          <ul className="m-0 list-none p-0 text-[12.5px]">
+            {(["w1", "w2", "w3"] as const).map((k) => <li key={k} className="border-t border-oms-border py-2 first:border-t-0"><b className="block font-semibold">{t(k)}</b><span className="text-oms-ink-3">{t(`${k}s`)}</span></li>)}
+          </ul>
+        </Card>
       </div>
-    </Panel>
+    </div>
   );
 }
