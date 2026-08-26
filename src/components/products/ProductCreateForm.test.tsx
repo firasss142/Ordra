@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import frMessages from "@/messages/fr.json";
 
@@ -56,11 +56,22 @@ describe("ProductCreateForm", () => {
     expect(screen.getByText("Nouveau produit")).toBeInTheDocument();
   });
 
+  // Chaque section apparaît deux fois — onglet de navigation et titre de
+  // section — depuis l'alignement sur le formulaire d'édition. On vise le
+  // titre par son rôle plutôt que le texte nu, qui est ambigu.
   it("renders all three sections", () => {
     renderForm();
-    expect(screen.getByText("Identité")).toBeInTheDocument();
-    expect(screen.getByText("Modèle de coûts")).toBeInTheDocument();
-    expect(screen.getByText("Inventaire")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Identité" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Modèle de coûts" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Inventaire" })).toBeInTheDocument();
+  });
+
+  it("links each section from the form nav", () => {
+    renderForm();
+    const nav = screen.getByRole("navigation", { name: "Sections du formulaire" });
+    expect(within(nav).getByRole("link", { name: /Identité/ })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: /Modèle de coûts/ })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: /Inventaire/ })).toBeInTheDocument();
   });
 
   it("shows validation error when name is empty on submit", async () => {

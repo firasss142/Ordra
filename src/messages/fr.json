@@ -2460,6 +2460,40 @@
       "confirm": "Archiver",
       "cancel": "Annuler",
       "pending": "Archivage…"
+    },
+    "createV2": {
+      "intro": "Renseignez l'identité, les coûts et le stock de départ. La marge se met à jour pendant la saisie.",
+      "asideLabel": "Résumé du produit",
+      "nav": {
+        "label": "Sections du formulaire"
+      },
+      "hints": {
+        "identity": "Le nom et le SKU servent à retrouver le produit — dans la liste, sur la commande et à la correspondance webhook.",
+        "costModel": "Ce que le produit coûte réellement, avant livraison. Ces montants nourrissent la marge et le profit net.",
+        "inventory": "Le stock de départ et le seuil d'alerte. La fiche agent s'écrit après la création."
+      },
+      "fields": {
+        "market": "Marché",
+        "initialStock": "Stock initial"
+      },
+      "hintsField": {
+        "market": "Le marché ne peut plus être changé après la création.",
+        "initialStock": "Quantité déjà en entrepôt au moment de la création."
+      },
+      "namePlaceholder": "Ex : Chaussures Sport",
+      "margin": {
+        "empty": "Renseignez un prix de vente et un coût unitaire pour voir la marge."
+      },
+      "next": {
+        "title": "Après la création",
+        "body": "Le produit s'ouvre sur sa fiche. La fiche agent — brief, composition, contre-indications — s'écrit depuis « Modifier »."
+      },
+      "savebar": {
+        "label": "Création",
+        "ready": "Prêt à créer",
+        "incomplete": "Nom et coût unitaire obligatoires"
+      },
+      "creating": "Création…"
     }
   },
   "mappings": {
