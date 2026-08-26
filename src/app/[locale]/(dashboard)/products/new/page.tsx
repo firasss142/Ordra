@@ -6,6 +6,7 @@ import { getActiveMarketScope } from "@/lib/auth/market-scope";
 interface Market {
   id: string;
   name: string;
+  currency: string | null;
 }
 
 export default async function NewProductPage({
@@ -34,7 +35,7 @@ export default async function NewProductPage({
 
   const { data: marketsData } = await supabase
     .from("markets")
-    .select("id, name")
+    .select("id, name, currency")
     .order("name", { ascending: true });
 
   const markets: Market[] = (marketsData ?? []) as Market[];
@@ -46,23 +47,22 @@ export default async function NewProductPage({
   const lockedMarketId = activeScope.marketId;
   const defaultMarketId = lockedMarketId ?? markets[0]?.id ?? "";
 
+  // Le symbole vient du marché visé, jamais de la locale : un super admin
+  // saisit le catalogue libyen en français. Marché inconnu → montants nus.
+  const currency = markets.find((m) => m.id === defaultMarketId)?.currency;
+  const currencySymbol =
+    currency === "LYD" ? "\u062f.\u0644" : currency === "TND" ? "DT" : undefined;
+
   return (
-    <div style={{ padding: 24, backgroundColor: "#F6F6F7", minHeight: "100vh" }}>
-      <div
-        style={{
-          backgroundColor: "white",
-          borderRadius: "0.5rem",
-          border: "1px solid #E1E3E5",
-          padding: 32,
-          maxWidth: 640,
-        }}
-      >
+    <div className="min-h-screen bg-surface-page px-4 pb-28 pt-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1400px]">
         <ProductCreateForm
           role={profile.role}
           markets={markets}
           defaultMarketId={defaultMarketId}
           lockedMarketId={lockedMarketId}
           locale={params.locale}
+          currencySymbol={currencySymbol}
         />
       </div>
     </div>
