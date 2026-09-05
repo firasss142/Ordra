@@ -293,3 +293,51 @@ describe("syncOneStorefront — bookkeeping must never stall the import", () => 
     expect(result.errors.some((e) => /could not record failure/.test(e.message))).toBe(true);
   });
 });
+
+describe("syncOneStorefront — rows the adapter says to leave out", () => {
+  // Converty marks a checkout the merchant removed as Status 'deleted'. That is
+  // not an order and not a failure: it must not reach processRow, must not be
+  // written to the failed-rows table (where it would sit forever as noise),
+  // and must still move the cursor so it is never re-read.
+  const DELETED_ROW = {
+    rowIndex: 1,
+    data: { ...ROW_1.data, "QR Code": "qr-del", "Status": "deleted" },
+  };
+
+  it("skips a 'deleted' row without importing or recording a failure", async () => {
+    const recordFailure = vi.fn().mockResolvedValue(undefined);
+    const deps = makeDeps({
+      fetchRows: vi.fn().mockResolvedValue([DELETED_ROW, ROW_2]),
+      recordFailure,
+    });
+
+    const result = await syncOneStorefront(CONFIG, deps);
+
+    expect(deps.processRow).toHaveBeenCalledTimes(1);
+    expect(recordFailure).not.toHaveBeenCalled();
+    expect(result.rows_skipped).toBe(1);
+    expect(result.rows_imported).toBe(1);
+    expect(result.rows_errored).toBe(0);
+    expect(result.errors).toEqual([]);
+  });
+
+  it("advances the cursor past a skipped row", async () => {
+    const deps = makeDeps({ fetchRows: vi.fn().mockResolvedValue([DELETED_ROW]) });
+    const result = await syncOneStorefront(CONFIG, deps);
+    expect(deps.setLastRow).toHaveBeenCalledWith(CONFIG.storefront_id, 1);
+    expect(result.last_row).toBe(1);
+  });
+
+  it("imports a row whose Name is blank instead of failing it", async () => {
+    // The other half of the same hot fix: a blank Name used to throw
+    // PayloadMappingError here and land in failed rows. It is a lead.
+    const blankName = { rowIndex: 1, data: { ...ROW_1.data, "Name": "" } };
+    const deps = makeDeps({ fetchRows: vi.fn().mockResolvedValue([blankName]) });
+
+    const result = await syncOneStorefront(CONFIG, deps);
+
+    expect(deps.processRow).toHaveBeenCalledTimes(1);
+    expect(result.rows_imported).toBe(1);
+    expect(result.rows_errored).toBe(0);
+  });
+});

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ConvertySheetsAdapter } from "./converty-sheets-adapter";
+import { ConvertySheetsAdapter, MISSING_CUSTOMER_NAME } from "./converty-sheets-adapter";
 import { PayloadMappingError } from "@/lib/storefronts/errors";
 
 const adapter = new ConvertySheetsAdapter();
@@ -190,15 +190,6 @@ describe("ConvertySheetsAdapter", () => {
       );
     });
 
-    it("throws PayloadMappingError when Name is blank", () => {
-      expect(() => adapter.mapRow({ ...baseRow, "Name": "" })).toThrow(
-        PayloadMappingError
-      );
-      expect(() => adapter.mapRow({ ...baseRow, "Name": "   " })).toThrow(
-        "Missing customer name"
-      );
-    });
-
     it("throws PayloadMappingError when Phone is blank", () => {
       expect(() => adapter.mapRow({ ...baseRow, "Phone": "" })).toThrow(
         PayloadMappingError
@@ -224,6 +215,48 @@ describe("ConvertySheetsAdapter", () => {
       expect(() =>
         adapter.mapRow({ ...baseRow, "Products": "", "Quantity": "" })
       ).toThrow(PayloadMappingError);
+    });
+  });
+
+  describe("mapRow — blank Name is a lead, not an error", () => {
+    // Converty exports a real share of checkouts with an empty Name (218 of
+    // 3,885 rows on the live sheet). The phone is present and is what the
+    // agent actually calls, so the row must import; the old hard reject
+    // silently dropped paying customers and nobody was alerted.
+    it("imports a row with an empty Name using the placeholder and keeps the phone", () => {
+      const result = adapter.mapRow({ ...baseRow, "Name": "" });
+      expect(result.customer_name).toBe(MISSING_CUSTOMER_NAME);
+      expect(result.customer_phone).toBe("914009883");
+      expect(result.external_id).toBe("6a0c4e064992e02ef080ea3b");
+    });
+
+    it("treats a whitespace-only Name as blank", () => {
+      expect(adapter.mapRow({ ...baseRow, "Name": "   " }).customer_name).toBe(
+        MISSING_CUSTOMER_NAME
+      );
+    });
+
+    it("never substitutes the placeholder when a name is present", () => {
+      expect(adapter.mapRow({ ...baseRow, "Name": " شادي " }).customer_name).toBe("شادي");
+    });
+  });
+
+  describe("skipReason — only Converty 'deleted' rows are left out", () => {
+    it("returns a reason for Status 'deleted', ignoring case and padding", () => {
+      expect(adapter.skipReason({ ...baseRow, "Status": "deleted" })).toMatch(/deleted/);
+      expect(adapter.skipReason({ ...baseRow, "Status": " Deleted " })).toMatch(/deleted/);
+    });
+
+    it("returns null for 'pending' and 'abandoned' — both are imported", () => {
+      expect(adapter.skipReason({ ...baseRow, "Status": "pending" })).toBeNull();
+      expect(adapter.skipReason({ ...baseRow, "Status": "abandoned" })).toBeNull();
+    });
+
+    it("returns null when Status is missing or blank", () => {
+      expect(adapter.skipReason({ ...baseRow, "Status": "" })).toBeNull();
+      const { Status: _omit, ...noStatus } = baseRow;
+      void _omit;
+      expect(adapter.skipReason(noStatus)).toBeNull();
     });
   });
 });

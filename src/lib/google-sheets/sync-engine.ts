@@ -43,6 +43,8 @@ export interface SyncResult {
   rows_imported: number;
   rows_duplicate: number;
   rows_errored: number;
+  /** Rows the adapter said to leave out (e.g. Converty `deleted`). Not errors. */
+  rows_skipped: number;
   last_row: number;
   /** The window filled up or the deadline hit with rows still to read. */
   has_more: boolean;
@@ -102,6 +104,7 @@ export async function syncOneStorefront(
     rows_imported: 0,
     rows_duplicate: 0,
     rows_errored: 0,
+    rows_skipped: 0,
     last_row: 0,
     has_more: false,
     errors: [],
@@ -125,6 +128,7 @@ export async function syncOneStorefront(
   let rowsImported = 0;
   let rowsDuplicate = 0;
   let rowsErrored = 0;
+  let rowsSkipped = 0;
   let committedRow = lastRow;
   let stoppedEarly = false;
   const errors: SyncResult["errors"] = [];
@@ -133,6 +137,16 @@ export async function syncOneStorefront(
     if (options.deadlineAt !== undefined && now() + ROW_BUDGET_MS > options.deadlineAt) {
       stoppedEarly = true;
       break;
+    }
+
+    // Not an order at all (the merchant deleted it in Converty). Neither
+    // imported nor recorded as a failure — but the cursor must still move past
+    // it, so it falls through to the commit below.
+    if (adapter.skipReason?.(row.data)) {
+      rowsSkipped++;
+      committedRow = row.rowIndex;
+      await deps.setLastRow(config.storefront_id, committedRow);
+      continue;
     }
 
     let failure: string | null = null;
@@ -189,6 +203,7 @@ export async function syncOneStorefront(
     rows_imported: rowsImported,
     rows_duplicate: rowsDuplicate,
     rows_errored: rowsErrored,
+    rows_skipped: rowsSkipped,
     last_row: committedRow,
     // Either the window was filled — so there may be more below it — or the
     // clock stopped us with rows in hand.
