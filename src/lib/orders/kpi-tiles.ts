@@ -1,4 +1,5 @@
 import type { OrderStatus } from "@/types/order-status";
+import { todayInMarket } from "@/lib/dates/market-day";
 import type { OrderListFilters } from "./list-filters";
 import type { KpiTile } from "@/components/orders/OrdersKpiStrip";
 
@@ -66,13 +67,23 @@ export function todayIso(): string {
  * so the two cannot tell different stories. With no date filter applied the
  * window falls back to today — the default the user asked for.
  */
+/**
+ * The window the KPI strip reports over.
+ *
+ * With no range picked it is "today" — and today is the MARKET's calendar day
+ * when a market is known (`null` = all markets, which falls back like the
+ * server does). The server interprets the date in the market's zone, so a
+ * browser abroad at 23:30Z still asks for the day Tripoli is living. Omitting
+ * `marketId` keeps the browser-local date for callers that have no market.
+ */
 export function resolveKpiWindow(
   filters: Pick<OrderListFilters, "dateFrom" | "dateTo">,
+  marketId?: string | null,
 ): KpiWindow {
   if (filters.dateFrom || filters.dateTo) {
     return { from: filters.dateFrom, to: filters.dateTo };
   }
-  return { from: todayIso(), to: null };
+  return { from: marketId === undefined ? todayIso() : todayInMarket(marketId), to: null };
 }
 
 const TILE_STATUSES: Record<KpiTile, Pick<TilePatch, "preset" | "statuses" | "agentId">> = {

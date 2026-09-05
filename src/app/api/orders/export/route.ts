@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { marketDayBounds } from "@/lib/dates/market-day";
 import { resolveArchiveStatuses } from "@/lib/orders/archive-scope";
 import { applySearch } from "@/lib/orders/search-query";
 import { createClient } from "@/lib/supabase/server";
@@ -118,11 +119,15 @@ export async function GET(req: NextRequest) {
   const city = req.nextUrl.searchParams.get("city");
   if (city) query = query.eq("customer_city", city);
 
-  const dateFrom = req.nextUrl.searchParams.get("date_from");
-  if (dateFrom) query = query.gte("created_at", dateFrom);
-
-  const dateTo = req.nextUrl.searchParams.get("date_to");
-  if (dateTo) query = query.lte("created_at", dateTo);
+  // Calendar dates name the market's local day; created_at is UTC. Same
+  // boundary as /api/orders/list, so the CSV is the rows the operator saw.
+  const window = marketDayBounds(
+    req.nextUrl.searchParams.get("date_from"),
+    req.nextUrl.searchParams.get("date_to"),
+    marketId || null,
+  );
+  if (window.fromIso) query = query.gte("created_at", window.fromIso);
+  if (window.toIso) query = query.lte("created_at", window.toIso);
 
   const { data, error } = await query
     .order("created_at", { ascending: false })

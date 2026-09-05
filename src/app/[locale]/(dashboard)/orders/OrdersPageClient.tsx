@@ -28,6 +28,7 @@ import { OrdersFacetBar } from "@/components/orders/OrdersFacetBar";
 import type { FacetCounts } from "@/app/api/orders/facet-counts/route";
 import { OrdersKpiStrip, type KpiTile } from "@/components/orders/OrdersKpiStrip";
 import { filtersForTile, resolveKpiWindow, tileForFilters } from "@/lib/orders/kpi-tiles";
+import { marketDayStartUtc, todayInMarket } from "@/lib/dates/market-day";
 import type { StatusCounts } from "@/app/api/orders/status-counts/route";
 import { OrdersTable } from "@/components/orders/OrdersTable";
 import { OrdersBulkBar } from "@/components/orders/OrdersBulkBar";
@@ -221,13 +222,9 @@ export function OrdersPageClient({
         return row.status === "pending" && row.assigned_to === null;
       }
       if (filters.preset === "today") {
-        const d = new Date(row.created_at);
-        const now = new Date();
-        return (
-          d.getUTCFullYear() === now.getUTCFullYear() &&
-          d.getUTCMonth() === now.getUTCMonth() &&
-          d.getUTCDate() === now.getUTCDate()
-        );
+        // Same boundary the server draws: the market's midnight, not UTC's.
+        const start = marketDayStartUtc(todayInMarket(effectiveMarketId), effectiveMarketId);
+        return start !== null && row.created_at >= start;
       }
       if (filters.preset === "callbacks") {
         return row.status === "callback_scheduled";
@@ -557,8 +554,8 @@ export function OrdersPageClient({
   // range is the one exception, because the user reads the strip as "how did
   // this period go". Tile <-> filter mapping lives in lib/orders/kpi-tiles.
   const kpiWindow = useMemo(
-    () => resolveKpiWindow({ dateFrom: filters.dateFrom, dateTo: filters.dateTo }),
-    [filters.dateFrom, filters.dateTo],
+    () => resolveKpiWindow({ dateFrom: filters.dateFrom, dateTo: filters.dateTo }, effectiveMarketId ?? null),
+    [filters.dateFrom, filters.dateTo, effectiveMarketId],
   );
   const kpiKey = useMemo(() => {
     const p = new URLSearchParams();
