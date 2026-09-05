@@ -10,4 +10,13 @@ import type { InternalOrderData } from "@/lib/storefronts/types";
 export interface SheetsRowAdapter {
   readonly platform: string;
   mapRow(row: Record<string, string>): InternalOrderData;
+  /**
+   * A reason to leave this row out entirely, or `null` to import it.
+   *
+   * Distinct from throwing PayloadMappingError: a skipped row is not an order
+   * (the merchant deleted the checkout), so it is neither imported nor written
+   * to the failed-rows table where it would sit forever as noise. The engine
+   * still advances the cursor past it.
+   */
+  skipReason?(row: Record<string, string>): string | null;
 }

@@ -26,15 +26,41 @@ function toProductSlug(name: string): string {
     .replace(/^-|-$/g, ""); // strip leading/trailing dashes
 }
 
+/**
+ * customer_name for a Converty row whose Name cell is empty. A visible marker
+ * rather than the phone number, so the agent queue reads "no name yet" and not
+ * a customer literally called 914009883.
+ */
+export const MISSING_CUSTOMER_NAME = "—";
+
+/** The one Converty status that is not an order: the merchant removed it. */
+const SKIPPED_STATUSES = new Set(["deleted"]);
+
 export class ConvertySheetsAdapter implements SheetsRowAdapter {
   readonly platform = "converty";
+
+  /**
+   * Converty's Status column is `pending` | `abandoned` | `deleted`. Only
+   * `deleted` is left out — `abandoned` means the customer stopped at checkout
+   * and is still a lead agents call. Matched case- and whitespace-insensitively
+   * because the sheet is hand-exported.
+   */
+  skipReason(row: Record<string, string>): string | null {
+    const status = row["Status"]?.trim().toLowerCase() ?? "";
+    return SKIPPED_STATUSES.has(status) ? `Converty status is '${status}'` : null;
+  }
 
   mapRow(row: Record<string, string>): InternalOrderData {
     const externalId = row["QR Code"]?.trim();
     if (!externalId) throw new PayloadMappingError("Missing QR Code");
 
-    const customerName = row["Name"]?.trim();
-    if (!customerName) throw new PayloadMappingError("Missing customer name");
+    // A blank Name is a lead, not an error. Converty exports a real share of
+    // checkouts without one (218 of 3,885 rows on the live sheet, 5 in one
+    // two-day window) and the phone — the thing the agent actually calls — is
+    // present. Rejecting these silently dropped paying customers for weeks
+    // with nobody alerted. The placeholder is visibly "no name" so the agent
+    // asks for it on the call.
+    const customerName = row["Name"]?.trim() || MISSING_CUSTOMER_NAME;
 
     const rawPhone = row["Phone"]?.trim();
     if (!rawPhone) throw new PayloadMappingError("Missing customer phone");
