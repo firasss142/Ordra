@@ -1,5 +1,7 @@
 import { describe, test, expect } from "vitest";
 import { filtersForTile, resolveKpiWindow, tileForFilters, todayIso } from "./kpi-tiles";
+import { LY_MARKET_ID } from "@/lib/markets";
+import { todayInMarket } from "@/lib/dates/market-day";
 import { DEFAULT_FILTERS } from "./list-filters";
 import type { KpiTile } from "@/components/orders/OrdersKpiStrip";
 
@@ -90,6 +92,13 @@ describe("kpi tile ↔ filter mapping", () => {
   test("the window defaults to today and otherwise mirrors the filters", () => {
     expect(resolveKpiWindow({ dateFrom: null, dateTo: null })).toEqual({
       from: todayIso(),
+      to: null,
+    });
+    // "Today" for a Libyan manager is Tripoli's calendar day. At 23:30Z the
+    // browser of someone abroad and the market disagree on what day it is; the
+    // market wins, because that is the day the KPI strip is labelled with.
+    expect(resolveKpiWindow({ dateFrom: null, dateTo: null }, LY_MARKET_ID)).toEqual({
+      from: todayInMarket(LY_MARKET_ID),
       to: null,
     });
     expect(resolveKpiWindow({ dateFrom: "2026-08-01", dateTo: "2026-08-12" })).toEqual({

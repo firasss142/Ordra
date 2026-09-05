@@ -13,6 +13,7 @@ vi.mock("@/lib/supabase/server", () => ({
 import { GET } from "./route";
 import { NextRequest } from "next/server";
 import { ARCHIVE_STATUSES } from "@/lib/orders/archive-scope";
+import { LY_MARKET_ID } from "@/lib/markets";
 
 function createRequest(url: string) {
   return new NextRequest(new URL(url, "http://localhost:3000"), { method: "GET" });
@@ -209,6 +210,29 @@ describe("GET /api/orders/export", () => {
     expect(statusIn).toHaveLength(1);
     expect(statusIn[0][1]).toEqual(["returned"]);
     expect(orderChainRef!.eq).not.toHaveBeenCalledWith("status", "returned");
+  });
+
+  test("date_from/date_to bound created_at at the market's day edges, in UTC", async () => {
+    // The CSV must be the rows the operator was looking at. The list cuts days
+    // at the market's midnight (Libya = UTC+2), so the export must too — a
+    // UTC-midnight bound would drop every order placed after 22:00 local from
+    // the day it belongs to and add it to the next.
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mgr-1" } }, error: null });
+    let orderChainRef: ReturnType<typeof queryChain>;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return queryChain({ data: { role: "market_manager", market_id: LY_MARKET_ID }, error: null });
+      if (table === "orders") {
+        orderChainRef = queryChain({ data: [], error: null });
+        return orderChainRef;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    const res = await GET(createRequest("/api/orders/export?date_from=2026-09-04&date_to=2026-09-05"));
+    expect(res.status).toBe(200);
+
+    expect(orderChainRef!.gte).toHaveBeenCalledWith("created_at", "2026-09-03T22:00:00.000Z");
+    expect(orderChainRef!.lte).toHaveBeenCalledWith("created_at", "2026-09-05T21:59:59.999Z");
   });
 
   test("super_admin can export with market_id filter", async () => {

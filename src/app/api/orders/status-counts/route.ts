@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewOrders } from "@/lib/order-permissions";
 import { whereUnassigned } from "@/lib/orders/unassigned";
+import { marketDayBounds, todayInMarket } from "@/lib/dates/market-day";
 
 export const dynamic = "force-dynamic";
 
@@ -66,13 +67,6 @@ const RECALL_STATUSES = ["attempt_1", "attempt_2", "attempt_3", "callback_schedu
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Local calendar date, matching how the client seeds its default window. */
-function todayDateOnly(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
 function daysAgoIso(days: number): string {
   return new Date(Date.now() - days * 86_400_000).toISOString();
 }
@@ -116,8 +110,13 @@ export async function GET(req: NextRequest) {
   const rawTo = req.nextUrl.searchParams.get("date_to");
   const validFrom = rawFrom && ISO_DATE.test(rawFrom) ? rawFrom : null;
   const validTo = rawTo && ISO_DATE.test(rawTo) ? rawTo : null;
-  const windowFrom = validFrom ?? (validTo ? null : todayDateOnly());
+  // "Today" is the market's calendar day, not the server's (Vercel runs UTC).
+  const windowFrom = validFrom ?? (validTo ? null : todayInMarket(marketId));
   const windowTo = validTo;
+  // The dates name market-local days; created_at is UTC. Cut at the market's
+  // day edges, exactly as /api/orders/list does, or the tile and the table it
+  // opens disagree on every order placed after 22:00 in Tripoli.
+  const windowUtc = marketDayBounds(windowFrom, windowTo, marketId);
 
   /** head-only exact count — never returns rows, so it cannot truncate. */
   const countWhere = (build: (q: ReturnType<typeof baseQuery>) => unknown) => {
@@ -140,8 +139,8 @@ export async function GET(req: NextRequest) {
     q: T,
   ): T => {
     let out = q;
-    if (windowFrom) out = out.gte("created_at", windowFrom);
-    if (windowTo) out = out.lte("created_at", `${windowTo}T23:59:59.999Z`);
+    if (windowUtc.fromIso) out = out.gte("created_at", windowUtc.fromIso);
+    if (windowUtc.toIso) out = out.lte("created_at", windowUtc.toIso);
     return out;
   };
 

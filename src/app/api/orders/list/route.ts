@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { marketDayBounds, marketDayStartUtc, todayInMarket } from "@/lib/dates/market-day";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canViewOrders } from "@/lib/order-permissions";
@@ -137,9 +138,10 @@ export async function GET(req: NextRequest) {
         .lte("callback_scheduled_at", new Date().toISOString());
       break;
     case "today": {
-      const start = new Date();
-      start.setUTCHours(0, 0, 0, 0);
-      query = query.gte("created_at", start.toISOString());
+      // The market's today, opening at the market's midnight. UTC midnight is
+      // 02:00 in Tripoli, which put every late-evening order on tomorrow.
+      const start = marketDayStartUtc(todayInMarket(marketId), marketId);
+      if (start) query = query.gte("created_at", start);
       break;
     }
     case "in_delivery":
@@ -180,11 +182,12 @@ export async function GET(req: NextRequest) {
   // ---- Advanced filters ----
   if (q.product_id) query = query.eq("product_id", q.product_id);
   if (q.city) query = query.ilike("customer_city", `%${q.city}%`);
-  if (q.date_from) query = query.gte("created_at", q.date_from);
-  if (q.date_to) {
-    // inclusive end-of-day
-    query = query.lte("created_at", `${q.date_to}T23:59:59.999Z`);
-  }
+  // Calendar dates name the market's local day; created_at is UTC. Bound at the
+  // market's day edges (lib/dates/market-day) or every order placed between
+  // 22:00 and midnight in Tripoli lands on the following day.
+  const window = marketDayBounds(q.date_from, q.date_to, marketId);
+  if (window.fromIso) query = query.gte("created_at", window.fromIso);
+  if (window.toIso) query = query.lte("created_at", window.toIso);
   if (q.total_min != null) query = query.gte("total_price", q.total_min);
   if (q.total_max != null) query = query.lte("total_price", q.total_max);
   if (q.rejection_reason) query = query.eq("rejection_reason", q.rejection_reason);

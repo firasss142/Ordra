@@ -4,8 +4,9 @@ import {
   periodLengthDays,
   lastNDaysEndingAt,
   trendWindowEnd,
-  todayISO,
 } from "@/lib/date";
+import { marketTimezone } from "@/lib/markets";
+import { todayInMarket } from "@/lib/dates/market-day";
 import { toMetric, type Metric } from "./confidence";
 import { realCostPerDelivered } from "@/lib/calculations/carrier-true-cost";
 import { PERIOD_DAYS, CARRIER_WINDOW_DAYS } from "./constants";
@@ -640,7 +641,8 @@ export async function getDashboardHealth(
   // reaches the current day when the period is anchored back to the last day
   // that has data. Without the clamp a quiet stretch drops off the right edge
   // and the chart reads as stalled instead of showing the silence.
-  const trendEnd = trendWindowEnd(input.toDate, todayISO());
+  // "Today" is the market's calendar day; the server runs on UTC.
+  const trendEnd = trendWindowEnd(input.toDate, todayInMarket(scopedMarketId));
   const trend = lastNDaysEndingAt(PERIOD_DAYS, trendEnd);
   // Carrier rates need volume to be worth drawing at all; 30 days of a restarted
   // market puts every carrier under n=10 and the confidence rule would suppress
@@ -657,6 +659,10 @@ export async function getDashboardHealth(
     p_trend_from: trend.from_date,
     p_trend_to: trend.to_date,
     p_carrier_from: carrierWindow.from_date,
+    // Every window and every trend-chart day is cut at this zone's midnight.
+    // The cross-market view has no single zone; Tunis is the fallback every
+    // other route uses (marketTimezone), so the two never disagree.
+    p_tz: marketTimezone(scopedMarketId),
   });
 
   if (error) throw new Error(`get_dashboard_health failed: ${error.message}`);

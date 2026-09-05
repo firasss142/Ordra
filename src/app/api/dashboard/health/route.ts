@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActor } from "@/lib/auth/actor";
 import { getDashboardHealth } from "@/lib/dashboard/health";
-import { todayISO } from "@/lib/date";
+import { todayInMarket } from "@/lib/dates/market-day";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +14,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const today = todayISO();
+  const marketIdParam = req.nextUrl.searchParams.get("market_id");
+  // "today" is the market's calendar day, not the server's UTC one — the same
+  // scope resolution getDashboardHealth applies, so the default period and the
+  // RPC's zone name the same day.
+  const scopedForToday =
+    actor.role === "super_admin"
+      ? marketIdParam && marketIdParam !== "all" ? marketIdParam : null
+      : actor.market_id;
+  const today = todayInMarket(scopedForToday);
   const normalizeDate = (d: string | null) => (!d || d === "today" ? today : d);
   const fromDate = normalizeDate(req.nextUrl.searchParams.get("from_date"));
   const toDate = normalizeDate(req.nextUrl.searchParams.get("to_date"));
-  const marketIdParam = req.nextUrl.searchParams.get("market_id");
 
   // Financial role gating happens inside getDashboardHealth (money block is
   // nulled and markets emptied for non-super_admin), so unlike the old summary

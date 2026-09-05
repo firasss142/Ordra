@@ -14,6 +14,8 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import { GET } from "./route";
 import { NextRequest } from "next/server";
+import { LY_MARKET_ID } from "@/lib/markets";
+import { marketDayStartUtc, todayInMarket } from "@/lib/dates/market-day";
 
 function createRequest(url: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -140,7 +142,7 @@ describe("GET /api/orders/status-counts", () => {
   test("the period total is counted over the requested window, not over today", async () => {
     // The tile it feeds used to be a fixed "Aujourd'hui": ask for August and
     // every other tile moved while this number stayed on the current day.
-    setup("market_manager", "ly", 935);
+    setup("market_manager", LY_MARKET_ID, 935);
 
     const res = await GET(
       createRequest("/api/orders/status-counts?date_from=2026-08-01&date_to=2026-08-12"),
@@ -149,12 +151,26 @@ describe("GET /api/orders/status-counts", () => {
 
     const chain = periodTotalChain();
     expect(chain, "no windowed all-status count found").toBeDefined();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(chain!.gte).toHaveBeenCalledWith("created_at", "2026-08-01");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(chain!.lte).toHaveBeenCalledWith("created_at", "2026-08-12T23:59:59.999Z");
+    // The window is the market's local day. Libya is UTC+2, so 1 August opens
+    // at 31 July 22:00Z and 12 August closes at 21:59:59.999Z — bounding on
+    // UTC midnight counted every late-evening order on the following day.
+    expect(chain!.gte).toHaveBeenCalledWith("created_at", "2026-07-31T22:00:00.000Z");
+    expect(chain!.lte).toHaveBeenCalledWith("created_at", "2026-08-12T21:59:59.999Z");
     expect(body.data.periodTotal).toBe(935);
     expect(body.data.window).toEqual({ from: "2026-08-01", to: "2026-08-12" });
+  });
+
+  test("with no window given, 'today' is the market's today, not the server's", async () => {
+    setup("market_manager", LY_MARKET_ID, 12);
+
+    const res = await GET(createRequest("/api/orders/status-counts"));
+    const body = await res.json();
+
+    const today = todayInMarket(LY_MARKET_ID);
+    const chain = periodTotalChain();
+    expect(chain, "no windowed all-status count found").toBeDefined();
+    expect(chain!.gte).toHaveBeenCalledWith("created_at", marketDayStartUtc(today, LY_MARKET_ID));
+    expect(body.data.window).toEqual({ from: today, to: null });
   });
 
   /**
