@@ -38,8 +38,12 @@ const PAIRS: { productId: string; carrierProductName: string; expectSalePrice: n
   },
   {
     productId: "e907b151-0b2e-4b72-9d05-91e25621af4d", // كتاب الداء والدواء للإمام ابن القيم
+    // Darb raised their listed price 179 -> 199 (verified live 2026-09-05).
+    // Harmless: external_sale_price is a reference/guard only and is never put
+    // on the wire — COD always uses OUR unit_price (149 here), see
+    // darb-assabil-adapter.ts "COD is OUR sold price".
     carrierProductName: "كتاب الداء والدواء ابن القيم",
-    expectSalePrice: 179,
+    expectSalePrice: 199,
   },
   {
     productId: "24ef8174-5ce8-4843-b72a-e8ef2a73cd41", // دميه ملاكمه حجم صغير
@@ -55,6 +59,18 @@ const PAIRS: { productId: string; carrierProductName: string; expectSalePrice: n
     productId: "19d40d38-bfbe-4607-93e7-ba849eaf73d3", // دميه ملاكمه حجم كبير
     carrierProductName: "دميه ملاكمه حجم كبير",
     expectSalePrice: 199,
+  },
+  {
+    productId: "6d394d37-ded2-495a-a58b-abd0e22248e9", // مصحف التهجد و قيام الليل
+    carrierProductName: "مصحف التهجد و قيام الليل",
+    expectSalePrice: 250,
+  },
+  {
+    // Our catalogue prefixes the name with كتاب; Darb does not. Confirmed the
+    // same physical item with the business before mapping — NOT name-matched.
+    productId: "25fc3a87-9c48-40ac-b2d1-5dddb3feb0d7", // كتاب الحفظ الميسر
+    carrierProductName: "الحفظ الميسر",
+    expectSalePrice: 249,
   },
   // DELIBERATELY UNMAPPED: "دمية الملاكمة حجم كبير (179 دل)"
   // (70afbf75-be0c-4ae1-8595-2a9cb9f1da21). Its name says كبير but its price
