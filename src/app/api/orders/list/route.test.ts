@@ -13,6 +13,8 @@ vi.mock("@/lib/supabase/server", () => ({
 import { GET } from "./route";
 import { NextRequest } from "next/server";
 import { ARCHIVE_STATUSES } from "@/lib/orders/archive-scope";
+import { LY_MARKET_ID } from "@/lib/markets";
+import { marketDayStartUtc, todayInMarket } from "@/lib/dates/market-day";
 
 function createRequest(query = "") {
   return new NextRequest(new URL(`/api/orders/list${query}`, "http://localhost:3000"), {
@@ -203,5 +205,36 @@ describe("GET /api/orders/list — the orders list is unchanged", () => {
     runAs("agent");
     const res = await GET(createRequest());
     expect(res.status).toBe(403);
+  });
+});
+
+/**
+ * Dates arrive as market-local calendar days and orders.created_at is UTC.
+ * Libya is UTC+2: "2026-09-04" must open at 2026-09-03T22:00Z, not at UTC
+ * midnight — otherwise every order placed between 22:00 and midnight in
+ * Tripoli is counted on the next day. Reconciling against the Converty export
+ * for 4–5 September, that boundary alone moved two orders across days.
+ */
+describe("GET /api/orders/list — date window in the market's local day", () => {
+  test("date_from/date_to bound created_at at the Libyan day edges, in UTC", async () => {
+    const orders = runAs("market_manager", LY_MARKET_ID);
+
+    await GET(createRequest("?date_from=2026-09-04&date_to=2026-09-05"));
+
+    expect(callsFor(orders.gte, "created_at")).toEqual([
+      ["created_at", "2026-09-03T22:00:00.000Z"],
+    ]);
+    expect(callsFor(orders.lte, "created_at")).toEqual([
+      ["created_at", "2026-09-05T21:59:59.999Z"],
+    ]);
+  });
+
+  test("preset=today starts at the Libyan midnight, not the UTC one", async () => {
+    const orders = runAs("market_manager", LY_MARKET_ID);
+
+    await GET(createRequest("?preset=today"));
+
+    const expected = marketDayStartUtc(todayInMarket(LY_MARKET_ID), LY_MARKET_ID);
+    expect(callsFor(orders.gte, "created_at")).toEqual([["created_at", expected]]);
   });
 });

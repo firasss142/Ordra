@@ -70,6 +70,7 @@ async function run(req: NextRequest): Promise<NextResponse> {
           rows_imported: 0,
           rows_duplicate: 0,
           rows_errored: 1,
+          rows_skipped: 0,
           last_row: 0,
           has_more: false,
           errors: [{ row: 0, message: err instanceof Error ? err.message : "Unknown error" }],

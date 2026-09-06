@@ -4,6 +4,8 @@ import { getActor } from "@/lib/auth/actor";
 import { canViewOrders } from "@/lib/order-permissions";
 import { listQuerySchema } from "@/lib/orders/list-filters";
 import { searchToLegs } from "@/lib/orders/search-query";
+import { marketDayBounds } from "@/lib/dates/market-day";
+import { marketTimezone } from "@/lib/markets";
 
 export const dynamic = "force-dynamic";
 
@@ -72,14 +74,19 @@ export async function GET(req: NextRequest) {
     ? q.status.split(",").map((s) => s.trim()).filter(Boolean)
     : null;
 
+  const window = marketDayBounds(q.date_from, q.date_to, marketId);
+
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_order_facet_counts", {
     p_market_id: marketId,
     p_preset: q.preset,
     p_statuses: statuses && statuses.length > 0 ? statuses : null,
     p_agent_id: q.agent_id ?? null,
-    p_date_from: q.date_from ?? null,
-    p_date_to: q.date_to ?? null,
+    // UTC instants cut at the market's day edges, inclusive — the same window
+    // the list route applies — plus the zone for the RPC's own `today` preset.
+    p_date_from: window.fromIso,
+    p_date_to: window.toIso,
+    p_tz: marketTimezone(marketId),
     p_product_id: q.product_id ?? null,
     p_city: q.city ?? null,
     p_total_min: q.total_min ?? null,
