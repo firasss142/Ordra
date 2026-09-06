@@ -28,13 +28,23 @@ const stats = {
   currency: "LYD",
 };
 
+// What each SWR key resolves to. `undefined` is the in-flight state — the
+// screen must not pretend it is an answer.
+let statsData: typeof stats | undefined;
+let pageData: { orders: WarehouseOrderRow[]; nextCursor: string | null } | undefined;
+
 vi.mock("swr", () => ({
   default: (key: string) => ({
-    data: key.includes("stats") ? stats : { orders: rows, nextCursor: null },
+    data: key.includes("stats") ? statsData : pageData,
     error: undefined,
     isLoading: false,
     mutate: vi.fn(),
   }),
+}));
+
+// The camera is a hardware surface; one live preview is the only correct count.
+vi.mock("@/components/warehouse/QrScanner", () => ({
+  QrScanner: () => <div data-testid="qr-scanner" />,
 }));
 
 const row = (id: string, name: string, days: number, price: number): WarehouseOrderRow => ({
@@ -66,6 +76,8 @@ let rows: WarehouseOrderRow[] = [];
 
 beforeEach(() => {
   rows = [row("aaaa1111-0000-0000-0000-000000000001", "عبد السلام", 14, 179)];
+  statsData = stats;
+  pageData = { orders: rows, nextCursor: null };
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true }) }));
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -107,6 +119,110 @@ describe("Retours — the KPI row", () => {
     setup();
     const spark = within(screen.getByTestId("wh-kpi-rate")).getByTestId("wh-spark");
     expect(spark.querySelectorAll("circle")).toHaveLength(4);
+  });
+
+  it("labels the weeks and the unit through the catalogue, not in French", () => {
+    setup();
+    const spark = within(screen.getByTestId("wh-kpi-rate")).getByTestId("wh-spark");
+    expect(spark).toHaveTextContent("S-4");
+    expect(within(screen.getByTestId("wh-kpi-depreciated")).getByText("u")).toBeInTheDocument();
+  });
+});
+
+/**
+ * Before the two fetches answer, the screen used to print "0 in queue", "queue
+ * empty — every return has its decision" and "0,00 TND" — for a Libyan market
+ * that pays in LYD. A screen that has not been told yet must say so.
+ */
+describe("Retours — while the data is still in flight", () => {
+  beforeEach(() => {
+    statsData = undefined;
+    pageData = undefined;
+  });
+
+  it("shows a placeholder, no figure and no currency, on the KPI cards", () => {
+    setup();
+    for (const id of ["queue", "done", "depreciated"]) {
+      const card = screen.getByTestId(`wh-kpi-${id}`);
+      expect(within(card).getByTestId("wh-value")).toHaveTextContent("—");
+      expect(card).not.toHaveTextContent("0");
+      expect(card).not.toHaveTextContent(/TND|LYD/);
+    }
+    expect(screen.queryByText(/File vide/)).not.toBeInTheDocument();
+  });
+
+  it("renders skeleton rows, not the empty-queue verdict", () => {
+    setup();
+    expect(screen.queryByTestId("wh-returns-empty")).not.toBeInTheDocument();
+    const skeleton = screen.getByTestId("wh-returns-skeleton");
+    expect(skeleton).toHaveAttribute("aria-hidden", "true");
+    expect(skeleton.querySelectorAll(".bg-wh-sunken")).toHaveLength(3);
+  });
+
+  it("only calls the queue empty once the fetch said so", () => {
+    pageData = { orders: [], nextCursor: null };
+    setup();
+    expect(screen.queryByTestId("wh-returns-skeleton")).not.toBeInTheDocument();
+    expect(screen.getByTestId("wh-returns-empty")).toBeInTheDocument();
+  });
+});
+
+/**
+ * The agent in Tripoli works this screen on a phone. The scan field lived only
+ * in the decision panel, which the phone hides until a card is tapped — so the
+ * one gesture the screen exists for, "parcel in hand → scan it", was
+ * unreachable there.
+ */
+describe("Retours — the scan field on a phone", () => {
+  it("mounts a scan field above the queue that the phone always shows", () => {
+    setup();
+    const phone = screen.getByTestId("wh-scan-phone");
+    expect(phone.className).toMatch(/\bmd:hidden\b/);
+    expect(within(phone).getByLabelText(/Scannez/i)).toBeInTheDocument();
+    // The queue follows the field, never precedes it.
+    expect(
+      phone.compareDocumentPosition(screen.getByTestId("wh-return-aaaa1111-0000-0000-0000-000000000001")),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it("mounts exactly one field per viewport", () => {
+    setup();
+    expect(screen.getAllByLabelText(/Scannez/i)).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: /caméra/i })).toHaveLength(2);
+  });
+
+  it("opens the camera once, never in both places", () => {
+    setup();
+    fireEvent.click(screen.getAllByRole("button", { name: /caméra/i })[0]);
+    expect(screen.getAllByTestId("qr-scanner")).toHaveLength(1);
+  });
+
+  it("shows the scan verdict where the phone can see it", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ outcome: "not_found", code: "999999999999" }),
+    }));
+    setup();
+    const input = within(screen.getByTestId("wh-scan-phone")).getByLabelText(/Scannez/i);
+    fireEvent.change(input, { target: { value: "999999999999" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() =>
+      expect(within(screen.getByTestId("wh-scan-phone")).getByTestId("wh-scan-verdict")).toBeInTheDocument(),
+    );
+  });
+
+  it("scrolls the parcel a scan resolved into view", async () => {
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ outcome: "found", code: "000000227104", order: rows[0] }),
+    }));
+    setup();
+    const input = within(screen.getByTestId("wh-scan-phone")).getByLabelText(/Scannez/i);
+    fireEvent.change(input, { target: { value: "000000227104" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => expect(scrolled).toHaveBeenCalledWith({ block: "center" }));
   });
 });
 
@@ -216,9 +332,14 @@ describe("Retours — the return rate withholds itself when the sample is thin",
 
 describe("ReturnsConsole — the scanner", () => {
   function scan(code: string) {
-    const input = screen.getByLabelText(/Scannez/i);
+    const [input] = screen.getAllByLabelText(/Scannez/i);
     fireEvent.change(input, { target: { value: code } });
     fireEvent.keyDown(input, { key: "Enter" });
+  }
+
+  // One verdict per viewport, like the field it sits under; both say the same.
+  async function verdict() {
+    return (await screen.findAllByTestId("wh-scan-verdict"))[0];
   }
 
   function lookupReturns(body: unknown) {
@@ -261,9 +382,9 @@ describe("ReturnsConsole — the scanner", () => {
 
     scan("000000227999");
 
-    const verdict = await screen.findByTestId("wh-scan-verdict");
-    expect(verdict).toHaveTextContent(/delivered/);
-    expect(verdict).toHaveTextContent(/Ali/);
+    const v = await verdict();
+    expect(v).toHaveTextContent(/delivered/);
+    expect(v).toHaveTextContent(/Ali/);
   });
 
   it("refuses to guess when a short code matches several orders", async () => {
@@ -272,9 +393,9 @@ describe("ReturnsConsole — the scanner", () => {
 
     scan("af69d0");
 
-    const verdict = await screen.findByTestId("wh-scan-verdict");
-    expect(verdict).toHaveTextContent(/3/);
-    expect(verdict).toHaveTextContent(/complet/i);
+    const v = await verdict();
+    expect(v).toHaveTextContent(/3/);
+    expect(v).toHaveTextContent(/complet/i);
   });
 
   it("reports a code no order carries", async () => {
@@ -283,7 +404,7 @@ describe("ReturnsConsole — the scanner", () => {
 
     scan("999999999999");
 
-    expect(await screen.findByTestId("wh-scan-verdict")).toHaveTextContent(/Aucune commande/i);
+    expect(await verdict()).toHaveTextContent(/Aucune commande/i);
   });
 
   it("does not arm the decision panel on a failed scan", async () => {
@@ -291,7 +412,7 @@ describe("ReturnsConsole — the scanner", () => {
     render(<ReturnsConsole marketId="00000000-0000-0000-0000-000000000002" />);
 
     scan("999999999999");
-    await screen.findByTestId("wh-scan-verdict");
+    await verdict();
 
     // Step 2 is "Décision"; it must stay unreached.
     expect(screen.getByTestId("wh-step-2")).toHaveAttribute("data-on", "false");

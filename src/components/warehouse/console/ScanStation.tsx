@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Camera, Check, ScanLine, TriangleAlert, X } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import type { OrderZone } from "@/lib/warehouse/zone-index";
 import { QrScanner } from "@/components/warehouse/QrScanner";
 import { ScanViewfinder } from "@/components/warehouse/mobile/ScanViewfinder";
+import { zoneLabels } from "@/lib/carriers/darb-zones";
+import { isDarbStickerPayload } from "@/lib/preparation/sticker-payload";
 import { WH_LABEL } from "./tokens";
 import { WhPill } from "./primitives";
 
@@ -50,6 +52,12 @@ interface ScanResponse {
   error_code?: string;
   error?: string;
   darb_bound?: boolean;
+  carrier_status?: string;
+}
+
+/** A refusal decided here, before the network. */
+function refusal(code: string, message: string): ScanEntry {
+  return { id: `${Date.now()}`, code, at: new Date().toISOString(), outcome: "refused_here", message };
 }
 
 /** Which outcome a response represents. Only `bound` is a clean success. */
@@ -91,6 +99,7 @@ export function ScanStation({
   onScanned: () => void;
 }) {
   const t = useTranslations("warehouse.scan");
+  const locale = useLocale();
   const isLy = market === "ly";
   const isStation = variant === "station";
 
@@ -118,18 +127,16 @@ export function ScanStation({
         : orders.find((o) => o.id === code || o.id.startsWith(code)) ?? null;
 
       if (!target) {
-        setScans((s) =>
-          [
-            {
-              id: `${Date.now()}`,
-              code,
-              at: new Date().toISOString(),
-              outcome: "refused_here" as const,
-              message: t("errNotFound"),
-            },
-            ...s,
-          ].slice(0, 8),
-        );
+        // Libya: the camera can fire with nothing in hand (the input cannot).
+        // That is not a missing order — it is a scan with nothing to bind to.
+        setScans((s) => [refusal(code, isLy ? t("errNoHand") : t("errNotFound")), ...s].slice(0, 8));
+        return;
+      }
+
+      // The Darb QR is the bare number. Anything else would be bound by Darb
+      // without complaint, so it is refused here, before any carrier write.
+      if (isLy && !isDarbStickerPayload(code)) {
+        setScans((s) => [refusal(code, t("errNotNumeric")), ...s].slice(0, 8));
         return;
       }
 
@@ -144,6 +151,15 @@ export function ScanStation({
         const body = (await res.json().catch(() => ({}))) as ScanResponse;
         const outcome = outcomeFor(res.ok, body);
 
+        // The row's current_stock is a cached page (stale-while-revalidate),
+        // so "from" is derived from the server's stock_after, never read off
+        // the row — the row lagged by one or two scans on the bench.
+        const after = typeof body.stock_after === "number" ? body.stock_after : before - target.quantity;
+        const label = errorLabel(body.error_code, t);
+        // Darb's own wording is better than anything we could invent; keep it
+        // beside our label rather than replacing it.
+        const detail = body.error_code === "DARB_BIND_FAILED" && body.message ? body.message : null;
+
         setScans((s) =>
           [
             {
@@ -151,11 +167,15 @@ export function ScanStation({
               code,
               at: new Date().toISOString(),
               outcome,
-              from: res.ok ? before : undefined,
-              to: res.ok ? body.stock_after ?? before - target.quantity : undefined,
+              from: res.ok ? after + target.quantity : undefined,
+              to: res.ok ? after : undefined,
               message: res.ok
                 ? undefined
-                : errorLabel(body.error_code, t) ?? body.message ?? body.error,
+                : label
+                  ? detail
+                    ? `${label} ${detail}`
+                    : label
+                  : body.message ?? body.error,
             },
             ...s,
           ].slice(0, 8),
@@ -172,12 +192,13 @@ export function ScanStation({
 
   const last = scans[0];
   const armed = Boolean(hand) || !isLy;
+  const handLabels = zoneLabels(handZone, locale);
 
   return (
     <div className={isStation ? "mx-auto w-full max-w-[720px]" : ""}>
       {/* The colour to reach for. First thing on the panel, biggest thing on
           the station — it is the decision made before the parcel is touched. */}
-      {isLy && hand ? <RollStrip zone={handZone} big={isStation} t={t} /> : null}
+      {isLy && hand ? <RollStrip zone={handZone} big={isStation} locale={locale} t={t} /> : null}
 
       <div className={`rounded-wh border border-wh-border bg-wh-surface ${isStation ? "" : "shadow-sm"}`}>
         <div className="flex items-center gap-2 border-b border-wh-border px-4 py-3">
@@ -192,9 +213,9 @@ export function ScanStation({
         <div className="m-4 rounded-[11px] border border-wh-border bg-wh-sunken p-3.5">
           <div className={`flex items-center ${WH_LABEL}`}>
             {hand ? t("handLabel") : t("handNone")}
-            {hand && handZone?.nameFr ? (
+            {hand && handLabels.name ? (
               <span className="ms-auto">
-                <WhPill tone="scan">{handZone.nameFr}</WhPill>
+                <WhPill tone="scan">{handLabels.name}</WhPill>
               </span>
             ) : null}
           </div>
@@ -303,6 +324,14 @@ export function ScanStation({
           </button>
         </div>
 
+        {/* A bind can take the full 15 s carrier timeout. A frozen input with
+            no words reads as a dead screen, so the wait is named. */}
+        {busy ? (
+          <p role="status" className="mx-4 mt-3 text-[12.5px] font-semibold text-wh-ink-2">
+            {isLy ? t("binding") : t("bindingTn")}
+          </p>
+        ) : null}
+
         {last ? <ResultTile entry={last} big={isStation} t={t} /> : null}
 
         <div className="m-4">
@@ -356,13 +385,16 @@ export function ScanStation({
 function RollStrip({
   zone,
   big,
+  locale,
   t,
 }: {
   zone: OrderZone | null;
   big: boolean;
+  locale: string;
   t: (key: string, values?: Record<string, string | number>) => string;
 }) {
-  if (!zone || !zone.colorHex) {
+  const labels = zoneLabels(zone, locale);
+  if (!zone || !zone.colorHex || !labels.colour) {
     return (
       <div className="mb-3 flex items-center gap-3 rounded-[12px] border border-dashed border-wh-border-strong bg-wh-sunken px-4 py-3">
         <span
@@ -388,11 +420,10 @@ function RollStrip({
       />
       <span className="min-w-0">
         <b className={`block font-bold uppercase tracking-[0.06em] text-wh-ink-1 ${big ? "text-[19px]" : "text-[14px]"}`}>
-          {t("rollLabel", { colour: zone.colourFr ?? "" })}
+          {t("rollLabel", { colour: labels.colour })}
         </b>
         <span className="block text-[12px] text-wh-ink-2">
-          <bdi>{zone.nameFr}</bdi>
-          {zone.nameAr ? <> · <bdi>{zone.nameAr}</bdi></> : null}
+          <bdi>{labels.name}</bdi>
         </span>
       </span>
     </div>
@@ -463,6 +494,9 @@ function errorLabel(code: string | undefined, t: (k: string) => string): string 
     case "STOCK_UNDERFLOW": return t("errStock");
     case "CARRIER_WAREHOUSE_ORDER": return t("errCarrierWarehouse");
     case "ORDER_NOT_FOUND": return t("errNotFound");
+    case "GONE_AT_CARRIER": return t("errGone");
+    case "STICKER_NOT_NUMERIC": return t("errNotNumeric");
+    case "FORBIDDEN": return t("errForbidden");
     default: return null;
   }
 }

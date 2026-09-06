@@ -4,6 +4,7 @@ import { memo, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { preload } from "swr";
+import { useTranslations } from "next-intl";
 import type { LucideIcon } from "lucide-react";
 import { jsonFetcher } from "@/lib/fetchers";
 
@@ -43,6 +44,7 @@ function badge(count: number): string {
 
 function WarehouseBottomBarInner({ tabs }: { tabs: BottomTab[] }) {
   const pathname = usePathname();
+  const t = useTranslations("warehouse.nav");
 
   const prefetchData = useCallback((key?: string) => {
     if (!key) return;
@@ -52,7 +54,7 @@ function WarehouseBottomBarInner({ tabs }: { tabs: BottomTab[] }) {
   return (
     <nav
       data-testid="wh-bottom-bar"
-      aria-label="Entrepôt"
+      aria-label={t("section")}
       // wh-safe-bottom: the gesture bar overlaps the last ~34px of the
       // viewport on a modern iPhone, and without the inset the labels sit
       // underneath it.

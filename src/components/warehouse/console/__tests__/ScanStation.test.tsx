@@ -5,6 +5,7 @@ import { ScanStation } from "../ScanStation";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import type { OrderZone } from "@/lib/warehouse/zone-index";
 import messages from "@/messages/fr.json";
+import arMessages from "@/messages/ar.json";
 
 /**
  * The scan bench.
@@ -19,7 +20,11 @@ import messages from "@/messages/fr.json";
 
 // The camera path pulls in html5-qrcode, which wants a real <video>.
 vi.mock("@/components/warehouse/QrScanner", () => ({
-  QrScanner: () => <div data-testid="qr-scanner" />,
+  // The fake camera decodes one sticker when clicked, so the camera path
+  // (which bypasses the disabled input) can be exercised.
+  QrScanner: ({ onScan }: { onScan: (v: string) => void }) => (
+    <button type="button" data-testid="qr-scanner" onClick={() => onScan("7700001")} />
+  ),
 }));
 
 function order(overrides: Partial<WarehouseOrderRow> = {}): WarehouseOrderRow {
@@ -220,5 +225,88 @@ describe("ScanStation — on a phone the camera is the scanner", () => {
     const toggle = screen.getByTestId("wh-camera-toggle").className;
     expect(toggle).toMatch(/\bhidden\b/);
     expect(toggle).toMatch(/\bmd:grid\b/);
+  });
+});
+
+describe("ScanStation — what the tile says is what the server did", () => {
+  test("the 'from' figure is the server's, not the row's cached stock", async () => {
+    // The queue page is cached for up to 30 s (stale-while-revalidate), so
+    // the row's current_stock lags behind the shelf. Measured on the bench:
+    // "10 → 8" and "9 → 7" for single-unit scans.
+    respond(200, { stock_after: 199 });
+    renderStation({ hand: order({ current_stock: 250 }) });
+    scan("889230");
+    await waitFor(() => expect(screen.getByText(/Sticker lié chez Darb/i)).toBeInTheDocument());
+    expect(screen.getAllByText(/200 → 199/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/250 → 199/)).toBeNull();
+  });
+
+  test("Darb's own refusal wording reaches the operator", async () => {
+    respond(502, { error_code: "DARB_BIND_FAILED", message: "Darb injoignable" });
+    renderStation();
+    scan("889230");
+    await waitFor(() => expect(screen.getByText(/Refusé par Darb/i)).toBeInTheDocument());
+    expect(screen.getAllByText(/Darb injoignable/).length).toBeGreaterThan(0);
+  });
+
+  test("says the bench is talking to Darb while the request is in flight", async () => {
+    // A bind can take the full 15 s timeout. A frozen input with no words is
+    // read as a dead screen.
+    vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
+    renderStation();
+    scan("889230");
+    await waitFor(() => expect(screen.getByText(/Liaison chez Darb/i)).toBeInTheDocument());
+  });
+
+  test("a parcel already released by the carrier is named as such", async () => {
+    respond(409, { error_code: "GONE_AT_CARRIER", carrier_status: "released" });
+    renderStation();
+    scan("889230");
+    await waitFor(() => expect(screen.getAllByText(/déjà parti chez le transporteur/i).length).toBeGreaterThan(0));
+  });
+});
+
+describe("ScanStation — refusals that never reach the network", () => {
+  test("a camera scan with no parcel in hand says so, not 'introuvable'", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    renderStation({ hand: null, handZone: null });
+    fireEvent.click(screen.getByTestId("wh-camera-primary"));
+    fireEvent.click(screen.getByTestId("qr-scanner"));
+    await waitFor(() => expect(screen.getAllByText(/Scan ignoré/i).length).toBeGreaterThan(0));
+    expect(screen.queryByText(/Commande introuvable/i)).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test("a payload that is not a bare number is refused locally", async () => {
+    // The Darb QR encodes the bare sticker number. Anything else is a
+    // mis-scan, and Darb would bind it without complaint.
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    renderStation();
+    scan("https://sabil.ly/track/7700011");
+    await waitFor(() => expect(screen.getAllByText(/pas un numéro de sticker/i).length).toBeGreaterThan(0));
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("ScanStation — the colour in the operator's language", () => {
+  test("a Libyan agent reads the roll colour and zone in Arabic", () => {
+    render(
+      <NextIntlClientProvider locale="ar" messages={arMessages}>
+        <ScanStation
+          variant="station"
+          market="ly"
+          hand={order()}
+          handZone={greenZone}
+          orders={[order()]}
+          onScanned={vi.fn()}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText(/رول أخضر/)).toBeInTheDocument();
+    expect(screen.getAllByText(/المنطقة الشرقية/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Vert/)).toBeNull();
+    expect(screen.queryByText(/Région orientale/)).toBeNull();
   });
 });

@@ -144,3 +144,25 @@ describe("GET /api/warehouse/stock — the fields the phone card needs", () => {
     expect(rows[0].series).toEqual([]);
   });
 });
+
+describe("GET /api/warehouse/stock — what counts as engaged", () => {
+  test("units already scanned out are not engaged: they have left current_stock", async () => {
+    // scanned is the stock boundary — scan_order_out already deducted those
+    // units. Counting them again against current_stock produced a phantom
+    // deficit on the Libyan bench (held 7, "engaged" 11, free −4) for a shelf
+    // that was in fact fine.
+    wire({ products: [product()] });
+    await GET(req());
+
+    const ordersChain = mockFrom.mock.results
+      .map((r) => r.value as { in: { mock: { calls: unknown[][] } } })
+      .find((c) => c.in.mock.calls.some((call) => call[0] === "status"));
+    expect(ordersChain).toBeDefined();
+    const statuses = ordersChain!.in.mock.calls.find((call) => call[0] === "status")![1] as string[];
+    expect(statuses).toContain("uploaded");
+    expect(statuses).toContain("confirmed");
+    for (const gone of ["scanned", "dispatched", "deposit", "in_transit"]) {
+      expect(statuses).not.toContain(gone);
+    }
+  });
+});

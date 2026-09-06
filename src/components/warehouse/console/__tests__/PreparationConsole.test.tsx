@@ -6,6 +6,7 @@ vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
   const messages = (await import("@/messages/fr.json")).default;
   return {
+    useLocale: () => "fr",
     useTranslations:
       (ns: string) =>
       (key: string, params?: Record<string, unknown>) =>

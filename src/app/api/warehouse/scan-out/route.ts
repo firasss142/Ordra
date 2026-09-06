@@ -44,6 +44,8 @@ interface Precheck {
   code?: string;
   required_color?: string | null;
   branch_group?: string | null;
+  carrier_status?: string | null;
+  sticker?: string | null;
 }
 
 const PRECHECK_STATUS: Record<string, number> = {
@@ -52,12 +54,23 @@ const PRECHECK_STATUS: Record<string, number> = {
   MARKET_MISMATCH: 409,
   INVALID_STATUS: 409,
   STICKER_ALREADY_USED: 409,
+  GONE_AT_CARRIER: 409,
+  STICKER_NOT_NUMERIC: 409,
 };
 
 function classifyRpcError(message: string): { code: ScanErrorCode; status: number } {
   const m = message.toLowerCase();
+  if (m.includes("cannot scan")) {
+    return { code: "FORBIDDEN", status: 403 };
+  }
   if (m.includes("sticker") && m.includes("already")) {
     return { code: "STICKER_ALREADY_USED", status: 409 };
+  }
+  if (m.includes("sticker") && m.includes("not a number")) {
+    return { code: "STICKER_NOT_NUMERIC", status: 409 };
+  }
+  if (m.includes("already left the carrier")) {
+    return { code: "GONE_AT_CARRIER", status: 409 };
   }
   if (m.includes("not found") && m.includes("order")) {
     return { code: "ORDER_NOT_FOUND", status: 409 };
@@ -65,7 +78,7 @@ function classifyRpcError(message: string): { code: ScanErrorCode; status: numbe
   if (m.includes("different market") || m.includes("market")) {
     return { code: "MARKET_MISMATCH", status: 409 };
   }
-  if (m.includes("not in confirmed") || m.includes("current:")) {
+  if (m.includes("current:")) {
     return { code: "INVALID_STATUS", status: 409 };
   }
   if (m.includes("label")) {
@@ -182,9 +195,15 @@ export async function POST(req: NextRequest) {
 
       // Written back so the next scan costs no lookup, and — more importantly —
       // so scan_order_out can read the branch group and enforce the roll colour.
-      extra.darb_assabil_id = internalId;
-      if (branchGroup) extra.darb_branch_group = branchGroup;
-      await supabase.from("orders").update({ carrier_extra: extra }).eq("id", orderId);
+      // Through a SECURITY DEFINER RPC: the orders UPDATE policy has no
+      // warehouse_agent arm, so a session-client update silently touched zero
+      // rows for the floor role and every scan re-did the lookup.
+      await supabase.rpc("cache_darb_shipment_ref", {
+        p_order_id: orderId,
+        p_actor_id: actor.id,
+        p_darb_id: internalId,
+        p_branch_group: branchGroup,
+      });
     }
   }
 
@@ -202,6 +221,8 @@ export async function POST(req: NextRequest) {
         error_code: precheck.code,
         required_color: precheck.required_color ?? null,
         branch_group: precheck.branch_group ?? null,
+        ...(precheck.carrier_status ? { carrier_status: precheck.carrier_status } : {}),
+        ...(precheck.sticker ? { sticker: precheck.sticker } : {}),
         message: "Scan refusé",
       },
       { status: PRECHECK_STATUS[precheck.code] ?? 409 }

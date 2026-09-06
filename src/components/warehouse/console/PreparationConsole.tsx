@@ -3,17 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Boxes, ChevronDown, Clock, Maximize2, PackageSearch, ScanLine, Search, Truck,
 } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import type { OrderZone } from "@/lib/warehouse/zone-index";
-import { DARB_ZONE_ORDER, DARB_ZONES } from "@/lib/carriers/darb-zones";
+import { DARB_ZONE_ORDER, zoneLabels } from "@/lib/carriers/darb-zones";
 import { WhCard, WhHolder, WhPill } from "./primitives";
 import { WH_LABEL, WH_BTN } from "./tokens";
 import { ScanStation } from "./ScanStation";
-import { PrepCard } from "./PrepCard";
+import { PrepCard, benchAgeLabel, type AgeTranslate } from "./PrepCard";
 
 /**
  * Préparation — the packing bench.
@@ -63,11 +63,10 @@ type AgeTone = "ok" | "warn" | "bad";
  * uploaded this morning has been the warehouse's problem for two hours; on
  * real data the two clocks differ by up to a month.
  */
-function ageOf(row: Row): { label: string; tone: AgeTone; hours: number } {
+function ageOf(row: Row): { tone: AgeTone; hours: number } {
   const since = row.uploaded_at ?? row.created_at;
   const hours = Math.max(0, (Date.now() - new Date(since).getTime()) / 3_600_000);
-  const label = hours < 24 ? `${Math.round(hours)} h` : `${Math.floor(hours / 24)} j`;
-  return { label, tone: hours >= 48 ? "bad" : hours >= 12 ? "warn" : "ok", hours };
+  return { tone: hours >= 48 ? "bad" : hours >= 12 ? "warn" : "ok", hours };
 }
 
 export function PreparationConsole({
@@ -81,6 +80,8 @@ export function PreparationConsole({
   dailyGoal: number;
 }) {
   const t = useTranslations("warehouse.prep2");
+  const tAge = useTranslations("warehouse.age");
+  const locale = useLocale();
   const isLy = market === "ly";
 
   const { data, mutate } = useSWR<QueuePage>(
@@ -175,7 +176,7 @@ export function PreparationConsole({
         <div>
           <h1 className="text-[22px] font-bold tracking-[-0.02em] text-wh-ink-1 md:text-[24px]">{t("title")}</h1>
           <p className="mt-1 text-[13px] text-wh-ink-2">
-            {t("subtitle")} · {isLy ? "Libye" : "Tunisie"}
+            {t("subtitle")} · {isLy ? t("marketLy") : t("marketTn")}
           </p>
         </div>
         <div className="ms-auto flex flex-wrap gap-2.5">
@@ -262,9 +263,7 @@ export function PreparationConsole({
           {oldest > 0 ? (
             <div className="mt-2">
               <WhPill tone={lateCount ? "warn" : "muted"}>
-                {t("kpiOldest", {
-                  age: oldest >= 24 ? `${Math.floor(oldest / 24)} j` : `${Math.round(oldest)} h`,
-                })}
+                {t("kpiOldest", { age: benchAgeLabel(oldest, tAge) })}
               </WhPill>
             </div>
           ) : null}
@@ -323,14 +322,14 @@ export function PreparationConsole({
 
             {isLy ? (
               <FilterPill
-                label={zoneFilter ? DARB_ZONES[zoneFilter]?.nameFr ?? t("filterZone") : t("filterZone")}
+                label={zoneFilter ? zoneLabels(zoneFilter, locale).name ?? t("filterZone") : t("filterZone")}
                 active={zoneFilter !== null}
                 options={[
                   { value: "", label: t("allZones") },
-                  ...DARB_ZONE_ORDER.map((hex) => ({
-                    value: hex,
-                    label: `${DARB_ZONES[hex].colourFr} — ${DARB_ZONES[hex].nameFr}`,
-                  })),
+                  ...DARB_ZONE_ORDER.map((hex) => {
+                    const z = zoneLabels(hex, locale);
+                    return { value: hex, label: `${z.colour} — ${z.name}` };
+                  }),
                 ]}
                 current={zoneFilter ?? ""}
                 onPick={(v) => setZoneFilter(v || null)}
@@ -423,6 +422,8 @@ export function PreparationConsole({
                         hand={hand}
                         onTake={take}
                         t={t}
+                        tAge={tAge}
+                        locale={locale}
                         currency={currency}
                       />
                     ))
@@ -542,7 +543,7 @@ function FilterPill({
  * matches the physical roll on the shelf rather than a palette we invented.
  */
 function ZoneGroup({
-  zoneKey, rows, isLy, hand, onTake, t, currency,
+  zoneKey, rows, isLy, hand, onTake, t, tAge, locale, currency,
 }: {
   zoneKey: string;
   rows: Row[];
@@ -550,9 +551,13 @@ function ZoneGroup({
   hand: Row | null;
   onTake: (o: Row) => void;
   t: ReturnType<typeof useTranslations>;
+  tAge: AgeTranslate;
+  locale: string;
   currency: string;
 }) {
-  const zone = DARB_ZONES[zoneKey];
+  // The group key IS Darb's hex (or "unknown"), so the swatch needs no lookup.
+  const zone = zoneLabels(zoneKey, locale);
+  const known = zone.colour !== null;
   return (
     <>
       {isLy ? (
@@ -560,12 +565,12 @@ function ZoneGroup({
           <td colSpan={6} className="bg-wh-sunken px-3.5 py-1.5 text-[11.5px] font-bold tracking-[0.04em] text-wh-ink-2">
             <span
               className="me-2 inline-block h-2.5 w-2.5 rounded-pill border border-black/15 align-[0px]"
-              style={{ background: zone?.hex ?? "transparent" }}
+              style={{ background: known ? zoneKey : "transparent" }}
               aria-hidden="true"
             />
-            <span className="uppercase">{zone ? zone.colourFr : t("zoneUnknown")}</span>
-            {zone ? (
-              <span className="ms-1.5 font-semibold text-wh-ink-3">— {zone.nameFr}</span>
+            <span className="uppercase">{zone.colour ?? t("zoneUnknown")}</span>
+            {zone.name ? (
+              <span className="ms-1.5 font-semibold text-wh-ink-3">— {zone.name}</span>
             ) : null}
             <span className="float-end font-mono font-semibold tabular-nums text-wh-ink-3">
               {t("orders", { count: rows.length })}
@@ -630,7 +635,7 @@ function ZoneGroup({
                 }`}
                 title={t("ageFromUpload")}
               >
-                {age.label}
+                {benchAgeLabel(age.hours, tAge)}
               </span>
             </td>
             <td className="px-3.5 py-2.5 text-end font-mono tabular-nums">
