@@ -3129,6 +3129,10 @@
     "activity": {
       "title": "Activité récente"
     },
+    "age": {
+      "days": "{n} j",
+      "hours": "{n} h"
+    },
     "banner": {
       "newReveal": "{count} nouvelle(s) · Afficher",
       "dismiss": "Ignorer"
@@ -3310,6 +3314,7 @@
       "quickScan": "Scan rapide",
       "returns": "Retours",
       "scan": "Mode scan",
+      "section": "Entrepôt",
       "settings": "Réglages",
       "stock": "Stock",
       "today": "Aujourd'hui"
@@ -3425,6 +3430,8 @@
       "kpiScanned": "Scannées aujourd'hui",
       "kpiSetAside": "{count} mises de côté (> 7 j sur le banc)",
       "lateFilter": "En retard (> 48 h)",
+      "marketLy": "Libye",
+      "marketTn": "Tunisie",
       "noCarrierRef": "Non traçable chez Darb",
       "noCompare": "pas de comparaison",
       "noMatch": "Aucune commande ne correspond à cette recherche.",
@@ -3657,7 +3664,9 @@
       "step3": "Journal",
       "subtitle": "Chaque colis revenu reçoit une décision explicite avant de quitter la file.",
       "title": "Retours",
-      "validate": "Valider la décision"
+      "unitShort": "u",
+      "validate": "Valider la décision",
+      "weekShort": "S-{n}"
     },
     "scan": {
       "camera": "Scanner avec la caméra",
@@ -3675,6 +3684,12 @@
       "errStatus": "Cette commande n'est pas prête à être scannée.",
       "errStickerUsed": "Ce sticker est déjà lié à un autre colis.",
       "errStock": "Stock insuffisant.",
+      "errNoHand": "Scan ignoré : prenez d'abord un colis dans la file, puis rescannez.",
+      "errNotNumeric": "Ce code n'est pas un numéro de sticker Darb — rescannez le sticker collé sur le colis.",
+      "errGone": "Colis déjà parti chez le transporteur — ne pas scanner.",
+      "errForbidden": "Votre rôle ne permet pas de scanner.",
+      "binding": "Liaison chez Darb…",
+      "bindingTn": "Enregistrement de la sortie…",
       "handLabel": "Colis en main",
       "handNone": "Aucun colis en main",
       "handNoneHint": "Choisissez « Prendre » sur une ligne de la file pour armer le scanner.",

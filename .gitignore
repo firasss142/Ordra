@@ -18,3 +18,6 @@ oms-sheets-sync-*.json
 agent-queue.png
 orders-header.png
 orders-page-full.png
+
+# Libya warehouse E2E fixture runtime state (scripts/wh-test-fixture.ts)
+scripts/.wh-test-state.json

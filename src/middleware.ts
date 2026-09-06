@@ -11,7 +11,9 @@ import {
 } from "@/lib/auth/profile-cookie";
 
 const PUBLIC_PATHS = ["/login", "/auth/callback"];
-const STATIC_EXT = /\.(svg|png|jpg|jpeg|webp|woff2|map|txt|ico)$/;
+// webmanifest included: a PWA manifest redirected to /login is an HTML body
+// the browser reports as "Manifest: syntax error", and the install prompt dies.
+const STATIC_EXT = /\.(svg|png|jpg|jpeg|webp|woff2|map|txt|ico|webmanifest)$/;
 
 // Vercel kills a middleware invocation that hasn't responded within 25s. Every
 // Supabase call below shares this timeout so a slow/degraded Auth API fails

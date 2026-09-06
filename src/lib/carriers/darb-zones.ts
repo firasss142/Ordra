@@ -142,3 +142,30 @@ export function normalizeHex(value: string | null | undefined): string {
 export function zoneForColor(value: string | null | undefined): DarbZone | null {
   return DARB_ZONES[normalizeHex(value)] ?? null;
 }
+
+/** What an operator reads on the strip, in their own language. */
+export interface ZoneLabels {
+  colour: string | null;
+  name: string | null;
+}
+
+/**
+ * The colour and zone names in the operator's language.
+ *
+ * The Libyan bench reads Arabic, and the roll colour is the ONE label the
+ * whole routing control rests on — "Rouge — Tripoli et banlieue" is not a
+ * colour a Libyan agent can reach for. Accepts either the published hex or
+ * anything zone-shaped (an `OrderZone`, a `DarbZone`), and never guesses: an
+ * unknown colour is a pair of nulls the caller turns into "à confirmer".
+ */
+export function zoneLabels(
+  zone: string | { colorHex?: string | null; hex?: string | null } | null | undefined,
+  locale: string,
+): ZoneLabels {
+  const hex = typeof zone === "string" ? zone : (zone?.colorHex ?? zone?.hex ?? null);
+  const z = zoneForColor(hex);
+  if (!z) return { colour: null, name: null };
+  return locale === "ar"
+    ? { colour: z.colourAr, name: z.nameAr }
+    : { colour: z.colourFr, name: z.nameFr };
+}

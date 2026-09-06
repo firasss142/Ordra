@@ -1,9 +1,10 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Boxes } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import type { OrderZone } from "@/lib/warehouse/zone-index";
+import { zoneLabels } from "@/lib/carriers/darb-zones";
 import { WhPill } from "./primitives";
 
 /**
@@ -24,17 +25,27 @@ const GONE_AT_CARRIER = new Set(["released", "completed", "returning", "returned
 
 type AgeTone = "ok" | "warn" | "bad";
 
+/** A `warehouse.age` translator: `hours` / `days`, each taking `{n}`. */
+export type AgeTranslate = (key: "hours" | "days", values: { n: number }) => string;
+
+/**
+ * "3 h" / "3 j" in the operator's language. Hours until a full day, then
+ * whole days: nobody reads "95 h" as four days.
+ */
+export function benchAgeLabel(hours: number, t: AgeTranslate): string {
+  return hours < 24
+    ? t("hours", { n: Math.round(hours) })
+    : t("days", { n: Math.floor(hours / 24) });
+}
+
 /**
  * Age on the BENCH, not since intake. An order created three weeks ago and
  * uploaded this morning has been the warehouse's problem for two hours.
  */
-function ageOf(row: PrepRow): { label: string; tone: AgeTone } {
+function ageOf(row: PrepRow): { hours: number; tone: AgeTone } {
   const since = row.uploaded_at ?? row.created_at;
   const hours = Math.max(0, (Date.now() - new Date(since).getTime()) / 3_600_000);
-  return {
-    label: hours < 24 ? `${Math.round(hours)} h` : `${Math.floor(hours / 24)} j`,
-    tone: hours >= 48 ? "bad" : hours >= 12 ? "warn" : "ok",
-  };
+  return { hours, tone: hours >= 48 ? "bad" : hours >= 12 ? "warn" : "ok" };
 }
 
 const AGE_CLASS: Record<AgeTone, string> = {
@@ -57,7 +68,13 @@ export function PrepCard({
   currency: string;
 }) {
   const t = useTranslations("warehouse.prep2");
+  const tAge = useTranslations("warehouse.age");
+  const locale = useLocale();
   const age = ageOf(row);
+  const ageLabel = benchAgeLabel(age.hours, tAge);
+  // The roll colour in the agent's own language: "Vert" on an Arabic phone
+  // is a word to translate before walking to the shelf.
+  const zone = zoneLabels(row.zone.colorHex, locale);
   const inHand = hand?.id === row.id;
   const gone = GONE_AT_CARRIER.has(row.carrier_status_slug ?? "");
   // Without Darb's internal id the sticker cannot be bound at all. Say so here
@@ -89,10 +106,10 @@ export function PrepCard({
           {/* Never the swatch alone: two of the nine Darb colours sit about
               ΔE 10 apart, so the name is the instruction. */}
           <span className="truncate">
-            {row.zone.colourFr ?? t("zoneUnknown")}
-            {row.zone.nameFr ? (
+            {zone.colour ?? t("zoneUnknown")}
+            {zone.name ? (
               <span className="ms-1.5 font-semibold normal-case text-wh-ink-3">
-                — {row.zone.nameFr}
+                — {zone.name}
               </span>
             ) : null}
           </span>
@@ -123,7 +140,7 @@ export function PrepCard({
             title={t("ageFromUpload")}
             className={`shrink-0 whitespace-nowrap rounded-pill px-2.5 py-1 font-mono text-[11.5px] font-semibold tabular-nums ${AGE_CLASS[age.tone]}`}
           >
-            {age.label}
+            {ageLabel}
           </span>
         </div>
 

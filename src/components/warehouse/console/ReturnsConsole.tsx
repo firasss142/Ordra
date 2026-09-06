@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import type { ReactNode } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
 import {
@@ -73,7 +74,27 @@ function pct(n: number): string {
 }
 
 function money(n: number, currency: string): string {
-  return `${n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+  return `${n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`.trimEnd();
+}
+
+/**
+ * Whether the viewport is at Tailwind's `md` breakpoint or wider. Used for one
+ * decision only: which of the two scan fields hosts the camera preview, so that
+ * the camera is mounted once. It is never true on the server, and the camera
+ * is never open on the server, so hydration has nothing to disagree about.
+ */
+const DESK_QUERY = "(min-width: 768px)";
+function subscribeDesk(cb: () => void) {
+  if (typeof window === "undefined" || !window.matchMedia) return () => {};
+  const mq = window.matchMedia(DESK_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+function readDesk() {
+  return typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(DESK_QUERY).matches;
+}
+function useIsDesk() {
+  return useSyncExternalStore(subscribeDesk, readDesk, () => false);
 }
 
 function daysSince(iso: string): number {
@@ -82,6 +103,7 @@ function daysSince(iso: string): number {
 
 /** The four-point weekly curve in the rate card. */
 function Sparkline({ points }: { points: Array<{ week: number; rate: number | null }> }) {
+  const t = useTranslations("warehouse.returns2");
   const usable = points.filter((p) => p.rate !== null) as Array<{ week: number; rate: number }>;
   if (usable.length < 2) return null;
 
@@ -115,10 +137,109 @@ function Sparkline({ points }: { points: Array<{ week: number; rate: number | nu
       ))}
       {points.map((p, i) => (
         <text key={`l${p.week}`} x={x(i) - 8} y={42} fontSize="9" fill="var(--wh-ink-3)">
-          S-{p.week}
+          {t("weekShort", { n: p.week })}
         </text>
       ))}
     </svg>
+  );
+}
+
+/* ── The scan field ───────────────────────────────────────────────────── */
+
+/**
+ * Field + camera toggle + verdict. Rendered twice — once above the queue for
+ * the phone, once in the decision panel for the desk — with only one of the
+ * two visible at any width, so the operator always has a field in reach
+ * without two inputs fighting for focus. The camera preview is passed in by
+ * whichever instance is on screen; the other gets nothing.
+ */
+function ScanField({
+  value,
+  onChange,
+  onSubmit,
+  disabled,
+  camera,
+  onToggleCamera,
+  inputRef,
+  cameraNode,
+  verdict,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: (v: string) => void;
+  disabled: boolean;
+  camera: boolean;
+  onToggleCamera: () => void;
+  inputRef: (el: HTMLInputElement | null) => void;
+  cameraNode: ReactNode;
+  verdict: ScanLookup | null;
+}) {
+  const t = useTranslations("warehouse.returns2");
+  return (
+    <>
+      <div className="mx-4 mt-4 flex items-center gap-2">
+        <label className="flex flex-1 items-center gap-2.5 rounded-[12px] border-2 border-wh-ok bg-wh-surface px-4 py-3.5 shadow-wh-glow">
+          <ScanLine size={18} className="shrink-0 text-wh-ok" aria-hidden="true" />
+          <input
+            ref={inputRef}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onSubmit(value);
+              }
+            }}
+            disabled={disabled}
+            placeholder={t("scanPlaceholder")}
+            autoComplete="off"
+            aria-label={t("scanPlaceholder")}
+            className="w-full border-none bg-transparent font-mono text-[16px] font-semibold tracking-wide outline-none placeholder:font-sans placeholder:text-[13.5px] placeholder:font-medium placeholder:tracking-normal placeholder:text-wh-ink-3"
+          />
+        </label>
+        {/* A tablet at the returns table has no barcode gun. */}
+        <button
+          type="button"
+          onClick={onToggleCamera}
+          aria-pressed={camera}
+          aria-label={t("camera")}
+          className={`grid h-[50px] w-[50px] shrink-0 place-items-center rounded-[12px] border ${
+            camera
+              ? "border-wh-ok bg-wh-ok-bg text-wh-ok"
+              : "border-wh-border bg-wh-surface text-wh-ink-2 hover:border-wh-border-strong"
+          }`}
+        >
+          <Camera size={18} aria-hidden="true" />
+        </button>
+      </div>
+
+      {cameraNode ? <div className="mx-4 mt-3">{cameraNode}</div> : null}
+
+      {/* What the scan actually resolved to. A parcel in the operator's
+          hands is never "introuvable" without a reason worth reading. */}
+      {verdict && verdict.outcome !== "found" ? (
+        <div
+          role="status"
+          data-testid="wh-scan-verdict"
+          className="mx-4 mt-3 flex items-start gap-2.5 rounded-[11px] border border-wh-warn-edge bg-wh-warn-bg p-3 text-[12.5px] text-wh-warn"
+        >
+          <CircleAlert size={16} className="mt-px shrink-0" aria-hidden="true" />
+          <span>
+            <b className="block font-mono text-[13px] tabular-nums text-wh-ink-1">
+              {verdict.code}
+            </b>
+            {verdict.outcome === "wrong_status"
+              ? t("scanWrongStatus", {
+                  status: verdict.status ?? "?",
+                  customer: verdict.order?.customer_name ?? "—",
+                })
+              : verdict.outcome === "ambiguous"
+                ? t("scanAmbiguous", { n: verdict.matches ?? 0 })
+                : t("scanNotFound")}
+          </span>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -151,8 +272,22 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
   const [camera, setCamera] = useState(false);
   const [looking, setLooking] = useState(false);
   const [scanResult, setScanResult] = useState<ScanLookup | null>(null);
-  const scanRef = useRef<HTMLInputElement>(null);
-  const currency = stats?.currency ?? "TND";
+  const [jumpTo, setJumpTo] = useState<string | null>(null);
+  // One field per viewport is mounted; focusing a hidden one is a browser
+  // no-op, so focusing every registered field lands on the visible one.
+  const scanInputs = useRef(new Set<HTMLInputElement>());
+  const registerScanInput = useCallback((el: HTMLInputElement | null) => {
+    if (el) scanInputs.current.add(el);
+  }, []);
+  const focusScan = useCallback(() => {
+    scanInputs.current.forEach((el) => {
+      if (el.isConnected) el.focus();
+      else scanInputs.current.delete(el);
+    });
+  }, []);
+  const isDesk = useIsDesk();
+  // Nothing is printed as money until the market has said what it pays in.
+  const currency = stats?.currency ?? "";
 
   const take = useCallback((o: WarehouseOrderRow) => {
     setPicked(o);
@@ -191,21 +326,53 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
         setScanResult(body);
         // Only a parcel that IS a return arms the decision panel. Anything else
         // is explained on screen and left alone.
-        if (body.outcome === "found" && body.order) take(body.order);
+        if (body.outcome === "found" && body.order) {
+          take(body.order);
+          setJumpTo(body.order.id);
+        }
       } catch {
         setScanResult({ outcome: "not_found", code });
       } finally {
         setLooking(false);
-        if (!camera) scanRef.current?.focus();
+        if (!camera) focusScan();
       }
     },
-    [looking, camera, take],
+    [looking, camera, take, focusScan],
   );
 
   // The bench's hands are on a parcel; the field has to be ready without a click.
   useEffect(() => {
-    if (!camera) scanRef.current?.focus();
-  }, [camera, picked]);
+    if (!camera) focusScan();
+  }, [camera, picked, focusScan]);
+
+  // A scan picked a parcel the phone may have scrolled past; bring it back.
+  useEffect(() => {
+    if (!jumpTo) return;
+    document
+      .querySelectorAll<HTMLElement>(`[data-return-id="${jumpTo}"]`)
+      .forEach((el) => {
+        if (typeof el.scrollIntoView === "function") el.scrollIntoView({ block: "center" });
+      });
+    setJumpTo(null);
+  }, [jumpTo]);
+
+  const cameraNode = camera ? (
+    <QrScanner
+      active={camera}
+      onScan={(text) => void submitScan(text)}
+      onClose={() => setCamera(false)}
+    />
+  ) : null;
+  const scanFieldProps = {
+    value: scan,
+    onChange: setScan,
+    onSubmit: (v: string) => void submitScan(v),
+    disabled: looking,
+    camera,
+    onToggleCamera: () => setCamera((v) => !v),
+    inputRef: registerScanInput,
+    verdict: scanResult,
+  };
 
   // Damage is a financial act: it writes off units. It never lands without a
   // stated cause, and "other" never lands without a note.
@@ -291,13 +458,15 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
             edge={stats && stats.queueCount > 0 ? "warn" : undefined}
             valueTone="warn"
             dim={!stats || stats.queueCount === 0}
-            value={stats?.queueCount ?? 0}
+            value={stats ? stats.queueCount : "—"}
             note={
-              stats && stats.queueCount > 0
-                ? t("kpiQueueOldest", { age: t("days", { count: stats.oldestDays }) })
-                : t("kpiQueueEmpty")
+              !stats
+                ? undefined
+                : stats.queueCount > 0
+                  ? t("kpiQueueOldest", { age: t("days", { count: stats.oldestDays }) })
+                  : t("kpiQueueEmpty")
             }
-            foot={[{ value: money(stats?.queueValue ?? 0, currency), label: t("kpiQueueValue") }]}
+            foot={stats ? [{ value: money(stats.queueValue, currency), label: t("kpiQueueValue") }] : undefined}
           />
 
           <WhKpiCard
@@ -308,12 +477,13 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
             edge={stats && stats.doneToday > 0 ? "ok" : undefined}
             valueTone="ok"
             dim={!stats || stats.doneToday === 0}
-            value={stats?.doneToday ?? 0}
-            note={t("kpiDoneDetail", {
-              restocked: stats?.restockedToday ?? 0,
-              damaged: stats?.depreciatedToday ?? 0,
-            })}
-            foot={[{ value: money(stats?.doneTodayValue ?? 0, currency), label: t("kpiDoneValue") }]}
+            value={stats ? stats.doneToday : "—"}
+            note={
+              stats
+                ? t("kpiDoneDetail", { restocked: stats.restockedToday, damaged: stats.depreciatedToday })
+                : undefined
+            }
+            foot={stats ? [{ value: money(stats.doneTodayValue, currency), label: t("kpiDoneValue") }] : undefined}
           />
 
           <WhKpiCard
@@ -332,11 +502,13 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
               ) : undefined
             }
             note={
-              rateShowable
-                ? t("kpiRateNote")
-                : (stats?.sample28d ?? 0) > 0
-                  ? t("kpiRateThin", { n: stats?.sample28d ?? 0 })
-                  : t("kpiRateNone")
+              !stats
+                ? undefined
+                : rateShowable
+                  ? t("kpiRateNote")
+                  : stats.sample28d > 0
+                    ? t("kpiRateThin", { n: stats.sample28d })
+                    : t("kpiRateNone")
             }
           >
             <Sparkline points={stats?.weekly ?? []} />
@@ -349,14 +521,14 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
             tone={stats && stats.depreciatedUnits > 0 ? "bad" : "muted"}
             edge={stats && stats.depreciatedUnits > 0 ? "bad" : undefined}
             dim={!stats || stats.depreciatedUnits === 0}
-            value={stats?.depreciatedUnits ?? 0}
-            unit="u"
-            note={
-              stats && stats.depreciatedUnits > 0 ? undefined : t("kpiDepreciatedNone")
+            value={stats ? stats.depreciatedUnits : "—"}
+            unit={stats ? t("unitShort") : undefined}
+            note={!stats || stats.depreciatedUnits > 0 ? undefined : t("kpiDepreciatedNone")}
+            foot={
+              stats
+                ? [{ value: money(stats.depreciatedValue, currency), label: t("kpiDepreciatedValue") }]
+                : undefined
             }
-            foot={[
-              { value: money(stats?.depreciatedValue ?? 0, currency), label: t("kpiDepreciatedValue") },
-            ]}
           />
         </WhKpiGrid>
       </div>
@@ -364,7 +536,19 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(380px,1fr)]">
         {/* ── The queue ─────────────────────────────────────────────── */}
         <WhCard title={t("queueTitle")} hint={t("queueSort")} className="min-w-0">
-          {orders.length === 0 ? (
+          {/* Phone: the field the screen exists for, in reach before any card
+              is tapped. The desk has it in the panel alongside. */}
+          <div data-testid="wh-scan-phone" className="md:hidden">
+            <ScanField {...scanFieldProps} cameraNode={isDesk ? null : cameraNode} />
+          </div>
+
+          {page === undefined ? (
+            <div data-testid="wh-returns-skeleton" className="space-y-2 p-4" aria-hidden="true">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-11 rounded-[8px] bg-wh-sunken" />
+              ))}
+            </div>
+          ) : orders.length === 0 ? (
             <p data-testid="wh-returns-empty" className="px-4 py-8 text-center text-[13px] text-wh-ink-3">
               {t("queueEmpty")}
             </p>
@@ -375,8 +559,8 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
                 a mouse and a full-width table. */}
             <div className="flex flex-col gap-2.5 p-2.5 md:hidden">
               {orders.map((o) => (
+                <div key={o.id} data-return-id={o.id}>
                 <ReturnCard
-                  key={o.id}
                   row={o}
                   picked={picked?.id === o.id}
                   decision={picked?.id === o.id ? decision : null}
@@ -388,6 +572,7 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
                     if (d !== "damage") setReason(null);
                   }}
                 />
+                </div>
               ))}
               <ProcessingTime
                 minutes={stats?.avgProcessingMinutes ?? null}
@@ -408,6 +593,7 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
                   <div
                     key={o.id}
                     data-testid={`wh-return-${o.id}`}
+                    data-return-id={o.id}
                     // Stacked on a phone, one row at a desk. Squeezed into a
                     // single row at 390px the name column got ~30px and every
                     // customer read as "a…", which is not an identification.
@@ -473,76 +659,7 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
           // duplicate.
           className={`xl:sticky xl:top-4 ${picked ? "" : "hidden md:block"}`}
         >
-          <div className="mx-4 mt-4 flex items-center gap-2">
-            <label className="flex flex-1 items-center gap-2.5 rounded-[12px] border-2 border-wh-ok bg-wh-surface px-4 py-3.5 shadow-wh-glow">
-              <ScanLine size={18} className="shrink-0 text-wh-ok" aria-hidden="true" />
-              <input
-                ref={scanRef}
-                value={scan}
-                onChange={(e) => setScan(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    void submitScan(scan);
-                  }
-                }}
-                disabled={looking}
-                placeholder={t("scanPlaceholder")}
-                autoComplete="off"
-                aria-label={t("scanPlaceholder")}
-                className="w-full border-none bg-transparent font-mono text-[16px] font-semibold tracking-wide outline-none placeholder:font-sans placeholder:text-[13.5px] placeholder:font-medium placeholder:tracking-normal placeholder:text-wh-ink-3"
-              />
-            </label>
-            {/* A tablet at the returns table has no barcode gun. */}
-            <button
-              type="button"
-              onClick={() => setCamera((v) => !v)}
-              aria-pressed={camera}
-              aria-label={t("camera")}
-              className={`grid h-[50px] w-[50px] shrink-0 place-items-center rounded-[12px] border ${
-                camera
-                  ? "border-wh-ok bg-wh-ok-bg text-wh-ok"
-                  : "border-wh-border bg-wh-surface text-wh-ink-2 hover:border-wh-border-strong"
-              }`}
-            >
-              <Camera size={18} aria-hidden="true" />
-            </button>
-          </div>
-
-          {camera ? (
-            <div className="mx-4 mt-3">
-              <QrScanner
-                active={camera}
-                onScan={(text) => void submitScan(text)}
-                onClose={() => setCamera(false)}
-              />
-            </div>
-          ) : null}
-
-          {/* What the scan actually resolved to. A parcel in the operator's
-              hands is never "introuvable" without a reason worth reading. */}
-          {scanResult && scanResult.outcome !== "found" ? (
-            <div
-              role="status"
-              data-testid="wh-scan-verdict"
-              className="mx-4 mt-3 flex items-start gap-2.5 rounded-[11px] border border-wh-warn-edge bg-wh-warn-bg p-3 text-[12.5px] text-wh-warn"
-            >
-              <CircleAlert size={16} className="mt-px shrink-0" aria-hidden="true" />
-              <span>
-                <b className="block font-mono text-[13px] tabular-nums text-wh-ink-1">
-                  {scanResult.code}
-                </b>
-                {scanResult.outcome === "wrong_status"
-                  ? t("scanWrongStatus", {
-                      status: scanResult.status ?? "?",
-                      customer: scanResult.order?.customer_name ?? "—",
-                    })
-                  : scanResult.outcome === "ambiguous"
-                    ? t("scanAmbiguous", { n: scanResult.matches ?? 0 })
-                    : t("scanNotFound")}
-              </span>
-            </div>
-          ) : null}
+          <ScanField {...scanFieldProps} cameraNode={isDesk ? cameraNode : null} />
 
           {/* Where the operator is in the three-step motion. */}
           <div className="mx-4 mt-4 flex items-center gap-2 text-[12px] text-wh-ink-3">

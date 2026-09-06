@@ -14,6 +14,12 @@ export type ScanErrorCode =
   | "DARB_SHIPMENT_UNKNOWN"
   // Darb refused the binding, or was unreachable.
   | "DARB_BIND_FAILED"
+  // The carrier already reports the parcel as released / completed / returned.
+  | "GONE_AT_CARRIER"
+  // The scanned payload is not a bare sticker number — a mis-scan.
+  | "STICKER_NOT_NUMERIC"
+  // The actor's role may not scan at all (defence in depth behind the route guard).
+  | "FORBIDDEN"
   | "NETWORK_ERROR";
 
 export interface TrayRowInit {

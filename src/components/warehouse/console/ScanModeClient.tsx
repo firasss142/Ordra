@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { ArrowLeft, Search } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import type { OrderZone } from "@/lib/warehouse/zone-index";
-import { DARB_ZONES } from "@/lib/carriers/darb-zones";
+import { zoneLabels } from "@/lib/carriers/darb-zones";
 import { ScanStation } from "./ScanStation";
 import { WH_LABEL } from "./tokens";
 
@@ -136,7 +136,7 @@ export function ScanModeClient({
                     </span>
                   </span>
                   <span className="shrink-0 text-[11.5px] text-wh-ink-3">
-                    {o.zone.colorHex ? DARB_ZONES[o.zone.colorHex]?.colourFr : tp("zoneUnknown")}
+                    {zoneLabels(o.zone.colorHex, locale).colour ?? tp("zoneUnknown")}
                   </span>
                 </button>
               ))}
@@ -153,7 +153,8 @@ export function ScanModeClient({
           onScanned={onScanned}
         />
 
-        <p className={`mt-4 text-center ${WH_LABEL}`}>{tp("escToLeave")}</p>
+        {/* A keyboard hint. A phone has no Escape key, so it is desk-only. */}
+        <p className={`mt-4 hidden text-center md:block ${WH_LABEL}`}>{tp("escToLeave")}</p>
       </div>
 
     </div>

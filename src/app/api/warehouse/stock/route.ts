@@ -49,8 +49,13 @@ const SERIES_DAYS = 14;
 /** A count older than a quarter is not evidence about today's shelf. */
 const ACCURACY_DAYS = 90;
 
-/** Statuses that hold a unit spoken for but not yet delivered. */
-const ENGAGED_STATUSES = ["uploaded", "scanned", "dispatched", "deposit", "in_transit"];
+/**
+ * Statuses that hold a unit spoken for but still ON THE SHELF. `scanned` is
+ * the stock boundary: scan_order_out already deducted those units, so counting
+ * them again against current_stock invents a deficit (measured on the Libyan
+ * bench: held 7, "engaged" 11, free −4, for a shelf that was fine).
+ */
+const ENGAGED_STATUSES = ["confirmed", "dispatch_scheduled", "uploaded"];
 
 export async function GET(req: NextRequest) {
   const actorResult = await getActor(req);

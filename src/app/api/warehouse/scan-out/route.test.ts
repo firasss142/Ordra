@@ -318,11 +318,72 @@ describe("POST /api/warehouse/scan-out — binding the sticker at Darb", () => {
     await POST(req(scan));
 
     expect(mockResolveDarbShipment).toHaveBeenCalledWith("SH2057999", expect.anything());
-    const written = update.mock.calls[0][0] as { carrier_extra: Record<string, unknown> };
-    expect(written.carrier_extra.darb_assabil_id).toBe("darb-internal-1");
-    expect(written.carrier_extra.darb_branch_group).toBe("BN");
-    // The existing keys survive — carrier_extra is shared with dispatch.
-    expect(written.carrier_extra.city).toBe("بنغازي");
+    // Through a SECURITY DEFINER RPC, never the session client: the orders
+    // UPDATE policy has no warehouse_agent arm, so a session update silently
+    // touched zero rows for the floor role and every scan re-did the lookup.
+    expect(mockRpc).toHaveBeenCalledWith("cache_darb_shipment_ref", {
+      p_order_id: "order-1",
+      p_actor_id: "wh-1",
+      p_darb_id: "darb-internal-1",
+      p_branch_group: "BN",
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  test("refuses a parcel the carrier already released, before any carrier write", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    wireSupabase({
+      orderRow: darbOrder({ carrier_extra: { darb_assabil_id: "cached-id", darb_branch_group: "BN" } }),
+      carrierRow: { id: "darb-1", code: "darb_assabil" },
+    });
+    mockRpc.mockImplementation((fn: string) =>
+      fn === "precheck_scan_out"
+        ? Promise.resolve({ data: { ok: false, code: "GONE_AT_CARRIER", carrier_status: "released" }, error: null })
+        : Promise.resolve({ data: { success: true }, error: null }),
+    );
+
+    const res = await POST(req(scan));
+
+    expect(res.status).toBe(409);
+    const json = await res.json();
+    expect(json.error_code).toBe("GONE_AT_CARRIER");
+    expect(json.carrier_status).toBe("released");
+    expect(mockBindDarbReference).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalledWith("scan_order_out", expect.anything());
+  });
+
+  test("refuses a sticker that is not a plain number, before any carrier write", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    wireSupabase({
+      orderRow: darbOrder({ carrier_extra: { darb_assabil_id: "cached-id", darb_branch_group: "BN" } }),
+      carrierRow: { id: "darb-1", code: "darb_assabil" },
+    });
+    mockRpc.mockImplementation((fn: string) =>
+      fn === "precheck_scan_out"
+        ? Promise.resolve({ data: { ok: false, code: "STICKER_NOT_NUMERIC", sticker: "https://x/1" }, error: null })
+        : Promise.resolve({ data: { success: true }, error: null }),
+    );
+
+    const res = await POST(req({ order_id: "order-1", sticker_ref: "https://x/1" }));
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error_code).toBe("STICKER_NOT_NUMERIC");
+    expect(mockBindDarbReference).not.toHaveBeenCalled();
+  });
+
+  test("a role refusal from the RPC is a 403, not a missing order", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    wireSupabase({ orderRow: darbOrder({ carrier_extra: { darb_assabil_id: "cached-id" } }), carrierRow: { id: "darb-1", code: "darb_assabil" } });
+    mockRpc.mockImplementation((fn: string) =>
+      fn === "precheck_scan_out"
+        ? Promise.resolve({ data: okPrecheck, error: null })
+        : Promise.resolve({ data: null, error: { message: "Actor role agent cannot scan out" } }),
+    );
+
+    const res = await POST(req(scan));
+
+    expect(res.status).toBe(403);
+    expect((await res.json()).error_code).toBe("FORBIDDEN");
   });
 
   test("refuses when Darb has no shipment for the reference", async () => {

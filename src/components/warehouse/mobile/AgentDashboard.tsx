@@ -96,6 +96,7 @@ export function AgentDashboard({
   locale: string;
 }) {
   const t = useTranslations("warehouse.dash");
+  const tAge = useTranslations("warehouse.age");
 
   const { data: op } = useSWR<OperatorStats>("/api/warehouse/operator-stats", jsonFetcher, {
     refreshInterval: 60_000,
@@ -195,7 +196,7 @@ export function AgentDashboard({
             queue.toPrepare > 0
               ? t("footPrep", {
                   n: queue.toPrepare,
-                  age: ageLabel(queue.oldestPrepareHours),
+                  age: ageLabel(queue.oldestPrepareHours, tAge),
                 })
               : null
           }
@@ -241,7 +242,12 @@ export function AgentDashboard({
 }
 
 /** Hours become days past two of them; nobody reads "95 j" as 2280 h. */
-function ageLabel(hours: number): string {
-  if (hours <= 0) return "0 h";
-  return hours >= 48 ? `${Math.floor(hours / 24)} j` : `${Math.round(hours)} h`;
+function ageLabel(
+  hours: number,
+  t: (key: "hours" | "days", values: { n: number }) => string,
+): string {
+  if (hours <= 0) return t("hours", { n: 0 });
+  return hours >= 48
+    ? t("days", { n: Math.floor(hours / 24) })
+    : t("hours", { n: Math.round(hours) });
 }

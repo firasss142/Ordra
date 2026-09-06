@@ -6,6 +6,7 @@ import {
   zoneForColor,
   normalizeHex,
   DARB_ZONE_ORDER,
+  zoneLabels,
 } from "./darb-zones";
 
 /**
@@ -115,5 +116,31 @@ describe("zoneForColor", () => {
     expect(zoneForColor("#123456")).toBeNull();
     expect(zoneForColor("")).toBeNull();
     expect(zoneForColor(null)).toBeNull();
+  });
+});
+
+describe("zoneLabels — the colour in the operator's language", () => {
+  // The roll colour is the whole control on the Libyan bench, and the Libyan
+  // agent reads Arabic. Naming "Rouge — Tripoli et banlieue" to them is a
+  // label they cannot act on.
+  test("returns Arabic colour and zone names for the ar locale", () => {
+    const l = zoneLabels("#d80a0a", "ar");
+    expect(l).toEqual({ colour: "أحمر", name: "طرابلس وضواحيها" });
+  });
+
+  test("returns French names for the fr locale", () => {
+    expect(zoneLabels("#339307", "fr")).toEqual({ colour: "Vert", name: "Région orientale" });
+  });
+
+  test("accepts a zone-shaped object as well as a hex", () => {
+    const zone = { colorHex: "#0cbceb", colourFr: "Cyan", nameFr: "Région méridionale", nameAr: "المنطقة الجنوبية" };
+    expect(zoneLabels(zone, "ar").colour).toBe("سماوي");
+    expect(zoneLabels(zone, "fr").colour).toBe("Cyan");
+  });
+
+  test("returns nulls for an unknown colour rather than guessing", () => {
+    expect(zoneLabels("#123456", "ar")).toEqual({ colour: null, name: null });
+    expect(zoneLabels(null, "fr")).toEqual({ colour: null, name: null });
+    expect(zoneLabels({ colorHex: null }, "ar")).toEqual({ colour: null, name: null });
   });
 });

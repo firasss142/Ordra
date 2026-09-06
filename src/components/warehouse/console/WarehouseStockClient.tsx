@@ -16,12 +16,14 @@ const fetcher = (url: string) => fetch(url).then((r) => {
   return r.json();
 });
 
-function relativeDay(iso: string | null, never: string): string {
-  if (!iso) return never;
+type StockTranslate = (key: string, values?: Record<string, string | number>) => string;
+
+function relativeDay(iso: string | null, t: StockTranslate): string {
+  if (!iso) return t("never");
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  if (days <= 0) return "aujourd'hui";
-  if (days === 1) return "hier";
-  return `il y a ${days} j`;
+  if (days <= 0) return t("countedToday");
+  if (days === 1) return t("countedYesterday");
+  return t("countedDaysAgo", { days });
 }
 
 export function WarehouseStockClient({ locale }: { locale: string }) {
@@ -157,7 +159,7 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
                         {r.free}
                       </td>
                       <td className="px-4 py-3 text-[12.5px] text-wh-ink-3">
-                        {relativeDay(r.last_counted_at, t("never"))}
+                        {relativeDay(r.last_counted_at, t)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
