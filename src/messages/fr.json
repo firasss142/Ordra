@@ -1428,7 +1428,12 @@
         "returned": "{count} retours",
         "returnedOne": "{count} retour"
       },
-      "slaTarget": "SLA {target}"
+      "slaTarget": "SLA {target}",
+      "groupDestination": "Destination",
+      "groupCarrier": "Transporteur",
+      "addressEmpty": "Ajouter une adresse…",
+      "trackingPending": "À l'envoi au transporteur",
+      "carrierPending": "Pas encore assigné"
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",

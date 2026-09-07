@@ -1428,7 +1428,12 @@
         "returned": "{count} مرتجعات",
         "returnedOne": "{count} مرتجع"
       },
-      "slaTarget": "الهدف {target}"
+      "slaTarget": "الهدف {target}",
+      "groupDestination": "الوجهة",
+      "groupCarrier": "شركة التوصيل",
+      "addressEmpty": "أضف عنوانًا…",
+      "trackingPending": "عند الإرسال إلى شركة التوصيل",
+      "carrierPending": "لم يُحدَّد بعد"
     },
     "scheduleDispatch": {
       "title": "جدولة التوصيل",

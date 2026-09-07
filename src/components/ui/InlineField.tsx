@@ -166,6 +166,14 @@ export function InlineField({
           !readOnly
             ? "cursor-text rounded px-1 -mx-1 hover:bg-surface-selected transition-colors duration-fast"
             : "",
+          // §4.17 G — an editable value declares itself at rest. A pencil that
+          // appears on hover is undiscoverable: you have to already suspect the
+          // field is editable to find out that it is. An empty field is already
+          // announcing itself through its italic placeholder, so it does not
+          // also need the rule underneath.
+          !readOnly && String(value) !== ""
+            ? "underline decoration-dotted decoration-oms-border-strong underline-offset-[3px]"
+            : "",
           // Only apply a default ink color when the caller hasn't supplied its
           // own text color. Emitting both (e.g. text-ink-primary + text-white)
           // leaves the winner up to stylesheet order, which is why the phone

@@ -642,6 +642,24 @@ column, so one order never appears as two different figures in two places.
 **Editable values declare themselves at rest.** Click-to-edit fields carry a dotted underline
 (`decoration-dotted decoration-oms-border-strong`). A pencil that appears on hover is
 undiscoverable: you have to already suspect the field is editable to find out that it is.
+`InlineField` emits this in display mode for every non-empty editable value, so the rule holds
+across the panel without each caller opting in. An *empty* editable field skips the underline —
+its italic placeholder ("Ajouter une adresse…") is already the invitation, and a rule under
+placeholder text reads as a filled value.
+
+**An empty value must say which kind of empty it is.** A bare `—` cannot distinguish "you have
+not filled this in yet" from "the system has not written this yet", and the two need opposite
+reactions from the reader. A field the operator can fill states the action
+(`Ajouter une adresse…`); a value the system writes later keeps the dash and names the event
+that will fill it (`— À l'envoi au transporteur`). Only a value that is genuinely never
+applicable is a dash alone.
+
+**Group rows by who owns them.** The Livraison tab answers two questions with different owners:
+where the parcel is going (the operator's to fix) and what the carrier did with it (written by
+the upload). Undifferentiated rows made the reader derive that split from memory. Rows are
+banded under an icon + label heading per §4.10 — no tint, no card, the rows stay on the panel
+surface. A blocker's fix sits on the value's own line; pushing it to the far edge with `ms-auto`
+separates a problem from its remedy by the full width of the panel.
 
 **Never promote a destructive action beside the primary CTA.** The footer promotes the first
 *non-destructive* overflow action to a labelled secondary; the rest stay behind `⋯`, where
