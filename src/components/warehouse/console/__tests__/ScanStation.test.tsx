@@ -310,3 +310,37 @@ describe("ScanStation — the colour in the operator's language", () => {
     expect(screen.queryByText(/Région orientale/)).toBeNull();
   });
 });
+
+/**
+ * The roll strip at the scanner.
+ *
+ * This is the last moment before an irreversible act. The agent is standing,
+ * holding a parcel, phone at arm's length; the strip has to answer "which
+ * sticker" from across a bench. A 26px dot inside a hairline border does not.
+ */
+describe("ScanStation — the colour is the loudest thing on the panel", () => {
+  test("fills the strip with the roll colour and names it on the surface", () => {
+    renderStation();
+    const strip = screen.getByTestId("wh-scan-roll");
+    // A wash of the hue, not a dot: this is the instruction, not a status.
+    expect(strip.style.background).toContain("rgb(51, 147, 7)");
+    expect(screen.getByTestId("wh-scan-roll-name").textContent).toMatch(/Vert/);
+  });
+
+  test("carries the destination under the colour name", () => {
+    renderStation();
+    expect(screen.getByTestId("wh-scan-roll").textContent).toContain("Région orientale");
+  });
+
+  test("an unresolved destination is stated, never drawn as a blank colour", () => {
+    renderStation({ handZone: { ...greenZone, colorHex: null, colourFr: null, nameFr: null } });
+    expect(screen.getByTestId("wh-scan-roll-unknown")).toBeInTheDocument();
+    expect(screen.queryByTestId("wh-scan-roll")).toBeNull();
+  });
+
+  test("the strip disappears with the parcel — no colour, no claim", () => {
+    renderStation({ hand: null, handZone: null });
+    expect(screen.queryByTestId("wh-scan-roll")).toBeNull();
+    expect(screen.queryByTestId("wh-scan-roll-unknown")).toBeNull();
+  });
+});

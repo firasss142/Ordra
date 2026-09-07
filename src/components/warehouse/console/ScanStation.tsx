@@ -396,7 +396,10 @@ function RollStrip({
   const labels = zoneLabels(zone, locale);
   if (!zone || !zone.colorHex || !labels.colour) {
     return (
-      <div className="mb-3 flex items-center gap-3 rounded-[12px] border border-dashed border-wh-border-strong bg-wh-sunken px-4 py-3">
+      <div
+        data-testid="wh-scan-roll-unknown"
+        className="mb-3 flex items-center gap-3 rounded-[12px] border border-dashed border-wh-border-strong bg-wh-sunken px-4 py-3"
+      >
         <span
           className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full border border-dashed border-wh-border-strong"
           aria-hidden="true"
@@ -406,23 +409,46 @@ function RollStrip({
     );
   }
 
+  /*
+   * A WASH OF THE HUE, not a dot beside a border.
+   *
+   * This strip is read standing, at arm's length, in the second before an act
+   * that cannot be undone cheaply — Darb binds whatever number it is given, so
+   * a wrong roll ships the parcel to the wrong city silently. The colour
+   * therefore takes the whole plate.
+   *
+   * The NAME still sits on the console surface below it, never on the hue:
+   * Darb's palette was picked for printed stickers and #339307 (vert) cannot
+   * carry legible text against any ink we have.
+   */
   return (
     <div
-      className={`mb-3 flex flex-wrap items-center gap-3 rounded-[12px] border-2 bg-wh-surface px-4 ${
-        big ? "py-4" : "py-3"
+      data-testid="wh-scan-roll"
+      className={`mb-3 flex items-center gap-3 overflow-hidden rounded-[12px] border border-black/10 ${
+        big ? "px-4 py-5" : "px-4 py-4"
       }`}
-      style={{ borderColor: zone.colorHex }}
+      style={{ background: zone.colorHex }}
     >
+      {/* Both plates are SOLID white, not tinted: over nine hues spanning
+          #f9fc01 to #091d96 an alpha fill lands anywhere between 1.1:1 and
+          12.9:1, and the branch code washed out on rouge and brun. Opaque
+          white fixes every plate at 16.97:1. */}
       <span
-        className={`shrink-0 rounded-full border border-black/10 ${big ? "h-9 w-9" : "h-6 w-6"}`}
-        style={{ background: zone.colorHex }}
         aria-hidden="true"
-      />
-      <span className="min-w-0">
-        <b className={`block font-bold uppercase tracking-[0.06em] text-wh-ink-1 ${big ? "text-[19px]" : "text-[14px]"}`}>
+        className={`grid shrink-0 place-items-center rounded-[10px] border border-black/15 bg-white font-mono font-bold text-wh-ink-1 ${
+          big ? "h-12 w-12 text-[13px]" : "h-10 w-10 text-[12px]"
+        }`}
+      >
+        {zone.branchGroup ?? ""}
+      </span>
+      <span className="min-w-0 rounded-[8px] bg-white px-3 py-2">
+        <b
+          data-testid="wh-scan-roll-name"
+          className={`block font-bold uppercase tracking-[0.06em] text-wh-ink-1 ${big ? "text-[19px]" : "text-[15px]"}`}
+        >
           {t("rollLabel", { colour: labels.colour })}
         </b>
-        <span className="block text-[12px] text-wh-ink-2">
+        <span className="block truncate text-[12px] text-wh-ink-2">
           <bdi>{labels.name}</bdi>
         </span>
       </span>

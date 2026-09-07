@@ -1,11 +1,12 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { Boxes } from "lucide-react";
+import { Boxes, HelpCircle } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import type { OrderZone } from "@/lib/warehouse/zone-index";
 import { zoneLabels } from "@/lib/carriers/darb-zones";
 import { WhPill } from "./primitives";
+import { WH_LABEL } from "./tokens";
 
 /**
  * One parcel on the bench, as the phone shows it.
@@ -16,6 +17,21 @@ import { WhPill } from "./primitives";
  * who and where, what, how much to collect, how long it has waited — plus the
  * one fact the desk table could afford to bury and the phone cannot: which
  * coloured Darb roll the agent must pick up before touching the parcel.
+ *
+ * HIERARCHY. The bench loop is: read the colour → fetch that sticker → find
+ * this parcel → take → scan. The colour is the first physical act and the only
+ * irreversible one — a wrong roll puts the parcel on the wrong truck and Darb
+ * accepts it silently — so it leads the card at instruction scale. Everything
+ * the agent does NOT act on here recedes: the collect amount is the courier's
+ * business, not the packer's, and it was previously the boldest thing on the
+ * card after the name.
+ *
+ * The name never sits ON the colour. Darb's palette was chosen for printed
+ * stickers, and it cannot carry text: measured against the nine published
+ * hues, #339307 (vert) reaches only 4.30:1 with our ink and 3.95:1 with white,
+ * so NO ink clears AA on it. The swatch carries the hue, the card surface
+ * carries the word, and the branch code rides a solid white plate (16.97:1 on
+ * every colour) rather than a tint that would range from 1.1:1 to 12.9:1.
  */
 
 export type PrepRow = WarehouseOrderRow & { zone: OrderZone };
@@ -92,25 +108,40 @@ export function PrepCard({
       }`}
     >
       {isLy ? (
-        // The roll strip leads the card because it is the first physical act:
-        // fetch this colour of sticker, then fetch the parcel.
+        // The roll instruction leads the card: fetch this colour of sticker,
+        // then fetch the parcel. Sized to be read standing, at arm's length.
         <div
           data-testid="wh-prep-roll"
-          className="flex items-center gap-2 rounded-t-wh border-b border-wh-border bg-wh-sunken px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.04em] text-wh-ink-2"
+          className="flex items-center gap-3 rounded-t-wh border-b border-wh-border bg-wh-sunken px-3 py-2.5"
         >
           <span
-            className="inline-block h-2.5 w-2.5 shrink-0 rounded-pill border border-black/15"
-            style={{ background: row.zone.colorHex ?? "transparent" }}
+            data-testid="wh-prep-swatch"
             aria-hidden="true"
-          />
-          {/* Never the swatch alone: two of the nine Darb colours sit about
-              ΔE 10 apart, so the name is the instruction. */}
-          <span className="truncate">
-            {zone.colour ?? t("zoneUnknown")}
-            {zone.name ? (
-              <span className="ms-1.5 font-semibold normal-case text-wh-ink-3">
-                — {zone.name}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] border border-black/15"
+            style={{ background: row.zone.colorHex ?? "var(--wh-surface)" }}
+          >
+            {/* The branch code sits on a SOLID white plate, not on the hue.
+                Over nine colours an alpha fill ranges from 1.1:1 to 12.9:1 and
+                washed out on rouge and brun; opaque white is 16.97:1 on all. */}
+            {row.zone.colorHex && row.zone.branchGroup ? (
+              <span className="rounded-[6px] bg-white px-1.5 py-0.5 font-mono text-[10.5px] font-bold tracking-[0.02em] text-wh-ink-1">
+                {row.zone.branchGroup}
               </span>
+            ) : (
+              <HelpCircle size={18} className="text-wh-ink-3" aria-hidden="true" />
+            )}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className={`block ${WH_LABEL}`}>{t("rollLabel")}</span>
+            {/* On the surface, never on the hue — see the header comment. */}
+            <b
+              data-testid="wh-prep-roll-name"
+              className="block truncate text-[15px] font-bold leading-tight text-wh-ink-1"
+            >
+              {zone.colour ?? t("zoneUnknown")}
+            </b>
+            {zone.name ? (
+              <span className="block truncate text-[11.5px] text-wh-ink-3">{zone.name}</span>
             ) : null}
           </span>
         </div>
@@ -161,11 +192,14 @@ export function PrepCard({
         </p>
 
         <div className="mt-2.5 flex items-center gap-3 border-t border-wh-border pt-2.5">
-          <span className="font-mono text-[15px] font-semibold tabular-nums text-wh-ink-1">
+          {/* The courier collects this, not the packer. It is context, so it
+              is set at the same weight as the stock figure beside it. */}
+          <span
+            data-testid="wh-prep-amount"
+            className="font-mono text-[13px] tabular-nums text-wh-ink-2"
+          >
             {Number(row.total_price).toFixed(2).replace(".", ",")}
-            <span className="ms-1 font-sans text-[11px] font-semibold text-wh-ink-3">
-              {currency}
-            </span>
+            <span className="ms-1 font-sans text-[11px] text-wh-ink-3">{currency}</span>
           </span>
           <span className="font-mono text-[11.5px] tabular-nums text-wh-ink-3">
             {t("colStock")} {stock}
