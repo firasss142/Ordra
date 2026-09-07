@@ -59,6 +59,13 @@ export interface ToLabelQueuePage {
    * from reading as a broken page — 410 orders do not evaporate.
    */
   setAside: number;
+  /**
+   * Live orders the CARRIER fulfils from its own warehouse. Never bench work,
+   * so excluded from every figure above — and for exactly that reason it has
+   * to be stated: in Libya 77 of 78 live orders are shipped this way, which
+   * read on screen as an empty, broken app rather than as a normal day.
+   */
+  carrierWarehouse: number;
 }
 
 const cacheHeaders = {
@@ -138,6 +145,7 @@ export async function GET(req: NextRequest) {
     scannedYesterday: Number(day.scanned_yesterday ?? 0),
     neverScanned: Number(stats.never_scanned ?? 0),
     setAside: Number(stats.set_aside ?? 0),
+    carrierWarehouse: Number(stats.carrier_warehouse ?? 0),
   };
   return NextResponse.json(body, { headers: cacheHeaders });
 }

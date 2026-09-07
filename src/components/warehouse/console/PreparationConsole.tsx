@@ -40,6 +40,8 @@ interface QueuePage {
   neverScanned?: number;
   /** Off the bench, still at `uploaded`. Excluded from every count above. */
   setAside?: number;
+  /** Shipped from the carrier's own warehouse — never this bench's work. */
+  carrierWarehouse?: number;
 }
 
 /** Card and figure treatments, lifted so the KPIs cannot drift apart. */
@@ -149,6 +151,7 @@ export function PreparationConsole({
   const scannedYesterday = data?.scannedYesterday ?? 0;
   const neverScanned = data?.neverScanned ?? 0;
   const setAside = data?.setAside ?? 0;
+  const carrierWarehouse = data?.carrierWarehouse ?? 0;
   const goalPct = dailyGoal > 0 ? Math.round((scannedToday / dailyGoal) * 100) : 0;
 
   // The chip in the search field promises ⌘K; make it true.
@@ -209,6 +212,13 @@ export function PreparationConsole({
           {setAside > 0 ? (
             <p data-testid="wh-prep-set-aside" className="mt-1 text-[11.5px] text-wh-ink-3">
               {t("kpiSetAside", { count: setAside })}
+            </p>
+          ) : null}
+          {/* Not our work, and not a fault. Without this the bench reads as
+              broken on a day when the carrier ships almost everything. */}
+          {carrierWarehouse > 0 ? (
+            <p data-testid="wh-prep-carrier-warehouse" className="mt-1 text-[11.5px] text-wh-ink-3">
+              {t("kpiCarrierWarehouse", { count: carrierWarehouse })}
             </p>
           ) : null}
         </div>

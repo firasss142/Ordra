@@ -105,6 +105,18 @@ export function AgentDashboard({
 
   const { queue, day, trend, lowStock } = summary;
 
+  /*
+   * An idle bench has to say WHY it is idle.
+   *
+   * Libya, 2026-09-07: 78 live orders, 77 of them fulfilled from Darb's own
+   * warehouse. Every tile on this screen described our bench, so every tile
+   * read 0 and the agent concluded the app was broken. The work had not
+   * vanished; it had gone somewhere this screen never mentioned.
+   */
+  const benchIdle =
+    queue.toPrepare === 0 && queue.returnsInbox === 0 && queue.toHandOver === 0;
+  const carrierWarehouse = queue.carrierWarehouse ?? 0;
+
   const bars = useMemo(
     () => ({
       scanned: trend.map((p) => p.scanned),
@@ -183,6 +195,26 @@ export function AgentDashboard({
           series={bars.handed}
         />
       </div>
+
+      {/* ── Why there is nothing to do ─────────────────────────────── */}
+      {benchIdle ? (
+        <div
+          data-testid="wm-bench-idle"
+          className="mt-5 rounded-[14px] border border-wm-line bg-wm-card px-4 py-3.5"
+        >
+          <p className="text-[13.5px] font-semibold text-wm-ink">{t("idleTitle")}</p>
+          {carrierWarehouse > 0 ? (
+            <p
+              data-testid="wm-carrier-warehouse"
+              className="mt-1 text-[12.5px] leading-[1.45] text-wm-ink-2"
+            >
+              {t("idleCarrierWarehouse", { count: carrierWarehouse })}
+            </p>
+          ) : (
+            <p className="mt-1 text-[12.5px] leading-[1.45] text-wm-ink-2">{t("idleNothing")}</p>
+          )}
+        </div>
+      ) : null}
 
       {/* ── The real queues, as tasks ──────────────────────────────── */}
       <h2 className="mt-6 text-[19px] font-extrabold tracking-[-0.01em] text-wm-ink">{t("tasksTitle")}</h2>

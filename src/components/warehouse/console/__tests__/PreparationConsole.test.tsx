@@ -59,3 +59,38 @@ describe("PreparationConsole — a bench that was cleared", () => {
     expect(screen.getByTestId("wh-prep-set-aside").textContent).toContain("410");
   });
 });
+
+/**
+ * An empty bench with a busy carrier.
+ *
+ * Libya, measured 2026-09-07: 78 live orders, 77 of them fulfilled from Darb's
+ * own warehouse, one on our bench. The queue correctly showed one parcel, and
+ * the agent read the screen as broken because nothing told them where the
+ * other 77 went. `carrierWarehouse` was already counted server-side and shown
+ * nowhere.
+ */
+describe("PreparationConsole — work that is not ours", () => {
+  it("names the parcels the carrier ships from its own warehouse", () => {
+    page = { orders: [], total: 0, carrierWarehouse: 77 };
+    render(<PreparationConsole market="ly" initialOrders={[]} dailyGoal={40} />);
+
+    const note = screen.getByTestId("wh-prep-carrier-warehouse");
+    expect(note.textContent).toContain("77");
+  });
+
+  it("says so even when a parcel IS on the bench, so the total reconciles", () => {
+    // One on the bench, 77 at the carrier: without the second figure the
+    // agent cannot tell a working day from a broken screen.
+    page = { orders: [], total: 1, carrierWarehouse: 77 };
+    render(<PreparationConsole market="ly" initialOrders={[]} dailyGoal={40} />);
+
+    expect(screen.getByTestId("wh-prep-carrier-warehouse").textContent).toContain("77");
+  });
+
+  it("stays quiet when the carrier holds nothing", () => {
+    page = { orders: [], total: 0, carrierWarehouse: 0 };
+    render(<PreparationConsole market="ly" initialOrders={[]} dailyGoal={40} />);
+
+    expect(screen.queryByTestId("wh-prep-carrier-warehouse")).toBeNull();
+  });
+});

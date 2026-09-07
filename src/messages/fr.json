@@ -1524,7 +1524,9 @@
         "totalPriceInvalid": "Prix total invalide.",
         "requestFailed": "Erreur {status}",
         "totalOverrideInvalid": "Le total saisi est invalide.",
-        "cityRequired": "La ville est obligatoire."
+        "cityRequired": "La ville est obligatoire.",
+        "customerPhoneInvalid": "Numéro de téléphone invalide pour ce marché.",
+        "destinationRequired": "La ville et la zone de livraison sont obligatoires."
       },
       "citySearchPlaceholder": "Rechercher une ville…",
       "cityNoResults": "Aucune ville trouvée.",
@@ -1548,7 +1550,8 @@
       "customerLastOrder": "Dernière commande le {date}",
       "useCustomer": "Utiliser ce client",
       "noMarketScopeTitle": "Choisissez un marché",
-      "noMarketScopeBody": "Sélectionnez un marché dans la barre latérale pour créer une commande."
+      "noMarketScopeBody": "Sélectionnez un marché dans la barre latérale pour créer une commande.",
+      "pickZone": "choisir la zone"
     },
     "view": {
       "label": "Mode d'affichage",
@@ -3141,6 +3144,9 @@
       "accuracy": "Exactitude",
       "footPrep": "{n} colis · plus ancien {age}",
       "footReturns": "{n} en attente de décision",
+      "idleTitle": "Rien à préparer pour l'instant.",
+      "idleCarrierWarehouse": "{count} colis en cours sont expédiés depuis l'entrepôt du transporteur : ils ne passent pas par nous.",
+      "idleNothing": "Aucune commande n'attend un scan, un retour ou une remise.",
       "kpiHanded": "Prêts à remettre",
       "kpiHandedSub": "Scannés, chez nous",
       "kpiLow": "Stock bas",
@@ -3429,6 +3435,7 @@
       "kpiQueueSub": "{zones} couleurs · {orders} commandes affichées",
       "kpiScanned": "Scannées aujourd'hui",
       "kpiSetAside": "{count} mises de côté (> 7 j sur le banc)",
+      "kpiCarrierWarehouse": "{count} expédiées depuis l'entrepôt du transporteur",
       "lateFilter": "En retard (> 48 h)",
       "marketLy": "Libye",
       "marketTn": "Tunisie",
@@ -5568,5 +5575,29 @@
       "noRuns": "Aucune exécution encore.",
       "locked": "Un rollup est déjà en cours."
     }
+  },
+  "destinationPicker": {
+    "placeholder": "Ville ou zone…",
+    "searchPlaceholder": "Rechercher une ville ou une zone…",
+    "noResults": "Aucune destination trouvée.",
+    "zones": "{count} zones",
+    "back": "Retour",
+    "cityCentre": "Centre-ville",
+    "allCities": "Toutes les villes",
+    "loading": "Chargement des destinations…",
+    "selected": "Destination sélectionnée",
+    "recents": "Récents",
+    "cities": "Villes",
+    "zoneOne": "1 zone",
+    "zonesHeading": "Zones",
+    "results": "{count} résultats",
+    "resultOne": "1 résultat",
+    "clear": "Effacer la destination",
+    "pickCityFirst": "Choisissez une ville pour voir ses zones.",
+    "noResultsHint": "Essayez le nom de la ville, ou une autre orthographe.",
+    "hintNavigate": "naviguer",
+    "hintPick": "choisir",
+    "hintBack": "retour",
+    "hintClose": "fermer"
   }
 }

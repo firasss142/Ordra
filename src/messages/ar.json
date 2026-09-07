@@ -1524,7 +1524,9 @@
         "totalPriceInvalid": "السعر الإجمالي غير صالح.",
         "requestFailed": "فشل الطلب ({status})",
         "totalOverrideInvalid": "المجموع المُدخل غير صالح.",
-        "cityRequired": "المدينة مطلوبة."
+        "cityRequired": "المدينة مطلوبة.",
+        "customerPhoneInvalid": "رقم الهاتف غير صالح لهذا السوق.",
+        "destinationRequired": "المدينة والمنطقة مطلوبتان."
       },
       "citySearchPlaceholder": "ابحث عن مدينة…",
       "cityNoResults": "لم يتم العثور على مدينة.",
@@ -1548,7 +1550,8 @@
       "customerLastOrder": "آخر طلب في {date}",
       "useCustomer": "استخدام هذا العميل",
       "noMarketScopeTitle": "اختر سوقًا",
-      "noMarketScopeBody": "اختر سوقًا من الشريط الجانبي لإنشاء طلب."
+      "noMarketScopeBody": "اختر سوقًا من الشريط الجانبي لإنشاء طلب.",
+      "pickZone": "اختر المنطقة"
     },
     "view": {
       "label": "وضع العرض",
@@ -3141,6 +3144,9 @@
       "accuracy": "الدقة",
       "footPrep": "{n} طرد · الأقدم {age}",
       "footReturns": "{n} بانتظار القرار",
+      "idleTitle": "لا يوجد ما يُجهَّز حاليًا.",
+      "idleCarrierWarehouse": "{count} طرد قيد الشحن من مستودع شركة الشحن: لا تمرّ عبرنا.",
+      "idleNothing": "لا يوجد طلب ينتظر مسحًا أو إرجاعًا أو تسليمًا.",
       "kpiHanded": "جاهزة للتسليم",
       "kpiHandedSub": "مُسحت، لدينا",
       "kpiLow": "مخزون منخفض",
@@ -3429,6 +3435,7 @@
       "kpiQueueSub": "{zones} ألوان · {orders} طلب معروض",
       "kpiScanned": "مُسحت اليوم",
       "kpiSetAside": "{count} موضوعة جانبًا (> 7 أيام على الطاولة)",
+      "kpiCarrierWarehouse": "{count} تُشحن من مستودع شركة الشحن",
       "lateFilter": "متأخر (> 48 س)",
       "marketLy": "ليبيا",
       "marketTn": "تونس",
@@ -5568,5 +5575,29 @@
       "noRuns": "Aucune exécution encore.",
       "locked": "Un rollup est déjà en cours."
     }
+  },
+  "destinationPicker": {
+    "placeholder": "المدينة أو المنطقة…",
+    "searchPlaceholder": "ابحث عن مدينة أو منطقة…",
+    "noResults": "لا توجد وجهة مطابقة.",
+    "zones": "{count} مناطق",
+    "back": "رجوع",
+    "cityCentre": "مركز المدينة",
+    "allCities": "كل المدن",
+    "loading": "جارٍ تحميل الوجهات…",
+    "selected": "الوجهة المختارة",
+    "recents": "الأخيرة",
+    "cities": "المدن",
+    "zoneOne": "منطقة واحدة",
+    "zonesHeading": "المناطق",
+    "results": "{count} نتائج",
+    "resultOne": "نتيجة واحدة",
+    "clear": "مسح الوجهة",
+    "pickCityFirst": "اختر مدينة لعرض مناطقها.",
+    "noResultsHint": "جرّب اسم المدينة أو تهجئة أخرى.",
+    "hintNavigate": "تنقّل",
+    "hintPick": "اختيار",
+    "hintBack": "رجوع",
+    "hintClose": "إغلاق"
   }
 }
