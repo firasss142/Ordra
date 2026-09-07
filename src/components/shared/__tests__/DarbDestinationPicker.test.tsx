@@ -215,6 +215,52 @@ describe("DarbDestinationPicker — the details that make it feel finished", () 
   });
 });
 
+describe("DarbDestinationPicker — the dropdown must not be clipped", () => {
+  test("the open panel escapes its container instead of being cut off by it", () => {
+    // In the Livraison tab the trigger is a small "Changer" link inside a
+    // narrow panel. Anchoring a 300px dropdown to it with `absolute` pushed
+    // the list past the panel edge, clipping the city names off-screen.
+    // Portalling to <body> and positioning against the viewport is what the
+    // console's Popover already does for the same reason.
+    setup({ value: null });
+    fireEvent.click(screen.getByRole("button", { name: /ville ou zone/i }));
+
+    const list = screen.getByRole("listbox");
+    const panel = list.closest("[data-destination-panel]") as HTMLElement;
+    expect(panel).not.toBeNull();
+    expect(panel.parentElement).toBe(document.body);
+    expect(panel.style.position).toBe("fixed");
+  });
+
+  test("a city row still renders its name beside the zone count", () => {
+    // The screenshot showed count pills with no city names: the names were
+    // rendered but clipped. Assert the row carries both.
+    setup({ value: null });
+    fireEvent.click(screen.getByRole("button", { name: /ville ou zone/i }));
+
+    const tripoli = screen.getByRole("option", { name: /^طرابلس/ });
+    expect(tripoli).toHaveTextContent("طرابلس");
+    expect(tripoli).toHaveTextContent("2 zones");
+  });
+
+  test("closing removes the portalled panel from the document", () => {
+    setup({ value: null });
+    fireEvent.click(screen.getByRole("button", { name: /ville ou zone/i }));
+    expect(document.querySelector("[data-destination-panel]")).not.toBeNull();
+
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "Escape" });
+    expect(document.querySelector("[data-destination-panel]")).toBeNull();
+  });
+
+  test("the inline variant stays in the flow — nothing to clip, nothing to portal", () => {
+    // The dispatch step owns its whole column; portalling it would detach it
+    // from the form it belongs to.
+    setup({ variant: "inline" });
+    const list = screen.getAllByRole("listbox")[0];
+    expect(list.closest("[data-destination-panel]")).toBeNull();
+  });
+});
+
 describe("DarbDestinationPicker — inline variant (dispatch step)", () => {
   test("with no scope, cities and zones sit side by side: pick a city, its zones appear", async () => {
     const user = userEvent.setup();

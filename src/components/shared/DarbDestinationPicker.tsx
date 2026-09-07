@@ -4,12 +4,14 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import {
   Check,
@@ -75,6 +77,10 @@ type ActiveRow = Exclude<Row, { kind: "heading" }>;
 
 const RECENTS_KEY = "oms:darb-destination-recents";
 const RECENTS_MAX = 5;
+/** Enough for a city name, its zone count and the chevron, without crowding. */
+const PANEL_MIN_WIDTH = 300;
+/** Keep the panel clear of the viewport edges. */
+const VIEWPORT_MARGIN = 8;
 
 function isCentre(o: DestinationValue): boolean {
   return normalizeCityName(o.area) === normalizeCityName(o.city);
@@ -182,7 +188,9 @@ export function DarbDestinationPicker({
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const listId = useId();
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   const browseCity = scopeCity ?? drillCity;
   const q = query.trim();
@@ -259,10 +267,75 @@ export function DarbDestinationPicker({
     if (!inline) setOpen(false);
   }, [inline]);
 
+  /**
+   * Position the floating panel against the VIEWPORT, not the trigger's
+   * container. The trigger can be a 40px "Changer" link inside a narrow
+   * drawer; anchoring a 300px list to it with `absolute` pushed the list past
+   * the drawer edge and clipped the city names away entirely. Mirrors the
+   * clamping `Popover` already does for the same reason.
+   *
+   * Rect is viewport-relative and the panel is `position: fixed`, so scroll
+   * offsets are deliberately NOT added.
+   */
+  useLayoutEffect(() => {
+    if (!open || inline) return;
+    const trigger = wrapRef.current;
+    if (!trigger) return;
+
+    function place() {
+      const anchor = wrapRef.current;
+      if (!anchor) return;
+      const rect = anchor.getBoundingClientRect();
+      const width = Math.max(rect.width, PANEL_MIN_WIDTH);
+      const height = panelRef.current?.offsetHeight ?? 320;
+
+      // A short trigger keeps its own edge; the panel grows toward the middle
+      // of the screen so it never hangs off the side it is anchored to.
+      const wantsEnd = align === "end" || rect.left + width > window.innerWidth - VIEWPORT_MARGIN;
+      const rawLeft = wantsEnd ? rect.right - width : rect.left;
+
+      // Below by default; flip above when there is more room up there.
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const flipUp = spaceBelow < height + VIEWPORT_MARGIN && rect.top > spaceBelow;
+
+      setPos({
+        top: Math.max(
+          VIEWPORT_MARGIN,
+          Math.min(
+            flipUp ? rect.top - height - 6 : rect.bottom + 6,
+            window.innerHeight - height - VIEWPORT_MARGIN,
+          ),
+        ),
+        left: Math.max(
+          VIEWPORT_MARGIN,
+          Math.min(rawLeft, window.innerWidth - width - VIEWPORT_MARGIN),
+        ),
+        width,
+      });
+    }
+
+    place();
+    // Re-measure once the panel has mounted and knows its real height.
+    const raf = requestAnimationFrame(place);
+    // A drawer that scrolls under the panel must not leave it behind.
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [open, inline, align, rows.length, recents.length]);
+
   useEffect(() => {
     if (!open || inline) return;
     const away = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) close();
+      const target = e.target as Node;
+      // The panel is portalled to <body>, so containment must be checked
+      // against it as well as the trigger — otherwise clicking a city row
+      // reads as "outside" and closes the list before it can be used.
+      if (wrapRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      close();
     };
     document.addEventListener("mousedown", away);
     return () => document.removeEventListener("mousedown", away);
@@ -275,8 +348,9 @@ export function DarbDestinationPicker({
   }, [open, drillCity]);
 
   useEffect(() => {
-    if (highlighted < 0 || !wrapRef.current) return;
-    const el = wrapRef.current.querySelector<HTMLElement>(`[data-index="${highlighted}"]`);
+    if (highlighted < 0) return;
+    const scope = panelRef.current ?? wrapRef.current;
+    const el = scope?.querySelector<HTMLElement>(`[data-index="${highlighted}"]`);
     el?.scrollIntoView?.({ block: "nearest" });
   }, [highlighted]);
 
@@ -632,20 +706,37 @@ export function DarbDestinationPicker({
     </div>
   ) : null;
 
-  const panel = (
-    <div
-      className={
-        inline
-          ? "overflow-hidden rounded-card border border-oms-border bg-oms-surface"
-          : `absolute top-[calc(100%+6px)] z-30 min-w-[300px] overflow-hidden rounded-card border border-oms-border bg-oms-surface shadow-floating animate-[menuDrop_140ms_cubic-bezier(0.16,1,0.3,1)] ${
-              align === "end" ? "end-0" : "start-0"
-            } w-full`
-      }
-    >
+  const panelBody = (
+    <>
       {searchBar}
       {recentsRow}
       {twoPane ? twoPaneBody : singleList}
       {footer}
+    </>
+  );
+
+  const panel = inline ? (
+    <div className="overflow-hidden rounded-card border border-oms-border bg-oms-surface">
+      {panelBody}
+    </div>
+  ) : (
+    <div
+      ref={panelRef}
+      data-destination-panel=""
+      // Rendered off-screen for the first paint so its height can be measured
+      // before it is placed — otherwise it visibly jumps into position.
+      style={
+        pos
+          ? { position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 70 }
+          : { position: "fixed", top: 0, left: 0, visibility: "hidden", zIndex: 70 }
+      }
+      className="overflow-hidden rounded-card border border-oms-border bg-oms-surface shadow-floating animate-[menuDrop_140ms_cubic-bezier(0.16,1,0.3,1)]"
+      // The panel lives outside the trigger's DOM subtree; stop pointer events
+      // from reaching a host drawer that closes on outside click.
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {panelBody}
     </div>
   );
 
@@ -741,7 +832,7 @@ export function DarbDestinationPicker({
           />
         </>
       )}
-      {open && panel}
+      {open && typeof document !== "undefined" && createPortal(panel, document.body)}
     </div>
   );
 }
