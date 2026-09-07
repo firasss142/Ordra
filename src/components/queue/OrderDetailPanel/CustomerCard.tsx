@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useMemo, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { InlineField } from "@/components/ui/InlineField";
 import { Combobox, type ComboboxOption } from "@/components/ui/Combobox";
 import { CarrierMark } from "@/components/shared/CarrierMark";
-
-interface DexpressState {
-  id: number;
-  name: string;
-}
+import { DarbDestinationPicker } from "@/components/shared/DarbDestinationPicker";
+import {
+  destinationLabel,
+  findDestinationById,
+  type DarbDestinationOption,
+} from "@/lib/carriers/darb-destination-search";
 
 export interface CustomerCardProps {
   address: string | null;
@@ -20,12 +21,15 @@ export interface CustomerCardProps {
   trackingNumber: string | null;
   canEdit: boolean;
   isLibyaOrder: boolean;
-  dexpressStates: DexpressState[];
+  /** Libya: the Darb Assabil catalogue with ids (empty while it loads). */
+  darbDestinations: DarbDestinationOption[];
+  /** Libya: the pair this order is bound to, when it is. */
+  darbDestinationId: number | null;
   /** Async option loader for the standard (Tunisia) city picker. */
   loadCities: (query: string) => Promise<ComboboxOption[]>;
   onCommitAddress: (v: string) => void;
   onCommitCity: (cityId: string) => void;
-  onCommitDexpressState: (stateId: number) => void;
+  onCommitDarbDestination: (destinationId: number) => void;
   onCommitNote: (v: string | null) => void;
 }
 
@@ -48,29 +52,29 @@ export function CustomerCard({
   trackingNumber,
   canEdit,
   isLibyaOrder,
-  dexpressStates,
+  darbDestinations,
+  darbDestinationId,
   loadCities,
   onCommitAddress,
   onCommitCity,
-  onCommitDexpressState,
+  onCommitDarbDestination,
   onCommitNote,
 }: CustomerCardProps) {
   const t = useTranslations("orders.detail");
-  const [libyaPickerOpen, setLibyaPickerOpen] = useState(false);
-  const [libyaQuery, setLibyaQuery] = useState("");
 
-  const filteredDexpressStates = useMemo(() => {
-    const q = libyaQuery.trim();
-    if (!q) return dexpressStates;
-    return dexpressStates.filter((s) => s.name.includes(q));
-  }, [dexpressStates, libyaQuery]);
-
+  // Libya: a bound pair reads as "city — zone"; an unbound order shows the
+  // free-text city it arrived with (and the picker asks for the zone).
+  const boundPair = findDestinationById(darbDestinations, darbDestinationId);
   const hasCity = Boolean(city?.trim());
   // "Changer" is wrong when there is nothing there yet, and it is the missing
   // case that needs the louder invitation.
   const cityActionLabel = hasCity ? t("cityChange") : t("cityDefine");
 
-  const cityValue = hasCity ? (
+  const cityValue = boundPair ? (
+    <span className="truncate text-[13.5px] text-oms-ink-1" dir="auto">
+      {destinationLabel(boundPair)}
+    </span>
+  ) : hasCity ? (
     <span className="truncate text-[13.5px] text-oms-ink-1" dir="auto">
       {city}
     </span>
@@ -95,52 +99,29 @@ export function CustomerCard({
         {isLibyaOrder ? (
           !canEdit ? (
             cityValue
-          ) : !libyaPickerOpen ? (
+          ) : (
             <>
               {cityValue}
-              <button
-                type="button"
-                onClick={() => {
-                  setLibyaQuery("");
-                  setLibyaPickerOpen(true);
-                }}
-                className="ms-auto flex-shrink-0 text-[12px] font-[650] text-oms-accent underline-offset-2 hover:underline"
-              >
-                {cityActionLabel}
-              </button>
-            </>
-          ) : (
-            <div className="flex w-full flex-col gap-2">
-              <input
-                type="text"
-                value={libyaQuery}
-                onChange={(e) => setLibyaQuery(e.target.value)}
-                placeholder={t("citySearch")}
-                className="h-[34px] w-full rounded-[8px] border border-oms-border bg-oms-sunken px-3 text-[13px] text-oms-ink-1 placeholder:text-oms-ink-3 focus:border-oms-accent focus:outline-none"
-                dir="auto"
-                autoFocus
-              />
-              <div className="max-h-40 overflow-y-auto rounded-[10px] border border-oms-border">
-                {filteredDexpressStates.length === 0 ? (
-                  <div className="px-3 py-2 text-[12px] text-oms-ink-2">{t("cityNoResults")}</div>
-                ) : (
-                  filteredDexpressStates.map((state) => (
+              <span className="ms-auto flex-shrink-0">
+                <DarbDestinationPicker
+                  destinations={darbDestinations}
+                  value={boundPair ? { city: boundPair.city, area: boundPair.area } : null}
+                  align="end"
+                  onSelect={(opt) => {
+                    if (opt.id != null) onCommitDarbDestination(opt.id);
+                  }}
+                  renderTrigger={({ open }) => (
                     <button
-                      key={state.id}
                       type="button"
-                      onClick={() => {
-                        onCommitDexpressState(state.id);
-                        setLibyaPickerOpen(false);
-                      }}
-                      className="w-full border-b border-oms-border px-3 py-2 text-start text-[13px] text-oms-ink-1 last:border-b-0 hover:bg-oms-sunken"
-                      dir="auto"
+                      onClick={open}
+                      className="text-[12px] font-[650] text-oms-accent underline-offset-2 hover:underline"
                     >
-                      {state.name}
+                      {cityActionLabel}
                     </button>
-                  ))
-                )}
-              </div>
-            </div>
+                  )}
+                />
+              </span>
+            </>
           )
         ) : !hasCity && canEdit ? (
           // Tunisia rendered a bare combobox whose empty state looked like a

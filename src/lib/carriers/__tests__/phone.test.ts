@@ -68,3 +68,25 @@ describe("isValidLibyanPhone", () => {
     expect(isValidLibyanPhone(undefined)).toBe(false);
   });
 });
+
+describe("toLibyanE164 (what Darb Assabil's validator accepts)", () => {
+  it("returns +218 followed by the 9 significant digits", async () => {
+    const { toLibyanE164 } = await import("../phone");
+    expect(toLibyanE164("0912345678")).toBe("+218912345678");
+    expect(toLibyanE164("912345678")).toBe("+218912345678");
+    expect(toLibyanE164("+218 91 234 5678")).toBe("+218912345678");
+    expect(toLibyanE164("00218912345678")).toBe("+218912345678");
+    expect(toLibyanE164("218912345678")).toBe("+218912345678");
+  });
+
+  it("returns null for anything that is not a Libyan mobile number", async () => {
+    const { toLibyanE164 } = await import("../phone");
+    // The exact value a test order carried when Darb answered
+    // "String didn't match the expected pattern!".
+    expect(toLibyanE164("00000000")).toBeNull();
+    expect(toLibyanE164("")).toBeNull();
+    expect(toLibyanE164("12345")).toBeNull();
+    expect(toLibyanE164("0812345678")).toBeNull();
+    expect(toLibyanE164("+21691234567")).toBeNull();
+  });
+});

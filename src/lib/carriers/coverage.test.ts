@@ -24,6 +24,13 @@ describe("coverageFor", () => {
     expect(r.darb_assabil).toBe("covered");
   });
 
+  test("a stored darb_destination_id marks Darb covered whatever the city string says", () => {
+    // The agent bound the order to a real Darb pair; the free-text city no
+    // longer matters for coverage.
+    const r = coverageFor("Tripoli (old spelling)", null, 42);
+    expect(r.darb_assabil).toBe("covered");
+  });
+
   test("a resolved dexpress_state_id alone marks Dexpress covered even if the string is odd", () => {
     const r = cov("ضواحي طرابلس (15)", 62);
     expect(r.dexpress).toBe("covered");

@@ -48,16 +48,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const isDexpressMarket = marketIdToCode(targetMarketId) === "ly";
+  const isLibyaMarket = marketIdToCode(targetMarketId) === "ly";
 
-  if (isDexpressMarket) {
-    // Libya — the destination catalogue is active Dexpress states.
-    // dexpress_states has a single `name` column (Arabic) — no name_ar.
+  if (isLibyaMarket) {
+    // Libya — the destination catalogue is the active Darb Assabil (city, area)
+    // pairs. Darb is the only carrier shipping Libya since June 2026; the
+    // Dexpress state list is no longer offered as a bind target.
     const { data, error } = await supabase
-      .from("dexpress_states")
-      .select("id, name")
-      .eq("status", 1)
-      .order("name", { ascending: true });
+      .from("darb_destinations")
+      .select("id, city, area")
+      .eq("is_active", true)
+      .order("city", { ascending: true })
+      .order("area", { ascending: true });
 
     if (error) {
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -103,13 +105,17 @@ export async function POST(req: NextRequest) {
   const cityId = typeof body.city_id === "string" ? body.city_id.trim() : "";
   const dexpressStateId =
     typeof body.dexpress_state_id === "number" ? body.dexpress_state_id : null;
+  const darbDestinationId =
+    typeof body.darb_destination_id === "number" && Number.isInteger(body.darb_destination_id)
+      ? body.darb_destination_id
+      : null;
 
   if (!orderId) {
     return NextResponse.json({ error: "order_id is required" }, { status: 400 });
   }
-  if (!cityId && dexpressStateId === null) {
+  if (!cityId && dexpressStateId === null && darbDestinationId === null) {
     return NextResponse.json(
-      { error: "city_id or dexpress_state_id is required" },
+      { error: "city_id, darb_destination_id or dexpress_state_id is required" },
       { status: 400 },
     );
   }
@@ -139,29 +145,46 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const isDexpressMarket = marketIdToCode(order.market_id) === "ly";
+  const isLibyaMarket = marketIdToCode(order.market_id) === "ly";
 
-  // 2. Validate the destination against the order's market, and decide the two
+  // 2. Validate the destination against the order's market, and decide the
   //    mutually-exclusive destination columns to write.
   let bindCityId: string | null = null;
   let bindDexpressStateId: number | null = null;
+  let bindDarbDestinationId: number | null = null;
+  // Set only for a Darb bind: the catalogue's spelling of the city, so the
+  // dispatch step resolves the pair from the id without a second pick.
+  let bindCustomerCity: string | null = null;
 
-  if (isDexpressMarket) {
-    if (dexpressStateId === null) {
+  if (isLibyaMarket) {
+    if (darbDestinationId !== null) {
+      const { data: dest } = await supabase
+        .from("darb_destinations")
+        .select("id, city, area")
+        .eq("id", darbDestinationId)
+        .maybeSingle();
+      if (!dest) {
+        return NextResponse.json({ error: "Destination not found" }, { status: 404 });
+      }
+      bindDarbDestinationId = dest.id;
+      bindCustomerCity = dest.city;
+    } else if (dexpressStateId !== null) {
+      // Legacy fallback — kept for the API contract, no UI offers it any more.
+      const { data: state } = await supabase
+        .from("dexpress_states")
+        .select("id")
+        .eq("id", dexpressStateId)
+        .maybeSingle();
+      if (!state) {
+        return NextResponse.json({ error: "Dexpress state not found" }, { status: 404 });
+      }
+      bindDexpressStateId = dexpressStateId;
+    } else {
       return NextResponse.json(
-        { error: "dexpress_state_id is required for this market" },
+        { error: "darb_destination_id is required for this market" },
         { status: 400 },
       );
     }
-    const { data: state } = await supabase
-      .from("dexpress_states")
-      .select("id")
-      .eq("id", dexpressStateId)
-      .maybeSingle();
-    if (!state) {
-      return NextResponse.json({ error: "Dexpress state not found" }, { status: 404 });
-    }
-    bindDexpressStateId = dexpressStateId;
     bindCityId = null;
   } else {
     if (!cityId) {
@@ -198,10 +221,8 @@ export async function POST(req: NextRequest) {
     .update({
       city_id: bindCityId,
       dexpress_state_id: bindDexpressStateId,
-      // This manual bind targets the Tunisia city or the Libya Dexpress fallback
-      // (the broader catalogue for a city Darb doesn't serve). Always clear the
-      // Darb pointer to preserve the three-way destination exclusivity.
-      darb_destination_id: null,
+      darb_destination_id: bindDarbDestinationId,
+      ...(bindCustomerCity ? { customer_city: bindCustomerCity } : {}),
       mapping_status: nextStatus,
     })
     .eq("id", order.id);
@@ -215,6 +236,7 @@ export async function POST(req: NextRequest) {
       order_id: order.id,
       city_id: bindCityId,
       dexpress_state_id: bindDexpressStateId,
+      darb_destination_id: bindDarbDestinationId,
       mapping_status: nextStatus,
     },
   });

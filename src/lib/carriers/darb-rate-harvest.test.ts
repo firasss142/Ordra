@@ -46,15 +46,16 @@ describe("buildHarvestPlan", () => {
     });
   });
 
-  // The real catalogue: 25 cities, 278 (city, area) combos, two accounts.
-  // Probe 2026-08-08 established the price is invariant to service, quantity,
-  // paymentBy and order value, so there are no further dimensions to multiply by.
-  test("covers the full catalogue in 556 cells for two accounts", () => {
+  // The real catalogue: 25 cities, 304 (city, area) combos (26 مصراتة zones
+  // added 2026-09-07), two accounts. Probe 2026-08-08 established the price is
+  // invariant to service, quantity, paymentBy and order value, so there are no
+  // further dimensions to multiply by.
+  test("covers the full catalogue in 608 cells for two accounts", () => {
     const destinations = Object.entries(DARB_ASSABIL_CITIES).flatMap(([city, areas]) =>
       areas.map((area) => ({ city, area })),
     );
-    expect(destinations).toHaveLength(278);
-    expect(buildHarvestPlan({ carriers: [TRIPOLI, BENGHAZI], destinations })).toHaveLength(556);
+    expect(destinations).toHaveLength(304);
+    expect(buildHarvestPlan({ carriers: [TRIPOLI, BENGHAZI], destinations })).toHaveLength(608);
   });
 
   // A run capped by `limit` resumes next cycle; that only works if the order

@@ -82,6 +82,14 @@ describe("DARB_ASSABIL_CITIES data", () => {
     expect(DARB_ASSABIL_CITIES["طرابلس"]).toContain("عين زارة");
   });
 
+  test("مصراتة carries the 26 sub-areas Darb added in 2026 (e.g. الزروق, يدر)", () => {
+    // Live directory (2026-09-07) validated pair-by-pair against calculate/shipping.
+    expect(DARB_ASSABIL_CITIES["مصراتة"]).toEqual(
+      expect.arrayContaining(["مصراتة", "الزروق", "يدر", "شارع بنغازي", "راس ابو عمار وسط المدينه"]),
+    );
+    expect(DARB_ASSABIL_CITIES["مصراتة"].length).toBe(41);
+  });
+
   test("الجفرة lists هون among its areas", () => {
     expect(DARB_ASSABIL_CITIES["الجفرة"]).toContain("هون");
   });

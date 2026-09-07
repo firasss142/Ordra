@@ -25,6 +25,14 @@ import {
 import type FocusTrapType from "focus-trap-react";
 import type { Role } from "@/types";
 import { TUNISIAN_GOVERNORATES } from "@/lib/carriers/governorates";
+import { toLibyanE164 } from "@/lib/carriers/phone";
+import { resolveDarbAny } from "@/lib/carriers/darb-assabil-areas";
+import {
+  findDestination,
+  type DarbDestinationOption,
+} from "@/lib/carriers/darb-destination-search";
+import { useDarbDestinations } from "@/hooks/useDarbDestinations";
+import { DarbDestinationPicker } from "@/components/shared/DarbDestinationPicker";
 import { useMarketScope } from "@/context/market-scope";
 import { useDebounce } from "@/hooks/useDebounce";
 import { ProductAvatar } from "./ProductAvatar";
@@ -83,8 +91,12 @@ interface FormState {
   customer_name: string;
   customer_phone: string;
   customer_city: string;
-  /** Dexpress destination id for Libya orders. Null for Tunisia or unselected. */
-  dexpress_state_id: number | null;
+  /**
+   * Libya: the Darb Assabil (city, area) pair the operator picked. The id is
+   * what the order stores; the pair is what the field displays. Null for
+   * Tunisia or until picked.
+   */
+  darb_destination: DarbDestinationOption | null;
   customer_address: string;
   customer_note: string;
   product_id: string;
@@ -107,7 +119,7 @@ function emptyForm(): FormState {
     customer_name: "",
     customer_phone: "",
     customer_city: "",
-    dexpress_state_id: null,
+    darb_destination: null,
     customer_address: "",
     customer_note: "",
     product_id: "",
@@ -187,8 +199,6 @@ function parsePriceValue(value: number | string | null | undefined): number | nu
 interface CityOption {
   value: string;
   label: string;
-  /** Dexpress destination id — Libya only. */
-  stateId?: number;
 }
 
 export function CreateOrderModal({
@@ -257,26 +267,17 @@ export function CreateOrderModal({
     [variantsData],
   );
 
-  // Libya's cities are the carrier's destination list; Tunisia's are the
-  // canonical governorates. One control over both — the operator is picking a
-  // city either way and should not meet two different widgets to do it.
-  const { data: dexpressStatesData } = useSWR<{
-    states: Array<{ id: number; name: string }>;
-  }>(isOpen && marketCode === "ly" ? "/api/dexpress/states" : null, fetcher);
-
-  const cityOptions = useMemo<CityOption[]>(() => {
-    if (marketCode === "tn") {
-      return TUNISIAN_GOVERNORATES.map((g) => ({ value: g, label: g }));
-    }
-    if (marketCode === "ly") {
-      return (dexpressStatesData?.states ?? []).map((s) => ({
-        value: s.name,
-        label: s.name,
-        stateId: s.id,
-      }));
-    }
-    return [];
-  }, [marketCode, dexpressStatesData]);
+  // Tunisia's cities are the canonical governorates. Libya's are the carrier's
+  // own (city, area) catalogue — Darb Assabil ships every Libyan parcel, so the
+  // operator picks exactly what the carrier will be told, once.
+  const cityOptions = useMemo<CityOption[]>(
+    () =>
+      marketCode === "tn" ? TUNISIAN_GOVERNORATES.map((g) => ({ value: g, label: g })) : [],
+    [marketCode],
+  );
+  const { destinations: darbDestinations } = useDarbDestinations(
+    isOpen && marketCode === "ly",
+  );
 
   // ---------- Existing-customer lookup ----------
   const debouncedPhone = useDebounce(form.customer_phone, 350);
@@ -406,8 +407,18 @@ export function CreateOrderModal({
       fail(t("errors.customerPhoneRequired"));
       return;
     }
+    // Validated here, in the operator's language, rather than by the carrier
+    // three steps later with "String didn't match the expected pattern!".
+    if (!isValidPhoneFor(marketCode, form.customer_phone)) {
+      fail(t("errors.customerPhoneInvalid"));
+      return;
+    }
     if (!form.customer_name.trim()) {
       fail(t("errors.customerNameRequired"));
+      return;
+    }
+    if (marketCode === "ly" && !form.darb_destination) {
+      fail(t("errors.destinationRequired"));
       return;
     }
     if (!form.customer_city.trim()) {
@@ -455,7 +466,9 @@ export function CreateOrderModal({
       // dial code is a label, not part of the value. Search normalises anyway.
       customer_phone: form.customer_phone.replace(/[^\d]/g, ""),
       customer_city: form.customer_city.trim() || null,
-      dexpress_state_id: form.dexpress_state_id,
+      ...(form.darb_destination?.id != null
+        ? { darb_destination_id: form.darb_destination.id }
+        : {}),
       customer_address: form.customer_address.trim() || null,
       customer_note: form.customer_note.trim() || null,
       product_id: form.product_id,
@@ -612,11 +625,14 @@ export function CreateOrderModal({
                           ...s,
                           customer_name: knownCustomer.name ?? s.customer_name,
                           customer_city: knownCustomer.city ?? s.customer_city,
-                          // A city we cannot map to a carrier destination must
-                          // not inherit a stale id from a previous selection.
-                          dexpress_state_id:
-                            cityOptions.find((c) => c.value === knownCustomer.city)?.stateId ??
-                            null,
+                          // Libya: the stored city is a Darb pair only when it
+                          // names one exactly (a single-area city or a zone).
+                          // A multi-area city keeps its name and asks for the
+                          // zone; a stale pair from before never survives.
+                          darb_destination:
+                            marketCode === "ly"
+                              ? darbPairFor(knownCustomer.city, darbDestinations)
+                              : null,
                           customer_address: knownCustomer.address ?? s.customer_address,
                           error: null,
                         }));
@@ -642,7 +658,28 @@ export function CreateOrderModal({
 
                   <div>
                     <FieldLabel required>{t("fields.customerCity")}</FieldLabel>
-                    {cityOptions.length > 0 ? (
+                    {marketCode === "ly" ? (
+                      <DarbDestinationPicker
+                        destinations={darbDestinations}
+                        value={form.darb_destination}
+                        placeholder={
+                          form.customer_city
+                            ? `${form.customer_city} — ${t("pickZone")}`
+                            : t("cityPlaceholder")
+                        }
+                        onSelect={(opt) =>
+                          setForm((s) => ({
+                            ...s,
+                            customer_city: opt.city,
+                            darb_destination: opt,
+                            error: null,
+                          }))
+                        }
+                        onClear={() =>
+                          setForm((s) => ({ ...s, customer_city: "", darb_destination: null }))
+                        }
+                      />
+                    ) : cityOptions.length > 0 ? (
                       <CityCombobox
                         options={cityOptions}
                         value={form.customer_city}
@@ -650,7 +687,6 @@ export function CreateOrderModal({
                           setForm((s) => ({
                             ...s,
                             customer_city: opt.value,
-                            dexpress_state_id: opt.stateId ?? null,
                             error: null,
                           }))
                         }
@@ -957,7 +993,31 @@ function CustomerCard({
   );
 }
 
-/** One searchable city control for both markets. */
+/**
+ * Libya: the Darb pair a stored customer city names exactly — a single-area
+ * city or a zone — with its catalogue id; null for a multi-area city (the
+ * operator picks the zone) or an unknown string.
+ */
+function darbPairFor(
+  city: string | null | undefined,
+  destinations: DarbDestinationOption[],
+): DarbDestinationOption | null {
+  const resolved = resolveDarbAny(city);
+  if (!resolved || resolved.area == null) return null;
+  return findDestination(destinations, resolved.city, resolved.area);
+}
+
+/** Libya mobiles must be a Darb-accepted number; Tunisia lines are 8 digits. */
+function isValidPhoneFor(marketCode: string | undefined, phone: string): boolean {
+  if (marketCode === "ly") return toLibyanE164(phone) !== null;
+  if (marketCode === "tn") {
+    const digits = phone.replace(/\D/g, "").replace(/^00216/, "").replace(/^216/, "");
+    return /^\d{8}$/.test(digits);
+  }
+  return phone.replace(/\D/g, "").length >= 6;
+}
+
+/** One searchable city control for Tunisia's governorates. */
 function CityCombobox({
   options,
   value,
@@ -1046,7 +1106,7 @@ function CityCombobox({
                 const selected = o.value === value;
                 return (
                   <button
-                    key={`${o.value}-${o.stateId ?? ""}`}
+                    key={o.value}
                     type="button"
                     role="option"
                     aria-selected={selected}

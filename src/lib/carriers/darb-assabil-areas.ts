@@ -4,8 +4,8 @@
  * Source of truth is `darb-assabil-areas-data.json`, generated from the vendor's
  * `GET /api/local/branches/public` (city + every `areas[].area`) AND then
  * validated combo-by-combo against `POST /api/local/shipments/calculate/shipping`
- * — only city/area pairs the carrier actually accepts are kept. See memory
- * `darb-assabil-api-facts`.
+ * — only city/area pairs the carrier actually accepts are kept. Refresh with
+ * `scripts/refresh-darb-destinations.ts` (see docs/darb-destinations.md).
  *
  * Why validation is required: the branches list contains pairs the carrier
  * rejects (e.g. `تاجوراء/تاجوراء`, `طرابلس/طرابلس` → "Unable to fetch branch").
@@ -14,7 +14,8 @@
  * The dispatch sends `to: { countryCode: "lby", city, area, address }` where
  * `area` MUST be one of the city's listed areas. All strings are Arabic UTF-8.
  *
- * Re-generate + re-validate (≈280 calls) if the carrier expands coverage.
+ * Re-run the refresh script when the carrier expands coverage; it validates only
+ * the pairs it does not know yet (add --revalidate for all ≈300).
  */
 import { normalizeCityName } from "@/lib/storefronts/normalize-city";
 import { darbCityForAlias } from "./darb-assabil-aliases";

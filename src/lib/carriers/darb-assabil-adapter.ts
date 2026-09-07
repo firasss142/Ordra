@@ -7,6 +7,7 @@ import type {
   CarrierVoidResult,
 } from "./types";
 import { CarrierDispatchError, CarrierConfigError } from "./errors";
+import { toLibyanE164 } from "./phone";
 
 /**
  * Darb Assabil (v2.sabil.ly) — Libyan COD logistics platform.
@@ -81,6 +82,15 @@ export class DarbAssabilAdapter implements CarrierAdapter {
 
     if (!phoneRaw) {
       throw new CarrierDispatchError("Darb Assabil: téléphone client manquant");
+    }
+    // Darb validates the phone against an E.164 pattern and answers only
+    // "String didn't match the expected pattern!" — say what is wrong here,
+    // before the call, in words the agent can act on.
+    const phone = toLibyanE164(phoneRaw);
+    if (!phone) {
+      throw new CarrierDispatchError(
+        `Darb Assabil: téléphone client invalide (${phoneRaw}) — attendu un mobile libyen 09X XXX XXXX`
+      );
     }
     if (!city) {
       throw new CarrierDispatchError("Darb Assabil: ville (city) manquante");
@@ -215,7 +225,7 @@ export class DarbAssabilAdapter implements CarrierAdapter {
       city,
       area,
       address,
-      phone: normalizeLibyanPhone(phoneRaw),
+      phone,
       name: order.customer_name,
       product,
       // Legacy preview fields (single-line view + dry-run); the real wire body
@@ -336,8 +346,18 @@ export class DarbAssabilAdapter implements CarrierAdapter {
     // unknown branch: "Unable to fetch branch 'LBY-x,y'!"). Check this BEFORE
     // the transient fallback so the real reason isn't masked as "unavailable".
     if (body.status === false) {
-      const messages = body.messages as Array<{ message?: string }> | undefined;
-      const firstMessage = messages?.[0]?.message ?? "Carrier rejected the request";
+      const messages = body.messages as
+        | Array<{ message?: string; location?: string }>
+        | undefined;
+      const first = messages?.[0];
+      // `location` is the validator's dotted path ("contacts.body.phone"); its
+      // last segment is the field the agent has to fix.
+      const field = first?.location?.split(".").pop();
+      const firstMessage = first?.message
+        ? field
+          ? `${first.message} (champ : ${field})`
+          : first.message
+        : "Carrier rejected the request";
       return {
         success: false,
         errorCode: step === "contact" ? "DARB_CONTACT_FAILED" : "DARB_VALIDATION",
@@ -627,9 +647,3 @@ function asRecord(value: unknown): Record<string, unknown> {
  * Already-prefixed `+` numbers pass through; local `09…` style numbers have
  * leading zeros stripped before the `+218` prefix is applied.
  */
-function normalizeLibyanPhone(phone: string): string {
-  const trimmed = phone.trim();
-  if (trimmed.startsWith("+")) return trimmed;
-  const digits = trimmed.replace(/\D/g, "").replace(/^0+/, "");
-  return `+218${digits}`;
-}

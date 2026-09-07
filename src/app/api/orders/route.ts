@@ -231,6 +231,34 @@ export async function POST(req: NextRequest) {
 
   const initialStatus = "pending";
 
+  // Libya destination: a Darb Assabil (city, area) pair picked from the
+  // catalogue. Snapshot the catalogue's city spelling so dispatch resolves the
+  // pair from the id and never asks for the area a second time.
+  let darbDestinationId: number | null = null;
+  let customerCity: string | null =
+    typeof body.customer_city === "string" && body.customer_city.trim()
+      ? body.customer_city.trim()
+      : null;
+  if (body.darb_destination_id !== undefined && body.darb_destination_id !== null) {
+    const destId = body.darb_destination_id;
+    if (typeof destId !== "number" || !Number.isInteger(destId)) {
+      return NextResponse.json(
+        { error: "darb_destination_id must be an integer" },
+        { status: 400 },
+      );
+    }
+    const { data: dest, error: destError } = await supabase
+      .from("darb_destinations")
+      .select("id, city, area")
+      .eq("id", destId)
+      .single();
+    if (destError || !dest) {
+      return NextResponse.json({ error: "Destination not found" }, { status: 404 });
+    }
+    darbDestinationId = dest.id;
+    customerCity = dest.city;
+  }
+
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
@@ -242,7 +270,7 @@ export async function POST(req: NextRequest) {
       customer_name,
       customer_phone,
       customer_address: body.customer_address ?? null,
-      customer_city: body.customer_city ?? null,
+      customer_city: customerCity,
       customer_note: body.customer_note ?? null,
       product_id: product.id,
       product_variant_id: productVariantId,
@@ -251,8 +279,13 @@ export async function POST(req: NextRequest) {
       quantity,
       unit_price: unitPrice,
       total_price: totalPrice,
+      // Destination pointers are mutually exclusive: a Darb pair wins over the
+      // Dexpress fallback state.
+      darb_destination_id: darbDestinationId,
       dexpress_state_id:
-        typeof body.dexpress_state_id === "number" ? body.dexpress_state_id : null,
+        darbDestinationId === null && typeof body.dexpress_state_id === "number"
+          ? body.dexpress_state_id
+          : null,
       assigned_to: isAgent ? actor.id : null,
     })
     .select("id, status, created_at")

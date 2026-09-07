@@ -38,6 +38,7 @@ export interface OrderDetail {
   variant_label: string | null;
   city_id: string | null;
   dexpress_state_id: number | null;
+  darb_destination_id: number | null;
   quantity: number;
   unit_price: number;
   total_price: number;

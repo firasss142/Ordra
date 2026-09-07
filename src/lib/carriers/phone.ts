@@ -43,3 +43,16 @@ export function isValidLibyanPhone(raw: string | null | undefined): boolean {
     return false;
   }
 }
+
+/**
+ * The E.164 form Darb Assabil's validator accepts ("+218" + 9 significant
+ * digits), or null when the value is not a Libyan mobile number at all.
+ * Accepts every way an agent types it: 09X…, 9X…, +218…, 00218…, 218….
+ */
+export function toLibyanE164(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let digits = raw.replace(/\D/g, "");
+  digits = digits.replace(/^00218/, "").replace(/^218/, "");
+  if (digits.length === 10 && digits.startsWith("0")) digits = digits.slice(1);
+  return /^9\d{8}$/.test(digits) ? `+218${digits}` : null;
+}

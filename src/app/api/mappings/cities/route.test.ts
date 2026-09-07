@@ -85,16 +85,17 @@ describe("GET /api/mappings/cities", () => {
     expect(mockFrom.mock.calls.map((c) => c[0])).not.toContain("dexpress_states");
   });
 
-  test("Libya: returns active Dexpress states", async () => {
+  test("Libya: returns the active Darb Assabil (city, area) catalogue, not Dexpress states", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mm-ly" } } });
-    const statesChain = chain({ data: [{ id: 16, name: "اجدابيا" }] });
+    const destChain = chain({ data: [{ id: 16, city: "اجدابيا", area: "اجدابيا" }] });
     mockFrom
       .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: LY_MARKET_ID } }))
-      .mockReturnValueOnce(statesChain);
+      .mockReturnValueOnce(destChain);
     const res = await GET(getReq());
     expect(res.status).toBe(200);
-    expect((await res.json()).data).toHaveLength(1);
-    expect(mockFrom.mock.calls.map((c) => c[0])).toContain("dexpress_states");
+    expect((await res.json()).data).toEqual([{ id: 16, city: "اجدابيا", area: "اجدابيا" }]);
+    expect(mockFrom.mock.calls.map((c) => c[0])).toContain("darb_destinations");
+    expect(mockFrom.mock.calls.map((c) => c[0])).not.toContain("dexpress_states");
     expect(mockFrom.mock.calls.map((c) => c[0])).not.toContain("cities");
   });
 });
@@ -224,7 +225,43 @@ describe("POST /api/mappings/cities", () => {
 
   // --- Libya path ----------------------------------------------------------
 
-  test("Libya: binds order.dexpress_state_id, clears city_id", async () => {
+  test("Libya: binds order.darb_destination_id, snapshots the city, clears the other two pointers", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-ly" } } });
+    const updateChain = chain({ data: null });
+    mockFrom
+      .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: LY_MARKET_ID } }))
+      .mockReturnValueOnce(
+        chain({ data: { id: "o-ly", market_id: LY_MARKET_ID, product_id: "p1", status: "pending" } }),
+      )
+      .mockReturnValueOnce(chain({ data: { id: 77, city: "طرابلس", area: "جنزور" } })) // darb_destinations lookup
+      .mockReturnValueOnce(updateChain);
+
+    const res = await POST(postReq({ order_id: "o-ly", darb_destination_id: 77 }));
+    expect(res.status).toBe(200);
+    expect(updateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        darb_destination_id: 77,
+        customer_city: "طرابلس",
+        dexpress_state_id: null,
+        city_id: null,
+        mapping_status: "mapped",
+      }),
+    );
+  });
+
+  test("Libya: 404 when the Darb destination does not exist", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "mm-ly" } } });
+    mockFrom
+      .mockReturnValueOnce(chain({ data: { role: "market_manager", market_id: LY_MARKET_ID } }))
+      .mockReturnValueOnce(
+        chain({ data: { id: "o-ly", market_id: LY_MARKET_ID, product_id: null, status: "pending" } }),
+      )
+      .mockReturnValueOnce(chain({ data: null }));
+    const res = await POST(postReq({ order_id: "o-ly", darb_destination_id: 99999 }));
+    expect(res.status).toBe(404);
+  });
+
+  test("Libya (fallback): still binds order.dexpress_state_id, clears city_id", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "mm-ly" } } });
     const updateChain = chain({ data: null });
     mockFrom

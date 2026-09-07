@@ -34,9 +34,12 @@ const VARIANTS = [
   { id: "v1", product_id: "p1", label: "1 لتر", quantity: 1, display_price: 25.5, is_active: true },
   { id: "v2", product_id: "p1", label: "2 لتر", quantity: 2, display_price: 48, is_active: true },
 ];
-const STATES = [
-  { id: 80, name: "طرابلس" },
-  { id: 81, name: "بنغازي" },
+// Darb Assabil (city, area) pairs — the Libya destination list.
+const DESTINATIONS = [
+  { id: 80, city: "طرابلس", area: "جنزور" },
+  { id: 81, city: "بنغازي", area: "بنغازي" },
+  { id: 82, city: "بنغازي", area: "قمينس" },
+  { id: 83, city: "اجدابيا", area: "اجدابيا" },
 ];
 
 let customerLookup: unknown = null;
@@ -52,7 +55,7 @@ function mockFetch() {
     if (u.startsWith("/api/markets")) return json({ data: MARKETS });
     if (u.startsWith("/api/products/search")) return json({ data: PRODUCTS });
     if (u.includes("/variants")) return json({ data: VARIANTS });
-    if (u.startsWith("/api/dexpress/states")) return json({ states: STATES });
+    if (u.startsWith("/api/darb/destinations")) return json({ destinations: DESTINATIONS });
     if (u.startsWith("/api/customers/lookup")) return json({ data: customerLookup });
     return json({ data: [] });
   });
@@ -187,8 +190,11 @@ describe("CreateOrderModal", () => {
     await user.type(await screen.findByLabelText(/téléphone/i), "915489053");
     await user.type(screen.getByLabelText(/nom du client/i), "لطفي");
 
+    // Browse: the city first, then its zone.
     await user.click(screen.getByRole("button", { name: /rechercher une ville/i }));
-    await user.click(await screen.findByRole("option", { name: /طرابلس/ }));
+    await user.click(await screen.findByRole("option", { name: /بنغازي/ }));
+    await user.click(await screen.findByRole("option", { name: /قمينس/ }));
+    expect(screen.getByRole("button", { name: /بنغازي/ })).toHaveTextContent("قمينس");
 
     await user.type(screen.getByLabelText(/adresse/i), "شارع النصر");
 
@@ -202,10 +208,11 @@ describe("CreateOrderModal", () => {
     expect(postBody).toMatchObject({
       market_id: "m-ly",
       quantity: 2,
-      customer_city: "طرابلس",
-      dexpress_state_id: 80,
+      customer_city: "بنغازي",
+      darb_destination_id: 82,
       customer_phone: "915489053",
     });
+    expect(postBody).not.toHaveProperty("dexpress_state_id");
     // No override happened, so the server is left to compute the total.
     expect(postBody).not.toHaveProperty("total_price");
   });
@@ -226,16 +233,52 @@ describe("CreateOrderModal", () => {
     expect(postBody).toBeNull();
   });
 
-  test("the city list is searchable rather than a wall of 119 destinations", async () => {
+  test("the city list is searchable rather than a wall of 300 destinations", async () => {
     const user = userEvent.setup();
     renderModal();
 
     await user.click(await screen.findByRole("button", { name: /rechercher une ville/i }));
     const search = screen.getByPlaceholderText(/rechercher une ville/i);
-    await user.type(search, "بنغ");
+    await user.type(search, "قمين");
 
     const list = screen.getByRole("listbox");
-    expect(within(list).getByRole("option", { name: /بنغازي/ })).toBeInTheDocument();
-    expect(within(list).queryByRole("option", { name: /طرابلس/ })).toBeNull();
+    expect(within(list).getByRole("option", { name: /قمينس/ })).toBeInTheDocument();
+    expect(within(list).queryByRole("option", { name: /جنزور/ })).toBeNull();
+  });
+
+  test("a phone Darb would reject is refused here, in words, not at upload time", async () => {
+    const user = userEvent.setup();
+    renderModal();
+
+    // The exact value that produced "String didn't match the expected pattern!".
+    await user.type(await screen.findByLabelText(/téléphone/i), "00000000");
+    await user.type(screen.getByLabelText(/nom du client/i), "Test");
+    await user.click(screen.getByRole("button", { name: /rechercher une ville/i }));
+    await user.click(await screen.findByRole("option", { name: /اجدابيا/ }));
+    await user.type(screen.getByLabelText(/adresse/i), "زنتان");
+    await user.click(screen.getByRole("button", { name: /choisir un produit/i }));
+    await user.click(await screen.findByRole("option", { name: /Biovera/ }));
+
+    await user.click(screen.getByRole("button", { name: /créer la commande/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/téléphone/i);
+    expect(postBody).toBeNull();
+  });
+
+  test("a known customer's city pre-fills when it is one exact Darb pair", async () => {
+    const user = userEvent.setup();
+    // A phone no other test looks up — SWR's cache is shared across the file.
+    customerLookup = {
+      phone: "925550001",
+      name: "سالم",
+      city: "اجدابيا",
+      address: "وسط المدينة",
+      orderCount: 2,
+      lastOrderAt: "2026-06-16T10:00:00Z",
+    };
+    renderModal();
+    await user.type(await screen.findByLabelText(/téléphone/i), "925550001");
+    await user.click(await screen.findByRole("button", { name: /utiliser ce client/i }));
+    expect(screen.getByText("اجدابيا")).toBeInTheDocument();
   });
 });

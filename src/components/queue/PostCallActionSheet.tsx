@@ -35,6 +35,7 @@ interface OrderForUpload {
   customer_address: string | null;
   customer_city: string | null;
   dexpress_state_id: number | null;
+  darb_destination_id: number | null;
 }
 
 // Kept for backwards compat — no longer used by QueuePage
@@ -364,6 +365,7 @@ export function PostCallActionSheet({
   const coverage = coverageFor(
     orderForUpload?.data?.customer_city ?? null,
     orderForUpload?.data?.dexpress_state_id ?? null,
+    orderForUpload?.data?.darb_destination_id ?? null,
   );
   function carrierCoverage(code: string): CoverageState {
     if (code === "dexpress") return coverage.dexpress;
@@ -1067,6 +1069,7 @@ export function PostCallActionSheet({
         carrierId={selectedCarrier.id}
         customerAddress={orderForUpload?.data?.customer_address ?? null}
         customerCity={orderForUpload?.data?.customer_city ?? null}
+        darbDestinationId={orderForUpload?.data?.darb_destination_id ?? null}
         onClose={() => setDarbModalOpen(false)}
         onSuccess={() => {
           setDarbModalOpen(false);

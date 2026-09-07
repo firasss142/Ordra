@@ -244,4 +244,69 @@ describe("POST /api/orders", () => {
       assigned_to: "agent-1",
     });
   });
+
+  function mockLibyaCreate(destinationRow: { id: number; city: string; area: string } | null) {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "agent-ly" } }, error: null });
+    let captured: Record<string, unknown> | undefined;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return queryChain({ data: { role: "agent", market_id: "market-ly" }, error: null });
+      }
+      if (table === "storefronts") return queryChain({ data: { id: "sf-ly" }, error: null });
+      if (table === "products") {
+        return queryChain({
+          data: { id: "p-ly", market_id: "market-ly", name: "P", default_price: 10, is_active: true },
+          error: null,
+        });
+      }
+      if (table === "darb_destinations") {
+        return queryChain({ data: destinationRow, error: destinationRow ? null : { code: "PGRST116" } });
+      }
+      if (table === "orders") {
+        const chain = queryChain({ data: { id: "o-ly", status: "pending", created_at: "now" }, error: null });
+        chain.insert = vi.fn((payload: Record<string, unknown>) => {
+          captured = payload;
+          return chain;
+        });
+        return chain;
+      }
+      return queryChain({ data: null, error: null });
+    });
+    return () => captured;
+  }
+
+  test("a Libya order created with a Darb destination stores the pair id and its canonical city", async () => {
+    const insert = mockLibyaCreate({ id: 77, city: "طرابلس", area: "جنزور" });
+
+    const res = await POST(
+      createRequest("POST", "/api/orders", {
+        customer_name: "علي",
+        customer_phone: "912345678",
+        product_id: "p-ly",
+        // The client sends whatever it displayed; the server snapshots the
+        // catalogue's spelling so dispatch resolves it without a second pick.
+        customer_city: "جنزور",
+        darb_destination_id: 77,
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(insert()).toMatchObject({
+      darb_destination_id: 77,
+      customer_city: "طرابلس",
+      dexpress_state_id: null,
+    });
+  });
+
+  test("an unknown Darb destination id is refused, not silently dropped", async () => {
+    mockLibyaCreate(null);
+    const res = await POST(
+      createRequest("POST", "/api/orders", {
+        customer_name: "علي",
+        customer_phone: "912345678",
+        product_id: "p-ly",
+        darb_destination_id: 99999,
+      }),
+    );
+    expect(res.status).toBe(404);
+  });
 });

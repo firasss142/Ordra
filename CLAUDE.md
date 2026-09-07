@@ -133,6 +133,7 @@ refus_client | faux_numero | doublon | injoignable | prix | non_serieux | autre 
 - Investor domain v2 (deals, facts, accrual, settlement, rollup, surfaces): docs/investor-domain.md
 - Claude Code mastery patterns: docs/mastery-guide.md
 - Darb Assabil (Libya carrier) live API contract + sync engine: docs/darb-assabil-sync.md
+- Libya destinations (Darb city/zone catalogue, refresh script, the one picker, phone guard): docs/darb-destinations.md
 - Agent commissions (rules, ledger, RPCs, surfaces): docs/agent-commissions.md
 - Entrepôt desk console (light, source of truth): docs/design/entrepot/README.md
 - Entrepôt mobile agent shell (mockups + which figure comes from which query): docs/design/entrepot/mobile/README.md

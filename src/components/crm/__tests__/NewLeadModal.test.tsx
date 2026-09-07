@@ -77,4 +77,29 @@ describe("NewLeadModal", () => {
     const body = JSON.parse(options.body);
     expect(body.initial_status).toBe("qualified");
   });
+
+  it("a Libya lead's city is a Darb zone name the order conversion can resolve, not a French governorate", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: { id: "lead-ly" } }),
+    });
+    // No markets are loaded in this harness, so the market is inferred from
+    // the locale: "ar" → Libya.
+    render_modal({ locale: "ar" });
+
+    await user.type(screen.getByLabelText(/nom/i), "علي");
+    await user.type(screen.getByLabelText(/téléphone/i), "912345678");
+    await user.click(screen.getByRole("button", { name: /ville ou zone/i }));
+    await user.click(await screen.findByRole("option", { name: /^طرابلس/ }));
+    await user.click(await screen.findByRole("option", { name: /جنزور/ }));
+    expect(screen.getByRole("button", { name: /طرابلس/ })).toHaveTextContent("جنزور");
+
+    await user.click(screen.getByRole("button", { name: /créer/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    // The zone name alone: the intake resolver maps it to (طرابلس, جنزور).
+    expect(body.customer_city).toBe("جنزور");
+  });
 });

@@ -8,6 +8,8 @@ import { useMarketScope } from "@/context/market-scope";
 import { marketIdToCode } from "@/lib/markets";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { DarbDestinationPicker } from "@/components/shared/DarbDestinationPicker";
+import type { DarbDestinationOption } from "@/lib/carriers/darb-destination-search";
 
 const fetcher = (url: string) => fetch(url, { credentials: "same-origin" }).then((r) => r.json());
 
@@ -49,14 +51,15 @@ interface ProductMappingRow {
 }
 
 /**
- * A city bind-target option — a cities row (TN) or a dexpress_states row (LY),
- * as returned by GET /api/mappings/cities. dexpress_states has no name_ar.
+ * A city bind-target option, as returned by GET /api/mappings/cities — a
+ * cities row for Tunisia, a Darb Assabil (city, area) row for Libya.
  */
-interface CityBindOption {
-  id: string | number;
+interface TunisiaCityOption {
+  id: string;
   name: string;
   name_ar: string | null;
 }
+type CityBindOption = TunisiaCityOption | DarbDestinationOption;
 
 function statusTone(status: string): BadgeTone {
   if (status === "mapped") return "success";
@@ -362,8 +365,8 @@ function CityTab({ marketId }: { marketId: string }) {
   const [binding, setBinding] = useState<UnmatchedOrder | null>(null);
 
   const marketQuery = marketId ? `&market_id=${marketId}` : "";
-  // Libya binds to a Dexpress state; Tunisia binds to an OMS city.
-  const isDexpress = marketIdToCode(marketId) === "ly";
+  // Libya binds to a Darb Assabil (city, area) pair; Tunisia binds to an OMS city.
+  const isLibya = marketIdToCode(marketId) === "ly";
 
   const {
     data: ordersData,
@@ -375,7 +378,7 @@ function CityTab({ marketId }: { marketId: string }) {
     fetcher,
   );
   // The destination catalogue for this market — the bind-target options.
-  // GET /api/mappings/cities returns cities (TN) or dexpress_states (LY).
+  // GET /api/mappings/cities returns cities (TN) or darb_destinations (LY).
   const { data: optionsData } = useSWR<{ data: CityBindOption[] }>(
     marketId ? `/api/mappings/cities?market_id=${marketId}` : `/api/mappings/cities`,
     fetcher,
@@ -432,7 +435,7 @@ function CityTab({ marketId }: { marketId: string }) {
       {binding && (
         <BindCityModal
           order={binding}
-          isDexpress={isDexpress}
+          isLibya={isLibya}
           options={bindOptions}
           onClose={() => setBinding(null)}
           onSaved={onSaved}
@@ -444,13 +447,13 @@ function CityTab({ marketId }: { marketId: string }) {
 
 function BindCityModal({
   order,
-  isDexpress,
+  isLibya,
   options,
   onClose,
   onSaved,
 }: {
   order: UnmatchedOrder;
-  isDexpress: boolean;
+  isLibya: boolean;
   options: CityBindOption[];
   onClose: () => void;
   onSaved: () => void;
@@ -468,11 +471,11 @@ function BindCityModal({
     }
     setSaving(true);
     setError(null);
-    // The bind is per-order: Libya → dexpress_state_id (number); Tunisia →
+    // The bind is per-order: Libya → darb_destination_id (number); Tunisia →
     // city_id (uuid string). The order itself carries the market, so no
     // market_id is needed.
-    const destination = isDexpress
-      ? { dexpress_state_id: Number(selectedId) }
+    const destination = isLibya
+      ? { darb_destination_id: Number(selectedId) }
       : { city_id: selectedId };
     const res = await fetch("/api/mappings/cities", {
       method: "POST",
@@ -486,7 +489,10 @@ function BindCityModal({
       return;
     }
     onSaved();
-  }, [selectedId, isDexpress, order, onSaved, t]);
+  }, [selectedId, isLibya, order, onSaved, t]);
+
+  const darbOptions = isLibya ? (options as DarbDestinationOption[]) : [];
+  const darbSelected = darbOptions.find((o) => String(o.id) === selectedId) ?? null;
 
   return (
     <ModalShell title={t("cities.bindTitle")} onClose={onClose}>
@@ -496,19 +502,30 @@ function BindCityModal({
       <label className="mb-2 block text-[13px] font-medium text-ink-secondary">
         {t("cities.colCity")}
       </label>
-      <select
-        value={selectedId}
-        onChange={(e) => setSelectedId(e.target.value)}
-        className="mb-4 w-full rounded-md border border-line-strong bg-surface-card px-3 py-2 text-[14px] text-ink-primary"
-      >
-        <option value="">{t("cities.selectCity")}</option>
-        {options.map((o) => (
-          <option key={o.id} value={String(o.id)}>
-            {o.name}
-            {o.name_ar ? ` · ${o.name_ar}` : ""}
-          </option>
-        ))}
-      </select>
+      {isLibya ? (
+        <div className="mb-4">
+          <DarbDestinationPicker
+            destinations={darbOptions}
+            value={darbSelected ? { city: darbSelected.city, area: darbSelected.area } : null}
+            placeholder={t("cities.selectCity")}
+            onSelect={(o) => setSelectedId(String(o.id))}
+          />
+        </div>
+      ) : (
+        <select
+          value={selectedId}
+          onChange={(e) => setSelectedId(e.target.value)}
+          className="mb-4 w-full rounded-md border border-line-strong bg-surface-card px-3 py-2 text-[14px] text-ink-primary"
+        >
+          <option value="">{t("cities.selectCity")}</option>
+          {(options as TunisiaCityOption[]).map((o) => (
+            <option key={o.id} value={String(o.id)}>
+              {o.name}
+              {o.name_ar ? ` · ${o.name_ar}` : ""}
+            </option>
+          ))}
+        </select>
+      )}
       {error && <p className="mb-3 text-[13px] text-status-critical">{error}</p>}
       <div className="flex justify-end gap-2">
         <Button variant="ghost" size="md" onClick={onClose}>

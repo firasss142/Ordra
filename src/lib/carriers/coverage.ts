@@ -35,7 +35,8 @@ const DEXPRESS_CITY_SET = new Set(
  */
 export function coverageFor(
   customerCity: string | null | undefined,
-  dexpressStateId: number | null | undefined
+  dexpressStateId: number | null | undefined,
+  darbDestinationId?: number | null
 ): CoverageResult {
   const norm = normalizeCityName(customerCity);
 
@@ -45,7 +46,11 @@ export function coverageFor(
     (norm.length > 0 && DEXPRESS_CITY_SET.has(norm));
   // Darb recognises the string as a city, an AREA, or a curated alias — same
   // resolution intake/dispatch use, so the badge matches what will actually ship.
-  const darbHit = resolveDarbAny(customerCity) != null;
+  // A stored darb_destination_id is a pair the agent picked from the Darb
+  // catalogue — authoritative, whatever the free-text city says.
+  const darbHit =
+    (darbDestinationId != null && Number.isFinite(darbDestinationId)) ||
+    resolveDarbAny(customerCity) != null;
 
   // The city is "real" if at least one carrier recognises it. That anchors a
   // confident "uncovered" for the other carrier.

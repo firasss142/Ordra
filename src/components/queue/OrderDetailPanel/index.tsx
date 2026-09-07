@@ -66,6 +66,7 @@ import { DarbStatusSection } from "../DarbStatusSection";
 import { formatDisplayCurrencyCode, LY_MARKET_ID } from "@/lib/markets";
 import { isValidLibyanPhone } from "@/lib/carriers/phone";
 import { coverageFor, type CoverageState } from "@/lib/carriers/coverage";
+import { useDarbDestinations } from "@/hooks/useDarbDestinations";
 import { useCarrierRates } from "@/hooks/useCarrierRates";
 import { CarrierRateBadge, CheapestPill } from "../CarrierRateBadge";
 import type { Role } from "@/types";
@@ -147,6 +148,7 @@ interface OrderDetail {
   variant_label: string | null;
   city_id: string | null;
   dexpress_state_id: number | null;
+  darb_destination_id: number | null;
   quantity: number;
   unit_price: number;
   total_price: number;
@@ -550,9 +552,12 @@ export function OrderDetailPanel({
     [cityOptions],
   );
 
-  // Libya orders use the carrier (Dexpress) state list — same one shown at
-  // dispatch time. Fetched only when editing a Libya order.
+  // Libya orders bind to the Darb Assabil (city, area) catalogue — the same
+  // list the dispatch step ships from, so the zone is picked once.
   const isLibyaOrder = order?.market_id === LY_MARKET_ID;
+  const { destinations: darbDestinations, hasIds: darbHasIds } = useDarbDestinations(
+    Boolean(order) && isLibyaOrder,
+  );
 
   // ── Agent product sheet ──
   // Fetched as soon as the panel opens: the pinned brief and the verification
@@ -591,14 +596,6 @@ export function OrderDetailPanel({
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [order, productSheetOpen]);
-  const { data: dexpressStatesData } = useSWR<{
-    states: Array<{ id: number; name: string }>;
-  }>(
-    canEdit && isLibyaOrder ? "/api/dexpress/states" : null,
-    fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 5 * 60 * 1000 },
-  );
-  const dexpressStates = dexpressStatesData?.states ?? [];
 
   // Reset transient UI state when switching orders.
   useEffect(() => {
@@ -851,6 +848,7 @@ export function OrderDetailPanel({
   const carrierCoverage = coverageFor(
     order?.customer_city ?? null,
     order?.dexpress_state_id ?? null,
+    order?.darb_destination_id ?? null,
   );
   function coverageForCode(code: string): CoverageState {
     if (code === "dexpress") return carrierCoverage.dexpress;
@@ -1276,11 +1274,12 @@ export function OrderDetailPanel({
                     trackingNumber={order.tracking_number}
                     canEdit={canEdit}
                     isLibyaOrder={isLibyaOrder}
-                    dexpressStates={dexpressStates}
+                    darbDestinations={darbHasIds ? darbDestinations : []}
+                    darbDestinationId={order.darb_destination_id ?? null}
                     loadCities={loadCities}
                     onCommitAddress={(v) => runCommit({ customer_address: v })}
                     onCommitCity={(id) => runCommit({ city_id: id })}
-                    onCommitDexpressState={(id) => runCommit({ dexpress_state_id: id })}
+                    onCommitDarbDestination={(id) => runCommit({ darb_destination_id: id })}
                     onCommitNote={(v) => runCommit({ customer_note: v })}
                   />
 
@@ -1564,6 +1563,7 @@ export function OrderDetailPanel({
           carrierId={selectedDarbCarrierId}
           customerAddress={order.customer_address}
           customerCity={order.customer_city}
+          darbDestinationId={order.darb_destination_id ?? null}
           onClose={() => setDarbAssabilModalOpen(false)}
           onSuccess={(trackingNumber) => {
             setDarbAssabilModalOpen(false);

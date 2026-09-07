@@ -25,10 +25,19 @@ const SERVICES = [
 
 // The carrier account is now passed in via the `carrierId` prop, so the modal's
 // only data fetch is the Darb service catalogue.
-function mockServices(services: typeof SERVICES) {
+const DESTINATIONS = [
+  { id: 4, city: "طرابلس", area: "جنزور" },
+  { id: 5, city: "طرابلس", area: "عين زارة" },
+  { id: 6, city: "اجدابيا", area: "اجدابيا" },
+];
+
+function mockServices(services: typeof SERVICES, destinations: typeof DESTINATIONS | null = null) {
   (useSWR as ReturnType<typeof vi.fn>).mockImplementation((key: string) => {
     if (typeof key === "string" && key.includes("/api/darb/services")) {
       return { data: { services }, isLoading: false };
+    }
+    if (typeof key === "string" && key.includes("/api/darb/destinations") && destinations) {
+      return { data: { destinations }, isLoading: false };
     }
     return { data: undefined, isLoading: false };
   });
@@ -48,46 +57,54 @@ beforeEach(() => {
 });
 
 describe("DarbAssabilDispatchModal — destination resolution", () => {
+  it("an order already bound to a Darb pair ships that pair — no second pick, even in a multi-area city", () => {
+    mockServices([], DESTINATIONS);
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="طرابلس" darbDestinationId={4} />);
+    expect(screen.getByText("طرابلس — جنزور")).toBeInTheDocument();
+    expect(screen.getByText(/déterminée/)).toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
   it("single-area city (اجدابيا) shows a FIXED destination, not a free picker", () => {
     render(<DarbAssabilDispatchModal {...BASE} customerCity="اجدابيا" />);
     // The resolved destination اجدابيا is shown…
     expect(screen.getByText(/اجدابيا/)).toBeInTheDocument();
     // …and there is NO search box (nothing to misclick).
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
-  it("multi-area city (الجفرة) shows the picker scoped to its areas only", () => {
+  it("multi-area city (الجفرة) shows the picker scoped to its zones only", () => {
     render(<DarbAssabilDispatchModal {...BASE} customerCity="الجفرة" />);
-    // Picker present and الجفرة's areas listed…
-    expect(screen.getByRole("textbox")).toBeInTheDocument();
-    expect(screen.getByText("الجفرة — سوكنة")).toBeInTheDocument();
-    // …but a different city's area (طرابلس/عين زارة) is excluded by the scope.
+    // Picker present and الجفرة's zones listed…
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /سوكنة/ })).toBeInTheDocument();
+    // …but a different city's zone (طرابلس/عين زارة) is excluded by the scope.
     expect(screen.queryByText(/عين زارة/)).not.toBeInTheDocument();
   });
 
-  it("truly unknown city shows the full picker", () => {
+  it("truly unknown city shows the full picker, cities first", () => {
     // A fabricated label that is neither a Darb city, area, nor alias.
     render(<DarbAssabilDispatchModal {...BASE} customerCity="بلدة وهمية" />);
-    expect(screen.getByRole("textbox")).toBeInTheDocument();
-    // Full list → areas from multiple distinct cities available.
-    expect(screen.getByText("الجفرة — سوكنة")).toBeInTheDocument();
-    expect(screen.getByText("طرابلس — عين زارة")).toBeInTheDocument();
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    // Full list → several distinct cities to browse.
+    expect(screen.getByRole("option", { name: /^طرابلس/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /^الجفرة/ })).toBeInTheDocument();
   });
 
   it("an area-named city (شحات) pre-resolves to a fixed destination (no picker)", () => {
     render(<DarbAssabilDispatchModal {...BASE} customerCity="شحات" />);
     // شحات → البيضاء/شحات exact pair → fixed destination, no search box.
     expect(screen.getByText(/شحات/)).toBeInTheDocument();
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
   it("an alias label (ضواحي طرابلس) scopes the picker to طرابلس", () => {
     render(<DarbAssabilDispatchModal {...BASE} customerCity="ضواحي طرابلس" />);
-    // Alias → طرابلس (multi-area): picker present, scoped to طرابلس's areas.
-    expect(screen.getByRole("textbox")).toBeInTheDocument();
-    expect(screen.getByText("طرابلس — عين زارة")).toBeInTheDocument();
-    // A different city's area is excluded by the scope.
-    expect(screen.queryByText("الجفرة — سوكنة")).not.toBeInTheDocument();
+    // Alias → طرابلس (multi-area): picker present, scoped to طرابلس's zones.
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /عين زارة/ })).toBeInTheDocument();
+    // A different city's zone is excluded by the scope.
+    expect(screen.queryByText(/سوكنة/)).not.toBeInTheDocument();
   });
 });
 

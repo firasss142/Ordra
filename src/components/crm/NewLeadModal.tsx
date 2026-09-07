@@ -5,10 +5,10 @@ import { useTranslations } from "next-intl";
 import useSWR from "swr";
 import { CREATABLE_LEAD_SOURCES, type LeadSource, type LeadStatus } from "@/types/lead";
 import { Combobox } from "@/components/ui/Combobox";
-import {
-  TUNISIAN_GOVERNORATES,
-  LIBYAN_GOVERNORATES,
-} from "@/lib/carriers/governorates";
+import { TUNISIAN_GOVERNORATES } from "@/lib/carriers/governorates";
+import { DarbDestinationPicker } from "@/components/shared/DarbDestinationPicker";
+import { useDarbDestinations } from "@/hooks/useDarbDestinations";
+import type { DarbDestinationOption } from "@/lib/carriers/darb-destination-search";
 
 interface Market {
   id: string;
@@ -80,6 +80,8 @@ export function NewLeadModal({
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerCity, setCustomerCity] = useState("");
+  // Libya: the Darb (city, zone) pair behind customerCity, for the field's label.
+  const [darbPair, setDarbPair] = useState<DarbDestinationOption | null>(null);
   const [customerAddress, setCustomerAddress] = useState("");
   const [source, setSource] = useState<LeadSource>("manual_call");
   const [productInterestId, setProductInterestId] = useState("");
@@ -105,18 +107,15 @@ export function NewLeadModal({
     return locale === "ar" ? "ly" : "tn";
   }, [marketId, markets, locale]);
 
-  const cityOptions = useMemo<Array<{ id: string; label: string }>>(() => {
-    if (marketCode === "tn") {
-      return TUNISIAN_GOVERNORATES.map((g) => ({ id: g, label: g }));
-    }
-    if (marketCode === "ly") {
-      return LIBYAN_GOVERNORATES.map((g) => ({
-        id: g.fr,
-        label: locale === "ar" ? g.ar : `${g.fr} — ${g.ar}`,
-      }));
-    }
-    return [];
-  }, [marketCode, locale]);
+  // Tunisia: governorates. Libya: the Darb Assabil catalogue — the lead's city
+  // must be a name the order conversion resolves to a carrier destination, so
+  // it is picked from the same list the order form uses (a zone name for a
+  // sub-zone, the city name for the centre), never a French governorate label.
+  const cityOptions = useMemo<Array<{ id: string; label: string }>>(
+    () => (marketCode === "tn" ? TUNISIAN_GOVERNORATES.map((g) => ({ id: g, label: g })) : []),
+    [marketCode],
+  );
+  const { destinations: darbDestinations } = useDarbDestinations(open && marketCode === "ly");
 
   const productsKey =
     open && marketId ? `/api/products?market_id=${marketId}&is_active=true` : null;
@@ -129,6 +128,7 @@ export function NewLeadModal({
       setCustomerName("");
       setCustomerPhone("");
       setCustomerCity("");
+      setDarbPair(null);
       setCustomerAddress("");
       setSource("manual_call");
       setProductInterestId("");
@@ -278,7 +278,20 @@ export function NewLeadModal({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
             <label style={labelStyle}>{t("customerCity")}</label>
-            {cityOptions.length > 0 ? (
+            {marketCode === "ly" ? (
+              <DarbDestinationPicker
+                destinations={darbDestinations}
+                value={darbPair ? { city: darbPair.city, area: darbPair.area } : null}
+                onSelect={(opt) => {
+                  setDarbPair(opt);
+                  setCustomerCity(opt.area);
+                }}
+                onClear={() => {
+                  setDarbPair(null);
+                  setCustomerCity("");
+                }}
+              />
+            ) : cityOptions.length > 0 ? (
               <Combobox
                 value={customerCity}
                 options={cityOptions}

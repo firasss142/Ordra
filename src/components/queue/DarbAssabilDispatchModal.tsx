@@ -5,15 +5,19 @@ import { useTranslations } from "next-intl";
 import FocusTrap from "focus-trap-react";
 import useSWR from "swr";
 import { Check, X } from "lucide-react";
-import {
-  DarbAssabilLocationPicker,
-  type DarbAssabilSelection,
-} from "./DarbAssabilLocationPicker";
+import { DarbDestinationPicker } from "@/components/shared/DarbDestinationPicker";
+import { useDarbDestinations } from "@/hooks/useDarbDestinations";
+import { findDestinationById } from "@/lib/carriers/darb-destination-search";
 import {
   resolveDarbAny,
   resolveDispatchPair,
 } from "@/lib/carriers/darb-assabil-areas";
 import { fetcher } from "@/lib/swr-config";
+
+interface DarbAssabilSelection {
+  city: string | null;
+  area: string | null;
+}
 
 interface DarbAssabilDispatchModalProps {
   orderId: string;
@@ -26,6 +30,12 @@ interface DarbAssabilDispatchModalProps {
   customerAddress: string | null;
   /** The order's stored city — used to pre-resolve / scope the destination. */
   customerCity: string | null;
+  /**
+   * The Darb pair the order is already bound to (`orders.darb_destination_id`).
+   * When set, it IS the destination — the agent picked it at creation or in
+   * the detail panel and is not asked again.
+   */
+  darbDestinationId?: number | null;
   onClose: () => void;
   onSuccess: (trackingNumber: string | null) => void;
 }
@@ -137,6 +147,7 @@ export function DarbAssabilDispatchModal({
   carrierId,
   customerAddress,
   customerCity,
+  darbDestinationId = null,
   onClose,
   onSuccess,
 }: DarbAssabilDispatchModalProps) {
@@ -146,14 +157,20 @@ export function DarbAssabilDispatchModal({
   const hasAddress = Boolean(customerAddress && customerAddress.trim());
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Resolve the order's city the same way intake/coverage do: exact city → area
-  // name → alias. So an area-named city (شحات) or umbrella label (ضواحي طرابلس)
-  // pre-resolves instead of dropping to the full picker.
-  const resolved = resolveDarbAny(customerCity);
-  // Destination mode from the resolved city:
-  //  - "resolved": an exact (city, area) pair — single-area city OR an area name
-  //    → fixed, NO picker (agent can't pick a wrong city).
-  //  - "scoped": multi-area city (طرابلس) → picker limited to its areas.
+  // The bound pair wins outright: it is what the agent chose from the
+  // catalogue. Only an unbound order falls back to resolving its city string
+  // the way intake/coverage do (exact city → area name → alias), so an
+  // area-named city (شحات) or umbrella label (ضواحي طرابلس) still pre-resolves
+  // instead of dropping to the full picker.
+  const { destinations } = useDarbDestinations();
+  const stored = findDestinationById(destinations, darbDestinationId);
+  const resolved = stored
+    ? { city: stored.city, area: stored.area }
+    : resolveDarbAny(customerCity);
+  // Destination mode:
+  //  - "resolved": an exact (city, area) pair — bound, single-area city, or an
+  //    area name → fixed, NO picker (agent can't pick a wrong city).
+  //  - "scoped": multi-area city (طرابلس) → picker limited to its zones.
   //  - "full": unresolved → full picker.
   const mode: "resolved" | "scoped" | "full" =
     resolved && resolved.area != null
@@ -167,6 +184,10 @@ export function DarbAssabilDispatchModal({
       ? { city: resolved!.city, area: resolved!.area }
       : { city: null, area: null },
   );
+  // The catalogue may arrive a beat after mount; adopt the bound pair then.
+  useEffect(() => {
+    if (stored) setSelection({ city: stored.city, area: stored.area });
+  }, [stored?.city, stored?.area]); // eslint-disable-line react-hooks/exhaustive-deps
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [duplicateConfirm, setDuplicateConfirm] = useState<{
@@ -254,9 +275,12 @@ export function DarbAssabilDispatchModal({
 
   async function handleSubmit(confirmDuplicate = false) {
     if (!confirmDuplicate && !canSubmit) return;
-    // Final guard: the order's city resolution wins over the raw selection, so
-    // a mismatched pair can never be dispatched (mirrors the popup path).
-    const decision = resolveDispatchPair(customerCity, selection);
+    // Final guard: a bound pair ships as is; otherwise the order's city
+    // resolution wins over the raw selection, so a mismatched pair can never
+    // be dispatched (mirrors the popup path).
+    const decision = stored
+      ? { kind: "dispatch" as const, city: stored.city, area: stored.area }
+      : resolveDispatchPair(customerCity, selection);
     if (decision.kind !== "dispatch") {
       setError(t("noResults"));
       return;
@@ -383,10 +407,16 @@ export function DarbAssabilDispatchModal({
                   </p>
                 </>
               ) : (
-                <DarbAssabilLocationPicker
-                  value={selection}
-                  onChange={setSelection}
-                  restrictToCity={scopeCity}
+                <DarbDestinationPicker
+                  variant="inline"
+                  destinations={destinations}
+                  value={
+                    selection.city && selection.area
+                      ? { city: selection.city, area: selection.area }
+                      : null
+                  }
+                  scopeCity={scopeCity}
+                  onSelect={(opt) => setSelection({ city: opt.city, area: opt.area })}
                 />
               )}
             </Section>

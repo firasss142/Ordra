@@ -5,8 +5,14 @@ import { NextIntlClientProvider } from "next-intl";
 import messages from "@/messages/fr.json";
 import { CustomerCard } from "../OrderDetailPanel/CustomerCard";
 
+const DESTINATIONS = [
+  { id: 4, city: "طرابلس", area: "جنزور" },
+  { id: 5, city: "طرابلس", area: "عين زارة" },
+  { id: 6, city: "اجدابيا", area: "اجدابيا" },
+];
+
 function renderCard(props: Partial<React.ComponentProps<typeof CustomerCard>> = {}) {
-  const onCommitDexpressState = vi.fn();
+  const onCommitDarbDestination = vi.fn();
   render(
     <NextIntlClientProvider locale="fr" messages={messages}>
       <CustomerCard
@@ -17,17 +23,18 @@ function renderCard(props: Partial<React.ComponentProps<typeof CustomerCard>> = 
         trackingNumber={null}
         canEdit
         isLibyaOrder
-        dexpressStates={[{ id: 1, name: "جنزور" }]}
+        darbDestinations={DESTINATIONS}
+        darbDestinationId={null}
         loadCities={async () => []}
         onCommitAddress={vi.fn()}
         onCommitCity={vi.fn()}
-        onCommitDexpressState={onCommitDexpressState}
+        onCommitDarbDestination={onCommitDarbDestination}
         onCommitNote={vi.fn()}
         {...props}
       />
     </NextIntlClientProvider>,
   );
-  return { onCommitDexpressState };
+  return { onCommitDarbDestination };
 }
 
 describe("Delivery rows", () => {
@@ -67,6 +74,22 @@ describe("Delivery rows", () => {
     const anchor = document.querySelector('[data-field="city"]');
     expect(anchor).not.toBeNull();
     expect(anchor!.querySelector("button")).not.toBeNull();
+  });
+
+  test("a Libya order bound to a Darb pair reads as city — zone, not the bare city", () => {
+    renderCard({ city: "طرابلس", darbDestinationId: 4 });
+    expect(screen.getByText("طرابلس — جنزور")).toBeInTheDocument();
+  });
+
+  test("Changer opens the Darb picker and a zone click commits the pair id", async () => {
+    const user = userEvent.setup();
+    const { onCommitDarbDestination } = renderCard({ city: "طرابلس", darbDestinationId: 4 });
+
+    await user.click(screen.getByRole("button", { name: /changer/i }));
+    await user.type(screen.getByPlaceholderText(/chercher une ville/i), "عين");
+    await user.click(screen.getByRole("option", { name: /عين زارة/ }));
+
+    expect(onCommitDarbDestination).toHaveBeenCalledWith(5);
   });
 
   test("offers the city control on Tunisia orders too, not only Libya", async () => {

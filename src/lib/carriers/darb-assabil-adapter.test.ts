@@ -150,6 +150,21 @@ describe("DarbAssabilAdapter", () => {
       expect(payload.service_id).toBe("6783c612dcf305c9e775c987");
     });
 
+    test("normalizes a 218-prefixed number without the plus (agent typed the dial code)", () => {
+      const order = { ...mockOrder, customer_phone: "218912345678" };
+      const payload = adapter.formatPayload(order, mockConfig, mockExtra);
+      expect(payload.phone).toBe("+218912345678");
+    });
+
+    test("refuses a phone Darb would reject, naming the problem in French", () => {
+      // "00000000" used to go out as "+218" and come back as
+      // "String didn't match the expected pattern!" — opaque to the agent.
+      const order = { ...mockOrder, customer_phone: "00000000" };
+      expect(() => adapter.formatPayload(order, mockConfig, mockExtra)).toThrow(
+        /téléphone client invalide/i,
+      );
+    });
+
     test("throws CarrierDispatchError when customer_phone is empty", () => {
       const order = { ...mockOrder, customer_phone: "" };
       expect(() => adapter.formatPayload(order, mockConfig, mockExtra)).toThrow(
@@ -503,6 +518,32 @@ describe("DarbAssabilAdapter", () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.errorCode).toBe("DARB_CONTACT_FAILED");
+      }
+    });
+
+    test("a vendor validation error names the rejected field, not just the pattern", () => {
+      // Darb's validator says WHICH field failed in `location`; without it the
+      // agent reads "String didn't match the expected pattern!" and has no idea
+      // whether it is the phone, the name or the address.
+      const result = adapter.parseResponse({
+        status: 400,
+        body: {
+          _step: "contact",
+          status: false,
+          messages: [
+            {
+              message: "String didn't match the expected pattern!",
+              name: "contacts.body",
+              location: "contacts.body.phone",
+            },
+          ],
+        },
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.errorMessage).toBe(
+          "String didn't match the expected pattern! (champ : phone)",
+        );
       }
     });
 

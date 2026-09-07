@@ -25,32 +25,6 @@ export const TUNISIAN_GOVERNORATES = [
   "Kébili",
 ] as const;
 
-// Libyan governorates (shaʿbiyāt). Arabic names included for RTL market.
-export const LIBYAN_GOVERNORATES: ReadonlyArray<{ fr: string; ar: string }> = [
-  { fr: "Tripoli", ar: "طرابلس" },
-  { fr: "Benghazi", ar: "بنغازي" },
-  { fr: "Misrata", ar: "مصراتة" },
-  { fr: "Zawiya", ar: "الزاوية" },
-  { fr: "Zliten", ar: "زليتن" },
-  { fr: "Al Khums", ar: "الخمس" },
-  { fr: "Tarhuna", ar: "ترهونة" },
-  { fr: "Sabratha", ar: "صبراتة" },
-  { fr: "Sirte", ar: "سرت" },
-  { fr: "Ajdabiya", ar: "أجدابيا" },
-  { fr: "Tobruk", ar: "طبرق" },
-  { fr: "Derna", ar: "درنة" },
-  { fr: "Al Bayda", ar: "البيضاء" },
-  { fr: "Al Marj", ar: "المرج" },
-  { fr: "Sabha", ar: "سبها" },
-  { fr: "Ghat", ar: "غات" },
-  { fr: "Murzuq", ar: "مرزق" },
-  { fr: "Ubari", ar: "أوباري" },
-  { fr: "Kufra", ar: "الكفرة" },
-  { fr: "Jufra", ar: "الجفرة" },
-  { fr: "Nalut", ar: "نالوت" },
-  { fr: "Gharyan", ar: "غريان" },
-] as const;
-
 function normalize(s: string): string {
   return s
     .toLowerCase()
