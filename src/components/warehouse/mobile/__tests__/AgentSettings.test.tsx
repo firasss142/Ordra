@@ -5,6 +5,13 @@ import type { AuthUser } from "@/types";
 
 const replace = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace, refresh: vi.fn() }) }));
+vi.mock("swr", () => ({
+  default: (key: string) => ({
+    data: key.includes("operator") ? { orders_scanned_today: 7 } : { day: { returnsToday: 2 } },
+    error: undefined,
+    isLoading: false,
+  }),
+}));
 vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
   const messages = (await import("@/messages/fr.json")).default;
@@ -81,13 +88,41 @@ describe("AgentSettings", () => {
 
   it("offers no language switch, because locale follows the market", () => {
     // middleware.ts rewrites the locale from the user's market on every
-    // request; a switch here would flip back and read as broken.
+    // request; a switch here would flip back and read as broken. The row
+    // states the rule instead of offering a control.
     render(<AgentSettings user={user()} marketName="Libye" />);
-    expect(screen.queryByText(/العربية|langue|language/i)).toBeNull();
+    expect(screen.getByText("Suit le marché")).toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(screen.queryByRole("switch", { name: /langue/i })).toBeNull();
   });
 
   it("gives the initials when there is no avatar", () => {
     render(<AgentSettings user={user({ avatar_url: null })} marketName="Libye" />);
     expect(screen.getByTestId("wm-avatar").textContent).toBe("W");
+  });
+});
+
+describe("AgentSettings — the agent's own day and scanner", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("translates the market instead of printing the database name", () => {
+    render(<AgentSettings user={user()} marketName="Libya" marketCode="ly" />);
+    expect(screen.getByText("Libye")).toBeInTheDocument();
+    expect(screen.queryByText("Libya")).toBeNull();
+  });
+
+  it("shows today's scans and returns handled", () => {
+    render(<AgentSettings user={user()} marketName="Libye" marketCode="ly" />);
+    expect(screen.getByTestId("wh-my-scans")).toHaveTextContent("7");
+    expect(screen.getByTestId("wh-my-returns")).toHaveTextContent("2");
+  });
+
+  it("remembers the scanner preferences on the device", () => {
+    render(<AgentSettings user={user()} marketName="Libye" marketCode="ly" />);
+    const vibrate = screen.getByRole("switch", { name: /Vibration/ });
+    expect(vibrate).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(vibrate);
+    expect(vibrate).toHaveAttribute("aria-checked", "false");
+    expect(JSON.parse(localStorage.getItem("wh.scanner")!)).toMatchObject({ vibrate: false });
   });
 });

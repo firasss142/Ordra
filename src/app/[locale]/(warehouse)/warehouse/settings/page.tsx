@@ -23,7 +23,7 @@ export default async function Page({
   if (!user) redirect(`/${locale}/login`);
   if (!canScanWarehouse(user.role)) redirect(`/${locale}/queue`);
 
-  const { marketId } = await getActiveMarketScope(user);
+  const { marketId, marketCode } = await getActiveMarketScope(user);
   let marketName = "—";
   if (marketId) {
     const supabase = await createClient();
@@ -35,5 +35,6 @@ export default async function Page({
     if (data?.name) marketName = data.name;
   }
 
-  return <AgentSettings user={user} marketName={marketName} />;
+  const code: "ly" | "tn" | null = marketCode === "ly" ? "ly" : marketCode === "tn" ? "tn" : null;
+  return <AgentSettings user={user} marketName={marketName} marketCode={code} />;
 }

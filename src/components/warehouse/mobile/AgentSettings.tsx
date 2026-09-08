@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LogOut, MapPin, ShieldCheck } from "lucide-react";
+import { Languages, LogOut, MapPin, ShieldCheck } from "lucide-react";
 import type { AuthUser } from "@/types";
+import { jsonFetcher } from "@/lib/fetchers";
+import { readScannerPrefs, writeScannerPrefs, type ScannerPrefs } from "@/lib/warehouse/scanner-prefs";
 import { WmCard, WmTitle } from "./primitives";
 
 /**
@@ -23,13 +26,30 @@ import { WmCard, WmTitle } from "./primitives";
 export function AgentSettings({
   user,
   marketName,
+  marketCode = null,
 }: {
   user: AuthUser;
+  /** The database name, shown only when the code cannot be translated. */
   marketName: string;
+  marketCode?: "ly" | "tn" | null;
 }) {
   const t = useTranslations("warehouse.settings");
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
+  const [prefs, setPrefs] = useState<ScannerPrefs>(() => readScannerPrefs());
+
+  const { data: op } = useSWR<{ orders_scanned_today?: number }>("/api/warehouse/operator-stats", jsonFetcher);
+  const { data: summary } = useSWR<{ day?: { returnsToday?: number } }>("/api/warehouse/summary", jsonFetcher);
+
+  const toggle = useCallback((key: keyof ScannerPrefs) => {
+    setPrefs((p) => {
+      const next = { ...p, [key]: !p[key] };
+      writeScannerPrefs(next);
+      return next;
+    });
+  }, []);
+
+  const marketLabel = marketCode === "ly" ? t("marketLy") : marketCode === "tn" ? t("marketTn") : marketName;
 
   const logout = useCallback(async () => {
     if (signingOut) return;
@@ -89,10 +109,67 @@ export function AgentSettings({
               <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-wm-ink-2">
                 {t("market")}
               </dt>
-              <dd className="truncate text-[13.5px] font-semibold text-wm-ink">{marketName}</dd>
+              <dd className="truncate text-[13.5px] font-semibold text-wm-ink">{marketLabel}</dd>
+            </div>
+          </div>
+          <div className="col-span-2 flex items-center gap-2">
+            <Languages size={15} className="shrink-0 text-wm-accent" aria-hidden="true" />
+            <div className="min-w-0">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.06em] text-wm-ink-2">
+                {t("language")}
+              </dt>
+              {/* The locale follows the market (middleware.ts), so there is no
+                  switch: a control that flips straight back reads as broken. */}
+              <dd className="truncate text-[13.5px] font-semibold text-wm-ink">{t("languageFollowsMarket")}</dd>
             </div>
           </div>
         </dl>
+      </WmCard>
+
+      <p className="mb-2 mt-4 text-[13px] font-semibold text-wm-ink-2">{t("myDay")}</p>
+      <WmCard className="p-4">
+        <dl className="grid gap-2.5 text-[15px]">
+          <div className="flex items-center justify-between gap-2">
+            <dt className="text-wm-ink-2">{t("scannedToday")}</dt>
+            <dd data-testid="wh-my-scans" className="font-semibold tabular-nums text-wm-ink">{op?.orders_scanned_today ?? 0}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <dt className="text-wm-ink-2">{t("returnsToday")}</dt>
+            <dd data-testid="wh-my-returns" className="font-semibold tabular-nums text-wm-ink">{summary?.day?.returnsToday ?? 0}</dd>
+          </div>
+        </dl>
+      </WmCard>
+
+      <p className="mb-2 mt-4 text-[13px] font-semibold text-wm-ink-2">{t("scanner")}</p>
+      <WmCard className="p-4">
+        <div className="grid gap-2.5">
+          {(
+            [
+              ["sound", t("prefSound")],
+              ["vibrate", t("prefVibrate")],
+              ["cameraFirst", t("prefCameraFirst")],
+            ] as Array<[keyof ScannerPrefs, string]>
+          ).map(([key, label]) => (
+            <div key={key} className="flex items-center justify-between gap-3">
+              <span id={`wh-pref-${key}`} className="text-[15px] text-wm-ink-2">{label}</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={prefs[key]}
+                aria-labelledby={`wh-pref-${key}`}
+                onClick={() => toggle(key)}
+                className={`relative h-7 w-[46px] shrink-0 rounded-pill transition-colors ${prefs[key] ? "bg-wm-accent" : "bg-wm-track"}`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`absolute top-[3px] h-[22px] w-[22px] rounded-full bg-white transition-[inset-inline-start] ${
+                    prefs[key] ? "start-[21px]" : "start-[3px]"
+                  }`}
+                />
+              </button>
+            </div>
+          ))}
+        </div>
       </WmCard>
 
       <WmCard className="mt-3 p-4">

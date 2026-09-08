@@ -53,6 +53,20 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
     );
   }, [all, query]);
 
+  /*
+   * The phone's two chips follow the SEARCH: a chip that ignores the filter
+   * under it reads as a bug. The desk KPI grid keeps describing the whole
+   * catalogue, which is what a manager compares day to day.
+   */
+  const phoneChips = useMemo(
+    () => ({
+      low: rows.filter((r) => r.current_stock <= r.low_stock_threshold).length,
+      negative: rows.filter((r) => r.free < 0).length,
+    }),
+    [rows],
+  );
+  const neverCountedAll = all.length > 0 && all.every((r) => r.last_counted_at === null);
+
   const cells = useMemo(() => {
     const low = all.filter((r) => r.current_stock <= r.low_stock_threshold);
     const negative = all.filter((r) => r.free < 0);
@@ -94,7 +108,30 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
         />
       </label>
 
-      <div className="mb-4">
+      <div className="mb-3 flex flex-wrap items-center gap-1.5 md:hidden">
+        <span
+          data-testid="wh-stock-chip-low"
+          className={`rounded-pill border px-2.5 py-0.5 text-[13px] ${
+            phoneChips.low ? "border-wh-warn-edge bg-wh-warn-bg text-wh-warn" : "border-wm-card-edge bg-wm-card text-wm-ink-2"
+          }`}
+        >
+          {t("low")} <b className="tabular-nums">{phoneChips.low}</b>
+        </span>
+        <span
+          data-testid="wh-stock-chip-negative"
+          className={`rounded-pill border px-2.5 py-0.5 text-[13px] ${
+            phoneChips.negative ? "border-wh-bad-edge bg-wh-bad-bg text-wh-bad" : "border-wm-card-edge bg-wm-card text-wm-ink-2"
+          }`}
+        >
+          {t("negative")} <b className="tabular-nums">{phoneChips.negative}</b>
+        </span>
+        {neverCountedAll ? (
+          <span data-testid="wh-stock-never-counted" className="basis-full text-[12.5px] text-wm-ink-3">
+            {t("neverCountedAll")}
+          </span>
+        ) : null}
+      </div>
+      <div className="mb-4 hidden md:block">
         <WhKpiGrid>
         {cells.map((c) => (
           <WhKpiCard key={c.id} {...c} />
@@ -111,7 +148,7 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
               <div key={i} className="h-11 rounded-[8px] bg-wh-sunken" />
             ))}
           </div>
-        ) : rows.length === 0 ? (
+        ) : all.length === 0 ? (
           <p className="px-4 py-8 text-center text-[13px] text-wh-ink-3">{t("empty")}</p>
         ) : rows.length === 0 ? (
           <p className="px-4 py-8 text-center text-[13px] text-wh-ink-3">{t("noMatch")}</p>
