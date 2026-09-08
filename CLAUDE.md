@@ -137,6 +137,7 @@ refus_client | faux_numero | doublon | injoignable | prix | non_serieux | autre 
 - Agent commissions (rules, ledger, RPCs, surfaces): docs/agent-commissions.md
 - Entrepôt desk console (light, source of truth): docs/design/entrepot/README.md
 - Entrepôt mobile agent shell (mockups + which figure comes from which query): docs/design/entrepot/mobile/README.md
+- Warehouse agent shell v2, bench-first (critique, prototype, decisions of 2026-09-08): plans/warehouse-agent-ux-critique.md + prototypes/warehouse-agent-v2.html
 - Libya warehouse E2E fixture (Darb sandbox, seed/teardown, audit findings): docs/warehouse-e2e-fixture.md + plans/warehouse-ly-e2e-test-fixture.md
 
 

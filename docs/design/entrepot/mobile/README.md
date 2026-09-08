@@ -8,6 +8,24 @@ contexte, d'où deux livraisons « terminées » qui ne correspondaient pas.
 
 > Ne travaillez plus jamais sur cette coque sans avoir rouvert ces quatre PNG.
 
+> **Mise à jour du 8 septembre 2026.** Les quatre PNG restent l'historique de
+> la coque, mais ils ne sont plus la référence de ce qu'elle affiche. La
+> critique `plans/warehouse-agent-ux-critique.md` et le prototype cliquable
+> `prototypes/warehouse-agent-v2.html` (390 px, RTL, les neuf couleurs Darb
+> réelles) sont la source de vérité depuis cette date :
+>
+> * l'accueil est **le banc** : la file elle-même, groupée par rouleau Darb,
+>   avec un rail des couleurs (un compte par rouleau) et une feuille de scan
+>   qui garde le colis en main ; le tableau de bord (objectif 40, cadence,
+>   exactitude) a été retiré de la coque agent ;
+> * Retours est « scan d'abord » ; Stock est une ligne par produit qui
+>   s'ouvre ; Réglages porte la journée de l'agent et les préférences du
+>   scanner ;
+> * la palette `--wm-*` est celle de la console Commandes (fond froid, cartes
+>   blanches, filet neutre, un seul vert, ambre pour l'âge), Cairo pour
+>   l'arabe, plus de quadrillage. La section « Les jetons » ci-dessous décrit
+>   l'ancienne palette papier et n'est gardée que pour l'histoire.
+
 ## Qui voit quoi
 
 `(warehouse)/layout.tsx` choisit une coque **par rôle** :
