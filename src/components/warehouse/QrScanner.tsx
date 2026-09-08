@@ -10,6 +10,8 @@ interface Props {
   onClose: () => void;
   /** The code that just bound, shown as the mockup's success pill. */
   success?: string | null;
+  /** The sticker roll's colour for the corner brackets. */
+  frameColor?: string | null;
 }
 
 const READER_ID = "oms-qr-reader";
@@ -22,7 +24,7 @@ const READER_ID = "oms-qr-reader";
  * that strip is the one thing the agent must read WHILE aiming. The frame
  * therefore sits inline in the page now; ScanViewfinder owns the chrome.
  */
-export function QrScanner({ active, onScan, onClose, success = null }: Props) {
+export function QrScanner({ active, onScan, onClose, success = null, frameColor = null }: Props) {
   const t = useTranslations("warehouse.scanner");
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
@@ -121,6 +123,7 @@ export function QrScanner({ active, onScan, onClose, success = null }: Props) {
         starting={starting}
         error={error}
         success={success}
+        frameColor={frameColor}
       />
       <button
         type="button"

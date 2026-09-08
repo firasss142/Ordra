@@ -30,6 +30,8 @@ export default async function Page({
   const user = await getServerUser();
   if (!user) redirect(`/${locale}/login`);
   if (!canScanWarehouse(user.role)) redirect(`/${locale}/queue`);
+  // The agent scans from the bench sheet, which never loses the parcel in hand.
+  if (user.role === "warehouse_agent") redirect(`/${locale}/warehouse?scan=1`);
 
   const { marketId: scope, marketCode } = await getActiveMarketScope(user);
   if (marketCode !== "ly") redirect(`/${locale}/warehouse/preparation`);

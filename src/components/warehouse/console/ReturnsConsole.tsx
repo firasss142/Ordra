@@ -251,7 +251,7 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
   const { data: stats } = useSWR<ReturnsStats>("/api/warehouse/returns/stats", fetcher, {
     revalidateOnFocus: true,
   });
-  const { data: page, mutate } = useSWR<{ orders: WarehouseOrderRow[]; nextCursor: string | null }>(
+  const { data: page, error: pageError, mutate } = useSWR<{ orders: WarehouseOrderRow[]; nextCursor: string | null }>(
     `/api/warehouse/returns?limit=100${marketId ? `&market_id=${marketId}` : ""}`,
     fetcher,
     { revalidateOnFocus: true },
@@ -542,7 +542,22 @@ export function ReturnsConsole({ marketId }: { marketId: string | null }) {
             <ScanField {...scanFieldProps} cameraNode={isDesk ? null : cameraNode} />
           </div>
 
-          {page === undefined ? (
+          {/* A failed request is not a loading state. The Libyan agent watched
+              these placeholder bars for a whole shift on 2026-09-08 because
+              the failure had no words of its own. */}
+          {pageError ? (
+            <div
+              data-testid="wh-returns-error"
+              role="alert"
+              className="m-4 flex flex-col items-center gap-3 rounded-[10px] border border-wh-bad-edge bg-wh-bad-bg px-4 py-6 text-center"
+            >
+              <p className="text-[13.5px] font-semibold text-wh-ink-1">{t("loadError")}</p>
+              <p className="text-[12.5px] text-wh-ink-2">{t("loadErrorHint")}</p>
+              <button type="button" onClick={() => void mutate()} className={WH_BTN}>
+                {t("retry")}
+              </button>
+            </div>
+          ) : page === undefined ? (
             <div data-testid="wh-returns-skeleton" className="space-y-2 p-4" aria-hidden="true">
               {[0, 1, 2].map((i) => (
                 <div key={i} className="h-11 rounded-[8px] bg-wh-sunken" />

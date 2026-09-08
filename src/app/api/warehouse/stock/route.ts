@@ -57,6 +57,28 @@ const ACCURACY_DAYS = 90;
  */
 const ENGAGED_STATUSES = ["confirmed", "dispatch_scheduled", "uploaded"];
 
+interface EngagedOrderRow {
+  product_id: string | null;
+  quantity: number | null;
+  bench_cleared_at: string | null;
+  carrier_extra: { fulfil_from_carrier_warehouse?: unknown } | null;
+}
+
+/**
+ * Whether an order in an engaged status can still reach OUR shelf.
+ *
+ * Two kinds cannot, and both were counted until 2026-09-08. Orders the carrier
+ * fulfils from its own warehouse never come here (Libya: 77 of 78 live
+ * orders), and orders cleared off the bench on 23 August stay `uploaded` but
+ * will never be scanned. Together they made "available 2" describe 214
+ * parcels that would never touch the shelf. Reserved is our shelf only.
+ */
+function reservesOurShelf(o: EngagedOrderRow): boolean {
+  if (o.bench_cleared_at) return false;
+  const flag = o.carrier_extra?.fulfil_from_carrier_warehouse;
+  return !(flag === true || flag === "true");
+}
+
 export async function GET(req: NextRequest) {
   const actorResult = await getActor(req);
   if ("response" in actorResult) return actorResult.response;
@@ -95,7 +117,7 @@ export async function GET(req: NextRequest) {
     await Promise.all([
     supabase
       .from("orders")
-      .select("product_id, quantity")
+      .select("product_id, quantity, bench_cleared_at, carrier_extra")
       .in("product_id", ids)
       .in("status", ENGAGED_STATUSES),
     supabase
@@ -111,8 +133,8 @@ export async function GET(req: NextRequest) {
   ]);
 
   const engagedBy = new Map<string, number>();
-  for (const o of engagedRows ?? []) {
-    if (!o.product_id) continue;
+  for (const o of (engagedRows ?? []) as EngagedOrderRow[]) {
+    if (!o.product_id || !reservesOurShelf(o)) continue;
     engagedBy.set(o.product_id, (engagedBy.get(o.product_id) ?? 0) + (o.quantity ?? 0));
   }
   const countedBy = new Map<string, string>();

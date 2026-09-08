@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Camera, Check, ScanLine, TriangleAlert, X } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
@@ -8,7 +8,8 @@ import type { OrderZone } from "@/lib/warehouse/zone-index";
 import { QrScanner } from "@/components/warehouse/QrScanner";
 import { ScanViewfinder } from "@/components/warehouse/mobile/ScanViewfinder";
 import { zoneLabels } from "@/lib/carriers/darb-zones";
-import { isDarbStickerPayload } from "@/lib/preparation/sticker-payload";
+import type { ScanEntry, ScanOutcome } from "@/lib/preparation/scan-outcome";
+import { useScanOut } from "@/components/warehouse/bench/useScanOut";
 import { WH_LABEL } from "./tokens";
 import { WhPill } from "./primitives";
 
@@ -30,45 +31,7 @@ import { WhPill } from "./primitives";
  * which rolls are open, so there is nothing to check the scanned number against.
  */
 
-export type ScanOutcome =
-  | "bound"
-  | "refused_here"
-  | "refused_darb"
-  | "bound_not_committed";
-
-export interface ScanEntry {
-  id: string;
-  code: string;
-  at: string;
-  outcome: ScanOutcome;
-  from?: number;
-  to?: number;
-  message?: string;
-}
-
-interface ScanResponse {
-  stock_after?: number;
-  message?: string;
-  error_code?: string;
-  error?: string;
-  darb_bound?: boolean;
-  carrier_status?: string;
-}
-
-/** A refusal decided here, before the network. */
-function refusal(code: string, message: string): ScanEntry {
-  return { id: `${Date.now()}`, code, at: new Date().toISOString(), outcome: "refused_here", message };
-}
-
-/** Which outcome a response represents. Only `bound` is a clean success. */
-function outcomeFor(ok: boolean, body: ScanResponse): ScanOutcome {
-  if (ok) return "bound";
-  if (body.darb_bound) return "bound_not_committed";
-  if (body.error_code === "DARB_BIND_FAILED" || body.error_code === "DARB_SHIPMENT_UNKNOWN") {
-    return "refused_darb";
-  }
-  return "refused_here";
-}
+export type { ScanEntry, ScanOutcome };
 
 const OUTCOME_TONE: Record<ScanOutcome, { border: string; bg: string; ink: string }> = {
   bound: { border: "border-wh-ok-edge", bg: "bg-wh-ok-bg", ink: "text-wh-ok" },
@@ -104,10 +67,9 @@ export function ScanStation({
   const isStation = variant === "station";
 
   const [value, setValue] = useState("");
-  const [busy, setBusy] = useState(false);
   const [camera, setCamera] = useState(false);
-  const [scans, setScans] = useState<ScanEntry[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { submit: submitScan, busy, scans, last } = useScanOut({ market, hand, orders, onScanned });
 
   useEffect(() => {
     if (!camera) inputRef.current?.focus();
@@ -115,82 +77,13 @@ export function ScanStation({
 
   const submit = useCallback(
     async (raw: string) => {
-      const code = raw.trim();
-      if (!code || busy) return;
       setValue("");
-
-      // Libya: the code is Darb's sticker, which the OMS cannot resolve on its
-      // own — the row the operator took IS the order. Tunisia: the QR is the
-      // order id, so it resolves itself.
-      const target = isLy
-        ? hand
-        : orders.find((o) => o.id === code || o.id.startsWith(code)) ?? null;
-
-      if (!target) {
-        // Libya: the camera can fire with nothing in hand (the input cannot).
-        // That is not a missing order — it is a scan with nothing to bind to.
-        setScans((s) => [refusal(code, isLy ? t("errNoHand") : t("errNotFound")), ...s].slice(0, 8));
-        return;
-      }
-
-      // The Darb QR is the bare number. Anything else would be bound by Darb
-      // without complaint, so it is refused here, before any carrier write.
-      if (isLy && !isDarbStickerPayload(code)) {
-        setScans((s) => [refusal(code, t("errNotNumeric")), ...s].slice(0, 8));
-        return;
-      }
-
-      setBusy(true);
-      const before = target.current_stock ?? 0;
-      try {
-        const res = await fetch("/api/warehouse/scan-out", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ order_id: target.id, sticker_ref: isLy ? code : null }),
-        });
-        const body = (await res.json().catch(() => ({}))) as ScanResponse;
-        const outcome = outcomeFor(res.ok, body);
-
-        // The row's current_stock is a cached page (stale-while-revalidate),
-        // so "from" is derived from the server's stock_after, never read off
-        // the row — the row lagged by one or two scans on the bench.
-        const after = typeof body.stock_after === "number" ? body.stock_after : before - target.quantity;
-        const label = errorLabel(body.error_code, t);
-        // Darb's own wording is better than anything we could invent; keep it
-        // beside our label rather than replacing it.
-        const detail = body.error_code === "DARB_BIND_FAILED" && body.message ? body.message : null;
-
-        setScans((s) =>
-          [
-            {
-              id: `${Date.now()}`,
-              code,
-              at: new Date().toISOString(),
-              outcome,
-              from: res.ok ? after + target.quantity : undefined,
-              to: res.ok ? after : undefined,
-              message: res.ok
-                ? undefined
-                : label
-                  ? detail
-                    ? `${label} ${detail}`
-                    : label
-                  : body.message ?? body.error,
-            },
-            ...s,
-          ].slice(0, 8),
-        );
-
-        if (res.ok) onScanned();
-      } finally {
-        setBusy(false);
-        if (!camera) inputRef.current?.focus();
-      }
+      await submitScan(raw);
+      if (!camera) inputRef.current?.focus();
     },
-    [busy, isLy, hand, orders, onScanned, camera, t],
+    [submitScan, camera],
   );
 
-  const last = scans[0];
   const armed = Boolean(hand) || !isLy;
   const handLabels = zoneLabels(handZone, locale);
 
@@ -506,23 +399,4 @@ function ResultTile({
       </div>
     </div>
   );
-}
-
-/** Operator-facing wording for every refusal the API can return. */
-function errorLabel(code: string | undefined, t: (k: string) => string): string | null {
-  switch (code) {
-    case "STICKER_ALREADY_USED": return t("errStickerUsed");
-    case "DARB_SHIPMENT_UNKNOWN": return t("errShipmentUnknown");
-    case "DARB_BIND_FAILED": return t("errBindFailed");
-    case "NO_LABEL_PRINTED": return t("errNoLabel");
-    case "INVALID_STATUS": return t("errStatus");
-    case "MARKET_MISMATCH": return t("errMarket");
-    case "STOCK_UNDERFLOW": return t("errStock");
-    case "CARRIER_WAREHOUSE_ORDER": return t("errCarrierWarehouse");
-    case "ORDER_NOT_FOUND": return t("errNotFound");
-    case "GONE_AT_CARRIER": return t("errGone");
-    case "STICKER_NOT_NUMERIC": return t("errNotNumeric");
-    case "FORBIDDEN": return t("errForbidden");
-    default: return null;
-  }
 }

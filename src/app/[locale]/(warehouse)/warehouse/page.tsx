@@ -4,11 +4,13 @@ import { canScanWarehouse } from "@/lib/role-permissions";
 import { getWarehouseSummary } from "@/lib/warehouse/summary";
 import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { WarehouseOverviewClient } from "@/components/warehouse/WarehouseOverviewClient";
-import { AgentDashboard } from "@/components/warehouse/mobile/AgentDashboard";
+import { BenchHome } from "@/components/warehouse/bench/BenchHome";
 import { createClient } from "@/lib/supabase/server";
+import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
+import { getZoneIndex } from "@/lib/warehouse/zone-index-cache";
+import { zoneForOrder } from "@/lib/warehouse/zone-index";
 
-/** Used only until a market sets `goal_daily_scanned`. */
-const DEFAULT_DAILY_GOAL = 40;
+const BENCH_PAGE_LIMIT = 200;
 
 export const dynamic = "force-dynamic";
 
@@ -26,36 +28,44 @@ export default async function WarehouseOverviewPage({
   }
 
   /*
-   * The agent's home screen is the mobile dashboard (mockup 01). It used to
-   * redirect straight to Préparation because the desk overview was unusable
-   * on a phone and told an agent nothing about their own day; now the tab
-   * exists and has somewhere to land.
+   * The agent's home is the bench: what waits, grouped by sticker roll. The
+   * queue is prefetched server-side so the screen has parcels the moment it
+   * paints; SWR takes over from there. No daily goal is read here any more:
+   * the bench measures what waits, not what a manager hoped for.
    */
   if (user.role === "warehouse_agent") {
-    const { marketId: agentScope } = await getActiveMarketScope(user);
+    const { marketId: agentScope, marketCode } = await getActiveMarketScope(user);
     const supabase = await createClient();
-    const [summary, { data: goalRow }] = await Promise.all([
-      getWarehouseSummary({
-        role: user.role,
-        actorMarketId: user.market_id,
-        marketId: null,
+    const [summary, { data }, zoneIndex] = await Promise.all([
+      getWarehouseSummary({ role: user.role, actorMarketId: user.market_id, marketId: null }),
+      supabase.rpc("get_to_label_orders", {
+        p_market_id: agentScope,
+        p_limit: BENCH_PAGE_LIMIT,
+        p_cursor_created_at: null,
+        p_cursor_id: null,
       }),
-      supabase
-        .from("settings")
-        .select("value")
-        .eq("market_id", agentScope)
-        .eq("key", "goal_daily_scanned")
-        .maybeSingle(),
+      getZoneIndex(supabase),
     ]);
-
-    const raw = (goalRow?.value ?? null) as unknown;
-    const unwrapped = typeof raw === "string" ? raw : raw === null ? null : String(raw);
-    const dailyGoal =
-      Number.isFinite(Number(unwrapped)) && Number(unwrapped) > 0
-        ? Number(unwrapped)
-        : DEFAULT_DAILY_GOAL;
-
-    return <AgentDashboard summary={summary} dailyGoal={dailyGoal} locale={locale} />;
+    const orders = ((data ?? []) as unknown as WarehouseOrderRow[]).map((row) => ({
+      ...row,
+      zone: zoneForOrder(row, zoneIndex),
+    }));
+    const market: "ly" | "tn" = marketCode === "ly" ? "ly" : "tn";
+    return (
+      <BenchHome
+        market={market}
+        locale={locale}
+        currency={market === "ly" ? "LYD" : "TND"}
+        initialOrders={orders}
+        initialStats={{
+          toPrepare: summary.queue.toPrepare,
+          oldestHours: summary.queue.oldestPrepareHours,
+          scannedToday: summary.day.scannedToday,
+          toHandOver: summary.queue.toHandOver,
+          carrierWarehouse: summary.queue.carrierWarehouse ?? 0,
+        }}
+      />
+    );
   }
 
   /*

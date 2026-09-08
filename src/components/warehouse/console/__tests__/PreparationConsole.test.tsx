@@ -94,3 +94,13 @@ describe("PreparationConsole — work that is not ours", () => {
     expect(screen.queryByTestId("wh-prep-carrier-warehouse")).toBeNull();
   });
 });
+
+describe("PreparationConsole — the daily goal is a market setting, never a constant", () => {
+  it("renders no objective when the market has not set one", () => {
+    // Libya never set goal_daily_scanned; the old default of 40 turned every
+    // morning into "0 / 40", a failure the market had not asked to measure.
+    render(<PreparationConsole market="ly" initialOrders={[]} dailyGoal={null} />);
+    expect(screen.queryByText(/objectif quotidien/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\/ 40/)).not.toBeInTheDocument();
+  });
+});

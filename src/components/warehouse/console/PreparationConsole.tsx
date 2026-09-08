@@ -79,7 +79,8 @@ export function PreparationConsole({
   market: "ly" | "tn";
   initialOrders: Row[];
   /** From the market's settings — never a constant in the component. */
-  dailyGoal: number;
+  /** The market's `goal_daily_scanned`, or null when nobody set one. */
+  dailyGoal: number | null;
 }) {
   const t = useTranslations("warehouse.prep2");
   const tAge = useTranslations("warehouse.age");
@@ -152,7 +153,7 @@ export function PreparationConsole({
   const neverScanned = data?.neverScanned ?? 0;
   const setAside = data?.setAside ?? 0;
   const carrierWarehouse = data?.carrierWarehouse ?? 0;
-  const goalPct = dailyGoal > 0 ? Math.round((scannedToday / dailyGoal) * 100) : 0;
+  const goalPct = dailyGoal && dailyGoal > 0 ? Math.round((scannedToday / dailyGoal) * 100) : null;
 
   // The chip in the search field promises ⌘K; make it true.
   useEffect(() => {
@@ -232,15 +233,21 @@ export function PreparationConsole({
             {scannedToday}
             <VsYesterday today={scannedToday} yesterday={scannedYesterday} t={t} />
           </div>
-          <div className="mt-2.5 h-1.5 overflow-hidden rounded-pill bg-wh-sunken">
-            <i
-              className="block h-full rounded-pill bg-wh-ok"
-              style={{ width: `${Math.min(goalPct, 100)}%` }}
-            />
-          </div>
-          <p className="mt-1.5 font-mono text-[12px] tabular-nums text-wh-ink-2">
-            {t("kpiGoal", { done: scannedToday, goal: dailyGoal })}
-          </p>
+          {/* No goal set means no goal shown. A default of 40 made every
+              Libyan morning read "0 / 40", a failure nobody had asked for. */}
+          {dailyGoal && goalPct !== null ? (
+            <>
+              <div className="mt-2.5 h-1.5 overflow-hidden rounded-pill bg-wh-sunken">
+                <i
+                  className="block h-full rounded-pill bg-wh-ok"
+                  style={{ width: `${Math.min(goalPct, 100)}%` }}
+                />
+              </div>
+              <p className="mt-1.5 font-mono text-[12px] tabular-nums text-wh-ink-2">
+                {t("kpiGoal", { done: scannedToday, goal: dailyGoal })}
+              </p>
+            </>
+          ) : null}
         </div>
 
         {/* The late card wears an inset amber bar, not just a border: on a

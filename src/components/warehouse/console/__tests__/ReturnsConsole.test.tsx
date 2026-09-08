@@ -32,13 +32,17 @@ const stats = {
 // screen must not pretend it is an answer.
 let statsData: typeof stats | undefined;
 let pageData: { orders: WarehouseOrderRow[]; nextCursor: string | null } | undefined;
+// A rejected fetch. SWR keeps `data` undefined and sets `error`; the screen
+// must tell those two states apart.
+let pageError: Error | undefined;
+const mutateMock = vi.fn();
 
 vi.mock("swr", () => ({
   default: (key: string) => ({
     data: key.includes("stats") ? statsData : pageData,
-    error: undefined,
+    error: key.includes("stats") ? undefined : pageError,
     isLoading: false,
-    mutate: vi.fn(),
+    mutate: mutateMock,
   }),
 }));
 
@@ -78,6 +82,8 @@ beforeEach(() => {
   rows = [row("aaaa1111-0000-0000-0000-000000000001", "عبد السلام", 14, 179)];
   statsData = stats;
   pageData = { orders: rows, nextCursor: null };
+  pageError = undefined;
+  mutateMock.mockClear();
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true }) }));
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -416,5 +422,20 @@ describe("ReturnsConsole — the scanner", () => {
 
     // Step 2 is "Décision"; it must stay unreached.
     expect(screen.getByTestId("wh-step-2")).toHaveAttribute("data-on", "false");
+  });
+});
+
+describe("ReturnsConsole — a failed request is not a loading state", () => {
+  it("names the failure and offers a retry instead of a permanent placeholder", () => {
+    // Production, 2026-09-08: the Libyan agent saw grey placeholder bars that
+    // never filled in. The component read only `data` from SWR, so a failed
+    // request was indistinguishable from one still in flight.
+    pageData = undefined;
+    pageError = new Error("500");
+    render(<ReturnsConsole marketId="m-ly" />);
+    expect(screen.queryByTestId("wh-returns-skeleton")).not.toBeInTheDocument();
+    expect(screen.getByTestId("wh-returns-error")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
+    expect(mutateMock).toHaveBeenCalled();
   });
 });

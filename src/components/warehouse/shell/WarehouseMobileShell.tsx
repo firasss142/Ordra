@@ -3,22 +3,23 @@
 import { useMemo } from "react";
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
-import { Boxes, LayoutGrid, RotateCcw, Settings } from "lucide-react";
+import { Boxes, PackageOpen, RotateCcw, Settings } from "lucide-react";
 import type { AuthUser } from "@/types";
 import { jsonFetcher } from "@/lib/fetchers";
 import { WarehouseBottomBar, type BottomTab } from "./WarehouseBottomBar";
 import { ScanFab } from "./ScanFab";
 
 /**
- * The warehouse agent's shell — the mockups' app, not a narrowed desk console.
+ * The warehouse agent's shell.
  *
- * See docs/design/entrepot/mobile/. Four destinations along the bottom, a
- * floating scan button, a paper ground with a 40px lattice, and NO header:
- * three of the four mockups start straight at the page title. The market
- * badge that used to sit up there is not something an agent can change, and
- * the avatar menu moved to Réglages.
+ * Four destinations along the bottom, in the order the agent works: the bench
+ * (home: what to scan, grouped by sticker roll), returns, stock, settings. A
+ * floating scan button opens the bench's scan sheet from anywhere. No header:
+ * the market is not something an agent can change, and identity lives in
+ * Réglages.
  *
  * Managers keep the desk console — `(warehouse)/layout.tsx` picks by role.
+ * See plans/warehouse-agent-ux-critique.md for why the KPI dashboard went.
  */
 
 interface QueueCounts {
@@ -52,16 +53,10 @@ export function WarehouseMobileShell({
     return [
       {
         href: `/${locale}/warehouse`,
-        label: t("nav.dashboard"),
-        icon: LayoutGrid,
+        label: t("nav.bench"),
+        icon: PackageOpen,
         exact: true,
-        prefetchKey: "/api/warehouse/summary",
-      },
-      {
-        href: `/${locale}/warehouse/stock`,
-        label: t("nav.inventory"),
-        icon: Boxes,
-        prefetchKey: "/api/warehouse/stock",
+        prefetchKey: "/api/warehouse/to-label?limit=200",
       },
       {
         href: `/${locale}/warehouse/returns`,
@@ -73,6 +68,12 @@ export function WarehouseMobileShell({
         prefetchKey: "/api/warehouse/returns",
       },
       {
+        href: `/${locale}/warehouse/stock`,
+        label: t("nav.inventory"),
+        icon: Boxes,
+        prefetchKey: "/api/warehouse/stock",
+      },
+      {
         href: `/${locale}/warehouse/settings`,
         label: t("nav.settings"),
         icon: Settings,
@@ -82,7 +83,7 @@ export function WarehouseMobileShell({
 
   return (
     <div
-      className="wh-console wh-mobile wm-grid-ground min-h-screen"
+      className="wh-console wh-mobile min-h-screen"
       style={{ direction }}
     >
       <main
@@ -94,7 +95,9 @@ export function WarehouseMobileShell({
       >
         {children}
       </main>
-      <ScanFab href={`/${locale}/warehouse/scan`} label={t("nav.quickScan")} />
+      {/* One scanner for the whole shell: the bench sheet, opened by a query
+          flag so the button works from any tab without a second station. */}
+      <ScanFab href={`/${locale}/warehouse?scan=1`} label={t("nav.quickScan")} />
       <WarehouseBottomBar tabs={tabs} />
     </div>
   );

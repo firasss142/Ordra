@@ -11,8 +11,6 @@ import { zoneForOrder } from "@/lib/warehouse/zone-index";
 export const dynamic = "force-dynamic";
 
 const PAGE_LIMIT = 200;
-/** Used only until a market sets `goal_daily_scanned`. */
-const DEFAULT_DAILY_GOAL = 40;
 
 /**
  * Préparation. The queue is prefetched server-side so the bench has rows the
@@ -28,6 +26,8 @@ export default async function Page({
   const user = await getServerUser();
   if (!user) redirect(`/${locale}/login`);
   if (!canScanWarehouse(user.role)) redirect(`/${locale}/queue`);
+  // The agent's bench IS the preparation queue; this desk console is for managers.
+  if (user.role === "warehouse_agent") redirect(`/${locale}/warehouse`);
 
   const { marketId: scope, marketCode } = await getActiveMarketScope(user);
 
@@ -54,9 +54,10 @@ export default async function Page({
   const raw = goalRow?.value;
   const unwrapped =
     raw && typeof raw === "object" && "value" in raw ? (raw as { value: unknown }).value : raw;
+  // Null, not a default: a goal the market never set is not a goal of 40.
   const dailyGoal = Number.isFinite(Number(unwrapped)) && Number(unwrapped) > 0
     ? Number(unwrapped)
-    : DEFAULT_DAILY_GOAL;
+    : null;
 
   const orders = ((data ?? []) as unknown as WarehouseOrderRow[]).map((row) => ({
     ...row,

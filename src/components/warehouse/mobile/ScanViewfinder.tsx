@@ -13,7 +13,7 @@ import { Check } from "lucide-react";
  * the picture.
  */
 
-const CORNER = "absolute h-7 w-7 border-white/90";
+const CORNER = "absolute h-7 w-7";
 const CORNERS = [
   { pos: "start-3.5 top-3.5", edge: "border-s-[3px] border-t-[3px] rounded-ss-[10px]" },
   { pos: "end-3.5 top-3.5", edge: "border-e-[3px] border-t-[3px] rounded-se-[10px]" },
@@ -26,6 +26,7 @@ export function ScanViewfinder({
   starting = false,
   error = null,
   success = null,
+  frameColor = null,
   children,
 }: {
   /** Mount point id for the scanner library's video element. */
@@ -34,6 +35,11 @@ export function ScanViewfinder({
   error?: string | null;
   /** The code that just bound. Drives the mockup's "Scan Successful" pill. */
   success?: string | null;
+  /**
+   * The corner brackets in the sticker roll's colour, so the agent aims
+   * inside the colour they must peel from. White when no roll applies.
+   */
+  frameColor?: string | null;
   children?: React.ReactNode;
 }) {
   const t = useTranslations("warehouse.scan");
@@ -41,6 +47,7 @@ export function ScanViewfinder({
   return (
     <div
       data-testid="wm-viewfinder"
+      data-frame={frameColor ?? ""}
       // 6:5 — the frame in mockup 02 is ~405x340. (It holds a photograph, so
       // it cannot be found by scanning for a dark rectangle; measured by eye
       // off the PNG.) At 4:5 the frame alone filled two thirds of a 390px
@@ -63,6 +70,12 @@ export function ScanViewfinder({
           data-corner=""
           aria-hidden="true"
           className={`${CORNER} ${c.pos} ${c.edge}`}
+          // Yellow and lime vanish against the dark surround less than
+          // against paper, but a white inner line keeps them readable.
+          style={{
+            borderColor: frameColor ?? "rgba(255,255,255,.9)",
+            boxShadow: frameColor ? "inset 0 0 0 2px rgba(255,255,255,.85)" : undefined,
+          }}
         />
       ))}
 

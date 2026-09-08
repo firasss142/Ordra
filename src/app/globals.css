@@ -406,47 +406,43 @@
 .wh-safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
 .wh-safe-top    { padding-top: env(safe-area-inset-top, 0px); }
 
-/* ── The mockup palette (--wm-*) ─────────────────────────────────────────────
-   Sampled pixel-by-pixel out of docs/design/entrepot/mobile/*.png, not chosen.
-   It is deliberately NOT the desk console's --wh-* set: the mockups run a
-   single deep green over a warm paper ground, where the console runs five
-   functional hues over a cool one. Both are correct for their reader.
+/* ── The agent shell palette (--wm-*) ────────────────────────────────────────
+   Since 2026-09-08 this is the Orders console's language, not the paper
+   mockups': a cool light ground, pure white cards on a neutral hairline, one
+   deep green accent, amber for age and low stock. The paper palette and its
+   lattice were retired because three of the five agent screens were already
+   the desk console, and two design systems in one shell read as two apps.
+   See prototypes/warehouse-agent-v2.html and plans/warehouse-agent-ux-critique.md.
 
    Scoped under .wh-mobile so the manager console cannot inherit any of it. */
 .wh-mobile {
-  --wm-accent: #147A47;         /* FAB fill (01), camera + success pills (02) */
-  --wm-accent-deep: #0F6239;    /* pressed, active tab glyph */
-  --wm-accent-soft: #E4F1E9;    /* active tab plate, progress track tint */
-  --wm-ground: #F4F3ED;         /* the paper ground, all four mockups */
-  --wm-grid: #E3E6DD;           /* lattice */
-  --wm-card: #FAFAF6;      /* barely lifted off the ground, as in the mockups */
-  --wm-card-edge: #BFD6C7;      /* the green-tinted hairline on every card */
-  --wm-ink: #111311;
-  --wm-ink-2: #4C524D;
-  --wm-track: #E5E5E5;          /* progress groove (03) */
-  --wm-viewfinder: #353636;     /* scanner surround (02) */
+  --wm-accent: #147A47;         /* primary button, active tab, the one hero figure */
+  --wm-accent-deep: #0F6239;    /* pressed */
+  --wm-accent-soft: #E6F2EA;    /* active tab plate, selected chip fill */
+  --wm-ground: #F6F6F7;         /* the Orders console ground */
+  --wm-card: #FFFFFF;
+  --wm-card-edge: #E1E3E5;      /* neutral hairline on every card */
+  --wm-ink: #1A1A1A;
+  --wm-ink-2: #5C5F62;
+  --wm-ink-3: #8C9196;
+  --wm-track: #ECEDEE;          /* progress groove, toggle track */
+  --wm-viewfinder: #353636;     /* scanner surround */
 
   background-color: var(--wm-ground);
   color: var(--wm-ink);
+  /* Inter carries Latin and digits; Arabic falls through to Cairo, which is
+     loaded at 400 to 700. Noto Sans Arabic stops at 600, so every bold Arabic
+     title was being synthesised before this. */
+  font-family: var(--font-sans), var(--font-cairo), var(--font-sans-arabic),
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Figures are bold sans here, not mono. The mockups contain no monospace at
-   all, and the console's IBM Plex Mono immediately reads as "a different app".
-   Tabular figures stay on so columns of numbers still line up. */
+/* Figures are bold sans here, not mono: IBM Plex Mono reads as the desk
+   console. Tabular figures stay on so columns of numbers still line up. */
 .wh-mobile .font-mono {
-  font-family: var(--font-sans), var(--font-sans-arabic), -apple-system,
-    BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans), var(--font-cairo), var(--font-sans-arabic),
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   letter-spacing: -0.01em;
-}
-
-/* The graph-paper ground from the mockups: a 40px lattice on the paper
-   colour, faint enough to sit under text without competing with it. */
-.wm-grid-ground {
-  background-image:
-    linear-gradient(to right, var(--wm-grid) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--wm-grid) 1px, transparent 1px);
-  background-size: 40px 40px;
-  background-position: -1px -1px;
 }
 
 

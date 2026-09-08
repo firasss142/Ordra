@@ -18,7 +18,7 @@ export function WmCard({
 } & React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`rounded-[10px] border border-wm-card-edge bg-wm-card ${className}`}
+      className={`rounded-[12px] border border-wm-card-edge bg-wm-card ${className}`}
       {...rest}
     >
       {children}
@@ -26,10 +26,10 @@ export function WmCard({
   );
 }
 
-/** The page title. Centred, as in every mockup, and the first thing on screen. */
+/** The page title. Start-aligned like every other console title; the first thing on screen. */
 export function WmTitle({ children }: { children: ReactNode }) {
   return (
-    <h1 className="text-center text-[26px] font-extrabold tracking-[-0.02em] text-wm-ink">
+    <h1 className="text-[22px] font-bold leading-tight tracking-[-0.01em] text-wm-ink">
       {children}
     </h1>
   );

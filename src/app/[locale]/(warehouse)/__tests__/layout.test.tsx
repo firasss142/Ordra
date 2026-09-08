@@ -90,17 +90,28 @@ describe("Entrepôt shell — navigation", () => {
     expect(screen.queryByTestId("topbar")).toBeNull();
   });
 
-  it("navigates to the four sections the mockups show", () => {
+  it("navigates to the four sections in the order the agent works them", () => {
+    // Bench first: it is the home and the job. Returns next, because a parcel
+    // coming back is the second thing that lands on the bench. Stock and
+    // settings are looked at, not worked from.
     mockUser = user("warehouse_agent");
     render(<WarehouseLayout><div>page</div></WarehouseLayout>);
     const bar = screen.getByTestId("wh-bottom-bar");
     const labels = Array.from(bar.querySelectorAll("a")).map((a) => a.getAttribute("href"));
     expect(labels).toEqual([
       "/fr/warehouse",
-      "/fr/warehouse/stock",
       "/fr/warehouse/returns",
+      "/fr/warehouse/stock",
       "/fr/warehouse/settings",
     ]);
+  });
+
+  it("opens the bench's scan sheet from the floating button, on any screen", () => {
+    // One scanner for the shell. The old station was a separate page that
+    // forgot which parcel the agent had taken.
+    mockUser = user("warehouse_agent");
+    render(<WarehouseLayout><div>page</div></WarehouseLayout>);
+    expect(screen.getByTestId("wh-scan-fab")).toHaveAttribute("href", "/fr/warehouse?scan=1");
   });
 
   it("leaves room under the page for the bar, so the last row is reachable", () => {

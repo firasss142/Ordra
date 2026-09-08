@@ -166,3 +166,53 @@ describe("GET /api/warehouse/stock — what counts as engaged", () => {
     }
   });
 });
+
+describe("GET /api/warehouse/stock — reserved counts only parcels that can reach our shelf", () => {
+  const engagedOrder = (over: Record<string, unknown> = {}) => ({
+    product_id: "p-1",
+    quantity: 1,
+    status: "uploaded",
+    bench_cleared_at: null,
+    carrier_extra: null,
+    ...over,
+  });
+
+  test("an order fulfilled from the carrier's own warehouse reserves nothing here", async () => {
+    // Libya, 2026-09-07: 77 live orders shipped from Darb's stock counted as
+    // reserved against our shelf, so "available 2" described 214 parcels that
+    // would never touch it. Our shelf only (decision of 2026-09-08).
+    wire({
+      products: [product({ current_stock: 10 })],
+      orders: [
+        engagedOrder(),
+        engagedOrder({ quantity: 4, carrier_extra: { fulfil_from_carrier_warehouse: "true" } }),
+        engagedOrder({ quantity: 2, carrier_extra: { fulfil_from_carrier_warehouse: true } }),
+      ],
+    });
+    const { rows } = await (await GET(req())).json();
+    expect(rows[0].engaged).toBe(1);
+    expect(rows[0].free).toBe(9);
+  });
+
+  test("an order cleared from the bench reserves nothing: it will never be scanned here", async () => {
+    // The 407 historical Libyan orders cleared on 23 August stay `uploaded`
+    // but are not bench work; they stop reserving units (decision of 2026-09-08).
+    wire({
+      products: [product({ current_stock: 10 })],
+      orders: [engagedOrder(), engagedOrder({ quantity: 5, bench_cleared_at: "2026-08-23T10:00:00Z" })],
+    });
+    const { rows } = await (await GET(req())).json();
+    expect(rows[0].engaged).toBe(1);
+  });
+
+  test("the query asks for the two exclusion fields, so the filter has something to read", async () => {
+    wire({ products: [product()] });
+    await GET(req());
+    const ordersChain = mockFrom.mock.results
+      .map((r) => r.value as { select: { mock: { calls: unknown[][] } }; in: { mock: { calls: unknown[][] } } })
+      .find((c) => c.in.mock.calls.some((call) => call[0] === "status"));
+    const selected = String(ordersChain!.select.mock.calls[0][0]);
+    expect(selected).toContain("bench_cleared_at");
+    expect(selected).toContain("carrier_extra");
+  });
+});
