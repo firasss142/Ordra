@@ -11,6 +11,7 @@ import {
 } from "@/lib/warehouse/queue-cursor";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import { getZoneIndex } from "@/lib/warehouse/zone-index-cache";
+import { attachProductImages } from "@/lib/warehouse/product-images";
 import { zoneForOrder, type OrderZone } from "@/lib/warehouse/zone-index";
 
 export const dynamic = "force-dynamic";
@@ -128,7 +129,8 @@ export async function GET(req: NextRequest) {
     limit,
   );
 
-  const orders: ToLabelRow[] = rows.map((row) => ({
+  const pictured = await attachProductImages(supabase, rows);
+  const orders: ToLabelRow[] = pictured.map((row) => ({
     ...row,
     zone: zoneForOrder(row, zoneIndex),
   }));

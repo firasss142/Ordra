@@ -13,7 +13,12 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 vi.mock("@/lib/warehouse/zone-index-cache", () => ({
-  getZoneIndex: vi.fn().mockResolvedValue({ byCity: new Map(), byCityArea: new Map() }),
+  // An empty directory: every row resolves to "zone unknown", which is all
+  // these tests need. The shape must match ZoneIndex or zoneForOrder throws.
+  getZoneIndex: vi.fn().mockResolvedValue({
+    destinations: { byName: new Map(), cityColors: new Map() },
+    colorByBranchGroup: new Map(),
+  }),
 }));
 
 import { GET } from "./route";
@@ -32,11 +37,14 @@ function req() {
   return new NextRequest(new URL("http://localhost/api/warehouse/to-label?limit=100"));
 }
 
-function wire(stats: Record<string, unknown>, orders: unknown[] = []) {
-  mockFrom.mockImplementation(() => {
+function wire(stats: Record<string, unknown>, orders: unknown[] = [], products: unknown[] = []) {
+  mockFrom.mockImplementation((table: string) => {
     const c: Record<string, unknown> = {};
     c.select = vi.fn().mockReturnValue(c);
     c.eq = vi.fn().mockReturnValue(c);
+    c.in = vi.fn().mockReturnValue(c);
+    c.then = (resolve: (v: unknown) => unknown) =>
+      Promise.resolve({ data: table === "products" ? products : [], error: null }).then(resolve);
     c.single = vi.fn().mockResolvedValue({
       data: { role: "warehouse_agent", market_id: "m-1" },
       error: null,
@@ -73,5 +81,23 @@ describe("GET /api/warehouse/to-label", () => {
     wire({ to_prepare: 12 });
     const json = await (await GET(req())).json();
     expect(json.setAside).toBe(0);
+  });
+});
+
+describe("GET /api/warehouse/to-label — the picture on the row", () => {
+  test("each row carries its product's image, looked up once per page", async () => {
+    // The card showed a package icon for every parcel: the RPC returns order
+    // fields only, and the picture the picker matches lives on the product.
+    wire(
+      { to_prepare: 2 },
+      [
+        { id: "o1", product_id: "p1", customer_city: "طرابلس", created_at: "2026-09-01T00:00:00Z" },
+        { id: "o2", product_id: "p2", customer_city: "طرابلس", created_at: "2026-09-01T00:00:00Z" },
+      ],
+      [{ id: "p1", image_url: "https://img/p1.png" }],
+    );
+    const json = await (await GET(req())).json();
+    expect(json.orders[0].product_image_url).toBe("https://img/p1.png");
+    expect(json.orders[1].product_image_url).toBeNull();
   });
 });

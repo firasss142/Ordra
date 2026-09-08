@@ -91,6 +91,12 @@ describe("ReturnsHome — the list", () => {
     expect(mutate).toHaveBeenCalled();
   });
 
+  it("shows the product picture on the row", () => {
+    pageData = { orders: [{ ...older, product_image_url: "https://img/p1.png" }], nextCursor: null };
+    render(<ReturnsHome marketId="m-ly" />);
+    expect(screen.getByTestId("wh-return-row").querySelector("img")).toHaveAttribute("src", "https://img/p1.png");
+  });
+
   it("says the queue is empty in words", () => {
     pageData = { orders: [], nextCursor: null };
     render(<ReturnsHome marketId="m-ly" />);

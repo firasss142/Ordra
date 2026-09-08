@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import { getZoneIndex } from "@/lib/warehouse/zone-index-cache";
 import { zoneForOrder } from "@/lib/warehouse/zone-index";
+import { attachProductImages } from "@/lib/warehouse/product-images";
 
 const BENCH_PAGE_LIMIT = 200;
 
@@ -46,7 +47,8 @@ export default async function WarehouseOverviewPage({
       }),
       getZoneIndex(supabase),
     ]);
-    const orders = ((data ?? []) as unknown as WarehouseOrderRow[]).map((row) => ({
+    const pictured = await attachProductImages(supabase, (data ?? []) as unknown as WarehouseOrderRow[]);
+    const orders = pictured.map((row) => ({
       ...row,
       zone: zoneForOrder(row, zoneIndex),
     }));

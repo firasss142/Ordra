@@ -62,10 +62,17 @@ export function BenchCard({
 
       <div className="flex items-center gap-2.5">
         <span
+          data-testid="wh-bench-thumb"
           aria-hidden="true"
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px] border border-wm-card-edge bg-wm-ground text-wm-ink-3"
+          className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-[8px] border border-wm-card-edge bg-wm-ground text-wm-ink-3"
         >
-          <Package size={18} />
+          {row.product_image_url ? (
+            // Raw <img>: the project configures no images.remotePatterns.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={row.product_image_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+          ) : (
+            <Package size={18} />
+          )}
         </span>
         <div className="min-w-0 flex-1">
           <b className="block truncate text-[16px] font-bold leading-tight text-wm-ink">

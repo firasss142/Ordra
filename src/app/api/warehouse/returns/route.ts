@@ -9,6 +9,7 @@ import {
 } from "@/lib/warehouse/queue-cursor";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import { resolveWarehouseScope } from "@/lib/warehouse/scope";
+import { attachProductImages } from "@/lib/warehouse/product-images";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,8 @@ export async function GET(req: NextRequest) {
     Omit<WarehouseOrderRow, "current_stock" | "low_stock_threshold">
   >;
   const { rows, nextCursor } = buildQueuePageMeta(raw, limit);
-  const orders: WarehouseOrderRow[] = rows.map((o) => ({
+  const pictured = await attachProductImages(supabase, rows);
+  const orders: WarehouseOrderRow[] = pictured.map((o) => ({
     ...o,
     current_stock: null,
     low_stock_threshold: null,

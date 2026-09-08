@@ -68,4 +68,16 @@ describe("BenchCard", () => {
     render(<Intl><BenchCard row={row({ zone: UNKNOWN })} isLy held={false} currency="LYD" onTake={() => {}} /></Intl>);
     expect(screen.getByTestId("wh-bench-card")).toHaveAttribute("data-roll", "");
   });
+
+  it("shows the product picture when the product has one, and a placeholder otherwise", () => {
+    render(
+      <Intl>
+        <BenchCard row={row({ product_image_url: "https://img/p1.png" })} isLy held={false} currency="LYD" onTake={() => {}} />
+      </Intl>,
+    );
+    expect(screen.getByTestId("wh-bench-thumb").querySelector("img")).toHaveAttribute("src", "https://img/p1.png");
+    cleanup();
+    render(<Intl><BenchCard row={row()} isLy held={false} currency="LYD" onTake={() => {}} /></Intl>);
+    expect(screen.getByTestId("wh-bench-thumb").querySelector("img")).toBeNull();
+  });
 });

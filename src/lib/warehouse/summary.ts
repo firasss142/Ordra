@@ -147,6 +147,8 @@ export interface WarehouseOrderRow {
   has_carrier_ref: boolean | null;
   /** When the parcel was marked as coming back. Returns queue only. */
   returned_at?: string | null;
+  /** The product's picture, attached by `attachProductImages`; null without one. */
+  product_image_url?: string | null;
   current_stock: number | null;
   low_stock_threshold: number | null;
 }
