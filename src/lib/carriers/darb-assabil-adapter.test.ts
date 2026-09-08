@@ -298,6 +298,30 @@ describe("DarbAssabilAdapter", () => {
           .allow_card_payment,
       ).toBe("1");
     });
+
+    // Home mode: pickup is an agent choice (the "Notre entrepôt" flow — Darb
+    // collects from us), defaulting ON so a dispatch that doesn't pass the
+    // flag (e.g. cron) keeps requesting pickup, same as before this was a
+    // visible control. Only an explicit `false` (agent unchecked it) turns it
+    // off. Carrier-warehouse mode is untouched — see its own describe block.
+    test("snapshots is_pickup as '1' by default in home mode (no flag passed)", () => {
+      expect(adapter.formatPayload(mockOrder, mockConfig, mockExtra).is_pickup).toBe("1");
+    });
+
+    test("snapshots is_pickup as '0' when extra.is_pickup is explicitly false", () => {
+      expect(
+        adapter.formatPayload(mockOrder, mockConfig, { ...mockExtra, is_pickup: false })
+          .is_pickup,
+      ).toBe("0");
+    });
+
+    test("snapshots is_replacement as '1'/'0' (default '0')", () => {
+      expect(adapter.formatPayload(mockOrder, mockConfig, mockExtra).is_replacement).toBe("0");
+      expect(
+        adapter.formatPayload(mockOrder, mockConfig, { ...mockExtra, is_replacement: true })
+          .is_replacement,
+      ).toBe("1");
+    });
   });
 
   // The snapshot `formatPayload` produces — `dispatch` consumes this exact shape.
@@ -902,8 +926,7 @@ describe("DarbAssabilAdapter", () => {
         });
       });
 
-      test("home mode sends NO warehouse key and no isPickup override", async () => {
-        // Guards the current production path against regression.
+      test("home mode sends NO warehouse key but DOES send isPickup (agent's choice, defaults true)", async () => {
         const mockFetch = vi
           .fn()
           .mockResolvedValueOnce(jsonResponse(200, CONTACT_OK))
@@ -919,8 +942,55 @@ describe("DarbAssabilAdapter", () => {
 
         const shipBody = JSON.parse(mockFetch.mock.calls[1][1].body);
         expect(shipBody).not.toHaveProperty("warehouse");
-        expect(shipBody).not.toHaveProperty("isPickup");
+        expect(shipBody.isPickup).toBe(true);
         expect(shipBody.products[0]).not.toHaveProperty("warehouseProduct");
+      });
+
+      test("home mode sends isPickup:false when the agent unchecked pickup", async () => {
+        const mockFetch = vi
+          .fn()
+          .mockResolvedValueOnce(jsonResponse(200, CONTACT_OK))
+          .mockResolvedValueOnce(jsonResponse(200, SHIPMENT_OK));
+        vi.stubGlobal("fetch", mockFetch);
+
+        const snapshot = adapter.formatPayload(oneItemOrder, mockConfig, {
+          ...mockExtra,
+          is_pickup: false,
+        });
+        await adapter.dispatch(snapshot, mockConfig);
+
+        const shipBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+        expect(shipBody.isPickup).toBe(false);
+      });
+    });
+
+    describe("isReplacement", () => {
+      afterEach(() => vi.unstubAllGlobals());
+
+      test("sets isReplacement:true on the shipment when is_replacement='1'", async () => {
+        const mockFetch = vi
+          .fn()
+          .mockResolvedValueOnce(jsonResponse(200, CONTACT_OK))
+          .mockResolvedValueOnce(jsonResponse(200, SHIPMENT_OK));
+        vi.stubGlobal("fetch", mockFetch);
+
+        await adapter.dispatch({ ...payload, is_replacement: "1" }, mockConfig);
+
+        const shipBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+        expect(shipBody.isReplacement).toBe(true);
+      });
+
+      test("omits isReplacement when is_replacement is '0'/absent (default off)", async () => {
+        const mockFetch = vi
+          .fn()
+          .mockResolvedValueOnce(jsonResponse(200, CONTACT_OK))
+          .mockResolvedValueOnce(jsonResponse(200, SHIPMENT_OK));
+        vi.stubGlobal("fetch", mockFetch);
+
+        await adapter.dispatch(payload, mockConfig);
+
+        const shipBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+        expect(shipBody).not.toHaveProperty("isReplacement");
       });
     });
   });

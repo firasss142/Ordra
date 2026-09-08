@@ -134,7 +134,51 @@ describe("DarbAssabilDispatchModal — per-order options", () => {
       allow_inspection: false,
       allow_card_payment: false,
       allow_testing: false,
+      // Pickup defaults ON (Notre entrepôt is the default fulfilment source);
+      // replacement defaults OFF like the other optional flags.
+      is_pickup: true,
+      is_replacement: false,
     });
+
+    vi.unstubAllGlobals();
+  });
+
+  it("unchecking Ramassage sends is_pickup:false", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: () => Promise.resolve({ data: { tracking_number: "SH1" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="اجدابيا" />);
+
+    fireEvent.click(screen.getByLabelText("Ramassage"));
+    fireEvent.click(screen.getByRole("button", { name: /Confirmer l'envoi/ }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.extra.is_pickup).toBe(false);
+
+    vi.unstubAllGlobals();
+  });
+
+  it("checking Remplacement sends is_replacement:true", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: () => Promise.resolve({ data: { tracking_number: "SH1" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="اجدابيا" />);
+
+    fireEvent.click(screen.getByLabelText("Remplacement"));
+    fireEvent.click(screen.getByRole("button", { name: /Confirmer l'envoi/ }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.extra.is_replacement).toBe(true);
 
     vi.unstubAllGlobals();
   });

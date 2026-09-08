@@ -194,14 +194,20 @@ export function DarbAssabilDispatchModal({
     externalId: string | null;
   } | null>(null);
 
-  // Per-order Darb options, sent via extra on dispatch (default off). Online
-  // payment is native to Darb (no 10% surcharge on our side); the others map to
-  // per-product flags on the shipment.
+  // Per-order Darb options, sent via extra on dispatch. Online payment is
+  // native to Darb (no 10% surcharge on our side); inspection/fragile/testing
+  // map to per-product flags on the shipment. Pickup defaults ON — Darb
+  // collecting from our own warehouse is the normal case — and only applies
+  // in "home" fulfilment (Entrepôt Darb Assabil always forces its own
+  // pickup server-side, so the checkbox is hidden there, not just default).
+  // Replacement defaults off like the other optional flags.
   const [options, setOptions] = useState({
+    is_pickup: true,
     allow_inspection: false,
     is_fragile: false,
     allow_card_payment: false,
     allow_testing: false,
+    is_replacement: false,
   });
 
   // Darb service packages (توصيل رجالي / نسائي / فوري). The agent picks one per
@@ -301,10 +307,16 @@ export function DarbAssabilDispatchModal({
             // A paid special service (women's/express, surcharge > 0) bills its
             // fees to the customer on top of the COD; the free default does not.
             service_fee_on_top: chosenServiceFeeOnTop,
+            // Pickup only makes sense in home mode (Darb collecting from us);
+            // their own warehouse mode forces it server-side regardless, so
+            // send the plain default there rather than a hidden checkbox's
+            // stale value.
+            is_pickup: fulfilment === "home" ? options.is_pickup : true,
             allow_inspection: options.allow_inspection,
             is_fragile: options.is_fragile,
             allow_card_payment: options.allow_card_payment,
             allow_testing: options.allow_testing,
+            is_replacement: options.is_replacement,
             // Carrier-warehouse fulfilment. Sent only when chosen AND still
             // available; the server resolves the carrier-side product ids and
             // re-checks stock, refusing the dispatch on any gap.
@@ -533,15 +545,23 @@ export function DarbAssabilDispatchModal({
               )}
             </Section>
 
-            {/* Per-order Darb options (inspection / fragile / online card / testing). */}
+            {/* Per-order Darb options (pickup / inspection / fragile / online
+                card / testing / replacement). Pickup is home-mode only: Darb's
+                own warehouse mode forces its own pickup server-side, so
+                showing the checkbox there would offer a choice that isn't
+                one. */}
             <Section label={t("optionsLabel")} last>
               <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
                 {(
                   [
+                    ...(fulfilment === "home"
+                      ? ([["is_pickup", t("optionPickup")]] as const)
+                      : []),
                     ["allow_inspection", t("optionInspection")],
                     ["is_fragile", t("optionFragile")],
                     ["allow_card_payment", t("optionCardPayment")],
                     ["allow_testing", t("optionTesting")],
+                    ["is_replacement", t("optionReplacement")],
                   ] as const
                 ).map(([key, label]) => (
                   <label

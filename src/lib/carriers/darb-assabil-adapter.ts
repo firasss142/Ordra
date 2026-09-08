@@ -121,6 +121,14 @@ export class DarbAssabilAdapter implements CarrierAdapter {
     const allowInspection = extraFlag(extra, "allow_inspection");
     const allowTesting = extraFlag(extra, "allow_testing");
     const allowCardPayment = extraFlag(extra, "allow_card_payment");
+    // Pickup (home mode only — see below): defaults ON, since Darb collecting
+    // from our warehouse is the normal case. Only an explicit `false` (agent
+    // unchecked it in the modal) turns it off; anything else, including a
+    // non-modal dispatch path that sends no flag at all, keeps requesting pickup.
+    const isPickup = extra?.is_pickup !== false;
+    // Replacement/exchange shipment (Darb's `isReplacement`). Optional, off by
+    // default — undocumented beyond their Postman schema, sibling to isPickup.
+    const isReplacement = extraFlag(extra, "is_replacement");
 
     // Carrier-warehouse fulfilment: Darb holds this stock in their own
     // warehouse and picks it themselves. perform-dispatch resolves the
@@ -237,12 +245,16 @@ export class DarbAssabilAdapter implements CarrierAdapter {
       // stays a flat Record<string,string> (the dry-run contract).
       products_json: JSON.stringify(products),
       allow_card_payment: allowCardPayment ? "1" : "0",
-      // Carrier-warehouse mode. isPickup is FORCED true here, mirroring Darb's
-      // own client (`isPickup: _l || (ns && !ss) ? true : …`): when they fulfil
-      // from a physical warehouse of theirs, they collect from that warehouse,
-      // and their UI disables the switch. It is not a choice we may offer.
+      // Pickup: an agent choice ONLY in home mode (Notre entrepôt — Darb
+      // collects from us). In carrier-warehouse mode it is FORCED true,
+      // mirroring Darb's own client (`isPickup: _l || (ns && !ss) ? true : …`):
+      // when they fulfil from a physical warehouse of theirs, they collect
+      // from that warehouse, and their UI disables the switch — not a choice
+      // we may offer there.
+      is_pickup: fromCarrierWarehouse ? "1" : isPickup ? "1" : "0",
+      is_replacement: isReplacement ? "1" : "0",
       ...(fromCarrierWarehouse
-        ? { carrier_warehouse_id: carrierWarehouseId, is_pickup: "1" }
+        ? { carrier_warehouse_id: carrierWarehouseId }
         : {}),
       notes: order.customer_note ?? "",
     };
@@ -312,11 +324,20 @@ export class DarbAssabilAdapter implements CarrierAdapter {
       shipmentBody.allowCardPayment = true;
       shipmentBody.cardFeePaymentBy = "receiver";
     }
-    // Carrier-warehouse fulfilment. Both keys are omitted entirely in home mode
-    // so the existing production payload is byte-for-byte unchanged.
+    // Pickup: reflects the snapshot as-is in both modes — home mode's default
+    // (true) and any agent override live in formatPayload, not here.
+    if (p.is_pickup !== undefined) {
+      shipmentBody.isPickup = p.is_pickup === "1";
+    }
+    // Replacement/exchange shipment. Omitted (not sent as false) when off, to
+    // match how the other optional per-order flags stay silent by default.
+    if (p.is_replacement === "1") {
+      shipmentBody.isReplacement = true;
+    }
+    // Carrier warehouse id. Omitted entirely in home mode so the existing
+    // production payload otherwise stays byte-for-byte unchanged.
     if (p.carrier_warehouse_id) {
       shipmentBody.warehouse = p.carrier_warehouse_id;
-      shipmentBody.isPickup = p.is_pickup === "1";
     }
 
     let shipmentRaw: { status: number; body: unknown };
@@ -504,8 +525,13 @@ interface DarbPayloadSnapshot {
    * only in carrier-warehouse mode; its absence IS home mode.
    */
   carrier_warehouse_id?: string;
-  /** Pickup toggle, "1"/"0". Forced "1" in carrier-warehouse mode. */
+  /**
+   * Pickup toggle, "1"/"0". An agent choice in home mode (default "1");
+   * forced "1" in carrier-warehouse mode.
+   */
   is_pickup?: string;
+  /** Replacement/exchange shipment toggle, "1"/"0". Optional, default "0". */
+  is_replacement?: string;
   notes: string;
 }
 
