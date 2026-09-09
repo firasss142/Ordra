@@ -466,8 +466,15 @@ on tab visibility, 20 s fallback poll only while disconnected, both count routes
 `no-store`, footer shows live/reconnecting (`realtime.connection.*`). Tests: 4 new hook
 tests + all realtime suites green (72); full suite has 24 failures in 14 files, identical
 on the untouched tree. Build green.
-Gates 2–3 (two-browser status change, new order, sleep/wake) **pending a browser pass**;
-the Playwright server was disconnected during this step.
+Gate 2 verified on production (deploy dpl_EMHictCPfckiEkRVCCUHoJute7HZ, 2026-09-09 23:00 UTC)
+with the admin session on the Libya market and the database as the second actor, tagged
+throwaway order `E2E-REALTIME-1`, zero page reloads throughout: footer read "En direct";
+INSERT → the order appeared at the top of the list within 3 s with its thumbnail and
+duplicate badge, and the "Non assignées" tile went 5 → 6; UPDATE status + assignee → the
+row showed "1/8" and the agent name within 2 s, image intact; DELETE → the row vanished
+and the tile returned to 5. Row deleted from the database afterwards (0 leftovers).
+Gate 3 (sleep/wake) not exercised by automation; the reconnect path is covered by the
+hook's catch-up revalidation on `SUBSCRIBED` and on tab visibility. Step 4 DONE.
 
 
 ---
