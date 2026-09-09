@@ -3,7 +3,13 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { buildConfig, type CarrierRow } from "@/lib/carriers/dispatch";
-import { resolveDarbShipment, bindDarbReference } from "@/lib/carriers/darb-assabil-reference";
+import {
+  resolveDarbShipment,
+  bindDarbReference,
+  verifyDarbReference,
+  classifyBindState,
+  type StickerBindState,
+} from "@/lib/carriers/darb-assabil-reference";
 import type { ScanErrorCode } from "@/lib/preparation/tray-state";
 
 export const dynamic = "force-dynamic";
@@ -57,6 +63,51 @@ const PRECHECK_STATUS: Record<string, number> = {
   GONE_AT_CARRIER: 409,
   STICKER_NOT_NUMERIC: 409,
 };
+
+/**
+ * The RPC's own code, when it sends one.
+ *
+ * Since 20260922000002 every refusal carries DETAIL = {"code":"..."}, which
+ * PostgREST hands back as `error.details`. Reading it beats matching French
+ * prose: rewording a message used to silently change which error the bench saw.
+ * The prose matcher below stays as the fallback for any function not yet
+ * migrated — it is a bridge, not the contract.
+ */
+const RPC_CODE_STATUS: Record<string, number> = {
+  ACTOR_MISMATCH: 403,
+  ACTOR_NOT_FOUND: 403,
+  FORBIDDEN: 403,
+  ORDER_NOT_FOUND: 409,
+  MARKET_MISMATCH: 409,
+  INVALID_STATUS: 409,
+  GONE_AT_CARRIER: 409,
+  NO_LABEL_PRINTED: 409,
+  NO_PRODUCT: 409,
+  STICKER_NOT_NUMERIC: 409,
+  STICKER_ALREADY_USED: 409,
+  STOCK_UNDERFLOW: 409,
+};
+
+function structuredCode(details: unknown): { code: ScanErrorCode; status: number } | null {
+  if (typeof details !== "string") return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(details);
+  } catch {
+    return null;
+  }
+  const code = (parsed as { code?: unknown } | null)?.code;
+  if (typeof code !== "string" || !(code in RPC_CODE_STATUS)) return null;
+  // ACTOR_MISMATCH / ACTOR_NOT_FOUND / NO_PRODUCT have no bench wording of their
+  // own; they surface as the nearest thing the operator can act on.
+  const surfaced: ScanErrorCode =
+    code === "ACTOR_MISMATCH" || code === "ACTOR_NOT_FOUND"
+      ? "FORBIDDEN"
+      : code === "NO_PRODUCT"
+        ? "ORDER_NOT_FOUND"
+        : (code as ScanErrorCode);
+  return { code: surfaced, status: RPC_CODE_STATUS[code] };
+}
 
 function classifyRpcError(message: string): { code: ScanErrorCode; status: number } {
   const m = message.toLowerCase();
@@ -230,6 +281,8 @@ export async function POST(req: NextRequest) {
   }
 
   let darbBound = false;
+  let bindState: StickerBindState | null = null;
+  let carrierReference: string | null = null;
   if (needsDarbBinding && internalId && carrierConfig) {
     const bind = await bindDarbReference(internalId, stickerRef, carrierConfig);
     if (!bind.ok) {
@@ -242,6 +295,36 @@ export async function POST(req: NextRequest) {
       );
     }
     darbBound = true;
+
+    /*
+     * A cheerful PATCH is not proof. Probed 2026-09-08: sticker 1633019 was
+     * accepted and Darb kept SH2171145 — no `referenced` event at all.
+     *
+     * WHY THIS DOES NOT BLOCK THE SCAN. That same parcel healed itself: Darb's
+     * reception scans the physical sticker at booking and sets the reference to
+     * it (19 h later, order 4622d937). Refusing the scan would have stranded a
+     * parcel that was already stickered and already correct in the real world,
+     * and would have left the order with no sticker at all — so a returned
+     * parcel could never be found. We retry once, then let it out and SAY SO:
+     * the state lands on the order, the Scannés list shows it in red with a
+     * re-bind, and the next sweep flips it to `confirmed` when Darb catches up.
+     */
+    let check = await verifyDarbReference(internalId, stickerRef, carrierConfig);
+    if (!check.verified) {
+      const retry = await bindDarbReference(internalId, stickerRef, carrierConfig);
+      if (retry.ok) {
+        check = await verifyDarbReference(internalId, stickerRef, carrierConfig);
+      }
+    }
+    bindState = classifyBindState(stickerRef, check.actualReference);
+    carrierReference = check.actualReference;
+
+    await supabase.rpc("record_sticker_bind_state", {
+      p_order_id: orderId,
+      p_actor_id: actor.id,
+      p_state: bindState,
+      p_darb_reference: carrierReference,
+    });
   }
 
   const { data, error } = await supabase.rpc("scan_order_out", {
@@ -251,7 +334,8 @@ export async function POST(req: NextRequest) {
   });
 
   if (error) {
-    const { code, status } = classifyRpcError(error.message);
+    const { code, status } =
+      structuredCode((error as { details?: unknown }).details) ?? classifyRpcError(error.message);
     return NextResponse.json(
       {
         error_code: code,
@@ -269,5 +353,9 @@ export async function POST(req: NextRequest) {
     darb_bound: darbBound,
     required_color: precheck.required_color ?? null,
     branch_group: branchGroup,
+    // Present and not "confirmed" means the parcel is out but the carrier is
+    // not holding our number — the bench has to see that, not discover it later.
+    sticker_bind_state: bindState,
+    carrier_reference: carrierReference,
   });
 }

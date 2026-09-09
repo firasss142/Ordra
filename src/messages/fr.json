@@ -3701,6 +3701,7 @@
       "errStock": "Stock insuffisant.",
       "errNoHand": "Scan ignoré : prenez d'abord un colis dans la file, puis rescannez.",
       "errNotNumeric": "Ce code n'est pas un numéro de sticker Darb — rescannez le sticker collé sur le colis.",
+      "errBindUnverified": "Darb a accepté le sticker puis ne l'a pas gardé",
       "errGone": "Colis déjà parti chez le transporteur — ne pas scanner.",
       "errForbidden": "Votre rôle ne permet pas de scanner.",
       "binding": "Liaison chez Darb…",
@@ -3872,7 +3873,8 @@
       "lookupUnknown": "Introuvable dans le système",
       "lookupUnknownHint": "Ce numéro n'est lié à aucune commande. Vérifiez le sticker.",
       "notCommittedHint": "Aucune unité n'a été déduite. Prévenez le responsable avant de remettre le colis.",
-      "roll": "Rouleau {colour}"
+      "roll": "Rouleau {colour}",
+      "unverifiedHint": "Ne remettez pas ce colis. Darb garde encore {ref} — rescannez le sticker."
     }
   },
   "users": {

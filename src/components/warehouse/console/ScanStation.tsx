@@ -42,6 +42,11 @@ const OUTCOME_TONE: Record<ScanOutcome, { border: string; bg: string; ink: strin
     bg: "bg-wh-warn-bg",
     ink: "text-wh-warn",
   },
+  bind_unverified: {
+    border: "border-wh-warn-edge",
+    bg: "bg-wh-warn-bg",
+    ink: "text-wh-warn",
+  },
 };
 
 export function ScanStation({
@@ -371,6 +376,7 @@ function ResultTile({
     refused_here: t("errRefused"),
     refused_darb: t("errCarrier"),
     bound_not_committed: t("errBoundNotCommitted"),
+    bind_unverified: t("errBindUnverified"),
   };
 
   return (

@@ -137,3 +137,82 @@ export async function bindDarbReference(
   }
   return parseBindResponse(response.status, response.body);
 }
+
+export interface DarbVerifyResult {
+  /** Darb's current reference IS the sticker we sent. */
+  verified: boolean;
+  /** What Darb actually holds — the only way to name the wrong number. */
+  actualReference: string | null;
+  rawStatus: string | null;
+}
+
+const UNVERIFIED: DarbVerifyResult = {
+  verified: false,
+  actualReference: null,
+  rawStatus: null,
+};
+
+/**
+ * Re-read the shipment and check the sticker actually stuck.
+ *
+ * A `status: true` on the PATCH is NOT proof. Production, 2026-09-08: sticker
+ * 1633019 was accepted for one order and Darb still holds `SH2171145`, with no
+ * `referenced` timeline event — the parcel shipped carrying a number Darb never
+ * knew, and nothing on any screen said so. One GET settles it.
+ *
+ * Unreachable is unverified, never a pass: the whole point is that we stop
+ * deducting stock for a parcel the carrier cannot route.
+ */
+export async function verifyDarbReference(
+  internalId: string,
+  sticker: string,
+  config: CarrierConfig,
+): Promise<DarbVerifyResult> {
+  const id = (internalId ?? "").trim();
+  const expected = (sticker ?? "").trim();
+  if (!id || !expected) return UNVERIFIED;
+
+  const response = await darbFetch(
+    darbUrl(config, `/api/local/shipments/${encodeURIComponent(id)}`),
+    config,
+    { method: "GET" },
+  );
+  if (!response.ok) return UNVERIFIED;
+
+  const hit = parseShipmentLookup(response.body);
+  if (!hit) return UNVERIFIED;
+
+  return {
+    // String comparison, never numeric: leading zeros are legal sticker digits.
+    verified: hit.reference === expected,
+    actualReference: hit.reference,
+    rawStatus: hit.rawStatus,
+  };
+}
+
+export type StickerBindState = "confirmed" | "restickered" | "not_registered" | "unknown";
+
+/**
+ * What Darb is holding, said in one word.
+ *
+ * Three things happen to a sticker after we bind it, and they need three
+ * different reactions from the bench:
+ *   confirmed      — Darb holds our number. Nothing to do.
+ *   restickered    — Darb's reception replaced it with their own (7 of 19
+ *                    parcels on 2026-09-08). Our number is stale; theirs routes
+ *                    the parcel and is what a returned parcel will carry.
+ *   not_registered — Darb still holds its own `SH…` placeholder, so the bind
+ *                    never took effect however cheerful the PATCH was.
+ */
+export function classifyBindState(
+  sticker: string | null | undefined,
+  actualReference: string | null | undefined,
+): StickerBindState {
+  const ours = (sticker ?? "").trim();
+  const theirs = (actualReference ?? "").trim();
+  if (!theirs) return "unknown";
+  if (ours && theirs === ours) return "confirmed";
+  // `SH…` is Darb's creation-time placeholder: the reference was never replaced.
+  if (/^SH/i.test(theirs)) return "not_registered";
+  return "restickered";
+}

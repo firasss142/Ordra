@@ -84,6 +84,7 @@ export function useScanOut({
           code,
           at: new Date().toISOString(),
           outcome,
+          carrierRef: body.carrier_reference,
           from: res.ok ? after + target.quantity : undefined,
           to: res.ok ? after : undefined,
           message: res.ok

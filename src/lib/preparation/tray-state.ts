@@ -18,6 +18,8 @@ export type ScanErrorCode =
   | "GONE_AT_CARRIER"
   // The scanned payload is not a bare sticker number — a mis-scan.
   | "STICKER_NOT_NUMERIC"
+  // Darb accepted the sticker and then did not keep it: nothing was committed.
+  | "BIND_UNVERIFIED"
   // The actor's role may not scan at all (defence in depth behind the route guard).
   | "FORBIDDEN"
   | "NETWORK_ERROR";

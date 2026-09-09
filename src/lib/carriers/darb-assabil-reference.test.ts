@@ -4,6 +4,7 @@ import {
   parseBindResponse,
   resolveDarbShipment,
   bindDarbReference,
+  verifyDarbReference,
 } from "./darb-assabil-reference";
 import type { CarrierConfig } from "./types";
 
@@ -163,6 +164,91 @@ describe("bindDarbReference", () => {
     vi.stubGlobal("fetch", mockFetch);
     expect((await bindDarbReference("", "889201", config)).ok).toBe(false);
     expect((await bindDarbReference("id-1", " ", config)).ok).toBe(false);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Verifying the bind.
+ *
+ * `PATCH /shipments/reference/:id` answering `status: true` is NOT proof the
+ * number stuck. Production, 2026-09-08: sticker 1633019 was accepted for order
+ * 4622d937 and Darb still holds `SH2171145`, with no `referenced` timeline
+ * event — the parcel shipped carrying a number Darb never knew. Only a re-read
+ * of the shipment settles it, and it is cheap: one GET per scan.
+ */
+describe("verifyDarbReference", () => {
+  test("confirms when Darb now holds exactly the sticker we sent", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      jsonResponse({
+        status: true,
+        data: { results: [{ _id: "id-1", reference: "889201", status: "pending" }] },
+      }),
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    const result = await verifyDarbReference("id-1", "889201", config);
+
+    expect(result).toEqual({ verified: true, actualReference: "889201", rawStatus: "pending" });
+    const [url, init] = mockFetch.mock.calls[0];
+    // Keyed on the internal _id, like every single-shipment read.
+    expect(String(url)).toBe("https://v2.sabil.ly/api/local/shipments/id-1");
+    expect(init.method).toBe("GET");
+  });
+
+  test("does NOT confirm when Darb kept its own SH… reference", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse({ status: true, data: { results: [{ _id: "id-1", reference: "SH2171145" }] } }),
+      ),
+    );
+
+    const result = await verifyDarbReference("id-1", "1633019", config);
+
+    expect(result.verified).toBe(false);
+    // The bench has to be able to say WHICH number Darb is holding instead.
+    expect(result.actualReference).toBe("SH2171145");
+  });
+
+  test("does NOT confirm when Darb holds a different number entirely", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse({ status: true, data: { results: [{ _id: "id-1", reference: "1279049" }] } }),
+      ),
+    );
+    const result = await verifyDarbReference("id-1", "11870086", config);
+    expect(result).toEqual({ verified: false, actualReference: "1279049", rawStatus: null });
+  });
+
+  test("leading zeros still match — the sticker is a string, not a number", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse({ status: true, data: { results: [{ _id: "id-1", reference: "000000990103" }] } }),
+      ),
+    );
+    expect((await verifyDarbReference("id-1", "000000990103", config)).verified).toBe(true);
+  });
+
+  test("an unreachable carrier is unverified, never a throw and never a pass", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ETIMEDOUT")));
+    const result = await verifyDarbReference("id-1", "889201", config);
+    expect(result.verified).toBe(false);
+    expect(result.actualReference).toBeNull();
+  });
+
+  test("an envelope refusal is unverified", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ status: false })));
+    expect((await verifyDarbReference("id-1", "889201", config)).verified).toBe(false);
+  });
+
+  test("does not call the carrier with a blank id or sticker", async () => {
+    const mockFetch = vi.fn();
+    vi.stubGlobal("fetch", mockFetch);
+    expect((await verifyDarbReference("", "889201", config)).verified).toBe(false);
+    expect((await verifyDarbReference("id-1", "  ", config)).verified).toBe(false);
     expect(mockFetch).not.toHaveBeenCalled();
   });
 });

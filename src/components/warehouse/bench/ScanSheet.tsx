@@ -204,6 +204,7 @@ export function ScanSheet({
             from={last.from}
             to={last.to}
             message={last.message}
+            carrierRef={last.carrierRef}
             forName={lastHandRef.current?.customer_name ?? ""}
             next={next}
             sameRoll={
@@ -300,6 +301,7 @@ const TONE: Record<ScanOutcome, string> = {
   refused_here: "border-wh-bad",
   refused_darb: "border-wh-bad",
   bound_not_committed: "border-wh-warn bg-wh-warn-bg",
+  bind_unverified: "border-wh-warn bg-wh-warn-bg",
 };
 
 /**
@@ -308,13 +310,14 @@ const TONE: Record<ScanOutcome, string> = {
  * must never read as a plain error, or the agent re-stickers it.
  */
 function Result({
-  outcome, code, from, to, message, forName, next, sameRoll, onTakeNext, onRetry, onPutBack, onClose, t, ts,
+  outcome, code, from, to, message, carrierRef, forName, next, sameRoll, onTakeNext, onRetry, onPutBack, onClose, t, ts,
 }: {
   outcome: ScanOutcome;
   code: string;
   from?: number;
   to?: number;
   message?: string;
+  carrierRef?: string;
   forName: string;
   next: PrepRow | null;
   sameRoll: boolean;
@@ -330,9 +333,15 @@ function Result({
     refused_here: ts("errRefused"),
     refused_darb: ts("errCarrier"),
     bound_not_committed: ts("errBoundNotCommitted"),
+    bind_unverified: ts("errBindUnverified"),
   };
-  const Icon = outcome === "bound" ? Check : outcome === "bound_not_committed" ? TriangleAlert : X;
-  const ink = outcome === "bound" ? "text-wh-ok" : outcome === "bound_not_committed" ? "text-wh-warn" : "text-wh-bad";
+  const warn = outcome === "bound_not_committed" || outcome === "bind_unverified";
+  // The parcel left and the stock moved. `bind_unverified` differs from `bound`
+  // only in that the carrier is holding a different number — so it keeps the
+  // success layout (stock effect, next parcel) and gains a warning line.
+  const committed = outcome === "bound" || outcome === "bind_unverified";
+  const Icon = outcome === "bound" ? Check : warn ? TriangleAlert : X;
+  const ink = outcome === "bound" ? "text-wh-ok" : warn ? "text-wh-warn" : "text-wh-bad";
 
   return (
     <div>
@@ -344,7 +353,7 @@ function Result({
         <Icon size={40} strokeWidth={2} className={ink} aria-hidden="true" />
         <b dir="ltr" className="text-[28px] font-bold tracking-[0.06em] tabular-nums text-wm-ink">{code}</b>
         <p className="text-[16px] font-semibold text-wm-ink">{heading[outcome]}</p>
-        {outcome === "bound" ? (
+        {committed ? (
           <p className="text-[15px] tabular-nums text-wm-ink-2">{t("stockEffect", { from: from ?? "—", to: to ?? "—" })}</p>
         ) : (
           <p className="text-[14px] text-wm-ink-2">{message}</p>
@@ -352,10 +361,15 @@ function Result({
         {outcome === "bound_not_committed" ? (
           <p className="text-[14px] text-wm-ink-2">{t("notCommittedHint")}</p>
         ) : null}
+        {outcome === "bind_unverified" ? (
+          <p data-testid="wh-sheet-unverified" className="text-[14px] text-wm-ink-2">
+            {t("unverifiedHint", { ref: carrierRef ?? "—" })}
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-2.5 grid gap-2">
-        {outcome === "bound" ? (
+        {committed ? (
           <>
             {next ? (
               <button

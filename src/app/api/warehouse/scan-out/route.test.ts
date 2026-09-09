@@ -6,6 +6,7 @@ const mockRpc = vi.fn();
 const mockAdminFrom = vi.fn();
 const mockResolveDarbShipment = vi.fn();
 const mockBindDarbReference = vi.fn();
+const mockVerifyDarbReference = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
@@ -18,9 +19,14 @@ vi.mock("@/lib/supabase/server", () => ({
   })),
 }));
 
-vi.mock("@/lib/carriers/darb-assabil-reference", () => ({
+// Partial mock: the three network calls are stubbed, but `classifyBindState` is
+// pure and is the thing under test on the unverified path — mocking it would
+// assert against our own stub instead of the real classification.
+vi.mock("@/lib/carriers/darb-assabil-reference", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/carriers/darb-assabil-reference")>()),
   resolveDarbShipment: (...args: unknown[]) => mockResolveDarbShipment(...args),
   bindDarbReference: (...args: unknown[]) => mockBindDarbReference(...args),
+  verifyDarbReference: (...args: unknown[]) => mockVerifyDarbReference(...args),
 }));
 
 vi.mock("@/lib/carriers/dispatch", () => ({
@@ -118,6 +124,7 @@ beforeEach(() => {
     rawStatus: "pending",
   });
   mockBindDarbReference.mockResolvedValue({ ok: true, message: null });
+  mockVerifyDarbReference.mockResolvedValue({ verified: true, actualReference: "889201", rawStatus: "pending" });
 });
 
 describe("POST /api/warehouse/scan-out — auth", () => {
@@ -453,5 +460,167 @@ describe("POST /api/warehouse/scan-out — binding the sticker at Darb", () => {
     // The operator must know the parcel IS bound at Darb, or they will assume
     // nothing happened and re-sticker it.
     expect(json.darb_bound).toBe(true);
+  });
+});
+
+/**
+ * Verifying the bind before committing.
+ *
+ * Darb answering `status: true` to the PATCH is not proof the number stuck:
+ * sticker 1633019 was accepted on 2026-09-08 and Darb kept `SH2171145`. The
+ * parcel then shipped with a number the carrier could not route, and the stock
+ * was already deducted. So the commit now waits for a re-read.
+ */
+describe("POST /api/warehouse/scan-out — verifying the bind at Darb", () => {
+  const scan = { order_id: "order-1", sticker_ref: "889201" };
+
+  function wireDarb() {
+    wireSupabase({
+      orderRow: darbOrder({ carrier_extra: { darb_assabil_id: "cached-id", darb_branch_group: "BN" } }),
+      carrierRow: { id: "darb-1", code: "darb_assabil" },
+    });
+  }
+
+  test("retries once, then lets the parcel out and flags it", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    wireDarb();
+    // Darb never keeps it, even on the retry.
+    mockVerifyDarbReference.mockResolvedValue({
+      verified: false,
+      actualReference: "SH2171145",
+      rawStatus: "pending",
+    });
+
+    const res = await POST(req(scan));
+
+    // The parcel is stickered and physically leaving; Darb's reception recovers
+    // the number at booking. Blocking would strand it — so it commits, loudly.
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.sticker_bind_state).toBe("not_registered");
+    expect(json.carrier_reference).toBe("SH2171145");
+    expect(mockBindDarbReference).toHaveBeenCalledTimes(2);
+    expect(mockRpc).toHaveBeenCalledWith("scan_order_out", expect.anything());
+  });
+
+  test("a retry that works is not reported as a problem", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    wireDarb();
+    mockVerifyDarbReference
+      .mockResolvedValueOnce({ verified: false, actualReference: "SH2171145", rawStatus: "pending" })
+      .mockResolvedValueOnce({ verified: true, actualReference: "889201", rawStatus: "pending" });
+
+    const res = await POST(req(scan));
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).sticker_bind_state).toBe("confirmed");
+    expect(mockBindDarbReference).toHaveBeenCalledTimes(2);
+  });
+
+  test("a bind Darb kept is not retried", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    wireDarb();
+
+    await POST(req(scan));
+
+    expect(mockBindDarbReference).toHaveBeenCalledTimes(1);
+  });
+
+  test("verifies before committing, and only then commits", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    wireDarb();
+
+    const order: string[] = [];
+    mockBindDarbReference.mockImplementation(async () => {
+      order.push("bind");
+      return { ok: true, message: null };
+    });
+    mockVerifyDarbReference.mockImplementation(async () => {
+      order.push("verify");
+      return { verified: true, actualReference: "889201", rawStatus: "pending" };
+    });
+    mockRpc.mockImplementation((fn: string) => {
+      if (fn === "scan_order_out") order.push("commit");
+      return Promise.resolve({
+        data: fn === "precheck_scan_out" ? okPrecheck : { success: true },
+        error: null,
+      });
+    });
+
+    const res = await POST(req(scan));
+
+    expect(res.status).toBe(200);
+    expect(order).toEqual(["bind", "verify", "commit"]);
+  });
+
+  test("records the confirmed bind state so the scanned list can show it", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    wireDarb();
+
+    await POST(req(scan));
+
+    expect(mockRpc).toHaveBeenCalledWith("record_sticker_bind_state", {
+      p_order_id: "order-1",
+      p_actor_id: "wh-1",
+      p_state: "confirmed",
+      p_darb_reference: "889201",
+    });
+  });
+
+  test("Tunisia commits without any verification — there is no sticker to verify", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    wireSupabase({
+      orderRow: darbOrder({ carriers: { code: "navex", supplies_own_labels: false } }),
+      carrierRow: { id: "navex-1", code: "navex" },
+    });
+
+    const res = await POST(req({ order_id: "order-1" }));
+
+    expect(res.status).toBe(200);
+    expect(mockVerifyDarbReference).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The RPC now names its own refusals (20260922000002). Prose matching was the
+ * bridge; the code in `details` is the contract, and it must win when both are
+ * present — a French message can be reworded, a code cannot drift silently.
+ */
+describe("POST /api/warehouse/scan-out — the RPC's own error code wins", () => {
+  test("reads DETAIL.code rather than the message", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    wireSupabase();
+    mockRpc.mockImplementation((fn: string) =>
+      fn === "precheck_scan_out"
+        ? Promise.resolve({ data: okPrecheck, error: null })
+        : Promise.resolve({
+            data: null,
+            // Message says nothing recognisable; the code says everything.
+            error: { message: "quelque chose a mal tourné", details: '{"code":"STOCK_UNDERFLOW"}' },
+          }),
+    );
+
+    const res = await POST(req({ order_id: "order-1" }));
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error_code).toBe("STOCK_UNDERFLOW");
+  });
+
+  test("an actor mismatch surfaces as a refusal the agent can read", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "wh-1" } } });
+    wireSupabase();
+    mockRpc.mockImplementation((fn: string) =>
+      fn === "precheck_scan_out"
+        ? Promise.resolve({ data: okPrecheck, error: null })
+        : Promise.resolve({
+            data: null,
+            error: { message: "Un scan ne peut pas...", details: '{"code":"ACTOR_MISMATCH"}' },
+          }),
+    );
+
+    const res = await POST(req({ order_id: "order-1" }));
+
+    expect(res.status).toBe(403);
+    expect((await res.json()).error_code).toBe("FORBIDDEN");
   });
 });

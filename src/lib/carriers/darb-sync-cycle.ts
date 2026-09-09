@@ -28,6 +28,7 @@ import {
   type DarbShipmentProjection,
 } from "./darb-assabil-shipment";
 import { fetchDarbShipmentPage } from "./darb-assabil-tracking";
+import { classifyBindState, type StickerBindState } from "./darb-assabil-reference";
 import type { CarrierConfig } from "./types";
 
 /** Darb serves 500 rows/page (verified live). Leave headroom for latency. */
@@ -38,11 +39,17 @@ export interface OrderMatchRow {
   tracking_number: string | null;
   /** carrier_extra->>'darb_assabil_id' */
   darb_internal_id: string | null;
+  /** The number the bench bound and printed on the parcel. */
+  carrier_sticker_ref?: string | null;
+  /** What we last observed Darb holding, so a sweep only writes on change. */
+  sticker_bind_state?: string | null;
 }
 
 export interface OrderIndex {
   byDarbId: Map<string, string>;
   byReference: Map<string, string>;
+  /** Per order: the sticker we bound, and the state we last recorded for it. */
+  stickers: Map<string, { sticker: string | null; state: string | null }>;
 }
 
 export type MatchedBy = "internal_id" | "reference" | "original_reference";
@@ -75,6 +82,15 @@ export interface DarbSyncDeps {
     reference: string | null;
   }) => Promise<{ promoted: boolean }>;
   writeLog: (entry: DarbSyncLogEntry) => Promise<void>;
+  /**
+   * Record what Darb is actually holding as this parcel's reference. Optional so
+   * older callers keep compiling; when absent the sweep simply does not reconcile.
+   */
+  recordBindState?: (input: {
+    orderId: string;
+    state: StickerBindState;
+    darbReference: string | null;
+  }) => Promise<void>;
 }
 
 export interface DarbSyncResult {
@@ -117,6 +133,7 @@ export function planPages(totalCount: number | null, pageSize: number): number[]
 export function buildOrderIndex(orders: OrderMatchRow[]): OrderIndex {
   const byDarbId = new Map<string, string>();
   const byReference = new Map<string, string>();
+  const stickers = new Map<string, { sticker: string | null; state: string | null }>();
   for (const o of orders) {
     if (o.darb_internal_id && !byDarbId.has(o.darb_internal_id)) {
       byDarbId.set(o.darb_internal_id, o.id);
@@ -124,8 +141,12 @@ export function buildOrderIndex(orders: OrderMatchRow[]): OrderIndex {
     if (o.tracking_number && !byReference.has(o.tracking_number)) {
       byReference.set(o.tracking_number, o.id);
     }
+    stickers.set(o.id, {
+      sticker: o.carrier_sticker_ref ?? null,
+      state: o.sticker_bind_state ?? null,
+    });
   }
-  return { byDarbId, byReference };
+  return { byDarbId, byReference, stickers };
 }
 
 /**
@@ -379,6 +400,27 @@ export async function runDarbSyncCycle(
       }
     }
 
+    // Does Darb still hold the number we printed on the parcel? The sweep is
+    // reading every shipment anyway, so this costs one comparison per row and
+    // catches both carrier behaviours: a reference replaced at booking, and a
+    // bind that never took. Written only when the answer changed.
+    if (deps.recordBindState) {
+      for (const { orderId, p } of promotions) {
+        const known = index.stickers.get(orderId);
+        if (!known?.sticker) continue;
+        const state = classifyBindState(known.sticker, p.reference);
+        if (state === "unknown" || state === known.state) continue;
+        try {
+          await deps.recordBindState({ orderId, state, darbReference: p.reference });
+        } catch (err) {
+          result.status = "partial";
+          result.errorMessage = `recordBindState(${orderId}): ${
+            err instanceof Error ? err.message : String(err)
+          }`;
+        }
+      }
+    }
+
     for (const { orderId, p } of promotions) {
       try {
         const res = await deps.promoteStatus({
@@ -435,13 +477,15 @@ export function buildDarbSyncDeps(
     loadOrderIndex: async (carrierId) => {
       const { data, error } = await admin
         .from("orders")
-        .select("id, tracking_number, carrier_extra")
+        .select("id, tracking_number, carrier_extra, carrier_sticker_ref, sticker_bind_state")
         .eq("carrier_id", carrierId);
       if (error) throw new Error(`loadOrderIndex: ${error.message}`);
       const rows = (data ?? []) as Array<{
         id: string;
         tracking_number: string | null;
         carrier_extra: Record<string, unknown> | null;
+        carrier_sticker_ref: string | null;
+        sticker_bind_state: string | null;
       }>;
       return buildOrderIndex(
         rows.map((r) => ({
@@ -451,6 +495,8 @@ export function buildDarbSyncDeps(
             typeof r.carrier_extra?.darb_assabil_id === "string"
               ? r.carrier_extra.darb_assabil_id
               : null,
+          carrier_sticker_ref: r.carrier_sticker_ref,
+          sticker_bind_state: r.sticker_bind_state,
         })),
       );
     },
@@ -492,6 +538,17 @@ export function buildDarbSyncDeps(
       });
       if (error) throw new Error(error.message);
       return { promoted: Boolean((data as { promoted?: boolean } | null)?.promoted) };
+    },
+
+    recordBindState: async ({ orderId, state, darbReference }) => {
+      // p_actor_id NULL: the system observed this, no operator did.
+      const { error } = await admin.rpc("record_sticker_bind_state", {
+        p_order_id: orderId,
+        p_actor_id: null,
+        p_state: state,
+        p_darb_reference: darbReference,
+      });
+      if (error) throw new Error(error.message);
     },
 
     writeLog: async (entry) => {

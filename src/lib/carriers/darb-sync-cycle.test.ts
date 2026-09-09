@@ -257,3 +257,117 @@ describe("runDarbSyncCycle", () => {
     expect(upsertShipments).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Reconciling the sticker.
+ *
+ * Darb's reception rewrites the reference at booking — 7 of 19 parcels on
+ * 2026-09-08 — and sometimes never applies ours at all. Either way the number
+ * printed on the parcel and the number in `orders.carrier_sticker_ref` stop
+ * agreeing with what routes the parcel, and nothing said so. The sweep already
+ * reads every shipment, so it is the cheapest place to notice.
+ */
+describe("runDarbSyncCycle — sticker reconciliation", () => {
+  const bound = (over: Record<string, unknown> = {}) =>
+    buildOrderIndex([
+      {
+        id: "o1",
+        tracking_number: "1511544",
+        darb_internal_id: "darb-1",
+        carrier_sticker_ref: "1511544",
+        sticker_bind_state: "confirmed",
+        ...over,
+      },
+    ]);
+
+  test("flags a parcel Darb re-stickered at booking", async () => {
+    const recordBindState = vi.fn().mockResolvedValue(undefined);
+    const deps = makeDeps({
+      // Darb now holds 1279049; we bound 11870086.
+      fetchPage: vi.fn().mockResolvedValue({
+        records: [shipment({ reference: "1279049", status: "processing" })],
+        totalCount: 1,
+      }),
+      loadOrderIndex: vi
+        .fn()
+        .mockResolvedValue(bound({ carrier_sticker_ref: "11870086", sticker_bind_state: "confirmed" })),
+      recordBindState,
+    });
+
+    await runDarbSyncCycle(deps, { carrierId: "c1", pageSize: 500 });
+
+    expect(recordBindState).toHaveBeenCalledWith({
+      orderId: "o1",
+      state: "restickered",
+      darbReference: "1279049",
+    });
+  });
+
+  test("flags a sticker Darb never registered", async () => {
+    const recordBindState = vi.fn().mockResolvedValue(undefined);
+    const deps = makeDeps({
+      fetchPage: vi.fn().mockResolvedValue({
+        records: [shipment({ reference: "SH2171145", status: "pending" })],
+        totalCount: 1,
+      }),
+      loadOrderIndex: vi
+        .fn()
+        .mockResolvedValue(bound({ carrier_sticker_ref: "1633019", sticker_bind_state: "confirmed" })),
+      recordBindState,
+    });
+
+    await runDarbSyncCycle(deps, { carrierId: "c1", pageSize: 500 });
+
+    expect(recordBindState).toHaveBeenCalledWith({
+      orderId: "o1",
+      state: "not_registered",
+      darbReference: "SH2171145",
+    });
+  });
+
+  test("writes nothing when the state has not changed — a sweep is not 900 updates", async () => {
+    const recordBindState = vi.fn();
+    const deps = makeDeps({
+      fetchPage: vi.fn().mockResolvedValue({ records: [shipment()], totalCount: 1 }),
+      loadOrderIndex: vi.fn().mockResolvedValue(bound()),
+      recordBindState,
+    });
+
+    await runDarbSyncCycle(deps, { carrierId: "c1", pageSize: 500 });
+
+    expect(recordBindState).not.toHaveBeenCalled();
+  });
+
+  test("says nothing about an order that has no sticker yet", async () => {
+    const recordBindState = vi.fn();
+    const deps = makeDeps({
+      fetchPage: vi.fn().mockResolvedValue({ records: [shipment()], totalCount: 1 }),
+      loadOrderIndex: vi
+        .fn()
+        .mockResolvedValue(bound({ carrier_sticker_ref: null, sticker_bind_state: null })),
+      recordBindState,
+    });
+
+    await runDarbSyncCycle(deps, { carrierId: "c1", pageSize: 500 });
+
+    expect(recordBindState).not.toHaveBeenCalled();
+  });
+
+  test("a failed reconciliation degrades the run but never loses the mirror", async () => {
+    const upsertShipments = vi.fn().mockResolvedValue(1);
+    const deps = makeDeps({
+      fetchPage: vi.fn().mockResolvedValue({
+        records: [shipment({ reference: "1279049" })],
+        totalCount: 1,
+      }),
+      loadOrderIndex: vi.fn().mockResolvedValue(bound({ carrier_sticker_ref: "11870086" })),
+      recordBindState: vi.fn().mockRejectedValue(new Error("rls")),
+      upsertShipments,
+    });
+
+    const result = await runDarbSyncCycle(deps, { carrierId: "c1", pageSize: 500 });
+
+    expect(result.status).toBe("partial");
+    expect(upsertShipments).toHaveBeenCalledOnce();
+  });
+});
