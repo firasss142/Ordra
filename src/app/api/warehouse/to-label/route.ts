@@ -13,6 +13,7 @@ import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import { getZoneIndex } from "@/lib/warehouse/zone-index-cache";
 import { attachProductImages } from "@/lib/warehouse/product-images";
 import { zoneForOrder, type OrderZone } from "@/lib/warehouse/zone-index";
+import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +68,10 @@ export interface ToLabelQueuePage {
    * read on screen as an empty, broken app rather than as a normal day.
    */
   carrierWarehouse: number;
+  /** The building this page is about; null when every site is shown. */
+  warehouseId: string | null;
+  /** True when the viewer cannot widen the site filter (an agent). */
+  sitePinned: boolean;
 }
 
 const cacheHeaders = {
@@ -105,14 +110,29 @@ export async function GET(req: NextRequest) {
           ? scopeToMarketId(cookieScope)
           : null;
 
+  /*
+   * Which building. An agent is pinned to their own — Libya's two warehouses
+   * are not interchangeable, and a Benghazi agent shown Tripoli's 365 parcels
+   * is being offered work they cannot do. A manager sees both unless they say
+   * otherwise. The RPCs re-check it; this only decides what is displayed.
+   */
+  const site = await resolveSiteFilter(supabase, {
+    actor,
+    requested: req.nextUrl.searchParams.get("warehouse_id"),
+  });
+
   const [{ data, error }, { data: statsData }, zoneIndex, { data: dayData }] = await Promise.all([
     supabase.rpc("get_to_label_orders", {
       p_market_id: marketScope,
       p_limit: limit + 1,
       p_cursor_created_at: cursor?.timestamp ?? null,
       p_cursor_id: cursor?.id ?? null,
+      p_warehouse_id: site.warehouseId,
     }),
-    supabase.rpc("get_warehouse_queue_stats", { p_market_id: marketScope }),
+    supabase.rpc("get_warehouse_queue_stats", {
+      p_market_id: marketScope,
+      p_warehouse_id: site.warehouseId,
+    }),
     getZoneIndex(supabase),
     supabase.rpc("get_warehouse_day_stats", { p_market_id: marketScope }),
   ]);
@@ -148,6 +168,8 @@ export async function GET(req: NextRequest) {
     neverScanned: Number(stats.never_scanned ?? 0),
     setAside: Number(stats.set_aside ?? 0),
     carrierWarehouse: Number(stats.carrier_warehouse ?? 0),
+    warehouseId: site.warehouseId,
+    sitePinned: site.pinned,
   };
   return NextResponse.json(body, { headers: cacheHeaders });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
+import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: { product_id?: string; counted_qty?: number; note?: string };
+  let body: { product_id?: string; counted_qty?: number; note?: string; warehouse_id?: string };
   try {
     body = await req.json();
   } catch {
@@ -48,11 +49,24 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = await createClient();
+
+  /*
+   * A count is a count OF A BUILDING. Libya has two, and "we hold 216" is not a
+   * fact anyone can verify by walking a single shelf. An agent counts their own
+   * site whatever the body says; a manager names the site they counted, and
+   * only a caller with no site at all falls back to the market total.
+   */
+  const site = await resolveSiteFilter(supabase, {
+    actor,
+    requested: body.warehouse_id ?? null,
+  });
+
   const { data, error } = await supabase.rpc("record_stock_count", {
     p_product_id: productId,
     p_counted_qty: counted,
     p_actor_id: actor.id,
     p_note: note,
+    p_warehouse_id: site.warehouseId,
   });
 
   if (error) {

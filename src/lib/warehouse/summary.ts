@@ -5,6 +5,12 @@ export interface WarehouseSummaryInput {
   role: Role;
   actorMarketId: string | null;
   marketId: string | "all" | null;
+  /**
+   * One building, when the caller stands in one. Only the queue figures narrow:
+   * the money and the trend are market facts and stay market-wide, so a site
+   * filter cannot make a manager's totals disagree with the finance pages.
+   */
+  warehouseId?: string | null;
 }
 
 export interface KpiCount {
@@ -310,6 +316,7 @@ export async function getWarehouseSummary(
 
   const queueStatsQuery = supabase.rpc("get_warehouse_queue_stats", {
     p_market_id: scopedMarketId ?? null,
+    p_warehouse_id: input.warehouseId ?? null,
   });
   const dayStatsQuery = supabase.rpc("get_warehouse_day_stats", {
     p_market_id: scopedMarketId ?? null,

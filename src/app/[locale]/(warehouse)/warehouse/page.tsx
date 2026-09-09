@@ -10,6 +10,7 @@ import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import { getZoneIndex } from "@/lib/warehouse/zone-index-cache";
 import { zoneForOrder } from "@/lib/warehouse/zone-index";
 import { attachProductImages } from "@/lib/warehouse/product-images";
+import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 
 const BENCH_PAGE_LIMIT = 200;
 
@@ -37,13 +38,23 @@ export default async function WarehouseOverviewPage({
   if (user.role === "warehouse_agent") {
     const { marketId: agentScope, marketCode } = await getActiveMarketScope(user);
     const supabase = await createClient();
+    // The agent's own building. Libya has two and they hold different parcels;
+    // painting the market's whole queue first and correcting it a second later
+    // would show a Benghazi agent 365 Tripoli parcels they cannot touch.
+    const site = await resolveSiteFilter(supabase, { actor: user, requested: null });
     const [summary, { data }, zoneIndex] = await Promise.all([
-      getWarehouseSummary({ role: user.role, actorMarketId: user.market_id, marketId: null }),
+      getWarehouseSummary({
+        role: user.role,
+        actorMarketId: user.market_id,
+        marketId: null,
+        warehouseId: site.warehouseId,
+      }),
       supabase.rpc("get_to_label_orders", {
         p_market_id: agentScope,
         p_limit: BENCH_PAGE_LIMIT,
         p_cursor_created_at: null,
         p_cursor_id: null,
+        p_warehouse_id: site.warehouseId,
       }),
       getZoneIndex(supabase),
     ]);
