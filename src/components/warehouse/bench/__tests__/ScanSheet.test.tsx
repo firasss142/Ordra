@@ -196,3 +196,59 @@ describe("ScanSheet — confirming the parcel first", () => {
     expect(screen.getByTestId("wh-parcel-confirm")).toBeInTheDocument();
   });
 });
+
+/**
+ * Where the parcel went.
+ *
+ * The floor reported "scanned orders stay in the unscanned list". Part of that
+ * was a real bug (a bind Darb already held dead-ended the parcel), but part is
+ * this screen: the success card said the sticker was bound and showed the stock
+ * move, and never said the parcel had LEFT the bench for the Scannés list. With
+ * a queue that only refreshes on the next revalidation, "did that work?" was a
+ * fair question — and re-scanning to check is what produced the duplicate-key
+ * dead end in the first place.
+ */
+describe("ScanSheet — the parcel has left the bench", () => {
+  it("says the parcel moved to the scanned list", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ stock_after: 573, sticker_bind_state: "confirmed" }),
+    }));
+    renderSheet();
+    bind("889201");
+    await waitFor(() =>
+      expect(screen.getByTestId("wh-sheet-result")).toHaveAttribute("data-outcome", "bound"),
+    );
+    expect(screen.getByTestId("wh-sheet-moved")).toBeInTheDocument();
+  });
+
+  it("says it too when Darb kept its own number — the parcel still left", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({
+        stock_after: 573, sticker_bind_state: "restickered", carrier_reference: "1279049",
+      }),
+    }));
+    renderSheet();
+    bind("889201");
+    await waitFor(() =>
+      expect(screen.getByTestId("wh-sheet-result")).toHaveAttribute("data-outcome", "bind_unverified"),
+    );
+    expect(screen.getByTestId("wh-sheet-moved")).toBeInTheDocument();
+  });
+
+  it("does NOT say it when nothing was committed", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false, status: 409,
+      json: async () => ({ error_code: "WRONG_SITE", darb_bound: true, sticker_ref: "889201" }),
+    }));
+    renderSheet();
+    bind("889201");
+    await waitFor(() =>
+      expect(screen.getByTestId("wh-sheet-result")).toHaveAttribute("data-outcome", "bound_not_committed"),
+    );
+    // The parcel is still on the bench: claiming otherwise is the lie that
+    // sends an agent to hand over a parcel the system never recorded.
+    expect(screen.queryByTestId("wh-sheet-moved")).not.toBeInTheDocument();
+  });
+});

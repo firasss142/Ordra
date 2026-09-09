@@ -442,6 +442,21 @@ function Result({
         ) : (
           <p className="text-[14px] text-wm-ink-2">{message}</p>
         )}
+        {/*
+          Where the parcel went. The card used to prove the sticker was bound
+          and the stock moved, but never that the parcel had LEFT the bench —
+          and the queue only catches up on the next revalidation. Agents
+          re-scanned to check, which is precisely what hit Darb's duplicate-key
+          refusal and stranded the parcel for good.
+        */}
+        {committed ? (
+          <p
+            data-testid="wh-sheet-moved"
+            className="mt-0.5 text-[13.5px] font-semibold text-wh-ok"
+          >
+            {t("movedToScanned")}
+          </p>
+        ) : null}
         {outcome === "bound_not_committed" ? (
           <p className="text-[14px] text-wm-ink-2">{t("notCommittedHint")}</p>
         ) : null}

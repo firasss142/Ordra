@@ -111,7 +111,7 @@ const RPC_CODE_STATUS: Record<string, number> = {
  * and a false positive only costs one extra read of the shipment, which then
  * decides the outcome anyway.
  */
-export function isDuplicateReference(message: string | null | undefined): boolean {
+function isDuplicateReference(message: string | null | undefined): boolean {
   if (!message) return false;
   const m = message.toLowerCase();
   return m.includes("e11000") || (m.includes("duplicate") && m.includes("reference"));

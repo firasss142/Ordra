@@ -277,3 +277,32 @@ describe("BenchHome — the building", () => {
     expect(screen.queryByTestId("wh-bench-hero")).not.toBeInTheDocument();
   });
 });
+
+/**
+ * The Scannés tab has to grow the moment a parcel leaves the bench.
+ *
+ * "À préparer" already drops optimistically, but the Scannés count came only
+ * from a separate summary fetch — so for a second or two the parcel was in
+ * neither number. That gap is what made agents doubt the scan and re-scan,
+ * which is how a parcel hit Darb's duplicate-key refusal and got stranded.
+ */
+describe("BenchHome — the parcel arrives in Scannés immediately", () => {
+  it("moves the count from waiting to handed-over on a scan", async () => {
+    renderHome();
+    // Before: three waiting, three ready for pickup.
+    expect(screen.getByTestId("wh-bench-hero")).toHaveTextContent("3");
+
+    const sheet = take("محمد علي");
+    fireEvent.change(within(sheet).getByLabelText("رقم الملصق"), {
+      target: { value: "889201" },
+    });
+    fireEvent.click(within(sheet).getByRole("button", { name: "ربط الملصق" }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("wh-bench-hero")).toHaveTextContent("2"),
+    );
+    // The parcel is not in limbo: the Scannés segment counts it right away.
+    const scanned = screen.getByRole("tab", { name: /تم مسحها/ });
+    await waitFor(() => expect(scanned).toHaveTextContent("4"));
+  });
+});

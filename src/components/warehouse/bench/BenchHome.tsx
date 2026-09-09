@@ -211,7 +211,16 @@ export function BenchHome({
   const oldestHours = page?.oldestHours ?? initialStats.oldestHours;
   const scannedToday = (page?.scannedToday ?? initialStats.scannedToday) + localScans;
   const carrierWarehouse = page?.carrierWarehouse ?? initialStats.carrierWarehouse;
-  const toHandOver = summary?.queue?.toHandOver ?? initialStats.toHandOver;
+  /*
+   * The Scannés count grows the instant a parcel leaves the bench.
+   *
+   * `waiting` already drops optimistically, but this figure came only from the
+   * summary fetch — so for a moment the parcel appeared in neither number and
+   * the agent could not tell whether the scan had taken. Re-scanning to check is
+   * exactly what hit Darb's duplicate-key refusal and stranded the parcel, so
+   * the gap was not cosmetic.
+   */
+  const toHandOver = (summary?.queue?.toHandOver ?? initialStats.toHandOver) + localScans;
 
   /*
    * No building, no bench. The queue is empty on purpose — an agent with no site
