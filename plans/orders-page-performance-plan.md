@@ -302,6 +302,16 @@ counts), never an RSC round trip.
 
 **Rollback:** revert the one-line change.
 
+**Gate record (2026-09-09 22:20 UTC):** `useOrdersFiltersUrl` now calls
+`window.history.replaceState(null, "", url)`; `useRouter` import removed. New test file
+`src/hooks/__tests__/useOrdersFiltersUrl.test.tsx` (4 tests, watched red then green);
+typecheck and `npm run build` green. Full suite: 10 failures in 5 unrelated files
+(`market-scope`, `DatePicker`, `leads/metrics`, `webhook-handler`, `buybox-adapter`) —
+verified identical on the untouched tree, pre-existing. `npm run lint` is an interactive
+ESLint bootstrap prompt in this repo (no config), not a check. Gate 2 (no `?_rsc=` request
+on a facet click, in DevTools) pending a browser pass after deploy. Step 3 DONE on gate 1.
+
+
 ---
 
 ### Step 4 — Rebuild the Orders page realtime on Broadcast from Database
