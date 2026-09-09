@@ -100,6 +100,23 @@ const RPC_CODE_STATUS: Record<string, number> = {
   NO_SITE_ASSIGNED: 409,
 };
 
+/**
+ * Darb's "this reference already exists" refusal.
+ *
+ * Their API answers a duplicate bind with the raw Mongo error, e.g.
+ *   E11000 duplicate key error collection: …localShipments index: reference_1
+ *   dup key: { reference: "1269234" }
+ * There is no code to switch on, so the shape of the message is all we have.
+ * Matched loosely on purpose: a reworded duplicate must still be recognised,
+ * and a false positive only costs one extra read of the shipment, which then
+ * decides the outcome anyway.
+ */
+export function isDuplicateReference(message: string | null | undefined): boolean {
+  if (!message) return false;
+  const m = message.toLowerCase();
+  return m.includes("e11000") || (m.includes("duplicate") && m.includes("reference"));
+}
+
 function structuredCode(details: unknown): { code: ScanErrorCode; status: number } | null {
   if (typeof details !== "string") return null;
   let parsed: unknown;
@@ -305,13 +322,37 @@ export async function POST(req: NextRequest) {
   if (needsDarbBinding && internalId && carrierConfig) {
     const bind = await bindDarbReference(internalId, stickerRef, carrierConfig);
     if (!bind.ok) {
-      return NextResponse.json(
-        {
-          error_code: "DARB_BIND_FAILED",
-          message: bind.message ?? "Darb a refusé la liaison du sticker",
-        },
-        { status: 502 }
-      );
+      /*
+       * "Already yours" is not a failure.
+       *
+       * Darb enforces a unique index on `reference`, so re-binding a sticker it
+       * already holds comes back as E11000. That happens on every RE-scan of a
+       * parcel whose first scan bound at Darb and then failed to commit here —
+       * the order stayed `uploaded` with no `carrier_sticker_ref`, so the bench
+       * still showed it as work to do. 15 Benghazi parcels were stranded that
+       * way on 2026-09-09, unscannable forever, because we read the duplicate as
+       * a refusal and stopped.
+       *
+       * The shipment itself is the arbiter: read it back. If Darb is holding our
+       * sticker ON THIS shipment, the bind we wanted has already happened and the
+       * only thing left is to commit. If it is holding it on some other parcel,
+       * that is a genuine mis-scan and must still be refused.
+       */
+      const already = isDuplicateReference(bind.message);
+      const recheck = already
+        ? await verifyDarbReference(internalId, stickerRef, carrierConfig)
+        : null;
+
+      if (!recheck?.verified) {
+        return NextResponse.json(
+          {
+            error_code: already ? "STICKER_ALREADY_USED" : "DARB_BIND_FAILED",
+            message: bind.message ?? "Darb a refusé la liaison du sticker",
+            ...(recheck?.actualReference ? { carrier_reference: recheck.actualReference } : {}),
+          },
+          { status: already ? 409 : 502 }
+        );
+      }
     }
     darbBound = true;
 
@@ -361,7 +402,11 @@ export async function POST(req: NextRequest) {
         message: error.message,
         // The sticker IS bound at Darb. Without this the operator reads a stock
         // error, assumes nothing happened, and re-stickers a live parcel.
-        ...(darbBound ? { darb_bound: true } : {}),
+        ...(darbBound ? { darb_bound: true, sticker_ref: stickerRef } : {}),
+        // Naming the number is what lets the parcel be found again: once Darb
+        // holds it, `promote_darb_status` copies it over `tracking_number` and
+        // the original SH… key is gone.
+        ...(carrierReference ? { carrier_reference: carrierReference } : {}),
       },
       { status }
     );

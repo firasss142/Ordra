@@ -672,3 +672,125 @@ describe("POST /api/warehouse/scan-out — the building", () => {
     expect((await res.json()).error_code).toBe("NO_SITE_ASSIGNED");
   });
 });
+
+/**
+ * The parcel Darb already knows about.
+ *
+ * The failure that stranded 15 Benghazi parcels on the bench, 2026-09-09.
+ * A scan binds the sticker at Darb, the commit then fails for any reason, and
+ * the order stays `uploaded` with `carrier_sticker_ref` still null. Darb,
+ * however, is now holding that sticker — and `promote_darb_status` copies the
+ * carrier's reference into `tracking_number`, so our SH… lookup key is gone too.
+ *
+ * Re-scanning that parcel binds a number Darb already has:
+ *   E11000 duplicate key error ... index: reference_1 dup key: {reference: "1269234"}
+ *
+ * The parcel is then unscannable forever and never leaves the queue, which is
+ * exactly the "scanned orders stay in the unscanned list" the floor reported.
+ *
+ * The rule: a bind that comes back "already yours" is a SUCCESS to recover from,
+ * never a refusal. Verify who holds it, and if it is this parcel, commit.
+ */
+describe("POST /api/warehouse/scan-out — a sticker Darb already holds", () => {
+  test("recovers and commits instead of refusing", async () => {
+    wireSupabase({ orderRow: darbOrder() });
+    // Darb refuses the PATCH: this exact reference is already on a shipment.
+    mockBindDarbReference.mockResolvedValue({
+      ok: false,
+      message:
+        "E11000 duplicate key error collection: darb-assabil-v2-local-production.localShipments index: reference_1 dup key: { reference: \"889201\" }",
+    });
+    // …and the shipment holding it is THIS one. The bind already happened.
+    mockVerifyDarbReference.mockResolvedValue({
+      verified: true,
+      actualReference: "889201",
+      rawStatus: "pending",
+    });
+
+    const res = await POST(req({ order_id: "order-1", sticker_ref: "889201" }));
+
+    expect(res.status).toBe(200);
+    // The whole point: the parcel leaves the bench.
+    expect(mockRpc).toHaveBeenCalledWith("scan_order_out", expect.anything());
+    const body = await res.json();
+    expect(body.darb_bound).toBe(true);
+    expect(body.sticker_bind_state).toBe("confirmed");
+  });
+
+  test("still refuses when the sticker belongs to a DIFFERENT parcel", async () => {
+    wireSupabase({ orderRow: darbOrder() });
+    mockBindDarbReference.mockResolvedValue({
+      ok: false,
+      message: "E11000 duplicate key error ... dup key: { reference: \"889201\" }",
+    });
+    // Darb holds something else on this shipment: the sticker is on another
+    // parcel, which is a real mis-scan and must not be committed.
+    mockVerifyDarbReference.mockResolvedValue({
+      verified: false,
+      actualReference: "SH2171145",
+      rawStatus: "pending",
+    });
+
+    const res = await POST(req({ order_id: "order-1", sticker_ref: "889201" }));
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error_code).toBe("STICKER_ALREADY_USED");
+    expect(mockRpc).not.toHaveBeenCalledWith("scan_order_out", expect.anything());
+  });
+
+  test("a genuine Darb refusal is still a refusal", async () => {
+    wireSupabase({ orderRow: darbOrder() });
+    mockBindDarbReference.mockResolvedValue({ ok: false, message: "الطلب مكتمل" });
+    mockVerifyDarbReference.mockResolvedValue({
+      verified: false,
+      actualReference: null,
+      rawStatus: null,
+    });
+
+    const res = await POST(req({ order_id: "order-1", sticker_ref: "889201" }));
+    expect(res.status).toBe(502);
+    expect((await res.json()).error_code).toBe("DARB_BIND_FAILED");
+  });
+});
+
+/**
+ * A bind that stuck must never be left uncommitted and silent.
+ *
+ * This is the state that stranded the 15: Darb holds the sticker, our commit
+ * fails, and the response says only "error". The bench treats it as "nothing
+ * happened", the parcel stays in the queue, and the next scan hits E11000.
+ *
+ * We cannot commit over a legitimate refusal (wrong site, wrong status, no
+ * stock — those exist for good reasons). What we CAN do is stop lying about it:
+ * say the sticker is live at Darb, and name it so the parcel can be found again.
+ */
+describe("POST /api/warehouse/scan-out — a bind that stuck but did not commit", () => {
+  test("says the sticker is live at Darb, and names it", async () => {
+    wireSupabase({ orderRow: darbOrder() });
+    mockBindDarbReference.mockResolvedValue({ ok: true, message: null });
+    mockVerifyDarbReference.mockResolvedValue({
+      verified: true, actualReference: "889201", rawStatus: "pending",
+    });
+    // The commit refuses — here, the parcel belongs to the other building.
+    mockRpc.mockImplementation((fn: string) => {
+      if (fn === "precheck_scan_out") return Promise.resolve({ data: okPrecheck, error: null });
+      if (fn === "scan_order_out") {
+        return Promise.resolve({
+          data: null,
+          error: { message: "Ce colis appartient à un autre bâtiment",
+                   details: '{"code":"WRONG_SITE"}' },
+        });
+      }
+      return Promise.resolve({ data: { success: true }, error: null });
+    });
+
+    const res = await POST(req({ order_id: "order-1", sticker_ref: "889201" }));
+    const body = await res.json();
+
+    expect(body.error_code).toBe("WRONG_SITE");
+    // Without these two the operator reads a plain error and re-stickers a
+    // parcel that is already live at the carrier.
+    expect(body.darb_bound).toBe(true);
+    expect(body.sticker_ref).toBe("889201");
+  });
+});
