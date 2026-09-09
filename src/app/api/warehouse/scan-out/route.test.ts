@@ -624,3 +624,51 @@ describe("POST /api/warehouse/scan-out — the RPC's own error code wins", () =>
     expect((await res.json()).error_code).toBe("FORBIDDEN");
   });
 });
+
+/**
+ * The wrong building.
+ *
+ * Libya's two Darb Assabil accounts are two physical warehouses. A parcel booked
+ * on the Benghazi account and handed to Darb Tripoli does not exist in their
+ * system: it cannot be tracked, paid or returned. `precheck_scan_out` has
+ * refused this since 20260922000013 AND computed the name of the building the
+ * parcel belongs to — but the route dropped the name and the code was missing
+ * from its status table, so the bench showed a generic error. The agent could
+ * not learn which shelf the parcel was actually from.
+ */
+describe("POST /api/warehouse/scan-out — the building", () => {
+  function refuse(precheck: Record<string, unknown>) {
+    mockRpc.mockImplementation((fn: string) =>
+      fn === "precheck_scan_out"
+        ? Promise.resolve({ data: precheck, error: null })
+        : Promise.resolve({ data: { success: true }, error: null }),
+    );
+  }
+
+  test("names the building the parcel belongs to", async () => {
+    wireSupabase({ orderRow: darbOrder() });
+    refuse({ ok: false, code: "WRONG_SITE", warehouse_id: "site-tripoli", warehouse_name: "Tripoli" });
+    const res = await POST(req());
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error_code).toBe("WRONG_SITE");
+    // Without the name the message can only be "wrong building" — useless to
+    // someone holding the parcel and wondering where it should go.
+    expect(body.warehouse_name).toBe("Tripoli");
+  });
+
+  test("never commits the scan for a parcel of the other building", async () => {
+    wireSupabase({ orderRow: darbOrder() });
+    refuse({ ok: false, code: "WRONG_SITE", warehouse_name: "Tripoli" });
+    await POST(req());
+    expect(mockRpc).not.toHaveBeenCalledWith("scan_order_out", expect.anything());
+  });
+
+  test("an agent with no building at all is refused with its own code", async () => {
+    wireSupabase({ orderRow: darbOrder() });
+    refuse({ ok: false, code: "NO_SITE_ASSIGNED" });
+    const res = await POST(req());
+    expect(res.status).toBe(409);
+    expect((await res.json()).error_code).toBe("NO_SITE_ASSIGNED");
+  });
+});

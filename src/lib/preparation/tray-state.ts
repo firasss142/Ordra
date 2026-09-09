@@ -22,6 +22,12 @@ export type ScanErrorCode =
   | "BIND_UNVERIFIED"
   // The actor's role may not scan at all (defence in depth behind the route guard).
   | "FORBIDDEN"
+  // The parcel belongs to the OTHER building. Libya's two Darb accounts are
+  // separate warehouses: handed to the wrong one, the parcel does not exist in
+  // the carrier's system at all.
+  | "WRONG_SITE"
+  // The agent is not attached to any building, so nothing can be scanned.
+  | "NO_SITE_ASSIGNED"
   | "NETWORK_ERROR";
 
 export interface TrayRowInit {

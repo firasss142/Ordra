@@ -52,6 +52,9 @@ interface Precheck {
   branch_group?: string | null;
   carrier_status?: string | null;
   sticker?: string | null;
+  /** On WRONG_SITE: the building the parcel actually belongs to. */
+  warehouse_id?: string | null;
+  warehouse_name?: string | null;
 }
 
 const PRECHECK_STATUS: Record<string, number> = {
@@ -62,6 +65,10 @@ const PRECHECK_STATUS: Record<string, number> = {
   STICKER_ALREADY_USED: 409,
   GONE_AT_CARRIER: 409,
   STICKER_NOT_NUMERIC: 409,
+  // Libya's two Darb accounts are two buildings; a parcel handed to the wrong
+  // one does not exist in the carrier's system.
+  WRONG_SITE: 409,
+  NO_SITE_ASSIGNED: 409,
 };
 
 /**
@@ -86,6 +93,11 @@ const RPC_CODE_STATUS: Record<string, number> = {
   STICKER_NOT_NUMERIC: 409,
   STICKER_ALREADY_USED: 409,
   STOCK_UNDERFLOW: 409,
+  // The parcel belongs to the other building. Raised by precheck_scan_out,
+  // unscan_order and record_stock_count since 20260922000013 — and, until now,
+  // absent from this table, so it degraded into a generic error on the bench.
+  WRONG_SITE: 409,
+  NO_SITE_ASSIGNED: 409,
 };
 
 function structuredCode(details: unknown): { code: ScanErrorCode; status: number } | null {
@@ -274,6 +286,13 @@ export async function POST(req: NextRequest) {
         branch_group: precheck.branch_group ?? null,
         ...(precheck.carrier_status ? { carrier_status: precheck.carrier_status } : {}),
         ...(precheck.sticker ? { sticker: precheck.sticker } : {}),
+        /*
+         * The building the parcel belongs to. The RPC has always computed this
+         * and the route used to drop it, leaving the agent with "wrong
+         * building" and no way to learn which shelf the parcel came from.
+         */
+        ...(precheck.warehouse_name ? { warehouse_name: precheck.warehouse_name } : {}),
+        ...(precheck.warehouse_id ? { warehouse_id: precheck.warehouse_id } : {}),
         message: "Scan refusé",
       },
       { status: PRECHECK_STATUS[precheck.code] ?? 409 }

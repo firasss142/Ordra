@@ -46,6 +46,12 @@ export interface ScanResponse {
   error?: string;
   darb_bound?: boolean;
   carrier_status?: string;
+  /**
+   * On WRONG_SITE: the building the parcel belongs to. The message is useless
+   * without it — "wrong building" leaves the agent holding a parcel with no
+   * idea which shelf it came from.
+   */
+  warehouse_name?: string;
 }
 
 /** A refusal decided here, before the network. */
@@ -88,6 +94,8 @@ export function errorLabelKey(code: string | undefined): string | null {
     case "STICKER_NOT_NUMERIC": return "errNotNumeric";
     case "BIND_UNVERIFIED": return "errBindUnverified";
     case "FORBIDDEN": return "errForbidden";
+    case "WRONG_SITE": return "errWrongSite";
+    case "NO_SITE_ASSIGNED": return "errNoSite";
     default: return null;
   }
 }

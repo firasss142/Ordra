@@ -3396,7 +3396,9 @@
       "starting": "Démarrage de la caméra…",
       "title": "Scanner les stickers Darb",
       "titleTn": "Scanner la sortie",
-      "stickerNumber": "Numéro du sticker"
+      "stickerNumber": "Numéro du sticker",
+      "errWrongSite": "Ce colis appartient à l'entrepôt {warehouse}. Ne le scannez pas ici.",
+      "errNoSite": "Votre compte n'est rattaché à aucun entrepôt. Demandez à votre responsable."
     },
     "settings": {
       "market": "Marché",

@@ -18,3 +18,22 @@ describe("scan outcome", () => {
     expect(errorLabelKey(undefined)).toBeNull();
   });
 });
+
+/**
+ * The two site refusals.
+ *
+ * `WRONG_SITE` has been raised by three SQL functions since 20260922000013 and
+ * was never listed here, so it fell through to the generic error: the agent read
+ * "something went wrong" while the RPC had already computed the name of the
+ * building the parcel actually belongs to and thrown it away. `NO_SITE_ASSIGNED`
+ * is its companion, for an agent nobody has assigned to a building at all.
+ */
+describe("errorLabelKey — the building", () => {
+  it("a parcel from the other building has its own words", () => {
+    expect(errorLabelKey("WRONG_SITE")).toBe("errWrongSite");
+  });
+
+  it("an unassigned agent is told to see their manager, not that it broke", () => {
+    expect(errorLabelKey("NO_SITE_ASSIGNED")).toBe("errNoSite");
+  });
+});

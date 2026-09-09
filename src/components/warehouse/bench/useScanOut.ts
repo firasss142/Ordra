@@ -75,7 +75,9 @@ export function useScanOut({
         // server's stock_after, never read off the row.
         const after = typeof body.stock_after === "number" ? body.stock_after : before - target.quantity;
         const key = errorLabelKey(body.error_code);
-        const label = key ? t(key) : null;
+        // WRONG_SITE names the building it belongs to; every other refusal takes
+        // no parameter, and next-intl ignores extras.
+        const label = key ? t(key, { warehouse: body.warehouse_name ?? "" }) : null;
         // Darb's own wording beats anything we could invent; keep it beside ours.
         const detail = body.error_code === "DARB_BIND_FAILED" && body.message ? body.message : null;
 
