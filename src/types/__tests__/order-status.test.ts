@@ -8,8 +8,9 @@ import {
 } from "@/types/order-status";
 
 describe("ORDER_STATUSES", () => {
-  it("contains exactly 20 active statuses", () => {
-    expect(ORDER_STATUSES).toHaveLength(20);
+  it("contains exactly 24 active statuses", () => {
+    // 20 + the four Darb-shaped carrier statuses (20260922000020).
+    expect(ORDER_STATUSES).toHaveLength(24);
   });
 
   it("contains all Phase 1 confirmation statuses", () => {

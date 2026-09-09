@@ -26,6 +26,10 @@ export interface SlaChipInput {
 const CLOCK_STOPPED = new Set([
   "uploaded",
   "scanned",
+  "at_carrier",
+  "out_for_delivery",
+  "delivery_delayed",
+  "returning",
   "dispatched",
   "deposit",
   "in_transit",

@@ -7,7 +7,8 @@
  * Coverage by lifecycle phase:
  *   success  (green)  → delivered
  *   action   (blue)   → confirmed + every post-confirmation carrier status
- *   warning  (amber)  → in-confirmation: pending/assigned/attempts/callback/unverified/to_be_returned
+ *   warning  (amber)  → in-confirmation: pending/assigned/attempts/callback/unverified/
+ *                        to_be_returned/returning/delivery_delayed
  *   critical (red)    → terminal-bad: rejected/cancelled/deleted/returned
  *   neutral  (gray)   → anything unrecognised
  */
@@ -22,6 +23,8 @@ export function statusToneClass(status: string): string {
     status === "dispatched" ||
     status === "deposit" ||
     status === "in_transit" ||
+    status === "at_carrier" ||
+    status === "out_for_delivery" ||
     status === "received"
   ) {
     return "bg-[#EAF2FB] text-status-action";
@@ -44,7 +47,11 @@ export function statusToneClass(status: string): string {
     status === "attempt_3" ||
     status === "callback_scheduled" ||
     status === "unverified" ||
-    status === "to_be_returned"
+    status === "to_be_returned" ||
+    // A delay is the courier saying "not today"; a return on its way back still
+    // needs a person. Both want attention, neither is a failure.
+    status === "delivery_delayed" ||
+    status === "returning"
   ) {
     return "bg-status-warningBg text-status-warning";
   }

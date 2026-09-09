@@ -4,8 +4,14 @@ import { getActor } from "@/lib/auth/actor";
 
 export const dynamic = "force-dynamic";
 
-const PHASE_2_STATUSES = ["dispatched", "deposit", "in_transit", "to_be_returned"] as const;
-type Phase2Status = (typeof PHASE_2_STATUSES)[number];
+// The carrier phase, as Darb actually reports it. Before the four new statuses
+// this board could not see a Libyan parcel at all: they never left `scanned`,
+// so every Darb bucket read zero. The list is shared with the client component,
+// which used to keep its own copy — that is how the two drifted.
+import { CARRIER_BOARD_STATUSES, type CarrierBoardStatus } from "@/types/order-status";
+
+const PHASE_2_STATUSES = CARRIER_BOARD_STATUSES;
+type Phase2Status = CarrierBoardStatus;
 
 const STUCK_THRESHOLD_DAYS = 3;
 const STUCK_LIST_LIMIT = 10;
@@ -66,7 +72,12 @@ export interface CarrierTrackingSummary {
 }
 
 function emptyByStatus(): Record<Phase2Status, number> {
-  return { dispatched: 0, deposit: 0, in_transit: 0, to_be_returned: 0 };
+  // Derived from the tuple rather than written out: a hand-kept literal is how
+  // a new status silently gets no bucket and reads as zero forever.
+  return Object.fromEntries(PHASE_2_STATUSES.map((s) => [s, 0])) as Record<
+    Phase2Status,
+    number
+  >;
 }
 
 function median(values: number[]): number | null {

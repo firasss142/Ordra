@@ -117,6 +117,10 @@ export const NOT_SHIPPED_STATUSES = new Set(["rejected", "cancelled"]);
 export const SHIPPED_STAGE_STATUSES = new Set([
   "uploaded",
   "scanned",
+  "at_carrier",
+  "out_for_delivery",
+  "delivery_delayed",
+  "returning",
   "dispatched",
   "deposit",
   "in_transit",

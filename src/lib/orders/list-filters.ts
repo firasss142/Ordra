@@ -26,9 +26,13 @@ export type OrdersScope = "orders" | "archive";
 
 export const IN_DELIVERY_STATUSES = [
   "uploaded",
+  "at_carrier",
   "dispatched",
   "deposit",
   "in_transit",
+  "out_for_delivery",
+  "delivery_delayed",
+  "returning",
   "to_be_returned",
 ] as const;
 

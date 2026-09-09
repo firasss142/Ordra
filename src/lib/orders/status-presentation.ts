@@ -51,6 +51,10 @@ export type StatusIconName =
   | "confirmed"
   | "uploaded"
   | "scanned"
+  | "atCarrier"
+  | "outForDelivery"
+  | "delayed"
+  | "returning"
   | "dispatched"
   | "deposit"
   | "inTransit"
@@ -88,10 +92,14 @@ export const CONFIRMATION_STATUSES = [
 export const FULFILLMENT_STATUSES = [
   "uploaded",
   "scanned",
+  "at_carrier",
   "dispatched",
   "deposit",
   "in_transit",
+  "out_for_delivery",
+  "delivery_delayed",
   "delivered",
+  "returning",
   "returned",
   "to_be_returned",
   "received",
@@ -119,10 +127,20 @@ const BASE: Record<string, Base> = {
   // ── Phase 2: with the carrier, or finished ────────────────────────────
   uploaded: { hue: "teal", weight: "quiet", icon: "uploaded" },
   scanned: { hue: "teal", weight: "quiet", icon: "scanned" },
+  // The carrier physically has it. Quiet: nothing is owed by us.
+  at_carrier: { hue: "teal", weight: "quiet", icon: "atCarrier" },
   dispatched: { hue: "teal", weight: "quiet", icon: "dispatched" },
   deposit: { hue: "teal", weight: "quiet", icon: "deposit" },
   received: { hue: "teal", weight: "quiet", icon: "received" },
   in_transit: { hue: "teal", weight: "medium", icon: "inTransit" },
+  // With a courier today — the last mile, and the one worth watching.
+  out_for_delivery: { hue: "teal", weight: "medium", icon: "outForDelivery" },
+  // Amber, not red: a delay is the courier saying "not today", not a failure.
+  // It is also the only carrier state that carries the courier's own words.
+  delivery_delayed: { hue: "amber", weight: "medium", icon: "delayed" },
+  // On its way back. Amber like to_be_returned, because a person still has to
+  // deal with it — but it is NOT receivable at the bench yet.
+  returning: { hue: "amber", weight: "medium", icon: "returning" },
   delivered: { hue: "green", weight: "quiet", icon: "delivered" },
 
   // Settled and unsuccessful. Red, but quiet: rejection is a normal COD

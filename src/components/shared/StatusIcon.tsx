@@ -1,5 +1,6 @@
 import {
   Ban,
+  Building2,
   CalendarClock,
   CheckCircle2,
   Clock,
@@ -12,7 +13,9 @@ import {
   PhoneCall,
   PhoneOutgoing,
   Route,
+  RotateCcw,
   ScanLine,
+  Timer,
   Trash2,
   Truck,
   UserCheck,
@@ -44,9 +47,16 @@ const ICONS: Record<StatusIconName, LucideIcon> = {
   confirmed: CheckCircle2,
   uploaded: DownloadCloud,
   scanned: ScanLine,
+  // The carrier holds it in one of their buildings, not on a road yet.
+  atCarrier: Building2,
   dispatched: Truck,
   deposit: PackageOpen,
   inTransit: Route,
+  outForDelivery: Truck,
+  // A clock, not a warning sign: the courier said "not today", not "it failed".
+  delayed: Timer,
+  // Coming back to us — the mirror of the return the bench will receive.
+  returning: RotateCcw,
   delivered: CheckCircle2,
   received: PackageCheck,
   toReturn: CornerUpLeft,

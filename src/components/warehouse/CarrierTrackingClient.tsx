@@ -9,9 +9,12 @@ import { LogisticsPageHeader } from "./shared/LogisticsPageHeader";
 import { useCarrierTracking } from "@/hooks/useCarrierTracking";
 import { formatCurrency, formatExactTime } from "@/lib/format";
 import type { AuthUser } from "@/types";
+import { CARRIER_BOARD_STATUSES, type CarrierBoardStatus } from "@/types/order-status";
 
-const PHASE_2_STATUSES = ["dispatched", "deposit", "in_transit", "to_be_returned"] as const;
-type Phase2Status = (typeof PHASE_2_STATUSES)[number];
+// Shared with the route. Keeping a second copy here is what let the board and
+// its data disagree about which statuses exist.
+const PHASE_2_STATUSES = CARRIER_BOARD_STATUSES;
+type Phase2Status = CarrierBoardStatus;
 
 interface CarrierRow {
   id: string;

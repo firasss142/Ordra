@@ -116,10 +116,16 @@ const CALL_STATUSES = [
 const DELIVERY_STATUSES = [
   "uploaded",
   "scanned",
+  // The four the carrier reports. Without them a Libyan parcel was filterable
+  // only as "scanned" for its whole life with Darb.
+  "at_carrier",
   "dispatched",
   "deposit",
   "in_transit",
+  "out_for_delivery",
+  "delivery_delayed",
   "delivered",
+  "returning",
   "returned",
   "to_be_returned",
 ];
