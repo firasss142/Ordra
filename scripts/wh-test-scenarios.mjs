@@ -105,6 +105,9 @@ export const STICKERS = {
   f: "7700006",
   g: "7700007",
   p: "7700777",
+  q: "7700008",
+  r: "7700009",
+  s: "7700010",
   refuse: "7799999",
 };
 
@@ -274,6 +277,35 @@ export const SCENARIOS = [
     extra: { darb_assabil_id: "sbx-p", darb_branch_group: "TR" }, benchHoursAgo: 24,
     sandbox: { _id: "sbx-p", toBranchGroup: "TR", status: "pending" },
     purpose: "simulated Darb return via promote_darb_status → must land in the inbox",
+  },
+  /*
+   * The three the sandbox modes exist for. Darb's PATCH answering `status: true`
+   * is not proof, and neither failure is visible without re-reading the
+   * shipment — both were live on 2026-09-08.
+   */
+  {
+    key: "q", id: oid(20), external_id: "WH-TEST-LY-Q-SILENTBIND", market: "ly", status: "uploaded",
+    customer: "[TEST] هدى الملصق الصامت", phone: "0910000020", city: "طرابلس", area: "سوق الجمعة",
+    product: "A", qty: 1, carrier: "sandbox", tracking: "SHTEST0020", sticker: null, slug: "pending",
+    extra: { darb_assabil_id: "sbx-q", darb_branch_group: "TR" }, benchHoursAgo: 2,
+    sandbox: { _id: "sbx-q", toBranchGroup: "TR", status: "pending" },
+    purpose: "mode=silent · Darb says yes and keeps SH… → bind_unverified + not_registered, colis SORT quand même",
+  },
+  {
+    key: "r", id: oid(21), external_id: "WH-TEST-LY-R-RESTICKERED", market: "ly", status: "uploaded",
+    customer: "[TEST] سالم أعيد لصقه", phone: "0910000021", city: "سبها", area: "سبها",
+    product: "A", qty: 1, carrier: "sandbox", tracking: "SHTEST0021", sticker: null, slug: "pending",
+    extra: { darb_assabil_id: "sbx-r", darb_branch_group: "SB" }, benchHoursAgo: 3,
+    sandbox: { _id: "sbx-r", toBranchGroup: "SB", status: "pending" },
+    purpose: "mode=reref · leur réception remplace notre numéro → restickered, leur ref nommée à l'écran",
+  },
+  {
+    key: "s", id: oid(22), external_id: "WH-TEST-LY-S-UNSCAN", market: "ly", status: "scanned",
+    customer: "[TEST] كريم سيُلغى مسحه", phone: "0910000022", city: "بنغازي", area: "السلماني",
+    product: "A", qty: 2, carrier: "sandbox", tracking: "7700010", sticker: "7700010", slug: "pending",
+    extra: { darb_assabil_id: "sbx-s", darb_branch_group: "BN" }, benchHoursAgo: 4,
+    sandbox: { _id: "sbx-s", toBranchGroup: "BN", status: "pending" },
+    purpose: "dé-scan · Darb n'a pas réservé → stock rendu (+2), sticker libéré, retour au banc",
   },
 ];
 
