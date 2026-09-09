@@ -3,7 +3,7 @@ import { getServerUser } from "@/lib/auth/server-user";
 import { canScanWarehouse } from "@/lib/role-permissions";
 import { getWarehouseSummary } from "@/lib/warehouse/summary";
 import { getActiveMarketScope } from "@/lib/auth/market-scope";
-import { WarehouseOverviewClient } from "@/components/warehouse/WarehouseOverviewClient";
+import { BenchConsole } from "@/components/warehouse/console/BenchConsole";
 import { BenchHome } from "@/components/warehouse/bench/BenchHome";
 import { createClient } from "@/lib/supabase/server";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
@@ -82,28 +82,68 @@ export default async function WarehouseOverviewPage({
   }
 
   /*
-   * The topbar switcher is the one that decides. This page used to force
-   * "all" for super-admins, so the header said "Libye" while the figures
-   * summed both markets — 50 Tunisian returns under a Libyan heading.
+   * The manager's bench. This page used to be "Aujourd'hui", an overview that
+   * repeated every figure Préparation, Retours and Stock already showed — and
+   * whose "priority actions" were not clickable, because the parent never
+   * passed the callbacks. It is now the same two questions the agent has: what
+   * is there to prepare, and what happened to what we already scanned.
+   *
+   * The topbar switcher decides the market. This page used to force "all" for
+   * super-admins, so the header said "Libye" while the figures summed both
+   * markets — 50 Tunisian returns under a Libyan heading.
    */
-  const isSuperAdmin = user.role === "super_admin";
-  const { marketId: scopeMarketId } = await getActiveMarketScope(user);
-  const initialMarketId: string | "all" | null = isSuperAdmin
-    ? (scopeMarketId ?? "all")
-    : user.market_id;
-
-  const initialSummary = await getWarehouseSummary({
-    role: user.role,
-    actorMarketId: user.market_id,
-    marketId: isSuperAdmin ? (scopeMarketId ?? "all") : null,
+  const { marketId: scope, marketCode } = await getActiveMarketScope(user);
+  const supabase = await createClient();
+  const site = await resolveSiteFilter(supabase, {
+    actor: user,
+    requested: null,
   });
 
+  const [{ data }, zoneIndex, { data: goalRow }] = await Promise.all([
+    supabase.rpc("get_to_label_orders", {
+      p_market_id: scope,
+      p_limit: BENCH_PAGE_LIMIT,
+      p_cursor_created_at: null,
+      p_cursor_id: null,
+      p_warehouse_id: site.warehouseId,
+    }),
+    getZoneIndex(supabase),
+    // The daily target is a market setting, never a constant in the component.
+    supabase
+      .from("settings")
+      .select("value")
+      .eq("market_id", scope)
+      .eq("key", "goal_daily_scanned")
+      .maybeSingle<{ value: unknown }>(),
+  ]);
+
+  // Settings are stored both as a bare value and as { value }, depending on
+  // when the row was written. Read both shapes rather than trusting one.
+  const raw = goalRow?.value;
+  const unwrapped =
+    raw && typeof raw === "object" && "value" in raw ? (raw as { value: unknown }).value : raw;
+  // Null, not a default: a goal the market never set is not a goal of 40.
+  const dailyGoal =
+    Number.isFinite(Number(unwrapped)) && Number(unwrapped) > 0 ? Number(unwrapped) : null;
+
+  const deskOrders = ((data ?? []) as unknown as WarehouseOrderRow[]).map((row) => ({
+    ...row,
+    zone: zoneForOrder(row, zoneIndex),
+  }));
+
+  /*
+   * What gets scanned differs by market: Libya scans Darb's pre-printed
+   * sticker, which the OMS cannot resolve on its own, so the operator picks the
+   * row first. Tunisia scans the QR on our own label, which IS the order id.
+   */
+  const deskMarket: "ly" | "tn" = marketCode === "ly" ? "ly" : "tn";
+
   return (
-    <WarehouseOverviewClient
-      user={user}
-      locale={locale}
-      initialSummary={initialSummary}
-      initialMarketId={initialMarketId}
+    <BenchConsole
+      market={deskMarket}
+      initialOrders={deskOrders}
+      dailyGoal={dailyGoal}
+      warehouseId={site.warehouseId}
     />
   );
 }

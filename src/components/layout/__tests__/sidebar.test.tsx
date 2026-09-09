@@ -106,23 +106,24 @@ describe("Sidebar — sections", () => {
     expect(screen.getByRole("button", { name: /Finances/ })).toBeInTheDocument();
   });
 
-  it("keeps ENTREPÔT to the five questions the warehouse actually asks", () => {
-    // Eight flat items mixed three audiences: floor work, a manager's stock
-    // register, and two screens about parcels that already left the building.
+  it("keeps ENTREPÔT to the three questions the warehouse actually asks", () => {
+    // It was five entries plus two pages unreachable from the navigation.
+    // "Aujourd'hui" repeated every figure the other screens showed and its
+    // priority actions were not even clickable; "Préparation" and "Mode scan"
+    // were two more renderings of the same queue and the same scanner; the
+    // Journal is the evidence behind the stock figures, so it lives in Stock.
     renderSidebar(
       <Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />,
     );
     fireEvent.click(screen.getByRole("button", { name: /Entrepôt/ }));
-    const group = screen.getByRole("link", { name: /Aujourd'hui/ }).closest("div");
+    const group = screen.getByRole("link", { name: /^Banc$/ }).closest("div");
     const hrefs = Array.from(group?.querySelectorAll("a") ?? []).map((a) =>
       a.getAttribute("href"),
     );
     expect(hrefs).toEqual([
       "/fr/warehouse",
-      "/fr/warehouse/preparation",
       "/fr/warehouse/returns",
       "/fr/warehouse/stock",
-      "/fr/warehouse/history",
     ]);
   });
 
@@ -150,14 +151,14 @@ describe("Sidebar — sections", () => {
     expect(screen.queryByRole("link", { name: /^Expédition$/ })).not.toBeInTheDocument();
   });
 
-  it("puts Aujourd'hui first in ENTREPÔT so the overview is reachable", () => {
-    // The redesigned overview lives at /warehouse and had no nav entry at all,
-    // which made it unreachable by clicking.
+  it("puts the bench first in ENTREPÔT — it is where the work is", () => {
+    // /warehouse is the bench for both roles now: the queue and the parcels
+    // already scanned, which is the whole of the floor's day.
     renderSidebar(
       <Sidebar user={superAdminAllMarkets} currentPath="/fr/dashboard" unassignedCount={0} />,
     );
     fireEvent.click(screen.getByRole("button", { name: /Entrepôt/ }));
-    const today = screen.getByRole("link", { name: /Aujourd'hui/ });
+    const today = screen.getByRole("link", { name: /^Banc$/ });
     expect(today).toHaveAttribute("href", "/fr/warehouse");
 
     const group = today.closest("div");
@@ -294,18 +295,18 @@ describe("Sidebar — accordion toggle", () => {
 });
 
 describe("Sidebar — active route auto-expand", () => {
-  it("auto-expands ENTREPÔT when on /fr/warehouse/preparation", () => {
-    pathnameMock = "/fr/warehouse/preparation";
+  it("auto-expands ENTREPÔT when on /fr/warehouse", () => {
+    pathnameMock = "/fr/warehouse";
     searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse/preparation" unassignedCount={0} />);
-    expect(screen.getByRole("link", { name: /Préparation/ })).toBeInTheDocument();
+    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse" unassignedCount={0} />);
+    expect(screen.getByRole("link", { name: /^Banc$/ })).toBeInTheDocument();
   });
 
-  it("marks Préparation active on /fr/warehouse/preparation", () => {
-    pathnameMock = "/fr/warehouse/preparation";
+  it("marks Banc active on /fr/warehouse", () => {
+    pathnameMock = "/fr/warehouse";
     searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse/preparation" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /Préparation/ });
+    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse" unassignedCount={0} />);
+    const link = screen.getByRole("link", { name: /^Banc$/ });
     expect(link).toHaveAttribute("aria-current", "page");
   });
 
@@ -319,12 +320,14 @@ describe("Sidebar — active route auto-expand", () => {
 
   // The sidebar, the tab band and the page's own <h1> all say "Journal": the
   // section had three names for one screen.
-  it("marks Journal active on /fr/warehouse/history", () => {
-    pathnameMock = "/fr/warehouse/history";
+  it("no longer offers the Journal as its own destination", () => {
+    // It is a tab inside Stock: the evidence behind the figures, not a peer of
+    // the two screens people work in all day.
+    pathnameMock = "/fr/warehouse/stock";
     searchParamsMock = new URLSearchParams("");
-    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse/history" unassignedCount={0} />);
-    const link = screen.getByRole("link", { name: /^Journal$/ });
-    expect(link).toHaveAttribute("aria-current", "page");
+    renderSidebar(<Sidebar user={managerUser} currentPath="/fr/warehouse/stock" unassignedCount={0} />);
+    expect(screen.queryByRole("link", { name: /^Journal$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Stock$/ })).toHaveAttribute("aria-current", "page");
   });
 
   it("activates FINANCES (not ACCUEIL) on /fr/dashboard/pnl for super_admin", () => {

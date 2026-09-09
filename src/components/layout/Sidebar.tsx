@@ -137,14 +137,21 @@ const NAV_SECTIONS: readonly NavSection[] = [
     ],
   },
   {
+    /*
+     * Three entries, one per question the warehouse actually asks.
+     *
+     * It was five, plus two pages unreachable from the navigation. "Aujourd'hui"
+     * repeated every figure the other screens showed and its priority actions
+     * were not even clickable; "Préparation" and "Mode scan" were two more
+     * renderings of the same queue and the same scanner; the Journal is the
+     * evidence behind the stock figures, so it sits inside Stock.
+     */
     id: "logistique",
     icon: Warehouse,
     items: [
-      { key: "warehouseToday", href: "warehouse", icon: LayoutDashboard, prefetchRoute: "warehouse" },
-      { key: "preparation", href: "warehouse/preparation", icon: PackageSearch, prefetchRoute: "warehouse" },
+      { key: "bench", href: "warehouse", icon: PackageSearch, prefetchRoute: "warehouse" },
       { key: "returns", href: "warehouse/returns", icon: PackageOpen, prefetchRoute: "warehouse" },
       { key: "warehouseStock", href: "warehouse/stock", icon: Boxes, prefetchRoute: "warehouse" },
-      { key: "warehouseJournal", href: "warehouse/history", icon: FileClock, prefetchRoute: "warehouse" },
     ],
   },
   {

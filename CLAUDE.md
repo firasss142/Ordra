@@ -57,6 +57,8 @@ src/
 - Financial calculations → lib/calculations/ server-side only — never in client components
 - Order history (order_history table) is APPEND-ONLY — never update or delete rows
 - Inventory log (inventory_log table) is APPEND-ONLY — never update or delete rows
+- Libya has TWO PHYSICAL WAREHOUSES (Tripoli, Benghazi), one per Darb account; orders.warehouse_id follows carrier_id by trigger
+- A Darb bind is verified by re-reading the shipment: HTTP success is not proof the sticker stuck
 - Confirm is atomic and never depends on the carrier API — confirm puts the order in `confirmed`, the carrier upload happens in a separate "upload" action that lands on `uploaded` (or stays `confirmed` on any failure)
 - Carrier upload is synchronous — immediate success/failure feedback to agent
 - Adapter pattern for storefronts and carriers — new integrations = new adapter, zero core changes
@@ -74,8 +76,12 @@ pending → attempt_1/2/3 → callback_scheduled → confirmed → uploaded → 
 cancelled (TERMINAL — manager/system, any pre-dispatch status)
 
 ### Phase 2: Fulfillment (carrier lifecycle, post-scan)
-scanned → dispatched → deposit → in_transit → delivered (TERMINAL)
-                                            → returned (TERMINAL)
+Libya (Darb Assabil) — the carrier's own vocabulary, since 2026-09-09:
+scanned → at_carrier → in_transit → out_for_delivery ⇄ delivery_delayed → delivered (TERMINAL)
+                                  → returning → to_be_returned → returned (TERMINAL)
+                                                              → received → confirmed (re-sent)
+Tunisia keeps: scanned → dispatched → deposit → in_transit → delivered | returned
+A status is never walked backwards (order_status_rank). See docs/warehouse-sites-and-statuses.md.
 
 ## Key boundaries
 - confirmed = phone confirmation outcome only; no carrier work yet (still in agent queue, awaiting upload)
@@ -89,10 +95,18 @@ scanned → dispatched → deposit → in_transit → delivered (TERMINAL)
 On upload failure (carrier API error, timeout, validation reject) the order stays `confirmed` (or `dispatch_scheduled` for cron-driven uploads). Never rolled back further. Retry is just a retry.
 
 ## Stock integrity model
-Stock (products.current_stock and damaged_return_count) changes via EXACTLY three paths — anything else is a bug:
+TWO LEVELS since 2026-09-09: `products.current_stock` is the MARKET total (what finance reads)
+and `product_site_stock` ventilates it per warehouse. A trigger on inventory_log applies every
+movement to the site row, so no RPC does site arithmetic of its own — see
+docs/warehouse-sites-and-statuses.md. Invariant: sum(sites) <= market total.
+
+Stock changes via EXACTLY these paths — anything else is a bug:
 1. super_admin sets initial_stock on product creation (one inventory_log row, reason='initial_stock')
 2. super_admin calls adjust_product_stock RPC for manual corrections (reason='manual_adjustment' or 'damaged_writeoff')
 3. warehouse_agent / market_manager / super_admin call scan_order_out (−qty) or scan_return_in (+qty or damaged)
+4. record_stock_count (per SITE; the count is what creates a site row) and scan_received_in (+qty)
+5. unscan_order (+qty, reason='scan_reversal') and manual_delete_orders (+qty on a scanned order)
+inventory_log.reason is CHECK-constrained; order_history and inventory_log are append-only BY TRIGGER.
 Market managers and agents NEVER mutate stock. Market managers and warehouse_agents CAN toggle products.is_active via toggle_product_active RPC — that is the ONLY product field they can change.
 
 ## Terminal statuses: delivered, returned, rejected, cancelled, deleted
@@ -134,6 +148,7 @@ refus_client | faux_numero | doublon | injoignable | prix | non_serieux | autre 
 - Claude Code mastery patterns: docs/mastery-guide.md
 - Darb Assabil (Libya carrier) live API contract + sync engine: docs/darb-assabil-sync.md
 - Libya destinations (Darb city/zone catalogue, refresh script, the one picker, phone guard): docs/darb-destinations.md
+- Warehouse sites, Darb statuses, the scanned list and the sticker guard (2026-09-09 rebuild): docs/warehouse-sites-and-statuses.md + plans/warehouse-darb-workflow-rebuild.md
 - Carrier rate recommendation ("meilleur choix" ladder, why true-cost must not decide per-destination, 2026-09-09 regression): docs/carrier-rate-recommendation.md
 - Agent commissions (rules, ledger, RPCs, surfaces): docs/agent-commissions.md
 - Entrepôt desk console (light, source of truth): docs/design/entrepot/README.md

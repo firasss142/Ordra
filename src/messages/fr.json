@@ -119,14 +119,12 @@
       "inConfirmation": "En confirmation",
       "orders": "Commandes",
       "archived": "Archivées",
-      "warehouseToday": "Aujourd'hui",
-      "preparation": "Préparation",
+      "bench": "Banc",
       "dispatch": "Expédition",
       "returns": "Retours",
       "warehouseStock": "Stock",
       "carrierTracking": "Suivi transporteur",
       "inDeliveryBoard": "Tableau livraison",
-      "warehouseJournal": "Journal",
       "pnl": "P&L global",
       "productsMargins": "Produits & marges",
       "stockInventory": "Stock & inventaire",
@@ -3155,99 +3153,9 @@
     }
   },
   "warehouse": {
-    "activity": {
-      "title": "Activité récente"
-    },
     "age": {
       "days": "{n} j",
       "hours": "{n} h"
-    },
-    "banner": {
-      "newReveal": "{count} nouvelle(s) · Afficher",
-      "dismiss": "Ignorer"
-    },
-    "errors": {
-      "scanFailed": "Échec du scan",
-      "printFailed": "Échec de l'impression",
-      "network": "Erreur réseau",
-      "selectAtLeastOne": "Sélectionnez au moins une commande"
-    },
-    "filters": {
-      "today": "Aujourd'hui",
-      "week": "7 jours",
-      "month": "30 jours",
-      "custom": "Personnalisé",
-      "allMarkets": "Tous les marchés",
-      "marketPlaceholder": "Choisir un marché"
-    },
-    "history": {
-      "title": "Journal entrepôt",
-      "empty": {
-        "noFilters": "Le journal est vide. Dès qu'un scan, une impression ou un ajustement a lieu, il apparaîtra ici.",
-        "filtered": "Aucun événement ne correspond à ces filtres."
-      },
-      "kind": {
-        "print": "Impression",
-        "scan": "Scan sortie",
-        "return": "Retour",
-        "adjust": "Ajustement",
-        "writeoff": "Dépréciation"
-      },
-      "filter": {
-        "ariaLabel": "Filtrer par type",
-        "all": "Tout",
-        "print": "Impressions",
-        "scan": "Scans",
-        "return": "Retours",
-        "adjust": "Ajustements",
-        "writeoff": "Dépréciations",
-        "searchPlaceholder": "Rechercher (client, produit, note…)",
-        "anomaliesOnly": "Anomalies",
-        "view": {
-          "timeline": "Timeline",
-          "flat": "Liste"
-        }
-      },
-      "col": {
-        "kind": "Type",
-        "order": "Commande",
-        "detail": "Détail",
-        "at": "Date"
-      },
-      "filters": {
-        "from": "Du",
-        "to": "Au"
-      },
-      "chips": {
-        "kind": "Type",
-        "date": "Date",
-        "search": "Recherche",
-        "actor": "Opérateur",
-        "product": "Produit",
-        "anomalies": "Anomalies",
-        "remove": "Retirer",
-        "clearAll": "Tout effacer"
-      },
-      "session": {
-        "system": "Système",
-        "scans": "{count, plural, one {# scan} other {# scans}}",
-        "returns": "{count, plural, one {# retour} other {# retours}}",
-        "prints": "{count, plural, one {# impression} other {# impressions}}",
-        "adjusts": "{count, plural, one {# ajustement} other {# ajustements}}"
-      },
-      "row": {
-        "stockChange": "stock {qty} → {after}"
-      },
-      "anomaly": {
-        "volume_outlier": "Volume inhabituel pour cet opérateur",
-        "damage_concentration": "Concentration de dégâts sur ce produit",
-        "post_scan_adjustment": "Ajustement négatif peu après un scan"
-      },
-      "export": {
-        "csv": "Exporter CSV"
-      },
-      "loadingMore": "Chargement…",
-      "footerCount": "{count} entrée(s)"
     },
     "journal": {
       "title": "Journal",
@@ -3297,12 +3205,6 @@
       "loadMore": "Charger plus",
       "noActor": "—"
     },
-    "loading": "Chargement…",
-    "lowStock": {
-      "badge": "Stock bas",
-      "critical": "Rupture",
-      "tooltip": "Stock : {current} / seuil {threshold}"
-    },
     "nav": {
       "history": "Journal",
       "inventory": "Inventaire",
@@ -3313,84 +3215,6 @@
       "stock": "Stock",
       "today": "Aujourd'hui",
       "bench": "Banc"
-    },
-    "overview": {
-      "title": "Entrepôt",
-      "pendingLabels": "À étiqueter",
-      "toScanOut": "À scanner",
-      "returnsInbox": "Retours en attente",
-      "damagedWeek": "Endommagés (7 j)",
-      "goToPreparation": "Préparation",
-      "goToDispatch": "Expédition",
-      "goToReturns": "Traiter",
-      "goToHistory": "Consulter",
-      "recentPrints": "Impressions récentes",
-      "recentScans": "Activité récente",
-      "subtitle": "Vue opérationnelle",
-      "refreshing": "actualisation…",
-      "vsLastWeek": "vs semaine dernière",
-      "trendTitle": "Activité entrepôt — 14 derniers jours",
-      "trendScanned": "Scannés",
-      "trendReturned": "Retours",
-      "trendDamaged": "Endommagés",
-      "lowStockTitle": "Stock bas",
-      "lowStockEmpty": "Aucun produit en rupture imminente",
-      "lowStockMore": "+{count} autres",
-      "priorityActions": "Actions prioritaires",
-      "priorityActionsEmpty": "Rien à signaler. Tout est à jour.",
-      "totalToCatchUp": "Total à rattraper",
-      "vsYesterday": "Aujourd'hui vs hier",
-      "actionPrepare": "Sortir les colis à étiqueter",
-      "actionPrepareDetail": "En attente de préparation et de scan de sortie.",
-      "actionReturns": "Trancher les retours",
-      "actionReturnsDetail": "Chaque colis revenu attend une décision explicite.",
-      "actionLowStock": "Réapprovisionner {product}",
-      "actionLowStockDetail": "{stock} unités en registre pour un seuil de {threshold}.",
-      "unitOrders": "cmdes",
-      "unitParcels": "colis",
-      "unitUnits": "u",
-      "settled": "à jour",
-      "cellPrepare": "À préparer",
-      "cellScanned": "Scannées",
-      "cellHanded": "Remis",
-      "cellReturns": "Retours",
-      "cellLowStock": "Stock bas",
-      "oldestChip": "Plus ancien : {age}",
-      "noneChip": "aucun",
-      "vsGoalChip": "{delta} vs hier",
-      "actNeverScanned": "Rattraper les commandes jamais scannées",
-      "actNeverScannedDetail": "Étiquetées chez Darb, toujours comptées dans notre stock.",
-      "actLate": "Sortir les colis en retard",
-      "actLateDetail": "Le plus ancien attend {age} · le transporteur facture le dépôt tardif.",
-      "actConfirmed": "Envoyer les confirmées au transporteur",
-      "actConfirmedDetail": "Sans téléchargement, elles n'arriveront jamais en préparation.",
-      "actCarrierWarehouse": "Suivre les colis servis par le transporteur",
-      "actCarrierWarehouseDetail": "Expédiés de leur entrepôt — aucun scan attendu de notre côté.",
-      "activity": "Activité",
-      "activityRange": "14 derniers jours",
-      "seriesScanned": "Sorties scannées",
-      "seriesReturns": "Retours traités",
-      "ranking": "Classement",
-      "rankingHint": "Sorties scannées par heure de présence — un agent à mi-temps n'est pas un agent lent.",
-      "rankingEmpty": "Aucune sortie scannée aujourd'hui.",
-      "rankingRow": "{scanned} sorties · {hours} h actives",
-      "rankingGap": "{delta} /h vs {name}",
-      "rankingGoal": "Objectif :",
-      "perHour": "/h",
-      "vsScanned": "Sorties scannées",
-      "vsReturns": "Retours traités",
-      "vsHanded": "Remis",
-      "vsNoBaseline": "rien hier",
-      "buttonJournal": "Journal",
-      "buttonPrepare": "Préparer",
-      "hours": "{count} h",
-      "days": "{count} j"
-    },
-    "pagination": {
-      "prev": "Précédent",
-      "next": "Suivant",
-      "pageInfo": "Page {page} sur {total} · {items} entrées",
-      "pageInfoUnknown": "Page {page}"
     },
     "prep2": {
       "ageFromUpload": "Âge depuis l'arrivée sur le banc, pas depuis la commande",
@@ -3441,162 +3265,6 @@
       "title": "Préparation",
       "vsGoal": "{pct} %",
       "zoneUnknown": "Couleur à confirmer"
-    },
-    "preparation": {
-      "title": "Préparation",
-      "subtitle": "Imprimez les étiquettes et scannez les commandes avant expédition.",
-      "trayTitle": "Plateau de travail",
-      "scannerTitle": "Scan sortie",
-      "stageBacklog": "Sélectionner les commandes",
-      "stageTray": "Imprimer les étiquettes",
-      "stageScanner": "Scanner et expédier",
-      "mode": {
-        "scan": "Mode scan",
-        "workbench": "Établi",
-        "ariaLabel": "Mode d'affichage"
-      },
-      "scanFirst": {
-        "inputPlaceholder": "Scannez l'étiquette ou saisissez l'ID…",
-        "idleHeadline": "Scanner sortie",
-        "idleHint": "Pointez la douchette ou tapez l'identifiant. La saisie clavier valide avec Entrée.",
-        "customerHeading": "Client expédié",
-        "recentTitle": "Historique des scans",
-        "recentEmpty": "Aucun scan pour le moment. Le prochain client apparaîtra ici.",
-        "stockAfterShort": "Stock {stock}",
-        "stockAfterLabel": "Stock restant",
-        "successBadge": "Expédié — stock −1",
-        "warningBadge": "Déjà traité",
-        "errorBadge": "Échec du scan",
-        "qty": "Qté",
-        "errors": {
-          "ORDER_NOT_FOUND": "Commande introuvable",
-          "MARKET_MISMATCH": "Marché incorrect",
-          "INVALID_STATUS": "Déjà scanné ailleurs",
-          "NO_LABEL_PRINTED": "Étiquette manquante — imprimez d'abord",
-          "STOCK_UNDERFLOW": "Stock insuffisant — contactez le superviseur",
-          "CARRIER_WAREHOUSE_ORDER": "Expédiée depuis l'entrepôt du transporteur — aucun scan requis",
-          "NETWORK_ERROR": "Erreur réseau — réessayez"
-        }
-      },
-      "stats": {
-        "labelsPrinted": "Étiquettes imprimées",
-        "ordersScanned": "Commandes scannées",
-        "avgCycle": "Temps moyen",
-        "traySize": "Plateau"
-      },
-      "tray": {
-        "empty": "Ajoutez des commandes depuis la liste ci-dessous",
-        "printBtn": "Imprimer {count} étiquette(s)",
-        "printing": "Génération du PDF…",
-        "selectAll": "Tout sélectionner",
-        "progress": "{scanned} / {total} scannée(s)",
-        "traySizeWarning": "Limite de 100 commandes atteinte"
-      },
-      "scanner": {
-        "inputPlaceholder": "Scanner ou saisir l'ID de commande…",
-        "feedbackIdle": "En attente d'un scan…",
-        "recentTitle": "Scans récents",
-        "recentEmpty": "Aucun scan pour le moment",
-        "stockAfter": "Stock : {stock}"
-      },
-      "backlog": {
-        "title": "Commandes à préparer",
-        "empty": "Aucune commande en attente d'étiquetage",
-        "colCity": "Destination",
-        "colCustomer": "Client",
-        "colProduct": "Produit",
-        "colId": "ID",
-        "addToTray": "Ajouter",
-        "inTray": "Dans le plateau",
-        "newReveal": "Nouvelles commandes — actualiser",
-        "dismiss": "Ignorer",
-        "lowStock": "Stock bas",
-        "criticalStock": "Rupture",
-        "loadMore": "Afficher plus",
-        "loadingMore": "Chargement…"
-      }
-    },
-    "returns": {
-      "title": "Retours à traiter ({count})",
-      "hint": "Scannez ou sélectionnez un retour, puis tranchez : remettre en stock ou écart perte.",
-      "damagedLabel": "État du colis",
-      "conditionOk": "OK",
-      "conditionOkHint": "Retour en bon état — stock +1",
-      "conditionDamaged": "Endommagé",
-      "conditionDamagedHint": "Écart perte — compteur dégâts +1",
-      "inputPlaceholder": "Scanner ou saisir l'ID de commande…",
-      "feedbackIdle": "En attente d'un retour…",
-      "recentTitle": "Retours récents",
-      "recentEmpty": "Aucun retour pour le moment",
-      "queueTitle": "File d'attente ({count})",
-      "queueEmpty": "Aucun retour en attente",
-      "noMatches": "Aucun résultat ne correspond à votre recherche",
-      "loadMore": "Afficher plus",
-      "loadingMore": "Chargement…",
-      "filterPlaceholder": "Filtrer par client, ville, produit…",
-      "scanStepLabel": "Scanner un retour",
-      "kpi": {
-        "queued": "En attente",
-        "scannedToday": "Scannés aujourd'hui",
-        "damagedToday": "Endommagés aujourd'hui",
-        "inBatch": "Dans le lot"
-      },
-      "inBatchLabel": "· en lot",
-      "damagedBadge": "Endommagé",
-      "stockAfter": "Stock : {stock}",
-      "damagedCount": "Endommagés : {count}",
-      "stockShort": "Stock {stock}",
-      "damageShort": "Dégâts {count}",
-      "customerHeading": "Client retourné",
-      "scanSuccessBadge": "Retour scanné — décidez",
-      "scanErrorBadge": "Échec du scan",
-      "modeScan": "Mode scan",
-      "modeWorkbench": "Établi",
-      "modeAriaLabel": "Mode d'affichage",
-      "decision": {
-        "heading": "Décidez ce retour",
-        "restock": "Remettre en stock",
-        "restockHint": "Produit revendable — stock +{qty}",
-        "damage": "Marquer endommagé",
-        "damageHint": "Écart perte — compteur dégâts +{qty}",
-        "reasonTitle": "Raison",
-        "reasonPackaging": "Emballage",
-        "reasonProductDefect": "Défaut produit",
-        "reasonCustomerDamage": "Dégât client",
-        "reasonCarrierDamage": "Dégât transporteur",
-        "reasonOther": "Autre",
-        "reasonNotePlaceholder": "Préciser la raison (obligatoire)",
-        "photoTitle": "Photo (optionnelle)",
-        "photoHint": "Preuve pour réclamation transporteur",
-        "photoAdd": "Ajouter une photo",
-        "photoReplace": "Remplacer",
-        "photoRemove": "Retirer",
-        "photoUploading": "Téléversement…",
-        "addToBatch": "Ajouter au lot",
-        "commitNow": "Valider maintenant",
-        "cancel": "Annuler",
-        "returnRate": "{percent}% de retours ({returned}/{total})",
-        "returnRateZero": "Pas encore d'historique",
-        "returnRateHigh": "Taux élevé — à signaler"
-      },
-      "batch": {
-        "trayTitle": "{count, plural, one {# retour prêt} other {# retours prêts}}",
-        "trayHint": "Valider le lot finalisera chaque retour individuellement.",
-        "commit": "Valider le lot ({count})",
-        "clear": "Vider",
-        "remove": "Retirer",
-        "committing": "Validation en cours…",
-        "summarySuccess": "{count} retour(s) validé(s)",
-        "summaryFailed": "{count} échec(s)",
-        "emptyHint": "Aucun retour dans le lot. Prenez une décision ci-dessus."
-      },
-      "errors": {
-        "reasonRequired": "Choisissez une raison avant de valider.",
-        "noteRequired": "Saisissez la précision pour « Autre ».",
-        "photoUploadFailed": "Téléversement de la photo échoué.",
-        "photoTooLarge": "Photo trop volumineuse (max 4 Mo).",
-        "photoType": "Format accepté : JPEG, PNG, WebP."
-      }
     },
     "returns2": {
       "avgDays": "Temps de traitement moyen : {days} j",
@@ -3730,14 +3398,6 @@
       "titleTn": "Scanner la sortie",
       "stickerNumber": "Numéro du sticker"
     },
-    "scanner": {
-      "openCamera": "Ouvrir la caméra",
-      "close": "Fermer",
-      "starting": "Démarrage de la caméra…",
-      "initFailed": "Impossible de démarrer la caméra",
-      "permissionDenied": "Accès caméra refusé. Utilisez la saisie clavier ou une douchette.",
-      "dialogLabel": "Scanner QR / code-barres"
-    },
     "settings": {
       "market": "Marché",
       "role": "Rôle",
@@ -3810,35 +3470,10 @@
       "loadingMovements": "Chargement…",
       "countThis": "Compter ce produit",
       "neverCountedAll": "Aucun produit n'a encore été compté.",
-      "lastCount": "Dernier comptage"
-    },
-    "toLabel": {
-      "title": "Commandes prêtes à étiqueter",
-      "empty": "Aucune commande en attente d'étiquetage",
-      "selectAll": "Tout sélectionner",
-      "selectedCount": "{count} sélectionnée(s) sur {total}",
-      "printBtn": "Imprimer {count} étiquette(s)",
-      "printing": "Génération du PDF…",
-      "colCity": "Destination",
-      "colCustomer": "Client",
-      "colProduct": "Produit",
-      "colPhone": "Téléphone",
-      "colId": "ID"
-    },
-    "toScan": {
-      "title": "Scanner sortie ({count})",
-      "hint": "Pointez la caméra sur le QR code ou scannez avec une douchette. La touche Entrée valide la saisie clavier.",
-      "inputPlaceholder": "Scanner ou saisir l'ID de commande…",
-      "feedbackIdle": "En attente d'un scan…",
-      "recentTitle": "Scans récents",
-      "recentEmpty": "Aucun scan pour le moment",
-      "queueTitle": "File d'attente ({count})",
-      "queueEmpty": "Aucune commande à scanner",
-      "stockAfter": "Stock : {stock}",
-      "colCity": "Destination",
-      "colCustomer": "Client",
-      "colProduct": "Produit",
-      "colId": "ID"
+      "lastCount": "Dernier comptage",
+      "consoleTabs": "Vue du stock",
+      "tabLevels": "Stock",
+      "tabJournal": "Journal"
     },
     "bench": {
       "title": "Banc",
@@ -3914,7 +3549,20 @@
         "not_registered": "Jamais enregistré",
         "unknown": "Non vérifié",
         "unchecked": "Non vérifié"
-      }
+      },
+      "colParcel": "Colis",
+      "colSticker": "Sticker",
+      "colBind": "Chez Darb",
+      "colStatus": "État",
+      "colScanned": "Scanné"
+    },
+    "scanner": {
+      "openCamera": "Ouvrir la caméra",
+      "close": "Fermer",
+      "starting": "Démarrage de la caméra…",
+      "initFailed": "Impossible de démarrer la caméra",
+      "permissionDenied": "Accès caméra refusé. Utilisez la saisie clavier ou une douchette.",
+      "dialogLabel": "Scanner QR / code-barres"
     }
   },
   "users": {

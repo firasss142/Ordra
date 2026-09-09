@@ -1,11 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import useSWR from "swr";
 import { useTranslations } from "next-intl";
-import { jsonFetcher } from "@/lib/fetchers";
-import type { ScannedPage, ScannedRow } from "@/app/api/warehouse/scanned/route";
 import { ScannedCard } from "./ScannedCard";
+import { useScannedActions } from "./useScannedActions";
 
 /**
  * The parcels already scanned out — and what the carrier did with them.
@@ -20,70 +17,10 @@ import { ScannedCard } from "./ScannedCard";
  * returns screen showing a placeholder for weeks.
  */
 
-const KEY = "/api/warehouse/scanned?limit=100";
-
 export function ScannedList({ isLy }: { isLy: boolean }) {
   const t = useTranslations("warehouse.scanned");
-  const { data, error, isLoading, mutate } = useSWR<ScannedPage>(KEY, jsonFetcher, {
-    revalidateOnFocus: true,
-  });
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [flash, setFlash] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
-
-  const call = useCallback(
-    async (row: ScannedRow, path: string, body: Record<string, unknown>, okText: (r: Record<string, unknown>) => string) => {
-      setBusyId(row.id);
-      setFlash(null);
-      try {
-        const res = await fetch(path, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ order_id: row.id, ...body }),
-        });
-        const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        if (!res.ok) {
-          setFlash({ tone: "bad", text: String(json.message ?? json.error ?? t("failed")) });
-        } else {
-          setFlash({ tone: "ok", text: okText(json) });
-          await mutate();
-        }
-      } finally {
-        setBusyId(null);
-      }
-    },
-    [mutate, t],
-  );
-
-  const recheck = useCallback(
-    (row: ScannedRow) =>
-      call(row, "/api/warehouse/rebind", {}, (j) =>
-        j.sticker_bind_state === "confirmed"
-          ? t("recheckConfirmed")
-          : t("recheckStill", { ref: String(j.carrier_reference ?? "—") }),
-      ),
-    [call, t],
-  );
-
-  const rebind = useCallback(
-    (row: ScannedRow, sticker: string) =>
-      call(row, "/api/warehouse/rebind", { sticker_ref: sticker }, (j) =>
-        j.sticker_bind_state === "confirmed" ? t("rebindDone", { ref: sticker }) : t("rebindRefused"),
-      ),
-    [call, t],
-  );
-
-  const unscan = useCallback(
-    (row: ScannedRow) => {
-      // A reason, not a confirmation dialog: the ledger has to say why six
-      // months from now, and "are you sure?" records nothing.
-      const note = window.prompt(t("unscanReason"));
-      if (!note || !note.trim()) return;
-      return call(row, "/api/warehouse/unscan", { note: note.trim() }, (j) =>
-        t("unscanDone", { n: Number(j.stock_after ?? 0) }),
-      );
-    },
-    [call, t],
-  );
+  const { data, error, isLoading, mutate, busyId, flash, recheck, rebind, unscan } =
+    useScannedActions();
 
   if (error) {
     return (

@@ -53,6 +53,8 @@ Steps 1–2 are ours. Step 6 onward is Darb's — their reception staff book the
    change one of those, escalate.
 6. **A wrong scan is fixable** — re-scan the correct sticker and it rebinds. But report it,
    because the wrong number may belong to someone else's parcel.
+7. **An accepted bind is not a bind.** See below. The OMS re-reads the shipment
+   after every bind and records what Darb is really holding.
 
 ---
 
@@ -100,9 +102,12 @@ Two Tripoli branches — `EXP` (زناتة) and `RGG` (الرياضية) — car
 Every other branch in طرابلس is rouge, so they resolve from the city and are
 flagged as inferred rather than guessed silently.
 
-Whether a roll *must* match its destination is now moot in practice: the OMS
-refuses a scan whose sticker comes from a roll registered to a different
-colour, and names both in the refusal.
+Whether a roll *must* match its destination is **not** enforced by the OMS. The
+`sticker_rolls` registry that would have done it was built and dropped the same
+day (`20260823000004`): it needed someone to record every roll's number range by
+hand, and a guard that lapses is worse than no guard. The colour on screen is the
+only control. *(This paragraph previously claimed the refusal existed. It never
+shipped.)*
 
 ## Related
 
@@ -112,3 +117,43 @@ colour, and names both in the refusal.
   by `scripts/probe-darb-reference-permission.ts` and
   `scripts/probe-darb-reference-validation.ts`
 - Status sync and API gotchas: `docs/darb-assabil-sync.md`
+
+
+---
+
+## What Darb does to the sticker after you bind it
+
+Measured on 19 parcels bound through the OMS on 2026-09-08, the day the bench
+first ran on it. Two behaviours, neither documented by the vendor, neither
+visible from the `PATCH` response:
+
+| What happened | n | What the OMS records |
+|---|---|---|
+| Darb kept our number | 11 | `sticker_bind_state = confirmed` |
+| **Darb's reception replaced it at booking** | **7** | `restickered`, plus their number in `carrier_reference_actual` |
+| **Darb answered `status: true` and kept its own `SH…`** | **1** | `not_registered` |
+
+The seven re-stickered parcels (Sebha and Koufra, Benghazi account) were bound
+as `11870086`, `1272026`…; at booking, ~17 h later, Darb's reception assigned
+`1279049`, `11865431`… Their number is what routes the parcel and what a
+returned parcel will carry, so it is what `find_return_by_code` must match —
+which it does, because `promote_darb_status` writes it to `tracking_number`.
+
+The one never registered (sticker `1633019`, order `4622d937`) is the reason the
+`PATCH` answer is not trusted: it returned success, produced **no `referenced`
+timeline event**, and Darb still held `SH2171145` nineteen hours later. It then
+healed itself — their reception scanned the physical sticker at booking and set
+the reference to `1633019`. That is why an unverified bind does **not** block
+the scan: the parcel is already stickered, already correct in the real world,
+and refusing it would strand it *and* leave the order with no sticker at all,
+so a return could never be found.
+
+**What the OMS does now.** After every bind it re-reads the shipment
+(`GET /api/local/shipments/:_id`), retries the bind once if the number did not
+stick, then records `confirmed` / `restickered` / `not_registered` on the order.
+Every sync sweep re-checks the same thing and writes only when the answer
+changes. The bench sees it on Entrepôt › Banc › Scannés, with a one-tap re-bind.
+
+Reproduce both in the sandbox: `POST /__sandbox/mode {"mode":"silent"}` (says
+yes, binds nothing) and `{"mode":"reref"}` (binds, then overwrites with a Darb
+number).

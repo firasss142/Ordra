@@ -119,14 +119,12 @@
       "inConfirmation": "قيد التأكيد",
       "orders": "الطلبات",
       "archived": "المؤرشفة",
-      "warehouseToday": "اليوم",
-      "preparation": "التجهيز",
+      "bench": "المكتب",
       "dispatch": "إرسال",
       "returns": "المرتجعات",
       "warehouseStock": "المخزون",
       "carrierTracking": "تتبع الناقل",
       "inDeliveryBoard": "لوحة التسليم",
-      "warehouseJournal": "السجل",
       "pnl": "الأرباح والخسائر",
       "productsMargins": "المنتجات والهوامش",
       "stockInventory": "المخزون والجرد",
@@ -3155,99 +3153,9 @@
     }
   },
   "warehouse": {
-    "activity": {
-      "title": "النشاط الأخير"
-    },
     "age": {
       "days": "{n} ي",
       "hours": "{n} س"
-    },
-    "banner": {
-      "newReveal": "{count} جديدة · عرض",
-      "dismiss": "تجاهل"
-    },
-    "errors": {
-      "scanFailed": "فشل المسح الضوئي",
-      "printFailed": "فشل الطباعة",
-      "network": "خطأ في الشبكة",
-      "selectAtLeastOne": "حدّد طلبًا واحدًا على الأقل"
-    },
-    "filters": {
-      "today": "اليوم",
-      "week": "7 أيام",
-      "month": "30 يوماً",
-      "custom": "مخصص",
-      "allMarkets": "كل الأسواق",
-      "marketPlaceholder": "اختر سوقاً"
-    },
-    "history": {
-      "title": "سجل المستودع",
-      "empty": {
-        "noFilters": "السجل فارغ. فور حدوث مسح أو طباعة أو تعديل، سيظهر هنا.",
-        "filtered": "لا توجد أحداث تطابق هذه الفلاتر."
-      },
-      "kind": {
-        "print": "طباعة",
-        "scan": "مسح صادر",
-        "return": "مرتجع",
-        "adjust": "تعديل",
-        "writeoff": "شطب"
-      },
-      "filter": {
-        "ariaLabel": "تصفية حسب النوع",
-        "all": "الكل",
-        "print": "الطباعة",
-        "scan": "المسح",
-        "return": "المرتجعات",
-        "adjust": "التعديلات",
-        "writeoff": "الشطب",
-        "searchPlaceholder": "بحث (عميل، منتج، ملاحظة…)",
-        "anomaliesOnly": "الشذوذات",
-        "view": {
-          "timeline": "جدول زمني",
-          "flat": "قائمة"
-        }
-      },
-      "col": {
-        "kind": "النوع",
-        "order": "الطلب",
-        "detail": "التفاصيل",
-        "at": "التاريخ"
-      },
-      "filters": {
-        "from": "من",
-        "to": "إلى"
-      },
-      "chips": {
-        "kind": "النوع",
-        "date": "التاريخ",
-        "search": "بحث",
-        "actor": "المشغّل",
-        "product": "المنتج",
-        "anomalies": "الشذوذات",
-        "remove": "إزالة",
-        "clearAll": "مسح الكل"
-      },
-      "session": {
-        "system": "النظام",
-        "scans": "{count} مسح",
-        "returns": "{count} مرتجع",
-        "prints": "{count} طباعة",
-        "adjusts": "{count} تعديل"
-      },
-      "row": {
-        "stockChange": "مخزون {qty} ← {after}"
-      },
-      "anomaly": {
-        "volume_outlier": "حجم غير معتاد لهذا المشغّل",
-        "damage_concentration": "تركّز أضرار على هذا المنتج",
-        "post_scan_adjustment": "تعديل سلبي بعد مسح مباشر"
-      },
-      "export": {
-        "csv": "تصدير CSV"
-      },
-      "loadingMore": "جاري التحميل…",
-      "footerCount": "{count} إدخال"
     },
     "journal": {
       "title": "السجل",
@@ -3297,12 +3205,6 @@
       "loadMore": "تحميل المزيد",
       "noActor": "—"
     },
-    "loading": "جارٍ التحميل…",
-    "lowStock": {
-      "badge": "مخزون منخفض",
-      "critical": "نفد",
-      "tooltip": "المخزون: {current} / الحد {threshold}"
-    },
     "nav": {
       "history": "السجل",
       "inventory": "المخزون",
@@ -3313,84 +3215,6 @@
       "stock": "المخزون",
       "today": "اليوم",
       "bench": "المكتب"
-    },
-    "overview": {
-      "title": "المستودع",
-      "pendingLabels": "للطباعة",
-      "toScanOut": "للمسح",
-      "returnsInbox": "مرتجعات معلقة",
-      "damagedWeek": "تالف (7 أيام)",
-      "goToPreparation": "التجهيز",
-      "goToDispatch": "إرسال",
-      "goToReturns": "معالجة",
-      "goToHistory": "عرض",
-      "recentPrints": "الطباعات الأخيرة",
-      "recentScans": "النشاط الأخير",
-      "subtitle": "نظرة تشغيلية",
-      "refreshing": "جاري التحديث…",
-      "vsLastWeek": "مقارنة بالأسبوع الماضي",
-      "trendTitle": "نشاط المستودع — آخر 14 يوماً",
-      "trendScanned": "تم المسح",
-      "trendReturned": "المرتجعات",
-      "trendDamaged": "التالف",
-      "lowStockTitle": "مخزون منخفض",
-      "lowStockEmpty": "لا توجد منتجات قريبة من النفاد",
-      "lowStockMore": "+{count} أخرى",
-      "priorityActions": "الإجراءات ذات الأولوية",
-      "priorityActionsEmpty": "لا شيء يستدعي الانتباه. كل شيء محدَّث.",
-      "totalToCatchUp": "الإجمالي المتأخر",
-      "vsYesterday": "اليوم مقارنةً بالأمس",
-      "actionPrepare": "إخراج الطرود الجاهزة للتحضير",
-      "actionPrepareDetail": "في انتظار التحضير ومسح الخروج.",
-      "actionReturns": "البتّ في المرتجعات",
-      "actionReturnsDetail": "كل طرد عائد ينتظر قرارًا صريحًا.",
-      "actionLowStock": "إعادة تموين {product}",
-      "actionLowStockDetail": "{stock} وحدة في السجل مقابل حد {threshold}.",
-      "unitOrders": "طلبات",
-      "unitParcels": "طرود",
-      "unitUnits": "وحدة",
-      "settled": "محدَّث",
-      "cellPrepare": "قيد التحضير",
-      "cellScanned": "تم مسحها",
-      "cellHanded": "سُلِّمت",
-      "cellReturns": "المرتجعات",
-      "cellLowStock": "مخزون منخفض",
-      "oldestChip": "الأقدم: {age}",
-      "noneChip": "لا شيء",
-      "vsGoalChip": "{delta} مقارنة بالأمس",
-      "actNeverScanned": "استدراك الطلبيات التي لم تُمسح قط",
-      "actNeverScannedDetail": "مُلصقة لدى درب السبيل، وما زالت محسوبة في مخزوننا.",
-      "actLate": "إخراج الطرود المتأخرة",
-      "actLateDetail": "الأقدم ينتظر {age} · الناقل يحاسب على الإيداع المتأخر.",
-      "actConfirmed": "إرسال المؤكَّدة إلى الناقل",
-      "actConfirmedDetail": "بدون رفعها، لن تصل أبداً إلى التحضير.",
-      "actCarrierWarehouse": "متابعة الطرود المشحونة من الناقل",
-      "actCarrierWarehouseDetail": "تُشحن من مستودعهم — لا يُتوقع أي مسح من جهتنا.",
-      "activity": "النشاط",
-      "activityRange": "آخر 14 يوماً",
-      "seriesScanned": "الإخراجات الممسوحة",
-      "seriesReturns": "المرتجعات المعالَجة",
-      "ranking": "الترتيب",
-      "rankingHint": "الإخراجات الممسوحة لكل ساعة حضور — الموظف بدوام جزئي ليس موظفاً بطيئاً.",
-      "rankingEmpty": "لا توجد إخراجات ممسوحة اليوم.",
-      "rankingRow": "{scanned} إخراج · {hours} ساعة نشطة",
-      "rankingGap": "{delta} /ساعة مقارنة بـ {name}",
-      "rankingGoal": "الهدف:",
-      "perHour": "/ساعة",
-      "vsScanned": "الإخراجات الممسوحة",
-      "vsReturns": "المرتجعات المعالَجة",
-      "vsHanded": "سُلِّمت",
-      "vsNoBaseline": "لا شيء أمس",
-      "buttonJournal": "السجل",
-      "buttonPrepare": "تحضير",
-      "hours": "{count} س",
-      "days": "{count} ي"
-    },
-    "pagination": {
-      "prev": "السابق",
-      "next": "التالي",
-      "pageInfo": "صفحة {page} من {total} · {items} سجل",
-      "pageInfoUnknown": "صفحة {page}"
     },
     "prep2": {
       "ageFromUpload": "العمر منذ الوصول إلى الطاولة، لا منذ إنشاء الطلب",
@@ -3441,162 +3265,6 @@
       "title": "التحضير",
       "vsGoal": "{pct} %",
       "zoneUnknown": "اللون بحاجة إلى تأكيد"
-    },
-    "preparation": {
-      "title": "التحضير",
-      "subtitle": "اطبع الملصقات وامسح الطلبات قبل الإرسال.",
-      "trayTitle": "حاوية العمل",
-      "scannerTitle": "مسح الخروج",
-      "stageBacklog": "تحديد الطلبات",
-      "stageTray": "طباعة الملصقات",
-      "stageScanner": "المسح والإرسال",
-      "mode": {
-        "scan": "وضع المسح",
-        "workbench": "محطة العمل",
-        "ariaLabel": "وضع العرض"
-      },
-      "scanFirst": {
-        "inputPlaceholder": "امسح الملصق أو أدخل الرقم…",
-        "idleHeadline": "مسح الخروج",
-        "idleHint": "وجّه الماسح أو اكتب المعرّف. اضغط Enter للتأكيد.",
-        "customerHeading": "العميل المُرسل",
-        "recentTitle": "سجل المسح",
-        "recentEmpty": "لا توجد عمليات مسح بعد. سيظهر العميل التالي هنا.",
-        "stockAfterShort": "المخزون {stock}",
-        "stockAfterLabel": "المخزون المتبقي",
-        "successBadge": "تم الإرسال — مخزون −1",
-        "warningBadge": "معالج مسبقاً",
-        "errorBadge": "فشل المسح",
-        "qty": "الكمية",
-        "errors": {
-          "ORDER_NOT_FOUND": "الطلب غير موجود",
-          "MARKET_MISMATCH": "السوق غير صحيح",
-          "INVALID_STATUS": "تم مسحه في مكان آخر",
-          "NO_LABEL_PRINTED": "الملصق غير موجود — اطبع أولاً",
-          "STOCK_UNDERFLOW": "المخزون غير كافٍ — راجع المشرف",
-          "CARRIER_WAREHOUSE_ORDER": "تُشحن من مخزن الناقل — لا حاجة للمسح",
-          "NETWORK_ERROR": "خطأ في الشبكة — أعد المحاولة"
-        }
-      },
-      "stats": {
-        "labelsPrinted": "ملصقات مطبوعة",
-        "ordersScanned": "طلبات ممسوحة",
-        "avgCycle": "متوسط الوقت",
-        "traySize": "الحاوية"
-      },
-      "tray": {
-        "empty": "أضف طلبات من القائمة أدناه",
-        "printBtn": "طباعة {count} ملصق",
-        "printing": "جارٍ إنشاء PDF…",
-        "selectAll": "تحديد الكل",
-        "progress": "{scanned} / {total} ممسوح",
-        "traySizeWarning": "تم الوصول إلى الحد الأقصى 100 طلب"
-      },
-      "scanner": {
-        "inputPlaceholder": "امسح أو أدخل معرّف الطلب…",
-        "feedbackIdle": "في انتظار المسح…",
-        "recentTitle": "عمليات المسح الأخيرة",
-        "recentEmpty": "لا توجد عمليات مسح حتى الآن",
-        "stockAfter": "المخزون: {stock}"
-      },
-      "backlog": {
-        "title": "الطلبات للتحضير",
-        "empty": "لا توجد طلبات في انتظار الطباعة",
-        "colCity": "الوجهة",
-        "colCustomer": "العميل",
-        "colProduct": "المنتج",
-        "colId": "المعرّف",
-        "addToTray": "إضافة",
-        "inTray": "في الحاوية",
-        "newReveal": "طلبات جديدة — تحديث",
-        "dismiss": "تجاهل",
-        "lowStock": "مخزون منخفض",
-        "criticalStock": "نفاد المخزون",
-        "loadMore": "عرض المزيد",
-        "loadingMore": "جارٍ التحميل…"
-      }
-    },
-    "returns": {
-      "title": "المرتجعات المعلقة ({count})",
-      "hint": "امسح أو اختر مرتجعاً، ثم قرر: إعادة للمخزون أم فاقد.",
-      "damagedLabel": "حالة الطرد",
-      "conditionOk": "سليم",
-      "conditionOkHint": "مرتجع بحالة جيدة — المخزون +1",
-      "conditionDamaged": "تالف",
-      "conditionDamagedHint": "فاقد — عدّاد الأضرار +1",
-      "inputPlaceholder": "امسح أو أدخل معرّف الطلب…",
-      "feedbackIdle": "في انتظار مرتجع…",
-      "recentTitle": "المرتجعات الأخيرة",
-      "recentEmpty": "لا توجد مرتجعات بعد",
-      "queueTitle": "قائمة الانتظار ({count})",
-      "queueEmpty": "لا توجد مرتجعات معلقة",
-      "noMatches": "لا توجد نتائج تطابق بحثك",
-      "loadMore": "عرض المزيد",
-      "loadingMore": "جارٍ التحميل…",
-      "filterPlaceholder": "تصفية حسب العميل، المدينة، المنتج…",
-      "scanStepLabel": "مسح مرتجع",
-      "kpi": {
-        "queued": "في الانتظار",
-        "scannedToday": "مُسح اليوم",
-        "damagedToday": "تالف اليوم",
-        "inBatch": "في الدُفعة"
-      },
-      "inBatchLabel": "· في الدُفعة",
-      "damagedBadge": "تالف",
-      "stockAfter": "المخزون: {stock}",
-      "damagedCount": "التالف: {count}",
-      "stockShort": "المخزون {stock}",
-      "damageShort": "تالف {count}",
-      "customerHeading": "العميل المُرتجع",
-      "scanSuccessBadge": "تم مسح المرتجع — اتخذ القرار",
-      "scanErrorBadge": "فشل المسح",
-      "modeScan": "وضع المسح",
-      "modeWorkbench": "محطة العمل",
-      "modeAriaLabel": "وضع العرض",
-      "decision": {
-        "heading": "اتخذ القرار",
-        "restock": "إعادة للمخزون",
-        "restockHint": "منتج صالح للبيع — المخزون +{qty}",
-        "damage": "وضع تالف",
-        "damageHint": "فاقد — عدّاد الأضرار +{qty}",
-        "reasonTitle": "السبب",
-        "reasonPackaging": "التغليف",
-        "reasonProductDefect": "عيب في المنتج",
-        "reasonCustomerDamage": "ضرر من العميل",
-        "reasonCarrierDamage": "ضرر من الناقل",
-        "reasonOther": "أخرى",
-        "reasonNotePlaceholder": "اذكر السبب (إلزامي)",
-        "photoTitle": "صورة (اختياري)",
-        "photoHint": "دليل لمطالبة الناقل",
-        "photoAdd": "إضافة صورة",
-        "photoReplace": "استبدال",
-        "photoRemove": "إزالة",
-        "photoUploading": "جارٍ الرفع…",
-        "addToBatch": "إضافة إلى الدُفعة",
-        "commitNow": "تأكيد الآن",
-        "cancel": "إلغاء",
-        "returnRate": "{percent}% مرتجعات ({returned}/{total})",
-        "returnRateZero": "لا سجل حتى الآن",
-        "returnRateHigh": "نسبة مرتفعة — للتنبيه"
-      },
-      "batch": {
-        "trayTitle": "{count, plural, one {# مرتجع جاهز} other {# مرتجعات جاهزة}}",
-        "trayHint": "تأكيد الدُفعة يعالج كل مرتجع على حدة.",
-        "commit": "تأكيد الدُفعة ({count})",
-        "clear": "إفراغ",
-        "remove": "إزالة",
-        "committing": "جاري التأكيد…",
-        "summarySuccess": "تم تأكيد {count} مرتجع",
-        "summaryFailed": "{count} إخفاق",
-        "emptyHint": "لا شيء في الدُفعة. اتخذ قراراً أعلاه."
-      },
-      "errors": {
-        "reasonRequired": "اختر سبباً قبل التأكيد.",
-        "noteRequired": "أدخل التفاصيل لخيار « أخرى ».",
-        "photoUploadFailed": "فشل رفع الصورة.",
-        "photoTooLarge": "الصورة كبيرة جداً (الحد 4 ميغا).",
-        "photoType": "الصيغ المقبولة: JPEG, PNG, WebP."
-      }
     },
     "returns2": {
       "avgDays": "متوسط وقت المعالجة: {days} يوم",
@@ -3730,14 +3398,6 @@
       "titleTn": "مسح الخروج",
       "stickerNumber": "رقم الملصق"
     },
-    "scanner": {
-      "openCamera": "فتح الكاميرا",
-      "close": "إغلاق",
-      "starting": "جارٍ تشغيل الكاميرا…",
-      "initFailed": "تعذر تشغيل الكاميرا",
-      "permissionDenied": "تم رفض الوصول إلى الكاميرا. استخدم لوحة المفاتيح أو ماسحًا.",
-      "dialogLabel": "ماسح QR / الباركود"
-    },
     "settings": {
       "market": "السوق",
       "role": "الدور",
@@ -3810,35 +3470,10 @@
       "loadingMovements": "جارٍ التحميل…",
       "countThis": "جرد هذا المنتج",
       "neverCountedAll": "لم يُجرد أي منتج بعد.",
-      "lastCount": "آخر جرد"
-    },
-    "toLabel": {
-      "title": "طلبات جاهزة للطباعة",
-      "empty": "لا توجد طلبات في انتظار الطباعة",
-      "selectAll": "تحديد الكل",
-      "selectedCount": "{count} من أصل {total}",
-      "printBtn": "طباعة {count} ملصق(ات)",
-      "printing": "جارٍ إنشاء PDF…",
-      "colCity": "الوجهة",
-      "colCustomer": "العميل",
-      "colProduct": "المنتج",
-      "colPhone": "الهاتف",
-      "colId": "المعرف"
-    },
-    "toScan": {
-      "title": "مسح الصادر ({count})",
-      "hint": "وجّه الكاميرا نحو رمز QR أو استخدم ماسحًا. مفتاح Enter يؤكد الإدخال.",
-      "inputPlaceholder": "امسح أو أدخل معرّف الطلب…",
-      "feedbackIdle": "في انتظار المسح…",
-      "recentTitle": "عمليات المسح الأخيرة",
-      "recentEmpty": "لا توجد عمليات مسح بعد",
-      "queueTitle": "قائمة الانتظار ({count})",
-      "queueEmpty": "لا توجد طلبات للمسح",
-      "stockAfter": "المخزون: {stock}",
-      "colCity": "الوجهة",
-      "colCustomer": "العميل",
-      "colProduct": "المنتج",
-      "colId": "المعرف"
+      "lastCount": "آخر جرد",
+      "consoleTabs": "عرض المخزون",
+      "tabLevels": "المخزون",
+      "tabJournal": "السجل"
     },
     "bench": {
       "title": "المكتب",
@@ -3914,7 +3549,20 @@
         "not_registered": "لم يُسجَّل",
         "unknown": "لم يُتحقَّق",
         "unchecked": "لم يُتحقَّق"
-      }
+      },
+      "colParcel": "الطرد",
+      "colSticker": "الملصق",
+      "colBind": "لدى درب السبيل",
+      "colStatus": "الحالة",
+      "colScanned": "المسح"
+    },
+    "scanner": {
+      "openCamera": "فتح الكاميرا",
+      "close": "إغلاق",
+      "starting": "جارٍ تشغيل الكاميرا…",
+      "initFailed": "تعذر تشغيل الكاميرا",
+      "permissionDenied": "تم رفض الوصول إلى الكاميرا. استخدم لوحة المفاتيح أو ماسحًا.",
+      "dialogLabel": "ماسح QR / الباركود"
     }
   },
   "users": {

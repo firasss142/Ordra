@@ -7,19 +7,29 @@
  * refuse, disappear, or stall, and (c) records exactly what was bound so the
  * DB can be checked against it. Real Darb must never see test parcels.
  *
- * Only the two endpoints the bench uses are emulated:
+ * Only the endpoints the bench uses are emulated:
  *   GET   /api/local/shipments?reference=SH…&limit=1&offset=0
+ *   GET   /api/local/shipments/:_id             — the bind VERIFICATION read
  *   PATCH /api/local/shipments/reference/:_id   { reference }
  *
  * Plus a control surface:
  *   GET  /__sandbox/state          binds, request log, mode, shipments
- *   POST /__sandbox/mode {mode}    ok | refuse | down | slow
+ *   POST /__sandbox/mode {mode}    ok | refuse | down | slow | silent | reref
  *   POST /__sandbox/reset          reload the manifest, clear binds and log
  *
  * Modes apply to the PATCH only, so a failure can be pinned on the bind step.
  * `slow` waits 20 s and THEN still applies the bind: that is the shape of a
  * real timeout — the OMS gives up at 15 s while Darb completes anyway, and the
  * next scan must rebind idempotently rather than treat the sticker as free.
+ *
+ * Two modes reproduce what live Darb actually did on 2026-09-08, and both are
+ * invisible without the verification read:
+ *   `silent` answers `status: true` and does NOT apply the bind — the shipment
+ *     keeps its SH… reference. One real parcel (sticker 1633019) shipped this
+ *     way, carrying a number the carrier had never heard of.
+ *   `reref`  applies the bind, then immediately replaces the reference with a
+ *     number of Darb's own, the way their reception re-stickers at booking.
+ *     Seven of nineteen parcels that day.
  *
  * Headers are checked the way the vendor's silent failures would punish a
  * regression: wrong or missing Authorization / X-API-VERSION / X-ACCOUNT-ID
@@ -37,7 +47,10 @@ const arg = (name, fallback) => {
 const PORT = Number(arg("port", SANDBOX.port));
 const HOST = SANDBOX.host;
 const SLOW_MS = 20_000;
-const MODES = new Set(["ok", "refuse", "down", "slow"]);
+const MODES = new Set(["ok", "refuse", "down", "slow", "silent", "reref"]);
+
+/** A plausible Darb-issued reference, for `reref`. */
+let rerefCounter = 11865430;
 
 const state = {
   mode: "ok",
@@ -172,6 +185,28 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  /*
+   * The verification read. `GET /shipments/:id` returns a LIST shape even for
+   * one shipment (`data.results[0]`) — a documented vendor quirk, reproduced
+   * here so a client that unwraps it wrongly fails in the sandbox too.
+   */
+  const single = url.pathname.match(/^\/api\/local\/shipments\/([^/]+)$/);
+  if (req.method === "GET" && single && single[1] !== "reference") {
+    const id = decodeURIComponent(single[1]);
+    const hit = state.shipments.get(id);
+    entry.note = hit ? `read ${id} → ${hit.reference}` : `unknown _id ${id}`;
+    entry.status = send(res, 200, {
+      status: true,
+      data: {
+        results: hit
+          ? [{ _id: hit._id, reference: hit.reference, toBranchGroup: hit.toBranchGroup, status: hit.status }]
+          : [],
+      },
+    });
+    log(entry);
+    return;
+  }
+
   const patch = url.pathname.match(/^\/api\/local\/shipments\/reference\/([^/]+)$/);
   if (req.method === "PATCH" && patch) {
     const id = decodeURIComponent(patch[1]);
@@ -199,6 +234,23 @@ const server = http.createServer(async (req, res) => {
     if (state.mode === "refuse") {
       entry.note = `mode=refuse · ${id} ← ${reference} NOT bound`;
       entry.status = send(res, 200, { status: false, messages: [{ message: "Sandbox: reference refused by carrier" }] });
+      log(entry);
+      return;
+    }
+    // Says yes, does nothing. Only the verification read can tell.
+    if (state.mode === "silent") {
+      entry.note = `mode=silent · ${id} still ${shipment.reference}`;
+      entry.status = send(res, 200, { status: true, data: { _id: id, reference: shipment.reference } });
+      log(entry);
+      return;
+    }
+    // Binds, then their reception overwrites it with a number of their own.
+    if (state.mode === "reref") {
+      applyBind(shipment, reference);
+      const theirs = String(++rerefCounter);
+      applyBind(shipment, theirs);
+      entry.note = `mode=reref · ${id} ← ${reference} then re-referenced ${theirs}`;
+      entry.status = send(res, 200, { status: true, data: { _id: id, reference: theirs } });
       log(entry);
       return;
     }

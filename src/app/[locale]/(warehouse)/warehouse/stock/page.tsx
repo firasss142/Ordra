@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/auth/server-user";
 import { canScanWarehouse } from "@/lib/role-permissions";
-import { WarehouseStockClient } from "@/components/warehouse/console/WarehouseStockClient";
+import { StockConsole } from "@/components/warehouse/console/StockConsole";
 
 export const dynamic = "force-dynamic";
 
@@ -21,5 +21,5 @@ export default async function WarehouseStockPage({
   if (!user) redirect(`/${locale}/login`);
   if (!canScanWarehouse(user.role)) redirect(`/${locale}/queue`);
 
-  return <WarehouseStockClient locale={locale} />;
+  return <StockConsole locale={locale} />;
 }
