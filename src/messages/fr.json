@@ -3878,7 +3878,41 @@
       "lookupUnknownHint": "Ce numéro n'est lié à aucune commande. Vérifiez le sticker.",
       "notCommittedHint": "Aucune unité n'a été déduite. Prévenez le responsable avant de remettre le colis.",
       "roll": "Rouleau {colour}",
-      "unverifiedHint": "Ne remettez pas ce colis. Darb garde encore {ref} — rescannez le sticker."
+      "unverifiedHint": "Ne remettez pas ce colis. Darb garde encore {ref} — rescannez le sticker.",
+      "segments": "Vue du banc",
+      "segmentBench": "À préparer",
+      "segmentScanned": "Scannés"
+    },
+    "scanned": {
+      "awaitingPickup": "{n} en attente du transporteur",
+      "atCarrier": "{n} remis",
+      "unconfirmed": "{n} à vérifier",
+      "empty": "Aucun colis scanné pour l'instant.",
+      "loading": "Chargement…",
+      "loadFailed": "Impossible de charger les colis scannés.",
+      "retry": "Réessayer",
+      "failed": "L'opération a échoué.",
+      "scannedBy": "Scanné par {who} · {when}",
+      "recheck": "Revérifier",
+      "rebind": "Re-lier",
+      "unscan": "Dé-scanner",
+      "unscanClosed": "Darb a pris ce colis en charge",
+      "unscanReason": "Pourquoi ce colis revient-il sur le banc ?",
+      "unscanDone": "Colis remis sur le banc · stock {n}",
+      "newSticker": "Nouveau numéro de sticker",
+      "sendSticker": "Envoyer à Darb",
+      "cancel": "Annuler",
+      "recheckConfirmed": "Darb tient bien notre numéro.",
+      "recheckStill": "Darb tient toujours {ref}.",
+      "rebindDone": "Darb tient maintenant {ref}.",
+      "rebindRefused": "Darb n'a pas gardé ce numéro.",
+      "bind": {
+        "confirmed": "Numéro confirmé",
+        "restickered": "Darb a mis ",
+        "not_registered": "Jamais enregistré",
+        "unknown": "Non vérifié",
+        "unchecked": "Non vérifié"
+      }
     }
   },
   "users": {

@@ -8,7 +8,9 @@ import { Check, PackageOpen } from "lucide-react";
 import { jsonFetcher } from "@/lib/fetchers";
 import { DARB_ZONE_ORDER, zoneLabels } from "@/lib/carriers/darb-zones";
 import type { PrepRow } from "@/components/warehouse/console/PrepCard";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { RollRail, type RollKey } from "./RollRail";
+import { ScannedList } from "./ScannedList";
 import { BenchCard } from "./BenchCard";
 import { ScanSheet } from "./ScanSheet";
 
@@ -112,6 +114,13 @@ export function BenchHome({
   const [lastHex, setLastHex] = useState<string | null>(null);
   const hand = useMemo(() => live.find((o) => o.id === handId) ?? null, [live, handId]);
 
+  /*
+   * Two moments, one screen. "À préparer" is the queue; "Scannés" is what
+   * happened to the parcels that already left it — a question the bench simply
+   * could not ask before, while eight of twenty parcels scanned on 2026-09-08
+   * were carrying a number Darb was not holding.
+   */
+  const [tab, setTab] = useState<"bench" | "scanned">("bench");
   const [sheetOpen, setSheetOpen] = useState(false);
   const scanFlag = search.get("scan") === "1";
   useEffect(() => {
@@ -230,6 +239,21 @@ export function BenchHome({
         </span>
       </div>
 
+      <SegmentedTabs
+        className="mt-3.5"
+        size="sm"
+        role="tablist"
+        ariaLabel={t("segments")}
+        value={tab}
+        onChange={(k) => setTab(k as "bench" | "scanned")}
+        segments={[
+          { key: "bench", label: t("segmentBench"), count: waiting },
+          { key: "scanned", label: t("segmentScanned"), count: toHandOver },
+        ]}
+      />
+
+      {tab === "scanned" ? <ScannedList isLy={isLy} /> : (
+      <>
       {/* ── Which rolls to pick up ───────────────────────────────────── */}
       {isLy && waiting > 0 ? (
         <>
@@ -289,12 +313,16 @@ export function BenchHome({
       )}
 
       {/* ── Scanned, waiting for the carrier ─────────────────────────── */}
-      <p
+      <button
+        type="button"
         data-testid="wh-bench-pickup"
-        className="mt-5 border-t border-wm-card-edge pt-3 text-[14px] font-semibold text-wm-ink-2"
+        onClick={() => setTab("scanned")}
+        className="mt-5 w-full border-t border-wm-card-edge pt-3 text-start text-[14px] font-semibold text-wm-ink-2 underline decoration-dotted underline-offset-4"
       >
         {t("pickup", { n: toHandOver })}
-      </p>
+      </button>
+      </>
+      )}
 
       <ScanSheet
         open={sheetOpen}

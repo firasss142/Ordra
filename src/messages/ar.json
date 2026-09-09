@@ -3878,7 +3878,41 @@
       "lookupUnknownHint": "لم يُربط هذا الرقم بأي طلب. تأكد من الملصق.",
       "notCommittedHint": "لم يُخصم شيء من المخزون. أبلغ المسؤول قبل تسليم الطرد.",
       "roll": "الرولة {colour}",
-      "unverifiedHint": "لا تسلّم هذا الطرد. ما زال درب السبيل يحتفظ بـ {ref} — أعد مسح الملصق."
+      "unverifiedHint": "لا تسلّم هذا الطرد. ما زال درب السبيل يحتفظ بـ {ref} — أعد مسح الملصق.",
+      "segments": "عرض المكتب",
+      "segmentBench": "للتحضير",
+      "segmentScanned": "تم مسحها"
+    },
+    "scanned": {
+      "awaitingPickup": "{n} بانتظار الشركة",
+      "atCarrier": "{n} تم تسليمها",
+      "unconfirmed": "{n} تحتاج تحققاً",
+      "empty": "لا توجد طرود ممسوحة بعد.",
+      "loading": "جارٍ التحميل…",
+      "loadFailed": "تعذّر تحميل الطرود الممسوحة.",
+      "retry": "إعادة المحاولة",
+      "failed": "فشلت العملية.",
+      "scannedBy": "مسحها {who} · {when}",
+      "recheck": "إعادة التحقق",
+      "rebind": "إعادة الربط",
+      "unscan": "إلغاء المسح",
+      "unscanClosed": "درب السبيل استلم هذا الطرد",
+      "unscanReason": "لماذا يعود هذا الطرد إلى المكتب؟",
+      "unscanDone": "عاد الطرد إلى المكتب · المخزون {n}",
+      "newSticker": "رقم ملصق جديد",
+      "sendSticker": "إرسال إلى درب السبيل",
+      "cancel": "إلغاء",
+      "recheckConfirmed": "درب السبيل يحتفظ برقمنا.",
+      "recheckStill": "ما زال درب السبيل يحتفظ بـ {ref}.",
+      "rebindDone": "درب السبيل يحتفظ الآن بـ {ref}.",
+      "rebindRefused": "لم يحتفظ درب السبيل بهذا الرقم.",
+      "bind": {
+        "confirmed": "الرقم مؤكَّد",
+        "restickered": "درب السبيل وضع ",
+        "not_registered": "لم يُسجَّل",
+        "unknown": "لم يُتحقَّق",
+        "unchecked": "لم يُتحقَّق"
+      }
     }
   },
   "users": {
