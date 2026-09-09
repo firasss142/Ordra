@@ -1435,7 +1435,8 @@
       "groupCarrier": "Transporteur",
       "addressEmpty": "Ajouter une adresse…",
       "trackingPending": "À l'envoi au transporteur",
-      "carrierPending": "Pas encore assigné"
+      "carrierPending": "Pas encore assigné",
+      "conflictReloaded": "Modifiée entre-temps par un autre utilisateur — valeurs rechargées."
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",

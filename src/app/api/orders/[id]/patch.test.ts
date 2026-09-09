@@ -809,4 +809,187 @@ describe("PATCH /api/orders/[id]", () => {
       expect(historyInsert).not.toHaveBeenCalled();
     });
   });
+
+  // ── Optimistic concurrency (expected_updated_at) ─────────────────────────
+  //
+  // Two people on the same order used to overwrite each other silently: the
+  // last PATCH won and the loser saw a "saved" flash over the winner's value.
+  // The client now sends the `updated_at` it last saw from the server and the
+  // UPDATE carries it as a precondition.
+  describe("expected_updated_at precondition", () => {
+    const SERVER_STAMP = "2026-09-10T08:00:00.123456+00:00";
+
+    /**
+     * @param updatedRows what the guarded UPDATE ... .select("id") resolves to
+     * @param freshStamp  the updated_at a re-read of the row reports
+     */
+    function setup(updatedRows: unknown[], freshStamp: string) {
+      mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
+
+      const updateChain: Record<string, unknown> = {};
+      const eqCalls: Array<[string, unknown]> = [];
+      updateChain.eq = vi.fn((col: string, val: unknown) => {
+        eqCalls.push([col, val]);
+        return updateChain;
+      });
+      updateChain.select = vi.fn().mockResolvedValue({ data: updatedRows, error: null });
+
+      const historyInsert = vi.fn().mockResolvedValue({ data: null, error: null });
+      let ordersSelects = 0;
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "users")
+          return queryChain({ data: { role: "agent", market_id: "m-1" }, error: null });
+        if (table === "orders") {
+          const chain: Record<string, unknown> = {};
+          chain.select = vi.fn().mockReturnValue(chain);
+          chain.eq = vi.fn().mockReturnValue(chain);
+          chain.update = vi.fn().mockReturnValue(updateChain);
+          chain.single = vi.fn(() => {
+            ordersSelects += 1;
+            // 1st: the pre-flight read. 2nd+: the re-read after a zero-row
+            // update, and the final read of the saved row — both must report
+            // whatever the database holds NOW.
+            return Promise.resolve({
+              data:
+                ordersSelects === 1
+                  ? { ...assignedOrder, updated_at: SERVER_STAMP }
+                  : { ...assignedOrder, updated_at: freshStamp },
+              error: null,
+            });
+          });
+          return chain;
+        }
+        if (table === "order_history") {
+          const chain = queryChain({ data: [], error: null });
+          chain.insert = historyInsert;
+          return chain;
+        }
+        return queryChain({ data: null, error: null });
+      });
+
+      return { eqCalls, historyInsert };
+    }
+
+    test("passes the stamp through verbatim as an UPDATE precondition", async () => {
+      const { eqCalls } = setup([{ id: "order-1" }], SERVER_STAMP);
+
+      const res = await PATCH(
+        makeRequest({ customer_name: "Bob", expected_updated_at: SERVER_STAMP }),
+        { params: Promise.resolve({ id: "order-1" }) },
+      );
+
+      expect(res.status).toBe(200);
+      // Microsecond precision must survive: the BEFORE trigger stamps now()
+      // with microseconds and a millisecond round-trip would make every save
+      // a false conflict.
+      expect(eqCalls).toContainEqual(["updated_at", SERVER_STAMP]);
+    });
+
+    test("expected_updated_at is never written to the row", async () => {
+      let captured: Record<string, unknown> = {};
+      mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } } });
+
+      const updateChain: Record<string, unknown> = {};
+      updateChain.eq = vi.fn().mockReturnValue(updateChain);
+      updateChain.select = vi.fn().mockResolvedValue({ data: [{ id: "order-1" }], error: null });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "users")
+          return queryChain({ data: { role: "agent", market_id: "m-1" }, error: null });
+        if (table === "orders") {
+          const chain: Record<string, unknown> = {};
+          chain.select = vi.fn().mockReturnValue(chain);
+          chain.eq = vi.fn().mockReturnValue(chain);
+          chain.update = vi.fn((u: Record<string, unknown>) => {
+            captured = u;
+            return updateChain;
+          });
+          chain.single = vi
+            .fn()
+            .mockResolvedValue({ data: { ...assignedOrder, updated_at: SERVER_STAMP }, error: null });
+          return chain;
+        }
+        if (table === "order_history") {
+          const chain = queryChain({ data: [], error: null });
+          chain.insert = vi.fn().mockResolvedValue({ data: null, error: null });
+          return chain;
+        }
+        return queryChain({ data: null, error: null });
+      });
+
+      await PATCH(
+        makeRequest({ customer_name: "Bob", expected_updated_at: SERVER_STAMP }),
+        { params: Promise.resolve({ id: "order-1" }) },
+      );
+
+      expect(captured).not.toHaveProperty("expected_updated_at");
+      expect(captured.customer_name).toBe("Bob");
+    });
+
+    test("stale stamp → 409 conflict carrying the fresh order", async () => {
+      setup([], "2026-09-10T09:30:00.654321+00:00");
+
+      const res = await PATCH(
+        makeRequest({ customer_name: "Bob", expected_updated_at: SERVER_STAMP }),
+        { params: Promise.resolve({ id: "order-1" }) },
+      );
+
+      expect(res.status).toBe(409);
+      const json = await res.json();
+      expect(json.code).toBe("conflict");
+      expect(json.data.updated_at).toBe("2026-09-10T09:30:00.654321+00:00");
+      // The panel re-renders from this payload, so it must be the same shape
+      // the GET returns.
+      expect(json.data).toHaveProperty("history");
+      expect(json.data).toHaveProperty("order_items");
+    });
+
+    test("stale stamp → no order_history row for the edit that lost", async () => {
+      const { historyInsert } = setup([], "2026-09-10T09:30:00.654321+00:00");
+
+      await PATCH(
+        makeRequest({ customer_name: "Bob", expected_updated_at: SERVER_STAMP }),
+        { params: Promise.resolve({ id: "order-1" }) },
+      );
+
+      expect(historyInsert).not.toHaveBeenCalled();
+    });
+
+    test("zero rows with an UNCHANGED stamp is an RLS refusal, not a conflict", async () => {
+      setup([], SERVER_STAMP);
+
+      const res = await PATCH(
+        makeRequest({ customer_name: "Bob", expected_updated_at: SERVER_STAMP }),
+        { params: Promise.resolve({ id: "order-1" }) },
+      );
+
+      expect(res.status).toBe(409);
+      const json = await res.json();
+      expect(json.code).toBeUndefined();
+      expect(json.error).toContain("ne peut plus être modifiée");
+    });
+
+    test("a malformed stamp is rejected as a bad request", async () => {
+      setup([{ id: "order-1" }], SERVER_STAMP);
+
+      const res = await PATCH(
+        makeRequest({ customer_name: "Bob", expected_updated_at: "not-a-date" }),
+        { params: Promise.resolve({ id: "order-1" }) },
+      );
+
+      expect(res.status).toBe(400);
+    });
+
+    test("omitting the stamp keeps the old unguarded behaviour", async () => {
+      const { eqCalls } = setup([{ id: "order-1" }], SERVER_STAMP);
+
+      const res = await PATCH(makeRequest({ customer_name: "Bob" }), {
+        params: Promise.resolve({ id: "order-1" }),
+      });
+
+      expect(res.status).toBe(200);
+      expect(eqCalls.map(([col]) => col)).not.toContain("updated_at");
+    });
+  });
 });

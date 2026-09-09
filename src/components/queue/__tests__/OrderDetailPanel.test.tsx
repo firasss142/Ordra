@@ -15,13 +15,23 @@ vi.mock("swr", () => ({
   useSWRConfig: () => ({ mutate: vi.fn(), cache: new Map() }),
 }));
 
-vi.mock("@/hooks/useOrderMutation", () => ({
-  useOrderMutation: () => ({
-    commit: vi.fn(),
-    patchItemOptimistic: vi.fn(),
-    deleteItemOptimistic: vi.fn(),
-  }),
-}));
+vi.mock("@/hooks/useOrderMutation", async () => {
+  // OrderConflictError is a real class the panel branches on with
+  // `instanceof`, so the mock must expose the real one, not a stub.
+  const actual = await vi.importActual<typeof import("@/hooks/useOrderMutation")>(
+    "@/hooks/useOrderMutation",
+  );
+  return {
+    OrderConflictError: actual.OrderConflictError,
+    useOrderMutation: () => ({
+      commit: vi.fn(),
+      patchItemOptimistic: vi.fn(),
+      deleteItemOptimistic: vi.fn(),
+      // Seeds the save precondition from the loaded order.
+      noteServerRow: vi.fn(),
+    }),
+  };
+});
 
 vi.mock("@/hooks/useOrderDetailRealtime", () => ({
   useOrderDetailRealtime: () => {},

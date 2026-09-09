@@ -4,6 +4,23 @@ import { useRef } from "react";
 import { useSWRConfig } from "swr";
 import { useRealtime } from "@/components/providers/RealtimeProvider";
 
+/**
+ * A save that lost a race: somebody else wrote the order between the moment
+ * this client last read it and the moment it tried to save.
+ *
+ * `fresh` is the winner's order in the same shape GET returns, so the caller
+ * can put it straight into the cache and show the user what actually happened
+ * rather than a rollback to a value that is also stale.
+ */
+export class OrderConflictError extends Error {
+  readonly fresh: Record<string, unknown>;
+  constructor(message: string, fresh: Record<string, unknown>) {
+    super(message);
+    this.name = "OrderConflictError";
+    this.fresh = fresh;
+  }
+}
+
 interface OrderItemSeed {
   product_id: string;
   product_name: string;
@@ -19,10 +36,55 @@ export function useOrderMutation(orderId: string) {
   const key = `/api/orders/${orderId}`;
   // Monotonic id — if two commits race, only the last response is applied
   const commitIdRef = useRef(0);
+  /**
+   * The `updated_at` this client last saw FROM THE SERVER, used as the save
+   * precondition. Deliberately not read from the SWR cache: `commit` writes an
+   * optimistic row there, so two quick edits by the same user would send the
+   * value the second edit typed over and the user's own save would conflict
+   * with their own previous one.
+   */
+  const serverStampRef = useRef<string | null>(null);
+  /** Commits are serialised per order, so the stamp is never read mid-flight. */
+  const inFlightRef = useRef<Promise<unknown>>(Promise.resolve());
+
+  /**
+   * Move the precondition forward, never backward.
+   *
+   * The panel re-seeds from whatever sits in the cache, and that can be an
+   * OLDER row than the one a save just returned: a realtime event patches
+   * `updated_at` in place, and a revalidation that started before the save can
+   * land after it. Taking such a row would send a stamp the server has already
+   * moved past, and the user's next edit would 409 against their own save.
+   */
+  function rememberStamp(row: unknown) {
+    const stamp = (row as { updated_at?: unknown } | null | undefined)?.updated_at;
+    if (typeof stamp !== "string") return;
+    const current = serverStampRef.current;
+    if (current !== null) {
+      const next = Date.parse(stamp);
+      const held = Date.parse(current);
+      // Compare as instants; fall through on an unparseable value rather than
+      // pinning the ref to something we cannot order.
+      if (!Number.isNaN(next) && !Number.isNaN(held) && next < held) return;
+    }
+    serverStampRef.current = stamp;
+  }
 
   async function commit(updates: Record<string, unknown>): Promise<void> {
+    // Wait for any commit already in flight: overlapping saves would both read
+    // the same stamp and the second would be a guaranteed false conflict.
+    const previous = inFlightRef.current;
+    let release: () => void = () => {};
+    inFlightRef.current = new Promise<void>((r) => {
+      release = r;
+    });
+    await previous.catch(() => {});
+
     const thisId = ++commitIdRef.current;
     editLock.lock("orders", orderId);
+
+    const body: Record<string, unknown> = { ...updates };
+    if (serverStampRef.current) body.expected_updated_at = serverStampRef.current;
 
     try {
       await mutate(
@@ -31,11 +93,20 @@ export function useOrderMutation(orderId: string) {
           const res = await fetch(key, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updates),
+            body: JSON.stringify(body),
           });
 
           if (!res.ok) {
             const err = await res.json();
+            if (err?.code === "conflict" && err.data) {
+              // Adopt the winner's stamp so an immediate retry is a real save
+              // and not a second conflict against the same known-stale value.
+              rememberStamp(err.data);
+              throw new OrderConflictError(
+                err.error ?? "Modifiée entre-temps",
+                err.data as Record<string, unknown>,
+              );
+            }
             throw new Error(err.error ?? "Request failed");
           }
 
@@ -43,6 +114,7 @@ export function useOrderMutation(orderId: string) {
           if (thisId !== commitIdRef.current) return current;
 
           const json = await res.json();
+          rememberStamp(json.data);
           return { data: json.data };
         },
         {
@@ -58,6 +130,7 @@ export function useOrderMutation(orderId: string) {
       );
     } finally {
       editLock.unlock("orders", orderId);
+      release();
     }
   }
 
@@ -277,5 +350,20 @@ export function useOrderMutation(orderId: string) {
     }
   }
 
-  return { commit, addItemOptimistic, patchItemOptimistic, deleteItemOptimistic };
+  /**
+   * Seed the precondition from a row the caller already has (a GET response, a
+   * realtime patch). Without it the first save of a freshly-opened panel would
+   * go unguarded.
+   */
+  function noteServerRow(row: unknown) {
+    rememberStamp(row);
+  }
+
+  return {
+    commit,
+    addItemOptimistic,
+    patchItemOptimistic,
+    deleteItemOptimistic,
+    noteServerRow,
+  };
 }

@@ -32,6 +32,12 @@ export interface CustomerCardProps {
   onCommitCity: (cityId: string) => void;
   onCommitDarbDestination: (destinationId: number) => void;
   onCommitNote: (v: string | null) => void;
+  /**
+   * Why the last save on this card did not land, if it did not. Rendered under
+   * the group rather than swallowed: an address or destination commit that
+   * fails used to show nothing but a 2.5s flash in the header.
+   */
+  saveError?: string | null;
 }
 
 /**
@@ -67,6 +73,7 @@ export function CustomerCard({
   onCommitCity,
   onCommitDarbDestination,
   onCommitNote,
+  saveError = null,
 }: CustomerCardProps) {
   const t = useTranslations("orders.detail");
 
@@ -116,8 +123,15 @@ export function CustomerCard({
     />
   );
 
+  const errorNote = saveError ? (
+    <div role="alert" className="text-[12px] text-oms-bad">
+      {saveError}
+    </div>
+  ) : null;
+
   return (
     <div className="flex flex-col gap-4">
+      {errorNote}
       <Group icon={<MapPin size={13} strokeWidth={2} aria-hidden />} label={t("groupDestination")}>
         <Row label={t("fieldAddress")}>
           <InlineField

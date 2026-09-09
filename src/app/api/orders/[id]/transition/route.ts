@@ -70,7 +70,20 @@ export async function POST(
   } catch (err) {
     const message = err instanceof Error ? err.message : "Transition failed";
     if (message.includes("invalid transition")) {
-      return NextResponse.json({ error: message }, { status: 400 });
+      // The RPC locks the row and re-checks the from-status, so this is what a
+      // lost race looks like: somebody moved the order between the read above
+      // and the write. Its message names the status the order actually holds
+      // ("invalid transition from <current> to <requested>"), so the caller can
+      // refresh to the truth instead of re-reading it.
+      //
+      // The status code stays 400: the queue and post-call callers already
+      // branch on it, and turning it into a 409 would change their behaviour
+      // for no gain. `code` is the machine-readable part.
+      const current = /invalid transition from (\S+) to /.exec(message)?.[1];
+      return NextResponse.json(
+        { error: message, code: "conflict", ...(current ? { status: current } : {}) },
+        { status: 400 },
+      );
     }
     if (message.includes("rejection_reason is required")) {
       return NextResponse.json({ error: message }, { status: 400 });

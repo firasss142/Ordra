@@ -51,7 +51,8 @@ import { canReopenOrder, EDIT_BLOCKED_STATUSES, isReferenceDeletedUpload } from 
 import { fetcher } from "@/lib/swr-config";
 import { isEditableTarget } from "@/lib/dom";
 import { type ComboboxOption } from "@/components/ui/Combobox";
-import { useOrderMutation } from "@/hooks/useOrderMutation";
+import { useOrderMutation, OrderConflictError } from "@/hooks/useOrderMutation";
+import { readActionFailure } from "@/lib/orders/action-failure";
 import { useOrderDetailRealtime } from "@/hooks/useOrderDetailRealtime";
 import { useCarriers } from "@/hooks/useCarriers";
 import { useMaxCallAttempts } from "@/hooks/useMaxCallAttempts";
@@ -480,9 +481,18 @@ export function OrderDetailPanel({
 
   const nameFieldRef = useRef<HTMLDivElement>(null);
 
-  const { commit, patchItemOptimistic, deleteItemOptimistic } = useOrderMutation(
-    orderId ?? "__none__",
-  );
+  const { commit, patchItemOptimistic, deleteItemOptimistic, noteServerRow } =
+    useOrderMutation(orderId ?? "__none__");
+
+  // Seed the save precondition from whatever the server last told us about this
+  // order — the initial GET, a revalidation, a realtime-driven refetch. Without
+  // this the first edit after opening the panel would save unguarded.
+  useEffect(() => {
+    if (order) noteServerRow(order);
+    // noteServerRow is stable for the life of the hook; re-running on every
+    // render would be noise.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id, order?.updated_at]);
 
   // An uploaded order whose carrier reference was deleted falls back into the
   // editable pool (treated like confirmed); otherwise uploaded is edit-blocked.
@@ -614,11 +624,19 @@ export function OrderDetailPanel({
         setTimeout(() => setSaveFlash(null), 1500);
       } catch (e) {
         setSaveFlash("error");
-        setSaveError(e instanceof Error ? e.message : t("inlineSaveError"));
+        if (e instanceof OrderConflictError) {
+          // Somebody else saved first. Put THEIR order in the cache — rolling
+          // back to our pre-edit value would show a number that is also wrong —
+          // and leave the field editable with the fresh value in it.
+          await mutate({ data: e.fresh as unknown as OrderDetail }, { revalidate: false });
+          setSaveError(t("conflictReloaded"));
+        } else {
+          setSaveError(e instanceof Error ? e.message : t("inlineSaveError"));
+        }
         setTimeout(() => setSaveFlash(null), 2500);
       }
     },
-    [commit, mutateProducts, t],
+    [commit, mutate, mutateProducts, t],
   );
 
   const runItemPatch = useCallback(
@@ -1033,7 +1051,18 @@ export function OrderDetailPanel({
           note: "Scheduled dispatch cancelled",
         }),
       });
-      if (res.ok) await mutate();
+      if (res.ok) {
+        await mutate();
+      } else {
+        // This used to be swallowed entirely: a failed cancel just stopped the
+        // spinner and left the schedule on screen. The common failure is a lost
+        // race — the cron uploaded the order while the panel was open — and the
+        // refresh is what makes the panel agree with the database again.
+        const body = await res.json().catch(() => null);
+        const failure = readActionFailure(res.status, body);
+        if (failure.conflict) await mutate();
+        setSaveError(failure.message ?? t("inlineSaveError"));
+      }
     } finally {
       setCancelingSchedule(false);
     }
@@ -1307,6 +1336,7 @@ export function OrderDetailPanel({
                     onCommitCity={(id) => runCommit({ city_id: id })}
                     onCommitDarbDestination={(id) => runCommit({ darb_destination_id: id })}
                     onCommitNote={(v) => runCommit({ customer_note: v })}
+                    saveError={saveError}
                   />
 
                   {/* Carrier-side detail lives with the delivery it describes,

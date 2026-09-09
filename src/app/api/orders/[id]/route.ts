@@ -102,6 +102,38 @@ export async function GET(
   });
 }
 
+/**
+ * The full detail payload for one order, in the exact shape GET returns.
+ *
+ * A 409 conflict hands the loser the winner's order so the panel can re-render
+ * from it instead of guessing; that payload has to be indistinguishable from a
+ * GET response or the panel would render a half-populated row.
+ */
+async function loadOrderDetail(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  id: string,
+): Promise<Record<string, unknown> | null> {
+  const { data: order } = await supabase.from("orders").select("*").eq("id", id).single();
+  if (!order) return null;
+
+  const [historyRes, itemsRes] = await Promise.all([
+    supabase
+      .from("order_history")
+      .select("id, status_from, status_to, note, actor_id, actor_type, created_at")
+      .eq("order_id", id)
+      .order("created_at", { ascending: true }),
+    supabase.from("order_items").select("*").eq("order_id", id).order("created_at", { ascending: true }),
+  ]);
+
+  const { raw_payload: _rp, ...orderFields } = order as Record<string, unknown>;
+
+  return {
+    ...orderFields,
+    history: (historyRes.data ?? []).map(toHistoryEntry),
+    order_items: itemsRes.data ?? [],
+  };
+}
+
 const SIMPLE_PATCHABLE_FIELDS = ["customer_name", "customer_phone", "customer_phone_2", "customer_address", "customer_city", "quantity"] as const;
 
 export async function PATCH(
@@ -145,6 +177,25 @@ export async function PATCH(
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  // Optimistic concurrency: the client sends back the `updated_at` it last saw
+  // from the server, and the UPDATE below carries it as a precondition. The
+  // string is passed through VERBATIM — the BEFORE trigger `update_updated_at`
+  // stamps now() with microsecond precision, and normalising it through
+  // `new Date(x).toISOString()` (milliseconds) would truncate the value and
+  // make every save a false conflict. Validation is therefore only "does this
+  // parse as a date at all".
+  let expectedUpdatedAt: string | null = null;
+  if ("expected_updated_at" in body && body.expected_updated_at != null) {
+    const raw = body.expected_updated_at;
+    if (typeof raw !== "string" || Number.isNaN(Date.parse(raw))) {
+      return NextResponse.json(
+        { error: "expected_updated_at must be an ISO timestamp" },
+        { status: 400 },
+      );
+    }
+    expectedUpdatedAt = raw;
   }
 
   const updates: Record<string, unknown> = {};
@@ -402,7 +453,9 @@ export async function PATCH(
     return NextResponse.json({ error: "No editable fields provided" }, { status: 400 });
   }
 
-  updates.updated_at = new Date().toISOString();
+  // NOT `updates.updated_at = …`: the BEFORE trigger `update_updated_at` stamps
+  // it, so writing it here was always dead code — and now it would fight the
+  // precondition below.
 
   // `total_price` is always derived, so it never belongs in the audit note —
   // it moves on every quantity, product and fee edit. `unit_price` is derived
@@ -442,20 +495,40 @@ export async function PATCH(
   // it landed even when the UPDATE did not, writing an edit that never happened
   // into an append-only timeline. It now runs only after the UPDATE is
   // confirmed to have touched a row.
-  const { data: updatedRows, error: updateError } = await supabase
-    .from("orders")
-    .update(updates)
-    .eq("id", id)
-    .select("id");
+  let updateQuery = supabase.from("orders").update(updates).eq("id", id);
+  if (expectedUpdatedAt !== null) {
+    updateQuery = updateQuery.eq("updated_at", expectedUpdatedAt);
+  }
+  const { data: updatedRows, error: updateError } = await updateQuery.select("id");
 
   if (updateError) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   if (!updatedRows || updatedRows.length === 0) {
-    // The row exists (it was read above) and the caller passed the permission
-    // check, so a zero-row result means the database refused the write — today
-    // that is orders_update's status allow-list, which is narrower than
+    // Zero rows has two causes and they need different answers.
+    //
+    // With a precondition, the usual one is that somebody else saved first:
+    // re-read the row, and if its stamp has moved, this caller lost the race.
+    // Hand back the winner's order so the panel can show what actually
+    // happened instead of rolling back to a value that is also stale.
+    if (expectedUpdatedAt !== null) {
+      const fresh = await loadOrderDetail(supabase, id);
+      if (fresh && fresh.updated_at !== expectedUpdatedAt) {
+        return NextResponse.json(
+          {
+            error: "Cette commande a été modifiée entre-temps.",
+            code: "conflict",
+            data: fresh,
+          },
+          { status: 409 },
+        );
+      }
+    }
+
+    // The row exists (it was read above), the caller passed the permission
+    // check, and nobody moved the stamp — so the database refused the write.
+    // Today that is orders_update's status allow-list, which is narrower than
     // EDIT_WINDOWED_STATUSES. Tell the agent rather than pretending it saved.
     return NextResponse.json(
       { error: "Cette commande ne peut plus être modifiée." },

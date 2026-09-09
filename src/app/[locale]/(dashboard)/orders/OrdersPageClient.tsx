@@ -13,6 +13,7 @@ import { useMarketScope } from "@/context/market-scope";
 import { fetcher } from "@/lib/swr-config";
 import { useOrdersList, type OrdersListPage, type OrdersListRow } from "@/hooks/useOrdersList";
 import { ordersTopic, useOrdersRealtime } from "@/hooks/useOrdersRealtime";
+import { readActionFailure } from "@/lib/orders/action-failure";
 import { useBroadcastConnected } from "@/components/providers/RealtimeProvider";
 import {
   clearFilterField,
@@ -371,6 +372,23 @@ export function OrdersPageClient({
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [recoveringId, setRecoveringId] = useState<string | null>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
+  /**
+   * Surface a failed action, and refresh the list first when the failure means
+   * the user was looking at a stale row (somebody else acted on the order).
+   * Without the refresh the banner tells them it changed while the table keeps
+   * showing the status they just tried to act on.
+   */
+  const reportFailure = useCallback(
+    async (res: Response, fallback: string) => {
+      const body = await res.json().catch(() => null);
+      const failure = readActionFailure(res.status, body);
+      if (failure.conflict) await mutate();
+      setErrorBanner(failure.message ?? fallback);
+      setTimeout(() => setErrorBanner(null), 4000);
+    },
+    [mutate],
+  );
+
   const handleCancel = useCallback(
     async (id: string) => {
       const note = window.prompt(t("cancelPrompt"));
@@ -383,9 +401,7 @@ export function OrdersPageClient({
           body: JSON.stringify({ note: note.trim() || "Force cancel" }),
         });
         if (!res.ok) {
-          const json = await res.json().catch(() => ({}));
-          setErrorBanner((json as { error?: string }).error ?? t("cancelError"));
-          setTimeout(() => setErrorBanner(null), 4000);
+          await reportFailure(res, t("cancelError"));
         } else {
           await mutate();
         }
@@ -396,7 +412,7 @@ export function OrdersPageClient({
         setCancellingId(null);
       }
     },
-    [mutate, t],
+    [mutate, reportFailure, t],
   );
 
   const handleRecover = useCallback(
@@ -409,9 +425,7 @@ export function OrdersPageClient({
           headers: { "Content-Type": "application/json" },
         });
         if (!res.ok) {
-          const json = await res.json().catch(() => ({}));
-          setErrorBanner((json as { error?: string }).error ?? t("recoverError"));
-          setTimeout(() => setErrorBanner(null), 4000);
+          await reportFailure(res, t("recoverError"));
         } else {
           await mutate();
         }
@@ -422,7 +436,7 @@ export function OrdersPageClient({
         setRecoveringId(null);
       }
     },
-    [mutate, t],
+    [mutate, reportFailure, t],
   );
 
   // ---------- Bulk actions ----------
@@ -438,11 +452,10 @@ export function OrdersPageClient({
         clearSelection();
         await mutate();
       } else {
-        setErrorBanner(t("bulkAssignError"));
-        setTimeout(() => setErrorBanner(null), 4000);
+        await reportFailure(res, t("bulkAssignError"));
       }
     },
-    [selectedIds, clearSelection, mutate, t],
+    [selectedIds, clearSelection, mutate, reportFailure, t],
   );
   const handleBulkCancel = useCallback(async () => {
     if (!window.confirm(t("bulkCancelConfirm", { count: selectedIds.size }))) return;
@@ -456,11 +469,9 @@ export function OrdersPageClient({
       clearSelection();
       await mutate();
     } else {
-      const json = await res.json().catch(() => ({}));
-      setErrorBanner((json as { error?: string }).error ?? t("bulkCancelError"));
-      setTimeout(() => setErrorBanner(null), 4000);
+      await reportFailure(res, t("bulkCancelError"));
     }
-  }, [selectedIds, clearSelection, mutate, t]);
+  }, [selectedIds, clearSelection, mutate, reportFailure, t]);
 
   // ---------- Filter patch helpers ----------
   const handleClearField = useCallback(

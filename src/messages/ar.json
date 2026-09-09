@@ -1435,7 +1435,8 @@
       "groupCarrier": "شركة التوصيل",
       "addressEmpty": "أضف عنوانًا…",
       "trackingPending": "عند الإرسال إلى شركة التوصيل",
-      "carrierPending": "لم يُحدَّد بعد"
+      "carrierPending": "لم يُحدَّد بعد",
+      "conflictReloaded": "عُدّلت في هذه الأثناء من مستخدم آخر — أُعيد تحميل القيم."
     },
     "scheduleDispatch": {
       "title": "جدولة التوصيل",

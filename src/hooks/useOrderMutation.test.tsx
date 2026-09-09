@@ -2,7 +2,7 @@ import { renderHook, act } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { SWRConfig } from "swr";
 import React from "react";
-import { useOrderMutation } from "./useOrderMutation";
+import { useOrderMutation, OrderConflictError } from "./useOrderMutation";
 import { RealtimeProvider } from "@/components/providers/RealtimeProvider";
 
 const ORDER_ID = "order-abc";
@@ -293,5 +293,161 @@ describe("useOrderMutation", () => {
         await result.current.deleteItemOptimistic("item-1");
       })
     ).rejects.toThrow("Cannot remove the last item from an order");
+  });
+
+  // ── Optimistic concurrency ────────────────────────────────────────────────
+  describe("conflict handling", () => {
+    const STAMP_A = "2026-09-10T08:00:00.123456+00:00";
+    const STAMP_B = "2026-09-10T09:30:00.654321+00:00";
+
+    it("sends no expected_updated_at until it has seen one from the server", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ data: { id: ORDER_ID, updated_at: STAMP_A } }),
+      });
+      vi.stubGlobal("fetch", mockFetch);
+
+      const { result } = renderHook(() => useOrderMutation(ORDER_ID), { wrapper });
+      await act(async () => {
+        await result.current.commit({ customer_name: "Bob" });
+      });
+
+      expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({ customer_name: "Bob" });
+    });
+
+    it("sends the stamp the SERVER last returned, not the optimistic one", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ data: { id: ORDER_ID, updated_at: STAMP_A } }),
+      });
+      vi.stubGlobal("fetch", mockFetch);
+
+      const { result } = renderHook(() => useOrderMutation(ORDER_ID), { wrapper });
+      await act(async () => {
+        await result.current.commit({ customer_name: "Bob" });
+      });
+      await act(async () => {
+        await result.current.commit({ customer_name: "Carla" });
+      });
+
+      // The second commit carries the stamp the FIRST response reported.
+      // Reading it from the optimistic cache instead would send the value the
+      // user typed over, and the user's own second edit would 409 against
+      // their own first.
+      const second = JSON.parse(mockFetch.mock.calls[1][1].body);
+      expect(second.expected_updated_at).toBe(STAMP_A);
+      expect(second.customer_name).toBe("Carla");
+    });
+
+    it("throws OrderConflictError and adopts the server's order on a 409 conflict", async () => {
+      const fresh = { id: ORDER_ID, customer_name: "Winner", updated_at: STAMP_B };
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 409,
+          json: () =>
+            Promise.resolve({ error: "Modifiée entre-temps", code: "conflict", data: fresh }),
+        }),
+      );
+
+      const { result } = renderHook(() => useOrderMutation(ORDER_ID), { wrapper });
+
+      let caught: unknown;
+      await act(async () => {
+        try {
+          await result.current.commit({ customer_name: "Loser" });
+        } catch (e) {
+          caught = e;
+        }
+      });
+
+      expect(caught).toBeInstanceOf(OrderConflictError);
+      expect((caught as OrderConflictError).fresh).toEqual(fresh);
+    });
+
+    it("a plain (non-conflict) error is still a plain Error", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 409,
+          json: () => Promise.resolve({ error: "Cette commande ne peut plus être modifiée." }),
+        }),
+      );
+
+      const { result } = renderHook(() => useOrderMutation(ORDER_ID), { wrapper });
+
+      let caught: unknown;
+      await act(async () => {
+        try {
+          await result.current.commit({ customer_name: "Bob" });
+        } catch (e) {
+          caught = e;
+        }
+      });
+
+      expect(caught).toBeInstanceOf(Error);
+      expect(caught).not.toBeInstanceOf(OrderConflictError);
+      expect((caught as Error).message).toContain("ne peut plus");
+    });
+
+    it("never regresses the stamp to an older one", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ data: { id: ORDER_ID, updated_at: STAMP_B } }),
+      });
+      vi.stubGlobal("fetch", mockFetch);
+
+      const { result } = renderHook(() => useOrderMutation(ORDER_ID), { wrapper });
+      await act(async () => {
+        await result.current.commit({ customer_name: "Bob" });
+      });
+
+      // A realtime event or a slow revalidation can put an OLDER row into the
+      // cache after a save has already resolved. Seeding from it must not undo
+      // what the save just learned, or the next edit would 409 against a stamp
+      // the server has already moved past.
+      act(() => {
+        result.current.noteServerRow({ id: ORDER_ID, updated_at: STAMP_A });
+      });
+
+      await act(async () => {
+        await result.current.commit({ customer_name: "Carla" });
+      });
+
+      expect(JSON.parse(mockFetch.mock.calls[1][1].body).expected_updated_at).toBe(STAMP_B);
+    });
+
+    it("adopts the conflicting order's stamp, so the next save is not a second conflict", async () => {
+      const fresh = { id: ORDER_ID, customer_name: "Winner", updated_at: STAMP_B };
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 409,
+          json: () =>
+            Promise.resolve({ error: "Modifiée entre-temps", code: "conflict", data: fresh }),
+        })
+        .mockResolvedValue({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ data: { id: ORDER_ID, updated_at: STAMP_B } }),
+        });
+      vi.stubGlobal("fetch", mockFetch);
+
+      const { result } = renderHook(() => useOrderMutation(ORDER_ID), { wrapper });
+      await act(async () => {
+        await result.current.commit({ customer_name: "Loser" }).catch(() => {});
+      });
+      await act(async () => {
+        await result.current.commit({ customer_name: "Retry" });
+      });
+
+      expect(JSON.parse(mockFetch.mock.calls[1][1].body).expected_updated_at).toBe(STAMP_B);
+    });
   });
 });
