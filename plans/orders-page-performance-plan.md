@@ -257,9 +257,10 @@ or the plan file that functions must stay in `fra1` while the DB is in `eu-centr
 
 **Gate record (2026-09-09 22:05 UTC):** `vercel.json` now carries `"regions": ["fra1"]`,
 deployed from `main` (commit b31af6b). (1) `x-vercel-id: cdg1::fra1::…` on production.
-(2) and (3) to be read within 24 h from the Supabase edge logs (colo + p50) and a browser
-pass; the Playwright session was closed by the user before the post-deploy pass, so the
-browser numbers are pending. Step 2 DONE on gate 1; Step 3 may start.
+(2) Supabase edge logs, first minutes after deploy: FRA colo p50 46 ms vs IAD 216 ms for
+`authenticated` in the same window. (3) Browser reload of the Orders page (Libya):
+`/api/orders/list` 417 ms, `status-counts` 1,081 ms, `facet-counts` 769 ms — every call
+under 1.1 s, against 4,900–5,900 ms at baseline. Step 2 DONE.
 
 
 ---
@@ -308,8 +309,11 @@ counts), never an RSC round trip.
 typecheck and `npm run build` green. Full suite: 10 failures in 5 unrelated files
 (`market-scope`, `DatePicker`, `leads/metrics`, `webhook-handler`, `buybox-adapter`) —
 verified identical on the untouched tree, pre-existing. `npm run lint` is an interactive
-ESLint bootstrap prompt in this repo (no config), not a check. Gate 2 (no `?_rsc=` request
-on a facet click, in DevTools) pending a browser pass after deploy. Step 3 DONE on gate 1.
+ESLint bootstrap prompt in this repo (no config), not a check. (2) Verified on production with Playwright: clicking the "Appel" facet →
+"Rappel prévu" produced **zero `?_rsc=` requests** and exactly two API calls
+(`/api/orders/list` + `/api/orders/facet-counts`); the table filtered to 12 rows, all
+"Rappel prévu", the URL became `?status=callback_scheduled`, and a hard reload of that URL
+reproduces the same 12 rows (list 533 ms). No skeleton flash. Step 3 DONE.
 
 
 ---
@@ -715,3 +719,17 @@ or Libyan connection: the Orders page paints rows with thumbnails in under 1.5 s
 click or search pause returns in under 0.7 s, status changes and new orders appear without
 refresh within 2 s, conflicting edits are reported instead of overwritten, and a
 destination edit updates the carrier badges in one request.
+
+## Progress after Steps 1–3 (production, 2026-09-09 22:30 UTC)
+
+| Orders page, Libya, 25 rows | Baseline | Now |
+|---|---|---|
+| `/api/orders/list` | 5,945 ms | 417 ms |
+| `/api/orders/status-counts` | 5,183 ms | 1,081 ms |
+| `/api/orders/facet-counts` | 5,142 ms | 769 ms |
+| Reference lists (agents, products, carriers, cities) | 4,900–5,200 ms | 250–780 ms |
+| Requests per facet click | 3 (incl. a full RSC page re-render) | 2 |
+
+Remaining known costs on this page, in plan order: the KPI strip is still eight round trips
+(Step 9) and is now the slowest call on the page; realtime is still `postgres_changes`
+(Step 4); thumbnails are still full-size originals (Step 7).
