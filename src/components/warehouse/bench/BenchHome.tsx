@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Check, PackageOpen } from "lucide-react";
+import { Check, PackageOpen, Warehouse } from "lucide-react";
 import { jsonFetcher } from "@/lib/fetchers";
 import { DARB_ZONE_ORDER, zoneLabels } from "@/lib/carriers/darb-zones";
 import type { PrepRow } from "@/components/warehouse/console/PrepCard";
@@ -70,12 +70,25 @@ export function BenchHome({
   currency,
   initialOrders,
   initialStats,
+  siteName,
+  siteUnassigned,
 }: {
   market: "ly" | "tn";
   locale: string;
   currency: string;
   initialOrders: PrepRow[];
   initialStats: BenchStats;
+  /**
+   * The building this bench belongs to, named.
+   *
+   * The coloured plate on each card is `toBranchGroup` — the DESTINATION
+   * branch, not the account the parcel was booked on — so two parcels bound for
+   * Sebha look identical whether they came from Tripoli or Benghazi. Naming the
+   * site once, at the top, is what tells the agent where they are standing.
+   */
+  siteName?: string | null;
+  /** Nobody has assigned this agent to a building: there is no work to show. */
+  siteUnassigned?: boolean;
 }) {
   const t = useTranslations("warehouse.bench");
   const tAge = useTranslations("warehouse.age");
@@ -200,6 +213,27 @@ export function BenchHome({
   const carrierWarehouse = page?.carrierWarehouse ?? initialStats.carrierWarehouse;
   const toHandOver = summary?.queue?.toHandOver ?? initialStats.toHandOver;
 
+  /*
+   * No building, no bench. The queue is empty on purpose — an agent with no site
+   * would otherwise be shown both buildings' parcels, which is how a Benghazi
+   * parcel ends up handed to Darb Tripoli. Every scan would be refused anyway,
+   * so offering the camera would be a trap; the screen names the reason instead.
+   */
+  if (siteUnassigned) {
+    return (
+      <div className="px-4 py-4">
+        <h1 className="text-[22px] font-bold leading-tight tracking-[-0.01em] text-wm-ink">{t("title")}</h1>
+        <div
+          data-testid="wh-bench-no-site"
+          className="mt-4 rounded-[14px] border border-wm-card-edge bg-wm-card px-4 py-6 text-center"
+        >
+          <p className="text-[16px] font-bold text-wm-ink">{t("noSiteTitle")}</p>
+          <p className="mt-2 text-[14px] leading-relaxed text-wm-ink-2">{t("noSiteBody")}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 py-4">
       <div className="flex items-center justify-between gap-2.5">
@@ -211,6 +245,17 @@ export function BenchHome({
           {t("scannedToday")} <b data-testid="wh-bench-scanned" className="tabular-nums text-wm-ink">{scannedToday}</b>
         </span>
       </div>
+
+      {/* The building. Only where there is more than one to confuse it with. */}
+      {siteName ? (
+        <p
+          data-testid="wh-bench-site"
+          className="mt-1 flex items-center gap-1.5 text-[13.5px] font-semibold text-wm-ink-2"
+        >
+          <Warehouse size={14} strokeWidth={2} aria-hidden="true" />
+          {siteName}
+        </p>
+      ) : null}
 
       {/* ── The one figure ───────────────────────────────────────────── */}
       <div

@@ -3520,7 +3520,9 @@
       "segmentBench": "للتحضير",
       "segmentScanned": "تم مسحها",
       "confirmParcel": "نعم، هذا هو الطرد",
-      "wrongParcel": "ليس هذا الطرد"
+      "wrongParcel": "ليس هذا الطرد",
+      "noSiteTitle": "لا يوجد مستودع",
+      "noSiteBody": "حسابك غير مرتبط بأي مبنى. اطلب من مسؤولك ربطك بطرابلس أو بنغازي."
     },
     "scanned": {
       "awaitingPickup": "{n} بانتظار الشركة",

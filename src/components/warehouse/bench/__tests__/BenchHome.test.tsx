@@ -197,3 +197,83 @@ describe("BenchHome — take, scan, next", () => {
     expect(screen.getByText("محمد علي").closest("article")).toHaveAttribute("data-held", "true");
   });
 });
+
+/**
+ * Which building the agent is standing in.
+ *
+ * The coloured plate on every card shows `toBranchGroup` — the DESTINATION
+ * branch, not the account the parcel was booked on. Two parcels bound for Sebha
+ * look identical whether they came from the Tripoli or the Benghazi account, so
+ * nothing on screen distinguished the two buildings. Naming the site once, at
+ * the top, is what makes the bench say where it belongs.
+ */
+describe("BenchHome — the building", () => {
+  it("names the building the bench belongs to", () => {
+    render(
+      <Intl locale="ar">
+        <BenchHome
+          market="ly"
+          locale="ar"
+          currency="LYD"
+          initialOrders={[red1]}
+          initialStats={stats}
+          siteName="بنغازي"
+        />
+      </Intl>,
+    );
+    expect(screen.getByTestId("wh-bench-site")).toHaveTextContent("بنغازي");
+  });
+
+  it("says nothing when the market has no second building to confuse it with", () => {
+    render(
+      <Intl locale="fr">
+        <BenchHome
+          market="tn"
+          locale="fr"
+          currency="TND"
+          initialOrders={[red1]}
+          initialStats={stats}
+        />
+      </Intl>,
+    );
+    expect(screen.queryByTestId("wh-bench-site")).not.toBeInTheDocument();
+  });
+
+  /*
+   * The empty bench that explains itself. An unassigned agent is now shown
+   * nothing at all — without this the screen looks broken and the agent goes
+   * looking for parcels that were never theirs.
+   */
+  it("an unassigned agent is told to see their manager, not shown an empty bench", () => {
+    render(
+      <Intl locale="fr">
+        <BenchHome
+          market="ly"
+          locale="fr"
+          currency="LYD"
+          initialOrders={[]}
+          initialStats={{ ...stats, toPrepare: 0 }}
+          siteUnassigned
+        />
+      </Intl>,
+    );
+    expect(screen.getByTestId("wh-bench-no-site")).toBeInTheDocument();
+  });
+
+  it("an unassigned agent gets no scan affordance at all", () => {
+    render(
+      <Intl locale="fr">
+        <BenchHome
+          market="ly"
+          locale="fr"
+          currency="LYD"
+          initialOrders={[]}
+          initialStats={{ ...stats, toPrepare: 0 }}
+          siteUnassigned
+        />
+      </Intl>,
+    );
+    // Offering a camera to someone whose every scan will be refused is a trap.
+    expect(screen.queryByTestId("wh-bench-hero")).not.toBeInTheDocument();
+  });
+});

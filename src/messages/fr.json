@@ -3520,7 +3520,9 @@
       "segmentBench": "À préparer",
       "segmentScanned": "Scannés",
       "confirmParcel": "C'est bien ce colis",
-      "wrongParcel": "Ce n'est pas le bon colis"
+      "wrongParcel": "Ce n'est pas le bon colis",
+      "noSiteTitle": "Aucun entrepôt",
+      "noSiteBody": "Votre compte n'est rattaché à aucun bâtiment. Demandez à votre responsable de vous affecter à Tripoli ou à Benghazi."
     },
     "scanned": {
       "awaitingPickup": "{n} en attente du transporteur",

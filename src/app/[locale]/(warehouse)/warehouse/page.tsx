@@ -42,7 +42,31 @@ export default async function WarehouseOverviewPage({
     // painting the market's whole queue first and correcting it a second later
     // would show a Benghazi agent 365 Tripoli parcels they cannot touch.
     const site = await resolveSiteFilter(supabase, { actor: user, requested: null });
-    const [summary, { data }, zoneIndex] = await Promise.all([
+
+    /*
+     * Nobody has assigned this agent to a building. Rendering the market's queue
+     * would mix Tripoli and Benghazi on one bench, and every scan would be
+     * refused by the SQL guard anyway — so the screen explains itself instead of
+     * offering work that cannot be done.
+     */
+    if (site.unassigned) {
+      const market: "ly" | "tn" = marketCode === "ly" ? "ly" : "tn";
+      return (
+        <BenchHome
+          market={market}
+          locale={locale}
+          currency={market === "ly" ? "LYD" : "TND"}
+          initialOrders={[]}
+          initialStats={{
+            toPrepare: 0, oldestHours: 0, scannedToday: 0,
+            toHandOver: 0, carrierWarehouse: 0,
+          }}
+          siteUnassigned
+        />
+      );
+    }
+
+    const [summary, { data }, zoneIndex, siteName] = await Promise.all([
       getWarehouseSummary({
         role: user.role,
         actorMarketId: user.market_id,
@@ -57,6 +81,16 @@ export default async function WarehouseOverviewPage({
         p_warehouse_id: site.warehouseId,
       }),
       getZoneIndex(supabase),
+      // The building's own name, in the market's language — it is a place name
+      // painted on a wall, so it is never translated by key.
+      site.warehouseId
+        ? supabase
+            .from("warehouses")
+            .select("name_fr, name_ar")
+            .eq("id", site.warehouseId)
+            .maybeSingle<{ name_fr: string; name_ar: string }>()
+            .then((r) => (marketCode === "ly" ? r.data?.name_ar : r.data?.name_fr) ?? null)
+        : Promise.resolve(null),
     ]);
     const pictured = await attachProductImages(supabase, (data ?? []) as unknown as WarehouseOrderRow[]);
     const orders = pictured.map((row) => ({
@@ -77,6 +111,7 @@ export default async function WarehouseOverviewPage({
           toHandOver: summary.queue.toHandOver,
           carrierWarehouse: summary.queue.carrierWarehouse ?? 0,
         }}
+        siteName={siteName}
       />
     );
   }
