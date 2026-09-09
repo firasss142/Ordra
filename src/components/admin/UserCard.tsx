@@ -4,6 +4,7 @@ import React, { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { MoreHorizontal, History, KeyRound, UserX, UserCheck, Trash2 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
+import { WarehouseAssignment } from "./WarehouseAssignment";
 import { getPresence, PRESENCE_COLOR } from "@/lib/presence";
 import type { Role, UserWithStats } from "@/types";
 
@@ -23,6 +24,8 @@ interface Props {
   onResetPassword: () => void;
   onViewAuditLog: () => void;
   onDelete: () => void;
+  /** Assign this warehouse agent to a building. Absent = not administrable here. */
+  onSetWarehouse?: (warehouseId: string | null) => Promise<void>;
 }
 
 function relativeTime(iso: string | null): string {
@@ -54,6 +57,7 @@ export function UserCard({
   onResetPassword,
   onViewAuditLog,
   onDelete,
+  onSetWarehouse,
 }: Props) {
   const t = useTranslations("users");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -173,6 +177,24 @@ export function UserCard({
             </span>
           )}
         </div>
+
+        {/*
+          The building, for warehouse agents only.
+          Libya's two warehouses are one Darb Assabil account each: a parcel
+          booked on one cannot be handed to the other, so this decides which
+          parcels the agent may touch. An agent with no building sees an empty
+          bench by design, and the control says so in red.
+        */}
+        {user.role === "warehouse_agent" && onSetWarehouse && (
+          <div style={{ marginTop: 6 }}>
+            <WarehouseAssignment
+              marketId={user.market_id}
+              warehouseId={user.warehouse_id}
+              onChange={onSetWarehouse}
+              disabled={isDisabled}
+            />
+          </div>
+        )}
 
         <div style={{ fontSize: 13, color: "#6D7175", marginTop: 2 }}>
           {user.email}

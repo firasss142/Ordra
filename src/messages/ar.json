@@ -3651,7 +3651,14 @@
         "password_reset": "تمت إعادة تعيين كلمة المرور",
         "avatar_updated": "تم تحديث الصورة"
       }
-    }
+    },
+    "warehouse": "المستودع",
+    "warehouseNone": "لا يوجد مستودع",
+    "warehouseUnassigned": "لا يوجد مستودع",
+    "warehousePlaceholder": "اختر مستودعًا",
+    "warehouseHint": "يحدّد الطرود التي يجهّزها هذا الموظف ويمكنه مسحها.",
+    "warehouseSaving": "جارٍ الحفظ…",
+    "warehouseError": "تعذّر حفظ المستودع"
   },
   "permissions": {
     "title": "الصلاحيات",

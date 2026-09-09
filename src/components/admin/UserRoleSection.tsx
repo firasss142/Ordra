@@ -21,6 +21,8 @@ interface Props {
   onResetPassword: (user: UserWithStats) => void;
   onViewAuditLog: (id: string) => void;
   onDelete: (user: UserWithStats) => void;
+  /** Assign a warehouse agent to a building. Absent = not administrable here. */
+  onSetWarehouse?: (user: UserWithStats, warehouseId: string | null) => Promise<void>;
 }
 
 function groupByStatus(users: UserWithStats[]) {
@@ -52,6 +54,7 @@ export function UserRoleSection({
   onResetPassword,
   onViewAuditLog,
   onDelete,
+  onSetWarehouse,
 }: Props) {
   const t = useTranslations("users");
   const { active, invited, disabled } = groupByStatus(users);
@@ -87,6 +90,9 @@ export function UserRoleSection({
             onResetPassword={() => onResetPassword(u)}
             onViewAuditLog={() => onViewAuditLog(u.id)}
             onDelete={() => onDelete(u)}
+            onSetWarehouse={
+              onSetWarehouse ? (wid) => onSetWarehouse(u, wid) : undefined
+            }
           />
         ))}
       </div>

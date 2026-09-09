@@ -41,7 +41,8 @@ function groupUsersByRole(users: UserWithStats[]): Partial<Record<Role, UserWith
 
 export function UsersPageClient({ user }: Props) {
   const t = useTranslations("users");
-  const { users, isLoading, createUser, deactivateUser, reactivateUser, deleteUser } = useUsersWorkspace();
+  const { users, isLoading, createUser, deactivateUser, reactivateUser, deleteUser, setWarehouse } =
+    useUsersWorkspace();
   const { data: marketsData } = useSWR<{ data: Market[] }>(
     user.role === "super_admin" ? "/api/markets" : null,
     fetcher
@@ -143,6 +144,12 @@ export function UsersPageClient({ user }: Props) {
               onResetPassword={(u) => setResetPasswordUser(u)}
               onViewAuditLog={(id) => setAuditLogUserId(id)}
               onDelete={(u) => setDeletingUser(u)}
+              onSetWarehouse={async (u, warehouseId) => {
+                // Throws on failure: WarehouseAssignment shows the error itself
+                // rather than a toast that scrolls away from the control.
+                await setWarehouse(u.id, warehouseId);
+                showToast(t("warehouse") + " ✓");
+              }}
             />
           );
         })}

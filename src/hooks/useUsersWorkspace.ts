@@ -15,6 +15,8 @@ export function useUsersWorkspace() {
     password: string;
     role: string;
     market_id?: string;
+    /** The building, for a warehouse agent only. */
+    warehouse_id?: string;
   }): Promise<void> {
     const res = await fetch("/api/users", {
       method: "POST",
@@ -83,11 +85,30 @@ export function useUsersWorkspace() {
     return body.avatar_url ?? null;
   }
 
+  /**
+   * Which building a warehouse agent works out of. `null` un-assigns.
+   *
+   * Libya's two warehouses are one Darb Assabil account each, and a parcel
+   * booked on one cannot be handed to the other — so this is not a preference,
+   * it decides which parcels the agent may touch at all.
+   */
+  async function setWarehouse(id: string, warehouseId: string | null): Promise<void> {
+    const res = await fetch(`/api/agents/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "set_warehouse", warehouse_id: warehouseId }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error ?? "Erreur lors de l'affectation");
+    await mutate();
+  }
+
   return {
     users: data?.data ?? [],
     isLoading,
     mutate,
     createUser,
+    setWarehouse,
     deactivateUser,
     reactivateUser,
     deleteUser,

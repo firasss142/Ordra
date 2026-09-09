@@ -3651,7 +3651,14 @@
         "password_reset": "Mot de passe réinitialisé",
         "avatar_updated": "Photo mise à jour"
       }
-    }
+    },
+    "warehouse": "Entrepôt",
+    "warehouseNone": "Aucun entrepôt",
+    "warehouseUnassigned": "Aucun entrepôt",
+    "warehousePlaceholder": "Choisir un entrepôt",
+    "warehouseHint": "Détermine les colis que cet agent prépare et peut scanner.",
+    "warehouseSaving": "Enregistrement…",
+    "warehouseError": "Impossible d'enregistrer l'entrepôt"
   },
   "permissions": {
     "title": "Permissions",
