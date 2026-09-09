@@ -156,6 +156,7 @@ refus_client | faux_numero | doublon | injoignable | prix | non_serieux | autre 
 - Entrepôt mobile agent shell (mockups + which figure comes from which query): docs/design/entrepot/mobile/README.md
 - Warehouse agent shell v2, bench-first (critique, prototype, decisions of 2026-09-08): plans/warehouse-agent-ux-critique.md + prototypes/warehouse-agent-v2.html
 - Libya warehouse E2E fixture (Darb sandbox, seed/teardown, audit findings): docs/warehouse-e2e-fixture.md + plans/warehouse-ly-e2e-test-fixture.md
+- Orders page performance + real-time (steps 1–5 landed, invariants, how to re-check): docs/orders-page-performance.md + plans/orders-page-performance-plan.md
 
 
 - super_admin: admin@oms.local / testpass123

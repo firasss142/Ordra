@@ -228,6 +228,20 @@ mean is cumulative since 2026-09-08 and still shows the old figure; first post-m
 call registered `min_exec_time` 43.1 ms — re-read within 24 h. Vitest: list route,
 `detect.ts`, `classify.ts` suites green (42 tests). Step 1 DONE; Step 2 may start.
 
+**Deferred gate 2, closed 2026-09-09 23:43 UTC.** The `pg_stat_statements` re-read was
+never going to answer the question as written: its counters are cumulative since the
+2026-09-08 reset, so the mean kept averaging in the pre-migration calls (still showing
+2,491 ms over 656 calls). Measured directly instead, on production, against a real
+25-order LY page, impersonating a signed-in super_admin — the functions are
+`SECURITY DEFINER` behind a caller-market guard, so an unauthenticated session returns
+0 rows in ~2 ms and looks deceptively fast, which is the trap to avoid when re-checking:
+
+  get_customer_history_batch   25.5 ms / 25 rows   (baseline mean 2,625 ms, max 7,377 ms)
+  get_duplicate_orders_batch    9.1 ms / 25 rows   (baseline mean 126 ms)
+
+`pg_stat_statements_reset()` was then run (2026-09-09 23:43:45 UTC) so subsequent
+readings contain post-fix calls only.
+
 
 ---
 
@@ -541,6 +555,34 @@ manager is cancelling → the manager gets the banner and the list shows `confir
 
 **Rollback:** the body field is optional, so reverting the client alone restores the old
 behaviour.
+
+**Gate record (2026-09-09 23:45 UTC):** commit `485bc32`, deploy from `main`.
+
+Gate 1 — tests. 80 tests green across the seven affected files: `patch.test.ts` (34, incl.
+7 new precondition cases), `useOrderMutation.test.tsx` (18, incl. 6 new), `transition/
+route.test.ts` (8, incl. 3 new), `action-failure.test.ts` (5, new), `CustomerCard.test.tsx`
+(3, new), `OrderDetailPanel.test.tsx` (8), `useOrdersRealtime.test.tsx` (4). Typecheck and
+build clean. Full suite failing-FILE set is byte-identical to the untouched tree
+(`git stash` comparison): 25 pre-existing failures in 15 unrelated files, zero regressions.
+One regression was found and fixed during the step — `OrderDetailPanel.test.tsx` mocks
+`useOrderMutation` wholesale and needed `noteServerRow` plus the real `OrderConflictError`
+via `importActual`, since the panel branches on `instanceof`.
+
+Gate 2 — the precondition itself, verified on production data inside a rolled-back
+transaction rather than against mocks (a mock cannot prove PostgREST preserves microsecond
+precision, which is the one assumption that would silently break every save):
+`updated_at` is stored to the microsecond (`23:33:25.295959+00`) and round-trips exactly
+through its JSON text form. With a stale stamp the guarded UPDATE touched **0 rows**; with
+the current stamp it touched **1**. Stamp observed moving `20:29:11.256198` →
+`23:37:34.310887`. Zero leftovers afterwards (`customer_name = 'LOSER'` → 0 rows).
+
+Gate 3 — the two-session manual check was not run: it needs two concurrent human browser
+sessions, and Playwright is no longer available in this session. The mechanism underneath
+it is covered by Gate 2 (server refuses the losing write) and by the hook tests (the loser
+receives `OrderConflictError`, adopts the winner's row, and its next save is not a second
+conflict). Recorded as the one unverified assertion of this step.
+
+Step 5 DONE.
 
 ---
 
