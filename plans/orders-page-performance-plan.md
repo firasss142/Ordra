@@ -255,6 +255,13 @@ or the plan file that functions must stay in `fra1` while the DB is in `eu-centr
 
 **Rollback:** remove the `regions` key and redeploy.
 
+**Gate record (2026-09-09 22:05 UTC):** `vercel.json` now carries `"regions": ["fra1"]`,
+deployed from `main` (commit b31af6b). (1) `x-vercel-id: cdg1::fra1::…` on production.
+(2) and (3) to be read within 24 h from the Supabase edge logs (colo + p50) and a browser
+pass; the Playwright session was closed by the user before the post-deploy pass, so the
+browser numbers are pending. Step 2 DONE on gate 1; Step 3 may start.
+
+
 ---
 
 ### Step 3 — Stop the server re-render on filter changes and search keystrokes
