@@ -1,4 +1,7 @@
 {
+  "regions": [
+    "fra1"
+  ],
   "functions": {
     "src/app/api/cron/poll-carriers/route.ts": {
       "maxDuration": 60
