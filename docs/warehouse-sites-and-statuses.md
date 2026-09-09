@@ -25,6 +25,47 @@ Darb Benghazi — remise à Tripoli, elle n'existe pas dans leur système.
 Une commande `fulfil_from_carrier_warehouse = true` **n'a pas de site** : la
 marchandise est chez Darb, elle n'a jamais touché nos rayonnages.
 
+### Affecter un agent à son bâtiment (2026-09-09)
+
+`users.warehouse_id` a existé pendant un jour **sans aucun chemin d'écriture** :
+pas de champ à la création, aucun formulaire d'édition d'utilisateur nulle part.
+La garde de site en dépendait pourtant, et elle ne s'arme que si l'agent **et**
+la commande portent un site :
+
+```sql
+IF v_actor_role = 'warehouse_agent'
+   AND v_actor_site IS NOT NULL AND v_order_site IS NOT NULL
+   AND v_actor_site IS DISTINCT FROM v_order_site
+```
+
+Elle n'a donc jamais pu s'armer une seule fois. Mesuré en production le
+2026-09-09 : `precheck_scan_out` rendait `ok: true` à `tarek`, sans site, sur un
+colis Benghazi — réponse identique à celle de l'agent réellement affecté.
+**Non affecté valait non restreint**, exactement l'erreur de remise que le
+modèle à deux sites existe pour empêcher.
+
+Trois correctifs, indissociables :
+
+| Couche | Règle |
+|---|---|
+| Écriture | `PATCH /api/agents/[id]` action `set_warehouse` (`null` désaffecte) et `warehouse_id` accepté par `POST /api/users`. Le site doit exister, être actif, et appartenir au marché de l'agent |
+| Lecture | `resolveSiteFilter` rend un 3ᵉ état `unassigned` : le banc, la liste des scannés et la page serveur rendent **vide avec une explication**, jamais le marché entier |
+| Garde | `precheck_scan_out` et `unscan_order` refusent `NO_SITE_ASSIGNED` (`20260923000001`) ; `record_stock_count` refuse aussi, côté route — c'est une écriture de stock |
+
+Un agent libyen épinglé à un site tunisien se lirait « affecté » partout à
+l'écran pendant que la garde compare deux sites qui ne peuvent pas correspondre :
+d'où la validation du marché à l'écriture, jamais seulement à l'affichage.
+
+`WRONG_SITE` était par ailleurs levé par trois fonctions SQL sans exister dans
+aucune table de la route ni dans les traductions ; le refus se dégradait en
+erreur générique alors que le RPC calculait déjà `warehouse_name`. Le nom du
+bâtiment traverse maintenant jusqu'au banc : « Ce colis appartient à l'entrepôt
+Tripoli. »
+
+Enfin, la plaque de couleur du banc affiche `toBranchGroup`, la branche de
+**destination** — pas le compte. Deux colis pour Sebha sont indiscernables. Le
+nom du site est donc affiché en tête du banc.
+
 ### Le stock : une ventilation, pas un remplacement
 
 `products.current_stock` reste la vérité pour l'argent — 51 fichiers source et

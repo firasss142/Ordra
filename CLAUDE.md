@@ -59,6 +59,7 @@ src/
 - Inventory log (inventory_log table) is APPEND-ONLY — never update or delete rows
 - Libya has TWO PHYSICAL WAREHOUSES (Tripoli, Benghazi), one per Darb account; orders.warehouse_id follows carrier_id by trigger
 - A Darb bind is verified by re-reading the shipment: HTTP success is not proof the sticker stuck
+- A warehouse_agent with no `warehouse_id` sees NOTHING and can scan nothing — unassigned must never mean unrestricted; assign via Utilisateurs before their first shift
 - Confirm is atomic and never depends on the carrier API — confirm puts the order in `confirmed`, the carrier upload happens in a separate "upload" action that lands on `uploaded` (or stays `confirmed` on any failure)
 - Carrier upload is synchronous — immediate success/failure feedback to agent
 - Adapter pattern for storefronts and carriers — new integrations = new adapter, zero core changes
