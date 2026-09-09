@@ -24,7 +24,7 @@ vi.mock("@/context/market-scope", () => ({
   useMarketScope: () => ({ scope: "ly", marketId: "m-ly" }),
 }));
 
-vi.mock("@/hooks/useOrdersRealtime", () => ({ useOrdersRealtime: () => {} }));
+vi.mock("@/hooks/useOrdersRealtime", () => ({ useOrdersRealtime: () => ({ connected: false }) }));
 
 const mutateList = vi.fn();
 let listRows: unknown[] = [];

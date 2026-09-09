@@ -1,17 +1,39 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useSWRConfig } from "swr";
 import type { SWRInfiniteKeyedMutator } from "swr/infinite";
-import { useRealtimeSubscribe, useRealtime } from "@/components/providers/RealtimeProvider";
+import {
+  useBroadcastConnected,
+  useRealtime,
+  useRealtimeBroadcast,
+} from "@/components/providers/RealtimeProvider";
 import { useRealtimeToast, type RealtimeTerminalKind } from "@/lib/realtime/toast";
 import type { OrdersListPage, OrdersListRow } from "@/hooks/useOrdersList";
 
+/** What the `orders_broadcast_change` trigger sends. Slim on purpose. */
+export interface OrderChangedPayload {
+  op: "INSERT" | "UPDATE" | "DELETE";
+  id: string;
+  market_id: string;
+  status: string;
+  assigned_to: string | null;
+  archived_at: string | null;
+  updated_at: string;
+}
+
 interface UseOrdersRealtimeOptions {
-  marketId: string | null;
-  /** SWR mutate from useOrdersList for in-place INSERT/UPDATE/DELETE reconciliation. */
+  /** Markets to listen to. Super_admin "all markets" passes every market id. */
+  marketIds: string[];
+  /** SWR mutate from useOrdersList, used to patch rows in place and to revalidate. */
   mutate: SWRInfiniteKeyedMutator<OrdersListPage[]>;
-  /** When true (e.g. filters allow `status=new`), match-accept incoming rows. */
+  /** Does a row (after the patch) still belong in the current list? */
   matchFilter: (row: OrdersListRow) => boolean;
+}
+
+export const ORDERS_BROADCAST_EVENT = "order_changed";
+export function ordersTopic(marketId: string): string {
+  return `orders:market:${marketId}`;
 }
 
 const TERMINAL_STATUS_TO_KIND: Record<string, RealtimeTerminalKind> = {
@@ -22,115 +44,168 @@ const TERMINAL_STATUS_TO_KIND: Record<string, RealtimeTerminalKind> = {
   deleted: "deleted",
 };
 
+/** Keys that describe the same orders as the list and must move with it. */
+const COMPANION_KEY_PREFIXES = [
+  "/api/orders/status-counts",
+  "/api/orders/facet-counts",
+  "/api/orders/unassigned/count",
+];
+
+/** How long to sit on a burst of events before asking the server once. */
+const COALESCE_MS = 300;
+
 /**
- * Subscribe to `orders` realtime via the shared bus and auto-patch the
- * infinite SWR cache:
- *  - INSERT matching current filters → prepend to page 1.
- *  - UPDATE → patch in place; if the row no longer matches filters, remove it
- *    and (for terminal status transitions) fire a toast.
- *  - DELETE → remove and fire the `deleted` toast.
+ * Keep the Orders list live from the `orders:market:<id>` Broadcast topic.
  *
- * Locked rows (open edit form) are intentionally skipped to avoid clobbering
- * the user's draft input.
+ * The message is a signal, not the data: the trigger sends only the id and
+ * the four fields the list can patch without lying (status, assignee,
+ * archive state, updated_at). Everything else — product image, display name,
+ * repeat-buyer and duplicate badges — comes from the API, so every burst of
+ * events ends in ONE coalesced revalidation of the list and its companion
+ * keys (KPI strip, facet counts, sidebar badge). Rows are patched in place
+ * first so a status flip is visible immediately; a row that no longer matches
+ * the filters is removed; a row under edit is left alone.
+ *
+ * Replaces the `postgres_changes` subscription, whose per-subscriber RLS
+ * evaluation was being cancelled by Postgres in production and which pasted
+ * raw WAL rows over enriched ones.
  */
-export function useOrdersRealtime({
-  marketId,
-  mutate,
-  matchFilter,
-}: UseOrdersRealtimeOptions) {
+export function useOrdersRealtime({ marketIds, mutate, matchFilter }: UseOrdersRealtimeOptions) {
+  const { editLock } = useRealtime();
+  const { mutate: globalMutate } = useSWRConfig();
+  const toastTerminal = useRealtimeToast();
+
   const matchFilterRef = useRef(matchFilter);
   matchFilterRef.current = matchFilter;
-
-  const { editLock } = useRealtime();
-  const toastTerminal = useRealtimeToast();
   const mutateRef = useRef(mutate);
   mutateRef.current = mutate;
 
-  const handler = useCallback((payload: {
-    eventType: "INSERT" | "UPDATE" | "DELETE";
-    new?: OrdersListRow;
-    old?: Partial<OrdersListRow> & { id?: string };
-  }) => {
-    const fnMutate = mutateRef.current;
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    if (payload.eventType === "INSERT") {
-      const row = payload.new;
-      if (!row) return;
-      if (!matchFilterRef.current(row)) return;
-      // Auto-prepend to page 1, dedupe by id.
-      fnMutate(
-        (pages) => {
-          if (!pages || pages.length === 0) {
-            return [{ rows: [row], nextCursor: null }];
-          }
-          const [first, ...rest] = pages;
-          if (first.rows.some((r) => r.id === row.id)) return pages;
-          return [{ ...first, rows: [row, ...first.rows] }, ...rest];
-        },
-        { revalidate: false },
-      );
-      return;
-    }
+  const revalidateAll = useCallback(() => {
+    void mutateRef.current();
+    void globalMutate(
+      (key) =>
+        typeof key === "string" && COMPANION_KEY_PREFIXES.some((p) => key.startsWith(p)),
+    );
+  }, [globalMutate]);
 
-    if (payload.eventType === "UPDATE") {
-      const row = payload.new;
-      if (!row) return;
-      // Don't clobber a row the user is editing.
-      if (editLock.isLocked("orders", row.id)) return;
+  const scheduleRevalidate = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      revalidateAll();
+    }, COALESCE_MS);
+  }, [revalidateAll]);
 
-      const keeps = matchFilterRef.current(row);
-      const oldStatus = payload.old?.status;
-      const becameTerminal =
-        !keeps &&
-        oldStatus !== row.status &&
-        row.status in TERMINAL_STATUS_TO_KIND;
+  const handler = useCallback(
+    (payload: OrderChangedPayload) => {
+      if (!payload || !payload.id) return;
+      const locked = editLock.isLocked("orders", payload.id);
 
-      fnMutate(
-        (pages) => {
-          if (!pages) return pages;
-          return pages.map((p) => ({
-            ...p,
-            rows: keeps
-              ? p.rows.map((r) => (r.id === row.id ? row : r))
-              : p.rows.filter((r) => r.id !== row.id),
-          }));
-        },
-        { revalidate: false },
-      );
-
-      if (becameTerminal) {
-        toastTerminal(row, TERMINAL_STATUS_TO_KIND[row.status]);
+      if (payload.op === "DELETE") {
+        if (!locked) {
+          let removed: OrdersListRow | null = null;
+          void mutateRef.current(
+            (pages) => {
+              if (!pages) return pages;
+              return pages.map((p) => ({
+                ...p,
+                rows: p.rows.filter((r) => {
+                  if (r.id === payload.id) {
+                    removed = r;
+                    return false;
+                  }
+                  return true;
+                }),
+              }));
+            },
+            { revalidate: false },
+          );
+          if (removed) toastTerminal(removed, "deleted");
+        }
+        scheduleRevalidate();
+        return;
       }
-      return;
-    }
 
-    if (payload.eventType === "DELETE") {
-      const oldRow = payload.old;
-      if (!oldRow?.id) return;
-      if (editLock.isLocked("orders", oldRow.id)) return;
-
-      let removed: OrdersListRow | null = null;
-      fnMutate(
-        (pages) => {
-          if (!pages) return pages;
-          return pages.map((p) => ({
-            ...p,
-            rows: p.rows.filter((r) => {
-              if (r.id === oldRow.id) {
-                removed = r;
-                return false;
-              }
-              return true;
-            }),
-          }));
-        },
-        { revalidate: false },
-      );
-      if (removed) {
-        toastTerminal(removed, "deleted");
+      if (payload.op === "UPDATE" && !locked) {
+        let previous: OrdersListRow | null = null;
+        let keeps = true;
+        void mutateRef.current(
+          (pages) => {
+            if (!pages) return pages;
+            return pages.map((p) => ({
+              ...p,
+              rows: p.rows.flatMap((r) => {
+                if (r.id !== payload.id) return [r];
+                previous = r;
+                const patched: OrdersListRow = {
+                  ...r,
+                  status: payload.status,
+                  assigned_to: payload.assigned_to,
+                  archived_at: payload.archived_at,
+                  updated_at: payload.updated_at,
+                };
+                keeps = payload.archived_at == null && matchFilterRef.current(patched);
+                return keeps ? [patched] : [];
+              }),
+            }));
+          },
+          { revalidate: false },
+        );
+        const prev = previous as OrdersListRow | null;
+        if (
+          prev &&
+          !keeps &&
+          prev.status !== payload.status &&
+          payload.status in TERMINAL_STATUS_TO_KIND
+        ) {
+          toastTerminal(prev, TERMINAL_STATUS_TO_KIND[payload.status]);
+        }
       }
-    }
-  }, [editLock, toastTerminal]);
 
-  useRealtimeSubscribe<OrdersListRow>({ table: "orders", marketId }, handler);
+      // INSERT, or an UPDATE on a row we do not have: the API is the only
+      // source of the enriched row shape, so ask it (once per burst).
+      scheduleRevalidate();
+    },
+    [editLock, scheduleRevalidate, toastTerminal],
+  );
+
+  // One subscription per market. Two markets is the whole catalogue, so the
+  // "all markets" scope is two joins rather than a filterless firehose.
+  const topics = useMemo(() => marketIds.map(ordersTopic), [marketIds]);
+  useRealtimeBroadcast<OrderChangedPayload>(
+    topics[0] ? { topic: topics[0], event: ORDERS_BROADCAST_EVENT } : null,
+    handler,
+  );
+  useRealtimeBroadcast<OrderChangedPayload>(
+    topics[1] ? { topic: topics[1], event: ORDERS_BROADCAST_EVENT } : null,
+    handler,
+  );
+
+  const connected = useBroadcastConnected(topics);
+
+  // Catch-up: anything that happened while the socket was down or the tab was
+  // hidden is unknown, so the first moment we are live again costs one fetch.
+  const wasConnectedRef = useRef(false);
+  useEffect(() => {
+    if (connected && !wasConnectedRef.current) revalidateAll();
+    wasConnectedRef.current = connected;
+  }, [connected, revalidateAll]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") revalidateAll();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [revalidateAll]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  return { connected };
 }

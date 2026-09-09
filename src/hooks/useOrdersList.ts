@@ -86,9 +86,15 @@ export interface UseOrdersListOptions {
   filters: OrderListFilters;
   /** Server-rendered first page to hydrate SWR instantly. */
   fallbackFirstPage?: OrdersListPage;
+  /**
+   * Is a realtime channel delivering changes for this list? `true` disables
+   * polling entirely, `false` polls every 20 s as the fallback while the socket
+   * is down, `undefined` (no realtime on this page) keeps the old slow poll.
+   */
+  live?: boolean;
 }
 
-export function useOrdersList({ filters, fallbackFirstPage }: UseOrdersListOptions) {
+export function useOrdersList({ filters, fallbackFirstPage, live }: UseOrdersListOptions) {
   const baseQuery = useMemo(() => {
     const params = filtersToSearchParams(filters);
     if (filters.marketId) params.set("market_id", filters.marketId);
@@ -126,7 +132,7 @@ export function useOrdersList({ filters, fallbackFirstPage }: UseOrdersListOptio
   } = useSWRInfinite<OrdersListPage>(getKey, fetcher, {
     revalidateFirstPage: false,
     revalidateOnFocus: false,
-    refreshInterval: 120_000,
+    refreshInterval: live === undefined ? 120_000 : live ? 0 : 20_000,
     fallbackData: fallbackFirstPage ? [fallbackFirstPage] : undefined,
     keepPreviousData: true,
   });

@@ -1,8 +1,18 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   createRealtimeBus,
+  type BroadcastHandler,
+  type BroadcastOptions,
   type RealtimeBus,
   type RealtimeEvent,
   type RealtimeHandler,
@@ -71,6 +81,51 @@ export function useRealtimeSubscribe<TRow = Record<string, unknown>>(
     return unsub;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bus, opts?.table, opts?.marketId ?? null, opts?.extraFilter ?? null]);
+}
+
+/**
+ * Join a private Broadcast topic (e.g. `orders:market:<uuid>`) and receive its
+ * events. Same refcounting and same handler-in-a-ref contract as
+ * `useRealtimeSubscribe`; only `topic` and `event` cause a resubscribe.
+ */
+export function useRealtimeBroadcast<TPayload = Record<string, unknown>>(
+  opts: BroadcastOptions | null,
+  handler: BroadcastHandler<TPayload>,
+): void {
+  const { bus } = useRealtimeContext();
+  const handlerRef = useRef(handler);
+  useEffect(() => {
+    handlerRef.current = handler;
+  }, [handler]);
+
+  useEffect(() => {
+    if (!opts) return;
+    return bus.subscribeBroadcast<TPayload>(opts, (payload) => {
+      handlerRef.current(payload);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bus, opts?.topic ?? null, opts?.event ?? null]);
+}
+
+/**
+ * True only while EVERY listed topic is `SUBSCRIBED`. False with no topics.
+ * Read this where a fallback poll must be decided (e.g. `refreshInterval`),
+ * and where the page tells the user whether it is live.
+ */
+export function useBroadcastConnected(topics: string[]): boolean {
+  const { bus } = useRealtimeContext();
+  const key = topics.join("|");
+  const compute = () =>
+    topics.length > 0 && topics.every((t) => bus.getBroadcastStatus(t) === "SUBSCRIBED");
+  const [connected, setConnected] = useState(compute);
+
+  useEffect(() => {
+    setConnected(compute());
+    return bus.onBroadcastStatus(() => setConnected(compute()));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bus, key]);
+
+  return connected;
 }
 
 /**

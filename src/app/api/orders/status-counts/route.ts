@@ -222,6 +222,6 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(
     { data: counts },
-    { headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" } },
+    { headers: { "Cache-Control": "no-store" } },
   );
 }

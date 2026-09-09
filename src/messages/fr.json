@@ -4370,6 +4370,10 @@
       "delivered": "Commande #{id} livrée",
       "returned": "Commande #{id} retournée",
       "deleted": "Commande #{id} supprimée"
+    },
+    "connection": {
+      "live": "En direct",
+      "reconnecting": "Reconnexion…"
     }
   },
   "periodSelector": {

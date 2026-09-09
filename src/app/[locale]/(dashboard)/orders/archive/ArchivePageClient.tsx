@@ -149,7 +149,11 @@ export function ArchivePageClient({
   );
 
   const { rows, mutate: mutateList } = useOrdersList({ filters });
-  useOrdersRealtime({ marketId: marketId || null, mutate: mutateList, matchFilter: () => false });
+  useOrdersRealtime({
+    marketIds: marketId ? [marketId] : [],
+    mutate: mutateList,
+    matchFilter: () => false,
+  });
 
   // Which bucket a finished order sits in. Mirrors resolveArchiveState on the
   // server so the tabs and the API agree.

@@ -4370,6 +4370,10 @@
       "delivered": "تم تسليم الطلب #{id}",
       "returned": "تم إرجاع الطلب #{id}",
       "deleted": "تم حذف الطلب #{id}"
+    },
+    "connection": {
+      "live": "مباشر",
+      "reconnecting": "جارٍ إعادة الاتصال…"
     }
   },
   "periodSelector": {

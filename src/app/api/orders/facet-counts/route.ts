@@ -108,6 +108,6 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(
     { data: counts },
-    { headers: { "Cache-Control": "private, max-age=15, stale-while-revalidate=45" } },
+    { headers: { "Cache-Control": "no-store" } },
   );
 }

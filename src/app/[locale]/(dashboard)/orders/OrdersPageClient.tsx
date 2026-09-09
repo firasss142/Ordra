@@ -12,7 +12,8 @@ import { useOrdersFiltersUrl } from "@/hooks/useOrdersFiltersUrl";
 import { useMarketScope } from "@/context/market-scope";
 import { fetcher } from "@/lib/swr-config";
 import { useOrdersList, type OrdersListPage, type OrdersListRow } from "@/hooks/useOrdersList";
-import { useOrdersRealtime } from "@/hooks/useOrdersRealtime";
+import { ordersTopic, useOrdersRealtime } from "@/hooks/useOrdersRealtime";
+import { useBroadcastConnected } from "@/components/providers/RealtimeProvider";
 import {
   clearFilterField,
   filtersToSearchParams,
@@ -105,6 +106,7 @@ export function OrdersPageClient({
   fallbackAgents,
 }: Props) {
   const t = useTranslations("orders");
+  const tRealtime = useTranslations("realtime.connection");
   const isMobile = useIsMobile();
 
   const isSuperAdmin = role === "super_admin";
@@ -188,6 +190,16 @@ export function OrdersPageClient({
     return userMarketCurrency;
   }, [filters.marketId, markets, userMarketCurrency]);
 
+  // ---------- Realtime topics ----------
+  // One topic per market. "All markets" is every market the switcher knows,
+  // so it is two joins, not a firehose. `live` is read here, before the list
+  // hook, because the list decides its fallback poll from it.
+  const realtimeMarketIds = useMemo(() => {
+    if (effectiveMarketId) return [effectiveMarketId];
+    return markets.map((m) => m.id);
+  }, [effectiveMarketId, markets]);
+  const live = useBroadcastConnected(realtimeMarketIds.map(ordersTopic));
+
   // ---------- Orders list (SWR-infinite + keyset) ----------
   const {
     rows,
@@ -210,6 +222,7 @@ export function OrdersPageClient({
         (isSuperAdmin && filters.marketId === initialMarketId))
         ? fallbackFirstPage
         : undefined,
+    live,
   });
 
   // ---------- Realtime subscription ----------
@@ -242,7 +255,7 @@ export function OrdersPageClient({
     [effectiveMarketId, filters.includeDeleted, filters.preset, filters.statuses, filters.agentId],
   );
   useOrdersRealtime({
-    marketId: effectiveMarketId,
+    marketIds: realtimeMarketIds,
     mutate,
     matchFilter,
   });
@@ -751,8 +764,21 @@ export function OrdersPageClient({
         />
       </div>
 
-      <div style={{ fontSize: 12, color: "#9CA3AF", textAlign: "end" }}>
-        {t("footerLive")}
+      {/* The footer says what the socket says. It used to say "temps réel"
+          regardless, including with a dead channel and a 2-minute poll. */}
+      <div
+        role="status"
+        className={`flex items-center justify-end gap-1.5 text-[12px] ${
+          live ? "text-oms-ink-3" : "text-status-warning"
+        }`}
+      >
+        <span
+          aria-hidden
+          className={`inline-block h-[7px] w-[7px] rounded-full ${
+            live ? "bg-status-success" : "bg-status-warning"
+          }`}
+        />
+        {live ? tRealtime("live") : tRealtime("reconnecting")}
       </div>
 
       {/* Page level, not inside the table: it is fixed to the viewport, so it
