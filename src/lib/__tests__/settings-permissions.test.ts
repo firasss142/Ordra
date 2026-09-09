@@ -5,6 +5,7 @@ import {
   canManageCarriers,
   canManageStorefronts,
   canManageAgents,
+  canReadCarrierPerformance,
 } from "../settings-permissions";
 
 describe("canReadSettings", () => {
@@ -118,5 +119,40 @@ describe("canManageAgents", () => {
 
   it("agent cannot manage agents", () => {
     expect(canManageAgents("agent", "market-tn", "market-tn")).toBe(false);
+  });
+});
+
+// Deliberately narrower than canReadSettings: the "meilleur choix" carrier
+// picker needs delivery-rate/transit stats, but that is not a door into the
+// settings page — an agent may read them for their OWN market only.
+describe("canReadCarrierPerformance", () => {
+  it("super_admin can read any market's carrier performance", () => {
+    expect(canReadCarrierPerformance("super_admin", "market-ly", "market-tn")).toBe(
+      true,
+    );
+  });
+
+  it("market_manager can read own market's carrier performance", () => {
+    expect(
+      canReadCarrierPerformance("market_manager", "market-tn", "market-tn"),
+    ).toBe(true);
+  });
+
+  it("market_manager cannot read another market's carrier performance", () => {
+    expect(
+      canReadCarrierPerformance("market_manager", "market-ly", "market-tn"),
+    ).toBe(false);
+  });
+
+  it("agent can read own market's carrier performance", () => {
+    expect(canReadCarrierPerformance("agent", "market-tn", "market-tn")).toBe(
+      true,
+    );
+  });
+
+  it("agent cannot read another market's carrier performance", () => {
+    expect(canReadCarrierPerformance("agent", "market-ly", "market-tn")).toBe(
+      false,
+    );
   });
 });

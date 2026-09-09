@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import FocusTrap from "focus-trap-react";
 import useSWR from "swr";
-import { Check, X } from "lucide-react";
+import { Check, X, Lock, Truck, ArrowRight } from "lucide-react";
 import { DarbDestinationPicker } from "@/components/shared/DarbDestinationPicker";
 import { useDarbDestinations } from "@/hooks/useDarbDestinations";
 import { findDestinationById } from "@/lib/carriers/darb-destination-search";
@@ -13,6 +13,8 @@ import {
   resolveDispatchPair,
 } from "@/lib/carriers/darb-assabil-areas";
 import { fetcher } from "@/lib/swr-config";
+import { useCarrierRates } from "@/hooks/useCarrierRates";
+import { formatCurrency } from "@/lib/format";
 
 interface DarbAssabilSelection {
   city: string | null;
@@ -30,6 +32,11 @@ interface DarbAssabilDispatchModalProps {
   customerAddress: string | null;
   /** The order's stored city — used to pre-resolve / scope the destination. */
   customerCity: string | null;
+  /**
+   * The order's goods total (COD amount), for the "à encaisser" summary row.
+   * Optional — omitted callers simply don't get that row (backward compatible).
+   */
+  totalPrice?: number | null;
   /**
    * The Darb pair the order is already bound to (`orders.darb_destination_id`).
    * When set, it IS the destination — the agent picked it at creation or in
@@ -87,12 +94,15 @@ function ChoiceTile({
   disabled = false,
   title,
   hint,
+  badge,
   onSelect,
 }: {
   selected: boolean;
   disabled?: boolean;
   title: string;
   hint?: string;
+  /** Small pill under the title — the service surcharge, or "inclus". */
+  badge?: string;
   onSelect: () => void;
 }) {
   return (
@@ -102,29 +112,34 @@ function ChoiceTile({
       aria-checked={selected}
       disabled={disabled}
       onClick={onSelect}
-      className={`flex min-h-[52px] w-full items-start gap-2 rounded-card border px-3 py-2.5 text-start transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-primary focus-visible:ring-offset-1 ${
+      className={`flex min-h-[56px] w-full items-start gap-2.5 rounded-xl border px-3 py-3 text-start transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dispatch-ok focus-visible:ring-offset-1 ${
         selected
-          ? "border-ink-primary bg-surface-selected"
+          ? "border-dispatch-ok bg-dispatch-ok-tint"
           : "border-line-subtle hover:border-line-strong hover:bg-surface-hover"
       } ${disabled ? "cursor-not-allowed opacity-55 hover:border-line-subtle hover:bg-transparent" : ""}`}
     >
       <span
         aria-hidden="true"
-        className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+        className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-[1.5px] ${
           selected
-            ? "border-ink-primary bg-ink-primary text-surface-card"
+            ? "border-dispatch-ok bg-dispatch-ok text-white"
             : "border-line-strong"
         }`}
       >
-        {selected && <Check size={11} strokeWidth={3} />}
+        {selected && <Check size={11} strokeWidth={3.5} />}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[13px] font-medium text-ink-primary" dir="auto">
+        <span className="block text-[14px] font-semibold text-ink-primary" dir="auto">
           {title}
         </span>
         {hint && (
-          <span className="mt-0.5 block text-[11px] leading-4 text-ink-secondary" dir="auto">
+          <span className="mt-1 block text-[12px] leading-[1.35] text-ink-secondary" dir="auto">
             {hint}
+          </span>
+        )}
+        {badge && (
+          <span className="mt-1.5 inline-block rounded-md bg-surface-sunken px-2 py-0.5 text-[12px] font-medium text-ink-secondary">
+            {badge}
           </span>
         )}
       </span>
@@ -147,6 +162,7 @@ export function DarbAssabilDispatchModal({
   carrierId,
   customerAddress,
   customerCity,
+  totalPrice = null,
   darbDestinationId = null,
   onClose,
   onSuccess,
@@ -156,6 +172,11 @@ export function DarbAssabilDispatchModal({
   const tDup = useTranslations("duplicateOrder.uploadGuard");
   const hasAddress = Boolean(customerAddress && customerAddress.trim());
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // Delivery fee for the summary bar — same per-destination quote the other
+  // carrier pickers use. Fails soft: no quote yet just means no figure shown.
+  const { ratesByCarrierId } = useCarrierRates(orderId, true);
+  const deliveryFee = ratesByCarrierId[carrierId]?.quotedFee ?? null;
 
   // The bound pair wins outright: it is what the agent chose from the
   // catalogue. Only an unbound order falls back to resolving its city string
@@ -190,6 +211,9 @@ export function DarbAssabilDispatchModal({
   }, [stored?.city, stored?.area]); // eslint-disable-line react-hooks/exhaustive-deps
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // "corriger" on a resolved destination: unlocks the picker for this dispatch
+  // only. One-way — re-locking would just hide a correction the agent made.
+  const [overrideDestination, setOverrideDestination] = useState(false);
   const [duplicateConfirm, setDuplicateConfirm] = useState<{
     externalId: string | null;
   } | null>(null);
@@ -229,8 +253,9 @@ export function DarbAssabilDispatchModal({
   // A paid service (surcharge > 0 → women's/express) has its fees billed to the
   // customer on top of the COD (adapter paymentBy="receiver"); the free default
   // does not. Drives extra.service_fee_on_top below.
-  const chosenServiceFeeOnTop =
-    (services.find((s) => s.service_id === serviceId)?.surcharge ?? 0) > 0;
+  const serviceSurcharge =
+    services.find((s) => s.service_id === serviceId)?.surcharge ?? 0;
+  const chosenServiceFeeOnTop = serviceSurcharge > 0;
 
   // Fulfilment source. "home" = we hold the goods and Darb collects from us
   // (the long-standing default). "carrier" = Darb already holds this stock in
@@ -368,17 +393,25 @@ export function DarbAssabilDispatchModal({
           onClick={(e) => e.stopPropagation()}
           className="flex max-h-[90dvh] w-[520px] max-w-[92vw] flex-col rounded-card bg-surface-card shadow-floating"
         >
-          <div className="flex shrink-0 items-center justify-between border-b border-line-subtle px-5 py-4">
-            <div className="text-[16px] font-semibold text-ink-primary">
-              {t("pickDestination")}
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line-subtle px-5 py-4">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="text-[19px] font-bold tracking-[-0.01em] text-ink-primary">
+                {t("pickDestinationShort")}
+              </div>
+              {/* Carrier identity as a pill — the modal is carrier-specific, and
+                  the name belongs beside the action, not folded into the title. */}
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-pill bg-dispatch-ok-bg px-2.5 py-1 text-[12px] font-semibold text-dispatch-ok-ink">
+                <Truck size={13} strokeWidth={2.25} aria-hidden="true" />
+                {t("carrierName")}
+              </span>
             </div>
             <button
               type="button"
               onClick={onClose}
               aria-label={tShip("close")}
-              className="rounded p-1 text-ink-secondary hover:bg-surface-hover"
+              className="shrink-0 rounded p-1 text-ink-secondary hover:bg-surface-hover"
             >
-              <X size={16} />
+              <X size={18} />
             </button>
           </div>
 
@@ -405,18 +438,40 @@ export function DarbAssabilDispatchModal({
             )}
 
             <Section label={t("destinationLabel")}>
-              {mode === "resolved" ? (
-                // Fixed destination — show it, no free choice of city.
+              {mode === "resolved" && !overrideDestination ? (
+                // Fixed destination: a locked field, not free text — the pair
+                // came from the order's city and changing it is a deliberate
+                // act, so it takes an explicit "corriger" to unlock the picker.
                 <>
-                  <p className="text-[15px] font-medium text-ink-primary" dir="auto">
-                    {selection.city}
-                    {selection.area && selection.area !== selection.city
-                      ? ` — ${selection.area}`
-                      : ""}
-                  </p>
-                  <p className="mt-1 text-[12px] text-ink-secondary">
-                    {t("resolvedFromCity")}
-                  </p>
+                  <div className="flex items-center gap-3 rounded-card bg-surface-sunken px-3.5 py-3">
+                    <Lock
+                      size={15}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                      className="shrink-0 text-ink-muted"
+                    />
+                    <p
+                      className="min-w-0 flex-1 truncate text-end text-[16px] font-medium text-ink-primary"
+                      dir="auto"
+                    >
+                      {selection.city}
+                      {selection.area && selection.area !== selection.city
+                        ? ` — ${selection.area}`
+                        : ""}
+                    </p>
+                  </div>
+                  <div className="mt-1.5 flex items-baseline justify-between gap-3">
+                    <p className="text-[12px] text-ink-secondary">
+                      {t("resolvedFromCity")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setOverrideDestination(true)}
+                      className="shrink-0 text-[12px] font-medium text-dispatch-ok-ink underline underline-offset-2 hover:text-dispatch-ok-hover"
+                    >
+                      {t("correctDestination")}
+                    </button>
+                  </div>
                 </>
               ) : (
                 <DarbDestinationPicker
@@ -530,13 +585,16 @@ export function DarbAssabilDispatchModal({
                       key={s.service_id}
                       selected={s.service_id === serviceId}
                       title={s.title}
-                      hint={
+                      // A surcharge is the price of the choice; the free default
+                      // says so explicitly ("inclus") rather than staying blank,
+                      // which read as "price unknown".
+                      badge={
                         s.surcharge > 0
                           ? t("serviceSurcharge", {
                               amount: s.surcharge,
                               currency: s.currency.toUpperCase(),
                             })
-                          : undefined
+                          : t("serviceIncluded")
                       }
                       onSelect={() => setServiceId(s.service_id)}
                     />
@@ -555,18 +613,18 @@ export function DarbAssabilDispatchModal({
                 {(
                   [
                     ...(fulfilment === "home"
-                      ? ([["is_pickup", t("optionPickup")]] as const)
+                      ? ([["is_pickup", t("optionPickup"), null]] as const)
                       : []),
-                    ["allow_inspection", t("optionInspection")],
-                    ["is_fragile", t("optionFragile")],
-                    ["allow_card_payment", t("optionCardPayment")],
-                    ["allow_testing", t("optionTesting")],
-                    ["is_replacement", t("optionReplacement")],
+                    ["allow_inspection", t("optionInspection"), t("optionReturnRiskHint")],
+                    ["is_fragile", t("optionFragile"), null],
+                    ["allow_card_payment", t("optionCardPayment"), null],
+                    ["allow_testing", t("optionTesting"), t("optionReturnRiskHint")],
+                    ["is_replacement", t("optionReplacement"), null],
                   ] as const
-                ).map(([key, label]) => (
+                ).map(([key, label, riskHint]) => (
                   <label
                     key={key}
-                    className="flex min-h-[36px] cursor-pointer items-center gap-2.5 text-[13px] text-ink-primary"
+                    className="group flex min-h-[40px] cursor-pointer items-start gap-3 text-[14px] text-ink-primary"
                   >
                     <input
                       type="checkbox"
@@ -574,23 +632,82 @@ export function DarbAssabilDispatchModal({
                       onChange={(e) =>
                         setOptions((prev) => ({ ...prev, [key]: e.target.checked }))
                       }
-                      className="h-4 w-4 shrink-0 accent-ink-primary"
+                      className="mt-0.5 h-[18px] w-[18px] shrink-0 cursor-pointer rounded-[5px] accent-dispatch-ok"
                     />
-                    <span dir="auto">{label}</span>
+                    <span>
+                      <span className="block leading-snug" dir="auto">{label}</span>
+                      {riskHint && (
+                        <span
+                          className="mt-1 block text-[12px] leading-4 text-status-warning"
+                          dir="auto"
+                        >
+                          → {riskHint}
+                        </span>
+                      )}
+                    </span>
                   </label>
                 ))}
               </div>
             </Section>
           </div>
 
-          <div className="shrink-0 border-t border-line-subtle bg-surface-card px-5 py-4">
+          {/* Frais de livraison + à encaisser (COD), so the agent sees the
+              full money picture before confirming the send. The fee reads as
+              an equation (base + service = total) because the service tile
+              above can add a surcharge the agent just chose. */}
+          <div className="shrink-0 border-t border-line-subtle bg-surface-card px-5 pt-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-secondary">
+                  {t("feeLabel")}
+                </div>
+                <div className="mt-1 flex flex-wrap items-baseline gap-x-1.5 text-[19px] font-bold text-ink-primary">
+                  {deliveryFee != null ? (
+                    <>
+                      <span className="tabular-nums">{formatCurrency(deliveryFee, "LY")}</span>
+                      <span className="text-[15px] font-medium text-ink-secondary">+</span>
+                      <span className="tabular-nums text-[15px] font-medium text-ink-secondary">
+                        {formatCurrency(serviceSurcharge, "LY")}
+                      </span>
+                      <span className="text-[15px] font-medium text-ink-secondary">=</span>
+                      <span className="tabular-nums text-dispatch-ok">
+                        {formatCurrency(deliveryFee + serviceSurcharge, "LY")}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-ink-muted">—</span>
+                  )}
+                </div>
+              </div>
+              {totalPrice != null && (
+                <div className="shrink-0 text-end">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-secondary">
+                    {t("codLabel")}
+                  </div>
+                  <div className="mt-1 text-[19px] font-bold tabular-nums text-ink-primary">
+                    {formatCurrency(totalPrice, "LY")}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="shrink-0 bg-surface-card px-5 pb-5 pt-4">
             <button
               type="button"
               disabled={!canSubmit}
               onClick={() => handleSubmit()}
-              className="w-full rounded-card bg-ink-primary px-4 py-3 text-[14px] font-medium text-surface-card transition-opacity duration-fast hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-dispatch-ok px-4 py-3.5 text-[15px] font-semibold text-white transition-colors duration-fast hover:bg-dispatch-ok-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dispatch-ok focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? tShip("uploading") : tShip("confirmDispatch")}
+              {!submitting && (
+                <ArrowRight
+                  size={16}
+                  strokeWidth={2.25}
+                  aria-hidden="true"
+                  className="rtl:-scale-x-100"
+                />
+              )}
             </button>
           </div>
 

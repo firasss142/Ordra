@@ -68,7 +68,9 @@ import { isValidLibyanPhone } from "@/lib/carriers/phone";
 import { coverageFor, type CoverageState } from "@/lib/carriers/coverage";
 import { useDarbDestinations } from "@/hooks/useDarbDestinations";
 import { useCarrierRates } from "@/hooks/useCarrierRates";
-import { CarrierRateBadge, CheapestPill } from "../CarrierRateBadge";
+import { useCarrierPerformance } from "@/hooks/useCarrierPerformance";
+import { compareCarriers } from "@/lib/carriers/carrier-comparison";
+import { CarrierComparisonCard } from "../CarrierComparisonCard";
 import type { Role } from "@/types";
 import { PanelHeader } from "./PanelHeader";
 import { CustomerHero } from "./CustomerHero";
@@ -824,22 +826,46 @@ export function OrderDetailPanel({
   // Per-destination price per carrier account. Libya runs two Darb Assabil
   // accounts whose prices for the same address differ by 5-25 LYD, so the flat
   // carriers.delivery_fee cannot tell them apart.
-  const { ratesByCarrierId, recommendedCarrierId } = useCarrierRates(
+  const { ratesByCarrierId } = useCarrierRates(
     order?.id,
     Boolean(canUploadToCarrier && order && uploadOpen),
   );
+  // 30-day delivery rate + median transit, the other two legs of "meilleur
+  // choix". Fails soft: no data just means those stats render as "—".
+  const { performanceByCarrierId } = useCarrierPerformance(
+    order?.market_id,
+    Boolean(canUploadToCarrier && order && uploadOpen),
+  );
 
-  // Cheapest first, but ONLY once a recommendation exists — a list that
-  // reshuffles itself when a request lands is worse than a static one.
-  const activeCarriers = recommendedCarrierId
+  // Same ranking as the post-call picker and the schedule modal: cost +
+  // delivery rate + transit time, not cost alone. One rule, three surfaces.
+  const carrierComparison = compareCarriers(
+    allActiveCarriers.map((c) => ({
+      carrierId: c.id,
+      cost: ratesByCarrierId[c.id]?.quotedFee ?? null,
+      deliveryRate: performanceByCarrierId[c.id]?.deliveryRate30d ?? null,
+      transitHours: performanceByCarrierId[c.id]?.medianTransitHours ?? null,
+    })),
+  );
+  const comparisonByCarrierId: Record<
+    string,
+    (typeof carrierComparison.rows)[number]
+  > = {};
+  for (const row of carrierComparison.rows) {
+    comparisonByCarrierId[row.carrierId] = row;
+  }
+
+  // Best choice first, but ONLY once scoring has something to say — a list
+  // that reshuffles itself when a request lands is worse than a static one.
+  const activeCarriers = carrierComparison.bestChoiceCarrierId
     ? [...allActiveCarriers].sort((a, b) => {
-        const costOf = (id: string) => ratesByCarrierId[id]?.effectiveCost;
-        const ca = costOf(a.id);
-        const cb = costOf(b.id);
-        if (ca == null && cb == null) return 0;
-        if (ca == null) return 1;
-        if (cb == null) return -1;
-        return ca - cb;
+        const scoreOf = (id: string) => comparisonByCarrierId[id]?.score;
+        const sa = scoreOf(a.id);
+        const sb = scoreOf(b.id);
+        if (sa == null && sb == null) return 0;
+        if (sa == null) return 1;
+        if (sb == null) return -1;
+        return sb - sa;
       })
     : allActiveCarriers;
 
@@ -1453,7 +1479,7 @@ export function OrderDetailPanel({
             {t("uploadCarrierError", { error: uploadFeedback.message })}
           </div>
         )}
-        <div className="px-5 pb-3 flex flex-col gap-1.5">
+        <div className="px-5 pb-3 flex flex-col gap-2" role="radiogroup" aria-label={t("uploadCarrierPickTitle")}>
           {activeCarriers.length === 0 ? (
             <p className="text-[13px] text-ink-secondary py-2">
               {t("uploadCarrierNoActive")}
@@ -1463,14 +1489,24 @@ export function OrderDetailPanel({
               const cov = coverageForCode(c.code);
               const blocked = cov === "uncovered";
               const city = order?.customer_city ?? "";
+              const row = comparisonByCarrierId[c.id];
               return (
                 <div key={c.id}>
-                  <button
-                    type="button"
-                    disabled={uploadingCarrierId !== null || blocked}
-                    aria-disabled={blocked}
-                    onClick={() => {
-                      if (blocked) return;
+                  <CarrierComparisonCard
+                    name={c.name}
+                    code={c.code}
+                    // This picker dispatches on click rather than holding a
+                    // selection, so the only "selected" state is the row
+                    // currently uploading.
+                    selected={uploadingCarrierId === c.id}
+                    blocked={blocked || uploadingCarrierId !== null}
+                    isBestChoice={row?.isBestChoice ?? false}
+                    cost={row?.cost ?? null}
+                    deliveryRate={row?.deliveryRate ?? null}
+                    transitHours={row?.transitHours ?? null}
+                    marketId={order?.market_id}
+                    onSelect={() => {
+                      if (blocked || uploadingCarrierId !== null) return;
                       if (c.code === "dexpress") {
                         setUploadOpen(false);
                         setDexpressModalOpen(true);
@@ -1484,39 +1520,15 @@ export function OrderDetailPanel({
                       }
                       handleUploadToCarrier(c.id);
                     }}
-                    className={[
-                      "flex w-full items-center justify-between h-10 px-3 text-[13px] border rounded-card transition-colors duration-fast disabled:cursor-not-allowed",
-                      blocked
-                        ? "border-status-critical/40 bg-status-criticalBg text-ink-muted"
-                        : "border-line-subtle text-ink-primary hover:bg-surface-hover disabled:opacity-50",
-                    ].join(" ")}
-                  >
-                    <span className="flex items-center gap-1.5 min-w-0">
-                      <span className="font-medium truncate">{c.name}</span>
-                      {!blocked && c.id === recommendedCarrierId && <CheapestPill />}
-                    </span>
-                    <span
-                      className={[
-                        "flex flex-shrink-0 items-center gap-2 text-[11px] uppercase tracking-wide",
-                        blocked ? "text-status-critical" : "text-ink-secondary",
-                      ].join(" ")}
-                    >
-                      {!blocked && uploadingCarrierId !== c.id && (
-                        <CarrierRateBadge
-                          info={ratesByCarrierId[c.id]}
-                          marketId={order?.market_id}
-                        />
-                      )}
-                      {blocked
-                        ? tCov("badge")
-                        : uploadingCarrierId === c.id
-                          ? t("uploadingToCarrier")
-                          : c.code}
-                    </span>
-                  </button>
+                  />
                   {blocked && (
                     <p className="mt-1 px-1 text-[11px] text-status-critical">
                       {tCov("notCovered", { city })}
+                    </p>
+                  )}
+                  {uploadingCarrierId === c.id && (
+                    <p className="mt-1 px-1 text-[11px] text-ink-secondary">
+                      {t("uploadingToCarrier")}
                     </p>
                   )}
                 </div>
@@ -1563,6 +1575,7 @@ export function OrderDetailPanel({
           carrierId={selectedDarbCarrierId}
           customerAddress={order.customer_address}
           customerCity={order.customer_city}
+          totalPrice={order.total_price}
           darbDestinationId={order.darb_destination_id ?? null}
           onClose={() => setDarbAssabilModalOpen(false)}
           onSuccess={(trackingNumber) => {

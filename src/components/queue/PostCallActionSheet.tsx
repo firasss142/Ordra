@@ -10,6 +10,7 @@ import {
   CalendarClock,
   PhoneOff,
   ChevronRight,
+  Check,
 } from "lucide-react";
 import { CallbackPicker } from "./CallbackPicker";
 import { RejectionReasonSelect } from "./RejectionReasonSelect";
@@ -18,9 +19,11 @@ import { DexpressLocationPicker, type DexpressSelection } from "./DexpressLocati
 import { DarbAssabilDispatchModal } from "./DarbAssabilDispatchModal";
 import { coverageFor, type CoverageState } from "@/lib/carriers/coverage";
 import { useCarrierRates } from "@/hooks/useCarrierRates";
+import { useCarrierPerformance } from "@/hooks/useCarrierPerformance";
 import { pickInitialCarrier } from "@/lib/carriers/initial-carrier-selection";
-import { CarrierRateBadge, CheapestPill } from "./CarrierRateBadge";
+import { compareCarriers } from "@/lib/carriers/carrier-comparison";
 import { useOptimisticOrderAction } from "@/hooks/useOptimisticOrderAction";
+import { CarrierComparisonCard } from "./CarrierComparisonCard";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -36,6 +39,7 @@ interface OrderForUpload {
   customer_city: string | null;
   dexpress_state_id: number | null;
   darb_destination_id: number | null;
+  total_price: number;
 }
 
 // Kept for backwards compat — no longer used by QueuePage
@@ -328,20 +332,36 @@ export function PostCallActionSheet({
 
   // Per-destination price per carrier account. Libya runs two Darb Assabil
   // accounts whose prices for the same address differ by 5-25 LYD.
-  const { ratesByCarrierId, recommendedCarrierId } = useCarrierRates(
-    orderId,
+  const { ratesByCarrierId } = useCarrierRates(orderId, isPostConfirm);
+  // 30-day delivery rate + median transit time, for the same comparison.
+  const { performanceByCarrierId } = useCarrierPerformance(
+    marketId,
     isPostConfirm,
   );
 
-  // Pre-select: the agent's own choice always wins; otherwise the cheapest
-  // account, else the pre-existing "exactly one carrier" rule. The whole rule
+  // "Meilleur choix" — combines cost + delivery rate + transit time, not just
+  // the cheapest account. Recomputed whenever any input changes; pure and
+  // cheap, so no memoization is needed.
+  const comparison = compareCarriers(
+    carriers.map((c) => ({
+      carrierId: c.id,
+      cost: ratesByCarrierId[c.id]?.quotedFee ?? null,
+      deliveryRate: performanceByCarrierId[c.id]?.deliveryRate30d ?? null,
+      transitHours: performanceByCarrierId[c.id]?.medianTransitHours ?? null,
+    })),
+  );
+  const comparisonByCarrierId: Record<string, (typeof comparison.rows)[number]> = {};
+  for (const row of comparison.rows) comparisonByCarrierId[row.carrierId] = row;
+
+  // Pre-select: the agent's own choice always wins; otherwise "meilleur
+  // choix", else the pre-existing "exactly one carrier" rule. The whole rule
   // lives in pickInitialCarrier so it is tested outside React.
   useEffect(() => {
     if (!isPostConfirm) return;
     const next = pickInitialCarrier({
       carriers,
       coverageOf: carrierCoverage,
-      recommendedCarrierId,
+      recommendedCarrierId: comparison.bestChoiceCarrierId,
       currentSelection: selectedCarrierId,
     });
     if (next !== null && next !== selectedCarrierId) setSelectedCarrierId(next);
@@ -352,7 +372,7 @@ export function PostCallActionSheet({
     isPostConfirm,
     selectedCarrierId,
     orderForUpload,
-    recommendedCarrierId,
+    comparison.bestChoiceCarrierId,
   ]);
 
   const selectedCarrier =
@@ -817,8 +837,16 @@ export function PostCallActionSheet({
             {/* ── Post-confirm: pick carrier, then upload now or schedule. ── */}
             {flow === "upload_after_confirm" && (
               <div>
-                <div className="text-[13px] text-status-success mb-3">
-                  ✓ {t("confirmedSuccess")}
+                <div className="mb-4 flex items-center gap-2">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-dispatch-ok-bg text-dispatch-ok-ink">
+                    <CheckCircle2 size={15} strokeWidth={2.5} aria-hidden="true" />
+                  </span>
+                  <span className="text-[14px] font-medium text-dispatch-ok-ink">
+                    {t("confirmedSuccess")} · {t("attemptCounter", {
+                      current: currentAttemptNumber,
+                      max: maxAttempts,
+                    })}
+                  </span>
                 </div>
 
                 <div className="text-[14px] font-semibold text-ink-primary mb-2">
@@ -834,47 +862,27 @@ export function PostCallActionSheet({
                     {t("noActiveCarrier")}
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-2 mb-4">
+                  <div role="radiogroup" aria-label={t("pickCarrierTitle")} className="flex flex-col gap-2 mb-4">
                     {carriers.map((c) => {
                       const isSelected = selectedCarrierId === c.id;
                       const cov = carrierCoverage(c.code);
                       const blocked = cov === "uncovered";
                       const city = orderForUpload?.data?.customer_city ?? "";
+                      const row = comparisonByCarrierId[c.id];
                       return (
                         <div key={c.id}>
-                          <button
-                            type="button"
-                            disabled={blocked}
-                            aria-disabled={blocked}
-                            onClick={() => !blocked && setSelectedCarrierId(c.id)}
-                            className={[
-                              "flex items-center justify-between w-full px-3 py-2.5 rounded-md text-[14px] text-start border",
-                              blocked
-                                ? "border-status-critical/40 bg-status-criticalBg text-ink-muted cursor-not-allowed"
-                                : isSelected
-                                  ? "border-2 border-ink-primary bg-surface-card text-ink-primary"
-                                  : "border border-line-strong bg-surface-card text-ink-primary hover:bg-surface-hover",
-                            ].join(" ")}
-                          >
-                            <span className="flex items-center gap-1.5">
-                              <span className="font-medium">{c.name}</span>
-                              {!blocked && c.id === recommendedCarrierId && <CheapestPill />}
-                            </span>
-                            <span
-                              className={[
-                                "flex items-center gap-2 text-[12px] font-normal",
-                                blocked ? "text-status-critical" : "text-ink-secondary",
-                              ].join(" ")}
-                            >
-                              {!blocked && (
-                                <CarrierRateBadge
-                                  info={ratesByCarrierId[c.id]}
-                                  marketId={marketId}
-                                />
-                              )}
-                              {blocked ? tCov("badge") : `(${c.code})`}
-                            </span>
-                          </button>
+                          <CarrierComparisonCard
+                            name={c.name}
+                            code={c.code}
+                            selected={isSelected}
+                            blocked={blocked}
+                            isBestChoice={row?.isBestChoice ?? false}
+                            cost={row?.cost ?? null}
+                            deliveryRate={row?.deliveryRate ?? null}
+                            transitHours={row?.transitHours ?? null}
+                            marketId={marketId}
+                            onSelect={() => setSelectedCarrierId(c.id)}
+                          />
                           {blocked && (
                             <p className="mt-1 px-1 text-[12px] text-status-critical">
                               {tCov("notCovered", { city })}
@@ -894,7 +902,7 @@ export function PostCallActionSheet({
                 <div className="flex flex-col sm:flex-row gap-2">
                   <button
                     type="button"
-                    className={`${submitButtonClasses} flex-1`}
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-dispatch-ok px-4 py-2.5 text-[14px] font-semibold text-white transition-colors duration-fast hover:bg-dispatch-ok-hover disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={!selectedCarrier || uploading}
                     onClick={() => submitUploadNow()}
                   >
@@ -902,7 +910,7 @@ export function PostCallActionSheet({
                   </button>
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center flex-1 py-2.5 px-4 rounded-md border border-line-strong bg-surface-card text-[14px] font-medium text-ink-primary transition-colors duration-fast hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center justify-center flex-1 py-2.5 px-4 rounded-xl border border-line-strong bg-surface-card text-[14px] font-medium text-ink-primary transition-colors duration-fast hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={!selectedCarrier}
                     onClick={() => setFlow("schedule_after_confirm")}
                   >
@@ -963,13 +971,7 @@ export function PostCallActionSheet({
                 </button>
 
                 <div className="text-[13px] text-ink-secondary mb-3">
-                  {selectedCarrier ? (
-                    <>
-                      {t("schedulingFor")} <strong>{selectedCarrier.name}</strong>
-                    </>
-                  ) : (
-                    t("schedulingHint")
-                  )}
+                  {t("schedulingHint")}
                 </div>
 
                 <div className="flex gap-2 mb-3">
@@ -999,10 +1001,98 @@ export function PostCallActionSheet({
                   </div>
                 </div>
 
+                {/* Always auto-dispatches (plans/confirm-flow-upgrade.md) — shown
+                    as a standing confirmation, not a toggle, since there is no
+                    "schedule but don't send" choice in this flow. */}
+                <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-dispatch-ok-edge bg-dispatch-ok-tint p-3">
+                  <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded bg-dispatch-ok text-white">
+                    <Check size={11} strokeWidth={3} aria-hidden="true" />
+                  </span>
+                  <div>
+                    <div className="text-[13px] font-medium text-dispatch-ok-ink">
+                      {t("scheduleAutoDispatchLabel")}
+                    </div>
+                    <div className="mt-0.5 text-[12px] leading-4 text-dispatch-ok-ink/80">
+                      {t("scheduleAutoDispatchHint")}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-[12px] font-medium text-ink-secondary mb-2">
+                  {t("scheduleTransporterTitle")}
+                </div>
+                {!carriersData ? (
+                  <div className="text-[13px] text-ink-secondary py-2">
+                    {t("loadingCarriers")}
+                  </div>
+                ) : carriers.length === 0 ? (
+                  <div className="px-3 py-2 mb-3 rounded-md bg-status-warningBg border border-status-warning/30 text-[13px] text-status-warning">
+                    {t("noActiveCarrier")}
+                  </div>
+                ) : (
+                  <div role="radiogroup" aria-label={t("scheduleTransporterTitle")} className="flex flex-col gap-2 mb-4">
+                    {carriers.map((c) => {
+                      const isSelected = selectedCarrierId === c.id;
+                      const wasChosenBefore = selectedCarrier?.id === c.id;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={isSelected}
+                          onClick={() => setSelectedCarrierId(c.id)}
+                          className={[
+                            "flex items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 text-start transition-colors duration-fast",
+                            isSelected
+                              ? "border-dispatch-ok bg-dispatch-ok-tint"
+                              : "border-line-strong bg-surface-card hover:bg-surface-hover",
+                          ].join(" ")}
+                        >
+                          <span className="text-[14px] font-medium text-ink-primary">{c.name}</span>
+                          {wasChosenBefore && (
+                            <span className="text-[11px] text-ink-secondary">
+                              {t("chosenAtPreviousStep")}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Timeline preview: "maintenant" → the scheduled date/time. */}
+                <div className="mb-4 rounded-xl bg-surface-sunken p-3">
+                  <p className="mb-2 text-[12px] leading-5 text-ink-secondary">
+                    {t("schedulePreviewLabel", {
+                      date: `${scheduleDate} ${scheduleTime}`,
+                    })}
+                  </p>
+                  <div className="relative h-1 rounded-pill bg-line-strong">
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-y-0 start-0 h-1 w-full rounded-pill bg-dispatch-ok/30"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="absolute start-0 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-ink-muted"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="absolute end-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-dispatch-ok"
+                    />
+                  </div>
+                  <div className="mt-1.5 flex justify-between text-[11px] text-ink-secondary">
+                    <span>{t("scheduleNow")}</span>
+                    <span className="font-medium text-dispatch-ok-ink">
+                      {scheduleDate} · {scheduleTime}
+                    </span>
+                  </div>
+                </div>
+
                 <button
                   type="button"
-                  className={submitButtonClasses}
-                  disabled={loading}
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-dispatch-ok px-4 py-2.5 text-[14px] font-semibold text-white transition-colors duration-fast hover:bg-dispatch-ok-hover disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={loading || !selectedCarrier}
                   onClick={submitScheduleUpload}
                 >
                   {loading ? t("saving") : t("scheduleConfirm")}
@@ -1069,6 +1159,7 @@ export function PostCallActionSheet({
         carrierId={selectedCarrier.id}
         customerAddress={orderForUpload?.data?.customer_address ?? null}
         customerCity={orderForUpload?.data?.customer_city ?? null}
+        totalPrice={orderForUpload?.data?.total_price ?? null}
         darbDestinationId={orderForUpload?.data?.darb_destination_id ?? null}
         onClose={() => setDarbModalOpen(false)}
         onSuccess={() => {

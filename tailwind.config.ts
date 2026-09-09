@@ -205,6 +205,17 @@ const config: Config = {
           packing: "var(--ads-packing)",
           profit: "var(--ads-profit)",
         },
+        // Dispatch flow — post-confirm carrier picker, delivery scheduling,
+        // Darb Assabil options modal. See the --dispatch-* block in
+        // globals.css for why this is its own family, not `accent`/`status`.
+        dispatch: {
+          ok: "var(--dispatch-ok)",
+          "ok-hover": "var(--dispatch-ok-hover)",
+          "ok-bg": "var(--dispatch-ok-bg)",
+          "ok-tint": "var(--dispatch-ok-tint)",
+          "ok-edge": "var(--dispatch-ok-edge)",
+          "ok-ink": "var(--dispatch-ok-ink)",
+        },
         status: {
           action: "#2C6ECB",
           success: "#008060",

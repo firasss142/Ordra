@@ -304,6 +304,22 @@
   /* The one glow: primary action and the armed scan field. */
   --wh-glow: 0 0 0 3px rgba(14,122,69,.16), 0 0 18px rgba(14,122,69,.22);
 
+  /* ── Dispatch flow palette ────────────────────────────────────────
+     Scoped to the post-confirm carrier picker, delivery scheduling, and
+     the Darb Assabil dispatch modal — the one flow in the product that
+     leans on a deliberate green "you're on the right track" affordance
+     (selected carrier, best-choice badge, auto-ship confirmation) rather
+     than the console's default black/white chrome. Not the reserved
+     `accent` token (design-system.md §1: two chrome-only slots) and not a
+     status hue (§"status" is what an ORDER is, this is "this choice is
+     good") — its own family, same pattern as --wh, --oms and --fin. */
+  --dispatch-ok: #16794F;
+  --dispatch-ok-hover: #106239;
+  --dispatch-ok-bg: #EAF6F0;
+  --dispatch-ok-tint: #F3FAF7;      /* selected card ground */
+  --dispatch-ok-edge: #BFE3D2;      /* selected card border */
+  --dispatch-ok-ink: #0E5B3A;       /* text on -bg, clears 5:1 */
+
   --oms-ink-1: #1B1917;  /* 17.5:1 — customer name, price */
   --oms-ink-2: #5C5852;  /*  7.1:1 — product, secondary labels */
   --oms-ink-3: #78726A;  /*  4.8:1 — meta, period labels, column heads */

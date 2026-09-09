@@ -31,13 +31,42 @@ const DESTINATIONS = [
   { id: 6, city: "اجدابيا", area: "اجدابيا" },
 ];
 
-function mockServices(services: typeof SERVICES, destinations: typeof DESTINATIONS | null = null) {
+function mockServices(
+  services: typeof SERVICES,
+  destinations: typeof DESTINATIONS | null = null,
+  opts: { quotedFee?: number | null } = {},
+) {
   (useSWR as ReturnType<typeof vi.fn>).mockImplementation((key: string) => {
     if (typeof key === "string" && key.includes("/api/darb/services")) {
       return { data: { services }, isLoading: false };
     }
     if (typeof key === "string" && key.includes("/api/darb/destinations") && destinations) {
       return { data: { destinations }, isLoading: false };
+    }
+    if (typeof key === "string" && key.includes("/api/carriers/rates")) {
+      const fee = opts.quotedFee ?? null;
+      return {
+        data: {
+          data: {
+            recommended_carrier_id: null,
+            reason: "",
+            rates:
+              fee == null
+                ? []
+                : [
+                    {
+                      carrier_id: "c-darb",
+                      quoted_fee: fee,
+                      quote_usable: true,
+                      true_cost_per_delivered: null,
+                      effective_cost: fee,
+                      is_cheapest: false,
+                    },
+                  ],
+          },
+        },
+        isLoading: false,
+      };
     }
     return { data: undefined, isLoading: false };
   });
@@ -47,6 +76,7 @@ const BASE = {
   orderId: "order-1",
   carrierId: "c-darb",
   customerAddress: "test",
+  totalPrice: 199,
   onClose: vi.fn(),
   onSuccess: vi.fn(),
 };
@@ -314,5 +344,66 @@ describe("DarbAssabilDispatchModal — fulfilment source", () => {
 
     expect(screen.getByRole("radio", { name: /Entrepôt Darb Assabil/ })).toBeDisabled();
     expect(screen.getByText(/Indisponible pour cette commande/)).toBeInTheDocument();
+  });
+});
+
+describe("DarbAssabilDispatchModal — locked destination", () => {
+  it("shows a resolved destination locked, with 'corriger' to unlock the picker", () => {
+    // اجدابيا resolves to an exact (city, area) pair → locked, no picker.
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="اجدابيا" />);
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("corriger"));
+
+    // Unlocking swaps the locked field for the real picker.
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
+  });
+});
+
+describe("DarbAssabilDispatchModal — risk hints", () => {
+  it("shows a return-risk hint under Inspection and Testing, not under the other options", () => {
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="اجدابيا" />);
+
+    const inspectionLabel = screen.getByText("Ouvrir le colis (inspection)").closest("label")!;
+    expect(inspectionLabel.textContent).toContain("Risque de retour plus élevé");
+    const testingLabel = screen.getByText("Autoriser l'essai").closest("label")!;
+    expect(testingLabel.textContent).toContain("Risque de retour plus élevé");
+
+    const fragileLabel = screen.getByText("Fragile").closest("label")!;
+    expect(fragileLabel.textContent).not.toContain("Risque de retour plus élevé");
+    const replacementLabel = screen.getByText("Remplacement").closest("label")!;
+    expect(replacementLabel.textContent).not.toContain("Risque de retour plus élevé");
+  });
+});
+
+describe("DarbAssabilDispatchModal — delivery fee + COD summary", () => {
+  it("shows the delivery fee and the COD total to collect", () => {
+    mockServices([], null, { quotedFee: 35 });
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="اجدابيا" />);
+
+    expect(screen.getByText("Frais de livraison")).toBeInTheDocument();
+    // The fee reads as an equation: base + service surcharge = total. With no
+    // services loaded the surcharge is 0, so 35,000 appears as both base and
+    // total — hence getAllByText rather than a single match.
+    expect(screen.getAllByText(/35,000/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/199,000/)).toBeInTheDocument();
+  });
+
+  it("shows a placeholder for the fee when no rate has been fetched yet", () => {
+    mockServices([], null, { quotedFee: null });
+    render(<DarbAssabilDispatchModal {...BASE} customerCity="اجدابيا" />);
+
+    expect(screen.getByText("Frais de livraison")).toBeInTheDocument();
+    // Still shows the COD amount even without a delivery-fee quote.
+    expect(screen.getByText(/199,000/)).toBeInTheDocument();
+  });
+
+  it("renders nothing for the COD total when totalPrice is not passed (backward compatible)", () => {
+    mockServices([], null, { quotedFee: 35 });
+    const { totalPrice: _drop, ...withoutTotalPrice } = BASE;
+    render(<DarbAssabilDispatchModal {...withoutTotalPrice} customerCity="اجدابيا" />);
+
+    expect(screen.getByText("Frais de livraison")).toBeInTheDocument();
+    expect(screen.queryByText(/199,000/)).not.toBeInTheDocument();
   });
 });

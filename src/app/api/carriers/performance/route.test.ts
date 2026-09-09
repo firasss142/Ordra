@@ -46,10 +46,25 @@ describe("GET /api/carriers/performance", () => {
     expect(res.status).toBe(401);
   });
 
-  test("403 when agent tries to read", async () => {
+  // The post-confirm carrier picker's "meilleur choix" score needs this data
+  // in the agent's own hands, not just managers' — reading it is not a door
+  // into the settings page (see canReadCarrierPerformance).
+  test("200 when an agent reads their OWN market's performance", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "u-1" } }, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return usersChain({ role: "agent", market_id: "m-tn" });
+      }
+      return historyChain([]);
+    });
+    const res = await GET(req("/api/carriers/performance?market_id=m-tn"));
+    expect(res.status).toBe(200);
+  });
+
+  test("403 when an agent tries to read ANOTHER market's performance", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "u-1" } }, error: null });
     mockFrom.mockReturnValue(usersChain({ role: "agent", market_id: "m-tn" }));
-    const res = await GET(req("/api/carriers/performance?market_id=m-tn"));
+    const res = await GET(req("/api/carriers/performance?market_id=m-ly"));
     expect(res.status).toBe(403);
   });
 

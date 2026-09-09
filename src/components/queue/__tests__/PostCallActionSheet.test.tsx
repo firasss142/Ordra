@@ -398,6 +398,181 @@ describe("PostCallActionSheet", () => {
     });
   });
 
+  describe("UPLOAD AFTER CONFIRM — carrier comparison ('meilleur choix')", () => {
+    // Each test uses its OWN orderId/marketId so their SWR cache keys never
+    // collide — the sheet has no SWRConfig cache reset between tests, and a
+    // shared key ("order-1"/"market-1") would let one test's response bleed
+    // into the next (SWR's module-level cache outlives a single it() block).
+    function mockCarrierComparisonFlow(orderId: string) {
+      mockFetch.mockImplementation((url: string) => {
+        if (url.includes("/confirm")) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, new_status: "confirmed" }) });
+        }
+        if (url.includes("/api/carriers/rates")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              data: {
+                recommended_carrier_id: "c-benghazi",
+                reason: "cheapest",
+                rates: [
+                  { carrier_id: "c-benghazi", quoted_fee: 20, quote_usable: true, true_cost_per_delivered: null, effective_cost: 20, is_cheapest: false },
+                  { carrier_id: "c-tripoli", quoted_fee: 15, quote_usable: true, true_cost_per_delivered: null, effective_cost: 15, is_cheapest: true },
+                ],
+              },
+            }),
+          });
+        }
+        if (url.includes("/api/carriers/performance")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              data: [
+                { carrier_id: "c-benghazi", delivered: 78, returned: 22, delivery_rate_30d: 0.78, median_transit_hours: 48, sample_size: 100 },
+                { carrier_id: "c-tripoli", delivered: 64, returned: 36, delivery_rate_30d: 0.64, median_transit_hours: 72, sample_size: 100 },
+              ],
+            }),
+          });
+        }
+        if (url.includes("/api/carriers")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              data: [
+                { id: "c-benghazi", name: "Darb Assabil — Benghazi", code: "darb_assabil", is_active: true },
+                { id: "c-tripoli", name: "Darb Assabil — Tripoli", code: "darb_assabil", is_active: true },
+              ],
+            }),
+          });
+        }
+        if (url.includes(`/api/orders/${orderId}`)) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ data: { customer_address: "شارع", customer_city: "طرابلس", dexpress_state_id: null } }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      });
+    }
+
+    it("shows fee, delivery-rate and transit-time stats per carrier", async () => {
+      const props = { ...defaultProps, orderId: "order-cmp-1", marketId: "market-cmp-1" };
+      mockCarrierComparisonFlow(props.orderId);
+      render(<PostCallActionSheet {...props} />);
+      await act(async () => {
+        fireEvent.click(screen.getByText("Confirmé"));
+      });
+
+      await waitFor(() => expect(screen.getByText("Darb Assabil — Benghazi")).toBeDefined());
+      // Delivery rate is expressed as a percentage; transit time in days.
+      expect(screen.getByText("78%")).toBeDefined();
+      expect(screen.getByText("64%")).toBeDefined();
+      expect(screen.getByText("2 j")).toBeDefined();
+      expect(screen.getByText("3 j")).toBeDefined();
+    });
+
+    it("badges the carrier compareCarriers picks as 'meilleur choix', not just the cheapest", async () => {
+      const props = { ...defaultProps, orderId: "order-cmp-2", marketId: "market-cmp-2" };
+      mockCarrierComparisonFlow(props.orderId);
+      render(<PostCallActionSheet {...props} />);
+      await act(async () => {
+        fireEvent.click(screen.getByText("Confirmé"));
+      });
+
+      await waitFor(() => expect(screen.getByText("Darb Assabil — Benghazi")).toBeDefined());
+      // Benghazi (20 LYD/78%/2j) beats Tripoli (15 LYD/64%/3j) on the combined
+      // score despite costing more — "meilleur choix" must land on it, not on
+      // whichever account is merely cheapest.
+      const benghaziCard = screen.getByText("Darb Assabil — Benghazi").closest("button")!;
+      expect(benghaziCard.textContent).toContain("meilleur choix");
+      const tripoliCard = screen.getByText("Darb Assabil — Tripoli").closest("button")!;
+      expect(tripoliCard.textContent).not.toContain("meilleur choix");
+    });
+
+    it("shows 'tarif non relevé' for a carrier with no rate data instead of a stat row", async () => {
+      const props = { ...defaultProps, orderId: "order-cmp-3", marketId: "market-cmp-3" };
+      mockFetch.mockImplementation((url: string) => {
+        if (url.includes("/confirm")) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, new_status: "confirmed" }) });
+        }
+        if (url.includes("/api/carriers/rates")) {
+          return Promise.resolve({ ok: true, json: async () => ({ data: { recommended_carrier_id: null, reason: "", rates: [] } }) });
+        }
+        if (url.includes("/api/carriers/performance")) {
+          return Promise.resolve({ ok: true, json: async () => ({ data: [] }) });
+        }
+        if (url.includes("/api/carriers")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ data: [{ id: "c-dexpress", name: "Dexpress", code: "dexpress", is_active: true }] }),
+          });
+        }
+        if (url.includes(`/api/orders/${props.orderId}`)) {
+          return Promise.resolve({ ok: true, json: async () => ({ data: { customer_address: "a", customer_city: "طرابلس", dexpress_state_id: 1 } }) });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      });
+      render(<PostCallActionSheet {...props} />);
+      await act(async () => {
+        fireEvent.click(screen.getByText("Confirmé"));
+      });
+
+      await waitFor(() => expect(screen.getByText("Dexpress")).toBeDefined());
+      expect(screen.getByText("tarif non relevé")).toBeDefined();
+    });
+  });
+
+  describe("SCHEDULE AFTER CONFIRM — carrier re-selection", () => {
+    it("pre-selects the carrier chosen in the previous step, labeled accordingly", async () => {
+      const props = { ...defaultProps, orderId: "order-sched-1", marketId: "market-sched-1" };
+      mockFetch.mockImplementation((url: string) => {
+        if (url.includes("/confirm")) {
+          return Promise.resolve({ ok: true, json: async () => ({ success: true, new_status: "confirmed" }) });
+        }
+        if (url.includes("/api/carriers/rates")) {
+          return Promise.resolve({ ok: true, json: async () => ({ data: { recommended_carrier_id: null, reason: "", rates: [] } }) });
+        }
+        if (url.includes("/api/carriers/performance")) {
+          return Promise.resolve({ ok: true, json: async () => ({ data: [] }) });
+        }
+        if (url.includes("/api/carriers")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              data: [
+                { id: "c-benghazi", name: "Darb Assabil — Benghazi", code: "darb_assabil", is_active: true },
+                { id: "c-tripoli", name: "Darb Assabil — Tripoli", code: "darb_assabil", is_active: true },
+              ],
+            }),
+          });
+        }
+        if (url.includes(`/api/orders/${props.orderId}`)) {
+          return Promise.resolve({ ok: true, json: async () => ({ data: { customer_address: "شارع", customer_city: "طرابلس", dexpress_state_id: null } }) });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      });
+
+      render(<PostCallActionSheet {...props} />);
+      await act(async () => {
+        fireEvent.click(screen.getByText("Confirmé"));
+      });
+      await waitFor(() => expect(screen.getByText("Darb Assabil — Benghazi")).toBeDefined());
+
+      // Agent explicitly picks Tripoli in step 1, then schedules instead.
+      await act(async () => {
+        fireEvent.click(screen.getByText("Darb Assabil — Tripoli"));
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByText("Programmer la livraison"));
+      });
+
+      // Tripoli carries into the schedule step, marked as the prior choice.
+      await waitFor(() => expect(screen.getByText("choisi à l'étape précédente")).toBeDefined());
+      const tripoliRadio = screen.getByText("Darb Assabil — Tripoli", { selector: "*" });
+      expect(tripoliRadio).toBeDefined();
+    });
+  });
+
   describe("REJECT flow", () => {
     it("submits rejection and calls onSuccess", async () => {
       mockFetch.mockResolvedValueOnce({
