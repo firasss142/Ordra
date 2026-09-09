@@ -453,6 +453,23 @@ the stream stopping/restarting. Broadcast authorises once at channel join (RLS o
 policy; the old `postgres_changes` path stays in `bus.ts` and can be re-pointed in
 `useOrdersRealtime`.
 
+**Gate record (2026-09-09 23:05 UTC):** migration `20260924000002_orders_broadcast.sql`
+applied. Trigger verified from a `market_manager` session inside a rolled-back block:
+metadata-only update → 0 `realtime.messages` rows; status change → exactly 1 row with the
+slim payload `{op, id, market_id, status, assigned_to, archived_at, updated_at}`.
+Client shipped in commit 3e4531a: `bus.subscribeBroadcast` (refcounted, private channel,
+`setAuth()` before join, status fan-out), `useRealtimeBroadcast` +
+`useBroadcastConnected` in the provider, `useOrdersRealtime` rewritten as signal +
+coalesced revalidate (list, status-counts, facet-counts, unassigned count), in-place
+patch of four fields only, terminal toast from the cached row, catch-up on reconnect and
+on tab visibility, 20 s fallback poll only while disconnected, both count routes
+`no-store`, footer shows live/reconnecting (`realtime.connection.*`). Tests: 4 new hook
+tests + all realtime suites green (72); full suite has 24 failures in 14 files, identical
+on the untouched tree. Build green.
+Gates 2–3 (two-browser status change, new order, sleep/wake) **pending a browser pass**;
+the Playwright server was disconnected during this step.
+
+
 ---
 
 ### Step 5 — Optimistic concurrency for edits and actions
