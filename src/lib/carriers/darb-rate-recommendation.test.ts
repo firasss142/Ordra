@@ -162,7 +162,10 @@ describe("recommendCarrierByRate", () => {
 
   test("honours a custom maxQuoteAgeDays", () => {
     const r = recommendCarrierByRate([TRIPOLI, BENGHAZI], { now: NOW, maxQuoteAgeDays: 0 });
-    expect(r.reason).toBe("true_cost");
+    // Both quotes age out together, so they stay comparable to each other and
+    // ranking holds on the destination price — see the "quote_stale" block.
+    expect(r.reason).toBe("quote_stale");
+    expect(r.ranked.every((c) => c.quoteUsable === false)).toBe(true);
   });
 
   test("falls back to the sticker fee when neither quotes nor history exist", () => {
@@ -253,5 +256,59 @@ describe("recommendCarrierByRate", () => {
     const a = recommendCarrierByRate([TRIPOLI, BENGHAZI], opts);
     const b = recommendCarrierByRate([TRIPOLI, BENGHAZI], opts);
     expect(a).toEqual(b);
+  });
+});
+
+describe("stale quotes on both accounts (production regression, 2026-09-09)", () => {
+  // The live bug: the whole catalogue was harvested once on 2026-08-08 and the
+  // refresh cron was never scheduled, so by September EVERY quote for BOTH
+  // accounts was past the 14-day cutoff. Ranking fell through to
+  // get_carrier_true_cost, which is a market-wide average with no notion of
+  // destination — and Benghazi's average (24.64) beats Tripoli's (30.40)
+  // purely because it ships mostly to the cheap east. Result: "meilleur choix"
+  // pointed at Benghazi for EVERY city, including طرابلس, where Benghazi
+  // actually quotes 40 against Tripoli's 35.
+  const NOW_SEPT = new Date("2026-09-09T12:00:00.000Z");
+  const HARVESTED = "2026-08-08T17:25:00.000Z"; // 32 days old
+
+  // Real production figures.
+  const tripoliAcct = candidate({
+    carrierId: "c-tripoli",
+    quotedFee: 35,
+    quotedAt: HARVESTED,
+    trueCostPerDelivered: 30.4,
+  });
+  const benghaziAcct = candidate({
+    carrierId: "c-benghazi",
+    quotedFee: 40,
+    quotedAt: HARVESTED,
+    trueCostPerDelivered: 24.64,
+  });
+
+  test("equally-stale quotes still rank by destination price, not global average", () => {
+    const r = recommendCarrierByRate([tripoliAcct, benghaziAcct], { now: NOW_SEPT });
+    expect(r.recommendedCarrierId).toBe("c-tripoli");
+    expect(r.reason).toBe("quote_stale");
+  });
+
+  test("the stale winner reports the real destination fee it was ranked on", () => {
+    const r = recommendCarrierByRate([tripoliAcct, benghaziAcct], { now: NOW_SEPT });
+    const winner = r.ranked.find((c) => c.isCheapest);
+    expect(winner?.effectiveCost).toBe(35);
+    // Still flagged unusable, so the UI can warn the price is old.
+    expect(winner?.quoteUsable).toBe(false);
+  });
+
+  test("only ONE side stale still falls back to true cost — not comparable", () => {
+    // Fresh as of the September clock, against Tripoli's 32-day-old quote. A
+    // gap between two different harvest dates can be a tariff change rather
+    // than a real price difference, so this must NOT rank on price.
+    const fresh = candidate({
+      carrierId: "c-benghazi",
+      quotedFee: 40,
+      quotedAt: "2026-09-08T00:00:00.000Z",
+    });
+    const r = recommendCarrierByRate([tripoliAcct, fresh], { now: NOW_SEPT });
+    expect(r.reason).toBe("true_cost");
   });
 });

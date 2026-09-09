@@ -134,6 +134,7 @@ refus_client | faux_numero | doublon | injoignable | prix | non_serieux | autre 
 - Claude Code mastery patterns: docs/mastery-guide.md
 - Darb Assabil (Libya carrier) live API contract + sync engine: docs/darb-assabil-sync.md
 - Libya destinations (Darb city/zone catalogue, refresh script, the one picker, phone guard): docs/darb-destinations.md
+- Carrier rate recommendation ("meilleur choix" ladder, why true-cost must not decide per-destination, 2026-09-09 regression): docs/carrier-rate-recommendation.md
 - Agent commissions (rules, ledger, RPCs, surfaces): docs/agent-commissions.md
 - Entrepôt desk console (light, source of truth): docs/design/entrepot/README.md
 - Entrepôt mobile agent shell (mockups + which figure comes from which query): docs/design/entrepot/mobile/README.md

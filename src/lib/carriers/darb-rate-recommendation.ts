@@ -15,6 +15,7 @@
 
 export type RecommendationReason =
   | "quote"
+  | "quote_stale"
   | "quote_tie_true_cost"
   | "quote_tie_sticker"
   | "true_cost"
@@ -137,6 +138,28 @@ export function recommendCarrierByRate(
   // "we cannot compare on price" — not "expensive".
   const allQuoted = candidates.every((c) => usable.get(c.carrierId));
 
+  // ...but "stale" and "missing" are NOT the same failure. When EVERY candidate
+  // has a real quote for this destination and they are all simply OLD, the
+  // comparison is still apples-to-apples: the prices were harvested in the same
+  // sweep, so their DIFFERENCE is intact even if the absolute figures have
+  // drifted. Falling through to get_carrier_true_cost here was the 2026-09-09
+  // production bug — that RPC is a market-wide average with no notion of
+  // destination, so the account that happens to ship to cheap cities wins
+  // EVERYWHERE. A stale price for the actual destination beats a fresh average
+  // for a different one. Only genuinely absent quotes force the fallback.
+  const priced = (c: CarrierRateCandidate) =>
+    c.quotedFee != null && Number.isFinite(c.quotedFee) && Boolean(c.quotedAt);
+  // Every candidate stale, and NONE fresh. Mixed freshness stays on the
+  // true-cost path: an August price against a September one may differ because
+  // the tariff moved, not because one account is cheaper, and ranking that
+  // would reintroduce the very bias the allQuoted guard exists to prevent.
+  // Same-sweep staleness carries no such bias — both were probed together.
+  const allStalePriced =
+    !allQuoted &&
+    candidates.every((c) => priced(c) && !usable.get(c.carrierId));
+  const staleQuote = (c: CarrierRateCandidate) =>
+    priced(c) ? (c.quotedFee as number) : null;
+
   let sorted: CarrierRateCandidate[];
   let reason: RecommendationReason;
   let effective: (c: CarrierRateCandidate) => number | null;
@@ -154,6 +177,15 @@ export function recommendCarrierByRate(
         effective = sticker;
         reason = "quote_tie_sticker";
       }
+    }
+  } else if (allStalePriced) {
+    sorted = rankBy(candidates, staleQuote);
+    effective = staleQuote;
+    reason = "quote_stale";
+    if (isTie(sorted, staleQuote, epsilon)) {
+      sorted = rankBy(candidates, trueCost);
+      effective = trueCost;
+      reason = "quote_tie_true_cost";
     }
   } else {
     sorted = rankBy(candidates, trueCost);
