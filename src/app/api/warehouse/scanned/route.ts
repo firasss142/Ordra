@@ -65,6 +65,8 @@ export interface ScannedPage {
   unconfirmed: number;
   warehouseId: string | null;
   sitePinned: boolean;
+  /** A warehouse agent nobody has assigned to a building yet: they see nothing. */
+  siteUnassigned: boolean;
 }
 
 function encodeCursor(row: { scanned_at: string | null; created_at: string; id: string }): string {
@@ -101,6 +103,27 @@ export async function GET(req: NextRequest) {
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 100;
   const cursor = decodeCursor(req.nextUrl.searchParams.get("cursor"));
 
+  /*
+   * No building, no list. Same reasoning as the bench queue: showing an
+   * unassigned agent both buildings is how a parcel gets un-scanned or
+   * re-stickered from the wrong site.
+   */
+  if (site.unassigned) {
+    const empty: ScannedPage = {
+      orders: [],
+      nextCursor: null,
+      awaitingPickup: 0,
+      atCarrier: 0,
+      unconfirmed: 0,
+      warehouseId: null,
+      sitePinned: true,
+      siteUnassigned: true,
+    };
+    return NextResponse.json(empty, {
+      headers: { "Cache-Control": "private, max-age=2, stale-while-revalidate=30" },
+    });
+  }
+
   const [{ data, error }, zoneIndex] = await Promise.all([
     supabase.rpc("get_scanned_orders", {
       p_market_id: marketId,
@@ -136,6 +159,7 @@ export async function GET(req: NextRequest) {
     ).length,
     warehouseId: site.warehouseId,
     sitePinned: site.pinned,
+    siteUnassigned: false,
   };
 
   return NextResponse.json(body, {

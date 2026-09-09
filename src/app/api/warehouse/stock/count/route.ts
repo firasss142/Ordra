@@ -61,6 +61,18 @@ export async function POST(req: NextRequest) {
     requested: body.warehouse_id ?? null,
   });
 
+  /*
+   * An unassigned agent must not count. This is a WRITE: with no site the RPC
+   * would move the market total, silently attributing one building's shelf to
+   * the whole of Libya. Refused here and again in SQL.
+   */
+  if (site.unassigned) {
+    return NextResponse.json(
+      { error: "no_site_assigned", error_code: "NO_SITE_ASSIGNED" },
+      { status: 409 },
+    );
+  }
+
   const { data, error } = await supabase.rpc("record_stock_count", {
     p_product_id: productId,
     p_counted_qty: counted,

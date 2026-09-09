@@ -19,10 +19,24 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  */
 
 export interface SiteFilter {
-  /** null = every site of the market. */
+  /** null = every site of the market, OR nothing at all when `unassigned`. */
   warehouseId: string | null;
   /** True when the caller cannot widen it — an agent standing in one building. */
   pinned: boolean;
+  /**
+   * A warehouse agent nobody has assigned to a building yet. They see NOTHING.
+   *
+   * This reverses the original behaviour, which widened such an agent to the
+   * whole market so the bench would not look broken. Production showed the cost:
+   * an unassigned agent saw both buildings' parcels mixed together, and the SQL
+   * guard stayed inert for them (it fires only when the agent AND the order both
+   * carry a site). Unassigned meant unrestricted — precisely the hand-over
+   * mistake the site model exists to prevent.
+   *
+   * An empty bench that names its reason is safe and self-correcting: it sends
+   * the agent to their manager instead of to the wrong shelf.
+   */
+  unassigned: boolean;
 }
 
 export async function resolveSiteFilter(
@@ -35,8 +49,10 @@ export async function resolveSiteFilter(
 ): Promise<SiteFilter> {
   const requested = input.requested && input.requested !== "all" ? input.requested : null;
 
+  // Managers and super_admins have no building of their own; that is normal,
+  // not an omission, so it never counts as unassigned.
   if (input.actor.role !== "warehouse_agent") {
-    return { warehouseId: requested, pinned: false };
+    return { warehouseId: requested, pinned: false, unassigned: false };
   }
 
   const { data } = await supabase
@@ -46,7 +62,9 @@ export async function resolveSiteFilter(
     .maybeSingle<{ warehouse_id: string | null }>();
 
   const own = data?.warehouse_id ?? null;
-  // An agent nobody has assigned yet sees the whole market. An empty bench
-  // would read as a broken app, and the RPCs refuse the wrong site anyway.
-  return own ? { warehouseId: own, pinned: true } : { warehouseId: null, pinned: false };
+  // Pinned either way: an agent never widens their own scope, and an agent with
+  // no site is pinned to nothing rather than released onto the market.
+  return own
+    ? { warehouseId: own, pinned: true, unassigned: false }
+    : { warehouseId: null, pinned: true, unassigned: true };
 }

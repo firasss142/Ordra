@@ -29,6 +29,8 @@ export interface WarehouseSitesResponse {
   mine: string | null;
   /** True when the caller cannot look at another site. */
   pinned: boolean;
+  /** A warehouse agent nobody has assigned to a building yet. */
+  unassigned: boolean;
 }
 
 export async function GET(req: NextRequest) {
@@ -76,6 +78,7 @@ export async function GET(req: NextRequest) {
     })),
     mine: site.warehouseId,
     pinned: site.pinned,
+    unassigned: site.unassigned,
   };
 
   return NextResponse.json(body, {

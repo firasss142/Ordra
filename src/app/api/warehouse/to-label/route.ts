@@ -72,6 +72,14 @@ export interface ToLabelQueuePage {
   warehouseId: string | null;
   /** True when the viewer cannot widen the site filter (an agent). */
   sitePinned: boolean;
+  /**
+   * A warehouse agent nobody has assigned to a building yet.
+   *
+   * The queue is empty on purpose, and the screen must say so: showing them
+   * both buildings' parcels is how a Benghazi parcel ends up handed to Darb
+   * Tripoli, where it does not exist.
+   */
+  siteUnassigned: boolean;
 }
 
 const cacheHeaders = {
@@ -120,6 +128,32 @@ export async function GET(req: NextRequest) {
     actor,
     requested: req.nextUrl.searchParams.get("warehouse_id"),
   });
+
+  /*
+   * No building, no work. Returning the market-wide queue here would mix
+   * Tripoli and Benghazi on one bench, and the SQL guard cannot catch the
+   * mis-scan that follows because it needs a site on BOTH sides to fire.
+   * The empty page carries its own explanation instead.
+   */
+  if (site.unassigned) {
+    const empty: ToLabelQueuePage = {
+      orders: [],
+      nextCursor: null,
+      total: 0,
+      late: 0,
+      oldestHours: 0,
+      releasedAtCarrier: 0,
+      scannedToday: 0,
+      scannedYesterday: 0,
+      neverScanned: 0,
+      setAside: 0,
+      carrierWarehouse: 0,
+      warehouseId: null,
+      sitePinned: true,
+      siteUnassigned: true,
+    };
+    return NextResponse.json(empty, { headers: cacheHeaders });
+  }
 
   const [{ data, error }, { data: statsData }, zoneIndex, { data: dayData }] = await Promise.all([
     supabase.rpc("get_to_label_orders", {
@@ -170,6 +204,7 @@ export async function GET(req: NextRequest) {
     carrierWarehouse: Number(stats.carrier_warehouse ?? 0),
     warehouseId: site.warehouseId,
     sitePinned: site.pinned,
+    siteUnassigned: false,
   };
   return NextResponse.json(body, { headers: cacheHeaders });
 }
