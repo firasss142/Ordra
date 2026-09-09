@@ -3881,7 +3881,9 @@
       "unverifiedHint": "Ne remettez pas ce colis. Darb garde encore {ref} — rescannez le sticker.",
       "segments": "Vue du banc",
       "segmentBench": "À préparer",
-      "segmentScanned": "Scannés"
+      "segmentScanned": "Scannés",
+      "confirmParcel": "C'est bien ce colis",
+      "wrongParcel": "Ce n'est pas le bon colis"
     },
     "scanned": {
       "awaitingPickup": "{n} en attente du transporteur",

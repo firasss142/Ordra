@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Camera, Check, TriangleAlert, X } from "lucide-react";
+import { Camera, Check, Package, TriangleAlert, X } from "lucide-react";
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import type { PrepRow } from "@/components/warehouse/console/PrepCard";
 import { QrScanner } from "@/components/warehouse/QrScanner";
@@ -65,6 +65,18 @@ export function ScanSheet({
   const prefs = useMemo(() => readScannerPrefs(), []);
   const [value, setValue] = useState("");
   const [camera, setCamera] = useState(false);
+  /*
+   * The parcel is confirmed by eye before the camera opens.
+   *
+   * There is no printer and no barcode on the box, so nothing mechanical can
+   * prove the parcel in hand is the parcel on screen. The product photo is the
+   * only witness available, and it is already on the row. Showing it large and
+   * asking for one deliberate tap is what stands between "scanned the next
+   * sticker onto the wrong box" and a wrong parcel leaving the building.
+   *
+   * Held per order id, so taking a different parcel re-arms it.
+   */
+  const [confirmedFor, setConfirmedFor] = useState<string | null>(null);
   const [lookup, setLookup] = useState<Lookup | null>(null);
   const [looking, setLooking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -82,6 +94,7 @@ export function ScanSheet({
     clear();
     setLookup(null);
     setValue("");
+    setConfirmedFor(null);
     setCamera(prefs.cameraFirst);
   }, [handId, clear, prefs.cameraFirst]);
 
@@ -90,6 +103,7 @@ export function ScanSheet({
     clear();
     setLookup(null);
     setValue("");
+    setConfirmedFor(null);
     setCamera(false);
   }, [open, clear]);
 
@@ -186,7 +200,9 @@ export function ScanSheet({
           <div className="mb-3" />
         )}
 
-        {busy ? (
+        {hand && confirmedFor !== hand.id && !last ? (
+          <ParcelConfirm hand={hand} onConfirm={() => setConfirmedFor(hand.id)} onPutBack={onPutBack} t={t} />
+        ) : busy ? (
           <div
             role="status"
             className="grid min-h-[200px] place-items-center gap-2.5 rounded-[12px] border border-wm-card-edge bg-wm-card p-4 text-center"
@@ -295,6 +311,74 @@ export function ScanSheet({
 }
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
+
+/**
+ * "Is this the parcel?" — the last check a human can make.
+ *
+ * No printer, no barcode: nothing here can be verified mechanically. So the
+ * photo is shown at a size you can match against a box at arm's length, with
+ * the product, the quantity and the customer beside it, and the camera stays
+ * shut until the agent says yes. One tap, and it re-arms for the next parcel.
+ */
+function ParcelConfirm({
+  hand,
+  onConfirm,
+  onPutBack,
+  t,
+}: {
+  hand: PrepRow;
+  onConfirm: () => void;
+  onPutBack: () => void;
+  t: Translate;
+}) {
+  return (
+    <div data-testid="wh-parcel-confirm" className="grid gap-3">
+      <div className="grid place-items-center gap-2.5 rounded-[12px] border border-wm-card-edge bg-wm-card p-4">
+        <span
+          aria-hidden="true"
+          className="grid h-[160px] w-[160px] place-items-center overflow-hidden rounded-[12px] border border-wm-card-edge bg-wm-ground text-wm-ink-3"
+        >
+          {hand.product_image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={hand.product_image_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <Package size={48} strokeWidth={1.5} />
+          )}
+        </span>
+        <p className="text-center text-[17px] font-bold leading-snug text-wm-ink">
+          <bdi>{hand.product_name}</bdi>
+          {hand.variant_label ? ` · ${hand.variant_label}` : ""}
+          {" × "}
+          <span className="tabular-nums">{hand.quantity}</span>
+        </p>
+        <p className="text-center text-[14px] text-wm-ink-2">
+          <bdi>{hand.customer_name}</bdi>
+          {hand.customer_city ? (
+            <>
+              {" · "}
+              <bdi>{hand.customer_city}</bdi>
+            </>
+          ) : null}
+        </p>
+      </div>
+      <button
+        type="button"
+        data-testid="wh-parcel-confirm-yes"
+        onClick={onConfirm}
+        className="inline-flex min-h-[52px] w-full items-center justify-center rounded-[12px] bg-wm-accent px-4 text-[16px] font-bold text-white active:bg-wm-accent-deep"
+      >
+        {t("confirmParcel")}
+      </button>
+      <button
+        type="button"
+        onClick={onPutBack}
+        className="inline-flex min-h-[44px] w-full items-center justify-center rounded-[12px] text-[14px] font-semibold text-wm-ink-2"
+      >
+        {t("wrongParcel")}
+      </button>
+    </div>
+  );
+}
 
 const TONE: Record<ScanOutcome, string> = {
   bound: "border-wh-ok",

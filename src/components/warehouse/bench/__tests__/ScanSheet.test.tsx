@@ -22,7 +22,9 @@ function respond(status: number, body: unknown) {
   return fetchMock;
 }
 
-function renderSheet(over: Partial<Parameters<typeof ScanSheet>[0]> = {}) {
+function renderSheet(
+  over: Partial<Parameters<typeof ScanSheet>[0]> & { skipConfirm?: boolean } = {},
+) {
   const props = {
     open: true,
     market: "ly" as const,
@@ -36,7 +38,15 @@ function renderSheet(over: Partial<Parameters<typeof ScanSheet>[0]> = {}) {
     onBound: vi.fn(),
     ...over,
   };
+  delete (props as { skipConfirm?: boolean }).skipConfirm;
   render(<Intl locale="fr"><ScanSheet {...props} /></Intl>);
+  // The sheet opens on the photo confirmation (no printer, no barcode: the
+  // photo is the only witness that the box matches the row). Every test below
+  // is about what happens AFTER that, so step through it here.
+  if (props.hand && !over.skipConfirm) {
+    const yes = screen.queryByTestId("wh-parcel-confirm-yes");
+    if (yes) fireEvent.click(yes);
+  }
   return props;
 }
 
@@ -147,5 +157,42 @@ describe("ScanSheet — nothing in hand", () => {
     fireEvent.change(screen.getByLabelText("Numéro du sticker"), { target: { value: "999" } });
     fireEvent.click(screen.getByRole("button", { name: "Chercher le sticker" }));
     expect(await screen.findByText("Introuvable dans le système")).toBeInTheDocument();
+  });
+});
+
+/**
+ * The parcel is confirmed by eye before the camera opens.
+ *
+ * There is no printer and no barcode on a Libyan box, so nothing mechanical can
+ * prove the parcel in hand is the parcel on screen. The product photo is the
+ * only witness, and one deliberate tap is what stands between "stuck the next
+ * sticker on the wrong box" and a wrong parcel leaving the building.
+ */
+describe("ScanSheet — confirming the parcel first", () => {
+  it("keeps the scanner shut until the agent says this is the parcel", () => {
+    renderSheet({ skipConfirm: true });
+    expect(screen.getByTestId("wh-parcel-confirm")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Numéro du sticker")).not.toBeInTheDocument();
+  });
+
+  it("shows the product and the customer at a size you can match to a box", () => {
+    renderSheet({ skipConfirm: true });
+    const card = screen.getByTestId("wh-parcel-confirm");
+    expect(card).toHaveTextContent("دمية ملاكمة حجم كبير");
+    expect(card).toHaveTextContent("محمد علي");
+  });
+
+  it("opens the scanner once confirmed", () => {
+    renderSheet();
+    expect(screen.queryByTestId("wh-parcel-confirm")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Numéro du sticker")).toBeInTheDocument();
+  });
+
+  it("re-arms for the next parcel rather than trusting the last confirmation", () => {
+    renderSheet();
+    cleanup();
+    // A different parcel in hand starts unconfirmed again.
+    renderSheet({ hand: row({ id: "different-parcel" }), skipConfirm: true });
+    expect(screen.getByTestId("wh-parcel-confirm")).toBeInTheDocument();
   });
 });

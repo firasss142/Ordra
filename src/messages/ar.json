@@ -3881,7 +3881,9 @@
       "unverifiedHint": "لا تسلّم هذا الطرد. ما زال درب السبيل يحتفظ بـ {ref} — أعد مسح الملصق.",
       "segments": "عرض المكتب",
       "segmentBench": "للتحضير",
-      "segmentScanned": "تم مسحها"
+      "segmentScanned": "تم مسحها",
+      "confirmParcel": "نعم، هذا هو الطرد",
+      "wrongParcel": "ليس هذا الطرد"
     },
     "scanned": {
       "awaitingPickup": "{n} بانتظار الشركة",

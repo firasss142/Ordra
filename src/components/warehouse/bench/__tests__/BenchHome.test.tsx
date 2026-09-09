@@ -121,11 +121,26 @@ describe("BenchHome — what waits, by roll", () => {
   });
 });
 
+/**
+ * Take a parcel and step through the photo confirmation.
+ *
+ * The sheet opens on "is this the parcel?" — the only check available without a
+ * printer or a barcode — so every test about scanning starts on the far side
+ * of it, exactly as the agent does.
+ */
+function take(name: string) {
+  fireEvent.click(
+    within(screen.getByText(name).closest("article")!).getByRole("button", { name: "خذ الطرد" }),
+  );
+  const yes = screen.queryByTestId("wh-parcel-confirm-yes");
+  if (yes) fireEvent.click(yes);
+  return screen.getByRole("dialog");
+}
+
 describe("BenchHome — take, scan, next", () => {
   it("taking a parcel opens the sheet carrying the parcel and its roll", () => {
     renderHome();
-    fireEvent.click(within(screen.getByText("محمد علي").closest("article")!).getByRole("button", { name: "خذ الطرد" }));
-    const sheet = screen.getByRole("dialog");
+    const sheet = take("محمد علي");
     expect(sheet).toHaveTextContent("في يدك:");
     expect(sheet).toHaveTextContent("محمد علي");
     const band = within(sheet).getByTestId("wh-sheet-band");
@@ -138,8 +153,7 @@ describe("BenchHome — take, scan, next", () => {
 
   it("a bound sticker removes the parcel, counts the scan, and offers the next of the same roll", async () => {
     renderHome();
-    fireEvent.click(within(screen.getByText("محمد علي").closest("article")!).getByRole("button", { name: "خذ الطرد" }));
-    const sheet = screen.getByRole("dialog");
+    const sheet = take("محمد علي");
     const input = within(sheet).getByLabelText("رقم الملصق");
     fireEvent.change(input, { target: { value: "7700001" } });
     fireEvent.click(within(sheet).getByRole("button", { name: "ربط الملصق" }));
