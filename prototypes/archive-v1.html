@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OMS — Archivées v1 · registre consultable</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════════════════
+   0 · JETONS — repris de src/app/globals.css. Aucune couleur inventée.
+   ══════════════════════════════════════════════════════════════════════ */
+:root{
+  --bg-page:#F6F6F7; --bg-card:#FFFFFF; --sunken:#FAFAFB; --hover:#FAFAFA; --selected:#F2F2F2;
+  --ink-1:#1A1A1A; --ink-2:#6D7175; --ink-3:#9CA3AF;
+  --line-subtle:#ECEEF0; --line:#E1E3E5; --line-strong:#DADCE0;
+  --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4; --brand-pos:#16A34A;
+  --action:#2C6ECB; --action-bg:#EBF1FE;
+  --success:#008060; --success-bg:#F1F8F5;
+  --warning:#B98900; --warning-bg:#FFF8E6;
+  --critical:#D72C0D; --critical-bg:#FFF4F4;
+  --neutral:#6D7175; --neutral-bg:#F2F3F5;
+  --r-xs:8px; --r-sm:10px; --r-md:12px; --r-lg:16px; --r-xl:20px;
+  --e-row:0 1px 2px rgba(16,24,40,.04);
+  --e-card:0 1px 2px rgba(16,24,40,.03), 0 1px 1px rgba(16,24,40,.02);
+  --e-panel:0 4px 16px rgba(16,24,40,.06);
+  --e-float:0 8px 24px rgba(16,24,40,.10);
+  --sidebar-bg:#0E1013;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg-page); color:var(--ink-1);
+  font-family:"Inter","Noto Sans Arabic",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font-size:14px; line-height:1.45; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4,p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+.tnum{font-variant-numeric:tabular-nums;unicode-bidi:isolate;direction:ltr}
+
+/* ══════════════════════════════════════════════════════════════════════
+   1 · CHROME DU PROTOTYPE (hors produit)
+   ══════════════════════════════════════════════════════════════════════ */
+.proto-bar{
+  position:sticky;top:0;z-index:80;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  background:var(--sidebar-bg);color:#E6E8EB;padding:10px 22px;
+}
+.proto-bar .tag{font-size:10.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#7F858F}
+.proto-bar .note{font-size:12px;color:#B5BAC2}
+.proto-tabs{display:flex;gap:5px;margin-inline-start:auto;flex-wrap:wrap}
+.proto-tabs button{
+  border:1px solid rgba(255,255,255,.10);background:transparent;color:#B5BAC2;
+  border-radius:var(--r-sm);padding:6px 13px;font-size:12.5px;font-weight:500;transition:.12s;
+}
+.proto-tabs button:hover{background:rgba(255,255,255,.06);color:#fff}
+.proto-tabs button[aria-selected=true]{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+.screen{display:none;padding:22px 30px 96px;max-width:1560px;margin:0 auto}
+.screen.on{display:block}
+
+/* ══════════════════════════════════════════════════════════════════════
+   2 · ATOMES
+   ══════════════════════════════════════════════════════════════════════ */
+.card{background:var(--bg-card);border:1px solid var(--line-subtle);border-radius:var(--r-lg);box-shadow:var(--e-card)}
+.card-pad{padding:16px}
+.h2{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-1)}
+.hint{font-size:12px;color:var(--ink-3)}
+.sub{font-size:12.5px;color:var(--ink-2)}
+
+.chip{display:inline-flex;height:24px;align-items:center;border-radius:var(--r-sm);padding:0 10px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.c-delivered{background:var(--success-bg);color:#116530}
+.c-returned{background:#FFF1E6;color:#8A4B00}
+.c-rejected{background:var(--critical-bg);color:var(--critical)}
+.c-cancelled{background:#EEF1F6;color:#44546F}
+.c-deleted{background:var(--neutral-bg);color:var(--ink-2)}
+
+.pchip{display:inline-flex;height:24px;align-items:center;gap:6px;border-radius:var(--r-sm);border:1px solid;padding:0 9px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.p-archived{background:var(--brand-bg);border-color:#CDE8D8;color:var(--brand-hover)}
+.p-eligible{background:var(--warning-bg);border-color:#F0E0B0;color:#8A6800}
+.p-recent{background:var(--bg-card);border-color:var(--line-strong);color:var(--ink-2)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+
+.btn{display:inline-flex;align-items:center;gap:7px;border-radius:var(--r-sm);padding:8px 13px;font-size:12.5px;font-weight:600;border:1px solid var(--line-strong);background:var(--bg-card);transition:.12s}
+.btn:hover{background:var(--hover)}
+.btn-primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn-primary:hover{background:var(--brand-hover)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+input[type=text],input[type=search],input[type=date],select{
+  font:inherit;font-size:12.5px;color:var(--ink-1);background:var(--bg-card);
+  border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 11px;height:36px;
+}
+input:focus,select:focus{outline:2px solid var(--brand);outline-offset:-1px;border-color:var(--brand)}
+input[type=checkbox]{width:16px;height:16px;accent-color:var(--brand);vertical-align:middle;cursor:pointer}
+
+/* 2.x · Onglets du registre */
+.seg{display:inline-flex;gap:4px;border:1px solid var(--line-strong);background:var(--selected);border-radius:var(--r-sm);padding:4px}
+.seg button{border:0;background:transparent;border-radius:var(--r-xs);padding:6px 12px;font-size:12.5px;font-weight:600;color:var(--ink-2);display:inline-flex;align-items:center;gap:7px}
+.seg button[aria-selected=true]{background:var(--bg-card);color:var(--ink-1);box-shadow:var(--e-row)}
+.seg .n{font-size:11px;font-weight:700;border-radius:20px;padding:1px 7px;background:var(--neutral-bg);color:var(--ink-2)}
+.seg button[aria-selected=true] .n{background:var(--brand-bg);color:var(--brand-hover)}
+
+/* ══════════════════════════════════════════════════════════════════════
+   3 · TABLEAU — mêmes primitives que products-ui-v4
+   ══════════════════════════════════════════════════════════════════════ */
+table.rank{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+table.rank th{
+  text-align:right;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);
+  padding:12px 14px;background:var(--sunken);border-bottom:1px solid var(--line-subtle);white-space:nowrap;
+}
+table.rank th:first-child,table.rank th:nth-child(2),table.rank th.l{text-align:left}
+table.rank td{padding:12px 14px;border-bottom:1px solid var(--line-subtle);text-align:right;white-space:nowrap}
+table.rank td:first-child,table.rank td:nth-child(2),table.rank td.l{text-align:left}
+table.rank tbody tr:hover td{background:var(--hover)}
+table.rank tbody tr.on td{background:var(--brand-tint)}
+table.rank tbody tr:last-child td{border-bottom:0}
+.tblwrap{overflow-x:auto;border-top:1px solid var(--line-subtle)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+
+/* 3.x · Barre d'action groupée */
+.bulk{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  background:var(--ink-1);color:#fff;border-radius:var(--r-sm);padding:10px 14px;font-size:12.5px;
+  box-shadow:var(--e-float);margin-bottom:12px;
+}
+.bulk .ghost{border:1px solid rgba(255,255,255,.25);background:transparent;color:rgba(255,255,255,.85);border-radius:var(--r-xs);padding:6px 12px;font-weight:600}
+.bulk .solid{border:0;background:#fff;color:var(--ink-1);border-radius:var(--r-xs);padding:6px 12px;font-weight:600}
+
+/* 3.x · Pagination */
+.pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 2px 0}
+.pager .pg{display:flex;gap:6px;align-items:center}
+.pager button{border:1px solid var(--line-strong);background:var(--bg-card);border-radius:var(--r-xs);padding:6px 11px;font-size:12.5px;font-weight:600}
+.pager button:hover:not(:disabled){background:var(--hover)}
+.pager button:disabled{opacity:.4;cursor:not-allowed}
+
+/* ══════════════════════════════════════════════════════════════════════
+   4 · MÉTRIQUES (secondaires)
+   ══════════════════════════════════════════════════════════════════════ */
+.scope-note{
+  display:flex;align-items:flex-start;gap:10px;border:1px solid #CDE8D8;background:var(--brand-bg);
+  border-radius:var(--r-sm);padding:11px 13px;font-size:12.5px;color:#0F5132;line-height:1.5;
+}
+.bar{display:flex;height:32px;overflow:hidden;border-radius:var(--r-sm)}
+.b-delivered{background:#15803D} .b-returned{background:#8A4B00}
+.b-rejected{background:#D72C0D}  .b-cancelled{background:#44546F}
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:12px}
+.legend span{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+.legend i{width:10px;height:10px;border-radius:3px;flex:none}
+.stat{min-width:112px;border:1px solid var(--line);background:var(--bg-card);border-radius:var(--r-sm);padding:9px 12px}
+.stat.brand{border-color:#CDE8D8;background:var(--brand-bg)}
+.stat .k{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+.stat .v{margin-top:2px;font-size:19px;font-weight:700}
+.stat.brand .v{color:var(--brand)}
+.grid2{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:1080px){.grid2{grid-template-columns:1fr 1fr}}
+.collapse-head{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;background:none;border:0;padding:0;text-align:left}
+.caret{transition:.15s;color:var(--ink-3)}
+.caret.open{transform:rotate(90deg)}
+
+.empty{padding:48px 16px;text-align:center;color:var(--ink-2);font-size:13px}
+.empty b{display:block;color:var(--ink-1);font-size:14px;margin-bottom:5px}
+</style>
+</head>
+<body>
+
+<div class="proto-bar">
+  <span class="tag">Prototype</span>
+  <strong style="font-size:13px">Archivées v1</strong>
+  <span class="note">registre consultable d'abord · métriques = rangées uniquement</span>
+  <div class="proto-tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-screen="s1">A · Registre (défaut)</button>
+    <button role="tab" aria-selected="false" data-screen="s2">B · Recherche active</button>
+    <button role="tab" aria-selected="false" data-screen="s3">C · Aucun résultat</button>
+  </div>
+</div>
+
+<!-- ═══════════════ ÉCRAN A ═══════════════ -->
+<section class="screen on" id="s1">
+
+  <!-- en-tête -->
+  <header style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:16px">
+    <div>
+      <h1 style="font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.15">Archivées</h1>
+      <p class="sub" style="margin-top:3px">1 284 commandes rangées · Tunisie</p>
+    </div>
+    <a class="btn btn-primary" href="#">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Télécharger en Excel
+    </a>
+  </header>
+
+  <!-- ── LE REGISTRE — surface principale ─────────────────────────── -->
+  <section class="card" style="margin-bottom:14px">
+    <div class="card-pad" style="padding-bottom:12px">
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px">
+        <div>
+          <h2 class="h2">Trouver une commande</h2>
+          <p class="hint" style="margin-top:3px">cherchez par téléphone, ID, produit ou nom du client — dans toutes les commandes finies</p>
+        </div>
+        <div class="seg" role="tablist" id="tabs1">
+          <button role="tab" aria-selected="true"  data-tab="archived">Déjà rangées <span class="n tnum">1 284</span></button>
+          <button role="tab" aria-selected="false" data-tab="eligible">Prêtes à ranger <span class="n tnum">86</span></button>
+          <button role="tab" aria-selected="false" data-tab="recent">Encore récentes <span class="n tnum">213</span></button>
+        </div>
+      </div>
+
+      <!-- filtres -->
+      <div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center">
+        <div style="position:relative;flex:1 1 300px;min-width:240px">
+          <svg style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--ink-3)" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="search" style="width:100%;padding-left:34px" placeholder="Rechercher : téléphone · ID · produit · nom…" aria-label="Rechercher dans les archives">
+        </div>
+        <select aria-label="Issue">
+          <option>Toutes les issues</option>
+          <option>Livré</option><option>Retourné</option><option>Rejeté</option>
+          <option>Annulé (transporteur)</option><option>Supprimé</option>
+        </select>
+        <select aria-label="Raison">
+          <option>Toutes les raisons</option>
+          <option>Injoignable</option><option>Refus client</option><option>Faux numéro</option>
+          <option>Doublon</option><option>Prix</option><option>Autre</option>
+        </select>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="date" value="2026-06-05" aria-label="Date de début">
+          <span class="hint">→</span>
+          <input type="date" value="2026-09-03" aria-label="Date de fin">
+        </div>
+        <button class="btn" type="button">Réinitialiser</button>
+      </div>
+    </div>
+
+    <div class="card-pad" style="padding-top:0;padding-bottom:0">
+      <div class="bulk" id="bulk1" hidden>
+        <b id="bulkN1">3 commande(s) cochée(s)</b>
+        <span style="flex:1"></span>
+        <button class="ghost" type="button" onclick="clearSel(1)">Tout décocher</button>
+        <button class="solid" type="button">Remettre dans la liste</button>
+      </div>
+    </div>
+
+    <div class="tblwrap">
+      <table class="rank" style="min-width:940px">
+        <thead>
+          <tr>
+            <th style="width:40px"><input type="checkbox" aria-label="Tout sélectionner" onchange="selAll(1,this.checked)"></th>
+            <th>#</th>
+            <th class="l">Client</th>
+            <th class="l">Ville</th>
+            <th class="l">Issue</th>
+            <th class="l">Raison</th>
+            <th>Finie depuis</th>
+            <th class="l">Où elle est</th>
+          </tr>
+        </thead>
+        <tbody id="tb1"></tbody>
+      </table>
+    </div>
+
+    <div class="card-pad" style="padding-top:0">
+      <div class="pager">
+        <span class="hint tnum">1–25 sur 1 284 résultat(s)</span>
+        <div class="pg">
+          <button type="button" disabled>← Précédent</button>
+          <span class="hint tnum" style="padding:0 6px">Page 1 / 52</span>
+          <button type="button">Suivant →</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── MÉTRIQUES — secondaires, repliables ──────────────────────── -->
+  <section class="card">
+    <div class="card-pad">
+      <button class="collapse-head" type="button" onclick="toggleMetrics(this)" aria-expanded="true">
+        <span>
+          <span class="h2">Ce que ça a donné</span>
+          <span class="hint" style="display:block;margin-top:3px">sur les 1 583 commandes finies de la période — rangées ou non</span>
+        </span>
+        <svg class="caret open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+
+      <div id="metrics1" style="margin-top:14px">
+
+        <p class="scope-note" style="margin-bottom:14px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <span><b>Ces chiffres comptent toutes les commandes finies de la période — rangées ou non.</b> Ranger une commande ne change que la liste Commandes : ça ne retire rien de ces chiffres, ni de la recherche. Les 3 onglets ci-dessus ne filtrent que le tableau, jamais les chiffres.</span>
+        </p>
+
+        <div class="grid2" style="margin-bottom:14px">
+          <div style="border:1px solid var(--line-subtle);border-radius:var(--r-md);padding:14px">
+            <p class="hint">sur 1 583 commandes arrivées au bout</p>
+            <p style="margin-top:4px;font-size:32px;font-weight:700;line-height:1;letter-spacing:-.02em;color:var(--brand)" class="tnum">71,4 %</p>
+            <p class="sub" style="margin-top:6px">des commandes ont réussi<br>1 130 livrées, 453 perdues</p>
+          </div>
+          <div style="border:1px solid var(--line-subtle);border-radius:var(--r-md);padding:14px">
+            <p class="h2" style="margin-bottom:9px">Ranger automatiquement</p>
+            <p style="font-size:12px;color:var(--ink-2);line-height:1.5">Le compteur démarre le jour où la commande se termine, au bout de <b>30 jours</b>. Ranger ne change que l'affichage : les chiffres et la recherche voient tout.</p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:11px">
+              <div class="stat brand"><p class="k">Déjà rangées</p><p class="v tnum">1 284</p></div>
+              <div class="stat"><p class="k">Prêtes à ranger</p><p class="v tnum">86</p></div>
+              <div class="stat"><p class="k">Encore récentes</p><p class="v tnum">213</p></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="border:1px solid var(--line-subtle);border-radius:var(--r-md);padding:14px">
+          <h3 class="h2" style="margin-bottom:11px">Répartition des issues</h3>
+          <div class="bar" role="img" aria-label="Répartition des issues">
+            <span class="b-delivered" style="width:71.4%"></span>
+            <span class="b-returned"  style="width:12.1%"></span>
+            <span class="b-rejected"  style="width:13.3%"></span>
+            <span class="b-cancelled" style="width:3.3%"></span>
+          </div>
+          <div class="legend">
+            <span><i class="b-delivered"></i>Livré <b class="tnum" style="color:var(--ink-1)">1 130</b> <span class="tnum">71,4 %</span></span>
+            <span><i class="b-returned"></i>Retourné <b class="tnum" style="color:var(--ink-1)">191</b> <span class="tnum">12,1 %</span></span>
+            <span><i class="b-rejected"></i>Rejeté <b class="tnum" style="color:var(--ink-1)">210</b> <span class="tnum">13,3 %</span></span>
+            <span><i class="b-cancelled"></i>Annulé (transporteur) <b class="tnum" style="color:var(--ink-1)">52</b> <span class="tnum">3,3 %</span></span>
+          </div>
+          <p class="sub" style="margin-top:12px;border-top:1px solid var(--line-subtle);padding-top:10px">
+            Sur 1 321 colis envoyés, 85,5 % sont arrivés et 14,5 % sont revenus.
+            <span class="hint" style="display:block;margin-top:4px">Les commandes supprimées ne sont pas comptées ici : ce sont des doublons ou des saisies annulées, pas des ventes perdues.</span>
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+</section>
+
+<!-- ═══════════════ ÉCRAN B — recherche active ═══════════════ -->
+<section class="screen" id="s2">
+  <header style="margin-bottom:16px">
+    <h1 style="font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.15">Archivées</h1>
+    <p class="sub" style="margin-top:3px">1 284 commandes rangées · Tunisie</p>
+  </header>
+
+  <section class="card">
+    <div class="card-pad" style="padding-bottom:12px">
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px">
+        <div>
+          <h2 class="h2">Trouver une commande</h2>
+          <p class="hint" style="margin-top:3px">la recherche traverse les trois onglets — peu importe où la commande est rangée</p>
+        </div>
+        <div class="seg" role="tablist">
+          <button role="tab" aria-selected="true">Déjà rangées <span class="n tnum">2</span></button>
+          <button role="tab" aria-selected="false">Prêtes à ranger <span class="n tnum">1</span></button>
+          <button role="tab" aria-selected="false">Encore récentes <span class="n tnum">0</span></button>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center">
+        <div style="position:relative;flex:1 1 300px;min-width:240px">
+          <svg style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--brand)" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="search" style="width:100%;padding-left:34px;border-color:var(--brand)" value="98 412 337" aria-label="Rechercher dans les archives">
+        </div>
+        <select aria-label="Issue"><option>Toutes les issues</option></select>
+        <select aria-label="Raison"><option>Toutes les raisons</option></select>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="date" value="2026-06-05" aria-label="Date de début">
+          <span class="hint">→</span>
+          <input type="date" value="2026-09-03" aria-label="Date de fin">
+        </div>
+        <button class="btn" type="button">Réinitialiser</button>
+      </div>
+      <p class="sub" style="margin-top:11px">
+        <b class="tnum">3</b> résultat(s) pour « 98 412 337 » — dont <b class="tnum">1</b> hors de l'onglet courant.
+      </p>
+    </div>
+
+    <div class="tblwrap">
+      <table class="rank" style="min-width:940px">
+        <thead>
+          <tr>
+            <th style="width:40px"><input type="checkbox" aria-label="Tout sélectionner"></th>
+            <th>#</th><th class="l">Client</th><th class="l">Ville</th><th class="l">Issue</th>
+            <th class="l">Raison</th><th>Finie depuis</th><th class="l">Où elle est</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input type="checkbox"></td>
+            <td class="mono">TN-40182</td>
+            <td class="l">Sana Ben Amor</td>
+            <td class="l">Sfax</td>
+            <td class="l"><span class="chip c-delivered">Livré</span></td>
+            <td class="l" style="color:var(--ink-2)">—</td>
+            <td class="tnum" style="color:var(--ink-2)">64 j</td>
+            <td class="l"><span class="pchip p-archived"><i class="dot"></i>Rangée</span></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox"></td>
+            <td class="mono">TN-39004</td>
+            <td class="l">Sana Ben Amor</td>
+            <td class="l">Sfax</td>
+            <td class="l"><span class="chip c-rejected">Rejeté</span></td>
+            <td class="l" style="color:var(--ink-2)">Doublon</td>
+            <td class="tnum" style="color:var(--ink-2)">71 j</td>
+            <td class="l"><span class="pchip p-archived"><i class="dot"></i>Rangée</span></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox"></td>
+            <td class="mono">TN-41930</td>
+            <td class="l">Sana Ben Amor</td>
+            <td class="l">Sfax</td>
+            <td class="l"><span class="chip c-returned">Retourné</span></td>
+            <td class="l" style="color:var(--ink-2)">—</td>
+            <td class="tnum" style="color:var(--ink-2)">38 j</td>
+            <td class="l"><span class="pchip p-eligible"><i class="dot"></i>Prête à ranger</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card-pad" style="padding-top:0">
+      <div class="pager">
+        <span class="hint tnum">1–3 sur 3 résultat(s)</span>
+        <div class="pg"><button type="button" disabled>← Précédent</button><span class="hint tnum" style="padding:0 6px">Page 1 / 1</span><button type="button" disabled>Suivant →</button></div>
+      </div>
+    </div>
+  </section>
+</section>
+
+<!-- ═══════════════ ÉCRAN C — aucun résultat ═══════════════ -->
+<section class="screen" id="s3">
+  <header style="margin-bottom:16px">
+    <h1 style="font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.15">Archivées</h1>
+    <p class="sub" style="margin-top:3px">1 284 commandes rangées · Tunisie</p>
+  </header>
+
+  <section class="card">
+    <div class="card-pad" style="padding-bottom:12px">
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px">
+        <div>
+          <h2 class="h2">Trouver une commande</h2>
+          <p class="hint" style="margin-top:3px">cherchez par téléphone, ID, produit ou nom du client</p>
+        </div>
+        <div class="seg" role="tablist">
+          <button role="tab" aria-selected="true">Déjà rangées <span class="n tnum">0</span></button>
+          <button role="tab" aria-selected="false">Prêtes à ranger <span class="n tnum">0</span></button>
+          <button role="tab" aria-selected="false">Encore récentes <span class="n tnum">0</span></button>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:9px;align-items:center">
+        <div style="position:relative;flex:1 1 300px;min-width:240px">
+          <svg style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--ink-3)" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="search" style="width:100%;padding-left:34px" value="55 000 999" aria-label="Rechercher dans les archives">
+        </div>
+        <select aria-label="Issue"><option>Livré</option></select>
+        <select aria-label="Raison"><option>Toutes les raisons</option></select>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="date" value="2026-08-01" aria-label="Date de début">
+          <span class="hint">→</span>
+          <input type="date" value="2026-09-03" aria-label="Date de fin">
+        </div>
+        <button class="btn" type="button">Réinitialiser</button>
+      </div>
+    </div>
+
+    <div class="tblwrap">
+      <div class="empty">
+        <b>Aucune commande ne correspond.</b>
+        Essayez d'élargir les dates, ou de retirer le filtre « Livré ».
+        <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+          <button class="btn" type="button">Élargir à 12 mois</button>
+          <button class="btn" type="button">Retirer les filtres</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</section>
+
+<script>
+/* ── données de démonstration ────────────────────────────────────── */
+const ROWS = [
+  ["TN-41882","Mohamed Trabelsi","Tunis","delivered","Livré","—",31,"archived"],
+  ["TN-41877","Ines Gharbi","Sousse","rejected","Rejeté","Injoignable",33,"archived"],
+  ["TN-41864","Karim Belhaj","Ariana","delivered","Livré","—",34,"archived"],
+  ["TN-41850","Rania Mansouri","Sfax","returned","Retourné","—",35,"archived"],
+  ["TN-41841","Youssef Amri","Nabeul","delivered","Livré","—",36,"archived"],
+  ["TN-41833","Amine Chaabane","Bizerte","rejected","Rejeté","Refus client",38,"archived"],
+  ["TN-41820","Leila Hamdi","Tunis","cancelled","Annulé (transporteur)","—",39,"archived"],
+  ["TN-41812","Nour Jelassi","Monastir","delivered","Livré","—",41,"archived"],
+  ["TN-41805","Sami Ferjani","Gabès","returned","Retourné","—",42,"archived"],
+  ["TN-41799","Hedi Zouari","Sfax","delivered","Livré","—",44,"archived"],
+  ["TN-41788","Olfa Rekik","Tunis","rejected","Rejeté","Faux numéro",45,"archived"],
+  ["TN-41774","Bilel Ayadi","Kairouan","delivered","Livré","—",47,"archived"],
+  ["TN-41766","Fatma Nasri","Sousse","deleted","Supprimé","Doublon",48,"archived"],
+  ["TN-41751","Walid Ben Salah","Ariana","delivered","Livré","—",50,"archived"],
+  ["TN-41743","Syrine Khelifi","Tunis","returned","Retourné","—",51,"archived"],
+];
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function render(){
+  document.getElementById("tb1").innerHTML = ROWS.map((r,i)=>`
+    <tr data-i="${i}">
+      <td><input type="checkbox" onchange="onSel(1,this)"></td>
+      <td class="mono">${esc(r[0])}</td>
+      <td class="l">${esc(r[1])}</td>
+      <td class="l" style="color:var(--ink-2)">${esc(r[2])}</td>
+      <td class="l"><span class="chip c-${r[3]}">${esc(r[4])}</span></td>
+      <td class="l" style="color:var(--ink-2)">${esc(r[5])}</td>
+      <td class="tnum" style="color:var(--ink-2)">${r[6]} j</td>
+      <td class="l"><span class="pchip p-${r[7]}"><i class="dot"></i>Rangée</span></td>
+    </tr>`).join("");
+}
+render();
+
+/* ── sélection ───────────────────────────────────────────────────── */
+function onSel(s,box){
+  box.closest("tr").classList.toggle("on",box.checked);
+  sync(s);
+}
+function selAll(s,on){
+  document.querySelectorAll(`#tb1 input[type=checkbox]`).forEach(b=>{
+    b.checked=on; b.closest("tr").classList.toggle("on",on);
+  });
+  sync(s);
+}
+function clearSel(s){ selAll(s,false); document.querySelectorAll("thead input").forEach(b=>b.checked=false); }
+function sync(s){
+  const n=document.querySelectorAll(`#tb1 input[type=checkbox]:checked`).length;
+  const bar=document.getElementById("bulk"+s);
+  bar.hidden = n===0;
+  document.getElementById("bulkN"+s).textContent = `${n} commande(s) cochée(s)`;
+}
+
+/* ── onglets du registre ─────────────────────────────────────────── */
+document.getElementById("tabs1").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-tab]"); if(!b) return;
+  [...b.parentElement.children].forEach(x=>x.setAttribute("aria-selected", String(x===b)));
+});
+
+/* ── métriques repliables ────────────────────────────────────────── */
+function toggleMetrics(btn){
+  const open = btn.getAttribute("aria-expanded")==="true";
+  btn.setAttribute("aria-expanded", String(!open));
+  btn.querySelector(".caret").classList.toggle("open", !open);
+  document.getElementById("metrics1").hidden = open;
+}
+
+/* ── navigation du prototype ─────────────────────────────────────── */
+document.querySelector(".proto-tabs").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-screen]"); if(!b) return;
+  document.querySelectorAll(".proto-tabs button").forEach(x=>x.setAttribute("aria-selected",String(x===b)));
+  document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on", s.id===b.dataset.screen));
+  window.scrollTo(0,0);
+});
+</script>
+</body>
+</html>

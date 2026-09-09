@@ -7,7 +7,7 @@ import { uploadAvatarDataUrl } from "@/lib/avatars";
 export const dynamic = "force-dynamic";
 
 const USER_COLS =
-  "id, email, full_name, avatar_url, phone, role, market_id, is_active, last_seen_at, created_at";
+  "id, email, full_name, avatar_url, phone, role, market_id, warehouse_id, is_active, last_seen_at, created_at";
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();

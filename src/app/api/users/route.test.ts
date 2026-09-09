@@ -244,3 +244,91 @@ describe("POST /api/users action=create — RBAC", () => {
   });
 });
 
+
+// ─── the building a warehouse agent works out of ─────────────────────────────
+
+/**
+ * Creating a warehouse agent already assigned to a building.
+ *
+ * Libya prepares from two, one per Darb Assabil account. Creating the agent and
+ * assigning them in one gesture is what stops an agent existing in the
+ * unassigned state at all — which, until the site guard was inverted, meant
+ * seeing both buildings' parcels at once.
+ */
+function warehouseChain(site: unknown) {
+  const c: Record<string, unknown> = {};
+  c.select = vi.fn().mockReturnValue(c);
+  c.eq = vi.fn().mockReturnValue(c);
+  c.maybeSingle = vi.fn().mockResolvedValue({ data: site, error: null });
+  return c;
+}
+
+describe("POST /api/users — the warehouse", () => {
+  const created = {
+    id: "new-u", email: "u@oms.local", full_name: "u", role: "warehouse_agent",
+    market_id: "market-tn", is_active: true, avatar_url: null, last_seen_at: null, created_at: "",
+  };
+
+  function wireAdmin(site: unknown, capture: { chain?: Record<string, unknown> }) {
+    mockAdminCreateUser.mockResolvedValue({ data: { user: { id: "new-u" } }, error: null });
+    mockAdminFrom.mockImplementation((table: string) => {
+      if (table === "warehouses") return warehouseChain(site);
+      if (table === "user_audit_log") return auditInsertChain();
+      const c = insertChain(created);
+      capture.chain = c;
+      return c;
+    });
+  }
+
+  test("stores the building on the new agent", async () => {
+    mockFrom.mockReturnValue(actorChain("super_admin"));
+    const cap: { chain?: Record<string, unknown> } = {};
+    wireAdmin({ id: "site-tripoli", market_id: "market-tn", is_active: true }, cap);
+    const res = await POST(makePostRequest({
+      username: "u", password: "pw", role: "warehouse_agent",
+      market_id: "market-tn", warehouse_id: "site-tripoli",
+    }));
+    expect(res.status).toBe(201);
+    expect(cap.chain?.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ warehouse_id: "site-tripoli" }),
+    );
+  });
+
+  test("refuses a building from another market", async () => {
+    mockFrom.mockReturnValue(actorChain("super_admin"));
+    const cap: { chain?: Record<string, unknown> } = {};
+    wireAdmin({ id: "site-benghazi", market_id: "market-ly", is_active: true }, cap);
+    const res = await POST(makePostRequest({
+      username: "u", password: "pw", role: "warehouse_agent",
+      market_id: "market-tn", warehouse_id: "site-benghazi",
+    }));
+    expect(res.status).toBe(400);
+  });
+
+  /** A non-warehouse role has no building; silently storing one would be a lie. */
+  test("ignores a building sent for a phone agent", async () => {
+    mockFrom.mockReturnValue(actorChain("super_admin"));
+    const cap: { chain?: Record<string, unknown> } = {};
+    wireAdmin({ id: "site-tripoli", market_id: "market-tn", is_active: true }, cap);
+    await POST(makePostRequest({
+      username: "u", password: "pw", role: "agent",
+      market_id: "market-tn", warehouse_id: "site-tripoli",
+    }));
+    expect(cap.chain?.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ warehouse_id: null }),
+    );
+  });
+
+  test("a warehouse agent may still be created unassigned", async () => {
+    mockFrom.mockReturnValue(actorChain("super_admin"));
+    const cap: { chain?: Record<string, unknown> } = {};
+    wireAdmin(null, cap);
+    const res = await POST(makePostRequest({
+      username: "u", password: "pw", role: "warehouse_agent", market_id: "market-tn",
+    }));
+    expect(res.status).toBe(201);
+    expect(cap.chain?.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ warehouse_id: null }),
+    );
+  });
+});

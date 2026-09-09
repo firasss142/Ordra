@@ -17,6 +17,12 @@ export interface UserWithStats {
   avatar_url: string | null;
   role: Role;
   market_id: string | null;
+  /**
+   * The building a warehouse agent works out of; null for every other role.
+   * Libya has two, one per Darb Assabil account, and they are not
+   * interchangeable — see docs/warehouse-sites-and-statuses.md.
+   */
+  warehouse_id: string | null;
   is_active: boolean;
   invitation_sent_at: string | null;
   invitation_accepted_at: string | null;

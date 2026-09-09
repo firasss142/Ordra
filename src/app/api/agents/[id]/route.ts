@@ -42,7 +42,7 @@ export async function PATCH(
 
   const [actorResult, { data: target }] = await Promise.all([
     getActor(req),
-    supabase.from("users").select("market_id").eq("id", id).single(),
+    supabase.from("users").select("market_id, role").eq("id", id).single(),
   ]);
 
   if ("response" in actorResult) return actorResult.response;
@@ -62,11 +62,12 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { action, new_password, avatar, reason } = body as {
+  const { action, new_password, avatar, reason, warehouse_id } = body as {
     action?: string;
     new_password?: string;
     avatar?: string | null;
     reason?: string;
+    warehouse_id?: string | null;
   };
 
   const admin = createAdminClient();
@@ -153,6 +154,67 @@ export async function PATCH(
     await writeAuditLog(admin, actor.id, id, "avatar_updated");
 
     return NextResponse.json({ success: true, avatar_url: avatarUrl });
+  }
+
+  /*
+   * Which building this agent works out of.
+   *
+   * Libya prepares from two, one per Darb Assabil account, and they are not
+   * interchangeable: a parcel booked on the Benghazi account handed to Darb
+   * Tripoli does not exist in their system. `users.warehouse_id` has existed
+   * since 20260922000010 and nothing ever wrote it, so the scan guard — which
+   * needs a site on the agent AND the order — could never arm. This is that
+   * write, and it is deliberately the only user field this route edits.
+   */
+  if (action === "set_warehouse") {
+    if (target.role !== "warehouse_agent") {
+      return NextResponse.json(
+        { error: "Only a warehouse agent works out of a building" },
+        { status: 400 },
+      );
+    }
+
+    const siteId = typeof warehouse_id === "string" && warehouse_id.trim() !== ""
+      ? warehouse_id.trim()
+      : null;
+
+    if (siteId) {
+      const { data: site } = await supabase
+        .from("warehouses")
+        .select("id, market_id, is_active")
+        .eq("id", siteId)
+        .maybeSingle<{ id: string; market_id: string; is_active: boolean }>();
+
+      if (!site || !site.is_active) {
+        return NextResponse.json({ error: "Unknown or closed warehouse" }, { status: 400 });
+      }
+      /*
+       * Same market, always. A Libyan agent pinned to Tunis would read as
+       * "assigned" on every screen while the scan guard compared two sites that
+       * can never match — an agent locked out of their own bench with nothing
+       * on screen to explain why.
+       */
+      if (site.market_id !== targetMarketId) {
+        return NextResponse.json(
+          { error: "That warehouse belongs to another market" },
+          { status: 400 },
+        );
+      }
+    }
+
+    const { error } = await admin
+      .from("users")
+      .update({ warehouse_id: siteId })
+      .eq("id", id);
+
+    if (error) {
+      console.error("[PATCH /api/agents] set warehouse error:", error);
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+
+    await writeAuditLog(admin, actor.id, id, "warehouse_assigned", { warehouse_id: siteId });
+
+    return NextResponse.json({ success: true, warehouse_id: siteId });
   }
 
   if (action === "reset_password") {

@@ -13,6 +13,7 @@ const mockUsersActorSingle = vi.fn();
 const mockUsersTargetSingle = vi.fn();
 const mockOrdersIn = vi.fn();
 const mockUsersUpdate = vi.fn();
+const mockWarehouseSingle = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
@@ -50,6 +51,13 @@ vi.mock("@/lib/supabase/server", () => ({
           return uc;
         });
         void origEq; // suppress unused warning
+        return c;
+      }
+      if (table === "warehouses") {
+        const c: Record<string, unknown> = {};
+        c.select = vi.fn().mockReturnValue(c);
+        c.eq = vi.fn().mockReturnValue(c);
+        c.maybeSingle = vi.fn().mockImplementation(() => mockWarehouseSingle());
         return c;
       }
       if (table === "orders") {
@@ -97,9 +105,15 @@ function makeDeleteRequest(id: string) {
   };
 }
 
-function auditChain() {
+function auditChain(table?: string) {
   const c: Record<string, unknown> = {};
   c.insert = vi.fn().mockResolvedValue({ data: null, error: null });
+  // The admin client also carries field writes (set_warehouse); the audit log
+  // only ever inserts, so one stub covers both without ambiguity.
+  c.update = vi.fn().mockReturnValue({
+    eq: vi.fn().mockImplementation(() => Promise.resolve(mockUsersUpdate())),
+  });
+  void table;
   return c;
 }
 
@@ -120,7 +134,12 @@ beforeEach(() => {
   // Default: update succeeds
   mockUsersUpdate.mockReturnValue({ error: null });
   // Default: audit chain
-  mockAdminFrom.mockReturnValue(auditChain());
+  mockAdminFrom.mockImplementation((table: string) => auditChain(table));
+  // Default: the site exists, is active, and belongs to the target's market.
+  mockWarehouseSingle.mockResolvedValue({
+    data: { id: "site-tripoli", market_id: "market-tn", is_active: true },
+    error: null,
+  });
   // Default: rpc succeeds
   mockRpc.mockResolvedValue({ data: { success: true, order_id: "o", status: "pending", assigned_to: null, updated_at: "", history_id: "h" }, error: null });
 });
@@ -453,5 +472,119 @@ describe("DELETE agents/[id]", () => {
     expect(res.status).toBe(200);
     expect(mockRpc).not.toHaveBeenCalled();
     expect(body.ordersReturned).toBe(0);
+  });
+});
+
+// ─── set_warehouse ───────────────────────────────────────────────────────────
+
+/**
+ * Assigning a warehouse agent to a building.
+ *
+ * Libya prepares from two buildings, one per Darb Assabil account, and a parcel
+ * booked on the Benghazi account does not exist in Darb Tripoli's system. The
+ * column `users.warehouse_id` has existed since 20260922000010 and NOTHING ever
+ * wrote it: there was no field on the create form and no user edit form at all.
+ * So the site guard, which needs a site on both the agent and the order, could
+ * never arm. This action is the missing write.
+ */
+describe("PATCH agents/[id] action=set_warehouse", () => {
+  beforeEach(() => {
+    mockUsersTargetSingle.mockResolvedValue({
+      data: { market_id: "market-tn", role: "warehouse_agent", deleted_at: null },
+      error: null,
+    });
+  });
+
+  test("assigns the building", async () => {
+    const { req, params } = makeRequest(TARGET_ID, {
+      action: "set_warehouse",
+      warehouse_id: "site-tripoli",
+    });
+    const res = await PATCH(req, params);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ success: true, warehouse_id: "site-tripoli" });
+  });
+
+  test("null un-assigns — a building can be taken away", async () => {
+    const { req, params } = makeRequest(TARGET_ID, {
+      action: "set_warehouse",
+      warehouse_id: null,
+    });
+    const res = await PATCH(req, params);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ warehouse_id: null });
+  });
+
+  /*
+   * The cross-market check. Without it a Libyan agent could be pinned to Tunis,
+   * which reads as "assigned" everywhere in the UI while the scan guard compares
+   * two sites that can never match — an agent locked out with no visible cause.
+   */
+  test("refuses a site from another market", async () => {
+    mockWarehouseSingle.mockResolvedValue({
+      data: { id: "site-tripoli", market_id: "market-ly", is_active: true },
+      error: null,
+    });
+    const { req, params } = makeRequest(TARGET_ID, {
+      action: "set_warehouse",
+      warehouse_id: "site-tripoli",
+    });
+    const res = await PATCH(req, params);
+    expect(res.status).toBe(400);
+  });
+
+  test("refuses a site that does not exist", async () => {
+    mockWarehouseSingle.mockResolvedValue({ data: null, error: null });
+    const { req, params } = makeRequest(TARGET_ID, {
+      action: "set_warehouse",
+      warehouse_id: "site-nowhere",
+    });
+    expect((await PATCH(req, params)).status).toBe(400);
+  });
+
+  test("refuses a closed site", async () => {
+    mockWarehouseSingle.mockResolvedValue({
+      data: { id: "site-old", market_id: "market-tn", is_active: false },
+      error: null,
+    });
+    const { req, params } = makeRequest(TARGET_ID, {
+      action: "set_warehouse",
+      warehouse_id: "site-old",
+    });
+    expect((await PATCH(req, params)).status).toBe(400);
+  });
+
+  /** Only warehouse agents stand in a building; the column is meaningless elsewhere. */
+  test("refuses a target who is not a warehouse agent", async () => {
+    mockUsersTargetSingle.mockResolvedValue({
+      data: { market_id: "market-tn", role: "agent", deleted_at: null },
+      error: null,
+    });
+    const { req, params } = makeRequest(TARGET_ID, {
+      action: "set_warehouse",
+      warehouse_id: "site-tripoli",
+    });
+    expect((await PATCH(req, params)).status).toBe(400);
+  });
+
+  test("a manager of another market cannot assign", async () => {
+    mockUsersActorSingle.mockResolvedValue({
+      data: { role: "market_manager", market_id: "market-ly" },
+      error: null,
+    });
+    const { req, params } = makeRequest(TARGET_ID, {
+      action: "set_warehouse",
+      warehouse_id: "site-tripoli",
+    });
+    expect((await PATCH(req, params)).status).toBe(403);
+  });
+
+  test("writes an audit entry — who moved whom, and where", async () => {
+    const { req, params } = makeRequest(TARGET_ID, {
+      action: "set_warehouse",
+      warehouse_id: "site-tripoli",
+    });
+    await PATCH(req, params);
+    expect(mockAdminFrom).toHaveBeenCalledWith("user_audit_log");
   });
 });

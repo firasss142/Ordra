@@ -8,7 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export const dynamic = "force-dynamic";
 
 const USER_COLS =
-  "id, email, full_name, avatar_url, phone, role, market_id, is_active, last_seen_at, created_at, invitation_sent_at, invitation_accepted_at, deactivation_reason";
+  "id, email, full_name, avatar_url, phone, role, market_id, warehouse_id, is_active, last_seen_at, created_at, invitation_sent_at, invitation_accepted_at, deactivation_reason";
 
 const CREATABLE_ROLES: readonly Role[] = [
   "market_manager",
@@ -100,6 +100,10 @@ async function handleCreate(
   const requestedMarketId =
     typeof body.market_id === "string" ? body.market_id : null;
   const avatar = typeof body.avatar === "string" ? body.avatar : undefined;
+  const requestedWarehouseId =
+    typeof body.warehouse_id === "string" && body.warehouse_id.trim() !== ""
+      ? body.warehouse_id.trim()
+      : null;
 
   if (!username || !password) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -122,6 +126,37 @@ async function handleCreate(
 
   if (!marketId) {
     return NextResponse.json({ error: "Un marché est requis" }, { status: 400 });
+  }
+
+  /*
+   * The building, for a warehouse agent only.
+   *
+   * Libya prepares from two, one per Darb Assabil account, and a parcel booked
+   * on one account cannot be handed to the other. Assigning at creation is what
+   * keeps an agent from ever existing in the unassigned state, which shows them
+   * an empty bench until a manager fixes it.
+   *
+   * Any other role gets null: the column is meaningless for them, and storing a
+   * building on a phone agent would be a fact nothing honours.
+   */
+  let warehouseId: string | null = null;
+  if (role === "warehouse_agent" && requestedWarehouseId) {
+    const { data: site } = await admin
+      .from("warehouses")
+      .select("id, market_id, is_active")
+      .eq("id", requestedWarehouseId)
+      .maybeSingle<{ id: string; market_id: string; is_active: boolean }>();
+
+    if (!site || !site.is_active) {
+      return NextResponse.json({ error: "Unknown or closed warehouse" }, { status: 400 });
+    }
+    if (site.market_id !== marketId) {
+      return NextResponse.json(
+        { error: "That warehouse belongs to another market" },
+        { status: 400 },
+      );
+    }
+    warehouseId = site.id;
   }
 
   const email = `${username.trim().toLowerCase().replace(/\s+/g, ".")}@oms.local`;
@@ -164,6 +199,7 @@ async function handleCreate(
       phone: null,
       role,
       market_id: marketId,
+      warehouse_id: warehouseId,
       is_active: true,
       last_seen_at: new Date().toISOString(),
     })
