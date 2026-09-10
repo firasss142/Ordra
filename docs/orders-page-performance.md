@@ -20,7 +20,7 @@ update it when a step lands.
 6. Slow search.
 7. Every action felt slow.
 
-Steps 1–6 close 1, 2, 3, 5, 7 and most of 6. Steps 7–11 (open) close 4 and the rest.
+Steps 1–7 close complaints 1, 2, 3, 4, 5, 7 and most of 6. Steps 8–11 (open) close the rest.
 
 ---
 
@@ -34,7 +34,7 @@ Steps 1–6 close 1, 2, 3, 5, 7 and most of 6. Steps 7–11 (open) close 4 and t
 | 4 | Real-time via Broadcast from Database, not `postgres_changes` | **DONE** | `3e4531a` |
 | 5 | Optimistic concurrency on edits and actions | **DONE** | `485bc32` |
 | 6 | Carrier recommendation follows the destination | **DONE** | `dbbd185` |
-| 7 | Thumbnails: right size, first paint, never vanish | open | — |
+| 7 | Thumbnails: right size, first paint, never vanish | **DONE** | `3866c72` |
 | 8 | Search: one request per pause | open | — |
 | 9 | KPI strip in one round trip | open | — |
 | 10 | Middleware trusts the signed profile cookie | open | — |
@@ -237,6 +237,39 @@ Note for future steps: `ScheduleDispatchModal` holds no order object (its props 
 `orderId` + `marketId`), so it receives the destination key as a prop from
 `OrderDetailPanel`, its only renderer.
 
+### Step 7 — thumbnails (`3866c72`)
+
+Three defects behind "images load slowly and only some appear".
+
+**Size.** Product photos are uploaded at full resolution and rendered into a 40 px cell.
+Measured by direct HTTP against a real production asset:
+
+| | bytes |
+|---|---|
+| `/object/public/…` (what shipped before) | 1,101,417 |
+| `/render/image/public/… 80×80` | 15,786 |
+| the same, with `Accept: image/webp` | **2,088** |
+
+Browsers send that Accept header unprompted, so 2 KB is what users actually pay — **527×
+smaller**. A JPEG product went 91,703 → 2,137. `productThumbUrl` rewrites **only** Supabase
+public-object URLs; storefront-hosted and signed URLs pass through untouched, since
+rewriting those would 404. The `?v=` cache-buster survives the rewrite.
+
+**"Only some appear" was not a size problem at all.** `ProductAvatar.errored` was never
+reset when `imageUrl` changed, and virtualised tables and realtime patches both reuse a row
+for a different product — so one broken image turned that avatar slot into initials for
+every product that followed. The fallback is now progressive (thumb → original → initial):
+a resize failure must not cost the agent the photo they match against the carton.
+
+**No thumbnails on first paint.** The SSR prefetch did not select `image_url`, so images
+only arrived when `/api/orders/list` returned. `LIST_COLS` now embeds it and the SSR mapper
+exposes it with the same expression the route uses.
+
+> The SSR mapper and the list-route mapper must build rows identically — an equivalence
+> test now pins them. If they drift, the first paint and the revalidated row disagree and
+> the table visibly changes under the user. This is what the "must stay in sync with
+> LIST_SELECT" comment is guarding.
+
 ---
 
 ## Invariants — break these and the page regresses silently
@@ -255,6 +288,8 @@ Note for future steps: `ScheduleDispatchModal` holds no order object (its props 
    what the route actually reads — never more, never less.
 10. Evicting SWR entries that may have no mounted subscriber is done with `cache.delete`,
     not a filtered `mutate`.
+11. Any avatar/thumbnail state derived from a prop resets when that prop changes — rows are
+    reused for other products.
 
 ---
 
@@ -379,10 +414,6 @@ breaks them at runtime, not at typecheck**:
 
 ## Open steps — what to know before starting each
 
-- **Step 7 (thumbnails).** SSR `LIST_COLS` omits `image_url`; the Storage render
-  endpoint takes a 1,101 KB PNG to **2 KB** at 80×80 (verified, HTTP 200). `ProductAvatar`
-  never resets its `errored` state when the prop changes in place. Step 4 already removed
-  the row replacement that used to wipe `product_image_url`.
 - **Step 8 (search).** Debounce 180 → 300 ms and lag the facet-counts key behind the
   list. There is no `OrdersPageClient` test — extract the lagging key into a hook and
   unit-test that instead.

@@ -722,6 +722,40 @@ mechanism. Step 6 DONE.
 `/api/orders/list` returns); every avatar request < 10 KB; no avatar reverts to initials
 after a realtime update.
 
+**Gate record (2026-09-10 02:22 UTC):** commit `3866c72`.
+
+Sizes measured against a real production asset (the same product PNG the LY list renders),
+by direct HTTP:
+
+  /object/public/…                        1,101,417 bytes   HTTP 200
+  /render/image/public/… 80×80                15,786 bytes   HTTP 200
+  …the same, with `Accept: image/webp`         2,088 bytes   HTTP 200  → 527× smaller
+  a JPEG product: 91,703 → 2,137 bytes
+
+Browsers send `Accept: image/webp` unprompted, so 2 KB is the figure users actually pay.
+The `?v=` cache-buster passes through the render endpoint unharmed (verified, HTTP 200).
+
+Beyond the plan's text: the fallback is progressive (thumb → original → initial) rather
+than straight to the initial, because a resize failure should not cost the agent the photo
+they match against the carton. And `ProductAvatar` now reuses the already-tested
+`getProductInitial` instead of its inlined copy — it serves ten screens, not just this list.
+
+The "only some images appear" half of the complaint was NOT about size at all: `errored`
+was never reset when `imageUrl` changed, so in a virtualised or realtime-patched table one
+broken image turned that avatar slot into initials for every product that followed it.
+Covered by a test that reuses the row for a second product.
+
+An equivalence test now pins the SSR mapper and the list-route mapper to the same two
+expressions — the drift the "must stay in sync with LIST_SELECT" comment warns about, which
+would otherwise show as the table changing under the user between first paint and
+revalidation.
+
+36 tests green across the four affected suites; typecheck and build clean; full-suite
+failing-file set identical to the untouched tree. Browser gate (thumbnails present before
+`/api/orders/list` returns, every avatar request < 10 KB) deferred — Playwright is
+disconnected; the byte measurements above are from production assets and the SSR row shape
+is covered by tests. Step 7 DONE.
+
 **Rollback:** revert the component and helper; SSR column addition is harmless to keep.
 
 ---
