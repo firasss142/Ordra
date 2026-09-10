@@ -90,17 +90,75 @@ export async function middleware(request: NextRequest) {
     },
   );
 
+  // --- oms_profile cookie cache ---
+  let role: ProfilePayload["role"];
+  let market_id: string | null;
+  let marketCode: "tn" | "ly" | null;
+
+  const existingCookie = request.cookies.get(PROFILE_COOKIE)?.value;
+  const cached = existingCookie ? await verifyProfile(existingCookie) : null;
+
+  /**
+   * FAST PATH — trust the signed profile cookie and skip GoTrue.
+   *
+   * `auth.getUser()` is a network call to the Auth API, and it ran on EVERY
+   * navigation: ~4,820 calls a day with a p95 of 1,452 ms, on the critical path
+   * of every page load. The `oms_profile` cookie is HMAC-signed, carries its own
+   * `exp`, and `verifyProfile` rejects anything tampered with or expired — the
+   * same trust `getActor` already applies to the ~165 API routes it guards.
+   *
+   * Two conditions, both required:
+   *  - the cookie verifies AND belongs to the stored session's user (the
+   *    binding middleware already enforced, kept so a stale cookie cannot
+   *    outlive a user switch in one browser);
+   *  - the session's access token is more than 5 minutes from expiry, so we are
+   *    outside the refresh window. Inside it, `getUser()` is what renews the
+   *    token, and skipping it would let a session lapse.
+   *
+   * `getSession()` reads the cookie store locally; it only reaches the network
+   * when the token has already expired, which is precisely the branch that then
+   * falls through to the full check below.
+   *
+   * ACCEPTED TRADE-OFF, recorded deliberately: a deactivation or global
+   * sign-out now takes up to PROFILE_TTL_MS (5 min) to bounce an open page,
+   * where it used to be immediate for pages. It was already ≤ 5 min for every
+   * API call for exactly the same reason.
+   */
+  const SESSION_REFRESH_MARGIN_S = 5 * 60;
+  let user: { id: string; email?: string } | null = null;
+  let trustedCookie = false;
+
+  if (cached) {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const expiresAt = session?.expires_at ?? 0;
+      const secondsLeft = expiresAt - Math.floor(Date.now() / 1000);
+      if (
+        session?.user?.id === cached.user_id &&
+        secondsLeft > SESSION_REFRESH_MARGIN_S
+      ) {
+        user = { id: session.user.id, email: session.user.email };
+        trustedCookie = true;
+      }
+    } catch {
+      // Fall through to the authoritative check.
+    }
+  }
+
   // Refresh session (no-op if still valid, refreshes if near expiry). A slow
   // or unreachable Auth API is bounded by fetchWithTimeout above and treated
   // as "no session" rather than hanging the request.
-  let user: { id: string; email?: string } | null = null;
-  try {
-    const {
-      data: { user: fetchedUser },
-    } = await supabase.auth.getUser();
-    user = fetchedUser;
-  } catch {
-    user = null;
+  if (!trustedCookie) {
+    try {
+      const {
+        data: { user: fetchedUser },
+      } = await supabase.auth.getUser();
+      user = fetchedUser;
+    } catch {
+      user = null;
+    }
   }
 
   // No session → redirect to login (preserve locale if present)
@@ -109,14 +167,6 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL(`/${locale}/login`, request.url);
     return NextResponse.redirect(loginUrl);
   }
-
-  // --- oms_profile cookie cache ---
-  let role: ProfilePayload["role"];
-  let market_id: string | null;
-  let marketCode: "tn" | "ly" | null;
-
-  const existingCookie = request.cookies.get(PROFILE_COOKIE)?.value;
-  const cached = existingCookie ? await verifyProfile(existingCookie) : null;
 
   if (cached && cached.user_id === user.id) {
     role = cached.role;
