@@ -86,6 +86,8 @@ import { OrderFacts } from "./OrderFacts";
 import { PanelTabs, type PanelTab } from "./PanelTabs";
 import { usePrimaryAction } from "./usePrimaryAction";
 import type { PanelActionKind } from "./types";
+import { useOrderPresence } from "@/hooks/useOrderPresence";
+import { OrderTakeoverScreen } from "../OrderTakeoverScreen";
 
 const ScheduleDispatchModal = dynamic(
   () => import("../ScheduleDispatchModal").then((m) => m.ScheduleDispatchModal),
@@ -384,6 +386,27 @@ export function OrderDetailPanel({
   );
   const order = swrData?.data ?? null;
 
+  // Announce that this tab has the order open. An agent's row is what blocks
+  // manager writes; a manager's row is advisory and blocks nobody, so an agent
+  // mid-call is never frozen by a manager reading over their shoulder.
+  //
+  // `mode` flips to "editing" as soon as anything is dirty, which is what turns
+  // the manager's hollow "consulte" ring into a filled "modifie" one.
+  const [presenceMode, setPresenceMode] = useState<"viewing" | "editing">("viewing");
+  const [takenOverBy, setTakenOverBy] = useState<string | null>(null);
+  const [wasTakenOver, setWasTakenOver] = useState(false);
+
+  useOrderPresence({
+    orderId,
+    role,
+    mode: presenceMode,
+    onLockLost: useCallback(() => {
+      // Belt to the broadcast's braces: if the socket is down, the next beat is
+      // what tells the agent a super_admin took the order.
+      if (role === "agent") setWasTakenOver(true);
+    }, [role]),
+  });
+
   // Live-sync via Supabase Realtime. Only relevant for the agent role —
   // managers and super_admins skip the reassign-away check because they
   // don't own assignments. We still subscribe so field edits propagate.
@@ -391,6 +414,10 @@ export function OrderDetailPanel({
     orderId,
     swrKey,
     agentId: role === "agent" ? userId ?? null : null,
+    onForceReleased: useCallback((releasedByName: string | null) => {
+      setTakenOverBy(releasedByName);
+      setWasTakenOver(true);
+    }, []),
     onReassignedAway: useCallback(() => {
       onReassignedAway?.();
       onClose();
@@ -630,6 +657,10 @@ export function OrderDetailPanel({
 
   const runCommit = useCallback(
     async (updates: Record<string, unknown>) => {
+      // Anyone actually changing a field is "modifie", not "consulte". For a
+      // manager this is what turns the hollow ring on the agent's card into a
+      // filled one — the difference between being read and being touched.
+      setPresenceMode("editing");
       try {
         setSaveError(null);
         await commit(updates);
@@ -1197,6 +1228,15 @@ export function OrderDetailPanel({
 
       {/* Panel */}
       <div className="fixed top-0 end-0 h-full w-full sm:w-[480px] z-50 flex flex-col overflow-hidden bg-surface-card border-s border-line-subtle shadow-panel animate-[slideInEnd_180ms_ease-out]">
+        {wasTakenOver && (
+          <OrderTakeoverScreen
+            releasedByName={takenOverBy}
+            onDismiss={() => {
+              setWasTakenOver(false);
+              onClose();
+            }}
+          />
+        )}
 
         {/* ── Sticky header ─────────────────────────────────────── */}
         <PanelHeader
