@@ -70,7 +70,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Atomic bulk assignment — all or nothing via RPC
+  // Bulk assignment: skip-and-report, not all-or-nothing.
+  //
+  // The RPC wraps each assign_order in a plpgsql EXCEPTION block, so an order
+  // an agent currently has open rolls back ALONE and the loop continues. One
+  // locked order out of 200 must not cost the manager the other 199.
   const { data: rpcResult, error: rpcError } = await supabase.rpc("bulk_assign_orders", {
     p_order_ids: order_ids as string[],
     p_agent_id: agent_id as string,
@@ -81,10 +85,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
+  // The signature did not change, only the JSON shape — and nothing checks that
+  // at compile time (there is no generated Supabase types file). Tolerate the
+  // legacy `{ assigned: number }` for one release so a route deployed ahead of
+  // the migration does not report `undefined`.
+  const raw = (rpcResult ?? {}) as { assigned?: unknown; skipped?: unknown };
+  const assignedCount = Array.isArray(raw.assigned)
+    ? raw.assigned.length
+    : typeof raw.assigned === "number"
+      ? raw.assigned
+      : order_ids.length;
+  const skipped = Array.isArray(raw.skipped)
+    ? (raw.skipped as Array<{ order_id: string; reason: string; holder_id?: string }>)
+    : [];
+
   return NextResponse.json({
     data: {
-      assigned: (rpcResult as { assigned: number })?.assigned ?? order_ids.length,
-      skipped: 0,
+      assigned: assignedCount,
+      skipped: skipped.length,
+      // Named separately from a generic error list so the bulk bar can say
+      // "3 verrouillées par un agent" instead of "3 échecs".
+      locked: skipped.filter((s) => s.reason === "locked"),
       errors: [],
     },
   });
