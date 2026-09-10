@@ -20,7 +20,7 @@ update it when a step lands.
 6. Slow search.
 7. Every action felt slow.
 
-Steps 1–7 close complaints 1, 2, 3, 4, 5, 7 and most of 6. Steps 8–11 (open) close the rest.
+**All eleven steps are shipped.** Every one of the seven original complaints is addressed.
 
 ---
 
@@ -35,10 +35,10 @@ Steps 1–7 close complaints 1, 2, 3, 4, 5, 7 and most of 6. Steps 8–11 (open)
 | 5 | Optimistic concurrency on edits and actions | **DONE** | `485bc32` |
 | 6 | Carrier recommendation follows the destination | **DONE** | `dbbd185` |
 | 7 | Thumbnails: right size, first paint, never vanish | **DONE** | `3866c72` |
-| 8 | Search: one request per pause | open | — |
-| 9 | KPI strip in one round trip | open | — |
-| 10 | Middleware trusts the signed profile cookie | open | — |
-| 11 | Detail panel GET in two round trips | open | — |
+| 8 | Search: one request per pause | **DONE** | `516624c` |
+| 9 | KPI strip in one round trip | **DONE** | `84c902a` |
+| 10 | Middleware trusts the signed profile cookie | **DONE** | `4853cf7` |
+| 11 | Detail panel GET in two round trips | **DONE** | `43ee625` |
 
 Cumulative effect measured in the browser on production: every Orders-page API call
 went from **4,900–5,900 ms to 250–1,100 ms**.
@@ -270,6 +270,73 @@ exposes it with the same expression the route uses.
 > the table visibly changes under the user. This is what the "must stay in sync with
 > LIST_SELECT" comment is guarding.
 
+### Step 8 — search (`516624c`)
+
+180 ms of debounce sat **below** a normal typing cadence (~150-250 ms between keys on a
+9-digit phone number), so requests slipped through mid-number — each one a list query plus
+its enrichment RPCs. Now 300 ms: above the cadence, below the ~400 ms where a search box
+starts to feel unresponsive. The test asserts the behaviour, not the constant.
+
+The facet counts were a second request beside every list request, answering "what would
+each unpicked value return" — a question nobody asks mid-keystroke. Their key now lags the
+filters by 500 ms.
+
+> `useSettledValue`, not `useDebounce`: the latter delays the **first** value too, and a
+> page opened with filters already in the URL must show its counts immediately. Only the
+> companion key lags — never the list key.
+
+### Step 9 — KPI strip (`84c902a`)
+
+Seven exact head-counts plus one RPC — seven round trips asking the same table the same
+question with different filters. `get_orders_kpi_counts` answers all seven with
+`count(*) FILTER` over one scan. **Eight round trips → two.**
+
+Equivalence was checked against the old head-counts **before** switching, on production,
+for both markets and the all-markets scope: all seven match exactly (LY 3,769 / 8 / 40; TN
+4,203 / 117 / 338; ALL 7,972 / 125 / 378).
+
+> **`SECURITY INVOKER`, deliberately.** RLS is what keeps a market manager inside their own
+> market; a DEFINER version would have to re-implement that check, and getting it wrong
+> leaks another market's totals. Verified from a real manager session: own market 3,769,
+> the other market **0**, all-markets scope 3,769 — what they may see, not the global total.
+
+Bundled: `get_confirmation_rate_windows` was called by the route and lived in production but
+had never been committed to `supabase/migrations/`. Snapshotted verbatim.
+
+> The sidebar badge keeps its own head-count — routing it through the KPI RPC would compute
+> six figures it discards. So "unassigned" is defined in two places again (SQL and
+> `whereUnassigned`), and **they must be changed together**. They drifted once and reported
+> 9 versus 188 for the same word.
+
+### Step 10 — middleware (`4853cf7`)
+
+`auth.getUser()` is a network call to the Auth API and it ran on **every** navigation:
+~4,820 calls a day, p95 1,452 ms, on the critical path of every page load. The
+`oms_profile` cookie is HMAC-signed with its own `exp`, and `getActor` already trusts it
+alone — with zero network calls — for ~165 API routes. Middleware trusting it *less* than
+the routes it protects was an inconsistency, not a safeguard.
+
+Two conditions, both required: the cookie verifies **and** matches the stored session's
+user, and the access token is more than 5 minutes from expiry (inside that window
+`getUser()` is what renews it).
+
+> **Accepted trade-off:** a deactivation or global sign-out now takes up to 5 minutes to
+> bounce an open page. It was already ≤ 5 min for every API call, for the same reason.
+
+> Middleware tests must run in the **`node`** environment. Under jsdom,
+> `NextResponse.next({ request })` throws "request.headers must be an instance of Headers",
+> because jsdom's `Headers` fails Next's instanceof check against undici's.
+
+### Step 11 — detail panel (`43ee625`)
+
+`enrichRowsWithDuplicates` ran after the `Promise.all` although it needs only the order row,
+already loaded — a third sequential round trip for nothing. It now starts with the others.
+
+> The test asserts the RPC **starts before** the (deliberately slowed) history read
+> resolves. "The RPC is called" was already true and would not have caught this. The mocked
+> client also had no `rpc`, so the enrichment was silently taking its guard path and the
+> suite passed for the wrong reason.
+
 ---
 
 ## Invariants — break these and the page regresses silently
@@ -290,6 +357,10 @@ exposes it with the same expression the route uses.
     not a filtered `mutate`.
 11. Any avatar/thumbnail state derived from a prop resets when that prop changes — rows are
     reused for other products.
+12. The "unassigned" predicate is defined in BOTH `whereUnassigned` (TypeScript) and
+    `get_orders_kpi_counts` (SQL). Change them together.
+13. `get_orders_kpi_counts` stays `SECURITY INVOKER` — RLS is the market isolation.
+14. Companion requests may lag the filters; the list key never does.
 
 ---
 
@@ -412,17 +483,19 @@ breaks them at runtime, not at typecheck**:
 
 ---
 
-## Open steps — what to know before starting each
+## What is left
 
-- **Step 8 (search).** Debounce 180 → 300 ms and lag the facet-counts key behind the
-  list. There is no `OrdersPageClient` test — extract the lagging key into a hook and
-  unit-test that instead.
-- **Step 9 (KPI strip).** One `count(*) FILTER (…)` pass replacing 8 round trips. Bundle
-  the drift fix: `get_confirmation_rate_windows` exists live but is **absent from
-  `supabase/migrations/`** — snapshot it with `pg_get_functiondef`.
-- **Step 10 (middleware).** Accepted trade-off to record when it lands: a deactivation or
-  global sign-out takes up to 5 minutes to bounce an open page.
-- **Step 11 (detail GET).** Move `enrichRowsWithDuplicates` into the existing `Promise.all`.
+Every step is shipped. Two gates need a day of production traffic before they can be read,
+and neither blocks anything:
+
+- **Step 9** — `HEAD /rest/v1/orders` per hour in the edge logs should drop by the KPI
+  strip's share. It will not reach zero: other summaries still head-count `orders`.
+- **Step 10** — `/auth/v1/user` calls per hour should fall by more than 80%. The
+  per-navigation saving is below DevTools noise, so the log count is the only gate.
+
+Browser-level confirmation of Steps 6-11 is also outstanding (Playwright dropped out
+mid-session). The mechanisms are covered by tests and, for Steps 6 and 9, by direct
+production measurement.
 
 ### Decision still open
 

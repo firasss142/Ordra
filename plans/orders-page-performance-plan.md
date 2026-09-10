@@ -779,6 +779,19 @@ There is no `OrdersPageClient` test; extract the lagging facet key into a small 
 **Done gate:** typing a 9-digit phone number produces ≤ 2 list requests and ≤ 1
 facet-count request; the last list request completes in < 500 ms (DevTools).
 
+**Gate record (2026-09-10 02:35 UTC):** commit `516624c`. Debounce 180 → 300 ms, and the
+facet-counts key now lags the filters by 500 ms through `useSettledValue`.
+
+180 ms sat BELOW a normal typing cadence (~150-250 ms between keys on a 9-digit number), so
+requests slipped through mid-number and each one costs a list query plus its enrichment
+RPCs. The new search-bar test asserts the behaviour rather than the constant: typing at
+200 ms gaps produces exactly one call, carrying the final value.
+
+`useSettledValue` rather than `useDebounce`: the latter delays the FIRST value too, and a
+page opened with filters already in the URL must show its counts immediately. First value
+straight through, later changes only once the input is still. The list key is NOT lagged —
+only its companion.
+
 ---
 
 ### Step 9 — KPI strip in one round trip
@@ -814,6 +827,33 @@ count per hour in the edge logs drops by the KPI strip's share (other summaries 
 head-count `orders`, so it will not reach zero); `/api/orders/status-counts` browser
 duration < 300 ms.
 
+**Gate record (2026-09-10 02:45 UTC):** commit `84c902a`, migration
+`20260924000003_orders_kpi_counts.sql` applied. Eight round trips → two.
+
+Equivalence verified on production BEFORE switching, against the seven head-counts, for
+both markets and the all-markets scope: all seven figures match exactly (LY 3,769 / 8 / 40;
+TN 4,203 / 117 / 338; ALL 7,972 / 125 / 378). The LY numbers also match what the live UI
+was showing, an independent cross-check.
+
+`SECURITY INVOKER` deliberately: RLS is what keeps a manager in their market, and a DEFINER
+version would have to re-implement that check. Verified from a real market_manager session:
+own market 3,769, the other market **0**, the all-markets scope 3,769 — what they may see,
+not the global total.
+
+Bundled drift fix: `get_confirmation_rate_windows` is called by the route and exists in
+production but had never been committed. Exact body snapshotted via `pg_get_functiondef`.
+
+Deviation from the plan: the sidebar badge KEEPS its own head-count. Routing it through the
+KPI RPC would compute six figures it discards. The "unassigned" definition therefore lives
+in two places again — both comments now cite each other, because they drifted once and
+reported 9 versus 188 for the same word.
+
+The route's tests inspected PostgREST chain internals, which no longer exist. Rewritten
+against the new shape preserving every case's intent — each protects a regression that
+actually happened. Two added: a failed count must answer 500 rather than zeroes (a strip of
+zeroes reads as "a quiet day", a lie a manager would act on), and each count must land on
+the right tile. 14 green.
+
 ---
 
 ### Step 10 — Middleware: trust the signed profile cookie, refresh only near expiry
@@ -839,6 +879,31 @@ cookie → `getUser` called; public paths untouched.
 **Done gate:** `/auth/v1/user` calls per hour drop by > 80 % in the edge logs (the
 per-navigation saving is below DevTools noise, so the log count is the only gate).
 
+**Gate record (2026-09-10 02:55 UTC):** commit `4853cf7`.
+
+The cookie is HMAC-signed with its own `exp`; `verifyProfile` rejects tampering and
+expiry. Middleware trusting it less than `getActor` — which guards ~165 API routes on the
+cookie alone, with zero network calls — was an inconsistency, not a protection.
+
+Two conditions, both required: the cookie verifies AND matches the stored session's user
+(the binding middleware already enforced), and the access token is more than 5 minutes from
+expiry. Inside that window `getUser()` is what renews the token, so skipping it would let a
+session lapse. `getSession()` reads cookies locally and only reaches the network when the
+token has ALREADY expired — the branch that then falls through to the full check anyway.
+
+`src/middleware.test.ts` did not exist. Ten cases, including the ones that matter: forged
+cookie, expired cookie, another user's cookie, no session — all must fall back to the full
+check — plus proof the fast path still enforces the route guard and the market's locale.
+NINE passed before the change, which is what shows they describe existing behaviour rather
+than the new code. The file runs in the `node` environment: under jsdom,
+`NextResponse.next({ request })` rejects the request because jsdom's `Headers` fails Next's
+instanceof check against undici's.
+
+Accepted trade-off, recorded: a deactivation or global sign-out now takes up to 5 minutes to
+bounce an open page. It was already ≤ 5 min for every API call, for the same reason.
+
+Edge-log gate (>80% drop in `/auth/v1/user`) deferred — it needs a day of traffic.
+
 ---
 
 ### Step 11 — Detail panel GET in two round trips
@@ -852,6 +917,15 @@ per-navigation saving is below DevTools noise, so the log count is the only gate
 is unchanged.
 
 **Done gate:** `/api/orders/<id>` browser duration < 400 ms (DevTools, LY order).
+
+**Gate record (2026-09-10 02:50 UTC):** commit `43ee625`. `enrichRowsWithDuplicates` moved
+into the existing `Promise.all`; it needs only the order row, already loaded, so running it
+afterwards cost a third sequential round trip for nothing.
+
+The test asserts the RPC STARTS before the (deliberately slowed) history read resolves —
+"the RPC is called" was already true and would not have caught the regression. The mocked
+client also had no `rpc` at all, so the enrichment was silently taking its guard path and
+the suite was passing for the wrong reason; it now has one.
 
 ---
 
