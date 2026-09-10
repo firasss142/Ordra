@@ -10,6 +10,10 @@ import { WhCard, WhKpiCard, WhKpiGrid, WhPill } from "./primitives";
 import { WH_LABEL } from "./tokens";
 import { StockCountDialog } from "./StockCountDialog";
 import { StockCard } from "./StockCard";
+import {
+  applyStockFilters, stockFacets, stateOf, EMPTY_STOCK_FILTER,
+  type StockFilter, type StockSegment, type StockSort,
+} from "@/lib/warehouse/stock-filters";
 
 const fetcher = (url: string) => fetch(url).then((r) => {
   if (!r.ok) throw new Error(String(r.status));
@@ -26,15 +30,21 @@ function relativeDay(iso: string | null, t: StockTranslate): string {
   return t("countedDaysAgo", { days });
 }
 
+/** The four states of a shelf, in the order the floor cares about them. */
+const SEGMENTS: StockSegment[] = ["all", "low", "negative", "uncounted"];
+
 export function WarehouseStockClient({ locale }: { locale: string }) {
   const t = useTranslations("warehouse.stock");
+  const tf = useTranslations("warehouse.stock.filters");
   const { data, error, isLoading, mutate } = useSWR<{ rows: WarehouseStockRow[] }>(
     "/api/warehouse/stock",
     fetcher,
     { revalidateOnFocus: true },
   );
   const [counting, setCounting] = useState<WarehouseStockRow | null>(null);
-  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<StockFilter>(EMPTY_STOCK_FILTER);
+  const patch = (next: Partial<StockFilter>) => setFilter((f) => ({ ...f, ...next }));
+  const query = filter.q;
 
   const all = useMemo(() => data?.rows ?? [], [data]);
 
@@ -44,27 +54,20 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
    * matched — and the KPIs above deliberately keep describing the WHOLE
    * catalogue, not the filtered view.
    */
-  const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return all;
-    return all.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) || (r.sku ?? "").toLowerCase().includes(q),
-    );
-  }, [all, query]);
+  const rows = useMemo(() => applyStockFilters(all, filter), [all, filter]);
+  // The segment counts describe what the SEARCH left, so a tab never promises
+  // rows the search has already removed.
+  const searched = useMemo(
+    () => applyStockFilters(all, { ...EMPTY_STOCK_FILTER, q: filter.q }),
+    [all, filter.q],
+  );
+  const facets = useMemo(() => stockFacets(searched), [searched]);
 
   /*
    * The phone's two chips follow the SEARCH: a chip that ignores the filter
    * under it reads as a bug. The desk KPI grid keeps describing the whole
    * catalogue, which is what a manager compares day to day.
    */
-  const phoneChips = useMemo(
-    () => ({
-      low: rows.filter((r) => r.current_stock <= r.low_stock_threshold).length,
-      negative: rows.filter((r) => r.free < 0).length,
-    }),
-    [rows],
-  );
   const neverCountedAll = all.length > 0 && all.every((r) => r.last_counted_at === null);
 
   const cells = useMemo(() => {
@@ -101,32 +104,66 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
         <input
           type="search"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => patch({ q: e.target.value })}
           placeholder={t("searchPlaceholder")}
           aria-label={t("searchPlaceholder")}
           className="min-w-0 flex-1 bg-transparent text-[14px] text-wh-ink-1 outline-none placeholder:text-wh-ink-3"
         />
       </label>
 
-      <div className="mb-3 flex flex-wrap items-center gap-1.5 md:hidden">
-        <span
-          data-testid="wh-stock-chip-low"
-          className={`rounded-pill border px-2.5 py-0.5 text-[13px] ${
-            phoneChips.low ? "border-wh-warn-edge bg-wh-warn-bg text-wh-warn" : "border-wm-card-edge bg-wm-card text-wm-ink-2"
-          }`}
+      <div className="mb-3 flex flex-col gap-2">
+        <div
+          role="group"
+          aria-label={tf("all")}
+          // Bleeds to the screen edge so the last chip is visibly cut and reads
+          // as scrollable. The bleed must match the page padding at BOTH widths
+          // (px-4 phone, px-6 desk) or the row sits off-grid on a desk.
+          className="-mx-4 flex gap-2 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] md:-mx-6 md:px-6 [&::-webkit-scrollbar]:hidden"
         >
-          {t("low")} <b className="tabular-nums">{phoneChips.low}</b>
-        </span>
-        <span
-          data-testid="wh-stock-chip-negative"
-          className={`rounded-pill border px-2.5 py-0.5 text-[13px] ${
-            phoneChips.negative ? "border-wh-bad-edge bg-wh-bad-bg text-wh-bad" : "border-wm-card-edge bg-wm-card text-wm-ink-2"
-          }`}
-        >
-          {t("negative")} <b className="tabular-nums">{phoneChips.negative}</b>
-        </span>
+          {SEGMENTS.map((key) => {
+            const on = filter.seg === key;
+            const count = facets[key];
+            return (
+              <button
+                key={key}
+                type="button"
+                data-testid="wh-stock-seg"
+                data-key={key}
+                aria-pressed={on}
+                onClick={() => patch({ seg: key })}
+                className={[
+                  "inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-[10px] border px-3 text-[13.5px] font-semibold",
+                  on
+                    ? "border-wh-ok bg-wh-ok-bg text-wh-ok"
+                    : key === "negative" && count > 0
+                      ? "border-wh-bad-edge bg-wh-bad-bg text-wh-bad"
+                      : key === "low" && count > 0
+                        ? "border-wh-warn-edge bg-wh-warn-bg text-wh-warn"
+                        : "border-wh-border bg-wh-surface text-wh-ink-2",
+                  count === 0 && !on ? "opacity-45" : "",
+                ].join(" ")}
+              >
+                {tf(key)}
+                <b className="tabular-nums">{count}</b>
+              </button>
+            );
+          })}
+          <label className="inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-[10px] border border-wh-border bg-wh-surface px-3 text-[13px] text-wh-ink-2">
+            <span>{tf("sort")}</span>
+            <select
+              value={filter.sort}
+              onChange={(e) => patch({ sort: e.target.value as StockSort })}
+              aria-label={tf("sort")}
+              className="bg-transparent text-[13px] font-semibold text-wh-ink-1 outline-none"
+            >
+              <option value="name">{tf("sortName")}</option>
+              <option value="stock">{tf("sortStock")}</option>
+              <option value="free">{tf("sortFree")}</option>
+            </select>
+          </label>
+        </div>
         {neverCountedAll ? (
-          <span data-testid="wh-stock-never-counted" className="basis-full text-[12.5px] text-wm-ink-3">
+          <span data-testid="wh-stock-never-counted" className="text-[12.5px] text-wh-ink-3">
             {t("neverCountedAll")}
           </span>
         ) : null}
@@ -151,7 +188,16 @@ export function WarehouseStockClient({ locale }: { locale: string }) {
         ) : all.length === 0 ? (
           <p className="px-4 py-8 text-center text-[13px] text-wh-ink-3">{t("empty")}</p>
         ) : rows.length === 0 ? (
-          <p className="px-4 py-8 text-center text-[13px] text-wh-ink-3">{t("noMatch")}</p>
+          <div className="px-4 py-8 text-center">
+            <p className="text-[13px] text-wh-ink-3">{tf("noMatch")}</p>
+            <button
+              type="button"
+              onClick={() => setFilter(EMPTY_STOCK_FILTER)}
+              className="mt-2 inline-flex h-9 items-center rounded-[8px] border border-wh-border px-3 text-[13px] font-semibold text-wh-ink-1"
+            >
+              {tf("clear")}
+            </button>
+          </div>
         ) : (
           <>
             {/* The phone gets cards: a six-column table on a 390px screen is a

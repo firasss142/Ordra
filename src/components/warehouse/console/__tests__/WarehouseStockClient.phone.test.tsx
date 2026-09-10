@@ -7,6 +7,7 @@ vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
   const messages = (await import("@/messages/fr.json")).default;
   return {
+    useLocale: () => "fr",
     useTranslations:
       (ns: string) =>
       (key: string, params?: Record<string, unknown>) =>
@@ -20,7 +21,7 @@ vi.mock("next/link", () => ({
 const row = (id: string, name: string, stock: number, free: number): WarehouseStockRow => ({
   product_id: id, name, sku: null, image_url: null, current_stock: stock, low_stock_threshold: 20,
   stock_goal: null, goal_pct: null, damaged_return_count: 0, engaged: stock - free, free,
-  last_counted_at: null, accuracy: null, series: [],
+  last_counted_at: null, accuracy: null, series: [], sites: [], unallocated: 0,
 });
 
 vi.mock("swr", () => ({
@@ -34,24 +35,40 @@ vi.mock("swr", () => ({
 afterEach(cleanup);
 
 /**
- * The stock list on the phone. The two chips answer the whole catalogue until
- * a search narrows it, then they answer the search: a chip that ignores the
- * filter under it reads as a bug.
+ * The stock list on the phone. The segments count the whole catalogue until a
+ * search narrows it, then they answer the search: a count that ignores the
+ * filter under it reads as a bug. They are also the filter itself now — the
+ * screen used to show these figures and give no way to act on them.
  */
+function seg(key: string) {
+  return screen.getAllByTestId("wh-stock-seg").find((s) => s.dataset.key === key)!;
+}
+
 describe("WarehouseStockClient — phone", () => {
-  it("chips count low and negative products, and follow the search", () => {
+  it("segments count the states of the shelf, and follow the search", () => {
     render(<WarehouseStockClient locale="fr" />);
-    expect(screen.getByTestId("wh-stock-chip-low")).toHaveTextContent("1");
-    expect(screen.getByTestId("wh-stock-chip-negative")).toHaveTextContent("1");
+    expect(seg("all")).toHaveTextContent("2");
+    // "دمية صغيرة" holds 12 against a threshold of 20 AND owes more than it
+    // holds. Owing outranks being low, so it is counted once, as negative.
+    expect(seg("negative")).toHaveTextContent("1");
+    expect(seg("low")).toHaveTextContent("0");
     fireEvent.change(screen.getByLabelText(/Rechercher/), { target: { value: "القرآن" } });
-    expect(screen.getByTestId("wh-stock-chip-low")).toHaveTextContent("0");
-    expect(screen.getByTestId("wh-stock-chip-negative")).toHaveTextContent("0");
+    expect(seg("negative")).toHaveTextContent("0");
+  });
+
+  it("narrows the list to a single state when a segment is tapped", () => {
+    render(<WarehouseStockClient locale="fr" />);
+    expect(screen.getAllByTestId("wh-stock-card")).toHaveLength(2);
+    fireEvent.click(seg("negative"));
+    const after = screen.getAllByTestId("wh-stock-card");
+    expect(after).toHaveLength(1);
+    expect(after[0]).toHaveTextContent("دمية صغيرة");
   });
 
   it("says no product matches, not that there are no products", () => {
     render(<WarehouseStockClient locale="fr" />);
     fireEvent.change(screen.getByLabelText(/Rechercher/), { target: { value: "zzz" } });
-    expect(screen.getByText("Aucun produit ne correspond.")).toBeInTheDocument();
+    expect(screen.getByText("Aucun produit pour ces filtres.")).toBeInTheDocument();
   });
 
   it("says once, above the list, that nothing was ever counted", () => {

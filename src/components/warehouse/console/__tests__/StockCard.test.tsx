@@ -7,6 +7,7 @@ vi.mock("next-intl", async () => {
   const { resolveTranslation } = await import("@/test/helpers/mockNextIntl");
   const messages = (await import("@/messages/fr.json")).default;
   return {
+    useLocale: () => "fr",
     useTranslations:
       (ns: string) =>
       (key: string, params?: Record<string, unknown>) =>
@@ -35,6 +36,8 @@ const row = (over: Partial<WarehouseStockRow> = {}): WarehouseStockRow => ({
   last_counted_at: null,
   accuracy: null,
   series: [],
+  sites: [],
+  unallocated: 0,
   ...over,
 });
 
@@ -98,5 +101,63 @@ describe("StockCard", () => {
     render(<StockCard row={row({ stock_goal: 200, goal_pct: 75 })} onCount={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /دمية الملاكمة/ }));
     expect(screen.getByText(/Objectif : 200/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * Where the units actually sit.
+ *
+ * Libya runs two buildings, `product_site_stock` has ventilated the market
+ * total between them since September, and no screen ever showed it — so an
+ * agent in Benghazi read Tripoli's shelf as part of their own.
+ */
+describe("StockCard — the buildings", () => {
+  const sites = [
+    { warehouse_id: "w-tri", code: "tripoli", name: "Tripoli", current_stock: 12, last_counted_at: "2026-09-01T00:00:00Z" },
+    { warehouse_id: "w-ben", code: "benghazi", name: "Benghazi", current_stock: 5, last_counted_at: null },
+  ];
+
+  it("names each building and what it holds", () => {
+    render(<StockCard row={row({ current_stock: 20, sites, unallocated: 3 })} onCount={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    const lines = within(screen.getByTestId("wh-stock-sites")).getAllByRole("listitem");
+    expect(lines[0]).toHaveTextContent("Tripoli");
+    expect(lines[0]).toHaveTextContent("12");
+    expect(lines[1]).toHaveTextContent("Benghazi");
+    expect(lines[1]).toHaveTextContent("5");
+  });
+
+  it("says which building has never been counted, rather than implying zero", () => {
+    render(<StockCard row={row({ current_stock: 20, sites, unallocated: 3 })} onCount={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    const lines = within(screen.getByTestId("wh-stock-sites")).getAllByRole("listitem");
+    expect(lines[1]).toHaveTextContent(/jamais compté/);
+    expect(lines[0]).not.toHaveTextContent(/jamais compté/);
+  });
+
+  it("names the units no building accounts for", () => {
+    // The invariant is an inequality — sum(sites) <= market total — so the gap
+    // is a real quantity. Hiding it would make the two figures contradict.
+    render(<StockCard row={row({ current_stock: 20, sites, unallocated: 3 })} onCount={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    expect(screen.getByTestId("wh-stock-unallocated")).toHaveTextContent("3");
+  });
+
+  it("says nothing about buildings in a market that has only one", () => {
+    render(<StockCard row={row({ sites: [], unallocated: 0 })} onCount={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    expect(screen.queryByTestId("wh-stock-sites")).not.toBeInTheDocument();
+  });
+
+  it("draws the fortnight only when there is a line to draw", () => {
+    render(<StockCard row={row({ series: [10, 12, 9, 14] })} onCount={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    expect(screen.getByTestId("wh-stock-spark")).toBeInTheDocument();
+    cleanup();
+
+    // One point is not a trend, and an empty box reads as a broken chart.
+    render(<StockCard row={row({ series: [] })} onCount={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    expect(screen.queryByTestId("wh-stock-spark")).not.toBeInTheDocument();
   });
 });

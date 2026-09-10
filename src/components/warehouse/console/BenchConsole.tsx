@@ -53,7 +53,7 @@ export function BenchConsole({
       {tab === "prepare" ? (
         <PreparationConsole market={market} initialOrders={initialOrders} dailyGoal={dailyGoal} />
       ) : (
-        <ScannedTable warehouseId={warehouseId} />
+        <ScannedTable warehouseId={warehouseId} isLy={market === "ly"} />
       )}
     </div>
   );

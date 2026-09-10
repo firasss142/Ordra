@@ -5,9 +5,11 @@ import { canScanWarehouse } from "@/lib/role-permissions";
 import { resolveWarehouseScope } from "@/lib/warehouse/scope";
 import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 import { attachProductImages } from "@/lib/warehouse/product-images";
+import { attachOrderLines } from "@/lib/warehouse/order-lines";
 import { getZoneIndex } from "@/lib/warehouse/zone-index-cache";
 import { zoneForOrder, type OrderZone } from "@/lib/warehouse/zone-index";
 import type { StickerBindState } from "@/lib/carriers/darb-assabil-reference";
+import type { OrderLine } from "@/lib/warehouse/summary";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +53,8 @@ export interface ScannedRow {
   current_stock: number | null;
   low_stock_threshold: number | null;
   product_image_url?: string | null;
+  /** Every product line of the parcel; empty for orders predating order_items. */
+  items?: OrderLine[];
   zone: OrderZone;
 }
 
@@ -144,7 +148,8 @@ export async function GET(req: NextRequest) {
   const page = hasMore ? rows.slice(0, limit) : rows;
 
   const pictured = await attachProductImages(supabase, page as never);
-  const orders = (pictured as unknown as ScannedRow[]).map((row) => ({
+  const lined = await attachOrderLines(supabase, pictured as unknown as Array<{ id: string }>);
+  const orders = (lined as unknown as ScannedRow[]).map((row) => ({
     ...row,
     zone: zoneForOrder(row, zoneIndex),
   }));

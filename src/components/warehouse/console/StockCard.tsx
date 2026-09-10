@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { ChevronDown, Package } from "lucide-react";
 import type { WarehouseStockRow } from "@/app/api/warehouse/stock/route";
 import type { WarehouseHistoryRow } from "@/lib/warehouse/history-fetch";
@@ -18,14 +18,7 @@ import type { WarehouseHistoryRow } from "@/lib/warehouse/history-fetch";
  * not shown as a goal of zero.
  */
 
-type State = "negative" | "low" | "ok";
-
-/** Owing more than you hold outranks merely being low: it is already broken. */
-function stateOf(row: WarehouseStockRow): State {
-  if (row.free < 0) return "negative";
-  if (row.current_stock <= row.low_stock_threshold) return "low";
-  return "ok";
-}
+import { stateOf } from "@/lib/warehouse/stock-filters";
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
 
@@ -50,6 +43,9 @@ export function StockCard({
   onCount: (row: WarehouseStockRow) => void;
 }) {
   const t = useTranslations("warehouse.stock") as unknown as Translate;
+  const tf = useTranslations("warehouse.stock.filters") as unknown as Translate;
+  // The Libyan bench reads Arabic; a hardcoded "fr-FR" printed French dates on it.
+  const locale = useLocale();
   const state = stateOf(row);
   const [open, setOpen] = useState(false);
   const [moves, setMoves] = useState<WarehouseHistoryRow[] | null>(null);
@@ -151,6 +147,56 @@ export function StockCard({
           {/* The threshold as a sentence too, so a screen reader hears the number with its meaning. */}
           <p className="sr-only">{t("thresholdAt", { threshold: row.low_stock_threshold })}</p>
 
+          {/*
+            WHERE the units are, not just how many.
+            `product_site_stock` has ventilated the market total per building
+            since September and no screen has ever shown it — so an agent in
+            Benghazi read Tripoli's shelf as part of their own. The market total
+            stays the money truth above; this is a breakdown of it, and the gap
+            it does not account for is named rather than hidden.
+          */}
+          {row.sites.length > 0 ? (
+            <>
+              <p className="mb-1 mt-3 text-[13px] font-semibold text-wm-ink-2">{tf("sites")}</p>
+              <ul data-testid="wh-stock-sites" className="m-0 list-none p-0">
+                {row.sites.map((site) => (
+                  <li
+                    key={site.warehouse_id}
+                    data-site={site.code}
+                    className="flex items-center justify-between gap-2 border-b border-dashed border-wm-track py-1.5 last:border-0"
+                  >
+                    <span className="min-w-0 truncate text-[13.5px]">
+                      <bdi>{site.name}</bdi>
+                      {site.last_counted_at === null ? (
+                        <span className="text-wm-ink-3"> · {tf("siteNeverCounted")}</span>
+                      ) : null}
+                    </span>
+                    <b className="shrink-0 tabular-nums text-wm-ink">{site.current_stock}</b>
+                  </li>
+                ))}
+                {row.unallocated > 0 ? (
+                  <li
+                    data-testid="wh-stock-unallocated"
+                    className="flex items-center justify-between gap-2 py-1.5 text-wm-ink-2"
+                  >
+                    <span className="text-[13.5px]">{tf("unallocated")}</span>
+                    <b className="shrink-0 tabular-nums">{row.unallocated}</b>
+                  </li>
+                ) : null}
+              </ul>
+            </>
+          ) : null}
+
+          {/* Fourteen days of on-hand level. The API has sent this all along and
+              the phone card never drew it: a figure alone cannot say whether the
+              shelf is draining or refilling. */}
+          {row.series.length > 1 ? (
+            <>
+              <p className="mb-1 mt-3 text-[13px] font-semibold text-wm-ink-2">{tf("trend")}</p>
+              <Sparkline values={row.series} />
+            </>
+          ) : null}
+
           <p className="mb-1 mt-3 text-[13px] font-semibold text-wm-ink-2">{t("lastMovements")}</p>
           <ul data-testid="wh-stock-movements" className="m-0 list-none p-0">
             {moves === null ? (
@@ -162,7 +208,7 @@ export function StockCard({
                 <li key={m.id} className="flex items-center justify-between gap-2 border-b border-dashed border-wm-track py-1.5 last:border-0">
                   <span className="min-w-0 truncate text-[13.5px]">
                     {m.detail}
-                    <span className="text-wm-ink-3"> · {new Date(m.at).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}</span>
+                    <span className="text-wm-ink-3"> · {new Date(m.at).toLocaleDateString(locale, { day: "2-digit", month: "2-digit" })}</span>
                   </span>
                   <b dir="ltr" className="shrink-0 tabular-nums text-wm-ink">{signed(m.qty_change)}</b>
                 </li>
@@ -180,5 +226,46 @@ export function StockCard({
         </div>
       ) : null}
     </article>
+  );
+}
+
+/**
+ * Fourteen days of on-hand level.
+ *
+ * Deliberately unlabelled and unscaled: it answers "is this draining or
+ * refilling", which is a shape, not a measurement. The figures beside it are
+ * the measurement. Hidden from screen readers because a fourteen-point
+ * polyline read aloud is noise — the numbers above it are already announced.
+ */
+function Sparkline({ values }: { values: number[] }) {
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const span = max - min || 1;
+  const points = values
+    .map((v, i) => {
+      const x = (i / (values.length - 1)) * 100;
+      const y = 24 - ((v - min) / span) * 22;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+
+  return (
+    <svg
+      data-testid="wh-stock-spark"
+      viewBox="0 0 100 26"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      className="h-[26px] w-full"
+    >
+      <polyline
+        points={points}
+        fill="none"
+        stroke="var(--wm-accent)"
+        strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

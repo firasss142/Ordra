@@ -6,15 +6,20 @@ import { useLocale, useTranslations } from "next-intl";
 import { AlertTriangle, Check, RotateCcw, Undo2, XCircle } from "lucide-react";
 import type { ScannedRow } from "@/app/api/warehouse/scanned/route";
 import { useScannedActions, canUnscan } from "@/components/warehouse/bench/useScannedActions";
+import { useScannedView } from "@/components/warehouse/bench/useScannedView";
+import { ScannedFilters } from "@/components/warehouse/bench/ScannedFilters";
 
 /**
  * The scanned parcels, at a desk.
  *
- * Same data and same three actions as the phone list — they share
- * `useScannedActions` — but laid out for someone scanning a column rather than
- * holding a box. The manager's question is "which of these is wrong", so the
- * bind state is a column, not a detail, and the parcels the carrier is not
- * holding our number for sort to the top.
+ * Same data, same three actions and now the same FILTERS as the phone list —
+ * they share `useScannedActions` and `useScannedView` — but laid out for
+ * someone scanning a column rather than holding a box. The manager's question
+ * is "which of these is wrong", so the bind state is a column, not a detail,
+ * and the parcels the carrier is not holding our number for sort to the top.
+ *
+ * That sort used to live here alone, so the same hundred rows read in one order
+ * at a desk and another on a phone. It now lives in `sortScanned`.
  */
 
 const TONE: Record<string, string> = {
@@ -24,12 +29,14 @@ const TONE: Record<string, string> = {
   unchecked: "border-wh-border bg-wh-surface text-wh-ink-2",
 };
 
-export function ScannedTable({ warehouseId }: { warehouseId?: string | null }) {
+export function ScannedTable({ warehouseId, isLy = true }: { warehouseId?: string | null; isLy?: boolean }) {
   const t = useTranslations("warehouse.scanned");
+  const tf = useTranslations("warehouse.scanned.filters");
   const tStatus = useTranslations("orders.statuses");
   const locale = useLocale();
   const { data, error, isLoading, mutate, busyId, flash, recheck, rebind, unscan } =
     useScannedActions(warehouseId);
+  const view = useScannedView(data?.orders ?? []);
   const [rebindFor, setRebindFor] = useState<string | null>(null);
   const [sticker, setSticker] = useState("");
 
@@ -53,20 +60,22 @@ export function ScannedTable({ warehouseId }: { warehouseId?: string | null }) {
   }
 
   // Anything the carrier is not holding our number for comes first: it is the
-  // only reason a manager opens this list.
-  const rows = [...(data?.orders ?? [])].sort((a, b) => {
-    const bad = (r: ScannedRow) => (r.sticker_bind_state && r.sticker_bind_state !== "confirmed" ? 0 : 1);
-    return bad(a) - bad(b);
-  });
+  // only reason a manager opens this list. `sortScanned` decides, for both
+  // surfaces at once.
+  const rows = view.shown;
+  const loaded = data?.orders ?? [];
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Chip label={t("awaitingPickup", { n: data?.awaitingPickup ?? 0 })} />
-        <Chip label={t("atCarrier", { n: data?.atCarrier ?? 0 })} />
-        {(data?.unconfirmed ?? 0) > 0 ? (
-          <Chip label={t("unconfirmed", { n: data?.unconfirmed ?? 0 })} tone="warn" />
-        ) : null}
+      <div className="mb-3">
+        <ScannedFilters
+          isLy={isLy}
+          filter={view.filter}
+          facets={view.facets}
+          active={view.active}
+          patch={view.patch}
+          clear={view.clear}
+        />
       </div>
 
       {flash ? (
@@ -82,8 +91,19 @@ export function ScannedTable({ warehouseId }: { warehouseId?: string | null }) {
         </p>
       ) : null}
 
-      {rows.length === 0 ? (
+      {loaded.length === 0 ? (
         <p className="py-8 text-center text-[14px] text-wh-ink-2">{t("empty")}</p>
+      ) : rows.length === 0 ? (
+        <div className="py-8 text-center">
+          <p className="text-[14px] text-wh-ink-2">{tf("noMatch")}</p>
+          <button
+            type="button"
+            onClick={view.clear}
+            className="mt-2 inline-flex h-9 items-center rounded-[6px] border border-wh-border px-3 text-[13px] font-semibold text-wh-ink-1"
+          >
+            {tf("clear")}
+          </button>
+        </div>
       ) : (
         <div className="overflow-x-auto rounded-[8px] border border-wh-border bg-wh-surface">
           <table className="w-full min-w-[880px] border-collapse">
@@ -225,20 +245,6 @@ function Th({ children }: { children: React.ReactNode }) {
     <th className="px-4 py-2.5 text-start text-[12px] font-medium uppercase tracking-[0.05em] text-wh-ink-3">
       {children}
     </th>
-  );
-}
-
-function Chip({ label, tone }: { label: string; tone?: "warn" }) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-pill border px-3 py-1 text-[13px] font-medium ${
-        tone === "warn"
-          ? "border-wh-warn-edge bg-wh-warn-bg text-wh-warn"
-          : "border-wh-border bg-wh-surface text-wh-ink-2"
-      }`}
-    >
-      {label}
-    </span>
   );
 }
 

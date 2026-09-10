@@ -12,6 +12,7 @@ import {
 import type { WarehouseOrderRow } from "@/lib/warehouse/summary";
 import { getZoneIndex } from "@/lib/warehouse/zone-index-cache";
 import { attachProductImages } from "@/lib/warehouse/product-images";
+import { attachOrderLines } from "@/lib/warehouse/order-lines";
 import { zoneForOrder, type OrderZone } from "@/lib/warehouse/zone-index";
 import { resolveSiteFilter } from "@/lib/warehouse/site-scope";
 
@@ -184,7 +185,10 @@ export async function GET(req: NextRequest) {
   );
 
   const pictured = await attachProductImages(supabase, rows);
-  const orders: ToLabelRow[] = pictured.map((row) => ({
+  // Every line of every parcel, in one query. A parcel holding three different
+  // products showed as one line until now, and the picker packed one item.
+  const lined = await attachOrderLines(supabase, pictured);
+  const orders: ToLabelRow[] = lined.map((row) => ({
     ...row,
     zone: zoneForOrder(row, zoneIndex),
   }));
