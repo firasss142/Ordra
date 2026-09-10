@@ -23,8 +23,13 @@ export function unwrapEmbed<T>(value: Embedded<T>): T | null {
 export interface OrderNameSource {
   /** Untouched external string. Column is NOT NULL but tolerate bad data. */
   product_name?: string | null;
-  /** Embedded products row, present when the select included products(name). */
-  product?: Embedded<{ name?: string | null }>;
+  /**
+   * Embedded products row, present when the select included
+   * `products(name, image_url)`. `image_url` is optional because some selects
+   * ask for the name alone; both list paths (SSR prefetch and /api/orders/list)
+   * request it so the first paint already carries thumbnails.
+   */
+  product?: Embedded<{ name?: string | null; image_url?: string | null }>;
 }
 
 /**

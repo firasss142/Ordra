@@ -4,7 +4,7 @@ import { getServerUser } from "@/lib/auth/server-user";
 import { getActiveMarketScope } from "@/lib/auth/market-scope";
 import { getAllActiveMarkets, getDefaultMarketId } from "@/lib/markets/list";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/orders/list-filters";
-import { resolveProductDisplayName } from "@/lib/orders/display-name";
+import { resolveProductDisplayName, unwrapEmbed } from "@/lib/orders/display-name";
 import type { OrderNameSource } from "@/lib/orders/display-name";
 import { OrdersPageClient } from "./OrdersPageClient";
 import type { Locale } from "@/types";
@@ -19,7 +19,7 @@ const LIST_COLS =
   // Must stay in sync with LIST_SELECT in /api/orders/list — this SSR prefetch
   // backs the first paint, and a missing embed would show external product
   // names that visibly swap once SWR revalidates.
-  "product:products!orders_product_id_fkey(name)";
+  "product:products!orders_product_id_fkey(name, image_url)";
 
 export default async function OrdersPage({
   params,
@@ -98,7 +98,15 @@ export default async function OrdersPage({
           ordersResult.data as unknown as Array<Record<string, unknown> & OrderNameSource>
         ).map((r) => {
           const { product, ...rest } = r;
-          return { ...rest, product_display_name: resolveProductDisplayName(r) };
+          return {
+            ...rest,
+            product_display_name: resolveProductDisplayName(r),
+            // Without this the first paint had no thumbnails at all: they
+            // appeared only once /api/orders/list came back and SWR replaced
+            // this row. Same expression the list route uses, so the SSR row and
+            // the fetched row are indistinguishable.
+            product_image_url: unwrapEmbed(product)?.image_url ?? null,
+          };
         }),
         nextCursor: null,
         total: (ordersResult as { count?: number | null }).count ?? null,
