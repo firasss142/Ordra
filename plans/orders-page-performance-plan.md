@@ -643,6 +643,43 @@ pre-selected carrier update immediately.
 destination to a different city → within one request the badge amounts and "le moins
 cher" pill change and the pre-selected carrier follows.
 
+**Gate record (2026-09-10 02:15 UTC):** commit `dbbd185`.
+
+Pre-flight, on production: the tariff harvest ran 13.6 h earlier, so the ranking sits on
+the trustworthy `quote` rung and the 2026-09-09 stale-quote trap is NOT active — any wrong
+badge is genuinely the client. Test pair chosen from fresh quotes where the winner flips:
+`الخمس/الخمس` → Tripoli 20 vs Benghazi 25; `بنغازي/البركة` → Benghazi 10 vs Tripoli 30.
+
+Proof the defect was client-side only: the same order flipped between the two destinations
+through the deployed API returned `4f1271c8=20 / 43077d36=25` (rec Tripoli) then
+`43077d36=10 / 4f1271c8=30` (rec Benghazi), both `reason: "quote"`. The route is correct;
+the SWR key was not. (Those PATCHes also carried `expected_updated_at` and all succeeded,
+re-confirming Step 5 in passing.) Test order restored to its pre-test state afterwards.
+
+Two defects fixed, the second hidden behind the first:
+1. `destinationKey(order)` now rides in the SWR key. It mirrors what the route actually
+   resolves from — `darb_destination_id`, else the `customer_city` text — and deliberately
+   omits `city_id` / `dexpress_state_id`, which the route never reads.
+2. `useResetOnDestinationChange` clears the carrier selection on a destination change only,
+   because `pickInitialCarrier`'s first rule is "the current selection always wins". Applied
+   to all three selections, including `selectedDarbCarrierId`, which was reset NOWHERE
+   before — not on close, not on success.
+
+Finding worth keeping: the stale-entry eviction is a direct `cache.delete`, not a filtered
+`mutate`. SWR's key-filter form only visits keys with a mounted subscriber — verified with a
+probe, a seeded unmounted key was left untouched — and the carrier sheet is normally closed
+when the destination is edited, so the entries that go stale are exactly the ones a filtered
+mutate skips.
+
+Plan correction: this step's text assumed all four call sites could read the order.
+`ScheduleDispatchModal` holds none (props are `orderId` + `marketId` only), so it takes the
+key as a prop from `OrderDetailPanel`, its only renderer.
+
+Tests: 86 green across the eight affected suites; typecheck and build clean; full-suite
+failing-file set identical to the untouched tree (zero regressions). Browser gate deferred —
+Playwright disconnected right after the suite run; the API-level proof above covers the
+mechanism. Step 6 DONE.
+
 **Rollback:** revert; the route is untouched.
 
 ---

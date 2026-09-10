@@ -20,7 +20,7 @@ update it when a step lands.
 6. Slow search.
 7. Every action felt slow.
 
-Steps 1–5 close 1, 2, 5, 7 and most of 6. Steps 6–11 (open) close 3, 4 and the rest.
+Steps 1–6 close 1, 2, 3, 5, 7 and most of 6. Steps 7–11 (open) close 4 and the rest.
 
 ---
 
@@ -33,7 +33,7 @@ Steps 1–5 close 1, 2, 5, 7 and most of 6. Steps 6–11 (open) close 3, 4 and t
 | 3 | Filter/search no longer re-renders the server page | **DONE** | `6ae853d` |
 | 4 | Real-time via Broadcast from Database, not `postgres_changes` | **DONE** | `3e4531a` |
 | 5 | Optimistic concurrency on edits and actions | **DONE** | `485bc32` |
-| 6 | Carrier recommendation follows the destination | open | — |
+| 6 | Carrier recommendation follows the destination | **DONE** | `dbbd185` |
 | 7 | Thumbnails: right size, first paint, never vanish | open | — |
 | 8 | Search: one request per pause | open | — |
 | 9 | KPI strip in one round trip | open | — |
@@ -196,6 +196,47 @@ stale → **409 `code: "conflict"`** carrying the winner's order in the exact GE
 exactly one row — the rejected save wrote none, so the append-only timeline never recorded
 an edit that did not happen.
 
+### Step 6 — the quote follows the destination (`dbbd185`)
+
+Changing an order's destination changed neither the price nor the recommended account.
+Two defects, the second hidden behind the first.
+
+**The SWR key was `?order_id=<id>` alone**, with a 60 s dedupe — so a different
+destination produced the same key and the badge kept the previous address's quote. That is
+not a cosmetic staleness: Libya's two Darb accounts are geographic. Measured on fresh
+production quotes, `الخمس` is **20** via Tripoli against 25 via Benghazi, while
+`بنغازي/البركة` is **10** via Benghazi against 30 via Tripoli. The badge was wrong by
+20 LYD and named the wrong account.
+
+The API was verified correct first — the same order flipped between those two destinations
+returned Tripoli@20 then Benghazi@10, both on the `quote` rung — so the defect was
+entirely client-side.
+
+`destinationKey(order)` now rides in the key. It mirrors what the route actually resolves
+the quote from: `darb_destination_id`, else the free-text `customer_city`.
+
+> `city_id` and `dexpress_state_id` are deliberately **not** in the key. The rates route
+> never reads them (it selects only `customer_city, darb_destination_id`), so including
+> them would invent cache misses that change no answer. `customer_address` is excluded for
+> the same reason — it is free text the quote does not depend on.
+
+**And the selection could not move.** `pickInitialCarrier`'s first rule is "the current
+selection always wins" — correct for protecting a deliberate choice, wrong across a
+destination change. `useResetOnDestinationChange` clears the selection at that one moment,
+never on mount (which would fight the auto-select effect). Applied to all three selections,
+including `selectedDarbCarrierId`, which was reset **nowhere** before — not on close, not
+on success.
+
+> **SWR's filtered `mutate` only visits keys with a mounted subscriber.** Verified with a
+> probe: a seeded, unmounted key survived `mutate(k => k.startsWith(prefix), undefined)`
+> untouched. Since the carrier sheet is normally closed when someone edits the destination,
+> the entries that go stale are precisely the ones a filtered mutate skips — so the
+> eviction in `useOrderMutation` is a direct `cache.delete` over the cache keys.
+
+Note for future steps: `ScheduleDispatchModal` holds no order object (its props are
+`orderId` + `marketId`), so it receives the destination key as a prop from
+`OrderDetailPanel`, its only renderer.
+
 ---
 
 ## Invariants — break these and the page regresses silently
@@ -210,6 +251,10 @@ an edit that did not happen.
 6. `status-counts` / `facet-counts` stay `no-store`.
 7. `expected_updated_at` is passed through as an opaque string, never re-serialised.
 8. `LIST_COLS` in `orders/page.tsx` stays in sync with `LIST_SELECT` in the list route.
+9. Any per-destination answer is keyed on `destinationKey(order)`, and that key mirrors
+   what the route actually reads — never more, never less.
+10. Evicting SWR entries that may have no mounted subscriber is done with `cache.delete`,
+    not a filtered `mutate`.
 
 ---
 
@@ -334,13 +379,6 @@ breaks them at runtime, not at typecheck**:
 
 ## Open steps — what to know before starting each
 
-- **Step 6 (carrier recommendation follows destination).** The SWR key in
-  `useCarrierRates` ignores the destination, so the badge keeps a stale quote. Four call
-  sites. `pickInitialCarrier`'s first rule is "the current selection always wins", so a
-  destination change can never move the selection until `selectedCarrierId` is reset.
-  Read [docs/carrier-rate-recommendation.md](carrier-rate-recommendation.md) first —
-  there is a known trap where "meilleur choix" silently falls back to a market-wide
-  average, and `darb_rate_harvest_runs` freshness must be checked before blaming the key.
 - **Step 7 (thumbnails).** SSR `LIST_COLS` omits `image_url`; the Storage render
   endpoint takes a 1,101 KB PNG to **2 KB** at 80×80 (verified, HTTP 200). `ProductAvatar`
   never resets its `errored` state when the prop changes in place. Step 4 already removed
