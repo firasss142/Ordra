@@ -43,14 +43,16 @@ interface Wire {
   accuracy?: unknown;
   siteStock?: unknown[];
   warehouses?: unknown[];
+  /** The market the signed-in agent belongs to. Defaults to the fake "m-1". */
+  actorMarket?: string;
 }
 
 function wire({
   products = [], orders = [], counts = [], series = [], accuracy = null,
-  siteStock = [], warehouses = [],
+  siteStock = [], warehouses = [], actorMarket = "m-1",
 }: Wire) {
   mockFrom.mockImplementation((table: string) => {
-    if (table === "users") return chain({ data: { role: "warehouse_agent", market_id: "m-1" }, error: null });
+    if (table === "users") return chain({ data: { role: "warehouse_agent", market_id: actorMarket }, error: null });
     if (table === "products") return chain({ data: products, error: null });
     if (table === "orders") return chain({ data: orders, error: null });
     if (table === "inventory_log") return chain({ data: counts, error: null });
@@ -62,7 +64,7 @@ function wire({
   const original = mockFrom.getMockImplementation()!;
   mockFrom.mockImplementation((table: string) => {
     const c = original(table) as Record<string, unknown>;
-    c.single = vi.fn().mockResolvedValue({ data: { role: "warehouse_agent", market_id: "m-1" }, error: null });
+    c.single = vi.fn().mockResolvedValue({ data: { role: "warehouse_agent", market_id: actorMarket }, error: null });
     c.maybeSingle = c.single;
     return c;
   });
@@ -288,6 +290,51 @@ describe("GET /api/warehouse/stock — where the units are", () => {
       siteStock: [{ product_id: "p-1", warehouse_id: "w-tri", current_stock: 9, last_counted_at: null }],
     });
     const { rows } = await (await GET(req())).json();
+    expect(rows[0].unallocated).toBe(0);
+  });
+});
+
+/**
+ * Which building, in which language, for whom.
+ *
+ * The site name is a place painted on a wall — Libya's bench reads Arabic, and
+ * `name_ar` was being selected and thrown away. And a super_admin with no market
+ * selected must not be handed a breakdown assembled from both markets.
+ */
+describe("GET /api/warehouse/stock — naming and scoping the buildings", () => {
+  const LY = "00000000-0000-0000-0000-000000000002";
+  const TN = "00000000-0000-0000-0000-000000000001";
+
+  test("names Libyan buildings in Arabic, as the bench reads them", async () => {
+    wire({
+      actorMarket: LY,
+      products: [product({ market_id: LY })],
+      warehouses: [
+        { id: "w-tri", code: "tripoli", name_fr: "Tripoli", name_ar: "طرابلس", market_id: LY },
+        { id: "w-ben", code: "benghazi", name_fr: "Benghazi", name_ar: "بنغازي", market_id: LY },
+      ],
+      siteStock: [{ product_id: "p-1", warehouse_id: "w-tri", current_stock: 4, last_counted_at: null }],
+    });
+    const { rows } = await (await GET(req())).json();
+    expect(rows[0].sites[0].name).toBe("طرابلس");
+  });
+
+  test("does not mix two markets' buildings into one breakdown", async () => {
+    // A super_admin with no market picked: Tunisia has ONE warehouse, so a
+    // "breakdown" assembled from both markets would invent a split it does not
+    // have — and would name Libyan buildings under a Tunisian product.
+    wire({
+      actorMarket: TN,
+      products: [product({ market_id: TN })],
+      warehouses: [
+        { id: "w-tn", code: "tunis", name_fr: "Tunis", name_ar: "تونس", market_id: TN },
+        { id: "w-tri", code: "tripoli", name_fr: "Tripoli", name_ar: "طرابلس", market_id: LY },
+        { id: "w-ben", code: "benghazi", name_fr: "Benghazi", name_ar: "بنغازي", market_id: LY },
+      ],
+      siteStock: [{ product_id: "p-1", warehouse_id: "w-tn", current_stock: 4, last_counted_at: null }],
+    });
+    const { rows } = await (await GET(req())).json();
+    expect(rows[0].sites).toEqual([]);
     expect(rows[0].unallocated).toBe(0);
   });
 });

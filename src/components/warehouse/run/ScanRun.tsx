@@ -280,21 +280,69 @@ export function ScanRun({
        */
       setCursor(current.id);
     }
-    setTally((v) => ({ ...v, bound: v.bound + 1 }));
+    setTally((v) => ({
+      ...v,
+      bound: v.bound + 1,
+      // A retry that finally took is not a problem any more: drop it from both
+      // the count and the list, or the summary reports a box that has left.
+      refused: current && v.problems.some((p) => p.id === current.id) ? v.refused - 1 : v.refused,
+      problems: current ? v.problems.filter((p) => p.id !== current.id) : v.problems,
+    }));
     void mutate();
   }, [current, mutate]);
 
+  /**
+   * A parcel that did not leave. Counted once per parcel, not per attempt: an
+   * agent who retries a refused sticker three times has one problem, not three.
+   */
+  const onUnresolved = useCallback(
+    (message: string) => {
+      if (!current) return;
+      setTally((v) =>
+        v.problems.some((p) => p.id === current.id)
+          ? v
+          : {
+              ...v,
+              refused: v.refused + 1,
+              problems: [...v.problems, { id: current.id, name: current.customer_name, message }],
+            },
+      );
+    },
+    [current],
+  );
+
   const skip = useCallback(() => {
     if (!current) return;
-    setSkipped((s) => (s.includes(current.id) ? s : [...s, current.id]));
-    setTally((v) => ({ ...v, skipped: v.skipped + 1 }));
+    const again = skipped.includes(current.id);
+    setSkipped((s) => (again ? s : [...s, current.id]));
+    // Counted once per parcel: an agent who puts the same box down twice has
+    // set aside one parcel, not two.
+    if (!again) setTally((v) => ({ ...v, skipped: v.skipped + 1 }));
     setArmed(false);
-    // The list is about to reorder around this parcel; step to whatever follows
-    // it in the CURRENT order, then let the reorder settle.
+
+    /*
+     * A parcel comes back to the end of the batch ONCE.
+     *
+     * Skipping it a second time ends the batch instead of handing it over
+     * again: the queue would otherwise loop the same box forever, with no way
+     * out but the exit button, and the agent would never see the summary that
+     * names what they set aside.
+     */
+    const rest = queue.filter((r) => r.id !== current.id && !skipped.includes(r.id));
+    if (rest.length === 0 && again) {
+      setCursor(null);
+      setDone(true);
+      return;
+    }
     const i = queue.findIndex((r) => r.id === current.id);
     const next = queue[i + 1] ?? queue.find((r) => r.id !== current.id) ?? null;
-    setCursor(next?.id ?? null);
-  }, [current, queue]);
+    if (!next) {
+      setCursor(null);
+      setDone(true);
+      return;
+    }
+    setCursor(next.id);
+  }, [current, queue, skipped]);
 
   const exit = useCallback(() => {
     writeState(null);
@@ -390,6 +438,7 @@ export function ScanRun({
             row={current}
             hex={market === "ly" ? current.zone.colorHex : null}
             onBound={onBound}
+            onUnresolved={onUnresolved}
             onNext={advance}
             onSkip={skip}
           />

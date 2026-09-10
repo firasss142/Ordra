@@ -44,6 +44,7 @@ export function RunScanner({
   row,
   hex,
   onBound,
+  onUnresolved,
   onNext,
   onSkip,
 }: {
@@ -52,6 +53,12 @@ export function RunScanner({
   hex: string | null;
   /** A parcel left the bench: the caller drops it and counts the scan. */
   onBound: () => void;
+  /**
+   * A parcel that did NOT leave: refused here or at Darb, or bound without a
+   * commit. The batch summary names these, because a count tells the agent
+   * something went wrong while a list tells them which box is still on the table.
+   */
+  onUnresolved: (message: string) => void;
   /** Move to the next parcel of the batch. */
   onNext: () => void;
   onSkip: () => void;
@@ -84,7 +91,14 @@ export function RunScanner({
 
   const lastId = last?.id;
   useEffect(() => {
-    if (lastId && last) signalOutcome(last.outcome, prefs);
+    if (!lastId || !last) return;
+    signalOutcome(last.outcome, prefs);
+    // Anything that is not a clean bind is reported once, when it happens: the
+    // result card is about to be replaced by the next parcel and the agent
+    // needs it back at the end of the batch.
+    if (last.outcome !== "bound") {
+      onUnresolved(last.message ?? last.outcome);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastId]);
 

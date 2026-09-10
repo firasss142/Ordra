@@ -257,6 +257,43 @@ describe("finishing a batch", () => {
     expect(summary).toHaveTextContent("1");
   });
 
+  it("names the parcels that never left, so they are not forgotten", async () => {
+    respond(422, { error_code: "STICKER_ALREADY_USED", message: "déjà lié" });
+    renderRun([red1]);
+    fireEvent.click(screen.getByRole("button", { name: /Même produit/ }));
+    fireEvent.click(screen.getAllByTestId("wh-run-bucket")[0]);
+    fireEvent.click(screen.getByRole("button", { name: /C'est bien ce colis/ }));
+    fireEvent.click(screen.getByTestId("qr-scanner"));
+    await screen.findByTestId("wh-run-result");
+    // Set it aside: it was the only parcel, so the batch ends.
+    fireEvent.click(screen.getByRole("button", { name: /Passer ce colis/ }));
+    const summary = await screen.findByTestId("wh-run-summary");
+    // A count says something went wrong; the NAME says which box is still out.
+    expect(summary).toHaveTextContent("محمد علي");
+    expect(summary).toHaveTextContent(/déjà lié/);
+  });
+
+  it("stops calling a parcel refused once a retry binds it", async () => {
+    respond(422, { error_code: "STICKER_ALREADY_USED", message: "déjà lié" });
+    renderRun([red1]);
+    fireEvent.click(screen.getByRole("button", { name: /Même produit/ }));
+    fireEvent.click(screen.getAllByTestId("wh-run-bucket")[0]);
+    fireEvent.click(screen.getByRole("button", { name: /C'est bien ce colis/ }));
+    fireEvent.click(screen.getByTestId("qr-scanner"));
+    await screen.findByTestId("wh-run-result");
+
+    // Retry, and this time it takes.
+    respond(200, BOUND);
+    fireEvent.click(screen.getByRole("button", { name: /Réessayer/ }));
+    fireEvent.click(screen.getByTestId("qr-scanner"));
+    await waitFor(() => {
+      expect(screen.getByTestId("wh-run-result")).toHaveAttribute("data-outcome", "bound");
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Colis suivant$/ }));
+    const summary = await screen.findByTestId("wh-run-summary");
+    expect(summary).not.toHaveTextContent(/déjà lié/);
+  });
+
   it("offers the next batch rather than dumping the agent back at the start", async () => {
     // Finish the SMALLER batch (Corde, one parcel); the offer must then be the
     // Dumbbell batch that is still waiting, never the one just completed.
@@ -270,5 +307,58 @@ describe("finishing a batch", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Colis suivant$/ }));
     await screen.findByTestId("wh-run-summary");
     expect(screen.getByRole("button", { name: /Lot suivant/ })).toHaveTextContent("Dumbbell");
+  });
+});
+
+describe("setting a parcel aside", () => {
+  it("hands it back once, then ends the batch rather than looping it forever", () => {
+    // Two parcels: skip both, and the second skip of the first one must finish
+    // the batch. Without this the queue circles the same box with no way out
+    // but the exit button, and the agent never sees what they set aside.
+    render(
+      <Intl locale="fr">
+        <ScanRun market="ly" locale="fr" currency="LYD" initialOrders={[red1, red2]} siteName="Tripoli" />
+      </Intl>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Même produit/ }));
+    fireEvent.click(screen.getAllByTestId("wh-run-bucket")[0]);
+
+    // Put each one down until the batch has nothing left to offer. The loop is
+    // bounded on purpose: without the "once" rule it would never terminate.
+    for (let i = 0; i < 6; i += 1) {
+      const again = screen.queryByRole("button", { name: /Passer ce colis/ });
+      if (!again) break;
+      fireEvent.click(again);
+    }
+    expect(screen.getByTestId("wh-run-summary")).toBeInTheDocument();
+    // Counted once per parcel, not once per time it was put down.
+    expect(screen.getByTestId("wh-run-summary")).toHaveTextContent("2 colis passés");
+  });
+});
+
+describe("the stock movement it reports", () => {
+  it("states the move the server actually made, not the denormalised quantity", async () => {
+    // A three-item parcel whose primary line took 3: `orders.quantity` is 1,
+    // so deriving the move from the row would print "40 ← 39" for a shelf that
+    // actually went 42 → 39.
+    respond(200, {
+      status: "scanned",
+      stock_after: 39,
+      darb_bound: true,
+      sticker_bind_state: "confirmed",
+      lines: 2,
+      movements: [
+        { product_id: "p1", change: -3, stock_after: 39 },
+        { product_id: "p2", change: -1, stock_after: 7 },
+      ],
+    });
+    renderRun([red1]);
+    fireEvent.click(screen.getByRole("button", { name: /Même produit/ }));
+    fireEvent.click(screen.getAllByTestId("wh-run-bucket")[0]);
+    fireEvent.click(screen.getByRole("button", { name: /C'est bien ce colis/ }));
+    fireEvent.click(screen.getByTestId("qr-scanner"));
+    const result = await screen.findByTestId("wh-run-result");
+    expect(result).toHaveTextContent("42");
+    expect(result).toHaveTextContent("39");
   });
 });

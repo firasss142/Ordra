@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import type { OrderLine } from "./summary";
 
 /**
@@ -33,13 +34,22 @@ export async function attachOrderLines<T extends { id: string }>(
   const byOrder = new Map<string, OrderLine[]>();
 
   try {
-    const { data } = await supabase
-      .from("order_items")
-      .select("order_id, product_id, product_name, variant_label, quantity")
-      .in("order_id", ids)
-      .order("created_at", { ascending: true });
-
-    const items = (data ?? []) as ItemRow[];
+    /*
+     * Paged, not capped.
+     *
+     * PostgREST stops at 1000 rows. A page of 200 parcels averaging more than
+     * five lines would be truncated silently, and every truncated order would
+     * fall back to its denormalised single line — which is exactly the
+     * one-item-packed bug this module exists to prevent, reappearing only on
+     * the busiest days and only for the parcels at the end of the page.
+     */
+    const items = await fetchAllRows<ItemRow>(
+      supabase
+        .from("order_items")
+        .select("order_id, product_id, product_name, variant_label, quantity")
+        .in("order_id", ids)
+        .order("created_at", { ascending: true }),
+    );
 
     // The picture is per LINE, not per order: a mixed parcel shows one thumb
     // per product, which is the only way to check three items against a box.

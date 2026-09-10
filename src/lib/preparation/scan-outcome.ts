@@ -37,6 +37,14 @@ export interface ScanEntry {
 
 export interface ScanResponse {
   stock_after?: number;
+  /**
+   * One entry per product the scan moved, from `scan_order_out`.
+   *
+   * A parcel can hold several different products, and `orders.quantity` is only
+   * the denormalised first line — so the movement of the primary product cannot
+   * be derived from it. The server states it.
+   */
+  movements?: Array<{ product_id: string | null; change: number; stock_after: number }>;
   /** What Darb is holding instead of our sticker, on an unverified bind. */
   carrier_reference?: string;
   /** "confirmed" | "restickered" | "not_registered" | "unknown". */

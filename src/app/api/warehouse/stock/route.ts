@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import { canScanWarehouse } from "@/lib/role-permissions";
+import { marketIdToCode } from "@/lib/markets";
 
 export const dynamic = "force-dynamic";
 
@@ -186,10 +187,29 @@ export async function GET(req: NextRequest) {
    * ventilating its total across "one site" would add a line that repeats the
    * figure above it. Only a market that can actually split shows the split.
    */
+  /*
+   * A market, not "every warehouse there is".
+   *
+   * A super_admin with no market selected has `marketId === null`, so an
+   * unfiltered list mixes Tunisia's warehouse with Libya's two — and `multiSite`
+   * would then be true for a Tunisian product, inventing a breakdown for a
+   * market that has one building. The products all belong to one market when a
+   * scope is set; when none is, the split is not meaningful and is skipped.
+   */
+  const productMarkets = new Set(
+    ((products ?? []) as Array<{ market_id: string | null }>)
+      .map((p) => p.market_id)
+      .filter((m): m is string => Boolean(m)),
+  );
+  const scopeMarket = marketId ?? (productMarkets.size === 1 ? [...productMarkets][0] : null);
+
   const marketWarehouses = ((warehouseRows ?? []) as Array<{
     id: string; code: string; name_fr: string; name_ar: string; market_id: string;
-  }>).filter((w) => !marketId || w.market_id === marketId);
+  }>).filter((w) => scopeMarket !== null && w.market_id === scopeMarket);
   const multiSite = marketWarehouses.length > 1;
+  // Libya reads Arabic. The site name is a place painted on a wall, so it is
+  // never translated by key — it is picked, like everywhere else in the shell.
+  const arabicNames = marketIdToCode(scopeMarket) === "ly";
   const warehouseById = new Map(marketWarehouses.map((w) => [w.id, w]));
 
   const sitesBy = new Map<string, StockSiteRow[]>();
@@ -202,7 +222,9 @@ export async function GET(req: NextRequest) {
       const line: StockSiteRow = {
         warehouse_id: r.warehouse_id,
         code: w.code,
-        name: w.name_fr,
+        // The name painted on the wall, in the market's language. Libya's bench
+        // reads Arabic; `name_ar` was selected and thrown away.
+        name: (arabicNames ? w.name_ar : w.name_fr) || w.name_fr,
         current_stock: r.current_stock ?? 0,
         last_counted_at: r.last_counted_at ?? null,
       };

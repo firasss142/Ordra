@@ -26,6 +26,14 @@ function client(items: ItemRow[], images: Array<{ id: string; image_url: string 
     chain.select = vi.fn().mockReturnValue(chain);
     chain.in = vi.fn().mockReturnValue(chain);
     chain.order = vi.fn().mockReturnValue(chain);
+    // fetchAllRows pages with .range(); the first page returns everything and
+    // the second must come back empty or the loop never ends.
+    let page = 0;
+    chain.range = vi.fn(() => {
+      const rows = page === 0 ? items : [];
+      page += 1;
+      return Promise.resolve({ data: rows, error: null });
+    });
     chain.then = (resolve: (v: unknown) => unknown) =>
       Promise.resolve({ data: table === "order_items" ? items : images, error: null }).then(resolve);
     return chain;
@@ -58,6 +66,21 @@ describe("attachOrderLines", () => {
   it("asks once for the whole page, never once per parcel", async () => {
     const { supabase, from } = client([]);
     await attachOrderLines(supabase, [row("o1"), row("o2"), row("o3")]);
+    expect(from.mock.calls.filter((c) => c[0] === "order_items")).toHaveLength(1);
+  });
+
+  it("pages past PostgREST's row cap instead of losing the last parcels", async () => {
+    // 200 parcels averaging six lines each blows through the 1000-row cap, and
+    // a truncated order falls back to its single denormalised line — the exact
+    // bug this module exists to prevent, appearing only on the busiest days.
+    const many: ItemRow[] = [];
+    for (let i = 0; i < 1200; i += 1) {
+      many.push({ order_id: `o${i % 200}`, product_id: `p${i}`, product_name: `P${i}`, variant_label: null, quantity: 1 });
+    }
+    const { supabase, from } = client(many);
+    const rows = await attachOrderLines(supabase, Array.from({ length: 200 }, (_, i) => row(`o${i}`)));
+    const total = rows.reduce((n, r) => n + (r.items?.length ?? 0), 0);
+    expect(total).toBe(1200);
     expect(from.mock.calls.filter((c) => c[0] === "order_items")).toHaveLength(1);
   });
 
