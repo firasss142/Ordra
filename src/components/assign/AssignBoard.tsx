@@ -103,7 +103,17 @@ export function AssignBoard({ marketId, marketCode, onAssigned }: Props) {
         });
         if (!res.ok) throw new Error("assign_failed");
         setSelectedIds(new Set());
-        showToast(t("assignSuccess", { count: ids.length }));
+        // Report what the SERVER assigned, not what we asked for. bulk-assign
+        // now skips orders an agent has open rather than failing the batch, so
+        // ids.length would overstate the result whenever anything is skipped.
+        const body = await res.json().catch(() => null);
+        const assigned = body?.data?.assigned ?? ids.length;
+        const locked = body?.data?.locked?.length ?? 0;
+        showToast(
+          locked > 0
+            ? t("assignPartialLocked", { count: assigned, locked })
+            : t("assignSuccess", { count: assigned }),
+        );
         await Promise.all([mutateOrders(), mutateAgents()]);
         onAssigned?.();
       } catch {

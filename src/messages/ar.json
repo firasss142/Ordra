@@ -4247,7 +4247,8 @@
     },
     "assignSuccess": "تم إسناد {count} طلب",
     "assignFailed": "فشل الإسناد",
-    "showingFirstN": "عرض أحدث {count} طلبًا من أصل {total}"
+    "showingFirstN": "عرض أحدث {count} طلبًا من أصل {total}",
+    "assignPartialLocked": "{count} طلب أُسند — {locked} قيد المعالجة من طرف وكيل"
   },
   "confirmationFlow": {
     "title": "تدفق التأكيد",
@@ -4787,7 +4788,9 @@
           "confAge": "مؤكدة ≥ {age}",
           "overdue": "{n} إعادة اتصال متأخرة",
           "dispatch": "شحن مجدول"
-        }
+        },
+        "reassignLocked": "{ok} أُعيد إسنادها — {locked} قيد المعالجة من طرف {who}",
+        "reassignLockedUnknown": "أحد الوكلاء"
       },
       "blocked": {
         "title": "للتحرير",

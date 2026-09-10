@@ -92,7 +92,20 @@ export function AgentRoster({ view, locale, tz, now, agentsForReassign, onSelect
     setBusyAgent(agentId);
     try {
       const r = await reassignAgentQueue(agentId, target);
-      if (r.failed > 0) onToast(t("reassignPartial", { ok: r.ok, failed: r.failed }), "error");
+      // A locked order is not a failure — it is a colleague on the phone. This
+      // surface moves a whole queue, so it is the likeliest place to yank the
+      // exact order somebody is mid-call about; saying who still holds one is
+      // the difference between an actionable toast and a shrug.
+      if (r.locked > 0) {
+        onToast(
+          t("reassignLocked", {
+            ok: r.ok,
+            locked: r.locked,
+            who: r.lockedBy.join(", ") || t("reassignLockedUnknown"),
+          }),
+          "error",
+        );
+      } else if (r.failed > 0) onToast(t("reassignPartial", { ok: r.ok, failed: r.failed }), "error");
       else onToast(t("reassignDone", { n: r.ok }), "success");
       onQueueChanged();
     } catch {

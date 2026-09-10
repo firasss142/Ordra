@@ -17,7 +17,21 @@ vi.mock("swr", () => ({
   useSWRConfig: () => ({ mutate: mutateMock }),
 }));
 
+// This mock replaces the module wholesale, so every hook the file under test
+// imports has to appear here. Adding one to the hook and forgetting it here
+// fails at RUNTIME, not typecheck — see docs/orders-page-performance.md §7.
+const broadcastSubs: Array<{
+  opts: { topic: string; event: string } | null;
+  handler: (p: unknown) => void;
+}> = [];
+
 vi.mock("@/components/providers/RealtimeProvider", () => ({
+  useRealtimeBroadcast: (
+    opts: { topic: string; event: string } | null,
+    handler: (p: unknown) => void,
+  ) => {
+    broadcastSubs.push({ opts, handler });
+  },
   useRealtimeSubscribe: (
     opts: { table: string } | null,
     handler: (payload: unknown) => void,
@@ -62,6 +76,7 @@ beforeEach(() => {
   mutateMock.mockClear();
   for (const k of Object.keys(handlers)) delete handlers[k];
   unlockListeners.length = 0;
+  broadcastSubs.length = 0;
   locked = false;
 });
 
@@ -129,5 +144,47 @@ describe("useOrderDetailRealtime — itemsHandler edit-lock guard", () => {
       (c) => c[0] === KEY && c.length === 1,
     );
     expect(blindCalls.length).toBe(1);
+  });
+});
+
+describe("useOrderDetailRealtime — force-release takeover", () => {
+  it("subscribes to the agent's OWN presence topic, never a shared one", () => {
+    renderHookForOrder();
+    const sub = broadcastSubs.find((b) => b.opts?.event === "lock_forced");
+    expect(sub?.opts?.topic).toBe("order_presence:agent:agent-1");
+  });
+
+  it("fires onForceReleased for this order, naming who took it", () => {
+    const onForceReleased = vi.fn();
+    renderHook(() =>
+      useOrderDetailRealtime({
+        orderId: ORDER_ID,
+        swrKey: KEY,
+        agentId: "agent-1",
+        onReassignedAway: () => {},
+        onTerminated: () => {},
+        onForceReleased,
+      }),
+    );
+    const sub = broadcastSubs.find((b) => b.opts?.event === "lock_forced");
+    sub?.handler({ order_id: ORDER_ID, released_by_name: "Firas" });
+    expect(onForceReleased).toHaveBeenCalledWith("Firas");
+  });
+
+  it("ignores a takeover aimed at a different order", () => {
+    const onForceReleased = vi.fn();
+    renderHook(() =>
+      useOrderDetailRealtime({
+        orderId: ORDER_ID,
+        swrKey: KEY,
+        agentId: "agent-1",
+        onReassignedAway: () => {},
+        onTerminated: () => {},
+        onForceReleased,
+      }),
+    );
+    const sub = broadcastSubs.find((b) => b.opts?.event === "lock_forced");
+    sub?.handler({ order_id: "someone-elses-order", released_by_name: "Firas" });
+    expect(onForceReleased).not.toHaveBeenCalled();
   });
 });

@@ -4247,7 +4247,8 @@
     },
     "assignSuccess": "{count} commande(s) assignée(s)",
     "assignFailed": "Échec de l'assignation",
-    "showingFirstN": "Affichage des {count} commandes les plus récentes sur {total}"
+    "showingFirstN": "Affichage des {count} commandes les plus récentes sur {total}",
+    "assignPartialLocked": "{count} commande(s) assignée(s) — {locked} en cours de traitement par un agent"
   },
   "confirmationFlow": {
     "title": "Flux Confirmation",
@@ -4787,7 +4788,9 @@
           "confAge": "conf. ≥ {age}",
           "overdue": "{n, plural, one {# rappel dépassé} other {# rappels dépassés}}",
           "dispatch": "expéd. planifiée"
-        }
+        },
+        "reassignLocked": "{ok} réassignée(s) — {locked} en cours de traitement par {who}",
+        "reassignLockedUnknown": "un agent"
       },
       "blocked": {
         "title": "À débloquer",
