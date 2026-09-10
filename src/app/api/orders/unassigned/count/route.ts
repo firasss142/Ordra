@@ -27,8 +27,12 @@ export async function GET(req: NextRequest) {
   let query = supabase.from("orders").select("*", { count: "exact", head: true });
   if (marketId) query = query.eq("market_id", marketId);
 
-  // Same predicate as the orders KPI tile, imported rather than restated — the
-  // two drifted before and reported 9 versus 188 for the same word.
+  // Same predicate as the orders KPI tile. The tile now counts through
+  // get_orders_kpi_counts, whose `unassigned` filter is this predicate copied
+  // verbatim into SQL — so the definition lives in two places again and they
+  // MUST be changed together. Kept as its own head-count on purpose: routing
+  // this badge through the KPI RPC would compute six counts it throws away.
+  // They drifted once and reported 9 versus 188 for the same word.
   const { count, error } = await whereUnassigned(query);
 
   if (error) return NextResponse.json({ error: "Internal server error" }, { status: 500 });

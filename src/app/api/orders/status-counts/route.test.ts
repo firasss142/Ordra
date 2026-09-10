@@ -22,22 +22,6 @@ function createRequest(url: string) {
   return new NextRequest(new URL(url, "http://localhost:3000"), { method: "GET" } as any);
 }
 
-/**
- * A chain that is itself awaitable — mirrors PostgREST, where
- * `.select("*", { count: "exact", head: true }).eq(...)` resolves to
- * `{ count, error }` with no row payload at all.
- */
-function countChain(count: number) {
-  const chain: Record<string, unknown> = {};
-  const self = () => chain;
-  for (const m of ["select", "eq", "neq", "in", "is", "gte", "lt", "lte", "not"]) {
-    chain[m] = vi.fn(self);
-  }
-  chain.then = (resolve: (v: unknown) => unknown) =>
-    Promise.resolve({ data: null, count, error: null }).then(resolve);
-  return chain;
-}
-
 function singleChain(row: unknown) {
   const chain: Record<string, unknown> = {};
   const self = () => chain;
@@ -48,14 +32,36 @@ function singleChain(row: unknown) {
   return chain;
 }
 
-/** Chains handed out for the `orders` table, so assertions can ignore the auth lookup. */
-let orderChains: Record<string, unknown>[] = [];
+type KpiCounts = {
+  total: number;
+  unassigned: number;
+  to_recall: number;
+  uploaded: number;
+  rejected: number;
+  delivered: number;
+  period_total: number;
+};
 
-/** Every orders query resolves to the same count — enough to prove aggregation is used. */
+const DEFAULT_COUNTS: KpiCounts = {
+  total: 2578,
+  unassigned: 9,
+  to_recall: 40,
+  uploaded: 3,
+  rejected: 5,
+  delivered: 7,
+  period_total: 935,
+};
+
+/** The arguments the route passed to get_orders_kpi_counts, for window assertions. */
+function kpiArgs(): Record<string, unknown> | undefined {
+  const call = mockRpc.mock.calls.find((c) => c[0] === "get_orders_kpi_counts");
+  return call?.[1] as Record<string, unknown> | undefined;
+}
+
 function setup(
   role: string,
   marketId: string | null,
-  ordersCount: number,
+  counts: Partial<KpiCounts> = {},
   rate: {
     current_yes: number;
     current_total: number;
@@ -63,14 +69,20 @@ function setup(
     prev_total: number;
   } = { current_yes: 106, current_total: 216, prev_yes: 60, prev_total: 200 },
 ) {
-  orderChains = [];
   mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
-  mockRpc.mockResolvedValue({ data: [rate], error: null });
+  // One mock for both RPCs, dispatched by name — the route now calls two.
+  mockRpc.mockImplementation((fn: string) => {
+    if (fn === "get_orders_kpi_counts") {
+      return Promise.resolve({ data: { ...DEFAULT_COUNTS, ...counts }, error: null });
+    }
+    if (fn === "get_confirmation_rate_windows") {
+      return Promise.resolve({ data: [rate], error: null });
+    }
+    return Promise.resolve({ data: null, error: null });
+  });
   mockFrom.mockImplementation((table: string) => {
     if (table === "users") return singleChain({ role, market_id: marketId });
-    const chain = countChain(ordersCount);
-    orderChains.push(chain);
-    return chain;
+    return singleChain(null);
   });
 }
 
@@ -80,10 +92,10 @@ describe("GET /api/orders/status-counts", () => {
   });
 
   test("reports the true total, not a page of rows", async () => {
-    // Libya really has 2578 orders. The previous implementation did
+    // Libya really has 2578 orders. An early implementation did
     // `.select("status")` and counted the returned array, which PostgREST
     // silently caps at 1000 — so the UI displayed "1000 au total" forever.
-    setup("market_manager", "ly", 2578);
+    setup("market_manager", "ly", { total: 2578 });
 
     const res = await GET(createRequest("/api/orders/status-counts"));
     const body = await res.json();
@@ -93,24 +105,30 @@ describe("GET /api/orders/status-counts", () => {
   });
 
   test("never fetches order rows to derive counts", async () => {
-    setup("market_manager", "ly", 2578);
+    setup("market_manager", "ly");
 
     await GET(createRequest("/api/orders/status-counts"));
 
-    const selectCalls = orderChains.flatMap(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (chain) => (chain.select as any)?.mock?.calls ?? [],
-    );
+    // The seven tiles come from ONE aggregate. Selecting rows is what
+    // truncated; issuing seven head-counts is what made the strip slow.
+    expect(mockFrom).not.toHaveBeenCalledWith("orders");
+    expect(
+      mockRpc.mock.calls.filter((c) => c[0] === "get_orders_kpi_counts"),
+    ).toHaveLength(1);
+  });
 
-    expect(selectCalls.length).toBeGreaterThan(0);
-    for (const call of selectCalls) {
-      // Every count query must be head-only; fetching rows is what truncated.
-      expect(call[1]).toMatchObject({ count: "exact", head: true });
-    }
+  test("asks the database once for the whole strip", async () => {
+    setup("market_manager", "ly");
+
+    await GET(createRequest("/api/orders/status-counts"));
+
+    // Two round trips total: the counts and the confirmation rate. It was
+    // seven head-counts plus the rate.
+    expect(mockRpc).toHaveBeenCalledTimes(2);
   });
 
   test("exposes the funnel tiles the KPI strip renders", async () => {
-    setup("market_manager", "ly", 42);
+    setup("market_manager", "ly");
 
     const res = await GET(createRequest("/api/orders/status-counts"));
     const body = await res.json();
@@ -129,110 +147,82 @@ describe("GET /api/orders/status-counts", () => {
     }
   });
 
-  /** The chain that counts every order in the window — windowed, no status. */
-  const periodTotalChain = () =>
-    orderChains.find(
-      (chain) =>
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ((chain.gte as any)?.mock?.calls ?? []).some((c: unknown[]) => c[0] === "created_at") &&
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        !((chain.eq as any)?.mock?.calls ?? []).some((c: unknown[]) => c[0] === "status"),
-    );
+  test("maps every count onto the field the strip reads", async () => {
+    // A silent mis-mapping here would put the rejected count on the delivered
+    // tile, so each value is distinct and checked individually.
+    setup("market_manager", "ly", {
+      total: 1,
+      unassigned: 2,
+      to_recall: 3,
+      uploaded: 4,
+      rejected: 5,
+      delivered: 6,
+      period_total: 7,
+    });
+
+    const body = await (await GET(createRequest("/api/orders/status-counts"))).json();
+
+    expect(body.data).toMatchObject({
+      total: 1,
+      unassigned: 2,
+      toRecall: 3,
+      uploaded: 4,
+      rejected: 5,
+      delivered: 6,
+      periodTotal: 7,
+    });
+  });
 
   test("the period total is counted over the requested window, not over today", async () => {
     // The tile it feeds used to be a fixed "Aujourd'hui": ask for August and
     // every other tile moved while this number stayed on the current day.
-    setup("market_manager", LY_MARKET_ID, 935);
+    setup("market_manager", LY_MARKET_ID, { period_total: 935 });
 
     const res = await GET(
       createRequest("/api/orders/status-counts?date_from=2026-08-01&date_to=2026-08-12"),
     );
     const body = await res.json();
 
-    const chain = periodTotalChain();
-    expect(chain, "no windowed all-status count found").toBeDefined();
     // The window is the market's local day. Libya is UTC+2, so 1 August opens
     // at 31 July 22:00Z and 12 August closes at 21:59:59.999Z — bounding on
     // UTC midnight counted every late-evening order on the following day.
-    expect(chain!.gte).toHaveBeenCalledWith("created_at", "2026-07-31T22:00:00.000Z");
-    expect(chain!.lte).toHaveBeenCalledWith("created_at", "2026-08-12T21:59:59.999Z");
+    expect(kpiArgs()).toMatchObject({
+      p_from: "2026-07-31T22:00:00.000Z",
+      p_to: "2026-08-12T21:59:59.999Z",
+    });
     expect(body.data.periodTotal).toBe(935);
     expect(body.data.window).toEqual({ from: "2026-08-01", to: "2026-08-12" });
   });
 
   test("with no window given, 'today' is the market's today, not the server's", async () => {
-    setup("market_manager", LY_MARKET_ID, 12);
+    setup("market_manager", LY_MARKET_ID);
 
     const res = await GET(createRequest("/api/orders/status-counts"));
     const body = await res.json();
 
     const today = todayInMarket(LY_MARKET_ID);
-    const chain = periodTotalChain();
-    expect(chain, "no windowed all-status count found").toBeDefined();
-    expect(chain!.gte).toHaveBeenCalledWith("created_at", marketDayStartUtc(today, LY_MARKET_ID));
+    expect(kpiArgs()).toMatchObject({
+      p_from: marketDayStartUtc(today, LY_MARKET_ID),
+    });
     expect(body.data.window).toEqual({ from: today, to: null });
   });
 
-  /**
-   * Only money excludes soft-deleted orders. `total` is the market's
-   * standing headcount of what came through the door, so a manually deleted
-   * order still counts there — it did happen. The financial figures that
-   * exclude it live in the profitability RPCs, not in this route.
-   */
-  test("keeps soft-deleted orders in the standing total", async () => {
-    setup("market_manager", "ly", 100);
+  test("scopes the counts to the market being asked about", async () => {
+    setup("market_manager", LY_MARKET_ID);
 
     await GET(createRequest("/api/orders/status-counts"));
 
-    // The unfiltered head-count: no window, no status, no owner.
-    const totalChain = orderChains.find(
-      (chain) =>
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ((chain.gte as any)?.mock?.calls ?? []).length === 0 &&
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ((chain.in as any)?.mock?.calls ?? []).length === 0 &&
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ((chain.is as any)?.mock?.calls ?? []).length === 0,
-    );
-
-    expect(totalChain, "no unfiltered total found").toBeDefined();
-    expect(totalChain!.neq).not.toHaveBeenCalledWith("status", "deleted");
+    expect(kpiArgs()).toMatchObject({ p_market_id: LY_MARKET_ID });
   });
 
-  test("the period total drops them, because it is navigation", async () => {
-    // Unlike `total`, this figure is a tile you click: it opens the table
-    // filtered to the same window, and the table hides deleted orders. A
-    // headline number and the view it opens must be the same set
-    // (design-system §4.17 G).
-    setup("market_manager", "ly", 100);
+  test("a super_admin with no market selected asks across all of them", async () => {
+    setup("super_admin", null);
 
     await GET(createRequest("/api/orders/status-counts"));
 
-    expect(periodTotalChain()!.neq).toHaveBeenCalledWith("status", "deleted");
-  });
-
-  test("counts only orders still awaiting an agent as unassigned", async () => {
-    // `assigned_to IS NULL` alone counts every order nobody was ever assigned to,
-    // including delivered, rejected and cancelled ones. On Libya that reported
-    // 188 where only 9 were actually waiting — the other 176 had already shipped
-    // or settled. The sidebar badge filtered on `pending` and the tile did not,
-    // so the same word meant two things 20x apart.
-    setup("market_manager", "ly", 9);
-
-    await GET(createRequest("/api/orders/status-counts"));
-
-    const unassignedChain = orderChains.find(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (chain) => ((chain.is as any)?.mock?.calls ?? []).some((c: unknown[]) => c[0] === "assigned_to"),
-    );
-
-    expect(unassignedChain, "no unassigned query found").toBeDefined();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const eqCalls = ((unassignedChain!.eq as any)?.mock?.calls ?? []) as unknown[][];
-    expect(
-      eqCalls.some((c) => c[0] === "status" && c[1] === "pending"),
-      "the unassigned tile must be scoped to pending, like the sidebar badge",
-    ).toBe(true);
+    // NULL means "every market the caller may see" — RLS, not the route,
+    // decides what that is.
+    expect(kpiArgs()).toMatchObject({ p_market_id: null });
   });
 
   test("dates the confirmation rate by the decision, not by the last write", async () => {
@@ -241,7 +231,7 @@ describe("GET /api/orders/status-counts", () => {
     // every row at once — which left Libya's previous window holding ONE order,
     // a 100% rate, and a confident "▼ 40.8" trend that was pure noise.
     // order_history is append-only, so the transition itself carries the date.
-    setup("market_manager", "ly", 10);
+    setup("market_manager", "ly");
 
     await GET(createRequest("/api/orders/status-counts"));
 
@@ -255,7 +245,7 @@ describe("GET /api/orders/status-counts", () => {
   });
 
   test("derives both rates from distinct decisions", async () => {
-    setup("market_manager", "ly", 10, {
+    setup("market_manager", "ly", {}, {
       current_yes: 106,
       current_total: 216,
       prev_yes: 60,
@@ -274,7 +264,7 @@ describe("GET /api/orders/status-counts", () => {
   test("reports no rate at all rather than a rate derived from nothing", async () => {
     // Libya's previous 7-day window genuinely holds zero decisions. Dividing by
     // it produced 100%, and 100% is indistinguishable from a perfect week.
-    setup("market_manager", "ly", 10, {
+    setup("market_manager", "ly", {}, {
       current_yes: 0,
       current_total: 0,
       prev_yes: 0,
@@ -289,8 +279,24 @@ describe("GET /api/orders/status-counts", () => {
     expect(body.data.confirmationSample).toBe(0);
   });
 
+  test("surfaces a failed count as an error, not as zeroes", async () => {
+    // A strip of zeroes reads as "a quiet day", which is a lie the manager
+    // would act on.
+    mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    mockRpc.mockImplementation((fn: string) =>
+      fn === "get_orders_kpi_counts"
+        ? Promise.resolve({ data: null, error: { message: "boom" } })
+        : Promise.resolve({ data: [{ current_yes: 0, current_total: 0, prev_yes: 0, prev_total: 0 }], error: null }),
+    );
+    mockFrom.mockImplementation(() => singleChain({ role: "market_manager", market_id: "ly" }));
+
+    const res = await GET(createRequest("/api/orders/status-counts"));
+
+    expect(res.status).toBe(500);
+  });
+
   test("rejects roles that cannot view orders", async () => {
-    setup("agent", "ly", 10);
+    setup("agent", "ly");
 
     const res = await GET(createRequest("/api/orders/status-counts"));
 
