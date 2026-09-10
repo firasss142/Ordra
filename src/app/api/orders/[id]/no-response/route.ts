@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActor } from "@/lib/auth/actor";
 import type { OrderStatus } from "@/types/order-status";
+import { lockedResponse } from "@/lib/orders/order-lock-response";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +84,10 @@ export async function POST(
   });
 
   if (error) {
+    // 55006 = the agent-presence guard. A refusal, not a fault:
+    // answer 409 { code: "locked" } naming the agent who holds it.
+    const lockedRes = lockedResponse(error);
+    if (lockedRes) return lockedRes;
     if (error.message?.includes("invalid transition")) {
       return NextResponse.json({ error: "Invalid transition" }, { status: 400 });
     }

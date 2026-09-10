@@ -9,6 +9,7 @@ import {
   logManagerTakeOver,
   type ManagerActor,
 } from "@/lib/orders/manager-takeover";
+import { lockedResponse } from "@/lib/orders/order-lock-response";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,10 @@ export async function POST(
         p_actor_type: actorTypeFor(role),
       });
       if (rescheduleError) {
+        // 55006 = the agent-presence guard. A refusal, not a fault:
+        // answer 409 { code: "locked" } naming the agent who holds it.
+        const lockedRes = lockedResponse(rescheduleError);
+        if (lockedRes) return lockedRes;
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
       }
       return NextResponse.json({
@@ -126,6 +131,10 @@ export async function POST(
     });
 
     if (rpcError) {
+      // 55006 = the agent-presence guard. A refusal, not a fault:
+      // answer 409 { code: "locked" } naming the agent who holds it.
+      const lockedRes = lockedResponse(rpcError);
+      if (lockedRes) return lockedRes;
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
@@ -159,6 +168,10 @@ export async function POST(
       p_actor_type: "agent",
     });
     if (rescheduleError) {
+      // 55006 = the agent-presence guard. A refusal, not a fault:
+      // answer 409 { code: "locked" } naming the agent who holds it.
+      const lockedRes = lockedResponse(rescheduleError);
+      if (lockedRes) return lockedRes;
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
     return NextResponse.json({
@@ -186,6 +199,10 @@ export async function POST(
   });
 
   if (rpcError) {
+    // 55006 = the agent-presence guard. A refusal, not a fault:
+    // answer 409 { code: "locked" } naming the agent who holds it.
+    const lockedRes = lockedResponse(rpcError);
+    if (lockedRes) return lockedRes;
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 

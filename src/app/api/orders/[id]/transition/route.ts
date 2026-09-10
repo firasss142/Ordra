@@ -5,6 +5,7 @@ import { transitionOrderStatus } from "@/lib/orders/transition";
 import type { OrderStatus, RejectionReason } from "@/types/order-status";
 import { ORDER_STATUSES } from "@/types/order-status";
 import { getActor } from "@/lib/auth/actor";
+import { lockedResponse } from "@/lib/orders/order-lock-response";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +69,11 @@ export async function POST(
 
     return NextResponse.json({ data: result });
   } catch (err) {
+    // The agent-presence guard (SQLSTATE 55006) is a refusal, not a fault:
+    // answer 409 { code: "locked" } so the caller can name the agent
+    // instead of showing a generic 500.
+    const lockedRes = lockedResponse(err);
+    if (lockedRes) return lockedRes;
     const message = err instanceof Error ? err.message : "Transition failed";
     if (message.includes("invalid transition")) {
       // The RPC locks the row and re-checks the from-status, so this is what a

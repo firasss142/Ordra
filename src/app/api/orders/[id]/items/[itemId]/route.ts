@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canEditOrder, EDIT_BLOCKED_STATUSES } from "@/lib/order-permissions";
 import { computeOrderTotal } from "@/lib/calculations/order-total";
 import type { Role } from "@/types";
+import { lockedResponse } from "@/lib/orders/order-lock-response";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,13 @@ async function recomputeTotal(supabase: Awaited<ReturnType<typeof import("@/lib/
     0
   );
   const newTotal = computeOrderTotal(itemsSubtotal, Number(deliveryFee ?? 0), cardPayment);
-  await supabase
+  // This error used to be discarded. If the totals update does not land, the
+  // items sum to one figure while orders.total_price keeps another — and
+  // CLAUDE.md pins revenue to orders.total_price alone, so a silent divergence
+  // here is silent revenue corruption. The caller decides what to do with it;
+  // trg_order_items_lock_guard means a locked order is refused at the item
+  // write, so by this point a failure is genuinely exceptional.
+  const { error: totalsError } = await supabase
     .from("orders")
     .update({
       total_price: newTotal,
@@ -48,6 +55,7 @@ async function recomputeTotal(supabase: Awaited<ReturnType<typeof import("@/lib/
       updated_at: new Date().toISOString(),
     })
     .eq("id", orderId);
+  if (totalsError) throw totalsError;
   return newTotal;
 }
 
@@ -136,10 +144,21 @@ export async function PATCH(
     .single();
 
   if (updateError || !updatedItem) {
+    // trg_order_items_lock_guard: an agent has this order open. Refused at the
+    // item write, so nothing landed and there is nothing to compensate for.
+    const lockedRes = lockedResponse(updateError);
+    if (lockedRes) return lockedRes;
     return NextResponse.json({ error: "Failed to update item" }, { status: 500 });
   }
 
-  await recomputeTotal(supabase, id, order.delivery_fee as number, Boolean(order.card_payment));
+  try {
+    await recomputeTotal(supabase, id, order.delivery_fee as number, Boolean(order.card_payment));
+  } catch (err) {
+    const lockedRes = lockedResponse(err);
+    if (lockedRes) return lockedRes;
+    console.error("[items] totals recompute failed — order_items and orders.total_price may have diverged", { orderId: id, err });
+    return NextResponse.json({ error: "Failed to recompute order totals" }, { status: 500 });
+  }
 
   return NextResponse.json({ data: updatedItem }, { status: 200 });
 }
@@ -183,7 +202,14 @@ export async function DELETE(
 
   await supabase.from("order_items").delete().eq("id", itemId);
 
-  await recomputeTotal(supabase, id, order.delivery_fee as number, Boolean(order.card_payment));
+  try {
+    await recomputeTotal(supabase, id, order.delivery_fee as number, Boolean(order.card_payment));
+  } catch (err) {
+    const lockedRes = lockedResponse(err);
+    if (lockedRes) return lockedRes;
+    console.error("[items] totals recompute failed — order_items and orders.total_price may have diverged", { orderId: id, err });
+    return NextResponse.json({ error: "Failed to recompute order totals" }, { status: 500 });
+  }
 
   return new NextResponse(null, { status: 204 });
 }

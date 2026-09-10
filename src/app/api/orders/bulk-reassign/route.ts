@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canAssignOrders } from "@/lib/order-permissions";
 import { reassignOrder, returnToPool } from "@/lib/orders/assignment";
 import { getActor } from "@/lib/auth/actor";
+import { lockedResponse } from "@/lib/orders/order-lock-response";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,10 @@ export async function POST(req: NextRequest) {
     .in("id", orderIds);
 
   if (ordersError) {
+    // 55006 = the agent-presence guard. A refusal, not a fault:
+    // answer 409 { code: "locked" } naming the agent who holds it.
+    const lockedRes = lockedResponse(ordersError);
+    if (lockedRes) return lockedRes;
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 

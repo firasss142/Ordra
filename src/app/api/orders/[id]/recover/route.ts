@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { canRecoverDeletedOrder } from "@/lib/order-permissions";
 import { getActor } from "@/lib/auth/actor";
+import { lockedResponse } from "@/lib/orders/order-lock-response";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,10 @@ export async function POST(
   });
 
   if (error) {
+    // 55006 = the agent-presence guard. A refusal, not a fault:
+    // answer 409 { code: "locked" } naming the agent who holds it.
+    const lockedRes = lockedResponse(error);
+    if (lockedRes) return lockedRes;
     // 23514 = check_violation: order not deleted, or was scanned at deletion
     // (stock already restored — recovery would desync). Surface as 409 so the
     // client can show a clear "cannot recover" message.
