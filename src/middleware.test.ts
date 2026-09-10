@@ -246,4 +246,37 @@ describe("middleware — trusting the signed profile cookie", () => {
     expect(mockGetUser).not.toHaveBeenCalled();
     expect(mockGetSession).not.toHaveBeenCalled();
   });
+
+  test("an already-expired token bounces to login without a second round trip", async () => {
+    // getSession() has just tried and failed to refresh over the network.
+    // Calling getUser() next would be a SECOND network call down the same slow
+    // path, doubling this branch's worst case (6s + 6s under fetchWithTimeout)
+    // on the slowest request there is — which is how a middleware invocation
+    // gets close to Vercel's 25s cap.
+    mockGetSession.mockResolvedValue({
+      data: {
+        session: {
+          user: { id: USER_ID },
+          expires_at: Math.floor(Date.now() / 1000) - 60,
+        },
+      },
+    });
+
+    const res = await middleware(await request("/ar/orders", await signProfile(payload())));
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/login");
+    expect(mockGetUser).not.toHaveBeenCalled();
+  });
+
+  test("a session merely inside the refresh window is still renewed, not bounced", async () => {
+    // The distinction that matters: 2 minutes left is refreshable, so getUser()
+    // must run. Only an ALREADY-expired token short-circuits.
+    mockGetSession.mockResolvedValue(session(120));
+
+    const res = await middleware(await request("/ar/orders", await signProfile(payload())));
+
+    expect(mockGetUser).toHaveBeenCalled();
+    expect(res.status).toBe(200);
+  });
 });

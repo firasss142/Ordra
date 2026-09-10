@@ -127,6 +127,7 @@ export async function middleware(request: NextRequest) {
   const SESSION_REFRESH_MARGIN_S = 5 * 60;
   let user: { id: string; email?: string } | null = null;
   let trustedCookie = false;
+  let sessionDefinitelyExpired = false;
 
   if (cached) {
     try {
@@ -141,10 +142,23 @@ export async function middleware(request: NextRequest) {
       ) {
         user = { id: session.user.id, email: session.user.email };
         trustedCookie = true;
+      } else if (session && secondsLeft <= 0) {
+        // The token has already expired, so getSession() just tried to refresh
+        // it over the network and failed or returned a dead session. Calling
+        // getUser() next would be a SECOND network round trip down the same
+        // path, doubling this branch's worst case (6 s + 6 s under
+        // fetchWithTimeout) on the slowest request there is. Bounce to login
+        // now: an expired token is not a session, whatever getUser would say.
+        sessionDefinitelyExpired = true;
       }
     } catch {
       // Fall through to the authoritative check.
     }
+  }
+
+  if (sessionDefinitelyExpired) {
+    const locale = localeMatch ? localeMatch[1] : "fr";
+    return NextResponse.redirect(new URL(`/${locale}/login`, request.url));
   }
 
   // Refresh session (no-op if still valid, refreshes if near expiry). A slow
