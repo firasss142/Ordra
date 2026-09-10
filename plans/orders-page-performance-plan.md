@@ -576,11 +576,26 @@ through its JSON text form. With a stale stamp the guarded UPDATE touched **0 ro
 the current stamp it touched **1**. Stamp observed moving `20:29:11.256198` →
 `23:37:34.310887`. Zero leftovers afterwards (`customer_name = 'LOSER'` → 0 rows).
 
-Gate 3 — the two-session manual check was not run: it needs two concurrent human browser
-sessions, and Playwright is no longer available in this session. The mechanism underneath
-it is covered by Gate 2 (server refuses the losing write) and by the hook tests (the loser
-receives `OrderConflictError`, adopts the winner's row, and its next save is not a second
-conflict). Recorded as the one unverified assertion of this step.
+Gate 3 — verified in the browser against the deployed app (2026-09-10 00:57 UTC, deploy
+`dpl_98k9YcPpJi1yMmrgMyHAJLHRbHWQ`), admin session on the Libya market, real order
+`31af0af6-…`, through the page's own authenticated session:
+
+  save with the CURRENT stamp   → 200, address written, stamp 00:57:19.199974 → 00:57:48.421323
+  save re-using the STALE stamp → 409 code:"conflict", carrying the WINNER's order
+                                  (customer_address "Test A", the new stamp) with the
+                                  history[] and order_items[] arrays, i.e. the exact GET shape
+
+The row afterwards held `Test A` — the loser's value never reached the database — and
+`order_history` contains exactly ONE row, for the save that won. The rejected save wrote
+no history row, so the append-only timeline never recorded an edit that did not happen.
+Order restored to its pre-test state (address and note back to NULL, status untouched).
+
+Note observed while setting this up, and it is the design working: an update to
+`customer_note` alone does NOT wake the panel, because `customer_note` is deliberately
+absent from the broadcast trigger's WHEN list. The panel that later revalidated for its
+own reasons picked the change up and re-seeded its stamp, so a subsequent save succeeded
+rather than conflicting — which is why the race had to be built from a stamp captured
+before the winner's write, not from wall-clock timing.
 
 Step 5 DONE.
 

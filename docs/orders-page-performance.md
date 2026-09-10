@@ -187,9 +187,14 @@ Made visible for the first time:
 `code: "conflict"` plus the real status, which the RPC message already names
 (`invalid transition from X to Y`).
 
-**Verified on production data in a rolled-back transaction:** stamp moved
-`20:29:11.256198` → `23:37:34.310887`; the loser's guarded write touched **0 rows**,
-a write carrying the current stamp touched **1**.
+**Verified twice.** In SQL, on production data in a rolled-back transaction: the loser's
+guarded write touched **0 rows**, a write carrying the current stamp touched **1**. Then
+end-to-end against the deployed app through the page's own authenticated session
+(2026-09-10 00:57 UTC): current stamp → **200**; the same stamp re-used once it had gone
+stale → **409 `code: "conflict"`** carrying the winner's order in the exact GET shape
+(`history[]`, `order_items[]`). The row kept the winner's value, and `order_history` got
+exactly one row — the rejected save wrote none, so the append-only timeline never recorded
+an edit that did not happen.
 
 ---
 
