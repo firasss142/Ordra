@@ -185,3 +185,50 @@ critical path.
   restores today's behaviour. The migration only widens an RLS policy and can be
   reverted independently.
 - Fix C: revert the route and the client key; no schema involved.
+
+
+---
+
+## Result (2026-09-10)
+
+| Fix | Commit | State |
+|---|---|---|
+| A — broadcast transport + agent RLS | `87491cb` | **DONE**, deployed |
+| B — real connection state + catch-up | `87491cb` | **DONE**, deployed |
+| C — lazy closed list | `11c3e2e` | **DONE**, deployed |
+
+### Verified on production
+
+**The RLS policy.** From a Libya agent session in the `authenticated` role (never
+`postgres`, which bypasses RLS and passes falsely): own market topic allowed,
+Tunisia's refused, non-`orders:` topics excluded.
+
+**The full chain, which is the reported bug.** A status change made AS THE AGENT'S
+OWN ROLE inserted exactly **1** broadcast on `orders:market:<LY>` — agent write →
+trigger → private topic → the topic that agent may now join. The test write was
+rolled back; the order is untouched.
+
+**Live traffic confirms it.** Real agent activity at the time of writing (`salima`
+moving orders `confirmed` → `uploaded`) is producing broadcasts carrying `status`,
+`assigned_to` and every core field — exactly what moves a card between tabs.
+
+**Payload.** Closed rows measured at 978 KB of a ~1 MB response for `mouna`; the
+counts that replace them are a handful of integers. The active-only response is
+what an agent now waits for on first paint.
+
+### What the fix did NOT change
+
+- `applyRealtimeEvent` / `applyRowPatch` / `computeBuckets` — the client logic was
+  correct all along and is untouched; its tests still pass unchanged.
+- The `postgres_changes` path in `bus.ts` — nine other hooks still use it, so
+  reverting `useAgentQueueRealtime` alone restores the old behaviour.
+
+### Still open
+
+- **Root cause 5, background contention.** `claim_darb_sync` p50 12.3 s / max 132 s,
+  and four cron jobs firing together at 09:00 took database-wide p50 to 21.5 s. Any
+  queue load landing in that window is slow regardless of this page. Recorded, not
+  fixed — it is a different subsystem.
+- The other eight `postgres_changes` consumers (warehouse, follow-ups, alerts, team
+  live, …) are on the same failing transport and will have the same silent-staleness
+  behaviour. Not touched here; the broadcast topic is ready for them.
