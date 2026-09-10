@@ -14,6 +14,7 @@ import { fetcher } from "@/lib/swr-config";
 import { useOrdersList, type OrdersListPage, type OrdersListRow } from "@/hooks/useOrdersList";
 import { ordersTopic, useOrdersRealtime } from "@/hooks/useOrdersRealtime";
 import { readActionFailure } from "@/lib/orders/action-failure";
+import { useSettledValue } from "@/hooks/useSettledValue";
 import { useBroadcastConnected } from "@/components/providers/RealtimeProvider";
 import {
   clearFilterField,
@@ -558,12 +559,20 @@ export function OrdersPageClient({
   // What each unpicked filter value would return, given everything already
   // applied. Keyed off the same serialization the list request uses, so the two
   // stay in step and SWR dedupes them together.
-  const facetCountsKey = useMemo(() => {
+  //
+  // The key lags the filters deliberately. Facet counts are a second request
+  // beside every list request, and they answer "what would each unpicked value
+  // return" — a question nobody is asking mid-keystroke. Letting the filters
+  // settle first means typing a phone number costs one facet request at the end
+  // instead of one per pause. `keepPreviousData` below already keeps the old
+  // numbers on screen (dimmed) while the next set lands.
+  const rawFacetCountsKey = useMemo(() => {
     const p = filtersToSearchParams(filters);
     if (effectiveMarketId) p.set("market_id", effectiveMarketId);
     p.delete("limit");
     return `/api/orders/facet-counts?${p.toString()}`;
   }, [filters, effectiveMarketId]);
+  const facetCountsKey = useSettledValue(rawFacetCountsKey, 500);
   const { data: facetCountsData } = useSWR<{ data: FacetCounts }>(
     facetCountsKey,
     fetcher,

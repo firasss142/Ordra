@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 
@@ -130,5 +130,31 @@ describe("OrdersSearchBar", () => {
     await waitFor(() =>
       expect(screen.getByLabelText(/rechercher une commande/i)).toHaveValue(""),
     );
+  });
+
+  it("sends one request for a phone number typed at a normal cadence", () => {
+    // The complaint was "slow search": at 180 ms a 9-digit number typed at a
+    // normal 200 ms cadence slipped requests through mid-number, and each one
+    // costs a list query plus its enrichment RPCs. This asserts the behaviour,
+    // not the constant: type with 200 ms gaps and only the final value is sent.
+    vi.useFakeTimers();
+    try {
+      const onChange = vi.fn();
+      render(<OrdersSearchBar value="" onChange={onChange} />);
+      const input = screen.getByLabelText(/rechercher une commande/i) as HTMLInputElement;
+
+      const typed = "0651234";
+      for (let i = 1; i <= typed.length; i++) {
+        fireEvent.change(input, { target: { value: typed.slice(0, i) } });
+        act(() => { vi.advanceTimersByTime(200); });
+      }
+      expect(onChange).not.toHaveBeenCalled();
+
+      act(() => { vi.advanceTimersByTime(400); });
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(onChange).toHaveBeenCalledWith(typed);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

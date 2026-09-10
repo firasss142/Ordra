@@ -43,8 +43,14 @@ interface Props {
 }
 
 /** How long to sit on a keystroke. Short enough to feel live, long enough that
- *  a full phone number is one request rather than ten. */
-const DEBOUNCE_MS = 180;
+ *  a full phone number is one request rather than ten.
+ *
+ *  Raised 180 -> 300 ms: at 180 a normal typing cadence (~150-250 ms between
+ *  keys for a 9-digit phone number) still slipped requests through mid-number,
+ *  and each one costs a list query plus its enrichment RPCs. 300 ms sits above
+ *  that cadence while staying under the ~400 ms where a search box starts to
+ *  feel unresponsive. */
+const DEBOUNCE_MS = 300;
 
 export function OrdersSearchBar({ value, onChange, busy = false }: Props) {
   const t = useTranslations("orders.filters");
