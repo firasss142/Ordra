@@ -7,6 +7,7 @@ import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
 import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
 import { enCoursBucket } from "@/lib/queue/schedule-bucket";
 import { QUEUE_ROW_SELECT } from "@/lib/agent-queue/row-fields";
+import { bucketFor } from "@/lib/carriers/buckets";
 
 export const dynamic = "force-dynamic";
 
@@ -87,7 +88,20 @@ const CLOSED_STATUSES = [
 
 const CLOSED_WINDOW_DAYS = 7;
 
+/**
+ * The closed 7-day history is a SECONDARY tab, and it dominated this response:
+ * measured on production, mouna received 416 rows for 13 active orders, tasnim
+ * 329 for 1, hend 262 for zero — 978 KB of a ~1 MB payload, on the critical
+ * path of first paint, which is the "orders take a long time to appear"
+ * complaint.
+ *
+ * It is now opt-in. The default response carries the active queue plus the
+ * closed COUNTS (the `fermees` badge is rendered on the active screen, and the
+ * per-chip counts label the Fermées tab before its rows arrive); the rows
+ * themselves come with `?include=closed`, fetched when that tab is opened.
+ */
 export async function GET(_req: NextRequest) {
+  const includeClosed = _req.nextUrl.searchParams.get("include") === "closed";
   const supabase = await createClient();
 
     const actorResult = await getActor(_req);
@@ -187,7 +201,13 @@ export async function GET(_req: NextRequest) {
   const allOrders = flattenJoins((activeRes.data ?? []) as RawRow[]);
   const closedOrders = flattenJoins((closedRes.data ?? []) as RawRow[]);
 
-  await attachLastAgentAction(supabase, [allOrders, closedOrders]);
+  // Only stamp rows we are about to send. When the closed list is withheld its
+  // ids would otherwise widen the order_history lookup for nothing — 403 ids
+  // instead of 26 in the measured worst case.
+  await attachLastAgentAction(
+    supabase,
+    includeClosed ? [allOrders, closedOrders] : [allOrders],
+  );
 
   const activeOrders = allOrders.filter((o) => {
     // confirmed (without carrier) stays in the active queue so the agent
@@ -284,7 +304,12 @@ export async function GET(_req: NextRequest) {
   // Both enrichers end in `rows.map(...)`, so output order matches input order
   // and the index split below is exact. allSorted and closedOrders are disjoint
   // (active statuses vs closed statuses).
-  const unionRows = [...allSorted, ...closedOrders];
+  //
+  // When the closed rows are withheld, they are also left OUT of the enrichment
+  // union: the duplicate probe alone cost 163 ms over 377 rows, and almost all
+  // of that was spent on rows about to be discarded.
+  const enrichClosed = includeClosed ? closedOrders : [];
+  const unionRows = [...allSorted, ...enrichClosed];
   const [withHistory, withDuplicates] = await Promise.all([
     enrichRowsWithCustomerHistory(supabase, marketId, "order", unionRows),
     enrichRowsWithDuplicates(supabase, marketId, unionRows),
@@ -295,6 +320,34 @@ export async function GET(_req: NextRequest) {
   }));
   const enrichedActive = enrichedUnion.slice(0, allSorted.length);
   const enrichedClosed = enrichedUnion.slice(allSorted.length);
+
+  // Counts come from the UNENRICHED closed rows, which we always read: they are
+  // cheap (five carrier fields decide the chip) and both the `fermees` badge on
+  // the active screen and the Fermées chips need them before any closed row is
+  // fetched. `bucketFor` is the same pure function the client uses, so a chip
+  // cannot disagree with the list it opens.
+  const closedCounts: Record<string, number> = {
+    all: closedOrders.length,
+    uploaded: 0,
+    deposit: 0,
+    delivered: 0,
+    returned: 0,
+    cancelled: 0,
+    rejected: 0,
+  };
+  for (const o of closedOrders) {
+    const bucket = bucketFor({
+      status: o.status as string,
+      carrierCode: (o.carrier_code as string | null) ?? null,
+      dexpressStatusSlug: (o.dexpress_status_slug as string | null) ?? null,
+      dexpressStatusAccepted:
+        typeof o.dexpress_status_accepted === "boolean"
+          ? (o.dexpress_status_accepted as boolean)
+          : null,
+      carrierStatusSlug: (o.carrier_status_slug as string | null) ?? null,
+    });
+    if (bucket && bucket in closedCounts) closedCounts[bucket] += 1;
+  }
 
   // Ids, not a second copy of the rows. `orders` is a subset of `allOrders` —
   // 647 of 649 active rows fleet-wide appear in both — so sending it whole made
@@ -309,6 +362,7 @@ export async function GET(_req: NextRequest) {
     visibleIds,
     allOrders: enrichedActive,
     closedOrders: enrichedClosed,
+    closedCounts,
     buckets,
   });
 }

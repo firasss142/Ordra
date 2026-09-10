@@ -279,4 +279,92 @@ describe("GET /api/agent/queue", () => {
     const res = await GET(createRequest());
     expect(res.status).toBe(500);
   });
+
+  // ── Lazy closed list ──────────────────────────────────────────────────────
+  //
+  // The closed 7-day history dominated the payload: measured on production,
+  // mouna received 416 rows for 13 active orders, tasnim 329 for 1, hend 262
+  // for zero — 978 KB of the ~1 MB response, on the critical path of first
+  // paint. It is a secondary tab; the agent works the active queue.
+  describe("closed rows are not on the critical path", () => {
+    const CLOSED_ROW = {
+      id: "c1",
+      status: "delivered",
+      assigned_to: "agent-1",
+      market_id: "m-1",
+      carrier_id: null,
+      dexpress_status_slug: null,
+      dexpress_status_accepted: null,
+      carrier_status_slug: null,
+      callback_scheduled_at: null,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-02T00:00:00Z",
+    };
+
+    function setup(closedRows: unknown[]) {
+      mockGetUser.mockResolvedValue({ data: { user: { id: "agent-1" } }, error: null });
+      let ordersCall = 0;
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "users") {
+          return queryChainSingle({ data: { role: "agent", market_id: "m-1" }, error: null });
+        }
+        if (table === "orders") {
+          ordersCall += 1;
+          // 1st orders query = active, 2nd = closed.
+          return queryChainList({ data: ordersCall === 1 ? [] : closedRows, error: null });
+        }
+        return queryChainList({ data: [], error: null });
+      });
+    }
+
+    test("the default response carries no closed rows", async () => {
+      setup([CLOSED_ROW]);
+
+      const res = await GET(createRequest());
+      const json = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(json.closedOrders).toEqual([]);
+    });
+
+    test("but still reports the closed count the active screen shows", async () => {
+      setup([CLOSED_ROW, { ...CLOSED_ROW, id: "c2" }]);
+
+      const json = await (await GET(createRequest())).json();
+
+      // computeBuckets sets `fermees` from the closed list, and that badge is
+      // rendered on the active screen — so the count has to survive the split
+      // even though the rows do not.
+      expect(json.buckets.fermees).toBe(2);
+    });
+
+    test("and the per-chip counts, so the Fermées tab opens already labelled", async () => {
+      setup([
+        CLOSED_ROW,
+        { ...CLOSED_ROW, id: "c2" },
+        { ...CLOSED_ROW, id: "c3", status: "rejected" },
+      ]);
+
+      const json = await (await GET(createRequest())).json();
+
+      expect(json.closedCounts).toBeDefined();
+      expect(json.closedCounts.all).toBe(3);
+      expect(json.closedCounts.delivered).toBe(2);
+      expect(json.closedCounts.rejected).toBe(1);
+    });
+
+    test("?include=closed returns the rows themselves", async () => {
+      setup([CLOSED_ROW]);
+
+      const json = await (
+        await GET(createRequest("http://localhost:3000/api/agent/queue?include=closed"))
+      ).json();
+
+      expect(json.closedOrders).toHaveLength(1);
+      expect(json.closedOrders[0].id).toBe("c1");
+      // The counts stay consistent with the rows in both modes.
+      expect(json.buckets.fermees).toBe(1);
+      expect(json.closedCounts.all).toBe(1);
+    });
+  });
 });

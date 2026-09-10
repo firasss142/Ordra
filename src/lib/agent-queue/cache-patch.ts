@@ -5,6 +5,7 @@ import {
   applyRowPatch,
   computeBuckets,
   type AgentQueueBuckets,
+  type ClosedCounts,
   type RawOrderRow,
 } from "./buckets";
 
@@ -13,7 +14,13 @@ export type { AgentQueueBuckets, RawOrderRow } from "./buckets";
 export interface AgentQueueCache {
   orders: RawOrderRow[];
   allOrders: RawOrderRow[];
+  /**
+   * Empty until the Fermées tab is opened — the rows are fetched on demand,
+   * because they were 978 KB of a ~1 MB first paint. `closedCounts` carries the
+   * figures the UI needs before then.
+   */
   closedOrders: RawOrderRow[];
+  closedCounts?: ClosedCounts;
   buckets: AgentQueueBuckets;
   reassignmentEvent?: {
     orderId: string;

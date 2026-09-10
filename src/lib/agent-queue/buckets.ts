@@ -75,6 +75,27 @@ export function emptyBuckets(): AgentQueueBuckets {
   };
 }
 
+/** Per-chip counts for the Fermées tab, computed server-side. */
+export interface ClosedCounts {
+  all: number;
+  uploaded: number;
+  deposit: number;
+  delivered: number;
+  returned: number;
+  cancelled: number;
+  rejected: number;
+}
+
+export const EMPTY_CLOSED_COUNTS: ClosedCounts = {
+  all: 0,
+  uploaded: 0,
+  deposit: 0,
+  delivered: 0,
+  returned: 0,
+  cancelled: 0,
+  rejected: 0,
+};
+
 export function computeBuckets(
   allOrders: RawOrderRow[],
   closedOrders: RawOrderRow[],

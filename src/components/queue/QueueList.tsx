@@ -27,6 +27,12 @@ interface QueueListProps {
   onToggleSelect?: (id: string) => void;
   selectedBucket: BucketKey;
   maxAttempts?: number;
+  /**
+   * The rows for this tab are still being fetched. Distinct from "empty": the
+   * Fermées list loads on demand, and showing "no orders" while it is in flight
+   * tells the agent something false.
+   */
+  isLoading?: boolean;
   /** Active search query — drives highlighting and the search empty-state. */
   highlightQuery?: ParsedQuery;
   isSearching?: boolean;
@@ -60,6 +66,7 @@ export function QueueList({
   selectedBucket,
   maxAttempts = 3,
   highlightQuery,
+  isLoading = false,
   isSearching = false,
   searchText = "",
   onClearSearch,
@@ -87,6 +94,18 @@ export function QueueList({
             {tSearch("clear")}
           </Button>
         )}
+      </div>
+    );
+  }
+
+  if (orders.length === 0 && isLoading) {
+    return (
+      <div
+        role="status"
+        aria-busy="true"
+        className="flex flex-col items-center justify-center gap-3 px-6 py-20"
+      >
+        <div className="text-[13px] text-ink-secondary">{t("loading")}</div>
       </div>
     );
   }

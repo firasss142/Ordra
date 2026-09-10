@@ -1,5 +1,5 @@
 import type { AgentQueueCache, RawOrderRow } from "./cache-patch";
-import { emptyBuckets } from "./buckets";
+import { emptyBuckets, EMPTY_CLOSED_COUNTS, type ClosedCounts } from "./buckets";
 
 /**
  * Wire shape of GET /api/agent/queue.
@@ -14,6 +14,12 @@ interface AgentQueueResponse {
   visibleIds?: string[];
   allOrders?: RawOrderRow[];
   closedOrders?: RawOrderRow[];
+  /**
+   * Per-chip counts for the Fermées tab, always present even when the rows are
+   * withheld — the `fermees` badge sits on the ACTIVE screen and the chips must
+   * be labelled before their rows arrive.
+   */
+  closedCounts?: ClosedCounts;
   buckets?: AgentQueueCache["buckets"];
 }
 
@@ -45,6 +51,7 @@ export function expandAgentQueue(body: AgentQueueResponse): AgentQueueCache {
     orders,
     allOrders,
     closedOrders: body.closedOrders ?? [],
+    closedCounts: body.closedCounts ?? EMPTY_CLOSED_COUNTS,
     buckets: body.buckets ?? emptyBuckets(),
   };
 }

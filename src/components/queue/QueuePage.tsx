@@ -241,10 +241,33 @@ export function QueuePage() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
+
+  // Hoisted above the queue hook: both decide whether the closed 7-day history
+  // is needed at all. Tabs live entirely in local state for instant switching.
+  // URL is read once on mount to support deep-links (e.g.
+  // /fr/queue?bucket=nouveau), then ignored — tab clicks never touch the router.
+  const [selectedBucket, setSelectedBucket] = useState<BucketKey>(() =>
+    resolveBucketParam(searchParams.get("bucket")),
+  );
+
+  // Global search across all buckets. The query lives in QueueSearchContext so
+  // the navbar search bar (rendered in the Topbar) and this page share it. The
+  // query is debounced so filtering only runs once the agent pauses typing.
+  const {
+    query: searchQuery,
+    setQuery: setSearchQuery,
+    setResultCount,
+    inputRef: searchInputRef,
+  } = useQueueSearch();
+  const debouncedSearch = useDebounce(searchQuery, 200);
+  const isSearching = debouncedSearch.trim().length > 0;
+
   const {
     orders: rawOrders,
     allOrders: rawAllOrdersUnsorted,
     closedOrders: rawClosedOrders,
+    closedCounts: serverClosedCounts,
+    closedLoading,
     buckets,
     error,
     mutate,
@@ -255,6 +278,10 @@ export function QueuePage() {
   } = useAgentQueue({
     agentId: user?.id ?? null,
     marketId: user?.market_id ?? null,
+    // The closed history is ~95% of the payload for a real Libya agent, and it
+    // is only ever read on this tab or by a search across both lists. Fetch it
+    // when one of those actually happens.
+    withClosed: selectedBucket === "fermees" || isSearching,
   });
 
   // Re-sort the active queue every 60s (or immediately when the tab becomes
@@ -315,12 +342,6 @@ export function QueuePage() {
     import("./PostCallActionSheet");
   }, []);
 
-  // Tabs live entirely in local state for instant switching. URL is read once
-  // on mount to support deep-links (e.g. /fr/queue?bucket=nouveau), then
-  // ignored — tab clicks never touch the router.
-  const [selectedBucket, setSelectedBucket] = useState<BucketKey>(() =>
-    resolveBucketParam(searchParams.get("bucket")),
-  );
   const [enCoursSubfilter, setEnCoursSubfilter] = useState<EnCoursSubfilter>(() => {
     const s = searchParams.get("sub");
     if (s === "rappel") return "rappel";
@@ -338,17 +359,6 @@ export function QueuePage() {
   const [closedSubfilter, setClosedSubfilter] = useState<ClosedSubfilter>("all");
   const [refreshingDexpress, setRefreshingDexpress] = useState(false);
 
-  // Global search across all buckets. The query lives in QueueSearchContext so
-  // the navbar search bar (rendered in the Topbar) and this page share it. The
-  // query is debounced so filtering only runs once the agent pauses typing.
-  const {
-    query: searchQuery,
-    setQuery: setSearchQuery,
-    setResultCount,
-    inputRef: searchInputRef,
-  } = useQueueSearch();
-  const debouncedSearch = useDebounce(searchQuery, 200);
-  const isSearching = debouncedSearch.trim().length > 0;
 
   // Persist committed searches once typing settles (≥2 chars).
   useEffect(() => {
@@ -441,7 +451,15 @@ export function QueuePage() {
 
   // Orders come pre-sorted from server — no client sort.
   const stableOrdersRef = useRef<QueueOrder[]>([]);
+  // Counts come from the SERVER, computed with the same pure `bucketFor` this
+  // file uses — the rows themselves are not loaded until the Fermées tab is
+  // opened, but the chips have to be labelled before that. Once the rows are
+  // here they are recomputed locally so an optimistic action or a realtime
+  // patch is reflected immediately instead of waiting for a refetch.
   const closedCounts = useMemo<Record<ClosedSubfilter, number>>(() => {
+    if (rawClosedOrders.length === 0) {
+      return serverClosedCounts as Record<ClosedSubfilter, number>;
+    }
     const next: Record<ClosedSubfilter, number> = {
       all: rawClosedOrders.length,
       uploaded: 0,
@@ -456,7 +474,7 @@ export function QueuePage() {
       if (b) next[b]++;
     }
     return next;
-  }, [rawClosedOrders]);
+  }, [rawClosedOrders, serverClosedCounts]);
 
   const orders: QueueOrder[] = useMemo(() => {
     let next: QueueOrder[];
@@ -844,6 +862,7 @@ export function QueuePage() {
         selectedBucket={selectedBucket}
         maxAttempts={maxAttempts}
         highlightQuery={isSearching ? parsedSearch : undefined}
+        isLoading={closedLoading}
         isSearching={isSearching}
         searchText={debouncedSearch.trim()}
         onClearSearch={() => setSearchQuery("")}
