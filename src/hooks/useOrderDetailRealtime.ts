@@ -62,7 +62,11 @@ export function useOrderDetailRealtime({
         assigned_to?: string | null;
         status?: string;
       };
-      if (agentId && newRow.assigned_to && newRow.assigned_to !== agentId) {
+      // `assigned_to` is checked for PRESENCE, not truthiness: unassign_order and
+      // return_order_to_pool both set it to NULL, and a truthy guard let those fall
+      // through to the patch branch — leaving the panel open on an order the agent
+      // no longer owns, while cache-patch.ts had already removed the queue card.
+      if (agentId && "assigned_to" in newRow && newRow.assigned_to !== agentId) {
         onReassignedAwayRef.current(newRow);
         return;
       }

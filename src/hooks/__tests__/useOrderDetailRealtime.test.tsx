@@ -160,6 +160,34 @@ describe("useOrderDetailRealtime", () => {
     expect(result.current.data?.data.customer_address).toBe("Old");
   });
 
+  test("orders UPDATE with assigned_to set to null invokes onReassignedAway", async () => {
+    const wrapper = makeWrapper();
+    const onReassignedAway = vi.fn();
+    const initial: OrderEnvelope = {
+      data: { id: "o1", status: "pending", assigned_to: "agent-1", customer_address: "Old" },
+    };
+    const { result, rerender } = renderHook(
+      () => useTestSetup("o1", initial, "agent-1", onReassignedAway, vi.fn()),
+      { wrapper },
+    );
+    await flushSWR();
+    rerender();
+
+    await act(async () => {
+      fireOn("orders", "UPDATE", {
+        old: { id: "o1", status: "pending", assigned_to: "agent-1" },
+        new: { id: "o1", status: "pending", assigned_to: null, customer_address: "New" },
+      });
+    });
+    rerender();
+
+    // return_order_to_pool and unassign_order both set assigned_to = NULL. The
+    // agent no longer owns the order, so the panel must close — the queue card
+    // already vanishes via cache-patch.ts, and a panel left open is the mismatch.
+    expect(onReassignedAway).toHaveBeenCalled();
+    expect(result.current.data?.data.customer_address).toBe("Old");
+  });
+
   test("orders UPDATE with status=cancelled invokes onTerminated", async () => {
     const wrapper = makeWrapper();
     const onTerminated = vi.fn();
