@@ -43,11 +43,21 @@ export async function GET(
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  // Fetch history + product stock + order_items + assignee name in parallel.
+  // Exclude raw_payload (large webhook JSON blob, not needed in the panel).
+  // Hoisted above the batch because the duplicate detection takes this row.
+  const { raw_payload: _, ...orderFields } = order as typeof order & { raw_payload?: unknown };
+
+  // Fetch history + product stock + order_items + assignee name + duplicate
+  // detection in parallel.
+  //
   // The assignee is resolved here rather than in the browser because
   // /api/agents is gated by canManageAgents — an agent opening their own order
   // would get a 403 and the panel's Agent cell would stay permanently empty.
-  const [historyRes, productRes, itemsRes, assigneeRes] = await Promise.all([
+  //
+  // The duplicate detection used to run AFTER this batch, costing the panel a
+  // third sequential round trip for nothing: it needs only the order row, which
+  // is already in hand.
+  const [historyRes, productRes, itemsRes, assigneeRes, enrichedRows] = await Promise.all([
     supabase
       .from("order_history")
       .select("id, status_from, status_to, note, actor_id, actor_type, created_at")
@@ -72,6 +82,13 @@ export async function GET(
           .eq("id", order.assigned_to)
           .single()
       : Promise.resolve({ data: null }),
+    // Attach duplicate-order detection so the detail panel can warn about a
+    // sibling order (same customer + product + qty within 24h).
+    enrichRowsWithDuplicates(
+      supabase,
+      (order.market_id as string) ?? null,
+      [orderFields as { id: string } & Record<string, unknown>],
+    ),
   ]);
 
   // Same mapper the realtime subscriber uses, so a row that arrives over the
@@ -86,16 +103,7 @@ export async function GET(
   const assigned_agent_name =
     (assigneeRes.data as { full_name?: string | null } | null)?.full_name ?? null;
 
-  // Exclude raw_payload (large webhook JSON blob, not needed in the panel)
-  const { raw_payload: _, ...orderFields } = order as typeof order & { raw_payload?: unknown };
-
-  // Attach duplicate-order detection so the detail panel can warn about a
-  // sibling order (same customer + product + qty within 24h).
-  const [enriched] = await enrichRowsWithDuplicates(
-    supabase,
-    (order.market_id as string) ?? null,
-    [orderFields as { id: string } & Record<string, unknown>],
-  );
+  const [enriched] = enrichedRows;
 
   return NextResponse.json({
     data: { ...enriched, history, product_current_stock, order_items, assigned_agent_name },

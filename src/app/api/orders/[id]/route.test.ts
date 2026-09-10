@@ -2,11 +2,13 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
+const mockRpc = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
     auth: { getUser: () => mockGetUser() },
     from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
   }),
 }));
 
@@ -189,5 +191,92 @@ describe("GET /api/orders/[id]", () => {
     const req = createRequest();
     const res = await GET(req, { params: Promise.resolve({ id: "order-1" }) });
     expect(res.status).toBe(404);
+  });
+
+  // ── Round trips ───────────────────────────────────────────────────────────
+  test("detects duplicates alongside the other reads, not after them", async () => {
+    // The duplicate RPC needs only the order row, which is already loaded, so
+    // running it after the Promise.all cost the panel a third sequential round
+    // trip for nothing. It now starts with the others.
+    mockGetUser.mockResolvedValue({ data: { user: { id: "m1" } } });
+
+    const order = {
+      id: "order-1",
+      market_id: "m-1",
+      status: "pending",
+      assigned_to: null,
+      customer_phone: "0910000000",
+      customer_phone_2: null,
+      product_id: "p-1",
+      product_name: "Livre",
+      quantity: 1,
+      created_at: "2026-09-10T00:00:00Z",
+    };
+
+    let historyResolved = false;
+    let rpcStartedBeforeHistoryResolved: boolean | null = null;
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users")
+        return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
+      if (table === "orders") return queryChain({ data: order, error: null });
+      if (table === "order_history") {
+        const chain: Record<string, unknown> = {};
+        chain.select = vi.fn().mockReturnValue(chain);
+        chain.eq = vi.fn().mockReturnValue(chain);
+        // Slow read: if the duplicate RPC were sequential it would start only
+        // once this settled.
+        chain.order = vi.fn(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(() => {
+                historyResolved = true;
+                resolve({ data: [], error: null });
+              }, 20),
+            ),
+        );
+        return chain;
+      }
+      return queryChain({ data: null, error: null });
+    });
+
+    mockRpc.mockImplementation((fn: string) => {
+      if (fn === "get_duplicate_orders_batch" && rpcStartedBeforeHistoryResolved === null) {
+        rpcStartedBeforeHistoryResolved = !historyResolved;
+      }
+      return Promise.resolve({ data: [], error: null });
+    });
+
+    const res = await GET(createRequest(), { params: Promise.resolve({ id: "order-1" }) });
+
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("get_duplicate_orders_batch", expect.anything());
+    expect(rpcStartedBeforeHistoryResolved).toBe(true);
+  });
+
+  test("still returns the duplicate fields the panel warns with", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "m1" } } });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users")
+        return queryChain({ data: { role: "market_manager", market_id: "m-1" }, error: null });
+      if (table === "orders")
+        return queryChain({
+          data: { id: "order-1", market_id: "m-1", status: "pending", assigned_to: null },
+          error: null,
+        });
+      const chain = queryChain({ data: [], error: null });
+      chain.order = vi.fn().mockResolvedValue({ data: [], error: null });
+      return chain;
+    });
+    mockRpc.mockResolvedValue({ data: [], error: null });
+
+    const res = await GET(createRequest(), { params: Promise.resolve({ id: "order-1" }) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data).toHaveProperty("history");
+    expect(body.data).toHaveProperty("order_items");
+    expect(body.data).toHaveProperty("assigned_agent_name");
+    expect(body.data).toHaveProperty("duplicate_count");
   });
 });
