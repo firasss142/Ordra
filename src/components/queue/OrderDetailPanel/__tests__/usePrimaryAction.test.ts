@@ -319,6 +319,48 @@ describe("resolvePanelActions — overflow by role", () => {
     expect(overflow.some((a) => a.kind === "returnToPool")).toBe(true);
   });
 
+  // A manager reassigning an order is the whole reason the presence lock exists,
+  // and until now the orders page offered no way to take an order off an agent
+  // at all: the handler, the route and return_order_to_pool were all wired, but
+  // the menu item was gated to `role === "agent"`, so a manager never saw it.
+  it("offers returnToPool to a market_manager on an in-confirmation order", () => {
+    for (const status of ["pending", "attempt_1", "attempt_2", "attempt_3", "callback_scheduled"]) {
+      const { overflow } = inConfirmation(status, { role: "market_manager", userId: "mgr-1" });
+      expect(overflow.some((a) => a.kind === "returnToPool")).toBe(true);
+    }
+  });
+
+  it("offers returnToPool to a super_admin on an in-confirmation order", () => {
+    const { overflow } = inConfirmation("attempt_1", { role: "super_admin", userId: "sa-1" });
+    expect(overflow.some((a) => a.kind === "returnToPool")).toBe(true);
+  });
+
+  it("offers returnToPool on confirmed, which return_order_to_pool accepts", () => {
+    const { overflow } = resolvePanelActions(
+      input({
+        order: {
+          status: "confirmed",
+          assigned_to: "agent-1",
+          updated_at: RECENT,
+          tracking_number: null,
+          carrier_barcode_deleted_at: null,
+        },
+        role: "market_manager",
+        userId: "mgr-1",
+      }),
+    );
+    expect(overflow.some((a) => a.kind === "returnToPool")).toBe(true);
+  });
+
+  it("still omits returnToPool for a manager when canReturnToPool is false", () => {
+    const { overflow } = inConfirmation("pending", {
+      role: "market_manager",
+      userId: "mgr-1",
+      canReturnToPool: false,
+    });
+    expect(overflow.some((a) => a.kind === "returnToPool")).toBe(false);
+  });
+
   it("agent overflow on pending omits returnToPool when canReturnToPool is false", () => {
     const { overflow } = resolvePanelActions(input({ canReturnToPool: false }));
     expect(overflow.some((a) => a.kind === "returnToPool")).toBe(false);

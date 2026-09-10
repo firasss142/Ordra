@@ -199,6 +199,18 @@ interface CitySearchResult {
   name_ar: string | null;
 }
 
+/** Kept in lockstep with return_order_to_pool (20260505233818). */
+const RETURN_TO_POOL_STATUSES = new Set([
+  "pending",
+  "assigned",
+  "attempt_1",
+  "attempt_2",
+  "attempt_3",
+  "callback_scheduled",
+  "confirmed",
+  "dispatch_scheduled",
+]);
+
 const TERMINAL_STATUSES = new Set([
   "delivered",
   "returned",
@@ -705,11 +717,15 @@ export function OrderDetailPanel({
       ? t("orderNotFound")
       : null;
 
+  // Mirrors return_order_to_pool's own allow-list, not merely "not terminal":
+  // the RPC raises `Cannot return to pool from status: %` for anything past
+  // dispatch_scheduled, and an affordance that is guaranteed to fail is worse
+  // than no affordance at all.
   const canReturnToPool =
     onReturnToPool !== undefined &&
     order !== null &&
     order.assigned_to !== null &&
-    !TERMINAL_STATUSES.has(order.status);
+    RETURN_TO_POOL_STATUSES.has(order.status);
 
   async function handleReturnToPool() {
     if (!onReturnToPool) return;

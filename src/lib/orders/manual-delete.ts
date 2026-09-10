@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildConfig, getCarrierAdapter, type CarrierRow } from "@/lib/carriers";
+import { asOrderLockedError } from "./order-lock";
 
 export interface ManualDeleteOrderRow {
   id: string;
@@ -160,6 +161,11 @@ export async function manualDeleteOrders(
   });
 
   if (error) {
+    // The lock guard must survive this wrapper too: ManualDeleteRpcError only
+    // carries a string, so a 55006 would arrive at the cancel route as
+    // "order_locked" with no code to branch on.
+    const locked = asOrderLockedError(error);
+    if (locked) throw locked;
     throw new ManualDeleteRpcError(error.message ?? "Manual delete failed");
   }
 

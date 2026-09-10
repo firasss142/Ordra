@@ -96,7 +96,12 @@ export function resolvePanelActions(input: PrimaryActionInputs): PanelActions {
     if (effectiveStatus === "callback_scheduled") {
       overflow.push({ kind: "rescheduleCallback", labelKey: "actions.rescheduleCallback" });
     }
-    if ((role === "agent" || role === undefined) && canReturnToPool) {
+    // Managers and super_admins get this too. Taking an order off an agent is
+    // precisely a manager's job, and until now the orders page offered no way
+    // to do it: the handler, the route and return_order_to_pool were all wired
+    // end to end, but this gate hid the only affordance from the one role that
+    // needed it.
+    if (canReturnToPool) {
       overflow.push({ kind: "returnToPool", labelKey: "actions.returnToPool" });
     }
     if (isManagerish(role)) {
@@ -118,6 +123,11 @@ export function resolvePanelActions(input: PrimaryActionInputs): PanelActions {
     overflow.push({ kind: "scheduleDispatch", labelKey: "actions.scheduleDispatch" });
     if (role === "agent" || role === undefined || isManagerish(role)) {
       overflow.push({ kind: "changeStatus", labelKey: "actions.changeStatus" });
+    }
+    // `confirmed` and `dispatch_scheduled` are both in return_order_to_pool's
+    // allow-list, so the order can still be taken off its agent here.
+    if (canReturnToPool) {
+      overflow.push({ kind: "returnToPool", labelKey: "actions.returnToPool" });
     }
     if (isManagerish(role)) {
       overflow.push({ kind: "cancel", labelKey: "actions.cancel", destructive: true });

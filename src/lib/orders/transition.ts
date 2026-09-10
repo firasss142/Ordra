@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OrderStatus, RejectionReason } from "@/types/order-status";
+import { asOrderLockedError } from "./order-lock";
 
 export interface TransitionParams {
   orderId: string;
@@ -35,7 +36,9 @@ export async function transitionOrderStatus(
   });
 
   if (error) {
-    throw new Error(error.message);
+    // Keep the PostgREST code/details intact — a bare Error(message) would
+    // reduce the lock guard's 55006 to the string "order_locked".
+    throw asOrderLockedError(error) ?? new Error(error.message);
   }
 
   const row = Array.isArray(data) ? data[0] : data;
