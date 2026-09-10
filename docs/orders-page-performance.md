@@ -483,19 +483,59 @@ breaks them at runtime, not at typecheck**:
 
 ---
 
-## What is left
+## Verified on the deployed app (2026-09-10)
 
-Every step is shipped. Two gates need a day of production traffic before they can be read,
-and neither blocks anything:
+Every step confirmed in a real browser against production, not just by test:
 
-- **Step 9** — `HEAD /rest/v1/orders` per hour in the edge logs should drop by the KPI
-  strip's share. It will not reach zero: other summaries still head-count `orders`.
-- **Step 10** — `/auth/v1/user` calls per hour should fall by more than 80%. The
-  per-navigation saving is below DevTools noise, so the log count is the only gate.
+| Check | Gate | Measured |
+|---|---|---|
+| Facet click → RSC requests | 0 | **0** (1 list + 1 facet call) |
+| 9-digit search → list requests | ≤2 | **1** |
+| 9-digit search → facet requests | ≤1 | **1** |
+| Search list request | <500 ms | **492 ms** |
+| `/api/orders/status-counts` | <300 ms | **171 ms** median |
+| `/api/orders/<id>` | <400 ms | **195 ms** median |
+| Avatar request size | <10 KB | **4,110 bytes** max |
+| Thumbnails on first paint | present | **25/25**, zero nulls in SSR HTML |
+| Page navigations → `/auth/v1/user` | fewer | **0** across 12 navigations |
+| Destination change → recommendation | moves | **moves** (Tripoli 20 → Benghazi 10) |
+| DB status change → list, no reload | <2 s | row left the filter, **1 navigation** |
 
-Browser-level confirmation of Steps 6-11 is also outstanding (Playwright dropped out
-mid-session). The mechanisms are covered by tests and, for Steps 6 and 9, by direct
-production measurement.
+Product images on the live LY list: **1,275 KB → 6 KB** across the three distinct products
+(79×, 93×, 268×).
+
+## What the verification itself found
+
+**The Step 10 gate was measuring the wrong thing.** Twelve authenticated navigations
+produced zero `/auth/v1/user` calls — the middleware works — yet total calls stayed flat at
+~250/hour. Flat across a deploy, never moving with page activity, is the signature of a
+fixed-rate poller. It was `/api/presence/heartbeat`: every 60 s per open tab, calling
+`auth.getUser()` instead of `getActor`. `/api/notifications` had already made that switch.
+Fixed in `1051dd4`.
+
+> A gate that measures an aggregate can pass or fail for reasons the change never touched.
+> When the number does not move, ask what else feeds it before concluding the change failed.
+
+**A `MIDDLEWARE_INVOCATION_TIMEOUT` (504) appeared once**, on `/`, exactly as the test
+session's token expired. Not reproducible after — 20 consecutive requests, zero 5xx, all
+190-225 ms — so a cold start rather than a systemic fault. But it pointed at the one branch
+Step 10 made longer: with an already-expired token, `getSession()` has just failed to
+refresh over the network and calling `getUser()` next was a **second** network round trip
+down the same slow path. That branch now redirects straight to login (`fd610b0`).
+
+**`period_total` read 27 from the API against 19 from a hand-written probe.** Resolving it
+confirmed the route rather than excusing it: Tripoli is UTC+2, so its local day opens at
+22:00Z the previous day → 27. UTC midnight would have given 22, which is exactly the
+off-by-one the existing test guards against. My probe was wrong; the route was right.
+
+## Still to read
+
+Two figures need a day of settled traffic:
+
+- **`/auth/v1/user` per hour** after the heartbeat fix. The first partial 5-minute bucket
+  reads **4** against an 18-45 baseline (~90% down), but it is partial.
+- **`HEAD /rest/v1/orders` per hour**, which should drop by the KPI strip's share. It will
+  not reach zero: other summaries still head-count `orders`.
 
 ### Decision still open
 

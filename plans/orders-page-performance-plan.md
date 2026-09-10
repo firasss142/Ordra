@@ -329,6 +329,9 @@ ESLint bootstrap prompt in this repo (no config), not a check. (2) Verified on p
 "Rappel prévu", the URL became `?status=callback_scheduled`, and a hard reload of that URL
 reproduces the same 12 rows (list 533 ms). No skeleton flash. Step 3 DONE.
 
+**Re-verified 2026-09-10 09:16 UTC on the final build:** clicking the "À rappeler" KPI tile
+produced **0** RSC requests, exactly 1 list + 1 facet-count call, and 1 navigation entry.
+
 
 ---
 
@@ -487,8 +490,14 @@ INSERT → the order appeared at the top of the list within 3 s with its thumbna
 duplicate badge, and the "Non assignées" tile went 5 → 6; UPDATE status + assignee → the
 row showed "1/8" and the agent name within 2 s, image intact; DELETE → the row vanished
 and the tile returned to 5. Row deleted from the database afterwards (0 leftovers).
-Gate 3 (sleep/wake) not exercised by automation; the reconnect path is covered by the
-hook's catch-up revalidation on `SUBSCRIBED` and on tab visibility. Step 4 DONE.
+Gate 3 (sleep/wake) not exercised directly; the reconnect path is covered by the hook's
+catch-up revalidation on `SUBSCRIBED` and on tab visibility.
+
+**Re-verified 2026-09-10 09:17 UTC on the final build**, with the database as second actor:
+a status change on a visible order inserted exactly **1** broadcast on the LY topic, the row
+left the filtered view without a reload (1 navigation entry throughout), 2 list
+revalidations fired (the in-place patch plus one coalesced refetch), and the footer stayed
+"En direct". Order restored. Step 4 DONE.
 
 
 ---
@@ -676,9 +685,12 @@ Plan correction: this step's text assumed all four call sites could read the ord
 key as a prop from `OrderDetailPanel`, its only renderer.
 
 Tests: 86 green across the eight affected suites; typecheck and build clean; full-suite
-failing-file set identical to the untouched tree (zero regressions). Browser gate deferred —
-Playwright disconnected right after the suite run; the API-level proof above covers the
-mechanism. Step 6 DONE.
+failing-file set identical to the untouched tree (zero regressions). **Browser gate closed 2026-09-10 09:00 UTC** against the deployed app: moving one order
+الخمس → بنغازي flipped both the price and the account (Tripoli 20 / Benghazi 25, then
+Benghazi 10 / Tripoli 30), both on the `quote` rung. Re-reading the OLD key returned the NEW
+destination's answer, which confirms `dest` is a pure cache discriminator that never
+distorts the result — it is the distinct SWR key that stops the browser serving the previous
+address's quote. Order restored. Step 6 DONE.
 
 **Rollback:** revert; the route is untouched.
 
@@ -751,10 +763,13 @@ would otherwise show as the table changing under the user between first paint an
 revalidation.
 
 36 tests green across the four affected suites; typecheck and build clean; full-suite
-failing-file set identical to the untouched tree. Browser gate (thumbnails present before
-`/api/orders/list` returns, every avatar request < 10 KB) deferred — Playwright is
-disconnected; the byte measurements above are from production assets and the SSR row shape
-is covered by tests. Step 7 DONE.
+failing-file set identical to the untouched tree. **Browser gate closed 2026-09-10 08:55 UTC**, on the live LY list: all 25 product avatars
+served from `/render/image/public/` with **zero** raw objects, and `naturalWidth: 40` proving
+the server resized rather than the browser scaling down. Fetching the three distinct product
+images the page renders: **1,275 KB → 6 KB** (ratios 79×, 93×, 268×), largest thumbnail
+4,110 bytes — every one under the 10 KB gate. First paint: the server-rendered HTML carries
+`product_image_url` for all 25 rows with **zero** nulls, so thumbnails no longer wait on
+`/api/orders/list`. Step 7 DONE.
 
 **Rollback:** revert the component and helper; SSR column addition is harmless to keep.
 
@@ -791,6 +806,11 @@ RPCs. The new search-bar test asserts the behaviour rather than the constant: ty
 page opened with filters already in the URL must show its counts immediately. First value
 straight through, later changes only once the input is still. The list key is NOT lagged —
 only its companion.
+
+**Browser gate closed 2026-09-10 08:56 UTC**, typing a 9-digit phone number into the live
+page one character at a time: **1** list request (gate ≤2), **1** facet-count request (gate
+≤1), **0** RSC requests, 1 navigation entry. The list request completed in **492 ms**
+(gate <500 ms).
 
 ---
 
@@ -854,6 +874,17 @@ actually happened. Two added: a failed count must answer 500 rather than zeroes 
 zeroes reads as "a quiet day", a lie a manager would act on), and each count must land on
 the right tile. 14 green.
 
+**Browser gate closed 2026-09-10 08:57 UTC:** `/api/orders/status-counts` on the deployed
+app runs 142-204 ms, **median 171 ms** (gate <300 ms); the 880 ms seen once was a cold
+lambda, not the RPC. The KPI RPC also shows up in the edge logs going 0 → 17 → 61-93/hour
+exactly as it deployed.
+
+Numbers re-verified live against the database: total 3,790, unassigned 3, to_recall 40,
+uploaded/rejected/delivered 0 — all exact. `period_total` read 27 from the API against 19
+from a hand-written probe, and resolving that CONFIRMED the route rather than excusing it:
+Tripoli is UTC+2, so its local day opens at 22:00Z the previous day, which counts 27. UTC
+midnight would have given 22 — precisely the off-by-one the existing test guards against.
+
 ---
 
 ### Step 10 — Middleware: trust the signed profile cookie, refresh only near expiry
@@ -902,7 +933,19 @@ instanceof check against undici's.
 Accepted trade-off, recorded: a deactivation or global sign-out now takes up to 5 minutes to
 bounce an open page. It was already ≤ 5 min for every API call, for the same reason.
 
-Edge-log gate (>80% drop in `/auth/v1/user`) deferred — it needs a day of traffic.
+**Browser gate, closed 2026-09-10 08:58 UTC — and it corrected the gate itself.** Twelve
+authenticated page navigations in 2.1 s produced **ZERO** `/auth/v1/user` calls in the edge
+logs. The middleware fast path works exactly as designed.
+
+But the >80% drop as written was measuring the wrong thing: total `/auth/v1/user` stayed
+flat at ~250/hour across the deploy, and 10-minute buckets showed 40-60 throughout, never
+moving with page activity. That is the signature of a fixed-rate poller, not navigation.
+
+The culprit was `/api/presence/heartbeat` — every 60 s per open tab, calling
+`auth.getUser()` directly instead of `getActor`. `/api/notifications` had already made that
+switch, with the reasoning in its comment; the heartbeat was simply missed. Fixed in
+`1051dd4`; the first 5-minute bucket after it went live reads **4** calls against a 18-45
+baseline (~90% down), though that bucket is partial and the settled figure needs a day.
 
 ---
 
@@ -926,6 +969,10 @@ The test asserts the RPC STARTS before the (deliberately slowed) history read re
 "the RPC is called" was already true and would not have caught the regression. The mocked
 client also had no `rpc` at all, so the enrichment was silently taking its guard path and
 the suite was passing for the wrong reason; it now has one.
+
+**Browser gate closed 2026-09-10 09:01 UTC:** `/api/orders/<id>` on the deployed app runs
+185-225 ms, **median 195 ms** (gate <400 ms), with `duplicate_count` present in every
+response — the parallelised enrichment still delivers its data.
 
 ---
 
