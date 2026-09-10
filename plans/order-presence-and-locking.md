@@ -122,8 +122,12 @@ Called at the top of: `assign_order`, `unassign_order`, `return_order_to_pool`, 
 **(b) `BEFORE UPDATE` trigger on `orders`**, covering the direct `.update()` paths the helper can't reach (`PATCH /api/orders/[id]:506`, the two items routes):
 
 ```sql
+-- SECURITY INVOKER is load-bearing. Inside a DEFINER function current_user is
+-- the OWNER, so the test would read 'postgres' on every call and the guard would
+-- silently never run. (Made and caught this mistake in production: the RPC path
+-- blocked while a raw PATCH sailed through.)
 CREATE OR REPLACE FUNCTION public.orders_assert_unlocked()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
 BEGIN
   -- service_role (admin client, cron) and postgres (any SECURITY DEFINER RPC)
   -- declare their actor via p_actor_id and are covered by assert_order_unlocked().
