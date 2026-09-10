@@ -1692,7 +1692,8 @@
         "ref": "المرجع",
         "tracking": "التتبع"
       }
-    }
+    },
+    "bulkAssignPartial": "{assigned} مُسندة، {locked} مقفلة من طرف وكيل"
   },
   "unassigned": {
     "title": "مجمع الطلبات",

@@ -27,6 +27,9 @@ export const PRESENCE_EVENT = "presence_changed";
 /** How often liveness is re-evaluated locally. See the note on the tick below. */
 const TICK_MS = 10_000;
 
+/** One shared instance, so an unlocked row keeps a stable prop identity. */
+const NO_PRESENCE: PresenceRow[] = [];
+
 /**
  * Who has which order open, for the manager's list.
  *
@@ -131,9 +134,15 @@ export function useOrderLocks({
     [live],
   );
 
-  /** Everyone present on this order, agents and managers alike. */
+  /**
+   * Everyone present on this order, agents and managers alike.
+   *
+   * Returns a SHARED empty array for the common case. `?? []` would mint a new
+   * array on every call, which would defeat OrderRow's memo comparator for
+   * every unlocked row in the table — i.e. almost all of them.
+   */
   const presenceOf = useCallback(
-    (orderId: string): PresenceRow[] => live.get(orderId) ?? [],
+    (orderId: string): PresenceRow[] => live.get(orderId) ?? NO_PRESENCE,
     [live],
   );
 

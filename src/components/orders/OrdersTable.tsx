@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Inbox } from "lucide-react";
 import type { OrdersListRow } from "@/hooks/useOrdersList";
@@ -8,6 +8,7 @@ import { Pagination } from "@/components/shared/Pagination";
 import { PAGE_SIZE_OPTIONS } from "@/lib/orders/list-filters";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { OrderRow } from "./OrderRow";
+import type { PresenceRow } from "@/hooks/useOrderLocks";
 
 interface Agent {
   id: string;
@@ -36,6 +37,10 @@ interface Props {
   onCancel: (id: string) => void;
   onRecover?: (id: string) => void;
   onDuplicateChange?: () => void;
+  /** Who has each order open. Undefined for roles that never see presence. */
+  presenceOf?: (orderId: string) => PresenceRow[];
+  /** Names for presence rows that are not the assignee (managers, admins). */
+  memberNameById?: Map<string, string>;
   isLoading: boolean;
   isEmpty: boolean;
 }
@@ -62,6 +67,8 @@ export function OrdersTable({
   onCancel,
   onRecover,
   onDuplicateChange,
+  presenceOf,
+  memberNameById,
   isLoading,
   isEmpty,
 }: Props) {
@@ -73,6 +80,14 @@ export function OrdersTable({
     for (const a of agents) m.set(a.id, a.full_name);
     return m;
   }, [agents]);
+
+  // Names are already on this page, so a presence payload never has to carry
+  // one: four small fields per row is the whole wire cost of the indicator.
+  const presenceNameOf = useCallback(
+    (userId: string) => agentNameById.get(userId) ?? memberNameById?.get(userId) ?? null,
+    [agentNameById, memberNameById],
+  );
+
 
   const allSelected = rows.length > 0 && rows.every((r) => selectedIds.has(r.id));
   const someSelected = rows.some((r) => selectedIds.has(r.id));
@@ -152,6 +167,8 @@ export function OrdersTable({
                 highlighted={highlightedIds.has(r.id)}
                 currencyCode={currencyCode}
                 agentName={r.assigned_to ? agentNameById.get(r.assigned_to) ?? null : null}
+                presenceRows={presenceOf?.(r.id)}
+                presenceNameOf={presenceNameOf}
                 labels={{
                   status: tStatus(r.status),
                   unassigned: t("unassigned"),

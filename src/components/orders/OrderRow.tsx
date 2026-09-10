@@ -15,6 +15,8 @@ import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
 import { isTerminalStatus, type OrderStatus } from "@/types/order-status";
 import { AgentAvatar } from "@/components/shared/AgentAvatar";
 import { useMaxCallAttempts } from "@/hooks/useMaxCallAttempts";
+import { PresenceIndicator } from "./PresenceIndicator";
+import type { PresenceRow } from "@/hooks/useOrderLocks";
 
 interface Props {
   order: OrdersListRow;
@@ -22,6 +24,9 @@ interface Props {
   selected: boolean;
   highlighted: boolean;
   agentName: string | null;
+  /** Who has this order open. Stable identity per signature — see useOrderLocks. */
+  presenceRows?: PresenceRow[];
+  presenceNameOf?: (userId: string) => string | null;
   currencyCode: string;
   labels: {
     status: string;
@@ -139,6 +144,8 @@ function Row({
   selected,
   highlighted,
   agentName,
+  presenceRows,
+  presenceNameOf,
   currencyCode,
   labels,
   onToggleSelect,
@@ -383,6 +390,9 @@ function Row({
           >
             {agentName ?? labels.unassigned}
           </span>
+          {presenceRows && presenceRows.length > 0 && presenceNameOf && (
+            <PresenceIndicator rows={presenceRows} nameOf={presenceNameOf} size={18} />
+          )}
         </span>
       </td>
 
@@ -426,6 +436,10 @@ export const OrderRow = React.memo(Row, (prev, next) => {
     prev.selected === next.selected &&
     prev.highlighted === next.highlighted &&
     prev.agentName === next.agentName &&
+    // Reference compare is sound because useOrderLocks hands back the same
+    // array while the orderId:userId:mode signature is unchanged, so a
+    // 25s heartbeat cannot repaint the table.
+    prev.presenceRows === next.presenceRows &&
     prev.cancellingId === next.cancellingId &&
     prev.recoveringId === next.recoveringId &&
     prev.onRecover === next.onRecover &&

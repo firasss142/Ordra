@@ -112,3 +112,28 @@ describe("useOrderLocks", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe("useOrderLocks — render stability", () => {
+  test("returns the same array identity for an order with nobody on it", async () => {
+    const { result } = render();
+    await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+    // A fresh [] per call would defeat OrderRow's memo for every unlocked row.
+    expect(result.current.presenceOf("other")).toBe(result.current.presenceOf("another"));
+  });
+
+  test("keeps the same array identity across a heartbeat that only moves expires_at", async () => {
+    const { result } = render();
+    await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+    const before = result.current.presenceOf("o-1");
+
+    await act(async () => {
+      channels.find((c) => c.name.includes("order_presence"))?.handler?.({
+        payload: { op: "UPDATE", order_id: "o-1", user_id: "a-1", role: "agent",
+                   mode: "editing", opened_at: NOW.toISOString(), expires_at: soon(140) },
+      });
+      await Promise.resolve();
+    });
+
+    expect(result.current.presenceOf("o-1")).toBe(before);
+  });
+});

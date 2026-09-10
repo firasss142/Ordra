@@ -1692,7 +1692,8 @@
         "ref": "Référence",
         "tracking": "Suivi"
       }
-    }
+    },
+    "bulkAssignPartial": "{assigned} assignées, {locked} verrouillées par un agent"
   },
   "unassigned": {
     "title": "Pool de commandes",
