@@ -236,6 +236,7 @@ function matchesClosedSubfilter(
 
 export function QueuePage() {
   const t = useTranslations("queue");
+  const tRealtime = useTranslations("realtime.connection");
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -249,6 +250,7 @@ export function QueuePage() {
     mutate,
     reassignmentEvent,
     acknowledgeReassignmentEvent,
+    connected,
     tick,
   } = useAgentQueue({
     agentId: user?.id ?? null,
@@ -799,6 +801,21 @@ export function QueuePage() {
         userMarketId={user?.market_id ?? ""}
         onCreated={() => mutate()}
       />
+
+      {/* Real-time state. Shown ONLY while the socket is down, because that is
+          the moment the agent needs it: the queue is then driven by a 20 s poll
+          and a status change can be up to that stale. It used to claim "live"
+          unconditionally — `connected` was `Boolean(agentId)`, true even with a
+          dead stream — so a silently stale queue looked healthy. */}
+      {!connected && (
+        <div
+          role="status"
+          className="bg-status-warningBg border-y border-status-warning/20 text-status-warning text-[13px] px-6 py-2 flex items-center gap-2"
+        >
+          <span aria-hidden className="inline-block h-2 w-2 rounded-full bg-status-warning" />
+          <span>{tRealtime("reconnecting")}</span>
+        </div>
+      )}
 
       {/* Auto-rejected banner */}
       {autoRejectedBanner && (
