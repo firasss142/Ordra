@@ -19,6 +19,8 @@ import { DexpressLocationPicker, type DexpressSelection } from "./DexpressLocati
 import { DarbAssabilDispatchModal } from "./DarbAssabilDispatchModal";
 import { coverageFor, type CoverageState } from "@/lib/carriers/coverage";
 import { useCarrierRates } from "@/hooks/useCarrierRates";
+import { destinationKey } from "@/lib/carriers/destination-key";
+import { useResetOnDestinationChange } from "@/hooks/useResetOnDestinationChange";
 import { useCarrierPerformance } from "@/hooks/useCarrierPerformance";
 import { pickInitialCarrier } from "@/lib/carriers/initial-carrier-selection";
 import { compareCarriers } from "@/lib/carriers/carrier-comparison";
@@ -332,7 +334,13 @@ export function PostCallActionSheet({
 
   // Per-destination price per carrier account. Libya runs two Darb Assabil
   // accounts whose prices for the same address differ by 5-25 LYD.
-  const { ratesByCarrierId } = useCarrierRates(orderId, isPostConfirm);
+  const uploadDestinationKey = destinationKey(orderForUpload?.data ?? null);
+  const { ratesByCarrierId } = useCarrierRates(orderId, isPostConfirm, uploadDestinationKey);
+
+  // A destination edit must be allowed to move the recommendation. Without
+  // this, pickInitialCarrier's "current selection wins" rule pins the account
+  // chosen for the PREVIOUS address while the prices below it update.
+  useResetOnDestinationChange(uploadDestinationKey, () => setSelectedCarrierId(null));
   // 30-day delivery rate + median transit time, for the same comparison.
   const { performanceByCarrierId } = useCarrierPerformance(
     marketId,

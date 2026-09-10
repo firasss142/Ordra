@@ -1,6 +1,6 @@
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
-import { SWRConfig } from "swr";
+import { SWRConfig, useSWRConfig } from "swr";
 import React from "react";
 import { useOrderMutation, OrderConflictError } from "./useOrderMutation";
 import { RealtimeProvider } from "@/components/providers/RealtimeProvider";
@@ -448,6 +448,78 @@ describe("useOrderMutation", () => {
       });
 
       expect(JSON.parse(mockFetch.mock.calls[1][1].body).expected_updated_at).toBe(STAMP_B);
+    });
+  });
+
+  // ── Destination edits invalidate the carrier quote ────────────────────────
+  describe("carrier rates invalidation", () => {
+    it("drops the cached quote when the PATCH moved the destination", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ data: { id: ORDER_ID, updated_at: "2026-09-10T00:00:00Z" } }),
+      });
+      vi.stubGlobal("fetch", mockFetch);
+
+      const { result } = renderHook(
+        () => ({ m: useOrderMutation(ORDER_ID), cfg: useSWRConfig() }),
+        { wrapper },
+      );
+
+      // Seed a cached quote under the OLD destination.
+      await act(async () => {
+        await result.current.cfg.mutate(
+          `/api/carriers/rates?order_id=${ORDER_ID}&dest=darb%3A18`,
+          { data: { recommended_carrier_id: "tripoli" } },
+          { revalidate: false },
+        );
+      });
+      expect(
+        result.current.cfg.cache.get(`/api/carriers/rates?order_id=${ORDER_ID}&dest=darb%3A18`)?.data,
+      ).toBeTruthy();
+
+      await act(async () => {
+        await result.current.m.commit({ darb_destination_id: 78 });
+      });
+
+      // The stale entry must be gone: the destination key alone protects the
+      // live hook, but a cached entry under the OLD key would come back the
+      // moment the agent edits the destination back again.
+      await waitFor(() => {
+        expect(
+          result.current.cfg.cache.get(`/api/carriers/rates?order_id=${ORDER_ID}&dest=darb%3A18`)
+            ?.data,
+        ).toBeUndefined();
+      });
+    });
+
+    it("leaves the quote alone for an edit that cannot move the destination", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ data: { id: ORDER_ID, updated_at: "2026-09-10T00:00:00Z" } }),
+        }),
+      );
+
+      const { result } = renderHook(
+        () => ({ m: useOrderMutation(ORDER_ID), cfg: useSWRConfig() }),
+        { wrapper },
+      );
+
+      const key = `/api/carriers/rates?order_id=${ORDER_ID}&dest=darb%3A18`;
+      await act(async () => {
+        await result.current.cfg.mutate(key, { data: { recommended_carrier_id: "tripoli" } }, { revalidate: false });
+      });
+
+      // customer_address is free text the route never reads; re-quoting on it
+      // would hit the carrier path on every keystroke-sized edit.
+      await act(async () => {
+        await result.current.m.commit({ customer_address: "Rue 9" });
+      });
+
+      expect(result.current.cfg.cache.get(key)?.data).toBeTruthy();
     });
   });
 });

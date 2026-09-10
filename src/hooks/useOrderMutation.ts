@@ -30,8 +30,15 @@ interface OrderItemSeed {
   variant_label?: string | null;
 }
 
+/**
+ * The only three fields that can move an order's destination. `customer_address`
+ * is NOT one of them: it is free text the rates route never reads, so re-quoting
+ * on it would hit the carrier path for edits that cannot change the price.
+ */
+const DESTINATION_FIELDS = ["darb_destination_id", "city_id", "dexpress_state_id"] as const;
+
 export function useOrderMutation(orderId: string) {
-  const { mutate } = useSWRConfig();
+  const { mutate, cache } = useSWRConfig();
   const { editLock } = useRealtime();
   const key = `/api/orders/${orderId}`;
   // Monotonic id — if two commits race, only the last response is applied
@@ -115,6 +122,25 @@ export function useOrderMutation(orderId: string) {
 
           const json = await res.json();
           rememberStamp(json.data);
+
+          // Belt and braces alongside the destination-keyed rates hook: that key
+          // protects the LIVE quote, but a cached entry under the OLD
+          // destination would be served again the moment the agent edits back
+          // within the 60 s dedupe window.
+          //
+          // Evicted straight from the cache, not through a filtered mutate:
+          // SWR's key-filter form only visits keys with a mounted subscriber,
+          // and the carrier sheet is usually closed when the destination is
+          // edited — so the very entries that go stale are the ones a filtered
+          // mutate skips. Verified: a filtered mutate left a seeded, unmounted
+          // key untouched.
+          if (DESTINATION_FIELDS.some((f) => f in updates)) {
+            const prefix = `/api/carriers/rates?order_id=${orderId}`;
+            for (const k of [...(cache as unknown as Map<string, unknown>).keys()]) {
+              if (typeof k === "string" && k.startsWith(prefix)) cache.delete(k);
+            }
+          }
+
           return { data: json.data };
         },
         {

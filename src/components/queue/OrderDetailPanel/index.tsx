@@ -69,6 +69,8 @@ import { isValidLibyanPhone } from "@/lib/carriers/phone";
 import { coverageFor, type CoverageState } from "@/lib/carriers/coverage";
 import { useDarbDestinations } from "@/hooks/useDarbDestinations";
 import { useCarrierRates } from "@/hooks/useCarrierRates";
+import { destinationKey } from "@/lib/carriers/destination-key";
+import { useResetOnDestinationChange } from "@/hooks/useResetOnDestinationChange";
 import { useCarrierPerformance } from "@/hooks/useCarrierPerformance";
 import { compareCarriers } from "@/lib/carriers/carrier-comparison";
 import { CarrierComparisonCard } from "../CarrierComparisonCard";
@@ -844,10 +846,19 @@ export function OrderDetailPanel({
   // Per-destination price per carrier account. Libya runs two Darb Assabil
   // accounts whose prices for the same address differ by 5-25 LYD, so the flat
   // carriers.delivery_fee cannot tell them apart.
+  // The destination rides in the SWR key: a quote is only true for one address,
+  // and this order's destination can change while the panel is open.
+  const orderDestinationKey = destinationKey(order);
   const { ratesByCarrierId } = useCarrierRates(
     order?.id,
     Boolean(canUploadToCarrier && order && uploadOpen),
+    orderDestinationKey,
   );
+
+  // The Darb account picked in the upload sheet was never cleared — not on
+  // close, not on success. A destination edit is the one moment it is certainly
+  // wrong to keep, since the accounts swap places by geography.
+  useResetOnDestinationChange(orderDestinationKey, () => setSelectedDarbCarrierId(null));
   // 30-day delivery rate + median transit, the other two legs of "meilleur
   // choix". Fails soft: no data just means those stats render as "—".
   const { performanceByCarrierId } = useCarrierPerformance(
@@ -1479,6 +1490,7 @@ export function OrderDetailPanel({
         <ScheduleDispatchModal
           orderId={order.id}
           marketId={order.market_id}
+          destinationKey={orderDestinationKey}
           onClose={() => setScheduleDispatchOpen(false)}
           onSuccess={async () => {
             setScheduleDispatchOpen(false);

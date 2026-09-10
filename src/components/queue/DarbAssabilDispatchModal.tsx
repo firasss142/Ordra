@@ -14,6 +14,7 @@ import {
 } from "@/lib/carriers/darb-assabil-areas";
 import { fetcher } from "@/lib/swr-config";
 import { useCarrierRates } from "@/hooks/useCarrierRates";
+import { destinationKey } from "@/lib/carriers/destination-key";
 import { formatCurrency } from "@/lib/format";
 
 interface DarbAssabilSelection {
@@ -175,7 +176,11 @@ export function DarbAssabilDispatchModal({
 
   // Delivery fee for the summary bar — same per-destination quote the other
   // carrier pickers use. Fails soft: no quote yet just means no figure shown.
-  const { ratesByCarrierId } = useCarrierRates(orderId, true);
+  const { ratesByCarrierId } = useCarrierRates(
+    orderId,
+    true,
+    destinationKey({ darb_destination_id: darbDestinationId, customer_city: customerCity }),
+  );
   const deliveryFee = ratesByCarrierId[carrierId]?.quotedFee ?? null;
 
   // The bound pair wins outright: it is what the agent chose from the

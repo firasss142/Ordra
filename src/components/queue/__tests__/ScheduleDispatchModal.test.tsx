@@ -61,6 +61,9 @@ function mockCarriersAndComparison(orderId: string) {
 const baseProps = {
   orderId: "order-sdm-1",
   marketId: "market-sdm-1",
+  // The panel that opens this modal passes the order's destination down, so the
+  // rate quote is cached per destination rather than per order.
+  destinationKey: "darb:18",
   onClose: vi.fn(),
   onSuccess: vi.fn(),
 };

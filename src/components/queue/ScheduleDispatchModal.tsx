@@ -9,11 +9,19 @@ import { useCarrierRates } from "@/hooks/useCarrierRates";
 import { useCarrierPerformance } from "@/hooks/useCarrierPerformance";
 import { compareCarriers } from "@/lib/carriers/carrier-comparison";
 import { pickInitialCarrier } from "@/lib/carriers/initial-carrier-selection";
+import { useResetOnDestinationChange } from "@/hooks/useResetOnDestinationChange";
 import { CarrierComparisonCard } from "./CarrierComparisonCard";
 
 interface ScheduleDispatchModalProps {
   orderId: string;
   marketId: string;
+  /**
+   * Where the order is going, from `destinationKey(order)`. This modal holds no
+   * order of its own, so the panel that opens it passes the key down; without
+   * it the rate quote would be cached per order and survive a destination
+   * change.
+   */
+  destinationKey: string;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -63,6 +71,7 @@ function defaultScheduledAt(): Date {
 export function ScheduleDispatchModal({
   orderId,
   marketId,
+  destinationKey,
   onClose,
   onSuccess,
 }: ScheduleDispatchModalProps) {
@@ -107,7 +116,11 @@ export function ScheduleDispatchModal({
   );
   const carriers = (carriersData?.data ?? []).filter((c) => c.is_active);
 
-  const { ratesByCarrierId } = useCarrierRates(orderId, true);
+  const { ratesByCarrierId } = useCarrierRates(orderId, true, destinationKey);
+
+  // Same trap as the post-call sheet: the pre-selection must follow the
+  // destination, not outlive it.
+  useResetOnDestinationChange(destinationKey, () => setCarrierId(null));
   const { performanceByCarrierId } = useCarrierPerformance(marketId, true);
 
   const comparison = compareCarriers(

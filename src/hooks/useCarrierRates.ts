@@ -43,8 +43,20 @@ export interface UseCarrierRatesResult {
 export function useCarrierRates(
   orderId: string | null | undefined,
   enabled: boolean,
+  /**
+   * Where the order is going, from `destinationKey(order)`. It rides in the SWR
+   * key so a destination change is a different cache entry; the route ignores
+   * the param. Without it, changing an order's destination left this hook
+   * serving the previous address's quote — and Libya's two Darb accounts price
+   * the same address up to 25 LYD apart in opposite directions, so the badge
+   * and the "meilleur choix" pill were confidently wrong.
+   */
+  destination: string | null,
 ): UseCarrierRatesResult {
-  const key = enabled && orderId ? `/api/carriers/rates?order_id=${orderId}` : null;
+  const key =
+    enabled && orderId
+      ? `/api/carriers/rates?order_id=${orderId}&dest=${encodeURIComponent(destination ?? "none")}`
+      : null;
 
   const { data, isLoading } = useSWR(key, fetcher, {
     revalidateOnFocus: false,
