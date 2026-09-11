@@ -59,3 +59,15 @@ describe("ManagerPresenceMark", () => {
     expect(screen.getAllByRole("img")).toHaveLength(2);
   });
 });
+
+describe("ManagerPresenceMark — typing", () => {
+  it("shows the typing bubble while the manager is editing", () => {
+    render(<ManagerPresenceMark rows={[{ ...row, mode: "editing" }]} now={NOW} />);
+    expect(screen.getByTestId("typing-dots")).toBeInTheDocument();
+  });
+
+  it("shows nothing extra while they are only reading", () => {
+    render(<ManagerPresenceMark rows={[row]} now={NOW} />);
+    expect(screen.queryByTestId("typing-dots")).toBeNull();
+  });
+});

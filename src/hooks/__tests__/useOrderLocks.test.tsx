@@ -183,3 +183,85 @@ describe("useOrderLocks — agent scope", () => {
     expect(others.map((r) => r.user_id)).toEqual(["mgr"]);
   });
 });
+
+describe("useOrderLocks — identity survives a broadcast", () => {
+  // The broadcast payload carries no full_name/avatar_url: only
+  // list_order_presence does. Replacing the row wholesale is what made the head
+  // flicker to "??" within 25s of appearing — the reported flakiness.
+  test("keeps the name when a heartbeat broadcast lands on a known row", async () => {
+    fetchMock.mockImplementation(() =>
+      Promise.resolve({
+        ok: true, status: 200,
+        json: () => Promise.resolve({
+          data: [{
+            order_id: "o-1", user_id: "a-1", role: "agent", mode: "viewing",
+            opened_at: NOW.toISOString(), expires_at: soon(75),
+            full_name: "Salima", avatar_url: "https://x/s.jpg",
+          }],
+          server_now: NOW.toISOString(),
+        }),
+      } as Response));
+
+    const { result } = render();
+    await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+    expect(result.current.presenceOf("o-1")[0].full_name).toBe("Salima");
+
+    await act(async () => {
+      channels.find((c) => c.name.includes("order_presence"))?.handler?.({
+        payload: {
+          op: "UPDATE", order_id: "o-1", user_id: "a-1", role: "agent",
+          mode: "editing", opened_at: NOW.toISOString(), expires_at: soon(140),
+        },
+      });
+      await Promise.resolve();
+    });
+
+    const row = result.current.presenceOf("o-1")[0];
+    expect(row.mode).toBe("editing");
+    expect(row.full_name).toBe("Salima");
+    expect(row.avatar_url).toBe("https://x/s.jpg");
+  });
+
+  test("fetches identity once when a broadcast introduces an unseen row", async () => {
+    const { result } = render();
+    await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+    const before = fetchMock.mock.calls.length;
+
+    await act(async () => {
+      const ch = channels.find((c) => c.name.includes("order_presence"));
+      for (const id of ["new-1", "new-2", "new-3"]) {
+        ch?.handler?.({
+          payload: {
+            op: "INSERT", order_id: id, user_id: "mgr", role: "market_manager",
+            mode: "viewing", opened_at: NOW.toISOString(), expires_at: soon(75),
+          },
+        });
+      }
+      await vi.advanceTimersByTimeAsync(400);
+    });
+
+    // A burst costs ONE refetch, not three — the coalescing useOrdersRealtime
+    // already uses. (The refetch itself returns the default fixture here, which
+    // is the authoritative answer, so the rows it omits are correctly dropped.)
+    expect(fetchMock.mock.calls.length).toBe(before + 1);
+    void result;
+  });
+});
+
+describe("useOrderLocks — the expiry tick", () => {
+  // rowsRef is a ref, so it is not a dependency: guarding the effect on it made
+  // the timer's existence depend on arrival order.
+  test("retires a row that expires while the tab stays open", async () => {
+    const { result } = render();
+    await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+    expect(result.current.presenceOf("o-1")).toHaveLength(1);
+
+    // No new data, no broadcast — only the passage of time.
+    fetchMock.mockImplementation(() =>
+      Promise.resolve({ ok: true, status: 200,
+        json: () => Promise.resolve({ data: [], server_now: soon(200) }) } as Response));
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(90_000); });
+    expect(result.current.presenceOf("o-1")).toHaveLength(0);
+  });
+});

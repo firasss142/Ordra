@@ -1,6 +1,7 @@
 "use client";
 
 import { AgentAvatar } from "@/components/shared/AgentAvatar";
+import { TypingDots } from "@/components/shared/TypingDots";
 import type { PresenceRow } from "@/hooks/useOrderLocks";
 
 interface Props {
@@ -54,6 +55,10 @@ export function ManagerPresenceMark({ rows, now, size = 18 }: Props) {
               size={size}
               avatarUrl={row.avatar_url}
             />
+            {/* Typing, right now — the one state worth interrupting a glance. */}
+            {row.mode === "editing" && (
+              <TypingDots className="absolute -bottom-1 -end-2" />
+            )}
           </span>
         );
       })}

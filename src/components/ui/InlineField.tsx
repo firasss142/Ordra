@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useTypingActivity } from "./typing-activity";
+
+const noop = () => {};
 
 interface InlineFieldProps {
   value: string | number;
@@ -23,6 +26,15 @@ interface InlineFieldProps {
   displayMode?: boolean;
   /** Extra classes applied to the display-mode text span. */
   displayClassName?: string;
+  /**
+   * Fired on every keystroke. Drives the presence "is typing" signal, which has
+   * to react to the typing itself — a commit-only signal would raise the bubble
+   * on save, once the typing is already over.
+   *
+   * Usually supplied by TypingActivityProvider rather than passed explicitly,
+   * so a newly added field cannot forget it.
+   */
+  onActivity?: () => void;
   className?: string;
 }
 
@@ -35,9 +47,12 @@ export function InlineField({
   placeholder,
   readOnly,
   displayMode,
+  onActivity,
   displayClassName = "",
   className = "",
 }: InlineFieldProps) {
+  const contextActivity = useTypingActivity();
+  const notifyActivity = onActivity ?? contextActivity ?? noop;
   const [draft, setDraft] = useState(String(value));
   const [hasError, setHasError] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -123,7 +138,10 @@ export function InlineField({
             placeholder={placeholder}
             autoFocus
             rows={2}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+            setDraft(e.target.value);
+            notifyActivity();
+          }}
             onBlur={() => {
               tryCommit(draft);
               setEditing(false);
@@ -141,7 +159,10 @@ export function InlineField({
           value={draft}
           placeholder={placeholder}
           autoFocus
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            notifyActivity();
+          }}
           onBlur={() => {
             tryCommit(draft);
             setEditing(false);
@@ -211,7 +232,10 @@ export function InlineField({
         value={draft}
         placeholder={placeholder}
         rows={2}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(e) => {
+            setDraft(e.target.value);
+            notifyActivity();
+          }}
         onBlur={() => tryCommit(draft)}
         onKeyDown={handleKeyDown}
         className={`${hasError ? "border-red-600 " : ""}${className}`}
@@ -224,7 +248,10 @@ export function InlineField({
       type={type}
       value={draft}
       placeholder={placeholder}
-      onChange={(e) => setDraft(e.target.value)}
+      onChange={(e) => {
+            setDraft(e.target.value);
+            notifyActivity();
+          }}
       onBlur={() => tryCommit(draft)}
       onKeyDown={handleKeyDown}
       className={`${hasError ? "border-red-600 " : ""}${className}`}

@@ -1,6 +1,7 @@
 "use client";
 
 import { AgentAvatar } from "@/components/shared/AgentAvatar";
+import { TypingDots } from "@/components/shared/TypingDots";
 import type { PresenceRow } from "@/hooks/useOrderLocks";
 
 export interface PresencePerson {
@@ -89,15 +90,19 @@ export function PresenceIndicator({
         style={{ padding: assigneeRow ? 1.5 : 0 }}
       >
         <AgentAvatar name={assigneeName} size={size} avatarUrl={assigneeAvatarUrl} />
-        {assigneeRow && (
+        {assigneeRow?.mode === "editing" ? (
+          // The corner holds ONE mark. While they are typing, the bubble is it.
+          <TypingDots className="absolute -bottom-1 -end-2" />
+        ) : assigneeRow ? (
           // Paired with the ring so the signal survives greyscale, and echoing
           // the control-room presence dot the console already uses.
           <span
+            data-live-dot
             aria-hidden
             className="absolute -bottom-0.5 -end-0.5 rounded-full border-2 border-oms-surface bg-brand"
             style={{ width: 9, height: 9 }}
           />
-        )}
+        ) : null}
       </span>
 
       {others.map((row) => {
@@ -125,6 +130,9 @@ export function PresenceIndicator({
               size={size - 6}
               avatarUrl={person?.avatar_url}
             />
+            {row.mode === "editing" && (
+              <TypingDots className="absolute -bottom-1 -end-2" />
+            )}
           </span>
         );
       })}

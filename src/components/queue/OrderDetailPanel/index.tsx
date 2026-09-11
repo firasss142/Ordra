@@ -89,6 +89,8 @@ import type { PanelActionKind } from "./types";
 import { useOrderPresence } from "@/hooks/useOrderPresence";
 import { OrderTakeoverScreen } from "../OrderTakeoverScreen";
 import { useOrderLocks } from "@/hooks/useOrderLocks";
+import { useTypingMode } from "@/hooks/useTypingMode";
+import { TypingActivityProvider } from "@/components/ui/typing-activity";
 
 const ScheduleDispatchModal = dynamic(
   () => import("../ScheduleDispatchModal").then((m) => m.ScheduleDispatchModal),
@@ -393,7 +395,16 @@ export function OrderDetailPanel({
   //
   // `mode` flips to "editing" as soon as anything is dirty, which is what turns
   // the manager's hollow "consulte" ring into a filled "modifie" one.
-  const [presenceMode, setPresenceMode] = useState<"viewing" | "editing">("viewing");
+  // `editing` is a live state, not a latch. It used to be set on the first
+  // commit and never cleared, so anyone who touched one field showed as editing
+  // for the rest of the session — survivable when it was only a ring colour,
+  // an outright lie now that it drives a typing bubble.
+  const { mode: presenceMode, noteActivity: noteTyping, stop: stopTyping } = useTypingMode();
+
+  // Closing the panel ends the typing immediately. Waiting out the idle timer
+  // would let the final heartbeat still report "editing" on an order nobody has
+  // open any more.
+  useEffect(() => stopTyping, [orderId, stopTyping]);
   const [takenOverBy, setTakenOverBy] = useState<string | null>(null);
   const [wasTakenOver, setWasTakenOver] = useState(false);
 
@@ -670,7 +681,7 @@ export function OrderDetailPanel({
       // Anyone actually changing a field is "modifie", not "consulte". For a
       // manager this is what turns the hollow ring on the agent's card into a
       // filled one — the difference between being read and being touched.
-      setPresenceMode("editing");
+      noteTyping();
       try {
         setSaveError(null);
         await commit(updates);
@@ -1225,7 +1236,9 @@ export function OrderDetailPanel({
   );
 
   return (
-    <>
+    // Every InlineField below reports keystrokes through this, so the presence
+    // "is typing" bubble reacts to the typing rather than to the save.
+    <TypingActivityProvider onActivity={noteTyping}>
       {/* Overlay */}
       <div
         className="fixed inset-0 z-40 bg-ink-primary/40"
@@ -1748,7 +1761,7 @@ export function OrderDetailPanel({
         locale={locale === "ar" ? "ar" : "fr"}
         onOpenProduct={(productId) => setProductSheetProductId(productId)}
       />
-    </>
+    </TypingActivityProvider>
   );
 }
 

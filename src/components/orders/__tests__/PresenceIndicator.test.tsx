@@ -81,3 +81,32 @@ describe("PresenceIndicator — the assignee avatar IS the indicator", () => {
     expect(screen.getByTestId("extra-presence")).toBeInTheDocument();
   });
 });
+
+describe("PresenceIndicator — typing", () => {
+  it("shows the typing bubble on the assignee while they edit", () => {
+    render(<PresenceIndicator {...base} rows={[{ ...agent, mode: "editing" }]} />);
+    expect(screen.getByTestId("typing-dots")).toBeInTheDocument();
+  });
+
+  // The corner holds one mark or the other, never both.
+  it("replaces the static live dot rather than sitting beside it", () => {
+    const { container, rerender } = render(
+      <PresenceIndicator {...base} rows={[{ ...agent, mode: "editing" }]} />,
+    );
+    expect(container.querySelectorAll("[data-live-dot]")).toHaveLength(0);
+
+    rerender(<PresenceIndicator {...base} rows={[{ ...agent, mode: "viewing" }]} />);
+    expect(screen.queryByTestId("typing-dots")).toBeNull();
+    expect(container.querySelectorAll("[data-live-dot]")).toHaveLength(1);
+  });
+
+  it("shows it on a manager who is typing, not merely reading", () => {
+    const { rerender } = render(
+      <PresenceIndicator {...base} rows={[{ ...manager, mode: "editing" }]} />,
+    );
+    expect(screen.getByTestId("typing-dots")).toBeInTheDocument();
+
+    rerender(<PresenceIndicator {...base} rows={[manager]} />);
+    expect(screen.queryByTestId("typing-dots")).toBeNull();
+  });
+});

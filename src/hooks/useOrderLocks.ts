@@ -16,9 +16,17 @@ export interface PresenceRow {
   avatar_url?: string | null;
 }
 
-interface PresencePayload extends PresenceRow {
+/**
+ * What the broadcast trigger actually sends — deliberately WITHOUT identity.
+ *
+ * `extends PresenceRow` used to make this type-check while being false at
+ * runtime: full_name/avatar_url are optional on PresenceRow, so TypeScript
+ * believed the payload carried them. It never has. Only list_order_presence
+ * (the SECURITY DEFINER reader) can cross the `users` RLS boundary.
+ */
+type PresencePayload = Omit<PresenceRow, "full_name" | "avatar_url"> & {
   op: "INSERT" | "UPDATE" | "DELETE";
-}
+};
 
 /** Topic must NOT start with `orders:market:` — agents may join that one. */
 export function presenceMarketTopic(marketId: string): string {
@@ -49,6 +57,12 @@ const TICK_MS = 10_000;
 
 /** One shared instance, so an unlocked row keeps a stable prop identity. */
 const NO_PRESENCE: PresenceRow[] = [];
+
+/**
+ * A burst of arrivals costs ONE identity fetch, not one each — the same
+ * coalescing window useOrdersRealtime uses for the orders list.
+ */
+const IDENTITY_COALESCE_MS = 300;
 
 /**
  * Who has which order open, for the manager's list.
@@ -116,6 +130,22 @@ export function useOrderLocks({
     },
   );
 
+  const identityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleIdentityRefetch = useCallback(() => {
+    if (identityTimerRef.current !== null) return;
+    identityTimerRef.current = setTimeout(() => {
+      identityTimerRef.current = null;
+      void mutate();
+    }, IDENTITY_COALESCE_MS);
+  }, [mutate]);
+
+  useEffect(
+    () => () => {
+      if (identityTimerRef.current !== null) clearTimeout(identityTimerRef.current);
+    },
+    [],
+  );
+
   const publish = useCallback(() => {
     setSignature(signatureOf(rowsRef.current, Date.now() + skewMsRef.current));
   }, []);
@@ -125,8 +155,27 @@ export function useOrderLocks({
     (payload) => {
       if (!payload?.order_id) return;
       const k = rowKey(payload);
-      if (payload.op === "DELETE") rowsRef.current.delete(k);
-      else rowsRef.current.set(k, payload);
+
+      if (payload.op === "DELETE") {
+        rowsRef.current.delete(k);
+        publish();
+        return;
+      }
+
+      // MERGE, never replace. The payload has no name or photo, so overwriting
+      // the row wholesale dropped the identity the HTTP reader had supplied —
+      // and the head flickered to "??" within one 25s heartbeat of appearing.
+      const prev = rowsRef.current.get(k);
+      rowsRef.current.set(k, {
+        ...payload,
+        full_name: prev?.full_name ?? null,
+        avatar_url: prev?.avatar_url ?? null,
+      });
+
+      // A row we have never seen over HTTP has no identity at all. Fetch it
+      // rather than drawing an anonymous head.
+      if (!prev) scheduleIdentityRefetch();
+
       // A pure heartbeat leaves the signature identical, so this is a no-op
       // re-render-wise — which is the point.
       publish();
@@ -137,15 +186,21 @@ export function useOrderLocks({
   // row. 10s rather than 60s: with a 75s TTL, a minute-long tick could show a
   // lock as held for a further minute after it died, and an indicator that
   // lies is worse than none. The timer does not run when there is nothing live.
+  // Gated on STATE, not on rowsRef. A ref is not a dependency, so the old guard
+  // (`rowsRef.current.size === 0`) made the timer's existence depend on arrival
+  // order: it bailed on first paint and only ever restarted by luck when
+  // `signature` happened to change. It also never stopped, because an expired
+  // row stays in the map.
+  const hasLive = signature.length > 0;
   useEffect(() => {
-    if (!enabled || rowsRef.current.size === 0) return;
+    if (!enabled || !hasLive) return;
     const t = setInterval(() => {
       if (document.visibilityState === "hidden") return;
       forceTick((n) => n + 1);
       publish();
     }, TICK_MS);
     return () => clearInterval(t);
-  }, [enabled, signature, publish]);
+  }, [enabled, hasLive, publish]);
 
   const live = useMemo(() => {
     const now = Date.now() + skewMsRef.current;

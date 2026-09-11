@@ -143,3 +143,26 @@ describe("InlineField", () => {
     });
   });
 });
+
+describe("InlineField — typing signal", () => {
+  it("reports activity on every keystroke, not only on commit", () => {
+    const onActivity = vi.fn();
+    render(<InlineField value="" onCommit={vi.fn()} onActivity={onActivity} />);
+    const input = screen.getByRole("textbox");
+
+    fireEvent.change(input, { target: { value: "a" } });
+    fireEvent.change(input, { target: { value: "ab" } });
+    fireEvent.change(input, { target: { value: "abc" } });
+
+    // A commit-only signal would raise the typing bubble on SAVE — after the
+    // typing is over, which is exactly backwards.
+    expect(onActivity).toHaveBeenCalledTimes(3);
+  });
+
+  it("works when no callback is supplied", () => {
+    render(<InlineField value="" onCommit={vi.fn()} />);
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "x" } });
+    expect((input as HTMLInputElement).value).toBe("x");
+  });
+});

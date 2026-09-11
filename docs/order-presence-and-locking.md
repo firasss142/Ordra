@@ -86,6 +86,30 @@ itself, so the first statement is refused and there is nothing to compensate.
 6. `assert_lock_guards_installed()` — run it after touching any guarded RPC. A
    later `CREATE OR REPLACE` would silently drop the guard otherwise.
 
+## The typing indicator, and the §7 exception
+
+A head whose person is typing shows a three-dot bubble in the corner, in place
+of the static live dot. `TypingDots` is shared by both surfaces so the manager's
+list and the agent's queue cannot drift.
+
+**This is a deliberate exception to design-system §7** ("no entrance animations,
+page transitions, or transforms"), recorded here so the next reader knows it was
+a decision:
+
+- §7 targets *decorative* motion. A static mark cannot distinguish "is editing
+  right now" from "edited at some point" — motion is the only honest rendering.
+- The product already makes this exception seven times for genuinely transient
+  states (`menuDrop`, `slideInEnd`, `scanPop`, …).
+- Confined to a ~16×9px bubble that exists only while someone types.
+- Honours `prefers-reduced-motion`: the dots hold still, the bubble stays.
+- The head's `aria-label` remains the source of truth (§4.17 D).
+
+`mode` is now a live state, not a latch. `useTypingMode` sets `editing` on real
+keystrokes (via `TypingActivityProvider` → every `InlineField`) and releases it
+after `TYPING_IDLE_MS` (4 s), on blur, and on panel close. Before this it was set
+once on the first commit and never cleared — survivable as a ring colour, an
+outright lie as a typing bubble.
+
 ## Also fixed on the way
 
 - `useOrderDetailRealtime` tested `newRow.assigned_to` for **truthiness**, so a
@@ -97,6 +121,18 @@ itself, so the first statement is refused and there is nothing to compensate.
   it. Now open to managers and super_admins, and added on `confirmed`.
 - `recomputeTotal` in `items/[itemId]/route.ts` discarded its error entirely.
 - `AssignBoard` reported `ids.length` instead of what the server assigned.
+- **The agent's head icon flickered** ("sometimes they appear and sometimes
+  not"). Two independent causes, both now fixed and covered by tests:
+  1. `useOrderLocks` stored the realtime payload **verbatim** over the row it
+     already had. The broadcast carries no `full_name`/`avatar_url` — only
+     `list_order_presence` does — so every 25 s heartbeat wiped the identity and
+     the head fell back to `"??"`. It now **merges**, and a row first seen over
+     the socket triggers one 300 ms-coalesced identity fetch. `PresencePayload`
+     no longer `extends PresenceRow`, which is what let the bug type-check.
+  2. The expiry tick was gated on `rowsRef.current.size`, a **ref** — not a
+     dependency, so the effect bailed on first paint and only restarted when
+     `signature` happened to change. It is now gated on state, which also stops
+     the timer running forever once the last row expires.
 
 ## Verified
 

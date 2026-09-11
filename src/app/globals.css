@@ -863,3 +863,40 @@
 .wh-console .hover\:border-line-strong:hover { border-color: var(--wh-border-strong); }
 .wh-console .focus\:bg-surface-card:focus   { background-color: var(--wh-surface); }
 .wh-console .focus\:border-ink-primary:focus { border-color: var(--wh-ok); }
+
+/*
+ * "…is typing", on a presence head.
+ *
+ * A deliberate exception to design-system §7 ("no entrance animations, page
+ * transitions, or transforms"). §7 targets DECORATIVE motion; this is the only
+ * honest way to show an action in progress — a static mark cannot tell "is
+ * editing right now" from "edited at some point". It is confined to a ~16x9px
+ * bubble that exists only while someone types and vanishes ~4s after they stop
+ * (useTypingMode), and the meaning is carried by the head's aria-label either
+ * way, per §4.17 D.
+ */
+@keyframes typingDot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.4;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+.typing-dot {
+  animation: typingDot 1.1s ease-in-out infinite;
+}
+
+/* Motion is the flourish, not the message: without it the bubble still reads. */
+@media (prefers-reduced-motion: reduce) {
+  .typing-dot {
+    animation: none;
+    opacity: 0.9;
+    transform: none;
+  }
+}
