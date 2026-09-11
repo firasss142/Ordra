@@ -33,6 +33,22 @@ vi.mock("@/hooks/useOrderMutation", async () => {
   };
 });
 
+// Sibling realtime hooks: both need a <RealtimeProvider> this suite does not
+// mount. Stubbed together so adding one to the panel cannot break the suite in
+// isolation again — see docs/orders-page-performance.md §7.
+vi.mock("@/hooks/useOrderLocks", () => ({
+  useOrderLocks: () => ({
+    lockOf: () => null,
+    presenceOf: () => [],
+    othersOn: () => [],
+    refresh: () => {},
+  }),
+}));
+
+vi.mock("@/hooks/useOrderPresence", () => ({
+  useOrderPresence: () => ({ blockingAgent: null, sessionId: "test-session" }),
+}));
+
 vi.mock("@/hooks/useOrderDetailRealtime", () => ({
   useOrderDetailRealtime: () => {},
 }));

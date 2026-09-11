@@ -9,6 +9,7 @@ import type { QueueOrder } from "@/types/queue";
 import type { BucketKey } from "./QueueHeader";
 import type { ParsedQuery } from "@/lib/queue/search";
 import { QUEUE_ROW_GRID, QUEUE_ROW_SPACING } from "./row-grid";
+import type { PresenceRow } from "@/hooks/useOrderLocks";
 
 interface QueueStats {
   assigned_count: number;
@@ -18,6 +19,8 @@ interface QueueStats {
 
 interface QueueListProps {
   orders: QueueOrder[];
+  /** Who (other than this agent) has each order open. Advisory. */
+  presenceOn?: (orderId: string) => PresenceRow[];
   onOpenDetail: (orderId: string) => void;
   onCallTerminated: (orderId: string) => void;
   onRefresh?: () => void;
@@ -55,6 +58,7 @@ function StatCell({ value, label }: { value: string; label: string }) {
 }
 
 export function QueueList({
+  presenceOn,
   orders,
   onOpenDetail,
   onCallTerminated,
@@ -190,6 +194,7 @@ export function QueueList({
           <OrderCard
             key={order.id}
             order={order}
+            presenceRows={presenceOn?.(order.id)}
             onOpenDetail={onOpenDetail}
             onCallTerminated={onCallTerminated}
             focused={focusedOrderId === order.id}

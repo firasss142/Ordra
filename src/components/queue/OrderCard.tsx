@@ -25,9 +25,13 @@ import type { BucketKey } from "./QueueHeader";
 import { highlightSegments, type HighlightSegment } from "@/lib/queue/highlight";
 import type { ParsedQuery, SearchField } from "@/lib/queue/search";
 import { QUEUE_ROW_GRID, QUEUE_ROW_SPACING } from "./row-grid";
+import { ManagerPresenceMark } from "./ManagerPresenceMark";
+import type { PresenceRow } from "@/hooks/useOrderLocks";
 
 interface OrderCardProps {
   order: QueueOrder;
+  /** Managers/admins standing on this order. Advisory — never blocks the agent. */
+  presenceRows?: PresenceRow[];
   onOpenDetail: (orderId: string) => void;
   onCallTerminated: (orderId: string) => void;
   maxAttempts?: number;
@@ -145,6 +149,7 @@ const RAIL: Record<string, string> = {
 
 export const OrderCard = memo(function OrderCard({
   order,
+  presenceRows,
   onOpenDetail,
   onCallTerminated,
   maxAttempts = 3,
@@ -304,6 +309,13 @@ export const OrderCard = memo(function OrderCard({
           <span className="min-w-0 truncate text-[15px] font-semibold tracking-[-0.005em] text-agent-on-surface">
             <Highlighted value={order.customer_name} field="name" query={highlightQuery} />
           </span>
+
+          {/* Someone from the office is in this order. Advisory only: the agent
+              keeps working, and the ring says whether they are reading or
+              changing something. */}
+          {presenceRows && presenceRows.length > 0 && (
+            <ManagerPresenceMark rows={presenceRows} />
+          )}
 
           {showBadges && (
             <span className="inline-flex shrink-0 items-center gap-1">

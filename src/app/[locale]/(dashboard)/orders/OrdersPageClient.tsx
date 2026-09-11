@@ -75,6 +75,8 @@ interface Agent {
   full_name: string;
   is_active: boolean;
   market_id: string;
+  /** /api/agents already returns this; the type used to drop it. */
+  avatar_url?: string | null;
 }
 interface Product {
   id: string;
@@ -380,10 +382,12 @@ export function OrdersPageClient({
   // Managers and super_admins only: agents never see presence, by decision.
   const canSeePresence = isSuperAdmin || role === "market_manager";
   const [lockedDialog, setLockedDialog] = useState<OrderLockInfo | null>(null);
-  const { presenceOf, refresh: refreshLocks } = useOrderLocks({
+  const { othersOn, presenceOf, refresh: refreshLocks } = useOrderLocks({
     marketId: effectiveMarketId ?? userMarketId ?? null,
     enabled: canSeePresence,
+    selfId: userId,
   });
+
 
   const forceReleaseLock = useCallback(async () => {
     const orderId = lockedDialog?.order_id;
@@ -793,7 +797,7 @@ export function OrdersPageClient({
       {/* ── Orders table wrapped in card ── */}
       <div className="bg-surface-card border border-line-subtle rounded-[8px] overflow-hidden">
         <OrdersTable
-          presenceOf={canSeePresence ? presenceOf : undefined}
+          presenceOf={canSeePresence ? othersOn : undefined}
           rows={rows}
           locale={locale}
           currencyCode={currencyCode}

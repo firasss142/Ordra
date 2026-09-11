@@ -7,6 +7,8 @@ import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
 import { classifyOrderAge, formatOrderAge, AGE_TONE } from "@/lib/orders/order-age";
 import { resolveSlaChip, type SlaState } from "@/lib/orders/sla";
 import { formatDateTime } from "@/lib/format";
+import { ManagerPresenceMark } from "../ManagerPresenceMark";
+import type { PresenceRow } from "@/hooks/useOrderLocks";
 
 /** Amber while it runs, red past the target, green once it was met. */
 const SLA_TONE: Record<SlaState, string> = {
@@ -42,6 +44,8 @@ export interface PanelHeaderProps {
   onChangeStatus?: () => void;
   /** Inline save-flash signal coming from inline-edit commits. */
   saveFlash: "saved" | "error" | null;
+  /** Other people in this order right now. Advisory; blocks nothing. */
+  presenceRows?: PresenceRow[];
   /** Optional carrier-barcode pulled-back chip (e.g. "Dexpress annulé"). */
   carrierDeletedChip?: { label: string; tooltip: string } | null;
   onClose: () => void;
@@ -73,6 +77,7 @@ export function PanelHeader({
   maxAttempts,
   onChangeStatus,
   saveFlash,
+  presenceRows,
   carrierDeletedChip,
   onClose,
 }: PanelHeaderProps) {
@@ -155,6 +160,12 @@ export function PanelHeader({
             <RotateCcw size={10} strokeWidth={2} aria-hidden="true" />
             {carrierDeletedChip.label}
           </span>
+        ) : null}
+
+        {/* Who else is in here. The agent stays free to work; the ring only
+            says whether the office is reading or changing something. */}
+        {presenceRows && presenceRows.length > 0 ? (
+          <ManagerPresenceMark rows={presenceRows} size={16} />
         ) : null}
 
         {saveFlash === "saved" ? (

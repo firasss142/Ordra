@@ -9,10 +9,13 @@ import { PAGE_SIZE_OPTIONS } from "@/lib/orders/list-filters";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { OrderRow } from "./OrderRow";
 import type { PresenceRow } from "@/hooks/useOrderLocks";
+import type { PresencePerson } from "./PresenceIndicator";
 
 interface Agent {
   id: string;
   full_name: string;
+  /** Already on the wire from /api/agents; the type just used to drop it. */
+  avatar_url?: string | null;
 }
 
 interface Props {
@@ -39,8 +42,8 @@ interface Props {
   onDuplicateChange?: () => void;
   /** Who has each order open. Undefined for roles that never see presence. */
   presenceOf?: (orderId: string) => PresenceRow[];
-  /** Names for presence rows that are not the assignee (managers, admins). */
-  memberNameById?: Map<string, string>;
+  /** Optional override; presence rows normally carry their own identity. */
+  memberById?: Map<string, PresencePerson>;
   isLoading: boolean;
   isEmpty: boolean;
 }
@@ -68,7 +71,7 @@ export function OrdersTable({
   onRecover,
   onDuplicateChange,
   presenceOf,
-  memberNameById,
+  memberById,
   isLoading,
   isEmpty,
 }: Props) {
@@ -83,9 +86,21 @@ export function OrdersTable({
 
   // Names are already on this page, so a presence payload never has to carry
   // one: four small fields per row is the whole wire cost of the indicator.
-  const presenceNameOf = useCallback(
-    (userId: string) => agentNameById.get(userId) ?? memberNameById?.get(userId) ?? null,
-    [agentNameById, memberNameById],
+  const agentById = useMemo(() => {
+    const m = new Map<string, Agent>();
+    for (const a of agents) m.set(a.id, a);
+    return m;
+  }, [agents]);
+
+  // Names and photos are already on this page, so a presence payload never has
+  // to carry one: four small fields per row is the whole wire cost.
+  const presencePersonOf = useCallback(
+    (userId: string): PresencePerson | null => {
+      const a = agentById.get(userId);
+      if (a) return { full_name: a.full_name, avatar_url: a.avatar_url ?? null };
+      return memberById?.get(userId) ?? null;
+    },
+    [agentById, memberById],
   );
 
 
@@ -168,7 +183,10 @@ export function OrdersTable({
                 currencyCode={currencyCode}
                 agentName={r.assigned_to ? agentNameById.get(r.assigned_to) ?? null : null}
                 presenceRows={presenceOf?.(r.id)}
-                presenceNameOf={presenceNameOf}
+                presencePersonOf={presenceOf ? presencePersonOf : undefined}
+                agentAvatarUrl={
+                  r.assigned_to ? agentById.get(r.assigned_to)?.avatar_url ?? null : null
+                }
                 labels={{
                   status: tStatus(r.status),
                   unassigned: t("unassigned"),

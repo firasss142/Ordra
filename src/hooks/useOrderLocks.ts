@@ -11,6 +11,9 @@ export interface PresenceRow {
   mode: "viewing" | "editing";
   opened_at: string;
   expires_at: string;
+  /** Embedded by GET /api/orders/presence — see the note there. */
+  full_name?: string | null;
+  avatar_url?: string | null;
 }
 
 interface PresencePayload extends PresenceRow {
@@ -21,6 +24,23 @@ interface PresencePayload extends PresenceRow {
 export function presenceMarketTopic(marketId: string): string {
   return `order_presence:market:${marketId}`;
 }
+
+/**
+ * An agent's own topic. Exact-match in the realtime.messages policy, so an
+ * agent can only ever join theirs and never sees another agent's traffic.
+ */
+export function presenceAgentTopic(userId: string): string {
+  return `order_presence:agent:${userId}`;
+}
+
+/**
+ * Which slice of presence this viewer is entitled to.
+ *   market → super_admin / market_manager: everyone in the market.
+ *   agent  → that agent: their own rows plus anyone standing on their orders.
+ */
+export type PresenceScope =
+  | { kind: "market" }
+  | { kind: "agent"; userId: string };
 
 export const PRESENCE_EVENT = "presence_changed";
 
@@ -47,16 +67,30 @@ const NO_PRESENCE: PresenceRow[] = [];
 export function useOrderLocks({
   marketId,
   enabled,
+  scope = { kind: "market" },
+  selfId,
 }: {
   marketId: string | null;
   enabled: boolean;
+  scope?: PresenceScope;
+  /** The viewer, so `othersOn` can leave them out of their own indicator. */
+  selfId?: string | null;
 }) {
   const rowsRef = useRef<Map<string, PresenceRow>>(new Map());
   const skewMsRef = useRef(0);
   const [signature, setSignature] = useState("");
   const [, forceTick] = useState(0);
 
-  const key = enabled && marketId ? "/api/orders/presence" : null;
+  const topic =
+    scope.kind === "agent"
+      ? presenceAgentTopic(scope.userId)
+      : marketId
+        ? presenceMarketTopic(marketId)
+        : null;
+
+  // An agent's rows come from RLS, not from a market id, so they do not need
+  // one to subscribe.
+  const key = enabled && (scope.kind === "agent" || marketId) ? "/api/orders/presence" : null;
 
   const { mutate } = useSWR(
     key,
@@ -87,7 +121,7 @@ export function useOrderLocks({
   }, []);
 
   useRealtimeBroadcast<PresencePayload>(
-    enabled && marketId ? { topic: presenceMarketTopic(marketId), event: PRESENCE_EVENT } : null,
+    enabled && topic ? { topic, event: PRESENCE_EVENT } : null,
     (payload) => {
       if (!payload?.order_id) return;
       const k = rowKey(payload);
@@ -146,7 +180,25 @@ export function useOrderLocks({
     [live],
   );
 
-  return { lockOf, presenceOf, refresh: mutate };
+  /**
+   * Everyone present on this order EXCEPT the viewer.
+   *
+   * Seeing your own head on a row you just closed reads as "someone else is in
+   * here" for as long as the row survives — up to a full TTL. The acquire RPC
+   * and the broadcast trigger both drop self already; the list endpoint was the
+   * one place that convention went missing.
+   */
+  const othersOn = useCallback(
+    (orderId: string): PresenceRow[] => {
+      const rows = live.get(orderId);
+      if (!rows) return NO_PRESENCE;
+      const others = selfId ? rows.filter((r) => r.user_id !== selfId) : rows;
+      return others.length === 0 ? NO_PRESENCE : others;
+    },
+    [live, selfId],
+  );
+
+  return { lockOf, presenceOf, othersOn, refresh: mutate };
 }
 
 function rowKey(r: { order_id: string; user_id: string }) {

@@ -88,6 +88,7 @@ import { usePrimaryAction } from "./usePrimaryAction";
 import type { PanelActionKind } from "./types";
 import { useOrderPresence } from "@/hooks/useOrderPresence";
 import { OrderTakeoverScreen } from "../OrderTakeoverScreen";
+import { useOrderLocks } from "@/hooks/useOrderLocks";
 
 const ScheduleDispatchModal = dynamic(
   () => import("../ScheduleDispatchModal").then((m) => m.ScheduleDispatchModal),
@@ -395,6 +396,15 @@ export function OrderDetailPanel({
   const [presenceMode, setPresenceMode] = useState<"viewing" | "editing">("viewing");
   const [takenOverBy, setTakenOverBy] = useState<string | null>(null);
   const [wasTakenOver, setWasTakenOver] = useState(false);
+
+  // Who else is in this order, for the header. Scoped to this viewer: an agent
+  // sees managers standing on their own orders; a manager sees the market.
+  const { othersOn } = useOrderLocks({
+    marketId: null,
+    enabled: Boolean(userId && orderId),
+    scope: role === "agent" && userId ? { kind: "agent", userId } : { kind: "market" },
+    selfId: userId ?? null,
+  });
 
   useOrderPresence({
     orderId,
@@ -1256,6 +1266,7 @@ export function OrderDetailPanel({
           attemptsCount={order?.attempts_count}
           maxAttempts={maxCallAttempts}
           saveFlash={saveFlash}
+          presenceRows={orderId ? othersOn(orderId) : undefined}
           carrierDeletedChip={
             order?.carrier_barcode_deleted_at && !order.tracking_number
               ? {

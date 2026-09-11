@@ -137,3 +137,49 @@ describe("useOrderLocks — render stability", () => {
     expect(result.current.presenceOf("o-1")).toBe(before);
   });
 });
+
+describe("useOrderLocks — agent scope", () => {
+  test("an agent subscribes to their OWN topic, never the market-wide one", async () => {
+    renderHook(
+      () => useOrderLocks({ marketId: "m-1", enabled: true, scope: { kind: "agent", userId: "a-7" } }),
+      { wrapper },
+    );
+    await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+    const names = channels.map((c) => c.name);
+    expect(names.some((n) => n.includes("order_presence:agent:a-7"))).toBe(true);
+    // The market topic is manager-only in realtime.messages RLS; an agent
+    // joining it would be refused anyway, and asking is a bug.
+    expect(names.some((n) => n.includes("order_presence:market:"))).toBe(false);
+  });
+
+  test("othersOn excludes the viewer's own row", async () => {
+    fetchMock.mockImplementation(() =>
+      Promise.resolve({
+        ok: true, status: 200,
+        json: () => Promise.resolve({
+          data: [
+            { order_id: "o-1", user_id: "me", role: "agent", mode: "editing",
+              opened_at: NOW.toISOString(), expires_at: soon(75) },
+            { order_id: "o-1", user_id: "mgr", role: "market_manager", mode: "viewing",
+              opened_at: NOW.toISOString(), expires_at: soon(75) },
+          ],
+          server_now: NOW.toISOString(),
+        }),
+      } as Response));
+
+    const { result } = renderHook(
+      () =>
+        useOrderLocks({
+          marketId: "m-1",
+          enabled: true,
+          scope: { kind: "agent", userId: "me" },
+          selfId: "me",
+        }),
+      { wrapper },
+    );
+    await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+
+    const others = result.current.othersOn("o-1");
+    expect(others.map((r) => r.user_id)).toEqual(["mgr"]);
+  });
+});

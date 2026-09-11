@@ -13,45 +13,71 @@ const agent = {
 };
 const manager = { ...agent, user_id: "m-1", role: "market_manager" as const, mode: "viewing" as const };
 
-describe("PresenceIndicator", () => {
-  it("renders nothing when nobody is present", () => {
-    const { container } = render(<PresenceIndicator rows={[]} nameOf={() => null} now={NOW} />);
-    expect(container).toBeEmptyDOMElement();
+const person = (id: string) =>
+  id === "a-1"
+    ? { full_name: "Salima", avatar_url: "https://x/s.jpg" }
+    : id === "m-1"
+      ? { full_name: "Imen", avatar_url: null }
+      : null;
+
+const base = { assigneeName: "Salima", assigneeAvatarUrl: "https://x/s.jpg", personOf: person, now: NOW };
+
+describe("PresenceIndicator — the assignee avatar IS the indicator", () => {
+  it("renders the assignee avatar even when nobody is present", () => {
+    render(<PresenceIndicator {...base} rows={[]} />);
+    expect(screen.getByTestId("assignee-avatar")).toBeInTheDocument();
   });
 
-  // design-system §4.17 D: a colour signal must never be the only carrier of
-  // meaning — it has to survive greyscale and a screen reader.
-  it("names the holder and the elapsed time in accessible text", () => {
-    render(<PresenceIndicator rows={[agent]} nameOf={() => "Salima"} now={NOW} />);
-    const el = screen.getByRole("img");
-    expect(el.getAttribute("aria-label")).toMatch(/Salima/);
-    expect(el.getAttribute("aria-label")).toMatch(/5 min/);
+  // One face, not two: no extra head is appended beside the name.
+  it("adds no second avatar when the assignee is the one present", () => {
+    render(<PresenceIndicator {...base} rows={[agent]} />);
+    expect(screen.queryAllByTestId("extra-presence")).toHaveLength(0);
   });
 
-  it("marks an agent as blocking and a manager as not", () => {
-    const { rerender } = render(<PresenceIndicator rows={[agent]} nameOf={() => "Salima"} now={NOW} />);
-    expect(screen.getByRole("img").getAttribute("data-blocking")).toBe("true");
-
-    rerender(<PresenceIndicator rows={[manager]} nameOf={() => "Imen"} now={NOW} />);
-    expect(screen.getByRole("img").getAttribute("data-blocking")).toBe("false");
+  it("rings the assignee avatar when they have the order open", () => {
+    render(<PresenceIndicator {...base} rows={[agent]} />);
+    expect(screen.getByTestId("assignee-avatar").getAttribute("data-presence")).toBe("agent");
   });
 
-  it("distinguishes consulte from modifie", () => {
-    const { rerender } = render(<PresenceIndicator rows={[manager]} nameOf={() => "Imen"} now={NOW} />);
-    expect(screen.getByRole("img").getAttribute("data-mode")).toBe("viewing");
-
-    rerender(<PresenceIndicator rows={[{ ...manager, mode: "editing" }]} nameOf={() => "Imen"} now={NOW} />);
-    expect(screen.getByRole("img").getAttribute("data-mode")).toBe("editing");
+  it("leaves the avatar unringed when nobody is in the order", () => {
+    render(<PresenceIndicator {...base} rows={[]} />);
+    expect(screen.getByTestId("assignee-avatar").getAttribute("data-presence")).toBe("none");
   });
 
-  it("puts the blocking agent first when several people are present", () => {
-    render(<PresenceIndicator rows={[manager, agent]} nameOf={(id) => (id === "a-1" ? "Salima" : "Imen")} now={NOW} />);
-    expect(screen.getAllByRole("img")[0].getAttribute("data-blocking")).toBe("true");
+  // design-system §4.17 D — colour is never the only carrier of meaning.
+  it("names the person and the elapsed time in accessible text", () => {
+    render(<PresenceIndicator {...base} rows={[agent]} />);
+    expect(screen.getByRole("img").getAttribute("aria-label")).toMatch(/Salima/);
+    expect(screen.getByRole("img").getAttribute("aria-label")).toMatch(/5 min/);
+  });
+
+  it("shows a manager who is NOT the assignee as an extra head", () => {
+    render(<PresenceIndicator {...base} rows={[manager]} />);
+    const extra = screen.getAllByTestId("extra-presence");
+    expect(extra).toHaveLength(1);
+    expect(extra[0].getAttribute("data-mode")).toBe("viewing");
+  });
+
+  it("distinguishes a manager reading from a manager editing", () => {
+    render(<PresenceIndicator {...base} rows={[{ ...manager, mode: "editing" }]} />);
+    expect(screen.getByTestId("extra-presence").getAttribute("data-mode")).toBe("editing");
+  });
+
+  it("never draws a present person as the dashed unassigned placeholder", () => {
+    // An unnamed head rendered as "+" reads as "unassigned, act on this"
+    // everywhere else in the product — the opposite of "someone is in here".
+    render(<PresenceIndicator {...base} rows={[{ ...manager, user_id: "ghost" }]} />);
+    expect(screen.getByTestId("extra-presence").textContent).not.toBe("+");
   });
 
   it("ignores rows that have already expired", () => {
     const stale = { ...agent, expires_at: "2026-09-10T10:04:00.000Z" };
-    const { container } = render(<PresenceIndicator rows={[stale]} nameOf={() => "Salima"} now={NOW} />);
-    expect(container).toBeEmptyDOMElement();
+    render(<PresenceIndicator {...base} rows={[stale]} />);
+    expect(screen.getByTestId("assignee-avatar").getAttribute("data-presence")).toBe("none");
+  });
+
+  it("still renders for an unassigned order with a manager inside", () => {
+    render(<PresenceIndicator {...base} assigneeName={null} assigneeAvatarUrl={null} rows={[manager]} />);
+    expect(screen.getByTestId("extra-presence")).toBeInTheDocument();
   });
 });
