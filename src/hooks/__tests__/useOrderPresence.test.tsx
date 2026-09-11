@@ -242,3 +242,76 @@ describe("useOrderPresence — mode is pushed, not sampled", () => {
     expect(last.mode).toBe("editing");
   });
 });
+
+/**
+ * `acquire` answers 200 `{tracked:false}` — WITHOUT creating a row — when an
+ * agent opens an order they no longer own, or one past its lockable statuses.
+ * Recording a published mode there defeats the very guard that is supposed to
+ * keep a keystroke from heartbeating a row that does not exist.
+ */
+describe("useOrderPresence — an untracked acquire is not a row", () => {
+  const renderWithMode = (mode: "viewing" | "editing") =>
+    renderHook(({ m }) => useOrderPresence({ orderId: "o-1", role: "agent", mode: m }), {
+      initialProps: { m: mode },
+    });
+
+  test("never heartbeats after an untracked acquire, so typing cannot fake a takeover", async () => {
+    fetchMock.mockImplementation(() =>
+      jsonOk({ data: { tracked: false, blocking_agent: null } }),
+    );
+    const { rerender } = renderWithMode("viewing");
+    await act(async () => { await Promise.resolve(); });
+    fetchMock.mockClear();
+
+    rerender({ m: "editing" });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("an untracked acquire never fires onLockLost", async () => {
+    const onLockLost = vi.fn();
+    fetchMock.mockImplementation(() =>
+      jsonOk({ data: { tracked: false, blocking_agent: null } }),
+    );
+    const { rerender } = renderHook(
+      ({ m }) => useOrderPresence({ orderId: "o-1", role: "agent", mode: m, onLockLost }),
+      { initialProps: { m: "viewing" as "viewing" | "editing" } },
+    );
+    await act(async () => { await Promise.resolve(); });
+
+    // The keystroke that used to throw the agent onto the takeover screen.
+    fetchMock.mockImplementation(() => jsonOk({ code: "lock_lost" }, 409));
+    rerender({ m: "editing" });
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+
+    expect(onLockLost).not.toHaveBeenCalled();
+  });
+
+  // A release resolving late must not clobber a newer acquire's state, or mode
+  // pushes die silently for the rest of that mount (StrictMode double-invoke).
+  test("a late release does not disable mode pushes for a later acquire", async () => {
+    const { rerender, unmount } = renderWithMode("viewing");
+    await act(async () => { await Promise.resolve(); });
+
+    let landRelease = () => {};
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          landRelease = () => resolve({ ok: true, status: 204 } as Response);
+        }),
+    );
+    unmount();
+
+    // A fresh panel acquires while the previous release is still in flight.
+    const second = renderWithMode("viewing");
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { landRelease(); await Promise.resolve(); });
+    fetchMock.mockClear();
+
+    second.rerender({ m: "editing" });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(bodyOf(fetchMock.mock.calls[0]).mode).toBe("editing");
+  });
+});

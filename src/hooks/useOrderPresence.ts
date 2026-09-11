@@ -58,9 +58,19 @@ export function useOrderPresence({ orderId, role, mode = "viewing", onLockLost }
    */
   const publishedModeRef = useRef<"viewing" | "editing" | null>(null);
 
+  /**
+   * Bumped whenever the row this tab owns is abandoned (release, unmount, lock
+   * lost). A response carrying a stale generation may still be read for its
+   * body, but must never write `publishedModeRef` — otherwise a release
+   * resolving after a re-acquire nulls the ref and mode pushes die silently for
+   * the rest of the mount.
+   */
+  const generationRef = useRef(0);
+
   const post = useCallback(
     async (action: "acquire" | "heartbeat" | "release", id: string) => {
       const sent = modeRef.current;
+      const generation = generationRef.current;
       const res = await fetch(`/api/orders/${id}/presence`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -71,22 +81,43 @@ export function useOrderPresence({ orderId, role, mode = "viewing", onLockLost }
         }),
       });
 
+      const current = () => generationRef.current === generation;
+
       if (res.status === 409) {
         // Only a heartbeat answers lock_lost, and only when the row is gone.
-        publishedModeRef.current = null;
+        if (current()) {
+          generationRef.current += 1;
+          publishedModeRef.current = null;
+        }
         onLockLostRef.current?.();
         return null;
       }
       if (!res.ok) return null;
 
-      // Record what the server now believes only once it has agreed to it, so a
+      // A release owns no mode, and its late resolution must not speak for the
+      // acquire that replaced it.
+      if (res.status === 204 || action === "release") return null;
+
+      const body = (await res.json()) as {
+        data?: { tracked?: boolean; blocking_agent?: BlockingAgent | null };
+      };
+      const data = body.data ?? null;
+
+      // `acquire` answers 200 `{tracked:false}` WITHOUT creating a row — an
+      // agent on an order they no longer own, or past its lockable statuses.
+      // Recording a mode there would let the next keystroke heartbeat a row
+      // that does not exist, drawing a 409 and throwing the agent onto the
+      // takeover screen when nothing was ever taken.
+      if (action === "acquire" && data?.tracked === false) {
+        if (current()) publishedModeRef.current = null;
+        return data;
+      }
+
+      // Record what the server believes only once it has agreed to it, so a
       // dropped request is retried by the next transition rather than swallowed.
-      publishedModeRef.current = action === "release" ? null : sent;
+      if (current()) publishedModeRef.current = sent;
 
-      if (res.status === 204) return null;
-
-      const body = (await res.json()) as { data?: { blocking_agent?: BlockingAgent | null } };
-      return body.data ?? null;
+      return data;
     },
     [],
   );
@@ -125,6 +156,10 @@ export function useOrderPresence({ orderId, role, mode = "viewing", onLockLost }
       stopBeating();
       timer = setInterval(() => {
         if (document.visibilityState === "hidden") return;
+        // No row to keep alive: an untracked acquire (an order this agent no
+        // longer owns, or past its lockable statuses) creates none. Beating one
+        // draws a 409 and a takeover screen for an order nobody took.
+        if (publishedModeRef.current === null) return;
         void post("heartbeat", orderId);
       }, LOCK_HEARTBEAT_MS);
     };
@@ -176,6 +211,7 @@ export function useOrderPresence({ orderId, role, mode = "viewing", onLockLost }
       // The page is still alive here, so a normal fetch is fine and more
       // reliable than a beacon. Expiry is the backstop either way.
       void post("release", orderId);
+      generationRef.current += 1;
       publishedModeRef.current = null;
       setBlockingAgent(null);
     };

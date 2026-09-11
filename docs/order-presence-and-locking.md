@@ -100,7 +100,7 @@ a decision:
   right now" from "edited at some point" — motion is the only honest rendering.
 - The product already makes this exception seven times for genuinely transient
   states (`menuDrop`, `slideInEnd`, `scanPop`, …).
-- Confined to a ~16×9px bubble that exists only while someone types.
+- Confined to a ~28×15px bubble that exists only while someone types.
 - Honours `prefers-reduced-motion`: the dots hold still, the bubble stays.
 - The head's `aria-label` remains the source of truth (§4.17 D).
 
@@ -136,6 +136,24 @@ Two rules keep the push honest:
 
 `publishedModeRef` is also what dedupes: every keystroke re-renders the panel,
 but only a change of `mode` may cost a request.
+
+**`tracked: false` is not a row.** `acquire_order_presence` answers 200 with
+`{tracked: false}` and creates **nothing** when an agent opens an order they no
+longer own or one past `order_presence_agent_lockable_statuses()`. The first
+cut recorded a published mode on any 200, which defeated the null guard in
+exactly the case it was written for: the next keystroke heartbeat found no row,
+drew `409 lock_lost`, and threw the agent onto the **takeover screen for an
+order nobody had taken**. `post` now gates on `tracked`, and the 25 s interval
+skips the beat entirely while no row is known — that second path had the same
+bug already, just 25 s later instead of on the first keystroke.
+
+**A late `release` must not speak for the acquire that replaced it.** Responses
+carry a `generationRef` stamp taken before the fetch; a resolution whose
+generation is stale may still be read for its body but never writes
+`publishedModeRef`. Without it, a release resolving after a re-acquire nulls the
+ref and mode pushes die silently for the rest of that mount — reachable under
+React 18 StrictMode's double-invoke, and by any future caller that does not key
+the panel by order id (both current callers do).
 
 The bubble itself scales in (`typingBubbleIn`, 200 ms overshoot) rather than
 materialising — the "pop" the brief asked for. Its `transform-origin` stays

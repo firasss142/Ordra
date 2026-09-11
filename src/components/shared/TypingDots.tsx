@@ -12,7 +12,7 @@
  *  - The product already makes this exception seven times for genuinely
  *    transient states — menuDrop, slideInEnd, slideInStart, scanPop, fadeInUp,
  *    sidebar-menu-enter, sidebar-backdrop-enter.
- *  - It is confined to a ~16×9px bubble that exists ONLY while someone is
+ *  - It is confined to a ~28×15px bubble that exists ONLY while someone is
  *    actively typing, and vanishes ~4s after they stop (see useTypingMode).
  *  - It honours `prefers-reduced-motion`: the dots hold still and the bubble
  *    stays solid, so the meaning survives without the movement.

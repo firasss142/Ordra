@@ -870,14 +870,12 @@
  * A deliberate exception to design-system §7 ("no entrance animations, page
  * transitions, or transforms"). §7 targets DECORATIVE motion; this is the only
  * honest way to show an action in progress — a static mark cannot tell "is
- * editing right now" from "edited at some point". It is confined to a ~16x9px
+ * editing right now" from "edited at some point". It is confined to a ~28x15px
  * bubble that exists only while someone types and vanishes ~4s after they stop
  * (useTypingMode), and the meaning is carried by the head's aria-label either
- * way, per §4.17 D.
+ * way, per §4.17 D. Both the entrance pop and the dot loop are dropped under
+ * prefers-reduced-motion.
  */
-/* The typing bubble. The motion is argued in TypingDots.tsx: it is the only
-   honest way to draw an action that is happening right now. Both animations are
-   surrendered under prefers-reduced-motion, and the bubble still reads. */
 @keyframes typingBubbleIn {
   0% {
     opacity: 0;
