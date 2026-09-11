@@ -51,30 +51,61 @@ export function useOrderPresence({ orderId, role, mode = "viewing", onLockLost }
   const modeRef = useRef(mode);
   modeRef.current = mode;
 
+  /**
+   * The mode this tab has actually told the server about, or null while no row
+   * is known to exist. Not state: it must never trigger a render, and it is
+   * read inside effects that must not re-run when it moves.
+   */
+  const publishedModeRef = useRef<"viewing" | "editing" | null>(null);
+
   const post = useCallback(
     async (action: "acquire" | "heartbeat" | "release", id: string) => {
+      const sent = modeRef.current;
       const res = await fetch(`/api/orders/${id}/presence`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action,
           session_id: sessionIdRef.current,
-          mode: modeRef.current,
+          mode: sent,
         }),
       });
 
       if (res.status === 409) {
         // Only a heartbeat answers lock_lost, and only when the row is gone.
+        publishedModeRef.current = null;
         onLockLostRef.current?.();
         return null;
       }
       if (!res.ok) return null;
+
+      // Record what the server now believes only once it has agreed to it, so a
+      // dropped request is retried by the next transition rather than swallowed.
+      publishedModeRef.current = action === "release" ? null : sent;
+
       if (res.status === 204) return null;
 
       const body = (await res.json()) as { data?: { blocking_agent?: BlockingAgent | null } };
       return body.data ?? null;
     },
     [],
+  );
+
+  /**
+   * Push the current mode, if the server does not already have it.
+   *
+   * Returns without posting while `publishedModeRef` is null — there is no row
+   * to update until the acquire lands, and a heartbeat against a row that does
+   * not exist answers `409 lock_lost`, which would throw an agent onto the
+   * takeover screen for the crime of typing quickly.
+   */
+  const syncMode = useCallback(
+    (id: string) => {
+      if (publishedModeRef.current === null) return;
+      if (publishedModeRef.current === modeRef.current) return;
+      void post("heartbeat", id);
+    },
+    [post],
   );
 
   useEffect(() => {
@@ -100,8 +131,11 @@ export function useOrderPresence({ orderId, role, mode = "viewing", onLockLost }
 
     const acquire = async () => {
       const data = await post("acquire", orderId);
-      if (cancelled || !data) return;
-      setBlockingAgent(data.blocking_agent ?? null);
+      if (cancelled) return;
+      if (data) setBlockingAgent(data.blocking_agent ?? null);
+      // The viewer may have started typing during the round-trip; that
+      // transition was held back because there was no row to update yet.
+      syncMode(orderId);
     };
 
     void acquire();
@@ -142,9 +176,28 @@ export function useOrderPresence({ orderId, role, mode = "viewing", onLockLost }
       // The page is still alive here, so a normal fetch is fine and more
       // reliable than a beacon. Expiry is the backstop either way.
       void post("release", orderId);
+      publishedModeRef.current = null;
       setBlockingAgent(null);
     };
-  }, [orderId, role, post]);
+  }, [orderId, role, post, syncMode]);
+
+  /**
+   * Announce a mode change the moment it happens.
+   *
+   * `mode` used to ride the 25s heartbeat, while a typing burst only lasts
+   * TYPING_IDLE_MS (4s) — so the bubble had roughly a 4-in-25 chance of being
+   * sampled at all, and up to 25s of lag when it was. That is exactly the
+   * "very delayed, and sometimes it never shows" report.
+   *
+   * The rate is bounded by construction rather than by a throttle, which is why
+   * there is none: `mode` can only rise to "editing" once per burst, and can
+   * only fall back after 4s of continuous idle. Two small upserts per burst,
+   * against a table holding tens of rows.
+   */
+  useEffect(() => {
+    if (!orderId || !role) return;
+    syncMode(orderId);
+  }, [orderId, role, mode, syncMode]);
 
   return { blockingAgent, sessionId: sessionIdRef.current };
 }

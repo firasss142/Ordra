@@ -110,6 +110,38 @@ after `TYPING_IDLE_MS` (4 s), on blur, and on panel close. Before this it was se
 once on the first commit and never cleared — survivable as a ring colour, an
 outright lie as a typing bubble.
 
+### `mode` is pushed, never sampled
+
+`useTypingMode` decides the mode; `useOrderPresence` publishes it **on the
+transition**, with its own request.
+
+The first cut let `mode` ride the 25 s heartbeat, reasoning that the server
+would converge on its own. It does — but far too late to be true. A typing
+burst only lasts `TYPING_IDLE_MS` (4 s), so the heartbeat sampled an interval it
+was 21 s too slow to see: the bubble had roughly a **4-in-25 chance of ever
+appearing**, and up to 25 s of lag when it did. That is exactly the reported
+"very delayed, and sometimes it never shows".
+
+Two rules keep the push honest:
+
+- **No throttle, because the rate is bounded by construction.** `mode` can only
+  rise to `editing` once per burst and can only fall back after 4 s of unbroken
+  idle, so a burst costs at most two small upserts. A throttle here would
+  reintroduce the very lag it is meant to prevent.
+- **A transition is held until the acquire lands.** `publishedModeRef` is `null`
+  until the server has a row; heartbeating a row that does not exist yet answers
+  `409 lock_lost`, which would throw an agent onto the takeover screen for
+  typing quickly. `acquire` flushes any transition that happened during its own
+  round-trip.
+
+`publishedModeRef` is also what dedupes: every keystroke re-renders the panel,
+but only a change of `mode` may cost a request.
+
+The bubble itself scales in (`typingBubbleIn`, 200 ms overshoot) rather than
+materialising — the "pop" the brief asked for. Its `transform-origin` stays
+centred so the one rule mirrors cleanly under RTL, and both animations are
+dropped under `prefers-reduced-motion`.
+
 ## Also fixed on the way
 
 - `useOrderDetailRealtime` tested `newRow.assigned_to` for **truthiness**, so a

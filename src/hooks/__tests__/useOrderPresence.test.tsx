@@ -161,3 +161,84 @@ describe("useOrderPresence", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * The "sometimes the typing bubble never appears" bug.
+ *
+ * `mode` used to ride the 25s heartbeat while a typing burst only lasts
+ * TYPING_IDLE_MS (4s), so the bubble had roughly a 4-in-25 chance of being
+ * sampled at all, and up to 25s of lag when it was.
+ */
+describe("useOrderPresence — mode is pushed, not sampled", () => {
+  const renderWithMode = (mode: "viewing" | "editing") =>
+    renderHook(({ m }) => useOrderPresence({ orderId: "o-1", role: "agent", mode: m }), {
+      initialProps: { m: mode },
+    });
+
+  test("publishes a mode change immediately, not on the next 25s beat", async () => {
+    const { rerender } = renderWithMode("viewing");
+    await act(async () => { await Promise.resolve(); });
+    fetchMock.mockClear();
+
+    rerender({ m: "editing" });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = bodyOf(fetchMock.mock.calls[0]);
+    expect(body.action).toBe("heartbeat");
+    expect(body.mode).toBe("editing");
+  });
+
+  test("falling back to viewing is pushed too, so the bubble clears on time", async () => {
+    const { rerender } = renderWithMode("editing");
+    await act(async () => { await Promise.resolve(); });
+    fetchMock.mockClear();
+
+    rerender({ m: "viewing" });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(bodyOf(fetchMock.mock.calls[0]).mode).toBe("viewing");
+  });
+
+  // Every keystroke re-renders the panel; only a transition may cost a request.
+  test("does not post when a re-render leaves the mode unchanged", async () => {
+    const { rerender } = renderWithMode("editing");
+    await act(async () => { await Promise.resolve(); });
+    fetchMock.mockClear();
+
+    rerender({ m: "editing" });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // Heartbeating a row that does not exist yet answers 409 lock_lost, which
+  // would throw the agent onto the takeover screen for typing too fast.
+  test("holds a mode change until the acquire has landed, then flushes it", async () => {
+    let landAcquire = () => {};
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          landAcquire = () =>
+            resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve({ data: { tracked: true, blocking_agent: null } }),
+            } as Response);
+        }),
+    );
+
+    const { rerender } = renderWithMode("viewing");
+    rerender({ m: "editing" });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(bodyOf(fetchMock.mock.calls[0]).action).toBe("acquire");
+
+    await act(async () => { landAcquire(); await Promise.resolve(); await Promise.resolve(); });
+
+    const last = bodyOf(fetchMock.mock.calls[fetchMock.mock.calls.length - 1]);
+    expect(last.action).toBe("heartbeat");
+    expect(last.mode).toBe("editing");
+  });
+});

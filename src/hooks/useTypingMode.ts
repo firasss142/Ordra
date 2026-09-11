@@ -19,8 +19,10 @@ export const TYPING_IDLE_MS = 4_000;
  * was only a ring colour; with a Messenger-style typing bubble it would be an
  * outright lie.
  *
- * The heartbeat already carries `mode` every 25s, so the server converges on
- * its own — this needs no new endpoint.
+ * This hook only decides the mode. PUBLISHING it is useOrderPresence's job, and
+ * it must be pushed on the transition, not sampled by the 25s heartbeat — a
+ * burst lasts TYPING_IDLE_MS (4s), so sampling caught it about 4 times in 25.
+ * That assumption is what made the bubble look broken; see the hook's comment.
  */
 export function useTypingMode() {
   const [mode, setMode] = useState<"viewing" | "editing">("viewing");

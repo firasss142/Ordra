@@ -20,6 +20,10 @@
  * Accessibility: aria-hidden. The head's own aria-label already reads
  * "<name> modifie cette commande depuis N min" — that stays the source of
  * truth, per §4.17 D (colour, and motion, are never the only carrier).
+ *
+ * The 2px border is the same trick the control-room presence dot uses: it is
+ * the page colour, not a shadow, so the bubble lifts off the avatar underneath
+ * without breaking "zero shadows at rest".
  */
 export function TypingDots({ className = "" }: { className?: string }) {
   return (
@@ -27,8 +31,8 @@ export function TypingDots({ className = "" }: { className?: string }) {
       data-testid="typing-dots"
       aria-hidden="true"
       className={
-        "pointer-events-none inline-flex items-center gap-[2px] rounded-full " +
-        "border border-oms-surface bg-status-action px-[3px] py-[2px] " +
+        "typing-bubble pointer-events-none inline-flex items-center gap-[2.5px] rounded-full " +
+        "border-2 border-oms-surface bg-status-action px-[4px] py-[3.5px] " +
         className
       }
     >
@@ -36,8 +40,8 @@ export function TypingDots({ className = "" }: { className?: string }) {
         <span
           key={i}
           data-typing-dot
-          className="typing-dot block h-[3px] w-[3px] rounded-full bg-white"
-          style={{ animationDelay: `${i * 140}ms` }}
+          className="typing-dot block h-[3.5px] w-[3.5px] rounded-full bg-white"
+          style={{ animationDelay: `${i * 160}ms` }}
         />
       ))}
     </span>
