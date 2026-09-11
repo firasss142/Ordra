@@ -29,6 +29,7 @@ import { isBulkCallEligible } from "@/lib/order-permissions";
 import type { QueueOrder } from "@/types/queue";
 import { NO_SIBLINGS, sameQueueOrders } from "@/lib/agent-queue/stable-orders";
 import { bucketFor, type Bucket } from "@/lib/carriers/buckets";
+import { useOrderLocks } from "@/hooks/useOrderLocks";
 
 const OrderDetailPanel = dynamic(() =>
   import("./OrderDetailPanel").then((m) => m.OrderDetailPanel), { ssr: false }
@@ -386,6 +387,17 @@ export function QueuePage() {
 
   const { data: settingsData } = useSWR("/api/agent/settings", jsonFetcher, {
     refreshInterval: 0,
+  });
+
+  // Who is standing on the agent's orders. Advisory only — a manager blocks
+  // the agent from nothing; this just stops interference being invisible.
+  // `othersOn` drops the agent's own row, which is always there while a panel
+  // is open and would otherwise draw a head on every order they touch.
+  const { othersOn: managersOn } = useOrderLocks({
+    marketId: null,
+    enabled: Boolean(user?.id),
+    scope: user?.id ? { kind: "agent", userId: user.id } : { kind: "market" },
+    selfId: user?.id ?? null,
   });
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -851,6 +863,7 @@ export function QueuePage() {
       )}
 
       <QueueList
+        presenceOn={managersOn}
         orders={displayedOrders}
         onOpenDetail={setSelectedOrderId}
         onCallTerminated={handleCallTerminated}

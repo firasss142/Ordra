@@ -121,6 +121,15 @@ export interface WarehouseSummary {
   scope: "all" | "single";
 }
 
+/** One product line of an order, from `order_items` or the denormalised row. */
+export interface OrderLine {
+  product_id: string | null;
+  product_name: string;
+  variant_label: string | null;
+  quantity: number;
+  image_url: string | null;
+}
+
 export interface WarehouseOrderRow {
   id: string;
   customer_name: string;
@@ -155,6 +164,15 @@ export interface WarehouseOrderRow {
   returned_at?: string | null;
   /** The product's picture, attached by `attachProductImages`; null without one. */
   product_image_url?: string | null;
+  /**
+   * Every product line of the order, attached by `attachOrderLines`.
+   *
+   * `orders` carries ONE denormalised product, which is what every warehouse
+   * surface read until now — so a three-product parcel showed as one line and
+   * the picker packed one item. Absent (not empty) when the caller did not ask
+   * for the lines; empty when the order predates `order_items`.
+   */
+  items?: OrderLine[];
   current_stock: number | null;
   low_stock_threshold: number | null;
 }

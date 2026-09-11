@@ -10,6 +10,7 @@ import {
 import { computeOrderTotal } from "@/lib/calculations/order-total";
 import { enrichRowsWithDuplicates } from "@/lib/duplicate-orders/detect";
 import { marketIdToCode } from "@/lib/markets";
+import { lockedResponse } from "@/lib/orders/order-lock-response";
 
 export const dynamic = "force-dynamic";
 
@@ -510,6 +511,12 @@ export async function PATCH(
   const { data: updatedRows, error: updateError } = await updateQuery.select("id");
 
   if (updateError) {
+    // The trigger trg_orders_lock_guard raises 55006 when an agent has this
+    // order open. It arrives here as an ordinary PostgREST error, and answering
+    // 500 would tell the manager "something broke" for what is really "Salima
+    // is on the phone about this one".
+    const lockedRes = lockedResponse(updateError);
+    if (lockedRes) return lockedRes;
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 

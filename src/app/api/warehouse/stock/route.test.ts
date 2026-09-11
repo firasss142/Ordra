@@ -41,21 +41,30 @@ interface Wire {
   counts?: unknown[];
   series?: unknown[];
   accuracy?: unknown;
+  siteStock?: unknown[];
+  warehouses?: unknown[];
+  /** The market the signed-in agent belongs to. Defaults to the fake "m-1". */
+  actorMarket?: string;
 }
 
-function wire({ products = [], orders = [], counts = [], series = [], accuracy = null }: Wire) {
+function wire({
+  products = [], orders = [], counts = [], series = [], accuracy = null,
+  siteStock = [], warehouses = [], actorMarket = "m-1",
+}: Wire) {
   mockFrom.mockImplementation((table: string) => {
-    if (table === "users") return chain({ data: { role: "warehouse_agent", market_id: "m-1" }, error: null });
+    if (table === "users") return chain({ data: { role: "warehouse_agent", market_id: actorMarket }, error: null });
     if (table === "products") return chain({ data: products, error: null });
     if (table === "orders") return chain({ data: orders, error: null });
     if (table === "inventory_log") return chain({ data: counts, error: null });
+    if (table === "product_site_stock") return chain({ data: siteStock, error: null });
+    if (table === "warehouses") return chain({ data: warehouses, error: null });
     return chain({ data: [], error: null });
   });
   // getActor reads users via .single(); give the chain one.
   const original = mockFrom.getMockImplementation()!;
   mockFrom.mockImplementation((table: string) => {
     const c = original(table) as Record<string, unknown>;
-    c.single = vi.fn().mockResolvedValue({ data: { role: "warehouse_agent", market_id: "m-1" }, error: null });
+    c.single = vi.fn().mockResolvedValue({ data: { role: "warehouse_agent", market_id: actorMarket }, error: null });
     c.maybeSingle = c.single;
     return c;
   });
@@ -214,5 +223,118 @@ describe("GET /api/warehouse/stock — reserved counts only parcels that can rea
     const selected = String(ordersChain!.select.mock.calls[0][0]);
     expect(selected).toContain("bench_cleared_at");
     expect(selected).toContain("carrier_extra");
+  });
+});
+
+
+/**
+ * Where the units actually are.
+ *
+ * Libya runs two buildings and `product_site_stock` has ventilated the market
+ * total per site since September; no screen has ever shown it. An agent in
+ * Benghazi reading the market figure is reading Tripoli's shelf as well as
+ * their own. The market total stays the money truth, so the split is a
+ * breakdown of it and never replaces it.
+ */
+describe("GET /api/warehouse/stock — where the units are", () => {
+  const sites = [
+    { id: "w-tri", code: "tripoli", name_fr: "Tripoli", name_ar: "طرابلس", market_id: "m-1" },
+    { id: "w-ben", code: "benghazi", name_fr: "Benghazi", name_ar: "بنغازي", market_id: "m-1" },
+  ];
+
+  test("breaks the shelf down by building, named", async () => {
+    wire({
+      products: [product({ current_stock: 20 })],
+      warehouses: sites,
+      siteStock: [
+        { product_id: "p-1", warehouse_id: "w-tri", current_stock: 12, last_counted_at: "2026-09-01T00:00:00Z" },
+        { product_id: "p-1", warehouse_id: "w-ben", current_stock: 5, last_counted_at: null },
+      ],
+    });
+    const { rows } = await (await GET(req())).json();
+    expect(rows[0].sites).toEqual([
+      { warehouse_id: "w-tri", code: "tripoli", name: "Tripoli", current_stock: 12, last_counted_at: "2026-09-01T00:00:00Z" },
+      { warehouse_id: "w-ben", code: "benghazi", name: "Benghazi", current_stock: 5, last_counted_at: null },
+    ]);
+  });
+
+  test("names what the buildings do not account for rather than hiding it", async () => {
+    // The invariant is an inequality: sum(sites) <= market total. The gap is a
+    // real quantity nobody has ventilated, and pretending it is zero would make
+    // the two figures contradict each other on screen.
+    wire({
+      products: [product({ current_stock: 20 })],
+      warehouses: sites,
+      siteStock: [{ product_id: "p-1", warehouse_id: "w-tri", current_stock: 12, last_counted_at: null }],
+    });
+    const { rows } = await (await GET(req())).json();
+    expect(rows[0].unallocated).toBe(8);
+  });
+
+  test("says nothing about buildings in a market that has only one", async () => {
+    wire({
+      products: [product({ current_stock: 20 })],
+      warehouses: [sites[0]],
+      siteStock: [{ product_id: "p-1", warehouse_id: "w-tri", current_stock: 20, last_counted_at: null }],
+    });
+    const { rows } = await (await GET(req())).json();
+    // Tunisia has one warehouse; a breakdown of one line is noise on the card.
+    expect(rows[0].sites).toEqual([]);
+    expect(rows[0].unallocated).toBe(0);
+  });
+
+  test("never reports a negative gap when a site holds more than the total", async () => {
+    wire({
+      products: [product({ current_stock: 5 })],
+      warehouses: sites,
+      siteStock: [{ product_id: "p-1", warehouse_id: "w-tri", current_stock: 9, last_counted_at: null }],
+    });
+    const { rows } = await (await GET(req())).json();
+    expect(rows[0].unallocated).toBe(0);
+  });
+});
+
+/**
+ * Which building, in which language, for whom.
+ *
+ * The site name is a place painted on a wall — Libya's bench reads Arabic, and
+ * `name_ar` was being selected and thrown away. And a super_admin with no market
+ * selected must not be handed a breakdown assembled from both markets.
+ */
+describe("GET /api/warehouse/stock — naming and scoping the buildings", () => {
+  const LY = "00000000-0000-0000-0000-000000000002";
+  const TN = "00000000-0000-0000-0000-000000000001";
+
+  test("names Libyan buildings in Arabic, as the bench reads them", async () => {
+    wire({
+      actorMarket: LY,
+      products: [product({ market_id: LY })],
+      warehouses: [
+        { id: "w-tri", code: "tripoli", name_fr: "Tripoli", name_ar: "طرابلس", market_id: LY },
+        { id: "w-ben", code: "benghazi", name_fr: "Benghazi", name_ar: "بنغازي", market_id: LY },
+      ],
+      siteStock: [{ product_id: "p-1", warehouse_id: "w-tri", current_stock: 4, last_counted_at: null }],
+    });
+    const { rows } = await (await GET(req())).json();
+    expect(rows[0].sites[0].name).toBe("طرابلس");
+  });
+
+  test("does not mix two markets' buildings into one breakdown", async () => {
+    // A super_admin with no market picked: Tunisia has ONE warehouse, so a
+    // "breakdown" assembled from both markets would invent a split it does not
+    // have — and would name Libyan buildings under a Tunisian product.
+    wire({
+      actorMarket: TN,
+      products: [product({ market_id: TN })],
+      warehouses: [
+        { id: "w-tn", code: "tunis", name_fr: "Tunis", name_ar: "تونس", market_id: TN },
+        { id: "w-tri", code: "tripoli", name_fr: "Tripoli", name_ar: "طرابلس", market_id: LY },
+        { id: "w-ben", code: "benghazi", name_fr: "Benghazi", name_ar: "بنغازي", market_id: LY },
+      ],
+      siteStock: [{ product_id: "p-1", warehouse_id: "w-tn", current_stock: 4, last_counted_at: null }],
+    });
+    const { rows } = await (await GET(req())).json();
+    expect(rows[0].sites).toEqual([]);
+    expect(rows[0].unallocated).toBe(0);
   });
 });

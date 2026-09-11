@@ -8,6 +8,7 @@ import {
   isMaxAttemptsReached,
 } from "@/lib/attempt-logic";
 import { getMarketSetting } from "@/lib/settings/getMarketSetting";
+import { lockedResponse } from "@/lib/orders/order-lock-response";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +68,10 @@ export async function POST(
     });
 
     if (rejectError) {
+      // 55006 = the agent-presence guard. A refusal, not a fault:
+      // answer 409 { code: "locked" } naming the agent who holds it.
+      const lockedRes = lockedResponse(rejectError);
+      if (lockedRes) return lockedRes;
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
@@ -98,6 +103,10 @@ export async function POST(
     });
 
     if (rejectError) {
+      // 55006 = the agent-presence guard. A refusal, not a fault:
+      // answer 409 { code: "locked" } naming the agent who holds it.
+      const lockedRes = lockedResponse(rejectError);
+      if (lockedRes) return lockedRes;
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
@@ -120,6 +129,10 @@ export async function POST(
     });
 
     if (cbError) {
+      // 55006 = the agent-presence guard. A refusal, not a fault:
+      // answer 409 { code: "locked" } naming the agent who holds it.
+      const lockedRes = lockedResponse(cbError);
+      if (lockedRes) return lockedRes;
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
@@ -140,6 +153,10 @@ export async function POST(
   });
 
   if (attemptError) {
+    // 55006 = the agent-presence guard. A refusal, not a fault:
+    // answer 409 { code: "locked" } naming the agent who holds it.
+    const lockedRes = lockedResponse(attemptError);
+    if (lockedRes) return lockedRes;
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { asOrderLockedError } from "./order-lock";
 import type { OrderStatus } from "@/types/order-status";
 
 export interface AssignResult {
@@ -37,7 +38,10 @@ export async function assignOrder(
     p_actor_type: actorType,
   });
 
-  if (error) throw new Error(error.message);
+  // Preserve the PostgREST code/details: a bare Error(message) would reduce
+  // the lock guard's 55006 to the string "order_locked" and no route could
+  // tell it from any other failure.
+  if (error) throw asOrderLockedError(error) ?? new Error(error.message);
   return parseRpcResult(data);
 }
 
@@ -55,7 +59,10 @@ export async function reassignOrder(
     p_actor_type: "manager",
   });
 
-  if (error) throw new Error(error.message);
+  // Preserve the PostgREST code/details: a bare Error(message) would reduce
+  // the lock guard's 55006 to the string "order_locked" and no route could
+  // tell it from any other failure.
+  if (error) throw asOrderLockedError(error) ?? new Error(error.message);
   return parseRpcResult(data);
 }
 
@@ -69,7 +76,10 @@ export async function unassignOrder(
     p_actor_id: actorId,
   });
 
-  if (error) throw new Error(error.message);
+  // Preserve the PostgREST code/details: a bare Error(message) would reduce
+  // the lock guard's 55006 to the string "order_locked" and no route could
+  // tell it from any other failure.
+  if (error) throw asOrderLockedError(error) ?? new Error(error.message);
   return parseRpcResult(data);
 }
 
@@ -83,7 +93,10 @@ export async function returnToPool(
     p_actor_id: actorId,
   });
 
-  if (error) throw new Error(error.message);
+  // Preserve the PostgREST code/details: a bare Error(message) would reduce
+  // the lock guard's 55006 to the string "order_locked" and no route could
+  // tell it from any other failure.
+  if (error) throw asOrderLockedError(error) ?? new Error(error.message);
   return parseRpcResult(data);
 }
 

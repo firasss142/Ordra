@@ -5,6 +5,7 @@ import { canEditOrder, EDIT_BLOCKED_STATUSES } from "@/lib/order-permissions";
 import { computeOrderTotal, roundLineTotal } from "@/lib/calculations/order-total";
 import type { Role } from "@/types";
 import type { OrderItem } from "@/types/order-items";
+import { lockedResponse } from "@/lib/orders/order-lock-response";
 
 type OrderItemInsert = Omit<OrderItem, "id" | "created_at" | "updated_at">;
 
@@ -220,6 +221,10 @@ export async function POST(
         { orderId: id, insertedIds, rollbackError },
       );
     }
+    // Items were rolled back above. If the refusal was the presence guard, say
+    // whose order it is rather than the generic "cannot be modified".
+    const lockedRes = lockedResponse(updateError);
+    if (lockedRes) return lockedRes;
     return NextResponse.json(
       { error: "Cette commande ne peut plus être modifiée." },
       { status: 409 },

@@ -184,12 +184,12 @@ export function PreparationConsole({
           </p>
         </div>
         <div className="ms-auto flex flex-wrap gap-2.5">
-          {isLy ? (
-            <Link href="./scan" className={WH_BTN}>
-              <Maximize2 size={16} aria-hidden="true" />
-              {t("scanMode")}
-            </Link>
-          ) : null}
+          {/* Une vraie destination depuis le 10 septembre 2026 : ce lien
+              renvoyait vers /warehouse/scan, qui redirigeait ici même. */}
+          <Link href={`/${locale}/warehouse/scan`} className={WH_BTN}>
+            <Maximize2 size={16} aria-hidden="true" />
+            {t("scanMode")}
+          </Link>
         </div>
       </header>
 

@@ -15,6 +15,11 @@ import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
 import { isTerminalStatus, type OrderStatus } from "@/types/order-status";
 import { AgentAvatar } from "@/components/shared/AgentAvatar";
 import { useMaxCallAttempts } from "@/hooks/useMaxCallAttempts";
+import { PresenceIndicator, type PresencePerson } from "./PresenceIndicator";
+
+/** Shared, so an unlocked row keeps a stable prop identity for the memo. */
+const EMPTY_PRESENCE: PresenceRow[] = [];
+import type { PresenceRow } from "@/hooks/useOrderLocks";
 
 interface Props {
   order: OrdersListRow;
@@ -22,6 +27,12 @@ interface Props {
   selected: boolean;
   highlighted: boolean;
   agentName: string | null;
+  /** Who has this order open. Stable identity per signature — see useOrderLocks. */
+  presenceRows?: PresenceRow[];
+  /** Resolves a presence row's user to a name + photo. Absent = no presence UI. */
+  presencePersonOf?: (userId: string) => PresencePerson | null;
+  /** The assignee's photo, when the directory has one. */
+  agentAvatarUrl?: string | null;
   currencyCode: string;
   labels: {
     status: string;
@@ -139,6 +150,9 @@ function Row({
   selected,
   highlighted,
   agentName,
+  presenceRows,
+  presencePersonOf,
+  agentAvatarUrl,
   currencyCode,
   labels,
   onToggleSelect,
@@ -374,8 +388,21 @@ function Row({
 
       {/* Assignee — unassigned is the actionable state, so it reads differently */}
       <td className="whitespace-nowrap px-4 py-2.5 align-middle">
+        {/* The assignee's own avatar carries the presence state — a ring plus a
+            live dot when they are in the order. One face, not two: the column
+            is 110px fixed and a second head beside the name left ~6px for it.
+            Anyone present who is NOT the assignee stacks behind, overlapped. */}
         <span className="flex items-center gap-2">
-          <AgentAvatar name={agentName} />
+          {presencePersonOf ? (
+            <PresenceIndicator
+              rows={presenceRows ?? EMPTY_PRESENCE}
+              assigneeName={agentName}
+              assigneeAvatarUrl={agentAvatarUrl}
+              personOf={presencePersonOf}
+            />
+          ) : (
+            <AgentAvatar name={agentName} avatarUrl={agentAvatarUrl} />
+          )}
           <span
             className={`min-w-0 truncate text-[12.5px] ${
               agentName ? "font-medium text-oms-ink-1" : "italic text-oms-ink-3"
@@ -426,6 +453,12 @@ export const OrderRow = React.memo(Row, (prev, next) => {
     prev.selected === next.selected &&
     prev.highlighted === next.highlighted &&
     prev.agentName === next.agentName &&
+    // Reference compare is sound because useOrderLocks hands back the same
+    // array while the orderId:userId:mode signature is unchanged, so a
+    // 25s heartbeat cannot repaint the table.
+    prev.presenceRows === next.presenceRows &&
+    prev.agentAvatarUrl === next.agentAvatarUrl &&
+    prev.presencePersonOf === next.presencePersonOf &&
     prev.cancellingId === next.cancellingId &&
     prev.recoveringId === next.recoveringId &&
     prev.onRecover === next.onRecover &&

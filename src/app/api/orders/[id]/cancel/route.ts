@@ -11,6 +11,7 @@ import {
   ManualDeleteCarrierVoidError,
   type ManualDeleteOrderRow,
 } from "@/lib/orders/manual-delete";
+import { lockedResponse } from "@/lib/orders/order-lock-response";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,11 @@ export async function POST(
       },
     });
   } catch (err) {
+    // The agent-presence guard (SQLSTATE 55006) is a refusal, not a fault:
+    // answer 409 { code: "locked" } so the caller can name the agent
+    // instead of showing a generic 500.
+    const lockedRes = lockedResponse(err);
+    if (lockedRes) return lockedRes;
     if (err instanceof ManualDeleteCarrierVoidError) {
       return NextResponse.json(
         { error: err.message, order_id: err.orderId, reason: err.reason },

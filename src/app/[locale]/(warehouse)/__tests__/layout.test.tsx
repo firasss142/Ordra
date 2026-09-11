@@ -8,8 +8,9 @@ let mockUser: AuthUser | null = null;
 vi.mock("@/context/auth", () => ({
   useAuth: () => ({ user: mockUser, loading: false }),
 }));
+let mockPathname = "/fr/warehouse/preparation";
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/fr/warehouse/preparation",
+  usePathname: () => mockPathname,
 }));
 vi.mock("next/link", () => ({
   default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
@@ -106,12 +107,26 @@ describe("Entrepôt shell — navigation", () => {
     ]);
   });
 
-  it("opens the bench's scan sheet from the floating button, on any screen", () => {
-    // One scanner for the shell. The old station was a separate page that
+  it("starts a scan run from the floating button, on any screen", () => {
+    // One scanner for the shell, and it opens a RUN: pick what stays in your
+    // hand, then work the batch. The old station was a separate page that
     // forgot which parcel the agent had taken.
     mockUser = user("warehouse_agent");
     render(<WarehouseLayout><div>page</div></WarehouseLayout>);
-    expect(screen.getByTestId("wh-scan-fab")).toHaveAttribute("href", "/fr/warehouse?scan=1");
+    expect(screen.getByTestId("wh-scan-fab")).toHaveAttribute("href", "/fr/warehouse/scan");
+  });
+
+  it("gives the run the whole screen: no tab bar, no floating button", () => {
+    // Four destinations and a floating button under the thumb are four ways to
+    // lose a batch while holding a parcel. The run carries its own exit.
+    mockUser = user("warehouse_agent");
+    mockPathname = "/fr/warehouse/scan";
+    render(<WarehouseLayout><div>page</div></WarehouseLayout>);
+    expect(screen.queryByTestId("wh-scan-fab")).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+    // And nothing reserves space for a bar that is not there.
+    expect(screen.getByTestId("wh-mobile-main").className).not.toMatch(/pb-\[/);
+    mockPathname = "/fr/warehouse/preparation";
   });
 
   it("leaves room under the page for the bar, so the last row is reachable", () => {

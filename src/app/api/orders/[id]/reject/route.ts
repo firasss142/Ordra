@@ -10,6 +10,7 @@ import {
   logManagerTakeOver,
   type ManagerActor,
 } from "@/lib/orders/manager-takeover";
+import { lockedResponse } from "@/lib/orders/order-lock-response";
 
 export const dynamic = "force-dynamic";
 
@@ -116,6 +117,10 @@ export async function POST(
     });
 
     if (rejectError) {
+      // 55006 = the agent-presence guard. A refusal, not a fault:
+      // answer 409 { code: "locked" } naming the agent who holds it.
+      const lockedRes = lockedResponse(rejectError);
+      if (lockedRes) return lockedRes;
       return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 
@@ -154,6 +159,10 @@ export async function POST(
   });
 
   if (rejectError) {
+    // 55006 = the agent-presence guard. A refusal, not a fault:
+    // answer 409 { code: "locked" } naming the agent who holds it.
+    const lockedRes = lockedResponse(rejectError);
+    if (lockedRes) return lockedRes;
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 

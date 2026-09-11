@@ -71,9 +71,19 @@ export function useScanOut({
         const body = (await res.json().catch(() => ({}))) as ScanResponse;
         const outcome = outcomeFor(res.ok, body);
 
-        // The row's stock is a cached page; "from" is derived from the
-        // server's stock_after, never read off the row.
+        /*
+         * The stock movement, as the SERVER performed it.
+         *
+         * The row's stock is a cached page, so "from" is derived from
+         * `stock_after` rather than read off the row. And the size of the move
+         * comes from the server's own movement entry: since multi-product
+         * parcels deduct every line, `orders.quantity` is just the denormalised
+         * first line and adding it back would print a movement that never
+         * happened ("40 ← 39" for a parcel that took two).
+         */
         const after = typeof body.stock_after === "number" ? body.stock_after : before - target.quantity;
+        const primaryMove = body.movements?.find((m) => m.stock_after === after) ?? body.movements?.[0];
+        const moved = primaryMove ? Math.abs(primaryMove.change) : target.quantity;
         const key = errorLabelKey(body.error_code);
         // WRONG_SITE names the building it belongs to; every other refusal takes
         // no parameter, and next-intl ignores extras.
@@ -87,7 +97,7 @@ export function useScanOut({
           at: new Date().toISOString(),
           outcome,
           carrierRef: body.carrier_reference,
-          from: res.ok ? after + target.quantity : undefined,
+          from: res.ok ? after + moved : undefined,
           to: res.ok ? after : undefined,
           message: res.ok
             ? undefined

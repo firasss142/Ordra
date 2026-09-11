@@ -86,6 +86,11 @@ import { OrderFacts } from "./OrderFacts";
 import { PanelTabs, type PanelTab } from "./PanelTabs";
 import { usePrimaryAction } from "./usePrimaryAction";
 import type { PanelActionKind } from "./types";
+import { useOrderPresence } from "@/hooks/useOrderPresence";
+import { OrderTakeoverScreen } from "../OrderTakeoverScreen";
+import { useOrderLocks } from "@/hooks/useOrderLocks";
+import { useTypingMode } from "@/hooks/useTypingMode";
+import { TypingActivityProvider } from "@/components/ui/typing-activity";
 
 const ScheduleDispatchModal = dynamic(
   () => import("../ScheduleDispatchModal").then((m) => m.ScheduleDispatchModal),
@@ -198,6 +203,18 @@ interface CitySearchResult {
   name: string;
   name_ar: string | null;
 }
+
+/** Kept in lockstep with return_order_to_pool (20260505233818). */
+const RETURN_TO_POOL_STATUSES = new Set([
+  "pending",
+  "assigned",
+  "attempt_1",
+  "attempt_2",
+  "attempt_3",
+  "callback_scheduled",
+  "confirmed",
+  "dispatch_scheduled",
+]);
 
 const TERMINAL_STATUSES = new Set([
   "delivered",
@@ -372,6 +389,45 @@ export function OrderDetailPanel({
   );
   const order = swrData?.data ?? null;
 
+  // Announce that this tab has the order open. An agent's row is what blocks
+  // manager writes; a manager's row is advisory and blocks nobody, so an agent
+  // mid-call is never frozen by a manager reading over their shoulder.
+  //
+  // `mode` flips to "editing" as soon as anything is dirty, which is what turns
+  // the manager's hollow "consulte" ring into a filled "modifie" one.
+  // `editing` is a live state, not a latch. It used to be set on the first
+  // commit and never cleared, so anyone who touched one field showed as editing
+  // for the rest of the session — survivable when it was only a ring colour,
+  // an outright lie now that it drives a typing bubble.
+  const { mode: presenceMode, noteActivity: noteTyping, stop: stopTyping } = useTypingMode();
+
+  // Closing the panel ends the typing immediately. Waiting out the idle timer
+  // would let the final heartbeat still report "editing" on an order nobody has
+  // open any more.
+  useEffect(() => stopTyping, [orderId, stopTyping]);
+  const [takenOverBy, setTakenOverBy] = useState<string | null>(null);
+  const [wasTakenOver, setWasTakenOver] = useState(false);
+
+  // Who else is in this order, for the header. Scoped to this viewer: an agent
+  // sees managers standing on their own orders; a manager sees the market.
+  const { othersOn } = useOrderLocks({
+    marketId: null,
+    enabled: Boolean(userId && orderId),
+    scope: role === "agent" && userId ? { kind: "agent", userId } : { kind: "market" },
+    selfId: userId ?? null,
+  });
+
+  useOrderPresence({
+    orderId,
+    role,
+    mode: presenceMode,
+    onLockLost: useCallback(() => {
+      // Belt to the broadcast's braces: if the socket is down, the next beat is
+      // what tells the agent a super_admin took the order.
+      if (role === "agent") setWasTakenOver(true);
+    }, [role]),
+  });
+
   // Live-sync via Supabase Realtime. Only relevant for the agent role —
   // managers and super_admins skip the reassign-away check because they
   // don't own assignments. We still subscribe so field edits propagate.
@@ -379,6 +435,10 @@ export function OrderDetailPanel({
     orderId,
     swrKey,
     agentId: role === "agent" ? userId ?? null : null,
+    onForceReleased: useCallback((releasedByName: string | null) => {
+      setTakenOverBy(releasedByName);
+      setWasTakenOver(true);
+    }, []),
     onReassignedAway: useCallback(() => {
       onReassignedAway?.();
       onClose();
@@ -618,6 +678,10 @@ export function OrderDetailPanel({
 
   const runCommit = useCallback(
     async (updates: Record<string, unknown>) => {
+      // Anyone actually changing a field is "modifie", not "consulte". For a
+      // manager this is what turns the hollow ring on the agent's card into a
+      // filled one — the difference between being read and being touched.
+      noteTyping();
       try {
         setSaveError(null);
         await commit(updates);
@@ -705,11 +769,15 @@ export function OrderDetailPanel({
       ? t("orderNotFound")
       : null;
 
+  // Mirrors return_order_to_pool's own allow-list, not merely "not terminal":
+  // the RPC raises `Cannot return to pool from status: %` for anything past
+  // dispatch_scheduled, and an affordance that is guaranteed to fail is worse
+  // than no affordance at all.
   const canReturnToPool =
     onReturnToPool !== undefined &&
     order !== null &&
     order.assigned_to !== null &&
-    !TERMINAL_STATUSES.has(order.status);
+    RETURN_TO_POOL_STATUSES.has(order.status);
 
   async function handleReturnToPool() {
     if (!onReturnToPool) return;
@@ -1168,7 +1236,9 @@ export function OrderDetailPanel({
   );
 
   return (
-    <>
+    // Every InlineField below reports keystrokes through this, so the presence
+    // "is typing" bubble reacts to the typing rather than to the save.
+    <TypingActivityProvider onActivity={noteTyping}>
       {/* Overlay */}
       <div
         className="fixed inset-0 z-40 bg-ink-primary/40"
@@ -1181,6 +1251,15 @@ export function OrderDetailPanel({
 
       {/* Panel */}
       <div className="fixed top-0 end-0 h-full w-full sm:w-[480px] z-50 flex flex-col overflow-hidden bg-surface-card border-s border-line-subtle shadow-panel animate-[slideInEnd_180ms_ease-out]">
+        {wasTakenOver && (
+          <OrderTakeoverScreen
+            releasedByName={takenOverBy}
+            onDismiss={() => {
+              setWasTakenOver(false);
+              onClose();
+            }}
+          />
+        )}
 
         {/* ── Sticky header ─────────────────────────────────────── */}
         <PanelHeader
@@ -1200,6 +1279,7 @@ export function OrderDetailPanel({
           attemptsCount={order?.attempts_count}
           maxAttempts={maxCallAttempts}
           saveFlash={saveFlash}
+          presenceRows={orderId ? othersOn(orderId) : undefined}
           carrierDeletedChip={
             order?.carrier_barcode_deleted_at && !order.tracking_number
               ? {
@@ -1681,7 +1761,7 @@ export function OrderDetailPanel({
         locale={locale === "ar" ? "ar" : "fr"}
         onOpenProduct={(productId) => setProductSheetProductId(productId)}
       />
-    </>
+    </TypingActivityProvider>
   );
 }
 

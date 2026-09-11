@@ -39,6 +39,9 @@ import { BulkUploadPanel } from "@/components/orders/BulkUploadPanel";
 import { BulkReopenPanel } from "@/components/orders/BulkReopenPanel";
 import { OrdersViewToggle, type OrdersView } from "@/components/orders/OrdersViewToggle";
 import { canManuallyDeleteOrderStatus } from "@/lib/order-permissions";
+import { useOrderLocks } from "@/hooks/useOrderLocks";
+import { OrderLockedDialog } from "@/components/orders/OrderLockedDialog";
+import type { OrderLockInfo } from "@/lib/orders/order-lock";
 
 const OrdersAdvancedDrawer = dynamic(
   () => import("@/components/orders/OrdersAdvancedDrawer").then((m) => m.OrdersAdvancedDrawer),
@@ -72,6 +75,8 @@ interface Agent {
   full_name: string;
   is_active: boolean;
   market_id: string;
+  /** /api/agents already returns this; the type used to drop it. */
+  avatar_url?: string | null;
 }
 interface Product {
   id: string;
@@ -373,6 +378,25 @@ export function OrdersPageClient({
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [recoveringId, setRecoveringId] = useState<string | null>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
+
+  // Managers and super_admins only: agents never see presence, by decision.
+  const canSeePresence = isSuperAdmin || role === "market_manager";
+  const [lockedDialog, setLockedDialog] = useState<OrderLockInfo | null>(null);
+  const { othersOn, presenceOf, refresh: refreshLocks } = useOrderLocks({
+    marketId: effectiveMarketId ?? userMarketId ?? null,
+    enabled: canSeePresence,
+    selfId: userId,
+  });
+
+
+  const forceReleaseLock = useCallback(async () => {
+    const orderId = lockedDialog?.order_id;
+    if (!orderId) return;
+    await fetch(`/api/orders/${orderId}/presence/force-release`, { method: "POST" });
+    setLockedDialog(null);
+    await refreshLocks();
+    await mutate();
+  }, [lockedDialog, refreshLocks, mutate]);
   /**
    * Surface a failed action, and refresh the list first when the failure means
    * the user was looking at a stale row (somebody else acted on the order).
@@ -384,10 +408,17 @@ export function OrdersPageClient({
       const body = await res.json().catch(() => null);
       const failure = readActionFailure(res.status, body);
       if (failure.conflict) await mutate();
+      // A lock is not a stale view — it is a person. It gets a dialog naming
+      // them, not a banner that vanishes after four seconds.
+      if (failure.locked) {
+        setLockedDialog(failure.locked);
+        void refreshLocks();
+        return;
+      }
       setErrorBanner(failure.message ?? fallback);
       setTimeout(() => setErrorBanner(null), 4000);
     },
-    [mutate],
+    [mutate, refreshLocks],
   );
 
   const handleCancel = useCallback(
@@ -450,13 +481,24 @@ export function OrdersPageClient({
         body: JSON.stringify({ order_ids: ids, agent_id: agentId }),
       });
       if (res.ok) {
+        // Partial success is the normal outcome now: locked orders are skipped
+        // rather than failing the batch, so say what actually happened.
+        const body = await res.json().catch(() => null);
+        const lockedCount = body?.data?.locked?.length ?? 0;
+        if (lockedCount > 0) {
+          setErrorBanner(
+            t("bulkAssignPartial", { assigned: body?.data?.assigned ?? 0, locked: lockedCount }),
+          );
+          setTimeout(() => setErrorBanner(null), 6000);
+        }
         clearSelection();
         await mutate();
+        void refreshLocks();
       } else {
         await reportFailure(res, t("bulkAssignError"));
       }
     },
-    [selectedIds, clearSelection, mutate, reportFailure, t],
+    [selectedIds, clearSelection, mutate, reportFailure, refreshLocks, t],
   );
   const handleBulkCancel = useCallback(async () => {
     if (!window.confirm(t("bulkCancelConfirm", { count: selectedIds.size }))) return;
@@ -755,6 +797,7 @@ export function OrdersPageClient({
       {/* ── Orders table wrapped in card ── */}
       <div className="bg-surface-card border border-line-subtle rounded-[8px] overflow-hidden">
         <OrdersTable
+          presenceOf={canSeePresence ? othersOn : undefined}
           rows={rows}
           locale={locale}
           currencyCode={currencyCode}
@@ -868,6 +911,14 @@ export function OrdersPageClient({
           agents={agents}
         />
       ) : null}
+
+      <OrderLockedDialog
+        open={lockedDialog !== null}
+        lock={lockedDialog}
+        role={role}
+        onClose={() => setLockedDialog(null)}
+        onForceRelease={isSuperAdmin ? forceReleaseLock : undefined}
+      />
 
       <OrderDetailPanel
         key={openOrderId ?? "none"}

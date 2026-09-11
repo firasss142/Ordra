@@ -13,6 +13,8 @@
  * answer 409 with their own vocabulary, and every one of those cases also means
  * the order moved.
  */
+import { readOrderLockError, type OrderLockInfo } from "./order-lock";
+
 export interface ActionFailure {
   /** The list is stale: refresh it before showing the message. */
   conflict: boolean;
@@ -20,6 +22,12 @@ export interface ActionFailure {
   message: string | null;
   /** The status the order actually holds now, when the server named it. */
   freshStatus: string | null;
+  /**
+   * Set when the refusal was the agent-presence lock rather than a stale view.
+   * `conflict` stays true alongside it: the list should still refresh, and
+   * callers that only know about `conflict` keep working unchanged.
+   */
+  locked: OrderLockInfo | null;
 }
 
 export function readActionFailure(status: number, body: unknown): ActionFailure {
@@ -29,5 +37,10 @@ export function readActionFailure(status: number, body: unknown): ActionFailure 
   const freshStatus = typeof b.status === "string" ? b.status : null;
   const conflict = b.code === "conflict" || status === 409;
 
-  return { conflict, message, freshStatus };
+  const locked =
+    b.code === "locked" && typeof b.lock === "object" && b.lock !== null
+      ? (b.lock as OrderLockInfo)
+      : readOrderLockError(b);
+
+  return { conflict, message, freshStatus, locked };
 }

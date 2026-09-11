@@ -113,6 +113,17 @@ function rawOrder(id: string) {
 
 const ORDERS = [rawOrder("A"), rawOrder("B")];
 
+// QueuePage now also subscribes to order presence, which needs a
+// <RealtimeProvider> this suite does not mount.
+vi.mock("@/hooks/useOrderLocks", () => ({
+  useOrderLocks: () => ({
+    lockOf: () => null,
+    presenceOf: () => [],
+    othersOn: () => [],
+    refresh: () => {},
+  }),
+}));
+
 vi.mock("@/hooks/useAgentQueue", () => ({
   useAgentQueue: () => ({
     orders: ORDERS,

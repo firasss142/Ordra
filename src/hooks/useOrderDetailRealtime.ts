@@ -5,6 +5,7 @@ import { useSWRConfig } from "swr";
 import { toHistoryEntry } from "@/lib/orders/history-row";
 import {
   useRealtimeSubscribe,
+  useRealtimeBroadcast,
   useRealtime,
 } from "@/components/providers/RealtimeProvider";
 
@@ -26,6 +27,8 @@ interface UseOrderDetailRealtimeOptions {
   agentId: string | undefined | null;
   onReassignedAway: (row: AnyRow) => void;
   onTerminated: (info: { kind: "cancelled" | "deleted"; row: AnyRow }) => void;
+  /** A super_admin force-released this agent's lock. Names them when known. */
+  onForceReleased?: (releasedByName: string | null) => void;
 }
 
 /**
@@ -43,11 +46,28 @@ export function useOrderDetailRealtime({
   agentId,
   onReassignedAway,
   onTerminated,
+  onForceReleased,
 }: UseOrderDetailRealtimeOptions): void {
   const { mutate } = useSWRConfig();
   const { editLock } = useRealtime();
   const onReassignedAwayRef = useRef(onReassignedAway);
   const onTerminatedRef = useRef(onTerminated);
+  const onForceReleasedRef = useRef(onForceReleased);
+  onForceReleasedRef.current = onForceReleased;
+
+  // A super_admin broke this agent's lock. Kept here rather than in the panel
+  // so the hook stays the single place the panel learns "you no longer own
+  // this order" — reassigned away, terminated, or taken by force.
+  //
+  // Per-agent topic, exact match in RLS: an agent can only ever join their own,
+  // so no agent sees another's lock traffic.
+  useRealtimeBroadcast<{ order_id?: string; released_by_name?: string | null }>(
+    agentId ? { topic: `order_presence:agent:${agentId}`, event: "lock_forced" } : null,
+    (payload) => {
+      if (!orderId || payload?.order_id !== orderId) return;
+      onForceReleasedRef.current?.(payload?.released_by_name ?? null);
+    },
+  );
   const itemsRevalidateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRevalidateRef = useRef(false);
 
@@ -62,7 +82,11 @@ export function useOrderDetailRealtime({
         assigned_to?: string | null;
         status?: string;
       };
-      if (agentId && newRow.assigned_to && newRow.assigned_to !== agentId) {
+      // `assigned_to` is checked for PRESENCE, not truthiness: unassign_order and
+      // return_order_to_pool both set it to NULL, and a truthy guard let those fall
+      // through to the patch branch — leaving the panel open on an order the agent
+      // no longer owns, while cache-patch.ts had already removed the queue card.
+      if (agentId && "assigned_to" in newRow && newRow.assigned_to !== agentId) {
         onReassignedAwayRef.current(newRow);
         return;
       }

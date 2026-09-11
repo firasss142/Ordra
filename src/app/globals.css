@@ -863,3 +863,69 @@
 .wh-console .hover\:border-line-strong:hover { border-color: var(--wh-border-strong); }
 .wh-console .focus\:bg-surface-card:focus   { background-color: var(--wh-surface); }
 .wh-console .focus\:border-ink-primary:focus { border-color: var(--wh-ok); }
+
+/*
+ * "…is typing", on a presence head.
+ *
+ * A deliberate exception to design-system §7 ("no entrance animations, page
+ * transitions, or transforms"). §7 targets DECORATIVE motion; this is the only
+ * honest way to show an action in progress — a static mark cannot tell "is
+ * editing right now" from "edited at some point". It is confined to a ~28x15px
+ * bubble that exists only while someone types and vanishes ~4s after they stop
+ * (useTypingMode), and the meaning is carried by the head's aria-label either
+ * way, per §4.17 D. Both the entrance pop and the dot loop are dropped under
+ * prefers-reduced-motion.
+ */
+@keyframes typingBubbleIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Overshoot easing — the "pop" of a Messenger bubble rather than a fade.
+   transform-origin stays centred so the rule mirrors cleanly under RTL. */
+.typing-bubble {
+  animation: typingBubbleIn 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transform-origin: center;
+}
+
+/* Scale, not translateY: at 3.5px a 2px rise reads as jitter, while a scale
+   pulse stays legible and never disturbs the bubble's own bounds. */
+@keyframes typingDot {
+  0%,
+  70%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.typing-dot {
+  animation: typingDot 1.25s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Motion is the flourish, not the message: without it the bubble still reads. */
+@media (prefers-reduced-motion: reduce) {
+  .typing-bubble {
+    animation: none;
+  }
+
+  .typing-dot {
+    animation: none;
+    opacity: 0.9;
+    transform: none;
+  }
+}

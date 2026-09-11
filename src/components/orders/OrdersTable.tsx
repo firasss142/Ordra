@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Inbox } from "lucide-react";
 import type { OrdersListRow } from "@/hooks/useOrdersList";
@@ -8,10 +8,14 @@ import { Pagination } from "@/components/shared/Pagination";
 import { PAGE_SIZE_OPTIONS } from "@/lib/orders/list-filters";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { OrderRow } from "./OrderRow";
+import type { PresenceRow } from "@/hooks/useOrderLocks";
+import type { PresencePerson } from "./PresenceIndicator";
 
 interface Agent {
   id: string;
   full_name: string;
+  /** Already on the wire from /api/agents; the type just used to drop it. */
+  avatar_url?: string | null;
 }
 
 interface Props {
@@ -36,6 +40,10 @@ interface Props {
   onCancel: (id: string) => void;
   onRecover?: (id: string) => void;
   onDuplicateChange?: () => void;
+  /** Who has each order open. Undefined for roles that never see presence. */
+  presenceOf?: (orderId: string) => PresenceRow[];
+  /** Optional override; presence rows normally carry their own identity. */
+  memberById?: Map<string, PresencePerson>;
   isLoading: boolean;
   isEmpty: boolean;
 }
@@ -62,6 +70,8 @@ export function OrdersTable({
   onCancel,
   onRecover,
   onDuplicateChange,
+  presenceOf,
+  memberById,
   isLoading,
   isEmpty,
 }: Props) {
@@ -73,6 +83,26 @@ export function OrdersTable({
     for (const a of agents) m.set(a.id, a.full_name);
     return m;
   }, [agents]);
+
+  // Names are already on this page, so a presence payload never has to carry
+  // one: four small fields per row is the whole wire cost of the indicator.
+  const agentById = useMemo(() => {
+    const m = new Map<string, Agent>();
+    for (const a of agents) m.set(a.id, a);
+    return m;
+  }, [agents]);
+
+  // Names and photos are already on this page, so a presence payload never has
+  // to carry one: four small fields per row is the whole wire cost.
+  const presencePersonOf = useCallback(
+    (userId: string): PresencePerson | null => {
+      const a = agentById.get(userId);
+      if (a) return { full_name: a.full_name, avatar_url: a.avatar_url ?? null };
+      return memberById?.get(userId) ?? null;
+    },
+    [agentById, memberById],
+  );
+
 
   const allSelected = rows.length > 0 && rows.every((r) => selectedIds.has(r.id));
   const someSelected = rows.some((r) => selectedIds.has(r.id));
@@ -152,6 +182,11 @@ export function OrdersTable({
                 highlighted={highlightedIds.has(r.id)}
                 currencyCode={currencyCode}
                 agentName={r.assigned_to ? agentNameById.get(r.assigned_to) ?? null : null}
+                presenceRows={presenceOf?.(r.id)}
+                presencePersonOf={presenceOf ? presencePersonOf : undefined}
+                agentAvatarUrl={
+                  r.assigned_to ? agentById.get(r.assigned_to)?.avatar_url ?? null : null
+                }
                 labels={{
                   status: tStatus(r.status),
                   unassigned: t("unassigned"),

@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import useSWR from "swr";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Boxes, PackageOpen, RotateCcw, Settings } from "lucide-react";
 import type { AuthUser } from "@/types";
@@ -37,6 +38,8 @@ export function WarehouseMobileShell({
 }) {
   const t = useTranslations("warehouse");
   const locale = user.locale;
+  const pathname = usePathname();
+  const runHref = `/${locale}/warehouse/scan`;
 
   /*
    * Same key the dashboard uses, so SWR serves both from one request. The
@@ -81,6 +84,16 @@ export function WarehouseMobileShell({
     ];
   }, [locale, t, data]);
 
+  /*
+   * A run takes the whole screen.
+   *
+   * The agent is holding a parcel and reading a sticker number; four
+   * destinations and a floating button along the bottom are four ways to lose
+   * the batch by mistake. The run carries its own way out — a labelled exit at
+   * the top — so nothing is trapped.
+   */
+  const inRun = pathname === runHref || pathname.startsWith(`${runHref}/`);
+
   return (
     <div
       className="wh-console wh-mobile min-h-screen"
@@ -91,14 +104,19 @@ export function WarehouseMobileShell({
         data-testid="wh-mobile-main"
         // Clears the fixed bar and the home indicator. Without it the last
         // card on every screen sits behind the bar and cannot be tapped.
-        className="wh-safe-top pb-[calc(56px+env(safe-area-inset-bottom,0px)+84px)]"
+        className={inRun ? "wh-safe-top" : "wh-safe-top pb-[calc(56px+env(safe-area-inset-bottom,0px)+84px)]"}
       >
         {children}
       </main>
-      {/* One scanner for the whole shell: the bench sheet, opened by a query
-          flag so the button works from any tab without a second station. */}
-      <ScanFab href={`/${locale}/warehouse?scan=1`} label={t("nav.quickScan")} />
-      <WarehouseBottomBar tabs={tabs} />
+      {inRun ? null : (
+        <>
+          {/* One scanner for the whole shell. It opens a RUN — pick what stays
+              in your hand, then work the batch — rather than a lone sheet that
+              forgot the parcel on every navigation. */}
+          <ScanFab href={runHref} label={t("nav.quickScan")} />
+          <WarehouseBottomBar tabs={tabs} />
+        </>
+      )}
     </div>
   );
 }
