@@ -140,6 +140,26 @@ export interface MarketSettings {
   /** Notify the manager when an order breaches the confirmation SLA. */
   sla_breach_alert?: boolean;
 
+  // ── Suivi livraison (the post-upload delivery worklist) ──
+  // Every threshold the page ranks on lives here. Nothing in lib/delivery may
+  // hardcode one: markets differ, and a manager cannot tune what is compiled in.
+  /**
+   * Order value at or above which a parcel counts as high-value for the
+   * proactive-call task. 0 = off, which is the default: a market must opt in,
+   * or every order over some arbitrary number raises a task on day one.
+   */
+  high_value_threshold?: number;
+  /** Delivery rate (%) under which a destination counts as a weak zone. */
+  zone_low_delivery_rate_pct?: number;
+  /** Minimum finished orders before a zone's rate is trusted at all. */
+  zone_min_sample?: number;
+  /** Prior returns + rejections that make a customer a repeat risk. */
+  risk_min_prior_failures?: number;
+  /** Hours a proactive call task stays open before it expires unanswered. */
+  proactive_call_window_hours?: number;
+  /** Hours a finished parcel stays visible in the "terminées" bucket. */
+  delivery_done_window_hours?: number;
+
   // Objectifs (team targets; read by the team dashboard + agent sheet)
   goal_daily_treated?: number;
   goal_min_rate?: number;
@@ -197,6 +217,14 @@ export const DEFAULT_MARKET_SETTINGS: MarketSettings = {
   carrier_stall_days: 5,
   stockout_days_of_cover: 7,
   sla_breach_alert: true,
+  // Suivi livraison. high_value_threshold stays 0 (off) on purpose — see the
+  // interface comment; the others are the values the prototype was tuned on.
+  high_value_threshold: 0,
+  zone_low_delivery_rate_pct: 60,
+  zone_min_sample: 20,
+  risk_min_prior_failures: 1,
+  proactive_call_window_hours: 4,
+  delivery_done_window_hours: 24,
   goal_daily_treated: 12,
   goal_min_rate: 40,
   goal_conf_per_hour: 3,
@@ -246,6 +274,12 @@ export const MARKET_SETTINGS_KEYS: ReadonlyArray<keyof MarketSettings> = [
   "carrier_stall_days",
   "stockout_days_of_cover",
   "sla_breach_alert",
+  "high_value_threshold",
+  "zone_low_delivery_rate_pct",
+  "zone_min_sample",
+  "risk_min_prior_failures",
+  "proactive_call_window_hours",
+  "delivery_done_window_hours",
   "goal_daily_treated",
   "goal_min_rate",
   "goal_conf_per_hour",
@@ -432,6 +466,19 @@ export function isValidMarketSettings(obj: unknown): obj is MarketSettings {
   if (!isValidOptionalInt(s.carrier_stall_days, 1, 90)) return false;
   if (!isValidOptionalInt(s.stockout_days_of_cover, 0, 365)) return false;
   if (!isValidOptionalBoolean(s.sla_breach_alert)) return false;
+
+  // Suivi livraison
+  // high_value_threshold is an amount, not a count, so it may be fractional;
+  // 0 means the high-value risk input is switched off.
+  if (!isValidOptionalNumber(s.high_value_threshold, 0, Number.MAX_SAFE_INTEGER))
+    return false;
+  if (!isValidOptionalNumber(s.zone_low_delivery_rate_pct, 0, 100)) return false;
+  // A zone needs a real sample before its rate may condemn it: 1 would let a
+  // single failed delivery mark a whole destination as weak.
+  if (!isValidOptionalInt(s.zone_min_sample, 1, 100_000)) return false;
+  if (!isValidOptionalInt(s.risk_min_prior_failures, 1, 100)) return false;
+  if (!isValidOptionalInt(s.proactive_call_window_hours, 1, 72)) return false;
+  if (!isValidOptionalInt(s.delivery_done_window_hours, 1, 168)) return false;
 
   // Objectifs
   if (!isValidOptionalInt(s.goal_daily_treated, 0, 100_000)) return false;

@@ -506,6 +506,82 @@ describe("isValidMarketSettings — goal keys", () => {
   });
 });
 
+describe("delivery worklist settings", () => {
+  const valid = {
+    delivery_fee: 7,
+    return_fee: 3,
+    packing_cost: 1.5,
+    max_call_attempts: 3,
+    assignment_algorithm: "round_robin",
+  };
+
+  // Every threshold the delivery page reads must come from here. A hardcoded
+  // number is a bug: markets differ, and a manager cannot tune what is compiled
+  // in. `carrier_stall_days` and `unverified_after_days` already existed and
+  // were never read by anything — the worklist is their first consumer.
+  it("high_value_threshold accepts 0 (off) and a positive amount", () => {
+    expect(isValidMarketSettings({ ...valid, high_value_threshold: 0 })).toBe(true);
+    expect(isValidMarketSettings({ ...valid, high_value_threshold: 500 })).toBe(true);
+    expect(isValidMarketSettings({ ...valid, high_value_threshold: -1 })).toBe(false);
+  });
+
+  it("zone_low_delivery_rate_pct accepts 0..100", () => {
+    expect(isValidMarketSettings({ ...valid, zone_low_delivery_rate_pct: 60 })).toBe(true);
+    expect(isValidMarketSettings({ ...valid, zone_low_delivery_rate_pct: 0 })).toBe(true);
+    expect(isValidMarketSettings({ ...valid, zone_low_delivery_rate_pct: 101 })).toBe(false);
+  });
+
+  it("zone_min_sample requires enough orders to mean anything", () => {
+    // A zone with three deliveries is noise, not a low-delivery zone.
+    expect(isValidMarketSettings({ ...valid, zone_min_sample: 20 })).toBe(true);
+    expect(isValidMarketSettings({ ...valid, zone_min_sample: 0 })).toBe(false);
+    expect(isValidMarketSettings({ ...valid, zone_min_sample: 2.5 })).toBe(false);
+  });
+
+  it("risk_min_prior_failures accepts a positive integer", () => {
+    expect(isValidMarketSettings({ ...valid, risk_min_prior_failures: 1 })).toBe(true);
+    expect(isValidMarketSettings({ ...valid, risk_min_prior_failures: 0 })).toBe(false);
+  });
+
+  it("proactive_call_window_hours accepts 1..72", () => {
+    expect(isValidMarketSettings({ ...valid, proactive_call_window_hours: 4 })).toBe(true);
+    expect(isValidMarketSettings({ ...valid, proactive_call_window_hours: 0 })).toBe(false);
+    expect(isValidMarketSettings({ ...valid, proactive_call_window_hours: 73 })).toBe(false);
+  });
+
+  it("delivery_done_window_hours accepts 1..168", () => {
+    expect(isValidMarketSettings({ ...valid, delivery_done_window_hours: 24 })).toBe(true);
+    expect(isValidMarketSettings({ ...valid, delivery_done_window_hours: 0 })).toBe(false);
+    expect(isValidMarketSettings({ ...valid, delivery_done_window_hours: 169 })).toBe(false);
+  });
+
+  it("every delivery key is declared in MARKET_SETTINGS_KEYS", () => {
+    // assembleMarketSettings only applies stored rows whose key is in this
+    // list, so a key missing here silently ignores whatever the manager saved.
+    for (const key of [
+      "high_value_threshold",
+      "zone_low_delivery_rate_pct",
+      "zone_min_sample",
+      "risk_min_prior_failures",
+      "proactive_call_window_hours",
+      "delivery_done_window_hours",
+    ] as const) {
+      expect(MARKET_SETTINGS_KEYS).toContain(key);
+    }
+  });
+
+  it("ships defaults for the keys the page cannot run without", () => {
+    expect(DEFAULT_MARKET_SETTINGS.zone_low_delivery_rate_pct).toBe(60);
+    expect(DEFAULT_MARKET_SETTINGS.zone_min_sample).toBe(20);
+    expect(DEFAULT_MARKET_SETTINGS.risk_min_prior_failures).toBe(1);
+    expect(DEFAULT_MARKET_SETTINGS.proactive_call_window_hours).toBe(4);
+    expect(DEFAULT_MARKET_SETTINGS.delivery_done_window_hours).toBe(24);
+    // Off by default: a market must opt into calling high-value parcels risky,
+    // or every order over an arbitrary number would raise a task on day one.
+    expect(DEFAULT_MARKET_SETTINGS.high_value_threshold).toBe(0);
+  });
+});
+
 describe("CarrierConfig type", () => {
   it("accepts a valid CarrierConfig object", () => {
     const config: CarrierConfig = {

@@ -16,13 +16,15 @@ import type { Role } from "@/types";
 import { SettingsTabNav } from "./general/SettingsTabNav";
 import { OperationsSection } from "./general/OperationsSection";
 import { AlertesSection } from "./general/AlertesSection";
+import { LivraisonSection } from "./general/LivraisonSection";
 import { TeamSection } from "./general/TeamSection";
 import { ObjectifsSection } from "./general/ObjectifsSection";
 
-type Group = "operations" | "alertes" | "team" | "objectifs" | "commissions";
+type Group = "operations" | "livraison" | "alertes" | "team" | "objectifs" | "commissions";
 
 const GROUPS: { key: Group; label: string; description: string }[] = [
   { key: "operations", label: "Opérations", description: "Confirmation, réception, expédition, cycle de vie" },
+  { key: "livraison", label: "Livraison", description: "Ce qui met un colis en haut de la file de l'agent" },
   { key: "alertes", label: "Alertes", description: "Seuils qui déclenchent les alertes" },
   { key: "team", label: "Équipe", description: "Affectation, présence, heures ouvrées" },
   { key: "objectifs", label: "Objectifs", description: "Cibles de l'équipe" },
@@ -96,6 +98,14 @@ export function GeneralSettingsGroups({
       "auto_restock_on_return_scan",
       "auto_archive_after_days",
       "supplier_lead_time_days",
+    ],
+    livraison: [
+      "high_value_threshold",
+      "risk_min_prior_failures",
+      "zone_low_delivery_rate_pct",
+      "zone_min_sample",
+      "proactive_call_window_hours",
+      "delivery_done_window_hours",
     ],
     alertes: [
       "carrier_error_rate_threshold",
@@ -194,6 +204,15 @@ export function GeneralSettingsGroups({
           onSave={() => saveGroup("operations")}
           onReset={() => resetGroup("operations")}
           saving={saving === "operations"}
+        />
+      )}
+
+      {group === "livraison" && (
+        <LivraisonSection
+          {...common}
+          onSave={() => saveGroup("livraison")}
+          onReset={() => resetGroup("livraison")}
+          saving={saving === "livraison"}
         />
       )}
 
