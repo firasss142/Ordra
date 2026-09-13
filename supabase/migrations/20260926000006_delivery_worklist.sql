@@ -167,6 +167,23 @@ scope AS (
   WHERE o.market_id = p_market_id
     AND o.archived_at IS NULL
     AND (p_agent_id IS NULL OR o.assigned_to = p_agent_id)
+    -- Legacy dead uploads. 391 Libyan orders carry a 7-digit pre-sticker
+    -- tracking number and NO carrier shipment, created May-Aug and averaging
+    -- 105 days old; one agent owns 262 of them. They cannot move, because
+    -- nothing at the carrier is tracking them. Showing them would bury the ~60
+    -- real parcels and teach agents the page is noise — the way the old
+    -- follow-ups page died. Nothing is archived or modified: an order that is
+    -- still young, or that ever gets a real shipment, appears immediately.
+    AND NOT (
+      o.status = 'uploaded'
+      -- created_at, NOT updated_at: the 2026-09-13 bulk write reset updated_at
+      -- on all 391 rows, so the column that should have revealed their age is
+      -- the one column that hides it.
+      AND o.created_at < now() - make_interval(days => cfg.stall_days)
+      AND NOT EXISTS (
+        SELECT 1 FROM public.darb_shipments dsx WHERE dsx.order_id = o.id
+      )
+    )
     AND (
       o.status IN ('uploaded','scanned','at_carrier','dispatched','deposit',
                    'in_transit','out_for_delivery','delivery_delayed','unverified',
