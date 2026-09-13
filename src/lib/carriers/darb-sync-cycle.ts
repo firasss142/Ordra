@@ -29,6 +29,7 @@ import {
 } from "./darb-assabil-shipment";
 import { fetchDarbShipmentPage } from "./darb-assabil-tracking";
 import { classifyBindState, type StickerBindState } from "./darb-assabil-reference";
+import { classifyRemark } from "./darb-remark-classifier";
 import type { CarrierConfig } from "./types";
 
 /** Darb serves 500 rows/page (verified live). Leave headroom for latency. */
@@ -188,6 +189,16 @@ function shipmentRow(
   raw: unknown,
   syncedAt: string,
 ): Record<string, unknown> {
+  // The courier's note is the ONLY place a delay reason exists; until now it
+  // was mirrored and never read. Classifying here means every sync writes the
+  // structured reason alongside the text, at the cost of a few regex tests per
+  // shipment — no extra query, no second pass over the table.
+  const remark = classifyRemark({
+    latestRemark: p.latestRemark,
+    latestComment: p.latestComment,
+    cancellationCause: p.cancellationCause,
+  });
+
   return {
     darb_id: p.darbId,
     carrier_id: carrierId,
@@ -229,6 +240,9 @@ function shipmentRow(
     latest_comment: p.latestComment,
     latest_comment_at: p.latestCommentAt,
     comment_count: p.commentCount,
+    remark_class: remark.class,
+    remark_class_source: remark.source,
+    remark_classified_at: syncedAt,
     raw,
     last_synced_at: syncedAt,
   };
