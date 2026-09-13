@@ -929,3 +929,13 @@
     transform: none;
   }
 }
+
+/* Suivi livraison — the undo window on the "Action enregistrée" toast.
+   Its length must match UNDO_WINDOW_MS in src/hooks/useDeliveryActionQueue.ts. */
+@keyframes delivery-undo {
+  from { width: 100%; }
+  to { width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-[delivery-undo"] { animation: none; }
+}

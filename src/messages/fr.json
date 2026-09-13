@@ -141,7 +141,8 @@
       "generalSettings": "Paramètres",
       "logs": "Journaux",
       "investors": "Investisseurs",
-      "controlRoom": "Salle de contrôle"
+      "controlRoom": "Salle de contrôle",
+      "deliveryWorklist": "Suivi livraison"
     },
     "a11y": {
       "expandSection": "Déplier la section {section}",
@@ -161,7 +162,8 @@
       "warehouse_agent": "Agent entrepôt",
       "investor": "Investisseur"
     },
-    "myCommissions": "Mes commissions"
+    "myCommissions": "Mes commissions",
+    "delivery": "Livraison"
   },
   "carrierTracking": {
     "title": "Suivi transporteur",
@@ -5489,5 +5491,205 @@
     "hintPick": "choisir",
     "hintBack": "retour",
     "hintClose": "fermer"
+  },
+  "delivery": {
+    "title": "Suivi livraison",
+    "sub": "{n} en cours",
+    "stat": "<b>{rate} %</b> livraison 30 j · <b>{saved}</b> sauvées",
+    "search": "Rechercher par nom, numéro ou ville…",
+    "buckets": {
+      "all": "Tout",
+      "returning": "Retours à sauver",
+      "act_now": "À traiter maintenant",
+      "waiting_customer": "En attente client",
+      "waiting_carrier": "Chez le transporteur",
+      "done": "Terminées"
+    },
+    "cols": {
+      "client": "Client / Colis",
+      "situation": "Situation",
+      "action": "Action",
+      "amount": "Montant"
+    },
+    "today": "Aujourd'hui {time}",
+    "yesterday": "Hier {time}",
+    "hours": "{n} h",
+    "days": "{n} j",
+    "minutes": "{n} min",
+    "sit": {
+      "proactive": "Colis à risque",
+      "stalled": "Aucun mouvement",
+      "no_answer": "Non joignable",
+      "address": "À traiter maintenant",
+      "out_of_coverage": "Hors réseau",
+      "cancel": "Veut annuler",
+      "delayed": "Livraison retardée",
+      "due": "Rappel dépassé",
+      "waiting_customer": "En attente client",
+      "at_warehouse": "À l'entrepôt",
+      "waiting_carrier": "Chez le transporteur",
+      "returning": "Retourné",
+      "to_be_returned": "Retour confirmé",
+      "delivered": "Livré",
+      "returned": "Retour clôturé"
+    },
+    "subs": {
+      "proactive": "Client à risque : appeler avant le livreur.",
+      "stalled": "Le colis n'a pas bougé depuis des jours.",
+      "no_answer": "Le client ne répond pas aux appels.",
+      "address": "Adresse à confirmer.",
+      "out_of_coverage": "Le numéro est hors réseau.",
+      "cancel": "Le client dit ne plus vouloir le colis.",
+      "delayed": "Toujours chez le transporteur.",
+      "due": "Le rappel promis est dépassé.",
+      "wait_callback": "Client a demandé à être rappelé.",
+      "at_warehouse": "Pas encore remis au transporteur.",
+      "transit": "En cours de livraison.",
+      "in_transit": "En route vers l'agence.",
+      "at_carrier": "Arrivé à l'agence du transporteur.",
+      "returning": "Client n'a pas récupéré le colis.",
+      "to_be_returned": "Le client a annulé, le colis revient.",
+      "delivered": "Livré aujourd'hui.",
+      "returned": "Le colis est revenu."
+    },
+    "moves": {
+      "call2": "Appeler le 2ᵉ numéro",
+      "courier": "Appeler le livreur",
+      "save": "Sauver le retour",
+      "call": "Appeler",
+      "before": "Appeler avant livraison",
+      "wa": "Écrire sur WhatsApp",
+      "track": "Suivre le colis",
+      "details": "Voir les détails"
+    },
+    "why": {
+      "call2": "Le client ne répond pas. Essayez le numéro alternatif.",
+      "courier": "Le colis n'avance pas. Demandez au livreur où il en est.",
+      "save": "Un appel à l'agence obtient souvent une nouvelle tentative.",
+      "call": "Confirmez avec le client avant la prochaine tentative.",
+      "before": "Colis à risque : confirmez que le client sera là.",
+      "wa": "Le téléphone ne passe pas, un message a plus de chances.",
+      "track": "Rien à faire pour l'instant, le transporteur travaille.",
+      "details": "Ce colis est terminé."
+    },
+    "detail": {
+      "recommended": "Prochaine action recommandée",
+      "suggested": "Action suggérée",
+      "callNumber": "Appeler {phone}",
+      "callBranch": "Appeler l'agence · {phone}",
+      "logAction": "Enregistrer une action",
+      "logShort": "Enregistrer",
+      "client": "Client",
+      "carrier": "Transporteur",
+      "parcel": "Colis",
+      "history": "Historique",
+      "created": "Créé le {date}",
+      "notYet": "Pas encore remis au transporteur",
+      "whatsapp": "WhatsApp",
+      "title": "Détail du colis",
+      "clientInfo": "Informations client",
+      "deliveryInfo": "Informations livraison",
+      "phone2Recommended": "2ᵉ numéro (recommandé)",
+      "phone1": "1ᵉʳ numéro",
+      "phone2": "2ᵉ numéro",
+      "carrierLabel": "Transporteur",
+      "courier": "Livreur",
+      "status": "Statut",
+      "createdAt": "Créée le",
+      "tracking": "N° de suivi",
+      "agent": "Agent",
+      "customerNew": "Nouveau client",
+      "customerHistory": "{orders} commandes · {delivered} livrées · {returned} retours",
+      "close": "Fermer",
+      "back": "Retour",
+      "callCourier": "Appeler le livreur",
+      "noEvents": "Aucun événement pour l'instant."
+    },
+    "tl": {
+      "all": "Tout",
+      "mine": "Mes actions",
+      "carrier": "Transporteur"
+    },
+    "timeline": {
+      "courier_message": "Message du livreur",
+      "whatsapp_customer": "WhatsApp envoyé",
+      "proactive_call_task": "Tâche : appeler avant livraison",
+      "system": "Système",
+      "manager": "Manager",
+      "you": "Toi"
+    },
+    "sheet": {
+      "title": "Enregistrer une action",
+      "what": "Qu'as-tu fait ?",
+      "result": "Résultat",
+      "note": "Note",
+      "optional": "(optionnelle)",
+      "notePlaceholder": "Ajouter une note…",
+      "reminder": "Rappel",
+      "in2h": "+ 2 h",
+      "tomorrow10": "Demain 10:00",
+      "noReminder": "Sans rappel",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "types": {
+        "call_customer": "Appelé client",
+        "call_courier": "Appelé livreur",
+        "call_branch": "Appelé agence",
+        "note": "Note seule"
+      },
+      "outcomes": {
+        "reached_will_receive": "Va recevoir",
+        "reached_reschedule": "Veut autre date",
+        "reached_wants_cancel": "Veut annuler",
+        "reached_address_fix": "Adresse corrigée",
+        "no_answer": "Ne répond pas",
+        "wrong_number": "Faux numéro",
+        "phone_off": "Téléphone éteint",
+        "reattempt_promised": "Nouvelle tentative promise",
+        "courier_no_answer": "Livreur ne répond pas",
+        "parcel_located": "Colis localisé",
+        "return_confirmed": "Retour confirmé",
+        "info_passed": "Info transmise",
+        "sent": "Envoyé",
+        "pending": "À faire",
+        "expired": "Expirée",
+        "none": ""
+      }
+    },
+    "wa": {
+      "title": "Envoyer sur WhatsApp",
+      "template": "Choisir le modèle",
+      "text": "Texte du message",
+      "open": "Ouvrir WhatsApp",
+      "noPhone": "Aucun numéro WhatsApp utilisable pour ce client.",
+      "templates": {
+        "before_delivery": "Avant livraison",
+        "courier_no_answer": "Livreur n'a pas pu joindre",
+        "delayed_confirm_time": "Confirmer la date",
+        "returning_last_chance": "Dernière chance",
+        "address_check": "Vérifier l'adresse"
+      }
+    },
+    "toast": {
+      "saved": "Action enregistrée",
+      "moved": "Déplacé vers « {bucket} »",
+      "undo": "Annuler",
+      "undone": "Action annulée",
+      "waOpened": "WhatsApp ouvert",
+      "waSub": "Tu peux maintenant envoyer le message au client.",
+      "failed": "L'action n'a pas pu être enregistrée. Réessaie.",
+      "close": "Fermer"
+    },
+    "empty": {
+      "title": "Rien ici",
+      "sub": "Aucun colis ne correspond.",
+      "all": "Voir tous les colis"
+    },
+    "pick": "Sélectionne un colis pour voir son détail.",
+    "offline": "Mise à jour automatique en pause · la liste se rafraîchit toutes les minutes",
+    "loadError": "Impossible de charger les colis.",
+    "retry": "Réessayer",
+    "selectMarket": "Choisis un marché pour voir les colis.",
+    "filters": "Filtres"
   }
 }

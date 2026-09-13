@@ -141,6 +141,9 @@ describe("Sidebar — sections", () => {
       "href",
       "/fr/in-delivery",
     );
+    // The new post-upload worklist leads the section. Tableau livraison stays
+    // until the rebuild's deletion phase (CLAUDE.md, open discrepancy 3).
+    expect(screen.getByRole("link", { name: /Suivi livraison/ })).toHaveAttribute("href", "/fr/delivery");
   });
 
   it("no longer offers Expédition, which is carrier upload rather than floor work", () => {

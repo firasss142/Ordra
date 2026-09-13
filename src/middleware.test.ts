@@ -233,6 +233,22 @@ describe("middleware — trusting the signed profile cookie", () => {
     expect(res.headers.get("location")).toContain("/queue");
   });
 
+  test("/delivery is guarded: agents and managers in, warehouse agents out", async () => {
+    const agent = await middleware(
+      await request("/ar/delivery", await signProfile(payload({ role: "agent" }))),
+    );
+    expect(agent.headers.get("location")).toBeNull();
+
+    const manager = await middleware(await request("/ar/delivery", await signProfile(payload())));
+    expect(manager.headers.get("location")).toBeNull();
+
+    const warehouse = await middleware(
+      await request("/ar/delivery", await signProfile(payload({ role: "warehouse_agent" }))),
+    );
+    expect(warehouse.status).toBe(307);
+    expect(warehouse.headers.get("location")).toContain("/warehouse");
+  });
+
   test("the fast path still enforces the market's locale", async () => {
     const res = await middleware(await request("/fr/orders", await signProfile(payload())));
 

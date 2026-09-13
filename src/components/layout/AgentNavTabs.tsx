@@ -4,11 +4,11 @@ import { memo, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { preload } from "swr";
+import useSWR, { preload } from "swr";
 import {
   ShoppingBag,
   Users,
-  ClipboardList,
+  Truck,
   Coins,
   type LucideIcon,
 } from "lucide-react";
@@ -32,6 +32,7 @@ interface TabDef {
   label: string;
   icon: LucideIcon;
   prefetchKey: string;
+  badge?: number;
 }
 
 function AgentTabInner({
@@ -74,6 +75,11 @@ function AgentTabInner({
         className={active ? "text-agent-primary" : "text-agent-ink-3 opacity-70"}
       />
       <span className="whitespace-nowrap">{tab.label}</span>
+      {tab.badge ? (
+        <span className="ms-0.5 inline-grid h-5 min-w-5 place-items-center rounded-full bg-[#FEF3C7] px-1.5 text-xs font-bold tabular-nums text-[#92400E]">
+          {tab.badge}
+        </span>
+      ) : null}
     </Link>
   );
 }
@@ -84,7 +90,14 @@ function AgentNavTabsInner({ user, variant = "band" }: Props) {
   const pathname = usePathname();
   const tNav = useTranslations("nav");
   const tCrm = useTranslations("crm");
-  const tFollowUps = useTranslations("crm.followUps");
+
+  // Parcels that need the agent now. Same key as the Livraison page, so the
+  // badge and the page share one request; the global SWR fetcher resolves it.
+  const { data: delivery } = useSWR<{ rows: { bucket: string }[] }>(
+    user.role === "agent" ? "/api/delivery/worklist" : null,
+    { refreshInterval: 120_000, revalidateOnFocus: false },
+  );
+  const deliveryBadge = delivery?.rows?.filter((r) => r.bucket === "act_now" || r.bucket === "returning").length ?? 0;
 
   const tabs: TabDef[] = [
     {
@@ -100,10 +113,13 @@ function AgentNavTabsInner({ user, variant = "band" }: Props) {
       prefetchKey: "/api/agent/leads/queue",
     },
     {
-      href: `/${user.locale}/follow-ups`,
-      label: tFollowUps("nav"),
-      icon: ClipboardList,
-      prefetchKey: "/api/follow-ups",
+      // « Suivi livraison » replaces the old follow-ups tab. The /follow-ups
+      // page is still reachable by URL until the rebuild's deletion phase.
+      href: `/${user.locale}/delivery`,
+      label: tNav("delivery"),
+      icon: Truck,
+      prefetchKey: "/api/delivery/worklist",
+      badge: deliveryBadge,
     },
     {
       href: `/${user.locale}/commissions`,

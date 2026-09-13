@@ -141,7 +141,8 @@
       "generalSettings": "الإعدادات",
       "logs": "السجلات",
       "investors": "المستثمرون",
-      "controlRoom": "غرفة التحكم"
+      "controlRoom": "غرفة التحكم",
+      "deliveryWorklist": "متابعة التوصيل"
     },
     "a11y": {
       "expandSection": "توسيع قسم {section}",
@@ -161,7 +162,8 @@
       "warehouse_agent": "عامل المستودع",
       "investor": "مستثمر"
     },
-    "myCommissions": "عمولاتي"
+    "myCommissions": "عمولاتي",
+    "delivery": "التوصيل"
   },
   "carrierTracking": {
     "title": "تتبع الناقل",
@@ -5489,5 +5491,205 @@
     "hintPick": "اختيار",
     "hintBack": "رجوع",
     "hintClose": "إغلاق"
+  },
+  "delivery": {
+    "title": "متابعة التوصيل",
+    "sub": "{n} قيد التنفيذ",
+    "stat": "<b>{rate} %</b> توصيل خلال 30 يوماً · <b>{saved}</b> تم إنقاذها",
+    "search": "ابحث بالاسم أو الرقم أو المدينة…",
+    "buckets": {
+      "all": "الكل",
+      "returning": "مرتجعات للإنقاذ",
+      "act_now": "تحتاج إجراء الآن",
+      "waiting_customer": "بانتظار العميل",
+      "waiting_carrier": "لدى شركة التوصيل",
+      "done": "مكتملة"
+    },
+    "cols": {
+      "client": "العميل / الطرد",
+      "situation": "الوضع",
+      "action": "الإجراء",
+      "amount": "المبلغ"
+    },
+    "today": "اليوم {time}",
+    "yesterday": "أمس {time}",
+    "hours": "{n} س",
+    "days": "{n} يوم",
+    "minutes": "{n} د",
+    "sit": {
+      "proactive": "شحنة حساسة",
+      "stalled": "بلا حركة",
+      "no_answer": "لا تجيب",
+      "address": "تحتاج إجراء",
+      "out_of_coverage": "خارج التغطية",
+      "cancel": "يريد الإلغاء",
+      "delayed": "تأخر في التوصيل",
+      "due": "فات موعد المتابعة",
+      "waiting_customer": "بانتظار العميل",
+      "at_warehouse": "في المخزن",
+      "waiting_carrier": "لدى شركة التوصيل",
+      "returning": "تم إرجاعها",
+      "to_be_returned": "إرجاع مؤكد",
+      "delivered": "تم التسليم",
+      "returned": "إرجاع مغلق"
+    },
+    "subs": {
+      "proactive": "عميل حساس: اتصل قبل المندوب.",
+      "stalled": "الطرد لم يتحرك منذ أيام.",
+      "no_answer": "العميل لا يرد على المكالمات.",
+      "address": "العنوان يحتاج تأكيد.",
+      "out_of_coverage": "الرقم خارج التغطية.",
+      "cancel": "العميل لم يعد يريد الطرد.",
+      "delayed": "ما زالت لدى شركة التوصيل.",
+      "due": "فات موعد المتابعة المتفق عليه.",
+      "wait_callback": "العميل طلب معاودة الاتصال.",
+      "at_warehouse": "لم يُسلَّم بعد لشركة التوصيل.",
+      "transit": "في الطريق إلى العميل.",
+      "in_transit": "في الطريق إلى الفرع.",
+      "at_carrier": "وصل إلى فرع شركة التوصيل.",
+      "returning": "العميل لم يستلم الطلب.",
+      "to_be_returned": "ألغى العميل والطرد راجع.",
+      "delivered": "تم التسليم بنجاح.",
+      "returned": "عاد الطرد."
+    },
+    "moves": {
+      "call2": "اتصل بالرقم الثاني",
+      "courier": "اتصل بالمندوب",
+      "save": "إنقاذ المرتجع",
+      "call": "اتصل بالعميل",
+      "before": "اتصل قبل التوصيل",
+      "wa": "راسل على واتساب",
+      "track": "متابعة مع الناقل",
+      "details": "عرض التفاصيل"
+    },
+    "why": {
+      "call2": "العميل لا يرد. جرّب الرقم البديل.",
+      "courier": "الطرد لا يتحرك. اسأل المندوب عن وضعه.",
+      "save": "اتصال بالفرع يحصل غالباً على محاولة جديدة.",
+      "call": "أكّد مع العميل قبل المحاولة القادمة.",
+      "before": "شحنة حساسة: تأكد أن العميل سيكون موجوداً.",
+      "wa": "الهاتف لا يرد، الرسالة أفضل.",
+      "track": "لا شيء لتفعله الآن، شركة التوصيل تعمل.",
+      "details": "هذا الطرد مكتمل."
+    },
+    "detail": {
+      "recommended": "الإجراء الموصى به",
+      "suggested": "الإجراء المقترح",
+      "callNumber": "اتصل بـ {phone}",
+      "callBranch": "اتصل بالفرع · {phone}",
+      "logAction": "سجّل إجراء",
+      "logShort": "سجّل إجراء",
+      "client": "العميل",
+      "carrier": "شركة التوصيل",
+      "parcel": "الطرد",
+      "history": "السجل",
+      "created": "أُنشئ في {date}",
+      "notYet": "لم يُسلَّم بعد لشركة التوصيل",
+      "whatsapp": "واتساب",
+      "title": "تفاصيل الشحنة",
+      "clientInfo": "معلومات العميل",
+      "deliveryInfo": "معلومات التوصيل",
+      "phone2Recommended": "الرقم الثاني (موصى به)",
+      "phone1": "الرقم الأول",
+      "phone2": "الرقم الثاني",
+      "carrierLabel": "شركة الشحن",
+      "courier": "المندوب",
+      "status": "حالة الشحنة",
+      "createdAt": "تاريخ الإنشاء",
+      "tracking": "رقم التتبع",
+      "agent": "الموظف",
+      "customerNew": "عميل جديد",
+      "customerHistory": "{orders} طلبات · {delivered} مسلّمة · {returned} إرجاع",
+      "close": "إغلاق",
+      "back": "رجوع",
+      "callCourier": "اتصل بالمندوب",
+      "noEvents": "لا أحداث بعد."
+    },
+    "tl": {
+      "all": "الكل",
+      "mine": "إجراءاتي",
+      "carrier": "شركة التوصيل"
+    },
+    "timeline": {
+      "courier_message": "رسالة المندوب",
+      "whatsapp_customer": "أُرسل واتساب",
+      "proactive_call_task": "مهمة: اتصل قبل التوصيل",
+      "system": "النظام",
+      "manager": "المدير",
+      "you": "أنت"
+    },
+    "sheet": {
+      "title": "سجّل إجراء",
+      "what": "ماذا فعلت؟",
+      "result": "النتيجة",
+      "note": "ملاحظة",
+      "optional": "(اختيارية)",
+      "notePlaceholder": "أضف ملاحظة…",
+      "reminder": "تذكير",
+      "in2h": "+ 2 س",
+      "tomorrow10": "غداً 10:00",
+      "noReminder": "بدون تذكير",
+      "save": "حفظ",
+      "saving": "جارٍ الحفظ…",
+      "types": {
+        "call_customer": "اتصلت بالعميل",
+        "call_courier": "اتصلت بالمندوب",
+        "call_branch": "اتصلت بالفرع",
+        "note": "ملاحظة فقط"
+      },
+      "outcomes": {
+        "reached_will_receive": "سيستلم",
+        "reached_reschedule": "يريد موعداً آخر",
+        "reached_wants_cancel": "يريد الإلغاء",
+        "reached_address_fix": "صُحّح العنوان",
+        "no_answer": "لا يرد",
+        "wrong_number": "رقم خاطئ",
+        "phone_off": "الهاتف مغلق",
+        "reattempt_promised": "وُعد بمحاولة جديدة",
+        "courier_no_answer": "المندوب لا يرد",
+        "parcel_located": "حُدّد مكان الطرد",
+        "return_confirmed": "تأكيد الإرجاع",
+        "info_passed": "مُرّرت المعلومة",
+        "sent": "أُرسل",
+        "pending": "للتنفيذ",
+        "expired": "انتهت",
+        "none": ""
+      }
+    },
+    "wa": {
+      "title": "إرسال عبر واتساب",
+      "template": "اختر القالب",
+      "text": "نص الرسالة",
+      "open": "فتح واتساب",
+      "noPhone": "لا يوجد رقم واتساب صالح لهذا العميل.",
+      "templates": {
+        "before_delivery": "قبل التوصيل",
+        "courier_no_answer": "تعذر على المندوب الاتصال",
+        "delayed_confirm_time": "تأكيد الموعد",
+        "returning_last_chance": "فرصة أخيرة",
+        "address_check": "تأكيد العنوان"
+      }
+    },
+    "toast": {
+      "saved": "تم حفظ الإجراء",
+      "moved": "نُقل إلى «{bucket}»",
+      "undo": "تراجع",
+      "undone": "أُلغي الإجراء",
+      "waOpened": "تم فتح واتساب",
+      "waSub": "يمكنك الآن إرسال الرسالة للعميل.",
+      "failed": "تعذّر حفظ الإجراء. أعد المحاولة.",
+      "close": "إغلاق"
+    },
+    "empty": {
+      "title": "لا شيء هنا",
+      "sub": "لا طرود مطابقة.",
+      "all": "عرض كل الطرود"
+    },
+    "pick": "اختر طرداً لعرض تفاصيله.",
+    "offline": "التحديث التلقائي متوقف · تُحدَّث القائمة كل دقيقة",
+    "loadError": "تعذّر تحميل الطرود.",
+    "retry": "إعادة المحاولة",
+    "selectMarket": "اختر سوقاً لعرض الطرود.",
+    "filters": "الفلاتر"
   }
 }

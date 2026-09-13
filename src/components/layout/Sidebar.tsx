@@ -164,6 +164,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
     id: "livraison",
     icon: Truck,
     items: [
+      { key: "deliveryWorklist", href: "delivery", icon: PackageCheck, prefetchRoute: "delivery" },
       { key: "carrierTracking", href: "warehouse/carrier-tracking", icon: Truck, prefetchRoute: "warehouse" },
       { key: "inDeliveryBoard", href: "in-delivery", icon: Gauge, prefetchRoute: "in-delivery" },
     ],

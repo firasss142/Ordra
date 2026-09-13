@@ -105,4 +105,13 @@ describe("AgentTabsContainer — tabs mount on first visit, not up-front", () =>
     expect(queueMounted).not.toHaveBeenCalled();
     expect(leadsMounted).not.toHaveBeenCalled();
   });
+
+  it("renders neither tab on delivery, which has its own page", () => {
+    pathnameMock = "/ar/delivery";
+    render(<AgentTabsContainer user={user}><div data-testid="child" /></AgentTabsContainer>);
+
+    expect(screen.getByTestId("child")).toBeInTheDocument();
+    expect(queueMounted).not.toHaveBeenCalled();
+    expect(leadsMounted).not.toHaveBeenCalled();
+  });
 });

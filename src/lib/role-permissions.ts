@@ -3,9 +3,9 @@ import type { Role } from "@/types";
 // Route allow-list per role. Every role must appear here — a role missing from
 // the map is treated as "no access" rather than crashing (see canAccess).
 const PERMISSIONS: Record<Role, string[]> = {
-  super_admin: ["/orders", "/unassigned", "/products", "/team", "/users", "/carriers", "/settings", "/queue", "/leads", "/warehouse"],
-  market_manager: ["/orders", "/unassigned", "/products", "/team", "/users", "/carriers", "/settings", "/leads", "/warehouse"],
-  agent: ["/queue", "/leads"],
+  super_admin: ["/orders", "/unassigned", "/products", "/team", "/users", "/carriers", "/settings", "/queue", "/leads", "/warehouse", "/delivery"],
+  market_manager: ["/orders", "/unassigned", "/products", "/team", "/users", "/carriers", "/settings", "/leads", "/warehouse", "/delivery"],
+  agent: ["/queue", "/leads", "/delivery"],
   warehouse_agent: ["/warehouse"],
   // Investors are external. Exactly one route, and no staff surface at all.
   investor: ["/investor"],
@@ -42,6 +42,14 @@ export function canManageCommissions(role: Role): boolean {
 /** Set the commission rate or the on/off switch (Paramètres › Général › Commissions). */
 export function canSetCommissionRates(role: Role): boolean {
   return role === "super_admin";
+}
+
+/**
+ * "Suivi livraison" — the post-upload worklist. Agents work their own parcels;
+ * managers and super_admin see the market. See docs/delivery-worklist.md.
+ */
+export function canUseDeliveryWorklist(role: Role): boolean {
+  return role === "agent" || role === "market_manager" || role === "super_admin";
 }
 
 /** The read-only "Mes commissions" tab. */

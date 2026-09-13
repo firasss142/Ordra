@@ -330,6 +330,7 @@ export async function middleware(request: NextRequest) {
     "/queue",
     "/leads",
     "/warehouse",
+    "/delivery",
   ];
   const matchedRoute = knownRoutes.find((r) => routeSegment.startsWith(r));
   if (matchedRoute && !canAccess(role, matchedRoute)) {

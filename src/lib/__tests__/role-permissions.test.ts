@@ -189,3 +189,22 @@ describe("commission permissions", async () => {
     expect(canViewOwnCommissions("super_admin")).toBe(false);
   });
 });
+
+describe("delivery worklist permissions", async () => {
+  const { canUseDeliveryWorklist } = await import("../role-permissions");
+  it("agents work their parcels; managers and super_admin oversee them", () => {
+    expect(canUseDeliveryWorklist("agent")).toBe(true);
+    expect(canUseDeliveryWorklist("market_manager")).toBe(true);
+    expect(canUseDeliveryWorklist("super_admin")).toBe(true);
+  });
+  it("warehouse agents and investors have no delivery worklist", () => {
+    expect(canUseDeliveryWorklist("warehouse_agent")).toBe(false);
+    expect(canUseDeliveryWorklist("investor")).toBe(false);
+  });
+  it("/delivery is an allowed route for exactly those roles", () => {
+    expect(canAccess("agent", "/delivery")).toBe(true);
+    expect(canAccess("market_manager", "/delivery")).toBe(true);
+    expect(canAccess("super_admin", "/delivery")).toBe(true);
+    expect(canAccess("warehouse_agent", "/delivery")).toBe(false);
+  });
+});
