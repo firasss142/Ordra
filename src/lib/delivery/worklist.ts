@@ -22,6 +22,49 @@ export function groupByBucket(rows: WorklistRow[]): Record<Bucket, WorklistRow[]
   return g;
 }
 
+/**
+ * Past this many days without a carrier event, a parcel is not a task any
+ * more. Libya holds ~68 of these, stuck since June: left in the act-now group
+ * they are most of what the agent sees, and the one parcel that genuinely
+ * needs a call is buried among them.
+ */
+export const LONG_STALL_DAYS = 21;
+
+/**
+ * How long the parcel has actually sat, in days. Note the `stalled:N` reason
+ * code carries the market's `carrier_stall_days` SETTING (always 5), not the
+ * age — the age is `hours_on_status`.
+ */
+const stallDays = (row: WorklistRow): number | null =>
+  row.reason_codes.some((c) => c.startsWith("stalled:")) ? Math.round((row.hours_on_status ?? 0) / 24) : null;
+
+/**
+ * Splits the worklist into the parcels worth working now and the long-dead
+ * stalls, which the screen shows collapsed behind one line. A parcel is only
+ * set aside when the stall is its ONLY reason: an open task, a courier remark
+ * or a due callback is something an agent can still act on today.
+ */
+export function partitionStalled(rows: WorklistRow[], now: number = Date.now()): { live: WorklistRow[]; stalled: WorklistRow[] } {
+  const live: WorklistRow[] = [];
+  const stalled: WorklistRow[] = [];
+  for (const row of rows) {
+    const days = stallDays(row);
+    // A courier remark is a reason to call only while it is recent. In Libya
+    // these dead parcels carry remarks 29 to 89 days old: keeping them in
+    // front because a remark exists is what made the act-now group unusable.
+    const remarkFresh =
+      row.latest_remark_at !== null && (now - Date.parse(row.latest_remark_at)) / 86_400_000 < LONG_STALL_DAYS;
+    const dueSoon = row.next_action_at !== null;
+    if (row.bucket === "act_now" && days !== null && days >= LONG_STALL_DAYS && !remarkFresh && !dueSoon && !row.has_open_task) {
+      stalled.push(row);
+    } else {
+      live.push(row);
+    }
+  }
+  stalled.sort((a, b) => (stallDays(b) ?? 0) - (stallDays(a) ?? 0));
+  return { live, stalled };
+}
+
 export type ReasonChip =
   | { kind: "proactive" }
   | { kind: "remark"; remarkClass: string }

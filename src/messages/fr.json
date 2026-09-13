@@ -5685,6 +5685,10 @@
       "sub": "Aucun colis ne correspond.",
       "all": "Voir tous les colis"
     },
+    "stalledGroup": "{n, plural, one {# colis sans mouvement} other {# colis sans mouvement}}",
+    "stalledSince": "Chez le transporteur depuis {days, plural, one {# jour} other {# jours}}",
+    "stalledShow": "Afficher",
+    "stalledHide": "Masquer",
     "pick": "Sélectionne un colis pour voir son détail.",
     "offline": "Mise à jour automatique en pause · la liste se rafraîchit toutes les minutes",
     "loadError": "Impossible de charger les colis.",

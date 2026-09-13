@@ -179,6 +179,36 @@ describe("DeliveryWorklistView", () => {
     expect(screen.queryByTestId("delivery-stat")).toBeNull();
   });
 
+  it("parcels the carrier abandoned months ago collapse behind one line, and open on demand", () => {
+    const dead = (id: string, days: number) =>
+      row({
+        order_id: id, external_id: id, customer_name: `Colis ${id}`, bucket: "act_now",
+        reason_codes: [`stalled:${days}`], remark_class: null, latest_remark: null, hours_on_status: days * 24,
+        // Whatever the courier last said, they said it months ago too.
+        latest_remark_at: new Date(NOW - days * 86400e3).toISOString(),
+        latest_event_at: new Date(NOW - days * 86400e3).toISOString(),
+      });
+    mount({ rows: [AMINA, dead("d1", 85), dead("d2", 90)] });
+
+    // The one parcel worth a call is visible; the two dead ones are not.
+    expect(within(list()).getByText("Amina El Fitouri")).toBeTruthy();
+    expect(within(list()).queryByText("Colis d1")).toBeNull();
+
+    const toggle = screen.getByRole("button", { name: /2 colis sans mouvement/ });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(within(list()).getByText("Colis d1")).toBeTruthy();
+    expect(within(list()).getByText("Colis d2")).toBeTruthy();
+  });
+
+  it("the agent sees the number to dial on each card, not their own name", () => {
+    mount();
+    const amina = rowOf("Amina El Fitouri");
+    expect(within(amina).getAllByText("092 112 2334").length).toBeGreaterThan(0);
+    expect(within(amina).queryByText("Hend")).toBeNull();
+  });
+
   it("loading and error states", () => {
     mount({ rows: null });
     expect(list().getAttribute("aria-busy")).toBe("true");

@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { useTranslations } from "next-intl";
-import { ArrowRight, Clock, MapPin, Package, Phone, RotateCcw, Truck, Check, FileText } from "lucide-react";
+import { Clock, MapPin, Package, Phone, RotateCcw, Truck, Check, FileText } from "lucide-react";
 import type { WorklistRow } from "@/lib/delivery/types";
 import { BUCKET_TONE, formatPhone, moveFor, orderRef, situationOf, type MoveKind } from "@/lib/delivery/presentation";
 import { Chip, EDGE, Ltr, TONE, WhatsAppIcon, type IconComponent, moneyText, useSituationLabel, useSituationSub, useWhen } from "./ui";
@@ -89,6 +89,14 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
         <div className="mt-0.5 text-[14.5px] text-[#6B7280] lg:hidden">
           {row.customer_city}{p ? <> · {p.name} <Ltr>×{p.qty}</Ltr></> : null}
         </div>
+        {/* The number to dial is the one thing a phone card must carry; on
+            desktop it already sits under the name. */}
+        {row.customer_phone && (
+          <div className="mt-0.5 flex items-center gap-1.5 text-[14px] text-[#374151] lg:hidden">
+            <Phone size={14} className="shrink-0 text-[#9CA3AF]" aria-hidden />
+            <Ltr>{formatPhone(row.customer_phone)}</Ltr>
+          </div>
+        )}
         {showAgent && row.agent_name && <div className="mt-1 text-[12.5px] text-[#6B7280]">{row.agent_name}</div>}
       </div>
 
@@ -99,23 +107,26 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
         <div className="mt-1 hidden items-center gap-1.5 text-[13px] text-[#6B7280] lg:flex">
           <Clock size={15} aria-hidden /><span>{when(moved)}</span>
         </div>
-        {m.dial && (m.kind === "call2" || m.kind === "call" || m.kind === "before") && (
-          <span className="flex items-center gap-2 text-sm text-[#374151] lg:hidden"><Phone size={16} aria-hidden /><Ltr>{formatPhone(m.dial)}</Ltr></span>
+        {/* A second number only matters when it is the one to call. */}
+        {m.kind === "call2" && m.dial && (
+          <span className="flex items-center gap-2 text-sm font-medium text-[#111827] lg:hidden"><Phone size={16} aria-hidden /><Ltr>{formatPhone(m.dial)}</Ltr></span>
         )}
-        <span className={`inline-flex items-center gap-2 py-0.5 text-[15px] font-semibold text-[#111827] lg:hidden ${selected ? `-ms-1 rounded-full px-3 ${TONE[tone].soft}` : ""}`}>
-          <ArrowRight size={16} aria-hidden className="rtl:-scale-x-100" />{moveLabel}
-        </span>
+        {/* The move label now lives on the button, so this line carries why
+            the parcel is here instead of repeating it. */}
+        <span className="text-[13.5px] text-[#6B7280] [unicode-bidi:plaintext] lg:hidden">{sub(s)}</span>
       </div>
 
       {/* Action */}
       <div className="col-start-2 row-span-2 row-start-2 flex min-w-0 items-end justify-end lg:col-start-3 lg:row-span-1 lg:row-start-1 lg:items-center lg:justify-start lg:gap-2">
+        {/* A glyph alone does not separate "rescue this return" from "call the
+            courier", so the phone button carries its own label. */}
         <button
           type="button"
           onClick={act}
-          aria-label={moveLabel}
-          className={`grid h-[60px] w-[60px] place-items-center rounded-xl border lg:hidden ${m.whatsapp ? "border-[#BFE3CC] bg-[#E8F6EE] text-[#16A34A]" : "border-[#D1D5DB] bg-white text-[#111827]"}`}
+          className={`flex w-[86px] flex-col items-center justify-center gap-1 rounded-xl border px-1.5 py-2 lg:hidden ${m.whatsapp ? "border-[#BFE3CC] bg-[#E8F6EE] text-[#16A34A]" : "border-[#D1D5DB] bg-white text-[#111827]"}`}
         >
-          <MobileIcon size={24} aria-hidden />
+          <MobileIcon size={22} aria-hidden />
+          <span className="w-full text-balance text-center text-[11px] font-semibold leading-tight">{moveLabel}</span>
         </button>
         <button
           type="button"

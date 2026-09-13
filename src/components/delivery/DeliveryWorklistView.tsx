@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { BarChart3, Check, Package, Search, X } from "lucide-react";
+import { BarChart3, Check, ChevronDown, Moon, Package, Search, X } from "lucide-react";
 import type { Role } from "@/types";
 import type { Bucket, DeliveryScorecard, WorklistRow } from "@/lib/delivery/types";
-import { BUCKET_ORDER, applyRecordedAction, countBuckets } from "@/lib/delivery/worklist";
+import { BUCKET_ORDER, applyRecordedAction, countBuckets, partitionStalled } from "@/lib/delivery/worklist";
 import { BUCKET_TONE, moveFor } from "@/lib/delivery/presentation";
 import { normalizePhone } from "@/lib/leads/phone";
 import type { PendingAction, QueuedBody } from "@/hooks/useDeliveryActionQueue";
@@ -64,6 +64,7 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet | null>(null);
+  const [showStalled, setShowStalled] = useState(false);
 
   // A pending action is shown as already applied, even if a refresh lands
   // inside the undo window with the server's (older) view of the row.
@@ -79,13 +80,20 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
       .sort((a, b) => BUCKET_ORDER.indexOf(a.bucket) - BUCKET_ORDER.indexOf(b.bucket)),
     [rows, bucket, query],
   );
+  // Parcels the carrier abandoned months ago are set aside: left in place they
+  // are most of what an agent sees, and the parcel that needs a call today is
+  // lost among them.
+  const { live, stalled } = useMemo(() => partitionStalled(visible, now), [visible, now]);
+  const shown = useMemo(() => (showStalled ? [...live, ...stalled] : live), [live, stalled, showStalled]);
+  const oldestStall = stalled.length > 0 ? Math.round((stalled[0].hours_on_status ?? 0) / 24) : 0;
+
   const selected = rows?.find((r) => r.order_id === selectedId) ?? null;
   const byId = useCallback((id: string) => rows?.find((r) => r.order_id === id) ?? null, [rows]);
 
   // Desktop opens on the first parcel, like the prototype.
   useEffect(() => {
-    if (!selectedId && visible.length > 0 && isDesktop()) setSelectedId(visible[0].order_id);
-  }, [selectedId, visible]);
+    if (!selectedId && shown.length > 0 && isDesktop()) setSelectedId(shown[0].order_id);
+  }, [selectedId, shown]);
 
   const select = useCallback((row: WorklistRow) => {
     setSelectedId(row.order_id);
@@ -161,7 +169,7 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
             [0, 1, 2, 3, 4].map((i) => (
               <div key={i} className="mb-2 h-[92px] animate-pulse rounded-xl border border-[#E5E7EB] bg-white" />
             ))
-          ) : visible.length === 0 ? (
+          ) : shown.length === 0 && stalled.length === 0 ? (
             <div className="px-5 py-16 text-center text-[#6B7280]">
               <Package size={44} strokeWidth={1.5} className="mx-auto text-[#D1D5DB]" aria-hidden />
               <h3 className="mb-1 mt-3 text-base font-semibold text-[#111827]">{t("empty.title")}</h3>
@@ -173,13 +181,32 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
               )}
             </div>
           ) : (
-            visible.map((row) => (
+            shown.map((row) => (
               <DeliveryRow key={row.order_id} row={row} selected={row.order_id === selectedId} showAgent={showAgent}
                 market={marketCode} locale={locale} tz={tz} now={now}
                 onSelect={select} onMove={onMove} onWhatsApp={openWhatsApp} />
             ))
           )}
         </div>
+
+        {stalled.length > 0 && rows !== null && (
+          <button
+            type="button"
+            aria-expanded={showStalled}
+            onClick={() => setShowStalled((v) => !v)}
+            className={`flex w-full items-center gap-3 rounded-xl border border-dashed border-[#D1D5DB] bg-[#FAFAFA] px-4 py-3 text-start hover:bg-[#F3F4F6] lg:rounded-[10px] ${showStalled ? "mb-2 mt-1" : "mt-1"}`}
+          >
+            <Moon size={18} className="shrink-0 text-[#9CA3AF]" aria-hidden />
+            <span className="min-w-0">
+              <b className="block text-[14.5px] font-semibold text-[#374151]">{t("stalledGroup", { n: stalled.length })}</b>
+              <small className="block text-[13px] text-[#6B7280]">{t("stalledSince", { days: oldestStall })}</small>
+            </span>
+            <span className="ms-auto flex shrink-0 items-center gap-1.5 text-[13.5px] font-semibold text-[#374151]">
+              {showStalled ? t("stalledHide") : t("stalledShow")}
+              <ChevronDown size={16} aria-hidden className={showStalled ? "rotate-180" : ""} />
+            </span>
+          </button>
+        )}
       </section>
 
       <aside className="hidden lg:sticky lg:top-4 lg:flex lg:h-[calc(100vh-104px)] lg:flex-col lg:gap-3">

@@ -7,6 +7,7 @@ import {
   reasonChips,
   applyRecordedAction,
   shouldRefreshWorklist,
+  partitionStalled,
 } from "../worklist";
 import type { WorklistRow } from "../types";
 
@@ -232,5 +233,80 @@ describe("shouldRefreshWorklist", () => {
   test("a held parcel deleted or archived leaves the list", () => {
     expect(shouldRefreshWorklist(evt({ op: "DELETE" }), held, "a1", "agent")).toBe(true);
     expect(shouldRefreshWorklist(evt({ archived_at: "2026-09-13T00:00:00Z" }), held, "a1", "agent")).toBe(true);
+  });
+});
+
+describe("partitionStalled", () => {
+  const fresh = (over: Partial<WorklistRow> = {}) =>
+    row({
+      bucket: "act_now", reason_codes: ["remark:no_answer"], remark_class: "no_answer",
+      latest_remark_at: new Date(NOW - 3600e3).toISOString(), ...over,
+    });
+  const stale = (days: number, over: Partial<WorklistRow> = {}) =>
+    row({ bucket: "act_now", reason_codes: [`stalled:${days}`], hours_on_status: days * 24, ...over });
+
+  test("a parcel the carrier has not moved for weeks is set aside, the rest stay in front", () => {
+    const rows = [fresh({ order_id: "a" }), stale(85, { order_id: "b" }), stale(90, { order_id: "c" })];
+    const { live, stalled } = partitionStalled(rows, NOW);
+    expect(live.map((r) => r.order_id)).toEqual(["a"]);
+    // Oldest stall first: c has sat 90 days, b 85.
+    expect(stalled.map((r) => r.order_id)).toEqual(["c", "b"]);
+  });
+
+  test("a stall of a few days is still worth a call — only long-dead parcels are set aside", () => {
+    const { live, stalled } = partitionStalled([stale(6, { order_id: "a" }), stale(40, { order_id: "b" })], NOW);
+    expect(live.map((r) => r.order_id)).toEqual(["a"]);
+    expect(stalled.map((r) => r.order_id)).toEqual(["b"]);
+  });
+
+  test("only act_now parcels are set aside: a return or a delivery is never hidden behind a stall", () => {
+    const rows = [
+      stale(85, { order_id: "r", bucket: "returning" }),
+      stale(85, { order_id: "d", bucket: "done" }),
+      stale(85, { order_id: "s" }),
+    ];
+    const { live, stalled } = partitionStalled(rows, NOW);
+    expect(live.map((r) => r.order_id)).toEqual(["r", "d"]);
+    expect(stalled.map((r) => r.order_id)).toEqual(["s"]);
+  });
+
+  test("a parcel with something else to answer for is not dead weight, however old the stall", () => {
+    const rows = [
+      stale(85, { order_id: "task", has_open_task: true }),
+      stale(85, { order_id: "due", next_action_at: new Date(NOW + 3600e3).toISOString() }),
+      stale(85, { order_id: "dead" }),
+    ];
+    const { live, stalled } = partitionStalled(rows, NOW);
+    expect(live.map((r) => r.order_id)).toEqual(["task", "due"]);
+    expect(stalled.map((r) => r.order_id)).toEqual(["dead"]);
+  });
+
+  // In production these parcels carry a courier remark 29-89 days old. Treating
+  // any remark as a reason to act kept 23 of 26 dead parcels in front.
+  test("a courier remark keeps a parcel in front only while it is recent", () => {
+    const rows = [
+      stale(85, { order_id: "fresh", reason_codes: ["remark:no_answer", "stalled:5"], latest_remark_at: new Date(NOW - 2 * 86400e3).toISOString() }),
+      stale(85, { order_id: "stale", reason_codes: ["remark:no_answer", "stalled:5"], latest_remark_at: new Date(NOW - 82 * 86400e3).toISOString() }),
+    ];
+    const { live, stalled } = partitionStalled(rows, NOW);
+    expect(live.map((r) => r.order_id)).toEqual(["fresh"]);
+    expect(stalled.map((r) => r.order_id)).toEqual(["stale"]);
+  });
+
+  // Production: `stalled:5` is the market's carrier_stall_days SETTING on every
+  // row, while the parcel has sat 85 days. Reading the code as the age set
+  // nothing aside at all.
+  test("the age comes from hours_on_status, never from the number in the reason code", () => {
+    const { live, stalled } = partitionStalled([
+      row({ order_id: "old", bucket: "act_now", reason_codes: ["stalled:5"], hours_on_status: 85 * 24 }),
+      row({ order_id: "new", bucket: "act_now", reason_codes: ["stalled:5"], hours_on_status: 6 * 24 }),
+    ], NOW);
+    expect(stalled.map((r) => r.order_id)).toEqual(["old"]);
+    expect(live.map((r) => r.order_id)).toEqual(["new"]);
+  });
+
+  test("the oldest stall leads the set-aside group, so the worst is named first", () => {
+    const { stalled } = partitionStalled([stale(30, { order_id: "a" }), stale(120, { order_id: "b" }), stale(85, { order_id: "c" })], NOW);
+    expect(stalled.map((r) => r.order_id)).toEqual(["b", "c", "a"]);
   });
 });
