@@ -6,6 +6,7 @@ import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { PreparationConsole } from "./PreparationConsole";
 import { ScannedTable } from "./ScannedTable";
 import type { PrepRow } from "./PrepCard";
+import { PickupSwitch } from "@/components/warehouse/pickup/PickupSwitch";
 
 /**
  * Entrepôt › Banc — one screen for the whole life of a parcel in the building.
@@ -38,6 +39,12 @@ export function BenchConsole({
 
   return (
     <div className="mx-auto w-full max-w-[1460px] px-4 py-4 md:px-6">
+      {/* Whether Darb's driver has already collected today, per building. It
+          sits above the tabs because it governs every upload from this market,
+          not one tab's list. Libya only: Darb is the carrier that books a
+          pickup on upload, and Tunisia's carriers have no such notion. */}
+      {market === "ly" ? <PickupSwitch variant="console" className="mb-4" /> : null}
+
       <SegmentedTabs
         className="mb-4"
         role="tablist"

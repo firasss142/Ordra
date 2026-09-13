@@ -9,6 +9,7 @@ import {
   effectiveOrderLines,
 } from "./carrier-warehouse";
 import { recordDeliverySaving } from "./record-delivery-saving";
+import { isSitePickupDisabled } from "./pickup-window";
 import type { CarrierOrderData } from "./types";
 import type { OrderItem } from "@/types/order-items";
 
@@ -70,6 +71,8 @@ type CarrierRow = {
   return_fee: number;
   market_id: string;
   is_active: boolean;
+  /** The site this carrier account ships from. Identifies the pickup switch. */
+  warehouse_id: string | null;
 };
 
 // product_id is needed for carrier-warehouse fulfilment: orders predating
@@ -78,7 +81,7 @@ const ORDER_COLUMNS =
   "id, status, market_id, tracking_number, customer_name, customer_phone, customer_phone_2, customer_whatsapp, customer_address, customer_city, customer_note, product_id, product_name, variant_label, quantity, total_price";
 
 const CARRIER_COLUMNS =
-  "id, code, api_endpoint, api_credentials, delivery_fee, return_fee, market_id, is_active";
+  "id, code, api_endpoint, api_credentials, delivery_fee, return_fee, market_id, is_active, warehouse_id";
 
 export async function performDispatch({
   orderId,
@@ -239,6 +242,33 @@ export async function performDispatch({
       carrier_warehouse_id: resolved.warehouseId,
       warehouse_lines_json: JSON.stringify(resolved.lines),
     };
+  }
+
+  // ── "Le chauffeur est passé" — the per-site pickup switch ──────────
+  // Darb's default `isPickup: true` books a collection. An order uploaded after
+  // the driver has physically been therefore sends him back for parcels that
+  // did not exist while he was here. The switch says "already collected today"
+  // for one site, and this is where it is ENFORCED — not in the modal: the
+  // dispatch route copies `body.extra` from the client verbatim, so a forged
+  // `is_pickup: true` would otherwise sail through, and the bulk and cron paths
+  // send no flag at all. One check here covers all three.
+  //
+  // Carrier-warehouse fulfilment is exempt: the goods sit in Darb's own
+  // building and they collect from themselves, which is why their client
+  // disables the switch there too. Our driver's visit has no bearing on it.
+  if (
+    carrier.code === "darb_assabil" &&
+    carrier.warehouse_id &&
+    !extraFlag(dispatchExtra, CARRIER_WAREHOUSE_FLAG)
+  ) {
+    const pickupOff = await isSitePickupDisabled(
+      admin,
+      carrier.market_id,
+      carrier.warehouse_id
+    );
+    if (pickupOff) {
+      dispatchExtra = { ...(dispatchExtra ?? {}), is_pickup: false };
+    }
   }
 
   let result;

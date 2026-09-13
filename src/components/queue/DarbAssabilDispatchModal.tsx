@@ -16,6 +16,7 @@ import { fetcher } from "@/lib/swr-config";
 import { useCarrierRates } from "@/hooks/useCarrierRates";
 import { destinationKey } from "@/lib/carriers/destination-key";
 import { formatCurrency } from "@/lib/format";
+import { useDarbPickupState } from "@/hooks/useDarbPickupState";
 
 interface DarbAssabilSelection {
   city: string | null;
@@ -188,6 +189,13 @@ export function DarbAssabilDispatchModal({
   // the way intake/coverage do (exact city → area name → alias), so an
   // area-named city (شحات) or umbrella label (ضواحي طرابلس) still pre-resolves
   // instead of dropping to the full picker.
+  // Darb's pickup switch for the site this carrier account ships from. When the
+  // driver has already been, the per-order checkbox is not a choice any more —
+  // the server forces is_pickup:false regardless — so the modal states the fact
+  // instead of showing a control that no longer decides anything.
+  const { disabled: pickupOffToday, siteName: pickupSiteName } =
+    useDarbPickupState(carrierId);
+
   const { destinations } = useDarbDestinations();
   const stored = findDestinationById(destinations, darbDestinationId);
   const resolved = stored
@@ -341,7 +349,10 @@ export function DarbAssabilDispatchModal({
             // their own warehouse mode forces it server-side regardless, so
             // send the plain default there rather than a hidden checkbox's
             // stale value.
-            is_pickup: fulfilment === "home" ? options.is_pickup : true,
+            // Display-side mirror of the server rule. performDispatch decides
+            // for real; sending the truth here keeps the dry-run snapshot honest.
+            is_pickup:
+              fulfilment === "home" ? !pickupOffToday && options.is_pickup : true,
             allow_inspection: options.allow_inspection,
             is_fragile: options.is_fragile,
             allow_card_payment: options.allow_card_payment,
@@ -614,10 +625,22 @@ export function DarbAssabilDispatchModal({
                 showing the checkbox there would offer a choice that isn't
                 one. */}
             <Section label={t("optionsLabel")} last>
+              {/* The driver has already been for this building today, so the
+                  pickup checkbox above is gone. Saying so beats a silently
+                  missing option the agent would read as a bug. */}
+              {fulfilment === "home" && pickupOffToday ? (
+                <p
+                  data-testid="darb-pickup-off-today"
+                  className="mb-2 rounded-card bg-surface-sunken px-3 py-2 text-[12.5px] leading-snug text-ink-secondary"
+                  dir="auto"
+                >
+                  {t("optionPickupDisabledToday", { site: pickupSiteName ?? "" })}
+                </p>
+              ) : null}
               <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
                 {(
                   [
-                    ...(fulfilment === "home"
+                    ...(fulfilment === "home" && !pickupOffToday
                       ? ([["is_pickup", t("optionPickup"), null]] as const)
                       : []),
                     ["allow_inspection", t("optionInspection"), t("optionReturnRiskHint")],

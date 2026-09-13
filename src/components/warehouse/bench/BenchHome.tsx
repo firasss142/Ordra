@@ -13,6 +13,7 @@ import { RollRail, type RollKey } from "./RollRail";
 import { ScannedList } from "./ScannedList";
 import { BenchCard } from "./BenchCard";
 import { ScanSheet } from "./ScanSheet";
+import { PickupSwitch } from "@/components/warehouse/pickup/PickupSwitch";
 
 /**
  * The bench: the agent's home screen.
@@ -265,6 +266,11 @@ export function BenchHome({
           {siteName}
         </p>
       ) : null}
+
+      {/* Whether the driver has already been. It sits above the hero figure
+          because it changes what every upload does for the rest of the day,
+          and the agent is the one who watched him leave. */}
+      {isLy ? <PickupSwitch variant="bench" className="mt-3" /> : null}
 
       {/* ── The one figure ───────────────────────────────────────────── */}
       <div

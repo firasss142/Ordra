@@ -3657,6 +3657,21 @@
       "noSiteBody": "Votre compte n'est rattaché à aucun bâtiment. Demandez à votre responsable de vous affecter à Tripoli ou à Benghazi.",
       "start": "Lancer la tournée",
       "recent": "Derniers scans"
+    },
+    "pickupSwitch": {
+      "title": "Ramassage Darb",
+      "onLabel": "Le chauffeur n'est pas encore passé",
+      "offLabel": "Le chauffeur est déjà passé aujourd'hui",
+      "onHint": "Les montées demandent un ramassage, comme d'habitude.",
+      "offHint": "Les montées d'aujourd'hui ne demandent plus de ramassage. Retour automatique à minuit.",
+      "turnOff": "Le chauffeur est passé",
+      "turnOn": "Annuler — le chauffeur doit repasser",
+      "disabledSince": "Coupé à {time}",
+      "managerOnly": "Seul un responsable peut annuler avant minuit.",
+      "confirmOff": "Confirmer que le chauffeur est passé pour {site} ? Les commandes montées ensuite ne demanderont plus de ramassage aujourd'hui.",
+      "confirmOn": "Redemander un ramassage pour {site} aujourd'hui ?",
+      "failed": "Action impossible. Réessayez.",
+      "noSite": "Aucun bâtiment ne vous est affecté."
     }
   },
   "users": {
@@ -4413,7 +4428,8 @@
       "fulfilmentCarrierPickupNote": "Aucun scan de sortie ni ramassage : Darb Assabil prélève la marchandise dans son propre entrepôt.",
       "fulfilmentChecking": "Vérification du stock transporteur…",
       "fulfilmentUnavailable": "Indisponible pour cette commande",
-      "fulfilmentStock": "{requested} demandé(s) · {available} disponible(s)"
+      "fulfilmentStock": "{requested} demandé(s) · {available} disponible(s)",
+      "optionPickupDisabledToday": "Ramassage désactivé aujourd'hui — le chauffeur est déjà passé ({site})"
     },
     "coverage": {
       "badge": "Non desservi",
