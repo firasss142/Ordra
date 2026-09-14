@@ -68,15 +68,25 @@ export async function GET(req: NextRequest) {
   const ids = raw.map((r) => r.order_id);
   const itemsByOrder = new Map<string, WorklistItem[]>();
 
-  for (let i = 0; i < ids.length; i += ITEMS_CHUNK) {
-    const { data: items, error: itemsError } = await supabase
-      .from("order_items")
-      .select("order_id, product_name, variant_label, quantity, product:products(image_url)")
-      .in("order_id", ids.slice(i, i + ITEMS_CHUNK));
+  // Both lookups fan out over id chunks; the chunks are independent, so they
+  // go out together. Sequential awaits cost one network round trip each, which
+  // on a 200-parcel market was ~570 ms of the request.
+  const chunks = <T,>(xs: T[]) =>
+    Array.from({ length: Math.ceil(xs.length / ITEMS_CHUNK) }, (_, i) => xs.slice(i * ITEMS_CHUNK, (i + 1) * ITEMS_CHUNK));
+
+  const itemResults = await Promise.all(
+    chunks(ids).map((slice) =>
+      supabase
+        .from("order_items")
+        .select("order_id, product_name, variant_label, quantity, product:products(image_url)")
+        .in("order_id", slice),
+    ),
+  );
+  for (const { data: items, error: itemsError } of itemResults) {
     if (itemsError) {
       // The list is still useful without product names; do not fail it.
       console.error("[api/delivery/worklist] items failed", itemsError);
-      break;
+      continue;
     }
     for (const it of (items ?? []) as (Omit<WorklistItem, "image_url"> & { order_id: string; product: Embedded })[]) {
       const list = itemsByOrder.get(it.order_id) ?? [];
@@ -93,14 +103,18 @@ export async function GET(req: NextRequest) {
   // itself, which is what the agent queue reads. Without this they would show
   // no name and no picture at all.
   const missing = ids.filter((id) => !itemsByOrder.has(id));
-  for (let i = 0; i < missing.length; i += ITEMS_CHUNK) {
-    const { data: orders, error: ordersError } = await supabase
-      .from("orders")
-      .select("id, product_name, variant_label, quantity, product:products!orders_product_id_fkey(image_url)")
-      .in("id", missing.slice(i, i + ITEMS_CHUNK));
+  const orderResults = await Promise.all(
+    chunks(missing).map((slice) =>
+      supabase
+        .from("orders")
+        .select("id, product_name, variant_label, quantity, product:products!orders_product_id_fkey(image_url)")
+        .in("id", slice),
+    ),
+  );
+  for (const { data: orders, error: ordersError } of orderResults) {
     if (ordersError) {
       console.error("[api/delivery/worklist] order products failed", ordersError);
-      break;
+      continue;
     }
     for (const o of (orders ?? []) as { id: string; product_name: string | null; variant_label: string | null; quantity: number | null; product: Embedded }[]) {
       const image_url = imageOf(o.product);
