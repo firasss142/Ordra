@@ -7,7 +7,7 @@
  * green on the one primary button and on WhatsApp.
  */
 import { useTranslations } from "next-intl";
-import { AlertCircle, CheckCircle2, Clock, Truck, XCircle } from "lucide-react";
+import { AlertCircle, Ban, CheckCircle2, Clock } from "lucide-react";
 import type { Tone, Situation, SituationKey } from "@/lib/delivery/presentation";
 import { dayPart } from "@/lib/delivery/presentation";
 
@@ -29,8 +29,8 @@ export type IconComponent = React.ComponentType<{ size?: number | string; classN
 /** The glyph inside the situation chip: a clock for anything timed, otherwise the state. */
 export const SIT_ICON: Record<SituationKey, IconComponent> = {
   proactive: Clock, stalled: Clock, no_answer: Clock, address: AlertCircle, out_of_coverage: AlertCircle, cancel: AlertCircle,
-  delayed: Clock, due: Clock, waiting_customer: Clock, at_warehouse: Truck, waiting_carrier: Truck,
-  returning: XCircle, to_be_returned: AlertCircle, delivered: CheckCircle2, returned: XCircle,
+  delayed: Clock, due: Clock, waiting_customer: Clock, at_warehouse: Clock, waiting_carrier: Clock,
+  returning: Ban, to_be_returned: AlertCircle, delivered: CheckCircle2, returned: Ban,
 };
 
 export function Chip({ tone, icon: Icon, children }: { tone: Tone; icon?: IconComponent; children: React.ReactNode }) {
@@ -68,6 +68,20 @@ export function moneyText(amount: number | null, market: "ly" | "tn", locale: st
     .replace(/ | /g, " ");
   const unit = locale === "ar" ? (market === "ly" ? "د.ل" : "د.ت") : market === "ly" ? "LYD" : "TND";
   return `${value} ${unit}`;
+}
+
+/**
+ * An amount with its unit, number first in reading order whatever the
+ * script: "520 LYD" and, right-to-left, the number at the right of "د.ل".
+ * Plain text would let the bidi algorithm decide, and it decided wrong.
+ */
+export function Money({ amount, market, locale, className = "" }: { amount: number | null; market: "ly" | "tn"; locale: string; className?: string }) {
+  const [value, unit] = moneyText(amount, market, locale).split(/ (?=[^ ]+$)/);
+  return (
+    <span className={`inline-flex items-baseline gap-1 whitespace-nowrap ${className}`}>
+      <span dir="ltr" className="tabular-nums">{value}</span>{" "}<span>{unit}</span>
+    </span>
+  );
 }
 
 /** The green, white-on-brand primary of the page. */

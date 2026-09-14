@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Clock, MapPin, Package, Phone, RotateCcw, Truck, Check, FileText } from "lucide-react";
 import type { WorklistRow } from "@/lib/delivery/types";
 import { BUCKET_TONE, formatPhone, moveFor, moveTone, orderRef, situationOf, type MoveKind } from "@/lib/delivery/presentation";
-import { Chip, EDGE, Ltr, OUTLINE_BTN, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, moneyText, useSituationLabel, useSituationSub, useWhen } from "./ui";
+import { Chip, EDGE, Ltr, Money, OUTLINE_BTN, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, useSituationLabel, useSituationSub, useWhen } from "./ui";
 
 const MOVE_ICON: Record<MoveKind, IconComponent> = {
   call2: Phone, call: Phone, before: Phone, courier: Phone, save: RotateCcw, wa: WhatsAppIcon, track: Truck, details: Check,
@@ -72,7 +72,7 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
         EDGE, TONE[tone].edge,
         "mb-2 grid cursor-pointer gap-x-2.5 rounded-[10px] border text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#15803D]/40",
         "grid-cols-[minmax(0,1fr)_auto] px-4 py-3 ps-[18px]",
-        "lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1.15fr)_minmax(0,1.1fr)_96px] lg:items-center lg:gap-x-4 lg:px-4 lg:py-3 lg:ps-5",
+        "lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1.15fr)_minmax(0,1.1fr)_96px] lg:items-center lg:gap-x-4 lg:px-4 lg:py-2.5 lg:ps-5",
         selected ? "border-[1.5px] border-[#15803D] bg-[#F0FDF4]" : "border-[#E5E7EB] bg-white hover:border-[#C9CCCF]",
       ].join(" ")}
     >
@@ -126,7 +126,7 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
         <button
           type="button"
           onClick={act}
-          className={`hidden h-11 min-w-0 px-4 text-[13.5px] lg:inline-flex ${OUTLINE_BTN} ${m.whatsapp ? "border-[#86EFAC] text-[#15803D]" : TONE[btnTone].border}`}
+          className={`hidden h-11 min-w-0 px-4 text-[14px] lg:inline-flex ${OUTLINE_BTN} ${m.whatsapp ? "border-[#86EFAC] text-[#15803D]" : TONE[btnTone].border}`}
         >
           <Icon size={17} aria-hidden className={`shrink-0 ${m.whatsapp ? "text-[#15803D]" : TONE[btnTone].icon}`} />
           <span className="truncate">{moveLabel}</span>
@@ -144,8 +144,8 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
       </div>
 
       {/* Montant */}
-      <div className="col-start-2 row-start-1 whitespace-nowrap text-end text-[17px] font-bold text-[#111827] lg:col-start-4 lg:text-[19px]">
-        {moneyText(row.total_price, market, locale)}
+      <div className="col-start-2 row-start-1 text-end text-[17px] font-bold text-[#111827] lg:col-start-4 lg:text-[19px]">
+        <Money amount={row.total_price} market={market} locale={locale} />
       </div>
     </article>
   );

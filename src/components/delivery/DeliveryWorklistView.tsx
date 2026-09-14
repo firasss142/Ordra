@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ArrowUpDown, BarChart3, Check, ChevronDown, Moon, Package, Search, SlidersHorizontal, Truck, X } from "lucide-react";
+import { ArrowUpDown, BarChart3, Check, ChevronDown, Filter, Moon, Package, Search, Truck, X } from "lucide-react";
 import type { Role } from "@/types";
 import type { Bucket, DeliveryScorecard, WorklistRow } from "@/lib/delivery/types";
 import { BUCKET_ORDER, applyRecordedAction, countBuckets, partitionStalled, sumBuckets } from "@/lib/delivery/worklist";
@@ -13,7 +13,7 @@ import type { PendingAction, QueuedBody } from "@/hooks/useDeliveryActionQueue";
 import { DeliveryRow } from "./DeliveryRow";
 import { DeliveryDetailPanel, DeliveryDetailScreen } from "./DeliveryDetail";
 import { ActionSheet, WhatsAppSheet } from "./Sheets";
-import { OUTLINE_BTN, TONE, moneyText } from "./ui";
+import { Money, OUTLINE_BTN, TONE } from "./ui";
 
 export interface DeliveryWorklistViewProps {
   /** null while the first load is in flight. */
@@ -148,7 +148,7 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
   const filtersOn = riskyOnly || hideDone;
 
   return (
-    <div className="mx-auto w-full max-w-[1560px] px-4 pb-10 pt-4 text-start lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-4 lg:px-5 lg:pt-4 2xl:grid-cols-[minmax(0,1fr)_440px]">
+    <div className={`mx-auto w-full max-w-[1560px] px-4 pb-10 pt-4 text-start lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-4 lg:px-5 lg:pt-4 2xl:grid-cols-[minmax(0,1fr)_440px] ${locale === "ar" ? "font-cairo" : ""}`}>
       <section className="min-w-0">
         {/* Title row: name, count, the 30-day pill, then search / filter / sort. */}
         <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -161,7 +161,7 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
           </div>
           {scorecard && scorecard.delivery_rate !== null && (
             <span data-testid="delivery-stat"
-              className="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-full border border-[#E5E7EB] bg-white px-3.5 text-[13px] text-[#374151]">
+              className="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-full border border-[#BBF7D0] bg-[#F0FDF4] px-3.5 text-[13px] text-[#374151]">
               <BarChart3 size={16} className="text-[#15803D]" aria-hidden />
               <span>{t.rich("stat", { rate: scorecard.delivery_rate, saved: scorecard.saved, b: (c) => <b className="font-semibold text-[#111827] tabular-nums">{c}</b> })}</span>
             </span>
@@ -175,7 +175,7 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
             <div ref={filterRef} className="relative">
               <button type="button" aria-expanded={filterOpen} aria-haspopup="true" onClick={() => setFilterOpen((v) => !v)}
                 className={`h-11 px-3.5 text-[13.5px] ${OUTLINE_BTN} ${filtersOn ? "border-[#15803D] text-[#15803D]" : "border-[#E5E7EB]"}`}>
-                <SlidersHorizontal size={16} aria-hidden />{t("filter.label")}
+                <Filter size={16} aria-hidden />{t("filter.label")}
               </button>
               {filterOpen && (
                 <div className="absolute end-0 top-full z-20 mt-1.5 w-[240px] rounded-lg border border-[#E5E7EB] bg-white p-2 shadow-[0_8px_24px_rgba(17,24,39,0.10)]">
@@ -210,7 +210,7 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
               <button key={k} type="button" aria-pressed={on} onClick={() => setBucket(k)}
                 className={[
                   "inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-4 text-[14.5px]",
-                  "lg:h-auto lg:flex-col lg:items-stretch lg:gap-0.5 lg:rounded-none lg:border-0 lg:px-3.5 lg:py-2.5 lg:text-[13.5px]",
+                  "lg:h-auto lg:flex-col lg:items-stretch lg:gap-0.5 lg:rounded-none lg:border-0 lg:px-3 lg:py-2.5 lg:text-[13px]",
                   i > 0 ? "lg:border-s lg:border-s-[#E5E7EB]" : "",
                   i === 0 ? "lg:rounded-s-lg" : i === 5 ? "lg:rounded-e-lg" : "",
                   on ? "border-[#111111] bg-[#111111] font-semibold text-white lg:text-[#111827]" : "border-[#E5E7EB] bg-white text-[#374151]",
@@ -221,7 +221,7 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
                   <span className={`truncate ${on ? "lg:font-bold" : "lg:font-medium"}`}>{t(`buckets.${k}`)}</span>
                   <b className={`ms-auto font-bold tabular-nums ${on ? "text-white lg:text-[#111827]" : "text-[#111827]"}`}>{counts[k]}</b>
                 </span>
-                <span className={`hidden text-[12.5px] tabular-nums lg:block ${on ? "text-[#374151]" : "text-[#6B7280]"}`}>{moneyText(sums[k], marketCode, locale)}</span>
+                <Money amount={sums[k]} market={marketCode} locale={locale} className={`hidden text-[12.5px] lg:inline-flex ${on ? "text-[#374151]" : "text-[#6B7280]"}`} />
               </button>
             );
           })}

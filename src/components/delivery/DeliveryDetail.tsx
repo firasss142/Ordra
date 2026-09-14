@@ -5,7 +5,7 @@ import { Ban, Calendar, CalendarCheck, CheckCircle2, ChevronLeft, ChevronRight, 
 import type { WorklistRow } from "@/lib/delivery/types";
 import { BUCKET_TONE, formatPhone, moveFor, orderRef, quickOutcomesFor, situationOf, type MoveKind, type QuickOutcome } from "@/lib/delivery/presentation";
 import { DeliveryTimeline } from "./DeliveryTimeline";
-import { Chip, EDGE, Ltr, OUTLINE_BTN, PRIMARY_BTN, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, moneyText, useSituationLabel } from "./ui";
+import { Chip, EDGE, Ltr, Money, OUTLINE_BTN, PRIMARY_BTN, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, useSituationLabel } from "./ui";
 
 const MOVE_ICON: Record<MoveKind, IconComponent> = {
   call2: Phone, call: Phone, before: Phone, courier: Phone, save: RotateCcw, wa: WhatsAppIcon, track: Truck, details: Check,
@@ -100,7 +100,7 @@ export function DeliveryDetailPanel({ row, market, locale, tz, now, onClose, onL
         </div>
         <div className="mt-2 flex items-center justify-between gap-2.5">
           <Chip tone={s.tone} icon={SIT_ICON[s.key]}>{label(s)}</Chip>
-          <span className="whitespace-nowrap text-[26px] font-bold tracking-tight text-[#111827]">{moneyText(row.total_price, market, locale)}</span>
+          <Money amount={row.total_price} market={market} locale={locale} className="text-[26px] font-bold tracking-tight text-[#111827]" />
         </div>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[13px] text-[#6B7280]">
           <span className="inline-flex items-center gap-1.5"><MapPin size={15} aria-hidden />{[row.customer_city, row.customer_address].filter(Boolean).join(" · ")}</span>
@@ -183,7 +183,7 @@ export function DeliveryDetailPanel({ row, market, locale, tz, now, onClose, onL
           ) : <div className="text-[13.5px] text-[#6B7280]">—</div>}
           {row.tracking_number && <div className="truncate text-[12.5px] text-[#6B7280]">{t("detail.tracking")} : <Ltr>{row.tracking_number}</Ltr></div>}
         </div>
-        <span className="shrink-0 whitespace-nowrap text-[18px] font-bold text-[#111827]">{moneyText(row.total_price, market, locale)}</span>
+        <Money amount={row.total_price} market={market} locale={locale} className="shrink-0 text-[18px] font-bold text-[#111827]" />
       </div>
 
       <DeliveryTimeline orderId={row.order_id} locale={locale} tz={tz} now={now} />
@@ -222,7 +222,7 @@ export function DeliveryDetailScreen({ row, market, locale, tz, now, onBack, onL
           </div>
           <div className="flex flex-col items-end gap-1.5">
             <Ltr className="text-sm text-[#6B7280]">#{orderRef(row)}</Ltr>
-            <span className="whitespace-nowrap text-[26px] font-bold leading-none">{moneyText(row.total_price, market, locale)}</span>
+            <Money amount={row.total_price} market={market} locale={locale} className="text-[26px] font-bold leading-none" />
             <Chip tone={s.tone} icon={SIT_ICON[s.key]}>{label(s)}</Chip>
           </div>
         </div>
