@@ -5729,5 +5729,186 @@
       "riskyOnly": "Colis à risque seulement",
       "hideDone": "Masquer les terminées"
     }
+  },
+  "prospects": {
+    "title": "Prospects",
+    "sub": "{n} en cours",
+    "subHot": "{n} à appeler maintenant · le reste attend",
+    "subCalm": "Rien d'urgent · la liste attend",
+    "stat": "<b>{calls}</b> appels · <b>{converted}</b> convertis aujourd'hui",
+    "search": "Rechercher par nom, numéro ou produit…",
+    "filters": "Filtres",
+    "newLead": "Nouveau prospect",
+    "pick": "Choisis un prospect pour voir son historique et agir.",
+    "selectMarket": "Choisis un marché pour voir ses prospects.",
+    "loadError": "Impossible de charger les prospects.",
+    "retry": "Réessayer",
+    "detail": "Détail du prospect",
+    "back": "Retour",
+    "close": "Fermer",
+    "minutes": "{n} min",
+    "hours": "{n} h",
+    "days": "{n} j",
+    "buckets": {
+      "all": "Tout",
+      "hot": "Chauds",
+      "callback": "Rappels",
+      "retry": "Sans réponse",
+      "campaign": "Campagne",
+      "winback": "Retours",
+      "converted": "Convertis"
+    },
+    "cols": {
+      "who": "Prospect",
+      "situation": "Situation · depuis",
+      "action": "Action",
+      "value": "Valeur"
+    },
+    "sit": {
+      "hot": "Chaud",
+      "callback_due": "Rappel dépassé",
+      "callback_at": "Rappel à {time}",
+      "retry": "Sans réponse · {n, plural, one {# essai} other {# essais}}",
+      "campaign": "Campagne",
+      "winback": "Retour à récupérer",
+      "converted": "Commande {ref}",
+      "converted_plain": "Convertie"
+    },
+    "subs": {
+      "hot_whatsapp": "Message WhatsApp reçu, pas encore répondu",
+      "hot_facebook_comment": "A commenté la pub, demande le prix",
+      "hot_facebook_dm": "A écrit en message privé",
+      "hot_instagram_dm": "A écrit en message privé Instagram",
+      "hot_tiktok_comment": "A commenté la vidéo",
+      "callback": "Il a demandé qu'on le rappelle",
+      "retry": "Essayer un autre numéro ou une autre heure",
+      "campaign": "Client d'une campagne de recontact",
+      "winback": "Le colis est revenu",
+      "converted": "Dans ta file, bucket Convertis"
+    },
+    "moves": {
+      "call": "Appeler",
+      "callback": "Rappeler",
+      "retry": "Réessayer",
+      "script": "Appeler avec le script",
+      "resend": "Proposer le renvoi",
+      "order": "Voir la commande"
+    },
+    "next": {
+      "hot": {
+        "title": "Appeler maintenant",
+        "why": "Entrant il y a {minutes} min. Un prospect joint dans les 10 minutes convertit ; après deux heures, presque jamais."
+      },
+      "callback": {
+        "title": "Rappeler comme convenu",
+        "why": "Confirmer le produit et la zone, puis convertir."
+      },
+      "retry": {
+        "title": "Nouvel essai",
+        "why": "{attempts, plural, one {# essai} other {# essais}} sans réponse. Essayer le second numéro ou WhatsApp d'abord."
+      },
+      "campaign": {
+        "title": "Appeler avec le script",
+        "why": "Client de la campagne. Offre à proposer : {offer}."
+      },
+      "winback": {
+        "title": "Proposer le renvoi sans frais",
+        "why": "Le colis est revenu ({reason}). Vérifier l'adresse avant de recréer."
+      },
+      "converted": {
+        "title": "Rien à faire",
+        "why": "La commande {order} est dans ta file, prête à envoyer."
+      }
+    },
+    "outcome": {
+      "title": "Résultat de l'appel",
+      "order": "Veut commander",
+      "callback": "Rappeler plus tard",
+      "noAnswer": "Pas de réponse",
+      "lost": "Pas intéressé",
+      "when": "Quand rappeler ?",
+      "why": "Pourquoi ?",
+      "note": "Note (optionnelle)",
+      "notePlaceholder": "Note courte — ex. « veut le 50 ml, demande le prix livraison »",
+      "save": "Enregistrer le résultat",
+      "cancel": "Annuler"
+    },
+    "when": {
+      "p1h": "+1 h",
+      "p2h": "+2 h",
+      "evening": "Ce soir 18:00",
+      "tomorrow": "Demain 10:00"
+    },
+    "lost": {
+      "price": "Prix",
+      "not_interested": "Plus besoin",
+      "competitor": "Acheté ailleurs",
+      "wrong_number": "Faux numéro",
+      "autre": "Autre"
+    },
+    "client": {
+      "title": "Le client",
+      "phone": "Téléphone",
+      "secondPhone": "Second numéro",
+      "city": "Ville",
+      "history": "Historique",
+      "lastAddress": "Dernière adresse",
+      "recommended": "recommandé"
+    },
+    "hist": {
+      "new": "Nouveau numéro · aucune commande",
+      "loyal": "Client fidèle · {delivered, plural, one {# livrée} other {# livrées}}",
+      "risk": "Risque · {returned, plural, one {# retournée} other {# retournées}}, 0 livrée",
+      "mixed": "{delivered, plural, one {# livrée} other {# livrées}} · {returned, plural, one {# retournée} other {# retournées}}"
+    },
+    "origin": {
+      "title": "Origine",
+      "source": "Source",
+      "agent": "Agent",
+      "created": "Créé le",
+      "campaign": "Campagne",
+      "offer": "Offre",
+      "order": "Commande",
+      "reason": "Motif du retour",
+      "attempts": "Tentatives"
+    },
+    "sources": {
+      "manual_call": "Appel au n° pub",
+      "facebook_comment": "Commentaire Facebook",
+      "facebook_dm": "Message Facebook",
+      "instagram_dm": "Message Instagram",
+      "whatsapp": "WhatsApp",
+      "tiktok_comment": "Commentaire TikTok",
+      "campaign": "Campagne",
+      "winback": "Colis retourné",
+      "other": "Autre"
+    },
+    "product": {
+      "title": "Produit",
+      "none": "Aucun produit noté",
+      "sku": "SKU"
+    },
+    "message": "Message d'origine",
+    "script": "Script de campagne",
+    "activity": "Activité",
+    "value": {
+      "potential": "potentiel",
+      "order": "commande"
+    },
+    "actions": {
+      "call": "Appeler",
+      "whatsapp": "WhatsApp",
+      "convert": "Convertir en commande"
+    },
+    "empty": {
+      "all": "Aucun prospect pour l'instant.",
+      "bucket": "Rien dans ce bucket.",
+      "search": "Aucun prospect ne correspond à cette recherche."
+    },
+    "toast": {
+      "saved": "Enregistré · déplacé vers « {bucket} »",
+      "undo": "Annuler",
+      "failed": "Échec de l'enregistrement. Réessaie."
+    }
   }
 }

@@ -1,0 +1,932 @@
+<title>Prospects</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Prototype v3 — « Prospects », the agent's pre-order worklist, rebuilt from scratch on
+  2026-09-14 in the visual language of « Suivi livraison » (reference screenshot: desktop AR).
+  Nothing from prospects-v1/v2 is reused. Behaviour: six computed buckets, 14 prospects built
+  from the real sources (FB/IG comments and DMs, WhatsApp, calls to the ad number, campaign
+  lists, automatic win-back on returned parcels), a 4-button call outcome that moves rows
+  between buckets, phone-first capture with a live customer match, conversion pre-filled
+  from the prospect, and a manager console (KPIs, campaign funnels, pipeline table).
+  Decisions: plans/suivi-livraison.md §Leads round 2 (30–33). Product UI is light only
+  (docs/design-system.md), so this page paints a single light world on purpose.
+  URL presets: ?role=agent|manager &lang=fr|ar &view=desktop|phone &open=<id> &bucket=<key>
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cairo:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#F5F6F8; --surface:#FFFFFF; --soft:#F9FAFB; --sunk:#F3F4F6;
+  --line:#E5E7EB; --line-2:#D1D5DB;
+  --ink:#111827; --ink-2:#374151; --ink-3:#6B7280; --ink-4:#9CA3AF;
+  --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4;
+  --amber:#F59E0B; --amber-bg:#FEF3C7; --amber-ink:#92400E;
+  --red:#EF4444;   --red-bg:#FEE2E2;   --red-ink:#B91C1C;
+  --blue:#3B82F6;  --blue-bg:#DBEAFE;  --blue-ink:#1D4ED8;
+  --violet:#8B5CF6;--violet-bg:#EDE9FE;--violet-ink:#5B21B6;
+  --grey:#9CA3AF;  --grey-bg:#F3F4F6;  --grey-ink:#374151;
+  --green:#22C55E; --green-bg:#DCFCE7; --green-ink:#15803D;
+  --wa:#16A34A; --wa-bg:#E8F6EE; --link:#2563EB;
+  --studio:#E9EBEF;
+  --f-lat:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-ar:"Cairo","Noto Sans Arabic","Inter",system-ui,sans-serif;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--studio);color:var(--ink);font-family:var(--f-lat);font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+a{color:inherit;text-decoration:none}
+svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.num{direction:ltr;unicode-bidi:isolate}
+.q{unicode-bidi:plaintext}
+[dir="rtl"] .app{font-family:var(--f-ar)}
+[dir="rtl"] .flip svg{transform:scaleX(-1)}
+:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ── Studio chrome (always LTR) ─────────────────────────────── */
+.studio{padding-inline:20px;padding-block:18px 40px;direction:ltr}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;max-width:1480px;margin:0 auto 14px}
+.bar h1{margin:0;font-size:15px;font-weight:700;margin-inline-end:auto}
+.bar h1 span{color:var(--ink-3);font-weight:500}
+.seg{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.seg button{padding:6px 11px;border-radius:7px;font-size:13px;font-weight:500;color:var(--ink-3)}
+.seg button[aria-pressed="true"]{background:#111;color:#fff}
+.note{max-width:1480px;margin:0 auto 16px;font-size:12.5px;color:var(--ink-3);line-height:1.5}
+.note b{color:var(--ink-2)}
+.note details{margin-top:6px}
+.note summary{cursor:pointer;font-weight:600;color:var(--ink-2)}
+.note ul{margin:6px 0 0;padding-inline-start:18px}
+.stage{max-width:1480px;margin:0 auto}
+.hscroll{overflow-x:auto}
+
+/* ── Atoms ──────────────────────────────────────────────────── */
+.chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap}
+.chip svg{width:14px;height:14px}
+.chip[data-t="amber"]{background:var(--amber-bg);color:var(--amber-ink)}
+.chip[data-t="red"]{background:var(--red-bg);color:var(--red-ink)}
+.chip[data-t="blue"]{background:var(--blue-bg);color:var(--blue-ink)}
+.chip[data-t="grey"]{background:var(--grey-bg);color:var(--grey-ink)}
+.chip[data-t="violet"]{background:var(--violet-bg);color:var(--violet-ink)}
+.chip[data-t="green"]{background:var(--green-bg);color:var(--green-ink)}
+.chip[data-t="line"]{background:#fff;border:1px solid var(--line-2);color:var(--ink-2);font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.dot[data-t="amber"]{background:var(--amber)}.dot[data-t="red"]{background:var(--red)}.dot[data-t="blue"]{background:var(--blue)}.dot[data-t="grey"]{background:var(--grey)}.dot[data-t="green"]{background:var(--green)}.dot[data-t="violet"]{background:var(--violet)}
+.stripe[data-t="amber"]{--st:var(--amber)}.stripe[data-t="red"]{--st:var(--red)}.stripe[data-t="blue"]{--st:var(--blue)}.stripe[data-t="grey"]{--st:var(--grey)}.stripe[data-t="green"]{--st:var(--green)}.stripe[data-t="violet"]{--st:var(--violet)}
+.pulse{position:relative}
+.pulse::after{content:"";position:absolute;inset:-3px;border-radius:50%;background:var(--amber);opacity:.35;animation:pl 1.6s var(--ease) infinite}
+@keyframes pl{0%{transform:scale(.6);opacity:.5}100%{transform:scale(2);opacity:0}}
+.presence{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;background:var(--sunk);font-size:13.5px;font-weight:500;color:var(--ink-2);white-space:nowrap}
+.presence small{display:block;font-weight:400;color:var(--ink-3);font-size:11.5px}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;font-weight:700;font-size:14px}
+.btn-o{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border:1px solid var(--line-2);border-radius:8px;background:#fff;font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap;transition:background .12s}
+.btn-o:hover{background:var(--soft)}
+.btn-o[data-t="amber"]{border-color:var(--amber);color:var(--amber-ink)}
+.btn-o[data-t="red"]{border-color:var(--red);color:var(--red-ink)}
+.btn-o[data-t="blue"]{border-color:var(--blue);color:var(--blue-ink)}
+.btn-o[data-t="green"]{border-color:var(--green-ink);color:var(--green-ink)}
+.btn-o[data-t="violet"]{border-color:var(--violet);color:var(--violet-ink)}
+.btn-o[data-t="grey"]{border-color:var(--line-2);color:var(--ink-2)}
+.btn-k{display:flex;align-items:center;justify-content:center;gap:10px;height:46px;padding:0 18px;border-radius:8px;background:var(--brand);color:#fff;font-size:15.5px;font-weight:600;width:100%;transition:background .12s}
+.btn-k:hover{background:var(--brand-hover)}
+.btn-k[data-dark]{background:#111}
+.btn-k[data-dark]:hover{background:#000}
+.btn-wa{display:inline-grid;place-items:center;width:40px;height:40px;border:1px solid var(--line-2);border-radius:8px;background:#fff;color:var(--wa)}
+.btn-wa:hover{background:var(--wa-bg)}
+.link{display:inline-flex;align-items:center;gap:7px;color:var(--link);font-weight:600;font-size:14px}
+.kbd{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;padding:1px 5px;border-radius:4px;background:var(--sunk);color:var(--ink-3);border:1px solid var(--line)}
+
+/* ── App frame ──────────────────────────────────────────────── */
+.app{min-width:1180px;height:960px;background:var(--bg);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative;text-align:start}
+.app[data-w="phone"]{min-width:0;width:390px;height:844px;border-radius:40px;border:10px solid #151920;margin:0 auto}
+.top{height:64px;flex:0 0 auto;display:flex;align-items:center;gap:16px;padding:0 20px;background:#fff;border-bottom:1px solid var(--line)}
+.top .brand{font-size:21px;font-weight:700;letter-spacing:-.01em}
+.top .brand b{color:var(--brand)}
+.top .mkt{display:inline-flex;align-items:center;gap:6px;color:var(--ink-3);font-size:14.5px;padding-inline-start:14px;border-inline-start:1px solid var(--line);margin-inline-start:2px}
+.top .mkt svg{width:15px;height:15px}
+.top nav{margin-inline-start:auto;display:flex;align-items:center;gap:4px;align-self:stretch}
+.top nav button{position:relative;padding:0 14px;font-size:14.5px;font-weight:500;color:var(--ink-2);display:inline-flex;align-items:center;gap:8px}
+.top nav button[aria-current="page"]{color:var(--ink);font-weight:600;background:var(--sunk);border-radius:8px 8px 0 0;align-self:stretch;margin-block:12px 0}
+.top nav button[aria-current="page"]::after{content:"";position:absolute;inset-inline:0;bottom:0;height:2px;background:var(--brand)}
+.badge{min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--amber-bg);color:var(--amber-ink);font-size:12.5px;font-weight:700;display:inline-grid;place-items:center}
+.top .me{display:flex;align-items:center;gap:10px;padding-inline-start:12px;font-weight:500;font-size:14.5px}
+.top .me svg{color:var(--ink-3);width:16px;height:16px}
+.app[data-w="phone"] .top{height:auto;flex-wrap:wrap;padding:10px 14px 0;gap:8px}
+.app[data-w="phone"] .top .mkt,.app[data-w="phone"] .top .presence,.app[data-w="phone"] .top .me span{display:none}
+.app[data-w="phone"] .top .me{margin-inline-start:auto;padding:0}
+.app[data-w="phone"] .top nav{order:5;width:100%;margin:0;overflow-x:auto;scrollbar-width:none;height:44px}
+.app[data-w="phone"] .top nav button{font-size:13.5px;padding:0 10px;white-space:nowrap}
+
+.body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 494px;gap:16px;padding:18px 20px 0}
+.left{min-width:0;display:flex;flex-direction:column;min-height:0;height:100%}
+.right{min-width:0;display:flex;flex-direction:column;gap:12px;min-height:0}
+
+.head{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+.head .ic{width:44px;height:44px;border-radius:10px;background:var(--brand-bg);color:var(--brand);display:grid;place-items:center;flex:0 0 auto}
+.head .ic svg{width:24px;height:24px}
+.head h2{margin:0;font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.head .sub{color:var(--ink-3);font-size:15px;margin-top:2px}
+.head .sub b{color:var(--amber-ink);font-weight:600}
+.stat{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:13.5px;color:var(--ink-2);margin-top:5px;white-space:nowrap}
+.stat .bars{display:inline-flex;align-items:flex-end;gap:2px;height:14px}
+.stat .bars i{display:block;width:3px;border-radius:1px;background:var(--brand)}
+.stat b{color:var(--ink);font-weight:600}
+.tools{margin-inline-start:auto;display:flex;gap:8px;align-items:center}
+.search{height:40px;display:flex;align-items:center;gap:10px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink-3);width:300px;max-width:100%}
+.search input{flex:1;border:0;outline:0;background:none;font-size:14px;color:var(--ink);min-width:0}
+.btn-new{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:8px;background:var(--brand);color:#fff;font-weight:600;white-space:nowrap}
+.btn-new:hover{background:var(--brand-hover)}
+
+.tiles{display:grid;grid-template-columns:repeat(7,1fr);gap:0;border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;margin-bottom:14px}
+.tile{position:relative;display:flex;flex-direction:column;gap:2px;padding:10px 14px;border-inline-end:1px solid var(--line);text-align:start;min-width:0}
+.tile:last-child{border-inline-end:0}
+.tile .l{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-2);white-space:nowrap}
+.tile .l b{font-weight:700;color:var(--ink);font-size:14px;margin-inline-start:auto}
+.tile .v{font-size:13px;color:var(--ink-3);white-space:nowrap}
+.tile[aria-pressed="true"]{background:var(--soft)}
+.tile[aria-pressed="true"]::after{content:"";position:absolute;inset-inline:0;bottom:0;height:2px;background:var(--brand)}
+.tile[data-hot="true"] .l{color:var(--amber-ink);font-weight:600}
+.thead{display:grid;grid-template-columns:minmax(270px,1.5fr) minmax(210px,1.1fr) 236px 96px;gap:16px;padding:6px 18px 8px 20px;font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.thead span:last-child{text-align:end}
+.rows{flex:1;min-height:0;overflow-y:auto;padding-bottom:20px;scrollbar-width:thin}
+.sech{display:flex;align-items:center;gap:8px;padding:8px 4px 6px;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+.sech .c{font-weight:500;color:var(--ink-4);letter-spacing:0;text-transform:none}
+.row{position:relative;display:grid;grid-template-columns:minmax(270px,1.5fr) minmax(210px,1.1fr) 236px 96px;gap:16px;align-items:center;padding:12px 18px 12px 20px;background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer;overflow:hidden;transition:border-color .12s}
+.row::before{content:"";position:absolute;inset-block:0;inset-inline-start:0;width:4px;background:var(--st)}
+.row:hover{border-color:var(--line-2)}
+.row[aria-selected="true"]{border:1.5px solid var(--brand);background:var(--brand-tint);padding:11px 17px 11px 19px}
+.row[data-done="true"]{opacity:.78}
+.row .nm{font-size:16px;font-weight:600;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.row .nm .id{font-size:13.5px;font-weight:400;color:var(--ink-3)}
+.row .ph{font-size:14px;color:var(--ink-2);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap}
+.row .meta{display:flex;align-items:center;gap:14px;margin-top:6px;font-size:13.5px;color:var(--ink-2);flex-wrap:wrap}
+.row .meta span{display:inline-flex;align-items:center;gap:6px;min-width:0}
+.row .meta svg{width:16px;height:16px;color:var(--ink-3)}
+.row .sit .s{font-size:13.5px;color:var(--ink-3);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.row .sit .s.q{color:var(--ink-2);font-style:italic}
+.row .sit .tm{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-3);margin-top:4px}
+.row .sit .tm svg{width:15px;height:15px}
+.row .act{display:flex;align-items:center;gap:8px}
+.row .amt{text-align:end;font-size:18px;font-weight:700;white-space:nowrap}
+.row .amt small{display:block;font-size:12px;font-weight:500;color:var(--ink-3)}
+.timer{font-variant-numeric:tabular-nums;font-weight:600}
+.empty{padding:70px 20px;text-align:center;color:var(--ink-3)}
+.empty svg{width:44px;height:44px;color:var(--line-2);stroke-width:1.5}
+.empty h3{margin:12px 0 4px;font-size:16px;color:var(--ink)}
+
+/* Panel */
+.panel{flex:1;min-height:0;overflow-y:auto;background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:16px;padding:18px 18px 28px;scrollbar-width:thin;display:flex;flex-direction:column;gap:12px}
+.pempty{margin:auto;text-align:center;color:var(--ink-3);max-width:30ch;padding:40px 0}
+.pempty svg{width:40px;height:40px;color:var(--line-2);stroke-width:1.5}
+.ph1{display:flex;align-items:flex-start;gap:10px}
+.ph1 .back{display:none;width:32px;height:32px;place-items:center;border-radius:8px;color:var(--ink-2);margin-inline-end:-4px}
+.ph1 h3{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;line-height:1.2}
+.ph1 h3 .id{font-size:15px;font-weight:400;color:var(--ink-3)}
+.ph1 .x{margin-inline-start:auto;width:32px;height:32px;display:grid;place-items:center;border-radius:8px;color:var(--ink-2)}
+.ph2{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.ph2 .chips{display:flex;gap:6px;flex-wrap:wrap}
+.big{font-size:30px;font-weight:700;letter-spacing:-.02em;white-space:nowrap}
+.big small{font-size:13px;font-weight:500;color:var(--ink-3);display:block;text-align:end;letter-spacing:0}
+.ph3{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;color:var(--ink-2);flex-wrap:wrap}
+.ph3 span{display:inline-flex;align-items:center;gap:7px}
+.ph3 svg{width:16px;height:16px;color:var(--ink-3)}
+.next{border-radius:12px;padding:14px 16px;background:var(--nb,var(--sunk));border:1px solid var(--nl,var(--line));display:flex;flex-direction:column;gap:10px}
+.next[data-t="amber"]{--nb:#FFFBEB;--nl:#FDE68A}
+.next[data-t="blue"]{--nb:#EFF6FF;--nl:#BFDBFE}
+.next[data-t="red"]{--nb:#FEF2F2;--nl:#FECACA}
+.next[data-t="green"]{--nb:#F0FDF4;--nl:#BBF7D0}
+.next[data-t="violet"]{--nb:#F5F3FF;--nl:#DDD6FE}
+.next[data-t="grey"]{--nb:var(--soft);--nl:var(--line)}
+.next .hd{display:flex;align-items:center;gap:12px}
+.next .hd .ico{width:46px;height:46px;border-radius:50%;background:#fff;border:1px solid var(--nl);display:grid;place-items:center;color:var(--brand);flex:0 0 auto}
+.next .hd .ico svg{width:22px;height:22px}
+.eyebrow{font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.next .what{font-size:20px;font-weight:700;letter-spacing:-.01em;line-height:1.2}
+.next .why{font-size:14px;color:var(--ink-2);line-height:1.45}
+.next .btn-k{font-size:19px;letter-spacing:.01em}
+.next .btn-k svg{width:20px;height:20px}
+.sec-t{font-size:15px;font-weight:700;margin-top:2px}
+.out{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.app[data-w="phone"] .out{grid-template-columns:1fr 1fr}
+.out button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;height:66px;padding:0 8px;border-radius:10px;border:1px solid var(--line-2);background:#fff;font-size:13.5px;font-weight:600;color:var(--ink-2);text-align:center;line-height:1.15;transition:background .12s,border-color .12s}
+.out button svg{width:20px;height:20px}
+.out button[data-t="green"]{border-color:var(--green);background:var(--green-bg);color:var(--green-ink)}
+.out button[data-t="blue"]{border-color:var(--blue);background:var(--blue-bg);color:var(--blue-ink)}
+.out button[data-t="red"]{border-color:var(--red);background:var(--red-bg);color:var(--red-ink)}
+.out button[data-t="grey"]{background:#fff}
+.out button[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:1px}
+.follow{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px dashed var(--line-2);border-radius:10px;animation:in .25s var(--ease)}
+@keyframes in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.follow .lb{font-size:13px;font-weight:600;color:var(--ink-2)}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opt{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid var(--line-2);background:#fff;font-weight:500;color:var(--ink-2)}
+.opt[aria-pressed="true"]{background:#111;color:#fff;border-color:#111}
+.inp{width:100%;height:40px;border-radius:8px;border:1px solid var(--line-2);background:#fff;padding:0 12px;outline:0}
+.inp:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg)}
+textarea.inp{height:auto;min-height:64px;padding:9px 12px;resize:vertical;line-height:1.5}
+.inp.big{height:52px;font-size:22px;font-weight:600;letter-spacing:.04em;direction:ltr;text-align:start;font-variant-numeric:tabular-nums}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card .ct{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
+.card .ct svg{color:var(--ink-3)}
+.card .kv{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2);min-width:0}
+.card .kv svg{width:16px;height:16px;color:var(--ink-3)}
+.card .kv b{font-weight:600;color:var(--ink)}
+.card .kv .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .quote{padding:8px 10px;border-radius:8px;background:var(--sunk);font-size:13.5px;line-height:1.5;color:var(--ink-2)}
+.card .btn-o{height:34px;font-size:13.5px;justify-content:center}
+.hist{display:flex;gap:6px;flex-wrap:wrap}
+.risk{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.risk[data-k="good"]{color:var(--green-ink)}.risk[data-k="bad"]{color:var(--red-ink)}.risk[data-k="new"]{color:var(--ink-3)}
+.prod{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.prod .img{width:46px;height:46px;border-radius:8px;background:var(--sunk);display:grid;place-items:center;color:var(--ink-4);flex:0 0 auto}
+.prod .nm{font-weight:600}
+.prod .sku{font-size:12.5px;color:var(--ink-3)}
+.prod .pr{margin-inline-start:auto;font-weight:700;font-size:18px;white-space:nowrap}
+.prod .pr small{display:block;font-size:12px;font-weight:500;color:var(--ink-3);text-align:end}
+.bubble{position:relative;padding:10px 14px 18px;border-radius:12px;background:#E7F8E2;border:1px solid #CBEBC3;font-size:14px;line-height:1.55;unicode-bidi:plaintext;white-space:pre-wrap}
+.bubble small{position:absolute;inset-inline-end:10px;bottom:4px;font-size:11px;color:#5B7A57}
+.script{padding:12px 14px;border-radius:10px;background:var(--violet-bg);color:#3B1E7A;font-size:14px;line-height:1.6;white-space:pre-wrap;border:1px solid #DDD6FE}
+.script b{display:block;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--violet-ink);margin-bottom:4px}
+.act-h{display:flex;align-items:center;gap:8px}
+.act-h .pills{margin-inline-start:auto;display:flex;gap:4px}
+.act-h .pills button{height:26px;padding:0 10px;border-radius:999px;border:1px solid var(--line-2);font-size:12.5px;font-weight:500;color:var(--ink-2);background:#fff}
+.act-h .pills button[aria-pressed="true"]{border-color:var(--brand);color:var(--brand);background:var(--brand-bg)}
+.tl{list-style:none;margin:0;padding:0;position:relative}
+.tl li{position:relative;display:grid;grid-template-columns:52px 22px 1fr;gap:6px;padding:6px 0;font-size:13.5px;align-items:start}
+.tl li::before{content:"";position:absolute;inset-inline-start:62px;top:22px;bottom:-8px;width:1.5px;background:var(--line)}
+.tl li:last-child::before{display:none}
+.tl .t{color:var(--ink-3);font-size:12.5px;padding-top:2px}
+.tl .d{width:22px;height:22px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;color:var(--ink-2)}
+.tl .d svg{width:12px;height:12px}
+.tl .d[data-t="green"]{background:var(--green-bg);color:var(--green-ink)}
+.tl .d[data-t="amber"]{background:var(--amber-bg);color:var(--amber-ink)}
+.tl .d[data-t="red"]{background:var(--red-bg);color:var(--red-ink)}
+.tl .d[data-t="blue"]{background:var(--blue-bg);color:var(--blue-ink)}
+.tl .d[data-t="wa"]{background:var(--wa-bg);color:var(--wa)}
+.tl b{font-weight:600}
+.tl small{display:block;color:var(--ink-3);margin-top:1px}
+.pfoot{display:flex;gap:8px;position:sticky;bottom:-28px;margin:8px -18px -28px;padding:12px 18px 16px;background:#fff;border-top:1px solid var(--line)}
+.pfoot .btn-k{flex:1}
+.pfoot .btn-o{height:46px}
+
+/* Sheets */
+.scrim{position:absolute;inset:0;z-index:20;background:rgba(17,24,39,.35);opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s}
+.scrim[data-open="true"]{opacity:1;visibility:visible}
+.sheet{position:absolute;z-index:21;background:#fff;display:flex;flex-direction:column;opacity:0;visibility:hidden;box-shadow:0 30px 80px -20px rgba(17,24,39,.4);transition:opacity .2s,transform .26s var(--ease),visibility .26s;width:560px;max-height:90%;left:50%;top:50%;border-radius:16px;transform:translate(-50%,-47%) scale(.98)}
+.sheet[data-open="true"]{opacity:1;visibility:visible;transform:translate(-50%,-50%) scale(1)}
+.app[data-w="phone"] .sheet{width:auto;inset-inline:0;bottom:0;top:auto;left:auto;max-height:92%;border-radius:22px 22px 0 0;transform:translateY(40px)}
+.app[data-w="phone"] .sheet[data-open="true"]{transform:none}
+.sh{display:flex;align-items:flex-start;gap:12px;padding:18px 20px 12px}
+.sh h2{margin:0;font-size:19px;font-weight:700;letter-spacing:-.01em}
+.sh .sub{color:var(--ink-3);font-size:13.5px;margin-top:2px}
+.sh .x{margin-inline-start:auto;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--ink-3)}
+.sb{overflow-y:auto;padding:4px 20px 18px;display:flex;flex-direction:column;gap:14px}
+.sf{display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--line)}
+.sf .btn-k,.sf .btn-o{flex:1;height:46px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:13px;font-weight:600;color:var(--ink-2)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.app[data-w="phone"] .g2{grid-template-columns:1fr}
+.match{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:10px;font-size:13.5px;line-height:1.45;animation:in .25s var(--ease)}
+.match svg{width:17px;height:17px;margin-top:1px}
+.match[data-k="known"]{background:var(--green-bg);color:var(--green-ink)}
+.match[data-k="open"]{background:var(--amber-bg);color:var(--amber-ink)}
+.match[data-k="new"]{background:var(--sunk);color:var(--ink-2)}
+.match[data-k="risk"]{background:var(--red-bg);color:var(--red-ink)}
+.total{display:flex;align-items:baseline;justify-content:space-between;padding:14px 16px;border-radius:12px;background:#111;color:#fff}
+.total .v{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.toast{position:absolute;z-index:30;left:50%;bottom:22px;transform:translate(-50%,16px);opacity:0;display:flex;align-items:center;gap:9px;padding:10px 16px;border-radius:10px;background:#111;color:#fff;font-size:13.5px;font-weight:500;transition:opacity .2s,transform .26s var(--ease);pointer-events:none;white-space:nowrap;max-width:calc(100% - 32px)}
+.toast[data-on="true"]{opacity:1;transform:translate(-50%,0)}
+.toast svg{width:16px;height:16px;color:#86EFAC}
+
+/* ── Phone screens (agent) — three screens like « Suivi livraison » mobile ── */
+.app[data-w="phone"]{border-radius:44px;background:var(--bg)}
+.sbar{height:44px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:6px 30px 0 32px;font-weight:600;font-size:15px;background:#fff;direction:ltr}
+.sbar svg{width:16px;height:12px}
+.m-top{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:6px 14px 10px;background:#fff;border-bottom:1px solid var(--line)}
+.m-top .brand{font-size:19px;font-weight:700;letter-spacing:-.01em}
+.m-top .brand b{color:var(--brand)}
+.m-top .mkt{display:inline-flex;align-items:center;gap:3px;color:var(--ink-3);font-size:12.5px;white-space:nowrap}
+.m-top .mkt svg{width:14px;height:14px}
+.m-top .presence{margin-inline-start:auto;padding:4px 10px;background:#fff;border:1px solid var(--line);font-size:12.5px;line-height:1.15}
+.m-top .presence small{font-size:10.5px}
+.m-top .avatar{width:40px;height:40px}
+.m-scr{flex:1;min-height:0;overflow-y:auto;padding:12px 14px 110px;display:flex;flex-direction:column;gap:10px;scrollbar-width:none}
+.m-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:2px}
+.m-head h2{margin:0;font-size:22px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.m-head .sub{font-size:13px;color:var(--ink-3);margin-top:2px}
+.m-head .sub b{color:var(--amber-ink);font-weight:600}
+.m-head .stat{margin:2px 0 0 auto;height:auto;padding:7px 10px;font-size:12.5px;gap:6px}
+.m-filters{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -14px;padding:2px 14px 4px;flex:0 0 auto}
+.m-filters::-webkit-scrollbar{display:none}
+.m-chip{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:13.5px;font-weight:500;color:var(--ink-2);white-space:nowrap}
+.m-chip b{font-weight:700;color:var(--ink)}
+.m-chip[aria-pressed="true"]{border:1.5px solid var(--brand);background:var(--brand-tint);color:var(--brand-hover);font-weight:600}
+.m-chip[aria-pressed="true"] b{color:var(--brand-hover)}
+.m-fbtn{flex:0 0 auto;width:38px;height:38px;border:1px solid var(--line);border-radius:10px;background:#fff;display:grid;place-items:center;color:var(--ink-2)}
+.m-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 12px 10px;display:flex;flex-direction:column;gap:7px;text-align:start;cursor:pointer}
+.m-card[aria-selected="true"]{border:1.5px solid var(--brand);background:var(--brand-tint)}
+.m-card .r1{display:flex;align-items:baseline;gap:8px;min-width:0}
+.m-card .nm{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-card .id{font-size:13px;color:var(--ink-3);flex:0 0 auto}
+.m-card .amt{margin-inline-start:auto;font-size:17px;font-weight:700;white-space:nowrap;flex:0 0 auto}
+.m-card .r2{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--ink-2);min-width:0}
+.m-card .r2 svg{width:14px;height:14px;color:var(--ink-3)}
+.m-card .r2 span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-card .r3{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.m-card .r3 .tm{font-size:12.5px;color:var(--ink-3);display:inline-flex;align-items:center;gap:4px}
+.m-card .r3 .tm svg{width:13px;height:13px}
+.m-act{display:flex;align-items:center;justify-content:space-between;gap:8px;height:36px;padding:0 12px;border-radius:8px;font-weight:600;font-size:13.5px;width:100%;text-align:start}
+.m-act svg{width:16px;height:16px}
+.m-act[data-t="amber"]{background:var(--amber-bg);color:var(--amber-ink)}
+.m-act[data-t="red"]{background:var(--red-bg);color:var(--red-ink)}
+.m-act[data-t="blue"]{background:var(--blue-bg);color:var(--blue-ink)}
+.m-act[data-t="grey"]{background:var(--grey-bg);color:var(--grey-ink)}
+.m-act[data-t="violet"]{background:var(--violet-bg);color:var(--violet-ink)}
+.m-act[data-t="green"]{background:var(--green-bg);color:var(--green-ink)}
+.m-fab{position:absolute;inset-inline-end:16px;bottom:92px;z-index:5;width:52px;height:52px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;box-shadow:0 8px 20px -6px rgba(21,128,61,.55)}
+.m-fab svg{width:24px;height:24px}
+.m-tabs{position:absolute;inset-inline:0;bottom:0;z-index:5;height:80px;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding:8px 0 18px}
+.m-tabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;color:var(--ink-3);position:relative}
+.m-tabs button svg{width:22px;height:22px}
+.m-tabs button[aria-current="page"]{color:var(--brand);font-weight:600}
+.m-tabs .badge{position:absolute;top:-2px;inset-inline-start:calc(50% + 6px);min-width:18px;height:18px;font-size:11px}
+/* detail screen */
+.m-det{position:absolute;inset:0;z-index:8;background:var(--bg);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .32s var(--ease);visibility:hidden}
+[dir="rtl"] .m-det{transform:translateX(-100%)}
+.m-det[data-open="true"]{transform:none;visibility:visible}
+.m-dh{flex:0 0 auto;height:52px;display:flex;align-items:center;gap:8px;padding:0 10px;background:#fff;border-bottom:1px solid var(--line)}
+.m-dh h3{flex:1;margin:0;text-align:center;font-size:18px;font-weight:700}
+.m-dh .back{width:36px;height:36px;display:grid;place-items:center;border-radius:8px;color:var(--ink)}
+.m-dbody{flex:1;min-height:0;overflow-y:auto;padding:12px 14px 150px;display:flex;flex-direction:column;gap:12px;scrollbar-width:none}
+.m-hero .amt{font-size:22px}
+.m-hero .r2{font-size:14px}
+.m-next{display:flex;flex-direction:row;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:var(--nb);border:1px solid var(--nl);border-inline-start:4px solid var(--st);text-align:start;width:100%}
+.m-next>svg{width:24px;height:24px;color:var(--ink-2)}
+.m-next .tx{flex:1;min-width:0}
+.m-next .ttl{font-size:17px;font-weight:700;line-height:1.2;margin:2px 0}
+.m-next .why{font-size:13px;color:var(--ink-2);line-height:1.4}
+.m-next .ch{color:var(--ink-3);transform:rotate(-90deg)}
+[dir="rtl"] .m-next .ch{transform:rotate(90deg)}
+.m-sec{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.m-sec h4{margin:0 0 6px;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.m-sec h4 svg{color:var(--ink-2)}
+.m-sec h4 .tg{margin-inline-start:auto;color:var(--ink-3);transition:transform .2s}
+.m-sec h4 .tg[data-open="true"]{transform:rotate(180deg)}
+.kvr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--sunk);font-size:14px;min-width:0}
+.kvr:first-of-type{border-top:0}
+.kvr .k{color:var(--ink-3);flex:0 0 auto}
+.kvr .v{font-weight:500;display:inline-flex;align-items:center;gap:8px;min-width:0;text-align:end}
+.kvr .v .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kvr .chip{font-size:12px;height:24px;padding:0 8px}
+.m-sticky{position:absolute;inset-inline:0;bottom:0;z-index:9;padding:10px 14px 26px;background:#fff;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.m-sticky .btn-k{height:50px;font-size:17px}
+.m-sticky .r{display:flex;gap:8px}
+.m-sticky .r .btn-o{flex:1;height:46px}
+.handle{width:44px;height:5px;border-radius:3px;background:var(--line-2);margin:10px auto 0}
+.lb{font-size:14px;font-weight:600;color:var(--ink-2)}
+.m-out .out button{height:64px}
+
+/* ── Manager console ────────────────────────────────────────── */
+.mgr{flex:1;min-height:0;overflow-y:auto;padding:18px 20px 28px;display:flex;flex-direction:column;gap:16px;scrollbar-width:thin}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.app[data-w="phone"] .kpis{grid-template-columns:1fr 1fr}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;position:relative;overflow:hidden}
+.kpi .l{font-size:13px;color:var(--ink-3)}
+.kpi .v{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--ink-3);margin-inline-start:4px}
+.kpi .d{font-size:12.5px;color:var(--ink-3)}
+.kpi .d b{font-weight:600;color:var(--green-ink)}
+.kpi .d b[data-bad]{color:var(--red-ink)}
+.kpi svg.sp{position:absolute;inset-inline-end:14px;top:16px;width:84px;height:30px}
+.kpi[data-hot]{border-color:var(--amber);background:#FFFBEB}
+.mgrid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start}
+.app[data-w="phone"] .mgrid{grid-template-columns:1fr}
+.mcard{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.mcard>h3{display:flex;align-items:center;gap:10px;margin:0;padding:14px 16px;font-size:15px;font-weight:700;border-bottom:1px solid var(--line)}
+.mcard>h3 .r{margin-inline-start:auto;font-weight:500;color:var(--ink-3);font-size:13px}
+.twrap{overflow-x:auto}
+table.t{width:100%;border-collapse:collapse;font-size:13.5px}
+table.t th{text-align:start;font-weight:600;color:var(--ink-3);font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.t td{padding:11px 14px;border-bottom:1px solid var(--sunk);vertical-align:middle}
+table.t tbody tr:last-child td{border-bottom:0}
+table.t tbody tr:hover{background:var(--soft)}
+table.t .n{text-align:end;white-space:nowrap;font-weight:600}
+table.t .s1{color:var(--ink-3);font-size:12.5px;margin-top:2px;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.fchip{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;background:#fff;border:1px solid var(--line-2);font-size:13px;color:var(--ink)}
+.fchip[aria-pressed="true"]{background:#111;color:#fff;border-color:#111}
+.fbar .count{margin-inline-start:auto;color:var(--ink-3);font-size:13px}
+.camp{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.camp:last-child{border-bottom:0}
+.camp .cn{display:flex;align-items:center;gap:8px;font-weight:600}
+.camp .cn .chip{margin-inline-start:auto}
+.camp .offer{font-size:13px;color:var(--ink-2)}
+.funnel{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--sunk)}
+.funnel b{display:block;height:100%}
+.funnel b:nth-child(1){background:#C7CDD6}
+.funnel b:nth-child(2){background:#8C96A5}
+.funnel b:nth-child(3){background:var(--brand)}
+.fn-l{display:flex;gap:12px;font-size:12px;color:var(--ink-3);flex-wrap:wrap}
+.fn-l b{color:var(--ink);font-weight:600}
+.fn-l .rev{margin-inline-start:auto;color:var(--green-ink);font-weight:600}
+.hbar{height:6px;border-radius:3px;background:var(--sunk);overflow:hidden;min-width:80px}
+.hbar b{display:block;height:100%;background:var(--brand);width:var(--w)}
+.agent-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--sunk);font-size:13.5px}
+.agent-row:last-child{border-bottom:0}
+.agent-row .a{display:flex;align-items:center;gap:10px}
+.agent-row .a .avatar{width:28px;height:28px;font-size:12px}
+.agent-row .a small{display:block;color:var(--ink-3);font-size:12px}
+.agent-row .n{font-weight:600;text-align:end}
+.agent-row .n small{display:block;font-weight:500;color:var(--ink-3)}
+</style>
+
+<div class="studio">
+  <div class="bar">
+    <h1>Prospects <span>· prototype v3 · Ordra</span></h1>
+    <div class="seg" id="segRole"><button data-v="agent" aria-pressed="true">Agent · Hend</button><button data-v="manager">Manager</button></div>
+    <div class="seg" id="segLang"><button data-v="fr" aria-pressed="true">FR</button><button data-v="ar">AR</button></div>
+    <div class="seg" id="segView"><button data-v="desktop" aria-pressed="true">Desktop</button><button data-v="phone">Phone</button></div>
+  </div>
+  <div class="note">
+    Même squelette que « Suivi livraison » : titre + jauge du jour, tuiles de buckets avec la valeur potentielle, lignes à bandeau de couleur, panneau à droite qui s'ouvre sur <b>la prochaine action</b> et le <b>résultat d'appel en 4 boutons</b>.
+    <details><summary>Ce que le prototype décide</summary><ul>
+      <li>Six buckets calculés (pas de kanban) : Chauds · Rappels · Sans réponse · Campagne · Retours · Convertis. La tuile affiche le nombre et la valeur potentielle.</li>
+      <li>Chaud = source entrante, jamais contacté, moins de 60 min (réglage marché). Le chrono tourne dans la ligne ; la tuile pulse.</li>
+      <li>Résultat d'appel : « Veut commander » ouvre la commande pré-remplie ; « Rappeler » propose +1 h / +2 h / demain ; « Pas de réponse » incrémente la tentative ; « Pas intéressé » demande une raison.</li>
+      <li>Nouveau prospect : téléphone d'abord, correspondance client en direct (client connu, prospect déjà ouvert chez un autre agent, risque retours).</li>
+      <li>Retours : dès qu'un colis passe en « retourné », un prospect naît chez l'agent qui l'avait confirmé, avec le motif du transporteur.</li>
+      <li>Clavier : <span class="kbd">↑</span><span class="kbd">↓</span> naviguer · <span class="kbd">1–4</span> résultat · <span class="kbd">C</span> convertir · <span class="kbd">N</span> nouveau.</li>
+    </ul></details>
+  </div>
+  <div class="stage"><div class="hscroll" id="stage"></div></div>
+</div>
+
+<script>
+/* ───────────────────────── i18n ───────────────────────── */
+const I18N={
+fr:{
+  market:"Libye · Tripoli", nav:{queue:"File",leads:"Prospects",delivery:"Livraison",comm:"Commissions"}, online:"En ligne", sync:"synchronisé il y a 2 min",
+  title:"Prospects", sub:(h)=>h?`<b>${h} chaud${h>1?"s":""} à appeler maintenant</b> · le reste attend`:"Rien d'urgent · la liste attend",
+  gauge:(c,k)=>`${c} appels · <b>${k} convertis</b> aujourd'hui`, search:"Nom, numéro, produit…", newlead:"Nouveau prospect",
+  th:{who:"Prospect",sit:"Situation · depuis",act:"Action",val:"Valeur"},
+  b:{all:"Tout",hot:"Chauds",callback:"Rappels",retry:"Sans réponse",campaign:"Campagne",winback:"Retours",converted:"Convertis"},
+  cur:(n)=>`${n} LYD`, val_l:"potentiel", val_ord:"commande",
+  src:{whatsapp:"WhatsApp",fb_comment:"Commentaire FB",fb_dm:"Message FB",ig_dm:"Message IG",call:"Appel au n° pub",campaign:"Campagne",winback:"Colis retourné",manual:"Saisi à la main"},
+  sit:{hot:(m)=>`Chaud · ${m} min`, cb_due:(m)=>`Rappel dépassé · ${m} min`, cb_at:(t)=>`Rappel à ${t}`, cb_tmr:(t)=>`Rappel demain ${t}`, retry:(n)=>`Sans réponse · ${n}ᵉ essai`, campaign:"Campagne", winback:"Retour à récupérer", converted:(o)=>`Commande #${o}`},
+  exp:{hot_wa:"Message reçu, pas encore répondu", hot_fb:"A commenté la pub, demande le prix", hot_ig:"A écrit en DM, veut la livraison", hot_call:"A appelé le numéro pub, pas rappelé", cb:"A demandé qu'on le rappelle", retry:"Rappeler à une autre heure", camp:(c)=>c, wb:(r)=>`Motif : ${r}`, conv:"Dans la file · Convertis"},
+  act:{hot:"Appeler",callback:"Rappeler",retry:"Réessayer",campaign:"Appeler avec le script",winback:"Proposer le renvoi",converted:"Voir la commande"},
+  next:{hot:{t:"Appeler maintenant",w:(m)=>`Entrant il y a ${m} min. Un chaud joint dans les 10 min convertit ; après 2 h presque jamais.`},
+        callback:{t:"Rappeler comme convenu",w:(t)=>`Il a demandé ${t}. Confirmer le produit et la zone, puis convertir.`},
+        retry:{t:"Nouvel essai",w:(n)=>`${n} essai${n>1?"s":""} sans réponse. Essayer le second numéro ou WhatsApp d'abord.`},
+        campaign:{t:"Appeler avec le script",w:(o)=>`Client de la campagne. Offre à proposer : ${o}.`},
+        winback:{t:"Proposer le renvoi sans frais",w:(r)=>`Le colis est revenu (${r}). Vérifier l'adresse et le créneau avant de recréer.`},
+        converted:{t:"Rien à faire",w:"La commande est dans ta file, bucket Convertis, prête à envoyer."}},
+  out_t:"Résultat de l'appel", out:{order:"Veut commander",callback:"Rappeler plus tard",noans:"Pas de réponse",lost:"Pas intéressé"},
+  when:"Quand rappeler ?", p1h:"+1 h", p2h:"+2 h", tmr:"Demain 10:00", ev:"Ce soir 18:00", why:"Pourquoi ?", lost:{price:"Prix",no_need:"Plus besoin",competitor:"Acheté ailleurs",wrong:"Faux numéro",other:"Autre"}, note_ph:"Note courte — ex. « veut le 50 ml, demande le prix livraison »", save:"Enregistrer", cancel:"Annuler",
+  c_client:"Le client", c_origin:"Origine", hist:{new:"Nouveau numéro · aucune commande",good:(d)=>`Client fidèle · ${d} livrée${d>1?"s":""}`,one:"Déjà client · 1 livrée",bad:(r)=>`Risque · ${r} retournée${r>1?"s":""}, 0 livrée`,mixed:(d,r)=>`${d} livrée${d>1?"s":""} · ${r} retournée${r>1?"s":""}`},
+  last:(p,d)=>`Dernier achat : ${p} · il y a ${d} j`, addr:"Dernière adresse", orders_link:"Voir les commandes", wa:"WhatsApp", agent:"Agent", assigned:(a,t)=>`${a} · ${t}`, offer:"Offre", cap:(a,b)=>`${a}/${b} appels aujourd'hui`,
+  product:"Produit", qty:(n)=>`× ${n}`, msg_t:"Message d'origine", script_t:"Script de campagne",
+  activity:"Activité", all:"Tout", calls:"Appels", msgs:"Messages", none_yet:"Aucun contact encore — tu seras le premier.",
+  convert:"Convertir en commande", pick:"Choisis un prospect pour voir son historique et agir.", back:"Retour",
+  n_t:"Nouveau prospect", n_sub:"Le numéro d'abord — l'historique client s'affiche pendant que tu écris.", n_phone:"Téléphone", n_name:"Nom", n_src:"D'où vient-il ?", n_prod:"Produit", n_area:"Ville · zone", n_note:"Message ou note", n_save:"Enregistrer", n_save_order:"Enregistrer et commander",
+  m_new:"Nouveau numéro, aucun historique.", m_known:(d,p,t)=>`Client connu · ${d} livrée${d>1?"s":""} · dernière : ${p}, il y a ${t} j`, m_open:(a,t)=>`Prospect déjà ouvert chez ${a} il y a ${t} — ne pas doubler.`, m_risk:(r)=>`Attention · ${r} colis retournés sur ce numéro.`,
+  v_t:"Créer la commande", v_sub:"Pré-remplie depuis le prospect et sa dernière commande.", v_cust:"Client", v_addr:"Adresse", v_dest:"Ville · zone (Darb)", v_prod:"Produit", v_qty:"Qté", v_price:"Prix", v_total:"Total à encaisser", v_go:"Créer la commande", v_where:"→ File · Convertis · prête à envoyer",
+  t_saved:(b)=>`Enregistré · déplacé vers « ${b} »`, t_conv:(o)=>`Commande #${o} créée · File › Convertis`, t_new:"Prospect créé", t_wa:"WhatsApp ouvert · contact enregistré", t_call:(p)=>`Appel vers ${p}`,
+  ago:(m)=>m<1?"à l'instant":m<60?`il y a ${Math.round(m)} min`:m<1440?`il y a ${Math.round(m/60)} h`:`il y a ${Math.round(m/1440)} j`,
+  today:"Aujourd'hui", yday:"Hier", dat:"Sam. 14 sept. 2026",
+  tl:{created:"Prospect créé",msg:"Message reçu",call:"Appel",noans:"Sans réponse",wa:"WhatsApp envoyé",cb:"Rappel programmé",conv:"Converti",ret:"Colis retourné",camp:"Ajouté à la campagne",sys:"Système",me:"Moi",cust:"Client"},
+  // manager
+  mg_t:"Prospects", mg_sub:"Demandes avant commande, rappels, campagnes de recontact — équipe Tripoli", k:{new:"Nouveaux (7 j)",hot:"Chauds sans réponse",ttc:"Délai 1er contact (médiane)",rev:"CA livré issu des prospects (30 j)"}, k_vs:"vs 7 j précédents", k_target:"objectif < 10 min",
+  mg_pipe:"Pipeline", mg_camp:"Campagnes", mg_agents:"Par agent · aujourd'hui", mg_newcamp:"Nouvelle campagne", f:{all:"Tous",hot:"Chauds",cb:"Rappels",camp:"Campagne",wb:"Retours"}, count:(n)=>`${n} prospects`,
+  mth:{who:"Prospect",src:"Source",agent:"Agent",sit:"Situation",since:"Depuis",val:"Valeur"},
+  cs:{live:"En cours",done:"Terminée"}, fn:{aud:"audience",called:"appelés",conv:"convertis",rev:"CA livré"}, ag:{calls:"appels",conv:"convertis"},
+},
+ar:{
+  market:"ليبيا · طرابلس", nav:{queue:"الطلبات",leads:"العملاء المحتملون",delivery:"التوصيل",comm:"العمولات"}, online:"متصل", sync:"آخر مزامنة منذ دقيقتين",
+  title:"العملاء المحتملون", sub:(h)=>h?`<b>${h} ساخن للاتصال الآن</b> · الباقي ينتظر`:"لا شيء عاجل · القائمة تنتظر",
+  gauge:(c,k)=>`${c} مكالمات · <b>${k} تحوّلوا</b> اليوم`, search:"الاسم أو الرقم أو المنتج…", newlead:"عميل محتمل جديد",
+  th:{who:"العميل",sit:"الحالة · منذ",act:"الإجراء",val:"القيمة"},
+  b:{all:"الكل",hot:"ساخنون",callback:"مواعيد",retry:"بلا رد",campaign:"حملة",winback:"مرتجعات",converted:"تحوّلوا"},
+  cur:(n)=>`${n} د.ل`, val_l:"محتمل", val_ord:"طلب",
+  src:{whatsapp:"واتساب",fb_comment:"تعليق فيسبوك",fb_dm:"رسالة فيسبوك",ig_dm:"رسالة إنستغرام",call:"اتصال برقم الإعلان",campaign:"حملة",winback:"شحنة مرتجعة",manual:"مُدخل يدوياً"},
+  sit:{hot:(m)=>`ساخن · ${m} د`, cb_due:(m)=>`موعد فات · ${m} د`, cb_at:(t)=>`موعد ${t}`, cb_tmr:(t)=>`موعد غداً ${t}`, retry:(n)=>`بلا رد · المحاولة ${n}`, campaign:"حملة", winback:"مرتجع لاستعادته", converted:(o)=>`طلب #${o}`},
+  exp:{hot_wa:"رسالة وصلت، لم يُرد عليها", hot_fb:"علّق على الإعلان، يسأل عن السعر", hot_ig:"كتب برسالة خاصة، يريد التوصيل", hot_call:"اتصل برقم الإعلان، لم يُعاود", cb:"طلب أن نعاود الاتصال", retry:"عاود في وقت آخر", camp:(c)=>c, wb:(r)=>`السبب: ${r}`, conv:"في قائمة الطلبات · المحوّلة"},
+  act:{hot:"اتصل",callback:"عاود الاتصال",retry:"حاول مجدداً",campaign:"اتصل بالنص",winback:"اقترح إعادة الإرسال",converted:"افتح الطلب"},
+  next:{hot:{t:"اتصل الآن",w:(m)=>`وصل منذ ${m} د. الساخن الذي يُرد عليه خلال 10 دقائق يتحوّل؛ بعد ساعتين نادراً.`},
+        callback:{t:"عاود الاتصال كما اتُّفق",w:(t)=>`طلب ${t}. أكّد المنتج والمنطقة ثم حوّل.`},
+        retry:{t:"محاولة جديدة",w:(n)=>`${n} محاولة بلا رد. جرّب الرقم الثاني أو واتساب أولاً.`},
+        campaign:{t:"اتصل بالنص",w:(o)=>`زبون من الحملة. العرض: ${o}.`},
+        winback:{t:"اقترح إعادة الإرسال بلا رسوم",w:(r)=>`رجعت الشحنة (${r}). تحقّق من العنوان والوقت قبل إعادة الإنشاء.`},
+        converted:{t:"لا شيء مطلوب",w:"الطلب في قائمتك، خانة المحوّلة، جاهز للإرسال."}},
+  out_t:"نتيجة المكالمة", out:{order:"يريد أن يطلب",callback:"عاود لاحقاً",noans:"لا رد",lost:"غير مهتم"},
+  when:"متى تعاود؟", p1h:"+١ س", p2h:"+٢ س", tmr:"غداً 10:00", ev:"مساءً 18:00", why:"لماذا؟", lost:{price:"السعر",no_need:"لم يعد يحتاج",competitor:"اشترى من مكان آخر",wrong:"رقم خاطئ",other:"أخرى"}, note_ph:"ملاحظة قصيرة — مثال: «يريد 50 مل، يسأل عن سعر التوصيل»", save:"حفظ", cancel:"إلغاء",
+  c_client:"الزبون", c_origin:"المصدر", hist:{new:"رقم جديد · لا طلبات",good:(d)=>`زبون وفيّ · ${d} مسلّمة`,one:"زبون سابق · 1 مسلّمة",bad:(r)=>`خطر · ${r} مرتجعة، 0 مسلّمة`,mixed:(d,r)=>`${d} مسلّمة · ${r} مرتجعة`},
+  last:(p,d)=>`آخر شراء: ${p} · قبل ${d} يوم`, addr:"آخر عنوان", orders_link:"عرض الطلبات", wa:"واتساب", agent:"الوكيل", assigned:(a,t)=>`${a} · ${t}`, offer:"العرض", cap:(a,b)=>`${a}/${b} مكالمة اليوم`,
+  product:"المنتج", qty:(n)=>`× ${n}`, msg_t:"الرسالة الأصلية", script_t:"نص الحملة",
+  activity:"سجل النشاط", all:"الكل", calls:"مكالمات", msgs:"رسائل", none_yet:"لا تواصل بعد — ستكون الأول.",
+  convert:"حوّل إلى طلب", pick:"اختر عميلاً لترى سجله وتتصرّف.", back:"رجوع",
+  n_t:"عميل محتمل جديد", n_sub:"الرقم أولاً — سجل الزبون يظهر وأنت تكتب.", n_phone:"الهاتف", n_name:"الاسم", n_src:"من أين جاء؟", n_prod:"المنتج", n_area:"المدينة · المنطقة", n_note:"رسالة أو ملاحظة", n_save:"حفظ", n_save_order:"حفظ وإنشاء طلب",
+  m_new:"رقم جديد، لا سجل.", m_known:(d,p,t)=>`زبون معروف · ${d} مسلّمة · آخر طلب: ${p}، قبل ${t} يوم`, m_open:(a,t)=>`عميل مفتوح عند ${a} منذ ${t} — لا تكرّر.`, m_risk:(r)=>`انتبه · ${r} شحنات مرتجعة على هذا الرقم.`,
+  v_t:"إنشاء الطلب", v_sub:"مملوء مسبقاً من العميل المحتمل وآخر طلب له.", v_cust:"الزبون", v_addr:"العنوان", v_dest:"المدينة · المنطقة (درب)", v_prod:"المنتج", v_qty:"الكمية", v_price:"السعر", v_total:"الإجمالي للتحصيل", v_go:"إنشاء الطلب", v_where:"→ الطلبات · المحوّلة · جاهز للإرسال",
+  t_saved:(b)=>`تم الحفظ · نُقل إلى «${b}»`, t_conv:(o)=>`تم إنشاء الطلب #${o} · الطلبات › المحوّلة`, t_new:"تم إنشاء العميل", t_wa:"فُتح واتساب · سُجّل التواصل", t_call:(p)=>`اتصال بـ ${p}`,
+  ago:(m)=>m<1?"الآن":m<60?`منذ ${Math.round(m)} د`:m<1440?`منذ ${Math.round(m/60)} س`:`منذ ${Math.round(m/1440)} يوم`,
+  today:"اليوم", yday:"أمس", dat:"السبت · 14 سبتمبر 2026",
+  tl:{created:"أُنشئ العميل",msg:"وصلت رسالة",call:"مكالمة",noans:"بلا رد",wa:"أُرسل واتساب",cb:"موعد متابعة",conv:"تحوّل",ret:"شحنة مرتجعة",camp:"أُضيف للحملة",sys:"النظام",me:"أنا",cust:"الزبون"},
+  mg_t:"العملاء المحتملون", mg_sub:"طلبات قبل الشراء، مواعيد، حملات إعادة التواصل — فريق طرابلس", k:{new:"جدد (7 أيام)",hot:"ساخنون بلا رد",ttc:"زمن أول تواصل (الوسيط)",rev:"إيراد مسلّم من العملاء (30 يوماً)"}, k_vs:"مقارنة بالأسبوع السابق", k_target:"الهدف < 10 د",
+  mg_pipe:"المسار", mg_camp:"الحملات", mg_agents:"حسب الوكيل · اليوم", mg_newcamp:"حملة جديدة", f:{all:"الكل",hot:"ساخنون",cb:"مواعيد",camp:"حملة",wb:"مرتجعات"}, count:(n)=>`${n} عميلاً`,
+  mth:{who:"العميل",src:"المصدر",agent:"الوكيل",sit:"الحالة",since:"منذ",val:"القيمة"},
+  cs:{live:"جارية",done:"منتهية"}, fn:{aud:"الجمهور",called:"اتُّصل بهم",conv:"تحوّلوا",rev:"إيراد مسلّم"}, ag:{calls:"مكالمات",conv:"تحوّلوا"},
+}};
+
+Object.assign(I18N.fr,{m_detail:"Détail du prospect",m_phone1:"Premier numéro",m_phone2:"Second numéro",m_city:"Ville",m_hist:"Historique",m_rec:"recommandé",m_src:"Source",m_created:"Créé le",m_camp:"Campagne",m_order:"Commande",m_reason:"Motif retour",m_att:"Tentatives",m_last:"Dernier achat",call_l:"Appeler",m_note:"Note (optionnelle)",save_act:"Enregistrer le résultat",m_q:"Résultat",info:"Infos"});
+Object.assign(I18N.ar,{m_detail:"تفاصيل العميل",m_phone1:"الرقم الأول",m_phone2:"الرقم الثاني",m_city:"المدينة",m_hist:"السجل",m_rec:"موصى به",m_src:"المصدر",m_created:"تاريخ الإنشاء",m_camp:"الحملة",m_order:"الطلب",m_reason:"سبب الإرجاع",m_att:"المحاولات",m_last:"آخر شراء",call_l:"الاتصال",m_note:"ملاحظة (اختيارية)",save_act:"حفظ النتيجة",m_q:"النتيجة",info:"المعلومات"});
+
+/* ───────────────────────── Icons ───────────────────────── */
+const IC={
+ arr:'<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+ pen:'<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/></svg>',
+ list:'<svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+ coins:'<svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>',
+ phone:'<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>',
+ wa:'<svg viewBox="0 0 24 24"><path d="M4 20l1.3-3.8A8 8 0 1 1 8 19.2L4 20z"/><path d="M9.3 9.2c.2 2.6 2.4 4.9 5 5.2l1.2-1.4-1.9-.9-.8.8a4 4 0 0 1-1.9-1.9l.8-.8-.9-1.9z" fill="currentColor" stroke="none"/></svg>',
+ pin:'<svg viewBox="0 0 24 24"><path d="M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>',
+ box:'<svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg>',
+ clock:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+ search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+ filter:'<svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>',
+ sort:'<svg viewBox="0 0 24 24"><path d="M7 4v16l-3-3M17 20V4l3 3"/></svg>',
+ user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+ users:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-5-6.3"/></svg>',
+ chev:'<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
+ plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+ check:'<svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>',
+ x:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+ cal:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+ ban:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m6.5 6.5 11 11"/></svg>',
+ undo:'<svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>',
+ mega:'<svg viewBox="0 0 24 24"><path d="M3 10v4h3l8 5V5L6 10z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg>',
+ msg:'<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>',
+ fb:'<svg viewBox="0 0 24 24"><path d="M14 8h3V4h-3a4 4 0 0 0-4 4v2H7v4h3v6h4v-6h3l1-4h-4V8z"/></svg>',
+ ig:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>',
+ truck:'<svg viewBox="0 0 24 24"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>',
+ flame:'<svg viewBox="0 0 24 24"><path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/></svg>',
+ file:'<svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg>',
+ dots:'<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/></svg>',
+ back:'<svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>',
+ tag:'<svg viewBox="0 0 24 24"><path d="M3 12V3h9l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
+ bolt:'<svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>',
+ cart:'<svg viewBox="0 0 24 24"><path d="M3 4h2l2.5 11h11L21 7H6.5"/><circle cx="9" cy="20" r="1.5"/><circle cx="17" cy="20" r="1.5"/></svg>',
+ bag:'<svg viewBox="0 0 24 24"><path d="M5 8h14l-1 13H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
+ star:'<svg viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></svg>',
+ warn:'<svg viewBox="0 0 24 24"><path d="M12 3 2 21h20z"/><path d="M12 10v5M12 18h.01"/></svg>',
+ cross:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>',
+ sys:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12h8M12 8v8"/></svg>',
+};
+const SRC_ICON={whatsapp:"wa",fb_comment:"fb",fb_dm:"fb",ig_dm:"ig",call:"phone",campaign:"mega",winback:"undo",manual:"file"};
+const TONE={hot:"amber",callback:"blue",retry:"grey",campaign:"violet",winback:"red",converted:"green"};
+const BUCKETS=["hot","callback","retry","campaign","winback","converted"];
+
+/* ───────────────────────── Mock data ───────────────────────── */
+const NOW=Date.now(), MIN=60e3;
+const ago=(m)=>NOW-m*MIN, later=(m)=>NOW+m*MIN;
+const PRODUCTS={p1:{name:"Sérum vitamine C",ar:"سيروم فيتامين C",sku:"SC-001",price:110},p2:{name:"Crème hydratante",ar:"كريم مرطّب",sku:"CH-002",price:95},p3:{name:"Montre connectée X2",ar:"ساعة ذكية X2",sku:"MX-014",price:240},p4:{name:"Pack blender + mixeur",ar:"طقم خلاط + عصّارة",sku:"PB-020",price:520},p5:{name:"Écouteurs sans fil",ar:"سماعات لاسلكية",sku:"EA-007",price:85}};
+const CAMP={id:"c1",name:"Sérum · clients 60–120 j",ar:"سيروم · زبائن 60–120 يوماً",offer:"−15 % sur le 50 ml, livraison offerte",offerAr:"خصم 15% على 50 مل، التوصيل مجاني",
+  script:"Bonjour {name}, ici Hend d'Ordra. Vous aviez pris le sérum vitamine C il y a deux mois — comment ça s'est passé ? Cette semaine le 50 ml est à 93 LYD au lieu de 110, livraison offerte. Je vous en mets un ?",
+  scriptAr:"مرحباً {name}، معك هند من أوردرا. أخذت سيروم فيتامين C قبل شهرين — كيف كانت التجربة؟ هذا الأسبوع عبوة 50 مل بـ 93 د.ل بدل 110 والتوصيل مجاني. أحجز لك واحدة؟"};
+const A=(o)=>Object.assign({attempts:0,cbAt:null,qty:1,phone2:null,msg:null,cust:{d:0,r:0,last:null,days:null,addr:null},tl:[],order:null,reason:null},o);
+let LEADS=[
+ A({id:"P-7301",name:"أمل الزنتاني",phone:"091 778 8001",area:"طرابلس · سوق الجمعة",source:"whatsapp",bucket:"hot",created:ago(6),product:"p1",
+   msg:"السلام عليكم، السيروم متوفر؟ وكم سعره مع التوصيل لسوق الجمعة؟",tl:[{t:ago(6),k:"msg",who:"cust",x:"WhatsApp"}]}),
+ A({id:"P-7300",name:"ريما بن عمر",phone:"092 551 1209",area:"طرابلس · تاجوراء",source:"fb_comment",bucket:"hot",created:ago(23),product:"p3",
+   msg:"prix ? livraison tajoura ?",cust:{d:1,r:0,last:"p2",days:41,addr:"تاجوراء، طريق الشط، بجانب الصيدلية"},tl:[{t:ago(23),k:"msg",who:"cust",x:"Facebook"}]}),
+ A({id:"P-7298",name:"محمد الشريف",phone:"094 120 3388",area:"طرابلس · جنزور",source:"call",bucket:"hot",created:ago(47),product:"p4",
+   tl:[{t:ago(47),k:"call",who:"cust",x:"missed"}]}),
+ A({id:"P-7288",name:"سالم أبو زيد",phone:"091 334 4557",phone2:"092 118 9002",area:"بنغازي · الليثي",source:"ig_dm",bucket:"callback",created:ago(190),attempts:1,cbAt:ago(25),product:"p3",
+   msg:"نبي الساعة السوداء، توصلوا بنغازي؟",cust:{d:0,r:0},tl:[{t:ago(190),k:"msg",who:"cust",x:"Instagram"},{t:ago(160),k:"call",who:"me",x:"reached"},{t:ago(160),k:"cb",who:"me",x:"16:05"}]}),
+ A({id:"P-7279",name:"هدى المبروك",phone:"092 334 1122",area:"طرابلس · حي الأندلس",source:"fb_dm",bucket:"callback",created:ago(420),attempts:1,cbAt:later(95),product:"p1",qty:2,
+   cust:{d:3,r:0,last:"p1",days:72,addr:"حي الأندلس، شارع الجمهورية"},tl:[{t:ago(420),k:"msg",who:"cust",x:"Facebook"},{t:ago(380),k:"call",who:"me",x:"reached"},{t:ago(380),k:"cb",who:"me",x:"18:00"}]}),
+ A({id:"P-7270",name:"يوسف بن علي",phone:"091 223 4455",area:"طرابلس · أبو سليم",source:"whatsapp",bucket:"callback",created:ago(1500),attempts:2,cbAt:later(1120),product:"p5",
+   tl:[{t:ago(1500),k:"msg",who:"cust",x:"WhatsApp"},{t:ago(1440),k:"call",who:"me",x:"noans"},{t:ago(300),k:"call",who:"me",x:"reached"},{t:ago(300),k:"cb",who:"me",x:"غداً 10:00"}]}),
+ A({id:"P-7284",name:"فاطمة العرفي",phone:"091 998 2211",area:"طرابلس · تاجوراء",source:"fb_comment",bucket:"retry",created:ago(300),attempts:2,product:"p2",
+   msg:"كم سعر الكريم؟",tl:[{t:ago(300),k:"msg",who:"cust",x:"Facebook"},{t:ago(240),k:"call",who:"me",x:"noans"},{t:ago(90),k:"call",who:"me",x:"noans"}]}),
+ A({id:"P-7261",name:"عبدالله القماطي",phone:"093 445 6677",area:"مصراتة · المركز",source:"ig_dm",bucket:"retry",created:ago(2000),attempts:1,product:"p5",
+   tl:[{t:ago(2000),k:"msg",who:"cust",x:"Instagram"},{t:ago(1900),k:"call",who:"me",x:"noans"}]}),
+ A({id:"P-7240",name:"نجاة الفيتوري",phone:"091 445 6677",area:"طرابلس · عين زارة",source:"campaign",bucket:"campaign",created:ago(2900),product:"p1",
+   cust:{d:2,r:0,last:"p1",days:78,addr:"عين زارة، خلف جامع الرحمة"},tl:[{t:ago(2900),k:"camp",who:"sys",x:"c1"}]}),
+ A({id:"P-7241",name:"خالد الزاوي",phone:"091 665 5443",area:"طرابلس · جنزور",source:"campaign",bucket:"campaign",created:ago(2900),product:"p1",
+   cust:{d:1,r:0,last:"p1",days:94,addr:"جنزور، شارع البحر"},tl:[{t:ago(2900),k:"camp",who:"sys",x:"c1"}]}),
+ A({id:"P-7242",name:"مروة الصويعي",phone:"092 776 6554",area:"طرابلس · سوق الجمعة",source:"campaign",bucket:"campaign",created:ago(2900),product:"p1",
+   cust:{d:4,r:1,last:"p2",days:63,addr:"سوق الجمعة، الطريق الرئيسي"},tl:[{t:ago(2900),k:"camp",who:"sys",x:"c1"}]}),
+ A({id:"P-7295",name:"محمد صالح",phone:"094 556 6778",area:"بنغازي · الفويهات",source:"winback",bucket:"winback",created:ago(120),product:"p3",order:48128,
+   reason:"الزبون لم يرد على الهاتف",cust:{d:0,r:1,last:"p3",days:9,addr:"الفويهات، مقابل المدرسة"},tl:[{t:ago(120),k:"ret",who:"sys",x:"#48128"}]}),
+ A({id:"P-7293",name:"إبراهيم الترهوني",phone:"092 209 1188",area:"طرابلس · تاجوراء",source:"winback",bucket:"winback",created:ago(900),product:"p4",order:48093,attempts:1,
+   reason:"رفض الاستلام · السعر",cust:{d:2,r:1,last:"p4",days:12,addr:"تاجوراء، سيدي بنور"},tl:[{t:ago(900),k:"ret",who:"sys",x:"#48093"},{t:ago(600),k:"call",who:"me",x:"noans"}]}),
+ A({id:"P-7297",name:"سميرة الدرسي",phone:"091 802 4471",area:"طرابلس · جنزور",source:"whatsapp",bucket:"converted",created:ago(210),product:"p1",qty:2,order:48219,
+   msg:"نبي 2 سيروم، توصيل جنزور",tl:[{t:ago(210),k:"msg",who:"cust",x:"WhatsApp"},{t:ago(180),k:"call",who:"me",x:"reached"},{t:ago(176),k:"conv",who:"me",x:"#48219"}]}),
+ A({id:"P-7296",name:"طارق المصراتي",phone:"092 668 1030",area:"طرابلس · حي الأندلس",source:"call",bucket:"converted",created:ago(340),product:"p5",order:48214,
+   tl:[{t:ago(340),k:"call",who:"cust",x:"missed"},{t:ago(320),k:"call",who:"me",x:"reached"},{t:ago(318),k:"conv",who:"me",x:"#48214"}]}),
+];
+const MGR_AGENTS=[{n:"Hend",calls:12,conv:3,hot:2},{n:"Mouna",calls:9,conv:2,hot:1},{n:"Roqaya",calls:14,conv:4,hot:0},{n:"Tasnim",calls:6,conv:1,hot:3},{n:"Salima",calls:0,conv:0,hot:1}];
+const MGR_CAMPS=[{name:"Sérum · clients 60–120 j",ar:"سيروم · زبائن 60–120 يوماً",st:"live",aud:412,called:188,conv:37,rev:3190,offer:"−15 % sur le 50 ml, livraison offerte"},
+ {name:"Montre X2 · Benghazi",ar:"ساعة X2 · بنغازي",st:"live",aud:96,called:40,conv:6,rev:960,offer:"Bracelet offert"},
+ {name:"Crème · août",ar:"كريم · أغسطس",st:"done",aud:230,called:230,conv:31,rev:2565,offer:"2 achetées, la 3ᵉ à −50 %"}];
+
+/* ───────────────────────── State ───────────────────────── */
+const P=new URLSearchParams(location.search);
+let S={role:P.get("role")||"agent",lang:P.get("lang")||"fr",view:P.get("view")||"desktop",bucket:P.get("bucket")||"all",open:P.get("open")||"P-7301",query:"",out:null,cbPick:null,lostPick:null,tlf:"all",sheet:null,mfilter:"all"};
+const t=()=>I18N[S.lang];
+const pname=(p)=>S.lang==="ar"?PRODUCTS[p].ar:PRODUCTS[p].name;
+const val=(l)=>PRODUCTS[l.product].price*l.qty;
+const mins=(ts)=>(NOW-ts)/MIN;
+const hhmm=(ts)=>{const d=new Date(ts);return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`};
+const isTmr=(ts)=>new Date(ts).getDate()!==new Date(NOW).getDate();
+const esc=(s)=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const initials=(n)=>n.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join("");
+
+function situation(l){const T=t();
+  switch(l.bucket){
+    case "hot": return {chip:T.sit.hot(Math.round(mins(l.created))),icon:"clock",exp:T.exp["hot_"+({whatsapp:"wa",fb_comment:"fb",fb_dm:"fb",ig_dm:"ig",call:"call"}[l.source]||"wa")]};
+    case "callback": {const d=(l.cbAt-NOW)/MIN; return d<0?{chip:T.sit.cb_due(Math.round(-d)),icon:"warn",exp:T.exp.cb}:{chip:isTmr(l.cbAt)?T.sit.cb_tmr(hhmm(l.cbAt)):T.sit.cb_at(hhmm(l.cbAt)),icon:"cal",exp:T.exp.cb}}
+    case "retry": return {chip:T.sit.retry(l.attempts),icon:"phone",exp:T.exp.retry};
+    case "campaign": return {chip:T.sit.campaign,icon:"mega",exp:T.exp.camp(S.lang==="ar"?CAMP.ar:CAMP.name)};
+    case "winback": return {chip:T.sit.winback,icon:"undo",exp:T.exp.wb(l.reason)};
+    case "converted": return {chip:T.sit.converted(l.order),icon:"check",exp:T.exp.conv};
+  }}
+function lastTouch(l){const x=l.tl[l.tl.length-1];return x?x.t:l.created}
+function sortKey(l){const r={hot:0,callback:1,retry:3,winback:2,campaign:4,converted:5}[l.bucket];
+  if(l.bucket==="callback")return [r,l.cbAt]; if(l.bucket==="hot")return [r,l.created]; return [r,lastTouch(l)]}
+function visible(){let xs=LEADS.filter(l=>S.bucket==="all"||l.bucket===S.bucket);
+  if(S.query){const q=S.query.toLowerCase();xs=xs.filter(l=>(l.name+l.phone+pname(l.product)+l.area).toLowerCase().includes(q.replace(/\s/g,""))||(l.name+" "+l.phone+" "+pname(l.product)+" "+l.area).toLowerCase().includes(q))}
+  return xs.sort((a,b)=>{const A=sortKey(a),B=sortKey(b);return A[0]-B[0]||A[1]-B[1]})}
+function histLabel(c){const T=t();if(!c||(c.d===0&&c.r===0))return {k:"new",txt:T.hist.new};
+  if(c.d===0&&c.r>0)return {k:"bad",txt:T.hist.bad(c.r)}; if(c.r>0)return {k:"bad",txt:T.hist.mixed(c.d,c.r)}; if(c.d===1)return {k:"good",txt:T.hist.one}; return {k:"good",txt:T.hist.good(c.d)}}
+
+/* ───────────────────────── Render ───────────────────────── */
+const stage=document.getElementById("stage");
+function render(){const T=t(),dir=S.lang==="ar"?"rtl":"ltr";
+  const phone=S.view==="phone"&&S.role==="agent";
+  stage.innerHTML=`<div class="app" id="app" dir="${dir}" data-w="${S.view}">${phone?phoneBody():topBar()+(S.role==="agent"?agentBody():managerBody())}
+    <div class="scrim" id="scrim" data-open="${S.sheet?"true":"false"}"></div>
+    <div class="sheet" id="sheet" role="dialog" aria-modal="true" data-open="${S.sheet?"true":"false"}">${S.sheet?sheetHTML():""}</div>
+    <div class="toast" id="toast" role="status"></div></div>`;
+  wire();
+}
+function topBar(){const T=t();const hot=LEADS.filter(l=>l.bucket==="hot").length;
+  const nav=S.role==="agent"?[["queue",T.nav.queue,0],["leads",T.nav.leads,hot],["delivery",T.nav.delivery,7],["comm",T.nav.comm,0]]:[["orders",S.lang==="ar"?"الطلبات":"Commandes",0],["leads",T.nav.leads,hot],["team",S.lang==="ar"?"الفريق":"Équipe",0],["fin",S.lang==="ar"?"المالية":"Finances",0]];
+  return `<div class="top"><span class="brand">Ord<b>ra</b></span><span class="mkt">${IC.pin}${T.market}</span>
+    <nav>${nav.map(([k,l,n])=>`<button ${k==="leads"?'aria-current="page"':""}>${l}${n?`<span class="badge">${n}</span>`:""}</button>`).join("")}</nav>
+    <span class="presence" data-on="true"><span class="dot"></span><span>${T.online}<small>${T.sync}</small></span></span>
+    <span class="me"><span class="avatar">${S.role==="agent"?"H":"M"}</span><span>${S.role==="agent"?"Hend":"Manager"}</span>${IC.chev}</span></div>`}
+
+function agentBody(){const T=t();const hot=LEADS.filter(l=>l.bucket==="hot").length;const rows=visible();
+  const calls=LEADS.reduce((n,l)=>n+l.tl.filter(x=>x.k==="call"&&x.who==="me"&&mins(x.t)<600).length,0);const conv=LEADS.filter(l=>l.bucket==="converted").length;
+  const tiles=["all",...BUCKETS].map(b=>{const xs=b==="all"?LEADS:LEADS.filter(l=>l.bucket===b);const v=xs.reduce((s,l)=>s+val(l),0);
+    return `<button class="tile" data-b="${b}" aria-pressed="${S.bucket===b}" ${b==="hot"&&hot?'data-hot="true"':""}><span class="l">${b==="all"?"":`<span class="dot${b==="hot"&&hot?" pulse":""}" data-t="${TONE[b]}"></span>`}${T.b[b]}<b>${xs.length}</b></span><span class="v">${T.cur(v.toLocaleString("fr-FR").replace(/ /g," "))}</span></button>`}).join("");
+  const list=rows.length?rows.map(rowHTML).join(""):`<div class="empty">${IC.users}<h3>${S.lang==="ar"?"لا شيء هنا":"Rien ici pour l'instant"}</h3></div>`;
+  return `<div class="body"><div class="left">
+    <div class="head"><span class="ic">${IC.users}</span><div><h2>${T.title}</h2><div class="sub">${T.sub(hot)}</div></div>
+      <span class="stat"><span class="bars"><i style="height:5px"></i><i style="height:9px"></i><i style="height:7px"></i><i style="height:12px"></i><i style="height:14px"></i></span>${T.gauge(calls,conv)}</span>
+      <div class="tools"><label class="search">${IC.search}<input id="q" placeholder="${T.search}" value="${esc(S.query)}"></label><button class="btn-o" id="btnFilter">${IC.filter}</button><button class="btn-new" id="btnNew">${IC.plus}${T.newlead}</button></div></div>
+    <div class="tiles">${tiles}</div>
+    <div class="thead"><span>${T.th.who}</span><span>${T.th.sit}</span><span>${T.th.act}</span><span>${T.th.val}</span></div>
+    <div class="rows" id="rows">${list}</div></div>
+    <div class="right" data-open="${S.open?"true":"false"}">${panelHTML()}</div></div>`}
+
+function rowHTML(l){const T=t();const s=situation(l);const tone=TONE[l.bucket];const p=PRODUCTS[l.product];
+  const tm=l.bucket==="callback"?hhmm(l.cbAt):T.ago(mins(lastTouch(l)));
+  const exp=l.bucket==="hot"&&l.msg?`<div class="s q">« ${esc(l.msg)} »</div>`:`<div class="s">${esc(s.exp)}</div>`;
+  return `<div class="row stripe" data-t="${tone}" data-id="${l.id}" role="button" tabindex="0" aria-selected="${S.open===l.id}" data-done="${l.bucket==="converted"}">
+    <div class="who"><div class="nm"><span>${esc(l.name)}</span><span class="id">${l.id}</span></div>
+      <div class="ph"><span class="num">${l.phone}</span>${l.phone2?`<span>·</span><span class="num">${l.phone2}</span>`:""}</div>
+      <div class="meta"><span>${IC[SRC_ICON[l.source]]}${T.src[l.source]}</span><span>${IC.pin}${esc(l.area)}</span><span>${IC.box}${esc(pname(l.product))}${l.qty>1?` ×${l.qty}`:""}</span></div></div>
+    <div class="sit"><span class="chip" data-t="${tone}">${IC[s.icon]}${s.chip}</span>${exp}<div class="tm">${IC.clock}<span class="num">${tm}</span></div></div>
+    <div class="act"><button class="btn-o" data-t="${tone}" data-act="${l.id}">${l.bucket==="converted"?IC.cart:l.bucket==="winback"?IC.undo:IC.phone}${T.act[l.bucket]}</button><button class="btn-wa" data-wa="${l.id}" title="WhatsApp">${IC.wa}</button></div>
+    <div class="amt"><span class="num">${T.cur(val(l))}</span><small>${l.bucket==="converted"?T.val_ord:T.val_l}</small></div></div>`}
+
+function panelHTML(){const T=t();const l=LEADS.find(x=>x.id===S.open);
+  if(!l)return `<div class="panel"><div class="pempty">${IC.user}<p>${T.pick}</p></div></div>`;
+  const s=situation(l),tone=TONE[l.bucket],p=PRODUCTS[l.product],h=histLabel(l.cust);
+  const nx=T.next[l.bucket];const why=l.bucket==="hot"?nx.w(Math.round(mins(l.created))):l.bucket==="callback"?nx.w((isTmr(l.cbAt)?T.sit.cb_tmr(hhmm(l.cbAt)):hhmm(l.cbAt))):l.bucket==="retry"?nx.w(l.attempts):l.bucket==="campaign"?nx.w(S.lang==="ar"?CAMP.offerAr:CAMP.offer):l.bucket==="winback"?nx.w(l.reason):nx.w;
+  const callNo=l.bucket==="retry"&&l.phone2?l.phone2:l.phone;
+  const follow=S.out==="callback"?`<div class="follow"><div class="lb">${T.when}</div><div class="opts">${[["p1h",T.p1h],["p2h",T.p2h],["ev",T.ev],["tmr",T.tmr]].map(([k,v])=>`<button class="opt" data-cb="${k}" aria-pressed="${S.cbPick===k}">${IC.cal}${v}</button>`).join("")}</div><textarea class="inp" id="note" placeholder="${T.note_ph}"></textarea><div style="display:flex;gap:8px"><button class="btn-k" data-dark id="saveOut" style="height:40px;font-size:14px" ${S.cbPick?"":"disabled style='opacity:.5;height:40px;font-size:14px'"}>${IC.check}${T.save}</button><button class="btn-o" id="cancelOut">${T.cancel}</button></div></div>`
+   :S.out==="lost"?`<div class="follow"><div class="lb">${T.why}</div><div class="opts">${Object.entries(T.lost).map(([k,v])=>`<button class="opt" data-lost="${k}" aria-pressed="${S.lostPick===k}">${v}</button>`).join("")}</div><textarea class="inp" id="note" placeholder="${T.note_ph}"></textarea><div style="display:flex;gap:8px"><button class="btn-k" data-dark id="saveOut" style="height:40px;font-size:14px" ${S.lostPick?"":"disabled style='opacity:.5;height:40px;font-size:14px'"}>${IC.check}${T.save}</button><button class="btn-o" id="cancelOut">${T.cancel}</button></div></div>`:"";
+  const tl=[{t:l.created,k:"created",who:"sys",x:T.src[l.source]},...l.tl.filter(x=>x.k!=="msg"||true)].filter(x=>S.tlf==="all"||(S.tlf==="calls"&&x.k==="call")||(S.tlf==="msgs"&&(x.k==="msg"||x.k==="wa"))).sort((a,b)=>b.t-a.t);
+  const tlHTML=tl.length?`<ul class="tl">${tl.map(x=>{const lab={created:T.tl.created,msg:T.tl.msg,call:x.x==="noans"?T.tl.noans:x.x==="missed"?T.tl.call:T.tl.call,noans:T.tl.noans,wa:T.tl.wa,cb:T.tl.cb,conv:T.tl.conv,ret:T.tl.ret,camp:T.tl.camp}[x.k];
+     const tone2={created:"",msg:"wa",call:x.x==="noans"?"amber":x.x==="missed"?"red":"green",wa:"wa",cb:"blue",conv:"green",ret:"red",camp:""}[x.k];
+     const icon={created:"file",msg:"msg",call:"phone",wa:"wa",cb:"cal",conv:"cart",ret:"undo",camp:"mega"}[x.k];
+     const who=T.tl[x.who];const det=x.k==="call"?(x.x==="reached"?(S.lang==="ar"?"تم الرد":"Joint"):x.x==="missed"?(S.lang==="ar"?"مكالمة فائتة على رقم الإعلان":"Appel manqué sur le n° pub"):(S.lang==="ar"?"لا رد":"Pas de réponse")):x.k==="msg"?`« ${esc(l.msg||"")} »`:x.k==="cb"?x.x:x.k==="camp"?(S.lang==="ar"?CAMP.ar:CAMP.name):x.k==="ret"?`${x.x} · ${esc(l.reason||"")}`:x.k==="conv"?x.x:x.x;
+     return `<li><span class="t num">${hhmm(x.t)}</span><span class="d" data-t="${tone2}">${IC[icon]}</span><span><b>${lab}</b> <span style="color:var(--ink-3)">· ${who}</span><small class="q">${det}</small></span></li>`}).join("")}</ul>`:`<p style="margin:0;color:var(--ink-3)">${T.none_yet}</p>`;
+  const mono=(x)=>x;
+  return `<div class="panel">
+    <div class="ph1"><button class="back flip" id="back">${IC.back}</button><h3><span>${esc(l.name)}</span><span class="id">${l.id}</span></h3><button class="x">${IC.dots}</button></div>
+    <div class="ph2"><div class="chips"><span class="chip" data-t="${tone}">${IC[s.icon]}${s.chip}</span><span class="chip" data-t="line">${IC[SRC_ICON[l.source]]}${T.src[l.source]}</span></div><span class="big"><span class="num">${T.cur(val(l))}</span><small>${l.bucket==="converted"?T.val_ord:T.val_l}</small></span></div>
+    <div class="ph3"><span>${IC.pin}${esc(l.area)}</span><span>${IC.cal}<span class="num">${T.dat} · ${hhmm(l.created)}</span></span></div>
+    <div class="next" data-t="${tone}"><div class="hd"><span class="ico">${l.bucket==="converted"?IC.check:l.bucket==="winback"?IC.undo:IC.phone}</span><div><div class="eyebrow">${S.lang==="ar"?"الإجراء التالي":"Prochaine action"}</div><div class="what">${nx.t}</div></div></div><div class="why">${why}</div>
+      ${l.bucket==="converted"?`<button class="btn-k" data-dark data-order="${l.order}">${IC.cart}${T.act.converted} #${l.order}</button>`:`<button class="btn-k" data-call="${callNo}">${IC.phone}<span class="num">${callNo}</span></button>`}</div>
+    ${l.bucket==="converted"?"":`<div class="sec-t">${T.out_t}</div><div class="out">
+      <button data-out="order" data-t="green" aria-pressed="${S.out==="order"}">${IC.cart}${T.out.order}<span class="kbd">1</span></button>
+      <button data-out="callback" data-t="blue" aria-pressed="${S.out==="callback"}">${IC.cal}${T.out.callback}<span class="kbd">2</span></button>
+      <button data-out="noans" data-t="grey" aria-pressed="${S.out==="noans"}">${IC.cross}${T.out.noans}<span class="kbd">3</span></button>
+      <button data-out="lost" data-t="red" aria-pressed="${S.out==="lost"}">${IC.ban}${T.out.lost}<span class="kbd">4</span></button></div>${follow}`}
+    <div class="cards">
+      <div class="card"><div class="ct">${IC.user}${T.c_client}</div>
+        <div class="kv">${IC.phone}<span class="num">${l.phone}</span></div>${l.phone2?`<div class="kv">${IC.phone}<span class="num">${l.phone2}</span></div>`:""}
+        <div class="kv">${IC.pin}<span class="t">${esc(l.cust.addr||l.area)}</span></div>
+        <div class="kv">${IC.bag}<span class="risk" data-k="${h.k}">${h.txt}</span></div>
+        ${l.cust.last?`<div class="kv">${IC.box}<span class="t">${T.last(esc(pname(l.cust.last)),l.cust.days)}</span></div>`:""}
+        <div style="display:flex;gap:8px;margin-top:2px"><button class="link" data-wa="${l.id}">${IC.wa}${T.wa}</button>${l.cust.d||l.cust.r?`<button class="link" style="color:var(--ink-2)">${IC.file}${T.orders_link}</button>`:""}</div></div>
+      <div class="card"><div class="ct">${IC.tag}${T.c_origin}</div>
+        <div class="kv">${IC[SRC_ICON[l.source]]}<span>${T.src[l.source]}</span></div>
+        <div class="kv">${IC.user}<span>${T.assigned("Hend",T.ago(mins(l.created)))}</span></div>
+        ${l.bucket==="campaign"?`<div class="kv">${IC.mega}<span class="t">${esc(S.lang==="ar"?CAMP.ar:CAMP.name)}</span></div><div class="kv">${IC.star}<span class="t"><b>${T.offer}</b> · ${esc(S.lang==="ar"?CAMP.offerAr:CAMP.offer)}</span></div><div class="kv">${IC.clock}<span>${T.cap(7,20)}</span></div>`:""}
+        ${l.bucket==="winback"?`<div class="kv">${IC.truck}<span class="t">${S.lang==="ar"?"طلب":"Commande"} #${l.order} · Darb Assabil</span></div><div class="quote q">« ${esc(l.reason)} »</div>`:""}
+        ${l.attempts?`<div class="kv">${IC.phone}<span>${T.sit.retry(l.attempts)}</span></div>`:""}</div></div>
+    <div class="prod"><span class="img">${IC.box}</span><div><div class="nm">${esc(pname(l.product))} ${l.qty>1?`<span style="color:var(--ink-3);font-weight:500">${T.qty(l.qty)}</span>`:""}</div><div class="sku">SKU: ${p.sku}</div></div><span class="pr"><span class="num">${T.cur(val(l))}</span>${l.qty>1?`<small class="num">${l.qty} × ${p.price}</small>`:""}</span></div>
+    ${l.msg?`<div><div class="sec-t" style="margin-bottom:6px">${T.msg_t}</div><div class="bubble">${esc(l.msg)}<small class="num">${hhmm(l.created)}</small></div></div>`:""}
+    ${l.bucket==="campaign"?`<div class="script"><b>${T.script_t}</b>${esc((S.lang==="ar"?CAMP.scriptAr:CAMP.script).replace("{name}",l.name))}</div>`:""}
+    <div class="act-h"><span class="sec-t">${T.activity}</span><div class="pills">${[["all",T.all],["calls",T.calls],["msgs",T.msgs]].map(([k,v])=>`<button data-tlf="${k}" aria-pressed="${S.tlf===k}">${v}</button>`).join("")}</div></div>
+    ${tlHTML}
+    ${l.bucket==="converted"?"":`<div class="pfoot"><button class="btn-k" id="btnConvert">${IC.cart}${T.convert}<span class="kbd" style="background:rgba(255,255,255,.2);color:#fff;border-color:transparent">C</span></button><button class="btn-o" data-wa="${l.id}">${IC.wa}${T.wa}</button></div>`}
+  </div>`}
+
+/* ── Phone (agent): list · detail · outcome sheet ── */
+function nextFor(l){const T=t();const nx=T.next[l.bucket];
+  const why=l.bucket==="hot"?nx.w(Math.round(mins(l.created))):l.bucket==="callback"?nx.w(isTmr(l.cbAt)?T.sit.cb_tmr(hhmm(l.cbAt)):hhmm(l.cbAt)):l.bucket==="retry"?nx.w(l.attempts):l.bucket==="campaign"?nx.w(S.lang==="ar"?CAMP.offerAr:CAMP.offer):l.bucket==="winback"?nx.w(l.reason):nx.w;
+  const callNo=l.bucket==="retry"&&l.phone2?l.phone2:l.phone;return {t:nx.t,why,callNo}}
+function phoneBody(){const T=t();const hot=LEADS.filter(l=>l.bucket==="hot").length;const rows=visible();
+  const calls=LEADS.reduce((n,l)=>n+l.tl.filter(x=>x.k==="call"&&x.who==="me"&&mins(x.t)<600).length,0);const conv=LEADS.filter(l=>l.bucket==="converted").length;
+  const chips=["all",...BUCKETS].map(b=>{const n=b==="all"?LEADS.length:LEADS.filter(l=>l.bucket===b).length;
+    return `<button class="m-chip" data-b="${b}" aria-pressed="${S.bucket===b}">${b==="all"?"":`<span class="dot${b==="hot"&&hot?" pulse":""}" data-t="${TONE[b]}"></span>`}${T.b[b]}<b>${n}</b></button>`}).join("");
+  const cards=rows.length?rows.map(mCard).join(""):`<div class="empty">${IC.users}<h3>${S.lang==="ar"?"لا شيء هنا":"Rien ici pour l'instant"}</h3></div>`;
+  const l=LEADS.find(x=>x.id===S.open);
+  return `<div class="sbar"><span class="num">9:41</span><span style="display:inline-flex;gap:5px;align-items:center"><svg viewBox="0 0 16 12"><path d="M1 9v3M5 6v6M9 3v9M13 0v12" stroke-width="2"/></svg><svg viewBox="0 0 16 12"><path d="M1 4a10 10 0 0 1 14 0M4 7a6 6 0 0 1 8 0M7 10l1 1 1-1" stroke-width="1.6"/></svg><svg viewBox="0 0 16 12" style="width:22px"><rect x="1" y="2" width="12" height="8" rx="2" fill="currentColor" stroke="none"/><path d="M14.5 5v2" stroke-width="1.5"/></svg></span></div>
+    <div class="m-top"><span class="brand">Ord<b>ra</b></span><span class="mkt">${IC.pin}${T.market}</span><span class="presence" data-on="true"><span class="dot"></span><span>${T.online}<small>${T.sync}</small></span></span><span class="avatar">${IC.user}</span></div>
+    <div class="m-scr">
+      <div class="m-head"><div><h2>${T.title}</h2><div class="sub">${T.sub(hot)}</div></div><span class="stat"><span class="bars"><i style="height:5px"></i><i style="height:9px"></i><i style="height:7px"></i><i style="height:12px"></i></span>${T.gauge(calls,conv)}</span></div>
+      <div class="m-filters">${chips}<button class="m-fbtn" id="btnFilter">${IC.filter}</button></div>
+      ${cards}</div>
+    <button class="m-fab" id="btnNew" aria-label="${T.newlead}">${IC.plus}</button>
+    <div class="m-tabs">${[["queue",T.nav.queue,"list",0],["leads",T.nav.leads,"users",hot],["delivery",T.nav.delivery,"truck",7],["comm",T.nav.comm,"coins",0]].map(([k,lab,ic,n])=>`<button ${k==="leads"?'aria-current="page"':""}>${IC[ic]}${lab}${n?`<span class="badge">${n}</span>`:""}</button>`).join("")}</div>
+    <div class="m-det" data-open="${l?"true":"false"}">${l?mDetail(l):""}</div>`}
+function mCard(l){const T=t();const s=situation(l),tone=TONE[l.bucket];const tm=l.bucket==="callback"?hhmm(l.cbAt):T.ago(mins(lastTouch(l)));
+  return `<div class="m-card" data-id="${l.id}" role="button" tabindex="0" aria-selected="${S.open===l.id}">
+    <div class="r1"><span class="nm">${esc(l.name)}</span><span class="id">${l.id}</span><span class="amt num">${T.cur(val(l))}</span></div>
+    <div class="r2">${IC.pin}<span>${esc(l.area)} · ${esc(pname(l.product))}${l.qty>1?` ×${l.qty}`:""}</span></div>
+    <div class="r3"><span class="chip" data-t="${tone}"><span class="dot" data-t="${tone}"></span>${s.chip}</span><span class="tm">${IC.clock}<span class="num">${tm}</span></span></div>
+    <button class="m-act" data-t="${tone}" data-act="${l.id}"><span>${T.act[l.bucket]}</span><span class="flip" style="display:inline-flex">${IC.arr}</span></button></div>`}
+function kvr(k,v){return `<div class="kvr"><span class="k">${k}</span><span class="v">${v}</span></div>`}
+function mDetail(l){const T=t();const s=situation(l),tone=TONE[l.bucket],p=PRODUCTS[l.product],h=histLabel(l.cust),nx=nextFor(l);const rec=`<span class="chip" data-t="green">${T.m_rec}</span>`;
+  const tl=[{t:l.created,k:"created",who:"sys",x:T.src[l.source]},...l.tl].sort((a,b)=>b.t-a.t);
+  const tlHTML=`<ul class="tl">${tl.map(x=>{const lab={created:T.tl.created,msg:T.tl.msg,call:x.x==="noans"?T.tl.noans:T.tl.call,wa:T.tl.wa,cb:T.tl.cb,conv:T.tl.conv,ret:T.tl.ret,camp:T.tl.camp}[x.k];
+     const tone2={created:"",msg:"wa",call:x.x==="noans"?"amber":x.x==="missed"?"red":"green",wa:"wa",cb:"blue",conv:"green",ret:"red",camp:""}[x.k];const icon={created:"file",msg:"msg",call:"phone",wa:"wa",cb:"cal",conv:"cart",ret:"undo",camp:"mega"}[x.k];
+     return `<li><span class="t num">${hhmm(x.t)}</span><span class="d" data-t="${tone2}">${IC[icon]}</span><span><b>${lab}</b> <span style="color:var(--ink-3)">· ${T.tl[x.who]}</span></span></li>`}).join("")}</ul>`;
+  return `<div class="m-dh"><button class="back flip" id="back">${IC.back}</button><h3>${T.m_detail}</h3><span style="width:36px"></span></div>
+  <div class="m-dbody">
+    <div class="m-card m-hero" style="cursor:default"><div class="r1"><span class="nm">${esc(l.name)}</span><span class="id">${l.id}</span><span class="amt num">${T.cur(val(l))}</span></div>
+      <div class="r2">${IC.pin}<span>${esc(l.area)}</span></div><div class="r2">${IC.box}<span>${esc(pname(l.product))}${l.qty>1?` ×${l.qty}`:""} · ${T.cur(p.price)}</span></div>
+      <div class="r3"><span class="chip" data-t="${tone}"><span class="dot" data-t="${tone}"></span>${s.chip}</span><span class="tm">${IC[SRC_ICON[l.source]]}${T.src[l.source]}</span></div></div>
+    <button class="m-next next stripe" data-t="${tone}" ${l.bucket==="converted"?`data-order="${l.order}"`:`data-call="${nx.callNo}"`}>${l.bucket==="converted"?IC.cart:l.bucket==="winback"?IC.undo:IC.phone}<span class="tx"><span class="eyebrow">${S.lang==="ar"?"الإجراء المقترح":"Action proposée"}</span><div class="ttl">${nx.t}</div><div class="why">${nx.why}</div></span><span class="ch">${IC.chev}</span></button>
+    ${l.msg?`<div class="bubble">${esc(l.msg)}<small class="num">${hhmm(l.created)}</small></div>`:""}
+    <div class="m-sec"><h4>${IC.user}${T.c_client}</h4>
+      ${kvr(T.m_phone1,`<span class="num">${l.phone}</span>${l.bucket!=="retry"||!l.phone2?rec:""}`)}
+      ${l.phone2?kvr(T.m_phone2,`<span class="num">${l.phone2}</span>${l.bucket==="retry"?rec:""}`):""}
+      ${kvr(T.m_city,`<span class="t">${esc(l.cust.addr||l.area)}</span>`)}
+      ${kvr(T.m_hist,`<span class="risk" data-k="${h.k}">${h.txt}</span>`)}
+      ${l.cust.last?kvr(T.m_last,`<span class="t">${esc(pname(l.cust.last))} · ${T.ago(l.cust.days*1440)}</span>`):""}</div>
+    <div class="m-sec"><h4>${IC.tag}${T.c_origin}</h4>
+      ${kvr(T.m_src,`${IC[SRC_ICON[l.source]]}${T.src[l.source]}`)}
+      ${kvr(T.agent,"Hend")}
+      ${kvr(T.m_created,`<span class="num">${T.dat.replace(/^\S+\s/,"")} · ${hhmm(l.created)}</span>`)}
+      ${l.bucket==="campaign"?kvr(T.m_camp,`<span class="t">${esc(S.lang==="ar"?CAMP.ar:CAMP.name)}</span>`)+kvr(T.offer,`<span class="chip" data-t="violet">${esc(S.lang==="ar"?CAMP.offerAr:CAMP.offer)}</span>`):""}
+      ${l.bucket==="winback"?kvr(T.m_order,`<span class="num">#${l.order}</span> · Darb`)+kvr(T.m_reason,`<span class="t q">${esc(l.reason)}</span>`):""}
+      ${l.attempts?kvr(T.m_att,`<span class="num">${l.attempts}</span>`):""}</div>
+    ${l.bucket==="campaign"?`<div class="script"><b>${T.script_t}</b>${esc((S.lang==="ar"?CAMP.scriptAr:CAMP.script).replace("{name}",l.name))}</div>`:""}
+    <div class="m-sec"><h4 data-tog style="cursor:pointer;margin:0">${IC.clock}${T.activity}<span class="tg" data-open="${!!S.tlOpen}">${IC.chev}</span></h4>${S.tlOpen?`<div style="margin-top:8px">${tlHTML}</div>`:""}</div>
+  </div>
+  <div class="m-sticky">${l.bucket==="converted"?`<button class="btn-k" data-dark data-order="${l.order}">${IC.cart}${T.act.converted} #${l.order}</button>`:`<button class="btn-k" data-call="${nx.callNo}">${IC.phone}<span class="num">${nx.callNo}</span> ${T.call_l}</button><div class="r"><button class="btn-o" data-wa="${l.id}">${IC.wa}${T.wa}</button><button class="btn-o" id="btnOutcome">${IC.pen}${T.out_t}</button></div>`}</div>`}
+function followChips(){const T=t();
+  if(S.out==="callback")return `<div class="lb">${T.when}</div><div class="opts">${[["p1h",T.p1h],["p2h",T.p2h],["ev",T.ev],["tmr",T.tmr]].map(([k,v])=>`<button class="opt" data-cb="${k}" aria-pressed="${S.cbPick===k}">${IC.cal}${v}</button>`).join("")}</div>`;
+  if(S.out==="lost")return `<div class="lb">${T.why}</div><div class="opts">${Object.entries(T.lost).map(([k,v])=>`<button class="opt" data-lost="${k}" aria-pressed="${S.lostPick===k}">${v}</button>`).join("")}</div>`;
+  return ""}
+function outcomeValid(){return S.out==="order"||S.out==="noans"||(S.out==="callback"&&S.cbPick)||(S.out==="lost"&&S.lostPick)}
+
+/* ── Sheets ── */
+function sheetHTML(){const T=t();
+  if(S.sheet==="outcome"){return `<div class="handle"></div><div class="sh"><h2>${T.out_t}</h2><button class="x" data-close>${IC.x}</button></div>
+    <div class="sb m-out"><div class="lb">${T.m_q}</div><div class="out">
+      <button data-out="order" data-t="green" aria-pressed="${S.out==="order"}">${IC.cart}${T.out.order}</button>
+      <button data-out="callback" data-t="blue" aria-pressed="${S.out==="callback"}">${IC.cal}${T.out.callback}</button>
+      <button data-out="noans" data-t="grey" aria-pressed="${S.out==="noans"}">${IC.cross}${T.out.noans}</button>
+      <button data-out="lost" data-t="red" aria-pressed="${S.out==="lost"}">${IC.ban}${T.out.lost}</button></div>
+      ${followChips()}
+      <div class="field"><label for="note">${T.m_note}</label><textarea class="inp" id="note" placeholder="${T.note_ph}"></textarea></div></div>
+    <div class="sf"><button class="btn-k" id="saveOut" ${outcomeValid()?"":'disabled style="opacity:.5"'}>${IC.check}${T.save_act}</button></div>`}
+  if(S.sheet==="new"){const ph=S.nPhone||"";const m=matchFor(ph);
+    return `<div class="sh"><div><h2>${T.n_t}</h2><div class="sub">${T.n_sub}</div></div><button class="x" data-close>${IC.x}</button></div>
+    <div class="sb"><div class="field"><label for="nPhone">${T.n_phone}</label><input class="inp big" id="nPhone" inputmode="tel" placeholder="09_ ___ ____" value="${esc(ph)}" autofocus></div>
+      ${m?`<div class="match" data-k="${m.k}">${IC[m.k==="known"?"check":m.k==="open"?"warn":m.k==="risk"?"warn":"user"]}<span>${m.txt}</span></div>`:""}
+      <div class="g2"><div class="field"><label for="nName">${T.n_name}</label><input class="inp" id="nName" value="${esc(m&&m.name||"")}"></div><div class="field"><label for="nArea">${T.n_area}</label><input class="inp" id="nArea" value="${esc(m&&m.area||"")}"></div></div>
+      <div class="field"><label>${T.n_src}</label><div class="opts">${["call","whatsapp","fb_comment","fb_dm","ig_dm","manual"].map(k=>`<button class="opt" data-src="${k}" aria-pressed="${(S.nSrc||"call")===k}">${IC[SRC_ICON[k]]}${T.src[k]}</button>`).join("")}</div></div>
+      <div class="g2"><div class="field"><label for="nProd">${T.n_prod}</label><select class="inp" id="nProd">${Object.keys(PRODUCTS).map(k=>`<option value="${k}">${esc(pname(k))} · ${T.cur(PRODUCTS[k].price)}</option>`).join("")}</select></div><div class="field"><label for="nNote">${T.n_note}</label><input class="inp" id="nNote"></div></div></div>
+    <div class="sf"><button class="btn-o" id="nSave">${IC.check}${T.n_save}</button><button class="btn-k" id="nSaveOrder">${IC.cart}${T.n_save_order}</button></div>`}
+  if(S.sheet==="convert"){const l=LEADS.find(x=>x.id===S.open);const p=PRODUCTS[l.product];const disc=l.bucket==="campaign"?Math.round(p.price*0.85):p.price;const total=disc*l.qty;
+    return `<div class="sh"><div><h2>${T.v_t}</h2><div class="sub">${T.v_sub}</div></div><button class="x" data-close>${IC.x}</button></div>
+    <div class="sb"><div class="g2"><div class="field"><label>${T.v_cust}</label><input class="inp" value="${esc(l.name)}"></div><div class="field"><label>${T.n_phone}</label><input class="inp num" value="${l.phone}"></div></div>
+      <div class="g2"><div class="field"><label>${T.v_dest}</label><input class="inp" value="${esc(l.area)}"></div><div class="field"><label>${T.v_addr}</label><input class="inp" value="${esc(l.cust.addr||"")}" placeholder="…"></div></div>
+      <div class="g2" style="grid-template-columns:2fr 1fr 1fr"><div class="field"><label>${T.v_prod}</label><input class="inp" value="${esc(pname(l.product))}"></div><div class="field"><label>${T.v_qty}</label><input class="inp num" value="${l.qty}"></div><div class="field"><label>${T.v_price}</label><input class="inp num" value="${disc}"></div></div>
+      ${l.bucket==="campaign"?`<div class="match" data-k="known">${IC.star}<span>${T.offer} · ${esc(S.lang==="ar"?CAMP.offerAr:CAMP.offer)}</span></div>`:""}
+      ${l.bucket==="winback"?`<div class="match" data-k="open">${IC.undo}<span>${S.lang==="ar"?`إعادة إرسال الطلب #${l.order} · التوصيل مجاني`:`Renvoi de la commande #${l.order} · livraison offerte`}</span></div>`:""}
+      <div class="total"><span>${T.v_total}</span><span class="v num">${T.cur(total)}</span></div><div style="color:var(--ink-3);font-size:13px">${T.v_where}</div></div>
+    <div class="sf"><button class="btn-o" data-close>${T.cancel}</button><button class="btn-k" id="vGo">${IC.check}${T.v_go}</button></div>`}
+  return ""}
+function matchFor(ph){const T=t();const d=ph.replace(/\D/g,"");if(d.length<6)return null;
+  const l=LEADS.find(x=>x.phone.replace(/\D/g,"").startsWith(d)&&x.bucket!=="converted");
+  if(l&&l.bucket==="winback")return {k:"risk",txt:T.m_risk(l.cust.r),name:l.name,area:l.area};
+  if(l)return {k:"open",txt:T.m_open(l.id==="P-7288"?"Tasnim":"Mouna",T.ago(mins(l.created)).replace(/^(il y a|منذ) /,"")),name:l.name,area:l.area};
+  if(d.startsWith("0917")||d.startsWith("0921"))return {k:"known",txt:T.m_known(2,pname("p2"),41),name:S.lang==="ar"?"ليلى بن سعيد":"Leïla Ben Saïd",area:"طرابلس · عين زارة"};
+  return {k:"new",txt:T.m_new}}
+
+/* ── Manager ── */
+function managerBody(){const T=t();const hot=LEADS.filter(l=>l.bucket==="hot").length;
+  const rows=LEADS.filter(l=>S.mfilter==="all"||(S.mfilter==="hot"&&l.bucket==="hot")||(S.mfilter==="cb"&&l.bucket==="callback")||(S.mfilter==="camp"&&l.bucket==="campaign")||(S.mfilter==="wb"&&l.bucket==="winback")).sort((a,b)=>{const A=sortKey(a),B=sortKey(b);return A[0]-B[0]||A[1]-B[1]});
+  const agentOf=(l)=>({"P-7288":"Tasnim","P-7261":"Mouna","P-7242":"Roqaya","P-7293":"Mouna"}[l.id]||"Hend");
+  const sp=(pts,c)=>{const w=84,h=30,mx=Math.max(...pts),mn=Math.min(...pts);const xs=pts.map((v,i)=>`${(i/(pts.length-1))*w},${h-2-((v-mn)/(mx-mn||1))*(h-6)}`);return `<svg class="sp" viewBox="0 0 ${w} ${h}"><polyline points="${xs.join(" ")}" stroke="${c}" stroke-width="2"/><circle cx="${xs[xs.length-1].split(",")[0]}" cy="${xs[xs.length-1].split(",")[1]}" r="2.5" fill="${c}" stroke="none"/></svg>`};
+  return `<div class="mgr">
+    <div class="head" style="margin:0"><span class="ic">${IC.users}</span><div><h2>${T.mg_t}</h2><div class="sub">${T.mg_sub}</div></div><div class="tools"><button class="btn-o">${IC.file}CSV</button><button class="btn-new">${IC.mega}${T.mg_newcamp}</button></div></div>
+    <div class="kpis">
+      <div class="kpi"><span class="l">${T.k.new}</span><span class="v">38</span><span class="d"><b>+12 %</b> ${T.k_vs}</span>${sp([4,6,5,7,5,6,5],"#8C9196")}</div>
+      <div class="kpi" data-hot><span class="l">${T.k.hot}</span><span class="v">${MGR_AGENTS.reduce((n,a)=>n+a.hot,0)}<small>${S.lang==="ar"?"الآن":"maintenant"}</small></span><span class="d">${S.lang==="ar"?"الأقدم ينتظر منذ":"le plus ancien attend depuis"} <b data-bad>47 min</b></span></div>
+      <div class="kpi"><span class="l">${T.k.ttc}</span><span class="v">14<small>min</small></span><span class="d">${T.k_target} · <b data-bad>−4 min</b> ${T.k_vs}</span>${sp([22,19,21,17,18,15,14],"#8C9196")}</div>
+      <div class="kpi"><span class="l">${T.k.rev}</span><span class="v num">${T.cur("6 715")}</span><span class="d"><b>74</b> ${S.lang==="ar"?"طلباً مسلّماً · 31 % تحويل":"livrées · 31 % de conversion"}</span>${sp([300,420,380,610,540,720,690],"#15803D")}</div></div>
+    <div class="mgrid"><div class="mcard"><h3>${T.mg_pipe}<span class="r">${T.count(rows.length)}</span></h3>
+      <div class="fbar">${[["all",T.f.all],["hot",T.f.hot],["cb",T.f.cb],["camp",T.f.camp],["wb",T.f.wb]].map(([k,v])=>`<button class="fchip" data-mf="${k}" aria-pressed="${S.mfilter===k}">${v}</button>`).join("")}<span class="count">${S.lang==="ar"?"الوكيل: الكل":"Agent : tous"} ${IC.chev.replace('width="18"','')}</span></div>
+      <div class="twrap"><table class="t"><thead><tr><th>${T.mth.who}</th><th>${T.mth.src}</th><th>${T.mth.agent}</th><th>${T.mth.sit}</th><th>${T.mth.since}</th><th style="text-align:end">${T.mth.val}</th></tr></thead><tbody>
+      ${rows.map(l=>{const s=situation(l);return `<tr><td><div style="font-weight:600">${esc(l.name)} <span style="color:var(--ink-3);font-weight:400">${l.id}</span></div><div class="s1"><span class="num">${l.phone}</span> · ${esc(l.area)}</div></td><td><span style="display:inline-flex;align-items:center;gap:6px">${IC[SRC_ICON[l.source]]}${T.src[l.source]}</span></td><td><span style="display:inline-flex;align-items:center;gap:8px"><span class="avatar" style="width:24px;height:24px;font-size:11px">${agentOf(l)[0]}</span>${agentOf(l)}</span></td><td><span class="chip" data-t="${TONE[l.bucket]}">${IC[s.icon]}${s.chip}</span></td><td style="white-space:nowrap;color:var(--ink-3)">${T.ago(mins(l.created))}</td><td class="n num">${T.cur(val(l))}</td></tr>`}).join("")}
+      </tbody></table></div></div>
+      <div style="display:flex;flex-direction:column;gap:16px"><div class="mcard"><h3>${T.mg_camp}</h3>
+        ${MGR_CAMPS.map(c=>`<div class="camp"><div class="cn">${IC.mega}<span>${esc(S.lang==="ar"?c.ar:c.name)}</span><span class="chip" data-t="${c.st==="live"?"green":"grey"}">${T.cs[c.st]}</span></div><div class="offer">${esc(c.offer)}</div>
+          <div class="funnel"><b style="width:${(c.aud-c.called)/c.aud*100}%"></b><b style="width:${(c.called-c.conv)/c.aud*100}%"></b><b style="width:${c.conv/c.aud*100}%"></b></div>
+          <div class="fn-l"><span><b>${c.aud}</b> ${T.fn.aud}</span><span><b>${c.called}</b> ${T.fn.called}</span><span><b>${c.conv}</b> ${T.fn.conv}</span><span class="rev num">${T.cur(c.rev.toLocaleString("fr-FR").replace(/ /g," "))}</span></div></div>`).join("")}</div>
+        <div class="mcard"><h3>${T.mg_agents}</h3>${MGR_AGENTS.map(a=>`<div class="agent-row"><div class="a"><span class="avatar">${a.n[0]}</span><span>${a.n}${a.hot?`<small style="color:var(--amber-ink)">${a.hot} ${T.f.hot.toLowerCase()} ${S.lang==="ar"?"بلا رد":"sans réponse"}</small>`:`<small>${S.lang==="ar"?"لا ساخنين":"aucun chaud en attente"}</small>`}</span></div><div class="n">${a.conv} <span style="font-weight:500;color:var(--ink-3)">/ ${a.calls}</span><small>${T.ag.conv} / ${T.ag.calls}</small></div><div style="grid-column:1/-1" class="hbar"><b style="--w:${a.calls?Math.round(a.conv/a.calls*100):0}%"></b></div></div>`).join("")}</div></div></div></div>`}
+
+/* ───────────────────────── Behaviour ───────────────────────── */
+function toast(msg){const el=document.getElementById("toast");el.innerHTML=IC.check+`<span>${msg}</span>`;el.dataset.on="true";clearTimeout(toast._t);toast._t=setTimeout(()=>el.dataset.on="false",2400)}
+function openLead(id){S.open=id;S.out=null;S.cbPick=null;S.lostPick=null;S.tlf="all";render()}
+function applyOutcome(kind){const T=t();const l=LEADS.find(x=>x.id===S.open);if(!l)return;
+  if(kind==="order"){S.sheet="convert";render();return}
+  if(kind==="noans"){S.sheet=null;l.attempts++;l.bucket="retry";l.tl.push({t:NOW,k:"call",who:"me",x:"noans"});S.out=null;render();toast(T.t_saved(T.b.retry));return}
+  if(kind==="callback"){S.sheet=null;const add={p1h:60,p2h:120,ev:0,tmr:0}[S.cbPick];l.cbAt=S.cbPick==="tmr"?later(60*20):S.cbPick==="ev"?later(120):later(add);l.attempts++;l.bucket="callback";l.tl.push({t:NOW,k:"call",who:"me",x:"reached"},{t:NOW,k:"cb",who:"me",x:S.cbPick==="tmr"?T.tmr:hhmm(l.cbAt)});S.out=null;render();toast(T.t_saved(T.b.callback));return}
+  if(kind==="lost"){S.sheet=null;LEADS=LEADS.filter(x=>x!==l);S.open=null;S.out=null;render();toast(T.t_saved(S.lang==="ar"?"ضائع":"Perdu"));return}}
+function convert(){const T=t();const l=LEADS.find(x=>x.id===S.open);const id=48220+LEADS.filter(x=>x.bucket==="converted").length;l.bucket="converted";l.order=id;l.tl.push({t:NOW,k:"call",who:"me",x:"reached"},{t:NOW,k:"conv",who:"me",x:"#"+id});S.sheet=null;S.out=null;render();toast(T.t_conv(id))}
+function createLead(andOrder){const T=t();const ph=(document.getElementById("nPhone").value||"09x xxx xxxx");const name=document.getElementById("nName").value||(S.lang==="ar"?"بدون اسم":"Sans nom");
+  const l=A({id:"P-"+(7302+LEADS.length),name,phone:ph,area:document.getElementById("nArea").value||"طرابلس",source:S.nSrc||"call",bucket:"hot",created:NOW,product:document.getElementById("nProd").value,msg:document.getElementById("nNote").value||null,tl:[]});
+  LEADS.unshift(l);S.open=l.id;S.nPhone="";S.nSrc=null;S.sheet=andOrder?"convert":null;S.bucket="all";render();if(!andOrder)toast(T.t_new)}
+
+function wire(){const app=document.getElementById("app");const T=t();
+  app.querySelectorAll(".tile").forEach(b=>b.onclick=()=>{S.bucket=b.dataset.b;render()});
+  const q=document.getElementById("q");if(q){q.oninput=()=>{S.query=q.value;const rows=document.getElementById("rows");rows.innerHTML=visible().map(rowHTML).join("")||`<div class="empty">${IC.users}<h3>${S.lang==="ar"?"لا شيء هنا":"Rien ici"}</h3></div>`;wireRows()}}
+  wireRows();
+  const bn=document.getElementById("btnNew");if(bn)bn.onclick=()=>{S.sheet="new";render();setTimeout(()=>document.getElementById("nPhone")?.focus(),50)};
+  const back=document.getElementById("back");if(back)back.onclick=()=>{S.open=null;render()};
+  app.querySelectorAll("[data-out]").forEach(b=>b.onclick=()=>{const k=b.dataset.out;if(b.closest("#sheet")){S.out=k;S.cbPick=null;S.lostPick=null;render();return}if(k==="order"||k==="noans"){S.out=k;applyOutcome(k)}else{S.out=S.out===k?null:k;S.cbPick=null;S.lostPick=null;render()}});
+  const bo=document.getElementById("btnOutcome");if(bo)bo.onclick=()=>{S.sheet="outcome";S.out=null;S.cbPick=null;S.lostPick=null;render()};
+  app.querySelectorAll("[data-tog]").forEach(b=>b.onclick=()=>{S.tlOpen=!S.tlOpen;render()});
+  app.querySelectorAll("[data-cb]").forEach(b=>b.onclick=()=>{S.cbPick=b.dataset.cb;render()});
+  app.querySelectorAll("[data-lost]").forEach(b=>b.onclick=()=>{S.lostPick=b.dataset.lost;render()});
+  const so=document.getElementById("saveOut");if(so)so.onclick=()=>applyOutcome(S.out);
+  const co=document.getElementById("cancelOut");if(co)co.onclick=()=>{S.out=null;render()};
+  app.querySelectorAll("[data-tlf]").forEach(b=>b.onclick=()=>{S.tlf=b.dataset.tlf;render()});
+  app.querySelectorAll("[data-call]").forEach(b=>b.onclick=()=>toast(T.t_call(b.dataset.call)));
+  app.querySelectorAll("[data-wa]").forEach(b=>b.onclick=(e)=>{e.stopPropagation();const l=LEADS.find(x=>x.id===b.dataset.wa);if(l&&l.bucket!=="converted"){l.tl.push({t:NOW,k:"wa",who:"me",x:""});if(S.open===l.id)render()}toast(T.t_wa)});
+  const bc=document.getElementById("btnConvert");if(bc)bc.onclick=()=>{S.sheet="convert";render()};
+  app.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>{S.sheet=null;render()});
+  const scrim=document.getElementById("scrim");scrim.onclick=()=>{S.sheet=null;render()};
+  const np=document.getElementById("nPhone");if(np){np.oninput=()=>{S.nPhone=np.value;const pos=np.selectionStart;render();const e=document.getElementById("nPhone");e.focus();e.setSelectionRange(pos,pos)}}
+  app.querySelectorAll("[data-src]").forEach(b=>b.onclick=()=>{S.nSrc=b.dataset.src;render()});
+  const ns=document.getElementById("nSave");if(ns)ns.onclick=()=>createLead(false);
+  const nso=document.getElementById("nSaveOrder");if(nso)nso.onclick=()=>createLead(true);
+  const vg=document.getElementById("vGo");if(vg)vg.onclick=convert;
+  app.querySelectorAll("[data-mf]").forEach(b=>b.onclick=()=>{S.mfilter=b.dataset.mf;render()});
+  app.querySelectorAll("[data-order]").forEach(b=>b.onclick=()=>toast((S.lang==="ar"?"فتح الطلب #":"Ouvre la commande #")+b.dataset.order));
+}
+function wireRows(){document.querySelectorAll(".row,.m-card").forEach(r=>{r.onclick=()=>openLead(r.dataset.id);r.onkeydown=(e)=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openLead(r.dataset.id)}}});
+  document.querySelectorAll("[data-act]").forEach(b=>b.onclick=(e)=>{e.stopPropagation();const l=LEADS.find(x=>x.id===b.dataset.act);openLead(l.id);if(S.view!=="phone"&&l.bucket!=="converted")toast(t().t_call(l.phone))});
+  document.querySelectorAll(".row [data-wa],.m-card [data-wa]").forEach(b=>b.onclick=(e)=>{e.stopPropagation();toast(t().t_wa)})}
+document.addEventListener("keydown",(e)=>{if(S.role!=="agent")return;const tag=(e.target.tagName||"").toLowerCase();if(tag==="input"||tag==="textarea"||tag==="select"){if(e.key==="Escape"){S.sheet=null;render()}return}
+  const rows=visible();const i=rows.findIndex(l=>l.id===S.open);
+  if(e.key==="ArrowDown"){e.preventDefault();openLead(rows[Math.min(rows.length-1,i+1)]?.id||S.open)}
+  else if(e.key==="ArrowUp"){e.preventDefault();openLead(rows[Math.max(0,i-1)]?.id||S.open)}
+  else if(e.key==="Escape"){S.sheet=null;S.out=null;render()}
+  else if(!S.sheet&&S.open){const l=LEADS.find(x=>x.id===S.open);if(!l||l.bucket==="converted")return;
+    if(e.key==="1"){S.sheet="convert";render()}else if(e.key==="2"){S.out="callback";render()}else if(e.key==="3"){applyOutcome("noans")}else if(e.key==="4"){S.out="lost";render()}
+    else if(e.key.toLowerCase()==="c"){S.sheet="convert";render()}}
+  if(e.key.toLowerCase()==="n"&&!S.sheet){S.sheet="new";render();setTimeout(()=>document.getElementById("nPhone")?.focus(),50)}});
+/* studio toolbar */
+[["segRole","role"],["segLang","lang"],["segView","view"]].forEach(([id,key])=>{const el=document.getElementById(id);el.querySelectorAll("button").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.v===S[key]));b.onclick=()=>{S[key]=b.dataset.v;el.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));if(key==="view"&&S.view==="phone")S.open=null;render()}})});
+/* live timers for hot rows */
+setInterval(()=>{if(S.role!=="agent")return;document.querySelectorAll('.row[data-t="amber"] .chip').forEach(c=>{const id=c.closest(".row").dataset.id;const l=LEADS.find(x=>x.id===id);if(l)c.innerHTML=IC.clock+t().sit.hot(Math.round((Date.now()-l.created)/MIN))})},30000);
+render();
+</script>

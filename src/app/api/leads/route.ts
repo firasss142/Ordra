@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!CREATABLE_LEAD_SOURCES.includes(source as Exclude<LeadSource, "campaign">)) {
+  if (!CREATABLE_LEAD_SOURCES.includes(source as Exclude<LeadSource, "campaign" | "winback">)) {
     return NextResponse.json({ error: "Invalid source" }, { status: 400 });
   }
 
