@@ -70,6 +70,11 @@ export interface ProspectRow {
 export interface ProspectsResponse {
   rows: ProspectRow[];
   total: number;
+  /**
+   * True when the query hit its limit and there are prospects the page is not
+   * showing. The surface must say so rather than imply the list is complete.
+   */
+  truncated: boolean;
   /** The market's hot window in minutes (`lead_hot_window_minutes`, default 60). */
   hot_window_minutes: number;
   generated_at: string;

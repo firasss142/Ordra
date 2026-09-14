@@ -4,6 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canUseProspectWorklist } from "@/lib/role-permissions";
 import { UUID_RE } from "@/lib/investors/admin-route";
 import { enrichRowsWithCustomerHistory } from "@/lib/customer-history/enrich";
+import { getMarketSetting } from "@/lib/settings/getMarketSetting";
 import { bucketOf, HOT_WINDOW_MINUTES, sortWorklist } from "@/lib/prospects/worklist";
 import type { ProspectRow } from "@/lib/prospects/types";
 
@@ -37,7 +38,12 @@ const one = <T,>(v: Embed<T>): T | null => (Array.isArray(v) ? (v[0] ?? null) : 
 
 /** `products` has no `price`: the catalogue column is `default_price`. */
 interface ProductEmbed { name: string | null; default_price: number | null; image_url: string | null }
-interface CampaignEmbed { name: string | null; offer: string | null; script_fr: string | null; script_ar: string | null }
+/**
+ * Only the caller's own script is selected — see the embed below. Sending both
+ * languages doubled the largest text field on every campaign row, and the panel
+ * renders exactly one of them.
+ */
+interface CampaignEmbed { name: string | null; offer: string | null; script: string | null }
 interface UserEmbed { full_name: string | null }
 
 /**
@@ -50,7 +56,6 @@ interface UserEmbed { full_name: string | null }
  *
  * The bucket is computed here rather than in SQL: a lead has no bucket column,
  * only a status, a source, a callback time and a campaign. bucketOf() is the
- * single rule, unit-tested in src/lib/prospects/__tests__/worklist.test.ts.
  * Design: prototypes/prospects-v3.html.
  */
 export async function GET(req: NextRequest) {
@@ -83,6 +88,8 @@ export async function GET(req: NextRequest) {
   }
 
   const locale = params.get("locale") === "ar" ? "ar" : "fr";
+  // PostgREST aliases the column so the shape is the same in both languages.
+  const scriptColumn = locale === "ar" ? "script_ar" : "script_fr";
   const limit = intParam(params.get("limit"), DEFAULT_LIMIT, 1, MAX_LIMIT);
 
   const supabase = await createClient();
@@ -95,18 +102,25 @@ export async function GET(req: NextRequest) {
        callback_scheduled_at, converted_order_id, campaign_id, source_order_id,
        return_reason, created_at, updated_at,
        products:product_interest_id ( name, default_price, image_url ),
-       prospect_campaigns:campaign_id ( name, offer, script_fr, script_ar ),
+       prospect_campaigns:campaign_id ( name, offer, script:${scriptColumn} ),
        users:assigned_to ( full_name )`,
-      { count: "exact" },
     )
     .eq("market_id", marketId)
     .in("status", WORKING_STATUSES);
 
   if (agentId) query = query.eq("assigned_to", agentId);
 
-  const { data, error, count } = await query
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  // The market's own hot window, fetched alongside the list rather than after
+  // it. Both are independent reads; awaiting them in sequence added a whole
+  // round trip to every page load for one small number.
+  const [{ data, error }, hotWindowRaw] = await Promise.all([
+    query.order("created_at", { ascending: false }).limit(limit),
+    getMarketSetting(supabase, marketId, "lead_hot_window_minutes", String(HOT_WINDOW_MINUTES)),
+  ]);
+
+  const parsedHotWindow = Number(hotWindowRaw);
+  const hotWindowMinutes =
+    Number.isFinite(parsedHotWindow) && parsedHotWindow > 0 ? parsedHotWindow : HOT_WINDOW_MINUTES;
 
   if (error) {
     console.error("[api/prospects/worklist] leads query failed", error);
@@ -115,30 +129,29 @@ export async function GET(req: NextRequest) {
 
   const leads = (data ?? []) as unknown as Record<string, unknown>[];
 
-  // The order a won prospect became, so the row can name it. One lookup for
-  // the whole page; without it every converted card would be a second request.
+  // Two lookups that need nothing from each other, so they go together. Each
+  // is a round trip to a remote database — measured at ~130 ms of latency
+  // before any work happens — and in sequence they simply added up.
+  //
+  //   orders     → the reference a won prospect's order carries, one lookup for
+  //                the whole page rather than one per converted card.
+  //   enrichment → delivered/returned counts per phone, the same call the agent
+  //                queue makes, so the risk badge means the same thing here.
   const orderIds = leads
     .map((l) => l.converted_order_id as string | null)
     .filter((id): id is string => Boolean(id));
-  const refByOrder = new Map<string, string>();
-  if (orderIds.length > 0) {
-    const { data: orders } = await supabase
-      .from("orders")
-      .select("id, external_id")
-      .in("id", orderIds);
-    for (const o of (orders ?? []) as { id: string; external_id: string | null }[]) {
-      if (o.external_id) refByOrder.set(o.id, o.external_id);
-    }
-  }
 
-  // Delivered/returned counts per phone. Already used by the agent queue, so
-  // the badge here means exactly what it means there.
-  const enriched = await enrichRowsWithCustomerHistory(
-    supabase,
-    marketId,
-    "lead",
-    leads as never[],
-  );
+  const [ordersResult, enriched] = await Promise.all([
+    orderIds.length > 0
+      ? supabase.from("orders").select("id, external_id").in("id", orderIds)
+      : Promise.resolve({ data: [] as { id: string; external_id: string | null }[] }),
+    enrichRowsWithCustomerHistory(supabase, marketId, "lead", leads as never[]),
+  ]);
+
+  const refByOrder = new Map<string, string>();
+  for (const o of ((ordersResult.data ?? []) as { id: string; external_id: string | null }[])) {
+    if (o.external_id) refByOrder.set(o.id, o.external_id);
+  }
 
   const now = Date.now();
   const convertedCutoff = now - CONVERTED_WINDOW_DAYS * 86_400_000;
@@ -173,7 +186,7 @@ export async function GET(req: NextRequest) {
         campaign_id: (l.campaign_id as string | null) ?? null,
         campaign_name: campaign?.name ?? null,
         campaign_offer: campaign?.offer ?? null,
-        campaign_script: (locale === "ar" ? campaign?.script_ar : campaign?.script_fr) ?? null,
+        campaign_script: campaign?.script ?? null,
         source_order_id: (l.source_order_id as string | null) ?? null,
         source_order_ref: null,
         return_reason: (l.return_reason as string | null) ?? null,
@@ -187,16 +200,25 @@ export async function GET(req: NextRequest) {
         last_touch_at: (l.updated_at as string) ?? null,
       };
 
-      return { ...base, bucket: bucketOf(base, now) } as ProspectRow;
+      return { ...base, bucket: bucketOf(base, now, hotWindowMinutes) } as ProspectRow;
     })
     // A prospect won months ago is history, not work. It leaves the list once
     // its week is up, the way the delivery worklist drops terminal parcels.
     .filter((r) => r.bucket !== "converted" || Date.parse(r.updated_at) >= convertedCutoff);
 
+  const sorted = sortWorklist(rows, now);
+
   return NextResponse.json({
-    rows: sortWorklist(rows, now),
-    total: count ?? rows.length,
-    hot_window_minutes: HOT_WINDOW_MINUTES,
+    rows: sorted,
+    // What the page actually holds. The old `count: "exact"` cost a second
+    // full index scan per request to produce a figure no surface rendered.
+    total: sorted.length,
+    // The list is capped, and Tunisia alone has ~1 700 working prospects. A cap
+    // that says nothing leaves a manager believing they have seen everything,
+    // so the flag is part of the answer rather than something the caller has to
+    // infer from the row count.
+    truncated: leads.length >= limit,
+    hot_window_minutes: hotWindowMinutes,
     generated_at: new Date().toISOString(),
   });
 }

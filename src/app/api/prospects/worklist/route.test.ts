@@ -4,12 +4,14 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 const mockLeadsResult = vi.fn();
 const mockOrdersIn = vi.fn();
 const mockEnrich = vi.fn();
+const mockSettingsSingle = vi.fn();
 
 function chain(table: string) {
   const self: Record<string, unknown> = {};
   for (const m of ["select", "eq", "in", "not", "or", "gte", "lte", "order", "limit", "range"]) {
     self[m] = vi.fn(() => self);
   }
+  self.single = vi.fn(() => mockSettingsSingle());
   // `await`ing the builder runs the query.
   self.then = (resolve: (v: unknown) => void) =>
     resolve(table === "orders" ? mockOrdersIn() : mockLeadsResult());
@@ -71,6 +73,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockLeadsResult.mockReturnValue({ data: [], error: null, count: 0 });
   mockOrdersIn.mockReturnValue({ data: [], error: null });
+  mockSettingsSingle.mockResolvedValue({ data: null, error: null });
   // By default the enrichment is a pass-through with empty history.
   mockEnrich.mockImplementation((_c, _m, _s, rows: Record<string, unknown>[]) =>
     Promise.resolve(
@@ -146,6 +149,35 @@ describe("GET /api/prospects/worklist", () => {
     expect(body.hot_window_minutes).toBe(60);
   });
 
+  // The field advertised the market's lead_hot_window_minutes but always
+  // returned the constant, and bucketOf was never given it — so a market that
+  // set its own window had it ignored on both sides.
+  test("a market that sets its own hot window gets it, and the buckets obey it", async () => {
+    as("a1", "agent", LY);
+    mockSettingsSingle.mockResolvedValue({ data: { value: { value: 15 } }, error: null });
+    const twentyMinutesAgo = new Date(Date.now() - 20 * 60_000).toISOString();
+    mockLeadsResult.mockReturnValue({
+      data: [lead({ id: "aging", source: "whatsapp", created_at: twentyMinutesAgo })],
+      error: null,
+      count: 1,
+    });
+
+    const body = await (await GET(req())).json();
+    expect(body.hot_window_minutes).toBe(15);
+    // 20 minutes old against a 15-minute window: no longer hot.
+    expect(body.rows[0].bucket).toBe("retry");
+  });
+
+  // `total` was fetched with count: "exact" — a second full index scan per
+  // request — and no surface ever rendered it.
+  test("it does not pay for an exact count nobody displays", async () => {
+    as("a1", "agent", LY);
+    await GET(req());
+    const builder = mockFrom.mock.results[0].value as Record<string, ReturnType<typeof vi.fn>>;
+    const [, options] = builder.select.mock.calls[0] as [string, { count?: string } | undefined];
+    expect(options?.count).toBeUndefined();
+  });
+
   // The catalogue column is `default_price`; `products.price` does not exist,
   // and asking PostgREST for it fails the entire request with a 42703.
   test("a product that exists is flattened onto the row; one that does not leaves the card hidden", async () => {
@@ -171,7 +203,9 @@ describe("GET /api/prospects/worklist", () => {
       data: [
         lead({
           source: "campaign", campaign_id: "c1", status: "new",
-          prospect_campaigns: { name: "Sérum 60-120 j", offer: "−15 %", script_fr: "Bonjour {name}", script_ar: "مرحبا {name}" },
+          // PostgREST aliases the locale's column to `script`, so the row has
+          // one script field whichever language asked for it.
+          prospect_campaigns: { name: "Sérum 60-120 j", offer: "−15 %", script: "Bonjour {name}" },
         }),
       ],
       error: null,
@@ -186,14 +220,30 @@ describe("GET /api/prospects/worklist", () => {
     });
   });
 
-  test("the Arabic script is served to an Arabic caller", async () => {
+  // Only the caller's own script is selected: both languages on every campaign
+  // row doubled the largest text field in the payload for nothing.
+  test("the Arabic caller asks the database for the Arabic column, not for both", async () => {
     as("a1", "agent", LY);
     mockLeadsResult.mockReturnValue({
-      data: [lead({ source: "campaign", campaign_id: "c1", prospect_campaigns: { name: "c", offer: null, script_fr: "FR", script_ar: "AR" } })],
+      data: [lead({ source: "campaign", campaign_id: "c1", prospect_campaigns: { name: "c", offer: null, script: "AR" } })],
       error: null, count: 1,
     });
     const body = await (await GET(req("?locale=ar"))).json();
     expect(body.rows[0].campaign_script).toBe("AR");
+
+    const builder = mockFrom.mock.results[0].value as Record<string, ReturnType<typeof vi.fn>>;
+    const [select] = builder.select.mock.calls[0] as [string];
+    expect(select).toContain("script:script_ar");
+    expect(select).not.toContain("script_fr");
+  });
+
+  test("the French caller asks for the French column", async () => {
+    as("a1", "agent", LY);
+    await GET(req("?locale=fr"));
+    const builder = mockFrom.mock.results[0].value as Record<string, ReturnType<typeof vi.fn>>;
+    const [select] = builder.select.mock.calls[0] as [string];
+    expect(select).toContain("script:script_fr");
+    expect(select).not.toContain("script_ar");
   });
 
   test("a converted prospect carries the order reference the agent can look up", async () => {
@@ -217,6 +267,60 @@ describe("GET /api/prospects/worklist", () => {
 
     const body = await (await GET(req())).json();
     expect(body.rows[0]).toMatchObject({ repeat_kind: "risk", prior_order_count: 2, last_known_address: "عين زارة" });
+  });
+
+  // The orders lookup and the history enrichment need nothing from each other,
+  // and each is a round trip to a remote database — ~130 ms of pure latency
+  // apiece. Run in sequence they simply added up.
+  test("the orders lookup and the history enrichment run at the same time", async () => {
+    as("a1", "agent", LY);
+    mockLeadsResult.mockReturnValue({
+      data: [lead({ id: "won", status: "won", converted_order_id: "o1" })],
+      error: null, count: 1,
+    });
+
+    let ordersStarted = 0;
+    let ordersSettled = 0;
+    let enrichStarted = 0;
+    let seq = 0;
+    mockOrdersIn.mockImplementation(() => {
+      ordersStarted = ++seq;
+      return new Promise((resolve) =>
+        setTimeout(() => { ordersSettled = ++seq; resolve({ data: [{ id: "o1", external_id: "48219" }], error: null }); }, 10),
+      );
+    });
+    mockEnrich.mockImplementation((_c, _m, _s, rows: Record<string, unknown>[]) => {
+      enrichStarted = ++seq;
+      return Promise.resolve(rows.map((r) => ({ ...r, repeat_kind: "none", prior_order_count: 0,
+        prior_lead_count: 0, prior_rejected_count: 0, last_known_address: null })));
+    });
+
+    const body = await (await GET(req())).json();
+
+    // Both are in flight together: the second one starts before the first has
+    // come back. Which of the two is issued first does not matter.
+    expect(Math.max(ordersStarted, enrichStarted)).toBeLessThan(ordersSettled);
+    // And the result still carries both halves.
+    expect(body.rows[0]).toMatchObject({ converted_order_ref: "48219", repeat_kind: "none" });
+  });
+
+  // Tunisia has 1 699 working leads. The list is capped, and a cap that says
+  // nothing leaves a manager believing they have seen everything.
+  test("it says so when the list was cut short, rather than pretending it is complete", async () => {
+    as("m", "market_manager", LY);
+    const many = [...Array(300)].map((_, i) => lead({ id: `l${i}` }));
+    mockLeadsResult.mockReturnValue({ data: many, error: null, count: null });
+
+    const body = await (await GET(req("?limit=300"))).json();
+    expect(body.rows).toHaveLength(300);
+    expect(body.truncated).toBe(true);
+  });
+
+  test("a list that fits is not flagged as cut short", async () => {
+    as("m", "market_manager", LY);
+    mockLeadsResult.mockReturnValue({ data: [lead()], error: null, count: null });
+    const body = await (await GET(req("?limit=300"))).json();
+    expect(body.truncated).toBe(false);
   });
 
   test("a database error is a 500 with no leaked detail", async () => {

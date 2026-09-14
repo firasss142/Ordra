@@ -24,6 +24,8 @@ export interface ProspectsViewProps {
   rows: ProspectRow[] | null;
   error: boolean;
   isLoading: boolean;
+  /** True when the query hit its limit and rows are missing from the page. */
+  truncated?: boolean;
   onRetry: () => void;
   role: Role;
   /** null for a super_admin who has not chosen a market yet. */
@@ -48,12 +50,15 @@ const isDesktop = () =>
   typeof window.matchMedia !== "function" ||
   window.matchMedia("(min-width: 1024px)").matches;
 
+/** The buckets whose visible text is derived from the current time. */
+const TIME_SENSITIVE = new Set<Bucket>(["hot", "callback"]);
+
 /** Digits only, so "092 112 2334" and "0921122334" both match. */
 const digits = (s: string) => s.replace(/\D/g, "");
 
 export function ProspectsView(props: ProspectsViewProps) {
   const {
-    rows, error, isLoading, onRetry, role, marketCode, tz, locale, now,
+    rows, error, isLoading, truncated, onRetry, role, marketCode, tz, locale, now,
     stats, notice, onQueue, onUndo, onDismissNotice, onConvert, onNewLead,
   } = props;
   const t = useTranslations("prospects");
@@ -228,7 +233,10 @@ export function ProspectsView(props: ProspectsViewProps) {
               key={row.id}
               row={row}
               selected={row.id === selectedId}
-              now={now}
+              // Only a hot prospect's age and an overdue callback's lateness
+              // move with the clock. Every other bucket gets a frozen value so
+              // memo() actually holds across the minute tick.
+              now={TIME_SENSITIVE.has(row.bucket) ? now : 0}
               market={market}
               locale={locale}
               tz={tz}
@@ -237,6 +245,12 @@ export function ProspectsView(props: ProspectsViewProps) {
             />
           ))}
         </div>
+
+        {truncated && shown.length > 0 ? (
+          <p className="mt-1 mb-0 rounded-[10px] border border-[#FDE68A] bg-[#FFFBEB] px-3.5 py-2.5 text-[13.5px] text-[#92400E]">
+            {t("truncated", { n: shown.length })}
+          </p>
+        ) : null}
 
         {!error && !isLoading && shown.length === 0 ? (
           <div className="rounded-xl border border-[#E5E7EB] bg-white px-5 py-12 text-center text-[#6B7280]">

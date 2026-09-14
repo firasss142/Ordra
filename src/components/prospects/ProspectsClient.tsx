@@ -113,6 +113,10 @@ export function ProspectsClient({
       timer.current = null;
       pendingRef.current = null;
       setPending(null);
+      // The toast goes with the window it describes. Leaving it up offered an
+      // "Annuler" that had nothing left to cancel: the POST was already gone
+      // and the click did nothing at all.
+      setNotice(null);
       void send(p);
     }, UNDO_WINDOW_MS);
   }, [flush, replaceRow, send]);
@@ -128,17 +132,30 @@ export function ProspectsClient({
   }, [replaceRow]);
 
   // Leaving the page, or hiding the tab, sends whatever is still waiting.
+  //
+  // Both handlers are named so both can be removed. The visibilitychange one
+  // used to be an inline arrow that `removeEventListener` could never match,
+  // so every change of `flush` identity left another live listener behind —
+  // each holding its own closure over an older `send`.
+  //
+  // The effect reads `flush` through a ref instead of depending on it, so it
+  // subscribes once for the lifetime of the component rather than tearing down
+  // and re-subscribing on every queued action.
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
   useEffect(() => {
-    const onLeave = () => flush();
-    window.addEventListener("pagehide", onLeave);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden") flush();
-    });
-    return () => {
-      window.removeEventListener("pagehide", onLeave);
-      flush();
+    const onPageHide = () => flushRef.current();
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flushRef.current();
     };
-  }, [flush]);
+    window.addEventListener("pagehide", onPageHide);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", onVisibility);
+      flushRef.current();
+    };
+  }, []);
 
   const rows = data?.rows ?? null;
   const stats = {
@@ -151,6 +168,7 @@ export function ProspectsClient({
       rows={rows}
       error={Boolean(error)}
       isLoading={!data && !error}
+      truncated={data?.truncated ?? false}
       onRetry={() => void mutate()}
       role={role}
       marketCode={market ? (marketIdToCode(market) ?? "tn") : null}

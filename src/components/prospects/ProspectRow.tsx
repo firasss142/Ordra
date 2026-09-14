@@ -21,6 +21,13 @@ import { useTranslations } from "next-intl";
 interface Props {
   row: Row;
   selected: boolean;
+  /**
+   * The clock, rounded to the minute — and only for the two buckets whose text
+   * changes with it. A campaign, win-back or converted row is handed a
+   * constant, so the minute tick no longer re-renders the whole list: with a
+   * market's ~300 prospects that was ~300 wasted renders a minute, each
+   * rebuilding a chip, two buttons and a formatted amount.
+   */
   now: number;
   market: "ly" | "tn";
   locale: string;

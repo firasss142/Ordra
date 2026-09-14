@@ -360,3 +360,64 @@ describe("ProspectsView — Arabic", () => {
     expect(amount).toBeTruthy();
   });
 });
+
+describe("ProspectsView — the minute clock", () => {
+  /**
+   * `now` ticks once a minute so a hot prospect's age stays honest. It is
+   * passed to every row, which defeated memo() for the whole list: a campaign
+   * or converted row shows nothing time-dependent, yet re-rendered on every
+   * tick along with its chip, its buttons and its money formatting.
+   */
+  test("a tick of the clock does not re-render rows that show nothing time-dependent", () => {
+    const props: ProspectsViewProps = {
+      rows: [HOT, CAMPAIGN, CONVERTED, WINBACK],
+      error: false, isLoading: false, onRetry: vi.fn(),
+      role: "agent", marketCode: "ly", tz: "Africa/Tripoli", locale: "fr",
+      now: NOW, hotWindowMinutes: 60, stats: { calls: 0, converted: 0 },
+      pending: null, notice: null,
+      onQueue: vi.fn(), onUndo: vi.fn(), onDismissNotice: vi.fn(),
+      onConvert: vi.fn(), onNewLead: vi.fn(),
+    };
+    const { rerender } = render(
+      <NextIntlClientProvider locale="fr" messages={fr} timeZone="Africa/Tripoli">
+        <ProspectsView {...props} />
+      </NextIntlClientProvider>,
+    );
+
+    const textOf = (name: string) => rowOf(name).textContent;
+    const campaignBefore = textOf("Khaled Zawi");
+    const convertedBefore = textOf("Samira Darsi");
+    // Identity is the real assertion: a memoised row that is not re-rendered
+    // keeps the very same DOM node. A fresh node means React rebuilt it.
+    const campaignNode = rowOf("Khaled Zawi");
+    const convertedNode = rowOf("Samira Darsi");
+
+    // Two minutes later: only the hot row's age may change.
+    rerender(
+      <NextIntlClientProvider locale="fr" messages={fr} timeZone="Africa/Tripoli">
+        <ProspectsView {...props} now={NOW + 120_000} />
+      </NextIntlClientProvider>,
+    );
+
+    expect(textOf("Khaled Zawi")).toBe(campaignBefore);
+    expect(textOf("Samira Darsi")).toBe(convertedBefore);
+    expect(rowOf("Khaled Zawi")).toBe(campaignNode);
+    expect(rowOf("Samira Darsi")).toBe(convertedNode);
+    // The hot row did move: 23 min → 25 min.
+    expect(within(rowOf("Amal Zentani")).getByText(/25 min/)).toBeTruthy();
+  });
+});
+
+describe("ProspectsView — a capped list", () => {
+  // Tunisia has ~1 700 working prospects and the query returns 300. Showing
+  // them without a word implies the agent has seen everything there is.
+  test("says the list is capped when it is", () => {
+    mount({ truncated: true });
+    expect(screen.getByText(/Seuls les 6 premiers/)).toBeTruthy();
+  });
+
+  test("says nothing when the whole list is on screen", () => {
+    mount({ truncated: false });
+    expect(screen.queryByText(/Seuls les/)).toBeNull();
+  });
+});
