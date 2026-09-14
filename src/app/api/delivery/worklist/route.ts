@@ -11,6 +11,13 @@ export const dynamic = "force-dynamic";
 const ITEMS_CHUNK = 100;
 
 /**
+ * The generated types model a to-one embed as an array; PostgREST returns one
+ * object. Accept both.
+ */
+type Embedded = { image_url: string | null } | { image_url: string | null }[] | null;
+const imageOf = (p: Embedded): string | null => (Array.isArray(p) ? p[0]?.image_url : p?.image_url) ?? null;
+
+/**
  * GET /api/delivery/worklist — the post-upload parcels, bucketed by what to do
  * next. The RPC is SECURITY INVOKER, so RLS is the isolation; the scoping below
  * only decides which slice to ask for.
@@ -71,17 +78,36 @@ export async function GET(req: NextRequest) {
       console.error("[api/delivery/worklist] items failed", itemsError);
       break;
     }
-    // The generated types model the products embed as an array; PostgREST
-    // returns one object for a to-one foreign key. Accept both.
-    type Embedded = { image_url: string | null } | { image_url: string | null }[] | null;
     for (const it of (items ?? []) as (Omit<WorklistItem, "image_url"> & { order_id: string; product: Embedded })[]) {
       const list = itemsByOrder.get(it.order_id) ?? [];
-      const p = it.product;
       list.push({
         product_name: it.product_name, variant_label: it.variant_label, quantity: it.quantity,
-        image_url: (Array.isArray(p) ? p[0]?.image_url : p?.image_url) ?? null,
+        image_url: imageOf(it.product),
       });
       itemsByOrder.set(it.order_id, list);
+    }
+  }
+
+  // Orders older than the multi-product `order_items` table — the large
+  // majority of the live Libyan list — carry their one product on the order
+  // itself, which is what the agent queue reads. Without this they would show
+  // no name and no picture at all.
+  const missing = ids.filter((id) => !itemsByOrder.has(id));
+  for (let i = 0; i < missing.length; i += ITEMS_CHUNK) {
+    const { data: orders, error: ordersError } = await supabase
+      .from("orders")
+      .select("id, product_name, variant_label, quantity, product:products!orders_product_id_fkey(image_url)")
+      .in("id", missing.slice(i, i + ITEMS_CHUNK));
+    if (ordersError) {
+      console.error("[api/delivery/worklist] order products failed", ordersError);
+      break;
+    }
+    for (const o of (orders ?? []) as { id: string; product_name: string | null; variant_label: string | null; quantity: number | null; product: Embedded }[]) {
+      const image_url = imageOf(o.product);
+      if (!o.product_name && !image_url) continue;
+      itemsByOrder.set(o.id, [{
+        product_name: o.product_name, variant_label: o.variant_label, quantity: o.quantity ?? 1, image_url,
+      }]);
     }
   }
 

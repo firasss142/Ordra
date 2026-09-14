@@ -2,11 +2,15 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 
 const mockRpc = vi.fn();
 const mockIn = vi.fn();
-const mockFrom = vi.fn(() => ({ select: () => ({ in: (...a: unknown[]) => mockIn(...a) }) }));
+const mockOrdersIn = vi.fn();
+// The route reads two tables by id; each gets its own result.
+const mockFrom = vi.fn((table: string) => ({
+  select: () => ({ in: (...a: unknown[]) => (table === "orders" ? mockOrdersIn(...a) : mockIn(...a)) }),
+}));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
     rpc: (...args: unknown[]) => mockRpc(...args),
-    from: (...args: unknown[]) => mockFrom(...(args as [])),
+    from: (...args: unknown[]) => mockFrom(...(args as [string])),
   }),
 }));
 vi.mock("@/lib/auth/actor", () => ({ getActor: vi.fn() }));
@@ -26,6 +30,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockRpc.mockResolvedValue({ data: [], error: null });
   mockIn.mockResolvedValue({ data: [], error: null });
+  mockOrdersIn.mockResolvedValue({ data: [], error: null });
 });
 
 describe("GET /api/delivery/worklist", () => {
@@ -91,6 +96,49 @@ describe("GET /api/delivery/worklist", () => {
     expect(body.rows[1].items).toEqual([]);
     expect(body.rows[1].reason_codes).toEqual([]);
     expect(typeof body.generated_at).toBe("string");
+  });
+
+  // Only ~10 of 206 live Libyan parcels have order_items rows; the rest predate
+  // that table and carry their product on the order itself, which is what the
+  // agent queue reads. Without this fallback every one of them shows no picture.
+  test("an order with no items falls back to the product on the order itself", async () => {
+    as("a1", "agent", LY);
+    mockRpc.mockResolvedValue({
+      data: [{ order_id: "o1", bucket: "act_now", reason_codes: [] }, { order_id: "o2", bucket: "act_now", reason_codes: [] }],
+      error: null,
+    });
+    mockIn.mockResolvedValue({ data: [], error: null });
+    mockOrdersIn.mockResolvedValue({
+      data: [
+        { id: "o1", product_name: "دمية", variant_label: "كبير", quantity: 2, product: { image_url: "https://cdn/doll.jpg" } },
+        { id: "o2", product_name: null, variant_label: null, quantity: 1, product: null },
+      ],
+      error: null,
+    });
+    const body = await (await GET(req())).json();
+    expect(mockFrom).toHaveBeenCalledWith("orders");
+    expect(body.rows[0].items).toEqual([
+      { product_name: "دمية", variant_label: "كبير", quantity: 2, image_url: "https://cdn/doll.jpg" },
+    ]);
+    // Nothing to show is still nothing: no empty placeholder item.
+    expect(body.rows[1].items).toEqual([]);
+  });
+
+  test("order_items win when they exist: the fallback does not double up", async () => {
+    as("a1", "agent", LY);
+    mockRpc.mockResolvedValue({ data: [{ order_id: "o1", bucket: "act_now", reason_codes: [] }], error: null });
+    mockIn.mockResolvedValue({
+      data: [{ order_id: "o1", product_name: "Sérum", variant_label: null, quantity: 1, product: { image_url: "https://cdn/s.jpg" } }],
+      error: null,
+    });
+    mockOrdersIn.mockResolvedValue({
+      data: [{ id: "o1", product_name: "Ancien", variant_label: null, quantity: 9, product: { image_url: "https://cdn/old.jpg" } }],
+      error: null,
+    });
+    const body = await (await GET(req())).json();
+    expect(body.rows[0].items).toEqual([
+      { product_name: "Sérum", variant_label: null, quantity: 1, image_url: "https://cdn/s.jpg" },
+    ]);
   });
 
   test("an RPC failure is a 500 without leaking the SQL message", async () => {
