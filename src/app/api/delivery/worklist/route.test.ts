@@ -16,6 +16,7 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/auth/actor", () => ({ getActor: vi.fn() }));
 
 import { GET } from "./route";
+import { DEFAULT_LIMIT, MAX_LIMIT } from "@/lib/delivery/worklist";
 import { getActor } from "@/lib/auth/actor";
 import { NextRequest } from "next/server";
 
@@ -45,15 +46,15 @@ describe("GET /api/delivery/worklist", () => {
   test("an agent always gets their own list in their own market, whatever the query says", async () => {
     as("a1", "agent", LY);
     await GET(req(`?agent_id=${AGENT_B}&market_id=${TN}`));
-    expect(mockRpc).toHaveBeenCalledWith("get_delivery_worklist", { p_market_id: LY, p_agent_id: "a1" });
+    expect(mockRpc).toHaveBeenCalledWith("get_delivery_worklist", expect.objectContaining({ p_market_id: LY, p_agent_id: "a1" }));
   });
 
   test("a market manager is pinned to their market and may narrow to one agent", async () => {
     as("m", "market_manager", LY);
     await GET(req(`?market_id=${TN}`));
-    expect(mockRpc).toHaveBeenLastCalledWith("get_delivery_worklist", { p_market_id: LY, p_agent_id: null });
+    expect(mockRpc).toHaveBeenLastCalledWith("get_delivery_worklist", expect.objectContaining({ p_market_id: LY, p_agent_id: null }));
     await GET(req(`?agent_id=${AGENT_B}`));
-    expect(mockRpc).toHaveBeenLastCalledWith("get_delivery_worklist", { p_market_id: LY, p_agent_id: AGENT_B });
+    expect(mockRpc).toHaveBeenLastCalledWith("get_delivery_worklist", expect.objectContaining({ p_market_id: LY, p_agent_id: AGENT_B }));
   });
 
   test("a malformed agent id is a 400, not a SQL error", async () => {
@@ -65,7 +66,7 @@ describe("GET /api/delivery/worklist", () => {
     as("s", "super_admin", null);
     expect((await GET(req())).status).toBe(400);
     await GET(req(`?market_id=${TN}`));
-    expect(mockRpc).toHaveBeenCalledWith("get_delivery_worklist", { p_market_id: TN, p_agent_id: null });
+    expect(mockRpc).toHaveBeenCalledWith("get_delivery_worklist", expect.objectContaining({ p_market_id: TN, p_agent_id: null }));
   });
 
   test("rows come back with their items attached", async () => {
@@ -147,5 +148,61 @@ describe("GET /api/delivery/worklist", () => {
     const res = await GET(req());
     expect(res.status).toBe(500);
     expect(JSON.stringify(await res.json())).not.toContain("relation");
+  });
+
+  // ── Paging and the done tab ───────────────────────────────────────────────
+  // 89 of the 210 live Libyan parcels are `done` — closed in the last 24 h and
+  // needing nothing. They are a tab the agent opens, not part of the first
+  // paint, so the default request leaves them in the database.
+
+  test("by default the list skips terminal parcels", async () => {
+    as("a1", "agent", LY);
+    await GET(req());
+    expect(mockRpc).toHaveBeenCalledWith("get_delivery_worklist",
+      expect.objectContaining({ p_include_done: false }));
+  });
+
+  test("include_done=1 asks for them, for the done tab", async () => {
+    as("a1", "agent", LY);
+    await GET(req("?include_done=1"));
+    expect(mockRpc).toHaveBeenCalledWith("get_delivery_worklist",
+      expect.objectContaining({ p_include_done: true }));
+  });
+
+  test("limit and offset are passed through, and clamped to something sane", async () => {
+    as("m", "market_manager", LY);
+    await GET(req("?limit=50&offset=100"));
+    expect(mockRpc).toHaveBeenLastCalledWith("get_delivery_worklist",
+      expect.objectContaining({ p_limit: 50, p_offset: 100 }));
+
+    // A caller asking for everything must not be able to ask for more than the
+    // page can draw, nor for a negative offset.
+    await GET(req("?limit=99999&offset=-5"));
+    expect(mockRpc).toHaveBeenLastCalledWith("get_delivery_worklist",
+      expect.objectContaining({ p_limit: MAX_LIMIT, p_offset: 0 }));
+
+    // Garbage is ignored rather than forwarded as NaN.
+    await GET(req("?limit=abc&offset=xyz"));
+    expect(mockRpc).toHaveBeenLastCalledWith("get_delivery_worklist",
+      expect.objectContaining({ p_limit: DEFAULT_LIMIT, p_offset: 0 }));
+  });
+
+  test("the response reports the full total so the page knows what it did not get", async () => {
+    as("a1", "agent", LY);
+    mockRpc.mockResolvedValue({
+      data: [{ order_id: "o1", bucket: "act_now", reason_codes: [], total_count: 207 }],
+      error: null,
+    });
+    const body = await (await GET(req("?limit=1"))).json();
+    expect(body.total).toBe(207);
+    expect(body.rows[0].total_count).toBeUndefined();
+  });
+
+  test("an empty page reports a zero total rather than undefined", async () => {
+    as("a1", "agent", LY);
+    mockRpc.mockResolvedValue({ data: [], error: null });
+    const body = await (await GET(req())).json();
+    expect(body.total).toBe(0);
+    expect(body.rows).toEqual([]);
   });
 });

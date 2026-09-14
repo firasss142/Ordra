@@ -67,6 +67,8 @@ export interface WorklistRow {
 
 export interface WorklistResponse {
   rows: WorklistRow[];
+  /** Parcels matching the scope, which is more than `rows` when a page was asked for. */
+  total: number;
   generated_at: string;
 }
 

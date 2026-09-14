@@ -31,6 +31,12 @@ export interface DeliveryWorklistViewProps {
   onQueue: (row: WorklistRow, body: QueuedBody) => void;
   onUndo: () => void;
   onDismissNotice: () => void;
+  /**
+   * Terminal parcels are left out of the first request — they are ~42% of the
+   * list and need nothing done to them. This fires the first time the agent
+   * shows interest in them, so the client can go and fetch them.
+   */
+  onNeedDone?: () => void;
 }
 
 type Sheet =
@@ -59,7 +65,7 @@ function matches(row: WorklistRow, q: string): boolean {
  * action queue come in as props, so every state of the page is testable.
  */
 export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
-  const { rows: rawRows, error, onRetry, scorecard, role, marketCode, tz, locale, now, pending, notice, onQueue, onUndo, onDismissNotice } = props;
+  const { rows: rawRows, error, onRetry, scorecard, role, marketCode, tz, locale, now, pending, notice, onQueue, onUndo, onDismissNotice, onNeedDone } = props;
   const t = useTranslations("delivery");
   const [bucket, setBucket] = useState<Bucket | "all">("all");
   const [query, setQuery] = useState("");
@@ -179,7 +185,10 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
               </button>
               {filterOpen && (
                 <div className="absolute end-0 top-full z-20 mt-1.5 w-[240px] rounded-lg border border-[#E5E7EB] bg-white p-2 shadow-[0_8px_24px_rgba(17,24,39,0.10)]">
-                  {([["risky", riskyOnly, setRiskyOnly, t("filter.riskyOnly")], ["done", hideDone, setHideDone, t("filter.hideDone")]] as const).map(([k, on, set, l]) => (
+                  {([["risky", riskyOnly, setRiskyOnly, t("filter.riskyOnly")],
+                     // Unticking "masquer les terminées" is a request to see
+                     // them, and they are not in the payload until asked for.
+                     ["done", hideDone, (v: boolean) => { setHideDone(v); if (!v) onNeedDone?.(); }, t("filter.hideDone")]] as const).map(([k, on, set, l]) => (
                     <label key={k} className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-2 text-[13.5px] text-[#111827] hover:bg-[#F3F4F6]">
                       <input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} className="h-4 w-4 accent-[#15803D]" />
                       {l}
@@ -209,7 +218,8 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
               const tone = k === "all" ? null : BUCKET_TONE[k];
               const tint = k === "act_now" ? "lg:bg-[#FFFBEB]" : on ? "lg:bg-[#F9FAFB]" : "";
               return (
-                <button key={k} type="button" aria-pressed={on} onClick={() => setBucket(k)}
+                <button key={k} type="button" aria-pressed={on}
+                  onClick={() => { setBucket(k); if (k === "done" || k === "all") onNeedDone?.(); }}
                   className={[
                     "inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3.5 text-[13.5px]",
                     "lg:h-auto lg:flex-col lg:items-stretch lg:gap-0.5 lg:rounded-none lg:border-0 lg:px-3 lg:py-2.5 lg:text-[13px]",

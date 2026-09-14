@@ -14,7 +14,7 @@ const row = (over: Partial<WorklistRow> = {}) =>
     last_action_outcome: null, last_action_note: null, ...over,
   }) as WorklistRow;
 
-const initial: WorklistResponse = { rows: [row(), row({ order_id: "o2", bucket: "waiting_carrier", reason_codes: [] })], generated_at: "x" };
+const initial: WorklistResponse = { rows: [row(), row({ order_id: "o2", bucket: "waiting_carrier", reason_codes: [] })], total: 2, generated_at: "x" };
 
 function setup() {
   const cache = new Map();

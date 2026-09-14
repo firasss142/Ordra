@@ -28,7 +28,21 @@ export function DeliveryWorklistClient({
   const t = useTranslations("delivery");
   const scope = useMarketScope();
   const market = role === "super_admin" ? scope.marketId : marketId;
-  const key = market ? (role === "super_admin" ? `/api/delivery/worklist?market_id=${market}` : "/api/delivery/worklist") : null;
+
+  // Parcels that closed in the last 24 h are 42% of the Libyan list and need
+  // nothing done to them, so the first paint leaves them in the database. The
+  // view asks for them the moment the agent opens the "terminées" tab, and
+  // once asked we keep asking — the key changes, SWR refetches, and the
+  // previous rows stay on screen while it does.
+  const [withDone, setWithDone] = useState(false);
+  // The bare key is deliberate: AgentNavTabs prefetches and badges from
+  // exactly "/api/delivery/worklist", and SWR shares one request only when the
+  // strings match. A query string is added only once there is something to add.
+  const params = new URLSearchParams({
+    ...(role === "super_admin" && market ? { market_id: market } : {}),
+    ...(withDone ? { include_done: "1" } : {}),
+  }).toString();
+  const key = market ? `/api/delivery/worklist${params ? `?${params}` : ""}` : null;
 
   const { data, error, mutate } = useSWR<WorklistResponse>(key, fetcher, {
     refreshInterval: 60_000,
@@ -89,6 +103,7 @@ export function DeliveryWorklistClient({
       onQueue={(row, body) => { setNotice(null); queue.queue(row, body); }}
       onUndo={() => { queue.undo(); setNotice("undone"); }}
       onDismissNotice={() => setNotice(null)}
+      onNeedDone={() => setWithDone(true)}
     />
   );
 }

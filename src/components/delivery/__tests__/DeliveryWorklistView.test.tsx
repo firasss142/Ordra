@@ -233,4 +233,15 @@ describe("DeliveryWorklistView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
     expect(props.onRetry).toHaveBeenCalled();
   });
+
+  // Terminal parcels are no longer in the first payload — 42% of the Libyan
+  // list is `done` and needs nothing. The view must therefore ASK for them the
+  // moment the agent shows interest, or the tab would sit empty forever.
+  it("asks for terminal parcels when the agent opens the Terminées tab", () => {
+    const onNeedDone = vi.fn();
+    mount({ onNeedDone });
+    expect(onNeedDone).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /Terminées/ }));
+    expect(onNeedDone).toHaveBeenCalled();
+  });
 });

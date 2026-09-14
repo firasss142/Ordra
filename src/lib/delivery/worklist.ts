@@ -213,3 +213,12 @@ export function shouldRefreshWorklist(
   if (signal.op === "DELETE" || !IN_SCOPE.has(signal.status)) return false;
   return role === "agent" ? signal.assigned_to === viewerId : true;
 }
+
+/**
+ * Worklist paging. A Libyan agent carries 20-60 live parcels and the whole
+ * market list runs to ~210, so one page covers today's reality with room to
+ * spare; the cap exists so a hand-written query string cannot ask the database
+ * for everything at once.
+ */
+export const DEFAULT_LIMIT = 200;
+export const MAX_LIMIT = 500;

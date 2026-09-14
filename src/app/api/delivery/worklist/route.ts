@@ -4,11 +4,19 @@ import { getActor } from "@/lib/auth/actor";
 import { canUseDeliveryWorklist } from "@/lib/role-permissions";
 import { UUID_RE } from "@/lib/investors/admin-route";
 import type { WorklistItem, WorklistRow } from "@/lib/delivery/types";
+import { DEFAULT_LIMIT, MAX_LIMIT } from "@/lib/delivery/worklist";
 
 export const dynamic = "force-dynamic";
 
 /** PostgREST puts `in.(...)` in the URL; keep each request comfortably short. */
 const ITEMS_CHUNK = 100;
+
+/** A query-string integer, or the fallback when it is absent or nonsense. */
+const intParam = (raw: string | null, fallback: number, min: number, max: number): number => {
+  const n = Number(raw);
+  if (raw === null || raw.trim() === "" || !Number.isFinite(n)) return fallback;
+  return Math.min(Math.max(Math.trunc(n), min), max);
+};
 
 /**
  * The generated types model a to-one embed as an array; PostgREST returns one
@@ -54,17 +62,29 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "market_required" }, { status: 400 });
   }
 
+  // Terminal parcels are ~42% of the live Libyan list and need nothing done to
+  // them; the page fetches them only when the agent opens the "terminées" tab.
+  const includeDone = params.get("include_done") === "1";
+  const limit = intParam(params.get("limit"), DEFAULT_LIMIT, 1, MAX_LIMIT);
+  const offset = intParam(params.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
+
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_delivery_worklist", {
     p_market_id: marketId,
     p_agent_id: agentId,
+    p_include_done: includeDone,
+    p_limit: limit,
+    p_offset: offset,
   });
   if (error) {
     console.error("[api/delivery/worklist] rpc failed", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
-  const raw = (data ?? []) as Omit<WorklistRow, "items">[];
+  // `total_count` is a window over the whole list, identical on every row. It
+  // belongs to the response, not to each parcel, so it is lifted off here.
+  const raw = (data ?? []) as (Omit<WorklistRow, "items"> & { total_count?: number })[];
+  const total = Number(raw[0]?.total_count ?? 0);
   const ids = raw.map((r) => r.order_id);
   const itemsByOrder = new Map<string, WorklistItem[]>();
 
@@ -125,12 +145,12 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const rows: WorklistRow[] = raw.map((r) => ({
+  const rows: WorklistRow[] = raw.map(({ total_count: _ignored, ...r }) => ({
     ...r,
     reason_codes: r.reason_codes ?? [],
     risk_reasons: r.risk_reasons ?? [],
     items: itemsByOrder.get(r.order_id) ?? [],
   }));
 
-  return NextResponse.json({ rows, generated_at: new Date().toISOString() });
+  return NextResponse.json({ rows, total, generated_at: new Date().toISOString() });
 }
