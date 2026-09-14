@@ -74,8 +74,9 @@ describe("GET /api/delivery/worklist", () => {
     });
     mockIn.mockResolvedValue({
       data: [
-        { order_id: "o1", product_name: "Sérum", variant_label: null, quantity: 2 },
-        { order_id: "o1", product_name: "Crème", variant_label: "50ml", quantity: 1 },
+        // PostGREST embeds the product as an object; the generated types say array. Both must work.
+        { order_id: "o1", product_name: "Sérum", variant_label: null, quantity: 2, product: { image_url: "https://cdn/serum.jpg" } },
+        { order_id: "o1", product_name: "Crème", variant_label: "50ml", quantity: 1, product: [{ image_url: null }] },
       ],
       error: null,
     });
@@ -84,8 +85,8 @@ describe("GET /api/delivery/worklist", () => {
     const body = await res.json();
     expect(mockFrom).toHaveBeenCalledWith("order_items");
     expect(body.rows[0].items).toEqual([
-      { product_name: "Sérum", variant_label: null, quantity: 2 },
-      { product_name: "Crème", variant_label: "50ml", quantity: 1 },
+      { product_name: "Sérum", variant_label: null, quantity: 2, image_url: "https://cdn/serum.jpg" },
+      { product_name: "Crème", variant_label: "50ml", quantity: 1, image_url: null },
     ]);
     expect(body.rows[1].items).toEqual([]);
     expect(body.rows[1].reason_codes).toEqual([]);

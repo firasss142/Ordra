@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Ban, Calendar, CalendarCheck, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, MapPin, Package, PenLine, Phone, RotateCcw, Truck, User, X, Check, XCircle } from "lucide-react";
+import { Calendar, CalendarCheck, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, MapPin, MinusCircle, MoreHorizontal, NotebookPen, Package, PenLine, Phone, RotateCcw, Truck, User, X, Check, XCircle } from "lucide-react";
 import type { WorklistRow } from "@/lib/delivery/types";
 import { BUCKET_TONE, formatPhone, moveFor, orderRef, quickOutcomesFor, situationOf, type MoveKind, type QuickOutcome } from "@/lib/delivery/presentation";
 import { DeliveryTimeline } from "./DeliveryTimeline";
-import { Chip, EDGE, Ltr, Money, OUTLINE_BTN, PRIMARY_BTN, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, useSituationLabel } from "./ui";
+import { Chip, EDGE, Ltr, Money, OUTLINE_BTN, PRIMARY_BTN, ProductThumb, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, useSituationLabel } from "./ui";
 
 const MOVE_ICON: Record<MoveKind, IconComponent> = {
   call2: Phone, call: Phone, before: Phone, courier: Phone, save: RotateCcw, wa: WhatsAppIcon, track: Truck, details: Check,
@@ -17,7 +17,7 @@ const QUICK_STYLE: Record<QuickOutcome["tone"], { icon: IconComponent; cls: stri
   green: { icon: CheckCircle2, cls: "border-[#86EFAC] bg-[#F0FDF4] text-[#15803D]" },
   grey: { icon: XCircle, cls: "border-[#D1D5DB] bg-white text-[#374151]" },
   blue: { icon: CalendarCheck, cls: "border-[#93C5FD] bg-[#EFF6FF] text-[#1D4ED8]" },
-  red: { icon: Ban, cls: "border-[#FCA5A5] bg-[#FEF2F2] text-[#B91C1C]" },
+  red: { icon: MinusCircle, cls: "border-[#FCA5A5] bg-[#FEF2F2] text-[#B91C1C]" },
   amber: { icon: CheckCircle2, cls: "border-[#FBBF24] bg-[#FFFBEB] text-[#92400E]" },
 };
 
@@ -75,6 +75,35 @@ function QuickOutcomes({ row, now, onQuick }: { row: WorklistRow; now: number; o
   );
 }
 
+/** The "…" at the panel's corner: the three things the panel can do for this parcel. */
+function PanelMenu({ row, done, onClose, onLogAction, onWhatsApp }: { row: WorklistRow; done: boolean; onClose: () => void; onLogAction: DetailHandlers["onLogAction"]; onWhatsApp: DetailHandlers["onWhatsApp"] }) {
+  const t = useTranslations("delivery");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+  const item = "flex w-full items-center gap-2.5 px-3 py-2 text-[13.5px] text-[#111827] hover:bg-[#F3F4F6]";
+  return (
+    <div ref={ref} className="relative ms-auto shrink-0">
+      <button type="button" aria-haspopup="menu" aria-expanded={open} aria-label={t("detail.more")} onClick={() => setOpen((v) => !v)}
+        className="grid h-8 w-8 place-items-center rounded-lg text-[#6B7280] hover:bg-[#F3F4F6]">
+        <MoreHorizontal size={20} aria-hidden />
+      </button>
+      {open && (
+        <div role="menu" className="absolute end-0 top-full z-20 mt-1 min-w-[200px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-white py-1 shadow-[0_8px_24px_rgba(17,24,39,0.10)]">
+          {!done && <button type="button" role="menuitem" className={item} onClick={() => { setOpen(false); onLogAction(row); }}><NotebookPen size={16} aria-hidden />{t("detail.logAction")}</button>}
+          {!done && <button type="button" role="menuitem" className={item} onClick={() => { setOpen(false); onWhatsApp(row); }}><WhatsAppIcon size={16} className="text-[#15803D]" />{t("detail.whatsapp")}</button>}
+          <button type="button" role="menuitem" className={item} onClick={() => { setOpen(false); onClose(); }}><X size={16} aria-hidden />{t("detail.close")}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Desktop side panel. */
 export function DeliveryDetailPanel({ row, market, locale, tz, now, onClose, onLogAction, onWhatsApp, onDialed, onQuick }: Props & { onClose: () => void }) {
   const t = useTranslations("delivery");
@@ -95,9 +124,7 @@ export function DeliveryDetailPanel({ row, market, locale, tz, now, onClose, onL
             <span className="[unicode-bidi:plaintext]">{row.customer_name}</span>
             <Ltr className="text-[14px] font-normal text-[#6B7280]">#{orderRef(row)}</Ltr>
           </h2>
-          <button type="button" onClick={onClose} aria-label={t("detail.close")} className="ms-auto grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#6B7280] hover:bg-[#F3F4F6]">
-            <X size={18} aria-hidden />
-          </button>
+          <PanelMenu row={row} done={done} onClose={onClose} onLogAction={onLogAction} onWhatsApp={onWhatsApp} />
         </div>
         <div className="mt-2 flex items-center justify-between gap-2.5">
           <Chip tone={s.tone} icon={SIT_ICON[s.key]}>{label(s)}</Chip>
@@ -176,7 +203,7 @@ export function DeliveryDetailPanel({ row, market, locale, tz, now, onClose, onL
       </div>
 
       <div className={`${card} mt-2.5 flex items-center gap-3`}>
-        <Package size={18} className="shrink-0 text-[#111827]" aria-hidden />
+        <ProductThumb src={item?.image_url} alt={item?.product_name ?? ""} size={40} />
         <span className="shrink-0 text-[14px] font-semibold text-[#111827]">{t("detail.parcel")}</span>
         <div className="min-w-0 flex-1">
           {item ? (
@@ -228,7 +255,8 @@ export function DeliveryDetailScreen({ row, market, locale, tz, now, onBack, onL
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-36 pt-2.5">
         <div className={block}>
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
+            <ProductThumb src={item?.image_url} alt={item?.product_name ?? ""} size={52} />
+            <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-2">
                 <span className="text-[20px] font-bold [unicode-bidi:plaintext]">{row.customer_name}</span>
                 <Ltr className="text-[13.5px] text-[#6B7280]">#{orderRef(row)}</Ltr>

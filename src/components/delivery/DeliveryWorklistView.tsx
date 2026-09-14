@@ -155,7 +155,7 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
           <div className="flex items-start gap-2.5">
             <Truck size={30} strokeWidth={1.9} className="mt-1 hidden shrink-0 text-[#15803D] lg:block" aria-hidden />
             <div>
-              <h1 className="text-[22px] font-bold tracking-tight text-[#111827] lg:text-[26px] lg:leading-tight">{t("title")}</h1>
+              <h1 className="text-[22px] font-bold tracking-tight text-[#111827] [unicode-bidi:plaintext] lg:text-[26px] lg:leading-tight">{t("title")}</h1>
               <p className="mt-0.5 text-sm text-[#6B7280]">{t("sub", { n: inFlight })}</p>
             </div>
           </div>
@@ -169,7 +169,7 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
           <div className="ms-auto hidden items-center gap-2 lg:flex">
             <label className="flex h-11 w-[300px] items-center gap-2.5 rounded-lg border border-[#E5E7EB] bg-white px-3.5 text-[#6B7280] focus-within:border-[#15803D]">
               <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("search")}
-                className="min-w-0 flex-1 bg-transparent text-[13.5px] text-[#111827] outline-none placeholder:text-[#9CA3AF]" />
+                className="min-w-0 flex-1 bg-transparent text-[13.5px] text-[#111827] outline-none placeholder:text-[#9CA3AF] [unicode-bidi:plaintext]" />
               <Search size={17} aria-hidden />
             </label>
             <div ref={filterRef} className="relative">

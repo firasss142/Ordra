@@ -5609,7 +5609,8 @@
       "carrierNote": "Message du livreur",
       "recommendedPill": "Recommandé",
       "city": "Ville",
-      "callShort": "Appeler"
+      "callShort": "Appeler",
+      "more": "Plus d'options"
     },
     "tl": {
       "all": "Tout",

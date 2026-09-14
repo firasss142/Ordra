@@ -112,6 +112,13 @@ describe("formatPhone", () => {
     expect(formatPhone("22123456")).toBe("22123456");
     expect(formatPhone(null)).toBe("");
   });
+
+  // Darb stores courier numbers in E.164; the agent dials and reads them local.
+  test("a Libyan number in E.164 reads the way it is dialled locally", () => {
+    expect(formatPhone("+218943090419")).toBe("094 309 0419");
+    expect(formatPhone("218912345678")).toBe("091 234 5678");
+    expect(formatPhone("+21622123456")).toBe("+21622123456");
+  });
 });
 
 describe("dayPart", () => {

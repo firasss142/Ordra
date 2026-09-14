@@ -120,10 +120,14 @@ export function moveFor(row: WorklistRow, now: number = Date.now()): Move {
   }
 }
 
-/** Libyan numbers read 092 112 2334; anything else is shown as stored. */
+/**
+ * Libyan numbers read 092 112 2334, whether stored local or in E.164 (Darb
+ * gives courier numbers as +2189…); anything else is shown as stored.
+ */
 export function formatPhone(phone: string | null | undefined): string {
   if (!phone) return "";
-  return /^\d{10}$/.test(phone) ? phone.replace(/^(\d{3})(\d{3})(\d{4})$/, "$1 $2 $3") : phone;
+  const local = phone.replace(/^\+?218(?=\d{9}$)/, "0");
+  return /^\d{10}$/.test(local) ? local.replace(/^(\d{3})(\d{3})(\d{4})$/, "$1 $2 $3") : phone;
 }
 
 function ymd(ms: number, tz: string): string {

@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { ArrowRight, Clock, MapPin, Package, Phone, RotateCcw, Truck, Check } from "lucide-react";
 import type { WorklistRow } from "@/lib/delivery/types";
 import { BUCKET_TONE, formatPhone, moveFor, moveTone, orderRef, situationOf, type MoveKind } from "@/lib/delivery/presentation";
-import { Chip, EDGE, Ltr, Money, OUTLINE_BTN, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, useSituationLabel, useSituationSub, useWhen } from "./ui";
+import { Chip, EDGE, Ltr, Money, OUTLINE_BTN, ProductThumb, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, useSituationLabel, useSituationSub, useWhen } from "./ui";
 
 const MOVE_ICON: Record<MoveKind, IconComponent> = {
   call2: Phone, call: Phone, before: Phone, courier: Phone, save: RotateCcw, wa: WhatsAppIcon, track: Truck, details: Check,
@@ -74,7 +74,9 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
       ].join(" ")}
     >
       {/* Détails du colis */}
-      <div className="col-start-1 row-start-1 min-w-0">
+      <div className="col-start-1 row-start-1 flex min-w-0 items-start gap-3">
+       <ProductThumb src={row.items[0]?.image_url} alt={p?.name ?? ""} size={44} className="mt-0.5" />
+       <div className="min-w-0">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <span className="text-[16px] font-bold text-[#111827] [unicode-bidi:plaintext] lg:text-[15px]">{row.customer_name}</span>
           <Ltr className="text-[13.5px] text-[#6B7280]">#{orderRef(row)}</Ltr>
@@ -89,6 +91,7 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
           {p && <span className="hidden items-center gap-1 lg:inline-flex"><Package size={14} aria-hidden />{p.name} <Ltr>×{p.qty}</Ltr></span>}
         </div>
         {showAgent && row.agent_name && <div className="mt-1 text-[12.5px] text-[#6B7280]">{row.agent_name}</div>}
+       </div>
       </div>
 
       {/* Situation / durée */}

@@ -26,7 +26,7 @@ function row(over: Partial<WorklistRow>): WorklistRow {
     customer_returned_count: 0, customer_rejected_count: 0, customer_risk_class: "repeat",
     last_action_at: null, last_action_type: null, last_action_outcome: null, last_action_note: null,
     has_open_task: false, terminal_at: null, created_at: "2026-09-12T08:00:00Z", carrier_name: "Darb Assabil",
-    items: [{ product_name: "Sérum vitamine C", variant_label: null, quantity: 1 }],
+    items: [{ product_name: "Sérum vitamine C", variant_label: null, quantity: 1, image_url: "https://cdn/serum.jpg" }],
     ...over,
   };
 }
@@ -36,7 +36,7 @@ const HUDA = row({
   order_id: "o2", external_id: "48172", status: "returning", bucket: "returning", reason_codes: ["returning"],
   customer_name: "Huda Al-Mabrouk", customer_phone: "0923341122", customer_phone_2: null, total_price: 95,
   remark_class: "no_answer", handler_account_phone: "0917710099",
-  items: [{ product_name: "Crème hydratante", variant_label: null, quantity: 1 }],
+  items: [{ product_name: "Crème hydratante", variant_label: null, quantity: 1, image_url: null }],
 });
 const TAREK = row({
   order_id: "o3", external_id: "48145", status: "delivered", bucket: "done", reason_codes: [],

@@ -64,16 +64,23 @@ export async function GET(req: NextRequest) {
   for (let i = 0; i < ids.length; i += ITEMS_CHUNK) {
     const { data: items, error: itemsError } = await supabase
       .from("order_items")
-      .select("order_id, product_name, variant_label, quantity")
+      .select("order_id, product_name, variant_label, quantity, product:products(image_url)")
       .in("order_id", ids.slice(i, i + ITEMS_CHUNK));
     if (itemsError) {
       // The list is still useful without product names; do not fail it.
       console.error("[api/delivery/worklist] items failed", itemsError);
       break;
     }
-    for (const it of (items ?? []) as (WorklistItem & { order_id: string })[]) {
+    // The generated types model the products embed as an array; PostgREST
+    // returns one object for a to-one foreign key. Accept both.
+    type Embedded = { image_url: string | null } | { image_url: string | null }[] | null;
+    for (const it of (items ?? []) as (Omit<WorklistItem, "image_url"> & { order_id: string; product: Embedded })[]) {
       const list = itemsByOrder.get(it.order_id) ?? [];
-      list.push({ product_name: it.product_name, variant_label: it.variant_label, quantity: it.quantity });
+      const p = it.product;
+      list.push({
+        product_name: it.product_name, variant_label: it.variant_label, quantity: it.quantity,
+        image_url: (Array.isArray(p) ? p[0]?.image_url : p?.image_url) ?? null,
+      });
       itemsByOrder.set(it.order_id, list);
     }
   }

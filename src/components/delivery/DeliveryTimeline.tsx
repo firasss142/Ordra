@@ -85,10 +85,10 @@ export function DeliveryTimeline({
           {items.map((e, i) => {
             const Glyph = glyph(e);
             return (
-              <li key={`${e.source}-${e.id}`} className="relative grid grid-cols-[12px_46px_20px_minmax(0,1fr)] items-start gap-x-2.5 py-1.5">
+              <li key={`${e.source}-${e.id}`} className="relative grid grid-cols-[12px_auto_20px_minmax(0,1fr)] items-start gap-x-2.5 py-1.5">
                 {i < items.length - 1 && <span aria-hidden className="absolute bottom-[-6px] start-[5px] top-[18px] w-px bg-[#E5E7EB]" />}
                 <i aria-hidden className={`mt-[7px] h-[9px] w-[9px] justify-self-center rounded-full ${e.source === "action" && e.mine ? "bg-[#15803D]" : "bg-[#D1D5DB]"}`} />
-                <span className="pt-0.5 text-[13px] tabular-nums text-[#6B7280]">{when(e.at, true)}</span>
+                <span className="min-w-[46px] whitespace-nowrap pt-0.5 text-[13px] tabular-nums text-[#6B7280]">{when(e.at, true)}</span>
                 <Glyph size={16} aria-hidden className="mt-0.5 text-[#6B7280]" />
                 <span className="min-w-0">
                   <b className="block truncate text-[13.5px] font-semibold text-[#111827] [unicode-bidi:plaintext]">{title(e)}</b>

@@ -7,7 +7,7 @@
  * green on the one primary button and on WhatsApp.
  */
 import { useTranslations } from "next-intl";
-import { AlertCircle, Ban, CheckCircle2, Clock } from "lucide-react";
+import { AlertCircle, Ban, CheckCircle2, Clock, Package } from "lucide-react";
 import type { Tone, Situation, SituationKey } from "@/lib/delivery/presentation";
 import { dayPart } from "@/lib/delivery/presentation";
 
@@ -130,4 +130,18 @@ export function useWhen(now: number, tz: string, locale: string) {
     }).format(new Date(iso));
     return short ? date : `${date} ${time}`;
   };
+}
+
+/** The product's picture, a package glyph when there is none. */
+export function ProductThumb({ src, alt, size = 44, className = "" }: { src: string | null | undefined; alt: string; size?: number; className?: string }) {
+  return (
+    <span className={`flex shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-[#F3F4F6] ${className}`} style={{ width: size, height: size }}>
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={alt} width={size} height={size} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+      ) : (
+        <Package size={Math.round(size * 0.45)} aria-hidden className="text-[#9CA3AF]" />
+      )}
+    </span>
+  );
 }

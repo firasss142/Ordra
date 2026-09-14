@@ -13,6 +13,8 @@ export interface WorklistItem {
   product_name: string | null;
   variant_label: string | null;
   quantity: number;
+  /** The product's picture, so the agent recognises the parcel at a glance. */
+  image_url: string | null;
 }
 
 export interface WorklistRow {
