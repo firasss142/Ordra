@@ -84,10 +84,12 @@ describe("DeliveryWorklistView", () => {
     expect(screen.getByTestId("delivery-stat").textContent).toContain("1 sauvées");
   });
 
-  it("pills count every bucket and narrow the list", () => {
+  it("bucket cards count every bucket, show what it is worth, and narrow the list", () => {
     mount();
     const pills = screen.getByRole("group", { name: "Filtres" });
-    expect(within(pills).getByRole("button", { name: /Tout\s*3/ })).toBeTruthy();
+    const all = within(pills).getByRole("button", { name: /Tout\s*3/ });
+    expect(all.textContent).toContain("370 LYD");
+    expect(within(pills).getByRole("button", { name: /Retours à sauver\s*1/ }).textContent).toContain("95 LYD");
     fireEvent.click(within(pills).getByRole("button", { name: /Retours à sauver\s*1/ }));
     expect(within(list()).getByText("Huda Al-Mabrouk")).toBeTruthy();
     expect(within(list()).queryByText("Amina El Fitouri")).toBeNull();
@@ -116,7 +118,7 @@ describe("DeliveryWorklistView", () => {
     mount();
     fireEvent.click(within(rowOf("Amina El Fitouri")).getByText("Amina El Fitouri"));
     const panel = screen.getByRole("region", { name: "Détail du colis" });
-    expect(within(panel).getByText("Prochaine action recommandée")).toBeTruthy();
+    expect(within(panel).getByText("Prochaine action")).toBeTruthy();
     const call = within(panel).getByRole("link", { name: /Appeler 092 112 2334/ });
     expect(call.getAttribute("href")).toBe("tel:0921122334");
     expect(within(panel).getByText("Darb Assabil")).toBeTruthy();
@@ -124,8 +126,7 @@ describe("DeliveryWorklistView", () => {
 
   it("recording an action: outcomes follow the action type, save waits for an outcome, the reminder rides along", () => {
     const props = mount();
-    fireEvent.click(within(rowOf("Amina El Fitouri")).getByText("Amina El Fitouri"));
-    fireEvent.click(within(screen.getByRole("region", { name: "Détail du colis" })).getByRole("button", { name: "Enregistrer une action" }));
+    fireEvent.click(within(rowOf("Amina El Fitouri")).getAllByRole("button", { name: "Appeler le 2ᵉ numéro" })[0]);
     const sheet = screen.getByRole("dialog", { name: "Enregistrer une action" });
     const save = within(sheet).getByRole("button", { name: "Enregistrer" }) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
@@ -145,6 +146,19 @@ describe("DeliveryWorklistView", () => {
       { action_type: "call_customer", outcome: "no_answer", note: "rappel ce soir", next_action_at: new Date(NOW + 2 * 3600e3).toISOString(), template_key: null },
     );
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("the panel records a call outcome in one tap, with the reminder that outcome implies", () => {
+    const props = mount();
+    fireEvent.click(within(rowOf("Amina El Fitouri")).getByText("Amina El Fitouri"));
+    const panel = screen.getByRole("region", { name: "Détail du colis" });
+    const outcomes = within(panel).getByRole("group", { name: "Résultat de l'appel" });
+    expect(within(outcomes).getAllByRole("button").map((b) => b.textContent)).toEqual(["A répondu", "Pas de réponse", "Promet de recevoir", "Refuse le colis"]);
+    fireEvent.click(within(outcomes).getByRole("button", { name: "Pas de réponse" }));
+    expect(props.onQueue).toHaveBeenCalledWith(
+      expect.objectContaining({ order_id: "o1" }),
+      { action_type: "call_customer", outcome: "no_answer", note: null, next_action_at: new Date(NOW + 2 * 3600e3).toISOString(), template_key: null },
+    );
   });
 
   it("WhatsApp opens in the market's language, links the E.164 number and logs the send with its template", () => {

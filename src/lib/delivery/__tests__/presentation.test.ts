@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { situationOf, moveFor, formatPhone, dayPart, orderRef, BUCKET_TONE } from "../presentation";
+import { situationOf, moveFor, formatPhone, dayPart, orderRef, BUCKET_TONE, moveTone, quickOutcomesFor } from "../presentation";
 import type { WorklistRow } from "../types";
 
 const NOW = Date.parse("2026-09-13T10:30:00Z");
@@ -130,5 +130,43 @@ describe("orderRef", () => {
     expect(orderRef(row({ tracking_number: "1830773", external_id: "6a90c3c87cdc4cd3eac5178b" }))).toBe("1830773");
     expect(orderRef(row({ tracking_number: null, external_id: "6a90c3c87cdc4cd3eac5178b" }))).toBe("6A90C3C8");
     expect(orderRef(row({ tracking_number: null, external_id: "48211" }))).toBe("48211");
+  });
+});
+
+describe("moveTone", () => {
+  test("the action button borrows the urgency of its move: red to save a return, amber to reach a customer now, grey otherwise", () => {
+    expect(moveTone(row({ bucket: "returning", status: "returning" }), NOW)).toBe("red");
+    expect(moveTone(row({ bucket: "act_now", reason_codes: ["proactive"], has_open_task: true }), NOW)).toBe("amber");
+    expect(moveTone(row({ bucket: "act_now", remark_class: "no_answer", customer_phone_2: "0921122334", reason_codes: ["remark:no_answer"] }), NOW)).toBe("amber");
+    // Calling the courier is the carrier's problem, not the customer's: no urgency colour.
+    expect(moveTone(row({ bucket: "act_now", reason_codes: ["stalled:5"] }), NOW)).toBe("grey");
+    expect(moveTone(row({ bucket: "waiting_customer", next_action_at: new Date(NOW + 3600e3).toISOString() }), NOW)).toBe("grey");
+    expect(moveTone(row({ status: "out_for_delivery" }), NOW)).toBe("grey");
+    expect(moveTone(row({ bucket: "act_now", remark_class: "out_of_coverage", reason_codes: ["remark:out_of_coverage"] }), NOW)).toBe("green");
+  });
+});
+
+describe("quickOutcomesFor", () => {
+  test("a customer call offers the four outcomes the panel records in one tap, each with its reminder", () => {
+    const q = quickOutcomesFor(moveFor(row({ bucket: "act_now", reason_codes: ["remark:no_answer"], remark_class: "no_answer", customer_phone_2: "0921122334" }), NOW));
+    expect(q.map((o) => o.outcome)).toEqual(["reached_will_receive", "no_answer", "reached_reschedule", "reached_wants_cancel"]);
+    expect(q.map((o) => o.tone)).toEqual(["green", "grey", "blue", "red"]);
+    expect(q.find((o) => o.outcome === "no_answer")?.reminder).toBe("in2h");
+    expect(q.find((o) => o.outcome === "reached_wants_cancel")?.reminder).toBe("none");
+    expect(q.every((o) => o.actionType === "call_customer")).toBe(true);
+  });
+
+  test("a call to the courier or the branch offers the carrier outcomes instead", () => {
+    const branch = quickOutcomesFor(moveFor(row({ bucket: "returning", status: "returning" }), NOW));
+    expect(branch.map((o) => o.outcome)).toEqual(["reattempt_promised", "courier_no_answer", "parcel_located", "return_confirmed"]);
+    expect(branch.every((o) => o.actionType === "call_branch")).toBe(true);
+    const courier = quickOutcomesFor(moveFor(row({ bucket: "act_now", reason_codes: ["stalled:5"] }), NOW));
+    expect(courier.every((o) => o.actionType === "call_courier")).toBe(true);
+  });
+
+  test("WhatsApp, tracking and finished parcels have nothing to record in one tap", () => {
+    expect(quickOutcomesFor(moveFor(row({ bucket: "act_now", remark_class: "out_of_coverage", reason_codes: ["remark:out_of_coverage"] }), NOW))).toEqual([]);
+    expect(quickOutcomesFor(moveFor(row({ status: "out_for_delivery" }), NOW))).toEqual([]);
+    expect(quickOutcomesFor(moveFor(row({ bucket: "done", status: "delivered" }), NOW))).toEqual([]);
   });
 });

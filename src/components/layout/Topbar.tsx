@@ -2,7 +2,8 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Menu, LogOut } from "lucide-react";
+import { Menu, LogOut, MapPin, ChevronDown } from "lucide-react";
+import { marketIdToCode } from "@/lib/markets";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/ui/Avatar";
 import { decodeAvatarFile, avatarErrorMessage } from "@/lib/client/image";
@@ -39,6 +40,8 @@ interface TopbarProps {
   navSlot?: React.ReactNode;
   /** When provided, renders a hamburger button on mobile that calls this. */
   onMenuClick?: () => void;
+  /** Agent header only: the live-connection status block, before the bell. */
+  statusSlot?: React.ReactNode;
   /**
    * "agent" enables the agent-only premium header: emerald New Order pill,
    * inline online presence, larger avatar group, and Cairo typography.
@@ -62,12 +65,12 @@ const CHANGE_AVATAR_LABEL: Record<"fr" | "ar", string> = {
   ar: "تغيير الصورة",
 };
 
-const ONLINE_NOW_LABEL: Record<"fr" | "ar", string> = {
-  fr: "En ligne",
-  ar: "متصل الآن",
+const MARKET_LABEL: Record<"fr" | "ar", Record<string, string>> = {
+  fr: { ly: "Libye", tn: "Tunisie" },
+  ar: { ly: "ليبيا", tn: "تونس" },
 };
 
-function TopbarInner({ user, marketName, actions, searchSlot, navSlot, onMenuClick, variant = "default" }: TopbarProps) {
+function TopbarInner({ user, marketName, actions, searchSlot, navSlot, onMenuClick, statusSlot, variant = "default" }: TopbarProps) {
   const router = useRouter();
   const [sessionExpired, setSessionExpired] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -156,16 +159,15 @@ function TopbarInner({ user, marketName, actions, searchSlot, navSlot, onMenuCli
           </div>
         )}
         <header
-          className="flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-8 bg-agent-surface border-b border-agent-outline-variant"
+          className="flex items-center gap-2 sm:gap-4 px-3 sm:px-6 bg-agent-surface border-b border-agent-outline-variant"
           style={{
-            height: 64,
+            height: 60,
             direction: isRtl ? "rtl" : "ltr",
             fontFamily: "var(--font-cairo)",
           }}
         >
-          {/* Identity block — the rich avatar IS the menu trigger.
-              Clicking it opens the dropdown (avatar / logout). */}
-          <div ref={menuRef} className="relative flex items-center gap-2 min-w-0">
+          {/* Wordmark and market, at the start. */}
+          <div className="flex items-center gap-3 min-w-0 shrink-0">
             {onMenuClick && (
               <button
                 type="button"
@@ -176,94 +178,93 @@ function TopbarInner({ user, marketName, actions, searchSlot, navSlot, onMenuCli
                 <Menu size={16} aria-hidden="true" />
               </button>
             )}
-
-            <button
-              type="button"
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              aria-label={user.full_name}
-              className="inline-flex items-center gap-3 min-w-0 ps-1 pe-3 py-1 rounded-xl border border-transparent hover:border-agent-outline-variant hover:bg-agent-surface-low transition-colors duration-fast"
-            >
-              <Avatar user={user} size={40} />
-              <div className="min-w-0 hidden sm:block text-start">
-                <div className="text-[14px] font-bold text-agent-on-surface leading-tight truncate">
-                  {user.full_name}
-                </div>
-                <div className="text-[11.5px] font-semibold text-agent-primary flex items-center gap-1.5 mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-agent-primary-container inline-block" />
-                  {ONLINE_NOW_LABEL[user.locale]}
-                </div>
-              </div>
-              <span
-                aria-hidden="true"
-                className="text-[10px] text-agent-on-surface-variant ms-1"
-              >
-                ▾
+            <span dir="ltr" className="text-[24px] font-extrabold tracking-tight leading-none text-[#14532D]" aria-label="Ordra">
+              Ord<span className="text-[#15803D]">ra</span>
+            </span>
+            {marketIdToCode(user.market_id) && (
+              <span className="hidden sm:inline-flex items-center gap-1 text-[13px] text-agent-ink-3 border-s border-agent-outline-variant ps-3">
+                <MapPin size={14} aria-hidden="true" />
+                {MARKET_LABEL[user.locale][marketIdToCode(user.market_id) as string]}
               </span>
-            </button>
-
-            {menuOpen && (
-              <div
-                role="menu"
-                className="absolute z-30 top-full mt-2 min-w-[220px] bg-agent-surface border border-agent-outline-variant rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] py-1 overflow-hidden"
-                style={isRtl ? { right: 0 } : { left: 0 }}
-              >
-                <div className="px-4 py-2.5 text-[11.5px] text-agent-on-surface-variant border-b border-agent-outline-variant break-all">
-                  {user.email}
-                </div>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => avatarInputRef.current?.click()}
-                  disabled={uploadingAvatar}
-                  className="block w-full px-4 py-2.5 text-[13px] font-medium text-agent-on-surface hover:bg-agent-surface-low transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ textAlign: isRtl ? "right" : "left" }}
-                >
-                  {uploadingAvatar ? "…" : CHANGE_AVATAR_LABEL[user.locale]}
-                </button>
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={(e) => handleSelfAvatar(e.target.files?.[0])}
-                />
-                {/* Sidebar-style logout row */}
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={handleLogout}
-                  disabled={signingOut}
-                  className="flex items-center gap-3 w-full px-4 py-2.5 text-[13px] font-semibold text-agent-on-surface-variant hover:bg-agent-surface-low hover:text-agent-on-surface transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ textAlign: isRtl ? "right" : "left" }}
-                >
-                  <LogOut size={15} strokeWidth={2} aria-hidden="true" />
-                  <span>{LOGOUT_LABEL[user.locale]}</span>
-                </button>
-              </div>
             )}
           </div>
 
           {/* Primary navigation, inline. Hidden on mobile, where the tabs would
               crowd the search out of the row entirely. */}
-          {navSlot && <div className="hidden lg:flex items-stretch self-stretch">{navSlot}</div>}
+          {navSlot && <div className="hidden lg:flex items-stretch self-stretch ms-auto">{navSlot}</div>}
 
-          {/* Centered search slot — grows to fill the space between identity
-              and the trailing cluster. */}
+          {/* Centered search slot — grows to fill the space between the
+              navigation and the trailing cluster. */}
           {searchSlot && (
             <div className="flex-1 min-w-0 flex justify-center px-2 md:px-6">
               {searchSlot}
             </div>
           )}
 
-          {/* Trailing cluster — notification bell only */}
-          <div className="flex items-center gap-2">
+          {/* Trailing cluster — connection status, bell, identity menu. */}
+          <div className={`flex items-center gap-2 sm:gap-3 ${searchSlot ? "" : "ms-auto lg:ms-6"}`}>
+            {statusSlot}
             {actions && (
               <div className="inline-flex items-center justify-center w-9 h-9 rounded-xl text-agent-on-surface-variant hover:bg-agent-surface-low hover:text-agent-on-surface transition-colors duration-fast">
                 {actions}
               </div>
             )}
+            <div ref={menuRef} className="relative flex items-center min-w-0">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                aria-label={user.full_name}
+                className="inline-flex items-center gap-2 min-w-0 ps-1 pe-2 py-1 rounded-xl border border-transparent hover:border-agent-outline-variant hover:bg-agent-surface-low transition-colors duration-fast"
+              >
+                <Avatar user={user} size={32} />
+                <span className="hidden sm:block text-[14px] font-bold text-agent-on-surface leading-tight truncate max-w-[140px]">
+                  {user.full_name}
+                </span>
+                <ChevronDown size={16} aria-hidden="true" className="text-agent-on-surface-variant" />
+              </button>
+
+              {menuOpen && (
+                <div
+                  role="menu"
+                  className="absolute z-30 top-full mt-2 min-w-[220px] bg-agent-surface border border-agent-outline-variant rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)] py-1 overflow-hidden"
+                  style={isRtl ? { left: 0 } : { right: 0 }}
+                >
+                  <div className="px-4 py-2.5 text-[11.5px] text-agent-on-surface-variant border-b border-agent-outline-variant break-all">
+                    {user.email}
+                  </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={uploadingAvatar}
+                    className="block w-full px-4 py-2.5 text-[13px] font-medium text-agent-on-surface hover:bg-agent-surface-low transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ textAlign: isRtl ? "right" : "left" }}
+                  >
+                    {uploadingAvatar ? "…" : CHANGE_AVATAR_LABEL[user.locale]}
+                  </button>
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={(e) => handleSelfAvatar(e.target.files?.[0])}
+                  />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handleLogout}
+                    disabled={signingOut}
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-[13px] font-semibold text-agent-on-surface-variant hover:bg-agent-surface-low hover:text-agent-on-surface transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ textAlign: isRtl ? "right" : "left" }}
+                  >
+                    <LogOut size={15} strokeWidth={2} aria-hidden="true" />
+                    <span>{LOGOUT_LABEL[user.locale]}</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
       </>

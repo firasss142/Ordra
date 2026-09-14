@@ -8,6 +8,7 @@ import {
   applyRecordedAction,
   shouldRefreshWorklist,
   partitionStalled,
+  sumBuckets,
 } from "../worklist";
 import type { WorklistRow } from "../types";
 
@@ -79,6 +80,16 @@ describe("buckets", () => {
       waiting_carrier: 0,
       done: 1,
     });
+  });
+
+  test("sums what each bucket is worth, so the filter cards can show the money at stake", () => {
+    const rows = [
+      row({ bucket: "act_now", total_price: 520 }),
+      row({ bucket: "act_now", total_price: 185 }),
+      row({ bucket: "returning", total_price: 240 }),
+      row({ bucket: "done", total_price: null }),
+    ];
+    expect(sumBuckets(rows)).toEqual({ all: 945, returning: 240, act_now: 705, waiting_customer: 0, waiting_carrier: 0, done: 0 });
   });
 
   test("groups keep the server's order inside each bucket", () => {

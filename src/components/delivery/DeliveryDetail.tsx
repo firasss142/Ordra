@@ -1,14 +1,23 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Calendar, ChevronLeft, ChevronRight, FileText, MapPin, NotebookPen, Package, PenLine, Phone, RotateCcw, Truck, User, X, Check } from "lucide-react";
+import { Ban, Calendar, CalendarCheck, CheckCircle2, ChevronLeft, ChevronRight, FileText, MapPin, Package, PenLine, Phone, RotateCcw, Truck, User, X, Check, XCircle } from "lucide-react";
 import type { WorklistRow } from "@/lib/delivery/types";
-import { BUCKET_TONE, formatPhone, moveFor, orderRef, situationOf, type MoveKind } from "@/lib/delivery/presentation";
+import { BUCKET_TONE, formatPhone, moveFor, orderRef, quickOutcomesFor, situationOf, type MoveKind, type QuickOutcome } from "@/lib/delivery/presentation";
 import { DeliveryTimeline } from "./DeliveryTimeline";
-import { Chip, EDGE, Ltr, TONE, WhatsAppIcon, type IconComponent, moneyText, useSituationLabel } from "./ui";
+import { Chip, EDGE, Ltr, OUTLINE_BTN, PRIMARY_BTN, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, moneyText, useSituationLabel } from "./ui";
 
 const MOVE_ICON: Record<MoveKind, IconComponent> = {
-  call2: Phone, call: Phone, before: Phone, courier: Truck, save: RotateCcw, wa: WhatsAppIcon, track: Truck, details: Check,
+  call2: Phone, call: Phone, before: Phone, courier: Phone, save: RotateCcw, wa: WhatsAppIcon, track: Truck, details: Check,
+};
+
+/** One tile per outcome: its glyph, and the tint it takes so the four read at a glance. */
+const QUICK_STYLE: Record<QuickOutcome["tone"], { icon: IconComponent; cls: string }> = {
+  green: { icon: CheckCircle2, cls: "border-[#86EFAC] bg-[#F0FDF4] text-[#15803D]" },
+  grey: { icon: XCircle, cls: "border-[#D1D5DB] bg-white text-[#374151]" },
+  blue: { icon: CalendarCheck, cls: "border-[#93C5FD] bg-[#EFF6FF] text-[#1D4ED8]" },
+  red: { icon: Ban, cls: "border-[#FCA5A5] bg-[#FEF2F2] text-[#B91C1C]" },
+  amber: { icon: CheckCircle2, cls: "border-[#FBBF24] bg-[#FFFBEB] text-[#92400E]" },
 };
 
 export interface DetailHandlers {
@@ -16,6 +25,8 @@ export interface DetailHandlers {
   onWhatsApp: (row: WorklistRow) => void;
   /** A tel: link was followed — open the sheet so the call gets logged. */
   onDialed: (row: WorklistRow) => void;
+  /** One of the four outcome tiles was tapped: record it, no sheet. */
+  onQuick: (row: WorklistRow, outcome: QuickOutcome) => void;
 }
 
 interface Props extends DetailHandlers {
@@ -30,16 +41,41 @@ function useCreated(locale: string, tz: string) {
   return (iso: string | null) =>
     iso
       ? new Intl.DateTimeFormat(locale === "ar" ? "ar-LY-u-nu-latn" : "fr-FR", {
-          timeZone: tz, day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
-        }).format(new Date(iso))
+          timeZone: tz, weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+        }).format(new Date(iso)).replace(/ (?:à|في) (\d{2}:\d{2})$/, " · $1")
       : "—";
 }
 
 const card = "rounded-xl border border-[#E5E7EB] bg-white px-4 py-3.5";
-const line = "flex min-w-0 items-center gap-2 py-[3px] text-[14.5px] text-[#111827] text-start";
+const line = "flex min-w-0 items-center gap-2 py-[3px] text-[13.5px] text-[#111827] text-start";
 
-/** Desktop side panel — the prototype's "Amina El Fitouri" column. */
-export function DeliveryDetailPanel({ row, market, locale, tz, now, onClose, onLogAction, onWhatsApp, onDialed }: Props & { onClose: () => void }) {
+/** The four one-tap outcomes under the recommended call. */
+function QuickOutcomes({ row, now, onQuick }: { row: WorklistRow; now: number; onQuick: DetailHandlers["onQuick"] }) {
+  const t = useTranslations("delivery");
+  const quick = quickOutcomesFor(moveFor(row, now));
+  if (quick.length === 0) return null;
+  return (
+    <div className="mt-3.5">
+      <p className="mb-2 text-[14px] font-semibold text-[#111827]">{t("detail.callResult")}</p>
+      <div role="group" aria-label={t("detail.callResult")} className="grid grid-cols-4 gap-2">
+        {quick.map((q) => {
+          const st = QUICK_STYLE[q.tone];
+          const Icon = st.icon;
+          return (
+            <button key={q.outcome} type="button" onClick={() => onQuick(row, q)}
+              className={`flex min-h-[64px] flex-col items-center justify-center gap-1.5 rounded-[10px] border px-1 py-2 text-center text-[12.5px] font-semibold leading-tight ${st.cls}`}>
+              <Icon size={20} aria-hidden />
+              <span>{t(`quick.${q.outcome}`)}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Desktop side panel. */
+export function DeliveryDetailPanel({ row, market, locale, tz, now, onClose, onLogAction, onWhatsApp, onDialed, onQuick }: Props & { onClose: () => void }) {
   const t = useTranslations("delivery");
   const tStatus = useTranslations("orders.statuses");
   const label = useSituationLabel();
@@ -48,109 +84,106 @@ export function DeliveryDetailPanel({ row, market, locale, tz, now, onClose, onL
   const m = moveFor(row, now);
   const Icon = MOVE_ICON[m.kind];
   const done = row.bucket === "done";
+  const item = row.items[0];
 
   return (
-    <div className="h-full overflow-y-auto rounded-[14px] border border-[#E5E7EB] bg-white px-[18px] pb-7 pt-[18px] [scrollbar-width:thin]">
-      <div className="flex items-start gap-2.5">
-        <h2 className="flex flex-wrap items-baseline gap-x-2.5 text-[22px] font-bold text-[#111827]">
-          <span className="[unicode-bidi:plaintext]">{row.customer_name}</span>
-          <Ltr className="text-[15px] font-normal text-[#6B7280]">#{orderRef(row)}</Ltr>
-        </h2>
-        <button type="button" onClick={onClose} aria-label={t("detail.close")} className="ms-auto grid h-8 w-8 place-items-center rounded-lg text-[#374151]">
-          <X size={20} aria-hidden />
-        </button>
-      </div>
-      <div className="mt-2.5 flex items-center justify-between gap-2.5">
-        <Chip tone={s.tone}>{label(s)}</Chip>
-        <span className="whitespace-nowrap text-[30px] font-bold tracking-tight text-[#111827]">{moneyText(row.total_price, market, locale)}</span>
-      </div>
-      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2.5 text-sm text-[#374151]">
-        <span className="inline-flex items-center gap-1.5"><MapPin size={17} className="text-[#6B7280]" aria-hidden />{row.customer_city}</span>
-        <span className="inline-flex items-center gap-1.5"><Calendar size={17} className="text-[#6B7280]" aria-hidden />{t("detail.created", { date: created(row.created_at) })}</span>
-      </div>
-
-      {/* Prochaine action recommandée */}
-      <div className={`${card} mt-4 bg-[#F9FAFB] pb-3`}>
-        <div className="flex items-start gap-3.5">
-          <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full border border-[#D1D5DB] bg-white"><Icon size={20} aria-hidden /></span>
-          <div>
-            <small className="block text-[13.5px] text-[#6B7280]">{t("detail.recommended")}</small>
-            <b className="mt-px block text-lg font-bold text-[#111827]">{t(`moves.${m.kind}`)}</b>
-            <p className="mt-0.5 text-sm text-[#6B7280]">{t(`why.${m.kind}`)}</p>
-          </div>
+    <div className="h-full overflow-y-auto [scrollbar-width:thin]">
+      <div className={`${card} pb-4`}>
+        <div className="flex items-start gap-2.5">
+          <h2 className="flex flex-wrap items-baseline gap-x-2 text-[20px] font-bold text-[#111827]">
+            <span className="[unicode-bidi:plaintext]">{row.customer_name}</span>
+            <Ltr className="text-[14px] font-normal text-[#6B7280]">#{orderRef(row)}</Ltr>
+          </h2>
+          <button type="button" onClick={onClose} aria-label={t("detail.close")} className="ms-auto grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[#6B7280] hover:bg-[#F3F4F6]">
+            <X size={18} aria-hidden />
+          </button>
         </div>
-        {m.whatsapp ? (
-          <button type="button" onClick={() => onWhatsApp(row)} className="mt-3.5 flex h-[46px] w-full items-center justify-center gap-2.5 rounded-lg bg-[#111111] text-[15.5px] font-semibold text-white">
-            <WhatsAppIcon size={18} />{t("moves.wa")}
-          </button>
-        ) : m.dial ? (
-          <a href={`tel:${m.dial}`} onClick={() => onDialed(row)} className="mt-3.5 flex h-[46px] w-full items-center justify-center gap-2.5 rounded-lg bg-[#111111] text-[15.5px] font-semibold text-white">
-            <Phone size={18} aria-hidden />
-            {m.kind === "save"
-              ? t("detail.callBranch", { phone: formatPhone(m.dial) })
-              : t("detail.callNumber", { phone: formatPhone(m.dial) })}
-          </a>
-        ) : null}
-        {!done && (
-          <button type="button" onClick={() => onLogAction(row)} className="mx-auto mt-3 flex items-center gap-2 text-[14.5px] font-semibold text-[#2563EB]">
-            <NotebookPen size={17} aria-hidden />{t("detail.logAction")}
-          </button>
-        )}
+        <div className="mt-2 flex items-center justify-between gap-2.5">
+          <Chip tone={s.tone} icon={SIT_ICON[s.key]}>{label(s)}</Chip>
+          <span className="whitespace-nowrap text-[26px] font-bold tracking-tight text-[#111827]">{moneyText(row.total_price, market, locale)}</span>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[13px] text-[#6B7280]">
+          <span className="inline-flex items-center gap-1.5"><MapPin size={15} aria-hidden />{[row.customer_city, row.customer_address].filter(Boolean).join(" · ")}</span>
+          <span className="inline-flex items-center gap-1.5"><Calendar size={15} aria-hidden />{created(row.created_at)}</span>
+        </div>
+
+        {/* Prochaine action */}
+        <div className="mt-3.5 rounded-[10px] bg-[#F3F4F6] p-3.5">
+          <div className="flex items-center gap-3.5">
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[#DCFCE7] text-[#15803D]"><Icon size={24} aria-hidden /></span>
+            <div className="min-w-0">
+              <small className="block text-[13px] text-[#6B7280]">{t("detail.recommended")}</small>
+              <b className="mt-px block text-[19px] font-bold leading-tight text-[#111827]">{t(`moves.${m.kind}`)}</b>
+              <p className="mt-0.5 text-[13px] text-[#6B7280]">{t(`why.${m.kind}`)}</p>
+            </div>
+          </div>
+          {m.whatsapp ? (
+            <button type="button" onClick={() => onWhatsApp(row)} className={`mt-3.5 h-12 w-full text-[16px] ${PRIMARY_BTN}`}>
+              <WhatsAppIcon size={20} />{t("moves.wa")}
+            </button>
+          ) : m.dial ? (
+            <a href={`tel:${m.dial}`} onClick={() => onDialed(row)} aria-label={t("detail.callNumber", { phone: formatPhone(m.dial) })} className={`mt-3.5 h-12 w-full text-[19px] ${PRIMARY_BTN}`}>
+              <Phone size={20} aria-hidden />
+              <Ltr>{formatPhone(m.dial)}</Ltr>
+            </a>
+          ) : null}
+        </div>
+
+        {!done && <QuickOutcomes row={row} now={now} onQuick={onQuick} />}
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         <div className={card}>
-          <h3 className="mb-2 flex items-center gap-2 text-[15px] font-semibold text-[#111827]"><User size={18} aria-hidden />{t("detail.client")}</h3>
-          <div className={line}><User size={16} className="shrink-0 text-[#6B7280]" aria-hidden /><span className="truncate [unicode-bidi:plaintext]">{row.customer_name}</span></div>
+          <h3 className="mb-1.5 flex items-center gap-2 text-[14px] font-semibold text-[#111827]"><User size={17} aria-hidden />{t("detail.clientInfo")}</h3>
           {[row.customer_phone, row.customer_phone_2].filter(Boolean).map((ph) => (
-            <a key={ph} href={`tel:${ph}`} onClick={() => onDialed(row)} className={line}><Phone size={16} className="shrink-0 text-[#6B7280]" aria-hidden /><Ltr>{formatPhone(ph)}</Ltr></a>
+            <a key={ph} href={`tel:${ph}`} onClick={() => onDialed(row)} className={line}><Phone size={15} className="shrink-0 text-[#6B7280]" aria-hidden /><Ltr>{formatPhone(ph)}</Ltr></a>
           ))}
-          <div className={line}><MapPin size={16} className="shrink-0 text-[#6B7280]" aria-hidden /><span className="truncate [unicode-bidi:plaintext]">{[row.customer_city, row.customer_address].filter(Boolean).join(" · ")}</span></div>
-          <div className={`${line} text-[13.5px] text-[#6B7280]`}>
-            <FileText size={16} className="shrink-0" aria-hidden />
+          <div className={line}><MapPin size={15} className="shrink-0 text-[#6B7280]" aria-hidden /><span className="truncate [unicode-bidi:plaintext]">{[row.customer_city, row.customer_address].filter(Boolean).join(" · ")}</span></div>
+          <div className={`${line} text-[#6B7280]`}>
+            <FileText size={15} className="shrink-0" aria-hidden />
             <span>{(row.customer_orders_count ?? 0) > 1
               ? t("detail.customerHistory", { orders: row.customer_orders_count ?? 0, delivered: row.customer_delivered_count ?? 0, returned: row.customer_returned_count ?? 0 })
               : t("detail.customerNew")}</span>
           </div>
           {!done && (
-            <button type="button" onClick={() => onWhatsApp(row)} className={`${line} font-medium text-[#16A34A]`}>
+            <button type="button" onClick={() => onWhatsApp(row)} className={`${line} mt-0.5 font-semibold text-[#15803D]`}>
               <WhatsAppIcon size={16} />{t("detail.whatsapp")}
             </button>
           )}
         </div>
         <div className={card}>
-          <h3 className="mb-2 flex items-center gap-2 text-[15px] font-semibold text-[#111827]"><Truck size={18} aria-hidden />{t("detail.carrier")}</h3>
-          {row.carrier_name && <div className={line}><span>{row.carrier_name}</span></div>}
-          {row.handler_name && <div className={line}><User size={16} className="shrink-0 text-[#6B7280]" aria-hidden /><span className="truncate [unicode-bidi:plaintext]">{row.handler_name}</span></div>}
+          <h3 className="mb-1.5 flex items-center gap-2 text-[14px] font-semibold text-[#111827]"><Truck size={17} aria-hidden />{t("detail.carrier")}</h3>
+          {row.carrier_name && <div className={line}><User size={15} className="shrink-0 text-[#6B7280]" aria-hidden /><span className="truncate">{row.carrier_name}</span></div>}
+          {row.handler_name && <div className={line}><User size={15} className="shrink-0 text-[#6B7280]" aria-hidden /><span className="truncate [unicode-bidi:plaintext]">{row.handler_name}</span></div>}
           {row.handler_phone && (
-            <a href={`tel:${row.handler_phone}`} onClick={() => onDialed(row)} className={line}><Phone size={16} className="shrink-0 text-[#6B7280]" aria-hidden /><Ltr>{formatPhone(row.handler_phone)}</Ltr></a>
+            <a href={`tel:${row.handler_phone}`} onClick={() => onDialed(row)} className={line}><Phone size={15} className="shrink-0 text-[#6B7280]" aria-hidden /><Ltr>{formatPhone(row.handler_phone)}</Ltr></a>
           )}
-          <div className={`${line} text-[13.5px] text-[#6B7280]`}>
-            <span className={`h-2 w-2 shrink-0 rounded-full ${TONE[BUCKET_TONE[row.bucket]].dot}`} aria-hidden />
+          <div className={`${line} text-[#6B7280]`}>
+            <span className={`ms-[3px] me-[3px] h-2 w-2 shrink-0 rounded-full ${TONE[BUCKET_TONE[row.bucket]].dot}`} aria-hidden />
             <span>{tStatus.has(row.status) ? tStatus(row.status) : row.status}</span>
           </div>
-          {row.latest_remark && <div className={`${line} text-[13.5px] text-[#6B7280]`}><span className="[unicode-bidi:plaintext]">« {row.latest_remark} »</span></div>}
-          {!row.carrier_name && !row.handler_name && <div className={`${line} text-[13.5px] text-[#6B7280]`}>{t("detail.notYet")}</div>}
+          {row.latest_remark && (
+            <div className="mt-1.5 rounded-lg bg-[#F3F4F6] px-2.5 py-1.5 text-[12.5px] text-[#374151] [unicode-bidi:plaintext]">« {row.latest_remark} »</div>
+          )}
+          {!row.carrier_name && !row.handler_name && <div className={`${line} text-[#6B7280]`}>{t("detail.notYet")}</div>}
           {!done && (row.handler_phone || row.handler_account_phone) && (
-            <button type="button" onClick={() => onLogAction(row, "call_courier")}
-              className="mt-2.5 flex h-10 w-full items-center justify-center rounded-lg border border-[#D1D5DB] bg-white text-sm font-semibold text-[#111827] hover:bg-[#F9FAFB]">
-              {t("detail.callCourier")}
+            <button type="button" onClick={() => onLogAction(row, "call_courier")} className={`mt-2 h-9 w-full text-[13px] ${OUTLINE_BTN} border-[#D1D5DB]`}>
+              <Phone size={15} aria-hidden />{t("detail.callCourier")}
             </button>
           )}
         </div>
       </div>
 
-      <div className={`${card} mt-3`}>
-        <h3 className="mb-1 flex items-center gap-2 text-[15px] font-semibold text-[#111827]"><Package size={18} aria-hidden />{t("detail.parcel")}</h3>
-        <div className="mt-2 flex items-end justify-between gap-2.5">
-          <div className="min-w-0">
-            {row.items.length === 0 ? <div className="text-[15px] text-[#6B7280]">—</div> : row.items.map((it, i) => (
-              <div key={i} className="text-[15px] text-[#111827]">{it.product_name}{it.variant_label ? ` · ${it.variant_label}` : ""} <Ltr>× {it.quantity}</Ltr></div>
-            ))}
-            {row.tracking_number && <div className="mt-0.5 text-[13.5px] text-[#6B7280]">{t("detail.tracking")} : <Ltr>{row.tracking_number}</Ltr></div>}
-          </div>
-          <span className="whitespace-nowrap text-[21px] font-bold text-[#111827]">{moneyText(row.total_price, market, locale)}</span>
+      <div className={`${card} mt-2.5 flex items-center gap-3`}>
+        <Package size={18} className="shrink-0 text-[#111827]" aria-hidden />
+        <span className="shrink-0 text-[14px] font-semibold text-[#111827]">{t("detail.parcel")}</span>
+        <div className="min-w-0 flex-1">
+          {item ? (
+            <div className="truncate text-[13.5px] text-[#111827]">{item.product_name}{item.variant_label ? ` · ${item.variant_label}` : ""} <Ltr>×{item.quantity}</Ltr>{row.items.length > 1 ? ` +${row.items.length - 1}` : ""}</div>
+          ) : <div className="text-[13.5px] text-[#6B7280]">—</div>}
+          {row.tracking_number && <div className="truncate text-[12.5px] text-[#6B7280]">{t("detail.tracking")} : <Ltr>{row.tracking_number}</Ltr></div>}
         </div>
+        <span className="shrink-0 whitespace-nowrap text-[18px] font-bold text-[#111827]">{moneyText(row.total_price, market, locale)}</span>
       </div>
 
       <DeliveryTimeline orderId={row.order_id} locale={locale} tz={tz} now={now} />
@@ -158,8 +191,8 @@ export function DeliveryDetailPanel({ row, market, locale, tz, now, onClose, onL
   );
 }
 
-/** Mobile full-screen detail — the prototype's "Détail du colis" phone. */
-export function DeliveryDetailScreen({ row, market, locale, tz, now, onBack, onLogAction, onWhatsApp, onDialed }: Props & { onBack: () => void }) {
+/** Mobile full-screen detail. */
+export function DeliveryDetailScreen({ row, market, locale, tz, now, onBack, onLogAction, onWhatsApp, onDialed, onQuick }: Props & { onBack: () => void }) {
   const t = useTranslations("delivery");
   const label = useSituationLabel();
   const created = useCreated(locale, tz);
@@ -190,13 +223,13 @@ export function DeliveryDetailScreen({ row, market, locale, tz, now, onBack, onL
           <div className="flex flex-col items-end gap-1.5">
             <Ltr className="text-sm text-[#6B7280]">#{orderRef(row)}</Ltr>
             <span className="whitespace-nowrap text-[26px] font-bold leading-none">{moneyText(row.total_price, market, locale)}</span>
-            <Chip tone={s.tone}>{label(s)}</Chip>
+            <Chip tone={s.tone} icon={SIT_ICON[s.key]}>{label(s)}</Chip>
           </div>
         </div>
 
         <button type="button" onClick={() => (m.whatsapp ? onWhatsApp(row) : onLogAction(row))}
           className={`${block} ${EDGE} ${TONE[BUCKET_TONE[row.bucket]].edge} flex w-full items-center gap-3 text-start`}>
-          <span className="grid h-9 w-9 shrink-0 place-items-center"><Icon size={22} aria-hidden /></span>
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#DCFCE7] text-[#15803D]"><Icon size={22} aria-hidden /></span>
           <span className="min-w-0">
             <small className="block text-[13.5px] text-[#6B7280]">{t("detail.suggested")}</small>
             <b className="block text-[17px] font-bold">{t(`moves.${m.kind}`)}</b>
@@ -204,6 +237,8 @@ export function DeliveryDetailScreen({ row, market, locale, tz, now, onBack, onL
           </span>
           <Forward size={20} className="ms-auto shrink-0 text-[#6B7280]" aria-hidden />
         </button>
+
+        {!done && <div className={block}><QuickOutcomes row={row} now={now} onQuick={onQuick} /></div>}
 
         <div className={block}>
           <h3 className="mb-1 flex items-center gap-2 text-[15px] font-semibold"><User size={18} aria-hidden />{t("detail.clientInfo")}</h3>
@@ -222,7 +257,7 @@ export function DeliveryDetailScreen({ row, market, locale, tz, now, onBack, onL
           <h3 className="mb-1 flex items-center gap-2 text-[15px] font-semibold"><Truck size={18} aria-hidden />{t("detail.deliveryInfo")}</h3>
           <div className={kv}><span className="text-[#6B7280]">{t("detail.carrierLabel")}</span><span className="font-medium">{row.carrier_name ?? "—"}</span></div>
           <div className={kv}><span className="text-[#6B7280]">{t("detail.courier")}</span><span className="font-medium [unicode-bidi:plaintext]">{row.handler_name ?? "—"}</span></div>
-          <div className={kv}><span className="text-[#6B7280]">{t("detail.status")}</span><Chip tone={s.tone}>{label(s)}</Chip></div>
+          <div className={kv}><span className="text-[#6B7280]">{t("detail.status")}</span><Chip tone={s.tone} icon={SIT_ICON[s.key]}>{label(s)}</Chip></div>
           <div className={kv}><span className="text-[#6B7280]">{t("detail.createdAt")}</span><span className="font-medium">{created(row.created_at)}</span></div>
         </div>
 
@@ -234,18 +269,18 @@ export function DeliveryDetailScreen({ row, market, locale, tz, now, onBack, onL
       {!done && (
         <div className="absolute inset-x-0 bottom-0 flex gap-2 border-t border-[#E5E7EB] bg-white px-3 pb-6 pt-3">
           {m.whatsapp || !dial ? (
-            <button type="button" onClick={() => onWhatsApp(row)} className="flex h-[50px] min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-[10px] bg-[#111111] px-2.5 text-[14.5px] font-semibold text-white">
+            <button type="button" onClick={() => onWhatsApp(row)} className={`h-[50px] min-w-0 flex-1 px-2.5 text-[14.5px] ${PRIMARY_BTN}`}>
               <WhatsAppIcon size={18} />{t("moves.wa")}
             </button>
           ) : (
-            <a href={`tel:${dial}`} onClick={() => onDialed(row)} className="flex h-[50px] min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-[10px] bg-[#111111] px-2.5 text-[14.5px] font-semibold text-white">
+            <a href={`tel:${dial}`} onClick={() => onDialed(row)} className={`h-[50px] min-w-0 flex-1 px-2.5 text-[14.5px] ${PRIMARY_BTN}`}>
               <Phone size={18} aria-hidden />{t("detail.callNumber", { phone: formatPhone(dial) })}
             </a>
           )}
-          <button type="button" onClick={() => onWhatsApp(row)} aria-label={t("detail.whatsapp")} className="grid h-[50px] w-[50px] place-items-center rounded-[10px] bg-[#E8F6EE] text-[#16A34A]">
+          <button type="button" onClick={() => onWhatsApp(row)} aria-label={t("detail.whatsapp")} className={`h-[50px] w-[50px] ${OUTLINE_BTN} border-[#86EFAC] !text-[#15803D]`}>
             <WhatsAppIcon size={22} />
           </button>
-          <button type="button" onClick={() => onLogAction(row)} className="flex h-[50px] items-center gap-2 rounded-lg border border-[#D1D5DB] bg-white px-3 text-sm font-semibold">
+          <button type="button" onClick={() => onLogAction(row)} className={`h-[50px] px-3 text-sm ${OUTLINE_BTN} border-[#D1D5DB]`}>
             <PenLine size={17} aria-hidden />{t("detail.logShort")}
           </button>
         </div>

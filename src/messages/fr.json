@@ -5506,8 +5506,8 @@
       "done": "Terminées"
     },
     "cols": {
-      "client": "Client / Colis",
-      "situation": "Situation",
+      "client": "Détails du colis",
+      "situation": "Situation / durée",
       "action": "Action",
       "amount": "Montant"
     },
@@ -5573,7 +5573,7 @@
       "details": "Ce colis est terminé."
     },
     "detail": {
-      "recommended": "Prochaine action recommandée",
+      "recommended": "Prochaine action",
       "suggested": "Action suggérée",
       "callNumber": "Appeler {phone}",
       "callBranch": "Appeler l'agence · {phone}",
@@ -5582,7 +5582,7 @@
       "client": "Client",
       "carrier": "Transporteur",
       "parcel": "Colis",
-      "history": "Historique",
+      "history": "Journal d'activité",
       "created": "Créé le {date}",
       "notYet": "Pas encore remis au transporteur",
       "whatsapp": "WhatsApp",
@@ -5603,11 +5603,14 @@
       "close": "Fermer",
       "back": "Retour",
       "callCourier": "Appeler le livreur",
-      "noEvents": "Aucun événement pour l'instant."
+      "noEvents": "Aucun événement pour l'instant.",
+      "callResult": "Résultat de l'appel",
+      "callResultHint": "Un tap enregistre le résultat et met à jour la recommandation.",
+      "carrierNote": "Message du livreur"
     },
     "tl": {
       "all": "Tout",
-      "mine": "Mes actions",
+      "mine": "Actions",
       "carrier": "Transporteur"
     },
     "timeline": {
@@ -5656,6 +5659,16 @@
         "none": ""
       }
     },
+    "quick": {
+      "reached_will_receive": "A répondu",
+      "no_answer": "Pas de réponse",
+      "reached_reschedule": "Promet de recevoir",
+      "reached_wants_cancel": "Refuse le colis",
+      "reattempt_promised": "Nouvelle tentative",
+      "courier_no_answer": "Livreur injoignable",
+      "parcel_located": "Colis localisé",
+      "return_confirmed": "Retour confirmé"
+    },
     "wa": {
       "title": "Envoyer sur WhatsApp",
       "template": "Choisir le modèle",
@@ -5691,9 +5704,26 @@
     "stalledHide": "Masquer",
     "pick": "Sélectionne un colis pour voir son détail.",
     "offline": "Mise à jour automatique en pause · la liste se rafraîchit toutes les minutes",
+    "shell": {
+      "offline": "Hors ligne",
+      "offlineSub": "Les actions seront synchronisées au retour de la connexion",
+      "online": "En ligne",
+      "onlineSub": "Mises à jour en direct"
+    },
     "loadError": "Impossible de charger les colis.",
     "retry": "Réessayer",
     "selectMarket": "Choisis un marché pour voir les colis.",
-    "filters": "Filtres"
+    "filters": "Filtres",
+    "sort": {
+      "label": "Trier",
+      "priority": "Priorité",
+      "amount": "Montant",
+      "oldest": "Plus ancien"
+    },
+    "filter": {
+      "label": "Filtrer",
+      "riskyOnly": "Colis à risque seulement",
+      "hideDone": "Masquer les terminées"
+    }
   }
 }

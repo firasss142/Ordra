@@ -59,12 +59,13 @@ function AgentTabInner({
         "inline-flex items-center no-underline transition-colors duration-fast",
         "border-b-2 -mb-px",
         inline
-          ? // Inside the header row: full-height, compact, auto-width.
-            "h-full gap-2 px-3.5 text-[13.5px]"
+          ? // Inside the header row: full-height, compact, auto-width. The
+            // active tab sits on a tinted block, the way the reference does.
+            "h-full gap-2 px-4 text-[14px] rounded-t-lg"
           : // Standalone band on mobile: equal-width columns that split the row.
             "flex-1 justify-center gap-1.5 px-1 py-3.5 text-[13px]",
         active
-          ? "font-bold text-agent-primary border-agent-primary"
+          ? `font-bold text-[#15803D] border-[#15803D] ${inline ? "bg-[#F0FDF4]" : ""}`
           : "font-semibold text-agent-ink-3 border-transparent hover:text-agent-on-surface",
       ].join(" ")}
     >
@@ -72,11 +73,11 @@ function AgentTabInner({
         size={16}
         strokeWidth={2}
         aria-hidden="true"
-        className={active ? "text-agent-primary" : "text-agent-ink-3 opacity-70"}
+        className={active ? "text-[#15803D]" : "text-agent-ink-3 opacity-70"}
       />
       <span className="whitespace-nowrap">{tab.label}</span>
       {tab.badge ? (
-        <span className="ms-0.5 inline-grid h-5 min-w-5 place-items-center rounded-full bg-[#FEF3C7] px-1.5 text-xs font-bold tabular-nums text-[#92400E]">
+        <span className="ms-0.5 inline-grid h-5 min-w-5 place-items-center rounded-full bg-[#DCFCE7] px-1.5 text-xs font-bold tabular-nums text-[#15803D]">
           {tab.badge}
         </span>
       ) : null}

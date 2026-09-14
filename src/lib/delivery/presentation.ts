@@ -151,3 +151,52 @@ export function orderRef(row: Pick<WorklistRow, "tracking_number" | "external_id
   const id = row.external_id ?? row.order_id;
   return id.length > 10 ? id.slice(0, 8).toUpperCase() : id;
 }
+
+/**
+ * The colour of the row's action button follows the urgency of the move:
+ * red to save a return, amber when a customer must be reached now, green for
+ * WhatsApp, grey for everything the carrier is handling.
+ */
+export function moveTone(row: WorklistRow, now: number = Date.now()): Tone {
+  const m = moveFor(row, now);
+  if (m.kind === "save") return "red";
+  if (m.kind === "wa") return "green";
+  if (row.bucket === "act_now" && (m.kind === "call" || m.kind === "call2" || m.kind === "before")) return "amber";
+  return "grey";
+}
+
+export type Reminder = "in2h" | "tomorrow10" | "none";
+
+/** A promise of a callback suggests one; a settled outcome suggests none. */
+export const SUGGESTED_REMINDER: Record<string, Reminder> = {
+  reached_reschedule: "in2h", no_answer: "in2h", phone_off: "in2h", courier_no_answer: "in2h", reattempt_promised: "in2h",
+  reached_will_receive: "tomorrow10", reached_address_fix: "tomorrow10", parcel_located: "tomorrow10",
+};
+
+export function suggestedReminder(outcome: string): Reminder {
+  return SUGGESTED_REMINDER[outcome] ?? "none";
+}
+
+export interface QuickOutcome {
+  outcome: string;
+  actionType: AgentActionType;
+  tone: Tone | "blue";
+  reminder: Reminder;
+}
+
+const CUSTOMER_QUICK: [string, QuickOutcome["tone"]][] = [
+  ["reached_will_receive", "green"], ["no_answer", "grey"], ["reached_reschedule", "blue"], ["reached_wants_cancel", "red"],
+];
+const CARRIER_QUICK: [string, QuickOutcome["tone"]][] = [
+  ["reattempt_promised", "green"], ["courier_no_answer", "grey"], ["parcel_located", "blue"], ["return_confirmed", "red"],
+];
+
+/**
+ * The four outcomes the detail panel records in one tap for the recommended
+ * call. A WhatsApp move, a parcel to follow or a finished one have none.
+ */
+export function quickOutcomesFor(move: Move): QuickOutcome[] {
+  if (!move.actionType || move.actionType === "whatsapp_customer" || move.actionType === "note") return [];
+  const list = move.actionType === "call_customer" ? CUSTOMER_QUICK : CARRIER_QUICK;
+  return list.map(([outcome, tone]) => ({ outcome, actionType: move.actionType as AgentActionType, tone, reminder: suggestedReminder(outcome) }));
+}

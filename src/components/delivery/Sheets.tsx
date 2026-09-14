@@ -6,6 +6,7 @@ import { Building2, NotebookText, Phone, Truck, X } from "lucide-react";
 import type { WorklistRow } from "@/lib/delivery/types";
 import { OUTCOMES_BY_ACTION, NOTE_MAX, type AgentActionType } from "@/lib/delivery/actions";
 import { inTwoHours, tomorrowAt } from "@/lib/delivery/schedule";
+import { suggestedReminder, type Reminder } from "@/lib/delivery/presentation";
 import { buildWaLink, renderTemplate, suggestTemplate, TEMPLATE_KEYS, type CustomerLang, type TemplateKey } from "@/lib/delivery/whatsapp-templates";
 import type { QueuedBody } from "@/hooks/useDeliveryActionQueue";
 import { WhatsAppIcon } from "./ui";
@@ -54,18 +55,12 @@ const Label = ({ children, extra }: { children: React.ReactNode; extra?: string 
 );
 
 type Picked = Exclude<AgentActionType, "whatsapp_customer">;
-type Reminder = "in2h" | "tomorrow10" | "none";
 
 const OUTCOME_TONE: Record<string, string> = {
   reached_will_receive: "bg-[#DCFCE7] text-[#15803D]", reached_address_fix: "bg-[#DCFCE7] text-[#15803D]",
   reattempt_promised: "bg-[#DCFCE7] text-[#15803D]", parcel_located: "bg-[#DCFCE7] text-[#15803D]",
   no_answer: "bg-[#FEF3C7] text-[#111827]", wrong_number: "bg-[#FEF3C7] text-[#111827]", phone_off: "bg-[#FEF3C7] text-[#111827]",
   courier_no_answer: "bg-[#FEF3C7] text-[#111827]", reached_wants_cancel: "bg-[#FEF3C7] text-[#111827]",
-};
-/** A promise of a callback suggests one; a settled outcome suggests none. */
-const SUGGESTED_REMINDER: Record<string, Reminder> = {
-  reached_reschedule: "in2h", no_answer: "in2h", phone_off: "in2h", courier_no_answer: "in2h", reattempt_promised: "in2h",
-  reached_will_receive: "tomorrow10", reached_address_fix: "tomorrow10", parcel_located: "tomorrow10",
 };
 
 export function ActionSheet({ initialType, tz, now, onClose, onSubmit }: {
@@ -118,7 +113,7 @@ export function ActionSheet({ initialType, tz, now, onClose, onSubmit }: {
           <div className="mb-[18px] flex flex-wrap gap-2">
             {outcomes.map((o) => (
               <button key={o} type="button" aria-pressed={outcome === o}
-                onClick={() => { setOutcome(o); if (reminder === null) setReminder(SUGGESTED_REMINDER[o] ?? "none"); }}
+                onClick={() => { setOutcome(o); if (reminder === null) setReminder(suggestedReminder(o)); }}
                 className={`h-10 whitespace-nowrap rounded-full px-[18px] text-[14.5px] ${outcome === o ? `font-semibold ${OUTCOME_TONE[o] ?? "bg-[#DBEAFE] text-[#1D4ED8]"}` : "bg-[#F3F4F6] text-[#374151]"}`}>
                 {t(`sheet.outcomes.${o}`)}
               </button>

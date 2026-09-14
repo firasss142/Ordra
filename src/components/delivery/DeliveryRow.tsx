@@ -4,14 +4,14 @@ import { memo } from "react";
 import { useTranslations } from "next-intl";
 import { Clock, MapPin, Package, Phone, RotateCcw, Truck, Check, FileText } from "lucide-react";
 import type { WorklistRow } from "@/lib/delivery/types";
-import { BUCKET_TONE, formatPhone, moveFor, orderRef, situationOf, type MoveKind } from "@/lib/delivery/presentation";
-import { Chip, EDGE, Ltr, TONE, WhatsAppIcon, type IconComponent, moneyText, useSituationLabel, useSituationSub, useWhen } from "./ui";
+import { BUCKET_TONE, formatPhone, moveFor, moveTone, orderRef, situationOf, type MoveKind } from "@/lib/delivery/presentation";
+import { Chip, EDGE, Ltr, OUTLINE_BTN, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, moneyText, useSituationLabel, useSituationSub, useWhen } from "./ui";
 
 const MOVE_ICON: Record<MoveKind, IconComponent> = {
-  call2: Phone, call: Phone, before: Phone, courier: Truck, save: RotateCcw, wa: WhatsAppIcon, track: Truck, details: Check,
+  call2: Phone, call: Phone, before: Phone, courier: Phone, save: RotateCcw, wa: WhatsAppIcon, track: Truck, details: Check,
 };
 /** The mobile square button uses the prototype's icon, which is not always the desktop one. */
-const MOBILE_ICON: Partial<typeof MOVE_ICON> = { courier: Phone, save: Package, details: FileText };
+const MOBILE_ICON: Partial<typeof MOVE_ICON> = { save: Package, details: FileText };
 
 export interface DeliveryRowProps {
   row: WorklistRow;
@@ -34,9 +34,9 @@ function product(row: WorklistRow) {
 }
 
 /**
- * One parcel. A single element that lays out as the prototype's table row on
- * desktop and as its card on mobile, so nothing is rendered twice for screen
- * readers except the two action buttons, one of which is always hidden.
+ * One parcel. A single element that lays out as the table row on desktop and
+ * as the card on mobile, so nothing is rendered twice for screen readers
+ * except the two action buttons, one of which is always hidden.
  */
 function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, onSelect, onMove, onWhatsApp }: DeliveryRowProps) {
   const t = useTranslations("delivery");
@@ -46,11 +46,14 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
   const s = situationOf(row, now);
   const m = moveFor(row, now);
   const tone = BUCKET_TONE[row.bucket];
+  const btnTone = moveTone(row, now);
   const Icon = MOVE_ICON[m.kind];
   const MobileIcon = MOBILE_ICON[m.kind] ?? Icon;
+  const SitIcon = SIT_ICON[s.key];
   const p = product(row);
   const moved = row.latest_event_at ?? new Date(now - (row.hours_on_status ?? 0) * 3_600_000).toISOString();
   const moveLabel = t(`moves.${m.kind}`);
+  const phones = [row.customer_phone, row.customer_phone_2].filter(Boolean).map(formatPhone).join(" · ");
   const act = (e: React.MouseEvent) => {
     e.stopPropagation();
     onMove(row);
@@ -67,53 +70,45 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
       }}
       className={[
         EDGE, TONE[tone].edge,
-        "mb-2 grid cursor-pointer gap-x-2.5 rounded-xl border bg-white text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB]",
+        "mb-2 grid cursor-pointer gap-x-2.5 rounded-[10px] border text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#15803D]/40",
         "grid-cols-[minmax(0,1fr)_auto] px-4 py-3 ps-[18px]",
-        "lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_200px_92px] lg:items-center lg:gap-x-4 lg:rounded-[10px] lg:ps-5",
-        selected ? "border-[1.5px] border-[#111111]" : "border-[#E5E7EB] hover:border-[#D1D5DB]",
+        "lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1.15fr)_minmax(0,1.1fr)_96px] lg:items-center lg:gap-x-4 lg:px-4 lg:py-3 lg:ps-5",
+        selected ? "border-[1.5px] border-[#15803D] bg-[#F0FDF4]" : "border-[#E5E7EB] bg-white hover:border-[#C9CCCF]",
       ].join(" ")}
     >
-      {/* Client / colis */}
+      {/* Détails du colis */}
       <div className="col-start-1 row-start-1 min-w-0">
-        <div className="flex flex-wrap items-baseline gap-x-2.5">
-          <span className="text-[17px] font-bold text-[#111827] [unicode-bidi:plaintext] lg:text-base lg:font-semibold">{row.customer_name}</span>
-          <Ltr className="text-[15px] text-[#6B7280] lg:text-sm">#{orderRef(row)}</Ltr>
+        <div className="flex flex-wrap items-baseline gap-x-2">
+          <span className="text-[17px] font-bold text-[#111827] [unicode-bidi:plaintext] lg:text-[15px]">{row.customer_name}</span>
+          <Ltr className="text-[15px] text-[#6B7280] lg:text-[13.5px]">#{orderRef(row)}</Ltr>
         </div>
-        <div className="mt-0.5 hidden text-sm text-[#374151] lg:block">
-          <Ltr>{[row.customer_phone, row.customer_phone_2].filter(Boolean).map(formatPhone).join(" · ")}</Ltr>
-        </div>
-        <div className="mt-1.5 hidden flex-wrap items-center gap-x-3.5 gap-y-1 text-[13.5px] text-[#374151] lg:flex">
-          <span className="inline-flex items-center gap-1.5"><MapPin size={16} className="text-[#6B7280]" aria-hidden />{row.customer_city}</span>
-          {p && <span className="inline-flex items-center gap-1.5"><Package size={16} className="text-[#6B7280]" aria-hidden />{p.name} <Ltr>×{p.qty}</Ltr></span>}
+        {phones && (
+          <div className="mt-0.5 flex items-center gap-1.5 text-sm text-[#374151]">
+            <Phone size={14} className="shrink-0 text-[#9CA3AF] lg:hidden" aria-hidden />
+            <Ltr>{phones}</Ltr>
+          </div>
+        )}
+        <div className="mt-0.5 hidden flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[#6B7280] lg:flex">
+          <span className="inline-flex items-center gap-1"><MapPin size={14} aria-hidden />{[row.customer_city, row.customer_address].filter(Boolean).join(" · ")}</span>
+          {p && <span className="inline-flex items-center gap-1"><Package size={14} aria-hidden />{p.name} <Ltr>×{p.qty}</Ltr></span>}
         </div>
         <div className="mt-0.5 text-[14.5px] text-[#6B7280] lg:hidden">
           {row.customer_city}{p ? <> · {p.name} <Ltr>×{p.qty}</Ltr></> : null}
         </div>
-        {/* The number to dial is the one thing a phone card must carry; on
-            desktop it already sits under the name. */}
-        {row.customer_phone && (
-          <div className="mt-0.5 flex items-center gap-1.5 text-[14px] text-[#374151] lg:hidden">
-            <Phone size={14} className="shrink-0 text-[#9CA3AF]" aria-hidden />
-            <Ltr>{formatPhone(row.customer_phone)}</Ltr>
-          </div>
-        )}
         {showAgent && row.agent_name && <div className="mt-1 text-[12.5px] text-[#6B7280]">{row.agent_name}</div>}
       </div>
 
-      {/* Situation */}
+      {/* Situation / durée */}
       <div className="col-start-1 row-start-2 mt-1.5 flex flex-col items-start gap-1.5 lg:col-start-2 lg:row-start-1 lg:mt-0 lg:gap-0">
-        <Chip tone={s.tone}>{label(s)}</Chip>
-        <div className="mt-1.5 hidden text-[13.5px] text-[#6B7280] [unicode-bidi:plaintext] lg:block">{sub(s)}</div>
-        <div className="mt-1 hidden items-center gap-1.5 text-[13px] text-[#6B7280] lg:flex">
-          <Clock size={15} aria-hidden /><span>{when(moved)}</span>
+        <Chip tone={s.tone} icon={SitIcon}>{label(s)}</Chip>
+        <div className="mt-1 text-[13px] text-[#6B7280] [unicode-bidi:plaintext]">{sub(s)}</div>
+        <div className="mt-0.5 hidden items-center gap-1 text-[13px] text-[#6B7280] lg:flex">
+          <Clock size={13} aria-hidden /><span>{when(moved)}</span>
         </div>
         {/* A second number only matters when it is the one to call. */}
         {m.kind === "call2" && m.dial && (
           <span className="flex items-center gap-2 text-sm font-medium text-[#111827] lg:hidden"><Phone size={16} aria-hidden /><Ltr>{formatPhone(m.dial)}</Ltr></span>
         )}
-        {/* The move label now lives on the button, so this line carries why
-            the parcel is here instead of repeating it. */}
-        <span className="text-[13.5px] text-[#6B7280] [unicode-bidi:plaintext] lg:hidden">{sub(s)}</span>
       </div>
 
       {/* Action */}
@@ -123,7 +118,7 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
         <button
           type="button"
           onClick={act}
-          className={`flex w-[86px] flex-col items-center justify-center gap-1 rounded-xl border px-1.5 py-2 lg:hidden ${m.whatsapp ? "border-[#BFE3CC] bg-[#E8F6EE] text-[#16A34A]" : "border-[#D1D5DB] bg-white text-[#111827]"}`}
+          className={`flex w-[86px] flex-col items-center justify-center gap-1 rounded-xl border px-1.5 py-2 lg:hidden ${m.whatsapp ? "border-[#86EFAC] bg-[#F0FDF4] text-[#15803D]" : `bg-white text-[#111827] ${TONE[btnTone].border}`}`}
         >
           <MobileIcon size={22} aria-hidden />
           <span className="w-full text-balance text-center text-[11px] font-semibold leading-tight">{moveLabel}</span>
@@ -131,25 +126,25 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
         <button
           type="button"
           onClick={act}
-          className="hidden h-10 min-w-0 items-center gap-2 whitespace-nowrap rounded-lg border border-[#D1D5DB] bg-white px-3 text-sm font-semibold text-[#111827] hover:bg-[#F9FAFB] lg:inline-flex"
+          className={`hidden h-11 min-w-0 px-4 text-[13.5px] lg:inline-flex ${OUTLINE_BTN} ${m.whatsapp ? "border-[#86EFAC] text-[#15803D]" : TONE[btnTone].border}`}
         >
-          <Icon size={18} aria-hidden className="shrink-0" />
+          <Icon size={17} aria-hidden className={`shrink-0 ${m.whatsapp ? "text-[#15803D]" : TONE[btnTone].icon}`} />
           <span className="truncate">{moveLabel}</span>
         </button>
-        {row.bucket !== "done" && (
+        {row.bucket !== "done" && !m.whatsapp && (
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onWhatsApp(row); }}
             aria-label={t("detail.whatsapp")}
-            className="hidden h-10 w-10 place-items-center rounded-lg bg-[#E8F6EE] text-[#16A34A] lg:grid"
+            className={`hidden h-11 w-11 shrink-0 lg:inline-flex ${OUTLINE_BTN} border-[#86EFAC] !text-[#15803D]`}
           >
-            <WhatsAppIcon size={18} />
+            <WhatsAppIcon size={20} />
           </button>
         )}
       </div>
 
       {/* Montant */}
-      <div className="col-start-2 row-start-1 whitespace-nowrap text-end text-[17px] font-bold text-[#111827] lg:col-start-4 lg:text-lg">
+      <div className="col-start-2 row-start-1 whitespace-nowrap text-end text-[17px] font-bold text-[#111827] lg:col-start-4 lg:text-[19px]">
         {moneyText(row.total_price, market, locale)}
       </div>
     </article>

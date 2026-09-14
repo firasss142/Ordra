@@ -16,6 +16,17 @@ export function countBuckets(rows: WorklistRow[]): BucketCounts {
   return counts;
 }
 
+/** What each bucket is worth in the market currency: the filter cards show it under the count. */
+export function sumBuckets(rows: WorklistRow[]): BucketCounts {
+  const sums: BucketCounts = { all: 0, returning: 0, act_now: 0, waiting_customer: 0, waiting_carrier: 0, done: 0 };
+  for (const r of rows) {
+    const v = r.total_price ?? 0;
+    sums.all += v;
+    sums[r.bucket] += v;
+  }
+  return sums;
+}
+
 export function groupByBucket(rows: WorklistRow[]): Record<Bucket, WorklistRow[]> {
   const g: Record<Bucket, WorklistRow[]> = { returning: [], act_now: [], waiting_customer: [], waiting_carrier: [], done: [] };
   for (const r of rows) g[r.bucket].push(r);

@@ -5506,8 +5506,8 @@
       "done": "مكتملة"
     },
     "cols": {
-      "client": "العميل / الطرد",
-      "situation": "الوضع",
+      "client": "تفاصيل الطلب",
+      "situation": "الحالة / المدة",
       "action": "الإجراء",
       "amount": "المبلغ"
     },
@@ -5573,7 +5573,7 @@
       "details": "هذا الطرد مكتمل."
     },
     "detail": {
-      "recommended": "الإجراء الموصى به",
+      "recommended": "الإجراء التالي",
       "suggested": "الإجراء المقترح",
       "callNumber": "اتصل بـ {phone}",
       "callBranch": "اتصل بالفرع · {phone}",
@@ -5582,7 +5582,7 @@
       "client": "العميل",
       "carrier": "شركة التوصيل",
       "parcel": "الطرد",
-      "history": "السجل",
+      "history": "سجل النشاط",
       "created": "أُنشئ في {date}",
       "notYet": "لم يُسلَّم بعد لشركة التوصيل",
       "whatsapp": "واتساب",
@@ -5603,11 +5603,14 @@
       "close": "إغلاق",
       "back": "رجوع",
       "callCourier": "اتصل بالمندوب",
-      "noEvents": "لا أحداث بعد."
+      "noEvents": "لا أحداث بعد.",
+      "callResult": "تسجيل نتيجة المكالمة",
+      "callResultHint": "نقرة واحدة تسجل النتيجة وتحدّث التوصية.",
+      "carrierNote": "رسالة المندوب"
     },
     "tl": {
       "all": "الكل",
-      "mine": "إجراءاتي",
+      "mine": "إجراءات",
       "carrier": "شركة التوصيل"
     },
     "timeline": {
@@ -5656,6 +5659,16 @@
         "none": ""
       }
     },
+    "quick": {
+      "reached_will_receive": "تم الرد",
+      "no_answer": "لا إجابة",
+      "reached_reschedule": "وعد بالاستلام",
+      "reached_wants_cancel": "رفض الاستلام",
+      "reattempt_promised": "وعد بمحاولة",
+      "courier_no_answer": "المندوب لا يرد",
+      "parcel_located": "تم تحديد الطرد",
+      "return_confirmed": "تأكيد الإرجاع"
+    },
     "wa": {
       "title": "إرسال عبر واتساب",
       "template": "اختر القالب",
@@ -5691,9 +5704,26 @@
     "stalledHide": "إخفاء",
     "pick": "اختر طرداً لعرض تفاصيله.",
     "offline": "التحديث التلقائي متوقف · تُحدَّث القائمة كل دقيقة",
+    "shell": {
+      "offline": "غير متصل",
+      "offlineSub": "سيتم مزامنة الإجراءات عند عودة الاتصال",
+      "online": "متصل",
+      "onlineSub": "التحديث مباشر"
+    },
     "loadError": "تعذّر تحميل الطرود.",
     "retry": "إعادة المحاولة",
     "selectMarket": "اختر سوقاً لعرض الطرود.",
-    "filters": "الفلاتر"
+    "filters": "الفلاتر",
+    "sort": {
+      "label": "ترتيب",
+      "priority": "الأولوية",
+      "amount": "المبلغ",
+      "oldest": "الأقدم"
+    },
+    "filter": {
+      "label": "تصفية",
+      "riskyOnly": "الشحنات الحساسة فقط",
+      "hideDone": "إخفاء المكتملة"
+    }
   }
 }
