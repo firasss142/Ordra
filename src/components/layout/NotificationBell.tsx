@@ -529,9 +529,10 @@ function ToastBanner({
     <div
       role="status"
       aria-live="polite"
+      // On phones the agent shell has a bottom tab bar; the toast sits above it.
+      className="bottom-24 lg:bottom-6"
       style={{
         position: "fixed",
-        bottom: 24,
         insetInlineEnd: 24,
         backgroundColor: "#1A1A1A",
         color: "#FFFFFF",

@@ -35,12 +35,12 @@ export function AgentDashboardShell({
   const t = useTranslations("delivery.shell");
   const live = useBroadcastConnected(user.market_id ? [ordersTopic(user.market_id)] : []);
   const status = (
-    <div className="hidden md:flex flex-col items-start leading-tight">
-      <span className={`inline-flex items-center gap-1.5 text-[13px] font-semibold ${live ? "text-[#15803D]" : "text-[#B91C1C]"}`}>
+    <div className={`flex flex-col items-center rounded-xl px-2.5 py-1 leading-tight ${live ? "bg-[#F0FDF4]" : "bg-[#FEF2F2]"} md:items-start md:bg-transparent md:px-0 md:py-0`}>
+      <span className={`inline-flex items-center gap-1.5 text-[12.5px] font-semibold md:text-[13px] ${live ? "text-[#15803D]" : "text-[#B91C1C]"}`}>
         <span aria-hidden className={`h-2 w-2 rounded-full ${live ? "bg-[#22C55E]" : "bg-[#EF4444]"}`} />
         {live ? t("online") : t("offline")}
       </span>
-      <span className="text-[11px] text-agent-ink-3">{live ? t("onlineSub") : t("offlineSub")}</span>
+      <span className="text-[10px] text-agent-ink-3 md:text-[11px]">{live ? t("onlineSub") : t("offlineSub")}</span>
     </div>
   );
 
@@ -71,8 +71,11 @@ export function AgentDashboardShell({
             statusSlot={status}
           />
         </div>
+        {/* Phones get the bottom tab bar; the padding keeps the last row above it. */}
+        <div className="pb-[72px] lg:pb-0">
+          <AgentTabsContainer user={user}>{children}</AgentTabsContainer>
+        </div>
         <AgentNavTabs user={user} />
-        <AgentTabsContainer user={user}>{children}</AgentTabsContainer>
       </div>
     </QueueSearchProvider>
   );

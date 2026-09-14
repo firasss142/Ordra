@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { useTranslations } from "next-intl";
-import { Clock, MapPin, Package, Phone, RotateCcw, Truck, Check, FileText } from "lucide-react";
+import { ArrowRight, Clock, MapPin, Package, Phone, RotateCcw, Truck, Check } from "lucide-react";
 import type { WorklistRow } from "@/lib/delivery/types";
 import { BUCKET_TONE, formatPhone, moveFor, moveTone, orderRef, situationOf, type MoveKind } from "@/lib/delivery/presentation";
 import { Chip, EDGE, Ltr, Money, OUTLINE_BTN, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, useSituationLabel, useSituationSub, useWhen } from "./ui";
@@ -10,8 +10,6 @@ import { Chip, EDGE, Ltr, Money, OUTLINE_BTN, SIT_ICON, TONE, WhatsAppIcon, type
 const MOVE_ICON: Record<MoveKind, IconComponent> = {
   call2: Phone, call: Phone, before: Phone, courier: Phone, save: RotateCcw, wa: WhatsAppIcon, track: Truck, details: Check,
 };
-/** The mobile square button uses the prototype's icon, which is not always the desktop one. */
-const MOBILE_ICON: Partial<typeof MOVE_ICON> = { save: Package, details: FileText };
 
 export interface DeliveryRowProps {
   row: WorklistRow;
@@ -48,7 +46,6 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
   const tone = BUCKET_TONE[row.bucket];
   const btnTone = moveTone(row, now);
   const Icon = MOVE_ICON[m.kind];
-  const MobileIcon = MOBILE_ICON[m.kind] ?? Icon;
   const SitIcon = SIT_ICON[s.key];
   const p = product(row);
   const moved = row.latest_event_at ?? new Date(now - (row.hours_on_status ?? 0) * 3_600_000).toISOString();
@@ -71,7 +68,7 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
       className={[
         EDGE, TONE[tone].edge,
         "mb-2 grid cursor-pointer gap-x-2.5 rounded-[10px] border text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#15803D]/40",
-        "grid-cols-[minmax(0,1fr)_auto] px-4 py-3 ps-[18px]",
+        "grid-cols-[minmax(0,1fr)_auto] px-3.5 py-3 ps-4",
         "lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1.15fr)_minmax(0,1.1fr)_96px] lg:items-center lg:gap-x-4 lg:px-4 lg:py-2.5 lg:ps-5",
         selected ? "border-[1.5px] border-[#15803D] bg-[#F0FDF4]" : "border-[#E5E7EB] bg-white hover:border-[#C9CCCF]",
       ].join(" ")}
@@ -79,49 +76,41 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
       {/* Détails du colis */}
       <div className="col-start-1 row-start-1 min-w-0">
         <div className="flex flex-wrap items-baseline gap-x-2">
-          <span className="text-[17px] font-bold text-[#111827] [unicode-bidi:plaintext] lg:text-[15px]">{row.customer_name}</span>
-          <Ltr className="text-[15px] text-[#6B7280] lg:text-[13.5px]">#{orderRef(row)}</Ltr>
+          <span className="text-[16px] font-bold text-[#111827] [unicode-bidi:plaintext] lg:text-[15px]">{row.customer_name}</span>
+          <Ltr className="text-[13.5px] text-[#6B7280]">#{orderRef(row)}</Ltr>
         </div>
         {phones && (
-          <div className="mt-0.5 flex items-center gap-1.5 text-sm text-[#374151]">
-            <Phone size={14} className="shrink-0 text-[#9CA3AF] lg:hidden" aria-hidden />
+          <div className="mt-0.5 hidden items-center gap-1.5 text-sm text-[#374151] lg:flex">
             <Ltr>{phones}</Ltr>
           </div>
         )}
-        <div className="mt-0.5 hidden flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[#6B7280] lg:flex">
-          <span className="inline-flex items-center gap-1"><MapPin size={14} aria-hidden />{[row.customer_city, row.customer_address].filter(Boolean).join(" · ")}</span>
-          {p && <span className="inline-flex items-center gap-1"><Package size={14} aria-hidden />{p.name} <Ltr>×{p.qty}</Ltr></span>}
-        </div>
-        <div className="mt-0.5 text-[14.5px] text-[#6B7280] lg:hidden">
-          {row.customer_city}{p ? <> · {p.name} <Ltr>×{p.qty}</Ltr></> : null}
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-[#6B7280]">
+          <span className="inline-flex items-center gap-1"><MapPin size={14} aria-hidden />{[row.customer_city, row.customer_address].filter(Boolean).join(" · ")}{p && <span className="lg:hidden"> · {p.name} <Ltr>×{p.qty}</Ltr></span>}</span>
+          {p && <span className="hidden items-center gap-1 lg:inline-flex"><Package size={14} aria-hidden />{p.name} <Ltr>×{p.qty}</Ltr></span>}
         </div>
         {showAgent && row.agent_name && <div className="mt-1 text-[12.5px] text-[#6B7280]">{row.agent_name}</div>}
       </div>
 
       {/* Situation / durée */}
-      <div className="col-start-1 row-start-2 mt-1.5 flex flex-col items-start gap-1.5 lg:col-start-2 lg:row-start-1 lg:mt-0 lg:gap-0">
+      <div className="col-span-2 col-start-1 row-start-2 mt-2 flex flex-col items-start lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:mt-0">
         <Chip tone={s.tone} icon={SitIcon}>{label(s)}</Chip>
-        <div className="mt-1 text-[13px] text-[#6B7280] [unicode-bidi:plaintext]">{sub(s)}</div>
+        <div className="mt-1 hidden text-[13px] text-[#6B7280] [unicode-bidi:plaintext] lg:block">{sub(s)}</div>
         <div className="mt-0.5 hidden items-center gap-1 text-[13px] text-[#6B7280] lg:flex">
           <Clock size={13} aria-hidden /><span>{when(moved)}</span>
         </div>
-        {/* A second number only matters when it is the one to call. */}
-        {m.kind === "call2" && m.dial && (
-          <span className="flex items-center gap-2 text-sm font-medium text-[#111827] lg:hidden"><Phone size={16} aria-hidden /><Ltr>{formatPhone(m.dial)}</Ltr></span>
-        )}
       </div>
 
       {/* Action */}
-      <div className="col-start-2 row-span-2 row-start-2 flex min-w-0 items-end justify-end lg:col-start-3 lg:row-span-1 lg:row-start-1 lg:items-center lg:justify-start lg:gap-2">
-        {/* A glyph alone does not separate "rescue this return" from "call the
-            courier", so the phone button carries its own label. */}
+      <div className="col-span-2 col-start-1 row-start-3 mt-2.5 flex min-w-0 lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:mt-0 lg:items-center lg:gap-2">
+        {/* On a phone the move is a full-width bar in the bucket's tint, the
+            arrow pointing where a tap goes. */}
         <button
           type="button"
           onClick={act}
-          className={`flex w-[86px] flex-col items-center justify-center gap-1 rounded-xl border px-1.5 py-2 lg:hidden ${m.whatsapp ? "border-[#86EFAC] bg-[#F0FDF4] text-[#15803D]" : `bg-white text-[#111827] ${TONE[btnTone].border}`}`}
+          className={`flex h-10 w-full items-center gap-2 rounded-lg px-3.5 text-[14px] font-semibold text-[#111827] lg:hidden ${m.whatsapp ? "bg-[#DCFCE7]" : TONE[btnTone === "grey" ? "grey" : btnTone].soft}`}
         >
-          <MobileIcon size={22} aria-hidden />
-          <span className="w-full text-balance text-center text-[11px] font-semibold leading-tight">{moveLabel}</span>
+          <span className="truncate">{moveLabel}</span>
+          <ArrowRight size={16} aria-hidden className="ms-auto shrink-0 rtl:-scale-x-100" />
         </button>
         <button
           type="button"
@@ -144,7 +133,7 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
       </div>
 
       {/* Montant */}
-      <div className="col-start-2 row-start-1 text-end text-[17px] font-bold text-[#111827] lg:col-start-4 lg:text-[19px]">
+      <div className="col-start-2 row-start-1 self-start text-end text-[17px] font-bold text-[#111827] lg:col-start-4 lg:self-center lg:text-[19px]">
         <Money amount={row.total_price} market={market} locale={locale} />
       </div>
     </article>

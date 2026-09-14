@@ -128,16 +128,16 @@ describe("DeliveryWorklistView", () => {
     const props = mount();
     fireEvent.click(within(rowOf("Amina El Fitouri")).getAllByRole("button", { name: "Appeler le 2ᵉ numéro" })[0]);
     const sheet = screen.getByRole("dialog", { name: "Enregistrer une action" });
-    const save = within(sheet).getByRole("button", { name: "Enregistrer" }) as HTMLButtonElement;
+    const save = within(sheet).getByRole("button", { name: "Enregistrer l'action" }) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
 
-    fireEvent.click(within(sheet).getByRole("button", { name: "Appelé livreur" }));
+    fireEvent.click(within(sheet).getByRole("button", { name: "Livreur" }));
     expect(within(sheet).getByRole("button", { name: "Colis localisé" })).toBeTruthy();
     expect(within(sheet).queryByRole("button", { name: "Ne répond pas" })).toBeNull();
 
-    fireEvent.click(within(sheet).getByRole("button", { name: "Appelé client" }));
+    fireEvent.click(within(sheet).getByRole("button", { name: "Client" }));
     fireEvent.click(within(sheet).getByRole("button", { name: "Ne répond pas" }));
-    expect(within(sheet).getByRole("button", { name: "+ 2 h" }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(sheet).getByRole("button", { name: /Dans 2 h/ }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.change(within(sheet).getByRole("textbox"), { target: { value: " rappel ce soir " } });
     fireEvent.click(save);
 
@@ -216,10 +216,10 @@ describe("DeliveryWorklistView", () => {
     expect(within(list()).getByText("Colis d2")).toBeTruthy();
   });
 
-  it("the agent sees the number to dial on each card, not their own name", () => {
+  it("the agent sees the customer's numbers on each row, not their own name", () => {
     mount();
     const amina = rowOf("Amina El Fitouri");
-    expect(within(amina).getAllByText("092 112 2334").length).toBeGreaterThan(0);
+    expect(within(amina).getByText(/091 445 6677 · 092 112 2334/)).toBeTruthy();
     expect(within(amina).queryByText("Hend")).toBeNull();
   });
 

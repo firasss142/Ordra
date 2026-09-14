@@ -960,7 +960,7 @@ export function QueuePage() {
         <div
           role="region"
           aria-label="Bulk actions"
-          className="fixed bottom-6 inset-x-0 z-30 flex justify-center px-4 pointer-events-none animate-[fadeInUp_120ms_ease-out]"
+          className="fixed bottom-24 lg:bottom-6 inset-x-0 z-30 flex justify-center px-4 pointer-events-none animate-[fadeInUp_120ms_ease-out]"
         >
           <div
             className="pointer-events-auto inline-flex items-stretch overflow-hidden bg-surface-card border border-line-subtle rounded-card shadow-floating"

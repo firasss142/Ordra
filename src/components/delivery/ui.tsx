@@ -33,10 +33,12 @@ export const SIT_ICON: Record<SituationKey, IconComponent> = {
   returning: Ban, to_be_returned: AlertCircle, delivered: CheckCircle2, returned: Ban,
 };
 
+/** The situation chip: a glyph on desktop, the phone design's plain dot on small screens. */
 export function Chip({ tone, icon: Icon, children }: { tone: Tone; icon?: IconComponent; children: React.ReactNode }) {
   return (
     <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full py-1 pe-3 ps-2.5 text-[13px] font-semibold ${TONE[tone].chip}`}>
-      {Icon && <Icon size={14} aria-hidden className="shrink-0" />}
+      {Icon ? <Icon size={14} aria-hidden className="hidden shrink-0 lg:block" /> : null}
+      <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full lg:hidden ${TONE[tone].dot}`} />
       {children}
     </span>
   );

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Building2, NotebookText, Phone, Truck, X } from "lucide-react";
+import { Building2, Clock, NotebookText, Phone, Truck, X } from "lucide-react";
 import type { WorklistRow } from "@/lib/delivery/types";
 import { OUTCOMES_BY_ACTION, NOTE_MAX, type AgentActionType } from "@/lib/delivery/actions";
 import { inTwoHours, tomorrowAt } from "@/lib/delivery/schedule";
@@ -56,18 +56,16 @@ const Label = ({ children, extra }: { children: React.ReactNode; extra?: string 
 
 type Picked = Exclude<AgentActionType, "whatsapp_customer">;
 
-const OUTCOME_TONE: Record<string, string> = {
-  reached_will_receive: "bg-[#DCFCE7] text-[#15803D]", reached_address_fix: "bg-[#DCFCE7] text-[#15803D]",
-  reattempt_promised: "bg-[#DCFCE7] text-[#15803D]", parcel_located: "bg-[#DCFCE7] text-[#15803D]",
-  no_answer: "bg-[#FEF3C7] text-[#111827]", wrong_number: "bg-[#FEF3C7] text-[#111827]", phone_off: "bg-[#FEF3C7] text-[#111827]",
-  courier_no_answer: "bg-[#FEF3C7] text-[#111827]", reached_wants_cancel: "bg-[#FEF3C7] text-[#111827]",
-};
+/** One selected look for every pick in the sheet: the brand green, tinted. */
+const PICKED = "border-[#15803D] bg-[#F0FDF4] font-semibold text-[#15803D]";
+const UNPICKED = "border-[#E5E7EB] bg-white text-[#374151]";
 
 export function ActionSheet({ initialType, tz, now, onClose, onSubmit }: {
   initialType: Picked; tz: string; now: number;
   onClose: () => void; onSubmit: (body: QueuedBody) => void;
 }) {
   const t = useTranslations("delivery");
+  const in2h = new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(inTwoHours(now)));
   const [type, setType] = useState<Picked>(initialType);
   const [outcome, setOutcome] = useState<string | null>(null);
   const [note, setNote] = useState("");
@@ -97,11 +95,11 @@ export function ActionSheet({ initialType, tz, now, onClose, onSubmit }: {
   return (
     <SheetFrame title={t("sheet.title")} onClose={onClose}>
       <Label>{t("sheet.what")}</Label>
-      <div className="mb-[18px] grid grid-cols-4 gap-2">
+      <div className="mb-[18px] grid grid-cols-2 gap-2 lg:grid-cols-4">
         {tiles.map(([k, icon]) => (
           <button key={k} type="button" aria-pressed={type === k}
             onClick={() => { setType(k); setOutcome(null); }}
-            className={`flex min-h-[80px] flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] px-1 py-2 text-center text-sm leading-tight ${type === k ? "border-[#111111] bg-[#F3F4F6] font-medium text-[#111827]" : "border-[#E5E7EB] bg-white text-[#6B7280]"}`}>
+            className={`flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] px-1 py-2 text-center text-[14px] leading-tight ${type === k ? PICKED : UNPICKED}`}>
             {icon}<span>{t(`sheet.types.${k}`)}</span>
           </button>
         ))}
@@ -114,7 +112,7 @@ export function ActionSheet({ initialType, tz, now, onClose, onSubmit }: {
             {outcomes.map((o) => (
               <button key={o} type="button" aria-pressed={outcome === o}
                 onClick={() => { setOutcome(o); if (reminder === null) setReminder(suggestedReminder(o)); }}
-                className={`h-10 whitespace-nowrap rounded-full px-[18px] text-[14.5px] ${outcome === o ? `font-semibold ${OUTCOME_TONE[o] ?? "bg-[#DBEAFE] text-[#1D4ED8]"}` : "bg-[#F3F4F6] text-[#374151]"}`}>
+                className={`h-10 whitespace-nowrap rounded-full border px-4 text-[14px] ${outcome === o ? PICKED : UNPICKED}`}>
                 {t(`sheet.outcomes.${o}`)}
               </button>
             ))}
@@ -131,16 +129,17 @@ export function ActionSheet({ initialType, tz, now, onClose, onSubmit }: {
 
       <Label>{t("sheet.reminder")}</Label>
       <div className="mb-[18px] grid grid-cols-3 gap-2">
-        {([["in2h", t("sheet.in2h")], ["tomorrow10", t("sheet.tomorrow10")], ["none", t("sheet.noReminder")]] as [Reminder, string][]).map(([k, l]) => (
+        {([["in2h", t("sheet.in2h"), in2h], ["tomorrow10", t("sheet.tomorrow10").replace(/\s*10:00$/, ""), "10:00"], ["none", t("sheet.noReminder"), null]] as [Reminder, string, string | null][]).map(([k, l, time]) => (
           <button key={k} type="button" aria-pressed={reminder === k} onClick={() => setReminder(k)}
-            className={`h-11 rounded-[10px] border text-[14.5px] ${reminder === k ? "border-[1.5px] border-[#111111] bg-[#F3F4F6] font-semibold text-[#111827]" : "border-[#D1D5DB] bg-white text-[#374151]"}`}>
-            {l}
+            className={`flex min-h-[56px] flex-col items-center justify-center gap-0.5 rounded-[10px] border-[1.5px] px-1 text-[13.5px] leading-tight ${reminder === k ? PICKED : UNPICKED}`}>
+            <span className="inline-flex items-center gap-1">{k === "in2h" && <Clock size={14} aria-hidden />}{l}</span>
+            {time && <span className={`text-[12.5px] tabular-nums ${reminder === k ? "text-[#15803D]" : "text-[#6B7280]"}`}>{time}</span>}
           </button>
         ))}
       </div>
 
       <button type="button" disabled={!ready} onClick={submit}
-        className="h-[52px] w-full rounded-[10px] bg-[#111111] text-[17px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-35">
+        className="h-[52px] w-full rounded-[10px] bg-[#15803D] text-[17px] font-semibold text-white hover:bg-[#166534] disabled:cursor-not-allowed disabled:opacity-35">
         {t("sheet.save")}
       </button>
     </SheetFrame>

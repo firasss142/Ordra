@@ -5606,7 +5606,10 @@
       "noEvents": "Aucun événement pour l'instant.",
       "callResult": "Résultat de l'appel",
       "callResultHint": "Un tap enregistre le résultat et met à jour la recommandation.",
-      "carrierNote": "Message du livreur"
+      "carrierNote": "Message du livreur",
+      "recommendedPill": "Recommandé",
+      "city": "Ville",
+      "callShort": "Appeler"
     },
     "tl": {
       "all": "Tout",
@@ -5623,21 +5626,21 @@
     },
     "sheet": {
       "title": "Enregistrer une action",
-      "what": "Qu'as-tu fait ?",
+      "what": "Contact avec",
       "result": "Résultat",
       "note": "Note",
       "optional": "(optionnelle)",
       "notePlaceholder": "Ajouter une note…",
-      "reminder": "Rappel",
-      "in2h": "+ 2 h",
+      "reminder": "Me rappeler",
+      "in2h": "Dans 2 h",
       "tomorrow10": "Demain 10:00",
       "noReminder": "Sans rappel",
-      "save": "Enregistrer",
+      "save": "Enregistrer l'action",
       "saving": "Enregistrement…",
       "types": {
-        "call_customer": "Appelé client",
-        "call_courier": "Appelé livreur",
-        "call_branch": "Appelé agence",
+        "call_customer": "Client",
+        "call_courier": "Livreur",
+        "call_branch": "Agence",
         "note": "Note seule"
       },
       "outcomes": {

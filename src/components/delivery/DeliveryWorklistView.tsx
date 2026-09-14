@@ -199,32 +199,39 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
           </div>
         </div>
 
-        {/* Bucket bar: one segmented strip, act-now carries its tint. */}
-        <div role="group" aria-label={t("filters")}
-          className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] lg:mx-0 lg:grid lg:grid-cols-6 lg:gap-0 lg:overflow-visible lg:rounded-lg lg:border lg:border-[#E5E7EB] lg:bg-white lg:px-0">
-          {(["all", ...BUCKET_ORDER] as const).map((k, i) => {
-            const on = bucket === k;
-            const tone = k === "all" ? null : BUCKET_TONE[k];
-            const tint = k === "act_now" ? "lg:bg-[#FFFBEB]" : on ? "lg:bg-[#F9FAFB]" : "";
-            return (
-              <button key={k} type="button" aria-pressed={on} onClick={() => setBucket(k)}
-                className={[
-                  "inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-4 text-[14.5px]",
-                  "lg:h-auto lg:flex-col lg:items-stretch lg:gap-0.5 lg:rounded-none lg:border-0 lg:px-3 lg:py-2.5 lg:text-[13px]",
-                  i > 0 ? "lg:border-s lg:border-s-[#E5E7EB]" : "",
-                  i === 0 ? "lg:rounded-s-lg" : i === 5 ? "lg:rounded-e-lg" : "",
-                  on ? "border-[#111111] bg-[#111111] font-semibold text-white lg:text-[#111827]" : "border-[#E5E7EB] bg-white text-[#374151]",
-                  tint,
-                ].join(" ")}>
-                <span className="flex items-center gap-2">
-                  {tone && <span aria-hidden className={`hidden h-2 w-2 shrink-0 rounded-full lg:inline-block ${TONE[tone].dot}`} />}
-                  <span className={`truncate ${on ? "lg:font-bold" : "lg:font-medium"}`}>{t(`buckets.${k}`)}</span>
-                  <b className={`ms-auto font-bold tabular-nums ${on ? "text-white lg:text-[#111827]" : "text-[#111827]"}`}>{counts[k]}</b>
-                </span>
-                <Money amount={sums[k]} market={marketCode} locale={locale} className={`hidden text-[12.5px] lg:inline-flex ${on ? "text-[#374151]" : "text-[#6B7280]"}`} />
-              </button>
-            );
-          })}
+        {/* Bucket bar: one segmented strip on desktop; on phones a row of
+            pills with the filter button at its end. */}
+        <div className="-mx-4 mb-3 flex items-center gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] lg:mx-0 lg:block lg:overflow-visible lg:px-0">
+          <div role="group" aria-label={t("filters")}
+            className="flex gap-2 lg:grid lg:grid-cols-6 lg:gap-0 lg:rounded-lg lg:border lg:border-[#E5E7EB] lg:bg-white">
+            {(["all", ...BUCKET_ORDER] as const).map((k, i) => {
+              const on = bucket === k;
+              const tone = k === "all" ? null : BUCKET_TONE[k];
+              const tint = k === "act_now" ? "lg:bg-[#FFFBEB]" : on ? "lg:bg-[#F9FAFB]" : "";
+              return (
+                <button key={k} type="button" aria-pressed={on} onClick={() => setBucket(k)}
+                  className={[
+                    "inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3.5 text-[13.5px]",
+                    "lg:h-auto lg:flex-col lg:items-stretch lg:gap-0.5 lg:rounded-none lg:border-0 lg:px-3 lg:py-2.5 lg:text-[13px]",
+                    i > 0 ? "lg:border-s lg:border-s-[#E5E7EB]" : "",
+                    i === 0 ? "lg:rounded-s-lg" : i === 5 ? "lg:rounded-e-lg" : "",
+                    on ? "border-[#15803D] bg-[#F0FDF4] font-bold text-[#111827]" : "border-[#E5E7EB] bg-white text-[#374151]",
+                    tint,
+                  ].join(" ")}>
+                  <span className="flex items-center gap-2">
+                    {tone && <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${TONE[tone].dot}`} />}
+                    <span className={`truncate ${on ? "lg:font-bold" : "lg:font-medium"}`}>{t(`buckets.${k}`)}</span>
+                    <b className="ms-auto font-bold tabular-nums text-[#111827]">{counts[k]}</b>
+                  </span>
+                  <Money amount={sums[k]} market={marketCode} locale={locale} className={`hidden text-[12.5px] lg:inline-flex ${on ? "text-[#374151]" : "text-[#6B7280]"}`} />
+                </button>
+              );
+            })}
+          </div>
+          <button type="button" onClick={() => { setHideDone((v) => !v); }} aria-pressed={hideDone} aria-label={t("filter.hideDone")}
+            className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border lg:hidden ${hideDone ? "border-[#15803D] bg-[#F0FDF4] text-[#15803D]" : "border-[#E5E7EB] bg-white text-[#374151]"}`}>
+            <Filter size={17} aria-hidden />
+          </button>
         </div>
 
         <div className="hidden grid-cols-[minmax(0,1.45fr)_minmax(0,1.15fr)_minmax(0,1.1fr)_96px] gap-4 px-4 pb-1.5 pt-1 text-[12px] font-medium text-[#6B7280] lg:grid lg:ps-5" aria-hidden>
@@ -308,7 +315,7 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
 
       {(pending || notice) && (
         <div role="status" aria-live="polite"
-          className="fixed inset-x-3 bottom-4 z-[80] flex items-center gap-3 overflow-hidden rounded-xl border border-[#E5E7EB] bg-white px-4 py-3.5 shadow-[0_10px_30px_rgba(17,24,39,0.14)] lg:inset-x-auto lg:end-5 lg:bottom-5 lg:min-w-[380px] lg:rounded-[10px] lg:border-0 lg:bg-[#111111] lg:py-3 lg:text-white">
+          className="fixed inset-x-3 bottom-[84px] z-[80] flex items-center gap-3 overflow-hidden rounded-xl border border-[#E5E7EB] bg-white px-4 py-3.5 shadow-[0_10px_30px_rgba(17,24,39,0.14)] lg:inset-x-auto lg:end-5 lg:bottom-5 lg:min-w-[380px] lg:rounded-[10px] lg:border-0 lg:bg-[#111111] lg:py-3 lg:text-white">
           <span className={`grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full text-white ${notice === "failed" ? "bg-[#B91C1C]" : "bg-[#15803D] lg:bg-[#22C55E]"}`}>
             {notice === "failed" ? <X size={15} strokeWidth={2.6} aria-hidden /> : <Check size={15} strokeWidth={2.6} aria-hidden />}
           </span>

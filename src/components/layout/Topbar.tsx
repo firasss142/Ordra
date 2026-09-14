@@ -178,11 +178,11 @@ function TopbarInner({ user, marketName, actions, searchSlot, navSlot, onMenuCli
                 <Menu size={16} aria-hidden="true" />
               </button>
             )}
-            <span dir="ltr" className="text-[24px] font-extrabold tracking-tight leading-none text-[#14532D]" aria-label="Ordra">
+            <span dir="ltr" className="text-[22px] sm:text-[24px] font-extrabold tracking-tight leading-none text-[#14532D]" aria-label="Ordra">
               Ord<span className="text-[#15803D]">ra</span>
             </span>
             {marketIdToCode(user.market_id) && (
-              <span className="hidden sm:inline-flex items-center gap-1 text-[13px] text-agent-ink-3 border-s border-agent-outline-variant ps-3">
+              <span className="inline-flex items-center gap-1 text-[12px] sm:text-[13px] text-agent-ink-3 border-s border-agent-outline-variant ps-2 sm:ps-3">
                 <MapPin size={14} aria-hidden="true" />
                 {MARKET_LABEL[user.locale][marketIdToCode(user.market_id) as string]}
               </span>

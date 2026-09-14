@@ -62,15 +62,15 @@ function AgentTabInner({
           ? // Inside the header row: full-height, compact, auto-width. The
             // active tab sits on a tinted block, the way the reference does.
             "h-full gap-2 px-4 text-[14px] rounded-t-lg"
-          : // Standalone band on mobile: equal-width columns that split the row.
-            "flex-1 justify-center gap-1.5 px-1 py-3.5 text-[13px]",
+          : // Bottom tab bar on phones: icon over label, equal columns.
+            "flex-1 flex-col justify-center gap-1 px-1 pb-1.5 pt-2 text-[11.5px] border-b-0 border-t-2 -mt-px",
         active
           ? `font-bold text-[#15803D] border-[#15803D] ${inline ? "bg-[#F0FDF4]" : ""}`
           : "font-semibold text-agent-ink-3 border-transparent hover:text-agent-on-surface",
       ].join(" ")}
     >
       <Icon
-        size={16}
+        size={inline ? 16 : 22}
         strokeWidth={2}
         aria-hidden="true"
         className={active ? "text-[#15803D]" : "text-agent-ink-3 opacity-70"}
@@ -146,7 +146,7 @@ function AgentNavTabsInner({ user, variant = "band" }: Props) {
       className={
         inline
           ? "flex items-stretch h-full"
-          : "flex bg-agent-surface border-b border-agent-outline-variant px-2 lg:hidden"
+          : "fixed inset-x-0 bottom-0 z-40 flex bg-agent-surface border-t border-agent-outline-variant px-1 pb-[env(safe-area-inset-bottom)] lg:hidden"
       }
       style={{ direction: user.direction === "rtl" ? "rtl" : "ltr" }}
     >

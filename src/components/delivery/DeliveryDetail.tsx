@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Ban, Calendar, CalendarCheck, CheckCircle2, ChevronLeft, ChevronRight, FileText, MapPin, Package, PenLine, Phone, RotateCcw, Truck, User, X, Check, XCircle } from "lucide-react";
+import { Ban, Calendar, CalendarCheck, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, MapPin, Package, PenLine, Phone, RotateCcw, Truck, User, X, Check, XCircle } from "lucide-react";
 import type { WorklistRow } from "@/lib/delivery/types";
 import { BUCKET_TONE, formatPhone, moveFor, orderRef, quickOutcomesFor, situationOf, type MoveKind, type QuickOutcome } from "@/lib/delivery/presentation";
 import { DeliveryTimeline } from "./DeliveryTimeline";
@@ -192,10 +193,9 @@ export function DeliveryDetailPanel({ row, market, locale, tz, now, onClose, onL
 }
 
 /** Mobile full-screen detail. */
-export function DeliveryDetailScreen({ row, market, locale, tz, now, onBack, onLogAction, onWhatsApp, onDialed, onQuick }: Props & { onBack: () => void }) {
+export function DeliveryDetailScreen({ row, market, locale, tz, now, onBack, onLogAction, onWhatsApp, onDialed }: Props & { onBack: () => void }) {
   const t = useTranslations("delivery");
   const label = useSituationLabel();
-  const created = useCreated(locale, tz);
   const s = situationOf(row, now);
   const m = moveFor(row, now);
   const Icon = MOVE_ICON[m.kind];
@@ -204,85 +204,106 @@ export function DeliveryDetailScreen({ row, market, locale, tz, now, onBack, onL
   const item = row.items[0];
   const Back = locale === "ar" ? ChevronRight : ChevronLeft;
   const Forward = locale === "ar" ? ChevronLeft : ChevronRight;
+  const [logOpen, setLogOpen] = useState(false);
+  const tone = BUCKET_TONE[row.bucket];
+  const createdShort = row.created_at
+    ? new Intl.DateTimeFormat("en-GB", { timeZone: tz, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+        .format(new Date(row.created_at)).replace(", ", " · ")
+    : "—";
   const block = "mb-2.5 rounded-xl border border-[#E5E7EB] bg-white px-4 py-3.5";
-  const kv = "flex items-center justify-between gap-2.5 py-[7px] text-[14.5px]";
+  const kv = "flex items-center justify-between gap-3 py-[7px] text-[14px]";
+  // The "recommended" pill marks the number the move dials; a branch or
+  // courier call recommends neither of the customer's numbers.
+  const recommended = m.kind === "call2" ? 2 : m.kind === "call" || m.kind === "before" ? 1 : 0;
+  const phones: [string, boolean][] = [];
+  if (row.customer_phone) phones.push([row.customer_phone, recommended === 1]);
+  if (row.customer_phone_2) phones.push([row.customer_phone_2, recommended === 2]);
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-[#F5F6F8] text-start lg:hidden">
-      <div className="relative flex h-[52px] shrink-0 items-center justify-center border-b border-[#E5E7EB] bg-white text-[17px] font-semibold">
+    <div className={`fixed inset-0 z-[60] flex flex-col bg-[#F5F6F8] text-start lg:hidden ${locale === "ar" ? "font-cairo" : ""}`}>
+      <div className="relative flex h-[52px] shrink-0 items-center justify-center border-b border-[#E5E7EB] bg-white text-[17px] font-bold">
         <button type="button" onClick={onBack} aria-label={t("detail.back")} className="absolute start-2.5 grid h-9 w-9 place-items-center"><Back size={22} aria-hidden /></button>
         {t("detail.title")}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-28 pt-2.5">
-        <div className={`${block} grid grid-cols-[minmax(0,1fr)_auto] gap-x-2.5 gap-y-1`}>
-          <div className="min-w-0">
-            <div className="text-[21px] font-bold [unicode-bidi:plaintext]">{row.customer_name}</div>
-            <div className="flex items-center gap-2 text-[14.5px] text-[#6B7280]"><MapPin size={16} aria-hidden />{row.customer_city}</div>
-            {item && <div className="flex items-center gap-2 text-[14.5px] text-[#6B7280]"><Package size={16} aria-hidden />{item.product_name} <Ltr>×{item.quantity}</Ltr></div>}
-          </div>
-          <div className="flex flex-col items-end gap-1.5">
-            <Ltr className="text-sm text-[#6B7280]">#{orderRef(row)}</Ltr>
-            <Money amount={row.total_price} market={market} locale={locale} className="text-[26px] font-bold leading-none" />
-            <Chip tone={s.tone} icon={SIT_ICON[s.key]}>{label(s)}</Chip>
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-36 pt-2.5">
+        <div className={block}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <span className="text-[20px] font-bold [unicode-bidi:plaintext]">{row.customer_name}</span>
+                <Ltr className="text-[13.5px] text-[#6B7280]">#{orderRef(row)}</Ltr>
+              </div>
+              <div className="mt-1 flex items-center gap-1.5 text-[13.5px] text-[#6B7280]"><MapPin size={15} aria-hidden />{[row.customer_city, row.customer_address].filter(Boolean).join(" · ")}</div>
+              {item && <div className="mt-0.5 flex items-center gap-1.5 text-[13.5px] text-[#6B7280]"><Package size={15} aria-hidden />{item.product_name}{item.variant_label ? ` · ${item.variant_label}` : ""}</div>}
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <Money amount={row.total_price} market={market} locale={locale} className="text-[22px] font-bold leading-none" />
+              <Chip tone={s.tone} icon={SIT_ICON[s.key]}>{label(s)}</Chip>
+            </div>
           </div>
         </div>
 
         <button type="button" onClick={() => (m.whatsapp ? onWhatsApp(row) : onLogAction(row))}
-          className={`${block} ${EDGE} ${TONE[BUCKET_TONE[row.bucket]].edge} flex w-full items-center gap-3 text-start`}>
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#DCFCE7] text-[#15803D]"><Icon size={22} aria-hidden /></span>
+          className={`${block} ${EDGE} ${TONE[tone].edge} flex w-full items-center gap-3 text-start ${tone === "amber" ? "!bg-[#FFFBEB]" : tone === "red" ? "!bg-[#FEF2F2]" : tone === "blue" ? "!bg-[#EFF6FF]" : ""}`}>
+          <span className="grid h-10 w-10 shrink-0 place-items-center text-[#111827]"><Icon size={24} aria-hidden /></span>
           <span className="min-w-0">
-            <small className="block text-[13.5px] text-[#6B7280]">{t("detail.suggested")}</small>
+            <small className="block text-[13px] text-[#6B7280]">{t("detail.suggested")}</small>
             <b className="block text-[17px] font-bold">{t(`moves.${m.kind}`)}</b>
-            <span className="mt-px block text-[13.5px] text-[#6B7280]">{t(`why.${m.kind}`)}</span>
+            <span className="mt-px block text-[13px] text-[#6B7280]">{t(`why.${m.kind}`)}</span>
           </span>
           <Forward size={20} className="ms-auto shrink-0 text-[#6B7280]" aria-hidden />
         </button>
 
-        {!done && <div className={block}><QuickOutcomes row={row} now={now} onQuick={onQuick} /></div>}
-
         <div className={block}>
-          <h3 className="mb-1 flex items-center gap-2 text-[15px] font-semibold"><User size={18} aria-hidden />{t("detail.clientInfo")}</h3>
-          {row.customer_phone_2 && (
-            <div className={kv}><span className="text-[#6B7280]">{m.kind === "call2" ? t("detail.phone2Recommended") : t("detail.phone2")}</span>
-              <a href={`tel:${row.customer_phone_2}`} onClick={() => onDialed(row)} className={m.kind === "call2" ? "text-base font-bold" : "font-medium"}><Ltr>{formatPhone(row.customer_phone_2)}</Ltr></a></div>
-          )}
-          {row.customer_phone && (
-            <div className={kv}><span className="text-[#6B7280]">{t("detail.phone1")}</span>
-              <a href={`tel:${row.customer_phone}`} onClick={() => onDialed(row)} className={m.kind !== "call2" ? "text-base font-bold" : "font-medium"}><Ltr>{formatPhone(row.customer_phone)}</Ltr></a></div>
-          )}
-          <div className={kv}><MapPin size={16} className="text-[#6B7280]" aria-hidden /><span className="text-end font-medium [unicode-bidi:plaintext]">{[row.customer_city, row.customer_address].filter(Boolean).join(" · ")}</span></div>
+          <h3 className="mb-1 flex items-center gap-2 text-[15px] font-bold"><User size={18} aria-hidden />{t("detail.clientInfo")}</h3>
+          {phones.map(([ph, recommended], i) => (
+            <div key={ph} className={kv}>
+              <span className="text-[#6B7280]">{i === 0 ? t("detail.phone1") : t("detail.phone2")}</span>
+              <span className="flex items-center gap-2">
+                {recommended && !done && <span className="rounded-full bg-[#DCFCE7] px-2 py-0.5 text-[12px] font-semibold text-[#15803D]">{t("detail.recommendedPill")}</span>}
+                <a href={`tel:${ph}`} onClick={() => onDialed(row)} className={recommended ? "text-[16px] font-bold" : "font-medium"}><Ltr>{formatPhone(ph)}</Ltr></a>
+              </span>
+            </div>
+          ))}
+          <div className={kv}><span className="text-[#6B7280]">{t("detail.city")}</span><span className="text-end font-medium [unicode-bidi:plaintext]">{[row.customer_city, row.customer_address].filter(Boolean).join(" · ")}</span></div>
         </div>
 
         <div className={block}>
-          <h3 className="mb-1 flex items-center gap-2 text-[15px] font-semibold"><Truck size={18} aria-hidden />{t("detail.deliveryInfo")}</h3>
+          <h3 className="mb-1 flex items-center gap-2 text-[15px] font-bold"><Truck size={18} aria-hidden />{t("detail.deliveryInfo")}</h3>
           <div className={kv}><span className="text-[#6B7280]">{t("detail.carrierLabel")}</span><span className="font-medium">{row.carrier_name ?? "—"}</span></div>
           <div className={kv}><span className="text-[#6B7280]">{t("detail.courier")}</span><span className="font-medium [unicode-bidi:plaintext]">{row.handler_name ?? "—"}</span></div>
           <div className={kv}><span className="text-[#6B7280]">{t("detail.status")}</span><Chip tone={s.tone} icon={SIT_ICON[s.key]}>{label(s)}</Chip></div>
-          <div className={kv}><span className="text-[#6B7280]">{t("detail.createdAt")}</span><span className="font-medium">{created(row.created_at)}</span></div>
+          <div className={kv}><span className="text-[#6B7280]">{t("detail.createdAt")}</span><Ltr className="font-medium">{createdShort}</Ltr></div>
         </div>
 
         <div className={block}>
-          <DeliveryTimeline orderId={row.order_id} locale={locale} tz={tz} now={now} compact />
+          <button type="button" aria-expanded={logOpen} onClick={() => setLogOpen((v) => !v)} className="flex w-full items-center gap-2 text-[15px] font-bold">
+            <Clock size={18} aria-hidden />{t("detail.history")}
+            <ChevronDown size={20} aria-hidden className={`ms-auto text-[#6B7280] ${logOpen ? "rotate-180" : ""}`} />
+          </button>
+          {logOpen && <div className="mt-2"><DeliveryTimeline orderId={row.order_id} locale={locale} tz={tz} now={now} compact /></div>}
         </div>
       </div>
 
       {!done && (
-        <div className="absolute inset-x-0 bottom-0 flex gap-2 border-t border-[#E5E7EB] bg-white px-3 pb-6 pt-3">
+        <div className="absolute inset-x-0 bottom-0 flex flex-col gap-2 border-t border-[#E5E7EB] bg-white px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
           {m.whatsapp || !dial ? (
-            <button type="button" onClick={() => onWhatsApp(row)} className={`h-[50px] min-w-0 flex-1 px-2.5 text-[14.5px] ${PRIMARY_BTN}`}>
-              <WhatsAppIcon size={18} />{t("moves.wa")}
+            <button type="button" onClick={() => onWhatsApp(row)} className={`h-12 w-full text-[16px] ${PRIMARY_BTN}`}>
+              <WhatsAppIcon size={20} />{t("moves.wa")}
             </button>
           ) : (
-            <a href={`tel:${dial}`} onClick={() => onDialed(row)} className={`h-[50px] min-w-0 flex-1 px-2.5 text-[14.5px] ${PRIMARY_BTN}`}>
-              <Phone size={18} aria-hidden />{t("detail.callNumber", { phone: formatPhone(dial) })}
+            <a href={`tel:${dial}`} onClick={() => onDialed(row)} className={`h-12 w-full text-[16px] ${PRIMARY_BTN}`}>
+              <Phone size={19} aria-hidden />{t("detail.callShort")} <Ltr>{formatPhone(dial)}</Ltr>
             </a>
           )}
-          <button type="button" onClick={() => onWhatsApp(row)} aria-label={t("detail.whatsapp")} className={`h-[50px] w-[50px] ${OUTLINE_BTN} border-[#86EFAC] !text-[#15803D]`}>
-            <WhatsAppIcon size={22} />
-          </button>
-          <button type="button" onClick={() => onLogAction(row)} className={`h-[50px] px-3 text-sm ${OUTLINE_BTN} border-[#D1D5DB]`}>
-            <PenLine size={17} aria-hidden />{t("detail.logShort")}
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => onLogAction(row)} className={`h-11 text-[14.5px] ${OUTLINE_BTN} border-[#D1D5DB]`}>
+              <PenLine size={17} aria-hidden />{t("detail.logShort")}
+            </button>
+            <button type="button" onClick={() => onWhatsApp(row)} className={`h-11 text-[14.5px] ${OUTLINE_BTN} border-[#D1D5DB]`}>
+              <WhatsAppIcon size={19} className="text-[#15803D]" />{t("detail.whatsapp")}
+            </button>
+          </div>
         </div>
       )}
     </div>
