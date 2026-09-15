@@ -91,6 +91,23 @@ describe("convertLeadToOrder", () => {
     expect(supabase.rpc).not.toHaveBeenCalled();
   });
 
+  test("rejects a total of zero — nobody ships for free", async () => {
+    // Four Tunisian orders were confirmed at 0.000 on 2026-05-05 because the
+    // modal accepted it. Revenue is orders.total_price only, so they never
+    // appeared in a P&L. A COD order at zero is a mistake, not a giveaway.
+    const supabase = mockSupabase({ data: null, error: null });
+
+    await expect(
+      convertLeadToOrder(supabase, {
+        leadId: "lead-1",
+        actorId: "agent-1",
+        order: { ...baseOrderData, total_price: 0 },
+      })
+    ).rejects.toThrow("total_price must be greater than zero");
+
+    expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+
   test("rejects when total_price is negative", async () => {
     const supabase = mockSupabase({ data: null, error: null });
 
@@ -100,7 +117,7 @@ describe("convertLeadToOrder", () => {
         actorId: "agent-1",
         order: { ...baseOrderData, total_price: -5 },
       })
-    ).rejects.toThrow("total_price must be non-negative");
+    ).rejects.toThrow("total_price must be greater than zero");
 
     expect(supabase.rpc).not.toHaveBeenCalled();
   });

@@ -40,8 +40,12 @@ export async function convertLeadToOrder(
   if (!Number.isFinite(order.quantity) || order.quantity <= 0) {
     throw new Error("quantity must be positive");
   }
-  if (!Number.isFinite(order.total_price) || order.total_price < 0) {
-    throw new Error("total_price must be non-negative");
+  // Zero is refused, not just negatives. Four Tunisian orders were confirmed
+  // at 0.000 on 2026-05-05 because the modal let a blank price through, and
+  // revenue reads orders.total_price only — so they never reached a P&L.
+  // A cash-on-delivery order at zero is a mistake, not a giveaway.
+  if (!Number.isFinite(order.total_price) || order.total_price <= 0) {
+    throw new Error("total_price must be greater than zero");
   }
 
   const { data, error } = await supabase.rpc("convert_lead_to_order", {
