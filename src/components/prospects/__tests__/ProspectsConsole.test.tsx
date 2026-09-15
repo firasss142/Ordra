@@ -31,6 +31,9 @@ const METRICS: ConsoleMetrics = {
   new_7d: 38, new_prev_7d: 34, hot_waiting: 6, oldest_hot_minutes: 47,
   median_first_contact_minutes: 14, median_first_contact_prev: 18,
   converted_30d: 74, delivered_30d: 61, delivered_revenue_30d: 6715,
+  pool: 290, pool_campaigns: 1, pool_oldest_days: 70, never_called: 288,
+  total: 292, late_callbacks: 2, lost_30d: 4, calls_today: 14, reached_today: 9,
+  oldest_hot_agent: "Hend",
 };
 
 const CAMPAIGNS: CampaignResult[] = [

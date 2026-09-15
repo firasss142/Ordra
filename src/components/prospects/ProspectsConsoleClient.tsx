@@ -32,6 +32,9 @@ const EMPTY_METRICS: ConsoleMetrics = {
   new_7d: 0, new_prev_7d: 0, hot_waiting: 0, oldest_hot_minutes: null,
   median_first_contact_minutes: null, median_first_contact_prev: null,
   converted_30d: 0, delivered_30d: 0, delivered_revenue_30d: 0,
+  pool: 0, pool_campaigns: 0, pool_oldest_days: null, never_called: 0,
+  total: 0, late_callbacks: 0, lost_30d: 0, calls_today: 0, reached_today: 0,
+  oldest_hot_agent: null,
 };
 
 function NoMarket() {
