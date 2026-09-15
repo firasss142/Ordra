@@ -5910,6 +5910,68 @@
       "undo": "Annuler",
       "failed": "Échec de l'enregistrement. Réessaie."
     },
-    "truncated": "Seuls les {n} premiers prospects sont affichés. Affine la recherche ou un bucket pour voir le reste."
+    "truncated": "Seuls les {n} premiers prospects sont affichés. Affine la recherche ou un bucket pour voir le reste.",
+    "console": {
+      "title": "Prospects",
+      "sub": "Demandes avant commande, rappels et campagnes de recontact",
+      "newCampaign": "Nouvelle campagne",
+      "importCsv": "Importer CSV",
+      "kpi": {
+        "new": "Nouveaux (7 j)",
+        "hot": "Chauds sans réponse",
+        "ttc": "Délai de 1er contact",
+        "revenue": "CA livré issu des prospects (30 j)",
+        "vsPrev": "vs 7 j précédents",
+        "vsPrev30": "vs 30 j précédents",
+        "now": "maintenant",
+        "oldestWaiting": "le plus ancien attend depuis {minutes}",
+        "noneWaiting": "personne n'attend",
+        "median": "médiane 30 j",
+        "noData": "pas encore de mesure",
+        "delivered": "{delivered} livrées · {rate} % de conversion",
+        "notYet": "aucune conversion pour l'instant"
+      },
+      "pipeline": "Pipeline",
+      "campaigns": "Campagnes",
+      "roster": "Par agent · aujourd'hui",
+      "count": "{n, plural, one {# prospect} other {# prospects}}",
+      "filters": {
+        "all": "Tous",
+        "hot": "Chauds",
+        "callback": "Rappels",
+        "campaign": "Campagne",
+        "winback": "Retours",
+        "unassigned": "Non assignés"
+      },
+      "th": {
+        "who": "Prospect",
+        "source": "Source",
+        "agent": "Agent",
+        "situation": "Situation",
+        "since": "Depuis",
+        "value": "Valeur"
+      },
+      "unassigned": "Non assigné",
+      "funnel": {
+        "audience": "audience",
+        "called": "appelés",
+        "converted": "convertis",
+        "rate": "{n} % de conversion",
+        "noCalls": "jamais appelée"
+      },
+      "agent": {
+        "hotWaiting": "{n, plural, one {# chaud attend} other {# chauds attendent}}",
+        "clear": "rien en attente",
+        "open": "{n, plural, one {# en cours} other {# en cours}}",
+        "today": "{converted} / {calls} aujourd'hui",
+        "noCalls": "aucun appel aujourd'hui"
+      },
+      "empty": {
+        "campaigns": "Aucune campagne pour l'instant.",
+        "agents": "Aucun agent actif sur ce marché.",
+        "pipeline": "Aucun prospect ne correspond à ce filtre."
+      },
+      "distributionWarning": "{n, plural, one {# prospect n'est assigné à personne} other {# prospects ne sont assignés à personne}} — aucun agent ne les voit."
+    }
   }
 }

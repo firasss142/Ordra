@@ -1,11 +1,15 @@
-# Prospects — the agent worklist
+# Prospects — the worklist and the console
 
-The pre-order half of Clients → Prospects, rebuilt on 2026-09-14 from
+The pre-order half of Clients → Prospects, rebuilt on 2026-09-14/15 from
 `prototypes/prospects-v3.html` in the language of « Suivi livraison ».
 
-> **Status.** The agent surface is live at `/[locale]/leads` for `role = agent`.
-> Managers and super_admin still get the old kanban + campaign builder on the same
-> route (`LeadsPageClient`); that half has not been rebuilt. Nothing was deleted.
+> **Status (2026-09-15): both halves are live at `/[locale]/leads`.**
+> Agents get the worklist; market_manager and super_admin get the console —
+> four KPIs, the pipeline table, campaign funnels and the agent roster.
+> The old kanban (`LeadsPageClient`, `LeadsKanban`, `LeadsTable`) is no longer
+> mounted, but nothing was deleted: the campaign builder still lives in
+> `components/crm/ProspectCampaignPanel` and is where the console's
+> « Nouvelle campagne » should lead once it is rebuilt.
 
 ---
 
@@ -80,13 +84,18 @@ component and no React import lives in the lib.
 | `src/components/prospects/ProspectsClient.tsx` | SWR, the clock, the undo window |
 | `src/app/api/prospects/worklist/route.ts` | the list, bucketed server-side |
 | `src/app/api/prospects/[id]/outcome/route.ts` | what happened on the call |
+| `src/lib/prospects/console.ts` | funnels, trends, agent ranking — pure |
+| `src/components/prospects/ProspectsConsole.tsx` | the manager view, pure |
+| `src/components/prospects/ProspectsConsoleClient.tsx` | its two SWR reads |
+| `src/app/api/prospects/console/route.ts` | one RPC for the whole console |
 
 `now` is a prop, never `Date.now()` inside the view, so every time-dependent
-state is testable. 112 tests cover the lib, the view and both routes.
+state is testable. 178 tests cover the lib, both views and the three routes.
 
-## 4. Migrations applied 2026-09-14
+## 4. Migrations
 
-Four, all additive; nothing was dropped or rewritten.
+Six. The first four are additive; the last two add an RPC and rewrite RLS
+policies without changing what any of them permits.
 
 1. `prospect_campaigns_offer_and_script` — `offer`, `script_fr`, `script_ar`.
    A campaign told the agent only its name; the offer is what they may promise.
@@ -102,22 +111,52 @@ Four, all additive; nothing was dropped or rewritten.
 4. `leads_winback_revoke_rpc_execute` — revokes `execute` from `anon` and
    `authenticated`. A `SECURITY DEFINER` trigger function is exposed by
    PostgREST as `/rest/v1/rpc/...` unless revoked; the advisor caught it.
+5. `get_prospect_console` — the console RPC (2026-09-15).
+6. `rls_initplan_leads_and_history` — the fix `20260927000002` applied to the
+   delivery tables, finally applied to `leads`, `lead_history` and
+   `prospect_campaigns`: the helper calls are hoisted into an InitPlan instead
+   of running per row. `/api/prospects/console` went 1 815 ms → 330 ms and the
+   worklist 1 244 ms → 680 ms. Isolation re-verified under real JWTs after the
+   change — see the migration's header.
 
 The remark comes from `darb_timeline_events.remarks` — the courier's own words,
 Arabic, free-form. `description_ar` / `description_en` are generic templates
 ("The order is delayed." on every delayed event) and are only a fallback.
 
-## 5. What is deliberately not here
+## 5. The console
 
-- **The manager console** of the prototype (KPIs, pipeline table, campaign
-  funnels, per-agent strip). Managers keep the kanban until it is rebuilt.
+`get_prospect_console(market, tz)` returns the four KPIs, campaign results and
+the agent roster as one JSON document. One RPC rather than four queries: the
+database is ~130 ms away, and the whole console computes in 33 ms over
+Tunisia's ~1 700 prospects, so the round trips cost more than the work.
+
+Two figures are deliberately shaped rather than reported raw:
+
+- **A campaign's conversion rate is measured against those called**, not against
+  the audience. An untouched list says something about distribution, not about
+  the agents working it.
+- **An agent who has made no calls today has no rate at all**, rather than a
+  zero that reads as a judgement.
+
+The roster is ranked worst-served first — hot prospects waiting outrank a merely
+long queue, because a hot one goes cold within the hour.
+
+The console also surfaces the finding that made this rebuild worth doing: it
+counts prospects with no `assigned_to` and says so in a banner. Today that is
+1 982 of ~2 000 in Tunisia, and no agent's queue shows a single one of them.
+
+## 6. What is deliberately not here
+
 - **Campaign distribution.** Decision 33 assigns campaign leads to agents; today
   1 982 of them have no `assigned_to`, so no agent sees them. The buckets are
-  ready for them the moment distribution exists.
+  ready for them the moment distribution exists, and the console's banner is
+  what makes the gap visible.
+- **The campaign builder.** « Nouvelle campagne » routes to the old panel; the
+  prototype's richer audience builder is not built.
 - **A lifecycle migration.** Decision 30 simplifies `lead_status`; the buckets
   derive from the current enum instead, so the rebuild stayed reversible.
 
-## 6. If you change the bucket rules
+## 7. If you change the bucket rules
 
 Change `bucketOf` and its tests, nothing else. The API, the view, the tiles, the
 sort and the optimistic move all read the same function, so a rule added in one

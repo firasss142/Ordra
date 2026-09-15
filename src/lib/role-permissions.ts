@@ -60,6 +60,15 @@ export function canUseProspectWorklist(role: Role): boolean {
   return role === "agent" || role === "market_manager" || role === "super_admin";
 }
 
+/**
+ * The market-wide Prospects console: KPIs, campaign results and the agent
+ * roster. An agent works their own queue and has no business reading how
+ * their colleagues are doing, so this is narrower than the worklist.
+ */
+export function canUseProspectConsole(role: Role): boolean {
+  return role === "market_manager" || role === "super_admin";
+}
+
 /** The read-only "Mes commissions" tab. */
 export function canViewOwnCommissions(role: Role): boolean {
   return role === "agent";
