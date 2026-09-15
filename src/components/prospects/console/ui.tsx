@@ -287,11 +287,14 @@ export function FunnelRow({ label, value, total, tone = "grey", locale = "fr" }:
 }) {
   const pct = total > 0 ? (value / total) * 100 : 0;
   const fill = { grey: "bg-[#9CA3AF]", brand: "bg-[#15803D]", green: "bg-[#22C55E]", red: "bg-[#FCA5A5]" }[tone];
+  // A stage with 2 of 292 is 0.7 % and would draw as nothing at all. The floor
+  // keeps a sliver visible, so "almost none" reads differently from "none".
+  const width = value > 0 ? Math.max(pct, 1.5) : 0;
   return (
     <div className="grid grid-cols-[96px_1fr_56px_52px] items-center gap-2 lg:grid-cols-[150px_1fr_70px_60px]">
       <span className="truncate text-[13px] text-[#374151]">{label}</span>
       <span aria-hidden className="block h-[22px] overflow-hidden rounded-[5px] bg-[#F3F4F6]">
-        <span className={`block h-full ${fill}`} style={{ width: `${pct}%` }} />
+        <span className={`block h-full rounded-[5px] ${fill}`} style={{ width: `${width}%` }} />
       </span>
       <span className="text-end text-[13.5px] font-bold tabular-nums text-[#111827]">{fmt(value, locale)}</span>
       <span className="text-end text-[12.5px] tabular-nums text-[#6B7280]">{Math.round(pct)} %</span>
@@ -304,11 +307,12 @@ export function LossRow({ label, value, max, locale = "fr" }: {
   label: string; value: number; max: number; locale?: string;
 }) {
   const pct = max > 0 ? (value / max) * 100 : 0;
+  const width = value > 0 ? Math.max(pct, 2) : 0;
   return (
     <div className="grid grid-cols-[92px_1fr_40px] items-center gap-2 lg:grid-cols-[130px_1fr_44px]">
       <span className="truncate text-[13px] text-[#374151]">{label}</span>
       <span aria-hidden className="block h-3.5 overflow-hidden rounded-[4px] bg-[#F3F4F6]">
-        <span className="block h-full bg-[#EF4444] opacity-75" style={{ width: `${pct}%` }} />
+        <span className="block h-full rounded-[4px] bg-[#EF4444] opacity-75" style={{ width: `${width}%` }} />
       </span>
       <span className="text-end text-[13px] font-semibold tabular-nums text-[#111827]">{fmt(value, locale)}</span>
     </div>

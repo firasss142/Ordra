@@ -246,7 +246,7 @@ export function ConsoleView(props: ConsoleViewProps) {
           </h1>
           <p className="m-0 mt-0.5 text-[14.5px] text-[#6B7280]">
             {metrics.pool > 0
-              ? t("subPool", { n: fmt(metrics.pool, locale) })
+              ? t("subPool", { n: metrics.pool })
               : metrics.hot_waiting > 0
                 ? t("subHot", { n: metrics.hot_waiting })
                 : t("subCalm")}
@@ -340,7 +340,7 @@ export function ConsoleView(props: ConsoleViewProps) {
             const r = await onDistribute({
               leadIds: sheet.leadIds, agentIds: distAgents, rule: distRule, cap: distCap,
             });
-            return t("d.ok", { n: fmt(r.assigned, locale), agents: distAgents.length });
+            return t("d.ok", { n: r.assigned, agents: distAgents.length });
           })}
           onClose={() => setSheet(null)}
           locale={locale}
