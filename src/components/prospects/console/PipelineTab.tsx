@@ -95,7 +95,7 @@ export function PipelineTab(props: PipelineTabProps) {
 
   return (
     <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1fr)_440px]">
-      <section className={`flex min-w-0 flex-col overflow-hidden ${CARD}`}>
+      <section className={`flex min-w-0 flex-col overflow-hidden xl:max-h-[calc(100vh-190px)] ${CARD}`}>
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-1.5 border-b border-[#E5E7EB] px-3.5 py-2.5">
           {FILTERS.map((f) => (
@@ -192,9 +192,10 @@ export function PipelineTab(props: PipelineTabProps) {
         ) : shown.length === 0 && !isLoading ? (
           <Empty>{t("empty.pipeline")}</Empty>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="min-h-0 flex-1 overflow-auto">
             <table aria-label={t("pipeline")} aria-busy={isLoading} className="w-full border-collapse text-[13.5px]">
-              <thead>
+              {/* The header stays put while 290 rows scroll under it. */}
+              <thead className="sticky top-0 z-10 bg-white">
                 <tr>
                   <th scope="col" className="w-9 border-b border-[#E5E7EB] px-3 py-2.5">
                     <input
