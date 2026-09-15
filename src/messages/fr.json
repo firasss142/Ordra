@@ -5934,7 +5934,10 @@
       "not_interested": "Plus besoin",
       "competitor": "Acheté ailleurs",
       "wrong_number": "Faux numéro",
-      "autre": "Autre"
+      "autre": "Autre",
+      "unreachable": "Injoignable",
+      "duplicate": "Doublon",
+      "spam": "Spam"
     },
     "client": {
       "title": "Le client",

@@ -5934,7 +5934,10 @@
       "not_interested": "لم يعد يحتاج",
       "competitor": "اشترى من مكان آخر",
       "wrong_number": "رقم خاطئ",
-      "autre": "أخرى"
+      "autre": "أخرى",
+      "unreachable": "يتعذّر الوصول",
+      "duplicate": "مكرّر",
+      "spam": "رسالة مزعجة"
     },
     "client": {
       "title": "الزبون",
