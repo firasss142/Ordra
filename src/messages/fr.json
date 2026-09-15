@@ -5728,6 +5728,340 @@
       "label": "Filtrer",
       "riskyOnly": "Colis à risque seulement",
       "hideDone": "Masquer les terminées"
+    },
+    "board": {
+      "title": "Vue d'ensemble",
+      "sub": "{n} en cours · {agents} agents",
+      "search": "Rechercher par nom, numéro, ville ou agent…",
+      "markets": {
+        "ly": "Libye",
+        "tn": "Tunisie"
+      },
+      "tabs": {
+        "team": "Équipe",
+        "couriers": "Livreurs",
+        "carriers": "Transporteurs"
+      },
+      "agentLabel": "Agent",
+      "allAgents": "Tous les agents",
+      "select": "Sélectionner le colis de {name}",
+      "nSelected": "{n, plural, one {# colis sélectionné} other {# colis sélectionnés}}",
+      "verdict": {
+        "late": "En retard",
+        "idle": "Inactif aujourd'hui",
+        "ok": "À jour"
+      },
+      "groups": {
+        "late": "Besoin d'aide",
+        "idle": "Sans activité",
+        "ok": "À jour"
+      },
+      "nLate": "{n, plural, one {# en retard} other {# en retard}}",
+      "nIdle": "{n, plural, one {# inactif} other {# inactifs}}",
+      "nOk": "{n, plural, one {# à jour} other {# à jour}}",
+      "nSaved": "{n, plural, one {# sauvée} other {# sauvées}}",
+      "noAgents": "Aucun agent sur ce marché",
+      "marketLine": "{toTreat} colis à traiter dans le marché · {late} au-delà de la cible · cette semaine {saved} sauvées, {lost} perdues",
+      "whyLate": "<b>{n, plural, one {# colis attend} other {# colis attendent}}</b> au-delà de la cible sans action · le plus ancien {hours}",
+      "whyIdle": "<b>{n, plural, one {# colis à traiter} other {# colis à traiter}}</b> et aucune action aujourd'hui",
+      "whyOk": "{n, plural, one {# colis à traiter, pris en charge dans la cible} other {# colis à traiter, tous pris en charge dans la cible}}",
+      "noneLive": "Rien n'attend d'action",
+      "legend": {
+        "returning": "retour",
+        "act_now": "à traiter",
+        "waiting_customer": "attente client",
+        "waiting_carrier": "transporteur"
+      },
+      "inFlight": "{n, plural, one {# colis en cours} other {# colis en cours}}",
+      "now": "À faire",
+      "today": "Aujourd'hui",
+      "week": "Cette semaine",
+      "nowLate": "dont <b>{n}</b> au-delà de la cible · le plus ancien <b>{hours}</b>",
+      "nowOk": "tous dans la cible",
+      "actions": "{n, plural, one {action} other {actions}}",
+      "todayReached": "<b>{n}</b> {n, plural, one {client joint} other {clients joints}}{wa, plural, =0 {} other { · <b>#</b> WhatsApp}}",
+      "saved": "{n, plural, one {sauvée} other {sauvées}}",
+      "weekLost": "<b>{n, plural, one {# perdue} other {# perdues}}</b> · livrées après une action",
+      "weekNoLoss": "livrées après une action · 0 perdue",
+      "weekStrip": "Actions des 7 derniers jours",
+      "blocking": "Ce qui bloque",
+      "threeOf": "3 sur {n}",
+      "nothingBlocks": "Rien ne bloque : tous les colis de l'agent sont dans la cible.",
+      "waits": "attend {d}",
+      "absent": "{name} absent·e · déplacer ses {n} colis",
+      "couriers": {
+        "title": "Livreurs Darb",
+        "sub": "D'après le porteur actuel de chaque colis (Darb, toutes les 10 min).",
+        "courier": "Livreur",
+        "held": "Colis",
+        "noAnswer": "Sans rép.",
+        "returning": "Retours",
+        "call": "Appeler",
+        "none": "Ce transporteur ne transmet pas le livreur. Rien à afficher pour ce marché."
+      },
+      "carriers": {
+        "title": "Transporteurs",
+        "inFlight": "en cours",
+        "split": "{toTreat} à traiter · {returning} en retour",
+        "none": "Aucun colis en cours chez un transporteur."
+      }
+    },
+    "reassign": {
+      "action": "Réassigner",
+      "title": "Réassigner",
+      "lead": "{n, plural, one {# colis passe} other {# colis passent}} de {from} à l'agent choisi. Le transporteur n'est pas prévenu : rien ne change pour le colis, seulement qui le suit.",
+      "pick": "Nouveau responsable",
+      "noTarget": "Aucun autre agent sur ce marché.",
+      "warn": "La commission de livraison suit le nouveau responsable. Chaque réassignation est donc un événement de paie, inscrit dans l'historique de la commande.",
+      "confirm": "Réassigner",
+      "working": "Réassignation…",
+      "cancel": "Annuler",
+      "failed": "La réassignation a échoué. Réessayez.",
+      "locked": "Un agent a une de ces commandes ouverte. Réessayez dans un instant."
+    }
+  },
+  "prospects": {
+    "title": "Prospects",
+    "sub": "{n} en cours",
+    "subHot": "{n} à appeler maintenant · le reste attend",
+    "subCalm": "Rien d'urgent · la liste attend",
+    "stat": "<b>{calls}</b> appels · <b>{converted}</b> convertis aujourd'hui",
+    "search": "Rechercher par nom, numéro ou produit…",
+    "filters": "Filtres",
+    "newLead": "Nouveau prospect",
+    "pick": "Choisis un prospect pour voir son historique et agir.",
+    "selectMarket": "Choisis un marché pour voir ses prospects.",
+    "loadError": "Impossible de charger les prospects.",
+    "retry": "Réessayer",
+    "detail": "Détail du prospect",
+    "back": "Retour",
+    "close": "Fermer",
+    "minutes": "{n} min",
+    "hours": "{n} h",
+    "days": "{n} j",
+    "buckets": {
+      "all": "Tout",
+      "hot": "Chauds",
+      "callback": "Rappels",
+      "retry": "Sans réponse",
+      "campaign": "Campagne",
+      "winback": "Retours",
+      "converted": "Convertis"
+    },
+    "cols": {
+      "who": "Prospect",
+      "situation": "Situation · depuis",
+      "action": "Action",
+      "value": "Valeur"
+    },
+    "sit": {
+      "hot": "Chaud",
+      "callback_due": "Rappel dépassé",
+      "callback_at": "Rappel à {time}",
+      "retry": "Sans réponse · {n, plural, one {# essai} other {# essais}}",
+      "campaign": "Campagne",
+      "winback": "Retour à récupérer",
+      "converted": "Commande {ref}",
+      "converted_plain": "Convertie"
+    },
+    "subs": {
+      "hot_whatsapp": "Message WhatsApp reçu, pas encore répondu",
+      "hot_facebook_comment": "A commenté la pub, demande le prix",
+      "hot_facebook_dm": "A écrit en message privé",
+      "hot_instagram_dm": "A écrit en message privé Instagram",
+      "hot_tiktok_comment": "A commenté la vidéo",
+      "callback": "Il a demandé qu'on le rappelle",
+      "retry": "Essayer un autre numéro ou une autre heure",
+      "campaign": "Client d'une campagne de recontact",
+      "winback": "Le colis est revenu",
+      "converted": "Dans ta file, bucket Convertis"
+    },
+    "moves": {
+      "call": "Appeler",
+      "callback": "Rappeler",
+      "retry": "Réessayer",
+      "script": "Appeler avec le script",
+      "resend": "Proposer le renvoi",
+      "order": "Voir la commande"
+    },
+    "next": {
+      "hot": {
+        "title": "Appeler maintenant",
+        "why": "Entrant il y a {minutes} min. Un prospect joint dans les 10 minutes convertit ; après deux heures, presque jamais."
+      },
+      "callback": {
+        "title": "Rappeler comme convenu",
+        "why": "Confirmer le produit et la zone, puis convertir."
+      },
+      "retry": {
+        "title": "Nouvel essai",
+        "why": "{attempts, plural, one {# essai} other {# essais}} sans réponse. Essayer le second numéro ou WhatsApp d'abord."
+      },
+      "campaign": {
+        "title": "Appeler avec le script",
+        "why": "Client de la campagne. Offre à proposer : {offer}."
+      },
+      "winback": {
+        "title": "Proposer le renvoi sans frais",
+        "why": "Le colis est revenu ({reason}). Vérifier l'adresse avant de recréer."
+      },
+      "converted": {
+        "title": "Rien à faire",
+        "why": "La commande {order} est dans ta file, prête à envoyer."
+      }
+    },
+    "outcome": {
+      "title": "Résultat de l'appel",
+      "order": "Veut commander",
+      "callback": "Rappeler plus tard",
+      "noAnswer": "Pas de réponse",
+      "lost": "Pas intéressé",
+      "when": "Quand rappeler ?",
+      "why": "Pourquoi ?",
+      "note": "Note (optionnelle)",
+      "notePlaceholder": "Note courte — ex. « veut le 50 ml, demande le prix livraison »",
+      "save": "Enregistrer le résultat",
+      "cancel": "Annuler"
+    },
+    "when": {
+      "p1h": "+1 h",
+      "p2h": "+2 h",
+      "evening": "Ce soir 18:00",
+      "tomorrow": "Demain 10:00"
+    },
+    "lost": {
+      "price": "Prix",
+      "not_interested": "Plus besoin",
+      "competitor": "Acheté ailleurs",
+      "wrong_number": "Faux numéro",
+      "autre": "Autre"
+    },
+    "client": {
+      "title": "Le client",
+      "phone": "Téléphone",
+      "secondPhone": "Second numéro",
+      "city": "Ville",
+      "history": "Historique",
+      "lastAddress": "Dernière adresse",
+      "recommended": "recommandé"
+    },
+    "hist": {
+      "new": "Nouveau numéro · aucune commande",
+      "loyal": "Client fidèle · {delivered, plural, one {# livrée} other {# livrées}}",
+      "risk": "Risque · {returned, plural, one {# retournée} other {# retournées}}, 0 livrée",
+      "mixed": "{delivered, plural, one {# livrée} other {# livrées}} · {returned, plural, one {# retournée} other {# retournées}}"
+    },
+    "origin": {
+      "title": "Origine",
+      "source": "Source",
+      "agent": "Agent",
+      "created": "Créé le",
+      "campaign": "Campagne",
+      "offer": "Offre",
+      "order": "Commande",
+      "reason": "Motif du retour",
+      "attempts": "Tentatives"
+    },
+    "sources": {
+      "manual_call": "Appel au n° pub",
+      "facebook_comment": "Commentaire Facebook",
+      "facebook_dm": "Message Facebook",
+      "instagram_dm": "Message Instagram",
+      "whatsapp": "WhatsApp",
+      "tiktok_comment": "Commentaire TikTok",
+      "campaign": "Campagne",
+      "winback": "Colis retourné",
+      "other": "Autre"
+    },
+    "product": {
+      "title": "Produit",
+      "none": "Aucun produit noté",
+      "sku": "SKU"
+    },
+    "message": "Message d'origine",
+    "script": "Script de campagne",
+    "activity": "Activité",
+    "value": {
+      "potential": "potentiel",
+      "order": "commande"
+    },
+    "actions": {
+      "call": "Appeler",
+      "whatsapp": "WhatsApp",
+      "convert": "Convertir en commande"
+    },
+    "empty": {
+      "all": "Aucun prospect pour l'instant.",
+      "bucket": "Rien dans ce bucket.",
+      "search": "Aucun prospect ne correspond à cette recherche."
+    },
+    "toast": {
+      "saved": "Enregistré · déplacé vers « {bucket} »",
+      "undo": "Annuler",
+      "failed": "Échec de l'enregistrement. Réessaie."
+    },
+    "truncated": "Seuls les {n} premiers prospects sont affichés. Affine la recherche ou un bucket pour voir le reste.",
+    "console": {
+      "title": "Prospects",
+      "sub": "Demandes avant commande, rappels et campagnes de recontact",
+      "newCampaign": "Nouvelle campagne",
+      "importCsv": "Importer CSV",
+      "kpi": {
+        "new": "Nouveaux (7 j)",
+        "hot": "Chauds sans réponse",
+        "ttc": "Délai de 1er contact",
+        "revenue": "CA livré issu des prospects (30 j)",
+        "vsPrev": "vs 7 j précédents",
+        "vsPrev30": "vs 30 j précédents",
+        "now": "maintenant",
+        "oldestWaiting": "le plus ancien attend depuis {minutes}",
+        "noneWaiting": "personne n'attend",
+        "median": "médiane 30 j",
+        "noData": "pas encore de mesure",
+        "delivered": "{delivered} livrées · {rate} % de conversion",
+        "notYet": "aucune conversion pour l'instant"
+      },
+      "pipeline": "Pipeline",
+      "campaigns": "Campagnes",
+      "roster": "Par agent · aujourd'hui",
+      "count": "{n, plural, one {# prospect} other {# prospects}}",
+      "filters": {
+        "all": "Tous",
+        "hot": "Chauds",
+        "callback": "Rappels",
+        "campaign": "Campagne",
+        "winback": "Retours",
+        "unassigned": "Non assignés"
+      },
+      "th": {
+        "who": "Prospect",
+        "source": "Source",
+        "agent": "Agent",
+        "situation": "Situation",
+        "since": "Depuis",
+        "value": "Valeur"
+      },
+      "unassigned": "Non assigné",
+      "funnel": {
+        "audience": "audience",
+        "called": "appelés",
+        "converted": "convertis",
+        "rate": "{n} % de conversion",
+        "noCalls": "jamais appelée"
+      },
+      "agent": {
+        "hotWaiting": "{n, plural, one {# chaud attend} other {# chauds attendent}}",
+        "clear": "rien en attente",
+        "open": "{n, plural, one {# en cours} other {# en cours}}",
+        "today": "{converted} / {calls} aujourd'hui",
+        "noCalls": "aucun appel aujourd'hui"
+      },
+      "empty": {
+        "campaigns": "Aucune campagne pour l'instant.",
+        "agents": "Aucun agent actif sur ce marché.",
+        "pipeline": "Aucun prospect ne correspond à ce filtre."
+      },
+      "distributionWarning": "{n, plural, one {# prospect n'est assigné à personne} other {# prospects ne sont assignés à personne}} — aucun agent ne les voit."
     }
   }
 }

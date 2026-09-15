@@ -1,48 +1,48 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth/server-user";
-import { getActiveMarketScope } from "@/lib/auth/market-scope";
-import { getLeadsMetrics } from "@/lib/leads/metrics";
-import { LeadsPageClient } from "./LeadsPageClient";
-import type { Locale } from "@/types";
+import { ProspectsClient } from "@/components/prospects/ProspectsClient";
+import { ProspectsConsoleClient } from "@/components/prospects/ProspectsConsoleClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function LeadsPage({
-  params,
-}: {
-  params: { locale: string };
-}) {
+/**
+ * /leads — « Prospects », rebuilt from prototypes/prospects-v3.html.
+ *
+ *   agent                        → the worklist: six derived buckets, one
+ *                                  recommended move per row, the call outcome
+ *                                  in one sheet.
+ *   market_manager / super_admin → the console: four KPIs, the pipeline table,
+ *                                  campaign funnels and the agent roster.
+ *
+ * The old kanban (LeadsPageClient, LeadsKanban, LeadsTable) is no longer
+ * mounted here. It is untouched on disk, and the campaign builder it opened
+ * still lives in components/crm/ProspectCampaignPanel — the console's
+ * "Nouvelle campagne" is where that reappears once it is rebuilt.
+ *
+ * Model: docs/prospects-worklist.md.
+ */
+export default async function LeadsPage({ params }: { params: { locale: string } }) {
   const user = await getServerUser();
   if (!user) redirect(`/${params.locale}/login`);
-
-  if (user.role === "agent") return null;
   if (user.role === "warehouse_agent") redirect(`/${params.locale}/warehouse`);
+  if (user.role === "investor") redirect(`/${params.locale}/investor`);
 
-  const supabase = await createClient();
-  let userMarketLabel = "";
-  if (user.market_id) {
-    const { data: market } = await supabase
-      .from("markets")
-      .select("name")
-      .eq("id", user.market_id)
-      .single();
-    if (market) userMarketLabel = market.name;
+  if (user.role === "agent") {
+    return (
+      <ProspectsClient
+        role={user.role}
+        viewerId={user.id}
+        marketId={user.market_id ?? null}
+        locale={params.locale}
+      />
+    );
   }
 
-  const { marketId: activeMarketId } = await getActiveMarketScope(user);
-  // Leads metrics prefetch uses scope marketId directly (null = all markets for super_admin).
-  const initialMetrics = await getLeadsMetrics(supabase, {
-    marketId: activeMarketId,
-  });
-
   return (
-    <LeadsPageClient
+    <ProspectsConsoleClient
       role={user.role}
-      userMarketId={user.market_id ?? ""}
-      userMarketLabel={userMarketLabel}
-      locale={params.locale as Locale}
-      initialMetrics={initialMetrics}
+      marketId={user.market_id ?? null}
+      locale={params.locale}
     />
   );
 }

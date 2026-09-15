@@ -101,3 +101,24 @@ export interface DeliveryScorecard {
 export interface DeliveryOrderDetail {
   timeline: TimelineEntry[];
 }
+
+/** GET /api/delivery/board — the manager board's per-agent activity. */
+export interface DeliveryBoardAgent {
+  agent_id: string;
+  name: string;
+  actions_today: number;
+  reached_today: number;
+  whatsapp_today: number;
+  saved_week: number;
+  lost_week: number;
+  /** Actions per day over the last 7 days, today last. */
+  week: number[];
+}
+
+export interface DeliveryBoardResponse {
+  agents: DeliveryBoardAgent[];
+  /** The market's `delivery_first_action_hours`; every verdict is measured against it. */
+  target_hours: number;
+  timezone: string;
+  generated_at: string;
+}

@@ -23,7 +23,7 @@ export class ManualAdapter implements LeadSourceAdapter {
   mapToInternalLead(payload: unknown): InternalLeadData {
     const p = (payload ?? {}) as Record<string, unknown>;
     const source = (p.source as string) ?? "manual_call";
-    if (!CREATABLE_LEAD_SOURCES.includes(source as Exclude<LeadSource, "campaign">)) {
+    if (!CREATABLE_LEAD_SOURCES.includes(source as Exclude<LeadSource, "campaign" | "winback">)) {
       throw new Error(`Invalid source: ${source}`);
     }
     if (!p.customer_name || !p.customer_phone) {

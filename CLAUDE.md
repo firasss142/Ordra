@@ -1,7 +1,11 @@
-z# OMS — Order Management System
+# Ordra — Order Management System
+
+**The product is called Ordra.** "OMS" is the generic descriptor (order management
+system), not a name — it survives in code identifiers, paths and older plans, and that
+is fine, but new prose says Ordra.
 
 ## WHY
-Internal OMS for multi-market COD e-commerce (Tunisia + Libya).
+Internal order management for multi-market COD e-commerce (Tunisia + Libya).
 Webhook intake → agent phone confirmation → carrier dispatch → performance tracking.
 Two fully isolated markets under one system. Desktop-first.
 
@@ -15,21 +19,30 @@ Two fully isolated markets under one system. Desktop-first.
 - Five roles: super_admin (cross-market), market_manager (own market), agent (own queue), warehouse_agent, investor (external; own portal only)
 
 ## Stack layout
+There are FOUR route groups — (auth), (dashboard), (warehouse), (investor).
+**There is no `(agent)` group.** The agent shell is a ROLE BRANCH inside (dashboard):
+`(dashboard)/layout.tsx` returns `<AgentDashboardShell>` when `user.role === "agent"`,
+and the agent's pages are `(dashboard)/queue`, `/leads`, `/follow-ups`, `/commissions`
+reached through `components/layout/AgentNavTabs.tsx`.
+
 src/
-  app/[locale]/              → locale-routed pages (fr | ar)
-  app/[locale]/(dashboard)/  → manager + super_admin views
-  app/[locale]/(agent)/      → agent confirmation queue (no sidebar)
+  app/[locale]/(auth)/       → login
+  app/[locale]/(dashboard)/  → manager + super_admin views, AND the agent shell by role
+  app/[locale]/(warehouse)/  → entrepôt: bench, scan, dispatch, returns, stock, history
   app/[locale]/(investor)/   → investor portal (mobile-first PWA, no staff chrome)
-  app/api/webhooks/          → storefront webhook endpoints
+  app/api/                   → ~237 route handlers; app/api/webhooks/ = storefront intake
   components/ui/             → Button, Input, Card, Badge, Modal, Toast
-  components/layout/         → Sidebar, Topbar, NavItem
+  components/layout/         → Sidebar, Topbar, NavItem, AgentNavTabs, shells
   lib/supabase/              → browser + server clients
   lib/calculations/          → financial logic (SERVER-SIDE ONLY — never client)
-  lib/investors/             → investor v2 engine (facts, accrual, settlement, rollup) — see docs/investor-domain.md
-  lib/carriers/              → CarrierAdapter interface + implementations
+  lib/investors/             → investor v2 engine — see docs/investor-domain.md
+  lib/carriers/              → CarrierAdapter interface + implementations (largest dir)
   lib/storefronts/           → StorefrontAdapter interface + implementations
+  lib/leads/                 → CRM prospect pipeline (Clients → Prospects)
+  lib/ad-spend/ lib/meta-ads/→ ad spend + Meta sync; break-even.ts holds the money math
+  lib/team/ lib/commissions/ → control room, performance, agent commissions
   types/                     → TypeScript types + order status definitions
-  hooks/                     → SWR data hooks
+  hooks/                     → ~80 SWR data hooks (flat)
   messages/                  → i18n translations (fr.json, ar.json)
   test/                      → test setup + shared helpers (NOT production code)
 
@@ -49,14 +62,20 @@ src/
 - Read .claude/skills/test-driven-development/testing-anti-patterns.md before adding mocks
 
 ## Critical rules
-- **UI/UX & Design**: Follow design-system.md for all interface design, styling, and layout — Shopify-inspired dark sidebar, light content, zero decoration
+- **UI/UX & Design**: `docs/design-system.md` governs ALL product UI — Shopify-inspired
+  dark sidebar (#0E1013), light content (#F6F6F7), brand green (#15803D) for chrome,
+  functional colour only on status. The `.claude/skills/design` skill is for MARKETING
+  surfaces only (dark, cinematic) and must never be applied under `src/`.
 - Market isolation enforced via RLS at data layer — never rely on UI filtering alone
 - Save every Claude-created plan under `/plans`
 - Revenue = orders.total_price ONLY — never other price fields
 - All cost variables from DB settings table — NEVER hardcode fees or rates
 - Financial calculations → lib/calculations/ server-side only — never in client components
-- Order history (order_history table) is APPEND-ONLY — never update or delete rows
-- Inventory log (inventory_log table) is APPEND-ONLY — never update or delete rows
+- APPEND-ONLY, enforced by DB trigger — never update or delete: `order_history`,
+  `inventory_log`, `agent_commission_ledger`, `delivery_actions`. Correct a row by
+  appending its reversal. (Also immutable, different shape: `investor_deal_statements`,
+  `investor_ledger_entries`, and `investor_deal_terms` which is insert-only — terms are
+  amended by adding an effective-dated row.)
 - Libya has TWO PHYSICAL WAREHOUSES (Tripoli, Benghazi), one per Darb account; orders.warehouse_id follows carrier_id by trigger
 - A Darb bind is verified by re-reading the shipment: HTTP success is not proof the sticker stuck
 - A warehouse_agent with no `warehouse_id` sees NOTHING and can scan nothing — unassigned must never mean unrestricted; assign via Utilisateurs before their first shift
@@ -124,6 +143,8 @@ Market managers and agents NEVER mutate stock. Market managers and warehouse_age
 
 ## Rejection reasons (required when status = rejected)
 refus_client | faux_numero | doublon | injoignable | prix | non_serieux | autre (+ free text for autre)
+| commande_invalide | livraison_impossible
+(9 values live in the `rejection_reason` enum — the last two were added later.)
 
 ## Agent queue sort order
 1. callback_scheduled where callback_time ≤ now
@@ -131,18 +152,43 @@ refus_client | faux_numero | doublon | injoignable | prix | non_serieux | autre 
 3. pending (untouched, owned by agent) sorted oldest created_at first
 4. confirmed (awaiting upload to carrier) shows the "Upload" affordance until uploaded
 
+## Navigation (as coded in components/layout/Sidebar.tsx → NAV_SECTIONS)
+Accueil → Dashboard · Commandes → Commandes, Archivées · Entrepôt (id `logistique`) →
+Banc, Retours, Stock · Livraison → Suivi transporteur, Tableau livraison · Finances
+(canViewFinances) → P&L global, Produits & marges, Stock & inventaire, Dépenses pub,
+Investisseurs · Clients → Prospects, Relances · Équipe → Salle de contrôle, Performance,
+Accès · Système (super_admin only) → Marchés, Connexions, Paramètres, Journaux.
+
+Several live pages are NOT reachable from the sidebar and are reached by URL or deep
+link only: /warehouse/preparation, /warehouse/scan, /warehouse/dispatch,
+/warehouse/history, /warehouse/settings, /dashboard/alerts, /assign, /unassigned,
+/confirmation-flow, /profile, /admin/carrier-events, /admin/webhook-logs. Removing a nav
+entry has not meant deleting its page — check before assuming a route is dead.
+
 ## Design system
-- Shopify-inspired: dark sidebar (#1A1A1A), light content (#F6F6F7), white cards
+- Shopify-inspired: dark sidebar (#0E1013), light content (#F6F6F7), white cards
+- One brand green (#15803D) for chrome: active nav, primary CTA, focus ring
 - System fonts, 14px base, black text on white — maximum contrast
 - Zero gradients, zero shadows at rest, zero decoration
 - Functional color ONLY on status badges — everything else black/white/gray
+- Finance surfaces add measured categorical palettes (`--fin-*`, `--ads-*`) — §4.21
 - RTL: full layout mirror for Arabic market
 - See docs/design-system.md for full tokens and rules
 
 ## References (load on demand — do NOT @-include these)
-- Full OMS specification: docs/oms-spec.md
-- Database schema reference: docs/database-schema.md
+- Full Ordra specification: docs/oms-spec.md (aspirational — where it disagrees with
+  docs/database-schema.md, the schema doc is closer, and the live DB is closest)
+- Database schema reference (READ FROM THE LIVE DB, 73 tables): docs/database-schema.md
+- Delivery follow-up — customers, delivery_actions, zones, worklist, the /delivery screen
+  (agent page + manager board shipped; `lost` status and the commission rule are not):
+  docs/delivery-worklist.md + plans/suivi-livraison.md
+- Ad spend + Meta sync (break-even math, cost stack, cohort basis): docs/ad-spend.md +
+  plans/ad-spend-meta-sync-redesign.md (NOT ad-spend-campaign-redesign.md — superseded)
+- CRM prospects/leads + Équipe (control room, performance, presence): docs/crm-and-team.md
+- Prospects — the agent worklist (six derived buckets, the call outcome, the win-back
+  trigger, the columns that do not exist): docs/prospects-worklist.md
 - Order status pipeline: docs/order-pipeline.md
+- Scheduled jobs — all 12 pg_cron jobs + the notifications tick: docs/notifications-cron.md
 - Design system tokens + rules: docs/design-system.md
 - Business profitability logic: docs/business-logic.md (created in Session 12)
 - Investor domain v2 (deals, facts, accrual, settlement, rollup, surfaces): docs/investor-domain.md
@@ -159,8 +205,37 @@ refus_client | faux_numero | doublon | injoignable | prix | non_serieux | autre 
 - Orders page performance + real-time (steps 1–5 landed, invariants, how to re-check): docs/orders-page-performance.md + plans/orders-page-performance-plan.md
 - Scan run, scanned-list filters, per-site stock, multi-product stock fix (2026-09-10): docs/warehouse-scan-run.md + plans/warehouse-scan-run.md
 - Order presence + the agent lock (who has an order open, the hard block, why the trigger is SECURITY INVOKER): docs/order-presence-and-locking.md + plans/order-presence-and-locking.md
+- Ramassage Darb du jour (« le chauffeur est passé », par site, remise à zéro à minuit sans cron): docs/darb-pickup-switch.md + plans/darb-pickup-day-switch.md
 
+## Open discrepancies (found in the 2026-09-13 doc audit — code untouched)
+Documented where they live; none of these were "fixed" silently, because each is a
+decision, not a typo.
+1. **Two definitions of customer "risk".** `customer_risk_class()` counts
+   (returned + rejected); `src/lib/customer-history/classify.ts` counts rejected only,
+   and has 4 values to the DB's 3. The badge and the column can disagree — today for
+   exactly 1 of 7 117 customers, and that will grow with every return.
+   → docs/delivery-worklist.md §2
+2. **`line-strong` (#DADCE0, Tailwind) ≠ `--border-strong` (#C9CCCF, CSS var)** — same
+   intent, two values. → docs/design-system.md §2
+3. **The delivery worklist and the manager board are both live at /delivery, but the surfaces
+   its plan marks for deletion (Relances, Tableau livraison) are still live.** The board now
+   covers what /in-delivery showed; deleting the old pages is the plan's deletion phase.
+   → docs/delivery-worklist.md
+4. **The reassign sheet on /delivery says the delivery commission follows the new owner; the
+   ledger does not do that yet.** Decision 38 changed the rule to "assigned_to at delivered",
+   but `agent_commission_ledger` still attributes to the agent of the last confirmed
+   transition. The UI is ahead of the data — change the RPC before anyone is paid on a
+   reassigned parcel. → docs/agent-commissions.md + plans/suivi-livraison.md
+5. **391 stale `uploaded` orders** are hidden from the worklist rather than archived —
+   deliberate, but they are still `uploaded` in the data.
+6. **`_darb_tracking_backfill_backup` is the one table with no RLS.** Leftover; drop it
+   once the backfill is confirmed good.
 
+Never read a row count from `pg_stat_user_tables.n_live_tup` — it is a planner estimate
+and was wrong by three orders of magnitude on `order_items` during this very audit. Use
+`count(*)`.
+
+## Local test credentials
 - super_admin: admin@oms.local / testpass123
 - tn_manager: [manager.tn](http://manager.tn/)@oms.local / testpass123
 - ly_manager: [manager.ly](http://manager.ly/)@oms.local / testpass123

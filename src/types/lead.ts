@@ -21,14 +21,18 @@ export const LEAD_SOURCES = [
   "whatsapp",
   "tiktok_comment",
   "campaign",
+  // Created by the leads_create_winback() trigger when a parcel is marked
+  // returned. Never creatable by hand, which is why CREATABLE_LEAD_SOURCES
+  // filters it out alongside "campaign".
+  "winback",
   "other",
 ] as const;
 
 export type LeadSource = (typeof LEAD_SOURCES)[number];
 
 export const CREATABLE_LEAD_SOURCES = LEAD_SOURCES.filter(
-  (source) => source !== "campaign",
-) as Exclude<LeadSource, "campaign">[];
+  (source) => source !== "campaign" && source !== "winback",
+) as Exclude<LeadSource, "campaign" | "winback">[];
 
 export const LEAD_LOST_REASONS = [
   "not_interested",

@@ -3,7 +3,6 @@
 import { memo, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { QueuePage } from "@/components/queue/QueuePage";
-import { AgentLeadsQueue } from "@/components/crm/AgentLeadsQueue";
 import type { AuthUser } from "@/types";
 
 type Tab = "queue" | "leads" | "follow-ups" | "delivery" | "commissions";
@@ -58,14 +57,18 @@ function AgentTabsContainerInner({
           <QueuePage />
         </div>
       )}
-      {visited.has("leads") && (
-        <div
-          style={{ display: active === "leads" ? "block" : "none" }}
-          aria-hidden={active !== "leads"}
-        >
-          <AgentLeadsQueue user={user} />
-        </div>
-      )}
+      {/*
+        The leads tab renders the route's own page — « Prospects »,
+        src/components/prospects — rather than a component chosen here. The
+        shell used to import AgentLeadsQueue directly and drop `children`, so
+        whatever /leads returned never reached the screen.
+
+        It is not kept mounted behind the queue the way QueuePage is: `children`
+        belongs to the current route, and Next.js has already replaced it by the
+        time the agent is back on /queue. Hiding it would leave the previous
+        route's markup on the page.
+      */}
+      {active === "leads" && children}
     </main>
   );
 }

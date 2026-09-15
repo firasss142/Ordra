@@ -61,9 +61,11 @@ describe("AgentTabsContainer — tabs mount on first visit, not up-front", () =>
 
   it("does not mount the orders queue when the agent opens the leads tab", () => {
     pathnameMock = "/ar/leads";
-    render(<AgentTabsContainer user={user} />);
+    render(<AgentTabsContainer user={user}><div data-testid="leads-page" /></AgentTabsContainer>);
 
-    expect(screen.getByTestId("leads-tab")).toBeInTheDocument();
+    // The leads tab is the route's own page now, not a component this shell
+    // imports — see the suite below.
+    expect(screen.getByTestId("leads-page")).toBeInTheDocument();
     // The regression: QueuePage used to mount here and fire the whole orders
     // fetch waterfall (plus the Darb sweep) before leads could render.
     expect(queueMounted).not.toHaveBeenCalled();
@@ -88,11 +90,15 @@ describe("AgentTabsContainer — tabs mount on first visit, not up-front", () =>
     // `user` object is skipped entirely. In the app the navigation that changes
     // usePathname() also re-renders the shell, so pass a fresh object to model
     // that — otherwise this asserts memo's behaviour, not the mount latch.
-    rerender(<AgentTabsContainer user={{ ...user }} />);
+    rerender(
+      <AgentTabsContainer user={{ ...user }}>
+        <div data-testid="leads-page" />
+      </AgentTabsContainer>,
+    );
 
-    // Both are now in the DOM (queue hidden, not unmounted) and the queue was
-    // never re-mounted — that is what makes the second switch free.
-    expect(screen.getByTestId("leads-tab")).toBeInTheDocument();
+    // Both are on screen (queue hidden, not unmounted) and the queue was never
+    // re-mounted — that is what makes the second switch free.
+    expect(screen.getByTestId("leads-page")).toBeInTheDocument();
     expect(screen.getByTestId("queue-tab")).toBeInTheDocument();
     expect(queueMounted).toHaveBeenCalledTimes(1);
   });
@@ -113,5 +119,48 @@ describe("AgentTabsContainer — tabs mount on first visit, not up-front", () =>
     expect(screen.getByTestId("child")).toBeInTheDocument();
     expect(queueMounted).not.toHaveBeenCalled();
     expect(leadsMounted).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The leads tab renders the page's own children — « Prospects », the worklist
+ * rebuilt from prototypes/prospects-v3.html — not a component the shell picked
+ * for itself. The shell used to import AgentLeadsQueue directly and drop
+ * `children`, so the route's own output never reached the screen however the
+ * page was written.
+ */
+describe("AgentTabsContainer — the leads tab shows the route's page", () => {
+  beforeEach(() => {
+    queueMounted.mockClear();
+    leadsMounted.mockClear();
+  });
+  afterEach(cleanup);
+
+  it("renders the page's children on /leads, not the shell's own leads component", () => {
+    pathnameMock = "/fr/leads";
+    render(
+      <AgentTabsContainer user={user}>
+        <div data-testid="page-children">Prospects</div>
+      </AgentTabsContainer>,
+    );
+    expect(screen.getByTestId("page-children")).toBeTruthy();
+    expect(screen.queryByTestId("leads-tab")).toBeNull();
+    expect(leadsMounted).not.toHaveBeenCalled();
+  });
+
+  it("still keeps the queue mounted behind the leads tab, so switching back stays instant", () => {
+    pathnameMock = "/fr/queue";
+    const { rerender } = render(<AgentTabsContainer user={user}>{null}</AgentTabsContainer>);
+    expect(queueMounted).toHaveBeenCalledTimes(1);
+
+    pathnameMock = "/fr/leads";
+    rerender(
+      <AgentTabsContainer user={user}>
+        <div data-testid="page-children">Prospects</div>
+      </AgentTabsContainer>,
+    );
+    expect(screen.getByTestId("page-children")).toBeTruthy();
+    expect(screen.getByTestId("queue-tab")).toBeTruthy();
+    expect(queueMounted).toHaveBeenCalledTimes(1);
   });
 });
