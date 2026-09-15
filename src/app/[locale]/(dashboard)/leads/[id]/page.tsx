@@ -1,36 +1,27 @@
-"use client";
+import { redirect } from "next/navigation";
+import { getServerUser } from "@/lib/auth/server-user";
+import { ProspectDetailClient } from "@/components/prospects/detail/ProspectDetailClient";
 
-import { useAuth } from "@/context/auth";
-import { useTranslations } from "next-intl";
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import { LeadDetailCard } from "@/components/crm/LeadDetailCard";
+export const dynamic = "force-dynamic";
 
-export default function LeadDetailPage() {
-  const { user } = useAuth();
-  const params = useParams<{ locale: string; id: string }>();
-  const t = useTranslations("crm.leads");
+/**
+ * /leads/[id] — one prospect, on its own page.
+ *
+ * Rebuilt on 2026-09-15 in the console's visual language. The page it
+ * replaced was the last screen still wearing the pre-2026 CRM look: inline
+ * styles, its own grey shell, raw status transitions in the history.
+ *
+ * Every role that can reach « Prospects » gets every action here — log an
+ * attempt, qualify, schedule a callback, convert, close, archive. The server
+ * still decides what it will accept.
+ */
+export default async function ProspectDetailPage({
+  params,
+}: { params: { locale: string; id: string } }) {
+  const user = await getServerUser();
+  if (!user) redirect(`/${params.locale}/login`);
+  if (user.role === "warehouse_agent") redirect(`/${params.locale}/warehouse`);
+  if (user.role === "investor") redirect(`/${params.locale}/investor`);
 
-  if (!user) return null;
-  const id = params?.id as string;
-  const locale = (params?.locale as string) ?? user.locale;
-
-  return (
-    <div style={{ padding: 24, backgroundColor: "#F6F6F7", minHeight: "100vh" }}>
-      <div style={{ marginBottom: 16 }}>
-        <Link
-          href={`/${locale}/leads`}
-          style={{ color: "#6B7280", fontSize: 13, textDecoration: "none" }}
-        >
-          ← {t("title")}
-        </Link>
-      </div>
-      <LeadDetailCard
-        leadId={id}
-        role={user.role}
-        locale={locale}
-        actorId={user.id}
-      />
-    </div>
-  );
+  return <ProspectDetailClient leadId={params.id} locale={params.locale} />;
 }

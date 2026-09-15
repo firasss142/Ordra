@@ -6262,7 +6262,9 @@
           "mgr": "manager",
           "cust": "client",
           "agent": "agent"
-        }
+        },
+        "qualified": "Qualifié",
+        "archived": "Archivé"
       },
       "d": {
         "t": "Répartir les prospects",
@@ -6512,7 +6514,36 @@
         "d": "Cette vue est par marché : un agent travaille dans un seul."
       },
       "phoneOnly": "Cet écran demande un grand écran. Sur téléphone, Vue d'ensemble et Équipe restent lisibles.",
-      "toastSaved": "Enregistré"
+      "toastSaved": "Enregistré",
+      "detail": {
+        "archive": "Archiver",
+        "qualifyFirst": "Qualifiez le prospect avant de le convertir."
+      },
+      "cv": {
+        "t": "Convertir en commande",
+        "sub": "{name} · la commande part avec ces informations.",
+        "product": "Produit",
+        "variant": "Variante",
+        "quantity": "Quantité",
+        "unitPrice": "Prix unitaire",
+        "totalPrice": "Total",
+        "cod": "À encaisser à la livraison",
+        "go": "Créer la commande",
+        "noPrice": "Ce produit n'a pas de prix au catalogue. Saisissez le montant convenu avec le client.",
+        "zero": "Une commande à zéro n'apparaîtrait dans aucun chiffre d'affaires. Saisissez le montant réel."
+      },
+      "cbk": {
+        "t": "Programmer un rappel",
+        "sub": "{name} · il ressortira dans la file à cette heure.",
+        "when": "Quand ?",
+        "note": "Note",
+        "go": "Programmer",
+        "p1h": "Dans 1 h",
+        "p2h": "Dans 2 h",
+        "evening": "Ce soir",
+        "tomorrow": "Demain matin",
+        "custom": "Autre moment"
+      }
     }
   }
 }

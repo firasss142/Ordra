@@ -31,9 +31,17 @@ export async function GET(
     const { actor } = actorResult;
     const role = actor.role;
 
+    // The joins the detail page renders: what they wanted, which campaign
+    // brought them, and who owns them. Without these the page shows a product
+    // id where a product name belongs.
     const { data: lead, error } = await supabase
       .from("leads")
-      .select("*")
+      .select(
+        `*,
+         products:product_interest_id ( name, default_price ),
+         prospect_campaigns:campaign_id ( name, offer ),
+         users:assigned_to ( full_name )`,
+      )
       .eq("id", id)
       .single();
 
