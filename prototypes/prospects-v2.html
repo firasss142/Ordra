@@ -1,0 +1,1002 @@
+<!doctype html>
+<html lang="fr" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Prototype v2: Prospects (agent tab + manager console), redesigned from prospects-v1.html.
+  Same data, i18n and behaviour as v1; new visual layer and interaction model.
+  URL presets: ?role=agent|manager &lang=fr|ar &width=desktop|phone &screen=prospects|queue
+  &bucket=all|act_now|callbacks|list|done &tab=pipeline|campaigns|sources &build=1 &sheet=capture|outcome|convert|wa &step=2|3 &open=1
+-->
+<title>Prospects</title>
+<meta name="description" content="Agent prospects tab and manager console — Ordra leads rebuild, prototype v2.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Single light world on purpose: this prototypes Ordra's product UI, which is a
+   light interface (docs/design-system.md). Every surface paints its own colour. */
+:root{
+  --backdrop:#E5E9F0; --ground:#F3F5F9; --surface:#FFFFFF; --sunken:#EEF1F6; --hover:#F7F9FC;
+  --edge:#E2E6ED; --edge-2:#CDD3DD;
+  --ink:#11161F; --ink-2:#465063; --ink-3:#727C8C; --ink-4:#9AA2AF;
+  --hot:#E07A0B; --hot-ink:#8F4A00; --hot-bg:#FFF1DE;
+  --blue:#2F63D8; --blue-ink:#1F48A6; --blue-bg:#E9F0FD;
+  --green:#138A4F; --green-ink:#0C6A3B; --green-bg:#E3F4EA;
+  --red:#C9402C; --red-ink:#A52F1D; --red-bg:#FCEBE8;
+  --grey:#9AA2AF;
+  --wa:#128C7E; --wa-bg:#E4F3F0; --wa-bubble:#DCF8C6;
+  --m-side:#0E1116; --m-side-2:#1A1F27; --m-side-ink:#DDE1E7; --m-side-mute:#7C8490; --m-brand:#15803D; --m-brand-bg:#E7F5EC;
+  --f-lat:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-ar:"IBM Plex Sans Arabic","Noto Sans Arabic","IBM Plex Sans",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --r-lg:16px; --r-md:12px; --r-sm:8px;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--backdrop);color:var(--ink);font-family:var(--f-lat);font-size:14px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;padding-inline:16px}
+[dir="rtl"] .frame{font-family:var(--f-ar)}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+a{color:inherit;text-decoration:none}
+input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:6px}
+[hidden]{display:none!important}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.mono{font-family:var(--f-mono);font-weight:500;direction:ltr;unicode-bidi:isolate;letter-spacing:-.01em}
+.num{direction:ltr;unicode-bidi:isolate}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ── Studio toolbar ─────────────────────────────── */
+.bar{position:sticky;top:0;z-index:40;margin-inline:-16px;padding:10px 16px;background:rgba(229,233,240,.86);
+  backdrop-filter:blur(14px);border-bottom:1px solid #D5DBE4;display:flex;align-items:center;gap:14px;flex-wrap:wrap;direction:ltr;font-family:var(--f-lat)}
+.bar .ttl{font-weight:600;letter-spacing:-.01em;margin-inline-end:6px}
+.bar .ttl small{font-weight:500;color:var(--ink-3);margin-inline-start:6px}
+.seg{display:inline-flex;padding:3px;border-radius:10px;background:#D7DDE6;gap:2px}
+.seg button{padding:5px 11px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--ink-2);transition:background .15s,color .15s}
+.seg button[aria-pressed="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(17,22,31,.12)}
+.bar details{margin-inline-start:auto;position:relative}
+.bar summary{list-style:none;cursor:pointer;font-size:12.5px;font-weight:500;color:var(--ink-2);padding:6px 10px;border-radius:8px}
+.bar summary::-webkit-details-marker{display:none}
+.bar summary:hover{background:#D7DDE6}
+.checks{position:absolute;inset-inline-end:0;top:calc(100% + 8px);width:min(420px,calc(100vw - 32px));background:#fff;border-radius:14px;
+  box-shadow:0 18px 50px rgba(17,22,31,.18);padding:16px 18px;font-size:13px;color:var(--ink-2)}
+.checks h4{margin:12px 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.checks h4:first-child{margin-top:0}
+.checks ul{margin:0;padding-inline-start:18px}
+.checks li{margin-bottom:4px}
+.stage{display:flex;justify-content:center;padding-block:24px 48px;overflow-x:auto}
+
+/* ── Device frame ───────────────────────────────── */
+.frame{position:relative;display:flex;flex-direction:column;overflow:hidden;background:var(--ground);color:var(--ink);text-align:start;flex:0 0 auto}
+.frame[data-width="desktop"]{width:1280px;height:860px;border-radius:18px;box-shadow:0 1px 0 rgba(255,255,255,.6) inset,0 30px 80px -30px rgba(17,22,31,.35),0 0 0 1px rgba(17,22,31,.08)}
+.frame[data-width="phone"]{width:390px;height:844px;border-radius:46px;border:10px solid #151920;box-shadow:0 30px 80px -30px rgba(17,22,31,.45)}
+.frame[data-role="manager"]{flex-direction:row;background:#F6F7F8}
+.frame[data-role="manager"][data-width="phone"]{flex-direction:column}
+.root{display:contents}
+
+/* ── Agent shell ────────────────────────────────── */
+.shell{flex:0 0 auto;height:58px;display:flex;align-items:center;gap:20px;padding:0 22px;background:var(--surface);border-bottom:1px solid var(--edge)}
+.logo{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:-.01em}
+.logo i{width:22px;height:22px;border-radius:7px;background:var(--ink);display:grid;place-items:center;color:#fff;font-style:normal;font-size:12px}
+.logo small{font-weight:500;color:var(--ink-3);font-size:12.5px}
+.tabs{display:flex;align-self:stretch;margin-inline-start:12px}
+.tab{position:relative;display:flex;align-items:center;gap:7px;padding:0 14px;font-weight:500;color:var(--ink-3);transition:color .15s}
+.tab:hover{color:var(--ink)}
+.tab[aria-current="page"]{color:var(--ink);font-weight:600}
+.tab[aria-current="page"]::after{content:"";position:absolute;inset-inline:14px;bottom:-1px;height:2px;border-radius:2px;background:var(--ink)}
+.tab .n{min-width:19px;height:19px;padding:0 6px;border-radius:999px;background:var(--hot);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center}
+.me{margin-inline-start:auto;display:flex;align-items:center;gap:9px;color:var(--ink-2);font-weight:500}
+.av{width:30px;height:30px;border-radius:50%;background:var(--sunken);display:grid;place-items:center;font-weight:600;font-size:12.5px;color:var(--ink);flex:0 0 auto}
+.frame[data-width="phone"] .shell{height:auto;flex-wrap:wrap;padding:12px 14px 0;gap:10px}
+.frame[data-width="phone"] .tabs{order:3;width:100%;margin:0;overflow-x:auto;scrollbar-width:none;height:42px}
+.frame[data-width="phone"] .me span{display:none}
+
+.page{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;padding:20px 22px 0;gap:14px}
+.frame[data-width="phone"] .page{padding:14px 12px 0;gap:10px}
+.head{flex:0 0 auto;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.head h1{margin:0;font-size:22px;font-weight:600;letter-spacing:-.02em;text-wrap:balance}
+.today{display:flex;gap:18px;color:var(--ink-3);font-size:13px}
+.today b{color:var(--ink);font-weight:600;margin-inline-end:4px}
+.today .hot b{color:var(--hot-ink)}
+.frame[data-width="phone"] .today{width:100%;order:3;gap:14px;font-size:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 15px;border-radius:10px;font-weight:600;
+  background:var(--surface);color:var(--ink);box-shadow:inset 0 0 0 1px var(--edge-2);white-space:nowrap;transition:background .15s,box-shadow .15s,transform .1s}
+.btn:hover{background:var(--hover)}
+.btn:active{transform:translateY(1px)}
+.btn[data-primary]{background:var(--ink);color:#fff;box-shadow:none}
+.btn[data-primary]:hover{background:#262D39}
+.btn[data-wa]{background:var(--wa);color:#fff;box-shadow:none}
+.btn[data-quiet]{box-shadow:none;color:var(--ink-2)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.head .btn{margin-inline-start:auto}
+
+/* Bucket rail */
+.rail{flex:0 0 auto;display:flex;gap:4px;padding:4px;border-radius:12px;background:var(--sunken);overflow-x:auto;scrollbar-width:none;align-self:flex-start;max-width:100%}
+.rail button{flex:0 0 auto;display:flex;align-items:center;gap:8px;height:34px;padding:0 13px;border-radius:9px;font-weight:500;color:var(--ink-2);transition:background .18s var(--ease),color .18s}
+.rail button:hover{color:var(--ink)}
+.rail button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(17,22,31,.08),0 0 0 1px var(--edge)}
+.rail i{width:7px;height:7px;border-radius:50%;background:var(--tone)}
+.rail b{font-weight:600;color:var(--ink-3);font-size:12.5px}
+.rail button[aria-pressed="true"] b{color:var(--ink)}
+
+.split{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:16px}
+.frame[data-width="phone"] .split{display:block}
+.list{min-height:0;overflow-y:auto;padding-bottom:24px;scrollbar-width:thin;display:flex;flex-direction:column;gap:18px}
+.sec{display:flex;flex-direction:column;gap:6px}
+.sec-h{display:flex;align-items:baseline;gap:8px;padding:0 4px 2px;position:sticky;top:0;z-index:2;background:var(--ground)}
+.sec-h .t{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.sec-h .c{font-size:12px;color:var(--ink-4)}
+.sec-h .h{margin-inline-start:auto;font-size:12px;color:var(--ink-3)}
+.cap{margin-inline-start:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-3)}
+.cap i{width:72px;height:4px;border-radius:2px;background:var(--edge);overflow:hidden;display:block}
+.cap i b{display:block;height:100%;width:var(--w);background:var(--ink-2);border-radius:2px}
+
+/* Row */
+.row{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(0,190px) auto;gap:14px;align-items:center;padding:12px 14px;border-radius:var(--r-md);
+  background:var(--surface);box-shadow:0 0 0 1px var(--edge);cursor:pointer;transition:box-shadow .18s var(--ease),background .18s}
+.row:hover{box-shadow:0 0 0 1px var(--edge-2),0 4px 14px -8px rgba(17,22,31,.18)}
+.row[aria-selected="true"]{box-shadow:0 0 0 1.5px var(--ink),0 6px 18px -10px rgba(17,22,31,.3)}
+.row[data-done="true"]{background:transparent;box-shadow:0 0 0 1px var(--edge)}
+.ring{position:relative;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:600;background:var(--sunken);color:var(--ink-2);box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--tone)}
+.ring .src{position:absolute;inset-inline-end:-4px;bottom:-4px;width:19px;height:19px;border-radius:50%;background:var(--surface);display:grid;place-items:center;color:var(--ink-2);box-shadow:0 0 0 1px var(--edge)}
+.ring .src svg{width:11px;height:11px}
+.who{min-width:0}
+.who .l1{display:flex;align-items:baseline;gap:8px;min-width:0}
+.who .nm{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who .ph{font-size:12px;color:var(--ink-3)}
+.who .l2{margin-top:2px;color:var(--ink-2);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who .l2 .q{unicode-bidi:isolate;color:var(--ink-3)}
+.who .l3{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.move{font-size:13px;line-height:1.35;min-width:0}
+.move b{display:block;font-weight:600}
+.move span{display:block;color:var(--ink-3);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acts{display:flex;gap:6px}
+.cb{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--sunken);color:var(--ink);transition:background .15s,transform .1s}
+.cb:hover{background:var(--edge)}
+.cb:active{transform:scale(.94)}
+.cb[data-call]{background:var(--ink);color:#fff}
+.cb[data-call]:hover{background:#262D39}
+.cb[data-wa]{background:var(--wa-bg);color:var(--wa)}
+.cb svg{width:17px;height:17px}
+.frame[data-width="phone"] .row{grid-template-columns:auto minmax(0,1fr) auto;gap:10px;padding:12px}
+.frame[data-width="phone"] .row .move{grid-column:2/-1;grid-row:2}
+
+.chip{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;background:var(--sunken);color:var(--ink-2)}
+.chip[data-tone="hot"]{background:var(--hot-bg);color:var(--hot-ink)}
+.chip[data-tone="blue"]{background:var(--blue-bg);color:var(--blue-ink)}
+.chip[data-tone="green"]{background:var(--green-bg);color:var(--green-ink)}
+.chip[data-tone="red"]{background:var(--red-bg);color:var(--red-ink)}
+.chip[data-tone="line"]{background:transparent;box-shadow:inset 0 0 0 1px var(--edge-2)}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--hot);position:relative}
+.pulse::after{content:"";position:absolute;inset:-3px;border-radius:50%;background:var(--hot);opacity:.35;animation:pl 1.6s var(--ease) infinite}
+@keyframes pl{0%{transform:scale(.6);opacity:.5}100%{transform:scale(1.9);opacity:0}}
+.timer{font-family:var(--f-mono);font-size:11.5px}
+/* Detail pane */
+.pane{min-height:0;display:flex;flex-direction:column;background:var(--surface);border-radius:var(--r-lg);box-shadow:0 0 0 1px var(--edge);overflow:hidden}
+.frame[data-width="phone"] .pane{position:absolute;inset:0;z-index:6;border-radius:0;box-shadow:none;transform:translateX(100%);transition:transform .32s var(--ease)}
+[dir="rtl"] .frame[data-width="phone"] .pane{transform:translateX(-100%)}
+.frame[data-width="phone"] .pane[data-open="true"]{transform:none}
+.p-empty{margin:auto;text-align:center;color:var(--ink-3);padding:40px;max-width:30ch}
+.p-head{padding:18px 20px 16px;display:flex;gap:14px;align-items:center;border-bottom:1px solid var(--edge)}
+.p-head .ring{width:46px;height:46px;font-size:16px}
+.p-head .id{flex:1;min-width:0}
+.p-head h2{margin:0;font-size:17px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.p-head .s{margin-top:2px;color:var(--ink-3);font-size:12.5px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.p-head .back{display:none}
+.frame[data-width="phone"] .p-head .back{display:grid}
+[dir="rtl"] .back svg{transform:scaleX(-1)}
+.p-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:16px 20px 20px;display:flex;flex-direction:column;gap:20px;scrollbar-width:thin}
+.next{border-radius:var(--r-md);padding:14px 16px;background:var(--tint,var(--sunken));display:flex;flex-direction:column;gap:8px}
+.next[data-tone="hot"]{--tint:var(--hot-bg)}
+.next[data-tone="blue"]{--tint:var(--blue-bg)}
+.next[data-tone="green"]{--tint:var(--green-bg)}
+.next[data-tone="red"]{--tint:var(--red-bg)}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.next .what{font-size:17px;font-weight:600;letter-spacing:-.01em}
+.next .when{color:var(--ink-2);font-size:13px}
+.next .chips{display:flex;gap:6px;flex-wrap:wrap}
+.next .chip{background:rgba(255,255,255,.7)}
+.blk{display:flex;flex-direction:column;gap:8px}
+.quote{padding:10px 12px;border-radius:12px 12px 12px 4px;background:var(--sunken);font-size:14px;line-height:1.55;unicode-bidi:plaintext;max-width:92%}
+[dir="rtl"] .quote{border-radius:12px 12px 4px 12px}
+.quote small{display:block;margin-top:4px;color:var(--ink-3);font-size:11.5px;unicode-bidi:isolate}
+.kv{margin:0;display:grid;grid-template-columns:120px 1fr;gap:10px;font-size:13.5px;padding:2px 0}
+.kv dt{color:var(--ink-3)}
+.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.offer{align-self:flex-start;display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:9px;background:var(--green-bg);color:var(--green-ink);font-weight:600;font-size:13px}
+.script{padding:12px 14px;border-radius:10px;background:var(--hover);box-shadow:inset 0 0 0 1px var(--edge);font-size:13.5px;line-height:1.6;white-space:pre-wrap}
+.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.hist li{display:grid;grid-template-columns:70px 1fr auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--edge);font-size:13px}
+.hist li:first-child{border-top:0}
+.hist .t{color:var(--ink-3);font-size:12px}
+.tl{list-style:none;margin:0;padding:0;position:relative}
+.tl li{position:relative;display:grid;grid-template-columns:14px 1fr auto;gap:10px;padding:6px 0;font-size:13px}
+.tl li::before{content:"";position:absolute;inset-inline-start:6px;top:20px;bottom:-6px;width:1.5px;background:var(--edge)}
+.tl li:last-child::before{display:none}
+.tl .d{width:9px;height:9px;border-radius:50%;background:var(--ink);margin-top:5px;margin-inline-start:2px}
+.tl .t{color:var(--ink-3);font-size:12px;white-space:nowrap}
+.tl small{display:block;color:var(--ink-3);margin-top:2px}
+.muted{color:var(--ink-3);font-size:13px}
+.p-foot{display:flex;gap:8px;padding:12px 20px;border-top:1px solid var(--edge);background:var(--surface)}
+.p-foot .btn{flex:1;height:42px}
+.kbd{font-family:var(--f-mono);font-size:10.5px;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.18);margin-inline-start:4px}
+.btn:not([data-primary]) .kbd{background:var(--sunken);color:var(--ink-3)}
+
+/* Sheets */
+.scrim{position:absolute;inset:0;z-index:20;background:rgba(17,22,31,.32);opacity:0;visibility:hidden;transition:opacity .22s,visibility .22s}
+.scrim[data-open="true"]{opacity:1;visibility:visible}
+.sheet{position:absolute;z-index:21;background:var(--surface);display:flex;flex-direction:column;opacity:0;visibility:hidden;color:var(--ink);
+  box-shadow:0 30px 80px -20px rgba(17,22,31,.45);transition:opacity .22s var(--ease),transform .28s var(--ease),visibility .28s}
+.frame[data-width="desktop"] .sheet{width:560px;max-height:88%;left:50%;top:50%;border-radius:18px;transform:translate(-50%,-47%) scale(.97)}
+.frame[data-width="desktop"] .sheet[data-open="true"]{transform:translate(-50%,-50%) scale(1)}
+.frame[data-width="phone"] .sheet{inset-inline:0;bottom:0;max-height:92%;border-radius:22px 22px 0 0;transform:translateY(40px)}
+.frame[data-width="phone"] .sheet[data-open="true"]{transform:none}
+.sheet[data-open="true"]{opacity:1;visibility:visible}
+.s-head{display:flex;align-items:flex-start;gap:12px;padding:18px 20px 12px}
+.s-head h2{margin:0;font-size:18px;font-weight:600;letter-spacing:-.015em}
+.s-head .sub{color:var(--ink-3);font-size:13px;margin-top:2px}
+.s-head .x{margin-inline-start:auto;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:var(--ink-3)}
+.s-head .x:hover{background:var(--sunken);color:var(--ink)}
+.s-body{overflow-y:auto;padding:4px 20px 18px;display:flex;flex-direction:column;gap:16px}
+.s-foot{display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--edge)}
+.s-foot .btn{flex:1;height:44px}
+.q{display:flex;flex-direction:column;gap:8px;animation:in .28s var(--ease)}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.q .lb{font-size:13px;font-weight:600;color:var(--ink-2)}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:10px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--edge-2);font-weight:500;color:var(--ink-2);transition:box-shadow .15s,background .15s,color .15s}
+.opt:hover{color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink-4)}
+.opt[aria-pressed="true"]{background:var(--ink);color:#fff;box-shadow:none}
+.opt[data-tone="green"][aria-pressed="true"]{background:var(--green)}
+.opt[data-tone="red"][aria-pressed="true"]{background:var(--red)}
+.opt svg{width:16px;height:16px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.inp{width:100%;height:42px;border-radius:10px;border:0;background:var(--surface);box-shadow:inset 0 0 0 1px var(--edge-2);padding:0 12px;transition:box-shadow .15s}
+textarea.inp{height:auto;min-height:72px;padding:10px 12px;resize:vertical;line-height:1.5}
+.inp:focus{outline:0;box-shadow:inset 0 0 0 1.5px var(--ink)}
+.inp.big{height:54px;font-family:var(--f-mono);font-size:21px;letter-spacing:.02em;direction:ltr;text-align:start}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:2fr 1fr .8fr;gap:12px}
+.frame[data-width="phone"] .g2,.frame[data-width="phone"] .g3{grid-template-columns:1fr}
+.match{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:10px;font-size:13px;line-height:1.45;animation:in .25s var(--ease)}
+.match svg{width:17px;height:17px;margin-top:1px}
+.match[data-kind="known"]{background:var(--green-bg);color:var(--green-ink)}
+.match[data-kind="open"]{background:var(--hot-bg);color:var(--hot-ink)}
+.match[data-kind="new"]{background:var(--sunken);color:var(--ink-2)}
+.match[data-kind="inflight"]{background:var(--blue-bg);color:var(--blue-ink)}
+.total{display:flex;align-items:baseline;justify-content:space-between;padding:14px 16px;border-radius:12px;background:var(--ink);color:#fff}
+.total .v{font-size:22px;font-weight:600;letter-spacing:-.02em}
+.tpls{display:flex;gap:6px;flex-wrap:wrap}
+.chat{padding:18px 16px;border-radius:14px;background:#EFE7DD;display:flex}
+.bubble{margin-inline-start:auto;max-width:88%;background:var(--wa-bubble);padding:9px 12px 18px;border-radius:12px 12px 4px 12px;font-size:14px;line-height:1.55;position:relative;unicode-bidi:plaintext;white-space:pre-wrap;box-shadow:0 1px 1px rgba(0,0,0,.08)}
+[dir="rtl"] .bubble{border-radius:12px 12px 12px 4px}
+.bubble small{position:absolute;inset-inline-end:10px;bottom:3px;font-size:10.5px;color:#6D7B6A}
+.toast{position:absolute;z-index:30;left:50%;bottom:22px;transform:translate(-50%,16px);opacity:0;display:flex;align-items:center;gap:9px;
+  padding:10px 16px;border-radius:12px;background:var(--ink);color:#fff;font-size:13.5px;font-weight:500;transition:opacity .22s,transform .28s var(--ease);pointer-events:none;white-space:nowrap}
+.toast[data-on="true"]{opacity:1;transform:translate(-50%,0)}
+.toast svg{width:16px;height:16px;color:#7BE0A6}
+
+/* Queue mock */
+.banner{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;background:var(--surface);box-shadow:0 0 0 1px var(--edge),0 8px 24px -16px rgba(224,122,11,.5)}
+.banner .ic{width:38px;height:38px;border-radius:11px;background:var(--hot-bg);color:var(--hot);display:grid;place-items:center}
+.banner b{display:block;font-weight:600}
+.banner span{color:var(--ink-3);font-size:13px}
+.banner .btn{margin-inline-start:auto}
+.ghost{height:66px;border-radius:12px;background:var(--surface);box-shadow:0 0 0 1px var(--edge);opacity:.6}
+
+/* ── Manager console ────────────────────────────── */
+.sb{width:224px;flex:0 0 auto;background:var(--m-side);color:var(--m-side-ink);padding:16px 12px;display:flex;flex-direction:column;gap:2px;font-size:13.5px}
+.frame[data-width="phone"] .sb{display:none}
+.sb .lg{display:flex;align-items:center;gap:9px;padding:4px 10px 18px;font-weight:600;color:#fff}
+.sb .lg i{width:24px;height:24px;border-radius:7px;background:#fff;color:var(--m-side);display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:700}
+.sb .lg small{display:block;font-weight:400;color:var(--m-side-mute);font-size:11.5px}
+.sb .sh{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--m-side-mute);padding:14px 10px 6px}
+.sb a{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:8px;color:var(--m-side-ink)}
+.sb a:hover{background:var(--m-side-2)}
+.sb a[aria-current="page"]{background:var(--m-side-2);color:#fff;font-weight:600}
+.sb a em{font-style:normal;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--hot);color:#fff;font-weight:700}
+.mc{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.mtop{display:flex;align-items:center;gap:14px;padding:16px 26px;background:#fff;border-bottom:1px solid #E4E6E9;flex-wrap:wrap}
+.mtop h1{margin:0;font-size:20px;font-weight:600;letter-spacing:-.015em}
+.mtop .sub{color:#6D7175;font-size:13px}
+.mtop .cta{margin-inline-start:auto;display:flex;gap:8px}
+.mbody{flex:1 1 auto;min-height:0;overflow-y:auto;padding:20px 26px 28px;display:flex;flex-direction:column;gap:18px}
+.frame[data-width="phone"] .mbody{padding:14px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.frame[data-width="phone"] .kpis{grid-template-columns:1fr 1fr}
+.kpi{background:#fff;border-radius:12px;box-shadow:0 0 0 1px #E4E6E9;padding:14px 16px;display:flex;flex-direction:column;gap:2px;position:relative;overflow:hidden}
+.kpi .l{font-size:12.5px;color:#6D7175}
+.kpi .v{font-size:25px;font-weight:600;letter-spacing:-.02em}
+.kpi .v small{font-size:13px;font-weight:500;color:#6D7175;margin-inline-start:4px}
+.kpi .d{font-size:12px;color:#6D7175}
+.kpi .d b{font-weight:600}
+.kpi .d b.up{color:var(--green)}
+.kpi svg.sp{position:absolute;inset-inline-end:14px;top:16px;width:78px;height:28px}
+.mtabs{display:flex;gap:4px;border-bottom:1px solid #E4E6E9}
+.mtab{padding:10px 14px;color:#6D7175;font-weight:500;position:relative}
+.mtab[aria-current="true"]{color:#1A1A1A;font-weight:600}
+.mtab[aria-current="true"]::after{content:"";position:absolute;inset-inline:14px;bottom:-1px;height:2px;background:#1A1A1A;border-radius:2px}
+.fbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.fchip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:#fff;box-shadow:inset 0 0 0 1px #DADCE0;font-size:13px;color:#1A1A1A}
+.fchip:hover{box-shadow:inset 0 0 0 1px #9AA0A6}
+.fchip[aria-pressed="true"],.fchip[data-on="true"]{background:#1A1A1A;color:#fff;box-shadow:none}
+select.fchip{appearance:none;padding-inline-end:28px;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 15px) 14px,calc(100% - 10px) 14px;background-size:5px 5px;background-repeat:no-repeat}
+[dir="rtl"] select.fchip{background-position:15px 14px,10px 14px;padding-inline:28px 12px}
+.fbar .count{margin-inline-start:auto;color:#6D7175;font-size:13px}
+.card{background:#fff;border-radius:12px;box-shadow:0 0 0 1px #E4E6E9;overflow:hidden}
+.card>h2{display:flex;align-items:center;gap:10px;margin:0;padding:14px 16px;font-size:14px;font-weight:600;border-bottom:1px solid #EEF0F2}
+.card>h2 .r{margin-inline-start:auto;font-weight:400;color:#6D7175;font-size:12.5px}
+.twrap{overflow-x:auto}
+table.t{width:100%;border-collapse:collapse;font-size:13.5px}
+table.t th{text-align:start;font-weight:500;color:#6D7175;font-size:12px;padding:10px 14px;border-bottom:1px solid #EEF0F2;white-space:nowrap}
+table.t td{padding:11px 14px;border-bottom:1px solid #F1F2F4;vertical-align:middle}
+table.t tbody tr:last-child td{border-bottom:0}
+table.t tbody tr{transition:background .12s}
+table.t tbody tr:hover{background:#FAFBFC}
+table.t .n{text-align:end;white-space:nowrap}
+table.t .nw{white-space:nowrap}
+table.t .s1{color:#6D7175;font-size:12px;margin-top:2px;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;background:#F1F2F4;color:#4A4F55}
+.badge i{width:6px;height:6px;border-radius:50%;background:currentColor}
+.badge[data-s="contacted"]{background:#FFF6E0;color:#8A5D00}
+.badge[data-s="callback"]{background:var(--blue-bg);color:var(--blue-ink)}
+.badge[data-s="converted"],.badge[data-s="live"]{background:var(--green-bg);color:var(--green-ink)}
+.badge[data-s="lost"]{background:var(--red-bg);color:var(--red-ink)}
+.badge[data-s="hot"]{background:var(--hot-bg);color:var(--hot-ink)}
+.funnel{display:flex;height:8px;border-radius:4px;overflow:hidden;background:#EEF0F2;min-width:120px}
+.funnel b{display:block;height:100%}
+.funnel b:nth-child(1){background:#C7CDD6}
+.funnel b:nth-child(2){background:#8C96A5}
+.funnel b:nth-child(3){background:var(--m-brand)}
+.fn-l{display:flex;gap:10px;font-size:11.5px;color:#6D7175;margin-top:5px;white-space:nowrap}
+.hbar{height:6px;border-radius:3px;background:#EEF0F2;overflow:hidden;min-width:90px}
+.hbar b{display:block;height:100%;background:var(--m-brand);width:var(--w);border-radius:3px}
+.split-m{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:16px;align-items:start}
+.frame[data-width="phone"] .split-m{display:flex;flex-direction:column}
+.builder .form{padding:16px;display:flex;flex-direction:column;gap:14px}
+.builder .lb{font-size:12px;font-weight:600;color:#6D7175;letter-spacing:.02em}
+.builder .grp{display:flex;flex-direction:column;gap:7px}
+.builder .chips{display:flex;flex-wrap:wrap;gap:6px}
+.builder .fchip{height:30px;font-size:12.5px}
+.builder .inp{height:38px;font-size:13.5px}
+.aud{display:flex;align-items:baseline;gap:10px;padding:14px 16px;border-radius:12px;background:var(--m-brand-bg);color:#0F5E2E}
+.aud .v{font-size:30px;font-weight:600;letter-spacing:-.03em;transition:color .2s}
+.aud small{display:block;color:#3F6E52;font-size:12px}
+.mfoot{display:flex;gap:8px;padding:14px 16px;border-top:1px solid #EEF0F2;background:#FAFBFC}
+.mfoot .btn{flex:1}
+.btn[data-brand]{background:var(--m-brand);color:#fff;box-shadow:none}
+.btn[data-brand]:hover{background:#116C33}
+.rule{display:flex;gap:10px;align-items:flex-start;color:#6D7175;font-size:12.5px}
+.rule svg{width:16px;height:16px;margin-top:1px}
+</style>
+</head>
+<body>
+
+
+<header class="bar">
+  <span class="ttl">Prospects<small>prototype v2</small></span>
+  <div class="seg" id="segRole" role="group" aria-label="Rôle"><button data-role="agent" aria-pressed="true">Agent · Hend</button><button data-role="manager">Manager</button></div>
+  <div class="seg" id="segLang" role="group" aria-label="Langue"><button data-lang="fr" aria-pressed="true">FR</button><button data-lang="ar">AR</button></div>
+  <div class="seg" id="segWidth" role="group" aria-label="Largeur"><button data-width="desktop" aria-pressed="true">Desktop</button><button data-width="phone">Phone</button></div>
+  <div class="seg" id="segScreen" role="group" aria-label="Écran agent"><button data-screen="prospects" aria-pressed="true">Onglet Prospects</button><button data-screen="queue">Onglet File</button></div>
+  <details>
+    <summary>Ce qui a changé ▾</summary>
+    <div class="checks">
+      <h4>Agent</h4>
+      <ul>
+        <li>Une seule barre de buckets filtre la liste (au lieu de tuiles + pastilles + titres qui répétaient les mêmes chiffres).</li>
+        <li>Chaque ligne : qui, ce qu'il veut, <b>une</b> raison, la prochaine action, et l'appel en un geste.</li>
+        <li>Les prospects chauds affichent un chrono en direct — la règle des 10 minutes devient visible.</li>
+        <li>Le détail s'ouvre sur « Prochaine action » ; appeler et WhatsApp restent dans l'en-tête.</li>
+        <li>Résultat d'appel : un seul écran qui se déplie (3 écrans avant). « Veut commander » ouvre la commande pré-remplie.</li>
+        <li>Clavier : <b>↑ ↓</b> naviguer · <b>R</b> résultat · <b>C</b> convertir · <b>N</b> nouveau.</li>
+      </ul>
+      <h4>Manager</h4>
+      <ul>
+        <li>KPI avec tendance, filtres en pastilles, entonnoir visuel par campagne.</li>
+        <li>Le constructeur de campagne recalcule l'audience en direct et l'affiche sur le bouton de lancement.</li>
+      </ul>
+    </div>
+  </details>
+</header>
+<main class="stage">
+  <div class="frame" id="frame" data-role="agent" data-width="desktop">
+    <div id="agentRoot" class="root"></div>
+    <div id="managerRoot" class="root" hidden></div>
+    <div class="scrim" id="scrim"></div>
+    <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+</main>
+<script>
+const I18N={
+fr:{
+  market:"Libye · Tripoli", tab_queue:"File", tab_leads:"Prospects", tab_delivery:"Livraison", tab_commissions:"Commissions",
+  title:"Prospects", subtitle:(n)=>`${n} à appeler maintenant · le reste attend`, new_lead:"Nouveau prospect", pick:"Choisis un prospect pour voir son historique et agir.",
+  q_title:"File d'attente", q_sub:"Tes commandes à confirmer", banner:(n,m)=>`<b>${n} prospect${n>1?"s":""} chaud${n>1?"s":""} à appeler</b> · le plus ancien attend depuis ${m} min`, banner_btn:"Ouvrir",
+  sc_now:"À appeler maintenant", sc_conv:"Convertis cette semaine", sc_rate:"Taux de conversion 30 j",
+  b_act_now:"À appeler maintenant", b_callbacks:"Rappels prévus", b_list:"Liste d'appels", b_done:"Terminés (7 j)",
+  hint_act:"Un prospect chaud répondu en 10 min convertit, en 2 h non", hint_list:"Quand la file est vide", cap:(a,b)=>`${a}/${b} aujourd'hui`,
+  src:{fb_comment:"Commentaire FB",fb_dm:"Message FB",ig_dm:"Message IG",whatsapp:"WhatsApp",call:"Appel",campaign:"Campagne",winback:"Retour à récupérer",csv:"Import"},
+  st:{new:"Nouveau",contacted:"Contacté",callback:"Rappel prévu",converted:"Converti",lost:"Perdu"},
+  r_hot:(m)=>`Chaud · ${m} min sans réponse`, r_due:"Rappel dépassé", r_winback:(r)=>`Retourné · ${r}`, r_attempt:(n)=>`${n}ᵉ tentative`, r_campaign:(c)=>`Campagne · ${c}`, r_cold:(h)=>`Sans contact depuis ${h} h`,
+  cust:{none:"Nouveau client",bad:(n)=>`Risque · ${n} retournée${n>1?"s":""}, 0 livrée`,repeat:(d)=>`Client fidèle · ${d} livrées`,risk:(d,r)=>`Risque · ${r} retournée${r>1?"s":""} sur ${d+r}`,one:"Déjà client · 1 livrée"},
+  mv:{call:"Appeler",call_first:"Premier appel",callback:"Rappeler",wa:"Répondre sur WhatsApp",script:"Appeler avec le script",wait:"Attendre",none:""},
+  ago:(m)=>m<1?"à l'instant":m<60?`il y a ${Math.round(m)} min`:m<1440?`il y a ${Math.round(m/60)} h`:`il y a ${Math.round(m/1440)} j`, in_:(m)=>m<60?`dans ${Math.round(m)} min`:m<1440?`dans ${Math.round(m/60)} h`:`dans ${Math.round(m/1440)} j`,
+  d_why:"Pourquoi maintenant", d_cust:"Le client", d_want:"Ce qu'il veut", d_campaign:"Campagne", d_actions:"Mes actions", d_none:"Aucun contact encore", d_offer:"Offre", d_script:"Script",
+  hist_none:"Aucune commande passée sur ce numéro.", last_addr:"Dernière adresse", orders_l:"Commandes", outcome_l:{delivered:"livrée",returned:"retournée",rejected:"refusée"},
+  convert:"Convertir en commande", outcome:"Résultat d'appel", wa:"WhatsApp", call:"Appeler", back:"Retour", cancel:"Annuler", save:"Enregistrer", save_order:"Enregistrer et commander", create_order:"Créer la commande", open_wa:"Ouvrir WhatsApp et enregistrer",
+  c_title:"Nouveau prospect", c_phone:"Téléphone", c_name:"Nom", c_source:"D'où vient-il ?", c_product:"Produit qui l'intéresse", c_city:"Ville · zone", c_note:"Message d'origine ou note",
+  m_known:(d,r,p,t)=>`Client connu · ${d} livrée${d>1?"s":""}${r?` · ${r} retournée`:""} · dernière : ${p} ${t}`, m_open:(a,t)=>`Prospect déjà ouvert chez ${a} ${t} — ne pas doubler`, m_new:"Nouveau numéro, aucun historique", m_inflight:(o)=>`Commande en cours #${o} — il appelle peut-être pour ça`,
+  o_title:"Résultat d'appel", o1:"1 · Tu l'as eu ?", o2:"2 · Et alors ?", o3:"3 · Note",
+  reached:{yes:"Joint",no_answer:"Pas de réponse",busy:"Occupé",off:"Éteint",wrong:"Faux numéro"},
+  then:{order:"Veut commander",callback:"Rappeler plus tard",not_interested:"Pas intéressé",thinking:"Réfléchit, relancer"},
+  lost:{price:"Prix",no_need:"Plus besoin",competitor:"Acheté ailleurs",other:"Autre"},
+  next_l:"Quand rappeler", p2h:"+2 h", tmr:"Demain 10:00", p1h:"+1 h", note_ph:"Note courte — ex. « veut le pack, demande le prix livraison »",
+  v_title:"Créer la commande", v_sub:"Pré-remplie depuis le prospect et sa dernière commande", v_customer:"Client", v_delivery:"Livraison", v_product:"Produit", v_qty:"Qté", v_price:"Prix unit.", v_total:"Total à encaisser", v_variant:"Variante", v_addr:"Adresse", v_dest:"Ville · zone (Darb)", v_offer:"Offre campagne appliquée", v_goes:"→ File · Convertis · prête à envoyer",
+  wa_title:"Message WhatsApp", wa_sub:"Le modèle s'ouvre dans WhatsApp. L'envoi est enregistré comme contact.",
+  tpl:{first_reply:{n:"Première réponse",p:"Bonjour {name}, merci pour votre message à propos de {product}. C'est {price} LYD, livraison incluse, paiement à la réception. Je vous appelle ?"},offer:{n:"Offre campagne",p:"Bonjour {name}, vous aviez commandé {last} chez nous. Cette semaine : {offer}. Ça vous intéresse ?"},callback_confirm:{n:"Confirmer le rappel",p:"Bonjour {name}, je vous rappelle {when} comme convenu. Bonne journée."},winback:{n:"Après un retour",p:"Bonjour {name}, votre colis nous est revenu. Si vous le souhaitez toujours, nous le renvoyons sans frais. Je vous appelle ?"}},
+  toast_saved:(b)=>`Enregistré · déplacé vers « ${b} »`, toast_conv:(id)=>`Commande #${id} créée · File › Convertis`, toast_new:"Prospect créé",
+  empty_b:"Rien ici pour l'instant",
+  at:{call:"Appel",wa:"WhatsApp",note:"Note"},
+  // manager
+  m_title:"Prospects", m_sub:"Demandes avant commande, rappels et campagnes de recontact", m_new:"Nouveau prospect", m_csv:"Importer CSV", m_camp:"Nouvelle campagne",
+  k_new:"Nouveaux (7 j)", k_ttc:"Délai de 1er contact (médiane)", k_conv:"Taux de conversion 30 j", k_rev:"CA livré issu des prospects 30 j", k_up:"vs 7 j précédents", k_hot:"chauds en attente",
+  t_pipeline:"Pipeline", t_campaigns:"Campagnes", t_sources:"Sources",
+  f_all:"Tous", f_source:"Source", f_agent:"Agent", f_status:"Statut", f_campaign:"Campagne", f_hot:"Chauds seulement", f_count:(n)=>`${n} prospects`,
+  th:{name:"Prospect",phone:"Téléphone",source:"Source",agent:"Agent",status:"Statut",age:"Depuis",last:"Dernier résultat",campaign:"Campagne",want:"Intérêt"},
+  th_c:{name:"Campagne",audience:"Audience",called:"Appelés",reached:"Joints",converted:"Convertis",delivered:"Livrées",revenue:"CA livré",status:"Statut"},
+  th_s:{source:"Source",leads:"Prospects",ttc:"1er contact",conv:"Convertis",rate:"Taux",revenue:"CA livré"},
+  cs:{live:"En cours",done:"Terminée",draft:"Brouillon"},
+  cb_title:"Nouvelle campagne de recontact", cb_name:"Nom", cb_aud:"Audience · vos propres clients", cb_preview:"clients dans l'audience", cb_excl:"après exclusion des prospects ouverts et des commandes en cours",
+  aud:{product:"Ont acheté",days:"Livré il y a",city:"Ville",value:"Panier ≥",count:"Nb commandes",exclude:"Sans contact depuis 30 j",returned:"Commandes retournées"},
+  cb_offer:"Offre (ce que l'agent peut proposer)", cb_script:"Script FR", cb_script_ar:"Script AR", cb_dist:"Distribution", dist_rel:"L'agent de la dernière commande, sinon tour de rôle", dist_rr:"Tour de rôle", cb_agents:"Agents", cb_cap:"Max par agent et par jour", cb_dates:"Du · au", cb_launch:"Lancer la campagne", cb_cancel:"Annuler",
+  res:{audience:"Audience",called:"Appelés",reached:"Joints",converted:"Convertis",delivered:"Livrées",revenue:"CA livré"},
+  wb_rule:"Retours : un prospect est créé automatiquement pour l'agent de la commande, dès que le colis est marqué retourné."
+},
+ar:{
+  market:"ليبيا · طرابلس", tab_queue:"الطلبات", tab_leads:"العملاء المحتملون", tab_delivery:"التوصيل", tab_commissions:"العمولات",
+  title:"العملاء المحتملون", subtitle:(n)=>`${n} للاتصال الآن · الباقي ينتظر`, new_lead:"عميل محتمل جديد", pick:"اختر عميلاً لترى سجله وتتصرّف.",
+  q_title:"قائمة الطلبات", q_sub:"طلباتك للتأكيد", banner:(n,m)=>`<b>${n} عملاء ساخنون للاتصال</b> · الأقدم ينتظر منذ ${m} د`, banner_btn:"افتح",
+  sc_now:"للاتصال الآن", sc_conv:"تحوّلوا هذا الأسبوع", sc_rate:"نسبة التحويل 30 يوماً",
+  b_act_now:"للاتصال الآن", b_callbacks:"مواعيد متابعة", b_list:"قائمة الاتصال", b_done:"منتهية (7 أيام)",
+  hint_act:"الرد خلال 10 دقائق يحوّل، بعد ساعتين لا", hint_list:"عندما تفرغ قائمة الطلبات", cap:(a,b)=>`${a}/${b} اليوم`,
+  src:{fb_comment:"تعليق فيسبوك",fb_dm:"رسالة فيسبوك",ig_dm:"رسالة إنستغرام",whatsapp:"واتساب",call:"مكالمة",campaign:"حملة",winback:"مرتجع لاستعادته",csv:"استيراد"},
+  st:{new:"جديد",contacted:"تم التواصل",callback:"موعد متابعة",converted:"تحوّل",lost:"ضائع"},
+  r_hot:(m)=>`ساخن · ${m} د بلا رد`, r_due:"موعد المتابعة فات", r_winback:(r)=>`مرتجع · ${r}`, r_attempt:(n)=>`المحاولة ${n}`, r_campaign:(c)=>`حملة · ${c}`, r_cold:(h)=>`بلا تواصل منذ ${h} س`,
+  cust:{none:"زبون جديد",bad:(n)=>`خطر · ${n} مرتجعة، 0 مسلّمة`,repeat:(d)=>`زبون وفيّ · ${d} مسلّمة`,risk:(d,r)=>`خطر · ${r} مرتجعة من ${d+r}`,one:"زبون سابق · 1 مسلّمة"},
+  mv:{call:"اتصل",call_first:"أول اتصال",callback:"عاود الاتصال",wa:"ردّ على واتساب",script:"اتصل بالنص",wait:"انتظر",none:""},
+  ago:(m)=>m<1?"الآن":m<60?`منذ ${Math.round(m)} د`:m<1440?`منذ ${Math.round(m/60)} س`:`منذ ${Math.round(m/1440)} يوم`, in_:(m)=>m<60?`خلال ${Math.round(m)} د`:m<1440?`خلال ${Math.round(m/60)} س`:`خلال ${Math.round(m/1440)} يوم`,
+  d_why:"لماذا الآن", d_cust:"الزبون", d_want:"ماذا يريد", d_campaign:"الحملة", d_actions:"إجراءاتي", d_none:"لا تواصل بعد", d_offer:"العرض", d_script:"النص",
+  hist_none:"لا طلبات سابقة على هذا الرقم.", last_addr:"آخر عنوان", orders_l:"الطلبات", outcome_l:{delivered:"مسلّمة",returned:"مرتجعة",rejected:"مرفوضة"},
+  convert:"حوّل إلى طلب", outcome:"نتيجة المكالمة", wa:"واتساب", call:"اتصال", back:"رجوع", cancel:"إلغاء", save:"حفظ", save_order:"حفظ وإنشاء طلب", create_order:"إنشاء الطلب", open_wa:"افتح واتساب وسجّل",
+  c_title:"عميل محتمل جديد", c_phone:"الهاتف", c_name:"الاسم", c_source:"من أين جاء؟", c_product:"المنتج الذي يهمّه", c_city:"المدينة · المنطقة", c_note:"الرسالة الأصلية أو ملاحظة",
+  m_known:(d,r,p,t)=>`زبون معروف · ${d} مسلّمة${r?` · ${r} مرتجعة`:""} · آخر طلب: ${p} ${t}`, m_open:(a,t)=>`عميل مفتوح عند ${a} ${t} — لا تكرّر`, m_new:"رقم جديد، لا سجل", m_inflight:(o)=>`طلب قيد التوصيل #${o} — ربما يتصل بسببه`,
+  o_title:"نتيجة المكالمة", o1:"١ · هل وصلت إليه؟", o2:"٢ · وماذا بعد؟", o3:"٣ · ملاحظة",
+  reached:{yes:"وصلت إليه",no_answer:"لا رد",busy:"مشغول",off:"مغلق",wrong:"رقم خاطئ"},
+  then:{order:"يريد أن يطلب",callback:"عاود الاتصال لاحقاً",not_interested:"غير مهتم",thinking:"يفكّر، تابعه"},
+  lost:{price:"السعر",no_need:"لم يعد يحتاج",competitor:"اشترى من مكان آخر",other:"أخرى"},
+  next_l:"متى تعاود الاتصال", p2h:"+٢ س", tmr:"غداً 10:00", p1h:"+١ س", note_ph:"ملاحظة قصيرة — مثال: «يريد الباقة، يسأل عن سعر التوصيل»",
+  v_title:"إنشاء الطلب", v_sub:"مملوء مسبقاً من العميل المحتمل وآخر طلب له", v_customer:"الزبون", v_delivery:"التوصيل", v_product:"المنتج", v_qty:"الكمية", v_price:"سعر الوحدة", v_total:"الإجمالي للتحصيل", v_variant:"النوع", v_addr:"العنوان", v_dest:"المدينة · المنطقة (درب)", v_offer:"عرض الحملة مطبّق", v_goes:"→ الطلبات · المحوّلة · جاهزة للإرسال",
+  wa_title:"رسالة واتساب", wa_sub:"يُفتح النموذج في واتساب. يُسجَّل الإرسال كتواصل.",
+  tpl:{first_reply:{n:"الرد الأول",p:"مرحباً {name}، شكراً على رسالتك بخصوص {product}. السعر {price} د.ل شامل التوصيل، والدفع عند الاستلام. أتصل بك؟"},offer:{n:"عرض الحملة",p:"مرحباً {name}، سبق أن طلبت {last} من عندنا. هذا الأسبوع: {offer}. يهمّك؟"},callback_confirm:{n:"تأكيد الموعد",p:"مرحباً {name}، سأعاود الاتصال بك {when} كما اتفقنا. يومك سعيد."},winback:{n:"بعد الإرجاع",p:"مرحباً {name}، رجعت إلينا شحنتك. إن كنت لا تزال تريدها، نعيد إرسالها بلا رسوم. أتصل بك؟"}},
+  toast_saved:(b)=>`تم الحفظ · نُقل إلى «${b}»`, toast_conv:(id)=>`تم إنشاء الطلب #${id} · الطلبات › المحوّلة`, toast_new:"تم إنشاء العميل المحتمل",
+  empty_b:"لا شيء هنا الآن",
+  at:{call:"مكالمة",wa:"واتساب",note:"ملاحظة"},
+  m_title:"العملاء المحتملون", m_sub:"طلبات قبل الشراء، مواعيد المتابعة، وحملات إعادة التواصل", m_new:"عميل محتمل جديد", m_csv:"استيراد CSV", m_camp:"حملة جديدة",
+  k_new:"جدد (7 أيام)", k_ttc:"زمن أول تواصل (الوسيط)", k_conv:"نسبة التحويل 30 يوماً", k_rev:"إيراد مسلّم من العملاء المحتملين 30 يوماً", k_up:"مقارنة بالأسبوع السابق", k_hot:"ساخنون بانتظار",
+  t_pipeline:"المسار", t_campaigns:"الحملات", t_sources:"المصادر",
+  f_all:"الكل", f_source:"المصدر", f_agent:"الوكيل", f_status:"الحالة", f_campaign:"الحملة", f_hot:"الساخنون فقط", f_count:(n)=>`${n} عميلاً محتملاً`,
+  th:{name:"العميل",phone:"الهاتف",source:"المصدر",agent:"الوكيل",status:"الحالة",age:"منذ",last:"آخر نتيجة",campaign:"الحملة",want:"الاهتمام"},
+  th_c:{name:"الحملة",audience:"الجمهور",called:"اتُّصل بهم",reached:"وُصل إليهم",converted:"تحوّلوا",delivered:"مسلّمة",revenue:"إيراد مسلّم",status:"الحالة"},
+  th_s:{source:"المصدر",leads:"عملاء",ttc:"أول تواصل",conv:"تحوّلوا",rate:"النسبة",revenue:"إيراد مسلّم"},
+  cs:{live:"جارية",done:"منتهية",draft:"مسودة"},
+  cb_title:"حملة إعادة تواصل جديدة", cb_name:"الاسم", cb_aud:"الجمهور · زبائنك أنت", cb_preview:"زبوناً في الجمهور", cb_excl:"بعد استبعاد العملاء المفتوحين والطلبات قيد التوصيل",
+  aud:{product:"اشتروا",days:"سُلّم قبل",city:"المدينة",value:"السلة ≥",count:"عدد الطلبات",exclude:"بلا تواصل منذ 30 يوماً",returned:"طلبات مرتجعة"},
+  cb_offer:"العرض (ما يمكن للوكيل تقديمه)", cb_script:"النص بالفرنسية", cb_script_ar:"النص بالعربية", cb_dist:"التوزيع", dist_rel:"وكيل آخر طلب، وإلا بالتناوب", dist_rr:"بالتناوب", cb_agents:"الوكلاء", cb_cap:"الحد الأقصى لكل وكيل يومياً", cb_dates:"من · إلى", cb_launch:"إطلاق الحملة", cb_cancel:"إلغاء",
+  res:{audience:"الجمهور",called:"اتُّصل بهم",reached:"وُصل إليهم",converted:"تحوّلوا",delivered:"مسلّمة",revenue:"إيراد مسلّم"},
+  wb_rule:"المرتجعات: يُنشأ عميل محتمل تلقائياً لوكيل الطلب لحظة تعليم الشحنة كمرتجعة."
+}};
+
+/* v2 additions to the v1 dictionary */
+Object.assign(I18N.fr,{b_all:"Tout",today_now:"à appeler",today_conv:"convertis cette semaine",today_rate:"conversion 30 j",d_next:"Prochaine action",waiting:"attend depuis",
+  q_reach:"Tu l'as eu ?",q_then:"Et alors ?",q_lost:"Pourquoi ?",q_note:"Note",q_order_hint:"Ouvre la commande pré-remplie",
+  kb:"↑↓ naviguer · R résultat · C convertir · N nouveau",queue_hot:"prospects chauds attendent un appel",queue_hot_sub:(m)=>`Le plus ancien attend depuis ${m} min — un appel dans les 10 min convertit.`,
+  last30:"30 derniers jours",launch_n:(n)=>`Lancer · ${n} clients`,camp_list:"Toutes les campagnes"});
+Object.assign(I18N.ar,{b_all:"الكل",today_now:"للاتصال",today_conv:"تحوّلوا هذا الأسبوع",today_rate:"التحويل 30 يوماً",d_next:"الإجراء التالي",waiting:"ينتظر منذ",
+  q_reach:"هل وصلت إليه؟",q_then:"وماذا بعد؟",q_lost:"لماذا؟",q_note:"ملاحظة",q_order_hint:"يفتح الطلب مملوءاً مسبقاً",
+  kb:"↑↓ تنقّل · R النتيجة · C تحويل · N جديد",queue_hot:"عملاء ساخنون ينتظرون اتصالاً",queue_hot_sub:(m)=>`الأقدم ينتظر منذ ${m} د — الاتصال خلال 10 دقائق يحوّل.`,
+  last30:"آخر 30 يوماً",launch_n:(n)=>`إطلاق · ${n} زبوناً`,camp_list:"كل الحملات"});
+let lang="fr", role="agent", screen="prospects", mtab="pipeline", filter="all";
+const t=(k)=>I18N[lang][k];
+/* ───────────────────────── Mock data ───────────────────────── */
+const NOW=Date.now(), MIN=60e3, H=60*MIN, D=24*H, HOT_WINDOW=60, CAP=20;
+const agoM=(m)=>NOW-m*MIN, laterM=(m)=>NOW+m*MIN;
+const PRODUCTS=[{id:"p1",name:"Sérum vitamine C",price:110,variants:["30 ml","50 ml"]},{id:"p2",name:"Crème hydratante",price:95,variants:["Standard"]},{id:"p3",name:"Montre connectée X2",price:240,variants:["Noir","Argent"]},{id:"p4",name:"Pack blender + mixeur",price:520,variants:["Standard"]}];
+const AREAS=["طرابلس · عين زارة","طرابلس · سوق الجمعة","طرابلس · تاجوراء","طرابلس · جنزور","طرابلس · حي الأندلس","بنغازي · الفويهات","بنغازي · السلماني","مصراتة · المركز"];
+const AGENTS=["Hend","Mouna","Roqaya","Tasnim","Salima"];
+const CAMPAIGNS=[
+ {id:"c1",name:"Sérum · clients 60–120 j",status:"live",audience:412,called:188,reached:121,converted:37,delivered:29,revenue:3190,offer:"−15 % sur le sérum 50 ml, livraison offerte",offerAr:"خصم 15% على السيروم 50 مل، التوصيل مجاني",scriptFr:"Bonjour {name}, ici {agent} de Ordra. Vous aviez pris le sérum vitamine C il y a deux mois. Comment ça s'est passé ? Cette semaine le 50 ml est à 93 LYD au lieu de 110, livraison offerte. Je vous en mets un ?",scriptAr:"مرحباً {name}، معك {agent} من أوردرا. أخذت سيروم فيتامين C قبل شهرين، كيف كانت التجربة؟ هذا الأسبوع عبوة 50 مل بـ 93 د.ل بدل 110 والتوصيل مجاني. أحجز لك واحدة؟",agents:["Hend","Mouna","Roqaya"],cap:20,from:"2026-09-08",to:"2026-09-22",dist:"rel",filters:{product:"p1",days:"60–120",exclude:true}},
+ {id:"c2",name:"Montre X2 · Benghazi",status:"live",audience:96,called:40,reached:22,converted:6,delivered:4,revenue:960,offer:"Bracelet offert",offerAr:"سوار هدية",scriptFr:"Bonjour {name}, {agent} de Ordra. La montre X2 est de retour en stock à Benghazi, avec un bracelet offert cette semaine…",scriptAr:"مرحباً {name}، {agent} من أوردرا. ساعة X2 عادت للمخزون في بنغازي، مع سوار هدية هذا الأسبوع…",agents:["Tasnim","Salima"],cap:15,from:"2026-09-10",to:"2026-09-20",dist:"rr",filters:{product:"p3",city:"بنغازي",exclude:true}},
+ {id:"c0",name:"Crème · août",status:"done",audience:230,called:230,reached:140,converted:31,delivered:27,revenue:2565,offer:"2 achetées, la 3ᵉ à −50 %",offerAr:"اشترِ 2 والثالثة بنصف السعر",scriptFr:"…",scriptAr:"…",agents:["Hend","Mouna"],cap:20,from:"2026-08-11",to:"2026-08-25",dist:"rel",filters:{product:"p2",days:"30–90"}}
+];
+const L=(o)=>Object.assign({attempts:0,nextAt:null,lastOutcome:null,status:"new",actions:[],agent:"Hend",campaignId:null,msg:null,winback:null,cust:{prior:[0,0,0],last:null}},o);
+const LEADS=[
+ L({id:"P-7301",name:"أمل الزنتاني",phone:"0917788001",source:"whatsapp",createdM:12,product:"p1",area:AREAS[1],msg:"السلام عليكم، السيروم متوفر؟ وكم سعره مع التوصيل لسوق الجمعة؟",cust:{prior:[0,0,0],last:null}}),
+ L({id:"P-7300",name:"Rima B.",phone:"0925511209",source:"fb_comment",createdM:38,product:"p3",area:AREAS[2],msg:"prix ? livraison tajoura ?",cust:{prior:[1,0,0],last:{product:"Crème hydratante",daysAgo:41,address:"تاجوراء، طريق الشط"}}}),
+ L({id:"P-7288",name:"سالم أبو زيد",phone:"0913344557",source:"call",createdM:180,attempts:1,status:"callback",nextAt:agoM(25),lastOutcome:"callback",product:"p4",area:AREAS[0],msg:"يريد الباقة، يسأل إن كانت تعمل 220V",actions:[{at:agoM(170),type:"call",outcome:"callback",note:"يرد بعد الساعة الثانية"}],cust:{prior:[2,0,0],last:{product:"Sérum vitamine C",daysAgo:70,address:"عين زارة، شارع الزاوية"}}}),
+ L({id:"P-7295",name:"هدى المبروك",phone:"0915566778",source:"winback",createdM:95,product:"p2",area:AREAS[4],winback:{orderId:"48210",reason:"Client ne répond pas",reasonAr:"الزبون لا يرد"},cust:{prior:[0,1,0],last:{product:"Crème hydratante",daysAgo:1,address:"حي الأندلس، شارع الجرابة"}}}),
+ L({id:"P-7270",name:"نجوى الفيتوري",phone:"0944455610",source:"fb_dm",createdM:60*26,attempts:2,status:"contacted",nextAt:laterM(140),lastOutcome:"no_answer",product:"p1",area:AREAS[5],msg:"هل يوجد توصيل لبنغازي؟",actions:[{at:agoM(60*25),type:"call",outcome:"no_answer"},{at:agoM(60*3),type:"call",outcome:"no_answer"}],cust:{prior:[0,0,0],last:null}}),
+ L({id:"P-7262",name:"Karim S.",phone:"0918877001",source:"call",createdM:60*30,attempts:1,status:"callback",nextAt:laterM(60*22),lastOutcome:"thinking",product:"p4",area:AREAS[3],msg:"Compare avec un autre modèle, rappeler demain",actions:[{at:agoM(60*29),type:"call",outcome:"thinking",note:"hésite sur le prix, rappeler demain matin"}],cust:{prior:[3,0,0],last:{product:"Montre connectée X2",daysAgo:120,address:"جنزور، شارع البحر"}}}),
+ L({id:"P-7240",name:"عائشة الغرياني",phone:"0918877665",source:"campaign",campaignId:"c1",createdM:60*50,product:"p1",area:AREAS[1],cust:{prior:[2,1,1],last:{product:"Sérum vitamine C",daysAgo:74,address:"سوق الجمعة، بجانب صيدلية الشفاء"}}}),
+ L({id:"P-7241",name:"إبراهيم قدورة",phone:"0912299887",source:"campaign",campaignId:"c1",createdM:60*50,product:"p1",area:AREAS[1],cust:{prior:[1,0,0],last:{product:"Sérum vitamine C",daysAgo:88,address:"سوق الجمعة"}}}),
+ L({id:"P-7242",name:"مريم الدرسي",phone:"0917766554",source:"campaign",campaignId:"c1",createdM:60*50,product:"p1",area:AREAS[0],cust:{prior:[4,0,0],last:{product:"Sérum vitamine C",daysAgo:65,address:"الهضبة الخضراء"}}}),
+ L({id:"P-7243",name:"طارق الهوني",phone:"0943322110",source:"campaign",campaignId:"c1",createdM:60*50,product:"p1",area:AREAS[6],cust:{prior:[1,0,0],last:{product:"Sérum vitamine C",daysAgo:101,address:"السلماني الشرقي"}}}),
+ L({id:"P-7250",name:"ليلى الشريف",phone:"0916677889",source:"ig_dm",createdM:60*5,product:"p2",area:AREAS[2],msg:"متوفرة الكريمة؟",cust:{prior:[0,0,0],last:null}}),
+ L({id:"P-7230",name:"Omar K.",phone:"0914455667",source:"whatsapp",createdM:60*30,attempts:1,status:"converted",lastOutcome:"order",product:"p4",area:AREAS[0],convertedOrder:"48381",actions:[{at:agoM(60*29),type:"call",outcome:"order",note:""}],cust:{prior:[2,0,0],last:{product:"Pack blender + mixeur",daysAgo:1,address:"عين زارة"}}}),
+ L({id:"P-7222",name:"سعاد بن علي",phone:"0945544332",source:"campaign",campaignId:"c2",createdM:60*70,attempts:2,status:"lost",lastOutcome:"not_interested",lostReason:"competitor",product:"p3",area:AREAS[5],actions:[{at:agoM(60*40),type:"call",outcome:"not_interested",note:"اشترت من مكان آخر"}],cust:{prior:[0,1,0],last:{product:"Sérum vitamine C",daysAgo:60,address:"الليثي"}}}),
+];
+const KNOWN={"0921100223":{name:"سامي العريبي",prior:[1,0,0],last:{product:"Pack blender + mixeur",daysAgo:3},inflight:"48430"},"0912233445":{name:"نادية الفرجاني",prior:[1,0,0],last:{product:"Crème hydratante",daysAgo:22}}};
+const BAND={act_now:"var(--amber-band)",callbacks:"var(--blue-band)",list:"var(--grey-band)",done:"var(--green-band)"};
+const ORDER=["act_now","callbacks","list","done"];
+const SRC_ICON={fb_comment:'<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>',fb_dm:'<svg viewBox="0 0 24 24"><path d="M3 6l9 6 9-6M3 6h18v12H3z"/></svg>',ig_dm:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="12" cy="12" r="3.5"/></svg>',whatsapp:'<svg viewBox="0 0 24 24"><path d="M4 20l1.3-3.8A8 8 0 1 1 8.2 19z"/></svg>',call:'<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',campaign:'<svg viewBox="0 0 24 24"><path d="M4 10v4h3l6 4V6L7 10zM16 9a4 4 0 0 1 0 6"/></svg>',winback:'<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 4v5h5"/></svg>',csv:'<svg viewBox="0 0 24 24"><path d="M6 3h9l5 5v13H6z"/></svg>'};
+const ICON={phone:'<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',wa:'<svg viewBox="0 0 24 24"><path d="M4 20l1.3-3.8A8 8 0 1 1 8.2 19z"/><path d="M9 9.5c.3 2.5 2.5 4.7 5 5l1-1.5-1.8-1-1 .8a6 6 0 0 1-1.5-1.5l.8-1-1-1.8z"/></svg>',back:'<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>'};
+const $=(s,r=document)=>r.querySelector(s);
+const prod=(id)=>PRODUCTS.find(p=>p.id===id);
+const camp=(id)=>CAMPAIGNS.find(c=>c.id===id);
+const fmtPhone=(p)=>p.replace(/(\d{3})(\d{3})(\d{4})/,"$1 $2 $3");
+const INBOUND=["whatsapp","fb_comment","fb_dm","ig_dm","call"];
+
+function ageM(l){return (NOW-agoM(l.createdM))/MIN}
+function isHot(l){return INBOUND.includes(l.source)&&l.attempts===0&&l.status==="new"&&l.createdM<=HOT_WINDOW}
+function bucketOf(l){
+  if(l.status==="converted"||l.status==="lost") return "done";
+  if(isHot(l)) return "act_now";
+  if(l.source==="winback"&&l.attempts===0) return "act_now";
+  if(l.nextAt&&l.nextAt<=NOW) return "act_now";
+  if(l.nextAt&&l.nextAt>NOW) return "callbacks";
+  return "list";
+}
+function custLabel(c){const [d,r,j]=c.prior;if(d+r+j===0)return{tone:"grey",label:t("cust").none};if(d===0)return{tone:"red",label:t("cust").bad(r+j)};if((d+r+j)>=2&&(r+j)/(d+r+j)>=.5)return{tone:"red",label:t("cust").risk(d,r+j)};if(d===1&&r+j===0)return{tone:"green",label:t("cust").one};return{tone:"green",label:t("cust").repeat(d)}}
+function reasonsOf(l){
+  const b=bucketOf(l), r=[];
+  if(b==="done"){r.push({tone:l.status==="converted"?"green":"red",label:t("st")[l.status]+(l.lostReason?` · ${t("lost")[l.lostReason]}`:"")});return r}
+  if(isHot(l)) r.push({tone:"amber",label:t("r_hot")(Math.round(l.createdM))});
+  if(l.source==="winback"&&l.winback) r.push({tone:"red",label:t("r_winback")(lang==="ar"?l.winback.reasonAr:l.winback.reason)});
+  if(l.nextAt&&l.nextAt<=NOW) r.push({tone:"amber",label:t("r_due")});
+  if(l.attempts>0&&b!=="done") r.push({tone:"grey",label:t("r_attempt")(l.attempts)});
+  if(l.campaignId&&b==="list") r.push({tone:"blue",label:t("r_campaign")(camp(l.campaignId).name)});
+  if(b==="list"&&INBOUND.includes(l.source)&&l.attempts===0) r.push({tone:"grey",label:t("r_cold")(Math.round(l.createdM/60))});
+  return r;
+}
+function moveOf(l){
+  const b=bucketOf(l), mv=t("mv");
+  if(b==="done") return {label:"",when:""};
+  if(b==="callbacks") return {label:mv.callback,when:t("in_")((l.nextAt-NOW)/MIN)+(l.actions.length&&l.actions[l.actions.length-1].note?` · ${l.actions[l.actions.length-1].note}`:"")};
+  if(isHot(l)&&(l.source==="whatsapp"||l.source==="fb_dm"||l.source==="ig_dm")) return {label:mv.wa,when:mv.call_first};
+  if(isHot(l)) return {label:mv.call_first,when:""};
+  if(l.source==="winback") return {label:mv.call,when:l.cust.last?`${l.cust.last.product} · ${t("ago")(l.cust.last.daysAgo*1440)}`:""};
+  if(l.nextAt&&l.nextAt<=NOW) return {label:mv.callback,when:l.actions.length&&l.actions[l.actions.length-1].note||""};
+  if(l.campaignId) return {label:mv.script,when:camp(l.campaignId).offer};
+  return {label:mv.call,when:""};
+}
+
+/* ───────────── v2 icons ───────────── */
+const sv=(d)=>`<svg class="i" viewBox="0 0 24 24">${d}</svg>`;
+Object.assign(ICON,{
+  phone:sv('<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>'),
+  wa:sv('<path d="M4 20l1.3-3.8A8 8 0 1 1 8.2 19z"/><path d="M9 9.5c.3 2.5 2.5 4.7 5 5l1-1.5-1.8-1-1 .8a6 6 0 0 1-1.5-1.5l.8-1-1-1.8z"/>'),
+  back:sv('<path d="M15 5l-7 7 7 7"/>'), plus:sv('<path d="M12 5v14M5 12h14"/>'), x:sv('<path d="M6 6l12 12M18 6L6 18"/>'),
+  check:sv('<path d="M5 12.5l4.5 4.5L19 7.5"/>'), bolt:sv('<path d="M13 3L5 13h6l-1 8 8-10h-6z"/>'),
+  info:sv('<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>'), alert:sv('<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/>'),
+  user:sv('<circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>'), truck:sv('<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="1.7"/><circle cx="17" cy="18" r="1.7"/>'),
+  loop:sv('<path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 4v5h5"/>')
+});
+Object.keys(SRC_ICON).forEach(k=>{SRC_ICON[k]=SRC_ICON[k].replace('<svg ','<svg class="i" ')});
+const initial=(n)=>[...(n||"?").replace(/^(ال)/,"").trim()][0]||"?";
+function toneOf(l){const b=bucketOf(l);return b==="act_now"?"var(--hot)":b==="callbacks"?"var(--blue)":b==="list"?"var(--grey)":l.status==="converted"?"var(--green)":"var(--red)"}
+function chipTone(tone){return {amber:"hot",grey:"",src:"line"}[tone]??tone}
+const clock=(ms)=>{const s=Math.max(0,Math.floor(ms/1000)),h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}:${String(m).padStart(2,"0")}:${String(x).padStart(2,"0")}`:`${m}:${String(x).padStart(2,"0")}`};
+
+/* ───────────── Agent render ───────────── */
+let selected="P-7301";
+const mine=()=>LEADS.filter(l=>l.agent==="Hend");
+function applyLang(){document.documentElement.lang=lang;document.documentElement.dir=lang==="ar"?"rtl":"ltr";render()}
+function render(){
+  const f=$("#frame");f.dataset.role=role;
+  $("#agentRoot").hidden=role!=="agent";$("#managerRoot").hidden=role!=="manager";
+  role==="agent"?renderAgent():renderManager();
+}
+function counts(){const c={all:0};ORDER.forEach(k=>c[k]=0);mine().forEach(l=>{c[bucketOf(l)]++;c.all++});return c}
+function renderAgent(){
+  const c=counts();
+  $("#agentRoot").innerHTML=`
+   <header class="shell">
+     <div class="logo"><i>O</i>Ordra <small>${t("market")}</small></div>
+     <nav class="tabs">
+       <button class="tab" data-screen="queue" aria-current="${screen==="queue"?"page":"false"}">${t("tab_queue")}</button>
+       <button class="tab" data-screen="prospects" aria-current="${screen==="prospects"?"page":"false"}">${t("tab_leads")}${c.act_now?`<span class="n num">${c.act_now}</span>`:""}</button>
+       <button class="tab">${t("tab_delivery")}</button>
+       <button class="tab">${t("tab_commissions")}</button>
+     </nav>
+     <div class="me"><span class="av">H</span><span>Hend</span></div>
+   </header>
+   <div class="page" id="page"></div>`;
+  $("#agentRoot").querySelectorAll("[data-screen]").forEach(b=>b.onclick=()=>{screen=b.dataset.screen;segSet("segScreen","screen",screen);render()});
+  screen==="queue"?renderQueue():renderProspects(c);
+}
+function renderQueue(){
+  const hot=mine().filter(isHot);const oldest=hot.length?Math.max(...hot.map(l=>l.createdM)):0;
+  $("#page").innerHTML=`
+   <div class="head"><h1>${t("q_title")}</h1><div class="today"><span>${t("q_sub")}</span></div></div>
+   ${hot.length?`<div class="banner"><span class="ic">${ICON.bolt}</span><div><b><span class="num">${hot.length}</span> ${t("queue_hot")}</b><span>${t("queue_hot_sub")(Math.round(oldest))}</span></div><button class="btn" data-primary id="goLeads">${t("banner_btn")}</button></div>`:""}
+   <div class="list">${[1,2,3,4,5,6].map(()=>`<div class="ghost"></div>`).join("")}</div>`;
+  $("#goLeads")?.addEventListener("click",()=>{screen="prospects";filter="act_now";segSet("segScreen","screen",screen);render()});
+}
+function renderProspects(c){
+  const conv=mine().filter(l=>l.status==="converted").length+5;
+  $("#page").innerHTML=`
+   <div class="head">
+     <h1>${t("title")}</h1>
+     <div class="today">
+       <span class="hot"><b class="num">${c.act_now}</b>${t("today_now")}</span>
+       <span><b class="num">${conv}</b>${t("today_conv")}</span>
+       <span><b class="num">31 %</b>${t("today_rate")}</span>
+     </div>
+     <button class="btn" data-primary id="btnNew">${ICON.plus}${t("new_lead")}</button>
+   </div>
+   <nav class="rail" aria-label="Buckets">${["all",...ORDER].map(k=>`<button data-f="${k}" aria-pressed="${filter===k}" style="--tone:${k==="all"?"var(--ink)":BAND2[k]}">${k==="all"?"":"<i></i>"}<span>${t("b_"+k)}</span><b class="num">${c[k]}</b></button>`).join("")}</nav>
+   <div class="split"><div class="list" id="list"></div><aside class="pane" id="pane"></aside></div>`;
+  $("#btnNew").onclick=()=>openCapture();
+  $("#page").querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{filter=b.dataset.f;renderProspects(counts())});
+  renderList();renderPane();
+}
+const BAND2={act_now:"var(--hot)",callbacks:"var(--blue)",list:"var(--grey)",done:"var(--green)"};
+function visibleRows(){
+  const out=[];(filter==="all"?ORDER:[filter]).forEach(k=>{
+    mine().filter(l=>bucketOf(l)===k).sort((a,b)=>k==="act_now"?(isHot(b)-isHot(a))||(b.createdM-a.createdM):k==="callbacks"?a.nextAt-b.nextAt:0).forEach(l=>out.push(l));
+  });return out;
+}
+function renderList(){
+  const list=$("#list");if(!list)return;const c=counts();
+  const groups=filter==="all"?ORDER:[filter];
+  list.innerHTML=groups.map(k=>{
+    const rows=visibleRows().filter(l=>bucketOf(l)===k);
+    if(!rows.length&&filter==="all")return"";
+    const extra=k==="act_now"?`<span class="h">${t("hint_act")}</span>`:k==="list"?`<span class="cap"><span>${t("cap")(7,CAP)}</span><i><b style="--w:${Math.round(100*7/CAP)}%"></b></i></span>`:"";
+    return `<section class="sec" data-key="${k}"><div class="sec-h"><span class="t">${t("b_"+k)}</span><span class="c num">${c[k]}</span>${extra}</div>
+      ${rows.length?rows.map(rowHTML).join(""):`<div class="p-empty">${t("empty_b")}</div>`}</section>`;
+  }).join("");
+  list.querySelectorAll(".row").forEach(r=>r.onclick=(e)=>{if(e.target.closest("a,button"))return;select(r.dataset.id)});
+  tick();
+}
+function rowHTML(l){
+  const b=bucketOf(l),rs=reasonsOf(l),mv=moveOf(l),p=prod(l.product),done=b==="done";
+  const want=l.winback?`${lang==="ar"?"إعادة إرسال":"Renvoyer"} ${l.cust.last.product} · #${l.winback.orderId}`
+    :l.msg?`<span class="q" dir="auto">« ${l.msg} »</span>`:`${p.name}${l.area?` · ${l.area}`:""}`;
+  const lead=isHot(l)?`<span class="chip" data-tone="hot"><span class="pulse"></span>${t("waiting")} <span class="timer" data-since="${agoM(l.createdM)}"></span></span>`
+    :rs[0]?`<span class="chip" data-tone="${chipTone(rs[0].tone)}">${rs[0].label}</span>`:"";
+  const cl=custLabel(l.cust);
+  return `<article class="row" data-id="${l.id}" aria-selected="${selected===l.id}" data-done="${done}">
+    <div class="ring" style="--tone:${toneOf(l)}">${initial(l.name)}<span class="src">${SRC_ICON[l.source]}</span></div>
+    <div class="who">
+      <div class="l1"><span class="nm">${l.name}</span><span class="ph mono">${fmtPhone(l.phone)}</span></div>
+      <div class="l2">${want}</div>
+      <div class="l3">${lead}${cl.tone!=="grey"?`<span class="chip" data-tone="${chipTone(cl.tone)}">${cl.label}</span>`:""}</div>
+    </div>
+    <div class="move">${done?`<span class="chip" data-tone="${l.status==="converted"?"green":"red"}">${t("st")[l.status]}${l.convertedOrder?` · #${l.convertedOrder}`:""}</span>`:`<b>${mv.label}</b><span>${mv.when||t("ago")(l.createdM)}</span>`}</div>
+    ${done?"<span></span>":`<div class="acts"><button class="cb" data-wa data-waid="${l.id}" aria-label="${t("wa")}">${ICON.wa}</button><a class="cb" data-call href="tel:${l.phone}" aria-label="${t("call")}">${ICON.phone}</a></div>`}
+  </article>`;
+}
+function select(id){selected=id;renderList();renderPane();const p=$("#pane");p&&(p.dataset.open="true");$(`.row[data-id="${id}"]`)?.scrollIntoView({block:"nearest",behavior:"smooth"})}
+function renderPane(){
+  const d=$("#pane");if(!d)return;const l=LEADS.find(x=>x.id===selected);
+  if(!l){d.innerHTML=`<div class="p-empty">${t("pick")}</div>`;return}
+  const b=bucketOf(l),rs=reasonsOf(l),mv=moveOf(l),p=prod(l.product),cl=custLabel(l.cust),c=l.campaignId?camp(l.campaignId):null,done=b==="done";
+  const [dv,rv,jv]=l.cust.prior;
+  const tone=done?(l.status==="converted"?"green":"red"):b==="act_now"?"hot":b==="callbacks"?"blue":"";
+  const hist=l.cust.last?`<ul class="hist">
+      <li><span class="t">${t("ago")(l.cust.last.daysAgo*1440)}</span><span>${l.cust.last.product}</span><span class="chip" data-tone="${rv&&l.cust.last.daysAgo<=2?"red":"green"}">${rv&&l.cust.last.daysAgo<=2?t("outcome_l").returned:t("outcome_l").delivered}</span></li>
+      ${dv>1?`<li><span class="t">${t("ago")((l.cust.last.daysAgo+58)*1440)}</span><span>${PRODUCTS[(dv+1)%4].name}</span><span class="chip" data-tone="green">${t("outcome_l").delivered}</span></li>`:""}
+      ${jv?`<li><span class="t">${t("ago")((l.cust.last.daysAgo+130)*1440)}</span><span>${PRODUCTS[2].name}</span><span class="chip" data-tone="red">${t("outcome_l").rejected}</span></li>`:""}
+    </ul><dl class="kv"><dt>${t("last_addr")}</dt><dd>${l.cust.last.address||"—"}</dd></dl>`:`<p class="muted" style="margin:0">${t("hist_none")}</p>`;
+  const acts=l.actions.length?`<ol class="tl">${[...l.actions].reverse().map(a=>`<li><span class="d"></span><span>${t("at")[a.type]} · <b>${a.outcome==="order"?t("then").order:t("reached")[a.outcome]||t("then")[a.outcome]||a.outcome}</b>${a.note?`<small>${a.note}</small>`:""}</span><span class="t">${t("ago")((NOW-a.at)/MIN)}</span></li>`).join("")}</ol>`:`<p class="muted" style="margin:0">${t("d_none")}</p>`;
+  d.innerHTML=`
+   <div class="p-head">
+     <button class="cb back" id="back" aria-label="${t("back")}">${ICON.back}</button>
+     <div class="ring" style="--tone:${toneOf(l)}">${initial(l.name)}<span class="src">${SRC_ICON[l.source]}</span></div>
+     <div class="id"><h2>${l.name}</h2><div class="s"><span class="mono">${fmtPhone(l.phone)}</span><span>·</span><span>${t("src")[l.source]}</span><span>·</span><span>${t("ago")(l.createdM)}</span></div></div>
+     ${done?"":`<div class="acts"><button class="cb" data-wa data-waid="${l.id}" aria-label="${t("wa")}">${ICON.wa}</button><a class="cb" data-call href="tel:${l.phone}" aria-label="${t("call")}">${ICON.phone}</a></div>`}
+   </div>
+   <div class="p-body">
+     <div class="next" data-tone="${tone}">
+       <span class="eyebrow">${done?t("st")[l.status]:t("d_next")}</span>
+       <span class="what">${done?(l.convertedOrder?`#${l.convertedOrder}`:(l.lostReason?t("lost")[l.lostReason]:"—")):mv.label}</span>
+       ${!done&&mv.when?`<span class="when">${mv.when}</span>`:""}
+       ${rs.length&&!done?`<div class="chips">${isHot(l)?`<span class="chip" data-tone="hot"><span class="pulse"></span>${t("waiting")} <span class="timer" data-since="${agoM(l.createdM)}"></span></span>`:""}${rs.filter((r,i)=>!(isHot(l)&&i===0)).map(r=>`<span class="chip" data-tone="${chipTone(r.tone)}">${r.label}</span>`).join("")}</div>`:""}
+     </div>
+     <section class="blk"><span class="eyebrow">${t("d_want")}</span>
+       ${l.msg?`<div class="quote">${l.msg}<small>${t("src")[l.source]} · ${t("ago")(l.createdM)}</small></div>`:""}
+       <dl class="kv"><dt>${t("c_product")}</dt><dd><b>${p.name}</b> · <span class="num">${p.price} LYD</span></dd></dl>
+       ${l.area?`<dl class="kv"><dt>${t("c_city")}</dt><dd>${l.area}</dd></dl>`:""}
+       ${l.winback?`<dl class="kv"><dt>${t("src").winback}</dt><dd><span class="num">#${l.winback.orderId}</span> · ${lang==="ar"?l.winback.reasonAr:l.winback.reason}</dd></dl>`:""}
+     </section>
+     ${c?`<section class="blk"><span class="eyebrow">${t("d_campaign")} · ${c.name}</span><span class="offer">${ICON.check}${lang==="ar"?c.offerAr:c.offer}</span><div class="script">${(lang==="ar"?c.scriptAr:c.scriptFr).replace("{name}",l.name).replace("{agent}","Hend")}</div></section>`:""}
+     <section class="blk"><span class="eyebrow">${t("d_cust")} · <span style="text-transform:none;letter-spacing:0">${cl.label}</span></span>${hist}</section>
+     <section class="blk"><span class="eyebrow">${t("d_actions")}</span>${acts}</section>
+   </div>
+   ${done?"":`<div class="p-foot"><button class="btn" id="btnOutcome">${t("outcome")}<span class="kbd">R</span></button><button class="btn" data-primary id="btnConvert">${t("convert")}<span class="kbd">C</span></button></div>`}`;
+  $("#back").onclick=()=>{d.dataset.open="false"};
+  $("#btnOutcome")?.addEventListener("click",()=>openOutcome(l));
+  $("#btnConvert")?.addEventListener("click",()=>openConvert(l));
+  tick();
+}
+function tick(){document.querySelectorAll("[data-since]").forEach(el=>{el.textContent=clock(Date.now()-Number(el.dataset.since))})}
+setInterval(tick,1000);
+/* ───────────── Sheets ───────────── */
+const sheetOpen=()=>$("#sheet").dataset.open==="true";
+function openSheet(){$("#scrim").dataset.open="true";$("#sheet").dataset.open="true"}
+function closeSheets(){$("#scrim").dataset.open="false";$("#sheet").dataset.open="false"}
+function shell(title,sub,body,foot){
+  $("#sheet").innerHTML=`<div class="s-head"><div><h2>${title}</h2>${sub?`<div class="sub">${sub}</div>`:""}</div><button class="x" id="sX" aria-label="${t("cancel")}">${ICON.x}</button></div><div class="s-body">${body}</div>${foot?`<div class="s-foot">${foot}</div>`:""}`;
+  $("#sX").onclick=closeSheets;openSheet();
+}
+function toast(msg){const el=$("#toast");el.innerHTML=`${ICON.check}<span>${msg}</span>`;el.dataset.on="true";clearTimeout(toast.t);toast.t=setTimeout(()=>el.dataset.on="false",2800)}
+const MATCH_ICON={known:ICON.user,open:ICON.alert,new:ICON.info,inflight:ICON.truck};
+
+/* Capture — phone first */
+let cap=null;
+function openCapture(){cap={phone:"",name:"",source:"call",product:"p1",area:"",note:""};renderCapture(true)}
+function matchPhone(ph){
+  const d=ph.replace(/\D/g,"");if(d.length<9)return null;
+  const open=LEADS.find(l=>l.phone===d&&l.status!=="converted"&&l.status!=="lost");if(open)return{kind:"open",html:t("m_open")(open.agent,t("ago")(open.createdM))};
+  const k=KNOWN[d];if(k&&k.inflight)return{kind:"inflight",html:t("m_inflight")(k.inflight),name:k.name};
+  if(k)return{kind:"known",html:t("m_known")(k.prior[0],k.prior[1],k.last.product,t("ago")(k.last.daysAgo*1440)),name:k.name};
+  return{kind:"new",html:t("m_new")};
+}
+function renderCapture(first){
+  const m=matchPhone(cap.phone);if(m&&m.name&&!cap.name)cap.name=m.name;
+  const srcs=["call","whatsapp","fb_comment","fb_dm","ig_dm"];const blocked=m&&m.kind==="open";
+  const body=`
+   <div class="field"><label for="cPhone">${t("c_phone")}</label><input id="cPhone" class="inp big" inputmode="tel" autocomplete="off" placeholder="09x xxx xxxx" value="${cap.phone}"></div>
+   <div id="cMatch">${m?`<div class="match" data-kind="${m.kind}">${MATCH_ICON[m.kind]}<span>${m.html}</span></div>`:""}</div>
+   <div class="field"><label>${t("c_source")}</label><div class="opts">${srcs.map(s=>`<button class="opt" data-src="${s}" aria-pressed="${cap.source===s}">${SRC_ICON[s]}${t("src")[s]}</button>`).join("")}</div></div>
+   <div class="g2"><div class="field"><label for="cName">${t("c_name")}</label><input id="cName" class="inp" value="${cap.name}"></div>
+     <div class="field"><label for="cCity">${t("c_city")}</label><select id="cCity" class="inp"><option value="">—</option>${AREAS.map(a=>`<option ${cap.area===a?"selected":""}>${a}</option>`).join("")}</select></div></div>
+   <div class="field"><label for="cProd">${t("c_product")}</label><select id="cProd" class="inp">${PRODUCTS.map(p=>`<option value="${p.id}" ${cap.product===p.id?"selected":""}>${p.name} · ${p.price} LYD</option>`).join("")}</select></div>
+   <div class="field"><label for="cNote">${t("c_note")}</label><textarea id="cNote" class="inp">${cap.note}</textarea></div>`;
+  shell(t("c_title"),null,body,`<button class="btn" id="cSave" ${blocked?"disabled":""}>${t("save")}</button><button class="btn" data-primary id="cSaveOrder" ${blocked?"disabled":""}>${t("save_order")}</button>`);
+  const ph=$("#cPhone");if(first)setTimeout(()=>ph.focus(),60);
+  // Update only the match card and name as the number is typed — never re-render the input under the cursor.
+  ph.oninput=(e)=>{cap.phone=e.target.value;const mm=matchPhone(cap.phone);
+    $("#cMatch").innerHTML=mm?`<div class="match" data-kind="${mm.kind}">${MATCH_ICON[mm.kind]}<span>${mm.html}</span></div>`:"";
+    if(mm&&mm.name&&!$("#cName").value){cap.name=mm.name;$("#cName").value=mm.name}
+    const bl=mm&&mm.kind==="open";$("#cSave").disabled=bl;$("#cSaveOrder").disabled=bl};
+  $("#cName").oninput=(e)=>cap.name=e.target.value;$("#cCity").onchange=(e)=>cap.area=e.target.value;$("#cProd").onchange=(e)=>cap.product=e.target.value;$("#cNote").oninput=(e)=>cap.note=e.target.value;
+  $("#sheet").querySelectorAll("[data-src]").forEach(b=>b.onclick=()=>{cap.source=b.dataset.src;$("#sheet").querySelectorAll("[data-src]").forEach(x=>x.setAttribute("aria-pressed",x===b))});
+  const make=()=>{const d=cap.phone.replace(/\D/g,""),k=KNOWN[d];const l=L({id:"P-"+(7302+LEADS.length),name:cap.name||"—",phone:d,source:cap.source,createdM:0,product:cap.product,area:cap.area,msg:cap.note||null,cust:{prior:k?.prior||[0,0,0],last:k?.last?Object.assign({address:""},k.last):null}});LEADS.unshift(l);return l};
+  $("#cSave").onclick=()=>{const l=make();closeSheets();selected=l.id;filter="all";render();toast(t("toast_new"))};
+  $("#cSaveOrder").onclick=()=>{const l=make();selected=l.id;filter="all";render();openConvert(l)};
+}
+
+/* Outcome — one screen that unfolds */
+let oc=null;
+function openOutcome(l){oc={l,reached:null,then:null,lost:null,next:null,note:""};renderOutcome()}
+function renderOutcome(){
+  const o=oc,R=t("reached"),T=t("then");
+  const showThen=o.reached==="yes";
+  const showLost=o.then==="not_interested"||o.reached==="wrong";
+  const showNext=(o.reached&&o.reached!=="yes"&&o.reached!=="wrong")||o.then==="callback"||o.then==="thinking";
+  const showNote=showLost||showNext;
+  const ok=showLost?!!o.lost:showNext?!!o.next:false;
+  const body=`
+   <div class="q"><span class="lb">${t("q_reach")}</span><div class="opts">${Object.keys(R).map(k=>`<button class="opt" data-r="${k}" aria-pressed="${o.reached===k}" ${k==="yes"?'data-tone="green"':k==="wrong"?'data-tone="red"':""}>${R[k]}</button>`).join("")}</div></div>
+   ${showThen?`<div class="q"><span class="lb">${t("q_then")}</span><div class="opts">${Object.keys(T).map(k=>`<button class="opt" data-then="${k}" aria-pressed="${o.then===k}" ${k==="order"?'data-tone="green"':""}>${T[k]}</button>`).join("")}</div>${o.then===null?`<span class="muted">${T.order} → ${t("q_order_hint")}</span>`:""}</div>`:""}
+   ${showLost?`<div class="q"><span class="lb">${t("q_lost")}</span><div class="opts">${Object.keys(t("lost")).map(k=>`<button class="opt" data-lost="${k}" aria-pressed="${o.lost===k}">${t("lost")[k]}</button>`).join("")}</div></div>`:""}
+   ${showNext?`<div class="q"><span class="lb">${t("next_l")}</span><div class="opts"><button class="opt" data-next="60" aria-pressed="${o.next===60}">${t("p1h")}</button><button class="opt" data-next="120" aria-pressed="${o.next===120}">${t("p2h")}</button><button class="opt" data-next="tmr" aria-pressed="${o.next==="tmr"}">${t("tmr")}</button></div></div>`:""}
+   ${showNote?`<div class="q field"><label class="lb" for="oNote">${t("q_note")}</label><textarea id="oNote" class="inp" placeholder="${t("note_ph")}">${o.note}</textarea></div>`:""}`;
+  shell(t("o_title"),`${o.l.name} · <span class="mono">${fmtPhone(o.l.phone)}</span>`,body,`<button class="btn" id="oCancel">${t("cancel")}</button><button class="btn" data-primary id="oSave" ${ok?"":"disabled"}>${t("save")}</button>`);
+  const s=$("#sheet"),keep=()=>{const n=$("#oNote");if(n)o.note=n.value};
+  s.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>{keep();o.reached=b.dataset.r;o.then=null;o.lost=null;
+    o.next=(o.reached==="yes"||o.reached==="wrong")?null:120;renderOutcome()});
+  s.querySelectorAll("[data-then]").forEach(b=>b.onclick=()=>{keep();o.then=b.dataset.then;if(o.then==="order"){closeSheets();setTimeout(()=>openConvert(o.l),120);return}
+    o.lost=null;o.next=(o.then==="callback"||o.then==="thinking")?"tmr":null;renderOutcome()});
+  s.querySelectorAll("[data-lost]").forEach(b=>b.onclick=()=>{keep();o.lost=b.dataset.lost;renderOutcome()});
+  s.querySelectorAll("[data-next]").forEach(b=>b.onclick=()=>{keep();o.next=b.dataset.next==="tmr"?"tmr":Number(b.dataset.next);renderOutcome()});
+  $("#oCancel").onclick=closeSheets;
+  $("#oSave").onclick=()=>{keep();commitOutcome()};
+}
+function commitOutcome(){
+  const o=oc,l=o.l;
+  const lostNow=o.then==="not_interested"||o.reached==="wrong";
+  const outcome=o.reached==="yes"?o.then:o.reached;
+  l.actions.push({at:NOW+1,type:"call",outcome,note:o.note});l.attempts++;l.lastOutcome=outcome;
+  if(lostNow){l.status="lost";l.lostReason=o.lost;l.nextAt=null}
+  else{l.status=o.then==="callback"||o.then==="thinking"?"callback":"contacted";l.nextAt=o.next==="tmr"?tomorrow10():laterM(o.next)}
+  closeSheets();render();toast(t("toast_saved")(t("b_"+bucketOf(l))));
+}
+function tomorrow10(){const d=new Date(NOW);d.setDate(d.getDate()+1);d.setHours(10,0,0,0);return d.getTime()}
+
+/* Convert */
+let cv=null;
+function openConvert(l){const p=prod(l.product),c=l.campaignId?camp(l.campaignId):null;cv={l,product:l.product,variant:0,qty:1,price:c&&c.id==="c1"?93:p.price,area:l.area||AREAS[0],address:l.cust.last?.address||""};renderConvert()}
+function renderConvert(){
+  const v=cv,l=v.l,p=prod(v.product),c=l.campaignId?camp(l.campaignId):null;
+  const body=`
+   <div class="g2"><div class="field"><label for="vName">${t("c_name")}</label><input id="vName" class="inp" value="${l.name}"></div><div class="field"><label for="vPhone">${t("c_phone")}</label><input id="vPhone" class="inp mono" value="${fmtPhone(l.phone)}"></div></div>
+   <div class="g2"><div class="field"><label for="vDest">${t("v_dest")}</label><select id="vDest" class="inp">${AREAS.map(a=>`<option ${v.area===a?"selected":""}>${a}</option>`).join("")}</select></div><div class="field"><label for="vAddr">${t("v_addr")}</label><input id="vAddr" class="inp" value="${v.address}"></div></div>
+   ${c?`<div class="match" data-kind="known">${ICON.check}<span>${t("v_offer")} · ${lang==="ar"?c.offerAr:c.offer}</span></div>`:""}
+   <div class="g3"><div class="field"><label for="vProd">${t("v_product")}</label><select id="vProd" class="inp">${PRODUCTS.map(x=>`<option value="${x.id}" ${v.product===x.id?"selected":""}>${x.name}</option>`).join("")}</select></div>
+     <div class="field"><label for="vVar">${t("v_variant")}</label><select id="vVar" class="inp">${p.variants.map((x,i)=>`<option value="${i}" ${v.variant===i?"selected":""}>${x}</option>`).join("")}</select></div>
+     <div class="field"><label for="vQty">${t("v_qty")}</label><input id="vQty" class="inp num" type="number" min="1" value="${v.qty}"></div></div>
+   <div class="g2"><div class="field"><label for="vPrice">${t("v_price")}</label><input id="vPrice" class="inp num" type="number" value="${v.price}"></div><div></div></div>
+   <div class="total"><span>${t("v_total")}</span><span class="v num" id="vTotal">${v.qty*v.price} LYD</span></div>
+   <span class="muted">${t("v_goes")}</span>`;
+  shell(t("v_title"),t("v_sub"),body,`<button class="btn" id="vCancel">${t("cancel")}</button><button class="btn" data-primary id="vSave">${t("create_order")}</button>`);
+  const upd=()=>{$("#vTotal").textContent=`${v.qty*v.price} LYD`};
+  $("#vProd").onchange=(e)=>{v.product=e.target.value;v.variant=0;v.price=prod(v.product).price;renderConvert()};
+  $("#vVar").onchange=(e)=>v.variant=Number(e.target.value);
+  $("#vQty").oninput=(e)=>{v.qty=Math.max(1,Number(e.target.value)||1);upd()};
+  $("#vPrice").oninput=(e)=>{v.price=Number(e.target.value)||0;upd()};
+  $("#vDest").onchange=(e)=>v.area=e.target.value;$("#vAddr").oninput=(e)=>v.address=e.target.value;
+  $("#vCancel").onclick=closeSheets;
+  $("#vSave").onclick=()=>{const id=48440+LEADS.filter(x=>x.status==="converted").length;l.status="converted";l.convertedOrder=String(id);l.nextAt=null;l.actions.push({at:NOW+1,type:"call",outcome:"order",note:""});closeSheets();render();toast(t("toast_conv")(id))};
+}
+
+/* WhatsApp — the message as the customer will see it */
+let wa=null;
+function openWa(l){wa={l,key:l.source==="winback"?"winback":l.campaignId?"offer":bucketOf(l)==="callbacks"?"callback_confirm":"first_reply"};renderWa()}
+function waText(l,key){const p=prod(l.product),c=l.campaignId?camp(l.campaignId):null;return t("tpl")[key].p.replace("{name}",l.name).replace("{product}",p.name).replace("{price}",c&&c.id==="c1"?93:p.price).replace("{last}",l.cust.last?l.cust.last.product:p.name).replace("{offer}",c?(lang==="ar"?c.offerAr:c.offer):"").replace("{when}",l.nextAt?t("in_")((l.nextAt-NOW)/MIN):"")}
+function waLink(l,key){return `https://wa.me/218${l.phone.replace(/^0/,"")}?text=${encodeURIComponent(waText(l,key))}`}
+function renderWa(){
+  const w=wa,tpl=t("tpl"),now=new Date();
+  const body=`<div class="tpls">${Object.keys(tpl).map(k=>`<button class="opt" data-k="${k}" aria-pressed="${w.key===k}">${tpl[k].n}</button>`).join("")}</div>
+   <div class="chat"><div class="bubble">${waText(w.l,w.key)}<small class="num">${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")} ✓✓</small></div></div>
+   <span class="muted">${t("wa_sub")}</span>`;
+  shell(t("wa_title"),`${w.l.name} · <span class="mono">${fmtPhone(w.l.phone)}</span>`,body,`<button class="btn" id="wCancel">${t("cancel")}</button><a class="btn" data-wa id="wOpen" href="${waLink(w.l,w.key)}" target="_blank" rel="noopener">${ICON.wa}${t("open_wa")}</a>`);
+  $("#sheet").querySelectorAll("[data-k]").forEach(el=>el.onclick=()=>{w.key=el.dataset.k;renderWa()});
+  $("#wCancel").onclick=closeSheets;
+  $("#wOpen").onclick=()=>{const l=w.l;l.actions.push({at:NOW+1,type:"wa",outcome:"sent",note:""});if(l.status==="new"){l.status="contacted";l.attempts++;l.nextAt=laterM(120)}closeSheets();render();toast(t("toast_saved")(t("b_"+bucketOf(l))))};
+}
+/* ───────────── Manager console ───────────── */
+let mf={source:null,agent:null,status:null,campaign:null,hot:false},build=false,
+    bf={product:"p1",days:"60–120",city:null,value:false,count:false,exclude:true,returned:false,dist:"rel",agents:["Hend","Mouna","Roqaya"],cap:20};
+function spark(vals,color){
+  const w=78,h=28,mx=Math.max(...vals),mn=Math.min(...vals),sx=w/(vals.length-1),y=v=>h-3-((v-mn)/Math.max(mx-mn,1))*(h-6);
+  const pts=vals.map((v,i)=>`${(i*sx).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  return `<svg class="sp" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polygon points="0,${h} ${pts} ${w},${h}" fill="${color}" fill-opacity=".1"/><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${w}" cy="${y(vals[vals.length-1]).toFixed(1)}" r="2.4" fill="${color}"/></svg>`;
+}
+function renderManager(){
+  const hot=LEADS.filter(isHot).length;
+  const nav=[["orders",lang==="ar"?"الطلبات":"Commandes"],["prospects",t("m_title")],["delivery",lang==="ar"?"التوصيل":"Livraison"],["team",lang==="ar"?"الفريق":"Équipe"],["products",lang==="ar"?"المنتجات":"Produits"],["finance",lang==="ar"?"المالية":"Finances"],["settings",lang==="ar"?"الإعدادات":"Paramètres"]];
+  $("#managerRoot").innerHTML=`
+   <aside class="sb"><div class="lg"><i>O</i><div>Ordra<small>${t("market")}</small></div></div>
+     <div class="sh">${lang==="ar"?"العمليات":"Opérations"}</div>${nav.slice(0,3).map(([k,n])=>`<a href="#" aria-current="${k==="prospects"?"page":"false"}">${n}${k==="prospects"&&hot?`<em class="num">${hot}</em>`:""}</a>`).join("")}
+     <div class="sh">${lang==="ar"?"الإدارة":"Pilotage"}</div>${nav.slice(3).map(([,n])=>`<a href="#">${n}</a>`).join("")}</aside>
+   <div class="mc">
+     <div class="mtop"><div><h1>${t("m_title")}</h1><div class="sub">${t("m_sub")}</div></div>
+       <div class="cta"><button class="btn">${t("m_csv")}</button><button class="btn" id="mNew">${t("m_new")}</button><button class="btn" data-brand id="mCamp">${ICON.plus}${t("m_camp")}</button></div></div>
+     <div class="mbody" id="mbody"></div>
+   </div>`;
+  $("#mCamp").onclick=()=>{mtab="campaigns";build=true;renderMBody()};
+  $("#mNew").onclick=()=>openCapture();
+  renderMBody();
+}
+function renderMBody(){
+  const b=$("#mbody"),hot=LEADS.filter(isHot).length;
+  const kpis=`<div class="kpis">
+    <div class="kpi"><span class="l">${t("k_new")}</span><span class="v num">63</span><span class="d"><b class="up">+18 %</b> · <span class="num">${hot}</span> ${t("k_hot")}</span>${spark([38,41,44,40,49,53,63],"#15803D")}</div>
+    <div class="kpi"><span class="l">${t("k_ttc")}</span><span class="v num">14<small>min</small></span><span class="d"><b class="up">−9 min</b> ${t("k_up")}</span>${spark([31,29,26,24,19,23,14],"#2F63D8")}</div>
+    <div class="kpi"><span class="l">${t("k_conv")}</span><span class="v num">27 %</span><span class="d"><span class="num">74 / 271</span></span>${spark([22,24,23,25,26,25,27],"#465063")}</div>
+    <div class="kpi"><span class="l">${t("k_rev")}</span><span class="v num">9 840<small>LYD</small></span><span class="d"><b class="up">+2 310</b> ${t("k_up")}</span>${spark([5200,6100,5900,7100,7530,8600,9840],"#15803D")}</div>
+  </div>`;
+  const tabs=`<div class="mtabs">${["pipeline","campaigns","sources"].map(k=>`<button class="mtab" data-mtab="${k}" aria-current="${mtab===k}">${t("t_"+k)}</button>`).join("")}</div>`;
+  b.innerHTML=kpis+tabs+(mtab==="pipeline"?pipelineHTML():mtab==="campaigns"?campaignsHTML():sourcesHTML());
+  b.querySelectorAll("[data-mtab]").forEach(x=>x.onclick=()=>{mtab=x.dataset.mtab;if(mtab!=="campaigns")build=false;renderMBody()});
+  wireManager();
+}
+function pipelineHTML(){
+  const rows=LEADS.filter(l=>(!mf.source||l.source===mf.source)&&(!mf.agent||l.agent===mf.agent)&&(!mf.status||l.status===mf.status)&&(!mf.campaign||l.campaignId===mf.campaign)&&(!mf.hot||isHot(l)));
+  const sel=(key,label,opts)=>`<select class="fchip" data-f="${key}" data-on="${!!mf[key]}" aria-label="${label}"><option value="">${label}</option>${opts.map(([v,n])=>`<option value="${v}" ${mf[key]===v?"selected":""}>${n}</option>`).join("")}</select>`;
+  return `<div class="fbar">
+     <button class="fchip" data-hot aria-pressed="${mf.hot}">${ICON.bolt}${t("f_hot")}</button>
+     ${sel("status",t("f_status"),Object.keys(t("st")).map(k=>[k,t("st")[k]]))}${sel("source",t("f_source"),Object.keys(t("src")).map(k=>[k,t("src")[k]]))}${sel("agent",t("f_agent"),AGENTS.map(a=>[a,a]))}${sel("campaign",t("f_campaign"),CAMPAIGNS.map(c=>[c.id,c.name]))}
+     <span class="count">${t("f_count")(rows.length)}</span></div>
+   <div class="card"><div class="twrap"><table class="t"><thead><tr><th>${t("th").name}</th><th>${t("th").source}</th><th>${t("th").want}</th><th>${t("th").agent}</th><th>${t("th").status}</th><th>${t("th").last}</th><th class="n">${t("th").age}</th></tr></thead><tbody>
+   ${rows.map(l=>`<tr>
+     <td><div style="display:flex;align-items:center;gap:10px"><span class="ring" style="--tone:${toneOf(l)};width:32px;height:32px;font-size:12.5px;box-shadow:0 0 0 2px #fff,0 0 0 3px var(--tone)">${initial(l.name)}</span><div><b>${l.name}</b><div class="s1 mono">${fmtPhone(l.phone)}</div></div></div></td>
+     <td class="nw">${t("src")[l.source]}${l.campaignId?`<div class="s1">${camp(l.campaignId).name}</div>`:""}</td>
+     <td>${l.winback?`<span class="num">#${l.winback.orderId}</span> · ${lang==="ar"?l.winback.reasonAr:l.winback.reason}`:prod(l.product).name}</td>
+     <td>${l.agent}</td>
+     <td>${isHot(l)?`<span class="badge" data-s="hot"><i></i>${lang==="ar"?"ساخن":"Chaud"}</span>`:`<span class="badge" data-s="${l.status}"><i></i>${t("st")[l.status]}${l.attempts&&l.status==="contacted"?` · ${l.attempts}`:""}</span>`}</td>
+     <td style="color:#6D7175">${l.lastOutcome?(l.lastOutcome==="order"?t("then").order:t("reached")[l.lastOutcome]||t("then")[l.lastOutcome]):"—"}${l.convertedOrder?` · <span class="num">#${l.convertedOrder}</span>`:""}</td>
+     <td class="n" style="color:#6D7175">${t("ago")(l.createdM)}</td></tr>`).join("")}
+   </tbody></table></div></div>
+   <p class="rule">${ICON.loop}<span>${t("wb_rule")}</span></p>`;
+}
+function funnelCell(c){
+  const a=Math.max(c.audience,1),pct=v=>`${(100*v/a).toFixed(1)}%`;
+  return `<div class="funnel"><b style="width:${pct(c.converted)};background:#15803D"></b><b style="width:${pct(c.reached-c.converted)};background:#8C96A5"></b><b style="width:${pct(c.called-c.reached)};background:#C7CDD6"></b></div>
+    <div class="fn-l num"><span>${c.called} ${t("th_c").called.toLowerCase()}</span><span>${c.reached} ${t("th_c").reached.toLowerCase()}</span><span><b style="color:#0F5E2E">${c.converted}</b> ${t("th_c").converted.toLowerCase()}</span></div>`;
+}
+function campaignsHTML(){
+  const F=t("th_c");
+  const list=`<div class="card"><h2>${build?t("camp_list"):t("t_campaigns")}<span class="r">${lang==="ar"?"النتائج حتى الإيراد المسلّم":"Résultats jusqu'au CA livré"}</span></h2><div class="twrap"><table class="t"><thead><tr><th>${F.name}</th><th>${F.status}</th><th>${lang==="ar"?"المسار":"Entonnoir"} · ${F.audience}</th><th class="n">${F.delivered}</th><th class="n">${F.revenue}</th></tr></thead><tbody>
+   ${CAMPAIGNS.map(c=>`<tr><td><b>${c.name}</b><div class="s1">${lang==="ar"?c.offerAr:c.offer}${build?"":` · ${c.agents.join(", ")}`}</div></td>
+     <td><span class="badge" data-s="${c.status==="live"?"live":"done"}"><i></i>${t("cs")[c.status]}</span></td>
+     <td style="min-width:${build?150:230}px"><div class="s1 num" style="margin:0 0 5px">${c.audience} ${t("cb_preview").split(" ")[0]}</div>${funnelCell(c)}</td>
+     <td class="n num">${c.delivered}</td><td class="n"><b class="num">${c.revenue.toLocaleString("fr-FR")}</b> LYD</td></tr>`).join("")}
+   </tbody></table></div></div>`;
+  if(!build)return list;
+  const A=t("aud");let n=1240;if(bf.product)n=Math.round(n*.42);if(bf.days)n=Math.round(n*.56);if(bf.city)n=Math.round(n*.35);if(bf.value)n=Math.round(n*.6);if(bf.count)n=Math.round(n*.7);if(bf.returned)n=Math.round(n*.18);if(bf.exclude)n=Math.round(n*.86);
+  const chip=(k,v,label,on)=>`<button class="fchip" data-bf="${k}" data-v="${v}" aria-pressed="${on}">${label}</button>`;
+  const builder=`<div class="card builder"><h2>${t("cb_title")}</h2><div class="form">
+    <div class="grp"><label class="lb" for="bName">${t("cb_name")}</label><input id="bName" class="inp" value="${bf.product?prod(bf.product).name.split(" ")[0]:""} · ${bf.days||""}"></div>
+    <div class="grp"><span class="lb">${t("cb_aud")}</span>
+      <div class="chips">${PRODUCTS.map(p=>chip("product",p.id,p.name,bf.product===p.id)).join("")}</div>
+      <div class="chips">${["30–60","60–120","120–240"].map(d=>chip("days",d,`${A.days} ${d} j`,bf.days===d)).join("")}${chip("returned","1",A.returned,bf.returned)}</div>
+      <div class="chips">${["طرابلس","بنغازي","مصراتة"].map(c=>chip("city",c,c,bf.city===c)).join("")}${chip("value","1",`${A.value} 200 LYD`,bf.value)}${chip("count","1",`${A.count} ≥ 2`,bf.count)}${chip("exclude","1",A.exclude,bf.exclude)}</div></div>
+    <div class="aud"><span class="v num" id="audN">${n}</span><div>${t("cb_preview")}<small>${t("cb_excl")}</small></div></div>
+    <div class="grp"><label class="lb" for="bOffer">${t("cb_offer")}</label><input id="bOffer" class="inp" value="−15 % sur le sérum 50 ml, livraison offerte"></div>
+    <div class="grp"><label class="lb" for="bFr">${t("cb_script")}</label><textarea id="bFr" class="inp">Bonjour {name}, ici {agent} de Ordra. Vous aviez pris le sérum vitamine C il y a deux mois…</textarea></div>
+    <div class="grp"><label class="lb" for="bAr">${t("cb_script_ar")}</label><textarea id="bAr" class="inp" dir="rtl">مرحباً {name}، معك {agent} من أوردرا. أخذت سيروم فيتامين C قبل شهرين…</textarea></div>
+    <div class="grp"><span class="lb">${t("cb_dist")}</span><div class="chips">${chip("dist","rel",t("dist_rel"),bf.dist==="rel")}${chip("dist","rr",t("dist_rr"),bf.dist==="rr")}</div></div>
+    <div class="grp"><span class="lb">${t("cb_agents")}</span><div class="chips">${AGENTS.map(a=>chip("agent",a,a,bf.agents.includes(a))).join("")}</div></div>
+    <div class="g2"><div class="grp"><label class="lb" for="bCap">${t("cb_cap")}</label><input id="bCap" class="inp num" type="number" value="${bf.cap}"></div><div class="grp"><label class="lb" for="bDates">${t("cb_dates")}</label><input id="bDates" class="inp num" value="2026-09-15 → 2026-09-29"></div></div>
+   </div><div class="mfoot"><button class="btn" id="cbCancel">${t("cb_cancel")}</button><button class="btn" data-brand id="cbLaunch">${t("launch_n")(n)}</button></div></div>`;
+  return `<div class="split-m"><div>${list}</div>${builder}</div>`;
+}
+function sourcesHTML(){
+  const S=[["whatsapp",84,"9 min",31,3410],["fb_comment",71,"22 min",14,1540],["fb_dm",39,"17 min",11,1210],["ig_dm",18,"31 min",4,440],["call",22,"—",9,990],["campaign",412,"—",37,3190],["winback",25,"41 min",6,540]];
+  return `<div class="card"><h2>${t("t_sources")}<span class="r">${t("last30")}</span></h2><div class="twrap"><table class="t"><thead><tr><th>${t("th_s").source}</th><th class="n">${t("th_s").leads}</th><th class="n">${t("th_s").ttc}</th><th class="n">${t("th_s").conv}</th><th class="n">${t("th_s").rate}</th><th>${t("th_s").revenue}</th></tr></thead><tbody>
+   ${S.map(([k,n,ttc,c,rev])=>`<tr><td><span style="display:inline-flex;align-items:center;gap:8px">${SRC_ICON[k]}${t("src")[k]}</span></td><td class="n num">${n}</td><td class="n num">${ttc}</td><td class="n num">${c}</td><td class="n num">${Math.round(100*c/n)} %</td>
+     <td><div style="display:flex;align-items:center;gap:10px"><div class="hbar" style="flex:1"><b style="--w:${Math.round(100*rev/3410)}%"></b></div><b class="num" style="min-width:74px;text-align:end">${rev.toLocaleString("fr-FR")} LYD</b></div></td></tr>`).join("")}
+   </tbody></table></div></div>`;
+}
+function wireManager(){
+  const b=$("#mbody");
+  b.querySelectorAll("select[data-f]").forEach(s=>s.onchange=()=>{mf[s.dataset.f]=s.value||null;renderMBody()});
+  b.querySelector("[data-hot]")?.addEventListener("click",()=>{mf.hot=!mf.hot;renderMBody()});
+  b.querySelectorAll("[data-bf]").forEach(c=>c.onclick=()=>{const k=c.dataset.bf,v=c.dataset.v;
+    if(k==="agent")bf.agents=bf.agents.includes(v)?bf.agents.filter(a=>a!==v):[...bf.agents,v];
+    else if(["value","count","exclude","returned"].includes(k))bf[k]=!bf[k];else bf[k]=bf[k]===v?null:v;
+    const y=b.scrollTop;renderMBody();$("#mbody").scrollTop=y});
+  $("#cbCancel")?.addEventListener("click",()=>{build=false;renderMBody()});
+  $("#cbLaunch")?.addEventListener("click",()=>{build=false;renderMBody();toast(lang==="ar"?"أُطلقت الحملة · وُزّعت على الوكلاء":"Campagne lancée · distribuée aux agents")});
+}
+
+/* ───────────── Wiring ───────────── */
+document.addEventListener("click",(e)=>{const b=e.target.closest("[data-wa][data-waid]");if(!b)return;e.preventDefault();e.stopPropagation();
+  const l=LEADS.find(x=>x.id===b.dataset.waid);if(selected!==l.id){selected=l.id;renderList();renderPane()}openWa(l)});
+$("#scrim").onclick=closeSheets;
+document.addEventListener("keydown",(e)=>{
+  if(e.key==="Escape"&&sheetOpen()){closeSheets();return}
+  if(role!=="agent"||screen!=="prospects"||sheetOpen()||e.metaKey||e.ctrlKey||e.target.closest("input,textarea,select"))return;
+  const rows=visibleRows(),i=rows.findIndex(l=>l.id===selected),l=rows[i];
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();const n=rows[Math.min(rows.length-1,Math.max(0,i+(e.key==="ArrowDown"?1:-1)))];n&&select(n.id)}
+  else if(e.key.toLowerCase()==="r"&&l&&bucketOf(l)!=="done")openOutcome(l);
+  else if(e.key.toLowerCase()==="c"&&l&&bucketOf(l)!=="done")openConvert(l);
+  else if(e.key.toLowerCase()==="n")openCapture();
+});
+function segSet(id,attr,val){document.querySelectorAll(`#${id} button`).forEach(b=>b.setAttribute("aria-pressed",b.dataset[attr]===val))}
+$("#segRole").onclick=(e)=>{const b=e.target.closest("button");if(!b)return;role=b.dataset.role;segSet("segRole","role",role);closeSheets();render()};
+$("#segLang").onclick=(e)=>{const b=e.target.closest("button");if(!b)return;lang=b.dataset.lang;segSet("segLang","lang",lang);closeSheets();applyLang()};
+$("#segWidth").onclick=(e)=>{const b=e.target.closest("button");if(!b)return;$("#frame").dataset.width=b.dataset.width;segSet("segWidth","width",b.dataset.width);render()};
+$("#segScreen").onclick=(e)=>{const b=e.target.closest("button");if(!b)return;screen=b.dataset.screen;role="agent";segSet("segScreen","screen",screen);segSet("segRole","role",role);render()};
+(function(){const q=new URLSearchParams(location.search);const R=q.get("role"),Lg=q.get("lang"),W=q.get("width"),S=q.get("screen"),T=q.get("tab"),F=q.get("bucket");
+  if(R){role=R;segSet("segRole","role",R)}if(Lg&&I18N[Lg]){lang=Lg;segSet("segLang","lang",Lg)}if(W){$("#frame").dataset.width=W;segSet("segWidth","width",W)}
+  if(S){screen=S;segSet("segScreen","screen",S)}if(T)mtab=T;if(F)filter=F;if(q.get("build")==="1"){build=true;mtab="campaigns"}})();
+applyLang();
+(function(){const q=new URLSearchParams(location.search);if(q.get("open")==="1"){const d=$("#pane");d&&(d.dataset.open="true")}
+  const l=LEADS.find(x=>x.id===selected),sh=q.get("sheet");
+  if(sh==="capture"){openCapture();const i=$("#cPhone");i.value="0921100223";i.dispatchEvent(new Event("input"))}
+  if(sh==="convert")openConvert(l);
+  if(sh==="outcome"){openOutcome(l);if(q.get("step")==="2"){oc.reached="yes";renderOutcome()}if(q.get("step")==="3"){oc.reached="yes";oc.then="callback";oc.next="tmr";renderOutcome()}}
+  if(sh==="wa")openWa(l);})();
+</script>
+
+</body>
+</html>
