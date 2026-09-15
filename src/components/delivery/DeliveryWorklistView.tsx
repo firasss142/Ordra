@@ -244,7 +244,7 @@ export function DeliveryWorklistView(props: DeliveryWorklistViewProps) {
           </button>
         </div>
 
-        <div className="hidden grid-cols-[minmax(0,1.45fr)_minmax(0,1.15fr)_minmax(0,1.1fr)_96px] gap-4 px-4 pb-1.5 pt-1 text-[12px] font-medium text-[#6B7280] lg:grid lg:ps-5" aria-hidden>
+        <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(200px,auto)_minmax(88px,auto)] gap-4 px-4 pb-1.5 pt-1 text-[12px] font-medium text-[#6B7280] lg:grid lg:ps-5" aria-hidden>
           <span>{t("cols.client")}</span><span>{t("cols.situation")}</span><span>{t("cols.action")}</span><span className="text-end">{t("cols.amount")}</span>
         </div>
 

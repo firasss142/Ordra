@@ -5728,6 +5728,96 @@
       "label": "Filtrer",
       "riskyOnly": "Colis à risque seulement",
       "hideDone": "Masquer les terminées"
+    },
+    "board": {
+      "title": "Vue d'ensemble",
+      "sub": "{n} en cours · {agents} agents",
+      "search": "Rechercher par nom, numéro, ville ou agent…",
+      "markets": {
+        "ly": "Libye",
+        "tn": "Tunisie"
+      },
+      "tabs": {
+        "team": "Équipe",
+        "couriers": "Livreurs",
+        "carriers": "Transporteurs"
+      },
+      "agentLabel": "Agent",
+      "allAgents": "Tous les agents",
+      "select": "Sélectionner le colis de {name}",
+      "nSelected": "{n, plural, one {# colis sélectionné} other {# colis sélectionnés}}",
+      "verdict": {
+        "late": "En retard",
+        "idle": "Inactif aujourd'hui",
+        "ok": "À jour"
+      },
+      "groups": {
+        "late": "Besoin d'aide",
+        "idle": "Sans activité",
+        "ok": "À jour"
+      },
+      "nLate": "{n, plural, one {# en retard} other {# en retard}}",
+      "nIdle": "{n, plural, one {# inactif} other {# inactifs}}",
+      "nOk": "{n, plural, one {# à jour} other {# à jour}}",
+      "nSaved": "{n, plural, one {# sauvée} other {# sauvées}}",
+      "noAgents": "Aucun agent sur ce marché",
+      "marketLine": "{toTreat} colis à traiter dans le marché · {late} au-delà de la cible · cette semaine {saved} sauvées, {lost} perdues",
+      "whyLate": "<b>{n, plural, one {# colis attend} other {# colis attendent}}</b> au-delà de la cible sans action · le plus ancien {hours}",
+      "whyIdle": "<b>{n, plural, one {# colis à traiter} other {# colis à traiter}}</b> et aucune action aujourd'hui",
+      "whyOk": "{n, plural, one {# colis à traiter, pris en charge dans la cible} other {# colis à traiter, tous pris en charge dans la cible}}",
+      "noneLive": "Rien n'attend d'action",
+      "legend": {
+        "returning": "retour",
+        "act_now": "à traiter",
+        "waiting_customer": "attente client",
+        "waiting_carrier": "transporteur"
+      },
+      "inFlight": "{n, plural, one {# colis en cours} other {# colis en cours}}",
+      "now": "À faire",
+      "today": "Aujourd'hui",
+      "week": "Cette semaine",
+      "nowLate": "dont <b>{n}</b> au-delà de la cible · le plus ancien <b>{hours}</b>",
+      "nowOk": "tous dans la cible",
+      "actions": "{n, plural, one {action} other {actions}}",
+      "todayReached": "<b>{n}</b> {n, plural, one {client joint} other {clients joints}}{wa, plural, =0 {} other { · <b>#</b> WhatsApp}}",
+      "saved": "{n, plural, one {sauvée} other {sauvées}}",
+      "weekLost": "<b>{n, plural, one {# perdue} other {# perdues}}</b> · livrées après une action",
+      "weekNoLoss": "livrées après une action · 0 perdue",
+      "weekStrip": "Actions des 7 derniers jours",
+      "blocking": "Ce qui bloque",
+      "threeOf": "3 sur {n}",
+      "nothingBlocks": "Rien ne bloque : tous les colis de l'agent sont dans la cible.",
+      "waits": "attend {d}",
+      "absent": "{name} absent·e · déplacer ses {n} colis",
+      "couriers": {
+        "title": "Livreurs Darb",
+        "sub": "D'après le porteur actuel de chaque colis (Darb, toutes les 10 min).",
+        "courier": "Livreur",
+        "held": "Colis",
+        "noAnswer": "Sans rép.",
+        "returning": "Retours",
+        "call": "Appeler",
+        "none": "Ce transporteur ne transmet pas le livreur. Rien à afficher pour ce marché."
+      },
+      "carriers": {
+        "title": "Transporteurs",
+        "inFlight": "en cours",
+        "split": "{toTreat} à traiter · {returning} en retour",
+        "none": "Aucun colis en cours chez un transporteur."
+      }
+    },
+    "reassign": {
+      "action": "Réassigner",
+      "title": "Réassigner",
+      "lead": "{n, plural, one {# colis passe} other {# colis passent}} de {from} à l'agent choisi. Le transporteur n'est pas prévenu : rien ne change pour le colis, seulement qui le suit.",
+      "pick": "Nouveau responsable",
+      "noTarget": "Aucun autre agent sur ce marché.",
+      "warn": "La commission de livraison suit le nouveau responsable. Chaque réassignation est donc un événement de paie, inscrit dans l'historique de la commande.",
+      "confirm": "Réassigner",
+      "working": "Réassignation…",
+      "cancel": "Annuler",
+      "failed": "La réassignation a échoué. Réessayez.",
+      "locked": "Un agent a une de ces commandes ouverte. Réessayez dans un instant."
     }
   },
   "prospects": {

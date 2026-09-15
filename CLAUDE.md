@@ -180,7 +180,8 @@ entry has not meant deleting its page — check before assuming a route is dead.
   docs/database-schema.md, the schema doc is closer, and the live DB is closest)
 - Database schema reference (READ FROM THE LIVE DB, 73 tables): docs/database-schema.md
 - Delivery follow-up — customers, delivery_actions, zones, worklist, the /delivery screen
-  (agent page shipped, manager board not yet): docs/delivery-worklist.md + plans/suivi-livraison.md
+  (agent page + manager board shipped; `lost` status and the commission rule are not):
+  docs/delivery-worklist.md + plans/suivi-livraison.md
 - Ad spend + Meta sync (break-even math, cost stack, cohort basis): docs/ad-spend.md +
   plans/ad-spend-meta-sync-redesign.md (NOT ad-spend-campaign-redesign.md — superseded)
 - CRM prospects/leads + Équipe (control room, performance, presence): docs/crm-and-team.md
@@ -216,13 +217,18 @@ decision, not a typo.
    → docs/delivery-worklist.md §2
 2. **`line-strong` (#DADCE0, Tailwind) ≠ `--border-strong` (#C9CCCF, CSS var)** — same
    intent, two values. → docs/design-system.md §2
-3. **The delivery worklist screen is live at /delivery (agents + managers), but the surfaces
-   its plan marks for deletion (Relances, Tableau livraison) are still live.** Do not delete
-   them before the manager board ships.
+3. **The delivery worklist and the manager board are both live at /delivery, but the surfaces
+   its plan marks for deletion (Relances, Tableau livraison) are still live.** The board now
+   covers what /in-delivery showed; deleting the old pages is the plan's deletion phase.
    → docs/delivery-worklist.md
-4. **391 stale `uploaded` orders** are hidden from the worklist rather than archived —
+4. **The reassign sheet on /delivery says the delivery commission follows the new owner; the
+   ledger does not do that yet.** Decision 38 changed the rule to "assigned_to at delivered",
+   but `agent_commission_ledger` still attributes to the agent of the last confirmed
+   transition. The UI is ahead of the data — change the RPC before anyone is paid on a
+   reassigned parcel. → docs/agent-commissions.md + plans/suivi-livraison.md
+5. **391 stale `uploaded` orders** are hidden from the worklist rather than archived —
    deliberate, but they are still `uploaded` in the data.
-5. **`_darb_tracking_backfill_backup` is the one table with no RLS.** Leftover; drop it
+6. **`_darb_tracking_backfill_backup` is the one table with no RLS.** Leftover; drop it
    once the backfill is confirmed good.
 
 Never read a row count from `pg_stat_user_tables.n_live_tup` — it is a planner estimate

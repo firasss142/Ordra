@@ -69,7 +69,7 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
         EDGE, TONE[tone].edge,
         "mb-2 grid cursor-pointer gap-x-2.5 rounded-[10px] border text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#15803D]/40",
         "grid-cols-[minmax(0,1fr)_auto] px-3.5 py-3 ps-4",
-        "lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1.15fr)_minmax(0,1.1fr)_96px] lg:items-center lg:gap-x-4 lg:px-4 lg:py-2.5 lg:ps-5",
+        "lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(200px,auto)_minmax(88px,auto)] lg:items-center lg:gap-x-4 lg:px-4 lg:py-2.5 lg:ps-5",
         selected ? "border-[1.5px] border-[#15803D] bg-[#F0FDF4]" : "border-[#E5E7EB] bg-white hover:border-[#C9CCCF]",
       ].join(" ")}
     >

@@ -165,6 +165,28 @@ export function LivraisonSection({
         </SettingField>
 
         <SettingField
+          label="Délai de première action"
+          marketId={marketId}
+          settingKey="delivery_first_action_hours"
+          hint="Temps qu'un colis « à traiter » peut attendre avant que le tableau manager déclare son agent en retard. Compté sur les heures de service."
+        >
+          <div className="flex items-center gap-2 text-[13px] text-ink-secondary">
+            <input
+              type="number"
+              min={1}
+              max={72}
+              value={values.delivery_first_action_hours ?? 4}
+              onChange={(e) =>
+                set("delivery_first_action_hours", Number(e.target.value))
+              }
+              className={num}
+              {...dis}
+            />
+            <span>heures avant « en retard »</span>
+          </div>
+        </SettingField>
+
+        <SettingField
           label="Colis terminés visibles"
           marketId={marketId}
           settingKey="delivery_done_window_hours"

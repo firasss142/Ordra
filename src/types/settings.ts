@@ -159,6 +159,12 @@ export interface MarketSettings {
   proactive_call_window_hours?: number;
   /** Hours a finished parcel stays visible in the "terminées" bucket. */
   delivery_done_window_hours?: number;
+  /**
+   * Hours a parcel needing an action may wait before the manager board calls
+   * its agent late. Counted on shift hours, and the only target the verdicts
+   * on /delivery are measured against.
+   */
+  delivery_first_action_hours?: number;
 
   // Objectifs (team targets; read by the team dashboard + agent sheet)
   goal_daily_treated?: number;
@@ -225,6 +231,7 @@ export const DEFAULT_MARKET_SETTINGS: MarketSettings = {
   risk_min_prior_failures: 1,
   proactive_call_window_hours: 4,
   delivery_done_window_hours: 24,
+  delivery_first_action_hours: 4,
   goal_daily_treated: 12,
   goal_min_rate: 40,
   goal_conf_per_hour: 3,
@@ -280,6 +287,7 @@ export const MARKET_SETTINGS_KEYS: ReadonlyArray<keyof MarketSettings> = [
   "risk_min_prior_failures",
   "proactive_call_window_hours",
   "delivery_done_window_hours",
+  "delivery_first_action_hours",
   "goal_daily_treated",
   "goal_min_rate",
   "goal_conf_per_hour",
@@ -479,6 +487,9 @@ export function isValidMarketSettings(obj: unknown): obj is MarketSettings {
   if (!isValidOptionalInt(s.risk_min_prior_failures, 1, 100)) return false;
   if (!isValidOptionalInt(s.proactive_call_window_hours, 1, 72)) return false;
   if (!isValidOptionalInt(s.delivery_done_window_hours, 1, 168)) return false;
+  // A target under an hour would mark every parcel late the moment it arrives;
+  // over a working week it would never mark anything.
+  if (!isValidOptionalInt(s.delivery_first_action_hours, 1, 72)) return false;
 
   // Objectifs
   if (!isValidOptionalInt(s.goal_daily_treated, 0, 100_000)) return false;
