@@ -1,0 +1,1313 @@
+<title>Prospects · Console</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Prototype — « Prospects », the manager and super-admin console, 2026-09-15.
+  Same visual language as prototypes/prospects-v3.html (the agent worklist that
+  shipped): one header, tone chips, colour-striped rows, a right-hand panel.
+  What is new is the job: a manager distributes, watches, edits and steers;
+  they do not call. Four views on one route — Vue d'ensemble · Prospects ·
+  Campagnes · Équipe — chosen on 2026-09-15 together with: rules-based bulk
+  distribution (decision 33), supervise/edit/reassign only, per-market with a
+  Tunisia-vs-Libya strip for the super admin, campaign builder in scope,
+  create/import/edit/close but no hard delete, desktop first with phone reading.
+  Figures are EXAMPLES shaped like production (≈2 000 prospects, 99 % from
+  campaigns, nearly all without an agent) — not live data.
+  URL presets: ?role=manager|admin &scope=ly|tn|all &lang=fr|ar &view=desktop|phone &tab=overview|pipeline|campaigns|team
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cairo:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#F5F6F8; --surface:#FFFFFF; --soft:#F9FAFB; --sunk:#F3F4F6;
+  --line:#E5E7EB; --line-2:#D1D5DB;
+  --ink:#111827; --ink-2:#374151; --ink-3:#6B7280; --ink-4:#9CA3AF;
+  --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4;
+  --amber:#F59E0B; --amber-bg:#FEF3C7; --amber-ink:#92400E;
+  --red:#EF4444;   --red-bg:#FEE2E2;   --red-ink:#B91C1C;
+  --blue:#3B82F6;  --blue-bg:#DBEAFE;  --blue-ink:#1D4ED8;
+  --violet:#8B5CF6;--violet-bg:#EDE9FE;--violet-ink:#5B21B6;
+  --grey:#9CA3AF;  --grey-bg:#F3F4F6;  --grey-ink:#374151;
+  --green:#22C55E; --green-bg:#DCFCE7; --green-ink:#15803D;
+  --wa:#16A34A; --wa-bg:#E8F6EE; --link:#2563EB;
+  --studio:#E9EBEF;
+  --f-lat:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-ar:"Cairo","Noto Sans Arabic","Inter",system-ui,sans-serif;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--studio);color:var(--ink);font-family:var(--f-lat);font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+button:disabled{cursor:not-allowed;opacity:.5}
+a{color:inherit;text-decoration:none}
+svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.num{direction:ltr;unicode-bidi:isolate}
+.q{unicode-bidi:plaintext}
+[dir="rtl"] .app{font-family:var(--f-ar)}
+[dir="rtl"] .flip svg{transform:scaleX(-1)}
+:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ── Studio chrome (always LTR) ─────────────────────────────── */
+.studio{padding-inline:20px;padding-block:18px 40px;direction:ltr}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;max-width:1480px;margin:0 auto 14px}
+.bar h1{margin:0;font-size:15px;font-weight:700;margin-inline-end:auto}
+.bar h1 span{color:var(--ink-3);font-weight:500}
+.seg{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.seg button{padding:6px 11px;border-radius:7px;font-size:13px;font-weight:500;color:var(--ink-3)}
+.seg button[aria-pressed="true"]{background:#111;color:#fff}
+.note{max-width:1480px;margin:0 auto 16px;font-size:12.5px;color:var(--ink-3);line-height:1.5}
+.note b{color:var(--ink-2)}
+.note details{margin-top:6px}
+.note summary{cursor:pointer;font-weight:600;color:var(--ink-2)}
+.note ul{margin:6px 0 0;padding-inline-start:18px}
+.stage{max-width:1480px;margin:0 auto}
+.hscroll{overflow-x:auto}
+
+/* ── Atoms ──────────────────────────────────────────────────── */
+.chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap}
+.chip svg{width:14px;height:14px}
+.chip[data-t="amber"]{background:var(--amber-bg);color:var(--amber-ink)}
+.chip[data-t="red"]{background:var(--red-bg);color:var(--red-ink)}
+.chip[data-t="blue"]{background:var(--blue-bg);color:var(--blue-ink)}
+.chip[data-t="grey"]{background:var(--grey-bg);color:var(--grey-ink)}
+.chip[data-t="violet"]{background:var(--violet-bg);color:var(--violet-ink)}
+.chip[data-t="green"]{background:var(--green-bg);color:var(--green-ink)}
+.chip[data-t="line"]{background:#fff;border:1px solid var(--line-2);color:var(--ink-2);font-weight:500}
+.chip.sm{font-size:12px;padding:2px 8px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.dot[data-t="amber"]{background:var(--amber)}.dot[data-t="red"]{background:var(--red)}.dot[data-t="blue"]{background:var(--blue)}.dot[data-t="grey"]{background:var(--grey)}.dot[data-t="green"]{background:var(--green)}.dot[data-t="violet"]{background:var(--violet)}.dot[data-t="pool"]{background:#fff;border:2px solid var(--ink-4)}
+.pulse{position:relative}
+.pulse::after{content:"";position:absolute;inset:-3px;border-radius:50%;background:var(--amber);opacity:.35;animation:pl 1.6s var(--ease) infinite}
+@keyframes pl{0%{transform:scale(.6);opacity:.5}100%{transform:scale(2);opacity:0}}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;font-weight:700;font-size:14px;flex:0 0 auto}
+.avatar.sm{width:24px;height:24px;font-size:11px}
+.avatar[data-on="true"]{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--green)}
+.btn-o{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border:1px solid var(--line-2);border-radius:8px;background:#fff;font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap;transition:background .12s}
+.btn-o:hover{background:var(--soft)}
+.btn-o.sm{height:32px;padding:0 12px;font-size:13px}
+.btn-o[data-t="red"]{border-color:var(--red);color:var(--red-ink)}
+.btn-o[data-t="amber"]{border-color:var(--amber);color:var(--amber-ink)}
+.btn-o[data-t="green"]{border-color:var(--green-ink);color:var(--green-ink)}
+.btn-k{display:flex;align-items:center;justify-content:center;gap:10px;height:46px;padding:0 18px;border-radius:8px;background:var(--brand);color:#fff;font-size:15.5px;font-weight:600;width:100%;transition:background .12s}
+.btn-k:hover{background:var(--brand-hover)}
+.btn-k[data-dark]{background:#111}
+.btn-k[data-dark]:hover{background:#000}
+.btn-k.sm{height:40px;font-size:14px;width:auto}
+.btn-new{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:8px;background:var(--brand);color:#fff;font-weight:600;white-space:nowrap}
+.btn-new:hover{background:var(--brand-hover)}
+.link{display:inline-flex;align-items:center;gap:7px;color:var(--link);font-weight:600;font-size:14px}
+.kbd{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;padding:1px 5px;border-radius:4px;background:var(--sunk);color:var(--ink-3);border:1px solid var(--line)}
+.eyebrow{font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.mute{color:var(--ink-3)}
+.good{color:var(--green-ink);font-weight:600}.bad{color:var(--red-ink);font-weight:600}.warnc{color:var(--amber-ink);font-weight:600}
+
+/* ── App frame ──────────────────────────────────────────────── */
+.app{min-width:1180px;height:980px;background:var(--bg);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative;text-align:start}
+.app[data-w="phone"]{min-width:0;width:390px;height:844px;border-radius:44px;border:10px solid #151920;margin:0 auto}
+.top{height:64px;flex:0 0 auto;display:flex;align-items:center;gap:16px;padding:0 20px;background:#fff;border-bottom:1px solid var(--line)}
+.top .brand{font-size:21px;font-weight:700;letter-spacing:-.01em}
+.top .brand b{color:var(--brand)}
+.top .mkt{display:inline-flex;align-items:center;gap:6px;color:var(--ink-3);font-size:14.5px;padding-inline-start:14px;border-inline-start:1px solid var(--line);margin-inline-start:2px}
+.top .mkt svg{width:15px;height:15px}
+.scope{display:inline-flex;background:var(--sunk);border-radius:8px;padding:3px;gap:2px;margin-inline-start:6px}
+.scope button{padding:4px 10px;border-radius:6px;font-size:13px;font-weight:600;color:var(--ink-3)}
+.scope button[aria-pressed="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(17,24,39,.08)}
+.top nav{margin-inline-start:auto;display:flex;align-items:center;gap:4px;align-self:stretch}
+.top nav button{position:relative;padding:0 14px;font-size:14.5px;font-weight:500;color:var(--ink-2);display:inline-flex;align-items:center;gap:8px}
+.top nav button[aria-current="page"]{color:var(--ink);font-weight:600;background:var(--sunk);border-radius:8px 8px 0 0;align-self:stretch;margin-block:12px 0}
+.top nav button[aria-current="page"]::after{content:"";position:absolute;inset-inline:0;bottom:0;height:2px;background:var(--brand)}
+.badge{min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--amber-bg);color:var(--amber-ink);font-size:12.5px;font-weight:700;display:inline-grid;place-items:center}
+.top .me{display:flex;align-items:center;gap:10px;padding-inline-start:12px;font-weight:500;font-size:14.5px}
+.top .me svg{color:var(--ink-3);width:16px;height:16px}
+
+.page{flex:1;min-height:0;display:flex;flex-direction:column;padding:18px 20px 0}
+.head{display:flex;align-items:flex-start;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+.head .ic{width:44px;height:44px;border-radius:10px;background:var(--brand-bg);color:var(--brand);display:grid;place-items:center;flex:0 0 auto}
+.head .ic svg{width:24px;height:24px}
+.head h2{margin:0;font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.head .sub{color:var(--ink-3);font-size:15px;margin-top:2px}
+.head .sub b{color:var(--red-ink);font-weight:600}
+.head .sub b[data-t="amber"]{color:var(--amber-ink)}
+.tools{margin-inline-start:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.search{height:40px;display:flex;align-items:center;gap:10px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink-3);width:280px;max-width:100%}
+.search input{flex:1;border:0;outline:0;background:none;font-size:14px;color:var(--ink);min-width:0}
+
+/* View switch — the four jobs of the page */
+.tabs{display:flex;align-items:center;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.tabs button{position:relative;display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 14px;font-size:14.5px;font-weight:500;color:var(--ink-2)}
+.tabs button svg{width:17px;height:17px;color:var(--ink-3)}
+.tabs button[aria-current="page"]{color:var(--ink);font-weight:600}
+.tabs button[aria-current="page"] svg{color:var(--brand)}
+.tabs button[aria-current="page"]::after{content:"";position:absolute;inset-inline:0;bottom:-1px;height:2px;background:var(--brand)}
+.tabs .badge{background:var(--red-bg);color:var(--red-ink)}
+.tabs .badge[data-t="amber"]{background:var(--amber-bg);color:var(--amber-ink)}
+.tabs .period{margin-inline-start:auto;display:inline-flex;gap:2px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:3px}
+.tabs .period button{height:28px;padding:0 10px;font-size:13px;border-radius:6px}
+.tabs .period button[aria-pressed="true"]{background:#111;color:#fff;font-weight:600}
+.tabs .period button::after{display:none}
+
+.scroll{flex:1;min-height:0;overflow-y:auto;padding-bottom:28px;display:flex;flex-direction:column;gap:14px;scrollbar-width:thin}
+
+/* Alert — the finding that makes the page worth opening */
+.alert{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:12px;border:1px solid #FECACA;background:#FEF2F2}
+.alert[data-t="amber"]{border-color:#FDE68A;background:#FFFBEB}
+.alert .ico{width:38px;height:38px;border-radius:50%;background:#fff;display:grid;place-items:center;color:var(--red-ink);flex:0 0 auto;border:1px solid #FECACA}
+.alert[data-t="amber"] .ico{color:var(--amber-ink);border-color:#FDE68A}
+.alert .tx{flex:1;min-width:0}
+.alert .tt{font-weight:700;font-size:15px}
+.alert .ds{font-size:13.5px;color:var(--ink-2);margin-top:1px}
+.alert .btn-k{width:auto;height:40px;font-size:14px;padding:0 16px}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.kpis[data-n="4"]{grid-template-columns:repeat(4,1fr)}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;position:relative;overflow:hidden;min-width:0;text-align:start}
+.kpi .l{font-size:13px;color:var(--ink-3);display:flex;align-items:center;gap:6px}
+.kpi .l svg{width:14px;height:14px}
+.kpi .v{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--ink-3);margin-inline-start:4px;letter-spacing:0}
+.kpi .d{font-size:12.5px;color:var(--ink-3);display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.kpi svg.sp{position:absolute;inset-inline-end:14px;top:16px;width:84px;height:30px;stroke-width:2}
+.kpi[data-t="amber"]{border-color:var(--amber);background:#FFFBEB}
+.kpi[data-t="red"]{border-color:#FCA5A5;background:#FEF2F2}
+.kpi[data-t="green"] .v{color:var(--green-ink)}
+button.kpi{cursor:pointer;transition:border-color .12s}
+button.kpi:hover{border-color:var(--line-2)}
+.ksec{display:flex;align-items:baseline;gap:10px;margin:2px 0 -6px}
+.ksec h3{margin:0;font-size:15px;font-weight:700}
+.ksec span{color:var(--ink-3);font-size:13px}
+
+/* Grid + cards */
+.g{display:grid;gap:14px;align-items:start}
+.g[data-c="2"]{grid-template-columns:1fr 1fr}
+.g[data-c="21"]{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
+.g[data-c="12"]{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr)}
+.mcard{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;min-width:0}
+.mcard>h3{display:flex;align-items:center;gap:10px;margin:0;padding:13px 16px;font-size:15px;font-weight:700;border-bottom:1px solid var(--line)}
+.mcard>h3 svg{color:var(--ink-3);width:17px;height:17px}
+.mcard>h3 .r{margin-inline-start:auto;font-weight:500;color:var(--ink-3);font-size:13px;display:inline-flex;align-items:center;gap:8px}
+.mcard .bd{padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.twrap{overflow-x:auto}
+table.t{width:100%;border-collapse:collapse;font-size:13.5px}
+table.t th{text-align:start;font-weight:600;color:var(--ink-3);font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.t td{padding:10px 14px;border-bottom:1px solid var(--sunk);vertical-align:middle}
+table.t tbody tr:last-child td{border-bottom:0}
+table.t tbody tr:hover{background:var(--soft)}
+table.t tbody tr[aria-selected="true"]{background:var(--brand-tint)}
+table.t tbody tr[data-open="true"]{box-shadow:inset 3px 0 0 var(--brand)}
+[dir="rtl"] table.t tbody tr[data-open="true"]{box-shadow:inset -3px 0 0 var(--brand)}
+table.t .n{text-align:end;white-space:nowrap;font-weight:600}
+table.t th.n{text-align:end}
+table.t .s1{color:var(--ink-3);font-size:12.5px;margin-top:2px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+table.t .nm{font-weight:600;display:flex;align-items:baseline;gap:6px}
+table.t .nm .id{font-weight:400;color:var(--ink-3);font-size:12.5px}
+table.t td.ck{width:36px;padding-inline-end:0}
+table.t .who{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+table.t .pool{display:inline-flex;align-items:center;gap:6px;color:var(--red-ink);font-weight:600;white-space:nowrap}
+table.t tr.clickable{cursor:pointer}
+input[type="checkbox"].cb{width:17px;height:17px;accent-color:var(--brand);margin:0;cursor:pointer;vertical-align:middle}
+
+/* Filter bar + selection bar */
+.fbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.fchip{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;background:#fff;border:1px solid var(--line-2);font-size:13px;color:var(--ink);white-space:nowrap}
+.fchip b{font-weight:600;color:var(--ink-3)}
+.fchip[aria-pressed="true"]{background:#111;color:#fff;border-color:#111}
+.fchip[aria-pressed="true"] b{color:#D1D5DB}
+.fchip[data-t="red"]{border-color:#FCA5A5;color:var(--red-ink)}
+.fchip[data-t="red"][aria-pressed="true"]{background:var(--red-ink);border-color:var(--red-ink);color:#fff}
+.fsel{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:13px;color:var(--ink-2)}
+.fsel svg{width:14px;height:14px}
+.fbar .count{margin-inline-start:auto;color:var(--ink-3);font-size:13px;white-space:nowrap}
+.selbar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#111;color:#fff;font-size:13.5px;animation:in .2s var(--ease)}
+.selbar b{font-weight:700}
+.selbar .btn-o{height:32px;padding:0 12px;font-size:13px;background:transparent;color:#fff;border-color:rgba(255,255,255,.35)}
+.selbar .btn-o:hover{background:rgba(255,255,255,.1)}
+.selbar .btn-o[data-p]{background:#fff;color:#111;border-color:#fff}
+.selbar .x{margin-inline-start:auto;color:#9CA3AF}
+@keyframes in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* Funnel (overview) */
+.fun{display:flex;flex-direction:column;gap:8px}
+.fun .st{display:grid;grid-template-columns:150px 1fr 70px 60px;gap:10px;align-items:center;font-size:13.5px}
+.fun .st .lb{color:var(--ink-2)}
+.fun .st .bar,.loss .r .bar{display:block}
+.fun .st .bar{height:22px;border-radius:5px;background:var(--sunk);overflow:hidden}
+.fun .st .bar b{display:block;height:100%;background:var(--ink-4);width:var(--w);border-radius:5px}
+.fun .st[data-k="conv"] .bar b{background:var(--brand)}
+.fun .st[data-k="deliv"] .bar b{background:var(--green)}
+.fun .st[data-k="pool"] .bar b{background:#FCA5A5}
+.fun .st .n{text-align:end;font-weight:700}
+.fun .st .p{text-align:end;color:var(--ink-3);font-size:12.5px}
+.loss{display:flex;flex-direction:column;gap:7px}
+.loss .r{display:grid;grid-template-columns:130px 1fr 44px;gap:10px;align-items:center;font-size:13.5px}
+.loss .r .bar{height:14px;border-radius:4px;background:var(--sunk);overflow:hidden}
+.loss .r .bar b{display:block;height:100%;background:var(--red);opacity:.75;width:var(--w)}
+.loss .r .n{text-align:end;font-weight:600}
+.hint{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:8px;background:var(--sunk);font-size:13px;color:var(--ink-2);line-height:1.45}
+.hint svg{width:16px;height:16px;color:var(--ink-3);margin-top:1px}
+
+/* Campaign cards + funnel bar */
+.camp{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.camp:last-child{border-bottom:0}
+.camp .cn{display:flex;align-items:center;gap:8px;font-weight:600;flex-wrap:wrap}
+.camp .cn .chip{margin-inline-start:auto}
+.camp .offer{font-size:13px;color:var(--ink-2)}
+.funnel{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--sunk)}
+.funnel b{display:block;height:100%}
+.funnel b:nth-child(1){background:#FCA5A5}
+.funnel b:nth-child(2){background:#C7CDD6}
+.funnel b:nth-child(3){background:#8C96A5}
+.funnel b:nth-child(4){background:var(--brand)}
+.fn-l{display:flex;gap:12px;font-size:12px;color:var(--ink-3);flex-wrap:wrap}
+.fn-l b{color:var(--ink);font-weight:600}
+.fn-l .rev{margin-inline-start:auto;color:var(--green-ink);font-weight:600}
+.camp .ft{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink-3)}
+.camp .ft .btn-o{margin-inline-start:auto}
+.hbar{height:6px;border-radius:3px;background:var(--sunk);overflow:hidden;min-width:80px}
+.hbar b{display:block;height:100%;background:var(--brand);width:var(--w)}
+.hbar[data-t="amber"] b{background:var(--amber)}
+.hbar[data-t="red"] b{background:var(--red)}
+
+/* Agent cards (team) */
+.agents{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.ag{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.ag[data-t="amber"]{border-color:var(--amber)}
+.ag[data-t="red"]{border-color:#FCA5A5}
+.ag .h{display:flex;align-items:center;gap:10px}
+.ag .h .nm{font-weight:700;font-size:15px}
+.ag .h small{display:block;color:var(--ink-3);font-size:12.5px;font-weight:400}
+.ag .h .chip{margin-inline-start:auto}
+.ag .ks{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ag .k{display:flex;flex-direction:column;gap:1px;padding:8px 6px;border-radius:8px;background:var(--soft);text-align:center;min-width:0}
+.ag .k b{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.ag .k span{font-size:11.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag .k[data-t="amber"]{background:var(--amber-bg)}.ag .k[data-t="amber"] b{color:var(--amber-ink)}
+.ag .k[data-t="red"]{background:var(--red-bg)}.ag .k[data-t="red"] b{color:var(--red-ink)}
+.ag .cap{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-3)}
+.ag .cap .hbar{flex:1}
+.ag .ft{display:flex;gap:6px}
+.ag .ft .btn-o{flex:1;height:34px;font-size:13px;padding:0 8px}
+.ag svg.sp{width:100%;height:34px;stroke-width:2}
+
+/* Comparison strip (super admin, scope = all) */
+.cmp{display:grid;grid-template-columns:200px 1fr 1fr;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}
+.cmp>div{padding:11px 16px;border-bottom:1px solid var(--sunk);border-inline-start:1px solid var(--sunk);display:flex;align-items:center;gap:8px;min-width:0}
+.cmp>div:nth-child(3n+1){border-inline-start:0;color:var(--ink-2);font-size:13.5px}
+.cmp>div:nth-last-child(-n+3){border-bottom:0}
+.cmp .hd{background:var(--soft);font-weight:700;font-size:14px}
+.cmp .hd .chip{margin-inline-start:auto}
+.cmp .v{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.cmp .v small{font-size:12.5px;font-weight:500;color:var(--ink-3);margin-inline-start:6px}
+.cmp .w{color:var(--red-ink)}
+
+/* Side panel (pipeline) */
+.split{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:14px;align-items:start;flex:1;min-height:0}
+.panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 18px 24px;display:flex;flex-direction:column;gap:12px;position:sticky;top:0;max-height:100%;overflow-y:auto;scrollbar-width:thin}
+.pempty{margin:auto;text-align:center;color:var(--ink-3);max-width:30ch;padding:40px 0}
+.pempty svg{width:40px;height:40px;color:var(--line-2);stroke-width:1.5}
+.ph1{display:flex;align-items:flex-start;gap:10px}
+.ph1 h3{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;line-height:1.2}
+.ph1 h3 .id{font-size:15px;font-weight:400;color:var(--ink-3)}
+.ph1 .x{margin-inline-start:auto;width:32px;height:32px;display:grid;place-items:center;border-radius:8px;color:var(--ink-2)}
+.ph2{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.ph2 .chips{display:flex;gap:6px;flex-wrap:wrap}
+.big{font-size:28px;font-weight:700;letter-spacing:-.02em;white-space:nowrap}
+.big small{font-size:13px;font-weight:500;color:var(--ink-3);display:block;text-align:end;letter-spacing:0}
+.owner{border-radius:12px;padding:12px 14px;border:1px solid var(--line);background:var(--soft);display:flex;align-items:center;gap:12px}
+.owner[data-t="red"]{background:#FEF2F2;border-color:#FECACA}
+.owner .tx{flex:1;min-width:0}
+.owner .tt{font-weight:700;font-size:15px}
+.owner .ds{font-size:13px;color:var(--ink-2)}
+.owner .btn-o{height:34px;font-size:13px}
+.sec-t{font-size:15px;font-weight:700;margin-top:2px;display:flex;align-items:center;gap:8px}
+.sec-t .r{margin-inline-start:auto;font-size:13px;font-weight:600;color:var(--link);display:inline-flex;align-items:center;gap:5px}
+.sec-t .r svg{width:14px;height:14px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card .ct{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
+.card .ct svg{color:var(--ink-3)}
+.card .kv{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2);min-width:0}
+.card .kv svg{width:16px;height:16px;color:var(--ink-3)}
+.card .kv .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .quote{padding:8px 10px;border-radius:8px;background:var(--sunk);font-size:13.5px;line-height:1.5;color:var(--ink-2)}
+.risk{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.risk[data-k="good"]{color:var(--green-ink)}.risk[data-k="bad"]{color:var(--red-ink)}.risk[data-k="new"]{color:var(--ink-3)}
+.tl{list-style:none;margin:0;padding:0;position:relative}
+.tl li{position:relative;display:grid;grid-template-columns:64px 22px 1fr;gap:6px;padding:6px 0;font-size:13.5px;align-items:start}
+.tl li::before{content:"";position:absolute;inset-inline-start:74px;top:22px;bottom:-8px;width:1.5px;background:var(--line)}
+.tl li:last-child::before{display:none}
+.tl .t{color:var(--ink-3);font-size:12.5px;padding-top:2px}
+.tl .d{width:22px;height:22px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;color:var(--ink-2)}
+.tl .d svg{width:12px;height:12px}
+.tl .d[data-t="green"]{background:var(--green-bg);color:var(--green-ink)}
+.tl .d[data-t="amber"]{background:var(--amber-bg);color:var(--amber-ink)}
+.tl .d[data-t="red"]{background:var(--red-bg);color:var(--red-ink)}
+.tl .d[data-t="blue"]{background:var(--blue-bg);color:var(--blue-ink)}
+.tl .d[data-t="violet"]{background:var(--violet-bg);color:var(--violet-ink)}
+.tl b{font-weight:600}
+.tl small{display:block;color:var(--ink-3);margin-top:1px}
+.pfoot{display:flex;gap:8px;position:sticky;bottom:-24px;margin:8px -18px -24px;padding:12px 18px 16px;background:#fff;border-top:1px solid var(--line)}
+.pfoot .btn-o{flex:1;height:42px}
+.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* Sheets */
+.scrim{position:absolute;inset:0;z-index:20;background:rgba(17,24,39,.35);opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s}
+.scrim[data-open="true"]{opacity:1;visibility:visible}
+.sheet{position:absolute;z-index:21;background:#fff;display:flex;flex-direction:column;opacity:0;visibility:hidden;box-shadow:0 30px 80px -20px rgba(17,24,39,.4);transition:opacity .2s,transform .26s var(--ease),visibility .26s;width:600px;max-height:92%;left:50%;top:50%;border-radius:16px;transform:translate(-50%,-47%) scale(.98)}
+.sheet[data-open="true"]{opacity:1;visibility:visible;transform:translate(-50%,-50%) scale(1)}
+.sheet[data-wide]{width:980px}
+.sh{display:flex;align-items:flex-start;gap:12px;padding:18px 20px 12px}
+.sh h2{margin:0;font-size:19px;font-weight:700;letter-spacing:-.01em}
+.sh .sub{color:var(--ink-3);font-size:13.5px;margin-top:2px}
+.sh .x{margin-inline-start:auto;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--ink-3)}
+.sb{overflow-y:auto;padding:4px 20px 18px;display:flex;flex-direction:column;gap:14px}
+.sf{display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--line);align-items:center}
+.sf .btn-k,.sf .btn-o{height:46px}
+.sf .btn-k{flex:1}
+.sf .mute{margin-inline-end:auto;font-size:13px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field label{font-size:13px;font-weight:600;color:var(--ink-2)}
+.field .hp{font-size:12.5px;color:var(--ink-3)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.inp{width:100%;height:40px;border-radius:8px;border:1px solid var(--line-2);background:#fff;padding:0 12px;outline:0}
+.inp:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg)}
+textarea.inp{height:auto;min-height:64px;padding:9px 12px;resize:vertical;line-height:1.5}
+.inp.big{height:52px;font-size:22px;font-weight:600;letter-spacing:.04em;direction:ltr;text-align:start}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opt{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid var(--line-2);background:#fff;font-weight:500;color:var(--ink-2)}
+.opt svg{width:15px;height:15px}
+.opt[aria-pressed="true"]{background:#111;color:#fff;border-color:#111}
+.match{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:10px;font-size:13.5px;line-height:1.45;animation:in .25s var(--ease)}
+.match svg{width:17px;height:17px;margin-top:1px}
+.match[data-k="known"]{background:var(--green-bg);color:var(--green-ink)}
+.match[data-k="open"]{background:var(--amber-bg);color:var(--amber-ink)}
+.match[data-k="new"]{background:var(--sunk);color:var(--ink-2)}
+.match[data-k="risk"]{background:var(--red-bg);color:var(--red-ink)}
+.radio{display:flex;flex-direction:column;gap:6px}
+.radio label{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line-2);border-radius:10px;cursor:pointer;font-size:13.5px;line-height:1.4}
+.radio label[data-on="true"]{border-color:var(--brand);background:var(--brand-tint)}
+.radio input{margin:3px 0 0;accent-color:var(--brand)}
+.radio b{display:block;font-weight:600;color:var(--ink)}
+.radio span{color:var(--ink-2)}
+.aglist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.aglist label{display:grid;grid-template-columns:auto 28px 1fr auto;gap:10px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--sunk);cursor:pointer;font-size:13.5px}
+.aglist label:last-child{border-bottom:0}
+.aglist label[data-on="true"]{background:var(--brand-tint)}
+.aglist small{display:block;color:var(--ink-3);font-size:12px}
+.aglist .n{font-weight:700;white-space:nowrap}
+.aglist .n small{text-align:end}
+.prev{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.prev table.t td{padding:8px 12px}
+.prev .tot td{background:var(--soft);font-weight:700}
+.stepper{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--ink-3)}
+.stepper span{display:inline-flex;align-items:center;gap:6px}
+.stepper i{width:20px;height:20px;border-radius:50%;background:var(--sunk);display:inline-grid;place-items:center;font-style:normal;font-size:11.5px;font-weight:700}
+.stepper span[data-on="true"]{color:var(--ink);font-weight:600}
+.stepper span[data-on="true"] i{background:#111;color:#fff}
+.stepper span[data-done="true"] i{background:var(--brand);color:#fff}
+.counter{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:12px;background:#111;color:#fff}
+.counter .v{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.counter .v small{font-size:12.5px;font-weight:500;color:#9CA3AF;margin-inline-start:6px;letter-spacing:0}
+.counter .ex{font-size:12.5px;color:#D1D5DB;text-align:end;line-height:1.4}
+.csv{border:1px dashed var(--line-2);border-radius:10px;padding:18px;text-align:center;color:var(--ink-3);font-size:13.5px}
+.csv b{display:block;color:var(--ink);font-size:14px;margin-bottom:2px}
+.map{display:grid;grid-template-columns:1fr 24px 1fr;gap:8px 10px;align-items:center;font-size:13.5px}
+.map .c{padding:8px 10px;border-radius:8px;background:var(--sunk);font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+.map svg{width:16px;height:16px;color:var(--ink-4)}
+.toast{position:absolute;z-index:30;left:50%;bottom:22px;transform:translate(-50%,16px);opacity:0;display:flex;align-items:center;gap:9px;padding:10px 16px;border-radius:10px;background:#111;color:#fff;font-size:13.5px;font-weight:500;transition:opacity .2s,transform .26s var(--ease);pointer-events:none;white-space:nowrap;max-width:calc(100% - 32px)}
+.toast[data-on="true"]{opacity:1;transform:translate(-50%,0)}
+.toast svg{width:16px;height:16px;color:#86EFAC}
+.empty{padding:60px 20px;text-align:center;color:var(--ink-3)}
+.empty svg{width:44px;height:44px;color:var(--line-2);stroke-width:1.5}
+.empty h3{margin:12px 0 4px;font-size:16px;color:var(--ink)}
+.pickmkt{margin:auto;text-align:center;color:var(--ink-3);padding:60px 20px;max-width:40ch}
+.pickmkt h3{margin:10px 0 6px;color:var(--ink);font-size:17px}
+.pickmkt .opts{justify-content:center;margin-top:12px}
+
+/* Audience builder — conditions composer */
+.tmpls{display:flex;gap:6px;flex-wrap:wrap}
+.tmpl{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);background:#fff;font-size:13px;font-weight:500;color:var(--ink-2)}
+.tmpl svg{width:14px;height:14px;color:var(--ink-3)}
+.tmpl[aria-pressed="true"]{border-color:var(--brand);background:var(--brand-tint);color:var(--brand-hover);font-weight:600}
+.tmpl[aria-pressed="true"] svg{color:var(--brand)}
+.conds{display:flex;flex-direction:column;gap:8px}
+.cond{display:grid;grid-template-columns:160px 1fr 28px;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;animation:in .18s var(--ease)}
+.cond[data-lock]{background:var(--soft);border-style:dashed}
+.cond[data-g="guard"]{border-inline-start:3px solid var(--amber)}
+.cond .lb{display:flex;flex-direction:column;gap:1px;padding-top:6px;min-width:0}
+.cond .lb b{font-size:13.5px;font-weight:600;line-height:1.25}
+.cond .lb small{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
+.cond .ed{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
+.cond .ed .inp{width:auto;height:34px}
+.cond .ed .inp.n{width:86px}
+.cond .ed .inp.d{width:150px}
+.cond .ed .opt{height:32px;font-size:13px}
+.cond .ed .sep{color:var(--ink-3);font-size:13px}
+.cond .rm{width:28px;height:28px;border-radius:6px;display:grid;place-items:center;color:var(--ink-3);margin-top:3px}
+.cond .rm:hover{background:var(--sunk);color:var(--ink)}
+.cond .rm svg{width:15px;height:15px}
+.cond .lockic{color:var(--ink-4);display:grid;place-items:center;margin-top:7px}
+.cond .lockic svg{width:15px;height:15px}
+.addc{position:relative;display:flex;gap:8px;align-items:center}
+.addmenu{position:absolute;z-index:5;top:calc(100% + 6px);inset-inline-start:0;width:360px;max-height:420px;overflow-y:auto;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 20px 50px -20px rgba(17,24,39,.35);padding:8px;display:grid;gap:2px;animation:in .15s var(--ease)}
+.addmenu .grp{padding:8px 10px 4px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.addmenu button{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;text-align:start;font-size:13.5px;width:100%}
+.addmenu button:hover{background:var(--soft)}
+.addmenu button:disabled{opacity:.4}
+.addmenu button svg{width:16px;height:16px;color:var(--ink-3)}
+.addmenu button span{min-width:0}
+.addmenu button small{display:block;color:var(--ink-3);font-size:12px;font-weight:400}
+.stack{display:flex;height:8px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,.15);margin-top:10px;width:100%}
+.stack b{display:block;height:100%}
+.exl{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--ink-2)}
+.exl div{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.exl div span:first-child{display:inline-flex;align-items:center;gap:6px}
+.exl i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.exl b{font-weight:600}
+.sample{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.sample>div{display:grid;grid-template-columns:1fr auto;gap:8px;padding:8px 12px;border-bottom:1px solid var(--sunk);font-size:13px;align-items:center}
+.sample>div:last-child{border-bottom:0}
+.sample small{display:block;color:var(--ink-3);font-size:12px}
+.sample .n{font-weight:600;white-space:nowrap;text-align:end}
+.sample .n small{text-align:end}
+
+/* WhatsApp channel composer */
+.chan{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.chan button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:12px 14px;border:1px solid var(--line-2);border-radius:10px;background:#fff;text-align:start}
+.chan button b{display:flex;align-items:center;gap:8px;font-size:14px}
+.chan button b svg{width:18px;height:18px;color:var(--ink-3)}
+.chan button span{font-size:12.5px;color:var(--ink-3);line-height:1.35}
+.chan button[aria-pressed="true"]{border:1.5px solid var(--brand);background:var(--brand-tint)}
+.chan button[aria-pressed="true"] b svg{color:var(--wa)}
+.wa-prev{background:#E5DDD5;border-radius:14px;padding:14px 12px 12px;display:flex;flex-direction:column;gap:6px;min-height:200px;background-image:radial-gradient(#d9d0c7 1px,transparent 1px);background-size:14px 14px}
+.wa-prev .hd{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);margin-bottom:4px}
+.wa-prev .hd .avatar{width:26px;height:26px;font-size:11px;background:#fff}
+.wa-prev .img{width:70%;aspect-ratio:4/3;border-radius:10px 10px 2px 2px;background:#fff;display:grid;place-items:center;color:var(--ink-4);border:1px solid #CBEBC3;border-bottom:0}
+.wa-prev .bubble{width:70%;padding:8px 10px 16px;border-radius:2px 10px 10px 10px;background:#DCF8C6;border:1px solid #CBEBC3;font-size:13.5px;line-height:1.5;white-space:pre-wrap;position:relative;unicode-bidi:plaintext}
+.wa-prev .img+.bubble{border-radius:2px 2px 10px 10px}
+.wa-prev .bubble small{position:absolute;inset-inline-end:8px;bottom:3px;font-size:10.5px;color:#5B7A57}
+.wa-prev .reply{align-self:flex-end;width:60%;padding:8px 10px;border-radius:10px 2px 10px 10px;background:#fff;font-size:13px;color:var(--ink-2);border:1px solid var(--line)}
+.wa-prev .reply small{display:block;color:var(--ink-3);font-size:11px;margin-top:2px}
+.vars{display:flex;gap:6px;flex-wrap:wrap}
+.vars button{height:26px;padding:0 9px;border-radius:999px;background:var(--sunk);border:1px solid var(--line);font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--ink-2)}
+.vars button:hover{background:var(--line)}
+.chip[data-t="wa"]{background:var(--wa-bg);color:var(--wa)}
+.funnel b[data-wa]{background:#86EFAC}
+
+/* ── Phone: reading only ─────────────────────────────────────── */
+.sbar{height:44px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:6px 30px 0 32px;font-weight:600;font-size:15px;background:#fff;direction:ltr}
+.sbar svg{width:16px;height:12px}
+.m-top{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:6px 14px 10px;background:#fff;border-bottom:1px solid var(--line)}
+.m-top .brand{font-size:19px;font-weight:700}
+.m-top .brand b{color:var(--brand)}
+.m-top .mkt{display:inline-flex;align-items:center;gap:3px;color:var(--ink-3);font-size:12.5px;white-space:nowrap}
+.m-top .avatar{margin-inline-start:auto;width:36px;height:36px}
+.app[data-w="phone"] .page{padding:12px 14px 0}
+.app[data-w="phone"] .head h2{font-size:22px}
+.app[data-w="phone"] .head .sub{font-size:13px}
+.app[data-w="phone"] .head .ic{display:none}
+.app[data-w="phone"] .tools{display:none}
+.app[data-w="phone"] .tabs{overflow-x:auto;scrollbar-width:none;margin-inline:-14px;padding-inline:14px}
+.app[data-w="phone"] .tabs button{white-space:nowrap;padding:0 10px;font-size:13.5px}
+.app[data-w="phone"] .tabs .period{display:none}
+.app[data-w="phone"] .kpis,.app[data-w="phone"] .kpis[data-n="4"]{grid-template-columns:1fr 1fr;gap:8px}
+.app[data-w="phone"] .kpi{padding:11px 12px}
+.app[data-w="phone"] .kpi .v{font-size:22px}
+.app[data-w="phone"] .kpi svg.sp{display:none}
+.app[data-w="phone"] .g[data-c],.app[data-w="phone"] .agents,.app[data-w="phone"] .cmp{grid-template-columns:1fr}
+.app[data-w="phone"] .cmp>div{border-inline-start:0}
+.app[data-w="phone"] .alert{flex-wrap:wrap}
+.app[data-w="phone"] .alert .btn-k{width:100%}
+.app[data-w="phone"] .fun .st{grid-template-columns:96px 1fr 50px 44px}
+.app[data-w="phone"] .scroll{padding-bottom:40px}
+.app[data-w="phone"] .ag .ks{grid-template-columns:repeat(4,1fr)}
+.app[data-w="phone"] .ag .ft{display:none}
+.bigscreen{display:flex;flex-direction:column;align-items:center;gap:8px;padding:40px 20px;text-align:center;color:var(--ink-3);font-size:14px;line-height:1.5}
+.bigscreen svg{width:40px;height:40px;color:var(--line-2);stroke-width:1.4}
+.bigscreen b{color:var(--ink);font-size:15px}
+</style>
+<div class="studio">
+  <div class="bar">
+    <h1>Prospects · console <span>· prototype manager v1 · Ordra</span></h1>
+    <div class="seg" id="segRole"><button data-v="manager">Manager · Libye</button><button data-v="admin">Super admin</button></div>
+    <div class="seg" id="segLang"><button data-v="fr">FR</button><button data-v="ar">AR</button></div>
+    <div class="seg" id="segView"><button data-v="desktop">Desktop</button><button data-v="phone">Phone</button></div>
+  </div>
+  <div class="note">
+    Même langage que l'écran agent (en-tête, puces de ton, lignes à bandeau, panneau à droite). Le métier change : ici on <b>répartit</b>, on <b>regarde</b>, on <b>corrige</b>, on <b>pilote</b> — on n'appelle pas.
+    <details><summary>Ce que le prototype décide (validé le 15 sept. 2026)</summary><ul>
+      <li>Quatre vues sur une seule route : Vue d'ensemble · Prospects · Campagnes · Équipe. La bannière rouge « sans agent » est le constat qui justifie la page : ~2 000 prospects, 99 % issus de campagnes, presque tous sans agent.</li>
+      <li>Répartition par règle (décision 33) : sélection d'un lot → agents cochés → règle « dernier agent qui a confirmé, sinon tour de rôle » → plafond par jour → aperçu qui reçoit combien → confirmer. Réassignation unitaire toujours possible.</li>
+      <li>Le manager supervise, modifie, réassigne, clôt. Il n'appelle pas et n'enregistre pas de résultat : les chiffres par agent restent honnêtes.</li>
+      <li>Super admin : un marché à la fois via le sélecteur de portée ; « Tous » donne une comparaison Tunisie / Libye sur la Vue d'ensemble, et les autres vues demandent de choisir un marché.</li>
+      <li>Créer à la main (téléphone d'abord, correspondance client en direct), importer un CSV (mappage + essai à blanc), modifier les champs, clore avec motif, rouvrir. Pas de suppression : l'historique est une piste d'audit.</li>
+      <li>Taux de conversion mesuré sur les <em>appelés</em>, jamais sur l'audience ; un agent sans appel aujourd'hui n'a pas de taux.</li>
+      <li>Téléphone : la Vue d'ensemble et l'Équipe se lisent ; répartir et construire une campagne demandent un grand écran.</li>
+    </ul></details>
+  </div>
+  <div class="stage"><div class="hscroll" id="stage"></div></div>
+</div>
+
+<script>
+/* ───────────────────────── i18n ───────────────────────── */
+const I18N={
+fr:{
+  mk:{ly:"Libye · Tripoli",tn:"Tunisie · Tunis",all:"Tous les marchés"}, mkS:{ly:"Libye",tn:"Tunisie",all:"Tous"},
+  nav:{orders:"Commandes",leads:"Prospects",delivery:"Livraison",team:"Équipe",fin:"Finances"}, me:{manager:"Manager",admin:"Super admin"},
+  title:"Prospects",
+  sub:(pool,hot)=>pool?`<b>${fmt(pool)} sans agent</b> · ${hot?`<b data-t="amber">${hot} chaud${hot>1?"s":""} attend${hot>1?"ent":""}</b>`:"aucun chaud en attente"}`:hot?`<b data-t="amber">${hot} chaud${hot>1?"s":""} attend${hot>1?"ent":""}</b> · tout le reste a un agent`:"Tout le monde a un agent · rien d'urgent",
+  search:"Nom, numéro, agent, campagne…", csv:"Importer CSV", newlead:"Nouveau prospect", newcamp:"Nouvelle campagne",
+  tabs:{overview:"Vue d'ensemble",pipeline:"Prospects",campaigns:"Campagnes",team:"Équipe"}, period:{d7:"7 j",d30:"30 j",d90:"90 j"},
+  alert:{t:(n)=>`${fmt(n)} prospects n'ont aucun agent`, d:(c,o)=>`Personne ne les voit dans sa file. ${c} campagne${c>1?"s":""} concernée${c>1?"s":""} · le plus ancien attend depuis ${o} j.`, cta:"Répartir maintenant", hot_t:(n)=>`${n} chaud${n>1?"s":""} sans réponse`, hot_d:(a,m)=>`Le plus ancien attend depuis ${m} min chez ${a}. Un chaud joint dans les 10 min convertit ; après 2 h presque jamais.`, hot_cta:"Voir l'équipe"},
+  ks:{health:"Santé du pipeline",money:"Conversion et chiffre",team:"Équipe · aujourd'hui",loss:"Pourquoi on perd"},
+  k:{new:"Nouveaux",tocall:"Jamais appelés",hot:"Chauds sans réponse",ttc:"Délai 1er contact",late:"Rappels en retard",conv:"Convertis",rate:"Taux de conversion",rev:"CA livré",lost:"Perdus",calls:"Appels aujourd'hui",reached:"Joints",idle:"Agents sans appel"},
+  kd:{vs:"vs période précédente",of:(n)=>`sur ${fmt(n)} prospects`,oldest:(m)=>`le plus ancien : ${m} min`,target:"objectif < 10 min",median:"médiane",late_d:(a)=>`${a} agent${a>1?"s":""} concerné${a>1?"s":""}`,rate_d:"mesuré sur les appelés, pas l'audience",rev_d:(n)=>`${n} commandes livrées`,lost_d:(r)=>`1ᵉʳ motif : ${r}`,calls_d:(r)=>`${r} joints`,idle_d:(n)=>`avec ${n} prospects en file`,now:"maintenant"},
+  fun:{t:"Entonnoir",sub:"prospects créés sur la période",pool:"Sans agent",assigned:"Assignés",called:"Appelés",reached:"Joints",conv:"Convertis",deliv:"Livrés"},
+  loss:{t:"Motifs de perte",r:{price:"Prix",unreachable:"Injoignable",not_interested:"Pas intéressé",wrong_number:"Faux numéro",competitor:"Acheté ailleurs",duplicate:"Doublon",other:"Autre"},hint:(p)=>`« Prix » pèse ${p} % des pertes de la campagne Sérum : l'offre à −15 % n'est peut-être pas dite au téléphone. Vérifier le script.`},
+  agt:{t:"Par agent · aujourd'hui",calls:"appels",reached:"joints",conv:"convertis",queue:"file",hot:"chauds",late:"rappels en retard",rate:"taux",norate:"—",cap:(u,c)=>`${u} / ${c} appels du plafond`,online:"En ligne",offline:"Hors ligne",idle:"Sans appel aujourd'hui",view:"Voir sa file",move:"Rééquilibrer",give:"Donner des prospects",hotwait:(n,m)=>`${n} chaud${n>1?"s":""} attend${n>1?"ent":""} · ${m} min`,nohot:"aucun chaud en attente",last:(m)=>`dernier appel il y a ${m} min`},
+  reb:{t:"Rééquilibrage proposé",d:(a,n,b)=>`${a} a ${n} chauds en attente depuis plus de 30 min ; ${b} est libre. Transférer les chauds ?`,cta:"Transférer"},
+  camps:{t:"Campagnes",live:"En cours",done:"Terminée",draft:"Brouillon",aud:"audience",pool:"sans agent",called:"appelés",conv:"convertis",rev:"CA livré",rate:"conv. / appelés",agents:(n)=>`${n} agent${n>1?"s":""}`,cap:(n)=>`${n} / j / agent`,dist:"Répartir le reste",see:"Voir les prospects",created:(d,a)=>`créée le ${d} par ${a}`,empty:"Aucune campagne · créez-en une depuis un lot de clients passés."},
+  f:{all:"Tous",pool:"Sans agent",hot:"Chauds",callback:"Rappels",retry:"Sans réponse",campaign:"Campagne",winback:"Retours",converted:"Convertis",lost:"Perdus"},
+  fs:{agent:"Agent : tous",agentOne:(a)=>`Agent : ${a}`,camp:"Campagne : toutes",campOne:(c)=>`Campagne : ${c}`},
+  count:(n,t)=>`${fmt(n)} sur ${fmt(t)}`, trunc:(n)=>`${fmt(n)} lignes de plus · affinez le filtre ou exportez`,
+  th:{who:"Prospect",src:"Source",agent:"Agent",sit:"Situation",since:"Depuis",val:"Valeur",camp:"Campagne"},
+  pool:"Sans agent",
+  sel:{n:(n)=>`${n} sélectionné${n>1?"s":""}`,all:"Tout sélectionner (ce filtre)",assign:"Assigner à…",dist:"Répartir",lost:"Clore",export:"Exporter",clear:"Effacer"},
+  b:{hot:"Chaud",callback:"Rappel",retry:"Sans réponse",campaign:"Campagne",winback:"Retour",converted:"Converti",lost:"Perdu",pool:"Jamais appelé"},
+  sit:{hot:(m)=>`Chaud · ${m} min`,cb_due:(m)=>`Rappel dépassé · ${m} min`,cb_at:(t)=>`Rappel à ${t}`,retry:(n)=>`Sans réponse · ${n}ᵉ essai`,campaign:"À appeler",winback:"Retour à récupérer",converted:(o)=>`Commande #${o}`,lost:(r)=>`Perdu · ${r}`,pool:"Jamais appelé"},
+  src:{whatsapp:"WhatsApp",fb_comment:"Commentaire FB",fb_dm:"Message FB",ig_dm:"Message IG",call:"Appel au n° pub",campaign:"Campagne",winback:"Colis retourné",manual:"Saisi à la main",csv:"Import CSV"},
+  cur:(n)=>`${fmt(n)} LYD`, cur_tn:(n)=>`${fmt(n)} TND`, val_l:"potentiel", val_ord:"commande",
+  ago:(m)=>m<1?"à l'instant":m<60?`il y a ${Math.round(m)} min`:m<1440?`il y a ${Math.round(m/60)} h`:`il y a ${Math.round(m/1440)} j`,
+  dat:"Lun. 15 sept. 2026",
+  // panel
+  pick:"Choisis un prospect pour voir qui s'en occupe, son historique, et corriger.",
+  owner:{none:"Aucun agent",none_d:"Personne ne verra ce prospect tant qu'il n'est pas assigné.",assign:"Assigner",has:(a)=>`${a} s'en occupe`,has_d:(t,c)=>`assigné ${t} · ${c} appel${c>1?"s":""}`,re:"Réassigner"},
+  c_client:"Le client",c_origin:"Origine",edit:"Modifier",save:"Enregistrer",cancel:"Annuler",
+  hist:{new:"Nouveau numéro · aucune commande",good:(d)=>`Client fidèle · ${d} livrée${d>1?"s":""}`,one:"Déjà client · 1 livrée",bad:(r)=>`Risque · ${r} retournée${r>1?"s":""}, 0 livrée`,mixed:(d,r)=>`${d} livrée${d>1?"s":""} · ${r} retournée${r>1?"s":""}`},
+  last:(p,d)=>`Dernier achat : ${p} · il y a ${d} j`, offer:"Offre", product:"Produit", note:"Note", attempts:(n)=>`${n} tentative${n>1?"s":""}`, created:"Créé", by:"par", camp:"Campagne", order:"Commande", reason:"Motif retour",
+  activity:"Historique", none_yet:"Aucun contact encore.",
+  tl:{created:"Prospect créé",imported:"Importé",assigned:(a)=>`Assigné à ${a}`,reassigned:(a,b)=>`Réassigné de ${a} à ${b}`,call:"Appel",noans:"Sans réponse",reached:"Joint",wa:"WhatsApp envoyé",cb:"Rappel programmé",conv:"Converti",ret:"Colis retourné",camp:"Ajouté à la campagne",lost:"Clos",reopen:"Rouvert",edit:"Fiche modifiée",sys:"Système",mgr:"Manager",cust:"Client"},
+  close:"Clore",reopen:"Rouvrir",openOrder:"Voir la commande",
+  // sheets
+  d:{t:"Répartir les prospects",sub:(n)=>`${fmt(n)} prospects sans agent dans ce lot.`,pool:"Lot à répartir",agents:"Agents qui reçoivent",rule:"Règle",
+     r1:"Dernier agent qui a confirmé ce client, sinon tour de rôle",r1d:"Le client reconnaît la voix ; c'est la règle par défaut (décision 33).",r2:"Tour de rôle strict",r2d:"Parts égales entre les agents cochés, sans tenir compte de l'historique.",r3:"Selon la file actuelle",r3d:"Les agents qui ont le moins de prospects ouverts reçoivent plus.",
+     cap:"Plafond par agent et par jour",capd:"Au-delà, le reste attend demain — la répartition continue seule chaque matin.",prev:"Aperçu",who:"Agent",today:"Aujourd'hui",queue:"File après",rest:"Reste en attente",go:(n)=>`Répartir ${fmt(n)} maintenant`,none:"Cochez au moins un agent.",
+     ok:(n,a)=>`${fmt(n)} prospects répartis entre ${a} agents`,tomorrow:(n)=>`${fmt(n)} attendront demain`},
+  a:{t:"Assigner",sub:(n)=>`${n} prospect${n>1?"s":""}`,to:"À",go:"Assigner",ok:(n,a)=>`${n} assigné${n>1?"s":""} à ${a}`,why:"Pourquoi ?",why_ph:"Optionnel — ex. « connaît le quartier »"},
+  l:{t:"Clore le prospect",sub:"Il sort de la file de l'agent. Rouvrable à tout moment.",why:"Motif",note:"Note",go:"Clore",ok:"Prospect clos",reopened:"Prospect rouvert · de retour chez l'agent"},
+  n:{t:"Nouveau prospect",sub:"Le numéro d'abord — l'historique client s'affiche pendant que vous écrivez.",phone:"Téléphone",name:"Nom",src:"D'où vient-il ?",prod:"Produit",area:"Ville · zone",note:"Note",agent:"Agent",agent_none:"Choisir plus tard (reste sans agent)",go:"Créer",ok:"Prospect créé"},
+  m:{new:"Nouveau numéro, aucun historique.",known:(d,p,t)=>`Client connu · ${d} livrée${d>1?"s":""} · dernière : ${p}, il y a ${t} j`,open:(a,t)=>`Prospect déjà ouvert chez ${a} ${t} — ne pas doubler.`,risk:(r)=>`Attention · ${r} colis retournés sur ce numéro.`},
+  i:{t:"Importer un CSV",sub:"Une ligne par prospect. Les doublons de numéro sont ignorés.",drop:"Déposez le fichier ici",drop_d:"ou cliquez pour choisir · .csv · 5 000 lignes max",file:"liste-salon-sept.csv · 214 lignes",map:"Correspondance des colonnes",col:"Colonne du fichier",field:"Champ Ordra",dry:"Essai à blanc",ok_n:(n)=>`${n} seront créés`,dup:(n)=>`${n} ignorés · numéro déjà connu`,bad:(n)=>`${n} rejetés · numéro invalide`,src:"Source pour ces prospects",assign:"Assigner",assign_none:"Plus tard, depuis Prospects",go:(n)=>`Importer ${n} prospects`,ok:(n)=>`${n} prospects importés`},
+  cb:{t:"Nouvelle campagne",aud:"Audience",offer:"Offre et script",dist:"Répartition",go:"Lancer",
+      who:"Qui recontacter ?",deliv:"Clients livrés",ret:"Clients retournés",when:"Quand ont-ils commandé ?",p30:"30 j",p90:"90 j",p180:"180 j",p365:"1 an",prod:"Produit acheté",anyprod:"Tous",city:"Ville",anycity:"Toutes",
+      cnt:"clients dans l'audience",ex:(a,b,c)=>`exclus : ${a} déjà en prospect ouvert · ${b} ont commandé ces 30 j · ${c} ont demandé à ne plus être appelés`,
+      name:"Nom de la campagne",name_ph:"ex. Sérum · clients 60–120 j",offer_l:"Ce que l'agent peut promettre",offer_ph:"ex. −15 % sur le 50 ml, livraison offerte",script:"Script",fr:"Français",ar:"Arabe",script_ph:"Bonjour {name}, ici {agent} d'Ordra…",vars:"{name} et {agent} sont remplacés à l'appel.",
+      sum:"Récapitulatif",back:"Retour",next:"Suivant",create:(n)=>`Créer et répartir ${fmt(n)}`,ok:(n)=>`Campagne créée · ${fmt(n)} prospects répartis`},
+  toast:{assigned:(n,a)=>`${n} assigné${n>1?"s":""} à ${a}`,saved:"Fiche enregistrée",exported:"Export CSV lancé",moved:(n,a)=>`${n} chauds transférés à ${a}`,queue:(a)=>`Ouvre la file de ${a}`},
+  phone_only:{t:"Cette vue demande un grand écran",d:"Répartir et construire une campagne se font au bureau. Sur téléphone, la Vue d'ensemble et l'Équipe se lisent."},
+  pickmkt:{t:"Choisissez un marché",d:"La répartition et les files sont par marché : un agent ne travaille jamais les deux."},
+  cmp:{t:"Tunisie et Libye côte à côte",vs:"comparé"},
+},
+ar:{
+  mk:{ly:"ليبيا · طرابلس",tn:"تونس · تونس العاصمة",all:"كل الأسواق"}, mkS:{ly:"ليبيا",tn:"تونس",all:"الكل"},
+  nav:{orders:"الطلبات",leads:"العملاء المحتملون",delivery:"التوصيل",team:"الفريق",fin:"المالية"}, me:{manager:"المدير",admin:"المشرف العام"},
+  title:"العملاء المحتملون",
+  sub:(pool,hot)=>pool?`<b>${fmt(pool)} بلا وكيل</b> · ${hot?`<b data-t="amber">${hot} ساخن ينتظر</b>`:"لا ساخنين بانتظار"}`:hot?`<b data-t="amber">${hot} ساخن ينتظر</b> · الباقي له وكيل`:"للجميع وكيل · لا شيء عاجل",
+  search:"الاسم أو الرقم أو الوكيل أو الحملة…", csv:"استيراد CSV", newlead:"عميل جديد", newcamp:"حملة جديدة",
+  tabs:{overview:"نظرة عامة",pipeline:"العملاء",campaigns:"الحملات",team:"الفريق"}, period:{d7:"7 أيام",d30:"30 يوماً",d90:"90 يوماً"},
+  alert:{t:(n)=>`${fmt(n)} عميلاً محتملاً بلا وكيل`, d:(c,o)=>`لا أحد يراهم في قائمته. ${c} حملة معنية · الأقدم ينتظر منذ ${o} يوماً.`, cta:"وزّع الآن", hot_t:(n)=>`${n} ساخن بلا رد`, hot_d:(a,m)=>`الأقدم ينتظر منذ ${m} دقيقة عند ${a}. الساخن الذي يُرد عليه خلال 10 دقائق يتحوّل؛ بعد ساعتين نادراً.`, hot_cta:"عرض الفريق"},
+  ks:{health:"صحة المسار",money:"التحويل والإيراد",team:"الفريق · اليوم",loss:"لماذا نخسر"},
+  k:{new:"جدد",tocall:"لم يُتصل بهم",hot:"ساخنون بلا رد",ttc:"زمن أول تواصل",late:"مواعيد متأخرة",conv:"تحوّلوا",rate:"نسبة التحويل",rev:"إيراد مسلّم",lost:"ضائعون",calls:"مكالمات اليوم",reached:"تم الرد",idle:"وكلاء بلا مكالمة"},
+  kd:{vs:"مقارنة بالفترة السابقة",of:(n)=>`من ${fmt(n)} عميلاً`,oldest:(m)=>`الأقدم: ${m} د`,target:"الهدف < 10 د",median:"الوسيط",late_d:(a)=>`${a} وكيل معني`,rate_d:"على من اتُّصل بهم، لا الجمهور",rev_d:(n)=>`${n} طلباً مسلّماً`,lost_d:(r)=>`أول سبب: ${r}`,calls_d:(r)=>`${r} تم الرد`,idle_d:(n)=>`ولديهم ${n} عميلاً في القائمة`,now:"الآن"},
+  fun:{t:"القمع",sub:"عملاء أُنشئوا في الفترة",pool:"بلا وكيل",assigned:"مُسندون",called:"اتُّصل بهم",reached:"تم الرد",conv:"تحوّلوا",deliv:"سُلّموا"},
+  loss:{t:"أسباب الخسارة",r:{price:"السعر",unreachable:"لا يُجيب",not_interested:"غير مهتم",wrong_number:"رقم خاطئ",competitor:"اشترى من مكان آخر",duplicate:"مكرر",other:"أخرى"},hint:(p)=>`«السعر» يمثّل ${p}% من خسائر حملة السيروم: ربما لا يُذكر خصم 15% في المكالمة. راجع النص.`},
+  agt:{t:"حسب الوكيل · اليوم",calls:"مكالمات",reached:"تم الرد",conv:"تحوّلوا",queue:"القائمة",hot:"ساخنون",late:"مواعيد متأخرة",rate:"النسبة",norate:"—",cap:(u,c)=>`${u} / ${c} من سقف المكالمات`,online:"متصل",offline:"غير متصل",idle:"بلا مكالمة اليوم",view:"عرض قائمته",move:"إعادة توازن",give:"أعطه عملاء",hotwait:(n,m)=>`${n} ساخن ينتظر · ${m} د`,nohot:"لا ساخنين بانتظار",last:(m)=>`آخر مكالمة منذ ${m} د`},
+  reb:{t:"إعادة توازن مقترحة",d:(a,n,b)=>`لدى ${a} ${n} ساخنين ينتظرون منذ أكثر من 30 دقيقة؛ ${b} متفرّغ. ننقل الساخنين؟`,cta:"انقل"},
+  camps:{t:"الحملات",live:"جارية",done:"منتهية",draft:"مسودة",aud:"الجمهور",pool:"بلا وكيل",called:"اتُّصل بهم",conv:"تحوّلوا",rev:"إيراد مسلّم",rate:"تحويل / اتصال",agents:(n)=>`${n} وكلاء`,cap:(n)=>`${n} / يوم / وكيل`,dist:"وزّع الباقي",see:"عرض العملاء",created:(d,a)=>`أُنشئت في ${d} بواسطة ${a}`,empty:"لا حملات · أنشئ واحدة من زبائن سابقين."},
+  f:{all:"الكل",pool:"بلا وكيل",hot:"ساخنون",callback:"مواعيد",retry:"بلا رد",campaign:"حملة",winback:"مرتجعات",converted:"تحوّلوا",lost:"ضائعون"},
+  fs:{agent:"الوكيل: الكل",agentOne:(a)=>`الوكيل: ${a}`,camp:"الحملة: الكل",campOne:(c)=>`الحملة: ${c}`},
+  count:(n,t)=>`${fmt(n)} من ${fmt(t)}`, trunc:(n)=>`${fmt(n)} صفاً إضافياً · ضيّق الفلتر أو صدّر`,
+  th:{who:"العميل",src:"المصدر",agent:"الوكيل",sit:"الحالة",since:"منذ",val:"القيمة",camp:"الحملة"},
+  pool:"بلا وكيل",
+  sel:{n:(n)=>`${n} محدد`,all:"تحديد الكل (هذا الفلتر)",assign:"إسناد إلى…",dist:"توزيع",lost:"إغلاق",export:"تصدير",clear:"مسح"},
+  b:{hot:"ساخن",callback:"موعد",retry:"بلا رد",campaign:"حملة",winback:"مرتجع",converted:"تحوّل",lost:"ضائع",pool:"لم يُتصل به"},
+  sit:{hot:(m)=>`ساخن · ${m} د`,cb_due:(m)=>`موعد فات · ${m} د`,cb_at:(t)=>`موعد ${t}`,retry:(n)=>`بلا رد · المحاولة ${n}`,campaign:"للاتصال",winback:"مرتجع لاستعادته",converted:(o)=>`طلب #${o}`,lost:(r)=>`ضائع · ${r}`,pool:"لم يُتصل به"},
+  src:{whatsapp:"واتساب",fb_comment:"تعليق فيسبوك",fb_dm:"رسالة فيسبوك",ig_dm:"رسالة إنستغرام",call:"اتصال برقم الإعلان",campaign:"حملة",winback:"شحنة مرتجعة",manual:"مُدخل يدوياً",csv:"استيراد CSV"},
+  cur:(n)=>`${fmt(n)} د.ل`, cur_tn:(n)=>`${fmt(n)} د.ت`, val_l:"محتمل", val_ord:"طلب",
+  ago:(m)=>m<1?"الآن":m<60?`منذ ${Math.round(m)} د`:m<1440?`منذ ${Math.round(m/60)} س`:`منذ ${Math.round(m/1440)} يوم`,
+  dat:"الاثنين · 15 سبتمبر 2026",
+  pick:"اختر عميلاً لترى من يتولّاه وسجلّه، ولتصحّح.",
+  owner:{none:"بلا وكيل",none_d:"لن يرى أحد هذا العميل حتى يُسند.",assign:"أسنِد",has:(a)=>`${a} يتولّاه`,has_d:(t,c)=>`أُسند ${t} · ${c} مكالمة`,re:"إعادة إسناد"},
+  c_client:"الزبون",c_origin:"المصدر",edit:"تعديل",save:"حفظ",cancel:"إلغاء",
+  hist:{new:"رقم جديد · لا طلبات",good:(d)=>`زبون وفيّ · ${d} مسلّمة`,one:"زبون سابق · 1 مسلّمة",bad:(r)=>`خطر · ${r} مرتجعة، 0 مسلّمة`,mixed:(d,r)=>`${d} مسلّمة · ${r} مرتجعة`},
+  last:(p,d)=>`آخر شراء: ${p} · قبل ${d} يوم`, offer:"العرض", product:"المنتج", note:"ملاحظة", attempts:(n)=>`${n} محاولة`, created:"أُنشئ", by:"بواسطة", camp:"الحملة", order:"الطلب", reason:"سبب الإرجاع",
+  activity:"السجل", none_yet:"لا تواصل بعد.",
+  tl:{created:"أُنشئ العميل",imported:"مستورد",assigned:(a)=>`أُسند إلى ${a}`,reassigned:(a,b)=>`نُقل من ${a} إلى ${b}`,call:"مكالمة",noans:"بلا رد",reached:"تم الرد",wa:"أُرسل واتساب",cb:"موعد متابعة",conv:"تحوّل",ret:"شحنة مرتجعة",camp:"أُضيف للحملة",lost:"أُغلق",reopen:"أُعيد فتحه",edit:"عُدّلت البطاقة",sys:"النظام",mgr:"المدير",cust:"الزبون"},
+  close:"إغلاق",reopen:"إعادة فتح",openOrder:"افتح الطلب",
+  d:{t:"توزيع العملاء",sub:(n)=>`${fmt(n)} عميلاً بلا وكيل في هذه الدفعة.`,pool:"الدفعة",agents:"الوكلاء المستلمون",rule:"القاعدة",
+     r1:"آخر وكيل أكّد لهذا الزبون، وإلا بالتناوب",r1d:"الزبون يعرف الصوت؛ هذه القاعدة الافتراضية (القرار 33).",r2:"تناوب صارم",r2d:"حصص متساوية بين الوكلاء المحددين دون اعتبار السجل.",r3:"حسب القائمة الحالية",r3d:"الوكلاء الأقل عملاء مفتوحين يستلمون أكثر.",
+     cap:"سقف لكل وكيل يومياً",capd:"ما يتجاوزه ينتظر الغد — التوزيع يستمر تلقائياً كل صباح.",prev:"معاينة",who:"الوكيل",today:"اليوم",queue:"القائمة بعدها",rest:"الباقي بانتظار",go:(n)=>`وزّع ${fmt(n)} الآن`,none:"حدّد وكيلاً واحداً على الأقل.",
+     ok:(n,a)=>`وُزّع ${fmt(n)} عميلاً على ${a} وكلاء`,tomorrow:(n)=>`${fmt(n)} سينتظرون الغد`},
+  a:{t:"إسناد",sub:(n)=>`${n} عميل`,to:"إلى",go:"أسنِد",ok:(n,a)=>`أُسند ${n} إلى ${a}`,why:"لماذا؟",why_ph:"اختياري — مثال: «يعرف الحي»"},
+  l:{t:"إغلاق العميل",sub:"يخرج من قائمة الوكيل. يمكن إعادة فتحه في أي وقت.",why:"السبب",note:"ملاحظة",go:"أغلق",ok:"أُغلق العميل",reopened:"أُعيد فتح العميل · عاد إلى الوكيل"},
+  n:{t:"عميل جديد",sub:"الرقم أولاً — سجل الزبون يظهر وأنت تكتب.",phone:"الهاتف",name:"الاسم",src:"من أين جاء؟",prod:"المنتج",area:"المدينة · المنطقة",note:"ملاحظة",agent:"الوكيل",agent_none:"لاحقاً (يبقى بلا وكيل)",go:"إنشاء",ok:"تم إنشاء العميل"},
+  m:{new:"رقم جديد، لا سجل.",known:(d,p,t)=>`زبون معروف · ${d} مسلّمة · آخر طلب: ${p}، قبل ${t} يوم`,open:(a,t)=>`عميل مفتوح عند ${a} ${t} — لا تكرّر.`,risk:(r)=>`انتبه · ${r} شحنات مرتجعة على هذا الرقم.`},
+  i:{t:"استيراد CSV",sub:"سطر لكل عميل. الأرقام المكررة تُتجاهل.",drop:"أفلت الملف هنا",drop_d:"أو انقر للاختيار · .csv · 5000 سطر كحد أقصى",file:"liste-salon-sept.csv · 214 سطراً",map:"مطابقة الأعمدة",col:"عمود الملف",field:"حقل أوردرا",dry:"تجربة",ok_n:(n)=>`${n} سيُنشأون`,dup:(n)=>`${n} متجاهَلون · رقم معروف`,bad:(n)=>`${n} مرفوضون · رقم غير صالح`,src:"مصدر هؤلاء العملاء",assign:"إسناد",assign_none:"لاحقاً من صفحة العملاء",go:(n)=>`استورد ${n} عميلاً`,ok:(n)=>`استُورد ${n} عميلاً`},
+  cb:{t:"حملة جديدة",aud:"الجمهور",offer:"العرض والنص",dist:"التوزيع",go:"إطلاق",
+      who:"من نعاود الاتصال به؟",deliv:"زبائن مسلّمة",ret:"زبائن مرتجعة",when:"متى طلبوا؟",p30:"30 يوماً",p90:"90 يوماً",p180:"180 يوماً",p365:"سنة",prod:"المنتج المشترى",anyprod:"الكل",city:"المدينة",anycity:"الكل",
+      cnt:"زبوناً في الجمهور",ex:(a,b,c)=>`مستبعدون: ${a} لديهم عميل مفتوح · ${b} طلبوا خلال 30 يوماً · ${c} طلبوا عدم الاتصال`,
+      name:"اسم الحملة",name_ph:"مثال: سيروم · زبائن 60–120 يوماً",offer_l:"ما يمكن للوكيل أن يعِد به",offer_ph:"مثال: خصم 15% على 50 مل، التوصيل مجاني",script:"النص",fr:"فرنسي",ar:"عربي",script_ph:"مرحباً {name}، معك {agent} من أوردرا…",vars:"{name} و{agent} يُستبدلان عند الاتصال.",
+      sum:"الملخص",back:"رجوع",next:"التالي",create:(n)=>`أنشئ ووزّع ${fmt(n)}`,ok:(n)=>`أُنشئت الحملة · وُزّع ${fmt(n)} عميلاً`},
+  toast:{assigned:(n,a)=>`أُسند ${n} إلى ${a}`,saved:"حُفظت البطاقة",exported:"بدأ تصدير CSV",moved:(n,a)=>`نُقل ${n} ساخنين إلى ${a}`,queue:(a)=>`فتح قائمة ${a}`},
+  phone_only:{t:"هذه الشاشة تحتاج شاشة كبيرة",d:"التوزيع وبناء الحملات من المكتب. على الهاتف تُقرأ النظرة العامة والفريق."},
+  pickmkt:{t:"اختر سوقاً",d:"التوزيع والقوائم لكل سوق على حدة: لا وكيل يعمل في السوقين."},
+  cmp:{t:"تونس وليبيا جنباً إلى جنب",vs:"مقارنة"},
+}};
+function fmt(n){return Number(n).toLocaleString("fr-FR").replace(/ | /g," ")}
+/* Audience builder vocabulary */
+Object.assign(I18N.fr.cb,{tmpl_t:"Partir d'un modèle",tmpl:{rebuy:"Réachat 60–120 j",winback:"Retours à récupérer",vip:"Clients fidèles",lapsed:"Endormis > 6 mois",custom:"Sur mesure"},
+ grp:{orders:"Commandes",client:"Client",guard:"Garde-fous",size:"Taille"},
+ c:{outcome:"Résultat de la commande",period:"Commandes passées sur",recency:"Dernière commande il y a",product:"Produit acheté",basket:"Panier",count:"Nombre de commandes livrées",city:"Ville",returns:"Historique de retours",reason:"Motif du retour / rejet",agent:"Confirmée par",ordered:"Exclure : a commandé ces",incamp:"Exclure : déjà en campagne ces",lostni:"Exclure : perdu « pas intéressé » (90 j)",limit:"Taille et ordre",open:"Exclure : déjà en prospect ouvert",optout:"Exclure : a demandé à ne plus être appelé"},
+ desc:{recency:"Fenêtre de réachat, ex. 60 à 120 jours",product:"Un ou plusieurs produits du catalogue",basket:"Montant minimum de la commande",count:"Fidélité : combien de livrées",city:"Une ou plusieurs villes du marché",returns:"Aucun retour, au moins un, ou un taux",reason:"Pour les retournées / rejetées seulement",agent:"L'agent qui avait confirmé la commande",ordered:"Ne pas relancer un client qui vient d'acheter",incamp:"Ne pas appeler deux fois pour deux campagnes",lostni:"Respecter un refus récent",limit:"Plafonner et choisir qui passe en premier"},
+ add:"Ajouter une condition",always:"toujours",custom:"Personnalisée",from:"du",to:"au",between:"entre",and:"et",days:"jours",
+ outcomes:{delivered:"Livrée",returned:"Retournée",rejected:"Rejetée"},ret:{none:"Aucun retour",any:"Au moins un retour",rate:"Taux de retour ≤"},
+ reasons:{refus_client:"Refus client",faux_numero:"Faux numéro",injoignable:"Injoignable",prix:"Prix",non_serieux:"Non sérieux",livraison_impossible:"Livraison impossible"},
+ sort:{oldest:"Dernier achat le plus ancien d'abord",newest:"Le plus récent d'abord",basket:"Panier le plus élevé d'abord"},limit_l:"Limiter à",
+ raw:"correspondent",excl:"Exclus",ex:{open:"déjà en prospect ouvert",recent:(n)=>`ont commandé ces ${n} j`,camp:(n)=>`déjà en campagne ces ${n} j`,lost:"perdus « pas intéressé »",opt:"ne plus appeler"},sample:"Aperçu de l'audience",save_tmpl:"Enregistrer comme modèle",tmpl_saved:"Modèle enregistré",
+ base_hint:"L'audience se calcule sur les commandes de ce marché uniquement. Chaque numéro apparaît une seule fois, même avec plusieurs commandes.",
+ chan_l:"Comment on les contacte",chan:{call:"Appel",wa:"Message WhatsApp",wa_call:"WhatsApp, puis appel"},chan_d:{call:"L'agent appelle avec le script. Rien n'est envoyé avant.",wa:"Un message d'abord. On n'appelle que ceux qui répondent.",wa_call:"Le message part, puis l'agent appelle ceux qui n'ont pas répondu après le délai."},
+ wa_msg:"Message WhatsApp",wa_msg_ph:"Bonjour {name}, ici {agent} d'Ordra…",wa_img:"Joindre la photo du produit",wa_mode_l:"Qui envoie",wa_mode:{agent:"L'agent, depuis son WhatsApp",api:"Automatique · WhatsApp Business"},wa_mode_d:{agent:"Chaque prospect arrive dans la file avec « Envoyer le message » pré-rempli : un tap, le message part du numéro de l'agent.",api:"Envoi programmé depuis le numéro de l'entreprise. Demande la connexion WhatsApp Business (Système › Connexions)."},wa_notconn:"non connecté",
+ wa_window:"Créneau d'envoi",wa_rate:"Rythme",wa_rate_d:(n)=>`${n} messages / h / agent — au-delà, WhatsApp bloque le numéro.`,wa_then:"Sans réponse après",wa_then_d:"l'agent appelle, avec le script ci-dessous",wa_hours:"h",
+ wa_prev:"Aperçu",wa_reply:"Oui, c'est encore dispo ?",wa_reply_t:"réponse type · l'agent la voit dans sa file",script_call:"Script d'appel",script_after:"Script d'appel · pour ceux qui n'ont pas répondu",
+ sum_chan:"Canal",sum_send:"Messages aujourd'hui",wa_ok:(n)=>`Campagne créée · ${fmt(n)} messages en file d'envoi`,
+ fn:{sent:"envoyés",replied:"répondus"}});
+Object.assign(I18N.fr.camps,{chan:{call:"Appel",wa:"WhatsApp",wa_call:"WhatsApp + appel"}});
+Object.assign(I18N.ar.cb,{tmpl_t:"ابدأ من نموذج",tmpl:{rebuy:"إعادة شراء 60–120 يوماً",winback:"مرتجعات لاستعادتها",vip:"زبائن أوفياء",lapsed:"خاملون > 6 أشهر",custom:"مخصص"},
+ grp:{orders:"الطلبات",client:"الزبون",guard:"ضوابط",size:"الحجم"},
+ c:{outcome:"نتيجة الطلب",period:"طلبات خلال",recency:"آخر طلب قبل",product:"المنتج المشترى",basket:"قيمة السلة",count:"عدد الطلبات المسلّمة",city:"المدينة",returns:"سجل المرتجعات",reason:"سبب الإرجاع / الرفض",agent:"أكّدها",ordered:"استبعاد: طلب خلال",incamp:"استبعاد: في حملة خلال",lostni:"استبعاد: ضائع «غير مهتم» (90 يوماً)",limit:"الحجم والترتيب",open:"استبعاد: لديه عميل مفتوح",optout:"استبعاد: طلب عدم الاتصال"},
+ desc:{recency:"نافذة إعادة الشراء، مثل 60 إلى 120 يوماً",product:"منتج أو أكثر من الكتالوج",basket:"الحد الأدنى لقيمة الطلب",count:"الولاء: كم طلباً مسلّماً",city:"مدينة أو أكثر من السوق",returns:"بلا مرتجعات، أو واحد على الأقل، أو نسبة",reason:"للمرتجعة / المرفوضة فقط",agent:"الوكيل الذي أكّد الطلب",ordered:"لا نعاود من اشترى للتو",incamp:"لا نتصل مرتين لحملتين",lostni:"احترام رفض حديث",limit:"سقف الجمهور ومن يأتي أولاً"},
+ add:"أضف شرطاً",always:"دائماً",custom:"مخصصة",from:"من",to:"إلى",between:"بين",and:"و",days:"يوماً",
+ outcomes:{delivered:"مسلّم",returned:"مرتجع",rejected:"مرفوض"},ret:{none:"بلا مرتجعات",any:"مرتجع واحد على الأقل",rate:"نسبة إرجاع ≤"},
+ reasons:{refus_client:"رفض الزبون",faux_numero:"رقم خاطئ",injoignable:"لا يُجيب",prix:"السعر",non_serieux:"غير جاد",livraison_impossible:"تعذّر التوصيل"},
+ sort:{oldest:"الأقدم شراءً أولاً",newest:"الأحدث أولاً",basket:"أعلى سلة أولاً"},limit_l:"حد أقصى",
+ raw:"مطابقون",excl:"مستبعدون",ex:{open:"لديهم عميل مفتوح",recent:(n)=>`طلبوا خلال ${n} يوماً`,camp:(n)=>`في حملة خلال ${n} يوماً`,lost:"ضائعون «غير مهتم»",opt:"طلبوا عدم الاتصال"},sample:"عيّنة من الجمهور",save_tmpl:"احفظ كنموذج",tmpl_saved:"حُفظ النموذج",
+ base_hint:"يُحسب الجمهور من طلبات هذا السوق فقط. كل رقم يظهر مرة واحدة ولو تعددت طلباته.",
+ chan_l:"كيف نتواصل معهم",chan:{call:"مكالمة",wa:"رسالة واتساب",wa_call:"واتساب ثم مكالمة"},chan_d:{call:"الوكيل يتصل بالنص. لا يُرسل شيء قبل ذلك.",wa:"رسالة أولاً. نتصل فقط بمن يردّ.",wa_call:"تُرسل الرسالة، ثم يتصل الوكيل بمن لم يردّ بعد المهلة."},
+ wa_msg:"رسالة واتساب",wa_msg_ph:"مرحباً {name}، معك {agent} من أوردرا…",wa_img:"إرفاق صورة المنتج",wa_mode_l:"من يُرسل",wa_mode:{agent:"الوكيل من واتسابه",api:"تلقائياً · واتساب للأعمال"},wa_mode_d:{agent:"يصل كل عميل إلى القائمة مع «أرسل الرسالة» جاهزة: نقرة واحدة، والرسالة تخرج من رقم الوكيل.",api:"إرسال مجدول من رقم الشركة. يتطلب ربط واتساب للأعمال (النظام › الاتصالات)."},wa_notconn:"غير مربوط",
+ wa_window:"وقت الإرسال",wa_rate:"الوتيرة",wa_rate_d:(n)=>`${n} رسالة / ساعة / وكيل — أكثر من ذلك يحظر واتساب الرقم.`,wa_then:"بلا رد بعد",wa_then_d:"يتصل الوكيل بالنص أدناه",wa_hours:"س",
+ wa_prev:"معاينة",wa_reply:"نعم، لا يزال متوفراً؟",wa_reply_t:"ردّ نموذجي · يراه الوكيل في قائمته",script_call:"نص المكالمة",script_after:"نص المكالمة · لمن لم يردّ",
+ sum_chan:"القناة",sum_send:"رسائل اليوم",wa_ok:(n)=>`أُنشئت الحملة · ${fmt(n)} رسالة في قائمة الإرسال`,
+ fn:{sent:"أُرسلت",replied:"ردّوا"}});
+Object.assign(I18N.ar.camps,{chan:{call:"مكالمة",wa:"واتساب",wa_call:"واتساب + مكالمة"}});
+/* ───────────────────────── Icons ───────────────────────── */
+const IC={
+ arr:'<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+ pen:'<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/></svg>',
+ phone:'<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>',
+ wa:'<svg viewBox="0 0 24 24"><path d="M4 20l1.3-3.8A8 8 0 1 1 8 19.2L4 20z"/><path d="M9.3 9.2c.2 2.6 2.4 4.9 5 5.2l1.2-1.4-1.9-.9-.8.8a4 4 0 0 1-1.9-1.9l.8-.8-.9-1.9z" fill="currentColor" stroke="none"/></svg>',
+ pin:'<svg viewBox="0 0 24 24"><path d="M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>',
+ box:'<svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg>',
+ clock:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+ search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+ user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+ users:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-5-6.3"/></svg>',
+ chev:'<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
+ plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+ check:'<svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>',
+ x:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+ cal:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+ ban:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m6.5 6.5 11 11"/></svg>',
+ undo:'<svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>',
+ mega:'<svg viewBox="0 0 24 24"><path d="M3 10v4h3l8 5V5L6 10z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg>',
+ msg:'<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>',
+ fb:'<svg viewBox="0 0 24 24"><path d="M14 8h3V4h-3a4 4 0 0 0-4 4v2H7v4h3v6h4v-6h3l1-4h-4V8z"/></svg>',
+ ig:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>',
+ truck:'<svg viewBox="0 0 24 24"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>',
+ flame:'<svg viewBox="0 0 24 24"><path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/></svg>',
+ file:'<svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg>',
+ dots:'<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/></svg>',
+ tag:'<svg viewBox="0 0 24 24"><path d="M3 12V3h9l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
+ cart:'<svg viewBox="0 0 24 24"><path d="M3 4h2l2.5 11h11L21 7H6.5"/><circle cx="9" cy="20" r="1.5"/><circle cx="17" cy="20" r="1.5"/></svg>',
+ bag:'<svg viewBox="0 0 24 24"><path d="M5 8h14l-1 13H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
+ star:'<svg viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></svg>',
+ warn:'<svg viewBox="0 0 24 24"><path d="M12 3 2 21h20z"/><path d="M12 10v5M12 18h.01"/></svg>',
+ cross:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>',
+ sys:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12h8M12 8v8"/></svg>',
+ grid:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>',
+ list:'<svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+ split:'<svg viewBox="0 0 24 24"><path d="M12 3v6M12 9 6 15M12 9l6 6M6 15v6M18 15v6"/></svg>',
+ monitor:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+ hand:'<svg viewBox="0 0 24 24"><path d="M8 13V5a1.5 1.5 0 0 1 3 0v6M11 11V4a1.5 1.5 0 0 1 3 0v7M14 11V6a1.5 1.5 0 0 1 3 0v8a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L3 13a1.5 1.5 0 0 1 2.4-1.8L8 13"/></svg>',
+ download:'<svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M4 20h16"/></svg>',
+ upload:'<svg viewBox="0 0 24 24"><path d="M12 16V5M7 10l5-5 5 5M4 20h16"/></svg>',
+ shield:'<svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>',
+};
+const SRC_ICON={whatsapp:"wa",fb_comment:"fb",fb_dm:"fb",ig_dm:"ig",call:"phone",campaign:"mega",winback:"undo",manual:"file",csv:"upload"};
+const TONE={hot:"amber",callback:"blue",retry:"grey",campaign:"violet",winback:"red",converted:"green",lost:"grey",pool:"violet"};
+const FILTERS=["all","pool","hot","callback","retry","campaign","winback","converted","lost"];
+
+/* ───────────────────────── Example data (shaped like production) ───────────────────────── */
+const NOW=Date.now(), MIN=60e3;
+const ago=(m)=>NOW-m*MIN, later=(m)=>NOW+m*MIN;
+const PRODUCTS={p1:{name:"Sérum vitamine C",ar:"سيروم فيتامين C",sku:"SC-001",price:110},p2:{name:"Crème hydratante",ar:"كريم مرطّب",sku:"CH-002",price:95},p3:{name:"Montre connectée X2",ar:"ساعة ذكية X2",sku:"MX-014",price:240},p4:{name:"Pack blender + mixeur",ar:"طقم خلاط + عصّارة",sku:"PB-020",price:520},p5:{name:"Écouteurs sans fil",ar:"سماعات لاسلكية",sku:"EA-007",price:85}};
+const AGENTS={
+ ly:[{n:"Hend",on:true,calls:12,reached:7,conv:3,queue:18,hot:0,hotOld:0,late:1,cap:20,last:6,spark:[9,11,8,13,12,10,12]},
+     {n:"Roqaya",on:true,calls:14,reached:9,conv:4,queue:22,hot:0,hotOld:0,late:0,cap:20,last:3,spark:[11,12,14,12,15,13,14]},
+     {n:"Mouna",on:true,calls:9,reached:5,conv:2,queue:31,hot:1,hotOld:9,late:2,cap:20,last:14,spark:[8,10,9,7,11,9,9]},
+     {n:"Tasnim",on:true,calls:6,reached:3,conv:1,queue:27,hot:2,hotOld:47,late:2,cap:20,last:52,spark:[10,9,8,7,7,6,6]},
+     {n:"Salima",on:false,calls:0,reached:0,conv:0,queue:9,hot:0,hotOld:0,late:0,cap:20,last:null,spark:[6,5,7,4,0,0,0]}],
+ tn:[{n:"Asma",on:true,calls:16,reached:10,conv:4,queue:24,hot:0,hotOld:0,late:0,cap:25,last:4,spark:[12,14,13,15,16,14,16]},
+     {n:"Rihab",on:true,calls:11,reached:6,conv:2,queue:19,hot:1,hotOld:12,late:1,cap:25,last:9,spark:[9,8,10,11,9,10,11]},
+     {n:"Agent TN 1",on:true,calls:4,reached:2,conv:0,queue:33,hot:0,hotOld:0,late:3,cap:25,last:71,spark:[7,6,5,6,4,5,4]},
+     {n:"Agent TN 2",on:false,calls:0,reached:0,conv:0,queue:12,hot:0,hotOld:0,late:0,cap:25,last:null,spark:[5,6,5,0,0,0,0]}]};
+const CAMPS={
+ ly:[{id:"c1",name:"Sérum · clients 60–120 j",ar:"سيروم · زبائن 60–120 يوماً",st:"live",aud:412,pool:286,called:96,reached:61,conv:29,rev:3190,offer:"−15 % sur le 50 ml, livraison offerte",offerAr:"خصم 15% على 50 مل، التوصيل مجاني",agents:["Hend","Roqaya","Mouna"],cap:20,created:"3 sept.",by:"Manager LY",
+      script:"Bonjour {name}, ici {agent} d'Ordra. Vous aviez pris le sérum vitamine C il y a deux mois — comment ça s'est passé ? Cette semaine le 50 ml est à 93 LYD au lieu de 110, livraison offerte. Je vous en mets un ?",scriptAr:"مرحباً {name}، معك {agent} من أوردرا. أخذت سيروم فيتامين C قبل شهرين — كيف كانت التجربة؟ هذا الأسبوع عبوة 50 مل بـ 93 د.ل بدل 110 والتوصيل مجاني. أحجز لك واحدة؟"},
+     {id:"c4",name:"Crème · relance WhatsApp",ar:"كريم · متابعة واتساب",st:"live",channel:"wa_call",aud:210,pool:0,sent:180,replied:42,called:58,reached:41,conv:11,rev:1045,offer:"Livraison offerte cette semaine",offerAr:"التوصيل مجاني هذا الأسبوع",agents:["Mouna","Salima"],cap:20,created:"12 sept.",by:"Manager LY",script:"",scriptAr:"",msg:"Bonjour {name}, ici {agent} d'Ordra 👋 Votre crème hydratante est de retour en stock, et cette semaine la livraison est offerte. Je vous en réserve une ?"},
+     {id:"c2",name:"Montre X2 · Benghazi",ar:"ساعة X2 · بنغازي",st:"live",aud:96,pool:0,called:40,reached:24,conv:6,rev:960,offer:"Bracelet offert",offerAr:"سوار هدية",agents:["Tasnim"],cap:20,created:"9 sept.",by:"Manager LY",script:"",scriptAr:""},
+     {id:"c3",name:"Crème · août",ar:"كريم · أغسطس",st:"done",aud:230,pool:0,called:230,reached:142,conv:31,rev:2565,offer:"2 achetées, la 3ᵉ à −50 %",offerAr:"اشترِ 2 والثالثة بنصف السعر",agents:["Hend","Roqaya","Mouna","Tasnim"],cap:20,created:"4 août",by:"Manager LY",script:"",scriptAr:""}],
+ tn:[{id:"t1",name:"biovera post-del",ar:"biovera بعد التسليم",st:"live",aud:1630,pool:1610,called:12,reached:7,conv:4,rev:412,offer:"—",offerAr:"—",agents:[],cap:25,created:"28 août",by:"Manager TN",script:"",scriptAr:""},
+     {id:"t2",name:"Test",ar:"Test",st:"live",aud:62,pool:58,called:4,reached:2,conv:1,rev:89,offer:"—",offerAr:"—",agents:["Asma"],cap:25,created:"15 août",by:"Manager TN",script:"",scriptAr:""}]};
+/* Aggregates the console RPC would return. LY is the market the rows below belong to. */
+const MK={
+ ly:{pool:286,poolCamps:1,poolOldest:12,new7:38,newPrev:34,tocall:301,total:412,hot:3,hotOld:47,hotAgent:"Tasnim",ttc:14,ttcPrev:18,late:5,lateAgents:2,conv:74,convPrev:61,called:238,rate:31,ratePrev:27,rev:6715,deliv:61,lost:41,lostTop:"price",calls:41,reached:24,idle:1,idleQueue:9,
+     fun:{created:412,pool:286,assigned:126,called:96,reached:61,conv:29,deliv:22},loss:{price:14,unreachable:11,not_interested:7,wrong_number:4,competitor:3,duplicate:1,other:1},sp:{new:[4,6,5,7,5,6,5],ttc:[22,19,21,17,18,15,14],rev:[300,420,380,610,540,720,690],conv:[6,9,8,12,10,14,15]}},
+ tn:{pool:1694,poolCamps:2,poolOldest:18,new7:12,newPrev:1640,tocall:1675,total:1700,hot:1,hotOld:12,hotAgent:"Rihab",ttc:41,ttcPrev:36,late:4,lateAgents:2,conv:6,convPrev:2,called:31,rate:19,ratePrev:11,rev:501,deliv:5,lost:1,lostTop:"unreachable",calls:31,reached:18,idle:1,idleQueue:12,
+     fun:{created:1700,pool:1694,assigned:6,called:31,reached:18,conv:6,deliv:5},loss:{price:0,unreachable:1,not_interested:0,wrong_number:0,competitor:0,duplicate:0,other:0},sp:{new:[2,1,3,1,2,1,2],ttc:[30,38,35,44,40,39,41],rev:[0,60,0,120,89,130,102],conv:[0,1,0,1,1,2,1]}}};
+const A=(o)=>Object.assign({attempts:0,cbAt:null,qty:1,phone2:null,msg:null,cust:{d:0,r:0,last:null,days:null,addr:null},tl:[],order:null,reason:null,agent:null,camp:null,lost:null,note:null,calls:0},o);
+let LEADS=[
+ A({id:"P-7301",name:"أمل الزنتاني",phone:"091 778 8001",area:"طرابلس · سوق الجمعة",source:"whatsapp",bucket:"hot",created:ago(6),product:"p1",agent:"Mouna",msg:"السلام عليكم، السيروم متوفر؟ وكم سعره مع التوصيل لسوق الجمعة؟",tl:[{t:ago(6),k:"msg",who:"cust"},{t:ago(6),k:"assigned",who:"sys",x:"Mouna"}]}),
+ A({id:"P-7300",name:"ريما بن عمر",phone:"092 551 1209",area:"طرابلس · تاجوراء",source:"fb_comment",bucket:"hot",created:ago(23),product:"p3",agent:"Tasnim",msg:"prix ? livraison tajoura ?",cust:{d:1,r:0,last:"p2",days:41,addr:"تاجوراء، طريق الشط"},tl:[{t:ago(23),k:"msg",who:"cust"},{t:ago(23),k:"assigned",who:"sys",x:"Tasnim"}]}),
+ A({id:"P-7298",name:"محمد الشريف",phone:"094 120 3388",area:"طرابلس · جنزور",source:"call",bucket:"hot",created:ago(47),product:"p4",agent:"Tasnim",tl:[{t:ago(47),k:"call",who:"cust",x:"missed"},{t:ago(47),k:"assigned",who:"sys",x:"Tasnim"}]}),
+ A({id:"P-7288",name:"سالم أبو زيد",phone:"091 334 4557",phone2:"092 118 9002",area:"بنغازي · الليثي",source:"ig_dm",bucket:"callback",created:ago(190),attempts:1,cbAt:ago(25),product:"p3",agent:"Tasnim",calls:1,msg:"نبي الساعة السوداء، توصلوا بنغازي؟",tl:[{t:ago(190),k:"msg",who:"cust"},{t:ago(189),k:"assigned",who:"sys",x:"Tasnim"},{t:ago(160),k:"reached",who:"agent"},{t:ago(160),k:"cb",who:"agent",x:"16:05"}]}),
+ A({id:"P-7279",name:"هدى المبروك",phone:"092 334 1122",area:"طرابلس · حي الأندلس",source:"fb_dm",bucket:"callback",created:ago(420),attempts:1,cbAt:later(95),product:"p1",qty:2,agent:"Hend",calls:1,cust:{d:3,r:0,last:"p1",days:72,addr:"حي الأندلس، شارع الجمهورية"},tl:[{t:ago(420),k:"msg",who:"cust"},{t:ago(419),k:"assigned",who:"sys",x:"Hend"},{t:ago(380),k:"reached",who:"agent"},{t:ago(380),k:"cb",who:"agent",x:"18:00"}]}),
+ A({id:"P-7284",name:"فاطمة العرفي",phone:"091 998 2211",area:"طرابلس · تاجوراء",source:"fb_comment",bucket:"retry",created:ago(300),attempts:2,product:"p2",agent:"Mouna",calls:2,msg:"كم سعر الكريم؟",tl:[{t:ago(300),k:"msg",who:"cust"},{t:ago(299),k:"assigned",who:"sys",x:"Mouna"},{t:ago(240),k:"noans",who:"agent"},{t:ago(90),k:"noans",who:"agent"}]}),
+ A({id:"P-7261",name:"عبدالله القماطي",phone:"093 445 6677",area:"مصراتة · المركز",source:"ig_dm",bucket:"retry",created:ago(2000),attempts:1,product:"p5",agent:"Roqaya",calls:1,tl:[{t:ago(2000),k:"msg",who:"cust"},{t:ago(1999),k:"assigned",who:"sys",x:"Roqaya"},{t:ago(1900),k:"noans",who:"agent"}]}),
+ A({id:"P-7240",name:"نجاة الفيتوري",phone:"091 445 6677",area:"طرابلس · عين زارة",source:"campaign",bucket:"campaign",created:ago(2900),product:"p1",agent:"Hend",camp:"c1",cust:{d:2,r:0,last:"p1",days:78,addr:"عين زارة، خلف جامع الرحمة"},tl:[{t:ago(2900),k:"camp",who:"sys",x:"c1"},{t:ago(2890),k:"assigned",who:"mgr",x:"Hend"}]}),
+ A({id:"P-7241",name:"خالد الزاوي",phone:"091 665 5443",area:"طرابلس · جنزور",source:"campaign",bucket:"campaign",created:ago(2900),product:"p1",agent:"Roqaya",camp:"c1",cust:{d:1,r:0,last:"p1",days:94,addr:"جنزور، شارع البحر"},tl:[{t:ago(2900),k:"camp",who:"sys",x:"c1"},{t:ago(2890),k:"assigned",who:"mgr",x:"Roqaya"}]}),
+ A({id:"P-7242",name:"مروة الصويعي",phone:"092 776 6554",area:"طرابلس · سوق الجمعة",source:"campaign",bucket:"campaign",created:ago(2900),product:"p1",agent:"Roqaya",camp:"c1",cust:{d:4,r:1,last:"p2",days:63,addr:"سوق الجمعة، الطريق الرئيسي"},tl:[{t:ago(2900),k:"camp",who:"sys",x:"c1"},{t:ago(2890),k:"assigned",who:"mgr",x:"Roqaya"}]}),
+ A({id:"P-7212",name:"سعاد المقريف",phone:"091 210 4478",area:"طرابلس · قرقارش",source:"campaign",bucket:"pool",created:ago(17280),product:"p1",camp:"c1",cust:{d:2,r:0,last:"p1",days:81,addr:"قرقارش، شارع الرئيسي"},tl:[{t:ago(17280),k:"camp",who:"sys",x:"c1"}]}),
+ A({id:"P-7213",name:"عمر الككلي",phone:"092 400 1187",area:"طرابلس · الهضبة",source:"campaign",bucket:"pool",created:ago(17280),product:"p1",camp:"c1",cust:{d:1,r:0,last:"p1",days:102},tl:[{t:ago(17280),k:"camp",who:"sys",x:"c1"}]}),
+ A({id:"P-7214",name:"آمنة بن غزي",phone:"094 771 3390",area:"طرابلس · تاجوراء",source:"campaign",bucket:"pool",created:ago(17280),product:"p1",camp:"c1",cust:{d:3,r:0,last:"p1",days:66},tl:[{t:ago(17280),k:"camp",who:"sys",x:"c1"}]}),
+ A({id:"P-7215",name:"ناصر الورفلي",phone:"091 905 2210",area:"بنغازي · الصابري",source:"campaign",bucket:"pool",created:ago(17280),product:"p1",camp:"c1",cust:{d:1,r:1,last:"p1",days:118},tl:[{t:ago(17280),k:"camp",who:"sys",x:"c1"}]}),
+ A({id:"P-7216",name:"هبة الشلماني",phone:"092 133 8877",area:"مصراتة · الزروق",source:"campaign",bucket:"pool",created:ago(17280),product:"p1",camp:"c1",cust:{d:2,r:0,last:"p1",days:74},tl:[{t:ago(17280),k:"camp",who:"sys",x:"c1"}]}),
+ A({id:"P-7302",name:"ليلى بن سعيد",phone:"091 700 5521",area:"طرابلس · عين زارة",source:"csv",bucket:"pool",created:ago(35),product:"p2",tl:[{t:ago(35),k:"imported",who:"mgr"}]}),
+ A({id:"P-7295",name:"محمد صالح",phone:"094 556 6778",area:"بنغازي · الفويهات",source:"winback",bucket:"winback",created:ago(120),product:"p3",order:48128,agent:"Tasnim",reason:"الزبون لم يرد على الهاتف",cust:{d:0,r:1,last:"p3",days:9,addr:"الفويهات، مقابل المدرسة"},tl:[{t:ago(120),k:"ret",who:"sys",x:"#48128"},{t:ago(120),k:"assigned",who:"sys",x:"Tasnim"}]}),
+ A({id:"P-7293",name:"إبراهيم الترهوني",phone:"092 209 1188",area:"طرابلس · تاجوراء",source:"winback",bucket:"winback",created:ago(900),product:"p4",order:48093,attempts:1,agent:"Mouna",calls:1,reason:"رفض الاستلام · السعر",cust:{d:2,r:1,last:"p4",days:12,addr:"تاجوراء، سيدي بنور"},tl:[{t:ago(900),k:"ret",who:"sys",x:"#48093"},{t:ago(900),k:"assigned",who:"sys",x:"Mouna"},{t:ago(600),k:"noans",who:"agent"}]}),
+ A({id:"P-7297",name:"سميرة الدرسي",phone:"091 802 4471",area:"طرابلس · جنزور",source:"whatsapp",bucket:"converted",created:ago(210),product:"p1",qty:2,order:48219,agent:"Hend",calls:1,msg:"نبي 2 سيروم، توصيل جنزور",tl:[{t:ago(210),k:"msg",who:"cust"},{t:ago(209),k:"assigned",who:"sys",x:"Hend"},{t:ago(180),k:"reached",who:"agent"},{t:ago(176),k:"conv",who:"agent",x:"#48219"}]}),
+ A({id:"P-7296",name:"طارق المصراتي",phone:"092 668 1030",area:"طرابلس · حي الأندلس",source:"call",bucket:"converted",created:ago(340),product:"p5",order:48214,agent:"Roqaya",calls:1,tl:[{t:ago(340),k:"call",who:"cust",x:"missed"},{t:ago(339),k:"assigned",who:"sys",x:"Roqaya"},{t:ago(320),k:"reached",who:"agent"},{t:ago(318),k:"conv",who:"agent",x:"#48214"}]}),
+ A({id:"P-7250",name:"وليد الغرياني",phone:"093 118 2200",area:"طرابلس · الهضبة",source:"fb_dm",bucket:"lost",created:ago(4300),attempts:1,product:"p3",agent:"Mouna",calls:1,lost:"price",camp:null,tl:[{t:ago(4300),k:"msg",who:"cust"},{t:ago(4299),k:"assigned",who:"sys",x:"Mouna"},{t:ago(4000),k:"reached",who:"agent"},{t:ago(3999),k:"lost",who:"agent",x:"price"}]}),
+ A({id:"P-7233",name:"رانيا التومي",phone:"091 320 9987",area:"طرابلس · جنزور",source:"campaign",bucket:"lost",created:ago(5800),attempts:3,product:"p1",agent:"Hend",camp:"c1",calls:3,lost:"unreachable",tl:[{t:ago(5800),k:"camp",who:"sys",x:"c1"},{t:ago(5790),k:"assigned",who:"mgr",x:"Hend"},{t:ago(5000),k:"noans",who:"agent"},{t:ago(4000),k:"noans",who:"agent"},{t:ago(3000),k:"noans",who:"agent"},{t:ago(2999),k:"lost",who:"agent",x:"unreachable"}]}),
+];
+/* Tunisia rows: the same shape with the market's own names, for the super admin's switch. */
+const TN_LEADS=[
+ A({id:"P-2201",name:"Amira Ben Salah",phone:"22 415 880",area:"Tunis · La Marsa",source:"campaign",bucket:"pool",created:ago(25920),product:"p2",camp:"t1",cust:{d:1,r:0,last:"p2",days:44},tl:[{t:ago(25920),k:"camp",who:"sys",x:"t1"}]}),
+ A({id:"P-2202",name:"Mohamed Trabelsi",phone:"98 302 117",area:"Sfax · Centre",source:"campaign",bucket:"pool",created:ago(25920),product:"p2",camp:"t1",cust:{d:2,r:0,last:"p2",days:52},tl:[{t:ago(25920),k:"camp",who:"sys",x:"t1"}]}),
+ A({id:"P-2203",name:"Sana Gharbi",phone:"55 780 224",area:"Sousse · Khezama",source:"campaign",bucket:"pool",created:ago(25920),product:"p2",camp:"t1",cust:{d:1,r:0,last:"p2",days:39},tl:[{t:ago(25920),k:"camp",who:"sys",x:"t1"}]}),
+ A({id:"P-2210",name:"Karim Jlassi",phone:"20 118 903",area:"Tunis · Ariana",source:"fb_comment",bucket:"hot",created:ago(12),product:"p3",agent:"Rihab",msg:"prix montre + livraison ariana ?",tl:[{t:ago(12),k:"msg",who:"cust"},{t:ago(12),k:"assigned",who:"sys",x:"Rihab"}]}),
+ A({id:"P-2205",name:"Yasmine Ayari",phone:"27 664 019",area:"Nabeul · Hammamet",source:"manual_call",bucket:"callback",created:ago(300),attempts:1,cbAt:ago(40),product:"p1",agent:"Agent TN 1",calls:1,tl:[{t:ago(300),k:"created",who:"mgr"},{t:ago(299),k:"assigned",who:"mgr",x:"Agent TN 1"},{t:ago(200),k:"reached",who:"agent"},{t:ago(200),k:"cb",who:"agent",x:"14:20"}]}),
+ A({id:"P-2198",name:"Hichem Bouzid",phone:"52 901 377",area:"Tunis · Bardo",source:"campaign",bucket:"converted",created:ago(2000),product:"p2",order:31877,agent:"Asma",calls:1,camp:"t1",tl:[{t:ago(2000),k:"camp",who:"sys",x:"t1"},{t:ago(1990),k:"assigned",who:"mgr",x:"Asma"},{t:ago(1500),k:"reached",who:"agent"},{t:ago(1498),k:"conv",who:"agent",x:"#31877"}]}),
+];
+TN_LEADS.forEach(l=>{if(l.source==="manual_call")l.source="manual"});
+
+/* ───────────────────────── State ───────────────────────── */
+const P=new URLSearchParams(location.search);
+let S={role:P.get("role")||"manager",scope:P.get("scope")||"ly",lang:P.get("lang")||"fr",view:P.get("view")||"desktop",tab:P.get("tab")||"overview",period:"d7",
+  filter:"all",agentF:null,campF:null,q:"",sel:new Set(),open:null,sheet:P.get("sheet")||null,editing:false,tlOpen:true,
+  dist:{agents:null,rule:"r1",cap:20,pool:null,scopeLabel:null},assignTo:null,lostPick:null,nPhone:"",nSrc:"call",nAgent:null,
+  cb:{step:1,tmpl:"rebuy",addOpen:false,cond:[{k:"outcome",v:["delivered"]},{k:"period",mode:"preset",days:180,from:new Date(NOW-180*864e5).toISOString().slice(0,10),to:new Date(NOW).toISOString().slice(0,10)},{k:"recency",x:60,y:120},{k:"product",v:["p1"]},{k:"ordered",n:30}],name:"",offer:"",agents:["Hend","Roqaya","Mouna"],cap:20,rule:"r1",channel:"wa_call",wa:{msg:"",img:true,mode:"agent",window:"10–20",rate:40,then:24}}};
+if(P.get("step"))S.cb.step=+P.get("step");
+const t=()=>I18N[S.lang];
+const mkt=()=>S.role==="admin"?S.scope:"ly";
+const M=()=>MK[mkt()]; const AG=()=>AGENTS[mkt()]; const CP=()=>CAMPS[mkt()]; const ROWS=()=>mkt()==="tn"?TN_LEADS:LEADS;
+const cur=(n)=>mkt()==="tn"?t().cur_tn(n):t().cur(n);
+const pname=(p)=>S.lang==="ar"?PRODUCTS[p].ar:PRODUCTS[p].name;
+const cname=(c)=>{const x=[...CAMPS.ly,...CAMPS.tn].find(k=>k.id===c);return x?(S.lang==="ar"?x.ar:x.name):""};
+const val=(l)=>PRODUCTS[l.product].price*l.qty;
+const mins=(ts)=>(NOW-ts)/MIN;
+const hhmm=(ts)=>{const d=new Date(ts);return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`};
+const esc=(s)=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pct=(a,b)=>b?Math.round(a/b*100):0;
+const delta=(a,b,goodUp=true)=>{if(!b)return "";const d=Math.round((a-b)/b*100);const good=goodUp?d>=0:d<=0;return `<b class="${good?"good":"bad"}">${d>=0?"+":"−"}${Math.abs(d)} %</b>`};
+const sp=(pts,c,w=84,h=30)=>{const mx=Math.max(...pts),mn=Math.min(...pts);const xs=pts.map((v,i)=>`${(i/(pts.length-1))*w},${h-2-((v-mn)/(mx-mn||1))*(h-6)}`);return `<svg class="sp" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${xs.join(" ")}" stroke="${c}"/><circle cx="${xs[xs.length-1].split(",")[0]}" cy="${xs[xs.length-1].split(",")[1]}" r="2.5" fill="${c}" stroke="none"/></svg>`};
+function situation(l){const T=t();
+  switch(l.bucket){
+    case "hot": return {chip:T.sit.hot(Math.round(mins(l.created))),icon:"clock"};
+    case "callback": {const d=(l.cbAt-NOW)/MIN;return d<0?{chip:T.sit.cb_due(Math.round(-d)),icon:"warn"}:{chip:T.sit.cb_at(hhmm(l.cbAt)),icon:"cal"}}
+    case "retry": return {chip:T.sit.retry(l.attempts),icon:"phone"};
+    case "campaign": return {chip:T.sit.campaign,icon:"mega"};
+    case "pool": return {chip:T.sit.pool,icon:"mega"};
+    case "winback": return {chip:T.sit.winback,icon:"undo"};
+    case "converted": return {chip:T.sit.converted(l.order),icon:"check"};
+    case "lost": return {chip:T.sit.lost(T.loss.r[l.lost]||l.lost),icon:"ban"};
+  }}
+function sortKey(l){const r={hot:0,callback:1,winback:2,retry:3,pool:4,campaign:5,converted:6,lost:7}[l.bucket];
+  if(l.bucket==="callback")return [r,l.cbAt];return [r,l.created]}
+function visible(){let xs=ROWS().filter(l=>S.filter==="all"||(S.filter==="pool"?!l.agent:l.bucket===S.filter));
+  if(S.agentF)xs=xs.filter(l=>l.agent===S.agentF);if(S.campF)xs=xs.filter(l=>l.camp===S.campF);
+  if(S.q){const q=S.q.toLowerCase().replace(/\s/g,"");xs=xs.filter(l=>(l.name+l.phone+(l.agent||"")+pname(l.product)+l.area+cname(l.camp||"")).toLowerCase().replace(/\s/g,"").includes(q))}
+  return xs.sort((a,b)=>{const A=sortKey(a),B=sortKey(b);return A[0]-B[0]||A[1]-B[1]})}
+function histLabel(c){const T=t();if(!c||(c.d===0&&c.r===0))return {k:"new",txt:T.hist.new};
+  if(c.d===0&&c.r>0)return {k:"bad",txt:T.hist.bad(c.r)};if(c.r>0)return {k:"bad",txt:T.hist.mixed(c.d,c.r)};if(c.d===1)return {k:"good",txt:T.hist.one};return {k:"good",txt:T.hist.good(c.d)}}
+const poolCount=()=>M().pool;
+
+/* ───────────────────────── Render ───────────────────────── */
+const stage=document.getElementById("stage");
+function render(){const T=t(),dir=S.lang==="ar"?"rtl":"ltr";const phone=S.view==="phone";
+  const all=S.role==="admin"&&S.scope==="all";
+  let body;
+  if(all&&S.tab!=="overview")body=pickMarket();
+  else if(phone&&(S.tab==="pipeline"||S.tab==="campaigns"))body=`<div class="scroll"><div class="mcard"><div class="bigscreen">${IC.monitor}<b>${T.phone_only.t}</b><span>${T.phone_only.d}</span></div></div></div>`;
+  else body={overview:overviewBody,pipeline:pipelineBody,campaigns:campaignsBody,team:teamBody}[S.tab]();
+  stage.innerHTML=`<div class="app" id="app" dir="${dir}" data-w="${S.view}">${phone?phoneTop():topBar()}
+    <div class="page">${headHTML()}${tabsHTML()}${body}</div>
+    <div class="scrim" id="scrim" data-open="${S.sheet?"true":"false"}"></div>
+    <div class="sheet" id="sheet" role="dialog" aria-modal="true" data-open="${S.sheet?"true":"false"}" ${S.sheet==="campaign"||S.sheet==="dist"||S.sheet==="import"?"data-wide":""}>${S.sheet?sheetHTML():""}</div>
+    <div class="toast" id="toast" role="status"></div></div>`;
+  wire();
+}
+function scopeHTML(){const T=t();if(S.role!=="admin")return "";
+  return `<span class="scope" role="group">${["tn","ly","all"].map(k=>`<button data-scope="${k}" aria-pressed="${S.scope===k}">${T.mkS[k]}</button>`).join("")}</span>`}
+function topBar(){const T=t();const hot=S.scope==="all"?MK.tn.hot+MK.ly.hot:M().hot;
+  const nav=[["orders",T.nav.orders,0],["leads",T.nav.leads,hot],["delivery",T.nav.delivery,0],["team",T.nav.team,0],["fin",T.nav.fin,0]];
+  return `<div class="top"><span class="brand">Ord<b>ra</b></span><span class="mkt">${IC.pin}${S.role==="admin"?T.mk[S.scope]:T.mk.ly}</span>${scopeHTML()}
+    <nav>${nav.map(([k,l,n])=>`<button ${k==="leads"?'aria-current="page"':""}>${l}${n?`<span class="badge">${n}</span>`:""}</button>`).join("")}</nav>
+    <span class="me"><span class="avatar">${S.role==="admin"?"A":"M"}</span><span>${T.me[S.role]}</span>${IC.chev}</span></div>`}
+function phoneTop(){const T=t();
+  return `<div class="sbar"><span class="num">9:41</span><span style="display:inline-flex;gap:5px;align-items:center"><svg viewBox="0 0 16 12"><path d="M1 9v3M5 6v6M9 3v9M13 0v12" stroke-width="2"/></svg><svg viewBox="0 0 16 12" style="width:22px"><rect x="1" y="2" width="12" height="8" rx="2" fill="currentColor" stroke="none"/><path d="M14.5 5v2" stroke-width="1.5"/></svg></span></div>
+    <div class="m-top"><span class="brand">Ord<b>ra</b></span><span class="mkt">${IC.pin}${S.role==="admin"?T.mk[S.scope]:T.mk.ly}</span>${scopeHTML()}<span class="avatar">${S.role==="admin"?"A":"M"}</span></div>`}
+function headHTML(){const T=t();const all=S.role==="admin"&&S.scope==="all";
+  const pool=all?MK.tn.pool+MK.ly.pool:M().pool,hot=all?MK.tn.hot+MK.ly.hot:M().hot;
+  return `<div class="head"><span class="ic">${IC.users}</span><div><h2>${T.title}</h2><div class="sub">${T.sub(pool,hot)}</div></div>
+    <div class="tools"><label class="search">${IC.search}<input id="q" placeholder="${T.search}" value="${esc(S.q)}"></label>
+      <button class="btn-o" id="btnImport" ${all?"disabled":""}>${IC.upload}${T.csv}</button><button class="btn-o" id="btnNew" ${all?"disabled":""}>${IC.plus}${T.newlead}</button><button class="btn-new" id="btnCamp" ${all?"disabled":""}>${IC.mega}${T.newcamp}</button></div></div>`}
+function tabsHTML(){const T=t();const all=S.role==="admin"&&S.scope==="all";const pool=all?MK.tn.pool+MK.ly.pool:M().pool;const hot=all?0:M().hot;
+  const tabs=[["overview","grid",0],["pipeline","list",pool],["campaigns","mega",0],["team","users",hot]];
+  return `<div class="tabs" role="tablist">${tabs.map(([k,ic,n])=>`<button role="tab" data-tab="${k}" ${S.tab===k?'aria-current="page"':""}>${IC[ic]}${T.tabs[k]}${n?`<span class="badge" ${k==="team"?'data-t="amber"':""}>${fmt(n)}</span>`:""}</button>`).join("")}
+    ${S.tab==="overview"?`<span class="period" role="group">${["d7","d30","d90"].map(k=>`<button data-period="${k}" aria-pressed="${S.period===k}">${T.period[k]}</button>`).join("")}</span>`:""}</div>`}
+function pickMarket(){const T=t();return `<div class="scroll"><div class="mcard"><div class="pickmkt">${IC.pin}<h3>${T.pickmkt.t}</h3><div>${T.pickmkt.d}</div><div class="opts">${["tn","ly"].map(k=>`<button class="opt" data-scope="${k}">${IC.pin}${T.mk[k]}</button>`).join("")}</div></div></div></div>`}
+
+/* ── Vue d'ensemble ── */
+function kpi(label,value,unit,detail,opts={}){return `<${opts.go?"button":"div"} class="kpi" ${opts.t?`data-t="${opts.t}"`:""} ${opts.go?`data-go="${opts.go}"`:""}><span class="l">${opts.ic?IC[opts.ic]:""}${label}</span><span class="v${opts.num?" num":""}">${value}${unit?`<small>${unit}</small>`:""}</span><span class="d">${detail}</span>${opts.sp||""}</${opts.go?"button":"div"}>`}
+function overviewBody(){const T=t();if(S.role==="admin"&&S.scope==="all")return compareBody();
+  const m=M(),ag=AG(),cp=CP();const worst=ag.filter(a=>a.hot).sort((a,b)=>b.hotOld-a.hotOld)[0];const free=ag.filter(a=>a.on&&!a.hot).sort((a,b)=>a.queue-b.queue)[0];
+  const alert=m.pool?`<div class="alert"><span class="ico">${IC.users}</span><div class="tx"><div class="tt">${T.alert.t(m.pool)}</div><div class="ds">${T.alert.d(m.poolCamps,m.poolOldest)}</div></div><button class="btn-k" id="btnDistAll">${IC.split}${T.alert.cta}</button></div>`:"";
+  const hotAlert=worst&&worst.hotOld>=30?`<div class="alert" data-t="amber"><span class="ico">${IC.flame}</span><div class="tx"><div class="tt">${T.alert.hot_t(m.hot)}</div><div class="ds">${T.alert.hot_d(worst.n,worst.hotOld)}</div></div><button class="btn-o" data-tab="team">${IC.users}${T.alert.hot_cta}</button></div>`:"";
+  const lossTot=Object.values(m.loss).reduce((a,b)=>a+b,0);const lossRows=Object.entries(m.loss).sort((a,b)=>b[1]-a[1]).filter(([,v])=>v);const lossMax=lossRows[0]?lossRows[0][1]:1;
+  const f=m.fun;const fun=[["pool",f.pool],["assigned",f.assigned],["called",f.called],["reached",f.reached],["conv",f.conv],["deliv",f.deliv]];
+  const idle=ag.filter(a=>!a.calls);
+  return `<div class="scroll">${alert}${hotAlert}
+    <div class="ksec"><h3>${T.ks.health}</h3><span>${T.period[S.period]}</span></div>
+    <div class="kpis">
+      ${kpi(T.k.new,m.new7,"",`${delta(m.new7,m.newPrev)} ${T.kd.vs}`,{sp:sp(m.sp.new,"#8C9196")})}
+      ${kpi(T.k.tocall,fmt(m.tocall),"",T.kd.of(m.total),{go:"pipeline:pool",t:m.tocall>50?"red":""})}
+      ${kpi(T.k.hot,m.hot,T.kd.now,`${T.kd.oldest(m.hotOld)} · ${m.hotAgent}`,{go:"team",t:m.hot?"amber":"",ic:"flame"})}
+      ${kpi(T.k.ttc,m.ttc,"min",`${T.kd.target} · ${delta(m.ttc,m.ttcPrev,false)}`,{sp:sp(m.sp.ttc,"#8C9196")})}
+      ${kpi(T.k.late,m.late,"",T.kd.late_d(m.lateAgents),{go:"pipeline:callback",t:m.late?"amber":""})}
+    </div>
+    <div class="ksec"><h3>${T.ks.money}</h3><span>${T.period[S.period]}</span></div>
+    <div class="kpis" data-n="4">
+      ${kpi(T.k.conv,m.conv,"",`${delta(m.conv,m.convPrev)} ${T.kd.vs}`,{sp:sp(m.sp.conv,"#15803D"),go:"pipeline:converted"})}
+      ${kpi(T.k.rate,m.rate,"%",T.kd.rate_d,{})}
+      ${kpi(T.k.rev,cur(m.rev),"",T.kd.rev_d(m.deliv),{t:"green",num:true,sp:sp(m.sp.rev,"#15803D")})}
+      ${kpi(T.k.lost,m.lost,"",T.kd.lost_d(T.loss.r[m.lostTop]),{go:"pipeline:lost"})}
+    </div>
+    <div class="g" data-c="21">
+      <div class="mcard"><h3>${IC.split}${T.fun.t}<span class="r">${fmt(f.created)} ${T.fun.sub}</span></h3><div class="bd"><div class="fun">
+        ${fun.map(([k,v])=>`<div class="st" data-k="${k}"><span class="lb">${T.fun[k]}</span><span class="bar"><b style="--w:${pct(v,f.created)}%"></b></span><span class="n">${fmt(v)}</span><span class="p">${pct(v,f.created)} %</span></div>`).join("")}
+      </div></div></div>
+      <div class="mcard"><h3>${IC.ban}${T.loss.t}<span class="r">${lossTot}</span></h3><div class="bd"><div class="loss">
+        ${lossRows.map(([k,v])=>`<div class="r"><span>${T.loss.r[k]}</span><span class="bar"><b style="--w:${pct(v,lossMax)}%"></b></span><span class="n">${v}</span></div>`).join("")||`<span class="mute">—</span>`}
+      </div>${m.loss.price>=5?`<div class="hint">${IC.star}<span>${T.loss.hint(pct(m.loss.price,lossTot))}</span></div>`:""}</div></div>
+    </div>
+    <div class="g" data-c="12">
+      <div class="mcard"><h3>${IC.mega}${T.camps.t}<span class="r"><button class="link" data-tab="campaigns" style="font-size:13px">${T.camps.see.replace(/prospects|العملاء/,"")}${IC.arr}</button></span></h3>
+        ${cp.filter(c=>c.st==="live").map(c=>campCard(c,true)).join("")}</div>
+      <div class="mcard"><h3>${IC.users}${T.agt.t}<span class="r">${fmt(m.calls)} ${T.agt.calls} · ${m.reached} ${T.agt.reached}</span></h3><div class="twrap"><table class="t"><thead><tr><th>${T.th.agent}</th><th class="n">${T.agt.calls}</th><th class="n">${T.agt.conv}</th><th>${T.agt.rate}</th><th class="n">${T.agt.queue}</th><th class="n">${T.agt.hot}</th></tr></thead><tbody>
+        ${ag.map(a=>`<tr class="clickable" data-agent-row="${a.n}"><td><span class="who"><span class="avatar sm" data-on="${a.on}">${a.n[0]}</span>${a.n}${!a.calls?`<span class="chip sm" data-t="grey">${T.agt.idle}</span>`:""}</span></td><td class="n">${a.calls}</td><td class="n">${a.conv}</td><td><span style="display:flex;align-items:center;gap:8px"><span class="hbar" style="flex:1"><b style="--w:${pct(a.conv,a.calls)}%"></b></span><span style="width:34px;text-align:end;font-weight:600">${a.calls?pct(a.conv,a.calls)+" %":T.agt.norate}</span></span></td><td class="n">${a.queue}</td><td class="n">${a.hot?`<span class="warnc">${a.hot} · ${a.hotOld} min</span>`:"—"}</td></tr>`).join("")}
+      </tbody></table></div>${idle.length?`<div class="bd" style="padding-top:0"><div class="hint">${IC.hand}<span>${idle.map(a=>a.n).join(", ")} · ${T.agt.idle.toLowerCase()} · ${T.kd.idle_d(idle.reduce((n,a)=>n+a.queue,0))}</span></div></div>`:""}</div>
+    </div></div>`}
+function compareBody(){const T=t();
+  const row=(lb,f,o={})=>`<div>${lb}</div>${["tn","ly"].map(k=>{const m=MK[k];const v=f(m,k);return `<div><span class="v${o.num?" num":""} ${o.warn&&o.warn(m)?"w":""}">${v}</span></div>`}).join("")}`;
+  return `<div class="scroll">
+    <div class="alert"><span class="ico">${IC.users}</span><div class="tx"><div class="tt">${T.alert.t(MK.tn.pool+MK.ly.pool)}</div><div class="ds">${T.mk.tn} : ${fmt(MK.tn.pool)} · ${T.mk.ly} : ${fmt(MK.ly.pool)}</div></div></div>
+    <div class="ksec"><h3>${T.cmp.t}</h3><span>${T.period[S.period]}</span></div>
+    <div class="cmp">
+      <div class="hd">${T.cmp.vs}</div><div class="hd">${IC.pin}${T.mk.tn}<span class="chip sm" data-t="line">TND</span></div><div class="hd">${IC.pin}${T.mk.ly}<span class="chip sm" data-t="line">LYD</span></div>
+      ${row(T.k.tocall,(m)=>`${fmt(m.tocall)}<small>${T.kd.of(m.total)}</small>`,{warn:(m)=>m.tocall>50})}
+      ${row(T.k.new,(m)=>`${m.new7}<small>${delta(m.new7,m.newPrev)}</small>`)}
+      ${row(T.k.hot,(m)=>`${m.hot}<small>${T.kd.oldest(m.hotOld)}</small>`,{warn:(m)=>m.hotOld>=30})}
+      ${row(T.k.ttc,(m)=>`${m.ttc} min<small>${T.kd.target}</small>`,{warn:(m)=>m.ttc>10})}
+      ${row(T.k.rate,(m)=>`${m.rate} %<small>${m.conv} / ${m.called}</small>`)}
+      ${row(T.k.rev,(m,k)=>`${k==="tn"?T.cur_tn(m.rev):T.cur(m.rev)}<small>${T.kd.rev_d(m.deliv)}</small>`,{num:true})}
+      ${row(T.k.calls,(m)=>`${m.calls}<small>${T.kd.calls_d(m.reached)}</small>`)}
+      ${row(T.k.idle,(m)=>`${m.idle}<small>${T.kd.idle_d(m.idleQueue)}</small>`,{warn:(m)=>m.idle>0})}
+    </div>
+    <div class="g" data-c="2">${["tn","ly"].map(k=>`<div class="mcard"><h3>${IC.pin}${T.mk[k]}<span class="r"><button class="link" data-scope="${k}" style="font-size:13px">${T.tabs.pipeline}${IC.arr}</button></span></h3>${CAMPS[k].filter(c=>c.st==="live").slice(0,2).map(c=>campCard(c,true,k)).join("")}</div>`).join("")}</div>
+  </div>`}
+/* ── Campaign card (shared by overview + campaigns) ── */
+function campCard(c,compact=false,k){const T=t();const money=k?(k==="tn"?T.cur_tn:T.cur):cur;
+  const w=(n)=>pct(n,c.aud);
+  return `<div class="camp"><div class="cn">${IC.mega}<span>${esc(S.lang==="ar"?c.ar:c.name)}</span>${c.pool?`<span class="chip sm" data-t="red">${fmt(c.pool)} ${T.camps.pool}</span>`:""}${c.channel&&c.channel!=="call"?`<span class="chip sm" data-t="wa">${IC.wa}${T.camps.chan[c.channel]}</span>`:""}<span class="chip" data-t="${c.st==="live"?"green":"grey"}">${T.camps[c.st]}</span></div>
+    ${c.offer&&c.offer!=="—"?`<div class="offer">${IC.star.replace('width="18"','')} ${esc(S.lang==="ar"?c.offerAr:c.offer)}</div>`:""}
+    <div class="funnel" role="img"><b style="width:${w(c.pool)}%"></b><b style="width:${w(c.aud-c.pool-(c.sent||c.called))}%"></b>${c.sent?`<b data-wa style="width:${w(c.sent-c.called)}%"></b>`:""}<b style="width:${w(c.called-c.conv)}%"></b><b style="width:${w(c.conv)}%"></b></div>
+    <div class="fn-l"><span><b>${fmt(c.aud)}</b> ${T.camps.aud}</span>${c.sent?`<span><b>${fmt(c.sent)}</b> ${T.cb.fn.sent}</span><span><b>${fmt(c.replied)}</b> ${T.cb.fn.replied} · ${pct(c.replied,c.sent)} %</span>`:""}<span><b>${fmt(c.called)}</b> ${T.camps.called}</span><span><b>${c.conv}</b> ${T.camps.conv} · ${c.called?pct(c.conv,c.called)+" %":"—"}</span><span class="rev num">${money(c.rev)}</span></div>
+    ${compact?"":`<div class="ft"><span>${c.agents.length?`${IC.users.replace('width="18"','')} ${c.agents.join(", ")} · ${T.camps.cap(c.cap)}`:`<span class="bad">${T.camps.agents(0)}</span>`}</span><span>· ${T.camps.created(c.created,c.by)}</span>
+      ${c.pool?`<button class="btn-o sm" data-dist-camp="${c.id}">${IC.split}${T.camps.dist}</button>`:`<button class="btn-o sm" data-see-camp="${c.id}">${IC.list}${T.camps.see}</button>`}</div>`}</div>`}
+
+/* ── Prospects (pipeline) ── */
+function pipelineBody(){const T=t();const rows=visible();const all=ROWS();const m=M();
+  const counts={all:m.total,pool:m.pool,hot:m.hot,callback:all.filter(l=>l.bucket==="callback").length+m.late-1,retry:all.filter(l=>l.bucket==="retry").length+9,campaign:m.total-m.pool-40,winback:all.filter(l=>l.bucket==="winback").length+3,converted:m.conv,lost:m.lost};
+  const shownAll=rows.length;const total=counts[S.filter]||shownAll;const more=Math.max(0,total-shownAll);
+  const chips=FILTERS.map(k=>`<button class="fchip" data-f="${k}" aria-pressed="${S.filter===k}" ${k==="pool"?'data-t="red"':""}>${k!=="all"&&k!=="pool"?`<span class="dot" data-t="${TONE[k]}"></span>`:""}${T.f[k]}<b>${fmt(counts[k]??0)}</b></button>`).join("");
+  const agSel=`<label class="fsel">${IC.user}<select id="agentF" style="border:0;background:none;outline:0"><option value="">${T.fs.agent}</option><option value="__none">${T.pool}</option>${AG().map(a=>`<option ${S.agentF===a.n?"selected":""}>${a.n}</option>`).join("")}</select></label>`;
+  const cpSel=`<label class="fsel">${IC.mega}<select id="campF" style="border:0;background:none;outline:0"><option value="">${T.fs.camp}</option>${CP().map(c=>`<option value="${c.id}" ${S.campF===c.id?"selected":""}>${esc(S.lang==="ar"?c.ar:c.name)}</option>`).join("")}</select></label>`;
+  const sel=S.sel.size?`<div class="selbar"><b>${T.sel.n(S.sel.size)}</b><button class="btn-o" data-p id="selAssign">${IC.user}${T.sel.assign}</button><button class="btn-o" id="selDist">${IC.split}${T.sel.dist}</button><button class="btn-o" id="selLost">${IC.ban}${T.sel.lost}</button><button class="btn-o" id="selExport">${IC.download}${T.sel.export}</button><button class="x" id="selClear" aria-label="${T.sel.clear}">${IC.x}</button></div>`:"";
+  const tr=(l)=>{const s=situation(l);const tone=TONE[l.bucket];const isSel=S.sel.has(l.id);
+    return `<tr class="clickable" data-id="${l.id}" aria-selected="${isSel}" data-open="${S.open===l.id}">
+      <td class="ck"><input type="checkbox" class="cb" data-ck="${l.id}" ${isSel?"checked":""} aria-label="${esc(l.name)}"></td>
+      <td><div class="nm"><span class="q">${esc(l.name)}</span><span class="id">${l.id}</span></div><div class="s1"><span class="num">${l.phone}</span> · ${esc(l.area)}</div></td>
+      <td><span style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap">${IC[SRC_ICON[l.source]]}${T.src[l.source]}</span>${l.camp?`<div class="s1">${esc(cname(l.camp))}</div>`:""}</td>
+      <td>${l.agent?`<span class="who"><span class="avatar sm">${l.agent[0]}</span>${l.agent}</span>`:`<span class="pool">${IC.warn.replace('width="18"','')}${T.pool}</span>`}</td>
+      <td><span class="chip" data-t="${tone}">${IC[s.icon]}${s.chip}</span></td>
+      <td style="white-space:nowrap;color:var(--ink-3)">${T.ago(mins(l.created))}</td>
+      <td class="n num">${cur(val(l))}</td></tr>`};
+  const allChecked=rows.length&&rows.every(l=>S.sel.has(l.id));
+  return `<div class="split"><div class="mcard" style="display:flex;flex-direction:column;min-height:0;max-height:100%">
+    <div class="fbar">${chips}${agSel}${cpSel}<span class="count">${T.count(shownAll,total)}</span></div>${sel}
+    <div class="twrap" style="overflow-y:auto;min-height:0;flex:1"><table class="t"><thead><tr><th class="ck"><input type="checkbox" class="cb" id="ckAll" ${allChecked?"checked":""} aria-label="${T.sel.all}"></th><th>${T.th.who}</th><th>${T.th.src}</th><th>${T.th.agent}</th><th>${T.th.sit}</th><th>${T.th.since}</th><th class="n">${T.th.val}</th></tr></thead><tbody>
+      ${rows.map(tr).join("")||`<tr><td colspan="7"><div class="empty">${IC.users}<h3>${S.lang==="ar"?"لا شيء هنا":"Rien ici"}</h3></div></td></tr>`}
+    </tbody></table>${more?`<div class="hint" style="margin:10px 14px;border-radius:8px">${IC.list}<span>${T.trunc(more)}</span></div>`:""}</div></div>
+    ${panelHTML()}</div>`}
+
+function panelHTML(){const T=t();const l=ROWS().find(x=>x.id===S.open);
+  if(!l)return `<div class="panel"><div class="pempty">${IC.user}<p>${T.pick}</p></div></div>`;
+  const s=situation(l),tone=TONE[l.bucket],p=PRODUCTS[l.product],h=histLabel(l.cust);const c=l.camp?[...CAMPS.ly,...CAMPS.tn].find(k=>k.id===l.camp):null;
+  const owner=l.agent?`<div class="owner"><span class="avatar">${l.agent[0]}</span><div class="tx"><div class="tt">${T.owner.has(l.agent)}</div><div class="ds">${T.owner.has_d(T.ago(mins(l.created)),l.calls)}</div></div><button class="btn-o" data-reassign="${l.id}">${IC.user}${T.owner.re}</button></div>`
+    :`<div class="owner" data-t="red"><span class="avatar" style="color:var(--red-ink)">${IC.warn}</span><div class="tx"><div class="tt">${T.owner.none}</div><div class="ds">${T.owner.none_d}</div></div><button class="btn-k sm" data-reassign="${l.id}">${IC.user}${T.owner.assign}</button></div>`;
+  const client=S.editing?`<div class="card" style="grid-column:1/-1"><div class="ct">${IC.pen}${T.edit}</div><div class="edit-grid">
+      <div class="field"><label>${T.n.name}</label><input class="inp q" id="eName" value="${esc(l.name)}"></div><div class="field"><label>${T.n.phone}</label><input class="inp num" id="ePhone" value="${l.phone}"></div>
+      <div class="field"><label>${T.n.phone} 2</label><input class="inp num" id="ePhone2" value="${l.phone2||""}"></div><div class="field"><label>${T.n.area}</label><input class="inp q" id="eArea" value="${esc(l.area)}"></div>
+      <div class="field"><label>${T.product}</label><select class="inp" id="eProd">${Object.keys(PRODUCTS).map(k=>`<option value="${k}" ${k===l.product?"selected":""}>${esc(pname(k))}</option>`).join("")}</select></div><div class="field"><label>${T.note}</label><input class="inp q" id="eNote" value="${esc(l.note||"")}"></div></div>
+      <div style="display:flex;gap:8px"><button class="btn-k sm" id="eSave">${IC.check}${T.save}</button><button class="btn-o sm" id="eCancel">${T.cancel}</button></div></div>`
+   :`<div class="card"><div class="ct">${IC.user}${T.c_client}<button class="link" data-edit style="margin-inline-start:auto;font-size:13px">${IC.pen.replace('width="18"','')}${T.edit}</button></div>
+      <div class="kv">${IC.phone}<span class="num">${l.phone}</span></div>${l.phone2?`<div class="kv">${IC.phone}<span class="num">${l.phone2}</span></div>`:""}
+      <div class="kv">${IC.pin}<span class="t q">${esc(l.cust.addr||l.area)}</span></div>
+      <div class="kv">${IC.bag}<span class="risk" data-k="${h.k}">${h.txt}</span></div>
+      ${l.cust.last?`<div class="kv">${IC.box}<span class="t">${T.last(esc(pname(l.cust.last)),l.cust.days)}</span></div>`:""}
+      ${l.note?`<div class="quote q">${esc(l.note)}</div>`:""}</div>
+    <div class="card"><div class="ct">${IC.tag}${T.c_origin}</div>
+      <div class="kv">${IC[SRC_ICON[l.source]]}<span>${T.src[l.source]}</span></div>
+      <div class="kv">${IC.cal}<span>${T.created} ${T.ago(mins(l.created))}</span></div>
+      ${c?`<div class="kv">${IC.mega}<span class="t">${esc(S.lang==="ar"?c.ar:c.name)}</span></div>${c.offer!=="—"?`<div class="kv">${IC.star}<span class="t"><b>${T.offer}</b> · ${esc(S.lang==="ar"?c.offerAr:c.offer)}</span></div>`:""}`:""}
+      ${l.bucket==="winback"?`<div class="kv">${IC.truck}<span class="t">${T.order} #${l.order} · Darb</span></div><div class="quote q">« ${esc(l.reason)} »</div>`:""}
+      ${l.attempts?`<div class="kv">${IC.phone}<span>${T.attempts(l.attempts)}</span></div>`:""}
+      ${l.bucket==="lost"?`<div class="kv">${IC.ban}<span class="bad">${T.loss.r[l.lost]}</span></div>`:""}</div>`;
+  const tl=[{t:l.created,k:"created",who:"sys"},...l.tl.filter(x=>x.k!=="msg")].sort((a,b)=>b.t-a.t);
+  const tlHTML=`<ul class="tl">${tl.map(x=>{const lab={created:l.source==="csv"?T.tl.imported:T.tl.created,imported:T.tl.imported,assigned:T.tl.assigned(x.x),reassigned:T.tl.reassigned(x.x,x.y),call:T.tl.call,noans:T.tl.noans,reached:T.tl.reached,wa:T.tl.wa,cb:T.tl.cb,conv:T.tl.conv,ret:T.tl.ret,camp:T.tl.camp,lost:T.tl.lost,reopen:T.tl.reopen,edit:T.tl.edit}[x.k];
+     const tone2={created:"",imported:"",assigned:"violet",reassigned:"violet",call:"red",noans:"amber",reached:"green",wa:"green",cb:"blue",conv:"green",ret:"red",camp:"",lost:"red",reopen:"blue",edit:""}[x.k];
+     const icon={created:"file",imported:"upload",assigned:"user",reassigned:"user",call:"phone",noans:"phone",reached:"phone",wa:"wa",cb:"cal",conv:"cart",ret:"undo",camp:"mega",lost:"ban",reopen:"undo",edit:"pen"}[x.k];
+     const who={sys:T.tl.sys,mgr:T.tl.mgr,cust:T.tl.cust,agent:l.agent||T.tl.sys}[x.who];
+     const det=x.k==="cb"?x.x:x.k==="conv"||x.k==="ret"?x.x:x.k==="lost"?T.loss.r[x.x]:x.k==="camp"?cname(x.x):"";
+     const d=new Date(x.t);const day=mins(x.t)>1440?`${d.getDate()}/${d.getMonth()+1} `:"";
+     return `<li><span class="t num">${day}${hhmm(x.t)}</span><span class="d" data-t="${tone2}">${IC[icon]}</span><span><b>${lab}</b> <span class="mute">· ${who}</span>${det?`<small class="q">${esc(det)}</small>`:""}</span></li>`}).join("")}</ul>`;
+  const foot=l.bucket==="lost"?`<button class="btn-o" data-t="green" data-reopen="${l.id}">${IC.undo}${T.reopen}</button>`
+    :l.bucket==="converted"?`<button class="btn-o" data-order="${l.order}">${IC.cart}${T.openOrder} #${l.order}</button>`
+    :`<button class="btn-o" data-reassign="${l.id}">${IC.user}${l.agent?T.owner.re:T.owner.assign}</button><button class="btn-o" data-t="red" data-close="${l.id}">${IC.ban}${T.close}</button>`;
+  return `<div class="panel">
+    <div class="ph1"><h3><span class="q">${esc(l.name)}</span><span class="id">${l.id}</span></h3><button class="x" id="pClose" aria-label="${T.cancel}">${IC.x}</button></div>
+    <div class="ph2"><div class="chips"><span class="chip" data-t="${tone}">${IC[s.icon]}${s.chip}</span><span class="chip" data-t="line">${IC[SRC_ICON[l.source]]}${T.src[l.source]}</span></div><span class="big"><span class="num">${cur(val(l))}</span><small>${l.bucket==="converted"?T.val_ord:T.val_l}</small></span></div>
+    ${owner}
+    <div class="cards">${client}</div>
+    ${l.msg?`<div class="card quote q" style="padding:10px 12px">« ${esc(l.msg)} »</div>`:""}
+    <div class="sec-t">${T.activity}</div>${tlHTML}
+    <div class="pfoot">${foot}</div></div>`}
+
+/* ── Campagnes ── */
+function campaignsBody(){const T=t();const cp=CP();
+  return `<div class="scroll"><div class="g" data-c="21">
+    <div class="mcard"><h3>${IC.mega}${T.camps.t}<span class="r">${cp.length}</span></h3>${cp.map(c=>campCard(c)).join("")||`<div class="empty">${IC.mega}<h3>${T.camps.empty}</h3></div>`}</div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="mcard"><h3>${IC.split}${T.d.rule}</h3><div class="bd"><div class="hint">${IC.shield}<span>${T.d.r1}. ${T.d.r1d}</span></div><div class="hint">${IC.clock}<span>${T.d.capd}</span></div></div></div>
+      <div class="mcard"><h3>${IC.ban}${T.loss.t}</h3><div class="bd"><div class="loss">${Object.entries(M().loss).sort((a,b)=>b[1]-a[1]).filter(([,v])=>v).map(([k,v],i,arr)=>`<div class="r"><span>${T.loss.r[k]}</span><span class="bar"><b style="--w:${pct(v,arr[0][1])}%"></b></span><span class="n">${v}</span></div>`).join("")||`<span class="mute">—</span>`}</div></div></div>
+    </div></div></div>`}
+
+/* ── Équipe ── */
+function teamBody(){const T=t();const ag=AG();const worst=ag.filter(a=>a.hot&&a.hotOld>=30).sort((a,b)=>b.hotOld-a.hotOld)[0];const free=ag.filter(a=>a.on&&!a.hot&&a.n!==(worst&&worst.n)).sort((a,b)=>a.queue-b.queue)[0];
+  const ranked=[...ag].sort((a,b)=>(b.hot*1000+b.hotOld)-(a.hot*1000+a.hotOld)||b.late-a.late||b.queue-a.queue);
+  const reb=worst&&free?`<div class="alert" data-t="amber"><span class="ico">${IC.flame}</span><div class="tx"><div class="tt">${T.reb.t}</div><div class="ds">${T.reb.d(worst.n,worst.hot,free.n)}</div></div><button class="btn-k" id="btnReb" data-from="${worst.n}" data-to="${free.n}" data-n="${worst.hot}">${IC.arr}${T.reb.cta}</button></div>`:"";
+  return `<div class="scroll">${reb}<div class="agents">${ranked.map(a=>{const tone=a.hot&&a.hotOld>=30?"red":a.hot||a.late>=2?"amber":"";
+    return `<div class="ag" data-t="${tone}"><div class="h"><span class="avatar" data-on="${a.on}">${a.n[0]}</span><div><div class="nm">${a.n}</div><small>${a.on?`${T.agt.online} · ${a.last!=null?T.agt.last(a.last):T.agt.idle}`:T.agt.offline}</small></div><span class="chip sm" data-t="${a.hot?"amber":"green"}">${a.hot?T.agt.hotwait(a.hot,a.hotOld):T.agt.nohot}</span></div>
+      <div class="ks"><div class="k"><b>${a.calls}</b><span>${T.agt.calls}</span></div><div class="k"><b>${a.reached}</b><span>${T.agt.reached}</span></div><div class="k"><b>${a.conv}</b><span>${T.agt.conv}${a.calls?` · ${pct(a.conv,a.calls)} %`:""}</span></div><div class="k" ${a.late>=2?'data-t="amber"':""}><b>${a.late}</b><span>${T.agt.late}</span></div></div>
+      <div class="cap"><span>${T.agt.queue} <b>${a.queue}</b></span><span class="hbar" ${a.calls>=a.cap?'data-t="amber"':""}><b style="--w:${pct(a.calls,a.cap)}%"></b></span><span>${T.agt.cap(a.calls,a.cap)}</span></div>
+      ${sp(a.spark,"#8C9196",300,34)}
+      <div class="ft"><button class="btn-o" data-queue="${a.n}">${IC.list}${T.agt.view}</button><button class="btn-o" data-give="${a.n}">${IC.split}${T.agt.give}</button></div></div>`}).join("")}</div></div>`}
+
+/* ── Sheets ── */
+function distPool(){const m=M();if(S.dist.pool!=null)return S.dist.pool;return S.sel.size||m.pool}
+function distPreview(){const ag=AG();const on=(S.dist.agents||ag.filter(a=>a.on).map(a=>a.n));const n=distPool();const cap=S.dist.cap;const picked=ag.filter(a=>on.includes(a.n));
+  let rows=[],left=n;
+  if(S.dist.rule==="r3"){const tot=picked.reduce((s,a)=>s+Math.max(1,40-a.queue),0);picked.forEach(a=>{const share=Math.min(cap-Math.min(cap,a.calls),Math.round(n*Math.max(1,40-a.queue)/tot));rows.push({a,today:Math.max(0,share)})})}
+  else picked.forEach(a=>rows.push({a,today:Math.max(0,cap-Math.min(cap,a.calls))}));
+  rows.forEach(r=>{r.today=Math.min(r.today,left);left-=r.today});
+  return {rows,left,on}}
+function sheetHTML(){const T=t();
+  if(S.sheet==="dist"){const ag=AG();const {rows,left,on}=distPreview();const n=distPool();const tot=rows.reduce((s,r)=>s+r.today,0);
+    return `<div class="sh"><div><h2>${T.d.t}</h2><div class="sub">${S.dist.scopeLabel?`${S.dist.scopeLabel} · `:""}${T.d.sub(n)}</div></div><button class="x" data-close>${IC.x}</button></div>
+    <div class="sb"><div class="g2" style="grid-template-columns:1fr 1.2fr;gap:18px"><div style="display:flex;flex-direction:column;gap:14px">
+      <div class="field"><label>${T.d.agents}</label><div class="aglist">${ag.map(a=>`<label data-on="${on.includes(a.n)}"><input type="checkbox" class="cb" data-dag="${a.n}" ${on.includes(a.n)?"checked":""}><span class="avatar sm" data-on="${a.on}">${a.n[0]}</span><span>${a.n}<small>${T.agt.queue} ${a.queue} · ${a.calls}/${a.cap} ${T.agt.calls}</small></span><span class="n">${a.on?`<span class="chip sm" data-t="green">${T.agt.online}</span>`:`<span class="chip sm" data-t="grey">${T.agt.offline}</span>`}</span></label>`).join("")}</div></div>
+      <div class="field"><label>${T.d.rule}</label><div class="radio">${["r1","r2","r3"].map(k=>`<label data-on="${S.dist.rule===k}"><input type="radio" name="rule" data-rule="${k}" ${S.dist.rule===k?"checked":""}><span><b>${T.d[k]}</b>${T.d[k+"d"]}</span></label>`).join("")}</div></div>
+      <div class="field"><label for="dCap">${T.d.cap}</label><input class="inp num" id="dCap" type="number" min="1" max="200" value="${S.dist.cap}"><span class="hp">${T.d.capd}</span></div></div>
+      <div style="display:flex;flex-direction:column;gap:12px"><div class="field"><label>${T.d.prev}</label><div class="prev"><table class="t"><thead><tr><th>${T.d.who}</th><th class="n">${T.d.today}</th><th class="n">${T.d.queue}</th></tr></thead><tbody>
+        ${rows.map(r=>`<tr><td><span class="who"><span class="avatar sm">${r.a.n[0]}</span>${r.a.n}</span></td><td class="n">+${r.today}</td><td class="n">${r.a.queue+r.today}</td></tr>`).join("")||`<tr><td colspan="3" class="mute">${T.d.none}</td></tr>`}
+        <tr class="tot"><td>${T.d.today}</td><td class="n">${fmt(tot)}</td><td></td></tr>${left?`<tr><td class="mute">${T.d.rest}</td><td class="n mute">${fmt(left)}</td><td class="mute" style="font-size:12.5px">${T.d.tomorrow(left)}</td></tr>`:""}
+      </tbody></table></div></div><div class="hint">${IC.shield}<span>${T.d.r1d}</span></div></div></div></div>
+    <div class="sf"><button class="btn-o" data-close>${T.cancel}</button><button class="btn-k" id="dGo" ${tot?"":"disabled"}>${IC.split}${T.d.go(tot)}</button></div>`}
+  if(S.sheet==="assign"){const ids=S.assignIds||[];const ag=AG();
+    return `<div class="sh"><div><h2>${T.a.t}</h2><div class="sub">${T.a.sub(ids.length)}</div></div><button class="x" data-close>${IC.x}</button></div>
+    <div class="sb"><div class="field"><label>${T.a.to}</label><div class="aglist">${ag.map(a=>`<label data-on="${S.assignTo===a.n}"><input type="radio" name="ato" data-ato="${a.n}" ${S.assignTo===a.n?"checked":""}><span class="avatar sm" data-on="${a.on}">${a.n[0]}</span><span>${a.n}<small>${T.agt.queue} ${a.queue} · ${a.hot?T.agt.hotwait(a.hot,a.hotOld):T.agt.nohot}</small></span><span class="n">${a.calls}/${a.cap}<small>${T.agt.calls}</small></span></label>`).join("")}</div></div>
+      <div class="field"><label for="aWhy">${T.a.why}</label><input class="inp" id="aWhy" placeholder="${T.a.why_ph}"></div></div>
+    <div class="sf"><button class="btn-o" data-close>${T.cancel}</button><button class="btn-k" id="aGo" ${S.assignTo?"":"disabled"}>${IC.check}${T.a.go}</button></div>`}
+  if(S.sheet==="lost"){const ids=S.assignIds||[];
+    return `<div class="sh"><div><h2>${T.l.t}</h2><div class="sub">${T.a.sub(ids.length)} · ${T.l.sub}</div></div><button class="x" data-close>${IC.x}</button></div>
+    <div class="sb"><div class="field"><label>${T.l.why}</label><div class="opts">${Object.entries(T.loss.r).map(([k,v])=>`<button class="opt" data-lost="${k}" aria-pressed="${S.lostPick===k}">${v}</button>`).join("")}</div></div>
+      <div class="field"><label for="lNote">${T.l.note}</label><textarea class="inp" id="lNote"></textarea></div></div>
+    <div class="sf"><button class="btn-o" data-close>${T.cancel}</button><button class="btn-k" data-dark id="lGo" ${S.lostPick?"":"disabled"}>${IC.ban}${T.l.go}</button></div>`}
+  if(S.sheet==="new"){const ph=S.nPhone||"";const m=matchFor(ph);
+    return `<div class="sh"><div><h2>${T.n.t}</h2><div class="sub">${T.n.sub}</div></div><button class="x" data-close>${IC.x}</button></div>
+    <div class="sb"><div class="field"><label for="nPhone">${T.n.phone}</label><input class="inp big" id="nPhone" inputmode="tel" placeholder="09_ ___ ____" value="${esc(ph)}"></div>
+      ${m?`<div class="match" data-k="${m.k}">${IC[m.k==="known"?"check":m.k==="new"?"user":"warn"]}<span>${m.txt}</span></div>`:""}
+      <div class="g2"><div class="field"><label for="nName">${T.n.name}</label><input class="inp q" id="nName" value="${esc(m&&m.name||"")}"></div><div class="field"><label for="nArea">${T.n.area}</label><input class="inp q" id="nArea" value="${esc(m&&m.area||"")}"></div></div>
+      <div class="field"><label>${T.n.src}</label><div class="opts">${["call","whatsapp","fb_comment","fb_dm","ig_dm","manual"].map(k=>`<button class="opt" data-src="${k}" aria-pressed="${S.nSrc===k}">${IC[SRC_ICON[k]]}${T.src[k]}</button>`).join("")}</div></div>
+      <div class="g2"><div class="field"><label for="nProd">${T.n.prod}</label><select class="inp" id="nProd">${Object.keys(PRODUCTS).map(k=>`<option value="${k}">${esc(pname(k))} · ${cur(PRODUCTS[k].price)}</option>`).join("")}</select></div><div class="field"><label for="nAgent">${T.n.agent}</label><select class="inp" id="nAgent"><option value="">${T.n.agent_none}</option>${AG().map(a=>`<option ${S.nAgent===a.n?"selected":""}>${a.n}</option>`).join("")}</select></div></div>
+      <div class="field"><label for="nNote">${T.n.note}</label><input class="inp q" id="nNote"></div></div>
+    <div class="sf"><button class="btn-o" data-close>${T.cancel}</button><button class="btn-k" id="nGo">${IC.check}${T.n.go}</button></div>`}
+  if(S.sheet==="import"){const cols=[["telephone","phone"],["nom","name"],["ville","area"],["produit","product"],["note","note"]];
+    return `<div class="sh"><div><h2>${T.i.t}</h2><div class="sub">${T.i.sub}</div></div><button class="x" data-close>${IC.x}</button></div>
+    <div class="sb"><div class="g2" style="gap:18px"><div style="display:flex;flex-direction:column;gap:14px">
+      <div class="csv">${IC.upload}<b>${T.i.file}</b>${T.i.drop_d}</div>
+      <div class="field"><label>${T.i.map}</label><div class="map"><span class="eyebrow">${T.i.col}</span><span></span><span class="eyebrow">${T.i.field}</span>${cols.map(([c,f])=>`<span class="c">${c}</span>${IC.arr}<select class="inp" style="height:34px"><option>${T.n[f]||T[f]||f}</option></select>`).join("")}</div></div>
+      <div class="field"><label>${T.i.src}</label><div class="opts">${["manual","call","whatsapp"].map(k=>`<button class="opt" data-src="${k}" aria-pressed="${S.nSrc===k}">${IC[SRC_ICON[k]]}${T.src[k]}</button>`).join("")}</div></div></div>
+      <div style="display:flex;flex-direction:column;gap:12px"><div class="field"><label>${T.i.dry}</label>
+        <div class="match" data-k="known">${IC.check}<span>${T.i.ok_n(198)}</span></div><div class="match" data-k="open">${IC.warn}<span>${T.i.dup(11)}</span></div><div class="match" data-k="risk">${IC.cross}<span>${T.i.bad(5)}</span></div></div>
+        <div class="field"><label for="iAgent">${T.i.assign}</label><select class="inp" id="iAgent"><option value="">${T.i.assign_none}</option>${AG().map(a=>`<option>${a.n}</option>`).join("")}</select></div></div></div></div>
+    <div class="sf"><button class="btn-o" data-close>${T.cancel}</button><button class="btn-k" id="iGo">${IC.upload}${T.i.go(198)}</button></div>`}
+  if(S.sheet==="campaign")return campaignSheet();
+  return ""}
+function matchFor(ph){const T=t();const d=ph.replace(/\D/g,"");if(d.length<6)return null;
+  const l=ROWS().find(x=>x.phone.replace(/\D/g,"").startsWith(d)&&x.bucket!=="converted"&&x.bucket!=="lost");
+  if(l&&l.bucket==="winback")return {k:"risk",txt:T.m.risk(l.cust.r),name:l.name,area:l.area};
+  if(l)return {k:"open",txt:T.m.open(l.agent||T.pool,T.ago(mins(l.created))),name:l.name,area:l.area};
+  if(d.startsWith("0917")||d.startsWith("0921"))return {k:"known",txt:T.m.known(2,pname("p2"),41),name:S.lang==="ar"?"ليلى بن سعيد":"Leïla Ben Saïd",area:"طرابلس · عين زارة"};
+  return {k:"new",txt:T.m.new}}
+/* ── Audience conditions: a list of {k,...} rows; the count is simulated from them ── */
+const CT={outcome:{g:"orders",ic:"box",fixed:true},period:{g:"orders",ic:"cal",fixed:true},recency:{g:"orders",ic:"clock",def:{x:60,y:120}},product:{g:"orders",ic:"tag",def:{v:["p1"]}},basket:{g:"orders",ic:"cart",def:{n:200}},
+ count:{g:"client",ic:"bag",def:{op:"gte",n:2}},city:{g:"client",ic:"pin",def:{v:[]}},returns:{g:"client",ic:"undo",def:{m:"none",n:20}},reason:{g:"client",ic:"warn",def:{v:["refus_client","injoignable"]}},agent:{g:"client",ic:"user",def:{v:[]}},
+ ordered:{g:"guard",ic:"shield",def:{n:30}},incamp:{g:"guard",ic:"mega",def:{n:60}},lostni:{g:"guard",ic:"ban",def:{}},limit:{g:"size",ic:"list",def:{sort:"oldest",n:500}}};
+const TMPL={rebuy:[{k:"outcome",v:["delivered"]},{k:"period",mode:"preset",days:180},{k:"recency",x:60,y:120},{k:"product",v:["p1"]},{k:"ordered",n:30}],
+ winback:[{k:"outcome",v:["returned"]},{k:"period",mode:"preset",days:90},{k:"reason",v:["refus_client","injoignable","livraison_impossible"]},{k:"incamp",n:60}],
+ vip:[{k:"outcome",v:["delivered"]},{k:"period",mode:"preset",days:365},{k:"count",op:"gte",n:3},{k:"basket",n:200},{k:"ordered",n:30},{k:"limit",sort:"basket",n:300}],
+ lapsed:[{k:"outcome",v:["delivered"]},{k:"period",mode:"preset",days:365},{k:"recency",x:180,y:365},{k:"ordered",n:30},{k:"lostni"}],
+ custom:[{k:"outcome",v:["delivered"]},{k:"period",mode:"preset",days:90}]};
+const SAMPLE={ly:[["نجاة الفيتوري","091 445 6677","p1",78,2],["خالد الزاوي","091 665 5443","p1",94,1],["مروة الصويعي","092 776 6554","p2",63,4],["سعاد المقريف","091 210 4478","p1",81,2],["آمنة بن غزي","094 771 3390","p1",66,3],["ناصر الورفلي","091 905 2210","p1",118,1],["هبة الشلماني","092 133 8877","p3",210,2]],
+ tn:[["Amira Ben Salah","22 415 880","p2",44,1],["Mohamed Trabelsi","98 302 117","p2",52,2],["Sana Gharbi","55 780 224","p2",39,1],["Hichem Bouzid","52 901 377","p2",70,3],["Yasmine Ayari","27 664 019","p1",95,1],["Karim Jlassi","20 118 903","p3",240,2]]};
+const ISO=(d)=>new Date(d).toISOString().slice(0,10);
+function condDays(c){if(c.mode==="custom"&&c.from&&c.to)return Math.max(1,Math.round((Date.parse(c.to)-Date.parse(c.from))/864e5));return c.days}
+function audienceCount(){const cs=S.cb.cond;const g=(k)=>cs.find(c=>c.k===k);const out=g("outcome").v;const days=condDays(g("period"));
+  const rate={delivered:3.3,returned:.45,rejected:.66};let n=out.reduce((s,k)=>s+rate[k]*Math.min(days,400),0);
+  cs.forEach(c=>{switch(c.k){
+    case "recency":n*=Math.min(1,Math.max(.05,(c.y-c.x)/Math.max(days,1)));break;
+    case "product":n=c.v.length?n*Math.min(1,.62+.18*(c.v.length-1)):0;break;
+    case "basket":n*=Math.min(1,Math.max(.05,1-c.n/600));break;
+    case "count":n*=c.op==="gte"?(c.n>=3?.17:c.n===2?.38:1):c.op==="eq"?(c.n===1?.62:.2):.62;break;
+    case "city":n=c.v.length?n*Math.min(1,.45*c.v.length):n;break;
+    case "returns":n*=c.m==="none"?.86:c.m==="any"?.14:Math.min(1,.7+c.n/100);break;
+    case "reason":n*=Math.min(1,.25*Math.max(1,c.v.length));break;
+    case "agent":if(c.v.length)n*=Math.min(1,.28*c.v.length);break;
+  }});n=Math.round(n);
+  const ord=g("ordered"),inc=g("incamp");
+  const ex=[Math.round(n*.03),ord?Math.min(Math.round(n*.2),Math.round(n*.05*ord.n/30)):0,inc?Math.min(Math.round(n*.15),Math.round(n*.04*inc.n/60)):0,g("lostni")?Math.round(n*.012):0,Math.round(n*.008)];
+  let net=Math.max(0,n-ex.reduce((a,b)=>a+b,0));const lim=g("limit");if(lim&&lim.n)net=Math.min(net,lim.n);return {n,ex,net}}
+function condSummary(){const T=t();return S.cb.cond.map(c=>{switch(c.k){
+  case "outcome":return c.v.map(k=>T.cb.outcomes[k]).join(" + ");
+  case "period":return c.mode==="custom"?`${c.from} → ${c.to}`:`${c.days} ${T.cb.days}`;
+  case "recency":return `${T.cb.c.recency} ${c.x}–${c.y} ${T.cb.days}`;
+  case "product":return c.v.map(pname).join(", ");
+  case "basket":return `${T.cb.c.basket} ≥ ${cur(c.n)}`;
+  case "count":return `${T.cb.c.count} ${c.op==="gte"?"≥":c.op==="eq"?"=":"≤"} ${c.n}`;
+  case "city":return c.v.join(", ");
+  case "returns":return c.m==="rate"?`${T.cb.ret.rate} ${c.n} %`:T.cb.ret[c.m];
+  case "reason":return `${T.cb.c.reason} : ${c.v.map(k=>T.cb.reasons[k]).join(", ")}`;
+  case "agent":return c.v.length?`${T.cb.c.agent} ${c.v.join(", ")}`:null;
+  case "limit":return `${T.cb.limit_l} ${c.n}`;
+  default:return null}}).filter(Boolean).join(" · ")}
+function condRow(c,i){const T=t();const ct=CT[c.k];
+  const chips=(prop,opts)=>opts.map(([k,v,ic])=>`<button class="opt" data-ci="${i}" data-tog="${k}" data-prop="${prop}" aria-pressed="${c[prop].includes(k)}">${ic?IC[ic]:""}${v}</button>`).join("");
+  const num=(prop)=>`<input class="inp n num" type="number" min="0" data-ci="${i}" data-prop="${prop}" value="${c[prop]}" aria-label="${T.cb.c[c.k]}">`;
+  const set=(prop,k,v,on)=>`<button class="opt" data-ci="${i}" data-prop="${prop}" data-set="${k}" aria-pressed="${on}">${v}</button>`;
+  let ed="";
+  switch(c.k){
+    case "outcome":ed=chips("v",[["delivered",T.cb.outcomes.delivered,"check"],["returned",T.cb.outcomes.returned,"undo"],["rejected",T.cb.outcomes.rejected,"ban"]]);break;
+    case "period":ed=[[30,T.cb.p30],[90,T.cb.p90],[180,T.cb.p180],[365,T.cb.p365]].map(([k,v])=>set("days",k,v,c.mode==="preset"&&c.days===k)).join("")+set("mode","custom",IC.cal+T.cb.custom,c.mode==="custom")
+      +(c.mode==="custom"?`<span class="sep">${T.cb.from}</span><input class="inp d num" type="date" data-ci="${i}" data-prop="from" value="${c.from}"><span class="sep">${T.cb.to}</span><input class="inp d num" type="date" data-ci="${i}" data-prop="to" value="${c.to}"><span class="sep">· ${condDays(c)} ${T.cb.days}</span>`:"");break;
+    case "recency":ed=`<span class="sep">${T.cb.between}</span>${num("x")}<span class="sep">${T.cb.and}</span>${num("y")}<span class="sep">${T.cb.days}</span>`;break;
+    case "product":ed=chips("v",Object.keys(PRODUCTS).map(k=>[k,pname(k)]));break;
+    case "basket":ed=`<span class="sep">≥</span>${num("n")}<span class="sep">${mkt()==="tn"?"TND":"LYD"}</span>`;break;
+    case "count":ed=`<select class="inp" data-ci="${i}" data-prop="op" aria-label="${T.cb.c.count}">${[["gte","≥"],["eq","="],["lte","≤"]].map(([k,v])=>`<option value="${k}" ${c.op===k?"selected":""}>${v}</option>`).join("")}</select>${num("n")}`;break;
+    case "city":ed=chips("v",(mkt()==="tn"?["Tunis","Sfax","Sousse","Nabeul","Bizerte"]:["طرابلس","بنغازي","مصراتة","الزاوية","زليتن"]).map(k=>[k,k]));break;
+    case "returns":ed=[["none",T.cb.ret.none],["any",T.cb.ret.any],["rate",T.cb.ret.rate]].map(([k,v])=>set("m",k,v,c.m===k)).join("")+(c.m==="rate"?`${num("n")}<span class="sep">%</span>`:"");break;
+    case "reason":ed=chips("v",Object.entries(T.cb.reasons).map(([k,v])=>[k,v]));break;
+    case "agent":ed=chips("v",AG().map(a=>[a.n,a.n]));break;
+    case "ordered":case "incamp":ed=`${num("n")}<span class="sep">${T.cb.days}</span>`;break;
+    case "lostni":ed=`<span class="sep">${T.cb.always}</span>`;break;
+    case "limit":ed=`<select class="inp" data-ci="${i}" data-prop="sort" aria-label="${T.cb.c.limit}">${Object.entries(T.cb.sort).map(([k,v])=>`<option value="${k}" ${c.sort===k?"selected":""}>${v}</option>`).join("")}</select><span class="sep">${T.cb.limit_l}</span>${num("n")}`;break;
+  }
+  return `<div class="cond" data-g="${ct.g}"><div class="lb"><small>${T.cb.grp[ct.g]}</small><b>${T.cb.c[c.k]}</b></div><div class="ed">${ed}</div>${ct.fixed?`<span class="lockic" title="${T.cb.always}">${IC.shield}</span>`:`<button class="rm" data-rmc="${i}" aria-label="${T.cancel}">${IC.x}</button>`}</div>`}
+function campaignSheet(){const T=t();const c=S.cb;const {n,ex,net}=audienceCount();const ag=AG();
+  const steps=[["aud",1],["offer",2],["dist",3]].map(([k,i])=>`<span data-on="${c.step===i}" data-done="${c.step>i}"><i>${c.step>i?"✓":i}</i>${T.cb[k]}</span>`).join(`<span class="mute">›</span>`);
+  let body="";
+  if(c.step===1){const cs=c.cond;const out=cs.find(x=>x.k==="outcome").v;const exColors=["#FCA5A5","#FDE68A","#C4B5FD","#9CA3AF","#6B7280"];
+    const exLabels=[T.cb.ex.open,T.cb.ex.recent((cs.find(x=>x.k==="ordered")||{}).n||0),T.cb.ex.camp((cs.find(x=>x.k==="incamp")||{}).n||0),T.cb.ex.lost,T.cb.ex.opt];
+    const lockRow=(k)=>`<div class="cond" data-lock data-g="guard"><div class="lb"><small>${T.cb.grp.guard}</small><b>${T.cb.c[k]}</b></div><div class="ed"><span class="sep">${T.cb.always}</span></div><span class="lockic">${IC.shield}</span></div>`;
+    const menu=c.addOpen?`<div class="addmenu" role="menu">${["orders","client","guard","size"].map(g=>`<div class="grp">${T.cb.grp[g]}</div>`+Object.keys(CT).filter(k=>CT[k].g===g&&!CT[k].fixed).map(k=>{const dis=cs.some(x=>x.k===k)||(k==="reason"&&!out.some(o=>o!=="delivered"));return `<button role="menuitem" data-addk="${k}" ${dis?"disabled":""}>${IC[CT[k].ic]}<span>${T.cb.c[k]}<small>${T.cb.desc[k]}</small></span></button>`}).join("")).join("")}</div>`:"";
+    const rec=cs.find(x=>x.k==="recency");const smp=SAMPLE[mkt()].filter(s=>!rec||(s[3]>=rec.x&&s[3]<=rec.y)).slice(0,4);
+    body=`<div class="g2" style="grid-template-columns:1.4fr 1fr;gap:18px"><div style="display:flex;flex-direction:column;gap:14px">
+      <div class="field"><label>${T.cb.tmpl_t}</label><div class="tmpls">${["rebuy","winback","vip","lapsed","custom"].map(k=>`<button class="tmpl" data-tmpl="${k}" aria-pressed="${c.tmpl===k}">${IC[{rebuy:"undo",winback:"truck",vip:"star",lapsed:"clock",custom:"pen"}[k]]}${T.cb.tmpl[k]}</button>`).join("")}</div></div>
+      <div class="conds">${cs.map(condRow).join("")}${lockRow("open")}${lockRow("optout")}</div>
+      <div class="addc"><button class="btn-o sm" id="addC" aria-expanded="${!!c.addOpen}">${IC.plus}${T.cb.add}</button><button class="link" style="font-size:13px" id="saveTmpl">${IC.star}${T.cb.save_tmpl}</button>${menu}</div></div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="counter" style="flex-direction:column;align-items:stretch;gap:2px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><span class="v num">${fmt(net)}<small>${T.cb.cnt}</small></span><span class="ex num">${fmt(n)} ${T.cb.raw}</span></div><div class="stack" role="img">${ex.map((v,i)=>`<b style="width:${pct(v,n)}%;background:${exColors[i]}"></b>`).join("")}<b style="flex:1;background:#22C55E"></b></div></div>
+        <div class="exl">${ex.map((v,i)=>v?`<div><span><i style="background:${exColors[i]}"></i>${exLabels[i]}</span><b>−${fmt(v)}</b></div>`:"").join("")||`<div class="mute">—</div>`}</div>
+        <div class="field"><label>${T.cb.sample}</label><div class="sample">${smp.map(s=>`<div><span><span class="q">${esc(s[0])}</span><small class="num">${s[1]}</small></span><span class="n">${esc(pname(s[2]))}<small>${T.ago(s[3]*1440)} · ${s[4]} ${T.fun.deliv.toLowerCase()}</small></span></div>`).join("")||`<div class="mute" style="padding:10px 12px">—</div>`}</div></div>
+        <div class="hint">${IC.shield}<span>${T.cb.base_hint}</span></div></div></div>`}
+  if(c.step===2){const wa=c.channel!=="call";const agent=c.agents[0]||"Hend";const smp=SAMPLE[mkt()][0];const msg=(c.wa.msg||T.cb.wa_msg_ph).replace("{name}",smp[0]).replace("{agent}",agent).replace("{offer}",c.offer||T.cb.offer_ph.replace(/^ex\. |^مثال: /,""));
+    const chan=`<div class="field"><label>${T.cb.chan_l}</label><div class="chan">${["call","wa","wa_call"].map(k=>`<button data-chan="${k}" aria-pressed="${c.channel===k}"><b>${k==="call"?IC.phone:IC.wa}${T.cb.chan[k]}</b><span>${T.cb.chan_d[k]}</span></button>`).join("")}</div></div>`;
+    const composer=wa?`<div class="g2" style="grid-template-columns:1.15fr 1fr;gap:18px"><div style="display:flex;flex-direction:column;gap:12px">
+        <div class="field"><label for="cWa">${T.cb.wa_msg}</label><textarea class="inp q" id="cWa" style="min-height:120px" placeholder="${T.cb.wa_msg_ph}">${esc(c.wa.msg)}</textarea><div class="vars">${["{name}","{agent}","{offer}"].map(v=>`<button data-var="${v}">${v}</button>`).join("")}<span class="hp" style="align-self:center">${T.cb.vars}</span></div></div>
+        <label class="opt" style="width:fit-content" data-on="${c.wa.img}"><input type="checkbox" class="cb" id="cImg" ${c.wa.img?"checked":""}> ${T.cb.wa_img}</label>
+        <div class="field"><label>${T.cb.wa_mode_l}</label><div class="radio">${["agent","api"].map(k=>`<label data-on="${c.wa.mode===k}"><input type="radio" name="wamode" data-wamode="${k}" ${c.wa.mode===k?"checked":""}><span><b>${T.cb.wa_mode[k]}${k==="api"?` <span class="chip sm" data-t="grey">${T.cb.wa_notconn}</span>`:""}</b>${T.cb.wa_mode_d[k]}</span></label>`).join("")}</div></div>
+        <div class="g3"><div class="field"><label for="cWin">${T.cb.wa_window}</label><select class="inp" id="cWin">${["9–13","10–20","14–21"].map(v=>`<option ${c.wa.window===v?"selected":""}>${v} h</option>`).join("")}</select></div>
+          <div class="field"><label for="cRate">${T.cb.wa_rate}</label><input class="inp num" type="number" id="cRate" min="5" max="120" value="${c.wa.rate}"><span class="hp">${T.cb.wa_rate_d(c.wa.rate)}</span></div>
+          ${c.channel==="wa_call"?`<div class="field"><label for="cThen">${T.cb.wa_then}</label><span style="display:flex;gap:6px;align-items:center"><input class="inp num" type="number" id="cThen" min="1" max="96" value="${c.wa.then}" style="width:80px"><span class="mute">${T.cb.wa_hours}</span></span><span class="hp">${T.cb.wa_then_d}</span></div>`:""}</div></div>
+      <div class="field"><label>${T.cb.wa_prev}</label><div class="wa-prev"><div class="hd"><span class="avatar">${agent[0]}</span><span>${agent} · ${S.lang==="ar"?"أوردرا":"Ordra"}</span><span class="mute" style="margin-inline-start:auto">10:42</span></div>
+        ${c.wa.img?`<div class="img">${IC.box}</div>`:""}<div class="bubble">${esc(msg)}<small class="num">10:42 ✓✓</small></div>
+        <div class="reply q">${T.cb.wa_reply}<small>${T.cb.wa_reply_t}</small></div></div></div></div>`:"";
+    body=`${chan}<div class="g2"><div class="field"><label for="cName">${T.cb.name}</label><input class="inp" id="cName" placeholder="${T.cb.name_ph}" value="${esc(c.name)}"></div><div class="field"><label for="cOffer">${T.cb.offer_l}</label><input class="inp" id="cOffer" placeholder="${T.cb.offer_ph}" value="${esc(c.offer)}"></div></div>
+      ${composer}
+      ${c.channel==="wa"?"":`<div class="field" style="gap:8px"><label>${c.channel==="wa_call"?T.cb.script_after:T.cb.script_call}</label><div class="g2"><div class="field"><label for="cFr">${T.cb.fr}</label><textarea class="inp" id="cFr" style="min-height:110px" placeholder="${T.cb.script_ph}">${esc(CAMPS.ly[0].script)}</textarea></div><div class="field"><label for="cAr">${T.cb.ar}</label><textarea class="inp q" id="cAr" style="min-height:110px" dir="rtl">${esc(CAMPS.ly[0].scriptAr)}</textarea></div></div><div class="hint">${IC.pen}<span>${T.cb.vars}</span></div></div>`}`}
+  if(c.step===3)body=`<div class="g2" style="grid-template-columns:1fr 1.2fr;gap:18px"><div style="display:flex;flex-direction:column;gap:14px">
+      <div class="field"><label>${T.d.agents}</label><div class="aglist">${ag.map(a=>`<label data-on="${c.agents.includes(a.n)}"><input type="checkbox" class="cb" data-cag="${a.n}" ${c.agents.includes(a.n)?"checked":""}><span class="avatar sm" data-on="${a.on}">${a.n[0]}</span><span>${a.n}<small>${T.agt.queue} ${a.queue}</small></span><span class="n">${a.on?`<span class="chip sm" data-t="green">${T.agt.online}</span>`:`<span class="chip sm" data-t="grey">${T.agt.offline}</span>`}</span></label>`).join("")}</div></div>
+      <div class="field"><label for="cCap">${T.d.cap}</label><input class="inp num" id="cCap" type="number" min="1" value="${c.cap}"><span class="hp">${T.d.capd}</span></div></div>
+      <div style="display:flex;flex-direction:column;gap:12px"><div class="field"><label>${T.cb.sum}</label><div class="prev"><table class="t"><tbody>
+        <tr><td class="mute">${T.cb.name}</td><td style="font-weight:600">${esc(c.name||T.cb.name_ph.replace(/^ex\. |^مثال: /,""))}</td></tr>
+        <tr><td class="mute">${T.cb.aud}</td><td><b>${fmt(net)}</b> · ${esc(condSummary())}</td></tr>
+        <tr><td class="mute">${T.offer}</td><td>${esc(c.offer||"—")}</td></tr>
+        <tr><td class="mute">${T.cb.sum_chan}</td><td>${c.channel==="call"?IC.phone.replace('width="18"',''):IC.wa.replace('width="18"','')} ${T.cb.chan[c.channel]}${c.channel==="wa_call"?` · ${T.cb.wa_then} ${c.wa.then} ${T.cb.wa_hours}`:""}${c.channel!=="call"?` · ${T.cb.wa_mode[c.wa.mode]}`:""}</td></tr>
+        ${c.channel!=="call"?`<tr><td class="mute">${T.cb.sum_send}</td><td><b>${fmt(Math.min(net,c.agents.length*c.wa.rate*(c.wa.window==="10–20"?10:c.wa.window==="9–13"?4:7)))}</b> · ${T.cb.wa_rate_d(c.wa.rate)}</td></tr>`:""}
+        <tr><td class="mute">${T.d.agents}</td><td>${c.agents.join(", ")||`<span class="bad">${T.d.none}</span>`}</td></tr>
+        <tr><td class="mute">${T.d.today}</td><td><b>${fmt(Math.min(net,c.agents.length*c.cap))}</b> · ${T.d.tomorrow(Math.max(0,net-c.agents.length*c.cap))}</td></tr>
+      </tbody></table></div></div><div class="hint">${IC.shield}<span>${T.d.r1}. ${T.d.r1d}</span></div></div></div>`;
+  return `<div class="sh"><div><h2>${T.cb.t}</h2><div class="stepper" style="margin-top:6px">${steps}</div></div><button class="x" data-close>${IC.x}</button></div>
+    <div class="sb">${body}</div>
+    <div class="sf"><span class="mute num">${fmt(net)} ${T.cb.cnt}</span>${c.step>1?`<button class="btn-o" id="cBack">${T.cb.back}</button>`:`<button class="btn-o" data-close>${T.cancel}</button>`}${c.step<3?`<button class="btn-k" id="cNext" style="flex:0 0 auto;width:auto;padding:0 22px" ${net?"":"disabled"}>${T.cb.next}${IC.arr}</button>`:`<button class="btn-k" id="cGo" style="flex:0 0 auto;width:auto;padding:0 22px" ${c.agents.length?"":"disabled"}>${IC.mega}${T.cb.create(Math.min(net,c.agents.length*c.cap))}</button>`}</div>`}
+
+/* ───────────────────────── Behaviour ───────────────────────── */
+function toast(msg){const el=document.getElementById("toast");el.innerHTML=IC.check+`<span>${msg}</span>`;el.dataset.on="true";clearTimeout(toast._t);toast._t=setTimeout(()=>el.dataset.on="false",2600)}
+function go(tab,filter){S.tab=tab;if(filter){S.filter=filter;S.agentF=null;S.campF=null}S.sel=new Set();S.open=null;S.editing=false;render()}
+function openDist(pool,label){S.dist.pool=pool;S.dist.scopeLabel=label||null;S.dist.agents=null;S.sheet="dist";render()}
+function ids(){return S.sel.size?[...S.sel]:S.open?[S.open]:[]}
+function pushTl(l,k,x,y){l.tl.push({t:NOW,k,who:"mgr",x,y})}
+function wire(){const T=t();const app=document.getElementById("app");
+  const on=(sel,fn)=>app.querySelectorAll(sel).forEach(el=>el.onclick=(e)=>fn(el,e));
+  // studio-ish controls inside the app
+  on("[data-scope]",(b)=>{S.scope=b.dataset.scope;S.sel=new Set();S.open=null;S.agentF=null;S.campF=null;render()});
+  on("[data-tab]",(b)=>go(b.dataset.tab));
+  on("[data-period]",(b)=>{S.period=b.dataset.period;render()});
+  on("[data-go]",(b)=>{const [tab,f]=b.dataset.go.split(":");go(tab,f)});
+  const q=document.getElementById("q");if(q)q.oninput=()=>{S.q=q.value;if(S.tab!=="pipeline")S.tab="pipeline";const pos=q.selectionStart;render();const e=document.getElementById("q");e.focus();e.setSelectionRange(pos,pos)};
+  const bi=document.getElementById("btnImport");if(bi)bi.onclick=()=>{S.nSrc="manual";S.sheet="import";render()};
+  const bn=document.getElementById("btnNew");if(bn)bn.onclick=()=>{S.nPhone="";S.nSrc="call";S.nAgent=null;S.sheet="new";render();setTimeout(()=>document.getElementById("nPhone")?.focus(),50)};
+  const bc=document.getElementById("btnCamp");if(bc)bc.onclick=()=>{S.cb.step=1;S.sheet="campaign";render()};
+  const bd=document.getElementById("btnDistAll");if(bd)bd.onclick=()=>openDist(M().pool);
+  on("[data-dist-camp]",(b)=>{const c=CP().find(x=>x.id===b.dataset.distCamp);openDist(c.pool,S.lang==="ar"?c.ar:c.name)});
+  on("[data-see-camp]",(b)=>{S.campF=b.dataset.seeCamp;go("pipeline","all");});
+  on("[data-agent-row]",(b)=>{S.agentF=b.dataset.agentRow;go("pipeline","all")});
+  on("[data-queue]",(b)=>{S.agentF=b.dataset.queue;go("pipeline","all")});
+  on("[data-give]",(b)=>{S.dist.agents=[b.dataset.give];S.dist.pool=M().pool;S.dist.scopeLabel=null;S.sheet="dist";render()});
+  const rb=document.getElementById("btnReb");if(rb)rb.onclick=()=>{const {from,to,n}=rb.dataset;const a=AG().find(x=>x.n===from),b=AG().find(x=>x.n===to);b.hot+=a.hot;b.hotOld=a.hotOld;b.queue+=a.hot;a.queue-=a.hot;a.hot=0;a.hotOld=0;ROWS().filter(l=>l.agent===from&&l.bucket==="hot").forEach(l=>{pushTl(l,"reassigned",from,to);l.agent=to});render();toast(T.toast.moved(n,to))};
+  // pipeline
+  on("[data-f]",(b)=>{S.filter=b.dataset.f;S.sel=new Set();render()});
+  const af=document.getElementById("agentF");if(af)af.onchange=()=>{S.agentF=af.value||null;if(af.value==="__none"){S.agentF=null;S.filter="pool"}S.sel=new Set();render()};
+  const cf=document.getElementById("campF");if(cf)cf.onchange=()=>{S.campF=cf.value||null;S.sel=new Set();render()};
+  app.querySelectorAll("tr[data-id]").forEach(r=>{r.onclick=(e)=>{if(e.target.closest("input"))return;S.open=r.dataset.id;S.editing=false;render()}});
+  app.querySelectorAll("[data-ck]").forEach(c=>c.onchange=()=>{c.checked?S.sel.add(c.dataset.ck):S.sel.delete(c.dataset.ck);render()});
+  const ca=document.getElementById("ckAll");if(ca)ca.onchange=()=>{const rows=visible();ca.checked?rows.forEach(l=>S.sel.add(l.id)):rows.forEach(l=>S.sel.delete(l.id));render()};
+  const sc=document.getElementById("selClear");if(sc)sc.onclick=()=>{S.sel=new Set();render()};
+  const sa=document.getElementById("selAssign");if(sa)sa.onclick=()=>{S.assignIds=ids();S.assignTo=null;S.sheet="assign";render()};
+  const sd=document.getElementById("selDist");if(sd)sd.onclick=()=>openDist(S.sel.size);
+  const sl=document.getElementById("selLost");if(sl)sl.onclick=()=>{S.assignIds=ids();S.lostPick=null;S.sheet="lost";render()};
+  const se=document.getElementById("selExport");if(se)se.onclick=()=>toast(T.toast.exported);
+  // panel
+  const pc=document.getElementById("pClose");if(pc)pc.onclick=()=>{S.open=null;S.editing=false;render()};
+  on("[data-edit]",()=>{S.editing=true;render()});
+  const ec=document.getElementById("eCancel");if(ec)ec.onclick=()=>{S.editing=false;render()};
+  const es=document.getElementById("eSave");if(es)es.onclick=()=>{const l=ROWS().find(x=>x.id===S.open);l.name=document.getElementById("eName").value||l.name;l.phone=document.getElementById("ePhone").value||l.phone;l.phone2=document.getElementById("ePhone2").value||null;l.area=document.getElementById("eArea").value||l.area;l.product=document.getElementById("eProd").value;l.note=document.getElementById("eNote").value||null;pushTl(l,"edit");S.editing=false;render();toast(T.toast.saved)};
+  on("[data-reassign]",(b)=>{S.assignIds=[b.dataset.reassign];S.assignTo=null;S.sheet="assign";render()});
+  on("[data-close]",(b)=>{if(b.dataset.close){S.assignIds=[b.dataset.close];S.lostPick=null;S.sheet="lost"}else S.sheet=null;render()});
+  on("[data-reopen]",(b)=>{const l=ROWS().find(x=>x.id===b.dataset.reopen);l.bucket=l.attempts?"retry":(l.camp?"campaign":"retry");l.lost=null;pushTl(l,"reopen");render();toast(T.l.reopened)});
+  on("[data-order]",(b)=>toast((S.lang==="ar"?"فتح الطلب #":"Ouvre la commande #")+b.dataset.order));
+  // sheets
+  document.getElementById("scrim").onclick=()=>{S.sheet=null;render()};
+  app.querySelectorAll("[data-dag]").forEach(c=>c.onchange=()=>{const cur_=S.dist.agents||AG().filter(a=>a.on).map(a=>a.n);S.dist.agents=c.checked?[...new Set([...cur_,c.dataset.dag])]:cur_.filter(n=>n!==c.dataset.dag);render()});
+  app.querySelectorAll("[data-rule]").forEach(r=>r.onchange=()=>{S.dist.rule=r.dataset.rule;render()});
+  const dc=document.getElementById("dCap");if(dc)dc.onchange=()=>{S.dist.cap=Math.max(1,+dc.value||1);render()};
+  const dg=document.getElementById("dGo");if(dg)dg.onclick=()=>{const {rows}=distPreview();const tot=rows.reduce((s,r)=>s+r.today,0);const m=M();
+    rows.forEach(r=>{r.a.queue+=r.today});const pool=ROWS().filter(l=>!l.agent&&l.bucket!=="lost");let i=0;pool.forEach(l=>{if(!rows.length)return;const r=rows[i%rows.length];if(r.today>0){l.agent=r.a.n;l.bucket="campaign";pushTl(l,"assigned",r.a.n)}i++});
+    if(S.sel.size){m.pool=Math.max(0,m.pool-tot)}else{m.pool=Math.max(0,m.pool-tot)}m.tocall=Math.max(0,m.tocall-tot);m.fun.pool=m.pool;m.fun.assigned+=tot;CP().forEach(c=>{const take=Math.min(c.pool,tot);c.pool-=take});
+    S.sheet=null;S.sel=new Set();S.dist.pool=null;render();toast(T.d.ok(tot,rows.filter(r=>r.today).length))};
+  app.querySelectorAll("[data-ato]").forEach(r=>r.onchange=()=>{S.assignTo=r.dataset.ato;render()});
+  const ag_=document.getElementById("aGo");if(ag_)ag_.onclick=()=>{const to=S.assignTo;const rows=ROWS();(S.assignIds||[]).forEach(id=>{const l=rows.find(x=>x.id===id);if(!l)return;if(l.agent)pushTl(l,"reassigned",l.agent,to);else{pushTl(l,"assigned",to);M().pool=Math.max(0,M().pool-1);if(l.bucket==="pool")l.bucket="campaign"}l.agent=to});const a=AG().find(x=>x.n===to);if(a)a.queue+=S.assignIds.length;S.sheet=null;S.sel=new Set();render();toast(T.a.ok(S.assignIds.length,to))};
+  on("[data-lost]",(b)=>{S.lostPick=b.dataset.lost;render()});
+  const lg=document.getElementById("lGo");if(lg)lg.onclick=()=>{const rows=ROWS();(S.assignIds||[]).forEach(id=>{const l=rows.find(x=>x.id===id);if(!l)return;l.bucket="lost";l.lost=S.lostPick;pushTl(l,"lost",S.lostPick);M().loss[S.lostPick]=(M().loss[S.lostPick]||0)+1;M().lost++});S.sheet=null;S.sel=new Set();render();toast(T.l.ok)};
+  const np=document.getElementById("nPhone");if(np)np.oninput=()=>{S.nPhone=np.value;const pos=np.selectionStart;render();const e=document.getElementById("nPhone");e.focus();e.setSelectionRange(pos,pos)};
+  on("[data-src]",(b)=>{S.nSrc=b.dataset.src;render()});
+  const na=document.getElementById("nAgent");if(na)na.onchange=()=>{S.nAgent=na.value||null};
+  const ng=document.getElementById("nGo");if(ng)ng.onclick=()=>{const name=document.getElementById("nName").value||(S.lang==="ar"?"بدون اسم":"Sans nom");const agent=document.getElementById("nAgent").value||null;
+    const l=A({id:"P-"+(7303+ROWS().length),name,phone:document.getElementById("nPhone").value||"09x xxx xxxx",area:document.getElementById("nArea").value||"طرابلس",source:S.nSrc,bucket:agent?"hot":"pool",created:NOW,product:document.getElementById("nProd").value,note:document.getElementById("nNote").value||null,agent,tl:[]});
+    if(agent){pushTl(l,"assigned",agent);const a=AG().find(x=>x.n===agent);if(a)a.queue++}else M().pool++;ROWS().unshift(l);S.sheet=null;S.tab="pipeline";S.filter="all";S.open=l.id;render();toast(T.n.ok)};
+  const ig=document.getElementById("iGo");if(ig)ig.onclick=()=>{const agent=document.getElementById("iAgent").value||null;if(!agent)M().pool+=198;else{const a=AG().find(x=>x.n===agent);if(a)a.queue+=198}M().total+=198;M().tocall+=198;S.sheet=null;S.tab="pipeline";S.filter=agent?"all":"pool";render();toast(T.i.ok(198))};
+  // campaign builder
+  on("[data-tmpl]",(b)=>{const k=b.dataset.tmpl;S.cb.tmpl=k;S.cb.cond=TMPL[k].map(x=>Object.assign({from:ISO(NOW-(x.days||90)*864e5),to:ISO(NOW)},JSON.parse(JSON.stringify(x))));S.cb.addOpen=false;render()});
+  const ac=document.getElementById("addC");if(ac)ac.onclick=()=>{S.cb.addOpen=!S.cb.addOpen;render()};
+  on("[data-addk]",(b)=>{const k=b.dataset.addk;S.cb.cond.push(Object.assign({k},JSON.parse(JSON.stringify(CT[k].def||{}))));S.cb.addOpen=false;S.cb.tmpl="custom";render()});
+  on("[data-rmc]",(b)=>{S.cb.cond.splice(+b.dataset.rmc,1);S.cb.tmpl="custom";render()});
+  on("[data-tog]",(b)=>{const c=S.cb.cond[+b.dataset.ci];const p=b.dataset.prop,v=b.dataset.tog;c[p]=c[p].includes(v)?c[p].filter(x=>x!==v):[...c[p],v];S.cb.tmpl="custom";render()});
+  on("[data-set]",(b)=>{const c=S.cb.cond[+b.dataset.ci];const p=b.dataset.prop,v=b.dataset.set;if(p==="days"){c.mode="preset";c.days=+v}else c[p]=v;S.cb.tmpl="custom";render()});
+  app.querySelectorAll("[data-ci][data-prop]:not([data-tog]):not([data-set])").forEach(el=>el.onchange=()=>{const c=S.cb.cond[+el.dataset.ci];c[el.dataset.prop]=el.type==="number"?+el.value:el.value;S.cb.tmpl="custom";render()});
+  on("[data-chan]",(b)=>{S.cb.channel=b.dataset.chan;render()});
+  const cw=document.getElementById("cWa");if(cw)cw.oninput=()=>{S.cb.wa.msg=cw.value;const pv=app.querySelector(".wa-prev .bubble");if(pv){const smp=SAMPLE[mkt()][0];pv.firstChild.textContent=(cw.value||T.cb.wa_msg_ph).replace("{name}",smp[0]).replace("{agent}",S.cb.agents[0]||"Hend").replace("{offer}",S.cb.offer||"")}};
+  on("[data-var]",(b)=>{const ta=document.getElementById("cWa");const v=b.dataset.var;const p=ta.selectionStart;ta.value=ta.value.slice(0,p)+v+ta.value.slice(ta.selectionEnd);S.cb.wa.msg=ta.value;render();const e=document.getElementById("cWa");e.focus();e.setSelectionRange(p+v.length,p+v.length)});
+  const ci=document.getElementById("cImg");if(ci)ci.onchange=()=>{S.cb.wa.img=ci.checked;render()};
+  app.querySelectorAll("[data-wamode]").forEach(r=>r.onchange=()=>{S.cb.wa.mode=r.dataset.wamode;render()});
+  const cwin=document.getElementById("cWin");if(cwin)cwin.onchange=()=>{S.cb.wa.window=cwin.value.replace(" h","");render()};
+  const cr=document.getElementById("cRate");if(cr)cr.onchange=()=>{S.cb.wa.rate=Math.max(5,+cr.value||5);render()};
+  const ct=document.getElementById("cThen");if(ct)ct.onchange=()=>{S.cb.wa.then=Math.max(1,+ct.value||1);render()};
+  const st=document.getElementById("saveTmpl");if(st)st.onclick=()=>toast(T.cb.tmpl_saved);
+  const cn=document.getElementById("cName");if(cn)cn.oninput=()=>{S.cb.name=cn.value};
+  const co=document.getElementById("cOffer");if(co)co.oninput=()=>{S.cb.offer=co.value};
+  app.querySelectorAll("[data-cag]").forEach(c=>c.onchange=()=>{S.cb.agents=c.checked?[...new Set([...S.cb.agents,c.dataset.cag])]:S.cb.agents.filter(n=>n!==c.dataset.cag);render()});
+  const ccap=document.getElementById("cCap");if(ccap)ccap.onchange=()=>{S.cb.cap=Math.max(1,+ccap.value||1);render()};
+  const cb_=document.getElementById("cBack");if(cb_)cb_.onclick=()=>{S.cb.step--;render()};
+  const cnx=document.getElementById("cNext");if(cnx)cnx.onclick=()=>{S.cb.step++;render()};
+  const cg=document.getElementById("cGo");if(cg)cg.onclick=()=>{const {net}=audienceCount();const today=Math.min(net,S.cb.agents.length*S.cb.cap);const c=S.cb;
+    CP().unshift({id:"c"+Date.now(),name:c.name||(S.lang==="ar"?"حملة جديدة":"Nouvelle campagne"),ar:c.name||"حملة جديدة",st:"live",channel:c.channel,sent:0,replied:0,aud:net,pool:net-today,called:0,reached:0,conv:0,rev:0,msg:c.wa.msg,offer:c.offer||"—",offerAr:c.offer||"—",agents:c.agents,cap:c.cap,created:S.lang==="ar"?"اليوم":"aujourd'hui",by:T.me[S.role],script:"",scriptAr:""});
+    c.agents.forEach(n=>{const a=AG().find(x=>x.n===n);if(a)a.queue+=Math.min(c.cap,Math.round(today/c.agents.length))});M().pool+=net-today;M().total+=net;M().tocall+=net;M().poolCamps++;
+    S.sheet=null;S.tab="campaigns";S.cb.step=1;S.cb.name="";S.cb.offer="";render();toast(c.channel==="call"?T.cb.ok(today):T.cb.wa_ok(today))};
+}
+document.addEventListener("keydown",(e)=>{if(e.key==="Escape"&&S.sheet){S.sheet=null;render()}});
+/* studio toolbar */
+[["segRole","role"],["segLang","lang"],["segView","view"]].forEach(([id,key])=>{const el=document.getElementById(id);el.querySelectorAll("button").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.v===S[key]));b.onclick=()=>{S[key]=b.dataset.v;el.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));if(key==="role"){S.scope=S.role==="admin"?"all":"ly";S.sel=new Set();S.open=null;S.agentF=null;S.campF=null}if(key==="view"&&S.view==="phone"&&(S.tab==="pipeline"||S.tab==="campaigns"))S.tab="overview";S.sheet=null;render()}})});
+render();
+</script>

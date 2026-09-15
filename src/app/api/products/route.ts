@@ -80,11 +80,15 @@ export async function GET(req: NextRequest) {
     "is_active",
   ].join(", ");
 
-  // Agents never receive cost columns. Enforced by the select list itself
-  // rather than by stripping keys afterwards, so there is no path where a
-  // refactor accidentally leaks them.
+  // Agents never receive COST columns — what a product costs us is none of
+  // their business. `default_price` is not a cost: it is what the customer
+  // pays, and the agent types it into every order they confirm.
+  //
+  // It was missing here until 2026-09-15, so ConvertLeadModal prefilled 0 for
+  // agents and four Tunisian orders were confirmed at 0.000 on 2026-05-05.
+  // Revenue is orders.total_price only, so those four never appeared in a P&L.
   const AGENT_COLUMNS =
-    "id, name, image_url, current_stock, is_active, market_id";
+    "id, name, image_url, default_price, current_stock, is_active, market_id";
 
   let query = useView
     ? supabase

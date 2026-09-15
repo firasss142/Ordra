@@ -174,6 +174,25 @@ describe("GET /api/products — column projection", () => {
     }
   });
 
+  test("an agent still receives the selling price — it is not a cost", async () => {
+    // ConvertLeadModal prefills the order from default_price. Without it the
+    // price falls back to 0, and four Tunisian orders were confirmed at
+    // 0.000 on 2026-05-05 because of exactly that. Revenue is
+    // orders.total_price only, so those are invisible in every P&L.
+    mockGetUser.mockResolvedValue({ data: { user: { id: "ag-1" } }, error: null });
+    let selectArg: unknown;
+    const chain = listChainCapturing((a) => {
+      selectArg = a;
+    });
+    mockFrom.mockImplementation((table: string) =>
+      table === "users" ? singleChain({ role: "agent", market_id: "m-1" }) : chain,
+    );
+
+    await GET(new NextRequest(new URL("http://localhost/api/products")));
+
+    expect(String(selectArg)).toContain("default_price");
+  });
+
   test("legacy call without ?page still returns a bare { data } envelope", async () => {
     // MappingsPageClient, OrdersPageClient, NewLeadModal, ConvertLeadModal and
     // AdminPositionsPanel all rely on this shape.

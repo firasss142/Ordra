@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/auth/server-user";
 import { ProspectsClient } from "@/components/prospects/ProspectsClient";
-import { ProspectsConsoleClient } from "@/components/prospects/ProspectsConsoleClient";
+import { ConsoleClient } from "@/components/prospects/console/ConsoleClient";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +11,10 @@ export const dynamic = "force-dynamic";
  *   agent                        → the worklist: six derived buckets, one
  *                                  recommended move per row, the call outcome
  *                                  in one sheet.
- *   market_manager / super_admin → the console: four KPIs, the pipeline table,
- *                                  campaign funnels and the agent roster.
+ *   market_manager / super_admin → the console: four views on one route —
+ *                                  Vue d'ensemble, Prospects, Campagnes,
+ *                                  Équipe — with bulk distribution, the
+ *                                  campaign builder and the WhatsApp channel.
  *
  * The old kanban (LeadsPageClient, LeadsKanban, LeadsTable) is no longer
  * mounted here. It is untouched on disk, and the campaign builder it opened
@@ -39,7 +41,7 @@ export default async function LeadsPage({ params }: { params: { locale: string }
   }
 
   return (
-    <ProspectsConsoleClient
+    <ConsoleClient
       role={user.role}
       marketId={user.market_id ?? null}
       locale={params.locale}

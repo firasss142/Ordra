@@ -32,6 +32,21 @@ const intParam = (raw: string | null, fallback: number, min: number, max: number
   return Math.min(Math.max(Math.trunc(n), min), max);
 };
 
+/**
+ * A name-or-phone search, as one PostgREST `or` filter.
+ *
+ * The term is scrubbed before it is interpolated: `or` takes a
+ * comma-separated list, so a term containing a comma, a parenthesis or a dot
+ * could close the current condition and open one of the caller's choosing.
+ * Only letters, digits, spaces and a few harmless marks survive.
+ */
+function searchFilter(raw: string): string {
+  // Letters, digits, spaces and the marks a phone number carries. No dot: it
+  // is the separator inside a PostgREST condition (`status.eq.won`).
+  const safe = raw.replace(/[^\p{L}\p{N} +-]/gu, " ").trim().replace(/\s+/g, " ").slice(0, 60);
+  return `customer_name.ilike.*${safe}*,customer_phone.ilike.*${safe}*`;
+}
+
 /** PostgREST models a to-one embed as an array in the generated types. */
 type Embed<T> = T | T[] | null;
 const one = <T,>(v: Embed<T>): T | null => (Array.isArray(v) ? (v[0] ?? null) : v) ?? null;
@@ -110,11 +125,37 @@ export async function GET(req: NextRequest) {
 
   if (agentId) query = query.eq("assigned_to", agentId);
 
+  // The manager's filters. They run here rather than in the browser because
+  // Tunisia holds ~1 700 working prospects and the table shows forty: sending
+  // the rest is a megabyte over the wire for nothing. An agent never reaches
+  // this block — their query is already pinned to their own queue above.
+  if (actor.role !== "agent") {
+    if (params.get("unassigned") === "1") query = query.is("assigned_to", null);
+
+    const campaignId = params.get("campaign_id");
+    if (campaignId) {
+      if (!UUID_RE.test(campaignId)) {
+        return NextResponse.json({ error: "invalid_campaign_id" }, { status: 400 });
+      }
+      query = query.eq("campaign_id", campaignId);
+    }
+
+    const search = (params.get("q") ?? "").trim();
+    if (search) query = query.or(searchFilter(search));
+  }
+
   // The market's own hot window, fetched alongside the list rather than after
   // it. Both are independent reads; awaiting them in sequence added a whole
   // round trip to every page load for one small number.
+  // Page 1 is the default and keeps `limit` alone, so every existing caller —
+  // the agent worklist included — behaves exactly as before.
+  const page = intParam(params.get("page"), 1, 1, 1000);
+  const paged = page > 1
+    ? query.range((page - 1) * limit, page * limit - 1)
+    : query.limit(limit);
+
   const [{ data, error }, hotWindowRaw] = await Promise.all([
-    query.order("created_at", { ascending: false }).limit(limit),
+    paged.order("created_at", { ascending: false }),
     getMarketSetting(supabase, marketId, "lead_hot_window_minutes", String(HOT_WINDOW_MINUTES)),
   ]);
 

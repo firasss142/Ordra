@@ -99,6 +99,12 @@ export interface Lead {
   lost_note: string | null;
   converted_order_id: string | null;
   campaign_id: string | null;
+  /**
+   * The returned order a win-back lead was born from, and the carrier's own
+   * words for why. Optional because most callers build a Lead without them.
+   */
+  source_order_id?: string | null;
+  return_reason?: string | null;
   raw_payload: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;

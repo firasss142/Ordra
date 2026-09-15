@@ -6,11 +6,21 @@ const mockOrdersIn = vi.fn();
 const mockEnrich = vi.fn();
 const mockSettingsSingle = vi.fn();
 
+/** Every filter applied to the leads query, so tests can assert on them. */
+const leadCalls: { method: string; args: unknown[] }[] = [];
+
 function chain(table: string) {
   const self: Record<string, unknown> = {};
   for (const m of ["select", "eq", "in", "not", "or", "gte", "lte", "order", "limit", "range"]) {
-    self[m] = vi.fn(() => self);
+    self[m] = vi.fn((...args: unknown[]) => {
+      if (table === "leads") leadCalls.push({ method: m, args });
+      return self;
+    });
   }
+  self.is = vi.fn((...args: unknown[]) => {
+    if (table === "leads") leadCalls.push({ method: "is", args });
+    return self;
+  });
   self.single = vi.fn(() => mockSettingsSingle());
   // `await`ing the builder runs the query.
   self.then = (resolve: (v: unknown) => void) =>
@@ -329,5 +339,71 @@ describe("GET /api/prospects/worklist", () => {
     const res = await GET(req());
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "Internal server error" });
+  });
+
+  describe("the manager's filters run in the database, not in the browser", () => {
+    // Tunisia holds ~1 700 working prospects. Sending them all so the page can
+    // show forty is a megabyte over the wire and a scroll that stutters.
+    beforeEach(() => {
+      leadCalls.length = 0;
+      mockLeadsResult.mockReturnValue({ data: [lead()], error: null, count: null });
+    });
+
+    test("the unassigned filter asks for rows with no agent", async () => {
+      as("m", "market_manager", LY);
+      await GET(req("?unassigned=1"));
+      expect(leadCalls).toContainEqual({ method: "is", args: ["assigned_to", null] });
+    });
+
+    test("a campaign filter narrows to that campaign", async () => {
+      as("m", "market_manager", LY);
+      const campaign = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+      await GET(req(`?campaign_id=${campaign}`));
+      expect(leadCalls).toContainEqual({ method: "eq", args: ["campaign_id", campaign] });
+    });
+
+    test("an invalid campaign id is refused rather than silently ignored", async () => {
+      as("m", "market_manager", LY);
+      expect((await GET(req("?campaign_id=not-a-uuid"))).status).toBe(400);
+    });
+
+    test("a search covers the name and the phone", async () => {
+      as("m", "market_manager", LY);
+      await GET(req("?q=amal"));
+      const or = leadCalls.find((c) => c.method === "or");
+      expect(or).toBeDefined();
+      expect(String(or!.args[0])).toContain("customer_name");
+      expect(String(or!.args[0])).toContain("customer_phone");
+    });
+
+    test("a search term with a comma cannot break out of the filter", async () => {
+      // PostgREST's `or` is comma-separated; an unescaped term would inject
+      // conditions of the caller's choosing.
+      as("m", "market_manager", LY);
+      await GET(req("?q=" + encodeURIComponent("a,status.eq.won")));
+      const or = leadCalls.find((c) => c.method === "or");
+      expect(String(or!.args[0])).not.toContain("status.eq.won");
+    });
+
+    test("a blank search is not sent as a filter at all", async () => {
+      as("m", "market_manager", LY);
+      await GET(req("?q=%20%20"));
+      expect(leadCalls.find((c) => c.method === "or")).toBeUndefined();
+    });
+
+    test("paging asks for a window, not the whole table", async () => {
+      as("m", "market_manager", LY);
+      await GET(req("?page=2&limit=50"));
+      expect(leadCalls).toContainEqual({ method: "range", args: [50, 99] });
+    });
+
+    test("an agent's own queue ignores a manager's filters", async () => {
+      // An agent asking for someone else's campaign must still only see their
+      // own prospects.
+      as(AGENT_B, "agent", LY);
+      await GET(req("?unassigned=1"));
+      expect(leadCalls).toContainEqual({ method: "eq", args: ["assigned_to", AGENT_B] });
+      expect(leadCalls).not.toContainEqual({ method: "is", args: ["assigned_to", null] });
+    });
   });
 });

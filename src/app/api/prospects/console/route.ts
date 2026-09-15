@@ -4,7 +4,7 @@ import { getActor } from "@/lib/auth/actor";
 import { canUseProspectConsole } from "@/lib/role-permissions";
 import { UUID_RE } from "@/lib/investors/admin-route";
 import { marketTimezone } from "@/lib/markets";
-import { agentLoad, type AgentLoad, type CampaignResult, type ConsoleMetrics } from "@/lib/prospects/console";
+import { agentLoad, type AgentLoad, type CampaignResult, type ConsoleMetrics, type Funnel, type LossByReason } from "@/lib/prospects/console";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +19,13 @@ const EMPTY_METRICS: ConsoleMetrics = {
   converted_30d: 0,
   delivered_30d: 0,
   delivered_revenue_30d: 0,
+  pool: 0, pool_campaigns: 0, pool_oldest_days: null, never_called: 0,
+  total: 0, late_callbacks: 0, lost_30d: 0, calls_today: 0, reached_today: 0,
+  oldest_hot_agent: null,
+};
+
+const EMPTY_FUNNEL: Funnel = {
+  created: 0, pool: 0, assigned: 0, called: 0, reached: 0, conv: 0, deliv: 0,
 };
 
 /**
@@ -66,6 +73,8 @@ export async function GET(req: NextRequest) {
     metrics: ConsoleMetrics | null;
     campaigns: CampaignResult[] | null;
     agents: AgentLoad[] | null;
+    funnel: Funnel | null;
+    loss: LossByReason | null;
   };
 
   return NextResponse.json({
@@ -74,6 +83,10 @@ export async function GET(req: NextRequest) {
     // Ranked once, here, so every surface reading this route agrees on who
     // needs help first and on what each agent's rate is.
     agents: agentLoad(payload.agents ?? []),
+    // Where the stock stops, and why it leaves. Both are the manager console's
+    // own questions; the thin version did not ask them.
+    funnel: payload.funnel ?? EMPTY_FUNNEL,
+    loss: payload.loss ?? {},
     generated_at: new Date().toISOString(),
   });
 }

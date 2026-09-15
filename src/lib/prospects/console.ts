@@ -19,6 +19,10 @@ export interface CampaignResult {
   /** Delivered revenue, market currency. Only delivered counts as earned. */
   revenue: number;
   created_at: string;
+  /** How the campaign contacts people: call, wa, or wa_call. */
+  channel?: "call" | "wa" | "wa_call";
+  /** Of its audience, how many still have no agent. */
+  pool?: number;
 }
 
 export interface AgentLoad {
@@ -29,6 +33,12 @@ export interface AgentLoad {
   hot_waiting: number;
   calls_today: number;
   converted_today: number;
+  /** Callbacks whose time has passed. */
+  late_callbacks?: number;
+  /** Of today's calls, how many reached someone. */
+  reached_today?: number;
+  /** Minutes since this agent last moved anything. null = never. */
+  last_touch_minutes?: number | null;
 }
 
 export interface AgentLoadRanked extends AgentLoad {
@@ -48,7 +58,37 @@ export interface ConsoleMetrics {
   converted_30d: number;
   delivered_30d: number;
   delivered_revenue_30d: number;
+
+  /** Prospects nobody owns. The figure the page opens on. */
+  pool: number;
+  /** How many campaigns that unowned stock came from. */
+  pool_campaigns: number;
+  /** How long the oldest of them has waited, in days. */
+  pool_oldest_days: number | null;
+  /** Owned or not, never rung. */
+  never_called: number;
+  total: number;
+  late_callbacks: number;
+  lost_30d: number;
+  calls_today: number;
+  reached_today: number;
+  /** Whose queue the oldest hot prospect is sitting in. */
+  oldest_hot_agent: string | null;
 }
+
+/** Where the stock stops. Each stage counts who reached it, not who stayed. */
+export interface Funnel {
+  created: number;
+  pool: number;
+  assigned: number;
+  called: number;
+  reached: number;
+  conv: number;
+  deliv: number;
+}
+
+/** Lost prospects by reason — the `lead_lost_reason` enum, sparsely filled. */
+export type LossByReason = Record<string, number>;
 
 export interface FunnelWidths {
   uncalled: number;
