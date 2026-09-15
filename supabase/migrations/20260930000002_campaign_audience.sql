@@ -17,18 +17,35 @@
 -- C'est pourquoi la ventilation des exclusions est renvoyée, pas seulement le
 -- total : un manager qui voit « 5 » doit pouvoir lire pourquoi.
 --
--- La même CTE `audience` sert ici et dans rpc_run_prospect_campaign (migration
--- suivante). Une seule définition de « qui est dans la campagne », pour que
--- l'aperçu et l'exécution ne puissent pas diverger.
+-- campaign_audience_rows() est LA définition de « qui est dans la campagne ».
+-- L'aperçu ci-dessous la compte ; rpc_run_prospect_campaign (migration suivante)
+-- y insère. Une seule source, donc aucune divergence possible entre le nombre
+-- annoncé et le lot obtenu.
+--
+-- Les lignes écartées sont renvoyées elles aussi, avec leur motif dans
+-- excluded_by : l'aperçu les compte pour les nommer à l'écran, l'exécution
+-- les ignore.
 --
 -- SECURITY INVOKER : RLS sur `orders` et `leads` décide déjà ce que l'appelant
 -- peut lire. Cette fonction ne fait que compter ce qu'il verrait de toute façon.
 
-create or replace function public.preview_campaign_audience(
+create or replace function public.campaign_audience_rows(
   p_market_id uuid,
   p_filter jsonb
 )
-returns jsonb
+returns table (
+  customer_phone text,
+  customer_name text,
+  customer_city text,
+  customer_address text,
+  source_order_id uuid,
+  last_outcome_at timestamptz,
+  best_basket numeric,
+  delivered int,
+  returned int,
+  total_orders int,
+  excluded_by text
+)
 language sql
 stable
 security invoker
@@ -42,7 +59,7 @@ with params as (
     )                                                        as order_statuses,
     (p_filter->>'date_from')::timestamptz                    as date_from,
     (p_filter->>'date_to')::timestamptz                      as date_to,
-    -- Le composeur écrit product_ids ; les campagnes d'avant portent product_id.
+    -- Le composeur ecrit product_ids ; les campagnes d'avant portent product_id.
     coalesce(
       (select array_agg(x::uuid) from jsonb_array_elements_text(p_filter->'product_ids') as x),
       case when p_filter->>'product_id' is not null
@@ -71,11 +88,11 @@ with params as (
     coalesce((p_filter->'limit'->>'sort'), 'oldest')         as limit_sort,
     (p_filter->'limit'->>'n')::int                           as limit_n
 ),
--- Les commandes qui portent l'issue voulue, datées par la transition vers
--- cette issue et non par leur création : une commande livrée hier peut avoir
--- été passée il y a trois mois.
+-- Les commandes qui portent l'issue voulue, datees par la transition vers
+-- cette issue et non par leur creation : une commande livree hier peut avoir
+-- ete passee il y a trois mois.
 matched_orders as (
-  select o.id, o.customer_phone, o.customer_name, o.customer_city,
+  select o.id, o.customer_phone, o.customer_name, o.customer_city, o.customer_address,
          o.total_price, o.product_id, o.assigned_to, o.status,
          (select max(oh.created_at) from order_history oh
            where oh.order_id = o.id
@@ -99,40 +116,39 @@ matched_orders as (
         and (p.date_to is null or oh.created_at <= p.date_to)
     )
 ),
--- Une campagne s'adresse à des personnes, pas à des commandes : un client qui
--- a acheté trois fois ne doit être appelé qu'une fois.
-customers as (
+-- Une campagne s'adresse a des personnes, pas a des commandes : un client qui
+-- a achete trois fois ne doit etre appele qu'une fois.
+grouped as (
   select m.customer_phone,
-         min(m.customer_name)  as customer_name,
-         min(m.customer_city)  as customer_city,
-         max(m.outcome_at)     as last_outcome_at,
-         count(*)::int         as orders_in_scope,
-         max(m.total_price)    as best_basket,
+         min(m.customer_name)    as customer_name,
+         min(m.customer_city)    as customer_city,
+         min(m.customer_address) as customer_address,
+         max(m.outcome_at)       as last_outcome_at,
+         max(m.total_price)      as best_basket,
          (array_agg(m.id order by m.outcome_at desc nulls last))[1] as source_order_id
   from matched_orders m
   where m.customer_phone is not null and m.customer_phone <> ''
   group by m.customer_phone
 ),
--- L'historique complet du client sur ce marché, pour les conditions qui
--- parlent de lui plutôt que d'une commande.
+-- L'historique complet du client sur ce marche, pour les conditions qui
+-- parlent de lui plutot que d'une commande.
 history as (
   select o.customer_phone,
          (count(*) filter (where o.status = 'delivered'))::int as delivered,
          (count(*) filter (where o.status = 'returned'))::int  as returned,
-         count(*)::int                                       as total_orders,
-         max(o.created_at)                                   as last_order_at
+         count(*)::int                                         as total_orders
   from orders o
   where o.market_id = p_market_id and o.customer_phone is not null
   group by o.customer_phone
 ),
 filtered as (
-  select c.*, h.delivered, h.returned, h.total_orders, h.last_order_at
-  from customers c
-  join history h on h.customer_phone = c.customer_phone, params p
+  select g.*, h.delivered, h.returned, h.total_orders
+  from grouped g
+  join history h on h.customer_phone = g.customer_phone, params p
   where
-    -- Récence : il y a combien de jours la dernière commande retenue ?
+    -- Recence : il y a combien de jours la derniere commande retenue ?
     (p.recency_from is null or
-       extract(epoch from (now() - c.last_outcome_at)) / 86400
+       extract(epoch from (now() - g.last_outcome_at)) / 86400
          between p.recency_from and p.recency_to)
     -- Nombre de commandes du client, toutes issues confondues.
     and (p.count_op is null or
@@ -153,9 +169,8 @@ filtered as (
            else true
          end)
 ),
--- Les garde-fous, comptés séparément pour que l'écran puisse les nommer.
--- L'ordre est celui de la maquette : chaque client n'est exclu qu'une fois,
--- par la première raison qui s'applique.
+-- Les garde-fous, evalues dans l'ordre de la maquette : chaque client n'est
+-- ecarte qu'une fois, par la premiere raison qui s'applique.
 judged as (
   select f.*,
     case
@@ -189,26 +204,66 @@ judged as (
     end as excluded_by
   from filtered f, params p
 ),
-kept as (
-  select j.* from judged j, params p
+ranked as (
+  select j.*,
+         row_number() over (
+           order by
+             case when p.limit_sort = 'newest' then j.last_outcome_at end desc nulls last,
+             case when p.limit_sort = 'basket' then j.best_basket end desc nulls last,
+             case when p.limit_sort = 'oldest' then j.last_outcome_at end asc nulls last
+         ) as rn
+  from judged j, params p
   where j.excluded_by is null
-  order by
-    case when p.limit_sort = 'newest' then j.last_outcome_at end desc nulls last,
-    case when p.limit_sort = 'basket' then j.best_basket end desc nulls last,
-    case when p.limit_sort = 'oldest' then j.last_outcome_at end asc nulls last
-  limit (select coalesce(limit_n, 100000) from params)
+)
+-- Les exclus sont renvoyes eux aussi, avec leur motif : l'apercu les compte,
+-- l'execution les ignore en filtrant sur excluded_by is null.
+select customer_phone, customer_name, customer_city, customer_address,
+       source_order_id, last_outcome_at, best_basket,
+       delivered, returned, total_orders, excluded_by
+from judged
+where excluded_by is not null
+union all
+select r.customer_phone, r.customer_name, r.customer_city, r.customer_address,
+       r.source_order_id, r.last_outcome_at, r.best_basket,
+       r.delivered, r.returned, r.total_orders, null::text
+from ranked r, params p
+where r.rn <= coalesce(p.limit_n, 100000);
+$$;
+
+comment on function public.campaign_audience_rows(uuid, jsonb) is
+  'Definition unique de l audience d une campagne. excluded_by non nul = ecarte par un garde-fou. Voir plans/prospects-manager-console.md.';
+
+grant execute on function public.campaign_audience_rows(uuid, jsonb) to authenticated;
+
+
+-- L'apercu ne redefinit rien : il compte ce que la fonction ci-dessus renvoie.
+create or replace function public.preview_campaign_audience(
+  p_market_id uuid,
+  p_filter jsonb
+)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+with rows as (
+  select * from public.campaign_audience_rows(p_market_id, p_filter)
+),
+kept as (
+  select * from rows where excluded_by is null
 )
 select jsonb_build_object(
-  'matched', (select count(*) from judged),
+  'matched', (select count(*) from rows),
   'excluded', jsonb_build_object(
-    'openLead',          (select count(*) from judged where excluded_by = 'openLead'),
-    'recentlyOrdered',   (select count(*) from judged where excluded_by = 'recentlyOrdered'),
-    'recentCampaign',    (select count(*) from judged where excluded_by = 'recentCampaign'),
-    'lostNotInterested', (select count(*) from judged where excluded_by = 'lostNotInterested')
+    'openLead',          (select count(*) from rows where excluded_by = 'openLead'),
+    'recentlyOrdered',   (select count(*) from rows where excluded_by = 'recentlyOrdered'),
+    'recentCampaign',    (select count(*) from rows where excluded_by = 'recentCampaign'),
+    'lostNotInterested', (select count(*) from rows where excluded_by = 'lostNotInterested')
   ),
   'net', (select count(*) from kept),
-  -- De vraies personnes, pour que le manager reconnaisse qui il s'apprête à
-  -- faire appeler. Le téléphone est tronqué : cet aperçu n'est pas un export.
+  -- De vraies personnes, pour que le manager reconnaisse qui il fera appeler.
+  -- Le telephone est tronque : cet apercu n'est pas un export.
   'sample', coalesce((
     select jsonb_agg(s) from (
       select jsonb_build_object(
@@ -223,8 +278,5 @@ select jsonb_build_object(
   ), '[]'::jsonb)
 );
 $$;
-
-comment on function public.preview_campaign_audience(uuid, jsonb) is
-  'Compte audience de campagne et ventile les exclusions. Meme definition que rpc_run_prospect_campaign. Voir plans/prospects-manager-console.md.';
 
 grant execute on function public.preview_campaign_audience(uuid, jsonb) to authenticated;
