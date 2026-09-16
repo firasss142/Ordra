@@ -5594,6 +5594,7 @@
       "phone2": "2ᵉ numéro",
       "carrierLabel": "Transporteur",
       "courier": "Livreur",
+      "courierPhone": "Téléphone du livreur",
       "status": "Statut",
       "createdAt": "Créée le",
       "tracking": "N° de suivi",

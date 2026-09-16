@@ -242,6 +242,9 @@ export function DeliveryDetailScreen({ row, market, locale, tz, now, onBack, onL
   // The "recommended" pill marks the number the move dials; a branch or
   // courier call recommends neither of the customer's numbers.
   const recommended = m.kind === "call2" ? 2 : m.kind === "call" || m.kind === "before" ? 1 : 0;
+  // The named courier's own number first, the Darb account's switchboard as
+  // the fallback — the same order the desktop panel dials in.
+  const courierPhone = row.handler_phone ?? row.handler_account_phone;
   const phones: [string, boolean][] = [];
   if (row.customer_phone) phones.push([row.customer_phone, recommended === 1]);
   if (row.customer_phone_2) phones.push([row.customer_phone_2, recommended === 2]);
@@ -300,8 +303,34 @@ export function DeliveryDetailScreen({ row, market, locale, tz, now, onBack, onL
           <h3 className="mb-1 flex items-center gap-2 text-[15px] font-bold"><Truck size={18} aria-hidden />{t("detail.deliveryInfo")}</h3>
           <div className={kv}><span className="text-[#6B7280]">{t("detail.carrierLabel")}</span><span className="font-medium">{row.carrier_name ?? "—"}</span></div>
           <div className={kv}><span className="text-[#6B7280]">{t("detail.courier")}</span><span className="font-medium [unicode-bidi:plaintext]">{row.handler_name ?? "—"}</span></div>
+          {/* The courier's number is the whole point of this block on a phone:
+              the agent reads it to call the person actually holding the parcel.
+              It was missing here while the desktop panel had it. */}
+          {courierPhone && (
+            <div className={kv}>
+              <span className="text-[#6B7280]">{t("detail.courierPhone")}</span>
+              <a href={`tel:${courierPhone}`} onClick={() => onDialed(row)} className="font-medium"><Ltr>{formatPhone(courierPhone)}</Ltr></a>
+            </div>
+          )}
           <div className={kv}><span className="text-[#6B7280]">{t("detail.status")}</span><Chip tone={s.tone} icon={SIT_ICON[s.key]}>{label(s)}</Chip></div>
           <div className={kv}><span className="text-[#6B7280]">{t("detail.createdAt")}</span><Ltr className="font-medium">{createdShort}</Ltr></div>
+          {/* A remark is a sentence, not a value, so it breaks the label/value
+              grid on purpose — squeezed into the right column it would truncate
+              exactly where the reason lives. */}
+          {row.latest_remark && (
+            <div className="mt-2 border-t border-[#F3F4F6] pt-2">
+              <span className="text-[13px] text-[#6B7280]">{t("detail.carrierNote")}</span>
+              <p className="mt-1 rounded-lg bg-[#F3F4F6] px-2.5 py-2 text-[13.5px] text-[#374151] [unicode-bidi:plaintext]">« {row.latest_remark} »</p>
+            </div>
+          )}
+          {!row.carrier_name && !row.handler_name && (
+            <p className="py-[7px] text-[14px] text-[#6B7280]">{t("detail.notYet")}</p>
+          )}
+          {!done && courierPhone && (
+            <a href={`tel:${courierPhone}`} onClick={() => onDialed(row)} className={`mt-2 h-10 w-full text-[14px] ${OUTLINE_BTN} border-[#D1D5DB]`}>
+              <Phone size={16} aria-hidden />{t("detail.callCourier")}
+            </a>
+          )}
         </div>
 
         <div className={block}>

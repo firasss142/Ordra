@@ -5594,6 +5594,7 @@
       "phone2": "الرقم الثاني",
       "carrierLabel": "شركة الشحن",
       "courier": "المندوب",
+      "courierPhone": "هاتف المندوب",
       "status": "حالة الشحنة",
       "createdAt": "تاريخ الإنشاء",
       "tracking": "رقم التتبع",
