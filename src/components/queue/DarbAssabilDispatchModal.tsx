@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import FocusTrap from "focus-trap-react";
 import useSWR from "swr";
@@ -17,6 +17,8 @@ import { useCarrierRates } from "@/hooks/useCarrierRates";
 import { destinationKey } from "@/lib/carriers/destination-key";
 import { formatCurrency } from "@/lib/format";
 import { useDarbPickupState } from "@/hooks/useDarbPickupState";
+import { useCarrierOrderPreferences } from "@/hooks/useCarrierOrderPreferences";
+import { lockedOptionValues } from "@/lib/carriers/order-preferences";
 
 interface DarbAssabilSelection {
   city: string | null;
@@ -247,6 +249,48 @@ export function DarbAssabilDispatchModal({
     is_replacement: false,
   });
 
+  // La politique du super_admin pour ce transporteur : la valeur d'ouverture de
+  // chaque case, et celles que l'agent n'a pas le droit de changer.
+  const { preferences: orderPreferences, fulfilmentModes } =
+    useCarrierOrderPreferences(carrierId);
+
+  // Les défauts configurés s'appliquent à l'ouverture. Sans politique en base,
+  // resolveOrderPreferences rend les défauts codés et rien ne bouge.
+  //
+  // setOptions passe par une mise à jour fonctionnelle qui RENVOIE L'ÉTAT
+  // PRÉCÉDENT quand rien ne change : React saute alors le rendu. Sans cette
+  // garde, une identité d'objet instable en amont relançait l'effet à chaque
+  // rendu — boucle infinie. L'identité est déjà stabilisée dans le hook ; ceci
+  // est la deuxième barrière, pour que le composant ne dépende pas de ce détail.
+  useEffect(() => {
+    setOptions((prev) => {
+      const next = {
+        is_pickup: orderPreferences.is_pickup.value,
+        allow_inspection: orderPreferences.allow_inspection.value,
+        is_fragile: orderPreferences.is_fragile.value,
+        allow_card_payment: orderPreferences.allow_card_payment.value,
+        allow_testing: orderPreferences.allow_testing.value,
+        is_replacement: orderPreferences.is_replacement.value,
+      };
+      const same = (Object.keys(next) as Array<keyof typeof next>).every(
+        (k) => prev[k] === next[k],
+      );
+      return same ? prev : next;
+    });
+  }, [orderPreferences]);
+
+  /**
+   * Ce qui part vraiment. Une option verrouillée écrase le choix de l'agent —
+   * elle a disparu de son écran, mais sa valeur reste celle de la politique,
+   * « oui » compris. Masquée ne veut pas dire fausse : c'est le piège de tout
+   * ce chantier, et il est désamorcé ici, en un seul endroit, pour que le
+   * payload ne puisse pas diverger de ce qui est affiché.
+   */
+  const effectiveOptions = useMemo(
+    () => ({ ...options, ...lockedOptionValues(orderPreferences) }),
+    [options, orderPreferences],
+  );
+
   // Darb service packages (توصيل رجالي / نسائي / فوري). The agent picks one per
   // dispatch; the chosen service_id rides extra.service_id (the adapter forwards
   // it as `service`). Default to the catalogue's is_default (men's courier).
@@ -303,6 +347,18 @@ export function DarbAssabilDispatchModal({
     }
   }, [fulfilment, availability, warehouseAvailable]);
 
+  // Ni sur un mode que la politique du transporteur ne propose pas. Quand
+  // « Notre entrepôt » est désactivé, l'ouverture par défaut ("home") est
+  // justement celle qu'il faut corriger — sinon le modal s'ouvrirait sur un
+  // choix invisible et enverrait la commande depuis un entrepôt exclu.
+  useEffect(() => {
+    if (fulfilment === "home" && !fulfilmentModes.home && fulfilmentModes.carrier) {
+      setFulfilment("carrier");
+    } else if (fulfilment === "carrier" && !fulfilmentModes.carrier) {
+      setFulfilment("home");
+    }
+  }, [fulfilment, fulfilmentModes]);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -352,12 +408,14 @@ export function DarbAssabilDispatchModal({
             // Display-side mirror of the server rule. performDispatch decides
             // for real; sending the truth here keeps the dry-run snapshot honest.
             is_pickup:
-              fulfilment === "home" ? !pickupOffToday && options.is_pickup : true,
-            allow_inspection: options.allow_inspection,
-            is_fragile: options.is_fragile,
-            allow_card_payment: options.allow_card_payment,
-            allow_testing: options.allow_testing,
-            is_replacement: options.is_replacement,
+              fulfilment === "home"
+                ? !pickupOffToday && effectiveOptions.is_pickup
+                : true,
+            allow_inspection: effectiveOptions.allow_inspection,
+            is_fragile: effectiveOptions.is_fragile,
+            allow_card_payment: effectiveOptions.allow_card_payment,
+            allow_testing: effectiveOptions.allow_testing,
+            is_replacement: effectiveOptions.is_replacement,
             // Carrier-warehouse fulfilment. Sent only when chosen AND still
             // available; the server resolves the carrier-side product ids and
             // re-checks stock, refusing the dispatch on any gap.
@@ -511,30 +569,39 @@ export function DarbAssabilDispatchModal({
                 aria-label={t("fulfilmentLabel")}
                 className="grid grid-cols-1 gap-2 sm:grid-cols-2"
               >
-                <ChoiceTile
-                  selected={fulfilment === "home"}
-                  title={t("fulfilmentHome")}
-                  hint={t("fulfilmentHomeHint")}
-                  onSelect={() => setFulfilment("home")}
-                />
-                <ChoiceTile
-                  selected={fulfilment === "carrier"}
-                  disabled={!warehouseAvailable}
-                  title={t("fulfilmentCarrier")}
-                  hint={
-                    availabilityLoading
-                      ? t("fulfilmentChecking")
-                      : t("fulfilmentCarrierHint")
-                  }
-                  onSelect={() => warehouseAvailable && setFulfilment("carrier")}
-                />
+                {/* Un mode désactivé par la politique du transporteur n'est pas
+                    grisé mais absent : grisé dirait « indisponible pour cette
+                    commande », alors qu'il n'est tout simplement pas proposé
+                    ici. L'indisponibilité par stock, elle, reste grisée avec sa
+                    raison — les deux situations ne se lisent pas pareil. */}
+                {fulfilmentModes.home && (
+                  <ChoiceTile
+                    selected={fulfilment === "home"}
+                    title={t("fulfilmentHome")}
+                    hint={t("fulfilmentHomeHint")}
+                    onSelect={() => setFulfilment("home")}
+                  />
+                )}
+                {fulfilmentModes.carrier && (
+                  <ChoiceTile
+                    selected={fulfilment === "carrier"}
+                    disabled={!warehouseAvailable}
+                    title={t("fulfilmentCarrier")}
+                    hint={
+                      availabilityLoading
+                        ? t("fulfilmentChecking")
+                        : t("fulfilmentCarrierHint")
+                    }
+                    onSelect={() => warehouseAvailable && setFulfilment("carrier")}
+                  />
+                )}
               </div>
 
               {/* Why it is unavailable — never hide the reason from the agent.
                   Covers the check failing outright too: the SWR fetcher throws
                   on a non-2xx, leaving `availability` undefined, and without
                   this the tile would sit dead with no explanation. */}
-              {!availabilityLoading && !warehouseAvailable && (
+              {fulfilmentModes.carrier && !availabilityLoading && !warehouseAvailable && (
                 <p className="mt-2 text-[12px] text-ink-secondary" dir="auto">
                   {availability?.reason ?? t("fulfilmentUnavailable")}
                 </p>
@@ -649,7 +716,12 @@ export function DarbAssabilDispatchModal({
                     ["allow_testing", t("optionTesting"), t("optionReturnRiskHint")],
                     ["is_replacement", t("optionReplacement"), null],
                   ] as const
-                ).map(([key, label, riskHint]) => (
+                )
+                  // Une option verrouillée par la politique ne s'affiche pas :
+                  // la montrer grisée offrirait un choix qui n'en est pas un.
+                  // Sa valeur part quand même, via effectiveOptions.
+                  .filter(([key]) => orderPreferences[key].canOverride)
+                  .map(([key, label, riskHint]) => (
                   <label
                     key={key}
                     className="group flex min-h-[40px] cursor-pointer items-start gap-3 text-[14px] text-ink-primary"
