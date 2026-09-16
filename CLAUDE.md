@@ -206,6 +206,9 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Scan run, scanned-list filters, per-site stock, multi-product stock fix (2026-09-10): docs/warehouse-scan-run.md + plans/warehouse-scan-run.md
 - Order presence + the agent lock (who has an order open, the hard block, why the trigger is SECURITY INVOKER): docs/order-presence-and-locking.md + plans/order-presence-and-locking.md
 - Ramassage Darb du jour (« le chauffeur est passé », par site, remise à zéro à minuit sans cron): docs/darb-pickup-switch.md + plans/darb-pickup-day-switch.md
+- Réglages transporteurs, préférences de commande (défaut + verrou par option) et
+  activation des sites d'entrepôt — un seul écran, Système → Connexions → Transporteurs:
+  docs/carrier-settings-and-order-preferences.md + plans/carrier-and-order-preferences-settings.md
 
 ## Open discrepancies (found in the 2026-09-13 doc audit — code untouched)
 Documented where they live; none of these were "fixed" silently, because each is a

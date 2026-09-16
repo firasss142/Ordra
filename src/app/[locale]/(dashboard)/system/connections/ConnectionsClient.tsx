@@ -7,6 +7,7 @@ import { SettingsPageHeader } from "@/components/settings/SettingsPageHeader";
 import { ConnectionsTabs, type ConnTab } from "@/components/connections/ConnectionsTabs";
 import { StorefrontsPanel } from "@/components/connections/StorefrontsPanel";
 import { CarriersPanel } from "@/components/connections/CarriersPanel";
+import { WarehouseSitesPanel } from "@/components/connections/WarehouseSitesPanel";
 import { ServicesPanel } from "@/components/connections/ServicesPanel";
 import { OverviewPanel } from "@/components/connections/OverviewPanel";
 import { MappingsPageClient } from "@/app/[locale]/(dashboard)/mappings/MappingsPageClient";
@@ -66,7 +67,13 @@ export function ConnectionsClient({ user, readOnly = false, markets }: Props) {
       )}
 
       {tab === "carriers" && (
-        <CarriersPanel role={user.role} marketId={marketId} currency={currency} readOnly={readOnly} />
+        <>
+          <CarriersPanel role={user.role} marketId={marketId} currency={currency} readOnly={readOnly} />
+          {/* Les bâtiments physiques vivent sous les transporteurs : en Libye
+              chaque site correspond à un compte Darb, donc les regarder
+              séparément ferait perdre le lien. */}
+          <WarehouseSitesPanel role={user.role} marketId={marketId} readOnly={readOnly} />
+        </>
       )}
 
       {tab === "services" && (

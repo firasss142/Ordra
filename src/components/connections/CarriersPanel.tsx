@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
@@ -15,6 +15,8 @@ import {
   formatDeliveryRate,
   type CarrierHealthState,
 } from "@/components/settings/carriers/CarrierHealthBadge";
+import { OrderPreferencesSection } from "./OrderPreferencesSection";
+import type { OrderPreferencesDraft } from "./OrderPreferencesSection";
 import type { Role } from "@/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -349,23 +351,48 @@ function CarrierDrawer({
   const [ret, setRet] = useState("");
   const [saving, setSaving] = useState(false);
   const currentId = carrier?.id;
+  // Remonté par OrderPreferencesSection ; enregistré avec les frais, en un
+  // seul « Enregistrer », pour ne pas donner deux boutons au même tiroir.
+  const prefsRef = useRef<OrderPreferencesDraft | null>(null);
 
   useEffect(() => {
     if (carrier) {
       setDelivery(String(carrier.delivery_fee));
       setRet(String(carrier.return_fee));
+      prefsRef.current = null;
     }
   }, [currentId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePrefsChange = useCallback((next: OrderPreferencesDraft | null) => {
+    prefsRef.current = next;
+  }, []);
 
   async function save() {
     if (!carrier) return;
     setSaving(true);
     try {
-      await fetch(`/api/carriers/${carrier.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ delivery_fee: parseFloat(delivery) || 0, return_fee: parseFloat(ret) || 0 }),
-      });
+      const writes: Promise<unknown>[] = [
+        fetch(`/api/carriers/${carrier.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ delivery_fee: parseFloat(delivery) || 0, return_fee: parseFloat(ret) || 0 }),
+        }),
+      ];
+
+      if (prefsRef.current) {
+        writes.push(
+          fetch(`/api/carriers/${carrier.id}/order-preferences`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              preferences: prefsRef.current.preferences,
+              fulfilmentModes: prefsRef.current.fulfilmentModes,
+            }),
+          }),
+        );
+      }
+
+      await Promise.all(writes);
       onSaved();
     } finally {
       setSaving(false);
@@ -392,6 +419,12 @@ function CarrierDrawer({
                 <input type="number" step="0.001" value={ret} onChange={(e) => setRet(e.target.value)} disabled={!canManage} className="h-9 rounded-md border border-line px-3 text-[13.5px] tabular-nums" />
               </Labelled>
             </div>
+            <OrderPreferencesSection
+              carrierId={carrier.id}
+              canManage={canManage}
+              onChange={handlePrefsChange}
+            />
+
             <div className="rounded-md border border-dashed border-line-strong bg-surface-sunken p-3 text-[12.5px] text-ink-secondary">
               Les identifiants (rotation), les tarifs relevés et les correspondances arrivent dans la suite du chantier Connexions. Les secrets ne sont jamais renvoyés — remplacement uniquement.
             </div>
