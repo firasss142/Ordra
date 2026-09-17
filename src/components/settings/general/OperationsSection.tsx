@@ -232,6 +232,50 @@ export function OperationsSection({
         </SettingField>
 
         <SettingField
+          label="Pré-cochage des doublons"
+          marketId={marketId}
+          settingKey="duplicate_autoselect_window_hours"
+          hint="Sur l'écran Doublons, seules les commandes identiques arrivées dans cette fenêtre sont pré-cochées. Au-delà, elles sont affichées mais c'est vous qui décidez. 0 = ne rien pré-cocher."
+        >
+          <div className="flex items-center gap-2 text-[13px] text-ink-secondary">
+            <span>pré-cocher sous</span>
+            <input
+              type="number"
+              min={0}
+              max={168}
+              value={values.duplicate_autoselect_window_hours ?? 1}
+              onChange={(e) =>
+                set("duplicate_autoselect_window_hours", Number(e.target.value))
+              }
+              className={num}
+              {...dis}
+            />
+            <span>h</span>
+          </div>
+        </SettingField>
+
+        <SettingField
+          label="Fusion de commandes"
+          marketId={marketId}
+          settingKey="merge_window_hours"
+          hint="Même client, produits différents : l'agent peut les réunir en un seul colis, avec un seul frais de livraison. 0 = fusion désactivée sur ce marché."
+        >
+          <div className="flex items-center gap-2 text-[13px] text-ink-secondary">
+            <span>fusion possible sous</span>
+            <input
+              type="number"
+              min={0}
+              max={168}
+              value={values.merge_window_hours ?? 0}
+              onChange={(e) => set("merge_window_hours", Number(e.target.value))}
+              className={num}
+              {...dis}
+            />
+            <span>h</span>
+          </div>
+        </SettingField>
+
+        <SettingField
           label="Affectation à l'arrivée"
           marketId={marketId}
           settingKey="auto_assign_on_intake"

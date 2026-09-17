@@ -96,6 +96,20 @@ export interface MarketSettings {
   // Opérations › Réception
   /** Window (hours) in which a same-phone+product order is a likely duplicate. */
   duplicate_window_hours?: number;
+  /**
+   * Narrower window inside which a duplicate is confident enough to arrive
+   * PRE-TICKED on the review screen. 1h by default: same-product pairs in Libya
+   * have a median gap of 0.2h (a double-submit) while Tunisia's is 118h (a real
+   * re-order of a consumable). 0 disables pre-selection entirely.
+   */
+  duplicate_autoselect_window_hours?: number;
+  /**
+   * Window (hours) in which two same-phone, DIFFERENT-product orders may be
+   * merged into one parcel. 0 = merging disabled for this market, which is the
+   * default: it is worth having where a basket split is common (Libya, 297
+   * pairs at a 5.3h median) and a foot-gun where it is not (Tunisia, 8 pairs).
+   */
+  merge_window_hours?: number;
   /** Auto-assign new orders on intake via the team algorithm. */
   auto_assign_on_intake?: boolean;
   /** Order-amount sanity bounds (flag, never drop, when outside). */
@@ -207,6 +221,8 @@ export const DEFAULT_MARKET_SETTINGS: MarketSettings = {
   callback_max_days: 3,
   callback_grace_minutes: 15,
   duplicate_window_hours: 24,
+  duplicate_autoselect_window_hours: 1,
+  merge_window_hours: 0,
   auto_assign_on_intake: false,
   unknown_city_policy: "queue",
   auto_upload_on_confirm: false,
@@ -263,6 +279,8 @@ export const MARKET_SETTINGS_KEYS: ReadonlyArray<keyof MarketSettings> = [
   "callback_grace_minutes",
   "dispatch_cutoff_time",
   "duplicate_window_hours",
+  "duplicate_autoselect_window_hours",
+  "merge_window_hours",
   "auto_assign_on_intake",
   "order_amount_min",
   "order_amount_max",
@@ -430,6 +448,8 @@ export function isValidMarketSettings(obj: unknown): obj is MarketSettings {
 
   // Opérations › Réception
   if (!isValidOptionalInt(s.duplicate_window_hours, 0, 168)) return false;
+  if (!isValidOptionalInt(s.duplicate_autoselect_window_hours, 0, 168)) return false;
+  if (!isValidOptionalInt(s.merge_window_hours, 0, 168)) return false;
   if (!isValidOptionalBoolean(s.auto_assign_on_intake)) return false;
   if (!isValidOptionalNumber(s.order_amount_min, 0, Number.MAX_SAFE_INTEGER))
     return false;

@@ -96,7 +96,12 @@ export function RelatedOrderCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="truncate font-semibold text-ink-primary">
+            {/*
+              dir="auto" per node, never on the container (design-system §4.17 F):
+              the chrome stays LTR while an Arabic customer name resolves on its
+              own, which is what keeps punctuation on the correct side.
+            */}
+            <span dir="auto" className="truncate font-semibold text-ink-primary">
               {customerName?.trim() || unknownCustomerLabel || "—"}
             </span>
             {isDuplicate && (
@@ -119,7 +124,9 @@ export function RelatedOrderCard({
             title={address}
           >
             <MapPin size={11} strokeWidth={2} aria-hidden="true" className="shrink-0" />
-            <span className="truncate">{address}</span>
+            <span dir="auto" className="truncate">
+              {address}
+            </span>
           </div>
         </div>
         <ProductAvatar
