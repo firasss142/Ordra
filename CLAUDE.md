@@ -209,6 +209,10 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Réglages transporteurs, préférences de commande (défaut + verrou par option) et
   activation des sites d'entrepôt — un seul écran, Système → Connexions → Transporteurs:
   docs/carrier-settings-and-order-preferences.md + plans/carrier-and-order-preferences-settings.md
+- Doublons (écran de revue en lot, pré-cochage haute confiance) et fusion de
+  commandes (même client, produits différents, une seule livraison, adresse
+  choisie explicitement): docs/duplicates-and-merge.md +
+  plans/duplicate-review-and-order-merge.md
 
 ## Open discrepancies (found in the 2026-09-13 doc audit — code untouched)
 Documented where they live; none of these were "fixed" silently, because each is a

@@ -45,7 +45,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
-import { Plus, AlertTriangle } from "lucide-react";
+import { Plus, AlertTriangle, Merge } from "lucide-react";
 import { Sheet } from "@/components/ui/Sheet";
 import { canReopenOrder, EDIT_BLOCKED_STATUSES, isReferenceDeletedUpload } from "@/lib/order-permissions";
 import { fetcher } from "@/lib/swr-config";
@@ -80,6 +80,7 @@ import { CustomerHero } from "./CustomerHero";
 import { ActionFooter } from "./ActionFooter";
 import { CustomerCard } from "./CustomerCard";
 import { OrderItemsCard } from "./OrderItemsCard";
+import { MergeOrderPanel } from "@/components/orders/merge/MergeOrderPanel";
 import { HistoryTimeline } from "./HistoryTimeline";
 import { AlertBanners } from "./AlertBanners";
 import { OrderFacts } from "./OrderFacts";
@@ -361,6 +362,7 @@ export function OrderDetailPanel({
   const t = useTranslations("orders.detail");
   const ts = useTranslations("orders.statuses");
   const tCov = useTranslations("dispatch.coverage");
+  const tMerge = useTranslations("orderMerge");
   const locale = useLocale();
 
   const swrKey = orderId ? `/api/orders/${orderId}` : null;
@@ -514,6 +516,7 @@ export function OrderDetailPanel({
   const [scheduleDispatchOpen, setScheduleDispatchOpen] = useState(false);
   const [cancelingSchedule, setCancelingSchedule] = useState(false);
   const [addProductOpen, setAddProductOpen] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
   // Articles opens by default — it is the section that changes most.
   const [tab, setTab] = useState<PanelTab>("items");
 
@@ -1395,15 +1398,33 @@ export function OrderDetailPanel({
                         onCommitDeliveryFee={(v) => runCommit({ delivery_fee: v })}
                         onOpenProductSheet={(productId) => openProductSheet(productId)}
                         renderAddProduct={() => (
-                          <AddProductTrigger
-                            orderId={order.id}
-                            marketId={order.market_id}
-                            currentItemIds={orderItems.map((it) => it.product_id)}
-                            open={addProductOpen}
-                            onOpenChange={setAddProductOpen}
-                            onAdded={() => {}}
-                            label={t("addProduct")}
-                          />
+                          <div className="flex flex-wrap items-center gap-2">
+                            <AddProductTrigger
+                              orderId={order.id}
+                              marketId={order.market_id}
+                              currentItemIds={orderItems.map((it) => it.product_id)}
+                              open={addProductOpen}
+                              onOpenChange={setAddProductOpen}
+                              onAdded={() => {}}
+                              label={t("addProduct")}
+                            />
+                            {/*
+                              The basket split: the same customer ordered another
+                              product separately. The panel itself decides whether
+                              the market has merging switched on, and lists the
+                              candidates — so this is just the way in.
+                            */}
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => setMergeOpen(true)}
+                                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line-subtle px-2.5 text-[13px] font-medium text-ink-secondary transition-colors hover:border-line-strong hover:text-ink-primary"
+                              >
+                                <Merge size={13} strokeWidth={2} aria-hidden="true" />
+                                {tMerge("action")}
+                              </button>
+                            )}
+                          </div>
                         )}
                   />
                   </div>
@@ -1747,6 +1768,35 @@ export function OrderDetailPanel({
           </button>
         </div>
       </Sheet>
+
+      {/* Same customer, another product, ordered separately — one parcel
+          instead of two. The panel resolves the market's merge window itself
+          and closes with `enabled: false` where merging is switched off. */}
+      {order && (
+        <MergeOrderPanel
+          open={mergeOpen}
+          onClose={() => setMergeOpen(false)}
+          survivor={{
+            id: order.id,
+            external_id: order.external_id ?? null,
+            customer_address: order.customer_address ?? null,
+            customer_city: order.customer_city ?? null,
+            delivery_fee: Number(order.delivery_fee ?? 0),
+            card_payment: Boolean(order.card_payment),
+            dexpress_state_id: order.dexpress_state_id ?? null,
+            market_code: isLibyaOrder ? "ly" : "tn",
+            items: orderItems.map((it) => ({
+              quantity: it.quantity,
+              unit_price: Number(it.unit_price ?? 0),
+            })),
+          }}
+          locale={locale}
+          currencyCode={displayCurrency}
+          onMerged={() => {
+            void mutate();
+          }}
+        />
+      )}
 
       {/* Stacks over this panel; the panel's own Escape handler stands down
           while it is open. */}
