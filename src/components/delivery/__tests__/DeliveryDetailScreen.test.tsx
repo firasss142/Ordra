@@ -34,7 +34,7 @@ function row(over: Partial<WorklistRow> = {}): WorklistRow {
 
 function mount(over: Partial<WorklistRow> = {}) {
   const onDialed = vi.fn();
-  render(
+  const { container } = render(
     <NextIntlClientProvider locale="fr" messages={fr} timeZone="Africa/Tripoli" now={new Date(NOW)}>
       <DeliveryDetailScreen
         row={row(over)} market="ly" locale="fr" tz="Africa/Tripoli" now={NOW}
@@ -42,11 +42,21 @@ function mount(over: Partial<WorklistRow> = {}) {
       />
     </NextIntlClientProvider>,
   );
-  return { onDialed };
+  return { onDialed, container };
 }
 
 /** The "Informations livraison" block, addressed by its heading. */
 const deliveryBlock = () => screen.getByRole("heading", { name: "Informations livraison" }).parentElement as HTMLElement;
+
+describe("the phone screen colours a parcel by its situation", () => {
+  it("tints the suggested-action block to match the chip above it", () => {
+    // Stalled is stone; the block used to take the act_now bucket's amber and
+    // contradict the chip on the same screen.
+    const { container } = mount();
+    const block = container.querySelector("[data-situation-tint]") as HTMLElement;
+    expect(block.className).toContain("before:bg-[#A8A29E]");
+  });
+});
 
 describe("the phone screen carries what the desktop panel carries", () => {
   it("shows the courier's phone number, not just their name", () => {

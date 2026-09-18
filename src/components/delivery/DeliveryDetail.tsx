@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Calendar, CalendarCheck, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock, FileText, MapPin, MinusCircle, MoreHorizontal, NotebookPen, Package, PenLine, Phone, RotateCcw, Truck, User, X, Check, XCircle } from "lucide-react";
 import type { WorklistRow } from "@/lib/delivery/types";
-import { BUCKET_TONE, formatPhone, moveFor, orderRef, quickOutcomesFor, situationOf, type MoveKind, type QuickOutcome } from "@/lib/delivery/presentation";
+import { formatPhone, moveFor, orderRef, quickOutcomesFor, situationOf, type MoveKind, type QuickOutcome } from "@/lib/delivery/presentation";
 import { DeliveryTimeline } from "./DeliveryTimeline";
 import { Chip, EDGE, Ltr, Money, OUTLINE_BTN, PRIMARY_BTN, ProductThumb, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, useSituationLabel } from "./ui";
 
@@ -187,7 +187,7 @@ export function DeliveryDetailPanel({ row, market, locale, tz, now, onClose, onL
             <a href={`tel:${row.handler_phone}`} onClick={() => onDialed(row)} className={line}><Phone size={15} className="shrink-0 text-[#6B7280]" aria-hidden /><Ltr>{formatPhone(row.handler_phone)}</Ltr></a>
           )}
           <div className={`${line} text-[#6B7280]`}>
-            <span className={`ms-[3px] me-[3px] h-2 w-2 shrink-0 rounded-full ${TONE[BUCKET_TONE[row.bucket]].dot}`} aria-hidden />
+            <span className={`ms-[3px] me-[3px] h-2 w-2 shrink-0 rounded-full ${TONE[s.tone].dot}`} aria-hidden />
             <span>{tStatus.has(row.status) ? tStatus(row.status) : row.status}</span>
           </div>
           {row.latest_remark && (
@@ -232,7 +232,9 @@ export function DeliveryDetailScreen({ row, market, locale, tz, now, onBack, onL
   const Back = locale === "ar" ? ChevronRight : ChevronLeft;
   const Forward = locale === "ar" ? ChevronLeft : ChevronRight;
   const [logOpen, setLogOpen] = useState(false);
-  const tone = BUCKET_TONE[row.bucket];
+  // Same rule as the row's edge: the tint follows the situation, so the block
+  // and the chip on the same screen never claim two different colours.
+  const tone = s.tone;
   const createdShort = row.created_at
     ? new Intl.DateTimeFormat("en-GB", { timeZone: tz, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
         .format(new Date(row.created_at)).replace(", ", " · ")
@@ -275,7 +277,8 @@ export function DeliveryDetailScreen({ row, market, locale, tz, now, onBack, onL
         </div>
 
         <button type="button" onClick={() => (m.whatsapp ? onWhatsApp(row) : onLogAction(row))}
-          className={`${block} ${EDGE} ${TONE[tone].edge} flex w-full items-center gap-3 text-start ${tone === "amber" ? "!bg-[#FFFBEB]" : tone === "red" ? "!bg-[#FEF2F2]" : tone === "blue" ? "!bg-[#EFF6FF]" : ""}`}>
+          data-situation-tint
+          className={`${block} ${EDGE} ${TONE[tone].edge} flex w-full items-center gap-3 text-start ${done ? "" : TONE[tone].soft}`}>
           <span className="grid h-10 w-10 shrink-0 place-items-center text-[#111827]"><Icon size={24} aria-hidden /></span>
           <span className="min-w-0">
             <small className="block text-[13px] text-[#6B7280]">{t("detail.suggested")}</small>

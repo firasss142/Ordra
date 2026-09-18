@@ -1,4 +1,4 @@
-# Design System — OMS Admin Interface
+# Design System — Ordra Admin Interface
 
 > Shopify admin-inspired operational dashboard. Dark sidebar, light content, white cards. Maximum contrast, zero decoration.
 
@@ -49,7 +49,16 @@ All tokens are CSS custom properties defined in `src/app/globals.css`.
 |---|---|---|
 | `--line-subtle` / `line-subtle` | `#ECEEF0` | Whisper-thin border for cards and list rows (default for new components) |
 | `--border` / `line.DEFAULT` | `#E1E3E5` | Standard border (legacy, inputs, dividers) |
-| `--border-strong` / `line-strong` | `#DADCE0` | Emphasized dividers, hover state on subtle borders |
+| `line-strong` (Tailwind) | `#DADCE0` | Emphasized dividers, hover state on subtle borders |
+| `--border-strong` (CSS var) | `#C9CCCF` | **Not the same value** — see the note below |
+
+> **Two values, one name.** `line-strong` in `tailwind.config` is `#DADCE0`, but the
+> CSS custom property `--border-strong` in `globals.css` is `#C9CCCF` — a visibly
+> darker grey. A component reaching for `border-line-strong` and one reaching for
+> `var(--border-strong)` therefore do not match. This is drift, not a design decision;
+> it is recorded here rather than silently corrected because deciding which value is
+> right is a visual call. `--oms-border-strong` (`#DCD8D0`) and `--wh-border-strong`
+> (`#CFD3CB`) are separate scoped tokens and are *not* part of this conflict.
 
 ### Accent — brand green
 
@@ -780,6 +789,30 @@ Do not use this holder outside a KPI tile.
 
 ---
 
+## 4.22 Suivi livraison — one hue per situation (2026-09-17)
+
+The `/delivery` row puts the **situation first** (before the client) on desktop and phone, and
+the situation chip takes **one hue per situation**, not per bucket — an agent reads what is
+wrong from the colour before the label: red returns, rose confirmed return, fuchsia cancel
+intent, violet risky parcel, orange overdue callback, amber no answer, teal address, yellow no
+coverage, indigo delayed, stone stalled, blue promised callback, slate warehouse, grey carrier,
+green delivered. The map is `SIT_TONE` in `src/lib/delivery/presentation.ts`; the classes are
+`TONE[..].chip` in `src/components/delivery/ui.tsx`, written out as literals because Tailwind
+cannot see an interpolated class. **The chip is the one sanctioned gradient in the product UI**
+(a fade from the tint to near-white, mirrored under `dir="rtl"`), asked for by the owner as a
+status signal; it does not license gradients anywhere else.
+
+**One parcel, one colour (extended 2026-09-18 to the manager screen).** Everything that
+describes *a single parcel* takes the situation tone: the chip, the row's inline-start edge,
+the carrier-status dot in the detail panel, the mobile suggested-action tint, and the 4px bar
+in the cockpit's blocking list. A bucket tone on any of these contradicts the chip beside it —
+a stalled parcel would show a stone chip against an amber edge. What stays on `BUCKET_TONE` is
+what describes a *group*: the bucket strip on both screens, the cockpit legend, and the
+per-agent load bar, which is a distribution across buckets and nothing else. The one deliberate
+exception is the mobile action bar, tinted by `moveTone` (how hard the action pulls), because
+the edge and chip already carry what is wrong. Design notes:
+`plans/delivery-worklist-row-redesign.md`.
+
 ## 5. Layout
 
 ### Shell Structure
@@ -1090,3 +1123,75 @@ inventing a figure the warehouse has not earned (a stock goal nobody set, an
 accuracy nobody measured) · physical CSS properties. Libya is RTL and this is
 the section's only load-bearing RTL surface, so `ps`/`pe`/`ms`/`me`/`text-start`
 are not optional.
+
+---
+
+## 4.21 Finance surfaces — scoped extensions (`--fin-*`, `--ads-*`)
+
+Two token families in `src/app/globals.css` serve the finance section. Both were
+built and validated in code before they were written down here; this section is
+the reading of them, added 2026-09-13.
+
+Neither is a new theme. Both sit on the light console ground with the same black
+type and the same brand green for chrome. What they add is a **measured
+categorical palette** — the thing §1's "functional colour only on status" did not
+anticipate, because a cost breakdown is not a status and cannot be drawn in grey.
+
+> A stale plan (`plans/ad-spend-campaign-redesign.md`) sanctions a dark cinematic
+> palette for Dépenses pub. **That was not built and must not be.** The shipped
+> page is light. Treat that plan as superseded by
+> `plans/ad-spend-meta-sync-redesign.md`.
+
+### A. `--fin-*` — P&L global and the finance dashboards
+
+| Token | Hex | Role |
+|---|---|---|
+| `--fin-green` | `#16A34A` | 3.0:1 — fills, glyphs, bars, strokes. **Never type.** |
+| `--fin-green-ink` | `#15803D` | The text partner (= `--brand`), 5.0:1 on white |
+| `--fin-navy` | `#0F172A` | Headings, 16.9:1 |
+| `--fin-mint` | `#E6F7EF` | Icon holders, funnel wells, positive delta pill |
+| `--fin-teal` / `-ink` | `#0D9488` / `#0B6A60` | Secondary series |
+| `--fin-gold` / `-ink` | `#F59E0B` / `#8F5608` | Accent fill only — 2.1:1, never type |
+| `--fin-bg` / `--fin-line` | `#F7F9F8` / `#E8EEEA` | Section ground and hairline |
+| `--fin-ink-2` / `-3` | `#475569` / `#64748B` | 7.5:1 labels · 4.8:1 meta and axis |
+
+**The fill/ink split is the rule.** Every hue that can carry a figure has an
+`-ink` partner that is safe as type; the raw hue is for fills, bars and glyphs.
+Putting `--fin-green` on a number is the mistake this split exists to prevent.
+
+### B. `--ads-*` — Dépenses pub
+
+Dépenses pub needs more than the finance palette: it draws a **cost stack** (where
+one delivered order's revenue goes) and a **threshold chart** (cost per lead
+against the maximum payable). Twenty-nine tokens, in three groups.
+
+**Neutrals and verdict hues** — `--ads-line`, `--ads-line-2`, `--ads-ink-1`
+(16.6:1, figures), `--ads-ink-2` (5.0:1, labels), `--ads-ink-3` (2.6:1 — column
+heads and disabled cells **only**), `--ads-muted` (axis ticks, matching
+`--chart-line`). Verdicts: `--ads-green` `#16A34A` and `--ads-red` `#DC2626` are
+**fills** at 3.0:1 and 4.0:1; their `-ink` partners (`--ads-green-ink` 5.0:1,
+`--ads-red-ink` 6.2:1) carry the type.
+
+**`-bg` versus `-band` is load-bearing.** `--ads-red-bg` is a pill fill;
+`--ads-red-band` (`#FEF6F6`) is the whole-row wash under a losing product and is
+deliberately far lighter. A full table row at pill strength reads as an error
+state rather than as a number worth looking at.
+
+**Cost stack — six categorical hues.** `--ads-pub` `#ea6a1f` · `--ads-cogs`
+`#2563eb` · `--ads-delivery` `#0d9488` · `--ads-returns` `#6d5ce0` ·
+`--ads-packing` `#e87ba4` · `--ads-profit` `#15803d`. Validated against `#FFFFFF`
+with the dataviz palette checker: every step inside the lightness band, chroma
+above the grey floor, worst adjacent CVD ΔE 15.2, normal-vision ΔE 22.6. They are
+**fills only** — each segment carries its label and figure in ink beside it, never
+colour alone.
+
+**Hatching** — `--ads-hatch-ok` / `--ads-hatch-bad` (plus `-line` partners) mark
+the headroom between what a lead costs and what it may cost. Hatching, not a
+fourth hue, because it reads as "not yet spent" rather than as another category.
+
+### Still forbidden here
+
+Gradients · a raw fill hue carrying type · colour as the only channel for a cost
+category or a verdict · a dark ground · inventing a figure the data has not
+earned. A young cohort must read as unfinished (`maturityPct`), never as a
+confident number.

@@ -4,7 +4,7 @@ import { memo } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowRight, Clock, MapPin, Package, Phone, RotateCcw, Truck, Check } from "lucide-react";
 import type { WorklistRow } from "@/lib/delivery/types";
-import { BUCKET_TONE, formatPhone, moveFor, moveTone, orderRef, situationOf, type MoveKind } from "@/lib/delivery/presentation";
+import { formatPhone, moveFor, moveTone, orderRef, situationOf, type MoveKind } from "@/lib/delivery/presentation";
 import { Chip, EDGE, Ltr, Money, OUTLINE_BTN, ProductThumb, SIT_ICON, TONE, WhatsAppIcon, type IconComponent, useSituationLabel, useSituationSub, useWhen } from "./ui";
 
 const MOVE_ICON: Record<MoveKind, IconComponent> = {
@@ -43,7 +43,9 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
   const when = useWhen(now, tz, locale);
   const s = situationOf(row, now);
   const m = moveFor(row, now);
-  const tone = BUCKET_TONE[row.bucket];
+  // The edge follows the SITUATION, like the chip beside it: a bucket tone here
+  // would paint a stone « sans mouvement » parcel amber and contradict its own chip.
+  const tone = s.tone;
   const btnTone = moveTone(row, now);
   const Icon = MOVE_ICON[m.kind];
   const SitIcon = SIT_ICON[s.key];
@@ -69,12 +71,21 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
         EDGE, TONE[tone].edge,
         "mb-2 grid cursor-pointer gap-x-2.5 rounded-[10px] border text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#15803D]/40",
         "grid-cols-[minmax(0,1fr)_auto] px-3.5 py-3 ps-4",
-        "lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(200px,auto)_minmax(88px,auto)] lg:items-center lg:gap-x-4 lg:px-4 lg:py-2.5 lg:ps-5",
+        "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(200px,auto)_minmax(88px,auto)] lg:items-center lg:gap-x-4 lg:px-4 lg:py-2.5 lg:ps-5",
         selected ? "border-[1.5px] border-[#15803D] bg-[#F0FDF4]" : "border-[#E5E7EB] bg-white hover:border-[#C9CCCF]",
       ].join(" ")}
     >
+      {/* Situation / durée — first, so the colour says what is wrong before anything is read */}
+      <div className="col-start-1 row-start-1 flex min-w-0 flex-col items-start lg:col-start-1 lg:row-start-1">
+        <Chip tone={s.tone} icon={SitIcon}>{label(s)}</Chip>
+        <div className="mt-1 hidden text-[13px] text-[#6B7280] [unicode-bidi:plaintext] lg:block">{sub(s)}</div>
+        <div className="mt-0.5 hidden items-center gap-1 text-[13px] text-[#6B7280] lg:flex">
+          <Clock size={13} aria-hidden /><span>{when(moved)}</span>
+        </div>
+      </div>
+
       {/* Détails du colis */}
-      <div className="col-start-1 row-start-1 flex min-w-0 items-start gap-3">
+      <div className="col-span-2 col-start-1 row-start-2 mt-2.5 flex min-w-0 items-start gap-3 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:mt-0">
        <ProductThumb src={row.items[0]?.image_url} alt={p?.name ?? ""} size={44} className="mt-0.5" />
        <div className="min-w-0">
         <div className="flex flex-wrap items-baseline gap-x-2">
@@ -94,19 +105,11 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
        </div>
       </div>
 
-      {/* Situation / durée */}
-      <div className="col-span-2 col-start-1 row-start-2 mt-2 flex flex-col items-start lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:mt-0">
-        <Chip tone={s.tone} icon={SitIcon}>{label(s)}</Chip>
-        <div className="mt-1 hidden text-[13px] text-[#6B7280] [unicode-bidi:plaintext] lg:block">{sub(s)}</div>
-        <div className="mt-0.5 hidden items-center gap-1 text-[13px] text-[#6B7280] lg:flex">
-          <Clock size={13} aria-hidden /><span>{when(moved)}</span>
-        </div>
-      </div>
-
       {/* Action */}
       <div className="col-span-2 col-start-1 row-start-3 mt-2.5 flex min-w-0 lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:mt-0 lg:items-center lg:gap-2">
-        {/* On a phone the move is a full-width bar in the bucket's tint, the
-            arrow pointing where a tap goes. */}
+        {/* On a phone the move is a full-width bar tinted by the URGENCY of the
+            move (moveTone), not by the situation: the edge and the chip already
+            say what is wrong, this says how hard it is pulling. */}
         <button
           type="button"
           onClick={act}
@@ -136,7 +139,7 @@ function DeliveryRowInner({ row, selected, showAgent, market, locale, tz, now, o
       </div>
 
       {/* Montant */}
-      <div className="col-start-2 row-start-1 self-start text-end text-[17px] font-bold text-[#111827] lg:col-start-4 lg:self-center lg:text-[19px]">
+      <div className="col-start-2 row-start-1 self-center text-end text-[17px] font-bold text-[#111827] lg:col-start-4 lg:text-[19px]">
         <Money amount={row.total_price} market={market} locale={locale} />
       </div>
     </article>

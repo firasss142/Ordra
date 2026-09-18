@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { situationOf, moveFor, formatPhone, dayPart, orderRef, BUCKET_TONE, moveTone, quickOutcomesFor } from "../presentation";
+import { situationOf, moveFor, formatPhone, dayPart, orderRef, BUCKET_TONE, SIT_TONE, moveTone, quickOutcomesFor, type SituationKey } from "../presentation";
 import type { WorklistRow } from "../types";
 
 const NOW = Date.parse("2026-09-13T10:30:00Z");
@@ -27,10 +27,25 @@ describe("BUCKET_TONE", () => {
   });
 });
 
+describe("SIT_TONE", () => {
+  test("every situation has a hue, and the ones an agent must tell apart at a glance do not share one", () => {
+    const keys: SituationKey[] = ["proactive", "stalled", "no_answer", "address", "out_of_coverage", "cancel", "delayed", "due",
+      "waiting_customer", "at_warehouse", "waiting_carrier", "returning", "to_be_returned", "delivered", "returned"];
+    for (const k of keys) expect(SIT_TONE[k]).toBeTruthy();
+    // The act-now situations each get their own colour: that is the whole point of colouring them.
+    const actNow: SituationKey[] = ["proactive", "stalled", "no_answer", "address", "out_of_coverage", "cancel", "delayed", "due"];
+    expect(new Set(actNow.map((k) => SIT_TONE[k])).size).toBe(actNow.length);
+    // Money leaving stays in the red family; nothing to do stays neutral.
+    expect(SIT_TONE.returning).toBe("red");
+    expect(SIT_TONE.waiting_carrier).toBe("grey");
+    expect(SIT_TONE.delivered).toBe("green");
+  });
+});
+
 describe("situationOf", () => {
   test("act now reads the most specific reason first", () => {
     expect(situationOf(row({ bucket: "act_now", has_open_task: true, reason_codes: ["proactive", "remark:no_answer"] }), NOW))
-      .toMatchObject({ key: "proactive", tone: "amber", hours: 6, sub: { key: "proactive" } });
+      .toMatchObject({ key: "proactive", tone: SIT_TONE.proactive, hours: 6, sub: { key: "proactive" } });
     expect(situationOf(row({ bucket: "act_now", reason_codes: ["stalled:5"], hours_on_status: 150 }), NOW))
       .toMatchObject({ key: "stalled", hours: 150 });
     expect(situationOf(row({ bucket: "act_now", reason_codes: ["remark:no_answer"] }), NOW)).toMatchObject({ key: "no_answer" });

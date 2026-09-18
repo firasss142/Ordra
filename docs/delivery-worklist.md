@@ -12,6 +12,15 @@ what**. Landed 2026-09-12 in five migrations.
 > that decision 38 calls for, the manager task, the proactive-call trigger with its
 > notifications, and the deletion phase.
 >
+> **Row v4 (2026-09-17, extended 2026-09-18):** the situation is the first column on desktop and
+> phone, with one hue per situation (`SIT_TONE`, design-system §4.22). Both screens share
+> `DeliveryRow`, so the manager board inherited it; the follow-up pass made every *per-parcel*
+> surface agree with the chip (row edge, detail status dot, mobile action tint, cockpit blocking
+> bars), leaving group-level surfaces (bucket strips, legend, load bar) on `BUCKET_TONE`.
+> The rest of the v4 prototype
+> (`prototypes/suivi-livraison-v4.html`: age column, trace line, number in the button, tags) was
+> parked by the owner — the plan is `plans/delivery-worklist-row-redesign.md`.
+>
 > **Relances (/follow-ups) and Tableau livraison (/in-delivery) are still live.** The agent
 > tab now points at /delivery and the manager board replaces what /in-delivery showed, but
 > the old pages were not deleted. Deleting them is the deletion phase, not a side effect.

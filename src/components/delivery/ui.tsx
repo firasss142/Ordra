@@ -11,12 +11,29 @@ import { AlertCircle, Ban, CheckCircle2, Clock, Package } from "lucide-react";
 import type { Tone, Situation, SituationKey } from "@/lib/delivery/presentation";
 import { dayPart } from "@/lib/delivery/presentation";
 
+/**
+ * The situation chip is the one place this page allows a gradient: a soft
+ * fade from the hue's tint to near-white, read start-to-end in either script,
+ * plus a hairline ring in the hue. One hue per situation (SIT_TONE), so the
+ * colour alone tells the agent what is wrong before the label is read.
+ */
+// Written out in full on purpose: Tailwind only emits classes it can read as
+// literals in the source, so a chip("#…") helper would ship no gradient at all.
 export const TONE: Record<Tone, { chip: string; edge: string; dot: string; soft: string; border: string; icon: string }> = {
-  red: { chip: "bg-[#FEE2E2] text-[#B91C1C]", edge: "before:bg-[#EF4444]", dot: "bg-[#EF4444]", soft: "bg-[#FEE2E2]", border: "border-[#F87171]", icon: "text-[#DC2626]" },
-  amber: { chip: "bg-[#FEF3C7] text-[#92400E]", edge: "before:bg-[#F59E0B]", dot: "bg-[#F59E0B]", soft: "bg-[#FEF3C7]", border: "border-[#FBBF24]", icon: "text-[#B45309]" },
-  blue: { chip: "bg-[#DBEAFE] text-[#1D4ED8]", edge: "before:bg-[#3B82F6]", dot: "bg-[#3B82F6]", soft: "bg-[#DBEAFE]", border: "border-[#93C5FD]", icon: "text-[#1D4ED8]" },
-  grey: { chip: "bg-[#F3F4F6] text-[#374151]", edge: "before:bg-[#9CA3AF]", dot: "bg-[#9CA3AF]", soft: "bg-[#F3F4F6]", border: "border-[#D1D5DB]", icon: "text-[#374151]" },
-  green: { chip: "bg-[#DCFCE7] text-[#15803D]", edge: "before:bg-[#22C55E]", dot: "bg-[#22C55E]", soft: "bg-[#DCFCE7]", border: "border-[#86EFAC]", icon: "text-[#15803D]" },
+  red: { chip: "bg-gradient-to-r rtl:bg-gradient-to-l from-[#FECACA] to-[#FEF2F2] text-[#B91C1C] ring-1 ring-inset ring-[#FCA5A5]", edge: "before:bg-[#EF4444]", dot: "bg-[#EF4444]", soft: "bg-[#FEE2E2]", border: "border-[#F87171]", icon: "text-[#DC2626]" },
+  rose: { chip: "bg-gradient-to-r rtl:bg-gradient-to-l from-[#FECDD3] to-[#FFF1F2] text-[#9F1239] ring-1 ring-inset ring-[#FDA4AF]", edge: "before:bg-[#F43F5E]", dot: "bg-[#F43F5E]", soft: "bg-[#FFE4E6]", border: "border-[#FDA4AF]", icon: "text-[#BE123C]" },
+  fuchsia: { chip: "bg-gradient-to-r rtl:bg-gradient-to-l from-[#F5D0FE] to-[#FDF4FF] text-[#86198F] ring-1 ring-inset ring-[#F0ABFC]", edge: "before:bg-[#D946EF]", dot: "bg-[#D946EF]", soft: "bg-[#FAE8FF]", border: "border-[#F0ABFC]", icon: "text-[#A21CAF]" },
+  violet: { chip: "bg-gradient-to-r rtl:bg-gradient-to-l from-[#DDD6FE] to-[#F5F3FF] text-[#5B21B6] ring-1 ring-inset ring-[#C4B5FD]", edge: "before:bg-[#8B5CF6]", dot: "bg-[#8B5CF6]", soft: "bg-[#EDE9FE]", border: "border-[#C4B5FD]", icon: "text-[#6D28D9]" },
+  orange: { chip: "bg-gradient-to-r rtl:bg-gradient-to-l from-[#FED7AA] to-[#FFF7ED] text-[#9A3412] ring-1 ring-inset ring-[#FDBA74]", edge: "before:bg-[#F97316]", dot: "bg-[#F97316]", soft: "bg-[#FFEDD5]", border: "border-[#FDBA74]", icon: "text-[#C2410C]" },
+  amber: { chip: "bg-gradient-to-r rtl:bg-gradient-to-l from-[#FDE68A] to-[#FFFBEB] text-[#92400E] ring-1 ring-inset ring-[#FCD34D]", edge: "before:bg-[#F59E0B]", dot: "bg-[#F59E0B]", soft: "bg-[#FEF3C7]", border: "border-[#FBBF24]", icon: "text-[#B45309]" },
+  yellow: { chip: "bg-gradient-to-r rtl:bg-gradient-to-l from-[#FEF08A] to-[#FEFCE8] text-[#854D0E] ring-1 ring-inset ring-[#FDE047]", edge: "before:bg-[#EAB308]", dot: "bg-[#EAB308]", soft: "bg-[#FEF9C3]", border: "border-[#FDE047]", icon: "text-[#A16207]" },
+  teal: { chip: "bg-gradient-to-r rtl:bg-gradient-to-l from-[#99F6E4] to-[#F0FDFA] text-[#115E59] ring-1 ring-inset ring-[#5EEAD4]", edge: "before:bg-[#14B8A6]", dot: "bg-[#14B8A6]", soft: "bg-[#CCFBF1]", border: "border-[#5EEAD4]", icon: "text-[#0F766E]" },
+  indigo: { chip: "bg-gradient-to-r rtl:bg-gradient-to-l from-[#C7D2FE] to-[#EEF2FF] text-[#3730A3] ring-1 ring-inset ring-[#A5B4FC]", edge: "before:bg-[#6366F1]", dot: "bg-[#6366F1]", soft: "bg-[#E0E7FF]", border: "border-[#A5B4FC]", icon: "text-[#4338CA]" },
+  stone: { chip: "bg-gradient-to-r rtl:bg-gradient-to-l from-[#D6D3D1] to-[#FAFAF9] text-[#44403C] ring-1 ring-inset ring-[#A8A29E]", edge: "before:bg-[#A8A29E]", dot: "bg-[#A8A29E]", soft: "bg-[#E7E5E4]", border: "border-[#D6D3D1]", icon: "text-[#57534E]" },
+  slate: { chip: "bg-gradient-to-r rtl:bg-gradient-to-l from-[#CBD5E1] to-[#F8FAFC] text-[#334155] ring-1 ring-inset ring-[#94A3B8]", edge: "before:bg-[#94A3B8]", dot: "bg-[#94A3B8]", soft: "bg-[#E2E8F0]", border: "border-[#CBD5E1]", icon: "text-[#475569]" },
+  blue: { chip: "bg-gradient-to-r rtl:bg-gradient-to-l from-[#BFDBFE] to-[#EFF6FF] text-[#1D4ED8] ring-1 ring-inset ring-[#93C5FD]", edge: "before:bg-[#3B82F6]", dot: "bg-[#3B82F6]", soft: "bg-[#DBEAFE]", border: "border-[#93C5FD]", icon: "text-[#1D4ED8]" },
+  grey: { chip: "bg-gradient-to-r rtl:bg-gradient-to-l from-[#E5E7EB] to-[#F9FAFB] text-[#374151] ring-1 ring-inset ring-[#D1D5DB]", edge: "before:bg-[#9CA3AF]", dot: "bg-[#9CA3AF]", soft: "bg-[#F3F4F6]", border: "border-[#D1D5DB]", icon: "text-[#374151]" },
+  green: { chip: "bg-gradient-to-r rtl:bg-gradient-to-l from-[#BBF7D0] to-[#F0FDF4] text-[#15803D] ring-1 ring-inset ring-[#86EFAC]", edge: "before:bg-[#22C55E]", dot: "bg-[#22C55E]", soft: "bg-[#DCFCE7]", border: "border-[#86EFAC]", icon: "text-[#15803D]" },
 };
 
 /** The coloured inline-start edge on rows and cards. */

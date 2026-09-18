@@ -248,6 +248,6 @@ and was wrong by three orders of magnitude on `order_items` during this very aud
 - ly_manager: [manager.ly](http://manager.ly/)@oms.local / testpass123
 - tn_agent_1: [agent1.tn](http://agent1.tn/)@oms.local / testpass123
 - tn_agent_2: [agent2.tn](http://agent2.tn/)@oms.local / testpass123
-- ly_agent_1: [agent1.ly](http://agent1.ly/)@oms.local / testpass123
+- ly_agent_1: [agent1.ly](http://agent1.ly/)@oms.local / testpass123 — **soft-deleted in prod (seen 2026-09-17); use manager.ly to see /delivery**
 - tn_warehouse: warehouse.tn@oms.local / testpass123
 - ly_warehouse: warehouse.ly@oms.local / testpass123

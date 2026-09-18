@@ -9,7 +9,9 @@ import type { AgentActionType } from "./actions";
 import type { Bucket, WorklistRow } from "./types";
 import { nextMove } from "./worklist";
 
-export type Tone = "red" | "amber" | "blue" | "grey" | "green";
+export type Tone =
+  | "red" | "amber" | "blue" | "grey" | "green"
+  | "rose" | "fuchsia" | "violet" | "orange" | "yellow" | "teal" | "indigo" | "stone" | "slate";
 
 export const BUCKET_TONE: Record<Bucket, Tone> = {
   returning: "red",
@@ -28,6 +30,19 @@ export type SubKey =
   | "proactive" | "stalled" | "no_answer" | "address" | "out_of_coverage" | "cancel" | "delayed" | "due"
   | "wait_callback" | "at_warehouse" | "transit" | "in_transit" | "at_carrier"
   | "returning" | "to_be_returned" | "delivered" | "returned";
+
+/**
+ * One hue per situation, so the colour alone says what is wrong. Families:
+ * the red side (red, rose, fuchsia) is money leaving; warm (violet, orange,
+ * amber, yellow, teal) is a customer to reach; cool (indigo, stone, slate,
+ * grey) is the carrier's side; blue is a promise; green is delivered.
+ */
+export const SIT_TONE: Record<SituationKey, Tone> = {
+  returning: "red", to_be_returned: "rose", cancel: "fuchsia",
+  proactive: "violet", due: "orange", no_answer: "amber", out_of_coverage: "yellow", address: "teal",
+  delayed: "indigo", stalled: "stone", at_warehouse: "slate", waiting_carrier: "grey",
+  waiting_customer: "blue", delivered: "green", returned: "grey",
+};
 
 export interface Situation {
   key: SituationKey;
@@ -48,33 +63,33 @@ export function situationOf(row: WorklistRow, now: number = Date.now()): Situati
   switch (row.bucket) {
     case "done":
       return row.status === "delivered"
-        ? { key: "delivered", tone: "green", hours: null, sub: { key: "delivered" } }
-        : { key: "returned", tone: "grey", hours: null, sub: { key: "returned" } };
+        ? { key: "delivered", tone: SIT_TONE.delivered, hours: null, sub: { key: "delivered" } }
+        : { key: "returned", tone: SIT_TONE.returned, hours: null, sub: { key: "returned" } };
     case "returning":
       return row.status === "to_be_returned"
-        ? { key: "to_be_returned", tone: "red", hours: null, sub: { key: "to_be_returned" } }
-        : { key: "returning", tone: "red", hours: null, sub: { key: "returning" } };
+        ? { key: "to_be_returned", tone: SIT_TONE.to_be_returned, hours: null, sub: { key: "to_be_returned" } }
+        : { key: "returning", tone: SIT_TONE.returning, hours: null, sub: { key: "returning" } };
     case "waiting_customer":
       return {
         key: "waiting_customer",
-        tone: "blue",
+        tone: SIT_TONE.waiting_customer,
         hours: hoursUntil(row.next_action_at, now),
         sub: row.last_action_note ? { text: row.last_action_note } : { key: "wait_callback" },
       };
     case "waiting_carrier": {
       if (row.status === "uploaded" || row.status === "scanned") {
-        return { key: "at_warehouse", tone: "grey", hours: h, sub: { key: "at_warehouse" } };
+        return { key: "at_warehouse", tone: SIT_TONE.at_warehouse, hours: h, sub: { key: "at_warehouse" } };
       }
       const sub: SubKey =
         row.status === "out_for_delivery" ? "transit"
         : ["in_transit", "dispatched", "deposit"].includes(row.status) ? "in_transit"
         : "at_carrier";
-      return { key: "waiting_carrier", tone: "grey", hours: h, sub: { key: sub } };
+      return { key: "waiting_carrier", tone: SIT_TONE.waiting_carrier, hours: h, sub: { key: sub } };
     }
   }
 
   // act_now — most specific reason first.
-  const amber = (key: SituationKey & SubKey, hours: number | null = h): Situation => ({ key, tone: "amber", hours, sub: { key } });
+  const amber = (key: SituationKey & SubKey, hours: number | null = h): Situation => ({ key, tone: SIT_TONE[key], hours, sub: { key } });
   if (codes.includes("proactive")) return amber("proactive");
   if (codes.some((c) => c.startsWith("stalled:"))) return amber("stalled");
   const remark = codes.find((c) => c.startsWith("remark:"))?.slice("remark:".length);
@@ -181,17 +196,20 @@ export function suggestedReminder(outcome: string): Reminder {
   return SUGGESTED_REMINDER[outcome] ?? "none";
 }
 
+/** The five hues the one-tap outcome tiles use; not every situation hue. */
+export type QuickTone = "green" | "grey" | "blue" | "red" | "amber";
+
 export interface QuickOutcome {
   outcome: string;
   actionType: AgentActionType;
-  tone: Tone | "blue";
+  tone: QuickTone;
   reminder: Reminder;
 }
 
-const CUSTOMER_QUICK: [string, QuickOutcome["tone"]][] = [
+const CUSTOMER_QUICK: [string, QuickTone][] = [
   ["reached_will_receive", "green"], ["no_answer", "grey"], ["reached_reschedule", "blue"], ["reached_wants_cancel", "red"],
 ];
-const CARRIER_QUICK: [string, QuickOutcome["tone"]][] = [
+const CARRIER_QUICK: [string, QuickTone][] = [
   ["reattempt_promised", "green"], ["courier_no_answer", "grey"], ["parcel_located", "blue"], ["return_confirmed", "red"],
 ];
 

@@ -114,6 +114,17 @@ describe("DeliveryWorklistView", () => {
     expect(within(rowOf("Tarek Ben Salem")).getByText("Livré")).toBeTruthy();
   });
 
+  it("the situation is the first column, before the client, in the header and in every row", () => {
+    mount();
+    const heads = Array.from(document.querySelectorAll("[aria-hidden] > span")).map((el) => el.textContent);
+    expect(heads.slice(0, 2)).toEqual(["Situation / durée", "Détails du colis"]);
+    const amina = rowOf("Amina El Fitouri");
+    const chip = within(amina).getByText("Non joignable · 5 h");
+    const name = within(amina).getByText("Amina El Fitouri");
+    // DOCUMENT_POSITION_FOLLOWING: the name comes after the situation in reading order.
+    expect(chip.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("selecting a row fills the detail with the recommended move and the number to dial", () => {
     mount();
     fireEvent.click(within(rowOf("Amina El Fitouri")).getByText("Amina El Fitouri"));

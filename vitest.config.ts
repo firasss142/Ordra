@@ -20,6 +20,10 @@ export default defineConfig({
       // be run deliberately — in CI they have no credentials and would fail:
       //   npx vitest run src/lib/google-sheets/__live__ --testTimeout=180000
       "**/__live__/**",
+      // Parallel Claude sessions keep their own checkouts here; their tests are
+      // theirs to run, and through the "@/" alias they would load this tree's
+      // components against their own, and fail for no reason of ours.
+      "**/.claude/worktrees/**",
     ],
   },
   resolve: {

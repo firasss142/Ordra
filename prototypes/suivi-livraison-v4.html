@@ -1,0 +1,1125 @@
+<title>Suivi livraison</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Prototype v4 — « Suivi livraison », the row re-engineered for reading at a glance.
+  Built 2026-09-17 over v3 (same data, sheets, timeline, undo). What changed, and why,
+  is in plans/delivery-worklist-row-redesign.md §1–5:
+   · the status pill is retired: urgency = rail + ink (5 tiers), situation = icon in a
+     fixed slot + short label, age = its own tabular column with one definition per
+     situation, trace = what was last done (agent action or the courier's own words)
+   · the client cell shows name + at most two tags, address, then ref · product
+   · the action cell has two fixed slots: the move with the number to dial, and the
+     other channel; buttons are neutral, urgency lives on the rail only
+   · the amount is demoted (four price points cover 97 % of parcels), bold only on
+     high-value risk
+   · the strip counts « En cours » = tout sauf terminées; no money sums for agents
+   · tokens come from docs/design-system.md (--oms-* inks, --action blue)
+  URL presets: ?lang=fr|ar &view=desktop|mobile &state=normal|loading|empty|offline
+               &open=<id> &bucket=<key> &sheet=action|wa &order=sit|client
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#F5F6F8; --surface:#FFFFFF; --soft:#F9FAFB; --sunk:#F3F4F6;
+  --line:#E5E7EB; --line-2:#D1D5DB;
+  --ink:#111827; --ink-2:#374151; --ink-3:#6B7280; --ink-4:#9CA3AF;
+  --black:#111111;
+  /* Tiers — design-system tokens (§2 status + §4.17 --oms-* inks), not Tailwind hexes.
+     red = save (money about to leave) · amber = act (reach someone today) ·
+     blue = wait (the customer promised) · grey = carrier (nothing to do) · green = delivered */
+  --amber:#A9670C; --amber-bg:#FBF1E2; --amber-ink:#8F5608;
+  --red:#B23A32;   --red-bg:#FBECEA;   --red-ink:#B23A32;
+  --blue:#2C6ECB;  --blue-bg:#EAF1FB;  --blue-ink:#1F5199;
+  --grey:#78726A;  --grey-bg:#F3F4F6;  --grey-ink:#5C5852;
+  --green:#2F7A4A; --green-bg:#E8F4EC; --green-ink:#2F7A4A;
+  --brand:#15803D; --sel:#F2F2F2; --line-strong:#C9CCCF;
+  --wa:#16A34A; --wa-bg:#E8F6EE; --wa-btn:#1E8E5A; --link:#2563EB;
+  --studio:#E9EBEF;
+  --f-lat:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-ar:"Noto Sans Arabic","Inter",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--studio);color:var(--ink);font-family:var(--f-lat);font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+a{color:inherit;text-decoration:none}
+svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+.q{unicode-bidi:plaintext}
+[dir="rtl"] .app,[dir="rtl"] .scr{font-family:var(--f-ar)}
+[dir="rtl"] .flip svg{transform:scaleX(-1)}
+:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ── Studio chrome (always LTR) ─────────────────────────────── */
+.studio{padding-inline:20px;padding-block:18px 40px;direction:ltr}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;max-width:1480px;margin:0 auto 14px}
+.bar h1{margin:0;font-size:15px;font-weight:700;margin-inline-end:auto}
+.bar h1 span{color:var(--ink-3);font-weight:500}
+.seg{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.seg button{padding:6px 11px;border-radius:7px;font-size:13px;font-weight:500;color:var(--ink-3)}
+.seg button[aria-pressed="true"]{background:var(--black);color:#fff}
+.note{max-width:1480px;margin:0 auto 16px;font-size:12.5px;color:var(--ink-3);line-height:1.5}
+.note b{color:var(--ink-2)}
+.stage{max-width:1480px;margin:0 auto}
+.hscroll{overflow-x:auto}
+
+/* ── Shared atoms ───────────────────────────────────────────── */
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap}
+.chip[data-t="amber"]{background:var(--amber-bg);color:var(--amber-ink)}
+.chip[data-t="red"]{background:var(--red-bg);color:var(--red-ink)}
+.chip[data-t="blue"]{background:var(--blue-bg);color:var(--blue-ink)}
+.chip[data-t="grey"]{background:var(--grey-bg);color:var(--grey-ink)}
+.chip[data-t="green"]{background:var(--green-bg);color:var(--green-ink)}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.dot[data-t="amber"]{background:var(--amber)}.dot[data-t="red"]{background:var(--red)}.dot[data-t="blue"]{background:var(--blue)}.dot[data-t="grey"]{background:var(--grey)}.dot[data-t="green"]{background:var(--green)}
+.stripe[data-t="amber"]{--st:var(--amber)}.stripe[data-t="red"]{--st:var(--red)}.stripe[data-t="blue"]{--st:var(--blue)}.stripe[data-t="grey"]{--st:var(--grey)}.stripe[data-t="green"]{--st:var(--green)}
+/* v4 atoms — situation (icon slot + label), tag, age, trace, the two action slots */
+[data-tk="red"]{--tk:var(--red);--tk-ink:var(--red-ink);--tk-bg:var(--red-bg)}
+[data-tk="amber"]{--tk:var(--amber);--tk-ink:var(--amber-ink);--tk-bg:var(--amber-bg)}
+[data-tk="blue"]{--tk:var(--blue);--tk-ink:var(--blue-ink);--tk-bg:var(--blue-bg)}
+[data-tk="grey"]{--tk:transparent;--tk-ink:var(--ink-2);--tk-bg:var(--sunk)}
+[data-tk="green"]{--tk:var(--green);--tk-ink:var(--green-ink);--tk-bg:var(--green-bg)}
+[data-tk="muted"]{--tk:transparent;--tk-ink:var(--ink-3);--tk-bg:var(--sunk)}
+.sg{display:flex;align-items:center;gap:8px;min-width:0;font-size:14px;font-weight:600;color:var(--tk-ink);white-space:nowrap}
+.sg .ic{width:24px;height:24px;display:grid;place-items:center;flex:0 0 auto}
+.sg .ic svg{width:18px;height:18px;stroke-width:2}
+.sg .lb{overflow:hidden;text-overflow:ellipsis}
+.tr{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;min-width:0}
+.tr svg{width:13px;height:13px;flex:0 0 auto}
+.tr .q{overflow:hidden;text-overflow:ellipsis}
+.tr .tm{flex:0 0 auto;color:var(--ink-4)}
+.tag{display:inline-flex;align-items:center;height:19px;padding:0 6px;border-radius:5px;border:1px solid currentColor;font-size:11px;font-weight:600;line-height:1;white-space:nowrap;vertical-align:middle}
+.tag[data-t="red"]{color:var(--red-ink)}.tag[data-t="grey"]{color:var(--ink-3)}
+.age{font-size:13.5px;color:var(--ink-2);white-space:nowrap;text-align:end;font-variant-numeric:tabular-nums}
+.age[data-late]{color:var(--ink);font-weight:600}
+.btn-p{display:inline-flex;align-items:center;gap:7px;height:40px;width:214px;padding:0 10px;border:1px solid var(--line-strong);border-radius:8px;background:#fff;font-size:13px;font-weight:600;color:var(--ink);min-width:0;text-align:start}
+.btn-p:hover{background:var(--soft)}
+.btn-p svg{width:17px;height:17px;flex:0 0 auto}
+.btn-p .lb{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.btn-p .nb{margin-inline-start:auto;font-weight:500;color:var(--ink-2);flex:0 0 auto;font-size:12.5px}
+.btn-p[data-quiet]{border-color:transparent;background:transparent;color:var(--ink-3);font-weight:500}
+.btn-p[data-quiet]:hover{background:var(--sunk)}
+.btn-sq{width:40px;height:40px;border:1px solid var(--line-strong);border-radius:8px;background:#fff;display:grid;place-items:center;color:var(--ink);flex:0 0 auto}
+.btn-sq:hover{background:var(--soft)}
+.btn-sq[data-wa]{color:var(--wa)}
+.btn-sq[data-none]{visibility:hidden}
+.th{width:36px;height:36px;border-radius:8px;background:var(--sunk);border:1px solid var(--line);display:grid;place-items:center;color:var(--ink-4);flex:0 0 auto}
+.th svg{width:16px;height:16px}
+.presence{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;background:var(--sunk);font-size:13.5px;font-weight:500;color:var(--ink-2);white-space:nowrap}
+.presence .dot{background:var(--red)}
+.presence[data-on="true"] .dot{background:var(--green)}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;font-weight:700;font-size:14px}
+.btn-o{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border:1px solid var(--line-2);border-radius:8px;background:#fff;font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap}
+.btn-o:hover{background:var(--soft)}
+.btn-k{display:flex;align-items:center;justify-content:center;gap:10px;height:46px;padding:0 18px;border-radius:8px;background:var(--black);color:#fff;font-size:15.5px;font-weight:600;width:100%}
+.btn-k:hover{background:#000}
+.btn-wa{display:inline-grid;place-items:center;width:40px;height:40px;border-radius:8px;background:var(--wa-bg);color:var(--wa)}
+.link{display:inline-flex;align-items:center;gap:7px;color:var(--link);font-weight:600;font-size:14.5px}
+.skel{border-radius:6px;background:linear-gradient(90deg,#EEF0F3 25%,#F7F8FA 50%,#EEF0F3 75%);background-size:200% 100%;animation:sh 1.3s infinite}
+@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── Desktop app ────────────────────────────────────────────── */
+.app{min-width:1180px;height:1000px;background:var(--bg);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative;text-align:start}
+.top{height:64px;flex:0 0 auto;display:flex;align-items:center;gap:16px;padding:0 20px;background:#fff;border-bottom:1px solid var(--line)}
+.top .brand{font-size:21px;font-weight:700;letter-spacing:-.01em}
+.top .mkt{color:var(--ink-3);font-size:14.5px;margin-inline-start:4px}
+.top nav{margin-inline-start:auto;display:flex;align-items:center;gap:4px}
+.top nav button{height:38px;padding:0 14px;border-radius:8px;font-size:14.5px;font-weight:500;color:var(--ink-2);display:inline-flex;align-items:center;gap:8px}
+.top nav button[aria-current="page"]{background:var(--sunk);color:var(--ink);font-weight:600}
+.badge{min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--amber-bg);color:var(--amber-ink);font-size:12.5px;font-weight:700;display:inline-grid;place-items:center}
+.top .me{display:flex;align-items:center;gap:10px;padding-inline-start:12px;font-weight:500;font-size:14.5px}
+.top .me svg{color:var(--ink-3);width:16px;height:16px}
+
+.body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:16px;padding:18px 20px 0}
+.left{min-width:0;display:flex;flex-direction:column;min-height:0}
+.right{min-width:0;display:flex;flex-direction:column;gap:12px;min-height:0}
+.head{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px}
+.head h2{margin:0;font-size:26px;font-weight:700;letter-spacing:-.02em}
+.head .sub{color:var(--ink-3);font-size:15px;margin-top:2px}
+.stat{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:13.5px;color:var(--ink-2);margin-top:4px;white-space:nowrap}
+.stat svg{color:var(--wa);width:16px;height:16px}
+.stat b{color:var(--ink);font-weight:600}
+.segs{display:flex;border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:12px;overflow:hidden}
+.segs button{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:8px;height:44px;padding:0 13px;font-size:13.5px;font-weight:500;color:var(--ink-2);border-inline-start:1px solid var(--line);position:relative;white-space:nowrap}
+.segs button:first-child{border-inline-start:0}
+.segs button .lb{overflow:hidden;text-overflow:ellipsis}
+.segs button b{margin-inline-start:auto;font-weight:600;color:var(--ink);padding-inline-start:6px}
+.segs button[data-zero]{color:var(--ink-4)}.segs button[data-zero] b{color:var(--ink-4)}
+.segs button:hover{background:var(--soft)}
+.segs button[aria-pressed="true"]{color:var(--ink);font-weight:600;background:var(--soft)}
+.segs button[aria-pressed="true"]::after{content:"";position:absolute;inset-inline:0;bottom:0;height:2px;background:var(--brand)}
+.thead{display:grid;grid-template-columns:210px minmax(0,1fr) 58px 262px 80px;gap:12px;padding:4px 16px 8px 20px;font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.thead .c-age,.thead .c-amt{text-align:end}
+/* ?order=client puts the client first and the situation second (compare in the studio bar) */
+.app[data-order="client"] .thead,.app[data-order="client"] .row{grid-template-columns:minmax(0,1fr) 210px 58px 262px 80px}
+.app[data-order="client"] .c-sit{order:2}.app[data-order="client"] .c-cl{order:1}.app[data-order="client"] .c-age{order:3}.app[data-order="client"] .c-act{order:4}.app[data-order="client"] .c-amt{order:5}
+.thead span:last-child{text-align:end}
+.rows{flex:1;min-height:0;overflow-y:auto;padding-bottom:20px;scrollbar-width:thin}
+.row{position:relative;display:grid;grid-template-columns:210px minmax(0,1fr) 58px 262px 80px;gap:12px;align-items:center;padding:9px 16px 9px 20px;background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;cursor:pointer;overflow:hidden;min-height:66px}
+.row::before{content:"";position:absolute;inset-block:0;inset-inline-start:0;width:4px;background:var(--tk)}
+.row:hover{border-color:var(--line-2);background:var(--soft)}
+.row[aria-selected="true"]{background:var(--sel);border-color:var(--line-strong)}
+.row .c-sit{display:flex;flex-direction:column;gap:3px;min-width:0}
+.row .c-sit .tr{padding-inline-start:32px}
+.row .c-cl{display:flex;gap:10px;min-width:0}
+.row .c-cl .nm{font-size:15px;font-weight:600;line-height:1.25;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.row .c-cl .nm .ag{font-size:12px;font-weight:500;color:var(--ink-3)}
+.row .c-cl .ad{font-size:13px;color:var(--ink-2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .c-cl .rf{font-size:12.5px;color:var(--ink-3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .c-act{display:flex;align-items:center;gap:8px}
+.row .amt{text-align:end;font-size:14px;font-weight:500;white-space:nowrap;color:var(--ink)}
+.row .amt[data-hv]{font-weight:700}
+.strip{display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:10px;border-radius:10px;background:var(--amber-bg);color:var(--amber-ink);font-size:13.5px;font-weight:500}
+.empty{padding:70px 20px;text-align:center;color:var(--ink-3)}
+.empty svg{width:44px;height:44px;color:var(--line-2);stroke-width:1.5}
+.empty h3{margin:12px 0 4px;font-size:16px;color:var(--ink)}
+.empty p{margin:0 0 14px}
+
+.search{height:46px;display:flex;align-items:center;gap:10px;padding:0 14px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink-3)}
+.search input{flex:1;border:0;outline:0;background:none;font-size:14.5px;color:var(--ink);min-width:0}
+.panel{flex:1;min-height:0;overflow-y:auto;background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:16px;padding:18px 18px 28px;scrollbar-width:thin}
+.ph1{display:flex;align-items:flex-start;gap:10px}
+.ph1 h3{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.ph1 h3 .id{font-size:15px;font-weight:400;color:var(--ink-3)}
+.ph1 .x{margin-inline-start:auto;width:32px;height:32px;display:grid;place-items:center;border-radius:8px;color:var(--ink-2)}
+.ph2{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+.ph2 .sg{font-size:15px}
+.ph2 .sg .age{margin-inline-start:6px;font-weight:500}
+.big{font-size:30px;font-weight:700;letter-spacing:-.02em;white-space:nowrap}
+.ph3{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;font-size:14px;color:var(--ink-2);flex-wrap:wrap}
+.ph3 span{display:inline-flex;align-items:center;gap:7px}
+.ph3 svg{width:17px;height:17px;color:var(--ink-3)}
+.card{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fff}
+.reco{margin-top:16px;background:var(--soft);padding:16px 16px 12px}
+.reco .rh{display:flex;gap:14px;align-items:flex-start}
+.reco .ri{width:42px;height:42px;border-radius:50%;border:1px solid var(--line-2);background:#fff;display:grid;place-items:center;flex:0 0 auto}
+.reco .ri svg{width:20px;height:20px}
+.reco small{display:block;font-size:13.5px;color:var(--ink-3)}
+.reco b{display:block;font-size:18px;font-weight:700;margin-top:1px}
+.reco p{margin:3px 0 0;font-size:14px;color:var(--ink-3)}
+.reco .btn-k{margin-top:14px}
+.reco .link{margin:12px auto 0;display:flex;justify-content:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.ct{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;margin-bottom:8px}
+.ct svg{width:18px;height:18px}
+.li{text-align:start;display:flex;align-items:center;gap:9px;font-size:14.5px;color:var(--ink);padding:3px 0;min-width:0}
+.li svg{width:16px;height:16px;color:var(--ink-3)}
+.li.muted{color:var(--ink-3);font-size:13.5px}
+.li.wa{color:var(--wa);font-weight:500}.li.wa svg{color:var(--wa)}
+.li .q{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .btn-o{width:100%;margin-top:10px}
+.colis{margin-top:12px;display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.colis .pn{font-size:15px}
+.colis .sk{font-size:13.5px;color:var(--ink-3);margin-top:2px}
+.colis .big{font-size:21px}
+.hist{margin-top:16px}
+.hh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.hh .ct{margin:0;font-size:17px;margin-inline-end:auto}
+.tabs3{display:inline-flex;gap:6px}
+.tabs3 button{height:32px;padding:0 13px;border:1px solid var(--line);border-radius:8px;font-size:13.5px;color:var(--ink-2);background:#fff}
+.tabs3 button[aria-pressed="true"]{border-color:#93B4F5;background:#EFF5FF;color:var(--link);font-weight:600}
+.tl{list-style:none;margin:10px 0 0;padding:0}
+.tl li{position:relative;display:grid;grid-template-columns:14px 64px 1fr auto;gap:10px;padding:8px 0}
+.tl li::before{content:"";position:absolute;inset-inline-start:6px;top:22px;bottom:-8px;width:1px;background:var(--line)}
+.tl li:last-child::before{display:none}
+.tl i{width:9px;height:9px;border-radius:50%;background:var(--ink-4);margin-top:6px;justify-self:center}
+.tl li[data-k="mine"] i{background:var(--amber)}
+.tl li[data-k="order"] i{background:var(--line-2)}
+.tl .tt{font-size:14px;color:var(--ink-3);padding-top:1px}
+.tl .tx b{display:block;font-size:14.5px;font-weight:500}
+.tl .tx>span{display:block;font-size:13.5px;color:var(--ink-3);margin-top:1px}
+.tl .ac{font-size:13.5px;color:var(--ink-3);padding-top:1px;white-space:nowrap}
+.pick{height:100%;display:grid;place-items:center;text-align:center;color:var(--ink-3);padding:40px}
+
+/* desktop modal + toast */
+.veil{position:absolute;inset:0;background:rgba(17,24,39,.32);display:flex;align-items:center;justify-content:center;z-index:40}
+.veil .sheet{width:580px;border-radius:16px;max-height:92%;overflow-y:auto;padding-top:18px}
+.veil .grab{display:none}
+.dtoast{position:absolute;inset-inline-end:18px;bottom:18px;z-index:50;display:flex;align-items:center;gap:14px;padding:12px 14px 12px 16px;border-radius:10px;background:var(--black);color:#fff;font-size:15px;font-weight:500;min-width:380px;overflow:hidden}
+.dtoast .ok{width:24px;height:24px;border-radius:50%;background:var(--green);display:grid;place-items:center;color:#fff}
+.dtoast .ok svg{width:15px;height:15px;stroke-width:2.6}
+.dtoast .tx{display:flex;flex-direction:column}
+.dtoast .tx small{color:#B6BCC6;font-size:12.5px;font-weight:400}
+.dtoast .u{margin-inline-start:auto;text-decoration:underline;text-underline-offset:3px;font-weight:600}
+.dtoast .cl{color:#B6BCC6}
+.dtoast .cl svg{width:16px;height:16px}
+.bar5{position:absolute;inset-inline-start:0;bottom:0;height:2px;background:var(--green);animation:shrink 5s linear forwards}
+@keyframes shrink{from{width:100%}to{width:0}}
+
+/* ── Sheets (shared desktop + mobile) ───────────────────────── */
+.sheet{background:#fff;padding:10px 20px 20px;text-align:start}
+.grab{width:44px;height:5px;border-radius:3px;background:var(--line-2);margin:0 auto 12px}
+.sh{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.sh h4{margin:0;font-size:21px;font-weight:700;letter-spacing:-.01em}
+.sh .x{margin-inline-start:auto;width:34px;height:34px;display:grid;place-items:center;color:var(--ink-2);border-radius:8px}
+.sh .x.box{border:1px solid var(--line)}
+.sh .x svg{width:22px;height:22px}
+.fl{font-size:15.5px;font-weight:600;margin:0 0 9px}
+.fl span{font-weight:400;color:var(--ink-3)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px}
+.tile{min-height:80px;border:1.5px solid var(--line);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px 4px;font-size:14px;color:var(--ink-3);text-align:center;line-height:1.2;background:#fff}
+.tile svg{width:22px;height:22px}
+.tile[aria-pressed="true"]{border-color:var(--black);background:var(--sunk);color:var(--ink);font-weight:500}
+.opills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.op{height:40px;padding:0 18px;border-radius:999px;background:var(--sunk);font-size:14.5px;color:var(--ink-2);white-space:nowrap}
+.op[aria-pressed="true"][data-t="amber"]{background:var(--amber-bg);color:var(--ink);font-weight:600}
+.op[aria-pressed="true"][data-t="green"]{background:var(--green-bg);color:var(--green-ink);font-weight:600}
+.op[aria-pressed="true"][data-t="blue"]{background:var(--blue-bg);color:var(--blue-ink);font-weight:600}
+.ninput{position:relative;margin-bottom:18px}
+.ninput input{width:100%;height:48px;border:1px solid var(--line);border-radius:10px;background:var(--soft);padding:0 14px;font-size:15px;outline:0}
+.ninput input:focus{border-color:var(--black);background:#fff}
+.ninput .c{position:absolute;inset-inline-end:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--ink-4)}
+.rem{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
+.rem button{height:44px;border:1px solid var(--line-2);border-radius:10px;font-size:14.5px;color:var(--ink-2);background:#fff}
+.rem button[aria-pressed="true"]{border:1.5px solid var(--black);background:var(--sunk);color:var(--ink);font-weight:600}
+.save{width:100%;height:52px;border-radius:10px;background:var(--black);color:#fff;font-size:17px;font-weight:600}
+.save[disabled]{opacity:.35;cursor:not-allowed}
+.lang{display:flex;justify-content:center;margin-bottom:16px}
+.lang div{display:inline-flex;padding:3px;background:var(--sunk);border-radius:999px}
+.lang button{height:34px;padding:0 26px;border-radius:999px;font-size:14px;color:var(--ink-3)}
+.lang button[aria-pressed="true"]{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 0 0 1px var(--line-2)}
+.tpls{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin-bottom:16px;padding:1px}
+.tpls::-webkit-scrollbar{display:none}
+.tp{flex:0 0 auto;height:40px;padding:0 16px;border:1px solid var(--line-2);border-radius:999px;font-size:14px;color:var(--ink-2);background:#fff;white-space:nowrap}
+.tp[aria-pressed="true"]{border:1.5px solid var(--wa-btn);background:var(--wa-bg);color:#14532D;font-weight:600}
+.msg{border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-height:150px;font-size:15.5px;line-height:1.75;white-space:pre-wrap}
+.msg mark{background:var(--wa-bg);color:#14532D;border-radius:5px;padding:0 4px;font-weight:600}
+.cnt{font-size:12.5px;color:var(--ink-4);margin:6px 2px 16px}
+.wabtn{display:flex;align-items:center;justify-content:center;gap:10px;height:52px;border-radius:10px;background:var(--wa-btn);color:#fff;font-size:17px;font-weight:600}
+.wabtn svg{width:22px;height:22px}
+
+/* ── Phones ─────────────────────────────────────────────────── */
+.phones{display:flex;flex-wrap:wrap;gap:22px;justify-content:center}
+.pwrap{width:390px;max-width:100%}
+.cap{font-size:12.5px;font-weight:600;color:var(--ink-3);margin:0 0 8px 6px;direction:ltr}
+.scr{width:390px;max-width:100%;height:844px;background:var(--bg);border-radius:28px;border:1px solid #DADDE2;overflow:hidden;position:relative;display:flex;flex-direction:column;text-align:start}
+.sbar{flex:0 0 auto;height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:15px;font-weight:600;background:#fff;direction:ltr}
+.sbar span:last-child{display:flex;gap:6px;align-items:center}
+.sbar svg{width:17px;height:13px;stroke-width:2}
+.mtop{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:6px 16px 12px;background:#fff;border-bottom:1px solid var(--line)}
+.mtop .brand{font-size:19px;font-weight:700}
+.mtop .mkt{color:var(--ink-3);font-size:14px;white-space:nowrap}
+.mtop .presence{margin-inline-start:auto;font-size:13px;padding:5px 10px;background:#fff;border:1px solid var(--line)}
+.mtop .avatar{width:30px;height:30px;font-size:13px}
+.mtop .who{font-size:14px;font-weight:500}
+.mhead{flex:0 0 auto;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:14px 16px 10px}
+.mhead h2{margin:0;font-size:22px;font-weight:700;letter-spacing:-.02em;white-space:nowrap}
+.mhead .sub{color:var(--ink-3);font-size:14px;margin-top:1px}
+.mstat{flex:0 1 auto;min-width:0;overflow:hidden;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:999px;background:var(--green-bg);color:#14532D;font-size:12.5px;font-weight:500;white-space:nowrap;margin-top:4px}
+.mstat svg{width:14px;height:14px;color:var(--wa)}
+.mpills{flex:0 0 auto;position:relative}
+.mpills .in{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px 16px 12px}
+.mpills .in::-webkit-scrollbar{display:none}
+.mp{flex:0 0 auto;height:40px;padding:0 16px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:14.5px;color:var(--ink-2);white-space:nowrap;display:inline-flex;align-items:center;gap:10px}
+.mp b{font-weight:600;color:var(--ink)}
+.mp[aria-pressed="true"]{border-color:var(--brand);background:#F0FDF4;color:var(--ink);font-weight:600}
+.mp[data-zero]{color:var(--ink-4)}.mp[data-zero] b{color:var(--ink-4)}
+.mp .dot{width:7px;height:7px}
+.mpills .more{position:absolute;inset-inline-end:0;top:0;bottom:12px;width:44px;display:grid;place-items:center;background:linear-gradient(to left,var(--bg) 55%,transparent)}
+[dir="rtl"] .mpills .more{background:linear-gradient(to right,var(--bg) 55%,transparent)}
+.mlist{flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;padding:0 12px 96px}
+.mlist::-webkit-scrollbar{display:none}
+.mc{position:relative;background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;cursor:pointer;overflow:hidden}
+.mc::before{content:"";position:absolute;inset-block:0;inset-inline-start:0;width:4px;background:var(--tk);z-index:1}
+.mc[aria-selected="true"]{border-color:var(--line-strong);background:var(--sel)}
+.mc .sl{display:flex;align-items:center;gap:8px;padding:8px 14px 8px 16px;background:var(--tk-bg);color:var(--tk-ink)}
+.mc .sl .sg{flex:1;font-size:14.5px}
+.mc .sl .age{color:inherit;font-weight:600;font-size:13.5px}
+.mc .bd{padding:9px 14px 12px 16px}
+.mc .nm{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.mc .nm .q{font-size:16.5px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.mc .nm .pr{font-size:14.5px;font-weight:500;color:var(--ink-2);white-space:nowrap}
+.mc .nm .pr[data-hv]{font-weight:700;color:var(--ink)}
+.mc .ad{font-size:13.5px;color:var(--ink-2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mc .tr{margin-top:3px;font-size:13px}
+.mc .ac{display:flex;gap:8px;margin-top:10px}
+.mc .btn-p{flex:1;width:auto;height:44px;font-size:14px}
+.mc .btn-sq{width:44px;height:44px}
+.tabbar{position:absolute;inset-inline:0;bottom:0;height:84px;display:flex;background:#fff;border-top:1px solid var(--line);padding:10px 4px 22px;z-index:5}
+.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink-3);font-size:12.5px;position:relative}
+.tabbar svg{width:25px;height:25px}
+.tabbar button[aria-current="page"]{color:var(--ink);font-weight:600}
+.tabbar .badge{position:absolute;top:-8px;inset-inline-start:calc(50% + 6px);min-width:22px;height:22px;font-size:12px}
+.mbar2{flex:0 0 auto;height:52px;display:flex;align-items:center;justify-content:center;background:#fff;border-bottom:1px solid var(--line);position:relative;font-size:17px;font-weight:600}
+.mbar2 button{position:absolute;inset-inline-start:10px;width:36px;height:36px;display:grid;place-items:center}
+.mbar2 svg{width:22px;height:22px}
+.mdet{flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;padding:10px 12px 100px}
+.mdet::-webkit-scrollbar{display:none}
+.mblk{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;position:relative;overflow:hidden}
+.mhero{display:grid;grid-template-columns:1fr auto;gap:4px 10px}
+.mhero .nm{font-size:21px;font-weight:700}
+.mhero .id{color:var(--ink-3);font-size:14px;text-align:end}
+.mhero .pr{font-size:30px;font-weight:700;text-align:end;line-height:1.1;white-space:nowrap}
+.mhero .pr small{font-size:15px;font-weight:600;color:var(--ink-3);margin-inline-start:4px}
+.mhero .li{font-size:14.5px;color:var(--ink-3)}
+.mhero .end{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.mhero .sg{font-size:14px}
+.mreco{display:flex;align-items:center;gap:12px;cursor:pointer}
+.mreco::before{content:"";position:absolute;inset-block:0;inset-inline-start:0;width:4px;background:var(--tk)}
+.mreco .ri{width:36px;height:36px;display:grid;place-items:center;flex:0 0 auto}
+.mreco .ri svg{width:22px;height:22px}
+.mreco small{display:block;font-size:13.5px;color:var(--ink-3)}
+.mreco b{display:block;font-size:17px;font-weight:700}
+.mreco p{margin:1px 0 0;font-size:13.5px;color:var(--ink-3)}
+.mreco .chv{margin-inline-start:auto;color:var(--ink-3)}
+.kv{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;font-size:14.5px}
+.kv .k{color:var(--ink-3)}
+.kv .v{font-weight:500;text-align:end}
+.kv .v.strong{font-weight:700;font-size:16px}
+.mtl{list-style:none;margin:6px 0 0;padding:0}
+.mtl li{position:relative;display:grid;grid-template-columns:14px 1fr;gap:10px;padding:7px 0}
+.mtl li::before{content:"";position:absolute;inset-inline-start:6px;top:20px;bottom:-7px;width:1px;background:var(--line)}
+.mtl li:last-child::before{display:none}
+.mtl i{width:8px;height:8px;border-radius:50%;background:var(--ink-4);margin-top:6px;justify-self:center}
+.mtl li[data-k="mine"] i{background:var(--amber)}
+.mtl b{display:block;font-size:14.5px;font-weight:500}
+.mtl div>span{display:block;font-size:13px;color:var(--ink-3)}
+.mfoot{position:absolute;inset-inline:0;bottom:0;display:flex;gap:8px;padding:12px 12px 26px;background:#fff;border-top:1px solid var(--line);z-index:5}
+.mfoot .btn-k{height:50px;flex:1;width:auto;min-width:0;font-size:14.5px;padding:0 10px;white-space:nowrap}
+.mfoot .btn-wa{width:50px;height:50px;border-radius:10px}
+.mfoot .btn-wa svg{width:22px;height:22px}
+.mfoot .btn-o{height:50px;padding:0 12px;font-size:14px}
+.mveil{position:absolute;inset:0;background:rgba(17,24,39,.34);z-index:30;display:flex;flex-direction:column;justify-content:flex-end}
+.mveil .sheet{border-radius:20px 20px 0 0;max-height:88%;overflow-y:auto;padding-bottom:26px}
+.mveil.withtabs{bottom:84px}
+.mtoast{position:absolute;inset-inline:12px;bottom:100px;z-index:50;display:flex;align-items:center;gap:12px;padding:14px 16px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(17,24,39,.14);overflow:hidden}
+.mtoast .ok{width:30px;height:30px;border-radius:50%;background:var(--wa-btn);display:grid;place-items:center;color:#fff;flex:0 0 auto}
+.mtoast .ok svg{width:17px;height:17px;stroke-width:2.6}
+.mtoast b{display:block;font-size:15.5px}
+.mtoast small{display:block;font-size:13px;color:var(--ink-3)}
+.mtoast .u{margin-inline-start:auto;color:var(--link);font-weight:600;font-size:14px}
+.mtoast .bar5{background:var(--wa-btn)}
+
+@media (max-width:860px){.pwrap{width:100%}.scr{width:100%}}
+</style>
+
+<div class="studio">
+  <div class="bar">
+    <h1>Suivi livraison <span>· prototype v4 — la ligne relue d'un coup d'œil</span></h1>
+    <div class="seg" id="segLang" role="group" aria-label="Langue"><button data-v="fr">Français</button><button data-v="ar">العربية</button></div>
+    <div class="seg" id="segView" role="group" aria-label="Vue"><button data-v="desktop">Bureau</button><button data-v="mobile">Mobile</button></div>
+    <div class="seg" id="segState" role="group" aria-label="État"><button data-v="normal">Normal</button><button data-v="loading">Chargement</button><button data-v="empty">Vide</button><button data-v="offline">Hors connexion</button></div>
+    <div class="seg" id="segOrder" role="group" aria-label="Colonnes"><button data-v="sit">Situation d'abord</button><button data-v="client">Client d'abord</button></div>
+  </div>
+  <p class="note"><b>Ce qui change par rapport à v3 (données, pas décor).</b> La pastille de statut disparaît : l'urgence est portée par le liseré et l'encre (rouge = à sauver, ambre = à traiter, bleu = le client a promis, gris = chez le transporteur, vert = livrée), la situation par une icône à place fixe et un libellé court, l'âge par sa propre colonne (une seule définition par situation : « +21 h » = rappel dépassé de 21 h, « 4 h » = depuis la remarque du livreur, « → demain » = reprise annoncée par Darb, « dans 2 h » = rappel prévu). La 2ᵉ ligne dit ce qui a déjà été fait — ta dernière action ou <b>les mots du livreur</b>, le plus récent des deux. Le client : nom + au plus deux étiquettes (risque, 2ᵉ envoi), adresse, puis référence · produit. L'action : le geste <b>avec le numéro à composer</b>, toujours au même endroit, et l'autre canal à côté. Le montant est dégradé (quatre prix couvrent 97 % des colis), gras seulement sur un colis de grande valeur. Tri : retours → à traiter (rouge avant ambre, puis rappel dépassé, remarque livreur, retard, sans mouvement), le plus ancien d'abord. <b>Tout reste cliquable</b> comme en v3.</p>
+  <div class="stage" id="stage"></div>
+</div>
+
+<script>
+/* ═════════ Icons ═════════ */
+const I={
+ phone:'<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
+ wa:'<svg viewBox="0 0 24 24"><path d="M4 20l1.3-3.8A8 8 0 1 1 8.2 19z"/><path d="M9.2 9.6c.3 2.4 2.4 4.5 4.8 4.8l.9-1.4-1.7-1-1 .8a5.7 5.7 0 0 1-1.4-1.4l.8-1-1-1.7z"/></svg>',
+ truck:'<svg viewBox="0 0 24 24"><path d="M2.5 6.5h11v9.5h-11zM13.5 10h4.2l3 3.2V16h-7.2z"/><circle cx="6.5" cy="17.6" r="1.8"/><circle cx="17" cy="17.6" r="1.8"/></svg>',
+ user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>',
+ pin:'<svg viewBox="0 0 24 24"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11"/><circle cx="12" cy="10" r="2.6"/></svg>',
+ box:'<svg viewBox="0 0 24 24"><path d="M12 3l8 4.2v9.6L12 21l-8-4.2V7.2z"/><path d="M4 7.2l8 4.3 8-4.3M12 11.5V21"/></svg>',
+ clock:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+ cal:'<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+ x:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+ check:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+ ret:'<svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
+ arrow:'<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+ chev:'<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>',
+ chevd:'<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
+ back:'<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',
+ search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>',
+ bars:'<svg viewBox="0 0 24 24"><path d="M5 20v-6M10 20V9M15 20v-9M20 20V5" stroke-width="2.6"/></svg>',
+ doc:'<svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 8.5h6M9 12h6M9 15.5h4"/></svg>',
+ note:'<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14.5 3v4.5H19M9 12h7M9 16h5"/></svg>',
+ bldg:'<svg viewBox="0 0 24 24"><path d="M4 21V5.5L12 3v18M12 8.5l8 2.5v10M3 21h18"/><path d="M7 8h2M7 11.5h2M7 15h2M15 13.5h2M15 17h2"/></svg>',
+ pen:'<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>',
+ file:'<svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg>',
+ people:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 19a6 6 0 0 1 12 0"/><path d="M16 5.5a3.2 3.2 0 0 1 0 6M17.5 19a6 6 0 0 0-2-4.2"/></svg>',
+ chart:'<svg viewBox="0 0 24 24"><rect x="4" y="12" width="3.5" height="8" rx="1"/><rect x="10.25" y="7" width="3.5" height="13" rx="1"/><rect x="16.5" y="3.5" width="3.5" height="16.5" rx="1"/></svg>',
+ sig:'<svg viewBox="0 0 24 24"><path d="M4 18v-3M9 18v-6M14 18v-9M19 18V5" stroke-width="2.4"/></svg>',
+ wifi:'<svg viewBox="0 0 24 24"><path d="M3.5 9.5a12 12 0 0 1 17 0M6.5 13a7.5 7.5 0 0 1 11 0M9.5 16.3a3.3 3.3 0 0 1 5 0"/></svg>',
+ bat:'<svg viewBox="0 0 26 24"><rect x="2" y="6" width="19" height="12" rx="3"/><rect x="4" y="8" width="15" height="8" rx="1.5" fill="currentColor" stroke="none"/><path d="M23.5 10.5v3"/></svg>',
+ shield:'<svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M12 8v4M12 15.5h.01"/></svg>',
+ ban:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></svg>',
+ alarm:'<svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2.5 1.5M5 4L2.5 6.5M19 4l2.5 2.5"/></svg>',
+ phoneoff:'<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/><path d="M21 3L3 21"/></svg>',
+ pinoff:'<svg viewBox="0 0 24 24"><path d="M12 21s7-5.6 7-11a7 7 0 0 0-11.5-5.4M5.6 6.5A7 7 0 0 0 5 10c0 5.4 7 11 7 11"/><path d="M3 3l18 18"/></svg>',
+ signal0:'<svg viewBox="0 0 24 24"><path d="M4 18h.01M9 18h.01M14 18h.01M19 18h.01"/></svg>',
+ hourglass:'<svg viewBox="0 0 24 24"><path d="M6 3h12M6 21h12M7 3v3.5L12 12l-5 5.5V21M17 3v3.5L12 12l5 5.5V21"/></svg>',
+ pause:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M10 9v6M14 9v6"/></svg>',
+ calclock:'<svg viewBox="0 0 24 24"><path d="M20 10V6.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 4 6.5v11A2.5 2.5 0 0 0 6.5 20H10M4 10h16M8 2.5v4M16 2.5v4"/><circle cx="17" cy="17" r="4"/><path d="M17 15.5V17l1.2.8"/></svg>',
+ warehouse:'<svg viewBox="0 0 24 24"><path d="M3 20V9l9-5 9 5v11M7 20v-7h10v7M7 16.5h10"/></svg>',
+ undo:'<svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
+ boxx:'<svg viewBox="0 0 24 24"><path d="M12 3l8 4.2v5.3M12 3 4 7.2v9.6L12 21l2-1"/><path d="M4 7.2l8 4.3 8-4.3M12 11.5V21"/><path d="M16.5 16.5l4 4M20.5 16.5l-4 4"/></svg>',
+ circlecheck:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>',
+ archive:'<svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="4.5" rx="1"/><path d="M5 8.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19V8.5M10 13h4"/></svg>',
+ cloud:'<svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/><path d="M4 4l16 16"/></svg>'
+};
+
+/* ═════════ Strings ═════════ */
+const L={
+fr:{
+ mkt:"Libye · Tripoli", user:"Hend", off:"Hors ligne", on:"En ligne",
+ tabs:["File","Prospects","Livraison","Commissions"],
+ title:"Suivi livraison", sub:n=>`${n} en cours`,
+ stat:(r,s)=>`<b class="num">${r} %</b> livraison 30 j · <b class="num">${s}</b> sauvées`,
+ statS:(r,s)=>`<b class="num">${r} %</b> livraison 30 j · <b class="num">${s}</b> sauvées`,
+ search:"Rechercher par nom, numéro ou ville…",
+ b:{all:"En cours",returning:"Retours à sauver",act_now:"À traiter maintenant",waiting_customer:"En attente client",waiting_carrier:"Chez le transporteur",done:"Terminées"},
+ cols:["Situation","Client","Délai","Action","Montant"], cur:"LYD",
+ age:{over:h=>`+${h}`,in:h=>`dans ${h}`,retry:d=>`→ ${d}`,tmr:"demain"},
+ mvs:{call2:"2ᵉ numéro",courier:"Livreur",save:"Agence",call:"Appeler",before:"Appeler",wa:"WhatsApp",track:"Suivre",details:"—"},
+ tags:{risk:"risque",resend:n=>`${n}ᵉ envoi`,zone:"zone difficile"}, courier:"livreur",
+ today:"Aujourd'hui", yest:"Hier",
+ dur:h=>h<1?`${Math.max(1,Math.round(h*60))} min`:h<24?`${Math.round(h)} h`:`${Math.round(h/24)} j`,
+ sit:{no_answer:"Non joignable",delayed:"Livraison retardée",returning:"Retour en cours",to_be_returned:"Retour confirmé",waiting_customer:"Rappel prévu",waiting_carrier:"Chez le transporteur",at_warehouse:"À l'entrepôt",address:"Adresse à confirmer",stalled:"Sans mouvement",proactive:"Colis à risque",out_of_coverage:"Hors réseau",cancel:"Veut annuler",due:"Rappel dépassé",delivered:"Livrée",returned:"Retournée"},
+ ss:{no_answer:"Le client ne répond pas aux appels.",delayed:"Toujours chez le transporteur.",returning:"Client n'a pas récupéré le colis.",to_be_returned:"Le client a annulé, le colis revient.",address:"Adresse à confirmer.",stalled:"Le colis n'a pas bougé depuis des jours.",proactive:"Client à risque : appeler avant le livreur.",out_of_coverage:"Le numéro est hors réseau.",cancel:"Le client dit ne plus vouloir le colis.",due:"Le rappel promis est dépassé.",transit:"En cours de livraison.",in_transit:"En route vers l'agence.",at_carrier:"Arrivé à l'agence du transporteur.",at_warehouse:"Pas encore remis au transporteur.",delivered:"Livré aujourd'hui.",returned:"N'en a plus besoin.",wait_callback:"Client a demandé à être rappelé.",wait_busy:"Client a un empêchement."},
+ mv:{call2:"Appeler le 2ᵉ numéro",courier:"Appeler le livreur",save:"Sauver le retour",call:"Appeler",before:"Appeler avant livraison",wa:"Écrire sur WhatsApp",track:"Suivre le colis",details:"Voir les détails"},
+ rs:{call2:"Le client ne répond pas. Essayez le numéro alternatif.",courier:"Le colis n'avance pas. Demandez au livreur où il en est.",save:"Un appel à l'agence obtient souvent une nouvelle tentative.",call:"Confirmez avec le client avant la prochaine tentative.",before:"Colis à risque : confirmez que le client sera là.",wa:"Le téléphone ne passe pas, un message a plus de chances.",track:"Rien à faire pour l'instant, le transporteur travaille.",details:"Ce colis est terminé."},
+ rec:"Prochaine action recommandée", recM:"Action suggérée",
+ callN:n=>`Appeler ${n}`, callBranch:n=>`Appeler l'agence · ${n}`, logact:"Enregistrer une action", logShort:"Enregistrer",
+ client:"Client", carrier:"Transporteur", parcel:"Colis", history:"Historique", tl:["Tout","Mes actions","Transporteur"],
+ created:d=>`Créé le ${d}`, sku:"SKU", carrierName:"Darb Assabil", notYet:"Pas encore remis au transporteur",
+ cst:{out_for_delivery:"Colis en tournée",in_transit:"En route vers l'agence",at_carrier:"À l'agence",delivery_delayed:"Livraison reportée",returning:"En retour",to_be_returned:"Retour confirmé",delivered:"Livré",returned:"Retourné",scanned:"À l'entrepôt",uploaded:"Envoyé au transporteur"},
+ custHist:(o,d,r)=>o?`${o} commande${o>1?"s":""} · ${d} livrée${d>1?"s":""}${r?` · ${r} retour${r>1?"s":""}`:""}`:"Nouveau client",
+ det:"Détail du colis", cInfo:"Informations client", dInfo:"Informations livraison",
+ ph2r:"2ᵉ numéro (recommandé)", ph1:"1ᵉʳ numéro", ph2:"2ᵉ numéro", k_carrier:"Transporteur", k_courier:"Livreur", k_status:"Statut", k_created:"Créée le",
+ a_title:"Enregistrer une action", a_what:"Qu'as-tu fait ?",
+ at:{call_customer:"Appelé client",call_courier:"Appelé livreur",call_branch:"Appelé agence",note:"Note seule",whatsapp:"WhatsApp envoyé",task:"Tâche créée"},
+ a_res:"Résultat",
+ oc:{reached_will_receive:"Va recevoir",reached_reschedule:"Veut autre date",reached_wants_cancel:"Veut annuler",reached_address_fix:"Adresse corrigée",no_answer:"Ne répond pas",wrong_number:"Faux numéro",phone_off:"Téléphone éteint",reattempt_promised:"Nouvelle tentative promise",courier_no_answer:"Livreur ne répond pas",parcel_located:"Colis localisé",return_confirmed:"Retour confirmé",info_passed:"Info transmise",sent:"",pending:"Appeler avant livraison"},
+ a_note:"Note", a_opt:"(optionnelle)", a_ph:"Ajouter une note…", a_rem:"Rappel", n2h:"+ 2 h", ntmr:"Demain 10:00", nnone:"Sans rappel", save:"Enregistrer",
+ w_title:"Envoyer sur WhatsApp", w_tpl:"Choisir le modèle", w_txt:"Texte du message", w_open:"Ouvrir WhatsApp",
+ tpl:{before_delivery:"Avant livraison",courier_no_answer:"Livreur n'a pas pu joindre",delayed_confirm_time:"Confirmer la date",returning_last_chance:"Dernière chance",address_check:"Vérifier l'adresse"},
+ t_saved:"Action enregistrée", t_moved:b=>`Déplacé vers « ${b} »`, undo:"Annuler", t_undone:"Action annulée", t_wa:"WhatsApp ouvert", t_wa2:"Tu peux maintenant envoyer le message au client.",
+ e_title:"Rien ici", e_sub:"Aucun colis ne correspond.", e_all:"Voir tous les colis", pick:"Sélectionne un colis pour voir son détail.",
+ offline:"Connexion perdue · 2 actions en attente de synchronisation",
+ me:"Hend", sys:"Système", wh:"Entrepôt",
+ ev:{created:"Commande créée",created_s:"Par le client (site web)",confirmed:"Confirmée par téléphone",uploaded:"Envoyée à Darb Assabil",scanned:"Scannée à l'entrepôt",at_branch:"Arrivée à l'agence",out:"Colis en tournée",delayed:"Livraison reportée",returning:"Retour en cours",delivered:"Livré",returned:"Retour clôturé",remark:"Remarque du livreur"},
+ cap:["Liste","Détail","Enregistrer une action","WhatsApp"]
+},
+ar:{
+ mkt:"ليبيا · طرابلس", user:"هند", off:"غير متصل", on:"متصل",
+ tabs:["الملفات","العملاء المحتملون","التوصيل","العمولات"],
+ title:"متابعة التوصيل", sub:n=>`${n} قيد التنفيذ`,
+ stat:(r,s)=>`<b class="num">${r} %</b> توصيل خلال 30 يوماً · <b class="num">${s}</b> تم إنقاذها`,
+ statS:(r,s)=>`<b class="num">${r} %</b> تسليم 30 يوم · <b class="num">${s}</b> محفوظة`,
+ search:"ابحث بالاسم أو الرقم أو المدينة…",
+ b:{all:"قيد التنفيذ",returning:"مرتجعات للإنقاذ",act_now:"تحتاج إجراء الآن",waiting_customer:"بانتظار العميل",waiting_carrier:"لدى شركة التوصيل",done:"مكتملة"},
+ cols:["الوضع","العميل","الوقت","الإجراء","المبلغ"], cur:"د.ل",
+ age:{over:h=>`+${h}`,in:h=>`بعد ${h}`,retry:d=>`→ ${d}`,tmr:"غداً"},
+ mvs:{call2:"الرقم الثاني",courier:"المندوب",save:"الفرع",call:"اتصل",before:"اتصل",wa:"واتساب",track:"متابعة",details:"—"},
+ tags:{risk:"حساس",resend:n=>`إرسال ${n}`,zone:"منطقة صعبة"}, courier:"المندوب",
+ today:"اليوم", yest:"أمس",
+ dur:h=>h<1?`${Math.max(1,Math.round(h*60))} د`:h<24?`${Math.round(h)} س`:`${Math.round(h/24)} يوم`,
+ sit:{no_answer:"لا يجيب",delayed:"تأخر التوصيل",returning:"مرتجع",to_be_returned:"إرجاع مؤكد",waiting_customer:"موعد متابعة",waiting_carrier:"لدى الناقل",at_warehouse:"في المخزن",address:"العنوان غير مؤكد",stalled:"بلا حركة",proactive:"شحنة حساسة",out_of_coverage:"خارج التغطية",cancel:"يريد الإلغاء",due:"فات موعد المتابعة",delivered:"تم التسليم",returned:"إرجاع مغلق"},
+ ss:{no_answer:"العميل لا يرد على المكالمات.",delayed:"ما زالت لدى شركة التوصيل.",returning:"العميل لم يستلم الطلب.",to_be_returned:"ألغى العميل والطرد راجع.",address:"العنوان يحتاج تأكيد.",stalled:"الطرد لم يتحرك منذ أيام.",proactive:"عميل حساس: اتصل قبل المندوب.",out_of_coverage:"الرقم خارج التغطية.",cancel:"العميل لم يعد يريد الطرد.",due:"فات موعد المتابعة المتفق عليه.",transit:"في الطريق إلى العميل.",in_transit:"في الطريق إلى الفرع.",at_carrier:"وصل إلى فرع شركة التوصيل.",at_warehouse:"لم يُسلَّم بعد لشركة التوصيل.",delivered:"تم التسليم بنجاح.",returned:"لم يعد بحاجة إليه.",wait_callback:"العميل طلب معاودة الاتصال.",wait_busy:"العميل لديه ظرف."},
+ mv:{call2:"اتصل بالرقم الثاني",courier:"اتصل بالمندوب",save:"إنقاذ المرتجع",call:"اتصل بالعميل",before:"اتصل قبل التوصيل",wa:"راسل على واتساب",track:"متابعة مع الناقل",details:"عرض التفاصيل"},
+ rs:{call2:"العميل لا يرد. جرّب الرقم البديل.",courier:"الطرد لا يتحرك. اسأل المندوب عن وضعه.",save:"اتصال بالفرع يحصل غالباً على محاولة جديدة.",call:"أكّد مع العميل قبل المحاولة القادمة.",before:"شحنة حساسة: تأكد أن العميل سيكون موجوداً.",wa:"الهاتف لا يرد، الرسالة أفضل.",track:"لا شيء لتفعله الآن، شركة التوصيل تعمل.",details:"هذا الطرد مكتمل."},
+ rec:"الإجراء الموصى به", recM:"الإجراء المقترح",
+ callN:n=>`اتصل بـ ${n}`, callBranch:n=>`اتصل بالفرع · ${n}`, logact:"سجّل إجراء", logShort:"سجّل إجراء",
+ client:"العميل", carrier:"شركة التوصيل", parcel:"الطرد", history:"السجل", tl:["الكل","إجراءاتي","شركة التوصيل"],
+ created:d=>`أُنشئ في ${d}`, sku:"SKU", carrierName:"درب السبيل", notYet:"لم يُسلَّم بعد لشركة التوصيل",
+ cst:{out_for_delivery:"في التسليم مع المندوب",in_transit:"في الطريق إلى الفرع",at_carrier:"في الفرع",delivery_delayed:"التوصيل مؤجل",returning:"في الإرجاع",to_be_returned:"إرجاع مؤكد",delivered:"تم التسليم",returned:"مرتجع",scanned:"في المخزن",uploaded:"أُرسل لشركة التوصيل"},
+ custHist:(o,d,r)=>o?`${o} طلبات · ${d} مسلّمة${r?` · ${r} إرجاع`:""}`:"عميل جديد",
+ det:"تفاصيل الشحنة", cInfo:"معلومات العميل", dInfo:"معلومات التوصيل",
+ ph2r:"الرقم الثاني (موصى به)", ph1:"الرقم الأول", ph2:"الرقم الثاني", k_carrier:"شركة الشحن", k_courier:"المندوب", k_status:"حالة الشحنة", k_created:"تاريخ الإنشاء",
+ a_title:"سجّل إجراء", a_what:"ماذا فعلت؟",
+ at:{call_customer:"اتصلت بالعميل",call_courier:"اتصلت بالمندوب",call_branch:"اتصلت بالفرع",note:"ملاحظة فقط",whatsapp:"أُرسل واتساب",task:"مهمة جديدة"},
+ a_res:"النتيجة",
+ oc:{reached_will_receive:"سيستلم",reached_reschedule:"يريد موعداً آخر",reached_wants_cancel:"يريد الإلغاء",reached_address_fix:"صُحّح العنوان",no_answer:"لا يرد",wrong_number:"رقم خاطئ",phone_off:"الهاتف مغلق",reattempt_promised:"وُعد بمحاولة جديدة",courier_no_answer:"المندوب لا يرد",parcel_located:"حُدّد مكان الطرد",return_confirmed:"تأكيد الإرجاع",info_passed:"مُرّرت المعلومة",sent:"",pending:"اتصل قبل التوصيل"},
+ a_note:"ملاحظة", a_opt:"(اختيارية)", a_ph:"أضف ملاحظة…", a_rem:"تذكير", n2h:"+ 2 س", ntmr:"غداً 10:00", nnone:"بدون تذكير", save:"حفظ",
+ w_title:"إرسال عبر واتساب", w_tpl:"اختر القالب", w_txt:"نص الرسالة", w_open:"فتح واتساب",
+ tpl:{before_delivery:"قبل التوصيل",courier_no_answer:"تعذر على المندوب الاتصال",delayed_confirm_time:"تأكيد الموعد",returning_last_chance:"فرصة أخيرة",address_check:"تأكيد العنوان"},
+ t_saved:"تم حفظ الإجراء", t_moved:b=>`نُقل إلى «${b}»`, undo:"تراجع", t_undone:"أُلغي الإجراء", t_wa:"تم فتح واتساب", t_wa2:"يمكنك الآن إرسال الرسالة للعميل.",
+ e_title:"لا شيء هنا", e_sub:"لا طرود مطابقة.", e_all:"عرض كل الطرود", pick:"اختر طرداً لعرض تفاصيله.",
+ offline:"انقطع الاتصال · إجراءان بانتظار المزامنة",
+ me:"هند", sys:"النظام", wh:"المخزن",
+ ev:{created:"تم إنشاء الطلب",created_s:"من العميل (الموقع)",confirmed:"تأكيد بالهاتف",uploaded:"أُرسلت إلى درب السبيل",scanned:"مُسحت في المخزن",at_branch:"وصلت إلى الفرع",out:"خرجت للتوصيل",delayed:"تأجيل التوصيل",returning:"جارٍ الإرجاع",delivered:"تم التسليم",returned:"إرجاع مغلق",remark:"ملاحظة المندوب"},
+ cap:["Liste","Détail","Enregistrer une action","WhatsApp"]
+}};
+
+/* ═════════ State ═════════ */
+const S={lang:"fr",view:"desktop",state:"normal",bucket:"all",q:"",openId:"48205",tl:0,presence:false,order:"sit",
+ host:null,               // where the transient sheet is open: desk | p1 | p2
+ drafts:{},               // per host: {kind, id, what, oc, note, next, key, l}
+ toast:null, toastId:0};
+const t=k=>L[S.lang][k];
+const tx=o=>o==null?"":typeof o==="string"?o:(o[S.lang]??o.fr);
+
+/* ═════════ Data (a fixed demo clock: today 12:30) ═════════ */
+const clock=new Date(); clock.setHours(12,30,0,0);
+const NOW=clock.getTime(), H=3600e3;
+const ago=h=>NOW-h*H;
+const N=(fr,ar)=>({fr,ar});
+const CR={
+ ali:{nm:N("Ali Ben Omar","علي بن عمر"),ph:"0912345678"},
+ salem:{nm:N("Salem Hamza","سالم حمزة"),ph:"0917711009"},
+ yousef:{nm:N("Youssef Kara","يوسف كارة"),ph:"0926611220"},
+ nour:{nm:N("Nour Al-Fitouri","نور الدين الفيتوري"),ph:"0917710099"},
+ mahmoud:{nm:N("Mahmoud Gammati","محمود القماطي"),ph:"0913344556"}
+};
+const TRIP=N("Tripoli","طرابلس"), BENG=N("Benghazi","بنغازي"), MISR=N("Misrata","مصراتة");
+const PR={serum:N("Sérum vitamine C","سيروم فيتامين C"),mixer:N("Mixeur","خلاط كهربائي"),creme:N("Crème hydratante","كريم مرطب"),watch:N("Montre connectée","ساعة ذكية"),care:N("Pack soins","مجموعة العناية"),perfume:N("Parfum","عطر"),gel:N("Gel nettoyant","جل منظف"),sun:N("Crème solaire","واقي شمس"),blender:N("Pack blender","خلاط متعدد"),supp:N("Complément","مكمل غذائي")};
+const D=o=>Object.assign({actions:[],nextAt:null,task:null,risk:[],remark:null,remarkClass:null,remarkH:null,resend:0,saved:false,waitKey:null,prior:[0,0,0],qty:1},o);
+const P=[
+ D({id:"48211",nm:N("Amina El Fitouri","أمينة الفيتوري"),city:TRIP,area:N("Aïn Zara","عين زارة"),prod:PR.serum,sku:"SC-001",price:185,st:"out_for_delivery",hrs:5,lastEvtH:3.3,cr:CR.ali,remark:"الزبون لم يرد ع التلفون",remarkClass:"no_answer",remarkH:3.3,ph:["0914456677","0921122334"],prior:[1,0,0],confH:30}),
+ D({id:"48198",nm:N("Salem Abou Zeid","سالم أبو زيد"),city:BENG,area:N("Al-Laithi","الليثي"),prod:PR.mixer,sku:"MX-210",price:140,st:"delivery_delayed",hrs:26,lastEvtH:22.2,cr:CR.nour,ph:["0917768890"],confH:60,delayedUntil:NOW+22*H}),
+ D({id:"48205",nm:N("Fathi Al-Werfalli","فتحي الورفلي"),city:TRIP,area:N("Gargaresh","قرقارش"),prod:PR.supp,sku:"CP-060",price:179,st:"out_for_delivery",hrs:4,lastEvtH:2.5,cr:CR.ali,remark:"الزبون قال ما عادش يبي الطلبية",remarkClass:"not_needed",remarkH:2.5,ph:["0913322110"],prior:[1,0,0],confH:28}),
+ D({id:"48186",nm:N("Omar Al-Kikli","عمر الككلي"),city:TRIP,area:N("Ain Zara","عين زارة"),prod:PR.gel,sku:"GN-045",price:129,st:"delivery_delayed",hrs:9,lastEvtH:9,cr:CR.ali,remark:"تم التنسيق مع الزبون للتسليم غدا",remarkClass:"coordinated",remarkH:9,delayedUntil:NOW+21*H,ph:["0918811223"],prior:[1,0,0],confH:40}),
+ D({id:"48190",nm:N("Hanan Al-Mismari","حنان المسماري"),city:BENG,area:N("Al-Salmani","السلماني"),prod:PR.perfume,sku:"PF-017",price:249,st:"out_for_delivery",hrs:30,lastEvtH:30,cr:CR.nour,nextAt:NOW-21*H,ph:["0924455667"],prior:[2,0,0],confH:52,actions:[{h:45,type:"call_customer",oc:"reached_reschedule",note:N("Rappeler demain matin","اتصل غداً صباحاً")}]}),
+ D({id:"48172",nm:N("Huda Al-Mabrouk","هدى المبروك"),city:TRIP,area:N("Souq Al Joumaa","سوق الجمعة"),prod:PR.creme,sku:"CH-104",price:95,st:"returning",hrs:25.5,lastEvtH:25.45,cr:CR.salem,remark:"3 days no response",remarkClass:"no_answer",remarkH:26,resend:1,ph:["0923341122"],prior:[1,1,0],confH:120}),
+ D({id:"48128",nm:N("Mohamed Saleh","محمد صالح"),city:BENG,area:N("Al-Fwayhat","الفويهات"),prod:PR.watch,sku:"MW-002",price:240,st:"to_be_returned",hrs:20,lastEvtH:20,cr:CR.nour,remark:"Cancelled by the customer",remarkClass:"customer_cancelled",remarkH:26,ph:["0945566778"],confH:100,actions:[{h:18,type:"call_customer",oc:"no_answer",note:""}]}),
+ D({id:"48165",nm:N("Youssef Ben Ali","يوسف بن علي"),city:BENG,area:N("Sabri","الصابري"),prod:PR.care,sku:"PS-330",price:120,st:"out_for_delivery",hrs:3,lastEvtH:1.7,cr:CR.nour,nextAt:NOW+3*H,waitKey:"wait_callback",ph:["0912213344"],prior:[2,0,0],confH:40,actions:[{h:1.7,type:"call_customer",oc:"reached_reschedule",note:N("Rappeler après 15 h","اتصل بعد الساعة 3")}]}),
+ D({id:"48160",nm:N("Noura Al-Trabelsi","نورة الطرابلسي"),city:TRIP,area:N("Hay Andalous","حي الأندلس"),prod:PR.perfume,sku:"PF-017",price:210,st:"out_for_delivery",hrs:6,lastEvtH:4.25,cr:CR.yousef,ph:["0928876655"],confH:30}),
+ D({id:"48155",nm:N("Mohamed Ferjani","محمد الفرجاني"),city:TRIP,area:N("Tajoura","تاجوراء"),prod:PR.gel,sku:"GN-045",price:80,qty:2,st:"in_transit",hrs:2,lastEvtH:1.15,cr:CR.yousef,remark:"العنوان غير واضح",remarkClass:"wrong_address",remarkH:1.15,ph:["0919987766"],confH:26}),
+ D({id:"48150",nm:N("Rania Al-Ghariani","رانيا الغرياني"),city:BENG,area:N("Al-Berka","البركة"),prod:PR.sun,sku:"SS-050",price:165,st:"delivery_delayed",hrs:5,lastEvtH:3.47,cr:CR.nour,remark:"الاستلام غدا",remarkClass:"coordinated",remarkH:3.5,nextAt:NOW+20*H,waitKey:"wait_busy",ph:["0915542233"],prior:[1,0,0],confH:50,actions:[{h:3,type:"call_customer",oc:"reached_reschedule",note:N("Empêchement aujourd'hui, demain matin","عنده ظرف اليوم، غداً صباحاً")}]}),
+ D({id:"48140",nm:N("Ahmed Al-Shalabi","أحمد الشلبي"),city:TRIP,area:N("Abu Salim","أبو سليم"),prod:PR.watch,sku:"MW-002",price:240,st:"at_carrier",hrs:150,lastEvtH:150,cr:CR.ali,ph:["0919988776"],prior:[3,0,0],confH:170}),
+ D({id:"48136",nm:N("Khaled Al-Zawi","خالد الزاوي"),city:TRIP,area:N("Janzour","جنزور"),prod:PR.blender,sku:"BL-900",price:520,st:"out_for_delivery",hrs:0.7,lastEvtH:0.7,cr:CR.yousef,task:{done:false},risk:["high_value","repeat_risk"],ph:["0916655443","0927766554"],prior:[1,1,0],confH:36}),
+ D({id:"48132",nm:N("Salma Al-Trabelsi","سلمى الطرابلسي"),city:MISR,area:N("Centre","المركز"),prod:PR.serum,sku:"SC-001",price:110,st:"in_transit",hrs:20,lastEvtH:20,cr:CR.mahmoud,ph:["0927788990"],prior:[1,0,0],confH:44}),
+ D({id:"48126",nm:N("Mariam Al-Darsi","مريم الدرسي"),city:TRIP,area:N("Al-Hadba","الهضبة"),prod:PR.creme,sku:"CH-104",price:110,st:"out_for_delivery",hrs:1.5,lastEvtH:1.5,cr:CR.salem,ph:["0917766554"],prior:[4,0,0],confH:26}),
+ D({id:"48122",nm:N("Sami Al-Oraibi","سامي العريبي"),city:TRIP,area:N("Salah Eddine","صلاح الدين"),prod:PR.blender,sku:"BL-900",price:520,st:"scanned",hrs:3,lastEvtH:3,cr:null,ph:["0921100223"],confH:8}),
+ D({id:"48120",nm:N("Layla Al-Sharif","ليلى الشريف"),city:TRIP,area:N("Qasr Ben Ghashir","قصر بن غشير"),prod:PR.creme,sku:"CH-104",price:180,qty:2,st:"uploaded",hrs:1,lastEvtH:1,cr:null,ph:["0916677889"],confH:3}),
+ D({id:"48145",nm:N("Tarek Ben Salem","طارق بن سالم"),city:TRIP,area:N("Aïn Zara","عين زارة"),prod:PR.supp,sku:"CP-060",price:90,st:"delivered",hrs:0.42,lastEvtH:0.42,cr:CR.ali,remark:"تم التنسيق مع الزبون",remarkClass:"coordinated",remarkH:27,saved:true,ph:["0926617788"],prior:[1,0,0],confH:70,actions:[{h:26,type:"call_courier",oc:"reattempt_promised",note:""}]}),
+ D({id:"48118",nm:N("Souad Ben Ali","سعاد بن علي"),city:BENG,area:N("Al-Laithi","الليثي"),prod:PR.serum,sku:"SC-001",price:110,st:"returned",hrs:9,lastEvtH:9,cr:CR.nour,remark:"No longer needed",remarkClass:"not_needed",remarkH:60,ph:["0945544332"],prior:[0,1,0],confH:130,actions:[{h:58,type:"call_customer",oc:"reached_wants_cancel",note:N("A acheté ailleurs","اشترى من مكان آخر")}]})
+];
+P.forEach(p=>p.actions.forEach(a=>{a.at=ago(a.h);delete a.h}));
+
+/* ═════════ Engine (same precedence as get_delivery_worklist) ═════════ */
+const TERMINAL=["delivered","returned","cancelled"], RET=["returning","to_be_returned","received"];
+const ACTIONABLE=["no_answer","customer_cancelled","not_needed","refused","not_serious","out_of_coverage","wrong_address"];
+const ORDER=["returning","act_now","waiting_customer","waiting_carrier","done"];
+const TONE={returning:"red",act_now:"amber",waiting_customer:"blue",waiting_carrier:"grey",done:"green"};
+const STALL_H=5*24;
+const byId=id=>P.find(p=>p.id===id);
+const lastHuman=p=>{const a=p.actions.filter(x=>x.type!=="task");return a.length?a[a.length-1].at:0};
+const taskOpen=p=>!!(p.task&&!p.task.done);
+const remarkOpen=p=>!!(p.remarkClass&&ACTIONABLE.includes(p.remarkClass)&&lastHuman(p)<ago(p.remarkH));
+/* Decided 2026-09-17 (queued RPC change): a delay the courier already coordinated, or an
+   office pickup, is not a task while Darb's retry date is ahead — it waits with the carrier. */
+const HANDLED_DELAY=["coordinated","office_pickup"];
+const delayOpen=p=>(p.st==="delivery_delayed"||p.st==="unverified")&&lastHuman(p)<ago(p.hrs)&&!(HANDLED_DELAY.includes(p.remarkClass)&&p.delayedUntil&&p.delayedUntil>NOW);
+const stalled=p=>!TERMINAL.includes(p.st)&&p.lastEvtH>=STALL_H;
+const due=p=>!!(p.nextAt&&p.nextAt<=NOW);
+function bucketOf(p){
+ if(TERMINAL.includes(p.st)) return "done";
+ if(RET.includes(p.st)) return "returning";
+ if(taskOpen(p)||remarkOpen(p)||delayOpen(p)||due(p)||stalled(p)) return "act_now";
+ if(p.nextAt&&p.nextAt>NOW) return "waiting_customer";
+ return "waiting_carrier";
+}
+const CANCEL_LIKE=["customer_cancelled","not_needed","refused","not_serious","no_cash","wrong_item","payment_method"];
+/* The situation key, most specific reason first. Stalled comes last: a fresh
+   remark or a broken promise is the reason to call, the stall is its consequence. */
+function sitKey(p){
+ const b=bucketOf(p);
+ if(b==="done") return p.st==="delivered"?"delivered":"returned";
+ if(b==="returning") return p.st==="to_be_returned"?"to_be_returned":"returning";
+ if(b==="act_now"){
+  if(taskOpen(p)) return "proactive";
+  if(remarkOpen(p)){const c=p.remarkClass;return c==="no_answer"?"no_answer":c==="wrong_address"?"address":c==="out_of_coverage"?"out_of_coverage":"cancel"}
+  if(delayOpen(p)) return "delayed";
+  if(due(p)) return "due";
+  return "stalled";
+ }
+ if(b==="waiting_customer") return "waiting_customer";
+ return (p.st==="uploaded"||p.st==="scanned")?"at_warehouse":"waiting_carrier";
+}
+/* Tier = how loud. red: money about to leave · amber: reach someone today ·
+   blue: the customer promised · grey: nothing to do · green: delivered. */
+const SIT_TIER={proactive:"red",cancel:"red",returning:"red",to_be_returned:"red",due:"amber",no_answer:"amber",address:"amber",out_of_coverage:"amber",delayed:"amber",stalled:"amber",waiting_customer:"blue",at_warehouse:"grey",waiting_carrier:"grey",delivered:"green",returned:"muted"};
+const SIT_ICON={proactive:"shield",cancel:"ban",returning:"undo",to_be_returned:"boxx",due:"alarm",no_answer:"phoneoff",address:"pinoff",out_of_coverage:"signal0",delayed:"hourglass",stalled:"pause",waiting_customer:"calclock",at_warehouse:"warehouse",waiting_carrier:"truck",delivered:"circlecheck",returned:"archive"};
+const SIT_RANK={proactive:0,cancel:1,returning:2,to_be_returned:2,due:3,no_answer:4,address:4,out_of_coverage:4,delayed:5,stalled:6,waiting_customer:7,waiting_carrier:8,at_warehouse:8,delivered:9,returned:9};
+const tierOf=p=>SIT_TIER[sitKey(p)];
+function sitOf(p){const k=sitKey(p);return {k,t:SIT_TIER[k],ic:I[SIT_ICON[k]],l:t("sit")[k]}}
+const dayShort=ms=>{const d=new Date(ms);if(d.toDateString()===new Date(NOW+24*H).toDateString())return t("age").tmr;return d.toLocaleDateString(S.lang==="ar"?"ar-LY-u-nu-latn":"fr-FR",{day:"numeric",month:"short"})};
+/* One age per situation — the number an agent can compare down the column. */
+function ageOf(p){
+ const k=sitKey(p), d=t("dur"), A=t("age");
+ if(k==="waiting_carrier"&&p.st==="delivery_delayed"&&p.delayedUntil) return {v:A.retry(dayShort(p.delayedUntil)),late:false};
+ if(k==="due"){const h=(NOW-p.nextAt)/H;return {v:A.over(d(h)),late:h>=24}}
+ if(["no_answer","address","out_of_coverage","cancel"].includes(k)){const h=p.remarkH??p.hrs;return {v:d(h),late:h>=24}}
+ if(k==="delayed"&&p.delayedUntil) return {v:A.retry(dayShort(p.delayedUntil)),late:false};
+ if(k==="waiting_customer") return {v:A.in(d((p.nextAt-NOW)/H)),late:false};
+ if(k==="delivered"||k==="returned") return {v:when(ago(p.hrs),true),late:false};
+ if(k==="stalled") return {v:d(p.lastEvtH),late:true};
+ const carrier=SIT_TIER[k]==="grey";
+ return {v:d(p.hrs),late:!carrier&&p.hrs>=24};
+}
+/* The second line: the newer of the agent's last action and the courier's words,
+   else the canned sentence — so every row keeps two lines. */
+function subKey(p){
+ const k=sitKey(p);
+ if(k==="waiting_customer") return p.waitKey||"wait_callback";
+ if(k==="waiting_carrier") return p.st==="out_for_delivery"?"transit":p.st==="in_transit"?"in_transit":"at_carrier";
+ return k;
+}
+function traceOf(p){
+ const acts=p.actions.filter(a=>a.type!=="task"), la=acts[acts.length-1];
+ const rk=p.remark?ago(p.remarkH):0;
+ if(la&&la.at>=rk){
+  const what=la.type==="whatsapp"?t("at").whatsapp:(la.oc&&t("oc")[la.oc])||t("at")[la.type];
+  return {ic:la.type==="whatsapp"?I.wa:la.type==="note"?I.note:I.phone,x:`${what}${la.note?` · <span class="q">${tx(la.note)}</span>`:""}`,tm:when(la.at,true)};
+ }
+ if(p.remark) return {ic:I.truck,x:`« <span class="q">${p.remark}</span> »`,tm:when(rk,true)};
+ return {ic:null,x:t("ss")[subKey(p)]};
+}
+/* Tags: the DB rule for customer risk (orders ≥ 2 and half of the closed ones failed),
+   a re-sent parcel, a zone with a low delivery rate. Two at most. */
+function tagsOf(p){
+ const [pd,pr,pj]=p.prior, term=pd+pr+pj, tg=[];
+ if((term>=2&&(pr+pj)/term>=0.5)||p.risk.includes("repeat_risk")) tg.push(["red",t("tags").risk]);
+ if(p.resend>=1) tg.push(["grey",t("tags").resend(p.resend+1)]);
+ if(p.risk.includes("low_zone")) tg.push(["grey",t("tags").zone]);
+ return tg.slice(0,2);
+}
+const highValue=p=>p.risk.includes("high_value");
+/* The move, its number, and the other channel for the second slot. */
+function moveOf(p){
+ const b=bucketOf(p), k=sitKey(p);
+ const call=(kind,dial,what)=>({k:kind,ic:I.phone,what,dial,sec:"wa"});
+ if(b==="done") return {k:"details",ic:I.check,sec:null};
+ if(b==="returning") return {k:"save",ic:I.phone,mic:I.box,what:"call_branch",dial:p.cr&&p.cr.ph,sec:"wa"};
+ if(b==="waiting_customer") return call("call",p.ph[0],"call_customer");
+ if(b==="waiting_carrier") return (p.st==="uploaded"||p.st==="scanned")?{k:"details",ic:I.doc,sec:null}:{k:"track",ic:I.truck,mic:I.truck,sec:null};
+ if(k==="proactive") return call("before",p.ph[0],"call_customer");
+ if(k==="stalled"||k==="delayed") return {k:"courier",ic:I.truck,mic:I.phone,what:"call_courier",dial:p.cr&&p.cr.ph,sec:"wa"};
+ if(k==="no_answer") return p.ph[1]?call("call2",p.ph[1],"call_customer"):{k:"wa",ic:I.wa,wa:true,dial:p.ph[0],sec:"call"};
+ if(k==="out_of_coverage") return {k:"wa",ic:I.wa,wa:true,dial:p.ph[0],sec:"call"};
+ return call("call",p.ph[0],"call_customer");
+}
+const fmt=n=>n?n.replace(/^(\d{3})(\d{3})(\d{4})$/,"$1 $2 $3"):"";
+const money=v=>S.lang==="ar"?`<span class="num">${v}</span> ${t("cur")}`:`<span class="num">${v}</span> ${t("cur")}`;
+const hm=ms=>{const d=new Date(ms);return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`};
+const dayStart=new Date(NOW);dayStart.setHours(0,0,0,0);
+function when(ms,short){
+ if(ms>=dayStart.getTime()) return short?hm(ms):`${t("today")} ${hm(ms)}`;
+ if(ms>=dayStart.getTime()-24*H) return short?t("yest"):`${t("yest")} ${hm(ms)}`;
+ const loc=S.lang==="ar"?"ar-LY-u-nu-latn":"fr-FR", day=new Date(ms).toLocaleDateString(loc,{day:"numeric",month:"short"});
+ return short?day:`${day} ${hm(ms)}`;
+}
+function createdLabel(p){
+ const loc=S.lang==="ar"?"ar-LY-u-nu-latn":"fr-FR", ms=ago(p.confH+2);
+ return `${new Date(ms).toLocaleDateString(loc,{day:"numeric",month:"long",year:"numeric"})}, ${hm(ms)}`;
+}
+const counts=()=>{const c={all:0};ORDER.forEach(k=>c[k]=0);P.forEach(p=>{const b=bucketOf(p);c[b]++;if(b!=="done")c.all++});return c};
+function visible(){
+ const q=S.q.trim().toLowerCase(), qd=q.replace(/\D/g,"");
+ return P.filter(p=>S.bucket==="all"?bucketOf(p)!=="done":bucketOf(p)===S.bucket)
+  .filter(p=>!q||[p.nm.fr,p.nm.ar,p.city.fr,p.city.ar,p.area.fr,p.area.ar,p.id].some(v=>v.toLowerCase().includes(q))||(qd.length>=3&&p.ph.some(n=>n.includes(qd))))
+  .sort((a,b)=>ORDER.indexOf(bucketOf(a))-ORDER.indexOf(bucketOf(b))||SIT_RANK[sitKey(a)]-SIT_RANK[sitKey(b)]||b.hrs-a.hrs);
+}
+
+/* ═════════ Timeline ═════════ */
+function timeline(p){
+ const E=t("ev"), cn=t("carrierName"), cr=p.cr?tx(p.cr.nm):cn, ev=[];
+ ev.push({k:"order",at:ago(p.confH+2),x:E.created,s:E.created_s,a:t("sys")});
+ ev.push({k:"mine",at:ago(p.confH),x:E.confirmed,s:fmt(p.ph[0]),a:t("me")});
+ ev.push({k:"order",at:ago(p.confH-1),x:E.uploaded,s:"",a:t("sys")});
+ if(p.st!=="uploaded") ev.push({k:"order",at:ago(p.confH-4),x:E.scanned,s:"",a:t("wh")});
+ if(p.cr) ev.push({k:"carrier",at:ago(Math.max(p.hrs+3,p.confH-10)),x:E.at_branch,s:tx(p.city),a:cn});
+ if(["out_for_delivery","delivery_delayed","returning","to_be_returned","delivered","returned"].includes(p.st))
+  ev.push({k:"carrier",at:ago(p.st==="out_for_delivery"?p.hrs:p.hrs+2),x:E.out,s:tx(p.area),a:cn});
+ if(p.remark) ev.push({k:"carrier",at:ago(p.remarkH),x:E.remark,s:`« <span class="q">${p.remark}</span> »`,a:cr});
+ const stE={delivery_delayed:"delayed",returning:"returning",to_be_returned:"returning",delivered:"delivered",returned:"returned"}[p.st];
+ if(stE) ev.push({k:"carrier",at:ago(p.hrs),x:E[stE],s:"",a:cn});
+ if(p.task) ev.push({k:"order",at:ago(p.hrs),x:t("at").task,s:t("oc").pending,a:t("sys")});
+ p.actions.forEach(a=>ev.push({k:"mine",at:a.at,x:a.type==="whatsapp"?`${t("at").whatsapp} · ${t("tpl")[a.tpl]}`:`${t("at")[a.type]}${a.oc&&t("oc")[a.oc]?` · ${t("oc")[a.oc]}`:""}`,s:tx(a.note),a:t("me")}));
+ const f=S.tl===1?ev.filter(e=>e.k==="mine"):S.tl===2?ev.filter(e=>e.k==="carrier"):ev;
+ return f.sort((a,b)=>b.at-a.at);
+}
+
+/* ═════════ Pieces ═════════ */
+const presence=()=>`<button class="presence" data-presence data-on="${S.presence}"><span class="dot"></span>${S.presence?t("on"):t("off")}</button>`;
+const statPill=cls=>`<span class="${cls}">${I.bars}<span>${t(cls==="mstat"?"statS":"stat")(85,6)}</span></span>`;
+function empty(){
+ return `<div class="empty">${I.box}<h3>${t("e_title")}</h3><p>${t("e_sub")}</p>${S.bucket!=="all"||S.q?`<button class="btn-o" data-reset>${t("e_all")}</button>`:""}</div>`;
+}
+const sg=(s,extra="")=>`<span class="sg"><span class="ic">${s.ic}</span><span class="lb">${s.l}</span>${extra}</span>`;
+const tagsHtml=p=>tagsOf(p).map(([tn,l])=>`<span class="tag" data-t="${tn}">${l}</span>`).join("");
+/* The two action slots: the move with its number, then the other channel. */
+function actionHtml(p,host){
+ const b=bucketOf(p), m=moveOf(p), L=t("mvs");
+ if(m.k==="details"||m.k==="track") return `<button class="btn-p" data-quiet data-open="${p.id}">${m.ic}<span class="lb">${L[m.k]}</span></button><span class="btn-sq" data-none></span>`;
+ const primary=`<button class="btn-p" data-move="${p.id}" data-host="${host}">${m.ic}<span class="lb">${L[m.k]}</span>${m.dial?`<span class="nb num">${fmt(m.dial)}</span>`:""}</button>`;
+ const sec=m.sec==="wa"?`<button class="btn-sq" data-wa data-waopen="${p.id}" data-host="${host}" aria-label="WhatsApp">${I.wa}</button>`
+  :m.sec==="call"?`<button class="btn-sq" data-log="${p.id}" data-host="${host}" aria-label="${t("mv").call}">${I.phone}</button>`:`<span class="btn-sq" data-none></span>`;
+ return primary+(b==="done"?"":sec);
+}
+function deskRow(p){
+ const s=sitOf(p), a=ageOf(p), tr=traceOf(p);
+ return `<article class="row" data-tk="${s.t}" data-open="${p.id}" aria-selected="${S.openId===p.id}" tabindex="0">
+  <div class="c-sit">${sg(s)}<div class="tr">${tr.ic||""}<span class="q">${tr.x}</span>${tr.tm?`<span class="tm">· ${tr.tm}</span>`:""}</div></div>
+  <div class="c-cl"><div style="min-width:0">
+   <div class="nm"><span class="q">${tx(p.nm)}</span>${tagsHtml(p)}</div>
+   <div class="ad q">${tx(p.city)} · ${tx(p.area)}</div>
+   <div class="rf"><span class="num">#${p.id}</span> · ${tx(p.prod)} <span class="num">×${p.qty}</span></div>
+  </div></div>
+  <div class="age c-age num" ${a.late?"data-late":""}>${a.v}</div>
+  <div class="c-act">${actionHtml(p,"desk")}</div>
+  <div class="amt c-amt" ${highValue(p)?"data-hv":""}>${money(p.price)}</div>
+ </article>`;
+}
+function skeletonRows(){
+ return Array.from({length:8},()=>`<div class="row" data-tk="muted" style="cursor:default"><div><div class="skel" style="height:14px;width:60%"></div><div class="skel" style="height:11px;width:85%;margin-top:9px"></div></div><div><div class="skel" style="height:14px;width:55%"></div><div class="skel" style="height:11px;width:70%;margin-top:9px"></div><div class="skel" style="height:11px;width:60%;margin-top:7px"></div></div><div class="skel" style="height:12px;width:36px;justify-self:end"></div><div class="skel" style="height:40px;width:262px"></div><div class="skel" style="height:14px;width:60px;justify-self:end"></div></div>`).join("");
+}
+function deskDetail(p){
+ if(!p) return `<div class="panel"><div class="pick">${t("pick")}</div></div>`;
+ const b=bucketOf(p), s=sitOf(p), m=moveOf(p), [pd,pr,pj]=p.prior, cn=t("carrierName");
+ let primary="";
+ if(m.wa) primary=`<button class="btn-k" data-wa="${p.id}" data-host="desk">${I.wa}<span>${t("mv").wa}</span></button>`;
+ else if(m.k==="save"&&m.dial) primary=`<a class="btn-k" href="tel:${m.dial}" data-dial="${p.id}" data-host="desk">${I.phone}<span>${t("callBranch")(`<span class="num">${fmt(m.dial)}</span>`)}</span></a>`;
+ else if(m.dial) primary=`<a class="btn-k" href="tel:${m.dial}" data-dial="${p.id}" data-host="desk">${I.phone}<span>${t("callN")(`<span class="num">${fmt(m.dial)}</span>`)}</span></a>`;
+ const tl=timeline(p);
+ return `<div class="panel">
+  <div class="ph1"><h3><span class="q">${tx(p.nm)}</span><span class="id num">#${p.id}</span></h3><button class="x" data-close aria-label="Fermer">${I.x}</button></div>
+  <div class="ph2"><span data-tk="${s.t}">${sg(s,`<span class="age num">${ageOf(p).v}</span>`)}</span><span class="big">${money(p.price)}</span></div>
+  <div class="ph3"><span>${I.pin}${tx(p.city)} · ${tx(p.area)}</span><span>${I.cal}${t("created")(createdLabel(p))}</span></div>
+  <div class="card reco">
+   <div class="rh"><span class="ri">${m.ic}</span><div><small>${t("rec")}</small><b>${t("mv")[m.k]}</b><p>${t("rs")[m.k]}</p></div></div>
+   ${primary}
+   ${b!=="done"?`<button class="link" data-log="${p.id}" data-host="desk">${I.note}<span>${t("logact")}</span></button>`:""}
+  </div>
+  <div class="grid2">
+   <div class="card"><div class="ct">${I.user}${t("client")}</div>
+    <div class="li">${I.user}<span class="q">${tx(p.nm)}</span></div>
+    ${p.ph.map(n=>`<a class="li" href="tel:${n}">${I.phone}<span class="num">${fmt(n)}</span></a>`).join("")}
+    <div class="li">${I.pin}<span class="q">${tx(p.city)} · ${tx(p.area)}</span></div>
+    <div class="li muted">${I.doc}<span>${t("custHist")(pd+pr+pj,pd,pr)}</span>${tagsHtml(p)}</div>
+    ${b!=="done"?`<button class="li wa" data-wa="${p.id}" data-host="desk">${I.wa}<span>WhatsApp</span></button>`:""}
+   </div>
+   <div class="card"><div class="ct">${I.truck}${t("carrier")}</div>
+    ${p.cr?`<div class="li"><span>${cn}</span></div>
+     <div class="li">${I.user}<span class="q">${tx(p.cr.nm)}</span></div>
+     <a class="li" href="tel:${p.cr.ph}">${I.phone}<span class="num">${fmt(p.cr.ph)}</span></a>
+     <div class="li muted"><span class="dot" data-t="${TONE[b]}"></span><span>${t("cst")[p.st]}</span></div>
+     ${p.remark?`<div class="li muted"><span class="q">« ${p.remark} »</span></div>`:""}
+     ${b!=="done"?`<button class="btn-o" data-callcourier="${p.id}" data-host="desk">${t("mv").courier}</button>`:""}`
+    :`<div class="li muted"><span>${t("notYet")}</span></div><div class="li muted"><span class="dot" data-t="grey"></span><span>${t("cst")[p.st]}</span></div>`}
+   </div>
+  </div>
+  <div class="card" style="margin-top:12px"><div class="ct">${I.box}${t("parcel")}</div>
+   <div class="colis"><div><div class="pn">${tx(p.prod)} <span class="num">× ${p.qty}</span></div><div class="sk">${t("sku")}: <span class="num">${p.sku}</span></div></div><div class="big">${money(p.price)}</div></div>
+  </div>
+  <div class="hist">
+   <div class="hh"><div class="ct">${I.clock}${t("history")}</div><div class="tabs3">${t("tl").map((l,i)=>`<button data-tl="${i}" aria-pressed="${S.tl===i}">${l}</button>`).join("")}</div></div>
+   <ul class="tl">${tl.map(e=>`<li data-k="${e.k}"><i></i><span class="tt num">${when(e.at,true)}</span><span class="tx"><b>${e.x}</b>${e.s?`<span>${e.s}</span>`:""}</span><span class="ac">${e.a}</span></li>`).join("")}</ul>
+  </div>
+ </div>`;
+}
+function desktop(){
+ const c=counts(), rows=visible(), p=byId(S.openId), T=t("tabs");
+ let list;
+ if(S.state==="loading") list=skeletonRows();
+ else if(S.state==="empty"||!rows.length) list=empty();
+ else list=rows.map(deskRow).join("");
+ return `<div class="hscroll"><div class="app" id="app" data-order="${S.order}">
+  <header class="top"><span class="brand">Ordra</span><span class="mkt">${t("mkt")}</span>
+   <nav><button>${T[0]}</button><button>${T[1]}</button><button aria-current="page">${T[2]}<span class="badge num">${c.returning+c.act_now}</span></button><button>${T[3]}</button></nav>
+   ${presence()}<span class="me"><span class="avatar">${t("user")[0]}</span>${t("user")}${I.chevd}</span>
+  </header>
+  <div class="body">
+   <section class="left">
+    <div class="head"><div><h2>${t("title")}</h2><div class="sub">${t("sub")(c.all)}</div></div>${statPill("stat")}</div>
+    <div class="segs" role="group">${["all",...ORDER].map(k=>`<button data-bk="${k}" aria-pressed="${S.bucket===k}" ${c[k]?"":"data-zero"}>${k!=="all"?`<span class="dot" data-t="${TONE[k]}"></span>`:""}<span class="lb">${t("b")[k]}</span><b class="num">${c[k]}</b></button>`).join("")}</div>
+    ${S.state==="offline"?`<div class="strip">${I.cloud}<span>${t("offline")}</span></div>`:""}
+    <div class="thead">${t("cols").map((x,i)=>`<span class="${["c-sit","c-cl","c-age","c-act","c-amt"][i]}">${x}</span>`).join("")}</div>
+    <div class="rows">${list}</div>
+   </section>
+   <section class="right">
+    <label class="search">${I.search}<input id="q" type="search" value="${S.q.replace(/"/g,"&quot;")}" placeholder="${t("search")}"></label>
+    ${S.state==="loading"?`<div class="panel"><div class="skel" style="height:22px;width:60%"></div><div class="skel" style="height:140px;margin-top:20px"></div><div class="skel" style="height:160px;margin-top:12px"></div></div>`:deskDetail(S.state==="empty"?null:p)}
+   </section>
+  </div>
+  ${S.host==="desk"?`<div class="veil" data-veil>${sheet("desk")}</div>`:""}
+  ${S.toast&&S.toast.host==="desk"?deskToast():""}
+ </div></div>`;
+}
+function deskToast(){
+ const T=S.toast;
+ return `<div class="dtoast" role="status"><span class="ok">${I.check}</span><span class="tx">${T.title}${T.sub?`<small>${T.sub}</small>`:""}</span>${T.undo?`<button class="u" data-undo>${t("undo")}</button>`:`<span class="u" style="text-decoration:none"></span>`}<button class="cl" data-toastx aria-label="Fermer">${I.x}</button>${T.undo?`<span class="bar5" data-k="${T.id}"></span>`:""}</div>`;
+}
+
+/* ═════════ Sheets ═════════ */
+const OUT={call_customer:["reached_will_receive","reached_reschedule","reached_wants_cancel","reached_address_fix","no_answer","wrong_number","phone_off"],
+ call_courier:["reattempt_promised","courier_no_answer","parcel_located","return_confirmed","info_passed"],
+ call_branch:["reattempt_promised","parcel_located","return_confirmed","info_passed"], note:[]};
+const OTONE={reached_will_receive:"green",reached_address_fix:"green",reattempt_promised:"green",parcel_located:"green",no_answer:"amber",wrong_number:"amber",phone_off:"amber",courier_no_answer:"amber",reached_wants_cancel:"amber",reached_reschedule:"blue",return_confirmed:"blue",info_passed:"blue"};
+function suggestTpl(p){
+ const b=bucketOf(p);
+ if(b==="returning") return "returning_last_chance";
+ if(p.remarkClass==="no_answer"||p.remarkClass==="out_of_coverage") return "courier_no_answer";
+ if(p.remarkClass==="wrong_address") return "address_check";
+ if(p.st==="delivery_delayed") return "delayed_confirm_time";
+ return "before_delivery";
+}
+function draftFor(host,kind,id,what){
+ const d=S.drafts[host];
+ if(d&&d.kind===kind&&d.id===id) return d;
+ const p=byId(id);
+ S.drafts[host]=kind==="action"
+  ?{kind,id,what:what||moveOf(p).what||"call_customer",oc:null,note:"",next:null}
+  :{kind,id,key:suggestTpl(p),l:"ar"};
+ return S.drafts[host];
+}
+function sheet(host){
+ const d=S.drafts[host]; if(!d) return "";
+ return d.kind==="action"?actionSheet(host,d):waSheet(host,d);
+}
+function actionSheet(host,d){
+ const A=t("at"), O=t("oc");
+ const tiles=[["call_customer",I.phone],["call_courier",I.truck],["call_branch",I.bldg],["note",I.note]];
+ const ok=d.what==="note"?!!d.note.trim():!!d.oc;
+ return `<section class="sheet" data-host="${host}" role="dialog" aria-label="${t("a_title")}">
+  <div class="grab"></div>
+  <div class="sh"><h4>${t("a_title")}</h4><button class="x" data-sheetx aria-label="Fermer">${I.x}</button></div>
+  <p class="fl">${t("a_what")}</p>
+  <div class="tiles">${tiles.map(([k,ic])=>`<button class="tile" data-aw="${k}" aria-pressed="${d.what===k}">${ic}<span>${A[k]}</span></button>`).join("")}</div>
+  ${OUT[d.what].length?`<p class="fl">${t("a_res")}</p><div class="opills">${OUT[d.what].map(k=>`<button class="op" data-ao="${k}" data-t="${OTONE[k]}" aria-pressed="${d.oc===k}">${O[k]}</button>`).join("")}</div>`:""}
+  <p class="fl">${t("a_note")} <span>${d.what==="note"?"":t("a_opt")}</span></p>
+  <div class="ninput"><input data-an type="text" maxlength="500" value="${d.note.replace(/"/g,"&quot;")}" placeholder="${t("a_ph")}"><span class="c num" data-cnt>${d.note.length?`${d.note.length}/500`:""}</span></div>
+  <p class="fl">${t("a_rem")}</p>
+  <div class="rem">${[["n2h",t("n2h")],["ntmr",t("ntmr")],["nnone",t("nnone")]].map(([k,l])=>`<button data-anx="${k}" aria-pressed="${d.next===k}">${l}</button>`).join("")}</div>
+  <button class="save" data-asave ${ok?"":"disabled"}>${t("save")}</button>
+ </section>`;
+}
+function waParts(p,key,l){
+ const nm=p.nm[l], cr=p.cr?p.cr.nm[l]:"—", amt=l==="ar"?`${p.price} د.ل`:`${p.price} LYD`, car=l==="ar"?"درب السبيل":"Darb Assabil", addr=`${p.area[l]}، ${p.city[l]}`;
+ const M={ar:{
+  before_delivery:["مرحباً ",nm,"، طلبك مع ",car," في طريقه إليك.\nالمبلغ عند الاستلام ",amt,".\nهل يمكنك تأكيد العنوان ووقت الاستلام؟"],
+  courier_no_answer:["مرحباً ",nm,"، حاول المندوب ",cr," الاتصال بك دون رد.\nمتى يناسبك الاستلام؟"],
+  delayed_confirm_time:["مرحباً ",nm,"، تم تأجيل التوصيل.\nأي يوم وأي ساعة تناسبك؟"],
+  returning_last_chance:["مرحباً ",nm,"، طردك في طريق الإرجاع.\nإن كنت لا تزال تريده، ردّ اليوم ونعيد التوصيل."],
+  address_check:["مرحباً ",nm,"، لنوصل بلا خطأ، هل تؤكد العنوان:\n",addr,"؟"]},
+ fr:{
+  before_delivery:["Bonjour ",nm,", votre colis est en route avec ",car,".\nMontant à préparer : ",amt,".\nPouvez-vous confirmer l'adresse et l'heure ?"],
+  courier_no_answer:["Bonjour ",nm,", le livreur ",cr," a essayé de vous joindre sans succès.\nQuel créneau vous convient ?"],
+  delayed_confirm_time:["Bonjour ",nm,", votre livraison est reportée.\nQuel jour et quelle heure vous conviennent ?"],
+  returning_last_chance:["Bonjour ",nm,", votre colis repart en retour.\nSi vous le voulez toujours, répondez aujourd'hui."],
+  address_check:["Bonjour ",nm,", pour livrer sans erreur, confirmez-vous l'adresse :\n",addr," ?"]}};
+ return M[l][key];
+}
+function waLink(p,d){
+ const n=p.ph[p.ph.length>1&&p.remarkClass==="no_answer"?1:0].replace(/^0/,"");
+ return `https://wa.me/218${n}?text=${encodeURIComponent(waParts(p,d.key,d.l).join(""))}`;
+}
+function waSheet(host,d){
+ const p=byId(d.id), parts=waParts(p,d.key,d.l), TP=t("tpl");
+ const html=parts.map((s,i)=>i%2?`<mark>${s}</mark>`:s).join("");
+ return `<section class="sheet" data-host="${host}" role="dialog" aria-label="${t("w_title")}">
+  <div class="grab"></div>
+  <div class="sh"><h4>${t("w_title")}</h4><button class="x box" data-sheetx aria-label="Fermer">${I.x}</button></div>
+  <div class="lang"><div><button data-wl="ar" aria-pressed="${d.l==="ar"}">العربية</button><button data-wl="fr" aria-pressed="${d.l==="fr"}">Français</button></div></div>
+  <p class="fl">${t("w_tpl")}</p>
+  <div class="tpls">${Object.keys(TP).map(k=>`<button class="tp" data-wt="${k}" aria-pressed="${d.key===k}">${TP[k]}</button>`).join("")}</div>
+  <p class="fl">${t("w_txt")}</p>
+  <div class="msg" dir="${d.l==="ar"?"rtl":"ltr"}" style="font-family:${d.l==="ar"?"var(--f-ar)":"var(--f-lat)"}">${html}</div>
+  <div class="cnt num">${parts.join("").length} / 1000</div>
+  <a class="wabtn" href="${waLink(p,d)}" target="_blank" rel="noopener" data-wasend>${I.wa}<span>${t("w_open")}</span></a>
+ </section>`;
+}
+
+/* ═════════ Mobile ═════════ */
+const sbar=()=>`<div class="sbar"><span>9:41</span><span>${I.sig}${I.wifi}${I.bat}</span></div>`;
+function mCard(p){
+ const s=sitOf(p), a=ageOf(p), tr=traceOf(p), sel=S.openId===p.id;
+ return `<article class="mc" data-tk="${s.t}" data-open="${p.id}" data-openm="1" aria-selected="${sel}">
+  <div class="sl">${sg(s)}<span class="age num" ${a.late?"data-late":""}>${a.v}</span></div>
+  <div class="bd">
+   <div class="nm"><span class="q">${tx(p.nm)}${tagsHtml(p)}</span><span class="pr" ${highValue(p)?"data-hv":""}>${money(p.price)}</span></div>
+   <div class="ad q">${tx(p.city)} · ${tx(p.area)}</div>
+   <div class="tr">${tr.ic||""}<span class="q">${tr.x}</span>${tr.tm?`<span class="tm">· ${tr.tm}</span>`:""}</div>
+   <div class="ac">${actionHtml(p,"p1")}</div>
+  </div>
+ </article>`;
+}
+function mList(host,overlay){
+ const c=counts(), rows=visible(), T=t("tabs");
+ let list;
+ if(S.state==="loading") list=Array.from({length:4},()=>`<div class="mc" style="--st:var(--line);cursor:default"><div><div class="skel" style="height:15px;width:70%"></div><div class="skel" style="height:11px;width:90%;margin-top:9px"></div><div class="skel" style="height:22px;width:45%;margin-top:9px;border-radius:999px"></div></div><div class="skel" style="height:15px;width:60px"></div></div>`).join("");
+ else if(S.state==="empty"||!rows.length) list=empty();
+ else list=rows.map(mCard).join("");
+ return `<div class="scr" data-host="${host}">${sbar()}
+  <div class="mtop"><span class="brand">Ordra</span><span class="mkt">: ${t("mkt")}</span>${presence()}<span class="avatar">${t("user")[0]}</span><span class="who">${t("user")}</span></div>
+  <div class="mhead"><div><h2>${t("title")}</h2><div class="sub">${t("sub")(c.all)}</div></div>${statPill("mstat")}</div>
+  <div class="mpills"><div class="in">${["all",...ORDER].map(k=>`<button class="mp" data-bk="${k}" aria-pressed="${S.bucket===k}" ${c[k]?"":"data-zero"}>${k!=="all"?`<span class="dot" data-t="${TONE[k]}"></span>`:""}${t("b")[k]}<b class="num">${c[k]}</b></button>`).join("")}</div><span class="more flip">${I.chev}</span></div>
+  ${S.state==="offline"?`<div class="strip" style="margin:0 12px 10px">${I.cloud}<span>${t("offline")}</span></div>`:""}
+  <div class="mlist">${list}</div>
+  <nav class="tabbar"><button>${I.file}<span>${T[0]}</span></button><button>${I.people}<span>${T[1]}</span></button><button aria-current="page">${I.truck}<span class="badge num">${c.returning+c.act_now}</span><span>${T[2]}</span></button><button>${I.chart}<span>${T[3]}</span></button></nav>
+  ${overlay?`<div class="mveil withtabs" data-veil>${sheet(host)}</div>`:""}
+  ${S.toast&&S.toast.host==="p1"&&host==="p1"?mToast():""}
+ </div>`;
+}
+function mDetail(host,overlay){
+ const p=byId(S.openId)||P[0], b=bucketOf(p), s=sitOf(p), m=moveOf(p), tl=timeline(p).slice(0,5);
+ const dial=m.dial||p.ph[0];
+ return `<div class="scr" data-host="${host}">${sbar()}
+  <div class="mbar2"><button class="flip" aria-label="Retour">${I.back}</button>${t("det")}</div>
+  <div class="mdet">
+   <div class="mblk mhero">
+    <div><div class="nm q">${tx(p.nm)}</div><div class="li">${I.pin}<span>${tx(p.city)} · ${tx(p.area)}</span></div><div class="li">${I.box}<span>${tx(p.prod)} <span class="num">×${p.qty}</span></span></div></div>
+    <div class="end"><span class="id num">#${p.id}</span><span class="pr"><span class="num">${p.price}</span><small>${t("cur")}</small></span><span data-tk="${s.t}">${sg(s)}</span></div>
+   </div>
+   <div class="mblk mreco" data-tk="${s.t}" data-move="${p.id}" data-host="${host}">
+    <span class="ri">${m.ic}</span><div><small>${t("recM")}</small><b>${t("mv")[m.k]}</b><p>${t("rs")[m.k]}</p></div><span class="chv flip">${I.chev}</span>
+   </div>
+   <div class="mblk"><div class="ct">${I.user}${t("cInfo")}</div>
+    ${p.ph.length>1?`<div class="kv"><span class="k">${m.k==="call2"?t("ph2r"):t("ph2")}</span><span class="v ${m.k==="call2"?"strong":""} num">${fmt(p.ph[1])}</span></div>`:""}
+    <div class="kv"><span class="k">${t("ph1")}</span><span class="v ${m.k!=="call2"?"strong":""} num">${fmt(p.ph[0])}</span></div>
+    <div class="kv"><span class="k">${I.pin}</span><span class="v">${tx(p.city)} · ${tx(p.area)}</span></div>
+   </div>
+   <div class="mblk"><div class="ct">${I.truck}${t("dInfo")}</div>
+    <div class="kv"><span class="k">${t("k_carrier")}</span><span class="v">${t("carrierName")}</span></div>
+    <div class="kv"><span class="k">${t("k_courier")}</span><span class="v">${p.cr?tx(p.cr.nm):"—"}</span></div>
+    <div class="kv"><span class="k">${t("k_status")}</span><span data-tk="${s.t}">${sg(s,`<span class="age num">${ageOf(p).v}</span>`)}</span></div>
+    <div class="kv"><span class="k">${t("k_created")}</span><span class="v">${createdLabel(p)}</span></div>
+   </div>
+   <div class="mblk"><div class="ct">${I.clock}${t("history")}</div>
+    <ul class="mtl">${tl.map(e=>`<li data-k="${e.k}"><i></i><div><b>${e.x}</b><span>${when(e.at)}</span></div></li>`).join("")}</ul>
+   </div>
+  </div>
+  ${b!=="done"?`<div class="mfoot">${m.wa?`<button class="btn-k" data-wa="${p.id}" data-host="${host}">${I.wa}<span>${t("mv").wa}</span></button>`:`<a class="btn-k" href="tel:${dial}" data-dial="${p.id}" data-host="${host}">${I.phone}<span>${t("callN")(`<span class="num">${fmt(dial)}</span>`)}</span></a>`}
+   <button class="btn-wa" data-wa="${p.id}" data-host="${host}" aria-label="WhatsApp">${I.wa}</button>
+   <button class="btn-o" data-log="${p.id}" data-host="${host}">${I.pen}<span>${t("logShort")}</span></button></div>`:""}
+  ${overlay?`<div class="mveil" data-veil>${sheet(host)}</div>`:""}
+ </div>`;
+}
+function mToast(){
+ const T=S.toast;
+ return `<div class="mtoast" role="status"><span class="ok">${I.check}</span><div><b>${T.title}</b>${T.sub?`<small>${T.sub}</small>`:""}</div>${T.undo?`<button class="u" data-undo>${t("undo")}</button>`:""}${T.undo?`<span class="bar5"></span>`:""}</div>`;
+}
+function mobile(){
+ const id=S.openId||P[0].id;
+ const fresh=!S.drafts.p3||S.drafts.p3.id!==id;
+ draftFor("p3","action",id); draftFor("p4","wa",id);
+ // The showcase phone opens pre-filled, as in the reference screenshot.
+ if(fresh&&S.drafts.p3.what==="call_customer"){S.drafts.p3.oc="no_answer";S.drafts.p3.next="n2h"}
+ const C=t("cap");
+ return `<div class="phones">
+  <div class="pwrap"><p class="cap">${C[0]}</p>${mList("p1",S.host==="p1")}</div>
+  <div class="pwrap"><p class="cap">${C[1]}</p>${mDetail("p2",S.host==="p2")}</div>
+  <div class="pwrap"><p class="cap">${C[2]}</p>${mList("p3",true)}</div>
+  <div class="pwrap"><p class="cap">${C[3]}</p>${mDetail("p4",true)}</div>
+ </div>`;
+}
+
+/* ═════════ Commit, undo, toast ═════════ */
+let toastTimer=null;
+function showToast(tst){
+ S.toastId++; S.toast={...tst,id:S.toastId};
+ clearTimeout(toastTimer);
+ toastTimer=setTimeout(()=>{S.toast=null;render()},tst.undo?5000:3200);
+}
+function snapshot(p){return {id:p.id,st:p.st,nextAt:p.nextAt,n:p.actions.length,task:p.task?p.task.done:null}}
+function restore(s){const p=byId(s.id);p.st=s.st;p.nextAt=s.nextAt;p.actions.length=s.n;if(p.task)p.task.done=s.task}
+function tomorrow10(){const x=new Date(NOW);x.setDate(x.getDate()+1);x.setHours(10,0,0,0);return x.getTime()}
+function commitAction(host){
+ const d=S.drafts[host]; if(!d) return;
+ const p=byId(d.id), snap=snapshot(p);
+ p.actions.push({at:NOW+1000*(p.actions.length+1),type:d.what,oc:d.oc,note:d.note.trim()});
+ if(p.task) p.task.done=true;
+ if(d.next==="n2h") p.nextAt=NOW+2*H; else if(d.next==="ntmr") p.nextAt=tomorrow10(); else if(d.next==="nnone") p.nextAt=null;
+ if(d.oc==="return_confirmed"&&!RET.includes(p.st)) p.st="to_be_returned";
+ delete S.drafts[host];
+ if(host!=="p3") S.host=null;
+ showToast({host:S.view==="desktop"?"desk":"p1",title:t("t_saved"),sub:t("t_moved")(t("b")[bucketOf(p)]),undo:snap});
+ render();
+}
+function commitWa(host){
+ const d=S.drafts[host]; if(!d) return;
+ const p=byId(d.id), snap=snapshot(p);
+ p.actions.push({at:NOW+1000*(p.actions.length+1),type:"whatsapp",oc:"sent",tpl:d.key,note:""});
+ if(p.task) p.task.done=true;
+ if(!p.nextAt||p.nextAt<=NOW) p.nextAt=NOW+2*H;
+ if(host!=="p4"){delete S.drafts[host];S.host=null}
+ showToast({host:S.view==="desktop"?"desk":"p1",title:t("t_wa"),sub:t("t_wa2"),undo:snap});
+ render();
+}
+
+/* ═════════ Render + events ═════════ */
+function render(){
+ const root=document.documentElement;
+ root.lang=S.lang; root.dir=S.lang==="ar"?"rtl":"ltr";
+ document.getElementById("stage").innerHTML=S.view==="desktop"?desktop():mobile();
+ [["segLang","lang"],["segView","view"],["segState","state"],["segOrder","order"]].forEach(([id,k])=>document.querySelectorAll(`#${id} button`).forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===S[k])));
+ const q=document.getElementById("q");
+ if(q&&render.keepFocus){q.focus();q.setSelectionRange(q.value.length,q.value.length);render.keepFocus=false}
+}
+const hostOf=el=>{const h=el.closest("[data-host]");return h?h.dataset.host:(S.view==="desktop"?"desk":"p1")};
+function openSheet(kind,id,host,what){
+ if(host==="p3"||host==="p4") host=kind==="action"?"p3":"p4";
+ S.openId=id;
+ if(kind==="action") draftFor(host,"action",id,what); else draftFor(host,"wa",id);
+ if(host==="desk"||host==="p1"||host==="p2") S.host=host;
+ render();
+}
+document.querySelector(".bar").addEventListener("click",e=>{
+ const b=e.target.closest("button[data-v]"); if(!b) return;
+ const key={segLang:"lang",segView:"view",segState:"state",segOrder:"order"}[b.parentElement.id];
+ S[key]=b.dataset.v; S.host=null; S.toast=null; render();
+});
+document.getElementById("stage").addEventListener("click",e=>{
+ const el=e.target.closest("[data-bk],[data-open],[data-move],[data-waopen],[data-wa],[data-log],[data-dial],[data-callcourier],[data-close],[data-tl],[data-presence],[data-reset],[data-sheetx],[data-aw],[data-ao],[data-anx],[data-asave],[data-wl],[data-wt],[data-wasend],[data-undo],[data-toastx],[data-veil]");
+ if(!el) return;
+ const host=hostOf(el), ds=el.dataset;
+ if(ds.veil!==undefined){ if(e.target===el&&(S.host)){S.host=null;render()} return; }
+ if(ds.bk){S.bucket=ds.bk;render();return}
+ if(ds.presence!==undefined){S.presence=!S.presence;render();return}
+ if(ds.reset!==undefined){S.bucket="all";S.q="";render();return}
+ if(ds.tl){S.tl=+ds.tl;render();return}
+ if(ds.close!==undefined){S.openId=null;render();return}
+ if(ds.undo!==undefined){if(S.toast&&S.toast.undo){restore(S.toast.undo);clearTimeout(toastTimer);S.toast=null;showToast({host:S.view==="desktop"?"desk":"p1",title:t("t_undone"),sub:"",undo:null});render()}return}
+ if(ds.toastx!==undefined){clearTimeout(toastTimer);S.toast=null;render();return}
+ // sheets
+ if(ds.sheetx!==undefined){ if(host==="p3"||host==="p4"){delete S.drafts[host]} else {S.host=null;delete S.drafts[host]} render(); return; }
+ const d=S.drafts[host];
+ if(ds.aw&&d){d.what=ds.aw;d.oc=null;render();return}
+ if(ds.ao&&d){d.oc=ds.ao; if(!d.next) d.next=["reached_reschedule","no_answer","phone_off","courier_no_answer","reattempt_promised"].includes(d.oc)?"n2h":["reached_will_receive","reached_address_fix","parcel_located"].includes(d.oc)?"ntmr":"nnone"; render();return}
+ if(ds.anx&&d){d.next=ds.anx;render();return}
+ if(ds.asave!==undefined){commitAction(host);return}
+ if(ds.wl&&d){d.l=ds.wl;render();return}
+ if(ds.wt&&d){d.key=ds.wt;render();return}
+ if(ds.wasend!==undefined){setTimeout(()=>commitWa(host),0);return}   // let the link open WhatsApp first
+ // row-level actions
+ if(ds.waopen){e.stopPropagation();openSheet("wa",ds.waopen,host);return}
+ if(ds.wa){e.stopPropagation();openSheet("wa",ds.wa,host);return}
+ if(ds.log){e.stopPropagation();openSheet("action",ds.log,host);return}
+ if(ds.callcourier){openSheet("action",ds.callcourier,host,"call_courier");return}
+ if(ds.dial){e.preventDefault();const m=moveOf(byId(ds.dial));openSheet("action",ds.dial,host,m.what);return}
+ if(ds.move){
+  e.stopPropagation();
+  const p=byId(ds.move), m=moveOf(p);
+  if(m.wa) openSheet("wa",p.id,host);
+  else if(m.what) openSheet("action",p.id,host,m.what);
+  else {S.openId=p.id;render()}
+  return;
+ }
+ if(ds.open){S.openId=ds.open;render();return}
+});
+document.getElementById("stage").addEventListener("input",e=>{
+ if(e.target.id==="q"){S.q=e.target.value;render.keepFocus=true;render();return}
+ if(e.target.matches("[data-an]")){
+  const host=hostOf(e.target), d=S.drafts[host]; if(!d) return;
+  d.note=e.target.value;
+  const sh=e.target.closest(".sheet");
+  sh.querySelector("[data-cnt]").textContent=d.note.length?`${d.note.length}/500`:"";
+  sh.querySelector("[data-asave]").disabled=d.what==="note"?!d.note.trim():!d.oc;
+ }
+});
+document.getElementById("stage").addEventListener("keydown",e=>{
+ if(e.key==="Enter"&&e.target.matches(".row[data-open]")){S.openId=e.target.dataset.open;render()}
+ if(e.key==="Escape"&&S.host){S.host=null;render()}
+});
+
+/* URL presets */
+(function(){
+ const q=new URLSearchParams(location.search);
+ if(q.get("lang")in L) S.lang=q.get("lang");
+ if(["desktop","mobile"].includes(q.get("view"))) S.view=q.get("view");
+ if(["normal","loading","empty","offline"].includes(q.get("state"))) S.state=q.get("state");
+ if(q.get("bucket")) S.bucket=q.get("bucket");
+ if(["sit","client"].includes(q.get("order"))) S.order=q.get("order");
+ if(q.get("open")&&byId(q.get("open"))) S.openId=q.get("open");
+ const sh=q.get("sheet");
+ if(sh==="action"||sh==="wa"){const host=S.view==="desktop"?"desk":"p1";draftFor(host,sh,S.openId);S.host=host}
+})();
+render();
+</script>

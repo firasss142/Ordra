@@ -82,6 +82,39 @@ function mount(over: Partial<DeliveryBoardViewProps> = {}) {
   return props;
 }
 
+describe("the manager reads a parcel the same way an agent does", () => {
+  it("puts the situation first, before the client, in the header and in every row", () => {
+    mount();
+    const heads = Array.from(document.querySelectorAll("[aria-hidden] > span")).map((el) => el.textContent);
+    expect(heads.slice(0, 2)).toEqual(["Situation / durée", "Détails du colis"]);
+    const parcel = screen.getByText("Amina El Fitouri").closest("[role='listitem']") as HTMLElement;
+    const chip = within(parcel).getByText(/Non joignable/);
+    const name = within(parcel).getByText("Amina El Fitouri");
+    expect(chip.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("colours the situation by what is wrong, not by which bucket it sits in", () => {
+    mount();
+    const parcel = screen.getByText("Amina El Fitouri").closest("[role='listitem']") as HTMLElement;
+    // no_answer is amber, delayed is indigo — same act_now bucket, different hue.
+    expect(within(parcel).getByText(/Non joignable/).className).toContain("from-[#FDE68A]");
+  });
+
+  it("the row's edge agrees with its own chip, so one parcel is never two colours", () => {
+    const delayed = row({
+      order_id: "o3", assigned_to: "agent-1", customer_name: "Salem Abou Zeid",
+      status: "delivery_delayed", reason_codes: ["delayed"], remark_class: null, hours_on_status: 26,
+    });
+    mount({ rows: [HEND_LATE, delayed] });
+    // Both sit in act_now; the edge must follow the situation (amber vs indigo),
+    // not the bucket, or the chip and the edge contradict each other.
+    const edgeOf = (name: string) =>
+      (screen.getByText(name).closest("[role='listitem']") as HTMLElement).className;
+    expect(edgeOf("Amina El Fitouri")).toContain("before:bg-[#F59E0B]");
+    expect(edgeOf("Salem Abou Zeid")).toContain("before:bg-[#6366F1]");
+  });
+});
+
 describe("the manager board opens on the team, not on a parcel", () => {
   it("shows the market summary before anything is selected", () => {
     mount();
