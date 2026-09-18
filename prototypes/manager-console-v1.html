@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="fr" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Prototype: the MANAGER console for the two rebuilds, on the existing light console (docs/design-system.md).
+  Screens: Prospects (pipeline · campaigns · campaign wizard · campaign detail · sources),
+           Suivi livraison (cross-agent board, replaces /in-delivery),
+           Paramètres › Prospects & livraison (thresholds, win-back, WhatsApp templates).
+  Decisions: plans/suivi-livraison.md. Static, no build. Desktop-first (managers work on desktop).
+  URL presets: ?lang=fr|ar &screen=pipeline|campaigns|wizard|campaign|sources|delivery|settings &step=1..4 &agent=Mouna
+-->
+<title>Console manager — prototype v1</title>
+<style>
+:root{
+  --page:#F6F6F7; --card:#FFFFFF; --hover:#F7F7F7; --sunken:#FAFAFB; --text:#1A1A1A; --text2:#6D7175; --line:#ECEEF0; --border:#E1E3E5; --border-strong:#DADCE0;
+  --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-pos:#16A34A;
+  --sb:#0E1013; --sb-el:#14171C; --sb-text:#E6E8EB; --sb-text2:#B5BAC2; --sb-muted:#7F858F; --sb-active:#10B981;
+  --action:#2C6ECB; --success:#008060; --success-bg:#F1F8F5; --warning:#B98900; --warning-bg:#FFF8E6; --critical:#D72C0D; --critical-bg:#FFF4F4; --neutral:#6D7175; --neutral-bg:#F6F6F7;
+  --studio:#E9EBEE; --studio-ink:#2B2F36;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans Arabic",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--studio);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:inherit}
+.num{direction:ltr;unicode-bidi:isolate;display:inline-block}
+[hidden]{display:none!important}
+
+.studio{display:grid;grid-template-columns:280px 1fr;gap:24px;padding:24px 28px;min-height:100vh;align-items:start}
+.notes{position:sticky;top:24px;direction:ltr;color:var(--studio-ink);font-size:13px}
+.notes h1{font-size:17px;margin:0 0 4px;font-weight:700}
+.notes p{margin:0 0 10px;color:#4B5058}
+.notes .grp{margin:14px 0 6px;font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6B7079}
+.notes .seg{display:flex;gap:4px;flex-wrap:wrap}
+.notes .seg button{padding:6px 10px;border:1px solid #C7CBD2;background:#F7F8FA;border-radius:8px;color:var(--studio-ink)}
+.notes .seg button[aria-pressed="true"]{background:#1A1A1A;color:#fff;border-color:#1A1A1A}
+.notes ol{padding-left:18px;margin:6px 0}
+.notes li{margin-bottom:5px}
+.notes code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:#fff;padding:1px 4px;border-radius:4px}
+@media (max-width:1000px){.studio{grid-template-columns:1fr;padding:12px}.notes{position:static}}
+
+.frame{width:1360px;height:900px;border:1px solid #C9CDD3;border-radius:12px;overflow:hidden;background:var(--page);display:flex;text-align:start}
+@media (max-width:1420px){.frame{width:100%}}
+.sb{width:224px;flex:0 0 auto;background:var(--sb);color:var(--sb-text);padding:14px 12px;display:flex;flex-direction:column;gap:2px;font-size:13.5px;overflow-y:auto}
+.sb .logo{font-weight:700;padding:6px 10px 12px;color:#fff}
+.sb .logo small{display:block;font-weight:400;color:var(--sb-muted);font-size:12px}
+.sb .mk{margin:0 4px 10px;padding:8px 10px;border-radius:8px;background:var(--sb-el);color:var(--sb-text2);font-size:12.5px;display:flex;justify-content:space-between}
+.sb .sh{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--sb-muted);padding:12px 10px 4px}
+.sb a{display:block;padding:7px 10px;border-radius:7px;color:var(--sb-text);text-decoration:none;cursor:pointer}
+.sb a[aria-current="page"]{background:#1B2027;color:#fff;font-weight:600;box-shadow:inset 3px 0 0 var(--sb-active)}
+[dir="rtl"] .sb a[aria-current="page"]{box-shadow:inset -3px 0 0 var(--sb-active)}
+.sb a .n{float:inline-end;background:var(--warning-bg);color:var(--warning);border-radius:999px;padding:0 7px;font-size:11.5px;font-weight:700}
+.mc{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.top{display:flex;align-items:center;gap:12px;padding:12px 24px;background:var(--card);border-bottom:1px solid var(--border);flex:0 0 auto}
+.top h1{font-size:20px;font-weight:600;margin:0}
+.top .sub{color:var(--text2);font-size:13px}
+.top .crumb{color:var(--text2);font-size:13px;margin-bottom:2px}
+.top .cta{margin-inline-start:auto;display:flex;gap:8px}
+.btn{padding:8px 12px;border-radius:6px;border:1px solid var(--border-strong);background:#fff;font-weight:500;font-size:13.5px;color:var(--text);white-space:nowrap}
+.btn[data-primary]{background:var(--brand);color:#fff;border-color:var(--brand)}
+.btn[data-danger]{color:var(--critical);border-color:#F2B8AE}
+.btn[disabled]{opacity:.5;cursor:default}
+.btn.sm{padding:5px 9px;font-size:12.5px}
+.body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:16px 24px 28px;scrollbar-width:thin}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.kpi .l{font-size:12px;color:var(--text2)}
+.kpi .v{font-size:24px;font-weight:600;margin-top:2px}
+.kpi .v small{font-size:13px;font-weight:400;color:var(--text2)}
+.kpi .d{font-size:12px;color:var(--text2);margin-top:2px}
+.kpi .d[data-up]{color:var(--success)} .kpi .d[data-down]{color:var(--critical)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:14px}
+.tab{padding:9px 14px;border:0;background:transparent;color:var(--text2);font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab[aria-current="true"]{color:var(--text);border-bottom-color:var(--brand);font-weight:600}
+.fbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.fsel{padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;font-size:13px;color:var(--text)}
+.fsel[data-on="true"]{border-color:var(--brand);background:var(--brand-bg);color:var(--brand-hover);font-weight:600}
+.fbar .count{margin-inline-start:auto;color:var(--text2);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:14px}
+.card h2{font-size:14px;font-weight:600;margin:0;padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.card h2 .r{margin-inline-start:auto;font-weight:400;color:var(--text2);font-size:12.5px}
+.card .pad{padding:14px}
+table.t{width:100%;border-collapse:collapse;font-size:13.5px}
+table.t th{text-align:start;font-weight:600;color:var(--text2);font-size:12px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--sunken);white-space:nowrap}
+table.t td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.t tr:last-child td{border-bottom:0}
+table.t tbody tr:hover td{background:var(--hover)}
+table.t td.n,table.t th.n{text-align:end}
+table.t td.nw{white-space:nowrap}
+table.t tr[data-click]{cursor:pointer}
+.twrap{overflow-x:auto}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.badge[data-s="new"],.badge[data-s="done"],.badge[data-s="neutral"]{background:var(--neutral-bg);color:var(--neutral)}
+.badge[data-s="contacted"],.badge[data-s="hot"],.badge[data-s="warn"],.badge[data-s="paused"]{background:var(--warning-bg);color:var(--warning)}
+.badge[data-s="callback"],.badge[data-s="info"]{background:#EAF1FB;color:var(--action)}
+.badge[data-s="converted"],.badge[data-s="live"],.badge[data-s="ok"]{background:var(--success-bg);color:var(--success)}
+.badge[data-s="lost"],.badge[data-s="bad"]{background:var(--critical-bg);color:var(--critical)}
+.badge[data-s="draft"]{background:#fff;border:1px solid var(--border);color:var(--text2)}
+.bar{height:6px;border-radius:3px;background:#EEF0F2;overflow:hidden;min-width:80px}
+.bar b{display:block;height:100%;background:var(--brand);width:var(--w)}
+.bar[data-tone="bad"] b{background:var(--critical)}
+.bar[data-tone="warn"] b{background:var(--warning)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.split{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;align-items:start}
+/* forms */
+.fl{font-size:12px;color:var(--text2);font-weight:500;margin-bottom:4px}
+.fi{display:block;width:100%;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font:inherit;background:#fff;margin-bottom:10px;color:var(--text)}
+.fi:focus{outline:2px solid var(--brand);outline-offset:1px}
+textarea.fi{min-height:76px;resize:vertical}
+.fi.num{direction:ltr;text-align:start}
+.fchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.fchip{padding:5px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;font-size:12.5px;color:var(--text)}
+.fchip[aria-pressed="true"]{background:var(--brand-bg);border-color:var(--brand);color:var(--brand-hover);font-weight:600}
+.preview{display:flex;align-items:baseline;gap:8px;padding:10px 12px;border-radius:6px;background:var(--brand-bg);color:var(--brand-hover);margin-bottom:10px}
+.preview .v{font-size:22px;font-weight:600}
+.preview small{color:var(--text2)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.foot{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--line);background:var(--sunken);align-items:center}
+.foot .sp{flex:1}
+.steps{display:flex;gap:0;border-bottom:1px solid var(--line)}
+.step{flex:1;padding:12px 14px;display:flex;gap:10px;align-items:center;color:var(--text2);font-size:13px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.step i{width:22px;height:22px;border-radius:50%;border:1px solid var(--border-strong);display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:600;flex:0 0 auto}
+.step[aria-current="true"]{color:var(--text);font-weight:600;border-bottom-color:var(--brand)}
+.step[aria-current="true"] i{background:var(--brand);color:#fff;border-color:var(--brand)}
+.step[data-done="true"] i{background:var(--brand-bg);color:var(--brand-hover);border-color:var(--brand-bg)}
+.sw{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+.sw i{width:34px;height:20px;border-radius:999px;background:#CBD0D6;position:relative;transition:background .15s}
+.sw i::after{content:"";position:absolute;top:2px;inset-inline-start:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
+.sw[aria-checked="true"] i{background:var(--brand)}
+.sw[aria-checked="true"] i::after{transform:translateX(14px)}
+[dir="rtl"] .sw[aria-checked="true"] i::after{transform:translateX(-14px)}
+.set{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:14px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+.set:last-child{border-bottom:0}
+.set .k{font-weight:500}
+.set .h{color:var(--text2);font-size:12.5px;margin-top:2px}
+.set .fi{margin:0}
+.set .unit{display:flex;gap:8px;align-items:center}
+.set .unit span{color:var(--text2);font-size:12.5px;white-space:nowrap}
+.funnel{display:grid;grid-template-columns:repeat(7,1fr);gap:0;border-bottom:1px solid var(--line)}
+.funnel div{padding:12px 14px;border-inline-end:1px solid var(--line)}
+.funnel div:last-child{border-inline-end:0}
+.funnel .l{font-size:11.5px;color:var(--text2)}
+.funnel .v{font-size:20px;font-weight:600;margin-top:2px}
+.funnel .p{font-size:12px;color:var(--text2)}
+.spark{display:flex;align-items:flex-end;gap:3px;height:56px}
+.spark b{flex:1;background:var(--brand);border-radius:2px 2px 0 0;min-width:6px;opacity:.85}
+.spark b[data-today]{background:var(--action)}
+.tpl{display:grid;grid-template-columns:200px 1fr 1fr;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line);align-items:start}
+.tpl:last-child{border-bottom:0}
+.tpl .k{font-weight:600}
+.tpl .k small{display:block;color:var(--text2);font-weight:400;font-size:12px}
+.tpl textarea{margin:0;min-height:64px;font-size:13px}
+.vars{font-size:12px;color:var(--text2);padding:10px 14px;background:var(--sunken);border-bottom:1px solid var(--line)}
+.vars code{background:#fff;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.stripe{display:inline-block;width:4px;height:16px;border-radius:2px;vertical-align:-3px;margin-inline-end:6px}
+.remark{unicode-bidi:plaintext}
+.toast{position:absolute;bottom:18px;inset-inline:0;margin:auto;width:max-content;max-width:90%;background:#1A1A1A;color:#fff;padding:9px 14px;border-radius:999px;font-size:13px;z-index:20;opacity:0;transition:opacity .2s}
+.toast[data-on="true"]{opacity:1}
+.stage{position:relative}
+.note{padding:10px 12px;border-radius:6px;background:var(--warning-bg);color:var(--warning);font-size:13px;margin-bottom:12px}
+.note[data-tone="info"]{background:#EAF1FB;color:var(--action)}
+</style>
+</head>
+<body>
+<div class="studio">
+  <aside class="notes">
+    <h1>Console manager — prototype v1</h1>
+    <p>What the market manager sees for the two rebuilds, on the existing light console. One Libyan market, five agents, mock data.</p>
+    <div class="grp">Language</div>
+    <div class="seg" id="segLang"><button data-lang="fr" aria-pressed="true">Français</button><button data-lang="ar">العربية (RTL)</button></div>
+    <div class="grp">Screen</div>
+    <div class="seg" id="segScreen">
+      <button data-screen="pipeline" aria-pressed="true">Prospects · pipeline</button>
+      <button data-screen="campaigns">Campagnes</button>
+      <button data-screen="wizard">Créer une campagne</button>
+      <button data-screen="campaign">Détail campagne</button>
+      <button data-screen="sources">Sources</button>
+      <button data-screen="delivery">Suivi livraison</button>
+      <button data-screen="settings">Paramètres</button>
+    </div>
+    <div class="grp">What to check</div>
+    <ol>
+      <li><strong>Créer une campagne</strong> is four steps: audience → offer & script → distribution → launch. The preview count and the "days to finish" estimate update as you toggle.</li>
+      <li><strong>Détail campagne</strong> reads as a funnel down to delivered revenue, per agent, with lost reasons. Pause / extend / close.</li>
+      <li><strong>Suivi livraison</strong> replaces in-delivery: carrier cards, cross-agent buckets with an agent filter, overdue-by-agent, courier scorecard, unclassified remarks feeding the classifier.</li>
+      <li><strong>Paramètres</strong> holds every threshold the two pages read, the win-back rule, and the WhatsApp templates in FR and AR. Nothing is hardcoded.</li>
+      <li>Sidebar: Prospects moves next to Commandes; Livraison replaces "Tableau en livraison".</li>
+    </ol>
+  </aside>
+
+  <div class="stage">
+    <div class="frame" id="frame">
+      <aside class="sb" id="sb"></aside>
+      <div class="mc"><div class="top" id="top"></div><div class="body" id="body"></div></div>
+      <div class="toast" id="toast"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const I18N={
+fr:{
+  market:"Libye", tripoli:"Tripoli", nav:{ops:"Opérations",orders:"Commandes",prospects:"Prospects",delivery:"Suivi livraison",warehouse:"Entrepôt",pilot:"Pilotage",team:"Équipe",products:"Produits",finance:"Finances",settings:"Paramètres",users:"Utilisateurs"},
+  p_title:"Prospects", p_sub:"Demandes avant commande, rappels et campagnes de recontact", new_lead:"Nouveau prospect", csv:"Importer CSV", new_camp:"Nouvelle campagne",
+  k:{new:"Nouveaux (7 j)",ttc:"Délai de 1er contact (médiane)",conv:"Taux de conversion 30 j",rev:"CA livré issu des prospects 30 j",up:"vs 7 j précédents",hot:"chauds en attente"},
+  tabs:{pipeline:"Pipeline",campaigns:"Campagnes",sources:"Sources"},
+  f:{all:"Tous",source:"Source",agent:"Agent",status:"Statut",campaign:"Campagne",hot:"Chauds seulement",count:(n)=>`${n} prospects`,reassign:"Réassigner",archive:"Archiver"},
+  src:{fb_comment:"Commentaire FB",fb_dm:"Message FB",ig_dm:"Message IG",whatsapp:"WhatsApp",call:"Appel",campaign:"Campagne",winback:"Retour à récupérer",csv:"Import"},
+  st:{new:"Nouveau",contacted:"Contacté",callback:"Rappel prévu",converted:"Converti",lost:"Perdu"},
+  th:{name:"Prospect",phone:"Téléphone",source:"Source",want:"Intérêt",agent:"Agent",status:"Statut",age:"Depuis",last:"Dernier résultat"},
+  wb:"Retours : un prospect est créé automatiquement pour l'agent de la commande dès que le colis est marqué retourné (Paramètres › Prospects).",
+  thc:{name:"Campagne",status:"Statut",audience:"Audience",called:"Appelés",reached:"Joints",converted:"Convertis",delivered:"Livrées",revenue:"CA livré",progress:"Avancement"},
+  cs:{live:"En cours",done:"Terminée",draft:"Brouillon",paused:"En pause"},
+  ths:{source:"Source",leads:"Prospects",ttc:"1er contact",conv:"Convertis",rate:"Taux",revenue:"CA livré"},
+  w_title:"Nouvelle campagne de recontact", w_steps:["Audience","Offre et script","Distribution","Lancement"], w_back:"Retour", w_next:"Suivant", w_launch:"Lancer la campagne", w_draft:"Enregistrer le brouillon",
+  w_aud:"Qui appeler · vos propres clients", w_preview:"clients dans l'audience", w_excl:"après exclusion des prospects ouverts, des commandes en cours et des clients contactés récemment", w_sample:"Aperçu de l'audience",
+  aud:{product:"Ont acheté",days:"Livré il y a",city:"Ville",value:"Panier ≥",count:"Nb commandes",exclude:"Sans contact depuis 30 j",returned:"Commandes retournées",nofirst:"Exclure les clients à risque"},
+  w_name:"Nom de la campagne", w_offer:"Offre (ce que l'agent peut proposer)", w_price:"Prix campagne (remplace le prix catalogue à la conversion)", w_script:"Script FR", w_script_ar:"Script AR", w_tpl:"Modèle WhatsApp associé", w_vars:"Variables : {name} {agent} {last} {offer} {price}",
+  w_dist:"Règle de distribution", dist_rel:"L'agent de la dernière commande du client, sinon tour de rôle", dist_rr:"Tour de rôle entre les agents cochés", w_agents:"Agents", w_load:"En cours", w_cap:"Max par agent et par jour", w_eta:(d)=>`≈ ${d} jours ouvrés pour couvrir l'audience`, w_dates:"Début · fin", w_summary:"Résumé", w_launch_note:"Au lancement, les prospects sont créés et distribués immédiatement. Chaque agent voit sa part dans « Liste d'appels ».",
+  c_back:"Campagnes", c_pause:"Mettre en pause", c_resume:"Reprendre", c_extend:"Prolonger 7 j", c_close:"Clôturer", c_edit:"Modifier l'offre",
+  fun:{audience:"Audience",assigned:"Distribués",called:"Appelés",reached:"Joints",converted:"Convertis",delivered:"Livrées",revenue:"CA livré"},
+  c_agents:"Par agent", c_lost:"Raisons de refus", c_daily:"Appels par jour", c_today:"aujourd'hui",
+  lost:{price:"Prix",no_need:"Plus besoin",competitor:"Acheté ailleurs",unreachable:"Injoignable",other:"Autre"},
+  tha:{agent:"Agent",assigned:"Distribués",called:"Appelés",reached:"Joints",converted:"Convertis",delivered:"Livrées",revenue:"CA livré",rate:"Taux"},
+  d_title:"Suivi livraison", d_sub:"Tout ce qui est parti et pas encore livré, par agent et par livreur", d_carrier:(n)=>`Darb Assabil · ${n}`, d_inflight:"En cours", d_rate:"Taux de livraison 30 j", d_ret:"Taux de retour 30 j", d_stuck:"Bloqués",
+  b:{returning:"Retours à sauver",act_now:"À traiter maintenant",waiting_customer:"En attente client",waiting_carrier:"Chez le transporteur",done:"Terminées (24 h)"},
+  thd:{order:"Commande",customer:"Client",agent:"Agent",status:"Statut",reason:"Pourquoi",courier:"Livreur",last:"Dernière action",next:"Prochaine"},
+  d_overdue:"Retards par agent", tho:{agent:"Agent",inflight:"En cours",act:"À traiter",oldest:"Le plus ancien",returning:"Retours",noaction:"Sans action > 24 h",saved:"Sauvées 30 j",rate:"Livraison 30 j"},
+  d_couriers:"Livreurs Darb · 30 j", thk:{courier:"Livreur",branch:"Agence",held:"En main",delivered:"Livrées",returning:"Retours",noanswer:"« Ne répond pas »",rate:"Taux"},
+  d_remarks:"Remarques non classées", d_remarks_sub:"À ajouter au classificateur", d_remarks_th:{remark:"Remarque du livreur",count:"Fois",suggest:"Classer comme"},
+  cls:{no_answer:"Ne répond pas",customer_cancelled:"Annulé par le client",not_needed:"Plus besoin",coordinated:"Coordonné",out_of_coverage:"Hors réseau",office_pickup:"Retrait agence",not_serious:"Pas sérieux",other:"Autre"},
+  s_title:"Paramètres · Prospects et livraison", s_sub:"Chaque seuil lu par les deux pages. Rien n'est codé en dur.", s_save:"Enregistrer", s_saved:"Paramètres enregistrés", s_reset:"Valeurs par défaut",
+  sp:"Prospects", sd:"Suivi livraison", sw:"Modèles WhatsApp", sw_sub:"Ce que l'agent envoie en un tap. Le lien s'ouvre dans WhatsApp sur son téléphone.",
+  set:{
+    hot:["Fenêtre « prospect chaud »","Un prospect entrant sans premier contact est chaud pendant cette durée et interrompt la file.","min"],
+    winback:["Prospect automatique après retour","Créé pour l'agent de la commande dès que le colis est marqué retourné.",""],
+    winback_delay:["Délai avant création","Laisse le temps à l'entrepôt de recevoir le colis.","h"],
+    max_attempts:["Tentatives avant « perdu »","Au-delà, le prospect passe en perdu · injoignable.",""],
+    cap:["Max par agent et par jour (défaut campagne)","Modifiable par campagne.",""],
+    dist:["Distribution par défaut","",""],
+    stall:["Colis bloqué après","Sans événement transporteur pendant cette durée, le colis remonte dans « À traiter ».","j"],
+    unverified:["Non vérifié après","Sans aucun événement depuis l'envoi.","j"],
+    high_value:["Seuil « valeur élevée »","Au-dessus, appel avant livraison. 0 = désactivé.","LYD"],
+    zone_rate:["Zone à faible livraison si taux <","Calculé sur vos 90 derniers jours par destination.","%"],
+    zone_min:["Taille minimale d'échantillon par zone","En dessous, la zone n'est pas jugée.","colis"],
+    risk_fail:["Client à risque à partir de","Retours ou refus passés sur ce numéro.","échecs"],
+    proactive:["Fenêtre de l'appel avant livraison","La tâche expire après ce délai.","h"],
+    done_window:["Garder les terminées visibles","Dans le groupe « Terminées ».","h"]
+  },
+  tpl:{first_reply:["Première réponse","Prospect entrant"],offer:["Offre campagne","Prospect campagne"],callback_confirm:["Confirmer le rappel","Rappel prévu"],winback:["Après un retour","Retour à récupérer"],before_delivery:["Avant livraison","Colis à risque"],courier_no_answer:["Le livreur n'a pas pu vous joindre","Remarque « ne répond pas »"],delayed_confirm_time:["Confirmer la nouvelle date","Reportée"],returning_last_chance:["Dernière chance avant retour","En retour"],address_check:["Vérifier l'adresse","Adresse douteuse"]},
+  ago:(m)=>m<60?`il y a ${Math.round(m)} min`:m<1440?`il y a ${Math.round(m/60)} h`:`il y a ${Math.round(m/1440)} j`, hrs:(h)=>h<24?`${Math.round(h)} h`:`${Math.round(h/24)} j`,
+  toast_launch:(n,a)=>`Campagne lancée · ${n} prospects distribués à ${a} agents`, toast_paused:"Campagne en pause", toast_draft:"Brouillon enregistré"
+},
+ar:{
+  market:"ليبيا", tripoli:"طرابلس", nav:{ops:"العمليات",orders:"الطلبات",prospects:"العملاء المحتملون",delivery:"متابعة التوصيل",warehouse:"المخزن",pilot:"الإدارة",team:"الفريق",products:"المنتجات",finance:"المالية",settings:"الإعدادات",users:"المستخدمون"},
+  p_title:"العملاء المحتملون", p_sub:"طلبات قبل الشراء، مواعيد المتابعة، وحملات إعادة التواصل", new_lead:"عميل محتمل جديد", csv:"استيراد CSV", new_camp:"حملة جديدة",
+  k:{new:"جدد (7 أيام)",ttc:"زمن أول تواصل (الوسيط)",conv:"نسبة التحويل 30 يوماً",rev:"إيراد مسلّم من العملاء المحتملين 30 يوماً",up:"مقارنة بالأسبوع السابق",hot:"ساخنون بانتظار"},
+  tabs:{pipeline:"المسار",campaigns:"الحملات",sources:"المصادر"},
+  f:{all:"الكل",source:"المصدر",agent:"الوكيل",status:"الحالة",campaign:"الحملة",hot:"الساخنون فقط",count:(n)=>`${n} عميلاً`,reassign:"إعادة إسناد",archive:"أرشفة"},
+  src:{fb_comment:"تعليق فيسبوك",fb_dm:"رسالة فيسبوك",ig_dm:"رسالة إنستغرام",whatsapp:"واتساب",call:"مكالمة",campaign:"حملة",winback:"مرتجع لاستعادته",csv:"استيراد"},
+  st:{new:"جديد",contacted:"تم التواصل",callback:"موعد متابعة",converted:"تحوّل",lost:"ضائع"},
+  th:{name:"العميل",phone:"الهاتف",source:"المصدر",want:"الاهتمام",agent:"الوكيل",status:"الحالة",age:"منذ",last:"آخر نتيجة"},
+  wb:"المرتجعات: يُنشأ عميل محتمل تلقائياً لوكيل الطلب لحظة تعليم الشحنة كمرتجعة (الإعدادات › العملاء المحتملون).",
+  thc:{name:"الحملة",status:"الحالة",audience:"الجمهور",called:"اتُّصل بهم",reached:"وُصل إليهم",converted:"تحوّلوا",delivered:"مسلّمة",revenue:"إيراد مسلّم",progress:"التقدّم"},
+  cs:{live:"جارية",done:"منتهية",draft:"مسودة",paused:"متوقفة"},
+  ths:{source:"المصدر",leads:"عملاء",ttc:"أول تواصل",conv:"تحوّلوا",rate:"النسبة",revenue:"إيراد مسلّم"},
+  w_title:"حملة إعادة تواصل جديدة", w_steps:["الجمهور","العرض والنص","التوزيع","الإطلاق"], w_back:"رجوع", w_next:"التالي", w_launch:"إطلاق الحملة", w_draft:"حفظ كمسودة",
+  w_aud:"من نتصل بهم · زبائنك أنت", w_preview:"زبوناً في الجمهور", w_excl:"بعد استبعاد العملاء المفتوحين والطلبات قيد التوصيل ومن تواصلنا معهم مؤخراً", w_sample:"عيّنة من الجمهور",
+  aud:{product:"اشتروا",days:"سُلّم قبل",city:"المدينة",value:"السلة ≥",count:"عدد الطلبات",exclude:"بلا تواصل منذ 30 يوماً",returned:"طلبات مرتجعة",nofirst:"استبعاد الزبائن ذوي الخطر"},
+  w_name:"اسم الحملة", w_offer:"العرض (ما يمكن للوكيل تقديمه)", w_price:"سعر الحملة (يحل محل سعر الكتالوج عند التحويل)", w_script:"النص بالفرنسية", w_script_ar:"النص بالعربية", w_tpl:"نموذج واتساب المرتبط", w_vars:"المتغيرات: {name} {agent} {last} {offer} {price}",
+  w_dist:"قاعدة التوزيع", dist_rel:"وكيل آخر طلب للزبون، وإلا بالتناوب", dist_rr:"بالتناوب بين الوكلاء المحددين", w_agents:"الوكلاء", w_load:"قيد العمل", w_cap:"الحد الأقصى لكل وكيل يومياً", w_eta:(d)=>`≈ ${d} أيام عمل لتغطية الجمهور`, w_dates:"البداية · النهاية", w_summary:"الملخص", w_launch_note:"عند الإطلاق يُنشأ العملاء ويوزَّعون فوراً. يرى كل وكيل حصته في «قائمة الاتصال».",
+  c_back:"الحملات", c_pause:"إيقاف مؤقت", c_resume:"استئناف", c_extend:"تمديد 7 أيام", c_close:"إغلاق", c_edit:"تعديل العرض",
+  fun:{audience:"الجمهور",assigned:"وُزّعوا",called:"اتُّصل بهم",reached:"وُصل إليهم",converted:"تحوّلوا",delivered:"مسلّمة",revenue:"إيراد مسلّم"},
+  c_agents:"حسب الوكيل", c_lost:"أسباب الرفض", c_daily:"مكالمات يومياً", c_today:"اليوم",
+  lost:{price:"السعر",no_need:"لم يعد يحتاج",competitor:"اشترى من مكان آخر",unreachable:"لا يمكن الوصول",other:"أخرى"},
+  tha:{agent:"الوكيل",assigned:"وُزّعوا",called:"اتُّصل بهم",reached:"وُصل إليهم",converted:"تحوّلوا",delivered:"مسلّمة",revenue:"إيراد مسلّم",rate:"النسبة"},
+  d_title:"متابعة التوصيل", d_sub:"كل ما خرج ولم يُسلَّم بعد، حسب الوكيل والمندوب", d_carrier:(n)=>`درب السبيل · ${n}`, d_inflight:"قيد التوصيل", d_rate:"نسبة التسليم 30 يوماً", d_ret:"نسبة الإرجاع 30 يوماً", d_stuck:"عالقة",
+  b:{returning:"مرتجعات للإنقاذ",act_now:"تصرّف الآن",waiting_customer:"بانتظار الزبون",waiting_carrier:"عند شركة الشحن",done:"منتهية (24 س)"},
+  thd:{order:"الطلب",customer:"الزبون",agent:"الوكيل",status:"الحالة",reason:"السبب",courier:"المندوب",last:"آخر إجراء",next:"التالي"},
+  d_overdue:"التأخير حسب الوكيل", tho:{agent:"الوكيل",inflight:"قيد التوصيل",act:"للمعالجة",oldest:"الأقدم",returning:"مرتجعات",noaction:"بلا إجراء > 24 س",saved:"أُنقذت 30 يوماً",rate:"التسليم 30 يوماً"},
+  d_couriers:"مندوبو درب · 30 يوماً", thk:{courier:"المندوب",branch:"الفرع",held:"في اليد",delivered:"مسلّمة",returning:"مرتجعات",noanswer:"«لا يرد»",rate:"النسبة"},
+  d_remarks:"ملاحظات غير مصنّفة", d_remarks_sub:"لإضافتها إلى المصنِّف", d_remarks_th:{remark:"ملاحظة المندوب",count:"مرات",suggest:"صنّف كـ"},
+  cls:{no_answer:"لا يرد",customer_cancelled:"ألغى الزبون",not_needed:"لم يعد يحتاج",coordinated:"تم التنسيق",out_of_coverage:"خارج التغطية",office_pickup:"استلام من الفرع",not_serious:"غير جاد",other:"أخرى"},
+  s_title:"الإعدادات · العملاء المحتملون والتوصيل", s_sub:"كل عتبة تقرؤها الصفحتان. لا شيء مكتوب في الكود.", s_save:"حفظ", s_saved:"تم حفظ الإعدادات", s_reset:"القيم الافتراضية",
+  sp:"العملاء المحتملون", sd:"متابعة التوصيل", sw:"نماذج واتساب", sw_sub:"ما يرسله الوكيل بلمسة واحدة. يُفتح الرابط في واتساب على هاتفه.",
+  set:{
+    hot:["نافذة «العميل الساخن»","العميل الوارد بلا تواصل أول يبقى ساخناً لهذه المدة ويقاطع قائمة الطلبات.","د"],
+    winback:["عميل محتمل تلقائي بعد الإرجاع","يُنشأ لوكيل الطلب لحظة تعليم الشحنة كمرتجعة.",""],
+    winback_delay:["مهلة قبل الإنشاء","تتيح للمخزن استلام الشحنة.","س"],
+    max_attempts:["المحاولات قبل «ضائع»","بعدها يصبح العميل ضائعاً · لا يمكن الوصول.",""],
+    cap:["الحد الأقصى لكل وكيل يومياً (افتراضي الحملة)","قابل للتعديل لكل حملة.",""],
+    dist:["التوزيع الافتراضي","",""],
+    stall:["شحنة عالقة بعد","بلا حدث من الشركة لهذه المدة تعود الشحنة إلى «تصرّف الآن».","يوم"],
+    unverified:["غير مؤكدة بعد","بلا أي حدث منذ الإرسال.","يوم"],
+    high_value:["عتبة «القيمة العالية»","فوقها اتصال قبل التسليم. 0 = معطّل.","د.ل"],
+    zone_rate:["منطقة ضعيفة إذا كانت النسبة <","تُحسب على آخر 90 يوماً لكل وجهة.","%"],
+    zone_min:["الحد الأدنى للعيّنة لكل منطقة","تحته لا تُقيَّم المنطقة.","شحنة"],
+    risk_fail:["زبون خطر بدءاً من","مرتجعات أو رفض سابق على هذا الرقم.","إخفاق"],
+    proactive:["نافذة الاتصال قبل التسليم","تنتهي المهمة بعد هذه المدة.","س"],
+    done_window:["إبقاء المنتهية ظاهرة","في مجموعة «منتهية».","س"]
+  },
+  tpl:{first_reply:["الرد الأول","عميل وارد"],offer:["عرض الحملة","عميل حملة"],callback_confirm:["تأكيد الموعد","موعد متابعة"],winback:["بعد الإرجاع","مرتجع لاستعادته"],before_delivery:["قبل التسليم","شحنة حساسة"],courier_no_answer:["المندوب لم يصل إليك","ملاحظة «لا يرد»"],delayed_confirm_time:["تأكيد الموعد الجديد","مؤجلة"],returning_last_chance:["فرصة أخيرة قبل الإرجاع","قيد الإرجاع"],address_check:["تأكيد العنوان","عنوان مشكوك فيه"]},
+  ago:(m)=>m<60?`منذ ${Math.round(m)} د`:m<1440?`منذ ${Math.round(m/60)} س`:`منذ ${Math.round(m/1440)} يوم`, hrs:(h)=>h<24?`${Math.round(h)} س`:`${Math.round(h/24)} يوم`,
+  toast_launch:(n,a)=>`أُطلقت الحملة · وُزّع ${n} عميلاً على ${a} وكلاء`, toast_paused:"الحملة متوقفة مؤقتاً", toast_draft:"حُفظت المسودة"
+}};
+let lang="fr", screen="pipeline", wstep=1, agentFilter=null;
+const t=(k)=>I18N[lang][k];
+const $=(s,r=document)=>r.querySelector(s);
+
+/* ── Mock data ── */
+const AGENTS=[{n:"Hend",load:38,inflight:31,act:6,oldest:52,ret:2,noact:1,saved:6,rate:87},{n:"Mouna",load:44,inflight:47,act:11,oldest:96,ret:4,noact:5,saved:3,rate:79},{n:"Roqaya",load:27,inflight:26,act:3,oldest:20,ret:1,noact:0,saved:4,rate:90},{n:"Tasnim",load:19,inflight:18,act:2,oldest:9,ret:0,noact:0,saved:2,rate:88},{n:"Salima",load:12,inflight:9,act:1,oldest:4,ret:0,noact:0,saved:1,rate:91}];
+const PRODUCTS=[["p1","Sérum vitamine C",110],["p2","Crème hydratante",95],["p3","Montre connectée X2",240],["p4","Pack blender + mixeur",520]];
+const CAMPAIGNS=[
+ {id:"c1",name:"Sérum · clients 60–120 j",status:"live",audience:412,assigned:412,called:188,reached:121,converted:37,delivered:29,revenue:3190,offer:"−15 % sur le sérum 50 ml, livraison offerte",offerAr:"خصم 15% على السيروم 50 مل، التوصيل مجاني",agents:["Hend","Mouna","Roqaya"],cap:20,from:"2026-09-08",to:"2026-09-22",daily:[14,31,44,52,48,0,0,39,47,51,55,0],perAgent:[["Hend",140,72,49,16,13,1430],["Mouna",138,60,37,11,8,880],["Roqaya",134,56,35,10,8,880]],lost:{price:19,no_need:12,competitor:7,unreachable:31,other:5}},
+ {id:"c2",name:"Montre X2 · Benghazi",status:"live",audience:96,assigned:96,called:40,reached:22,converted:6,delivered:4,revenue:960,offer:"Bracelet offert",offerAr:"سوار هدية",agents:["Tasnim","Salima"],cap:15,from:"2026-09-10",to:"2026-09-20",daily:[9,12,11,8,0,0],perAgent:[["Tasnim",50,24,13,4,3,720],["Salima",46,16,9,2,1,240]],lost:{price:4,no_need:2,competitor:3,unreachable:6,other:1}},
+ {id:"c0",name:"Crème · août",status:"done",audience:230,assigned:230,called:230,reached:140,converted:31,delivered:27,revenue:2565,offer:"2 achetées, la 3ᵉ à −50 %",offerAr:"اشترِ 2 والثالثة بنصف السعر",agents:["Hend","Mouna"],cap:20,from:"2026-08-11",to:"2026-08-25",daily:[20,22,19,21,20,0,0,20,22,21,20,18,17,10],perAgent:[["Hend",115,72,17,15,1425],["Mouna",115,68,14,12,1140]],lost:{price:22,no_need:30,competitor:12,unreachable:40,other:5}}
+];
+const LEADS=[
+ ["أمل الزنتاني","0917788001","whatsapp","Sérum vitamine C","Hend","new",12,null,true],
+ ["Rima B.","0925511209","fb_comment","Montre connectée X2","Hend","new",38,null,true],
+ ["سالم أبو زيد","0913344557","call","Pack blender + mixeur","Hend","callback",180,"Rappeler plus tard",false],
+ ["هدى المبروك","0915566778","winback","#48210 · ne répond pas","Hend","new",95,null,false],
+ ["فرج الورفلي","0927711223","whatsapp","Crème hydratante","Mouna","new",7,null,true],
+ ["Nour A.","0912121212","ig_dm","Sérum vitamine C","Mouna","contacted",60*4,"Pas de réponse",false],
+ ["خديجة العبيدي","0944433221","campaign","Sérum vitamine C","Roqaya","contacted",60*20,"Réfléchit, relancer",false],
+ ["Omar K.","0914455667","whatsapp","Pack blender + mixeur","Hend","converted",60*30,"#48381",false],
+ ["سعاد بن علي","0945544332","campaign","Montre connectée X2","Tasnim","lost",60*70,"Acheté ailleurs",false],
+ ["محمد الفلاح","0911002003","fb_dm","Montre connectée X2","Salima","new",60*2,null,false],
+ ["Aya M.","0926600770","call","Crème hydratante","Roqaya","callback",60*9,"Rappeler plus tard",false],
+ ["عبدالله زقلام","0918123456","campaign","Sérum vitamine C","Mouna","new",60*48,null,false],
+];
+const DELIVERY=[
+ ["48211","فاطمة المنصوري","Hend","returning","returning","no_answer","علي بن عمر",null,"call_branch",5],
+ ["48174","محمد صالح","Mouna","to_be_returned","returning","customer_cancelled","نور الدين الفيتوري","Appelé client · pas de réponse · il y a 20 h","call_branch",26],
+ ["48390","عائشة الغرياني","Hend","delivery_delayed","act_now","no_answer","سالم حمزة",null,"call_customer2",3],
+ ["48402","خالد الزاوي","Hend","out_for_delivery","act_now","proactive","يوسف كارة",null,"call_customer",0.7],
+ ["48120","أحمد الشلبي","Mouna","at_carrier","act_now","stalled","علي بن عمر",null,"call_courier",150],
+ ["48501","ربيعة الكيلاني","Mouna","delivery_delayed","act_now","out_of_coverage","محمود القماطي",null,"whatsapp",30],
+ ["48377","سهام العجيلي","Roqaya","out_for_delivery","act_now","due","سالم حمزة","Rappel promis 10:00 · il y a 3 h","call_customer",6],
+ ["48381","عمر الككلي","Hend","delivery_delayed","waiting_customer","coordinated","سالم حمزة","Joint · reçoit jeudi 11:00 · il y a 7 h","wait",8],
+ ["48398","رانيا بوزيد","Hend","out_for_delivery","waiting_customer",null,"يوسف كارة","WhatsApp envoyé · il y a 30 min","wait",2],
+ ["48410","هدى المبروك","Tasnim","at_carrier","waiting_carrier",null,"علي بن عمر",null,"wait",14],
+ ["48415","طارق الهوني","Salima","in_transit","waiting_carrier",null,"نور الدين الفيتوري",null,"wait",20],
+ ["48301","إبراهيم قدورة","Hend","delivered","done","saved","علي بن عمر","Appelé livreur · nouvelle tentative · il y a 31 h","",4],
+];
+const COURIERS=[["علي بن عمر","طرابلس · سوق الجمعة",23,84,3,7,86],["سالم حمزة","طرابلس · عين زارة",31,112,2,4,92],["يوسف كارة","طرابلس · تاجوراء",18,61,1,2,90],["نور الدين الفيتوري","بنغازي · الفويهات",14,39,4,9,71],["محمود القماطي","مصراتة",9,27,1,3,84]];
+const REMARKS=[["الزبون طلب التوصيل للمكتب",6,"office_pickup"],["مش موجود في المدينة",5,"customer_cancelled"],["نتواصل معاه غدوة",4,"coordinated"],["العنوان غلط",3,"other"],["يبي يبدل اللون",2,"other"]];
+const SETTINGS={hot:60,winback:true,winback_delay:2,max_attempts:3,cap:20,dist:"rel",stall:5,unverified:5,high_value:300,zone_rate:60,zone_min:20,risk_fail:1,proactive:4,done_window:24};
+const TPL={fr:{first_reply:"Bonjour {name}, merci pour votre message à propos de {product}. C'est {price} LYD, livraison incluse, paiement à la réception. Je vous appelle ?",offer:"Bonjour {name}, vous aviez commandé {last} chez nous. Cette semaine : {offer}. Ça vous intéresse ?",callback_confirm:"Bonjour {name}, je vous rappelle {when} comme convenu. Bonne journée.",winback:"Bonjour {name}, votre colis nous est revenu. Si vous le souhaitez toujours, nous le renvoyons sans frais. Je vous appelle ?",before_delivery:"Bonjour {name}, votre colis arrive aujourd'hui avec {courier}. Montant à préparer : {total} LYD en espèces. Serez-vous disponible ?",courier_no_answer:"Bonjour {name}, le livreur {courier} a essayé de vous joindre sans succès. Pouvez-vous nous indiquer un créneau ou un autre numéro ?",delayed_confirm_time:"Bonjour {name}, votre livraison est reportée. Quel jour et quelle heure vous conviennent ?",returning_last_chance:"Bonjour {name}, votre colis est en cours de retour. Si vous le souhaitez toujours, répondez-nous aujourd'hui et nous relançons la livraison.",address_check:"Bonjour {name}, pour vous livrer sans erreur, pouvez-vous confirmer votre adresse : {address} ?"},
+ ar:{first_reply:"مرحباً {name}، شكراً على رسالتك بخصوص {product}. السعر {price} د.ل شامل التوصيل، والدفع عند الاستلام. أتصل بك؟",offer:"مرحباً {name}، سبق أن طلبت {last} من عندنا. هذا الأسبوع: {offer}. يهمّك؟",callback_confirm:"مرحباً {name}، سأعاود الاتصال بك {when} كما اتفقنا. يومك سعيد.",winback:"مرحباً {name}، رجعت إلينا شحنتك. إن كنت لا تزال تريدها، نعيد إرسالها بلا رسوم. أتصل بك؟",before_delivery:"مرحباً {name}، شحنتك تصلك اليوم مع المندوب {courier}. المبلغ المطلوب {total} د.ل نقداً. هل ستكون متاحاً؟",courier_no_answer:"مرحباً {name}، حاول المندوب {courier} الاتصال بك دون رد. هل تخبرنا بوقت مناسب أو رقم آخر؟",delayed_confirm_time:"مرحباً {name}، تم تأجيل توصيل شحنتك. أي يوم وأي ساعة تناسبك؟",returning_last_chance:"مرحباً {name}، شحنتك في طريق الإرجاع. إن كنت لا تزال تريدها، ردّ علينا اليوم ونعيد التوصيل.",address_check:"مرحباً {name}، لنوصّل بلا خطأ، هل تؤكد عنوانك: {address}؟"}};
+let wf={product:"p1",days:"60–120",city:null,value:false,count:false,exclude:true,returned:false,norisk:true,name:"",offer:"−15 % sur le sérum 50 ml, livraison offerte",price:93,tpl:"offer",dist:"rel",agents:["Hend","Mouna","Roqaya"],cap:20,from:"2026-09-15",to:"2026-09-29"};
+const fmtPhone=(p)=>p.replace(/(\d{3})(\d{3})(\d{4})/,"$1 $2 $3");
+const STATUS_L={fr:{uploaded:"Envoyé",scanned:"À l'entrepôt",at_carrier:"Chez le transporteur",in_transit:"En route",out_for_delivery:"En livraison",delivery_delayed:"Reportée",returning:"En retour",to_be_returned:"Retour confirmé",delivered:"Livrée",returned:"Retournée"},ar:{uploaded:"أُرسلت",scanned:"في المخزن",at_carrier:"عند الشركة",in_transit:"في الطريق",out_for_delivery:"خرجت للتوصيل",delivery_delayed:"مؤجلة",returning:"قيد الإرجاع",to_be_returned:"إرجاع مؤكد",delivered:"تم التسليم",returned:"مرتجعة"}};
+const REASON_L={fr:{no_answer:"Client ne répond pas",customer_cancelled:"Annulé par le client",proactive:"Colis à risque · appel avant livraison",stalled:"Aucun mouvement depuis 6 j",out_of_coverage:"Numéro hors réseau",due:"Rappel prévu dépassé",coordinated:"Coordonné avec le client",saved:"Sauvée après action"},ar:{no_answer:"الزبون لا يرد",customer_cancelled:"ألغى الزبون",proactive:"شحنة حساسة · اتصل قبل التسليم",stalled:"بلا حركة منذ 6 أيام",out_of_coverage:"الرقم خارج التغطية",due:"موعد المتابعة فات",coordinated:"تم التنسيق مع الزبون",saved:"أُنقذت بعد إجراء"}};
+const MOVE_L={fr:{call_branch:"Appeler l'agence",call_customer:"Appeler le client",call_customer2:"Appeler le 2ᵉ numéro",call_courier:"Appeler le livreur",whatsapp:"Écrire sur WhatsApp",wait:"—"},ar:{call_branch:"اتصال بالفرع",call_customer:"اتصال بالزبون",call_customer2:"اتصال بالرقم الثاني",call_courier:"اتصال بالمندوب",whatsapp:"واتساب",wait:"—"}};
+const TONE={returning:"bad",act_now:"warn",waiting_customer:"info",waiting_carrier:"neutral",done:"ok"};
+const BANDC={returning:"var(--critical)",act_now:"var(--warning)",waiting_customer:"var(--action)",waiting_carrier:"#9AA3B2",done:"var(--success)"};
+
+/* ── Shell ── */
+function render(){
+  document.documentElement.lang=lang; document.documentElement.dir=lang==="ar"?"rtl":"ltr";
+  const N=t("nav"); const hot=LEADS.filter(l=>l[8]).length; const act=DELIVERY.filter(d=>d[4]==="act_now"||d[4]==="returning").length;
+  const cur=(k)=>({pipeline:"prospects",campaigns:"prospects",wizard:"prospects",campaign:"prospects",sources:"prospects",delivery:"delivery",settings:"settings"})[screen]===k?"page":"false";
+  $("#sb").innerHTML=`<div class="logo">Ordra<small>${t("market")} · ${t("tripoli")}</small></div><div class="mk"><span>${lang==="ar"?"السوق":"Marché"}</span><b>${t("market")}</b></div>
+   <div class="sh">${N.ops}</div><a>${N.orders}</a><a data-go="pipeline" aria-current="${cur("prospects")}">${N.prospects}<span class="n num">${hot}</span></a><a data-go="delivery" aria-current="${cur("delivery")}">${N.delivery}<span class="n num">${act}</span></a><a>${N.warehouse}</a>
+   <div class="sh">${N.pilot}</div><a>${N.team}</a><a>${N.products}</a><a>${N.finance}</a><a data-go="settings" aria-current="${cur("settings")}">${N.settings}</a><a>${N.users}</a>`;
+  $("#sb").querySelectorAll("[data-go]").forEach(a=>a.onclick=()=>go(a.dataset.go));
+  ({pipeline:renderProspects,campaigns:renderProspects,sources:renderProspects,wizard:renderWizard,campaign:renderCampaign,delivery:renderDelivery,settings:renderSettings})[screen]();
+}
+function go(s){screen=s;segSet("segScreen","screen",s);render()}
+function setTop(title,sub,cta,crumb){$("#top").innerHTML=`<div>${crumb?`<div class="crumb">${crumb}</div>`:""}<h1>${title}</h1>${sub?`<div class="sub">${sub}</div>`:""}</div><div class="cta">${cta||""}</div>`}
+function toast(msg){const el=$("#toast");el.textContent=msg;el.dataset.on="true";clearTimeout(toast.t);toast.t=setTimeout(()=>el.dataset.on="false",2600)}
+
+/* ── Prospects ── */
+function kpis(){const K=t("k");const hot=LEADS.filter(l=>l[8]).length;return `<div class="kpis"><div class="kpi"><div class="l">${K.new}</div><div class="v num">63</div><div class="d" data-up>+18 % ${K.up} · <span class="num">${hot}</span> ${K.hot}</div></div><div class="kpi"><div class="l">${K.ttc}</div><div class="v"><span class="num">14 min</span></div><div class="d" data-up>−9 min ${K.up}</div></div><div class="kpi"><div class="l">${K.conv}</div><div class="v"><span class="num">27%</span></div><div class="d">74 / 271</div></div><div class="kpi"><div class="l">${K.rev}</div><div class="v"><span class="num">9 840</span> <small>LYD</small></div><div class="d" data-up>+2 310 ${K.up}</div></div></div>`}
+function ptabs(){return `<div class="tabs">${["pipeline","campaigns","sources"].map(k=>`<button class="tab" data-go="${k}" aria-current="${screen===k}">${t("tabs")[k]}</button>`).join("")}</div>`}
+function renderProspects(){
+  setTop(t("p_title"),t("p_sub"),`<button class="btn">${t("csv")}</button><button class="btn">${t("new_lead")}</button><button class="btn" data-primary data-go="wizard">${t("new_camp")}</button>`);
+  const F=t("f"),TH=t("th");
+  let inner="";
+  if(screen==="pipeline"){
+    inner=`<div class="fbar"><select class="fsel"><option>${F.source} · ${F.all}</option></select><select class="fsel" id="fAgent" data-on="${!!agentFilter}"><option value="">${F.agent} · ${F.all}</option>${AGENTS.map(a=>`<option ${agentFilter===a.n?"selected":""}>${a.n}</option>`).join("")}</select><select class="fsel"><option>${F.status} · ${F.all}</option></select><select class="fsel"><option>${F.campaign} · ${F.all}</option></select><button class="fsel">${F.hot}</button><span class="count">${F.count(LEADS.filter(l=>!agentFilter||l[4]===agentFilter).length)}</span></div>
+     <div class="card"><div class="twrap"><table class="t"><thead><tr><th></th><th>${TH.name}</th><th>${TH.phone}</th><th>${TH.source}</th><th>${TH.want}</th><th>${TH.agent}</th><th>${TH.status}</th><th>${TH.age}</th><th>${TH.last}</th></tr></thead><tbody>
+     ${LEADS.filter(l=>!agentFilter||l[4]===agentFilter).map(l=>`<tr><td><input type="checkbox" aria-label="select"></td><td><b>${l[0]}</b>${l[8]?` <span class="badge" data-s="hot">${lang==="ar"?"ساخن":"chaud"}</span>`:""}</td><td class="nw"><span class="num">${fmtPhone(l[1])}</span></td><td>${t("src")[l[2]]}</td><td>${l[3]}</td><td>${l[4]}</td><td><span class="badge" data-s="${l[5]}">${t("st")[l[5]]}</span></td><td class="nw">${t("ago")(l[6])}</td><td style="color:var(--text2)">${l[7]||"—"}</td></tr>`).join("")}
+     </tbody></table></div><div class="foot"><span style="color:var(--text2);font-size:12.5px">${lang==="ar"?"مع التحديد:":"Avec la sélection :"}</span><button class="btn sm">${F.reassign}</button><button class="btn sm">${F.archive}</button><span class="sp"></span></div></div>
+     <div class="note" data-tone="info">${t("wb")}</div>`;
+  } else if(screen==="campaigns"){
+    const C=t("thc");
+    inner=`<div class="card"><h2>${t("tabs").campaigns}<span class="r">${lang==="ar"?"النتائج حتى الإيراد المسلّم":"Résultats jusqu'au CA livré"}</span></h2><div class="twrap"><table class="t"><thead><tr><th>${C.name}</th><th>${C.status}</th><th class="n">${C.audience}</th><th class="n">${C.called}</th><th class="n">${C.reached}</th><th class="n">${C.converted}</th><th class="n">${C.delivered}</th><th class="n">${C.revenue}</th><th>${C.progress}</th></tr></thead><tbody>
+     ${CAMPAIGNS.map(c=>`<tr data-click data-camp="${c.id}"><td style="min-width:220px"><b>${c.name}</b><div style="color:var(--text2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px">${lang==="ar"?c.offerAr:c.offer} · ${c.agents.join(", ")}</div></td><td><span class="badge" data-s="${c.status}">${t("cs")[c.status]}</span></td><td class="n">${c.audience}</td><td class="n">${c.called}</td><td class="n">${c.reached}</td><td class="n">${c.converted} <span style="color:var(--text2)">(${Math.round(100*c.converted/Math.max(c.called,1))}%)</span></td><td class="n">${c.delivered}</td><td class="n"><b>${c.revenue.toLocaleString("fr-FR")}</b> LYD</td><td><div class="bar"><b style="--w:${Math.round(100*c.called/c.audience)}%"></b></div></td></tr>`).join("")}
+     </tbody></table></div></div>`;
+  } else {
+    const S=t("ths");const rows=[["whatsapp",84,"9 min",31,3410],["fb_comment",71,"22 min",14,1540],["fb_dm",39,"17 min",11,1210],["ig_dm",18,"31 min",4,440],["call",22,"—",9,990],["campaign",412,"—",37,3190],["winback",25,"41 min",6,540]];
+    inner=`<div class="card"><h2>${t("tabs").sources}<span class="r">30 j</span></h2><div class="twrap"><table class="t"><thead><tr><th>${S.source}</th><th class="n">${S.leads}</th><th class="n">${S.ttc}</th><th class="n">${S.conv}</th><th class="n">${S.rate}</th><th class="n">${S.revenue}</th><th></th></tr></thead><tbody>${rows.map(([k,n,ttc,c,rev])=>`<tr><td>${t("src")[k]}</td><td class="n">${n}</td><td class="n"><span class="num">${ttc}</span></td><td class="n">${c}</td><td class="n">${Math.round(100*c/n)}%</td><td class="n"><b>${rev.toLocaleString("fr-FR")}</b> LYD</td><td><div class="bar"><b style="--w:${Math.round(100*rev/3410)}%"></b></div></td></tr>`).join("")}</tbody></table></div></div>`;
+  }
+  $("#body").innerHTML=kpis()+ptabs()+inner;
+  wire();
+}
+function wire(){
+  document.querySelectorAll("#body [data-go], #top [data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+  document.querySelectorAll("[data-camp]").forEach(r=>r.onclick=()=>go("campaign"));
+  const fa=$("#fAgent"); fa&&(fa.onchange=()=>{agentFilter=fa.value||null;render()});
+}
+
+/* ── Wizard ── */
+function audienceCount(){let n=1240;if(wf.product)n=Math.round(n*.42);if(wf.days)n=Math.round(n*.56);if(wf.city)n=Math.round(n*.35);if(wf.value)n=Math.round(n*.6);if(wf.count)n=Math.round(n*.7);if(wf.returned)n=Math.round(n*.18);if(wf.exclude)n=Math.round(n*.86);if(wf.norisk)n=Math.round(n*.93);return n}
+function renderWizard(){
+  const W=t("w_steps"), A=t("aud"), n=audienceCount();
+  setTop(t("w_title"),null,`<button class="btn" data-go="campaigns">${t("c_back")}</button>`,t("p_title")+" › "+t("tabs").campaigns);
+  const chip=(k,v,label,on)=>`<button class="fchip" data-wf="${k}" data-v="${v}" aria-pressed="${on}">${label}</button>`;
+  let body="";
+  if(wstep===1){
+    body=`<div class="split"><div>
+      <div class="fl">${t("w_aud")}</div>
+      <div class="fchips">${PRODUCTS.map(([id,nm])=>chip("product",id,`${A.product} ${nm}`,wf.product===id)).join("")}</div>
+      <div class="fchips">${["30–60","60–120","120–240"].map(d=>chip("days",d,`${A.days} ${d} j`,wf.days===d)).join("")}${chip("returned","1",A.returned,wf.returned)}</div>
+      <div class="fchips">${["طرابلس","بنغازي","مصراتة"].map(c=>chip("city",c,`${A.city} ${c}`,wf.city===c)).join("")}${chip("value","1",`${A.value} 200 LYD`,wf.value)}${chip("count","1",`${A.count} ≥ 2`,wf.count)}</div>
+      <div class="fchips">${chip("exclude","1",A.exclude,wf.exclude)}${chip("norisk","1",A.nofirst,wf.norisk)}</div>
+      <div class="preview"><span class="v num">${n}</span><span>${t("w_preview")}</span><small>· ${t("w_excl")}</small></div>
+    </div><div class="card" style="margin:0"><h2>${t("w_sample")}<span class="r">5 / ${n}</span></h2><table class="t"><tbody>
+      ${[["عائشة الغرياني","سوق الجمعة",74,"Hend"],["إبراهيم قدورة","سوق الجمعة",88,"Hend"],["مريم الدرسي","الهضبة",65,"Mouna"],["طارق الهوني","بنغازي",101,"Tasnim"],["نجاة الأسود","جنزور",93,"Roqaya"]].map(([nm,ar,d,ag])=>`<tr><td><b>${nm}</b><div style="color:var(--text2);font-size:12px">${ar} · ${t("ago")(d*1440)}</div></td><td class="n" style="color:var(--text2)">${ag}</td></tr>`).join("")}
+    </tbody></table></div></div>`;
+  } else if(wstep===2){
+    body=`<div class="split"><div>
+      <div class="fl">${t("w_name")}</div><input class="fi" id="wName" value="${wf.name||`${PRODUCTS.find(p=>p[0]===wf.product)[1].split(" ")[0]} · ${wf.days||""}`}">
+      <div class="fl">${t("w_offer")}</div><input class="fi" value="${wf.offer}">
+      <div class="row2"><div><div class="fl">${t("w_price")}</div><input class="fi num" type="number" value="${wf.price}"></div><div><div class="fl">${t("w_tpl")}</div><select class="fi"><option>${t("tpl").offer[0]}</option><option>${t("tpl").winback[0]}</option></select></div></div>
+      <div class="row2"><div><div class="fl">${t("w_script")}</div><textarea class="fi">Bonjour {name}, ici {agent} de Ordra. Vous aviez pris le sérum vitamine C il y a deux mois. Comment ça s'est passé ? Cette semaine le 50 ml est à {price} LYD au lieu de 110, livraison offerte. Je vous en mets un ?</textarea></div><div><div class="fl">${t("w_script_ar")}</div><textarea class="fi" dir="rtl">مرحباً {name}، معك {agent} من أوردرا. أخذت سيروم فيتامين C قبل شهرين، كيف كانت التجربة؟ هذا الأسبوع عبوة 50 مل بـ {price} د.ل بدل 110 والتوصيل مجاني. أحجز لك واحدة؟</textarea></div></div>
+      <div style="color:var(--text2);font-size:12.5px">${t("w_vars")}</div>
+    </div><div class="card" style="margin:0"><h2>${lang==="ar"?"كما يراه الوكيل":"Tel que l'agent le verra"}</h2><div class="pad"><div class="badge" data-s="converted" style="margin-bottom:8px">${wf.offer}</div><div style="border:1px dashed var(--border-strong);border-radius:6px;padding:10px;font-size:13px">Bonjour عائشة, ici Hend de Ordra. Vous aviez pris le sérum vitamine C il y a deux mois…</div><div style="color:var(--text2);font-size:12px;margin-top:8px">${lang==="ar"?"عند التحويل: السيروم 50 مل بـ":"À la conversion : sérum 50 ml à"} <b class="num">${wf.price} LYD</b></div></div></div></div>`;
+  } else if(wstep===3){
+    const days=Math.ceil(n/Math.max(1,wf.agents.length*wf.cap));
+    body=`<div class="split"><div>
+      <div class="fl">${t("w_dist")}</div><div class="fchips">${chip("dist","rel",t("dist_rel"),wf.dist==="rel")}${chip("dist","rr",t("dist_rr"),wf.dist==="rr")}</div>
+      <div class="fl">${t("w_agents")}</div>
+      <div class="card" style="margin-bottom:10px"><table class="t"><thead><tr><th></th><th>${t("tha").agent}</th><th class="n">${t("w_load")}</th><th class="n">${lang==="ar"?"حصة الحملة":"Part campagne"}</th></tr></thead><tbody>${AGENTS.map(a=>{const on=wf.agents.includes(a.n);const share=on?Math.round(n/wf.agents.length):0;return `<tr data-click data-ag="${a.n}"><td><input type="checkbox" ${on?"checked":""} aria-label="${a.n}"></td><td><b>${a.n}</b></td><td class="n">${a.load} <div class="bar" style="display:inline-block;width:70px;vertical-align:middle;margin-inline-start:6px" data-tone="${a.load>40?"warn":""}"><b style="--w:${Math.min(100,a.load*2)}%"></b></div></td><td class="n">${on?share:"—"}</td></tr>`}).join("")}</tbody></table></div>
+      <div class="row2"><div><div class="fl">${t("w_cap")}</div><input class="fi num" id="wCap" type="number" value="${wf.cap}"></div><div><div class="fl">${t("w_dates")}</div><input class="fi num" value="${wf.from} → ${wf.to}"></div></div>
+      <div class="preview"><span class="v num">${n}</span><span>${t("w_preview")}</span><small>· ${t("w_eta")(days)}</small></div>
+    </div><div class="note" data-tone="info" style="margin:0">${t("w_launch_note")}</div></div>`;
+  } else {
+    const days=Math.ceil(n/Math.max(1,wf.agents.length*wf.cap));
+    body=`<div class="card" style="max-width:720px"><h2>${t("w_summary")}</h2><table class="t"><tbody>
+      <tr><td style="color:var(--text2)">${t("w_name")}</td><td><b>${wf.name||`${PRODUCTS.find(p=>p[0]===wf.product)[1].split(" ")[0]} · ${wf.days||""}`}</b></td></tr>
+      <tr><td style="color:var(--text2)">${t("w_aud")}</td><td>${A.product} ${PRODUCTS.find(p=>p[0]===wf.product)[1]} · ${A.days} ${wf.days} j${wf.city?` · ${wf.city}`:""}${wf.exclude?` · ${A.exclude}`:""} → <b class="num">${n}</b></td></tr>
+      <tr><td style="color:var(--text2)">${t("w_offer")}</td><td>${wf.offer} · <span class="num">${wf.price} LYD</span></td></tr>
+      <tr><td style="color:var(--text2)">${t("w_dist")}</td><td>${wf.dist==="rel"?t("dist_rel"):t("dist_rr")} · ${wf.agents.join(", ")} · ${wf.cap}/j → ${t("w_eta")(days)}</td></tr>
+      <tr><td style="color:var(--text2)">${t("w_dates")}</td><td class="num">${wf.from} → ${wf.to}</td></tr>
+    </tbody></table><div class="foot"><span style="color:var(--text2);font-size:12.5px">${t("w_launch_note")}</span></div></div>`;
+  }
+  $("#body").innerHTML=`<div class="card"><div class="steps">${W.map((s,i)=>`<div class="step" aria-current="${wstep===i+1}" data-done="${wstep>i+1}"><i>${i+1}</i>${s}</div>`).join("")}</div><div class="pad">${body}</div><div class="foot">${wstep>1?`<button class="btn" id="wBack">${t("w_back")}</button>`:""}<button class="btn" id="wDraft">${t("w_draft")}</button><span class="sp"></span>${wstep<4?`<button class="btn" data-primary id="wNext">${t("w_next")}</button>`:`<button class="btn" data-primary id="wLaunch">${t("w_launch")} · <span class="num">${n}</span></button>`}</div></div>`;
+  wire();
+  $("#body").querySelectorAll("[data-wf]").forEach(c=>c.onclick=()=>{const k=c.dataset.wf,v=c.dataset.v;if(["value","count","exclude","returned","norisk"].includes(k))wf[k]=!wf[k];else wf[k]=wf[k]===v?null:v;renderWizard()});
+  $("#body").querySelectorAll("[data-ag]").forEach(r=>r.onclick=()=>{const a=r.dataset.ag;wf.agents=wf.agents.includes(a)?wf.agents.filter(x=>x!==a):[...wf.agents,a];renderWizard()});
+  const cap=$("#wCap"); cap&&(cap.oninput=()=>{wf.cap=Math.max(1,Number(cap.value)||1);renderWizard();$("#wCap").focus()});
+  const nm=$("#wName"); nm&&(nm.oninput=()=>wf.name=nm.value);
+  $("#wBack")&&($("#wBack").onclick=()=>{wstep--;renderWizard()}); $("#wNext")&&($("#wNext").onclick=()=>{wstep++;renderWizard()});
+  $("#wDraft").onclick=()=>toast(t("toast_draft"));
+  $("#wLaunch")&&($("#wLaunch").onclick=()=>{toast(t("toast_launch")(n,wf.agents.length));wstep=1;go("campaigns")});
+}
+
+/* ── Campaign detail ── */
+function renderCampaign(){
+  const c=CAMPAIGNS[0], F=t("fun"), TA=t("tha");
+  setTop(c.name,`${lang==="ar"?c.offerAr:c.offer} · ${c.from} → ${c.to}`,`<button class="btn">${t("c_edit")}</button><button class="btn">${t("c_extend")}</button><button class="btn" id="cPause">${t("c_pause")}</button><button class="btn" data-danger>${t("c_close")}</button>`,`<span data-go="campaigns" style="cursor:pointer">${t("p_title")} › ${t("tabs").campaigns}</span>`);
+  const fun=[["audience",c.audience,null],["assigned",c.assigned,c.audience],["called",c.called,c.assigned],["reached",c.reached,c.called],["converted",c.converted,c.reached],["delivered",c.delivered,c.converted],["revenue",c.revenue,null]];
+  const lostTotal=Object.values(c.lost).reduce((a,b)=>a+b,0);
+  $("#body").innerHTML=`
+   <div class="card"><h2><span class="badge" data-s="${c.status}">${t("cs")[c.status]}</span>${c.agents.join(", ")} · ${c.cap}/j<span class="r">${Math.round(100*c.called/c.audience)}% ${t("thc").progress}</span></h2>
+    <div class="funnel">${fun.map(([k,v,prev])=>`<div><div class="l">${F[k]}</div><div class="v num">${k==="revenue"?v.toLocaleString("fr-FR")+" LYD":v}</div><div class="p">${prev?Math.round(100*v/prev)+"%":"&nbsp;"}</div></div>`).join("")}</div>
+    <div class="pad"><div class="fl">${t("c_daily")}</div><div class="spark">${c.daily.map((d,i)=>`<b style="height:${Math.max(4,d/60*56)}px" ${i===c.daily.length-1?"data-today":""} title="${d}"></b>`).join("")}</div><div style="display:flex;justify-content:space-between;color:var(--text2);font-size:12px;margin-top:4px"><span class="num">${c.from}</span><span>${t("c_today")}</span></div></div></div>
+   <div class="grid2">
+    <div class="card"><h2>${t("c_agents")}</h2><div class="twrap"><table class="t"><thead><tr><th>${TA.agent}</th><th class="n">${TA.assigned}</th><th class="n">${TA.called}</th><th class="n">${TA.reached}</th><th class="n">${TA.converted}</th><th class="n">${TA.delivered}</th><th class="n">${TA.revenue}</th><th class="n">${TA.rate}</th></tr></thead><tbody>${c.perAgent.map(r=>`<tr><td><b>${r[0]}</b></td><td class="n">${r[1]}</td><td class="n">${r[2]}</td><td class="n">${r[3]}</td><td class="n">${r[4]}</td><td class="n">${r[5]}</td><td class="n"><b>${r[6].toLocaleString("fr-FR")}</b></td><td class="n">${Math.round(100*r[4]/r[2])}%</td></tr>`).join("")}</tbody></table></div></div>
+    <div class="card"><h2>${t("c_lost")}<span class="r">${lostTotal}</span></h2><table class="t"><tbody>${Object.entries(c.lost).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${t("lost")[k]}</td><td class="n" style="width:60px">${v}</td><td style="width:160px"><div class="bar" data-tone="${k==="unreachable"?"warn":"bad"}"><b style="--w:${Math.round(100*v/lostTotal)}%"></b></div></td></tr>`).join("")}</tbody></table></div>
+   </div>`;
+  wire(); $("#cPause").onclick=()=>toast(t("toast_paused"));
+}
+
+/* ── Delivery board ── */
+function renderDelivery(){
+  const B=t("b"), TD=t("thd"), TO=t("tho"), TK=t("thk"), SL=STATUS_L[lang], RL=REASON_L[lang], ML=MOVE_L[lang];
+  setTop(t("d_title"),t("d_sub"),`<select class="fsel" id="dAgent" data-on="${!!agentFilter}"><option value="">${t("f").agent} · ${t("f").all}</option>${AGENTS.map(a=>`<option ${agentFilter===a.n?"selected":""}>${a.n}</option>`).join("")}</select>`);
+  const rows=DELIVERY.filter(d=>!agentFilter||d[2]===agentFilter);
+  const counts={};["returning","act_now","waiting_customer","waiting_carrier","done"].forEach(k=>counts[k]=rows.filter(d=>d[4]===k).length);
+  const carriers=`<div class="kpis"><div class="kpi"><div class="l">${t("d_carrier")("Tripoli")}</div><div class="v num">88 <small>${t("d_inflight")}</small></div><div class="d">${t("d_rate")} <b class="num">86%</b> · ${t("d_ret")} <b class="num">14%</b> · ${t("d_stuck")} <b class="num" style="color:var(--critical)">5</b></div></div><div class="kpi"><div class="l">${t("d_carrier")("Benghazi")}</div><div class="v num">23 <small>${t("d_inflight")}</small></div><div class="d">${t("d_rate")} <b class="num">73%</b> · ${t("d_ret")} <b class="num">27%</b> · ${t("d_stuck")} <b class="num" style="color:var(--critical)">3</b></div></div><div class="kpi"><div class="l">${B.returning}</div><div class="v num" style="color:var(--critical)">${counts.returning}</div><div class="d">${lang==="ar"?"اتصال بالفرع يحصل غالباً على محاولة":"Un appel à l'agence obtient souvent une tentative"}</div></div><div class="kpi"><div class="l">${B.act_now}</div><div class="v num" style="color:var(--warning)">${counts.act_now}</div><div class="d">${lang==="ar"?"بلا إجراء من الوكيل منذ الحدث":"Sans action de l'agent depuis l'événement"}</div></div></div>`;
+  const overdue=`<div class="card"><h2>${t("d_overdue")}</h2><div class="twrap"><table class="t"><thead><tr><th>${TO.agent}</th><th class="n">${TO.inflight}</th><th class="n">${TO.act}</th><th class="n">${TO.oldest}</th><th class="n">${TO.returning}</th><th class="n">${TO.noaction}</th><th class="n">${TO.saved}</th><th class="n">${TO.rate}</th></tr></thead><tbody>${AGENTS.map(a=>`<tr data-click data-agent="${a.n}"><td><b>${a.n}</b></td><td class="n">${a.inflight}</td><td class="n">${a.act?`<span class="badge" data-s="warn">${a.act}</span>`:"0"}</td><td class="n">${t("hrs")(a.oldest)}</td><td class="n">${a.ret?`<span class="badge" data-s="bad">${a.ret}</span>`:"0"}</td><td class="n">${a.noact?`<span class="badge" data-s="bad">${a.noact}</span>`:"0"}</td><td class="n">${a.saved}</td><td class="n"><b>${a.rate}%</b></td></tr>`).join("")}</tbody></table></div></div>`;
+  const list=["returning","act_now","waiting_customer","waiting_carrier","done"].map(k=>{const r=rows.filter(d=>d[4]===k);return `<div class="card"><h2><span class="stripe" style="background:${BANDC[k]}"></span>${B[k]}<span class="num" style="color:var(--text2);font-weight:400">${r.length}</span></h2>${r.length?`<div class="twrap"><table class="t"><thead><tr><th>${TD.order}</th><th>${TD.customer}</th><th>${TD.agent}</th><th>${TD.status}</th><th>${TD.reason}</th><th>${TD.courier}</th><th>${TD.last}</th><th>${TD.next}</th></tr></thead><tbody>${r.map(d=>`<tr data-click><td class="num">#${d[0]}</td><td><b>${d[1]}</b></td><td>${d[2]}</td><td><span class="badge" data-s="${TONE[k]}">${SL[d[3]]}</span> <span style="color:var(--text2);font-size:12px">${t("hrs")(d[9])}</span></td><td>${d[5]?`<span class="badge" data-s="${d[5]==="proactive"||d[5]==="due"||d[5]==="stalled"||d[5]==="no_answer"||d[5]==="out_of_coverage"?"warn":d[5]==="coordinated"?"info":d[5]==="saved"?"ok":"bad"}">${RL[d[5]]}</span>`:"—"}</td><td>${d[6]}</td><td style="color:var(--text2);font-size:12.5px">${d[7]||"—"}</td><td>${ML[d[8]]||"—"}</td></tr>`).join("")}</tbody></table></div>`:`<div class="pad" style="color:var(--text2)">—</div>`}</div>`}).join("");
+  const couriers=`<div class="card"><h2>${t("d_couriers")}</h2><div class="twrap"><table class="t"><thead><tr><th>${TK.courier}</th><th>${TK.branch}</th><th class="n">${TK.held}</th><th class="n">${TK.delivered}</th><th class="n">${TK.returning}</th><th class="n">${TK.noanswer}</th><th class="n">${TK.rate}</th><th></th></tr></thead><tbody>${COURIERS.map(c=>`<tr><td><b>${c[0]}</b></td><td>${c[1]}</td><td class="n">${c[2]}</td><td class="n">${c[3]}</td><td class="n">${c[4]?`<span class="badge" data-s="bad">${c[4]}</span>`:"0"}</td><td class="n">${c[5]}</td><td class="n"><b>${c[6]}%</b></td><td><div class="bar" data-tone="${c[6]<80?"bad":""}"><b style="--w:${c[6]}%"></b></div></td></tr>`).join("")}</tbody></table></div></div>`;
+  const remarks=`<div class="card"><h2>${t("d_remarks")}<span class="r">${t("d_remarks_sub")}</span></h2><div class="twrap"><table class="t"><thead><tr><th>${t("d_remarks_th").remark}</th><th class="n">${t("d_remarks_th").count}</th><th>${t("d_remarks_th").suggest}</th></tr></thead><tbody>${REMARKS.map(r=>`<tr><td class="remark">« ${r[0]} »</td><td class="n">${r[1]}</td><td><select class="fsel">${Object.keys(t("cls")).map(k=>`<option value="${k}" ${r[2]===k?"selected":""}>${t("cls")[k]}</option>`).join("")}</select></td></tr>`).join("")}</tbody></table></div></div>`;
+  $("#body").innerHTML=carriers+overdue+list+`<div class="grid2">${couriers}${remarks}</div>`;
+  const da=$("#dAgent"); da.onchange=()=>{agentFilter=da.value||null;render()};
+  $("#body").querySelectorAll("[data-agent]").forEach(r=>r.onclick=()=>{agentFilter=agentFilter===r.dataset.agent?null:r.dataset.agent;render()});
+}
+
+/* ── Settings ── */
+function renderSettings(){
+  const S=t("set");
+  setTop(t("s_title"),t("s_sub"),`<button class="btn">${t("s_reset")}</button><button class="btn" data-primary id="sSave">${t("s_save")}</button>`);
+  const num=(k)=>`<div class="unit"><input class="fi num" type="number" value="${SETTINGS[k]}" style="width:110px" aria-label="${S[k][0]}"><span>${S[k][2]}</span></div>`;
+  const row=(k,ctl)=>`<div class="set"><div><div class="k">${S[k][0]}</div>${S[k][1]?`<div class="h">${S[k][1]}</div>`:""}</div><div>${ctl}</div></div>`;
+  const sw=(k)=>`<button class="sw" role="switch" aria-checked="${SETTINGS[k]}" data-sw="${k}"><i></i><span>${SETTINGS[k]?(lang==="ar"?"مفعّل":"Activé"):(lang==="ar"?"معطّل":"Désactivé")}</span></button>`;
+  const T=t("tpl");
+  $("#body").innerHTML=`
+   <div class="grid2">
+    <div class="card"><h2>${t("sp")}</h2>${row("hot",num("hot"))}${row("winback",sw("winback"))}${row("winback_delay",num("winback_delay"))}${row("max_attempts",num("max_attempts"))}${row("cap",num("cap"))}${row("dist",`<select class="fi"><option ${SETTINGS.dist==="rel"?"selected":""}>${t("dist_rel")}</option><option ${SETTINGS.dist==="rr"?"selected":""}>${t("dist_rr")}</option></select>`)}</div>
+    <div class="card"><h2>${t("sd")}</h2>${row("stall",num("stall"))}${row("unverified",num("unverified"))}${row("high_value",num("high_value"))}${row("zone_rate",num("zone_rate"))}${row("zone_min",num("zone_min"))}${row("risk_fail",num("risk_fail"))}${row("proactive",num("proactive"))}${row("done_window",num("done_window"))}</div>
+   </div>
+   <div class="card"><h2>${t("sw")}<span class="r">${t("sw_sub")}</span></h2><div class="vars">${lang==="ar"?"المتغيرات":"Variables"} : <code>{name}</code> <code>{product}</code> <code>{price}</code> <code>{total}</code> <code>{courier}</code> <code>{last}</code> <code>{offer}</code> <code>{when}</code> <code>{address}</code></div>
+    ${Object.keys(T).map(k=>`<div class="tpl"><div class="k">${T[k][0]}<small>${T[k][1]}</small></div><textarea class="fi" aria-label="${T[k][0]} FR">${TPL.fr[k]}</textarea><textarea class="fi" dir="rtl" aria-label="${T[k][0]} AR">${TPL.ar[k]}</textarea></div>`).join("")}
+   </div>`;
+  $("#sSave").onclick=()=>toast(t("s_saved"));
+  $("#body").querySelectorAll("[data-sw]").forEach(b=>b.onclick=()=>{SETTINGS[b.dataset.sw]=!SETTINGS[b.dataset.sw];renderSettings()});
+}
+
+/* ── Wiring ── */
+function segSet(id,attr,val){document.querySelectorAll(`#${id} button`).forEach(b=>b.setAttribute("aria-pressed",b.dataset[attr]===val))}
+$("#segLang").onclick=(e)=>{const b=e.target.closest("button");if(!b)return;lang=b.dataset.lang;segSet("segLang","lang",lang);render()};
+$("#segScreen").onclick=(e)=>{const b=e.target.closest("button");if(!b)return;go(b.dataset.screen)};
+(function(){const q=new URLSearchParams(location.search);const L=q.get("lang"),S=q.get("screen"),st=q.get("step"),ag=q.get("agent");if(L&&I18N[L]){lang=L;segSet("segLang","lang",L)}if(S){screen=S;segSet("segScreen","screen",S)}if(st)wstep=Number(st);if(ag)agentFilter=ag;})();
+render();
+</script>
+</body>
+</html>

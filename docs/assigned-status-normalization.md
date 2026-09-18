@@ -1,5 +1,15 @@
 # Assigned Status Normalization Handoff
 
+> **RESOLVED — the data is clean (verified against the live database 2026-09-13).**
+> There are **zero** orders in `new` or `assigned` status; the normalization described
+> below completed. The `new` and `assigned` enum values still exist for historical
+> `order_history` rows and must not be dropped.
+>
+> Kept because the *model* it states is still the rule, and it is the clearest
+> explanation of why: **assignment is ownership (`orders.assigned_to`), never a status.**
+> A new order is `pending` whether or not someone owns it. Read the rest as the record of
+> a migration that is finished, not as an open problem.
+
 ## Purpose
 
 This note documents an order-status issue observed in the agent queue UI after the app changed assignment behavior.

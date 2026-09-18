@@ -131,7 +131,6 @@
       "stockInventory": "المخزون والجرد",
       "adSpend": "مصاريف الإعلانات",
       "activeProspects": "العملاء المحتملون",
-      "followUps": "المتابعات",
       "performanceLive": "أداء الفريق",
       "access": "الوصول",
       "marketsConfig": "الأسواق",
@@ -2923,181 +2922,6 @@
         }
       }
     },
-    "followUps": {
-      "nav": "متابعة الطلبات",
-      "title": "متابعة الطلبات",
-      "subtitle": "تنسيق التسليم للدفع عند الاستلام",
-      "newFollowUp": "متابعة جديدة",
-      "selectCustomer": "اختر عميلاً",
-      "searchCustomer": "ابحث برقم الهاتف",
-      "searching": "جاري البحث…",
-      "noMatches": "لا توجد طلبات مؤهلة",
-      "alreadyHasFollowUp": "متابعة مفتوحة بالفعل",
-      "change": "تغيير",
-      "deliveryManPhone": "رقم هاتف عامل التوصيل",
-      "deliveryMan": "عامل التوصيل",
-      "description": "الوصف / ملاحظات",
-      "order": "الطلب المرتبط",
-      "info": "معلومات",
-      "edit": "تعديل",
-      "save": "حفظ",
-      "saving": "جاري الحفظ…",
-      "cancel": "إلغاء",
-      "close": "إغلاق",
-      "submit": "إنشاء المتابعة",
-      "submitting": "جاري الإنشاء…",
-      "transitions": "تغيير الحالة",
-      "timeline": "السجل",
-      "noEntries": "لا توجد أحداث",
-      "addNote": "إضافة ملاحظة",
-      "adding": "جاري الإضافة…",
-      "addNotePlaceholder": "ملاحظة داخلية…",
-      "backToBoard": "العودة إلى اللوحة",
-      "notFound": "المتابعة غير موجودة",
-      "loading": "جاري التحميل…",
-      "columnEmpty": "—",
-      "emptyState": "لا توجد متابعات",
-      "emptyTimeline": "لا توجد متابعات في قائمتك",
-      "tabAll": "الكل",
-      "reset": "إعادة ضبط",
-      "previous": "السابق",
-      "next": "التالي",
-      "pageOf": "الصفحة {page} من {total}",
-      "totalCount": "{count} متابعة",
-      "allStatuses": "كل الحالات",
-      "allMarkets": "كل الأسواق",
-      "footerCount": "{count} متابعة",
-      "column": {
-        "loadMore": "عرض المزيد",
-        "loading": "جارٍ التحميل…"
-      },
-      "banner": {
-        "revealOne": "متابعة جديدة · عرض",
-        "revealMany": "{count} متابعات جديدة · عرض",
-        "dismiss": "تجاهل"
-      },
-      "view": {
-        "list": "قائمة",
-        "kanban": "كانبان"
-      },
-      "columns": {
-        "customer": "العميل",
-        "phone": "الهاتف",
-        "order": "الطلب",
-        "deliveryMan": "عامل التوصيل",
-        "status": "الحالة",
-        "updated": "آخر تحديث"
-      },
-      "metrics": {
-        "title": "مؤشرات المتابعة",
-        "total": "إجمالي المتابعات",
-        "open": "مفتوحة",
-        "inProgress": "قيد المعالجة",
-        "resolved": "تمت",
-        "escalated": "مصعدة"
-      },
-      "statuses": {
-        "open": "مفتوح",
-        "in_progress": "قيد المعالجة",
-        "resolved": "تم الحل",
-        "escalated": "تصعيد"
-      },
-      "errors": {
-        "noOrderSelected": "يرجى اختيار طلب",
-        "alreadyExists": "هناك متابعة موجودة بالفعل لهذا الطلب",
-        "phoneTooShort": "أدخل 3 أرقام على الأقل",
-        "generic": "حدث خطأ.",
-        "transitionFailed": "تعذّر تغيير الحالة.",
-        "addNoteFailed": "تعذّرت إضافة الملاحظة."
-      },
-      "campaigns": {
-        "title": "حملة اتصال جديدة",
-        "panelTitle": "الحملات",
-        "active": "نشط",
-        "panelCount": "حملة",
-        "panelEmpty": "لا توجد حملات. أنشئ واحدة للبدء.",
-        "save": "حفظ",
-        "editBtn": "إعادة تسمية",
-        "deleteBtn": "حذف",
-        "deleteConfirm": "حذف « {name} »؟ سيتم الاحتفاظ بالمتابعات المرتبطة.",
-        "deleteConfirmBtn": "تأكيد الحذف",
-        "stepFilter": "الفلاتر",
-        "stepPreview": "معاينة",
-        "stepConfirm": "تأكيد",
-        "new": "حملة جديدة",
-        "allCampaigns": "جميع الحملات",
-        "close": "إغلاق",
-        "cancel": "إلغاء",
-        "loading": "جارٍ التحميل…",
-        "previewBtn": "معاينة",
-        "back": "رجوع",
-        "next": "التالي",
-        "create": "إطلاق الحملة",
-        "name": "اسم الحملة",
-        "nameExample": "مثال: بيوفيرا — مراجعات أبريل",
-        "nameRequired": "الاسم مطلوب",
-        "confirmSummary": "سيتم إنشاء {count} متابعة ({skipped} مستبعدة لوجود متابعة نشطة).",
-        "created": "تم إنشاء {count} متابعة",
-        "filter": {
-          "market": "السوق",
-          "status": "حالة الطلب",
-          "dateFrom": "من",
-          "dateTo": "إلى",
-          "city": "المدينة (اختياري)",
-          "product": "المنتج (اختياري)"
-        },
-        "previewStats": {
-          "matched": "الطلبات المطابقة",
-          "skipped": "قيد المتابعة النشطة بالفعل",
-          "sampleOf": "معاينة ({count} صفوف)"
-        },
-        "assignment": {
-          "title": "توزيع المتابعات",
-          "roundRobin": "توزيع تلقائي (round-robin)",
-          "none": "ترك بدون توزيع",
-          "preview": "سيتم التوزيع على {count} وكلاء نشطين"
-        }
-      },
-      "due": "موعد: {time}",
-      "dueToday": "اليوم · {time}",
-      "overdue": "متأخر بـ {time}",
-      "noSchedule": "غير مجدول",
-      "scheduleSuggestion": "مراجعة خلال {duration} · {time}",
-      "acceptSchedule": "جدولة",
-      "skipSchedule": "تجاهل",
-      "overdueBucket": "متأخر",
-      "dueTodayBucket": "اليوم",
-      "dueFutureBucket": "قادم",
-      "noScheduleBucket": "غير مجدول",
-      "logAttempt": "تسجيل محاولة",
-      "selectOutcome": "نتيجة المكالمة",
-      "scheduleNextContact": "جدولة الاتصال التالي",
-      "myDueToday": "متابعاتي لليوم",
-      "viewTimeline": "متابعات",
-      "viewKanban": "كانبان",
-      "filters": "الفلاتر",
-      "statusLabel": "الحالة",
-      "outcomes": {
-        "voicemail": "بريد صوتي",
-        "no_answer": "لا إجابة",
-        "busy": "مشغول",
-        "other": "أخرى",
-        "converted": "تحويل",
-        "lost": "خسارة"
-      },
-      "lostReasonLabel": "سبب الخسارة",
-      "lostReasons": {
-        "faux_numero": "رقم خاطئ",
-        "refus_prix": "رفض السعر",
-        "injoignable": "لا يمكن الاتصال",
-        "autre": "أخرى"
-      },
-      "managerView": {
-        "title": "التأخيرات حسب الوكيل",
-        "overdueCount": "{count} متأخر",
-        "agentColumn": "الوكيل"
-      }
-    },
     "prospectCampaigns": {
       "title": "حملات إعادة التفاعل",
       "subtitle": "أعد استهداف عملائك السابقين بعروض جديدة.",
@@ -4375,7 +4199,7 @@
       "confirm": "إرسال على أي حال",
       "cancel": "إلغاء"
     },
-    "review":     {
+    "review": {
       "title": "الطلبات المكررة",
       "subtitle": "طلبات متطابقة لنفس العميل ضمن نفس النافذة. تحقق قبل الحذف.",
       "scopeNote": "آخر 90 يومًا · نافذة {hours} ساعة",
@@ -4417,7 +4241,7 @@
       "reasonInternal": "خطأ في الخادم"
     }
   },
-  "orderMerge":   {
+  "orderMerge": {
     "action": "دمج مع طلب آخر",
     "title": "دمج الطلبات",
     "subtitle": "نفس العميل، منتجات مختلفة. تسليم واحد ورسوم واحدة.",

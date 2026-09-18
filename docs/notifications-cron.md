@@ -1,9 +1,36 @@
-# Notifications cron (pg_cron)
+# Scheduled jobs (pg_cron) — and the notifications job in detail
 
-The agent notification bell relies on a per-minute job that scans for elapsed
-callbacks and stale notifications. Because Vercel's Hobby plan caps crons at
-once per day, we run the job inside Postgres via `pg_cron` instead of from
-Vercel.
+Everything scheduled in Ordra runs inside Postgres via `pg_cron`, not from Vercel,
+because Vercel's Hobby plan caps crons at once per day. **There are 12 active jobs**
+(verified against the live database 2026-09-13):
+
+| Job | Schedule | What it does |
+|---|---|---|
+| `notifications-check` | `* * * * *` | The agent bell — detailed below |
+| `dispatch-scheduled-5min` | `*/5 * * * *` | Uploads `dispatch_scheduled` orders to the carrier |
+| `carrier-polling-10min` | `*/10 * * * *` | Polls carriers for status changes |
+| `darb-sync-10min` | `3-59/10 * * * *` | Darb Assabil shipment + timeline sync |
+| `google-sheets-sync` | `*/15 * * * *` | Sheet-sourced order intake |
+| `agent-commissions-accrue-15min` | `8-59/15 * * * *` | Accrues agent commissions |
+| `investor-rollup-15min` | `4-59/15 * * * *` | Investor facts rollup (incremental) |
+| `meta-ads-sync` | `7 * * * *` | Hourly Meta ad-spend pull |
+| `auto-archive-finished-orders` | `0 3 * * *` | Archives terminal orders |
+| `darb-rates-harvest-nightly` | `17 2 * * *` | Harvests Darb shipping rates |
+| `delivery-zone-stats-nightly` | `17 2 * * *` | Recomputes per-zone delivery rates |
+| `investor-rollup-nightly` | `41 2 * * *` | Full investor rollup |
+
+The offset minutes (`3-59/10`, `8-59/15`, `4-59/15`, `:07`, `:17`, `:41`) are
+deliberate: they keep the heavy jobs from all firing on the same tick. Keep that spread
+when adding a job.
+
+List them with `select jobid, schedule, jobname, active from cron.job order by jobname;`
+
+---
+
+## The notifications job
+
+The agent notification bell relies on this per-minute job, which scans for elapsed
+callbacks and stale notifications.
 
 ## What runs and where
 

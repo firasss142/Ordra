@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="fr" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ordra — Fidélité (prototype v1)</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROTOTYPE — Finances → Fidélité
+   Every figure below is REAL, read from the live database on 2026-09-18.
+   Nothing here is invented or rounded for effect. Where a number is too thin
+   to trust, the screen says so rather than drawing a confident chart over it.
+
+   Token vocabulary follows the finance surfaces (--fin-*) per design-system
+   §4.21, since this is a manager/finance screen, not an agent one.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --fin-bg:#F7F9F8; --fin-line:#E8EEEA; --fin-navy:#0F172A;
+  --fin-ink-2:#475569; --fin-ink-3:#64748B;
+  --fin-green:#16A34A; --fin-green-ink:#15803D; --fin-mint:#E6F7EF;
+  --fin-teal:#0D9488; --fin-teal-ink:#0B6A60;
+  --fin-gold:#F59E0B; --fin-gold-ink:#8F5608;
+  --oms-surface:#FFFFFF; --oms-border:#EAE7E1; --oms-ink-1:#1B1917;
+  --oms-ink-2:#5C5852; --oms-ink-3:#78726A; --oms-sunken:#F4F3EF;
+  --bad:#B23A32; --bad-bg:#FDECEA;
+  --warn-ink:#8F5608; --warn-bg:#FEF3C7;
+  --brand:#15803D; --brand-bg:#E9F6EE;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fin-bg);color:var(--oms-ink-1);
+  font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 24px 80px}
+h1{font-size:22px;font-weight:650;letter-spacing:-.01em;margin:0;color:var(--fin-navy)}
+h2{font-size:15px;font-weight:650;margin:0 0 2px;color:var(--fin-navy)}
+.sub{font-size:13px;color:var(--fin-ink-3);margin:2px 0 0}
+.num{font-variant-numeric:tabular-nums}
+
+/* ── header ─────────────────────────────────────────────────────────────── */
+header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:6px}
+.seg{display:inline-flex;gap:2px;background:var(--oms-surface);
+  border:1px solid var(--oms-border);border-radius:10px;padding:3px}
+.seg button{border:0;background:transparent;font:inherit;font-size:13px;font-weight:550;
+  color:var(--oms-ink-2);padding:6px 12px;border-radius:7px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--brand-bg);color:var(--brand)}
+.paused{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;
+  background:var(--warn-bg);color:var(--warn-ink);padding:3px 8px;border-radius:999px;margin-inline-start:8px}
+
+/* ── the honest-window banner ───────────────────────────────────────────── */
+.window-note{display:flex;gap:10px;align-items:flex-start;background:var(--oms-surface);
+  border:1px solid var(--oms-border);border-inline-start:3px solid var(--fin-teal);
+  border-radius:10px;padding:11px 14px;margin:16px 0 20px}
+.window-note p{margin:0;font-size:12.5px;color:var(--fin-ink-2);line-height:1.55}
+.window-note strong{color:var(--fin-navy)}
+
+/* ── KPI row ────────────────────────────────────────────────────────────── */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+.kpi{background:var(--oms-surface);border:1px solid var(--oms-border);
+  border-radius:12px;padding:14px 15px}
+.kpi .lab{font-size:11.5px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;
+  color:var(--fin-ink-3);display:block;margin-bottom:7px}
+.kpi .val{font-size:26px;font-weight:660;letter-spacing:-.02em;color:var(--fin-navy);line-height:1.1}
+.kpi .val .unit{font-size:13px;font-weight:550;color:var(--fin-ink-3);margin-inline-start:3px}
+.kpi .foot{font-size:11.5px;color:var(--fin-ink-3);margin-top:6px;line-height:1.45}
+.kpi.alert{border-color:#F3C9C4;background:linear-gradient(0deg,#FFF9F8,#FFF9F8)}
+.kpi.alert .val{color:var(--bad)}
+
+/* ── cards ──────────────────────────────────────────────────────────────── */
+.card{background:var(--oms-surface);border:1px solid var(--oms-border);
+  border-radius:12px;padding:16px 18px;margin-bottom:16px}
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;
+  gap:12px;margin-bottom:14px}
+
+/* ── the leak panel (the finding that matters most) ─────────────────────── */
+.leak{border-color:#F3C9C4}
+.leak .card-head h2{color:var(--bad)}
+.leak-figure{display:flex;align-items:baseline;gap:10px;margin:2px 0 14px}
+.leak-figure .big{font-size:34px;font-weight:680;letter-spacing:-.02em;color:var(--bad);line-height:1}
+.leak-figure .of{font-size:13px;color:var(--fin-ink-2)}
+.bar{height:26px;display:flex;border-radius:7px;overflow:hidden;background:var(--oms-sunken)}
+.bar span{display:block}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:11px}
+.legend i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-inline-end:6px}
+.legend div{font-size:12px;color:var(--fin-ink-2)}
+.legend b{color:var(--fin-navy);font-weight:600}
+
+/* ── tables ─────────────────────────────────────────────────────────────── */
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+th{text-align:start;font-size:11px;font-weight:650;letter-spacing:.03em;text-transform:uppercase;
+  color:var(--fin-ink-3);padding:0 10px 8px;border-bottom:1px solid var(--fin-line)}
+th.r,td.r{text-align:end}
+td{padding:10px;border-bottom:1px solid var(--fin-line);color:var(--oms-ink-1)}
+tr:last-child td{border-bottom:0}
+.prod{font-weight:550}
+.muted{color:var(--fin-ink-3);font-size:12px}
+
+/* rate bar inside a table cell */
+.rate{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.rate .track{width:78px;height:6px;border-radius:3px;background:var(--oms-sunken);overflow:hidden}
+.rate .fill{height:100%;border-radius:3px;background:var(--fin-teal)}
+.rate .pct{min-width:38px;text-align:end;font-weight:600}
+
+/* thin-evidence marker — colour is never the only signal */
+.thin{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;
+  color:var(--warn-ink);background:var(--warn-bg);padding:2px 6px;border-radius:5px;
+  margin-inline-start:7px;white-space:nowrap}
+
+/* ── cohort grid ────────────────────────────────────────────────────────── */
+.cohorts{display:grid;gap:8px}
+.co{display:grid;grid-template-columns:104px 1fr 116px;align-items:center;gap:12px}
+.co .mth{font-size:12.5px;font-weight:600;color:var(--fin-navy)}
+.co .track{height:22px;background:var(--oms-sunken);border-radius:6px;position:relative;overflow:hidden}
+.co .fill{height:100%;background:var(--fin-teal);border-radius:6px}
+.co .meta{font-size:11.5px;color:var(--fin-ink-3);text-align:end}
+.co.young .fill{background:repeating-linear-gradient(135deg,#CBD5E1,#CBD5E1 5px,#E2E8F0 5px,#E2E8F0 10px)}
+
+/* ── pairs ──────────────────────────────────────────────────────────────── */
+.pair{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--fin-line)}
+.pair:last-child{border-bottom:0}
+.pair .a,.pair .b{font-size:13px}
+.pair .arrow{color:var(--fin-teal);font-weight:700}
+.pair .n{margin-inline-start:auto;font-size:12px;color:var(--fin-ink-3)}
+.ar{direction:rtl;unicode-bidi:plaintext;display:inline-block}
+
+.foot-note{font-size:11.5px;color:var(--fin-ink-3);margin-top:10px;line-height:1.55}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>Fidélité</h1>
+    <p class="sub">Qui revient, ce qui les fait revenir, et ce qui les en empêche.</p>
+  </div>
+  <div class="seg" role="group" aria-label="Marché">
+    <button aria-pressed="true">Libye</button>
+    <button aria-pressed="false">Tunisie</button>
+  </div>
+</header>
+
+<!-- The screen's first duty is to stop you over-reading a young dataset. -->
+<div class="window-note">
+  <div>
+    <p><strong>121 jours d'historique</strong> (premier client livré le 20 mai 2026).
+    Un client n'a pas encore eu le temps de revenir : l'écart médian entre deux
+    achats est de <strong>5 jours</strong> en Libye, mais la moitié des clients
+    livrés le sont depuis moins de 50 jours. Les taux ci-dessous sont des
+    <strong>planchers</strong>, pas des verdicts — ils ne peuvent que monter.</p>
+  </div>
+</div>
+
+<div class="kpis">
+  <div class="kpi">
+    <span class="lab">Clients livrés</span>
+    <div class="val num">551</div>
+    <div class="foot">Personnes distinctes ayant reçu au moins un colis.</div>
+  </div>
+  <div class="kpi">
+    <span class="lab">Ont racheté</span>
+    <div class="val num">5 <span class="unit">· 0,9 %</span></div>
+    <div class="foot">Deux colis reçus ou plus. Plancher : voir la note ci-dessus.</div>
+  </div>
+  <div class="kpi">
+    <span class="lab">Valeur d'un client fidèle</span>
+    <div class="val num">410 <span class="unit">LYD</span></div>
+    <div class="foot">Contre 188 LYD pour un client unique — <strong>2,2 ×</strong>.</div>
+  </div>
+  <div class="kpi alert">
+    <span class="lab">Rachats perdus</span>
+    <div class="val num">496</div>
+    <div class="foot">Ont commandé une 2ᵉ fois sans jamais être livrés.</div>
+  </div>
+</div>
+
+<!-- ═══ THE LEAK ═══════════════════════════════════════════════════════════
+     This is the finding that reframes the whole screen. The loyalty problem
+     is not that people don't come back — 501 of them did. It is that 496 of
+     those second orders never reached them. ══════════════════════════════ -->
+<section class="card leak">
+  <div class="card-head">
+    <div>
+      <h2>Ils sont revenus. On ne les a pas livrés.</h2>
+      <p class="sub">501 clients ont passé une 2ᵉ commande. 5 ont reçu les deux colis.</p>
+    </div>
+  </div>
+
+  <div class="leak-figure">
+    <span class="big num">99 %</span>
+    <span class="of">des tentatives de rachat n'aboutissent pas — soit
+      <strong class="num">91 016 LYD</strong> de commandes rejetées.</span>
+  </div>
+
+  <div class="bar" role="img"
+       aria-label="Devenir des commandes de rachat : 452 rejetées, 443 supprimées, 78 livrées, 72 annulées, 70 en cours">
+    <span style="width:41.5%;background:var(--bad)"></span>
+    <span style="width:40.6%;background:#D98A84"></span>
+    <span style="width:7.2%;background:var(--fin-green)"></span>
+    <span style="width:6.6%;background:#C9CCCF"></span>
+    <span style="width:4.1%;background:var(--fin-teal)"></span>
+  </div>
+  <div class="legend">
+    <div><i style="background:var(--bad)"></i><b class="num">452</b> rejetées</div>
+    <div><i style="background:#D98A84"></i><b class="num">443</b> supprimées (doublons)</div>
+    <div><i style="background:var(--fin-green)"></i><b class="num">78</b> livrées</div>
+    <div><i style="background:#C9CCCF"></i><b class="num">72</b> annulées</div>
+    <div><i style="background:var(--fin-teal)"></i><b class="num">70</b> en cours</div>
+  </div>
+
+  <div class="foot-note">
+    <strong>Le motif n'est pas « le client ne voulait plus ».</strong>
+    Sur les 452 rejets : <b class="num">106</b> « autre » sans précision
+    (21 166 LYD), <b class="num">85</b> injoignable, <b class="num">61</b> non
+    sérieux, <b class="num">46</b> doublon. Seuls <b class="num">64</b> sont un
+    refus client explicite et <b class="num">16</b> un refus sur le prix.
+    Autrement dit : <strong>la majorité de ces rachats ont été perdus au
+    téléphone, pas par le client.</strong>
+  </div>
+</section>
+
+<div class="two">
+  <!-- ═══ PRODUCTS ════════════════════════════════════════════════════════ -->
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2>Quel produit ramène le client ?</h2>
+        <p class="sub">Mesuré sur le produit qui a <em>acquis</em> le client,
+          pas sur celui qu'il a racheté.</p>
+      </div>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Produit d'acquisition</th>
+        <th class="r">Clients</th>
+        <th class="r">Reviennent</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td class="prod"><span class="ar">كتاب الحفظ الميسر</span>
+            <span class="thin">9 j observés</span></td>
+          <td class="r num">22</td>
+          <td class="r"><div class="rate"><div class="track"><div class="fill" style="width:45%"></div></div><span class="pct num">4,5 %</span></div></td>
+        </tr>
+        <tr>
+          <td class="prod"><span class="ar">دميه ملاكمه حجم كبير</span></td>
+          <td class="r num">57</td>
+          <td class="r"><div class="rate"><div class="track"><div class="fill" style="width:18%"></div></div><span class="pct num">1,8 %</span></div></td>
+        </tr>
+        <tr>
+          <td class="prod"><span class="ar">القرآن تدبر وعمل</span></td>
+          <td class="r num">130</td>
+          <td class="r"><div class="rate"><div class="track"><div class="fill" style="width:15%"></div></div><span class="pct num">1,5 %</span></div></td>
+        </tr>
+        <tr>
+          <td class="prod"><span class="ar">دميه ملاكمه حجم متوسط</span></td>
+          <td class="r num">110</td>
+          <td class="r"><div class="rate"><div class="track"><div class="fill" style="width:9%"></div></div><span class="pct num">0,9 %</span></div></td>
+        </tr>
+        <tr>
+          <td class="prod"><span class="ar">دميه ملاكمه حجم صغير</span></td>
+          <td class="r num">128</td>
+          <td class="r"><div class="rate"><div class="track"><div class="fill" style="width:0"></div></div><span class="pct num">0 %</span></div></td>
+        </tr>
+        <tr>
+          <td class="prod"><span class="ar">كتاب الداء والدواء</span></td>
+          <td class="r num">104</td>
+          <td class="r"><div class="rate"><div class="track"><div class="fill" style="width:0"></div></div><span class="pct num">0 %</span></div></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="foot-note">
+      Les <strong>livres</strong> ramènent ; les <strong>poupées de boxe</strong>
+      ne ramènent pas — 232 clients acquis sur les deux petites tailles,
+      <b class="num">1</b> seul revenu. Un objet qu'on achète une fois se
+      comporte comme tel, et c'est une information d'achat, pas un échec.
+    </div>
+  </section>
+
+  <!-- ═══ COHORTS ═════════════════════════════════════════════════════════ -->
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2>Par cohorte d'arrivée</h2>
+        <p class="sub">Un taux ne se lit qu'à temps d'observation égal.</p>
+      </div>
+    </div>
+    <div class="cohorts">
+      <div class="co">
+        <span class="mth">Juin 2026</span>
+        <div class="track"><div class="fill" style="width:4%"></div></div>
+        <span class="meta"><b class="num">1</b>/277 · 0,4 % · 109 j</span>
+      </div>
+      <div class="co">
+        <span class="mth">Juillet 2026</span>
+        <div class="track"><div class="fill" style="width:0"></div></div>
+        <span class="meta"><b class="num">0</b>/17 · 0 % · 79 j</span>
+      </div>
+      <div class="co young">
+        <span class="mth">Août 2026</span>
+        <div class="track"><div class="fill" style="width:14%"></div></div>
+        <span class="meta"><b class="num">2</b>/143 · 1,4 % · 48 j</span>
+      </div>
+      <div class="co young">
+        <span class="mth">Sept. 2026</span>
+        <div class="track"><div class="fill" style="width:18%"></div></div>
+        <span class="meta"><b class="num">2</b>/113 · 1,8 % · 17 j</span>
+      </div>
+    </div>
+    <div class="foot-note">
+      Les barres hachurées sont des cohortes <strong>trop jeunes pour
+      conclure</strong>. Le fait que septembre affiche déjà 1,8 % après 17 jours
+      quand juin plafonne à 0,4 % après 109 est encourageant — mais deux clients
+      ne font pas une tendance, et l'écran ne prétendra pas le contraire.
+    </div>
+  </section>
+</div>
+
+<!-- ═══ CROSS-SELL ════════════════════════════════════════════════════════ -->
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h2>Ce qu'ils achètent ensuite</h2>
+      <p class="sub">En Libye, 4 rachats sur 5 portent sur un <em>autre</em> produit —
+        c'est une vente croisée, pas un réassort.</p>
+    </div>
+  </div>
+  <div class="pair">
+    <span class="a ar">القرآن تدبر وعمل</span>
+    <span class="arrow" aria-label="puis">→</span>
+    <span class="b ar">كتاب الحفظ الميسر</span>
+    <span class="n"><b class="num">2</b> fois · ~46 jours après</span>
+  </div>
+  <div class="pair">
+    <span class="a ar">كتاب الحفظ الميسر</span>
+    <span class="arrow" aria-label="puis">→</span>
+    <span class="b ar">القرآن تدبر وعمل</span>
+    <span class="n"><b class="num">1</b> fois · ~1 jour après</span>
+  </div>
+  <div class="pair">
+    <span class="a ar">دميه ملاكمه حجم كبير</span>
+    <span class="arrow" aria-label="puis">→</span>
+    <span class="b ar">كتاب الداء والدواء</span>
+    <span class="n"><b class="num">1</b> fois · même jour</span>
+  </div>
+  <div class="foot-note">
+    <strong>Les deux livres coraniques se vendent l'un l'autre</strong>, à environ
+    six semaines d'intervalle. Le volume est faible (3 paires), donc c'est une
+    piste à tester — pas encore une règle. C'est aussi exactement la fenêtre où
+    un rappel aurait du sens.
+  </div>
+</section>
+
+<p class="foot-note" style="text-align:center">
+  Prototype v1 · chiffres réels lus le 18 septembre 2026 · marché Libye.
+  La Tunisie est <span class="paused">⏸ en pause depuis le 7 juillet</span>
+  ses 1 693 clients restent consultables pour la reprise.
+</p>
+
+</div>
+</body>
+</html>

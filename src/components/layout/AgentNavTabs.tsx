@@ -114,8 +114,7 @@ function AgentNavTabsInner({ user, variant = "band" }: Props) {
       prefetchKey: "/api/agent/leads/queue",
     },
     {
-      // « Suivi livraison » replaces the old follow-ups tab. The /follow-ups
-      // page is still reachable by URL until the rebuild's deletion phase.
+      // « Suivi livraison » replaced the old follow-ups tab, now deleted.
       href: `/${user.locale}/delivery`,
       label: tNav("delivery"),
       icon: Truck,

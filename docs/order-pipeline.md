@@ -1,171 +1,144 @@
 # Order Status Pipeline
 
-Source: OMS spec Section 6, corrected with fulfillment lifecycle.
+The `order_status` enum as it exists in the live database — **27 values**, verified
+2026-09-13. Rewritten that day: the previous version predated `uploaded`, `scanned`, the
+move of the stock boundary, and the whole Darb fulfillment vocabulary, and described a
+`confirmed → dispatched` path that no longer exists.
+
+Assignment is **ownership** (`orders.assigned_to`), not a status. A new order is
+`pending` whether or not anyone owns it.
 
 ---
 
-## Two-Phase Status Model
-
-Orders have two lifecycle phases in one status field:
-
-### Phase 1 — Confirmation (agent workflow)
+## Phase 1 — Confirmation (agent workflow)
 
 ```
-new
- └─→ assigned
-      ├─→ attempt_1
-      │    └─→ attempt_2
-      │         └─→ attempt_3
-      ├─→ callback_scheduled  (can repeat from any attempt)
-      ├─→ confirmed
-      │    └─→ dispatched     ← exits agent queue, enters fulfillment
-      └─→ rejected            ← TERMINAL
+pending
+ ├─→ attempt_1 → attempt_2 → attempt_3
+ ├─→ callback_scheduled        (can repeat from any attempt)
+ ├─→ confirmed                 ← phone outcome ONLY; no carrier work yet
+ │    ├─→ uploaded             ← separate "upload" action; carrier API succeeded
+ │    └─→ dispatch_scheduled → uploaded   (cron; never reverts to confirmed)
+ └─→ rejected                  ← TERMINAL
 
-cancelled                     ← TERMINAL (manager or system, any pre-dispatch)
+cancelled                      ← TERMINAL (manager/system, any pre-dispatch status)
+deleted                        ← TERMINAL (manager)
 ```
 
-### Phase 2 — Fulfillment (carrier lifecycle, post-dispatch)
+**Confirm is atomic and never depends on the carrier API.** Confirming puts the order in
+`confirmed` and stops. The carrier upload is a *separate* action landing on `uploaded`.
+On any upload failure the order stays `confirmed` (or `dispatch_scheduled` for
+cron-driven uploads) — never rolled further back. A retry is just a retry.
+
+## Phase 2 — Fulfillment (carrier lifecycle, post-scan)
+
+**Libya (Darb Assabil)** — the carrier's own vocabulary, since 2026-09-09:
 
 ```
-dispatched
- └─→ deposit                  ← COST BOUNDARY: carrier fees begin, stock −1
-      └─→ in_transit
-           ├─→ delivered      ← TERMINAL: revenue realized
-           └─→ returned       ← TERMINAL: stock +1 (unless damaged)
+scanned → at_carrier → in_transit → out_for_delivery ⇄ delivery_delayed
+                                  │      └─→ delivered        ← TERMINAL
+                                  └─→ returning → to_be_returned → returned  ← TERMINAL
+                                                                └─→ received → confirmed (re-sent)
 ```
 
----
+**Tunisia** keeps the older chain: `scanned → dispatched → deposit → in_transit →
+delivered | returned`.
 
-## Status Definitions
+A status is **never walked backwards** — `order_status_rank()` is the guard. See
+`docs/warehouse-sites-and-statuses.md`.
 
-| Status | Set by | What it means |
-|--------|--------|---------------|
-| new | System (webhook intake) | Order received, sitting in unassigned pool |
-| assigned | System or Manager | Given to an agent, appears in their queue |
-| attempt_1 | Agent | First call, customer didn't answer |
-| attempt_2 | Agent | Second call, no answer |
-| attempt_3 | Agent | Third call, no answer |
-| callback_scheduled | Agent | Customer asked to be called back at specific time |
-| confirmed | Agent | Customer said yes, agent selected carrier, pushing to API |
-| dispatched | System | Carrier API accepted the order — exits agent queue |
-| deposit | System / Manager | Carrier physically picked up package — cost boundary, stock −1 |
-| in_transit | System / Manager | Active delivery in progress |
-| delivered | System / Manager | Successful delivery — revenue realized |
-| returned | System / Manager | Package returned to warehouse — stock +1 (unless damaged) |
-| rejected | Agent | Customer refused / unreachable / duplicate / wrong number |
-| cancelled | System or Manager | Cancelled before dispatch (storefront cancel or manager override) |
+`dispatching` and `unverified` also exist in the enum: `dispatching` is a transient
+upload state, `unverified` a parking state for orders that failed verification
+(`unverified_after_days`).
 
 ---
 
-## Key Boundaries
+## Key boundaries
 
-- **dispatched** = order exits agent queue, enters fulfillment tracking
-- **deposit** = COST BOUNDARY — carrier fees and stock changes begin here
-- **delivered** = revenue realized
-- **returned** = stock +1 (unless damaged)
-
----
-
-## Terminal Statuses
-
-**delivered, returned, rejected, cancelled** — no further transitions allowed from these.
-
----
-
-## Transition Rules
-
-### Who can set what
-- **Agents** set: attempt_1, attempt_2, attempt_3, callback_scheduled, confirmed, rejected
-- **System** sets: new (on webhook intake), dispatched (on carrier API success)
-- **System / Manager** sets: deposit, in_transit, delivered, returned (fulfillment updates)
-- **Managers** can force: cancelled (at any pre-dispatch status)
-- **Agents NEVER set:** dispatched, deposit, in_transit, delivered, returned
-
-### Phase 1 — Confirmation transitions
-
-| From | Allowed To |
-|------|-----------|
-| new | assigned |
-| assigned | attempt_1, callback_scheduled, confirmed, rejected, cancelled |
-| attempt_1 | attempt_2, callback_scheduled, confirmed, rejected, cancelled |
-| attempt_2 | attempt_3, callback_scheduled, confirmed, rejected, cancelled |
-| attempt_3 | callback_scheduled, confirmed, rejected, cancelled |
-| callback_scheduled | attempt_1, attempt_2, attempt_3, confirmed, rejected, cancelled |
-| confirmed | dispatched, cancelled |
-
-### Phase 2 — Fulfillment transitions
-
-| From | Allowed To |
-|------|-----------|
-| dispatched | deposit, cancelled |
-| deposit | in_transit |
-| in_transit | delivered, returned |
-| delivered | *(none — terminal)* |
-| returned | *(none — terminal)* |
-| rejected | *(none — terminal)* |
-| cancelled | *(none — terminal)* |
-
-### How fulfillment statuses are set in v1
-OMS spec Section 15: "Carrier status webhook — manual or polling in v1."
-- Manager manually updates order status (dropdown on order detail page)
-- Background polling of carrier API (if available)
-- Future: carrier webhook pushes status updates automatically
-
-All paths write to the same `orders.status` field and append to `order_history`.
-
-### Max attempts
-Configurable per market via settings table (key: `max_call_attempts`, default: 3).
-After max attempts without confirmation, agent must confirm or reject. No more "no answer" allowed.
+| Status | Boundary |
+|---|---|
+| `confirmed` | Phone confirmation outcome only. Still in the agent queue, awaiting upload. |
+| `uploaded` | Carrier API succeeded; `tracking_number` + `carrier_id` set; ready to print + scan. |
+| `scanned` | **STOCK BOUNDARY** — warehouse scan-out deducts stock −qty. |
+| `dispatched` | Carrier acknowledged receipt (Tunisia chain). |
+| `deposit` | **COST BOUNDARY** — carrier fees begin (stock already moved at `scanned`). |
+| `delivered` | Revenue realized. |
+| `returned` | Stock +qty, unless damaged (increments `damaged_return_count`). |
 
 ---
 
-## Rejection Reasons (required on reject)
+## Terminal statuses
 
-| Value | French label | Meaning |
-|-------|-------------|---------|
-| refus_client | Refus client | Customer refused the order |
-| faux_numero | Faux numero | Phone number is wrong/fake |
-| doublon | Doublon | Duplicate order |
-| injoignable | Injoignable | Unreachable after max attempts |
-| prix | Prix | Price issue |
-| non_serieux | Non serieux | Not a serious buyer |
-| autre | Autre | Other — free text note required |
+`delivered` · `returned` · `rejected` · `cancelled` · `deleted` — no further transitions.
 
 ---
 
-## History Log
+## Who sets what
 
-Every status transition appends a row to `order_history`:
-- status_from → status_to
-- actor_id (agent or NULL for system)
-- actor_type (system, agent, manager)
-- note (rejection reason text, callback instructions, error message)
-- created_at
+- **Agents**: `attempt_*`, `callback_scheduled`, `confirmed`, `dispatch_scheduled`,
+  `uploaded` (via the upload action), `rejected`
+- **Warehouse**: `scanned` (`uploaded → scanned`, via `scan_order_out`)
+- **System**: `pending` (webhook intake), `deposit`, `in_transit`, the Darb statuses,
+  `delivered`, `returned`, `unverified`
+- **Managers** can force: `cancelled`, `deleted` (any pre-dispatch status)
+- **Agents NEVER set**: `scanned`, `dispatched`, `deposit`, `in_transit`, `delivered`,
+  `returned`
 
-**Immutable. No edits. No deletes. Ever.**
+Transitions go through `transition_order_status(...)` and `fulfill_order_transition(...)`;
+Darb promotions through `promote_darb_status(...)`. Every one appends to `order_history`.
 
----
-
-## Agent Queue Sort Order
-
-When displaying an agent's queue, orders sort in this priority:
-
-1. **callback_scheduled** where `callback_scheduled_at <= now()` — these are overdue callbacks, highest priority
-2. **attempt_*** statuses sorted by `created_at ASC` — oldest unfinished attempts first
-3. **assigned** (new, never attempted) sorted by `created_at ASC` — oldest first
-
-This ensures agents handle overdue callbacks first, then follow up on previous attempts, then work new orders.
+**Max attempts** is per market via `settings.max_call_attempts` (default 3).
 
 ---
 
-## Post-Call Action Sheet (Agent Workflow)
+## Rejection reasons (required when status = rejected)
 
-After agent clicks "Appel termine" on an order, a modal presents 4 options:
+**Nine values** in the `rejection_reason` enum:
 
-**Option 1 — Pas de reponse:** Increments attempt (attempt_1 → attempt_2 → attempt_3). Sets next callback time (default +2h). Order returns to queue.
+| Value | Meaning |
+|---|---|
+| `refus_client` | Customer refused the order |
+| `faux_numero` | Phone number wrong or fake |
+| `doublon` | Duplicate order |
+| `injoignable` | Unreachable after max attempts |
+| `prix` | Price issue |
+| `non_serieux` | Not a serious buyer |
+| `commande_invalide` | Order itself is invalid |
+| `livraison_impossible` | Cannot be delivered to this destination |
+| `autre` | Other — free-text note required |
 
-**Option 2 — Confirme:** Agent selects carrier. System pushes to carrier API synchronously. On success → dispatched, tracking number stored, order exits queue. On failure → error shown, order stays confirmed, retry available.
+---
 
-**Option 3 — Rejete:** Agent selects rejection reason (required). One tap to confirm. Order exits queue immediately.
+## History log
 
-**Option 4 — Rappel demande:** Agent selects date + time. Status → callback_scheduled. Order disappears from active queue and resurfaces at scheduled time.
+Every transition appends to `order_history`: `status_from → status_to`, `actor_id`
+(NULL for system), `actor_type`, `note`, `created_at`.
+
+**Append-only, enforced by `trg_order_history_append_only`.** No edits, no deletes, ever
+— the trigger will refuse. Correct a mistake by appending, never by rewriting.
+
+---
+
+## Agent queue sort order
+
+1. `callback_scheduled` where `callback_time <= now()` — overdue callbacks first
+2. `attempt_*` — oldest `created_at` first
+3. `pending` (untouched, owned by the agent) — oldest `created_at` first
+4. `confirmed` — shows the "Upload" affordance until `uploaded`
+
+## Post-call action sheet
+
+After "Appel terminé":
+
+1. **Pas de réponse** — increments the attempt and sets the next callback (default +2h);
+   the order returns to the queue.
+2. **Confirmé** — status → `confirmed`. **No carrier call happens here.** The upload is a
+   separate action that lands on `uploaded`, or leaves the order at `confirmed` on
+   failure.
+3. **Rejeté** — rejection reason required; the order leaves the queue immediately.
+4. **Rappel demandé** — date + time; status → `callback_scheduled`; the order resurfaces
+   at the scheduled moment.
+
+Related: `docs/order-presence-and-locking.md` (who may act on an order),
+`docs/warehouse-sites-and-statuses.md` (the Darb vocabulary and the scan),
+`docs/darb-assabil-sync.md` (where fulfillment statuses come from).

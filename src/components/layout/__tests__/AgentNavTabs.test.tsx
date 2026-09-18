@@ -12,7 +12,7 @@ vi.mock("swr", async (orig) => ({ ...(await orig<typeof import("swr")>()), prelo
 const user = { id: "a1", email: "a@x", full_name: "Hend", avatar_url: null, role: "agent", market_id: "m", locale: "fr", direction: "ltr" } as AuthUser;
 
 describe("AgentNavTabs", () => {
-  it("offers File, Prospects, Livraison and Commissions — Livraison replaces the old follow-ups tab", () => {
+  it("offers File, Prospects, Livraison and Commissions", () => {
     render(<NextIntlClientProvider locale="fr" messages={fr}><AgentNavTabs user={user} /></NextIntlClientProvider>);
     const links = screen.getAllByRole("link");
     expect(links.map((l) => l.getAttribute("href"))).toEqual(["/fr/queue", "/fr/leads", "/fr/delivery", "/fr/commissions"]);

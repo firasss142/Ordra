@@ -131,7 +131,6 @@
       "stockInventory": "Stock & inventaire",
       "adSpend": "Dépenses pub",
       "activeProspects": "Prospects",
-      "followUps": "Relances",
       "performanceLive": "Performance",
       "access": "Accès",
       "marketsConfig": "Marchés",
@@ -2923,181 +2922,6 @@
         }
       }
     },
-    "followUps": {
-      "nav": "Suivi de commande",
-      "title": "Suivi de commande",
-      "subtitle": "Coordination des livraisons en cash-on-delivery",
-      "newFollowUp": "Nouveau suivi",
-      "selectCustomer": "Sélectionner un client",
-      "searchCustomer": "Chercher par numéro de téléphone",
-      "searching": "Recherche…",
-      "noMatches": "Aucune commande éligible",
-      "alreadyHasFollowUp": "Suivi déjà ouvert",
-      "change": "Changer",
-      "deliveryManPhone": "Téléphone du livreur",
-      "deliveryMan": "Livreur",
-      "description": "Description / notes",
-      "order": "Commande liée",
-      "info": "Informations",
-      "edit": "Modifier",
-      "save": "Enregistrer",
-      "saving": "Enregistrement…",
-      "cancel": "Annuler",
-      "close": "Fermer",
-      "submit": "Créer le suivi",
-      "submitting": "Création…",
-      "transitions": "Changer le statut",
-      "timeline": "Historique",
-      "noEntries": "Aucun événement",
-      "addNote": "Ajouter une note",
-      "adding": "Ajout…",
-      "addNotePlaceholder": "Note interne…",
-      "backToBoard": "Retour au tableau",
-      "notFound": "Suivi introuvable",
-      "loading": "Chargement…",
-      "columnEmpty": "—",
-      "emptyState": "Aucun suivi",
-      "emptyTimeline": "Aucun suivi dans votre file",
-      "tabAll": "Tous",
-      "reset": "Réinitialiser",
-      "previous": "Précédent",
-      "next": "Suivant",
-      "pageOf": "Page {page} sur {total}",
-      "totalCount": "{count} suivi(s)",
-      "allStatuses": "Tous les statuts",
-      "allMarkets": "Tous les marchés",
-      "footerCount": "{count} suivi(s)",
-      "column": {
-        "loadMore": "Afficher plus",
-        "loading": "Chargement…"
-      },
-      "banner": {
-        "revealOne": "1 nouveau suivi · afficher",
-        "revealMany": "{count} nouveaux suivis · afficher",
-        "dismiss": "Ignorer"
-      },
-      "view": {
-        "list": "Liste",
-        "kanban": "Kanban"
-      },
-      "columns": {
-        "customer": "Client",
-        "phone": "Téléphone",
-        "order": "Commande",
-        "deliveryMan": "Livreur",
-        "status": "Statut",
-        "updated": "Mise à jour"
-      },
-      "metrics": {
-        "title": "Indicateurs suivi",
-        "total": "Suivis totaux",
-        "open": "Ouverts",
-        "inProgress": "En cours",
-        "resolved": "Résolus",
-        "escalated": "Escaladés"
-      },
-      "statuses": {
-        "open": "Ouvert",
-        "in_progress": "En cours",
-        "resolved": "Résolu",
-        "escalated": "Escaladé"
-      },
-      "errors": {
-        "noOrderSelected": "Veuillez sélectionner une commande",
-        "alreadyExists": "Un suivi existe déjà pour cette commande",
-        "phoneTooShort": "Saisissez au moins 3 chiffres",
-        "generic": "Une erreur est survenue.",
-        "transitionFailed": "Échec du changement de statut.",
-        "addNoteFailed": "Impossible d'ajouter la note."
-      },
-      "campaigns": {
-        "title": "Nouvelle campagne de rappel",
-        "panelTitle": "Campagnes",
-        "active": "Actif",
-        "panelCount": "campagne(s)",
-        "panelEmpty": "Aucune campagne. Créez-en une pour commencer.",
-        "save": "Enregistrer",
-        "editBtn": "Renommer",
-        "deleteBtn": "Supprimer",
-        "deleteConfirm": "Supprimer « {name} » ? Les suivis associés seront conservés.",
-        "deleteConfirmBtn": "Confirmer la suppression",
-        "stepFilter": "Filtres",
-        "stepPreview": "Aperçu",
-        "stepConfirm": "Confirmer",
-        "new": "Nouvelle campagne",
-        "allCampaigns": "Toutes les campagnes",
-        "close": "Fermer",
-        "cancel": "Annuler",
-        "loading": "Chargement…",
-        "previewBtn": "Aperçu",
-        "back": "Retour",
-        "next": "Suivant",
-        "create": "Lancer la campagne",
-        "name": "Nom de la campagne",
-        "nameExample": "ex : Biovera — avril rappels",
-        "nameRequired": "Le nom est requis",
-        "confirmSummary": "{count} suivi(s) seront créés ({skipped} ignorés car déjà actifs).",
-        "created": "{count} suivi(s) créés",
-        "filter": {
-          "market": "Marché",
-          "status": "Statut de commande",
-          "dateFrom": "Du",
-          "dateTo": "Au",
-          "city": "Ville (optionnel)",
-          "product": "Produit (optionnel)"
-        },
-        "previewStats": {
-          "matched": "Commandes correspondantes",
-          "skipped": "Déjà en suivi actif",
-          "sampleOf": "Aperçu ({count} lignes)"
-        },
-        "assignment": {
-          "title": "Attribution des suivis",
-          "roundRobin": "Distribuer automatiquement (round-robin)",
-          "none": "Laisser sans attribution",
-          "preview": "Sera distribué entre {count} agents actifs"
-        }
-      },
-      "due": "Prévu le {time}",
-      "dueToday": "Aujourd'hui · {time}",
-      "overdue": "En retard de {time}",
-      "noSchedule": "Non planifié",
-      "scheduleSuggestion": "Rappeler dans {duration} · {time}",
-      "acceptSchedule": "Planifier",
-      "skipSchedule": "Ignorer",
-      "overdueBucket": "En retard",
-      "dueTodayBucket": "Aujourd'hui",
-      "dueFutureBucket": "À venir",
-      "noScheduleBucket": "Non planifiés",
-      "logAttempt": "Enregistrer tentative",
-      "selectOutcome": "Résultat de l'appel",
-      "scheduleNextContact": "Planifier le prochain contact",
-      "myDueToday": "Mes relances du jour",
-      "viewTimeline": "Relances",
-      "viewKanban": "Kanban",
-      "filters": "Filtres",
-      "statusLabel": "Statut",
-      "outcomes": {
-        "voicemail": "Messagerie",
-        "no_answer": "Pas de réponse",
-        "busy": "Occupé",
-        "other": "Autre",
-        "converted": "Converti",
-        "lost": "Perdu"
-      },
-      "lostReasonLabel": "Raison de la perte",
-      "lostReasons": {
-        "faux_numero": "Faux numéro",
-        "refus_prix": "Refus du prix",
-        "injoignable": "Injoignable",
-        "autre": "Autre"
-      },
-      "managerView": {
-        "title": "Retards par agent",
-        "overdueCount": "{count} en retard",
-        "agentColumn": "Agent"
-      }
-    },
     "prospectCampaigns": {
       "title": "Campagnes de réengagement",
       "subtitle": "Reciblez vos anciens clients avec de nouvelles offres.",
@@ -4375,7 +4199,7 @@
       "confirm": "Envoyer quand même",
       "cancel": "Annuler"
     },
-    "review":     {
+    "review": {
       "title": "Doublons",
       "subtitle": "Commandes identiques du même client dans la même fenêtre. Vérifiez avant de supprimer.",
       "scopeNote": "90 derniers jours · fenêtre de {hours} h",
@@ -4417,7 +4241,7 @@
       "reasonInternal": "Erreur serveur"
     }
   },
-  "orderMerge":   {
+  "orderMerge": {
     "action": "Fusionner avec une autre commande",
     "title": "Fusionner les commandes",
     "subtitle": "Même client, produits différents. Une seule livraison, un seul frais.",

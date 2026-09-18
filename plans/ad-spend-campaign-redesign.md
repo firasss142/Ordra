@@ -1,5 +1,24 @@
 # Ad Spend → Campaign Management Redesign
 
+> ## ⚠ SUPERSEDED — do not build from this plan (marked 2026-09-13)
+>
+> Kept for its reasoning only. Superseded by `plans/ad-spend-meta-sync-redesign.md`;
+> the shipped surface is described in `docs/ad-spend.md`. Specifically wrong here:
+>
+> - Targets `/settings/ad-spend`, which is now only a **redirect** to
+>   `/finance/ad-spend`.
+> - Names six components that were **never built**: `AdSpendRollups.tsx`,
+>   `AdSpendTimeline.tsx`, `AdSpendCampaignCard.tsx`, `AdSpendCampaignList.tsx` and two
+>   matching test files.
+> - Claims "no migration / no `ad_spend` schema change" —
+>   `20260906000001_ad_spend_meta_sync.sql` added 14 columns and three tables.
+> - Sanctions a **dark cinematic palette** (`#061A1C`, `#02090A`, `#36F4A4`) against the
+>   light-console rule. The shipped page is light, on the `--ads-*` tokens
+>   (`docs/design-system.md` §4.21).
+> - Its 4-card KPI strip (week / month / YTD / cost-per-confirmation) was deliberately
+>   **repudiated** by the shipped code, which holds that those totals "say how much was
+>   spent but never whether spending it was a good idea."
+
 ## Why
 Today's `/settings/ad-spend` is a form-driven CRUD table. The user manages money as bookkeeping — not as campaign performance. Redesign reframes each entry as a *campaign block* with realized results (confirmations, CPC, ROAS) so the user can answer "did this spend work?" in one glance. P&L and CPL calculations downstream are not changing shape; this is a UX surface redesign plus supporting API work.
 

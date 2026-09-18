@@ -71,19 +71,3 @@ export {
   isValidLeadTransition,
 } from "./lead";
 
-export type {
-  OrderFollowUp,
-  OrderFollowUpEntry,
-  OrderFollowUpWithOrder,
-  OrderFollowUpWithHistory,
-  FollowUpOrderSnapshot,
-  FollowUpStatus,
-  FollowUpActorType,
-  CustomerSearchResult,
-} from "./follow-up";
-export {
-  FOLLOW_UP_STATUSES,
-  TERMINAL_FOLLOW_UP_STATUSES,
-  isTerminalFollowUpStatus,
-  isValidFollowUpTransition,
-} from "./follow-up";

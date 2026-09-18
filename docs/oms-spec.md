@@ -1,6 +1,15 @@
-# Order Management System (OMS) — Product Specification
+# Ordra — Product Specification
 **Version 1.0 — April 2026**
-*Single source of truth for product vision, business logic, roles, workflows, metrics, and inventory.*
+*Product vision, business logic, roles, workflows, metrics, and inventory.*
+
+> **Read this as intent, not as a description of the running system.** Written April
+> 2026; the product has moved a long way since (delivery worklist, customers, ad-spend
+> economics, the team console, two warehouse sites, the Darb status vocabulary). It is
+> still the best statement of *why* Ordra works the way it does.
+>
+> For what is actually deployed: `docs/database-schema.md` (read from the live database)
+> and the per-domain references in `CLAUDE.md`. Where this file and those disagree, this
+> file is the older claim. Reviewed 2026-09-13.
 
 ---
 

@@ -9,11 +9,9 @@ export const dynamic = "force-dynamic";
 /**
  * Who this phone number belongs to, for the create-order panel.
  *
- * Distinct from /api/customers/search, which serves the follow-ups feature and
- * only ever returns orders in follow-up-eligible statuses — a customer whose
- * five orders were all delivered is invisible to it. This one answers a
- * different question: "have we sold to this number before, and what did we
- * write down about them last time".
+ * Answers "have we sold to this number before, and what did we write down
+ * about them last time". (It used to be paired with /api/customers/search,
+ * which served the deleted follow-ups feature.)
  *
  * Matched on national digits, because the same customer's number is stored
  * three ways in this data (`925782017`, `0925782017`, `+218925782017`) and a

@@ -1,15 +1,25 @@
 # Business Profitability Logic
 
-Created in Session 12. Defines how profitability is calculated at market and product level.
+How profitability is calculated at market and product level. Reviewed 2026-09-13.
+
+**This is the event-windowed P&L** (Finances → P&L global): it counts what *happened*
+in the window. Finances → Dépenses pub uses a **cohort** basis instead — leads created
+in the window, followed wherever they land — and the two deliberately do not tie out.
+See `docs/ad-spend.md` §2 before reconciling them.
 
 ---
 
 ## Core Formula
 
 ```
-Net Profit = Revenue − COGS − Delivery Cost − Return Cost − Packing Cost − Ad Spend
+Net Profit = Revenue − COGS − Delivery Cost − Return Cost − Packing Cost
+             − Processing Cost − Ad Spend
 Margin = (Net Profit / Revenue) × 100
 ```
+
+Processing cost (`products.confirmation_processing_cost × confirmed_count`) is part of
+the canonical model — see the Processing Cost section below. It is charged per
+**confirmed** order, like packing. Omitting it overstates profit.
 
 ---
 

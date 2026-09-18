@@ -10,7 +10,6 @@ import {
   Boxes,
   ChevronRight,
   ChevronsUpDown,
-  ClipboardList,
   CopyCheck,
   DollarSign,
   FileClock,
@@ -194,7 +193,6 @@ const NAV_SECTIONS: readonly NavSection[] = [
     icon: Users,
     items: [
       { key: "activeProspects", href: "leads", icon: Target, prefetchRoute: "leads" },
-      { key: "followUps", href: "follow-ups", icon: ClipboardList, prefetchRoute: "follow-ups" },
     ],
   },
   {
