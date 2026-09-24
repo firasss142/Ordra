@@ -4166,6 +4166,34 @@
       "totalOrders": "Total des commandes : {count}",
       "unknownCustomer": "Client inconnu"
     },
+    "modal": {
+      "title": "Historique client",
+      "close": "Fermer",
+      "loading": "Chargement de l'historique…",
+      "error": "Impossible de charger l'historique. Réessayez.",
+      "thisOrder": "cette commande",
+      "thisCustomer": "Ce client",
+      "shown": "Commandes affichées",
+      "delivered": "Livrées",
+      "inFlight": "En cours",
+      "city": "Ville",
+      "trackRecord": "Antécédents",
+      "thinBase": "base étroite",
+      "deliveryRate": "Livraison",
+      "confirmationRate": "Confirmation",
+      "deliveryBasis": "{n} livrée(s) sur {d} aboutie(s)",
+      "confirmationBasis": "{n} confirmée(s) sur {d} décidée(s)",
+      "noBasis": "Rien d'abouti",
+      "colRef": "Référence",
+      "colProduct": "Produit",
+      "colDate": "Date",
+      "colStatus": "Statut",
+      "colTotal": "Total",
+      "openOrder": "Ouvrir la commande {externalId}",
+      "openInOrders": "Ouvrir dans Commandes",
+      "cap": "Au-delà de 20 commandes, les plus anciennes ne sont pas chargées.",
+      "unknownProduct": "Produit inconnu"
+    },
     "addressChange": "↳ nouvelle adresse (avant : {previous})"
   },
   "duplicateOrder": {
@@ -4180,7 +4208,8 @@
       "qty": "Qté {quantity}",
       "seeOrder": "Voir la commande",
       "duplicateMark": "Doublon",
-      "unknownCustomer": "Client inconnu"
+      "unknownCustomer": "Client inconnu",
+      "seeHistory": "Historique client"
     },
     "dialog": {
       "title": "Doublons possibles",

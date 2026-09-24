@@ -6,6 +6,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { Copy, AlertTriangle, Trash2 } from "lucide-react";
 import { canDeleteDuplicateSiblingStatus } from "@/lib/order-permissions";
 import { RelatedOrderCard } from "@/components/shared/RelatedOrderCard";
+import { CustomerHistoryModal } from "@/components/shared/CustomerHistoryModal";
 import type { SiblingOrder } from "@/lib/duplicate-orders/detect";
 
 export interface DuplicateOrderBadgeProps {
@@ -25,6 +26,12 @@ export interface DuplicateOrderBadgeProps {
   anchorCustomerCity: string | null;
   /** Display currency code: "LBY" | "TND". */
   currencyCode: string;
+  /** Storefront reference of this order, shown in the history panel. */
+  anchorExternalId?: string | null;
+  /** Quantity on this order, shown as ×N in the history panel. */
+  anchorQuantity?: number | null;
+  /** Shown in the history panel, and behind its filtered-orders link. */
+  customerPhone?: string | null;
   /** UX affordance for showing the per-sibling delete button (server is the real gate). */
   canDelete?: boolean;
   /** Called after a successful delete so the parent can revalidate its data. */
@@ -61,6 +68,9 @@ export function DuplicateOrderBadge({
   anchorCustomerAddress,
   anchorCustomerCity,
   currencyCode,
+  anchorExternalId = null,
+  anchorQuantity = null,
+  customerPhone = null,
   canDelete = false,
   onChange,
 }: DuplicateOrderBadgeProps) {
@@ -69,6 +79,9 @@ export function DuplicateOrderBadge({
   const popoverId = useId();
 
   const [open, setOpen] = useState(false);
+  // Lives on the badge, not in the popover: the popover unmounts the moment the
+  // cursor leaves the chip, and it must not take the panel with it.
+  const [historyOpen, setHistoryOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const triggerRef = useRef<HTMLSpanElement | null>(null);
 
@@ -83,6 +96,7 @@ export function DuplicateOrderBadge({
   }
 
   return (
+    <>
     <span
       ref={triggerRef}
       className="relative inline-flex shrink-0"
@@ -142,9 +156,41 @@ export function DuplicateOrderBadge({
           anchorCustomerCity={anchorCustomerCity}
           canDelete={canDelete}
           onChange={onChange}
+          onSeeHistory={() => {
+            // Hand over cleanly: the hover card goes, the panel arrives.
+            if (closeTimer.current) clearTimeout(closeTimer.current);
+            setOpen(false);
+            setHistoryOpen(true);
+          }}
         />
       )}
     </span>
+
+    {/*
+      Sibling of the hover span, behind its own click guard: the Sheet overlay
+      covers the viewport and would otherwise bubble a click into the order row.
+    */}
+    <span onClick={(e) => e.stopPropagation()} className="contents">
+      <CustomerHistoryModal
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        source="order"
+        sourceId={anchorOrderId}
+        currencyCode={currencyCode}
+        customerPhone={customerPhone}
+        anchorOrderId={anchorOrderId}
+        anchorExternalId={anchorExternalId}
+        anchorStatus={anchorStatus}
+        anchorCreatedAt={anchorCreatedAt}
+        anchorTotalPrice={anchorTotalPrice}
+        anchorProductName={anchorProductName}
+        anchorProductImageUrl={anchorProductImageUrl}
+        anchorQuantity={anchorQuantity}
+        anchorCustomerName={anchorCustomerName}
+        anchorCustomerCity={anchorCustomerCity}
+      />
+    </span>
+    </>
   );
 }
 
@@ -167,6 +213,8 @@ interface DuplicatePopoverProps {
   anchorCustomerCity: string | null;
   canDelete: boolean;
   onChange?: () => void;
+  /** Opens the customer's full history in the page. */
+  onSeeHistory: () => void;
 }
 
 const POPOVER_WIDTH = 340;
@@ -192,6 +240,7 @@ function DuplicatePopover({
   anchorCustomerCity,
   canDelete,
   onChange,
+  onSeeHistory,
 }: DuplicatePopoverProps) {
   const t = useTranslations("duplicateOrder.dialog");
   const tPop = useTranslations("duplicateOrder.popover");
@@ -312,7 +361,24 @@ function DuplicatePopover({
           <AlertTriangle size={14} strokeWidth={2.25} aria-hidden="true" />
           {t("title")}
         </div>
-        <div className="mt-0.5 text-[12px] text-ink-muted">{t("subtitle")}</div>
+        {/*
+          The duplicate group answers "is this parcel a mistake?". The customer's
+          whole history answers "who is this person?" — one hop away, same panel
+          the repeat-buyer pill opens, so the two badges never disagree.
+        */}
+        <div className="mt-0.5 flex items-start justify-between gap-3 text-[12px] text-ink-muted">
+          <span>{t("subtitle")}</span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSeeHistory();
+            }}
+            className="shrink-0 font-medium text-status-action hover:underline"
+          >
+            {tPop("seeHistory")}
+          </button>
+        </div>
       </div>
 
       {error && (

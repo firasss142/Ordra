@@ -229,4 +229,67 @@ describe("RepeatBuyerBadge", () => {
 
     setHistoryDetail(null);
   });
+
+  describe("« Voir toutes les commandes »", () => {
+    const EMPTY_HISTORY = {
+      orders: [],
+      leads: [],
+      stats: {
+        total_orders: 0,
+        delivered_count: 0,
+        returned_count: 0,
+        rejected_count: 0,
+        lifetime_value: 0,
+      },
+    };
+
+    function openPopover() {
+      setHistoryDetail(EMPTY_HISTORY);
+      const { container } = render(
+        <RepeatBuyerBadge
+          {...baseProps}
+          repeatKind="repeat"
+          priorOrderCount={2}
+          customerPhone="0915489053"
+        />,
+      );
+      fireEvent.mouseEnter(
+        container.querySelector("[data-repeat-kind='repeat']")!.parentElement!,
+      );
+      return screen.getByText(frMessages.customerHistory.popover.seeAll).closest("button, a")!;
+    }
+
+    /**
+     * The whole point of the change. It used to be an <a target="_blank">, which
+     * threw the agent into a second tab mid-call and lost the row they were on.
+     */
+    it("is a button, not a link that opens another tab", () => {
+      const trigger = openPopover();
+      expect(trigger.tagName).toBe("BUTTON");
+      expect(trigger).not.toHaveAttribute("href");
+      expect(trigger).not.toHaveAttribute("target");
+      setHistoryDetail(null);
+    });
+
+    it("opens the history panel in the same page", () => {
+      const trigger = openPopover();
+      // The hover card itself carries role="dialog", so the panel has to be
+      // addressed by its accessible name rather than by role alone.
+      const byName = { name: frMessages.customerHistory.modal.title };
+      expect(screen.queryByRole("dialog", byName)).not.toBeInTheDocument();
+
+      fireEvent.click(trigger);
+
+      expect(screen.getByRole("dialog", byName)).toBeInTheDocument();
+      setHistoryDetail(null);
+    });
+
+    it("shows the order in hand even when the customer has no other orders", () => {
+      const trigger = openPopover();
+      fireEvent.click(trigger);
+      // The anchor is folded in, so the panel is never empty.
+      expect(screen.getByTestId("ch-shown")).toHaveTextContent("1");
+      setHistoryDetail(null);
+    });
+  });
 });

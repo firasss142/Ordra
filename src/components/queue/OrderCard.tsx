@@ -329,6 +329,7 @@ export const OrderCard = memo(function OrderCard({
                   priorRejectedCount={order.prior_rejected_count}
                   currencyCode={displayCurrency}
                   customerPhone={order.customer_phone}
+                  anchorQuantity={order.quantity}
                   anchorOrderId={order.id}
                   anchorStatus={order.status}
                   anchorCreatedAt={order.created_at}
@@ -355,6 +356,8 @@ export const OrderCard = memo(function OrderCard({
                   anchorCustomerAddress={order.customer_address}
                   anchorCustomerCity={order.customer_city}
                   currencyCode={displayCurrency}
+                  customerPhone={order.customer_phone}
+                  anchorQuantity={order.quantity}
                   canDelete={canDeleteDuplicateSiblingStatus(order.status)}
                   onChange={onMutate}
                 />

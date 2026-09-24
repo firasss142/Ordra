@@ -4166,6 +4166,34 @@
       "totalOrders": "إجمالي الطلبات: {count}",
       "unknownCustomer": "عميل غير معروف"
     },
+    "modal": {
+      "title": "سجل العميل",
+      "close": "إغلاق",
+      "loading": "جارٍ تحميل السجل…",
+      "error": "تعذر تحميل السجل. حاول مرة أخرى.",
+      "thisOrder": "هذا الطلب",
+      "thisCustomer": "هذا العميل",
+      "shown": "الطلبات المعروضة",
+      "delivered": "المسلَّمة",
+      "inFlight": "قيد التنفيذ",
+      "city": "المدينة",
+      "trackRecord": "السوابق",
+      "thinBase": "أساس ضيق",
+      "deliveryRate": "التسليم",
+      "confirmationRate": "التأكيد",
+      "deliveryBasis": "{n} مسلَّم من {d} منتهٍ",
+      "confirmationBasis": "{n} مؤكَّد من {d} محسوم",
+      "noBasis": "لا شيء منتهٍ",
+      "colRef": "المرجع",
+      "colProduct": "المنتج",
+      "colDate": "التاريخ",
+      "colStatus": "الحالة",
+      "colTotal": "الإجمالي",
+      "openOrder": "فتح الطلب {externalId}",
+      "openInOrders": "فتح في الطلبات",
+      "cap": "بعد 20 طلبًا، لا يتم تحميل الأقدم.",
+      "unknownProduct": "منتج غير معروف"
+    },
     "addressChange": "↳ عنوان جديد (سابقًا: {previous})"
   },
   "duplicateOrder": {
@@ -4180,7 +4208,8 @@
       "qty": "الكمية {quantity}",
       "seeOrder": "عرض الطلب",
       "duplicateMark": "مكرر",
-      "unknownCustomer": "عميل غير معروف"
+      "unknownCustomer": "عميل غير معروف",
+      "seeHistory": "سجل العميل"
     },
     "dialog": {
       "title": "تكرارات محتملة",

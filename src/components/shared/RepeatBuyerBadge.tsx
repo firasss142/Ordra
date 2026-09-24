@@ -3,9 +3,10 @@
 import { useState, useRef, useId, useLayoutEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
-import { Repeat2, AlertTriangle, ExternalLink } from "lucide-react";
+import { Repeat2, AlertTriangle, Maximize2 } from "lucide-react";
 import { RelatedOrderCard } from "@/components/shared/RelatedOrderCard";
 import { useCustomerHistory } from "@/hooks/useCustomerHistory";
+import { CustomerHistoryModal } from "@/components/shared/CustomerHistoryModal";
 import type { RepeatKind } from "@/lib/customer-history/classify";
 
 export interface RepeatBuyerBadgeProps {
@@ -17,8 +18,12 @@ export interface RepeatBuyerBadgeProps {
   priorRejectedCount: number;
   /** Display currency code: "LBY" | "TND" — rendered on each history card. */
   currencyCode: string;
-  /** Optional: if provided and the source is an order, "See all orders" deep-links to filtered orders. */
+  /** Optional: if provided, the history panel can offer a filtered orders link. */
   customerPhone?: string | null;
+  /** Optional: storefront reference of the hovered order, shown in the history panel. */
+  anchorExternalId?: string | null;
+  /** Optional: quantity on the hovered order, shown as ×N in the history panel. */
+  anchorQuantity?: number | null;
   locale?: string;
   /**
    * Hovered order/lead fields — rendered as a card in the popover so users see
@@ -68,6 +73,10 @@ export function RepeatBuyerBadge(props: RepeatBuyerBadgeProps) {
   const popoverId = useId();
 
   const [open, setOpen] = useState(false);
+  // The full history panel. Kept here rather than inside the popover so that
+  // the popover closing (which happens the moment the cursor leaves the chip)
+  // cannot take the panel down with it.
+  const [historyOpen, setHistoryOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const triggerRef = useRef<HTMLSpanElement | null>(null);
 
@@ -96,6 +105,7 @@ export function RepeatBuyerBadge(props: RepeatBuyerBadgeProps) {
   }
 
   return (
+    <>
     <span
       ref={triggerRef}
       className="relative inline-flex shrink-0"
@@ -141,7 +151,6 @@ export function RepeatBuyerBadge(props: RepeatBuyerBadgeProps) {
           locale={locale}
           tStatuses={tStatuses}
           currencyCode={props.currencyCode}
-          customerPhone={props.customerPhone ?? null}
           anchorOrderId={props.anchorOrderId}
           anchorStatus={props.anchorStatus}
           anchorCreatedAt={props.anchorCreatedAt}
@@ -151,9 +160,42 @@ export function RepeatBuyerBadge(props: RepeatBuyerBadgeProps) {
           anchorCustomerName={props.anchorCustomerName}
           anchorCustomerAddress={props.anchorCustomerAddress}
           anchorCustomerCity={props.anchorCustomerCity}
+          onSeeAll={() => {
+            // Hand over cleanly: the hover card goes, the panel arrives.
+            setOpen(false);
+            setHistoryOpen(true);
+          }}
         />
       )}
     </span>
+
+    {/*
+      Sibling of the hover span, so leaving the chip cannot unmount it, and
+      wrapped in its own click guard: the Sheet's overlay covers the viewport
+      and would otherwise bubble a click into the order row behind it.
+    */}
+    <span onClick={stop} className="contents">
+      <CustomerHistoryModal
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        source={source}
+        sourceId={sourceId}
+        currencyCode={props.currencyCode}
+        locale={locale}
+        customerPhone={props.customerPhone ?? null}
+        anchorOrderId={props.anchorOrderId}
+        anchorExternalId={props.anchorExternalId ?? null}
+        anchorStatus={props.anchorStatus}
+        anchorCreatedAt={props.anchorCreatedAt}
+        anchorTotalPrice={props.anchorTotalPrice}
+        anchorProductName={props.anchorProductName}
+        anchorProductImageUrl={props.anchorProductImageUrl}
+        anchorQuantity={props.anchorQuantity ?? null}
+        anchorCustomerName={props.anchorCustomerName}
+        anchorCustomerCity={props.anchorCustomerCity}
+      />
+    </span>
+    </>
   );
 }
 
@@ -171,7 +213,6 @@ interface PopoverPanelProps {
   locale: string;
   tStatuses: ReturnType<typeof useTranslations>;
   currencyCode: string;
-  customerPhone: string | null;
   anchorOrderId: string;
   anchorStatus: string;
   anchorCreatedAt: string;
@@ -181,6 +222,8 @@ interface PopoverPanelProps {
   anchorCustomerName: string | null;
   anchorCustomerAddress: string | null;
   anchorCustomerCity: string | null;
+  /** Opens the full history panel in place of the old new-tab link. */
+  onSeeAll: () => void;
 }
 
 const POPOVER_WIDTH = 320;
@@ -201,7 +244,7 @@ function PopoverPanel({
   locale,
   tStatuses,
   currencyCode,
-  customerPhone,
+  onSeeAll,
   anchorOrderId,
   anchorStatus,
   anchorCreatedAt,
@@ -279,10 +322,6 @@ function PopoverPanel({
           delivered: stats?.delivered_count ?? 0,
         });
 
-  const seeAllHref = customerPhone
-    ? `/${locale}/orders?q=${encodeURIComponent(customerPhone)}`
-    : null;
-
   // Header count includes the hovered order in the merged list (N+1).
   const totalCount = (stats?.total_orders ?? priorOrderCount) + 1;
 
@@ -332,18 +371,23 @@ function PopoverPanel({
             >
               {t("totalOrders", { count: totalCount })}
             </span>
-            {seeAllHref && (
-              <a
-                href={seeAllHref}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="inline-flex shrink-0 items-center gap-1 text-status-action hover:underline text-[12px]"
-              >
-                {t("seeAll")}
-                <ExternalLink size={11} strokeWidth={2} aria-hidden="true" />
-              </a>
-            )}
+            {/*
+              Was an <a target="_blank"> to a filtered orders list. Opening a
+              second tab mid-call cost the agent the row they were on, so this
+              now opens the history in place. The phone is no longer required:
+              the panel is keyed on the order, not on a search term.
+            */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSeeAll();
+              }}
+              className="inline-flex shrink-0 items-center gap-1 text-[12px] text-status-action hover:underline"
+            >
+              {t("seeAll")}
+              <Maximize2 size={11} strokeWidth={2} aria-hidden="true" />
+            </button>
           </div>
 
           {/* Risk callout — kept for the rejection-warning case */}

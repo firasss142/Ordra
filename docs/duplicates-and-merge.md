@@ -193,3 +193,32 @@ Editable in Système → Paramètres → Opérations → Réception.
   panel's receipt, gated on `canEdit`. It is invisible in Tunisia only in the
   sense that the panel opens and reports « fusion non activée » — the button
   itself does not consult the setting.
+
+## 7. Historique client — la fenêtre dans la page (2026-09-24)
+
+« Voir toutes les commandes » (pastille client fidèle) et « Historique client » (carte de
+survol de la pastille doublon) ouvrent tous deux
+`components/shared/CustomerHistoryModal.tsx` **dans la page**. C'était un
+`<a target="_blank">` vers `/orders?q=<téléphone>` : un second onglet en plein appel
+faisait perdre à l'agent la ligne où il était. Ce lien survit en bas du panneau, devenu
+un choix explicite. Maquette : `prototypes/historique-client-v1.html`.
+
+- Le panneau est un `Sheet` en `placement="center"`, élargi à 900 px parce qu'il porte un
+  tableau et non un formulaire. `Sheet` accepte désormais une largeur par placement ; sans
+  argument, chacun garde exactement son ancien défaut.
+- Données : le même `/api/customer-history` que la carte de survol
+  (`get_customer_history_detail`, 20 commandes précédentes au maximum, `deleted` exclues).
+  Le pied de panneau le dit quand le plafond est atteint.
+- Les deux taux ne sont PAS une prédiction : `lib/customer-history/summary.ts` divise sur
+  l'historique affiché et chaque taux imprime son dénominateur. Livraison = livrées /
+  (livrées + retournées). Confirmation = a atteint `confirmed` ou plus loin / (idem +
+  rejetées). `cancelled` et `deleted` ne comptent dans aucun dénominateur. « Base
+  étroite » en dessous de 3.
+- Les deux pastilles ouvrent le MÊME panneau, pour qu'elles ne puissent jamais raconter
+  deux histoires différentes du même client.
+
+Pas repris de la maquette, volontairement :
+- le dépliant « doublons supprimés » (le RPC écarte `deleted` — il faudrait le changer) ;
+- la pagination (20 lignes tiennent sans) ;
+- une ligne rejetée affiche son statut nu, pas la pastille de sous-motif : la charge utile
+  de l'historique ne porte aucun motif de rejet.
