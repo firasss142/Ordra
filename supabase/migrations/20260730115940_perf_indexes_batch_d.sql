@@ -1,3 +1,10 @@
+-- NOTE (2026-09-20) : CONCURRENTLY retiré pour que la base soit RECONSTRUCTIBLE.
+-- `supabase db reset` applique les migrations dans un pipeline transactionnel, et
+-- CREATE INDEX CONCURRENTLY y est interdit (SQLSTATE 25001) : la reconstruction
+-- s'arrêtait ici. L'index produit est STRICTEMENT le même ; CONCURRENTLY ne
+-- change que le verrouillage pendant la création, ce qui n'a de sens que sur une
+-- table déjà en service — pas sur une base vide qu'on rebâtit. Ces index sont
+-- déjà en place en production, où ils ont bien été créés sans verrou bloquant.
 -- ============================================================
 -- 031_perf_indexes_batch_d.sql
 -- Additional indexes from Batch D performance optimization
@@ -8,11 +15,11 @@
 -- and team route queue-size query
 -- (team/route.ts: .in("assigned_to", agentIds).not("status", "in", TERMINAL_STATUSES))
 -- Partial condition excludes terminal rows which never appear in these queries.
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_assigned_status_partial
+CREATE INDEX IF NOT EXISTS idx_orders_assigned_status_partial
   ON orders (assigned_to, status)
   WHERE status NOT IN ('delivered', 'returned', 'rejected', 'cancelled');
 
 -- (status, created_at DESC) — speeds admin order list filtered by status
 -- (orders/route.ts: .eq("status", status).order("created_at", { ascending: false }))
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_status_created
+CREATE INDEX IF NOT EXISTS idx_orders_status_created
   ON orders (status, created_at DESC);

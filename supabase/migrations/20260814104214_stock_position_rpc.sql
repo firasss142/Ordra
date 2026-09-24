@@ -57,7 +57,9 @@ BEGIN
 END;
 $scope$;
 
-REVOKE ALL ON FUNCTION get_stock_position_scope(TEXT, UUID, UUID) FROM anon;
+-- REVOKE FROM anon SEUL NE FAIT RIEN : Postgres accorde EXECUTE à PUBLIC à la
+-- création, et `anon` en hérite. Il faut révoquer PUBLIC. Corrigé 2026-09-24.
+REVOKE ALL ON FUNCTION get_stock_position_scope(TEXT, UUID, UUID) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION get_stock_position_scope(TEXT, UUID, UUID) TO authenticated;
 
 DO $$
@@ -316,7 +318,7 @@ $fn$;
 COMMENT ON FUNCTION get_stock_position(UUID, DATE, DATE, INT, DATE) IS
   'Stock position + shipped demand for /dashboard/stock in one round-trip. Demand is EVENT-based (first order_history status_to=''uploaded'', falling back to orders.created_at with a flag). `committed` counts in-flight units with NO inventory_log scan row, so it stays correct once the warehouse starts scanning. Raw sums only — every rate, date and verdict is derived in lib/calculations/inventory-intelligence.ts.';
 
-REVOKE ALL ON FUNCTION get_stock_position(UUID, DATE, DATE, INT, DATE) FROM anon;
+REVOKE ALL ON FUNCTION get_stock_position(UUID, DATE, DATE, INT, DATE) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION get_stock_position(UUID, DATE, DATE, INT, DATE) TO authenticated;
 
 DO $$

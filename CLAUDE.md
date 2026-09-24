@@ -49,6 +49,7 @@ src/
 ## Commands
 - npm run dev — local dev server
 - npm test — run tests (TDD: run constantly)
+- supabase/tests/run.sh — SQL tests (stock invariants, RPC grants) against the LOCAL db only
 - npm run test:run — single test pass
 - npm run typecheck — after every file change
 - npm run lint — before every commit
@@ -115,10 +116,25 @@ A status is never walked backwards (order_status_rank). See docs/warehouse-sites
 On upload failure (carrier API error, timeout, validation reject) the order stays `confirmed` (or `dispatch_scheduled` for cron-driven uploads). Never rolled back further. Retry is just a retry.
 
 ## Stock integrity model
-TWO LEVELS since 2026-09-09: `products.current_stock` is the MARKET total (what finance reads)
-and `product_site_stock` ventilates it per warehouse. A trigger on inventory_log applies every
-movement to the site row, so no RPC does site arithmetic of its own — see
-docs/warehouse-sites-and-statuses.md. Invariant: sum(sites) <= market total.
+THREE LEVELS since 2026-09-20. `products.current_stock` is the MARKET total (what finance
+reads); `product_variants.current_stock` holds one attribute variant's share of it; and
+`product_site_stock` ventilates per warehouse, keyed (product, variant, warehouse) with
+variant NULL meaning "the product's unvarianted stock". A trigger on inventory_log applies
+every movement to BOTH finer rows, so no RPC does that arithmetic itself — see
+docs/warehouse-sites-and-statuses.md + docs/product-variants.md. Two INEQUALITIES, never
+equalities: sum(attribute variants) <= market total, and sum(sites) <= the level above.
+What has not been counted stays at the coarser level rather than inventing a split, which
+is why the whole model is INERT until someone creates a variant or counts a site.
+
+**`current_stock` is not a shelf count for anything before Sept 2026.** 3 152 orders have
+crossed the stock boundary; only ~109 ever produced a `scanned` ledger row, all Libya,
+post-rebuild. Tunisia never scanned at all. Treat it as trustworthy only where
+`record_stock_count` has run. See the stock-ledger-discontinuity note.
+
+**Ce qui part sans variante nommée sort du NON VENTILÉ** (`total − somme(variantes)`).
+Sur un produit ventilé à 100 %, un colis « produit nu » est refusé : « quelle taille
+le client a-t-il reçue ? » n'a pas de réponse. Contrôlé à l'entrée de `scan_order_out`
+et `adjust_product_stock` ; les 4 déclencheurs différés restent le filet.
 
 Stock changes via EXACTLY these paths — anything else is a bug:
 1. super_admin sets initial_stock on product creation (one inventory_log row, reason='initial_stock')
@@ -126,8 +142,20 @@ Stock changes via EXACTLY these paths — anything else is a bug:
 3. warehouse_agent / market_manager / super_admin call scan_order_out (−qty) or scan_return_in (+qty or damaged)
 4. record_stock_count (per SITE; the count is what creates a site row) and scan_received_in (+qty)
 5. unscan_order (+qty, reason='scan_reversal') and manual_delete_orders (+qty on a scanned order)
+All five resolve an order's contents through `order_stock_lines(order_id)` — the single
+definition of "what is in this parcel" (order_items when present, else the denormalised row).
+Since 2026-09-24 it aggregates PER (PRODUCT, ATTRIBUTE VARIANT): two sizes of one product write
+two movements so the ledger says which size left, while two PACK TIERS of one product still
+write one — a pack is not an object on a shelf, so `order_stock_lines` normalises it to NULL and
+the movement happens at product grain. `balance_after` stays the product's MARKET total on every
+row. Underflow is checked at three grains before the first write (product sum, each variant,
+and the unallocated remainder), because per-variant checks alone let two lines of one product
+each pass and the total go negative.
 inventory_log.reason is CHECK-constrained; order_history and inventory_log are append-only BY TRIGGER.
-Market managers and agents NEVER mutate stock. Market managers and warehouse_agents CAN toggle products.is_active via toggle_product_active RPC — that is the ONLY product field they can change.
+`record_stock_count` and `adjust_product_stock` take `p_variant_id` (DEFAULT NULL, so every
+pre-existing caller is unchanged). A count of a SITE poses the site's value and moves the
+variant and the product by the DELTA — it never poses the variant's total, which would erase
+the other buildings' stock. Market managers and agents NEVER mutate stock. Market managers and warehouse_agents CAN toggle products.is_active via toggle_product_active RPC — that is the ONLY product field they can change.
 
 ## Terminal statuses: delivered, returned, rejected, cancelled, deleted
 ## Fulfillment statuses set by: system (carrier webhook/polling) or manager (manual update)
@@ -141,10 +169,17 @@ Market managers and agents NEVER mutate stock. Market managers and warehouse_age
 - Terminal = no further transitions: delivered, returned, rejected, cancelled, deleted
 - Max attempts: configurable per market via settings table (default 3)
 
-## Rejection reasons (required when status = rejected)
-refus_client | faux_numero | doublon | injoignable | prix | non_serieux | autre (+ free text for autre)
-| commande_invalide | livraison_impossible
-(9 values live in the `rejection_reason` enum — the last two were added later.)
+## Rejection reasons (required when status = rejected) — CONFIGURABLE since 2026-09-19
+Two levels. GROUPS are fixed (their keys are `rejection_reason` enum values, and
+~1 800 orders carry one): refus_client | commande_invalide | injoignable |
+livraison_impossible | autre. Four more sit in the enum as history only —
+faux_numero, doublon, prix, non_serieux — and nothing writes them.
+SUB-REASONS are full CRUD per market, in `rejection_reason_configs`; the old
+`orders_rejection_subreason_check` is gone, so the reject route validates against
+that table, not a compiled list. Delete = hard-delete if no order uses it, soft
+retire otherwise (history must stay readable). A rejected order's badge shows the
+short sub-reason in its GROUP's colour, never the bare word "Rejeté".
+Edited at Système › Paramètres › Motifs de rejet. See docs/rejection-reasons.md.
 
 ## Agent queue sort order
 1. callback_scheduled where callback_time ≤ now
@@ -187,6 +222,10 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - CRM prospects/leads + Équipe (control room, performance, presence): docs/crm-and-team.md
 - Prospects — the agent worklist (six derived buckets, the call outcome, the win-back
   trigger, the columns that do not exist): docs/prospects-worklist.md
+- Distribution des commandes — l'algorithme par pourcentages, la disponibilité
+  agent (déclaration + battement de cœur), le drain du pool, la remise à zéro de
+  minuit, et ce qui a remplacé `active_agents_only`: docs/order-distribution.md +
+  plans/percentage-distribution-and-agent-readiness.md
 - Order status pipeline: docs/order-pipeline.md
 - Scheduled jobs — all 12 pg_cron jobs + the notifications tick: docs/notifications-cron.md
 - Design system tokens + rules: docs/design-system.md
@@ -209,6 +248,13 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Réglages transporteurs, préférences de commande (défaut + verrou par option) et
   activation des sites d'entrepôt — un seul écran, Système → Connexions → Transporteurs:
   docs/carrier-settings-and-order-preferences.md + plans/carrier-and-order-preferences-settings.md
+- Motifs de rejet — la table configurable, la règle de suppression, et pourquoi la
+  pastille porte la couleur du groupe: docs/rejection-reasons.md +
+  plans/rejection-reasons-crud-and-badge.md
+- Variantes produit — les deux axes (attribut porte le stock, palier multiplie), le SKU
+  partagé avec products, les trois niveaux de stock, la règle du « non ventilé », et
+  pourquoi DROP+CREATE d'une RPC rouvre l'accès anon: docs/product-variants.md +
+  plans/product-variants.md
 - Doublons (écran de revue en lot, pré-cochage haute confiance) et fusion de
   commandes (même client, produits différents, une seule livraison, adresse
   choisie explicitement): docs/duplicates-and-merge.md +

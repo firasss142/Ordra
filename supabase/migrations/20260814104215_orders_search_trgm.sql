@@ -1,3 +1,10 @@
+-- NOTE (2026-09-20) : CONCURRENTLY retiré pour que la base soit RECONSTRUCTIBLE.
+-- `supabase db reset` applique les migrations dans un pipeline transactionnel, et
+-- CREATE INDEX CONCURRENTLY y est interdit (SQLSTATE 25001) : la reconstruction
+-- s'arrêtait ici. L'index produit est STRICTEMENT le même ; CONCURRENTLY ne
+-- change que le verrouillage pendant la création, ce qui n'a de sens que sur une
+-- table déjà en service — pas sur une base vide qu'on rebâtit. Ces index sont
+-- déjà en place en production, où ils ont bien été créés sans verrou bloquant.
 -- ============================================================
 -- 20260901000001_orders_search_trgm.sql
 -- Trigram indexes for every column the orders search box reads.
@@ -32,7 +39,7 @@
 -- not about selectivity: an unindexed OR leg disables the BitmapOr for every
 -- other leg too. The near-empty index costs a few hundred kB and buys the plan.
 --
--- CONCURRENTLY, so no write on `orders` is blocked while these build. That
+--, so no write on `orders` is blocked while these build. That
 -- forbids a transaction, hence no BEGIN/COMMIT here — this file must not be
 -- merged into a migration that opens one.
 --
@@ -45,26 +52,26 @@
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- The leg that was collapsing every search into a Seq Scan.
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_product_name_trgm
+CREATE INDEX IF NOT EXISTS idx_orders_product_name_trgm
   ON orders USING gin (product_name gin_trgm_ops);
 
 -- Newly searchable: the dispatcher can see the city and the address on the row,
 -- so the box has to be able to find them.
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_customer_city_trgm
+CREATE INDEX IF NOT EXISTS idx_orders_customer_city_trgm
   ON orders USING gin (customer_city gin_trgm_ops)
   WHERE customer_city IS NOT NULL;
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_customer_address_trgm
+CREATE INDEX IF NOT EXISTS idx_orders_customer_address_trgm
   ON orders USING gin (customer_address gin_trgm_ops)
   WHERE customer_address IS NOT NULL;
 
 -- A carrier calling about a parcel gives a tracking number and nothing else.
 -- idx_orders_tracking_number (btree) serves equality; it cannot serve the
 -- '%…%' the box sends.
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_tracking_number_trgm
+CREATE INDEX IF NOT EXISTS idx_orders_tracking_number_trgm
   ON orders USING gin (tracking_number gin_trgm_ops)
   WHERE tracking_number IS NOT NULL;
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_customer_phone_2_trgm
+CREATE INDEX IF NOT EXISTS idx_orders_customer_phone_2_trgm
   ON orders USING gin (customer_phone_2 gin_trgm_ops)
   WHERE customer_phone_2 IS NOT NULL;

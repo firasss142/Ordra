@@ -1,3 +1,10 @@
+-- NOTE (2026-09-20) : CONCURRENTLY retiré pour que la base soit RECONSTRUCTIBLE.
+-- `supabase db reset` applique les migrations dans un pipeline transactionnel, et
+-- CREATE INDEX CONCURRENTLY y est interdit (SQLSTATE 25001) : la reconstruction
+-- s'arrêtait ici. L'index produit est STRICTEMENT le même ; CONCURRENTLY ne
+-- change que le verrouillage pendant la création, ce qui n'a de sens que sur une
+-- table déjà en service — pas sur une base vide qu'on rebâtit. Ces index sont
+-- déjà en place en production, où ils ont bien été créés sans verrou bloquant.
 -- ============================================================
 -- 20260829000001_orders_phone_norm_indexes.sql
 -- Indexes that make the agent-queue enrichment RPCs sargable.
@@ -39,11 +46,11 @@
 -- decision — it makes every query touching it parallel-unsafe. Corrected in
 -- 20260829000002.
 --
--- CONCURRENTLY cannot run inside a transaction block, and the CLI wraps each
+-- cannot run inside a transaction block, and the CLI wraps each
 -- migration file in one. Same reason 019_performance_indexes.sql,
 -- 031_perf_indexes_batch_d.sql and 20260425_crm_redesign_indexes.sql are
 -- index-only files: this file must contain index DDL and nothing else, with no
--- BEGIN;/COMMIT;. DROP INDEX CONCURRENTLY has the same restriction, so the
+-- BEGIN;/COMMIT;. DROP INDEX has the same restriction, so the
 -- reclaims below belong here too rather than in the function migration.
 --
 -- NON-GOALS: no table, row, policy or function is touched here. No column is
@@ -55,7 +62,7 @@
 -- ============================================================
 
 -- Driving index for the phone match in both RPCs.
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_market_phone_norm
+CREATE INDEX IF NOT EXISTS idx_orders_market_phone_norm
   ON orders (market_id, normalize_phone(customer_phone));
 
 -- Required even though only 2 of 7,035 rows currently have a customer_phone_2.
@@ -63,7 +70,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_market_phone_norm
 -- planner cannot form a BitmapOr at all and falls straight back to the 3,314 ms
 -- Nested Loop. The near-empty key range costs ~200 kB and is never probed,
 -- because `phones` has '' removed and so can never match it.
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_market_phone2_norm
+CREATE INDEX IF NOT EXISTS idx_orders_market_phone2_norm
   ON orders (market_id, normalize_phone(customer_phone_2));
 
 -- lead_phone_matches inside get_customer_history_batch. That leg already plans
@@ -71,7 +78,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_market_phone2_norm
 -- normalize_phone on each: measured 105 ms for 151 inputs, of which 82 ms is the
 -- Seq Scan over 1,700 leads. Its predicate is already a single equality and
 -- needs no query rewrite — only this index.
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_leads_market_phone_norm
+CREATE INDEX IF NOT EXISTS idx_leads_market_phone_norm
   ON leads (market_id, normalize_phone(customer_phone));
 
 
@@ -85,7 +92,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_leads_market_phone_norm
 -- for this exact query, and it is unreachable for it by construction — the
 -- predicate wraps the column in normalize_phone(). idx_orders_market_phone_norm
 -- is what it was meant to be.
-DROP INDEX CONCURRENTLY IF EXISTS idx_orders_market_phone;
+DROP INDEX IF EXISTS idx_orders_market_phone;
 
 -- (market_id, lower(customer_name), lower(customer_address)), 784 kB, 0 scans.
 -- Dead on a trim() mismatch: order_identity_matches writes
@@ -95,9 +102,9 @@ DROP INDEX CONCURRENTLY IF EXISTS idx_orders_market_phone;
 -- Deliberately NOT replaced with a trim-aware version: that leg already plans as
 -- a Hash Join at 16.6 ms and does not need an index, so the right move is to
 -- reclaim the 784 kB.
-DROP INDEX CONCURRENTLY IF EXISTS idx_orders_market_identity;
+DROP INDEX IF EXISTS idx_orders_market_identity;
 
 -- (customer_phone, market_id), 152 kB, 0 scans. Column-order duplicate of
 -- idx_leads_market_phone (136 kB, 152 scans); both were created by
 -- 20260425_crm_redesign_indexes.sql.
-DROP INDEX CONCURRENTLY IF EXISTS idx_leads_phone_market;
+DROP INDEX IF EXISTS idx_leads_phone_market;

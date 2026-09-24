@@ -14,18 +14,38 @@
 -- ------------------------------------------------------------
 -- The original constraint is auto-named (users_role_check). Drop by lookup
 -- so we work whether the name matches convention or not.
+--
+-- CORRIGÉ le 2026-09-20 — bug identifié ET DÉCRIT dans
+-- 20260819000002_investor_role_and_positions.sql, mais jamais corrigé ICI, à
+-- sa source. Le `SELECT ... INTO` ci-dessous filtrait sur '%role%IN%', motif
+-- que DEUX contraintes satisfont, parce que Postgres rend `role IN (...)` en
+-- `role = ANY (ARRAY[...])` :
+--     users_role_check       CHECK (role = ANY (ARRAY['super_admin', ...]))
+--     chk_users_role_market  CHECK ((role = 'super_admin' AND market_id IS NULL) OR ...)
+-- `SELECT INTO` avec plusieurs correspondances prend une ligne ARBITRAIRE. Sur
+-- une base reconstruite il tombait sur `chk_users_role_market`, LA SUPPRIMAIT,
+-- puis échouait sur « users_role_check already exists » — laissant l'invariant
+-- « un super_admin n'a pas de marché, les autres en ont un » définitivement
+-- perdu, et la reconstruction morte.
+--
+-- On applique ici le même correctif que la migration de 2026-08-19 : viser la
+-- contrainte de VALEURS de rôle précisément, et BOUCLER pour traiter toutes
+-- les correspondances au lieu d'en tirer une au hasard.
 DO $$
 DECLARE
   cname TEXT;
 BEGIN
-  SELECT conname INTO cname
-  FROM pg_constraint
-  WHERE conrelid = 'users'::regclass
-    AND contype = 'c'
-    AND pg_get_constraintdef(oid) ILIKE '%role%IN%';
-  IF cname IS NOT NULL THEN
-    EXECUTE 'ALTER TABLE users DROP CONSTRAINT ' || quote_ident(cname);
-  END IF;
+  FOR cname IN
+    SELECT conname
+    FROM pg_constraint
+    WHERE conrelid = 'users'::regclass
+      AND contype = 'c'
+      AND pg_get_constraintdef(oid) ILIKE '%role%'
+      AND pg_get_constraintdef(oid) NOT ILIKE '%market_id%'
+      AND pg_get_constraintdef(oid) NOT ILIKE '%deactivation_reason%'
+  LOOP
+    EXECUTE format('ALTER TABLE users DROP CONSTRAINT %I', cname);
+  END LOOP;
 END $$;
 
 ALTER TABLE users

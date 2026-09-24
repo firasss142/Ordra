@@ -467,6 +467,9 @@ describe("ProductEditForm — section navigation", () => {
       "#product-edit-agent-sheet",
       "#product-edit-composition",
       "#product-edit-cost-model",
+      // Les variantes entre le coût et le stock : ce qu'il coûte, puis quelles
+      // tailles existent, puis combien il y en a de chacune.
+      "#product-edit-variants",
       "#product-edit-stock-status",
     ]);
 

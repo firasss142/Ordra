@@ -43,23 +43,53 @@ export interface Product {
   updated_at: string;
 }
 
-// NOTE: product_variants has no created_at/updated_at columns — see the
-// explicit comment in 001_initial_schema.sql. They were declared here in
-// error and nothing ever read them.
+/**
+ * Two kinds, and the difference is load-bearing.
+ *
+ * `attribute` — a physically different item (Petit / Moyen / Grand). It holds
+ * its OWN stock, cost and SKU, and is what a stock movement points at.
+ * `pack` — a way of selling the same item ("Pack 2"). It holds no stock; it
+ * consumes `quantity` units of the attribute variant chosen on the call.
+ *
+ * Keeping them on two axes rather than one matrix is why a fourth size costs
+ * one row, not twelve.
+ */
+export type ProductVariantKind = "attribute" | "pack";
+
+/** What `display_price` is quoting — the whole tier, or one unit of it. */
+export type VariantPriceBasis = "pack" | "unit";
+
 export interface ProductVariant {
   id: string;
   product_id: string;
+  /** Denormalised from the parent product, trigger-maintained, immutable. */
+  market_id: string;
+  kind: ProductVariantKind;
   label: string;
   quantity: number;
   display_price: number;
   is_active: boolean;
+  /** Unique per market, in ONE namespace shared with `products.sku`. */
+  sku?: string | null;
+  /** Attribute variants only — a pack inherits its parent's cost. */
+  unit_cogs?: number;
+  /** Market total for this variant; ventilated per site in product_site_stock. */
+  current_stock?: number;
+  damaged_return_count?: number;
+  /** Physical units released per tier sold. Pack variants only. */
+  units_per_pack?: number;
+  price_basis?: VariantPriceBasis;
   /** One-line upsell/pack note for this quantity tier. */
   agent_note?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface InventoryLogEntry {
   id: string;
   product_id: string;
+  /** Set when the movement belongs to a specific attribute variant. */
+  variant_id?: string | null;
   order_id: string | null;
   change: number;
   balance_after: number;

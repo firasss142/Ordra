@@ -37,7 +37,14 @@ export async function GET(
 
   const { data: variants, error } = await supabase
     .from("product_variants")
-    .select("id, product_id, label, quantity, display_price, is_active")
+    .select(
+      // The two axes, both of them. An 'attribute' variant carries its own
+      // stock, cost and SKU; a 'pack' tier carries none of those and multiplies
+      // the quantity instead. Listing only the pack columns is how the product
+      // screen ended up unable to show a size at all.
+      "id, product_id, kind, label, sku, quantity, unit_cogs, display_price, " +
+        "current_stock, damaged_return_count, is_active",
+    )
     .eq("product_id", id)
     .order("label", { ascending: true });
 
@@ -86,11 +93,43 @@ export async function POST(
   if (typeof label !== "string" || label.trim() === "") {
     return NextResponse.json({ error: "label is required and must be non-empty" }, { status: 400 });
   }
-  if (typeof quantity !== "number" || quantity < 1) {
+
+  /*
+   * Which axis this variant sits on. The default stays 'pack' so every caller
+   * written before the attribute axis existed keeps its exact meaning — and so
+   * do the two pack tiers already in the database.
+   */
+  const kind = body.kind === undefined ? "pack" : body.kind;
+  if (kind !== "pack" && kind !== "attribute") {
+    return NextResponse.json(
+      { error: "kind must be 'attribute' or 'pack'" },
+      { status: 400 },
+    );
+  }
+  const isAttribute = kind === "attribute";
+
+  /*
+   * A size is not a multiplier. "Grand" is one unit of a different object, so
+   * its quantity is 1 by definition and is not the caller's to set; a pack tier
+   * is exactly the opposite — its quantity IS the offer.
+   */
+  const resolvedQuantity = isAttribute ? 1 : quantity;
+  if (!isAttribute && (typeof resolvedQuantity !== "number" || resolvedQuantity < 1)) {
     return NextResponse.json({ error: "quantity must be at least 1" }, { status: 400 });
   }
+
   if (typeof display_price !== "number" || display_price <= 0) {
     return NextResponse.json({ error: "display_price must be greater than 0" }, { status: 400 });
+  }
+
+  // Empty is not a SKU. Stored as "", it would occupy the market's unique index
+  // and the next variant left blank would collide with it for no reason.
+  const sku =
+    typeof body.sku === "string" && body.sku.trim() !== "" ? body.sku.trim() : null;
+
+  const unitCogs = body.unit_cogs === undefined ? 0 : body.unit_cogs;
+  if (typeof unitCogs !== "number" || !Number.isFinite(unitCogs) || unitCogs < 0) {
+    return NextResponse.json({ error: "unit_cogs must be zero or more" }, { status: 400 });
   }
 
   // Duplicate label check (case-insensitive)
@@ -112,15 +151,29 @@ export async function POST(
     .from("product_variants")
     .insert({
       product_id: id,
+      kind,
       label: label.trim(),
-      quantity,
+      sku,
+      quantity: resolvedQuantity,
+      unit_cogs: unitCogs,
       display_price,
       is_active: true,
+      // `current_stock` is deliberately absent. Stock has exactly five entry
+      // points and all of them write the ledger; letting a create form seed a
+      // balance would be a sixth, with no inventory_log row to explain it.
     })
     .select()
     .single();
 
-  if (insertError) return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  if (insertError) {
+    // `products.sku` and `product_variants.sku` share one namespace per market,
+    // enforced by a trigger that raises 23505. That is a taken name, not a
+    // server fault.
+    if ((insertError as { code?: string }).code === "23505") {
+      return NextResponse.json({ error: "SKU already in use" }, { status: 409 });
+    }
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 
   return NextResponse.json({ data: variant }, { status: 201 });
 }

@@ -1381,7 +1381,7 @@
         "confirm": "Confirmer",
         "callback": "Rappeler",
         "reject": "Refuser",
-        "endCall": "Appel terminé",
+        "endCall": "Pas de réponse",
         "returnToPool": "Retirer de l'agent",
         "cancel": "Annuler la commande",
         "rescheduleCallback": "Replanifier le rappel",
@@ -1438,7 +1438,11 @@
       "addressEmpty": "Ajouter une adresse…",
       "trackingPending": "À l'envoi au transporteur",
       "carrierPending": "Pas encore assigné",
-      "conflictReloaded": "Modifiée entre-temps par un autre utilisateur — valeurs rechargées."
+      "conflictReloaded": "Modifiée entre-temps par un autre utilisateur — valeurs rechargées.",
+      "navHintNav": "pour passer d'une commande à l'autre",
+      "navHintEnterKey": "Entrée",
+      "navHintCall": "pour appeler",
+      "factCityResolve": "Définir la ville"
     },
     "scheduleDispatch": {
       "title": "Planifier la livraison",
@@ -1772,7 +1776,8 @@
       "age": "Âge",
       "lastAction": "Dernière action",
       "status": "Statut",
-      "amount": "Montant"
+      "amount": "Montant",
+      "activity": "Activité"
     },
     "addressChanged": "Adresse modifiée",
     "customerNote": "Note client",
@@ -1897,7 +1902,9 @@
     "stats": {
       "assigned": "Assignées",
       "actioned": "Traitées",
-      "confirmationRate": "Taux de confirmation"
+      "confirmationRate": "Taux de confirmation",
+      "confirmationRateSub": "sur 7 j",
+      "actionedSub": "sur 24 h"
     },
     "statusSummary": {
       "pending": "En attente",
@@ -1985,7 +1992,13 @@
     "rejectionSubLabel": "Plus précisément",
     "rejectionBack": "Retour",
     "rejectionPostpone": "Le client veut plus tard",
-    "rejectionPostponeHint": "Programme un rappel au lieu de rejeter"
+    "rejectionPostponeHint": "Programme un rappel au lieu de rejeter",
+    "row": {
+      "notCalled": "Pas encore appelé",
+      "calledAgo": "Appelé il y a {time}"
+    },
+    "rejectedRequired": "Requis",
+    "callResultFootnote": "Le résultat est enregistré dans l'historique de la commande."
   },
   "products": {
     "title": "Produits",
@@ -2188,6 +2201,9 @@
         "crossSell": "Produit alternatif",
         "crossSellHint": "Proposé à l'agent quand ce produit est refusé. Même marché uniquement.",
         "crossSellNone": "Aucun"
+      },
+      "placeholders": {
+        "sku": "bv-01"
       }
     },
     "image": {
@@ -2482,6 +2498,49 @@
         "label": "Enregistrement",
         "clean": "Aucune modification en attente",
         "dirty": "Modifications non enregistrées"
+      },
+      "variantsEditor": {
+        "title": "Variantes",
+        "hint": "Une taille est un objet différent en rayon : elle porte son stock, son coût et son SKU. Un palier est une façon de vendre le même objet — « Pack 2 » consomme deux unités de la taille choisie.",
+        "axis": {
+          "attribute": "Tailles et déclinaisons",
+          "attributeHint": "Chacune porte son propre stock.",
+          "pack": "Paliers de quantité",
+          "packHint": "Ne portent pas de stock : ils en consomment."
+        },
+        "empty": "Aucune variante. Le produit se vend tel quel.",
+        "add": "Ajouter une variante",
+        "addAttribute": "Ajouter une taille",
+        "addPack": "Ajouter un palier",
+        "fields": {
+          "label": "Nom",
+          "labelPlaceholder": "Grand",
+          "sku": "SKU",
+          "skuPlaceholder": "Optionnel",
+          "skuHint": "Unique dans le marché, produits et variantes confondus.",
+          "unitCogs": "Coût unitaire",
+          "displayPrice": "Prix de vente",
+          "quantity": "Unités par palier",
+          "stock": "Stock",
+          "active": "Active"
+        },
+        "stockReadOnly": "Le stock se corrige depuis Stock & inventaire, jamais ici : chaque mouvement laisse une ligne au registre.",
+        "actions": {
+          "save": "Enregistrer",
+          "cancel": "Annuler",
+          "delete": "Supprimer",
+          "confirmDelete": "Supprimer cette variante ?"
+        },
+        "errors": {
+          "labelRequired": "Le nom est obligatoire.",
+          "priceRequired": "Le prix de vente doit être supérieur à zéro.",
+          "generic": "L'enregistrement a échoué."
+        },
+        "retired": {
+          "done": "Variante retirée du catalogue : des commandes s'y réfèrent, son historique reste lisible.",
+          "badge": "Retirée"
+        },
+        "deleted": "Variante supprimée."
       }
     },
     "archiveModal": {
@@ -5053,7 +5112,20 @@
     "disabledTitle": "Les commissions ne sont pas activées pour ton compte.",
     "disabledHint": "Ton responsable peut les activer dans les paramètres.",
     "loadError": "Impossible de charger tes commissions.",
-    "more": "Voir plus"
+    "more": "Voir plus",
+    "buckets": {
+      "all": "Tout",
+      "accrual": "Livrées",
+      "reversal": "Corrections",
+      "payout": "Paiements",
+      "adjustment": "Ajustements"
+    },
+    "cols": {
+      "type": "Type",
+      "detail": "Détail",
+      "date": "Date",
+      "amount": "Montant"
+    }
   },
   "investorAdmin": {
     "title": "Investisseurs",
@@ -6443,5 +6515,15 @@
         "custom": "Autre moment"
       }
     }
+  },
+  "agentAvailability": {
+    "toggleLabel": "Je prends des commandes",
+    "available": "Disponible",
+    "paused": "En pause",
+    "liveSub": "Temps réel",
+    "reconnectingSub": "Reconnexion…",
+    "staleSub": "Session inactive",
+    "pausedSub": "Aucune nouvelle",
+    "released": "{count} commande(s) rendue(s) au pool"
   }
 }

@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { ProductImagePicker } from "./ProductImagePicker";
+import { ProductVariantsEditor } from "./ProductVariantsEditor";
+import type { EditorVariant } from "./ProductVariantsEditor";
 import {
   AsideCard,
   CONTROL,
@@ -47,6 +49,12 @@ interface EditableProduct {
   is_active: boolean;
 }
 
+/**
+ * The agent-sheet view of a variant: its label plus the one line a manager
+ * writes for the person on the phone. Authoring needs far more than that and
+ * uses `EditorVariant` — two jobs, two shapes, rather than one struct that is
+ * half-empty on both screens.
+ */
 interface EditableVariant {
   id: string;
   label: string;
@@ -68,6 +76,12 @@ interface Props {
    */
   canManageCosts: boolean;
   variants: EditableVariant[];
+  /**
+   * The same variants, carrying everything authoring needs. Only read for a
+   * super admin: creating a size is a cost-and-stock decision, so it sits
+   * behind the same gate as the cost model.
+   */
+  editorVariants?: EditorVariant[];
   /** Active products in the same market, excluding this one. */
   crossSellOptions: CrossSellOption[];
   /**
@@ -105,6 +119,7 @@ const SECTION_IDS = {
   agentSheet: "product-edit-agent-sheet",
   composition: "product-edit-composition",
   costModel: "product-edit-cost-model",
+  variants: "product-edit-variants",
   stockStatus: "product-edit-stock-status",
 } as const;
 
@@ -131,6 +146,7 @@ export function ProductEditForm({
   locale,
   canManageCosts,
   variants,
+  editorVariants,
   crossSellOptions,
   avgDeliveryFee,
   currencySymbol,
@@ -429,8 +445,13 @@ export function ProductEditForm({
                 <input
                   {...a}
                   type="text"
-                  className={CONTROL}
-                  placeholder="bv-01"
+                  // A SKU is user-authored text and can be Arabic. Without
+                  // dir="auto" it renders backwards inside this LTR admin page
+                  // — the product name beside it has carried the attribute all
+                  // along, this field was simply missed.
+                  dir="auto"
+                  className={cx(CONTROL, "text-start")}
+                  placeholder={t("editForm.placeholders.sku")}
                   value={sku}
                   onChange={(e) => setSku(e.target.value)}
                 />
@@ -764,6 +785,32 @@ export function ProductEditForm({
             )}
           </FieldShell>
         </div>
+      ),
+    });
+
+    /*
+     * Variants sit between the cost model and stock, because that is the order
+     * the decisions happen in: what the product costs, then which sizes of it
+     * exist, then how many of each are on the shelf.
+     */
+    sections.push({
+      id: SECTION_IDS.variants,
+      navLabel: t("editV2.variantsEditor.title"),
+      title: t("editV2.variantsEditor.title"),
+      icon: ICONS.stock,
+      tone: "neutral",
+      permission: "superAdmin",
+      hint: t("editV2.variantsEditor.hint"),
+      body: (
+        <ProductVariantsEditor
+          productId={product.id}
+          variants={editorVariants ?? []}
+          currencySymbol={currencySymbol}
+          // The variant routes write straight to the database, so this page's
+          // data is stale the moment one returns. Refreshing the server
+          // component is how every other write on this form stays honest.
+          onChanged={() => router.refresh()}
+        />
       ),
     });
 

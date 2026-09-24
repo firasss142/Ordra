@@ -17,6 +17,7 @@ export type MappingStatus = "mapped" | "needs_review" | "unmatched";
 /** How a product was resolved — drives the MappingStatus. */
 export type ProductMatchMethod =
   | "mapping" // storefront_product_mappings hit (strongest)
+  | "variant_sku" // product_variants.sku exact match — resolves product AND size
   | "sku" // products.sku exact match
   | "name" // products.name ILIKE — fragile, needs review
   | "none"; // no match
@@ -80,6 +81,7 @@ export function worstMappingStatus(
 export function productMatchStatus(method: ProductMatchMethod): MappingStatus {
   switch (method) {
     case "mapping":
+    case "variant_sku":
     case "sku":
       return "mapped";
     case "name":

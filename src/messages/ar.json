@@ -1378,10 +1378,10 @@
         "addProductFailed": "تعذرت إضافة المنتج"
       },
       "actions": {
-        "confirm": "تأكيد",
-        "callback": "معاودة الاتصال",
-        "reject": "رفض",
-        "endCall": "إنهاء المكالمة",
+        "confirm": "تأكيد الطلب",
+        "callback": "طلب اتصال لاحق",
+        "reject": "رفض الطلب",
+        "endCall": "لم يتم الرد",
         "returnToPool": "إرجاع إلى القائمة",
         "cancel": "إلغاء الطلب",
         "rescheduleCallback": "إعادة جدولة الاتصال",
@@ -1438,7 +1438,11 @@
       "addressEmpty": "أضف عنوانًا…",
       "trackingPending": "عند الإرسال إلى شركة التوصيل",
       "carrierPending": "لم يُحدَّد بعد",
-      "conflictReloaded": "عُدّلت في هذه الأثناء من مستخدم آخر — أُعيد تحميل القيم."
+      "conflictReloaded": "عُدّلت في هذه الأثناء من مستخدم آخر — أُعيد تحميل القيم.",
+      "navHintNav": "للتنقل بين الطلبات",
+      "navHintEnterKey": "Enter",
+      "navHintCall": "للاتصال",
+      "factCityResolve": "تحديد المدينة"
     },
     "scheduleDispatch": {
       "title": "جدولة التوصيل",
@@ -1772,7 +1776,8 @@
       "age": "العمر",
       "lastAction": "آخر إجراء",
       "status": "الحالة",
-      "amount": "المبلغ"
+      "amount": "المبلغ",
+      "activity": "النشاط"
     },
     "addressChanged": "تغيّر العنوان",
     "customerNote": "ملاحظة العميل",
@@ -1897,7 +1902,9 @@
     "stats": {
       "assigned": "معيّنة",
       "actioned": "تمت معالجتها",
-      "confirmationRate": "معدل التأكيد"
+      "confirmationRate": "معدل التأكيد",
+      "confirmationRateSub": "خلال 7 أيام",
+      "actionedSub": "خلال 24 ساعة"
     },
     "statusSummary": {
       "pending": "معلّق",
@@ -1985,7 +1992,13 @@
     "rejectionSubLabel": "بشكل أدق",
     "rejectionBack": "رجوع",
     "rejectionPostpone": "يؤجل الطلب",
-    "rejectionPostponeHint": "يجدول مكالمة بدل الرفض"
+    "rejectionPostponeHint": "يجدول مكالمة بدل الرفض",
+    "row": {
+      "notCalled": "لم يتم الاتصال بعد",
+      "calledAgo": "تم الاتصال منذ {time}"
+    },
+    "rejectedRequired": "مطلوب",
+    "callResultFootnote": "سيتم تسجيل نتيجة المكالمة في سجل الطلب."
   },
   "products": {
     "title": "المنتجات",
@@ -2188,6 +2201,9 @@
         "crossSell": "منتج بديل",
         "crossSellHint": "يُقترح على الموظف عند رفض هذا المنتج. نفس السوق فقط.",
         "crossSellNone": "بدون"
+      },
+      "placeholders": {
+        "sku": "bv-01"
       }
     },
     "image": {
@@ -2482,6 +2498,49 @@
         "label": "الحفظ",
         "clean": "لا توجد تعديلات معلّقة",
         "dirty": "تعديلات غير محفوظة"
+      },
+      "variantsEditor": {
+        "title": "المتغيرات",
+        "hint": "المقاس منتج مختلف على الرف: له مخزونه وتكلفته ورمزه. أما الباقة فطريقة بيع للمنتج نفسه — «باقة 2» تستهلك وحدتين من المقاس المختار.",
+        "axis": {
+          "attribute": "المقاسات والتنويعات",
+          "attributeHint": "لكل واحدة مخزونها الخاص.",
+          "pack": "باقات الكمية",
+          "packHint": "لا تحمل مخزونًا، بل تستهلكه."
+        },
+        "empty": "لا توجد متغيرات. يُباع المنتج كما هو.",
+        "add": "إضافة متغير",
+        "addAttribute": "إضافة مقاس",
+        "addPack": "إضافة باقة",
+        "fields": {
+          "label": "الاسم",
+          "labelPlaceholder": "كبير",
+          "sku": "الرمز",
+          "skuPlaceholder": "اختياري",
+          "skuHint": "فريد داخل السوق، للمنتجات والمتغيرات معًا.",
+          "unitCogs": "تكلفة الوحدة",
+          "displayPrice": "سعر البيع",
+          "quantity": "الوحدات في الباقة",
+          "stock": "المخزون",
+          "active": "نشطة"
+        },
+        "stockReadOnly": "يُصحَّح المخزون من «المخزون والجرد» فقط، لا من هنا: كل حركة تترك سطرًا في السجل.",
+        "actions": {
+          "save": "حفظ",
+          "cancel": "إلغاء",
+          "delete": "حذف",
+          "confirmDelete": "حذف هذا المتغير؟"
+        },
+        "errors": {
+          "labelRequired": "الاسم مطلوب.",
+          "priceRequired": "يجب أن يكون سعر البيع أكبر من صفر.",
+          "generic": "فشل الحفظ."
+        },
+        "retired": {
+          "done": "أُزيل المتغير من الكتالوج: توجد طلبات تشير إليه، ويبقى سجله مقروءًا.",
+          "badge": "مُزال"
+        },
+        "deleted": "حُذف المتغير."
       }
     },
     "archiveModal": {
@@ -5053,7 +5112,20 @@
     "disabledTitle": "العمولات غير مفعّلة لحسابك.",
     "disabledHint": "يمكن لمسؤولك تفعيلها من الإعدادات.",
     "loadError": "تعذّر تحميل عمولاتك.",
-    "more": "عرض المزيد"
+    "more": "عرض المزيد",
+    "buckets": {
+      "all": "الكل",
+      "accrual": "مسلّمة",
+      "reversal": "تصحيحات",
+      "payout": "دفعات",
+      "adjustment": "تسويات"
+    },
+    "cols": {
+      "type": "النوع",
+      "detail": "التفاصيل",
+      "date": "التاريخ",
+      "amount": "المبلغ"
+    }
   },
   "investorAdmin": {
     "title": "المستثمرون",
@@ -6443,5 +6515,15 @@
         "custom": "وقت آخر"
       }
     }
+  },
+  "agentAvailability": {
+    "toggleLabel": "أستقبل الطلبات",
+    "available": "متاح",
+    "paused": "متوقف",
+    "liveSub": "مباشر",
+    "reconnectingSub": "إعادة الاتصال…",
+    "staleSub": "جلسة غير نشطة",
+    "pausedSub": "لا طلبات جديدة",
+    "released": "تمت إعادة {count} طلب إلى المجمّع"
   }
 }

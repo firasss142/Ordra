@@ -42,6 +42,25 @@ export async function POST(
 
   const { change, reason, note } = body;
 
+  /*
+   * A correction can name a SIZE. "Three Grand are missing" is not "three of
+   * the product are missing": without the variant the market total moved and
+   * the per-size split stayed wrong, which only a physical count would ever
+   * have surfaced.
+   *
+   * Absent and empty both mean "the product as a whole". Anything that is
+   * neither a string nor absent is refused rather than coerced — passed on, the
+   * RPC would read it as "no variant" and silently correct the wrong grain.
+   */
+  if (body.variant_id !== undefined && body.variant_id !== null
+      && typeof body.variant_id !== "string") {
+    return NextResponse.json({ error: "variant_id must be a string" }, { status: 400 });
+  }
+  const variantId =
+    typeof body.variant_id === "string" && body.variant_id.trim() !== ""
+      ? body.variant_id.trim()
+      : null;
+
   if (typeof change !== "number" || !Number.isInteger(change) || change === 0) {
     return NextResponse.json({ error: "change must be a non-zero integer" }, { status: 400 });
   }
@@ -74,6 +93,7 @@ export async function POST(
       p_note: (note as string).trim(),
       p_actor_id: actor.id,
       p_is_damaged_writeoff: reason === "damaged_writeoff",
+      p_variant_id: variantId,
     }
   );
 
@@ -85,13 +105,27 @@ export async function POST(
     if (msg.includes("Product not found")) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
+    /*
+     * These two are bad input, not a broken server: a variant that belongs to
+     * another product (or is a pack tier, which holds no stock), and a
+     * withdrawal that would drop the total below the sum of its variants. Both
+     * arrive with a message that says what to do instead — a 500 would throw
+     * that away and show the operator nothing.
+     */
+    if (msg.includes("variante")) {
+      return NextResponse.json({ error: rpcError.message }, { status: 400 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
   const row = Array.isArray(rpcResult) ? rpcResult[0] : rpcResult;
 
+  // adjust_product_stock RETURNS TABLE(new_stock, new_damaged) — two columns,
+  // no id. The response used to carry `log_entry: { id: row.log_id }`, reading
+  // a column that has never existed, so callers received an empty object. The
+  // ledger row is real and append-only; it is simply not this RPC's to return.
   return NextResponse.json(
-    { new_stock: row.new_stock, log_entry: { id: row.log_id } },
+    { new_stock: row.new_stock, new_damaged: row.new_damaged },
     { status: 200 }
   );
 }

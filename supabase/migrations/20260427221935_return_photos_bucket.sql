@@ -1,3 +1,18 @@
+
+-- ── à partir d'ici, tout touche au schéma `storage` ────────────────────────
+-- NOTE (2026-09-20, corrigé le 2026-09-24) : ce BLOC SEUL est conditionnel.
+-- En local, `supabase start` applique les migrations AVANT que le conteneur
+-- storage-api n'ait créé le schéma `storage`. Une première version enveloppait
+-- le FICHIER ENTIER, ce qui sautait aussi les ALTER TABLE ordinaires ci-dessus
+-- — `users.avatar_url` n'existait alors jamais et une migration bien plus tard
+-- échouait dessus. Seules les instructions `storage.*` doivent être sautées.
+DO $reconstructible$
+BEGIN
+IF to_regclass('storage.buckets') IS NULL THEN
+  RAISE NOTICE 'schema storage absent — bloc buckets saute (base en reconstruction)';
+  RETURN;
+END IF;
+
 -- ============================================================
 -- 20260424_return_photos_bucket.sql
 -- Private storage bucket for damaged-return photo evidence.
@@ -49,3 +64,6 @@ CREATE POLICY "return_photos_warehouse_read"
         )
     )
   );
+
+END
+$reconstructible$;

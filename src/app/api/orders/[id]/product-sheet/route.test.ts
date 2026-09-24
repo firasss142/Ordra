@@ -522,3 +522,33 @@ describe("GET product-sheet — product_id scoping", () => {
     expect(res.status).toBe(404);
   });
 });
+
+/*
+ * LA FICHE AGENT NE MONTRE QUE DES OFFRES.
+ *
+ * Cette section s'appelle « paliers » et sert à proposer une quantité : « et
+ * si vous prenez deux, c'est 239 ». Une variante d'attribut (Grand, Petit)
+ * n'est pas une offre, c'est l'objet lui-même. Sans filtre, créer une taille —
+ * ce que la phase 4 rend enfin possible — la ferait apparaître à l'agent comme
+ * un palier à vendre en plus, en pleine conversation.
+ */
+describe("GET product-sheet — seuls les paliers sont des paliers", () => {
+  test("ne demande que les variantes de type 'pack'", async () => {
+    setTestActor({ id: "agent-1", role: "agent", market_id: "m-tn" });
+    wire({
+      variants: [
+        { id: "v-pack2", label: "Pack 2", quantity: 2, display_price: 239, is_active: true, agent_note: null },
+      ],
+    });
+
+    await GET(req(), params);
+
+    const variantCalls = mockAdminFrom.mock.calls
+      .map((args, i) => ({ table: args[0], chain: mockAdminFrom.mock.results[i]?.value }))
+      .filter((c) => c.table === "product_variants");
+
+    expect(variantCalls.length, "product_variants n'a pas été lu").toBeGreaterThan(0);
+    const eqCalls = variantCalls.flatMap((c) => c.chain?.eq?.mock?.calls ?? []);
+    expect(eqCalls).toContainEqual(["kind", "pack"]);
+  });
+})

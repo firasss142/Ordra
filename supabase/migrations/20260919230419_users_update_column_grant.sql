@@ -1,0 +1,44 @@
+-- ============================================================
+-- 20261003000005_users_update_column_grant.sql
+--
+-- Referme l'escalade de privilèges sur public.users.
+--
+-- Séparé du lot de 20261003000002 exprès : c'est la seule instruction qui
+-- peut casser un chemin d'écriture existant, donc elle s'applique et
+-- s'annule seule.
+--
+-- POUR ANNULER :
+--   GRANT UPDATE ON public.users TO authenticated;
+-- ============================================================
+
+-- ============================================================
+-- 2. Le GRANT qui referme users
+--
+-- 030_presence_rls_policy.sql a créé :
+--     CREATE POLICY users_update_own_presence ON users FOR UPDATE
+--       USING (id = auth.uid()) WITH CHECK (id = auth.uid());
+-- RLS est au niveau LIGNE — il ne sait pas restreindre une colonne. Cette
+-- policy autorise donc tout utilisateur connecté à réécrire n'importe quelle
+-- colonne de SA PROPRE ligne, y compris role :
+--     PATCH /rest/v1/users?id=eq.<soi>  {"role":"super_admin","market_id":null}
+-- (chk_users_role_market est satisfait par le market_id NULL de la même
+-- requête). get_user_role() lit cette colonne, donc toutes les policies du
+-- système traiteraient ensuite l'appelant comme super_admin, sur les deux
+-- marchés.
+--
+-- Le seul mécanisme qui restreint par colonne est le GRANT, évalué AVANT RLS.
+-- Il n'y en avait aucun sur users.
+--
+-- Pourquoi last_seen_at seul suffit : toutes les autres écritures sur users
+-- passent par createAdminClient() (service_role, qui contourne RLS ET les
+-- GRANT) — /api/agents/[id], /api/users, /api/me/avatar. Seuls le battement
+-- de cœur et la déconnexion utilisent la session, et ne touchent que
+-- last_seen_at.
+--
+-- is_available n'est délibérément PAS accordé : il ne bouge que par
+-- set_agent_availability(), sinon le journal et la remise au pool seraient
+-- contournables par un appel PostgREST direct.
+-- ============================================================
+
+REVOKE UPDATE ON public.users FROM authenticated;
+GRANT  UPDATE (last_seen_at) ON public.users TO authenticated;

@@ -129,6 +129,33 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  /*
+   * A named variant must belong to the product being bound. Unchecked, a
+   * mapping could pair product A with a variant of product B: the order would
+   * land carrying that pair, `order_stock_lines` would silently drop the
+   * mismatched variant (it joins on `v.product_id = oi.product_id`), and the
+   * stock would move at the product grain with nothing on screen to say so.
+   * Refused here, where whoever is binding can still pick the right one.
+   *
+   * A pack tier is refused for the same reason it is everywhere else: it holds
+   * no stock, so binding intake to one resolves a size that cannot ship.
+   */
+  if (productVariantId) {
+    const { data: variant } = await supabase
+      .from("product_variants")
+      .select("id, product_id")
+      .eq("id", productVariantId)
+      .eq("product_id", productId)
+      .eq("kind", "attribute")
+      .maybeSingle();
+    if (!variant) {
+      return NextResponse.json(
+        { error: "Cette variante n'appartient pas à ce produit, ou ne porte pas de stock" },
+        { status: 400 },
+      );
+    }
+  }
+
   const { data: mapping, error: insertError } = await supabase
     .from("storefront_product_mappings")
     .insert({

@@ -24,7 +24,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: { product_id?: string; counted_qty?: number; note?: string; warehouse_id?: string };
+  let body: {
+    product_id?: string;
+    counted_qty?: number;
+    note?: string;
+    warehouse_id?: string;
+    variant_id?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -47,6 +53,30 @@ export async function POST(req: NextRequest) {
   if (!note) {
     return NextResponse.json({ error: "A note is required" }, { status: 400 });
   }
+
+  /*
+   * A count is a count OF A SHELF, and a shelf keeps sizes apart. Naming the
+   * variant makes the count mean "twelve Petit here", which is what the agent
+   * can actually verify. Omitted, it stays what it always was: the whole
+   * product on this site.
+   *
+   * Absent and empty both mean "no variant" — a trimmed-to-nothing string is a
+   * blank field, not a variant whose id is the empty string. Anything that is
+   * neither a string nor absent is a client bug, and is refused rather than
+   * coerced: passing it on would make the RPC read it as "no variant" and the
+   * agent would be told a count succeeded at the wrong grain.
+   */
+  if (body.variant_id !== undefined && body.variant_id !== null
+      && typeof body.variant_id !== "string") {
+    return NextResponse.json(
+      { error: "variant_id must be a string" },
+      { status: 400 },
+    );
+  }
+  const variantId =
+    typeof body.variant_id === "string" && body.variant_id.trim() !== ""
+      ? body.variant_id.trim()
+      : null;
 
   const supabase = await createClient();
 
@@ -79,6 +109,7 @@ export async function POST(req: NextRequest) {
     p_actor_id: actor.id,
     p_note: note,
     p_warehouse_id: site.warehouseId,
+    p_variant_id: variantId,
   });
 
   if (error) {

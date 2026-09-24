@@ -229,6 +229,13 @@ export async function GET(
     .from("product_variants")
     .select("id, label, quantity, display_price, is_active, agent_note")
     .eq("product_id", targetProductId)
+    /*
+     * Packs only. This section is an OFFER — "take two and it's 239" — which
+     * an attribute variant is not: Grand is the object itself, not a quantity
+     * deal on it. Unfiltered, every size created from the product screen would
+     * surface here as another tier for the agent to push mid-call.
+     */
+    .eq("kind", "pack")
     .order("quantity");
 
   const variants = (variantRows ?? []) as (SheetCheckVariant & {

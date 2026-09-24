@@ -348,3 +348,89 @@ describe("POST /api/products — sku handling", () => {
     expect(res.status).toBe(409);
   });
 });
+
+// `initial_stock` is the OPENING BALANCE — the count the product entered the
+// system with. It never moves again. `current_stock` is the running figure.
+// The route wrote the submitted quantity to `current_stock` alone, so every
+// product created through this route kept `initial_stock = 0` (the column
+// default) while holding real stock. `product_inventory_view.real_inventory`
+// is `initial_stock − delivered`, so it went negative the moment the product
+// delivered anything — 9 of 13 live products were in that state.
+describe("POST /api/products — initial_stock is the opening balance", () => {
+  function insertChain(data: unknown, error: unknown = null) {
+    const c: Record<string, unknown> = {};
+    const insertSpy = vi.fn().mockReturnValue(c);
+    c.insert = insertSpy;
+    c.select = vi.fn().mockReturnValue(c);
+    c.single = vi.fn().mockResolvedValue({ data, error });
+    return { chain: c, insertSpy };
+  }
+
+  function createWith(initialStock: unknown) {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    const products = insertChain({ id: "p-new", name: "X" });
+    const ledger = insertChain({ id: "log-1" });
+    mockFrom
+      .mockReturnValueOnce(singleChain({ role: "super_admin", market_id: null }))
+      .mockReturnValueOnce(products.chain)
+      .mockReturnValueOnce(ledger.chain);
+
+    const res = POST(
+      postReq({
+        name: "X",
+        unit_cogs: 1,
+        packing_cost: 0,
+        market_id: "m-tn",
+        initial_stock: initialStock,
+      }),
+    );
+    return { res, products, ledger };
+  }
+
+  test("persists initial_stock alongside current_stock", async () => {
+    const { res, products } = createWith(250);
+    expect((await res).status).toBe(201);
+
+    const row = products.insertSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(row.initial_stock).toBe(250);
+    expect(row.current_stock).toBe(250);
+  });
+
+  test("opening balance equals the ledger movement it books", async () => {
+    const { res, products, ledger } = createWith(250);
+    await res;
+
+    const row = products.insertSpy.mock.calls[0][0] as Record<string, unknown>;
+    const logRow = ledger.insertSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(logRow.reason).toBe("initial_stock");
+    expect(logRow.change).toBe(row.initial_stock);
+    expect(logRow.balance_after).toBe(row.current_stock);
+  });
+
+  test("defaults to 0 when omitted, and books no ledger movement", async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    const products = insertChain({ id: "p-new", name: "X" });
+    mockFrom
+      .mockReturnValueOnce(singleChain({ role: "super_admin", market_id: null }))
+      .mockReturnValueOnce(products.chain);
+
+    await POST(
+      postReq({ name: "X", unit_cogs: 1, packing_cost: 0, market_id: "m-tn" }),
+    );
+
+    const row = products.insertSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(row.initial_stock).toBe(0);
+    expect(row.current_stock).toBe(0);
+    // "products" is the second from(), after "users" — a third would be the log.
+    expect(mockFrom).toHaveBeenCalledTimes(2);
+  });
+
+  test("a non-numeric initial_stock falls back to 0 rather than NaN", async () => {
+    const { res, products } = createWith("250");
+    expect((await res).status).toBe(201);
+
+    const row = products.insertSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(row.initial_stock).toBe(0);
+    expect(row.current_stock).toBe(0);
+  });
+});

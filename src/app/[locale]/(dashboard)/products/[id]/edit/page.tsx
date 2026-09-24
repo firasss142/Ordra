@@ -48,8 +48,13 @@ export default async function EditProductPage({
 
   const { data: variants } = await supabase
     .from("product_variants")
-    .select("id, label, agent_note")
+    // Les deux axes, et de quoi les éditer. `kind` d'abord dans le tri : les
+    // tailles avant les paliers, parce qu'un palier se choisit après la taille.
+    .select(
+      "id, kind, label, sku, agent_note, quantity, unit_cogs, display_price, current_stock, damaged_return_count, is_active",
+    )
     .eq("product_id", params.id)
+    .order("kind")
     .order("quantity");
 
   // Cross-sell candidates: active products in the same market, never itself.
@@ -112,6 +117,18 @@ export default async function EditProductPage({
             id: v.id,
             label: v.label,
             agent_note: v.agent_note ?? null,
+          }))}
+          editorVariants={(variants ?? []).map((v) => ({
+            id: v.id,
+            kind: v.kind === "attribute" ? ("attribute" as const) : ("pack" as const),
+            label: v.label,
+            sku: v.sku ?? null,
+            quantity: Number(v.quantity ?? 1),
+            unit_cogs: Number(v.unit_cogs ?? 0),
+            display_price: Number(v.display_price ?? 0),
+            current_stock: Number(v.current_stock ?? 0),
+            damaged_return_count: Number(v.damaged_return_count ?? 0),
+            is_active: v.is_active !== false,
           }))}
           crossSellOptions={crossSellOptions ?? []}
           product={{

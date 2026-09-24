@@ -173,24 +173,29 @@ describe("Product type", () => {
 });
 
 describe("ProductVariant type", () => {
-  // The table has no created_at/updated_at (001_initial_schema.sql says so
-  // explicitly); the type used to declare them anyway. Required keys are the
-  // six real columns, plus the optional agent_note.
-  it("has exactly 6 required keys", () => {
+  // Since 20261003000009 a variant carries its own market and kind, so the
+  // required set is eight, not six. Everything that only an ATTRIBUTE variant
+  // owns — sku, unit_cogs, current_stock — stays optional, because a pack tier
+  // legitimately has none of it.
+  it("has exactly 8 required keys", () => {
     const variant: ProductVariant = {
       id: "var-1",
       product_id: "prod-1",
+      market_id: "mkt-1",
+      kind: "pack",
       label: "Pack of 3",
       quantity: 3,
       display_price: 29.99,
       is_active: true,
     };
     const keys = Object.keys(variant);
-    expect(keys).toHaveLength(6);
+    expect(keys).toHaveLength(8);
     expect(keys).toEqual(
       expect.arrayContaining([
         "id",
         "product_id",
+        "market_id",
+        "kind",
         "label",
         "quantity",
         "display_price",
@@ -203,6 +208,8 @@ describe("ProductVariant type", () => {
     const variant: ProductVariant = {
       id: "var-1",
       product_id: "prod-1",
+      market_id: "mkt-1",
+      kind: "pack",
       label: "Pack of 3",
       quantity: 3,
       display_price: 29.99,
@@ -216,6 +223,8 @@ describe("ProductVariant type", () => {
     const variant: ProductVariant = {
       id: "var-1",
       product_id: "prod-1",
+      market_id: "mkt-1",
+      kind: "pack",
       label: "Single unit",
       quantity: 1,
       display_price: 15,
@@ -229,6 +238,8 @@ describe("ProductVariant type", () => {
     const variant: ProductVariant = {
       id: "var-1",
       product_id: "prod-1",
+      market_id: "mkt-1",
+      kind: "pack",
       label: "Pack of 2",
       quantity: 2,
       display_price: 25,
@@ -242,6 +253,8 @@ describe("ProductVariant type", () => {
     const variant: ProductVariant = {
       id: "var-1",
       product_id: "prod-1",
+      market_id: "mkt-1",
+      kind: "pack",
       label: "Single",
       quantity: 1,
       display_price: 19.99,
@@ -255,6 +268,8 @@ describe("ProductVariant type", () => {
     const variant: ProductVariant = {
       id: "var-1",
       product_id: "prod-1",
+      market_id: "mkt-1",
+      kind: "pack",
       label: "Single",
       quantity: 1,
       display_price: 10,

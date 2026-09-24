@@ -208,6 +208,12 @@ export async function POST(req: NextRequest) {
     default_price: defaultPrice,
     low_stock_threshold:
       typeof body.low_stock_threshold === "number" ? body.low_stock_threshold : 0,
+    // Two different facts, not one. `initial_stock` is the opening balance and
+    // never moves again; `current_stock` is the running figure. They are equal
+    // only at this instant. Writing the quantity to `current_stock` alone left
+    // every product at `initial_stock = 0`, which made
+    // `product_inventory_view.real_inventory` (initial − delivered) negative.
+    initial_stock: initialStock,
     current_stock: initialStock,
     damaged_return_count: 0,
     is_active: true,

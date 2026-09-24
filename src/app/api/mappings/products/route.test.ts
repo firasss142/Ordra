@@ -157,3 +157,66 @@ describe("POST /api/mappings/products", () => {
     expect(res.status).toBe(409);
   });
 });
+
+/*
+ * LIER UNE VARIANTE EXTERNE À UNE VARIANTE ORDRA.
+ *
+ * `product_variant_id` était accepté et écrit sans jamais être vérifié : rien
+ * n'empêchait de lier la variante d'un AUTRE produit. La commande serait alors
+ * arrivée avec un couple (produit A, variante de B) — que `order_stock_lines`
+ * ramène silencieusement au produit, donc le stock aurait bougé au mauvais
+ * grain sans qu'aucun écran ne le dise. On refuse à la liaison, là où quelqu'un
+ * peut encore corriger.
+ */
+describe("POST /api/mappings/products — la variante doit appartenir au produit", () => {
+  function wireActor() {
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    return mockFrom
+      .mockReturnValueOnce(chain({ data: { role: "super_admin", market_id: null } }))
+      .mockReturnValueOnce(chain({ data: { id: "sf-1", market_id: "m-tn" } }))
+      .mockReturnValueOnce(chain({ data: { id: "p-1", market_id: "m-tn" } }));
+  }
+
+  test("refuse une variante qui appartient à un autre produit", async () => {
+    wireActor().mockReturnValueOnce(chain({ data: null })); // lookup finds nothing
+    const res = await POST(
+      postReq({
+        storefront_id: "sf-1",
+        external_variant_id: "v-1",
+        product_id: "p-1",
+        product_variant_id: "var-autre",
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/variante/i);
+  });
+
+  test("accepte une variante du bon produit", async () => {
+    wireActor()
+      .mockReturnValueOnce(chain({ data: { id: "var-1", product_id: "p-1" } }))
+      .mockReturnValueOnce(chain({ data: { id: "map-1" } }))
+      .mockReturnValueOnce(chain({ data: [] }));
+    const res = await POST(
+      postReq({
+        storefront_id: "sf-1",
+        external_variant_id: "v-1",
+        product_id: "p-1",
+        product_variant_id: "var-1",
+      }),
+    );
+    expect(res.status).toBe(201);
+  });
+
+  // Sans variante nommée, rien ne change : la liaison reste au produit et
+  // aucune lecture supplémentaire n'est faite.
+  test("sans variante, aucune vérification supplémentaire", async () => {
+    wireActor()
+      .mockReturnValueOnce(chain({ data: { id: "map-1" } }))
+      .mockReturnValueOnce(chain({ data: [] }));
+    const res = await POST(
+      postReq({ storefront_id: "sf-1", external_variant_id: "v-1", product_id: "p-1" }),
+    );
+    expect(res.status).toBe(201);
+    expect(mockFrom).not.toHaveBeenCalledWith("product_variants");
+  });
+});

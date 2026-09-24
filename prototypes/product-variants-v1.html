@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ordra — Variantes produit v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   JETONS — docs/design-system.md + globals.css
+   Surface PRODUIT (admin clair). Rien de la skill « design » ici.
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  --bg-page:#F6F6F7; --bg-card:#FFF; --sunken:#FAFAFB; --hover:#FAFAFA;
+  --ink-1:#1A1A1A; --ink-2:#6D7175; --ink-3:#9CA3AF;
+  --line-subtle:#ECEEF0; --line:#E1E3E5; --line-strong:#DADCE0;
+  --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-tint:#F1FAF4;
+  --action:#2C6ECB; --action-bg:#EBF1FE;
+  --warning:#B98900; --warning-bg:#FFF8E6;
+  --critical:#D72C0D; --critical-bg:#FFF4F4;
+  --neutral-bg:#F2F3F5;
+  --r-xs:8px; --r-sm:10px; --r-md:12px; --r-lg:16px;
+  --e-row:0 1px 2px rgba(16,24,40,.04);
+  --e-panel:0 4px 16px rgba(16,24,40,.06);
+  --e-float:0 8px 24px rgba(16,24,40,.10);
+  --sidebar-bg:#0E1013;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg-page);color:var(--ink-1);font-size:14px;line-height:1.45;
+  font-family:"Inter","Noto Sans Arabic",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+[dir=auto]{unicode-bidi:plaintext}
+.tnum{font-variant-numeric:tabular-nums}
+.money{unicode-bidi:isolate;direction:ltr;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ── chrome du prototype (n'existe pas dans l'app) ── */
+.pbar{position:sticky;top:0;z-index:90;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  background:var(--sidebar-bg);color:#E6E8EB;padding:10px 22px}
+.pbar .tag{font-size:10.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#7F858F}
+.pbar .ttl{font-size:13px;font-weight:600}
+.ptabs{display:flex;gap:5px;margin-inline-start:auto;flex-wrap:wrap}
+.ptabs button{border:1px solid rgba(255,255,255,.1);background:transparent;color:#B5BAC2;
+  border-radius:var(--r-sm);padding:6px 13px;font-size:12.5px;font-weight:500;transition:.12s}
+.ptabs button:hover{background:rgba(255,255,255,.06);color:#fff}
+.ptabs button[aria-selected=true]{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+.screen{display:none;padding:24px 30px 96px;max-width:1280px;margin:0 auto}
+.screen.on{display:block}
+
+/* ══════════════ ATOMES ══════════════ */
+.chip{display:inline-flex;align-items:center;gap:5px;height:23px;padding:0 9px;border-radius:var(--r-xs);
+  font-size:11.5px;font-weight:600;white-space:nowrap}
+.chip-ok{background:var(--brand-bg);color:var(--brand)}
+.chip-off{background:var(--neutral-bg);color:var(--ink-2)}
+.chip-warn{background:var(--warning-bg);color:var(--warning)}
+.chip-bad{background:var(--critical-bg);color:var(--critical)}
+.chip-info{background:var(--action-bg);color:var(--action)}
+.chip-sku{background:var(--sunken);border:1px solid var(--line-subtle);color:var(--ink-2);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;font-weight:500}
+
+.btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:var(--r-sm);
+  border:1px solid var(--line);background:#fff;font-size:13px;font-weight:500;transition:.12s}
+.btn:hover{background:var(--hover);border-color:var(--line-strong)}
+.btn-primary{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+.btn-primary:hover{background:var(--brand-hover);border-color:var(--brand-hover)}
+.btn-sm{height:29px;padding:0 11px;font-size:12.5px}
+.btn-ghost{border-color:transparent;background:transparent;color:var(--ink-2)}
+.btn-ghost:hover{background:var(--neutral-bg);border-color:transparent;color:var(--ink-1)}
+.btn-danger{color:var(--critical);border-color:var(--line)}
+.btn-danger:hover{background:var(--critical-bg);border-color:#F6C9C1}
+
+.card{background:var(--bg-card);border:1px solid var(--line-subtle);border-radius:var(--r-md);overflow:hidden}
+.card+.card{margin-top:16px}
+.card-hd{display:flex;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid var(--line-subtle)}
+.card-hd h3{font-size:14px;font-weight:600}
+.card-hd .sub{font-size:12.5px;color:var(--ink-2)}
+.card-bd{padding:18px}
+
+.lbl{display:block;font-size:12.5px;font-weight:500;color:var(--ink-2);margin-bottom:6px}
+.inp{width:100%;height:36px;padding:0 11px;border:1px solid var(--line);border-radius:var(--r-sm);
+  background:#fff;font:inherit;font-size:13.5px;color:var(--ink-1)}
+.inp:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-tint)}
+.inp[readonly]{background:var(--sunken);color:var(--ink-2)}
+.hint{font-size:12px;color:var(--ink-2);margin-top:6px;line-height:1.5}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+
+table{width:100%;border-collapse:collapse}
+th{text-align:start;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--ink-2);padding:9px 14px;border-bottom:1px solid var(--line-subtle);background:var(--sunken)}
+td{padding:11px 14px;border-bottom:1px solid var(--line-subtle);font-size:13.5px;vertical-align:middle}
+tr:last-child td{border-bottom:0}
+.num{text-align:end;font-variant-numeric:tabular-nums}
+
+.note{display:flex;gap:10px;padding:12px 14px;border-radius:var(--r-sm);font-size:12.5px;line-height:1.55}
+.note-info{background:var(--action-bg);color:#1B4B8F}
+.note-warn{background:var(--warning-bg);color:#7A5B00}
+.note b{font-weight:600}
+.note .mk{flex:none;font-weight:700}
+
+.sw{position:relative;display:inline-flex;align-items:center;gap:10px;cursor:pointer}
+.sw input{position:absolute;opacity:0;width:0;height:0}
+.sw .track{width:38px;height:22px;border-radius:11px;background:var(--line-strong);transition:.15s;flex:none}
+.sw .track::after{content:"";display:block;width:18px;height:18px;margin:2px;border-radius:50%;
+  background:#fff;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.sw input:checked + .track{background:var(--brand)}
+.sw input:checked + .track::after{transform:translateX(16px)}
+html[dir=rtl] .sw input:checked + .track::after{transform:translateX(-16px)}
+.sw .txt{font-size:13.5px;font-weight:500}
+
+.crumb{font-size:12.5px;color:var(--ink-2);margin-bottom:6px}
+.h1{font-size:20px;font-weight:600;letter-spacing:-.01em}
+.page-hd{display:flex;align-items:flex-end;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.page-hd .sp{margin-inline-start:auto;display:flex;gap:9px}
+
+.expl{border:1px dashed var(--line-strong);border-radius:var(--r-md);padding:14px 16px;
+  background:var(--sunken);font-size:12.5px;color:var(--ink-2);line-height:1.6;margin-bottom:18px}
+.expl b{color:var(--ink-1);font-weight:600}
+
+/* ── ligne produit repliable (catalogue) ── */
+.prow{display:grid;grid-template-columns:34px 46px 1fr 130px 110px 120px 110px;align-items:center;
+  gap:12px;padding:12px 16px;border-bottom:1px solid var(--line-subtle);transition:.12s}
+.prow:hover{background:var(--hover)}
+.prow:last-child{border-bottom:0}
+.thumb{width:40px;height:40px;border-radius:var(--r-xs);background:var(--neutral-bg);
+  display:grid;place-items:center;font-size:17px;flex:none}
+.pname{font-weight:600;font-size:13.5px}
+.pmeta{font-size:12px;color:var(--ink-2);margin-top:2px;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.caret{width:24px;height:24px;border-radius:6px;border:0;background:transparent;color:var(--ink-2);
+  display:grid;place-items:center;transition:.12s}
+.caret:hover{background:var(--neutral-bg);color:var(--ink-1)}
+.caret svg{transition:.15s}
+.prow[data-open=true] .caret svg{transform:rotate(90deg)}
+html[dir=rtl] .caret svg{transform:scaleX(-1)}
+html[dir=rtl] .prow[data-open=true] .caret svg{transform:scaleX(-1) rotate(90deg)}
+
+.vwrap{display:none;background:var(--sunken);border-bottom:1px solid var(--line-subtle)}
+.vwrap.on{display:block}
+.vrow{display:grid;grid-template-columns:34px 46px 1fr 130px 110px 120px 110px;align-items:center;
+  gap:12px;padding:9px 16px;border-top:1px solid var(--line-subtle)}
+.vrow:first-child{border-top:0}
+.vbar{grid-column:1;justify-self:center;width:2px;height:22px;background:var(--line-strong);border-radius:1px}
+.vname{font-size:13px;font-weight:500}
+
+/* ── matrice de stock ── */
+.mx td.site{font-variant-numeric:tabular-nums;text-align:end}
+.uncounted{color:var(--ink-3);font-style:italic;font-size:12.5px}
+.tot-row td{background:var(--sunken);font-weight:600}
+
+/* ── fiche agent (RTL) ── */
+.sheet{max-width:440px;border:1px solid var(--line-subtle);border-radius:var(--r-md);background:#fff;overflow:hidden}
+.sheet-hd{padding:14px 16px;border-bottom:1px solid var(--line-subtle);display:flex;gap:12px;align-items:center}
+.sec-lbl{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-2);margin-bottom:9px}
+.pick{display:flex;gap:8px;flex-wrap:wrap}
+.pick button{border:1px solid var(--line);background:#fff;border-radius:var(--r-sm);padding:9px 13px;
+  font-size:13px;font-weight:500;text-align:start;transition:.12s;min-width:92px}
+.pick button:hover{border-color:var(--line-strong);background:var(--hover)}
+.pick button[aria-pressed=true]{border-color:var(--brand);background:var(--brand-bg);color:var(--brand);font-weight:600}
+.pick button[disabled]{opacity:.45;cursor:not-allowed}
+.pick .pv{display:block;font-size:11.5px;color:var(--ink-2);font-weight:500;margin-top:2px}
+.pick button[aria-pressed=true] .pv{color:var(--brand-hover)}
+.tier{display:flex;align-items:center;gap:10px;border:1px solid var(--line-subtle);border-radius:var(--r-sm);
+  padding:9px 12px;margin-bottom:7px}
+.tier[data-sel=true]{border-color:var(--ink-1)}
+.tier .tl{flex:1;font-size:13px;font-weight:500}
+.tier .tp{font-size:13px;font-weight:600}
+
+@media(max-width:1000px){
+  .prow,.vrow{grid-template-columns:30px 40px 1fr 96px;gap:9px}
+  .prow>*:nth-child(n+5),.vrow>*:nth-child(n+5){display:none}
+  .grid2,.grid3{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="pbar">
+  <span class="tag">Prototype</span>
+  <span class="ttl">Variantes produit — v1</span>
+  <div class="ptabs" role="tablist">
+    <button role="tab" aria-selected="true" data-s="cat">Catalogue</button>
+    <button role="tab" aria-selected="false" data-s="new">Créer</button>
+    <button role="tab" aria-selected="false" data-s="var">Variantes</button>
+    <button role="tab" aria-selected="false" data-s="stk">Stock</button>
+    <button role="tab" aria-selected="false" data-s="agt">Fiche agent (RTL)</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ 1. CATALOGUE ═══════════════════════ -->
+<section class="screen on" id="s-cat">
+  <div class="page-hd">
+    <div>
+      <div class="crumb">Finances › Produits &amp; marges</div>
+      <h1 class="h1">Produits</h1>
+    </div>
+    <div class="sp"><button class="btn btn-primary">+ Nouveau produit</button></div>
+  </div>
+
+  <div class="expl">
+    <b>Ce que montre cet écran.</b> Aujourd'hui la poupée de boxe occupe
+    <b>trois lignes séparées</b> du catalogue — un produit par taille. Ici elle
+    n'en occupe qu'une, repliable. Les produits sans variante (le Coran, Biovera)
+    gardent exactement l'allure qu'ils ont déjà : <b>aucun coût pour le cas simple</b>.
+    La colonne Stock d'un produit à variantes est la <b>somme</b> de ses tailles.
+  </div>
+
+  <div class="card">
+    <div class="card-hd">
+      <h3>Marché Libye</h3>
+      <span class="sub">4 produits · 2 avec variantes</span>
+    </div>
+
+    <!-- produit À VARIANTES -->
+    <div class="prow" data-open="false" data-toggle="v-box">
+      <button class="caret" aria-label="Afficher les variantes">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+      <div class="thumb">🥊</div>
+      <div>
+        <div class="pname" dir="auto">دميه ملاكمه</div>
+        <div class="pmeta">
+          <span class="chip chip-info">3 tailles</span>
+          <span class="chip chip-sku">BOX</span>
+        </div>
+      </div>
+      <div class="num"><span class="money">20,00 – 30,00</span><div class="pmeta">coût unitaire</div></div>
+      <div class="num"><span class="money">129 – 199</span><div class="pmeta">prix</div></div>
+      <div class="num"><b class="tnum">1 016</b><div class="pmeta">stock total</div></div>
+      <div><span class="chip chip-ok">Actif</span></div>
+    </div>
+    <div class="vwrap" id="v-box">
+      <div class="vrow">
+        <span class="vbar"></span><span></span>
+        <div><span class="vname">Petit</span></div>
+        <div class="num"><span class="money">24,998</span></div>
+        <div class="num"><span class="money">129</span></div>
+        <div class="num tnum">216</div>
+        <div><span class="chip chip-sku">BOX-S</span></div>
+      </div>
+      <div class="vrow">
+        <span class="vbar"></span><span></span>
+        <div><span class="vname">Moyen</span></div>
+        <div class="num"><span class="money">20,002</span></div>
+        <div class="num"><span class="money">179</span></div>
+        <div class="num tnum">200</div>
+        <div><span class="chip chip-sku">BOX-M</span></div>
+      </div>
+      <div class="vrow">
+        <span class="vbar"></span><span></span>
+        <div><span class="vname">Grand</span></div>
+        <div class="num"><span class="money">30,000</span></div>
+        <div class="num"><span class="money">199</span></div>
+        <div class="num tnum">600</div>
+        <div><span class="chip chip-sku">BOX-L</span></div>
+      </div>
+    </div>
+
+    <!-- produit SIMPLE -->
+    <div class="prow">
+      <span></span>
+      <div class="thumb">📗</div>
+      <div>
+        <div class="pname" dir="auto">القرآن تدبر وعمل</div>
+        <div class="pmeta"><span class="chip chip-sku">qr-01</span></div>
+      </div>
+      <div class="num"><span class="money">40,000</span><div class="pmeta">coût unitaire</div></div>
+      <div class="num"><span class="money">249</span><div class="pmeta">prix</div></div>
+      <div class="num"><b class="tnum">964</b><div class="pmeta">stock</div></div>
+      <div><span class="chip chip-ok">Actif</span></div>
+    </div>
+
+    <div class="prow">
+      <span></span>
+      <div class="thumb">📕</div>
+      <div>
+        <div class="pname" dir="auto">كتاب الداء والدواء</div>
+        <div class="pmeta"><span class="chip chip-sku">DA2</span></div>
+      </div>
+      <div class="num"><span class="money">27,000</span><div class="pmeta">coût unitaire</div></div>
+      <div class="num"><span class="money">199</span><div class="pmeta">prix</div></div>
+      <div class="num"><b class="tnum">147</b><div class="pmeta">stock</div></div>
+      <div><span class="chip chip-ok">Actif</span></div>
+    </div>
+
+    <!-- produit à PALIERS seulement -->
+    <div class="prow" data-open="false" data-toggle="v-bio">
+      <button class="caret" aria-label="Afficher les paliers">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+      <div class="thumb">🧴</div>
+      <div>
+        <div class="pname">Biovera</div>
+        <div class="pmeta">
+          <span class="chip chip-off">2 paliers</span>
+          <span class="chip chip-sku">bv-01</span>
+        </div>
+      </div>
+      <div class="num"><span class="money">10,000</span><div class="pmeta">coût unitaire</div></div>
+      <div class="num"><span class="money">49 – 79</span><div class="pmeta">prix</div></div>
+      <div class="num"><b class="tnum">1 003</b><div class="pmeta">stock</div></div>
+      <div><span class="chip chip-ok">Actif</span></div>
+    </div>
+    <div class="vwrap" id="v-bio">
+      <div class="vrow">
+        <span class="vbar"></span><span></span>
+        <div><span class="vname">1 pièce</span> <span class="chip chip-off">×1</span></div>
+        <div class="num"><span class="money">10,000</span></div>
+        <div class="num"><span class="money">49</span></div>
+        <div class="num" style="color:var(--ink-3)">— partagé</div>
+        <div></div>
+      </div>
+      <div class="vrow">
+        <span class="vbar"></span><span></span>
+        <div><span class="vname">Pack 2</span> <span class="chip chip-off">×2</span></div>
+        <div class="num"><span class="money">20,000</span></div>
+        <div class="num"><span class="money">79</span></div>
+        <div class="num" style="color:var(--ink-3)">— partagé</div>
+        <div></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px" class="note note-info">
+    <span class="mk">i</span>
+    <div><b>Deux pastilles différentes, exprès.</b> « 3 tailles » est bleu (une
+    <b>information</b> : ce produit se décline). « 2 paliers » est gris (une
+    <b>offre commerciale</b> : même objet, vendu par lot). Les tailles ont chacune
+    leur stock ; les paliers puisent dans le stock commun — d'où le
+    « — partagé » de la colonne Stock.</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 2. CRÉER ═══════════════════════ -->
+<section class="screen" id="s-new">
+  <div class="page-hd">
+    <div>
+      <div class="crumb">Produits › Nouveau</div>
+      <h1 class="h1">Créer un produit</h1>
+    </div>
+    <div class="sp">
+      <button class="btn">Annuler</button>
+      <button class="btn btn-primary">Créer le produit</button>
+    </div>
+  </div>
+
+  <div class="expl">
+    <b>Le point délicat.</b> L'interrupteur « Ce produit se décline » est
+    <b>éteint par défaut</b> — 12 de vos 13 produits n'ont pas de variantes et ne
+    doivent pas payer le prix de la nouveauté. Allumez-le et regardez : les champs
+    <b>coût, prix, SKU et stock disparaissent du produit</b> pour réapparaître
+    dans le tableau des tailles. Ils ne peuvent pas vivre aux deux endroits, sinon
+    personne ne sait lequel fait foi.
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><h3>Identité</h3></div>
+    <div class="card-bd">
+      <div class="grid2">
+        <div><label class="lbl">Nom du produit</label><input class="inp" value="دميه ملاكمه" dir="auto"></div>
+        <div><label class="lbl">Marché</label><input class="inp" value="Libye" readonly></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">
+      <h3>Variantes</h3>
+      <span class="sub">tailles, couleurs, parfums…</span>
+      <div style="margin-inline-start:auto">
+        <label class="sw">
+          <input type="checkbox" id="tgl-var">
+          <span class="track"></span>
+          <span class="txt">Ce produit se décline</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="card-bd" id="var-off">
+      <p style="color:var(--ink-2);font-size:13px">
+        Produit simple : un seul coût, un seul prix, un seul stock.
+        <b style="color:var(--ink-1)">C'est le cas courant</b> — laissez éteint si
+        vous ne vendez qu'une seule version.
+      </p>
+    </div>
+
+    <div class="card-bd" id="var-on" style="display:none">
+      <table>
+        <thead><tr>
+          <th style="width:30%">Nom de la variante</th>
+          <th style="width:20%">SKU</th>
+          <th class="num" style="width:15%">Coût unit.</th>
+          <th class="num" style="width:15%">Prix</th>
+          <th class="num" style="width:13%">Stock initial</th>
+          <th style="width:7%"></th>
+        </tr></thead>
+        <tbody id="vbody">
+          <tr>
+            <td><input class="inp" value="Petit"></td>
+            <td><input class="inp" value="BOX-S"></td>
+            <td><input class="inp num" value="24.998"></td>
+            <td><input class="inp num" value="129"></td>
+            <td><input class="inp num" value="216"></td>
+            <td><button class="btn btn-sm btn-ghost" title="Retirer">✕</button></td>
+          </tr>
+          <tr>
+            <td><input class="inp" value="Moyen"></td>
+            <td><input class="inp" value="BOX-M"></td>
+            <td><input class="inp num" value="20.002"></td>
+            <td><input class="inp num" value="179"></td>
+            <td><input class="inp num" value="200"></td>
+            <td><button class="btn btn-sm btn-ghost" title="Retirer">✕</button></td>
+          </tr>
+          <tr>
+            <td><input class="inp" value="Grand"></td>
+            <td><input class="inp" value="BOX-L"></td>
+            <td><input class="inp num" value="30.000"></td>
+            <td><input class="inp num" value="199"></td>
+            <td><input class="inp num" value="600"></td>
+            <td><button class="btn btn-sm btn-ghost" title="Retirer">✕</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="padding-top:13px">
+        <button class="btn btn-sm" id="add-var">+ Ajouter une variante</button>
+      </div>
+      <div class="note note-info" style="margin-top:14px">
+        <span class="mk">i</span>
+        <div>Chaque variante a <b>son propre SKU</b>. C'est lui qui permet à une
+        commande Converty « …حجم كبير » d'arriver directement sur la bonne taille,
+        sans correspondance à créer à la main.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="cost-card">
+    <div class="card-hd"><h3>Coût &amp; prix</h3><span class="sub" id="cost-sub">du produit</span></div>
+    <div class="card-bd">
+      <div id="cost-moved" style="display:none">
+        <div class="note note-warn">
+          <span class="mk">→</span>
+          <div><b>Déplacé dans les variantes.</b> Le coût, le prix et le SKU
+          appartiennent maintenant à chaque taille. Le produit garde seulement ce
+          qui ne varie pas : frais d'emballage, frais de confirmation, prix plancher.</div>
+        </div>
+      </div>
+      <div class="grid3" id="cost-fields" style="margin-top:14px">
+        <div id="f-cogs"><label class="lbl">Coût unitaire (COGS)</label><input class="inp" value="0.000"></div>
+        <div id="f-price"><label class="lbl">Prix de vente</label><input class="inp" value="0.000"></div>
+        <div id="f-sku"><label class="lbl">SKU</label><input class="inp" placeholder="box-01"></div>
+        <div><label class="lbl">Frais d'emballage</label><input class="inp" value="1.000"></div>
+        <div><label class="lbl">Frais de confirmation</label><input class="inp" value="0.500"></div>
+        <div><label class="lbl">Prix plancher</label><input class="inp" placeholder="—"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="inv-card">
+    <div class="card-hd"><h3>Inventaire</h3></div>
+    <div class="card-bd">
+      <div class="grid2">
+        <div id="f-stock"><label class="lbl">Stock initial</label><input class="inp" value="0"></div>
+        <div><label class="lbl">Seuil de stock bas</label><input class="inp" value="5"></div>
+      </div>
+      <div class="hint" id="stock-hint" style="display:none">
+        Le stock initial est saisi <b>par variante</b> ci-dessus. Le total du
+        produit en est la somme — <b class="tnum">1 016</b> pour l'instant.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 3. VARIANTES (édition) ═══════════════════════ -->
+<section class="screen" id="s-var">
+  <div class="page-hd">
+    <div>
+      <div class="crumb">Produits › <span dir="auto">دميه ملاكمه</span> › Modifier</div>
+      <h1 class="h1">Variantes &amp; paliers</h1>
+    </div>
+    <div class="sp"><button class="btn btn-primary">Enregistrer</button></div>
+  </div>
+
+  <div class="expl">
+    <b>Deux tableaux, parce que ce sont deux choses.</b> Une <b>variante</b> est un
+    objet physique différent : elle a son stock, son coût, son SKU. Un <b>palier</b>
+    est une manière de vendre le même objet : « Pack 2 » ne crée pas de stock, il en
+    consomme 2. C'est pour cela qu'ajouter une 4ᵉ taille ne crée pas 12 lignes.
+  </div>
+
+  <div class="card">
+    <div class="card-hd">
+      <h3>Variantes</h3><span class="sub">chacune porte son stock</span>
+      <div style="margin-inline-start:auto"><button class="btn btn-sm">+ Ajouter</button></div>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Variante</th><th>SKU</th>
+        <th class="num">Coût unit.</th><th class="num">Prix</th>
+        <th class="num">Stock</th><th>État</th><th></th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Petit</b></td><td><span class="chip chip-sku">BOX-S</span></td>
+          <td class="num money">24,998</td><td class="num money">129</td>
+          <td class="num tnum">216</td>
+          <td><span class="chip chip-ok">Actif</span></td>
+          <td class="num"><button class="btn btn-sm btn-ghost">Modifier</button></td>
+        </tr>
+        <tr>
+          <td><b>Moyen</b></td><td><span class="chip chip-sku">BOX-M</span></td>
+          <td class="num money">20,002</td><td class="num money">179</td>
+          <td class="num tnum">200</td>
+          <td><span class="chip chip-ok">Actif</span></td>
+          <td class="num"><button class="btn btn-sm btn-ghost">Modifier</button></td>
+        </tr>
+        <tr>
+          <td><b>Grand</b></td><td><span class="chip chip-sku">BOX-L</span></td>
+          <td class="num money">30,000</td><td class="num money">199</td>
+          <td class="num tnum">600</td>
+          <td><span class="chip chip-ok">Actif</span></td>
+          <td class="num"><button class="btn btn-sm btn-ghost">Modifier</button></td>
+        </tr>
+        <tr style="background:var(--sunken)">
+          <td><b style="color:var(--ink-2)">Grand — ancien prix</b></td>
+          <td><span class="chip chip-sku">BOX-L-179</span></td>
+          <td class="num money" style="color:var(--ink-2)">19,998</td>
+          <td class="num money" style="color:var(--ink-2)">179</td>
+          <td class="num tnum" style="color:var(--ink-2)">0</td>
+          <td><span class="chip chip-off">Retirée</span></td>
+          <td class="num"><button class="btn btn-sm btn-ghost">Modifier</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="padding:13px 16px;border-top:1px solid var(--line-subtle)">
+      <div class="note note-warn">
+        <span class="mk">!</span>
+        <div><b>Supprimer ou retirer ?</b> Une variante <b>jamais commandée</b> est
+        supprimée pour de bon. Une variante qui apparaît sur des commandes passées
+        est <b>retirée</b> : elle disparaît des écrans de vente mais reste lisible
+        dans l'historique. Même règle que les motifs de rejet.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">
+      <h3>Paliers de quantité</h3><span class="sub">même objet, vendu par lot</span>
+      <div style="margin-inline-start:auto"><button class="btn btn-sm">+ Ajouter</button></div>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Palier</th><th class="num">Unités</th><th class="num">Prix affiché</th>
+        <th>Le prix porte sur</th><th>État</th><th></th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td><b>1 pièce</b></td><td class="num tnum">1</td><td class="num money">199</td>
+          <td><span class="chip chip-off">le lot</span></td>
+          <td><span class="chip chip-ok">Actif</span></td>
+          <td class="num"><button class="btn btn-sm btn-ghost">Modifier</button></td>
+        </tr>
+        <tr>
+          <td><b>Pack 2</b></td><td class="num tnum">2</td><td class="num money">349</td>
+          <td><span class="chip chip-off">le lot</span></td>
+          <td><span class="chip chip-ok">Actif</span></td>
+          <td class="num"><button class="btn btn-sm btn-ghost">Modifier</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="padding:13px 16px;border-top:1px solid var(--line-subtle)">
+      <div class="note note-info">
+        <span class="mk">i</span>
+        <div>« Pack 2 » d'un <b>Grand</b> retire <b class="tnum">2</b> du stock
+        Grand — jamais du Petit. Les paliers s'appliquent à la taille choisie
+        pendant l'appel.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 4. STOCK ═══════════════════════ -->
+<section class="screen" id="s-stk">
+  <div class="page-hd">
+    <div>
+      <div class="crumb">Produits › <span dir="auto">دميه ملاكمه</span></div>
+      <h1 class="h1">Stock par variante et par site</h1>
+    </div>
+  </div>
+
+  <div class="expl">
+    <b>Trois niveaux, pas deux.</b> Le total marché reste ce que lisent les
+    finances. Chaque variante en détient une part. Chaque site (Tripoli, Benghazi)
+    en détient une part encore. La règle est une <b>inégalité</b> : la somme des
+    parties ne dépasse jamais le total, et ce qui n'a pas encore été compté reste
+    « non ventilé » au niveau du dessus — plutôt que d'inventer une répartition.
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><h3>Répartition</h3><span class="sub">marché Libye</span></div>
+    <table class="mx">
+      <thead><tr>
+        <th>Variante</th>
+        <th class="num">Tripoli</th>
+        <th class="num">Benghazi</th>
+        <th class="num">Non ventilé</th>
+        <th class="num">Total variante</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Petit</b> <span class="chip chip-sku">BOX-S</span></td>
+          <td class="site">140</td><td class="site">76</td>
+          <td class="site" style="color:var(--ink-3)">0</td>
+          <td class="site"><b>216</b></td>
+        </tr>
+        <tr>
+          <td><b>Moyen</b> <span class="chip chip-sku">BOX-M</span></td>
+          <td class="site">200</td>
+          <td class="site uncounted">jamais compté</td>
+          <td class="site" style="color:var(--ink-3)">0</td>
+          <td class="site"><b>200</b></td>
+        </tr>
+        <tr>
+          <td><b>Grand</b> <span class="chip chip-sku">BOX-L</span></td>
+          <td class="site">310</td><td class="site">190</td>
+          <td class="site" style="color:var(--warning)">100</td>
+          <td class="site"><b>600</b></td>
+        </tr>
+        <tr class="tot-row">
+          <td>Total produit</td>
+          <td class="site">650</td><td class="site">266</td>
+          <td class="site">100</td>
+          <td class="site">1 016</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note note-warn" style="margin-top:16px">
+    <span class="mk">!</span>
+    <div><b>« Jamais compté » n'est pas zéro.</b> Benghazi n'a simplement jamais
+    inventorié le Moyen. Écrire 0 ferait croire à une rupture et déclencherait une
+    alerte de stock bas. Tant que l'entrepôt n'a pas compté, ces unités restent au
+    niveau du dessus. <b>Rien ne bouge, rien ne casse</b> — le modèle est inerte
+    jusqu'au premier comptage.</div>
+  </div>
+
+  <div class="note note-info" style="margin-top:12px">
+    <span class="mk">i</span>
+    <div><b>À savoir avant de s'y fier.</b> Sur les produits antérieurs à
+    septembre 2026, le stock enregistré est un solde d'ouverture qui n'a jamais vu
+    ses livraisons déduites — l'entrepôt ne scannait pas encore. Les variantes
+    compteront juste <b>à partir de maintenant</b> ; un inventaire physique en
+    Libye remettra les compteurs sur du réel.</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 5. FICHE AGENT (RTL) ═══════════════════════ -->
+<section class="screen" id="s-agt">
+  <div class="page-hd">
+    <div>
+      <div class="crumb">File d'attente › Fiche produit</div>
+      <h1 class="h1">Ce que voit l'agent pendant l'appel</h1>
+    </div>
+  </div>
+
+  <div class="expl">
+    <b>L'ordre de lecture compte.</b> Pendant un appel, la question qui interrompt
+    le plus souvent est « laquelle, et combien ça coûte ». La taille vient donc en
+    premier, le palier ensuite — et une taille en rupture est <b>visiblement
+    désactivée</b> plutôt que absente, pour que l'agent puisse proposer autre chose
+    au lieu de chercher.
+  </div>
+
+  <div dir="rtl" lang="ar">
+    <div class="sheet">
+      <div class="sheet-hd">
+        <div class="thumb">🥊</div>
+        <div>
+          <div class="pname" dir="auto">دميه ملاكمه</div>
+          <div class="pmeta">3 مقاسات · المخزون 1 016</div>
+        </div>
+      </div>
+
+      <div style="padding:15px 16px;border-bottom:1px solid var(--line-subtle)">
+        <div class="sec-lbl">المقاس</div>
+        <div class="pick">
+          <button aria-pressed="false">صغير<span class="pv money">129</span></button>
+          <button aria-pressed="true">كبير<span class="pv money">199</span></button>
+          <button disabled>متوسط<span class="pv">نفد المخزون</span></button>
+        </div>
+      </div>
+
+      <div style="padding:15px 16px;border-bottom:1px solid var(--line-subtle)">
+        <div class="sec-lbl">الكمية</div>
+        <div class="tier" data-sel="true">
+          <span class="tl">قطعة واحدة</span>
+          <span class="chip chip-info">مطلوب</span>
+          <span class="tp money">199</span>
+        </div>
+        <div class="tier">
+          <span class="tl">عبوة من 2</span>
+          <span class="tp money">349</span>
+        </div>
+      </div>
+
+      <div style="padding:15px 16px;background:var(--sunken)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:13px;color:var(--ink-2)">المجموع</span>
+          <b style="margin-inline-start:auto;font-size:16px" class="money">199</b>
+        </div>
+        <div class="hint">كبير · قطعة واحدة — يُخصم 1 من مخزون « كبير »</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note note-info" style="margin-top:16px;max-width:440px">
+    <span class="mk">i</span>
+    <div>La dernière ligne est délibérée : l'agent voit <b>ce qui va sortir du
+    stock</b>, pas seulement ce qu'il facture. C'est la seule protection contre
+    une confusion taille/palier au téléphone.</div>
+  </div>
+</section>
+
+<script>
+/* onglets */
+document.querySelectorAll('.ptabs button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.ptabs button').forEach(x=>x.setAttribute('aria-selected','false'));
+    b.setAttribute('aria-selected','true');
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+    document.getElementById('s-'+b.dataset.s).classList.add('on');
+    window.scrollTo(0,0);
+  });
+});
+
+/* lignes repliables du catalogue */
+document.querySelectorAll('.prow[data-toggle]').forEach(row=>{
+  row.addEventListener('click',()=>{
+    const open = row.dataset.open === 'true';
+    row.dataset.open = String(!open);
+    document.getElementById(row.dataset.toggle).classList.toggle('on', !open);
+  });
+});
+
+/* l'interrupteur « ce produit se décline » — la démonstration centrale :
+   coût, prix, SKU et stock QUITTENT le produit pour rejoindre les variantes. */
+const tgl = document.getElementById('tgl-var');
+tgl.addEventListener('change', () => {
+  const on = tgl.checked;
+  document.getElementById('var-off').style.display = on ? 'none' : '';
+  document.getElementById('var-on').style.display  = on ? '' : 'none';
+  ['f-cogs','f-price','f-sku','f-stock'].forEach(id=>{
+    document.getElementById(id).style.display = on ? 'none' : '';
+  });
+  document.getElementById('cost-moved').style.display = on ? '' : 'none';
+  document.getElementById('stock-hint').style.display = on ? '' : 'none';
+  document.getElementById('cost-sub').textContent = on
+    ? 'ce qui ne varie pas d’une taille à l’autre'
+    : 'du produit';
+});
+
+/* ajouter une ligne de variante */
+document.getElementById('add-var').addEventListener('click',()=>{
+  const tr = document.createElement('tr');
+  tr.innerHTML =
+    '<td><input class="inp" placeholder="Nom"></td>'+
+    '<td><input class="inp" placeholder="SKU"></td>'+
+    '<td><input class="inp num" placeholder="0.000"></td>'+
+    '<td><input class="inp num" placeholder="0.000"></td>'+
+    '<td><input class="inp num" value="0"></td>'+
+    '<td><button class="btn btn-sm btn-ghost">✕</button></td>';
+  document.getElementById('vbody').appendChild(tr);
+  tr.querySelector('input').focus();
+});
+
+/* retirer une ligne */
+document.getElementById('vbody').addEventListener('click',e=>{
+  const b = e.target.closest('button');
+  if (b) b.closest('tr').remove();
+});
+
+/* sélecteurs de la fiche agent */
+document.querySelectorAll('.pick button:not([disabled])').forEach(b=>{
+  b.addEventListener('click',()=>{
+    b.parentElement.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true');
+  });
+});
+document.querySelectorAll('.tier').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tier').forEach(x=>x.dataset.sel='false');
+    t.dataset.sel='true';
+  });
+});
+</script>
+</body>
+</html>
