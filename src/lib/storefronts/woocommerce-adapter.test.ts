@@ -114,6 +114,18 @@ describe("WooCommerceAdapter", () => {
         quantity: 1,
         unit_price: 29.9,
         total_price: 29.9,
+        // Le contrat s'élargit : les champs plats restent la PREMIÈRE ligne.
+        lines: [
+          {
+            product_name: "Beanie",
+            sku: "woo-beanie",
+            variant_label: null,
+            quantity: 1,
+            unit_price: 29.9,
+            external_product_id: null,
+            external_variant_id: null,
+          },
+        ],
       });
     });
 
@@ -168,5 +180,54 @@ describe("WooCommerceAdapter", () => {
       const result = adapter.mapToInternalOrder(payload);
       expect(result.unit_price).toBe(30);
     });
+  });
+});
+
+// Même défaut, même correction que chez Shopify : `line_items[0]` jetait le
+// reste du panier. Les champs plats restent la PREMIÈRE ligne.
+describe("WooCommerceAdapter — toutes les lignes de la commande", () => {
+  const adapter = new WooCommerceAdapter();
+
+  test("une commande à une ligne rend une ligne, identique aux champs plats", () => {
+    const r = adapter.mapToInternalOrder(makePayload());
+    expect(r.lines).toHaveLength(1);
+    expect(r.lines?.[0]).toMatchObject({
+      product_name: r.product_name,
+      sku: r.sku,
+      quantity: r.quantity,
+      unit_price: r.unit_price,
+    });
+  });
+
+  test("deux articles donnent deux lignes, variation comprise", () => {
+    const r = adapter.mapToInternalOrder(
+      makePayload({
+        line_items: [
+          { id: 31, name: "Beanie", sku: "woo-beanie", variation_id: 0, quantity: 1, price: 29.9 },
+          { id: 32, name: "Écharpe", sku: "woo-scarf", variation_id: 99, quantity: 2, price: 12.5 },
+        ],
+      }),
+    );
+    expect(r.lines).toHaveLength(2);
+    expect(r.lines?.[1]).toMatchObject({
+      product_name: "Écharpe",
+      sku: "woo-scarf",
+      variant_label: "Variation #99",
+      quantity: 2,
+      unit_price: 12.5,
+    });
+    expect(r.product_name).toBe("Beanie");
+  });
+
+  test("une ligne sans nom est écartée, la commande passe", () => {
+    const r = adapter.mapToInternalOrder(
+      makePayload({
+        line_items: [
+          { id: 31, name: "Beanie", sku: "woo-beanie", quantity: 1, price: 29.9 },
+          { id: 32, sku: "orphelin", quantity: 1, price: 5 },
+        ],
+      }),
+    );
+    expect(r.lines).toHaveLength(1);
   });
 });

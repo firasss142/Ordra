@@ -83,6 +83,11 @@ src/
 - Confirm is atomic and never depends on the carrier API — confirm puts the order in `confirmed`, the carrier upload happens in a separate "upload" action that lands on `uploaded` (or stays `confirmed` on any failure)
 - Carrier upload is synchronous — immediate success/failure feedback to agent
 - Adapter pattern for storefronts and carriers — new integrations = new adapter, zero core changes
+- **Storefront intake keeps EVERY line since 2026-09-25.** Adapters fill `lines[]`;
+  `orders` still carries the FIRST line denormalised (~50 readers) and `order_items`
+  carries them all. Each line resolves its own product/variant, and `mapping_status` is
+  the WORST of all lines — one unrecognised line must reach the review queue. `lines` is
+  optional: a single-line source omits it and the old path applies unchanged.
 - Supabase service role → server only (webhooks, admin user creation) — never in browser client
 
 ## OMS status model — two phases
@@ -251,6 +256,9 @@ entry has not meant deleting its page — check before assuming a route is dead.
 - Motifs de rejet — la table configurable, la règle de suppression, et pourquoi la
   pastille porte la couleur du groupe: docs/rejection-reasons.md +
   plans/rejection-reasons-crud-and-badge.md
+- Intake multi-lignes — les cinq adaptateurs lisent TOUTES les lignes, le webhook écrit
+  `order_items`, chaque ligne résout son produit, et `mapping_status` est le pire de
+  toutes: docs/storefront-multi-line-intake.md
 - Variantes produit — les deux axes (attribut porte le stock, palier multiplie), le SKU
   partagé avec products, les trois niveaux de stock, la règle du « non ventilé », et
   pourquoi DROP+CREATE d'une RPC rouvre l'accès anon: docs/product-variants.md +

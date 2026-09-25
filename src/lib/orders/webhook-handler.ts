@@ -4,6 +4,7 @@ import type { WebhookEventType } from "@/lib/storefronts/types";
 import { PayloadMappingError } from "@/lib/storefronts/errors";
 import { validateUuidOnlyPayload } from "@/lib/storefronts/uuid-only-payload";
 import { resolveProduct } from "@/lib/storefronts/product-resolver";
+import type { InternalOrderLine } from "@/lib/storefronts/types";
 import { resolveCity, resolvedCustomerCity } from "@/lib/storefronts/city-resolver";
 import { recommendCarrierForOrder } from "@/lib/carriers/recommend-carrier-for-order";
 import {
@@ -439,20 +440,56 @@ async function handleOrderCreated(
   // value that mirrors our destination table). The order's mapping_status is
   // the worst of the two outcomes — it drives the /mappings review surface,
   // NOT the order lifecycle (status stays 'pending').
-  const productResolution = await resolveProduct(adminClient, {
-    storefront_id: storefront.id,
-    market_id: storefront.market_id,
-    external_variant_id: orderData.external_variant_id ?? null,
-    sku: orderData.sku,
-    product_name: orderData.product_name,
-  });
+  /*
+   * EVERY line is resolved, not just the first.
+   *
+   * `orderData.lines` is optional: an adapter that has not been taught
+   * multi-line (and the Converty sheet, which genuinely has one line) omits it,
+   * and we fall back to the flat fields — the exact behaviour this had before.
+   * `lines[0]` always mirrors those flat fields, so the denormalised product on
+   * `orders` keeps its old meaning either way.
+   */
+  const orderLines: InternalOrderLine[] =
+    orderData.lines && orderData.lines.length > 0
+      ? orderData.lines
+      : [
+          {
+            product_name: orderData.product_name,
+            sku: orderData.sku,
+            variant_label: orderData.variant_label,
+            quantity: orderData.quantity,
+            unit_price: orderData.unit_price,
+            external_product_id: orderData.external_product_id ?? null,
+            external_variant_id: orderData.external_variant_id ?? null,
+          },
+        ];
+
+  const lineResolutions = await Promise.all(
+    orderLines.map((line) =>
+      resolveProduct(adminClient, {
+        storefront_id: storefront.id,
+        market_id: storefront.market_id,
+        external_variant_id: line.external_variant_id ?? null,
+        sku: line.sku,
+        product_name: line.product_name,
+      }),
+    ),
+  );
+  // The denormalised columns on `orders` describe the FIRST line, as they
+  // always have.
+  const productResolution = lineResolutions[0];
   const cityResolution = await resolveCity(adminClient, {
     platform: orderData.external_platform,
     market_id: storefront.market_id,
     customer_city: orderData.customer_city,
   });
-  const mappingStatus = worstMappingStatus(
-    productMatchStatus(productResolution.match_method),
+  /*
+   * The worst line decides, not the first. `mapping_status` drives the human
+   * review queue: an order whose second line nobody recognised has to show up
+   * there, and taking the first line's outcome would let it through silently.
+   */
+  const mappingStatus = lineResolutions.reduce(
+    (worst, r) => worstMappingStatus(worst, productMatchStatus(r.match_method)),
     cityMatchStatus(cityResolution.match_method),
   );
 
@@ -518,6 +555,36 @@ async function handleOrderCreated(
 
   if (insertError || !order) {
     return { status: 200, body: { error: "Failed to create order" } };
+  }
+
+  /*
+   * The parcel's real contents. `orders` carries one denormalised product for
+   * the ~50 places that read it; `order_items` is what the picker packs from
+   * and what `order_stock_lines` deducts stock from.
+   *
+   * FAILURE IS TOLERATED ON PURPOSE. Refusing the webhook would lose the sale —
+   * storefronts do not reliably retry. Without `order_items`,
+   * `order_stock_lines` falls back to the denormalised row: the old behaviour,
+   * degraded but coherent, and the order is already flagged for review.
+   */
+  const itemRows = orderLines.map((line, i) => ({
+    order_id: order.id,
+    product_id: lineResolutions[i].product_id,
+    variant_id: lineResolutions[i].product_variant_id,
+    product_name: line.product_name,
+    variant_label: line.variant_label,
+    quantity: line.quantity,
+    unit_price: line.unit_price,
+    line_total: Number((line.unit_price * line.quantity).toFixed(3)),
+  }));
+
+  try {
+    await adminClient.from("order_items").insert(itemRows);
+  } catch {
+    // Swallowed on purpose, and the try/catch is not belt-and-braces: a
+    // rejected insert would otherwise propagate out of the handler and the
+    // webhook would answer 500 for an order that is already committed. The
+    // storefront would see a failure for a sale we kept.
   }
 
   // Insert initial order_history (append-only — standard intake row).

@@ -1,5 +1,10 @@
 import { createHmac, timingSafeEqual } from "crypto";
-import type { StorefrontAdapter, InternalOrderData, WebhookEventType } from "./types";
+import type {
+  StorefrontAdapter,
+  InternalOrderData,
+  InternalOrderLine,
+  WebhookEventType,
+} from "./types";
 import { PayloadMappingError } from "./errors";
 import {
   isRecord,
@@ -8,6 +13,7 @@ import {
   getRecord,
   getArray,
   parseDecimal,
+  getExternalId,
 } from "./payload-guards";
 
 const TOPIC_MAP: Record<string, WebhookEventType> = {
@@ -109,6 +115,29 @@ export class ShopifyAdapter implements StorefrontAdapter {
     const unitPrice =
       parseDecimal(item.price) ?? (quantity > 0 ? totalPrice / quantity : totalPrice);
 
+    /*
+     * Every line, not just the first. A malformed line is skipped rather than
+     * thrown: one bad entry must not cost the whole sale, and the primary line
+     * has already been validated above.
+     */
+    const lines: InternalOrderLine[] = [];
+    for (const raw of items) {
+      if (!isRecord(raw)) continue;
+      const name = getString(raw, "name");
+      if (!name) continue;
+      const qty = getNumber(raw, "quantity") ?? 1;
+      lines.push({
+        product_name: name,
+        sku: getString(raw, "sku") ?? null,
+        variant_label: getString(raw, "variant_title") ?? null,
+        quantity: qty,
+        unit_price:
+          parseDecimal(raw.price) ?? (qty > 0 ? totalPrice / qty : totalPrice),
+        external_product_id: getExternalId(raw, "product_id") ?? null,
+        external_variant_id: getExternalId(raw, "variant_id") ?? null,
+      });
+    }
+
     const address1 = shipping ? getString(shipping, "address1") : undefined;
     const address2 = shipping ? getString(shipping, "address2") : undefined;
     const customerAddress = address1
@@ -131,6 +160,7 @@ export class ShopifyAdapter implements StorefrontAdapter {
       quantity,
       unit_price: unitPrice,
       total_price: totalPrice,
+      lines,
     };
   }
 }

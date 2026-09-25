@@ -1,5 +1,10 @@
 import { timingSafeEqual } from "crypto";
-import type { StorefrontAdapter, InternalOrderData, WebhookEventType } from "./types";
+import type {
+  StorefrontAdapter,
+  InternalOrderData,
+  InternalOrderLine,
+  WebhookEventType,
+} from "./types";
 import { PayloadMappingError } from "./errors";
 import {
   isRecord,
@@ -107,6 +112,28 @@ export class EasyOrdersAdapter implements StorefrontAdapter {
     const variant = getRecord(item, "variant");
     const variantLabel = variant ? buildVariantLabel(variant) : null;
 
+    // Every cart item, not just the first; one without a product name is
+    // skipped rather than thrown.
+    const lines: InternalOrderLine[] = [];
+    for (const raw of cartItems) {
+      if (!isRecord(raw)) continue;
+      const prod = getRecord(raw, "product");
+      const name = prod ? getString(prod, "name") : undefined;
+      if (!name) continue;
+      const qty = getNumber(raw, "quantity") ?? 1;
+      const rawVariant = getRecord(raw, "variant");
+      lines.push({
+        product_name: name,
+        sku: (prod && getString(prod, "sku")) ?? null,
+        variant_label: rawVariant ? buildVariantLabel(rawVariant) : null,
+        quantity: qty,
+        unit_price:
+          getNumber(raw, "price") ?? (qty > 0 ? totalPrice / qty : totalPrice),
+        external_product_id: getExternalId(raw, "product_id") ?? null,
+        external_variant_id: getExternalId(raw, "variant_id") ?? null,
+      });
+    }
+
     return {
       external_id: String(id),
       external_platform: "easy_orders",
@@ -124,6 +151,7 @@ export class EasyOrdersAdapter implements StorefrontAdapter {
       quantity,
       unit_price: unitPrice,
       total_price: totalPrice,
+      lines,
       external_product_id:
         getExternalId(item, "product_id") ??
         (product ? getExternalId(product, "id") : undefined) ??

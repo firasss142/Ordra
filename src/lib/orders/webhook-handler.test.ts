@@ -1286,6 +1286,10 @@ describe("handleWebhook — storefront -> OMS mapping resolution", () => {
       });
       chain.limit = vi.fn(() => chain);
       chain.eq = vi.fn(() => chain);
+      // Toute table peut recevoir un INSERT : sans ce défaut, une table que le
+      // mock ne connaît pas encore fait mourir le gestionnaire sur
+      // « insert is not a function » plutôt que sur ce que le test vise.
+      chain.insert = vi.fn(async () => ({ data: null, error: null }));
 
       if (table === "storefronts") {
         chain.maybeSingle = vi.fn(async () => ({ data: BUYBOX_STOREFRONT, error: null }));
@@ -1480,5 +1484,205 @@ describe("handleWebhook — storefront -> OMS mapping resolution", () => {
       ((h as { note?: string }).note ?? "").toLowerCase().includes("mapping"),
     );
     expect(mappingNotes).toHaveLength(0);
+  });
+});
+
+/*
+ * UNE COMMANDE À TROIS PRODUITS EN EST UNE.
+ *
+ * Le webhook n'a JAMAIS écrit dans `order_items` : il posait un seul produit
+ * dénormalisé sur `orders` et s'arrêtait là. Combiné aux adaptateurs qui ne
+ * lisaient que `items[0]`, un panier à trois articles arrivait comme un. Le
+ * préparateur en emballait un, `order_stock_lines` n'en trouvait qu'un, et le
+ * stock ne bougeait que pour celui-là — l'écart ne se constatait qu'au
+ * comptage physique, des semaines plus tard, sans explication.
+ *
+ * La ligne dénormalisée sur `orders` RESTE la première ligne : une cinquantaine
+ * d'endroits la lisent, et `order_stock_lines` s'en sert encore comme repli
+ * pour les commandes d'avant `order_items`.
+ */
+describe("handleWebhook — toutes les lignes du panier arrivent", () => {
+  const SECOND_ITEM = {
+    product_id: "prod-2",
+    variant_id: "var-2",
+    price: 12,
+    quantity: 3,
+    product: { id: "prod-2", name: "Conditioner", sku: "CD-001" },
+  };
+
+  /** Admin mock qui capture ce qui est écrit dans order_items. */
+  function mockAdminCapturing(opts: { mappingRows?: unknown[]; itemsError?: unknown } = {}) {
+    const orderItemsInserts: unknown[] = [];
+    const orderInserts: Record<string, unknown>[] = [];
+    const mappingQueue = [...(opts.mappingRows ?? [])];
+
+    const chain = (resolveWith: { data: unknown; error: unknown }) => {
+      const c: Record<string, unknown> = {};
+      c.select = vi.fn(() => c);
+      c.eq = vi.fn(() => c);
+      c.ilike = vi.fn(() => c);
+      c.limit = vi.fn(() => c);
+      c.single = vi.fn().mockResolvedValue(resolveWith);
+      c.maybeSingle = vi.fn().mockResolvedValue(resolveWith);
+      c.insert = vi.fn(() => c);
+      c.update = vi.fn(() => c);
+      return c;
+    };
+
+    const wdlSelect: Record<string, unknown> = {};
+    wdlSelect.eq = vi.fn(() => wdlSelect);
+    wdlSelect.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    return {
+      orderItemsInserts,
+      orderInserts,
+      client: {
+        from: vi.fn((table: string) => {
+          if (table === "webhook_delivery_log") {
+            return {
+              select: vi.fn(() => wdlSelect),
+              insert: vi.fn(() => chain({ data: { id: "log-1" }, error: null })),
+            };
+          }
+          if (table === "storefronts") {
+            return chain({
+              data: {
+                id: STOREFRONT_ID,
+                market_id: MARKET_ID,
+                platform: "easy_orders",
+                config: {},
+                webhook_secret: SECRET,
+                is_active: true,
+              },
+              error: null,
+            });
+          }
+          if (table === "storefront_product_mappings") {
+            // Une ligne par appel, dans l'ordre : c'est ainsi qu'on fait
+            // résoudre la première et échouer la seconde.
+            return chain({ data: mappingQueue.shift() ?? null, error: null });
+          }
+          if (table === "orders") {
+            const c = chain({ data: { id: "order-uuid-1" }, error: null });
+            c.insert = vi.fn((row: Record<string, unknown>) => {
+              orderInserts.push(row);
+              return c;
+            });
+            return c;
+          }
+          if (table === "order_items") {
+            const c = chain({ data: null, error: opts.itemsError ?? null });
+            c.insert = vi.fn((rows: unknown) => {
+              orderItemsInserts.push(rows);
+              return c;
+            });
+            return c;
+          }
+          return chain({ data: null, error: null });
+        }),
+        rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+      },
+    };
+  }
+
+  function run(admin: { from: unknown; rpc: unknown }, payload: Record<string, unknown>) {
+    const rawBody = JSON.stringify(payload);
+    return handleWebhook({
+      storefrontId: STOREFRONT_ID,
+      rawBody,
+      headers: new Headers({ secret: SECRET }),
+      adminClient: admin as unknown as Parameters<typeof handleWebhook>[0]["adminClient"],
+      decryptFn: (x: string) => x,
+    });
+  }
+
+  test("un panier à deux articles écrit deux lignes de commande", async () => {
+    const m = mockAdminCapturing();
+    const res = await run(m.client, makePayload({
+      cart_items: [makePayload().cart_items[0], SECOND_ITEM],
+    }));
+
+    expect(res.status).toBe(200);
+    expect(m.orderItemsInserts).toHaveLength(1);
+    const rows = m.orderItemsInserts[0] as Record<string, unknown>[];
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({
+      product_name: "Shampoo",
+      quantity: 2,
+      unit_price: 30,
+      line_total: 60,
+    });
+    expect(rows[1]).toMatchObject({
+      product_name: "Conditioner",
+      quantity: 3,
+      unit_price: 12,
+      line_total: 36,
+    });
+  });
+
+  test("la ligne dénormalisée sur orders reste la PREMIÈRE", async () => {
+    const m = mockAdminCapturing();
+    await run(m.client, makePayload({
+      cart_items: [makePayload().cart_items[0], SECOND_ITEM],
+    }));
+
+    expect(m.orderInserts[0]).toMatchObject({
+      product_name: "Shampoo",
+      quantity: 2,
+    });
+  });
+
+  test("une commande à un seul article écrit quand même sa ligne", async () => {
+    const m = mockAdminCapturing();
+    await run(m.client, makePayload());
+
+    const rows = m.orderItemsInserts[0] as Record<string, unknown>[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ product_name: "Shampoo" });
+  });
+
+  // Le statut de correspondance sert la revue humaine : si UNE ligne n'est pas
+  // reconnue, la commande entière doit se présenter à la revue. La moyenne ou
+  // le meilleur des deux la ferait passer inaperçue.
+  test("le statut de correspondance est le PIRE de toutes les lignes", async () => {
+    const m = mockAdminCapturing({
+      // La 1re ligne résout par correspondance explicite ; la 2e ne résout pas.
+      mappingRows: [{ product_id: "p-1", product_variant_id: null }, null],
+    });
+    await run(m.client, makePayload({
+      cart_items: [makePayload().cart_items[0], SECOND_ITEM],
+    }));
+
+    expect(m.orderInserts[0].mapping_status).toBe("unmatched");
+  });
+
+  test("chaque ligne porte le produit que SA propre résolution a trouvé", async () => {
+    const m = mockAdminCapturing({
+      mappingRows: [{ product_id: "p-1", product_variant_id: "v-1" }, null],
+    });
+    await run(m.client, makePayload({
+      cart_items: [makePayload().cart_items[0], SECOND_ITEM],
+    }));
+
+    const rows = m.orderItemsInserts[0] as Record<string, unknown>[];
+    expect(rows[0]).toMatchObject({ product_id: "p-1", variant_id: "v-1" });
+    expect(rows[1]).toMatchObject({ product_id: null, variant_id: null });
+  });
+
+  /*
+   * Si l'écriture des lignes échoue, la COMMANDE reste. Refuser le webhook
+   * ferait perdre la vente — la boutique ne rejoue pas toujours. Sans
+   * `order_items`, `order_stock_lines` retombe sur la ligne dénormalisée :
+   * l'ancien comportement, dégradé mais cohérent. La commande part en revue
+   * pour qu'un humain la voie.
+   */
+  test("une écriture de lignes ratée ne perd pas la commande", async () => {
+    const m = mockAdminCapturing({ itemsError: { message: "boom" } });
+    const res = await run(m.client, makePayload({
+      cart_items: [makePayload().cart_items[0], SECOND_ITEM],
+    }));
+
+    expect(res.status).toBe(200);
+    expect(m.orderInserts).toHaveLength(1);
   });
 });

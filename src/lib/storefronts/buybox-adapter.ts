@@ -1,4 +1,9 @@
-import type { StorefrontAdapter, InternalOrderData, WebhookEventType } from "./types";
+import type {
+  StorefrontAdapter,
+  InternalOrderData,
+  InternalOrderLine,
+  WebhookEventType,
+} from "./types";
 import { PayloadMappingError } from "./errors";
 import {
   isRecord,
@@ -103,6 +108,47 @@ export class BuyboxAdapter implements StorefrontAdapter {
     }
     const customerNote = noteParts.length > 0 ? noteParts.join(" | ") : null;
 
+    /*
+     * The upsells are real products the customer bought and the warehouse has
+     * to put in the box. Folded into a note they were readable by the agent
+     * and invisible to everything else: the picker packed none of them and
+     * stock deducted none of them. They become lines; the note stays, because
+     * the agent still reads it mid-call.
+     *
+     * `total_price` is deliberately NOT recomputed — it stays
+     * `product.total_price`, exactly as before. Revenue is orders.total_price
+     * and nothing else; if Buybox bills upsells separately that is a question
+     * for them, not a number to invent here.
+     */
+    const lines: InternalOrderLine[] = [
+      {
+        product_name: productName,
+        sku: null,
+        variant_label: bundleLabel ?? null,
+        quantity,
+        unit_price: unitPrice,
+        external_product_id: getExternalId(product, "id") ?? null,
+        external_variant_id: getExternalId(product, "variant_id") ?? null,
+      },
+    ];
+    for (const upsell of upsells) {
+      if (!isRecord(upsell)) continue;
+      const title = getString(upsell, "title");
+      // No title means nothing a picker could find on a shelf.
+      if (!title) continue;
+      lines.push({
+        product_name: title,
+        sku: null,
+        variant_label: null,
+        quantity: getNumber(upsell, "quantity") ?? 1,
+        // No price is recorded as 0 rather than guessed. The line exists to
+        // say "put this in the box", not to restate the money.
+        unit_price: parseDecimal(upsell.price) ?? 0,
+        external_product_id: getExternalId(upsell, "product_id") ?? null,
+        external_variant_id: getExternalId(upsell, "variant_id") ?? null,
+      });
+    }
+
     return {
       external_id: idempotencyKey,
       external_platform: "buybox",
@@ -124,6 +170,7 @@ export class BuyboxAdapter implements StorefrontAdapter {
       quantity,
       unit_price: unitPrice,
       total_price: totalPrice,
+      lines,
       // Storefront mapping identifiers — resolved to OMS entities downstream.
       external_product_id: getExternalId(product, "id") ?? null,
       external_variant_id: getExternalId(product, "variant_id") ?? null,

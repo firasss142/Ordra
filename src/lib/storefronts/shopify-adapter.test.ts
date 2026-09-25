@@ -125,6 +125,19 @@ describe("ShopifyAdapter", () => {
         quantity: 1,
         unit_price: 199.65,
         total_price: 199.65,
+        // Le contrat s'élargit : les champs plats restent la PREMIÈRE ligne,
+        // et `lines` porte la commande entière.
+        lines: [
+          {
+            product_name: "IPod Nano - 8gb",
+            sku: "IPOD2008GREEN",
+            variant_label: "green",
+            quantity: 1,
+            unit_price: 199.65,
+            external_product_id: null,
+            external_variant_id: null,
+          },
+        ],
       });
     });
 
@@ -194,5 +207,70 @@ describe("ShopifyAdapter", () => {
       const result = adapter.mapToInternalOrder(payload);
       expect(result.customer_address).toBeNull();
     });
+  });
+});
+
+/*
+ * TOUTES LES LIGNES, PAS SEULEMENT LA PREMIÈRE.
+ *
+ * L'adaptateur lisait `line_items[0]` et jetait le reste. Un client qui
+ * commandait trois articles différents arrivait dans Ordra comme un seul : le
+ * préparateur en emballait un, et le stock ne bougeait que pour celui-là.
+ *
+ * Les champs plats (`product_name`, `quantity`, …) restent ceux de la PREMIÈRE
+ * ligne : une cinquantaine d'endroits les lisent, et une commande à une ligne
+ * doit se comporter exactement comme avant.
+ */
+describe("ShopifyAdapter — toutes les lignes de la commande", () => {
+  const adapter = new ShopifyAdapter();
+
+  test("une commande à une ligne rend une ligne, identique aux champs plats", () => {
+    const r = adapter.mapToInternalOrder(makePayload());
+    expect(r.lines).toHaveLength(1);
+    expect(r.lines?.[0]).toMatchObject({
+      product_name: r.product_name,
+      sku: r.sku,
+      variant_label: r.variant_label,
+      quantity: r.quantity,
+      unit_price: r.unit_price,
+    });
+  });
+
+  test("trois articles donnent trois lignes", () => {
+    const payload = makePayload({
+      line_items: [
+        { id: 1, name: "IPod Nano", sku: "IPOD", variant_title: "green", quantity: 1, price: "199.65" },
+        { id: 2, name: "Câble USB", sku: "CBL", variant_title: null, quantity: 3, price: "9.90" },
+        { id: 3, name: "Housse", sku: null, variant_title: "noir", quantity: 2, price: "19.00" },
+      ],
+    });
+    const r = adapter.mapToInternalOrder(payload);
+
+    expect(r.lines).toHaveLength(3);
+    expect(r.lines?.[1]).toMatchObject({
+      product_name: "Câble USB",
+      sku: "CBL",
+      quantity: 3,
+      unit_price: 9.9,
+    });
+    expect(r.lines?.[2]).toMatchObject({ product_name: "Housse", variant_label: "noir", quantity: 2 });
+
+    // La ligne principale n'a pas changé de sens.
+    expect(r.product_name).toBe("IPod Nano");
+    expect(r.quantity).toBe(1);
+  });
+
+  // Une ligne sans nom n'est pas emballable : on l'écarte plutôt que de faire
+  // échouer toute la commande, sinon une ligne malformée coûte la vente.
+  test("une ligne sans nom est écartée, la commande passe", () => {
+    const payload = makePayload({
+      line_items: [
+        { id: 1, name: "IPod Nano", sku: "IPOD", quantity: 1, price: "199.65" },
+        { id: 2, sku: "ORPHELIN", quantity: 1, price: "5.00" },
+      ],
+    });
+    const r = adapter.mapToInternalOrder(payload);
+    expect(r.lines).toHaveLength(1);
+    expect(r.lines?.[0].product_name).toBe("IPod Nano");
   });
 });

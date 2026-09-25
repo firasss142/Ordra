@@ -255,3 +255,81 @@ describe("BuyboxAdapter", () => {
     });
   });
 });
+
+/*
+ * LES UPSELLS SONT DE VRAIS PRODUITS.
+ *
+ * Buybox les empilait dans `customer_note` — une phrase, lisible par l'agent,
+ * invisible pour tout le reste. Le préparateur n'en emballait aucun et le
+ * stock n'en déduisait aucun : un tapis de prière vendu avec le Coran
+ * n'existait nulle part dans Ordra.
+ *
+ * La note est CONSERVÉE (l'agent la lit encore en appel) et les upsells
+ * deviennent en plus de vraies lignes.
+ *
+ * Ce qui ne change PAS : `total_price` reste `product.total_price`, exactement
+ * comme avant. Le revenu, c'est orders.total_price et rien d'autre ; si Buybox
+ * facture les upsells à part, c'est une question à régler avec eux, pas un
+ * chiffre à recalculer ici.
+ */
+describe("BuyboxAdapter — les upsells deviennent des lignes", () => {
+  const adapter = new BuyboxAdapter();
+
+  test("sans upsell, une seule ligne, identique aux champs plats", () => {
+    const r = adapter.mapToInternalOrder(makePayload());
+    expect(r.lines).toHaveLength(1);
+    expect(r.lines?.[0]).toMatchObject({
+      product_name: r.product_name,
+      quantity: r.quantity,
+      unit_price: r.unit_price,
+    });
+  });
+
+  test("deux upsells donnent trois lignes au total", () => {
+    const r = adapter.mapToInternalOrder(
+      makePayload({
+        upsells: [
+          { variant_id: 9, title: "Prayer Mat", quantity: 2, price: 15 },
+          { variant_id: 10, title: "Tasbih" },
+        ],
+      }),
+    );
+
+    expect(r.lines).toHaveLength(3);
+    expect(r.lines?.[1]).toMatchObject({
+      product_name: "Prayer Mat",
+      quantity: 2,
+      unit_price: 15,
+      external_variant_id: "9",
+    });
+    // Un upsell sans quantité vaut 1, et sans prix vaut 0 : on n'invente pas
+    // un montant, on enregistre l'article à emballer.
+    expect(r.lines?.[2]).toMatchObject({
+      product_name: "Tasbih",
+      quantity: 1,
+      unit_price: 0,
+    });
+  });
+
+  test("la note reste écrite pour l'agent", () => {
+    const r = adapter.mapToInternalOrder(
+      makePayload({ upsells: [{ variant_id: 9, title: "Prayer Mat", quantity: 2 }] }),
+    );
+    expect(r.customer_note).toContain("Upsell: Prayer Mat");
+  });
+
+  test("le total de la commande n'est pas recalculé", () => {
+    const base = adapter.mapToInternalOrder(makePayload());
+    const withUpsell = adapter.mapToInternalOrder(
+      makePayload({ upsells: [{ variant_id: 9, title: "Prayer Mat", quantity: 2, price: 15 }] }),
+    );
+    expect(withUpsell.total_price).toBe(base.total_price);
+  });
+
+  test("un upsell sans titre est écarté", () => {
+    const r = adapter.mapToInternalOrder(
+      makePayload({ upsells: [{ variant_id: 9, quantity: 1 }] }),
+    );
+    expect(r.lines).toHaveLength(1);
+  });
+});

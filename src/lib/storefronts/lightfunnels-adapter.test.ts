@@ -144,6 +144,18 @@ describe("LightfunnelsAdapter", () => {
         quantity: 1,
         unit_price: 35,
         total_price: 35,
+        // Le contrat s'élargit : les champs plats restent la PREMIÈRE ligne.
+        lines: [
+          {
+            product_name: "Updated Product",
+            sku: null,
+            variant_label: null,
+            quantity: 1,
+            unit_price: 35,
+            external_product_id: null,
+            external_variant_id: "vars__DY-kzRSBh",
+          },
+        ],
       });
     });
 
@@ -205,5 +217,42 @@ describe("LightfunnelsAdapter", () => {
       const result = adapter.mapToInternalOrder(payload);
       expect(result.customer_name).toBe("Tester Test");
     });
+  });
+});
+
+// Même défaut, même correction : `node.items[0]` jetait le reste du panier.
+describe("LightfunnelsAdapter — toutes les lignes de la commande", () => {
+  const adapter = new LightfunnelsAdapter();
+
+  test("une commande à une ligne rend une ligne, identique aux champs plats", () => {
+    const r = adapter.mapToInternalOrder(makePayload());
+    expect(r.lines).toHaveLength(1);
+    expect(r.lines?.[0]).toMatchObject({
+      product_name: r.product_name,
+      quantity: r.quantity,
+      unit_price: r.unit_price,
+    });
+  });
+
+  test("deux articles donnent deux lignes", () => {
+    const r = adapter.mapToInternalOrder(
+      // La charge utile Lightfunnels est imbriquée sous `node`.
+      makePayload({
+        node: {
+          items: [
+            { id: "a", sku: "SKU-A", title: "Produit A", price: 35, quantity: 1 },
+            { id: "b", sku: "SKU-B", title: "Produit B", price: 12, quantity: 4 },
+          ],
+        },
+      }),
+    );
+    expect(r.lines).toHaveLength(2);
+    expect(r.lines?.[1]).toMatchObject({
+      product_name: "Produit B",
+      sku: "SKU-B",
+      quantity: 4,
+      unit_price: 12,
+    });
+    expect(r.product_name).toBe("Produit A");
   });
 });

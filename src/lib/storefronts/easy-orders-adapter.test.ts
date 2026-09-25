@@ -125,6 +125,18 @@ describe("EasyOrdersAdapter", () => {
         quantity: 2,
         unit_price: 220,
         total_price: 750,
+        // Le contrat s'élargit : les champs plats restent la PREMIÈRE ligne.
+        lines: [
+          {
+            product_name: "ترينج شبابي أندر ارمر",
+            sku: "EG010102RO5G06",
+            variant_label: "color: #808080 / size: L",
+            quantity: 2,
+            unit_price: 220,
+            external_product_id: "fac7a724-63bd-42c8-8179-9e96f992504f",
+            external_variant_id: "cb0eb2b5-bf08-430e-a5bb-7a2af7c7bb31",
+          },
+        ],
         external_product_id: "fac7a724-63bd-42c8-8179-9e96f992504f",
         external_variant_id: "cb0eb2b5-bf08-430e-a5bb-7a2af7c7bb31",
       });
@@ -266,5 +278,45 @@ describe("EasyOrdersAdapter", () => {
         PayloadMappingError
       );
     });
+  });
+});
+
+// `cart_items[0]` jetait le reste du panier. Le test existant « uses the first
+// cart item as the primary product » reste vrai : c'est bien la première qui
+// alimente les champs plats — mais elle n'est plus la seule enregistrée.
+describe("EasyOrdersAdapter — toutes les lignes du panier", () => {
+  const adapter = new EasyOrdersAdapter();
+
+  test("une commande à une ligne rend une ligne, identique aux champs plats", () => {
+    const r = adapter.mapToInternalOrder(makePayload());
+    expect(r.lines).toHaveLength(1);
+    expect(r.lines?.[0]).toMatchObject({
+      product_name: r.product_name,
+      sku: r.sku,
+      quantity: r.quantity,
+      unit_price: r.unit_price,
+    });
+  });
+
+  test("un second article du panier devient une seconde ligne", () => {
+    const payload = makePayload();
+    payload.cart_items.push({
+      id: "second-item",
+      product_id: "other-product",
+      store_id: "store",
+      price: 510,
+      quantity: 1,
+      product: { id: "other-product", name: "Second product", price: 510, sku: "SKU2" },
+    } as never);
+
+    const r = adapter.mapToInternalOrder(payload);
+    expect(r.lines).toHaveLength(2);
+    expect(r.lines?.[1]).toMatchObject({
+      product_name: "Second product",
+      sku: "SKU2",
+      quantity: 1,
+      unit_price: 510,
+    });
+    expect(r.product_name).toBe("ترينج شبابي أندر ارمر");
   });
 });

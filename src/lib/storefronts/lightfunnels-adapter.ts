@@ -1,5 +1,10 @@
 import { createHmac, timingSafeEqual } from "crypto";
-import type { StorefrontAdapter, InternalOrderData, WebhookEventType } from "./types";
+import type {
+  StorefrontAdapter,
+  InternalOrderData,
+  InternalOrderLine,
+  WebhookEventType,
+} from "./types";
 import { PayloadMappingError } from "./errors";
 import {
   isRecord,
@@ -8,6 +13,7 @@ import {
   getRecord,
   getArray,
   parseDecimal,
+  getExternalId,
 } from "./payload-guards";
 
 const TOPIC_MAP: Record<string, WebhookEventType> = {
@@ -129,6 +135,25 @@ export class LightfunnelsAdapter implements StorefrontAdapter {
     const unitPrice =
       parseDecimal(item.price) ?? (quantity > 0 ? totalPrice / quantity : totalPrice);
 
+    // Every line, not just the first; a nameless line is skipped.
+    const lines: InternalOrderLine[] = [];
+    for (const raw of items) {
+      if (!isRecord(raw)) continue;
+      const title = getString(raw, "title");
+      if (!title) continue;
+      const qty = getNumber(raw, "quantity") ?? 1;
+      lines.push({
+        product_name: title,
+        sku: getString(raw, "sku") || null,
+        variant_label: getString(raw, "variant_title") ?? null,
+        quantity: qty,
+        unit_price:
+          parseDecimal(raw.price) ?? (qty > 0 ? totalPrice / qty : totalPrice),
+        external_product_id: getExternalId(raw, "product_id") ?? null,
+        external_variant_id: getExternalId(raw, "id") ?? null,
+      });
+    }
+
     const addr = shipping ?? billing;
     const line1 = addr ? getString(addr, "line1") : undefined;
     const line2 = addr ? getString(addr, "line2") : undefined;
@@ -157,6 +182,7 @@ export class LightfunnelsAdapter implements StorefrontAdapter {
       quantity,
       unit_price: unitPrice,
       total_price: totalPrice,
+      lines,
     };
   }
 }

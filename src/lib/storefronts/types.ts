@@ -1,3 +1,27 @@
+/**
+ * One line of a storefront order.
+ *
+ * WHY THIS EXISTS. Every adapter used to read `items[0]` and throw the rest
+ * away, and the webhook only ever wrote a single denormalised product onto
+ * `orders`. A customer who bought three different things arrived as one — the
+ * picker packed one, and stock moved for one. `order_items` has held the truth
+ * since June 2026 for orders created inside Ordra; intake never wrote to it.
+ *
+ * The flat `product_name` / `sku` / `quantity` / `unit_price` fields on
+ * `InternalOrderData` stay, and stay equal to the FIRST line. Roughly fifty
+ * places read them, and an order with one line must keep behaving exactly as
+ * it did.
+ */
+export interface InternalOrderLine {
+  product_name: string;
+  sku: string | null;
+  variant_label: string | null;
+  quantity: number;
+  unit_price: number;
+  external_product_id?: string | null;
+  external_variant_id?: string | null;
+}
+
 export interface InternalOrderData {
   external_id: string;
   external_platform: string;
@@ -19,6 +43,18 @@ export interface InternalOrderData {
   quantity: number;
   unit_price: number;
   total_price: number;
+
+  /**
+   * Every line the payload carried, first one first — and `lines[0]` always
+   * mirrors the flat fields above.
+   *
+   * Optional on purpose: an adapter that has not been taught multi-line yet
+   * (or a source that genuinely has one line, like the Converty sheet) simply
+   * omits it, and the webhook falls back to the single denormalised line. That
+   * is the old behaviour, unchanged, rather than an empty list that would read
+   * as "this parcel contains nothing".
+   */
+  lines?: InternalOrderLine[];
 
   // --- Storefront mapping identifiers (optional; each adapter populates
   // only what its platform actually sends). These persist on the order so
