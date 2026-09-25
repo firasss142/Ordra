@@ -5,6 +5,11 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { ProductImagePicker } from "./ProductImagePicker";
 import {
+  ProductVariantDraftTable,
+  emptyVariantDraft,
+  type VariantDraft,
+} from "./ProductVariantDraftTable";
+import {
   AsideCard,
   CONTROL,
   cx,
@@ -40,6 +45,7 @@ interface ProductCreateFormProps {
 
 const SECTION_IDS = {
   identity: "product-create-identity",
+  variants: "product-create-variants",
   costModel: "product-create-cost-model",
   inventory: "product-create-inventory",
 } as const;
@@ -80,6 +86,13 @@ export function ProductCreateForm({
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /*
+   * OFF by default, and that is the whole point. Twelve of the catalogue's
+   * thirteen products have no variants and must not pay the price of the new
+   * feature: the form they see is the form they had.
+   */
+  const [hasVariants, setHasVariants] = useState(false);
+  const [variants, setVariants] = useState<VariantDraft[]>(() => [emptyVariantDraft()]);
 
   const roleLabel: Record<Permission, string> = {
     superAdmin: t("editV2.permission.superAdmin"),
@@ -125,27 +138,59 @@ export function ProductCreateForm({
       setError(t("editForm.errors.nameRequired"));
       return;
     }
+    /*
+     * When the product varies, cost / price / SKU / stock live on the VARIANTS.
+     * Validating the product's COGS here would demand a number the form no
+     * longer shows.
+     */
     const unitCogsNum = parseFloat(unitCogs);
-    if (isNaN(unitCogsNum) || unitCogsNum < 0) {
+    if (!hasVariants && (isNaN(unitCogsNum) || unitCogsNum < 0)) {
       setError(t("editForm.errors.unitCogsInvalid"));
       return;
+    }
+
+    let variantPayload: Record<string, unknown>[] | null = null;
+    if (hasVariants) {
+      if (variants.length === 0) {
+        setError(t("create.variants.errors.atLeastOne"));
+        return;
+      }
+      if (variants.some((v) => v.label.trim() === "")) {
+        setError(t("create.variants.errors.labelRequired"));
+        return;
+      }
+      if (variants.some((v) => !(parseFloat(v.display_price) > 0))) {
+        setError(t("create.variants.errors.priceRequired"));
+        return;
+      }
+      variantPayload = variants.map((v) => ({
+        label: v.label.trim(),
+        sku: v.sku.trim() === "" ? null : v.sku.trim(),
+        unit_cogs: parseFloat(v.unit_cogs) || 0,
+        display_price: parseFloat(v.display_price),
+        initial_stock: parseInt(v.initial_stock, 10) || 0,
+      }));
     }
 
     setLoading(true);
     const body: Record<string, unknown> = {
       name: name.trim(),
-      unit_cogs: unitCogsNum,
+      unit_cogs: hasVariants ? 0 : unitCogsNum,
       packing_cost: parseFloat(packingCost) || 0,
       confirmation_processing_cost: parseFloat(processingCost) || 0,
       low_stock_threshold: parseInt(threshold, 10) || 5,
-      initial_stock: parseInt(initialStock, 10) || 0,
+      initial_stock: hasVariants ? 0 : parseInt(initialStock, 10) || 0,
       market_id: marketId,
     };
-    const trimmedSku = sku.trim();
-    if (trimmedSku !== "") body.sku = trimmedSku;
-    if (defaultPrice.trim() !== "") {
-      const dp = parseFloat(defaultPrice);
-      if (!isNaN(dp) && dp >= 0) body.default_price = dp;
+    if (variantPayload) {
+      body.variants = variantPayload;
+    } else {
+      const trimmedSku = sku.trim();
+      if (trimmedSku !== "") body.sku = trimmedSku;
+      if (defaultPrice.trim() !== "") {
+        const dp = parseFloat(defaultPrice);
+        if (!isNaN(dp) && dp >= 0) body.default_price = dp;
+      }
     }
 
     const res = await fetch("/api/products", {
@@ -156,6 +201,18 @@ export function ProductCreateForm({
 
     if (!res.ok) {
       const json = await res.json().catch(() => ({}));
+      /*
+       * 207: the product exists, a variant did not. There is no transaction
+       * spanning those writes, so it cannot be undone — take the author to the
+       * product WITH the message, so they finish it by hand instead of
+       * concluding nothing was created and starting over.
+       */
+      if (res.status === 207 && json?.data?.id) {
+        setError(json.error ?? `Erreur ${res.status}`);
+        setLoading(false);
+        router.push(`/${locale}/products/${json.data.id}`);
+        return;
+      }
       const msg =
         res.status === 409
           ? t("create.errors.skuConflict")
@@ -225,6 +282,7 @@ export function ProductCreateForm({
             )}
           </FieldShell>
 
+          {!hasVariants && (
           <FieldShell
             id="product-sku"
             label={t("create.fields.sku")}
@@ -242,6 +300,7 @@ export function ProductCreateForm({
               />
             )}
           </FieldShell>
+          )}
 
           <ProductImagePicker value={image} onChange={setImage} />
 
@@ -273,6 +332,44 @@ export function ProductCreateForm({
       ),
     },
     {
+      id: SECTION_IDS.variants,
+      navLabel: t("create.variants.toggle"),
+      title: t("create.variants.toggle"),
+      icon: ICONS.stock,
+      tone: "neutral",
+      permission: "superAdmin",
+      hint: t("create.variants.toggleHint"),
+      body: (
+        <>
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              role="switch"
+              aria-label={t("create.variants.toggle")}
+              checked={hasVariants}
+              onChange={(e) => setHasVariants(e.target.checked)}
+              className="h-4 w-4 accent-prod-brand"
+            />
+            <span className="text-[13.5px] font-medium text-ink-primary">
+              {t("create.variants.toggle")}
+            </span>
+          </label>
+
+          {hasVariants ? (
+            <ProductVariantDraftTable
+              value={variants}
+              onChange={setVariants}
+              currencySymbol={currencySymbol}
+            />
+          ) : (
+            <p className="text-[12.5px] leading-normal text-ink-muted">
+              {t("create.variants.off")}
+            </p>
+          )}
+        </>
+      ),
+    },
+    {
       id: SECTION_IDS.costModel,
       navLabel: t("create.sections.costModel"),
       title: t("create.sections.costModel"),
@@ -282,6 +379,14 @@ export function ProductCreateForm({
       hint: t("createV2.hints.costModel"),
       body: (
         <>
+          {hasVariants && (
+            <p className="rounded-xl border border-status-warning/30 bg-status-warningBg
+                          px-3.5 py-3 text-[12.5px] leading-normal text-hue-amber-ink">
+              {t("create.variants.moved")}
+            </p>
+          )}
+
+          {!hasVariants && (
           <FieldShell
             id="unit-cogs"
             label={t("editForm.fields.unitCogs")}
@@ -304,6 +409,7 @@ export function ProductCreateForm({
               </UnitShell>
             )}
           </FieldShell>
+          )}
 
           <FieldShell
             id="packing-cost"
@@ -347,6 +453,7 @@ export function ProductCreateForm({
             )}
           </FieldShell>
 
+          {!hasVariants && (
           <FieldShell id="default-price" label={t("editForm.fields.defaultPrice")}>
             {(a) => (
               <UnitShell suffix={currencySymbol}>
@@ -363,6 +470,7 @@ export function ProductCreateForm({
               </UnitShell>
             )}
           </FieldShell>
+          )}
         </>
       ),
     },
@@ -376,6 +484,16 @@ export function ProductCreateForm({
       hint: t("createV2.hints.inventory"),
       body: (
         <>
+          {hasVariants ? (
+            <p className="text-[12.5px] leading-normal text-ink-muted">
+              {t("create.variants.stockFromVariants", {
+                total: variants.reduce(
+                  (sum, v) => sum + (parseInt(v.initial_stock, 10) || 0),
+                  0,
+                ),
+              })}
+            </p>
+          ) : (
           <FieldShell
             id="initial-stock"
             label={t("createV2.fields.initialStock")}
@@ -392,6 +510,7 @@ export function ProductCreateForm({
               />
             )}
           </FieldShell>
+          )}
 
           <FieldShell
             id="threshold"

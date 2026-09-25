@@ -183,22 +183,88 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const initialStock = typeof body.initial_stock === "number" ? body.initial_stock : 0;
+  /*
+   * A product can be born with its sizes.
+   *
+   * Creating the product and then going back to edit it is how the catalogue
+   * ended up carrying one boxing dummy as three separate products: nobody takes
+   * the second step. Orchestrating from the browser (1 + N + M requests) would
+   * just move the problem — a product created, two variants of three, and no
+   * way to know where it stopped. The server runs the sequence.
+   */
+  type VariantInput = {
+    label: string;
+    sku: string | null;
+    unit_cogs: number;
+    display_price: number;
+    initial_stock: number;
+  };
 
-  const defaultPrice =
-    typeof body.default_price === "number" && body.default_price >= 0
+  const rawVariants = Array.isArray(body.variants) ? body.variants : [];
+  const variants: VariantInput[] = [];
+  for (const raw of rawVariants) {
+    if (typeof raw !== "object" || raw === null) {
+      return NextResponse.json({ error: "Invalid variant" }, { status: 400 });
+    }
+    const v = raw as Record<string, unknown>;
+    const label = typeof v.label === "string" ? v.label.trim() : "";
+    if (label === "") {
+      return NextResponse.json(
+        { error: "Chaque variante doit porter un nom" },
+        { status: 400 },
+      );
+    }
+    const price = typeof v.display_price === "number" ? v.display_price : 0;
+    if (!(price > 0)) {
+      return NextResponse.json(
+        { error: `La variante « ${label} » doit avoir un prix de vente` },
+        { status: 400 },
+      );
+    }
+    const cogs = typeof v.unit_cogs === "number" && v.unit_cogs >= 0 ? v.unit_cogs : 0;
+    const stock =
+      typeof v.initial_stock === "number" && v.initial_stock >= 0
+        ? Math.trunc(v.initial_stock)
+        : 0;
+    variants.push({
+      label,
+      sku: typeof v.sku === "string" && v.sku.trim() !== "" ? v.sku.trim() : null,
+      unit_cogs: cogs,
+      display_price: price,
+      initial_stock: stock,
+    });
+  }
+  const hasVariants = variants.length > 0;
+
+  /*
+   * When the product varies, cost / price / SKU / stock belong to the VARIANTS.
+   * Leaving them on the product too would create two truths — and the product
+   * is what finance reads when no variant is named, so the wrong one would win.
+   * The product keeps only what does not vary: packing, processing, floor price,
+   * low-stock threshold.
+   */
+  const variantStockTotal = variants.reduce((sum, v) => sum + v.initial_stock, 0);
+  const initialStock = hasVariants
+    ? variantStockTotal
+    : typeof body.initial_stock === "number"
+      ? body.initial_stock
+      : 0;
+
+  const defaultPrice = hasVariants
+    ? null
+    : typeof body.default_price === "number" && body.default_price >= 0
       ? body.default_price
       : null;
 
   const sku =
-    typeof body.sku === "string" && body.sku.trim() !== ""
+    !hasVariants && typeof body.sku === "string" && body.sku.trim() !== ""
       ? body.sku.trim()
       : null;
 
   const productRow = {
     name: body.name,
     sku,
-    unit_cogs: body.unit_cogs,
+    unit_cogs: hasVariants ? 0 : body.unit_cogs,
     packing_cost: body.packing_cost,
     market_id: marketId,
     confirmation_processing_cost:
@@ -234,6 +300,92 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "SKU already in use" }, { status: 409 });
     }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+
+  /*
+   * The variants, then their opening balances.
+   *
+   * Order matters. The product row is already born carrying the FULL total, so
+   * `sum(variants) <= products.current_stock` holds at every step: the variants
+   * start at zero and climb to it. Creating them first and raising the product
+   * afterwards would break that inequality at COMMIT.
+   *
+   * No RPC here: each ledger row names its variant, and the trigger from
+   * 20260920162309 is what moves `product_variants.current_stock`. Doing the
+   * arithmetic here as well would count everything twice.
+   */
+  if (hasVariants) {
+    let created = 0;
+    let running = 0;
+    for (const v of variants) {
+      const { data: variantRow, error: variantError } = await supabase
+        .from("product_variants")
+        .insert({
+          product_id: product.id,
+          kind: "attribute",
+          label: v.label,
+          sku: v.sku,
+          unit_cogs: v.unit_cogs,
+          display_price: v.display_price,
+          quantity: 1,
+          is_active: true,
+        })
+        .select("id")
+        .single();
+
+      if (variantError || !variantRow) {
+        /*
+         * The product already exists and there is no transaction spanning these
+         * calls, so it cannot be cleanly undone. Say so — 207, with what was
+         * created — instead of answering 201 on a half-built product and
+         * leaving the author to discover the gap later.
+         */
+        const code = (variantError as { code?: string } | null)?.code;
+        return NextResponse.json(
+          {
+            data: product,
+            variants_created: created,
+            error:
+              code === "23505"
+                ? `Le SKU de la variante « ${v.label} » est déjà utilisé`
+                : `La variante « ${v.label} » n'a pas pu être créée`,
+          },
+          { status: 207 },
+        );
+      }
+
+      created += 1;
+      if (v.initial_stock > 0) {
+        running += v.initial_stock;
+        // `balance_after` stays the product's MARKET total, running — the same
+        // grandeur a simple product's opening row records.
+        const { error: logError } = await supabase.from("inventory_log").insert({
+          product_id: product.id,
+          variant_id: variantRow.id,
+          order_id: null,
+          change: v.initial_stock,
+          balance_after: running,
+          reason: "initial_stock",
+          note: null,
+          actor_id: actor.id,
+        });
+        if (logError) {
+          return NextResponse.json(
+            {
+              data: product,
+              variants_created: created,
+              error: `Le stock initial de « ${v.label} » n'a pas été enregistré`,
+            },
+            { status: 207 },
+          );
+        }
+      }
+    }
+
+    return NextResponse.json(
+      { data: product, variants_created: created },
+      { status: 201 },
+    );
   }
 
   // If initial_stock > 0, create inventory log entry

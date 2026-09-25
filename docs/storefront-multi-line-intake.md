@@ -106,10 +106,13 @@ vente qu'on a gardée.
 
 ## 7. Ce qui reste
 
-- **`create-order-from-data.ts`** (synchro Google Sheets / Converty) n'écrit pas
-  `order_items`. La source est mono-ligne par construction, donc le repli sur la
-  ligne dénormalisée est exact — c'est de l'uniformité qui manque, pas de la
-  justesse. Laissé tel quel plutôt que de toucher une synchro qui marche.
+- ~~`create-order-from-data.ts` n'écrit pas `order_items`~~ — **fait le
+  2026-09-25.** La source reste mono-ligne, donc le repli était déjà exact :
+  c'était de l'uniformité, pas de la justesse. Mais deux familles de commandes
+  qui se ressemblent et ne se lisent pas pareil, c'est l'écart qu'on ne
+  découvre qu'en debuggant autre chose. Même tolérance à l'échec que le
+  webhook : une synchro de feuille qui remonte une erreur rejoue la ligne au
+  tour suivant et créerait un doublon.
 - **Les commandes déjà en base** gardent une seule ligne. Rien n'est rétro-actif :
   les charges utiles d'origine sont dans `orders.raw_payload` si un jour on veut
   les rejouer, mais réécrire l'historique d'une table d'attribution

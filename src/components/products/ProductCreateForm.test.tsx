@@ -250,3 +250,166 @@ describe("ProductCreateForm", () => {
     expect(body.sku).toBeUndefined();
   });
 });
+
+/*
+ * LE POINT DÉLICAT DU PROTOTYPE.
+ *
+ * L'interrupteur est ÉTEINT par défaut : 12 des 13 produits du catalogue n'ont
+ * pas de variantes et ne doivent pas payer le prix de la nouveauté.
+ *
+ * Allumé, le coût, le prix, le SKU et le stock DISPARAISSENT du produit pour
+ * réapparaître dans le tableau des tailles. Ils ne peuvent pas vivre aux deux
+ * endroits, sinon personne ne sait lequel fait foi — et c'est le produit que
+ * lisent les finances quand aucune variante n'est nommée.
+ */
+describe("ProductCreateForm — créer un produit qui se décline", () => {
+  const V = frMessages.products.create.variants;
+
+  async function enableVariants(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("switch", { name: V.toggle }));
+  }
+
+  it("l'interrupteur est éteint par défaut", () => {
+    renderForm();
+    expect(screen.getByRole("switch", { name: V.toggle })).not.toBeChecked();
+    expect(screen.getByText(V.off)).toBeInTheDocument();
+  });
+
+  it("allumé, le coût, le prix et le SKU quittent le produit", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    await enableVariants(user);
+
+    expect(screen.queryByLabelText("COGS unitaire")).toBeNull();
+    // « SKU » et « Stock initial » nomment AUSSI des colonnes de variante : on
+    // vérifie donc qu'il n'en reste aucun HORS d'une ligne de variante, pas
+    // qu'il n'en reste aucun du tout.
+    expect(
+      screen.getAllByLabelText("SKU").every((el) => el.closest('[role="group"]')),
+    ).toBe(true);
+    expect(screen.getByText(V.moved)).toBeInTheDocument();
+    // Ce qui ne varie pas reste.
+    expect(screen.getByLabelText("Coût d'emballage")).toBeInTheDocument();
+  });
+
+  it("allumé, le stock initial du produit n'est plus saisissable", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    await enableVariants(user);
+    expect(
+      screen.getAllByLabelText("Stock initial").every((el) => el.closest('[role="group"]')),
+    ).toBe(true);
+  });
+
+  it("envoie les variantes, et pas de coût produit", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { id: "p-new" }, variants_created: 1 }),
+    });
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(screen.getByLabelText("Nom du produit"), "دميه ملاكمه");
+    await enableVariants(user);
+    await user.type(screen.getByLabelText(V.columns.label), "Grand");
+    await user.type(screen.getByLabelText(V.columns.displayPrice), "199");
+    const cogs = screen.getByLabelText(V.columns.unitCogs);
+    await user.type(cogs, "30");
+    const stock = screen.getByLabelText(V.columns.initialStock);
+    await user.clear(stock);
+    await user.type(stock, "600");
+
+    await user.click(screen.getByRole("button", { name: "Créer le produit" }));
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalled());
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    expect(body.variants).toEqual([
+      {
+        label: "Grand",
+        sku: null,
+        unit_cogs: 30,
+        display_price: 199,
+        initial_stock: 600,
+      },
+    ]);
+  });
+
+  it("refuse une variante sans nom, sans appeler le serveur", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(screen.getByLabelText("Nom du produit"), "Produit");
+    await enableVariants(user);
+    await user.type(screen.getByLabelText(V.columns.displayPrice), "199");
+    await user.click(screen.getByRole("button", { name: "Créer le produit" }));
+
+    expect(await screen.findByText(V.errors.labelRequired)).toBeInTheDocument();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("refuse une variante sans prix, sans appeler le serveur", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(screen.getByLabelText("Nom du produit"), "Produit");
+    await enableVariants(user);
+    await user.type(screen.getByLabelText(V.columns.label), "Grand");
+    await user.click(screen.getByRole("button", { name: "Créer le produit" }));
+
+    expect(await screen.findByText(V.errors.priceRequired)).toBeInTheDocument();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  /*
+   * Éteint, rien ne change : pas de clé `variants` dans le corps, et le COGS
+   * produit redevient obligatoire. C'est le chemin que 12 produits sur 13
+   * empruntent.
+   */
+  it("éteint, le corps ne porte aucune variante", async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ data: { id: "p-new" } }) });
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(screen.getByLabelText("Nom du produit"), "Biovera");
+    const cogs = screen.getByLabelText("COGS unitaire");
+    await user.clear(cogs);
+    await user.type(cogs, "12");
+    await user.click(screen.getByRole("button", { name: "Créer le produit" }));
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalled());
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    expect(body).not.toHaveProperty("variants");
+    expect(body.unit_cogs).toBe(12);
+  });
+
+  /*
+   * 207 = le produit existe, une variante a échoué. On ne peut pas revenir en
+   * arrière sans transaction, donc on emmène l'auteur sur la fiche produit
+   * AVEC le message : il saura quoi finir à la main plutôt que de croire que
+   * rien n'a été créé et recommencer.
+   */
+  it("un 207 emmène sur la fiche produit en montrant ce qui manque", async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 207,
+      json: async () => ({
+        data: { id: "p-half" },
+        variants_created: 1,
+        error: "Le SKU de la variante « Grand » est déjà utilisé",
+      }),
+    });
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(screen.getByLabelText("Nom du produit"), "Produit");
+    await enableVariants(user);
+    await user.type(screen.getByLabelText(V.columns.label), "Grand");
+    await user.type(screen.getByLabelText(V.columns.displayPrice), "199");
+    await user.click(screen.getByRole("button", { name: "Créer le produit" }));
+
+    expect(
+      await screen.findByText(/Le SKU de la variante/),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/fr/products/p-half"));
+  });
+});

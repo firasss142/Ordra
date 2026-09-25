@@ -299,5 +299,22 @@ périmètre des variantes.
   identité.
 - **`get_stock_position`** reste au grain produit, et c'est correct pour ce
   qu'elle mesure.
-- **`ProductCreateForm`** ne propose pas encore d'étape variantes : on crée le
-  produit, puis on ajoute ses tailles depuis l'écran d'édition.
+- ~~`ProductCreateForm` sans étape variantes~~ — **fait le 2026-09-25.** Un
+  interrupteur « Ce produit se décline », **éteint par défaut** parce que 12 des
+  13 produits n'en ont pas et ne doivent pas payer le prix de la nouveauté.
+  Allumé, le coût, le prix, le SKU et le stock **quittent le produit** pour le
+  tableau des tailles : ils ne peuvent pas vivre aux deux endroits, sinon
+  personne ne sait lequel fait foi — et c'est le produit que lisent les
+  finances quand aucune variante n'est nommée.
+
+  `POST /api/products` accepte `variants[]` et fait la séquence côté serveur
+  (produit → variantes → registre). Orchestrer depuis le navigateur
+  multiplierait les fenêtres d'échec : un produit créé, deux variantes sur
+  trois, et rien pour dire où ça s'est arrêté. Si une variante échoue malgré
+  tout, la route rend **207** avec ce qui a été créé, et l'écran emmène
+  l'auteur sur la fiche produit avec le message — plutôt que de le laisser
+  croire que rien n'existe et recommencer.
+
+  L'ordre d'écriture n'est pas libre : le produit naît avec le total COMPLET,
+  puis les variantes montent depuis zéro. L'inverse casserait l'inégalité
+  `somme(variantes) <= total` au COMMIT.

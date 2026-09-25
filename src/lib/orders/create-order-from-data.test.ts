@@ -370,3 +370,80 @@ describe("createOrderFromData", () => {
     expect(tryAutoAssign).not.toHaveBeenCalled();
   });
 });
+
+/*
+ * LA MÊME LIGNE, ÉCRITE AU MÊME ENDROIT QUE TOUT LE MONDE.
+ *
+ * La feuille Converty est mono-ligne par construction, donc le repli de
+ * `order_stock_lines` sur la ligne dénormalisée était déjà exact : ce n'est
+ * pas une correction, c'est de l'uniformité. Mais depuis que l'intake webhook
+ * écrit `order_items`, laisser cette source-ci s'en passer crée deux familles
+ * de commandes qui se ressemblent et ne se lisent pas pareil — et c'est
+ * exactement le genre d'écart qu'on ne découvre qu'en debuggant autre chose.
+ */
+describe("createOrderFromData — la ligne est écrite dans order_items", () => {
+  function clientCapturingItems(opts: { itemsError?: unknown } = {}) {
+    const items: unknown[] = [];
+    const base = makeAdminClient();
+    const originalFrom = base.from;
+    base.from = vi.fn((table: string) => {
+      if (table === "order_items") {
+        return {
+          insert: vi.fn((rows: unknown) => {
+            items.push(rows);
+            return opts.itemsError
+              ? Promise.reject(opts.itemsError)
+              : Promise.resolve({ error: null });
+          }),
+        };
+      }
+      return (originalFrom as (t: string) => unknown)(table);
+    }) as typeof base.from;
+    return { client: base, items };
+  }
+
+  it("écrit une ligne portant le produit résolu", async () => {
+    const { client, items } = clientCapturingItems();
+
+    await createOrderFromData({
+      adminClient: client as never,
+      storefront: STOREFRONT,
+      orderData: ORDER_DATA,
+      rawPayload: {},
+      sourceNote: "sheet",
+    });
+
+    expect(items).toHaveLength(1);
+    const rows = items[0] as Record<string, unknown>[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      order_id: "order-uuid",
+      product_id: "prod-uuid",
+      product_name: "مصحف القرآن",
+      quantity: 1,
+      unit_price: 199,
+      line_total: 199,
+    });
+  });
+
+  /*
+   * Même règle que le webhook : si l'écriture des lignes rate, la COMMANDE
+   * reste. Une synchro de feuille qui remonte une erreur rejoue la ligne au
+   * tour suivant et créerait un doublon ; sans `order_items`,
+   * `order_stock_lines` retombe sur la ligne dénormalisée, qui est exacte ici.
+   */
+  it("une écriture de ligne ratée ne fait pas échouer la commande", async () => {
+    const { client } = clientCapturingItems({ itemsError: new Error("boom") });
+
+    const res = await createOrderFromData({
+      adminClient: client as never,
+      storefront: STOREFRONT,
+      orderData: ORDER_DATA,
+      rawPayload: {},
+      sourceNote: "sheet",
+    });
+
+    expect(res.status).toBe("created");
+    expect(res.orderId).toBe("order-uuid");
+  });
+});

@@ -434,3 +434,225 @@ describe("POST /api/products — initial_stock is the opening balance", () => {
     expect(row.current_stock).toBe(0);
   });
 });
+
+/*
+ * CRÉER UN PRODUIT AVEC SES TAILLES, EN UNE SEULE REQUÊTE.
+ *
+ * Jusqu'ici il fallait créer le produit, puis aller l'éditer pour lui ajouter
+ * ses variantes — et le catalogue porte la même doudoune en trois produits
+ * séparés précisément parce que personne ne fait le deuxième pas.
+ *
+ * Orchestrer côté client (1 + N + M requêtes) multiplierait les fenêtres
+ * d'échec : un produit créé, deux variantes sur trois, et aucun moyen de
+ * savoir où ça s'est arrêté. Le serveur fait la séquence.
+ *
+ * LA RÈGLE DU PROTOTYPE : quand le produit se décline, le coût, le prix, le
+ * SKU et le stock appartiennent aux VARIANTES. Ils ne peuvent pas vivre aux
+ * deux endroits, sinon personne ne sait lequel fait foi.
+ */
+describe("POST /api/products — créer avec ses variantes", () => {
+  function wire(opts: { variantIds?: string[]; variantError?: unknown } = {}) {
+    const inserted: Record<string, unknown[]> = { products: [], product_variants: [], inventory_log: [] };
+    const ids = [...(opts.variantIds ?? ["v-1", "v-2", "v-3"])];
+
+    mockGetUser.mockResolvedValue({ data: { user: { id: "sa-1" } } });
+    mockFrom.mockImplementation((table: string) => {
+      const c: Record<string, unknown> = {};
+      c.select = vi.fn(() => c);
+      c.eq = vi.fn(() => c);
+      c.is = vi.fn(() => c);
+      c.insert = vi.fn((row: unknown) => {
+        (inserted[table] ??= []).push(row);
+        return c;
+      });
+      if (table === "users") {
+        c.single = vi.fn().mockResolvedValue({
+          data: { role: "super_admin", market_id: null },
+          error: null,
+        });
+        return c;
+      }
+      if (table === "products") {
+        c.single = vi.fn().mockResolvedValue({ data: { id: "p-new" }, error: null });
+        return c;
+      }
+      if (table === "product_variants") {
+        c.single = vi.fn().mockResolvedValue({
+          data: opts.variantError ? null : { id: ids.shift() ?? "v-x" },
+          error: opts.variantError ?? null,
+        });
+        return c;
+      }
+      c.single = vi.fn().mockResolvedValue({ data: null, error: null });
+      c.then = (res: (v: unknown) => unknown) =>
+        Promise.resolve({ data: null, error: null }).then(res);
+      return c;
+    });
+    return inserted;
+  }
+
+  const BODY = {
+    name: "دميه ملاكمه",
+    market_id: "m-ly",
+    packing_cost: 1,
+    confirmation_processing_cost: 0.5,
+    variants: [
+      { label: "Petit", sku: "BOX-S", unit_cogs: 25, display_price: 129, initial_stock: 216 },
+      { label: "Moyen", sku: "BOX-M", unit_cogs: 20, display_price: 179, initial_stock: 200 },
+      { label: "Grand", sku: "BOX-L", unit_cogs: 30, display_price: 199, initial_stock: 600 },
+    ],
+  };
+
+  test("crée les trois variantes en attribut", async () => {
+    const inserted = wire();
+    const res = await POST(postReq(BODY));
+
+    expect(res.status).toBe(201);
+    expect(inserted.product_variants).toHaveLength(3);
+    expect(inserted.product_variants[0]).toMatchObject({
+      product_id: "p-new",
+      kind: "attribute",
+      label: "Petit",
+      sku: "BOX-S",
+      unit_cogs: 25,
+      display_price: 129,
+    });
+  });
+
+  // Le total du produit est la SOMME des variantes : 216 + 200 + 600.
+  test("le stock du produit est la somme de ses variantes", async () => {
+    const inserted = wire();
+    await POST(postReq(BODY));
+
+    expect(inserted.products[0]).toMatchObject({
+      initial_stock: 1016,
+      current_stock: 1016,
+    });
+  });
+
+  /*
+   * Le coût, le prix et le SKU vivent dans les variantes. Les laisser aussi
+   * sur le produit créerait deux vérités — et c'est le produit que lisent les
+   * finances quand la variante est absente, donc la fausse gagnerait.
+   */
+  test("le coût, le prix et le SKU quittent le produit", async () => {
+    const inserted = wire();
+    await POST(postReq({ ...BODY, unit_cogs: 99, default_price: 999, sku: "BOX" }));
+
+    expect(inserted.products[0]).toMatchObject({
+      unit_cogs: 0,
+      default_price: null,
+      sku: null,
+    });
+  });
+
+  // Le produit garde ce qui ne varie pas.
+  test("l'emballage et la confirmation restent sur le produit", async () => {
+    const inserted = wire();
+    await POST(postReq(BODY));
+
+    expect(inserted.products[0]).toMatchObject({
+      packing_cost: 1,
+      confirmation_processing_cost: 0.5,
+    });
+  });
+
+  /*
+   * Une ligne de registre par variante, avec sa variante nommée : c'est ce qui
+   * fait monter `product_variants.current_stock` (le trigger de 20260920162309
+   * applique chaque mouvement). `balance_after` reste le TOTAL du produit, en
+   * cumul, comme pour un produit simple.
+   */
+  test("une ligne de registre par variante, en cumul", async () => {
+    const inserted = wire();
+    await POST(postReq(BODY));
+
+    expect(inserted.inventory_log).toHaveLength(3);
+    expect(inserted.inventory_log[0]).toMatchObject({
+      product_id: "p-new",
+      variant_id: "v-1",
+      change: 216,
+      balance_after: 216,
+      reason: "initial_stock",
+    });
+    expect(inserted.inventory_log[2]).toMatchObject({
+      variant_id: "v-3",
+      change: 600,
+      balance_after: 1016,
+    });
+  });
+
+  test("une variante à stock nul n'écrit pas de ligne de registre", async () => {
+    const inserted = wire({ variantIds: ["v-1", "v-2"] });
+    await POST(
+      postReq({
+        ...BODY,
+        variants: [
+          { label: "Petit", display_price: 129, initial_stock: 5 },
+          { label: "Grand", display_price: 199, initial_stock: 0 },
+        ],
+      }),
+    );
+    expect(inserted.inventory_log).toHaveLength(1);
+  });
+
+  test("une variante sans nom est refusée avant toute écriture", async () => {
+    const inserted = wire();
+    const res = await POST(
+      postReq({ ...BODY, variants: [{ label: "  ", display_price: 129 }] }),
+    );
+    expect(res.status).toBe(400);
+    expect(inserted.products).toHaveLength(0);
+  });
+
+  test("une variante sans prix est refusée", async () => {
+    const inserted = wire();
+    const res = await POST(
+      postReq({ ...BODY, variants: [{ label: "Petit", display_price: 0 }] }),
+    );
+    expect(res.status).toBe(400);
+    expect(inserted.products).toHaveLength(0);
+  });
+
+  // Sans `variants`, absolument rien ne change : c'est le cas courant.
+  test("sans variantes, le produit simple se comporte comme avant", async () => {
+    const inserted = wire();
+    const res = await POST(
+      postReq({
+        name: "Biovera",
+        market_id: "m-tn",
+        unit_cogs: 12,
+        packing_cost: 1,
+        default_price: 49,
+        sku: "BV-01",
+        initial_stock: 30,
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(inserted.product_variants).toHaveLength(0);
+    expect(inserted.products[0]).toMatchObject({
+      unit_cogs: 12,
+      default_price: 49,
+      sku: "BV-01",
+      initial_stock: 30,
+      current_stock: 30,
+    });
+  });
+
+  /*
+   * Si une variante échoue, le produit existe déjà — on ne peut pas revenir en
+   * arrière proprement sans transaction. On le DIT plutôt que de rendre 201 sur
+   * un produit à moitié construit : l'auteur doit savoir quoi finir à la main.
+   */
+  test("une variante ratée rend 207 et nomme ce qui a été créé", async () => {
+    wire({ variantError: { message: "boom" } });
+    const res = await POST(postReq(BODY));
+
+    expect(res.status).toBe(207);
+    const body = await res.json();
+    expect(body.data.id).toBe("p-new");
+    expect(body.variants_created).toBe(0);
+    expect(body.error).toBeTruthy();
+  });
+});

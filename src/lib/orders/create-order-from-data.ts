@@ -112,6 +112,49 @@ export async function createOrderFromData(
     return { status: "error", orderId: null, error: "Failed to create order" };
   }
 
+  /*
+   * The parcel's contents, written where every other source writes them.
+   *
+   * This source is single-line by construction, so `order_stock_lines`'
+   * fallback to the denormalised row was already exact — this is uniformity,
+   * not a fix. But since webhook intake began writing `order_items`, leaving
+   * this path out would create two families of orders that look alike and do
+   * not read alike, which is the kind of gap you only find while debugging
+   * something else.
+   *
+   * `lines` is honoured if a future sheet source ever carries several.
+   *
+   * Failure is swallowed, as in the webhook: a sheet sync that reports an
+   * error replays the row on the next pass and would duplicate the order.
+   */
+  const lines = orderData.lines?.length
+    ? orderData.lines
+    : [
+        {
+          product_name: orderData.product_name,
+          variant_label: orderData.variant_label,
+          quantity: orderData.quantity,
+          unit_price: orderData.unit_price,
+        },
+      ];
+  try {
+    await adminClient.from("order_items").insert(
+      lines.map((line) => ({
+        order_id: order.id,
+        product_id: productResolution.product_id,
+        variant_id: productResolution.product_variant_id,
+        product_name: line.product_name,
+        variant_label: line.variant_label,
+        quantity: line.quantity,
+        unit_price: line.unit_price,
+        line_total: Number((line.unit_price * line.quantity).toFixed(3)),
+      })),
+    );
+  } catch {
+    // See above: the order is already committed and matters more than its
+    // itemisation.
+  }
+
   await adminClient.from("order_history").insert({
     order_id: order.id,
     status_from: null,

@@ -2147,7 +2147,31 @@
         "skuConflict": "Ce SKU est déjà utilisé pour un autre produit de ce marché."
       },
       "submit": "Créer le produit",
-      "cancel": "Annuler"
+      "cancel": "Annuler",
+      "variants": {
+        "toggle": "Ce produit se décline",
+        "toggleHint": "tailles, couleurs, parfums…",
+        "off": "Produit simple : un seul coût, un seul prix, un seul stock. C'est le cas courant — laissez éteint si vous ne vendez qu'une seule version.",
+        "moved": "Déplacé dans les variantes. Le coût, le prix et le SKU appartiennent maintenant à chaque taille. Le produit garde seulement ce qui ne varie pas : frais d'emballage, frais de confirmation, seuil de stock bas.",
+        "skuHint": "Chaque variante a son propre SKU. C'est lui qui permet à une commande boutique « …حجم كبير » d'arriver directement sur la bonne taille, sans correspondance à créer à la main.",
+        "stockFromVariants": "Le stock initial est saisi par variante. Le total du produit en est la somme : {total}.",
+        "columns": {
+          "label": "Nom de la variante",
+          "sku": "SKU",
+          "unitCogs": "Coût unit.",
+          "displayPrice": "Prix",
+          "initialStock": "Stock initial"
+        },
+        "add": "Ajouter une variante",
+        "remove": "Retirer",
+        "labelPlaceholder": "Grand",
+        "skuPlaceholder": "Optionnel",
+        "errors": {
+          "labelRequired": "Chaque variante doit porter un nom.",
+          "priceRequired": "Chaque variante doit avoir un prix de vente supérieur à zéro.",
+          "atLeastOne": "Ajoutez au moins une variante, ou éteignez l'interrupteur."
+        }
+      }
     },
     "editForm": {
       "title": "Modifier le produit",
