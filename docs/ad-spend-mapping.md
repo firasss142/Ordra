@@ -139,10 +139,21 @@ purchase. It no longer lists one row per day.
 
 ## 5. Rollout
 
+**Done on 2026-09-30.**
+
+- Migration A (`20260930225232`) went in, then the deploy of `a9cf03d`, then
+  migration B (`20260930230226`).
+- The first sync (23:07 UTC) backfilled 312 facts (15 campaigns, 25 ad sets) and
+  projected 257 rows.
+- Reconciliation against a snapshot of the legacy rows was **exact**: 253 of 253
+  campaign-days, 73 148,048 LYD before and after, identical per product.
+
+The order below is kept as the record of why it had to be done this way.
+
 1. `20260930225232_ad_spend_adset_mapping.sql` is **additive**. The deployed app is
    unaffected.
 2. Deploy the new code.
-3. `20260930220500_ad_spend_adset_cutover.sql` drops `ad_spend_synced_key` (the old
+3. `20260930230226_ad_spend_adset_cutover.sql` drops `ad_spend_synced_key` (the old
    ON CONFLICT arbiter) and `meta_campaign_mappings`.
 
    **Apply it right after the deploy.** Until it lands, a rebuild fails *atomically*

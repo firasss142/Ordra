@@ -1,6 +1,14 @@
 # Dépenses pub — mapping au niveau ensemble de publicités, plusieurs produits par campagne
 
-> **Status 2026-09-30: implemented on `feat/ad-spend-adset-mapping`, not yet deployed.**
+> **Status: live since 2026-09-30 23:00 UTC.** The rollout went as follows:
+>
+> 1. Migrations `20260930225232` and then `20260930230226` were applied around the
+>    deploy of `a9cf03d`.
+> 2. The first sync (23:07) backfilled 312 ad-set facts since 23 May.
+> 3. Reconciliation matched the legacy rows exactly: 253 of 253 campaign-days, and
+>    73 148,048 LYD in total, identical per product to the millime.
+>
+> No campaign has been remapped yet: the relaunch split is the owner's call.
 > The reference is now `docs/ad-spend-mapping.md`. Where the build deviated from this
 > plan:
 >
