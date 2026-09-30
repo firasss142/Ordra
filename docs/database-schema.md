@@ -255,7 +255,12 @@ DEFINER to "fix" a permission error.
 
 Stock mutation is confined to: `adjust_product_stock`, `scan_order_out`,
 `scan_return_in`, `scan_received_in`, `record_stock_count`, `unscan_order`,
-`manual_delete_orders`, and initial stock at product creation. Any other path is a bug.
+`manual_delete_orders`, `post_reception`, `reverse_reception`, and initial stock at
+product creation. Any other path is a bug.
+
+`post_reception` (2026-09-30) is the ninth entry and the only one besides
+`record_stock_count` that CREATES a `product_site_stock` row — see
+docs/reception-de-marchandises.md.
 
 ---
 

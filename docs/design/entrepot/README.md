@@ -58,7 +58,8 @@ Le prototype montre des données inventées ; le produit n'en invente aucune.
 | Élément du prototype | Statut en production |
 |---|---|
 | Retours › « Répartition par raison » | **Retiré.** Aucune source : le motif d'échec de livraison n'est stocké nulle part. |
-| Journal › filtres Réceptions, Transferts | **Retirés.** Ces flux n'existent pas dans le modèle de données. |
+| Journal › filtre Transferts | **Retiré.** Ce flux n'existe pas dans le modèle de données. |
+| Journal › filtre Réceptions | **Livré le 2026-09-30.** Le flux existe désormais — voir docs/reception-de-marchandises.md. La même livraison a ajouté « Inventaires », dont la source `stock_count` existait déjà sans qu'aucune pastille ne la montre. |
 | Journal › filtre Remises | Dérivé de `order_history` (`status_to = 'dispatched'`). |
 | Classement, « Scannées », « Aujourd'hui vs hier » | Réels, mais à **zéro** tant que l'entrepôt n'a pas scanné : `order_history` ne contient aucun événement `scanned`. Les états vides sont donc dessinés, pas masqués. |
 | Numéro de sticker Darb | Enregistré chez nous (`orders.carrier_sticker_ref`, unique par marché). Aucun appel à l'API Darb au moment du scan. |
