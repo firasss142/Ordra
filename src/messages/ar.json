@@ -1868,6 +1868,7 @@
     "trackingSuccess": "تم الإرسال! رقم التتبع: {tracking}",
     "confirmAndDispatch": "تأكيد وإرسال",
     "confirmReject": "تأكيد الرفض",
+    "rejectRefused": "لم يُسجَّل الرفض: تغيّر السبب أو حالة الطلب. اختر السبب من جديد.",
     "autoRejectedMessage": "تم رفض الطلب تلقائياً — تم بلوغ الحد الأقصى للمحاولات.",
     "autoRejectedBanner": "تم رفض طلب تلقائياً (لا يمكن الوصول).",
     "dismiss": "إخفاء",

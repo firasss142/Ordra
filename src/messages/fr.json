@@ -1868,6 +1868,7 @@
     "trackingSuccess": "Expédié ! Numéro de suivi : {tracking}",
     "confirmAndDispatch": "Confirmer et expédier",
     "confirmReject": "Confirmer le rejet",
+    "rejectRefused": "Refus non enregistré : le motif ou le statut de la commande a changé. Rechoisissez le motif.",
     "autoRejectedMessage": "Commande rejetée automatiquement — tentatives maximum atteintes.",
     "autoRejectedBanner": "Une commande a été rejetée automatiquement (injoignable).",
     "dismiss": "Fermer",

@@ -104,11 +104,16 @@ export function CustomerHero({
   const tWa = useTranslations("whatsapp");
 
   return (
+    // Phone: the call and WhatsApp buttons get their own row under the
+    // identity. Sharing one with the name and the `flex-none` reliability
+    // pill left the name ~0px wide — one letter a line — on a 375px screen.
     <section className="px-[18px] pb-3 pt-3.5 max-lg:px-3.5" aria-label={t("client")}>
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3 max-lg:flex-col max-lg:items-stretch">
         <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-3">
-            <div className="min-w-0 flex-1">
+          {/* The pill stays beside a short name and wraps under a long one:
+              `flex-[1_1_auto]` lets the name claim its real width first. */}
+          <div className="flex items-start gap-3 max-lg:flex-wrap max-lg:gap-y-1.5">
+            <div className="min-w-0 flex-1 max-lg:flex-[1_1_auto]">
               <span className="block text-[12.5px] text-oms-ink-3">{t("client")}</span>
 
               <InlineField
@@ -190,7 +195,7 @@ export function CustomerHero({
         </div>
 
         {!terminal && (
-          <div className="flex flex-shrink-0 items-center gap-2 self-center">
+          <div className="flex flex-shrink-0 items-center gap-2 self-center max-lg:self-stretch">
             {whatsappState && onWhatsApp && (
               <button
                 type="button"
@@ -207,7 +212,7 @@ export function CustomerHero({
                   if (whatsappState !== "opted_out") onWhatsApp();
                 }}
                 aria-label={tWa("button")}
-                className={`relative inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-[8px] border px-3.5 text-[14px] font-bold transition-colors duration-fast ${
+                className={`relative inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-[8px] border px-3.5 text-[14px] font-bold transition-colors duration-fast max-lg:h-11 ${
                   whatsappState === "active"
                     ? "border-[#BBF7D0] bg-white text-[#15803D] hover:bg-[#F0FDF4]"
                     : "border-[#E5E7EB] bg-[#F9FAFB] text-[#9CA3AF]"
@@ -225,7 +230,7 @@ export function CustomerHero({
             <a
               href={`tel:${phone}`}
               aria-label={`${t("callAction")} ${phone}`}
-              className="inline-flex h-10 flex-shrink-0 items-center gap-2 rounded-[8px] bg-brand px-[18px] text-[15px] font-bold text-white transition-colors duration-fast hover:bg-brand-hover"
+              className="inline-flex h-10 flex-shrink-0 items-center justify-center gap-2 rounded-[8px] bg-brand px-[18px] text-[15px] font-bold text-white transition-colors duration-fast hover:bg-brand-hover max-lg:h-11 max-lg:flex-1"
             >
               <PhoneIcon size={16} strokeWidth={2.2} aria-hidden="true" />
               {t("callAction")}

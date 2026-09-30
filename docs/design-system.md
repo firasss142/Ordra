@@ -855,6 +855,22 @@ Manager/admin pages have **no global topbar** — `DashboardChrome` renders only
 - Padding: `24px` standard
 - Cards sit on `#F6F6F7` background
 
+### Phone layers (agent shell) — added 2026-09-30
+
+| z | Layer |
+|---|---|
+| 30 | bulk-action bar |
+| 40 | bottom tab bar (`AgentNavTabs`) and the sticky phone topbar |
+| 50 | order panel slide-over (`panelShellClasses`) |
+| 60 | call-result sheet (`PostCallActionSheet`), dispatch modals |
+| 70 | popovers and menus (`Popover`) |
+| 200 | toasts |
+
+- **Equal z-index means DOM order decides**, and the tab bar renders *after* the queue. A sheet at `z-40` painted under it and lost its submit button to the bar — anything that must cover the bar goes above 40, never at it.
+- Full-screen phone layers hold the page with `useBodyScrollLock` (counted, so stacked layers release in any order) and scroll with `overscroll-contain`.
+- Bottom sheets pin to `useVisibleViewport`, so the keyboard lifts them instead of covering the field and its button; decisive buttons sit in a pinned footer, never at the end of a scrolling list.
+- Text fields are 16px on touch screens — iOS zooms the page into anything smaller and stays zoomed. Enforced for `.agent-theme` in `globals.css`.
+
 ### RTL Support
 
 Use **logical CSS properties** everywhere — never physical (`left`/`right`):

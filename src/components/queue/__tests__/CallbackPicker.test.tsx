@@ -79,4 +79,39 @@ describe("CallbackPicker", () => {
     const today = new Date().toISOString().slice(0, 10);
     expect(dateInput.min).toBe(today);
   });
+
+  // The error line alone was not enough: the sheet kept the last VALID time
+  // armed, so « Planifier le rappel » submitted a time no longer on screen.
+  it("tells the caller when the time on screen is in the past", () => {
+    const onSelect = vi.fn();
+    const onInvalid = vi.fn();
+    render(
+      <CallbackPicker
+        onSelect={onSelect}
+        onInvalid={onInvalid}
+        defaultValue={new Date(Date.now() + 2 * 3600_000)}
+      />,
+    );
+    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    fireEvent.change(dateInput, { target: { value: "2020-01-01" } });
+
+    expect(onInvalid).toHaveBeenCalledTimes(1);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  // In an Arabic sheet the bidi algorithm moved the sign: « 2h+ ».
+  it("keeps « +2h » reading left to right inside an Arabic sheet", () => {
+    render(<CallbackPicker onSelect={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "+2h" }).getAttribute("dir")).toBe("ltr");
+  });
+
+  // iOS Safari zooms the whole page into any field under 16px when it is
+  // focused, and does not zoom back out — the sheet is left cropped.
+  it("sets its fields at 16px, the size under which iOS zooms the page on focus", () => {
+    render(<CallbackPicker onSelect={vi.fn()} />);
+    for (const input of document.querySelectorAll("input")) {
+      expect(input.style.fontSize).not.toBe("14px");
+      expect(input.className).toMatch(/text-\[16px\]/);
+    }
+  });
 });

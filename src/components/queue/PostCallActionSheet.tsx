@@ -16,7 +16,8 @@ import {
 import { ProductAvatar } from "@/components/orders/ProductAvatar";
 import { CallbackPicker } from "./CallbackPicker";
 import { RejectionReasonSelect } from "./RejectionReasonSelect";
-import { isValidPair } from "@/lib/orders/rejection-taxonomy";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
+import { useVisibleViewport } from "@/hooks/useVisibleViewport";
 import { DexpressLocationPicker, type DexpressSelection } from "./DexpressLocationPicker";
 import { DarbAssabilDispatchModal } from "./DarbAssabilDispatchModal";
 import { coverageFor, type CoverageState } from "@/lib/carriers/coverage";
@@ -312,16 +313,47 @@ export function PostCallActionSheet({
   const [rejectionSubreason, setRejectionSubreason] = useState<string | null>(null);
   const [rejectionNote, setRejectionNote] = useState<string | undefined>(undefined);
 
-  // CALLBACK — pre-seed with default so "Planifier le rappel" is enabled immediately
-  const [callbackTime, setCallbackTime] = useState<Date | null>(() => getDefaultCallbackTime());
+  // CALLBACK — pre-seeded so "Planifier le rappel" is enabled immediately.
+  // The picker's shown default and the time that will be submitted are ONE
+  // value: they used to be computed separately, so re-opening the picker
+  // showed a fresh +2h while the button still held an earlier pick.
+  const [firstCallbackDefault] = useState(getDefaultCallbackTime);
+  const [callbackDefault, setCallbackDefault] = useState<Date>(firstCallbackDefault);
+  const [callbackTime, setCallbackTime] = useState<Date | null>(firstCallbackDefault);
 
-  // Reset error on flow change; re-seed defaults when re-entering callback
+  function openCallback() {
+    const fresh = getDefaultCallbackTime();
+    setCallbackDefault(fresh);
+    setCallbackTime(fresh);
+    setFlow("callback_expanded");
+  }
+
+  const clearRejection = useCallback(() => {
+    setRejectionReason(null);
+    setRejectionSubreason(null);
+    setRejectionNote(undefined);
+  }, []);
+
   useEffect(() => {
     setError(null);
-    if (flow === "callback_expanded" && callbackTime === null) {
-      setCallbackTime(getDefaultCallbackTime());
-    }
-  }, [flow, callbackTime]);
+  }, [flow]);
+
+  // The picker opens under the fourth card, which on a phone is the bottom
+  // of the list — bring it up rather than leave it below the fold.
+  const callbackRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (flow !== "callback_expanded") return;
+    callbackRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+  }, [flow]);
+
+  // On a phone the sheet is the whole interaction: the page behind must not
+  // scroll under the thumb, and the keyboard must not cover the note field
+  // or the button under it.
+  useBodyScrollLock(true);
+  const visible = useVisibleViewport(true);
+  // With the keyboard up an iPhone SE has ~330px left. The order echo is
+  // context, not control — it gives way before the list does.
+  const tight = visible !== null && visible.height < 520;
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") onClose();
@@ -439,6 +471,15 @@ export function PostCallActionSheet({
     if (status === 409) return t("statusChanged");
     if (status === 422) return t("carrierRetry");
     return t("networkError");
+  }
+
+  // A refused rejection is not a network error. 400 is the server saying the
+  // reason or the order's status is no longer acceptable — rechoosing fixes
+  // it; 404 is the order no longer being this agent's.
+  function rejectErrorMessage(status: number): string {
+    if (status === 400) return t("rejectRefused");
+    if (status === 404) return t("realtime.toast.reassignedAway");
+    return httpErrorMessage(status);
   }
 
   // ── NOANSWER submit ──────────────────────────────────────────────
@@ -707,7 +748,7 @@ export function PostCallActionSheet({
     });
     setLoading(false);
     if (!result.ok) {
-      setError(httpErrorMessage(result.status || 500));
+      setError(rejectErrorMessage(result.status || 500));
       return;
     }
     onSuccess({ action: "rejected", newStatus: "rejected" });
@@ -739,10 +780,33 @@ export function PostCallActionSheet({
     onSuccess({ action: "callback", newStatus: "callback_scheduled" });
   }
 
+  // The flows whose one decisive button is pinned under the list rather than
+  // at its end — on a phone the end of the list is below the fold. Not the
+  // callback at the ceiling: its picker is hidden there, and a pinned submit
+  // would schedule a +2h nobody saw or chose.
+  const footerFlow =
+    flow === "reject_flow" || (flow === "callback_expanded" && !atMax);
+
+  const errorBox = error ? (
+    <div
+      role="alert"
+      className="mb-3 rounded-md border border-status-critical/30 bg-status-criticalBg px-3 py-2 text-[13px] text-status-critical"
+    >
+      {error}
+    </div>
+  ) : null;
+
   return (
     <>
+    {/* z-[60]: above the phone's bottom tab bar (z-40, rendered after the
+        queue, so it used to paint OVER a z-40 sheet and cover its submit
+        button) and above the order panel (z-50), which now stays open under
+        the sheet so « Annuler » goes back to the order. `style` pins the
+        overlay to what the keyboard leaves visible; without a keyboard that
+        is the whole screen and changes nothing. */}
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-ink-primary/50 max-lg:items-end"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-ink-primary/50 max-lg:items-end"
+      style={visible ? { top: visible.top, height: visible.height, bottom: "auto" } : undefined}
       onClick={onClose}
     >
       <FocusTrap
@@ -753,18 +817,27 @@ export function PostCallActionSheet({
       >
         <div
           ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("callResult")}
           tabIndex={-1}
           onClick={(e) => e.stopPropagation()}
-          className="relative z-50 max-h-[85vh] w-[480px] max-w-[90vw] overflow-y-auto rounded-card bg-surface-card shadow-floating max-lg:max-h-[88vh] max-lg:w-full max-lg:max-w-none max-lg:rounded-b-none max-lg:rounded-t-[22px]"
+          className={[
+            "relative flex max-h-[85vh] w-[480px] max-w-[90vw] flex-col overflow-hidden rounded-card bg-surface-card shadow-floating",
+            "max-lg:max-h-[92%] max-lg:w-full max-lg:max-w-none max-lg:rounded-b-none max-lg:rounded-t-[22px]",
+            "max-lg:animate-[sheetUp_220ms_cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:animate-none",
+          ].join(" ")}
         >
           {/* The handle says "this came up from the bottom edge and goes back
               down there". Phone only — a centred modal has no bottom edge. */}
-          <div className="flex justify-center pt-2 lg:hidden">
-            <span aria-hidden="true" className="h-1 w-9 rounded-pill bg-oms-border-strong" />
-          </div>
+          {!tight && (
+            <div className="flex flex-shrink-0 justify-center pt-2 lg:hidden">
+              <span aria-hidden="true" className="h-1 w-9 rounded-pill bg-oms-border-strong" />
+            </div>
+          )}
 
           {/* Header */}
-          <div className="flex items-start justify-between gap-3 border-b border-line-subtle px-5 py-3.5 max-lg:px-3.5">
+          <div className="flex flex-shrink-0 items-start justify-between gap-3 border-b border-line-subtle px-5 py-3.5 max-lg:px-3.5 max-lg:py-3">
             <div>
               <span className="block text-[19px] font-bold text-ink-primary">
                 {t("callResult")}
@@ -793,10 +866,10 @@ export function PostCallActionSheet({
           {/* Which order this is about. On a phone the sheet covers the list
               it was opened from, so without this the four choices are about
               an order the agent can no longer see. */}
-          {order && (
+          {order && !tight && (
             <div
               data-testid="call-result-order"
-              className="flex items-center gap-3 border-b border-line-subtle px-5 py-3 max-lg:px-3.5"
+              className="flex flex-shrink-0 items-center gap-3 border-b border-line-subtle px-5 py-3 max-lg:px-3.5 max-lg:py-2.5"
             >
               <ProductAvatar
                 imageUrl={order.imageUrl}
@@ -818,13 +891,15 @@ export function PostCallActionSheet({
             </div>
           )}
 
-          {/* Body */}
-          <div className="p-5 max-lg:px-3.5 max-lg:pb-3.5 max-lg:pt-3">
-            {error && (
-              <div className="px-3 py-2 mb-3 bg-status-criticalBg border border-status-critical/30 rounded-md text-[13px] text-status-critical">
-                {error}
-              </div>
-            )}
+          {/* Body — the only part that scrolls. `overscroll-contain` keeps a
+              drag that reaches its end from carrying on into the page. */}
+          <div
+            data-testid="sheet-body"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 max-lg:px-3.5 max-lg:pb-3.5 max-lg:pt-3"
+          >
+            {/* With a pinned footer the error sits beside the button that
+                produced it, not at the top of a list the agent scrolled past. */}
+            {!footerFlow && errorBox}
 
             {autoRejectMessage && (
               <div className="px-3 py-2.5 mb-3 bg-status-criticalBg border border-status-critical/30 rounded-md text-[14px] text-status-critical">
@@ -876,13 +951,10 @@ export function PostCallActionSheet({
                   label={t("rejected")}
                   hint={atMax ? t("rejectedHintMax") : t("rejectedHint")}
                   required={atMax ? undefined : t("rejectedRequired")}
-                  onClick={() => {
-                    setFlow("reject_flow");
-                    if (atMax) {
-                      setRejectionReason("injoignable");
-                      setRejectionSubreason("pas_de_reponse");
-                    }
-                  }}
+                  // No arming here: at the ceiling the picker reports its
+                  // pre-chosen « pas de réponse » itself, whichever way the
+                  // sheet was reached.
+                  onClick={() => setFlow("reject_flow")}
                 />
 
                 {!atMax && (
@@ -893,28 +965,23 @@ export function PostCallActionSheet({
                       label={t("callbackRequested")}
                       hint={t("callbackHint")}
                       onClick={() =>
-                        setFlow(
-                          flow === "callback_expanded"
-                            ? "option_select"
-                            : "callback_expanded",
-                        )
+                        flow === "callback_expanded" ? setFlow("option_select") : openCallback()
                       }
                     />
 
                     {flow === "callback_expanded" && (
-                      <div className="mt-2 p-3 border border-line-subtle rounded-md bg-[#F9FAFB]">
+                      <div
+                        ref={callbackRef}
+                        className="mt-2 rounded-md border border-line-subtle bg-[#F9FAFB] p-3"
+                      >
+                        {/* Keyed on the default so a re-opened picker shows
+                            exactly the time the button will submit. */}
                         <CallbackPicker
-                          defaultValue={getDefaultCallbackTime()}
+                          key={callbackDefault.getTime()}
+                          defaultValue={callbackDefault}
                           onSelect={(d) => setCallbackTime(d)}
+                          onInvalid={() => setCallbackTime(null)}
                         />
-                        <button
-                          type="button"
-                          className={`${submitButtonClasses} mt-3`}
-                          disabled={!callbackTime || loading}
-                          onClick={submitCallback}
-                        >
-                          {loading ? t("saving") : t("scheduleCallback")}
-                        </button>
                       </div>
                     )}
                   </div>
@@ -1194,53 +1261,76 @@ export function PostCallActionSheet({
             )}
 
             {flow === "reject_flow" && (
-              <div>
+              <RejectionReasonSelect
+                marketId={marketId}
+                // At the ceiling the answer is pre-armed; the picker shows it
+                // as chosen, and withdraws it if the market retired it.
+                defaultGroup={atMax ? "injoignable" : undefined}
+                defaultSub={atMax ? "pas_de_reponse" : undefined}
+                onSelect={(group, sub, note) => {
+                  setRejectionReason(group);
+                  setRejectionSubreason(sub);
+                  setRejectionNote(note);
+                }}
+                onClear={clearRejection}
+                // The picker owns the one « Retour »: to the groups from a
+                // group, out of the rejection from the groups.
+                onBack={() => {
+                  clearRejection();
+                  setFlow("option_select");
+                }}
+                // "Wants it later" is a callback, not a rejection. Offering it
+                // here — where the agent actually hears it — is what keeps it
+                // out of the rejection rate. Not at the ceiling: the callback
+                // option is gone there, so the escape would lead nowhere.
+                onPostpone={
+                  atMax
+                    ? undefined
+                    : () => {
+                        clearRejection();
+                        openCallback();
+                      }
+                }
+              />
+            )}
+          </div>
+
+          {/* Pinned under the list, never scrolled away from — and on a
+              phone, above the home indicator. The picker reports only
+              complete answers and withdraws them when they stop being
+              complete, so "is there a reason" is the whole arming rule; the
+              market's own taxonomy is the picker's business, not a compiled
+              list's. */}
+          {footerFlow && (
+            <div
+              data-testid="sheet-footer"
+              className="flex-shrink-0 border-t border-line-subtle bg-surface-card px-5 pb-4 pt-3 max-lg:px-3.5 max-lg:pb-[max(12px,env(safe-area-inset-bottom))]"
+            >
+              {errorBox}
+              {flow === "reject_flow" ? (
+                // The rejection's own red: the agent theme paints the shared
+                // submit style in the green of « Confirmer », and the button
+                // that ends an order must not look like the one that saves it.
                 <button
                   type="button"
-                  className="bg-transparent border-0 text-[14px] text-ink-secondary p-0 pb-3 text-start hover:text-ink-primary transition-colors duration-fast"
-                  onClick={() => {
-                    setFlow("option_select");
-                    setRejectionReason(atMax ? "injoignable" : null);
-                    setRejectionSubreason(atMax ? "pas_de_reponse" : null);
-                  }}
-                >
-                  {t("back")}
-                </button>
-
-                <RejectionReasonSelect
-                  marketId={marketId}
-                  defaultGroup={atMax ? "injoignable" : undefined}
-                  onSelect={(group, sub, note) => {
-                    setRejectionReason(group);
-                    setRejectionSubreason(sub);
-                    setRejectionNote(note);
-                  }}
-                  // "Wants it later" is a callback, not a rejection. Offering it
-                  // here — where the agent actually hears it — is what keeps it
-                  // out of the rejection rate.
-                  onPostpone={() => {
-                    setRejectionReason(null);
-                    setRejectionSubreason(null);
-                    setRejectionNote(undefined);
-                    setFlow("callback_expanded");
-                  }}
-                />
-
-                <button
-                  type="button"
-                  className={`${submitButtonClasses} mt-4`}
-                  disabled={
-                    !isValidPair(rejectionReason ?? "", rejectionSubreason) ||
-                    (rejectionReason === "autre" && !rejectionNote?.trim()) ||
-                    loading
-                  }
+                  className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-oms-bad px-4 py-2.5 text-[14px] font-semibold text-white transition-colors duration-fast hover:bg-oms-bad/90 disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={rejectionReason === null || loading}
                   onClick={submitReject}
                 >
                   {loading ? t("saving") : t("confirmReject")}
                 </button>
-              </div>
-            )}
-          </div>
+              ) : (
+                <button
+                  type="button"
+                  className={`${submitButtonClasses} min-h-[48px]`}
+                  disabled={!callbackTime || loading}
+                  onClick={submitCallback}
+                >
+                  {loading ? t("saving") : t("scheduleCallback")}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </FocusTrap>
     </div>

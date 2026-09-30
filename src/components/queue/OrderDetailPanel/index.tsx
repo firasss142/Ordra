@@ -100,6 +100,7 @@ import { useOrderPresence } from "@/hooks/useOrderPresence";
 import { OrderTakeoverScreen } from "../OrderTakeoverScreen";
 import { useOrderLocks } from "@/hooks/useOrderLocks";
 import { useTypingMode } from "@/hooks/useTypingMode";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { TypingActivityProvider } from "@/components/ui/typing-activity";
 
 const ScheduleDispatchModal = dynamic(
@@ -280,6 +281,29 @@ interface OrderDetailPanelProps {
   variant?: PanelVariant;
   /** Open on a given tab — the bell's "a répondu sur WhatsApp" lands on Messages. */
   initialTab?: PanelTab;
+  /**
+   * The call sheet is open on top of this panel. The panel stays mounted —
+   * « Annuler » on the sheet must land back on the order — but its keyboard
+   * shortcuts stand down: both layers listen on `document`, and one Escape
+   * used to close the two at once.
+   */
+  covered?: boolean;
+}
+
+/** Below Tailwind's `lg`, where the panel is the whole screen. */
+const PHONE_QUERY = "(max-width: 1023px)";
+
+function useIsPhone(): boolean {
+  const [phone, setPhone] = useState(false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia(PHONE_QUERY);
+    setPhone(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setPhone(e.matches);
+    mq.addEventListener?.("change", onChange);
+    return () => mq.removeEventListener?.("change", onChange);
+  }, []);
+  return phone;
 }
 
 /**
@@ -377,8 +401,16 @@ export function OrderDetailPanel({
   onTerminatedByManager,
   variant = "overlay",
   initialTab,
+  covered = false,
 }: OrderDetailPanelProps) {
   const t = useTranslations("orders.detail");
+
+  // On a phone the panel covers the queue. Without this, a drag on its header
+  // or footer — or one that runs past the end of its scroll — scrolls the
+  // list hidden behind it, and the panel appears to jump. On a desktop the
+  // list beside it must keep scrolling, so the lock is phone-only.
+  const isPhone = useIsPhone();
+  useBodyScrollLock(isPhone && orderId !== null);
   const ts = useTranslations("orders.statuses");
   const tCov = useTranslations("dispatch.coverage");
   const tMerge = useTranslations("orderMerge");
@@ -681,7 +713,7 @@ export function OrderDetailPanel({
   // "p" opens the sheet. Deliberately not gated on canEdit — an agent must be
   // able to read the product even on an order they can no longer modify.
   useEffect(() => {
-    if (!order || productSheetOpen) return;
+    if (!order || productSheetOpen || covered) return;
     const handler = (e: KeyboardEvent) => {
       if (isEditableTarget(e.target)) return;
       if (e.key === "p" || e.key === "P") {
@@ -691,7 +723,7 @@ export function OrderDetailPanel({
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [order, productSheetOpen]);
+  }, [order, productSheetOpen, covered]);
 
   // Reset transient UI state when switching orders.
   useEffect(() => {
@@ -790,8 +822,8 @@ export function OrderDetailPanel({
     if (!order || !canEdit) return;
     // While the product sheet is stacked on top, it owns Escape. Both
     // listeners sit on `document`, so without this guard one Escape would
-    // collapse both layers at once.
-    if (productSheetOpen) return;
+    // collapse both layers at once. The call sheet stacked above is the same.
+    if (productSheetOpen || covered) return;
     const handler = (e: KeyboardEvent) => {
       if (isEditableTarget(e.target)) return;
       if (e.key === "e" || e.key === "E") {
@@ -807,7 +839,7 @@ export function OrderDetailPanel({
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [order, canEdit, onClose, productSheetOpen]);
+  }, [order, canEdit, onClose, productSheetOpen, covered]);
 
   if (orderId === null) return null;
 
@@ -1386,14 +1418,25 @@ export function OrderDetailPanel({
         )}
 
         {order && (
-          <>
+          /* Desktop: a plain column — the masthead stays put and only the
+             tab panels scroll, as before.
+             Phone: this is the ONE scroll region. The masthead was a capped
+             scroll box of its own above a second one for the receipt: on an
+             iPhone SE that left the receipt 18px, and a drag on the name
+             scrolled a box whose edges nobody could see. The tab strip pins
+             to the top of this region instead, and the name and number are
+             one flick away. */
+          <div
+            data-testid="panel-scroll"
+            className="flex min-h-0 flex-1 flex-col max-lg:overflow-y-auto max-lg:overscroll-contain"
+          >
             {/* ── Masthead: identity, money, blockers ─────────────────
-                Deliberately outside the scroll region. An agent mid-call
-                must be able to read the name and number back while
-                scrolling a long receipt. max-h is a backstop only — it
-                should never engage now that the carrier blocks live in
-                the Livraison tab. */}
-            <div className="flex max-h-[50%] flex-shrink-0 flex-col overflow-y-auto">
+                On a desktop, deliberately outside the scroll region. An
+                agent mid-call must be able to read the name and number back
+                while scrolling a long receipt. max-h is a backstop only — it
+                should never engage now that the carrier blocks live in the
+                Livraison tab. */}
+            <div className="flex flex-shrink-0 flex-col lg:max-h-[50%] lg:overflow-y-auto">
               {/* ── Customer hero ── */}
               <div ref={nameFieldRef}>
                 <CustomerHero
@@ -1450,8 +1493,8 @@ export function OrderDetailPanel({
               messagesCount={whatsappUnread}
             />
 
-            {/* ── The only scrolling region ───────────────────────── */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+            {/* ── The only scrolling region on a desktop ──────────── */}
+            <div className="flex flex-1 flex-col lg:min-h-0 lg:overflow-y-auto">
                 <div role="tabpanel" hidden={tab !== "items"}>
                   <div className="flex flex-col">
                   {/* ── Product must-know + catalogue mismatches ── */}
@@ -1627,7 +1670,7 @@ export function OrderDetailPanel({
                 )}
 
             </div>
-          </>
+          </div>
         )}
 
         {/* ── Reopen warning ─────────────────────────────────────── */}

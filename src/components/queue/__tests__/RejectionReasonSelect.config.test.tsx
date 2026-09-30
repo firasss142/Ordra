@@ -172,3 +172,32 @@ describe("RejectionReasonSelect — driven by the market's configuration", () =>
     expect(onSelect).toHaveBeenCalledWith("livraison_impossible", null, undefined);
   });
 });
+
+describe("RejectionReasonSelect — a pre-chosen answer the market no longer offers", () => {
+  // The ceiling pre-arms « injoignable › pas_de_reponse » from compiled code.
+  // In a market that retired that sub-reason the server answers 400 — so the
+  // picker withdraws it instead of letting the sheet send it.
+  it("withdraws a pre-chosen sub-reason the manager retired", () => {
+    mockRows.mockReturnValue([
+      cfg("injoignable", null, { label_fr: "Injoignable" }),
+      cfg("pas_de_reponse", "injoignable", { is_active: false }),
+      cfg("raccroche", "injoignable", { label_fr: "Raccroche" }),
+    ]);
+
+    const onClear = vi.fn();
+    render(
+      <RejectionReasonSelect
+        onSelect={vi.fn()}
+        onClear={onClear}
+        marketId="m-tn"
+        defaultGroup="injoignable"
+        defaultSub="pas_de_reponse"
+      />,
+    );
+
+    expect(onClear).toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Raccroche" }).getAttribute("aria-pressed"),
+    ).toBe("false");
+  });
+});
