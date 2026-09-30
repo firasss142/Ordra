@@ -5149,47 +5149,120 @@
   },
   "agentCommissions": {
     "title": "Mes commissions",
-    "rate": "<b>{rate}</b> par commande livrée",
-    "toReceive": "À recevoir",
-    "sinceLastPayout": "depuis ton paiement du <b>{date}</b> · {delivered, plural, =0 {0 livrée} one {# livrée} other {# livrées}}{corrections, plural, =0 {} one {, # correction} other {, # corrections}}",
-    "sinceStart": "depuis le lancement · {delivered, plural, =0 {0 livrée} one {# livrée} other {# livrées}}",
-    "negative": "tu as reçu {amount} de plus que ton dû — cela se résorbera avec les prochaines livraisons.",
-    "month": "Ce mois",
-    "monthDelivered": "{n, plural, =0 {0 livrée} one {# livrée} other {# livrées}}",
-    "inflight": "En cours",
-    "inflightCount": "{n} cmd",
-    "inflightEst": "≈ {amount} si livrées",
-    "lastPayout": "Dernier paiement",
-    "noPayout": "aucun",
-    "history": "Historique",
-    "historyHint": "par jour · touche un jour pour voir les commandes",
-    "dayDelivered": "{n, plural, =0 {0 livrée} one {# livrée} other {# livrées}}",
-    "dayCorrections": "{n, plural, one {# correction} other {# corrections}}",
-    "correctionNote": "commande {id} n'était pas livrée",
-    "correctionNoteBeforeStart": "commande {id} téléversée avant l'activation de ta commission",
-    "reasonBeforeStart": "téléversée avant l'activation de ta commission",
-    "reasonNotDelivered": "n'était plus livrée",
-    "paymentReceived": "Paiement reçu",
+    "rate": "<b>{amount}</b> par commande livrée",
+    "rateSince": "depuis le {date}",
+    "rateToday": "depuis aujourd'hui",
+    "ratePrevious": "avant {amount}",
+    "rateOff": "coupée depuis le {date}",
+    "offBanner": "Ta commission est coupée depuis le {date}. Ce qu'on te doit reste dû ; ce qui est livré après cette date ne compte pas.",
+    "owedNow": "Ce qu'on te doit maintenant",
+    "owedFor": "pour <b>{n, plural, one {# commande livrée} other {# commandes livrées}}</b> pas encore payées",
+    "owedRange": "livrées du {from} au {to}",
+    "owedNone": "Tout ce qui a été livré a été payé.",
+    "negative": "Tu as reçu <b>{amount}</b> de plus que ce que tu as gagné — cela se déduit des prochaines livraisons.",
+    "eq": {
+      "earned": "Gagné",
+      "paid": "Reçu",
+      "left": "Reste à recevoir",
+      "over": "Reçu en trop",
+      "earnedSub": "{n, plural, =0 {aucune livrée} one {# livrée} other {# livrées}} depuis le {date}",
+      "paidSub": "{n, plural, =0 {0 commande} one {# commande} other {# commandes}} · {k, plural, =0 {aucun paiement} one {# paiement} other {# paiements}}",
+      "leftSub": "{n, plural, =0 {0 commande} one {# commande} other {# commandes}}"
+    },
+    "lastPayout": "Dernier paiement <b>{date}</b> · {amount} {method}",
+    "noPayout": "Aucun paiement enregistré — ton responsable l'enregistre quand il te paie.",
+    "method": {
+      "cash": "en espèces",
+      "bank_transfer": "par virement",
+      "wallet": "par wallet"
+    },
+    "way": {
+      "title": "En route",
+      "count": "{n, plural, =0 {Aucune commande} one {# commande} other {# commandes}}",
+      "est": "≈ <b>{amount}</b> si toutes sont livrées",
+      "likely": "d'habitude {k} sur 10 sont livrées — soit ≈ {amount}",
+      "off": "Ne compteront pas — commission coupée",
+      "fine": "Estimation au taux d'aujourd'hui ({rate}).",
+      "lateCta": "Suivre les retards dans « Livraison »",
+      "stages": {
+        "awaiting_scan": "Téléversée, pas encore scannée",
+        "with_carrier": "Chez le transporteur",
+        "out": "En livraison",
+        "delayed": "En retard",
+        "returning": "En retour"
+      }
+    },
+    "rateCard": {
+      "title": "Taux de livraison",
+      "say": "Sur 10 commandes confirmées arrivées au bout, {k} ont été livrées et payées.",
+      "funnel": "{n, plural, one {# confirmée} other {# confirmées}} depuis le {date}",
+      "delivered": "Livrées",
+      "way": "En route",
+      "lost": "Non livrées",
+      "awaitingUpload": "À téléverser",
+      "backInQueue": "Revenues dans la file",
+      "empty": "Ton taux apparaîtra quand tes premières commandes seront arrivées au bout."
+    },
+    "tabs": {
+      "unpaid": "Pas payées",
+      "way": "En route",
+      "paid": "Payées",
+      "lost": "Sans commission",
+      "label": "Mes commandes"
+    },
+    "head": {
+      "unpaid": "<b>{n, plural, one {# commande livrée} other {# commandes livrées}}</b> · {amount}",
+      "unpaidSay": "c'est ce qu'on te doit",
+      "way": "<b>{n, plural, one {# commande} other {# commandes}}</b> · ≈ {amount}",
+      "waySay": "les retards d'abord",
+      "paid": "<b>{n, plural, one {# commande livrée} other {# commandes livrées}}</b> · {amount}",
+      "paidSay": "{k, plural, one {en # paiement} other {en # paiements}} · les plus anciennes sont réglées d'abord",
+      "lost": "<b>{n, plural, one {# commande} other {# commandes}}</b> sans commission"
+    },
+    "partial": "payée en partie — reste {amount} sur {full}",
     "adjustment": "Ajustement",
-    "empty": "Rien pour l'instant — ta première commission apparaît quand une commande que tu as confirmée est livrée.",
-    "rule": "Une commande compte le jour où le transporteur la marque livrée — si tu l'as téléversée après l'activation de ta commission.",
+    "payout": {
+      "head": "Paiement du {date}",
+      "sub": "{method} · a réglé {n, plural, one {# livrée} other {# livrées}} du {from} au {to}",
+      "split": "une commande réglée en deux fois",
+      "splitRow": "réglée en deux fois",
+      "omitted": "Ces commandes sont plus anciennes que la période affichée."
+    },
+    "lost": {
+      "all": "Toutes",
+      "carrier_cancelled": "Annulée par le transporteur",
+      "cancelled": "Annulée",
+      "rejected": "Rejetée",
+      "returned": "Retournée",
+      "before_activation": "Téléversée avant l'activation",
+      "commission_off": "Téléversée commission coupée",
+      "corrected": "Corrigée",
+      "detail": {
+        "carrier_cancelled": "téléversée le {up} · annulée le {at}",
+        "cancelled": "annulée le {at}",
+        "rejected": "rejetée le {at}",
+        "returned": "retournée le {at}",
+        "before_activation": "téléversée le {up}, avant l'activation de ta commission",
+        "commission_off": "téléversée le {up}, pendant que ta commission était coupée",
+        "corrected": "corrigée le {at}"
+      },
+      "wasCounted": "comptée puis annulée"
+    },
+    "upAgo": "{n, plural, =0 {téléversée aujourd'hui} one {téléversée hier} other {téléversée il y a # jours}}",
+    "stuck": "{n} jours chez le transporteur",
+    "empty": {
+      "unpaid": "Rien d'impayé — tout ce qui a été livré a été payé.",
+      "way": "Aucune commande en route.",
+      "paid": "Aucune commande payée pour l'instant.",
+      "lost": "Rien ici.",
+      "first": "Ta première commission apparaît quand une commande que tu as confirmée est livrée."
+    },
+    "more": "Voir {n} de plus",
+    "older": "Voir une période plus longue",
+    "rule": "<b>La règle :</b> une commande compte quand le transporteur la marque livrée, si elle a été téléversée après l'activation de ta commission. Le montant est celui du jour de livraison. Ton responsable enregistre les paiements ; chaque paiement règle les commandes les plus anciennes d'abord.",
     "disabledTitle": "Les commissions ne sont pas activées pour ton compte.",
     "disabledHint": "Ton responsable peut les activer dans les paramètres.",
-    "loadError": "Impossible de charger tes commissions.",
-    "more": "Voir plus",
-    "buckets": {
-      "all": "Tout",
-      "accrual": "Livrées",
-      "reversal": "Corrections",
-      "payout": "Paiements",
-      "adjustment": "Ajustements"
-    },
-    "cols": {
-      "type": "Type",
-      "detail": "Détail",
-      "date": "Date",
-      "amount": "Montant"
-    }
+    "loadError": "Impossible de charger tes commissions."
   },
   "investorAdmin": {
     "title": "Investisseurs",

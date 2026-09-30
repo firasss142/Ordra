@@ -25,7 +25,7 @@ the rules below).
 
 - `agent_commission_rates` — effective-dated rules, `agent_id NULL` = market default, half-open windows `[effective_from, effective_to)`, closed by a new row.
 - `agent_commission_ledger` — APPEND-ONLY (trigger). `accrual +`, `reversal −`, `payout −`, `adjustment ±`. Balance = `SUM(amount)`. Partial unique index on `(order_id, entry_type)` makes the sweep idempotent.
-- RLS: SELECT for super_admin / market_manager (own market). No agent policy — agents read only through `get_my_commissions()`.
+- RLS: SELECT for super_admin / market_manager (own market). No agent policy — agents read only through `get_my_commission_statement()`.
 
 ## Functions (`…010002_agent_commissions_rpcs.sql`)
 
@@ -38,14 +38,17 @@ the rules below).
 | `get_team_commissions(market, from, to, tz)` | managers | per-agent period figures + all-time balances |
 | `get_agent_commission_ledger(agent, from?, to?)` | managers | statement / CSV |
 | `record_agent_payout(...)`, `post_agent_commission_adjustment(...)` | managers | the only money writes |
-| `get_my_commissions(days)` | agent | own view; caller = `auth.uid()`, no agent parameter |
+| `get_my_commission_statement(days)` | agent | « Mes commissions » v2 (20260930192800): owed = earned − paid, unpaid orders (Σ = owed), paid orders under the payout that settled them (FIFO), on the road by stage, not counted + why, funnel, delivery rate. Caller = `auth.uid()`, no agent parameter |
+| `get_my_commissions(days)` | — | v1 payload, kept only until the v2 build is deployed; drop it after |
+| `commission_order_stage(status)` | internal | the ONE status → stage map (queue · awaiting_upload · awaiting_scan · with_carrier · out · delayed · returning · delivered · rejected · returned · cancelled · deleted). Every in-flight count uses it — the old lists knew only Tunisian statuses and showed Libyan agents « 2 en cours » for 28 parcels |
 
 ## Surfaces
 
 - `/team` — verdict segments ("N agents à payer (Σ)", "N solde négatif"), roster **Solde** column with `Payer`, drawer **Commission** section.
 - `/team/performance` — 6th strip cell, ranking commission line, **Commissions & paiements** card, payout modal, drawer section.
 - `/settings/general?tab=commissions` — market switch, market rate + effective date, per-agent switches / own rates, history (super_admin).
-- `/commissions` (agent shell tab **Mes commissions**) — À recevoir · ce mois · en cours · dernier paiement · history grouped by day.
+- `/commissions` (agent shell tab **Mes commissions**) — v2 since 2026-09-30, from `prototypes/agent-commissions-v2.html` (plan `plans/agent-commissions-v2.md`). Rule: every number at the top is a tab below whose rows add up to it. Hero = owed + the equation earned − received = left; « En route » by stage with today's-rate and likely estimates (delayed → /delivery); « Taux de livraison » with the funnel; tabs Pas payées · En route · Payées (grouped by payout) · Sans commission (filter by reason).
+- **FIFO** — payouts are amounts, not order lists, so « paid » is derived: credits (accruals without reversal + adjustments) sorted by `effective_at`, cumulative payouts settle the oldest first. The credit straddling the last payout is `partial` and shows only its remainder, so the unpaid list sums to the owed figure exactly. A payout that ends mid-order marks the next one `split`.
 
 Code: `src/lib/commissions/*` (types, view-models, api helpers), `src/hooks/useTeamCommissions.ts`, `src/hooks/useAgentCommissions.ts`, `src/components/team/control-room/{CommissionsCard,CommissionSection,PayoutModal}.tsx`, `src/components/settings/general/CommissionsSection.tsx`, `src/components/agent-commissions/*`, routes under `src/app/api/{team/commissions,settings/commissions,agent/commissions}`.
 

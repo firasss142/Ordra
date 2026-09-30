@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="fr" dir="ltr">
+<head>
+<meta charset="utf-8">
+<title>Ordra — Mes commissions (v2)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Prototype v2 — « Mes commissions » (عمولاتي), vu par l'AGENT. Construit 2026-09-30.
+  Remplace la page livrée depuis v1 (src/components/agent-commissions/AgentCommissionsView.tsx).
+
+  Pourquoi : sur la capture du 2026-09-30 (tasnim), l'agent ne peut répondre à aucune des
+  questions qu'il se pose — combien me doit-on, combien ai-je reçu, quelles commandes sont
+  payées, lesquelles attendent, lesquelles ne paieront jamais. Voir la note du studio.
+
+  LA RÈGLE DE LA PAGE : chaque chiffre du haut est un onglet en bas, et les lignes de
+  l'onglet s'additionnent exactement à ce chiffre.
+
+  Données : RÉELLES — tasnim (LY), lues en prod le 2026-09-30 : 90 livrées comptées, 2 paiements
+  (300 + 267), 28 colis en route, 42 annulés par Darb, 8 rejetés, 16 corrections du 26/09.
+  Produits, villes, dates, montants et statuts sont les vrais. Les NOMS DE CLIENTS sont fictifs
+  (générés) : un prototype versionné ne porte pas de données personnelles.
+
+  Tokens : agent-* de src/app/globals.css (fond #FAFAF9, surface-low #F4F3EF, outline #EAE8E4,
+  ink #1B1917 / #5C5852 / #78726A, primary #006C49). Étiquettes : teinte plate + encre + point,
+  jamais le dégradé de /delivery (préférence du propriétaire, 2026-09-18). Onglets : une piste
+  douce avec pastille blanche.
+
+  URL : ?lang=ar|fr &view=desktop|mobile &state=normal|nopayout|negative|off|new
+        &tab=unpaid|way|paid|lost
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+:root{
+  --bg:#FAFAF9; --surface:#FFFFFF; --sl:#F4F3EF; --sh:#EFEDE8;
+  --ol:#EAE8E4; --ol2:#DCD9D3;
+  --i1:#1B1917; --i2:#5C5852; --i3:#78726A; --i4:#A8A29E;
+  --pri:#006C49; --pri-tint:#ECFDF5; --pri-line:#A7F3D0; --paid:#A7DDC4;
+  --blue:#2563EB; --blue-soft:#DBEAFE; --blue-ink:#1D4ED8;
+  --amber:#D97706; --amber-soft:#FEF3C7; --amber-ink:#92400E;
+  --red:#DC2626; --red-soft:#FEE2E2; --red-ink:#991B1B; --lost:#F2A7A0;
+  --violet-soft:#EDE9FE; --violet-ink:#5B21B6;
+  --grey-soft:#EFEDE8; --grey-ink:#5C5852; --grey:#C9C4BC;
+  --studio:#E9EBEF; --black:#111;
+  --f-lat:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-ar:"Cairo","Noto Sans Arabic",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--studio);color:var(--i1);font-family:var(--f-lat);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+[dir=rtl] .app{font-family:var(--f-ar)}
+:focus-visible{outline:2px solid var(--pri);outline-offset:2px}
+[hidden]{display:none!important}
+
+/* ── Studio (always LTR) ───────────────────────────────────────── */
+.studio{padding:18px 20px 40px;direction:ltr}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;max-width:1320px;margin:0 auto 12px}
+.bar h1{margin:0;font-size:15px;font-weight:700;margin-inline-end:auto}
+.bar h1 span{color:var(--i3);font-weight:500}
+.seg{display:inline-flex;background:#fff;border:1px solid var(--ol);border-radius:10px;padding:3px;gap:2px}
+.seg button{padding:6px 11px;border-radius:7px;font-size:13px;font-weight:500;color:var(--i3)}
+.seg button[aria-pressed=true]{background:var(--black);color:#fff}
+.note{max-width:1320px;margin:0 auto 14px;font-size:12.5px;color:var(--i2);line-height:1.6;background:#fff;border:1px solid var(--ol);border-radius:12px;padding:12px 16px}
+.note summary{cursor:pointer;font-weight:700;color:var(--i1)}
+.note b{color:var(--i1)}
+.note ol,.note ul{margin:6px 0 4px;padding-inline-start:20px}
+.note table{border-collapse:collapse;margin-top:6px;width:100%}
+.note td,.note th{border-top:1px solid var(--ol);padding:5px 8px;text-align:left;vertical-align:top}
+.note th{font-weight:700;color:var(--i1)}
+.note code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:var(--sl);padding:1px 4px;border-radius:4px}
+.stage{max-width:1320px;margin:0 auto;overflow-x:auto}
+
+/* ── Shell (desktop) ───────────────────────────────────────────── */
+.app{background:var(--bg);border:1px solid var(--ol);border-radius:14px;overflow:hidden;text-align:start;color:var(--i1)}
+.app.desk{min-width:1180px}
+.top{height:60px;display:flex;align-items:center;gap:16px;padding:0 20px;background:#fff;border-bottom:1px solid var(--ol)}
+.top .brand{font-size:22px;font-weight:800;color:#14532D}
+.top .brand i{font-style:normal;color:#15803D}
+.top .mkt{color:var(--i3);font-size:13px;border-inline-start:1px solid var(--ol);padding-inline-start:12px}
+.navt{display:flex;gap:2px;padding:4px;margin-inline-start:auto;border-radius:14px;background:var(--sl)}
+.navt a{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:10px;font-size:13.5px;font-weight:600;color:var(--i2);text-decoration:none}
+.navt a svg{width:16px;height:16px;opacity:.7}
+.navt a[aria-current=page]{background:#fff;color:var(--pri);box-shadow:inset 0 0 0 1px var(--ol)}
+
+/* ── Shell (phone) ─────────────────────────────────────────────── */
+.phone{width:390px;height:844px;margin:0 auto;border:10px solid #1B1917;border-radius:44px;overflow:hidden;display:flex;flex-direction:column;background:var(--bg)}
+.phone .scroll{flex:1;overflow-y:auto}
+.phone .tabbar{height:64px;flex:0 0 auto;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--ol);background:#fff}
+.phone .tabbar a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:600;color:var(--i3);text-decoration:none}
+.phone .tabbar a[aria-current=page]{color:var(--pri)}
+
+/* ── Page ──────────────────────────────────────────────────────── */
+.page{max-width:800px;margin:0 auto;padding:22px 20px 56px}
+.phone .page{padding:16px 14px 28px}
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:14px}
+.ph h1{margin:0;font-size:22px;font-weight:800}
+.ratep{text-align:end;font-size:13px;color:var(--i2);line-height:1.35}
+.ratep b{color:var(--i1);font-size:15px}
+.ratep small{display:block;font-size:12px;color:var(--i3)}
+.ratep .up{display:inline-flex;align-items:center;gap:4px;background:var(--pri-tint);color:var(--pri);border-radius:999px;padding:1px 8px;font-weight:600;font-size:11.5px}
+
+.card{background:#fff;border:1px solid var(--ol);border-radius:14px}
+.banner{display:flex;gap:10px;align-items:flex-start;border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:13px}
+.banner svg{margin-top:1px}
+.banner.warn{background:var(--amber-soft);color:var(--amber-ink)}
+.banner.bad{background:var(--red-soft);color:var(--red-ink)}
+
+/* hero */
+.hero{padding:20px 22px 0}
+.hero .lbl{font-size:13px;color:var(--i2)}
+.hero .big{font-size:46px;font-weight:800;line-height:1.05;margin-top:2px;letter-spacing:-.01em}
+.hero .big.neg{color:var(--red)}
+.hero .sub{margin-top:6px;font-size:13.5px;color:var(--i2)}
+.hero .sub b{color:var(--i1)}
+.mbar{display:flex;gap:3px;height:12px;margin-top:16px}
+.mbar i{display:block;height:100%;border-radius:999px;min-width:4px}
+.mbar .paid{background:var(--paid)} .mbar .owed{background:var(--pri)} .mbar .empty{background:var(--sl);flex:1}
+.eq{display:grid;grid-template-columns:1fr 26px 1fr 26px 1fr;border-top:1px solid var(--ol);margin:16px -22px 0}
+.eq>div{padding:13px 16px;min-width:0}
+.eq .op{display:grid;place-items:center;padding:0;color:var(--i4);font-size:20px;font-weight:300}
+.eq small{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--i3)}
+.eq small i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.eq b{display:block;font-size:19px;font-weight:800;margin-top:1px}
+.eq>div>span{display:block;font-size:12.5px;color:var(--i2)}
+.eq .hl{background:var(--pri-tint)}
+.eq b{white-space:nowrap}
+.phone .eq{grid-template-columns:1fr 14px 1fr 14px 1fr}
+.phone .eq>div{padding:11px 10px}
+.phone .eq b{font-size:16px}
+.phone .eq>div>span{font-size:11.5px}
+.eq .hl b{color:var(--pri)}
+.eq .hl.neg{background:var(--red-soft)}
+.eq .hl.neg b{color:var(--red)}
+.hfoot{display:flex;align-items:center;gap:8px;border-top:1px solid var(--ol);margin:0 -22px;padding:11px 22px;font-size:12.5px;color:var(--i2)}
+.hfoot svg{width:16px;height:16px;color:var(--i3)}
+.hfoot b{color:var(--i1)}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.phone .two{grid-template-columns:1fr}
+.box{padding:16px 18px}
+.box h2{margin:0;font-size:13px;font-weight:600;color:var(--i2);display:flex;align-items:center;gap:7px}
+.box h2 svg{width:16px;height:16px;color:var(--i3)}
+.box .n{font-size:26px;font-weight:800;margin-top:4px;line-height:1.1}
+.box .n small{font-size:14px;font-weight:600;color:var(--i2)}
+.box .est{font-size:13px;color:var(--i2);margin-top:2px}
+.box .est b{color:var(--i1)}
+.stages{margin-top:12px;display:grid;gap:2px}
+.stg{display:flex;align-items:center;gap:9px;height:34px;padding:0 10px;border-radius:8px;font-size:13px;color:var(--i2)}
+.stg .d{width:8px;height:8px;border-radius:50%}
+.stg .c{margin-inline-start:auto;font-weight:700;color:var(--i1)}
+.stg.late{background:var(--amber-soft);color:var(--amber-ink)}
+.stg.late .c{color:var(--amber-ink)}
+.cta{display:inline-flex;align-items:center;gap:6px;margin-top:10px;height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--ol2);background:#fff;font-size:13px;font-weight:600;color:var(--i1)}
+.cta svg{width:15px;height:15px}
+[dir=rtl] .cta svg.flip{transform:scaleX(-1)}
+.fine{font-size:12px;color:var(--i3);margin-top:10px}
+.fbar{display:flex;gap:3px;height:10px;margin-top:12px}
+.fbar i{display:block;height:100%;border-radius:999px;min-width:4px}
+.leg{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin-top:10px;font-size:12.5px;color:var(--i2)}
+.leg span{display:flex;align-items:center;gap:6px}
+.leg i{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.leg b{margin-inline-start:auto;color:var(--i1)}
+.rate-big{display:flex;align-items:baseline;gap:8px}
+.rate-big .n{font-size:30px}
+
+/* list */
+.list{margin-top:14px}
+.tabs{display:flex;gap:2px;padding:4px;margin:12px 12px 0;border-radius:12px;background:var(--sl);overflow-x:auto;scrollbar-width:none}
+.tabs button{flex:1 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:7px;height:40px;padding:0 12px;border-radius:9px;font-size:13.5px;font-weight:600;color:var(--i2);white-space:nowrap}
+.tabs button[aria-selected=true]{background:#fff;color:var(--i1);box-shadow:inset 0 0 0 1px var(--ol)}
+.tabs .k{min-width:22px;height:20px;padding:0 6px;border-radius:999px;display:inline-grid;place-items:center;font-size:11.5px;font-weight:700;background:var(--sh);color:var(--i3)}
+.tabs button[aria-selected=true] .k{background:var(--pri-tint);color:var(--pri)}
+.thead{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;padding:14px 18px 10px;border-bottom:1px solid var(--ol);font-size:13px;color:var(--i2)}
+.thead b{color:var(--i1);font-size:15px}
+.thead .say{color:var(--i3);font-size:12.5px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;padding:10px 18px;border-bottom:1px solid var(--ol)}
+.chips button{height:30px;padding:0 11px;border-radius:999px;border:1px solid var(--ol);font-size:12.5px;font-weight:600;color:var(--i2);background:#fff}
+.chips button[aria-pressed=true]{border-color:var(--i1);color:var(--i1);background:var(--sl)}
+.day{display:flex;align-items:center;justify-content:space-between;padding:8px 18px;background:var(--bg);border-bottom:1px solid var(--ol);font-size:12.5px;font-weight:600;color:var(--i2)}
+.day span:last-child{color:var(--i3);font-weight:500}
+.row{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--ol)}
+.row:last-child{border-bottom:0}
+.row .who b{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .who small{display:block;font-size:12.5px;color:var(--i3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .when{font-size:12.5px;color:var(--i3);text-align:end;white-space:nowrap}
+.row .amt{font-weight:700;min-width:54px;text-align:end;white-space:nowrap}
+.row .amt.est{color:var(--i3);font-weight:600}
+.row .amt.zero{color:var(--i4)}
+.row .amt s{color:var(--i4);font-weight:500;margin-inline-end:4px}
+.phone .row{grid-template-columns:36px minmax(0,1fr) auto;gap:10px;padding:10px 14px}
+.phone .row .when{grid-column:2;text-align:start;margin-top:-6px}
+.phone .row .amt{grid-row:1;grid-column:3}
+.thumb{width:40px;height:40px;border-radius:8px;flex:0 0 auto}
+.phone .thumb{width:36px;height:36px}
+.thumb.t{background:#F3F4F6 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'><rect x='9' y='7' width='26' height='30' rx='3' fill='%234B2E2B'/><rect x='12' y='10' width='20' height='24' rx='2' fill='%23C9A24D' opacity='.85'/><rect x='16' y='14' width='12' height='16' rx='1' fill='%234B2E2B'/></svg>") center/cover}
+.thumb.d{background:#F3F4F6 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'><rect x='9' y='7' width='26' height='30' rx='3' fill='%23123B2F'/><rect x='12' y='10' width='20' height='24' rx='2' fill='%23E7E1C8'/><rect x='14' y='14' width='16' height='2' fill='%23123B2F'/><rect x='14' y='19' width='12' height='2' fill='%23123B2F'/></svg>") center/cover}
+.thumb.q{background:#F3F4F6 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'><rect x='9' y='7' width='26' height='30' rx='3' fill='%231F3A5F'/><rect x='12' y='10' width='20' height='24' rx='2' fill='%23C9A24D' opacity='.85'/><circle cx='22' cy='22' r='5' fill='%231F3A5F'/></svg>") center/cover}
+.thumb.h{background:#F3F4F6 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'><rect x='9' y='7' width='26' height='30' rx='3' fill='%237C2D12'/><rect x='12' y='10' width='20' height='24' rx='2' fill='%23FDE68A'/><rect x='14' y='26' width='16' height='3' fill='%237C2D12'/></svg>") center/cover}
+.tag{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;margin-inline-start:6px;vertical-align:1px}
+.tag i{width:7px;height:7px;border-radius:50%}
+.tag.blue{background:var(--blue-soft);color:var(--blue-ink)} .tag.blue i{background:var(--blue)}
+.tag.amber{background:var(--amber-soft);color:var(--amber-ink)} .tag.amber i{background:var(--amber)}
+.tag.red{background:var(--red-soft);color:var(--red-ink)} .tag.red i{background:var(--red)}
+.tag.violet{background:var(--violet-soft);color:var(--violet-ink)} .tag.violet i{background:#8B5CF6}
+.tag.grey{background:var(--grey-soft);color:var(--grey-ink)} .tag.grey i{background:var(--grey)}
+.tag.green{background:var(--pri-tint);color:var(--pri)} .tag.green i{background:var(--pri)}
+.warnline{color:var(--amber-ink);font-weight:600}
+.pay{border-bottom:1px solid var(--ol)}
+.pay>button{width:100%;display:grid;grid-template-columns:40px minmax(0,1fr) auto 20px;gap:12px;align-items:center;padding:12px 18px;background:var(--bg);text-align:start}
+.phone .pay>button{grid-template-columns:36px minmax(0,1fr) auto 18px;padding:12px 14px}
+.pay .ic{width:40px;height:40px;border-radius:10px;background:var(--pri-tint);color:var(--pri);display:grid;place-items:center}
+.phone .pay .ic{width:36px;height:36px}
+.pay .who b{display:block;font-size:14px}
+.pay .who small{display:block;font-size:12.5px;color:var(--i3)}
+.pay .amt{font-weight:800;font-size:15px}
+.pay .chev{color:var(--i3);transition:transform .15s}
+.pay[data-open] .chev{transform:rotate(180deg)}
+.pay .inner{border-top:1px solid var(--ol)}
+.empty{padding:28px 18px;text-align:center;color:var(--i3);font-size:13.5px}
+.more{display:flex;justify-content:center;padding:10px;border-top:1px solid var(--ol)}
+.more button{height:36px;padding:0 14px;border-radius:8px;font-size:13px;font-weight:600;color:var(--pri)}
+.rule{margin:12px 4px 0;font-size:12.5px;color:var(--i3);line-height:1.6}
+.rule b{color:var(--i2)}
+</style>
+</head>
+<body>
+<div class="studio">
+  <div class="bar">
+    <h1>Mes commissions — agent <span>v2 · données réelles (tasnim, LY, 2026-09-30)</span></h1>
+    <div class="seg" data-k="lang"><button data-v="ar">العربية</button><button data-v="fr">Français</button></div>
+    <div class="seg" data-k="view"><button data-v="desktop">Bureau</button><button data-v="mobile">Téléphone</button></div>
+    <div class="seg" data-k="state"><button data-v="normal">Normal</button><button data-v="nopayout">Jamais payé</button><button data-v="negative">Trop payé</button><button data-v="off">Commission coupée</button><button data-v="new">Nouvel agent</button></div>
+  </div>
+
+  <details class="note" open>
+    <summary>Ce qui ne va pas sur la page actuelle, et ce que v2 change</summary>
+    <ol>
+      <li><b>« قيد التسليم 2 » est faux.</b> tasnim a <b>28</b> colis en route (2 <code>uploaded</code>, 10 <code>at_carrier</code>, 16 <code>delivery_delayed</code>) : la requête ne connaît que les statuts tunisiens. L'estimation « ≈ 20 » vaut ≈ 280.</li>
+      <li><b>Les chiffres ne se recoupent pas.</b> 243 à recevoir, « +810 ce mois », « 267 dernier paiement » — le total versé (567) n'apparaît nulle part, donc 810 − 567 = 243 est impossible à refaire. v2 affiche l'équation : <b>gagné − reçu = reste</b>.</li>
+      <li><b>Payé / pas payé est invisible.</b> « 27 livrées depuis ton paiement » ne coïncide avec le solde que parce que chaque paiement a soldé le compte. Un paiement partiel casse ce chiffre. v2 impute les paiements aux livraisons les plus anciennes (FIFO) : 63 payées, 27 impayées — et chaque paiement dit quelles commandes il a réglées.</li>
+      <li><b>Le taux affiché ment par omission.</b> « 10 د.ل » depuis aujourd'hui ; tout ce qu'elle a gagné l'a été à 9. v2 : « منذ اليوم · كانت 9 ».</li>
+      <li><b>Ce qui ne paie pas est caché.</b> Sur 140 commandes terminées, 50 n'ont rien rapporté (42 annulées par Darb, 8 rejetées). Son <b>taux de livraison (64 %)</b> est le premier levier de son revenu ; elle ne le voit pas.</li>
+      <li><b>L'historique est un grand livre, pas ses commandes.</b> Quatre onglets comptables (acquis / annulé / versé / ajustement). Elle pense en commandes : payées, en attente, perdues. v2 : <b>غير مدفوعة · في الطريق · مدفوعة · لم تُحتسب</b>.</li>
+      <li>« Ce mois » est un cadre sur lequel personne n'est payé (paiements les 21 et 26/09). Retiré ; le tableau part de l'activation.</li>
+    </ol>
+    <details>
+      <summary>D'où vient chaque chiffre (pour la phase React)</summary>
+      <table>
+        <tr><th>Chiffre</th><th>Définition</th><th>tasnim</th></tr>
+        <tr><td>المستحق لك</td><td><code>Σ amount</code> de tout le relevé (inchangé)</td><td>243</td></tr>
+        <tr><td>كسبت</td><td><code>Σ accrual + reversal + adjustment</code></td><td>810</td></tr>
+        <tr><td>قُبض</td><td><code>−Σ payout</code></td><td>567</td></tr>
+        <tr><td>payées / impayées</td><td>acquisitions non annulées, triées par <code>effective_at</code> ; les paiements cumulés couvrent les plus anciennes d'abord. Une commande à cheval = impayée, notée « réglée en deux fois » sur le paiement qui la termine.</td><td>63 / 27</td></tr>
+        <tr><td>في الطريق</td><td>dernière confirmation = l'agent, statut ∈ en route <b>du marché</b> (LY : uploaded, scanned, at_carrier, in_transit, out_for_delivery, delivery_delayed ; TN : uploaded, scanned, dispatched, deposit, in_transit), et <code>commission_counts_upload()</code>. Estimation au taux d'aujourd'hui.</td><td>28 · ≈ 280</td></tr>
+        <tr><td>لم تُحتسب</td><td>confirmées depuis l'activation et terminées sans livraison (cancelled, rejected, returned) + les annulations (<code>reversal_reason</code>)</td><td>50 + 16</td></tr>
+        <tr><td>نسبة التسليم</td><td>livrées ÷ (livrées + terminées sans livraison), confirmées depuis l'activation</td><td>90 ÷ 140 = 64 %</td></tr>
+      </table>
+    </details>
+    <details>
+      <summary>Décisions prises, et ce qui reste à trancher</summary>
+      <ul>
+        <li><b>Noms de clients sur les lignes</b> (ajout) : l'agent reconnaît « la commande de Fatma à Sebha », pas <code>6ab8deb35c1e…</code>. Ce sont ses propres commandes. L'identifiant Mongo disparaît.</li>
+        <li><b>Taux de livraison montré à l'agent</b> : c'est la vérité qui fait son revenu, dite sans blâme (« de chaque 10 commandes terminées, 6 livrées »). À vous de dire si c'est trop exposant.</li>
+        <li><b>Annulées par Darb</b> étiquetées « ألغاها الناقل » : c'est ce que dit la note Darb, sans supposer que le client a refusé.</li>
+        <li><b>Estimation honnête</b> : « ≈ 280 si toutes livrées » + « d'habitude 6 sur 10 → ≈ 180 ».</li>
+        <li><b>Période</b> : depuis l'activation. Dans six mois ce sera long — un filtre (ce mois / mois dernier / depuis le début) sera peut-être nécessaire. Pas ajouté.</li>
+        <li><b>Hors page, remarqué</b> : les 2 livraisons du 30/09 ont été acquises à 9, pas 10 — le taux de 10 a été saisi à 16:12 (heure de Tripoli), après leur livraison, avec effet à minuit. Le relevé fige le taux au moment de l'acquisition. À décider : rejouer ou non.</li>
+      </ul>
+    </details>
+  </details>
+
+  <div class="stage" id="stage"></div>
+</div>
+
+<script>
+/* ── Données réelles (tasnim, prod, 2026-09-30). Noms de clients : fictifs. ───────── */
+const PROD = {T:"مصحف التهجد و قيام الليل", D:"كتاب الداء والدواء للإمام ابن القيم", Q:"القرآن تدبر وعمل", H:"كتاب الحفظ الميسر"};
+// livrées comptées : "MM-DD HH:MM|produit|ville"  (plus récentes d'abord)
+const DELIV = `09-30 15:23|T|طرابلس;09-30 13:23|T|اجدابيا;09-29 23:33|T|طبرق;09-29 22:23|T|سبها;09-29 20:03|T|الخمس;09-29 19:23|T|طرابلس;09-29 18:03|D|البيضاء;09-29 18:03|T|مصراتة;09-29 16:13|D|طرابلس;09-28 22:43|T|بنغازي;09-28 21:23|T|طرابلس;09-28 21:23|T|سبها;09-28 21:13|D|المرج;09-28 20:49|Q|المرج;09-28 19:43|H|مصراتة;09-28 18:13|H|القبة;09-28 16:23|D|سبها;09-28 14:43|T|طرابلس;09-28 14:23|D|طرابلس;09-28 10:53|T|طرابلس;09-28 02:33|D|بنغازي;09-27 20:13|D|المرج;09-27 17:33|Q|الزاوية;09-27 14:03|D|اجدابيا;09-27 02:53|D|الزاوية;09-27 02:43|H|سبها;09-26 19:23|H|طرابلس;09-26 13:33|D|سبها;09-24 23:33|D|طرابلس;09-24 21:33|D|طرابلس;09-24 20:13|Q|طرابلس;09-24 18:23|H|البيضاء;09-24 18:13|D|الكفرة;09-24 14:43|D|طرابلس;09-24 03:53|D|صبراتة;09-24 00:13|H|سبها;09-24 00:03|Q|مصراتة;09-23 23:13|H|مصراتة;09-23 19:13|Q|طرابلس;09-23 16:23|D|درنة;09-23 14:43|H|سبها;09-23 14:03|H|طرابلس;09-23 13:23|D|زوارة;09-23 11:23|D|طرابلس;09-23 02:33|Q|طرابلس;09-22 23:23|D|بنغازي;09-22 21:13|D|بنغازي;09-22 19:28|D|مصراتة;09-22 17:23|D|الكفرة;09-22 16:03|D|بنغازي;09-22 11:03|D|غريان;09-22 11:03|Q|غريان;09-22 02:03|D|بنغازي;09-21 22:33|D|الخمس;09-21 22:33|D|طرابلس;09-21 19:23|D|سبها;09-21 17:53|D|بنغازي;09-21 16:53|Q|الزاوية;09-21 15:53|H|بنغازي;09-21 14:33|D|سبها;09-20 21:33|D|طرابلس;09-20 20:43|Q|بني وليد;09-20 19:43|D|غريان;09-20 19:06|D|مصراتة;09-20 17:23|H|الخمس;09-20 17:03|Q|بنغازي;09-19 23:43|D|طرابلس;09-19 21:23|D|جالو اوجلة;09-19 21:13|Q|مصراتة;09-19 20:33|H|جالو اوجلة;09-19 19:43|Q|طبرق;09-19 16:03|D|الخمس;09-19 14:27|H|الجفرة;09-18 19:33|D|القبة;09-18 19:03|Q|طرابلس;09-18 18:13|D|طرابلس;09-18 15:43|D|الزاوية;09-17 21:48|D|صبراتة;09-16 19:58|D|بنغازي;09-16 19:53|D|المرج;09-16 17:23|Q|طرابلس;09-16 16:43|Q|البيضاء;09-16 16:03|D|درنة;09-15 19:13|D|طرابلس;09-15 15:43|H|طرابلس;09-14 19:13|D|طرابلس;09-14 19:13|D|الخمس;09-14 18:23|H|مصراتة;09-13 18:13|Q|مصراتة;09-13 18:13|Q|مصراتة`;
+// en route : "statut|produit|ville|téléversée MM-DD"
+const WAY = `uploaded|T|درنة|09-29;uploaded|T|الكفرة|09-29;at_carrier|D|جالو اوجلة|09-19;at_carrier|T|الكفرة|09-28;at_carrier|T|رأس لانوف|09-28;at_carrier|T|بنغازي|09-29;at_carrier|T|القبة|09-28;at_carrier|D|بنغازي|09-28;at_carrier|H|سبها|09-28;at_carrier|H|سبها|09-29;at_carrier|D|طرابلس|09-30;at_carrier|H|طرابلس|09-30;delivery_delayed|H|سبها|09-22;delivery_delayed|Q|سبها|09-24;delivery_delayed|T|الجفرة|09-26;delivery_delayed|D|بنغازي|09-26;delivery_delayed|D|المرج|09-26;delivery_delayed|T|بنغازي|09-27;delivery_delayed|T|البيضاء|09-27;delivery_delayed|T|بنغازي|09-27;delivery_delayed|D|طرابلس|09-27;delivery_delayed|T|بنغازي|09-28;delivery_delayed|D|طبرق|09-28;delivery_delayed|D|زوارة|09-28;delivery_delayed|D|طرابلس|09-28;delivery_delayed|T|طرابلس|09-28;delivery_delayed|H|طرابلس|09-29;delivery_delayed|Q|طرابلس|09-29`;
+// annulées par Darb : "produit|ville|téléversée|annulée"
+const CANC = `D|سبها|09-16|09-21;Q|بنغازي|09-14|09-21;H|بنغازي|09-13|09-18;D|المرج|09-16|09-22;D|سبها|09-16|09-19;H|بنغازي|09-19|09-22;Q|البيضاء|09-17|09-22;D|المرج|09-16|09-19;Q|غريان|09-13|09-16;H|جالو اوجلة|09-19|09-26;D||09-19|09-22;H|بنغازي|09-22|09-27;D|طبرق|09-23|09-28;D|بنغازي|09-27|09-29;Q|سرت|09-19|09-24;D|سرت|09-19|09-24;D|البيضاء|09-23|09-27;H|سبها|09-12|09-21;H|طرابلس|09-13|09-14;D|طرابلس|09-14|09-17;Q|طرابلس|09-19|09-20;Q|طرابلس|09-19|09-20;Q|طرابلس|09-20|09-24;H|مصراتة|09-17|09-21;D|طرابلس|09-22|09-24;H|طرابلس|09-22|09-24;H|مصراتة|09-20|09-22;Q|مصراتة|09-20|09-23;Q|الزاوية|09-22|09-23;D|طرابلس|09-21|09-27;D|طرابلس|09-26|09-27;D|طرابلس|09-23|09-24;Q|طرابلس|09-23|09-24;D|طرابلس|09-22|09-26;D|طرابلس|09-23|09-28;D|الزاوية|09-23|09-27;Q|طرابلس|09-27|09-29;D|طرابلس|09-27|09-28;D|طرابلس|09-26|09-28;D|طرابلس|09-21|09-26;H|طرابلس|09-14|09-16;D|طرابلس|09-28|09-28`;
+// rejetées après confirmation : "produit|ville|téléversée|rejetée"
+const REJ = `H|طرابلس||09-26;H|مصراتة|09-23|09-23;D|طرابلس|09-17|09-17;Q|سبها|09-16|09-16;H||09-17|09-17;H|درنة||09-14;H|طرابلس|09-13|09-14;H|سبها||09-13`;
+// corrections du 26/09 (téléversées avant l'activation) : "produit|ville|livrée|téléversée"
+const CORR = `D|القطرون|09-22|09-05;Q|الكفرة|09-20|09-08;H|سبها|09-19|09-11;Q|الكفرة|09-17|09-08;Q|زوارة|09-16|09-11;D|طبرق|09-15|09-11;Q|الزاوية|09-14|09-11;Q|بنغازي|09-14|09-11;Q|سرت|09-14|09-08;Q|الخمس|09-14|09-11;H|الزاوية|09-13|09-10;Q|طرابلس|09-12|09-11;H|مصراتة|09-12|09-08;H|هراوة|09-12|09-07;D|طرابلس|09-12|09-11;D|طرابلس|09-12|09-11`;
+const QUEUE = 2; // confirmées puis revenues dans la file (attempt_2, callback)
+const PAYOUTS = [{d:"09-21",a:300,m:"cash"},{d:"09-26",a:267,m:"cash"}];
+const ACTIVATED = "09-12", RATE_NOW = 10, RATE_OLD = 9, RATE_SINCE = "09-30", TODAY = "09-30";
+
+const split = (s) => s.split(";").map((r) => r.split("|"));
+const FIRST = ["فاطمة","محمد","عائشة","أحمد","خديجة","سالم","مريم","علي","سعاد","يوسف","نورية","عبد الله","حنان","مصطفى","زينب","إبراهيم","هدى","عمر","آمنة","خالد","سلمى","طارق","رحاب","منصور"];
+const LAST = ["الورفلي","المصراتي","الزوي","الترهوني","البرعصي","الفيتوري","العبيدي","المقريف","الشريف","التاجوري","الغرياني","الزنتاني","الأوجلي","السنوسي","المحجوب","الككلي"];
+let seed = 7;
+const fakeName = () => { seed = (seed * 9301 + 49297) % 233280; const a = seed % FIRST.length; seed = (seed * 9301 + 49297) % 233280; return FIRST[a] + " " + LAST[seed % LAST.length]; };
+
+const base = {
+  deliv: split(DELIV).map(([dt, p, c]) => ({ dt, p, c, a: RATE_OLD, name: fakeName() })),
+  way: split(WAY).map(([s, p, c, up]) => ({ s, p, c, up, name: fakeName() })),
+  canc: split(CANC).map(([p, c, up, end]) => ({ p, c, up, end, name: fakeName() })),
+  rej: split(REJ).map(([p, c, up, end]) => ({ p, c, up, end, name: fakeName() })),
+  corr: split(CORR).map(([p, c, d, up]) => ({ p, c, d, up, name: fakeName() })),
+};
+
+/* ── States ─────────────────────────────────────────────────────────────── */
+function dataFor(state) {
+  const d = { ...base, payouts: PAYOUTS.slice(), enabled: true, offSince: null, queue: QUEUE };
+  if (state === "nopayout") d.payouts = [];
+  if (state === "negative") d.payouts = [...PAYOUTS, { d: "09-29", a: 283, m: "cash" }];
+  if (state === "off") { d.enabled = false; d.offSince = "09-29"; }
+  if (state === "new") { d.deliv = []; d.way = []; d.canc = []; d.rej = []; d.corr = []; d.payouts = []; d.queue = 0; }
+  // FIFO : les paiements règlent d'abord les livraisons les plus anciennes.
+  const asc = d.deliv.slice().reverse();
+  let cum = 0, pi = 0, payCum = 0;
+  const bounds = []; d.payouts.forEach((p) => { payCum += p.a; bounds.push(payCum); });
+  asc.forEach((o) => {
+    const start = cum; cum += o.a;
+    while (pi < bounds.length && bounds[pi] < cum) {
+      if (bounds[pi] > start) o.split = true;   // un paiement s'arrête au milieu de cette commande
+      pi++;
+    }
+    o.payIdx = pi < bounds.length ? pi : null;  // le paiement qui la termine
+  });
+  d.paidTotal = d.payouts.reduce((s, p) => s + p.a, 0);
+  d.earned = d.deliv.reduce((s, o) => s + o.a, 0);
+  d.owed = d.earned - d.paidTotal;
+  d.unpaid = d.deliv.filter((o) => o.payIdx === null);
+  d.paid = d.deliv.filter((o) => o.payIdx !== null);
+  return d;
+}
+
+/* ── i18n ────────────────────────────────────────────────────────────────── */
+const arN = (n, one, two, few, many) => n === 1 ? one : n === 2 ? two : (n % 100 >= 3 && n % 100 <= 10) ? `${n} ${few}` : `${n} ${many}`;
+const frN = (n, one, other) => `${n} ${n > 1 ? other : one}`;
+const T = {
+  ar: {
+    nav: ["الطلبيات", "العملاء المحتملون", "التسليم", "عمولاتي"], market: "ليبيا",
+    title: "عمولاتي",
+    ratePer: (r) => `<b>${r}</b> لكل طلبية مسلّمة`,
+    rateChanged: (old) => `<span class="up">منذ اليوم</span> كانت ${old}`,
+    rateOff: (d) => `موقوفة منذ ${d}`,
+    owedNow: "المستحق لك الآن",
+    orders: (n) => arN(n, "طلبية واحدة", "طلبيتان", "طلبيات", "طلبية"),
+    delivered: (n) => arN(n, "طلبية مسلّمة", "طلبيتان مسلّمتان", "طلبيات مسلّمة", "طلبية مسلّمة"),
+    owedFor: (n, a, b) => `عن <b>${n}</b> لم تُدفع بعد${a ? ` · سُلّمت بين ${a} و${b}` : ""}`,
+    owedNone: "كل ما سُلّم دُفع.",
+    negative: (x) => `دُفع لك <b>${x}</b> أكثر مما كسبت — يُخصم من التسليمات القادمة.`,
+    eqEarned: "ما كسبت", eqPaid: "ما قبضت", eqLeft: "الباقي لك", eqOver: "دُفع لك زيادة",
+    eqEarnedSub: (n, d) => `${n} منذ ${d}`,
+    eqPaidSub: (n, k) => `${n} · ${k === 0 ? "لا دفعات" : k === 1 ? "دفعة واحدة" : k === 2 ? "دفعتان" : `${k} دفعات`}`,
+    last: (d, a, m) => `آخر دفعة <b>${d}</b> · ${a} ${m}`,
+    noPay: "لم تُسجَّل أي دفعة بعد — يسجّلها مسؤولك عند الدفع.",
+    cash: "نقداً", bank_transfer: "تحويل", wallet: "محفظة",
+    off: (d) => `العمولة موقوفة لحسابك منذ ${d}. الباقي لك يبقى مستحقاً؛ ما يُسلَّم بعد هذا التاريخ لا يُحتسب.`,
+    wayTitle: "في الطريق",
+    wayEst: (a) => `≈ <b>${a}</b> إذا سُلّمت كلها`,
+    wayReal: (k, a) => `عادةً تُسلَّم ${k} من كل 10 — أي ≈ ${a}`,
+    wayOff: "لن تُحتسب — العمولة موقوفة",
+    st: { uploaded: "مرفوعة، لم تُمسح", at_carrier: "عند الناقل", out_for_delivery: "قيد التوصيل", delivery_delayed: "متأخرة" },
+    lateCta: "تابِع المتأخرة في «التسليم»",
+    wayFine: (r) => `التقدير بسعر اليوم (${r}).`,
+    rateTitle: "نسبة التسليم",
+    rateSay: (k) => `من كل 10 طلبيات مؤكَّدة انتهت رحلتها، ${k} سُلّمت ودُفعت عمولتها.`,
+    funnel: (n, d) => `${n} مؤكَّدة منذ ${d}`,
+    fDel: "مسلّمة", fWay: "في الطريق", fLost: "لم تُسلَّم", fQueue: "عادت إلى الطابور",
+    tabs: { unpaid: "غير مدفوعة", way: "في الطريق", paid: "مدفوعة", lost: "لم تُحتسب" },
+    hUnpaid: (n, a) => `<b>${n}</b> · ${a}`, sUnpaid: "هذا هو الباقي لك",
+    hWay: (n, a) => `<b>${n}</b> · ≈ ${a}`, sWay: "المتأخرة أولاً",
+    hPaid: (n, a, k) => `<b>${n}</b> · ${a}`, sPaid: (k) => `على ${k === 1 ? "دفعة واحدة" : k === 2 ? "دفعتين" : `${k} دفعات`} · الأقدم تُسدَّد أولاً`,
+    hLost: (n) => `<b>${n}</b> بلا عمولة`,
+    lostAll: "الكل", lCarrier: "ألغاها الناقل", lRej: "رُفضت بعد التأكيد", lBefore: "رُفعت قبل التفعيل",
+    upAgo: (n) => n === 0 ? "رُفعت اليوم" : n === 1 ? "رُفعت أمس" : `رُفعت منذ ${arN(n, "يوم", "يومين", "أيام", "يوماً")}`,
+    stuck: (n) => `منذ ${arN(n, "يوم", "يومين", "أيام", "يوماً")} عند الناقل`,
+    payHead: (d) => `دفعة ${d}`,
+    paySub: (n, a, b, m) => `${m} · سدّدت ${n} سُلّمت بين ${a} و${b}`,
+    splitNote: "طلبية واحدة سُدّدت على دفعتين",
+    cancelled: (up, end) => `رُفعت ${up} · ألغاها الناقل ${end}`,
+    rejected: (up, end) => up ? `رُفعت ${up} · رُفضت ${end}` : `رُفضت ${end} قبل الرفع`,
+    before: (up, d) => `رُفعت ${up}، قبل التفعيل · احتُسبت ثم أُلغيت`,
+    emptyUnpaid: "لا شيء غير مدفوع — كل ما سُلّم دُفع.",
+    emptyWay: "لا طلبيات في الطريق الآن.", emptyPaid: "لم تُدفع أي طلبية بعد.", emptyLost: "لا شيء هنا.",
+    emptyNew: "تظهر أول عمولة عندما تُسلَّم طلبية أكّدتها.",
+    more: (n) => `عرض ${n} أخرى`,
+    rule: `<b>القاعدة:</b> تُحتسب الطلبية حين يعلّمها الناقل مسلّمة، إذا رُفعت بعد تفعيل عمولتك. المبلغ بسعر يوم التسليم. يسجّل مسؤولك الدفعات، وتُسدِّد كل دفعة أقدم الطلبيات أولاً.`,
+    cur: "د.ل",
+    locale: "ar-LY-u-nu-latn",
+  },
+  fr: {
+    nav: ["Commandes", "Prospects", "Livraison", "Mes commissions"], market: "Libye",
+    title: "Mes commissions",
+    ratePer: (r) => `<b>${r}</b> par commande livrée`,
+    rateChanged: (old) => `<span class="up">depuis aujourd'hui</span> avant ${old}`,
+    rateOff: (d) => `coupée depuis le ${d}`,
+    owedNow: "Ce qu'on te doit maintenant",
+    orders: (n) => frN(n, "commande", "commandes"),
+    delivered: (n) => frN(n, "commande livrée", "commandes livrées"),
+    owedFor: (n, a, b) => `pour <b>${n}</b> pas encore payées${a ? ` · livrées du ${a} au ${b}` : ""}`,
+    owedNone: "Tout ce qui a été livré a été payé.",
+    negative: (x) => `Tu as reçu <b>${x}</b> de plus que ce que tu as gagné — cela se déduit des prochaines livraisons.`,
+    eqEarned: "Gagné", eqPaid: "Reçu", eqLeft: "Reste à recevoir", eqOver: "Reçu en trop",
+    eqEarnedSub: (n, d) => `${n} depuis le ${d}`,
+    eqPaidSub: (n, k) => `${n} · ${k === 0 ? "aucun paiement" : k === 1 ? "1 paiement" : `${k} paiements`}`,
+    last: (d, a, m) => `Dernier paiement <b>${d}</b> · ${a} ${m}`,
+    noPay: "Aucun paiement enregistré — ton responsable l'enregistre quand il paie.",
+    cash: "en espèces", bank_transfer: "par virement", wallet: "par wallet",
+    off: (d) => `Ta commission est coupée depuis le ${d}. Ce qu'on te doit reste dû ; ce qui est livré après cette date ne compte pas.`,
+    wayTitle: "En route",
+    wayEst: (a) => `≈ <b>${a}</b> si toutes sont livrées`,
+    wayReal: (k, a) => `d'habitude ${k} sur 10 sont livrées — soit ≈ ${a}`,
+    wayOff: "Ne compteront pas — commission coupée",
+    st: { uploaded: "Téléversée, pas scannée", at_carrier: "Chez le transporteur", out_for_delivery: "En livraison", delivery_delayed: "En retard" },
+    lateCta: "Suivre les retards dans « Livraison »",
+    wayFine: (r) => `Estimation au taux d'aujourd'hui (${r}).`,
+    rateTitle: "Taux de livraison",
+    rateSay: (k) => `Sur 10 commandes confirmées arrivées au bout, ${k} ont été livrées et payées.`,
+    funnel: (n, d) => `${n} confirmées depuis le ${d}`,
+    fDel: "Livrées", fWay: "En route", fLost: "Non livrées", fQueue: "Revenues dans la file",
+    tabs: { unpaid: "Pas payées", way: "En route", paid: "Payées", lost: "Sans commission" },
+    hUnpaid: (n, a) => `<b>${n}</b> · ${a}`, sUnpaid: "c'est ce qu'on te doit",
+    hWay: (n, a) => `<b>${n}</b> · ≈ ${a}`, sWay: "les retards d'abord",
+    hPaid: (n, a) => `<b>${n}</b> · ${a}`, sPaid: (k) => `en ${k === 1 ? "1 paiement" : `${k} paiements`} · les plus anciennes réglées d'abord`,
+    hLost: (n) => `<b>${n}</b> sans commission`,
+    lostAll: "Toutes", lCarrier: "Annulée par le transporteur", lRej: "Rejetée après confirmation", lBefore: "Téléversée avant l'activation",
+    upAgo: (n) => n === 0 ? "téléversée aujourd'hui" : n === 1 ? "téléversée hier" : `téléversée il y a ${n} jours`,
+    stuck: (n) => `${n} jours chez le transporteur`,
+    payHead: (d) => `Paiement du ${d}`,
+    paySub: (n, a, b, m) => `${m} · a réglé ${n} livrées du ${a} au ${b}`,
+    splitNote: "une commande réglée en deux fois",
+    cancelled: (up, end) => `téléversée ${up} · annulée ${end}`,
+    rejected: (up, end) => up ? `téléversée ${up} · rejetée ${end}` : `rejetée ${end} avant téléversement`,
+    before: (up) => `téléversée ${up}, avant l'activation · comptée puis annulée`,
+    emptyUnpaid: "Rien d'impayé — tout ce qui a été livré a été payé.",
+    emptyWay: "Aucune commande en route.", emptyPaid: "Aucune commande payée pour l'instant.", emptyLost: "Rien ici.",
+    emptyNew: "Ta première commission apparaît quand une commande que tu as confirmée est livrée.",
+    more: (n) => `Voir ${n} de plus`,
+    rule: `<b>La règle :</b> une commande compte quand le transporteur la marque livrée, si elle a été téléversée après l'activation de ta commission. Le montant est celui du jour de livraison. Ton responsable enregistre les paiements ; chaque paiement règle les commandes les plus anciennes d'abord.`,
+    cur: "LYD",
+    locale: "fr-FR",
+  },
+};
+
+/* ── State from URL ─────────────────────────────────────────────────────── */
+const qs = new URLSearchParams(location.search);
+const S = { lang: qs.get("lang") || "ar", view: qs.get("view") || "desktop", state: qs.get("state") || "normal", tab: qs.get("tab") || "unpaid", lost: "all", open: {}, shown: 20 };
+
+const ic = {
+  wallet: '<svg viewBox="0 0 24 24"><path d="M3 7h15a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><path d="M3 7l12-4v4"/><circle cx="16.5" cy="13.5" r="1.2"/></svg>',
+  truck: '<svg viewBox="0 0 24 24"><path d="M3 6h11v10H3zM14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>',
+  target: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" class="flip"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  chev: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
+  alert: '<svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg>',
+  box: '<svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg>',
+  users: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"/></svg>',
+  coins: '<svg viewBox="0 0 24 24"><ellipse cx="9" cy="7" rx="6" ry="3"/><path d="M3 7v5c0 1.7 2.7 3 6 3s6-1.3 6-3V7"/><path d="M9 15v2c0 1.7 2.7 3 6 3s6-1.3 6-3v-5c0-1.7-2.7-3-6-3"/></svg>',
+};
+
+/* ── Render ─────────────────────────────────────────────────────────────── */
+function render() {
+  const t = T[S.lang], D = dataFor(S.state), rtl = S.lang === "ar";
+  const dt = (md, hm) => new Date(`2026-${md}T${hm || "12:00"}:00+02:00`);
+  const fD = (md) => new Intl.DateTimeFormat(t.locale, { day: "numeric", month: "long", timeZone: "Africa/Tripoli" }).format(dt(md));
+  const fDay = (md) => new Intl.DateTimeFormat(t.locale, { weekday: "long", day: "numeric", month: "long", timeZone: "Africa/Tripoli" }).format(dt(md));
+  const fT = (dtS) => { const [md, hm] = dtS.split(" "); return new Intl.DateTimeFormat(t.locale, { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Africa/Tripoli" }).format(dt(md, hm)); };
+  const m = (n, signed) => `<span class="num">${signed && n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n)}</span> ${t.cur}`;
+  const days = (a, b) => Math.round((dt(b) - dt(a)) / 864e5);
+  const ratePct = D.deliv.length + D.canc.length + D.rej.length ? Math.round(100 * D.deliv.length / (D.deliv.length + D.canc.length + D.rej.length)) : null;
+  const perTen = ratePct === null ? null : Math.round(ratePct / 10);
+  const wayEst = D.enabled ? D.way.length * RATE_NOW : 0;
+
+  /* header */
+  const rateLine = D.enabled
+    ? `${t.ratePer(m(RATE_NOW))}<small>${RATE_SINCE === TODAY ? t.rateChanged(m(RATE_OLD)) : ""}</small>`
+    : `${t.ratePer(m(RATE_NOW))}<small>${t.rateOff(fD(D.offSince))}</small>`;
+  let h = `<div class="page"><div class="ph"><h1>${t.title}</h1><div class="ratep">${rateLine}</div></div>`;
+  if (!D.enabled) h += `<div class="banner warn">${ic.alert}<div>${t.off(fD(D.offSince))}</div></div>`;
+
+  /* hero — the one number, and the equation that proves it */
+  const neg = D.owed < 0;
+  const oldestUnpaid = D.unpaid.length ? D.unpaid[D.unpaid.length - 1].dt.split(" ")[0] : null;
+  const newestUnpaid = D.unpaid.length ? D.unpaid[0].dt.split(" ")[0] : null;
+  const sub = neg ? t.negative(m(-D.owed))
+    : D.unpaid.length ? t.owedFor(t.delivered(D.unpaid.length), oldestUnpaid && fD(oldestUnpaid), newestUnpaid && fD(newestUnpaid))
+    : D.deliv.length ? t.owedNone : t.emptyNew;
+  const tot = Math.max(D.earned, D.paidTotal, 1);
+  const bar = D.earned === 0 && D.paidTotal === 0 ? `<i class="empty"></i>`
+    : `<i class="paid" style="flex:${Math.min(D.paidTotal, D.earned)}"></i>${D.owed > 0 ? `<i class="owed" style="flex:${D.owed}"></i>` : ""}`;
+  const lp = D.payouts[D.payouts.length - 1];
+  h += `<section class="card hero">
+    <div class="lbl">${t.owedNow}</div>
+    <div class="big ${neg ? "neg" : ""}">${m(D.owed)}</div>
+    <div class="sub">${sub}</div>
+    <div class="mbar" aria-hidden="true">${bar}</div>
+    <div class="eq">
+      <div><small>${t.eqEarned}</small><b>${m(D.earned)}</b><span>${t.eqEarnedSub(t.delivered(D.deliv.length), fD(ACTIVATED))}</span></div>
+      <div class="op">−</div>
+      <div><small><i style="background:var(--paid)"></i>${t.eqPaid}</small><b>${m(D.paidTotal)}</b><span>${t.eqPaidSub(t.orders(D.paid.length), D.payouts.length)}</span></div>
+      <div class="op">=</div>
+      <div class="hl ${neg ? "neg" : ""}"><small><i style="background:${neg ? "var(--red)" : "var(--pri)"}"></i>${neg ? t.eqOver : t.eqLeft}</small><b>${m(D.owed)}</b><span>${t.orders(D.unpaid.length)}</span></div>
+    </div>
+    <div class="hfoot">${ic.wallet}<span>${lp ? t.last(fD(lp.d), m(lp.a), t[lp.m]) : t.noPay}</span></div>
+  </section>`;
+
+  /* two-up : what is coming, and how much of it usually arrives */
+  const byS = (s) => D.way.filter((o) => o.s === s).length;
+  const late = byS("delivery_delayed");
+  h += `<div class="two">
+    <section class="card box">
+      <h2>${ic.truck}${t.wayTitle}</h2>
+      <div class="n">${t.orders(D.way.length)}</div>
+      <div class="est">${D.enabled ? t.wayEst(m(wayEst)) : t.wayOff}</div>
+      ${D.enabled && perTen !== null && D.way.length ? `<div class="fine" style="margin-top:2px">${t.wayReal(perTen, m(Math.round(wayEst * ratePct / 100)))}</div>` : ""}
+      <div class="stages">
+        ${["uploaded", "at_carrier", "out_for_delivery", "delivery_delayed"].map((s) => {
+          const c = byS(s), col = { uploaded: "var(--grey)", at_carrier: "var(--blue)", out_for_delivery: "var(--pri)", delivery_delayed: "var(--amber)" }[s];
+          return `<div class="stg ${s === "delivery_delayed" && c ? "late" : ""}"><i class="d" style="background:${col}"></i>${t.st[s]}<span class="c num">${c}</span></div>`;
+        }).join("")}
+      </div>
+      ${late ? `<button class="cta">${t.lateCta} ${ic.arrow}</button>` : ""}
+      ${D.enabled && D.way.length ? `<div class="fine">${t.wayFine(m(RATE_NOW))}</div>` : ""}
+    </section>
+    <section class="card box">
+      <h2>${ic.target}${t.rateTitle}</h2>
+      ${ratePct === null ? `<div class="fine">${t.emptyNew}</div>` : `
+      <div class="rate-big"><span class="n num">${ratePct}%</span></div>
+      <div class="est">${t.rateSay(perTen)}</div>
+      ${(() => {
+        const tot = D.deliv.length + D.way.length + D.canc.length + D.rej.length + D.queue;
+        const seg = (n, c) => n ? `<i style="flex:${n};background:${c}"></i>` : "";
+        return `<div class="fine" style="margin-top:14px">${t.funnel(t.orders(tot), fD(ACTIVATED))}</div>
+        <div class="fbar" aria-hidden="true">${seg(D.deliv.length, "var(--pri)")}${seg(D.way.length, "var(--blue)")}${seg(D.canc.length + D.rej.length, "var(--lost)")}${seg(D.queue, "var(--grey)")}</div>
+        <div class="leg">
+          <span><i style="background:var(--pri)"></i>${t.fDel}<b class="num">${D.deliv.length}</b></span>
+          <span><i style="background:var(--blue)"></i>${t.fWay}<b class="num">${D.way.length}</b></span>
+          <span><i style="background:var(--lost)"></i>${t.fLost}<b class="num">${D.canc.length + D.rej.length}</b></span>
+          <span><i style="background:var(--grey)"></i>${t.fQueue}<b class="num">${D.queue}</b></span>
+        </div>
+        <div class="fine">${t.lCarrier} <b class="num">${D.canc.length}</b> · ${t.lRej} <b class="num">${D.rej.length}</b></div>`;
+      })()}`}
+    </section>
+  </div>`;
+
+  /* the list — each tab adds up to a number above */
+  const lostN = D.canc.length + D.rej.length + D.corr.length;
+  const tabs = [["unpaid", D.unpaid.length], ["way", D.way.length], ["paid", D.paid.length], ["lost", lostN]];
+  h += `<section class="card list"><div class="tabs" role="tablist">${tabs.map(([k, n]) =>
+    `<button role="tab" data-tab="${k}" aria-selected="${S.tab === k}">${t.tabs[k]}<span class="k num">${n}</span></button>`).join("")}</div>`;
+
+  const who = (o) => `<div class="who"><b>${o.name}</b><small>${PROD[o.p]}${o.c ? " · " + o.c : ""}</small></div>`;
+  const th = (o) => `<span class="thumb ${o.p.toLowerCase()}"></span>`;
+  const byDay = (rows, amt) => {
+    let out = "", cur = null;
+    const shown = rows.slice(0, S.shown);
+    shown.forEach((o) => {
+      const d = o.dt.split(" ")[0];
+      if (d !== cur) {
+        cur = d;
+        const same = rows.filter((x) => x.dt.startsWith(d));
+        out += `<div class="day"><span>${fDay(d)}</span><span>${t.orders(same.length)} · ${m(same.reduce((s, x) => s + x.a, 0))}</span></div>`;
+      }
+      out += `<div class="row">${th(o)}${who(o)}<span class="when num">${fT(o.dt)}</span><span class="amt">${amt(o)}</span></div>`;
+    });
+    if (rows.length > S.shown) out += `<div class="more"><button data-more>${t.more(rows.length - S.shown)}</button></div>`;
+    return out;
+  };
+
+  if (S.tab === "unpaid") {
+    h += `<div class="thead">${t.hUnpaid(t.delivered(D.unpaid.length), m(D.unpaid.reduce((s, o) => s + o.a, 0)))}<span class="say">— ${t.sUnpaid}</span></div>`;
+    h += D.unpaid.length ? byDay(D.unpaid, (o) => m(o.a, true)) : `<div class="empty">${D.deliv.length ? t.emptyUnpaid : t.emptyNew}</div>`;
+  }
+  if (S.tab === "way") {
+    h += `<div class="thead">${t.hWay(t.orders(D.way.length), m(wayEst))}<span class="say">— ${t.sWay}</span></div>`;
+    const order = { delivery_delayed: 0, out_for_delivery: 1, at_carrier: 2, uploaded: 3 };
+    const tone = { delivery_delayed: "amber", out_for_delivery: "green", at_carrier: "blue", uploaded: "grey" };
+    const rows = D.way.slice().sort((a, b) => order[a.s] - order[b.s] || a.up.localeCompare(b.up));
+    h += rows.length ? rows.map((o) => {
+      const age = days(o.up, TODAY);
+      const stuck = o.s === "at_carrier" && age > 7;
+      return `<div class="row">${th(o)}<div class="who"><b>${o.name}<span class="tag ${tone[o.s]}"><i></i>${t.st[o.s]}</span></b><small>${PROD[o.p]}${o.c ? " · " + o.c : ""}</small></div>
+        <span class="when ${stuck ? "warnline" : ""}">${stuck ? t.stuck(age) : t.upAgo(age)}</span><span class="amt est">${D.enabled ? "≈ " + m(RATE_NOW) : "—"}</span></div>`;
+    }).join("") : `<div class="empty">${t.emptyWay}</div>`;
+  }
+  if (S.tab === "paid") {
+    h += `<div class="thead">${t.hPaid(t.delivered(D.paid.length), m(D.paid.reduce((s, o) => s + o.a, 0)))}<span class="say">— ${t.sPaid(D.payouts.length)}</span></div>`;
+    if (!D.paid.length) h += `<div class="empty">${t.emptyPaid}</div>`;
+    D.payouts.map((p, i) => ({ p, i })).reverse().forEach(({ p, i }) => {
+      const rows = D.paid.filter((o) => o.payIdx === i);
+      if (!rows.length) return;
+      const a = rows[rows.length - 1].dt.split(" ")[0], b = rows[0].dt.split(" ")[0];
+      const open = S.open[i];
+      h += `<div class="pay" ${open ? "data-open" : ""}><button data-pay="${i}" aria-expanded="${!!open}">
+        <span class="ic">${ic.wallet}</span>
+        <span class="who"><b>${t.payHead(fD(p.d))}</b><small>${t.paySub(t.orders(rows.length), fD(a), fD(b), t[p.m])}${rows.some((o) => o.split) ? " · " + t.splitNote : ""}</small></span>
+        <span class="amt">${m(p.a)}</span><span class="chev">${ic.chev}</span></button>
+        ${open ? `<div class="inner">${rows.map((o) => `<div class="row">${th(o)}${who(o)}<span class="when">${fD(o.dt.split(" ")[0])}</span><span class="amt">${m(o.a)}</span></div>`).join("")}</div>` : ""}
+      </div>`;
+    });
+  }
+  if (S.tab === "lost") {
+    h += `<div class="thead">${t.hLost(t.orders(lostN))}</div>`;
+    const chips = [["all", t.lostAll, lostN], ["carrier", t.lCarrier, D.canc.length], ["rej", t.lRej, D.rej.length], ["before", t.lBefore, D.corr.length]];
+    h += `<div class="chips">${chips.map(([k, l, n]) => `<button data-lost="${k}" aria-pressed="${S.lost === k}">${l} <span class="num">${n}</span></button>`).join("")}</div>`;
+    const rows = [];
+    if (S.lost === "all" || S.lost === "carrier") D.canc.forEach((o) => rows.push({ o, k: "carrier", when: o.end, tag: `<span class="tag red"><i></i>${t.lCarrier}</span>`, det: t.cancelled(fD(o.up), fD(o.end)), amt: `<span class="amt zero num">0</span>` }));
+    if (S.lost === "all" || S.lost === "rej") D.rej.forEach((o) => rows.push({ o, k: "rej", when: o.end, tag: `<span class="tag violet"><i></i>${t.lRej}</span>`, det: t.rejected(o.up && fD(o.up), fD(o.end)), amt: `<span class="amt zero num">0</span>` }));
+    if (S.lost === "all" || S.lost === "before") D.corr.forEach((o) => rows.push({ o, k: "before", when: o.d, tag: `<span class="tag grey"><i></i>${t.lBefore}</span>`, det: t.before(fD(o.up)), amt: `<span class="amt"><s class="num">${RATE_OLD}</s><span class="num">0</span></span>` }));
+    rows.sort((a, b) => b.when.localeCompare(a.when));
+    const shown = rows.slice(0, S.shown);
+    h += shown.length ? shown.map((r) => `<div class="row">${th(r.o)}<div class="who"><b>${r.o.name}${r.tag}</b><small>${PROD[r.o.p]}${r.o.c ? " · " + r.o.c : ""}</small><small>${r.det}</small></div><span class="when"></span>${r.amt}</div>`).join("") : `<div class="empty">${t.emptyLost}</div>`;
+    if (rows.length > S.shown) h += `<div class="more"><button data-more>${t.more(rows.length - S.shown)}</button></div>`;
+  }
+  h += `</section><p class="rule">${t.rule}</p></div>`;
+
+  /* shell */
+  const navIc = [ic.box, ic.users, ic.truck, ic.coins];
+  const stage = document.getElementById("stage");
+  if (S.view === "desktop") {
+    stage.innerHTML = `<div class="app desk" dir="${rtl ? "rtl" : "ltr"}" lang="${S.lang}">
+      <div class="top"><span class="brand">Ord<i>ra</i></span><span class="mkt">${t.market}</span>
+        <nav class="navt">${t.nav.map((n, i) => `<a href="#" ${i === 3 ? 'aria-current="page"' : ""}>${navIc[i]}${n}</a>`).join("")}</nav></div>${h}</div>`;
+  } else {
+    stage.innerHTML = `<div class="app phone" dir="${rtl ? "rtl" : "ltr"}" lang="${S.lang}"><div class="scroll">${h}</div>
+      <nav class="tabbar">${t.nav.map((n, i) => `<a href="#" ${i === 3 ? 'aria-current="page"' : ""}>${navIc[i]}${n}</a>`).join("")}</nav></div>`;
+  }
+  document.querySelectorAll(".seg").forEach((g) => g.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", S[g.dataset.k] === b.dataset.v)));
+}
+
+document.addEventListener("click", (e) => {
+  const sb = e.target.closest(".seg button");
+  if (sb) { S[sb.closest(".seg").dataset.k] = sb.dataset.v; S.shown = 20; sync(); return render(); }
+  const tb = e.target.closest("[data-tab]"); if (tb) { S.tab = tb.dataset.tab; S.shown = 20; sync(); return render(); }
+  const lb = e.target.closest("[data-lost]"); if (lb) { S.lost = lb.dataset.lost; S.shown = 20; return render(); }
+  const pb = e.target.closest("[data-pay]"); if (pb) { const i = pb.dataset.pay; S.open[i] = !S.open[i]; return render(); }
+  if (e.target.closest("[data-more]")) { S.shown += 40; return render(); }
+  if (e.target.closest("a[href='#']")) e.preventDefault();
+});
+function sync() { const q = new URLSearchParams({ lang: S.lang, view: S.view, state: S.state, tab: S.tab }); history.replaceState(null, "", "?" + q); }
+render();
+</script>
+</body>
+</html>

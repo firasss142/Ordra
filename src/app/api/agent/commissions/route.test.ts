@@ -24,15 +24,24 @@ describe("GET /api/agent/commissions", () => {
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
-  test("agent: calls get_my_commissions with NO agent id — the RPC uses auth.uid()", async () => {
+  test("agent: calls get_my_commission_statement with NO agent id — the RPC uses auth.uid()", async () => {
     vi.mocked(getActor).mockResolvedValue({ actor: { id: "a1", role: "agent", market_id: LY } });
-    mockRpc.mockResolvedValue({ data: { enabled: true, balance: 29500, history: [] }, error: null });
+    mockRpc.mockResolvedValue({ data: { enabled: true, owed: 253, earned: 820, paid: 567 }, error: null });
     const res = await GET(req("?agent_id=someone-else&days=30"));
     expect(res.status).toBe(200);
     const [fn, args] = mockRpc.mock.calls[0];
-    expect(fn).toBe("get_my_commissions");
+    expect(fn).toBe("get_my_commission_statement");
     expect(JSON.stringify(args)).not.toContain("someone-else");
     expect(args).toEqual({ p_days: 30 });
-    expect((await res.json()).data.balance).toBe(29500);
+    expect((await res.json()).data.owed).toBe(253);
+  });
+
+  test("days defaults to 90 and is clamped to 7..366", async () => {
+    vi.mocked(getActor).mockResolvedValue({ actor: { id: "a1", role: "agent", market_id: LY } });
+    mockRpc.mockResolvedValue({ data: {}, error: null });
+    await GET(req());
+    await GET(req("?days=2"));
+    await GET(req("?days=9999"));
+    expect(mockRpc.mock.calls.map((c) => c[1])).toEqual([{ p_days: 90 }, { p_days: 7 }, { p_days: 366 }]);
   });
 });

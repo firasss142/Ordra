@@ -1,6 +1,6 @@
 /**
  * Wire types for agent commissions — the exact JSON shapes returned by the
- * `get_team_commissions`, `get_agent_commission_ledger`, `get_my_commissions`
+ * `get_team_commissions`, `get_agent_commission_ledger`, `get_my_commission_statement`
  * and `get_commission_settings` RPCs (supabase/migrations/20260918010002_
  * agent_commissions_rpcs.sql). Keep in step with the SQL; nothing else in the
  * app may guess at these payloads.
@@ -76,36 +76,112 @@ export interface CommissionLedgerEntry {
   created_at: string;
 }
 
-/* ── agent-facing (`get_my_commissions`) ─────────────────────────────── */
+/* ── agent-facing (`get_my_commission_statement`, 20260930192800) ─────── */
 
-export interface AgentHistoryOrder {
+/** Where an in-flight parcel is — `commission_order_stage()` in SQL. */
+export type StatementStage = "awaiting_scan" | "with_carrier" | "out" | "delayed" | "returning";
+export const STATEMENT_STAGES: readonly StatementStage[] = ["awaiting_scan", "with_carrier", "out", "delayed", "returning"];
+
+/** Why a confirmed order earned nothing. */
+export type LostReason =
+  | "carrier_cancelled" | "cancelled" | "rejected" | "returned"
+  | "before_activation" | "commission_off" | "corrected";
+export const LOST_REASONS: readonly LostReason[] = [
+  "carrier_cancelled", "cancelled", "rejected", "returned", "before_activation", "commission_off", "corrected",
+];
+
+interface StatementOrder {
+  order_id: string | null;
   external_id: string | null;
+  customer_name: string | null;
   product_name: string | null;
+  image_url: string | null;
   city: string | null;
-  amount: number;
-  entry_type: "accrual" | "reversal";
-  /** reversal only — why the money was taken back (20260926132710) */
-  reason?: CommissionReversalReason | null;
 }
 
-export type CommissionReversalReason = "not_delivered" | "uploaded_before_activation";
+/** A delivered order (or an adjustment) that earned money — paid or not. */
+export interface StatementCredit extends StatementOrder {
+  kind: "accrual" | "adjustment";
+  note: string | null;
+  /** delivery time (the accrual's effective_at) */
+  at: string;
+  /** what is still owed on it (unpaid) or what it earned (paid) */
+  amount: number;
+  full_amount: number;
+  /** unpaid only: the last payout covered part of it; `amount` is the remainder */
+  partial?: boolean;
+  /** paid only: settled across two payouts, finished by this one */
+  split?: boolean;
+}
 
-export type AgentHistoryItem =
-  | { type: "day"; day: string; delivered: number; corrections: number; amount: number; orders: AgentHistoryOrder[] }
-  | { type: "payout"; at: string; amount: number; method: PayoutMethod | null; reference: string | null }
-  | { type: "adjustment"; at: string; amount: number; note: string | null };
+export interface StatementPayout {
+  at: string;
+  amount: number;
+  method: PayoutMethod | null;
+  reference: string | null;
+  /** delivered orders this payout finished settling (FIFO) */
+  count: number;
+  from: string | null;
+  to: string | null;
+  has_split: boolean;
+  /** older than the window: counted, rows not sent */
+  rows_omitted: boolean;
+  rows: StatementCredit[];
+}
 
-export interface AgentCommissions {
+export interface StatementWayRow extends StatementOrder {
+  stage: StatementStage;
+  uploaded_at: string | null;
+  stage_at: string | null;
+}
+
+export interface StatementLostRow extends StatementOrder {
+  reason: LostReason;
+  at: string | null;
+  uploaded_at: string | null;
+  /** what it had earned before it was taken back, if it ever did */
+  was_amount: number | null;
+}
+
+export interface AgentStatement {
   enabled: boolean;
   currency: string;
-  rate: number | null;
-  balance: number;
-  since_last_payout: { delivered: number; corrections: number };
-  month: { delivered: number; earned: number };
-  inflight: { count: number; est: number };
+  rate: {
+    amount: number | null;
+    effective_from: string | null;
+    /** set for a week after a change, so « 10 (avant 9) » can be said */
+    previous_amount: number | null;
+    off_since: string | null;
+  };
+  activated_on: string | null;
+  /** window start (market-local date): max(activation, today − days) */
+  since: string;
+  /** Σ credits — owed = earned − paid, always */
+  earned: number;
+  paid: number;
+  owed: number;
   last_payout: CommissionLastPayout | null;
-  history: AgentHistoryItem[];
-  has_more: boolean;
+  /** Σ rows.amount = owed when owed > 0 */
+  unpaid: { count: number; amount: number; rows: StatementCredit[] };
+  paid_orders: { count: number; amount: number; payouts: StatementPayout[] };
+  way: {
+    count: number;
+    est: number;
+    est_likely: number | null;
+    stages: Record<StatementStage, number>;
+    rows: StatementWayRow[];
+  };
+  lost: { count: number; rows: StatementLostRow[] } & Record<LostReason, number>;
+  funnel: {
+    confirmed: number;
+    delivered: number;
+    way: number;
+    lost: number;
+    awaiting_upload: number;
+    back_in_queue: number;
+  };
+  /** delivered ÷ (delivered + finished without delivery), 0..1 */
+  delivery_rate: number | null;
 }
 
 /* ── settings (`get_commission_settings`) ─────────────────────────────── */
