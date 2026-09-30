@@ -12,22 +12,32 @@ import { WH_BTN, WH_LABEL, WH_TONE, type WhTone } from "./tokens";
  * Journal — the append-only ledger.
  *
  * Follows docs/design/entrepot/entrepot-light.html §Journal. The prototype
- * shows eight filters; six ship. "Réceptions" (supplier intake) and
- * "Transferts" (stock moved to the carrier's warehouse) have no source at all
- * — neither flow exists in the data model — so they are absent rather than
- * present and permanently empty. "Remises" is real: it reads order_history
- * for the uploaded → dispatched step.
+ * shows eight filters; "Transferts" (stock moved to the carrier's warehouse)
+ * still has no source — that flow does not exist in the data model — so it is
+ * absent rather than present and permanently empty. "Remises" is real: it reads
+ * order_history for the uploaded → dispatched step.
+ *
+ * "Réceptions" IS real as of 2026-09-30: `receptions` + the `reception` /
+ * `reception_reversal` ledger reasons. The same change fixed what this screen
+ * was hiding — the reason list was written inline and "Tout" named four of the
+ * twelve the constraint allows, so `stock_count`, `received_back`,
+ * `initial_stock`, `scan_reversal` and `manual_delete_reversal` never appeared,
+ * here or in the CSV export. A product's opening stock was invisible, and so was
+ * every physical count. The list now lives in `lib/warehouse/history-reasons.ts`,
+ * tested, with a guard that the families cover the whole vocabulary.
  */
 
-type Kind = "all" | "scan" | "handover" | "return" | "adjust" | "print";
+type Kind = "all" | "scan" | "handover" | "return" | "reception" | "count" | "adjust" | "print";
 
-const FILTERS: Kind[] = ["all", "scan", "handover", "return", "adjust", "print"];
+const FILTERS: Kind[] = ["all", "scan", "handover", "return", "reception", "count", "adjust", "print"];
 
 const FILTER_KEY: Record<Kind, string> = {
   all: "filterAll",
   scan: "filterScan",
   handover: "filterHandover",
   return: "filterReturn",
+  reception: "filterReception",
+  count: "filterCount",
   adjust: "filterAdjust",
   print: "filterPrint",
 };
@@ -37,6 +47,10 @@ const KIND_STYLE: Record<WarehouseHistoryRow["kind"], { tone: WhTone; key: strin
   scan: { tone: "scan", key: "typeScan" },
   handover: { tone: "move", key: "typeHandover" },
   return: { tone: "warn", key: "typeReturn" },
+  // La réception FAIT ENTRER du stock : elle prend le vert, la seule famille qui
+  // ajoute des unités pour une raison commerciale.
+  reception: { tone: "ok", key: "typeReception" },
+  count: { tone: "move", key: "typeCount" },
   writeoff: { tone: "bad", key: "typeWriteoff" },
   adjust: { tone: "muted", key: "typeAdjust" },
   print: { tone: "muted", key: "typePrint" },
@@ -226,7 +240,7 @@ export function JournalConsole({ locale }: { locale: string }) {
           <div className="flex flex-wrap items-center gap-3.5">
             <span>{t("footNote")}</span>
             <span className="ms-auto flex flex-wrap gap-3.5">
-              {(["scan", "handover", "return", "adjust"] as const).map((k) => (
+              {(["scan", "handover", "return", "reception", "count", "adjust"] as const).map((k) => (
                 <span key={k} className="inline-flex items-center gap-1.5">
                   <span className={`inline-block h-2 w-2 rounded-pill ${WH_TONE[KIND_STYLE[k].tone].fill}`} />
                   {t(KIND_STYLE[k].key)}
