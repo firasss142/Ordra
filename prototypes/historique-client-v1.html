@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="fr" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ordra — Historique client (prototype v1)</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROTOTYPE — « Voir tout » ouvre une fenêtre dans la page, plus un onglet.
+   Déclenché depuis la pastille « client fidèle » ET la pastille « doublon ».
+
+   Toutes les données sont RÉELLES : client لطفي (0915489053, marché Libye),
+   lues dans la base le 20 septembre 2026. Rien n'est inventé.
+   Jetons : console Commandes (--oms-*), design-system §4.17.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --oms-bg:#FAFAF8; --oms-surface:#FFFFFF; --oms-sunken:#F4F3EF;
+  --oms-border:#EAE7E1; --oms-border-strong:#DCD8D0;
+  --oms-ink-1:#1B1917; --oms-ink-2:#5C5852; --oms-ink-3:#78726A;
+  --brand:#15803D; --brand-bg:#E9F6EE;
+  --st-action:#2C6ECB; --st-action-bg:#EAF2FB;
+  --st-success:#008060; --st-success-bg:#F1F8F5;
+  --st-warning:#B98900; --st-warning-bg:#FFF8E6;
+  --st-critical:#D72C0D; --st-critical-bg:#FFF4F4;
+  --st-neutral-bg:#F6F6F7;
+  --violet:#6E56CF; --violet-bg:#F1EEFC; --violet-ink:#513FA8;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--oms-bg);color:var(--oms-ink-1);
+  font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+.ar{unicode-bidi:plaintext}
+
+/* ── the page behind, just enough to show the modal is IN it ─────────────── */
+.stage{max-width:1120px;margin:0 auto;padding:26px 24px 60px}
+.stage h1{font-size:19px;font-weight:650;margin:0 0 3px}
+.stage .sub{font-size:13px;color:var(--oms-ink-3);margin:0 0 18px}
+.rowcard{background:var(--oms-surface);border:1px solid var(--oms-border);
+  border-radius:12px;padding:0;overflow:hidden}
+.rowcard .r{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;
+  padding:13px 16px;border-bottom:1px solid var(--oms-border)}
+.rowcard .r:last-child{border-bottom:0}
+.rowcard .who{font-weight:600}
+.rowcard .meta{font-size:12px;color:var(--oms-ink-3);margin-top:2px}
+.badges{display:flex;gap:6px;align-items:center}
+
+/* the two triggers this modal serves */
+.pill{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;
+  border-radius:999px;font-size:11.5px;font-weight:600;cursor:pointer;
+  border:1px solid transparent;background:var(--violet-bg);color:var(--violet-ink);
+  border-color:rgba(110,86,207,.28)}
+.sq{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 7px;
+  border-radius:4px;font-size:11.5px;font-weight:700;cursor:pointer;
+  background:#F0F4FF;color:#3D5AFE;border:1px solid rgba(61,90,254,.3)}
+.hint{font-size:12px;color:var(--oms-ink-3);margin-top:14px}
+kbd{font:inherit;font-size:11px;background:var(--oms-sunken);border:1px solid var(--oms-border);
+  border-bottom-width:2px;border-radius:4px;padding:1px 5px}
+
+/* ── overlay + panel ────────────────────────────────────────────────────── */
+.overlay{position:fixed;inset:0;background:rgba(15,14,13,.42);z-index:40;
+  opacity:0;pointer-events:none;transition:opacity .16s ease-out}
+.overlay[data-open=true]{opacity:1;pointer-events:auto}
+.panel{position:fixed;left:50%;top:50%;z-index:50;
+  width:min(880px,calc(100vw - 32px));max-height:min(86vh,720px);
+  display:flex;flex-direction:column;overflow:hidden;
+  background:var(--oms-surface);border-radius:14px;
+  box-shadow:0 18px 48px -12px rgba(8,12,10,.38),0 4px 12px -4px rgba(8,12,10,.2);
+  transform:translate(-50%,-50%) scale(.985);opacity:0;pointer-events:none;
+  transition:opacity .16s ease-out,transform .2s cubic-bezier(.22,1,.36,1)}
+.panel[data-open=true]{opacity:1;transform:translate(-50%,-50%) scale(1);pointer-events:auto}
+
+.phead{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
+  padding:16px 18px 13px;border-bottom:1px solid var(--oms-border)}
+.phead h2{margin:0;font-size:16px;font-weight:650;letter-spacing:-.01em}
+.phead .who{font-size:13px;color:var(--oms-ink-2);margin-top:2px}
+.x{border:0;background:transparent;cursor:pointer;width:30px;height:30px;
+  display:grid;place-items:center;border-radius:8px;color:var(--oms-ink-2);font-size:17px}
+.x:hover{background:var(--oms-sunken);color:var(--oms-ink-1)}
+
+/* ── summary strip ──────────────────────────────────────────────────────── */
+.strip{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px 18px}
+.box{border:1px solid var(--oms-border);border-radius:10px;padding:12px 14px;background:var(--oms-surface)}
+.box .lab{font-size:10.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--oms-ink-3);display:block;margin-bottom:9px}
+.kv{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:2px 0}
+.kv dt{color:var(--oms-ink-3)}
+.kv dd{margin:0;font-weight:600;color:var(--oms-ink-1)}
+
+/* track record — the number NEVER stands without its denominator */
+.rates{display:flex;gap:18px}
+.rate{flex:1}
+.rate .v{font-size:23px;font-weight:660;letter-spacing:-.02em;line-height:1.1}
+.rate .n{font-size:11.5px;color:var(--oms-ink-3);margin-top:3px}
+.rate .t{font-size:11.5px;color:var(--oms-ink-2);font-weight:600;margin-top:1px}
+.rate.ok .v{color:var(--st-success)}
+.rate.mid .v{color:var(--st-warning)}
+.thin{display:inline-block;font-size:10.5px;font-weight:650;color:var(--st-warning);
+  background:var(--st-warning-bg);border-radius:4px;padding:1px 5px;margin-inline-start:5px;
+  vertical-align:middle}
+
+/* ── table ──────────────────────────────────────────────────────────────── */
+.tblwrap{flex:1;overflow-y:auto;padding:0 18px}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+thead th{position:sticky;top:0;background:var(--oms-surface);z-index:1;
+  text-align:start;font-size:10.5px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--oms-ink-3);padding:8px 10px;border-bottom:1px solid var(--oms-border)}
+th.r,td.r{text-align:end}
+tbody td{padding:11px 10px;border-bottom:1px solid var(--oms-border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:#FCFCFB}
+tr.anchor td{background:var(--brand-bg)!important}
+tr.dupe td{background:#FBFAF9;color:var(--oms-ink-3)}
+tr.dupe .ref,tr.dupe .prodname{color:var(--oms-ink-3)}
+
+.ref{font-size:12px;color:var(--oms-ink-2);font-variant-numeric:tabular-nums}
+.prod{display:flex;align-items:center;gap:9px;min-width:0}
+.av{width:34px;height:34px;flex:none;border-radius:7px;background:var(--oms-sunken);
+  border:1px solid var(--oms-border);display:grid;place-items:center;
+  font-size:13px;font-weight:700;color:var(--oms-ink-3);position:relative}
+.av .q{position:absolute;top:-6px;inset-inline-start:-6px;min-width:17px;height:17px;
+  border-radius:999px;background:var(--oms-ink-1);color:#fff;font-size:10px;font-weight:700;
+  display:grid;place-items:center;padding:0 4px;border:2px solid var(--oms-surface)}
+.prodname{font-size:12.5px;color:var(--oms-ink-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;
+  font-size:11.5px;font-weight:600;white-space:nowrap}
+.st.d{background:var(--st-success-bg);color:var(--st-success)}
+.st.u{background:var(--st-action-bg);color:var(--st-action)}
+.st.r{background:var(--st-critical-bg);color:var(--st-critical)}
+.st.x{background:var(--st-neutral-bg);color:var(--oms-ink-3)}
+.st i{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.tag{display:inline-block;font-size:10.5px;font-weight:650;padding:1px 6px;border-radius:4px;
+  background:var(--brand-bg);color:var(--brand);margin-inline-start:7px}
+.tag.dup{background:#F0F4FF;color:#3D5AFE}
+.eye{border:1px solid var(--oms-border);background:var(--oms-surface);cursor:pointer;
+  width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--oms-ink-2)}
+.eye:hover{border-color:var(--oms-border-strong);color:var(--oms-ink-1)}
+
+/* ── hidden-duplicates disclosure ───────────────────────────────────────── */
+.disc{margin:10px 0 2px;border:1px dashed var(--oms-border-strong);border-radius:9px;
+  background:#FCFCFB}
+.disc summary{cursor:pointer;list-style:none;padding:9px 12px;font-size:12.5px;
+  color:var(--oms-ink-2);display:flex;align-items:center;gap:8px}
+.disc summary::-webkit-details-marker{display:none}
+.disc summary b{color:var(--oms-ink-1)}
+.disc summary .chev{margin-inline-start:auto;color:var(--oms-ink-3);font-size:11px}
+.disc[open] summary{border-bottom:1px solid var(--oms-border)}
+
+/* ── footer ─────────────────────────────────────────────────────────────── */
+.pfoot{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 18px;border-top:1px solid var(--oms-border);background:#FCFCFB}
+.pfoot .note{font-size:11.5px;color:var(--oms-ink-3);line-height:1.5}
+.btn{border:1px solid var(--oms-border-strong);background:var(--oms-surface);
+  border-radius:8px;padding:7px 12px;font:inherit;font-size:12.5px;font-weight:600;
+  color:var(--oms-ink-1);cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--oms-sunken)}
+
+@media(max-width:720px){.strip{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <h1>Commandes</h1>
+  <p class="sub">Prototype — cliquez une pastille pour ouvrir l'historique <em>dans la page</em>.</p>
+
+  <div class="rowcard">
+    <div class="r">
+      <div>
+        <div class="who ar">لطفي الصفح</div>
+        <div class="meta">0915489053 · <span class="ar">طرابلس</span> · <span class="ar">دميه ملاكمه حجم صغير</span> · 16 juin 2026</div>
+      </div>
+      <div class="badges">
+        <button class="pill" id="t1" aria-haspopup="dialog">↻ Client fidèle · 3</button>
+        <button class="sq" id="t2" aria-haspopup="dialog">⧉ 3</button>
+      </div>
+    </div>
+    <div class="r">
+      <div>
+        <div class="who ar">احمد عبد الرحم ابوراس</div>
+        <div class="meta">0918131073 · <span class="ar">طرابلس</span> · 4 commandes</div>
+      </div>
+      <div class="badges"><button class="pill" aria-haspopup="dialog">↻ Client fidèle · 4</button></div>
+    </div>
+  </div>
+
+  <p class="hint">Les deux pastilles — <strong>fidèle</strong> et <strong>doublon</strong> — ouvrent la
+    même fenêtre. <kbd>Échap</kbd> ou un clic à côté la referme, et la liste derrière n'a pas bougé.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     LA FENÊTRE
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="overlay" id="ov" data-open="false"></div>
+
+<div class="panel" id="pn" data-open="false" role="dialog" aria-modal="true" aria-labelledby="pt">
+  <div class="phead">
+    <div>
+      <h2 id="pt">Historique client</h2>
+      <div class="who"><span class="ar">لطفي الصفح</span> · 0915489053</div>
+    </div>
+    <button class="x" id="cx" aria-label="Fermer">✕</button>
+  </div>
+
+  <div class="strip">
+    <!-- identity + what the count actually covers -->
+    <div class="box">
+      <span class="lab">Ce client</span>
+      <dl style="margin:0">
+        <div class="kv"><dt>Commandes affichées</dt><dd class="num">3</dd></div>
+        <div class="kv"><dt>Livrées</dt><dd class="num">1 · 129,000 LYD</dd></div>
+        <div class="kv"><dt>En cours</dt><dd class="num">1 · 387,000 LYD</dd></div>
+        <div class="kv"><dt>Ville</dt><dd class="ar">طرابلس</dd></div>
+      </dl>
+    </div>
+
+    <!--
+      PAS « prédiction IA ». Ce sont deux divisions sur l'historique réel.
+      Le dénominateur est affiché parce qu'un « 100 % » tiré d'un seul colis
+      n'est pas une loi — et un agent au téléphone doit voir la différence.
+    -->
+    <div class="box">
+      <span class="lab">Antécédents <span class="thin">base étroite</span></span>
+      <div class="rates">
+        <div class="rate ok">
+          <div class="v num">100 %</div>
+          <div class="t">Livraison</div>
+          <div class="n num">1 colis livré sur 1 abouti</div>
+        </div>
+        <div class="rate mid">
+          <div class="v num">67 %</div>
+          <div class="t">Confirmation</div>
+          <div class="n num">2 confirmées sur 3 décidées</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tblwrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:23%">Référence</th>
+          <th>Produit</th>
+          <th style="width:15%">Date</th>
+          <th style="width:17%">Statut</th>
+          <th class="r" style="width:15%">Total</th>
+          <th style="width:44px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="anchor">
+          <td>
+            <span class="ref" title="6a315fd53fcb68dcd2380589">6a315fd5…0589</span>
+            <span class="tag">cette commande</span>
+          </td>
+          <td>
+            <div class="prod">
+              <span class="av"><span class="q num">1</span>د</span>
+              <span class="prodname ar">دميه ملاكمه حجم صغير</span>
+            </div>
+          </td>
+          <td class="num">16 juin 2026</td>
+          <td><span class="st d"><i></i>Livrée</span></td>
+          <td class="r num">129,000</td>
+          <td><button class="eye" aria-label="Ouvrir la commande">👁</button></td>
+        </tr>
+        <tr>
+          <td><span class="ref" title="manual-1781099640410">manual-…640410</span></td>
+          <td>
+            <div class="prod">
+              <span class="av"><span class="q num">3</span>د</span>
+              <span class="prodname ar">دميه ملاكمه حجم صغير</span>
+            </div>
+          </td>
+          <td class="num">10 juin 2026</td>
+          <td><span class="st u"><i></i>Chez le transporteur</span></td>
+          <td class="r num">387,000</td>
+          <td><button class="eye" aria-label="Ouvrir la commande">👁</button></td>
+        </tr>
+        <tr>
+          <td><span class="ref" title="6a199a7ac4164782cf1ec54c">6a199a7a…c54c</span></td>
+          <td>
+            <div class="prod">
+              <span class="av"><span class="q num">1</span>د</span>
+              <span class="prodname ar">دميه ملاكمه حجم صغير</span>
+            </div>
+          </td>
+          <td class="num">29 mai 2026</td>
+          <td><span class="st r"><i></i>Rejetée</span></td>
+          <td class="r num">129,000</td>
+          <td><button class="eye" aria-label="Ouvrir la commande">👁</button></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!--
+      Six lignes existent en base, trois s'affichent. Sans cette ligne, le
+      compteur ment (design-system §4.17 G : un chiffre et la vue qu'il ouvre
+      doivent être le même ensemble).
+    -->
+    <details class="disc">
+      <summary>
+        <span>⧉</span>
+        <span><b>3 doublons supprimés</b> — masqués par défaut, comptés nulle part</span>
+        <span class="chev">afficher ▾</span>
+      </summary>
+      <table>
+        <tbody>
+          <tr class="dupe">
+            <td style="width:23%"><span class="ref">6a294c58…d42f</span><span class="tag dup">doublon</span></td>
+            <td><div class="prod"><span class="av"><span class="q num">3</span>د</span><span class="prodname ar">دميه ملاكمه حجم صغير</span></div></td>
+            <td class="num" style="width:15%">10 juin · 12:00</td>
+            <td style="width:17%"><span class="st x"><i></i>Supprimée</span></td>
+            <td class="r num" style="width:15%">387,000</td>
+            <td style="width:44px"></td>
+          </tr>
+          <tr class="dupe">
+            <td><span class="ref">6a294549…35ac</span><span class="tag dup">doublon</span></td>
+            <td><div class="prod"><span class="av"><span class="q num">3</span>د</span><span class="prodname ar">دميه ملاكمه حجم صغير</span></div></td>
+            <td class="num">10 juin · 11:30</td>
+            <td><span class="st x"><i></i>Supprimée</span></td>
+            <td class="r num">387,000</td>
+            <td></td>
+          </tr>
+          <tr class="dupe">
+            <td><span class="ref">6a2944b2…28b3</span><span class="tag dup">doublon</span></td>
+            <td><div class="prod"><span class="av"><span class="q num">3</span>د</span><span class="prodname ar">دميه ملاكمه حجم صغير</span></div></td>
+            <td class="num">10 juin · 11:15</td>
+            <td><span class="st x"><i></i>Supprimée</span></td>
+            <td class="r num">387,000</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="margin:0;padding:9px 12px;font-size:11.5px;color:var(--oms-ink-3);line-height:1.55">
+        Trois commandes identiques en 45 minutes, puis une saisie manuelle à 13:54 :
+        le client a cliqué plusieurs fois, un agent a repris la main. C'est la
+        lecture que la liste seule ne donne pas.
+      </p>
+    </details>
+  </div>
+
+  <div class="pfoot">
+    <p class="note">
+      Tout l'historique tient ici — aucun client n'a plus de 5 commandes.<br>
+      Au-delà de 20, les plus anciennes ne sont pas chargées.
+    </p>
+    <button class="btn" id="go">Ouvrir dans Commandes ↗</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var ov=document.getElementById('ov'),pn=document.getElementById('pn'),
+      last=null;
+  function open(t){last=t;ov.dataset.open='true';pn.dataset.open='true';
+    document.body.style.overflow='hidden';document.getElementById('cx').focus();}
+  function close(){ov.dataset.open='false';pn.dataset.open='false';
+    document.body.style.overflow='';if(last)last.focus();}
+  ['t1','t2'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.addEventListener('click',function(){open(el)});
+  });
+  document.querySelectorAll('.pill,.sq').forEach(function(el){
+    el.addEventListener('click',function(){open(el)});
+  });
+  document.getElementById('cx').addEventListener('click',close);
+  ov.addEventListener('click',close);
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&pn.dataset.open==='true')close();
+  });
+  document.getElementById('go').addEventListener('click',function(){
+    alert('Démo : ouvrirait /orders?q=0915489053 — devenu un choix, plus le comportement par défaut.');
+  });
+})();
+</script>
+</body>
+</html>

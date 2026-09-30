@@ -1,8 +1,9 @@
 # Scheduled jobs (pg_cron) — and the notifications job in detail
 
 Everything scheduled in Ordra runs inside Postgres via `pg_cron`, not from Vercel,
-because Vercel's Hobby plan caps crons at once per day. **There are 12 active jobs**
-(verified against the live database 2026-09-13):
+because Vercel's Hobby plan caps crons at once per day. **There are 14 active jobs**
+(12 verified against the live database 2026-09-13; `agent-availability-reset-hourly` added 2026-09-19 by
+`20261003000004`):
 
 | Job | Schedule | What it does |
 |---|---|---|
@@ -18,8 +19,10 @@ because Vercel's Hobby plan caps crons at once per day. **There are 12 active jo
 | `darb-rates-harvest-nightly` | `17 2 * * *` | Harvests Darb shipping rates |
 | `delivery-zone-stats-nightly` | `17 2 * * *` | Recomputes per-zone delivery rates |
 | `investor-rollup-nightly` | `41 2 * * *` | Full investor rollup |
+| `whatsapp-outbox-1min` | `* * * * *` | Drains `whatsapp_outbox` through `POST /api/cron/whatsapp-outbox` (`invoke_whatsapp_outbox()` calls pg_net only when a row is due or stuck, so most ticks cost one indexed EXISTS). Added 2026-09-25 by `20260925130000` — see docs/whatsapp-cloud-api.md |
+| `agent-availability-reset-hourly` | `22 * * * *` | Sets every agent to not-ready at their market's local midnight, returning untouched orders to the pool. Hourly because Tunisia (UTC+1) and Libya (UTC+2) do not cross midnight together; it acts only inside the first hour of the local day and is idempotent per market per day |
 
-The offset minutes (`3-59/10`, `8-59/15`, `4-59/15`, `:07`, `:17`, `:41`) are
+The offset minutes (`3-59/10`, `8-59/15`, `4-59/15`, `:07`, `:17`, `:22`, `:41`) are
 deliberate: they keep the heavy jobs from all firing on the same tick. Keep that spread
 when adding a job.
 

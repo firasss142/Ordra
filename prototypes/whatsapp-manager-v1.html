@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="fr" dir="ltr">
+<head>
+<meta charset="utf-8">
+<title>Ordra — WhatsApp côté manager (v1)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Prototype v1 — WhatsApp Business (Cloud API) vu par le MANAGER et le SUPER_ADMIN. Construit 2026-09-25.
+  Plan : plans/whatsapp-cloud-api.md (Phase 0). Console claire de docs/design-system.md, barre latérale
+  sombre, atomes de manager-console-v1.html ; cartes de connexion de settings/MetaAdsSection.tsx ;
+  interrupteurs et cartes d'option de settings/general ; la feuille de campagne de
+  prospects/console/CampaignSheet.tsx (audience · canal · distribution).
+  Écrans :
+   · connexions  — Système › Connexions › Services : une carte WhatsApp par marché (identifiants chiffrés,
+                   test par étapes, qualité, palier, modèles, dernier webhook), le bloc « à coller dans Meta ».
+   · modeles     — la table des modèles synchronisés, l'événement que chaque modèle sert, la création en un
+                   clic du catalogue Ordra, le tiroir d'un modèle refusé.
+   · parametres  — Paramètres › WhatsApp : l'interrupteur général, les cinq événements, la langue par défaut,
+                   la plage d'envoi, et les deux bandeaux qui empêchent une mauvaise surprise.
+   · messages    — Clients › Messages : les conversations sans commande ni prospect, à rattacher.
+   · campagne    — la feuille de campagne en mode « numéro Ordra » : le corps avec ses variables, l'image,
+                   la soumission à Meta, l'approbation, le lancement.
+  URL : ?lang=fr|ar &screen=connexions|modeles|parametres|messages|campagne &role=super_admin|manager
+        &tstatus=pending|approved|rejected
+-->
+<style>
+:root{
+  --page:#F6F6F7; --card:#FFFFFF; --hover:#F7F7F7; --sunken:#FAFAFB; --text:#1A1A1A; --text2:#6D7175; --line:#ECEEF0; --border:#E1E3E5; --border-strong:#C9CCCF;
+  --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE; --brand-line:#BBF7D0; --brand-deep:#14532D;
+  --sb:#0E1013; --sb-el:#14171C; --sb-text:#E6E8EB; --sb-text2:#B5BAC2; --sb-muted:#7F858F; --sb-active:#10B981;
+  --action:#2C6ECB; --action-bg:#EAF1FB; --success:#008060; --success-bg:#F1F8F5; --warning:#B98900; --warning-bg:#FFF8E6; --critical:#D72C0D; --critical-bg:#FFF4F4; --neutral:#6D7175; --neutral-bg:#F6F6F7;
+  --wa:#15803D; --wa-btn:#1E8E5A; --wa-bubble:#E8F6EE;
+  --studio:#E9EBEE; --studio-ink:#2B2F36;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans Arabic",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--studio);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed}
+a{color:inherit}
+svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.num{direction:ltr;unicode-bidi:isolate;display:inline-block;font-variant-numeric:tabular-nums}
+.q{unicode-bidi:plaintext}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* studio (always LTR) */
+.studio{padding:18px 20px 40px;direction:ltr}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;max-width:1520px;margin:0 auto 12px}
+.bar h1{margin:0;font-size:15px;font-weight:700;margin-inline-end:auto}
+.bar h1 span{color:#6B7280;font-weight:500}
+.seg{display:inline-flex;background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:3px;gap:2px}
+.seg button{padding:6px 11px;border-radius:7px;font-size:13px;font-weight:500;color:#6B7280;border:0;background:none}
+.seg button[aria-pressed=true]{background:#111;color:#fff}
+.note{max-width:1520px;margin:0 auto 14px;font-size:12.5px;color:#6B7280;line-height:1.55}
+.note b{color:#374151}
+.note code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:#fff;padding:1px 4px;border-radius:4px}
+.stage{max-width:1520px;margin:0 auto;position:relative}
+.hscroll{overflow-x:auto}
+
+/* frame */
+.frame{width:1420px;height:960px;border:1px solid #C9CDD3;border-radius:12px;overflow:hidden;background:var(--page);display:flex;text-align:start;position:relative}
+[dir=rtl] .frame{direction:rtl}
+.sb{width:224px;flex:0 0 auto;background:var(--sb);color:var(--sb-text);padding:14px 12px;display:flex;flex-direction:column;gap:1px;font-size:13.5px;overflow-y:auto;scrollbar-width:none}
+.sb .logo{font-weight:700;padding:6px 10px 12px;color:#fff;font-size:17px}
+.sb .logo small{display:block;font-weight:400;color:var(--sb-muted);font-size:12px}
+.sb .mk{margin:0 4px 10px;padding:8px 10px;border-radius:8px;background:var(--sb-el);color:var(--sb-text2);font-size:12.5px;display:flex;justify-content:space-between}
+.sb .sh{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--sb-muted);padding:12px 10px 4px}
+.sb a{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;color:var(--sb-text);text-decoration:none;cursor:pointer}
+.sb a[aria-current=page]{background:#1B2027;color:#fff;font-weight:600;box-shadow:inset 3px 0 0 var(--sb-active)}
+[dir=rtl] .sb a[aria-current=page]{box-shadow:inset -3px 0 0 var(--sb-active)}
+.sb a .n{margin-inline-start:auto;background:var(--warning-bg);color:var(--warning);border-radius:999px;padding:0 7px;font-size:11.5px;font-weight:700}
+.sb a .n[data-wa]{background:#D1FAE5;color:#065F46}
+.sb .ro{margin:auto 4px 0;padding:8px 10px;border-radius:8px;background:var(--sb-el);color:var(--sb-text2);font-size:12px;line-height:1.4}
+.mc{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.top{display:flex;align-items:center;gap:12px;padding:12px 24px;background:var(--card);border-bottom:1px solid var(--border);flex:0 0 auto}
+.top h1{font-size:20px;font-weight:600;margin:0}
+.top .sub{color:var(--text2);font-size:13px}
+.top .crumb{color:var(--text2);font-size:13px;margin-bottom:2px}
+.top .cta{margin-inline-start:auto;display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:6px;border:1px solid var(--border-strong);background:#fff;font-weight:500;font-size:13.5px;color:var(--text);white-space:nowrap}
+.btn:hover{background:var(--hover)}
+.btn[data-primary]{background:var(--brand);color:#fff;border-color:var(--brand)}
+.btn[data-primary]:hover{background:var(--brand-hover)}
+.btn[data-danger]{color:var(--critical);border-color:#F2B8AE}
+.btn[data-quiet]{border-color:transparent;background:transparent;color:var(--text2)}
+.btn[disabled]{opacity:.5}
+.btn.sm{padding:5px 9px;font-size:12.5px}
+.btn svg{width:15px;height:15px}
+.body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:16px 24px 28px;scrollbar-width:thin}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:14px}
+.tab{padding:9px 14px;border:0;background:transparent;color:var(--text2);font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab[aria-current=true]{color:var(--text);border-bottom-color:var(--brand);font-weight:600}
+.tab b{margin-inline-start:6px;font-weight:600;font-size:11.5px;padding:1px 7px;border-radius:999px;background:var(--neutral-bg);color:var(--text2)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:14px}
+.card h2{font-size:14px;font-weight:600;margin:0;padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.card h2 .r{margin-inline-start:auto;font-weight:400;color:var(--text2);font-size:12.5px;display:flex;align-items:center;gap:8px}
+.card .pad{padding:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.badge i{width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block}
+.badge[data-s=neutral]{background:var(--neutral-bg);color:var(--neutral)}
+.badge[data-s=warn]{background:var(--warning-bg);color:var(--warning)}
+.badge[data-s=info]{background:var(--action-bg);color:var(--action)}
+.badge[data-s=ok]{background:var(--success-bg);color:var(--success)}
+.badge[data-s=bad]{background:var(--critical-bg);color:var(--critical)}
+.badge[data-s=draft]{background:#fff;border:1px solid var(--border);color:var(--text2)}
+table.t{width:100%;border-collapse:collapse;font-size:13.5px}
+table.t th{text-align:start;font-weight:600;color:var(--text2);font-size:12px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--sunken);white-space:nowrap}
+table.t td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.t tr:last-child td{border-bottom:0}
+table.t tbody tr[data-click]{cursor:pointer}
+table.t tbody tr:hover td{background:var(--hover)}
+table.t tr[aria-selected=true] td{background:var(--brand-bg)}
+.fl{font-size:12px;color:var(--text2);font-weight:500;margin-bottom:4px;display:block}
+.fi{display:block;width:100%;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font:inherit;background:#fff;margin-bottom:10px;color:var(--text)}
+.fi:focus{outline:2px solid var(--brand);outline-offset:1px}
+.fi[readonly]{background:var(--sunken)}
+textarea.fi{min-height:76px;resize:vertical}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.foot{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--line);background:var(--sunken);align-items:center}
+.foot .sp{flex:1}
+.sw{display:inline-flex;align-items:center;gap:8px;cursor:pointer;border:0;background:none;padding:0;font-size:13px;color:var(--text2)}
+.sw i{width:34px;height:20px;border-radius:999px;background:#CBD0D6;position:relative;transition:background .15s;flex:0 0 auto}
+.sw i::after{content:"";position:absolute;top:2px;inset-inline-start:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
+.sw[aria-checked=true] i{background:var(--brand)}
+.sw[aria-checked=true] i::after{transform:translateX(14px)}
+[dir=rtl] .sw[aria-checked=true] i::after{transform:translateX(-14px)}
+.sw[disabled]{opacity:.55}
+.set{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+.set:last-child{border-bottom:0}
+.set .k{font-weight:500}
+.set .h{color:var(--text2);font-size:12.5px;margin-top:2px}
+.set .tpls{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.set .fi{margin:0}
+.set .unit{display:flex;gap:8px;align-items:center}
+.set .unit span{color:var(--text2);font-size:12.5px;white-space:nowrap}
+.set[data-master]{background:var(--sunken)}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;text-align:start}
+.opt[aria-pressed=true]{border:1.5px solid var(--brand);background:var(--brand-bg)}
+.opt b{font-size:13.5px}
+.opt span{font-size:12px;color:var(--text2)}
+.notice{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:12px;line-height:1.45}
+.notice svg{width:16px;height:16px;margin-top:1px}
+.notice b{font-weight:600}
+.notice[data-tone=warn]{background:var(--warning-bg);color:#7A5B00;border:1px solid #F5E1A4}
+.notice[data-tone=info]{background:var(--action-bg);color:#1F4F94;border:1px solid #C9DBF5}
+.notice[data-tone=bad]{background:var(--critical-bg);color:#9A2A14;border:1px solid #F5C6BC}
+.notice[data-tone=ok]{background:var(--success-bg);color:#065F46;border:1px solid #BFE3D2}
+.toast{position:absolute;bottom:18px;inset-inline:0;margin:auto;width:max-content;max-width:90%;background:#1A1A1A;color:#fff;padding:9px 14px;border-radius:999px;font-size:13px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast[data-on=true]{opacity:1}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:6px 12px;font-size:13px;align-items:center}
+.kv dt{color:var(--text2)}
+.kv dd{margin:0;display:flex;align-items:center;gap:8px;min-width:0}
+.kv dd .mono{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kv .cp{border:0;background:none;color:var(--text2);padding:2px;display:inline-grid;place-items:center;border-radius:4px}
+.kv .cp:hover{background:var(--hover)}
+.kv .rv{border:0;background:none;color:var(--action);font-size:12.5px;font-weight:600;padding:0}
+.spin{width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* connexions — market card */
+.mcard{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden;display:flex;flex-direction:column}
+.mcard .mh{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.mcard .mh .flag{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;background:var(--neutral-bg);color:var(--text2);font-weight:700;font-size:12px}
+.mcard .mh h3{margin:0;font-size:14.5px;font-weight:600}
+.mcard .mh .sub{font-size:12.5px;color:var(--text2)}
+.mcard .mh .badge{margin-inline-start:auto}
+.health{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}
+.health div{padding:10px 12px;border-inline-end:1px solid var(--line);min-width:0}
+.health div:last-child{border-inline-end:0}
+.health .l{font-size:11.5px;color:var(--text2)}
+.health .v{font-size:13px;font-weight:600;margin-top:2px;display:flex;align-items:flex-start;gap:6px;line-height:1.3}
+.health .v i{margin-top:4px}
+.health .v i{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.health .v i[data-q=GREEN]{background:#16A34A}.health .v i[data-q=YELLOW]{background:#EAB308}.health .v i[data-q=RED]{background:#DC2626}.health .v i[data-q=NA]{background:#CBD0D6}
+.health .s{font-size:11.5px;color:var(--text2);margin-top:1px}
+.stages{list-style:none;margin:0;padding:6px 0}
+.stages li{display:grid;grid-template-columns:22px 1fr;gap:10px;padding:6px 14px;font-size:13px;align-items:start}
+.stages li b{font-weight:600}
+.stages li span{color:var(--text2)}
+.stages li .ic{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;color:#fff}
+.stages li .ic svg{width:12px;height:12px;stroke-width:3}
+.stages li[data-s=ok] .ic{background:var(--success)}
+.stages li[data-s=warn] .ic{background:var(--warning)}
+.stages li[data-s=bad] .ic{background:var(--critical)}
+.stages li[data-s=skip] .ic{background:#CBD0D6}
+.mcard .acts{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--line);background:var(--sunken)}
+.mcard .acts .sp{flex:1}
+.mcard .form{padding:14px;border-top:1px solid var(--line)}
+.mcard .form .fi{margin-bottom:8px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chipm{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;background:var(--neutral-bg);font-size:12px;font-weight:600;color:var(--text)}
+.chipm.mono{font-weight:500}
+
+/* modeles */
+.mseg{display:inline-flex;gap:4px;padding:3px;border-radius:8px;background:var(--neutral-bg);margin-bottom:12px}
+.mseg button{padding:6px 12px;border:0;border-radius:6px;background:none;font-weight:500;color:var(--text2)}
+.mseg button[aria-pressed=true]{background:#fff;color:var(--text);font-weight:600;box-shadow:0 0 0 1px var(--border)}
+.evsel{padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:#fff;font-size:13px;min-width:150px}
+.evsel[data-none]{color:var(--text2)}
+.drawer{position:absolute;inset:0;background:rgba(17,24,39,.28);z-index:50;display:flex;justify-content:flex-end}
+.drawer .dp{width:520px;height:100%;background:#fff;border-inline-start:1px solid var(--border);display:flex;flex-direction:column}
+.drawer .dh{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.drawer .dh h3{margin:0;font-size:16px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drawer .dh .x{width:34px;height:34px;display:grid;place-items:center;border-radius:8px;border:1px solid var(--border);background:#fff}
+.drawer .db{flex:1;min-height:0;overflow-y:auto;padding:16px 18px;scrollbar-width:thin}
+.drawer .df{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--line);background:var(--sunken)}
+pre.json{margin:0;padding:12px;border-radius:8px;background:#0E1013;color:#E6E8EB;font-size:12px;line-height:1.5;overflow:auto;direction:ltr;text-align:left}
+pre.json .k{color:#93C5FD}.json .s{color:#A7F3D0}.json .n{color:#FCD34D}
+.waprev{border-radius:12px;background:#E5DDD5;padding:14px 12px 12px;display:flex;flex-direction:column;gap:6px;min-height:180px}
+.waprev .hd{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#374151}
+.waprev .hd .av{width:22px;height:22px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:10px;font-weight:700}
+.waprev .hd .tm{margin-inline-start:auto;font-size:11px;color:#6B7280}
+.waprev .img{width:70%;aspect-ratio:4/3;border-radius:10px 10px 0 0;border:1px solid #CBEBC3;border-bottom:0;background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'><circle cx='22' cy='22' r='13' fill='%23F9D5C0'/><rect x='17' y='9' width='10' height='26' rx='4' fill='%23E8946A'/></svg>") center/38% no-repeat}
+.waprev .bub{position:relative;width:70%;background:#DCF8C6;border:1px solid #CBEBC3;border-radius:0 10px 10px 10px;padding:8px 10px 18px;font-size:13.5px;line-height:1.5;white-space:pre-wrap;unicode-bidi:plaintext}
+.waprev .bub[data-img]{border-radius:0 0 10px 10px}
+.waprev .bub .ft{display:block;margin-top:6px;font-size:12px;color:#6B7280}
+.waprev .bub .tk{position:absolute;bottom:4px;inset-inline-end:8px;font-size:10.5px;color:#5B7A57}
+.waprev mark{background:#B5E7B0;border-radius:4px;padding:0 3px;color:inherit}
+.waprev .re{align-self:flex-end;background:#fff;border-radius:10px 2px 10px 10px;padding:8px 10px;font-size:13.5px}
+.waprev .re small{display:block;font-size:11px;color:#6B7280;margin-top:3px}
+
+/* messages */
+.convs{display:grid;grid-template-columns:minmax(0,1fr) 460px;gap:14px;align-items:start}
+.conv{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;align-items:center;width:100%;text-align:start;border-inline:0;border-top:0;background:#fff}
+.conv:last-child{border-bottom:0}
+.conv:hover{background:var(--hover)}
+.conv[aria-selected=true]{background:var(--brand-bg)}
+.conv .av{width:40px;height:40px;border-radius:50%;background:var(--neutral-bg);display:grid;place-items:center;font-weight:700;color:var(--text2)}
+.conv .nm{font-weight:600;font-size:14px;display:flex;gap:8px;align-items:baseline}
+.conv .nm .ph{font-weight:400;color:var(--text2);font-size:12.5px}
+.conv .lm{font-size:13px;color:var(--text2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;unicode-bidi:plaintext}
+.conv .rt{display:flex;flex-direction:column;align-items:flex-end;gap:5px;font-size:12px;color:var(--text2)}
+.conv .un{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--brand);color:#fff;font-size:11.5px;font-weight:700;display:grid;place-items:center}
+.thread{padding:12px 14px;background:var(--sunken);display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto}
+.msg{max-width:82%;display:flex;flex-direction:column;gap:3px}
+.msg[data-dir=in]{align-self:flex-start}.msg[data-dir=out]{align-self:flex-end}
+.msg .bub{padding:8px 11px;border-radius:12px;font-size:14px;line-height:1.5;white-space:pre-wrap;unicode-bidi:plaintext;border:1px solid transparent}
+.msg[data-dir=in] .bub{background:#fff;border-color:var(--line);border-start-start-radius:4px}
+.msg[data-dir=out] .bub{background:var(--wa-bubble);border-color:#CDEBD9;border-start-end-radius:4px}
+.msg .meta{font-size:11.5px;color:var(--text2);padding:0 4px;display:flex;gap:6px}
+.msg[data-dir=out] .meta{justify-content:flex-end}
+.comp{padding:12px 14px;border-top:1px solid var(--line)}
+.comp .r1{display:flex;align-items:center;gap:8px}
+.lseg{display:inline-flex;border-radius:999px;background:var(--neutral-bg);padding:3px}
+.lseg button{height:28px;padding:0 14px;border-radius:999px;border:0;background:none;font-size:13px;color:var(--text2)}
+.lseg button[aria-pressed=true]{background:#fff;color:var(--text);font-weight:600;box-shadow:0 0 0 1px var(--border)}
+.win{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;margin-inline-start:auto;white-space:nowrap}
+.win[data-open=true]{background:var(--brand-bg);color:var(--brand-deep);border:1px solid var(--brand-line)}
+.win[data-open=false]{background:var(--neutral-bg);color:var(--text2);border:1px solid var(--border)}
+.comp textarea{width:100%;margin-top:10px;min-height:64px;padding:9px 11px;border:1px solid var(--border);border-radius:10px;resize:vertical;unicode-bidi:plaintext}
+.comp .r2{display:flex;align-items:center;gap:8px;margin-top:8px}
+.btn-send{margin-inline-start:auto;display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:8px;border:0;background:var(--wa-btn);color:#fff;font-weight:700}
+.attach{padding:12px 14px;border-top:1px solid var(--line)}
+.attach .res{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:6px}
+.attach .res button{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;padding:9px 12px;border:0;border-bottom:1px solid var(--line);background:#fff;text-align:start;font-size:13px}
+.attach .res button:last-child{border-bottom:0}
+.attach .res button:hover{background:var(--hover)}
+.attach .res .sub{color:var(--text2);font-size:12px}
+
+/* campaign sheet */
+.csheet{position:absolute;inset:0;background:rgba(17,24,39,.28);z-index:50;display:flex;justify-content:flex-end}
+.csheet .cp{width:780px;height:100%;background:#fff;border-inline-start:1px solid var(--border);display:flex;flex-direction:column}
+.csheet .ch{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--line)}
+.csheet .ch h3{margin:0;font-size:17px;font-weight:600;flex:1}
+.csheet .ch .x{width:34px;height:34px;display:grid;place-items:center;border-radius:8px;border:1px solid var(--border);background:#fff}
+.steps{display:flex;gap:0;border-bottom:1px solid var(--line)}
+.step{flex:1;padding:12px 16px;display:flex;gap:10px;align-items:center;color:var(--text2);font-size:13px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.step i{width:22px;height:22px;border-radius:50%;border:1px solid var(--border-strong);display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:600;flex:0 0 auto}
+.step[aria-current=true]{color:var(--text);font-weight:600;border-bottom-color:var(--brand)}
+.step[aria-current=true] i{background:var(--brand);color:#fff;border-color:var(--brand)}
+.step[data-done=true] i{background:var(--brand-bg);color:var(--brand-hover);border-color:var(--brand-bg)}
+.csheet .cb{flex:1;min-height:0;overflow-y:auto;padding:16px 20px;scrollbar-width:thin}
+.csheet .cf{display:flex;gap:8px;padding:12px 20px;border-top:1px solid var(--line);background:var(--sunken);align-items:center}
+.chan{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.chan button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:11px 13px;border-radius:8px;border:1px solid #D1D5DB;background:#fff;text-align:start}
+.chan button[aria-pressed=true]{border:1.5px solid var(--brand);background:#F1FAF4}
+.chan b{display:flex;align-items:center;gap:8px;font-size:14px}
+.chan span{font-size:12.5px;color:var(--text2);line-height:1.35}
+.sender{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.sender label{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid #D1D5DB;border-radius:8px;cursor:pointer;background:#fff}
+.sender label[data-on=true]{border-color:var(--brand);background:#F1FAF4}
+.sender input{margin-top:3px;accent-color:var(--brand)}
+.sender b{display:flex;align-items:center;gap:8px;font-size:13.5px}
+.sender span{font-size:12.5px;color:#374151}
+.split{display:grid;grid-template-columns:1.15fr 1fr;gap:16px;align-items:start}
+.vars{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:-4px 0 10px;font-size:12.5px;color:var(--text2)}
+.vars button{height:26px;padding:0 10px;border-radius:999px;border:1px solid var(--border);background:var(--neutral-bg);font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#374151}
+.rule{font-size:12px;color:var(--text2);margin:-4px 0 10px;display:flex;gap:6px;align-items:center}
+.rule svg{width:13px;height:13px}
+.rule[data-bad]{color:var(--critical)}
+.imgpick{display:flex;gap:10px;align-items:center;padding:10px;border:1px dashed var(--border-strong);border-radius:8px;margin-bottom:10px}
+.imgpick .th{width:56px;height:42px;border-radius:6px;background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'><circle cx='22' cy='22' r='13' fill='%23F9D5C0'/><rect x='17' y='9' width='10' height='26' rx='4' fill='%23E8946A'/></svg>") center/60% no-repeat;border:1px solid var(--border)}
+.imgpick .t{flex:1;font-size:13px}
+.imgpick .t small{display:block;color:var(--text2);font-size:12px}
+.tstat{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:8px;margin-bottom:14px;font-size:13.5px;line-height:1.45}
+.tstat svg{width:18px;height:18px;margin-top:1px}
+.tstat b{display:block}
+.tstat[data-s=pending]{background:var(--warning-bg);border:1px solid #F5E1A4;color:#7A5B00}
+.tstat[data-s=approved]{background:var(--success-bg);border:1px solid #BFE3D2;color:#065F46}
+.tstat[data-s=rejected]{background:var(--critical-bg);border:1px solid #F5C6BC;color:#9A2A14}
+.tstat .acts{display:flex;gap:8px;margin-top:8px}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:12px}
+.summary div{padding:10px 12px;border-inline-end:1px solid var(--line)}
+.summary div:last-child{border-inline-end:0}
+.summary .l{font-size:11.5px;color:var(--text2)}
+.summary .v{font-size:16px;font-weight:600;margin-top:2px}
+/* campaign cards behind the sheet */
+.ccard{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.ccard .h{display:flex;align-items:center;gap:10px}
+.ccard .h b{font-size:14.5px}
+.ccard .h .badge{margin-inline-start:auto}
+.ccard .sub{font-size:12.5px;color:var(--text2);margin-top:2px}
+.funnel{display:grid;grid-template-columns:repeat(6,1fr);gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:10px}
+.funnel div{padding:8px 10px;border-inline-end:1px solid var(--line)}
+.funnel div:last-child{border-inline-end:0}
+.funnel .l{font-size:11px;color:var(--text2)}
+.funnel .v{font-size:16px;font-weight:600}
+.funnel .v small{font-size:11px;font-weight:400;color:var(--text2);margin-inline-start:3px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.kpi .l{font-size:12px;color:var(--text2)}
+.kpi .v{font-size:24px;font-weight:600;margin-top:2px}
+</style>
+</head>
+<body>
+<div class="studio">
+  <div class="bar">
+    <h1>Ordra — WhatsApp côté manager <span>· prototype v1 — connexions, modèles, paramètres, messages, campagne</span></h1>
+    <div class="seg" id="segLang" role="group" aria-label="Langue"><button data-v="fr">Français</button><button data-v="ar">العربية</button></div>
+    <div class="seg" id="segRole" role="group" aria-label="Rôle"><button data-v="super_admin">super_admin</button><button data-v="manager">market_manager</button></div>
+    <div class="seg" id="segScreen" role="group" aria-label="Écran"><button data-v="connexions">Connexions</button><button data-v="modeles">Modèles</button><button data-v="parametres">Paramètres</button><button data-v="messages">Messages</button><button data-v="campagne">Campagne</button></div>
+    <div class="seg" id="segT" role="group" aria-label="Modèle de campagne"><button data-v="pending">En attente</button><button data-v="approved">Approuvé</button><button data-v="rejected">Refusé</button></div>
+  </div>
+  <p class="note" id="note"></p>
+  <div class="stage"><div class="hscroll"><div class="frame" id="frame"><aside class="sb" id="sb"></aside><div class="mc"><div class="top" id="top"></div><div class="body" id="body"></div><div id="over"></div></div><div class="toast" id="toast"></div></div></div></div>
+</div>
+
+<script>
+const I={
+ check:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+ check2:'<svg viewBox="0 0 24 24"><path d="M2.5 12.5l4 4 8-9"/><path d="M11 16.5l2 2 8.5-9.5"/></svg>',
+ x:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+ warn:'<svg viewBox="0 0 24 24"><path d="M12 3.5 21.5 20h-19z"/><path d="M12 9.5v4.5M12 17.2v.3"/></svg>',
+ info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8.2v.3"/></svg>',
+ wa:'<svg viewBox="0 0 24 24"><path d="M4 20l1.3-3.8A8 8 0 1 1 8.2 19z"/><path d="M9.2 9.6c.3 2.4 2.4 4.5 4.8 4.8l.9-1.4-1.7-1-1 .8a5.7 5.7 0 0 1-1.4-1.4l.8-1-1-1.7z"/></svg>',
+ phone:'<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
+ copy:'<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
+ refresh:'<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg>',
+ plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+ bolt:'<svg viewBox="0 0 24 24"><path d="M13 2.5 4.5 13.5H12l-1 8 8.5-11H12z"/></svg>',
+ clock:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+ image:'<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 16l-5-5-8 8"/></svg>',
+ send:'<svg viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4z"/></svg>',
+ link:'<svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
+ search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>',
+ pen:'<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>',
+ eye:'<svg viewBox="0 0 24 24"><path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></svg>',
+ pause:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M10 9v6M14 9v6"/></svg>',
+ play:'<svg viewBox="0 0 24 24"><path d="M7 5v14l11-7z"/></svg>',
+ user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>',
+ ban:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></svg>'
+};
+
+/* ═════════ Strings ═════════ */
+const L={
+fr:{
+ market:{tn:"Tunisie",ly:"Libye"}, ro:"Lecture seule — les identifiants et les réglages sont modifiés par un super_admin.",
+ nav:{home:"Accueil",dash:"Dashboard",orders:"Commandes",ordersL:"Commandes",archived:"Archivées",wh:"Entrepôt",bench:"Banc",returns:"Retours",stock:"Stock",dlv:"Livraison",tracking:"Suivi transporteur",board:"Tableau livraison",fin:"Finances",pnl:"P&L global",margins:"Produits & marges",inv:"Stock & inventaire",ads:"Dépenses pub",inv2:"Investisseurs",clients:"Clients",prospects:"Prospects",messages:"Messages",team:"Équipe",control:"Salle de contrôle",perf:"Performance",access:"Accès",sys:"Système",markets:"Marchés",conn:"Connexions",settings:"Paramètres",logs:"Journaux"},
+ /* connexions */
+ cTitle:"Connexions", cSub:"Boutiques, transporteurs, sites et services tiers, par marché", cTabs:["Vue d'ensemble","Storefronts","Transporteurs","Sites d'entrepôt","Services","Mappings"],
+ meta:"Meta Ads", metaSub:"2 comptes publicitaires · dernière synchro il y a 41 min", connected:"Connecté", notConnected:"Non connecté", unverified:"Connecté · non vérifié", paused:"En pause", authFail:"Jeton invalide",
+ waTitle:"WhatsApp Business — Cloud API", waSub:"Un numéro par marché, un portefeuille Meta par marché. Les identifiants sont vérifiés auprès de Meta avant d'être chiffrés.",
+ h:{quality:"Qualité",tier:"Palier",tpl:"Modèles",webhook:"Dernier webhook",auto:"Envois automatiques"}, q:{GREEN:"verte",YELLOW:"orange",RED:"rouge",NA:"pas encore de données"},
+ tierOf:(n)=>`${n} destinataires / 24 h`, verifPending:"vérification d'entreprise en cours", verifOk:"entreprise vérifiée",
+ tplCount:(a,p,r)=>`${a} approuvés · ${p} en attente${r?` · ${r} refusé${r>1?"s":""}`:""}`, never:"jamais", ago:{m:n=>`il y a ${n} min`,h:n=>`il y a ${n} h`,d:n=>`il y a ${n} j`},
+ autoOf:(t,n)=>`dernière passe ${t} · ${n} en file`, autoOff:"désactivés (Paramètres)",
+ test:"Tester", edit:"Modifier", pause:"Mettre en pause", resume:"Reprendre", save:"Vérifier et enregistrer", cancel:"Annuler", show:"Afficher", hide:"Masquer", gen:"Générer", copy:"Copier",
+ stages:{cred:"Identifiants",phone:"Numéro",waba:"Compte WhatsApp (WABA)",sub:"Abonnement de l'app",webhook:"Webhook"},
+ stTn:{cred:"déchiffrés, jeton système permanent",phone:"Ordra Tunisie · +216 29 000 000 · enregistré",waba:"15 modèles · 12 approuvés",sub:"l'app reçoit les événements de ce WABA",webhook:"dernier événement il y a 4 min"},
+ stLy:{cred:"déchiffrés, jeton système permanent",phone:"Ordra Libya · +218 91 000 0000 · enregistré (PIN défini)",waba:"14 modèles · 0 approuvé, 14 en attente",sub:"abonnement absent — corrigé automatiquement",webhook:"aucun événement reçu — envoyez un message test au numéro depuis un téléphone, puis relancez le test"},
+ f:{waba:"WABA ID",pnid:"Phone number ID",app:"App ID",token:"Jeton d'accès (System User)",secret:"App secret",verify:"Verify token",gv:"Version Graph"},
+ formHint:"Rien n'est stocké tant que Meta n'a pas répondu à un appel de test avec ces valeurs.",
+ hookTitle:"Webhook — à coller dans l'app Meta", hookSub:"Une seule URL pour les deux applications : Ordra reconnaît le marché par le numéro qui a reçu l'événement.",
+ hookUrl:"URL de rappel", hookVerify:"Verify token", hookFields:"Champs à abonner", hookNote:"Ordra répond 401 à toute requête dont la signature ne correspond pas à l'app secret du marché.",
+ /* modeles */
+ mTitle:"Modèles WhatsApp", mSub:"Ce que Meta a approuvé, et quel événement chaque modèle sert", sync:"Synchroniser depuis Meta", create:"Créer les modèles Ordra",
+ mInfo:"« Créer les modèles Ordra » soumet le catalogue en un clic, en arabe et en français, et associe chaque modèle à son événement. Meta approuve en général en quelques minutes, jusqu'à 24 h sur un compte neuf.",
+ mCols:["Modèle","Langue","Catégorie","Statut","Événement","Variables","Synchro"],
+ cat:{UTILITY:"Utilitaire",MARKETING:"Marketing"}, ts:{APPROVED:"Approuvé",PENDING:"En attente",REJECTED:"Refusé",PAUSED:"Suspendu"},
+ ev:{none:"— (agent)",could_not_reach:"Injoignable",shipped:"Expédié",out_for_delivery:"En livraison",last_chance:"Dernière chance",delivered:"Livré",campaign:"Campagne"},
+ vars:{name:"nom",carrier:"transporteur",tracking:"suivi",amount:"montant",order_ref:"n° commande",courier:"livreur",address:"adresse",product:"produit",discount:"remise",city:"ville"},
+ dTitle:"Modèle", dReason:"Motif de refus Meta", dReasonTxt:"INVALID_FORMAT — une variable ne peut pas terminer le corps du message.", dFix:"Corriger et resoumettre (v2)", dPreview:"Aperçu", dJson:"Composants envoyés à Meta", dDel:"Supprimer",
+ /* parametres */
+ pTitle:"Paramètres", pSub:"Réglages du marché", pTabs:["Opérations","Livraison","Alertes","Équipe","Objectifs","Commissions","Motifs de rejet","WhatsApp"],
+ pCard:"Notifications WhatsApp automatiques", pCardSub:"Un message part quand la commande atteint l'un de ces états. Chaque événement se coupe indépendamment.",
+ pMaster:"Notifications automatiques", pMasterH:"Interrupteur général : coupé, aucun événement n'envoie, quels que soient les réglages ci-dessous.",
+ pEv:{could_not_reach:["Injoignable","Après la première tentative sans réponse, une seule fois par commande."],shipped:["Expédié","Numéro de suivi au scan de sortie. Darb envoie déjà son SMS en Libye."],out_for_delivery:["En livraison","« Le livreur passe aujourd'hui, gardez votre téléphone allumé. »"],last_chance:["Dernière chance","Livraison retardée ou colis en retour : « répondez aujourd'hui »."],delivered:["Livré","Remerciement une fois le colis remis."]},
+ pTplOk:"modèle approuvé", pTplPend:"en attente d'approbation", pTplNone:"aucun modèle approuvé",
+ pLang:"Langue par défaut", pLangH:"Pour un client dont la langue n'a pas encore été choisie par un agent.",
+ pWin:"Plage d'envoi", pWinH:"En dehors, les messages attendent le lendemain matin. Darb synchronise la nuit ; personne ne doit être réveillé à 3 h.",
+ pWarnUnv:"Le numéro libyen est connecté mais l'entreprise n'est pas encore vérifiée : 250 destinataires par 24 h. Activez un seul événement pour commencer, puis les autres une fois la qualité verte.",
+ pWarnTpl:"Aucun modèle approuvé en arabe pour « Livré ». L'événement restera en file jusqu'à l'approbation — rien n'est perdu, rien ne part.",
+ pNoConfig:"Connectez d'abord WhatsApp dans Système › Connexions.", saveBtn:"Enregistrer", saved:"Paramètres enregistrés", on:"Activé", off:"Désactivé",
+ /* messages */
+ msTitle:"Messages", msSub:"Conversations WhatsApp sans commande ni prospect rattaché", msTabs:["À rattacher","Toutes"], msEmpty:"Choisissez une conversation.",
+ attach:"Rattacher à", attachPh:"Chercher une commande ou un prospect par nom ou numéro…", createLead:"Créer un prospect", claimed:"Rattachée",
+ winOpen:t=>`Fenêtre ouverte jusqu'à ${t}`, placeholder:"Répondre au client…", sendBtn:"Envoyer", asOrder:"commande", asLead:"prospect",
+ /* campagne */
+ kTitle:"Prospects", kSub:"Pipeline, campagnes et sources — Libye", newCamp:"Nouvelle campagne", kCamps:"Campagnes",
+ cs:{name:"Sérum · clients 60–120 j",steps:["Audience","Canal","Distribution"]}, back:"Retour", next:"Suivant", submit:"Soumettre le modèle à Meta", launch:"Lancer la campagne", resubmit:"Modifier et resoumettre", checkStatus:"Vérifier le statut",
+ chan:{call:["Appel","Un agent appelle chaque prospect."],wa:["WhatsApp","Un message d'abord ; l'agent appelle ceux qui répondent."],wa_call:["WhatsApp puis appel","Un message, puis un appel à ceux qui ne répondent pas."]},
+ cName:"Nom de la campagne", cOffer:"Offre (ce que l'agent peut promettre)", cWho:"Qui envoie", sAgent:["Depuis le téléphone de l'agent","Lien wa.me prérempli dans la file de l'agent, un geste par prospect."], sApi:["Depuis le numéro Ordra","WhatsApp Business : envoi cadencé, statut de remise, réponses dans Ordra. Le message doit être un modèle approuvé par Meta."],
+ cBody:"Corps du message (modèle marketing)", cVars:"Variables", cRule:"Ne commencez ni ne finissez par une variable — Meta refuse le modèle.", cRuleBad:"Le corps se termine par une variable : Meta va refuser.",
+ cLang:"Langue", cImg:"Image en en-tête", cImgSub:"Sérum vitamine C · photo produit · 1 200 × 900", cImgChange:"Changer",
+ cWin:"Plage d'envoi", cRate:"Cadence", cRateH:"messages / heure, toute la campagne", cThen:"Appeler si pas de réponse après", cThenH:"heures",
+ cPrev:"Ce que le client verra", cFooter:"Répondez STOP pour ne plus recevoir nos messages", cReply:"Oui", cReplyCap:"Une réponse ouvre la fenêtre de 24 h : l'agent peut alors écrire librement.",
+ tst:{pending:["En attente d'approbation Meta","Modèle « ordra_camp_serum_260925 » soumis il y a 12 min. La campagne se lance dès l'approbation ; vous serez prévenu."],approved:["Modèle approuvé il y a 3 min","La campagne peut partir. 412 prospects, 60 messages par heure entre 10 h et 20 h : dernier envoi vers 17 h aujourd'hui."],rejected:["Modèle refusé par Meta","INVALID_FORMAT — le corps se termine par une variable. Corrigez le texte : une nouvelle version (v2) sera soumise."]},
+ sum:{aud:"Audience",rate:"Cadence",win:"Plage",eta:"Fin estimée"},
+ card:{tpl:"Modèle",queued:"En file",sent:"Envoyés",delivered:"Remis",read:"Lus",replied:"Réponses",failed:"Échecs",cap:"cap marketing"},
+ c2:{name:"Montre X2 · Benghazi",sub:"Lancée hier 10:00 · 96 prospects · 60/h · 10–20 h"}, c1sub:"412 prospects · livrés il y a 60 à 120 j · pas de contact depuis 30 j",
+ kpi:{new:"Nouveaux (7 j)",conv:"Conversion 30 j",rev:"CA livré 30 j",hot:"Chauds en attente"},
+ cur:"LYD"
+},
+ar:{
+ market:{tn:"تونس",ly:"ليبيا"}, ro:"قراءة فقط — يعدّل المسؤول الأعلى المعرّفات والإعدادات.",
+ nav:{home:"الرئيسية",dash:"لوحة القيادة",orders:"الطلبات",ordersL:"الطلبات",archived:"المؤرشفة",wh:"المخزن",bench:"الطاولة",returns:"المرتجعات",stock:"المخزون",dlv:"التوصيل",tracking:"متابعة الناقل",board:"لوحة التوصيل",fin:"المالية",pnl:"الأرباح والخسائر",margins:"المنتجات والهوامش",inv:"المخزون والجرد",ads:"الإنفاق الإعلاني",inv2:"المستثمرون",clients:"العملاء",prospects:"العملاء المحتملون",messages:"الرسائل",team:"الفريق",control:"غرفة التحكم",perf:"الأداء",access:"الصلاحيات",sys:"النظام",markets:"الأسواق",conn:"الاتصالات",settings:"الإعدادات",logs:"السجلات"},
+ cTitle:"الاتصالات", cSub:"المتاجر وشركات التوصيل والمواقع والخدمات الخارجية، لكل سوق", cTabs:["نظرة عامة","المتاجر","شركات التوصيل","مواقع المخزن","الخدمات","الربط"],
+ meta:"إعلانات Meta", metaSub:"حسابان إعلانيان · آخر مزامنة منذ 41 د", connected:"موصول", notConnected:"غير موصول", unverified:"موصول · غير موثّق", paused:"متوقف", authFail:"رمز غير صالح",
+ waTitle:"واتساب للأعمال — Cloud API", waSub:"رقم لكل سوق، ومحفظة Meta لكل سوق. تُتحقق المعرّفات لدى Meta قبل تشفيرها.",
+ h:{quality:"الجودة",tier:"الحد اليومي",tpl:"القوالب",webhook:"آخر webhook",auto:"الإرسال التلقائي"}, q:{GREEN:"خضراء",YELLOW:"برتقالية",RED:"حمراء",NA:"لا بيانات بعد"},
+ tierOf:(n)=>`${n} مستلماً / 24 س`, verifPending:"توثيق الشركة جارٍ", verifOk:"الشركة موثّقة",
+ tplCount:(a,p,r)=>`${a} معتمدة · ${p} بانتظار${r?` · ${r} مرفوضة`:""}`, never:"أبداً", ago:{m:n=>`منذ ${n} د`,h:n=>`منذ ${n} س`,d:n=>`منذ ${n} يوم`},
+ autoOf:(t,n)=>`آخر دورة ${t} · ${n} في الطابور`, autoOff:"معطّل (الإعدادات)",
+ test:"اختبار", edit:"تعديل", pause:"إيقاف مؤقت", resume:"استئناف", save:"تحقق واحفظ", cancel:"إلغاء", show:"إظهار", hide:"إخفاء", gen:"توليد", copy:"نسخ",
+ stages:{cred:"المعرّفات",phone:"الرقم",waba:"حساب واتساب (WABA)",sub:"اشتراك التطبيق",webhook:"Webhook"},
+ stTn:{cred:"مفكوكة التشفير، رمز نظام دائم",phone:"Ordra Tunisie · +216 29 000 000 · مسجّل",waba:"15 قالباً · 12 معتمدة",sub:"التطبيق يستقبل أحداث هذا الحساب",webhook:"آخر حدث منذ 4 د"},
+ stLy:{cred:"مفكوكة التشفير، رمز نظام دائم",phone:"Ordra Libya · +218 91 000 0000 · مسجّل (PIN محدد)",waba:"14 قالباً · 0 معتمد، 14 بانتظار",sub:"الاشتراك كان غائباً — صُحّح تلقائياً",webhook:"لم يصل أي حدث — أرسل رسالة تجريبية إلى الرقم من هاتف ثم أعد الاختبار"},
+ f:{waba:"WABA ID",pnid:"Phone number ID",app:"App ID",token:"رمز الوصول (System User)",secret:"App secret",verify:"Verify token",gv:"إصدار Graph"},
+ formHint:"لا يُخزَّن شيء قبل أن تردّ Meta على نداء اختبار بهذه القيم.",
+ hookTitle:"Webhook — للصقه في تطبيق Meta", hookSub:"عنوان واحد للتطبيقين: تعرف Ordra السوق من الرقم الذي استقبل الحدث.",
+ hookUrl:"عنوان الرد", hookVerify:"Verify token", hookFields:"الحقول المطلوب الاشتراك بها", hookNote:"تردّ Ordra بـ401 على أي طلب لا يطابق توقيعه App secret السوق.",
+ mTitle:"قوالب واتساب", mSub:"ما اعتمدته Meta، وأي حدث يخدمه كل قالب", sync:"مزامنة من Meta", create:"إنشاء قوالب Ordra",
+ mInfo:"«إنشاء قوالب Ordra» يرسل الكتالوج بنقرة واحدة بالعربية والفرنسية ويربط كل قالب بحدثه. تعتمد Meta عادةً خلال دقائق، وحتى 24 ساعة لحساب جديد.",
+ mCols:["القالب","اللغة","الفئة","الحالة","الحدث","المتغيرات","المزامنة"],
+ cat:{UTILITY:"خدمي",MARKETING:"تسويقي"}, ts:{APPROVED:"معتمد",PENDING:"بانتظار",REJECTED:"مرفوض",PAUSED:"موقوف"},
+ ev:{none:"— (وكيل)",could_not_reach:"تعذر الوصول",shipped:"تم الشحن",out_for_delivery:"قيد التوصيل",last_chance:"فرصة أخيرة",delivered:"تم التسليم",campaign:"حملة"},
+ vars:{name:"الاسم",carrier:"الناقل",tracking:"التتبع",amount:"المبلغ",order_ref:"رقم الطلب",courier:"المندوب",address:"العنوان",product:"المنتج",discount:"الخصم",city:"المدينة"},
+ dTitle:"القالب", dReason:"سبب رفض Meta", dReasonTxt:"INVALID_FORMAT — لا يجوز أن ينتهي نص الرسالة بمتغير.", dFix:"تصحيح وإعادة الإرسال (v2)", dPreview:"معاينة", dJson:"المكوّنات المرسلة إلى Meta", dDel:"حذف",
+ pTitle:"الإعدادات", pSub:"إعدادات السوق", pTabs:["العمليات","التوصيل","التنبيهات","الفريق","الأهداف","العمولات","أسباب الرفض","واتساب"],
+ pCard:"إشعارات واتساب التلقائية", pCardSub:"تُرسل رسالة عندما يبلغ الطلب إحدى هذه الحالات. كل حدث يُفصل على حدة.",
+ pMaster:"الإشعارات التلقائية", pMasterH:"المفتاح العام: إن أُغلق لا يُرسل أي حدث مهما كانت الإعدادات أدناه.",
+ pEv:{could_not_reach:["تعذر الوصول","بعد أول محاولة بلا رد، مرة واحدة لكل طلب."],shipped:["تم الشحن","رقم التتبع عند مسح الخروج. درب ترسل رسالتها النصية في ليبيا أصلاً."],out_for_delivery:["قيد التوصيل","«المندوب يمرّ اليوم، أبقِ هاتفك مفتوحاً.»"],last_chance:["فرصة أخيرة","تأخر التوصيل أو طرد راجع: «ردّ اليوم»."],delivered:["تم التسليم","شكر بعد تسليم الطرد."]},
+ pTplOk:"قالب معتمد", pTplPend:"بانتظار الاعتماد", pTplNone:"لا قالب معتمد",
+ pLang:"اللغة الافتراضية", pLangH:"لزبون لم يختر وكيلٌ لغته بعد.",
+ pWin:"نطاق الإرسال", pWinH:"خارجه تنتظر الرسائل صباح الغد. درب تزامن ليلاً؛ لا يُوقَظ أحد الساعة 3.",
+ pWarnUnv:"الرقم الليبي موصول لكن الشركة غير موثّقة بعد: 250 مستلماً كل 24 ساعة. فعّل حدثاً واحداً للبداية ثم البقية بعد أن تخضرّ الجودة.",
+ pWarnTpl:"لا قالب معتمد بالعربية لـ«تم التسليم». يبقى الحدث في الطابور حتى الاعتماد — لا يضيع شيء ولا يُرسل شيء.",
+ pNoConfig:"صِل واتساب أولاً في النظام › الاتصالات.", saveBtn:"حفظ", saved:"حُفظت الإعدادات", on:"مفعّل", off:"معطّل",
+ msTitle:"الرسائل", msSub:"محادثات واتساب بلا طلب أو عميل محتمل مرتبط", msTabs:["للربط","الكل"], msEmpty:"اختر محادثة.",
+ attach:"ربط بـ", attachPh:"ابحث عن طلب أو عميل محتمل بالاسم أو الرقم…", createLead:"إنشاء عميل محتمل", claimed:"مرتبطة",
+ winOpen:t=>`النافذة مفتوحة حتى ${t}`, placeholder:"الرد على الزبون…", sendBtn:"إرسال", asOrder:"طلب", asLead:"عميل محتمل",
+ kTitle:"العملاء المحتملون", kSub:"المسار والحملات والمصادر — ليبيا", newCamp:"حملة جديدة", kCamps:"الحملات",
+ cs:{name:"السيروم · زبائن 60–120 يوماً",steps:["الجمهور","القناة","التوزيع"]}, back:"رجوع", next:"التالي", submit:"إرسال القالب إلى Meta", launch:"إطلاق الحملة", resubmit:"تعديل وإعادة الإرسال", checkStatus:"التحقق من الحالة",
+ chan:{call:["اتصال","يتصل وكيل بكل عميل."],wa:["واتساب","رسالة أولاً؛ يتصل الوكيل بمن يردّ."],wa_call:["واتساب ثم اتصال","رسالة، ثم اتصال بمن لم يردّ."]},
+ cName:"اسم الحملة", cOffer:"العرض (ما يمكن للوكيل الوعد به)", cWho:"من يرسل", sAgent:["من هاتف الوكيل","رابط wa.me جاهز في قائمة الوكيل، لمسة لكل عميل."], sApi:["من رقم Ordra","واتساب للأعمال: إرسال بإيقاع، حالة التسليم، الردود داخل Ordra. يجب أن تكون الرسالة قالباً معتمداً من Meta."],
+ cBody:"نص الرسالة (قالب تسويقي)", cVars:"المتغيرات", cRule:"لا تبدأ ولا تنهِ بمتغير — ترفض Meta القالب.", cRuleBad:"النص ينتهي بمتغير: سترفضه Meta.",
+ cLang:"اللغة", cImg:"صورة في الترويسة", cImgSub:"سيروم فيتامين C · صورة المنتج · 1200 × 900", cImgChange:"تغيير",
+ cWin:"نطاق الإرسال", cRate:"الإيقاع", cRateH:"رسالة / ساعة، للحملة كلها", cThen:"اتصل إن لم يردّ بعد", cThenH:"ساعات",
+ cPrev:"ما سيراه الزبون", cFooter:"أرسل توقف لإيقاف الرسائل", cReply:"نعم", cReplyCap:"الرد يفتح نافذة 24 ساعة: يستطيع الوكيل حينها الكتابة بحرية.",
+ tst:{pending:["بانتظار اعتماد Meta","أُرسل القالب «ordra_camp_serum_260925» منذ 12 د. تنطلق الحملة فور الاعتماد؛ سيصلك إشعار."],approved:["اعتُمد القالب منذ 3 د","يمكن إطلاق الحملة. 412 عميلاً، 60 رسالة في الساعة بين 10 و20: آخر إرسال نحو 17:00 اليوم."],rejected:["رفضت Meta القالب","INVALID_FORMAT — ينتهي النص بمتغير. صحّح النص: ستُرسل نسخة جديدة (v2)."]},
+ sum:{aud:"الجمهور",rate:"الإيقاع",win:"النطاق",eta:"الانتهاء المقدّر"},
+ card:{tpl:"القالب",queued:"في الطابور",sent:"أُرسلت",delivered:"وصلت",read:"قُرئت",replied:"ردود",failed:"إخفاقات",cap:"سقف تسويقي"},
+ c2:{name:"ساعة X2 · بنغازي",sub:"أُطلقت أمس 10:00 · 96 عميلاً · 60/س · 10–20"}, c1sub:"412 عميلاً · سُلّم قبل 60 إلى 120 يوماً · بلا تواصل منذ 30 يوماً",
+ kpi:{new:"جدد (7 أيام)",conv:"التحويل 30 يوماً",rev:"إيراد مسلّم 30 يوماً",hot:"ساخنون بانتظار"},
+ cur:"د.ل"
+}};
+
+/* ═════════ Data ═════════ */
+const CFG={
+ tn:{status:"active",verified:true,name:"Ordra Tunisie",phone:"+216 29 000 000",quality:"GREEN",tier:"1 000",tpl:[12,2,1],webhook:{m:4},auto:{t:"10:31",n:0},waba:"102377291188841",pnid:"117802931100021",app:"880211937201190",gv:"v26.0"},
+ ly:{status:"active",verified:false,name:"Ordra Libya",phone:"+218 91 000 0000",quality:"NA",tier:"250",tpl:[0,14,0],webhook:null,auto:{t:"—",n:3},waba:"109944821377102",pnid:"118220044519877",app:"880211937201190",gv:"v26.0"}
+};
+const TPLS=[
+ {n:"ordra_shipped_v1",l:"fr",c:"UTILITY",s:"APPROVED",e:"shipped",v:["name","carrier","tracking","amount"]},
+ {n:"ordra_shipped_v1",l:"ar",c:"UTILITY",s:"APPROVED",e:"shipped",v:["name","carrier","tracking","amount"]},
+ {n:"ordra_out_for_delivery_v1",l:"fr",c:"UTILITY",s:"APPROVED",e:"out_for_delivery",v:["name","amount"]},
+ {n:"ordra_out_for_delivery_v1",l:"ar",c:"UTILITY",s:"APPROVED",e:"out_for_delivery",v:["name","amount"]},
+ {n:"ordra_could_not_reach_v1",l:"fr",c:"UTILITY",s:"APPROVED",e:"could_not_reach",v:["name","order_ref"]},
+ {n:"ordra_could_not_reach_v1",l:"ar",c:"UTILITY",s:"PENDING",e:"could_not_reach",v:["name","order_ref"]},
+ {n:"ordra_last_chance_v1",l:"fr",c:"UTILITY",s:"APPROVED",e:"last_chance",v:["name"]},
+ {n:"ordra_last_chance_v1",l:"ar",c:"UTILITY",s:"APPROVED",e:"last_chance",v:["name"]},
+ {n:"ordra_delivered_v1",l:"fr",c:"UTILITY",s:"APPROVED",e:"delivered",v:["name"]},
+ {n:"ordra_delivered_v1",l:"ar",c:"UTILITY",s:"REJECTED",e:"delivered",v:["name"],rej:true},
+ {n:"ordra_before_delivery_v1",l:"fr",c:"UTILITY",s:"APPROVED",e:"none",v:["name","carrier","amount"]},
+ {n:"ordra_before_delivery_v1",l:"ar",c:"UTILITY",s:"APPROVED",e:"none",v:["name","carrier","amount"]},
+ {n:"ordra_address_check_v1",l:"ar",c:"UTILITY",s:"APPROVED",e:"none",v:["name","address"]},
+ {n:"ordra_product_share_v1",l:"ar",c:"MARKETING",s:"APPROVED",e:"none",v:["name","product","amount"],img:true},
+ {n:"ordra_camp_serum_260925",l:"ar",c:"MARKETING",s:"PENDING",e:"campaign",v:["name","product","discount","city"],img:true},
+];
+const CONVS=[
+ {id:"c1",name:"Fatma",ph:"092 771 0034",last:"السلام عليكم، بغيت نسأل على كتاب الحفظ الميسر متوفر؟",when:{m:8},unread:2,msgs:[{dir:"in",time:"10:18",body:"السلام عليكم"},{dir:"in",time:"10:19",body:"بغيت نسأل على كتاب الحفظ الميسر متوفر؟"}]},
+ {id:"c2",name:"Abu Salem",ph:"091 330 8871",last:"هذا رقمي الجديد، الطلب باسم سالم عبدالله",when:{h:1},unread:1,msgs:[{dir:"in",time:"09:31",body:"هذا رقمي الجديد، الطلب باسم سالم عبدالله"}]},
+ {id:"c3",name:null,ph:"094 552 1180",last:"؟",when:{d:1},unread:0,msgs:[{dir:"in",time:"16:40",body:"؟"}]},
+];
+const U=new URLSearchParams(location.search);
+const S={lang:U.get("lang")||"fr",screen:U.get("screen")||"connexions",role:U.get("role")||"super_admin",tstatus:U.get("tstatus")||"pending",
+  market:"tn",edit:"ly",tested:{tn:true,ly:true},reveal:{},drawer:null,conv:"c1",pTab:7,settings:{master:true,could_not_reach:false,shipped:true,out_for_delivery:true,last_chance:false,delivered:false,lang:"ar",win:"10-20"},
+  camp:{channel:"wa",sender:"api",lang:"ar",img:true,body:"مرحباً {nom}، مرّ شهران على طلبك {produit}.\nلك {remise} هذا الأسبوع، التوصيل مجاني في {ville}.\nردّ بنعم ونجهّز طلبك.",win:"10-20",rate:60,then:24},
+  bodyBad:false, cText:""};
+const t=()=>L[S.lang]; const isAr=()=>S.lang==="ar"; const RO=()=>S.role!=="super_admin";
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ago=w=>!w?t().never:w.m!=null?t().ago.m(w.m):w.h!=null?t().ago.h(w.h):t().ago.d(w.d);
+const mask=v=>v.slice(0,4)+"…"+v.slice(-4);
+function toast(msg){const el=$("#toast");el.textContent=msg;el.dataset.on="true";clearTimeout(toast.t);toast.t=setTimeout(()=>el.dataset.on="false",2600)}
+
+/* ═════════ Shell ═════════ */
+function sidebar(){
+  const N=t().nav, cur=k=>S.screen===k?'aria-current="page"':"";
+  const sys=S.role==="super_admin";
+  return `<div class="logo">Ordra<small>${t().market.ly} · ${isAr()?"طرابلس":"Tripoli"}</small></div><div class="mk"><span>${isAr()?"السوق":"Marché"}</span><b>${t().market.ly}</b></div>
+   <div class="sh">${N.home}</div><a>${N.dash}</a>
+   <div class="sh">${N.orders}</div><a>${N.ordersL}</a><a>${N.archived}</a>
+   <div class="sh">${N.wh}</div><a>${N.bench}</a><a>${N.returns}</a><a>${N.stock}</a>
+   <div class="sh">${N.dlv}</div><a>${N.tracking}</a><a>${N.board}</a>
+   <div class="sh">${N.fin}</div><a>${N.pnl}</a><a>${N.margins}</a><a>${N.ads}</a>
+   <div class="sh">${N.clients}</div><a data-go="campagne" ${cur("campagne")}>${N.prospects}</a><a data-go="messages" ${cur("messages")}>${N.messages}<span class="n num" data-wa>3</span></a>
+   <div class="sh">${N.team}</div><a>${N.control}</a><a>${N.perf}</a><a>${N.access}</a>
+   ${sys?`<div class="sh">${N.sys}</div><a>${N.markets}</a><a data-go="connexions" ${cur("connexions")}>${N.conn}</a><a data-go="parametres" ${cur("parametres")}>${N.settings}</a><a>${N.logs}</a>`
+        :`<div class="sh">${N.sys}</div><a data-go="connexions" ${cur("connexions")}>${N.conn}</a><a data-go="parametres" ${cur("parametres")}>${N.settings}</a><div class="ro">${t().ro}</div>`}`;
+}
+function setTop(title,sub,cta,crumb){$("#top").innerHTML=`<div>${crumb?`<div class="crumb">${crumb}</div>`:""}<h1>${title}</h1>${sub?`<div class="sub">${sub}</div>`:""}</div><div class="cta">${cta||""}</div>`}
+const badge=(s,txt)=>`<span class="badge" data-s="${s}"><i></i>${txt}</span>`;
+
+/* ═════════ Screen 1 — Connexions › Services ═════════ */
+function cfgBadge(c){ if(c.status==="paused") return badge("warn",t().paused); if(c.status==="auth_failed") return badge("bad",t().authFail); return c.verified?badge("ok",t().connected):badge("warn",t().unverified); }
+function marketCard(k){
+  const T=t(), c=CFG[k], ro=RO();
+  const stages=k==="tn"?T.stTn:T.stLy;
+  const st={cred:"ok",phone:"ok",waba:"ok",sub:k==="tn"?"ok":"warn",webhook:k==="tn"?"ok":"warn"};
+  const health=`<div class="health">
+    <div><div class="l">${T.h.quality}</div><div class="v"><i data-q="${c.quality}"></i>${T.q[c.quality]}</div></div>
+    <div><div class="l">${T.h.tier}</div><div class="v">${T.tierOf(c.tier)}</div><div class="s">${c.verified?T.verifOk:T.verifPending}</div></div>
+    <div><div class="l">${T.h.tpl}</div><div class="v"><a href="#" data-go="modeles" style="text-decoration:none">${T.tplCount(...c.tpl)}</a></div></div>
+    <div><div class="l">${T.h.webhook}</div><div class="v">${ago(c.webhook)}</div><div class="s">${T.h.auto} : ${c.auto.t==="—"?T.autoOff:T.autoOf(c.auto.t,c.auto.n)}</div></div>
+  </div>`;
+  const creds=`<div class="pad"><dl class="kv">
+    <dt>${T.f.waba}</dt><dd><span class="mono">${c.waba}</span><button class="cp" title="${T.copy}">${I.copy}</button></dd>
+    <dt>${T.f.pnid}</dt><dd><span class="mono">${c.pnid}</span><button class="cp" title="${T.copy}">${I.copy}</button></dd>
+    <dt>${T.f.app}</dt><dd><span class="mono">${c.app}</span> <span class="chipm mono">${c.gv}</span></dd>
+    <dt>${T.f.token}</dt><dd><span class="mono">••••••••••••</span>${ro?"":`<span class="chipm" style="font-weight:500">System User · ${isAr()?"دائم":"permanent"}</span>`}</dd>
+    <dt>${T.f.secret}</dt><dd><span class="mono">••••••••</span></dd>
+    <dt>${T.f.verify}</dt><dd><span class="mono">${S.reveal[k]?"ordra-"+k+"-7f3a9c2e1b":"••••••••"}</span>${ro?"":`<button class="rv" data-reveal="${k}">${S.reveal[k]?T.hide:T.show}</button>`}</dd>
+  </dl></div>`;
+  const tested=S.tested[k]?`<ul class="stages">${Object.keys(T.stages).map(s=>`<li data-s="${st[s]}"><span class="ic">${st[s]==="ok"?I.check:"!"}</span><div><b>${T.stages[s]}</b> <span>— ${stages[s]}</span></div></li>`).join("")}</ul>`:"";
+  const form=(!ro&&S.edit===k)?`<div class="form">
+      <div class="row2"><div><label class="fl">${T.f.waba}</label><input class="fi mono" value="${c.waba}"></div><div><label class="fl">${T.f.pnid}</label><input class="fi mono" value="${c.pnid}"></div></div>
+      <div class="row2"><div><label class="fl">${T.f.app}</label><input class="fi mono" value="${c.app}"></div><div><label class="fl">${T.f.gv}</label><input class="fi mono" value="${c.gv}"></div></div>
+      <label class="fl">${T.f.token}</label><input class="fi mono" type="password" value="EAAMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+      <div class="row2"><div><label class="fl">${T.f.secret}</label><input class="fi mono" type="password" value="9c1f2e7a8b3d4c5e6f708192a3b4c5d6"></div><div><label class="fl">${T.f.verify}</label><div style="display:flex;gap:6px"><input class="fi mono" value="ordra-ly-7f3a9c2e1b" style="margin:0"><button class="btn">${T.gen}</button></div></div></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:10px"><button class="btn" data-primary data-save="${k}">${I.check}${T.save}</button><button class="btn" data-quiet data-edit="">${T.cancel}</button><span style="font-size:12px;color:var(--text2)">${T.formHint}</span></div>
+    </div>`:"";
+  const acts=ro?"":`<div class="acts"><button class="btn" data-test="${k}">${I.refresh}${T.test}</button><button class="btn" data-edit="${k}">${I.pen}${T.edit}</button><span class="sp"></span>${c.status==="active"?`<button class="btn" data-quiet>${I.pause}${T.pause}</button>`:`<button class="btn" data-primary>${I.play}${T.resume}</button>`}</div>`;
+  return `<div class="mcard">
+    <div class="mh"><span class="flag">${k.toUpperCase()}</span><div><h3>${T.market[k]}</h3><div class="sub">${c.name} · <span class="num">${c.phone}</span></div></div>${cfgBadge(c)}</div>
+    ${health}${creds}${tested}${form}${acts}</div>`;
+}
+function renderConnexions(){
+  const T=t();
+  setTop(T.cTitle,T.cSub,"",`${T.nav.sys} › ${T.nav.conn}`);
+  $("#body").innerHTML=`
+   <div class="tabs">${T.cTabs.map((x,i)=>`<button class="tab" aria-current="${i===4}">${x}</button>`).join("")}</div>
+   <div class="card"><h2>${T.meta}<span class="r">${T.metaSub} ${badge("ok",T.connected)}</span></h2></div>
+   <div class="card" style="border:0;background:none;margin-bottom:8px"><h2 style="border:0;padding:0 0 4px">${I.wa}${T.waTitle}</h2><div style="font-size:12.5px;color:var(--text2)">${T.waSub}</div></div>
+   <div class="grid2">${marketCard("tn")}${marketCard("ly")}</div>
+   <div class="card" style="margin-top:14px"><h2>${I.link}${T.hookTitle}<span class="r">${T.hookSub}</span></h2>
+    <div class="pad"><dl class="kv" style="grid-template-columns:170px 1fr">
+      <dt>${T.hookUrl}</dt><dd><span class="mono">https://ordra.app/api/webhooks/whatsapp</span><button class="cp">${I.copy}</button></dd>
+      <dt>${T.hookVerify} · ${T.market.tn}</dt><dd><span class="mono">${S.reveal.tn?"ordra-tn-2b9e4d1c7a":"••••••••"}</span>${RO()?"":`<button class="rv" data-reveal="tn">${S.reveal.tn?T.hide:T.show}</button>`}</dd>
+      <dt>${T.hookVerify} · ${T.market.ly}</dt><dd><span class="mono">${S.reveal.ly?"ordra-ly-7f3a9c2e1b":"••••••••"}</span>${RO()?"":`<button class="rv" data-reveal="ly">${S.reveal.ly?T.hide:T.show}</button>`}</dd>
+      <dt>${T.hookFields}</dt><dd><span class="chips"><span class="chipm mono">messages</span><span class="chipm mono">message_template_status_update</span><span class="chipm mono">phone_number_quality_update</span><span class="chipm mono">account_update</span></span></dd>
+    </dl><div style="margin-top:10px;font-size:12.5px;color:var(--text2)">${T.hookNote}</div></div></div>`;
+}
+
+/* ═════════ Screen 2 — Modèles ═════════ */
+function tplPreview(tp,lang){
+  const V=t().vars;
+  const bodies={
+    shipped:{fr:"Bonjour {{1}}, votre colis est en route avec {{2}}.\nN° de suivi {{3}}.\nMontant à préparer : {{4}}.",ar:"مرحباً {{1}}، طلبك مع {{2}} في طريقه إليك.\nرقم التتبع {{3}}.\nالمبلغ عند الاستلام {{4}}."},
+    delivered:{fr:"Bonjour {{1}}, votre colis a été remis. Merci pour votre confiance et à bientôt.",ar:"مرحباً {{1}}، تم تسليم طلبك. شكراً لثقتك، ونتمنى أن يعجبك {{1}}"},
+  };
+  const b=(bodies[tp.e]||bodies.shipped)[lang]||"";
+  return b.replace(/\{\{(\d)\}\}/g,(_,i)=>`<mark>${tp.v[i-1]?V[tp.v[i-1]]:"?"}</mark>`);
+}
+function renderModeles(){
+  const T=t();
+  setTop(T.mTitle,T.mSub,`<button class="btn" data-sync>${I.refresh}${T.sync}</button><button class="btn" data-primary data-create>${I.plus}${T.create}</button>`,`${T.nav.clients} › ${T.nav.messages}`);
+  const rows=TPLS.map((tp,i)=>`<tr data-click data-tpl="${i}" aria-selected="${S.drawer===i}">
+    <td><span class="mono">${tp.n}</span>${tp.img?` <span class="chipm" style="padding:1px 6px">${I.image}</span>`:""}</td>
+    <td>${tp.l==="ar"?"العربية":"Français"}</td><td>${T.cat[tp.c]}</td>
+    <td>${badge(tp.s==="APPROVED"?"ok":tp.s==="PENDING"?"warn":tp.s==="REJECTED"?"bad":"neutral",T.ts[tp.s])}</td>
+    <td>${tp.e==="campaign"?`<span class="chipm">${T.ev.campaign} · ${T.cs.name}</span>`:`<select class="evsel" ${tp.e==="none"?"data-none":""} ${RO()?"disabled":""}>${Object.keys(T.ev).filter(k=>k!=="campaign").map(k=>`<option value="${k}" ${tp.e===k?"selected":""}>${T.ev[k]}</option>`).join("")}</select>`}</td>
+    <td style="font-size:12.5px;color:var(--text2)">${tp.v.map(v=>T.vars[v]).join(", ")}</td>
+    <td style="font-size:12.5px;color:var(--text2)">${T.ago.m(4)}</td></tr>`).join("");
+  $("#body").innerHTML=`
+   <div class="mseg"><button data-market="tn" aria-pressed="${S.market==="tn"}">${T.market.tn} <b class="num">15</b></button><button data-market="ly" aria-pressed="${S.market==="ly"}">${T.market.ly} <b class="num">14</b></button></div>
+   <div class="notice" data-tone="info">${I.info}<div>${T.mInfo}</div></div>
+   <div class="card"><table class="t"><thead><tr>${T.mCols.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  if(S.drawer!=null){
+    const tp=TPLS[S.drawer];
+    const json=`{
+  <span class="k">"name"</span>: <span class="s">"${tp.n}"</span>,
+  <span class="k">"language"</span>: <span class="s">"${tp.l}"</span>,
+  <span class="k">"category"</span>: <span class="s">"${tp.c}"</span>,
+  <span class="k">"components"</span>: [
+    ${tp.img?`{ <span class="k">"type"</span>: <span class="s">"HEADER"</span>, <span class="k">"format"</span>: <span class="s">"IMAGE"</span>, <span class="k">"example"</span>: { <span class="k">"header_handle"</span>: [<span class="s">"4::aW1h…"</span>] } },
+    `:""}{ <span class="k">"type"</span>: <span class="s">"BODY"</span>,
+      <span class="k">"text"</span>: <span class="s">"${tp.l==="ar"?"مرحباً {{1}}، تم تسليم طلبك. شكراً لثقتك، ونتمنى أن يعجبك {{1}}":"Bonjour {{1}}, …"}"</span>,
+      <span class="k">"example"</span>: { <span class="k">"body_text"</span>: [[${tp.v.map(v=>`<span class="s">"${v}"</span>`).join(", ")}]] } }${tp.c==="MARKETING"?`,
+    { <span class="k">"type"</span>: <span class="s">"FOOTER"</span>, <span class="k">"text"</span>: <span class="s">"${T.cFooter}"</span> }`:""}
+  ]
+}`;
+    $("#over").innerHTML=`<div class="drawer" id="veil"><div class="dp"><div class="dh"><h3 class="mono">${tp.n} · ${tp.l}</h3>${badge(tp.s==="APPROVED"?"ok":tp.s==="PENDING"?"warn":"bad",T.ts[tp.s])}<button class="x" data-close>${I.x}</button></div>
+      <div class="db">
+        ${tp.rej?`<div class="notice" data-tone="bad">${I.warn}<div><b>${T.dReason}</b><br>${T.dReasonTxt}</div></div>`:""}
+        <label class="fl">${T.dPreview}</label>
+        <div class="waprev" style="margin-bottom:14px"><div class="hd"><span class="av">O</span><b>Ordra Libya</b><span class="tm">10:42</span></div>${tp.img?`<div class="img"></div>`:""}<div class="bub" ${tp.img?"data-img":""} dir="${tp.l==="ar"?"rtl":"ltr"}">${tplPreview(tp,tp.l)}${tp.c==="MARKETING"?`<span class="ft">${T.cFooter}</span>`:""}<span class="tk">10:42 ✓✓</span></div></div>
+        <label class="fl">${T.dJson}</label><pre class="json">${json}</pre>
+      </div>
+      <div class="df">${tp.rej&&!RO()?`<button class="btn" data-primary>${I.pen}${T.dFix}</button>`:""}<span style="flex:1"></span>${RO()?"":`<button class="btn" data-danger>${T.dDel}</button>`}</div></div></div>`;
+  }
+}
+
+/* ═════════ Screen 3 — Paramètres › WhatsApp ═════════ */
+function renderParametres(){
+  const T=t(), s=S.settings, ro=RO();
+  setTop(`${T.pTitle} · ${T.market.ly}`,T.pSub,ro?"":`<button class="btn" data-primary data-psave>${T.saveBtn}</button>`,`${T.nav.sys} › ${T.nav.settings}`);
+  const sw=(k,on,dis)=>`<button class="sw" role="switch" aria-checked="${on}" data-sw="${k}" ${dis||ro?"disabled":""}><i></i><span>${on?T.on:T.off}</span></button>`;
+  const tplState={could_not_reach:["ok","pend"],shipped:["ok","ok"],out_for_delivery:["ok","ok"],last_chance:["ok","ok"],delivered:["ok","none"]};
+  const tplChips=k=>tplState[k].map((st,i)=>`<span class="chipm" style="${st==="ok"?"background:var(--success-bg);color:var(--success)":st==="pend"?"background:var(--warning-bg);color:var(--warning)":"background:var(--critical-bg);color:var(--critical)"}">${i?"ar":"fr"} · ${st==="ok"?T.pTplOk:st==="pend"?T.pTplPend:T.pTplNone}</span>`).join("");
+  const ev=k=>`<div class="set"><div><div class="k">${T.pEv[k][0]}</div><div class="h">${T.pEv[k][1]}</div><div class="tpls">${tplChips(k)}</div></div><div>${sw(k,s[k],!s.master)}</div></div>`;
+  $("#body").innerHTML=`
+   <div class="tabs">${T.pTabs.map((x,i)=>`<button class="tab" aria-current="${i===7}">${x}</button>`).join("")}</div>
+   <div class="notice" data-tone="warn">${I.warn}<div>${T.pWarnUnv}</div></div>
+   ${s.master&&s.delivered?`<div class="notice" data-tone="bad">${I.warn}<div>${T.pWarnTpl}</div></div>`:""}
+   <div class="card"><h2>${I.bolt}${T.pCard}<span class="r">${T.pCardSub}</span></h2>
+    <div class="set" data-master><div><div class="k">${T.pMaster}</div><div class="h">${T.pMasterH}</div></div><div>${sw("master",s.master)}</div></div>
+    ${["could_not_reach","shipped","out_for_delivery","last_chance","delivered"].map(ev).join("")}
+   </div>
+   <div class="grid2">
+    <div class="card"><h2>${T.pLang}</h2><div class="pad"><div style="font-size:12.5px;color:var(--text2);margin-bottom:10px">${T.pLangH}</div>
+      <div class="opts"><button class="opt" data-plang="ar" aria-pressed="${s.lang==="ar"}" ${ro?"disabled":""}><b>العربية</b><span>ar</span></button><button class="opt" data-plang="fr" aria-pressed="${s.lang==="fr"}" ${ro?"disabled":""}><b>Français</b><span>fr</span></button></div></div></div>
+    <div class="card"><h2>${T.pWin}</h2><div class="pad"><div style="font-size:12.5px;color:var(--text2);margin-bottom:10px">${T.pWinH}</div>
+      <div class="unit" style="display:flex;gap:8px;align-items:center"><input class="fi num" value="${s.win}" style="width:120px;margin:0" ${ro?"readonly":""}><span style="color:var(--text2);font-size:12.5px">h · Africa/Tripoli</span></div></div></div>
+   </div>`;
+}
+
+/* ═════════ Screen 4 — Messages (orphan conversations) ═════════ */
+function renderMessages(){
+  const T=t(), c=CONVS.find(x=>x.id===S.conv);
+  setTop(T.msTitle,T.msSub,"",`${T.nav.clients} › ${T.nav.messages}`);
+  const list=CONVS.map(x=>`<button class="conv" data-conv="${x.id}" aria-selected="${S.conv===x.id}"><span class="av">${x.name?x.name[0]:I.user}</span><span style="min-width:0"><span class="nm"><span class="q">${x.name||`<span class="num">+218 ${x.ph}</span>`}</span>${x.name?`<span class="ph num">${x.ph}</span>`:""}</span><span class="lm">${esc(x.last)}</span></span><span class="rt"><span>${ago(x.when)}</span>${x.unread?`<span class="un num">${x.unread}</span>`:""}</span></button>`).join("");
+  const thread=c?`<div class="thread">${c.msgs.map(m=>`<div class="msg" data-dir="${m.dir}"><div class="bub" dir="auto">${esc(m.body)}</div><span class="meta"><span class="num">${m.time}</span></span></div>`).join("")}${S.cSent?`<div class="msg" data-dir="out"><div class="bub" dir="auto">${esc(S.cSent)}</div><span class="meta">${isAr()?"أنت":"Vous"} · <span class="num">10:31</span> ✓</span></div>`:""}</div>`:"";
+  const results=[{k:"order",a:"#39470 · ام الحارث · الكفرة",b:`${T.asOrder} · ${isAr()?"قيد الانتظار":"en attente"} · 093 589 7986`},{k:"order",a:"#39441 · (sans nom) · بنغازي",b:`${T.asOrder} · 0915176576`},{k:"lead",a:"سعاد الفيتوري · طرابلس",b:`${T.asLead} · ${T.cs.name}`}];
+  $("#body").innerHTML=`
+   <div class="tabs">${T.msTabs.map((x,i)=>`<button class="tab" aria-current="${i===0}">${x}<b class="num">${i?27:3}</b></button>`).join("")}</div>
+   <div class="convs">
+    <div class="card" style="margin:0">${list}</div>
+    ${c?`<div class="card" style="margin:0"><h2><span class="q">${c.name||`+218 ${c.ph}`}</span><span class="r"><span class="num">${c.ph}</span></span></h2>
+      ${thread}
+      <div class="comp"><div class="r1"><div class="lseg"><button aria-pressed="true">العربية</button><button>Français</button></div><span class="win" data-open="true">${I.clock}<span>${T.winOpen(isAr()?"غداً 10:19":"demain 10:19")}</span></span></div>
+        <textarea id="cta" dir="auto" placeholder="${T.placeholder}">${esc(S.cText)}</textarea>
+        <div class="r2"><button class="btn-send" data-csend>${I.send}${T.sendBtn}</button></div></div>
+      <div class="attach"><label class="fl">${T.attach}</label>
+        <div style="display:flex;gap:8px"><div style="flex:1;position:relative"><input class="fi" style="margin:0;padding-inline-start:32px" placeholder="${T.attachPh}" value="${c.id==="c1"?"":c.id==="c2"?"سالم":""}"><span style="position:absolute;inset-inline-start:10px;top:9px;color:var(--text2)">${I.search}</span></div><button class="btn">${I.plus}${T.createLead}</button></div>
+        <div class="res">${results.map(r=>`<button><span class="chipm">${r.k==="order"?T.asOrder:T.asLead}</span><span><span class="q">${r.a}</span><br><span class="sub">${r.b}</span></span><span style="color:var(--action);font-weight:600;font-size:12.5px">${T.attach}</span></button>`).join("")}</div>
+      </div></div>`:`<div class="card" style="margin:0;padding:40px;text-align:center;color:var(--text2)">${T.msEmpty}</div>`}
+   </div>`;
+}
+
+/* ═════════ Screen 5 — the campaign sheet, api sender ═════════ */
+function renderCampagne(){
+  const T=t(), st=S.tstatus, c=S.camp;
+  setTop(T.kTitle,T.kSub,`<button class="btn" data-primary>${I.plus}${T.newCamp}</button>`,`${T.nav.clients} › ${T.nav.prospects}`);
+  const fun=(q,s,d,r,rp,f)=>`<div class="funnel"><div><div class="l">${T.card.queued}</div><div class="v num">${q}</div></div><div><div class="l">${T.card.sent}</div><div class="v num">${s}</div></div><div><div class="l">${T.card.delivered}</div><div class="v num">${d}</div></div><div><div class="l">${T.card.read}</div><div class="v num">${r}</div></div><div><div class="l">${T.card.replied}</div><div class="v num">${rp}</div></div><div><div class="l">${T.card.failed}</div><div class="v num">${f}<small>${f?`· 1 ${T.card.cap}`:""}</small></div></div></div>`;
+  const c1badge=st==="approved"?badge("ok",T.ts.APPROVED):st==="rejected"?badge("bad",T.ts.REJECTED):badge("warn",T.ts.PENDING);
+  $("#body").innerHTML=`
+   <div class="kpis"><div class="kpi"><div class="l">${T.kpi.new}</div><div class="v num">37</div></div><div class="kpi"><div class="l">${T.kpi.conv}</div><div class="v num">9,4 %</div></div><div class="kpi"><div class="l">${T.kpi.rev}</div><div class="v num">4 150 <small style="font-size:13px;font-weight:400;color:var(--text2)">${T.cur}</small></div></div><div class="kpi"><div class="l">${T.kpi.hot}</div><div class="v num">3</div></div></div>
+   <div class="tabs"><button class="tab">Pipeline</button><button class="tab" aria-current="true">${T.kCamps}<b class="num">2</b></button><button class="tab">Sources</button></div>
+   <div class="ccard"><div class="h"><b>${T.cs.name}</b><span class="chipm">${I.wa} ${T.sApi[0]}</span><span class="chipm">${T.card.tpl} ${c1badge}</span>${badge("draft",st==="approved"?(isAr()?"جاهزة للإطلاق":"Prête à lancer"):(isAr()?"مسودة":"Brouillon"))}</div><div class="sub">${T.c1sub}</div>${fun(st==="approved"?412:0,0,0,0,0,0)}</div>
+   <div class="ccard"><div class="h"><b>${T.c2.name}</b><span class="chipm">${I.wa} ${T.sApi[0]}</span><span class="chipm">${T.card.tpl} ${badge("ok",T.ts.APPROVED)}</span>${badge("ok",isAr()?"جارية":"En cours")}</div><div class="sub">${T.c2.sub}</div>${fun(56,40,37,29,6,1)}</div>`;
+  /* the sheet */
+  const body=c.body, bad=/\{[a-zé]+\}\s*$/.test(body.trim()), starts=/^\s*\{[a-zé]+\}/.test(body);
+  const sample={nom:"هدى",produit:"سيروم فيتامين C",remise:"خصم 15%",ville:"مصراتة"};
+  const rendered=esc(body).replace(/\{(nom|produit|remise|ville)\}/g,(_,k)=>`<mark>${sample[k]}</mark>`);
+  const tst=`<div class="tstat" data-s="${st}">${st==="approved"?I.check2:st==="rejected"?I.warn:I.clock}<div><b>${T.tst[st][0]}</b>${T.tst[st][1]}${st==="pending"?`<div class="acts"><button class="btn sm">${I.refresh}${T.checkStatus}</button></div>`:""}</div></div>`;
+  const summary=st==="approved"?`<div class="summary"><div><div class="l">${T.sum.aud}</div><div class="v num">412</div></div><div><div class="l">${T.sum.rate}</div><div class="v num">60 / h</div></div><div><div class="l">${T.sum.win}</div><div class="v num">10 – 20 h</div></div><div><div class="l">${T.sum.eta}</div><div class="v num">17:00</div></div></div>`:"";
+  $("#over").innerHTML=`<div class="csheet" id="veil"><div class="cp">
+    <div class="ch"><h3>${T.cs.name}</h3><button class="x" data-close>${I.x}</button></div>
+    <div class="steps">${T.cs.steps.map((x,i)=>`<div class="step" aria-current="${i===1}" data-done="${i<1}"><i>${i<1?"✓":i+1}</i>${x}</div>`).join("")}</div>
+    <div class="cb">
+      ${tst}
+      <div class="chan">${["call","wa","wa_call"].map(k=>`<button aria-pressed="${c.channel===k}" data-chan="${k}"><b>${k==="call"?I.phone:I.wa}${T.chan[k][0]}</b><span>${T.chan[k][1]}</span></button>`).join("")}</div>
+      <div class="row2"><div><label class="fl">${T.cName}</label><input class="fi" value="${T.cs.name}"></div><div><label class="fl">${T.cOffer}</label><input class="fi" value="${isAr()?"خصم 15% على السيروم 50 مل، التوصيل مجاني":"−15 % sur le sérum 50 ml, livraison offerte"}"></div></div>
+      <label class="fl">${T.cWho}</label>
+      <div class="sender">
+        <label data-on="${c.sender==="agent"}"><input type="radio" name="snd" ${c.sender==="agent"?"checked":""} data-sender="agent"><span><b>${T.sAgent[0]}</b><span>${T.sAgent[1]}</span></span></label>
+        <label data-on="${c.sender==="api"}"><input type="radio" name="snd" ${c.sender==="api"?"checked":""} data-sender="api"><span><b>${T.sApi[0]} ${badge("ok",T.connected)}</b><span>${T.sApi[1]}</span></span></label>
+      </div>
+      <div class="split">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><label class="fl" style="margin:0">${T.cBody}</label><span style="flex:1"></span><div class="lseg"><button data-clang="ar" aria-pressed="${c.lang==="ar"}">العربية</button><button data-clang="fr" aria-pressed="${c.lang==="fr"}">Français</button></div></div>
+          <textarea class="fi" id="cbody" dir="auto" style="min-height:120px;unicode-bidi:plaintext">${esc(body)}</textarea>
+          <div class="vars"><span>${T.cVars} :</span>${["{nom}","{produit}","{ville}","{remise}"].map(v=>`<button data-var="${v}">${v}</button>`).join("")}<span style="margin-inline-start:auto" class="num">${body.length} / 1024</span></div>
+          <div class="rule" ${bad||starts?"data-bad":""}>${bad||starts?I.warn:I.info}<span>${bad||starts?T.cRuleBad:T.cRule}</span></div>
+          <label class="sw" style="margin-bottom:10px"><input type="checkbox" hidden><i style="${c.img?"background:var(--brand)":""}"></i><span style="color:var(--text)">${I.image} ${T.cImg}</span></label>
+          ${c.img?`<div class="imgpick"><span class="th"></span><span class="t">Sérum vitamine C — 50 ml<small>${T.cImgSub}</small></span><button class="btn sm">${T.cImgChange}</button></div>`:""}
+          <div class="row3"><div><label class="fl">${T.cWin}</label><select class="fi"><option>10-20 h</option><option>9-13 h</option><option>14-21 h</option></select></div><div><label class="fl">${T.cRate}</label><input class="fi num" type="number" value="${c.rate}"><div style="font-size:11.5px;color:var(--text2);margin-top:-6px">${T.cRateH}</div></div>${c.channel==="wa_call"?`<div><label class="fl">${T.cThen}</label><input class="fi num" type="number" value="${c.then}"><div style="font-size:11.5px;color:var(--text2);margin-top:-6px">${T.cThenH}</div></div>`:""}</div>
+        </div>
+        <div><label class="fl">${T.cPrev}</label>
+          <div class="waprev"><div class="hd"><span class="av">O</span><b>Ordra Libya</b><span class="tm">10:42</span></div>${c.img?`<div class="img"></div>`:""}<div class="bub" ${c.img?"data-img":""} dir="${c.lang==="ar"?"rtl":"ltr"}">${rendered||"…"}<span class="ft">${T.cFooter}</span><span class="tk">10:42 ✓✓</span></div><div class="re">${T.cReply}<small>${T.cReplyCap}</small></div></div>
+          ${summary}
+        </div>
+      </div>
+    </div>
+    <div class="cf"><button class="btn">${T.back}</button><span style="flex:1"></span>
+      ${st==="approved"?`<button class="btn" data-primary data-launch>${I.send}${T.launch}</button>`:st==="rejected"?`<button class="btn" data-primary>${I.pen}${T.resubmit}</button>`:`<button class="btn" data-primary disabled>${I.send}${T.launch}</button>`}
+    </div></div></div>`;
+}
+
+/* ═════════ Render + notes + wiring ═════════ */
+const NOTES={
+ connexions:`<b>Écran 1 — Connexions › Services.</b> La carte « bientôt » d'aujourd'hui devient une carte par marché, sur le modèle de Meta Ads : identifiants masqués (chiffrés côté serveur, colonnes révoquées du rôle authentifié), <b>test par étapes</b> (identifiants → numéro → WABA → abonnement de l'app → webhook), qualité, palier, modèles, dernier webhook. La Libye montre l'état intermédiaire réel d'un compte neuf : connecté, non vérifié (250/jour), 14 modèles en attente, aucun webhook reçu — et le formulaire ouvert. Le bloc du bas est ce qu'on colle dans l'app Meta ; une seule URL pour les deux portefeuilles. Bascule <code>market_manager</code> : tout en lecture seule.`,
+ modeles:`<b>Écran 2 — Modèles.</b> Un tableau par marché de ce que Meta a synchronisé : langue, catégorie, statut, et surtout <b>l'événement que le modèle sert</b> (un seul modèle par événement et par langue — la base le garantit). « Créer les modèles Ordra » soumet tout le catalogue en un clic. Cliquez la ligne <code>ordra_delivered_v1 · ar</code> : le tiroir montre le motif de refus de Meta, l'aperçu, et le JSON exact envoyé.`,
+ parametres:`<b>Écran 3 — Paramètres › WhatsApp.</b> Un interrupteur général, puis les cinq événements, chacun coupé par défaut et portant l'état de ses modèles (fr · ar). Les deux bandeaux sont la sécurité : le compte non vérifié (250/jour) et l'événement activé sans modèle approuvé (« rien n'est perdu, rien ne part » — la file attend l'approbation). La langue par défaut ne sert qu'aux clients dont un agent n'a pas encore choisi la langue ; la plage d'envoi empêche un message à 3 h du matin quand Darb synchronise la nuit.`,
+ messages:`<b>Écran 4 — Clients › Messages.</b> Ce qui arrive sur le numéro sans correspondre à une commande vivante ni à un prospect : une liste courte, la conversation, la réponse (fenêtre ouverte puisque le client vient d'écrire), et « Rattacher à » qui cherche par nom ou numéro dans les commandes et les prospects, ou crée un prospect. Une fois rattachée, la conversation quitte cette liste et vit dans la commande. Les agents n'ont pas cette page : leurs fils sont sur leurs commandes.`,
+ campagne:`<b>Écran 5 — la campagne en mode « numéro Ordra ».</b> La feuille est celle d'aujourd'hui (audience · canal · distribution) ; en choisissant « Depuis le numéro Ordra », le message devient un <b>modèle marketing</b> : corps avec variables à insérer, règle de Meta (ni début ni fin par une variable, vérifiée en direct — effacez le dernier mot du corps), image en en-tête, pied de désabonnement ajouté d'office, aperçu tel que le client le verra. « Soumettre » crée le modèle chez Meta et la campagne attend ; le bandeau du haut suit <code>?tstatus=</code> : en attente, approuvé (résumé + « Lancer »), refusé (motif + resoumettre). Derrière, la carte de campagne montre le statut du modèle et l'entonnoir en file → envoyés → remis → lus → réponses → échecs.`
+};
+function render(){
+  document.documentElement.dir=isAr()?"rtl":"ltr"; document.documentElement.lang=S.lang;
+  $("#note").innerHTML=NOTES[S.screen]||"";
+  [["segLang","lang"],["segRole","role"],["segScreen","screen"],["segT","tstatus"]].forEach(([id,key])=>document.querySelectorAll(`#${id} button`).forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===S[key])));
+  $("#segT").style.visibility=S.screen==="campagne"?"visible":"hidden";
+  $("#sb").innerHTML=sidebar(); $("#over").innerHTML="";
+  ({connexions:renderConnexions,modeles:renderModeles,parametres:renderParametres,messages:renderMessages,campagne:renderCampagne})[S.screen]();
+  const u=new URLSearchParams({lang:S.lang,screen:S.screen,role:S.role}); if(S.screen==="campagne")u.set("tstatus",S.tstatus);
+  history.replaceState(null,"",location.pathname+"?"+u);
+}
+document.addEventListener("click",e=>{
+  const seg=e.target.closest("#segLang button,#segRole button,#segScreen button,#segT button");
+  if(seg){S[{segLang:"lang",segRole:"role",segScreen:"screen",segT:"tstatus"}[seg.parentElement.id]]=seg.dataset.v;S.drawer=null;return render();}
+  const go=e.target.closest("[data-go]"); if(go){e.preventDefault();S.screen=go.dataset.go;S.drawer=null;return render();}
+  const rv=e.target.closest("[data-reveal]"); if(rv){S.reveal[rv.dataset.reveal]=!S.reveal[rv.dataset.reveal];return render();}
+  const ed=e.target.closest("[data-edit]"); if(ed){S.edit=ed.dataset.edit||null;return render();}
+  const sv=e.target.closest("[data-save]"); if(sv){sv.innerHTML=`<span class="spin"></span>${isAr()?"جارٍ التحقق لدى Meta…":"Vérification auprès de Meta…"}`;setTimeout(()=>{S.edit=null;S.tested[sv.dataset.save]=true;render();toast(isAr()?"تم التحقق والحفظ (مشفّر)":"Vérifié auprès de Meta et enregistré (chiffré)")},1100);return;}
+  const ts=e.target.closest("[data-test]"); if(ts){ts.innerHTML=`<span class="spin" style="border-color:rgba(0,0,0,.2);border-top-color:#111"></span>${t().test}`;setTimeout(()=>{S.tested[ts.dataset.test]=true;render()},900);return;}
+  const mk=e.target.closest("[data-market]"); if(mk){S.market=mk.dataset.market;return render();}
+  const tp=e.target.closest("[data-tpl]"); if(tp&&!e.target.closest("select")){S.drawer=+tp.dataset.tpl;return render();}
+  if(e.target.closest("[data-sync]")){toast(isAr()?"تمت المزامنة · 15 قالباً":"Synchronisé · 15 modèles, 1 statut mis à jour");return;}
+  if(e.target.closest("[data-create]")){toast(isAr()?"أُرسل 14 قالباً إلى Meta":"14 modèles soumis à Meta · approbation en attente");return;}
+  const sw=e.target.closest("[data-sw]"); if(sw&&!sw.disabled){S.settings[sw.dataset.sw]=!S.settings[sw.dataset.sw];return render();}
+  const pl=e.target.closest("[data-plang]"); if(pl&&!pl.disabled){S.settings.lang=pl.dataset.plang;return render();}
+  if(e.target.closest("[data-psave]")){toast(t().saved);return;}
+  const cv=e.target.closest("[data-conv]"); if(cv){S.conv=cv.dataset.conv;S.cSent=null;S.cText="";return render();}
+  if(e.target.closest("[data-csend]")){if(!S.cText.trim())return;S.cSent=S.cText;S.cText="";return render();}
+  const ch=e.target.closest("[data-chan]"); if(ch){S.camp.channel=ch.dataset.chan;return render();}
+  const sd=e.target.closest("[data-sender]"); if(sd){S.camp.sender=sd.dataset.sender;return render();}
+  const cl=e.target.closest("[data-clang]"); if(cl){S.camp.lang=cl.dataset.clang;S.camp.body=cl.dataset.clang==="fr"?"Bonjour {nom}, deux mois ont passé depuis votre {produit}.\n{remise} cette semaine, livraison offerte à {ville}.\nRépondez OUI et on prépare votre commande.":"مرحباً {nom}، مرّ شهران على طلبك {produit}.\nلك {remise} هذا الأسبوع، التوصيل مجاني في {ville}.\nردّ بنعم ونجهّز طلبك.";return render();}
+  const vr=e.target.closest("[data-var]"); if(vr){S.camp.body+=vr.dataset.var;return render();}
+  if(e.target.closest("[data-launch]")){toast(isAr()?"أُطلقت الحملة · 412 في الطابور · أول إرسال 10:00":"Campagne lancée · 412 en file · premier envoi 10:00");return;}
+  if(e.target.closest("[data-close]")||e.target.id==="veil"){if(S.screen==="campagne"){S.screen="campagne";$("#over").innerHTML="";return;}S.drawer=null;return render();}
+});
+document.addEventListener("input",e=>{
+  if(e.target.id==="cbody"){S.camp.body=e.target.value;const pos=e.target.selectionStart;render();const el=$("#cbody");el.focus();el.setSelectionRange(pos,pos);}
+  if(e.target.id==="cta"){S.cText=e.target.value;}
+});
+render();
+</script>
+</body>
+</html>

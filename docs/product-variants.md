@@ -291,12 +291,22 @@ périmètre des variantes.
   2..n, et Buybox empile les upsells dans `customer_note`. C'est un chantier à
   part : il faut d'abord que le webhook écrive `order_items`, ce qu'il n'a
   jamais fait (`src/lib/orders/webhook-handler.ts` n'insère que dans `orders`).
-- **`isMixed`** (`src/lib/warehouse/scan-buckets.ts`) traite délibérément deux
-  variantes d'un produit comme *non* mixte (« deux tailles du même produit, un
-  seul rack »). À revisiter maintenant que de vraies tailles existent.
-- **`src/lib/warehouse/order-lines.ts`** sélectionne `variant_label` mais pas
-  `variant_id` : le préparateur s'appuie sur un libellé figé plutôt que sur une
-  identité.
+- ~~`order-lines.ts` ne lit pas `variant_id`~~ — **fait le 2026-09-25.**
+  `variant_label` est un INSTANTANÉ de texte : renommer « Grand » en « Large »
+  laissait toutes les commandes en cours afficher l'ancien mot, et deux lignes
+  au même libellé étaient indiscernables. Le libellé reste affiché — c'est ce
+  que l'agent a vendu — mais l'identité vient de `variant_id`. La ligne
+  dénormalisée de repli porte `variant_id: null`, honnêtement :
+  `WarehouseOrderRow` n'a jamais sélectionné d'identifiant de variante, et une
+  commande d'avant `order_items` n'en a aucun à sélectionner.
+- ~~`isMixed` à revisiter~~ — **réexaminé le 2026-09-25, et la règle TIENT**,
+  pour une meilleure raison qu'à l'origine. Elle a été écrite quand les tailles
+  étaient simulées en produits séparés, ce qui aurait rendu « mixte » tout colis
+  à deux tailles. Maintenant qu'une taille est une variante d'UN produit, deux
+  tailles sont vraiment un seul rack : grouper par `product_id` envoie le
+  préparateur à un seul endroit. Keyer sur la variante pousserait chaque colis
+  à deux tailles dans le panier « mixte » et jetterait ce bénéfice — sans rien
+  gagner, puisque `RunParcel` affiche déjà chaque ligne avec son libellé.
 - **`get_stock_position`** reste au grain produit, et c'est correct pour ce
   qu'elle mesure.
 - ~~`ProductCreateForm` sans étape variantes~~ — **fait le 2026-09-25.** Un

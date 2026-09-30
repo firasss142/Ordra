@@ -267,6 +267,11 @@ entry has not meant deleting its page — check before assuming a route is dead.
   commandes (même client, produits différents, une seule livraison, adresse
   choisie explicitement): docs/duplicates-and-merge.md +
   plans/duplicate-review-and-order-merge.md
+- WhatsApp Business Cloud API — credentials per market, the send gate, the
+  lifecycle outbox + pg_cron drain, the webhook contract (401 on bad signature),
+  the inbox, campaigns from the business number, Meta checklist and warm-up:
+  docs/whatsapp-cloud-api.md + plans/whatsapp-cloud-api.md (prototypes
+  `prototypes/whatsapp-{agent,manager}-v1.html`)
 
 ## Open discrepancies (found in the 2026-09-13 doc audit — code untouched)
 Documented where they live; none of these were "fixed" silently, because each is a

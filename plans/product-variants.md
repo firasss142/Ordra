@@ -440,14 +440,22 @@ que Vitest ne peut pas atteindre.
 - `ProductCreateForm` n'a pas d'étape variantes — on crée puis on édite.
 - `order-lines.ts` lit `variant_label` mais pas `variant_id`.
 - `isMixed` traite encore deux tailles d'un produit comme non mixtes.
-- **`product_variants.unit_cogs` est lisible par le rôle `agent`.** Les GRANT
-  Postgres sont par rôle *Postgres* (`authenticated`), pas par rôle applicatif :
-  impossible d'en exclure l'agent au niveau du GRANT. La route
-  `GET /api/products/[id]/variants` laisse passer l'agent et sélectionne
-  `unit_cogs`. C'est la même situation que `products.unit_cogs`, que
-  20260920162309 constate déjà en production et que le linter ne voit pas.
-  Fermer cela veut dire remplacer chaque `select("*")` par une liste explicite
-  sur les deux tables — un chantier à part, pas une ligne.
+- ~~`product_variants.unit_cogs` lisible par l'agent~~ — **fermé le
+  2026-09-25.** Le mécanisme était bien celui décrit — les GRANT Postgres sont
+  par rôle *Postgres* (`authenticated`), que l'agent partage avec le
+  super_admin, donc la frontière ne peut pas vivre en base : révoquer
+  casserait la fiche produit pour tout le monde. Mais la portée était bien plus
+  petite qu'annoncé. Vérifié route par route : **une seule** était atteignable
+  par un agent et renvoyait un coût, `GET /api/products/[id]/variants`, ajoutée
+  la veille par ce même lot. `/api/products` avait déjà sa liste
+  `AGENT_COLUMNS` ; `/api/products/[id]`, `/products/[id]/profitability`,
+  `/products/list/previous` et `/ad-spend/economics` refusent tous l'agent
+  avant d'arriver à une colonne de coût. La route sert désormais deux listes
+  selon le rôle — il n'y avait pas de chantier « remplacer chaque
+  `select("*")` », juste une ligne écrite trop large.
+  Reste vrai et non traité : `products.unit_cogs` est accordé à
+  `authenticated` en base, ce qui n'expose rien tant qu'aucune route
+  atteignable par un agent ne le sélectionne.
 - Un `ON DELETE RESTRICT` sur `order_items.variant_id`,
   `orders.product_variant_id` et
   `storefront_product_mappings.product_variant_id` serait la ceinture du

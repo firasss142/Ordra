@@ -103,6 +103,18 @@ Domain model: `docs/investor-domain.md`.
 `storefront_product_mappings`, `webhook_delivery_log` (14),
 `sheet_sync_runs` (3 063), `sheet_sync_failed_rows`, `alert_acknowledgements`.
 
+### WhatsApp Cloud API (2026-09-25 →, migrations `20260925100000`…`20260925170000`)
+
+`whatsapp_configs` (one per market, secrets ciphertext, the last staged test in
+`last_test_at` / `last_test_ok` / `last_test_stages`, **no policies, no grants** — service
+role only), `whatsapp_templates`, `whatsapp_conversations`, `whatsapp_messages` (content
+immutable + forward-only status by trigger), `whatsapp_outbox`, `whatsapp_outbox_runs`.
+Plus columns on `customers` (`whatsapp_*`) and `prospect_campaigns` (`wa_template_id`,
+`wa_language`, `wa_image_url`, `wa_launch_status`, `launched_at`, `wa_launch_status_at`
+— stamped by the `trg_prospect_campaigns_launch_status_at` BEFORE UPDATE trigger), and the
+`whatsapp_inbound` kind on `agent_notifications`. Applied to the local database only at
+the time of writing; contract in docs/whatsapp-cloud-api.md.
+
 ### Views
 
 `follow_up_campaigns`, `order_carrier_cost`, `product_inventory_view`,

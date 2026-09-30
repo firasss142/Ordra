@@ -1,0 +1,1595 @@
+<title>Ordra — coquille agent (v1)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Prototype v1 — « la coquille agent », les trois surfaces restantes réécrites dans la
+  langue de /delivery (Suivi livraison). Construit 2026-09-18. Plan : plans/agent-shell-redesign.md
+   · Écran 1 « Commandes » : la situation d'abord, une teinte par situation, le liseré,
+     la bande de paniers, la colonne d'action à x fixe, le panneau collant à droite.
+   · Écran 2 « Navigation + recherche » : l'en-tête ne bouge plus d'un onglet à l'autre,
+     le champ de recherche est rendu partout et propose des résultats de TOUS les onglets.
+   · Écran 3 « Commissions » : la même charpente que la livraison, plus la carte isolée.
+  Rien n'est inventé : chaque atome vient de src/components/delivery/ui.tsx et de
+  DeliveryWorklistView/DeliveryRow. L'écran « Livraison » est reproduit tel quel comme étalon.
+  URL : ?lang=fr|ar &view=desktop|mobile &screen=orders|search|commissions|delivery
+        &tab=all|nouveau|en_cours|confirme|fermees &open=<id> &state=normal|loading|empty
+        &check=contrast|touch  &ruler=1
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+:root{
+  /* Ground + ink — exactly the values the live delivery page hard-codes. */
+  --bg:#FAFAF9; --surface:#FFFFFF; --soft:#F9FAFB; --sunk:#F3F4F6;
+  --line:#E5E7EB; --line-2:#D1D5DB; --line-strong:#C9CCCF;
+  --ink:#111827; --ink-2:#374151; --ink-3:#6B7280; --ink-4:#9CA3AF;
+  --brand:#15803D; --brand-deep:#14532D; --brand-tint:#F0FDF4; --brand-line:#BBF7D0;
+  --wa:#15803D; --wa-soft:#DCFCE7;
+  --black:#111111; --studio:#E9EBEF;
+  --f-lat:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-ar:"Cairo","Noto Sans Arabic",system-ui,sans-serif;
+}
+/* ── The 14 tones, copied value-for-value from TONE in src/components/delivery/ui.tsx.
+      One hue per situation (design-system §4.22). Nothing here is new. ───────────── */
+[data-t=red]     {--from:#FECACA;--to:#FEF2F2;--tink:#991B1B;--ring:#FCA5A5;--edge:#EF4444;--soft:#FEE2E2;--bord:#F87171;--ticon:#DC2626}
+[data-t=rose]    {--from:#FECDD3;--to:#FFF1F2;--tink:#9F1239;--ring:#FDA4AF;--edge:#F43F5E;--soft:#FFE4E6;--bord:#FDA4AF;--ticon:#BE123C}
+[data-t=fuchsia] {--from:#F5D0FE;--to:#FDF4FF;--tink:#86198F;--ring:#F0ABFC;--edge:#D946EF;--soft:#FAE8FF;--bord:#F0ABFC;--ticon:#A21CAF}
+[data-t=violet]  {--from:#DDD6FE;--to:#F5F3FF;--tink:#5B21B6;--ring:#C4B5FD;--edge:#8B5CF6;--soft:#EDE9FE;--bord:#C4B5FD;--ticon:#6D28D9}
+[data-t=orange]  {--from:#FED7AA;--to:#FFF7ED;--tink:#9A3412;--ring:#FDBA74;--edge:#F97316;--soft:#FFEDD5;--bord:#FDBA74;--ticon:#C2410C}
+[data-t=amber]   {--from:#FDE68A;--to:#FFFBEB;--tink:#92400E;--ring:#FCD34D;--edge:#F59E0B;--soft:#FEF3C7;--bord:#FBBF24;--ticon:#B45309}
+[data-t=yellow]  {--from:#FEF08A;--to:#FEFCE8;--tink:#854D0E;--ring:#FDE047;--edge:#EAB308;--soft:#FEF9C3;--bord:#FDE047;--ticon:#A16207}
+[data-t=teal]    {--from:#99F6E4;--to:#F0FDFA;--tink:#115E59;--ring:#5EEAD4;--edge:#14B8A6;--soft:#CCFBF1;--bord:#5EEAD4;--ticon:#0F766E}
+[data-t=indigo]  {--from:#C7D2FE;--to:#EEF2FF;--tink:#3730A3;--ring:#A5B4FC;--edge:#6366F1;--soft:#E0E7FF;--bord:#A5B4FC;--ticon:#4338CA}
+[data-t=stone]   {--from:#D6D3D1;--to:#FAFAF9;--tink:#44403C;--ring:#A8A29E;--edge:#A8A29E;--soft:#E7E5E4;--bord:#D6D3D1;--ticon:#57534E}
+[data-t=slate]   {--from:#CBD5E1;--to:#F8FAFC;--tink:#334155;--ring:#94A3B8;--edge:#94A3B8;--soft:#E2E8F0;--bord:#CBD5E1;--ticon:#475569}
+[data-t=blue]    {--from:#BFDBFE;--to:#EFF6FF;--tink:#1D4ED8;--ring:#93C5FD;--edge:#3B82F6;--soft:#DBEAFE;--bord:#93C5FD;--ticon:#1D4ED8}
+[data-t=grey]    {--from:#E5E7EB;--to:#F9FAFB;--tink:#374151;--ring:#D1D5DB;--edge:#9CA3AF;--soft:#F3F4F6;--bord:#D1D5DB;--ticon:#374151}
+[data-t=green]   {--from:#BBF7D0;--to:#F0FDF4;--tink:#166534;--ring:#86EFAC;--edge:#22C55E;--soft:#DCFCE7;--bord:#86EFAC;--ticon:#15803D}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--studio);color:var(--ink);font-family:var(--f-lat);font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+.q{unicode-bidi:plaintext}
+[dir=rtl] .app,[dir=rtl] .scr{font-family:var(--f-ar);direction:rtl}
+.app a,.scr a{text-decoration:none}
+[dir=rtl] .flip svg{transform:scaleX(-1)}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ── Studio chrome (always LTR) ──────────────────────────────── */
+.studio{padding:18px 20px 40px;direction:ltr}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;max-width:1520px;margin:0 auto 12px}
+.bar h1{margin:0;font-size:15px;font-weight:700;margin-inline-end:auto}
+.bar h1 span{color:var(--ink-3);font-weight:500}
+.seg{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.seg button{padding:6px 11px;border-radius:7px;font-size:13px;font-weight:500;color:var(--ink-3)}
+.seg button[aria-pressed=true]{background:var(--black);color:#fff}
+.note{max-width:1520px;margin:0 auto 14px;font-size:12.5px;color:var(--ink-3);line-height:1.55}
+.note b{color:var(--ink-2)}
+.stage{max-width:1520px;margin:0 auto}
+.hscroll{overflow-x:auto}
+.report{max-width:1520px;margin:14px auto 0;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:12.5px}
+.report h3{margin:0 0 8px;font-size:13.5px}
+.report table{border-collapse:collapse;width:100%}
+.report td,.report th{border-bottom:1px solid var(--line);padding:4px 8px;text-align:left;font-weight:400}
+.report th{font-weight:600;color:var(--ink-3)}
+.ok{color:#15803D;font-weight:600}.bad{color:#B91C1C;font-weight:600}
+
+/* ── Shared atoms — all of them exist on /delivery today ─────── */
+.chip{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;border-radius:999px;padding:4px 12px 4px 10px;font-size:13px;font-weight:600;
+      background:linear-gradient(to right,var(--from),var(--to));color:var(--tink);box-shadow:inset 0 0 0 1px var(--ring)}
+[dir=rtl] .chip{background:linear-gradient(to left,var(--from),var(--to));padding:4px 10px 4px 12px}
+.chip svg{width:14px;height:14px;stroke-width:2}
+.chip .dot{display:none}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--edge);flex:0 0 auto}
+.tag{display:inline-flex;align-items:center;height:19px;padding:0 6px;border-radius:5px;font-size:11px;font-weight:600;line-height:1;white-space:nowrap;
+     color:var(--tink);box-shadow:inset 0 0 0 1px var(--ring)}
+.thumb{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--sunk);display:grid;place-items:center;color:var(--ink-4);overflow:hidden;flex:0 0 auto;font-size:19px}
+.btn-o{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 16px;border:1px solid var(--line-2);border-radius:8px;background:#fff;font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap}
+.btn-o:hover{background:var(--soft)}
+.btn-o[data-tone]{border-color:var(--bord)}
+.btn-o[data-tone] svg{color:var(--ticon)}
+.btn-sq{width:44px;height:44px;border:1px solid var(--brand-line);border-radius:8px;background:#fff;display:grid;place-items:center;color:var(--brand);flex:0 0 auto}
+.btn-sq:hover{background:var(--brand-tint)}
+.btn-p{display:inline-flex;align-items:center;justify-content:center;gap:9px;height:44px;padding:0 16px;border-radius:8px;background:var(--brand);color:#fff;font-size:14px;font-weight:600;white-space:nowrap}
+.btn-p:hover{background:#166534}
+.pill{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--brand-line);background:var(--brand-tint);font-size:13px;color:var(--ink-2);white-space:nowrap}
+.pill svg{width:16px;height:16px;color:var(--brand)}
+.pill b{color:var(--ink);font-weight:600}
+.money{white-space:nowrap}
+.money .v{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+.skel{border-radius:10px;background:linear-gradient(90deg,#EFF0F2 25%,#F8F9FA 50%,#EFF0F2 75%);background-size:200% 100%;animation:sh 1.3s infinite}
+@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+mark{background:#FEF3C7;color:inherit;border-radius:3px;padding:0 2px}
+
+/* ── The shell — identical on every tab, which is the point ──── */
+.app{min-width:1180px;height:1020px;background:var(--bg);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative;text-align:start}
+.top{height:60px;flex:0 0 auto;display:flex;align-items:center;gap:16px;padding:0 20px;background:#fff;border-bottom:1px solid var(--line);position:relative;z-index:30}
+.top .brand{font-size:22px;font-weight:800;letter-spacing:-.01em;color:var(--brand-deep)}
+.top .brand i{font-style:normal;color:var(--brand)}
+.top .mkt{display:inline-flex;align-items:center;gap:5px;color:var(--ink-3);font-size:13px;border-inline-start:1px solid var(--line);padding-inline-start:12px}
+.top .mkt svg{width:14px;height:14px}
+/* Tabs: one soft track, the active tab a white pill — no underline, no hard edges,
+   a 180 ms ease on colour and background so a switch feels like a slide, not a jump. */
+.tabs{display:flex;align-items:center;gap:2px;height:52px;padding:4px;margin-inline-start:auto;border-radius:14px;background:var(--sunk);min-width:0;flex-shrink:1}
+.tabs a{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 14px;min-width:0;border-radius:10px;font-size:13.5px;font-weight:600;color:var(--ink-2);transition:background .18s ease,color .18s ease}
+.tabs a svg{width:16px;height:16px;opacity:.7;transition:opacity .18s ease}
+.tabs a:hover{color:var(--ink);background:rgba(255,255,255,.55)}
+.tabs a[aria-current=page]{color:var(--brand);background:#fff;box-shadow:inset 0 0 0 1px var(--line)}
+.tabs a[aria-current=page] svg{opacity:1}
+.tabs a span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tabs .badge{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--wa-soft);color:var(--brand);font-size:12px;font-weight:700}
+/* Sub-tabs: the same soft track, counts as small pills, nothing bordered. */
+.segs{display:inline-flex;gap:2px;height:52px;padding:4px;border-radius:14px;background:var(--sunk);margin-bottom:12px;max-width:100%;overflow-x:auto;scrollbar-width:none}
+.segs::-webkit-scrollbar{display:none}
+.segs button{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 14px;border-radius:10px;font-size:13.5px;font-weight:600;color:var(--ink-2);white-space:nowrap;transition:background .18s ease,color .18s ease}
+.segs button:hover{color:var(--ink);background:rgba(255,255,255,.55)}
+.segs button[aria-pressed=true]{color:var(--ink);background:#fff;box-shadow:inset 0 0 0 1px var(--line)}
+.segs button .dot{width:7px;height:7px}
+.segs button b{display:inline-grid;place-items:center;min-width:22px;height:20px;padding:0 6px;border-radius:999px;background:rgba(17,24,39,.07);color:var(--ink-2);font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;transition:background .18s ease,color .18s ease}
+.segs button[aria-pressed=true] b{background:var(--brand-tint);color:var(--brand)}
+.segs button[data-zero]{color:var(--ink-3)}.segs button[data-zero] b{color:var(--ink-3)}
+/* The gentle tag: a flat tint, its ink, a dot — no gradient, no ring. Same 14 tones. */
+.tagg{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;border-radius:999px;padding:5px 11px 5px 9px;font-size:13px;font-weight:600;background:var(--soft);color:var(--tink)}
+[dir=rtl] .tagg{padding:5px 9px 5px 11px}
+.tagg .dot{width:7px;height:7px}
+.tagg svg{width:14px;height:14px;stroke-width:2;color:var(--ticon);opacity:.9}
+.tagg small{font-weight:500;opacity:.85}
+/* The drawer placeholder — the existing OrderDetailPanel opens here, unchanged. */
+.veil{position:absolute;inset:0;background:rgba(17,24,39,.28);z-index:50;display:flex;justify-content:flex-end}
+.drawer{width:480px;max-width:100%;height:100%;background:#fff;border-inline-start:1px solid var(--line);display:flex;flex-direction:column}
+.drawer .dh{display:flex;align-items:center;gap:10px;height:60px;padding:0 16px;border-bottom:1px solid var(--line)}
+.drawer .dh h3{margin:0;font-size:17px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drawer .dh .x{width:44px;height:44px;display:grid;place-items:center;border-radius:10px;color:var(--ink-2)}
+.drawer .dh .x:hover{background:var(--sunk)}
+.drawer .ph{flex:1;display:grid;place-items:center;text-align:center;padding:40px;color:var(--ink-3);border:0}
+.drawer .ph .box{border:1.5px dashed var(--line-2);border-radius:14px;padding:28px 24px;max-width:340px;background:var(--soft)}
+.drawer .ph b{display:block;color:var(--ink);font-size:15px;margin-bottom:6px}
+.drawer .ph p{margin:0;font-size:13.5px;line-height:1.55}
+/* The search slot: same width on every tab, so nothing to its right ever moves. */
+.slot-search{flex:1 1 340px;min-width:300px;display:flex;justify-content:center;padding:0 16px}
+.search{position:relative;width:100%;min-width:260px;max-width:560px}
+.search .field{display:flex;align-items:center;gap:8px;height:44px;padding:0 8px 0 14px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--ink-3)}
+[dir=rtl] .search .field{padding:0 14px 0 8px}
+.search .field:focus-within,.search[data-open=true] .field{border-color:var(--brand);box-shadow:0 0 0 3px rgba(21,128,61,.12)}
+.search input{flex:1;min-width:0;height:100%;border:0;outline:0;background:none;font-size:14px;color:var(--ink)}
+.search input::-webkit-search-cancel-button,.mbar input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+.search input::placeholder{color:var(--ink-3)}
+.search kbd{display:grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border:1px solid var(--line);border-radius:5px;background:var(--sunk);font-size:11px;font-weight:700;color:var(--ink-3);font-family:inherit}
+.search .cnt{font-size:12px;font-weight:600;color:var(--ink-3);white-space:nowrap}
+.slot-end{display:flex;align-items:center;gap:12px;flex:0 0 auto}
+.presence{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;background:var(--brand-tint);border:1px solid var(--brand-line);font-size:13px;font-weight:500;color:#14532D;white-space:nowrap}
+.presence .dot{width:7px;height:7px;background:#22C55E}
+.presence small{display:block;font-size:11px;color:var(--ink-3)}
+.presence[data-on=false]{background:#FEF2F2;border-color:#FECACA;color:#B91C1C}
+.presence[data-on=false] .dot{background:#EF4444}
+.bell{position:relative;width:44px;height:44px;display:grid;place-items:center;border-radius:10px;color:var(--ink-2)}
+.bell:hover{background:var(--sunk)}
+.bell b{position:absolute;top:2px;inset-inline-end:2px;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:#B98900;color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center}
+.me{display:flex;align-items:center;gap:8px;height:44px;padding:0 8px 0 4px;border-radius:10px;border:1px solid transparent}
+.me:hover{border-color:var(--line);background:var(--soft)}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;font-weight:700;font-size:14px;color:var(--ink-2)}
+.me span{font-size:14px;font-weight:700}
+.me svg{width:16px;height:16px;color:var(--ink-3)}
+
+/* ── Page body: list + sticky aside, the delivery grid ───────── */
+.body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:16px;padding:16px 20px 0}
+.left{min-width:0;display:flex;flex-direction:column;min-height:0}
+.right{min-width:0;min-height:0}
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:12px}
+.head .ttl{display:flex;align-items:flex-start;gap:10px}
+.head svg.hero{width:30px;height:30px;color:var(--brand);margin-top:3px;stroke-width:1.9}
+.head h2{margin:0;font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.head .sub{color:var(--ink-3);font-size:14px;margin-top:2px;unicode-bidi:plaintext}
+.head .end{margin-inline-start:auto;display:flex;align-items:center;gap:8px}
+.strip{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:12px;overflow:hidden}
+.strip.c4{grid-template-columns:repeat(4,1fr)}
+.strip.c6{grid-template-columns:repeat(6,1fr)}
+.strip button{display:flex;flex-direction:column;gap:3px;padding:11px 14px;border-inline-start:1px solid var(--line);text-align:start;min-width:0}
+.strip button:first-child{border-inline-start:0}
+.strip button:hover{background:var(--soft)}
+.strip .l{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);min-width:0}
+.strip .l span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.strip .l b{margin-inline-start:auto;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;padding-inline-start:8px}
+.strip .s{font-size:12.5px;color:var(--ink-3);unicode-bidi:plaintext}
+.strip button[aria-pressed=true]{background:var(--brand-tint);box-shadow:inset 0 -2px 0 var(--brand)}
+.strip button[aria-pressed=true] .l{color:var(--ink);font-weight:700}
+.strip button[data-zero] .l,.strip button[data-zero] .s{color:var(--ink-3)}
+.strip button[data-zero] .l b{color:var(--ink-3)}
+.thead{display:grid;gap:16px;padding:4px 16px 8px 20px;font-size:12px;font-weight:500;color:var(--ink-3)}
+.thead.yard{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(216px,auto) minmax(88px,auto)}
+.thead.orders{grid-template-columns:minmax(0,1fr) 210px 96px 120px 100px}
+.thead.orders .n{text-align:end}
+.thead.comm{grid-template-columns:minmax(0,1fr) minmax(0,1.6fr) 120px minmax(100px,auto)}
+.thead .e{text-align:end}
+.rows{flex:1;min-height:0;overflow-y:auto;padding-bottom:20px;scrollbar-width:thin}
+.row{position:relative;display:grid;gap:16px;align-items:center;padding:10px 16px 10px 20px;background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer;overflow:hidden}
+.row.yard{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(216px,auto) minmax(88px,auto)}
+.row.orders{grid-template-columns:minmax(0,1fr) 210px 96px 120px 100px;padding:12px 16px 12px 20px;min-height:68px}
+.row.orders .thumb{width:40px;height:40px}
+.c-time{font-size:13.5px;color:var(--ink-2);text-align:end;white-space:nowrap;font-variant-numeric:tabular-nums}
+.c-time[data-late]{color:var(--ink);font-weight:600}
+.c-time[data-none]{color:var(--ink-4)}
+.c-time small{display:block;font-size:11.5px;font-weight:400;color:var(--ink-3)}
+.body.single{grid-template-columns:minmax(0,1fr)}
+.body:not(.single) .row.orders,.body:not(.single) .thead.orders{grid-template-columns:minmax(0,1fr) 190px 80px 110px 92px}
+.row.comm{grid-template-columns:minmax(0,1fr) minmax(0,1.6fr) 120px minmax(100px,auto)}
+.row::before{content:"";position:absolute;inset-block:0;inset-inline-start:0;width:4px;background:var(--edge)}
+.row:hover{border-color:var(--line-strong)}
+.row[aria-selected=true]{border:1.5px solid var(--brand);background:var(--brand-tint)}
+.c-sit{display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:0}
+.c-sit .sub{font-size:13px;color:var(--ink-3)}
+.c-sit .tm{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--ink-3)}
+.c-sit .tm svg{width:13px;height:13px}
+.c-cl{display:flex;gap:12px;min-width:0;align-items:flex-start}
+.c-cl .nm{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px}
+.c-cl .nm b{font-size:15px;font-weight:700;unicode-bidi:plaintext}
+.c-cl .nm .id{font-size:13.5px;color:var(--ink-3)}
+.c-cl .ph{font-size:14px;color:var(--ink-2);margin-top:2px}
+.c-cl .ln{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;font-size:13px;color:var(--ink-3);margin-top:2px}
+.c-cl .ln span{display:inline-flex;align-items:center;gap:5px;min-width:0}
+.c-cl .ln svg{width:14px;height:14px}
+.c-cl .tr{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px}
+.c-act{display:flex;align-items:center;gap:8px}
+.c-act .btn-o{min-width:0;flex:1}
+.c-act .btn-o .lb{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c-amt{text-align:end;font-size:19px;font-weight:700;white-space:nowrap}
+.c-amt.sm{font-size:16px}
+.c-amt[data-neg=true]{color:#B91C1C}
+.c-when{font-size:13px;color:var(--ink-3);white-space:nowrap;unicode-bidi:plaintext}
+.empty{padding:64px 20px;text-align:center;color:var(--ink-3)}
+.empty svg{width:44px;height:44px;color:var(--line-2);stroke-width:1.5}
+.empty h3{margin:12px 0 4px;font-size:16px;color:var(--ink)}
+.empty p{margin:0 0 14px}
+
+/* ── The sticky aside ────────────────────────────────────────── */
+.aside{position:sticky;top:0;height:calc(100% - 16px);display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.pick{height:100%;display:grid;place-items:center;text-align:center;color:var(--ink-3);padding:40px;background:#fff;border:1px solid var(--line);border-radius:12px}
+.pick svg{width:40px;height:40px;color:var(--line-2);margin-bottom:10px;stroke-width:1.5}
+.ph{padding:16px 18px;border-bottom:1px solid var(--line)}
+.ph .r1{display:flex;align-items:flex-start;gap:10px}
+.ph h3{margin:0;font-size:21px;font-weight:700;letter-spacing:-.01em}
+.ph .id{font-size:14px;color:var(--ink-3);font-weight:400;margin-inline-start:8px}
+.ph .x{margin-inline-start:auto;width:32px;height:32px;display:grid;place-items:center;border-radius:8px;color:var(--ink-2)}
+.ph .x:hover{background:var(--sunk)}
+.ph .r2{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+.ph .big{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.pbody{flex:1;min-height:0;overflow-y:auto;padding:14px 18px 18px;scrollbar-width:thin}
+.card{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.ct{display:flex;align-items:center;gap:8px;font-size:14.5px;font-weight:600;margin-bottom:8px}
+.ct svg{width:17px;height:17px;color:var(--ink-3)}
+.kv{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;font-size:14px}
+.kv .k{color:var(--ink-3)}
+.kv .v{font-weight:500;text-align:end;unicode-bidi:plaintext}
+.kv .v.strong{font-weight:700;font-size:16px}
+.tl{list-style:none;margin:4px 0 0;padding:0}
+.tl li{position:relative;display:grid;grid-template-columns:14px 1fr;gap:10px;padding:6px 0}
+.tl li::before{content:"";position:absolute;inset-inline-start:6px;top:20px;bottom:-6px;width:1px;background:var(--line)}
+.tl li:last-child::before{display:none}
+.tl i{width:8px;height:8px;border-radius:50%;background:var(--ink-4);margin-top:6px;justify-self:center}
+.tl b{display:block;font-size:14px;font-weight:500}
+.tl span{display:block;font-size:12.5px;color:var(--ink-3)}
+.pfoot{flex:0 0 auto;display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);background:#fff}
+.pfoot .btn-p{flex:1}
+.summary{padding:18px}
+.summary .lb{font-size:12.5px;color:var(--ink-2)}
+.summary .big{font-size:40px;font-weight:800;line-height:1.05;margin-top:4px;font-variant-numeric:tabular-nums}
+.summary .big[data-neg=true]{color:#B91C1C}
+.summary .sen{margin-top:8px;font-size:13px;color:var(--ink-2);unicode-bidi:plaintext}
+.summary .rule{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-3)}
+.summary .more{color:var(--brand);font-weight:600;margin-top:4px;display:inline-flex;align-items:center;height:44px}
+
+/* ── Popovers: filter + sort, the delivery pattern ───────────── */
+.pop{position:absolute;inset-inline-end:0;top:calc(100% + 6px);z-index:20;min-width:250px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px;box-shadow:0 8px 24px rgba(17,24,39,.10)}
+.pop label,.pop button{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:7px;font-size:13.5px;text-align:start;cursor:pointer}
+.pop label:hover,.pop button:hover{background:var(--sunk)}
+.pop input{width:16px;height:16px;accent-color:var(--brand)}
+.pop hr{border:0;border-top:1px solid var(--line);margin:5px 2px}
+.pop .gl{padding:6px 10px 3px;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.pop .cnt{margin-inline-start:auto;font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.rel{position:relative}
+
+/* ── The predictive dropdown — the recent-searches listbox, grown ── */
+.sugg{position:absolute;top:calc(100% + 8px);inset-inline-start:0;width:100%;max-height:520px;overflow-y:auto;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 34px rgba(17,24,39,.12);padding:8px 0;z-index:40}
+.sugg .gh{display:flex;align-items:center;gap:8px;padding:8px 14px 4px;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.sugg .gh .n{margin-inline-start:auto;letter-spacing:0;text-transform:none;font-weight:600;font-size:11.5px}
+.sugg .opt{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;min-height:48px;padding:8px 14px;text-align:start}
+.sugg .opt:hover,.sugg .opt[aria-selected=true]{background:var(--brand-tint)}
+.sugg .opt>span:nth-child(2){min-width:0}
+.sugg .opt .nm{display:block;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sugg .opt .mt{display:block;font-size:12.5px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sugg .opt .am{font-size:13.5px;font-weight:600;white-space:nowrap;justify-self:end}
+.sugg .foot{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;padding:9px 14px 5px;margin-top:4px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3)}
+.sugg .foot span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.sugg .foot kbd{border:1px solid var(--line);border-radius:4px;padding:1px 5px;background:var(--sunk);font-size:11px;font-family:inherit}
+.sugg .rc{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:8px 14px;font-size:13.5px;text-align:start}
+.sugg .rc:hover{background:var(--sunk)}
+.sugg .rc svg{width:14px;height:14px;color:var(--ink-4)}
+
+/* ── Phone ───────────────────────────────────────────────────── */
+.phones{display:flex;flex-wrap:wrap;gap:22px;justify-content:center}
+.pwrap{width:390px;max-width:100%}
+.cap{font-size:12.5px;font-weight:600;color:var(--ink-3);margin:0 0 8px 6px;direction:ltr}
+.scr{width:390px;max-width:100%;height:844px;background:var(--bg);border-radius:28px;border:1px solid #DADDE2;overflow:hidden;position:relative;display:flex;flex-direction:column;text-align:start}
+.sbar{flex:0 0 auto;height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:15px;font-weight:600;background:#fff;direction:ltr}
+.sbar svg{width:17px;height:14px;stroke-width:2}
+.mtop{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:6px 14px 10px;background:#fff;border-bottom:1px solid var(--line)}
+.mtop .brand{font-size:19px;font-weight:800;color:var(--brand-deep)}
+.mtop .brand i{font-style:normal;color:var(--brand)}
+.mtop .msearch{margin-inline-start:auto;display:flex;align-items:center;gap:7px;height:44px;padding:0 14px;border:1px solid var(--line);border-radius:999px;color:var(--ink-3);font-size:13.5px}
+.mtop .bell{width:44px;height:44px}
+.mhead{flex:0 0 auto;padding:12px 14px 8px}
+.mhead h2{margin:0;font-size:22px;font-weight:700;letter-spacing:-.02em}
+.mhead .sub{color:var(--ink-3);font-size:13.5px;margin-top:1px}
+.mhead .rowend{display:flex;align-items:center;gap:8px;margin-top:10px}
+.mhead .rowend .pill{flex:1;min-width:0;height:44px}
+.mhead .rowend .pill span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mpills{flex:0 0 auto;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin:0 14px 10px;padding:4px;border-radius:14px;background:var(--sunk)}
+.mpills::-webkit-scrollbar{display:none}
+.mp{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 14px;border:0;border-radius:10px;background:transparent;font-size:14px;font-weight:600;color:var(--ink-2);white-space:nowrap;transition:background .18s ease,color .18s ease}
+.mp b{display:inline-grid;place-items:center;min-width:22px;height:20px;padding:0 6px;border-radius:999px;background:rgba(17,24,39,.07);font-size:12px;font-weight:700;color:var(--ink-2)}
+.mp[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.mp[aria-pressed=true] b{background:var(--brand-tint);color:var(--brand)}
+.mp[data-zero]{color:var(--ink-3)}.mp[data-zero] b{color:var(--ink-3)}
+.mlist{flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;padding:0 12px 96px}
+.mlist::-webkit-scrollbar{display:none}
+.mc{position:relative;background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden;padding:11px 14px 12px 16px}
+.mc::before{content:"";position:absolute;inset-block:0;inset-inline-start:0;width:4px;background:var(--edge)}
+.mc[aria-selected=true]{border:1.5px solid var(--brand);background:var(--brand-tint)}
+.mc .top1{display:flex;align-items:center;gap:8px}
+.mc .top1 .c-amt{margin-inline-start:auto;font-size:17px}
+.mc .nm{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:8px}
+.mc .nm b{font-size:16px;font-weight:700}
+.mc .nm .id{font-size:13px;color:var(--ink-3)}
+.mc .ln{font-size:13px;color:var(--ink-3);margin-top:3px;display:flex;align-items:center;gap:6px}
+.mc .ln svg{width:14px;height:14px}
+.mc .ac{display:flex;gap:8px;margin-top:10px}
+.mc .bar{flex:1;display:flex;align-items:center;gap:8px;height:48px;padding:0 14px;border-radius:9px;background:var(--soft);font-size:14.5px;font-weight:600;color:var(--ink)}
+.mc .bar svg{margin-inline-start:auto}
+.mc .btn-sq{width:48px;height:48px}
+.tabbar{position:absolute;inset-inline:0;bottom:0;height:84px;display:flex;background:#fff;border-top:1px solid var(--line);padding:8px 4px 22px;z-index:5}
+.tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--ink-3);font-size:11.5px;font-weight:600;position:relative;border-top:2px solid transparent;margin-top:-8px;padding-top:8px}
+.tabbar svg{width:24px;height:24px}
+.tabbar a[aria-current=page]{color:var(--brand);font-weight:700}
+.tabbar .badge{position:absolute;top:2px;inset-inline-start:calc(50% + 8px);min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:var(--wa-soft);color:var(--brand);font-size:11px;font-weight:700;display:grid;place-items:center}
+/* Full-screen search sheet + detail screen share the back-bar pattern. */
+.mbar{flex:0 0 auto;height:56px;display:flex;align-items:center;gap:10px;padding:0 10px;background:#fff;border-bottom:1px solid var(--line)}
+.mbar button{width:44px;height:44px;display:grid;place-items:center;border-radius:8px}
+.mbar .field{flex:1;display:flex;align-items:center;gap:8px;height:44px;padding:0 14px;border:1px solid var(--brand);border-radius:999px;box-shadow:0 0 0 3px rgba(21,128,61,.12)}
+.mbar .field input{flex:1;min-width:0;border:0;outline:0;background:none;font-size:14.5px}
+.mbar h4{margin:0;font-size:17px;font-weight:700}
+.msugg{flex:1;min-height:0;overflow-y:auto;background:#fff}
+.msugg .opt>span:nth-child(2){min-width:0}
+.mdet{flex:1;min-height:0;overflow-y:auto;padding:12px 12px 100px;scrollbar-width:none}
+.mdet::-webkit-scrollbar{display:none}
+.mfoot{position:absolute;inset-inline:0;bottom:0;display:flex;gap:8px;padding:12px 12px 26px;background:#fff;border-top:1px solid var(--line);z-index:6}
+.mfoot .btn-p{flex:1;height:50px}
+.mfoot .btn-sq{width:50px;height:50px}
+.mblk{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:10px}
+.mhero{display:flex;align-items:flex-start;gap:10px}
+.mhero .nm{font-size:20px;font-weight:700}
+.mhero .id{font-size:13.5px;color:var(--ink-3)}
+.mhero .pr{margin-inline-start:auto;text-align:end;font-size:26px;font-weight:700;white-space:nowrap}
+/* Ruler overlay proving the chrome does not move between tabs. */
+.ruler{position:absolute;inset:0;pointer-events:none;z-index:60}
+.ruler i{position:absolute;top:0;bottom:0;width:1px;background:rgba(217,70,239,.55)}
+.ruler i::after{content:attr(data-l);position:absolute;top:62px;inset-inline-start:3px;font-size:10px;color:#A21CAF;background:#fff;padding:1px 3px;border-radius:3px;direction:ltr}
+@media (max-width:860px){.pwrap,.scr{width:100%}}
+
+/* ══ Commandes — the owner's screenshots of 2026-09-19, reproduced ══════════ */
+.stage{max-width:1672px}
+.app.orders-app{width:1672px;min-width:1672px;height:1020px}
+.qpage{flex:1;min-height:0;display:flex;flex-direction:column;padding:8px 20px 0}
+.qh{display:flex;align-items:center;gap:16px;height:52px;flex:0 0 auto}
+.qh .ttl{display:flex;align-items:center;gap:10px;min-width:0;white-space:nowrap}
+.qh h2{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
+.qh .sub{display:inline-flex;align-items:center;gap:8px;color:var(--ink-3);font-size:13px}
+.qh .sub .dot{width:8px;height:8px;background:#22C55E}
+.qh .qsearch{flex:0 1 526px;min-width:200px;display:flex;align-items:center;gap:10px;height:44px;padding:0 14px;border:1px solid var(--line-2);border-radius:10px;background:#fff;color:var(--ink-3)}
+.qh .qsearch input{flex:1;min-width:0;border:0;outline:0;background:none;font-size:14px;color:var(--ink)}
+.qh .qsearch input::placeholder{color:var(--ink-3)}
+.qh .qsearch svg{width:18px;height:18px;color:var(--ink-3)}
+.qh .meters{margin-inline-start:auto;display:flex;align-items:stretch}
+.qh .mt{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:1px;padding:0 14px;border-inline-start:1px solid var(--line)}
+.qh .mt:first-child{border-inline-start:0}
+.qh .mt .v{font-size:15px;font-weight:700;color:var(--ink);white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.qh .mt .v i{font-style:normal;color:#DC2626;font-size:11px}
+.qh .mt .l{font-size:11.5px;color:var(--ink-3);white-space:nowrap}
+.qh .mt .s{font-size:10.5px;color:var(--ink-3);white-space:nowrap}
+.qh .btn-p{height:44px;padding:0 18px;font-size:15px;font-weight:700}
+.qchips{display:flex;align-items:center;gap:14px;margin-top:4px;flex:0 0 auto}
+.qchip{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 12px;border:1px solid var(--line-2);border-radius:10px;background:#fff;font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap}
+.qchip svg{width:17px;height:17px;color:var(--ink-3);stroke-width:2}
+.qchip b{display:inline-grid;place-items:center;min-width:26px;height:20px;padding:0 7px;border-radius:999px;background:var(--sunk);color:var(--ink-2);font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.qchip[aria-pressed=true]{border:1.5px solid var(--brand);color:#14532D}
+.qchip[aria-pressed=true] svg{color:var(--brand)}
+.qchip[aria-pressed=true] b{background:#DCFCE7;color:var(--brand)}
+.qbody{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 560px;gap:20px;margin-top:17px;padding-bottom:24px}
+.qbody.single{grid-template-columns:minmax(0,1fr)}
+.qtable{min-width:0;display:flex;flex-direction:column;min-height:0;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.qth,.qrow{display:grid;grid-template-columns:40px minmax(0,1fr) 250px 196px 140px;gap:16px;align-items:center;padding:0 12px 0 16px}
+.qth{height:34px;flex:0 0 auto;background:var(--soft);border-bottom:1px solid var(--line);font-size:13px;font-weight:600;color:var(--ink-3)}
+.qth .cb{justify-self:center}
+.qth .c-act{justify-self:center}
+.qth .lt{text-align:left;direction:ltr;justify-self:left}
+.qrows{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin}
+.qrow{position:relative;min-height:66px;border-bottom:1px solid var(--line);cursor:pointer}
+.qrow:hover{background:var(--soft)}
+.qrow[aria-selected=true]{box-shadow:inset 0 0 0 1.5px var(--brand);border-radius:8px;border-bottom-color:transparent;background:#fff}
+.cb{width:20px;height:20px;border:1px solid var(--line-2);border-radius:5px;background:#fff;display:grid;place-items:center;justify-self:center;color:#fff}
+.cb svg{width:13px;height:13px;stroke-width:3}
+.cb[aria-checked=true]{background:var(--brand);border-color:var(--brand)}
+.qid{display:flex;align-items:center;gap:12px;min-width:0}
+.qid .th{position:relative;flex:0 0 auto}
+.qid .thumb{width:44px;height:44px}
+.thumb.q,.thumb.d,.thumb.h{border-radius:8px;font-size:0;border:0}
+.thumb.q{background:#F3F4F6 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'><rect x='9' y='7' width='26' height='30' rx='3' fill='%234B2E2B'/><rect x='12' y='10' width='20' height='24' rx='2' fill='%23C9A24D' opacity='.85'/><rect x='16' y='14' width='12' height='16' rx='1' fill='%234B2E2B'/></svg>") center/cover}
+.thumb.d{background:#F3F4F6 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'><rect x='9' y='7' width='26' height='30' rx='3' fill='%23123B2F'/><rect x='12' y='10' width='20' height='24' rx='2' fill='%23C9A24D' opacity='.85'/><rect x='16' y='14' width='12' height='16' rx='1' fill='%23123B2F'/></svg>") center/cover}
+.thumb.h{background:#F3F4F6 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'><rect x='9' y='7' width='26' height='30' rx='3' fill='%231F3A5F'/><rect x='12' y='10' width='20' height='24' rx='2' fill='%23C9A24D' opacity='.85'/><rect x='16' y='14' width='12' height='16' rx='1' fill='%231F3A5F'/></svg>") center/cover}
+.qid .qty{position:absolute;bottom:-5px;inset-inline-end:-5px;min-width:20px;height:17px;padding:0 5px;border-radius:999px;background:var(--black);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;box-shadow:0 0 0 2px #fff;direction:ltr}
+.qid .nb{flex:1;min-width:0}
+.qid .nm{font-size:15px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.qid .pr{font-size:13px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.qid .noname{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:6px;background:var(--sunk);color:var(--ink-3);font-size:12.5px;font-weight:600}
+.qid .warnph{display:inline-flex;align-items:center;gap:5px;font-size:14px;font-weight:600;color:var(--ink);margin-top:2px}
+.qid .warnph svg{width:14px;height:14px;color:#D97706}
+.tagw{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:6px;border:1px solid #FDE68A;background:#FEF3C7;color:#92400E;font-size:12.5px;font-weight:600;white-space:nowrap;flex:0 0 auto}
+.tagw svg{width:13px;height:13px;stroke-width:2.2}
+.c-act{display:flex;align-items:center;gap:10px;min-width:0;white-space:nowrap}
+.c-act .att{display:inline-grid;place-items:center;height:26px;padding:0 8px;border:1px solid var(--line-2);border-radius:8px;font-size:13px;font-weight:600;color:var(--ink-2);direction:ltr;font-variant-numeric:tabular-nums;flex:0 0 auto}
+.c-act .lc{display:inline-flex;align-items:center;gap:7px;font-size:14px;color:var(--ink-2);min-width:0;overflow:hidden;text-overflow:ellipsis}
+.c-act .lc svg{width:16px;height:16px;stroke-width:2;color:var(--ink-2)}
+.c-act .lc[data-none]{color:var(--ink-3)}
+.c-age{direction:ltr;text-align:left;font-variant-numeric:tabular-nums;justify-self:left}
+.c-age .v{font-size:17px;font-weight:700;line-height:1.1;display:block}
+.c-age .bar{margin-top:6px;width:180px;height:5px;border-radius:999px;background:var(--line);overflow:hidden}
+.c-age .bar i{display:block;height:100%;border-radius:999px}
+.c-age[data-tone=red] .v{color:#DC2626}.c-age[data-tone=red] .bar i{background:#DC2626}
+.c-age[data-tone=orange] .v{color:#C2410C}.c-age[data-tone=orange] .bar i{background:#F97316}
+.c-amt2{direction:ltr;text-align:left;white-space:nowrap;display:flex;align-items:baseline;gap:6px;justify-self:left}
+.c-amt2 small{font-size:13px;font-weight:500;color:var(--ink-3)}
+.c-amt2 b{font-size:17px;font-weight:700}
+.qfoot{flex:0 0 auto;display:flex;align-items:center;gap:8px;height:52px;padding:0 16px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-3)}
+.qfoot .pg{display:inline-flex;gap:6px;margin-inline-start:12px}
+.qfoot .pg button{width:32px;height:32px;border:1px solid var(--line-2);border-radius:8px;display:grid;place-items:center;color:var(--ink-2)}
+.qfoot .pg button[disabled]{color:var(--ink-4)}
+.qfoot .pp{margin-inline-start:auto;display:inline-flex;align-items:center;gap:10px}
+.qfoot .sel{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 10px 0 12px;border:1px solid var(--line-2);border-radius:8px;color:var(--ink);font-weight:600}
+.qfoot .sel svg{width:14px;height:14px}
+/* The existing panel, reproduced as it is today. */
+.qpanel{min-width:0;min-height:0;display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.qpanel .pt{flex:0 0 auto;display:flex;align-items:center;gap:12px;height:46px;padding:0 14px;border-bottom:1px solid var(--line)}
+.qpanel .st{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 10px;border-radius:8px;background:var(--sunk);color:var(--ink-2);font-size:13.5px;font-weight:600;white-space:nowrap}
+.qpanel .st svg{width:15px;height:15px}
+.qpanel .late{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px;border-radius:999px;background:#FEE2E2;color:#B91C1C;font-size:13.5px;font-weight:700;white-space:nowrap;direction:ltr}
+.qpanel .late svg{width:15px;height:15px;stroke-width:2.2}
+.qpanel .ref{margin-inline-start:auto;display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2)}
+.qpanel .ref svg,.qpanel .cp svg{width:15px;height:15px;color:var(--ink-3)}
+.qpanel .pt .x{width:36px;height:36px;display:grid;place-items:center;border-radius:8px;color:var(--ink-2)}
+.qpanel .pt .x:hover{background:var(--sunk)}
+.qpanel .pb{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin}
+.qpanel .lbl{font-size:12.5px;color:var(--ink-3)}
+.qpanel .cust{display:flex;align-items:flex-start;gap:12px;padding:14px 18px 12px}
+.qpanel .cust .nm{font-size:22px;font-weight:700;line-height:1.2;margin-top:2px}
+.qpanel .cust .cp{display:flex;width:max-content;align-items:center;gap:8px;font-size:15px;font-weight:600;margin-top:6px}
+.qpanel .cust .add{display:flex;width:max-content;align-items:center;gap:4px;color:var(--brand);font-size:13px;font-weight:600;margin-top:6px;height:24px}
+.qpanel .cust .add svg{width:13px;height:13px}
+.qpanel .cust .btn-p{margin-inline-start:auto;align-self:center;height:40px;padding:0 18px;font-size:15px;font-weight:700;border-radius:8px}
+.qpanel .cust .btn-p svg{width:16px;height:16px}
+.qpanel .facts{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}
+.qpanel .fc{padding:10px 18px 12px;border-bottom:1px solid var(--line);min-width:0}
+.qpanel .fc:nth-child(odd){border-inline-end:1px solid var(--line)}
+.qpanel .fc .v{font-size:14px;margin-top:3px}
+.qpanel .fc .v.big{font-size:17px;font-weight:700}
+.qpanel .cityw{margin-top:6px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:9px 11px;border:1px solid #FCD34D;border-radius:8px;background:#FFFBEB}
+.qpanel .cityw .w{align-self:flex-end;direction:ltr;display:inline-flex;align-items:center;gap:7px;color:#B45309;font-size:14px;font-weight:700}
+.qpanel .cityw .w svg{width:16px;height:16px;stroke-width:2.2}
+.qpanel .cityw .btn-o{height:30px;padding:0 12px;font-size:13px;border-radius:7px}
+.qpanel .note{margin-top:8px;padding:7px 10px;border-radius:8px;background:var(--sunk);font-size:13px}
+.qpanel .note .lbl{display:flex;align-items:center;gap:5px}
+.qpanel .note .lbl svg{width:13px;height:13px}
+.qpanel .av{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#EDE9FE;color:#6D28D9;font-size:11px;font-weight:800}
+.qpanel .carrier{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 9px;border-radius:6px;background:var(--sunk);color:var(--ink-3);font-size:12.5px;font-weight:600;margin-top:4px}
+.qpanel .carrier svg{width:15px;height:15px}
+.qpanel .ptabs{display:flex;gap:26px;padding:0 18px;border-bottom:1px solid var(--line);height:42px}
+.qpanel .ptabs button{display:inline-flex;align-items:center;gap:7px;height:42px;font-size:15px;font-weight:600;color:var(--ink-2);border-bottom:2px solid transparent;margin-bottom:-1px}
+.qpanel .ptabs button[aria-selected=true]{color:var(--brand);border-bottom-color:var(--brand);font-weight:700}
+.qpanel .ptabs b{display:inline-grid;place-items:center;min-width:22px;height:20px;padding:0 6px;border-radius:999px;background:var(--sunk);color:var(--ink-2);font-size:12px}
+.qpanel .prod{display:flex;align-items:center;gap:12px;padding:12px 18px 10px}
+.qpanel .prod .thumb{width:56px;height:56px;border-radius:8px;font-size:0}
+.qpanel .prod .pn{font-size:15px;font-weight:700}
+.qpanel .prod .pq{font-size:13.5px;color:var(--ink-3);margin-top:2px;direction:ltr;text-align:start}
+[dir=rtl] .qpanel .prod .pq{text-align:right}
+.qpanel .prod .ok{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:#15803D;font-weight:600;margin-top:2px}
+.qpanel .prod .ok i{width:7px;height:7px;border-radius:50%;background:#22C55E}
+.qpanel .prod .pa{margin-inline-start:auto;font-size:15px;font-weight:700;white-space:nowrap;direction:ltr}
+.qpanel .wide{display:flex;align-items:center;justify-content:center;gap:8px;height:38px;margin:0 18px 8px;width:calc(100% - 36px);border:1px solid var(--line-2);border-radius:8px;background:#fff;font-size:14px;font-weight:600;color:var(--ink)}
+.qpanel .wide svg{width:16px;height:16px}
+.qpanel .sub{display:flex;align-items:center;justify-content:space-between;padding:8px 18px 18px;font-size:14px;color:var(--ink-2)}
+.qpanel .sub b{font-size:15px;color:var(--ink);direction:ltr}
+.qpanel .pf{flex:0 0 auto;padding:10px 12px 8px;border-top:1px solid var(--line);background:#fff}
+.qpanel .acts{display:grid;grid-template-columns:repeat(4,auto);gap:6px}
+.qpanel .act{display:flex;align-items:center;justify-content:center;gap:7px;height:46px;padding:0 9px;border:1px solid var(--line-2);border-radius:10px;background:#fff;font-size:13px;font-weight:700;color:var(--ink);min-width:0}
+.qpanel .act>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qpanel .act svg{width:15px;height:15px;stroke-width:2.2;flex:0 0 auto}
+.qpanel .act kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;border:1px solid currentColor;border-radius:4px;font-size:11px;font-family:inherit;font-weight:700;opacity:.65}
+.qpanel .act.ok{background:var(--brand);border-color:var(--brand);color:#fff}
+.qpanel .act.ok kbd{border-color:rgba(255,255,255,.6);opacity:1;background:rgba(255,255,255,.18)}
+.qpanel .act.no{border-color:#F87171;color:#B91C1C}
+.qpanel .act.cb2{border-color:#FCD34D;background:#FFFBEB;color:#92400E}
+.qpanel .hint{margin-top:9px;text-align:center;font-size:12px;color:var(--ink-3)}
+.scr .qpanel{border:0;border-radius:0;flex:1;min-height:0}
+.scr .qpanel .pt{height:auto;flex-wrap:wrap;gap:8px;padding:9px 12px}
+.scr .qpanel .pt .x{display:none}
+.scr .qpanel .cust{padding:13px 14px 11px}
+.scr .qpanel .cust .nm{font-size:20px}
+.scr .qpanel .fc{padding:9px 14px 11px}
+.scr .qpanel .ptabs{padding:0 14px;gap:20px}
+.scr .qpanel .prod{padding:11px 14px 9px}
+.scr .qpanel .wide{margin:0 14px 8px;width:calc(100% - 28px)}
+.scr .qpanel .sub{padding:8px 14px 16px}
+.scr .qpanel .pf{padding:10px 12px 22px}
+.scr .qpanel .acts{grid-template-columns:1fr 1fr}
+.qpanel .hint kbd{font-family:inherit}
+/* ── Phone, per the mockup ── */
+.mq{flex:0 0 auto;display:flex;justify-content:flex-start;gap:6px;padding:8px 12px 0;overflow-x:auto;scrollbar-width:none}
+.mq::-webkit-scrollbar{display:none}
+.mq button{flex:0 0 auto}
+.mq button{height:44px;display:flex;align-items:center;background:none;padding:0}
+.mq .qchip{height:34px;font-size:12.5px;gap:5px;padding:0 8px}
+.mq .qchip svg{width:14px;height:14px}
+.mq .qchip b{min-width:20px;height:18px;font-size:11px;padding:0 5px}
+.msearch2{flex:0 0 auto;display:flex;align-items:center;gap:8px;height:40px;margin:10px 12px 12px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink-3);font-size:13px}
+.msearch2 svg{width:17px;height:17px}
+.msearch2 input{flex:1;min-width:0;border:0;outline:0;background:none;font-size:13px;color:var(--ink)}
+.msearch2 input::placeholder{color:var(--ink-3)}
+.mlist.q{padding:0 12px 96px}
+.mcq{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto auto 44px;grid-template-rows:auto auto;column-gap:5px;row-gap:4px;align-items:center;margin-bottom:8px;padding:9px 6px 9px 10px;background:#fff;border:1px solid var(--line);border-radius:12px}
+.sheet .mcq{grid-template-columns:minmax(0,1fr) auto auto;margin-bottom:0}
+.mcall{grid-column:4;grid-row:1/3;align-self:center;width:44px;height:44px;border-radius:11px;background:var(--brand);color:#fff;display:grid;place-items:center}
+.mcall svg{width:19px;height:19px;stroke-width:2.2}
+.mcq .qid{grid-column:1;grid-row:1/3;min-width:0}
+.mcq .qid .nb{min-width:0;overflow:hidden}
+.mcq .qid .thumb{width:36px;height:36px}
+.mcq .qid{gap:7px}
+.mcq .qid .nm{font-size:14px}
+.mcq .qid .pr{font-size:12.5px}
+.mcq .agew{grid-column:2;grid-row:2;display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+.mcq .aget{display:inline-flex;align-items:center;gap:4px;height:23px;padding:0 6px;white-space:nowrap;direction:inherit;border-radius:6px;font-size:12px;font-weight:700;direction:ltr;font-variant-numeric:tabular-nums}
+.mcq .aget svg{width:13px;height:13px;stroke-width:2.2}
+.mcq .agew .bar{width:100%;height:3px;border-radius:999px;background:var(--line);overflow:hidden}
+.mcq .agew .bar i{display:block;height:100%;border-radius:999px}
+.mcq .agew[data-tone=red] .aget{background:#FEE2E2;color:#B91C1C}.mcq .agew[data-tone=red] .bar i{background:#DC2626}
+.mcq .agew[data-tone=orange] .aget{background:#FFEDD5;color:#9A3412}.mcq .agew[data-tone=orange] .bar i{background:#F97316}
+.mcq .tagw{grid-column:2;grid-row:1;height:22px;font-size:11.5px;padding:0 7px}
+.mcq .amt{grid-column:3;grid-row:1;justify-self:end;direction:ltr;white-space:nowrap;display:flex;align-items:baseline;gap:4px}
+.mcq .amt small{font-size:11.5px;color:var(--ink-3);font-weight:500}
+.mcq .amt b{font-size:15px;font-weight:700}
+.mcq .attm{grid-column:3;grid-row:2;justify-self:end;display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border:1px solid var(--line-2);border-radius:999px;font-size:11.5px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.mcq .attm svg{width:12px;height:12px;stroke-width:2;order:2}
+.mcq .attm span{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+.tabbar .badge{position:static;order:0;margin-inline-start:2px}
+.tabbar a .lb{display:inline-flex;align-items:center;gap:4px}
+.tabbar a[data-badge]{gap:3px}
+.sheetveil{position:absolute;inset:0;background:rgba(17,24,39,.38);z-index:20;display:flex;align-items:flex-end}
+.sheet{width:100%;background:#fff;border-radius:22px 22px 0 0;padding:8px 14px 10px;display:flex;flex-direction:column;gap:10px;box-shadow:0 -8px 30px rgba(17,24,39,.18)}
+.sheet .grab{width:36px;height:4px;border-radius:999px;background:var(--line-2);margin:0 auto 4px}
+.sheet .shh{display:flex;align-items:flex-start;gap:10px}
+.sheet .shh h4{margin:0;font-size:19px;font-weight:700}
+.sheet .shh .s{font-size:13px;color:var(--ink-3);margin-top:1px}
+.sheet .shh .cancel{margin-inline-start:auto;color:var(--brand);font-size:15px;font-weight:600;height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center}
+.sheet .mcq{cursor:default}
+.opt2{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;text-align:start;min-height:74px}
+.opt2 .ic{width:44px;height:44px;border-radius:10px;display:grid;place-items:center;background:var(--sunk);color:var(--ink-2);flex:0 0 auto}
+.opt2 .ic svg{width:20px;height:20px;stroke-width:2.2}
+.opt2 .tx{flex:1;min-width:0}
+.opt2 .tx b{display:block;font-size:15px;font-weight:700}
+.opt2 .tx>span{display:block;font-size:12.5px;color:var(--ink-2);margin-top:2px;unicode-bidi:plaintext}
+.opt2 .tx .req{display:inline-flex;align-items:center;height:20px;padding:0 7px;margin-top:4px;border:1px solid #F87171;border-radius:6px;color:#B91C1C;font-size:11.5px;font-weight:700}
+.opt2>svg{width:18px;height:18px;color:var(--ink-3);flex:0 0 auto}
+.opt2.ok{background:#F0FDF4;border-color:#86EFAC}.opt2.ok .ic{background:var(--brand);color:#fff}.opt2.ok .tx b{color:#166534}.opt2.ok .tx span{color:#166534}
+.opt2.no{background:#FEF2F2;border-color:#FECACA}.opt2.no .ic{background:#FEE2E2;color:#DC2626}.opt2.no .tx b{color:#B91C1C}.opt2.no .tx span{color:#991B1B}
+.opt2.cb{background:#FFFBEB;border-color:#FDE68A}.opt2.cb .ic{background:#F59E0B;color:#fff}.opt2.cb .tx b{color:#92400E}.opt2.cb .tx span{color:#92400E}
+.sheet .fn{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12.5px;color:var(--ink-3);padding:2px 0 6px}
+.sheet .fn svg{width:14px;height:14px}
+.home{width:134px;height:5px;border-radius:999px;background:var(--black);margin:4px auto 0}
+</style>
+
+<div class="studio">
+  <div class="bar">
+    <h1>Ordra — coquille agent <span>· prototype v1 — commandes, navigation + recherche, commissions</span></h1>
+    <div class="seg" id="segLang" role="group" aria-label="Langue"><button data-v="fr">Français</button><button data-v="ar">العربية</button></div>
+    <div class="seg" id="segView" role="group" aria-label="Vue"><button data-v="desktop">Bureau</button><button data-v="mobile">Mobile</button></div>
+    <div class="seg" id="segScreen" role="group" aria-label="Écran"><button data-v="orders">Commandes</button><button data-v="search">Recherche</button><button data-v="commissions">Commissions</button><button data-v="delivery">Livraison (étalon)</button></div>
+    <div class="seg" id="segState" role="group" aria-label="État"><button data-v="normal">Normal</button><button data-v="loading">Chargement</button><button data-v="empty">Vide</button></div>
+    <div class="seg" id="segCheck" role="group" aria-label="Vérifications"><button data-v="off">—</button><button data-v="contrast">Contraste</button><button data-v="touch">Cibles 44 px</button><button data-v="ruler">Règle</button></div>
+  </div>
+  <p class="note" id="note"></p>
+  <div class="stage" id="stage"></div>
+  <div id="report"></div>
+</div>
+
+<script>
+/* ═════════ Icons — the same lucide shapes the app uses ═════════ */
+const I={
+ bag:'<svg viewBox="0 0 24 24"><path d="M5 7h14l-1 13H6z"/><path d="M9 7V5.5a3 3 0 0 1 6 0V7"/></svg>',
+ people:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 19a6 6 0 0 1 12 0"/><path d="M16 5.5a3.2 3.2 0 0 1 0 6M17.5 19a6 6 0 0 0-2-4.2"/></svg>',
+ truck:'<svg viewBox="0 0 24 24"><path d="M2.5 6.5h11v9.5h-11zM13.5 10h4.2l3 3.2V16h-7.2z"/><circle cx="6.5" cy="17.6" r="1.8"/><circle cx="17" cy="17.6" r="1.8"/></svg>',
+ coins:'<svg viewBox="0 0 24 24"><ellipse cx="9" cy="7" rx="5.5" ry="2.6"/><path d="M3.5 7v4.5c0 1.4 2.5 2.6 5.5 2.6s5.5-1.2 5.5-2.6V7"/><path d="M14.5 10.2c2.9.2 5 1.3 5 2.5V17c0 1.4-2.5 2.6-5.5 2.6S8.5 18.4 8.5 17v-2.8"/></svg>',
+ search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>',
+ pin:'<svg viewBox="0 0 24 24"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11"/><circle cx="12" cy="10" r="2.6"/></svg>',
+ bell:'<svg viewBox="0 0 24 24"><path d="M6 9a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5h-15S6 13 6 9"/><path d="M10 18.5a2 2 0 0 0 4 0"/></svg>',
+ chevd:'<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
+ chev:'<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>',
+ back:'<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',
+ phone:'<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
+ wa:'<svg viewBox="0 0 24 24"><path d="M4 20l1.3-3.8A8 8 0 1 1 8.2 19z"/><path d="M9.2 9.6c.3 2.4 2.4 4.5 4.8 4.8l.9-1.4-1.7-1-1 .8a5.7 5.7 0 0 1-1.4-1.4l.8-1-1-1.7z"/></svg>',
+ plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+ filter:'<svg viewBox="0 0 24 24"><path d="M3.5 5.5h17l-6.5 7.5v6l-4 2v-8z"/></svg>',
+ sort:'<svg viewBox="0 0 24 24"><path d="M7 4v16M7 20l-3-3M17 20V4M17 4l3 3"/></svg>',
+ clock:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+ box:'<svg viewBox="0 0 24 24"><path d="M12 3l8 4.2v9.6L12 21l-8-4.2V7.2z"/><path d="M4 7.2l8 4.3 8-4.3M12 11.5V21"/></svg>',
+ pkg:'<svg viewBox="0 0 24 24"><path d="M12 3l8 4.2v9.6L12 21l-8-4.2V7.2z"/><path d="M4 7.2l8 4.3 8-4.3M12 11.5V21"/></svg>',
+ x:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+ check:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+ arrow:'<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+ cal:'<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+ cloud:'<svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/><path d="M12 14V8M9.5 10.5 12 8l2.5 2.5"/></svg>',
+ inbox:'<svg viewBox="0 0 24 24"><path d="M3.5 13h4l1.5 3h6l1.5-3h4"/><path d="M5.5 5h13l2 8v4.5a1.5 1.5 0 0 1-1.5 1.5h-14A1.5 1.5 0 0 1 3.5 17.5V13z"/></svg>',
+ list:'<svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>',
+ circlecheck:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>',
+ archive:'<svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="4.5" rx="1"/><path d="M5 8.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19V8.5M10 13h4"/></svg>',
+ ban:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></svg>',
+ alarm:'<svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2.5 1.5M5 4L2.5 6.5M19 4l2.5 2.5"/></svg>',
+ phoneoff:'<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/><path d="M21 3L3 21"/></svg>',
+ calclock:'<svg viewBox="0 0 24 24"><path d="M20 10V6.5A2.5 2.5 0 0 0 17.5 4h-11A2.5 2.5 0 0 0 4 6.5v11A2.5 2.5 0 0 0 6.5 20H10M4 10h16M8 2.5v4M16 2.5v4"/><circle cx="17" cy="17" r="4"/><path d="M17 15.5V17l1.2.8"/></svg>',
+ hourglass:'<svg viewBox="0 0 24 24"><path d="M6 3h12M6 21h12M7 3v3.5L12 12l-5 5.5V21M17 3v3.5L12 12l5 5.5V21"/></svg>',
+ send:'<svg viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4z"/></svg>',
+ undo:'<svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
+ pause:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M10 9v6M14 9v6"/></svg>',
+ wallet:'<svg viewBox="0 0 24 24"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h12.5v14H6a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M16 12h3.5"/></svg>',
+ pen:'<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>',
+ note:'<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14.5 3v4.5H19M9 12h7M9 16h5"/></svg>',
+ user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>',
+ wifi:'<svg viewBox="0 0 24 24"><path d="M3.5 9.5a12 12 0 0 1 17 0M6.5 13a7.5 7.5 0 0 1 11 0M9.5 16.3a3.3 3.3 0 0 1 5 0"/></svg>',
+ bat:'<svg viewBox="0 0 26 24"><rect x="2" y="6" width="19" height="12" rx="3"/><rect x="4" y="8" width="15" height="8" rx="1.5" fill="currentColor" stroke="none"/><path d="M23.5 10.5v3"/></svg>',
+ sig:'<svg viewBox="0 0 24 24"><path d="M4 18v-3M9 18v-6M14 18v-9M19 18V5" stroke-width="2.4"/></svg>',
+ bars:'<svg viewBox="0 0 24 24"><path d="M5 20v-6M10 20V9M15 20v-9M20 20V5" stroke-width="2.6"/></svg>'
+};
+
+/* ═════════ The queue situation model — one hue per situation ═════════
+   Aligned with SIT_TONE on /delivery wherever the meaning is the same:
+   amber = ne répond pas, orange = rappel dépassé, blue = rappel prévu,
+   green = livrée, grey = rien à faire. The confirmation phase adds
+   yellow (sans appel), teal (confirmée, à envoyer), indigo (envoi programmé),
+   slate (chez le transporteur), red/rose/stone for the three endings.
+   Violet stays reserved for « client à risque », which is a TAG here. */
+const SIT={
+ new:            {tone:'grey',   icon:'inbox'},
+ new_late:       {tone:'yellow', icon:'alarm'},
+ no_answer:      {tone:'amber',  icon:'phoneoff'},
+ callback_due:   {tone:'orange', icon:'alarm'},
+ callback_ahead: {tone:'blue',   icon:'calclock'},
+ confirmed:      {tone:'teal',   icon:'circlecheck'},
+ dispatch:       {tone:'indigo', icon:'hourglass'},
+ uploaded:       {tone:'slate',  icon:'send'},
+ delivered:      {tone:'green',  icon:'circlecheck'},
+ returned:       {tone:'red',    icon:'undo'},
+ rejected:       {tone:'rose',   icon:'ban'},
+ cancelled:      {tone:'stone',  icon:'pause'}
+};
+/* Which bucket a situation sits in — the strip filters the list. */
+const BUCKET_OF={new:'nouveau',new_late:'nouveau',no_answer:'en_cours',callback_due:'en_cours',callback_ahead:'en_cours',
+ dispatch:'en_cours',confirmed:'confirme',uploaded:'fermees',delivered:'fermees',returned:'fermees',rejected:'fermees',cancelled:'fermees'};
+
+/* ═════════ Strings ═════════ */
+const L={
+fr:{
+ mkt:"Libye", user:"tasnim", ini:"T", on:"En ligne", onSub:"Mise à jour en direct",
+ tabs:["Commandes","CRM","Livraison","Mes commissions"],
+ search:"Rechercher un client, un numéro, une ville ou un produit…", searchAria:"Rechercher",
+ res:n=>`${n} résultat${n>1?"s":""}`,
+ /* Écran commandes */
+ qTitle:"File de commandes en direct", qSub:n=>`${n} — mise à jour en temps réel`,
+ qStat:(r,a,s)=>`<b class="num">${r} %</b> taux de confirmation · <b class="num">${a}</b> traitées · <b class="num">${s}</b> assignées`,
+ newOrder:"Nouvelle commande",
+ /* Commandes — la capture du 2026-09-19 */
+ qSearch:"Rechercher par nom, téléphone ou n° de commande…",
+ mConf:"Taux de confirmation", mConfSub:"sur 7 j", mDone:"Traitées", mDoneSub:"sur 24 h", mAss:"Assignées",
+ qColsD:["Client","Activité","Âge","Montant"],
+ alert:(n,tot)=>`<span class="num">${n} / ${tot}</span> ont dépassé l'objectif de 2 h · la plus ancienne depuis 1 j et 20 h`,
+ alertM:n=>`<span class="num">${n}</span> commandes au-delà de l'objectif de 2 h · plus anciennes d'abord`,
+ oldestFirst:"Plus anciennes d'abord", att:(a,m)=>`${a} / ${m}`, attM:(a,m)=>`<span>${a} / ${m}</span>`,
+ called:s=>`Appelé il y a ${s}`, notCalled:"Pas encore appelé", noName:"Sans nom", addrIssue:n=>`Problème d'adresse (${n})`, addrIssueM:"Problèmes d'adresse",
+ perPage:"par page", pageOf:(a,b,n)=>`${a} - ${b} sur ${n} commandes`, callBtn:"Appeler", target:"objectif", pending:"En attente", pending2:"En attente",
+ addPhone2:"Ajouter un 2ᵉ numéro", unsetCity:"Non définie", setCity:"Définir la ville", deliveryNote:"Note de livraison",
+ pCount:"Nb de produits", pAgent:"Agent", pCarrier:"Transporteur", carrierWait:"en attente de la ville",
+ pTabs:["Produits","Livraison","Historique"], inStock:"En stock", addProduct:"Ajouter un produit", merge:"Fusionner avec une autre commande", subtotal:"Sous-total",
+ fNoAnswer:"Pas de réponse", fConfirm:"Confirmer", fConfirmSub:"Passe à l'expédition une fois la ville définie", fReject:"Refuser", fRejectSub:"Motif obligatoire", fCallback:"Rappel plus tard",
+ navHint:"<kbd>↕</kbd> pour passer d'une commande à l'autre · <kbd>Entrée</kbd> pour appeler",
+ shTitle:"Résultat de l'appel", shSub:(a,m)=>`${a} / ${m} tentatives`, shCancel:"Annuler",
+ shNo:"N'a pas répondu", shNoSub:(a,m)=>`Le compteur passe à ${a} / ${m}`, shOk:"Commande confirmée", shOkSub:"Part à l'entrepôt pour expédition",
+ shRej:"Refuser la commande", shRejSub:"Choisir le motif du refus", shReq:"obligatoire", shCb:"Rappel plus tard", shCbSub:"Choisir la date et l'heure du rappel",
+ shNote:"Le résultat sera consigné dans l'historique de la commande",
+ qBuckets:{all:"Tous",nouveau:"Nouveau",en_cours:"En cours",confirme:"Confirmé",fermees:"Fermées"},
+ qCols:["Situation","Client","Action","Montant"],
+ sit:{new:"Nouvelle",new_late:"Sans appel",no_answer:"Ne répond pas",callback_due:"Rappel dépassé",callback_ahead:"Rappel prévu",
+      confirmed:"Confirmée",dispatch:"Envoi programmé",uploaded:"Téléchargé",delivered:"Livré",returned:"Retourné",rejected:"Rejeté",cancelled:"Annulé"},
+ subs:{new:"En attente du premier appel.",new_late:"Personne ne l'a encore appelée.",no_answer:"Le client ne répond pas aux appels.",
+       callback_due:"Le rappel promis est dépassé.",callback_ahead:"Le client a demandé à être rappelé.",confirmed:"En attente d'envoi au transporteur.",
+       dispatch:"Envoi automatique programmé.",uploaded:"Chez le transporteur.",delivered:"Livré au client.",returned:"Le colis est revenu.",
+       rejected:"Refus client.",cancelled:"Annulée par le bureau."},
+ callEnded:"Appel terminé", upload:"Envoyer au transporteur", track:"Suivre le colis", details:"Voir les détails",
+ tags:{risk:"risque",dup:"doublon",repeat:"2ᵉ commande"},
+ filter:"Filtrer", sort:"Trier", sortOpts:{priority:"Priorité",amount:"Montant",oldest:"Plus anciennes"},
+ fSub:"Sous-filtres", fTent:["Tentative 1","Tentative 2","Tentative 3"], fRappel:"Appel planifié", fLivr:"Livraison planifiée",
+ fRisky:"Clients à risque seulement", fDup:"Doublons seulement", refresh:"Rafraîchir Dexpress",
+ pick:"Choisis une commande pour voir son détail.", pickSub:"Aucune n'est ouverte — personne n'est bloqué.",
+ /* Panneau */
+ pCustomer:"Client", pOrder:"Commande", pHistory:"Historique", pProduct:"Colis",
+ pPhone:"Téléphone", pPhone2:"2ᵉ numéro", pCity:"Ville", pAddress:"Adresse", pNote:"Note", pRef:"Référence", pCreated:"Créée",
+ pQty:"Quantité", pTotal:"Total",
+ /* Recherche */
+ gOrders:"Commandes", gDelivery:"Livraison", gLeads:"Prospects", gArchive:"Plus anciennes", gRecent:"Recherches récentes",
+ gAll:n=>`${n} au total`, clearHist:"Effacer",
+ kHint:"pour naviguer · <kbd>↵</kbd> pour ouvrir · <kbd>esc</kbd> pour fermer",
+ fieldHints:"Astuce : phone:, city:, name:, product:",
+ /* Commissions */
+ cTitle:"Mes commissions", cRate:r=>`<b>${r}</b> par commande livrée`,
+ cToReceive:"À recevoir", cSince:(d,n)=>`depuis ton paiement du <b>${d}</b> · ${n} livrées`,
+ cBuckets:{all:"Tout",accrual:"Livrées",reversal:"Corrections",payout:"Paiements",adjustment:"Ajustements"},
+ cCols:["Type","Détail","Date","Montant"],
+ cMonth:"Ce mois", cLastMonth:"Mois dernier", cInflight:"En cours", cLast:"Dernier paiement", cNoPayout:"aucun", cCorrShare:"Corrections", cCorrSub:(n,d)=>`${n} sur ${d} livrées de la période`,
+ cDay:n=>`${n} livrée${n>1?"s":""}`, cCorr:n=>`${n} correction${n>1?"s":""}`,
+ cPaid:"Paiement reçu", cAdj:"Ajustement", cInflightEst:a=>`≈ ${a} si livrées`,
+ cRule:"Une commande compte le jour où le transporteur la marque livrée.",
+ cMore:"Voir plus", cEmpty:"Rien pour l'instant — ta première commission apparaît quand une commande que tu as confirmée est livrée.",
+ cMethod:{cash:"espèces",bank_transfer:"virement",wallet:"wallet"},
+ /* Livraison (étalon) */
+ dTitle:"Suivi livraison", dSub:n=>`${n} en cours`, dStat:(r,s)=>`<b class="num">${r} %</b> livraison 30 j · <b class="num">${s}</b> sauvées`,
+ dBuckets:{all:"Tout",returning:"Retours à sauver",act_now:"À traiter maintenant",waiting_customer:"En attente client",waiting_carrier:"Chez le transporteur",done:"Terminées"},
+ dCols:["Situation","Client","Action","Montant"],
+ dSit:{returning:"Retourné",due:"Rappel dépassé",no_answer:"Non joignable",delayed:"Livraison retardée",stalled:"Aucun mouvement",waiting_carrier:"Chez le transporteur",address:"Adresse à confirmer"},
+ dSubs:{returning:"Client n'a pas récupéré le colis.",due:"Le rappel promis est dépassé.",no_answer:"Le client ne répond pas aux appels.",delayed:"Toujours chez le transporteur.",stalled:"Le colis n'a pas bougé depuis des jours.",waiting_carrier:"Rien à faire, le transporteur travaille.",address:"Adresse à confirmer."},
+ dMoves:{courier:"Appeler le livreur",call:"Appeler",wa:"Écrire sur WhatsApp",track:"Suivre le colis"},
+ /* États */
+ emptyT:"Rien ici", emptyS:"Aucune commande ne correspond.", emptyA:"Voir toutes les commandes",
+ loading:"Chargement…", cur:"LYD", curSym:"LYD",
+ ago:{m:n=>`${n} min`,h:n=>`${n} h`,d:n=>`${n} j`}, todayAt:t=>`Aujourd'hui ${t}`, yestAt:t=>`Hier ${t}`, inH:n=>`dans ${n} h`, overH:n=>`+${n} h`
+},
+ar:{
+ mkt:"ليبيا", user:"tasnim", ini:"T", on:"متصل", onSub:"التحديث مباشر",
+ tabs:["الطلبات","إدارة العملاء","التوصيل","عمولاتي"],
+ search:"ابحث بالاسم أو الهاتف أو المدينة أو المنتج…", searchAria:"بحث",
+ res:n=>`${n} نتيجة`,
+ qTitle:"قائمة الطلبات المباشرة", qSub:n=>`${n} — يتم تحديثها لحظياً`,
+ qStat:(r,a,s)=>`<b class="num">${r} %</b> معدل التأكيد · <b class="num">${a}</b> تمت معالجتها · <b class="num">${s}</b> معيّنة`,
+ newOrder:"طلب جديد",
+ /* الطلبات — لقطة 2026-09-19 */
+ qSearch:"البحث باسم العميل أو الهاتف أو رقم الطلب ...",
+ mConf:"معدل التأكيد", mConfSub:"sur 7 j", mDone:"تمت معالجتها", mDoneSub:"خلال 24 ساعة", mAss:"معينة",
+ qColsD:["العميل","النشاط","العمر","المبلغ"],
+ alert:(n,tot)=>`<span class="num">${n} / ${tot}</span> تجاوزت الهدف الزمني 2 ساعات · الأقدم منذ 1 يوم و 20 ساعة`,
+ alertM:n=>`<span class="num">${n}</span> طلب متجاوز للهدف الزمني ساعتين · الأقدم أولاً`,
+ oldestFirst:"الأقدم أولاً", att:(a,m)=>`${a} / ${m}`, attM:(a,m)=>`<span>${a} / ${m}</span>`,
+ called:s=>`تم الاتصال منذ ${s}`, notCalled:"لم يتم الاتصال بعد", noName:"بدون اسم", addrIssue:n=>`مشكلة في العنوان (${n})`, addrIssueM:"مشاكل في العنوان",
+ perPage:"لكل صفحة", pageOf:(a,b,n)=>`${a} - ${b} من ${n} طلب`, callBtn:"اتصال", target:"الهدف", pending:"قيد الانتظار", pending2:"قيد الانتظار",
+ addPhone2:"إضافة هاتف ثاني", unsetCity:"غير محددة", setCity:"تحديد المدينة", deliveryNote:"ملاحظة التوصيل",
+ pCount:"عدد المنتجات", pAgent:"الوكيل", pCarrier:"شركة التوصيل", carrierWait:"في انتظار تحديد المدينة",
+ pTabs:["المنتجات","التوصيل","السجل"], inStock:"متوفر", addProduct:"إضافة منتج", merge:"دمج مع طلب آخر", subtotal:"المجموع الفرعي",
+ fNoAnswer:"لم يتم الرد", fConfirm:"تأكيد الطلب", fConfirmSub:"يتم تحويل الطلب للشحن بعد تحديد المدينة", fReject:"رفض الطلب", fRejectSub:"تحديد السبب مطلوب", fCallback:"طلب اتصال لاحق",
+ navHint:"<kbd>↕</kbd> للتنقل بين الطلبات · <kbd>Enter</kbd> للاتصال",
+ shTitle:"نتيجة المكالمة", shSub:(a,m)=>`${a} / ${m} محاولات`, shCancel:"إلغاء",
+ shNo:"لم يجب على الاتصال", shNoSub:(a,m)=>`يتم زيادة عداد المحاولات ← <span class="num">${a} / ${m}</span>`, shOk:"تم تأكيد الطلب", shOkSub:"يتم تحويل الطلب إلى المستودع للشحن",
+ shRej:"رفض الطلب", shRejSub:"يرجى اختيار سبب الرفض", shReq:"مطلوب", shCb:"طلب اتصال لاحق", shCbSub:"حدد تاريخ ووقت الاتصال لاحقاً",
+ shNote:"سيتم تسجيل نتيجة المكالمة في سجل الطلب",
+ qBuckets:{all:"الكل",nouveau:"جديد",en_cours:"قيد التنفيذ",confirme:"مؤكد",fermees:"المغلقة"},
+ qCols:["الحالة","تفاصيل الطلب","الإجراء","المبلغ"],
+ sit:{new:"جديد",new_late:"بدون اتصال",no_answer:"لا يجيب",callback_due:"فات موعد المتابعة",callback_ahead:"موعد متابعة",
+      confirmed:"مؤكد",dispatch:"إرسال مبرمج",uploaded:"تم الرفع",delivered:"تم التسليم",returned:"راجع",rejected:"مرفوض",cancelled:"ملغاة"},
+ subs:{new:"بانتظار أول اتصال.",new_late:"لم يُتصل به بعد.",no_answer:"العميل لا يرد على المكالمات.",
+       callback_due:"فات موعد المتابعة المتفق عليه.",callback_ahead:"العميل طلب معاودة الاتصال.",confirmed:"بانتظار الرفع للناقل.",
+       dispatch:"إرسال تلقائي مبرمج.",uploaded:"لدى شركة التوصيل.",delivered:"تم التسليم للعميل.",returned:"عاد الطرد.",
+       rejected:"رفض العميل.",cancelled:"ألغاها المكتب."},
+ callEnded:"انتهت المكالمة", upload:"إرسال إلى الناقل", track:"متابعة مع الناقل", details:"عرض التفاصيل",
+ tags:{risk:"حساس",dup:"مكرر",repeat:"طلب ثانٍ"},
+ filter:"تصفية", sort:"ترتيب", sortOpts:{priority:"الأولوية",amount:"المبلغ",oldest:"الأقدم"},
+ fSub:"فلاتر فرعية", fTent:["محاولة 1","محاولة 2","محاولة 3"], fRappel:"اتصال مجدول", fLivr:"توصيل مجدول",
+ fRisky:"الشحنات الحساسة فقط", fDup:"المكررة فقط", refresh:"تحديث Dexpress",
+ pick:"اختر طلباً لعرض تفاصيله.", pickSub:"لا شيء مفتوح — لا أحد محجوز.",
+ pCustomer:"العميل", pOrder:"الطلب", pHistory:"السجل", pProduct:"المنتج",
+ pPhone:"الهاتف", pPhone2:"الرقم الثاني", pCity:"المدينة", pAddress:"العنوان", pNote:"ملاحظة", pRef:"المرجع", pCreated:"أُنشئت",
+ pQty:"الكمية", pTotal:"الإجمالي",
+ gOrders:"الطلبات", gDelivery:"التوصيل", gLeads:"العملاء المحتملون", gArchive:"أقدم", gRecent:"عمليات البحث الأخيرة",
+ gAll:n=>`${n} إجمالاً`, clearHist:"مسح السجل",
+ kHint:"للتنقل · <kbd>↵</kbd> للفتح · <kbd>esc</kbd> للإغلاق",
+ fieldHints:"تلميح: phone:، city:، name:، product:",
+ cTitle:"عمولاتي", cRate:r=>`<b>${r}</b> لكل طلبية مسلّمة`,
+ cToReceive:"المستحق لك", cSince:(d,n)=>`منذ دفعتك بتاريخ <b>${d}</b> · ${n} مسلّمة`,
+ cBuckets:{all:"الكل",accrual:"مسلّمة",reversal:"تصحيحات",payout:"دفعات",adjustment:"تسويات"},
+ cCols:["النوع","التفاصيل","التاريخ","المبلغ"],
+ cMonth:"هذا الشهر", cLastMonth:"الشهر الماضي", cInflight:"قيد التسليم", cLast:"آخر دفعة", cNoPayout:"لا شيء", cCorrShare:"التصحيحات", cCorrSub:(n,d)=>`${n} من ${d} مسلّمة في الفترة`,
+ cDay:n=>`${n} مسلّمة`, cCorr:n=>`${n} تصحيح`,
+ cPaid:"دفعة مستلمة", cAdj:"تسوية", cInflightEst:a=>`≈ ${a} إن سُلّمت`,
+ cRule:"تُحتسب الطلبية في اليوم الذي يعلّمها فيه الناقل مسلّمة.",
+ cMore:"عرض المزيد", cEmpty:"لا شيء بعد — تظهر أول عمولة عندما تُسلَّم طلبية أكدتها.",
+ cMethod:{cash:"نقداً",bank_transfer:"تحويل",wallet:"محفظة"},
+ dTitle:"متابعة التوصيل", dSub:n=>`${n} قيد التنفيذ`, dStat:(r,s)=>`<b class="num">${r} %</b> توصيل خلال 30 يوماً · <b class="num">${s}</b> تم إنقاذها`,
+ dBuckets:{all:"الكل",returning:"مرتجعات للإنقاذ",act_now:"تحتاج إجراء الآن",waiting_customer:"بانتظار العميل",waiting_carrier:"لدى شركة التوصيل",done:"مكتملة"},
+ dCols:["الحالة","تفاصيل الطلب","الإجراء","المبلغ"],
+ dSit:{returning:"تم إرجاعها",due:"فات موعد المتابعة",no_answer:"لا تجيب",delayed:"تأخر في التوصيل",stalled:"بلا حركة",waiting_carrier:"لدى شركة التوصيل",address:"تحتاج إجراء"},
+ dSubs:{returning:"العميل لم يستلم الطلب.",due:"فات موعد المتابعة المتفق عليه.",no_answer:"العميل لا يرد على المكالمات.",delayed:"ما زالت لدى شركة التوصيل.",stalled:"الطرد لم يتحرك منذ أيام.",waiting_carrier:"لا شيء لتفعله، شركة التوصيل تعمل.",address:"العنوان يحتاج تأكيد."},
+ dMoves:{courier:"اتصل بالمندوب",call:"اتصل بالعميل",wa:"راسل على واتساب",track:"متابعة مع الناقل"},
+ emptyT:"لا شيء هنا", emptyS:"لا يوجد طلب مطابق.", emptyA:"عرض كل الطلبات",
+ loading:"جارٍ التحميل…", cur:"د.ل", curSym:"د.ل",
+ ago:{m:n=>`${n} د`,h:n=>`${n} س`,d:n=>`${n} يوم`}, todayAt:t=>`اليوم ${t}`, yestAt:t=>`أمس ${t}`, inH:n=>`بعد ${n} س`, overH:n=>`+${n} س`
+}};
+</script>
+
+<script>
+/* ═════════ Data — the owner's own screenshots, kept verbatim ═════════ */
+const P={q:"القرآن تدبر وعمل",qk:"القرآن تدبر وعمل حجم كبير",d:"كتاب الداء والدواء",h:"كتاب الحفظ الميسر"};
+const PF={[P.q]:"Coran Tadabbor",[P.qk]:"Coran Tadabbor grand format",[P.d]:"Ad-Dâ' wa ad-Dawâ'",[P.h]:"Al-Hifz al-Muyassar"};
+const ORDERS=[
+ /* Desktop capture, top to bottom — 10 rows of the « جديد » bucket. */
+ {id:"o1",  ref:"39494", sit:"new", name:"بوفراج عمر الشاعري", nf:"Boufraj Omar Chaari",  ph:"927080656", ph2:"", city:"درنة", cityf:"Derna", addr:"درنة, خدمة تحويل متوفرة إذا متوفره", prod:P.q, img:"q", qty:1, amt:249, ageH:9.7, age:"9 h 44", pct:82, tone:"red", att:1, max:8, last:{ar:"17 دقيقة",fr:"17 min"}, lastH:.3, lastWhat:{ar:"لا يجيب",fr:"pas de réponse"}, note:"خدمة تحويل متوفرة إذا متوفره", prior:0},
+ {id:"o2",  ref:"39487", sit:"new", name:"محمود السنوسي",      nf:"Mahmoud Senoussi",    ph:"091 356 5775", ph2:"094 309 0419", city:"بنغازي", cityf:"Benghazi", addr:"بنغازي بتحديد الهوارى", prod:P.q, img:"q", qty:1, amt:249, ageH:42, age:"1 d 18 h", pct:82, tone:"red", att:2, max:8, last:{ar:"13 ساعة",fr:"13 h"}, lastH:13, lastWhat:{ar:"لا يجيب",fr:"pas de réponse"}, addrIssue:2, tags:["risk"], prior:3},
+ {id:"o3",  ref:"39481", sit:"new", name:"علي فرج عبدالجليل",  nf:"Ali Faraj Abdeljalil", ph:"092 219 7556", ph2:"", city:"بنغازي", cityf:"Benghazi", addr:"الدقادوستا شارع دبي", prod:P.q, img:"q", qty:1, amt:199, ageH:42, age:"1 d 18 h", pct:72, tone:"red", att:0, max:8},
+ {id:"o4",  ref:"39476", sit:"new", name:"الحبيب الجيلاني",    nf:"Habib Jilani",         ph:"092 344 1775", ph2:"", city:"الكفرة", cityf:"Al Kufrah", addr:"الكفرة المركز", prod:P.d, img:"d", qty:1, amt:249, ageH:23, age:"23 h", pct:62, tone:"red", att:0, max:8},
+ {id:"o5",  ref:"39470", sit:"new", name:"ام الحارث",          nf:"Oum El Hareth",        ph:"093 589 7986", ph2:"", city:"الكفرة", cityf:"Al Kufrah", addr:"حي الجديد", prod:P.d, img:"d", qty:1, amt:199, ageH:23, age:"23 h", pct:62, tone:"red", att:0, max:8},
+ {id:"o6",  ref:"39462", sit:"new", name:"صالح أحمد",          nf:"Saleh Ahmed",          ph:"092 024 1029", ph2:"", city:"طرابلس", cityf:"Tripoli", addr:"عين زارة", prod:P.q, img:"q", qty:1, amt:249, ageH:22.2, age:"22 h 15 m", pct:65, tone:"orange", att:0, max:8},
+ {id:"o7",  ref:"39455", sit:"new", name:"Asma Abdaldaem",     nf:"Asma Abdaldaem",       ph:"091 382 3829", ph2:"", city:"طرابلس", cityf:"Tripoli", addr:"جنزور", prod:P.h, img:"h", qty:1, amt:249, ageH:21.5, age:"21 h 30 m", pct:60, tone:"orange", att:0, max:8},
+ {id:"o8",  ref:"39448", sit:"new", name:"منصور محمد",         nf:"Mansour Mohamed",      ph:"091 848 8086", ph2:"", city:"الجفرة", cityf:"Al Jufrah", addr:"نقطة محطة الباجة", prod:P.d, img:"d", qty:1, amt:199, ageH:20.7, age:"20 h 45 m", pct:60, tone:"orange", att:0, max:8},
+ {id:"o9",  ref:"39441", sit:"new", name:"", nf:"", noName:true, ph:"0915176576", ph2:"", city:"بنغازي", cityf:"Benghazi", addr:"سيدي حسين", prod:P.h, img:"h", qty:1, amt:249, ageH:20.7, age:"20 h 45 m", pct:60, tone:"orange", att:0, max:8},
+ {id:"o10", ref:"39433", sit:"new", name:"Salima Mahmoud",     nf:"Salima Mahmoud",       ph:"091 774 5510", ph2:"", city:"سبها", cityf:"Sebha", addr:"حي المهدية", prod:P.h, img:"h", qty:1, amt:249, ageH:20, age:"20 h", pct:50, tone:"orange", att:0, max:8},
+ /* Phone capture — the rows that only appear there. */
+ {id:"o11", ref:"39421", sit:"new", name:"ام القرآن السنوسي",  nf:"Oum El Qoran Senoussi", ph:"092 900 4412", ph2:"", city:"بنغازي", cityf:"Benghazi", addr:"الكيش", prod:P.q, img:"q", qty:1, amt:249, ageH:44, age:"1 d 20 h", pct:80, tone:"red", att:1, max:8, last:{ar:"ساعتين",fr:"2 h"}, lastH:2, lastWhat:{ar:"لا يجيب",fr:"pas de réponse"}},
+ {id:"o12", ref:"39418", sit:"new", name:"أحلام البدر",        nf:"Ahlam Badr",           ph:"094 220 7781", ph2:"", city:"طرابلس", cityf:"Tripoli", addr:"سوق الجمعة", prod:"كتاب الرحيق المختوم", img:"d", qty:1, amt:249, ageH:23, age:"23 h", pct:62, tone:"orange", att:2, max:8, last:{ar:"5 ساعات",fr:"5 h"}, lastH:5, lastWhat:{ar:"لا يجيب",fr:"pas de réponse"}},
+ {id:"o13", ref:"39410", sit:"new", name:"الزين ابن أمعنا",    nf:"Zine Ben Amaana",      ph:"091 660 3320", ph2:"", city:"مصراتة", cityf:"Misrata", addr:"الزروق", prod:P.h, img:"h", qty:1, amt:249, ageH:21.5, age:"21 h 30 m", pct:60, tone:"orange", att:0, max:8, addrIssue:1},
+ /* The other buckets and the search groups keep a few rows each. */
+ {id:"o14", lastH:.5, lastWhat:{ar:"تأكيد",fr:"confirmée"}, ref:"2141840", sit:"confirmed", name:"مهند سيف", nf:"Mohanad Seif", ph:"092 900 4412", ph2:"", city:"بنغازي", cityf:"Benghazi", addr:"الكيش", prod:P.d, img:"d", qty:2, amt:398, ageH:2, age:"2 h", pct:10, tone:"orange", att:1, max:8},
+ {id:"o15", lastH:48, lastWhat:{ar:"رُفع للناقل",fr:"envoyée"}, ref:"2141810", sit:"uploaded", name:"علاء علاء", nf:"Alaa Alaa", ph:"091 356 5775", ph2:"", city:"بنغازي", cityf:"Benghazi", addr:"بنغازي بتحديد الهوارى", prod:P.d, img:"d", qty:1, amt:199, ageH:70, age:"2 d 22 h", pct:100, tone:"red", att:1, max:8, trk:"SH2164265"},
+ {id:"o16", lastH:70, lastWhat:{ar:"رُفع للناقل",fr:"envoyée"}, prior:2, ref:"2141802", sit:"delivered", name:"حمزة ابراهيم", nf:"Hamza Ibrahim", ph:"092 219 7556", ph2:"", city:"بنغازي", cityf:"Benghazi", addr:"الدقادوستا", prod:P.qk, img:"q", qty:1, amt:249, ageH:96, age:"4 d", pct:100, tone:"red", att:1, max:8},
+ {id:"o17", lastH:100, lastWhat:{ar:"رفض",fr:"rejetée"}, ref:"2141795", sit:"rejected", name:"ياسين", nf:"Yassine", ph:"092 344 1775", ph2:"", city:"الكفرة", cityf:"Al Kufrah", addr:"الكفرة", prod:P.qk, img:"q", qty:1, amt:249, ageH:110, age:"4 d 14 h", pct:100, tone:"red", att:3, max:8, rej:"refus_client", rejF:"Refus client", rejA:"رفض العميل"},
+ {id:"o18", lastH:9, lastWhat:{ar:"لا يجيب",fr:"pas de réponse"}, ref:"2141862", sit:"no_answer", name:"احمد خليفة", nf:"Ahmad Khalifa", ph:"091 848 8086", ph2:"", city:"الجفرة", cityf:"Al Jufrah", addr:"نقطة محطة الباجة", prod:P.q, img:"q", qty:1, amt:249, ageH:32, age:"1 d 8 h", pct:90, tone:"red", att:1, max:8, last:{ar:"9 ساعات",fr:"9 h"}}
+];
+/* Row order per capture: the desktop shows its ten, the phone its seven. */
+const DESK=["o1","o2","o3","o4","o5","o6","o7","o8","o9","o10"];
+const MOB=["o11","o4","o5","o12","o8","o10","o13"];
+/* The bucket counts on the captures are data, not layout — kept as printed. */
+const COUNTS={desktop:{all:674,nouveau:21,en_cours:39,confirme:0,fermees:614},mobile:{all:675,nouveau:28,en_cours:33,confirme:0,fermees:614}};
+/* Parcels on /delivery — the yardstick screen and the « Livraison » search group. */
+const PARCELS=[
+ {id:"p1", ref:"2030927", sit:"stalled",        name:"علاء علاء",   nf:"Alaa Alaa", ph:"091 356 5775", city:"بنغازي", cityf:"Benghazi", addr:"بنغازي بتحديد الهوارى", prod:P.d, amt:199, age:"11 يوم", ageF:"11 j", move:"courier", bucket:"act_now"},
+ {id:"p2", ref:"1760673", sit:"due",            name:"فرج امحمدالجهيمي فرج الجهمي", nf:"Faraj M. Jehimi", ph:"091 216 3886", city:"مصراتة", cityf:"Misrata", addr:"شارع بنغازي بجوار الترخيص", prod:P.qk, amt:249, age:"2 يوم", ageF:"2 j", move:"wa", bucket:"act_now"},
+ {id:"p3", ref:"1628832", sit:"no_answer",      name:"حمزة ابراهيم", nf:"Hamza Ibrahim", ph:"092 219 7556", city:"بنغازي", cityf:"Benghazi", addr:"الدقادوستا شارع دبي", prod:P.q, amt:249, age:"2 يوم", ageF:"2 j", move:"wa", bucket:"act_now"},
+ {id:"p4", ref:"11865433",sit:"no_answer",      name:"ياسين", nf:"Yassine", ph:"092 344 1775", city:"الكفرة", cityf:"Al Kufrah", addr:"الكفرة", prod:P.qk, amt:249, age:"1 يوم", ageF:"1 j", move:"wa", bucket:"act_now"},
+ {id:"p5", ref:"11865434",sit:"delayed",        name:"زكريا عبدالعزيز", nf:"Zakaria Abdelaziz", ph:"093 589 7986", city:"الكفرة", cityf:"Al Kufrah", addr:"الكفرة", prod:P.qk, amt:249, age:"1 يوم", ageF:"1 j", move:"call", bucket:"act_now"},
+ {id:"p6", ref:"11865431",sit:"no_answer",      name:"محمد أوغني", nf:"Mohamed Ougni", ph:"092 024 1029", city:"الكفرة", cityf:"Al Kufrah", addr:"الكفرة", prod:P.d, amt:199, age:"1 يوم", ageF:"1 j", move:"wa", bucket:"act_now"},
+ {id:"p7", ref:"11865424",sit:"delayed",        name:"محمود بالقاسم محمودسعدالله", nf:"Mahmoud B. Saadallah", ph:"091 382 3829", city:"جالو", cityf:"Jalu", addr:"واحة الواحات الشكرة", prod:P.d, amt:199, age:"1 يوم", ageF:"1 j", move:"call", bucket:"act_now"},
+ {id:"p8", ref:"1356187", sit:"no_answer",      name:"احمد مهدي عمر", nf:"Ahmed Mehdi Omar", ph:"091 848 8086", city:"الجفرة", cityf:"Al Jufrah", addr:"نقطة محطة الباجة", prod:P.q, amt:249, age:"24 س", ageF:"24 h", move:"wa", bucket:"act_now"},
+ {id:"p9", ref:"1356102", sit:"waiting_carrier",name:"سالم بوزيد", nf:"Salem Bouzid", ph:"094 220 7781", city:"طرابلس", cityf:"Tripoli", addr:"سوق الجمعة", prod:P.qk, amt:249, age:"3 يوم", ageF:"3 j", move:"track", bucket:"waiting_carrier"},
+ {id:"p10",ref:"1356044", sit:"returning",      name:"سعاد المبروك", nf:"Souad Mabrouk", ph:"091 445 2210", city:"طرابلس", cityf:"Tripoli", addr:"تاجوراء", prod:P.h, amt:249, age:"5 يوم", ageF:"5 j", move:"call", bucket:"returning"}
+];
+/* Prospects — the CRM tab, so the dropdown can prove it reaches every tab. */
+const LEADS=[
+ {id:"l1", name:"محمود العجيلي", nf:"Mahmoud Ajili", ph:"091 356 4402", city:"بنغازي", cityf:"Benghazi", st:"محاولة 2", stf:"Tentative 2", tone:"amber"},
+ {id:"l2", name:"محمد بن صالح", nf:"Mohamed Ben Salah", ph:"092 771 3320", city:"طرابلس", cityf:"Tripoli", st:"اتصال مجدول", stf:"Rappel prévu", tone:"blue"},
+ {id:"l3", name:"أميرة السنوسي", nf:"Amira Senoussi", ph:"094 210 8865", city:"مصراتة", cityf:"Misrata", st:"جديد", stf:"Nouveau", tone:"grey"}
+];
+/* Orders older than the 7-day cache — they come from GET /api/agent/search. */
+const ARCHIVE=[
+ {id:"a1", ref:"1984402", name:"محمود السنوسي", nf:"Mahmoud Senoussi", ph:"091 356 5775", city:"بنغازي", cityf:"Benghazi", prod:P.d, amt:199, sit:"delivered", when:"12 يوليو", whenF:"12 juil."},
+ {id:"a2", ref:"1972218", name:"محمود الفيتوري", nf:"Mahmoud Fitouri", ph:"091 900 4471", city:"سرت", cityf:"Syrte", prod:P.q, amt:249, sit:"returned", when:"4 يوليو", whenF:"4 juil."}
+];
+/* Commission ledger — the shapes AgentHistoryItem actually carries. */
+const COMM={rate:12, balance:684, month:{delivered:41,earned:492}, lastMonth:{delivered:38,earned:456}, inflight:{count:23,est:276}, last:{at:"2 سبتمبر",atF:"2 sept.",amount:540,method:"cash"},
+ sinceDelivered:57,
+ items:[
+  {type:"day", day:"17 سبتمبر", dayF:"17 sept.", delivered:6, corrections:0, amount:72, orders:[{ref:"2141802",prod:P.qk,city:"بنغازي",cityf:"Benghazi",amount:12},{ref:"2141795",prod:P.q,city:"الكفرة",cityf:"Al Kufrah",amount:12},{ref:"2141788",prod:P.d,city:"طرابلس",cityf:"Tripoli",amount:12},{ref:"2141770",prod:P.h,city:"سبها",cityf:"Sebha",amount:12},{ref:"2141762",prod:P.q,city:"مصراتة",cityf:"Misrata",amount:12},{ref:"2141755",prod:P.d,city:"بنغازي",cityf:"Benghazi",amount:12}]},
+  {type:"day", day:"16 سبتمبر", dayF:"16 sept.", delivered:5, corrections:1, amount:48, orders:[{ref:"2141740",prod:P.q,city:"طرابلس",cityf:"Tripoli",amount:12},{ref:"2141733",prod:P.d,city:"بنغازي",cityf:"Benghazi",amount:12},{ref:"2141726",prod:P.qk,city:"الكفرة",cityf:"Al Kufrah",amount:12},{ref:"2141719",prod:P.h,city:"سرت",cityf:"Syrte",amount:12},{ref:"2141702",prod:P.q,city:"جالو",cityf:"Jalu",amount:12},{ref:"2141688",prod:P.d,city:"مصراتة",cityf:"Misrata",amount:-12}]},
+  {type:"adjustment", at:"15 سبتمبر", atF:"15 sept.", amount:24, note:"تعويض عن طلبيتين لم تُحتسبا"},
+  {type:"day", day:"14 سبتمبر", dayF:"14 sept.", delivered:7, corrections:0, amount:84, orders:[{ref:"2141660",prod:P.q,city:"بنغازي",cityf:"Benghazi",amount:12},{ref:"2141652",prod:P.d,city:"طرابلس",cityf:"Tripoli",amount:12},{ref:"2141645",prod:P.qk,city:"سبها",cityf:"Sebha",amount:12},{ref:"2141638",prod:P.h,city:"الجفرة",cityf:"Al Jufrah",amount:12},{ref:"2141630",prod:P.q,city:"مصراتة",cityf:"Misrata",amount:12},{ref:"2141622",prod:P.d,city:"الكفرة",cityf:"Al Kufrah",amount:12},{ref:"2141615",prod:P.q,city:"بنغازي",cityf:"Benghazi",amount:12}]},
+  {type:"day", day:"13 سبتمبر", dayF:"13 sept.", delivered:0, corrections:2, amount:-24, orders:[{ref:"2141600",prod:P.d,city:"سرت",cityf:"Syrte",amount:-12},{ref:"2141592",prod:P.q,city:"جالو",cityf:"Jalu",amount:-12}]},
+  {type:"payout", at:"2 سبتمبر", atF:"2 sept.", amount:-540, method:"cash", reference:"REC-2026-09-02"},
+  {type:"day", day:"1 سبتمبر", dayF:"1 sept.", delivered:4, corrections:0, amount:48, orders:[{ref:"2141500",prod:P.q,city:"بنغازي",cityf:"Benghazi",amount:12},{ref:"2141492",prod:P.d,city:"طرابلس",cityf:"Tripoli",amount:12},{ref:"2141485",prod:P.qk,city:"مصراتة",cityf:"Misrata",amount:12},{ref:"2141478",prod:P.h,city:"سبها",cityf:"Sebha",amount:12}]}
+ ]};
+const RECENT=["محمود","091 356","بنغازي"];
+
+/* ═════════ State ═════════ */
+const U=new URLSearchParams(location.search);
+const S={
+ lang:U.get("lang")||"ar", view:U.get("view")||"desktop", screen:U.get("screen")||"orders",
+ tab:U.get("tab")||"nouveau", open:U.has("open")?(U.get("open")||null):"o1", state:U.get("state")||"normal",
+ sheet:null, mPanel:null,
+ check:U.get("check")||(U.get("ruler")?"ruler":"off"),
+ q:U.get("q")||"", suggOpen:false, sugIx:0, pop:null, dTab:"all", cTab:"all", cOpen:null, mobileSearch:false
+};
+const t=()=>L[S.lang];
+const isAr=()=>S.lang==="ar";
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const nm=o=>isAr()?o.name:(o.nf||o.name);
+const cty=o=>isAr()?o.city:(o.cityf||o.city);
+const prd=o=>isAr()?o.prod:(PF[o.prod]||o.prod);
+const money=(n,cls="")=>`<span class="money ${cls}"><span class="v">${new Intl.NumberFormat("fr-FR").format(Math.abs(n)).replace(/ | /g," ")}</span> ${t().curSym}</span>`;
+const signed=n=>`<span class="money"><span class="v">${n<0?"−":"+"}${new Intl.NumberFormat("fr-FR").format(Math.abs(n))}</span> ${t().curSym}</span>`;
+const ago=h=>h<1?t().ago.m(Math.round(h*60)):h<24?t().ago.h(Math.round(h)):t().ago.d(Math.round(h/24));
+/* The chip label carries the age, with ONE definition per situation — the delivery rule. */
+function sitLabel(o){
+  const base=t().sit[o.sit];
+  if(o.sit==="no_answer") return `${base} · ${o.att}/3`;
+  if(o.sit==="callback_due") return `${base} · ${t().overH(o.overH)}`;
+  if(o.sit==="callback_ahead") return `${base} · ${t().inH(o.inH)}`;
+  if(o.sit==="rejected") return `${base} · ${isAr()?o.rejA:o.rejF}`;
+  return base;
+}
+function sitSub(o){
+  if(o.sit==="no_answer") return `${t().subs.no_answer} ${isAr()?"آخر محاولة":"Dernière tentative"} ${ago(o.lastH)}`;
+  if(o.sit==="uploaded"&&o.trk) return `${t().subs.uploaded} <span class="num">${o.trk}</span>`;
+  return t().subs[o.sit];
+}
+const chip=(tone,icon,label,extra="")=>`<span class="chip" data-t="${tone}" ${extra}>${I[icon]||""}<span>${label}</span></span>`;
+const tag=(tone,label)=>`<span class="tag" data-t="${tone}">${label}</span>`;
+const tagg=(tone,label,sub,icon)=>`<span class="tagg" data-t="${tone}">${icon&&I[icon]?I[icon]:`<span class="dot"></span>`}<span>${label}</span>${sub?`<small>· ${sub}</small>`:""}</span>`;
+function counts(){
+  const c={...COUNTS[S.view==="mobile"?"mobile":"desktop"]},s={all:0,nouveau:0,en_cours:0,confirme:0,fermees:0};
+  ORDERS.forEach(o=>{const b=BUCKET_OF[o.sit];s.all+=o.amt;s[b]+=o.amt});
+  return {c,s};
+}
+const visible=()=>{
+  if(S.state==="empty") return [];
+  if(S.tab==="nouveau"||S.tab==="all"){const ids=S.view==="mobile"?MOB:DESK;return ids.map(id=>ORDERS.find(o=>o.id===id));}
+  return ORDERS.filter(o=>BUCKET_OF[o.sit]===S.tab);
+};
+</script>
+
+<script>
+/* ═════════ The shell — rendered identically for every screen ═════════
+   This is the whole navbar claim: one function, one slot order, one set of
+   widths. Switching screens changes `aria-current` and nothing else. */
+const TAB_ICON=["bag","people","truck","coins"];
+const TAB_SCREEN=["orders","leads","delivery","commissions"];
+function topbar(active){
+  const T=t().tabs, dlvBadge=13, newBadge=counts().c.nouveau;
+  const badge=i=>i===2?`<span class="badge num">${dlvBadge}</span>`:i===0&&newBadge?`<span class="badge num">${newBadge}</span>`:"";
+  return `<header class="top">
+    <span class="brand">Ord<i>ra</i></span>
+    <span class="mkt">${I.pin}${t().mkt}</span>
+    <nav class="tabs" aria-label="${isAr()?"القائمة الرئيسية":"Navigation principale"}">
+      ${T.map((x,i)=>`<a href="#" data-screen="${TAB_SCREEN[i]}" ${TAB_SCREEN[i]===active?'aria-current="page"':""}>${I[TAB_ICON[i]]}<span>${x}</span>${badge(i)}</a>`).join("")}
+    </nav>
+    <div class="slot-search">${searchField()}</div>
+    <div class="slot-end">
+      <span class="presence" data-on="true"><span class="dot"></span><span><b>${t().on}</b><small>${t().onSub}</small></span></span>
+      <button class="bell" aria-label="Notifications">${I.bell}<b class="num">13</b></button>
+      <button class="me"><span class="avatar">${t().ini}</span><span>${t().user}</span>${I.chevd}</button>
+    </div>
+  </header>`;
+}
+/* One search field, rendered on every tab — the reflow is gone because the
+   slot exists whether or not the tab has anything of its own to filter. */
+function searchField(){
+  const n=matches(S.q).total;
+  return `<div class="search" data-open="${S.suggOpen}">
+    <div class="field">${I.search}
+      <input id="q" type="search" value="${esc(S.q)}" placeholder="${t().search}" aria-label="${t().searchAria}"
+             role="combobox" aria-expanded="${S.suggOpen}" aria-controls="sugg" aria-autocomplete="list">
+      ${S.q?`<span class="cnt">${t().res(n)}</span><button class="bell" style="width:44px;height:44px" aria-label="${isAr()?"مسح":"Effacer"}" id="qclear">${I.x}</button>`:`<kbd>/</kbd>`}
+    </div>
+    ${S.suggOpen?suggestions():""}
+  </div>`;
+}
+/* ═════════ The predictive index — every tab, every order type ═════════
+   In React these four groups read the SWR caches that are already warm
+   (/api/agent/queue, ?include=closed, /api/delivery/worklist,
+   /api/agent/leads/queue) plus GET /api/agent/search for anything older. */
+const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ًͯ-ْ]/g,"");
+const digits=s=>String(s||"").replace(/\D/g,"");
+function hit(hay,q){
+  const term=norm(q.trim()); if(term.length<2) return false;
+  const d=digits(term);
+  if(d.length>=3&&digits(hay.phones).includes(d)) return true;
+  return norm(hay.text).includes(term);
+}
+function matches(q){
+  if(!q||q.trim().length<2) return {groups:[],total:0};
+  const G=[];
+  const ord=ORDERS.filter(o=>hit({text:[o.name,o.nf,o.city,o.cityf,o.prod,PF[o.prod],o.ref,o.note].join(" "),phones:o.ph+o.ph2},q)).slice(0,5);
+  const par=PARCELS.filter(o=>hit({text:[o.name,o.nf,o.city,o.cityf,o.addr,o.ref].join(" "),phones:o.ph},q)).slice(0,5);
+  const led=LEADS.filter(o=>hit({text:[o.name,o.nf,o.city,o.cityf].join(" "),phones:o.ph},q)).slice(0,5);
+  const arc=ARCHIVE.filter(o=>hit({text:[o.name,o.nf,o.city,o.cityf,o.ref].join(" "),phones:o.ph},q)).slice(0,5);
+  if(ord.length) G.push({k:"orders",label:t().gOrders,icon:"bag",rows:ord});
+  if(par.length) G.push({k:"delivery",label:t().gDelivery,icon:"truck",rows:par});
+  if(led.length) G.push({k:"leads",label:t().gLeads,icon:"people",rows:led});
+  if(arc.length) G.push({k:"archive",label:t().gArchive,icon:"archive",rows:arc});
+  return {groups:G,total:G.reduce((n,g)=>n+g.rows.length,0)};
+}
+function mark(s,q){
+  const term=q.trim(); if(term.length<2) return esc(s);
+  const i=norm(s).indexOf(norm(term)); if(i<0) return esc(s);
+  return esc(s.slice(0,i))+"<mark>"+esc(s.slice(i,i+term.length))+"</mark>"+esc(s.slice(i+term.length));
+}
+function suggestions(){
+  const {groups,total}=matches(S.q);
+  if(!S.q||S.q.trim().length<2){
+    return `<div class="sugg" id="sugg" role="listbox">
+      <div class="gh">${I.clock}<span>${t().gRecent}</span><button class="n" id="clearhist">${t().clearHist}</button></div>
+      ${RECENT.map(r=>`<button class="rc" data-recent="${esc(r)}">${I.clock}<span>${esc(r)}</span></button>`).join("")}
+      <div class="foot"><span><kbd>↑</kbd><kbd>↓</kbd> ${t().kHint}</span></div></div>`;
+  }
+  if(!total) return `<div class="sugg" id="sugg" role="listbox"><div class="empty" style="padding:28px 20px">${I.search}<h3>${t().emptyT}</h3><p>${t().emptyS}</p></div></div>`;
+  let ix=-1;
+  const body=groups.map(g=>{
+    const rows=g.rows.map(r=>{
+      ix++;
+      const sel=ix===S.sugIx;
+      let chipHtml,meta;
+      if(g.k==="orders"){ chipHtml=tagg(SIT[r.sit].tone,t().sit[r.sit],null,SIT[r.sit].icon); meta=`#${r.ref} · ${cty(r)} · ${r.ph}`; }
+      else if(g.k==="delivery"){ chipHtml=tagg(({stalled:"stone",due:"orange",no_answer:"amber",delayed:"indigo",returning:"red",waiting_carrier:"grey",address:"teal"})[r.sit],t().dSit[r.sit]); meta=`#${r.ref} · ${cty(r)} · ${r.ph}`; }
+      else if(g.k==="leads"){ chipHtml=tagg(r.tone,isAr()?r.st:r.stf); meta=`${cty(r)} · ${r.ph}`; }
+      else { chipHtml=tagg(SIT[r.sit].tone,t().sit[r.sit],null,SIT[r.sit].icon); meta=`#${r.ref} · ${cty(r)} · ${isAr()?r.when:r.whenF}`; }
+      return `<button class="opt" role="option" aria-selected="${sel}" data-go="${g.k}:${r.id}">
+        ${chipHtml}
+        <span><span class="nm">${mark(nm(r),S.q)}</span><span class="mt">${mark(meta,S.q)}</span></span>
+        <span class="am">${r.amt?money(r.amt):""}</span></button>`;
+    }).join("");
+    return `<div class="gh">${I[g.icon]}<span>${g.label}</span><span class="n">${g.rows.length}</span></div>${rows}`;
+  }).join("");
+  return `<div class="sugg" id="sugg" role="listbox">${body}
+    <div class="foot"><span><kbd>↑</kbd><kbd>↓</kbd> ${t().kHint}</span><span style="margin-inline-start:auto">${t().fieldHints}</span></div></div>`;
+}
+function tabbar(active){
+  const T=t().tabs;
+  /* Per the phone capture: the commissions glyph is a percent, the badge sits beside the label. */
+  return `<nav class="tabbar">${T.map((x,i)=>`<a href="#" data-screen="${TAB_SCREEN[i]}" ${TAB_SCREEN[i]===active?'aria-current="page"':""}>${i===3?I.percent:I[TAB_ICON[i]]}<span class="lb"><span>${x}</span>${i===2?`<span class="badge num">12</span>`:""}</span></a>`).join("")}</nav>`;
+}
+
+/* ═════════ Screen 1 — Commandes — the owner's captures of 2026-09-19 ═════════
+   Desktop: title row with the search field and the three meters, the four
+   bucket chips, the red overdue bar, then the table beside the EXISTING order
+   panel (reproduced, not redesigned). Phone: chips, overdue bar, search, cards
+   with a call button, the order panel it opens, and the call-outcome sheet. */
+Object.assign(I,{
+ copy:'<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
+ warn:'<svg viewBox="0 0 24 24"><path d="M12 3.5 21.5 20h-19z"/><path d="M12 9.5v4.5M12 17.2v.3"/></svg>',
+ merge:'<svg viewBox="0 0 24 24"><path d="M12 4v7M12 11l-5 5M12 11l5 5M7 16v4M17 16v4"/></svg>',
+ info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8.2v.3"/></svg>',
+ percent:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9 15l6-6"/><circle cx="9.3" cy="9.3" r="1"/><circle cx="14.7" cy="14.7" r="1"/></svg>',
+ chevl:'<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',
+ sortd:'<svg viewBox="0 0 24 24"><path d="M4 7h10M4 12h7M4 17h4M18 6v12M18 18l-3-3M18 18l3-3"/></svg>',
+ phcall:'<svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/><path d="M15 4h5v5M20 4l-5 5"/></svg>'
+});
+const thumb=(o,extra="")=>`<span class="th"><span class="thumb ${o.img||"q"} ${extra}"></span><span class="qty">×${o.qty}</span></span>`;
+const amt2=o=>`<span class="c-amt2"><small>LYD</small><b>${o.amt}</b></span>`;
+function qHead(){
+  const {c}=counts();
+  return `<div class="qh">
+    <div class="ttl"><h2>${t().qTitle}</h2><span class="sub">— ${t().user} — ${isAr()?"يتم تحديثها لحظياً":"mise à jour en temps réel"}<span class="dot"></span></span></div>
+    <label class="qsearch">${I.search}<input id="q2" type="search" placeholder="${t().qSearch}" aria-label="${t().searchAria}"></label>
+    <div class="meters">
+      <span class="mt"><span class="v num">11.0 % <i>▼</i></span><span class="l">${t().mConf}</span><span class="s">${t().mConfSub}</span></span>
+      <span class="mt"><span class="v num">9</span><span class="l">${t().mDone}</span><span class="s">${t().mDoneSub}</span></span>
+      <span class="mt"><span class="v num">58</span><span class="l">${t().mAss}</span></span>
+    </div>
+    <button class="btn-p" id="newOrder">${I.plus}<span>${t().newOrder}</span></button>
+  </div>`;
+}
+const CHIP_ICON={nouveau:"inbox",en_cours:"list",confirme:"circlecheck",fermees:"archive"};
+function qChips(mobile){
+  const {c}=counts(), B=t().qBuckets, keys=["nouveau","en_cours","confirme","fermees"];
+  const cur=S.tab==="all"?"nouveau":S.tab;
+  const chip=k=>`<span class="qchip" aria-pressed="${cur===k}">${k==="fermees"&&mobile?"":I[CHIP_ICON[k]]}<span>${mobile&&k==="fermees"?(isAr()?"مغلق":"Fermées"):B[k]}</span>${mobile&&k==="fermees"?"":`<b class="num">${c[k]}</b>`}</span>`;
+  if(mobile) return `<div class="mq" role="tablist">${keys.map(k=>`<button role="tab" data-tab="${k}" aria-pressed="${cur===k}">${chip(k)}</button>`).join("")}</div>`;
+  return `<div class="qchips" role="tablist">${keys.map(k=>`<button class="qchip" role="tab" data-tab="${k}" aria-pressed="${cur===k}">${I[CHIP_ICON[k]]}<span>${B[k]}</span><b class="num">${c[k]}</b></button>`).join("")}</div>`;
+}
+function qRow(o){
+  const sel=S.open===o.id;
+  const name=o.noName?`<span class="noname">${t().noName}</span>`:`<span class="nm"><span class="q">${nm(o)}</span></span>`;
+  const under=o.noName?`<span class="warnph">${I.warn}<span class="num">${o.ph}</span></span>`:`<span class="pr">${prd(o)}</span>`;
+  const act=o.att>0
+    ? `<span class="att">${t().att(o.att,o.max)}</span><span class="lc">${I.phone}<span>${t().called(isAr()?o.last.ar:o.last.fr)}</span></span>`
+    : `<span class="att">${t().att(0,o.max)}</span><span class="lc" data-none>${t().notCalled}</span>`;
+  return `<div class="qrow" data-open="${o.id}" aria-selected="${sel}" role="row" tabindex="0">
+    <span class="cb" role="checkbox" aria-checked="${sel}" aria-label="${isAr()?"تحديد":"Sélectionner"}">${sel?I.check:""}</span>
+    <div class="qid">${thumb(o)}<div class="nb">${name}${under}</div>${o.addrIssue?`<span class="tagw">${t().addrIssue(o.addrIssue)}</span>`:""}</div>
+    <div class="c-act">${act}</div>
+    <div class="c-age" data-tone="${o.tone}"><span class="v">${o.age}</span><span class="bar"><i style="width:${o.pct}%"></i></span></div>
+    ${amt2(o)}
+  </div>`;
+}
+function qTable(){
+  const C=t().qColsD, rows=visible();
+  const body=S.state==="loading"?[0,1,2,3,4,5].map(()=>`<div class="skel" style="height:56px;margin:8px 12px"></div>`).join("")
+    :rows.length?rows.map(qRow).join(""):`<div class="empty">${I.pkg}<h3>${t().emptyT}</h3><p>${t().emptyS}</p></div>`;
+  return `<section class="qtable" role="table">
+    <div class="qth" role="row"><span class="cb" role="checkbox" aria-checked="false" aria-label="${isAr()?"تحديد الكل":"Tout sélectionner"}"></span><span style="padding-inline-start:44px">${C[0]}</span><span class="c-act">${C[1]}</span><span class="lt">${C[2]}</span><span class="lt">${C[3]}</span></div>
+    <div class="qrows" role="rowgroup">${body}</div>
+    <div class="qfoot"><span>${t().pageOf(1,rows.length,counts().c.nouveau)}</span>
+      <span class="pg"><button aria-label="${isAr()?"السابق":"Précédent"}" disabled>${isAr()?I.chev:I.chevl}</button><button aria-label="${isAr()?"التالي":"Suivant"}">${isAr()?I.chevl:I.chev}</button></span>
+      <span class="pp"><span>${t().perPage}</span><button class="sel"><span class="num">10</span>${I.chevd}</button></span></div>
+  </section>`;
+}
+/* The existing OrderDetailPanel, reproduced as it is today — nothing redesigned. */
+function qPanelDesk(){
+  const o=ORDERS.find(x=>x.id===S.open); return o?qPanel(o):"";
+}
+/* The existing OrderDetailPanel — the same markup on the desktop (beside the
+   table) and on the phone (full screen, opened by tapping a row). */
+function qPanel(o){
+  const T=t(), price=`LYD ${o.amt.toFixed(2)}`;
+  return `<aside class="qpanel" role="region" aria-label="${nm(o)||o.ref}">
+    <div class="pt"><span class="st">${I.hourglass}<span>${T.pending}</span></span>
+      <span class="late">${I.clock}<span class="num">${o.age}</span><span>· ${T.target} <span class="num">2 h</span></span></span>
+      <span class="ref">${I.copy}<span class="num">#${o.ref}</span></span>
+      <button class="x" id="closePanel" aria-label="${isAr()?"إغلاق":"Fermer"}">${I.x}</button></div>
+    <div class="pb">
+      <div class="cust"><div>
+          <div class="lbl">${T.pCustomer}</div><div class="nm q">${o.noName?T.noName:nm(o)}</div>
+          <div class="cp">${I.copy}<span class="num">${o.ph}</span></div>
+          <div class="add">${I.plus}<span>${T.addPhone2}</span></div></div>
+        <button class="btn-p"><span>${T.callBtn}</span>${I.phone}</button></div>
+      <div class="facts">
+        <div class="fc"><div class="lbl">${T.pCity}</div>
+          <div class="cityw"><span class="w">${I.warn}<span>${T.unsetCity}</span></span><button class="btn-o">${T.setCity}</button></div></div>
+        <div class="fc"><div class="lbl">${T.pAddress}</div><div class="v q">${o.addr}</div>
+          ${o.note?`<div class="note"><div class="lbl">${I.note}<span>${T.deliveryNote}</span></div><div>${o.note}</div></div>`:""}</div>
+        <div class="fc"><div class="lbl">${T.pTotal}</div><div class="v big"><span class="num">${price}</span></div></div>
+        <div class="fc"><div class="lbl">${T.pCount}</div><div class="v" style="font-weight:700;font-size:15px"><span class="num">${o.qty}</span></div></div>
+        <div class="fc"><div class="lbl">${T.pAgent}</div><div class="v" style="display:flex;align-items:center;gap:8px;font-weight:600"><span class="av">TA</span>${T.user}</div></div>
+        <div class="fc"><div class="lbl">${T.pCarrier}</div><span class="carrier">${I.truck}<span>${T.carrierWait}</span></span></div>
+      </div>
+      <div class="ptabs" role="tablist">${T.pTabs.map((x,i)=>`<button role="tab" aria-selected="${i===0}">${x}${i===2?`<b class="num">4</b>`:""}</button>`).join("")}</div>
+      <div class="prod"><span class="th"><span class="thumb ${o.img||"q"}"></span></span><div><div class="pn q">${isAr()?P.qk:PF[P.qk]}</div><div class="pq num">${o.qty} × ${price}</div><div class="ok"><i></i>${T.inStock}</div></div><span class="pa num">${price}</span></div>
+      <button class="wide">${I.plus}<span>${T.addProduct}</span></button>
+      <button class="wide">${I.merge}<span>${T.merge}</span></button>
+      <div class="sub"><span>${T.subtotal}</span><b class="num">${price}</b></div>
+    </div>
+    <div class="pf"><div class="acts">
+        <button class="act">${I.phcall}<span>${T.fNoAnswer}</span></button>
+        <button class="act ok">${I.check}<span>${T.fConfirm}</span></button>
+        <button class="act no">${I.x}<span>${T.fReject}</span></button>
+        <button class="act cb2">${I.calclock}<span>${T.fCallback}</span></button>
+      </div><div class="hint">${T.navHint}</div></div>
+  </aside>`;
+}
+function screenOrders(){
+  return `<div class="qpage">${qHead()}${qChips(false)}
+    <div class="qbody ${S.open?"":"single"}">${qTable()}${qPanelDesk()}</div></div>`;
+}
+</script>
+
+<script>
+/* ═════════ Screen 3 — Commissions ═════════
+   Same charpente as the delivery page: title row + scorecard pill, bucket
+   strip, column heads, rows with a situation chip and a coloured edge, and
+   the summary moved into the sticky aside. */
+const CTONE={accrual:"green",reversal:"red",payout:"grey",adjustment:"stone"};
+const CICON={accrual:"circlecheck",reversal:"undo",payout:"wallet",adjustment:"pen"};
+const cKind=it=>it.type==="payout"?"payout":it.type==="adjustment"?"adjustment":(it.delivered===0&&it.corrections>0)?"reversal":"accrual";
+function cCounts(){
+  const c={all:0,accrual:0,reversal:0,payout:0,adjustment:0},s={all:0,accrual:0,reversal:0,payout:0,adjustment:0};
+  COMM.items.forEach(it=>{const k=cKind(it);c.all++;c[k]++;s.all+=it.amount;s[k]+=it.amount});
+  return {c,s};
+}
+function commHead(){
+  const neg=COMM.balance<0;
+  return `<div class="head">
+    <div class="ttl">${I.coins.replace("<svg","<svg class=\"hero\"")}
+      <div><h2>${t().cTitle}</h2><div class="sub">${t().cRate(new Intl.NumberFormat("fr-FR").format(COMM.rate)+" "+t().curSym)}</div></div></div>
+    <span class="pill">${I.wallet}<span>${t().cToReceive} <b>${new Intl.NumberFormat("fr-FR").format(COMM.balance)} ${t().curSym}</b></span></span>
+    <div class="end">
+      <div class="rel"><button class="btn-o" id="fbtn" aria-expanded="${S.pop==="filter"}">${I.filter}<span>${t().filter}</span></button>
+        ${S.pop==="filter"?`<div class="pop"><div class="gl">${isAr()?"الفترة":"Période"}</div>
+          <button>${I.check}<span>${isAr()?"60 يوماً":"60 jours"}</span></button>
+          <button><span style="width:18px"></span><span>${isAr()?"120 يوماً":"120 jours"}</span></button>
+          <button><span style="width:18px"></span><span>${isAr()?"سنة كاملة":"12 mois"}</span></button></div>`:""}</div>
+      <div class="rel"><button class="btn-o" id="sbtn" aria-expanded="${S.pop==="sort"}">${I.sort}<span>${t().sort}</span></button>${S.pop==="sort"?sortPop():""}</div>
+    </div></div>`;
+}
+function commStrip(){
+  const {c}=cCounts(), B=t().cBuckets, keys=["all","accrual","reversal","payout","adjustment"];
+  return `<div class="segs" role="tablist" aria-label="${t().filter}">
+    ${keys.map(k=>`<button role="tab" data-ctab="${k}" aria-pressed="${S.cTab===k}" ${c[k]?"":'data-zero'}>
+      ${k==="all"?"":`<span class="dot" data-t="${CTONE[k]}"></span>`}<span>${B[k]}</span><b class="num">${c[k]}</b></button>`).join("")}</div>`;
+}
+function commRow(it,i){
+  const k=cKind(it), tone=CTONE[k], open=S.cOpen===i;
+  const date=it.type==="day"?(isAr()?it.day:it.dayF):(isAr()?it.at:it.atF);
+  let title,sub;
+  if(it.type==="payout"){ title=t().cPaid; sub=`${t().cMethod[it.method]} · ${it.reference}`; }
+  else if(it.type==="adjustment"){ title=t().cAdj; sub=it.note||""; }
+  else if(k==="reversal"){ title=t().cCorr(it.corrections); sub=isAr()?"طلبيات لم تعد مسلّمة":"commandes qui ne sont plus livrées"; }
+  else { title=t().cDay(it.delivered); const cities=[...new Set(it.orders.filter(o=>o.amount>0).map(o=>isAr()?o.city:o.cityf))]; sub=(it.corrections?t().cCorr(it.corrections)+" · ":"")+cities.slice(0,3).join(" · ")+(cities.length>3?` +${cities.length-3}`:""); }
+  const orders=it.orders&&open?`<div style="grid-column:1/-1;background:var(--bg);border-radius:8px;padding:8px 12px;margin-top:4px;display:grid;gap:4px">
+     ${it.orders.map(o=>`<div style="display:flex;justify-content:space-between;gap:12px;font-size:12.5px;color:var(--ink-2)">
+       <span class="q"><span class="num">#${o.ref}</span> · ${isAr()?o.prod:(PF[o.prod]||o.prod)} · ${isAr()?o.city:o.cityf}</span>
+       <span style="font-weight:600" ${o.amount<0?'class="c-amt" data-neg="true"':""}>${signed(o.amount)}</span></div>`).join("")}</div>`:"";
+  return `<article class="row comm" data-t="${tone}" data-ctog="${i}" role="listitem" tabindex="0" aria-expanded="${it.orders?open:""}">
+    <div>${tagg(tone,B4(k),null,CICON[k])}</div>
+    <div class="c-cl"><div style="min-width:0"><div class="nm"><b>${title}</b></div>${sub?`<div class="ln"><span class="tr">${sub}</span></div>`:""}</div></div>
+    <div class="c-when">${date}</div>
+    <div class="c-amt sm" ${it.amount<0?'data-neg="true"':""}>${signed(it.amount)}</div>
+    ${orders}
+  </article>`;
+}
+const B4=k=>t().cBuckets[k];
+function commList(){
+  if(S.state==="loading") return [0,1,2,3].map(()=>`<div class="skel" style="height:74px;margin-bottom:8px"></div>`).join("");
+  const rows=COMM.items.map((it,i)=>({it,i})).filter(({it})=>S.cTab==="all"||cKind(it)===S.cTab);
+  if(S.state==="empty"||!rows.length) return `<div class="empty">${I.coins}<h3>${t().emptyT}</h3><p>${t().cEmpty}</p></div>`;
+  return rows.map(({it,i})=>commRow(it,i)).join("");
+}
+function commAside(){
+  const neg=COMM.balance<0;
+  return `<div class="aside"><div class="summary">
+      <div class="lb">${t().cToReceive}</div>
+      <div class="big" data-neg="${neg}">${new Intl.NumberFormat("fr-FR").format(COMM.balance)} ${t().curSym}</div>
+      <div class="sen">${t().cSince(isAr()?COMM.last.at:COMM.last.atF,COMM.sinceDelivered)}</div>
+      <div style="margin-top:16px;border-top:1px solid var(--line)">
+        <div class="kv" style="padding-top:12px"><span class="k">${t().cMonth}</span><span class="v strong">${t().cDay(COMM.month.delivered)} · ${money(COMM.month.earned)}</span></div>
+        <div class="kv"><span class="k">${t().cLastMonth}</span><span class="v" style="color:var(--ink-2)">${t().cDay(COMM.lastMonth.delivered)} · ${money(COMM.lastMonth.earned)} <span data-t="${COMM.month.delivered>=COMM.lastMonth.delivered?"green":"amber"}" class="num" style="color:var(--tink);font-weight:600">${COMM.month.delivered>=COMM.lastMonth.delivered?"+":"−"}${Math.abs(COMM.month.delivered-COMM.lastMonth.delivered)}</span></span></div>
+        <div class="kv"><span class="k">${t().cInflight}</span><span class="v">${COMM.inflight.count} · ${t().cInflightEst(new Intl.NumberFormat("fr-FR").format(COMM.inflight.est)+" "+t().curSym)}</span></div>
+        ${(()=>{const d=COMM.items.filter(i=>i.type==="day").reduce((n,i)=>n+i.delivered,0),c=COMM.items.filter(i=>i.type==="day").reduce((n,i)=>n+i.corrections,0);
+          return `<div class="kv"><span class="k">${t().cCorrShare}</span><span class="v" style="color:${c?"#991B1B":"var(--ink-2)"}">${c} <small style="font-weight:400;color:var(--ink-3)">· ${t().cCorrSub(c,d)}</small></span></div>`})()}
+        <div class="kv"><span class="k">${t().cLast}</span><span class="v">${isAr()?COMM.last.at:COMM.last.atF} · ${money(COMM.last.amount)}</span></div>
+      </div>
+      <div class="rule">${t().cRule}</div>
+      <a class="more" href="#">${t().cMore}</a>
+  </div></div>`;
+}
+function screenCommissions(){
+  return `<div class="body"><section class="left">
+      ${commHead()}${commStrip()}
+      <div class="thead comm"><span>${t().cCols[0]}</span><span>${t().cCols[1]}</span><span>${t().cCols[2]}</span><span class="e">${t().cCols[3]}</span></div>
+      <div class="rows" role="list">${commList()}</div>
+    </section><section class="right">${commAside()}</section></div>`;
+}
+
+/* ═════════ Screen 4 — Livraison, reproduced as the yardstick ═════════ */
+const DTONE={returning:"red",due:"orange",no_answer:"amber",delayed:"indigo",stalled:"stone",waiting_carrier:"grey",address:"teal"};
+const DICON={returning:"undo",due:"alarm",no_answer:"phoneoff",delayed:"hourglass",stalled:"pause",waiting_carrier:"truck",address:"pin"};
+function dCounts(){
+  const c={all:0,returning:0,act_now:0,waiting_customer:0,waiting_carrier:0,done:0},s={...c};
+  PARCELS.forEach(p=>{c.all++;c[p.bucket]++;s.all+=p.amt;s[p.bucket]+=p.amt});
+  return {c,s};
+}
+function screenDelivery(){
+  const {c,s}=dCounts(), B=t().dBuckets, keys=["all","returning","act_now","waiting_customer","waiting_carrier","done"];
+  const rows=PARCELS.filter(p=>S.dTab==="all"||p.bucket===S.dTab).map(p=>{
+    const tone=DTONE[p.sit];
+    return `<article class="row yard" data-t="${tone}" role="listitem" tabindex="0" aria-selected="${S.open===p.id}">
+      <div class="c-sit">${chip(tone,DICON[p.sit],`${t().dSit[p.sit]} · ${isAr()?p.age:p.ageF}`)}
+        <span class="sub">${t().dSubs[p.sit]}</span>
+        <span class="tm">${I.clock}<span>${t().yestAt("00:55")}</span></span></div>
+      <div class="c-cl"><span class="thumb">${I.box}</span><div style="min-width:0">
+        <div class="nm"><b class="q">${nm(p)}</b><span class="id num">#${p.ref}</span></div>
+        <div class="ph num">${p.ph}</div>
+        <div class="ln"><span>${I.pin}<span class="tr">${cty(p)} · ${p.addr}</span></span><span>${I.pkg}<span class="tr">${prd(p)}</span> <span class="num">×1</span></span></div>
+      </div></div>
+      <div class="c-act"><button class="btn-o" data-t="${tone}" data-tone>${p.move==="wa"?I.wa:p.move==="track"?I.truck:I.phone}<span class="lb">${t().dMoves[p.move]}</span></button>
+        ${p.move!=="wa"?`<button class="btn-sq" aria-label="WhatsApp">${I.wa}</button>`:""}</div>
+      <div class="c-amt">${money(p.amt)}</div></article>`;
+  }).join("");
+  return `<div class="body"><section class="left">
+    <div class="head"><div class="ttl">${I.truck.replace("<svg","<svg class=\"hero\"")}
+        <div><h2>${t().dTitle}</h2><div class="sub">${t().dSub(c.all)}</div></div></div>
+      <span class="pill">${I.bars}<span>${t().dStat(99,2)}</span></span>
+      <div class="end"><div class="rel"><button class="btn-o">${I.filter}<span>${t().filter}</span></button></div>
+        <div class="rel"><button class="btn-o">${I.sort}<span>${t().sort}</span></button></div></div></div>
+    <div class="strip c6" role="group">${keys.map(k=>`<button data-dtab="${k}" aria-pressed="${S.dTab===k}" ${c[k]?"":'data-zero'}>
+        <span class="l">${k==="all"?"":`<span class="dot" data-t="${({returning:"red",act_now:"amber",waiting_customer:"blue",waiting_carrier:"grey",done:"green"})[k]}"></span>`}<span>${B[k]}</span><b class="num">${c[k]}</b></span>
+        <span class="s">${money(s[k])}</span></button>`).join("")}</div>
+    <div class="thead yard"><span>${t().dCols[0]}</span><span>${t().dCols[1]}</span><span>${t().dCols[2]}</span><span class="e">${t().dCols[3]}</span></div>
+    <div class="rows" role="list">${rows}</div></section>
+    <section class="right"><div class="pick"><div>${I.truck}<div>${isAr()?"اختر طرداً لعرض تفاصيله.":"Choisis un colis pour voir son détail."}</div></div></div></section></div>`;
+}
+</script>
+
+<script>
+/* ═════════ Phone — same vocabulary, card layout ═════════ */
+function mtop(){
+  return `<div class="mtop"><span class="brand">Ord<i>ra</i></span><span class="mkt" style="border:0;padding:0;font-size:12.5px">${t().mkt}</span>
+    <button class="msearch" id="mopen">${I.search}<span>${isAr()?"ابحث":"Rechercher"}</span></button>
+    <button class="bell" aria-label="Notifications">${I.bell}<b class="num">13</b></button></div>`;
+}
+const sbar=()=>`<div class="sbar"><span>9:41</span><span style="display:flex;gap:6px;align-items:center">${I.sig}${I.wifi}${I.bat}</span></div>`;
+/* Tapping the row opens the order panel; the small call button opens the four
+   outcomes. Two different intentions, two different targets. */
+function mCard(o,inSheet){
+  const name=o.noName?`<span class="noname">${t().noName}</span>`:`<span class="nm"><span class="q">${nm(o)}</span></span>`;
+  return `<article class="mcq" ${inSheet?"":`data-mopen="${o.id}"`}>
+    <div class="qid">${thumb(o)}<div class="nb">${name}<span class="pr">${prd(o)}</span></div></div>
+    ${o.addrIssue?`<span class="tagw">${I.warn}<span>${t().addrIssueM}</span></span>`:""}
+    ${inSheet?"":`<span class="agew" data-tone="${o.tone}"><span class="aget">${I.clock}<span class="num">${o.age}</span></span><span class="bar"><i style="width:${o.pct}%"></i></span></span>`}
+    <span class="amt"><small>LYD</small><b class="num">${o.amt}</b></span>
+    ${inSheet?"":`<span class="attm">${I.phone}${t().attM(o.att,o.max)}</span>`}
+    ${inSheet?"":`<button class="mcall" data-mcall="${o.id}" aria-label="${t().callBtn}">${I.phone}</button>`}
+  </article>`;
+}
+function mSheet(o){
+  const T=t();
+  return `<div class="sheetveil" id="sheetveil"><div class="sheet" role="dialog" aria-label="${T.shTitle}">
+    <div class="grab"></div>
+    <div class="shh"><div><h4>${T.shTitle}</h4><div class="s num">${T.shSub(o.att,o.max)}</div></div><button class="cancel" id="sheetclose">${T.shCancel}</button></div>
+    ${mCard(o,true)}
+    <button class="opt2"><span class="ic">${I.phoneoff}</span><span class="tx"><b>${T.shNo}</b><span>${T.shNoSub(o.att+1,o.max)}</span></span>${I.chevl}</button>
+    <button class="opt2 ok"><span class="ic">${I.check}</span><span class="tx"><b>${T.shOk}</b><span>${T.shOkSub}</span></span>${I.chevl}</button>
+    <button class="opt2 no"><span class="ic">${I.x}</span><span class="tx"><b>${T.shRej}</b><span>${T.shRejSub}</span><span class="req">${T.shReq}</span></span>${I.chevl}</button>
+    <button class="opt2 cb"><span class="ic">${I.calclock}</span><span class="tx"><b>${T.shCb}</b><span>${T.shCbSub}</span></span>${I.chevl}</button>
+    <div class="fn">${I.info}<span>${T.shNote}</span></div><div class="home"></div>
+  </div></div>`;
+}
+function mOrders(sheetId){
+  const rows=S.state==="loading"?[0,1,2,3].map(()=>`<div class="skel" style="height:68px;margin-bottom:8px"></div>`).join("")
+    :visible().length?visible().map(o=>mCard(o,false)).join(""):`<div class="empty">${I.pkg}<h3>${t().emptyT}</h3><p>${t().emptyS}</p></div>`;
+  const sheet=sheetId?ORDERS.find(o=>o.id===sheetId):null;
+  return `${sbar()}${qChips(true)}
+    <label class="msearch2">${I.search}<input type="search" placeholder="${isAr()?"ابحث باسم العميل أو رقم الطلب ...":"Rechercher un client ou un n° de commande…"}" aria-label="${t().searchAria}"></label>
+    <div class="mlist q">${rows}</div>${tabbar("orders")}${sheet?mSheet(sheet):""}`;
+}
+/* The order panel on the phone: the same panel, full screen, behind a back bar. */
+function mPanel(id){
+  const o=ORDERS.find(x=>x.id===id)||ORDERS[0];
+  return `${sbar()}<div class="mbar"><button id="mback" aria-label="${isAr()?"رجوع":"Retour"}">${I.back}</button>
+      <h4 class="q">${o.noName?t().noName:nm(o)}</h4></div>${qPanel(o)}`;
+}
+/* The phone search is a full-screen sheet — the same grouped listbox. */
+function mSearch(){
+  const {groups}=matches(S.q);
+  const body=!S.q||S.q.trim().length<2
+    ? `<div class="gh">${I.clock}<span>${t().gRecent}</span></div>${RECENT.map(r=>`<button class="rc" data-recent="${esc(r)}">${I.clock}<span>${esc(r)}</span></button>`).join("")}`
+    : groups.length? groups.map(g=>`<div class="gh">${I[g.icon]}<span>${g.label}</span><span class="n">${g.rows.length}</span></div>`+
+        g.rows.map(r=>{
+          let c,meta;
+          if(g.k==="orders"){c=tagg(SIT[r.sit].tone,t().sit[r.sit],null,SIT[r.sit].icon);meta=`#${r.ref} · ${cty(r)}`;}
+          else if(g.k==="delivery"){c=tagg(DTONE[r.sit],t().dSit[r.sit]);meta=`#${r.ref} · ${cty(r)}`;}
+          else if(g.k==="leads"){c=tagg(r.tone,isAr()?r.st:r.stf);meta=`${cty(r)} · ${r.ph}`;}
+          else {c=tagg(SIT[r.sit].tone,t().sit[r.sit]);meta=`#${r.ref} · ${isAr()?r.when:r.whenF}`;}
+          return `<button class="opt" role="option" style="min-height:56px" data-go="${g.k}:${r.id}">${c}
+            <span><span class="nm">${mark(nm(r),S.q)}</span><span class="mt">${mark(meta,S.q)}</span></span>
+            <span class="am">${r.amt?money(r.amt):""}</span></button>`;}).join("")).join("")
+      : `<div class="empty">${I.search}<h3>${t().emptyT}</h3><p>${t().emptyS}</p></div>`;
+  return `${sbar()}<div class="mbar"><button id="mback">${I.back}</button>
+      <label class="field">${I.search}<input id="q" type="search" value="${esc(S.q)}" placeholder="${t().search}" aria-label="${t().searchAria}"></label></div>
+    <div class="msugg" role="listbox">${body}</div>${tabbar(S.screen==="commissions"?"commissions":"orders")}`;
+}
+function mCommissions(){
+  const {c}=cCounts(), keys=["all","accrual","reversal","payout","adjustment"];
+  return `${sbar()}${mtop()}
+    <div class="mhead"><h2>${t().cTitle}</h2><div class="sub">${t().cRate(new Intl.NumberFormat("fr-FR").format(COMM.rate)+" "+t().curSym)}</div></div>
+    <div style="padding:0 12px 10px"><div class="mblk" style="margin:0">
+      <div class="lb" style="font-size:12.5px;color:var(--ink-2)">${t().cToReceive}</div>
+      <div style="font-size:36px;font-weight:800;line-height:1.05;margin-top:2px" class="num">${new Intl.NumberFormat("fr-FR").format(COMM.balance)} ${t().curSym}</div>
+      <div style="margin-top:6px;font-size:13px;color:var(--ink-2)">${t().cSince(isAr()?COMM.last.at:COMM.last.atF,COMM.sinceDelivered)}</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;border-top:1px solid var(--line);padding-top:10px;font-size:12.5px">
+        <div><div style="color:var(--ink-3)">${t().cMonth}</div><b>${COMM.month.delivered}</b></div>
+        <div><div style="color:var(--ink-3)">${t().cInflight}</div><b>${COMM.inflight.count}</b></div>
+        <div><div style="color:var(--ink-3)">${t().cLast}</div><b>${isAr()?COMM.last.at:COMM.last.atF}</b></div></div></div></div>
+    <div class="mpills">${keys.map(k=>`<button class="mp" data-ctab="${k}" aria-pressed="${S.cTab===k}" ${c[k]?"":'data-zero'}>
+      ${k==="all"?"":`<span class="dot" data-t="${CTONE[k]}"></span>`}<span>${t().cBuckets[k]}</span><b class="num">${c[k]}</b></button>`).join("")}</div>
+    <div class="mlist">${COMM.items.map((it,i)=>({it,i})).filter(({it})=>S.cTab==="all"||cKind(it)===S.cTab).map(({it,i})=>{
+      const k=cKind(it);
+      return `<article class="mc" data-t="${CTONE[k]}" data-ctog="${i}">
+        <div class="top1">${chip(CTONE[k],CICON[k],t().cBuckets[k])}<span class="c-amt" ${it.amount<0?'data-neg="true"':""}>${signed(it.amount)}</span></div>
+        <div class="nm"><b>${it.type==="payout"?t().cPaid:it.type==="adjustment"?t().cAdj:k==="reversal"?t().cCorr(it.corrections):t().cDay(it.delivered)}</b></div>
+        <div class="ln">${I.cal}<span>${it.type==="day"?(isAr()?it.day:it.dayF):(isAr()?it.at:it.atF)}</span></div></article>`;}).join("")}</div>
+    ${tabbar("commissions")}`;
+}
+function mDelivery(){
+  const {c}=dCounts(), keys=["all","returning","act_now","waiting_customer","waiting_carrier","done"];
+  return `${sbar()}${mtop()}
+    <div class="mhead"><h2>${t().dTitle}</h2><div class="sub">${t().dSub(c.all)}</div>
+      <div class="rowend"><span class="pill">${I.bars}<span>${t().dStat(99,2)}</span></span></div></div>
+    <div class="mpills">${keys.map(k=>`<button class="mp" data-dtab="${k}" aria-pressed="${S.dTab===k}" ${c[k]?"":'data-zero'}>
+      ${k==="all"?"":`<span class="dot" data-t="${({returning:"red",act_now:"amber",waiting_customer:"blue",waiting_carrier:"grey",done:"green"})[k]}"></span>`}<span>${t().dBuckets[k]}</span><b class="num">${c[k]}</b></button>`).join("")}</div>
+    <div class="mlist">${PARCELS.filter(p=>S.dTab==="all"||p.bucket===S.dTab).map(p=>{const tone=DTONE[p.sit];
+      return `<article class="mc" data-t="${tone}">
+        <div class="top1">${chip(tone,DICON[p.sit],`${t().dSit[p.sit]} · ${isAr()?p.age:p.ageF}`)}<span class="c-amt">${money(p.amt)}</span></div>
+        <div class="nm"><b class="q">${nm(p)}</b><span class="id num">#${p.ref}</span></div>
+        <div class="ln">${I.pin}<span class="tr">${cty(p)} · ${p.addr}</span></div>
+        <div class="ac"><button class="bar" style="background:var(--soft)"><span>${t().dMoves[p.move]}</span>${I.arrow}</button>
+          ${p.move!=="wa"?`<button class="btn-sq" aria-label="WhatsApp">${I.wa}</button>`:""}</div></article>`;}).join("")}</div>
+    ${tabbar("delivery")}`;
+}
+
+/* ═════════ Checks — the brief's constraints, measured not asserted ═════════ */
+function lum(hex){
+  const c=hex.replace("#","").match(/../g).map(h=>{const v=parseInt(h,16)/255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)});
+  return .2126*c[0]+.7152*c[1]+.0722*c[2];
+}
+const ratio=(a,b)=>{const [x,y]=[lum(a),lum(b)].sort((m,n)=>n-m);return (x+.05)/(y+.05)};
+const TONE_HEX={red:["#991B1B","#FECACA"],rose:["#9F1239","#FECDD3"],fuchsia:["#86198F","#F5D0FE"],violet:["#5B21B6","#DDD6FE"],
+ orange:["#9A3412","#FED7AA"],amber:["#92400E","#FDE68A"],yellow:["#854D0E","#FEF08A"],teal:["#115E59","#99F6E4"],
+ indigo:["#3730A3","#C7D2FE"],stone:["#44403C","#D6D3D1"],slate:["#334155","#CBD5E1"],blue:["#1D4ED8","#BFDBFE"],
+ grey:["#374151","#E5E7EB"],green:["#166534","#BBF7D0"]};
+const USED={new:"grey",new_late:"yellow",no_answer:"amber",callback_due:"orange",callback_ahead:"blue",confirmed:"teal",
+ dispatch:"indigo",uploaded:"slate",delivered:"green",returned:"red",rejected:"rose",cancelled:"stone"};
+function contrastReport(){
+  const rows=Object.keys(USED).map(k=>{
+    const tone=USED[k],[ink,bg]=TONE_HEX[tone],r=ratio(ink,bg);
+    return `<tr><td>${k}</td><td>${tone}</td><td class="num">${ink} / ${bg}</td><td class="num ${r>=4.5?"ok":"bad"}">${r.toFixed(2)}:1</td><td>${r>=4.5?"AA":"échec"}</td></tr>`;
+  }).join("");
+  const extra=[["ink sur surface","#111827","#FFFFFF"],["ink-2 sur surface","#374151","#FFFFFF"],["ink-3 sur surface","#6B7280","#FFFFFF"],
+    ["blanc sur brand","#FFFFFF","#15803D"],["brand sur tint","#15803D","#F0FDF4"],["ink-3 sur ground","#6B7280","#FAFAF9"]]
+    .map(([l,a,b])=>{const r=ratio(a,b);return `<tr><td>${l}</td><td>—</td><td class="num">${a} / ${b}</td><td class="num ${r>=4.5?"ok":"bad"}">${r.toFixed(2)}:1</td><td>${r>=4.5?"AA":"échec"}</td></tr>`}).join("");
+  return `<div class="report"><h3>Contraste — chaque teinte de situation sur sa pastille, et le texte courant (cible ≥ 4,5:1)</h3>
+    <table><tr><th>Situation</th><th>Teinte</th><th>Encre / fond</th><th>Ratio</th><th>WCAG AA</th></tr>${rows}${extra}</table></div>`;
+}
+function touchReport(){
+  const bad=[];
+  document.querySelectorAll(".scr button,.scr a,.scr input,.app button,.app a,.app input").forEach(el=>{
+    // The tap target of a text field is the pill that wraps it, not the text box.
+    const target=el.tagName==="INPUT"?(el.closest(".field")||el.closest("label")||el):el;
+    const r=target.getBoundingClientRect();
+    if(r.width<1||r.height<1) return;
+    if(r.height<44||r.width<44){
+      const lbl=((el.getAttribute("aria-label")||el.textContent||el.tagName).trim().replace(/\s+/g," ").slice(0,44))||el.tagName;
+      if(bad.some(x=>x.lbl===lbl&&x.w===Math.round(r.width))) return;
+      bad.push({lbl,w:Math.round(r.width),h:Math.round(r.height)});
+      target.style.outline="2px dashed #B91C1C";target.style.outlineOffset="1px";
+    }
+  });
+  return `<div class="report"><h3>Cibles tactiles — tout ce qui est cliquable doit faire ≥ 44 px (${S.view==="mobile"?"vue mobile":"vue bureau"})</h3>
+    ${bad.length?`<table><tr><th>Élément</th><th>Largeur</th><th>Hauteur</th></tr>${bad.map(b=>`<tr><td>${esc(b.lbl)}</td><td class="num ${b.w<44?"bad":"ok"}">${b.w}</td><td class="num ${b.h<44?"bad":"ok"}">${b.h}</td></tr>`).join("")}</table>
+      <p style="margin:8px 0 0;color:var(--ink-3)">Entourés en rouge dans la maquette. Les icônes décoratives ne sont pas comptées.</p>`
+    :`<p class="ok" style="margin:0">Aucune cible sous 44 px.</p>`}</div>`;
+}
+</script>
+
+<script>
+/* ═════════ Render + boot ═════════ */
+const NOTES={
+ orders:`<b>Écran 1 — Commandes (révision 4, 2026-09-19 : les captures du propriétaire, reproduites).</b> Bureau : la rangée de titre porte le champ de recherche et les trois compteurs, puis les quatre paniers en puces bordées, et la table (case, vignette ×N, client + produit, activité <span class="num">n / 8</span> + dernier appel, âge avec sa jauge, montant) à côté du <b>panneau existant</b>, reproduit tel quel — en-tête, bloc client, grille de faits, onglets, produit, et les quatre issues en <b>icône + nom</b>, sans description. Téléphone : les puces, la recherche, des cartes en deux rangées (client · montant / produit · âge · tentatives) avec un <b>petit bouton d'appel</b> au bout de la rangée. Toucher la carte ouvre <b>le panneau de commande</b> ; toucher le bouton d'appel ouvre la feuille « نتيجة المكالمة » à quatre issues.`,
+ search:`<b>Écran 2 — Navigation + recherche.</b> L'en-tête est rendu à l'identique sur les quatre onglets : même ordre d'emplacements, même largeur de champ. Aujourd'hui le champ n'existe que sur la file, donc tout le bloc de droite glisse quand on change d'onglet — active la <b>Règle</b> pour vérifier que les repères ne bougent plus. La liste déroulante est celle des recherches récentes, agrandie : elle groupe par onglet — Commandes (tous les paniers), Livraison, Prospects, puis « Plus anciennes » qui vient du serveur au-delà de la fenêtre de 7 jours. Tape <code>محمود</code>, <code>091</code> ou <code>Benghazi</code>.`,
+ commissions:`<b>Écran 3 — Commissions.</b> La carte unique de 640 px devient la charpente de la livraison : bande de paniers par type d'écriture (livrées, corrections, paiements, ajustements) avec la somme sous chaque compte, en-têtes de colonnes, lignes à liseré et pastille, et le résumé (À recevoir, ce mois, en cours, dernier paiement) déplacé dans le panneau collant. Les jours s'ouvrent toujours sur leurs commandes. La période devient un choix dans « Filtrer » au lieu du bouton « Voir plus ».`,
+ delivery:`<b>Étalon — /delivery tel qu'il est en production.</b> Reproduit ici pour comparer côte à côte : c'est de cet écran que viennent la pastille en dégradé, le liseré, la bande de paniers, les en-têtes de colonnes, le panneau collant et les deux emplacements d'action. Rien n'a été inventé pour les trois autres écrans.`
+};
+function render(){
+  document.documentElement.dir=isAr()?"rtl":"ltr";
+  document.documentElement.lang=S.lang;
+  document.getElementById("note").innerHTML=NOTES[S.screen]||"";
+  [["segLang","lang"],["segView","view"],["segScreen","screen"],["segState","state"],["segCheck","check"]].forEach(([id,key])=>{
+    document.querySelectorAll(`#${id} button`).forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===S[key]));
+  });
+  const screen=S.screen==="search"?"orders":S.screen;
+  const active=screen==="commissions"?"commissions":screen==="delivery"?"delivery":"orders";
+  const stage=document.getElementById("stage");
+  if(S.view==="mobile"){
+    let inner;
+    if(S.mobileSearch) inner=mSearch();
+    else if(screen==="commissions") inner=mCommissions();
+    else if(screen==="delivery") inner=mDelivery();
+    else if(S.mPanel&&screen==="orders") inner=mPanel(S.mPanel);
+    else inner=mOrders(S.sheet);
+    // Three phones: the list, the panel a row opens, the sheet the call button opens.
+    const extra=(!S.mobileSearch&&!S.mPanel&&!S.sheet&&screen==="orders")
+      ?`<div class="pwrap"><p class="cap">${S.screen} · ${S.lang} · ${isAr()?"لوحة الطلب":"panneau"}</p><div class="scr">${mPanel(MOB[0])}</div></div>`
+      +`<div class="pwrap"><p class="cap">${S.screen} · ${S.lang} · ${isAr()?"نتيجة المكالمة":"résultat de l'appel"}</p><div class="scr">${mOrders(MOB[0])}</div></div>`:"";
+    stage.innerHTML=`<div class="phones"><div class="pwrap"><p class="cap">${S.screen} · ${S.lang}</p><div class="scr">${inner}</div></div>${extra}</div>`;
+  }else{
+    const body=screen==="commissions"?screenCommissions():screen==="delivery"?screenDelivery():screenOrders();
+    stage.innerHTML=`<div class="hscroll"><div class="app ${screen==="orders"?"orders-app":""}">${topbar(active)}${body}${S.check==="ruler"?ruler():""}</div></div>`;
+  }
+  const rep=document.getElementById("report");
+  rep.innerHTML=S.check==="contrast"?contrastReport():"";
+  if(S.check==="geom") setTimeout(()=>{
+    const app=document.querySelector(".app")?.getBoundingClientRect();
+    const meta="viewport="+document.documentElement.clientWidth+" app="+Math.round(app?.width||0)+" top="+Math.round(document.querySelector(".top")?.getBoundingClientRect().width||0)+" tabsA=["+[...document.querySelectorAll(".tabs a")].map(a=>Math.round(a.getBoundingClientRect().width)).join(",")+"] | ";
+    const out=[meta].concat([".tabs",".slot-search",".search .field",".slot-end"].map(sel=>{
+      const e=document.querySelector(sel); if(!e||!app) return sel+"=absent";
+      const r=e.getBoundingClientRect();
+      return sel+" x="+Math.round(r.left-app.left)+" w="+Math.round(r.width);
+    })).join(" | ");
+    rep.innerHTML='<div class="report"><pre id="geom">'+out+'</pre></div>';
+  },500);
+  // Measured after the webfonts land and one frame has been laid out —
+  // measuring during render reads half-built boxes and lies about widths.
+  if(S.check==="touch"){
+    rep.innerHTML=`<div class="report"><p>${t().loading}</p></div>`;
+    setTimeout(()=>{rep.innerHTML=touchReport()},500);
+  }
+  if(S.suggOpen){const i=document.getElementById("q");if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}}
+  if(S.mobileSearch){const i=document.getElementById("q");if(i)i.focus();}
+  const u=new URLSearchParams({lang:S.lang,view:S.view,screen:S.screen,tab:S.tab,state:S.state});
+  if(S.open)u.set("open",S.open); if(S.q)u.set("q",S.q); if(S.check!=="off")u.set("check",S.check);
+  history.replaceState(null,"",location.pathname+"?"+u);
+}
+/* The ruler measures the four slot boundaries in the real DOM — if a screen
+   moved them, the labels would differ between tabs. */
+function ruler(){
+  return `<div class="ruler" id="ruler"></div>`;
+}
+function drawRuler(){
+  const r=document.getElementById("ruler"); if(!r) return;
+  const app=r.parentElement.getBoundingClientRect();
+  const marks=[[".tabs","tabs"],[".slot-search","search"],[".slot-end","fin"]];
+  r.innerHTML=marks.map(([sel,l])=>{
+    const el=document.querySelector(sel); if(!el) return "";
+    const b=el.getBoundingClientRect();
+    const x1=Math.round(b.left-app.left), x2=Math.round(b.right-app.left);
+    return `<i style="left:${x1}px" data-l="${l} ${x1}"></i><i style="left:${x2}px" data-l="${x2}"></i>`;
+  }).join("");
+}
+/* ═════════ Events ═════════ */
+document.addEventListener("click",e=>{
+  const seg=e.target.closest("#segLang button,#segView button,#segScreen button,#segState button,#segCheck button");
+  if(seg){
+    const key={segLang:"lang",segView:"view",segScreen:"screen",segState:"state",segCheck:"check"}[seg.parentElement.id];
+    S[key]=seg.dataset.v;
+    if(key==="screen"){S.suggOpen=S.screen==="search";S.mobileSearch=S.view==="mobile"&&S.screen==="search";S.pop=null;S.mPanel=null;S.sheet=null;
+      if(S.screen==="search"&&!S.q)S.q=isAr()?"محمود":"Mahmoud";}
+    if(key==="check"&&seg.dataset.v==="off")document.getElementById("report").innerHTML="";
+    return render(),drawRuler();
+  }
+  const tab=e.target.closest("[data-screen]");
+  if(tab){e.preventDefault();const s=tab.dataset.screen;S.screen=s==="leads"?"orders":s;S.suggOpen=false;S.mobileSearch=false;S.mPanel=null;S.sheet=null;S.pop=null;return render(),drawRuler();}
+  const b=e.target.closest("[data-tab]"); if(b){S.tab=b.dataset.tab;S.open=null;S.mPanel=null;S.sheet=null;return render(),drawRuler();}
+  const d=e.target.closest("[data-dtab]"); if(d){S.dTab=d.dataset.dtab;return render(),drawRuler();}
+  const c=e.target.closest("[data-ctab]"); if(c){S.cTab=c.dataset.ctab;return render(),drawRuler();}
+  const tog=e.target.closest("[data-ctog]"); if(tog){const i=+tog.dataset.ctog;S.cOpen=S.cOpen===i?null:i;return render();}
+  if(e.target.closest("#fbtn")){S.pop=S.pop==="filter"?null:"filter";return render();}
+  if(e.target.closest("#sbtn")){S.pop=S.pop==="sort"?null:"sort";return render();}
+  if(e.target.closest("#qclear")){S.q="";S.sugIx=0;return render();}
+  if(e.target.closest("#clearhist")){RECENT.length=0;return render();}
+  if(e.target.closest("#mopen")){S.mobileSearch=true;return render();}
+  if(e.target.closest("#mback")){S.mobileSearch=false;S.mPanel=null;return render();}
+  if(e.target.closest("#closePanel")){S.open=null;return render(),drawRuler();}
+  const rec=e.target.closest("[data-recent]"); if(rec){S.q=rec.dataset.recent;S.sugIx=0;return render();}
+  const go=e.target.closest("[data-go]");
+  if(go){
+    const [g,id]=go.dataset.go.split(":");
+    S.suggOpen=false;S.mobileSearch=false;S.q="";
+    if(g==="orders"){const o=ORDERS.find(x=>x.id===id);S.screen="orders";S.tab=BUCKET_OF[o.sit];S.open=id;if(S.view==="mobile")S.mPanel=id;}
+    else if(g==="delivery"){S.screen="delivery";S.open=id;}
+    else if(g==="archive"){S.screen="orders";S.tab="fermees";}
+    else S.screen="orders";
+    return render(),drawRuler();
+  }
+  if(e.target.closest("#sheetclose")||e.target.id==="sheetveil"){S.sheet=null;return render();}
+  const call=e.target.closest("[data-mcall]"); if(call){S.sheet=call.dataset.mcall;return render();}
+  const mo=e.target.closest("[data-mopen]"); if(mo){S.mPanel=mo.dataset.mopen;S.open=mo.dataset.mopen;return render();}
+  const row=e.target.closest("[data-open]");
+  if(row){S.open=row.dataset.open;return render(),drawRuler();}
+  if(!e.target.closest(".search")){if(S.suggOpen){S.suggOpen=false;render();}}
+  if(!e.target.closest(".rel")&&S.pop){S.pop=null;render();}
+});
+document.addEventListener("input",e=>{
+  if(e.target.id==="q"){S.q=e.target.value;S.sugIx=0;S.suggOpen=true;
+    const pos=e.target.selectionStart;render();
+    const i=document.getElementById("q");if(i){i.focus();i.setSelectionRange(pos,pos);}}
+});
+document.addEventListener("focusin",e=>{if(e.target.id==="q"&&S.view!=="mobile"&&!S.suggOpen){S.suggOpen=true;render();}});
+document.addEventListener("keydown",e=>{
+  const inField=e.target.id==="q";
+  /* "/" focuses the search on EVERY tab — today the handler lives in QueuePage. */
+  if(e.key==="/"&&!inField&&!/INPUT|TEXTAREA/.test(e.target.tagName)){
+    e.preventDefault();
+    if(S.view==="mobile"){S.mobileSearch=true;render();}
+    else{S.suggOpen=true;render();document.getElementById("q").focus();}
+    return;
+  }
+  if(!S.suggOpen&&!S.mobileSearch) return;
+  const {total}=matches(S.q);
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+    e.preventDefault();
+    if(!total) return;
+    S.sugIx=(S.sugIx+(e.key==="ArrowDown"?1:-1)+total)%total;
+    const pos=document.getElementById("q")?.selectionStart??0;
+    render();const i=document.getElementById("q");if(i){i.focus();i.setSelectionRange(pos,pos);}
+  }
+  if(e.key==="Enter"){
+    const opt=document.querySelectorAll("[data-go]")[S.sugIx];
+    if(opt){e.preventDefault();opt.click();}
+  }
+  if(e.key==="Escape"){
+    e.preventDefault();
+    if(S.q){S.q="";render();const i=document.getElementById("q");if(i)i.focus();}
+    else{S.suggOpen=false;S.mobileSearch=false;render();}
+  }
+});
+if(S.screen==="search"){S.suggOpen=S.view!=="mobile";S.mobileSearch=S.view==="mobile";if(!S.q)S.q=isAr()?"محمود":"Mahmoud";}
+render();drawRuler();
+window.addEventListener("resize",drawRuler);
+</script>

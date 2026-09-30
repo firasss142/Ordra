@@ -11,9 +11,11 @@ the rules below).
 |---|---|
 | Trigger | first `order_history` row with `status_to='delivered'`, and `orders.status` still `delivered` |
 | Attribution | the agent whose `confirmed` transition is the **last one before** the delivered event (orders can be reopened and reconfirmed) |
+| Upload gate | since 2026-09-26: the agent's rate must be ON (enabled, amount > 0) on the market-local day of the **last `uploaded` event before delivery** (no upload in history → the agent's confirm). Delivered after activation is not enough. One definition: `commission_counts_upload()` — also gates the « en cours » estimate |
 | Rate | flat amount per delivered order — market default, optional per-agent override; resolved for the **market-local day of delivery** |
 | Switch | market switch and per-agent switch, both **dated pauses** (`enabled=false` row), never deletions; market off wins over everything, agent off wins over market on |
-| Reductions | none — no return penalties, no advances. A `reversal` is written once if an accrued order stops being `delivered` |
+| Reductions | none — no return penalties, no advances. A `reversal` is written once per order, with `reversal_reason`: `not_delivered` (sweep: the order left `delivered`, dated now) or `uploaded_before_activation` (the one-off 2026-09-26 correction, dated like the accrual it cancels) |
+| « Livrées » counts | an accrual that has a reversal is not a delivery — `get_team_commissions.delivered`, and the agent's day / month / since-payout counts, all exclude it |
 | Payout | manager-entered (date · amount · method · reference · note); refuses to push the balance negative unless explicitly allowed |
 | Repair | `adjustment` (± with mandatory note). The ledger is append-only |
 | Start | no backfill — nothing accrues before the first effective rate row |
@@ -46,6 +48,10 @@ the rules below).
 - `/commissions` (agent shell tab **Mes commissions**) — À recevoir · ce mois · en cours · dernier paiement · history grouped by day.
 
 Code: `src/lib/commissions/*` (types, view-models, api helpers), `src/hooks/useTeamCommissions.ts`, `src/hooks/useAgentCommissions.ts`, `src/components/team/control-room/{CommissionsCard,CommissionSection,PayoutModal}.tsx`, `src/components/settings/general/CommissionsSection.tsx`, `src/components/agent-commissions/*`, routes under `src/app/api/{team/commissions,settings/commissions,agent/commissions}`.
+
+## 2026-09-26 correction
+
+`20260926132710_commission_upload_gate.sql`. The sweep had paid 24 orders uploaded while the agent's commission was off (tasnim 16, salima 5, roqaya 2, hend 1 — 215 LYD). They were reversed by `reverse_commissions_uploaded_before_activation()`, called once by the migration. It is NOT in the sweep on purpose: switching an agent off with a past date must never claw back money already earned. No balance went negative. Proven by `supabase/tests/commission_upload_gate_test.sql`.
 
 ## Go-live
 

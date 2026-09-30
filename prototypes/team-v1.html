@@ -1,0 +1,719 @@
+<!doctype html>
+<!--
+  Équipe v1 — the /team rebuild (plans/team-page-rebuild.md), manager-facing.
+  REAL Libya data, read 2026-09-25 16:01 Africa/Tripoli with the plan's exact definitions
+  (get_team_period / get_team_now dry run). No customer data.
+  URL presets: ?lang=fr|ar  ?period=today|yesterday|d7|d30  ?agent=<name>  ?rule=available|online  ?sim=1
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Équipe — prototype v1</title>
+<style>
+  :root{
+    --bg:#F6F6F7; --surface:#FFFFFF; --sunken:#FAFAFB; --hover:#F7F7F7;
+    --line:#E1E3E5; --line-subtle:#ECEEF0; --line-strong:#DADCE0;
+    --ink-1:#1A1A1A; --ink-2:#6D7175; --ink-3:#9CA3AF;
+    --brand:#15803D; --brand-hover:#12692F; --brand-bg:#E9F6EE;
+    --success:#008060; --success-bg:#F1F8F5;
+    --warning:#B98900; --warning-ink:#8A5A00; --warning-bg:#FFF8E6;
+    --critical:#D72C0D; --critical-bg:#FFF4F4;
+    --chart:#8C9196;
+    --sidebar:#0E1013; --sidebar-ink:#B5BAC2; --brand-on-dark:#10B981;
+    --r-sm:6px; --r-card:8px; --r-pill:9999px;
+    --e-panel:0 4px 16px rgba(16,24,40,.08);
+    /* rejection-reason GROUP hues (docs/rejection-reasons.md) */
+    --g-red:#D72C0D; --g-amber:#B98900; --g-violet:#7C3AED; --g-teal:#0E7490; --g-neutral:#8C9196;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg)}
+  body{color:var(--ink-1);font-size:14px;line-height:1.45;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  [dir=auto]{unicode-bidi:plaintext}
+  .tnum{font-variant-numeric:tabular-nums}
+  button{font:inherit;color:inherit;cursor:pointer;background:none;border:0}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+  h1,h2,h3,p{margin:0}
+
+  /* ── prototype chrome (NOT part of the app) ── */
+  .pbar{position:sticky;top:0;z-index:300;background:#1F2328;color:#E6E8EB;padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:3px solid var(--brand)}
+  .pbar .tag{font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#7F858F}
+  .pbar h1{font-size:14px;font-weight:600;color:#fff}
+  .pbar .src{font-size:11.5px;color:#8B9198}
+  .pbar .src b{color:#B7D9C4;font-weight:600}
+  .pctl{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#9BA1A8}
+  .pctl button{height:28px;padding:0 10px;border-radius:7px;font-size:12px;font-weight:600;border:1px solid rgba(255,255,255,.14);color:#B5BAC2}
+  .pctl button:hover{background:rgba(255,255,255,.08);color:#fff}
+  .pctl button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .pbar .grow{flex:1}
+  .pbar a{color:#B7D9C4;font-size:12px;font-weight:600;text-decoration:none}
+
+  /* ── app shell ── */
+  .stage{display:flex;min-height:calc(100vh - 52px)}
+  .sb{width:224px;flex:none;background:var(--sidebar);color:var(--sidebar-ink);padding:14px 10px;font-size:13px}
+  .sb .brand{color:#fff;font-weight:700;font-size:15px;padding:4px 10px 14px}
+  .sb .sbsec{padding:9px 10px 3px;font-size:12.5px;color:#DADDE1;font-weight:600}
+  .sb .it{display:block;padding:6px 10px 6px 22px;border-radius:7px;color:#9BA1A8}
+  [dir=rtl] .sb .it{padding:6px 22px 6px 10px}
+  .sb .it.on{background:rgba(16,185,129,.12);color:#fff;font-weight:600;box-shadow:inset 3px 0 0 var(--brand-on-dark)}
+  [dir=rtl] .sb .it.on{box-shadow:inset -3px 0 0 var(--brand-on-dark)}
+  .sb .muted{color:#5E646B}
+  .main{flex:1;min-width:0;padding:26px 28px 80px}
+  .page{max-width:1380px;margin:0 auto}
+
+  .ph{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px}
+  .ph h2{font-size:24px;font-weight:700;letter-spacing:-.01em}
+  .ph p{font-size:14px;color:var(--ink-2);margin-top:4px}
+  .ph .when{font-size:13px;color:var(--ink-2);white-space:nowrap;padding-top:6px}
+  .ph .when b{color:var(--ink-1);font-weight:600}
+  .live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--success);margin-inline-end:6px;vertical-align:1px}
+
+  .seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:3px;gap:2px;margin-bottom:14px}
+  .seg button{height:32px;padding:0 14px;border-radius:7px;font-size:13px;font-weight:500;color:var(--ink-2)}
+  .seg button:hover{color:var(--ink-1);background:var(--hover)}
+  .seg button.on{background:var(--ink-1);color:#fff}
+  .seg button[disabled]{opacity:.45;cursor:default}
+
+  .card{background:var(--surface);border:1px solid var(--line-subtle);border-radius:var(--r-card)}
+  .strip{display:grid;grid-template-columns:1.5fr 1fr 1fr 1.3fr;margin-bottom:14px}
+  .strip.nolive{grid-template-columns:1fr 1fr 1.3fr}
+  .cell{padding:14px 18px;border-inline-start:1px solid var(--line-subtle)}
+  .cell:first-child{border-inline-start:0}
+  .cell .l{font-size:12.5px;color:var(--ink-2)}
+  .cell .v{font-size:26px;font-weight:700;letter-spacing:-.01em;margin-top:2px}
+  .cell .v small{font-size:14px;font-weight:500;color:var(--ink-2)}
+  .cell .s{font-size:12px;color:var(--ink-2);margin-top:1px}
+
+  .chead{display:flex;align-items:baseline;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line-subtle)}
+  .chead h3{font-size:16px;font-weight:600}
+  .chead span{font-size:12.5px;color:var(--ink-2)}
+
+  table.t{width:100%;border-collapse:collapse}
+  .t th{font-size:12px;font-weight:500;color:var(--ink-2);text-align:start;padding:9px 12px;white-space:nowrap;border-bottom:1px solid var(--line);vertical-align:bottom}
+  .t th .ref{display:block;font-size:11px;color:var(--ink-3);font-weight:400;margin-top:1px}
+  .t th.num,.t td.num{text-align:end}
+  .t td{padding:11px 12px;border-bottom:1px solid var(--line-subtle);vertical-align:middle}
+  .t tbody tr{cursor:pointer}
+  .t tbody tr:hover{background:var(--hover)}
+  .t tbody tr:last-child td{border-bottom:0}
+  .t tr.dim td{color:var(--ink-3)}
+  .who{display:flex;align-items:center;gap:10px}
+  .av{position:relative;width:32px;height:32px;border-radius:50%;background:#5C6166;color:#fff;display:grid;place-items:center;font-weight:600;font-size:13px;flex:none}
+  .av i{position:absolute;inset-inline-end:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;border:2px solid #fff;background:var(--ink-3)}
+  .av i.on{background:var(--success)} .av i.idle{background:var(--warning)}
+  .who b{font-size:14px;font-weight:600}
+  .who .sub{font-size:12px;color:var(--ink-2);display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:1px}
+  .pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:var(--r-pill);font-size:11.5px;font-weight:600;white-space:nowrap}
+  .pill.avail{background:var(--success-bg);color:var(--success)}
+  .pill.unavail{background:var(--bg);color:var(--ink-2);font-weight:500}
+  .pill.idle{background:var(--warning-bg);color:var(--warning-ink)}
+  .pill.wait{border:1px solid var(--critical);color:var(--critical);background:#fff}
+  .pill.off{background:var(--bg);color:var(--ink-2);font-weight:500}
+  .last{font-size:13.5px;white-space:nowrap}
+  .last span{color:var(--ink-2)}
+  .big{font-size:14.5px;font-weight:600}
+  .muted{color:var(--ink-3)}
+  .sub2{font-size:12px;color:var(--ink-2);margin-top:1px;white-space:nowrap}
+  .delta{display:inline-block;margin-inline-start:6px;font-size:12px;font-weight:600}
+  .delta.up{color:var(--success)} .delta.down{color:var(--critical)} .delta.flat{color:var(--ink-3)}
+  .btn{height:30px;padding:0 11px;border-radius:7px;font-size:12.5px;font-weight:500;border:1px solid var(--line-strong);background:#fff;white-space:nowrap}
+  .btn:hover{background:var(--hover)}
+  .btn.xs{height:24px;padding:0 8px;font-size:11.5px;color:var(--ink-2);border-color:var(--line-subtle)}
+  .btn.xs:hover{color:var(--ink-1);border-color:var(--line-strong)}
+  .bal{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+  .bal b{font-weight:600}
+
+  .grid2{display:grid;grid-template-columns:1fr 1.1fr;gap:14px;margin-top:14px;align-items:start}
+  .rk{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line-subtle);cursor:pointer}
+  .rk:hover{background:var(--hover)}
+  .rk .n{width:20px;text-align:center;font-size:20px;font-weight:600}
+  .rk .mid{flex:1;min-width:0}
+  .rk .score{font-size:20px;font-weight:700;white-space:nowrap}
+  .rk .score small{font-size:12px;color:var(--ink-2);font-weight:500}
+  .foot{padding:11px 16px;font-size:12.5px;color:var(--ink-2)}
+  .empty{padding:22px 16px;font-size:13.5px;color:var(--ink-2)}
+  .prow{display:grid;grid-template-columns:minmax(0,1fr) 84px 52px 250px;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line-subtle);font-size:13px}
+  .prow .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .spread{display:flex;gap:6px;align-items:baseline;font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+  .spread b{color:var(--ink-1);font-weight:600}
+  .spread .gap{margin-inline-start:auto;font-size:11.5px;color:var(--ink-3)}
+  .range{position:relative;height:18px}
+  .range .bar{position:absolute;top:8px;height:2px;background:var(--line-strong)}
+  .range .dot{position:absolute;top:4px;width:10px;height:10px;border-radius:50%;transform:translateX(-50%)}
+  [dir=rtl] .range .dot{transform:translateX(50%)}
+  .range .dot.team{background:var(--ink-1)} .range .dot.end{background:#fff;border:2px solid var(--chart)}
+  .rlabels{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);margin-top:2px}
+
+  /* drawer */
+  .backdrop{position:fixed;inset:0;background:rgba(26,26,26,.45);opacity:0;pointer-events:none;transition:opacity .15s;z-index:320}
+  .backdrop.show{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;inset-inline-end:0;height:100vh;width:560px;max-width:94vw;background:var(--surface);box-shadow:var(--e-panel);transform:translateX(102%);transition:transform .2s ease;z-index:321;display:flex;flex-direction:column}
+  [dir=rtl] .drawer{transform:translateX(-102%)}
+  .drawer.show{transform:translateX(0)!important}
+  .dh{height:60px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 16px;border-bottom:1px solid var(--line-subtle)}
+  .dh .nm{font-size:15px;font-weight:600}
+  .dh .st{font-size:12px;color:var(--ink-2);display:flex;gap:6px;align-items:center;margin-top:1px}
+  .x{width:30px;height:30px;border-radius:8px;color:var(--ink-2);font-size:18px}
+  .x:hover{background:var(--hover);color:var(--ink-1)}
+  .db{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+  .sec{border:1px solid var(--line-subtle);border-radius:var(--r-card);padding:14px}
+  .sl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);margin-bottom:10px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .stat{background:var(--sunken);border-radius:6px;padding:9px 6px;text-align:center}
+  .stat .v{font-size:18px;font-weight:700}
+  .stat .l{font-size:11px;color:var(--ink-2);margin-top:1px}
+  .stat .d{font-size:11px;font-weight:600;margin-top:1px}
+  .line{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line-subtle);font-size:13px}
+  .line:last-child{border-bottom:0}
+  .line .grow{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .line .w{width:56px;text-align:end;font-weight:600}
+  .line .w2{width:74px;text-align:end;font-size:12px}
+  .mbar{height:6px;border-radius:3px;display:inline-block;vertical-align:middle}
+  .hero{font-size:22px;font-weight:700}
+  .hero small{font-size:14px;font-weight:500;color:var(--ink-2)}
+  .note{margin-top:10px;font-size:12.5px;border-radius:6px;padding:8px 10px}
+  .note.warn{background:var(--warning-bg);color:var(--warning-ink)}
+  .note.bad{background:var(--critical-bg);color:#8E1F0B}
+  .bars{display:flex;align-items:flex-end;gap:3px;height:110px;padding-top:6px;border-bottom:1px solid var(--line)}
+  .bars .day{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:1px;height:100%;min-width:0}
+  .bars .day i{display:block;width:45%;max-width:12px;border-radius:2px 2px 0 0}
+  .bars .day i.c{background:var(--chart)} .bars .day i.k{background:var(--ink-1)}
+  .blabels{display:flex;gap:3px;font-size:10px;color:var(--ink-3);margin-top:4px}
+  .blabels span{flex:1;text-align:center;min-width:0;overflow:hidden}
+  .legend{display:flex;gap:14px;font-size:11.5px;color:var(--ink-2);margin-top:8px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-inline-end:5px;vertical-align:-1px}
+  .kv{display:flex;justify-content:space-between;font-size:13px;padding:5px 0}
+  .kv span{color:var(--ink-2)}
+
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink-1);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:all .18s;z-index:400;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* review notes (NOT part of the app) */
+  .notes{max-width:1100px;margin:0 auto;padding:10px 28px 90px}
+  .notes h2{font-size:18px;margin:24px 0 10px}
+  .notes .n{background:#fff;border:1px solid var(--line-subtle);border-inline-start:3px solid var(--ink-1);border-radius:8px;padding:12px 14px;margin-bottom:10px;font-size:13.5px;line-height:1.6}
+  .notes .n.q{border-inline-start-color:var(--warning)}
+  .notes .n b{font-weight:650}
+  .notes ul{margin:6px 0 0;padding-inline-start:20px}
+</style>
+</head>
+<body>
+
+<div class="pbar">
+  <span class="tag">Prototype</span>
+  <h1>Équipe · v1</h1>
+  <span class="src">Données réelles <b>Libye</b>, lues le ven. 25 sept. à 16:01 (Tripoli)</span>
+  <span class="grow"></span>
+  <span class="pctl">Langue
+    <button data-lang="fr" class="on">FR</button><button data-lang="ar">AR</button></span>
+  <span class="pctl">Règle « sans action »
+    <button data-rule="available" class="on">Disponible</button><button data-rule="online">Disponible ou en ligne</button></span>
+  <span class="pctl"><button id="simAvail">Simuler roqaya Disponible</button></span>
+  <a href="#notes">Notes de revue ↓</a>
+</div>
+
+<div class="stage" id="stage" dir="ltr">
+  <aside class="sb" id="sb"></aside>
+  <main class="main"><div class="page" id="page"></div></main>
+  <div class="backdrop" id="backdrop"></div>
+  <aside class="drawer" id="drawer" aria-hidden="true"></aside>
+</div>
+
+<section class="notes" id="notes">
+  <h2>Notes de revue</h2>
+  <div class="n"><b>Ce qui a disparu.</b> À débloquer, Rappels à venir, files orphelines, tentatives épuisées, « sans appel », la barre de verdict, les 4 tuiles, les objectifs du jour (12 / 40 % / hygiène), les séries, le bouton de coaching, le nuage débit × taux, la carte de présence, le tiroir « journée », Réassigner / Retour au pool, le panneau Disponibilité et la table Commissions. La page Performance disparaît aussi : c'est le bouton « 7 jours » ici.</div>
+  <div class="n q"><b>À décider : la règle « sans action ».</b> La règle convenue (Disponible + tient des commandes + aucune action depuis 30 min) ne signale <b>personne</b> aujourd'hui : personne n'a utilisé le bouton Disponible en Libye depuis deux jours. Pourtant tasnim a l'application ouverte (vue il y a 2 min), tient 16 commandes, et n'a rien fait depuis hier 18:59. Basculez la règle dans la barre du haut pour comparer. Recommandation : <b>Disponible ou en ligne</b>.</div>
+  <div class="n q"><b>À vérifier : « Mettre en pause ».</b> Le bouton n'apparaît que sur un agent Disponible, donc nulle part aujourd'hui. Cliquez « Simuler roqaya Disponible » pour le voir sur sa ligne.</div>
+  <div class="n"><b>La rapidité du premier appel tient la route sur les vraies données.</b> roqaya a reçu 12 commandes d'un coup à 11:19. Son premier appel est à 14:07, puis elle a appelé les 12 en 14 minutes. Le 0 % du jour mesure donc un vrai trou de près de 3 heures, pas un effet de lot. Sur 7 jours l'équipe est à 44 % sous 2 h.</div>
+  <div class="n"><b>Limite connue de la rapidité sur 30 jours.</b> Les commandes attribuées avant le 19 sept. ont une heure d'attribution égale à leur heure de création. Les commandes de nuit gonflent donc les délais (salima : médiane 15 h 25 sur 30 j contre 2 h 48 sur 7 j). La vue 30 jours devient propre à partir du 19 oct.</div>
+  <div class="n"><b>Trouvé en passant, hors de cette page.</b> salima a reçu 5 commandes à 12:54 et 13:54 alors qu'elle n'a plus été vue depuis hier 19:34. La distribution en production ne semble pas encore vérifier la disponibilité. Ces 5 commandes n'ont toujours pas été appelées.</div>
+  <div class="n"><b>Le tiroir signale les motifs vides.</b> tasnim classe 68 de ses 70 rejets de la semaine en « Autre » (281 sur 286 en 30 jours). Ouvrez son tiroir.</div>
+  <div class="n"><b>Limites du prototype.</b> Les totaux d'équipe sur Aujourd'hui et 7 jours sont la somme des agents. La vraie RPC compte les commandes distinctes, l'écart est d'une commande au plus. « Gagné » et « Payé » sur la période ne sont renseignés que pour 7 jours. Payer ouvre la fenêtre de paiement existante, inchangée.</div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════ REAL DATA — Libya, read 2026-09-25 16:01 Africa/Tripoli ═══════════════ */
+const P = {
+  Q:"القرآن تدبر وعمل", H:"كتاب الحفظ الميسر", D:"كتاب الداء والدواء للإمام ابن القيم",
+  BM:"دميه ملاكمه حجم متوسط", BL:"دميه ملاكمه حجم كبير", BS:"دميه ملاكمه حجم صغير",
+  MQ:"مصحف الحفظ الميسر برواية قالون", SL:"أكمام تغطية للساعد والمعصم للمحجبات", TOY:"افضل لعبة رياضية ممكن تهديها لاطفالك"
+};
+const AGENTS = ["roqaya","tasnim","salima","hend","mouna","riheb"];
+
+/* live overlay — get_team_now */
+const NOW = {
+  roqaya:{seen:9, avail:false, lastMin:99,   lastS:"attempt_3", lastAt:{fr:"il y a 1 h 39", ar:"منذ 1 س 39"}, seenTxt:{fr:"vue il y a 9 min", ar:"ظهرت منذ 9 د"},
+    q:{total:6, oldestH:41.5, waiting:0, bp:[["D","attempt_1",3,17.8],["Q","attempt_1",2,19.5],["H","attempt_3",1,41.5]]}},
+  tasnim:{seen:2, avail:false, lastMin:1262, lastS:"attempt_1", lastAt:{fr:"hier 18:59", ar:"أمس 18:59"}, seenTxt:{fr:"en ligne", ar:"متصلة الآن"},
+    q:{total:16, oldestH:245.8, waiting:0, fresh:2, bp:[["D","callback_scheduled",5,149.8],["Q","attempt_3",3,88.3],["D","pending",2,2.0],["D","attempt_3",2,87],["H","attempt_3",2,68.3],["Q","attempt_1",1,21.8],["H","callback_scheduled",1,245.8]]}},
+  salima:{seen:1228, avail:false, lastMin:1227, lastS:"pending", lastAt:{fr:"hier 19:34", ar:"أمس 19:34"}, seenTxt:{fr:"vue hier 19:34", ar:"ظهرت أمس 19:34"},
+    q:{total:24, oldestH:233, waiting:12, bp:[["Q","attempt_1",6,61.8],["Q","attempt_3",3,143.5],["D","pending",3,3.8],["Q","pending",3,24.3],["D","attempt_1",2,59],["D","callback_scheduled",2,233],["H","attempt_3",2,57.8],["Q","attempt_2",1,56],["D","attempt_3",1,140],["H","pending",1,23.8]]}},
+  hend:{seen:2420, avail:false, lastMin:13242, lastS:"attempt_1", lastAt:{fr:"le 16 sept.", ar:"16 سبتمبر"}, seenTxt:{fr:"vue le 23 sept.", ar:"ظهرت 23 سبتمبر"},
+    q:{total:1, oldestH:238.5, waiting:0, bp:[["Q","confirmed",1,238.5]]}},
+  mouna:{seen:null, avail:false, lastMin:21012, lastS:"pending", lastAt:{fr:"le 11 sept.", ar:"11 سبتمبر"}, seenTxt:{fr:"aucune connexion", ar:"لا اتصال"}, q:{total:0, oldestH:null, waiting:0, bp:[]}},
+  riheb:{seen:null, avail:false, lastMin:18940, lastS:"attempt_3", lastAt:{fr:"le 12 sept.", ar:"12 سبتمبر"}, seenTxt:{fr:"aucune connexion", ar:"لا اتصال"}, q:{total:0, oldestH:null, waiting:0, bp:[]}},
+};
+
+/* per-day series (30 local days): calls/confirmed/active minutes */
+const DAILY_RAW = {
+  hend:"09-08:43/4/130 09-09:43/5/140 09-10:43/6/100 09-12:15/5/40 09-13:75/9/150 09-14:60/6/130 09-15:53/9/150 09-16:2/0/10",
+  mouna:"09-10:10/4/80 09-11:0/0/10",
+  riheb:"08-27:37/5/80 09-02:4/0/20 09-03:19/3/40 09-12:7/0/20",
+  roqaya:"09-08:33/5/70 09-09:40/10/100 09-10:25/6/50 09-18:92/12/110 09-20:59/5/90 09-21:25/4/50 09-22:94/5/100 09-23:45/5/100 09-24:22/6/80 09-25:14/2/30",
+  salima:"08-27:15/7/100 08-28:28/9/110 08-29:12/1/50 08-30:34/7/130 08-31:62/4/110 09-01:18/4/50 09-02:27/3/70 09-03:11/2/30 09-05:52/14/240 09-06:43/9/160 09-07:29/6/150 09-08:31/4/110 09-09:41/7/140 09-10:61/10/190 09-11:10/0/30 09-12:50/6/140 09-13:20/6/110 09-14:28/10/130 09-15:38/13/170 09-16:58/15/260 09-17:40/10/180 09-18:0/0/10 09-19:66/25/230 09-20:34/3/100 09-21:28/6/100 09-22:19/2/70 09-23:29/5/90 09-24:12/5/90",
+  tasnim:"08-29:47/6/160 08-30:55/8/160 08-31:55/3/110 09-01:57/1/140 09-02:45/2/130 09-03:47/4/150 09-05:114/13/240 09-06:159/17/290 09-07:76/20/180 09-08:126/15/260 09-10:7/1/40 09-11:147/20/250 09-12:17/3/80 09-13:87/12/200 09-14:50/10/130 09-16:131/17/270 09-17:109/12/220 09-19:151/17/300 09-20:52/11/160 09-21:88/9/140 09-22:62/11/130 09-23:53/11/170 09-24:54/6/120",
+};
+const DAILY = {};
+for (const [a, s] of Object.entries(DAILY_RAW)) {
+  DAILY[a] = {};
+  s.split(" ").forEach(x => { const [d, v] = x.split(":"); const [c, k, m] = v.split("/").map(Number); DAILY[a]["2026-" + d] = { calls:c, conf:k, mins:m }; });
+}
+function daysBack(n){ const out=[]; const end=new Date("2026-09-25T00:00:00Z"); for(let i=n-1;i>=0;i--){ const d=new Date(end.getTime()-i*86400000); out.push(d.toISOString().slice(0,10)); } return out; }
+
+/* period payloads — get_team_period.  re = réactivité {assigned, judged, w2h, pending, never, med(min)} */
+const Z = { calls:0, treated:0, conf:0, rej:0, mins:0, days:0, re:null, pr:[], mo:[] };
+const PERIODS = {
+  today:{ live:true, days:daysBack(1),
+    range:{fr:"ven. 25 sept.", ar:"الجمعة 25 سبتمبر"},
+    team:{calls:14, treated:8, conf:2, rej:6, re:{assigned:19, judged:17, w2h:0, pending:2, never:5, med:175}},
+    agents:{
+      roqaya:{calls:14, treated:8, conf:2, rej:6, mins:30, days:1, re:{assigned:12, judged:12, w2h:0, pending:0, never:0, med:175},
+        pr:[["Q",5,0],["H",1,0],["D",2,2]], mo:[["non_commande",2],["simple_info",2],["doublon",1],["prix_eleve",1]]},
+      salima:{...Z, re:{assigned:5, judged:5, w2h:0, pending:0, never:5, med:null}},
+      tasnim:{...Z, re:{assigned:2, judged:0, w2h:0, pending:2, never:0, med:null}},
+      hend:{...Z}, mouna:{...Z}, riheb:{...Z},
+    }},
+  yesterday:{ live:false, days:["2026-09-24"],
+    range:{fr:"jeu. 24 sept.", ar:"الخميس 24 سبتمبر"},
+    team:{calls:88, treated:35, conf:17, rej:18, re:{assigned:43, judged:43, w2h:4, med:175}},
+    agents:{
+      roqaya:{calls:22, treated:14, conf:6, rej:8, mins:80, days:1, re:{assigned:15, judged:15, w2h:0, med:164},
+        pr:[["Q",3,2],["H",9,3],["D",2,1]], mo:[["non_commande",5],["doublon",1],["hors_couverture",1],["non_serieux",1]]},
+      tasnim:{calls:54, treated:14, conf:6, rej:8, mins:120, days:1, re:{assigned:14, judged:14, w2h:4, med:185},
+        pr:[["Q",3,1],["H",4,1],["D",7,4]], mo:[["autre",8]]},
+      salima:{calls:12, treated:7, conf:5, rej:2, mins:90, days:1, re:{assigned:14, judged:14, w2h:0, med:240},
+        pr:[["Q",2,0],["H",3,3],["D",2,2]], mo:[["non_serieux",2]]},
+      hend:{...Z}, mouna:{...Z}, riheb:{...Z},
+    }},
+  d7:{ live:false, days:daysBack(7),
+    range:{fr:"sam. 19 → ven. 25 sept.", ar:"السبت 19 ← الجمعة 25 سبتمبر"},
+    team:{calls:907, treated:333, conf:138, rej:199, re:{assigned:290, judged:288, w2h:128, pending:2, never:12, med:129}},
+    agents:{
+      roqaya:{calls:259, treated:75, conf:27, rej:49, mins:450, days:6, re:{assigned:77, judged:77, w2h:44, pending:0, never:0, med:95},
+        pr:[["Q",32,9],["H",24,5],["D",19,13]],
+        mo:[["non_commande",22],["simple_info",10],["prix_eleve",4],["doublon",3],["mauvais_interlocuteur",2],["numero_hors_service",2],["autre",1],["non_serieux",1],["pas_de_reponse",1],["hors_couverture",1],["changement_avis",1],["unknown",1]]},
+      salima:{calls:188, treated:124, conf:46, rej:80, mins:680, days:6, re:{assigned:97, judged:97, w2h:22, pending:0, never:12, med:168},
+        pr:[["Q",56,12],["H",34,10],["D",34,24]],
+        mo:[["non_serieux",50],["changement_avis",13],["simple_info",6],["non_commande",2],["numero_invalide",2],["prix_eleve",2],["produit_non_voulu",2],["numero_hors_service",1],["pas_de_reponse",1],["raccroche",1]]},
+      tasnim:{calls:460, treated:134, conf:65, rej:70, mins:1020, days:6, re:{assigned:116, judged:114, w2h:62, pending:2, never:0, med:109},
+        pr:[["Q",50,13],["H",32,15],["D",52,37]], mo:[["autre",68],["changement_avis",1],["prix_eleve",1]]},
+      hend:{...Z}, mouna:{...Z}, riheb:{...Z},
+    }},
+  d30:{ live:false, days:daysBack(30),
+    range:{fr:"jeu. 27 août → ven. 25 sept.", ar:"الخميس 27 أغسطس ← الجمعة 25 سبتمبر"},
+    team:{calls:3545, treated:1285, conf:531, rej:791, re:{assigned:1080, judged:1078, w2h:235, med:522}},
+    agents:{
+      tasnim:{calls:1789, treated:502, conf:226, rej:286, mins:4030, days:23, re:{assigned:427, judged:425, w2h:112, med:310},
+        pr:[["Q",162,62],["D",145,93],["H",105,47],["BM",70,11],["BL",17,12],["BS",2,1],["MQ",1,0]], mo:[["autre",281],["prix_eleve",2],["unknown",2],["changement_avis",1]]},
+      salima:{calls:896, treated:462, conf:192, rej:284, mins:3350, days:28, re:{assigned:361, judged:361, w2h:35, med:925},
+        pr:[["Q",130,43],["D",119,78],["BM",101,25],["H",84,33],["BL",19,13],["TOY",4,0],["BS",4,0],["SL",1,0]],
+        mo:[["non_serieux",98],["changement_avis",75],["non_commande",35],["simple_info",20],["pas_de_reponse",14],["produit_non_voulu",11],["numero_invalide",10],["prix_eleve",6],["doublon",5],["raccroche",3],["autre",3],["numero_hors_service",2],["achete_ailleurs",1],["mauvais_interlocuteur",1]]},
+      roqaya:{calls:449, treated:164, conf:60, rej:108, mins:780, days:10, re:{assigned:157, judged:157, w2h:67, med:162},
+        pr:[["Q",77,22],["H",45,12],["D",42,26]],
+        mo:[["non_commande",37],["simple_info",20],["prix_eleve",14],["autre",7],["non_serieux",7],["doublon",5],["changement_avis",4],["numero_hors_service",4],["mauvais_interlocuteur",3],["achete_ailleurs",2],["numero_invalide",2],["pas_de_reponse",1],["hors_couverture",1],["unknown",1]]},
+      hend:{calls:334, treated:143, conf:44, rej:102, mins:850, days:8, re:{assigned:119, judged:119, w2h:14, med:1135},
+        pr:[["Q",55,15],["D",49,19],["H",35,9],["BM",3,0],["BL",1,1]],
+        mo:[["pas_de_reponse",24],["numero_hors_service",19],["non_commande",18],["changement_avis",13],["non_serieux",9],["prix_eleve",5],["raccroche",5],["autre",3],["numero_invalide",2],["mauvais_interlocuteur",2],["produit_non_voulu",1],["simple_info",1]]},
+      riheb:{calls:67, treated:20, conf:8, rej:12, mins:160, days:4, re:{assigned:14, judged:14, w2h:5, med:166},
+        pr:[["BM",18,7],["BL",2,1]], mo:[["autre",11],["changement_avis",1]]},
+      mouna:{calls:10, treated:4, conf:4, rej:0, mins:90, days:2, re:{assigned:2, judged:2, w2h:2, med:64},
+        pr:[["D",3,3],["Q",1,1]], mo:[]},
+    }},
+};
+
+/* commissions — get_team_commissions (balance all-time; earned/paid known for 7 j only here) */
+const COMM = {
+  roqaya:{bal:226, earned7:162, paid7:0}, tasnim:{bal:402, earned7:459, paid7:300}, salima:{bal:279, earned7:135, paid7:0},
+  riheb:{bal:60, earned7:0, paid7:0}, mouna:{bal:0, disabled:true}, hend:{bal:135, earned7:18, paid7:0},
+};
+
+/* rejection sub-reasons → group (rejection_reason_configs, LY) */
+const REASONS = {
+  prix_eleve:["refus_client","Prix trop élevé","السعر مرتفع"], frais_livraison:["refus_client","Frais de livraison refusés","رفض رسوم التوصيل"],
+  achete_ailleurs:["refus_client","Acheté ailleurs","اشترى من مكان آخر"], changement_avis:["refus_client","A changé d'avis","غيّر رأيه"],
+  produit_non_voulu:["refus_client","Veut un autre produit","يريد منتجاً آخر"],
+  pas_de_reponse:["injoignable","Ne répond pas","لا يرد"], numero_invalide:["injoignable","Numéro faux ou inexistant","رقم خاطئ أو غير موجود"],
+  numero_hors_service:["injoignable","Éteint ou hors service","مغلق أو خارج الخدمة"], mauvais_interlocuteur:["injoignable","Le numéro est à quelqu'un d'autre","الرقم لشخص آخر"],
+  raccroche:["injoignable","Raccroche au téléphone","يغلق الخط"],
+  hors_couverture:["livraison_impossible","Hors zone de livraison","خارج نطاق التغطية"],
+  simple_info:["commande_invalide","Simple demande d'info","استفسار فقط"], non_commande:["commande_invalide","N'a pas commandé","لم يطلب المنتج"],
+  doublon:["commande_invalide","Commande en double","طلب مكرر"], non_serieux:["commande_invalide","Commande non sérieuse","طلب غير جاد"],
+  autre:["autre","Autre","أخرى"], unknown:["autre","Sans motif","بدون سبب"],
+};
+const GROUP_HUE = { refus_client:"var(--g-red)", injoignable:"var(--g-amber)", livraison_impossible:"var(--g-violet)", commande_invalide:"var(--g-teal)", autre:"var(--g-neutral)" };
+
+/* ═══════════════ i18n ═══════════════ */
+const T = {
+  fr:{
+    title:"Équipe", subtitle:"Qui travaille maintenant, et comment chacun s'en sort.", live:"Temps réel", at:"ven. 25 sept., 16:01 (Tripoli)",
+    periods:{today:"Aujourd'hui", yesterday:"Hier", d7:"7 jours", d30:"30 jours", custom:"Personnalisé"},
+    now:"Maintenant", working:"au travail", of:"sur", nowSub:"{o} en ligne · {a} disponible · action il y a moins de 30 min",
+    calls:"Appels", conf:"Confirmées", rej:"Rejetées", teamRate:"Taux équipe", rateSub:"{c} confirmées sur {t} traitées",
+    agents:"Agents", agentsHint:"cliquer un agent pour le détail",
+    cAgent:"Agent", cLast:"Dernière action", cRate:"Taux", cReact:"Appelées ≤ 2 h", cQueue:"File", cBal:"Solde", cAction:"Action", team:"équipe {v}",
+    available:"Disponible", unavailable:"Pas disponible", idle:"Sans action depuis {d}",
+    med:"méd. {d}", never:"{n} jamais appelées", inProg:"{n} en cours", oldest:"plus ancienne {d}", waiting:"{n} en attente > 2 h",
+    pay:"Payer", pause:"Mettre en pause", disabled:"désactivée", rateHidden:"moins de 10 traitées", activeSub:"{d} d'activité · {n} j",
+    noAct:"aucune activité",
+    rkTitle:"Classement", rkHint:"confirmations par heure active", rkRule:"1 h d'activité et 10 traitées minimum",
+    rkUnranked:"Hors classement :", rkLittle:"{d} d'activité", rkNone:"{n} sans activité", rkEmpty:"Pas encore de classement : personne n'a 1 h d'activité et 10 commandes traitées sur la période.",
+    rkSub:"taux {r}{d} · {h} actives",
+    prTitle:"Par produit", prHint:"taux de l'équipe, et l'écart entre agents (≥ 10 traitées)", prTreated:"traitées", prGap:"écart {d} pts",
+    prOthers:"+ {n} autres produits · {t} traitées", prEmpty:"Aucun produit avec 10 commandes traitées sur la période.",
+    dResult:"Résultat", dVsTeam:"{d} pts vs équipe", dActive:"Heures actives", dDays:"{n} jour(s) actif(s)",
+    dReact:"Rapidité du premier appel", dReactBig:"appelées en moins de 2 h", dReactSub:"{w} sur {j} · délai médian {m} · équipe {tp}", dReactSubNoMed:"{w} sur {j} · équipe {tp}",
+    dReactPending:"{n} commande(s) reçue(s) il y a moins de 2 h, pas encore jugée(s).", dReactNone:"Aucune commande reçue sur la période.",
+    dWaitNow:"Maintenant : {n} commande(s) en attente depuis plus de 2 h sans appel.", dWaitNone:"Maintenant : aucune commande en attente depuis plus de 2 h.",
+    dNeverNote:"{n} commande(s) reçue(s) sur la période jamais appelée(s).",
+    dQueue:"File actuelle", dQueueEmpty:"File vide", dMotifs:"Motifs de rejet", dVague:"{n} sur {t} classés « Autre » : le motif ne dit rien. À reprendre avec l'agent.",
+    dNoRej:"Aucun rejet sur la période", dProducts:"Par produit, comparé à l'équipe", dPerDay:"Activité par jour", lgCalls:"appels", lgConf:"confirmées",
+    dComm:"Commissions", dBal:"Solde", dEarned:"Gagné sur la période", dPaid:"Payé sur la période", dCsv:"Relevé CSV ↓", dNoData:"Aucune activité sur la période.",
+    toastPay:"Fenêtre de paiement existante (PayoutModal), inchangée", toastPause:"{n} : en pause · commandes non entamées rendues au pool",
+    nav:{accueil:"Accueil", commandes:"Commandes", logistique:"Entrepôt", livraison:"Livraison", finances:"Finances", clients:"Clients", equipe:"Équipe", systeme:"Système", team:"Équipe", access:"Accès"},
+    st:{pending:"En attente", attempt_1:"Tentative 1", attempt_2:"Tentative 2", attempt_3:"Tentative 3", callback_scheduled:"Rappel prévu", confirmed:"Confirmé"},
+  },
+  ar:{
+    title:"الفريق", subtitle:"من يعمل الآن، وكيف يؤدي كل واحد.", live:"مباشر", at:"الجمعة 25 سبتمبر، 16:01 (طرابلس)",
+    periods:{today:"اليوم", yesterday:"أمس", d7:"7 أيام", d30:"30 يومًا", custom:"مخصص"},
+    now:"الآن", working:"يعملون", of:"من", nowSub:"{o} متصل · {a} متاح · إجراء خلال آخر 30 دقيقة",
+    calls:"المكالمات", conf:"المؤكدة", rej:"المرفوضة", teamRate:"نسبة الفريق", rateSub:"{c} مؤكدة من {t} معالجة",
+    agents:"الوكلاء", agentsHint:"اضغط على وكيل لعرض التفاصيل",
+    cAgent:"الوكيل", cLast:"آخر إجراء", cRate:"النسبة", cReact:"اتصال خلال ساعتين", cQueue:"الطابور", cBal:"الرصيد", cAction:"إجراء", team:"الفريق {v}",
+    available:"متاح", unavailable:"غير متاح", idle:"بدون إجراء منذ {d}",
+    med:"الوسيط {d}", never:"{n} بدون اتصال", inProg:"{n} قيد الانتظار", oldest:"الأقدم {d}", waiting:"{n} تنتظر > ساعتين",
+    pay:"دفع", pause:"إيقاف مؤقت", disabled:"معطلة", rateHidden:"أقل من 10 معالجة", activeSub:"{d} نشاط · {n} ي",
+    noAct:"لا نشاط",
+    rkTitle:"الترتيب", rkHint:"تأكيدات لكل ساعة نشاط", rkRule:"ساعة نشاط و10 معالجة على الأقل",
+    rkUnranked:"خارج الترتيب:", rkLittle:"{d} نشاط", rkNone:"{n} بدون نشاط", rkEmpty:"لا ترتيب بعد: لا أحد لديه ساعة نشاط و10 طلبات معالجة في الفترة.",
+    rkSub:"النسبة {r}{d} · {h} نشاط",
+    prTitle:"حسب المنتج", prHint:"نسبة الفريق والفارق بين الوكلاء (≥ 10 معالجة)", prTreated:"معالجة", prGap:"فارق {d} نقطة",
+    prOthers:"+ {n} منتجات أخرى · {t} معالجة", prEmpty:"لا يوجد منتج بـ 10 طلبات معالجة في الفترة.",
+    dResult:"النتيجة", dVsTeam:"{d} نقطة مقارنة بالفريق", dActive:"ساعات النشاط", dDays:"{n} يوم نشاط",
+    dReact:"سرعة أول اتصال", dReactBig:"تم الاتصال بها خلال ساعتين", dReactSub:"{w} من {j} · الوسيط {m} · الفريق {tp}", dReactSubNoMed:"{w} من {j} · الفريق {tp}",
+    dReactPending:"{n} طلب وصل منذ أقل من ساعتين، لم يُحكم عليه بعد.", dReactNone:"لم يصل أي طلب في الفترة.",
+    dWaitNow:"الآن: {n} طلب ينتظر أكثر من ساعتين بدون اتصال.", dWaitNone:"الآن: لا يوجد طلب ينتظر أكثر من ساعتين.",
+    dNeverNote:"{n} طلب وصل في الفترة ولم يُتصل به أبدًا.",
+    dQueue:"الطابور الحالي", dQueueEmpty:"الطابور فارغ", dMotifs:"أسباب الرفض", dVague:"{n} من {t} مصنفة «أخرى»: السبب لا يوضح شيئًا. يجب مراجعته مع الوكيل.",
+    dNoRej:"لا رفض في الفترة", dProducts:"حسب المنتج مقارنة بالفريق", dPerDay:"النشاط اليومي", lgCalls:"مكالمات", lgConf:"مؤكدة",
+    dComm:"العمولات", dBal:"الرصيد", dEarned:"المكتسب في الفترة", dPaid:"المدفوع في الفترة", dCsv:"كشف CSV ↓", dNoData:"لا نشاط في الفترة.",
+    toastPay:"نافذة الدفع الحالية (PayoutModal) بدون تغيير", toastPause:"{n}: إيقاف مؤقت · أُعيدت الطلبات غير المبدوءة",
+    nav:{accueil:"الرئيسية", commandes:"الطلبات", logistique:"المستودع", livraison:"التوصيل", finances:"المالية", clients:"العملاء", equipe:"الفريق", systeme:"النظام", team:"الفريق", access:"الوصول"},
+    st:{pending:"قيد الانتظار", attempt_1:"محاولة 1", attempt_2:"محاولة 2", attempt_3:"محاولة 3", callback_scheduled:"مكالمة مجدولة", confirmed:"مؤكد"},
+  },
+};
+
+/* ═══════════════ state + helpers ═══════════════ */
+const S = { lang:"fr", period:"today", rule:"available", simAvail:false, open:null };
+const L = () => T[S.lang];
+const loc = () => S.lang === "fr" ? "fr-FR" : "ar-LY";
+function tr(s, v){ return s.replace(/\{(\w+)\}/g, (_, k) => v[k] ?? ""); }
+function n(x, d=0){ return Number(x).toLocaleString(loc(), { minimumFractionDigits:d, maximumFractionDigits:d }); }
+function pct(x){ return x == null ? "—" : Math.round(x).toLocaleString(loc()) + (S.lang === "fr" ? " %" : "٪"); }
+function rateOf(c, t){ return t > 0 ? c / t * 100 : null; }
+function dur(min){
+  if (min == null) return "—";
+  const ar = S.lang === "ar";
+  if (min < 60) return n(Math.round(min)) + (ar ? " د" : " min");
+  if (min < 1440){ const h = Math.floor(min/60), m = Math.round(min%60); return n(h) + (ar ? " س" : " h") + (m ? " " + String(m).padStart(2,"0") : ""); }
+  return n(Math.round(min/1440)) + (ar ? " ي" : " j");
+}
+function hrs(min){ const ar = S.lang === "ar"; if (!min) return n(0) + (ar ? " س" : " h"); if (min < 60) return n(min) + (ar ? " د" : " min"); const h = Math.floor(min/60), m = min%60; return n(h) + (ar ? " س" : " h") + (m ? " " + String(m).padStart(2,"0") : ""); }
+function ageH(h){ return h == null ? "—" : dur(h * 60); }
+function money(v){ return (v > 0 ? "+" : "") + n(v) + " د.ل."; }
+function initial(name){ return name[0].toUpperCase(); }
+const MIN_T = 10, MIN_RANK_MIN = 60;
+
+function isLiveAvail(a){ return NOW[a].avail || (S.simAvail && a === "roqaya"); }
+function presence(a){ const s = NOW[a].seen; if (s == null || s >= 30) return "off"; return s < 5 ? "on" : "idle"; }
+function isIdle(a){
+  const x = NOW[a]; if (x.q.total < 1 || x.lastMin < 30) return false;
+  if (isLiveAvail(a)) return true;
+  return S.rule === "online" && x.seen != null && x.seen < 30;
+}
+function rateVsTeam(ag, team){
+  const shown = ag.treated >= MIN_T; const v = rateOf(ag.conf, ag.treated); const tv = rateOf(team.conf, team.treated);
+  return { shown, value:v, delta: shown && tv != null ? Math.round((v - tv) * 10) / 10 : null };
+}
+function reactOf(re){ if (!re) return null; return { ...re, shown: re.judged >= MIN_T, pct: re.judged > 0 ? re.w2h / re.judged * 100 : null }; }
+function ratioOrPct(num, den, p){ return den >= MIN_T ? pct(p) : `${n(num)}/${n(den)}`; }
+function deltaHtml(d, unit){
+  if (d == null) return "";
+  const cls = d >= 1 ? "up" : d <= -1 ? "down" : "flat";
+  const sign = d > 0 ? "+" : d < 0 ? "−" : "±";
+  return `<span class="delta ${cls}">${sign}${n(Math.abs(d),1)}${unit ?? (S.lang==="fr" ? " pts" : " نقطة")}</span>`;
+}
+
+/* ═══════════════ render ═══════════════ */
+function renderSidebar(){
+  const nv = L().nav;
+  document.getElementById("sb").innerHTML = `
+    <div class="brand">Ordra</div>
+    ${["accueil","commandes","logistique","livraison","finances","clients"].map(k => `<div class="sbsec muted">${nv[k]}</div>`).join("")}
+    <div class="sbsec">${nv.equipe}</div>
+    <a class="it on">${nv.team}</a>
+    <a class="it">${nv.access}</a>
+    <div class="sbsec muted">${nv.systeme}</div>`;
+}
+
+function renderPage(){
+  const t = L(), per = PERIODS[S.period], live = per.live;
+  const team = per.team;
+  const tRate = rateOf(team.conf, team.treated);
+  const tReact = reactOf(team.re);
+
+  // strip
+  const working = AGENTS.filter(a => NOW[a].lastMin < 30).length;
+  const online = AGENTS.filter(a => presence(a) === "on").length;
+  const avail = AGENTS.filter(isLiveAvail).length;
+  const strip = `
+    <div class="card strip ${live ? "" : "nolive"}">
+      ${live ? `<div class="cell"><div class="l">${t.now}</div><div class="v tnum">${n(working)} <small>${t.of} ${n(AGENTS.length)} ${t.working}</small></div><div class="s">${tr(t.nowSub,{o:n(online),a:n(avail)})}</div></div>` : ""}
+      <div class="cell"><div class="l">${t.calls}</div><div class="v tnum">${n(team.calls)}</div></div>
+      <div class="cell"><div class="l">${t.conf}</div><div class="v tnum">${n(team.conf)}</div></div>
+      <div class="cell"><div class="l">${t.teamRate}</div><div class="v tnum">${ratioOrPct(team.conf, team.treated, tRate)}</div><div class="s">${tr(t.rateSub,{c:n(team.conf),t:n(team.treated)})}</div></div>
+    </div>`;
+
+  // rows
+  let rows = AGENTS.map(a => ({ a, p: per.agents[a] }));
+  if (live){
+    const g = a => ({ on:0, idle:1, off:2 })[presence(a)];
+    rows.sort((x, y) => g(x.a) - g(y.a) || (isIdle(y.a) - isIdle(x.a)) || NOW[y.a].q.total - NOW[x.a].q.total || x.a.localeCompare(y.a));
+  } else {
+    rows.sort((x, y) => y.p.conf - x.p.conf || y.p.calls - x.p.calls || x.a.localeCompare(y.a));
+  }
+
+  const head = `<tr>
+    <th>${t.cAgent}</th>
+    ${live ? `<th>${t.cLast}</th>` : ""}
+    <th class="num">${t.calls}</th><th class="num">${t.conf}</th><th class="num">${t.rej}</th>
+    <th class="num">${t.cRate}<span class="ref">${tr(t.team,{v:ratioOrPct(team.conf, team.treated, tRate)})}</span></th>
+    <th class="num">${t.cReact}<span class="ref">${tr(t.team,{v:tReact ? ratioOrPct(tReact.w2h, tReact.judged, tReact.pct) : "—"})}</span></th>
+    ${live ? `<th class="num">${t.cQueue}</th>` : ""}
+    <th>${t.cBal}</th>
+    ${live ? `<th>${t.cAction}</th>` : ""}
+  </tr>`;
+
+  const body = rows.map(({ a, p }) => {
+    const x = NOW[a], pr = presence(a), active = p.calls > 0 || p.treated > 0;
+    const r = rateVsTeam(p, team), re = reactOf(p.re), c = COMM[a];
+    const sub = live
+      ? `<span>${x.seenTxt[S.lang]}</span><span class="pill ${isLiveAvail(a) ? "avail" : "unavail"}">${isLiveAvail(a) ? t.available : t.unavailable}</span>`
+      : (active ? `<span>${tr(t.activeSub,{d:hrs(p.mins),n:n(p.days)})}</span>` : `<span>${t.noAct}</span>`);
+    const lastCell = live ? `<td><div class="last">${t.st[x.lastS] ?? x.lastS} · <span>${x.lastAt[S.lang]}</span></div>
+        ${isIdle(a) ? `<div style="margin-top:4px"><span class="pill idle">${tr(t.idle,{d:dur(x.lastMin)})}</span></div>` : ""}</td>` : "";
+    const rateCell = !active ? `<span class="muted">—</span>`
+      : r.shown ? `<span class="big tnum">${pct(r.value)}</span>${deltaHtml(r.delta)}`
+      : `<span class="tnum" title="${t.rateHidden}">${n(p.conf)}/${n(p.treated)}</span><div class="sub2">${t.rateHidden}</div>`;
+    let reactCell = `<span class="muted">—</span>`;
+    if (re){
+      if (re.judged > 0){
+        const extra = re.never ? `<div class="sub2" style="color:var(--critical)">${tr(t.never,{n:n(re.never)})}</div>` : (re.med != null ? `<div class="sub2">${tr(t.med,{d:dur(re.med)})}</div>` : "");
+        reactCell = `<span class="big tnum">${ratioOrPct(re.w2h, re.judged, re.pct)}</span>${extra}`;
+      } else if (re.pending) reactCell = `<span class="muted">—</span><div class="sub2">${tr(t.inProg,{n:n(re.pending)})}</div>`;
+    }
+    const queueCell = live ? `<td class="num">${x.q.total ? `<span class="big tnum">${n(x.q.total)}</span><div class="sub2">${tr(t.oldest,{d:ageH(x.q.oldestH)})}</div>` : `<span class="muted">0</span>`}
+        ${x.q.waiting ? `<div style="margin-top:4px"><span class="pill wait">${tr(t.waiting,{n:n(x.q.waiting)})}</span></div>` : ""}</td>` : "";
+    const balCell = c.disabled ? `<span class="pill off">${t.disabled}</span>`
+      : `<span class="bal"><b class="tnum">${money(c.bal)}</b>${c.bal !== 0 ? `<button class="btn xs" data-pay="${a}">${t.pay}</button>` : ""}</span>`;
+    const actCell = live ? `<td>${isLiveAvail(a) ? `<button class="btn" data-pause="${a}">${t.pause}</button>` : `<span class="muted">—</span>`}</td>` : "";
+    return `<tr data-agent="${a}" class="${!live && !active ? "dim" : ""}">
+      <td><div class="who"><span class="av">${initial(a)}${live ? `<i class="${pr}"></i>` : ""}</span><div><b>${a}</b><div class="sub">${sub}</div></div></div></td>
+      ${lastCell}
+      <td class="num tnum">${active ? n(p.calls) : "—"}</td>
+      <td class="num tnum">${active ? n(p.conf) : "—"}</td>
+      <td class="num tnum">${active ? n(p.rej) : "—"}</td>
+      <td class="num">${rateCell}</td>
+      <td class="num">${reactCell}</td>
+      ${queueCell}
+      <td>${balCell}</td>
+      ${actCell}
+    </tr>`;
+  }).join("");
+
+  document.getElementById("page").innerHTML = `
+    <div class="ph">
+      <div><h2>${t.title}</h2><p>${t.subtitle}</p></div>
+      <div class="when">${live ? `<span class="live-dot"></span><b>${t.live}</b> · ${t.at}` : `<b>${per.range[S.lang]}</b> · Tripoli`}</div>
+    </div>
+    <div class="seg" role="tablist">
+      ${["today","yesterday","d7","d30"].map(k => `<button data-period="${k}" class="${S.period === k ? "on" : ""}" aria-pressed="${S.period === k}">${t.periods[k]}</button>`).join("")}
+      <button disabled>${t.periods.custom}</button>
+    </div>
+    ${strip}
+    <div class="card">
+      <div class="chead"><h3>${t.agents}</h3><span>${t.agentsHint}</span></div>
+      <div style="overflow-x:auto"><table class="t"><thead>${head}</thead><tbody>${body}</tbody></table></div>
+    </div>
+    <div class="grid2">${renderRanking(per)}${renderProducts(per)}</div>`;
+}
+
+function renderRanking(per){
+  const t = L(), team = per.team;
+  const all = AGENTS.map(a => ({ a, p: per.agents[a] }));
+  const ranked = all.filter(({p}) => p.mins >= MIN_RANK_MIN && p.treated >= MIN_T)
+    .map(x => ({ ...x, cph: x.p.conf / (x.p.mins / 60) })).sort((x, y) => y.cph - x.cph);
+  const un = all.filter(({p}) => !(p.mins >= MIN_RANK_MIN && p.treated >= MIN_T));
+  const rows = ranked.map((x, i) => {
+    const r = rateVsTeam(x.p, team);
+    return `<div class="rk" data-agent="${x.a}"><div class="n tnum">${n(i+1)}</div><span class="av">${initial(x.a)}</span>
+      <div class="mid"><b>${x.a}</b><div class="sub2">${tr(t.rkSub,{r:pct(r.value), d:deltaHtml(r.delta), h:hrs(x.p.mins)})}</div></div>
+      <div class="score tnum">${n(x.cph,1)}<small> ${S.lang==="fr" ? "conf./h" : "تأكيد/س"}</small></div></div>`;
+  }).join("");
+  const some = un.filter(({p}) => p.mins > 0 || p.calls > 0), none = un.length - some.length;
+  const parts = some.map(({a,p}) => `${a} (${tr(t.rkLittle,{d:hrs(p.mins)})})`); if (none) parts.push(tr(t.rkNone,{n:n(none)}));
+  const foot = parts.length ? `<div class="foot">${t.rkUnranked} ${parts.join(" · ")}</div>` : "";
+  return `<div class="card"><div class="chead"><h3>${t.rkTitle}</h3><span>${t.rkHint} · ${t.rkRule}</span></div>
+    ${ranked.length ? rows : `<div class="empty">${t.rkEmpty}</div>`}${foot}</div>`;
+}
+
+function renderProducts(per){
+  const t = L();
+  const byP = {};
+  AGENTS.forEach(a => (per.agents[a].pr || []).forEach(([k, tt, c]) => {
+    byP[k] ??= { k, t:0, c:0, agents:[] }; byP[k].t += tt; byP[k].c += c; byP[k].agents.push({ a, t:tt, c });
+  }));
+  const list = Object.values(byP).sort((x, y) => y.t - x.t);
+  const main = list.filter(p => p.t >= MIN_T), others = list.filter(p => p.t < MIN_T);
+  const rows = main.map(p => {
+    const rate = rateOf(p.c, p.t);
+    const q = p.agents.filter(x => x.t >= MIN_T).map(x => ({ ...x, r: rateOf(x.c, x.t) })).sort((x, y) => x.r - y.r);
+    let range = `<span class="muted" style="font-size:12px">—</span>`;
+    if (q.length >= 2){
+      const lo = q[0], hi = q[q.length-1];
+      range = `<span class="spread"><span>${lo.a} <b class="tnum">${pct(lo.r)}</b></span><span class="muted">→</span><span>${hi.a} <b class="tnum">${pct(hi.r)}</b></span><span class="gap tnum">${tr(t.prGap,{d:n(Math.round(hi.r-lo.r))})}</span></span>`;
+    }
+    return `<div class="prow"><span class="nm" dir="auto" title="${P[p.k]}">${P[p.k]}</span>
+      <span class="tnum" style="text-align:end">${n(p.t)} <span class="muted" style="font-size:11px">${t.prTreated}</span></span>
+      <b class="tnum" style="text-align:end">${pct(rate)}</b>${range}</div>`;
+  }).join("");
+  const foot = others.length ? `<div class="foot">${tr(t.prOthers,{n:n(others.length), t:n(others.reduce((s,p)=>s+p.t,0))})}</div>` : "";
+  return `<div class="card"><div class="chead"><h3>${t.prTitle}</h3><span>${t.prHint}</span></div>
+    ${main.length ? rows : `<div class="empty">${t.prEmpty}</div>`}${foot}</div>`;
+}
+
+function renderDrawer(){
+  const dr = document.getElementById("drawer");
+  const a = S.open; if (!a){ dr.classList.remove("show"); document.getElementById("backdrop").classList.remove("show"); return; }
+  const t = L(), per = PERIODS[S.period], p = per.agents[a], x = NOW[a], team = per.team, live = per.live;
+  const active = p.calls > 0 || p.treated > 0;
+  const r = rateVsTeam(p, team), re = reactOf(p.re), tre = reactOf(team.re), c = COMM[a];
+
+  const head = `<div class="dh"><div class="who"><span class="av">${initial(a)}${live ? `<i class="${presence(a)}"></i>` : ""}</span>
+      <div><div class="nm">${a}</div><div class="st">${live ? `${x.seenTxt[S.lang]} <span class="pill ${isLiveAvail(a) ? "avail" : "unavail"}">${isLiveAvail(a) ? t.available : t.unavailable}</span>` : per.range[S.lang]}</div></div></div>
+      <button class="x" id="closeDr" aria-label="close">✕</button></div>`;
+
+  const result = `<section class="sec"><div class="sl">${t.dResult} · ${live ? t.periods.today : per.range[S.lang]}</div>
+    ${active ? `<div class="stats">
+      <div class="stat"><div class="v tnum">${n(p.calls)}</div><div class="l">${t.calls}</div></div>
+      <div class="stat"><div class="v tnum">${n(p.conf)}</div><div class="l">${t.conf}</div></div>
+      <div class="stat"><div class="v tnum">${n(p.rej)}</div><div class="l">${t.rej}</div></div>
+      <div class="stat"><div class="v tnum">${r.shown ? pct(r.value) : `${n(p.conf)}/${n(p.treated)}`}</div><div class="l">${t.cRate}</div>
+        ${r.delta != null ? `<div class="d">${deltaHtml(r.delta)}</div>` : `<div class="d muted">${r.shown ? "" : t.rateHidden}</div>`}</div>
+    </div>
+    <div class="kv" style="margin-top:8px"><span>${t.dActive}</span><b class="tnum">${hrs(p.mins)} · ${tr(t.dDays,{n:n(p.days)})}</b></div>`
+    : `<p class="muted" style="font-size:13px">${t.dNoData}</p>`}</section>`;
+
+  let react = `<section class="sec"><div class="sl">${t.dReact}</div>`;
+  if (!re || re.assigned === 0) react += `<p class="muted" style="font-size:13px">${t.dReactNone}</p>`;
+  else {
+    if (re.judged > 0) react += `<div class="hero tnum">${ratioOrPct(re.w2h, re.judged, re.pct)} <small>${t.dReactBig}</small></div>
+      <div class="sub2" style="white-space:normal;margin-top:3px">${tr(re.med == null ? t.dReactSubNoMed : t.dReactSub,{w:n(re.w2h), j:n(re.judged), m:dur(re.med), tp:tre ? ratioOrPct(tre.w2h, tre.judged, tre.pct) : "—"})}</div>`;
+    if (re.pending) react += `<p class="sub2" style="white-space:normal;margin-top:6px">${tr(t.dReactPending,{n:n(re.pending)})}</p>`;
+    if (re.never) react += `<div class="note bad">${tr(t.dNeverNote,{n:n(re.never)})}</div>`;
+  }
+  if (live) react += x.q.waiting ? `<div class="note bad">${tr(t.dWaitNow,{n:n(x.q.waiting)})}</div>` : `<p class="sub2" style="margin-top:8px;white-space:normal">${t.dWaitNone}</p>`;
+  react += `</section>`;
+
+  const queue = live ? `<section class="sec"><div class="sl">${t.dQueue} · ${n(x.q.total)}</div>
+    ${x.q.bp.length ? x.q.bp.map(([k, s, cnt, oh]) => `<div class="line"><span class="grow" dir="auto">${P[k]}</span>
+      <span class="w2" style="width:110px;color:var(--ink-2)">${t.st[s] ?? s}</span><span class="w tnum">${n(cnt)}</span>
+      <span class="w2 tnum" style="${oh > 24 ? "color:var(--critical);font-weight:600" : "color:var(--ink-2)"}">${ageH(oh)}</span></div>`).join("")
+      : `<p class="muted" style="font-size:13px">${t.dQueueEmpty}</p>`}</section>` : "";
+
+  const totalRej = (p.mo || []).reduce((s, [,v]) => s + v, 0);
+  const vague = (p.mo || []).filter(([k]) => k === "autre" || k === "unknown").reduce((s, [,v]) => s + v, 0);
+  const maxMo = Math.max(1, ...(p.mo || []).map(([,v]) => v));
+  const motifs = `<section class="sec"><div class="sl">${t.dMotifs}${totalRej ? " · " + n(totalRej) : ""}</div>
+    ${totalRej ? (p.mo.map(([k, v]) => { const R = REASONS[k] || ["autre", k, k]; return `<div class="line">
+        <span class="grow">${S.lang === "fr" ? R[1] : R[2]}</span><span class="w tnum">${n(v)}</span>
+        <span class="w2"><i class="mbar" style="width:${Math.round(v / maxMo * 64) + 4}px;background:${GROUP_HUE[R[0]]}"></i></span></div>`; }).join("")
+      + (vague / totalRej > 0.5 ? `<div class="note warn">${tr(t.dVague,{n:n(vague), t:n(totalRej)})}</div>` : ""))
+      : `<p class="muted" style="font-size:13px">${t.dNoRej}</p>`}</section>`;
+
+  const teamByP = {};
+  AGENTS.forEach(ag => (per.agents[ag].pr || []).forEach(([k, tt, cc]) => { teamByP[k] ??= { t:0, c:0 }; teamByP[k].t += tt; teamByP[k].c += cc; }));
+  const products = (p.pr || []).length ? `<section class="sec"><div class="sl">${t.dProducts}</div>
+    ${p.pr.slice().sort((u, v) => v[1] - u[1]).map(([k, tt, cc]) => {
+      const rr = tt >= MIN_T ? rateOf(cc, tt) : null, tp = rateOf(teamByP[k].c, teamByP[k].t);
+      return `<div class="line"><span class="grow" dir="auto">${P[k]}</span><span class="w tnum">${n(tt)}</span>
+        <span class="w2 tnum">${rr == null ? `<span class="muted">${n(cc)}/${n(tt)}</span>` : `<b>${pct(rr)}</b>`}</span>
+        <span class="w2" style="width:90px">${rr == null ? "" : deltaHtml(Math.round((rr - tp) * 10) / 10)}</span></div>`; }).join("")}</section>` : "";
+
+  let perDay = "";
+  if (per.days.length > 1){
+    const series = per.days.map(d => DAILY[a]?.[d] ?? { calls:0, conf:0, mins:0 });
+    const mx = Math.max(1, ...series.map(s => s.calls));
+    const every = per.days.length > 10 ? 5 : 1;
+    perDay = `<section class="sec"><div class="sl">${t.dPerDay}</div>
+      <div class="bars">${series.map((s, i) => `<div class="day" title="${per.days[i]} · ${s.calls} / ${s.conf}"><i class="c" style="height:${s.calls / mx * 100}%"></i><i class="k" style="height:${s.conf / mx * 100}%"></i></div>`).join("")}</div>
+      <div class="blabels">${per.days.map((d, i) => `<span>${i % every === 0 || i === per.days.length - 1 ? n(Number(d.slice(8))) : ""}</span>`).join("")}</div>
+      <div class="legend"><span><i style="background:var(--chart)"></i>${t.lgCalls}</span><span><i style="background:var(--ink-1)"></i>${t.lgConf}</span></div></section>`;
+  }
+
+  const comm = `<section class="sec"><div class="sl">${t.dComm}</div>
+    ${c.disabled ? `<span class="pill off">${t.disabled}</span>` : `
+    <div class="kv"><span>${t.dBal}</span><span class="bal"><b class="tnum" style="color:var(--ink-1)">${money(c.bal)}</b>${c.bal ? `<button class="btn xs" data-pay="${a}">${t.pay}</button>` : ""}</span></div>
+    ${S.period === "d7" ? `<div class="kv"><span>${t.dEarned}</span><b class="tnum">${money(c.earned7)}</b></div><div class="kv"><span>${t.dPaid}</span><b class="tnum">${n(c.paid7)} د.ل.</b></div>` : ""}
+    <div class="kv"><span></span><a href="#" style="color:var(--ink-1);font-size:12.5px;font-weight:600" onclick="return false">${t.dCsv}</a></div>`}</section>`;
+
+  dr.innerHTML = head + `<div class="db">${result}${react}${queue}${motifs}${products}${perDay}${comm}</div>`;
+  dr.classList.add("show"); dr.setAttribute("aria-hidden", "false");
+  document.getElementById("backdrop").classList.add("show");
+}
+
+function render(){
+  const st = document.getElementById("stage");
+  st.setAttribute("dir", S.lang === "ar" ? "rtl" : "ltr");
+  st.setAttribute("lang", S.lang);
+  renderSidebar(); renderPage(); renderDrawer();
+  document.querySelectorAll("[data-lang]").forEach(b => b.classList.toggle("on", b.dataset.lang === S.lang));
+  document.querySelectorAll("[data-rule]").forEach(b => b.classList.toggle("on", b.dataset.rule === S.rule));
+  document.getElementById("simAvail").classList.toggle("on", S.simAvail);
+}
+function toast(msg){ const el = document.getElementById("toast"); el.textContent = msg; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 2600); }
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("button, a, tr[data-agent], .rk[data-agent], #backdrop");
+  if (!b) return;
+  if (b.dataset.lang){ S.lang = b.dataset.lang; return render(); }
+  if (b.dataset.rule){ S.rule = b.dataset.rule; return render(); }
+  if (b.id === "simAvail"){ S.simAvail = !S.simAvail; return render(); }
+  if (b.dataset.period){ S.period = b.dataset.period; return render(); }
+  if (b.dataset.pay){ e.stopPropagation(); return toast(L().toastPay); }
+  if (b.dataset.pause){ e.stopPropagation(); S.simAvail = false; render(); return toast(tr(L().toastPause,{n:b.dataset.pause})); }
+  if (b.id === "closeDr" || b.id === "backdrop"){ S.open = null; return render(); }
+  if (b.dataset.agent){ S.open = b.dataset.agent; return render(); }
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && S.open){ S.open = null; render(); } });
+const q = new URLSearchParams(location.search);
+if (["fr","ar"].includes(q.get("lang"))) S.lang = q.get("lang");
+if (PERIODS[q.get("period")]) S.period = q.get("period");
+if (["available","online"].includes(q.get("rule"))) S.rule = q.get("rule");
+if (q.get("sim") === "1") S.simAvail = true;
+if (AGENTS.includes(q.get("agent"))) S.open = q.get("agent");
+render();
+</script>
+</body>
+</html>
