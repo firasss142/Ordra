@@ -1,4 +1,4 @@
-import type { Role } from "@/types/user";
+import type { Role } from "@/types";
 
 /**
  * Qui fait quoi sur une réception de marchandises.
