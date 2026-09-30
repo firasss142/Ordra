@@ -4,7 +4,7 @@
  * updates a message, bumps a conversation and inserts a notification).
  *
  * Supports the subset this repo's WhatsApp code uses: from / select / eq /
- * neq / in / is / gt / gte / lt / lte / order / limit / maybeSingle / single /
+ * neq / in / is / gt / gte / lt / lte / order / limit / range / maybeSingle / single /
  * insert / upsert / update / delete / rpc, and awaiting the chain directly.
  * Anything else throws loudly rather than returning undefined.
  *
@@ -55,7 +55,12 @@ export function makeFakeSupabase(seed: Record<string, Row[]> = {}): FakeSupabase
       try {
         return { data: await fn(args), error: null };
       } catch (e) {
-        return { data: null, error: { message: e instanceof Error ? e.message : String(e) } };
+        // Carry a SQLSTATE if the stub threw one — routes branch on it (22023 → 400).
+        const code = (e as { code?: string } | null)?.code;
+        return {
+          data: null,
+          error: { message: e instanceof Error ? e.message : String(e), ...(code ? { code } : {}) },
+        };
       }
     },
   };
@@ -76,6 +81,7 @@ class Chain implements PromiseLike<{ data: unknown; error: unknown; count: numbe
   private op: Op = { kind: "select" };
   private orderBy: { col: string; ascending: boolean }[] = [];
   private limitN: number | null = null;
+  private rangeN: [number, number] | null = null;
   private mode: "single" | "maybe" | null = null;
   private returning = false;
 
@@ -136,6 +142,11 @@ class Chain implements PromiseLike<{ data: unknown; error: unknown; count: numbe
     this.limitN = n;
     return this;
   }
+  /** Inclusive on both ends, like PostgREST — what fetchAllRows pages with. */
+  range(from: number, to: number) {
+    this.rangeN = [from, to];
+    return this;
+  }
   maybeSingle() {
     this.mode = "maybe";
     return this;
@@ -174,6 +185,7 @@ class Chain implements PromiseLike<{ data: unknown; error: unknown; count: numbe
       });
     }
     if (this.limitN !== null) out = out.slice(0, this.limitN);
+    if (this.rangeN !== null) out = out.slice(this.rangeN[0], this.rangeN[1] + 1);
     return out;
   }
 

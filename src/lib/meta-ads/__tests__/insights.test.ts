@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   normaliseInsightsRow,
   extractLeadCount,
+  extractResultCount,
   convertToMarketCurrency,
   type MetaInsightsRow,
 } from "../insights";
@@ -169,6 +170,66 @@ describe("extractLeadCount — one source, never the sum of two", () => {
   it("feeds platformResults on the normalised row", () => {
     const n = normaliseInsightsRow(row({ actions: [noise, pixel] }));
     expect(n.platformResults).toBe(42);
+  });
+});
+
+describe("extractResultCount — a Sales campaign's result is a purchase", () => {
+  // Exactly what Meta returned for "DA2 DAWA2 Ad Set 2 - batch 2" in September
+  // 2026 (OUTCOME_SALES). The storefront pixel fires Purchase when a COD order is
+  // placed; the stray "lead" actions are two Instant-Form leads. Reading leads
+  // stored 2 where Meta reports 474 — the whole "Meta results" column was noise.
+  const DA2 = [
+    { action_type: "onsite_conversion.lead", value: "2" },
+    { action_type: "offsite_complete_registration_add_meta_leads", value: "2" },
+    { action_type: "web_in_store_purchase", value: "474" },
+    { action_type: "omni_purchase", value: "474" },
+    { action_type: "offsite_conversion.fb_pixel_purchase", value: "474" },
+    { action_type: "purchase", value: "474" },
+    { action_type: "lead", value: "2" },
+    { action_type: "offsite_content_view_add_meta_leads", value: "11719" },
+    { action_type: "onsite_conversion.lead_grouped", value: "2" },
+  ];
+
+  it("counts pixel purchases for OUTCOME_SALES", () => {
+    expect(extractResultCount(DA2, "OUTCOME_SALES")).toBe(474);
+  });
+
+  it("never adds the purchase aliases together", () => {
+    // fb_pixel_purchase, purchase and omni_purchase are three names for one event
+    expect(extractResultCount(DA2, "OUTCOME_SALES")).not.toBe(474 * 3);
+  });
+
+  it("falls back to the omnichannel purchase when the pixel one is absent", () => {
+    expect(extractResultCount([{ action_type: "omni_purchase", value: "12" }], "OUTCOME_SALES")).toBe(12);
+  });
+
+  it("keeps the lead rules for a lead objective", () => {
+    expect(extractResultCount(DA2, "OUTCOME_LEADS")).toBe(2);
+  });
+
+  it("returns null for a Sales campaign that reported no purchase", () => {
+    expect(extractResultCount([{ action_type: "link_click", value: "40" }], "OUTCOME_SALES")).toBeNull();
+  });
+
+  it("feeds platformResults on the normalised row", () => {
+    const n = normaliseInsightsRow(row({ objective: "OUTCOME_SALES", actions: DA2 }));
+    expect(n.platformResults).toBe(474);
+  });
+});
+
+describe("normaliseInsightsRow — ad-set rows", () => {
+  it("carries the ad set's identity, id as text", () => {
+    const n = normaliseInsightsRow(
+      row({ adset_id: "120249635130000687", adset_name: "DA2 DAWA2 Ad Set 2 - batch 2" }),
+    );
+    expect(n.externalAdsetId).toBe("120249635130000687");
+    expect(n.adsetName).toBe("DA2 DAWA2 Ad Set 2 - batch 2");
+  });
+
+  it("leaves them null on a campaign-level row", () => {
+    const n = normaliseInsightsRow(row());
+    expect(n.externalAdsetId).toBeNull();
+    expect(n.adsetName).toBeNull();
   });
 });
 

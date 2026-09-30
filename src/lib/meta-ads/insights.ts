@@ -48,6 +48,9 @@ export interface MetaActionStat {
 export interface MetaInsightsRow {
   campaign_id: string;
   campaign_name: string;
+  /** Present at level=adset. TEXT end to end, like campaign_id. */
+  adset_id?: string;
+  adset_name?: string;
   spend: string;
   impressions?: string;
   reach?: string;
@@ -85,6 +88,9 @@ export interface MetaInsightsRow {
 export interface NormalisedInsight {
   externalCampaignId: string;
   campaignName: string;
+  /** null on a campaign-level row. */
+  externalAdsetId: string | null;
+  adsetName: string | null;
   date: string;
   spendOriginal: number;
   currency: string;
@@ -206,6 +212,45 @@ export function extractLeadCount(
 }
 
 /**
+ * The pixel purchase first: on a COD storefront it fires when the order is
+ * placed, so it is the one Meta figure that can be set against the orders Ordra
+ * received. The other two are aliases of the same event (omnichannel and the
+ * generic name) — read one, never add them.
+ */
+const PURCHASE_ACTIONS = [
+  "offsite_conversion.fb_pixel_purchase",
+  "omni_purchase",
+  "purchase",
+] as const;
+
+/** Objectives whose result is a purchase, current and legacy names. */
+const SALES_OBJECTIVES = new Set(["OUTCOME_SALES", "CONVERSIONS", "PRODUCT_CATALOG_SALES"]);
+
+/**
+ * The campaign's own result count, by objective.
+ *
+ * Every Libya campaign is OUTCOME_SALES, and until 2026-09-30 this read lead
+ * actions for all of them — storing 2 where Meta reported 474 purchases, so the
+ * "Meta results" column meant nothing. A Sales campaign's result is a purchase;
+ * a lead campaign keeps the lead rules above. No objective: the lead rules, as
+ * before, rather than guessing.
+ */
+export function extractResultCount(
+  actions: MetaActionStat[] | undefined,
+  objective?: string,
+): number | null {
+  if (objective && SALES_OBJECTIVES.has(objective.toUpperCase())) {
+    if (!actions || actions.length === 0) return null;
+    for (const type of PURCHASE_ACTIONS) {
+      const match = actions.find((a) => a.action_type === type);
+      if (match) return parseIntOrNull(match.value);
+    }
+    return null;
+  }
+  return extractLeadCount(actions, hintForObjective(objective));
+}
+
+/**
  * Convert one Meta insights row into the shape the rest of the system uses.
  *
  * Spend is the only metric that falls back to 0 rather than null. Meta always
@@ -219,6 +264,8 @@ export function normaliseInsightsRow(row: MetaInsightsRow): NormalisedInsight {
     // Never Number() this — 17-18 digit ids lose precision past 2^53.
     externalCampaignId: row.campaign_id,
     campaignName: row.campaign_name,
+    externalAdsetId: row.adset_id ?? null,
+    adsetName: row.adset_name ?? null,
     // date_start equals date_stop under time_increment=1; the row is one day.
     date: row.date_start,
     spendOriginal: parseFloatOrNull(row.spend) ?? 0,
@@ -230,7 +277,7 @@ export function normaliseInsightsRow(row: MetaInsightsRow): NormalisedInsight {
     cpc: parseFloatOrNull(row.cpc),
     cpm: parseFloatOrNull(row.cpm),
     frequency: parseFloatOrNull(row.frequency),
-    platformResults: extractLeadCount(row.actions, hintForObjective(row.objective)),
+    platformResults: extractResultCount(row.actions, row.objective),
   };
 }
 

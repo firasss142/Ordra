@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2, Plus, RefreshCw, Upload } from "lucide-react";
+import { Link2, Loader2, Plus, RefreshCw, Upload } from "lucide-react";
 import { useAdSpendCampaigns } from "@/hooks/useAdSpendCampaigns";
 import { useMarketScope } from "@/context/market-scope";
 import {
@@ -20,6 +20,8 @@ import { useAdSpendSyncStatus } from "@/hooks/useAdSpendSyncStatus";
 import { AdSpendEntryModal } from "@/components/ad-spend/AdSpendEntryModal";
 import { AdSpendCsvImport } from "@/components/ad-spend/AdSpendCsvImport";
 import { AdSpendMappingDrawer } from "@/components/ad-spend/AdSpendMappingDrawer";
+import { useAdSpendMapping } from "@/hooks/useAdSpendMapping";
+import type { ListFilter } from "@/lib/ad-spend/mapping-view";
 import { EmptyState } from "@/components/dashboard/Panel";
 import type { AdSpendWithMetrics } from "@/lib/ad-spend/realized-metrics";
 import type { AuthUser } from "@/types";
@@ -103,13 +105,25 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
 
   const [editingEntry, setEditingEntry] = useState<AdSpendWithMetrics | null | undefined>(undefined); // undefined = modal closed
   const [showImport, setShowImport] = useState(false);
-  const [showMapping, setShowMapping] = useState(false);
+  // null = closed. The drawer opens on a filter, or straight on one campaign.
+  const [mapping, setMapping] = useState<{ filter: ListFilter; focus: string | null } | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<AdSpendWithMetrics | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const { status: syncStatus, mutate: mutateSync } = useAdSpendSyncStatus(selectedMarketId);
+  const hasMetaAccount = (syncStatus?.accounts.length ?? 0) > 0;
+
+  // Fetched with the page, not on open: the header badge needs its count, and
+  // the drawer then opens from the same SWR entry without a spinner.
+  const { tree: mappingTree, mutate: mutateMapping } = useAdSpendMapping({
+    marketId: selectedMarketId,
+    fromDate,
+    toDate,
+    enabled: hasMetaAccount && !scopeIsAll,
+  });
+  const toMap = mappingTree?.unmapped.spent_campaigns ?? 0;
 
   // Entries and the product list back the CRUD surfaces only — every figure on
   // the page comes from the economics route. The metrics overlay is skipped
@@ -125,7 +139,8 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
     mutate();
     mutateEconomics();
     mutateSync();
-  }, [mutate, mutateEconomics, mutateSync]);
+    mutateMapping();
+  }, [mutate, mutateEconomics, mutateSync, mutateMapping]);
 
   const [syncError, setSyncError] = useState<string | null>(null);
 
@@ -378,6 +393,21 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
                 {t("economics.metaNotConnected")}
               </span>
             )}
+            {hasMetaAccount && (
+              <button
+                type="button"
+                onClick={() => setMapping({ filter: toMap > 0 ? "unmapped" : "all", focus: null })}
+                className="inline-flex items-center gap-1.5 border border-ads-line-2 rounded-[8px] px-3 py-[7px] text-[13px] font-semibold bg-surface-card text-ads-ink-1 hover:border-line-strong hover:bg-surface-sunken transition-colors duration-fast"
+              >
+                <Link2 size={14} strokeWidth={1.8} />
+                {t("mapping.openButton")}
+                {toMap > 0 && (
+                  <span className="rounded-full bg-ads-orange-bg border border-ads-orange-line text-ads-orange-ink text-[11px] font-bold px-1.5 leading-[18px]">
+                    {t("mapping.toMapBadge", { count: toMap })}
+                  </span>
+                )}
+              </button>
+            )}
             {(syncStatus?.accounts.length ?? 0) > 0 && (
               <button
                 type="button"
@@ -453,8 +483,8 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
             meta={economicsMeta}
             currency={currency}
             onAttach={
-              economicsMeta.unmapped.entries.some((e) => e.source === "meta")
-                ? () => setShowMapping(true)
+              economicsMeta.unmapped.campaigns.length > 0
+                ? () => setMapping({ filter: "unmapped", focus: null })
                 : undefined
             }
           />
@@ -486,9 +516,8 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
             currency={currency}
             onEditEntry={openEntry}
             onDeleteEntry={confirmDelete}
-            onMapCampaigns={
-              (syncStatus?.accounts.length ?? 0) > 0 ? () => setShowMapping(true) : undefined
-            }
+            onMapCampaigns={hasMetaAccount ? () => setMapping({ filter: "all", focus: null }) : undefined}
+            onOpenCampaign={hasMetaAccount ? (id) => setMapping({ filter: "all", focus: id }) : undefined}
           />
 
           <AdSpendSyncStrip health={syncHealth} />
@@ -558,15 +587,16 @@ export function AdSpendClient({ user, markets }: AdSpendClientProps) {
         </div>
       )}
 
-      {/* Campaign → product mapping */}
-      {showMapping && (
+      {/* Campaign / ad set → product(s) */}
+      {mapping && (
         <AdSpendMappingDrawer
           marketId={selectedMarketId}
           fromDate={fromDate}
           toDate={toDate}
           currency={currency}
-          products={products}
-          onClose={() => setShowMapping(false)}
+          initialFilter={mapping.filter}
+          focusCampaignId={mapping.focus}
+          onClose={() => setMapping(null)}
           onSaved={refresh}
         />
       )}

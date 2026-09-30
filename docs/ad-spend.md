@@ -77,11 +77,17 @@ number.
 `platform_results`, `synced_at`. `created_by` became nullable (a synced row has no human
 author). CHECKs: `ad_spend_amount_non_negative`, `ad_spend_period_ordered`.
 
-Plus `meta_ad_accounts` (15), `meta_campaign_mappings` (9), `ad_sync_runs` (14, ~709
-rows). All RLS-enabled.
+Plus `meta_ad_accounts` (15), `ad_sync_runs` (14, ~709 rows). All RLS-enabled.
 
-**There are no RPCs here.** Unlike the rest of Ordra, the economics are computed in the
-route handler and in pure TS, not in SQL.
+**Since 2026-09-30 mapping is per ad set, many-to-many and dated.** Meta rows in
+`ad_spend` are a projection of `meta_adset_daily` × `ad_spend_mappings`, rewritten
+whole by `replace_meta_ad_spend`. `meta_campaign_mappings` is gone. It is all in
+**`docs/ad-spend-mapping.md`**: the model, the automatic split, the sync, the
+rollout, and why a past day keeps its FX rate.
+
+The economics are computed in the route handler and in pure TS, not in SQL. The only
+RPCs are the three service-role ones that the mapping writes through
+(`set_ad_spend_mapping`, `replace_meta_ad_spend`, `order_counts_by_product_day`).
 
 **A defensive detail worth keeping:** `/api/ad-spend/economics` asks for
 `SPEND_COLUMNS_RICH` and falls back to `SPEND_COLUMNS_BASE`, because PostgREST answers
@@ -99,7 +105,9 @@ page survives a production database that has not taken the migration.
   `AdSpendCoverageBanner`, `AdSpendCplBars` (CPL vs max payable), `AdSpendCostStack`
   (where one delivered order's revenue goes), `AdSpendProductTable` (per-product
   verdicts), `AdSpendSyncStrip`, `AdSpendUnmappedBanner`; plus `AdSpendEntryModal`,
-  `AdSpendCsvImport`, `AdSpendMappingDrawer`.
+  `AdSpendCsvImport`, `AdSpendMappingDrawer` (+ `mapping/`: list, detail, editor).
+- Mapping API: `/api/meta/mapping` (GET tree, POST save) and `/api/meta/mapping/preview`.
+  `/api/meta/campaigns*` was removed on 2026-09-30.
 - Lib: `break-even.ts`, `realized-metrics.ts`, `csv-parse.ts`, `period-lock.ts`,
   `enforce-lock.ts` (all tested); `src/lib/meta-ads/` for the API client and sync.
 - API: `/api/ad-spend/{,[id],economics,import,sync,sync-status}`, `/api/meta/*`,

@@ -250,26 +250,93 @@ describe("GET /api/ad-spend/economics", () => {
     expect(data[0].entries[0].editable).toBe(true);
   });
 
-  test("marks synced rows read-only so an edit is never promised", async () => {
+  test("groups synced spend by campaign → ad set, never one line per day", async () => {
+    // Before 2026-09-30 a product's breakdown listed every ad_spend row — 51
+    // lines for one campaign, each with a "CPL" dividing one day's spend by the
+    // whole window's leads. Synced spend is now one line per campaign, with its
+    // ad sets under it, and what share of the campaign this product carries.
+    const meta = (over: Record<string, unknown>) => ({
+      product_id: "p1",
+      period_end: "2026-06-01",
+      note: null,
+      campaign_name: "BoxLyLong - relaunch",
+      source: "meta",
+      external_campaign_id: "C-RELAUNCH",
+      ad_account_id: "act1",
+      allocation_basis: "auto_orders",
+      ...over,
+    });
     wire([
-      {
-        id: "s1",
-        product_id: "p1",
-        amount: 7310,
-        period_start: "2026-06-01",
-        period_end: "2026-06-01",
-        note: null,
-        campaign_name: "LY | Sac frappe M | Broad",
-        source: "meta",
-        external_campaign_id: "23858000005520",
-      },
+      meta({ id: "a", period_start: "2026-06-01", amount: 64, platform_results: 32, external_adset_id: "S1", adset_name: "Vo" }),
+      meta({ id: "b", period_start: "2026-06-02", amount: 64, platform_results: 30, external_adset_id: "S1", adset_name: "Vo" }),
+      meta({ id: "c", period_start: "2026-06-02", amount: 32, platform_results: 10, external_adset_id: "S2", adset_name: "Music" }),
+      // the other products' shares of the same campaign-days
+      meta({ id: "d", period_start: "2026-06-01", amount: 36, platform_results: 18, product_id: "p2", external_adset_id: "S1", adset_name: "Vo" }),
+      meta({ id: "e", period_start: "2026-06-02", amount: 54, platform_results: 27, product_id: "p3", external_adset_id: "S1", adset_name: "Vo" }),
     ]);
 
     const { data } = await (await GET(request())).json();
-    const e = data[0].entries[0];
-    expect(e.label).toBe("LY | Sac frappe M | Broad");
-    expect(e.campaign_id).toBe("23858000005520");
-    expect(e.editable).toBe(false);
+    const p = data[0];
+    expect(p.spend).toBe(160);
+    expect(p.entries).toEqual([]); // nothing editable here: synced lines are read-only
+    expect(p.campaigns).toEqual([
+      {
+        campaign_id: "C-RELAUNCH",
+        ad_account_id: "act1",
+        campaign_name: "BoxLyLong - relaunch",
+        amount: 160,
+        share: 160 / 250,
+        split: "auto",
+        results: 72,
+        adsets: [
+          { adset_id: "S1", adset_name: "Vo", amount: 128, results: 62 },
+          { adset_id: "S2", adset_name: "Music", amount: 32, results: 10 },
+        ],
+      },
+    ]);
+  });
+
+  test("counts spend charged to a product that took no lead in the window", async () => {
+    // A split can charge a share to a product with no order in this window. It
+    // has no row on the page, but the money was spent: dropping it from the
+    // total would overstate profit.
+    wire([
+      { id: "a", product_id: "p1", amount: 100, period_start: "2026-06-01", period_end: "2026-06-01" },
+      { id: "b", product_id: "p-no-leads", amount: 40, period_start: "2026-06-01", period_end: "2026-06-01" },
+    ]);
+    const { meta } = await (await GET(request())).json();
+    expect(meta.total_spend).toBe(140);
+  });
+
+  test("a campaign carried whole reads 100 %, with no split label", async () => {
+    wire([
+      { id: "a", product_id: "p1", amount: 7310, period_start: "2026-06-01", period_end: "2026-06-01", note: null, campaign_name: "QuranTadabr", source: "meta", external_campaign_id: "C-Q", ad_account_id: "act1", external_adset_id: "S1", adset_name: "batch 1", allocation_basis: "single", platform_results: 5 },
+    ]);
+    const { data } = await (await GET(request())).json();
+    expect(data[0].campaigns[0]).toMatchObject({ share: null, split: null, amount: 7310 });
+  });
+
+  test("puts unattributed synced spend under the unmapped row, by campaign", async () => {
+    wire([
+      { id: "a", product_id: null, amount: 519, period_start: "2026-06-23", period_end: "2026-06-23", note: null, campaign_name: "BoxheroLY - LY", source: "meta", external_campaign_id: "C-HERO", ad_account_id: "act1", external_adset_id: "S-H", adset_name: "ADSET 1", allocation_basis: "unmapped", platform_results: 0 },
+    ]);
+    const { meta } = await (await GET(request())).json();
+    expect(meta.unmapped.spend).toBe(519);
+    expect(meta.unmapped.entries).toEqual([]);
+    expect(meta.unmapped.campaigns).toEqual([
+      expect.objectContaining({ campaign_id: "C-HERO", amount: 519, share: null }),
+    ]);
+  });
+
+  test("still groups by campaign on a database without the ad-set columns yet", async () => {
+    wire(
+      [{ id: "a", product_id: "p1", amount: 100, period_start: "2026-06-01", period_end: "2026-06-01", note: null, campaign_name: "QuranTadabr", source: "meta", external_campaign_id: "C-Q" }],
+      { rejectColumns: ["external_adset_id"] },
+    );
+    const res = await GET(request());
+    expect(res.status).toBe(200);
+    const { data } = await res.json();
+    expect(data[0].campaigns[0]).toMatchObject({ campaign_id: "C-Q", amount: 100, adsets: [] });
   });
 
   test("ranks a product with no attributed spend below one that has it", async () => {

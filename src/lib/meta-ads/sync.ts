@@ -1,16 +1,16 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decrypt } from "@/lib/crypto";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import {
-  fetchCampaignInsights,
+  fetchAdsetInsights,
+  fetchCatalogue,
   MetaApiError,
+  type MetaCatalogue,
   type MetaClientConfig,
 } from "./client";
-import {
-  normaliseInsightsRow,
-  extractLeadCount,
-  convertToMarketCurrency,
-  type MetaInsightsRow,
-} from "./insights";
+import { normaliseInsightsRow, convertToMarketCurrency, type MetaInsightsRow } from "./insights";
+import { rebuildMetaAdSpend, nextHistoryFrom } from "./rebuild";
+import { MARKET_TIMEZONES } from "./timezone";
 import {
   startRun,
   finishRun,
@@ -21,33 +21,34 @@ import {
 } from "./sync-runs";
 
 /**
- * Pull campaign-level daily spend from Meta into `ad_spend`.
+ * Pull daily AD-SET spend from Meta, then rewrite `ad_spend` from it.
  *
- * Three decisions here are load-bearing and were each arrived at the hard way.
+ * Three stages per account, inside one run and one lock:
+ *   1. the catalogue — every campaign and ad set, spent or not, so a campaign
+ *      can be mapped before its first dinar;
+ *   2. the facts — one `meta_adset_daily` row per ad set per day, no product;
+ *   3. the projection — `ad_spend`'s meta rows for the window, rewritten whole
+ *      from the facts × the mapping in force (lib/meta-ads/rebuild.ts).
  *
- * **The window is a rolling 7 days, re-fetched every hour.** Meta restates
- * spend for up to ~72h after the fact, so a forward-only cursor would freeze
- * the first number it ever saw. Re-fetching also means a missed run heals
- * itself on the next tick rather than leaving a hole, which is what lets the
- * stale-run reaper get away with an hour of recovery latency.
+ * Decisions that are load-bearing, each arrived at the hard way:
  *
- * **`product_id` is baked at write time, not resolved at read time.** Six
- * separate read paths key directly off `ad_spend.product_id` — products/metrics,
- * two product-profitability routes, the investor rollup, the settlements route,
- * and the ad-spend route itself — and none of them can see
- * `meta_campaign_mappings`. Leaving synced rows NULL would zero every
- * per-product figure and, worse, sweep the whole synced spend into
- * `marketWideAdSpend`, where settlement redistributes it pro-rata by revenue and
- * silently overwrites human-declared attribution inside investor payouts.
- * Re-mapping a campaign therefore re-stamps its history (see
- * `restampMappedProduct`), which keeps the retroactive-correction property that
- * made read-time joins attractive in the first place.
+ * **A rolling 7 days, re-fetched every hour.** Meta restates spend for up to
+ * ~72h, so a forward-only cursor would freeze the first number it saw, and a
+ * missed run heals on the next tick. A fact Meta stops reporting for a
+ * re-fetched day is deleted, not left to be counted forever.
  *
- * **Unmapped campaigns still count.** They land with `product_id = NULL`, which
- * is exactly how a market-level manual entry behaves, so the money reaches the
- * P&L immediately and only its attribution is pending. Hiding it until someone
- * maps it would understate costs and overstate profit — the one direction a
- * finance surface must never round.
+ * **`product_id` is still baked into `ad_spend`.** Six read paths and investor
+ * accrual key off it and cannot see the mapping tables; the projection keeps
+ * them all correct without touching any of them.
+ *
+ * **A past day keeps the rate it was booked at.** Inside the rolling window the
+ * current rate applies (the day is still being restated); before it, the rate
+ * already stamped on that day is reused, so re-fetching history — the first run
+ * under the ad-set grain re-reads everything since the first synced day — never
+ * moves an old figure because today's rate differs.
+ *
+ * **Unmapped spend still counts.** It lands with `product_id = NULL`, like a
+ * market-level manual entry: in the P&L immediately, attribution pending.
  */
 
 export interface SyncAccountResult {
@@ -65,10 +66,14 @@ interface AdAccountRow {
   market_id: string;
   ad_account_id: string;
   account_currency: string;
+  /** Meta cuts its days here; the automatic split cuts orders here too. */
+  account_timezone: string | null;
   graph_version: string;
   access_token: string;
-  /** NULL means never synced, which is what selects the backfill window. */
   last_synced_at: string | null;
+  /** Earliest day from which ad-set facts are complete. NULL selects the backfill. */
+  adset_history_from: string | null;
+  markets?: { code: string } | null;
 }
 
 /** How far back each run re-reads. Covers Meta's restatement window with slack. */
@@ -90,8 +95,8 @@ export const BACKFILL_WINDOW_DAYS = 90;
 /**
  * Largest range requested in one Insights call.
  *
- * Meta answers an over-large campaign×day request with code 100 / subcode
- * 1487534 rather than truncating, so a 90-day backfill has to arrive in slices.
+ * Meta answers an over-large ad set×day request with code 100 / subcode
+ * 1487534 rather than truncating, so a long backfill has to arrive in slices.
  * 30 days keeps each call well inside the limit and bounds how much work is
  * lost if one slice fails.
  */
@@ -99,6 +104,12 @@ export const MAX_SLICE_DAYS = 30;
 
 function isoDay(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+function dayBefore(day: string): string {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return isoDay(d);
 }
 
 export function rollingWindow(now: Date, days = ROLLING_WINDOW_DAYS): { since: string; until: string } {
@@ -162,42 +173,134 @@ export async function loadFxRate(
   return typeof rate === "number" && rate > 0 ? rate : null;
 }
 
-/** campaign_id → product_id, for the accounts a human has already mapped. */
-async function loadMappings(
+/** The earliest day `ad_spend` holds synced spend for — where a first backfill starts. */
+async function earliestMetaDay(adminClient: SupabaseClient, adAccountId: string): Promise<string | null> {
+  const { data } = await adminClient
+    .from("ad_spend")
+    .select("period_start")
+    .eq("source", "meta")
+    .eq("ad_account_id", adAccountId)
+    .order("period_start", { ascending: true })
+    .limit(1);
+  const first = (data ?? [])[0] as { period_start?: string } | undefined;
+  return first?.period_start ?? null;
+}
+
+export interface FxStamps {
+  /** "<adset id>|<day>" → rate already on that fact. */
+  adset: Map<string, number>;
+  /** "<campaign id>|<day>" → rate on the legacy campaign-level ad_spend row. */
+  campaign: Map<string, number>;
+}
+
+async function loadFxStamps(
   adminClient: SupabaseClient,
   adAccountId: string,
-): Promise<Map<string, string | null>> {
-  const { data } = await adminClient
-    .from("meta_campaign_mappings")
-    .select("external_campaign_id, product_id")
-    .eq("ad_account_id", adAccountId);
+  since: string,
+  until: string,
+): Promise<FxStamps> {
+  const stamps: FxStamps = { adset: new Map(), campaign: new Map() };
+  if (since > until) return stamps;
 
-  const map = new Map<string, string | null>();
-  for (const row of data ?? []) {
-    map.set(row.external_campaign_id as string, (row.product_id as string | null) ?? null);
+  const [facts, legacy] = await Promise.all([
+    fetchAllRows<{ external_adset_id: string; day: string; fx_rate: number | string }>(
+      adminClient
+        .from("meta_adset_daily")
+        .select("external_adset_id, day, fx_rate")
+        .eq("ad_account_id", adAccountId)
+        .gte("day", since)
+        .lte("day", until)
+        .order("day", { ascending: true }),
+    ),
+    fetchAllRows<{ external_campaign_id: string | null; period_start: string; fx_rate: number | string | null }>(
+      adminClient
+        .from("ad_spend")
+        .select("external_campaign_id, period_start, fx_rate")
+        .eq("source", "meta")
+        .eq("ad_account_id", adAccountId)
+        .gte("period_start", since)
+        .lte("period_start", until)
+        .order("period_start", { ascending: true }),
+    ),
+  ]);
+  for (const f of facts) stamps.adset.set(`${f.external_adset_id}|${f.day}`, Number(f.fx_rate));
+  for (const l of legacy) {
+    if (l.external_campaign_id && l.fx_rate !== null && l.fx_rate !== undefined) {
+      stamps.campaign.set(`${l.external_campaign_id}|${l.period_start}`, Number(l.fx_rate));
+    }
   }
-  return map;
+  return stamps;
 }
 
 /**
- * Re-stamp every synced row for a campaign after someone maps or re-maps it.
- *
- * This is what buys back the retroactive correction that a read-time join would
- * have given for free. Called by the mapping route, not by the sync.
+ * The rate for one fact: today's inside the rolling window, the booked one
+ * before it — the fact's own, then the legacy campaign row's — and today's only
+ * for an old day nothing was ever booked on.
  */
-export async function restampMappedProduct(
-  adminClient: SupabaseClient,
-  params: { adAccountId: string; externalCampaignId: string; productId: string | null },
-): Promise<number> {
-  const { data } = await adminClient
-    .from("ad_spend")
-    .update({ product_id: params.productId })
-    .eq("source", "meta")
-    .eq("ad_account_id", params.adAccountId)
-    .eq("external_campaign_id", params.externalCampaignId)
-    .select("id");
+export function pickFxRate(
+  fact: { day: string; adsetId: string; campaignId: string },
+  rollingStart: string,
+  stamps: FxStamps,
+  current: number,
+): number {
+  if (fact.day >= rollingStart) return current;
+  return (
+    stamps.adset.get(`${fact.adsetId}|${fact.day}`) ??
+    stamps.campaign.get(`${fact.campaignId}|${fact.day}`) ??
+    current
+  );
+}
 
-  return data?.length ?? 0;
+async function upsertCatalogue(
+  adminClient: SupabaseClient,
+  account: AdAccountRow,
+  catalogue: MetaCatalogue,
+  seenAt: string,
+): Promise<void> {
+  if (catalogue.campaigns.length > 0) {
+    const { error } = await adminClient.from("meta_ad_campaigns").upsert(
+      catalogue.campaigns.map((c) => ({
+        ad_account_id: account.ad_account_id,
+        external_campaign_id: c.id,
+        market_id: account.market_id,
+        name: c.name ?? null,
+        objective: c.objective ?? null,
+        effective_status: c.effective_status ?? null,
+        created_time: c.created_time ?? null,
+        last_seen_at: seenAt,
+      })),
+      { onConflict: "ad_account_id,external_campaign_id" },
+    );
+    if (error) throw new Error(`meta_ad_campaigns: ${error.message}`);
+  }
+  if (catalogue.adsets.length > 0) {
+    const { error } = await adminClient.from("meta_ad_sets").upsert(
+      catalogue.adsets.map((a) => ({
+        ad_account_id: account.ad_account_id,
+        external_adset_id: a.id,
+        external_campaign_id: a.campaign_id,
+        market_id: account.market_id,
+        name: a.name ?? null,
+        effective_status: a.effective_status ?? null,
+        created_time: a.created_time ?? null,
+        last_seen_at: seenAt,
+      })),
+      { onConflict: "ad_account_id,external_adset_id" },
+    );
+    if (error) throw new Error(`meta_ad_sets: ${error.message}`);
+  }
+}
+
+/** Meta's day boundary for this account: its own timezone, else its market's. */
+export function accountTimezone(account: {
+  account_timezone: string | null;
+  markets?: { code: string } | null;
+}): string {
+  return (
+    account.account_timezone ??
+    MARKET_TIMEZONES[(account.markets?.code ?? "").toUpperCase()] ??
+    "UTC"
+  );
 }
 
 /** Sync one ad account. Never throws — every failure is recorded and returned. */
@@ -213,12 +316,24 @@ export async function syncAccount(
   },
 ): Promise<SyncAccountResult> {
   const now = opts.now ?? new Date();
-  // An account that has never synced reaches back far enough to cover the
-  // page's own analysis window; after that the rolling window takes over.
-  const defaultWindow = account.last_synced_at
-    ? rollingWindow(now)
-    : rollingWindow(now, BACKFILL_WINDOW_DAYS);
-  const { since, until } = opts.window ?? defaultWindow;
+  const today = isoDay(now);
+  const rollingStart = rollingWindow(now).since;
+
+  // No complete ad-set history yet: reach back to the first synced day, so the
+  // projection replaces every legacy campaign-level row, not just a week of them.
+  let window = opts.window;
+  if (!window) {
+    if (account.adset_history_from) {
+      window = rollingWindow(now);
+    } else {
+      const earliest = await earliestMetaDay(adminClient, account.ad_account_id);
+      window = {
+        since: earliest ?? rollingWindow(now, BACKFILL_WINDOW_DAYS).since,
+        until: today,
+      };
+    }
+  }
+  const { since, until } = window;
 
   const base = {
     ad_account_id: account.ad_account_id,
@@ -247,6 +362,10 @@ export async function syncAccount(
     return { ...base, status: "skipped_locked" };
   }
 
+  // Every fact this run writes carries this stamp; anything older in the
+  // re-fetched range is a fact Meta no longer reports.
+  const runStamp = now.toISOString();
+
   try {
     const fxRate =
       account.account_currency === "LYD" || account.account_currency === "TND"
@@ -266,92 +385,136 @@ export async function syncAccount(
       graphVersion: account.graph_version,
     };
 
-    // Sliced, because Meta refuses an over-large campaign×day range outright
-    // (100 / 1487534) rather than returning what it can. A single-slice window
-    // — the steady-state seven days — costs exactly one call, as before.
+    // 1. Catalogue.
+    await upsertCatalogue(adminClient, account, await fetchCatalogue(cfg), runStamp);
+
+    // 2. Facts, sliced oldest first: a deadline leaves a contiguous prefix.
     const rows: MetaInsightsRow[] = [];
     let accUtilPct: number | null = null;
+    let fetchedUntil: string | null = null;
+    let cut = false;
     for (const slice of sliceWindow(since, until)) {
-      if (opts.deadlineAt && Date.now() > opts.deadlineAt) break;
-      const page = await fetchCampaignInsights(cfg, slice);
+      if (opts.deadlineAt && Date.now() > opts.deadlineAt) {
+        cut = true;
+        break;
+      }
+      const page = await fetchAdsetInsights(cfg, slice);
       rows.push(...page.rows);
       if (page.accUtilPct !== null) accUtilPct = page.accUtilPct;
+      fetchedUntil = slice.until;
     }
 
-    const mappings = await loadMappings(adminClient, account.ad_account_id);
+    if (!fetchedUntil) {
+      await finishRun(adminClient, run.id, {
+        rows_fetched: 0,
+        rows_upserted: 0,
+        rows_errored: 0,
+        window_start: since,
+        window_end: until,
+        acc_util_pct: accUtilPct,
+      });
+      return { ...base, status: "deadline", acc_util_pct: accUtilPct };
+    }
 
-    const payload = rows.map((raw) => {
-      const n = normaliseInsightsRow(raw);
-      return {
-        market_id: account.market_id,
-        // Baked, not joined — see the note at the top of this file.
-        product_id: mappings.get(n.externalCampaignId) ?? null,
-        amount: convertToMarketCurrency(n.spendOriginal, fxRate),
-        amount_original: n.spendOriginal,
-        currency_original: n.currency,
-        fx_rate: fxRate,
-        // Synced rows are a single day: period_start === period_end. Every
-        // existing overlap predicate (period_start <= to AND period_end >= from)
-        // already handles that without change.
-        period_start: n.date,
-        period_end: n.date,
-        source: "meta",
-        ad_account_id: account.ad_account_id,
-        external_campaign_id: n.externalCampaignId,
-        campaign_name: n.campaignName,
-        impressions: n.impressions,
-        reach: n.reach,
-        clicks: n.clicks,
-        frequency: n.frequency,
-        platform_results: n.platformResults,
-        synced_at: new Date().toISOString(),
-        // `is_active` is deliberately NOT in this payload. The arbiter is a total
-        // index, so ON CONFLICT lands on DO UPDATE and PostgREST writes every
-        // column the body carries — including this one. Sending `true` would
-        // resurrect a row a human had soft-deleted, on the very next hourly tick,
-        // silently and forever. Absent from the body, the existing value stands
-        // and the column default only applies to genuinely new rows.
-        // created_by stays NULL: a cron has no human creator, which is why the
-        // column's NOT NULL was dropped rather than a system user invented.
-      };
-    });
+    // Booked rates for the days before the rolling window.
+    const lastBooked = dayBefore(rollingStart);
+    const stamps = await loadFxStamps(
+      adminClient,
+      account.ad_account_id,
+      since,
+      lastBooked < fetchedUntil ? lastBooked : fetchedUntil,
+    );
 
-    let upserted = 0;
+    const payload = rows
+      .map((raw) => normaliseInsightsRow(raw))
+      .filter((n) => n.externalAdsetId !== null)
+      .map((n) => {
+        const adsetId = n.externalAdsetId as string;
+        const rate = pickFxRate(
+          { day: n.date, adsetId, campaignId: n.externalCampaignId },
+          rollingStart,
+          stamps,
+          fxRate,
+        );
+        return {
+          ad_account_id: account.ad_account_id,
+          external_adset_id: adsetId,
+          day: n.date,
+          external_campaign_id: n.externalCampaignId,
+          market_id: account.market_id,
+          campaign_name: n.campaignName,
+          adset_name: n.adsetName,
+          spend_original: n.spendOriginal,
+          currency_original: n.currency,
+          fx_rate: rate,
+          amount: convertToMarketCurrency(n.spendOriginal, rate),
+          impressions: n.impressions,
+          reach: n.reach,
+          clicks: n.clicks,
+          frequency: n.frequency,
+          platform_results: n.platformResults,
+          synced_at: runStamp,
+        };
+      });
+
     let errored = 0;
-
-    // Chunked so one oversized request cannot blow the 45s budget, and so a
-    // single bad day fails its chunk instead of the whole window.
     const CHUNK = 200;
     for (let i = 0; i < payload.length; i += CHUNK) {
-      if (opts.deadlineAt && Date.now() > opts.deadlineAt) {
-        await finishRun(adminClient, run.id, {
-          rows_fetched: rows.length,
-          rows_upserted: upserted,
-          rows_errored: errored,
-          window_start: since,
-          window_end: until,
-          acc_util_pct: accUtilPct,
-        });
-        return { ...base, status: "deadline", rows_fetched: rows.length, rows_upserted: upserted, rows_errored: errored, acc_util_pct: accUtilPct };
-      }
-
       const chunk = payload.slice(i, i + CHUNK);
       const { error } = await adminClient
-        .from("ad_spend")
-        .upsert(chunk, {
-          // Non-partial index — PostgREST emits column names only and cannot
-          // infer a predicate (42P10).
-          onConflict: "source,ad_account_id,external_campaign_id,period_start",
-        });
-
+        .from("meta_adset_daily")
+        .upsert(chunk, { onConflict: "ad_account_id,external_adset_id,day" });
       if (error) errored += chunk.length;
-      else upserted += chunk.length;
     }
+
+    // A partial write leaves this range's facts unreliable: do not project from
+    // them. ad_spend keeps its previous, consistent rows; the next run retries.
+    if (errored > 0) {
+      await finishRun(adminClient, run.id, {
+        rows_fetched: rows.length,
+        rows_upserted: 0,
+        rows_errored: errored,
+        window_start: since,
+        window_end: until,
+        acc_util_pct: accUtilPct,
+      });
+      return {
+        ...base,
+        status: "partial",
+        rows_fetched: rows.length,
+        rows_errored: errored,
+        acc_util_pct: accUtilPct,
+      };
+    }
+
+    // Facts Meta no longer reports for a day it has just re-reported.
+    const { error: staleError } = await adminClient
+      .from("meta_adset_daily")
+      .delete()
+      .eq("ad_account_id", account.ad_account_id)
+      .gte("day", since)
+      .lte("day", fetchedUntil)
+      .lt("synced_at", runStamp);
+    if (staleError) throw new Error(`meta_adset_daily: ${staleError.message}`);
+
+    // 3. Projection over the whole COMPLETE history, not just the window: the
+    //    facts before the window are already complete (adset_history_from says
+    //    so), and re-projecting them every hour is what heals a remap whose own
+    //    rebuild failed after the mapping was saved. A few thousand rows at most.
+    const projectFrom =
+      account.adset_history_from && account.adset_history_from < since ? account.adset_history_from : since;
+    const written = await rebuildMetaAdSpend(adminClient, {
+      adAccountId: account.ad_account_id,
+      marketId: account.market_id,
+      timezone: accountTimezone(account),
+      since: projectFrom,
+      until: fetchedUntil,
+    });
 
     await finishRun(adminClient, run.id, {
       rows_fetched: rows.length,
-      rows_upserted: upserted,
-      rows_errored: errored,
+      rows_upserted: written,
+      rows_errored: 0,
       window_start: since,
       window_end: until,
       acc_util_pct: accUtilPct,
@@ -359,15 +522,20 @@ export async function syncAccount(
 
     await adminClient
       .from("meta_ad_accounts")
-      .update({ last_synced_at: new Date().toISOString(), last_sync_error: null })
+      .update({
+        last_synced_at: new Date().toISOString(),
+        last_sync_error: null,
+        adset_history_from: cut
+          ? account.adset_history_from
+          : nextHistoryFrom(account.adset_history_from, { since, until: fetchedUntil }, today),
+      })
       .eq("id", account.id);
 
     return {
       ...base,
-      status: errored > 0 ? "partial" : "succeeded",
+      status: cut ? "deadline" : "succeeded",
       rows_fetched: rows.length,
-      rows_upserted: upserted,
-      rows_errored: errored,
+      rows_upserted: written,
       acc_util_pct: accUtilPct,
     };
   } catch (err) {
@@ -409,7 +577,7 @@ export async function syncAllAccounts(
   let query = adminClient
     .from("meta_ad_accounts")
     .select(
-      "id, market_id, ad_account_id, account_currency, graph_version, access_token, last_synced_at",
+      "id, market_id, ad_account_id, account_currency, account_timezone, graph_version, access_token, last_synced_at, adset_history_from, markets(code)",
     )
     .eq("is_active", true);
 
@@ -419,7 +587,7 @@ export async function syncAllAccounts(
   if (error) throw error;
 
   const results: SyncAccountResult[] = [];
-  for (const account of (accounts ?? []) as AdAccountRow[]) {
+  for (const account of (accounts ?? []) as unknown as AdAccountRow[]) {
     if (opts.deadlineAt && Date.now() > opts.deadlineAt) break;
     results.push(await syncAccount(adminClient, account, opts));
   }
