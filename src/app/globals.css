@@ -776,6 +776,34 @@
   animation-name: panelSettle;
 }
 
+/* The call-result sheet rising from a phone's bottom edge. Short and
+   vertical: it is opened dozens of times a shift, so it must never be
+   something the agent waits for. Vertical, so RTL mirrors nothing. */
+@keyframes sheetUp {
+  from {
+    opacity: 0.6;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* iOS Safari zooms the whole page into any focused text field set under
+   16px, and does not zoom back out. In the agent shell every inline edit in
+   the order panel is 13–15px, so one tap on the address left the fixed panel
+   and its buttons cropped off-screen for the rest of the call. Touch screens
+   get 16px fields; a mouse keeps the design's sizes. The element + attribute
+   selector outranks a single Tailwind `text-[Npx]` utility on purpose. */
+@media (pointer: coarse) {
+  .agent-theme input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  .agent-theme textarea,
+  .agent-theme select {
+    font-size: 16px;
+  }
+}
+
 /* Bulk-action floating bar entrance */
 @keyframes fadeInUp {
   from {

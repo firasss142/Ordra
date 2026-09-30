@@ -18,16 +18,20 @@ vi.mock("next-intl", async () => {
 vi.mock("../CallbackPicker", () => ({
   CallbackPicker: ({
     onSelect,
+    onInvalid,
     defaultValue,
   }: {
     onSelect: (d: Date) => void;
+    onInvalid?: () => void;
     defaultValue?: Date;
   }) => (
     <div data-testid="callback-picker">
       {defaultValue && <span data-testid="has-default">has-default</span>}
+      {defaultValue && <span data-testid="shown-default">{defaultValue.toISOString()}</span>}
       <button onClick={() => onSelect(new Date("2026-04-15T10:00:00.000Z"))}>
         Confirmer date
       </button>
+      {onInvalid && <button onClick={onInvalid}>Heure passée</button>}
     </div>
   ),
 }));
@@ -36,17 +40,43 @@ vi.mock("../RejectionReasonSelect", () => ({
   RejectionReasonSelect: ({
     onSelect,
     onPostpone,
+    onClear,
+    onBack,
+    defaultGroup,
+    defaultSub,
   }: {
     onSelect: (group: string, sub: string | null, note?: string) => void;
     onPostpone?: () => void;
-  }) => (
-    <div data-testid="rejection-select">
+    onClear?: () => void;
+    onBack?: () => void;
+    defaultGroup?: string;
+    defaultSub?: string;
+  }) => {
+    // Mirrors the real picker's contract: a complete pre-chosen answer is
+    // reported on open (RejectionReasonSelect.test.tsx pins the real one).
+    const React = require("react") as typeof import("react");
+    React.useEffect(() => {
+      if (defaultGroup && defaultSub) onSelect(defaultGroup, defaultSub);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    return (
+    <div
+      data-testid="rejection-select"
+      data-default-group={defaultGroup ?? ""}
+      data-default-sub={defaultSub ?? ""}
+    >
       {/* The real picker only reports a complete pair — a group alone is never
           a valid answer, so the stub reports one too. */}
       <button onClick={() => onSelect("commande_invalide", "doublon")}>Doublon</button>
+      {/* A sub-reason a manager added this morning: valid for the market, and
+          unknown to the compiled taxonomy. */}
+      <button onClick={() => onSelect("refus_client", "promo_concurrent")}>Promo concurrent</button>
+      {onClear && <button onClick={onClear}>Retirer le motif</button>}
+      {onBack && <button onClick={onBack}>Retour aux résultats</button>}
       {onPostpone && <button onClick={onPostpone}>Plus tard</button>}
     </div>
-  ),
+    );
+  },
 }));
 
 // The Darb upload modal is exercised in its own test; here we only assert the
@@ -238,7 +268,10 @@ describe("PostCallActionSheet", () => {
     render(<PostCallActionSheet {...defaultProps} />);
     fireEvent.click(screen.getByText("Rejeté"));
     expect(screen.getByTestId("rejection-select")).toBeDefined();
-    expect(screen.getByText("← Retour")).toBeDefined();
+    // One way back, and it is the picker's: the sheet no longer stacks a
+    // second « Retour » with a different destination above it.
+    expect(screen.queryByText("← Retour")).toBeNull();
+    expect(screen.getByText("Retour aux résultats")).toBeDefined();
   });
 
   it("expands CallbackPicker inline when Rappel demandé is clicked (callback flow)", () => {
@@ -262,10 +295,10 @@ describe("PostCallActionSheet", () => {
     expect(btn.disabled).toBe(false);
   });
 
-  it("returns to option_select when ← Retour is clicked from reject flow", () => {
+  it("returns to option_select when the picker's way back is taken from the groups", () => {
     render(<PostCallActionSheet {...defaultProps} />);
     fireEvent.click(screen.getByText("Rejeté"));
-    fireEvent.click(screen.getByText("← Retour"));
+    fireEvent.click(screen.getByText("Retour aux résultats"));
     expect(screen.getByText("Pas de réponse")).toBeDefined();
     expect(screen.queryByTestId("rejection-select")).toBeNull();
   });
@@ -707,5 +740,159 @@ describe("PostCallActionSheet", () => {
         newStatus: "callback_scheduled",
       });
     });
+  });
+});
+
+describe("PostCallActionSheet — rejecting from a phone", () => {
+  const openReject = (props: Partial<typeof defaultProps> & { attemptsCount?: number; maxAttempts?: number } = {}) => {
+    const view = render(<PostCallActionSheet {...defaultProps} {...props} />);
+    fireEvent.click(screen.getByText("Rejeté"));
+    return view;
+  };
+  const submit = () =>
+    screen.getByRole("button", { name: "Confirmer le rejet" }) as HTMLButtonElement;
+
+  it("sits above the agent's bottom tab bar and the order panel", () => {
+    // The phone tab bar is `fixed z-40` and is rendered AFTER the queue, so a
+    // sheet at z-40 painted under it: the bar covered the sheet's last 60px,
+    // which is exactly where « Confirmer le rejet » ends up, and a tap there
+    // switched tabs instead of rejecting. The panel is z-50.
+    render(<PostCallActionSheet {...defaultProps} />);
+    let layer: HTMLElement | null = screen.getByRole("dialog");
+    while (layer && !/\bfixed\b/.test(layer.className)) layer = layer.parentElement;
+    const z = Number(layer?.className.match(/\bz-\[(\d+)\]/)?.[1] ?? 0);
+    expect(z).toBeGreaterThan(50);
+  });
+
+  // The agent theme paints `bg-ink-primary` in its dark green — the colour of
+  // « Confirmer » on the footer. The one button that kills an order must not
+  // wear the colour of the one that saves it.
+  it("wears the rejection's red, not the confirmation's green", () => {
+    openReject();
+    expect(submit().className).toMatch(/(^|\s)bg-oms-bad(\s|$)/);
+    expect(submit().className).not.toMatch(/bg-ink-primary/);
+  });
+
+  it("keeps « Confirmer le rejet » outside the scrolling list, so it is always on screen", () => {
+    openReject();
+    expect(screen.getByTestId("sheet-body").contains(submit())).toBe(false);
+    expect(screen.getByTestId("sheet-footer").contains(submit())).toBe(true);
+  });
+
+  it("submits a sub-reason the market added, which the compiled list has never heard of", async () => {
+    // The button used to be gated on the COMPILED taxonomy while the picker
+    // and the server both read the market's. A manager-added reason could be
+    // picked and never sent.
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ data: { new_status: "rejected" } }) });
+    openReject();
+    fireEvent.click(screen.getByText("Promo concurrent"));
+    expect(submit().disabled).toBe(false);
+
+    await act(async () => {
+      fireEvent.click(submit());
+    });
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    expect(body).toMatchObject({ rejection_reason: "refus_client", rejection_subreason: "promo_concurrent" });
+  });
+
+  it("disarms the submit when the picker withdraws its answer", () => {
+    openReject();
+    fireEvent.click(screen.getByText("Doublon"));
+    expect(submit().disabled).toBe(false);
+
+    fireEvent.click(screen.getByText("Retirer le motif"));
+    expect(submit().disabled).toBe(true);
+  });
+
+  it("tells the picker which reason the ceiling pre-armed, so it is shown as chosen", () => {
+    openReject({ attemptsCount: 3, maxAttempts: 3 });
+    const picker = screen.getByTestId("rejection-select");
+    expect(picker.getAttribute("data-default-group")).toBe("injoignable");
+    expect(picker.getAttribute("data-default-sub")).toBe("pas_de_reponse");
+    expect(submit().disabled).toBe(false);
+  });
+
+  // The phone path: the panel's « Refuser » opens the sheet straight on the
+  // rejection, skipping the « Rejeté » card whose click used to do the arming.
+  it("arms the ceiling's reason when opened straight on the rejection", () => {
+    render(
+      <PostCallActionSheet {...defaultProps} attemptsCount={3} maxAttempts={3} initialFlow="reject_flow" />,
+    );
+    expect(submit().disabled).toBe(false);
+  });
+
+  it("offers no « plus tard » at the ceiling, where the callback it leads to is gone", () => {
+    openReject({ attemptsCount: 3, maxAttempts: 3 });
+    expect(screen.queryByText("Plus tard")).toBeNull();
+  });
+
+  it("explains a refused rejection instead of calling it a network error", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ error: "Invalid rejection reason" }) });
+    openReject();
+    fireEvent.click(screen.getByText("Doublon"));
+    await act(async () => {
+      fireEvent.click(submit());
+    });
+    expect(screen.getByRole("alert").textContent).toContain("Refus non enregistré");
+    expect(defaultProps.onSuccess).not.toHaveBeenCalled();
+  });
+
+  it("says the order is no longer the agent's when the server cannot find it for them", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ error: "Order not found" }) });
+    openReject();
+    fireEvent.click(screen.getByText("Doublon"));
+    await act(async () => {
+      fireEvent.click(submit());
+    });
+    expect(screen.getByRole("alert").textContent).toContain("Cette commande a été réattribuée");
+  });
+
+  it("holds the page behind it still while open", () => {
+    // Without this, a drag that reaches the end of the sheet on iOS carries
+    // on into the queue behind it.
+    const view = render(<PostCallActionSheet {...defaultProps} />);
+    expect(document.body.style.overflow).toBe("hidden");
+    view.unmount();
+    expect(document.body.style.overflow).toBe("");
+  });
+});
+
+describe("PostCallActionSheet — scheduling a callback", () => {
+  // At the ceiling the callback option and its picker are hidden. A pinned
+  // submit must not survive them: it would schedule a +2h callback the agent
+  // never saw or chose.
+  it("offers no callback submit at the ceiling, where there is no picker to set it", () => {
+    render(
+      <PostCallActionSheet {...defaultProps} attemptsCount={3} maxAttempts={3} initialFlow="callback_expanded" />,
+    );
+    expect(screen.queryByTestId("callback-picker")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Planifier le rappel" })).toBeNull();
+  });
+
+  it("disarms « Planifier le rappel » when the picker says the time has passed", () => {
+    // The picker printed « l'heure doit être future » while the button stayed
+    // live with the previous valid time — submitting a time nobody could see.
+    render(<PostCallActionSheet {...defaultProps} />);
+    fireEvent.click(screen.getByText("Rappel demandé"));
+    fireEvent.click(screen.getByText("Heure passée"));
+    expect(
+      (screen.getByRole("button", { name: "Planifier le rappel" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it("submits the time the picker shows after it is re-opened, not an earlier pick", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ data: { new_status: "callback_scheduled" } }) });
+    render(<PostCallActionSheet {...defaultProps} />);
+    fireEvent.click(screen.getByText("Rappel demandé"));
+    fireEvent.click(screen.getByText("Confirmer date"));
+    fireEvent.click(screen.getByText("Rappel demandé")); // collapse
+    fireEvent.click(screen.getByText("Rappel demandé")); // re-open: the picker shows a fresh default
+    const shown = screen.getByTestId("shown-default").textContent;
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Planifier le rappel" }));
+    });
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    expect(body.callback_time).toBe(shown);
   });
 });

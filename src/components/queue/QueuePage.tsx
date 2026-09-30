@@ -939,12 +939,18 @@ export function QueuePage() {
         }
         onClose={() => setSelectedOrderId(null)}
         onCallTerminated={(id, ctx) => {
-          setSelectedOrderId(null);
-          // The panel's footer now names the outcome, so the sheet opens on
-          // that step instead of asking the question a second time.
+          // The order stays open UNDER the sheet. It used to close here, so on
+          // a phone — where the panel is the whole screen — « Annuler » on the
+          // sheet dropped the agent on the list with the order gone. It closes
+          // in the sheet's onSuccess instead, once an outcome is recorded.
+          handleCallTerminated(id);
+          // The panel's footer names the outcome, so the sheet opens on that
+          // step instead of asking the question a second time.
           setInitialFlow(ctx?.flow);
-          setCallTerminatedOrderId(id);
         }}
+        // While the sheet is up the panel's own keys stand down: both listen
+        // on `document`, and one Escape used to close the two layers at once.
+        covered={callTerminatedOrderId !== null}
         role="agent"
         userId={user?.id ?? undefined}
         onReopened={() => {
@@ -998,6 +1004,11 @@ export function QueuePage() {
           }}
           onSuccess={(result) => {
             mutate();
+            // The outcome is recorded: the order beneath is done with. Only
+            // that order — a desktop agent can end a call on a focused row
+            // while a different order sits open in the side panel.
+            const endedId = callTerminatedOrderId;
+            setSelectedOrderId((open) => (open === endedId ? null : open));
             setCallTerminatedOrderId(null);
             setActiveOrderSnapshot(null);
             setInitialFlow(undefined);

@@ -34,9 +34,18 @@ export function PanelTabs({ active, onChange, historyCount, messagesCount, showM
   ];
 
   return (
+    // Phone: four labels plus two count pills are wider than 375px, and the
+    // panel clips — « Messages » was cut in half. The strip scrolls sideways
+    // instead, with no scrollbar drawn, and pins under the top of the panel's
+    // one scroll region so switching tab never needs scrolling back up.
     <div
       role="tablist"
-      className="flex h-[42px] flex-shrink-0 items-stretch gap-[26px] border-b border-oms-border px-[18px] max-lg:gap-5 max-lg:px-3.5"
+      className={[
+        "flex h-[42px] flex-shrink-0 items-stretch gap-[26px] border-b border-oms-border bg-oms-surface px-[18px]",
+        "max-lg:gap-5 max-lg:px-3.5",
+        "max-lg:sticky max-lg:top-0 max-lg:z-10 max-lg:overflow-x-auto max-lg:overscroll-x-contain",
+        "max-lg:[scrollbar-width:none] max-lg:[&::-webkit-scrollbar]:hidden",
+      ].join(" ")}
     >
       {tabs.map((tab) => {
         const selected = tab.key === active;
@@ -48,7 +57,7 @@ export function PanelTabs({ active, onChange, historyCount, messagesCount, showM
             aria-selected={selected}
             onClick={() => onChange(tab.key)}
             className={
-              "relative inline-flex items-center gap-[7px] whitespace-nowrap text-[15px] transition-colors duration-fast " +
+              "relative inline-flex flex-shrink-0 items-center gap-[7px] whitespace-nowrap text-[15px] transition-colors duration-fast " +
               (selected
                 ? "font-bold text-brand"
                 : "font-semibold text-oms-ink-2 hover:text-oms-ink-1")
@@ -68,7 +77,9 @@ export function PanelTabs({ active, onChange, historyCount, messagesCount, showM
             {selected && (
               <span
                 aria-hidden="true"
-                className="absolute inset-x-0 -bottom-px h-[2px] bg-brand"
+                // bottom-0 on a phone: the strip scrolls there, and a
+                // scroller clips the 1px it would hang over the border.
+                className="absolute inset-x-0 -bottom-px h-[2px] bg-brand max-lg:bottom-0"
               />
             )}
           </button>

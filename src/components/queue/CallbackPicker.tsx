@@ -6,6 +6,12 @@ import { useTranslations } from "next-intl";
 interface CallbackPickerProps {
   defaultValue?: Date;
   onSelect: (dateTime: Date) => void;
+  /**
+   * The time on screen stopped being a valid answer (it is in the past). The
+   * caller must disarm its submit: printing the error was not enough while the
+   * last valid time stayed armed behind it.
+   */
+  onInvalid?: () => void;
 }
 
 function toLocalDateString(d: Date): string {
@@ -21,38 +27,14 @@ function toLocalTimeString(d: Date): string {
   return `${hours}:${minutes}`;
 }
 
-const inputStyle: React.CSSProperties = {
-  padding: "8px 12px",
-  fontSize: 14,
-  border: "1px solid #D1D5DB",
-  borderRadius: "0.25rem",
-  width: "100%",
-  color: "#1A1A1A",
-  backgroundColor: "#FFFFFF",
-  outline: "none",
-  boxSizing: "border-box",
-};
+// 16px on a phone: iOS Safari zooms the page into any focused field set
+// smaller, and leaves it zoomed — the sheet ends up cropped off-screen.
+// `min-w-0` because a native date input has an intrinsic width that otherwise
+// pushes the pair past a 375px screen.
+const INPUT_CLASSES =
+  "h-11 w-full min-w-0 rounded border border-[#D1D5DB] bg-white px-3 text-[16px] text-[#1A1A1A] outline-none focus:border-[#1A1A1A] focus:ring-1 focus:ring-[#1A1A1A] lg:h-10 lg:text-[14px]";
 
-const inputFocusStyle: React.CSSProperties = {
-  ...inputStyle,
-  border: "2px solid #1A1A1A",
-};
-
-function FocusableInput(
-  props: React.InputHTMLAttributes<HTMLInputElement>
-) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <input
-      {...props}
-      style={focused ? inputFocusStyle : inputStyle}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-    />
-  );
-}
-
-export function CallbackPicker({ defaultValue, onSelect }: CallbackPickerProps) {
+export function CallbackPicker({ defaultValue, onSelect, onInvalid }: CallbackPickerProps) {
   const t = useTranslations("queue");
   const [dateVal, setDateVal] = useState(
     defaultValue ? toLocalDateString(defaultValue) : ""
@@ -73,13 +55,14 @@ export function CallbackPicker({ defaultValue, onSelect }: CallbackPickerProps) 
       if (!isNaN(combined.getTime())) {
         if (combined <= new Date()) {
           setValidationError(t("scheduleMustBeFuture"));
+          onInvalid?.();
         } else {
           setValidationError(null);
           onSelect(combined);
         }
       }
     }
-  }, [onSelect, t]);
+  }, [onSelect, onInvalid, t]);
 
   function applyPreset() {
     const d = new Date();
@@ -94,32 +77,22 @@ export function CallbackPicker({ defaultValue, onSelect }: CallbackPickerProps) 
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "#1A1A1A" }}>
-          {t("callbackTitle")}
-        </div>
+      <div className="mb-2 flex items-center justify-between">
+        <div className="text-[14px] font-semibold text-[#1A1A1A]">{t("callbackTitle")}</div>
         <button
           type="button"
+          // A Latin token: in an Arabic sheet bidi would print « 2h+ ».
+          dir="ltr"
           onClick={applyPreset}
-          style={{
-            fontSize: 12,
-            padding: "4px 10px",
-            border: "1px solid #D1D5DB",
-            borderRadius: "0.25rem",
-            background: "white",
-            color: "#1A1A1A",
-            cursor: "pointer",
-          }}
+          className="h-9 rounded border border-[#D1D5DB] bg-white px-3 text-[13px] font-semibold text-[#1A1A1A] transition-colors duration-fast hover:bg-[#F3F4F6]"
         >
           +2h
         </button>
       </div>
-      <div style={{ display: "flex", gap: 8 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, fontWeight: 500, color: "#6B7280", marginBottom: 4 }}>
-            {t("scheduleDate")}
-          </div>
-          <FocusableInput
+      <div className="flex gap-2">
+        <label className="min-w-0 flex-1">
+          <span className="mb-1 block text-[12px] font-medium text-[#6B7280]">{t("scheduleDate")}</span>
+          <input
             type="date"
             aria-label={t("callbackDateAria")}
             min={today}
@@ -128,13 +101,12 @@ export function CallbackPicker({ defaultValue, onSelect }: CallbackPickerProps) 
               setDateVal(e.target.value);
               handleChange(e.target.value, timeVal);
             }}
+            className={INPUT_CLASSES}
           />
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, fontWeight: 500, color: "#6B7280", marginBottom: 4 }}>
-            {t("scheduleTime")}
-          </div>
-          <FocusableInput
+        </label>
+        <label className="min-w-0 flex-1">
+          <span className="mb-1 block text-[12px] font-medium text-[#6B7280]">{t("scheduleTime")}</span>
+          <input
             type="time"
             aria-label={t("callbackTimeAria")}
             value={timeVal}
@@ -142,11 +114,12 @@ export function CallbackPicker({ defaultValue, onSelect }: CallbackPickerProps) 
               setTimeVal(e.target.value);
               handleChange(dateVal, e.target.value);
             }}
+            className={INPUT_CLASSES}
           />
-        </div>
+        </label>
       </div>
       {validationError && (
-        <div style={{ fontSize: 12, color: "#DC2626", marginTop: 6 }}>
+        <div role="alert" className="mt-1.5 text-[12px] text-[#DC2626]">
           {validationError}
         </div>
       )}

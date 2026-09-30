@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { ChevronLeft, CalendarClock } from "lucide-react";
 import {
@@ -35,8 +35,26 @@ interface RejectionReasonSelectProps {
    * escape is hidden (the caller has no way to reschedule).
    */
   onPostpone?: () => void;
+  /**
+   * The answer stopped being complete — the agent went back to the groups,
+   * erased the note, or the market retired the pre-chosen reason. The caller
+   * must disarm whatever `onSelect` armed: the sheet used to keep its submit
+   * live with a reason no longer visible anywhere on screen.
+   */
+  onClear?: () => void;
+  /**
+   * Leave the rejection altogether. Rendered as the groups pane's « Retour »;
+   * a group's sub-reasons have their own « Retour », to the groups. One back
+   * control whose destination follows the pane, instead of two stacked ones.
+   */
+  onBack?: () => void;
   defaultGroup?: string;
+  /** Shown as chosen on open — the ceiling pre-arms « pas de réponse ». */
+  defaultSub?: string;
 }
+
+const BACK_CLASSES =
+  "inline-flex h-10 items-center gap-1 self-start rounded-md px-2 -ms-2 text-[13px] font-medium text-agent-ink-3 transition-colors duration-fast hover:bg-agent-surface-low hover:text-agent-on-surface";
 
 /**
  * Two panes: which kind of no, then which no.
@@ -54,7 +72,10 @@ export function RejectionReasonSelect({
   marketId = null,
   onSelect,
   onPostpone,
+  onClear,
+  onBack,
   defaultGroup,
+  defaultSub,
 }: RejectionReasonSelectProps) {
   const tGroups = useTranslations("orders.rejectionGroups");
   const tHints = useTranslations("orders.rejectionGroupHints");
@@ -64,7 +85,9 @@ export function RejectionReasonSelect({
   const { rows } = useRejectionReasons(marketId);
 
   const [group, setGroup] = useState<string | null>(defaultGroup ?? null);
-  const [sub, setSub] = useState<string | null>(null);
+  const [sub, setSub] = useState<string | null>(
+    defaultGroup ? (defaultSub ?? null) : null,
+  );
   const [note, setNote] = useState("");
 
   /**
@@ -139,14 +162,66 @@ export function RejectionReasonSelect({
   }
 
   function changeNote(value: string) {
+    const had = note.trim() !== "";
     setNote(value);
     // An empty note is not an answer — see the 440 orders that prove it.
     if (value.trim()) onSelect(group as string, null, value);
+    else if (had) onClear?.();
   }
+
+  /** Is what is on screen right now a complete answer the caller holds? */
+  function isComplete(): boolean {
+    if (group === null) return false;
+    if (noteOnly(group)) return note.trim() !== "";
+    if (subsOf(group).length === 0) return true;
+    return sub !== null;
+  }
+
+  function backToGroups() {
+    const had = isComplete();
+    setGroup(null);
+    setSub(null);
+    setNote("");
+    if (had) onClear?.();
+  }
+
+  // The taxonomy can change under an open picker: the market's rows land after
+  // the compiled fallback rendered, or the pre-chosen reason was retired. A
+  // selection the list no longer offers is withdrawn rather than left armed —
+  // the server would refuse it with a 400 the agent cannot act on.
+  const offered =
+    group !== null && groups.some((g) => g.key === group) &&
+    (sub === null || subsOf(group).some((s) => s.key === sub));
+  useEffect(() => {
+    if (group === null || offered) return;
+    if (groups.some((g) => g.key === group)) setSub(null);
+    else setGroup(null);
+    onClear?.();
+  }, [group, offered, groups, onClear]);
+
+  // What is shown as chosen is what is armed. A pre-chosen answer is reported
+  // once, on open — the caller used to arm it only from its own click handler,
+  // so opening straight on the rejection showed « Ne répond pas » highlighted
+  // above a dead button.
+  const reportedDefault = useRef(false);
+  useEffect(() => {
+    if (reportedDefault.current) return;
+    reportedDefault.current = true;
+    if (defaultGroup && offered && isComplete()) onSelect(group as string, sub, undefined);
+    // Once, on open: later changes are reported by the handlers that make them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (group === null) {
     return (
       <div className="flex flex-col gap-2">
+        {onBack && (
+          <button type="button" onClick={onBack} className={BACK_CLASSES}>
+            {/* Logical rotation: the chevron must point back, not left. */}
+            <ChevronLeft size={16} strokeWidth={2.25} aria-hidden="true" className="rtl:rotate-180" />
+            {tQueue("rejectionBack")}
+          </button>
+        )}
         <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-agent-ink-3">
           {tQueue("rejectionGroupLabel")}
         </span>
@@ -198,18 +273,9 @@ export function RejectionReasonSelect({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setGroup(null)}
-          className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[12px] font-medium text-agent-ink-3 transition-colors duration-fast hover:bg-agent-surface-low hover:text-agent-on-surface"
-        >
+        <button type="button" onClick={backToGroups} className={BACK_CLASSES}>
           {/* Logical rotation: the chevron must point back, not left. */}
-          <ChevronLeft
-            size={14}
-            strokeWidth={2.25}
-            aria-hidden="true"
-            className="rtl:rotate-180"
-          />
+          <ChevronLeft size={16} strokeWidth={2.25} aria-hidden="true" className="rtl:rotate-180" />
           {tQueue("rejectionBack")}
         </button>
         <span className="text-[13px] font-semibold text-agent-on-surface">
@@ -224,7 +290,8 @@ export function RejectionReasonSelect({
           placeholder={tQueue("rejectionNotePlaceholder")}
           value={note}
           onChange={(e) => changeNote(e.target.value)}
-          className="w-full rounded-lg border border-agent-outline-variant bg-agent-surface px-3 py-2 text-[14px] text-agent-on-surface placeholder:text-agent-ink-3"
+          // 16px on a phone: iOS zooms the page into anything smaller.
+          className="h-11 w-full rounded-lg border border-agent-outline-variant bg-agent-surface px-3 text-[16px] text-agent-on-surface placeholder:text-agent-ink-3 lg:h-10 lg:text-[14px]"
         />
       ) : (
         <>
@@ -238,7 +305,8 @@ export function RejectionReasonSelect({
               aria-pressed={sub === sr.key}
               onClick={() => chooseSub(sr.key)}
               className={[
-                "rounded-lg border px-4 py-2.5 text-start text-[14px] font-medium transition-colors duration-fast",
+                // 44px floor: these are tapped mid-call, one-handed.
+                "min-h-[44px] rounded-lg border px-4 py-2.5 text-start text-[14px] font-medium transition-colors duration-fast",
                 sub === sr.key
                   ? "border-brand bg-brand-tint text-agent-on-surface"
                   : "border-agent-outline-variant bg-agent-surface text-agent-on-surface hover:border-agent-outline hover:bg-agent-surface-low",

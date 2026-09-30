@@ -148,7 +148,9 @@ export function ActionFooter({
   const cells = Math.min(bar.length + (items.length > 0 ? 1 : 0), 5);
 
   return (
-    <div className="flex-shrink-0 border-t border-oms-border bg-oms-surface px-3 pb-2 pt-2.5 max-lg:pb-[22px]">
+    // Phone: clear the home indicator where the browser reports one, and
+    // never sit flush on the bottom edge where it does not.
+    <div className="flex-shrink-0 border-t border-oms-border bg-oms-surface px-3 pb-2 pt-2.5 max-lg:pb-[max(14px,env(safe-area-inset-bottom))]">
       <div
         data-testid="panel-actions"
         className={[
@@ -200,9 +202,10 @@ export function ActionFooter({
         ) : null}
       </div>
 
-      {/* Only where the keys do something: the queue's list shortcuts. */}
+      {/* Only where the keys do something: the queue's list shortcuts — and
+          never on a phone, which has neither arrows nor Enter. */}
       {showNavHint ? (
-        <p className="m-0 mt-2.5 text-center text-[12px] text-oms-ink-3">
+        <p className="m-0 mt-2.5 text-center text-[12px] text-oms-ink-3 max-lg:hidden">
           <Kbd>↕</Kbd> {t("navHintNav")}
           <span aria-hidden="true"> · </span>
           <Kbd>{t("navHintEnterKey")}</Kbd> {t("navHintCall")}

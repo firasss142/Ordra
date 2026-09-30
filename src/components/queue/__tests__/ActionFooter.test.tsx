@@ -87,3 +87,18 @@ describe("ActionFooter — the second action", () => {
     expect(screen.getByRole("button", { name: /fermer/i })).toBeInTheDocument();
   });
 });
+
+describe("ActionFooter — on a phone", () => {
+  // « ↕ pour passer d'une commande à l'autre · Entrée pour appeler » is a
+  // promise about keys a phone does not have, printed in the 40px the
+  // receipt needs most.
+  test("keeps the keyboard hint off a phone", () => {
+    render(
+      <NextIntlClientProvider locale="fr" messages={messages}>
+        <ActionFooter actions={{ primary: PRIMARY, overflow: [] }} onInvoke={vi.fn()} showNavHint />
+      </NextIntlClientProvider>,
+    );
+    const hint = screen.getByText(/pour passer d'une commande à l'autre/).closest("p");
+    expect(hint?.className).toMatch(/(^|\s)max-lg:hidden(\s|$)/);
+  });
+});

@@ -303,6 +303,75 @@ describe("OrderDetailPanel", () => {
     expect(screen.queryByText("pending")).toBeNull();
   });
 
+  describe("under the call sheet", () => {
+    // The panel now stays open beneath the sheet. Both listen for Escape on
+    // `document`, so without this one press closed both layers at once.
+    it("stands down its Escape while the call sheet covers it", () => {
+      const onClose = vi.fn();
+      const props = { orderId: "order-1", onClose, onCallTerminated: () => {}, userId: "user-1" };
+      const { rerender } = render(<OrderDetailPanel {...props} covered />);
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(onClose).not.toHaveBeenCalled();
+
+      rerender(<OrderDetailPanel {...props} covered={false} />);
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("on a phone", () => {
+    const setPhone = (matches: boolean) => {
+      window.matchMedia = vi.fn().mockReturnValue({
+        matches,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }) as unknown as typeof window.matchMedia;
+    };
+    const renderPanel = () =>
+      render(
+        <OrderDetailPanel orderId="order-1" onClose={() => {}} onCallTerminated={() => {}} userId="user-1" variant="side" />,
+      );
+
+    // The masthead used to be its own capped scroll box above a second one
+    // for the receipt. On an iPhone SE that left the receipt 18px of height,
+    // and a drag on the customer's name scrolled a box nobody could see the
+    // edges of.
+    it("scrolls the customer, the tabs and the receipt as one region", () => {
+      renderPanel();
+      const scroller = screen.getByTestId("panel-scroll");
+      expect(scroller.contains(screen.getByRole("region", { name: "العميل" }))).toBe(true);
+      expect(scroller.contains(screen.getByRole("tablist"))).toBe(true);
+      expect(scroller.contains(screen.getAllByRole("tabpanel")[0])).toBe(true);
+    });
+
+    it("lets the tab strip scroll sideways rather than clip its last tab", () => {
+      renderPanel();
+      expect(screen.getByRole("tablist").className).toMatch(/(^|\s)max-lg:overflow-x-auto(\s|$)/);
+    });
+
+    // The call and WhatsApp buttons shared a row with the name and a
+    // `flex-none` reliability pill, which squeezed the name to one letter a
+    // line on a 375px screen.
+    it("gives calling its own full-width row under the customer's name", () => {
+      renderPanel();
+      expect(screen.getByRole("link", { name: /اتصال/ }).className).toMatch(/(^|\s)max-lg:flex-1(\s|$)/);
+    });
+
+    it("holds the queue behind it still while an order is open", () => {
+      setPhone(true);
+      const view = renderPanel();
+      expect(document.body.style.overflow).toBe("hidden");
+      view.unmount();
+      expect(document.body.style.overflow).toBe("");
+    });
+
+    it("leaves the queue scrollable on a desktop, where the panel sits beside it", () => {
+      setPhone(false);
+      renderPanel();
+      expect(document.body.style.overflow).toBe("");
+    });
+  });
+
   describe("DexpressStatusSection eligibility gating", () => {
     const DEXPRESS_CARRIER_ID = "dx-carrier-uuid";
     const NAVEX_CARRIER_ID = "nx-carrier-uuid";

@@ -84,6 +84,14 @@ describe("RejectionReasonSelect — autre", () => {
     expect(onSelect).toHaveBeenCalledWith("autre", null, "le client a déménagé");
   });
 
+  // iOS Safari zooms the page into a focused field under 16px and stays
+  // zoomed — the sheet around the note ends up cropped off the screen.
+  it("sets the note at 16px on a phone, so iOS does not zoom into it", () => {
+    render(<RejectionReasonSelect onSelect={vi.fn()} />);
+    fireEvent.click(screen.getByText("Autre"));
+    expect(screen.getByPlaceholderText("Précisez…").className).toMatch(/(^|\s)text-\[16px\]/);
+  });
+
   it("does not report anything while the note is still empty", () => {
     // 440 orders carry `autre` with no note. The reason is gone for good on
     // every one of them; an empty note must not count as an answer.
@@ -114,5 +122,100 @@ describe("RejectionReasonSelect — the postpone escape", () => {
     render(<RejectionReasonSelect onSelect={onSelect} onPostpone={vi.fn()} />);
     fireEvent.click(screen.getByText("Le client veut plus tard"));
     expect(onSelect).not.toHaveBeenCalled();
+  });
+});
+
+// The sheet arms its submit button from what this picker reports. Reporting
+// only complete answers was half the contract: an answer that STOPS being
+// complete has to be reported too, or the button stays armed with a reason the
+// agent can no longer see on screen.
+describe("RejectionReasonSelect — withdrawing an answer", () => {
+  it("withdraws the answer when the agent goes back to the groups", () => {
+    const onClear = vi.fn();
+    render(<RejectionReasonSelect onSelect={vi.fn()} onClear={onClear} />);
+    fireEvent.click(screen.getByText("Refus client"));
+    fireEvent.click(screen.getByText("Acheté ailleurs"));
+    expect(onClear).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("Retour"));
+    expect(onClear).toHaveBeenCalledTimes(1);
+  });
+
+  it("withdraws the answer when the note is erased", () => {
+    const onClear = vi.fn();
+    render(<RejectionReasonSelect onSelect={vi.fn()} onClear={onClear} />);
+    fireEvent.click(screen.getByText("Autre"));
+    const note = screen.getByPlaceholderText("Précisez…");
+    fireEvent.change(note, { target: { value: "déménagé" } });
+    expect(onClear).not.toHaveBeenCalled();
+
+    fireEvent.change(note, { target: { value: "   " } });
+    expect(onClear).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("RejectionReasonSelect — an answer the caller already chose", () => {
+  // At the attempt ceiling the sheet pre-arms « Injoignable › Ne répond pas ».
+  // The picker used to open on the group with nothing highlighted while the
+  // submit button was already live — the agent could not see what they were
+  // about to record.
+  it("shows the pre-chosen sub-reason as chosen", () => {
+    render(
+      <RejectionReasonSelect
+        onSelect={vi.fn()}
+        defaultGroup="injoignable"
+        defaultSub="pas_de_reponse"
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Ne répond pas" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(
+      screen.getByRole("button", { name: "Raccroche au téléphone" }).getAttribute("aria-pressed"),
+    ).toBe("false");
+  });
+
+  // What is shown as chosen is what is armed. The sheet used to pre-arm only
+  // when its « Rejeté » card was tapped, so opening straight on the rejection
+  // — the panel's « Refuser », i.e. every phone — showed « Ne répond pas »
+  // highlighted above a dead button.
+  it("reports the pre-chosen answer as the answer, without a tap", () => {
+    const onSelect = vi.fn();
+    render(
+      <RejectionReasonSelect
+        onSelect={onSelect}
+        defaultGroup="injoignable"
+        defaultSub="pas_de_reponse"
+      />,
+    );
+    expect(onSelect).toHaveBeenCalledWith("injoignable", "pas_de_reponse", undefined);
+  });
+
+  it("reports nothing for a pre-chosen group alone — that is not an answer", () => {
+    const onSelect = vi.fn();
+    render(<RejectionReasonSelect onSelect={onSelect} defaultGroup="injoignable" />);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+});
+
+describe("RejectionReasonSelect — the way back out", () => {
+  // One back control, whose meaning follows the pane: to the groups from a
+  // group's sub-reasons, and out of the rejection from the groups. The sheet
+  // used to stack its own « Retour » above the picker's — two buttons with the
+  // same word and different destinations.
+  it("offers a way back out of the rejection from the groups", () => {
+    const onBack = vi.fn();
+    render(<RejectionReasonSelect onSelect={vi.fn()} onBack={onBack} />);
+    fireEvent.click(screen.getByText("Retour"));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("goes back to the groups, not out, from a group's sub-reasons", () => {
+    const onBack = vi.fn();
+    render(<RejectionReasonSelect onSelect={vi.fn()} onBack={onBack} />);
+    fireEvent.click(screen.getByText("Injoignable"));
+    fireEvent.click(screen.getByText("Retour"));
+    expect(onBack).not.toHaveBeenCalled();
+    expect(screen.getByText("Refus client")).toBeDefined();
   });
 });
