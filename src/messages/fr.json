@@ -3621,6 +3621,7 @@
       "declaredBy": "déclarée par {name}",
       "deletePayment": "Supprimer ce paiement",
       "deliveryNote": "Bon de livraison",
+      "discard": "Abandonner",
       "empty": "Aucune réception",
       "emptyHint": "Une livraison fournisseur commence ici.",
       "entryProgress": "Saisie {done} / {total} lignes comptées",
@@ -3673,6 +3674,7 @@
       "reverseNote": "Motif",
       "reverseTitle": "Contre-passer {reference}",
       "save": "Enregistrer",
+      "saveLines": "Enregistrer les quantités",
       "searchProduct": "Chercher un produit…",
       "segAll": "Toutes",
       "segExpected": "Attendues",
@@ -3695,6 +3697,7 @@
       "unitsCounted": "comptées",
       "unitsDamagedSuffix": "· {count} abîmées",
       "unitsExpected": "attendues",
+      "unsavedChanges": "Modifications non enregistrées",
       "waitingManager": "attend un manager"
     }
   },

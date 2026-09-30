@@ -3621,6 +3621,7 @@
       "declaredBy": "أعلنها {name}",
       "deletePayment": "حذف هذه الدفعة",
       "deliveryNote": "إشعار التسليم",
+      "discard": "تجاهل",
       "empty": "لا استلامات",
       "emptyHint": "تسليم المورّد يبدأ من هنا.",
       "entryProgress": "العدّ {done} / {total} أسطر",
@@ -3673,6 +3674,7 @@
       "reverseNote": "السبب",
       "reverseTitle": "معاكسة {reference}",
       "save": "حفظ",
+      "saveLines": "حفظ الكميات",
       "searchProduct": "ابحث عن منتج…",
       "segAll": "الكل",
       "segExpected": "متوقعة",
@@ -3695,6 +3697,7 @@
       "unitsCounted": "معدودة",
       "unitsDamagedSuffix": "· {count} تالفة",
       "unitsExpected": "متوقعة",
+      "unsavedChanges": "تعديلات غير محفوظة",
       "waitingManager": "بانتظار المدير"
     }
   },

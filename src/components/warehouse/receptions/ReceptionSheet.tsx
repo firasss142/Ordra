@@ -5,7 +5,9 @@ import { useTranslations } from "next-intl";
 import { ChevronLeft, Check, Plus, Trash2, Image as ImageIcon } from "lucide-react";
 import type { Role } from "@/types";
 import { useReception } from "@/hooks/useReceptions";
-import { canSeeReceptionCosts } from "@/lib/receptions/permissions";
+import { canSeeReceptionCosts, canDraftReception } from "@/lib/receptions/permissions";
+import { lineVariance, receptionTotals } from "@/lib/receptions/derive";
+import { ReceptionLineEditor, type LinePatch } from "./ReceptionLineEditor";
 import { WH_CARD, WH_LABEL, WH_BTN, WH_BTN_PRIMARY } from "@/components/warehouse/console/tokens";
 import { ReceptionStatusChip, PaymentChip } from "./ReceptionStatusChip";
 import { ReceptionPostDialog } from "./ReceptionPostDialog";
@@ -47,6 +49,16 @@ export function ReceptionSheet({
   const [posting, setPosting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /*
+   * Les modifications vivent en local jusqu'à l'enregistrement explicite.
+   *
+   * Pas d'enregistrement automatique à la frappe : la route remplace les lignes
+   * EN BLOC (le client tient la liste complète, ce qui évite les lignes
+   * fantômes), donc un appel par caractère tapé réécrirait la table à chaque
+   * touche. Et sur un quai, un réseau qui tombe au milieu d'une saisie
+   * auto-enregistrée laisse un document à moitié écrit sans le dire.
+   */
+  const [edits, setEdits] = useState<Record<string, LinePatch>>({});
   const withCosts = canSeeReceptionCosts(role);
 
   useEffect(() => {
@@ -91,6 +103,52 @@ export function ReceptionSheet({
     }
   }
 
+  /**
+   * Enregistre les quantités saisies.
+   *
+   * La route remplace les lignes EN BLOC, donc on renvoie TOUTES les lignes —
+   * celles qu'on n'a pas touchées comprises. Envoyer seulement les modifiées
+   * supprimerait les autres.
+   */
+  async function saveLines() {
+    if (busy || !reception) return false;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/warehouse/receptions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lines: reception.lines.map((l) => {
+            const patch = edits[l.id];
+            return {
+              product_id: l.product_id,
+              variant_id: l.variant_id,
+              expected_qty: l.expected_qty,
+              received_qty: patch ? patch.received_qty : l.received_qty,
+              damaged_qty: patch ? patch.damaged_qty : l.damaged_qty,
+              unit_cost: patch ? patch.unit_cost : (l.unit_cost ?? null),
+            };
+          }),
+        }),
+      });
+      if (!res.ok) {
+        const b = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(b.error ?? String(res.status));
+        return false;
+      }
+      setEdits({});
+      await mutate();
+      onChanged();
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "network");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (isLoading || !reception) {
     return (
       <div className="fixed inset-0 z-50 grid place-items-center bg-wh-bg">
@@ -102,8 +160,35 @@ export function ReceptionSheet({
   const r = reception;
   // « Comptée » veut dire qu'un humain a mis un nombre — y compris zéro, qui est
   // une réponse. `null` veut dire que personne n'a encore regardé.
-  const counted = r.lines.filter((l) => l.received_qty !== null).length;
+  // Une ligne « comptée » porte un nombre — zéro compris, qui est une réponse.
+  const effective = (l: (typeof r.lines)[number]) =>
+    edits[l.id] ? edits[l.id].received_qty : l.received_qty;
+  const counted = r.lines.filter((l) => effective(l) !== null).length;
   const remaining = r.lines.length - counted;
+
+  // Un brouillon ou une déclaration se modifie ; une réception validée est
+  // définitive, et le déclencheur en base le refuse de toute façon.
+  const editable =
+    canDraftReception(role) && (r.status === "draft" || r.status === "submitted");
+  const dirty = Object.keys(edits).length > 0;
+
+  /*
+   * Les totaux du pied suivent la SAISIE EN COURS, pas la dernière version
+   * enregistrée. Un pied qui contredit les champs juste au-dessus est un écran
+   * qu'on cesse de croire — et celui-ci porte un geste qui bouge du stock.
+   */
+  const liveTotals = dirty
+    ? receptionTotals(
+        r.lines.map((l) => {
+          const patch = edits[l.id];
+          return {
+            received_qty: patch ? patch.received_qty : l.received_qty,
+            damaged_qty: patch ? patch.damaged_qty : l.damaged_qty,
+            unit_cost: withCosts ? (patch ? patch.unit_cost : (l.unit_cost ?? null)) : null,
+          };
+        }),
+      )
+    : r.totals;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-wh-bg">
@@ -193,118 +278,59 @@ export function ReceptionSheet({
           </div>
 
           <ul>
-            {r.lines.map((l) => (
-              <li
-                key={l.id}
-                className={`${LINE_GRID} border-b border-wh-border px-4 py-3 last:border-b-0 md:px-5`}
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-[13.5px] font-semibold" dir="auto">
-                    {l.product_name}
-                  </span>
-                  <span className="mt-0.5 block font-mono text-[11.5px] text-wh-ink-3">
-                    {l.variant_label ? `${l.variant_label} · ` : ""}
-                    {l.product_sku ?? ""}
-                  </span>
-                </span>
+            {r.lines.map((l) => {
+              const draft = edits[l.id];
+              // La ligne affichée est le brouillon local s'il existe, sinon la
+              // version du serveur. L'écart est recalculé sur place pour que le
+              // chiffre bouge sous le doigt, sans aller-retour réseau.
+              const shown = draft
+                ? {
+                    ...l,
+                    received_qty: draft.received_qty,
+                    damaged_qty: draft.damaged_qty,
+                    unit_cost: draft.unit_cost,
+                    variance: lineVariance({
+                      expected: l.expected_qty,
+                      received: draft.received_qty,
+                    }),
+                    line_value:
+                      draft.unit_cost !== null && draft.received_qty !== null
+                        ? draft.unit_cost * draft.received_qty
+                        : null,
+                  }
+                : l;
 
-                {/* Attendu : « non annoncé » quand rien ne l'était — jamais 0. */}
-                <span className="text-end">
-                  {l.expected_qty === null ? (
-                    <span className="text-[11.5px] italic text-wh-ink-3">{t("notAnnounced")}</span>
-                  ) : (
-                    <span className="font-mono text-[14px] font-medium text-wh-ink-3 tabular-nums">
-                      {nf.format(l.expected_qty)}
-                    </span>
-                  )}
-                </span>
-
-                {/* Reçu, et l'écart seulement si les DEUX nombres existent. */}
-                <span className="text-end">
-                  {l.received_qty === null ? (
-                    <span className="inline-block w-full rounded-[6px] border border-dashed border-wh-border px-2.5 py-1.5 text-center text-[12px] italic text-wh-ink-3">
-                      {t("notCounted")}
-                    </span>
-                  ) : (
-                    <>
-                      <span className="block rounded-[6px] border border-wh-ok bg-wh-ok-bg/50 px-2.5 py-1.5 text-end font-mono text-[14px] font-semibold tabular-nums">
-                        {nf.format(l.received_qty)}
-                      </span>
-                      {l.variance !== null ? (
-                        <span
-                          className={`mt-1 block font-mono text-[11.5px] font-bold ${
-                            l.variance === 0
-                              ? "text-wh-ok"
-                              : l.variance < 0
-                                ? "text-wh-bad"
-                                : "text-wh-move"
-                          }`}
-                        >
-                          {l.variance === 0
-                            ? t("conform")
-                            : l.variance > 0 && l.expected_qty === 0
-                              ? t("offDocket", { delta: `+${l.variance}` })
-                              : `${l.variance > 0 ? "+" : "−"}${Math.abs(l.variance)}`}
-                        </span>
-                      ) : null}
-                    </>
-                  )}
-                </span>
-
-                <span className="text-end">
-                  {l.damaged_qty > 0 ? (
-                    <span className="inline-block rounded-[6px] border border-wh-warn-edge bg-wh-warn-bg px-2.5 py-1 font-mono text-[13.5px] font-bold text-wh-warn tabular-nums">
-                      {nf.format(l.damaged_qty)}
-                    </span>
-                  ) : (
-                    <span className="font-mono text-[14px] font-medium text-wh-ink-3 tabular-nums">
-                      0
-                    </span>
-                  )}
-                </span>
-
-                {withCosts ? (
-                  <>
-                    <span className="hidden text-end font-mono text-[13.5px] tabular-nums md:block">
-                      {/*
-                        `unit_cost` est OPTIONNEL dans la projection : absent
-                        pour un agent d'entrepôt, nul quand personne n'a chiffré
-                        la ligne. Les deux se lisent « — ».
-                      */}
-                      {l.unit_cost === null || l.unit_cost === undefined ? (
-                        <span className="text-wh-ink-3">—</span>
-                      ) : (
-                        cf.format(l.unit_cost)
-                      )}
-                    </span>
-                    <span className="hidden text-end font-mono text-[13.5px] font-semibold tabular-nums md:block">
-                      {l.line_value === null || l.line_value === undefined ? (
-                        <span className="text-wh-ink-3">—</span>
-                      ) : (
-                        nf.format(l.line_value)
-                      )}
-                    </span>
-                  </>
-                ) : null}
-              </li>
-            ))}
+              return (
+                <li
+                  key={l.id}
+                  className={`${LINE_GRID} border-b border-wh-border px-4 py-3 last:border-b-0 md:px-5`}
+                >
+                  <ReceptionLineEditor
+                    line={shown}
+                    withCosts={withCosts}
+                    readOnly={!editable}
+                    onChange={(patch) => setEdits((prev) => ({ ...prev, [l.id]: patch }))}
+                  />
+                </li>
+              );
+            })}
           </ul>
 
           {/* ── totaux + action ── */}
           <div className="flex flex-wrap items-center justify-between gap-4 border-t border-wh-border bg-wh-sunken px-4 py-3.5 md:px-5">
             <div className="flex flex-wrap gap-5">
-              <Total label={t("totalLines")}>{nf.format(r.totals.lines)}</Total>
-              <Total label={t("totalUnits")}>{nf.format(r.totals.units)}</Total>
-              <Total label={t("totalDamaged")} tone={r.totals.damaged > 0 ? "warn" : undefined}>
-                {nf.format(r.totals.damaged)}
+              <Total label={t("totalLines")}>{nf.format(liveTotals.lines)}</Total>
+              <Total label={t("totalUnits")}>{nf.format(liveTotals.units)}</Total>
+              <Total label={t("totalDamaged")} tone={liveTotals.damaged > 0 ? "warn" : undefined}>
+                {nf.format(liveTotals.damaged)}
               </Total>
               {withCosts ? (
                 <Total label={t("totalValue")}>
-                  {r.totals.value === null ? (
+                  {liveTotals.value === null ? (
                     <span className="text-wh-ink-3">—</span>
                   ) : (
                     <>
-                      {nf.format(r.totals.value)}
+                      {nf.format(liveTotals.value)}
                       <span className="ms-1 font-sans text-[11.5px] font-semibold text-wh-ink-2">
                         {currency}
                       </span>
@@ -314,29 +340,63 @@ export function ReceptionSheet({
               ) : null}
             </div>
 
-            <div className="flex flex-wrap gap-2.5">
-              {r.can.submit ? (
-                <button
-                  type="button"
-                  className={WH_BTN_PRIMARY}
-                  disabled={busy}
-                  onClick={() => void act("/submit")}
-                >
-                  <Check size={17} strokeWidth={2.2} />
-                  {t("submit")}
-                </button>
-              ) : null}
-              {r.can.post ? (
-                <button
-                  type="button"
-                  className={WH_BTN_PRIMARY}
-                  disabled={busy}
-                  onClick={() => setPosting(true)}
-                >
-                  <Check size={17} strokeWidth={2.2} />
-                  {t("post")}
-                </button>
-              ) : null}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/*
+               * Enregistrer d'abord, agir ensuite. Tant qu'une saisie n'est pas
+               * enregistrée, déclarer ou valider porterait sur les chiffres du
+               * SERVEUR et non sur ceux que la personne a sous les yeux — c'est
+               * la façon la plus sûre d'entrer en stock une quantité que
+               * personne n'a voulue.
+               */}
+              {dirty ? (
+                <>
+                  <span className="text-[12.5px] font-semibold text-wh-warn">
+                    {t("unsavedChanges")}
+                  </span>
+                  <button
+                    type="button"
+                    className={WH_BTN}
+                    disabled={busy}
+                    onClick={() => setEdits({})}
+                  >
+                    {t("discard")}
+                  </button>
+                  <button
+                    type="button"
+                    className={WH_BTN_PRIMARY}
+                    disabled={busy}
+                    onClick={() => void saveLines()}
+                  >
+                    <Check size={17} strokeWidth={2.2} />
+                    {t("saveLines")}
+                  </button>
+                </>
+              ) : (
+                <>
+                  {r.can.submit ? (
+                    <button
+                      type="button"
+                      className={WH_BTN_PRIMARY}
+                      disabled={busy}
+                      onClick={() => void act("/submit")}
+                    >
+                      <Check size={17} strokeWidth={2.2} />
+                      {t("submit")}
+                    </button>
+                  ) : null}
+                  {r.can.post ? (
+                    <button
+                      type="button"
+                      className={WH_BTN_PRIMARY}
+                      disabled={busy}
+                      onClick={() => setPosting(true)}
+                    >
+                      <Check size={17} strokeWidth={2.2} />
+                      {t("post")}
+                    </button>
+                  ) : null}
+                </>
+              )}
             </div>
           </div>
 
